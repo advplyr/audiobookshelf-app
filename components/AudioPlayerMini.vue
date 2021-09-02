@@ -1,0 +1,269 @@
+<template>
+  <div ref="wrapper" class="w-full pt-2">
+    <div class="relative">
+      <div class="flex mt-2 mb-4">
+        <div class="flex-grow" />
+        <template v-if="!loading">
+          <div class="cursor-pointer flex items-center justify-center text-gray-300 mr-8" @mousedown.prevent @mouseup.prevent @click.stop="restart">
+            <span class="material-icons text-3xl">first_page</span>
+          </div>
+          <div class="cursor-pointer flex items-center justify-center text-gray-300" @mousedown.prevent @mouseup.prevent @click.stop="backward10">
+            <span class="material-icons text-3xl">replay_10</span>
+          </div>
+          <div class="cursor-pointer p-2 shadow-sm bg-accent flex items-center justify-center rounded-full text-primary mx-8" :class="seekLoading ? 'animate-spin' : ''" @mousedown.prevent @mouseup.prevent @click.stop="playPauseClick">
+            <span class="material-icons">{{ seekLoading ? 'autorenew' : isPaused ? 'play_arrow' : 'pause' }}</span>
+          </div>
+          <div class="cursor-pointer flex items-center justify-center text-gray-300" @mousedown.prevent @mouseup.prevent @click.stop="forward10">
+            <span class="material-icons text-3xl">forward_10</span>
+          </div>
+          <div class="cursor-pointer flex items-center justify-center text-gray-300 ml-8" @mousedown.prevent @mouseup.prevent>
+            <span class="font-mono text-lg uppercase">1x</span>
+          </div>
+        </template>
+        <template v-else>
+          <div class="cursor-pointer p-2 shadow-sm bg-accent flex items-center justify-center rounded-full text-primary mx-8 animate-spin">
+            <span class="material-icons">autorenew</span>
+          </div>
+        </template>
+        <div class="flex-grow" />
+      </div>
+      <!-- Track -->
+      <div ref="track" class="w-full h-2 bg-gray-700 relative cursor-pointer transform duration-100 hover:scale-y-125" :class="loading ? 'animate-pulse' : ''" @click.stop="clickTrack">
+        <div ref="readyTrack" class="h-full bg-gray-600 absolute top-0 left-0 pointer-events-none" />
+        <div ref="bufferTrack" class="h-full bg-gray-400 absolute top-0 left-0 pointer-events-none" />
+        <div ref="playedTrack" class="h-full bg-gray-200 absolute top-0 left-0 pointer-events-none" />
+        <div ref="trackCursor" class="h-full w-0.5 bg-gray-50 absolute top-0 left-0 opacity-0 pointer-events-none" />
+      </div>
+      <div class="flex items-center py-1 px-0.5">
+        <div>
+          <p ref="currentTimestamp" class="font-mono text-sm">00:00:00</p>
+        </div>
+        <div class="flex-grow" />
+        <div>
+          <p class="font-mono text-sm">{{ totalDurationPretty }}</p>
+        </div>
+      </div>
+    </div>
+    <!-- <audio ref="audio" @progress="progress" @pause="paused" @playing="playing" @timeupdate="timeupdate" @loadeddata="audioLoadedData" /> -->
+  </div>
+</template>
+
+<script>
+import MyNativeAudio from '@/plugins/my-native-audio'
+
+export default {
+  props: {
+    loading: Boolean
+  },
+  data() {
+    return {
+      totalDuration: 0,
+      currentTime: 0,
+      isTerminated: false,
+      initObject: null,
+      stateName: 'idle',
+      playInterval: null,
+      trackWidth: 0,
+      isPaused: true,
+      src: null,
+      volume: 0.5,
+      readyTrackWidth: 0,
+      bufferTrackWidth: 0,
+      playedTrackWidth: 0,
+      seekedTime: 0,
+      seekLoading: false
+    }
+  },
+  computed: {
+    totalDurationPretty() {
+      return this.$secondsToTimestamp(this.totalDuration)
+    }
+  },
+  methods: {
+    restart() {
+      this.seek(0)
+    },
+    backward10() {
+      MyNativeAudio.seekBackward10()
+    },
+    forward10() {
+      MyNativeAudio.seekForward10()
+    },
+    sendStreamUpdate() {
+      this.$emit('updateTime', this.currentTime)
+    },
+    setStreamReady() {
+      this.readyTrackWidth = this.trackWidth
+      this.$refs.readyTrack.style.width = this.trackWidth + 'px'
+    },
+    setChunksReady(chunks, numSegments) {
+      var largestSeg = 0
+      for (let i = 0; i < chunks.length; i++) {
+        var chunk = chunks[i]
+        if (typeof chunk === 'string') {
+          var chunkRange = chunk.split('-').map((c) => Number(c))
+          if (chunkRange.length < 2) continue
+          if (chunkRange[1] > largestSeg) largestSeg = chunkRange[1]
+        } else if (chunk > largestSeg) {
+          largestSeg = chunk
+        }
+      }
+      var percentageReady = largestSeg / numSegments
+      var widthReady = Math.round(this.trackWidth * percentageReady)
+      if (this.readyTrackWidth === widthReady) {
+        return
+      }
+      this.readyTrackWidth = widthReady
+      this.$refs.readyTrack.style.width = widthReady + 'px'
+    },
+    updateTimestamp() {
+      var ts = this.$refs.currentTimestamp
+      if (!ts) {
+        console.error('No timestamp el')
+        return
+      }
+      var currTimeClean = this.$secondsToTimestamp(this.currentTime)
+      ts.innerText = currTimeClean
+    },
+    timeupdate() {
+      if (!this.$refs.playedTrack) {
+        console.error('Invalid no played track ref')
+        return
+      }
+
+      if (this.seekLoading) {
+        this.seekLoading = false
+        if (this.$refs.playedTrack) {
+          this.$refs.playedTrack.classList.remove('bg-yellow-300')
+          this.$refs.playedTrack.classList.add('bg-gray-200')
+        }
+      }
+
+      this.updateTimestamp()
+      this.sendStreamUpdate()
+
+      var perc = this.currentTime / this.totalDuration
+      var ptWidth = Math.round(perc * this.trackWidth)
+      if (this.playedTrackWidth === ptWidth) {
+        return
+      }
+      this.$refs.playedTrack.style.width = ptWidth + 'px'
+      this.playedTrackWidth = ptWidth
+    },
+    seek(time) {
+      if (this.seekLoading) {
+        console.error('Already seek loading', this.seekedTime)
+        return
+      }
+
+      this.seekedTime = time
+      this.seekLoading = true
+      MyNativeAudio.seekPlayer({ timeMs: String(Math.floor(time * 1000)) })
+
+      if (this.$refs.playedTrack) {
+        var perc = time / this.totalDuration
+        var ptWidth = Math.round(perc * this.trackWidth)
+        this.$refs.playedTrack.style.width = ptWidth + 'px'
+        this.playedTrackWidth = ptWidth
+
+        this.$refs.playedTrack.classList.remove('bg-gray-200')
+        this.$refs.playedTrack.classList.add('bg-yellow-300')
+      }
+    },
+    updateVolume(volume) {},
+    clickTrack(e) {
+      var offsetX = e.offsetX
+      var perc = offsetX / this.trackWidth
+      var time = perc * this.totalDuration
+      if (isNaN(time) || time === null) {
+        console.error('Invalid time', perc, time)
+        return
+      }
+      this.seek(time)
+    },
+    playPauseClick() {
+      if (this.isPaused) {
+        console.log('playPause PLAY')
+        this.play()
+      } else {
+        console.log('playPause PAUSE')
+        this.pause()
+      }
+    },
+    set(audiobookStreamData) {
+      this.initObject = { ...audiobookStreamData }
+      MyNativeAudio.initPlayer(this.initObject)
+    },
+    setFromObj() {
+      if (!this.initObject) {
+        console.error('Cannot set from obj')
+        return
+      }
+      MyNativeAudio.initPlayer(this.initObject)
+    },
+    play() {
+      MyNativeAudio.playPlayer()
+      this.startPlayInterval()
+    },
+    pause() {
+      MyNativeAudio.pausePlayer()
+      this.stopPlayInterval()
+    },
+    startPlayInterval() {
+      clearInterval(this.playInterval)
+      this.playInterval = setInterval(async () => {
+        var data = await MyNativeAudio.getCurrentTime()
+        this.currentTime = Number((data.value / 1000).toFixed(2))
+        this.timeupdate()
+      }, 1000)
+    },
+    stopPlayInterval() {
+      clearInterval(this.playInterval)
+    },
+    terminateStream(startTime) {
+      var _time = String(Math.floor(startTime * 1000))
+      if (!this.initObject) {
+        console.error('Terminate stream when no init object is set...')
+        return
+      }
+      this.initObject.currentTime = _time
+      MyNativeAudio.terminateStream()
+    },
+    init() {
+      MyNativeAudio.addListener('onPlayingUpdate', (data) => {
+        this.isPaused = !data.value
+        if (!this.isPaused) {
+          this.startPlayInterval()
+        } else {
+          this.stopPlayInterval()
+        }
+      })
+
+      MyNativeAudio.addListener('onMetadata', (data) => {
+        console.log('Native Audio On Metadata', JSON.stringify(data))
+        this.totalDuration = Number((data.duration / 1000).toFixed(2))
+        this.currentTime = Number((data.currentTime / 1000).toFixed(2))
+        this.stateName = data.stateName
+
+        if (this.stateName === 'ended' && this.isTerminated) {
+          this.setFromObj()
+        }
+
+        this.timeupdate()
+      })
+
+      if (this.$refs.track) {
+        this.trackWidth = this.$refs.track.clientWidth
+      } else {
+        console.error('Track not loaded', this.$refs)
+      }
+    }
+  },
+  mounted() {
+    this.$nextTick(this.init)
+  },
+  beforeDestroy() {
+    clearInterval(this.playInterval)
+  }
+}
+</script>
