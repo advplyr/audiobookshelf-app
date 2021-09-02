@@ -1,6 +1,6 @@
 {
   "name": "audiobookshelf-app",
-  "version": "1.0.0",
+  "version": "v0.1.0-beta",
   "author": "advplyr",
   "scripts": {
     "dev": "nuxt --hostname localhost --port 1337",
@@ -17,8 +17,6 @@
     "@capacitor/toast": "^1.0.2",
     "@nuxtjs/axios": "^5.13.6",
     "axios": "^0.21.1",
-    "cordova-plugin-file": "^6.0.2",
-    "cordova-plugin-media": "^5.0.3",
     "core-js": "^3.15.1",
     "hls.js": "^1.0.9",
     "nuxt": "^2.15.7",

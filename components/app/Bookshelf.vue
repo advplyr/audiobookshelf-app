@@ -5,14 +5,14 @@
         <template v-for="audiobook in shelf">
           <div :key="audiobook.id" class="relative px-4">
             <nuxt-link :to="`/audiobook/${audiobook.id}`">
-              <cards-book-cover :audiobook="audiobook" :width="cardWidth" class="mx-auto -mb-px" />
+              <cards-book-cover :audiobook="audiobook" :width="cardWidth" class="mx-auto -mb-px" style="box-shadow: 4px 1px 8px #11111166, -4px 1px 8px #11111166, 1px -4px 8px #11111166" />
             </nuxt-link>
           </div>
         </template>
         <div class="bookshelfDivider h-4 w-full absolute bottom-0 left-0 right-0 z-10" />
       </div>
     </template>
-    <div class="w-full py-16 text-center text-xl">
+    <div v-show="!groupedBooks.length" class="w-full py-16 text-center text-xl">
       <div class="py-4">No Audiobooks</div>
       <ui-btn v-if="hasFilters" @click="clearFilter">Clear Filter</ui-btn>
     </div>
