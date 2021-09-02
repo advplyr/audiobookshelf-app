@@ -90,3 +90,4 @@ sw.*
 *.swp
 
 /resources/
+/android/app/release/

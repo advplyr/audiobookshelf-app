@@ -4,7 +4,9 @@ export default {
   ssr: false,
 
   env: {
-    PROD: '1'
+    PROD: '1',
+    ANDROID_APP_URL: 'https://play.google.com/store/apps/details?id=com.audiobookshelf.app',
+    IOS_APP_URL: ''
   },
 
   publicRuntimeConfig: {
