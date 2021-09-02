@@ -1,0 +1,89 @@
+//apply plugin: 'com.android.application'
+//apply plugin: 'kotlin-android'
+
+plugins {
+  id 'com.android.application'
+  id 'kotlin-android'
+  id 'kotlin-kapt'
+}
+
+android {
+    compileSdkVersion rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "com.audiobookshelf.app"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "1.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+  mavenCentral()
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation project(':capacitor-android')
+
+  implementation 'androidx.coordinatorlayout:coordinatorlayout:1.1.0'
+
+  testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+
+  implementation "androidx.core:core-ktx:+"
+  implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+
+  implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
+  implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:$kotlin_coroutines_version"
+  implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:$kotlin_coroutines_version"
+
+  implementation "androidx.media:media:$androidx_media_version"
+
+  if (findProject(':exoplayer-library-core') != null) {
+    implementation project(':exoplayer-library-core')
+    implementation project(':exoplayer-library-ui')
+    implementation project(':exoplayer-extension-mediasession')
+    implementation project(':exoplayer-extension-cast')
+    implementation project(':exoplayer-hls')
+  } else {
+    implementation "com.google.android.exoplayer:exoplayer-core:$exoplayer_version"
+    implementation "com.google.android.exoplayer:exoplayer-ui:$exoplayer_version"
+    implementation "com.google.android.exoplayer:extension-mediasession:$exoplayer_version"
+    implementation "com.google.android.exoplayer:extension-cast:$exoplayer_version"
+    implementation "com.google.android.exoplayer:exoplayer-hls:$exoplayer_version"
+  }
+
+
+  implementation "com.github.bumptech.glide:glide:$glide_version"
+  kapt "com.github.bumptech.glide:compiler:$glide_version"
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.warn("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}
