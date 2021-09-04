@@ -102,16 +102,27 @@ class MyNativeAudio : Plugin() {
   }
 
   @PluginMethod
-  fun seekForward10(call: PluginCall) {
+  fun seekForward(call: PluginCall) {
+    var amount:Long = call.getString("amount", "0")!!.toLong()
     Handler(Looper.getMainLooper()).post() {
-      playerNotificationService.seekForward10()
+      playerNotificationService.seekForward(amount)
       call.resolve()
     }
   }
   @PluginMethod
-  fun seekBackward10(call: PluginCall) {
+  fun seekBackward(call: PluginCall) {
+    var amount:Long = call.getString("amount", "0")!!.toLong()
     Handler(Looper.getMainLooper()).post() {
-      playerNotificationService.seekBackward10()
+      playerNotificationService.seekBackward(amount)
+      call.resolve()
+    }
+  }
+  @PluginMethod
+  fun setPlaybackSpeed(call: PluginCall) {
+    var playbackSpeed:Float = call.getFloat("speed", 1.0f)!!
+
+    Handler(Looper.getMainLooper()).post() {
+      playerNotificationService.setPlaybackSpeed(playbackSpeed)
       call.resolve()
     }
   }

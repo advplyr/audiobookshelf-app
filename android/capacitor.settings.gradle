@@ -5,5 +5,5 @@ project(':capacitor-android').projectDir = new File('../node_modules/@capacitor/
 include ':capacitor-dialog'
 project(':capacitor-dialog').projectDir = new File('../node_modules/@capacitor/dialog/android')
 
-include ':capacitor-toast'
-project(':capacitor-toast').projectDir = new File('../node_modules/@capacitor/toast/android')
+include ':robingenz-capacitor-app-update'
+project(':robingenz-capacitor-app-update').projectDir = new File('../node_modules/@robingenz/capacitor-app-update/android')

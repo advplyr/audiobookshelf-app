@@ -3,11 +3,12 @@
     <template v-for="(shelf, index) in groupedBooks">
       <div :key="index" class="border-b border-opacity-10 w-full bookshelfRow py-4 flex justify-around relative">
         <template v-for="audiobook in shelf">
-          <div :key="audiobook.id" class="relative px-4">
-            <nuxt-link :to="`/audiobook/${audiobook.id}`">
+          <!-- <div :key="audiobook.id" class="relative px-4"> -->
+          <cards-book-card :key="audiobook.id" :audiobook="audiobook" :width="cardWidth" :user-progress="userAudiobooks[audiobook.id]" />
+          <!-- <nuxt-link :to="`/audiobook/${audiobook.id}`">
               <cards-book-cover :audiobook="audiobook" :width="cardWidth" class="mx-auto -mb-px" style="box-shadow: 4px 1px 8px #11111166, -4px 1px 8px #11111166, 1px -4px 8px #11111166" />
-            </nuxt-link>
-          </div>
+            </nuxt-link> -->
+          <!-- </div> -->
         </template>
         <div class="bookshelfDivider h-4 w-full absolute bottom-0 left-0 right-0 z-10" />
       </div>
@@ -40,6 +41,9 @@ export default {
     },
     hasFilters() {
       return this.$store.getters['user/getUserSetting']('filterBy') !== 'all'
+    },
+    userAudiobooks() {
+      return this.$store.state.user.user ? this.$store.state.user.user.audiobooks || {} : {}
     }
   },
   methods: {

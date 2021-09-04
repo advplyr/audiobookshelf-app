@@ -14,7 +14,7 @@
         </div>
         <div v-show="!loggedIn" class="mt-8 bg-primary overflow-hidden shadow rounded-lg p-6">
           <h2 class="text-xl leading-7 mb-4">Enter an <span class="font-book font-normal">AudioBookshelf</span><br />server address:</h2>
-          <form v-show="!showAuth" @submit.prevent="submit">
+          <form v-show="!showAuth" @submit.prevent="submit" novalidate>
             <ui-text-input v-model="serverUrl" :disabled="processing" placeholder="http://55.55.55.55:13378" type="url" class="w-60 sm:w-72 h-10" />
             <ui-btn :disabled="processing" type="submit" :padding-x="3" class="h-10">Submit</ui-btn>
           </form>
@@ -79,6 +79,9 @@ export default {
   },
   methods: {
     async submit() {
+      if (!this.serverUrl.startsWith('http')) {
+        this.serverUrl = 'http://' + this.serverUrl
+      }
       this.processing = true
       this.error = null
       var success = await this.$server.check(this.serverUrl)

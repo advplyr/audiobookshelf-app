@@ -4,22 +4,14 @@ export const state = () => ({
   playOnLoad: false,
   serverUrl: null,
   user: null,
-  currentVersion: null,
-  latestVersion: null,
-  hasUpdate: true
+  appUpdateInfo: null
 })
 
 export const actions = {}
 
 export const mutations = {
-  setCurrentVersion(state, verObj) {
-    state.currentVersion = verObj
-  },
-  setLatestVersion(state, verObj) {
-    state.latestVersion = verObj
-  },
-  setHasUpdate(state, val) {
-    state.hasUpdate = val
+  setAppUpdateInfo(state, info) {
+    state.appUpdateInfo = info
   },
   closeStream(state, audiobookId) {
     if (state.streamAudiobook && state.streamAudiobook.id !== audiobookId) {
