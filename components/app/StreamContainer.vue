@@ -12,8 +12,9 @@
       <div class="absolute left-2 -top-10">
         <cards-book-cover :audiobook="streamAudiobook" :width="64" />
       </div>
-      <audio-player-mini ref="audioPlayerMini" :loading="!stream || currStreamAudiobookId !== streamAudiobookId" @updateTime="updateTime" @hook:mounted="audioPlayerMounted" />
+      <audio-player-mini ref="audioPlayerMini" :loading="!stream || currStreamAudiobookId !== streamAudiobookId" @updateTime="updateTime" @selectPlaybackSpeed="showPlaybackSpeedModal = true" @hook:mounted="audioPlayerMounted" />
     </div>
+    <modals-playback-speed-modal v-model="showPlaybackSpeedModal" :playback-speed.sync="playbackSpeed" @change="changePlaybackSpeed" />
   </div>
 </template>
 
@@ -25,7 +26,9 @@ export default {
     return {
       audioPlayerReady: false,
       stream: null,
-      lastServerUpdateSentSeconds: 0
+      lastServerUpdateSentSeconds: 0,
+      showPlaybackSpeedModal: false,
+      playbackSpeed: 1
     }
   },
   computed: {
@@ -85,6 +88,10 @@ export default {
       })
       if (value) {
         this.$server.socket.emit('close_stream')
+        this.$store.commit('setStreamAudiobook', null)
+        if (this.$refs.audioPlayerMini) {
+          this.$refs.audioPlayerMini.terminateStream()
+        }
       }
     },
     updateTime(currentTime) {
@@ -122,7 +129,7 @@ export default {
     streamReset({ streamId, startTime }) {
       if (this.$refs.audioPlayerMini) {
         if (this.stream && this.stream.id === streamId) {
-          this.$refs.audioPlayerMini.terminateStream(startTime)
+          this.$refs.audioPlayerMini.resetStream(startTime)
         }
       }
     },
@@ -131,10 +138,6 @@ export default {
       if (!this.$refs.audioPlayerMini) {
         console.error('No Audio Player Mini')
         return
-      }
-
-      if (this.stream && this.stream.id !== stream.id) {
-        console.error('STREAM CHANGED', this.stream.id, stream.id)
       }
 
       this.stream = stream
@@ -149,14 +152,13 @@ export default {
         author: this.author,
         playWhenReady: !!playOnLoad,
         startTime: String(Math.floor(currentTime * 1000)),
+        playbackSpeed: this.playbackSpeed || 1,
         cover: this.coverForNative,
         duration: String(Math.floor(this.duration * 1000)),
         series: this.seriesTxt,
         playlistUrl: this.$server.url + playlistUrl,
         token: this.$store.getters['user/getToken']
       }
-
-      console.log('audiobook stream data', audiobookStreamData.token, JSON.stringify(audiobookStreamData))
 
       this.$refs.audioPlayerMini.set(audiobookStreamData)
     },
@@ -177,11 +179,31 @@ export default {
       this.$server.socket.on('stream_progress', this.streamProgress)
       this.$server.socket.on('stream_ready', this.streamReady)
       this.$server.socket.on('stream_reset', this.streamReset)
+    },
+    changePlaybackSpeed(speed) {
+      this.$store.dispatch('user/updateUserSettings', { playbackRate: speed })
+    },
+    settingsUpdated(settings) {
+      if (this.$refs.audioPlayerMini && this.$refs.audioPlayerMini.currentPlaybackRate !== settings.playbackRate) {
+        this.playbackSpeed = settings.playbackRate
+        this.$refs.audioPlayerMini.updatePlaybackRate()
+      }
     }
   },
   mounted() {
-    console.warn('Stream Container Mounted')
+    this.playbackSpeed = this.$store.getters['user/getUserSetting']('playbackRate')
+
     this.setListeners()
+    this.$store.commit('user/addSettingsListener', { id: 'streamContainer', meth: this.settingsUpdated })
+  },
+  beforeDestroy() {
+    this.$server.socket.off('stream_open', this.streamOpen)
+    this.$server.socket.off('stream_closed', this.streamClosed)
+    this.$server.socket.off('stream_progress', this.streamProgress)
+    this.$server.socket.off('stream_ready', this.streamReady)
+    this.$server.socket.off('stream_reset', this.streamReset)
+
+    this.$store.commit('user/removeSettingsListener', 'streamContainer')
   }
 }
 </script>

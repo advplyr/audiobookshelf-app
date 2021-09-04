@@ -16,8 +16,8 @@
           <div class="cursor-pointer flex items-center justify-center text-gray-300" @mousedown.prevent @mouseup.prevent @click.stop="forward10">
             <span class="material-icons text-3xl">forward_10</span>
           </div>
-          <div class="cursor-pointer flex items-center justify-center text-gray-300 ml-8" @mousedown.prevent @mouseup.prevent>
-            <span class="font-mono text-lg uppercase">1x</span>
+          <div class="cursor-pointer flex items-center justify-center text-gray-300 ml-7 w-10 text-center" @mousedown.prevent @mouseup.prevent @click="$emit('selectPlaybackSpeed')">
+            <span class="font-mono text-lg">{{ playbackRate }}x</span>
           </div>
         </template>
         <template v-else>
@@ -58,8 +58,9 @@ export default {
   data() {
     return {
       totalDuration: 0,
+      currentPlaybackRate: 1,
       currentTime: 0,
-      isTerminated: false,
+      isResetting: false,
       initObject: null,
       stateName: 'idle',
       playInterval: null,
@@ -77,17 +78,24 @@ export default {
   computed: {
     totalDurationPretty() {
       return this.$secondsToTimestamp(this.totalDuration)
+    },
+    playbackRate() {
+      return this.$store.getters['user/getUserSetting']('playbackRate')
     }
   },
   methods: {
+    updatePlaybackRate() {
+      this.currentPlaybackRate = this.playbackRate
+      MyNativeAudio.setPlaybackSpeed({ speed: this.playbackRate })
+    },
     restart() {
       this.seek(0)
     },
     backward10() {
-      MyNativeAudio.seekBackward10()
+      MyNativeAudio.seekBackward({ amount: '10000' })
     },
     forward10() {
-      MyNativeAudio.seekForward10()
+      MyNativeAudio.seekForward({ amount: '10000' })
     },
     sendStreamUpdate() {
       this.$emit('updateTime', this.currentTime)
@@ -191,7 +199,9 @@ export default {
       }
     },
     set(audiobookStreamData) {
+      this.isResetting = false
       this.initObject = { ...audiobookStreamData }
+      this.currentPlaybackRate = this.initObject.playbackSpeed
       MyNativeAudio.initPlayer(this.initObject)
     },
     setFromObj() {
@@ -199,6 +209,7 @@ export default {
         console.error('Cannot set from obj')
         return
       }
+      this.isResetting = false
       MyNativeAudio.initPlayer(this.initObject)
     },
     play() {
@@ -220,13 +231,17 @@ export default {
     stopPlayInterval() {
       clearInterval(this.playInterval)
     },
-    terminateStream(startTime) {
+    resetStream(startTime) {
       var _time = String(Math.floor(startTime * 1000))
       if (!this.initObject) {
         console.error('Terminate stream when no init object is set...')
         return
       }
+      this.isResetting = true
       this.initObject.currentTime = _time
+      this.terminateStream()
+    },
+    terminateStream() {
       MyNativeAudio.terminateStream()
     },
     init() {
@@ -245,7 +260,7 @@ export default {
         this.currentTime = Number((data.currentTime / 1000).toFixed(2))
         this.stateName = data.stateName
 
-        if (this.stateName === 'ended' && this.isTerminated) {
+        if (this.stateName === 'ended' && this.isResetting) {
           this.setFromObj()
         }
 

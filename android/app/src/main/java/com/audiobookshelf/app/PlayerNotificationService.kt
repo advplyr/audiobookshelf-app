@@ -373,6 +373,7 @@ class PlayerNotificationService : Service()  {
     mPlayer.setMediaSource(mediaSource, true)
     mPlayer.prepare()
     mPlayer.playWhenReady = currentAudiobook!!.playWhenReady
+    mPlayer.setPlaybackSpeed(audiobook.playbackSpeed)
   }
 
 
@@ -396,12 +397,16 @@ class PlayerNotificationService : Service()  {
     mPlayer.seekTo(time)
   }
 
-  fun seekForward10() {
-    mPlayer.seekTo(mPlayer.currentPosition + 10000)
+  fun seekForward(amount:Long) {
+    mPlayer.seekTo(mPlayer.currentPosition + amount)
   }
 
-  fun seekBackward10() {
-    mPlayer.seekTo(mPlayer.currentPosition - 10000)
+  fun seekBackward(amount:Long) {
+    mPlayer.seekTo(mPlayer.currentPosition - amount)
+  }
+
+  fun setPlaybackSpeed(speed:Float) {
+    mPlayer.setPlaybackSpeed(speed)
   }
 
   fun terminateStream() {

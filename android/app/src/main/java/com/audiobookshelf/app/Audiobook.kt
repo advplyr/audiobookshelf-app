@@ -13,6 +13,7 @@ class Audiobook {
   var cover:String = ""
   var playWhenReady:Boolean = false
   var startTime:Long = 0
+  var playbackSpeed:Float = 1f
   var duration:Long = 0
 
   var hasPlayerLoaded:Boolean = false
@@ -30,6 +31,7 @@ class Audiobook {
     playlistUrl = jsondata.getString("playlistUrl", "").toString()
     playWhenReady = jsondata.getBoolean("playWhenReady", false) == true
     startTime = jsondata.getString("startTime", "0")!!.toLong()
+    playbackSpeed = jsondata.getDouble("playbackSpeed")!!.toFloat()
     duration = jsondata.getString("duration", "0")!!.toLong()
 
     playlistUri = Uri.parse(playlistUrl)

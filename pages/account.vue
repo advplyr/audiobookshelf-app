@@ -17,11 +17,15 @@
         </svg>
       </a>
     </div>
-    <p class="font-mono pt-1 pb-4">v{{ $config.version }}</p>
+    <p class="font-mono pt-1 pb-4">{{ $config.version }}</p>
+
+    <ui-btn v-if="isUpdateAvailable" class="w-full my-4" color="success" @click="clickUpdate"> Version {{ availableVersion }} is available! {{ immediateUpdateAllowed ? 'Update now' : 'Get update from app store' }} </ui-btn>
   </div>
 </template>
 
 <script>
+import { AppUpdate } from '@robingenz/capacitor-app-update'
+
 export default {
   data() {
     return {}
@@ -35,9 +39,32 @@ export default {
     },
     serverUrl() {
       return this.$server.url
+    },
+    appUpdateInfo() {
+      return this.$store.state.appUpdateInfo
+    },
+    availableVersion() {
+      return this.appUpdateInfo ? this.appUpdateInfo.availableVersion : null
+    },
+    immediateUpdateAllowed() {
+      return this.appUpdateInfo ? !!this.appUpdateInfo.immediateUpdateAllowed : false
+    },
+    updateAvailability() {
+      return this.appUpdateInfo ? this.appUpdateInfo.updateAvailability : null
+    },
+    isUpdateAvailable() {
+      return this.updateAvailability === 2
     }
   },
-  methods: {},
+  methods: {
+    async clickUpdate() {
+      if (this.immediateUpdateAllowed) {
+        await AppUpdate.performImmediateUpdate()
+      } else {
+        await AppUpdate.openAppStore()
+      }
+    }
+  },
   mounted() {}
 }
 </script>

@@ -1,17 +1,6 @@
 import Vue from 'vue'
 Vue.prototype.$isDev = process.env.NODE_ENV !== 'production'
 
-import { Toast } from '@capacitor/toast'
-
-Vue.prototype.$toast = (text) => {
-  if (!Toast) {
-    return console.error('No Toast Plugin')
-  }
-  Toast.show({
-    text: text
-  })
-}
-
 Vue.prototype.$bytesPretty = (bytes, decimals = 2) => {
   if (bytes === 0) {
     return '0 Bytes'
@@ -21,6 +10,19 @@ Vue.prototype.$bytesPretty = (bytes, decimals = 2) => {
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i]
+}
+
+Vue.prototype.$elapsedPretty = (seconds) => {
+  var minutes = Math.floor(seconds / 60)
+  if (minutes < 70) {
+    return `${minutes} min`
+  }
+  var hours = Math.floor(minutes / 60)
+  minutes -= hours * 60
+  if (!minutes) {
+    return `${hours} hr`
+  }
+  return `${hours} hr ${minutes} min`
 }
 
 Vue.prototype.$secondsToTimestamp = (seconds) => {

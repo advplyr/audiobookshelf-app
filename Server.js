@@ -33,6 +33,7 @@ class Server extends EventEmitter {
   setUser(user) {
     this.user = user
     this.store.commit('user/setUser', user)
+    this.store.commit('user/setSettings', user.settings)
     if (user) {
       localStorage.setItem('userToken', user.token)
     } else {
@@ -147,6 +148,11 @@ class Server extends EventEmitter {
         this.stream = data.stream
         this.store.commit('setStreamAudiobook', data.stream.audiobook)
         this.emit('initialStream', data.stream)
+      }
+    })
+    this.socket.on('user_updated', (user) => {
+      if (this.user && user.id === this.user.id) {
+        this.setUser(user)
       }
     })
   }

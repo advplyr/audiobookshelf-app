@@ -32,13 +32,15 @@ export default {
   },
 
   css: [
+    '@/assets/app.css'
   ],
 
   plugins: [
-    { src: '~/plugins/server.js', mode: 'client' },
+    '@/plugins/server.js',
     '@/plugins/init.client.js',
     '@/plugins/axios.js',
-    '@/plugins/my-native-audio.js'
+    '@/plugins/my-native-audio.js',
+    '@/plugins/toast.js'
   ],
 
   components: true,
