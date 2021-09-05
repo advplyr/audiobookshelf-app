@@ -133,7 +133,12 @@ class PlayerNotificationService : Service()  {
     createNotificationChannel(channelId, channelName)
   } else ""
 
-    mPlayer = SimpleExoPlayer.Builder(this).build()
+
+    var simpleExoPlayerBuilder = SimpleExoPlayer.Builder(this)
+    simpleExoPlayerBuilder.setSeekBackIncrementMs(10000)
+    simpleExoPlayerBuilder.setSeekForwardIncrementMs(10000)
+    mPlayer = simpleExoPlayerBuilder.build()
+
     setPlayerListeners()
 
     val sessionActivityPendingIntent =
