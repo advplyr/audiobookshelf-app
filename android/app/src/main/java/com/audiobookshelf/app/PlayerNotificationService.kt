@@ -191,6 +191,8 @@ class PlayerNotificationService : Service()  {
     playerNotificationManager.setUseChronometer(false)
     playerNotificationManager.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
     playerNotificationManager.setPriority(NotificationCompat.PRIORITY_MAX)
+    playerNotificationManager.setUseFastForwardActionInCompactView(true)
+    playerNotificationManager.setUseRewindActionInCompactView(true)
 
     // Unknown action
     playerNotificationManager.setBadgeIconType(NotificationCompat.BADGE_ICON_LARGE)
@@ -276,14 +278,6 @@ class PlayerNotificationService : Service()  {
       }
 
       override fun onEvents(player: Player, events: Player.Events) {
-        if (events.contains(Player.EVENT_TRACKS_CHANGED)) {
-          Log.d(tag, "EVENT_TRACKS_CHANGED")
-        }
-
-        if (events.contains(Player.EVENT_TIMELINE_CHANGED)) {
-          Log.d(tag, "EVENT_TIMELINE_CHANGED")
-        }
-
         if (events.contains(Player.EVENT_POSITION_DISCONTINUITY)) {
           Log.d(tag, "EVENT_POSITION_DISCONTINUITY")
         }
