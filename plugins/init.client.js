@@ -38,7 +38,6 @@ Vue.prototype.$secondsToTimestamp = (seconds) => {
   return `${_hours}:${_minutes.toString().padStart(2, '0')}:${_seconds.toString().padStart(2, '0')}`
 }
 
-
 function isClickedOutsideEl(clickEvent, elToCheckOutside, ignoreSelectors = [], ignoreElems = []) {
   const isDOMElement = (element) => {
     return element instanceof Element || element instanceof HTMLDocument
@@ -75,3 +74,13 @@ Vue.directive('click-outside', {
     delete el['__click_outside__']
   }
 })
+
+const encode = (text) => encodeURIComponent(Buffer.from(text).toString('base64'))
+Vue.prototype.$encode = encode
+const decode = (text) => Buffer.from(decodeURIComponent(text), 'base64').toString()
+Vue.prototype.$decode = decode
+
+export {
+  encode,
+  decode
+}

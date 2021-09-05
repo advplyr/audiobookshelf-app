@@ -1,4 +1,5 @@
 import { sort } from '@/assets/fastSort'
+import { decode } from '@/plugins/init.client'
 
 const STANDARD_GENRES = ['adventure', 'autobiography', 'biography', 'childrens', 'comedy', 'crime', 'dystopian', 'fantasy', 'fiction', 'health', 'history', 'horror', 'mystery', 'new_adult', 'nonfiction', 'philosophy', 'politics', 'religion', 'romance', 'sci-fi', 'self-help', 'short_story', 'technology', 'thriller', 'true_crime', 'western', 'young_adult']
 
@@ -19,7 +20,7 @@ export const getters = {
     var searchGroups = ['genres', 'tags', 'series', 'authors']
     var group = searchGroups.find(_group => filterBy.startsWith(_group + '.'))
     if (group) {
-      var filter = filterBy.replace(`${group}.`, '')
+      var filter = decode(filterBy.replace(`${group}.`, ''))
       if (group === 'genres') filtered = filtered.filter(ab => ab.book && ab.book.genres.includes(filter))
       else if (group === 'tags') filtered = filtered.filter(ab => ab.tags.includes(filter))
       else if (group === 'series') filtered = filtered.filter(ab => ab.book && ab.book.series === filter)
@@ -40,6 +41,11 @@ export const getters = {
   getUniqueAuthors: (state) => {
     var _authors = state.audiobooks.filter(ab => !!(ab.book && ab.book.author)).map(ab => ab.book.author)
     return [...new Set(_authors)]
+  },
+  getGenresUsed: (state) => {
+    var _genres = []
+    state.audiobooks.filter(ab => !!(ab.book && ab.book.genres)).forEach(ab => _genres = _genres.concat(ab.book.genres))
+    return [...new Set(_genres)].sort((a, b) => a.toLowerCase() < b.toLowerCase() ? -1 : 1)
   }
 }
 

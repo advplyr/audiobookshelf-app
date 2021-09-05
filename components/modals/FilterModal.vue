@@ -31,13 +31,13 @@
           </li>
           <li v-if="!sublistItems.length" class="text-gray-400 select-none relative px-2" role="option">
             <div class="flex items-center justify-center">
-              <span class="font-normal block truncate py-3">No {{ sublist }}</span>
+              <span class="font-normal block truncate py-5 text-lg">No {{ sublist }} items</span>
             </div>
           </li>
           <template v-for="item in sublistItems">
-            <li :key="item" class="text-gray-50 select-none relative px-2 cursor-pointer hover:bg-black-400" :class="`${sublist}.${item}` === selected ? 'bg-bg bg-opacity-50' : ''" role="option" @click="clickedSublistOption(item)">
+            <li :key="item.value" class="text-gray-50 select-none relative px-4 cursor-pointer hover:bg-black-400" :class="`${sublist}.${item.value}` === selected ? 'bg-bg bg-opacity-50' : ''" role="option" @click="clickedSublistOption(item.value)">
               <div class="flex items-center">
-                <span class="font-normal truncate py-3 text-base">{{ snakeToNormal(item) }}</span>
+                <span class="font-normal truncate py-3 text-base">{{ item.text }}</span>
               </div>
             </li>
           </template>
@@ -75,6 +75,11 @@ export default {
           text: 'Series',
           value: 'series',
           sublist: true
+        },
+        {
+          text: 'Authors',
+          value: 'authors',
+          sublist: true
         }
       ]
     }
@@ -108,7 +113,7 @@ export default {
       return this.selected && this.selected.includes('.') ? this.selected.split('.')[0] : false
     },
     genres() {
-      return this.$store.state.audiobooks.genres
+      return this.$store.getters['audiobooks/getGenresUsed']
     },
     tags() {
       return this.$store.state.audiobooks.tags
@@ -116,8 +121,16 @@ export default {
     series() {
       return this.$store.state.audiobooks.series
     },
+    authors() {
+      return this.$store.getters['audiobooks/getUniqueAuthors']
+    },
     sublistItems() {
-      return this[this.sublist] || []
+      return (this[this.sublist] || []).map((item) => {
+        return {
+          text: item,
+          value: this.$encode(item)
+        }
+      })
     }
   },
   methods: {
@@ -125,15 +138,6 @@ export default {
       this.selected = 'all'
       this.show = false
       this.$nextTick(() => this.$emit('change', 'all'))
-    },
-    snakeToNormal(kebab) {
-      if (!kebab) {
-        return 'err'
-      }
-      return String(kebab)
-        .split('_')
-        .map((t) => t.slice(0, 1).toUpperCase() + t.slice(1))
-        .join(' ')
     },
     clickedSublistOption(item) {
       this.clickedOption({ value: `${this.sublist}.${item}` })
