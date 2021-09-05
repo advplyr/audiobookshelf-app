@@ -33,8 +33,8 @@ class Server extends EventEmitter {
   setUser(user) {
     this.user = user
     this.store.commit('user/setUser', user)
-    this.store.commit('user/setSettings', user.settings)
     if (user) {
+      this.store.commit('user/setSettings', user.settings)
       localStorage.setItem('userToken', user.token)
     } else {
       localStorage.removeItem('userToken')

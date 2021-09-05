@@ -1,6 +1,6 @@
 {
   "name": "audiobookshelf-app",
-  "version": "v0.2.0-beta",
+  "version": "v0.2.1-beta",
   "author": "advplyr",
   "scripts": {
     "dev": "nuxt --hostname localhost --port 1337",
@@ -10,9 +10,9 @@
     "icons-android": "cordova-res android --skip-config --copy"
   },
   "dependencies": {
-    "@capacitor/android": "^3.1.2",
+    "@capacitor/android": "^3.2.2",
     "@capacitor/cli": "^3.1.2",
-    "@capacitor/core": "^3.1.2",
+    "@capacitor/core": "^3.2.2",
     "@capacitor/dialog": "^1.0.3",
     "@capacitor/ios": "^3.2.2",
     "@nuxtjs/axios": "^5.13.6",
