@@ -67,11 +67,11 @@ export default {
       }
       this.$store.commit('setAppUpdateInfo', result)
 
-      if (result.updateAvailability === 2) {
-        setTimeout(() => {
-          this.showUpdateToast(result.availableVersion, !!result.immediateUpdateAllowed)
-        }, 5000)
-      }
+      // if (result.updateAvailability === 2) {
+      //   setTimeout(() => {
+      //     this.showUpdateToast(result.availableVersion, !!result.immediateUpdateAllowed)
+      //   }, 5000)
+      // }
     }
     // parseSemver(ver) {
     //   if (!ver) return null
