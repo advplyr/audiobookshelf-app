@@ -21,6 +21,7 @@ import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.request.RequestOptions
 import com.getcapacitor.JSObject
 import com.google.android.exoplayer2.*
+import com.google.android.exoplayer2.audio.AudioAttributes
 import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector
 import com.google.android.exoplayer2.ext.mediasession.TimelineQueueNavigator
 import com.google.android.exoplayer2.source.hls.HlsMediaSource
@@ -138,6 +139,10 @@ class PlayerNotificationService : Service()  {
     simpleExoPlayerBuilder.setSeekBackIncrementMs(10000)
     simpleExoPlayerBuilder.setSeekForwardIncrementMs(10000)
     mPlayer = simpleExoPlayerBuilder.build()
+    mPlayer.setHandleAudioBecomingNoisy(true)
+
+    var audioAttributes:AudioAttributes = AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.CONTENT_TYPE_SPEECH).build()
+    mPlayer.setAudioAttributes(audioAttributes, true)
 
     setPlayerListeners()
 
