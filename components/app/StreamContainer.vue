@@ -7,6 +7,9 @@
           <p class="px-2 text-xs text-gray-400">by {{ author }}</p>
         </div>
         <div class="flex-grow" />
+        <div class="cursor-pointer flex items-center justify-center mr-6 w-6 text-center" :class="chapters.length ? 'text-gray-300' : 'text-gray-400'" @mousedown.prevent @mouseup.prevent @click="clickChapterBtn">
+          <span class="material-icons text-2xl">format_list_bulleted</span>
+        </div>
         <span class="material-icons" @click="cancelStream">close</span>
       </div>
       <div class="absolute left-2 -top-10">
@@ -15,6 +18,7 @@
       <audio-player-mini ref="audioPlayerMini" :loading="!stream || currStreamAudiobookId !== streamAudiobookId" @updateTime="updateTime" @selectPlaybackSpeed="showPlaybackSpeedModal = true" @hook:mounted="audioPlayerMounted" />
     </div>
     <modals-playback-speed-modal v-model="showPlaybackSpeedModal" :playback-speed.sync="playbackSpeed" @change="changePlaybackSpeed" />
+    <modals-chapters-modal v-model="showChapterModal" :chapters="chapters" @select="selectChapter" />
   </div>
 </template>
 
@@ -28,7 +32,8 @@ export default {
       stream: null,
       lastServerUpdateSentSeconds: 0,
       showPlaybackSpeedModal: false,
-      playbackSpeed: 1
+      playbackSpeed: 1,
+      showChapterModal: false
     }
   },
   computed: {
@@ -56,6 +61,9 @@ export default {
     series() {
       return this.book ? this.book.series : ''
     },
+    chapters() {
+      return this.streamAudiobook ? this.streamAudiobook.chapters || [] : []
+    },
     volumeNumber() {
       return this.book ? this.book.volumeNumber : ''
     },
@@ -81,6 +89,16 @@ export default {
     }
   },
   methods: {
+    clickChapterBtn() {
+      if (!this.chapters.length) return
+      this.showChapterModal = true
+    },
+    selectChapter(chapter) {
+      if (this.$refs.audioPlayerMini) {
+        this.$refs.audioPlayerMini.seek(chapter.start)
+      }
+      this.showChapterModal = false
+    },
     async cancelStream() {
       const { value } = await Dialog.confirm({
         title: 'Confirm',
