@@ -16,10 +16,14 @@ class Audiobook {
   var playbackSpeed:Float = 1f
   var duration:Long = 0
 
+  var isLocal:Boolean = false
+  var contentUrl:String = ""
+
   var hasPlayerLoaded:Boolean = false
 
-  val playlistUri:Uri
-  val coverUri:Uri
+  var playlistUri:Uri = Uri.EMPTY
+  var coverUri:Uri = Uri.EMPTY
+  var contentUri:Uri = Uri.EMPTY // For Local only
 
   constructor(jsondata:JSObject) {
     id = jsondata.getString("id", "audiobook").toString()
@@ -34,7 +38,22 @@ class Audiobook {
     playbackSpeed = jsondata.getDouble("playbackSpeed")!!.toFloat()
     duration = jsondata.getString("duration", "0")!!.toLong()
 
-    playlistUri = Uri.parse(playlistUrl)
-    coverUri = Uri.parse(cover)
+    // Local data
+    isLocal = jsondata.getBoolean("isLocal", false) == true
+    contentUrl = jsondata.getString("contentUrl", "").toString()
+
+    if (playlistUrl != "") {
+      playlistUri = Uri.parse(playlistUrl)
+    }
+    if (cover != "") {
+      coverUri = Uri.parse(cover)
+    } else {
+      coverUri = Uri.parse("android.resource://com.audiobookshelf.app/" + R.drawable.icon)
+      cover = coverUri.toString()
+    }
+
+    if (contentUrl != "") {
+      contentUri = Uri.parse(contentUrl)
+    }
   }
 }

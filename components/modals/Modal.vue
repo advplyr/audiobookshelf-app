@@ -1,6 +1,6 @@
 <template>
   <div ref="wrapper" class="modal modal-bg w-full h-full max-h-screen fixed top-0 left-0 bg-primary bg-opacity-75 flex items-center justify-center z-30 opacity-0">
-    <div class="absolute top-0 left-0 right-0 w-full h-36 bg-gradient-to-t from-transparent via-black-500 to-black-700 opacity-90 pointer-events-none" />
+    <div class="absolute top-0 left-0 w-full h-36 bg-gradient-to-b from-black to-transparent opacity-70 pointer-events-none" />
 
     <div class="absolute z-40 top-4 right-4 h-12 w-12 flex items-center justify-center cursor-pointer text-white hover:text-gray-300" @click="show = false">
       <span class="material-icons text-4xl">close</span>

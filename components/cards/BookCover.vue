@@ -32,6 +32,7 @@ export default {
       type: Object,
       default: () => {}
     },
+    downloadCover: String,
     authorOverride: String,
     width: {
       type: Number,
@@ -78,7 +79,13 @@ export default {
     serverUrl() {
       return this.$store.state.serverUrl
     },
+    networkConnected() {
+      return this.$store.state.networkConnected
+    },
     fullCoverUrl() {
+      if (this.downloadCover) return this.downloadCover
+      else if (!this.networkConnected) return this.placeholderUrl
+
       if (this.cover.startsWith('http')) return this.cover
       var _clean = this.cover.replace(/\\/g, '/')
       if (_clean.startsWith('/local')) {
@@ -91,6 +98,7 @@ export default {
       return this.book.cover || this.placeholderUrl
     },
     hasCover() {
+      if (!this.networkConnected && !this.downloadCover) return false
       return !!this.book.cover
     },
     sizeMultiplier() {

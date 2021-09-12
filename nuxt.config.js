@@ -26,8 +26,7 @@ export default {
     ],
     link: [
       { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
-      { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Fira+Mono&family=Ubuntu+Mono&family=Open+Sans:wght@400;600&family=Gentium+Book+Basic' },
-      { rel: 'stylesheet', href: 'https://fonts.googleapis.com/icon?family=Material+Icons' }
+      { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Ubuntu+Mono&family=Open+Sans:wght@400;600' },
     ]
   },
 
@@ -37,9 +36,11 @@ export default {
 
   plugins: [
     '@/plugins/server.js',
+    '@/plugins/store.js',
     '@/plugins/init.client.js',
     '@/plugins/axios.js',
     '@/plugins/my-native-audio.js',
+    '@/plugins/audio-downloader.js',
     '@/plugins/toast.js'
   ],
 

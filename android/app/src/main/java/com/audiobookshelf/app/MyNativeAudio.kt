@@ -1,13 +1,10 @@
-package com.example.myapp
+package com.audiobookshelf.app
 
 import android.content.Intent
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.core.content.ContextCompat
-import com.audiobookshelf.app.Audiobook
-import com.audiobookshelf.app.MainActivity
-import com.audiobookshelf.app.PlayerNotificationService
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
@@ -56,12 +53,20 @@ class MyNativeAudio : Plugin() {
     } else {
       Log.w(tag, "Service already started --")
     }
-
+    var jsobj = JSObject()
 
     var audiobook:Audiobook = Audiobook(call.data)
+    if (audiobook.playlistUrl == "" && audiobook.contentUrl == "") {
+      Log.e(tag, "Invalid URL for init audio player")
+
+      jsobj.put("success", false)
+      return call.resolve(jsobj)
+    }
+
     Handler(Looper.getMainLooper()).post() {
       playerNotificationService.initPlayer(audiobook)
-      call.resolve()
+      jsobj.put("success", true)
+      call.resolve(jsobj)
     }
   }
 
@@ -109,6 +114,7 @@ class MyNativeAudio : Plugin() {
       call.resolve()
     }
   }
+
   @PluginMethod
   fun seekBackward(call: PluginCall) {
     var amount:Long = call.getString("amount", "0")!!.toLong()
@@ -117,6 +123,7 @@ class MyNativeAudio : Plugin() {
       call.resolve()
     }
   }
+
   @PluginMethod
   fun setPlaybackSpeed(call: PluginCall) {
     var playbackSpeed:Float = call.getFloat("speed", 1.0f)!!
@@ -126,6 +133,7 @@ class MyNativeAudio : Plugin() {
       call.resolve()
     }
   }
+
   @PluginMethod
   fun terminateStream(call: PluginCall) {
     Handler(Looper.getMainLooper()).post() {

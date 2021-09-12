@@ -1,4 +1,5 @@
 import { io } from 'socket.io-client'
+import { Storage } from '@capacitor/storage'
 import axios from 'axios'
 import EventEmitter from 'events'
 
@@ -26,6 +27,7 @@ class Server extends EventEmitter {
   }
 
   getServerUrl(url) {
+    if (!url) return null
     var urlObject = new URL(url)
     return `${urlObject.protocol}//${urlObject.hostname}:${urlObject.port}`
   }
@@ -35,23 +37,34 @@ class Server extends EventEmitter {
     this.store.commit('user/setUser', user)
     if (user) {
       this.store.commit('user/setSettings', user.settings)
-      localStorage.setItem('userToken', user.token)
+      Storage.set({ key: 'token', value: user.token })
     } else {
-      localStorage.removeItem('userToken')
+      Storage.remove({ key: 'token' })
     }
   }
 
   setServerUrl(url) {
     this.url = url
-    localStorage.setItem('serverUrl', url)
     this.store.commit('setServerUrl', url)
+
+    if (url) {
+      Storage.set({ key: 'serverUrl', value: url })
+    } else {
+      Storage.remove({ key: 'serverUrl' })
+    }
   }
 
   async connect(url, token) {
+    if (!url) {
+      console.error('Invalid url to connect')
+      return false
+    }
+
     var serverUrl = this.getServerUrl(url)
     var res = await this.ping(serverUrl)
+
     if (!res || !res.success) {
-      this.url = null
+      this.setServerUrl(null)
       return false
     }
     var authRes = await this.authorize(serverUrl, token)
@@ -60,7 +73,7 @@ class Server extends EventEmitter {
     }
 
     this.setServerUrl(serverUrl)
-    console.warn('Connect setting auth user', authRes)
+
     this.setUser(authRes.user)
     this.connectSocket()
 
@@ -103,6 +116,9 @@ class Server extends EventEmitter {
 
   logout() {
     this.setUser(null)
+    if (this.socket) {
+      this.socket.disconnect()
+    }
   }
 
   authorize(serverUrl, token) {
@@ -138,9 +154,13 @@ class Server extends EventEmitter {
 
       this.connected = true
       this.emit('connected', true)
+      this.store.commit('setSocketConnected', true)
     })
     this.socket.on('disconnect', () => {
       console.log('[Server] Socket Disconnected')
+      this.connected = false
+      this.emit('connected', false)
+      this.store.commit('setSocketConnected', false)
     })
     this.socket.on('init', (data) => {
       console.log('[Server] Initial socket data received', data)

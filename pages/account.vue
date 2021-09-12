@@ -22,7 +22,9 @@
 
     <p class="font-mono pt-1 pb-4">{{ $config.version }}</p>
 
-    <ui-btn v-if="isUpdateAvailable" class="w-full my-4" color="success" @click="clickUpdate"> Version {{ availableVersion }} is available! Open App Store</ui-btn>
+    <ui-btn v-if="isUpdateAvailable" class="w-full my-4" color="success" @click="clickUpdate">Update is available</ui-btn>
+
+    <ui-btn v-if="!isUpdateAvailable || immediateUpdateAllowed" class="w-full my-4" color="primary" @click="openAppStore">Open app store</ui-btn>
   </div>
 </template>
 
@@ -67,8 +69,15 @@ export default {
       this.$server.logout()
       this.$router.push('/connect')
     },
+    openAppStore() {
+      AppUpdate.openAppStore()
+    },
     async clickUpdate() {
-      await AppUpdate.openAppStore()
+      if (this.immediateUpdateAllowed) {
+        AppUpdate.performImmediateUpdate()
+      } else {
+        AppUpdate.openAppStore()
+      }
     }
   },
   mounted() {}

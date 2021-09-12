@@ -1,6 +1,6 @@
 {
   "name": "audiobookshelf-app",
-  "version": "v0.4.0-beta",
+  "version": "v0.8.0-beta",
   "author": "advplyr",
   "scripts": {
     "dev": "nuxt --hostname localhost --port 1337",
@@ -10,14 +10,18 @@
     "icons-android": "cordova-res android --skip-config --copy"
   },
   "dependencies": {
+    "@capacitor-community/sqlite": "^3.2.0",
     "@capacitor/android": "^3.2.2",
     "@capacitor/cli": "^3.1.2",
     "@capacitor/core": "^3.2.2",
     "@capacitor/dialog": "^1.0.3",
     "@capacitor/ios": "^3.2.2",
+    "@capacitor/network": "^1.0.3",
+    "@capacitor/storage": "^1.1.0",
     "@nuxtjs/axios": "^5.13.6",
     "@robingenz/capacitor-app-update": "^1.0.0",
     "axios": "^0.21.1",
+    "capacitor-data-storage-sqlite": "^3.2.0",
     "core-js": "^3.15.1",
     "hls.js": "^1.0.9",
     "nuxt": "^2.15.7",
