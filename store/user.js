@@ -1,6 +1,9 @@
+import { Storage } from '@capacitor/storage'
+import Vue from 'vue'
 
 export const state = () => ({
   user: null,
+  localUserAudiobooks: {},
   settings: {
     orderBy: 'book.title',
     orderDesc: false,
@@ -28,33 +31,42 @@ export const getters = {
 }
 
 export const actions = {
-  updateUserSettings({ commit }, payload) {
-    var updatePayload = {
-      ...payload
-    }
-    return this.$axios.$patch('/api/user/settings', updatePayload).then((result) => {
-      if (result.success) {
-        commit('setSettings', result.settings)
-        console.log('Settings updated', result.settings)
-        return true
-      } else {
-        return false
+  async updateUserSettings({ commit }, payload) {
+
+    if (Vue.prototype.$server.connected) {
+      var updatePayload = {
+        ...payload
       }
-    }).catch((error) => {
-      console.error('Failed to update settings', error)
-      return false
-    })
+      return this.$axios.$patch('/api/user/settings', updatePayload).then((result) => {
+        if (result.success) {
+          commit('setSettings', result.settings)
+          console.log('Settings updated', result.settings)
+          return true
+        } else {
+          return false
+        }
+      }).catch((error) => {
+        console.error('Failed to update settings', error)
+        return false
+      })
+    } else {
+      console.log('Update settings without server')
+      commit('setSettings', payload)
+    }
   }
 }
 
 export const mutations = {
+  setLocalUserAudiobooks(state, userAudiobooks) {
+    state.localUserAudiobooks = userAudiobooks
+  },
   setUser(state, user) {
     state.user = user
     if (user) {
-      if (user.token) localStorage.setItem('token', user.token)
+      if (user.token) this.$localStore.setToken(user.token)
       console.log('setUser', user.username)
     } else {
-      localStorage.removeItem('token')
+      this.$localStore.setToken(null)
       console.warn('setUser cleared')
     }
   },
@@ -69,6 +81,9 @@ export const mutations = {
       }
     }
     if (hasChanges) {
+      console.log('Update settings in local storage')
+      this.$localStore.setUserSettings({ ...state.settings })
+
       state.settingsListeners.forEach((listener) => {
         listener.meth(state.settings)
       })

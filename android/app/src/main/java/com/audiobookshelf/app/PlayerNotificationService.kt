@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
+import android.provider.MediaStore
 import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaControllerCompat
@@ -24,10 +25,15 @@ import com.google.android.exoplayer2.*
 import com.google.android.exoplayer2.audio.AudioAttributes
 import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector
 import com.google.android.exoplayer2.ext.mediasession.TimelineQueueNavigator
+import com.google.android.exoplayer2.source.DefaultMediaSourceFactory
+import com.google.android.exoplayer2.source.MediaSource
+import com.google.android.exoplayer2.source.ProgressiveMediaExtractor
+import com.google.android.exoplayer2.source.ProgressiveMediaSource
 import com.google.android.exoplayer2.source.hls.HlsMediaSource
 import com.google.android.exoplayer2.ui.PlayerNotificationManager
 import com.google.android.exoplayer2.upstream.*
 import kotlinx.coroutines.*
+import java.io.File
 
 
 const val NOTIFICATION_LARGE_ICON_SIZE = 144 // px
@@ -217,13 +223,13 @@ class PlayerNotificationService : Service()  {
     mediaSessionConnector = MediaSessionConnector(mediaSession)
     val queueNavigator: TimelineQueueNavigator = object : TimelineQueueNavigator(mediaSession) {
       override fun getMediaDescription(player: Player, windowIndex: Int): MediaDescriptionCompat {
-        return MediaDescriptionCompat.Builder()
+        var builder = MediaDescriptionCompat.Builder()
           .setMediaId(currentAudiobook!!.id)
           .setTitle(currentAudiobook!!.title)
           .setSubtitle(currentAudiobook!!.author)
           .setMediaUri(currentAudiobook!!.playlistUri)
           .setIconUri(currentAudiobook!!.coverUri)
-          .build()
+        return builder.build()
       }
     }
     mediaSessionConnector.setQueueNavigator(queueNavigator)
@@ -279,6 +285,9 @@ class PlayerNotificationService : Service()  {
       }
     }
   }
+
+
+
 
   private fun setPlayerListeners() {
     mPlayer.addListener(object : Player.Listener {
@@ -351,28 +360,42 @@ class PlayerNotificationService : Service()  {
       Log.d(tag, "Init Player audiobook already playing")
     }
 
-    val metadata = MediaMetadataCompat.Builder()
+    var metadataBuilder = MediaMetadataCompat.Builder()
       .putString(MediaMetadataCompat.METADATA_KEY_TITLE, currentAudiobook!!.title)
       .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, currentAudiobook!!.title)
       .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, currentAudiobook!!.author)
       .putString(MediaMetadataCompat.METADATA_KEY_AUTHOR, currentAudiobook!!.author)
       .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, currentAudiobook!!.author)
       .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, currentAudiobook!!.series)
-      .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, currentAudiobook!!.cover)
-      .putString(MediaMetadataCompat.METADATA_KEY_ART_URI, currentAudiobook!!.cover)
       .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, currentAudiobook!!.id)
-      .build()
 
+    if (currentAudiobook!!.cover != "") {
+      metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_ART_URI, currentAudiobook!!.cover)
+      metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, currentAudiobook!!.cover)
+    }
+
+    var metadata = metadataBuilder.build()
     mediaSession.setMetadata(metadata)
 
     var mediaMetadata = MediaMetadata.Builder().build()
-    var mediaItem = MediaItem.Builder().setUri(currentAudiobook!!.playlistUri).setMediaMetadata(mediaMetadata).build()
 
-    var dataSourceFactory = DefaultHttpDataSource.Factory()
-    dataSourceFactory.setUserAgent(channelId)
-    dataSourceFactory.setDefaultRequestProperties(hashMapOf("Authorization" to "Bearer ${currentAudiobook!!.token}"))
 
-    var mediaSource = HlsMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
+    var mediaSource:MediaSource
+    if (currentAudiobook!!.isLocal) {
+      Log.d(tag, "Playing Local File")
+      var mediaItem = MediaItem.Builder().setUri(currentAudiobook!!.contentUri).setMediaMetadata(mediaMetadata).build()
+      var dataSourceFactory = DefaultDataSourceFactory(ctx, channelId)
+      mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
+    } else {
+      Log.d(tag, "Playing HLS File")
+      var mediaItem = MediaItem.Builder().setUri(currentAudiobook!!.playlistUri).setMediaMetadata(mediaMetadata).build()
+      var dataSourceFactory = DefaultHttpDataSource.Factory()
+      dataSourceFactory.setUserAgent(channelId)
+      dataSourceFactory.setDefaultRequestProperties(hashMapOf("Authorization" to "Bearer ${currentAudiobook!!.token}"))
+
+      mediaSource = HlsMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
+    }
+
 
     mPlayer.setMediaSource(mediaSource, true)
     mPlayer.prepare()

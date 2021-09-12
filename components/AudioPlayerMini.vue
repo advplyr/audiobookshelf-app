@@ -202,7 +202,17 @@ export default {
       this.isResetting = false
       this.initObject = { ...audiobookStreamData }
       this.currentPlaybackRate = this.initObject.playbackSpeed
-      MyNativeAudio.initPlayer(this.initObject)
+      MyNativeAudio.initPlayer(this.initObject).then((res) => {
+        if (res && res.success) {
+          console.log('Success init audio player')
+        } else {
+          console.error('Failed to init audio player')
+        }
+      })
+
+      if (audiobookStreamData.isLocal) {
+        this.setStreamReady()
+      }
     },
     setFromObj() {
       if (!this.initObject) {
@@ -210,7 +220,17 @@ export default {
         return
       }
       this.isResetting = false
-      MyNativeAudio.initPlayer(this.initObject)
+      MyNativeAudio.initPlayer(this.initObject).then((res) => {
+        if (res && res.success) {
+          console.log('Success init audio player')
+        } else {
+          console.error('Failed to init audio player')
+        }
+      })
+
+      if (audiobookStreamData.isLocal) {
+        this.setStreamReady()
+      }
     },
     play() {
       MyNativeAudio.playPlayer()

@@ -4,7 +4,7 @@
       <div :key="index" class="border-b border-opacity-10 w-full bookshelfRow py-4 flex justify-around relative">
         <template v-for="audiobook in shelf">
           <!-- <div :key="audiobook.id" class="relative px-4"> -->
-          <cards-book-card :key="audiobook.id" :audiobook="audiobook" :width="cardWidth" :user-progress="userAudiobooks[audiobook.id]" />
+          <cards-book-card :key="audiobook.id" :audiobook="audiobook" :width="cardWidth" :user-progress="userAudiobooks[audiobook.id]" :local-user-progress="localUserAudiobooks[audiobook.id]" />
           <!-- <nuxt-link :to="`/audiobook/${audiobook.id}`">
               <cards-book-cover :audiobook="audiobook" :width="cardWidth" class="mx-auto -mb-px" style="box-shadow: 4px 1px 8px #11111166, -4px 1px 8px #11111166, 1px -4px 8px #11111166" />
             </nuxt-link> -->
@@ -44,6 +44,9 @@ export default {
     },
     userAudiobooks() {
       return this.$store.state.user.user ? this.$store.state.user.user.audiobooks || {} : {}
+    },
+    localUserAudiobooks() {
+      return this.$store.state.user.localUserAudiobooks || {}
     }
   },
   methods: {
@@ -51,11 +54,6 @@ export default {
       this.$store.dispatch('user/updateUserSettings', {
         filterBy: 'all'
       })
-    },
-    playAudiobook(audiobook) {
-      console.log('Play Audiobook', audiobook)
-      this.$store.commit('setStreamAudiobook', audiobook)
-      this.$server.socket.emit('open_stream', audiobook.id)
     },
     calcShelves() {
       var booksPerShelf = Math.floor(this.pageWidth / (this.cardWidth + 32))
@@ -87,6 +85,16 @@ export default {
       if (this.currFilterOrderKey !== this.filterOrderKey) {
         this.calcShelves()
       }
+    },
+    socketConnected(isConnected) {
+      if (isConnected) {
+        console.log('Connected - Load from server')
+        this.$store.dispatch('audiobooks/load')
+      } else {
+        console.log('Disconnected - Reset to local storage')
+        this.$store.commit('audiobooks/reset')
+        this.$store.dispatch('downloads/loadFromStorage')
+      }
     }
   },
   mounted() {
@@ -94,7 +102,13 @@ export default {
     this.$store.commit('user/addSettingsListener', { id: 'bookshelf', meth: this.settingsUpdated })
 
     window.addEventListener('resize', this.resize)
-    this.$store.dispatch('audiobooks/load')
+
+    this.$server.on('connected', this.socketConnected)
+    if (this.$server.connected) {
+      this.$store.dispatch('audiobooks/load')
+    } else {
+      console.log('Bookshelf - Server not connected using downloaded')
+    }
     this.init()
   },
   beforeDestroy() {

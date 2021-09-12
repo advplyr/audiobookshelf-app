@@ -1,11 +1,14 @@
 <template>
   <div class="w-full h-full">
     <div class="relative flex items-center justify-center min-h-screen sm:pt-0">
+      <nuxt-link to="/" class="absolute top-2 left-2 z-20">
+        <span class="material-icons text-4xl">arrow_back</span>
+      </nuxt-link>
       <div class="absolute top-0 left-0 w-full p-6 flex items-center flex-col justify-center z-0 short:hidden">
         <img src="/Logo.png" class="h-20 w-20 mb-2" />
         <h1 class="text-2xl font-book">AudioBookshelf</h1>
       </div>
-      <p class="hidden absolute short:block top-0 left-0 p-2 font-book text-xl">AudioBookshelf</p>
+      <p class="hidden absolute short:block top-1.5 left-12 p-2 font-book text-xl">AudioBookshelf</p>
 
       <div class="max-w-sm mx-auto sm:px-6 lg:px-8 z-10">
         <div v-show="loggedIn" class="mt-8 bg-primary overflow-hidden shadow rounded-lg p-6 text-center">
@@ -15,8 +18,8 @@
         <div v-show="!loggedIn" class="mt-8 bg-primary overflow-hidden shadow rounded-lg p-6">
           <h2 class="text-xl leading-7 mb-4">Enter an <span class="font-book font-normal">AudioBookshelf</span><br />server address:</h2>
           <form v-show="!showAuth" @submit.prevent="submit" novalidate>
-            <ui-text-input v-model="serverUrl" :disabled="processing" placeholder="http://55.55.55.55:13378" type="url" class="w-60 sm:w-72 h-10" />
-            <ui-btn :disabled="processing" type="submit" :padding-x="3" class="h-10">Submit</ui-btn>
+            <ui-text-input v-model="serverUrl" :disabled="processing || !networkConnected" placeholder="http://55.55.55.55:13378" type="url" class="w-60 sm:w-72 h-10" />
+            <ui-btn :disabled="processing || !networkConnected" type="submit" :padding-x="3" class="h-10">{{ networkConnected ? 'Submit' : 'No Internet' }}</ui-btn>
           </form>
           <template v-if="showAuth">
             <div class="flex items-center">
@@ -29,7 +32,7 @@
               <ui-text-input v-model="username" :disabled="processing" placeholder="username" class="w-full my-1 text-lg" />
               <ui-text-input v-model="password" type="password" :disabled="processing" placeholder="password" class="w-full my-1 text-lg" />
 
-              <ui-btn :disabled="processing" type="submit" class="mt-1 h-10">Submit</ui-btn>
+              <ui-btn :disabled="processing || !networkConnected" type="submit" class="mt-1 h-10">{{ networkConnected ? 'Submit' : 'No Internet' }}</ui-btn>
             </form>
           </template>
 
@@ -77,8 +80,16 @@ export default {
       loggedIn: false
     }
   },
+  computed: {
+    networkConnected() {
+      return this.$store.state.networkConnected
+    }
+  },
   methods: {
     async submit() {
+      if (!this.networkConnected) {
+        return
+      }
       if (!this.serverUrl.startsWith('http')) {
         this.serverUrl = 'http://' + this.serverUrl
       }
@@ -94,6 +105,9 @@ export default {
       }
     },
     async submitAuth() {
+      if (!this.networkConnected) {
+        return
+      }
       if (!this.username) {
         this.error = 'Invalid username'
         return
@@ -137,8 +151,11 @@ export default {
       }
       this.$server.on('connected', this.socketConnected)
 
-      var localServerUrl = localStorage.getItem('serverUrl')
-      var localUserToken = localStorage.getItem('userToken')
+      var localServerUrl = await this.$localStore.getServerUrl()
+      var localUserToken = await this.$localStore.getToken()
+
+      if (!this.networkConnected) return
+
       if (localServerUrl) {
         this.serverUrl = localServerUrl
         if (localUserToken) {

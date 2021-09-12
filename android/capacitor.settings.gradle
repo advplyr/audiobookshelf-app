@@ -2,8 +2,20 @@
 include ':capacitor-android'
 project(':capacitor-android').projectDir = new File('../node_modules/@capacitor/android/capacitor')
 
+include ':capacitor-community-sqlite'
+project(':capacitor-community-sqlite').projectDir = new File('../node_modules/@capacitor-community/sqlite/android')
+
 include ':capacitor-dialog'
 project(':capacitor-dialog').projectDir = new File('../node_modules/@capacitor/dialog/android')
 
+include ':capacitor-network'
+project(':capacitor-network').projectDir = new File('../node_modules/@capacitor/network/android')
+
+include ':capacitor-storage'
+project(':capacitor-storage').projectDir = new File('../node_modules/@capacitor/storage/android')
+
 include ':robingenz-capacitor-app-update'
 project(':robingenz-capacitor-app-update').projectDir = new File('../node_modules/@robingenz/capacitor-app-update/android')
+
+include ':capacitor-data-storage-sqlite'
+project(':capacitor-data-storage-sqlite').projectDir = new File('../node_modules/capacitor-data-storage-sqlite/android')

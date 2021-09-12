@@ -9,8 +9,12 @@ android {
 
 apply from: "../capacitor-cordova-android-plugins/cordova.variables.gradle"
 dependencies {
+    implementation project(':capacitor-community-sqlite')
     implementation project(':capacitor-dialog')
+    implementation project(':capacitor-network')
+    implementation project(':capacitor-storage')
     implementation project(':robingenz-capacitor-app-update')
+    implementation project(':capacitor-data-storage-sqlite')
 
 }
 

@@ -12,6 +12,9 @@ export const state = () => ({
 })
 
 export const getters = {
+  getAudiobook: state => id => {
+    return state.audiobooks.find(ab => ab.id === id)
+  },
   getFiltered: (state, getters, rootState) => () => {
     var filtered = state.audiobooks
     var settings = rootState.user.settings || {}
@@ -51,7 +54,7 @@ export const getters = {
 
 export const actions = {
   load({ commit }) {
-    this.$axios
+    return this.$axios
       .$get(`/api/audiobooks`)
       .then((data) => {
         console.log('Audiobooks request data', data)
@@ -59,12 +62,17 @@ export const actions = {
       })
       .catch((error) => {
         console.error('Failed', error)
-        commit('set', [])
       })
-  },
+  }
 }
 
 export const mutations = {
+  reset(state) {
+    state.audiobooks = []
+    state.genres = [...STANDARD_GENRES]
+    state.tags = []
+    state.series = []
+  },
   set(state, audiobooks) {
     // GENRES
     var genres = [...state.genres]
@@ -92,7 +100,15 @@ export const mutations = {
     state.series = series
     state.series.sort((a, b) => a.toLowerCase() < b.toLowerCase() ? -1 : 1)
 
-    state.audiobooks = audiobooks
+    audiobooks.forEach((ab) => {
+      var indexOf = state.audiobooks.findIndex(_ab => _ab.id === ab.id)
+      if (indexOf >= 0) {
+        state.audiobooks.splice(indexOf, 1, ab)
+      } else {
+        state.audiobooks.push(ab)
+      }
+    })
+    // state.audiobooks = audiobooks
     state.listeners.forEach((listener) => {
       listener.meth()
     })

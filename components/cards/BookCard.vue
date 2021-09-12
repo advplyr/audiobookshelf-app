@@ -11,7 +11,11 @@
     <div class="rounded-sm h-full overflow-hidden relative box-shadow-book">
       <nuxt-link :to="`/audiobook/${audiobookId}`" class="cursor-pointer">
         <div class="w-full relative" :style="{ height: height + 'px' }">
-          <cards-book-cover :audiobook="audiobook" :author-override="authorFormat" :width="width" />
+          <cards-book-cover :audiobook="audiobook" :download-cover="downloadCover" :author-override="authorFormat" :width="width" />
+
+          <div v-if="download" class="absolute" :style="{ top: 0.5 * sizeMultiplier + 'rem', right: 0.5 * sizeMultiplier + 'rem' }">
+            <span class="material-icons text-success" :style="{ fontSize: 1.1 * sizeMultiplier + 'rem' }">download_done</span>
+          </div>
 
           <div class="absolute bottom-0 left-0 h-1.5 bg-yellow-400 shadow-sm" :style="{ width: width * userProgressPercent + 'px' }"></div>
 
@@ -32,6 +36,10 @@ export default {
       default: () => null
     },
     userProgress: {
+      type: Object,
+      default: () => null
+    },
+    localUserProgress: {
       type: Object,
       default: () => null
     },
@@ -81,8 +89,13 @@ export default {
     orderBy() {
       return this.$store.getters['user/getUserSetting']('orderBy')
     },
+    mostRecentUserProgress() {
+      if (!this.localUserProgress) return this.userProgress
+      if (!this.userProgress) return this.localUserProgress
+      return this.localUserProgress.lastUpdate > this.userProgress.lastUpdate ? this.localUserProgress : this.userProgress
+    },
     userProgressPercent() {
-      return this.userProgress ? this.userProgress.progress || 0 : 0
+      return this.mostRecentUserProgress ? this.mostRecentUserProgress.progress || 0 : 0
     },
     showError() {
       return this.hasMissingParts || this.hasInvalidParts
@@ -92,6 +105,12 @@ export default {
     },
     hasInvalidParts() {
       return this.audiobook.hasInvalidParts
+    },
+    downloadCover() {
+      return this.download ? this.download.cover : null
+    },
+    download() {
+      return this.$store.getters['downloads/getDownloadIfReady'](this.audiobookId)
     },
     errorText() {
       var txt = ''
@@ -105,12 +124,7 @@ export default {
       return txt || 'Unknown Error'
     }
   },
-  methods: {
-    play() {
-      this.$store.commit('setStreamAudiobook', this.audiobook)
-      this.$root.socket.emit('open_stream', this.audiobookId)
-    }
-  },
+  methods: {},
   mounted() {}
 }
 </script>
