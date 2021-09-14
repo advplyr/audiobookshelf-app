@@ -3,7 +3,7 @@
     <div class="flex">
       <div class="w-32">
         <div class="relative">
-          <cards-book-cover :audiobook="audiobook" :download-cover="downlaodedCover" :width="128" />
+          <cards-book-cover :audiobook="audiobook" :download-cover="downloadedCover" :width="128" />
           <div class="absolute bottom-0 left-0 h-1.5 bg-yellow-400 shadow-sm" :style="{ width: 128 * progressPercent + 'px' }"></div>
         </div>
         <div class="flex my-4">
@@ -157,7 +157,7 @@ export default {
     isDownloadPlayable() {
       return this.downloadObj && !this.isDownloading && !this.isDownloadPreparing
     },
-    downlaodedCover() {
+    downloadedCover() {
       return this.downloadObj ? this.downloadObj.cover : null
     },
     downloadObj() {

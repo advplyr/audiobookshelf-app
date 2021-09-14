@@ -13,7 +13,7 @@
         <span class="material-icons" @click="cancelStream">close</span>
       </div>
       <div class="absolute left-2 -top-10">
-        <cards-book-cover :audiobook="audiobook" :width="64" />
+        <cards-book-cover :audiobook="audiobook" :download-cover="downloadedCover" :width="64" />
       </div>
       <audio-player-mini ref="audioPlayerMini" :loading="isLoading" @updateTime="updateTime" @selectPlaybackSpeed="showPlaybackSpeedModal = true" @hook:mounted="audioPlayerMounted" />
     </div>
@@ -36,23 +36,6 @@ export default {
       playbackSpeed: 1,
       showChapterModal: false
     }
-  },
-  watch: {
-    // playingDownload: {
-    //   handler(newVal, oldVal) {
-    //     console.log('[StreamContainer] Download AUDIOBOOK Changed ' + newVal + '|' + oldVal)
-    //     if (newVal) {
-    //       if (this.audioPlayerReady) {
-    //         this.playDownload()
-    //       }
-    //     } else if (this.download) {
-    //       this.download = null
-    //     }
-    //   }
-    // },
-    // streamAudiobook(newVal, oldval) {
-    //   console.log('[StreamContainer] Stream AUDIOBOOK Changed ' + newVal + '|' + oldVal)
-    // }
   },
   watch: {
     socketConnected(newVal) {
@@ -95,6 +78,9 @@ export default {
     },
     cover() {
       return this.book ? this.book.cover : ''
+    },
+    downloadedCover() {
+      return this.download ? this.download.cover : null
     },
     series() {
       return this.book ? this.book.series : ''
@@ -348,20 +334,12 @@ export default {
     streamUpdated(type, data) {
       if (type === 'download') {
         if (data) {
-          console.log('START DOWNLOAD PLAY')
           this.download = { ...data }
           if (this.audioPlayerReady) {
             this.playDownload()
           }
         } else if (this.download) {
-          console.log('STOP DOWNLOAD PLAY')
           this.cancelStream()
-        }
-      } else {
-        if (data) {
-          console.log('STARTING STREAM')
-        } else {
-          console.log('STOPPING STREAM')
         }
       }
     }
