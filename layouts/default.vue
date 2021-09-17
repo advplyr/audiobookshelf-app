@@ -145,7 +145,7 @@ export default {
       if (audiobookId) {
         // Notify server to remove prepared download
         if (this.$server.socket) {
-          this.$server.socket.emit('remove_download', downloadId)
+          this.$server.socket.emit('remove_download', audiobookId)
         }
 
         console.log('Download complete', filename, downloadId, contentUrl, 'AudiobookId:', audiobookId)
