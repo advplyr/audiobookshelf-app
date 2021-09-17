@@ -7,7 +7,6 @@ import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
-import android.widget.Toast
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
@@ -23,10 +22,10 @@ class AudioDownloader : Plugin() {
   lateinit var mainActivity:MainActivity
   lateinit var downloadManager:DownloadManager
 
-  data class AudiobookDownload(val url: String, val filename:String, val downloadId: Long)
+  data class AudiobookDownload(val url: String, val filename: String, val downloadId: Long)
   var downloads:MutableList<AudiobookDownload> = mutableListOf()
 
-  data class CoverItem(val name:String, val coverUrl:String)
+  data class CoverItem(val name: String, val coverUrl: String)
   data class AudiobookItem(val id: Long, val uri: Uri, val name: String, val size: Int, val duration: Int, val coverUrl: String) {
     fun toJSObject() : JSObject {
       var obj = JSObject()
@@ -76,7 +75,8 @@ class AudioDownloader : Plugin() {
       MediaStore.Audio.Media.DISPLAY_NAME,
       MediaStore.Audio.Media.DURATION,
       MediaStore.Audio.Media.SIZE,
-      MediaStore.Audio.Media.IS_AUDIOBOOK
+      MediaStore.Audio.Media.IS_AUDIOBOOK,
+      MediaStore.Audio.Media.RELATIVE_PATH
     )
 
     var _audiobookItems:MutableList<AudiobookItem> = mutableListOf()
@@ -99,6 +99,7 @@ class AudioDownloader : Plugin() {
         cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
       val sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE)
       val isAudiobookColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.IS_AUDIOBOOK)
+      var relativePathColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.RELATIVE_PATH)
 
       while (cursor.moveToNext()) {
         val id = cursor.getLong(idColumn)
@@ -106,6 +107,7 @@ class AudioDownloader : Plugin() {
         val duration = cursor.getInt(durationColumn)
         val size = cursor.getInt(sizeColumn)
         var isAudiobook = cursor.getInt(isAudiobookColumn)
+        var relativePath = cursor.getString(relativePathColumn)
 
         if (isAudiobook == 1) {
           val contentUri: Uri = ContentUris.withAppendedId(
@@ -113,7 +115,7 @@ class AudioDownloader : Plugin() {
             id
           )
 
-          Log.d(tag, "Got Content FRom MEdia STORE $id $contentUri, Name: $name, Dur: $duration, Size: $size")
+          Log.d(tag, "Got Content FRom MEdia STORE $id $contentUri, Name: $name, Dur: $duration, Size: $size, relativePath: $relativePath")
           var audiobookId = File(name).nameWithoutExtension
           var coverItem:CoverItem? = covers.find{it.name == audiobookId}
           var coverUrl = coverItem?.coverUrl ?: ""
@@ -177,6 +179,7 @@ class AudioDownloader : Plugin() {
 
   @PluginMethod
   fun downloadCover(call: PluginCall) {
+    var audiobookId = call.data.getString("audiobookId", "audiobook").toString()
     var url = call.data.getString("downloadUrl", "unknown").toString()
     var title = call.data.getString("title", "Cover").toString()
     var filename = call.data.getString("filename", "audiobook.jpg").toString()
@@ -187,7 +190,10 @@ class AudioDownloader : Plugin() {
     dlRequest.setTitle("Cover Art: $title")
     dlRequest.setDescription("Cover art for audiobook")
     dlRequest.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_ONLY_COMPLETION)
-    dlRequest.setDestinationInExternalPublicDir(Environment.DIRECTORY_AUDIOBOOKS, filename)
+
+    var file:File = File(audiobookId, filename)
+    Log.d(tag, "FILE ${file.path} | ${file.canonicalPath}")
+    dlRequest.setDestinationInExternalPublicDir(Environment.DIRECTORY_AUDIOBOOKS, file.path)
     var downloadId = downloadManager.enqueue(dlRequest)
 
     var progressReceiver : (prog: Long) -> Unit = { prog: Long ->
@@ -212,6 +218,7 @@ class AudioDownloader : Plugin() {
 
   @PluginMethod
   fun download(call: PluginCall) {
+    var audiobookId = call.data.getString("audiobookId", "audiobook").toString()
     var url = call.data.getString("downloadUrl", "unknown").toString()
     var title = call.data.getString("title", "Audiobook").toString()
     var filename = call.data.getString("filename", "audiobook.mp3").toString()
@@ -223,7 +230,9 @@ class AudioDownloader : Plugin() {
     dlRequest.setDescription("Downloading to Audiobooks directory")
     dlRequest.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_ONLY_COMPLETION)
 
-    dlRequest.setDestinationInExternalPublicDir(Environment.DIRECTORY_AUDIOBOOKS, filename)
+    var file:File = File(audiobookId, filename)
+    Log.d(tag, "FILE ${file.path} | ${file.canonicalPath}")
+    dlRequest.setDestinationInExternalPublicDir(Environment.DIRECTORY_AUDIOBOOKS, file.path)
 
     var downloadId = downloadManager.enqueue(dlRequest)
 
@@ -251,12 +260,31 @@ class AudioDownloader : Plugin() {
   }
 
   @PluginMethod
-  fun delete(call:PluginCall) {
+  fun delete(call: PluginCall) {
+    var audiobookId = call.data.getString("audiobookId", "audiobook").toString()
     var filename = call.data.getString("filename", "audiobook.mp3").toString()
     var url = call.data.getString("url", "").toString()
     var coverUrl = call.data.getString("coverUrl", "").toString()
 
-    Log.d(tag, "Called delete file $filename $url")
+    // Does Not Work
+//    var audiobookDirRoot = activity.applicationContext.getExternalFilesDir(Environment.DIRECTORY_AUDIOBOOKS)
+//    Log.d(tag, "AUDIOBOOK DIR ROOT $audiobookDirRoot")
+//    var result = audiobookDirRoot?.deleteRecursively()
+//    Log.d(tag, "DONE DELETING FOLDER $result")
+
+    // Does Not Work
+//    var audiobookDir = File(audiobookDirRoot, audiobookId + "/")
+//    Log.d(tag, "Delete Audiobook DIR ${audiobookDir.path} is dir ${audiobookDir.isDirectory}")
+//    var result = audiobookDir.deleteRecursively()
+//
+
+    // Does Not Work
+//    var audiobookDir = activity.applicationContext.getExternalFilesDir(Environment.DIRECTORY_AUDIOBOOKS)
+//    Log.d(tag, "AUDIOBOOK DIR ${audiobookDir?.path}")
+//    var dir = File(audiobookDir, "$audiobookId/")
+//    Log.d(tag, "DIR DIR ${dir.path}")
+//    var res = dir.delete()
+//    Log.d(tag, "DELETED $res")
 
     var contentResolver = activity.applicationContext.contentResolver
     contentResolver.delete(Uri.parse(url), null, null)
@@ -268,7 +296,7 @@ class AudioDownloader : Plugin() {
     call.resolve()
   }
 
-  internal class DownloadProgressUpdater(private val manager: DownloadManager, private val downloadId: Long, private var receiver:(Long) -> Unit, private var doneReceiver:(Boolean) -> Unit) : Thread() {
+  internal class DownloadProgressUpdater(private val manager: DownloadManager, private val downloadId: Long, private var receiver: (Long) -> Unit, private var doneReceiver: (Boolean) -> Unit) : Thread() {
     private val query: DownloadManager.Query = DownloadManager.Query()
     private var totalBytes: Int = 0
     private var TAG = "DownloadProgressUpdater"

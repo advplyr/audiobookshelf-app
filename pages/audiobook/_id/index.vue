@@ -286,6 +286,7 @@ export default {
       var extname = Path.extname(coverUrl) || '.jpg'
 
       var downloadRequestPayload = {
+        audiobookId: download.id,
         downloadUrl: coverUrl,
         filename: `${download.id}${extname}`,
         title: download.audiobook.book.title
@@ -310,6 +311,7 @@ export default {
 
       console.log('Starting Download URL', url)
       var downloadRequestPayload = {
+        audiobookId: download.id,
         filename: download.filename,
         downloadUrl: url,
         title: download.audiobook.book.title
