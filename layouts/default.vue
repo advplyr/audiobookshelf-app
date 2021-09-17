@@ -247,7 +247,7 @@ export default {
       }
 
       if (download.contentUrl) {
-        await AudioDownloader.delete({ filename: download.filename, url: download.contentUrl, coverUrl: download.coverUrl })
+        await AudioDownloader.delete({ audiobookId: download.id, filename: download.filename, url: download.contentUrl, coverUrl: download.coverUrl })
       }
       this.$store.commit('downloads/removeDownload', download)
     },
@@ -268,63 +268,6 @@ export default {
       })
       AudioDownloader.load()
     },
-    // parseSemver(ver) {
-    //   if (!ver) return null
-    //   var groups = ver.match(/^v((([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)$/)
-    //   if (groups && groups.length > 6) {
-    //     var total = Number(groups[3]) * 100 + Number(groups[4]) * 10 + Number(groups[5])
-    //     if (isNaN(total)) {
-    //       console.warn('Invalid version total', groups[3], groups[4], groups[5])
-    //       return null
-    //     }
-    //     return {
-    //       total,
-    //       version: groups[2],
-    //       major: Number(groups[3]),
-    //       minor: Number(groups[4]),
-    //       patch: Number(groups[5]),
-    //       preRelease: groups[6] || null
-    //     }
-    //   } else {
-    //     console.warn('Invalid semver string', ver)
-    //   }
-    //   return null
-    // },
-    // checkForUpdateWebVersion() {
-    //   if (!this.$config.version) {
-    //     return
-    //   }
-    //   var currVerObj = this.parseSemver(this.$config.version)
-    //   if (!currVerObj) {
-    //     console.error('Invalid version', this.$config.version)
-    //     return
-    //   }
-    //   console.log('Check for update, your version:', currVerObj.version)
-    //   this.$store.commit('setCurrentVersion', currVerObj)
-
-    //   var largestVer = null
-    //   this.$axios.$get(`https://api.github.com/repos/advplyr/audiobookshelf-app/tags`).then((tags) => {
-    //     if (tags && tags.length) {
-    //       tags.forEach((tag) => {
-    //         var verObj = this.parseSemver(tag.name)
-    //         if (verObj) {
-    //           if (!largestVer || largestVer.total < verObj.total) {
-    //             largestVer = verObj
-    //           }
-    //         }
-    //       })
-    //     }
-    //   })
-    //   if (!largestVer) {
-    //     console.error('No valid version tags to compare with')
-    //     return
-    //   }
-    //   this.$store.commit('setLatestVersion', largestVer)
-    //   if (largestVer.total > currVerObj.total) {
-    //     console.log('Has Update!', largestVer.version)
-    //     this.$store.commit('setHasUpdate', true)
-    //   }
-    // }
     async setupNetworkListener() {
       var status = await Network.getStatus()
       console.log('Network status', status.connected, status.connectionType)

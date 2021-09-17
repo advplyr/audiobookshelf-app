@@ -11,7 +11,7 @@
           <template v-for="download in downloadsDownloading">
             <li :key="download.id" class="text-gray-400 select-none relative px-4 py-5 border-b border-white border-opacity-10 bg-black bg-opacity-10">
               <div class="flex items-center justify-center">
-                <div>
+                <div class="w-3/4">
                   <span class="text-xs">({{ downloadingProgress[download.id] || 0 }}%) {{ download.isPreparing ? 'Preparing' : 'Downloading' }}...</span>
                   <p class="font-normal truncate text-sm">{{ download.audiobook.book.title }}</p>
                 </div>
@@ -28,7 +28,7 @@
               <div class="flex items-center justify-center">
                 <img v-if="download.cover" :src="download.cover" class="w-10 h-16 object-contain" />
                 <img v-else src="/book_placeholder.jpg" class="w-10 h-16 object-contain" />
-                <div class="pl-2">
+                <div class="pl-2 w-1/2">
                   <p class="font-normal truncate text-sm">{{ download.audiobook.book.title }}</p>
                   <p class="font-normal truncate text-xs text-gray-400">{{ download.audiobook.book.author }}</p>
                 </div>
@@ -48,7 +48,11 @@
           <template v-for="download in orphanDownloads">
             <li :key="download.id" class="text-gray-50 select-none relative cursor-pointer px-4 py-5 border-b border-white border-opacity-10">
               <div class="flex items-center justify-center">
-                <span class="font-normal block truncate text-sm">{{ download.filename }}</span>
+                <div class="w-3/4">
+                  <span class="text-xs text-gray-400">Unknown Audio File</span>
+                  <p class="font-normal truncate text-sm">{{ download.filename }}</p>
+                </div>
+                <!-- <span class="font-normal block truncate text-sm pr-2">{{ download.filename }}</span> -->
                 <div class="flex-grow" />
                 <div class="shadow-sm text-warning flex items-center justify-center rounded-full">
                   <span class="material-icons">error_outline</span>
@@ -94,27 +98,35 @@ export default {
     },
     orphanDownloads() {
       return this.$store.state.downloads.orphanDownloads
+      // return [
+      //   {
+      //     id: 'asdf',
+      //     filename: 'Test Title 1 another long title on the downloading widget.jpg'
+      //   }
+      // ]
     },
     downloads() {
       return this.$store.state.downloads.downloads
       // return [
       //   {
       //     id: 'asdf1',
-      //     title: 'Test Title 1',
-      //     author: 'Test Author 1',
+      //     audiobook: {
+      //       book: {
+      //         title: 'Test Title 1 another long title on the downloading widget',
+      //         author: 'Test Author 1'
+      //       }
+      //     },
       //     isDownloading: true
       //   },
       //   {
       //     id: 'asdf2',
-      //     title: 'Test Title 2',
-      //     author: 'Author 2',
+      //     audiobook: {
+      //       book: {
+      //         title: 'Test Title 2',
+      //         author: 'Test Author 2 long test author to test the overflow capabilities'
+      //       }
+      //     },
       //     isReady: true
-      //   },
-      //   {
-      //     id: 'asdf3',
-      //     name: 'asdf.mp3',
-      //     isReady: false,
-      //     isDownloading: false
       //   }
       // ]
     }
