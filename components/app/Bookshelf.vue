@@ -3,12 +3,7 @@
     <template v-for="(shelf, index) in groupedBooks">
       <div :key="index" class="border-b border-opacity-10 w-full bookshelfRow py-4 flex justify-around relative">
         <template v-for="audiobook in shelf">
-          <!-- <div :key="audiobook.id" class="relative px-4"> -->
           <cards-book-card :key="audiobook.id" :audiobook="audiobook" :width="cardWidth" :user-progress="userAudiobooks[audiobook.id]" :local-user-progress="localUserAudiobooks[audiobook.id]" />
-          <!-- <nuxt-link :to="`/audiobook/${audiobook.id}`">
-              <cards-book-cover :audiobook="audiobook" :width="cardWidth" class="mx-auto -mb-px" style="box-shadow: 4px 1px 8px #11111166, -4px 1px 8px #11111166, 1px -4px 8px #11111166" />
-            </nuxt-link> -->
-          <!-- </div> -->
         </template>
         <div class="bookshelfDivider h-4 w-full absolute bottom-0 left-0 right-0 z-10" />
       </div>
@@ -93,15 +88,21 @@ export default {
       } else {
         console.log('Disconnected - Reset to local storage')
         this.$store.commit('audiobooks/reset')
-        this.$store.dispatch('downloads/loadFromStorage')
+        this.$store.dispatch('audiobooks/useDownloaded')
+        // this.calcShelves()
+        // this.$store.dispatch('downloads/loadFromStorage')
       }
     }
   },
   mounted() {
     this.$store.commit('audiobooks/addListener', { id: 'bookshelf', meth: this.audiobooksUpdated })
     this.$store.commit('user/addSettingsListener', { id: 'bookshelf', meth: this.settingsUpdated })
-
     window.addEventListener('resize', this.resize)
+
+    if (!this.$server) {
+      console.error('Bookshelf mounted no server')
+      return
+    }
 
     this.$server.on('connected', this.socketConnected)
     if (this.$server.connected) {
@@ -115,6 +116,12 @@ export default {
     this.$store.commit('audiobooks/removeListener', 'bookshelf')
     this.$store.commit('user/removeSettingsListener', 'bookshelf')
     window.removeEventListener('resize', this.resize)
+
+    if (!this.$server) {
+      console.error('Bookshelf beforeDestroy no server')
+      return
+    }
+    this.$server.off('connected', this.socketConnected)
   }
 }
 </script>

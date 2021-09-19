@@ -2,6 +2,7 @@ import Vue from 'vue'
 Vue.prototype.$isDev = process.env.NODE_ENV !== 'production'
 
 Vue.prototype.$bytesPretty = (bytes, decimals = 2) => {
+  if (isNaN(bytes) || bytes === null) return 'Invalid Bytes'
   if (bytes === 0) {
     return '0 Bytes'
   }

@@ -5,13 +5,16 @@ plugins {
 }
 
 android {
+    kotlinOptions {
+      freeCompilerArgs = ['-Xjvm-default=all']
+    }
     compileSdkVersion rootProject.ext.compileSdkVersion
     defaultConfig {
         applicationId "com.audiobookshelf.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 13
-        versionName "0.8.4-beta"
+        versionCode 15
+        versionName "0.9.0-beta"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -35,6 +38,7 @@ repositories {
 }
 
 dependencies {
+  implementation "com.anggrayudi:storage:0.13.0"
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
     implementation project(':capacitor-android')

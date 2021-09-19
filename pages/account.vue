@@ -68,6 +68,9 @@ export default {
       })
       this.$server.logout()
       this.$router.push('/connect')
+
+      this.$store.commit('audiobooks/reset')
+      this.$store.dispatch('audiobooks/useDownloaded')
     },
     openAppStore() {
       AppUpdate.openAppStore()

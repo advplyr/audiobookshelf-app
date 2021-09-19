@@ -408,6 +408,7 @@ class LocalStorage {
     this.vuexStore = vuexStore
 
     this.userAudiobooksLoaded = false
+    this.downloadFolder = null
     this.userAudiobooks = {}
   }
 
@@ -498,6 +499,32 @@ class LocalStorage {
       return (await Storage.get({ key: 'token' }) || {}).value || null
     } catch (error) {
       console.error('[LocalStorage] Failed to get token', error)
+      return null
+    }
+  }
+
+  async setDownloadFolder(folderObj) {
+    try {
+      if (folderObj) {
+        await Storage.set({ key: 'downloadFolder', value: JSON.stringify(folderObj) })
+        this.downloadFolder = folderObj
+      } else {
+        await Storage.remove({ key: 'downloadFolder' })
+        this.downloadFolder = null
+      }
+    } catch (error) {
+      console.error('[LocalStorage] Failed to set download folder', error)
+    }
+  }
+
+  async getDownloadFolder() {
+    try {
+      var _value = (await Storage.get({ key: 'downloadFolder' }) || {}).value || null
+      if (!_value) return null
+      this.downloadFolder = JSON.parse(_value)
+      return this.downloadFolder
+    } catch (error) {
+      console.error('[LocalStorage] Failed to get download folder', error)
       return null
     }
   }

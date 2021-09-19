@@ -44,6 +44,10 @@ export default {
           value: 'addedAt'
         },
         {
+          text: 'Volume #',
+          value: 'book.volumeNumber'
+        },
+        {
           text: 'Duration',
           value: 'duration'
         },

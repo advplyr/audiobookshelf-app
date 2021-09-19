@@ -162,6 +162,9 @@ export default {
     },
     downloadObj() {
       return this.$store.getters['downloads/getDownload'](this.audiobookId)
+    },
+    hasStoragePermission() {
+      return this.$store.state.hasStoragePermission
     }
   },
   methods: {
@@ -229,17 +232,32 @@ export default {
       }
     },
     async prepareDownload() {
-      // var audiobook = await this.$axios.$get(`/api/audiobook/${this.audiobookId}`).catch((error) => {
-      //   console.error('Failed', error)
-      //   return false
-      // })
       var audiobook = this.audiobook
       if (!audiobook) {
         return
       }
 
+      if (!this.hasStoragePermission) {
+        await AudioDownloader.requestStoragePermission()
+        return
+      }
+
+      // Download Path
+      var dlFolder = this.$localStore.downloadFolder
+      if (!dlFolder) {
+        console.log('No download folder, request from ujser')
+        var folderObj = await AudioDownloader.selectFolder()
+
+        if (folderObj.error) {
+          return this.$toast.error(`Error: ${folderObj.error || 'Unknown Error'}`)
+        }
+        dlFolder = folderObj
+        await this.$localStore.setDownloadFolder(folderObj)
+      }
+
       var downloadObject = {
         id: this.audiobookId,
+        downloadFolderUrl: dlFolder.uri,
         audiobook: {
           ...audiobook
         },
@@ -278,59 +296,37 @@ export default {
       }
       return _clean
     },
-    async downloadCover(download) {
-      var coverUrl = this.getCoverUrlForDownload()
-      if (!coverUrl) {
-        return null
-      }
-      var extname = Path.extname(coverUrl) || '.jpg'
-
-      var downloadRequestPayload = {
-        audiobookId: download.id,
-        downloadUrl: coverUrl,
-        filename: `${download.id}${extname}`,
-        title: download.audiobook.book.title
-      }
-      console.log('Starting cover download', coverUrl, downloadRequestPayload.filename)
-      var downloadRes = await AudioDownloader.downloadCover(downloadRequestPayload)
-      if (downloadRes && downloadRes.url) {
-        console.log('Cover art downloaded', downloadRes.url)
-        return downloadRes.url
-      } else {
-        console.error('Cover art failed to download')
-        return null
-      }
-    },
     async startDownload(url, fileext, download) {
       this.$toast.update(download.toastId, { content: `Downloading "${download.audiobook.book.title}"...` })
 
+      var coverDownloadUrl = this.getCoverUrlForDownload()
+      var coverFilename = null
+      if (coverDownloadUrl) {
+        var coverExt = Path.extname(coverDownloadUrl) || '.jpg'
+        coverFilename = `cover-${download.id}${coverExt}`
+      }
+
       download.isDownloading = true
       download.isPreparing = false
-      download.filename = `${download.id}${fileext}`
+      download.filename = `${download.audiobook.book.title}${fileext}`
       this.$store.commit('downloads/addUpdateDownload', download)
 
       console.log('Starting Download URL', url)
       var downloadRequestPayload = {
         audiobookId: download.id,
         filename: download.filename,
+        coverFilename,
+        coverDownloadUrl,
         downloadUrl: url,
-        title: download.audiobook.book.title
+        title: download.audiobook.book.title,
+        downloadFolderUrl: download.downloadFolderUrl
       }
       var downloadRes = await AudioDownloader.download(downloadRequestPayload)
-      var downloadId = downloadRes.value
-      if (!downloadId) {
-        console.error('Invalid download, removing')
-        this.$toast.update(download.toastId, { content: `Failed download "${download.audiobook.book.title}"`, options: { timeout: 5000, type: 'error' } })
+      if (downloadRes.error) {
+        var errorMsg = downloadRes.error || 'Unknown error'
+        console.error('Download error', errorMsg)
+        this.$toast.update(download.toastId, { content: `Error: ${errorMsg}`, options: { timeout: 5000, type: 'error' } })
         this.$store.commit('downloads/removeDownload', download)
-      } else {
-        console.log('Download cover now')
-        var coverUrl = await this.downloadCover(download)
-        if (coverUrl) {
-          console.log('Got cover url', coverUrl)
-          download.coverUrl = coverUrl
-          download.cover = Capacitor.convertFileSrc(coverUrl)
-          this.$store.commit('downloads/addUpdateDownload', download)
-        }
       }
     },
     downloadReady(prepareDownload) {
@@ -363,16 +359,24 @@ export default {
     }
   },
   mounted() {
-    this.$server.socket.on('download_ready', this.downloadReady)
-    this.$server.socket.on('download_killed', this.downloadKilled)
-    this.$server.socket.on('download_failed', this.downloadFailed)
+    if (!this.$server.socket) {
+      console.warn('Audiobook Page mounted: Server socket not set')
+    } else {
+      this.$server.socket.on('download_ready', this.downloadReady)
+      this.$server.socket.on('download_killed', this.downloadKilled)
+      this.$server.socket.on('download_failed', this.downloadFailed)
+    }
 
     this.$store.commit('audiobooks/addListener', { id: 'audiobook', audiobookId: this.audiobookId, meth: this.audiobookUpdated })
   },
   beforeDestroy() {
-    this.$server.socket.off('download_ready', this.downloadReady)
-    this.$server.socket.off('download_killed', this.downloadKilled)
-    this.$server.socket.off('download_failed', this.downloadFailed)
+    if (!this.$server.socket) {
+      console.warn('Audiobook Page beforeDestroy: Server socket not set')
+    } else {
+      this.$server.socket.off('download_ready', this.downloadReady)
+      this.$server.socket.off('download_killed', this.downloadKilled)
+      this.$server.socket.off('download_failed', this.downloadFailed)
+    }
 
     this.$store.commit('audiobooks/removeListener', 'audiobook')
   }

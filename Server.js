@@ -36,7 +36,7 @@ class Server extends EventEmitter {
     this.user = user
     this.store.commit('user/setUser', user)
     if (user) {
-      this.store.commit('user/setSettings', user.settings)
+      // this.store.commit('user/setSettings', user.settings)
       Storage.set({ key: 'token', value: user.token })
     } else {
       Storage.remove({ key: 'token' })

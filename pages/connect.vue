@@ -179,6 +179,13 @@ export default {
   },
   mounted() {
     this.init()
+  },
+  beforeDestroy() {
+    if (!this.$server) {
+      console.error('Connected beforeDestroy: No Server')
+      return
+    }
+    this.$server.off('connected', this.socketConnected)
   }
 }
 </script>

@@ -8,8 +8,10 @@ export const state = () => ({
   appUpdateInfo: null,
   socketConnected: false,
   networkConnected: false,
-  networkConnectionType: 'unknown',
-  streamListener: null
+  networkConnectionType: null,
+  streamListener: null,
+  isFirstLoad: true,
+  hasStoragePermission: false
 })
 
 export const getters = {
@@ -27,6 +29,12 @@ export const getters = {
 export const actions = {}
 
 export const mutations = {
+  setHasStoragePermission(state, val) {
+    state.hasStoragePermission = val
+  },
+  setIsFirstLoad(state, val) {
+    state.isFirstLoad = val
+  },
   setAppUpdateInfo(state, info) {
     state.appUpdateInfo = info
   },

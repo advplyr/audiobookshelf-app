@@ -128,6 +128,7 @@ export default {
         if (this.$refs.audioPlayerMini) {
           this.$refs.audioPlayerMini.terminateStream()
         }
+        this.download = null
         this.$store.commit('setPlayingDownload', null)
 
         this.$localStore.setCurrent(null)
@@ -167,12 +168,6 @@ export default {
           }
 
           if (this.$server.connected) {
-            // var updateObj = {
-            //   audiobookId: this.download.id,
-            //   totalDuration: this.download.audiobook.duration,
-            //   clientCurrentTime: currentTime,
-            //   clientProgress: Number((currentTime / this.download.audiobook.duration).toFixed(3))
-            // }
             this.$server.socket.emit('progress_update', progressUpdate)
           }
           this.$localStore.updateUserAudiobookProgress(progressUpdate).then(() => {
@@ -184,7 +179,6 @@ export default {
     closeStream() {},
     streamClosed(audiobookId) {
       console.log('Stream Closed')
-
       if (this.stream.audiobook.id === audiobookId || audiobookId === 'n/a') {
         this.$store.commit('setStreamAudiobook', null)
       }
@@ -305,22 +299,14 @@ export default {
 
       if (this.playingDownload) {
         console.log('[StreamContainer] Play download on audio mount')
+        if (!this.download) {
+          this.download = { ...this.playingDownload }
+        }
         this.playDownload()
       } else if (this.$server.stream) {
         console.log('[StreamContainer] Open stream on audio mount')
         this.streamOpen(this.$server.stream)
       }
-    },
-    setListeners() {
-      if (!this.$server.socket) {
-        console.error('Invalid server socket not set')
-        return
-      }
-      this.$server.socket.on('stream_open', this.streamOpen)
-      this.$server.socket.on('stream_closed', this.streamClosed)
-      this.$server.socket.on('stream_progress', this.streamProgress)
-      this.$server.socket.on('stream_ready', this.streamReady)
-      this.$server.socket.on('stream_reset', this.streamReset)
     },
     changePlaybackSpeed(speed) {
       this.$store.dispatch('user/updateUserSettings', { playbackRate: speed })
@@ -342,6 +328,17 @@ export default {
           this.cancelStream()
         }
       }
+    },
+    setListeners() {
+      if (!this.$server.socket) {
+        console.error('Invalid server socket not set')
+        return
+      }
+      this.$server.socket.on('stream_open', this.streamOpen)
+      this.$server.socket.on('stream_closed', this.streamClosed)
+      this.$server.socket.on('stream_progress', this.streamProgress)
+      this.$server.socket.on('stream_ready', this.streamReady)
+      this.$server.socket.on('stream_reset', this.streamReset)
     }
   },
   mounted() {
