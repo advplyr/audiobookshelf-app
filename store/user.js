@@ -1,4 +1,3 @@
-import { Storage } from '@capacitor/storage'
 import Vue from 'vue'
 
 export const state = () => ({

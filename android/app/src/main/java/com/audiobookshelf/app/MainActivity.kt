@@ -2,12 +2,10 @@ package com.audiobookshelf.app
 
 import android.app.DownloadManager
 import android.content.*
-import android.os.Bundle
-import android.os.Handler
-import android.os.IBinder
-import android.os.Looper
+import android.os.*
 import android.util.Log
-import android.widget.Toast
+import com.anggrayudi.storage.SimpleStorage
+import com.anggrayudi.storage.SimpleStorageHelper
 import com.getcapacitor.BridgeActivity
 
 
@@ -21,23 +19,19 @@ class MainActivity : BridgeActivity() {
   lateinit var pluginCallback : () -> Unit
   lateinit var downloaderCallback : (String, Long) -> Unit
 
+  val storageHelper = SimpleStorageHelper(this)
+  val storage = SimpleStorage(this)
+
   val broadcastReceiver = object: BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
       when (intent?.action) {
         DownloadManager.ACTION_DOWNLOAD_COMPLETE -> {
           var thisdlid = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, 0L)
-
           downloaderCallback("complete", thisdlid)
-
-          Log.d(tag, "DOWNNLAOD COMPELTE $thisdlid")
-          Toast.makeText(this@MainActivity, "Download Completed  $thisdlid", Toast.LENGTH_SHORT)
         }
         DownloadManager.ACTION_NOTIFICATION_CLICKED -> {
           var thisdlid = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, 0L)
           downloaderCallback("clicked", thisdlid)
-
-          Log.d(tag, "CLICKED NOTFIFICAIONT $thisdlid")
-          Toast.makeText(this@MainActivity, "Download CLICKED $thisdlid", Toast.LENGTH_SHORT)
         }
       }
     }
@@ -45,6 +39,7 @@ class MainActivity : BridgeActivity() {
 
   public override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+
     Log.d(tag, "onCreate")
     registerPlugin(MyNativeAudio::class.java)
     registerPlugin(AudioDownloader::class.java)
@@ -57,7 +52,7 @@ class MainActivity : BridgeActivity() {
 
   override fun onDestroy() {
     super.onDestroy()
-//    unregisterReceiver(broadcastReceiver)
+    unregisterReceiver(broadcastReceiver)
   }
 
   override fun onPostCreate(savedInstanceState: Bundle?) {
@@ -100,5 +95,30 @@ class MainActivity : BridgeActivity() {
 
   fun registerBroadcastReceiver(cb: (String, Long) -> Unit) {
     downloaderCallback = cb
+  }
+
+  override fun onSaveInstanceState(outState: Bundle) {
+    storageHelper.onSaveInstanceState(outState)
+    super.onSaveInstanceState(outState)
+  }
+
+  override fun onRestoreInstanceState(savedInstanceState: Bundle) {
+    super.onRestoreInstanceState(savedInstanceState)
+    storageHelper.onRestoreInstanceState(savedInstanceState)
+  }
+
+  override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    super.onActivityResult(requestCode, resultCode, data)
+    // Mandatory for Activity, but not for Fragment & ComponentActivity
+    storageHelper.storage.onActivityResult(requestCode, resultCode, data)
+  }
+
+  override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+    super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+    Log.d(tag, "onRequestPermissionResult $requestCode")
+    permissions.forEach { Log.d(tag, "PERMISSION $it") }
+    grantResults.forEach { Log.d(tag, "GRANTREUSLTS $it") }
+    // Mandatory for Activity, but not for Fragment & ComponentActivity
+    storageHelper.onRequestPermissionsResult(requestCode, permissions, grantResults)
   }
 }

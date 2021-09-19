@@ -15,7 +15,11 @@ export const getters = {
   getAudiobook: state => id => {
     return state.audiobooks.find(ab => ab.id === id)
   },
-  getFiltered: (state, getters, rootState) => () => {
+  getFiltered: (state, getters, rootState, rootGetters) => () => {
+    // var isDisc = !rootState.networkConnected || !rootState.socketConnected
+    // console.log('GET FILETERED', isDisc)
+    // var filtered = isDisc ? rootGetters['downloads/getAudiobooks'] : state.audiobooks
+    // console.log('FILTERED LEN', filtered.length)
     var filtered = state.audiobooks
     var settings = rootState.user.settings || {}
     var filterBy = settings.filterBy || ''
@@ -36,9 +40,12 @@ export const getters = {
     var direction = settings.orderDesc ? 'desc' : 'asc'
 
     var filtered = getters.getFiltered()
+    var orderByNumber = settings.orderBy === 'book.volumeNumber'
     return sort(filtered)[direction]((ab) => {
       // Supports dot notation strings i.e. "book.title"
-      return settings.orderBy.split('.').reduce((a, b) => a[b], ab)
+      var value = settings.orderBy.split('.').reduce((a, b) => a[b], ab)
+      if (orderByNumber && !isNaN(value)) return Number(value)
+      return value
     })
   },
   getUniqueAuthors: (state) => {
@@ -63,6 +70,9 @@ export const actions = {
       .catch((error) => {
         console.error('Failed', error)
       })
+  },
+  useDownloaded({ commit, rootGetters }) {
+    commit('set', rootGetters['downloads/getAudiobooks'])
   }
 }
 

@@ -11,6 +11,9 @@ export const getters = {
   getDownloadIfReady: (state) => id => {
     var download = state.downloads.find(d => d.id === id)
     return !!download && !download.isDownloading && !download.isPreparing ? download : null
+  },
+  getAudiobooks: (state) => {
+    return state.downloads.map(dl => dl.audiobook)
   }
 }
 

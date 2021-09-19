@@ -110,6 +110,7 @@ export default {
       return this.download ? this.download.cover : null
     },
     download() {
+      return null
       return this.$store.getters['downloads/getDownloadIfReady'](this.audiobookId)
     },
     errorText() {

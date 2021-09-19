@@ -1,8 +1,16 @@
 <template>
   <div class="relative rounded-sm overflow-hidden" :style="{ height: width * 1.6 + 'px', width: width + 'px', maxWidth: width + 'px', minWidth: width + 'px' }">
     <div class="w-full h-full relative">
-      <div v-if="showCoverBg" class="bg-primary absolute top-0 left-0 w-full h-full">
-        <div class="w-full h-full z-0" ref="coverBg" />
+      <div class="bg-primary absolute top-0 left-0 w-full h-full">
+        <!-- Blurred background for covers that dont fill -->
+        <div v-if="showCoverBg" class="w-full h-full z-0" ref="coverBg" />
+
+        <!-- Image Loading indicator -->
+        <div v-if="!isImageLoaded" class="w-full h-full flex items-center justify-center text-white">
+          <svg class="animate-spin w-12 h-12" viewBox="0 0 24 24">
+            <path fill="currentColor" d="M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z" />
+          </svg>
+        </div>
       </div>
       <img ref="cover" :src="fullCoverUrl" @error="imageError" @load="imageLoaded" class="w-full h-full absolute top-0 left-0" :class="showCoverBg ? 'object-contain' : 'object-cover'" />
     </div>
@@ -42,7 +50,8 @@ export default {
   data() {
     return {
       imageFailed: false,
-      showCoverBg: false
+      showCoverBg: false,
+      isImageLoaded: false
     }
   },
   watch: {
@@ -142,10 +151,11 @@ export default {
           this.showCoverBg = false
         }
       }
+      this.isImageLoaded = true
     },
     imageError(err) {
-      console.error('ImgError', err)
       this.imageFailed = true
+      console.error('ImgError', err, `SET IMAGE FAILED ${this.imageFailed}`)
     }
   }
 }
