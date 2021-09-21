@@ -46,7 +46,6 @@
 <script>
 import Path from 'path'
 import { Dialog } from '@capacitor/dialog'
-import { Capacitor } from '@capacitor/core'
 import AudioDownloader from '@/plugins/audio-downloader'
 
 export default {

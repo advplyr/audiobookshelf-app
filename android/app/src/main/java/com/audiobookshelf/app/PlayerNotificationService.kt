@@ -6,17 +6,18 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.net.Uri
-import android.os.Binder
-import android.os.Build
-import android.os.IBinder
-import android.provider.MediaStore
+import android.os.*
+import android.support.v4.media.MediaBrowserCompat
 import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaControllerCompat
 import android.support.v4.media.session.MediaSessionCompat
+import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
+import androidx.media.MediaBrowserServiceCompat
+import androidx.media.utils.MediaConstants
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.request.RequestOptions
@@ -25,20 +26,17 @@ import com.google.android.exoplayer2.*
 import com.google.android.exoplayer2.audio.AudioAttributes
 import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector
 import com.google.android.exoplayer2.ext.mediasession.TimelineQueueNavigator
-import com.google.android.exoplayer2.source.DefaultMediaSourceFactory
 import com.google.android.exoplayer2.source.MediaSource
-import com.google.android.exoplayer2.source.ProgressiveMediaExtractor
 import com.google.android.exoplayer2.source.ProgressiveMediaSource
 import com.google.android.exoplayer2.source.hls.HlsMediaSource
 import com.google.android.exoplayer2.ui.PlayerNotificationManager
 import com.google.android.exoplayer2.upstream.*
 import kotlinx.coroutines.*
-import java.io.File
 
 
 const val NOTIFICATION_LARGE_ICON_SIZE = 144 // px
 
-class PlayerNotificationService : Service()  {
+class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   companion object {
     var isStarted = false
@@ -47,6 +45,8 @@ class PlayerNotificationService : Service()  {
   interface MyCustomObjectListener {
     fun onPlayingUpdate(isPlaying: Boolean)
     fun onMetadata(metadata: JSObject)
+    fun onPrepare(audiobookId:String, playWhenReady:Boolean)
+    fun onCar()
   }
 
   private val tag = "PlayerService"
@@ -71,6 +71,8 @@ class PlayerNotificationService : Service()  {
 
   private var currentAudiobook:Audiobook? = null
 
+  private var audiobooks = mutableListOf<Audiobook>()
+
   fun setCustomObjectListener(mylistener: MyCustomObjectListener) {
     listener = mylistener
   }
@@ -78,8 +80,14 @@ class PlayerNotificationService : Service()  {
    /*
       Service related stuff
    */
-  override fun onBind(intent: Intent?): IBinder? {
+  override fun onBind(intent: Intent): IBinder? {
     Log.d(tag, "onBind")
+
+     // Android Auto Media Browser Service
+     if (SERVICE_INTERFACE.equals(intent.getAction())) {
+       Log.d(tag, "Is Media Browser Service")
+       return super.onBind(intent);
+     }
     return binder
   }
 
@@ -97,9 +105,11 @@ class PlayerNotificationService : Service()  {
     Log.d(tag, "onStartCommand $startId")
     isStarted = true
 
-
-
     return START_STICKY
+  }
+
+  override fun onStart(intent: Intent?, startId: Int) {
+    Log.d(tag, "onStart $startId" )
   }
 
   @RequiresApi(Build.VERSION_CODES.O)
@@ -165,6 +175,9 @@ class PlayerNotificationService : Service()  {
     Log.d(tag, "Media Session Set")
 
     val mediaController = MediaControllerCompat(ctx, mediaSession.sessionToken)
+
+    // This is for Media Browser
+    sessionToken = mediaSession.sessionToken
 
     val builder = PlayerNotificationManager.Builder(
       ctx,
@@ -232,7 +245,53 @@ class PlayerNotificationService : Service()  {
         return builder.build()
       }
     }
+
+    val myPlaybackPreparer:MediaSessionConnector.PlaybackPreparer = object :MediaSessionConnector.PlaybackPreparer {
+      override fun onCommand(player: Player, controlDispatcher: ControlDispatcher, command: String, extras: Bundle?, cb: ResultReceiver?): Boolean {
+        Log.d(tag, "ON COMMAND $command")
+        return false
+      }
+
+      override fun getSupportedPrepareActions(): Long {
+        Log.d(tag, "GET SUPORTED ACITONS")
+        return PlaybackStateCompat.ACTION_PREPARE_FROM_MEDIA_ID or
+          PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID or
+          PlaybackStateCompat.ACTION_PREPARE_FROM_SEARCH or
+          PlaybackStateCompat.ACTION_PLAY_FROM_SEARCH
+      }
+
+      override fun onPrepare(playWhenReady: Boolean) {
+       Log.d(tag, "ON PREPARE $playWhenReady")
+
+        var audiobook = audiobooks[0]
+        if (audiobook == null) {
+          Log.e(tag, "Audiobook NOT FOUND")
+          return
+        }
+        listener.onPrepare(audiobook.id, playWhenReady)
+      }
+
+      override fun onPrepareFromMediaId(mediaId: String, playWhenReady: Boolean, extras: Bundle?) {
+        Log.d(tag, "ON PREPARE FROM MEDIA ID $mediaId $playWhenReady")
+        var audiobook = audiobooks.find { it.id == mediaId }
+        if (audiobook == null) {
+          Log.e(tag, "Audiobook NOT FOUND")
+          return
+        }
+        listener.onPrepare(audiobook.id, playWhenReady)
+      }
+
+      override fun onPrepareFromSearch(query: String, playWhenReady: Boolean, extras: Bundle?) {
+        Log.d(tag, "ON PREPARE FROM SEARCH $query")
+      }
+
+      override fun onPrepareFromUri(uri: Uri, playWhenReady: Boolean, extras: Bundle?) {
+        Log.d(tag, "ON PREPARE FROM URI $uri")
+      }
+
+    }
     mediaSessionConnector.setQueueNavigator(queueNavigator)
+    mediaSessionConnector.setPlaybackPreparer(myPlaybackPreparer)
     mediaSessionConnector.setPlayer(mPlayer)
 
     //attach player to playerNotificationManager
@@ -285,9 +344,6 @@ class PlayerNotificationService : Service()  {
       }
     }
   }
-
-
-
 
   private fun setPlayerListeners() {
     mPlayer.addListener(object : Player.Listener {
@@ -451,4 +507,81 @@ class PlayerNotificationService : Service()  {
     metadata.put("stateName", stateName)
     if (listener != null) listener.onMetadata(metadata)
   }
+
+
+  //
+  // MEDIA BROWSER STUFF (ANDROID AUTO)
+  //
+  private val MY_MEDIA_ROOT_ID = "audiobookshelf"
+
+  fun setAudiobooks(_audiobooks:MutableList<Audiobook>) {
+    audiobooks = _audiobooks
+  }
+
+  private fun isValid(packageName:String, uid:Int) : Boolean {
+    Log.d(tag, "Check package $packageName is valid with uid $uid")
+    return true
+  }
+
+  override fun onGetRoot(clientPackageName: String, clientUid: Int, rootHints: Bundle?): BrowserRoot? {
+    // Verify that the specified package is allowed to access your
+    // content! You'll need to write your own logic to do this.
+    return if (!isValid(clientPackageName, clientUid)) {
+      // If the request comes from an untrusted package, return null.
+      // No further calls will be made to other media browsing methods.
+      null
+    } else {
+      listener.onCar()
+
+      val extras = Bundle()
+      extras.putInt(
+        MediaConstants.DESCRIPTION_EXTRAS_KEY_CONTENT_STYLE_BROWSABLE,
+        MediaConstants.DESCRIPTION_EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM)
+      extras.putInt(
+        MediaConstants.DESCRIPTION_EXTRAS_KEY_CONTENT_STYLE_PLAYABLE,
+        MediaConstants.DESCRIPTION_EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM)
+      MediaBrowserServiceCompat.BrowserRoot(MY_MEDIA_ROOT_ID, extras)
+    }
+  }
+
+  override fun onLoadChildren(parentMediaId: String, result: Result<MutableList<MediaBrowserCompat.MediaItem>>) {
+    val mediaItems: MutableList<MediaBrowserCompat.MediaItem> = mutableListOf()
+
+    if (audiobooks.size == 0) {
+      result.sendResult(mediaItems)
+      return
+    }
+
+    audiobooks.forEach {
+      var builder = MediaDescriptionCompat.Builder()
+        .setMediaId(it.id)
+        .setTitle(it.title)
+        .setSubtitle(it.author)
+        .setMediaUri(it.playlistUri)
+        .setIconUri(it.coverUri)
+
+//      val extras = Bundle()
+//      var startsWithA = it.title.toLowerCase().startsWith("a")
+//      var groupTitle = "test group
+//      extras.putString(MediaConstants.DESCRIPTION_EXTRAS_KEY_CONTENT_STYLE_GROUP_TITLE, groupTitle)
+//      builder.setExtras(extras)\
+//      Log.d(tag, "Load Media Item for AUTO ${it.title} - ${it.author}")
+
+      var mediaDescription = builder.build()
+      var newMediaItem = MediaBrowserCompat.MediaItem(mediaDescription, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
+      mediaItems.add(newMediaItem)
+    }
+
+    // Check if this is the root menu:
+    if (MY_MEDIA_ROOT_ID == parentMediaId) {
+      // build the MediaItem objects for the top level,
+      // and put them in the mediaItems list
+    } else {
+
+      // examine the passed parentMediaId to see which submenu we're at,
+      // and put the children of that menu in the mediaItems list
+    }
+    result.sendResult(mediaItems)
+  }
 }
+

@@ -10,11 +10,11 @@
 </template>
 
 <script>
-import Path from 'path'
 import { Capacitor } from '@capacitor/core'
 import { Network } from '@capacitor/network'
 import { AppUpdate } from '@robingenz/capacitor-app-update'
 import AudioDownloader from '@/plugins/audio-downloader'
+import MyNativeAudio from '@/plugins/my-native-audio'
 
 export default {
   data() {
@@ -248,6 +248,7 @@ export default {
       }
 
       this.checkLoadCurrent()
+      this.$store.dispatch('audiobooks/setNativeAudiobooks')
     },
     selectDownload(download) {
       this.$store.commit('setPlayOnLoad', true)
@@ -373,6 +374,25 @@ export default {
       this.checkForUpdate()
       this.initMediaStore()
     }
+
+    // For Testing Android Auto
+    MyNativeAudio.addListener('onPrepareMedia', (data) => {
+      var audiobookId = data.audiobookId
+      var playWhenReady = data.playWhenReady
+
+      var audiobook = this.$store.getters['audiobooks/getAudiobook'](audiobookId)
+
+      var download = this.$store.getters['downloads/getDownloadIfReady'](audiobookId)
+      this.$store.commit('setPlayOnLoad', playWhenReady)
+      if (!download) {
+        // Stream
+        this.$store.commit('setStreamAudiobook', audiobook)
+        this.$server.socket.emit('open_stream', audiobook.id)
+      } else {
+        // Local
+        this.$store.commit('setPlayingDownload', download)
+      }
+    })
   },
   beforeDestroy() {
     if (!this.$server) {
