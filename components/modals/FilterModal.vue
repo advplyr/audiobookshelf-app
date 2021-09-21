@@ -80,6 +80,11 @@ export default {
           text: 'Authors',
           value: 'authors',
           sublist: true
+        },
+        {
+          text: 'Progress',
+          value: 'progress',
+          sublist: true
         }
       ]
     }
@@ -123,6 +128,9 @@ export default {
     },
     authors() {
       return this.$store.getters['audiobooks/getUniqueAuthors']
+    },
+    progress() {
+      return ['Read', 'Unread', 'In Progress']
     },
     sublistItems() {
       return (this[this.sublist] || []).map((item) => {
