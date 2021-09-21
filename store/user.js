@@ -1,5 +1,3 @@
-import Vue from 'vue'
-
 export const state = () => ({
   user: null,
   localUserAudiobooks: {},
@@ -31,15 +29,13 @@ export const getters = {
 
 export const actions = {
   async updateUserSettings({ commit }, payload) {
-
-    if (Vue.prototype.$server.connected) {
+    if (this.$server.connected) {
       var updatePayload = {
         ...payload
       }
       return this.$axios.$patch('/api/user/settings', updatePayload).then((result) => {
         if (result.success) {
           commit('setSettings', result.settings)
-          console.log('Settings updated', result.settings)
           return true
         } else {
           return false
@@ -80,9 +76,7 @@ export const mutations = {
       }
     }
     if (hasChanges) {
-      console.log('Update settings in local storage')
       this.$localStore.setUserSettings({ ...state.settings })
-
       state.settingsListeners.forEach((listener) => {
         listener.meth(state.settings)
       })

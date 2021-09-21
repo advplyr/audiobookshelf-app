@@ -60,12 +60,12 @@ class MainActivity : BridgeActivity() {
 
     mConnection = object : ServiceConnection {
       override fun onServiceDisconnected(name: ComponentName) {
-        Log.w(tag, "Service Disconnected")
+        Log.w(tag, "Service Disconnected $name")
         mBounded = false
       }
 
       override fun onServiceConnected(name: ComponentName, service: IBinder) {
-        Log.d(tag, "Service Connected")
+        Log.d(tag, "Service Connected $name")
 
 
         mBounded = true

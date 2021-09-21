@@ -34,9 +34,19 @@ class Audiobook {
     cover = jsondata.getString("cover", "").toString()
     playlistUrl = jsondata.getString("playlistUrl", "").toString()
     playWhenReady = jsondata.getBoolean("playWhenReady", false) == true
-    startTime = jsondata.getString("startTime", "0")!!.toLong()
-    playbackSpeed = jsondata.getDouble("playbackSpeed")!!.toFloat()
-    duration = jsondata.getString("duration", "0")!!.toLong()
+
+    if (jsondata.has("startTime")) {
+      startTime = jsondata.getString("startTime", "0")!!.toLong()
+    }
+
+    if (jsondata.has("duration")) {
+      duration = jsondata.getString("duration", "0")!!.toLong()
+    }
+
+    if (jsondata.has("playbackSpeed")) {
+      playbackSpeed = jsondata.getDouble("playbackSpeed")!!.toFloat()
+    }
+
 
     // Local data
     isLocal = jsondata.getBoolean("isLocal", false) == true

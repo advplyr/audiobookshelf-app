@@ -5,11 +5,9 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.core.content.ContextCompat
-import com.getcapacitor.JSObject
-import com.getcapacitor.Plugin
-import com.getcapacitor.PluginCall
-import com.getcapacitor.PluginMethod
+import com.getcapacitor.*
 import com.getcapacitor.annotation.CapacitorPlugin
+import org.json.JSONObject
 
 @CapacitorPlugin(name = "MyNativeAudio")
 class MyNativeAudio : Plugin() {
@@ -31,6 +29,13 @@ class MyNativeAudio : Plugin() {
         override fun onMetadata(metadata:JSObject) {
           notifyListeners("onMetadata", metadata)
         }
+        override fun onPrepare(audiobookId:String, playWhenReady:Boolean) {
+          var jsobj = JSObject()
+          jsobj.put("audiobookId", audiobookId)
+          jsobj.put("playWhenReady", playWhenReady)
+          notifyListeners("onPrepareMedia", jsobj)
+        }
+        override fun onCar() {}
       })
     }
     mainActivity.pluginCallback = foregroundServiceReady
@@ -140,5 +145,38 @@ class MyNativeAudio : Plugin() {
       playerNotificationService.terminateStream()
       call.resolve()
     }
+  }
+
+  @PluginMethod
+  fun setAudiobooks(call: PluginCall) {
+    var audiobooks = call.getArray("audiobooks", JSArray())
+    if (audiobooks == null) {
+      Log.w(tag, "setAudiobooks IS NULL")
+      call.resolve()
+      return
+    }
+
+    var audiobookObjs = mutableListOf<Audiobook>()
+
+    var len = audiobooks.length()
+    (0 until len).forEach { _it ->
+      var jsonobj = audiobooks.get(_it) as JSONObject
+
+      var _names = Array(jsonobj.names().length()) {
+        jsonobj.names().getString(it)
+      }
+      var jsobj = JSObject(jsonobj, _names)
+
+      if (jsobj.has("duration")) {
+        var dur = jsobj.getDouble("duration")
+        var duration = Math.floor(dur * 1000L).toLong()
+        jsobj.put("duration", duration)
+      }
+
+      var audiobook = Audiobook(jsobj)
+      audiobookObjs.add(audiobook)
+    }
+    Log.d(tag, "Setting Audiobooks ${audiobookObjs.size}")
+    playerNotificationService.setAudiobooks(audiobookObjs)
   }
 }
