@@ -6,7 +6,10 @@
         <p class="font-book">{{ numAudiobooks }} Audiobooks</p>
 
         <div class="flex-grow" />
-        <span class="material-icons px-2" @click="showFilterModal = true">filter_alt</span>
+        <div class="relative flex items-center px-2">
+          <span class="material-icons" @click="showFilterModal = true">filter_alt</span>
+          <div v-show="hasFilters" class="absolute top-0 right-2 w-2 h-2 rounded-full bg-success border border-green-300 shadow-sm z-10 pointer-events-none" />
+        </div>
         <span class="material-icons px-2" @click="showSortModal = true">sort</span>
       </div>
     </div>
@@ -29,6 +32,9 @@ export default {
     }
   },
   computed: {
+    hasFilters() {
+      return this.$store.getters['user/getUserSetting']('filterBy') !== 'all'
+    },
     numAudiobooks() {
       return this.$store.getters['audiobooks/getFiltered']().length
     }

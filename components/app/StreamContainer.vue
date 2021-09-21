@@ -18,7 +18,7 @@
       <audio-player-mini ref="audioPlayerMini" :loading="isLoading" @updateTime="updateTime" @selectPlaybackSpeed="showPlaybackSpeedModal = true" @hook:mounted="audioPlayerMounted" />
     </div>
     <modals-playback-speed-modal v-model="showPlaybackSpeedModal" :playback-speed.sync="playbackSpeed" @change="changePlaybackSpeed" />
-    <modals-chapters-modal v-model="showChapterModal" :chapters="chapters" @select="selectChapter" />
+    <modals-chapters-modal v-model="showChapterModal" :current-chapter="currentChapter" :chapters="chapters" @select="selectChapter" />
   </div>
 </template>
 
@@ -34,7 +34,8 @@ export default {
       lastProgressTimeUpdate: 0,
       showPlaybackSpeedModal: false,
       playbackSpeed: 1,
-      showChapterModal: false
+      showChapterModal: false,
+      currentTime: 0
     }
   },
   watch: {
@@ -46,6 +47,10 @@ export default {
     }
   },
   computed: {
+    currentChapter() {
+      if (!this.audiobook || !this.chapters.length) return null
+      return this.chapters.find((ch) => ch.start <= this.currentTime && ch.end > this.currentTime)
+    },
     socketConnected() {
       return this.$store.state.socketConnected
     },
@@ -124,6 +129,8 @@ export default {
       this.showChapterModal = false
     },
     async cancelStream() {
+      this.currentTime = 0
+
       if (this.download) {
         if (this.$refs.audioPlayerMini) {
           this.$refs.audioPlayerMini.terminateStream()
@@ -147,6 +154,8 @@ export default {
       }
     },
     updateTime(currentTime) {
+      this.currentTime = currentTime
+
       var diff = currentTime - this.lastProgressTimeUpdate
 
       if (diff > 4 || diff < 0) {
@@ -231,6 +240,7 @@ export default {
 
       var currentTime = await this.getDownloadStartTime()
       if (isNaN(currentTime) || currentTime === null) currentTime = 0
+      this.currentTime = currentTime
 
       // Update local current time
       this.$localStore.setCurrent({
@@ -276,6 +286,7 @@ export default {
 
       var playlistUrl = stream.clientPlaylistUri
       var currentTime = stream.clientCurrentTime || 0
+      this.currentTime = currentTime
       var playOnLoad = this.$store.state.playOnLoad
       if (playOnLoad) this.$store.commit('setPlayOnLoad', false)
 
