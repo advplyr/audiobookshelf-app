@@ -117,6 +117,9 @@ export default {
     userAudiobook() {
       return this.userAudiobooks[this.audiobookId] || null
     },
+    userToken() {
+      return this.$store.getters['user/getToken']
+    },
     localUserAudiobooks() {
       return this.$store.state.user.localUserAudiobooks || {}
     },
@@ -291,7 +294,9 @@ export default {
       var _clean = cover.replace(/\\/g, '/')
       if (_clean.startsWith('/local')) {
         var _cover = process.env.NODE_ENV !== 'production' && process.env.PROD !== '1' ? _clean.replace('/local', '') : _clean
-        return `${this.$store.state.serverUrl}${_cover}`
+        return `${this.$store.state.serverUrl}${_cover}?token=${this.userToken}&ts=${Date.now()}`
+      } else if (_clean.startsWith('/metadata')) {
+        return `${this.$store.state.serverUrl}${_clean}?token=${this.userToken}&ts=${Date.now()}`
       }
       return _clean
     },

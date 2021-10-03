@@ -35,7 +35,6 @@ class MyNativeAudio : Plugin() {
           jsobj.put("playWhenReady", playWhenReady)
           notifyListeners("onPrepareMedia", jsobj)
         }
-        override fun onCar() {}
       })
     }
     mainActivity.pluginCallback = foregroundServiceReady
