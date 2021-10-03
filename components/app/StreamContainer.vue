@@ -47,6 +47,9 @@ export default {
     }
   },
   computed: {
+    userToken() {
+      return this.$store.getters['user/getToken']
+    },
     currentChapter() {
       if (!this.audiobook || !this.chapters.length) return null
       return this.chapters.find((ch) => ch.start <= this.currentTime && ch.end > this.currentTime)
@@ -112,7 +115,9 @@ export default {
       var _clean = this.cover.replace(/\\/g, '/')
       if (_clean.startsWith('/local')) {
         var _cover = process.env.NODE_ENV !== 'production' && process.env.PROD !== '1' ? _clean.replace('/local', '') : _clean
-        return `${this.$store.state.serverUrl}${_cover}`
+        return `${this.$store.state.serverUrl}${_cover}?token=${this.userToken}&ts=${Date.now()}`
+      } else if (_clean.startsWith('/metadata')) {
+        return `${this.$store.state.serverUrl}${_clean}?token=${this.userToken}&ts=${Date.now()}`
       }
       return _clean
     }
@@ -257,7 +262,7 @@ export default {
         cover: this.download.coverUrl || null,
         duration: String(Math.floor(this.duration * 1000)),
         series: this.seriesTxt,
-        token: this.$store.getters['user/getToken'],
+        token: this.userToken,
         contentUrl: this.playingDownload.contentUrl,
         isLocal: true
       }

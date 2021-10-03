@@ -51,7 +51,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     fun onPlayingUpdate(isPlaying: Boolean)
     fun onMetadata(metadata: JSObject)
     fun onPrepare(audiobookId:String, playWhenReady:Boolean)
-    fun onCar()
   }
 
   private val tag = "PlayerService"
@@ -547,8 +546,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       // No further calls will be made to other media browsing methods.
       null
     } else {
-      listener.onCar()
-
       val extras = Bundle()
       extras.putInt(
         MediaConstants.DESCRIPTION_EXTRAS_KEY_CONTENT_STYLE_BROWSABLE,
