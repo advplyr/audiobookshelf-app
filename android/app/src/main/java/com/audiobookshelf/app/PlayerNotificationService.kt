@@ -32,6 +32,11 @@ import com.google.android.exoplayer2.source.hls.HlsMediaSource
 import com.google.android.exoplayer2.ui.PlayerNotificationManager
 import com.google.android.exoplayer2.upstream.*
 import kotlinx.coroutines.*
+import android.view.KeyEvent
+import java.io.File
+import java.util.*
+import kotlin.concurrent.schedule
+import android.annotation.SuppressLint
 
 
 const val NOTIFICATION_LARGE_ICON_SIZE = 144 // px
@@ -46,7 +51,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     fun onPlayingUpdate(isPlaying: Boolean)
     fun onMetadata(metadata: JSObject)
     fun onPrepare(audiobookId:String, playWhenReady:Boolean)
-    fun onCar()
   }
 
   private val tag = "PlayerService"
@@ -72,6 +76,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   private var currentAudiobook:Audiobook? = null
 
   private var audiobooks = mutableListOf<Audiobook>()
+
+  private var mediaButtonClickCount: Int = 0
+  var mediaButtonClickTimeout: Long = 1000  //ms
+  var seekAmount: Long = 20000   //ms
 
   fun setCustomObjectListener(mylistener: MyCustomObjectListener) {
     listener = mylistener
@@ -296,6 +304,13 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
     //attach player to playerNotificationManager
     playerNotificationManager.setPlayer(mPlayer)
+
+    mediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS)
+    mediaSession.setCallback(object : MediaSessionCompat.Callback() {
+      override fun onMediaButtonEvent(mediaButtonEvent: Intent): Boolean {
+        return handleCallMediaButton(mediaButtonEvent)
+      }
+    })
   }
 
   private inner class DescriptionAdapter(private val controller: MediaControllerCompat) :
@@ -531,8 +546,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       // No further calls will be made to other media browsing methods.
       null
     } else {
-      listener.onCar()
-
       val extras = Bundle()
       extras.putInt(
         MediaConstants.DESCRIPTION_EXTRAS_KEY_CONTENT_STYLE_BROWSABLE,
@@ -582,6 +595,72 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       // and put the children of that menu in the mediaItems list
     }
     result.sendResult(mediaItems)
+  }
+
+  fun handleCallMediaButton(intent: Intent): Boolean {
+    if(Intent.ACTION_MEDIA_BUTTON == intent.getAction()) {
+      var keyEvent = intent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
+      if (keyEvent?.getAction() == KeyEvent.ACTION_UP) {
+        when (keyEvent?.getKeyCode()) {
+          KeyEvent.KEYCODE_HEADSETHOOK -> {
+            if(0 == mediaButtonClickCount) {
+              if (mPlayer.isPlaying)
+                pause()
+              else
+                play()
+            }
+            handleMediaButtonClickCount()
+          }
+          KeyEvent.KEYCODE_MEDIA_PLAY -> {
+            if(0 == mediaButtonClickCount) play()
+            handleMediaButtonClickCount()
+          }
+          KeyEvent.KEYCODE_MEDIA_PAUSE -> {
+            if(0 == mediaButtonClickCount) pause()
+            handleMediaButtonClickCount()
+          }
+          KeyEvent.KEYCODE_MEDIA_NEXT -> {
+            seekForward(seekAmount)
+          }
+          KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
+            seekBackward(seekAmount)
+          }
+          KeyEvent.KEYCODE_MEDIA_STOP -> {
+            terminateStream()
+          }
+          else -> {
+            Log.d(tag, "KeyCode:${keyEvent?.getKeyCode()}")
+            return false
+          }
+        }
+      }
+    }
+    return true
+  }
+
+  fun handleMediaButtonClickCount() {
+    mediaButtonClickCount++
+    if (1 == mediaButtonClickCount) {
+      Timer().schedule(mediaButtonClickTimeout) {
+        handler.sendEmptyMessage(mediaButtonClickCount)
+        mediaButtonClickCount = 0
+      }
+    }
+  }
+
+  private val handler : Handler = @SuppressLint("HandlerLeak")
+  object : Handler(){
+    override fun handleMessage(msg: Message) {
+      super.handleMessage(msg)
+      if (2 == msg.what) {
+        seekBackward(seekAmount)
+        play()
+      }
+      else if (msg.what >= 3) {
+        seekForward(seekAmount)
+        play()
+      }
+    }
   }
 }
 
