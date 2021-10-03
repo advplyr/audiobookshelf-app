@@ -64,7 +64,7 @@ class Server extends EventEmitter {
     var res = await this.ping(serverUrl)
 
     if (!res || !res.success) {
-      this.setServerUrl(null)
+      //this.setServerUrl(null)
       return false
     }
     var authRes = await this.authorize(serverUrl, token)
