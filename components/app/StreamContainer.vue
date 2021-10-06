@@ -112,14 +112,16 @@ export default {
         return `${this.$store.state.serverUrl}/Logo.png`
       }
       if (this.cover.startsWith('http')) return this.cover
-      var _clean = this.cover.replace(/\\/g, '/')
-      if (_clean.startsWith('/local')) {
-        var _cover = process.env.NODE_ENV !== 'production' && process.env.PROD !== '1' ? _clean.replace('/local', '') : _clean
-        return `${this.$store.state.serverUrl}${_cover}?token=${this.userToken}&ts=${Date.now()}`
-      } else if (_clean.startsWith('/metadata')) {
-        return `${this.$store.state.serverUrl}${_clean}?token=${this.userToken}&ts=${Date.now()}`
-      }
-      return _clean
+      var coverSrc = this.$store.getters['audiobooks/getBookCoverSrc'](this.audiobook)
+      return coverSrc
+      // var _clean = this.cover.replace(/\\/g, '/')
+      // if (_clean.startsWith('/local')) {
+      //   var _cover = process.env.NODE_ENV !== 'production' && process.env.PROD !== '1' ? _clean.replace('/local', '') : _clean
+      //   return `${this.$store.state.serverUrl}${_cover}?token=${this.userToken}&ts=${Date.now()}`
+      // } else if (_clean.startsWith('/metadata')) {
+      //   return `${this.$store.state.serverUrl}${_clean}?token=${this.userToken}&ts=${Date.now()}`
+      // }
+      // return _clean
     }
   },
   methods: {

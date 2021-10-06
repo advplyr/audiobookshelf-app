@@ -9,7 +9,10 @@ export const state = () => ({
   listeners: [],
   genres: [...STANDARD_GENRES],
   tags: [],
-  series: []
+  series: [],
+  loadedLibraryId: 'main',
+  lastLoad: 0,
+  isLoading: false
 })
 
 export const getters = {
@@ -63,21 +66,73 @@ export const getters = {
     var _genres = []
     state.audiobooks.filter(ab => !!(ab.book && ab.book.genres)).forEach(ab => _genres = _genres.concat(ab.book.genres))
     return [...new Set(_genres)].sort((a, b) => a.toLowerCase() < b.toLowerCase() ? -1 : 1)
+  },
+  getBookCoverSrc: (state, getters, rootState, rootGetters) => (bookItem, placeholder = '/book_placeholder.jpg') => {
+    var book = bookItem.book
+    if (!book || !book.cover || book.cover === placeholder) return placeholder
+    var cover = book.cover
+
+    // Absolute URL covers (should no longer be used)
+    if (cover.startsWith('http:') || cover.startsWith('https:')) return cover
+
+    // Server hosted covers
+    try {
+      // Ensure cover is refreshed if cached
+      var bookLastUpdate = book.lastUpdate || Date.now()
+      var userToken = rootGetters['user/getToken']
+
+      // Map old covers to new format /s/book/{bookid}/*
+      if (cover.substr(1).startsWith('local')) {
+        cover = cover.replace('local', `s/book/${bookItem.id}`)
+        if (cover.includes(bookItem.path)) { // Remove book path
+          cover = cover.replace(bookItem.path, '').replace('//', '/').replace('\\\\', '/')
+        }
+      }
+
+      var url = new URL(cover, rootState.serverUrl)
+      return url + `?token=${userToken}&ts=${bookLastUpdate}`
+    } catch (err) {
+      console.error(err)
+      return placeholder
+    }
   }
 }
 
 export const actions = {
-  load({ commit, dispatch }) {
-    return this.$axios
-      .$get(`/api/audiobooks`)
+  load({ state, commit, rootState }) {
+    if (!rootState.user || !rootState.user.user) {
+      console.error('audiobooks/load - User not set')
+      return false
+    }
+
+    var currentLibraryId = rootState.libraries.currentLibraryId
+
+    if (currentLibraryId === state.loadedLibraryId) {
+      // Don't load again if already loaded in the last 5 minutes
+      var lastLoadDiff = Date.now() - state.lastLoad
+      if (lastLoadDiff < 5 * 60 * 1000) {
+        // Already up to date
+        return false
+      }
+    } else {
+      commit('reset')
+      commit('setLoading', true)
+    }
+    commit('setLoadedLibrary', currentLibraryId)
+
+    this.$axios
+      .$get(`/api/library/${currentLibraryId}/audiobooks`)
       .then((data) => {
-        console.log('Audiobooks request data', data)
         commit('set', data)
-        dispatch('setNativeAudiobooks')
+        commit('setLastLoad')
+        commit('setLoading', false)
       })
       .catch((error) => {
         console.error('Failed', error)
+        commit('set', [])
+        commit('setLoading', false)
       })
+    return true
   },
   useDownloaded({ commit, rootGetters }) {
     commit('set', rootGetters['downloads/getAudiobooks'])
@@ -100,6 +155,15 @@ export const actions = {
 }
 
 export const mutations = {
+  setLoadedLibrary(state, val) {
+    state.loadedLibraryId = val
+  },
+  setLoading(state, val) {
+    state.isLoading = val
+  },
+  setLastLoad(state, val) {
+    state.lastLoad = val
+  },
   reset(state) {
     state.audiobooks = []
     state.genres = [...STANDARD_GENRES]

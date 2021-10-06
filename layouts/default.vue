@@ -6,6 +6,7 @@
     </div>
     <app-stream-container ref="streamContainer" />
     <modals-downloads-modal ref="downloadsModal" @selectDownload="selectDownload" @deleteDownload="deleteDownload" />
+    <modals-libraries-modal />
   </div>
 </template>
 
@@ -29,13 +30,16 @@ export default {
     }
   },
   methods: {
-    connected(isConnected) {
+    async connected(isConnected) {
       if (this.$route.name === 'connect') {
         if (isConnected) {
           this.$router.push('/')
         }
       }
       this.syncUserProgress()
+
+      // Load libraries
+      this.$store.dispatch('libraries/load')
     },
     updateAudiobookProgressOnServer(audiobookProgress) {
       if (this.$server.socket) {
@@ -362,8 +366,6 @@ export default {
   },
   mounted() {
     if (!this.$server) return console.error('No Server')
-
-    console.log('Default Mounted')
 
     this.$server.on('connected', this.connected)
     this.$server.on('initialStream', this.initialStream)

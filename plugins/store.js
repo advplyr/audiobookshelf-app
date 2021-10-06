@@ -503,6 +503,29 @@ class LocalStorage {
     }
   }
 
+  async setCurrentLibrary(library) {
+    try {
+      if (library) {
+        await Storage.set({ key: 'library', value: JSON.stringify(library) })
+      } else {
+        await Storage.remove({ key: 'library' })
+      }
+    } catch (error) {
+      console.error('[LocalStorage] Failed to set library', error)
+    }
+  }
+
+  async getCurrentLibrary() {
+    try {
+      var _value = (await Storage.get({ key: 'library' }) || {}).value || null
+      if (!_value) return null
+      return JSON.parse(_value)
+    } catch (error) {
+      console.error('[LocalStorage] Failed to get current library', error)
+      return null
+    }
+  }
+
   async setDownloadFolder(folderObj) {
     try {
       if (folderObj) {

@@ -12,6 +12,9 @@
       <div class="py-4">No Audiobooks</div>
       <ui-btn v-if="hasFilters" @click="clearFilter">Clear Filter</ui-btn>
     </div>
+    <div v-show="isLoading" class="absolute top-0 left-0 w-full h-full flex items-center justify-center bg-black bg-opacity-70 z-20">
+      <div class="py-4">Loading...</div>
+    </div>
   </div>
 </template>
 
@@ -25,6 +28,9 @@ export default {
     }
   },
   computed: {
+    isLoading() {
+      return this.$store.state.audiobooks.isLoading
+    },
     cardWidth() {
       return 140
     },
@@ -81,10 +87,17 @@ export default {
         this.calcShelves()
       }
     },
+    async loadAudiobooks() {
+      var currentLibrary = await this.$localStore.getCurrentLibrary()
+      if (currentLibrary) {
+        this.$store.commit('libraries/setCurrentLibrary', currentLibrary.id)
+      }
+      this.$store.dispatch('audiobooks/load')
+    },
     socketConnected(isConnected) {
       if (isConnected) {
         console.log('Connected - Load from server')
-        this.$store.dispatch('audiobooks/load')
+        this.loadAudiobooks()
       } else {
         console.log('Disconnected - Reset to local storage')
         this.$store.commit('audiobooks/reset')
@@ -106,7 +119,7 @@ export default {
 
     this.$server.on('connected', this.socketConnected)
     if (this.$server.connected) {
-      this.$store.dispatch('audiobooks/load')
+      this.loadAudiobooks()
     } else {
       console.log('Bookshelf - Server not connected using downloaded')
     }

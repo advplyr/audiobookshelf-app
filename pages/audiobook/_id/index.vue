@@ -272,7 +272,9 @@ export default {
         console.log('Single track, start download no prep needed')
         var track = audiobook.tracks[0]
         var fileext = track.ext
-        var url = `${this.$store.state.serverUrl}/local/${track.path}`
+
+        var relTrackPath = track.path.replace('\\', '/').replace(this.audiobook.path.replace('\\', '/'), '')
+        var url = `${this.$store.state.serverUrl}/s/book/${this.audiobookId}/${relTrackPath}`
         this.startDownload(url, fileext, downloadObject)
       } else {
         // Multi-track merge
@@ -291,14 +293,16 @@ export default {
 
       var cover = this.book.cover
       if (cover.startsWith('http')) return cover
-      var _clean = cover.replace(/\\/g, '/')
-      if (_clean.startsWith('/local')) {
-        var _cover = process.env.NODE_ENV !== 'production' && process.env.PROD !== '1' ? _clean.replace('/local', '') : _clean
-        return `${this.$store.state.serverUrl}${_cover}?token=${this.userToken}&ts=${Date.now()}`
-      } else if (_clean.startsWith('/metadata')) {
-        return `${this.$store.state.serverUrl}${_clean}?token=${this.userToken}&ts=${Date.now()}`
-      }
-      return _clean
+      var coverSrc = this.$store.getters['audiobooks/getBookCoverSrc'](this.audiobook)
+      return coverSrc
+      // var _clean = cover.replace(/\\/g, '/')
+      // if (_clean.startsWith('/local')) {
+      //   var _cover = process.env.NODE_ENV !== 'production' && process.env.PROD !== '1' ? _clean.replace('/local', '') : _clean
+      //   return `${this.$store.state.serverUrl}${_cover}?token=${this.userToken}&ts=${Date.now()}`
+      // } else if (_clean.startsWith('/metadata')) {
+      //   return `${this.$store.state.serverUrl}${_clean}?token=${this.userToken}&ts=${Date.now()}`
+      // }
+      // return _clean
     },
     async startDownload(url, fileext, download) {
       this.$toast.update(download.toastId, { content: `Downloading "${download.audiobook.book.title}"...` })
@@ -306,7 +310,9 @@ export default {
       var coverDownloadUrl = this.getCoverUrlForDownload()
       var coverFilename = null
       if (coverDownloadUrl) {
-        var coverExt = Path.extname(coverDownloadUrl) || '.jpg'
+        var coverNoQueryString = coverDownloadUrl.split('?')[0]
+
+        var coverExt = Path.extname(coverNoQueryString) || '.jpg'
         coverFilename = `cover-${download.id}${coverExt}`
       }
 
@@ -337,7 +343,7 @@ export default {
       var download = this.$store.getters['downloads/getDownload'](prepareDownload.audiobookId)
       if (download) {
         var fileext = prepareDownload.ext
-        var url = `${this.$store.state.serverUrl}/downloads/${prepareDownload.id}/${prepareDownload.filename}`
+        var url = `${this.$store.state.serverUrl}/downloads/${prepareDownload.id}/${prepareDownload.filename}?token=${this.userToken}`
         this.startDownload(url, fileext, download)
       } else {
         console.error('Prepare download killed but download not found', prepareDownload)
