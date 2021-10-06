@@ -8,7 +8,13 @@
         <span class="material-icons text-3xl text-white">arrow_back</span>
       </a>
       <div>
-        <p class="text-lg font-book leading-4">AudioBookshelf</p>
+        <div class="px-4 py-2 bg-bg bg-opacity-30 rounded-md flex items-center" @click="clickShowLibraryModal">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+          </svg>
+          <p class="text-lg font-book leading-4 ml-2">{{ currentLibraryName }}</p>
+        </div>
+        <!-- <p class="text-lg font-book leading-4">AudioBookshelf</p> -->
       </div>
       <div class="flex-grow" />
       <!-- <ui-menu :label="username" :items="menuItems" @action="menuAction" class="ml-5" /> -->
@@ -47,6 +53,12 @@ export default {
     }
   },
   computed: {
+    currentLibrary() {
+      return this.$store.getters['libraries/getCurrentLibrary']
+    },
+    currentLibraryName() {
+      return this.currentLibrary ? this.currentLibrary.name : 'Main'
+    },
     showBack() {
       return this.$route.name !== 'index'
     },
@@ -65,6 +77,9 @@ export default {
     }
   },
   methods: {
+    clickShowLibraryModal() {
+      this.$store.commit('libraries/setShowModal', true)
+    },
     back() {
       if (this.$route.name === 'audiobook-id-edit') {
         this.$router.push(`/audiobook/${this.$route.params.id}`)
