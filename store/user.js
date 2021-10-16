@@ -2,6 +2,9 @@ export const state = () => ({
   user: null,
   localUserAudiobooks: {},
   settings: {
+    mobileOrderBy: 'recent',
+    mobileOrderDesc: true,
+    mobileFilterBy: 'all',
     orderBy: 'book.title',
     orderDesc: false,
     filterBy: 'all',
@@ -18,6 +21,16 @@ export const getters = {
   },
   getUserAudiobook: (state) => (audiobookId) => {
     return state.user && state.user.audiobooks ? state.user.audiobooks[audiobookId] || null : null
+  },
+  getLocalUserAudiobook: (state) => (audiobookId) => {
+    return state.user && state.user.localUserAudiobooks ? state.user.localUserAudiobooks[audiobookId] || null : null
+  },
+  getMostRecentAudiobookProgress: (state, getters) => (audiobookId) => {
+    var userAb = getters.getUserAudiobook(audiobookId)
+    var localUserAb = getters.getLocalUserAudiobook(audiobookId)
+    if (!localUserAb) return userAb
+    if (!userAb) return localUserAb
+    return localUserAb.lastUpdate > userAb.lastUpdate ? localUserAb : userAb
   },
   getUserSetting: (state) => (key) => {
     return state.settings ? state.settings[key] || null : null

@@ -1,14 +1,12 @@
 <template>
   <div id="bookshelf" ref="wrapper" class="w-full overflow-y-auto">
-    <template v-for="(shelf, index) in groupedBooks">
-      <div :key="index" class="border-b border-opacity-10 w-full bookshelfRow py-4 flex justify-around relative">
-        <template v-for="audiobook in shelf">
-          <cards-book-card :key="audiobook.id" :audiobook="audiobook" :width="cardWidth" />
-        </template>
+    <template v-for="(ab, index) in audiobooks">
+      <div :key="index" class="border-b border-opacity-10 w-full bookshelfRow py-4 px-2 flex relative">
+        <app-bookshelf-list-row :audiobook="ab" :card-width="cardWidth" :page-width="pageWidth" />
         <div class="bookshelfDivider h-4 w-full absolute bottom-0 left-0 right-0 z-10" />
       </div>
     </template>
-    <div v-show="!groupedBooks.length" class="w-full py-16 text-center text-xl">
+    <div v-show="!audiobooks.length" class="w-full py-16 text-center text-xl">
       <div class="py-4">No Audiobooks</div>
       <ui-btn v-if="hasFilters" @click="clearFilter">Clear Filter</ui-btn>
     </div>
@@ -23,8 +21,8 @@ export default {
   data() {
     return {
       currFilterOrderKey: null,
-      groupedBooks: [],
-      pageWidth: 0
+      pageWidth: 0,
+      audiobooks: []
     }
   },
   computed: {
@@ -32,10 +30,13 @@ export default {
       return this.$store.state.audiobooks.isLoading
     },
     cardWidth() {
-      return 140
+      return 75
     },
     cardHeight() {
       return this.cardWidth * 2
+    },
+    contentRowWidth() {
+      return this.pageWidth - 16 - this.cardWidth
     },
     filterOrderKey() {
       return this.$store.getters['user/getFilterOrderKey']
@@ -51,18 +52,7 @@ export default {
       })
     },
     calcShelves() {
-      var booksPerShelf = Math.floor(this.pageWidth / (this.cardWidth + 32))
-      var groupedBooks = []
-
-      var audiobooksSorted = this.$store.getters['audiobooks/getFilteredAndSorted']()
-      this.currFilterOrderKey = this.filterOrderKey
-
-      var numGroups = Math.ceil(audiobooksSorted.length / booksPerShelf)
-      for (let i = 0; i < numGroups; i++) {
-        var group = audiobooksSorted.slice(i * booksPerShelf, i * booksPerShelf + 2)
-        groupedBooks.push(group)
-      }
-      this.groupedBooks = groupedBooks
+      this.audiobooks = this.$store.getters['audiobooks/getFilteredAndSorted']()
     },
     audiobooksUpdated() {
       this.calcShelves()

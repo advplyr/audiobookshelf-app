@@ -1,6 +1,6 @@
 <template>
   <div class="w-full p-4 pointer-events-none fixed bottom-0 left-0 right-0 z-20">
-    <div v-if="audiobook" class="w-full bg-primary absolute bottom-0 left-0 right-0 z-50 p-2 pointer-events-auto" @click.stop @mousedown.stop @mouseup.stop>
+    <div v-if="audiobook" id="streamContainer" class="w-full bg-primary absolute bottom-0 left-0 right-0 z-50 p-2 pointer-events-auto" @click.stop @mousedown.stop @mouseup.stop>
       <div class="pl-16 pr-2 flex items-center pb-2">
         <div>
           <p class="px-2">{{ title }}</p>
@@ -12,7 +12,7 @@
         </div>
         <span class="material-icons" @click="cancelStream">close</span>
       </div>
-      <div class="absolute left-2 -top-10">
+      <div class="absolute left-2 -top-10 bookCoverWrapper">
         <cards-book-cover :audiobook="audiobook" :download-cover="downloadedCover" :width="64" />
       </div>
       <audio-player-mini ref="audioPlayerMini" :loading="isLoading" @updateTime="updateTime" @selectPlaybackSpeed="showPlaybackSpeedModal = true" @hook:mounted="audioPlayerMounted" />
@@ -380,3 +380,12 @@ export default {
   }
 }
 </script>
+
+<style>
+.bookCoverWrapper {
+  box-shadow: 3px -2px 5px #00000066;
+}
+#streamContainer {
+  box-shadow: 0px -8px 8px #11111177;
+}
+</style>

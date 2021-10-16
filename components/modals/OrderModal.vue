@@ -54,6 +54,10 @@ export default {
         {
           text: 'Size',
           value: 'size'
+        },
+        {
+          text: 'Last Read',
+          value: 'recent'
         }
       ]
     }
@@ -89,6 +93,7 @@ export default {
       if (this.selected === val) {
         this.selectedDesc = !this.selectedDesc
       } else {
+        if (val === 'recent' || val === 'addedAt') this.selectedDesc = true // Progress defaults to descending
         this.selected = val
       }
       this.show = false

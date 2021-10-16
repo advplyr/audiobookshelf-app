@@ -442,7 +442,6 @@ class LocalStorage {
       this.userAudiobooks = val ? JSON.parse(val) : {}
       this.userAudiobooksLoaded = true
       this.vuexStore.commit('user/setLocalUserAudiobooks', this.userAudiobooks)
-      console.log('[LocalStorage] Loaded Local USER Audiobooks ' + JSON.stringify(this.userAudiobooks))
     } catch (error) {
       console.error('[LocalStorage] Failed to load user audiobooks', error)
     }
@@ -597,6 +596,24 @@ class LocalStorage {
       return currentObj.value ? JSON.parse(currentObj.value) : null
     } catch (error) {
       console.error('[LocalStorage] Failed to get current', error)
+      return null
+    }
+  }
+
+  async setBookshelfView(view) {
+    try {
+      await Storage.set({ key: 'bookshelfView', value: view })
+    } catch (error) {
+      console.error('[LocalStorage] Failed to set bookshelf view', error)
+    }
+  }
+
+  async getBookshelfView() {
+    try {
+      var view = await Storage.get({ key: 'bookshelfView' }) || {}
+      return view.value || null
+    } catch (error) {
+      console.error('[LocalStorage] Failed to get bookshelf view', error)
       return null
     }
   }
