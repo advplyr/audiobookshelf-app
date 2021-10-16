@@ -253,6 +253,7 @@ class AudioDownloader : Plugin() {
 
     var dlfilename = audiobookId + "." + File(filename).extension
     var coverdlfilename = audiobookId + "." + File(coverFilename).extension
+    Log.d(tag, "DL Filename $dlfilename | Cover DL Filename $coverdlfilename")
 
     var canWriteToFolder = folder.canWrite()
     if (!canWriteToFolder) {
@@ -264,7 +265,7 @@ class AudioDownloader : Plugin() {
     }
 
     var dlRequest = DownloadManager.Request(Uri.parse(url))
-    dlRequest.setTitle(title)
+    dlRequest.setTitle("Ab: $title")
     dlRequest.setDescription("Downloading to ${folder.name}")
     dlRequest.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
     dlRequest.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, dlfilename)
@@ -295,21 +296,36 @@ class AudioDownloader : Plugin() {
     var doneReceiver : (id:Long, success: Boolean) -> Unit = { id:Long, success: Boolean ->
       Log.d(tag, "RECEIVER DONE $id, SUCCES? $success")
       var docfile:DocumentFile? = null
+
+      // Download was complete, now find downloaded file
       if (id == coverDownloadId) {
         docfile = DocumentFileCompat.fromPublicFolder(context, PublicDirectory.DOWNLOADS, coverdlfilename)
-
         Log.d(tag, "Move Cover File ${docfile?.name}")
+
+        // For unknown reason, Android 10 test was using the title set in "setTitle" for the dl manager as the filename
+        //  check if this was the case
+        if (docfile?.name == null) {
+          docfile = DocumentFileCompat.fromPublicFolder(context, PublicDirectory.DOWNLOADS, "Cover: $title")
+          Log.d(tag, "Cover File name attempt 2 ${docfile?.name}")
+        }
       } else if (id == audiobookDownloadId) {
         docfile = DocumentFileCompat.fromPublicFolder(context, PublicDirectory.DOWNLOADS, dlfilename)
         Log.d(tag, "Move Audiobook File ${docfile?.name}")
+
+        if (docfile?.name == null) {
+          docfile = DocumentFileCompat.fromPublicFolder(context, PublicDirectory.DOWNLOADS, "Ab: $title")
+          Log.d(tag, "File name attempt 2 ${docfile?.name}")
+        }
       }
 
+      // Callback for moving the downloaded file
       var callback = object : FileCallback() {
         override fun onPrepare() {
           Log.d(tag, "PREPARING MOVE FILE")
         }
         override fun onFailed(errorCode:ErrorCode) {
           Log.e(tag, "FAILED MOVE FILE $errorCode")
+
           docfile?.delete()
           coverDocFile?.delete()
 
@@ -353,6 +369,7 @@ class AudioDownloader : Plugin() {
         }
       }
 
+      // After file is downloaded, move the files into an audiobook directory inside the user selected folder
       val executorService: ExecutorService = Executors.newFixedThreadPool(4)
       executorService.execute {
         if (id == coverDownloadId) {
