@@ -17,9 +17,9 @@
             <span class="material-icons text-success" :style="{ fontSize: 1.1 * sizeMultiplier + 'rem' }">download_done</span>
           </div>
 
-          <div class="absolute bottom-0 left-0 h-1.5 bg-yellow-400 shadow-sm" :style="{ width: width * userProgressPercent + 'px' }"></div>
+          <div class="absolute bottom-0 left-0 h-1.5 shadow-sm" :class="userIsRead ? 'bg-success' : 'bg-yellow-400'" :style="{ width: width * userProgressPercent + 'px' }"></div>
 
-          <div :style="{ height: 1.5 * sizeMultiplier + 'rem', width: 2.5 * sizeMultiplier + 'rem' }" class="bg-error rounded-r-full shadow-md flex items-center justify-end border-r border-b border-red-300">
+          <div v-if="showError" :style="{ height: 1.5 * sizeMultiplier + 'rem', width: 2.5 * sizeMultiplier + 'rem', bottom: sizeMultiplier + 'rem' }" class="bg-error rounded-r-full shadow-md flex items-center justify-end border-r border-b border-red-300 absolute left-0">
             <span class="material-icons text-red-100 pr-1" :style="{ fontSize: 0.875 * sizeMultiplier + 'rem' }">priority_high</span>
           </div>
         </div>
@@ -32,14 +32,6 @@
 export default {
   props: {
     audiobook: {
-      type: Object,
-      default: () => null
-    },
-    userProgress: {
-      type: Object,
-      default: () => null
-    },
-    localUserProgress: {
       type: Object,
       default: () => null
     },
@@ -87,15 +79,16 @@ export default {
       return this.orderBy === 'book.authorLF' ? this.authorLF : this.authorFL
     },
     orderBy() {
-      return this.$store.getters['user/getUserSetting']('orderBy')
+      return this.$store.getters['user/getUserSetting']('mobileOrderBy')
     },
     mostRecentUserProgress() {
-      if (!this.localUserProgress) return this.userProgress
-      if (!this.userProgress) return this.localUserProgress
-      return this.localUserProgress.lastUpdate > this.userProgress.lastUpdate ? this.localUserProgress : this.userProgress
+      return this.$store.getters['user/getMostRecentAudiobookProgress'](this.audiobookId)
     },
     userProgressPercent() {
       return this.mostRecentUserProgress ? this.mostRecentUserProgress.progress || 0 : 0
+    },
+    userIsRead() {
+      return this.mostRecentUserProgress ? !!this.mostRecentUserProgress.isRead : false
     },
     showError() {
       return this.hasMissingParts || this.hasInvalidParts
@@ -110,7 +103,6 @@ export default {
       return this.download ? this.download.cover : null
     },
     download() {
-      return null
       return this.$store.getters['downloads/getDownloadIfReady'](this.audiobookId)
     },
     errorText() {

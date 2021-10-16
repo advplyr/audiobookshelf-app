@@ -22,7 +22,7 @@ export const getters = {
   getFiltered: (state, getters, rootState, rootGetters) => () => {
     var filtered = state.audiobooks
     var settings = rootState.user.settings || {}
-    var filterBy = settings.filterBy || ''
+    var filterBy = settings.mobileFilterBy || ''
 
     var searchGroups = ['genres', 'tags', 'series', 'authors', 'progress']
     var group = searchGroups.find(_group => filterBy.startsWith(_group + '.'))
@@ -45,18 +45,27 @@ export const getters = {
     }
     return filtered
   },
-  getFilteredAndSorted: (state, getters, rootState) => () => {
+  getFilteredAndSorted: (state, getters, rootState, rootGetters) => () => {
     var settings = rootState.user.settings
-    var direction = settings.orderDesc ? 'desc' : 'asc'
+    var direction = settings.mobileOrderDesc ? 'desc' : 'asc'
 
     var filtered = getters.getFiltered()
-    var orderByNumber = settings.orderBy === 'book.volumeNumber'
-    return sort(filtered)[direction]((ab) => {
-      // Supports dot notation strings i.e. "book.title"
-      var value = settings.orderBy.split('.').reduce((a, b) => a[b], ab)
-      if (orderByNumber && !isNaN(value)) return Number(value)
-      return value
-    })
+
+    if (settings.mobileOrderBy === 'recent') {
+      return sort(filtered)[direction]((ab) => {
+        var abprogress = rootGetters['user/getMostRecentAudiobookProgress'](ab.id)
+        if (!abprogress) return 0
+        return abprogress.lastUpdate
+      })
+    } else {
+      var orderByNumber = settings.mobileOrderBy === 'book.volumeNumber'
+      return sort(filtered)[direction]((ab) => {
+        // Supports dot notation strings i.e. "book.title"
+        var value = settings.mobileOrderBy.split('.').reduce((a, b) => a[b], ab)
+        if (orderByNumber && !isNaN(value)) return Number(value)
+        return value
+      })
+    }
   },
   getUniqueAuthors: (state) => {
     var _authors = state.audiobooks.filter(ab => !!(ab.book && ab.book.author)).map(ab => ab.book.author)

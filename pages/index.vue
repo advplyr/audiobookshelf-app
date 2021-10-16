@@ -6,6 +6,7 @@
         <p class="font-book">{{ numAudiobooks }} Audiobooks</p>
 
         <div class="flex-grow" />
+        <span class="material-icons px-2" @click="changeView">{{ viewIcon }}</span>
         <div class="relative flex items-center px-2">
           <span class="material-icons" @click="showFilterModal = true">filter_alt</span>
           <div v-show="hasFilters" class="absolute top-0 right-2 w-2 h-2 rounded-full bg-success border border-green-300 shadow-sm z-10 pointer-events-none" />
@@ -13,10 +14,13 @@
         <span class="material-icons px-2" @click="showSortModal = true">sort</span>
       </div>
     </div>
-    <app-bookshelf />
+    <template v-if="bookshelfReady">
+      <app-bookshelf v-if="!isListView" />
+      <app-bookshelf-list v-else />
+    </template>
 
-    <modals-order-modal v-model="showSortModal" :order-by.sync="settings.orderBy" :descending.sync="settings.orderDesc" @change="updateOrder" />
-    <modals-filter-modal v-model="showFilterModal" :filter-by.sync="settings.filterBy" @change="updateFilter" />
+    <modals-order-modal v-model="showSortModal" :order-by.sync="settings.mobileOrderBy" :descending.sync="settings.mobileOrderDesc" @change="updateOrder" />
+    <modals-filter-modal v-model="showFilterModal" :filter-by.sync="settings.mobileFilterBy" @change="updateFilter" />
     <modals-search-modal v-model="showSearchModal" />
   </div>
 </template>
@@ -28,7 +32,9 @@ export default {
       showSortModal: false,
       showFilterModal: false,
       showSearchModal: false,
-      settings: {}
+      settings: {},
+      isListView: false,
+      bookshelfReady: false
     }
   },
   computed: {
@@ -37,9 +43,18 @@ export default {
     },
     numAudiobooks() {
       return this.$store.getters['audiobooks/getFiltered']().length
+    },
+    viewIcon() {
+      return this.isListView ? 'grid_view' : 'view_stream'
     }
   },
   methods: {
+    changeView() {
+      this.isListView = !this.isListView
+
+      var bookshelfView = this.isListView ? 'list' : 'grid'
+      this.$localStore.setBookshelfView(bookshelfView)
+    },
     updateOrder() {
       this.saveSettings()
     },
@@ -50,8 +65,13 @@ export default {
       this.$store.commit('user/setSettings', this.settings) // Immediate update
       this.$store.dispatch('user/updateUserSettings', this.settings)
     },
-    init() {
+    async init() {
       this.settings = { ...this.$store.state.user.settings }
+
+      var bookshelfView = await this.$localStore.getBookshelfView()
+      this.isListView = bookshelfView === 'list'
+      this.bookshelfReady = true
+      console.log('Bookshelf view', bookshelfView)
     },
     settingsUpdated(settings) {
       for (const key in settings) {

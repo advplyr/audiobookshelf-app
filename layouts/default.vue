@@ -415,6 +415,6 @@ export default {
   height: calc(100vh - 64px);
 }
 #content.playerOpen {
-  height: calc(100vh - 240px);
+  height: calc(100vh - 236px);
 }
 </style>
