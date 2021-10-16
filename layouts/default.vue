@@ -109,11 +109,13 @@ export default {
     //   })
     // },
     async checkForUpdate() {
+      console.log('Checking for app update')
       const result = await AppUpdate.getAppUpdateInfo()
       if (!result) {
         console.error('Invalid version check')
         return
       }
+      console.log('App Update Info', JSON.stringify(result))
       this.$store.commit('setAppUpdateInfo', result)
       if (result.updateAvailability === 2) {
         setTimeout(() => {
