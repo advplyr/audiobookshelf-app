@@ -7,6 +7,7 @@
     <app-stream-container ref="streamContainer" />
     <modals-downloads-modal ref="downloadsModal" @selectDownload="selectDownload" @deleteDownload="deleteDownload" />
     <modals-libraries-modal />
+    <readers-reader />
   </div>
 </template>
 

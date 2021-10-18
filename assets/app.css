@@ -1,5 +1,9 @@
 @import "./fonts.css";
 
+.box-shadow-sm {
+  box-shadow: 0px 3px 6px #11111170;
+}
+
 .box-shadow-md {
   box-shadow: 2px 8px 6px #111111aa;
 }

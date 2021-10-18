@@ -7,14 +7,14 @@
           <div class="absolute bottom-0 left-0 h-1.5 bg-yellow-400 shadow-sm" :style="{ width: 128 * progressPercent + 'px' }"></div>
         </div>
         <div class="flex my-4">
-          <p class="text-sm">{{ numTracks }} Tracks</p>
+          <p v-if="numTracks" class="text-sm">{{ numTracks }} Tracks</p>
         </div>
       </div>
       <div class="flex-grow px-3">
         <h1 class="text-lg">{{ title }}</h1>
         <h3 v-if="series" class="font-book text-gray-300 text-lg leading-7">{{ seriesText }}</h3>
         <p class="text-sm text-gray-400">by {{ author }}</p>
-        <p class="text-gray-300 text-sm my-1">
+        <p v-if="numTracks" class="text-gray-300 text-sm my-1">
           {{ $elapsedPretty(duration) }}<span class="px-4">{{ $bytesPretty(size) }}</span>
         </p>
 
@@ -26,13 +26,17 @@
           </div>
         </div>
 
-        <div v-if="isConnected || isDownloadPlayable" class="flex mt-4">
-          <ui-btn color="success" :disabled="isPlaying" class="flex items-center justify-center w-full mr-2" :padding-x="4" @click="playClick">
+        <div v-if="(isConnected && (showPlay || showRead)) || isDownloadPlayable" class="flex mt-4 -mr-2">
+          <ui-btn v-if="showPlay" color="success" :disabled="isPlaying" class="flex items-center justify-center flex-grow mr-2" :padding-x="4" @click="playClick">
             <span v-show="!isPlaying" class="material-icons">play_arrow</span>
-            <span class="px-1">{{ isPlaying ? (isStreaming ? 'Streaming' : 'Playing') : isDownloadPlayable ? 'Play local' : 'Play stream' }}</span>
+            <span class="px-1 text-sm">{{ isPlaying ? (isStreaming ? 'Streaming' : 'Playing') : isDownloadPlayable ? 'Play local' : 'Play stream' }}</span>
           </ui-btn>
-          <ui-btn v-if="isConnected" color="primary" :disabled="isPlaying" class="flex items-center justify-center" :padding-x="2" @click="downloadClick">
-            <span class="material-icons" :class="isDownloaded ? 'animate-pulse' : ''">{{ downloadObj ? (isDownloading || isDownloadPreparing ? 'downloading' : 'download_done') : 'download' }}</span>
+          <ui-btn v-if="showRead && isConnected" color="info" class="flex items-center justify-center mr-2" :class="showPlay ? '' : 'flex-grow'" :padding-x="2" @click="readBook">
+            <span class="material-icons">auto_stories</span>
+            <span v-if="!showPlay" class="px-2 text-base">Read {{ ebookFormat }}</span>
+          </ui-btn>
+          <ui-btn v-if="isConnected && showPlay" color="primary" :disabled="isPlaying" class="flex items-center justify-center" :padding-x="2" @click="downloadClick">
+            <span class="material-icons" :class="downloadObj ? 'animate-pulse' : ''">{{ downloadObj ? (isDownloading || isDownloadPreparing ? 'downloading' : 'download_done') : 'download' }}</span>
           </ui-btn>
         </div>
       </div>
@@ -150,8 +154,27 @@ export default {
       if (this.audiobook.tracks) return this.audiobook.tracks.length
       return this.audiobook.numTracks || 0
     },
+    isMissing() {
+      return this.audiobook.isMissing
+    },
+    isIncomplete() {
+      return this.audiobook.isIncomplete
+    },
     isDownloading() {
       return this.downloadObj ? this.downloadObj.isDownloading : false
+    },
+    showPlay() {
+      return !this.isMissing && !this.isIncomplete && this.numTracks
+    },
+    showRead() {
+      return this.hasEbook && this.ebookFormat !== '.pdf'
+    },
+    hasEbook() {
+      return this.audiobook.numEbooks
+    },
+    ebookFormat() {
+      if (!this.audiobook || !this.audiobook.ebooks || !this.audiobook.ebooks.length) return null
+      return this.audiobook.ebooks[0].ext.substr(1)
     },
     isDownloadPreparing() {
       return this.downloadObj ? this.downloadObj.isPreparing : false
@@ -170,6 +193,9 @@ export default {
     }
   },
   methods: {
+    readBook() {
+      this.$store.commit('openReader', this.audiobook)
+    },
     playClick() {
       this.$store.commit('setPlayOnLoad', true)
       if (!this.isDownloadPlayable) {
