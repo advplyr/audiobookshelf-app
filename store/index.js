@@ -11,7 +11,9 @@ export const state = () => ({
   networkConnectionType: null,
   streamListener: null,
   isFirstLoad: true,
-  hasStoragePermission: false
+  hasStoragePermission: false,
+  selectedBook: null,
+  showReader: false
 })
 
 export const getters = {
@@ -80,5 +82,12 @@ export const mutations = {
   },
   removeStreamListener(state) {
     state.streamListener = null
+  },
+  openReader(state, audiobook) {
+    state.selectedBook = audiobook
+    state.showReader = true
+  },
+  setShowReader(state, val) {
+    state.showReader = val
   }
 }
