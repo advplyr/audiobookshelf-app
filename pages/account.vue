@@ -25,6 +25,8 @@
     <ui-btn v-if="isUpdateAvailable" class="w-full my-4" color="success" @click="clickUpdate">Update is available</ui-btn>
 
     <ui-btn v-if="!isUpdateAvailable || immediateUpdateAllowed" class="w-full my-4" color="primary" @click="openAppStore">Open app store</ui-btn>
+
+    <p>UA: {{ updateAvailability }} | Avail: {{ availableVersion }} | Curr: {{ currentVersion }} | ImmedAllowed: {{ immediateUpdateAllowed }}</p>
   </div>
 </template>
 
@@ -50,6 +52,9 @@ export default {
     },
     availableVersion() {
       return this.appUpdateInfo ? this.appUpdateInfo.availableVersion : null
+    },
+    currentVersion() {
+      return this.appUpdateInfo ? this.appUpdateInfo.currentVersion : null
     },
     immediateUpdateAllowed() {
       return this.appUpdateInfo ? !!this.appUpdateInfo.immediateUpdateAllowed : false
