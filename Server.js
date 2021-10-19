@@ -28,8 +28,13 @@ class Server extends EventEmitter {
 
   getServerUrl(url) {
     if (!url) return null
-    var urlObject = new URL(url)
-    return `${urlObject.protocol}//${urlObject.hostname}:${urlObject.port}`
+    try {
+      var urlObject = new URL(url)
+      return `${urlObject.protocol}//${urlObject.hostname}:${urlObject.port}`
+    } catch (error) {
+      console.error('Invalid URL', error)
+      return null
+    }
   }
 
   setUser(user) {
@@ -82,6 +87,9 @@ class Server extends EventEmitter {
 
   async check(url) {
     var serverUrl = this.getServerUrl(url)
+    if (!serverUrl) {
+      return false
+    }
     var res = await this.ping(serverUrl)
     if (!res || !res.success) {
       return false
@@ -134,7 +142,7 @@ class Server extends EventEmitter {
   ping(url) {
     var pingUrl = url + '/ping'
     console.log('[Server] Check server', pingUrl)
-    return axios.get(pingUrl).then((res) => {
+    return axios.get(pingUrl, { timeout: 1000 }).then((res) => {
       return res.data
     }).catch(error => {
       console.error('Server check failed', error)

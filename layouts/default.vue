@@ -173,7 +173,7 @@ export default {
       var size = data.size || 0
       var isCover = !!data.isCover
 
-      console.log('Download complete', filename, downloadId, contentUrl, 'AudiobookId:', audiobookId, 'Is Cover:', isCover)
+      console.log(`Download complete "${contentUrl}" | ${filename} | DlId: ${downloadId} | Is Cover? ${isCover}`)
       var downloadObj = this.$store.getters['downloads/getDownload'](audiobookId)
       if (!downloadObj) {
         console.error('Failed to find download for audiobook', audiobookId)
@@ -231,9 +231,9 @@ export default {
           coverUrl: item.coverUrl || null
         }
       })
-      console.log('onMediaLoaded Items', JSON.stringify(jsitems))
 
       var downloads = await this.$sqlStore.getAllDownloads()
+
       for (let i = 0; i < downloads.length; i++) {
         var download = downloads[i]
         var jsitem = jsitems.find((item) => item.contentUrl === download.contentUrl)
@@ -298,7 +298,6 @@ export default {
     },
     async initMediaStore() {
       // Request and setup listeners for media files on native
-      console.log('Permissino SET LISTENER')
       AudioDownloader.addListener('permission', (data) => {
         this.onPermissionUpdate(data)
       })
@@ -349,7 +348,7 @@ export default {
       }
 
       var checkPermission = await AudioDownloader.checkStoragePermission()
-      console.log('Storage Permission is', checkPermission.value)
+      console.log('Storage Permission is' + checkPermission.value)
       if (!checkPermission.value) {
         console.log('Will require permissions')
       } else {

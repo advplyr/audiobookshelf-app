@@ -25,8 +25,6 @@ import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
 import org.json.JSONObject
 import java.io.File
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
 
 
 @CapacitorPlugin(name = "AudioDownloader")
@@ -222,16 +220,27 @@ class AudioDownloader : Plugin() {
       if (audiobookFile == null) {
         Log.e(tag, "Audiobook was not found $audiobookUrl")
       } else {
+        Log.d(tag, "Audiobook File Found StorageId:${audiobookFile.getStorageId(context)} | AbsolutePath:${audiobookFile.getAbsolutePath(context)} | BasePath:${audiobookFile.getBasePath(context)}")
+
         var _name = audiobookFile.name
         if (_name == null) _name = ""
-        var _coverUrl = ""
-        if (coverFile != null) _coverUrl = coverFile.uri.toString()
 
         var size = audiobookFile.length()
-        var abItem = AudiobookItem(audiobookFile.uri, _name, size, _coverUrl)
+
+        if (audiobookFile.uri.toString() !== audiobookUrl) {
+          Log.d(tag, "Audiobook URI ${audiobookFile.uri} is different from $audiobookUrl => using the latter")
+        }
+
+        // Use existing URI's - bug happening where new uri is different from initial
+        var abItem = AudiobookItem(Uri.parse(audiobookUrl), _name, size, coverUrl)
+
+        Log.d(tag, "Setting AB ITEM ${abItem.name} | ${abItem.size} | ${abItem.uri} | ${abItem.coverUrl}")
+
         audiobookItems.add(abItem)
       }
     }
+
+    Log.d(tag, "Load Finished ${audiobookItems.size} found")
 
     var audiobookObjs:List<JSObject> = audiobookItems.map{ it.toJSObject() }
     var mediaItemNoticePayload = JSObject()
@@ -341,7 +350,7 @@ class AudioDownloader : Plugin() {
           var simplePath = resultDocFile.getSimplePath(context)
           var storageId = resultDocFile.getStorageId(context)
           var size = resultDocFile.length()
-          Log.d(tag, "Finished Moving File, NAME: ${resultDocFile.name} | $storageId | SimplePath: $simplePath")
+          Log.d(tag, "Finished Moving File, NAME: ${resultDocFile.name} | URI:${resultDocFile.uri} | AbsolutePath:${resultDocFile.getAbsolutePath(context)} | $storageId | SimplePath: $simplePath")
 
           var abFolder = folder.findFolder(title)
           var jsobj = JSObject()
@@ -370,14 +379,11 @@ class AudioDownloader : Plugin() {
       }
 
       // After file is downloaded, move the files into an audiobook directory inside the user selected folder
-      val executorService: ExecutorService = Executors.newFixedThreadPool(4)
-      executorService.execute {
         if (id == coverDownloadId) {
           docfile?.moveFileTo(context, folder, FileDescription(coverFilename, title, MimeType.IMAGE), callback)
         } else if (id == audiobookDownloadId) {
           docfile?.moveFileTo(context, folder, FileDescription(filename, title, MimeType.AUDIO), callback)
         }
-      }
     }
 
     var progressUpdater = DownloadProgressUpdater(downloadManager, audiobookDownloadId, progressReceiver, doneReceiver)
