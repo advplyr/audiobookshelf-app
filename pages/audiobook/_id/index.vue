@@ -300,7 +300,7 @@ export default {
         var fileext = track.ext
 
         var relTrackPath = track.path.replace('\\', '/').replace(this.audiobook.path.replace('\\', '/'), '')
-        var url = `${this.$store.state.serverUrl}/s/book/${this.audiobookId}/${relTrackPath}`
+        var url = `${this.$store.state.serverUrl}/s/book/${this.audiobookId}/${relTrackPath}?token=${this.userToken}`
         this.startDownload(url, fileext, downloadObject)
       } else {
         // Multi-track merge
