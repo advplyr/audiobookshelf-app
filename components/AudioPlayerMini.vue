@@ -214,9 +214,10 @@ export default {
     async set(audiobookStreamData, stream, fromAppDestroy) {
       this.isResetting = false
       this.initObject = { ...audiobookStreamData }
+	  
       var init = true
       if (!!stream) {
-        console.log(JSON.stringify(stream))
+        //console.log(JSON.stringify(stream))
         var data = await MyNativeAudio.getStreamSyncData()
         console.log('getStreamSyncData', JSON.stringify(data))
         console.log('lastUpdate', !!stream.lastUpdate ? stream.lastUpdate : 0)
@@ -247,6 +248,7 @@ export default {
           }
         }
       }
+
       this.currentPlaybackRate = this.initObject.playbackSpeed
       if (init) MyNativeAudio.initPlayer(this.initObject).then((res) => {
         if (res && res.success) {
