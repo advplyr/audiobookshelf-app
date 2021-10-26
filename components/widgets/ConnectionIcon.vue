@@ -69,7 +69,6 @@ export default {
 
       if (!this.networkConnected) return
 
-      this.$server.on('connected', this.socketConnected)
       var localServerUrl = await this.$localStore.getServerUrl()
       var localUserToken = await this.$localStore.getToken()
       if (localServerUrl) {
@@ -78,11 +77,15 @@ export default {
         // Server and Token are stored
         if (localUserToken) {
           this.processing = true
+          var isSocketAlreadyEstablished = this.$server.socket
           var success = await this.$server.connect(localServerUrl, localUserToken)
           if (!success && !this.$server.url) {
             this.processing = false
             this.serverUrl = null
           } else if (!success) {
+            this.processing = false
+          } else if (isSocketAlreadyEstablished) {
+            // No need to wait for connect event
             this.processing = false
           }
         } else {
@@ -97,7 +100,18 @@ export default {
     }
   },
   mounted() {
+    if (!this.$server) {
+      console.error('Server not initalized in connection icon')
+      return
+    }
+    if (this.$server.connected) {
+      this.isConnected = true
+    }
+    this.$server.on('connected', this.socketConnected)
     this.init()
+  },
+  beforeDestroy() {
+    if (this.$server) this.$server.off('connected', this.socketConnected)
   }
 }
 </script>

@@ -72,7 +72,9 @@ export default {
       bufferTrackWidth: 0,
       playedTrackWidth: 0,
       seekedTime: 0,
-      seekLoading: false
+      seekLoading: false,
+      onPlayingUpdateListener: null,
+      onMetadataListener: null
     }
   },
   computed: {
@@ -264,28 +266,29 @@ export default {
     terminateStream() {
       MyNativeAudio.terminateStream()
     },
+    onPlayingUpdate(data) {
+      this.isPaused = !data.value
+      if (!this.isPaused) {
+        this.startPlayInterval()
+      } else {
+        this.stopPlayInterval()
+      }
+    },
+    onMetadata(data) {
+      console.log('Native Audio On Metadata', JSON.stringify(data))
+      this.totalDuration = Number((data.duration / 1000).toFixed(2))
+      this.currentTime = Number((data.currentTime / 1000).toFixed(2))
+      this.stateName = data.stateName
+
+      if (this.stateName === 'ended' && this.isResetting) {
+        this.setFromObj()
+      }
+
+      this.timeupdate()
+    },
     init() {
-      MyNativeAudio.addListener('onPlayingUpdate', (data) => {
-        this.isPaused = !data.value
-        if (!this.isPaused) {
-          this.startPlayInterval()
-        } else {
-          this.stopPlayInterval()
-        }
-      })
-
-      MyNativeAudio.addListener('onMetadata', (data) => {
-        console.log('Native Audio On Metadata', JSON.stringify(data))
-        this.totalDuration = Number((data.duration / 1000).toFixed(2))
-        this.currentTime = Number((data.currentTime / 1000).toFixed(2))
-        this.stateName = data.stateName
-
-        if (this.stateName === 'ended' && this.isResetting) {
-          this.setFromObj()
-        }
-
-        this.timeupdate()
-      })
+      this.onPlayingUpdateListener = MyNativeAudio.addListener('onPlayingUpdate', this.onPlayingUpdate)
+      this.onMetadataListener = MyNativeAudio.addListener('onMetadata', this.onMetadata)
 
       if (this.$refs.track) {
         this.trackWidth = this.$refs.track.clientWidth
@@ -298,6 +301,8 @@ export default {
     this.$nextTick(this.init)
   },
   beforeDestroy() {
+    if (this.onPlayingUpdateListener) this.onPlayingUpdateListener.remove()
+    if (this.onMetadataListener) this.onMetadataListener.remove()
     clearInterval(this.playInterval)
   }
 }
