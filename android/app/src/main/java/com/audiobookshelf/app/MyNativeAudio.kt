@@ -86,6 +86,26 @@ class MyNativeAudio : Plugin() {
   }
 
   @PluginMethod
+  fun getStreamSyncData(call: PluginCall) {
+    Handler(Looper.getMainLooper()).post() {
+      var isPlaying = playerNotificationService.getPlayStatus()
+      var lastPauseTime = playerNotificationService.getTheLastPauseTime()
+      Log.d(tag, "Get Last Pause Time $lastPauseTime")
+      var currentTime = playerNotificationService.getCurrentTime()
+      Log.d(tag, "Get Current Time $currentTime")
+      //if (!isPlaying) currentTime -= playerNotificationService.calcPauseSeekBackTime()
+      var id = playerNotificationService.getCurrentAudiobookId()
+      Log.d(tag, "Get Current id $id")
+      val ret = JSObject()
+      ret.put("lastPauseTime", lastPauseTime)
+      ret.put("currentTime", currentTime)
+      ret.put("isPlaying", isPlaying)
+      ret.put("id", id)
+      call.resolve(ret)
+    }
+  }
+
+  @PluginMethod
   fun pausePlayer(call: PluginCall) {
     Handler(Looper.getMainLooper()).post() {
       playerNotificationService.pause()
