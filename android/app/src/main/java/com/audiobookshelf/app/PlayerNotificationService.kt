@@ -81,6 +81,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   var mediaButtonClickTimeout: Long = 1000  //ms
   var seekAmount: Long = 20000   //ms
 
+  private var lastPauseTime: Long = 0   //ms
+
   fun setCustomObjectListener(mylistener: MyCustomObjectListener) {
     listener = mylistener
   }
@@ -472,11 +474,25 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     mPlayer.prepare()
     mPlayer.playWhenReady = currentAudiobook!!.playWhenReady
     mPlayer.setPlaybackSpeed(audiobook.playbackSpeed)
+
+    lastPauseTime = 0
   }
 
 
   fun getCurrentTime() : Long {
     return mPlayer.currentPosition
+  }
+
+  fun getTheLastPauseTime() : Long {
+    return lastPauseTime
+  }
+
+  fun getPlayStatus() : Boolean {
+    return mPlayer.isPlaying
+  }
+
+  fun getCurrentAudiobookId() : String {
+    return currentAudiobook?.id.toString()
   }
 
   fun play() {
@@ -489,6 +505,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   fun pause() {
     mPlayer.pause()
+    lastPauseTime = System.currentTimeMillis()
   }
 
   fun seekPlayer(time: Long) {
@@ -511,6 +528,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     if (mPlayer.playbackState == Player.STATE_READY) {
       mPlayer.clearMediaItems()
     }
+    lastPauseTime = 0
   }
 
   fun sendClientMetadata(stateName: String) {
