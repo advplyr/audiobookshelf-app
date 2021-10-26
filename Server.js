@@ -16,6 +16,8 @@ class Server extends EventEmitter {
     this.connected = false
 
     this.stream = null
+
+    this.isConnectingSocket = false
   }
 
   get token() {
@@ -60,6 +62,10 @@ class Server extends EventEmitter {
   }
 
   async connect(url, token) {
+    if (this.connected) {
+      console.warn('[SOCKET] Connection already established for ' + this.url)
+      return true
+    }
     if (!url) {
       console.error('Invalid url to connect')
       return false
@@ -151,37 +157,83 @@ class Server extends EventEmitter {
   }
 
   connectSocket() {
-    console.log('[SERVER] Connect Socket', this.url)
+    if (this.connected || this.socket) {
+      if (this.socket) console.error('[SOCKET] Socket already established', this.url)
+      else console.error('[SOCKET] Already connected to socket', this.url)
+      return
+    }
 
-    this.socket = io(this.url)
+    console.log('[SOCKET] Connect Socket', this.url)
+
+    const socketOptions = {
+      transports: ['websocket'],
+      upgrade: false,
+      // reconnectionAttempts: 3
+    }
+    this.socket = io(this.url, socketOptions)
     this.socket.on('connect', () => {
-      console.log('[Server] Socket Connected')
+      console.log('[SOCKET] Socket Connected ' + this.socket.id)
 
       // Authenticate socket with token
       this.socket.emit('auth', this.token)
-
       this.connected = true
       this.emit('connected', true)
       this.store.commit('setSocketConnected', true)
     })
-    this.socket.on('disconnect', () => {
-      console.log('[Server] Socket Disconnected')
+    this.socket.on('disconnect', (reason) => {
+      console.log('[SOCKET] Socket Disconnected: ' + reason)
       this.connected = false
       this.emit('connected', false)
       this.store.commit('setSocketConnected', false)
+
+      // this.socket.removeAllListeners()
+      // if (this.socket.io && this.socket.io.removeAllListeners) {
+      //   console.log(`[SOCKET] Removing ALL IO listeners`)
+      //   this.socket.io.removeAllListeners()
+      // }
     })
     this.socket.on('init', (data) => {
-      console.log('[Server] Initial socket data received', data)
+      console.log('[SOCKET] Initial socket data received', data)
       if (data.stream) {
         this.stream = data.stream
         this.store.commit('setStreamAudiobook', data.stream.audiobook)
         this.emit('initialStream', data.stream)
       }
     })
+
     this.socket.on('user_updated', (user) => {
       if (this.user && user.id === this.user.id) {
         this.setUser(user)
       }
+    })
+
+    this.socket.on('current_user_audiobook_update', (payload) => {
+      this.emit('currentUserAudiobookUpdate', payload)
+    })
+
+    this.socket.onAny((evt, args) => {
+      console.log(`[SOCKET] ${this.socket.id}: ${evt} ${JSON.stringify(args)}`)
+    })
+
+    this.socket.on('connect_error', (err) => {
+      console.error('[SOCKET] connection failed', err)
+      this.emit('socketConnectionFailed', err)
+    })
+
+    this.socket.io.on("reconnect_attempt", (attempt) => {
+      console.log(`[SOCKET] Reconnect Attempt ${this.socket.id}: ${attempt}`)
+    })
+
+    this.socket.io.on("reconnect_error", (err) => {
+      console.log(`[SOCKET] Reconnect Error ${this.socket.id}: ${err}`)
+    })
+
+    this.socket.io.on("reconnect_failed", () => {
+      console.log(`[SOCKET] Reconnect Failed ${this.socket.id}`)
+    })
+
+    this.socket.io.on("reconnect", () => {
+      console.log(`[SOCKET] Reconnect Success ${this.socket.id}`)
     })
   }
 }
