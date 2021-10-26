@@ -203,7 +203,7 @@ export default {
     calcSeekBackTime(lastUpdate) {
       var time = Date.now() - lastUpdate
       var seekback = 0
-      if (time < 3) seekback = 0
+      if (time < 3000) seekback = 0
       else if (time < 60000) seekback = time / 6
       else if (time < 300000) seekback = 15000
       else if (time < 1800000) seekback = 20000
@@ -214,15 +214,15 @@ export default {
     async set(audiobookStreamData, stream, fromAppDestroy) {
       this.isResetting = false
       this.initObject = { ...audiobookStreamData }
-	  
+
       var init = true
       if (!!stream) {
         //console.log(JSON.stringify(stream))
         var data = await MyNativeAudio.getStreamSyncData()
         console.log('getStreamSyncData', JSON.stringify(data))
-        console.log('lastUpdate', !!stream.lastUpdate ? stream.lastUpdate : 0)
+        console.log('lastUpdate', stream.lastUpdate || 0)
         //Same audiobook
-        if (data.id == stream.id && (data.isPlaying || (data.lastPauseTime >= (!!stream.lastUpdate ? stream.lastUpdate : 0)))) {
+        if (data.id == stream.id && (data.isPlaying || data.lastPauseTime >= (stream.lastUpdate || 0))) {
           console.log('Same audiobook')
           this.isPaused = !data.isPlaying
           this.currentTime = Number((data.currentTime / 1000).toFixed(2))
@@ -230,8 +230,7 @@ export default {
           if (data.isPlaying) {
             console.log('playing - continue')
             if (fromAppDestroy) this.startPlayInterval()
-          }
-          else console.log('paused and newer')
+          } else console.log('paused and newer')
           if (!fromAppDestroy) return
           init = false
           this.initObject.startTime = String(Math.floor(this.currentTime * 1000))
@@ -250,13 +249,14 @@ export default {
       }
 
       this.currentPlaybackRate = this.initObject.playbackSpeed
-      if (init) MyNativeAudio.initPlayer(this.initObject).then((res) => {
-        if (res && res.success) {
-          console.log('Success init audio player')
-        } else {
-          console.error('Failed to init audio player')
-        }
-      })
+      if (init)
+        MyNativeAudio.initPlayer(this.initObject).then((res) => {
+          if (res && res.success) {
+            console.log('Success init audio player')
+          } else {
+            console.error('Failed to init audio player')
+          }
+        })
 
       if (audiobookStreamData.isLocal) {
         this.setStreamReady()
