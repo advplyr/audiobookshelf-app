@@ -32,18 +32,19 @@ export default {
   },
   methods: {
     async connected(isConnected) {
-      if (this.$route.name === 'connect') {
-        if (isConnected) {
-          this.$router.push('/')
-        }
-      }
-      this.syncUserProgress()
+      if (isConnected) {
+        this.syncUserProgress()
 
-      // Load libraries
-      this.$store.dispatch('libraries/load')
+        // Load libraries
+        this.$store.dispatch('libraries/load')
+      }
+    },
+    socketConnectionFailed(err) {
+      this.$toast.error('Socket connection error: ' + err.message)
     },
     updateAudiobookProgressOnServer(audiobookProgress) {
       if (this.$server.socket) {
+        console.log(`[PROGRESSSYNC] Updating AB Progress on server ${JSON.stringify(audiobookProgress)}`)
         this.$server.socket.emit('progress_update', audiobookProgress)
       }
     },
@@ -54,22 +55,27 @@ export default {
       var localAudiobooks = this.$store.state.user.localUserAudiobooks
       var localHasUpdates = false
 
+      // console.log('[PROGRESSSYNC] Starting Sync USER', JSON.stringify(userAudiobooks))
+      // console.log('[PROGRESSSYNC] Starting Sync LOCAL', JSON.stringify(localAudiobooks))
+
       var newestLocal = { ...localAudiobooks }
       for (const audiobookId in userAudiobooks) {
-        if (localAudiobooks[audiobookId]) {
+        if (!audiobookId || !userAudiobooks[audiobookId] || audiobookId === 'undefined') {
+          console.error(`[PROGRESSSYNC] Invalid audiobookId ${audiobookId} - ${JSON.stringify(userAudiobooks[audiobookId])}`)
+        } else if (localAudiobooks[audiobookId]) {
           if (localAudiobooks[audiobookId].lastUpdate > userAudiobooks[audiobookId].lastUpdate) {
             // Local progress is more recent than user progress
             this.updateAudiobookProgressOnServer(localAudiobooks[audiobookId])
           } else if (localAudiobooks[audiobookId].lastUpdate < userAudiobooks[audiobookId].lastUpdate) {
             // Server is more recent than local
             newestLocal[audiobookId] = userAudiobooks[audiobookId]
-            console.log('SYNCUSERPROGRESS Server IS MORE RECENT for', audiobookId)
+            // console.log('[PROGRESSSYNC] Server IS MORE RECENT for', audiobookId, JSON.stringify(newestLocal[audiobookId]))
             localHasUpdates = true
           }
         } else {
           // Not on local yet - store on local
           newestLocal[audiobookId] = userAudiobooks[audiobookId]
-          console.log('SYNCUSERPROGRESS LOCAL Is NOT Stored YET for', audiobookId, JSON.stringify(newestLocal[audiobookId]))
+          // console.log('[PROGRESSSYNC] LOCAL Is NOT Stored YET for', audiobookId, JSON.stringify(newestLocal[audiobookId]))
           localHasUpdates = true
         }
       }
@@ -82,8 +88,15 @@ export default {
       }
 
       if (localHasUpdates) {
-        console.log('Local audiobook progress has updates from server')
+        // console.log('[PROGRESSSYNC] Local audiobook progress has updates from server')
         this.$localStore.setAllAudiobookProgress(newestLocal)
+      }
+    },
+    currentUserAudiobookUpdate({ id, data }) {
+      if (data) {
+        this.$localStore.updateUserAudiobookProgress(data)
+      } else {
+        this.$localStore.removeAudiobookProgress(id)
       }
     },
     initialStream(stream) {
@@ -368,9 +381,12 @@ export default {
   },
   mounted() {
     if (!this.$server) return console.error('No Server')
+    // console.log(`Default Mounted set SOCKET listeners ${this.$server.connected}`)
 
     this.$server.on('connected', this.connected)
+    this.$server.on('connectionFailed', this.socketConnectionFailed)
     this.$server.on('initialStream', this.initialStream)
+    this.$server.on('currentUserAudiobookUpdate', this.currentUserAudiobookUpdate)
 
     if (this.$store.state.isFirstLoad) {
       this.$store.commit('setIsFirstLoad', false)
@@ -379,7 +395,6 @@ export default {
       this.initMediaStore()
     }
 
-    // For Testing Android Auto
     MyNativeAudio.addListener('onPrepareMedia', (data) => {
       var audiobookId = data.audiobookId
       var playWhenReady = data.playWhenReady
@@ -403,8 +418,9 @@ export default {
       console.error('No Server beforeDestroy')
       return
     }
-    console.log('Default Before Destroy remove listeners')
+
     this.$server.off('connected', this.connected)
+    this.$server.off('connectionFailed', this.socketConnectionFailed)
     this.$server.off('initialStream', this.initialStream)
   }
 }
