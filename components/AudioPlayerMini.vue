@@ -198,11 +198,33 @@ export default {
         this.pause()
       }
     },
-    set(audiobookStreamData) {
+    async set(audiobookStreamData, stream, fromAppDestroy) {
       this.isResetting = false
       this.initObject = { ...audiobookStreamData }
+      var init = true
+      if (!!stream) {
+        console.log(JSON.stringify(stream))
+        var data = await MyNativeAudio.getStreamSyncData()
+        console.log('getStreamSyncData', JSON.stringify(data))
+        console.log('lastUpdate', !!stream.lastUpdate ? stream.lastUpdate : 0)
+        //Same audiobook
+        if (data.id == stream.id && (data.isPlaying || (data.lastPauseTime >= (!!stream.lastUpdate ? stream.lastUpdate : 0)))) {
+          console.log('Same audiobook')
+          this.isPaused = !data.isPlaying
+          this.currentTime = Number((data.currentTime / 1000).toFixed(2))
+          this.timeupdate()
+          if (data.isPlaying) {
+            console.log('playing - continue')
+            if (fromAppDestroy) this.startPlayInterval()
+          }
+          else console.log('paused and newer')
+          if (!fromAppDestroy) return
+          init = false
+          this.initObject.startTime = String(Math.floor(this.currentTime * 1000))
+        }
+      }
       this.currentPlaybackRate = this.initObject.playbackSpeed
-      MyNativeAudio.initPlayer(this.initObject).then((res) => {
+      if (init) MyNativeAudio.initPlayer(this.initObject).then((res) => {
         if (res && res.success) {
           console.log('Success init audio player')
         } else {

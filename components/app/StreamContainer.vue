@@ -269,7 +269,7 @@ export default {
         isLocal: true
       }
 
-      this.$refs.audioPlayerMini.set(audiobookStreamData)
+      this.$refs.audioPlayerMini.set(audiobookStreamData, null, false)
     },
     streamOpen(stream) {
       if (this.download) {
@@ -286,8 +286,6 @@ export default {
         return
       }
 
-      this.stream = stream
-
       // Update local remove current
       this.$localStore.setCurrent(null)
 
@@ -298,6 +296,7 @@ export default {
       if (playOnLoad) this.$store.commit('setPlayOnLoad', false)
 
       var audiobookStreamData = {
+        id: stream.id,
         title: this.title,
         author: this.author,
         playWhenReady: !!playOnLoad,
@@ -309,7 +308,9 @@ export default {
         playlistUrl: this.$server.url + playlistUrl,
         token: this.$store.getters['user/getToken']
       }
-      this.$refs.audioPlayerMini.set(audiobookStreamData)
+      this.$refs.audioPlayerMini.set(audiobookStreamData, stream, !this.stream)
+
+      this.stream = stream
     },
     audioPlayerMounted() {
       console.log('Audio Player Mounted', this.$server.stream)
