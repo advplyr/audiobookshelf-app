@@ -198,6 +198,17 @@ export default {
         this.pause()
       }
     },
+    calcSeekBackTime(lastUpdate) {
+      var time = Date.now() - lastUpdate
+      var seekback = 0
+      if (time < 3) seekback = 0
+      else if (time < 60000) seekback = time / 6
+      else if (time < 300000) seekback = 15000
+      else if (time < 1800000) seekback = 20000
+      else if (time < 3600000) seekback = 25000
+      else seekback = 29500
+      return seekback
+    },
     async set(audiobookStreamData, stream, fromAppDestroy) {
       this.isResetting = false
       this.initObject = { ...audiobookStreamData }
@@ -221,6 +232,17 @@ export default {
           if (!fromAppDestroy) return
           init = false
           this.initObject.startTime = String(Math.floor(this.currentTime * 1000))
+        }
+        //new audiobook stream or sync from other client
+        else if (stream.clientCurrentTime > 0) {
+          console.log('new audiobook stream or sync from other client')
+          if (!!stream.lastUpdate) {
+            var backTime = this.calcSeekBackTime(stream.lastUpdate)
+            var currentTime = Math.floor(stream.clientCurrentTime * 1000)
+            if (backTime >= currentTime) backTime = currentTime - 500
+            console.log('SeekBackTime', backTime)
+            this.initObject.startTime = String(Math.floor(currentTime - backTime))
+          }
         }
       }
       this.currentPlaybackRate = this.initObject.playbackSpeed

@@ -488,6 +488,19 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     return lastPauseTime
   }
 
+  fun calcPauseSeekBackTime() : Long {
+    if (lastPauseTime <= 0) return 0
+    var time: Long = System.currentTimeMillis() - lastPauseTime
+    var seekback: Long = 0
+    if (time < 3) seekback = 0
+    else if (time < 60000) seekback = time / 6
+    else if (time < 300000) seekback = 15000
+    else if (time < 1800000) seekback = 20000
+    else if (time < 3600000) seekback = 25000
+    else seekback = 29500
+    return seekback
+  }
+
   fun getPlayStatus() : Boolean {
     return mPlayer.isPlaying
   }
@@ -500,6 +513,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     if (mPlayer.isPlaying) {
       Log.d(tag, "Already playing")
       return
+    }
+    if (lastPauseTime > 0) {
+      var backTime = calcPauseSeekBackTime()
+      if (backTime >= mPlayer.currentPosition) backTime = mPlayer.currentPosition - 500
+      Log.d(tag, "SeekBackTime $backTime")
+      seekBackward(backTime)
     }
     mPlayer.play()
   }
