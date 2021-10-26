@@ -81,6 +81,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   var mediaButtonClickTimeout: Long = 1000  //ms
   var seekAmount: Long = 20000   //ms
 
+  private var lastPauseTime: Long = 0   //ms
+
   fun setCustomObjectListener(mylistener: MyCustomObjectListener) {
     listener = mylistener
   }
@@ -380,10 +382,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
           if (mPlayer.playbackState == Player.STATE_READY) {
             Log.d(tag, "STATE_READY : " + mPlayer.duration.toString())
 
-            if (!currentAudiobook!!.hasPlayerLoaded && currentAudiobook!!.startTime > 0) {
+            /*if (!currentAudiobook!!.hasPlayerLoaded && currentAudiobook!!.startTime > 0) {
               Log.d(tag, "Should seek to ${currentAudiobook!!.startTime}")
               mPlayer.seekTo(currentAudiobook!!.startTime)
-            }
+            }*/
 
             currentAudiobook!!.hasPlayerLoaded = true
             sendClientMetadata("ready")
@@ -468,10 +470,13 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     }
 
 
-    mPlayer.setMediaSource(mediaSource, true)
+    //mPlayer.setMediaSource(mediaSource, true)
+    mPlayer.setMediaSource(mediaSource, currentAudiobook!!.startTime)
     mPlayer.prepare()
     mPlayer.playWhenReady = currentAudiobook!!.playWhenReady
     mPlayer.setPlaybackSpeed(audiobook.playbackSpeed)
+
+    lastPauseTime = 0
   }
 
 
@@ -479,16 +484,48 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     return mPlayer.currentPosition
   }
 
+  fun getTheLastPauseTime() : Long {
+    return lastPauseTime
+  }
+
+  fun calcPauseSeekBackTime() : Long {
+    if (lastPauseTime <= 0) return 0
+    var time: Long = System.currentTimeMillis() - lastPauseTime
+    var seekback: Long = 0
+    if (time < 3000) seekback = 0
+    else if (time < 60000) seekback = time / 6
+    else if (time < 300000) seekback = 15000
+    else if (time < 1800000) seekback = 20000
+    else if (time < 3600000) seekback = 25000
+    else seekback = 29500
+    return seekback
+  }
+
+  fun getPlayStatus() : Boolean {
+    return mPlayer.isPlaying
+  }
+
+  fun getCurrentAudiobookId() : String {
+    return currentAudiobook?.id.toString()
+  }
+
   fun play() {
     if (mPlayer.isPlaying) {
       Log.d(tag, "Already playing")
       return
+    }
+    if (lastPauseTime > 0) {
+      var backTime = calcPauseSeekBackTime()
+      if (backTime >= mPlayer.currentPosition) backTime = mPlayer.currentPosition - 500
+      Log.d(tag, "SeekBackTime $backTime")
+      seekBackward(backTime)
     }
     mPlayer.play()
   }
 
   fun pause() {
     mPlayer.pause()
+    lastPauseTime = System.currentTimeMillis()
   }
 
   fun seekPlayer(time: Long) {
@@ -511,6 +548,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     if (mPlayer.playbackState == Player.STATE_READY) {
       mPlayer.clearMediaItems()
     }
+    lastPauseTime = 0
   }
 
   fun sendClientMetadata(stateName: String) {
