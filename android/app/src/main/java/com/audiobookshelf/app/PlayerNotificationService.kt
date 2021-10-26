@@ -382,10 +382,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
           if (mPlayer.playbackState == Player.STATE_READY) {
             Log.d(tag, "STATE_READY : " + mPlayer.duration.toString())
 
-            if (!currentAudiobook!!.hasPlayerLoaded && currentAudiobook!!.startTime > 0) {
+            /*if (!currentAudiobook!!.hasPlayerLoaded && currentAudiobook!!.startTime > 0) {
               Log.d(tag, "Should seek to ${currentAudiobook!!.startTime}")
               mPlayer.seekTo(currentAudiobook!!.startTime)
-            }
+            }*/
 
             currentAudiobook!!.hasPlayerLoaded = true
             sendClientMetadata("ready")
@@ -470,7 +470,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     }
 
 
-    mPlayer.setMediaSource(mediaSource, true)
+    //mPlayer.setMediaSource(mediaSource, true)
+    mPlayer.setMediaSource(mediaSource, currentAudiobook!!.startTime)
     mPlayer.prepare()
     mPlayer.playWhenReady = currentAudiobook!!.playWhenReady
     mPlayer.setPlaybackSpeed(audiobook.playbackSpeed)
