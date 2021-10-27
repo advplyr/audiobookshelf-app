@@ -388,12 +388,15 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
             }*/
 
             currentAudiobook!!.hasPlayerLoaded = true
-            if (lastPauseTime <= 0) sendClientMetadata("ready_no_sync")
+            if (lastPauseTime == 0L) {
+              sendClientMetadata("ready_no_sync")
+              lastPauseTime = -1;
+            }
             else sendClientMetadata("ready")
           }
           if (mPlayer.playbackState == Player.STATE_BUFFERING) {
             Log.d(tag, "STATE_BUFFERING : " + mPlayer.currentPosition.toString())
-            if (lastPauseTime <= 0) sendClientMetadata("buffering_no_sync")
+            if (lastPauseTime == 0L) sendClientMetadata("buffering_no_sync")
             else sendClientMetadata("buffering")
           }
           if (mPlayer.playbackState == Player.STATE_ENDED) {
