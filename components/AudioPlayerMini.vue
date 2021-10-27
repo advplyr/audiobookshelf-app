@@ -228,6 +228,7 @@ export default {
           console.log('Same audiobook')
           this.isPaused = !data.isPlaying
           this.currentTime = Number((data.currentTime / 1000).toFixed(2))
+		  this.totalDuration = Number((data.duration / 1000).toFixed(2))
           this.timeupdate()
           if (data.isPlaying) {
             console.log('playing - continue')

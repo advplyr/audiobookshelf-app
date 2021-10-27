@@ -493,6 +493,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     return lastPauseTime
   }
 
+  fun getDuration() : Long {
+    return mPlayer.duration
+  }
+
   fun calcPauseSeekBackTime() : Long {
     if (lastPauseTime <= 0) return 0
     var time: Long = System.currentTimeMillis() - lastPauseTime

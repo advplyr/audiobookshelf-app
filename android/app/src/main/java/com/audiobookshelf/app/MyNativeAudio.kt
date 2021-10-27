@@ -96,11 +96,14 @@ class MyNativeAudio : Plugin() {
       //if (!isPlaying) currentTime -= playerNotificationService.calcPauseSeekBackTime()
       var id = playerNotificationService.getCurrentAudiobookId()
       Log.d(tag, "Get Current id $id")
+      var duration = playerNotificationService.getDuration()
+      Log.d(tag, "Get duration $duration")
       val ret = JSObject()
       ret.put("lastPauseTime", lastPauseTime)
       ret.put("currentTime", currentTime)
       ret.put("isPlaying", isPlaying)
       ret.put("id", id)
+      ret.put("duration", duration)
       call.resolve(ret)
     }
   }
