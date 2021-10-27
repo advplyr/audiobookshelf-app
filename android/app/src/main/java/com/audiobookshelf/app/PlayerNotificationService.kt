@@ -388,11 +388,16 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
             }*/
 
             currentAudiobook!!.hasPlayerLoaded = true
-            sendClientMetadata("ready")
+            if (lastPauseTime == 0L) {
+              sendClientMetadata("ready_no_sync")
+              lastPauseTime = -1;
+            }
+            else sendClientMetadata("ready")
           }
           if (mPlayer.playbackState == Player.STATE_BUFFERING) {
             Log.d(tag, "STATE_BUFFERING : " + mPlayer.currentPosition.toString())
-            sendClientMetadata("buffering")
+            if (lastPauseTime == 0L) sendClientMetadata("buffering_no_sync")
+            else sendClientMetadata("buffering")
           }
           if (mPlayer.playbackState == Player.STATE_ENDED) {
             Log.d(tag, "STATE_ENDED")
@@ -486,6 +491,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   fun getTheLastPauseTime() : Long {
     return lastPauseTime
+  }
+
+  fun getDuration() : Long {
+    return mPlayer.duration
   }
 
   fun calcPauseSeekBackTime() : Long {
