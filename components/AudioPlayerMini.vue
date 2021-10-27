@@ -74,7 +74,8 @@ export default {
       seekedTime: 0,
       seekLoading: false,
       onPlayingUpdateListener: null,
-      onMetadataListener: null
+      onMetadataListener: null,
+	  noSyncUpdateTime: false
     }
   },
   computed: {
@@ -100,7 +101,7 @@ export default {
       MyNativeAudio.seekForward({ amount: '10000' })
     },
     sendStreamUpdate() {
-      this.$emit('updateTime', this.currentTime)
+	  this.$emit('updateTime', this.currentTime)
     },
     setStreamReady() {
       this.readyTrackWidth = this.trackWidth
@@ -150,7 +151,8 @@ export default {
       }
 
       this.updateTimestamp()
-      this.sendStreamUpdate()
+      if (this.noSyncUpdateTime) this.noSyncUpdateTime = false
+      else this.sendStreamUpdate()
 
       var perc = this.currentTime / this.totalDuration
       var ptWidth = Math.round(perc * this.trackWidth)
@@ -330,7 +332,9 @@ export default {
         this.setFromObj()
       }
 
-      this.timeupdate()
+	  if ((this.stateName === 'ready_no_sync') || (this.stateName === 'buffering_no_sync')) this.noSyncUpdateTime = true
+	  
+	  this.timeupdate()
     },
     init() {
       this.onPlayingUpdateListener = MyNativeAudio.addListener('onPlayingUpdate', this.onPlayingUpdate)
