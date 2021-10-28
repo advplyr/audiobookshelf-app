@@ -441,7 +441,7 @@ class LocalStorage {
       var val = (await Storage.get({ key: 'userAudiobooks' }) || {}).value || null
       this.userAudiobooks = val ? JSON.parse(val) : {}
       this.userAudiobooksLoaded = true
-      this.vuexStore.commit('user/setLocalUserAudiobooks', this.userAudiobooks)
+      this.vuexStore.commit('user/setLocalUserAudiobooks', { ...this.userAudiobooks })
     } catch (error) {
       console.error('[LocalStorage] Failed to load user audiobooks', error)
     }
@@ -458,7 +458,7 @@ class LocalStorage {
   async setAllAudiobookProgress(progresses) {
     this.userAudiobooks = progresses
     await this.saveUserAudiobooks()
-    this.vuexStore.commit('user/setLocalUserAudiobooks', this.userAudiobooks)
+    this.vuexStore.commit('user/setLocalUserAudiobooks', { ...this.userAudiobooks })
   }
 
   async updateUserAudiobookProgress(progressPayload) {
@@ -467,14 +467,14 @@ class LocalStorage {
     }
     console.log('[LocalStorage] Updated User Audiobook Progress ' + progressPayload.audiobookId)
     await this.saveUserAudiobooks()
-    this.vuexStore.commit('user/setLocalUserAudiobooks', this.userAudiobooks)
+    this.vuexStore.commit('user/setLocalUserAudiobooks', { ...this.userAudiobooks })
   }
 
   async removeAudiobookProgress(audiobookId) {
     if (!this.userAudiobooks[audiobookId]) return
     delete this.userAudiobooks[audiobookId]
     await this.saveUserAudiobooks()
-    this.vuexStore.commit('user/setLocalUserAudiobooks', this.userAudiobooks)
+    this.vuexStore.commit('user/setLocalUserAudiobooks', { ...this.userAudiobooks })
   }
 
   getUserAudiobook(audiobookId) {
@@ -530,10 +530,13 @@ class LocalStorage {
       if (folderObj) {
         await Storage.set({ key: 'downloadFolder', value: JSON.stringify(folderObj) })
         this.downloadFolder = folderObj
+        this.vuexStore.commit('setDownloadFolder', { ...this.downloadFolder })
       } else {
         await Storage.remove({ key: 'downloadFolder' })
         this.downloadFolder = null
+        this.vuexStore.commit('setDownloadFolder', null)
       }
+
     } catch (error) {
       console.error('[LocalStorage] Failed to set download folder', error)
     }
@@ -544,6 +547,7 @@ class LocalStorage {
       var _value = (await Storage.get({ key: 'downloadFolder' }) || {}).value || null
       if (!_value) return null
       this.downloadFolder = JSON.parse(_value)
+      this.vuexStore.commit('setDownloadFolder', { ...this.downloadFolder })
       return this.downloadFolder
     } catch (error) {
       console.error('[LocalStorage] Failed to get download folder', error)

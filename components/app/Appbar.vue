@@ -19,7 +19,7 @@
       <div class="flex-grow" />
       <!-- <ui-menu :label="username" :items="menuItems" @action="menuAction" class="ml-5" /> -->
 
-      <span class="material-icons cursor-pointer mx-4" @click="$store.commit('downloads/setShowModal', true)">source</span>
+      <span class="material-icons cursor-pointer mx-4" :class="hasDownloadsFolder ? '' : 'text-warning'" @click="$store.commit('downloads/setShowModal', true)">source</span>
 
       <widgets-connection-icon />
 
@@ -74,6 +74,9 @@ export default {
       } else {
         return process.env.IOS_APP_URL
       }
+    },
+    hasDownloadsFolder() {
+      return !!this.$store.state.downloadFolder
     }
   },
   methods: {

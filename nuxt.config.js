@@ -41,6 +41,7 @@ export default {
     '@/plugins/axios.js',
     '@/plugins/my-native-audio.js',
     '@/plugins/audio-downloader.js',
+    '@/plugins/storage-manager.js',
     '@/plugins/toast.js'
   ],
 
