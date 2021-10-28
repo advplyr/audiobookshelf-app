@@ -51,6 +51,7 @@
 import Path from 'path'
 import { Dialog } from '@capacitor/dialog'
 import AudioDownloader from '@/plugins/audio-downloader'
+import StorageManager from '@/plugins/storage-manager'
 
 export default {
   async asyncData({ store, params, redirect, app }) {
@@ -266,21 +267,17 @@ export default {
       }
 
       if (!this.hasStoragePermission) {
-        await AudioDownloader.requestStoragePermission()
+        this.$store.commit('downloads/setShowModal', true)
         return
       }
 
       // Download Path
       var dlFolder = this.$localStore.downloadFolder
       if (!dlFolder) {
-        console.log('No download folder, request from ujser')
-        var folderObj = await AudioDownloader.selectFolder()
-
-        if (folderObj.error) {
-          return this.$toast.error(`Error: ${folderObj.error || 'Unknown Error'}`)
-        }
-        dlFolder = folderObj
-        await this.$localStore.setDownloadFolder(folderObj)
+        console.log('No download folder, request from user')
+        // User to select download folder from download modal to ensure permissions
+        this.$store.commit('downloads/setShowModal', true)
+        return
       }
 
       var downloadObject = {
@@ -299,8 +296,11 @@ export default {
         var track = audiobook.tracks[0]
         var fileext = track.ext
 
+        console.log('Download Single Track Path: ' + track.path)
+
         var relTrackPath = track.path.replace('\\', '/').replace(this.audiobook.path.replace('\\', '/'), '')
-        var url = `${this.$store.state.serverUrl}/s/book/${this.audiobookId}/${relTrackPath}?token=${this.userToken}`
+
+        var url = `${this.$store.state.serverUrl}/s/book/${this.audiobookId}${relTrackPath}?token=${this.userToken}`
         this.startDownload(url, fileext, downloadObject)
       } else {
         // Multi-track merge

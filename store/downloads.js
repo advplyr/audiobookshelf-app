@@ -1,6 +1,5 @@
 export const state = () => ({
   downloads: [],
-  orphanDownloads: [],
   showModal: false
 })
 
@@ -45,24 +44,16 @@ export const mutations = {
     }
   },
   addUpdateDownload(state, download) {
-    var key = download.isOrphan ? 'orphanDownloads' : 'downloads'
-    var index = state[key].findIndex(d => d.id === download.id)
+    var index = state.downloads.findIndex(d => d.id === download.id)
     if (index >= 0) {
-      state[key].splice(index, 1, download)
+      state.downloads.splice(index, 1, download)
     } else {
-      state[key].push(download)
+      state.downloads.push(download)
     }
-
-    if (key === 'downloads') {
-      this.$sqlStore.setDownload(download)
-    }
+    this.$sqlStore.setDownload(download)
   },
   removeDownload(state, download) {
-    var key = download.isOrphan ? 'orphanDownloads' : 'downloads'
-    state[key] = state[key].filter(d => d.id !== download.id)
-
-    if (key === 'downloads') {
-      this.$sqlStore.removeDownload(download.id)
-    }
+    state.downloads = state.downloads.filter(d => d.id !== download.id)
+    this.$sqlStore.removeDownload(download.id)
   }
 }

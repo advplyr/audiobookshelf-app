@@ -43,6 +43,7 @@ class MainActivity : BridgeActivity() {
     Log.d(tag, "onCreate")
     registerPlugin(MyNativeAudio::class.java)
     registerPlugin(AudioDownloader::class.java)
+    registerPlugin(StorageManager::class.java)
 
     var filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE).apply {
       addAction(DownloadManager.ACTION_NOTIFICATION_CLICKED)

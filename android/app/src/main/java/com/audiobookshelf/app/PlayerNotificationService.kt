@@ -263,7 +263,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       }
 
       override fun getSupportedPrepareActions(): Long {
-        Log.d(tag, "GET SUPORTED ACITONS")
         return PlaybackStateCompat.ACTION_PREPARE_FROM_MEDIA_ID or
           PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID or
           PlaybackStateCompat.ACTION_PREPARE_FROM_SEARCH or

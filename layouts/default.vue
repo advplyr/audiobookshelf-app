@@ -5,7 +5,7 @@
       <Nuxt />
     </div>
     <app-stream-container ref="streamContainer" />
-    <modals-downloads-modal ref="downloadsModal" @selectDownload="selectDownload" @deleteDownload="deleteDownload" />
+    <modals-downloads-modal ref="downloadsModal" @deleteDownload="deleteDownload" />
     <modals-libraries-modal />
     <readers-reader />
   </div>
@@ -17,6 +17,7 @@ import { Network } from '@capacitor/network'
 import { AppUpdate } from '@robingenz/capacitor-app-update'
 import AudioDownloader from '@/plugins/audio-downloader'
 import MyNativeAudio from '@/plugins/my-native-audio'
+import StorageManager from '@/plugins/storage-manager'
 
 export default {
   data() {
@@ -234,46 +235,100 @@ export default {
         this.$localStore.setCurrent(null)
       }
     },
-    async onMediaLoaded(items) {
-      var jsitems = JSON.parse(items)
-      jsitems = jsitems.map((item) => {
-        return {
-          filename: item.name,
-          size: item.size,
-          contentUrl: item.uri,
-          coverUrl: item.coverUrl || null
-        }
+    async searchFolder(downloadFolder) {
+      try {
+        var response = await StorageManager.searchFolder({ folderUrl: downloadFolder.uri })
+        var searchResults = response
+        searchResults.folders = JSON.parse(searchResults.folders)
+        searchResults.files = JSON.parse(searchResults.files)
+
+        console.log('Search folders results length', searchResults.folders.length)
+        searchResults.folders = searchResults.folders.map((sr) => {
+          if (sr.files) {
+            sr.files = JSON.parse(sr.files)
+          }
+          return sr
+        })
+
+        return searchResults
+      } catch (error) {
+        console.error('Failed', error)
+        this.$toast.error('Failed to search downloads folder')
+        return {}
+      }
+    },
+    async syncDownloads(downloads, downloadFolder) {
+      console.log('Syncing downloads ' + downloads.length)
+
+      var mediaScanResults = await this.searchFolder(downloadFolder)
+
+      this.$store.commit('setMediaScanResults', mediaScanResults)
+
+      // Filter out media folders without any audio files
+      var mediaFolders = mediaScanResults.folders.filter((sr) => {
+        if (!sr.files) return false
+        var audioFiles = sr.files.filter((mf) => !!mf.isAudio)
+        return audioFiles.length
       })
 
-      var downloads = await this.$sqlStore.getAllDownloads()
+      downloads.forEach((download) => {
+        var mediaFolder = mediaFolders.find((mf) => mf.name === download.folderName)
+        if (mediaFolder) {
+          console.log('Found download ' + download.folderName)
 
-      for (let i = 0; i < downloads.length; i++) {
-        var download = downloads[i]
-        var jsitem = jsitems.find((item) => item.contentUrl === download.contentUrl)
-        if (!jsitem) {
-          console.error('Removing download was not found', JSON.stringify(download))
-          await this.$sqlStore.removeDownload(download.id)
-        } else if (download.coverUrl && !jsitem.coverUrl) {
-          console.error('Removing cover for download was not found')
-          download.cover = null
-          download.coverUrl = null
-          download.size = jsitem.size || 0
+          if (download.isPreparing || download.isDownloading) {
+            download.isIncomplete = true
+            download.isPreparing = false
+            download.isDownloading = false
+          }
+
           this.$store.commit('downloads/addUpdateDownload', download)
           this.$store.commit('audiobooks/addUpdate', download.audiobook)
         } else {
-          download.size = jsitem.size || 0
+          console.error('Download not found ' + download.folderName)
+          download.isMissing = true
+          download.isPreparing = false
+          download.isDownloading = false
           this.$store.commit('downloads/addUpdateDownload', download)
-          this.$store.commit('audiobooks/addUpdate', download.audiobook)
         }
-      }
+      })
+    },
+    // async onMediaLoaded(items) {
+    //   var jsitems = JSON.parse(items)
+    //   jsitems = jsitems.map((item) => {
+    //     return {
+    //       filename: item.name,
+    //       size: item.size,
+    //       contentUrl: item.uri,
+    //       coverUrl: item.coverUrl || null
+    //     }
+    //   })
 
-      this.checkLoadCurrent()
-      this.$store.dispatch('audiobooks/setNativeAudiobooks')
-    },
-    selectDownload(download) {
-      this.$store.commit('setPlayOnLoad', true)
-      this.$store.commit('setPlayingDownload', download)
-    },
+    //   var downloads = await this.$sqlStore.getAllDownloads()
+
+    //   for (let i = 0; i < downloads.length; i++) {
+    //     var download = downloads[i]
+    //     var jsitem = jsitems.find((item) => item.contentUrl === download.contentUrl)
+    //     if (!jsitem) {
+    //       console.error('Removing download was not found', JSON.stringify(download))
+    //       await this.$sqlStore.removeDownload(download.id)
+    //     } else if (download.coverUrl && !jsitem.coverUrl) {
+    //       console.error('Removing cover for download was not found')
+    //       download.cover = null
+    //       download.coverUrl = null
+    //       download.size = jsitem.size || 0
+    //       this.$store.commit('downloads/addUpdateDownload', download)
+    //       this.$store.commit('audiobooks/addUpdate', download.audiobook)
+    //     } else {
+    //       download.size = jsitem.size || 0
+    //       this.$store.commit('downloads/addUpdateDownload', download)
+    //       this.$store.commit('audiobooks/addUpdate', download.audiobook)
+    //     }
+    //   }
+
+    //   this.checkLoadCurrent()
+    //   this.$store.dispatch('audiobooks/setNativeAudiobooks')
+    // },
     async deleteDownload(download) {
       console.log('Delete download', download.filename)
 
@@ -284,83 +339,63 @@ export default {
         }
       }
       if (download.contentUrl) {
-        await AudioDownloader.delete(download)
+        await StorageManager.delete(download)
       }
       this.$store.commit('downloads/removeDownload', download)
     },
-    async onPermissionUpdate(data) {
-      var val = data.value
-      console.log('Permission Update', val)
-      if (val === 'required') {
-        console.log('Permission Required - Making Request')
-        this.$store.commit('setHasStoragePermission', false)
-      } else if (val === 'canceled' || val === 'denied') {
-        console.error('Permission denied by user')
-        this.$store.commit('setHasStoragePermission', false)
-      } else if (val === 'granted') {
-        console.log('User Granted permission')
-        this.$store.commit('setHasStoragePermission', true)
-
-        var folder = data
-        delete folder.value
-        console.log('Setting folder', JSON.stringify(folder))
-        await this.$localStore.setDownloadFolder(folder)
-      } else {
-        console.warn('Other permisiso update', val)
-      }
-    },
     async initMediaStore() {
       // Request and setup listeners for media files on native
-      AudioDownloader.addListener('permission', (data) => {
-        this.onPermissionUpdate(data)
-      })
       AudioDownloader.addListener('onDownloadComplete', (data) => {
         this.onDownloadComplete(data)
       })
       AudioDownloader.addListener('onDownloadFailed', (data) => {
         this.onDownloadFailed(data)
       })
-      AudioDownloader.addListener('onMediaLoaded', (data) => {
-        this.onMediaLoaded(data.items)
-      })
+      // AudioDownloader.addListener('onMediaLoaded', (data) => {
+      //   this.onMediaLoaded(data.items)
+      // })
       AudioDownloader.addListener('onDownloadProgress', (data) => {
         this.onDownloadProgress(data)
       })
 
       await this.$localStore.loadUserAudiobooks()
-      await this.$localStore.getDownloadFolder()
+
+      var downloads = await this.$sqlStore.getAllDownloads()
+      var downloadFolder = await this.$localStore.getDownloadFolder()
+
+      if (downloadFolder && downloads.length) {
+        await this.syncDownloads(downloads, downloadFolder)
+      }
 
       var userSavedSettings = await this.$localStore.getUserSettings()
       if (userSavedSettings) {
         this.$store.commit('user/setSettings', userSavedSettings)
       }
 
-      var downloads = await this.$sqlStore.getAllDownloads()
-      if (downloads.length) {
-        var urls = downloads
-          .map((d) => {
-            return {
-              contentUrl: d.contentUrl,
-              coverUrl: d.coverUrl || '',
-              storageId: d.storageId,
-              basePath: d.basePath,
-              coverBasePath: d.coverBasePath || ''
-            }
-          })
-          .filter((d) => {
-            if (!d.contentUrl) {
-              console.error('Invalid Download no Content URL', JSON.stringify(d))
-              return false
-            }
-            return true
-          })
+      // if (downloads.length) {
+      // var urls = downloads
+      //   .map((d) => {
+      //     return {
+      //       contentUrl: d.contentUrl,
+      //       coverUrl: d.coverUrl || '',
+      //       storageId: d.storageId,
+      //       basePath: d.basePath,
+      //       coverBasePath: d.coverBasePath || ''
+      //     }
+      //   })
+      //   .filter((d) => {
+      //     if (!d.contentUrl) {
+      //       console.error('Invalid Download no Content URL', JSON.stringify(d))
+      //       return false
+      //     }
+      //     return true
+      //   })
+      // AudioDownloader.load({
+      //   audiobookUrls: urls
+      // })
+      // }
 
-        AudioDownloader.load({
-          audiobookUrls: urls
-        })
-      }
-
-      var checkPermission = await AudioDownloader.checkStoragePermission()
+      var checkPermission = await StorageManager.checkStoragePermission()
       console.log('Storage Permission is' + checkPermission.value)
       if (!checkPermission.value) {
         console.log('Will require permissions')

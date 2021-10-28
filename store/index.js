@@ -13,7 +13,9 @@ export const state = () => ({
   isFirstLoad: true,
   hasStoragePermission: false,
   selectedBook: null,
-  showReader: false
+  showReader: false,
+  downloadFolder: null,
+  mediaScanResults: {}
 })
 
 export const getters = {
@@ -89,5 +91,11 @@ export const mutations = {
   },
   setShowReader(state, val) {
     state.showReader = val
+  },
+  setDownloadFolder(state, val) {
+    state.downloadFolder = val
+  },
+  setMediaScanResults(state, val) {
+    state.mediaScanResults = val
   }
 }
