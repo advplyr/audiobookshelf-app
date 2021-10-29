@@ -82,6 +82,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   var seekAmount: Long = 20000   //ms
 
   private var lastPauseTime: Long = 0   //ms
+  private var onSeekBack: Boolean = false
 
   fun setCustomObjectListener(mylistener: MyCustomObjectListener) {
     listener = mylistener
@@ -416,6 +417,21 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         }
         if (events.contains(Player.EVENT_IS_PLAYING_CHANGED)) {
           Log.d(tag, "EVENT IS PLAYING CHANGED")
+          if (player.isPlaying) {
+            if (lastPauseTime > 0) {
+              if (onSeekBack) onSeekBack = false
+              else {
+                var backTime = calcPauseSeekBackTime()
+                if (backTime > 0) {
+                  if (backTime >= mPlayer.currentPosition) backTime = mPlayer.currentPosition - 500
+                  Log.d(tag, "SeekBackTime $backTime")
+                  onSeekBack = true
+                  seekBackward(backTime)
+                }
+              }
+            }
+          }
+          else lastPauseTime = System.currentTimeMillis()
           if (listener != null) listener.onPlayingUpdate(player.isPlaying)
         }
       }
@@ -522,18 +538,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       Log.d(tag, "Already playing")
       return
     }
-    if (lastPauseTime > 0) {
-      var backTime = calcPauseSeekBackTime()
-      if (backTime >= mPlayer.currentPosition) backTime = mPlayer.currentPosition - 500
-      Log.d(tag, "SeekBackTime $backTime")
-      seekBackward(backTime)
-    }
     mPlayer.play()
   }
 
   fun pause() {
     mPlayer.pause()
-    lastPauseTime = System.currentTimeMillis()
   }
 
   fun seekPlayer(time: Long) {
@@ -556,6 +565,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     if (mPlayer.playbackState == Player.STATE_READY) {
       mPlayer.clearMediaItems()
     }
+    currentAudiobook?.id = ""
     lastPauseTime = 0
   }
 
