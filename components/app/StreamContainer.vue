@@ -154,6 +154,7 @@ export default {
         if (value) {
           this.$server.socket.emit('close_stream')
           this.$store.commit('setStreamAudiobook', null)
+          this.$server.stream = null
           if (this.$refs.audioPlayerMini) {
             this.$refs.audioPlayerMini.terminateStream()
           }

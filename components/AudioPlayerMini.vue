@@ -75,7 +75,7 @@ export default {
       seekLoading: false,
       onPlayingUpdateListener: null,
       onMetadataListener: null,
-	  noSyncUpdateTime: false
+      noSyncUpdateTime: false
     }
   },
   computed: {
@@ -101,7 +101,7 @@ export default {
       MyNativeAudio.seekForward({ amount: '10000' })
     },
     sendStreamUpdate() {
-	  this.$emit('updateTime', this.currentTime)
+      this.$emit('updateTime', this.currentTime)
     },
     setStreamReady() {
       this.readyTrackWidth = this.trackWidth
@@ -228,7 +228,7 @@ export default {
           console.log('Same audiobook')
           this.isPaused = !data.isPlaying
           this.currentTime = Number((data.currentTime / 1000).toFixed(2))
-		  this.totalDuration = Number((data.duration / 1000).toFixed(2))
+          this.totalDuration = Number((data.duration / 1000).toFixed(2))
           this.timeupdate()
           if (data.isPlaying) {
             console.log('playing - continue')
@@ -333,9 +333,9 @@ export default {
         this.setFromObj()
       }
 
-	  if ((this.stateName === 'ready_no_sync') || (this.stateName === 'buffering_no_sync')) this.noSyncUpdateTime = true
-	  
-	  this.timeupdate()
+      if ((this.stateName === 'ready_no_sync') || (this.stateName === 'buffering_no_sync')) this.noSyncUpdateTime = true
+      
+      this.timeupdate()
     },
     init() {
       this.onPlayingUpdateListener = MyNativeAudio.addListener('onPlayingUpdate', this.onPlayingUpdate)
