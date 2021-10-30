@@ -27,6 +27,16 @@
         </template>
         <div class="flex-grow" />
       </div>
+
+      <div class="absolute top-2 right-3 text-white text-opacity-75" @click="showSleepTimerModal">
+        <svg v-if="!sleepTimerRunning" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+        <div v-else class="h-5 w-5 flex items-center justify-around">
+          <p class="text-sm font-mono text-warning">{{ Math.ceil(sleepTimeoutCurrentTime / 1000 / 60) }}m</p>
+        </div>
+      </div>
+
       <!-- Track -->
       <div ref="track" class="w-full h-2 bg-gray-700 relative cursor-pointer transform duration-100 hover:scale-y-125" :class="loading ? 'animate-pulse' : ''" @click.stop="clickTrack">
         <div ref="readyTrack" class="h-full bg-gray-600 absolute top-0 left-0 pointer-events-none" />
@@ -53,7 +63,9 @@ import MyNativeAudio from '@/plugins/my-native-audio'
 
 export default {
   props: {
-    loading: Boolean
+    loading: Boolean,
+    sleepTimerRunning: Boolean,
+    sleepTimeoutCurrentTime: Number
   },
   data() {
     return {
@@ -87,6 +99,9 @@ export default {
     }
   },
   methods: {
+    showSleepTimerModal() {
+      this.$emit('showSleepTimer')
+    },
     updatePlaybackRate() {
       this.currentPlaybackRate = this.playbackRate
       MyNativeAudio.setPlaybackSpeed({ speed: this.playbackRate })
@@ -333,8 +348,8 @@ export default {
         this.setFromObj()
       }
 
-      if ((this.stateName === 'ready_no_sync') || (this.stateName === 'buffering_no_sync')) this.noSyncUpdateTime = true
-      
+      if (this.stateName === 'ready_no_sync' || this.stateName === 'buffering_no_sync') this.noSyncUpdateTime = true
+
       this.timeupdate()
     },
     init() {

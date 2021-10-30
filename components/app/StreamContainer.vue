@@ -15,15 +15,17 @@
       <div class="absolute left-2 -top-10 bookCoverWrapper">
         <cards-book-cover :audiobook="audiobook" :download-cover="downloadedCover" :width="64" />
       </div>
-      <audio-player-mini ref="audioPlayerMini" :loading="isLoading" @updateTime="updateTime" @selectPlaybackSpeed="showPlaybackSpeedModal = true" @hook:mounted="audioPlayerMounted" />
+      <audio-player-mini ref="audioPlayerMini" :loading="isLoading" :sleep-timer-running="isSleepTimerRunning" :sleep-timeout-current-time="sleepTimeoutCurrentTime" @updateTime="updateTime" @selectPlaybackSpeed="showPlaybackSpeedModal = true" @showSleepTimer="showSleepTimer" @hook:mounted="audioPlayerMounted" />
     </div>
     <modals-playback-speed-modal v-model="showPlaybackSpeedModal" :playback-speed.sync="playbackSpeed" @change="changePlaybackSpeed" />
     <modals-chapters-modal v-model="showChapterModal" :current-chapter="currentChapter" :chapters="chapters" @select="selectChapter" />
+    <modals-sleep-timer-modal v-model="showSleepTimerModal" :current-time="sleepTimeoutCurrentTime" :sleep-timer-running="isSleepTimerRunning" @change="selectSleepTimeout" @cancel="cancelSleepTimer" />
   </div>
 </template>
 
 <script>
 import { Dialog } from '@capacitor/dialog'
+import MyNativeAudio from '@/plugins/my-native-audio'
 
 export default {
   data() {
@@ -33,9 +35,14 @@ export default {
       download: null,
       lastProgressTimeUpdate: 0,
       showPlaybackSpeedModal: false,
+      showSleepTimerModal: false,
       playbackSpeed: 1,
       showChapterModal: false,
-      currentTime: 0
+      currentTime: 0,
+      sleepTimeoutCurrentTime: 0,
+      isSleepTimerRunning: false,
+      onSleepTimerEndedListener: null,
+      sleepInterval: null
     }
   },
   watch: {
@@ -114,17 +121,62 @@ export default {
       if (this.cover.startsWith('http')) return this.cover
       var coverSrc = this.$store.getters['audiobooks/getBookCoverSrc'](this.audiobook)
       return coverSrc
-      // var _clean = this.cover.replace(/\\/g, '/')
-      // if (_clean.startsWith('/local')) {
-      //   var _cover = process.env.NODE_ENV !== 'production' && process.env.PROD !== '1' ? _clean.replace('/local', '') : _clean
-      //   return `${this.$store.state.serverUrl}${_cover}?token=${this.userToken}&ts=${Date.now()}`
-      // } else if (_clean.startsWith('/metadata')) {
-      //   return `${this.$store.state.serverUrl}${_clean}?token=${this.userToken}&ts=${Date.now()}`
-      // }
-      // return _clean
     }
   },
   methods: {
+    onSleepTimerEnded() {
+      this.isSleepTimerRunning = false
+      if (this.sleepInterval) clearInterval(this.sleepInterval)
+    },
+    showSleepTimer() {
+      this.getSleepTimerTime()
+      this.showSleepTimerModal = true
+    },
+    async getSleepTimerTime() {
+      var res = await MyNativeAudio.getSleepTimerTime()
+      if (res && res.value) {
+        var time = Number(res.value)
+        return time - Date.now()
+      }
+      return 0
+    },
+    async selectSleepTimeout(timeout) {
+      console.log('Setting sleep timer', timeout)
+      await MyNativeAudio.setSleepTimer({ timeout: String(timeout) })
+      this.setSleepTimeoutTimer(timeout)
+    },
+    async cancelSleepTimer() {
+      console.log('Canceling sleep timer')
+      await MyNativeAudio.cancelSleepTimer()
+      this.isSleepTimerRunning = false
+      if (this.sleepInterval) clearInterval(this.sleepInterval)
+    },
+    async syncSleepTimer() {
+      var time = await this.getSleepTimerTime()
+      this.setSleepTimeoutTimer(time)
+    },
+    setSleepTimeoutTimer(startTime) {
+      if (this.sleepInterval) clearInterval(this.sleepInterval)
+
+      this.sleepTimeoutCurrentTime = startTime
+      this.isSleepTimerRunning = true
+      var elapsed = 0
+      this.sleepInterval = setInterval(() => {
+        this.sleepTimeoutCurrentTime = Math.max(0, this.sleepTimeoutCurrentTime - 1000)
+
+        if (this.sleepTimeoutCurrentTime <= 0) {
+          clearInterval(this.sleepInterval)
+          return
+        }
+
+        // Sync with the actual time from android Timer
+        elapsed++
+        if (elapsed > 5) {
+          clearInterval(this.sleepInterval)
+          this.syncSleepTimer()
+        }
+      }, 1000)
+    },
     clickChapterBtn() {
       if (!this.chapters.length) return
       this.showChapterModal = true
@@ -362,6 +414,8 @@ export default {
     }
   },
   mounted() {
+    this.onSleepTimerEndedListener = MyNativeAudio.addListener('onSleepTimerEnded', this.onSleepTimerEnded)
+
     this.playbackSpeed = this.$store.getters['user/getUserSetting']('playbackRate')
 
     this.setListeners()
@@ -369,6 +423,8 @@ export default {
     this.$store.commit('setStreamListener', this.streamUpdated)
   },
   beforeDestroy() {
+    if (this.onSleepTimerEndedListener) this.onSleepTimerEndedListener.remove()
+
     if (this.$server.socket) {
       this.$server.socket.off('stream_open', this.streamOpen)
       this.$server.socket.off('stream_closed', this.streamClosed)

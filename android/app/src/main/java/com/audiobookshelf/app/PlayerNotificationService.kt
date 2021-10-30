@@ -51,6 +51,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     fun onPlayingUpdate(isPlaying: Boolean)
     fun onMetadata(metadata: JSObject)
     fun onPrepare(audiobookId:String, playWhenReady:Boolean)
+    fun onSleepTimerEnded()
   }
 
   private val tag = "PlayerService"
@@ -83,6 +84,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   private var lastPauseTime: Long = 0   //ms
   private var onSeekBack: Boolean = false
+
+  private var sleepTimerTask:TimerTask? = null
 
   fun setCustomObjectListener(mylistener: MyCustomObjectListener) {
     listener = mylistener
@@ -124,7 +127,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   }
 
   @RequiresApi(Build.VERSION_CODES.O)
-  private fun createNotificationChannel(channelId: String, channelName: String): String{
+  private fun createNotificationChannel(channelId: String, channelName: String): String {
     val chan = NotificationChannel(channelId,
       channelName, NotificationManager.IMPORTANCE_HIGH)
     chan.lightColor = Color.DKGRAY
@@ -717,6 +720,34 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         play()
       }
     }
+  }
+
+  fun setSleepTimer(timeout:Long) {
+    Log.d(tag, "Setting Sleep Timer for $timeout")
+
+    sleepTimerTask?.cancel()
+    sleepTimerTask = Timer("SleepTimer",false).schedule(timeout) {
+      Log.d(tag, "Sleep Timer Done")
+      Handler(Looper.getMainLooper()).post() {
+        if (mPlayer.isPlaying) {
+          Log.d(tag, "Sleep Timer Pausing Player")
+          mPlayer.pause()
+        }
+        if (listener != null) listener.onSleepTimerEnded()
+      }
+    }
+  }
+
+  fun getSleepTimerTime():Long? {
+    var time = sleepTimerTask?.scheduledExecutionTime()
+    Log.d(tag, "Sleep Timer execution time $time")
+    return time
+  }
+
+  fun cancelSleepTimer() {
+    Log.d(tag, "Canceling Sleep Timer")
+    sleepTimerTask?.cancel()
+    sleepTimerTask = null
   }
 }
 
