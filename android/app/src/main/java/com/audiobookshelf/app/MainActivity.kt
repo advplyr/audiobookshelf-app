@@ -122,4 +122,9 @@ class MainActivity : BridgeActivity() {
     // Mandatory for Activity, but not for Fragment & ComponentActivity
     storageHelper.onRequestPermissionsResult(requestCode, permissions, grantResults)
   }
+
+  override fun onUserInteraction() {
+    super.onUserInteraction()
+    Log.d(tag, "USER INTERACTION")
+  }
 }

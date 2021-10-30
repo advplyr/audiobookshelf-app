@@ -8,6 +8,8 @@ import androidx.core.content.ContextCompat
 import com.getcapacitor.*
 import com.getcapacitor.annotation.CapacitorPlugin
 import org.json.JSONObject
+import java.util.*
+import kotlin.concurrent.schedule
 
 @CapacitorPlugin(name = "MyNativeAudio")
 class MyNativeAudio : Plugin() {
@@ -34,6 +36,9 @@ class MyNativeAudio : Plugin() {
           jsobj.put("audiobookId", audiobookId)
           jsobj.put("playWhenReady", playWhenReady)
           notifyListeners("onPrepareMedia", jsobj)
+        }
+        override fun onSleepTimerEnded() {
+          emit("onSleepTimerEnded", true)
         }
       })
     }
@@ -200,5 +205,27 @@ class MyNativeAudio : Plugin() {
     }
     Log.d(tag, "Setting Audiobooks ${audiobookObjs.size}")
     playerNotificationService.setAudiobooks(audiobookObjs)
+  }
+
+  @PluginMethod
+  fun setSleepTimer(call: PluginCall) {
+    var sleepTimeout:Long = call.getString("timeout", "360000")!!.toLong()
+
+    playerNotificationService.setSleepTimer(sleepTimeout)
+    call.resolve()
+  }
+
+  @PluginMethod
+  fun getSleepTimerTime(call: PluginCall) {
+    var time = playerNotificationService.getSleepTimerTime()
+    val ret = JSObject()
+    ret.put("value", time)
+    call.resolve(ret)
+  }
+
+  @PluginMethod
+  fun cancelSleepTimer(call: PluginCall) {
+    playerNotificationService.cancelSleepTimer()
+    call.resolve()
   }
 }
