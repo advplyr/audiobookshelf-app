@@ -220,7 +220,7 @@ export default {
         this.resettingProgress = true
         if (this.$server.connected) {
           await this.$axios
-            .$delete(`/api/user/audiobook/${this.audiobookId}`)
+            .$patch(`/api/user/audiobook/${this.audiobookId}/reset-progress`)
             .then(() => {
               console.log('Progress reset complete')
               this.$toast.success(`Your progress was reset`)
