@@ -123,8 +123,8 @@ class MainActivity : BridgeActivity() {
     storageHelper.onRequestPermissionsResult(requestCode, permissions, grantResults)
   }
 
-  override fun onUserInteraction() {
-    super.onUserInteraction()
-    Log.d(tag, "USER INTERACTION")
-  }
+//  override fun onUserInteraction() {
+//    super.onUserInteraction()
+//    Log.d(tag, "USER INTERACTION")
+//  }
 }

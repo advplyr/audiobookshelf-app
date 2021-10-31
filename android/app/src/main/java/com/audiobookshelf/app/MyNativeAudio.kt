@@ -37,8 +37,8 @@ class MyNativeAudio : Plugin() {
           jsobj.put("playWhenReady", playWhenReady)
           notifyListeners("onPrepareMedia", jsobj)
         }
-        override fun onSleepTimerEnded() {
-          emit("onSleepTimerEnded", true)
+        override fun onSleepTimerEnded(currentPosition:Long) {
+          emit("onSleepTimerEnded", currentPosition)
         }
       })
     }
@@ -209,10 +209,15 @@ class MyNativeAudio : Plugin() {
 
   @PluginMethod
   fun setSleepTimer(call: PluginCall) {
-    var sleepTimeout:Long = call.getString("timeout", "360000")!!.toLong()
+    var time:Long = call.getString("time", "360000")!!.toLong()
+    var isChapterTime:Boolean = call.getBoolean("isChapterTime", false) == true
 
-    playerNotificationService.setSleepTimer(sleepTimeout)
-    call.resolve()
+    Handler(Looper.getMainLooper()).post() {
+        var success:Boolean = playerNotificationService.setSleepTimer(time, isChapterTime)
+        val ret = JSObject()
+        ret.put("success", success)
+        call.resolve(ret)
+    }
   }
 
   @PluginMethod

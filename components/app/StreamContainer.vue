@@ -15,11 +15,13 @@
       <div class="absolute left-2 -top-10 bookCoverWrapper">
         <cards-book-cover :audiobook="audiobook" :download-cover="downloadedCover" :width="64" />
       </div>
-      <audio-player-mini ref="audioPlayerMini" :loading="isLoading" :sleep-timer-running="isSleepTimerRunning" :sleep-timeout-current-time="sleepTimeoutCurrentTime" @updateTime="updateTime" @selectPlaybackSpeed="showPlaybackSpeedModal = true" @showSleepTimer="showSleepTimer" @hook:mounted="audioPlayerMounted" />
+      <audio-player-mini ref="audioPlayerMini" :loading="isLoading" :sleep-timer-running="isSleepTimerRunning" :sleep-timer-end-of-chapter-time="sleepTimerEndOfChapterTime" :sleep-timeout-current-time="sleepTimeoutCurrentTime" @updateTime="updateTime" @selectPlaybackSpeed="showPlaybackSpeedModal = true" @showSleepTimer="showSleepTimer" @hook:mounted="audioPlayerMounted" />
     </div>
     <modals-playback-speed-modal v-model="showPlaybackSpeedModal" :playback-speed.sync="playbackSpeed" @change="changePlaybackSpeed" />
+
     <modals-chapters-modal v-model="showChapterModal" :current-chapter="currentChapter" :chapters="chapters" @select="selectChapter" />
-    <modals-sleep-timer-modal v-model="showSleepTimerModal" :current-time="sleepTimeoutCurrentTime" :sleep-timer-running="isSleepTimerRunning" @change="selectSleepTimeout" @cancel="cancelSleepTimer" />
+
+    <modals-sleep-timer-modal v-model="showSleepTimerModal" :current-time="sleepTimeoutCurrentTime" :sleep-timer-running="isSleepTimerRunning" :current-end-of-chapter-time="currentEndOfChapterTime" :end-of-chapter-time-set="sleepTimerEndOfChapterTime" @change="selectSleepTimeout" @cancel="cancelSleepTimer" />
   </div>
 </template>
 
@@ -41,8 +43,10 @@ export default {
       currentTime: 0,
       sleepTimeoutCurrentTime: 0,
       isSleepTimerRunning: false,
+      sleepTimerEndOfChapterTime: false,
       onSleepTimerEndedListener: null,
-      sleepInterval: null
+      sleepInterval: null,
+      currentEndOfChapterTime: 0
     }
   },
   watch: {
@@ -124,12 +128,22 @@ export default {
     }
   },
   methods: {
-    onSleepTimerEnded() {
+    onSleepTimerEnded({ value: currentPosition }) {
       this.isSleepTimerRunning = false
       if (this.sleepInterval) clearInterval(this.sleepInterval)
+
+      if (currentPosition) {
+        console.log('Sleep Timer Ended Current Position: ' + currentPosition)
+        var currentTime = Math.floor(currentPosition / 1000)
+        this.updateTime(currentTime)
+      }
     },
     showSleepTimer() {
-      this.getSleepTimerTime()
+      if (this.currentChapter) {
+        this.currentEndOfChapterTime = Math.floor(this.currentChapter.end)
+      } else {
+        this.currentEndOfChapterTime = 0
+      }
       this.showSleepTimerModal = true
     },
     async getSleepTimerTime() {
@@ -140,15 +154,25 @@ export default {
       }
       return 0
     },
-    async selectSleepTimeout(timeout) {
-      console.log('Setting sleep timer', timeout)
-      await MyNativeAudio.setSleepTimer({ timeout: String(timeout) })
-      this.setSleepTimeoutTimer(timeout)
+    async selectSleepTimeout({ time, isChapterTime }) {
+      console.log('Setting sleep timer', time, isChapterTime)
+      var res = await MyNativeAudio.setSleepTimer({ time: String(time), isChapterTime })
+      if (!res.success) {
+        return this.$toast.error('Sleep timer did not set, invalid time')
+      }
+      if (isChapterTime) {
+        this.sleepTimerEndOfChapterTime = time
+        this.isSleepTimerRunning = true
+      } else {
+        this.sleepTimerEndOfChapterTime = 0
+        this.setSleepTimeoutTimer(time)
+      }
     },
     async cancelSleepTimer() {
       console.log('Canceling sleep timer')
       await MyNativeAudio.cancelSleepTimer()
       this.isSleepTimerRunning = false
+      this.sleepTimerEndOfChapterTime = 0
       if (this.sleepInterval) clearInterval(this.sleepInterval)
     },
     async syncSleepTimer() {
