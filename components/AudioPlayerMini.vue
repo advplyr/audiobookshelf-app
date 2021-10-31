@@ -33,7 +33,8 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
         </svg>
         <div v-else class="h-5 w-5 flex items-center justify-around">
-          <p class="text-sm font-mono text-warning">{{ Math.ceil(sleepTimeoutCurrentTime / 1000 / 60) }}m</p>
+          <p v-if="sleepTimerEndOfChapterTime" class="text-sm font-mono text-warning">EOC</p>
+          <p v-else class="text-sm font-mono text-warning">{{ Math.ceil(sleepTimeoutCurrentTime / 1000 / 60) }}m</p>
         </div>
       </div>
 
@@ -65,7 +66,8 @@ export default {
   props: {
     loading: Boolean,
     sleepTimerRunning: Boolean,
-    sleepTimeoutCurrentTime: Number
+    sleepTimeoutCurrentTime: Number,
+    sleepTimerEndOfChapterTime: Number
   },
   data() {
     return {

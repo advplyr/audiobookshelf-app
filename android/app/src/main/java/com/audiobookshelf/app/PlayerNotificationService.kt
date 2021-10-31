@@ -51,7 +51,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     fun onPlayingUpdate(isPlaying: Boolean)
     fun onMetadata(metadata: JSObject)
     fun onPrepare(audiobookId:String, playWhenReady:Boolean)
-    fun onSleepTimerEnded()
+    fun onSleepTimerEnded(currentPosition:Long)
   }
 
   private val tag = "PlayerService"
@@ -86,6 +86,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   private var onSeekBack: Boolean = false
 
   private var sleepTimerTask:TimerTask? = null
+  private var sleepChapterTime:Long = 0L
 
   fun setCustomObjectListener(mylistener: MyCustomObjectListener) {
     listener = mylistener
@@ -722,20 +723,45 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     }
   }
 
-  fun setSleepTimer(timeout:Long) {
-    Log.d(tag, "Setting Sleep Timer for $timeout")
-
+  fun setSleepTimer(time:Long, isChapterTime:Boolean) : Boolean {
+    Log.d(tag, "Setting Sleep Timer for $time is chapter time $isChapterTime")
     sleepTimerTask?.cancel()
-    sleepTimerTask = Timer("SleepTimer",false).schedule(timeout) {
-      Log.d(tag, "Sleep Timer Done")
-      Handler(Looper.getMainLooper()).post() {
-        if (mPlayer.isPlaying) {
-          Log.d(tag, "Sleep Timer Pausing Player")
-          mPlayer.pause()
+    sleepChapterTime = 0L
+
+    if (isChapterTime) {
+      // Validate time
+      if (mPlayer.isPlaying) {
+        if (mPlayer.currentPosition >= time) {
+          Log.d(tag, "Invalid setSleepTimer chapter time is already passed")
+          return false
         }
-        if (listener != null) listener.onSleepTimerEnded()
+      }
+
+      sleepChapterTime = time
+      sleepTimerTask = Timer("SleepTimer",false).schedule(0L, 1000L) {
+        Handler(Looper.getMainLooper()).post() {
+          if (mPlayer.isPlaying && mPlayer.currentPosition > sleepChapterTime) {
+            Log.d(tag, "Sleep Timer Pausing Player on Chapter")
+            mPlayer.pause()
+
+            if (listener != null) listener.onSleepTimerEnded(mPlayer.currentPosition)
+            sleepTimerTask?.cancel()
+          }
+        }
+      }
+    } else {
+      sleepTimerTask = Timer("SleepTimer",false).schedule(time) {
+        Log.d(tag, "Sleep Timer Done")
+        Handler(Looper.getMainLooper()).post() {
+          if (mPlayer.isPlaying) {
+            Log.d(tag, "Sleep Timer Pausing Player")
+            mPlayer.pause()
+          }
+          if (listener != null) listener.onSleepTimerEnded(mPlayer.currentPosition)
+        }
       }
     }
+    return true
   }
 
   fun getSleepTimerTime():Long? {
@@ -748,6 +774,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     Log.d(tag, "Canceling Sleep Timer")
     sleepTimerTask?.cancel()
     sleepTimerTask = null
+    sleepChapterTime = 0L
   }
 }
 
