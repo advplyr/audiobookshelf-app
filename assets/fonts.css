@@ -27,6 +27,15 @@
 .material-icons.text-lg {
   font-size: 1.25rem;
 }
+.material-icons.text-3xl {
+  font-size: 1.875rem;
+}
+.material-icons.text-4xl {
+  font-size: 2.25rem;
+}
+.material-icons.text-5xl {
+  font-size: 3rem;
+}
 .material-icons.text-base {
   font-size: 1rem;
 }

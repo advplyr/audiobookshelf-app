@@ -38,7 +38,7 @@ export default {
     value: Boolean,
     currentTime: Number,
     sleepTimerRunning: Boolean,
-    currentEndOfChapterTime: Boolean,
+    currentEndOfChapterTime: Number,
     endOfChapterTimeSet: Number
   },
   data() {
