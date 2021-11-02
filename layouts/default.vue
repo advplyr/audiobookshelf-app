@@ -4,7 +4,8 @@
     <div id="content" class="overflow-hidden" :class="playerIsOpen ? 'playerOpen' : ''">
       <Nuxt />
     </div>
-    <app-stream-container ref="streamContainer" />
+    <!-- <app-stream-container ref="streamContainer" /> -->
+    <app-audio-player-container ref="streamContainer" />
     <modals-downloads-modal ref="downloadsModal" @deleteDownload="deleteDownload" />
     <modals-libraries-modal />
     <readers-reader />
@@ -466,6 +467,6 @@ export default {
   height: calc(100vh - 64px);
 }
 #content.playerOpen {
-  height: calc(100vh - 236px);
+  height: calc(100vh - 164px);
 }
 </style>
