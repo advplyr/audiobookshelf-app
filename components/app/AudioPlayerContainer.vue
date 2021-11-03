@@ -6,6 +6,7 @@
         :audiobook="audiobook"
         :download="download"
         :loading="isLoading"
+        :bookmarks="bookmarks"
         :sleep-timer-running="isSleepTimerRunning"
         :sleep-timer-end-of-chapter-time="sleepTimerEndOfChapterTime"
         :sleep-timeout-current-time="sleepTimeoutCurrentTime"
@@ -14,6 +15,7 @@
         @selectPlaybackSpeed="showPlaybackSpeedModal = true"
         @selectChapter="clickChapterBtn"
         @showSleepTimer="showSleepTimer"
+        @showBookmarks="showBookmarks"
         @hook:mounted="audioPlayerMounted"
       />
     </div>
@@ -21,6 +23,7 @@
     <modals-playback-speed-modal v-model="showPlaybackSpeedModal" :playback-speed.sync="playbackSpeed" @change="changePlaybackSpeed" />
     <modals-chapters-modal v-model="showChapterModal" :current-chapter="currentChapter" :chapters="chapters" @select="selectChapter" />
     <modals-sleep-timer-modal v-model="showSleepTimerModal" :current-time="sleepTimeoutCurrentTime" :sleep-timer-running="isSleepTimerRunning" :current-end-of-chapter-time="currentEndOfChapterTime" :end-of-chapter-time-set="sleepTimerEndOfChapterTime" @change="selectSleepTimeout" @cancel="cancelSleepTimer" />
+    <modals-bookmarks-modal v-model="showBookmarksModal" :audiobook-id="audiobookId" :bookmarks="bookmarks" :current-time="currentTime" @select="selectBookmark" />
   </div>
 </template>
 
@@ -36,6 +39,7 @@ export default {
       download: null,
       lastProgressTimeUpdate: 0,
       showPlaybackSpeedModal: false,
+      showBookmarksModal: false,
       showSleepTimerModal: false,
       playbackSpeed: 1,
       showChapterModal: false,
@@ -59,6 +63,14 @@ export default {
   computed: {
     userToken() {
       return this.$store.getters['user/getToken']
+    },
+    userAudiobook() {
+      if (!this.audiobookId) return
+      return this.$store.getters['user/getMostRecentUserAudiobookData'](this.audiobookId)
+    },
+    bookmarks() {
+      if (!this.userAudiobook) return []
+      return this.userAudiobook.bookmarks || []
     },
     currentChapter() {
       if (!this.audiobook || !this.chapters.length) return null
@@ -127,6 +139,17 @@ export default {
     }
   },
   methods: {
+    showBookmarks() {
+      this.showBookmarksModal = true
+    },
+    selectBookmark(bookmark) {
+      this.showBookmarksModal = false
+      if (!bookmark || isNaN(bookmark.time)) return
+      var bookmarkTime = Number(bookmark.time)
+      if (this.$refs.audioPlayer) {
+        this.$refs.audioPlayer.seek(bookmarkTime)
+      }
+    },
     onSleepTimerEnded({ value: currentPosition }) {
       this.isSleepTimerRunning = false
       if (this.sleepInterval) clearInterval(this.sleepInterval)
@@ -263,7 +286,7 @@ export default {
           if (this.$server.connected) {
             this.$server.socket.emit('progress_update', progressUpdate)
           }
-          this.$localStore.updateUserAudiobookProgress(progressUpdate).then(() => {
+          this.$localStore.updateUserAudiobookData(progressUpdate).then(() => {
             console.log('Updated user audiobook progress', currentTime)
           })
         }
@@ -405,12 +428,18 @@ export default {
       }
     },
     changePlaybackSpeed(speed) {
+      console.log(`[AudioPlayerContainer] Change Playback Speed: ${speed}`)
+      if (this.$refs.audioPlayer) {
+        this.$refs.audioPlayer.setPlaybackSpeed(speed)
+      }
       this.$store.dispatch('user/updateUserSettings', { playbackRate: speed })
     },
     settingsUpdated(settings) {
+      console.log(`[AudioPlayerContainer] Settings Update | PlaybackRate: ${settings.playbackRate}`)
+      this.playbackSpeed = settings.playbackRate
       if (this.$refs.audioPlayer && this.$refs.audioPlayer.currentPlaybackRate !== settings.playbackRate) {
-        this.playbackSpeed = settings.playbackRate
-        this.$refs.audioPlayer.updatePlaybackRate()
+        console.log(`[AudioPlayerContainer] PlaybackRate Updated: ${this.playbackSpeed}`)
+        this.$refs.audioPlayer.setPlaybackSpeed(this.playbackSpeed)
       }
     },
     streamUpdated(type, data) {
@@ -441,9 +470,11 @@ export default {
     this.onSleepTimerEndedListener = MyNativeAudio.addListener('onSleepTimerEnded', this.onSleepTimerEnded)
 
     this.playbackSpeed = this.$store.getters['user/getUserSetting']('playbackRate')
+    console.log(`[AudioPlayerContainer] Init Playback Speed: ${this.playbackSpeed}`)
 
     this.setListeners()
     this.$store.commit('user/addSettingsListener', { id: 'streamContainer', meth: this.settingsUpdated })
+    // this.$store.commit('user/addUserAudiobookListener', { id: 'streamContainer', meth: this.userAudiobooksUpdated })
     this.$store.commit('setStreamListener', this.streamUpdated)
   },
   beforeDestroy() {
@@ -458,6 +489,7 @@ export default {
     }
 
     this.$store.commit('user/removeSettingsListener', 'streamContainer')
+    // this.$store.commit('user/removeUserAudiobookListener', 'streamContainer')
     this.$store.commit('removeStreamListener')
   }
 }

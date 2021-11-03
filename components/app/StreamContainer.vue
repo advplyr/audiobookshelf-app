@@ -263,7 +263,7 @@ export default {
           if (this.$server.connected) {
             this.$server.socket.emit('progress_update', progressUpdate)
           }
-          this.$localStore.updateUserAudiobookProgress(progressUpdate).then(() => {
+          this.$localStore.updateUserAudiobookData(progressUpdate).then(() => {
             console.log('Updated user audiobook progress', currentTime)
           })
         }

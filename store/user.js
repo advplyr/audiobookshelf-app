@@ -11,7 +11,8 @@ export const state = () => ({
     playbackRate: 1,
     bookshelfCoverSize: 120
   },
-  settingsListeners: []
+  settingsListeners: [],
+  userAudiobooksListeners: []
 })
 
 export const getters = {
@@ -23,9 +24,9 @@ export const getters = {
     return state.user && state.user.audiobooks ? state.user.audiobooks[audiobookId] || null : null
   },
   getLocalUserAudiobook: (state) => (audiobookId) => {
-    return state.user && state.user.localUserAudiobooks ? state.user.localUserAudiobooks[audiobookId] || null : null
+    return state.localUserAudiobooks ? state.localUserAudiobooks[audiobookId] || null : null
   },
-  getMostRecentAudiobookProgress: (state, getters) => (audiobookId) => {
+  getMostRecentUserAudiobookData: (state, getters) => (audiobookId) => {
     var userAb = getters.getUserAudiobook(audiobookId)
     var localUserAb = getters.getLocalUserAudiobook(audiobookId)
     if (!localUserAb) return userAb
@@ -67,6 +68,15 @@ export const actions = {
 export const mutations = {
   setLocalUserAudiobooks(state, userAudiobooks) {
     state.localUserAudiobooks = userAudiobooks
+    state.userAudiobooksListeners.forEach((listener) => {
+      listener.meth()
+    })
+  },
+  setUserAudiobooks(state, userAudiobooks) {
+    if (!state.user) return
+    state.user.audiobooks = {
+      ...userAudiobooks
+    }
   },
   setUser(state, user) {
     state.user = user
@@ -102,5 +112,13 @@ export const mutations = {
   },
   removeSettingsListener(state, listenerId) {
     state.settingsListeners = state.settingsListeners.filter(l => l.id !== listenerId)
+  },
+  addUserAudiobookListener(state, listener) {
+    var index = state.userAudiobooksListeners.findIndex(l => l.id === listener.id)
+    if (index >= 0) state.userAudiobooksListeners.splice(index, 1, listener)
+    else state.userAudiobooksListeners.push(listener)
+  },
+  removeUserAudiobookListener(state, listenerId) {
+    state.userAudiobooksListeners = state.userAudiobooksListeners.filter(l => l.id !== listenerId)
   }
 }

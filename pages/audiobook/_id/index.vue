@@ -229,7 +229,7 @@ export default {
               console.error('Progress reset failed', error)
             })
         }
-        this.$localStore.updateUserAudiobookProgress({
+        this.$localStore.updateUserAudiobookData({
           audiobookId: this.audiobookId,
           currentTime: 0,
           totalDuration: this.duration,

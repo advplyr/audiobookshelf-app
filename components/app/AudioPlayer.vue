@@ -4,8 +4,8 @@
       <div class="top-2 left-4 absolute cursor-pointer">
         <span class="material-icons text-5xl" @click="collapseFullscreen">expand_more</span>
       </div>
-      <div class="top-2 right-4 absolute cursor-pointer">
-        <span class="material-icons text-3xl" @click="$emit('close')">close</span>
+      <div class="top-3 right-4 absolute cursor-pointer">
+        <span class="material-icons text-4xl" @click="$emit('close')">close</span>
       </div>
     </div>
 
@@ -23,13 +23,13 @@
     <div id="streamContainer" class="w-full z-20 bg-primary absolute bottom-0 left-0 right-0 p-2 pointer-events-auto transition-all" @click="clickContainer">
       <div v-if="showFullscreen" class="absolute top-0 left-0 right-0 w-full py-3 mx-auto px-3" style="max-width: 380px">
         <div class="flex items-center justify-between pointer-events-auto">
-          <span class="material-icons text-3xl text-white text-opacity-10 cursor-pointer">bookmark_border</span>
-          <span class="font-mono text-white text-opacity-75 cursor-pointer" style="font-size: 1.35rem" @click="$emit('selectPlaybackSpeed')">{{ playbackRate }}x</span>
+          <span class="material-icons text-3xl text-white text-opacity-75 cursor-pointer" @click="$emit('showBookmarks')">{{ bookmarks.length ? 'bookmark' : 'bookmark_border' }}</span>
+          <span class="font-mono text-white text-opacity-75 cursor-pointer" style="font-size: 1.35rem" @click="$emit('selectPlaybackSpeed')">{{ currentPlaybackRate }}x</span>
           <svg v-if="!sleepTimerRunning" xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-white text-opacity-75 cursor-pointer" fill="none" viewBox="0 0 24 24" stroke="currentColor" @click.stop="$emit('showSleepTimer')">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
           </svg>
           <div v-else class="h-7 w-7 flex items-center justify-around cursor-pointer" @click.stop="$emit('showSleepTimer')">
-            <p v-if="sleepTimerEndOfChapterTime" class="text-xl font-mono text-warning">-{{ $secondsToTimestamp(Math.floor(sleepTimerEndOfChapterTime / 1000)) }}</p>
+            <p v-if="sleepTimerEndOfChapterTime" class="text-lg font-mono text-warning">-{{ $secondsToTimestamp(timeLeftInChapter) }}</p>
             <p v-else class="text-xl font-mono text-success">{{ Math.ceil(sleepTimeoutCurrentTime / 1000 / 60) }}m</p>
           </div>
 
@@ -39,18 +39,19 @@
 
       <div id="playerControls" class="absolute right-0 bottom-0 py-2">
         <div class="flex items-center justify-center">
-          <span v-show="showFullscreen" class="material-icons next-icon text-white text-opacity-75 cursor-pointer" @click.stop="jumpChapterStart">first_page</span>
-          <span class="material-icons jump-icon text-white text-opacity-75 cursor-pointer" @click.stop="backward10">replay_10</span>
+          <span v-show="showFullscreen" class="material-icons next-icon text-white text-opacity-75 cursor-pointer" :class="loading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpChapterStart">first_page</span>
+          <span class="material-icons jump-icon text-white cursor-pointer" :class="loading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="backward10">replay_10</span>
           <div class="play-btn cursor-pointer shadow-sm bg-accent flex items-center justify-center rounded-full text-primary mx-4" :class="seekLoading ? 'animate-spin' : ''" @mousedown.prevent @mouseup.prevent @click.stop="playPauseClick">
-            <span class="material-icons">{{ seekLoading ? 'autorenew' : isPaused ? 'play_arrow' : 'pause' }}</span>
+            <span v-if="!loading" class="material-icons">{{ seekLoading ? 'autorenew' : isPaused ? 'play_arrow' : 'pause' }}</span>
+            <widgets-spinner-icon v-else class="h-8 w-8" />
           </div>
-          <span class="material-icons jump-icon text-white text-opacity-75 cursor-pointer" @click.stop="forward10">forward_10</span>
-          <span v-show="showFullscreen" class="material-icons next-icon text-white cursor-pointer" :class="nextChapter ? 'text-opacity-75' : 'text-opacity-10'" @click.stop="jumpNextChapter">last_page</span>
+          <span class="material-icons jump-icon text-white cursor-pointer" :class="loading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="forward10">forward_10</span>
+          <span v-show="showFullscreen" class="material-icons next-icon text-white cursor-pointer" :class="nextChapter && !loading ? 'text-opacity-75' : 'text-opacity-10'" @click.stop="jumpNextChapter">last_page</span>
         </div>
       </div>
 
       <div id="playerTrack" class="absolute bottom-0 left-0 w-full px-3">
-        <div ref="track" class="h-2 w-full bg-gray-500 bg-opacity-50 relative" @click.stop="clickTrack">
+        <div ref="track" class="h-2 w-full bg-gray-500 bg-opacity-50 relative" :class="loading ? 'animate-pulse' : ''" @click.stop="clickTrack">
           <div ref="readyTrack" class="h-full bg-gray-600 absolute top-0 left-0 pointer-events-none" />
           <div ref="bufferTrack" class="h-full bg-gray-400 absolute top-0 left-0 pointer-events-none" />
           <div ref="playedTrack" class="h-full bg-gray-200 absolute top-0 left-0 pointer-events-none" />
@@ -79,6 +80,10 @@ export default {
     download: {
       type: Object,
       default: () => {}
+    },
+    bookmarks: {
+      type: Array,
+      default: () => []
     },
     loading: Boolean,
     sleepTimerRunning: Boolean,
@@ -129,6 +134,10 @@ export default {
       if (!this.audiobook || !this.chapters.length) return null
       return this.chapters.find((ch) => ch.start <= this.currentTime && ch.end > this.currentTime)
     },
+    nextChapter() {
+      if (!this.chapters.length) return
+      return this.chapters.find((c) => c.start >= this.currentTime)
+    },
     currentChapterTitle() {
       return this.currentChapter ? this.currentChapter.title : ''
     },
@@ -138,12 +147,9 @@ export default {
     totalDurationPretty() {
       return this.$secondsToTimestamp(this.totalDuration)
     },
-    playbackRate() {
-      return this.$store.getters['user/getUserSetting']('playbackRate')
-    },
-    nextChapter() {
-      if (!this.chapters.length) return
-      return this.chapters.find((c) => c.start >= this.currentTime)
+    timeLeftInChapter() {
+      if (!this.currentChapter) return 0
+      return this.currentChapter.end - this.currentTime
     }
   },
   methods: {
@@ -154,29 +160,44 @@ export default {
       this.showFullscreen = false
     },
     jumpNextChapter() {
+      if (this.loading) return
       if (!this.nextChapter) return
       this.seek(this.nextChapter.start)
     },
     jumpChapterStart() {
+      if (this.loading) return
       if (!this.currentChapter) {
         return this.restart()
       }
-      this.seek(this.currentChapter.start)
+
+      // If 1 second or less into current chapter, then go to previous
+      if (this.currentTime - this.currentChapter.start <= 1) {
+        var currChapterIndex = this.chapters.findIndex((ch) => ch.start <= this.currentTime && ch.end >= this.currentTime)
+        if (currChapterIndex > 0) {
+          var prevChapter = this.chapters[currChapterIndex - 1]
+          this.seek(prevChapter.start)
+        }
+      } else {
+        this.seek(this.currentChapter.start)
+      }
     },
     showSleepTimerModal() {
       this.$emit('showSleepTimer')
     },
-    updatePlaybackRate() {
-      this.currentPlaybackRate = this.playbackRate
-      MyNativeAudio.setPlaybackSpeed({ speed: this.playbackRate })
+    setPlaybackSpeed(speed) {
+      console.log(`[AudioPlayer] Set Playback Rate: ${speed}`)
+      this.currentPlaybackRate = speed
+      MyNativeAudio.setPlaybackSpeed({ speed: speed })
     },
     restart() {
       this.seek(0)
     },
     backward10() {
+      if (this.loading) return
       MyNativeAudio.seekBackward({ amount: '10000' })
     },
     forward10() {
+      if (this.loading) return
       MyNativeAudio.seekForward({ amount: '10000' })
     },
     sendStreamUpdate() {
@@ -242,6 +263,7 @@ export default {
       this.playedTrackWidth = ptWidth
     },
     seek(time) {
+      if (this.loading) return
       if (this.seekLoading) {
         console.error('Already seek loading', this.seekedTime)
         return
@@ -263,6 +285,7 @@ export default {
     },
     updateVolume(volume) {},
     clickTrack(e) {
+      if (this.loading) return
       var offsetX = e.offsetX
       var perc = offsetX / this.trackWidth
       var time = perc * this.totalDuration
@@ -273,6 +296,7 @@ export default {
       this.seek(time)
     },
     playPauseClick() {
+      if (this.loading) return
       if (this.isPaused) {
         console.log('playPause PLAY')
         this.play()
@@ -331,6 +355,8 @@ export default {
       }
 
       this.currentPlaybackRate = this.initObject.playbackSpeed
+      console.log(`[AudioPlayer] Set Stream Playback Rate: ${this.currentPlaybackRate}`)
+
       if (init)
         MyNativeAudio.initPlayer(this.initObject).then((res) => {
           if (res && res.success) {
@@ -559,10 +585,14 @@ export default {
 }
 #playerControls .play-btn {
   transition: all 0.15s cubic-bezier(0.39, 0.575, 0.565, 1);
-  transition-property: padding, margin;
+  transition-property: padding, margin, height, width, min-width, min-height;
 
+  height: 40px;
+  width: 40px;
+  min-width: 40px;
+  min-height: 40px;
   margin: 0px 14px;
-  padding: 8px;
+  /* padding: 8px; */
 }
 #playerControls .play-btn .material-icons {
   transition: all 0.15s cubic-bezier(0.39, 0.575, 0.565, 1);
@@ -591,7 +621,11 @@ export default {
   font-size: 2rem;
 }
 .fullscreen #playerControls .play-btn {
-  padding: 16px;
+  /* padding: 16px; */
+  height: 65px;
+  width: 65px;
+  min-width: 65px;
+  min-height: 65px;
   margin: 0px 26px;
 }
 .fullscreen #playerControls .play-btn .material-icons {

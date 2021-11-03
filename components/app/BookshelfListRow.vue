@@ -70,7 +70,7 @@ export default {
       return this.audiobook.id
     },
     mostRecentUserProgress() {
-      return this.$store.getters['user/getMostRecentAudiobookProgress'](this.audiobookId)
+      return this.$store.getters['user/getMostRecentUserAudiobookData'](this.audiobookId)
     },
     userProgressPercent() {
       return this.mostRecentUserProgress ? this.mostRecentUserProgress.progress || 0 : 0
