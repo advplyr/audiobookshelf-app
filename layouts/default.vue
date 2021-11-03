@@ -96,7 +96,8 @@ export default {
     },
     currentUserAudiobookUpdate({ id, data }) {
       if (data) {
-        this.$localStore.updateUserAudiobookProgress(data)
+        console.log(`Current User Audiobook Updated ${id} ${JSON.stringify(data)}`)
+        this.$localStore.updateUserAudiobookData(data)
       } else {
         this.$localStore.removeAudiobookProgress(id)
       }
@@ -413,6 +414,12 @@ export default {
         console.log('Network status changed', status.connected, status.connectionType)
         this.$store.commit('setNetworkStatus', status)
       })
+    },
+    showErrorToast(message) {
+      this.$toast.error(message)
+    },
+    showSuccessToast(message) {
+      this.$toast.success(message)
     }
   },
   mounted() {
@@ -423,6 +430,8 @@ export default {
     this.$server.on('connectionFailed', this.socketConnectionFailed)
     this.$server.on('initialStream', this.initialStream)
     this.$server.on('currentUserAudiobookUpdate', this.currentUserAudiobookUpdate)
+    this.$server.on('show_error_toast', this.showErrorToast)
+    this.$server.on('show_success_toast', this.showSuccessToast)
 
     if (this.$store.state.isFirstLoad) {
       this.$store.commit('setIsFirstLoad', false)
@@ -458,6 +467,8 @@ export default {
     this.$server.off('connected', this.connected)
     this.$server.off('connectionFailed', this.socketConnectionFailed)
     this.$server.off('initialStream', this.initialStream)
+    this.$server.off('show_error_toast', this.showErrorToast)
+    this.$server.off('show_success_toast', this.showSuccessToast)
   }
 }
 </script>

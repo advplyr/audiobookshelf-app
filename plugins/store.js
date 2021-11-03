@@ -458,15 +458,17 @@ class LocalStorage {
   async setAllAudiobookProgress(progresses) {
     this.userAudiobooks = progresses
     await this.saveUserAudiobooks()
+
     this.vuexStore.commit('user/setLocalUserAudiobooks', { ...this.userAudiobooks })
   }
 
-  async updateUserAudiobookProgress(progressPayload) {
+  async updateUserAudiobookData(progressPayload) {
     this.userAudiobooks[progressPayload.audiobookId] = {
       ...progressPayload
     }
-    console.log('[LocalStorage] Updated User Audiobook Progress ' + progressPayload.audiobookId)
     await this.saveUserAudiobooks()
+
+    this.vuexStore.commit('user/setUserAudiobooks', { ...this.userAudiobooks })
     this.vuexStore.commit('user/setLocalUserAudiobooks', { ...this.userAudiobooks })
   }
 
@@ -474,6 +476,8 @@ class LocalStorage {
     if (!this.userAudiobooks[audiobookId]) return
     delete this.userAudiobooks[audiobookId]
     await this.saveUserAudiobooks()
+
+    this.vuexStore.commit('user/setUserAudiobooks', { ...this.userAudiobooks })
     this.vuexStore.commit('user/setLocalUserAudiobooks', { ...this.userAudiobooks })
   }
 

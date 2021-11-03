@@ -211,6 +211,13 @@ class Server extends EventEmitter {
       this.emit('currentUserAudiobookUpdate', payload)
     })
 
+    this.socket.on('show_error_toast', (payload) => {
+      this.emit('show_error_toast', payload)
+    })
+    this.socket.on('show_success_toast', (payload) => {
+      this.emit('show_success_toast', payload)
+    })
+
     this.socket.onAny((evt, args) => {
       console.log(`[SOCKET] ${this.socket.id}: ${evt} ${JSON.stringify(args)}`)
     })

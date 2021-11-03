@@ -53,7 +53,7 @@ export const getters = {
 
     if (settings.mobileOrderBy === 'recent') {
       return sort(filtered)[direction]((ab) => {
-        var abprogress = rootGetters['user/getMostRecentAudiobookProgress'](ab.id)
+        var abprogress = rootGetters['user/getMostRecentUserAudiobookData'](ab.id)
         if (!abprogress) return 0
         return abprogress.lastUpdate
       })
