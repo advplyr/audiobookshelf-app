@@ -67,8 +67,8 @@ export default {
     }
   },
   methods: {
-    logout() {
-      this.$axios.$post('/logout').catch((error) => {
+    async logout() {
+      await this.$axios.$post('/logout').catch((error) => {
         console.error(error)
       })
       this.$server.logout()
