@@ -157,6 +157,11 @@ class Server extends EventEmitter {
   }
 
   connectSocket() {
+    if (this.socket && !this.connected) {
+      this.socket.connect()
+      console.log('[SOCKET] Submitting connect')
+      return
+    }
     if (this.connected || this.socket) {
       if (this.socket) console.error('[SOCKET] Socket already established', this.url)
       else console.error('[SOCKET] Already connected to socket', this.url)
