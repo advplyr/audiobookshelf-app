@@ -4,66 +4,42 @@ import android.net.Uri
 import com.getcapacitor.JSObject
 
 class Audiobook {
-  var id:String = "audiobook"
-  var token:String = ""
-  var playlistUrl:String = ""
-  var title:String = "No Title"
-  var author:String = "Unknown"
-  var series:String = ""
-  var cover:String = ""
-  var playWhenReady:Boolean = false
-  var startTime:Long = 0
-  var playbackSpeed:Float = 1f
-  var duration:Long = 0
+  var id:String
+  var ino:String
+  var libraryId:String
+  var folderId:String
+  var book:Book
+  var duration:Float
+  var size:Long
+  var numTracks:Int
+  var isMissing:Boolean
+  var isInvalid:Boolean
+  var path:String
 
-  var isLocal:Boolean = false
-  var contentUrl:String = ""
+  var fallbackCover:Uri
+  var fallbackUri:Uri
 
-  var hasPlayerLoaded:Boolean = false
+  constructor(jsobj: JSObject) {
+    id = jsobj.getString("id", "").toString()
+    ino = jsobj.getString("ino", "").toString()
+    libraryId = jsobj.getString("libraryId", "").toString()
+    folderId = jsobj.getString("folderId", "").toString()
 
-  var playlistUri:Uri = Uri.EMPTY
-  var coverUri:Uri = Uri.EMPTY
-  var contentUri:Uri = Uri.EMPTY // For Local only
+    var bookJsObj = jsobj.getJSObject("book")
+    book = bookJsObj?.let { Book(it) }!!
 
-  constructor(jsondata:JSObject) {
-    id = jsondata.getString("id", "audiobook").toString()
-    title = jsondata.getString("title", "No Title").toString()
-    token = jsondata.getString("token", "").toString()
-    author = jsondata.getString("author", "Unknown").toString()
-    series = jsondata.getString("series", "").toString()
-    cover = jsondata.getString("cover", "").toString()
-    playlistUrl = jsondata.getString("playlistUrl", "").toString()
-    playWhenReady = jsondata.getBoolean("playWhenReady", false) == true
+    duration = jsobj.getDouble("duration").toFloat()
+    size = jsobj.getLong("size")
+    numTracks = jsobj.getInteger("numTracks")!!
+    isMissing = jsobj.getBoolean("isMissing")
+    isInvalid = jsobj.getBoolean("isInvalid")
+    path = jsobj.getString("path", "").toString()
 
-    if (jsondata.has("startTime")) {
-      startTime = jsondata.getString("startTime", "0")!!.toLong()
-    }
+    fallbackUri = Uri.parse("http://fallback.com/run.mp3")
+    fallbackCover = Uri.parse("android.resource://com.audiobookshelf.app/" + R.drawable.icon)
+  }
 
-    if (jsondata.has("duration")) {
-      duration = jsondata.getString("duration", "0")!!.toLong()
-    }
-
-    if (jsondata.has("playbackSpeed")) {
-      playbackSpeed = jsondata.getDouble("playbackSpeed")!!.toFloat()
-    }
-
-
-    // Local data
-    isLocal = jsondata.getBoolean("isLocal", false) == true
-    contentUrl = jsondata.getString("contentUrl", "").toString()
-
-    if (playlistUrl != "") {
-      playlistUri = Uri.parse(playlistUrl)
-    }
-    if (cover != "") {
-      coverUri = Uri.parse(cover)
-    } else {
-      coverUri = Uri.parse("android.resource://com.audiobookshelf.app/" + R.drawable.icon)
-      cover = coverUri.toString()
-    }
-
-    if (contentUrl != "") {
-      contentUri = Uri.parse(contentUrl)
-    }
+  fun getCover(serverUrl:String, token:String):Uri {
+    return Uri.parse("$serverUrl/${book.cover}?token=$token")
   }
 }

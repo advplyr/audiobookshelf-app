@@ -145,21 +145,6 @@ export const actions = {
   },
   useDownloaded({ commit, rootGetters }) {
     commit('set', rootGetters['downloads/getAudiobooks'])
-  },
-  setNativeAudiobooks({ state }) {
-    var audiobooks = state.audiobooks.map(ab => {
-      var _book = ab.book
-      return {
-        id: ab.id,
-        title: _book.title,
-        author: _book.author,
-        duration: ab.duration,
-        size: ab.size,
-        cover: _book.cover || '',
-        series: _book.series || ''
-      }
-    })
-    MyNativeAudio.setAudiobooks({ audiobooks: audiobooks })
   }
 }
 

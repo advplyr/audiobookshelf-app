@@ -33,10 +33,10 @@ import com.google.android.exoplayer2.ui.PlayerNotificationManager
 import com.google.android.exoplayer2.upstream.*
 import kotlinx.coroutines.*
 import android.view.KeyEvent
-import java.io.File
 import java.util.*
 import kotlin.concurrent.schedule
 import android.annotation.SuppressLint
+import okhttp3.OkHttpClient
 
 
 const val NOTIFICATION_LARGE_ICON_SIZE = 144 // px
@@ -74,9 +74,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   private var channelId = "audiobookshelf_channel"
   private var channelName = "Audiobookshelf Channel"
 
-  private var currentAudiobook:Audiobook? = null
+  private var currentAudiobookStreamData:AudiobookStreamData? = null
 
-  private var audiobooks = mutableListOf<Audiobook>()
+//  private var audiobooks = mutableListOf<AudiobookStreamData>()
 
   private var mediaButtonClickCount: Int = 0
   var mediaButtonClickTimeout: Long = 1000  //ms
@@ -87,6 +87,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   private var sleepTimerTask:TimerTask? = null
   private var sleepChapterTime:Long = 0L
+
+  private lateinit var audiobookManager:AudiobookManager
 
   fun setCustomObjectListener(mylistener: MyCustomObjectListener) {
     listener = mylistener
@@ -160,6 +162,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   override fun onCreate() {
     super.onCreate()
     ctx = this
+    var client: OkHttpClient = OkHttpClient()
+    audiobookManager = AudiobookManager(ctx, client)
+    audiobookManager.init()
 
   channelId = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
     createNotificationChannel(channelId, channelName)
@@ -252,11 +257,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     val queueNavigator: TimelineQueueNavigator = object : TimelineQueueNavigator(mediaSession) {
       override fun getMediaDescription(player: Player, windowIndex: Int): MediaDescriptionCompat {
         var builder = MediaDescriptionCompat.Builder()
-          .setMediaId(currentAudiobook!!.id)
-          .setTitle(currentAudiobook!!.title)
-          .setSubtitle(currentAudiobook!!.author)
-          .setMediaUri(currentAudiobook!!.playlistUri)
-          .setIconUri(currentAudiobook!!.coverUri)
+          .setMediaId(currentAudiobookStreamData!!.id)
+          .setTitle(currentAudiobookStreamData!!.title)
+          .setSubtitle(currentAudiobookStreamData!!.author)
+          .setMediaUri(currentAudiobookStreamData!!.playlistUri)
+          .setIconUri(currentAudiobookStreamData!!.coverUri)
         return builder.build()
       }
     }
@@ -277,7 +282,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       override fun onPrepare(playWhenReady: Boolean) {
        Log.d(tag, "ON PREPARE $playWhenReady")
 
-        var audiobook = audiobooks[0]
+        var audiobook = audiobookManager.audiobooks[0]
         if (audiobook == null) {
           Log.e(tag, "Audiobook NOT FOUND")
           return
@@ -287,7 +292,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
       override fun onPrepareFromMediaId(mediaId: String, playWhenReady: Boolean, extras: Bundle?) {
         Log.d(tag, "ON PREPARE FROM MEDIA ID $mediaId $playWhenReady")
-        var audiobook = audiobooks.find { it.id == mediaId }
+        var audiobook = audiobookManager.audiobooks.find { it.id == mediaId }
         if (audiobook == null) {
           Log.e(tag, "Audiobook NOT FOUND")
           return
@@ -391,7 +396,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
               mPlayer.seekTo(currentAudiobook!!.startTime)
             }*/
 
-            currentAudiobook!!.hasPlayerLoaded = true
+            currentAudiobookStreamData!!.hasPlayerLoaded = true
             if (lastPauseTime == 0L) {
               sendClientMetadata("ready_no_sync")
               lastPauseTime = -1;
@@ -448,27 +453,27 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   */
 
 //  fun initPlayer(token: String, playlistUri: String, playWhenReady: Boolean, currentTime: Long, title: String, artist: String, albumArt: String) {
-  fun initPlayer(audiobook: Audiobook) {
-    currentAudiobook = audiobook
+  fun initPlayer(audiobookStreamData: AudiobookStreamData) {
+    currentAudiobookStreamData = audiobookStreamData
 
-    Log.d(tag, "Init Player Audiobook ${currentAudiobook!!.playlistUrl} | ${currentAudiobook!!.title} | ${currentAudiobook!!.author}")
+    Log.d(tag, "Init Player Audiobook ${currentAudiobookStreamData!!.playlistUrl} | ${currentAudiobookStreamData!!.title} | ${currentAudiobookStreamData!!.author}")
 
     if (mPlayer.isPlaying) {
       Log.d(tag, "Init Player audiobook already playing")
     }
 
     var metadataBuilder = MediaMetadataCompat.Builder()
-      .putString(MediaMetadataCompat.METADATA_KEY_TITLE, currentAudiobook!!.title)
-      .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, currentAudiobook!!.title)
-      .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, currentAudiobook!!.author)
-      .putString(MediaMetadataCompat.METADATA_KEY_AUTHOR, currentAudiobook!!.author)
-      .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, currentAudiobook!!.author)
-      .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, currentAudiobook!!.series)
-      .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, currentAudiobook!!.id)
+      .putString(MediaMetadataCompat.METADATA_KEY_TITLE, currentAudiobookStreamData!!.title)
+      .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, currentAudiobookStreamData!!.title)
+      .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, currentAudiobookStreamData!!.author)
+      .putString(MediaMetadataCompat.METADATA_KEY_AUTHOR, currentAudiobookStreamData!!.author)
+      .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, currentAudiobookStreamData!!.author)
+      .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, currentAudiobookStreamData!!.series)
+      .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, currentAudiobookStreamData!!.id)
 
-    if (currentAudiobook!!.cover != "") {
-      metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_ART_URI, currentAudiobook!!.cover)
-      metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, currentAudiobook!!.cover)
+    if (currentAudiobookStreamData!!.cover != "") {
+      metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_ART_URI, currentAudiobookStreamData!!.cover)
+      metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, currentAudiobookStreamData!!.cover)
     }
 
     var metadata = metadataBuilder.build()
@@ -478,27 +483,27 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
 
     var mediaSource:MediaSource
-    if (currentAudiobook!!.isLocal) {
+    if (currentAudiobookStreamData!!.isLocal) {
       Log.d(tag, "Playing Local File")
-      var mediaItem = MediaItem.Builder().setUri(currentAudiobook!!.contentUri).setMediaMetadata(mediaMetadata).build()
+      var mediaItem = MediaItem.Builder().setUri(currentAudiobookStreamData!!.contentUri).setMediaMetadata(mediaMetadata).build()
       var dataSourceFactory = DefaultDataSourceFactory(ctx, channelId)
       mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
     } else {
       Log.d(tag, "Playing HLS File")
-      var mediaItem = MediaItem.Builder().setUri(currentAudiobook!!.playlistUri).setMediaMetadata(mediaMetadata).build()
+      var mediaItem = MediaItem.Builder().setUri(currentAudiobookStreamData!!.playlistUri).setMediaMetadata(mediaMetadata).build()
       var dataSourceFactory = DefaultHttpDataSource.Factory()
       dataSourceFactory.setUserAgent(channelId)
-      dataSourceFactory.setDefaultRequestProperties(hashMapOf("Authorization" to "Bearer ${currentAudiobook!!.token}"))
+      dataSourceFactory.setDefaultRequestProperties(hashMapOf("Authorization" to "Bearer ${currentAudiobookStreamData!!.token}"))
 
       mediaSource = HlsMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
     }
 
 
     //mPlayer.setMediaSource(mediaSource, true)
-    mPlayer.setMediaSource(mediaSource, currentAudiobook!!.startTime)
+    mPlayer.setMediaSource(mediaSource, currentAudiobookStreamData!!.startTime)
     mPlayer.prepare()
-    mPlayer.playWhenReady = currentAudiobook!!.playWhenReady
-    mPlayer.setPlaybackSpeed(audiobook.playbackSpeed)
+    mPlayer.playWhenReady = currentAudiobookStreamData!!.playWhenReady
+    mPlayer.setPlaybackSpeed(audiobookStreamData.playbackSpeed)
 
     lastPauseTime = 0
   }
@@ -534,7 +539,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   }
 
   fun getCurrentAudiobookId() : String {
-    return currentAudiobook?.id.toString()
+    return currentAudiobookStreamData?.id.toString()
   }
 
   fun play() {
@@ -569,7 +574,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     if (mPlayer.playbackState == Player.STATE_READY) {
       mPlayer.clearMediaItems()
     }
-    currentAudiobook?.id = ""
+    currentAudiobookStreamData?.id = ""
     lastPauseTime = 0
   }
 
@@ -589,9 +594,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   //
   private val MY_MEDIA_ROOT_ID = "audiobookshelf"
 
-  fun setAudiobooks(_audiobooks:MutableList<Audiobook>) {
-    audiobooks = _audiobooks
-  }
 
   private fun isValid(packageName:String, uid:Int) : Boolean {
     Log.d(tag, "Check package $packageName is valid with uid $uid")
@@ -620,25 +622,27 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   override fun onLoadChildren(parentMediaId: String, result: Result<MutableList<MediaBrowserCompat.MediaItem>>) {
     val mediaItems: MutableList<MediaBrowserCompat.MediaItem> = mutableListOf()
 
-    if (audiobooks.size == 0) {
+    if (!audiobookManager.hasLoaded) {
+      Log.d(tag, "audiobook manager loading")
+      result.detach()
+      audiobookManager.load()
+      audiobookManager.fetchAudiobooks(result)
+      return
+    }
+
+    if (audiobookManager.audiobooks.size == 0) {
+      Log.d(tag, "AudiobookManager: Sending no items")
       result.sendResult(mediaItems)
       return
     }
 
-    audiobooks.forEach {
+    audiobookManager.audiobooks.forEach {
       var builder = MediaDescriptionCompat.Builder()
         .setMediaId(it.id)
-        .setTitle(it.title)
-        .setSubtitle(it.author)
-        .setMediaUri(it.playlistUri)
-        .setIconUri(it.coverUri)
-
-//      val extras = Bundle()
-//      var startsWithA = it.title.toLowerCase().startsWith("a")
-//      var groupTitle = "test group
-//      extras.putString(MediaConstants.DESCRIPTION_EXTRAS_KEY_CONTENT_STYLE_GROUP_TITLE, groupTitle)
-//      builder.setExtras(extras)\
-//      Log.d(tag, "Load Media Item for AUTO ${it.title} - ${it.author}")
+        .setTitle(it.book.title)
+        .setSubtitle(it.book.authorFL)
+        .setMediaUri(it.fallbackUri)
+        .setIconUri(it.getCover(audiobookManager.serverUrl, audiobookManager.token))
 
       var mediaDescription = builder.build()
       var newMediaItem = MediaBrowserCompat.MediaItem(mediaDescription, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
@@ -654,6 +658,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       // examine the passed parentMediaId to see which submenu we're at,
       // and put the children of that menu in the mediaItems list
     }
+    Log.d(tag, "AudiobookManager: Sending ${mediaItems.size} Aduiobooks")
     result.sendResult(mediaItems)
   }
 
