@@ -7,7 +7,6 @@ class StoreService {
   isService = false
   platform
   isOpen = false
-  tableName = 'downloads'
 
   constructor() {
     this.init()
@@ -323,30 +322,74 @@ class StoreService {
     }
   }
 
-  async getDownload(id) {
+  async setServerConfig(config) {
     if (!this.isOpen) {
-      var success = await this.openStore('storage', this.tableName)
+      var success = await this.openStore('storage', 'serverConfig')
       if (!success) {
         console.error('Store failed to open')
-        return null
+        return false
       }
     }
     try {
-      var value = await this.getItem(id)
-      return JSON.parse(value)
+      await this.setTable('serverConfig')
     } catch (error) {
-      console.error('Failed to get download from store', error)
+      console.error('Failed to set table', error)
+      return
+    }
+
+    try {
+      await this.setItem('config', JSON.stringify(config))
+      console.log(`[STORE] Set Server Config`)
+      return true
+    } catch (error) {
+      console.error('Failed to set server config in store', error)
+      return false
+    }
+  }
+
+  async getServerConfig() {
+    if (!this.isOpen) {
+      var success = await this.openStore('storage', 'serverConfig')
+      if (!success) {
+        console.error('Store failed to open')
+        return false
+      }
+    }
+    try {
+      await this.setTable('serverConfig')
+    } catch (error) {
+      console.error('Failed to set table', error)
+      return
+    }
+
+    try {
+      var configVal = await this.getItem('config')
+      if (!configVal) {
+        console.log(`[STORE] server config not available`)
+        return null
+      }
+      var config = JSON.parse(configVal)
+      console.log(`[STORE] Got Server Config`, JSON.stringify(config))
+      return config
+    } catch (error) {
+      console.error('Failed to set server config in store', error)
       return null
     }
   }
 
   async setDownload(download) {
     if (!this.isOpen) {
-      var success = await this.openStore('storage', this.tableName)
+      var success = await this.openStore('storage', 'downloads')
       if (!success) {
         console.error('Store failed to open')
         return false
       }
+    }
+    try {
+      await this.setTable('downloads')
+    } catch (error) {
+      console.error('Failed to set table', error)
+      return
     }
 
     try {
@@ -361,11 +404,17 @@ class StoreService {
 
   async removeDownload(id) {
     if (!this.isOpen) {
-      var success = await this.openStore('storage', this.tableName)
+      var success = await this.openStore('storage', 'downloads')
       if (!success) {
         console.error('Store failed to open')
         return false
       }
+    }
+    try {
+      await this.setTable('downloads')
+    } catch (error) {
+      console.error('Failed to set table', error)
+      return
     }
 
     try {
@@ -380,12 +429,19 @@ class StoreService {
 
   async getAllDownloads() {
     if (!this.isOpen) {
-      var success = await this.openStore('storage', this.tableName)
+      var success = await this.openStore('storage', 'downloads')
       if (!success) {
         console.error('Store failed to open')
         return []
       }
     }
+    try {
+      await this.setTable('downloads')
+    } catch (error) {
+      console.error('Failed to set table', error)
+      return
+    }
+
     var keysvalues = await this.getAllKeysValues()
     var downloads = []
 

@@ -8,8 +8,6 @@ import androidx.core.content.ContextCompat
 import com.getcapacitor.*
 import com.getcapacitor.annotation.CapacitorPlugin
 import org.json.JSONObject
-import java.util.*
-import kotlin.concurrent.schedule
 
 @CapacitorPlugin(name = "MyNativeAudio")
 class MyNativeAudio : Plugin() {
@@ -64,8 +62,8 @@ class MyNativeAudio : Plugin() {
     }
     var jsobj = JSObject()
 
-    var audiobook:Audiobook = Audiobook(call.data)
-    if (audiobook.playlistUrl == "" && audiobook.contentUrl == "") {
+    var audiobookStreamData:AudiobookStreamData = AudiobookStreamData(call.data)
+    if (audiobookStreamData.playlistUrl == "" && audiobookStreamData.contentUrl == "") {
       Log.e(tag, "Invalid URL for init audio player")
 
       jsobj.put("success", false)
@@ -73,7 +71,7 @@ class MyNativeAudio : Plugin() {
     }
 
     Handler(Looper.getMainLooper()).post() {
-      playerNotificationService.initPlayer(audiobook)
+      playerNotificationService.initPlayer(audiobookStreamData)
       jsobj.put("success", true)
       call.resolve(jsobj)
     }
@@ -174,38 +172,38 @@ class MyNativeAudio : Plugin() {
     }
   }
 
-  @PluginMethod
-  fun setAudiobooks(call: PluginCall) {
-    var audiobooks = call.getArray("audiobooks", JSArray())
-    if (audiobooks == null) {
-      Log.w(tag, "setAudiobooks IS NULL")
-      call.resolve()
-      return
-    }
-
-    var audiobookObjs = mutableListOf<Audiobook>()
-
-    var len = audiobooks.length()
-    (0 until len).forEach { _it ->
-      var jsonobj = audiobooks.get(_it) as JSONObject
-
-      var _names = Array(jsonobj.names().length()) {
-        jsonobj.names().getString(it)
-      }
-      var jsobj = JSObject(jsonobj, _names)
-
-      if (jsobj.has("duration")) {
-        var dur = jsobj.getDouble("duration")
-        var duration = Math.floor(dur * 1000L).toLong()
-        jsobj.put("duration", duration)
-      }
-
-      var audiobook = Audiobook(jsobj)
-      audiobookObjs.add(audiobook)
-    }
-    Log.d(tag, "Setting Audiobooks ${audiobookObjs.size}")
-    playerNotificationService.setAudiobooks(audiobookObjs)
-  }
+//  @PluginMethod
+//  fun setAudiobooks(call: PluginCall) {
+//    var audiobooks = call.getArray("audiobooks", JSArray())
+//    if (audiobooks == null) {
+//      Log.w(tag, "setAudiobooks IS NULL")
+//      call.resolve()
+//      return
+//    }
+//
+//    var audiobookObjs = mutableListOf<AudiobookStreamData>()
+//
+//    var len = audiobooks.length()
+//    (0 until len).forEach { _it ->
+//      var jsonobj = audiobooks.get(_it) as JSONObject
+//
+//      var _names = Array(jsonobj.names().length()) {
+//        jsonobj.names().getString(it)
+//      }
+//      var jsobj = JSObject(jsonobj, _names)
+//
+//      if (jsobj.has("duration")) {
+//        var dur = jsobj.getDouble("duration")
+//        var duration = Math.floor(dur * 1000L).toLong()
+//        jsobj.put("duration", duration)
+//      }
+//
+//      var audiobook = AudiobookStreamData(jsobj)
+//      audiobookObjs.add(audiobook)
+//    }
+//    Log.d(tag, "Setting Audiobooks ${audiobookObjs.size}")
+//    playerNotificationService.setAudiobooks(audiobookObjs)
+//  }
 
   @PluginMethod
   fun setSleepTimer(call: PluginCall) {

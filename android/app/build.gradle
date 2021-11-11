@@ -39,16 +39,18 @@ repositories {
 
 dependencies {
   implementation "com.anggrayudi:storage:0.13.0"
-    implementation fileTree(include: ['*.jar'], dir: 'libs')
-    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
-    implementation project(':capacitor-android')
+  implementation fileTree(include: ['*.jar'], dir: 'libs')
+  implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+  implementation project(':capacitor-android')
 
   implementation 'androidx.coordinatorlayout:coordinatorlayout:1.1.0'
 
+  implementation 'com.squareup.okhttp3:okhttp:4.9.2'
+
   testImplementation "junit:junit:$junitVersion"
-    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
-    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
-    implementation project(':capacitor-cordova-android-plugins')
+  androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+  androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+  implementation project(':capacitor-cordova-android-plugins')
 
   implementation "androidx.core:core-ktx:1.6.0"
   implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"

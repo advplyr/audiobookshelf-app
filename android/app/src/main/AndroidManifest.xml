@@ -38,9 +38,9 @@
         android:resource="@drawable/icon" />
 
 <!-- Android auto rejected the update, removing this so it can be published on the store -->
-<!--      <meta-data-->
-<!--        android:name="com.google.android.gms.car.application"-->
-<!--        android:resource="@xml/automotive_app_desc"/>-->
+      <meta-data
+        android:name="com.google.android.gms.car.application"
+        android:resource="@xml/automotive_app_desc"/>
 
       <!-- TODO: Can remove in future -->
 <!--        <provider-->
