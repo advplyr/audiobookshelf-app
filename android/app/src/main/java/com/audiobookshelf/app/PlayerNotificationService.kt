@@ -12,7 +12,6 @@ import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaControllerCompat
 import android.support.v4.media.session.MediaSessionCompat
-import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
@@ -54,9 +53,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     fun onSleepTimerEnded(currentPosition:Long)
   }
 
+
   private val tag = "PlayerService"
 
-  private lateinit var listener:MyCustomObjectListener
+  private var listener:MyCustomObjectListener? = null
+
   private lateinit var ctx:Context
   private lateinit var mPlayer: SimpleExoPlayer
   private lateinit var mediaSessionConnector: MediaSessionConnector
@@ -266,51 +267,64 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       }
     }
 
-    val myPlaybackPreparer:MediaSessionConnector.PlaybackPreparer = object :MediaSessionConnector.PlaybackPreparer {
-      override fun onCommand(player: Player, controlDispatcher: ControlDispatcher, command: String, extras: Bundle?, cb: ResultReceiver?): Boolean {
-        Log.d(tag, "ON COMMAND $command")
-        return false
-      }
-
-      override fun getSupportedPrepareActions(): Long {
-        return PlaybackStateCompat.ACTION_PREPARE_FROM_MEDIA_ID or
-          PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID or
-          PlaybackStateCompat.ACTION_PREPARE_FROM_SEARCH or
-          PlaybackStateCompat.ACTION_PLAY_FROM_SEARCH
-      }
-
-      override fun onPrepare(playWhenReady: Boolean) {
-       Log.d(tag, "ON PREPARE $playWhenReady")
-
-        var audiobook = audiobookManager.audiobooks[0]
-        if (audiobook == null) {
-          Log.e(tag, "Audiobook NOT FOUND")
-          return
-        }
-        listener.onPrepare(audiobook.id, playWhenReady)
-      }
-
-      override fun onPrepareFromMediaId(mediaId: String, playWhenReady: Boolean, extras: Bundle?) {
-        Log.d(tag, "ON PREPARE FROM MEDIA ID $mediaId $playWhenReady")
-        var audiobook = audiobookManager.audiobooks.find { it.id == mediaId }
-        if (audiobook == null) {
-          Log.e(tag, "Audiobook NOT FOUND")
-          return
-        }
-        listener.onPrepare(audiobook.id, playWhenReady)
-      }
-
-      override fun onPrepareFromSearch(query: String, playWhenReady: Boolean, extras: Bundle?) {
-        Log.d(tag, "ON PREPARE FROM SEARCH $query")
-      }
-
-      override fun onPrepareFromUri(uri: Uri, playWhenReady: Boolean, extras: Bundle?) {
-        Log.d(tag, "ON PREPARE FROM URI $uri")
-      }
-
-    }
+//    val myPlaybackPreparer:MediaSessionConnector.PlaybackPreparer = object :MediaSessionConnector.PlaybackPreparer {
+//      override fun onCommand(player: Player, controlDispatcher: ControlDispatcher, command: String, extras: Bundle?, cb: ResultReceiver?): Boolean {
+//        Log.d(tag, "ON COMMAND $command")
+//        return false
+//      }
+//
+//      override fun getSupportedPrepareActions(): Long {
+//        return PlaybackStateCompat.ACTION_PREPARE_FROM_MEDIA_ID or
+//          PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID or
+//          PlaybackStateCompat.ACTION_PREPARE_FROM_SEARCH or
+//          PlaybackStateCompat.ACTION_PLAY_FROM_SEARCH
+//      }
+//
+//      override fun onPrepare(playWhenReady: Boolean) {
+//       Log.d(tag, "ON PREPARE $playWhenReady")
+//        var audiobook = audiobookManager.audiobooks[0]
+//        if (audiobook == null) {
+//          Log.e(tag, "Audiobook NOT FOUND")
+//          return
+//        }
+//
+//        var streamListener = object : AudiobookManager.OnStreamData {
+//          override fun onStreamReady(asd: AudiobookStreamData) {
+//            Log.d(tag, "Stream Ready ${asd.playlistUrl}")
+//            initPlayer(asd)
+//          }
+//        }
+//        audiobookManager.openStream(audiobook, streamListener)
+//      }
+//
+//      override fun onPrepareFromMediaId(mediaId: String, playWhenReady: Boolean, extras: Bundle?) {
+//        Log.d(tag, "ON PREPARE FROM MEDIA ID $mediaId $playWhenReady")
+//        var audiobook = audiobookManager.audiobooks.find { it.id == mediaId }
+//        if (audiobook == null) {
+//          Log.e(tag, "Audiobook NOT FOUND")
+//          return
+//        }
+//
+//        var streamListener = object : AudiobookManager.OnStreamData {
+//          override fun onStreamReady(asd: AudiobookStreamData) {
+//            Log.d(tag, "Stream Ready ${asd.playlistUrl}")
+//            initPlayer(asd)
+//          }
+//        }
+//        audiobookManager.openStream(audiobook, streamListener)
+//      }
+//
+//      override fun onPrepareFromSearch(query: String, playWhenReady: Boolean, extras: Bundle?) {
+//        Log.d(tag, "ON PREPARE FROM SEARCH $query")
+//      }
+//
+//      override fun onPrepareFromUri(uri: Uri, playWhenReady: Boolean, extras: Bundle?) {
+//        Log.d(tag, "ON PREPARE FROM URI $uri")
+//      }
+//
+//    }
     mediaSessionConnector.setQueueNavigator(queueNavigator)
-    mediaSessionConnector.setPlaybackPreparer(myPlaybackPreparer)
+//    mediaSessionConnector.setPlaybackPreparer(myPlaybackPreparer)
     mediaSessionConnector.setPlayer(mPlayer)
 
     //attach player to playerNotificationManager
@@ -318,10 +332,122 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
     mediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS)
     mediaSession.setCallback(object : MediaSessionCompat.Callback() {
+      override fun onPrepare() {
+        Log.d(tag, "ON PREPARE MEDIA SESSION COMPAT")
+        super.onPrepare()
+      }
+      override fun onPlay() {
+        Log.d(tag, "ON PLAY MEDIA SESSION COMPAT")
+        play()
+      }
+      override fun onPause() {
+        Log.d(tag, "ON PLAY MEDIA SESSION COMPAT")
+        pause()
+      }
+      override fun onStop() {
+        pause()
+      }
+      override fun onSkipToPrevious() {
+        seekBackward(seekAmount)
+      }
+      override fun onSkipToNext() {
+        seekForward(seekAmount)
+      }
+      override fun onPlayFromMediaId(mediaId: String?, extras: Bundle?) {
+        Log.d(tag, "ON PLAY FROM MEDIA ID $mediaId")
+
+        var audiobook = audiobookManager.audiobooks.find { it.id == mediaId }
+        if (audiobook == null) {
+          Log.e(tag, "Audiobook NOT FOUND")
+          return
+        }
+
+        if (!audiobook.isDownloaded) {
+
+          var streamListener = object : AudiobookManager.OnStreamData {
+            override fun onStreamReady(asd: AudiobookStreamData) {
+              Log.d(tag, "Stream Ready ${asd.playlistUrl}")
+              initPlayer(asd)
+            }
+          }
+          audiobookManager.openStream(audiobook, streamListener)
+        } else {
+          var asd = audiobookManager.initLocalPlay(audiobook)
+          initPlayer(asd)
+        }
+      }
+
       override fun onMediaButtonEvent(mediaButtonEvent: Intent): Boolean {
         return handleCallMediaButton(mediaButtonEvent)
       }
     })
+  }
+
+
+  fun handleCallMediaButton(intent: Intent): Boolean {
+    if(Intent.ACTION_MEDIA_BUTTON == intent.getAction()) {
+      var keyEvent = intent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
+      if (keyEvent?.getAction() == KeyEvent.ACTION_UP) {
+        when (keyEvent?.getKeyCode()) {
+          KeyEvent.KEYCODE_HEADSETHOOK -> {
+            if(0 == mediaButtonClickCount) {
+              if (mPlayer.isPlaying)
+                pause()
+              else
+                play()
+            }
+            handleMediaButtonClickCount()
+          }
+          KeyEvent.KEYCODE_MEDIA_PLAY -> {
+            if(0 == mediaButtonClickCount) play()
+            handleMediaButtonClickCount()
+          }
+          KeyEvent.KEYCODE_MEDIA_PAUSE -> {
+            if(0 == mediaButtonClickCount) pause()
+            handleMediaButtonClickCount()
+          }
+          KeyEvent.KEYCODE_MEDIA_NEXT -> {
+            seekForward(seekAmount)
+          }
+          KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
+            seekBackward(seekAmount)
+          }
+          KeyEvent.KEYCODE_MEDIA_STOP -> {
+            terminateStream()
+          }
+          else -> {
+            Log.d(tag, "KeyCode:${keyEvent?.getKeyCode()}")
+            return false
+          }
+        }
+      }
+    }
+    return true
+  }
+
+  fun handleMediaButtonClickCount() {
+    mediaButtonClickCount++
+    if (1 == mediaButtonClickCount) {
+      Timer().schedule(mediaButtonClickTimeout) {
+        mediaBtnHandler.sendEmptyMessage(mediaButtonClickCount)
+        mediaButtonClickCount = 0
+      }
+    }
+  }
+
+  private val mediaBtnHandler : Handler = @SuppressLint("HandlerLeak")
+  object : Handler(){
+    override fun handleMessage(msg: Message) {
+      super.handleMessage(msg)
+      if (2 == msg.what) {
+        seekBackward(seekAmount)
+        play()
+      }
+      else if (msg.what >= 3) {
+        seekForward(seekAmount)
+        play()
+      }
+    }
   }
 
   private inner class DescriptionAdapter(private val controller: MediaControllerCompat) :
@@ -441,7 +567,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
             }
           }
           else lastPauseTime = System.currentTimeMillis()
-          if (listener != null) listener.onPlayingUpdate(player.isPlaying)
+          listener?.onPlayingUpdate(player.isPlaying)
         }
       }
     })
@@ -452,7 +578,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     User callable methods
   */
 
-//  fun initPlayer(token: String, playlistUri: String, playWhenReady: Boolean, currentTime: Long, title: String, artist: String, albumArt: String) {
   fun initPlayer(audiobookStreamData: AudiobookStreamData) {
     currentAudiobookStreamData = audiobookStreamData
 
@@ -585,14 +710,15 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     metadata.put("duration", duration)
     metadata.put("currentTime", mPlayer.currentPosition)
     metadata.put("stateName", stateName)
-    if (listener != null) listener.onMetadata(metadata)
+    listener?.onMetadata(metadata)
   }
 
 
   //
   // MEDIA BROWSER STUFF (ANDROID AUTO)
   //
-  private val MY_MEDIA_ROOT_ID = "audiobookshelf"
+  private val AUTO_MEDIA_ROOT = "/"
+  private lateinit var browseTree:BrowseTree
 
 
   private fun isValid(packageName:String, uid:Int) : Boolean {
@@ -608,26 +734,58 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       // No further calls will be made to other media browsing methods.
       null
     } else {
+
+      val maximumRootChildLimit = rootHints?.getInt(
+        MediaConstants.BROWSER_ROOT_HINTS_KEY_ROOT_CHILDREN_LIMIT,
+        /* defaultValue= */ 4)
+//      val supportedRootChildFlags = rootHints.getInt(
+//        MediaConstants.BROWSER_ROOT_HINTS_KEY_ROOT_CHILDREN_SUPPORTED_FLAGS,
+//        /* defaultValue= */ android.media.browse.MediaBrowser.MediaItem.FLAG_BROWSABLE)
+
+
+
       val extras = Bundle()
+      extras.putBoolean(
+        MediaConstants.BROWSER_SERVICE_EXTRAS_KEY_SEARCH_SUPPORTED, true)
       extras.putInt(
         MediaConstants.DESCRIPTION_EXTRAS_KEY_CONTENT_STYLE_BROWSABLE,
         MediaConstants.DESCRIPTION_EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM)
       extras.putInt(
         MediaConstants.DESCRIPTION_EXTRAS_KEY_CONTENT_STYLE_PLAYABLE,
         MediaConstants.DESCRIPTION_EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM)
-      MediaBrowserServiceCompat.BrowserRoot(MY_MEDIA_ROOT_ID, extras)
+
+      BrowserRoot(AUTO_MEDIA_ROOT, extras)
     }
   }
 
   override fun onLoadChildren(parentMediaId: String, result: Result<MutableList<MediaBrowserCompat.MediaItem>>) {
     val mediaItems: MutableList<MediaBrowserCompat.MediaItem> = mutableListOf()
+    Log.d(tag, "ON LOAD CHILDREN $parentMediaId")
 
     if (!audiobookManager.hasLoaded) {
       Log.d(tag, "audiobook manager loading")
       result.detach()
       audiobookManager.load()
-      audiobookManager.fetchAudiobooks(result)
+      audiobookManager.loadAudiobooks() {
+        audiobookManager.isLoading = false
+
+        Log.d(tag, "LOADED AUDIOBOOKS")
+        browseTree = BrowseTree(this, audiobookManager.audiobooks, null)
+        val children = browseTree[parentMediaId]?.map { item ->
+          MediaBrowserCompat.MediaItem(item.description, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE)
+        }
+        if (children != null) {
+          Log.d(tag, "BROWSE TREE CHILDREN ${children.size}")
+        }
+        result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
+      }
       return
+    } else if (audiobookManager.isLoading) {
+      Log.d(tag, "AUDIOBOOKS LOADING")
+      result.detach()
+      return
+    } else {
+      Log.d(tag, "ABs are loaded")
     }
 
     if (audiobookManager.audiobooks.size == 0) {
@@ -636,21 +794,34 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       return
     }
 
-    audiobookManager.audiobooks.forEach {
-      var builder = MediaDescriptionCompat.Builder()
-        .setMediaId(it.id)
-        .setTitle(it.book.title)
-        .setSubtitle(it.book.authorFL)
-        .setMediaUri(it.fallbackUri)
-        .setIconUri(it.getCover(audiobookManager.serverUrl, audiobookManager.token))
 
-      var mediaDescription = builder.build()
-      var newMediaItem = MediaBrowserCompat.MediaItem(mediaDescription, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
-      mediaItems.add(newMediaItem)
+    var flag = if (parentMediaId == AUTO_MEDIA_ROOT) MediaBrowserCompat.MediaItem.FLAG_BROWSABLE else MediaBrowserCompat.MediaItem.FLAG_PLAYABLE
+
+    val children = browseTree[parentMediaId]?.map { item ->
+      MediaBrowserCompat.MediaItem(item.description, flag)
     }
+    if (children != null) {
+      Log.d(tag, "BROWSE TREE $parentMediaId CHILDREN ${children.size}")
+    }
+    result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
+
+//    audiobookManager.audiobooks.forEach {
+//      var builder = MediaDescriptionCompat.Builder()
+//        .setMediaId(it.id)
+//        .setTitle(it.book.title)
+//        .setSubtitle(it.book.authorFL)
+//        .setMediaUri(null)
+//        .setIconUri(it.getCover(audiobookManager.serverUrl, audiobookManager.token))
+//
+//
+//
+//      var mediaDescription = builder.build()
+//      var newMediaItem = MediaBrowserCompat.MediaItem(mediaDescription, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
+//      mediaItems.add(newMediaItem)
+//    }
 
     // Check if this is the root menu:
-    if (MY_MEDIA_ROOT_ID == parentMediaId) {
+    if (AUTO_MEDIA_ROOT == parentMediaId) {
       // build the MediaItem objects for the top level,
       // and put them in the mediaItems list
     } else {
@@ -658,75 +829,13 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       // examine the passed parentMediaId to see which submenu we're at,
       // and put the children of that menu in the mediaItems list
     }
-    Log.d(tag, "AudiobookManager: Sending ${mediaItems.size} Aduiobooks")
-    result.sendResult(mediaItems)
+//    Log.d(tag, "AudiobookManager: Sending ${mediaItems.size} Aduiobooks")
+//    result.sendResult(mediaItems)
   }
 
-  fun handleCallMediaButton(intent: Intent): Boolean {
-    if(Intent.ACTION_MEDIA_BUTTON == intent.getAction()) {
-      var keyEvent = intent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
-      if (keyEvent?.getAction() == KeyEvent.ACTION_UP) {
-        when (keyEvent?.getKeyCode()) {
-          KeyEvent.KEYCODE_HEADSETHOOK -> {
-            if(0 == mediaButtonClickCount) {
-              if (mPlayer.isPlaying)
-                pause()
-              else
-                play()
-            }
-            handleMediaButtonClickCount()
-          }
-          KeyEvent.KEYCODE_MEDIA_PLAY -> {
-            if(0 == mediaButtonClickCount) play()
-            handleMediaButtonClickCount()
-          }
-          KeyEvent.KEYCODE_MEDIA_PAUSE -> {
-            if(0 == mediaButtonClickCount) pause()
-            handleMediaButtonClickCount()
-          }
-          KeyEvent.KEYCODE_MEDIA_NEXT -> {
-            seekForward(seekAmount)
-          }
-          KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
-            seekBackward(seekAmount)
-          }
-          KeyEvent.KEYCODE_MEDIA_STOP -> {
-            terminateStream()
-          }
-          else -> {
-            Log.d(tag, "KeyCode:${keyEvent?.getKeyCode()}")
-            return false
-          }
-        }
-      }
-    }
-    return true
-  }
-
-  fun handleMediaButtonClickCount() {
-    mediaButtonClickCount++
-    if (1 == mediaButtonClickCount) {
-      Timer().schedule(mediaButtonClickTimeout) {
-        handler.sendEmptyMessage(mediaButtonClickCount)
-        mediaButtonClickCount = 0
-      }
-    }
-  }
-
-  private val handler : Handler = @SuppressLint("HandlerLeak")
-  object : Handler(){
-    override fun handleMessage(msg: Message) {
-      super.handleMessage(msg)
-      if (2 == msg.what) {
-        seekBackward(seekAmount)
-        play()
-      }
-      else if (msg.what >= 3) {
-        seekForward(seekAmount)
-        play()
-      }
-    }
-  }
+  //
+  // SLEEP TIMER STUFF
+  //
 
   fun setSleepTimer(time:Long, isChapterTime:Boolean) : Boolean {
     Log.d(tag, "Setting Sleep Timer for $time is chapter time $isChapterTime")
@@ -749,7 +858,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
             Log.d(tag, "Sleep Timer Pausing Player on Chapter")
             mPlayer.pause()
 
-            if (listener != null) listener.onSleepTimerEnded(mPlayer.currentPosition)
+            listener?.onSleepTimerEnded(mPlayer.currentPosition)
             sleepTimerTask?.cancel()
           }
         }
@@ -762,7 +871,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
             Log.d(tag, "Sleep Timer Pausing Player")
             mPlayer.pause()
           }
-          if (listener != null) listener.onSleepTimerEnded(mPlayer.currentPosition)
+          listener?.onSleepTimerEnded(mPlayer.currentPosition)
         }
       }
     }
