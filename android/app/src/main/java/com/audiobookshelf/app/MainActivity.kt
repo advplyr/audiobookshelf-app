@@ -1,18 +1,13 @@
 package com.audiobookshelf.app
 
-import android.app.Activity
 import android.app.DownloadManager
+import android.app.SearchManager
 import android.content.*
 import android.os.*
 import android.util.Log
 import com.anggrayudi.storage.SimpleStorage
 import com.anggrayudi.storage.SimpleStorageHelper
 import com.getcapacitor.BridgeActivity
-import com.getcapacitor.JSObject
-import com.jeep.plugin.capacitor.capacitordatastoragesqlite.CapacitorDataStorageSqlite
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import java.net.URL
 
 
 class MainActivity : BridgeActivity() {

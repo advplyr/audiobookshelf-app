@@ -66,35 +66,12 @@ class Audiobook {
 //      return Uri.parse("android.resource://com.audiobookshelf.app/" + R.drawable.icon)
       return Uri.parse(localCoverUrl)
     }
-    if (book.cover == "") return Uri.parse("android.resource://com.audiobookshelf.app/" + R.drawable.icon)
+    if (book.cover == "" || serverUrl == "" || token == "") return Uri.parse("android.resource://com.audiobookshelf.app/" + R.drawable.icon)
     return Uri.parse("$serverUrl${book.cover}?token=$token&ts=${book.lastUpdate}")
   }
 
   fun getDurationLong():Long {
     return duration.toLong() * 1000L
-  }
-
-  fun toMediaItem():MediaBrowserCompat.MediaItem {
-    var builder = MediaDescriptionCompat.Builder()
-      .setMediaId(id)
-      .setTitle(book.title)
-      .setSubtitle(book.authorFL)
-      .setMediaUri(null)
-      .setIconUri(getCover())
-
-    val extras = Bundle()
-    if (isDownloaded) {
-      extras.putLong(
-        MediaDescriptionCompat.EXTRA_DOWNLOAD_STATUS,
-        MediaDescriptionCompat.STATUS_DOWNLOADED)
-    }
-//            extras.putInt(
-//              MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
-//              MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_PARTIALLY_PLAYED)
-    builder.setExtras(extras)
-
-    var mediaDescription = builder.build()
-    return MediaBrowserCompat.MediaItem(mediaDescription, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
   }
 
   fun toMediaMetadata():MediaMetadataCompat {

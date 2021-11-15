@@ -4,10 +4,10 @@
     <div id="content" class="overflow-hidden" :class="playerIsOpen ? 'playerOpen' : ''">
       <Nuxt />
     </div>
-    <!-- <app-stream-container ref="streamContainer" /> -->
     <app-audio-player-container ref="streamContainer" />
-    <modals-downloads-modal ref="downloadsModal" @deleteDownload="deleteDownload" />
+    <!-- <modals-downloads-modal ref="downloadsModal" @deleteDownload="deleteDownload" /> -->
     <modals-libraries-modal />
+    <app-side-drawer />
     <readers-reader />
   </div>
 </template>
@@ -24,12 +24,24 @@ export default {
   data() {
     return {}
   },
+  watch: {
+    networkConnected: {
+      handler(newVal) {
+        if (newVal) {
+          this.attemptConnection()
+        }
+      }
+    }
+  },
   computed: {
     playerIsOpen() {
       return this.$store.getters['playerIsOpen']
     },
     routeName() {
       return this.$route.name
+    },
+    networkConnected() {
+      return this.$store.state.networkConnected
     }
   },
   methods: {
@@ -152,9 +164,6 @@ export default {
 
       var downloadObj = this.$store.getters['downloads/getDownload'](audiobookId)
       if (downloadObj) {
-        if (this.$refs.downloadsModal) {
-          this.$refs.downloadsModal.updateDownloadProgress({ audiobookId, progress })
-        }
         this.$toast.update(downloadObj.toastId, { content: `${progress}% Downloading ${downloadObj.audiobook.book.title}` })
       }
     },
@@ -331,20 +340,6 @@ export default {
     //   this.checkLoadCurrent()
     //   this.$store.dispatch('audiobooks/setNativeAudiobooks')
     // },
-    async deleteDownload(download) {
-      console.log('Delete download', download.filename)
-
-      if (this.$store.state.playingDownload && this.$store.state.playingDownload.id === download.id) {
-        console.warn('Deleting download when currently playing download - terminate play')
-        if (this.$refs.streamContainer) {
-          this.$refs.streamContainer.cancelStream()
-        }
-      }
-      if (download.contentUrl) {
-        await StorageManager.delete(download)
-      }
-      this.$store.commit('downloads/removeDownload', download)
-    },
     async initMediaStore() {
       // Request and setup listeners for media files on native
       AudioDownloader.addListener('onDownloadComplete', (data) => {
@@ -420,9 +415,33 @@ export default {
     },
     showSuccessToast(message) {
       this.$toast.success(message)
+    },
+    async attemptConnection() {
+      if (!this.$server) return
+      if (!this.networkConnected) {
+        console.warn('No network connection')
+        return
+      }
+
+      var localServerUrl = await this.$localStore.getServerUrl()
+      var localUserToken = await this.$localStore.getToken()
+      if (localServerUrl) {
+        // Server and Token are stored
+        if (localUserToken) {
+          var isSocketAlreadyEstablished = this.$server.socket
+          var success = await this.$server.connect(localServerUrl, localUserToken)
+          if (!success && !this.$server.url) {
+            // Bad URL
+          } else if (!success) {
+            // Failed to connect
+          } else if (isSocketAlreadyEstablished) {
+            // No need to wait for connect event
+          }
+        }
+      }
     }
   },
-  mounted() {
+  async mounted() {
     if (!this.$server) return console.error('No Server')
     // console.log(`Default Mounted set SOCKET listeners ${this.$server.connected}`)
 
@@ -435,28 +454,33 @@ export default {
 
     if (this.$store.state.isFirstLoad) {
       this.$store.commit('setIsFirstLoad', false)
-      this.setupNetworkListener()
+      await this.setupNetworkListener()
+      this.attemptConnection()
       this.checkForUpdate()
       this.initMediaStore()
     }
 
-    MyNativeAudio.addListener('onPrepareMedia', (data) => {
-      var audiobookId = data.audiobookId
-      var playWhenReady = data.playWhenReady
+    if (!this.$server.connected) {
+    }
 
-      var audiobook = this.$store.getters['audiobooks/getAudiobook'](audiobookId)
+    // Old bad attempt at AA
+    // MyNativeAudio.addListener('onPrepareMedia', (data) => {
+    //   var audiobookId = data.audiobookId
+    //   var playWhenReady = data.playWhenReady
 
-      var download = this.$store.getters['downloads/getDownloadIfReady'](audiobookId)
-      this.$store.commit('setPlayOnLoad', playWhenReady)
-      if (!download) {
-        // Stream
-        this.$store.commit('setStreamAudiobook', audiobook)
-        this.$server.socket.emit('open_stream', audiobook.id)
-      } else {
-        // Local
-        this.$store.commit('setPlayingDownload', download)
-      }
-    })
+    //   var audiobook = this.$store.getters['audiobooks/getAudiobook'](audiobookId)
+
+    //   var download = this.$store.getters['downloads/getDownloadIfReady'](audiobookId)
+    //   this.$store.commit('setPlayOnLoad', playWhenReady)
+    //   if (!download) {
+    //     // Stream
+    //     this.$store.commit('setStreamAudiobook', audiobook)
+    //     this.$server.socket.emit('open_stream', audiobook.id)
+    //   } else {
+    //     // Local
+    //     this.$store.commit('setPlayingDownload', download)
+    //   }
+    // })
   },
   beforeDestroy() {
     if (!this.$server) {

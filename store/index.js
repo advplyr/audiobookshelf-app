@@ -15,7 +15,8 @@ export const state = () => ({
   selectedBook: null,
   showReader: false,
   downloadFolder: null,
-  mediaScanResults: {}
+  mediaScanResults: {},
+  showSideDrawer: false
 })
 
 export const getters = {
@@ -27,6 +28,9 @@ export const getters = {
   },
   isAudiobookPlaying: (state) => id => {
     return (state.playingDownload && state.playingDownload.id === id) || (state.streamAudiobook && state.streamAudiobook.id === id)
+  },
+  getAudiobookIdStreaming: state => {
+    return state.streamAudiobook ? state.streamAudiobook.id : null
   }
 }
 
@@ -97,5 +101,8 @@ export const mutations = {
   },
   setMediaScanResults(state, val) {
     state.mediaScanResults = val
+  },
+  setShowSideDrawer(state, val) {
+    state.showSideDrawer = val
   }
 }
