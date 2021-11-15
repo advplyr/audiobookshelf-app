@@ -30,7 +30,11 @@ export const getters = {
       var filter = decode(filterBy.replace(`${group}.`, ''))
       if (group === 'genres') filtered = filtered.filter(ab => ab.book && ab.book.genres.includes(filter))
       else if (group === 'tags') filtered = filtered.filter(ab => ab.tags.includes(filter))
-      else if (group === 'series') filtered = filtered.filter(ab => ab.book && ab.book.series === filter)
+      else if (group === 'series') {
+        if (filter === 'No Series') filtered = filtered.filter(ab => ab.book && !ab.book.series)
+        else filtered = filtered.filter(ab => ab.book && ab.book.series === filter)
+      }
+      // else if (group === 'series') filtered = filtered.filter(ab => ab.book && ab.book.series === filter)
       else if (group === 'authors') filtered = filtered.filter(ab => ab.book && ab.book.author === filter)
       else if (group === 'progress') {
         filtered = filtered.filter(ab => {
@@ -66,6 +70,36 @@ export const getters = {
         return value
       })
     }
+  },
+  getSeriesGroups: (state, getters, rootState) => () => {
+    var series = {}
+    state.audiobooks.forEach((audiobook) => {
+      if (audiobook.book && audiobook.book.series) {
+        if (series[audiobook.book.series]) {
+          var bookLastUpdate = audiobook.book.lastUpdate
+          if (bookLastUpdate > series[audiobook.book.series].lastUpdate) series[audiobook.book.series].lastUpdate = bookLastUpdate
+          series[audiobook.book.series].books.push(audiobook)
+        } else {
+          series[audiobook.book.series] = {
+            type: 'series',
+            name: audiobook.book.series || '',
+            books: [audiobook],
+            lastUpdate: audiobook.book.lastUpdate
+          }
+        }
+      }
+    })
+    var seriesArray = Object.values(series).map((_series) => {
+      _series.books = sort(_series.books)['asc']((ab) => {
+        return ab.book && ab.book.volumeNumber && !isNaN(ab.book.volumeNumber) ? Number(ab.book.volumeNumber) : null
+      })
+      return _series
+    })
+    if (state.keywordFilter) {
+      const keywordFilter = state.keywordFilter.toLowerCase()
+      return seriesArray.filter((_series) => _series.name.toLowerCase().includes(keywordFilter))
+    }
+    return seriesArray
   },
   getUniqueAuthors: (state) => {
     var _authors = state.audiobooks.filter(ab => !!(ab.book && ab.book.author)).map(ab => ab.book.author)

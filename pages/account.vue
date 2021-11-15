@@ -26,7 +26,7 @@
 
     <ui-btn v-if="!isUpdateAvailable || immediateUpdateAllowed" class="w-full my-4" color="primary" @click="openAppStore">Open app store</ui-btn>
 
-    <p>UA: {{ updateAvailability }} | Avail: {{ availableVersion }} | Curr: {{ currentVersion }} | ImmedAllowed: {{ immediateUpdateAllowed }}</p>
+    <p class="text-xs text-gray-400">UA: {{ updateAvailability }} | Avail: {{ availableVersion }} | Curr: {{ currentVersion }} | ImmedAllowed: {{ immediateUpdateAllowed }}</p>
   </div>
 </template>
 
@@ -34,11 +34,18 @@
 import { AppUpdate } from '@robingenz/capacitor-app-update'
 
 export default {
+  asyncData({ redirect, store }) {
+    if (!store.state.socketConnected) {
+      return redirect('/connect')
+    }
+    return {}
+  },
   data() {
     return {}
   },
   computed: {
     username() {
+      if (!this.user) return ''
       return this.user.username
     },
     user() {

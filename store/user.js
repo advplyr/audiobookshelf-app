@@ -12,7 +12,9 @@ export const state = () => ({
     bookshelfCoverSize: 120
   },
   settingsListeners: [],
-  userAudiobooksListeners: []
+  userAudiobooksListeners: [],
+  collections: [],
+  collectionsLoaded: false
 })
 
 export const getters = {
@@ -38,6 +40,9 @@ export const getters = {
   },
   getFilterOrderKey: (state) => {
     return Object.values(state.settings).join('-')
+  },
+  getCollection: state => id => {
+    return state.collections.find(c => c.id === id)
   }
 }
 
@@ -62,6 +67,24 @@ export const actions = {
       console.log('Update settings without server')
       commit('setSettings', payload)
     }
+  },
+  loadUserCollections({ state, commit }) {
+    if (!this.$server.connected) {
+      console.error('Not loading collections - not connected')
+      return []
+    }
+    if (state.collectionsLoaded) {
+      console.log('Collections already loaded')
+      return state.collections
+    }
+
+    return this.$axios.$get('/api/collections').then((collections) => {
+      commit('setCollections', collections)
+      return collections
+    }).catch((error) => {
+      console.error('Failed to get collections', error)
+      return []
+    })
   }
 }
 
@@ -120,5 +143,17 @@ export const mutations = {
   },
   removeUserAudiobookListener(state, listenerId) {
     state.userAudiobooksListeners = state.userAudiobooksListeners.filter(l => l.id !== listenerId)
-  }
+  },
+  setCollections(state, collections) {
+    state.collections = collections
+    state.collectionsLoaded = true
+  },
+  addUpdateCollection(state, collection) {
+    var index = state.collections.findIndex(c => c.id === collection.id)
+    if (index >= 0) {
+      state.collections.splice(index, 1, collection)
+    } else {
+      state.collections.push(collection)
+    }
+  },
 }

@@ -2,15 +2,10 @@ package com.audiobookshelf.app
 
 import android.app.Activity
 import android.content.Context
-import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.support.v4.media.MediaBrowserCompat
-import android.support.v4.media.MediaDescriptionCompat
 
 import android.util.Log
-import androidx.media.MediaBrowserServiceCompat
-import androidx.media.utils.MediaConstants
 import com.getcapacitor.JSArray
 import com.getcapacitor.JSObject
 import com.jeep.plugin.capacitor.capacitordatastoragesqlite.CapacitorDataStorageSqlite
@@ -40,15 +35,20 @@ class AudiobookManager {
 
   fun init() {
    var sharedPreferences = ctx.getSharedPreferences("CapacitorStorage", Activity.MODE_PRIVATE)
-    serverUrl = sharedPreferences.getString("serverUrl", null).toString()
+    serverUrl = sharedPreferences.getString("serverUrl", "").toString()
     Log.d(tag, "SHARED PREF SERVERURL $serverUrl")
-    token = sharedPreferences.getString("token", null).toString()
+    token = sharedPreferences.getString("token", "").toString()
     Log.d(tag, "SHARED PREF TOKEN $token")
   }
 
   fun loadAudiobooks(cb: (() -> Unit)) {
+    Log.d(tag, "LOAD AUDIBOOOSK $serverUrl | $token")
     if (serverUrl == "" || token == "") {
       Log.d(tag, "No Server or Token set")
+      cb()
+      return
+    } else if (!serverUrl.startsWith("http")) {
+      Log.e(tag, "Invalid server url $serverUrl")
       cb()
       return
     }
@@ -93,78 +93,6 @@ class AudiobookManager {
           }
           Log.d(tag, "${audiobooks.size} Audiobooks Loaded")
           cb()
-        }
-      }
-    })
-  }
-
-  fun fetchAudiobooks(result: MediaBrowserServiceCompat.Result<MutableList<MediaBrowserCompat.MediaItem>>) {
-    var url = "$serverUrl/api/library/main/audiobooks"
-    val request = Request.Builder()
-      .url(url).addHeader("Authorization", "Bearer $token")
-      .build()
-
-    client.newCall(request).enqueue(object : Callback {
-      override fun onFailure(call: Call, e: IOException) {
-        Log.d(tag, "FAILURE TO CONNECT")
-        e.printStackTrace()
-      }
-
-      override fun onResponse(call: Call, response: Response) {
-        response.use {
-          if (!response.isSuccessful) throw IOException("Unexpected code $response")
-
-          var bodyString = response.body!!.string()
-          var json = JSArray(bodyString)
-          var totalBooks = json.length() - 1
-          for (i in 0..totalBooks) {
-            var abobj = json.get(i)
-            var jsobj = JSObject(abobj.toString())
-            jsobj.put("isDownloaded", false)
-            var audiobook = Audiobook(jsobj, serverUrl, token)
-
-            if (audiobook.isMissing || audiobook.isInvalid) {
-              Log.d(tag, "Audiobook ${audiobook.book.title} is missing or invalid")
-            } else if (audiobook.numTracks <= 0) {
-              Log.d(tag, "Audiobook ${audiobook.book.title} has audio tracks")
-            } else {
-              var audiobookExists = audiobooks.find { it.id == audiobook.id }
-              if (audiobookExists == null) {
-                audiobooks.add(audiobook)
-              } else {
-                Log.d(tag, "Audiobook already there from downloaded")
-              }
-            }
-          }
-          Log.d(tag, "${audiobooks.size} Audiobooks Loaded")
-
-          val mediaItems: MutableList<MediaBrowserCompat.MediaItem> = mutableListOf()
-          audiobooks.forEach {
-            var builder = MediaDescriptionCompat.Builder()
-              .setMediaId(it.id)
-              .setTitle(it.book.title)
-              .setSubtitle(it.book.authorFL)
-              .setMediaUri(null)
-              .setIconUri(it.getCover())
-
-            val extras = Bundle()
-            if (it.isDownloaded) {
-              extras.putLong(
-                MediaDescriptionCompat.EXTRA_DOWNLOAD_STATUS,
-                MediaDescriptionCompat.STATUS_DOWNLOADED)
-            }
-//            extras.putInt(
-//              MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
-//              MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_PARTIALLY_PLAYED)
-            builder.setExtras(extras)
-
-            var mediaDescription = builder.build()
-            var newMediaItem = MediaBrowserCompat.MediaItem(mediaDescription, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
-            mediaItems.add(newMediaItem)
-
-          }
-          Log.d(tag, "AudiobookManager: Sending ${mediaItems.size} Audiobooks")
-          result.sendResult(mediaItems)
         }
       }
     })
@@ -260,5 +188,59 @@ class AudiobookManager {
 
     var audiobookStreamData = AudiobookStreamData(abStreamDataObj)
     return audiobookStreamData
+  }
+
+  fun levenshtein(lhs : CharSequence, rhs : CharSequence) : Int {
+    val lhsLength = lhs.length + 1
+    val rhsLength = rhs.length + 1
+
+    var cost = Array(lhsLength) { it }
+    var newCost = Array(lhsLength) { 0 }
+
+    for (i in 1..rhsLength-1) {
+      newCost[0] = i
+
+      for (j in 1..lhsLength-1) {
+        val match = if(lhs[j - 1] == rhs[i - 1]) 0 else 1
+
+        val costReplace = cost[j - 1] + match
+        val costInsert = cost[j] + 1
+        val costDelete = newCost[j - 1] + 1
+
+        newCost[j] = Math.min(Math.min(costInsert, costDelete), costReplace)
+      }
+
+      val swap = cost
+      cost = newCost
+      newCost = swap
+    }
+
+    return cost[lhsLength - 1]
+  }
+
+  fun searchForAudiobook(query:String):Audiobook? {
+    var closestDistance = 99
+    var closestMatch:Audiobook? = null
+    audiobooks.forEach {
+      var dist = levenshtein(it.book.title, query)
+      Log.d(tag, "LEVENSHTEIN $dist")
+      if (dist < closestDistance) {
+        closestDistance = dist
+        closestMatch = it
+      }
+    }
+    if (closestMatch != null) {
+      Log.d(tag, "Closest Search is ${closestMatch?.book?.title} with distance $closestDistance")
+      if (closestDistance < 2) {
+        return closestMatch
+      }
+      return null
+    }
+    return null
+  }
+
+  fun getFirstAudiobook():Audiobook? {
+    if (audiobooks.isEmpty()) return null
+    return audiobooks[0]
   }
 }

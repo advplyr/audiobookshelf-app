@@ -15,8 +15,8 @@ module.exports = {
         'short': { 'raw': '(max-height: 500px)' }
       },
       colors: {
-        // bg: '#1e272e',
         bg: '#373838',
+        secondary: '#2F3030',
         yellowgreen: 'yellowgreen',
         primary: '#262626',
         accent: '#1ad691',

@@ -27,6 +27,9 @@
 
 <script>
 export default {
+  asyncData({ redirect }) {
+    return redirect('/bookshelf')
+  },
   data() {
     return {
       showSortModal: false,
