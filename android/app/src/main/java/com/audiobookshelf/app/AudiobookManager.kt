@@ -26,11 +26,15 @@ class AudiobookManager {
   var token = ""
   private var client:OkHttpClient
 
+  lateinit var localMediaManager:LocalMediaManager
+
   var audiobooks:MutableList<Audiobook> = mutableListOf()
 
   constructor(_ctx:Context, _client:OkHttpClient) {
     ctx = _ctx
     client = _client
+
+    localMediaManager = LocalMediaManager(ctx)
   }
 
   fun init() {
@@ -102,6 +106,8 @@ class AudiobookManager {
     isLoading = true
     hasLoaded = true
 
+    localMediaManager.loadLocalAudio()
+
     var db = CapacitorDataStorageSqlite(ctx)
     db.openStore("storage", "downloads", false, "no-encryption", 1)
     var keyvalues = db.keysvalues()
@@ -171,8 +177,7 @@ class AudiobookManager {
     })
   }
 
-  fun initLocalPlay(audiobook:Audiobook):AudiobookStreamData {
-
+  fun initDownloadPlay(audiobook:Audiobook):AudiobookStreamData {
     var abStreamDataObj = JSObject()
     abStreamDataObj.put("id", audiobook.id)
     abStreamDataObj.put("contentUrl", audiobook.contentUrl)
@@ -181,6 +186,24 @@ class AudiobookManager {
     abStreamDataObj.put("token", null)
     abStreamDataObj.put("cover", audiobook.getCover())
     abStreamDataObj.put("duration", audiobook.getDurationLong())
+    abStreamDataObj.put("startTime", 0)
+    abStreamDataObj.put("playbackSpeed", 1)
+    abStreamDataObj.put("playWhenReady", true)
+    abStreamDataObj.put("isLocal", true)
+
+    var audiobookStreamData = AudiobookStreamData(abStreamDataObj)
+    return audiobookStreamData
+  }
+
+  fun initLocalPlay(local: LocalMediaManager.LocalAudio):AudiobookStreamData {
+    var abStreamDataObj = JSObject()
+    abStreamDataObj.put("id", local.id)
+    abStreamDataObj.put("contentUrl", local.uri.toString())
+    abStreamDataObj.put("title", local.name)
+    abStreamDataObj.put("author", "")
+    abStreamDataObj.put("token", null)
+    abStreamDataObj.put("cover", "")
+    abStreamDataObj.put("duration", local.duration)
     abStreamDataObj.put("startTime", 0)
     abStreamDataObj.put("playbackSpeed", 1)
     abStreamDataObj.put("playWhenReady", true)
@@ -242,5 +265,10 @@ class AudiobookManager {
   fun getFirstAudiobook():Audiobook? {
     if (audiobooks.isEmpty()) return null
     return audiobooks[0]
+  }
+
+  fun getFirstLocal(): LocalMediaManager.LocalAudio? {
+    if (localMediaManager.localAudioFiles.isEmpty()) return null
+    return localMediaManager.localAudioFiles[0]
   }
 }
