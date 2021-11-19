@@ -24,6 +24,10 @@
 
       <!-- <widgets-connection-icon /> -->
 
+      <nuxt-link class="h-7 mx-2" to="/search">
+        <span class="material-icons" style="font-size: 1.75rem">search</span>
+      </nuxt-link>
+
       <div class="h-7 mx-2">
         <span class="material-icons" style="font-size: 1.75rem" @click="clickShowSideDrawer">menu</span>
       </div>
