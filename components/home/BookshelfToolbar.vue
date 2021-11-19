@@ -96,6 +96,7 @@ export default {
 
       var bookshelfView = this.isListView ? 'list' : 'grid'
       this.$localStore.setBookshelfView(bookshelfView)
+      this.$store.commit('setBookshelfView', bookshelfView)
     },
     updateOrder() {
       this.saveSettings()
@@ -113,7 +114,7 @@ export default {
       var bookshelfView = await this.$localStore.getBookshelfView()
       this.isListView = bookshelfView === 'list'
       this.bookshelfReady = true
-      console.log('Bookshelf view', bookshelfView)
+      this.$store.commit('setBookshelfView', bookshelfView)
     },
     settingsUpdated(settings) {
       for (const key in settings) {
