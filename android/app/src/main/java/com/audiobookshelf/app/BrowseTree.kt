@@ -11,6 +11,7 @@ import androidx.annotation.AnyRes
 class BrowseTree(
   val context: Context,
   val audiobooks: List<Audiobook>,
+  val localAudio: List<LocalMediaManager.LocalAudio>,
   val recentMediaId: String? = null
 ) {
   private val mediaIdToChildren = mutableMapOf<String, MutableList<MediaMetadataCompat>>()
@@ -41,14 +42,21 @@ class BrowseTree(
       putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, resource)
     }.build()
 
-    val albumsMetadata = MediaMetadataCompat.Builder().apply {
+    val downloadsMetadata = MediaMetadataCompat.Builder().apply {
       putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, DOWNLOADS_ROOT)
       putString(MediaMetadataCompat.METADATA_KEY_TITLE, "Downloads")
       putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getUriToDrawable(context, R.drawable.exo_icon_downloaddone).toString())
     }.build()
 
+    val localsMetadata = MediaMetadataCompat.Builder().apply {
+      putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, LOCAL_ROOT)
+      putString(MediaMetadataCompat.METADATA_KEY_TITLE, "Local Audio")
+      putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getUriToDrawable(context, R.drawable.exo_icon_localaudio).toString())
+    }.build()
+
     rootList += allMetadata
-    rootList += albumsMetadata
+    rootList += downloadsMetadata
+    rootList += localsMetadata
     mediaIdToChildren[AUTO_BROWSE_ROOT] = rootList
 
     audiobooks.forEach { audiobook ->
@@ -61,6 +69,13 @@ class BrowseTree(
       allChildren += audiobook.toMediaMetadata()
         mediaIdToChildren[ALL_ROOT] = allChildren
     }
+
+    localAudio.forEach { local ->
+      val localChildren = mediaIdToChildren[LOCAL_ROOT] ?: mutableListOf()
+      localChildren += local.toMediaMetadata()
+      mediaIdToChildren[LOCAL_ROOT] = localChildren
+    }
+    Log.d("BrowseTree", "Set LOCAL AUDIO ${localAudio.size}")
   }
 
   operator fun get(mediaId: String) = mediaIdToChildren[mediaId]
@@ -69,3 +84,4 @@ class BrowseTree(
 const val AUTO_BROWSE_ROOT = "/"
 const val ALL_ROOT = "__ALL__"
 const val DOWNLOADS_ROOT = "__DOWNLOADS__"
+const val LOCAL_ROOT = "__LOCAL__"

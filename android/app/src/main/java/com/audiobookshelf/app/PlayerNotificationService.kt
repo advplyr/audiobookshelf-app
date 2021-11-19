@@ -141,6 +141,19 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     return channelId
   }
 
+  private fun playLocal(local: LocalMediaManager.LocalAudio, playWhenReady: Boolean) {
+    var asd = audiobookManager.initLocalPlay(local)
+    asd.playWhenReady = playWhenReady
+    initPlayer(asd)
+  }
+
+  private fun playFirstLocal(playWhenReady: Boolean) {
+    var localAudio = audiobookManager.getFirstLocal()
+    if (localAudio != null) {
+      playLocal(localAudio, playWhenReady)
+    }
+  }
+
   private fun playAudiobookFromMediaBrowser(audiobook: Audiobook, playWhenReady: Boolean) {
     if (!audiobook.isDownloaded) {
       var streamListener = object : AudiobookManager.OnStreamData {
@@ -152,7 +165,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       }
       audiobookManager.openStream(audiobook, streamListener)
     } else {
-      var asd = audiobookManager.initLocalPlay(audiobook)
+      var asd = audiobookManager.initDownloadPlay(audiobook)
       asd.playWhenReady = playWhenReady
       initPlayer(asd)
     }
@@ -162,12 +175,20 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     var firstAudiobook = audiobookManager.getFirstAudiobook()
     if (firstAudiobook != null) {
       playAudiobookFromMediaBrowser(firstAudiobook, playWhenReady)
+    } else {
+      playFirstLocal(playWhenReady)
     }
   }
 
   private fun openFromMediaId(mediaId: String, playWhenReady: Boolean) {
     var audiobook = audiobookManager.audiobooks.find { it.id == mediaId }
     if (audiobook == null) {
+      var localAudio = audiobookManager.localMediaManager.localAudioFiles.find { it.id == mediaId }
+      if (localAudio != null) {
+        playLocal(localAudio, playWhenReady)
+        return
+      }
+
       Log.e(tag, "Audiobook NOT FOUND")
       return
     }
@@ -470,15 +491,15 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
           }
           KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
             Log.d(tag, "PLAY PAUSE TEST")
-            transportControls.playFromSearch("Brave New World", Bundle())
+//            transportControls.playFromSearch("Brave New World", Bundle())
 
-//            if (mPlayer.isPlaying) {
-//              if (0 == mediaButtonClickCount) pause()
-//              handleMediaButtonClickCount()
-//            } else {
-//              if (0 == mediaButtonClickCount) play()
-//              handleMediaButtonClickCount()
-//            }
+            if (mPlayer.isPlaying) {
+              if (0 == mediaButtonClickCount) pause()
+              handleMediaButtonClickCount()
+            } else {
+              if (0 == mediaButtonClickCount) play()
+              handleMediaButtonClickCount()
+            }
           }
           else -> {
             Log.d(tag, "KeyCode:${keyEvent?.getKeyCode()}")
@@ -834,7 +855,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         audiobookManager.isLoading = false
 
         Log.d(tag, "LOADED AUDIOBOOKS")
-        browseTree = BrowseTree(this, audiobookManager.audiobooks, null)
+        browseTree = BrowseTree(this, audiobookManager.audiobooks, audiobookManager.localMediaManager.localAudioFiles, null)
         val children = browseTree[parentMediaId]?.map { item ->
           MediaBrowserCompat.MediaItem(item.description, flag)
         }
@@ -850,11 +871,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       return
     }
 
-    if (audiobookManager.audiobooks.size == 0) {
-      Log.d(tag, "AudiobookManager: Sending no items")
-      result.sendResult(mediaItems)
-      return
-    }
+//    if (audiobookManager.audiobooks.size == 0) {
+//      Log.d(tag, "AudiobookManager: Sending no items")
+//      result.sendResult(mediaItems)
+//      return
+//    }
 
     val children = browseTree[parentMediaId]?.map { item ->
       MediaBrowserCompat.MediaItem(item.description, flag)
@@ -887,7 +908,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         audiobookManager.isLoading = false
 
         Log.d(tag, "LOADED AUDIOBOOKS")
-        browseTree = BrowseTree(this, audiobookManager.audiobooks, null)
+        browseTree = BrowseTree(this, audiobookManager.audiobooks, audiobookManager.localMediaManager.localAudioFiles, null)
         val children = browseTree[ALL_ROOT]?.map { item ->
           MediaBrowserCompat.MediaItem(item.description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
         }
