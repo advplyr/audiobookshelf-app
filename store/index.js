@@ -16,7 +16,8 @@ export const state = () => ({
   showReader: false,
   downloadFolder: null,
   mediaScanResults: {},
-  showSideDrawer: false
+  showSideDrawer: false,
+  bookshelfView: 'grid'
 })
 
 export const getters = {
@@ -104,5 +105,8 @@ export const mutations = {
   },
   setShowSideDrawer(state, val) {
     state.showSideDrawer = val
+  },
+  setBookshelfView(state, val) {
+    state.bookshelfView = val
   }
 }
