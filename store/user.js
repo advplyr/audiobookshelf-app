@@ -1,7 +1,6 @@
 export const state = () => ({
   user: null,
   userAudiobookData: [],
-  localUserAudiobooks: {},
   settings: {
     mobileOrderBy: 'recent',
     mobileOrderDesc: true,
@@ -23,19 +22,8 @@ export const getters = {
   getToken: (state) => {
     return state.user ? state.user.token : null
   },
-  getUserAudiobook: (state) => (audiobookId) => {
-    return state.user && state.user.audiobooks ? state.user.audiobooks[audiobookId] || null : null
-  },
-  getLocalUserAudiobook: (state) => (audiobookId) => {
-    return state.localUserAudiobooks ? state.localUserAudiobooks[audiobookId] || null : null
-  },
-  getMostRecentUserAudiobookData: (state, getters) => (audiobookId) => {
+  getUserAudiobookData: (state, getters) => (audiobookId) => {
     return state.userAudiobookData.find(uabd => uabd.audiobookId === audiobookId)
-    // var userAb = getters.getUserAudiobook(audiobookId)
-    // var localUserAb = getters.getLocalUserAudiobook(audiobookId)
-    // if (!localUserAb) return userAb
-    // if (!userAb) return localUserAb
-    // return localUserAb.lastUpdate > userAb.lastUpdate ? localUserAb : userAb
   },
   getUserSetting: (state) => (key) => {
     return state.settings ? state.settings[key] || null : null
@@ -130,18 +118,6 @@ export const mutations = {
   },
   setAllUserAudiobookData(state, allAbData) {
     state.userAudiobookData = allAbData
-  },
-  setLocalUserAudiobooks(state, userAudiobooks) {
-    // state.localUserAudiobooks = userAudiobooks
-    // state.userAudiobooksListeners.forEach((listener) => {
-    //   listener.meth()
-    // })
-  },
-  setUserAudiobooks(state, userAudiobooks) {
-    if (!state.user) return
-    state.user.audiobooks = {
-      ...userAudiobooks
-    }
   },
   setUser(state, user) {
     state.user = user

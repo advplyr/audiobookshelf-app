@@ -130,7 +130,7 @@ export default {
       return this.$store.state.downloads.downloads
     },
     mediaScanResults() {
-      return this.$store.state.mediaScanResults
+      return this.$store.state.downloads.mediaScanResults
     }
   },
   methods: {
@@ -156,7 +156,12 @@ export default {
 
         await this.$localStore.setDownloadFolder(folderObj)
 
-        this.searchFolder()
+        await this.searchFolder()
+
+        var audiobooks = this.$store.state.audiobooks.audiobooks || []
+        if (audiobooks.length) {
+          this.$store.dispatch('downloads/linkOrphanDownloads', audiobooks)
+        }
       }
     },
     async searchFolder() {
@@ -175,7 +180,7 @@ export default {
           }
           return sr
         })
-        this.$store.commit('setMediaScanResults', searchResults)
+        this.$store.commit('downloads/setMediaScanResults', searchResults)
       } else {
         this.$toast.warning('No audio or image files found')
       }
@@ -183,7 +188,7 @@ export default {
     },
     async resetFolder() {
       await this.$localStore.setDownloadFolder(null)
-      this.$store.commit('setMediaScanResults', {})
+      this.$store.commit('downloads/setMediaScanResults', {})
       this.$toast.info('Unlinked Folder')
     },
     jumpToAudiobook(download) {

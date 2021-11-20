@@ -82,7 +82,7 @@ export default {
       return this.$store.getters['user/getUserSetting']('mobileOrderBy')
     },
     mostRecentUserProgress() {
-      return this.$store.getters['user/getMostRecentUserAudiobookData'](this.audiobookId)
+      return this.$store.getters['user/getUserAudiobookData'](this.audiobookId)
     },
     userProgressPercent() {
       return this.mostRecentUserProgress ? this.mostRecentUserProgress.progress || 0 : 0
