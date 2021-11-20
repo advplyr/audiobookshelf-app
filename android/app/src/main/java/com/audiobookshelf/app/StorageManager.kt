@@ -11,10 +11,7 @@ import com.anggrayudi.storage.SimpleStorage
 import com.anggrayudi.storage.callback.FolderPickerCallback
 import com.anggrayudi.storage.callback.StorageAccessCallback
 import com.anggrayudi.storage.file.*
-import com.getcapacitor.JSObject
-import com.getcapacitor.Plugin
-import com.getcapacitor.PluginCall
-import com.getcapacitor.PluginMethod
+import com.getcapacitor.*
 import com.getcapacitor.annotation.CapacitorPlugin
 
 @CapacitorPlugin(name = "StorageManager")
@@ -160,7 +157,17 @@ class StorageManager : Plugin() {
     var folderUrl = call.data.getString("folderUrl", "").toString()
     Log.d(TAG, "Searching folder $folderUrl")
 
-    var df: DocumentFile = DocumentFileCompat.fromUri(context, Uri.parse(folderUrl))!!
+    var df: DocumentFile? = DocumentFileCompat.fromUri(context, Uri.parse(folderUrl))
+
+    if (df == null) {
+      Log.e(TAG, "Folder Doc File Invalid $folderUrl")
+      var jsobj = JSObject()
+      jsobj.put("folders", JSArray())
+      jsobj.put("files", JSArray())
+      call.resolve(jsobj)
+      return
+    }
+
     Log.d(TAG, "Folder as DF ${df.isDirectory} | ${df.getSimplePath(context)} | ${df.getBasePath(context)} | ${df.name}")
 
     var mediaFolders = mutableListOf<MediaFolder>()

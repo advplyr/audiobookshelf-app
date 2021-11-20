@@ -1,12 +1,19 @@
 package com.audiobookshelf.app
 
+import android.Manifest
 import android.content.ContentUris
 import android.content.Context
+import android.content.pm.PackageManager
 import android.database.Cursor
 import android.net.Uri
+import android.os.Build
 import android.provider.MediaStore
 import android.support.v4.media.MediaMetadataCompat
 import android.util.Log
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.app.ActivityCompat.shouldShowRequestPermissionRationale
+import androidx.core.content.ContextCompat
+import androidx.core.content.PermissionChecker.PERMISSION_GRANTED
 
 class LocalMediaManager {
   private var ctx: Context
@@ -40,8 +47,23 @@ class LocalMediaManager {
   fun loadLocalAudio() {
     Log.d(tag, "Media store looking for local audio files")
 
+
+    if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+      Log.e(tag, "Permission not granted to read from external storage")
+      return
+    }
+
+    val collection =
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        MediaStore.Audio.Media.getContentUri(
+          MediaStore.VOLUME_EXTERNAL
+        )
+      } else {
+        MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+      }
+
     val proj = arrayOf(MediaStore.Audio.Media._ID, MediaStore.Audio.Media.DISPLAY_NAME, MediaStore.Audio.Media.DURATION, MediaStore.Audio.Media.SIZE)
-    val audioCursor: Cursor? = ctx.contentResolver.query(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, proj, null, null, null)
+    val audioCursor: Cursor? = ctx.contentResolver.query(collection, proj, null, null, null)
 
     audioCursor?.use { cursor ->
       // Cache column indices.
