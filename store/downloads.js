@@ -36,6 +36,9 @@ export const mutations = {
     state.showModal = val
   },
   setDownload(state, download) {
+    if (!download || !download.id) {
+      return
+    }
     var index = state.downloads.findIndex(d => d.id === download.id)
     if (index >= 0) {
       state.downloads.splice(index, 1, download)
@@ -44,6 +47,9 @@ export const mutations = {
     }
   },
   addUpdateDownload(state, download) {
+    if (!download || !download.id) {
+      return
+    }
     var index = state.downloads.findIndex(d => d.id === download.id)
     if (index >= 0) {
       state.downloads.splice(index, 1, download)

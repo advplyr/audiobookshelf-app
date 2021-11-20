@@ -115,17 +115,19 @@ class AudiobookManager {
       Log.d(tag, "keyvalue ${it.getString("key")} | ${it.getString("value")}")
 
       var dlobj = JSObject(it.getString("value"))
-      var abobj = dlobj.getJSObject("audiobook")!!
-      abobj.put("isDownloaded", true)
-      abobj.put("contentUrl", dlobj.getString("contentUrl", "").toString())
-      abobj.put("filename", dlobj.getString("filename", "").toString())
-      abobj.put("folderUrl", dlobj.getString("folderUrl", "").toString())
-      abobj.put("downloadFolderUrl", dlobj.getString("downloadFolderUrl", "").toString())
-      abobj.put("localCoverUrl", dlobj.getString("coverUrl", "").toString())
-      abobj.put("localCover", dlobj.getString("cover", "").toString())
+      if (dlobj.has("audiobook")) {
+        var abobj = dlobj.getJSObject("audiobook")!!
+        abobj.put("isDownloaded", true)
+        abobj.put("contentUrl", dlobj.getString("contentUrl", "").toString())
+        abobj.put("filename", dlobj.getString("filename", "").toString())
+        abobj.put("folderUrl", dlobj.getString("folderUrl", "").toString())
+        abobj.put("downloadFolderUrl", dlobj.getString("downloadFolderUrl", "").toString())
+        abobj.put("localCoverUrl", dlobj.getString("coverUrl", "").toString())
+        abobj.put("localCover", dlobj.getString("cover", "").toString())
 
-      var audiobook = Audiobook(abobj, serverUrl, token)
-      audiobooks.add(audiobook)
+        var audiobook = Audiobook(abobj, serverUrl, token)
+        audiobooks.add(audiobook)
+      }
     }
   }
 
