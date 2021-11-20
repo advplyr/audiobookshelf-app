@@ -231,4 +231,27 @@ class MyNativeAudio : Plugin() {
     playerNotificationService.cancelSleepTimer()
     call.resolve()
   }
+
+  @PluginMethod
+  fun requestSession(call:PluginCall) {
+    Log.d(tag, "CAST REQUEST SESSION PLUGIN")
+
+      playerNotificationService.requestSession(mainActivity, object : PlayerNotificationService.RequestSessionCallback() {
+        override fun onError(errorCode: Int) {
+          Log.e(tag, "CAST REQUEST SESSION CALLBACK ERROR $errorCode")
+        }
+
+        override fun onCancel() {
+          Log.d(tag, "CAST REQUEST SESSION ON CANCEL")
+        }
+
+        override fun onJoin(jsonSession: JSONObject?) {
+          Log.d(tag, "CAST REQUEST SESSION ON JOIN")
+        }
+
+      })
+
+
+
+  }
 }

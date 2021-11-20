@@ -1,10 +1,14 @@
 package com.audiobookshelf.app
 
+import android.Manifest
 import android.app.DownloadManager
 import android.app.SearchManager
 import android.content.*
+import android.content.pm.PackageManager
 import android.os.*
 import android.util.Log
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import com.anggrayudi.storage.SimpleStorage
 import com.anggrayudi.storage.SimpleStorageHelper
 import com.getcapacitor.BridgeActivity
@@ -40,13 +44,6 @@ class MainActivity : BridgeActivity() {
 
   public override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-
-    // REMOVE FOR TESTING
-    Log.d(tag, "STARTING UP APP")
-//    var client: OkHttpClient = OkHttpClient()
-//    var abManager = AudiobookManager(this, client)
-//    abManager.init()
-//    abManager.fetchAudiobooks()
 
     Log.d(tag, "onCreate")
     registerPlugin(MyNativeAudio::class.java)
