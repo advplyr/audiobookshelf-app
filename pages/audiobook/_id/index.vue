@@ -35,7 +35,7 @@
             <span class="material-icons">auto_stories</span>
             <span v-if="!showPlay" class="px-2 text-base">Read {{ ebookFormat }}</span>
           </ui-btn>
-          <ui-btn v-if="isConnected && showPlay" color="primary" :disabled="isPlaying" class="flex items-center justify-center" :padding-x="2" @click="downloadClick">
+          <ui-btn v-if="isConnected && showPlay" color="primary" class="flex items-center justify-center" :padding-x="2" @click="downloadClick">
             <span class="material-icons" :class="downloadObj ? 'animate-pulse' : ''">{{ downloadObj ? (isDownloading || isDownloadPreparing ? 'downloading' : 'download_done') : 'download' }}</span>
           </ui-btn>
         </div>
@@ -218,6 +218,15 @@ export default {
 
       if (value) {
         this.resettingProgress = true
+        this.$store.dispatch('user/updateUserAudiobookData', {
+          audiobookId: this.audiobookId,
+          currentTime: 0,
+          totalDuration: this.duration,
+          progress: 0,
+          lastUpdate: Date.now(),
+          isRead: false
+        })
+
         if (this.$server.connected) {
           await this.$axios
             .$patch(`/api/user/audiobook/${this.audiobookId}/reset-progress`)
@@ -229,14 +238,7 @@ export default {
               console.error('Progress reset failed', error)
             })
         }
-        this.$localStore.updateUserAudiobookData({
-          audiobookId: this.audiobookId,
-          currentTime: 0,
-          totalDuration: this.duration,
-          progress: 0,
-          lastUpdate: Date.now(),
-          isRead: false
-        })
+
         this.resettingProgress = false
       }
     },
@@ -252,6 +254,7 @@ export default {
         })
     },
     downloadClick() {
+      console.log('downloadClick ' + this.$server.connected + ' | ' + !!this.downloadObj)
       if (!this.$server.connected) return
 
       if (this.downloadObj) {
@@ -260,24 +263,47 @@ export default {
         this.prepareDownload()
       }
     },
+    async changeDownloadFolderClick() {
+      if (!this.hasStoragePermission) {
+        console.log('Requesting Storage Permission')
+        await StorageManager.requestStoragePermission()
+      } else {
+        var folderObj = await StorageManager.selectFolder()
+        if (folderObj.error) {
+          return this.$toast.error(`Error: ${folderObj.error || 'Unknown Error'}`)
+        }
+
+        var permissionsGood = await StorageManager.checkFolderPermissions({ folderUrl: folderObj.uri })
+        console.log('Storage Permission check folder ' + permissionsGood)
+
+        if (!permissionsGood) {
+          this.$toast.error('Folder permissions failed')
+          return
+        } else {
+          this.$toast.success('Folder permission success')
+        }
+
+        await this.$localStore.setDownloadFolder(folderObj)
+      }
+    },
     async prepareDownload() {
       var audiobook = this.audiobook
       if (!audiobook) {
         return
       }
 
-      if (!this.hasStoragePermission) {
-        this.$store.commit('downloads/setShowModal', true)
-        return
-      }
-
       // Download Path
       var dlFolder = this.$localStore.downloadFolder
-      if (!dlFolder) {
+      console.log('Prepare download: ' + this.hasStoragePermission + ' | ' + dlFolder)
+
+      if (!this.hasStoragePermission || !dlFolder) {
         console.log('No download folder, request from user')
         // User to select download folder from download modal to ensure permissions
-        this.$store.commit('downloads/setShowModal', true)
+        // this.$store.commit('downloads/setShowModal', true)
+        this.changeDownloadFolderClick()
         return
+      } else {
+        console.log('Has Download folder: ' + JSON.stringify(dlFolder))
       }
 
       var downloadObject = {

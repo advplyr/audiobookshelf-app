@@ -11,7 +11,7 @@
         :sleep-timer-end-of-chapter-time="sleepTimerEndOfChapterTime"
         :sleep-timeout-current-time="sleepTimeoutCurrentTime"
         @close="cancelStream"
-        @updateTime="updateTime"
+        @sync="sync"
         @selectPlaybackSpeed="showPlaybackSpeedModal = true"
         @selectChapter="clickChapterBtn"
         @showSleepTimer="showSleepTimer"
@@ -260,6 +260,35 @@ export default {
         }
       }
     },
+    sync(syncData) {
+      var diff = syncData.currentTime - this.lastServerUpdateSentSeconds
+      if (Math.abs(diff) < 1 && !syncData.timeListened) {
+        // No need to sync
+        return
+      }
+
+      if (this.stream) {
+        this.$server.socket.emit('stream_sync', syncData)
+      } else {
+        var progressUpdate = {
+          audiobookId: syncData.audiobookId,
+          currentTime: syncData.currentTime,
+          totalDuration: syncData.totalDuration,
+          progress: Number((syncData.currentTime / syncData.totalDuration).toFixed(3)),
+          lastUpdate: Date.now(),
+          isRead: false
+        }
+
+        if (this.$server.connected) {
+          this.$server.socket.emit('progress_update', progressUpdate)
+        } else {
+          this.$store.dispatch('user/updateUserAudiobookData', progressUpdate)
+          // this.$localStore.updateUserAudiobookData(progressUpdate).then(() => {
+          //   console.log('Updated user audiobook progress', currentTime)
+          // })
+        }
+      }
+    },
     updateTime(currentTime) {
       this.currentTime = currentTime
 
@@ -366,7 +395,8 @@ export default {
         series: this.seriesTxt,
         token: this.userToken,
         contentUrl: this.playingDownload.contentUrl,
-        isLocal: true
+        isLocal: true,
+        audiobookId: this.download.id
       }
 
       this.$refs.audioPlayer.set(audiobookStreamData, null, false)
@@ -406,7 +436,8 @@ export default {
         duration: String(Math.floor(this.duration * 1000)),
         series: this.seriesTxt,
         playlistUrl: this.$server.url + playlistUrl,
-        token: this.$store.getters['user/getToken']
+        token: this.$store.getters['user/getToken'],
+        audiobookId: this.audiobookId
       }
       this.$refs.audioPlayer.set(audiobookStreamData, stream, !this.stream)
 

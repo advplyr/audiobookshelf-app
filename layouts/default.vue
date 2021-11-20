@@ -47,7 +47,9 @@ export default {
   methods: {
     async connected(isConnected) {
       if (isConnected) {
-        this.syncUserProgress()
+        // this.syncUserProgress()
+        console.log('[Default] Connected socket sync user ab data')
+        this.$store.dispatch('user/syncUserAudiobookData')
 
         // Load libraries
         this.$store.dispatch('libraries/load')
@@ -109,9 +111,11 @@ export default {
     currentUserAudiobookUpdate({ id, data }) {
       if (data) {
         console.log(`Current User Audiobook Updated ${id} ${JSON.stringify(data)}`)
-        this.$localStore.updateUserAudiobookData(data)
+        // this.$localStore.updateUserAudiobookData(data)
+        this.$sqlStore.setUserAudiobookData(data)
       } else {
-        this.$localStore.removeAudiobookProgress(id)
+        // this.$localStore.removeAudiobookProgress(id)
+        this.$sqlStore.removeUserAudiobookData(id)
       }
     },
     initialStream(stream) {
@@ -445,6 +449,10 @@ export default {
     if (!this.$server) return console.error('No Server')
     // console.log(`Default Mounted set SOCKET listeners ${this.$server.connected}`)
 
+    if (!this.$server.connected) {
+      console.log('Syncing on default mount')
+      this.$store.dispatch('user/syncUserAudiobookData')
+    }
     this.$server.on('connected', this.connected)
     this.$server.on('connectionFailed', this.socketConnectionFailed)
     this.$server.on('initialStream', this.initialStream)
@@ -459,28 +467,6 @@ export default {
       this.checkForUpdate()
       this.initMediaStore()
     }
-
-    if (!this.$server.connected) {
-    }
-
-    // Old bad attempt at AA
-    // MyNativeAudio.addListener('onPrepareMedia', (data) => {
-    //   var audiobookId = data.audiobookId
-    //   var playWhenReady = data.playWhenReady
-
-    //   var audiobook = this.$store.getters['audiobooks/getAudiobook'](audiobookId)
-
-    //   var download = this.$store.getters['downloads/getDownloadIfReady'](audiobookId)
-    //   this.$store.commit('setPlayOnLoad', playWhenReady)
-    //   if (!download) {
-    //     // Stream
-    //     this.$store.commit('setStreamAudiobook', audiobook)
-    //     this.$server.socket.emit('open_stream', audiobook.id)
-    //   } else {
-    //     // Local
-    //     this.$store.commit('setPlayingDownload', download)
-    //   }
-    // })
   },
   beforeDestroy() {
     if (!this.$server) {

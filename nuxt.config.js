@@ -14,7 +14,7 @@ export default {
   },
 
   head: {
-    title: 'AudioBookshelf',
+    title: 'Audiobookshelf',
     htmlAttrs: {
       lang: 'en'
     },
@@ -36,7 +36,8 @@ export default {
 
   plugins: [
     '@/plugins/server.js',
-    '@/plugins/store.js',
+    '@/plugins/sqlStore.js',
+    '@/plugins/localStore.js',
     '@/plugins/init.client.js',
     '@/plugins/axios.js',
     '@/plugins/my-native-audio.js',

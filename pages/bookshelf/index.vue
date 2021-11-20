@@ -29,7 +29,7 @@ export default {
         .map((b) => ({ ...b }))
         .filter((b) => b.userAbData && !b.userAbData.isRead && b.userAbData.progress > 0)
         .sort((a, b) => {
-          return a.userAbData.lastUpdate - b.userAbData.lastUpdate
+          return b.userAbData.lastUpdate - a.userAbData.lastUpdate
         })
       return books
     },
@@ -38,14 +38,14 @@ export default {
         .map((b) => {
           return { ...b }
         })
-        .sort((a, b) => a.addedAt - b.addedAt)
+        .sort((a, b) => b.addedAt - a.addedAt)
       return books.slice(0, 10)
     },
     booksRead() {
       var books = this.booksWithUserAbData
         .filter((b) => b.userAbData && b.userAbData.isRead)
         .sort((a, b) => {
-          return a.userAbData.lastUpdate - b.userAbData.lastUpdate
+          return b.userAbData.lastUpdate - a.userAbData.lastUpdate
         })
       return books.slice(0, 10)
     },

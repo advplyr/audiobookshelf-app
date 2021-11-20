@@ -1,5 +1,6 @@
 export const state = () => ({
   user: null,
+  userAudiobookData: [],
   localUserAudiobooks: {},
   settings: {
     mobileOrderBy: 'recent',
@@ -29,11 +30,12 @@ export const getters = {
     return state.localUserAudiobooks ? state.localUserAudiobooks[audiobookId] || null : null
   },
   getMostRecentUserAudiobookData: (state, getters) => (audiobookId) => {
-    var userAb = getters.getUserAudiobook(audiobookId)
-    var localUserAb = getters.getLocalUserAudiobook(audiobookId)
-    if (!localUserAb) return userAb
-    if (!userAb) return localUserAb
-    return localUserAb.lastUpdate > userAb.lastUpdate ? localUserAb : userAb
+    return state.userAudiobookData.find(uabd => uabd.audiobookId === audiobookId)
+    // var userAb = getters.getUserAudiobook(audiobookId)
+    // var localUserAb = getters.getLocalUserAudiobook(audiobookId)
+    // if (!localUserAb) return userAb
+    // if (!userAb) return localUserAb
+    // return localUserAb.lastUpdate > userAb.lastUpdate ? localUserAb : userAb
   },
   getUserSetting: (state) => (key) => {
     return state.settings ? state.settings[key] || null : null
@@ -85,15 +87,55 @@ export const actions = {
       console.error('Failed to get collections', error)
       return []
     })
+  },
+  async syncUserAudiobookData({ state, commit }) {
+    if (!state.user) {
+      console.error('Sync user audiobook data invalid no user')
+      return
+    }
+    var localUserAudiobookData = await this.$sqlStore.getAllUserAudiobookData() || []
+    this.$axios.$post(`/api/syncUserAudiobookData`, { data: localUserAudiobookData }).then(async (abData) => {
+      console.log('Synced user audiobook data', abData)
+      await this.$sqlStore.setAllUserAudiobookData(abData)
+    }).catch((error) => {
+      console.error('Failed to sync user ab data', error)
+    })
+  },
+  async updateUserAudiobookData({ state, commit }, uabdUpdate) {
+    var userAbData = state.userAudiobookData.find(uab => uab.audiobookId === uabdUpdate.audiobookId)
+    if (!userAbData) {
+      uabdUpdate.startedAt = Date.now()
+      this.$sqlStore.setUserAudiobookData(uabdUpdate)
+    } else {
+      var mergedUabData = { ...userAbData }
+      for (const key in uabdUpdate) {
+        mergedUabData[key] = uabdUpdate[key]
+      }
+      this.$sqlStore.setUserAudiobookData(mergedUabData)
+    }
   }
 }
 
 export const mutations = {
+  setUserAudiobookData(state, abdata) {
+    var index = state.userAudiobookData.findIndex(uab => uab.audiobookId === abdata.audiobookId)
+    if (index >= 0) {
+      state.userAudiobookData.splice(index, 1, abdata)
+    } else {
+      state.userAudiobookData.push(abdata)
+    }
+  },
+  removeUserAudiobookData(state, audiobookId) {
+    state.userAudiobookData = state.userAudiobookData.filter(uab => uab.audiobookId !== audiobookId)
+  },
+  setAllUserAudiobookData(state, allAbData) {
+    state.userAudiobookData = allAbData
+  },
   setLocalUserAudiobooks(state, userAudiobooks) {
-    state.localUserAudiobooks = userAudiobooks
-    state.userAudiobooksListeners.forEach((listener) => {
-      listener.meth()
-    })
+    // state.localUserAudiobooks = userAudiobooks
+    // state.userAudiobooksListeners.forEach((listener) => {
+    //   listener.meth()
+    // })
   },
   setUserAudiobooks(state, userAudiobooks) {
     if (!state.user) return

@@ -98,6 +98,8 @@ export default {
       currentTime: 0,
       isResetting: false,
       initObject: null,
+      streamId: null,
+      audiobookId: null,
       stateName: 'idle',
       playInterval: null,
       trackWidth: 0,
@@ -111,10 +113,13 @@ export default {
       seekLoading: false,
       onPlayingUpdateListener: null,
       onMetadataListener: null,
-      noSyncUpdateTime: false,
+      // noSyncUpdateTime: false,
       touchStartY: 0,
       touchStartTime: 0,
-      touchEndY: 0
+      touchEndY: 0,
+      listenTimeInterval: null,
+      listeningTimeSinceLastUpdate: 0,
+      totalListeningTimeInSession: 0
     }
   },
   computed: {
@@ -153,6 +158,62 @@ export default {
     }
   },
   methods: {
+    sendStreamSync(timeListened = 0) {
+      var syncData = {
+        timeListened,
+        currentTime: this.currentTime,
+        streamId: this.streamId,
+        audiobookId: this.audiobookId,
+        totalDuration: this.totalDuration
+      }
+      this.$emit('sync', syncData)
+    },
+    sendAddListeningTime() {
+      var listeningTimeToAdd = Math.floor(this.listeningTimeSinceLastUpdate)
+      this.listeningTimeSinceLastUpdate = Math.max(0, this.listeningTimeSinceLastUpdate - listeningTimeToAdd)
+      this.sendStreamSync(listeningTimeToAdd)
+    },
+    cancelListenTimeInterval() {
+      this.sendAddListeningTime()
+      clearInterval(this.listenTimeInterval)
+      this.listenTimeInterval = null
+    },
+    startListenTimeInterval() {
+      clearInterval(this.listenTimeInterval)
+      var lastTime = this.currentTime
+      var lastTick = Date.now()
+      var noProgressCount = 0
+      this.listenTimeInterval = setInterval(() => {
+        var timeSinceLastTick = Date.now() - lastTick
+        lastTick = Date.now()
+
+        var expectedAudioTime = lastTime + timeSinceLastTick / 1000
+        var currentTime = this.currentTime
+        var differenceFromExpected = expectedAudioTime - currentTime
+        if (currentTime === lastTime) {
+          noProgressCount++
+          if (noProgressCount > 3) {
+            console.error('Audio current time has not increased - cancel interval and pause player')
+            this.pause()
+          }
+        } else if (Math.abs(differenceFromExpected) > 0.1) {
+          noProgressCount = 0
+          console.warn('Invalid time between interval - resync last', differenceFromExpected)
+          lastTime = currentTime
+        } else {
+          noProgressCount = 0
+          var exactPlayTimeDifference = currentTime - lastTime
+          // console.log('Difference from expected', differenceFromExpected, 'Exact play time diff', exactPlayTimeDifference)
+          lastTime = currentTime
+          this.listeningTimeSinceLastUpdate += exactPlayTimeDifference
+          this.totalListeningTimeInSession += exactPlayTimeDifference
+          // console.log('Time since last update:', this.listeningTimeSinceLastUpdate, 'Session listening time:', this.totalListeningTimeInSession)
+          if (this.listeningTimeSinceLastUpdate > 5) {
+            this.sendAddListeningTime()
+          }
+        }
+      }, 1000)
+    },
     clickContainer() {
       this.showFullscreen = true
     },
@@ -200,9 +261,9 @@ export default {
       if (this.loading) return
       MyNativeAudio.seekForward({ amount: '10000' })
     },
-    sendStreamUpdate() {
-      this.$emit('updateTime', this.currentTime)
-    },
+    // sendStreamUpdate() {
+    //   this.$emit('updateTime', this.currentTime)
+    // },
     setStreamReady() {
       this.readyTrackWidth = this.trackWidth
       this.$refs.readyTrack.style.width = this.trackWidth + 'px'
@@ -251,8 +312,8 @@ export default {
       }
 
       this.updateTimestamp()
-      if (this.noSyncUpdateTime) this.noSyncUpdateTime = false
-      else this.sendStreamUpdate()
+      // if (this.noSyncUpdateTime) this.noSyncUpdateTime = false
+      // else this.sendStreamUpdate()
 
       var perc = this.currentTime / this.totalDuration
       var ptWidth = Math.round(perc * this.trackWidth)
@@ -283,7 +344,6 @@ export default {
         this.$refs.playedTrack.classList.add('bg-yellow-300')
       }
     },
-    updateVolume(volume) {},
     clickTrack(e) {
       if (this.loading) return
       var offsetX = e.offsetX
@@ -318,6 +378,8 @@ export default {
     },
     async set(audiobookStreamData, stream, fromAppDestroy) {
       this.isResetting = false
+      this.streamId = stream ? stream.id : null
+      this.audiobookId = audiobookStreamData.audiobookId
       this.initObject = { ...audiobookStreamData }
 
       var init = true
@@ -397,6 +459,8 @@ export default {
       this.stopPlayInterval()
     },
     startPlayInterval() {
+      this.startListenTimeInterval()
+
       clearInterval(this.playInterval)
       this.playInterval = setInterval(async () => {
         var data = await MyNativeAudio.getCurrentTime()
@@ -405,6 +469,7 @@ export default {
       }, 1000)
     },
     stopPlayInterval() {
+      this.cancelListenTimeInterval()
       clearInterval(this.playInterval)
     },
     resetStream(startTime) {
@@ -438,7 +503,7 @@ export default {
         this.setFromObj()
       }
 
-      if (this.stateName === 'ready_no_sync' || this.stateName === 'buffering_no_sync') this.noSyncUpdateTime = true
+      // if (this.stateName === 'ready_no_sync' || this.stateName === 'buffering_no_sync') this.noSyncUpdateTime = true
 
       this.timeupdate()
     },
