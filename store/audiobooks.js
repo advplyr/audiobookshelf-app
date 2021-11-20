@@ -1,4 +1,3 @@
-import MyNativeAudio from '@/plugins/my-native-audio'
 import { sort } from '@/assets/fastSort'
 import { decode } from '@/plugins/init.client'
 
@@ -38,7 +37,7 @@ export const getters = {
       else if (group === 'authors') filtered = filtered.filter(ab => ab.book && ab.book.author === filter)
       else if (group === 'progress') {
         filtered = filtered.filter(ab => {
-          var userAudiobook = rootGetters['user/getUserAudiobook'](ab.id)
+          var userAudiobook = rootGetters['user/getUserAudiobookData'](ab.id)
           var isRead = userAudiobook && userAudiobook.isRead
           if (filter === 'Read' && isRead) return true
           if (filter === 'Unread' && !isRead) return true
@@ -57,7 +56,7 @@ export const getters = {
 
     if (settings.mobileOrderBy === 'recent') {
       return sort(filtered)[direction]((ab) => {
-        var abprogress = rootGetters['user/getMostRecentUserAudiobookData'](ab.id)
+        var abprogress = rootGetters['user/getUserAudiobookData'](ab.id)
         if (!abprogress) return 0
         return abprogress.lastUpdate
       })
@@ -142,7 +141,7 @@ export const getters = {
 }
 
 export const actions = {
-  load({ state, commit, rootState }) {
+  load({ state, commit, dispatch, rootState }) {
     if (!rootState.user || !rootState.user.user) {
       console.error('audiobooks/load - User not set')
       return false
@@ -169,6 +168,8 @@ export const actions = {
         commit('set', data)
         commit('setLastLoad')
         commit('setLoading', false)
+
+        dispatch('downloads/linkOrphanDownloads', data, { root: true })
       })
       .catch((error) => {
         console.error('Failed', error)

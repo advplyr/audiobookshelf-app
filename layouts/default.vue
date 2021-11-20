@@ -17,7 +17,6 @@ import { Capacitor } from '@capacitor/core'
 import { Network } from '@capacitor/network'
 import { AppUpdate } from '@robingenz/capacitor-app-update'
 import AudioDownloader from '@/plugins/audio-downloader'
-import MyNativeAudio from '@/plugins/my-native-audio'
 import StorageManager from '@/plugins/storage-manager'
 
 export default {
@@ -47,7 +46,6 @@ export default {
   methods: {
     async connected(isConnected) {
       if (isConnected) {
-        // this.syncUserProgress()
         console.log('[Default] Connected socket sync user ab data')
         this.$store.dispatch('user/syncUserAudiobookData')
 
@@ -58,63 +56,11 @@ export default {
     socketConnectionFailed(err) {
       this.$toast.error('Socket connection error: ' + err.message)
     },
-    updateAudiobookProgressOnServer(audiobookProgress) {
-      if (this.$server.socket) {
-        console.log(`[PROGRESSSYNC] Updating AB Progress on server ${JSON.stringify(audiobookProgress)}`)
-        this.$server.socket.emit('progress_update', audiobookProgress)
-      }
-    },
-    syncUserProgress() {
-      if (!this.$store.state.user.user) return
-
-      var userAudiobooks = this.$store.state.user.user.audiobooks
-      var localAudiobooks = this.$store.state.user.localUserAudiobooks
-      var localHasUpdates = false
-
-      // console.log('[PROGRESSSYNC] Starting Sync USER', JSON.stringify(userAudiobooks))
-      // console.log('[PROGRESSSYNC] Starting Sync LOCAL', JSON.stringify(localAudiobooks))
-
-      var newestLocal = { ...localAudiobooks }
-      for (const audiobookId in userAudiobooks) {
-        if (!audiobookId || !userAudiobooks[audiobookId] || audiobookId === 'undefined') {
-          console.error(`[PROGRESSSYNC] Invalid audiobookId ${audiobookId} - ${JSON.stringify(userAudiobooks[audiobookId])}`)
-        } else if (localAudiobooks[audiobookId]) {
-          if (localAudiobooks[audiobookId].lastUpdate > userAudiobooks[audiobookId].lastUpdate) {
-            // Local progress is more recent than user progress
-            this.updateAudiobookProgressOnServer(localAudiobooks[audiobookId])
-          } else if (localAudiobooks[audiobookId].lastUpdate < userAudiobooks[audiobookId].lastUpdate) {
-            // Server is more recent than local
-            newestLocal[audiobookId] = userAudiobooks[audiobookId]
-            // console.log('[PROGRESSSYNC] Server IS MORE RECENT for', audiobookId, JSON.stringify(newestLocal[audiobookId]))
-            localHasUpdates = true
-          }
-        } else {
-          // Not on local yet - store on local
-          newestLocal[audiobookId] = userAudiobooks[audiobookId]
-          // console.log('[PROGRESSSYNC] LOCAL Is NOT Stored YET for', audiobookId, JSON.stringify(newestLocal[audiobookId]))
-          localHasUpdates = true
-        }
-      }
-
-      for (const audiobookId in localAudiobooks) {
-        if (!userAudiobooks[audiobookId]) {
-          // Local progress is not on server
-          this.updateAudiobookProgressOnServer(localAudiobooks[audiobookId])
-        }
-      }
-
-      if (localHasUpdates) {
-        // console.log('[PROGRESSSYNC] Local audiobook progress has updates from server')
-        this.$localStore.setAllAudiobookProgress(newestLocal)
-      }
-    },
     currentUserAudiobookUpdate({ id, data }) {
       if (data) {
         console.log(`Current User Audiobook Updated ${id} ${JSON.stringify(data)}`)
-        // this.$localStore.updateUserAudiobookData(data)
         this.$sqlStore.setUserAudiobookData(data)
       } else {
-        // this.$localStore.removeAudiobookProgress(id)
         this.$sqlStore.removeUserAudiobookData(id)
       }
     },
@@ -131,16 +77,6 @@ export default {
         await AppUpdate.openAppStore()
       }
     },
-    // showUpdateToast(availableVersion, immediateUpdateAllowed) {
-    //   var toastText = immediateUpdateAllowed ? `Click here to update` : `Click here to open app store`
-    //   this.$toast.info(`Update is available for v${availableVersion}! ${toastText}`, {
-    //     draggable: false,
-    //     hideProgressBar: false,
-    //     timeout: 10000,
-    //     closeButton: false,
-    //     onClick: this.clickUpdateToast()
-    //   })
-    // },
     async checkForUpdate() {
       console.log('Checking for app update')
       const result = await AppUpdate.getAppUpdateInfo()
@@ -274,10 +210,9 @@ export default {
     },
     async syncDownloads(downloads, downloadFolder) {
       console.log('Syncing downloads ' + downloads.length)
-
       var mediaScanResults = await this.searchFolder(downloadFolder)
 
-      this.$store.commit('setMediaScanResults', mediaScanResults)
+      this.$store.commit('downloads/setMediaScanResults', mediaScanResults)
 
       // Filter out media folders without any audio files
       var mediaFolders = mediaScanResults.folders.filter((sr) => {
@@ -308,42 +243,6 @@ export default {
         }
       })
     },
-    // async onMediaLoaded(items) {
-    //   var jsitems = JSON.parse(items)
-    //   jsitems = jsitems.map((item) => {
-    //     return {
-    //       filename: item.name,
-    //       size: item.size,
-    //       contentUrl: item.uri,
-    //       coverUrl: item.coverUrl || null
-    //     }
-    //   })
-
-    //   var downloads = await this.$sqlStore.getAllDownloads()
-
-    //   for (let i = 0; i < downloads.length; i++) {
-    //     var download = downloads[i]
-    //     var jsitem = jsitems.find((item) => item.contentUrl === download.contentUrl)
-    //     if (!jsitem) {
-    //       console.error('Removing download was not found', JSON.stringify(download))
-    //       await this.$sqlStore.removeDownload(download.id)
-    //     } else if (download.coverUrl && !jsitem.coverUrl) {
-    //       console.error('Removing cover for download was not found')
-    //       download.cover = null
-    //       download.coverUrl = null
-    //       download.size = jsitem.size || 0
-    //       this.$store.commit('downloads/addUpdateDownload', download)
-    //       this.$store.commit('audiobooks/addUpdate', download.audiobook)
-    //     } else {
-    //       download.size = jsitem.size || 0
-    //       this.$store.commit('downloads/addUpdateDownload', download)
-    //       this.$store.commit('audiobooks/addUpdate', download.audiobook)
-    //     }
-    //   }
-
-    //   this.checkLoadCurrent()
-    //   this.$store.dispatch('audiobooks/setNativeAudiobooks')
-    // },
     async initMediaStore() {
       // Request and setup listeners for media files on native
       AudioDownloader.addListener('onDownloadComplete', (data) => {
@@ -352,19 +251,14 @@ export default {
       AudioDownloader.addListener('onDownloadFailed', (data) => {
         this.onDownloadFailed(data)
       })
-      // AudioDownloader.addListener('onMediaLoaded', (data) => {
-      //   this.onMediaLoaded(data.items)
-      // })
       AudioDownloader.addListener('onDownloadProgress', (data) => {
         this.onDownloadProgress(data)
       })
 
-      await this.$localStore.loadUserAudiobooks()
-
-      var downloads = await this.$sqlStore.getAllDownloads()
+      var downloads = (await this.$sqlStore.getAllDownloads()) || []
       var downloadFolder = await this.$localStore.getDownloadFolder()
 
-      if (downloadFolder && downloads.length) {
+      if (downloadFolder) {
         await this.syncDownloads(downloads, downloadFolder)
       }
 
@@ -372,29 +266,6 @@ export default {
       if (userSavedSettings) {
         this.$store.commit('user/setSettings', userSavedSettings)
       }
-
-      // if (downloads.length) {
-      // var urls = downloads
-      //   .map((d) => {
-      //     return {
-      //       contentUrl: d.contentUrl,
-      //       coverUrl: d.coverUrl || '',
-      //       storageId: d.storageId,
-      //       basePath: d.basePath,
-      //       coverBasePath: d.coverBasePath || ''
-      //     }
-      //   })
-      //   .filter((d) => {
-      //     if (!d.contentUrl) {
-      //       console.error('Invalid Download no Content URL', JSON.stringify(d))
-      //       return false
-      //     }
-      //     return true
-      //   })
-      // AudioDownloader.load({
-      //   audiobookUrls: urls
-      // })
-      // }
 
       var checkPermission = await StorageManager.checkStoragePermission()
       console.log('Storage Permission is' + checkPermission.value)

@@ -12,6 +12,7 @@
         :sleep-timeout-current-time="sleepTimeoutCurrentTime"
         @close="cancelStream"
         @sync="sync"
+        @setTotalDuration="setTotalDuration"
         @selectPlaybackSpeed="showPlaybackSpeedModal = true"
         @selectChapter="clickChapterBtn"
         @showSleepTimer="showSleepTimer"
@@ -49,7 +50,8 @@ export default {
       sleepTimerEndOfChapterTime: 0,
       onSleepTimerEndedListener: null,
       sleepInterval: null,
-      currentEndOfChapterTime: 0
+      currentEndOfChapterTime: 0,
+      totalDuration: 0
     }
   },
   watch: {
@@ -66,7 +68,7 @@ export default {
     },
     userAudiobook() {
       if (!this.audiobookId) return
-      return this.$store.getters['user/getMostRecentUserAudiobookData'](this.audiobookId)
+      return this.$store.getters['user/getUserAudiobookData'](this.audiobookId)
     },
     bookmarks() {
       if (!this.userAudiobook) return []
@@ -274,7 +276,7 @@ export default {
           audiobookId: syncData.audiobookId,
           currentTime: syncData.currentTime,
           totalDuration: syncData.totalDuration,
-          progress: Number((syncData.currentTime / syncData.totalDuration).toFixed(3)),
+          progress: syncData.totalDuration ? Number((syncData.currentTime / syncData.totalDuration).toFixed(3)) : 0,
           lastUpdate: Date.now(),
           isRead: false
         }
@@ -283,45 +285,21 @@ export default {
           this.$server.socket.emit('progress_update', progressUpdate)
         } else {
           this.$store.dispatch('user/updateUserAudiobookData', progressUpdate)
-          // this.$localStore.updateUserAudiobookData(progressUpdate).then(() => {
-          //   console.log('Updated user audiobook progress', currentTime)
-          // })
         }
       }
     },
     updateTime(currentTime) {
-      this.currentTime = currentTime
-
-      var diff = currentTime - this.lastProgressTimeUpdate
-
-      if (diff > 4 || diff < 0) {
-        this.lastProgressTimeUpdate = currentTime
-        if (this.stream) {
-          var updatePayload = {
-            currentTime,
-            streamId: this.stream.id
-          }
-          this.$server.socket.emit('stream_update', updatePayload)
-        } else if (this.download) {
-          var progressUpdate = {
-            audiobookId: this.download.id,
-            currentTime: currentTime,
-            totalDuration: this.download.audiobook.duration,
-            progress: Number((currentTime / this.download.audiobook.duration).toFixed(3)),
-            lastUpdate: Date.now(),
-            isRead: false
-          }
-
-          if (this.$server.connected) {
-            this.$server.socket.emit('progress_update', progressUpdate)
-          }
-          this.$localStore.updateUserAudiobookData(progressUpdate).then(() => {
-            console.log('Updated user audiobook progress', currentTime)
-          })
-        }
-      }
+      this.sync({
+        currentTime,
+        audiobookId: this.audiobookId,
+        streamId: this.stream ? this.stream.id : null,
+        timeListened: 0,
+        totalDuration: this.totalDuration || 0
+      })
     },
-    closeStream() {},
+    setTotalDuration(duration) {
+      this.totalDuration = duration
+    },
     streamClosed(audiobookId) {
       console.log('Stream Closed')
       if (this.stream.audiobook.id === audiobookId || audiobookId === 'n/a') {
@@ -349,7 +327,7 @@ export default {
       }
     },
     async getDownloadStartTime() {
-      var userAudiobook = await this.$localStore.getMostRecentUserAudiobook(this.audiobookId)
+      var userAudiobook = this.$store.getters['user/getUserAudiobookData'](this.audiobookId)
       if (!userAudiobook) {
         console.log('[StreamContainer] getDownloadStartTime no user audiobook record found')
         return 0
@@ -505,7 +483,6 @@ export default {
 
     this.setListeners()
     this.$store.commit('user/addSettingsListener', { id: 'streamContainer', meth: this.settingsUpdated })
-    // this.$store.commit('user/addUserAudiobookListener', { id: 'streamContainer', meth: this.userAudiobooksUpdated })
     this.$store.commit('setStreamListener', this.streamUpdated)
   },
   beforeDestroy() {
@@ -520,7 +497,6 @@ export default {
     }
 
     this.$store.commit('user/removeSettingsListener', 'streamContainer')
-    // this.$store.commit('user/removeUserAudiobookListener', 'streamContainer')
     this.$store.commit('removeStreamListener')
   }
 }

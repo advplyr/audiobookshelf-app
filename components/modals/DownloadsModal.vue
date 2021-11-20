@@ -158,7 +158,7 @@ export default {
       return this.$store.state.downloads.downloads
     },
     mediaScanResults() {
-      return this.$store.state.mediaScanResults
+      return this.$store.state.downloads.mediaScanResults
     }
   },
   methods: {
@@ -210,7 +210,7 @@ export default {
           }
           return sr
         })
-        this.$store.commit('setMediaScanResults', searchResults)
+        this.$store.commit('downloads/setMediaScanResults', searchResults)
       } else {
         this.$toast.warning('No audio or image files found')
       }
@@ -218,7 +218,7 @@ export default {
     },
     async resetFolder() {
       await this.$localStore.setDownloadFolder(null)
-      this.$store.commit('setMediaScanResults', {})
+      this.$store.commit('downloads/setMediaScanResults', {})
       this.$toast.info('Unlinked Folder')
     },
     updateDownloadProgress({ audiobookId, progress }) {

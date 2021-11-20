@@ -15,7 +15,7 @@ export const state = () => ({
   selectedBook: null,
   showReader: false,
   downloadFolder: null,
-  mediaScanResults: {},
+
   showSideDrawer: false,
   bookshelfView: 'grid'
 })
@@ -99,9 +99,6 @@ export const mutations = {
   },
   setDownloadFolder(state, val) {
     state.downloadFolder = val
-  },
-  setMediaScanResults(state, val) {
-    state.mediaScanResults = val
   },
   setShowSideDrawer(state, val) {
     state.showSideDrawer = val

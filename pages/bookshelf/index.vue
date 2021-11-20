@@ -19,7 +19,7 @@ export default {
     },
     booksWithUserAbData() {
       var books = this.books.map((b) => {
-        var userAbData = this.$store.getters['user/getMostRecentUserAudiobookData'](b.id)
+        var userAbData = this.$store.getters['user/getUserAudiobookData'](b.id)
         return { ...b, userAbData }
       })
       return books
