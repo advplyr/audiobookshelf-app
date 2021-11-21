@@ -204,7 +204,7 @@ class AudiobookManager {
     abStreamDataObj.put("title", local.name)
     abStreamDataObj.put("author", "")
     abStreamDataObj.put("token", null)
-    abStreamDataObj.put("cover", "")
+    abStreamDataObj.put("cover", local.coverUri)
     abStreamDataObj.put("duration", local.duration)
     abStreamDataObj.put("startTime", 0)
     abStreamDataObj.put("playbackSpeed", 1)
@@ -215,7 +215,7 @@ class AudiobookManager {
     return audiobookStreamData
   }
 
-  fun levenshtein(lhs : CharSequence, rhs : CharSequence) : Int {
+  private fun levenshtein(lhs : CharSequence, rhs : CharSequence) : Int {
     val lhsLength = lhs.length + 1
     val rhsLength = rhs.length + 1
 

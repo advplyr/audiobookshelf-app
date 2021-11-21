@@ -50,7 +50,7 @@ class BrowseTree(
 
     val localsMetadata = MediaMetadataCompat.Builder().apply {
       putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, LOCAL_ROOT)
-      putString(MediaMetadataCompat.METADATA_KEY_TITLE, "Local Audio")
+      putString(MediaMetadataCompat.METADATA_KEY_TITLE, "Samples")
       putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getUriToDrawable(context, R.drawable.exo_icon_localaudio).toString())
     }.build()
 

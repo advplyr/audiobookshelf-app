@@ -55,7 +55,7 @@ class AudiobookStreamData {
     if (playlistUrl != "") {
       playlistUri = Uri.parse(playlistUrl)
     }
-    if (cover != "") {
+    if (cover != "" && cover != null) {
       coverUri = Uri.parse(cover)
     } else {
       coverUri = Uri.parse("android.resource://com.audiobookshelf.app/" + R.drawable.icon)

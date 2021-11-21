@@ -10,9 +10,9 @@
         <app-bookshelf-list-row :key="book.id" :audiobook="book" :page-width="pageWidth" class="my-2" />
       </template>
     </div>
-    <div v-show="!books.length" class="w-full py-16 text-center text-xl">
+    <div v-show="!books.length && hasFilters" class="w-full py-16 text-center text-xl">
       <div class="py-4">No Books</div>
-      <ui-btn v-if="hasFilters" @click="clearFilter">Clear Filter</ui-btn>
+      <ui-btn @click="clearFilter">Clear Filter</ui-btn>
     </div>
   </div>
 </template>
