@@ -5,7 +5,6 @@
       <Nuxt />
     </div>
     <app-audio-player-container ref="streamContainer" />
-    <!-- <modals-downloads-modal ref="downloadsModal" @deleteDownload="deleteDownload" /> -->
     <modals-libraries-modal />
     <app-side-drawer />
     <readers-reader />
@@ -14,7 +13,6 @@
 
 <script>
 import { Capacitor } from '@capacitor/core'
-import { Network } from '@capacitor/network'
 import { AppUpdate } from '@robingenz/capacitor-app-update'
 import AudioDownloader from '@/plugins/audio-downloader'
 import StorageManager from '@/plugins/storage-manager'
@@ -276,15 +274,6 @@ export default {
         this.$store.commit('setHasStoragePermission', true)
       }
     },
-    async setupNetworkListener() {
-      var status = await Network.getStatus()
-      this.$store.commit('setNetworkStatus', status)
-
-      Network.addListener('networkStatusChange', (status) => {
-        console.log('Network status changed', status.connected, status.connectionType)
-        this.$store.commit('setNetworkStatus', status)
-      })
-    },
     showErrorToast(message) {
       this.$toast.error(message)
     },
@@ -333,7 +322,7 @@ export default {
 
     if (this.$store.state.isFirstLoad) {
       this.$store.commit('setIsFirstLoad', false)
-      await this.setupNetworkListener()
+      await this.$store.dispatch('setupNetworkListener')
       this.attemptConnection()
       this.checkForUpdate()
       this.initMediaStore()
