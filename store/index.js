@@ -1,4 +1,5 @@
 import Vue from 'vue'
+import { Network } from '@capacitor/network'
 
 export const state = () => ({
   streamAudiobook: null,
@@ -17,7 +18,8 @@ export const state = () => ({
   downloadFolder: null,
 
   showSideDrawer: false,
-  bookshelfView: 'grid'
+  bookshelfView: 'grid',
+  isNetworkListenerInit: false
 })
 
 export const getters = {
@@ -35,7 +37,20 @@ export const getters = {
   }
 }
 
-export const actions = {}
+export const actions = {
+  async setupNetworkListener({ state, commit }) {
+    if (state.isNetworkListenerInit) return
+    commit('setNetworkListenerInit', true)
+
+    var status = await Network.getStatus()
+    commit('setNetworkStatus', status)
+
+    Network.addListener('networkStatusChange', (status) => {
+      console.log('Network status changed', status.connected, status.connectionType)
+      commit('setNetworkStatus', status)
+    })
+  }
+}
 
 export const mutations = {
   setHasStoragePermission(state, val) {
@@ -79,6 +94,9 @@ export const mutations = {
   },
   setSocketConnected(state, val) {
     state.socketConnected = val
+  },
+  setNetworkListenerInit(state, val) {
+    state.isNetworkListenerInit = val
   },
   setNetworkStatus(state, val) {
     state.networkConnected = val.connected

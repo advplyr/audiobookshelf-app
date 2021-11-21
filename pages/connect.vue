@@ -97,11 +97,11 @@ export default {
       }
       this.processing = true
       this.error = null
-      var success = await this.$server.check(this.serverUrl)
+      var response = await this.$server.check(this.serverUrl)
       this.processing = false
-      if (!success) {
+      if (!response || response.error) {
         console.error('Server invalid')
-        this.error = 'Invalid Server'
+        this.error = response ? response.error : 'Invalid Server'
       } else {
         this.showAuth = true
       }
@@ -143,6 +143,8 @@ export default {
       this.redirect()
     },
     async init() {
+      await this.$store.dispatch('setupNetworkListener')
+
       if (!this.$server) {
         console.error('Invalid server not initialized')
         return
@@ -162,16 +164,18 @@ export default {
         this.serverUrl = localServerUrl
         if (localUserToken) {
           this.processing = true
-          var success = await this.$server.connect(localServerUrl, localUserToken)
-
-          if (!success && !this.$server.url) {
+          var response = await this.$server.connect(localServerUrl, localUserToken)
+          if (!response || response.error) {
+            var errorMsg = response ? response.error : 'Unknown Error'
             this.processing = false
-            this.serverUrl = null
-            this.showAuth = false
-          } else if (!success) {
-            console.log('Server connect success')
-            this.processing = false
+            this.error = errorMsg
+            if (!this.$server.url) {
+              this.serverUrl = null
+              this.showAuth = false
+            }
+            return
           }
+          console.log('Server connect success')
           this.showAuth = true
         } else {
           this.submit()

@@ -64,23 +64,28 @@ class Server extends EventEmitter {
   async connect(url, token) {
     if (this.connected) {
       console.warn('[SOCKET] Connection already established for ' + this.url)
-      return true
+      return { success: true }
     }
     if (!url) {
       console.error('Invalid url to connect')
-      return false
+      return {
+        error: 'Invalid URL'
+      }
     }
 
     var serverUrl = this.getServerUrl(url)
     var res = await this.ping(serverUrl)
 
     if (!res || !res.success) {
-      //this.setServerUrl(null)
-      return false
+      return {
+        error: res ? res.error : 'Unknown Error'
+      }
     }
     var authRes = await this.authorize(serverUrl, token)
-    if (!authRes || !authRes.user) {
-      return false
+    if (!authRes || authRes.error) {
+      return {
+        error: authRes ? authRes.error : 'Authorization Error'
+      }
     }
 
     this.setServerUrl(serverUrl)
@@ -88,19 +93,26 @@ class Server extends EventEmitter {
     this.setUser(authRes.user)
     this.connectSocket()
 
-    return true
+    return { success: true }
   }
 
   async check(url) {
     var serverUrl = this.getServerUrl(url)
     if (!serverUrl) {
-      return false
+      return {
+        error: 'Invalid server url'
+      }
     }
     var res = await this.ping(serverUrl)
-    if (!res || !res.success) {
-      return false
+    if (!res || res.error) {
+      return {
+        error: res ? res.error : 'Ping Failed'
+      }
     }
-    return serverUrl
+    return {
+      success: true,
+      serverUrl
+    }
   }
 
   async login(url, username, password) {
@@ -122,8 +134,16 @@ class Server extends EventEmitter {
       }
     }).catch(error => {
       console.error('[Server] Server auth failed', error)
+      var errorMsg = null
+      if (error.response) {
+        errorMsg = error.response.data || 'Unknown Error'
+      } else if (error.request) {
+        errorMsg = 'Server did not respond'
+      } else {
+        errorMsg = 'Failed to send request'
+      }
       return {
-        error: 'Request Failed'
+        error: errorMsg
       }
     })
   }
@@ -142,7 +162,17 @@ class Server extends EventEmitter {
       return res.data
     }).catch(error => {
       console.error('[Server] Server auth failed', error)
-      return false
+      var errorMsg = null
+      if (error.response) {
+        errorMsg = error.response.data || 'Unknown Error'
+      } else if (error.request) {
+        errorMsg = 'Server did not respond'
+      } else {
+        errorMsg = 'Failed to send request'
+      }
+      return {
+        error: errorMsg
+      }
     })
   }
 
@@ -153,7 +183,18 @@ class Server extends EventEmitter {
       return res.data
     }).catch(error => {
       console.error('Server check failed', error)
-      return false
+      var errorMsg = null
+      if (error.response) {
+        errorMsg = error.response.data || 'Unknown Error'
+      } else if (error.request) {
+        errorMsg = 'Server did not respond'
+      } else {
+        errorMsg = 'Failed to send request'
+      }
+      return {
+        success: false,
+        error: errorMsg
+      }
     })
   }
 
