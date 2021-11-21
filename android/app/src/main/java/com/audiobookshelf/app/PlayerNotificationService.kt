@@ -573,6 +573,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         // Cache the bitmap for the current audiobook so that successive calls to
         // `getCurrentLargeIcon` don't cause the bitmap to be recreated.
         currentIconUri = albumArtUri
+        Log.d(tag, "ART $currentIconUri")
         serviceScope.launch {
           currentBitmap = albumArtUri?.let {
             resolveUriAsBitmap(it)
@@ -588,11 +589,23 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     private suspend fun resolveUriAsBitmap(uri: Uri): Bitmap? {
       return withContext(Dispatchers.IO) {
         // Block on downloading artwork.
-        Glide.with(ctx).applyDefaultRequestOptions(glideOptions)
-          .asBitmap()
-          .load(uri)
-          .submit(NOTIFICATION_LARGE_ICON_SIZE, NOTIFICATION_LARGE_ICON_SIZE)
-          .get()
+       try {
+         Glide.with(ctx).applyDefaultRequestOptions(glideOptions)
+           .asBitmap()
+           .load(uri)
+           .placeholder(R.drawable.icon)
+           .error(R.drawable.icon)
+           .submit(NOTIFICATION_LARGE_ICON_SIZE, NOTIFICATION_LARGE_ICON_SIZE)
+           .get()
+         } catch (e: Exception) {
+            e.printStackTrace()
+
+           Glide.with(ctx).applyDefaultRequestOptions(glideOptions)
+             .asBitmap()
+             .load(Uri.parse("android.resource://com.audiobookshelf.app/" + R.drawable.icon))
+             .submit(NOTIFICATION_LARGE_ICON_SIZE, NOTIFICATION_LARGE_ICON_SIZE)
+             .get()
+          }
       }
     }
   }
