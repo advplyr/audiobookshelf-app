@@ -414,7 +414,7 @@ export default {
         duration: String(Math.floor(this.duration * 1000)),
         series: this.seriesTxt,
         playlistUrl: this.$server.url + playlistUrl,
-        token: this.$store.getters['user/getToken'],
+        token: this.userToken,
         audiobookId: this.audiobookId
       }
       this.$refs.audioPlayer.set(audiobookStreamData, stream, !this.stream)

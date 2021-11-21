@@ -15,7 +15,8 @@ export default {
   },
   computed: {
     books() {
-      return this.$store.getters['audiobooks/getFilteredAndSorted']()
+      // return this.$store.getters['audiobooks/getFilteredAndSorted']()
+      return this.$store.state.audiobooks.audiobooks
     },
     booksWithUserAbData() {
       var books = this.books.map((b) => {
