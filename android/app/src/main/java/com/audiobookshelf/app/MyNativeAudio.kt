@@ -172,39 +172,6 @@ class MyNativeAudio : Plugin() {
     }
   }
 
-//  @PluginMethod
-//  fun setAudiobooks(call: PluginCall) {
-//    var audiobooks = call.getArray("audiobooks", JSArray())
-//    if (audiobooks == null) {
-//      Log.w(tag, "setAudiobooks IS NULL")
-//      call.resolve()
-//      return
-//    }
-//
-//    var audiobookObjs = mutableListOf<AudiobookStreamData>()
-//
-//    var len = audiobooks.length()
-//    (0 until len).forEach { _it ->
-//      var jsonobj = audiobooks.get(_it) as JSONObject
-//
-//      var _names = Array(jsonobj.names().length()) {
-//        jsonobj.names().getString(it)
-//      }
-//      var jsobj = JSObject(jsonobj, _names)
-//
-//      if (jsobj.has("duration")) {
-//        var dur = jsobj.getDouble("duration")
-//        var duration = Math.floor(dur * 1000L).toLong()
-//        jsobj.put("duration", duration)
-//      }
-//
-//      var audiobook = AudiobookStreamData(jsobj)
-//      audiobookObjs.add(audiobook)
-//    }
-//    Log.d(tag, "Setting Audiobooks ${audiobookObjs.size}")
-//    playerNotificationService.setAudiobooks(audiobookObjs)
-//  }
-
   @PluginMethod
   fun setSleepTimer(call: PluginCall) {
     var time:Long = call.getString("time", "360000")!!.toLong()
@@ -248,10 +215,6 @@ class MyNativeAudio : Plugin() {
         override fun onJoin(jsonSession: JSONObject?) {
           Log.d(tag, "CAST REQUEST SESSION ON JOIN")
         }
-
       })
-
-
-
   }
 }

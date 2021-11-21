@@ -74,12 +74,12 @@ export default {
           iconOutlined: true,
           text: 'Downloads',
           to: '/downloads'
-        },
-        {
-          icon: 'settings',
-          text: 'Settings',
-          to: '/config'
         }
+        // {
+        //   icon: 'settings',
+        //   text: 'Settings',
+        //   to: '/config'
+        // }
       ]
       if (!this.socketConnected) {
         items = [

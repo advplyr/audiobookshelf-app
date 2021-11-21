@@ -23,7 +23,6 @@
       <!-- <span class="material-icons cursor-pointer mx-4" :class="hasDownloadsFolder ? '' : 'text-warning'" @click="$store.commit('downloads/setShowModal', true)">source</span> -->
 
       <!-- <widgets-connection-icon /> -->
-      <!-- <span class="material-icons" style="font-size: 1.75rem" @click="testCast">menu</span> -->
 
       <nuxt-link class="h-7 mx-2" to="/search">
         <span class="material-icons" style="font-size: 1.75rem">search</span>
@@ -37,8 +36,6 @@
 </template>
 
 <script>
-// import MyNativeAudio from '@/plugins/my-native-audio'
-
 export default {
   data() {
     return {
@@ -86,10 +83,6 @@ export default {
     }
   },
   methods: {
-    // testCast() {
-    //   console.log('TEST CAST CLICK')
-    //   MyNativeAudio.requestSession()
-    // },
     clickShowSideDrawer() {
       this.$store.commit('setShowSideDrawer', true)
     },

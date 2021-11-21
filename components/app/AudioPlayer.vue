@@ -4,6 +4,9 @@
       <div class="top-2 left-4 absolute cursor-pointer">
         <span class="material-icons text-5xl" @click="collapseFullscreen">expand_more</span>
       </div>
+      <div v-show="showCastBtn" class="top-3.5 right-20 absolute cursor-pointer">
+        <span class="material-icons text-3xl" @click="castClick">cast</span>
+      </div>
       <div class="top-3 right-4 absolute cursor-pointer">
         <span class="material-icons text-4xl" @click="$emit('close')">close</span>
       </div>
@@ -92,6 +95,7 @@ export default {
   },
   data() {
     return {
+      showCastBtn: false,
       showFullscreen: false,
       totalDuration: 0,
       currentPlaybackRate: 1,
@@ -158,6 +162,10 @@ export default {
     }
   },
   methods: {
+    castClick() {
+      console.log('Cast Btn Click')
+      MyNativeAudio.requestSession()
+    },
     sendStreamSync(timeListened = 0) {
       var syncData = {
         timeListened,

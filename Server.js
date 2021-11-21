@@ -130,6 +130,7 @@ class Server extends EventEmitter {
 
   logout() {
     this.setUser(null)
+    this.stream = null
     if (this.socket) {
       this.socket.disconnect()
     }

@@ -39,6 +39,7 @@ import com.google.android.exoplayer2.source.ProgressiveMediaSource
 import com.google.android.exoplayer2.source.hls.HlsMediaSource
 import com.google.android.exoplayer2.ui.PlayerNotificationManager
 import com.google.android.exoplayer2.upstream.*
+import com.google.android.exoplayer2.util.MimeTypes
 import com.google.android.gms.cast.Cast.MessageReceivedCallback
 import com.google.android.gms.cast.CastDevice
 import com.google.android.gms.cast.CastMediaControlIntent
@@ -72,6 +73,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   private lateinit var ctx:Context
   private lateinit var mPlayer: SimpleExoPlayer
+  private lateinit var currentPlayer:Player
+  private var castPlayer:CastPlayer? = null
   private lateinit var mediaSessionConnector: MediaSessionConnector
   private lateinit var playerNotificationManager: PlayerNotificationManager
   private lateinit var mediaSession: MediaSessionCompat
@@ -102,6 +105,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   private lateinit var audiobookManager:AudiobookManager
   private var newConnectionListener:SessionListener? = null
+  private var mainActivity:Activity? = null
 
   fun setCustomObjectListener(mylistener: MyCustomObjectListener) {
     listener = mylistener
@@ -260,6 +264,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     simpleExoPlayerBuilder.setSeekBackIncrementMs(10000)
     simpleExoPlayerBuilder.setSeekForwardIncrementMs(10000)
     mPlayer = simpleExoPlayerBuilder.build()
+    currentPlayer = mPlayer
     mPlayer.setHandleAudioBecomingNoisy(true)
 
     var audioAttributes:AudioAttributes = AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.CONTENT_TYPE_SPEECH).build()
@@ -592,8 +597,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     }
   }
 
-  private fun setPlayerListeners() {
-    mPlayer.addListener(object : Player.Listener {
+  fun getPlayerListener(): Player.Listener {
+    return object : Player.Listener {
       override fun onPlayerError(error: PlaybackException) {
         error.message?.let { Log.e(tag, it) }
         error.localizedMessage?.let { Log.e(tag, it) }
@@ -609,7 +614,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         }
 
         if (events.contains(Player.EVENT_PLAYBACK_STATE_CHANGED)) {
-          if (mPlayer.playbackState == Player.STATE_READY) {
+          if (currentPlayer.playbackState == Player.STATE_READY) {
             Log.d(tag, "STATE_READY : " + mPlayer.duration.toString())
 
             /*if (!currentAudiobook!!.hasPlayerLoaded && currentAudiobook!!.startTime > 0) {
@@ -623,16 +628,16 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
               lastPauseTime = -1;
             } else sendClientMetadata("ready")
           }
-          if (mPlayer.playbackState == Player.STATE_BUFFERING) {
+          if (currentPlayer.playbackState == Player.STATE_BUFFERING) {
             Log.d(tag, "STATE_BUFFERING : " + mPlayer.currentPosition.toString())
             if (lastPauseTime == 0L) sendClientMetadata("buffering_no_sync")
             else sendClientMetadata("buffering")
           }
-          if (mPlayer.playbackState == Player.STATE_ENDED) {
+          if (currentPlayer.playbackState == Player.STATE_ENDED) {
             Log.d(tag, "STATE_ENDED")
             sendClientMetadata("ended")
           }
-          if (mPlayer.playbackState == Player.STATE_IDLE) {
+          if (currentPlayer.playbackState == Player.STATE_IDLE) {
             Log.d(tag, "STATE_IDLE")
             sendClientMetadata("idle")
           }
@@ -663,7 +668,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
           listener?.onPlayingUpdate(player.isPlaying)
         }
       }
-    })
+    }
+  }
+
+  private fun setPlayerListeners() {
+    mPlayer.addListener(getPlayerListener())
   }
 
 
@@ -717,11 +726,20 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     }
 
 
-    //mPlayer.setMediaSource(mediaSource, true)
-    mPlayer.setMediaSource(mediaSource, currentAudiobookStreamData!!.startTime)
-    mPlayer.prepare()
-    mPlayer.playWhenReady = currentAudiobookStreamData!!.playWhenReady
-    mPlayer.setPlaybackSpeed(audiobookStreamData.playbackSpeed)
+    if (mPlayer == currentPlayer) {
+      mPlayer.setMediaSource(mediaSource, currentAudiobookStreamData!!.startTime)
+    } else if (castPlayer != null) {
+      val mediaItem: MediaItem = MediaItem.Builder()
+        .setUri(currentAudiobookStreamData!!.contentUri)
+        .setMediaId(currentAudiobookStreamData!!.id)
+        .setTag(metadata)
+        .build()
+
+      castPlayer?.setMediaItem(mediaItem, currentAudiobookStreamData!!.startTime)
+    }
+    currentPlayer.prepare()
+    currentPlayer.playWhenReady = currentAudiobookStreamData!!.playWhenReady
+    currentPlayer.setPlaybackSpeed(audiobookStreamData.playbackSpeed)
 
     lastPauseTime = 0
   }
@@ -761,37 +779,39 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   }
 
   fun play() {
-    if (mPlayer.isPlaying) {
+    if (currentPlayer.isPlaying) {
       Log.d(tag, "Already playing")
       return
     }
-    mPlayer.play()
+    if (currentPlayer == castPlayer) {
+      Log.d(tag, "CAST Player set on play ${currentPlayer.isLoading} || ${currentPlayer.duration} | ${currentPlayer.currentPosition}")
+    }
+    currentPlayer.play()
   }
 
   fun pause() {
-
-    mPlayer.pause()
+    currentPlayer.pause()
   }
 
   fun seekPlayer(time: Long) {
-    mPlayer.seekTo(time)
+    currentPlayer.seekTo(time)
   }
 
   fun seekForward(amount: Long) {
-    mPlayer.seekTo(mPlayer.currentPosition + amount)
+    currentPlayer.seekTo(mPlayer.currentPosition + amount)
   }
 
   fun seekBackward(amount: Long) {
-    mPlayer.seekTo(mPlayer.currentPosition - amount)
+    currentPlayer.seekTo(mPlayer.currentPosition - amount)
   }
 
   fun setPlaybackSpeed(speed: Float) {
-    mPlayer.setPlaybackSpeed(speed)
+    currentPlayer.setPlaybackSpeed(speed)
   }
 
   fun terminateStream() {
-    if (mPlayer.playbackState == Player.STATE_READY) {
-      mPlayer.clearMediaItems()
+    if (currentPlayer.playbackState == Player.STATE_READY) {
+      currentPlayer.clearMediaItems()
     }
     currentAudiobookStreamData?.id = ""
     lastPauseTime = 0
@@ -960,8 +980,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
     if (isChapterTime) {
       // Validate time
-      if (mPlayer.isPlaying) {
-        if (mPlayer.currentPosition >= time) {
+      if (currentPlayer.isPlaying) {
+        if (currentPlayer.currentPosition >= time) {
           Log.d(tag, "Invalid setSleepTimer chapter time is already passed")
           return false
         }
@@ -970,11 +990,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       sleepChapterTime = time
       sleepTimerTask = Timer("SleepTimer", false).schedule(0L, 1000L) {
         Handler(Looper.getMainLooper()).post() {
-          if (mPlayer.isPlaying && mPlayer.currentPosition > sleepChapterTime) {
+          if (currentPlayer.isPlaying && currentPlayer.currentPosition > sleepChapterTime) {
             Log.d(tag, "Sleep Timer Pausing Player on Chapter")
-            mPlayer.pause()
+            currentPlayer.pause()
 
-            listener?.onSleepTimerEnded(mPlayer.currentPosition)
+            listener?.onSleepTimerEnded(currentPlayer.currentPosition)
             sleepTimerTask?.cancel()
           }
         }
@@ -983,11 +1003,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       sleepTimerTask = Timer("SleepTimer", false).schedule(time) {
         Log.d(tag, "Sleep Timer Done")
         Handler(Looper.getMainLooper()).post() {
-          if (mPlayer.isPlaying) {
+          if (currentPlayer.isPlaying) {
             Log.d(tag, "Sleep Timer Pausing Player")
-            mPlayer.pause()
+            currentPlayer.pause()
           }
-          listener?.onSleepTimerEnded(mPlayer.currentPosition)
+          listener?.onSleepTimerEnded(currentPlayer.currentPosition)
         }
       }
     }
@@ -1007,27 +1027,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     sleepChapterTime = 0L
   }
 
-  /**
-   * If Cast is available, create a CastPlayer to handle communication with a Cast session.
-   */
-  private val castPlayer: CastPlayer? by lazy {
-    try {
-      val castContext = CastContext.getSharedInstance(this)
-      CastPlayer(castContext).apply {
-        setSessionAvailabilityListener(CastSessionAvailabilityListener())
-//        addListener(playerListener)
-      }
-    } catch (e: Exception) {
-      // We wouldn't normally catch the generic `Exception` however
-      // calling `CastContext.getSharedInstance` can throw various exceptions, all of which
-      // indicate that Cast is unavailable.
-      // Related internal bug b/68009560.
-      Log.i(tag, "Cast is not available on this device. " +
-        "Exception thrown when attempting to obtain CastContext. " + e.message)
-      null
-    }
-  }
-
   private inner class CastSessionAvailabilityListener : SessionAvailabilityListener {
 
     /**
@@ -1038,6 +1037,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 //      switchToPlayer(currentPlayer, castPlayer!!)
       Log.d(tag, "CAST SeSSION AVAILABLE " + castPlayer?.deviceInfo)
         mediaSessionConnector.setPlayer(castPlayer)
+      currentPlayer = castPlayer as CastPlayer
     }
 
     /**
@@ -1047,43 +1047,46 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 //      switchToPlayer(currentPlayer, exoPlayer)
       Log.d(tag, "CAST SESSION UNAVAILABLE")
       mediaSessionConnector.setPlayer(mPlayer)
+      currentPlayer = mPlayer
     }
   }
 
-  fun requestSession(mainActivity:Activity, callback: RequestSessionCallback) {
-  mainActivity.runOnUiThread(object: Runnable {
+  fun requestSession(mainActivity: Activity, callback: RequestSessionCallback) {
+    this.mainActivity = mainActivity
+
+  mainActivity.runOnUiThread(object : Runnable {
     override fun run() {
-        Log.d(tag, "CAST RUNNING ON MAIN THREAD")
+      Log.d(tag, "CAST RUNNING ON MAIN THREAD")
 
-        val session: CastSession? = getSession()
-        if (session == null) {
-          // show the "choose a connection" dialog
+      val session: CastSession? = getSession()
+      if (session == null) {
+        // show the "choose a connection" dialog
 
-          // Add the connection listener callback
-          listenForConnection(callback)
+        // Add the connection listener callback
+        listenForConnection(callback)
 
-          // Create the dialog
-          // TODO accept theme as a config.xml option
-          val builder = MediaRouteChooserDialog(mainActivity, androidx.appcompat.R.style.Theme_AppCompat_NoActionBar)
-          builder.routeSelector = MediaRouteSelector.Builder()
-            .addControlCategory(CastMediaControlIntent.categoryForCast(CastMediaControlIntent.DEFAULT_MEDIA_RECEIVER_APPLICATION_ID))
-            .build()
-          builder.setCanceledOnTouchOutside(true)
-          builder.setOnCancelListener {
-            getSessionManager()!!.removeSessionManagerListener(newConnectionListener, CastSession::class.java)
-            callback.onCancel()
-          }
-          builder.show()
-        } else {
-          // We are are already connected, so show the "connection options" Dialog
-          val builder: AlertDialog.Builder = AlertDialog.Builder(mainActivity)
-          if (session.castDevice != null) {
-            builder.setTitle(session.castDevice.friendlyName)
-          }
-          builder.setOnDismissListener { callback.onCancel() }
-          builder.setPositiveButton("Stop Casting") { dialog, which -> endSession(true, null) }
-          builder.show()
+        // Create the dialog
+        // TODO accept theme as a config.xml option
+        val builder = MediaRouteChooserDialog(mainActivity, androidx.appcompat.R.style.Theme_AppCompat_NoActionBar)
+        builder.routeSelector = MediaRouteSelector.Builder()
+          .addControlCategory(CastMediaControlIntent.categoryForCast(CastMediaControlIntent.DEFAULT_MEDIA_RECEIVER_APPLICATION_ID))
+          .build()
+        builder.setCanceledOnTouchOutside(true)
+        builder.setOnCancelListener {
+          getSessionManager()!!.removeSessionManagerListener(newConnectionListener, CastSession::class.java)
+          callback.onCancel()
         }
+        builder.show()
+      } else {
+        // We are are already connected, so show the "connection options" Dialog
+        val builder: AlertDialog.Builder = AlertDialog.Builder(mainActivity)
+        if (session.castDevice != null) {
+          builder.setTitle(session.castDevice.friendlyName)
+        }
+        builder.setOnDismissListener { callback.onCancel() }
+        builder.setPositiveButton("Stop Casting") { dialog, which -> endSession(true, null) }
+        builder.show()
+      }
     }
   })
   }
@@ -1301,6 +1304,37 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       override fun onSessionStarted(castSession: CastSession?, sessionId: String) {
         Log.d(tag, "CAST SESSION STARTED ${castSession?.castDevice?.friendlyName}")
         getSessionManager()?.removeSessionManagerListener(this, CastSession::class.java)
+
+        try {
+          val castContext = CastContext.getSharedInstance(mainActivity)
+          castPlayer = CastPlayer(castContext).apply {
+            setSessionAvailabilityListener(CastSessionAvailabilityListener())
+            addListener(getPlayerListener())
+          }
+
+          currentPlayer = castPlayer as CastPlayer
+
+          if (currentAudiobookStreamData != null) {
+            var mimeType = MimeTypes.AUDIO_AAC
+
+            val mediaItem: MediaItem = MediaItem.Builder()
+              .setUri(currentAudiobookStreamData!!.contentUri)
+              .setMediaId(currentAudiobookStreamData!!.id).setMimeType(mimeType)
+//              .setTag(metadata)
+              .build()
+
+            castPlayer?.setMediaItem(mediaItem, currentAudiobookStreamData!!.startTime)
+          }
+          Log.d(tag, "CAST Cast Player Applied")
+        } catch (e: Exception) {
+          // We wouldn't normally catch the generic `Exception` however
+          // calling `CastContext.getSharedInstance` can throw various exceptions, all of which
+          // indicate that Cast is unavailable.
+          // Related internal bug b/68009560.
+          Log.i(tag, "Cast is not available on this device. " +
+            "Exception thrown when attempting to obtain CastContext. " + e.message)
+          null
+        }
 //        media.setSession(castSession)
 //        callback.onJoin(ChromecastUtilities.createSessionObject(castSession))
       }

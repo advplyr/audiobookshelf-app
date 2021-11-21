@@ -320,7 +320,7 @@ export default {
     if (!this.$server) return console.error('No Server')
     // console.log(`Default Mounted set SOCKET listeners ${this.$server.connected}`)
 
-    if (!this.$server.connected) {
+    if (this.$server.connected) {
       console.log('Syncing on default mount')
       this.$store.dispatch('user/syncUserAudiobookData')
     }
