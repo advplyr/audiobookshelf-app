@@ -1,16 +1,9 @@
 package com.audiobookshelf.app
 
-import android.Manifest
 import android.app.DownloadManager
-import android.app.SearchManager
 import android.content.*
-import android.content.pm.PackageManager
-import android.hardware.Sensor
-import android.hardware.SensorManager
 import android.os.*
 import android.util.Log
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
 import com.anggrayudi.storage.SimpleStorage
 import com.anggrayudi.storage.SimpleStorageHelper
 import com.getcapacitor.BridgeActivity
@@ -28,11 +21,6 @@ class MainActivity : BridgeActivity() {
 
   val storageHelper = SimpleStorageHelper(this)
   val storage = SimpleStorage(this)
-
-  // The following are used for the shake detection
-  private var mSensorManager: SensorManager? = null
-  private var mAccelerometer: Sensor? = null
-  private var mShakeDetector: ShakeDetector? = null
 
   val broadcastReceiver = object: BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
@@ -61,24 +49,6 @@ class MainActivity : BridgeActivity() {
       addAction(DownloadManager.ACTION_NOTIFICATION_CLICKED)
     }
     registerReceiver(broadcastReceiver, filter)
-
-    initSensor()
-  }
-
-  override fun onResume() {
-    super.onResume()
-
-    Log.d(tag, "onResume Register sensor listener")
-    mSensorManager!!.registerListener(
-      mShakeDetector,
-      mAccelerometer,
-      SensorManager.SENSOR_DELAY_UI
-    )
-  }
-
-  override fun onPause() {
-    mSensorManager!!.unregisterListener(mShakeDetector)
-    super.onPause()
   }
 
   override fun onDestroy() {
@@ -151,19 +121,6 @@ class MainActivity : BridgeActivity() {
     grantResults.forEach { Log.d(tag, "GRANTREUSLTS $it") }
     // Mandatory for Activity, but not for Fragment & ComponentActivity
     storageHelper.onRequestPermissionsResult(requestCode, permissions, grantResults)
-  }
-
-  private fun initSensor() {
-    // ShakeDetector initialization
-    mSensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
-    mAccelerometer = mSensorManager!!.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-    mShakeDetector = ShakeDetector()
-    mShakeDetector!!.setOnShakeListener(object : ShakeDetector.OnShakeListener {
-      override fun onShake(count: Int) {
-          Log.d(tag, "PHONE SHAKE! $count")
-          foregroundService.handleShake()
-      }
-    })
   }
 
 //  override fun onUserInteraction() {
