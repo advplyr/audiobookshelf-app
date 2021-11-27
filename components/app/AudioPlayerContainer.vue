@@ -24,7 +24,7 @@
 
     <modals-playback-speed-modal v-model="showPlaybackSpeedModal" :playback-speed.sync="playbackSpeed" @change="changePlaybackSpeed" />
     <modals-chapters-modal v-model="showChapterModal" :current-chapter="currentChapter" :chapters="chapters" @select="selectChapter" />
-    <modals-sleep-timer-modal v-model="showSleepTimerModal" :current-time="sleepTimeRemaining" :sleep-timer-running="isSleepTimerRunning" :current-end-of-chapter-time="currentEndOfChapterTime" @change="selectSleepTimeout" @cancel="cancelSleepTimer" />
+    <modals-sleep-timer-modal v-model="showSleepTimerModal" :current-time="sleepTimeRemaining" :sleep-timer-running="isSleepTimerRunning" :current-end-of-chapter-time="currentEndOfChapterTime" @change="selectSleepTimeout" @cancel="cancelSleepTimer" @increase="increaseSleepTimer" @decrease="decreaseSleepTimer" />
     <modals-bookmarks-modal v-model="showBookmarksModal" :audiobook-id="audiobookId" :bookmarks="bookmarks" :current-time="currentTime" @select="selectBookmark" />
   </div>
 </template>
@@ -191,6 +191,13 @@ export default {
       if (!res.success) {
         return this.$toast.error('Sleep timer did not set, invalid time')
       }
+    },
+    increaseSleepTimer() {
+      // Default time to increase = 5 min
+      MyNativeAudio.increaseSleepTime({ time: '300000' })
+    },
+    decreaseSleepTimer() {
+      MyNativeAudio.decreaseSleepTime({ time: '300000' })
     },
     async cancelSleepTimer() {
       console.log('Canceling sleep timer')

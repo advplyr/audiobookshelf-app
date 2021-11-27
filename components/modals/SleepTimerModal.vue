@@ -23,7 +23,12 @@
           </li>
         </ul>
         <div v-else class="px-2 py-4">
-          <p class="mb-4 text-2xl font-mono text-center">{{ timeRemainingPretty }}</p>
+          <div class="flex my-2 justify-between">
+            <ui-btn @click="decreaseSleepTime" class="w-9 h-9" :padding-x="0" small style="max-width: 36px"><span class="material-icons">remove</span></ui-btn>
+            <p class="text-2xl font-mono text-center">{{ timeRemainingPretty }}</p>
+            <ui-btn @click="increaseSleepTime" class="w-9 h-9" :padding-x="0" small style="max-width: 36px"><span class="material-icons">add</span></ui-btn>
+          </div>
+
           <ui-btn @click="cancelSleepTimer" class="w-full">Cancel Timer</ui-btn>
         </div>
       </div>
@@ -52,7 +57,7 @@ export default {
       }
     },
     timeouts() {
-      return [1, 15, 30, 45, 60, 75, 90, 120]
+      return [1, 5, 10, 15, 30, 45, 60, 90]
     },
     timeRemainingPretty() {
       return this.$secondsToTimestamp(this.currentTime)
@@ -71,6 +76,12 @@ export default {
     cancelSleepTimer() {
       this.$emit('cancel')
       this.show = false
+    },
+    increaseSleepTime() {
+      this.$emit('increase')
+    },
+    decreaseSleepTime() {
+      this.$emit('decrease')
     }
   },
   mounted() {}
