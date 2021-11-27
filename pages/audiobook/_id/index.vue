@@ -59,7 +59,7 @@ export default {
     var audiobook = null
 
     if (app.$server.connected) {
-      audiobook = await app.$axios.$get(`/api/audiobook/${audiobookId}`).catch((error) => {
+      audiobook = await app.$axios.$get(`/api/books/${audiobookId}`).catch((error) => {
         console.error('Failed', error)
         return false
       })
@@ -229,7 +229,7 @@ export default {
 
         if (this.$server.connected) {
           await this.$axios
-            .$patch(`/api/user/audiobook/${this.audiobookId}/reset-progress`)
+            .$patch(`/api/me/audiobook/${this.audiobookId}/reset-progress`)
             .then(() => {
               console.log('Progress reset complete')
               this.$toast.success(`Your progress was reset`)
@@ -245,7 +245,7 @@ export default {
     audiobookUpdated() {
       console.log('Audiobook Updated - Fetch full audiobook')
       this.$axios
-        .$get(`/api/audiobook/${this.audiobookId}`)
+        .$get(`/api/books/${this.audiobookId}`)
         .then((audiobook) => {
           this.audiobook = audiobook
         })

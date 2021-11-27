@@ -42,7 +42,7 @@ export default {
       return redirect(`/connect?redirect=${route.path}`)
     }
 
-    var collection = await app.$axios.$get(`/api/collection/${params.id}`).catch((error) => {
+    var collection = await app.$axios.$get(`/api/collections/${params.id}`).catch((error) => {
       console.error('Failed', error)
       return false
     })

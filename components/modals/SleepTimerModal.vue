@@ -23,8 +23,7 @@
           </li>
         </ul>
         <div v-else class="px-2 py-4">
-          <p v-if="endOfChapterTimeSet" class="mb-4 text-2xl font-mono text-center">EOC: {{ endOfChapterTimePretty }}</p>
-          <p v-else class="mb-4 text-2xl font-mono text-center">{{ timeRemainingPretty }}</p>
+          <p class="mb-4 text-2xl font-mono text-center">{{ timeRemainingPretty }}</p>
           <ui-btn @click="cancelSleepTimer" class="w-full">Cancel Timer</ui-btn>
         </div>
       </div>
@@ -38,8 +37,7 @@ export default {
     value: Boolean,
     currentTime: Number,
     sleepTimerRunning: Boolean,
-    currentEndOfChapterTime: Number,
-    endOfChapterTimeSet: Number
+    currentEndOfChapterTime: Number
   },
   data() {
     return {}
@@ -57,10 +55,7 @@ export default {
       return [1, 15, 30, 45, 60, 75, 90, 120]
     },
     timeRemainingPretty() {
-      return this.$secondsToTimestamp(this.currentTime / 1000)
-    },
-    endOfChapterTimePretty() {
-      return this.$secondsToTimestamp(this.endOfChapterTimeSet / 1000)
+      return this.$secondsToTimestamp(this.currentTime)
     }
   },
   methods: {

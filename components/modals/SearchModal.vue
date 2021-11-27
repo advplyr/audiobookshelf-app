@@ -68,7 +68,7 @@ export default {
         return
       }
       this.isFetching = true
-      var results = await this.$axios.$get(`/api/audiobooks?q=${value}`).catch((error) => {
+      var results = await this.$axios.$get(`/api/books?q=${value}`).catch((error) => {
         console.error('Search error', error)
         return []
       })

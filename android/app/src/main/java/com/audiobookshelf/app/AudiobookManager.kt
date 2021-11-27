@@ -132,7 +132,7 @@ class AudiobookManager {
   }
 
   fun openStream(audiobook:Audiobook, streamListener:OnStreamData) {
-    var url = "$serverUrl/api/audiobook/${audiobook.id}/stream"
+    var url = "$serverUrl/api/books/${audiobook.id}/stream"
     val request = Request.Builder()
       .url(url).addHeader("Authorization", "Bearer $token")
       .build()

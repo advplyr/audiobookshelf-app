@@ -38,6 +38,9 @@ class MyNativeAudio : Plugin() {
         override fun onSleepTimerEnded(currentPosition:Long) {
           emit("onSleepTimerEnded", currentPosition)
         }
+        override fun onSleepTimerSet(sleepTimerEndTime:Long) {
+          emit("onSleepTimerSet", sleepTimerEndTime)
+        }
       })
     }
     mainActivity.pluginCallback = foregroundServiceReady
@@ -81,7 +84,6 @@ class MyNativeAudio : Plugin() {
   fun getCurrentTime(call: PluginCall) {
     Handler(Looper.getMainLooper()).post() {
       var currentTime = playerNotificationService.getCurrentTime()
-      Log.d(tag, "Get Current Time $currentTime")
       val ret = JSObject()
       ret.put("value", currentTime)
       call.resolve(ret)
@@ -95,7 +97,6 @@ class MyNativeAudio : Plugin() {
       var lastPauseTime = playerNotificationService.getTheLastPauseTime()
       Log.d(tag, "Get Last Pause Time $lastPauseTime")
       var currentTime = playerNotificationService.getCurrentTime()
-      Log.d(tag, "Get Current Time $currentTime")
       //if (!isPlaying) currentTime -= playerNotificationService.calcPauseSeekBackTime()
       var id = playerNotificationService.getCurrentAudiobookId()
       Log.d(tag, "Get Current id $id")

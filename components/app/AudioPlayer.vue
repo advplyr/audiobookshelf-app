@@ -32,8 +32,7 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
           </svg>
           <div v-else class="h-7 w-7 flex items-center justify-around cursor-pointer" @click.stop="$emit('showSleepTimer')">
-            <p v-if="sleepTimerEndOfChapterTime" class="text-lg font-mono text-warning">-{{ $secondsToTimestamp(timeLeftInChapter) }}</p>
-            <p v-else class="text-xl font-mono text-success">{{ Math.ceil(sleepTimeoutCurrentTime / 1000 / 60) }}m</p>
+            <p class="text-xl font-mono text-success">{{ sleepTimeRemainingPretty }}</p>
           </div>
 
           <span class="material-icons text-3xl text-white cursor-pointer" :class="chapters.length ? 'text-opacity-75' : 'text-opacity-10'" @click="$emit('selectChapter')">format_list_bulleted</span>
@@ -54,17 +53,17 @@
       </div>
 
       <div id="playerTrack" class="absolute bottom-0 left-0 w-full px-3">
-        <div ref="track" class="h-2 w-full bg-gray-500 bg-opacity-50 relative" :class="loading ? 'animate-pulse' : ''" @click.stop="clickTrack">
+        <div ref="track" class="h-2 w-full bg-gray-500 bg-opacity-50 relative" :class="loading ? 'animate-pulse' : ''" @click="clickTrack">
           <div ref="readyTrack" class="h-full bg-gray-600 absolute top-0 left-0 pointer-events-none" />
           <div ref="bufferTrack" class="h-full bg-gray-400 absolute top-0 left-0 pointer-events-none" />
           <div ref="playedTrack" class="h-full bg-gray-200 absolute top-0 left-0 pointer-events-none" />
         </div>
         <div class="flex pt-0.5">
-          <p class="font-mono text-sm" ref="currentTimestamp">0:00</p>
+          <p class="font-mono text-white text-opacity-90" style="font-size: 0.8rem" ref="currentTimestamp">0:00</p>
           <div class="flex-grow" />
           <p v-show="showFullscreen" class="text-sm truncate text-white text-opacity-75" style="max-width: 65%">{{ currentChapterTitle }}</p>
           <div class="flex-grow" />
-          <p class="font-mono text-sm">{{ totalDurationPretty }}</p>
+          <p class="font-mono text-white text-opacity-90" style="font-size: 0.8rem">{{ timeRemainingPretty }}</p>
         </div>
       </div>
     </div>
@@ -76,6 +75,7 @@ import MyNativeAudio from '@/plugins/my-native-audio'
 
 export default {
   props: {
+    playing: Boolean,
     audiobook: {
       type: Object,
       default: () => {}
@@ -90,8 +90,7 @@ export default {
     },
     loading: Boolean,
     sleepTimerRunning: Boolean,
-    sleepTimeoutCurrentTime: Number,
-    sleepTimerEndOfChapterTime: Number
+    sleepTimerEndTime: Number
   },
   data() {
     return {
@@ -127,6 +126,14 @@ export default {
     }
   },
   computed: {
+    isPlaying: {
+      get() {
+        return this.playing
+      },
+      set(val) {
+        this.$emit('update:playing', val)
+      }
+    },
     book() {
       return this.audiobook.book || {}
     },
@@ -156,9 +163,31 @@ export default {
     totalDurationPretty() {
       return this.$secondsToTimestamp(this.totalDuration)
     },
+    timeRemaining() {
+      return (this.totalDuration - this.currentTime) / this.currentPlaybackRate
+    },
+    timeRemainingPretty() {
+      if (this.timeRemaining < 0) {
+        return this.$secondsToTimestamp(this.timeRemaining * -1)
+      }
+      return '-' + this.$secondsToTimestamp(this.timeRemaining)
+    },
     timeLeftInChapter() {
       if (!this.currentChapter) return 0
       return this.currentChapter.end - this.currentTime
+    },
+    sleepTimeRemaining() {
+      if (!this.sleepTimerEndTime) return 0
+      return Math.max(0, this.sleepTimerEndTime / 1000 - this.currentTime)
+    },
+    sleepTimeRemainingPretty() {
+      if (!this.sleepTimeRemaining) return '0s'
+      var secondsRemaining = Math.round(this.sleepTimeRemaining)
+      if (secondsRemaining > 91) {
+        return Math.ceil(secondsRemaining / 60) + 'm'
+      } else {
+        return secondsRemaining + 's'
+      }
     }
   },
   methods: {
@@ -269,9 +298,6 @@ export default {
       if (this.loading) return
       MyNativeAudio.seekForward({ amount: '10000' })
     },
-    // sendStreamUpdate() {
-    //   this.$emit('updateTime', this.currentTime)
-    // },
     setStreamReady() {
       this.readyTrackWidth = this.trackWidth
       this.$refs.readyTrack.style.width = this.trackWidth + 'px'
@@ -310,6 +336,7 @@ export default {
         console.error('Invalid no played track ref')
         return
       }
+      this.$emit('updateTime', this.currentTime)
 
       if (this.seekLoading) {
         this.seekLoading = false
@@ -354,6 +381,12 @@ export default {
     },
     clickTrack(e) {
       if (this.loading) return
+      if (!this.showFullscreen) {
+        // Track not clickable on mini-player
+        return
+      }
+      if (e) e.stopPropagation()
+
       var offsetX = e.offsetX
       var perc = offsetX / this.trackWidth
       var time = perc * this.totalDuration
@@ -462,10 +495,12 @@ export default {
     play() {
       MyNativeAudio.playPlayer()
       this.startPlayInterval()
+      this.isPlaying = true
     },
     pause() {
       MyNativeAudio.pausePlayer()
       this.stopPlayInterval()
+      this.isPlaying = false
     },
     startPlayInterval() {
       this.startListenTimeInterval()
@@ -474,6 +509,7 @@ export default {
       this.playInterval = setInterval(async () => {
         var data = await MyNativeAudio.getCurrentTime()
         this.currentTime = Number((data.value / 1000).toFixed(2))
+
         this.timeupdate()
       }, 1000)
     },
