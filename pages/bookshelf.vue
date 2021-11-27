@@ -15,9 +15,12 @@
               for library <strong>{{ currentLibraryName }}</strong></span
             >
           </p>
-          <div v-if="!isSocketConnected" class="flex items-center mb-3">
-            <span class="material-icons text-error text-lg">cloud_off</span>
-            <p class="pl-2 text-error text-sm">Audiobookshelf server not connected</p>
+          <div class="w-full" v-if="!isSocketConnected">
+            <div class="flex justify-center items-center mb-3">
+              <span class="material-icons text-error text-lg">cloud_off</span>
+              <p class="pl-2 text-error text-sm">Audiobookshelf server not connected.</p>
+            </div>
+            <p class="px-4 text-center text-error absolute bottom-12 left-0 right-0 mx-auto"><strong>Important!</strong> This app requires that you are running <u>your own server</u> and does not provide any content.</p>
           </div>
           <div class="flex justify-center">
             <ui-btn v-if="!isSocketConnected" small @click="$router.push('/connect')" class="w-32"> Connect </ui-btn>

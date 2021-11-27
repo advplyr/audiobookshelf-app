@@ -6,9 +6,11 @@
       </nuxt-link>
       <div class="absolute top-0 left-0 w-full p-6 flex items-center flex-col justify-center z-0 short:hidden">
         <img src="/Logo.png" class="h-20 w-20 mb-2" />
-        <h1 class="text-2xl font-book">AudioBookshelf</h1>
+        <h1 class="text-2xl font-book">Audiobookshelf</h1>
       </div>
-      <p class="hidden absolute short:block top-1.5 left-12 p-2 font-book text-xl">AudioBookshelf</p>
+      <p class="hidden absolute short:block top-1.5 left-12 p-2 font-book text-xl">Audiobookshelf</p>
+
+      <p class="absolute bottom-16 left-0 right-0 px-2 text-center text-error"><strong>Important!</strong> This app requires that you are running <u>your own server</u> and does not provide any content.<br /><span class="text-xs">For testing android auto functionality there are 2 sample audio files included.</span></p>
 
       <div class="w-full max-w-md mx-auto px-4 sm:px-6 lg:px-8 z-10">
         <div v-show="loggedIn" class="mt-8 bg-primary overflow-hidden shadow rounded-lg p-6 text-center">
@@ -16,7 +18,7 @@
           <p>Connecting socket..</p>
         </div>
         <div v-show="!loggedIn" class="mt-8 bg-primary overflow-hidden shadow rounded-lg p-6 w-full">
-          <h2 class="text-lg leading-7 mb-4">Enter an <span class="font-book font-normal">AudioBookshelf</span><br />server address:</h2>
+          <h2 class="text-lg leading-7 mb-4">Enter an <span class="font-book font-normal">Audiobookshelf</span><br />server address:</h2>
           <form v-show="!showAuth" @submit.prevent="submit" novalidate class="w-full">
             <ui-text-input v-model="serverUrl" :disabled="processing || !networkConnected" placeholder="http://55.55.55.55:13378" type="url" class="w-full sm:w-72 h-10" />
             <div class="flex justify-end">
