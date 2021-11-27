@@ -69,7 +69,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     fun onSleepTimerSet(sleepTimerEndTime:Long)
   }
 
-
   private val tag = "PlayerService"
 
   private var listener:MyCustomObjectListener? = null
@@ -106,6 +105,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   private var sleepTimerTask:TimerTask? = null
   private var sleepTimerRunning:Boolean = false
   private var sleepTimerEndTime:Long = 0L
+  private var sleepTimerExtensionTime:Long = 0L
+  private var sleepTimerFinishedAt:Long = 0L
 
   private lateinit var audiobookManager:AudiobookManager
   private var newConnectionListener:SessionListener? = null
@@ -496,9 +497,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
           KeyEvent.KEYCODE_MEDIA_PLAY -> {
             if (0 == mediaButtonClickCount) {
               play()
-              if (sleepTimerRunning) {
-                extendSleepTime()
-              }
+              if (sleepTimerRunning || sleepTimerFinishedAt > 0L) checkShouldExtendSleepTimer()
             }
             handleMediaButtonClickCount()
           }
@@ -522,9 +521,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
             } else {
               if (0 == mediaButtonClickCount) {
                 play()
-                if (sleepTimerRunning) {
-                  extendSleepTime()
-                }
+                if (sleepTimerRunning || sleepTimerFinishedAt > 0L) checkShouldExtendSleepTimer()
               }
               handleMediaButtonClickCount()
             }
@@ -810,6 +807,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       Log.d(tag, "Already playing")
       return
     }
+    currentPlayer.volume = 1F
     if (currentPlayer == castPlayer) {
       Log.d(tag, "CAST Player set on play ${currentPlayer.isLoading} || ${currentPlayer.duration} | ${currentPlayer.currentPosition}")
     }
@@ -1000,10 +998,17 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   // SLEEP TIMER STUFF
   //
 
+  private fun getSleepTimerTimeRemainingSeconds():Int {
+    if (sleepTimerEndTime <= 0) return 0
+    var sleepTimeRemaining = sleepTimerEndTime - getCurrentTime()
+    return ((sleepTimeRemaining / 1000).toDouble()).roundToInt()
+  }
+
   fun setSleepTimer(time: Long, isChapterTime: Boolean) : Boolean {
     Log.d(tag, "Setting Sleep Timer for $time is chapter time $isChapterTime")
     sleepTimerTask?.cancel()
     sleepTimerRunning = false
+    sleepTimerFinishedAt = 0L
 
     var currentTime = getCurrentTime()
     if (isChapterTime) {
@@ -1012,34 +1017,33 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         return false
       }
       sleepTimerEndTime = time
+      sleepTimerExtensionTime = SLEEP_EXTENSION_TIME
     } else {
       sleepTimerEndTime = currentTime + time
+      sleepTimerExtensionTime = time
     }
 
     if (sleepTimerEndTime > getDuration()) {
       sleepTimerEndTime = getDuration()
     }
 
-    Log.d(tag, "SLEEP VOLUME ${currentPlayer.volume} | ${currentPlayer.deviceVolume}")
-//    if (isChapterTime) {
-//      sleepChapterTime = time
     listener?.onSleepTimerSet(sleepTimerEndTime)
 
     sleepTimerRunning = true
     sleepTimerTask = Timer("SleepTimer", false).schedule(0L, 1000L) {
       Handler(Looper.getMainLooper()).post() {
         if (currentPlayer.isPlaying) {
-          var sleepTimeRemaining = sleepTimerEndTime - getCurrentTime()
-          var sleepTimeSecondsRemaining = ((sleepTimeRemaining / 1000).toDouble()).roundToInt()
+          var sleepTimeSecondsRemaining = getSleepTimerTimeRemainingSeconds()
           Log.d(tag, "Sleep TIMER time remaining $sleepTimeSecondsRemaining s")
 
-          if (sleepTimeRemaining <= 0) {
+          if (sleepTimeSecondsRemaining <= 0) {
             Log.d(tag, "Sleep Timer Pausing Player on Chapter")
             currentPlayer.pause()
 
             listener?.onSleepTimerEnded(currentPlayer.currentPosition)
             sleepTimerTask?.cancel()
             sleepTimerRunning = false
+            sleepTimerFinishedAt = System.currentTimeMillis()
           } else if (sleepTimeSecondsRemaining <= 30) {
             // Start fading out audio
             var volume = sleepTimeSecondsRemaining / 30F
@@ -1068,19 +1072,62 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   private fun extendSleepTime() {
     if (!sleepTimerRunning) return
     currentPlayer.volume = 1F
-    sleepTimerEndTime += SLEEP_EXTENSION_TIME
+    sleepTimerEndTime += sleepTimerExtensionTime
     if (sleepTimerEndTime > getDuration()) sleepTimerEndTime = getDuration()
     listener?.onSleepTimerSet(sleepTimerEndTime)
   }
 
-  fun handleShake() {
-    Log.d(tag, "HANDLE SHAKE HERE")
-    if (sleepTimerRunning) {
-      Log.d(tag, "Sleep Timer is Running, EXTEND TIME")
-      extendSleepTime()
+  private fun checkShouldExtendSleepTimer() {
+    if (!sleepTimerRunning) {
+      var finishedAtDistance = System.currentTimeMillis() - sleepTimerFinishedAt
+      if (finishedAtDistance > 120000) // 2 minutes
+      {
+        Log.d(tag, "Sleep timer finished over 2 mins ago, clearing it")
+        sleepTimerFinishedAt = 0L
+        return
+      }
+
+      var newSleepTime = if (sleepTimerExtensionTime >= 0) sleepTimerExtensionTime else SLEEP_EXTENSION_TIME
+      setSleepTimer(newSleepTime, false)
+      play()
+      return
     }
+    // Only extend if within 30 seconds of finishing
+    var sleepTimeRemaining = getSleepTimerTimeRemainingSeconds()
+    if (sleepTimeRemaining <= 30) extendSleepTime()
   }
 
+  fun handleShake() {
+    Log.d(tag, "HANDLE SHAKE HERE")
+    if (sleepTimerRunning || sleepTimerFinishedAt > 0L) checkShouldExtendSleepTimer()
+  }
+
+  fun increaseSleepTime(time:Long) {
+  Log.d(tag, "Increase Sleep time $time")
+    if (!sleepTimerRunning) return
+    var newSleepEndTime = sleepTimerEndTime + time
+    sleepTimerEndTime = if (newSleepEndTime >= getDuration()) {
+      getDuration()
+    } else {
+      newSleepEndTime
+    }
+    currentPlayer.volume = 1F
+    listener?.onSleepTimerSet(sleepTimerEndTime)
+  }
+
+  fun decreaseSleepTime(time:Long) {
+    Log.d(tag, "Decrease Sleep time $time")
+    if (!sleepTimerRunning) return
+    var newSleepEndTime = sleepTimerEndTime - time
+    sleepTimerEndTime = if (newSleepEndTime <= 1000) {
+      // End sleep timer in 1 second
+      getCurrentTime() + 1000
+    } else {
+      newSleepEndTime
+    }
+    currentPlayer.volume = 1F
+    listener?.onSleepTimerSet(sleepTimerEndTime)
+  }
 
   /*
       CAST STUFF

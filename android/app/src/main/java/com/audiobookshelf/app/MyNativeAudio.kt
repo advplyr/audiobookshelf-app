@@ -195,6 +195,30 @@ class MyNativeAudio : Plugin() {
   }
 
   @PluginMethod
+  fun increaseSleepTime(call: PluginCall) {
+    var time:Long = call.getString("time", "300000")!!.toLong()
+
+    Handler(Looper.getMainLooper()).post() {
+      playerNotificationService.increaseSleepTime(time)
+      val ret = JSObject()
+      ret.put("success", true)
+      call.resolve()
+    }
+  }
+
+  @PluginMethod
+  fun decreaseSleepTime(call: PluginCall) {
+    var time:Long = call.getString("time", "300000")!!.toLong()
+
+    Handler(Looper.getMainLooper()).post() {
+      playerNotificationService.decreaseSleepTime(time)
+      val ret = JSObject()
+      ret.put("success", true)
+      call.resolve()
+    }
+  }
+
+  @PluginMethod
   fun cancelSleepTimer(call: PluginCall) {
     playerNotificationService.cancelSleepTimer()
     call.resolve()
