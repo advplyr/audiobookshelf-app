@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.hardware.Sensor
+import android.hardware.SensorManager
 import android.net.Uri
 import android.os.*
 import android.support.v4.media.MediaBrowserCompat
@@ -54,6 +56,7 @@ import kotlin.math.roundToInt
 
 const val NOTIFICATION_LARGE_ICON_SIZE = 144 // px
 const val SLEEP_EXTENSION_TIME = 900000L // 15m
+const val SLEEP_TIMER_WAKE_UP_EXPIRATION = 120000L // 2m
 
 class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
@@ -103,10 +106,17 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   private var onSeekBack: Boolean = false
 
   private var sleepTimerTask:TimerTask? = null
+  private var shakeSensorUnregisterTask:TimerTask? = null
   private var sleepTimerRunning:Boolean = false
   private var sleepTimerEndTime:Long = 0L
   private var sleepTimerExtensionTime:Long = 0L
   private var sleepTimerFinishedAt:Long = 0L
+  private var isShakeSensorRegistered:Boolean = false
+
+  // The following are used for the shake detection
+  private var mSensorManager: SensorManager? = null
+  private var mAccelerometer: Sensor? = null
+  private var mShakeDetector: ShakeDetector? = null
 
   private lateinit var audiobookManager:AudiobookManager
   private var newConnectionListener:SessionListener? = null
@@ -123,7 +133,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     Log.d(tag, "onBind")
 
      // Android Auto Media Browser Service
-     if (SERVICE_INTERFACE.equals(intent.getAction())) {
+     if (SERVICE_INTERFACE == intent.action) {
        Log.d(tag, "Is Media Browser Service")
        return super.onBind(intent);
      }
@@ -149,6 +159,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   override fun onStart(intent: Intent?, startId: Int) {
     Log.d(tag, "onStart $startId")
+
   }
 
   @RequiresApi(Build.VERSION_CODES.O)
@@ -256,6 +267,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   override fun onCreate() {
     super.onCreate()
     ctx = this
+
+    Log.d(tag, "onCreate Register sensor listener ${mAccelerometer?.isWakeUpSensor}")
+    initSensor()
+
     var client: OkHttpClient = OkHttpClient()
     audiobookManager = AudiobookManager(ctx, client)
     audiobookManager.init()
@@ -479,6 +494,19 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     })
   }
 
+  private fun initSensor() {
+    // ShakeDetector initialization
+    mSensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
+    mAccelerometer = mSensorManager!!.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+
+    mShakeDetector = ShakeDetector()
+    mShakeDetector!!.setOnShakeListener(object : ShakeDetector.OnShakeListener {
+      override fun onShake(count: Int) {
+        Log.d(tag, "PHONE SHAKE! $count")
+        handleShake()
+      }
+    })
+  }
 
   fun handleCallMediaButton(intent: Intent): Boolean {
     if(Intent.ACTION_MEDIA_BUTTON == intent.getAction()) {
@@ -1004,11 +1032,18 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     return ((sleepTimeRemaining / 1000).toDouble()).roundToInt()
   }
 
+  fun getIsSleepTimerRunning():Boolean {
+    return sleepTimerRunning
+  }
+
   fun setSleepTimer(time: Long, isChapterTime: Boolean) : Boolean {
     Log.d(tag, "Setting Sleep Timer for $time is chapter time $isChapterTime")
     sleepTimerTask?.cancel()
     sleepTimerRunning = false
     sleepTimerFinishedAt = 0L
+
+    // Register shake sensor
+    registerSensor()
 
     var currentTime = getCurrentTime()
     if (isChapterTime) {
@@ -1041,8 +1076,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
             currentPlayer.pause()
 
             listener?.onSleepTimerEnded(currentPlayer.currentPosition)
-            sleepTimerTask?.cancel()
-            sleepTimerRunning = false
+            clearSleepTimer()
             sleepTimerFinishedAt = System.currentTimeMillis()
           } else if (sleepTimeSecondsRemaining <= 30) {
             // Start fading out audio
@@ -1056,16 +1090,29 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     return true
   }
 
+  fun clearSleepTimer() {
+    sleepTimerTask?.cancel()
+    sleepTimerTask = null
+    sleepTimerEndTime = 0
+    sleepTimerRunning = false
+
+    // Unregister shake sensor after wake up expiration
+    shakeSensorUnregisterTask?.cancel()
+    shakeSensorUnregisterTask = Timer("ShakeUnregisterTimer", false).schedule(SLEEP_TIMER_WAKE_UP_EXPIRATION) {
+      Handler(Looper.getMainLooper()).post() {
+        Log.d(tag, "wake time expired: Unregistering shake sensor")
+        unregisterSensor()
+      }
+    }
+  }
+
   fun getSleepTimerTime():Long? {
     return sleepTimerEndTime
   }
 
   fun cancelSleepTimer() {
     Log.d(tag, "Canceling Sleep Timer")
-    sleepTimerTask?.cancel()
-    sleepTimerTask = null
-    sleepTimerEndTime = 0
-    sleepTimerRunning = false
+    clearSleepTimer()
     listener?.onSleepTimerSet(0)
   }
 
@@ -1080,7 +1127,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   private fun checkShouldExtendSleepTimer() {
     if (!sleepTimerRunning) {
       var finishedAtDistance = System.currentTimeMillis() - sleepTimerFinishedAt
-      if (finishedAtDistance > 120000) // 2 minutes
+      if (finishedAtDistance > SLEEP_TIMER_WAKE_UP_EXPIRATION) // 2 minutes
       {
         Log.d(tag, "Sleep timer finished over 2 mins ago, clearing it")
         sleepTimerFinishedAt = 0L
@@ -1127,6 +1174,30 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     }
     currentPlayer.volume = 1F
     listener?.onSleepTimerSet(sleepTimerEndTime)
+  }
+
+  // Shake sensor used for sleep timer
+  private fun registerSensor() {
+    if (isShakeSensorRegistered) {
+      Log.w(tag, "Shake sensor already registered")
+      return
+    }
+    shakeSensorUnregisterTask?.cancel()
+
+    Log.d(tag, "Registering shake SENSOR ${mAccelerometer?.isWakeUpSensor}")
+    var success = mSensorManager!!.registerListener(
+      mShakeDetector,
+      mAccelerometer,
+      SensorManager.SENSOR_DELAY_UI
+    )
+    if (success) isShakeSensorRegistered = true
+  }
+
+  private fun unregisterSensor() {
+    if (!isShakeSensorRegistered) return
+    Log.d(tag, "Unregistering shake sensor")
+    mSensorManager!!.unregisterListener(mShakeDetector)
+    isShakeSensorRegistered = false
   }
 
   /*
