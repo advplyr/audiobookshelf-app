@@ -42,7 +42,7 @@ export const actions = {
       var updatePayload = {
         ...payload
       }
-      return this.$axios.$patch('/api/user/settings', updatePayload).then((result) => {
+      return this.$axios.$patch('/api/me/settings', updatePayload).then((result) => {
         if (result.success) {
           commit('setSettings', result.settings)
           return true
