@@ -28,14 +28,24 @@
 </template>
 
 <script>
+import TouchEvent from '@/objects/TouchEvent'
+
 export default {
   data() {
-    return {}
+    return {
+      touchEvent: null
+    }
   },
   watch: {
     $route: {
       handler() {
         this.show = false
+      }
+    },
+    show: {
+      handler(newVal) {
+        if (newVal) this.registerListener()
+        else this.removeListener()
       }
     }
   },
@@ -106,6 +116,25 @@ export default {
 
       this.$store.commit('audiobooks/reset')
       this.$store.dispatch('audiobooks/useDownloaded')
+    },
+    touchstart(e) {
+      this.touchEvent = new TouchEvent(e)
+    },
+    touchend(e) {
+      if (!this.touchEvent) return
+      this.touchEvent.setEndEvent(e)
+      if (this.touchEvent.isSwipeRight()) {
+        this.show = false
+      }
+      this.touchEvent = null
+    },
+    registerListener() {
+      document.addEventListener('touchstart', this.touchstart)
+      document.addEventListener('touchend', this.touchend)
+    },
+    removeListener() {
+      document.removeEventListener('touchstart', this.touchstart)
+      document.removeEventListener('touchend', this.touchend)
     }
   },
   mounted() {},

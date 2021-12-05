@@ -39,6 +39,12 @@ export default {
     },
     networkConnected() {
       return this.$store.state.networkConnected
+    },
+    currentLibraryId() {
+      return this.$store.state.libraries.currentLibraryId
+    },
+    isSocketConnected() {
+      return this.$store.state.socketConnected
     }
   },
   methods: {
@@ -49,6 +55,7 @@ export default {
 
         // Load libraries
         this.$store.dispatch('libraries/load')
+        this.$store.dispatch('libraries/fetch', this.currentLibraryId)
       }
     },
     socketConnectionFailed(err) {
@@ -223,23 +230,23 @@ export default {
         var mediaFolder = mediaFolders.find((mf) => mf.name === download.folderName)
         if (mediaFolder) {
           console.log('Found download ' + download.folderName)
-
-          if (download.isPreparing || download.isDownloading) {
-            download.isIncomplete = true
-            download.isPreparing = false
-            download.isDownloading = false
+          if (download.isMissing) {
+            download.isMissing = false
+            this.$store.commit('downloads/addUpdateDownload', download)
           }
-
-          this.$store.commit('downloads/addUpdateDownload', download)
-          this.$store.commit('audiobooks/addUpdate', download.audiobook)
         } else {
           console.error('Download not found ' + download.folderName)
-          download.isMissing = true
-          download.isPreparing = false
-          download.isDownloading = false
-          this.$store.commit('downloads/addUpdateDownload', download)
+          if (!download.isMissing) {
+            download.isMissing = true
+            this.$store.commit('downloads/addUpdateDownload', download)
+          }
         }
       })
+
+      // Match media scanned folders with books from server
+      if (this.isSocketConnected) {
+        await this.$store.dispatch('downloads/linkOrphanDownloads')
+      }
     },
     async initMediaStore() {
       // Request and setup listeners for media files on native
@@ -253,7 +260,8 @@ export default {
         this.onDownloadProgress(data)
       })
 
-      var downloads = (await this.$sqlStore.getAllDownloads()) || []
+      // var downloads = (await this.$sqlStore.getAllDownloads()) || []
+      var downloads = await this.$store.dispatch('downloads/loadFromStorage')
       var downloadFolder = await this.$localStore.getDownloadFolder()
 
       if (downloadFolder) {

@@ -105,6 +105,9 @@ export default {
     }
   },
   computed: {
+    isSocketConnected() {
+      return this.$store.state.socketConnected
+    },
     hasStoragePermission() {
       return this.$store.state.hasStoragePermission
     },
@@ -158,9 +161,10 @@ export default {
 
         await this.searchFolder()
 
-        var audiobooks = this.$store.state.audiobooks.audiobooks || []
-        if (audiobooks.length) {
-          this.$store.dispatch('downloads/linkOrphanDownloads', audiobooks)
+        // var audiobooks = this.$store.state.audiobooks.audiobooks || []
+        // if (audiobooks.length) {
+        if (this.isSocketConnected) {
+          this.$store.dispatch('downloads/linkOrphanDownloads')
         }
       }
     },

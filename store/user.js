@@ -2,7 +2,7 @@ export const state = () => ({
   user: null,
   userAudiobookData: [],
   settings: {
-    mobileOrderBy: 'recent',
+    mobileOrderBy: 'addedAt',
     mobileOrderDesc: true,
     mobileFilterBy: 'all',
     orderBy: 'book.title',
@@ -23,6 +23,9 @@ export const getters = {
     return state.user ? state.user.token : null
   },
   getUserAudiobookData: (state, getters) => (audiobookId) => {
+    return getters.getUserAudiobook(audiobookId)
+  },
+  getUserAudiobook: (state, getters) => (audiobookId) => {
     return state.userAudiobookData.find(uabd => uabd.audiobookId === audiobookId)
   },
   getUserSetting: (state) => (key) => {
@@ -135,6 +138,9 @@ export const mutations = {
     var hasChanges = false
     for (const key in settings) {
       if (state.settings[key] !== settings[key]) {
+        if (key === 'mobileOrderBy' && settings[key] === 'recent') {
+          settings[key] = 'addedAt'
+        }
         hasChanges = true
         state.settings[key] = settings[key]
       }

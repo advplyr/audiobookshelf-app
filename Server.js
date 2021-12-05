@@ -14,6 +14,7 @@ class Server extends EventEmitter {
 
     this.user = null
     this.connected = false
+    this.initialized = false
 
     this.stream = null
 
@@ -231,6 +232,8 @@ class Server extends EventEmitter {
       console.log('[SOCKET] Socket Disconnected: ' + reason)
       this.connected = false
       this.emit('connected', false)
+      this.emit('initialized', false)
+      this.initialized = false
       this.store.commit('setSocketConnected', false)
 
       // this.socket.removeAllListeners()
@@ -246,6 +249,11 @@ class Server extends EventEmitter {
         this.store.commit('setStreamAudiobook', data.stream.audiobook)
         this.emit('initialStream', data.stream)
       }
+      if (data.serverSettings) {
+        this.store.commit('setServerSettings', data.serverSettings)
+      }
+      this.initialized = true
+      this.emit('initialized', true)
     })
 
     this.socket.on('user_updated', (user) => {

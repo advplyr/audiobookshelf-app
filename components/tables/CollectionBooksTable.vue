@@ -9,7 +9,7 @@
       <p v-if="totalDuration">{{ totalDurationPretty }}</p>
     </div>
     <template v-for="book in booksCopy">
-      <tables-collection-book-table-row :key="book.id" :book="book" :collection-id="collectionId" class="item" :class="drag ? '' : 'collection-book-item'" @edit="editBook" />
+      <tables-collection-book-table-row :key="book.id" :book="book" :collection-id="collectionId" class="item collection-book-item" @edit="editBook" />
     </template>
   </div>
 </template>

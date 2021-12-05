@@ -1,17 +1,9 @@
 <template>
   <div class="relative">
-    <!-- New Book Flag -->
-    <div v-if="isNew" class="absolute top-4 left-0 w-4 h-10 pr-2 bg-darkgreen box-shadow-xl">
-      <div class="absolute top-0 left-0 w-full h-full transform -rotate-90 flex items-center justify-center">
-        <p class="text-center text-sm">New</p>
-      </div>
-      <div class="absolute -bottom-4 left-0 triangle-right" />
-    </div>
-
     <div class="rounded-sm h-full overflow-hidden relative box-shadow-book">
       <nuxt-link :to="`/audiobook/${audiobookId}`" class="cursor-pointer">
         <div class="w-full relative" :style="{ height: height + 'px' }">
-          <cards-book-cover :audiobook="audiobook" :download-cover="downloadCover" :author-override="authorFormat" :width="width" />
+          <covers-book-cover :audiobook="audiobook" :download-cover="downloadCover" :width="width" :book-cover-aspect-ratio="bookCoverAspectRatio" />
 
           <div v-if="download" class="absolute" :style="{ top: 0.5 * sizeMultiplier + 'rem', right: 0.5 * sizeMultiplier + 'rem' }">
             <span class="material-icons text-success" :style="{ fontSize: 1.1 * sizeMultiplier + 'rem' }">download_done</span>
@@ -38,15 +30,13 @@ export default {
     width: {
       type: Number,
       default: 140
-    }
+    },
+    bookCoverAspectRatio: Number
   },
   data() {
     return {}
   },
   computed: {
-    isNew() {
-      return this.tags.includes('new')
-    },
     tags() {
       return this.audiobook.tags || []
     },
@@ -57,29 +47,11 @@ export default {
       return this.audiobook.book || {}
     },
     height() {
-      return this.width * 1.6
+      return this.width * this.bookCoverAspectRatio
     },
     sizeMultiplier() {
-      return this.width / 120
-    },
-    paddingX() {
-      return 16 * this.sizeMultiplier
-    },
-    author() {
-      return this.book.author
-    },
-    authorFL() {
-      return this.book.authorFL || this.author
-    },
-    authorLF() {
-      return this.book.authorLF || this.author
-    },
-    authorFormat() {
-      if (!this.orderBy || !this.orderBy.startsWith('book.author')) return null
-      return this.orderBy === 'book.authorLF' ? this.authorLF : this.authorFL
-    },
-    orderBy() {
-      return this.$store.getters['user/getUserSetting']('mobileOrderBy')
+      if (this.bookCoverAspectRatio === 1) return this.width / 160
+      return this.width / 100
     },
     mostRecentUserProgress() {
       return this.$store.getters['user/getUserAudiobookData'](this.audiobookId)

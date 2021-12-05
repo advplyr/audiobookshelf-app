@@ -1,8 +1,10 @@
 <template>
   <div class="w-full relative">
-    <div class="bookshelfRow h-44 flex items-end px-3 max-w-full overflow-x-auto">
-      <template v-for="book in books">
-        <cards-book-card :key="book.id" :audiobook="book" :width="100" class="mx-2" />
+    <div class="bookshelfRow flex items-end px-3 max-w-full overflow-x-auto" :style="{ height: shelfHeight + 'px' }">
+      <template v-for="(entity, index) in entities">
+        <!-- <cards-book-card v-if="type === 'books'" :key="entity.id" :audiobook="entity" :width="bookWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" class="mx-2" /> -->
+        <cards-lazy-book-card v-if="type === 'books'" :key="entity.id" :index="index" :book-mount="entity" :width="bookWidth" :height="entityHeight" :book-cover-aspect-ratio="bookCoverAspectRatio" is-categorized class="mx-2 relative" />
+        <cards-lazy-series-card v-else-if="type === 'series'" :key="entity.id" :index="index" :series-mount="entity" :width="bookWidth * 2" :height="entityHeight" :book-cover-aspect-ratio="bookCoverAspectRatio" is-categorized class="mx-2 relative" />
       </template>
     </div>
 
@@ -19,7 +21,8 @@
 export default {
   props: {
     label: String,
-    books: {
+    type: String,
+    entities: {
       type: Array,
       default: () => []
     }
@@ -27,7 +30,26 @@ export default {
   data() {
     return {}
   },
-  computed: {},
+  computed: {
+    shelfHeight() {
+      return this.entityHeight + 40
+    },
+    bookWidth() {
+      var coverSize = 100
+      if (this.bookCoverAspectRatio === 1) return coverSize * 1.6
+      return coverSize
+    },
+    bookHeight() {
+      if (this.bookCoverAspectRatio === 1) return this.bookWidth
+      return this.bookWidth * 1.6
+    },
+    entityHeight() {
+      return this.bookHeight
+    },
+    bookCoverAspectRatio() {
+      return this.$store.getters['getBookCoverAspectRatio']
+    }
+  },
   methods: {},
   mounted() {}
 }

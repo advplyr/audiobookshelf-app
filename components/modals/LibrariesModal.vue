@@ -53,10 +53,8 @@ export default {
   methods: {
     async clickedOption(lib) {
       this.show = false
-
-      this.$store.commit('libraries/setCurrentLibrary', lib.id)
-      await this.$store.dispatch('audiobooks/load')
-
+      await this.$store.dispatch('libraries/fetch', lib.id)
+      this.$eventBus.$emit('library-changed', lib.id)
       this.$localStore.setCurrentLibrary(lib)
     }
   },

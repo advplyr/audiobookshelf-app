@@ -19,7 +19,8 @@ export const state = () => ({
 
   showSideDrawer: false,
   bookshelfView: 'grid',
-  isNetworkListenerInit: false
+  isNetworkListenerInit: false,
+  serverSettings: null
 })
 
 export const getters = {
@@ -34,7 +35,15 @@ export const getters = {
   },
   getAudiobookIdStreaming: state => {
     return state.streamAudiobook ? state.streamAudiobook.id : null
-  }
+  },
+  getServerSetting: state => key => {
+    if (!state.serverSettings) return null
+    return state.serverSettings[key]
+  },
+  getBookCoverAspectRatio: state => {
+    if (!state.serverSettings || !state.serverSettings.coverAspectRatio) return 1.6
+    return state.serverSettings.coverAspectRatio === 0 ? 1.6 : 1
+  },
 }
 
 export const actions = {
@@ -123,5 +132,8 @@ export const mutations = {
   },
   setBookshelfView(state, val) {
     state.bookshelfView = val
+  },
+  setServerSettings(state, val) {
+    state.serverSettings = val
   }
 }

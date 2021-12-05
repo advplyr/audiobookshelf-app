@@ -5,9 +5,8 @@
         <nuxt-link to="/bookshelf/series" v-if="selectedSeriesName" class="pt-1">
           <span class="material-icons">arrow_back</span>
         </nuxt-link>
-        <p v-show="!selectedSeriesName" class="font-book pt-1">{{ numEntities }} {{ entityTitle }}</p>
-        <p v-show="selectedSeriesName" class="ml-2 font-book pt-1">{{ selectedSeriesName }}</p>
-
+        <p v-show="!selectedSeriesName" class="font-book pt-1">{{ totalEntities }} {{ entityTitle }}</p>
+        <p v-show="selectedSeriesName" class="ml-2 font-book pt-1">{{ selectedSeriesName }} ({{ totalEntities }})</p>
         <div class="flex-grow" />
         <template v-if="page === 'library'">
           <span class="material-icons px-2" @click="changeView">{{ viewIcon }}</span>
@@ -32,12 +31,13 @@ export default {
       showSortModal: false,
       showFilterModal: false,
       settings: {},
-      isListView: false
+      isListView: false,
+      totalEntities: 0
     }
   },
   computed: {
     hasFilters() {
-      return this.$store.getters['user/getUserSetting']('filterBy') !== 'all'
+      return this.$store.getters['user/getUserSetting']('mobileFilterBy') !== 'all'
     },
     page() {
       var routeName = this.$route.name || ''
@@ -47,42 +47,17 @@ export default {
       return this.$route.query || {}
     },
     entityTitle() {
-      if (this.page === 'library') return 'Audiobooks'
+      if (this.page === 'library') return 'Books'
       else if (this.page === 'series') {
-        if (this.selectedSeriesName) return 'Books in ' + this.selectedSeriesName
         return 'Series'
       } else if (this.page === 'collections') {
         return 'Collections'
       }
       return ''
     },
-    numEntities() {
-      if (this.page === 'library') return this.numAudiobooks
-      else if (this.page === 'series') {
-        if (this.selectedSeriesName) return this.numBooksInSeries
-        return this.series.length
-      } else if (this.page === 'collections') return this.numCollections
-      return 0
-    },
-    series() {
-      return this.$store.getters['audiobooks/getSeriesGroups']() || []
-    },
-    numCollections() {
-      return (this.$store.state.user.collections || []).length
-    },
-    numAudiobooks() {
-      return this.$store.getters['audiobooks/getFiltered']().length
-    },
-    numBooksInSeries() {
-      return this.selectedSeries ? (this.selectedSeries.books || []).length : 0
-    },
-    selectedSeries() {
-      if (!this.selectedSeriesName) return null
-      return this.series.find((s) => s.name === this.selectedSeriesName)
-    },
     selectedSeriesName() {
-      if (this.page === 'series' && this.routeQuery.series) {
-        return this.$decode(this.routeQuery.series)
+      if (this.page === 'series' && this.$route.params.id) {
+        return this.$decode(this.$route.params.id)
       }
       return null
     },
@@ -120,13 +95,18 @@ export default {
       for (const key in settings) {
         this.settings[key] = settings[key]
       }
+    },
+    setTotalEntities(total) {
+      this.totalEntities = total
     }
   },
   mounted() {
     this.init()
+    this.$eventBus.$on('bookshelf-total-entities', this.setTotalEntities)
     this.$store.commit('user/addSettingsListener', { id: 'bookshelftoolbar', meth: this.settingsUpdated })
   },
   beforeDestroy() {
+    this.$eventBus.$off('bookshelf-total-entities', this.setTotalEntities)
     this.$store.commit('user/removeSettingsListener', 'bookshelftoolbar')
   }
 }

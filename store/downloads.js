@@ -20,7 +20,7 @@ export const getters = {
 }
 
 export const actions = {
-  async loadFromStorage({ commit }) {
+  async loadFromStorage({ commit, state }) {
     var downloads = await this.$sqlStore.getAllDownloads()
 
     downloads.forEach(ab => {
@@ -31,20 +31,32 @@ export const actions = {
       ab.isPreparing = false
       commit('setDownload', ab)
     })
+    return state.downloads
   },
-  linkOrphanDownloads({ state, commit }, audiobooks) {
+  async linkOrphanDownloads({ state, commit, rootState }) {
     if (!state.mediaScanResults || !state.mediaScanResults.folders) {
       return
     }
     console.log('Link orphan downloads', JSON.stringify(state.mediaScanResults.folders))
-    state.mediaScanResults.folders.forEach((folder) => {
+    // state.mediaScanResults.folders.forEach((folder) => {
+    for (let i = 0; i < state.mediaScanResults.folders.length; i++) {
+      var folder = state.mediaScanResults.folders[i]
       if (!folder.files || !folder.files.length) return
 
       console.log('Link orphan downloads check folder', folder.name)
-
       var download = state.downloads.find(dl => dl.folderName === folder.name)
       if (!download) {
-        var matchingAb = audiobooks.find(ab => ab.book.title === folder.name)
+        // var matchingAb = audiobooks.find(ab => ab.book.title === folder.name)
+        var results = await this.$axios.$get(`/libraries/${rootState.libraries.currentLibraryId}/search?q=${folder.name}`)
+        var matchingAb = null
+        if (results && results.audiobooks) {
+          console.log('has ab results', JSON.stringify(results.audiobooks))
+          matchingAb = results.audiobooks.find(ab => ab.audiobook.book.title === folder.name)
+          if (matchingAb) console.log('Found matching ab for ' + folder.name, matchingAb)
+          else console.warn('did not find mathcing ab for ' + folder.name)
+        } else {
+          console.error('Invalid results payload', JSON.stringify(results))
+        }
         if (matchingAb) {
           // Found matching download for ab
           var audioFile = folder.files.find(f => f.isAudio)
@@ -72,7 +84,7 @@ export const actions = {
           commit('addUpdateDownload', downloadObj)
         }
       }
-    })
+    }
   }
 }
 
