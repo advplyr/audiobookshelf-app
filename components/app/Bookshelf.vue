@@ -54,7 +54,7 @@ export default {
       var booksPerShelf = Math.floor(this.pageWidth / (this.cardWidth + 32))
       var groupedBooks = []
 
-      var audiobooksSorted = this.$store.getters['audiobooks/getFilteredAndSorted']()
+      var audiobooksSorted = []
       this.currFilterOrderKey = this.filterOrderKey
 
       var numGroups = Math.ceil(audiobooksSorted.length / booksPerShelf)
@@ -86,7 +86,6 @@ export default {
       if (currentLibrary) {
         this.$store.commit('libraries/setCurrentLibrary', currentLibrary.id)
       }
-      this.$store.dispatch('audiobooks/load')
     },
     socketConnected(isConnected) {
       if (isConnected) {

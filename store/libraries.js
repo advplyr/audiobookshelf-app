@@ -5,12 +5,18 @@ export const state = () => ({
   currentLibraryId: 'main',
   showModal: false,
   folders: [],
-  folderLastUpdate: 0
+  folderLastUpdate: 0,
+  issues: 0,
+  filterData: null
 })
 
 export const getters = {
   getCurrentLibrary: state => {
     return state.libraries.find(lib => lib.id === state.currentLibraryId)
+  },
+  getCurrentLibraryName: (state, getters) => {
+    var currLib = getters.getCurrentLibrary
+    return currLib ? currLib.name : null
   }
 }
 
@@ -21,16 +27,22 @@ export const actions = {
       return false
     }
 
-    var library = state.libraries.find(lib => lib.id === libraryId)
-    if (library) {
-      commit('setCurrentLibrary', libraryId)
-      return library
-    }
+    // var library = state.libraries.find(lib => lib.id === libraryId)
+    // if (library) {
+    //   commit('setCurrentLibrary', libraryId)
+    //   return library
+    // }
 
     return this.$axios
-      .$get(`/api/libraries/${libraryId}`)
+      .$get(`/api/libraries/${libraryId}?include=filterdata`)
       .then((data) => {
-        commit('addUpdate', data)
+        var library = data.library
+        var filterData = data.filterdata
+        var issues = data.issues || 0
+
+        commit('addUpdate', library)
+        commit('setLibraryIssues', issues)
+        commit('setLibraryFilterData', filterData)
         commit('setCurrentLibrary', libraryId)
         return data
       })
@@ -117,5 +129,11 @@ export const mutations = {
   },
   removeListener(state, listenerId) {
     state.listeners = state.listeners.filter(l => l.id !== listenerId)
-  }
+  },
+  setLibraryIssues(state, val) {
+    state.issues = val
+  },
+  setLibraryFilterData(state, filterData) {
+    state.filterData = filterData
+  },
 }

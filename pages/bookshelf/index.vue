@@ -1,8 +1,28 @@
 <template>
   <div class="w-full h-full">
     <template v-for="(shelf, index) in shelves">
-      <bookshelf-shelf :key="shelf.id" :label="shelf.label" :books="shelf.books" :style="{ zIndex: shelves.length - index }" />
+      <bookshelf-shelf :key="shelf.id" :label="shelf.label" :entities="shelf.entities" :type="shelf.type" :style="{ zIndex: shelves.length - index }" />
     </template>
+
+    <div v-if="!shelves.length" class="absolute top-0 left-0 w-full h-full flex items-center justify-center">
+      <div>
+        <p class="mb-4 text-center text-xl">
+          Bookshelf empty<span v-show="isSocketConnected">
+            for library <strong>{{ currentLibraryName }}</strong></span
+          >
+        </p>
+        <div class="w-full" v-if="!isSocketConnected">
+          <div class="flex justify-center items-center mb-3">
+            <span class="material-icons text-error text-lg">cloud_off</span>
+            <p class="pl-2 text-error text-sm">Audiobookshelf server not connected.</p>
+          </div>
+          <p class="px-4 text-center text-error absolute bottom-12 left-0 right-0 mx-auto"><strong>Important!</strong> This app requires that you are running <u>your own server</u> and does not provide any content.</p>
+        </div>
+        <div class="flex justify-center">
+          <ui-btn v-if="!isSocketConnected" small @click="$router.push('/connect')" class="w-32"> Connect </ui-btn>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -10,13 +30,19 @@
 export default {
   data() {
     return {
-      settings: {}
+      shelves: [],
+      loading: true
     }
   },
   computed: {
     books() {
-      // return this.$store.getters['audiobooks/getFilteredAndSorted']()
-      return this.$store.state.audiobooks.audiobooks
+      return this.$store.getters['downloads/getAudiobooks']
+    },
+    isSocketConnected() {
+      return this.$store.state.socketConnected
+    },
+    currentLibraryName() {
+      return this.$store.getters['libraries/getCurrentLibraryName']
     },
     booksWithUserAbData() {
       var books = this.books.map((b) => {
@@ -50,14 +76,15 @@ export default {
         })
       return books.slice(0, 10)
     },
-    shelves() {
+    downloadOnlyShelves() {
       var shelves = []
 
       if (this.booksCurrentlyReading.length) {
         shelves.push({
           id: 'recent',
           label: 'Continue Reading',
-          books: this.booksCurrentlyReading
+          type: 'books',
+          entities: this.booksCurrentlyReading
         })
       }
 
@@ -65,7 +92,8 @@ export default {
         shelves.push({
           id: 'added',
           label: 'Recently Added',
-          books: this.booksRecentlyAdded
+          type: 'books',
+          entities: this.booksRecentlyAdded
         })
       }
 
@@ -73,22 +101,58 @@ export default {
         shelves.push({
           id: 'read',
           label: 'Read Again',
-          books: this.booksRead
+          type: 'books',
+          entities: this.booksRead
         })
       }
       return shelves
+    },
+    currentLibraryId() {
+      return this.$store.state.libraries.currentLibraryId
     }
   },
   methods: {
-    async init() {
-      this.settings = { ...this.$store.state.user.settings }
-
-      // var bookshelfView = await this.$localStore.getBookshelfView()
-      // this.isListView = bookshelfView === 'list'
-      // this.bookshelfReady = true
-      // console.log('Bookshelf view', bookshelfView)
+    async fetchCategories() {
+      var categories = await this.$axios
+        .$get(`/api/libraries/${this.currentLibraryId}/categories`)
+        .then((data) => {
+          return data
+        })
+        .catch((error) => {
+          console.error('Failed to fetch categories', error)
+          return []
+        })
+      this.shelves = categories
+    },
+    async socketInit(isConnected) {
+      if (isConnected) {
+        console.log('Connected - Load from server')
+        await this.fetchCategories()
+      } else {
+        console.log('Disconnected - Reset to local storage')
+        this.shelves = this.downloadOnlyShelves
+      }
+      this.loading = false
+    },
+    async libraryChanged(libid) {
+      console.log('Library changed', libid)
+      if (this.isSocketConnected) {
+        await this.fetchCategories()
+      } else {
+        this.shelves = this.downloadOnlyShelves
+      }
     }
   },
-  mounted() {}
+  mounted() {
+    this.$server.on('initialized', this.socketInit)
+    this.$eventBus.$on('library-changed', this.libraryChanged)
+    if (this.$server.initialized) {
+      this.fetchCategories()
+    }
+  },
+  beforeDestroy() {
+    this.$server.off('initialized', this.socketInit)
+    this.$eventBus.$off('library-changed', this.libraryChanged)
+  }
 }
 </script>

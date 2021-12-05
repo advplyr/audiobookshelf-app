@@ -51,9 +51,7 @@ export default {
         mobileFilterBy: 'all'
       })
     },
-    calcShelves() {
-      this.audiobooks = this.$store.getters['audiobooks/getFilteredAndSorted']()
-    },
+    calcShelves() {},
     audiobooksUpdated() {
       this.calcShelves()
     },
@@ -76,7 +74,6 @@ export default {
       if (currentLibrary) {
         this.$store.commit('libraries/setCurrentLibrary', currentLibrary.id)
       }
-      this.$store.dispatch('audiobooks/load')
     },
     socketConnected(isConnected) {
       if (isConnected) {

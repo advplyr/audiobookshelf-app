@@ -1,10 +1,11 @@
 <template>
-  <div class="w-full h-full">
+  <bookshelf-lazy-bookshelf page="series" />
+  <!-- <div class="w-full h-full">
     <template v-for="(shelf, index) in shelves">
       <bookshelf-group-shelf v-if="!selectedSeriesName" :key="shelf.id" group-type="series" :groups="shelf.groups" :style="{ zIndex: shelves.length - index }" />
       <bookshelf-library-shelf v-else :key="shelf.id" :books="shelf.books" :style="{ zIndex: shelves.length - index }" />
     </template>
-  </div>
+  </div> -->
 </template>
 
 <script>

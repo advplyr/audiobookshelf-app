@@ -82,9 +82,19 @@ export default {
           sublist: true
         },
         {
+          text: 'Narrator',
+          value: 'narrators',
+          sublist: true
+        },
+        {
           text: 'Progress',
           value: 'progress',
           sublist: true
+        },
+        {
+          text: 'Issues',
+          value: 'issues',
+          sublist: false
         }
       ]
     }
@@ -118,16 +128,19 @@ export default {
       return this.selected && this.selected.includes('.') ? this.selected.split('.')[0] : false
     },
     genres() {
-      return this.$store.getters['audiobooks/getGenresUsed']
+      return this.filterData.genres || []
     },
     tags() {
-      return this.$store.state.audiobooks.tags
+      return this.filterData.tags || []
     },
     series() {
-      return this.$store.state.audiobooks.series
+      return this.filterData.series || []
     },
     authors() {
-      return this.$store.getters['audiobooks/getUniqueAuthors']
+      return this.filterData.authors || []
+    },
+    narrators() {
+      return this.filterData.narrators || []
     },
     progress() {
       return ['Read', 'Unread', 'In Progress']
@@ -139,6 +152,9 @@ export default {
           value: this.$encode(item)
         }
       })
+    },
+    filterData() {
+      return this.$store.state.libraries.filterData || {}
     }
   },
   methods: {

@@ -7,18 +7,33 @@
       <div v-show="isFetching" class="w-full py-8 flex justify-center">
         <p class="text-lg text-gray-400">Fetching...</p>
       </div>
-      <div v-if="!isFetching && lastSearch && !items.length" class="w-full py-8 flex justify-center">
+      <div v-if="!isFetching && lastSearch && !totalResults" class="w-full py-8 flex justify-center">
         <p class="text-lg text-gray-400">Nothing found</p>
       </div>
-      <template v-for="item in items">
-        <div class="py-2 border-b border-bg flex" :key="item.id" @click="clickItem(item)">
-          <cards-book-cover :audiobook="item.data" :width="50" />
-          <div class="flex-grow px-4 h-full">
-            <div class="w-full h-full">
-              <p class="text-base truncate">{{ item.data.book.title }}</p>
-              <p class="text-sm text-gray-400 truncate">{{ item.data.book.author }}</p>
-            </div>
-          </div>
+      <p v-if="bookResults.length" class="font-semibold text-sm mb-1">Books</p>
+      <template v-for="bookResult in bookResults">
+        <div :key="bookResult.audiobook.id" class="w-full h-16 py-1">
+          <nuxt-link :to="`/audiobook/${bookResult.audiobook.id}`">
+            <cards-book-search-card :audiobook="bookResult.audiobook" :search="lastSearch" :match-key="bookResult.matchKey" :match-text="bookResult.matchText" />
+          </nuxt-link>
+        </div>
+      </template>
+
+      <p v-if="seriesResults.length" class="font-semibold text-sm mb-1 mt-2">Series</p>
+      <template v-for="seriesResult in seriesResults">
+        <div :key="seriesResult.series" class="w-full h-16 py-1">
+          <nuxt-link :to="`/bookshelf/series/${$encode(seriesResult.series)}`">
+            <cards-series-search-card :series="seriesResult.series" :book-items="seriesResult.audiobooks" />
+          </nuxt-link>
+        </div>
+      </template>
+
+      <p v-if="authorResults.length" class="font-semibold text-sm mb-1 mt-2">Authors</p>
+      <template v-for="authorResult in authorResults">
+        <div :key="authorResult.author" class="w-full h-14 py-1">
+          <nuxt-link :to="`/bookshelf/library?filter=authors.${$encode(authorResult.author)}`">
+            <cards-author-search-card :key="authorResult.author" :author="authorResult.author" />
+          </nuxt-link>
         </div>
       </template>
     </div>
@@ -33,34 +48,43 @@ export default {
       searchTimeout: null,
       lastSearch: null,
       isFetching: false,
-      items: []
+      bookResults: [],
+      seriesResults: [],
+      authorResults: []
     }
   },
-  computed: {},
-  methods: {
-    clickItem(item) {
-      this.show = false
-      this.$router.push(`/audiobook/${item.id}`)
+  computed: {
+    currentLibraryId() {
+      return this.$store.state.libraries.currentLibraryId
     },
+    bookCoverAspectRatio() {
+      return this.$store.getters['getBookCoverAspectRatio']
+    },
+    totalResults() {
+      return this.bookResults.length + this.seriesResults.length + this.authorResults.length
+    }
+  },
+  methods: {
     async runSearch(value) {
       this.lastSearch = value
       if (!this.lastSearch) {
-        this.items = []
+        this.bookResults = []
+        this.seriesResults = []
+        this.authorResults = []
         return
       }
       this.isFetching = true
-      var results = await this.$axios.$get(`/api/books?q=${value}`).catch((error) => {
+      var results = await this.$axios.$get(`/api/libraries/${this.currentLibraryId}/search?q=${value}&limit=5`).catch((error) => {
         console.error('Search error', error)
         return []
       })
+      console.log('RESULTS', results)
+
       this.isFetching = false
-      this.items = results.map((res) => {
-        return {
-          id: res.id,
-          data: res,
-          type: 'audiobook'
-        }
-      })
+
+      this.bookResults = results ? results.audiobooks || [] : []
+      this.seriesResults = results ? results.series || [] : []
+      this.authorResults = results ? results.authors || [] : []
     },
     updateSearch(val) {
       clearTimeout(this.searchTimeout)
