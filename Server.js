@@ -155,6 +155,7 @@ class Server extends EventEmitter {
     if (this.socket) {
       this.socket.disconnect()
     }
+    this.emit('logout')
   }
 
   authorize(serverUrl, token) {

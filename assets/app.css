@@ -1,5 +1,9 @@
 @import "./fonts.css";
 
+#bookshelf {
+  min-height: calc(100vh - 48px);
+}
+
 .box-shadow-sm {
   box-shadow: 0px 3px 6px #11111170;
 }

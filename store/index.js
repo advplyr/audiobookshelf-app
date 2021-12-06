@@ -135,5 +135,6 @@ export const mutations = {
   },
   setServerSettings(state, val) {
     state.serverSettings = val
+    this.$localStore.setServerSettings(state.serverSettings)
   }
 }

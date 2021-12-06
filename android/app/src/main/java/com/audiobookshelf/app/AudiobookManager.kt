@@ -57,7 +57,7 @@ class AudiobookManager {
       return
     }
 
-    var url = "$serverUrl/api/library/main/audiobooks"
+    var url = "$serverUrl/api/libraries/main/books/all"
     val request = Request.Builder()
       .url(url).addHeader("Authorization", "Bearer $token")
       .build()
@@ -74,11 +74,14 @@ class AudiobookManager {
           if (!response.isSuccessful) throw IOException("Unexpected code $response")
 
           var bodyString = response.body!!.string()
-          var json = JSArray(bodyString)
-          var totalBooks = json.length() - 1
+          var resJson = JSObject(bodyString)
+          var results = resJson.getJSONArray("results")
+
+          var totalBooks = results.length() - 1
           for (i in 0..totalBooks) {
-            var abobj = json.get(i)
+            var abobj = results.get(i)
             var jsobj = JSObject(abobj.toString())
+
             jsobj.put("isDownloaded", false)
             var audiobook = Audiobook(jsobj, serverUrl, token)
 

@@ -113,9 +113,6 @@ export default {
     cover() {
       return this.book ? this.book.cover : ''
     },
-    downloadedCover() {
-      return this.download ? this.download.cover : null
-    },
     series() {
       return this.book ? this.book.series : ''
     },
@@ -361,6 +358,7 @@ export default {
         if (this.$refs.audioPlayer) {
           this.$refs.audioPlayer.terminateStream()
         }
+        this.download = null
       }
 
       this.lastProgressTimeUpdate = 0
@@ -450,6 +448,15 @@ export default {
       this.$server.socket.on('stream_progress', this.streamProgress)
       this.$server.socket.on('stream_ready', this.streamReady)
       this.$server.socket.on('stream_reset', this.streamReset)
+    },
+    closeStreamOnly() {
+      // If user logs out or disconnects from server, close audio if streaming
+      if (!this.download) {
+        this.$store.commit('setStreamAudiobook', null)
+        if (this.$refs.audioPlayer) {
+          this.$refs.audioPlayer.terminateStream()
+        }
+      }
     }
   },
   mounted() {
@@ -460,6 +467,7 @@ export default {
     console.log(`[AudioPlayerContainer] Init Playback Speed: ${this.playbackSpeed}`)
 
     this.setListeners()
+    this.$eventBus.$on('close_stream', this.closeStreamOnly)
     this.$store.commit('user/addSettingsListener', { id: 'streamContainer', meth: this.settingsUpdated })
     this.$store.commit('setStreamListener', this.streamUpdated)
   },
@@ -475,6 +483,7 @@ export default {
       this.$server.socket.off('stream_reset', this.streamReset)
     }
 
+    this.$eventBus.$off('close_stream', this.closeStreamOnly)
     this.$store.commit('user/removeSettingsListener', 'streamContainer')
     this.$store.commit('removeStreamListener')
   }

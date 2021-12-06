@@ -12,9 +12,9 @@
       </div>
     </div>
 
-    <div class="cover-wrapper absolute z-30 pointer-events-auto" @click="clickContainer">
+    <div class="cover-wrapper absolute z-30 pointer-events-auto" :class="bookCoverAspectRatio === 1 ? 'square-cover' : ''" @click="clickContainer">
       <div class="cover-container bookCoverWrapper bg-black bg-opacity-75 w-full h-full">
-        <cards-player-book-cover :audiobook="audiobook" :download-cover="downloadedCover" :width="showFullscreen ? 200 : 60" />
+        <covers-book-cover :audiobook="audiobook" :download-cover="downloadedCover" :width="bookCoverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" />
       </div>
     </div>
 
@@ -133,6 +133,15 @@ export default {
       set(val) {
         this.$emit('update:playing', val)
       }
+    },
+    bookCoverAspectRatio() {
+      return this.$store.getters['getBookCoverAspectRatio']
+    },
+    bookCoverWidth() {
+      if (this.bookCoverAspectRatio === 1) {
+        return this.showFullscreen ? 260 : 60
+      }
+      return this.showFullscreen ? 200 : 60
     },
     book() {
       return this.audiobook.book || {}
@@ -641,6 +650,9 @@ export default {
   transition-property: left, bottom, width, height;
   transform-origin: left bottom;
 }
+.cover-wrapper.square-cover {
+  height: 60px;
+}
 
 .title-author-texts {
   transition: all 0.15s cubic-bezier(0.39, 0.575, 0.565, 1);
@@ -719,6 +731,12 @@ export default {
   height: 320px;
   width: 200px;
 }
+.fullscreen .cover-wrapper.square-cover {
+  height: 260px;
+  width: 260px;
+  left: calc(50% - 130px);
+}
+
 .fullscreen #playerControls {
   width: 100%;
   bottom: 100px;

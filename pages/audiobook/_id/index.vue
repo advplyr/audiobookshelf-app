@@ -3,8 +3,8 @@
     <div class="flex">
       <div class="w-32">
         <div class="relative">
-          <cards-book-cover :audiobook="audiobook" :download-cover="downloadedCover" :width="128" />
-          <div class="absolute bottom-0 left-0 h-1.5 bg-yellow-400 shadow-sm" :style="{ width: 128 * progressPercent + 'px' }"></div>
+          <covers-book-cover :audiobook="audiobook" :download-cover="downloadedCover" :width="128" :book-cover-aspect-ratio="bookCoverAspectRatio" />
+          <div class="absolute bottom-0 left-0 h-1.5 bg-yellow-400 shadow-sm z-10" :style="{ width: 128 * progressPercent + 'px' }"></div>
         </div>
         <div class="flex my-4">
           <p v-if="numTracks" class="text-sm">{{ numTracks }} Tracks</p>
@@ -64,7 +64,10 @@ export default {
         return false
       })
     } else {
-      audiobook = store.getters['audiobooks/getAudiobook'](audiobookId)
+      var download = store.getters['downloads/getDownload'](audiobookId)
+      if (download) {
+        audiobook = download.audiobook
+      }
     }
 
     if (!audiobook) {
@@ -83,6 +86,9 @@ export default {
   computed: {
     isConnected() {
       return this.$store.state.socketConnected
+    },
+    bookCoverAspectRatio() {
+      return this.$store.getters['getBookCoverAspectRatio']
     },
     audiobookId() {
       return this.audiobook.id
@@ -116,34 +122,20 @@ export default {
     size() {
       return this.audiobook.size
     },
-    userAudiobooks() {
-      return this.$store.state.user.user ? this.$store.state.user.user.audiobooks || {} : {}
-    },
     userAudiobook() {
-      return this.userAudiobooks[this.audiobookId] || null
+      return this.$store.getters['user/getUserAudiobook'](this.audiobookId)
     },
     userToken() {
       return this.$store.getters['user/getToken']
     },
-    localUserAudiobooks() {
-      return this.$store.state.user.localUserAudiobooks || {}
-    },
-    localUserAudiobook() {
-      return this.localUserAudiobooks[this.audiobookId] || null
-    },
-    mostRecentUserAudiobook() {
-      if (!this.localUserAudiobook) return this.userAudiobook
-      if (!this.userAudiobook) return this.localUserAudiobook
-      return this.localUserAudiobook.lastUpdate > this.userAudiobook.lastUpdate ? this.localUserAudiobook : this.userAudiobook
-    },
     userCurrentTime() {
-      return this.mostRecentUserAudiobook ? this.mostRecentUserAudiobook.currentTime : 0
+      return this.userAudiobook ? this.userAudiobook.currentTime : 0
     },
     userTimeRemaining() {
       return this.duration - this.userCurrentTime
     },
     progressPercent() {
-      return this.mostRecentUserAudiobook ? this.mostRecentUserAudiobook.progress : 0
+      return this.userAudiobook ? this.userAudiobook.progress : 0
     },
     isStreaming() {
       return this.$store.getters['isAudiobookStreaming'](this.audiobookId)
@@ -242,16 +234,18 @@ export default {
         this.resettingProgress = false
       }
     },
-    audiobookUpdated() {
-      console.log('Audiobook Updated - Fetch full audiobook')
-      this.$axios
-        .$get(`/api/books/${this.audiobookId}`)
-        .then((audiobook) => {
-          this.audiobook = audiobook
-        })
-        .catch((error) => {
-          console.error('Failed', error)
-        })
+    audiobookUpdated(audiobook) {
+      if (audiobook.id === this.audiobookId) {
+        console.log('Audiobook Updated - Fetch full audiobook')
+        this.$axios
+          .$get(`/api/books/${this.audiobookId}`)
+          .then((audiobook) => {
+            this.audiobook = audiobook
+          })
+          .catch((error) => {
+            console.error('Failed', error)
+          })
+      }
     },
     downloadClick() {
       console.log('downloadClick ' + this.$server.connected + ' | ' + !!this.downloadObj)
@@ -427,9 +421,8 @@ export default {
       this.$server.socket.on('download_ready', this.downloadReady)
       this.$server.socket.on('download_killed', this.downloadKilled)
       this.$server.socket.on('download_failed', this.downloadFailed)
+      this.$server.socket.on('audiobook_updated', this.audiobookUpdated)
     }
-
-    this.$store.commit('audiobooks/addListener', { id: 'audiobook', audiobookId: this.audiobookId, meth: this.audiobookUpdated })
   },
   beforeDestroy() {
     if (!this.$server.socket) {
@@ -438,9 +431,8 @@ export default {
       this.$server.socket.off('download_ready', this.downloadReady)
       this.$server.socket.off('download_killed', this.downloadKilled)
       this.$server.socket.off('download_failed', this.downloadFailed)
+      this.$server.socket.off('audiobook_updated', this.audiobookUpdated)
     }
-
-    this.$store.commit('audiobooks/removeListener', 'audiobook')
   }
 }
 </script>

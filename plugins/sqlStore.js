@@ -9,6 +9,11 @@ class StoreService {
   constructor(vuexStore) {
     this.vuexStore = vuexStore
     this.currentTable = null
+
+    this.lockWaitQueue = []
+    this.isLocked = false
+    this.lockedFor = null
+
     this.init()
   }
 
@@ -270,6 +275,53 @@ class StoreService {
     }
   }
 
+  getLockId(prefix) {
+    return prefix + '-' + Math.floor(Math.random() * 100000000).toString(32)
+  }
+
+  waitForLock(id, count = 0) {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        if (!this.lockWaitQueue.includes(id)) {
+          resolve(true)
+        } else {
+          if (count > 200) {
+            console.error('[SqlStore] Lock was never released', id)
+            resolve(false)
+          } else {
+            resolve(this.waitForLock(id, ++count))
+          }
+        }
+      }, 50)
+    })
+  }
+
+  setLock(prefix) {
+    this.lockedFor = prefix
+    this.isLocked = true
+    console.log('[SqlStore] Locked for', this.lockedFor)
+  }
+
+  initWaitLock(prefix) {
+    var lockId = this.getLockId(prefix)
+    this.lockWaitQueue.push(lockId)
+    console.log('[SqlStore] Waiting for lock', lockId, 'In queue', this.lockWaitQueue.length)
+    return this.waitForLock(lockId)
+  }
+
+  releaseLock() {
+    console.log('[SqlStore] Releasing lock', this.lockedFor)
+    if (!this.lockWaitQueue.length) {
+      console.log('[SqlStore] Release Lock no queue')
+      this.isLocked = false
+    }
+    else {
+      console.log('[SqlStore] Release Lock Queue:', this.lockWaitQueue.length)
+      var task = this.lockWaitQueue.shift()
+      console.log('[SqlStore] Released lock next task', task)
+    }
+  }
+
   async ensureTable(tablename) {
     if (!this.isOpen) {
       var success = await this.openStore('storage', tablename)
@@ -290,42 +342,70 @@ class StoreService {
 
   async setDownload(download) {
     if (!download) return false
+
+    if (this.isLocked) {
+      await this.initWaitLock('setdl')
+    } else {
+      this.setLock('setdl')
+    }
+
     if (!(await this.ensureTable('downloads'))) {
+      this.releaseLock()
       return false
     }
     if (!download.id) {
       console.error(`[SqlStore] set download invalid download ${download ? JSON.stringify(download) : 'null'}`)
+      this.releaseLock()
       return false
     }
 
+    var success = false
     try {
       await this.setItem(download.id, JSON.stringify(download))
       console.log(`[STORE] Set Download ${download.id}`)
-      return true
+      success = true
     } catch (error) {
       console.error('Failed to set download in store', error)
-      return false
     }
+    this.releaseLock()
+    return success
   }
 
   async removeDownload(id) {
     if (!id) return false
+
+    if (this.isLocked) {
+      await this.initWaitLock('remdl')
+    } else {
+      this.setLock('remdl')
+    }
+
     if (!(await this.ensureTable('downloads'))) {
+      this.releaseLock()
       return false
     }
 
+    var success = false
     try {
       await this.removeItem(id)
       console.log(`[STORE] Removed download ${id}`)
-      return true
+      success = true
     } catch (error) {
       console.error('Failed to remove download in store', error)
-      return false
     }
+    this.releaseLock()
+    return success
   }
 
   async getAllDownloads() {
+    if (this.isLocked) {
+      await this.initWaitLock('alldl')
+    } else {
+      this.setLock('alldl')
+    }
+
     if (!(await this.ensureTable('downloads'))) {
+      this.releaseLock()
       return false
     }
 
@@ -336,7 +416,7 @@ class StoreService {
       try {
         var download = JSON.parse(keysvalues[i].value)
         if (!download.id) {
-          console.error('[SqlStore] Removing invalid download')
+          console.error('[SqlStore] Removing invalid download', JSON.stringify(download))
           await this.removeItem(keysvalues[i].key)
         } else {
           downloads.push(download)
@@ -347,45 +427,71 @@ class StoreService {
       }
     }
 
+    this.releaseLock()
     return downloads
   }
 
   async setUserAudiobookData(userAudiobookData) {
+    if (this.isLocked) {
+      await this.initWaitLock('setuad')
+    } else {
+      this.setLock('setuad')
+    }
+
     if (!(await this.ensureTable('userAudiobookData'))) {
+      this.releaseLock()
       return false
     }
 
+    var success = false
     try {
       await this.setItem(userAudiobookData.audiobookId, JSON.stringify(userAudiobookData))
       this.vuexStore.commit('user/setUserAudiobookData', userAudiobookData)
 
       console.log(`[STORE] Set UserAudiobookData ${userAudiobookData.audiobookId}`)
-      return true
+      success = true
     } catch (error) {
       console.error('Failed to set UserAudiobookData in store', error)
-      return false
     }
+    this.releaseLock()
+    return success
   }
 
   async removeUserAudiobookData(audiobookId) {
+    if (this.isLocked) {
+      await this.initWaitLock('remuad')
+    } else {
+      this.setLock('remuad')
+    }
+
     if (!(await this.ensureTable('userAudiobookData'))) {
+      this.releaseLock()
       return false
     }
 
+    var success = false
     try {
       await this.removeItem(audiobookId)
       this.vuexStore.commit('user/removeUserAudiobookData', audiobookId)
 
       console.log(`[STORE] Removed userAudiobookData ${id}`)
-      return true
+      success = true
     } catch (error) {
       console.error('Failed to remove userAudiobookData in store', error)
-      return false
     }
+    this.releaseLock()
+    return success
   }
 
   async getAllUserAudiobookData() {
+    if (this.isLocked) {
+      await this.initWaitLock('alluad')
+    } else {
+      this.setLock('alluad')
+    }
+
     if (!(await this.ensureTable('userAudiobookData'))) {
+      this.releaseLock()
       return false
     }
 
@@ -406,11 +512,21 @@ class StoreService {
         await this.removeItem(keysvalues[i].key)
       }
     }
+
+    console.log('[SqlStore] All UAD finished')
+    this.releaseLock()
     return data
   }
 
   async setAllUserAudiobookData(userAbData) {
+    if (this.isLocked) {
+      await this.initWaitLock('setuad')
+    } else {
+      this.setLock('setuad')
+    }
+
     if (!(await this.ensureTable('userAudiobookData'))) {
+      this.releaseLock()
       return false
     }
 
@@ -431,6 +547,7 @@ class StoreService {
     }
 
     this.vuexStore.commit('user/setAllUserAudiobookData', userAbData)
+    this.releaseLock()
   }
 }
 

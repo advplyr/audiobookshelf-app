@@ -10,6 +10,9 @@ export const getters = {
   getDownload: (state) => id => {
     return state.downloads.find(d => d.id === id)
   },
+  getDownloads: state => {
+    return state.downloads
+  },
   getDownloadIfReady: (state) => id => {
     var download = state.downloads.find(d => d.id === id)
     return !!download && !download.isDownloading && !download.isPreparing ? download : null
@@ -22,7 +25,7 @@ export const getters = {
 export const actions = {
   async loadFromStorage({ commit, state }) {
     var downloads = await this.$sqlStore.getAllDownloads()
-
+    console.log('Load downloads from storage', downloads.length)
     downloads.forEach(ab => {
       if (ab.isDownloading || ab.isPreparing) {
         ab.isIncomplete = true
@@ -37,27 +40,23 @@ export const actions = {
     if (!state.mediaScanResults || !state.mediaScanResults.folders) {
       return
     }
-    console.log('Link orphan downloads', JSON.stringify(state.mediaScanResults.folders))
-    // state.mediaScanResults.folders.forEach((folder) => {
+
     for (let i = 0; i < state.mediaScanResults.folders.length; i++) {
       var folder = state.mediaScanResults.folders[i]
       if (!folder.files || !folder.files.length) return
 
-      console.log('Link orphan downloads check folder', folder.name)
       var download = state.downloads.find(dl => dl.folderName === folder.name)
       if (!download) {
-        // var matchingAb = audiobooks.find(ab => ab.book.title === folder.name)
-        var results = await this.$axios.$get(`/libraries/${rootState.libraries.currentLibraryId}/search?q=${folder.name}`)
+        var results = await this.$axios.$get(`/api/libraries/${rootState.libraries.currentLibraryId}/search?q=${folder.name}`)
         var matchingAb = null
         if (results && results.audiobooks) {
-          console.log('has ab results', JSON.stringify(results.audiobooks))
-          matchingAb = results.audiobooks.find(ab => ab.audiobook.book.title === folder.name)
-          if (matchingAb) console.log('Found matching ab for ' + folder.name, matchingAb)
-          else console.warn('did not find mathcing ab for ' + folder.name)
-        } else {
-          console.error('Invalid results payload', JSON.stringify(results))
+          matchingAb = results.audiobooks.find(ab => {
+            return ab.audiobook.book.title === folder.name
+          })
         }
+
         if (matchingAb) {
+          matchingAb = matchingAb.audiobook
           // Found matching download for ab
           var audioFile = folder.files.find(f => f.isAudio)
           if (!audioFile) {
@@ -80,7 +79,6 @@ export const actions = {
             coverSize: coverImg ? coverImg.size : 0,
             coverBasePath: ''
           }
-          console.log('Linking orphan download: ' + JSON.stringify(downloadObj))
           commit('addUpdateDownload', downloadObj)
         }
       }
@@ -105,6 +103,7 @@ export const mutations = {
   },
   addUpdateDownload(state, download) {
     if (!download || !download.id) {
+      console.error('Orphan invalid download ' + download.id)
       return
     }
     var index = state.downloads.findIndex(d => d.id === download.id)
