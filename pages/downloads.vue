@@ -161,8 +161,6 @@ export default {
 
         await this.searchFolder()
 
-        // var audiobooks = this.$store.state.audiobooks.audiobooks || []
-        // if (audiobooks.length) {
         if (this.isSocketConnected) {
           this.$store.dispatch('downloads/linkOrphanDownloads')
         }
@@ -240,7 +238,6 @@ export default {
       AudioDownloader.addListener('onDownloadProgress', this.onDownloadProgress)
     }
   },
-  mounted() {},
   beforeDestroy() {
     AudioDownloader.removeListener('onDownloadProgress', this.onDownloadProgress)
   }

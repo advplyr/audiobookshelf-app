@@ -21,7 +21,7 @@ export default {
       var shelf = Math.floor(index / this.entitiesPerShelf)
       var shelfEl = document.getElementById(`shelf-${shelf}`)
       if (!shelfEl) {
-        console.error('invalid shelf', shelf, 'book index', index)
+        console.error('mount entity card invalid shelf', shelf, 'book index', index)
         return
       }
       this.entityIndexesMounted.push(index)
@@ -43,7 +43,9 @@ export default {
       }
       var shelfOffsetY = this.isBookEntity ? 24 : 16
       var row = index % this.entitiesPerShelf
-      var shelfOffsetX = row * this.totalEntityCardWidth + this.bookshelfMarginLeft
+
+      var marginShiftLeft = 12
+      var shelfOffsetX = row * this.totalEntityCardWidth + this.bookshelfMarginLeft + marginShiftLeft
 
       var ComponentClass = this.getComponentClass()
       var props = {
@@ -67,10 +69,10 @@ export default {
         }
       })
       this.entityComponentRefs[index] = instance
-
       instance.$mount()
       instance.$el.style.transform = `translate3d(${shelfOffsetX}px, ${shelfOffsetY}px, 0px)`
-      instance.$el.classList.add('absolute', 'top-0', 'left-0', 'mx-3')
+
+      instance.$el.classList.add('absolute', 'top-0', 'left-0')
       shelfEl.appendChild(instance.$el)
 
       if (this.entities[index]) {

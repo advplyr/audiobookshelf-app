@@ -109,6 +109,25 @@ class LocalStorage {
     }
   }
 
+  async setServerSettings(settings) {
+    try {
+      await Storage.set({ key: 'serverSettings', value: JSON.stringify(settings) })
+      console.log('Saved server settings', JSON.stringify(settings))
+    } catch (error) {
+      console.error('[LocalStorage] Failed to update server settings', error)
+    }
+  }
+
+  async getServerSettings() {
+    try {
+      var settingsObj = await Storage.get({ key: 'serverSettings' }) || {}
+      return settingsObj.value ? JSON.parse(settingsObj.value) : null
+    } catch (error) {
+      console.error('[LocalStorage] Failed to get server settings', error)
+      return null
+    }
+  }
+
   async setCurrent(current) {
     try {
       if (current) {

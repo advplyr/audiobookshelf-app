@@ -3,7 +3,7 @@
     <div class="w-full h-full overflow-y-auto px-2 py-6 md:p-8">
       <div class="w-full flex justify-center md:block sm:w-32 md:w-52" style="min-width: 240px">
         <div class="relative" style="height: fit-content">
-          <cards-collection-cover :book-items="bookItems" :width="240" :height="120 * 1.6" />
+          <covers-collection-cover :book-items="bookItems" :width="240" :height="120 * bookCoverAspectRatio" :book-cover-aspect-ratio="bookCoverAspectRatio" />
         </div>
       </div>
       <div class="flex-grow px-2 py-6 md:py-0 md:px-10">
@@ -48,15 +48,11 @@ export default {
     })
 
     if (!collection) {
-      return redirect('/')
+      return redirect('/bookshelf')
     }
 
-    store.commit('user/addUpdateCollection', collection)
-    collection.books.forEach((book) => {
-      store.commit('audiobooks/addUpdate', book)
-    })
     return {
-      collectionId: collection.id
+      collection
     }
   },
   data() {
@@ -65,6 +61,9 @@ export default {
     }
   },
   computed: {
+    bookCoverAspectRatio() {
+      return this.$store.getters['getBookCoverAspectRatio']
+    },
     bookItems() {
       return this.collection.books || []
     },
@@ -73,9 +72,6 @@ export default {
     },
     description() {
       return this.collection.description || ''
-    },
-    collection() {
-      return this.$store.getters['user/getCollection'](this.collectionId)
     },
     playableBooks() {
       return this.bookItems.filter((book) => {

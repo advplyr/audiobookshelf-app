@@ -53,9 +53,13 @@ export default {
         console.log('[Default] Connected socket sync user ab data')
         this.$store.dispatch('user/syncUserAudiobookData')
 
+        this.initSocketListeners()
+
         // Load libraries
         this.$store.dispatch('libraries/load')
         this.$store.dispatch('libraries/fetch', this.currentLibraryId)
+      } else {
+        this.removeSocketListeners()
       }
     },
     socketConnectionFailed(err) {
@@ -260,18 +264,13 @@ export default {
         this.onDownloadProgress(data)
       })
 
-      // var downloads = (await this.$sqlStore.getAllDownloads()) || []
       var downloads = await this.$store.dispatch('downloads/loadFromStorage')
       var downloadFolder = await this.$localStore.getDownloadFolder()
 
       if (downloadFolder) {
         await this.syncDownloads(downloads, downloadFolder)
       }
-
-      var userSavedSettings = await this.$localStore.getUserSettings()
-      if (userSavedSettings) {
-        this.$store.commit('user/setSettings', userSavedSettings)
-      }
+      this.$eventBus.$emit('downloads-loaded')
 
       var checkPermission = await StorageManager.checkStoragePermission()
       console.log('Storage Permission is' + checkPermission.value)
@@ -281,6 +280,20 @@ export default {
         console.log('Has Storage Permission')
         this.$store.commit('setHasStoragePermission', true)
       }
+    },
+    async loadSavedSettings() {
+      var userSavedServerSettings = await this.$localStore.getServerSettings()
+      if (userSavedServerSettings) {
+        this.$store.commit('setServerSettings', userSavedServerSettings)
+      }
+
+      var userSavedSettings = await this.$localStore.getUserSettings()
+      if (userSavedSettings) {
+        this.$store.commit('user/setSettings', userSavedSettings)
+      }
+
+      console.log('Loading offline user audiobook data')
+      await this.$store.dispatch('user/loadOfflineUserAudiobookData')
     },
     showErrorToast(message) {
       this.$toast.error(message)
@@ -311,6 +324,53 @@ export default {
           }
         }
       }
+    },
+    audiobookAdded(audiobook) {
+      this.$store.commit('libraries/updateFilterDataWithAudiobook', audiobook)
+    },
+    audiobookUpdated(audiobook) {
+      this.$store.commit('libraries/updateFilterDataWithAudiobook', audiobook)
+    },
+    audiobookRemoved(audiobook) {
+      if (this.$route.name.startsWith('audiobook')) {
+        if (this.$route.params.id === audiobook.id) {
+          this.$router.replace(`/bookshelf`)
+        }
+      }
+    },
+    audiobooksAdded(audiobooks) {
+      audiobooks.forEach((ab) => {
+        this.audiobookAdded(ab)
+      })
+    },
+    audiobooksUpdated(audiobooks) {
+      audiobooks.forEach((ab) => {
+        this.audiobookUpdated(ab)
+      })
+    },
+    userLoggedOut() {
+      // Only cancels stream if streamining not playing downloaded
+      this.$eventBus.$emit('close_stream')
+    },
+    initSocketListeners() {
+      if (this.$server.socket) {
+        // Audiobook Listeners
+        this.$server.socket.on('audiobook_updated', this.audiobookUpdated)
+        this.$server.socket.on('audiobook_added', this.audiobookAdded)
+        this.$server.socket.on('audiobook_removed', this.audiobookRemoved)
+        this.$server.socket.on('audiobooks_updated', this.audiobooksUpdated)
+        this.$server.socket.on('audiobooks_added', this.audiobooksAdded)
+      }
+    },
+    removeSocketListeners() {
+      if (this.$server.socket) {
+        // Audiobook Listeners
+        this.$server.socket.off('audiobook_updated', this.audiobookUpdated)
+        this.$server.socket.off('audiobook_added', this.audiobookAdded)
+        this.$server.socket.off('audiobook_removed', this.audiobookRemoved)
+        this.$server.socket.off('audiobooks_updated', this.audiobooksUpdated)
+        this.$server.socket.off('audiobooks_added', this.audiobooksAdded)
+      }
     }
   },
   async mounted() {
@@ -321,6 +381,7 @@ export default {
       console.log('Syncing on default mount')
       this.$store.dispatch('user/syncUserAudiobookData')
     }
+    this.$server.on('logout', this.userLoggedOut)
     this.$server.on('connected', this.connected)
     this.$server.on('connectionFailed', this.socketConnectionFailed)
     this.$server.on('initialStream', this.initialStream)
@@ -333,6 +394,7 @@ export default {
       await this.$store.dispatch('setupNetworkListener')
       this.attemptConnection()
       this.checkForUpdate()
+      this.loadSavedSettings()
       this.initMediaStore()
     }
   },
@@ -341,7 +403,8 @@ export default {
       console.error('No Server beforeDestroy')
       return
     }
-
+    this.removeSocketListeners()
+    this.$server.off('logout', this.userLoggedOut)
     this.$server.off('connected', this.connected)
     this.$server.off('connectionFailed', this.socketConnectionFailed)
     this.$server.off('initialStream', this.initialStream)

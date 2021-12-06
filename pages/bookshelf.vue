@@ -20,38 +20,7 @@ export default {
   computed: {
     isHome() {
       return this.$route.name === 'bookshelf'
-    },
-    currentLibrary() {
-      return this.$store.getters['libraries/getCurrentLibrary']
-    },
-    currentLibraryName() {
-      return this.currentLibrary ? this.currentLibrary.name : 'Main'
-    },
-    isSocketConnected() {
-      return this.$store.state.socketConnected
     }
-  },
-  methods: {
-    async loadCollections() {
-      this.$store.dispatch('user/loadUserCollections')
-    },
-    socketConnected(isConnected) {
-      // if (isConnected) {
-      //   console.log('Connected - Load from server')
-      // this.loadAudiobooks()
-      //   if (this.$route.name === 'bookshelf-collections') this.loadCollections()
-      // } else {
-      //   console.log('Disconnected - Reset to local storage')
-      //   this.$store.commit('audiobooks/reset')
-      //   this.$store.dispatch('audiobooks/useDownloaded')
-      // }
-    }
-  },
-  mounted() {
-    this.$server.on('connected', this.socketConnected)
-  },
-  beforeDestroy() {
-    this.$server.off('connected', this.socketConnected)
   }
 }
 </script>

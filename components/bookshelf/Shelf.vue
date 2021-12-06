@@ -2,7 +2,6 @@
   <div class="w-full relative">
     <div class="bookshelfRow flex items-end px-3 max-w-full overflow-x-auto" :style="{ height: shelfHeight + 'px' }">
       <template v-for="(entity, index) in entities">
-        <!-- <cards-book-card v-if="type === 'books'" :key="entity.id" :audiobook="entity" :width="bookWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" class="mx-2" /> -->
         <cards-lazy-book-card v-if="type === 'books'" :key="entity.id" :index="index" :book-mount="entity" :width="bookWidth" :height="entityHeight" :book-cover-aspect-ratio="bookCoverAspectRatio" is-categorized class="mx-2 relative" />
         <cards-lazy-series-card v-else-if="type === 'series'" :key="entity.id" :index="index" :series-mount="entity" :width="bookWidth * 2" :height="entityHeight" :book-cover-aspect-ratio="bookCoverAspectRatio" is-categorized class="mx-2 relative" />
       </template>

@@ -23,6 +23,12 @@
       </div>
     </div>
 
+    <!-- Downloaded indicator icon -->
+    <div v-if="hasDownload" class="absolute z-10" :style="{ top: 0.5 * sizeMultiplier + 'rem', right: 0.5 * sizeMultiplier + 'rem' }">
+      <span class="material-icons text-success" :style="{ fontSize: 1.1 * sizeMultiplier + 'rem' }">download_done</span>
+    </div>
+
+    <!-- Progress bar -->
     <div class="absolute bottom-0 left-0 h-1 shadow-sm max-w-full z-10 rounded-b" :class="userIsRead ? 'bg-success' : 'bg-yellow-400'" :style="{ width: width * userProgressPercent + 'px' }"></div>
 
     <div v-if="showError" :style="{ height: 1.5 * sizeMultiplier + 'rem', width: 2.5 * sizeMultiplier + 'rem' }" class="bg-error rounded-r-full shadow-md flex items-center justify-end border-r border-b border-red-300">
@@ -74,7 +80,15 @@ export default {
     placeholderUrl() {
       return '/book_placeholder.jpg'
     },
+    hasDownload() {
+      return !!this._audiobook.download
+    },
+    downloadedCover() {
+      if (!this._audiobook.download) return null
+      return this._audiobook.download.cover
+    },
     bookCoverSrc() {
+      if (this.downloadedCover) return this.downloadedCover
       return this.store.getters['audiobooks/getBookCoverSrc'](this._audiobook, this.placeholderUrl)
     },
     audiobookId() {
@@ -96,7 +110,7 @@ export default {
       return this.bookCoverAspectRatio === 1
     },
     sizeMultiplier() {
-      var baseSize = this.squareAspectRatio ? 192 : 120
+      var baseSize = this.squareAspectRatio ? 160 : 100
       return this.width / baseSize
     },
     title() {

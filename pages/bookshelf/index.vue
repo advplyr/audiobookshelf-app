@@ -36,7 +36,13 @@ export default {
   },
   computed: {
     books() {
-      return this.$store.getters['downloads/getAudiobooks']
+      return this.$store.getters['downloads/getDownloads'].map((dl) => {
+        var download = { ...dl }
+        var ab = { ...download.audiobook }
+        delete download.audiobook
+        ab.download = download
+        return ab
+      })
     },
     isSocketConnected() {
       return this.$store.state.socketConnected
@@ -141,18 +147,108 @@ export default {
       } else {
         this.shelves = this.downloadOnlyShelves
       }
+    },
+    downloadsLoaded() {
+      if (!this.isSocketConnected) {
+        this.shelves = this.downloadOnlyShelves
+      }
+    },
+    audiobookAdded(audiobook) {
+      console.log('Audiobook added', audiobook)
+      // TODO: Check if audiobook would be on this shelf
+      if (!this.search) {
+        this.fetchCategories()
+      }
+    },
+    audiobookUpdated(audiobook) {
+      console.log('Audiobook updated', audiobook)
+      this.shelves.forEach((shelf) => {
+        if (shelf.type === 'books') {
+          shelf.entities = shelf.entities.map((ent) => {
+            if (ent.id === audiobook.id) {
+              return audiobook
+            }
+            return ent
+          })
+        } else if (shelf.type === 'series') {
+          shelf.entities.forEach((ent) => {
+            ent.books = ent.books.map((book) => {
+              if (book.id === audiobook.id) return audiobook
+              return book
+            })
+          })
+        }
+      })
+    },
+    removeBookFromShelf(audiobook) {
+      this.shelves.forEach((shelf) => {
+        if (shelf.type === 'books') {
+          shelf.entities = shelf.entities.filter((ent) => {
+            return ent.id !== audiobook.id
+          })
+        } else if (shelf.type === 'series') {
+          shelf.entities.forEach((ent) => {
+            ent.books = ent.books.filter((book) => {
+              return book.id !== audiobook.id
+            })
+          })
+        }
+      })
+    },
+    audiobookRemoved(audiobook) {
+      this.removeBookFromShelf(audiobook)
+    },
+    audiobooksAdded(audiobooks) {
+      console.log('audiobooks added', audiobooks)
+      // TODO: Check if audiobook would be on this shelf
+      this.fetchCategories()
+    },
+    audiobooksUpdated(audiobooks) {
+      audiobooks.forEach((ab) => {
+        this.audiobookUpdated(ab)
+      })
+    },
+    initListeners() {
+      this.$server.on('initialized', this.socketInit)
+      this.$eventBus.$on('library-changed', this.libraryChanged)
+      this.$eventBus.$on('downloads-loaded', this.downloadsLoaded)
+
+      if (this.$server.socket) {
+        this.$server.socket.on('audiobook_updated', this.audiobookUpdated)
+        this.$server.socket.on('audiobook_added', this.audiobookAdded)
+        this.$server.socket.on('audiobook_removed', this.audiobookRemoved)
+        this.$server.socket.on('audiobooks_updated', this.audiobooksUpdated)
+        this.$server.socket.on('audiobooks_added', this.audiobooksAdded)
+      } else {
+        console.error('Error socket not initialized')
+      }
+    },
+    removeListeners() {
+      this.$server.off('initialized', this.socketInit)
+      this.$eventBus.$off('library-changed', this.libraryChanged)
+      this.$eventBus.$off('downloads-loaded', this.downloadsLoaded)
+
+      if (this.$server.socket) {
+        this.$server.socket.off('audiobook_updated', this.audiobookUpdated)
+        this.$server.socket.off('audiobook_added', this.audiobookAdded)
+        this.$server.socket.off('audiobook_removed', this.audiobookRemoved)
+        this.$server.socket.off('audiobooks_updated', this.audiobooksUpdated)
+        this.$server.socket.off('audiobooks_added', this.audiobooksAdded)
+      } else {
+        console.error('Error socket not initialized')
+      }
     }
   },
   mounted() {
-    this.$server.on('initialized', this.socketInit)
-    this.$eventBus.$on('library-changed', this.libraryChanged)
+    this.initListeners()
     if (this.$server.initialized) {
       this.fetchCategories()
+    } else {
+      this.shelves = this.downloadOnlyShelves
     }
   },
   beforeDestroy() {
-    this.$server.off('initialized', this.socketInit)
-    this.$eventBus.$off('library-changed', this.libraryChanged)
+    this.removeListeners()
   }
 }
 </script>

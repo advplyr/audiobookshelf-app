@@ -14,13 +14,8 @@
           </svg>
           <p class="text-lg font-book leading-4 ml-2">{{ currentLibraryName }}</p>
         </div>
-        <!-- <p class="text-lg font-book leading-4">AudioBookshelf</p> -->
       </div>
       <div class="flex-grow" />
-
-      <!-- <ui-menu :label="username" :items="menuItems" @action="menuAction" class="ml-5" /> -->
-
-      <!-- <span class="material-icons cursor-pointer mx-4" :class="hasDownloadsFolder ? '' : 'text-warning'" @click="$store.commit('downloads/setShowModal', true)">source</span> -->
 
       <nuxt-link class="h-7 mx-2" to="/search">
         <span class="material-icons" style="font-size: 1.75rem">search</span>
@@ -36,19 +31,7 @@
 <script>
 export default {
   data() {
-    return {
-      menuItems: [
-        {
-          value: 'account',
-          text: 'Account',
-          to: '/account'
-        },
-        {
-          value: 'logout',
-          text: 'Logout'
-        }
-      ]
-    }
+    return {}
   },
   computed: {
     socketConnected() {
@@ -68,16 +51,6 @@ export default {
     },
     username() {
       return this.user ? this.user.username : 'err'
-    },
-    appListingUrl() {
-      if (this.$platform === 'android') {
-        return process.env.ANDROID_APP_URL
-      } else {
-        return process.env.IOS_APP_URL
-      }
-    },
-    hasDownloadsFolder() {
-      return !!this.$store.state.downloadFolder
     }
   },
   methods: {
@@ -92,18 +65,6 @@ export default {
         this.$router.push(`/audiobook/${this.$route.params.id}`)
       } else {
         this.$router.push('/bookshelf')
-      }
-    },
-    logout() {
-      this.$axios.$post('/logout').catch((error) => {
-        console.error(error)
-      })
-      this.$server.logout()
-      this.$router.push('/connect')
-    },
-    menuAction(action) {
-      if (action === 'logout') {
-        this.logout()
       }
     }
   },
