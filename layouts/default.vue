@@ -379,7 +379,7 @@ export default {
 
     if (this.$server.connected) {
       console.log('Syncing on default mount')
-      this.$store.dispatch('user/syncUserAudiobookData')
+      this.connected(true)
     }
     this.$server.on('logout', this.userLoggedOut)
     this.$server.on('connected', this.connected)
