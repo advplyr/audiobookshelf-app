@@ -1,5 +1,22 @@
 import Vue from 'vue'
+import { App } from '@capacitor/app'
+import { Dialog } from '@capacitor/dialog'
 import { formatDistance, format } from 'date-fns'
+
+App.addListener('backButton', async ({ canGoBack }) => {
+  if (!canGoBack) {
+    const { value } = await Dialog.confirm({
+      title: 'Confirm',
+      message: `Did you want to exit the app?`,
+    })
+    if (value) {
+      App.exitApp()
+    }
+
+  } else {
+    window.history.back()
+  }
+});
 
 Vue.prototype.$eventBus = new Vue()
 
