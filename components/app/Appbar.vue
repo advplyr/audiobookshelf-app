@@ -61,11 +61,7 @@ export default {
       this.$store.commit('libraries/setShowModal', true)
     },
     back() {
-      if (this.$route.name === 'audiobook-id-edit') {
-        this.$router.push(`/audiobook/${this.$route.params.id}`)
-      } else {
-        this.$router.push('/bookshelf')
-      }
+      window.history.back()
     }
   },
   mounted() {}
