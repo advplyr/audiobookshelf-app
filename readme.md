@@ -11,4 +11,3 @@ Get the Android app on the [Google Play Store](https://play.google.com/store/app
 **Currently in Beta** - **Requires an Audiobookshelf server to connect with**
 
 <img alt="Screenshot1" src="https://github.com/advplyr/audiobookshelf-app/raw/master/screenshots/BookshelfViews.png" />
-<img alt="Screenshot2" src="https://github.com/advplyr/audiobookshelf-app/raw/master/screenshots/SS_Audiobook_Sm.png" />
