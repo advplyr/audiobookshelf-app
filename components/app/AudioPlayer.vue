@@ -7,8 +7,24 @@
       <div v-show="showCastBtn" class="top-3.5 right-20 absolute cursor-pointer">
         <span class="material-icons text-3xl" @click="castClick">cast</span>
       </div>
-      <div class="top-3 right-4 absolute cursor-pointer">
-        <span class="material-icons text-4xl" @click="$emit('close')">close</span>
+      <div class="top-4 right-4 absolute cursor-pointer">
+        <ui-dropdown-menu :items="menuItems" @action="clickMenuAction">
+          <span class="material-icons text-3xl">more_vert</span>
+        </ui-dropdown-menu>
+      </div>
+    </div>
+
+    <div v-if="useChapterTrack && showFullscreen" class="absolute total-track w-full px-3 z-30">
+      <div class="flex">
+        <p class="font-mono text-white text-opacity-90" style="font-size: 0.8rem">{{ currentTimePretty }}</p>
+        <div class="flex-grow" />
+        <p class="font-mono text-white text-opacity-90" style="font-size: 0.8rem">{{ totalTimeRemainingPretty }}</p>
+      </div>
+      <div class="w-full">
+        <div class="h-1 w-full bg-gray-500 bg-opacity-50 relative">
+          <div ref="totalReadyTrack" class="h-full bg-gray-600 absolute top-0 left-0 pointer-events-none" />
+          <div ref="totalPlayedTrack" class="h-full bg-gray-200 absolute top-0 left-0 pointer-events-none" />
+        </div>
       </div>
     </div>
 
@@ -55,7 +71,6 @@
       <div id="playerTrack" class="absolute bottom-0 left-0 w-full px-3">
         <div ref="track" class="h-2 w-full bg-gray-500 bg-opacity-50 relative" :class="loading ? 'animate-pulse' : ''" @click="clickTrack">
           <div ref="readyTrack" class="h-full bg-gray-600 absolute top-0 left-0 pointer-events-none" />
-          <div ref="bufferTrack" class="h-full bg-gray-400 absolute top-0 left-0 pointer-events-none" />
           <div ref="playedTrack" class="h-full bg-gray-200 absolute top-0 left-0 pointer-events-none" />
         </div>
         <div class="flex pt-0.5">
@@ -110,7 +125,6 @@ export default {
       src: null,
       volume: 0.5,
       readyTrackWidth: 0,
-      bufferTrackWidth: 0,
       playedTrackWidth: 0,
       seekedTime: 0,
       seekLoading: false,
@@ -122,7 +136,8 @@ export default {
       touchEndY: 0,
       listenTimeInterval: null,
       listeningTimeSinceLastUpdate: 0,
-      totalListeningTimeInSession: 0
+      totalListeningTimeInSession: 0,
+      useChapterTrack: false
     }
   },
   computed: {
@@ -133,6 +148,20 @@ export default {
       set(val) {
         this.$emit('update:playing', val)
       }
+    },
+    menuItems() {
+      var items = []
+      items.push({
+        text: 'Chapter Track',
+        value: 'chapter_track',
+        icon: this.useChapterTrack ? 'check_box' : 'check_box_outline_blank'
+      })
+      items.push({
+        text: 'Close Player',
+        value: 'close',
+        icon: 'close'
+      })
+      return items
     },
     bookCoverAspectRatio() {
       return this.$store.getters['getBookCoverAspectRatio']
@@ -157,14 +186,17 @@ export default {
     },
     currentChapter() {
       if (!this.audiobook || !this.chapters.length) return null
-      return this.chapters.find((ch) => ch.start <= this.currentTime && ch.end > this.currentTime)
+      return this.chapters.find((ch) => Number(ch.start.toFixed(2)) <= this.currentTime && Number(ch.end.toFixed(2)) > this.currentTime)
     },
     nextChapter() {
       if (!this.chapters.length) return
-      return this.chapters.find((c) => c.start >= this.currentTime)
+      return this.chapters.find((c) => Number(c.start.toFixed(2)) > this.currentTime)
     },
     currentChapterTitle() {
       return this.currentChapter ? this.currentChapter.title : ''
+    },
+    currentChapterDuration() {
+      return this.currentChapter ? this.currentChapter.end - this.currentChapter.start : this.totalDuration
     },
     downloadedCover() {
       return this.download ? this.download.cover : null
@@ -172,8 +204,24 @@ export default {
     totalDurationPretty() {
       return this.$secondsToTimestamp(this.totalDuration)
     },
+    currentTimePretty() {
+      return this.$secondsToTimestamp(this.currentTime)
+    },
     timeRemaining() {
+      if (this.useChapterTrack && this.currentChapter) {
+        var currChapTime = this.currentTime - this.currentChapter.start
+        return (this.currentChapterDuration - currChapTime) / this.currentPlaybackRate
+      }
+      return this.totalTimeRemaining
+    },
+    totalTimeRemaining() {
       return (this.totalDuration - this.currentTime) / this.currentPlaybackRate
+    },
+    totalTimeRemainingPretty() {
+      if (this.totalTimeRemaining < 0) {
+        return this.$secondsToTimestamp(this.totalTimeRemaining * -1)
+      }
+      return '-' + this.$secondsToTimestamp(this.totalTimeRemaining)
     },
     timeRemainingPretty() {
       if (this.timeRemaining < 0) {
@@ -262,6 +310,11 @@ export default {
     },
     clickContainer() {
       this.showFullscreen = true
+
+      // Update track for total time bar if useChapterTrack is set
+      this.$nextTick(() => {
+        this.updateTrack()
+      })
     },
     collapseFullscreen() {
       this.showFullscreen = false
@@ -309,7 +362,7 @@ export default {
     },
     setStreamReady() {
       this.readyTrackWidth = this.trackWidth
-      this.$refs.readyTrack.style.width = this.trackWidth + 'px'
+      this.updateReadyTrack()
     },
     setChunksReady(chunks, numSegments) {
       var largestSeg = 0
@@ -329,7 +382,17 @@ export default {
         return
       }
       this.readyTrackWidth = widthReady
-      this.$refs.readyTrack.style.width = widthReady + 'px'
+      this.updateReadyTrack()
+    },
+    updateReadyTrack() {
+      if (this.useChapterTrack) {
+        if (this.$refs.totalReadyTrack) {
+          this.$refs.totalReadyTrack.style.width = this.readyTrackWidth + 'px'
+        }
+        this.$refs.readyTrack.style.width = this.trackWidth + 'px'
+      } else {
+        this.$refs.readyTrack.style.width = this.readyTrackWidth + 'px'
+      }
     },
     updateTimestamp() {
       var ts = this.$refs.currentTimestamp
@@ -337,8 +400,14 @@ export default {
         console.error('No timestamp el')
         return
       }
-      var currTimeClean = this.$secondsToTimestamp(this.currentTime)
-      ts.innerText = currTimeClean
+      var currTimeStr = ''
+      if (this.useChapterTrack && this.currentChapter) {
+        var currChapTime = Math.max(0, this.currentTime - this.currentChapter.start)
+        currTimeStr = this.$secondsToTimestamp(currChapTime)
+      } else {
+        currTimeStr = this.$secondsToTimestamp(this.currentTime)
+      }
+      ts.innerText = currTimeStr
     },
     timeupdate() {
       if (!this.$refs.playedTrack) {
@@ -356,16 +425,25 @@ export default {
       }
 
       this.updateTimestamp()
-      // if (this.noSyncUpdateTime) this.noSyncUpdateTime = false
-      // else this.sendStreamUpdate()
-
-      var perc = this.currentTime / this.totalDuration
-      var ptWidth = Math.round(perc * this.trackWidth)
+      this.updateTrack()
+    },
+    updateTrack() {
+      var percentDone = this.currentTime / this.totalDuration
+      var totalPercentDone = percentDone
+      if (this.useChapterTrack && this.currentChapter) {
+        var currChapTime = this.currentTime - this.currentChapter.start
+        percentDone = currChapTime / this.currentChapterDuration
+      }
+      var ptWidth = Math.round(percentDone * this.trackWidth)
       if (this.playedTrackWidth === ptWidth) {
         return
       }
       this.$refs.playedTrack.style.width = ptWidth + 'px'
       this.playedTrackWidth = ptWidth
+
+      if (this.useChapterTrack) {
+        this.$refs.totalPlayedTrack.style.width = Math.round(totalPercentDone * this.trackWidth) + 'px'
+      }
     },
     seek(time) {
       if (this.loading) return
@@ -398,7 +476,12 @@ export default {
 
       var offsetX = e.offsetX
       var perc = offsetX / this.trackWidth
-      var time = perc * this.totalDuration
+      var time = 0
+      if (this.useChapterTrack && this.currentChapter) {
+        time = perc * this.currentChapterDuration + this.currentChapter.start
+      } else {
+        time = perc * this.totalDuration
+      }
       if (isNaN(time) || time === null) {
         console.error('Invalid time', perc, time)
         return
@@ -548,7 +631,6 @@ export default {
       }
     },
     onMetadata(data) {
-      console.log('Native Audio On Metadata', JSON.stringify(data))
       this.totalDuration = Number((data.duration / 1000).toFixed(2))
       this.$emit('setTotalDuration', this.totalDuration)
       this.currentTime = Number((data.currentTime / 1000).toFixed(2))
@@ -558,11 +640,11 @@ export default {
         this.setFromObj()
       }
 
-      // if (this.stateName === 'ready_no_sync' || this.stateName === 'buffering_no_sync') this.noSyncUpdateTime = true
-
       this.timeupdate()
     },
-    init() {
+    async init() {
+      this.useChapterTrack = await this.$localStore.getUseChapterTrack()
+
       this.onPlayingUpdateListener = MyNativeAudio.addListener('onPlayingUpdate', this.onPlayingUpdate)
       this.onMetadataListener = MyNativeAudio.addListener('onMetadata', this.onMetadata)
 
@@ -575,10 +657,7 @@ export default {
     handleGesture() {
       var touchDistance = this.touchEndY - this.touchStartY
       if (touchDistance > 100) {
-        console.log('Collapsing')
         this.collapseFullscreen()
-      } else {
-        console.log('Not collapsing touch distance =', touchDistance)
       }
     },
     touchstart(e) {
@@ -601,6 +680,20 @@ export default {
         return
       }
       this.handleGesture()
+    },
+    clickMenuAction(action) {
+      if (action === 'chapter_track') {
+        this.useChapterTrack = !this.useChapterTrack
+
+        this.$nextTick(() => {
+          this.updateTimestamp()
+          this.updateTrack()
+          this.updateReadyTrack()
+        })
+        this.$localStore.setUseChapterTrack(this.useChapterTrack)
+      } else if (action === 'close') {
+        this.$emit('close')
+      }
     }
   },
   mounted() {
@@ -652,6 +745,12 @@ export default {
 }
 .cover-wrapper.square-cover {
   height: 60px;
+}
+
+.total-track {
+  bottom: 215px;
+  left: 0;
+  right: 0;
 }
 
 .title-author-texts {

@@ -167,6 +167,24 @@ class LocalStorage {
       return null
     }
   }
+
+  async setUseChapterTrack(useChapterTrack) {
+    try {
+      await Storage.set({ key: 'useChapterTrack', value: useChapterTrack ? '1' : '0' })
+    } catch (error) {
+      console.error('[LocalStorage] Failed to set use chapter track', error)
+    }
+  }
+
+  async getUseChapterTrack() {
+    try {
+      var obj = await Storage.get({ key: 'useChapterTrack' }) || {}
+      return obj.value === '1'
+    } catch (error) {
+      console.error('[LocalStorage] Failed to get use chapter track', error)
+      return false
+    }
+  }
 }
 
 
