@@ -11,10 +11,9 @@
         <ul class="h-full w-full" role="listbox" aria-labelledby="listbox-label">
           <template v-for="chapter in chapters">
             <li :key="chapter.id" :id="`chapter-row-${chapter.id}`" class="text-gray-50 select-none relative py-4 cursor-pointer hover:bg-black-400" :class="currentChapterId === chapter.id ? 'bg-bg bg-opacity-80' : ''" role="option" @click="clickedOption(chapter)">
-              <div class="relative flex items-center justify-center pl-2 pr-16">
+              <div class="relative flex items-center pl-3" style="padding-right: 4.5rem">
                 <p class="font-normal block truncate text-sm text-white text-opacity-80">{{ chapter.title }}</p>
-                <!-- <div class="flex-grow" /> -->
-                <div class="absolute top-0 right-2 -mt-0.5">
+                <div class="absolute top-0 right-3 -mt-0.5">
                   <span class="font-mono text-white text-opacity-90 leading-3" style="letter-spacing: -0.5px">{{ $secondsToTimestamp(chapter.start) }}</span>
                 </div>
               </div>

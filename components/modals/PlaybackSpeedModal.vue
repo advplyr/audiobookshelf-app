@@ -6,9 +6,9 @@
       </div>
     </template>
 
-    <div class="w-full h-full overflow-hidden absolute top-0 left-0 flex items-center justify-center" @click="show = false">
+    <div class="w-full h-full overflow-hidden absolute top-0 left-0 flex items-center justify-center" @click="closeMenu">
       <div class="w-full overflow-x-hidden overflow-y-auto bg-primary rounded-lg border border-white border-opacity-20" style="max-height: 75%" @click.stop>
-        <ul class="h-full w-full" role="listbox" aria-labelledby="listbox-label">
+        <ul class="w-full" role="listbox" aria-labelledby="listbox-label">
           <template v-for="rate in rates">
             <li :key="rate" class="text-gray-50 select-none relative py-4 cursor-pointer hover:bg-black-400" :class="rate === selected ? 'bg-bg bg-opacity-80' : ''" role="option" @click="clickedOption(rate)">
               <div class="flex items-center justify-center">
@@ -17,6 +17,17 @@
             </li>
           </template>
         </ul>
+        <div class="flex items-center justify-center py-3 border-t border-white border-opacity-10">
+          <button :disabled="!canDecrement" @click="decrement" class="icon-num-btn w-8 h-8 text-white text-opacity-75 rounded border border-white border-opacity-20 flex items-center justify-center">
+            <span class="material-icons">remove</span>
+          </button>
+          <div class="w-24 text-center">
+            <p class="text-xl">{{ playbackRate }}<span class="text-lg">⨯</span></p>
+          </div>
+          <button :disabled="!canIncrement" @click="increment" class="icon-num-btn w-8 h-8 text-white text-opacity-75 rounded border border-white border-opacity-20 flex items-center justify-center">
+            <span class="material-icons">add</span>
+          </button>
+        </div>
       </div>
     </div>
   </modals-modal>
@@ -26,10 +37,21 @@
 export default {
   props: {
     value: Boolean,
-    playbackSpeed: Number
+    playbackRate: Number
   },
   data() {
-    return {}
+    return {
+      currentPlaybackRate: 0,
+      MIN_SPEED: 0.5,
+      MAX_SPEED: 3
+    }
+  },
+  watch: {
+    show(newVal) {
+      if (newVal) {
+        this.currentPlaybackRate = this.selected
+      }
+    }
   },
   computed: {
     show: {
@@ -42,27 +64,56 @@ export default {
     },
     selected: {
       get() {
-        return this.playbackSpeed
+        return this.playbackRate
       },
       set(val) {
-        this.$emit('update:playbackSpeed', val)
+        this.$emit('update:playbackRate', val)
       }
     },
     rates() {
-      return [0.25, 0.5, 0.8, 1, 1.3, 1.5, 2, 2.5, 3]
+      return [0.5, 1, 1.2, 1.5, 2]
+    },
+    canIncrement() {
+      return this.playbackRate + 0.1 <= this.MAX_SPEED
+    },
+    canDecrement() {
+      return this.playbackRate - 0.1 >= this.MIN_SPEED
     }
   },
   methods: {
-    clickedOption(speed) {
-      if (this.selected === speed) {
-        this.show = false
-        return
+    increment() {
+      if (this.selected + 0.1 > this.MAX_SPEED) return
+      var newPlaybackRate = this.selected + 0.1
+      this.selected = Number(newPlaybackRate.toFixed(1))
+    },
+    decrement() {
+      if (this.selected - 0.1 < this.MIN_SPEED) return
+      var newPlaybackRate = this.selected - 0.1
+      this.selected = Number(newPlaybackRate.toFixed(1))
+    },
+    closeMenu() {
+      if (this.currentPlaybackRate !== this.selected) {
+        this.$emit('change', this.selected)
       }
-      this.selected = speed
       this.show = false
-      this.$nextTick(() => this.$emit('change', speed))
+    },
+    clickedOption(rate) {
+      this.selected = Number(rate)
+      this.$nextTick(this.closeMenu)
     }
   },
   mounted() {}
 }
 </script>
+
+<style>
+button.icon-num-btn:disabled {
+  cursor: not-allowed;
+}
+button.icon-num-btn:disabled::before {
+  background-color: rgba(0, 0, 0, 0.2);
+}
+button.icon-num-btn:disabled span {
+  color: #777;
+}
+</style>

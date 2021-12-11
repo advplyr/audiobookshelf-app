@@ -22,7 +22,7 @@
       />
     </div>
 
-    <modals-playback-speed-modal v-model="showPlaybackSpeedModal" :playback-speed.sync="playbackSpeed" @change="changePlaybackSpeed" />
+    <modals-playback-speed-modal v-model="showPlaybackSpeedModal" :playback-rate.sync="playbackSpeed" @update:playbackRate="updatePlaybackSpeed" @change="changePlaybackSpeed" />
     <modals-chapters-modal v-model="showChapterModal" :current-chapter="currentChapter" :chapters="chapters" @select="selectChapter" />
     <modals-sleep-timer-modal v-model="showSleepTimerModal" :current-time="sleepTimeRemaining" :sleep-timer-running="isSleepTimerRunning" :current-end-of-chapter-time="currentEndOfChapterTime" @change="selectSleepTimeout" @cancel="cancelSleepTimer" @increase="increaseSleepTimer" @decrease="decreaseSleepTimer" />
     <modals-bookmarks-modal v-model="showBookmarksModal" :audiobook-id="audiobookId" :bookmarks="bookmarks" :current-time="currentTime" @select="selectBookmark" />
@@ -411,11 +411,14 @@ export default {
         this.streamOpen(this.$server.stream)
       }
     },
-    changePlaybackSpeed(speed) {
-      console.log(`[AudioPlayerContainer] Change Playback Speed: ${speed}`)
+    updatePlaybackSpeed(speed) {
       if (this.$refs.audioPlayer) {
+        console.log(`[AudioPlayerContainer] Update Playback Speed: ${speed}`)
         this.$refs.audioPlayer.setPlaybackSpeed(speed)
       }
+    },
+    changePlaybackSpeed(speed) {
+      console.log(`[AudioPlayerContainer] Change Playback Speed: ${speed}`)
       this.$store.dispatch('user/updateUserSettings', { playbackRate: speed })
     },
     settingsUpdated(settings) {
