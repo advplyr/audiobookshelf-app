@@ -31,6 +31,7 @@ import com.bumptech.glide.request.RequestOptions
 import com.getcapacitor.JSObject
 import com.getcapacitor.PluginCall
 import com.google.android.exoplayer2.*
+import com.google.android.exoplayer2.MediaMetadata
 import com.google.android.exoplayer2.audio.AudioAttributes
 import com.google.android.exoplayer2.ext.cast.CastPlayer
 import com.google.android.exoplayer2.ext.cast.SessionAvailabilityListener
@@ -42,10 +43,10 @@ import com.google.android.exoplayer2.source.hls.HlsMediaSource
 import com.google.android.exoplayer2.ui.PlayerNotificationManager
 import com.google.android.exoplayer2.upstream.*
 import com.google.android.exoplayer2.util.MimeTypes
+import com.google.android.gms.cast.*
 import com.google.android.gms.cast.Cast.MessageReceivedCallback
-import com.google.android.gms.cast.CastDevice
-import com.google.android.gms.cast.CastMediaControlIntent
 import com.google.android.gms.cast.framework.*
+import com.google.android.gms.cast.framework.media.MediaQueue
 import kotlinx.coroutines.*
 import okhttp3.OkHttpClient
 import org.json.JSONObject
@@ -69,7 +70,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     fun onMetadata(metadata: JSObject)
     fun onPrepare(audiobookId: String, playWhenReady: Boolean)
     fun onSleepTimerEnded(currentPosition: Long)
-    fun onSleepTimerSet(sleepTimerEndTime:Long)
+    fun onSleepTimerSet(sleepTimerEndTime: Long)
   }
 
   private val tag = "PlayerService"
@@ -301,7 +302,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         setSessionActivity(sessionActivityPendingIntent)
         isActive = true
       }
-
 
 
     Log.d(tag, "Media Session Set")
@@ -916,10 +916,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         MediaConstants.BROWSER_SERVICE_EXTRAS_KEY_SEARCH_SUPPORTED, true)
       extras.putInt(
         MediaConstants.DESCRIPTION_EXTRAS_KEY_CONTENT_STYLE_BROWSABLE,
-        MediaConstants.DESCRIPTION_EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM)
+        MediaConstants.DESCRIPTION_EXTRAS_VALUE_CONTENT_STYLE_LIST_ITEM)
       extras.putInt(
         MediaConstants.DESCRIPTION_EXTRAS_KEY_CONTENT_STYLE_PLAYABLE,
-        MediaConstants.DESCRIPTION_EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM)
+        MediaConstants.DESCRIPTION_EXTRAS_VALUE_CONTENT_STYLE_LIST_ITEM)
 
       BrowserRoot(AUTO_MEDIA_ROOT, extras)
     }
@@ -937,7 +937,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         audiobookManager.isLoading = false
 
         Log.d(tag, "LOADED AUDIOBOOKS")
-        browseTree = BrowseTree(this, audiobookManager.audiobooks, audiobookManager.localMediaManager.localAudioFiles, null)
+        browseTree = BrowseTree(this, audiobookManager.audiobooksInProgress, audiobookManager.audiobooks, audiobookManager.localMediaManager.localAudioFiles, null)
         val children = browseTree[parentMediaId]?.map { item ->
           MediaBrowserCompat.MediaItem(item.description, flag)
         }
@@ -990,7 +990,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         audiobookManager.isLoading = false
 
         Log.d(tag, "LOADED AUDIOBOOKS")
-        browseTree = BrowseTree(this, audiobookManager.audiobooks, audiobookManager.localMediaManager.localAudioFiles, null)
+        browseTree = BrowseTree(this, audiobookManager.audiobooksInProgress, audiobookManager.audiobooks, audiobookManager.localMediaManager.localAudioFiles, null)
         val children = browseTree[ALL_ROOT]?.map { item ->
           MediaBrowserCompat.MediaItem(item.description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
         }
@@ -1149,7 +1149,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     if (sleepTimerRunning || sleepTimerFinishedAt > 0L) checkShouldExtendSleepTimer()
   }
 
-  fun increaseSleepTime(time:Long) {
+  fun increaseSleepTime(time: Long) {
   Log.d(tag, "Increase Sleep time $time")
     if (!sleepTimerRunning) return
     var newSleepEndTime = sleepTimerEndTime + time
@@ -1162,7 +1162,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     listener?.onSleepTimerSet(sleepTimerEndTime)
   }
 
-  fun decreaseSleepTime(time:Long) {
+  fun decreaseSleepTime(time: Long) {
     Log.d(tag, "Decrease Sleep time $time")
     if (!sleepTimerRunning) return
     var newSleepEndTime = sleepTimerEndTime - time
@@ -1487,20 +1487,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
           castPlayer = CastPlayer(castContext).apply {
             setSessionAvailabilityListener(CastSessionAvailabilityListener())
             addListener(getPlayerListener())
-          }
-
-          currentPlayer = castPlayer as CastPlayer
-
-          if (currentAudiobookStreamData != null) {
-            var mimeType = MimeTypes.AUDIO_AAC
-
-            val mediaItem: MediaItem = MediaItem.Builder()
-              .setUri(currentAudiobookStreamData!!.contentUri)
-              .setMediaId(currentAudiobookStreamData!!.id).setMimeType(mimeType)
-//              .setTag(metadata)
-              .build()
-
-            castPlayer?.setMediaItem(mediaItem, currentAudiobookStreamData!!.startTime)
           }
           Log.d(tag, "CAST Cast Player Applied")
         } catch (e: Exception) {

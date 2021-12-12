@@ -84,6 +84,7 @@ class Audiobook {
       putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getCover().toString())
       putString(MediaMetadataCompat.METADATA_KEY_ART_URI, getCover().toString())
       putString(MediaMetadataCompat.METADATA_KEY_AUTHOR, book.authorFL)
+
 //      val extras = Bundle()
 //      if (isDownloaded) {
 //        extras.putLong(

@@ -10,6 +10,7 @@ import com.getcapacitor.JSArray
 import com.getcapacitor.JSObject
 import com.jeep.plugin.capacitor.capacitordatastoragesqlite.CapacitorDataStorageSqlite
 import okhttp3.*
+import org.json.JSONArray
 import java.io.IOException
 
 class AudiobookManager {
@@ -29,6 +30,7 @@ class AudiobookManager {
   lateinit var localMediaManager:LocalMediaManager
 
   var audiobooks:MutableList<Audiobook> = mutableListOf()
+  var audiobooksInProgress:MutableList<Audiobook> = mutableListOf()
 
   constructor(_ctx:Context, _client:OkHttpClient) {
     ctx = _ctx
@@ -45,19 +47,9 @@ class AudiobookManager {
     Log.d(tag, "SHARED PREF TOKEN $token")
   }
 
-  fun loadAudiobooks(cb: (() -> Unit)) {
-    Log.d(tag, "LOAD AUDIBOOOSK $serverUrl | $token")
-    if (serverUrl == "" || token == "") {
-      Log.d(tag, "No Server or Token set")
-      cb()
-      return
-    } else if (!serverUrl.startsWith("http")) {
-      Log.e(tag, "Invalid server url $serverUrl")
-      cb()
-      return
-    }
-
-    var url = "$serverUrl/api/libraries/main/books/all"
+  fun loadCategories(cb: (() -> Unit)) {
+    Log.d(tag, "LOAD Categories $serverUrl | $token")
+    var url = "$serverUrl/api/libraries/main/categories"
     val request = Request.Builder()
       .url(url).addHeader("Authorization", "Bearer $token")
       .build()
@@ -74,35 +66,106 @@ class AudiobookManager {
           if (!response.isSuccessful) throw IOException("Unexpected code $response")
 
           var bodyString = response.body!!.string()
-          var resJson = JSObject(bodyString)
-          var results = resJson.getJSONArray("results")
+          var results = JSONArray(bodyString)
+//          var results = resJson.getJSONArray("results")
 
-          var totalBooks = results.length() - 1
-          for (i in 0..totalBooks) {
-            var abobj = results.get(i)
-            var jsobj = JSObject(abobj.toString())
-
-            jsobj.put("isDownloaded", false)
-            var audiobook = Audiobook(jsobj, serverUrl, token)
-
-            if (audiobook.isMissing || audiobook.isInvalid) {
-              Log.d(tag, "Audiobook ${audiobook.book.title} is missing or invalid")
-            } else if (audiobook.numTracks <= 0) {
-              Log.d(tag, "Audiobook ${audiobook.book.title} has audio tracks")
-            } else {
-              var audiobookExists = audiobooks.find { it.id == audiobook.id }
-              if (audiobookExists == null) {
-                audiobooks.add(audiobook)
-              } else {
-                Log.d(tag, "Audiobook already there from downloaded")
+          var totalShelves = results.length() - 1
+          Log.d(tag, "Got categories $totalShelves")
+          for (i in 0..totalShelves) {
+            var shelfobj = results.get(i)
+            var jsobj = JSObject(shelfobj.toString())
+            var shelfId = jsobj.getString("id", "")
+            Log.d(tag, "Category shelf id $shelfId")
+            if (shelfId == "continue-reading") {
+              var entities = jsobj.getJSONArray("entities")
+              var totalEntities = entities.length() - 1
+              Log.d(tag, "Shelf total entities $totalEntities")
+              for (y in 0..totalEntities) {
+                var abobj = entities.get(y)
+                Log.d(tag, "Shelf category ab id $y = ${abobj.toString()}")
+                var abjsobj = JSObject(abobj.toString())
+                abjsobj.put("isDownloaded", false)
+                var audiobook = Audiobook(abjsobj, serverUrl, token)
+                if (audiobook.isMissing || audiobook.isInvalid || audiobook.numTracks <= 0) {
+                  Log.d(tag, "Not an audiobook or invalid/missing")
+                } else {
+                  var audiobookExists = audiobooksInProgress.find { it.id == audiobook.id }
+                  if (audiobookExists == null) {
+                    audiobooksInProgress.add(audiobook)
+                  }
+                }
               }
             }
           }
-          Log.d(tag, "${audiobooks.size} Audiobooks Loaded")
+          Log.d(tag, "${audiobooksInProgress.size} Audiobooks In Progress Loaded")
           cb()
         }
       }
     })
+  }
+
+  fun loadAudiobooks(cb: (() -> Unit)) {
+    Log.d(tag, "LOAD AUDIBOOOSK $serverUrl | $token")
+    if (serverUrl == "" || token == "") {
+      Log.d(tag, "No Server or Token set")
+      cb()
+      return
+    } else if (!serverUrl.startsWith("http")) {
+      Log.e(tag, "Invalid server url $serverUrl")
+      cb()
+      return
+    }
+
+    // First load currently reading
+    loadCategories() {
+      // Then load all
+      var url = "$serverUrl/api/libraries/main/books/all"
+      val request = Request.Builder()
+        .url(url).addHeader("Authorization", "Bearer $token")
+        .build()
+
+      client.newCall(request).enqueue(object : Callback {
+        override fun onFailure(call: Call, e: IOException) {
+          Log.d(tag, "FAILURE TO CONNECT")
+          e.printStackTrace()
+          cb()
+        }
+
+        override fun onResponse(call: Call, response: Response) {
+          response.use {
+            if (!response.isSuccessful) throw IOException("Unexpected code $response")
+
+            var bodyString = response.body!!.string()
+            var resJson = JSObject(bodyString)
+            var results = resJson.getJSONArray("results")
+
+            var totalBooks = results.length() - 1
+            for (i in 0..totalBooks) {
+              var abobj = results.get(i)
+              var jsobj = JSObject(abobj.toString())
+
+              jsobj.put("isDownloaded", false)
+              var audiobook = Audiobook(jsobj, serverUrl, token)
+
+              if (audiobook.isMissing || audiobook.isInvalid) {
+                Log.d(tag, "Audiobook ${audiobook.book.title} is missing or invalid")
+              } else if (audiobook.numTracks <= 0) {
+                Log.d(tag, "Audiobook ${audiobook.book.title} has audio tracks")
+              } else {
+                var audiobookExists = audiobooks.find { it.id == audiobook.id }
+                if (audiobookExists == null) {
+                  audiobooks.add(audiobook)
+                } else {
+                  Log.d(tag, "Audiobook already there from downloaded")
+                }
+              }
+            }
+            Log.d(tag, "${audiobooks.size} Audiobooks Loaded")
+            cb()
+          }
+        }
+      })
+    }
   }
 
   fun load() {
