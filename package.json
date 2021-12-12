@@ -1,6 +1,6 @@
 {
   "name": "audiobookshelf-app",
-  "version": "0.9.33-beta",
+  "version": "0.9.34-beta",
   "author": "advplyr",
   "scripts": {
     "dev": "nuxt --hostname localhost --port 1337",
