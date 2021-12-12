@@ -10,6 +10,7 @@ import androidx.annotation.AnyRes
 
 class BrowseTree(
   val context: Context,
+  val audiobooksInProgress: List<Audiobook>,
   val audiobooks: List<Audiobook>,
   val localAudio: List<LocalMediaManager.LocalAudio>,
   val recentMediaId: String? = null
@@ -33,6 +34,13 @@ class BrowseTree(
   init {
     val rootList = mediaIdToChildren[AUTO_BROWSE_ROOT] ?: mutableListOf()
 
+
+    val continueReadingMetadata = MediaMetadataCompat.Builder().apply {
+      putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, CONTINUE_ROOT)
+      putString(MediaMetadataCompat.METADATA_KEY_TITLE, "Reading")
+      putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getUriToDrawable(context, R.drawable.exo_icon_localaudio).toString())
+    }.build()
+
     val allMetadata = MediaMetadataCompat.Builder().apply {
       putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, ALL_ROOT)
       putString(MediaMetadataCompat.METADATA_KEY_TITLE, "Audiobooks")
@@ -41,6 +49,7 @@ class BrowseTree(
       Log.d("BrowseTree", "RESOURCE $resource")
       putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, resource)
     }.build()
+
 
     val downloadsMetadata = MediaMetadataCompat.Builder().apply {
       putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, DOWNLOADS_ROOT)
@@ -54,10 +63,19 @@ class BrowseTree(
       putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getUriToDrawable(context, R.drawable.exo_icon_localaudio).toString())
     }.build()
 
+    if (audiobooksInProgress.isNotEmpty()) {
+      rootList += continueReadingMetadata
+    }
     rootList += allMetadata
     rootList += downloadsMetadata
     rootList += localsMetadata
     mediaIdToChildren[AUTO_BROWSE_ROOT] = rootList
+
+    audiobooksInProgress.forEach { audiobook ->
+      val children = mediaIdToChildren[CONTINUE_ROOT] ?: mutableListOf()
+      children += audiobook.toMediaMetadata()
+      mediaIdToChildren[CONTINUE_ROOT] = children
+    }
 
     audiobooks.forEach { audiobook ->
       if (audiobook.isDownloaded) {
@@ -83,5 +101,6 @@ class BrowseTree(
 
 const val AUTO_BROWSE_ROOT = "/"
 const val ALL_ROOT = "__ALL__"
+const val CONTINUE_ROOT = "__CONTINUE__"
 const val DOWNLOADS_ROOT = "__DOWNLOADS__"
 const val LOCAL_ROOT = "__LOCAL__"
