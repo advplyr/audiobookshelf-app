@@ -23,6 +23,7 @@
       <div class="w-full">
         <div class="h-1 w-full bg-gray-500 bg-opacity-50 relative">
           <div ref="totalReadyTrack" class="h-full bg-gray-600 absolute top-0 left-0 pointer-events-none" />
+          <div ref="totalBufferedTrack" class="h-full bg-gray-500 absolute top-0 left-0 pointer-events-none" />
           <div ref="totalPlayedTrack" class="h-full bg-gray-200 absolute top-0 left-0 pointer-events-none" />
         </div>
       </div>
@@ -71,6 +72,7 @@
       <div id="playerTrack" class="absolute bottom-0 left-0 w-full px-3">
         <div ref="track" class="h-2 w-full bg-gray-500 bg-opacity-50 relative" :class="loading ? 'animate-pulse' : ''" @click="clickTrack">
           <div ref="readyTrack" class="h-full bg-gray-600 absolute top-0 left-0 pointer-events-none" />
+          <div ref="bufferedTrack" class="h-full bg-gray-500 absolute top-0 left-0 pointer-events-none" />
           <div ref="playedTrack" class="h-full bg-gray-200 absolute top-0 left-0 pointer-events-none" />
         </div>
         <div class="flex pt-0.5">
@@ -114,6 +116,7 @@ export default {
       totalDuration: 0,
       currentPlaybackRate: 1,
       currentTime: 0,
+      bufferedTime: 0,
       isResetting: false,
       initObject: null,
       streamId: null,
@@ -430,19 +433,25 @@ export default {
     updateTrack() {
       var percentDone = this.currentTime / this.totalDuration
       var totalPercentDone = percentDone
+      var bufferedPercent = this.bufferedTime / this.totalDuration
+      var totalBufferedPercent = bufferedPercent
+
       if (this.useChapterTrack && this.currentChapter) {
         var currChapTime = this.currentTime - this.currentChapter.start
         percentDone = currChapTime / this.currentChapterDuration
+        bufferedPercent = (this.bufferedTime - this.currentChapter.start) / this.currentChapterDuration
       }
       var ptWidth = Math.round(percentDone * this.trackWidth)
       if (this.playedTrackWidth === ptWidth) {
         return
       }
       this.$refs.playedTrack.style.width = ptWidth + 'px'
+      this.$refs.bufferedTrack.style.width = Math.round(bufferedPercent * this.trackWidth) + 'px'
       this.playedTrackWidth = ptWidth
 
       if (this.useChapterTrack) {
         this.$refs.totalPlayedTrack.style.width = Math.round(totalPercentDone * this.trackWidth) + 'px'
+        this.$refs.totalBufferedTrack.style.width = Math.round(totalBufferedPercent * this.trackWidth) + 'px'
       }
     },
     seek(time) {
@@ -511,6 +520,7 @@ export default {
     },
     async set(audiobookStreamData, stream, fromAppDestroy) {
       this.isResetting = false
+      this.bufferedTime = 0
       this.streamId = stream ? stream.id : null
       this.audiobookId = audiobookStreamData.audiobookId
       this.initObject = { ...audiobookStreamData }
@@ -601,7 +611,7 @@ export default {
       this.playInterval = setInterval(async () => {
         var data = await MyNativeAudio.getCurrentTime()
         this.currentTime = Number((data.value / 1000).toFixed(2))
-
+        this.bufferedTime = Number((data.bufferedTime / 1000).toFixed(2))
         this.timeupdate()
       }, 1000)
     },

@@ -243,7 +243,15 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     ctx = this
 
     // Initialize player
+    var customLoadControl:LoadControl = DefaultLoadControl.Builder().setBufferDurationsMs(
+      1000 * 20, // 20s min buffer
+      1000 * 45, // 45s max buffer
+      1000 * 5, // 5s playback start
+      1000 * 20 // 20s playback rebuffer
+    ).build()
+
     var simpleExoPlayerBuilder = SimpleExoPlayer.Builder(this)
+    simpleExoPlayerBuilder.setLoadControl(customLoadControl)
     simpleExoPlayerBuilder.setSeekBackIncrementMs(10000)
     simpleExoPlayerBuilder.setSeekForwardIncrementMs(10000)
     mPlayer = simpleExoPlayerBuilder.build()
@@ -692,6 +700,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   fun getCurrentTime() : Long {
     return currentPlayer.currentPosition
+  }
+
+  fun getBufferedTime() : Long {
+    return currentPlayer.bufferedPosition
   }
 
   fun getTheLastPauseTime() : Long {
