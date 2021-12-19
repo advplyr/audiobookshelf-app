@@ -60,8 +60,6 @@ class MyNativeAudio : Plugin() {
       Intent(mainActivity, PlayerNotificationService::class.java).also { intent ->
         ContextCompat.startForegroundService(mainActivity, intent)
       }
-    } else {
-      Log.w(tag, "Service already started --")
     }
     var jsobj = JSObject()
 
@@ -179,7 +177,7 @@ class MyNativeAudio : Plugin() {
     var isChapterTime:Boolean = call.getBoolean("isChapterTime", false) == true
 
     Handler(Looper.getMainLooper()).post() {
-        var success:Boolean = playerNotificationService.setSleepTimer(time, isChapterTime)
+        var success:Boolean = playerNotificationService.sleepTimerManager.setSleepTimer(time, isChapterTime)
         val ret = JSObject()
         ret.put("success", success)
         call.resolve(ret)
@@ -188,7 +186,7 @@ class MyNativeAudio : Plugin() {
 
   @PluginMethod
   fun getSleepTimerTime(call: PluginCall) {
-    var time = playerNotificationService.getSleepTimerTime()
+    var time = playerNotificationService.sleepTimerManager.getSleepTimerTime()
     val ret = JSObject()
     ret.put("value", time)
     call.resolve(ret)
@@ -199,7 +197,7 @@ class MyNativeAudio : Plugin() {
     var time:Long = call.getString("time", "300000")!!.toLong()
 
     Handler(Looper.getMainLooper()).post() {
-      playerNotificationService.increaseSleepTime(time)
+      playerNotificationService.sleepTimerManager.increaseSleepTime(time)
       val ret = JSObject()
       ret.put("success", true)
       call.resolve()
@@ -211,7 +209,7 @@ class MyNativeAudio : Plugin() {
     var time:Long = call.getString("time", "300000")!!.toLong()
 
     Handler(Looper.getMainLooper()).post() {
-      playerNotificationService.decreaseSleepTime(time)
+      playerNotificationService.sleepTimerManager.decreaseSleepTime(time)
       val ret = JSObject()
       ret.put("success", true)
       call.resolve()
@@ -220,7 +218,7 @@ class MyNativeAudio : Plugin() {
 
   @PluginMethod
   fun cancelSleepTimer(call: PluginCall) {
-    playerNotificationService.cancelSleepTimer()
+    playerNotificationService.sleepTimerManager.cancelSleepTimer()
     call.resolve()
   }
 
@@ -228,7 +226,7 @@ class MyNativeAudio : Plugin() {
   fun requestSession(call:PluginCall) {
     Log.d(tag, "CAST REQUEST SESSION PLUGIN")
 
-      playerNotificationService.requestSession(mainActivity, object : PlayerNotificationService.RequestSessionCallback() {
+      playerNotificationService.castManager.requestSession(mainActivity, object : CastManager.RequestSessionCallback() {
         override fun onError(errorCode: Int) {
           Log.e(tag, "CAST REQUEST SESSION CALLBACK ERROR $errorCode")
         }
