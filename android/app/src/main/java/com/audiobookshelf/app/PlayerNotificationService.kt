@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.app.*
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
 import android.graphics.Color
 import android.hardware.Sensor
 import android.hardware.SensorManager
@@ -12,7 +11,6 @@ import android.net.Uri
 import android.os.*
 import android.support.v4.media.MediaBrowserCompat
 import android.support.v4.media.MediaDescriptionCompat
-import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaControllerCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
@@ -22,19 +20,10 @@ import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import androidx.media.MediaBrowserServiceCompat
 import androidx.media.utils.MediaConstants
-import androidx.mediarouter.app.MediaRouteChooserDialog
-import androidx.mediarouter.media.MediaRouteSelector
-import androidx.mediarouter.media.MediaRouter
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.engine.DiskCacheStrategy
-import com.bumptech.glide.request.RequestOptions
 import com.getcapacitor.JSObject
-import com.getcapacitor.PluginCall
 import com.google.android.exoplayer2.*
-import com.google.android.exoplayer2.MediaMetadata
 import com.google.android.exoplayer2.audio.AudioAttributes
 import com.google.android.exoplayer2.ext.cast.CastPlayer
-import com.google.android.exoplayer2.ext.cast.SessionAvailabilityListener
 import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector
 import com.google.android.exoplayer2.ext.mediasession.TimelineQueueNavigator
 import com.google.android.exoplayer2.source.MediaSource
@@ -44,19 +33,13 @@ import com.google.android.exoplayer2.ui.PlayerNotificationManager
 import com.google.android.exoplayer2.upstream.*
 import com.google.android.exoplayer2.util.MimeTypes
 import com.google.android.gms.cast.*
-import com.google.android.gms.cast.Cast.MessageReceivedCallback
 import com.google.android.gms.cast.framework.*
-import com.google.android.gms.cast.framework.media.MediaQueue
 import kotlinx.coroutines.*
 import okhttp3.OkHttpClient
-import org.json.JSONObject
 import java.util.*
 import kotlin.concurrent.schedule
-import kotlin.math.roundToInt
 
 
-const val NOTIFICATION_LARGE_ICON_SIZE = 144 // px
-const val SLEEP_EXTENSION_TIME = 900000L // 15m
 const val SLEEP_TIMER_WAKE_UP_EXPIRATION = 120000L // 2m
 
 class PlayerNotificationService : MediaBrowserServiceCompat()  {
@@ -74,24 +57,22 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   }
 
   private val tag = "PlayerService"
+  private val binder = LocalBinder()
 
-  private var listener:MyCustomObjectListener? = null
+  var listener:MyCustomObjectListener? = null
 
   private lateinit var ctx:Context
-  private lateinit var mPlayer: SimpleExoPlayer
-  private lateinit var currentPlayer:Player
-  private var castPlayer:CastPlayer? = null
   private lateinit var mediaSessionConnector: MediaSessionConnector
   private lateinit var playerNotificationManager: PlayerNotificationManager
   private lateinit var mediaSession: MediaSessionCompat
   private lateinit var transportControls:MediaControllerCompat.TransportControls
 
-  private val serviceJob = SupervisorJob()
-  private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
-  private val binder = LocalBinder()
-  private val glideOptions = RequestOptions()
-    .fallback(R.drawable.icon)
-    .diskCacheStrategy(DiskCacheStrategy.DATA)
+  lateinit var mPlayer: SimpleExoPlayer
+  lateinit var currentPlayer:Player
+  var castPlayer:CastPlayer? = null
+
+  lateinit var sleepTimerManager:SleepTimerManager
+  lateinit var castManager:CastManager
 
   private var notificationId = 10;
   private var channelId = "audiobookshelf_channel"
@@ -106,22 +87,14 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   private var lastPauseTime: Long = 0   //ms
   private var onSeekBack: Boolean = false
 
-  private var sleepTimerTask:TimerTask? = null
-  private var shakeSensorUnregisterTask:TimerTask? = null
-  private var sleepTimerRunning:Boolean = false
-  private var sleepTimerEndTime:Long = 0L
-  private var sleepTimerExtensionTime:Long = 0L
-  private var sleepTimerFinishedAt:Long = 0L
-  private var isShakeSensorRegistered:Boolean = false
-
   // The following are used for the shake detection
+  private var isShakeSensorRegistered:Boolean = false
   private var mSensorManager: SensorManager? = null
   private var mAccelerometer: Sensor? = null
   private var mShakeDetector: ShakeDetector? = null
+  private var shakeSensorUnregisterTask:TimerTask? = null
 
   private lateinit var audiobookManager:AudiobookManager
-  private var newConnectionListener:SessionListener? = null
-  private var mainActivity:Activity? = null
 
   fun setCustomObjectListener(mylistener: MyCustomObjectListener) {
     listener = mylistener
@@ -269,34 +242,42 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     super.onCreate()
     ctx = this
 
-    Log.d(tag, "onCreate Register sensor listener ${mAccelerometer?.isWakeUpSensor}")
-    initSensor()
-
-    var client: OkHttpClient = OkHttpClient()
-    audiobookManager = AudiobookManager(ctx, client)
-    audiobookManager.init()
-
-  channelId = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-    createNotificationChannel(channelId, channelName)
-  } else ""
-
-
+    // Initialize player
     var simpleExoPlayerBuilder = SimpleExoPlayer.Builder(this)
     simpleExoPlayerBuilder.setSeekBackIncrementMs(10000)
     simpleExoPlayerBuilder.setSeekForwardIncrementMs(10000)
     mPlayer = simpleExoPlayerBuilder.build()
-    currentPlayer = mPlayer
     mPlayer.setHandleAudioBecomingNoisy(true)
-
+    mPlayer.addListener(getPlayerListener())
     var audioAttributes:AudioAttributes = AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.CONTENT_TYPE_SPEECH).build()
     mPlayer.setAudioAttributes(audioAttributes, true)
 
-    setPlayerListeners()
+    currentPlayer = mPlayer
+
+    // Initialize sleep timer
+    sleepTimerManager = SleepTimerManager(this)
+
+    // Initialize Cast Manager
+    castManager = CastManager(this)
+
+    // Initialize shake sensor
+    Log.d(tag, "onCreate Register sensor listener ${mAccelerometer?.isWakeUpSensor}")
+    initSensor()
+
+    // Initialize audiobook manager
+    var client: OkHttpClient = OkHttpClient()
+    audiobookManager = AudiobookManager(ctx, client)
+    audiobookManager.init()
+
+    channelId = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      createNotificationChannel(channelId, channelName)
+    } else ""
 
     val sessionActivityPendingIntent =
       packageManager?.getLaunchIntentForPackage(packageName)?.let { sessionIntent ->
         PendingIntent.getActivity(this, 0, sessionIntent, 0)
       }
+
     mediaSession = MediaSessionCompat(this, tag)
       .apply {
         setSessionActivity(sessionActivityPendingIntent)
@@ -316,7 +297,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       notificationId,
       channelId)
 
-    builder.setMediaDescriptionAdapter(DescriptionAdapter(mediaController))
+    builder.setMediaDescriptionAdapter(AbMediaDescriptionAdapter(mediaController, this))
 
     builder.setNotificationListener(object : PlayerNotificationManager.NotificationListener {
       override fun onNotificationPosted(
@@ -343,8 +324,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     })
 
     playerNotificationManager = builder.build()
-
-
     playerNotificationManager.setMediaSessionToken(mediaSession.sessionToken)
     playerNotificationManager.setUsePlayPauseActions(true)
     playerNotificationManager.setUseNextAction(false)
@@ -494,20 +473,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     })
   }
 
-  private fun initSensor() {
-    // ShakeDetector initialization
-    mSensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
-    mAccelerometer = mSensorManager!!.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-
-    mShakeDetector = ShakeDetector()
-    mShakeDetector!!.setOnShakeListener(object : ShakeDetector.OnShakeListener {
-      override fun onShake(count: Int) {
-        Log.d(tag, "PHONE SHAKE! $count")
-        handleShake()
-      }
-    })
-  }
-
   fun handleCallMediaButton(intent: Intent): Boolean {
     if(Intent.ACTION_MEDIA_BUTTON == intent.getAction()) {
       var keyEvent = intent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
@@ -525,7 +490,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
           KeyEvent.KEYCODE_MEDIA_PLAY -> {
             if (0 == mediaButtonClickCount) {
               play()
-              if (sleepTimerRunning || sleepTimerFinishedAt > 0L) checkShouldExtendSleepTimer()
+              sleepTimerManager.checkShouldExtendSleepTimer()
             }
             handleMediaButtonClickCount()
           }
@@ -549,7 +514,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
             } else {
               if (0 == mediaButtonClickCount) {
                 play()
-                if (sleepTimerRunning || sleepTimerFinishedAt > 0L) checkShouldExtendSleepTimer()
+                sleepTimerManager.checkShouldExtendSleepTimer()
               }
               handleMediaButtonClickCount()
             }
@@ -589,66 +554,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     }
   }
 
-  private inner class DescriptionAdapter(private val controller: MediaControllerCompat) :
-    PlayerNotificationManager.MediaDescriptionAdapter {
-
-    var currentIconUri: Uri? = null
-    var currentBitmap: Bitmap? = null
-
-    override fun createCurrentContentIntent(player: Player): PendingIntent? =
-      controller.sessionActivity
-
-    override fun getCurrentContentText(player: Player) = controller.metadata.description.subtitle.toString()
-
-    override fun getCurrentContentTitle(player: Player) = controller.metadata.description.title.toString()
-
-    override fun getCurrentLargeIcon(
-      player: Player,
-      callback: PlayerNotificationManager.BitmapCallback
-    ): Bitmap? {
-      val albumArtUri = controller.metadata.description.iconUri
-
-      return if (currentIconUri != albumArtUri || currentBitmap == null) {
-        // Cache the bitmap for the current audiobook so that successive calls to
-        // `getCurrentLargeIcon` don't cause the bitmap to be recreated.
-        currentIconUri = albumArtUri
-        Log.d(tag, "ART $currentIconUri")
-        serviceScope.launch {
-          currentBitmap = albumArtUri?.let {
-            resolveUriAsBitmap(it)
-          }
-          currentBitmap?.let { callback.onBitmap(it) }
-        }
-        null
-      } else {
-        currentBitmap
-      }
-    }
-
-    private suspend fun resolveUriAsBitmap(uri: Uri): Bitmap? {
-      return withContext(Dispatchers.IO) {
-        // Block on downloading artwork.
-       try {
-         Glide.with(ctx).applyDefaultRequestOptions(glideOptions)
-           .asBitmap()
-           .load(uri)
-           .placeholder(R.drawable.icon)
-           .error(R.drawable.icon)
-           .submit(NOTIFICATION_LARGE_ICON_SIZE, NOTIFICATION_LARGE_ICON_SIZE)
-           .get()
-         } catch (e: Exception) {
-            e.printStackTrace()
-
-           Glide.with(ctx).applyDefaultRequestOptions(glideOptions)
-             .asBitmap()
-             .load(Uri.parse("android.resource://com.audiobookshelf.app/" + R.drawable.icon))
-             .submit(NOTIFICATION_LARGE_ICON_SIZE, NOTIFICATION_LARGE_ICON_SIZE)
-             .get()
-          }
-      }
-    }
-  }
-
   fun getPlayerListener(): Player.Listener {
     return object : Player.Listener {
       override fun onPlayerError(error: PlaybackException) {
@@ -668,11 +573,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         if (events.contains(Player.EVENT_PLAYBACK_STATE_CHANGED)) {
           if (currentPlayer.playbackState == Player.STATE_READY) {
             Log.d(tag, "STATE_READY : " + mPlayer.duration.toString())
-
-            /*if (!currentAudiobook!!.hasPlayerLoaded && currentAudiobook!!.startTime > 0) {
-              Log.d(tag, "Should seek to ${currentAudiobook!!.startTime}")
-              mPlayer.seekTo(currentAudiobook!!.startTime)
-            }*/
 
             currentAudiobookStreamData!!.hasPlayerLoaded = true
             if (lastPauseTime == 0L) {
@@ -703,6 +603,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         }
         if (events.contains(Player.EVENT_IS_PLAYING_CHANGED)) {
           Log.d(tag, "EVENT IS PLAYING CHANGED")
+
           if (player.isPlaying) {
             if (lastPauseTime > 0) {
               if (onSeekBack) onSeekBack = false
@@ -723,15 +624,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     }
   }
 
-  private fun setPlayerListeners() {
-    mPlayer.addListener(getPlayerListener())
-  }
-
 
   /*
     User callable methods
   */
-
   fun initPlayer(audiobookStreamData: AudiobookStreamData) {
     currentAudiobookStreamData = audiobookStreamData
 
@@ -741,54 +637,36 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       Log.d(tag, "Init Player audiobook already playing")
     }
 
-    var metadataBuilder = MediaMetadataCompat.Builder()
-      .putString(MediaMetadataCompat.METADATA_KEY_TITLE, currentAudiobookStreamData!!.title)
-      .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, currentAudiobookStreamData!!.title)
-      .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, currentAudiobookStreamData!!.author)
-      .putString(MediaMetadataCompat.METADATA_KEY_AUTHOR, currentAudiobookStreamData!!.author)
-      .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, currentAudiobookStreamData!!.author)
-      .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, currentAudiobookStreamData!!.series)
-      .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, currentAudiobookStreamData!!.id)
-
-    if (currentAudiobookStreamData!!.cover != "") {
-      metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_ART_URI, currentAudiobookStreamData!!.cover)
-      metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, currentAudiobookStreamData!!.cover)
-    }
-
-    var metadata = metadataBuilder.build()
+    var metadata = currentAudiobookStreamData!!.getMediaMetadataCompat()
     mediaSession.setMetadata(metadata)
 
-    var mediaMetadata = MediaMetadata.Builder().build()
+    var mediaUri:Uri = currentAudiobookStreamData!!.getMediaUri()
+    var mimeType:String = currentAudiobookStreamData!!.getMimeType()
 
-
-    var mediaSource:MediaSource
-    if (currentAudiobookStreamData!!.isLocal) {
-      Log.d(tag, "Playing Local File")
-      var mediaItem = MediaItem.Builder().setUri(currentAudiobookStreamData!!.contentUri).setMediaMetadata(mediaMetadata).build()
-      var dataSourceFactory = DefaultDataSourceFactory(ctx, channelId)
-      mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
-    } else {
-      Log.d(tag, "Playing HLS File")
-      var mediaItem = MediaItem.Builder().setUri(currentAudiobookStreamData!!.playlistUri).setMediaMetadata(mediaMetadata).build()
-      var dataSourceFactory = DefaultHttpDataSource.Factory()
-      dataSourceFactory.setUserAgent(channelId)
-      dataSourceFactory.setDefaultRequestProperties(hashMapOf("Authorization" to "Bearer ${currentAudiobookStreamData!!.token}"))
-
-      mediaSource = HlsMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
-    }
-
+    var mediaMetadata = currentAudiobookStreamData!!.getMediaMetadata()
+    var mediaItem = MediaItem.Builder().setUri(mediaUri).setMediaMetadata(mediaMetadata).setMimeType(mimeType).build()
 
     if (mPlayer == currentPlayer) {
+      var mediaSource:MediaSource
+
+      if (currentAudiobookStreamData!!.isLocal) {
+        Log.d(tag, "Playing Local File")
+        var dataSourceFactory = DefaultDataSourceFactory(ctx, channelId)
+        mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
+      } else {
+        Log.d(tag, "Playing HLS File")
+        var dataSourceFactory = DefaultHttpDataSource.Factory()
+        dataSourceFactory.setUserAgent(channelId)
+        dataSourceFactory.setDefaultRequestProperties(hashMapOf("Authorization" to "Bearer ${currentAudiobookStreamData!!.token}"))
+        mediaSource = HlsMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
+      }
       mPlayer.setMediaSource(mediaSource, currentAudiobookStreamData!!.startTime)
     } else if (castPlayer != null) {
-      val mediaItem: MediaItem = MediaItem.Builder()
-        .setUri(currentAudiobookStreamData!!.contentUri)
-        .setMediaId(currentAudiobookStreamData!!.id)
-        .setTag(metadata)
-        .build()
-
-      castPlayer?.setMediaItem(mediaItem, currentAudiobookStreamData!!.startTime)
+      var mediaQueue = currentAudiobookStreamData!!.getCastQueue()
+      // TODO: Start position will need to be adjusted if using multi-track queue
+      castPlayer?.setMediaItems(mediaQueue, 0, 0)
     }
+
     currentPlayer.prepare()
     currentPlayer.playWhenReady = currentAudiobookStreamData!!.playWhenReady
     currentPlayer.setPlaybackSpeed(audiobookStreamData.playbackSpeed)
@@ -796,6 +674,21 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     lastPauseTime = 0
   }
 
+  fun switchToPlayer(useCastPlayer: Boolean) {
+    currentPlayer = if (useCastPlayer) {
+      Log.d(tag, "switchToPlayer: Using Cast Player " + castPlayer?.deviceInfo)
+      mediaSessionConnector.setPlayer(castPlayer)
+      castPlayer as CastPlayer
+    } else {
+      Log.d(tag, "switchToPlayer: Using ExoPlayer")
+      mediaSessionConnector.setPlayer(mPlayer)
+      mPlayer
+    }
+    if (currentAudiobookStreamData != null) {
+      Log.d(tag, "switchToPlayer: Initing current ab stream data")
+      initPlayer(currentAudiobookStreamData!!)
+    }
+  }
 
   fun getCurrentTime() : Long {
     return currentPlayer.currentPosition
@@ -902,15 +795,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       // No further calls will be made to other media browsing methods.
       null
     } else {
-//
-//      val maximumRootChildLimit = rootHints?.getInt(
-//        MediaConstants.BROWSER_ROOT_HINTS_KEY_ROOT_CHILDREN_LIMIT,
-//        /* defaultValue= */ 4)
-//      val supportedRootChildFlags = rootHints.getInt(
-//        MediaConstants.BROWSER_ROOT_HINTS_KEY_ROOT_CHILDREN_SUPPORTED_FLAGS,
-//        /* defaultValue= */ android.media.browse.MediaBrowser.MediaItem.FLAG_BROWSABLE)
-
-
       val extras = Bundle()
       extras.putBoolean(
         MediaConstants.BROWSER_SERVICE_EXTRAS_KEY_SEARCH_SUPPORTED, true)
@@ -926,8 +810,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   }
 
   override fun onLoadChildren(parentMediaId: String, result: Result<MutableList<MediaBrowserCompat.MediaItem>>) {
-    val mediaItems: MutableList<MediaBrowserCompat.MediaItem> = mutableListOf()
     Log.d(tag, "ON LOAD CHILDREN $parentMediaId")
+
     var flag = if (parentMediaId == AUTO_MEDIA_ROOT) MediaBrowserCompat.MediaItem.FLAG_BROWSABLE else MediaBrowserCompat.MediaItem.FLAG_PLAYABLE
 
     if (!audiobookManager.hasLoaded) {
@@ -953,12 +837,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       return
     }
 
-//    if (audiobookManager.audiobooks.size == 0) {
-//      Log.d(tag, "AudiobookManager: Sending no items")
-//      result.sendResult(mediaItems)
-//      return
-//    }
-
     val children = browseTree[parentMediaId]?.map { item ->
       MediaBrowserCompat.MediaItem(item.description, flag)
     }
@@ -972,12 +850,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       // build the MediaItem objects for the top level,
       // and put them in the mediaItems list
     } else {
-
       // examine the passed parentMediaId to see which submenu we're at,
       // and put the children of that menu in the mediaItems list
     }
-//    Log.d(tag, "AudiobookManager: Sending ${mediaItems.size} Aduiobooks")
-//    result.sendResult(mediaItems)
   }
 
   override fun onSearch(query: String, extras: Bundle?, result: Result<MutableList<MediaBrowserCompat.MediaItem>>) {
@@ -1012,7 +887,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       return
     }
 
-
     val children = browseTree[ALL_ROOT]?.map { item ->
       MediaBrowserCompat.MediaItem(item.description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
     }
@@ -1022,162 +896,26 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
   }
 
+
   //
-  // SLEEP TIMER STUFF
+  // SHAKE SENSOR
   //
+  private fun initSensor() {
+    // ShakeDetector initialization
+    mSensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
+    mAccelerometer = mSensorManager!!.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
 
-  private fun getSleepTimerTimeRemainingSeconds():Int {
-    if (sleepTimerEndTime <= 0) return 0
-    var sleepTimeRemaining = sleepTimerEndTime - getCurrentTime()
-    return ((sleepTimeRemaining / 1000).toDouble()).roundToInt()
-  }
-
-  fun getIsSleepTimerRunning():Boolean {
-    return sleepTimerRunning
-  }
-
-  fun setSleepTimer(time: Long, isChapterTime: Boolean) : Boolean {
-    Log.d(tag, "Setting Sleep Timer for $time is chapter time $isChapterTime")
-    sleepTimerTask?.cancel()
-    sleepTimerRunning = false
-    sleepTimerFinishedAt = 0L
-
-    // Register shake sensor
-    registerSensor()
-
-    var currentTime = getCurrentTime()
-    if (isChapterTime) {
-      if (currentTime > time) {
-        Log.d(tag, "Invalid sleep timer - current time is already passed chapter time $time")
-        return false
+    mShakeDetector = ShakeDetector()
+    mShakeDetector!!.setOnShakeListener(object : ShakeDetector.OnShakeListener {
+      override fun onShake(count: Int) {
+        Log.d(tag, "PHONE SHAKE! $count")
+        sleepTimerManager.handleShake()
       }
-      sleepTimerEndTime = time
-      sleepTimerExtensionTime = SLEEP_EXTENSION_TIME
-    } else {
-      sleepTimerEndTime = currentTime + time
-      sleepTimerExtensionTime = time
-    }
-
-    if (sleepTimerEndTime > getDuration()) {
-      sleepTimerEndTime = getDuration()
-    }
-
-    listener?.onSleepTimerSet(sleepTimerEndTime)
-
-    sleepTimerRunning = true
-    sleepTimerTask = Timer("SleepTimer", false).schedule(0L, 1000L) {
-      Handler(Looper.getMainLooper()).post() {
-        if (currentPlayer.isPlaying) {
-          var sleepTimeSecondsRemaining = getSleepTimerTimeRemainingSeconds()
-          Log.d(tag, "Sleep TIMER time remaining $sleepTimeSecondsRemaining s")
-
-          if (sleepTimeSecondsRemaining <= 0) {
-            Log.d(tag, "Sleep Timer Pausing Player on Chapter")
-            currentPlayer.pause()
-
-            listener?.onSleepTimerEnded(currentPlayer.currentPosition)
-            clearSleepTimer()
-            sleepTimerFinishedAt = System.currentTimeMillis()
-          } else if (sleepTimeSecondsRemaining <= 30) {
-            // Start fading out audio
-            var volume = sleepTimeSecondsRemaining / 30F
-            Log.d(tag, "SLEEP VOLUME FADE $volume | ${sleepTimeSecondsRemaining}s remaining")
-            currentPlayer.volume = volume
-          }
-        }
-      }
-    }
-    return true
-  }
-
-  fun clearSleepTimer() {
-    sleepTimerTask?.cancel()
-    sleepTimerTask = null
-    sleepTimerEndTime = 0
-    sleepTimerRunning = false
-
-    // Unregister shake sensor after wake up expiration
-    shakeSensorUnregisterTask?.cancel()
-    shakeSensorUnregisterTask = Timer("ShakeUnregisterTimer", false).schedule(SLEEP_TIMER_WAKE_UP_EXPIRATION) {
-      Handler(Looper.getMainLooper()).post() {
-        Log.d(tag, "wake time expired: Unregistering shake sensor")
-        unregisterSensor()
-      }
-    }
-  }
-
-  fun getSleepTimerTime():Long? {
-    return sleepTimerEndTime
-  }
-
-  fun cancelSleepTimer() {
-    Log.d(tag, "Canceling Sleep Timer")
-    clearSleepTimer()
-    listener?.onSleepTimerSet(0)
-  }
-
-  private fun extendSleepTime() {
-    if (!sleepTimerRunning) return
-    currentPlayer.volume = 1F
-    sleepTimerEndTime += sleepTimerExtensionTime
-    if (sleepTimerEndTime > getDuration()) sleepTimerEndTime = getDuration()
-    listener?.onSleepTimerSet(sleepTimerEndTime)
-  }
-
-  private fun checkShouldExtendSleepTimer() {
-    if (!sleepTimerRunning) {
-      var finishedAtDistance = System.currentTimeMillis() - sleepTimerFinishedAt
-      if (finishedAtDistance > SLEEP_TIMER_WAKE_UP_EXPIRATION) // 2 minutes
-      {
-        Log.d(tag, "Sleep timer finished over 2 mins ago, clearing it")
-        sleepTimerFinishedAt = 0L
-        return
-      }
-
-      var newSleepTime = if (sleepTimerExtensionTime >= 0) sleepTimerExtensionTime else SLEEP_EXTENSION_TIME
-      setSleepTimer(newSleepTime, false)
-      play()
-      return
-    }
-    // Only extend if within 30 seconds of finishing
-    var sleepTimeRemaining = getSleepTimerTimeRemainingSeconds()
-    if (sleepTimeRemaining <= 30) extendSleepTime()
-  }
-
-  fun handleShake() {
-    Log.d(tag, "HANDLE SHAKE HERE")
-    if (sleepTimerRunning || sleepTimerFinishedAt > 0L) checkShouldExtendSleepTimer()
-  }
-
-  fun increaseSleepTime(time: Long) {
-  Log.d(tag, "Increase Sleep time $time")
-    if (!sleepTimerRunning) return
-    var newSleepEndTime = sleepTimerEndTime + time
-    sleepTimerEndTime = if (newSleepEndTime >= getDuration()) {
-      getDuration()
-    } else {
-      newSleepEndTime
-    }
-    currentPlayer.volume = 1F
-    listener?.onSleepTimerSet(sleepTimerEndTime)
-  }
-
-  fun decreaseSleepTime(time: Long) {
-    Log.d(tag, "Decrease Sleep time $time")
-    if (!sleepTimerRunning) return
-    var newSleepEndTime = sleepTimerEndTime - time
-    sleepTimerEndTime = if (newSleepEndTime <= 1000) {
-      // End sleep timer in 1 second
-      getCurrentTime() + 1000
-    } else {
-      newSleepEndTime
-    }
-    currentPlayer.volume = 1F
-    listener?.onSleepTimerSet(sleepTimerEndTime)
+    })
   }
 
   // Shake sensor used for sleep timer
-  private fun registerSensor() {
+  fun registerSensor() {
     if (isShakeSensorRegistered) {
       Log.w(tag, "Shake sensor already registered")
       return
@@ -1193,371 +931,18 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     if (success) isShakeSensorRegistered = true
   }
 
-  private fun unregisterSensor() {
+  fun unregisterSensor() {
     if (!isShakeSensorRegistered) return
-    Log.d(tag, "Unregistering shake sensor")
-    mSensorManager!!.unregisterListener(mShakeDetector)
-    isShakeSensorRegistered = false
-  }
 
-  /*
-      CAST STUFF
-   */
-
-  private inner class CastSessionAvailabilityListener : SessionAvailabilityListener {
-
-    /**
-     * Called when a Cast session has started and the user wishes to control playback on a
-     * remote Cast receiver rather than play audio locally.
-     */
-    override fun onCastSessionAvailable() {
-//      switchToPlayer(currentPlayer, castPlayer!!)
-      Log.d(tag, "CAST SeSSION AVAILABLE " + castPlayer?.deviceInfo)
-        mediaSessionConnector.setPlayer(castPlayer)
-      currentPlayer = castPlayer as CastPlayer
-    }
-
-    /**
-     * Called when a Cast session has ended and the user wishes to control playback locally.
-     */
-    override fun onCastSessionUnavailable() {
-//      switchToPlayer(currentPlayer, exoPlayer)
-      Log.d(tag, "CAST SESSION UNAVAILABLE")
-      mediaSessionConnector.setPlayer(mPlayer)
-      currentPlayer = mPlayer
-    }
-  }
-
-  fun requestSession(mainActivity: Activity, callback: RequestSessionCallback) {
-    this.mainActivity = mainActivity
-
-  mainActivity.runOnUiThread(object : Runnable {
-    override fun run() {
-      Log.d(tag, "CAST RUNNING ON MAIN THREAD")
-
-      val session: CastSession? = getSession()
-      if (session == null) {
-        // show the "choose a connection" dialog
-
-        // Add the connection listener callback
-        listenForConnection(callback)
-
-        // Create the dialog
-        // TODO accept theme as a config.xml option
-        val builder = MediaRouteChooserDialog(mainActivity, androidx.appcompat.R.style.Theme_AppCompat_NoActionBar)
-        builder.routeSelector = MediaRouteSelector.Builder()
-          .addControlCategory(CastMediaControlIntent.categoryForCast(CastMediaControlIntent.DEFAULT_MEDIA_RECEIVER_APPLICATION_ID))
-          .build()
-        builder.setCanceledOnTouchOutside(true)
-        builder.setOnCancelListener {
-          getSessionManager()!!.removeSessionManagerListener(newConnectionListener, CastSession::class.java)
-          callback.onCancel()
-        }
-        builder.show()
-      } else {
-        // We are are already connected, so show the "connection options" Dialog
-        val builder: AlertDialog.Builder = AlertDialog.Builder(mainActivity)
-        if (session.castDevice != null) {
-          builder.setTitle(session.castDevice.friendlyName)
-        }
-        builder.setOnDismissListener { callback.onCancel() }
-        builder.setPositiveButton("Stop Casting") { dialog, which -> endSession(true, null) }
-        builder.show()
+    // Unregister shake sensor after wake up expiration
+    shakeSensorUnregisterTask?.cancel()
+    shakeSensorUnregisterTask = Timer("ShakeUnregisterTimer", false).schedule(SLEEP_TIMER_WAKE_UP_EXPIRATION) {
+      Handler(Looper.getMainLooper()).post() {
+        Log.d(tag, "wake time expired: Unregistering shake sensor")
+        mSensorManager!!.unregisterListener(mShakeDetector)
+        isShakeSensorRegistered = false
       }
     }
-  })
-  }
-
-  abstract class RequestSessionCallback : ConnectionCallback {
-    abstract fun onError(errorCode: Int)
-    abstract fun onCancel()
-    override fun onSessionEndedBeforeStart(errorCode: Int): Boolean {
-      onSessionStartFailed(errorCode)
-      return true
-    }
-
-    override fun onSessionStartFailed(errorCode: Int): Boolean {
-      onError(errorCode)
-      return true
-    }
-  }
-
-  fun endSession(stopCasting: Boolean, pluginCall: PluginCall?) {
-
-    getSessionManager()!!.addSessionManagerListener(object : SessionListener() {
-      override fun onSessionEnded(castSession: CastSession?, error: Int) {
-        getSessionManager()!!.removeSessionManagerListener(this, CastSession::class.java)
-        Log.d(tag, "CAST END SESSION")
-//        media.setSession(null)
-        pluginCall?.resolve()
-//        listener.onSessionEnd(ChromecastUtilities.createSessionObject(castSession, if (stopCasting) "stopped" else "disconnected"))
-      }
-    }, CastSession::class.java)
-    getSessionManager()!!.endCurrentSession(stopCasting)
-
-  }
-
-  open class SessionListener : SessionManagerListener<CastSession> {
-    override fun onSessionStarting(castSession: CastSession?) {}
-    override fun onSessionStarted(castSession: CastSession?, sessionId: String) {}
-    override fun onSessionStartFailed(castSession: CastSession?, error: Int) {}
-    override fun onSessionEnding(castSession: CastSession?) {}
-    override fun onSessionEnded(castSession: CastSession?, error: Int) {}
-    override fun onSessionResuming(castSession: CastSession?, sessionId: String) {}
-    override fun onSessionResumed(castSession: CastSession?, wasSuspended: Boolean) {}
-    override fun onSessionResumeFailed(castSession: CastSession?, error: Int) {}
-    override fun onSessionSuspended(castSession: CastSession?, reason: Int) {}
-  }
-
-  private fun startRouteScan() {
-    var connListener = object: ChromecastListener() {
-      override fun onReceiverAvailableUpdate(available: Boolean) {
-        Log.d(tag, "CAST RECEIVER UPDATE AVAILABLE $available")
-      }
-
-      override fun onSessionRejoin(jsonSession: JSONObject?) {
-        Log.d(tag, "CAST onSessionRejoin")
-      }
-
-      override fun onMediaLoaded(jsonMedia: JSONObject?) {
-        Log.d(tag, "CAST onMediaLoaded")
-      }
-
-      override fun onMediaUpdate(jsonMedia: JSONObject?) {
-        Log.d(tag, "CAST onMediaUpdate")
-      }
-
-      override fun onSessionUpdate(jsonSession: JSONObject?) {
-        Log.d(tag, "CAST onSessionUpdate")
-      }
-
-      override fun onSessionEnd(jsonSession: JSONObject?) {
-        Log.d(tag, "CAST onSessionEnd")
-      }
-
-      override fun onMessageReceived(p0: CastDevice, p1: String, p2: String) {
-        Log.d(tag, "CAST onMessageReceived")
-      }
-    }
-
-    var callback = object : ScanCallback() {
-      override fun onRouteUpdate(routes: List<MediaRouter.RouteInfo>?) {
-        Log.d(tag, "CAST On ROUTE UPDATED ${routes?.size} | ${getContext().castState}")
-        // if the routes have changed, we may have an available device
-        // If there is at least one device available
-        if (getContext().castState != CastState.NO_DEVICES_AVAILABLE) {
-
-          routes?.forEach { Log.d(tag, "CAST ROUTE ${it.description} | ${it.deviceType} | ${it.isBluetooth} | ${it.name}") }
-
-          // Stop the scan
-          stopRouteScan(this, null);
-          // Let the client know a receiver is available
-          connListener.onReceiverAvailableUpdate(true);
-          // Since we have a receiver we may also have an active session
-          var session = getSessionManager()?.currentCastSession;
-          // If we do have a session
-          if (session != null) {
-            // Let the client know
-            Log.d(tag, "LET SESSION KNOW ABOUT")
-//            media.setSession(session);
-//            connListener.onSessionRejoin(ChromecastUtilities.createSessionObject(session));
-          }
-        }
-      }
-    }
-    callback.setMediaRouter(getMediaRouter())
-
-    callback.onFilteredRouteUpdate();
-
-    getMediaRouter()!!.addCallback(MediaRouteSelector.Builder()
-      .addControlCategory(CastMediaControlIntent.categoryForCast(CastMediaControlIntent.DEFAULT_MEDIA_RECEIVER_APPLICATION_ID))
-      .build(),
-      callback,
-      MediaRouter.CALLBACK_FLAG_PERFORM_ACTIVE_SCAN)
-  }
-
-  internal interface CastListener : MessageReceivedCallback {
-    fun onMediaLoaded(jsonMedia: JSONObject?)
-    fun onMediaUpdate(jsonMedia: JSONObject?)
-    fun onSessionUpdate(jsonSession: JSONObject?)
-    fun onSessionEnd(jsonSession: JSONObject?)
-  }
-
-  internal abstract class ChromecastListener : CastStateListener, CastListener {
-    abstract fun onReceiverAvailableUpdate(available: Boolean)
-    abstract fun onSessionRejoin(jsonSession: JSONObject?)
-
-    /** CastStateListener functions.  */
-    override fun onCastStateChanged(state: Int) {
-      onReceiverAvailableUpdate(state != CastState.NO_DEVICES_AVAILABLE)
-    }
-  }
-
-  fun stopRouteScan(callback: ScanCallback?, completionCallback: Runnable?) {
-    if (callback == null) {
-      completionCallback!!.run()
-      return
-    }
-//    ctx.runOnUiThread(Runnable {
-      callback.stop()
-      getMediaRouter()!!.removeCallback(callback)
-      completionCallback?.run()
-//    })
-  }
-
-  abstract class ScanCallback : MediaRouter.Callback() {
-    /**
-     * Called whenever a route is updated.
-     * @param routes the currently available routes
-     */
-    abstract fun onRouteUpdate(routes: List<MediaRouter.RouteInfo>?)
-
-    /** records whether we have been stopped or not.  */
-    private var stopped = false
-
-    /** Global mediaRouter object.  */
-    private var mediaRouter: MediaRouter? = null
-
-    /**
-     * Sets the mediaRouter object.
-     * @param router mediaRouter object
-     */
-    fun setMediaRouter(router: MediaRouter?) {
-      mediaRouter = router
-    }
-
-    /**
-     * Call this method when you wish to stop scanning.
-     * It is important that it is called, otherwise battery
-     * life will drain more quickly.
-     */
-    fun stop() {
-      stopped = true
-    }
-
-    fun onFilteredRouteUpdate() {
-      if (stopped || mediaRouter == null) {
-        return
-      }
-      val outRoutes: MutableList<MediaRouter.RouteInfo> = ArrayList()
-      // Filter the routes
-      for (route in mediaRouter!!.routes) {
-        // We don't want default routes, or duplicate active routes
-        // or multizone duplicates https://github.com/jellyfin/cordova-plugin-chromecast/issues/32
-        val extras: Bundle? = route.extras
-        if (extras != null) {
-          CastDevice.getFromBundle(extras)
-          if (extras.getString("com.google.android.gms.cast.EXTRA_SESSION_ID") != null) {
-            continue
-          }
-        }
-        if (!route.isDefault
-          && !route.description.equals("Google Cast Multizone Member")
-          && route.playbackType === MediaRouter.RouteInfo.PLAYBACK_TYPE_REMOTE) {
-          outRoutes.add(route)
-        }
-      }
-      onRouteUpdate(outRoutes)
-    }
-
-    override fun onRouteAdded(router: MediaRouter?, route: MediaRouter.RouteInfo?) {
-      onFilteredRouteUpdate()
-    }
-
-    override fun onRouteChanged(router: MediaRouter?, route: MediaRouter.RouteInfo?) {
-      onFilteredRouteUpdate()
-    }
-
-    override fun onRouteRemoved(router: MediaRouter?, route: MediaRouter.RouteInfo?) {
-      onFilteredRouteUpdate()
-    }
-  }
-
-  private fun listenForConnection(callback: ConnectionCallback) {
-    // We should only ever have one of these listeners active at a time, so remove previous
-    getSessionManager()?.removeSessionManagerListener(newConnectionListener, CastSession::class.java)
-
-    newConnectionListener = object : SessionListener() {
-      override fun onSessionStarted(castSession: CastSession?, sessionId: String) {
-        Log.d(tag, "CAST SESSION STARTED ${castSession?.castDevice?.friendlyName}")
-        getSessionManager()?.removeSessionManagerListener(this, CastSession::class.java)
-
-        try {
-          val castContext = CastContext.getSharedInstance(mainActivity)
-          castPlayer = CastPlayer(castContext).apply {
-            setSessionAvailabilityListener(CastSessionAvailabilityListener())
-            addListener(getPlayerListener())
-          }
-          Log.d(tag, "CAST Cast Player Applied")
-        } catch (e: Exception) {
-          // We wouldn't normally catch the generic `Exception` however
-          // calling `CastContext.getSharedInstance` can throw various exceptions, all of which
-          // indicate that Cast is unavailable.
-          // Related internal bug b/68009560.
-          Log.i(tag, "Cast is not available on this device. " +
-            "Exception thrown when attempting to obtain CastContext. " + e.message)
-          null
-        }
-//        media.setSession(castSession)
-//        callback.onJoin(ChromecastUtilities.createSessionObject(castSession))
-      }
-
-      override fun onSessionStartFailed(castSession: CastSession?, errCode: Int) {
-        if (callback.onSessionStartFailed(errCode)) {
-          getSessionManager()?.removeSessionManagerListener(this, CastSession::class.java)
-        }
-      }
-
-      override fun onSessionEnded(castSession: CastSession?, errCode: Int) {
-        if (callback.onSessionEndedBeforeStart(errCode)) {
-          getSessionManager()?.removeSessionManagerListener(this, CastSession::class.java)
-        }
-      }
-    }
-
-    getSessionManager()?.addSessionManagerListener(newConnectionListener, CastSession::class.java)
-  }
-
-  private fun getContext(): CastContext {
-    return CastContext.getSharedInstance(ctx)
-  }
-
-  private fun getSessionManager(): SessionManager? {
-    return getContext().sessionManager
-  }
-
-  private fun getMediaRouter(): MediaRouter? {
-    return MediaRouter.getInstance(ctx)
-  }
-
-  private fun getSession(): CastSession? {
-    return getSessionManager()?.currentCastSession
-  }
-
-  internal interface ConnectionCallback {
-    /**
-     * Successfully joined a session on a route.
-     * @param jsonSession the session we joined
-     */
-    fun onJoin(jsonSession: JSONObject?)
-
-    /**
-     * Called if we received an error.
-     * @param errorCode You can find the error meaning here:
-     * https://developers.google.com/android/reference/com/google/android/gms/cast/CastStatusCodes
-     * @return true if we are done listening for join, false, if we to keep listening
-     */
-    fun onSessionStartFailed(errorCode: Int): Boolean
-
-    /**
-     * Called when we detect a session ended event before session started.
-     * See issues:
-     * https://github.com/jellyfin/cordova-plugin-chromecast/issues/49
-     * https://github.com/jellyfin/cordova-plugin-chromecast/issues/48
-     * @param errorCode error to output
-     * @return true if we are done listening for join, false, if we to keep listening
-     */
-    fun onSessionEndedBeforeStart(errorCode: Int): Boolean
   }
 }
 

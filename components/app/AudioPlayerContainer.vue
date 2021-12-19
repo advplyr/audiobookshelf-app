@@ -138,6 +138,18 @@ export default {
       var coverSrc = this.$store.getters['audiobooks/getBookCoverSrc'](this.audiobook)
       return coverSrc
     },
+    tracksForCast() {
+      if (!this.audiobook || !this.audiobook.tracks) {
+        return []
+      }
+      var abpath = this.audiobook.path
+      var tracks = this.audiobook.tracks.map((t) => {
+        var trelpath = t.path.replace(abpath, '')
+        if (trelpath.startsWith('/')) trelpath = trelpath.substr(1)
+        return `${this.$store.state.serverUrl}/s/book/${this.audiobook.id}/${trelpath}?token=${this.userToken}`
+      })
+      return tracks
+    },
     sleepTimeRemaining() {
       if (!this.sleepTimerEndTime) return 0
       return Math.max(0, this.sleepTimerEndTime / 1000 - this.currentTime)
@@ -390,8 +402,10 @@ export default {
         series: this.seriesTxt,
         playlistUrl: this.$server.url + playlistUrl,
         token: this.userToken,
-        audiobookId: this.audiobookId
+        audiobookId: this.audiobookId,
+        tracks: this.tracksForCast
       }
+
       this.$refs.audioPlayer.set(audiobookStreamData, stream, !this.stream)
 
       this.stream = stream
