@@ -47,9 +47,11 @@ export const actions = {
 
       var download = state.downloads.find(dl => dl.folderName === folder.name)
       if (!download) {
+        console.log('Link orphan downloads searching for ' + folder.name)
         var results = await this.$axios.$get(`/api/libraries/${rootState.libraries.currentLibraryId}/search?q=${folder.name}`)
         var matchingAb = null
         if (results && results.audiobooks) {
+          console.log('Link orphan downloads audiobooks ' + results.audiobooks.length)
           matchingAb = results.audiobooks.find(ab => {
             return ab.audiobook.book.title === folder.name
           })
@@ -79,8 +81,13 @@ export const actions = {
             coverSize: coverImg ? coverImg.size : 0,
             coverBasePath: ''
           }
+          console.log('Link orphan downloads book found ' + matchingAb.book.title)
           commit('addUpdateDownload', downloadObj)
+        } else {
+          console.log('Link orphan downloads book not found ' + folder.name)
         }
+      } else {
+        console.log('Link orphan downloads folder already has dl ' + folder.name, JSON.stringify(download))
       }
     }
   }
