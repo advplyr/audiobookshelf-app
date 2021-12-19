@@ -27,7 +27,7 @@ class AudiobookManager {
   var token = ""
   private var client:OkHttpClient
 
-  lateinit var localMediaManager:LocalMediaManager
+  var localMediaManager:LocalMediaManager
 
   var audiobooks:MutableList<Audiobook> = mutableListOf()
   var audiobooksInProgress:MutableList<Audiobook> = mutableListOf()

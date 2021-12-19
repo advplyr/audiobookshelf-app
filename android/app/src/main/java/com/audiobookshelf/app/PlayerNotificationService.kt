@@ -823,6 +823,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         Log.d(tag, "LOADED AUDIOBOOKS")
         browseTree = BrowseTree(this, audiobookManager.audiobooksInProgress, audiobookManager.audiobooks, audiobookManager.localMediaManager.localAudioFiles, null)
         val children = browseTree[parentMediaId]?.map { item ->
+          Log.d(tag, "Loaded Audiobook description ${item.description.title} - ${item.description.subtitle}")
           MediaBrowserCompat.MediaItem(item.description, flag)
         }
         if (children != null) {
