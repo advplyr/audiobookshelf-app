@@ -82,8 +82,10 @@ class MyNativeAudio : Plugin() {
   fun getCurrentTime(call: PluginCall) {
     Handler(Looper.getMainLooper()).post() {
       var currentTime = playerNotificationService.getCurrentTime()
+      var bufferedTime = playerNotificationService.getBufferedTime()
       val ret = JSObject()
       ret.put("value", currentTime)
+      ret.put("bufferedTime", bufferedTime)
       call.resolve(ret)
     }
   }
