@@ -11,6 +11,7 @@ import android.net.Uri
 import android.os.*
 import android.support.v4.media.MediaBrowserCompat
 import android.support.v4.media.MediaDescriptionCompat
+import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaControllerCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
@@ -20,6 +21,7 @@ import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import androidx.media.MediaBrowserServiceCompat
 import androidx.media.utils.MediaConstants
+import com.getcapacitor.Bridge
 import com.getcapacitor.JSObject
 import com.google.android.exoplayer2.*
 import com.google.android.exoplayer2.audio.AudioAttributes
@@ -31,14 +33,12 @@ import com.google.android.exoplayer2.source.ProgressiveMediaSource
 import com.google.android.exoplayer2.source.hls.HlsMediaSource
 import com.google.android.exoplayer2.ui.PlayerNotificationManager
 import com.google.android.exoplayer2.upstream.*
-import com.google.android.exoplayer2.util.MimeTypes
 import com.google.android.gms.cast.*
 import com.google.android.gms.cast.framework.*
 import kotlinx.coroutines.*
 import okhttp3.OkHttpClient
 import java.util.*
 import kotlin.concurrent.schedule
-
 
 const val SLEEP_TIMER_WAKE_UP_EXPIRATION = 120000L // 2m
 
@@ -66,6 +66,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   private lateinit var playerNotificationManager: PlayerNotificationManager
   private lateinit var mediaSession: MediaSessionCompat
   private lateinit var transportControls:MediaControllerCompat.TransportControls
+  private lateinit var audiobookManager:AudiobookManager
 
   lateinit var mPlayer: SimpleExoPlayer
   lateinit var currentPlayer:Player
@@ -73,6 +74,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   lateinit var sleepTimerManager:SleepTimerManager
   lateinit var castManager:CastManager
+  lateinit var audiobookProgressSyncer:AudiobookProgressSyncer
 
   private var notificationId = 10;
   private var channelId = "audiobookshelf_channel"
@@ -87,6 +89,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   private var lastPauseTime: Long = 0   //ms
   private var onSeekBack: Boolean = false
 
+  var isAndroidAuto = false
+  var webviewBridge:Bridge? = null
+
   // The following are used for the shake detection
   private var isShakeSensorRegistered:Boolean = false
   private var mSensorManager: SensorManager? = null
@@ -94,10 +99,14 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   private var mShakeDetector: ShakeDetector? = null
   private var shakeSensorUnregisterTask:TimerTask? = null
 
-  private lateinit var audiobookManager:AudiobookManager
-
   fun setCustomObjectListener(mylistener: MyCustomObjectListener) {
     listener = mylistener
+  }
+  fun setBridge(bridge: Bridge) {
+    webviewBridge = bridge
+  }
+  fun getIsWebviewOpen():Boolean {
+    return webviewBridge?.app?.isActive == true
   }
 
    /*
@@ -224,6 +233,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     playerNotificationManager.setPlayer(null)
     mPlayer.release()
     mediaSession.release()
+    audiobookProgressSyncer.reset()
     Log.d(tag, "onDestroy")
     isStarted = false
 
@@ -262,18 +272,22 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
     currentPlayer = mPlayer
 
+    var client: OkHttpClient = OkHttpClient()
+
     // Initialize sleep timer
     sleepTimerManager = SleepTimerManager(this)
 
     // Initialize Cast Manager
     castManager = CastManager(this)
 
+    // Initialize Audiobook Progress Syncer (Only used for android auto when webview is not open)
+    audiobookProgressSyncer = AudiobookProgressSyncer(this, client)
+
     // Initialize shake sensor
     Log.d(tag, "onCreate Register sensor listener ${mAccelerometer?.isWakeUpSensor}")
     initSensor()
 
     // Initialize audiobook manager
-    var client: OkHttpClient = OkHttpClient()
     audiobookManager = AudiobookManager(ctx, client)
     audiobookManager.init()
 
@@ -438,7 +452,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       }
 
       override fun onPause() {
-        Log.d(tag, "ON PLAY MEDIA SESSION COMPAT")
+        Log.d(tag, "ON PAUSE MEDIA SESSION COMPAT")
         pause()
       }
 
@@ -626,6 +640,17 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
               }
             }
           } else lastPauseTime = System.currentTimeMillis()
+
+          // If app is only running in android auto then webview will not be open
+          //  so progress needs to be synced natively
+          Log.d(tag, "Playing ${getCurrentBookTitle()} | ${currentPlayer.mediaMetadata.title} | ${currentPlayer.mediaMetadata.displayTitle}")
+          if (player.isPlaying) {
+            audiobookProgressSyncer.start()
+          }
+          if (!player.isPlaying && audiobookProgressSyncer.listeningTimerRunning) {
+            audiobookProgressSyncer.stop()
+          }
+
           listener?.onPlayingUpdate(player.isPlaying)
         }
       }
@@ -714,6 +739,30 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     return currentPlayer.duration
   }
 
+  fun getCurrentBookTitle() : String? {
+    return currentAudiobookStreamData?.title
+  }
+
+  fun getCurrentBookIsLocal() : Boolean {
+    return currentAudiobookStreamData?.isLocal == true
+  }
+
+  fun getCurrentBookId() : String? {
+    return currentAudiobookStreamData?.audiobookId
+  }
+
+  fun getCurrentStreamId() : String? {
+    return currentAudiobookStreamData?.id
+  }
+
+  fun getServerUrl(): String {
+    return audiobookManager.serverUrl
+  }
+
+  fun getUserToken() : String {
+    return audiobookManager.token
+  }
+
   fun calcPauseSeekBackTime() : Long {
     if (lastPauseTime <= 0) return 0
     var time: Long = System.currentTimeMillis() - lastPauseTime
@@ -789,24 +838,38 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   //
   // MEDIA BROWSER STUFF (ANDROID AUTO)
   //
+  private val ANDROID_AUTO_PKG_NAME = "com.google.android.projection.gearhead"
+  private val ANDROID_AUTO_SIMULATOR_PKG_NAME = "com.google.android.autosimulator"
+  private val ANDROID_WEARABLE_PKG_NAME = "com.google.android.wearable.app"
+  private val ANDROID_GSEARCH_PKG_NAME = "com.google.android.googlequicksearchbox"
+  private val ANDROID_AUTOMOTIVE_PKG_NAME = "com.google.android.carassistant"
+  private val VALID_MEDIA_BROWSERS = mutableListOf<String>(ANDROID_AUTO_PKG_NAME, ANDROID_AUTO_SIMULATOR_PKG_NAME, ANDROID_WEARABLE_PKG_NAME, ANDROID_GSEARCH_PKG_NAME, ANDROID_AUTOMOTIVE_PKG_NAME)
+
   private val AUTO_MEDIA_ROOT = "/"
   private val ALL_ROOT = "__ALL__"
   private lateinit var browseTree:BrowseTree
 
 
+  // Only allowing android auto or similar to access media browser service
+  //  normal loading of audiobooks is handled in webview (not natively)
   private fun isValid(packageName: String, uid: Int) : Boolean {
-    Log.d(tag, "Check package $packageName is valid with uid $uid")
+    Log.d(tag, "onGetRoot: Checking package $packageName with uid $uid")
+    if (!VALID_MEDIA_BROWSERS.contains(packageName)) {
+      Log.d(tag, "onGetRoot: package $packageName not valid for the media browser service")
+      return false
+    }
     return true
   }
 
   override fun onGetRoot(clientPackageName: String, clientUid: Int, rootHints: Bundle?): BrowserRoot? {
-    // Verify that the specified package is allowed to access your
-    // content! You'll need to write your own logic to do this.
+    // Verify that the specified package is allowed to access your content
     return if (!isValid(clientPackageName, clientUid)) {
-      // If the request comes from an untrusted package, return null.
       // No further calls will be made to other media browsing methods.
       null
     } else {
+      // Flag is used to enable syncing progress natively (normally syncing is handled in webview)
+      isAndroidAuto = true
+
       val extras = Bundle()
       extras.putBoolean(
         MediaConstants.BROWSER_SERVICE_EXTRAS_KEY_SEARCH_SUPPORTED, true)
@@ -833,13 +896,13 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         audiobookManager.isLoading = false
 
         Log.d(tag, "LOADED AUDIOBOOKS")
-        browseTree = BrowseTree(this, audiobookManager.audiobooksInProgress, audiobookManager.audiobooks, audiobookManager.localMediaManager.localAudioFiles, null)
+
+        var audiobooks:List<MediaMetadataCompat> = audiobookManager.getAudiobooksMediaMetadata()
+        var downloadedBooks:List<MediaMetadataCompat> = audiobookManager.getDownloadedAudiobooksMediaMetadata()
+
+        browseTree = BrowseTree(this, audiobookManager.audiobooksInProgress, audiobooks, downloadedBooks)
         val children = browseTree[parentMediaId]?.map { item ->
-          Log.d(tag, "Loaded Audiobook description ${item.description.title} - ${item.description.subtitle}")
           MediaBrowserCompat.MediaItem(item.description, flag)
-        }
-        if (children != null) {
-          Log.d(tag, "BROWSE TREE CHILDREN ${children.size}")
         }
         result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
       }
@@ -858,7 +921,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     }
     result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
 
-    // Check if this is the root menu:
+    // TODO: For using sub menus. Check if this is the root menu:
     if (AUTO_MEDIA_ROOT == parentMediaId) {
       // build the MediaItem objects for the top level,
       // and put them in the mediaItems list
@@ -878,7 +941,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         audiobookManager.isLoading = false
 
         Log.d(tag, "LOADED AUDIOBOOKS")
-        browseTree = BrowseTree(this, audiobookManager.audiobooksInProgress, audiobookManager.audiobooks, audiobookManager.localMediaManager.localAudioFiles, null)
+        var audiobooks:List<MediaMetadataCompat> = audiobookManager.getAudiobooksMediaMetadata()
+        var downloadedBooks:List<MediaMetadataCompat> = audiobookManager.getDownloadedAudiobooksMediaMetadata()
+
+        browseTree = BrowseTree(this, audiobookManager.audiobooksInProgress, audiobooks, downloadedBooks)
         val children = browseTree[ALL_ROOT]?.map { item ->
           MediaBrowserCompat.MediaItem(item.description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
         }

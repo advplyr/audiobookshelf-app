@@ -16,6 +16,7 @@ import { Capacitor } from '@capacitor/core'
 import { AppUpdate } from '@robingenz/capacitor-app-update'
 import AudioDownloader from '@/plugins/audio-downloader'
 import StorageManager from '@/plugins/storage-manager'
+import MyNativeAudio from '@/plugins/my-native-audio'
 
 export default {
   data() {

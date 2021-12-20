@@ -10,7 +10,8 @@ import com.google.android.exoplayer2.util.MimeTypes
 import java.lang.Exception
 
 class AudiobookStreamData {
-  var id:String = "audiobook"
+  var id:String = "unset"
+  var audiobookId:String = ""
   var token:String = ""
   var playlistUrl:String = ""
   var title:String = "No Title"
@@ -33,7 +34,8 @@ class AudiobookStreamData {
   var contentUri:Uri = Uri.EMPTY // For Local only
 
   constructor(jsondata:JSObject) {
-    id = jsondata.getString("id", "audiobook").toString()
+    id = jsondata.getString("id", "unset").toString()
+    audiobookId = jsondata.getString("audiobookId", "").toString()
     title = jsondata.getString("title", "No Title").toString()
     token = jsondata.getString("token", "").toString()
     author = jsondata.getString("author", "Unknown").toString()

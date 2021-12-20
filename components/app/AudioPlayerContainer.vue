@@ -349,6 +349,7 @@ export default {
       })
 
       var audiobookStreamData = {
+        id: 'download',
         title: this.title,
         author: this.author,
         playWhenReady: !!playOnLoad,
