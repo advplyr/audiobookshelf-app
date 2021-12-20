@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.support.v4.media.MediaMetadataCompat
 
 import android.util.Log
 import com.getcapacitor.JSArray
@@ -105,13 +106,13 @@ class AudiobookManager {
   }
 
   fun loadAudiobooks(cb: (() -> Unit)) {
-    Log.d(tag, "LOAD AUDIBOOOSK $serverUrl | $token")
+    Log.d(tag, "Load Audiobooks: $serverUrl | $token")
     if (serverUrl == "" || token == "") {
-      Log.d(tag, "No Server or Token set")
+      Log.d(tag, "Load Audiobooks: No Server or Token set")
       cb()
       return
     } else if (!serverUrl.startsWith("http")) {
-      Log.e(tag, "Invalid server url $serverUrl")
+      Log.e(tag, "Load Audiobooks: Invalid server url $serverUrl")
       cb()
       return
     }
@@ -119,14 +120,14 @@ class AudiobookManager {
     // First load currently reading
     loadCategories() {
       // Then load all
-      var url = "$serverUrl/api/libraries/main/books/all"
+      var url = "$serverUrl/api/libraries/main/books/all?sort=book.title"
       val request = Request.Builder()
         .url(url).addHeader("Authorization", "Bearer $token")
         .build()
 
       client.newCall(request).enqueue(object : Callback {
         override fun onFailure(call: Call, e: IOException) {
-          Log.d(tag, "FAILURE TO CONNECT")
+          Log.d(tag, "Load Audiobooks: FAILURE TO CONNECT")
           e.printStackTrace()
           cb()
         }
@@ -174,6 +175,7 @@ class AudiobookManager {
 
     localMediaManager.loadLocalAudio()
 
+    // Load downloads from sql db
     var db = CapacitorDataStorageSqlite(ctx)
     db.openStore("storage", "downloads", false, "no-encryption", 1)
     var keyvalues = db.keysvalues()
@@ -214,13 +216,15 @@ class AudiobookManager {
 
           var bodyString = response.body!!.string()
           var stream = JSObject(bodyString)
+          var streamId = stream.getString("streamId", "").toString()
           var startTime = stream.getDouble("startTime")
           var streamUrl = stream.getString("streamUrl", "").toString()
 
           var startTimeLong = (startTime * 1000).toLong()
 
           var abStreamDataObj = JSObject()
-          abStreamDataObj.put("id", audiobook.id)
+          abStreamDataObj.put("id", streamId)
+          abStreamDataObj.put("audiobookId", audiobook.id)
           abStreamDataObj.put("playlistUrl", "$serverUrl$streamUrl")
           abStreamDataObj.put("title", audiobook.book.title)
           abStreamDataObj.put("author", audiobook.book.authorFL)
@@ -247,7 +251,8 @@ class AudiobookManager {
 
   fun initDownloadPlay(audiobook:Audiobook):AudiobookStreamData {
     var abStreamDataObj = JSObject()
-    abStreamDataObj.put("id", audiobook.id)
+    abStreamDataObj.put("id", "download")
+    abStreamDataObj.put("audiobookId", audiobook.id)
     abStreamDataObj.put("contentUrl", audiobook.contentUrl)
     abStreamDataObj.put("title", audiobook.book.title)
     abStreamDataObj.put("author", audiobook.book.authorFL)
@@ -265,7 +270,8 @@ class AudiobookManager {
 
   fun initLocalPlay(local: LocalMediaManager.LocalAudio):AudiobookStreamData {
     var abStreamDataObj = JSObject()
-    abStreamDataObj.put("id", local.id)
+    abStreamDataObj.put("id", "local")
+    abStreamDataObj.put("audiobookId", local.id)
     abStreamDataObj.put("contentUrl", local.uri.toString())
     abStreamDataObj.put("title", local.name)
     abStreamDataObj.put("author", "")
@@ -338,5 +344,26 @@ class AudiobookManager {
   fun getFirstLocal(): LocalMediaManager.LocalAudio? {
     if (localMediaManager.localAudioFiles.isEmpty()) return null
     return localMediaManager.localAudioFiles[0]
+  }
+
+  // Used for media browser loadChildren, fallback to using the samples if no audiobooks are there
+  fun getAudiobooksMediaMetadata() : List<MediaMetadataCompat> {
+    var mediaMetadata:MutableList<MediaMetadataCompat> = mutableListOf()
+    if (audiobooks.isEmpty()) {
+      localMediaManager.localAudioFiles.forEach { mediaMetadata.add(it.toMediaMetadata()) }
+    } else {
+      audiobooks.forEach { mediaMetadata.add(it.toMediaMetadata()) }
+    }
+    return mediaMetadata
+  }
+  // Used for media browser loadChildren, fallback to using the samples if no audiobooks are there
+  fun getDownloadedAudiobooksMediaMetadata() : List<MediaMetadataCompat> {
+    var mediaMetadata:MutableList<MediaMetadataCompat> = mutableListOf()
+    if (audiobooks.isEmpty()) {
+      localMediaManager.localAudioFiles.forEach { mediaMetadata.add(it.toMediaMetadata()) }
+    } else {
+      audiobooks.forEach { if (it.isDownloaded) { mediaMetadata.add(it.toMediaMetadata()) } }
+    }
+    return mediaMetadata
   }
 }

@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.core.content.ContextCompat
+import com.capacitorjs.plugins.app.AppPlugin
 import com.getcapacitor.*
 import com.getcapacitor.annotation.CapacitorPlugin
 import org.json.JSONObject
@@ -22,32 +23,37 @@ class MyNativeAudio : Plugin() {
     var foregroundServiceReady : () -> Unit = {
       playerNotificationService = mainActivity.foregroundService
 
-      playerNotificationService.setCustomObjectListener(object: PlayerNotificationService.MyCustomObjectListener {
-        override fun onPlayingUpdate(isPlaying:Boolean) {
+      playerNotificationService.setBridge(bridge)
+
+      playerNotificationService.setCustomObjectListener(object : PlayerNotificationService.MyCustomObjectListener {
+        override fun onPlayingUpdate(isPlaying: Boolean) {
           emit("onPlayingUpdate", isPlaying)
         }
-        override fun onMetadata(metadata:JSObject) {
+
+        override fun onMetadata(metadata: JSObject) {
           notifyListeners("onMetadata", metadata)
         }
-        override fun onPrepare(audiobookId:String, playWhenReady:Boolean) {
+
+        override fun onPrepare(audiobookId: String, playWhenReady: Boolean) {
           var jsobj = JSObject()
           jsobj.put("audiobookId", audiobookId)
           jsobj.put("playWhenReady", playWhenReady)
           notifyListeners("onPrepareMedia", jsobj)
         }
-        override fun onSleepTimerEnded(currentPosition:Long) {
+
+        override fun onSleepTimerEnded(currentPosition: Long) {
           emit("onSleepTimerEnded", currentPosition)
         }
-        override fun onSleepTimerSet(sleepTimerEndTime:Long) {
+
+        override fun onSleepTimerSet(sleepTimerEndTime: Long) {
           emit("onSleepTimerSet", sleepTimerEndTime)
         }
       })
     }
     mainActivity.pluginCallback = foregroundServiceReady
-
   }
 
-  fun emit(evtName: String, value:Any) {
+  fun emit(evtName: String, value: Any) {
     var ret:JSObject = JSObject()
     ret.put("value", value)
     notifyListeners(evtName, ret)
@@ -225,7 +231,7 @@ class MyNativeAudio : Plugin() {
   }
 
   @PluginMethod
-  fun requestSession(call:PluginCall) {
+  fun requestSession(call: PluginCall) {
     Log.d(tag, "CAST REQUEST SESSION PLUGIN")
 
       playerNotificationService.castManager.requestSession(mainActivity, object : CastManager.RequestSessionCallback() {
