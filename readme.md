@@ -23,6 +23,7 @@ Required Software:
 * [Node.js](https://nodejs.org/en/)
 * Code editor of choice([VSCode](https://code.visualstudio.com/download), etc)
 * [Android Studio](https://developer.android.com/studio)
+* [Android SDK](https://developer.android.com/studio)
 
 <details>
 <summary>Install the required software with <a href=(https://docs.microsoft.com/en-us/windows/package-manager/winget/#production-recommended)>winget</a></summary>
@@ -51,6 +52,8 @@ Required Software:
 
 * [Android Studio](https://developer.android.com/studio)
 * [Node.js](https://nodejs.org/en/)
+* [Cocoapods](https://guides.cocoapods.org/using/getting-started.html#installation)
+* [Android SDK](https://developer.android.com/studio)
 
 <details>
 <summary>Install the required software with <a href=(https://brew.sh/)>homebrew</a></summary>
@@ -58,7 +61,7 @@ Required Software:
 <p>
 
 ```zsh
-brew install android-studio node
+brew install android-studio node cocoapods
 ```
 
 </p>
