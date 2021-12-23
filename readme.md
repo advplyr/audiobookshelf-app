@@ -69,7 +69,7 @@ brew install android-studio node cocoapods
 </p>
 </details>
 
-### Start working on the project
+### Start working on the Android app
 
 Clone or fork the project from cmd or powershell and `cd` into the project directory.
 
