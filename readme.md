@@ -15,7 +15,9 @@ Get the Android app on the [Google Play Store](https://play.google.com/store/app
 
 ## Contributing
 
-### Windows Environment Setup
+This application is built using [NuxtJS](https://nuxtjs.org/) and [Capacitor](https://capacitorjs.com/) in order to run on both iOS and Android on the same code base.
+
+### Windows Environment Setup for Android
 
 Required Software:
 
@@ -46,7 +48,7 @@ winget install -e --id OpenJS.NodeJS --version 16.12.0; #v17 has issues with ope
 
 Your Windows environment should now be set up and ready to proceed!
 
-### Mac Environment Setup
+### Mac Environment Setup for Android
 
 Required Software:
 
