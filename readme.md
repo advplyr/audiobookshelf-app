@@ -25,7 +25,7 @@ Required Software:
 * [Android Studio](https://developer.android.com/studio)
 
 <details>
-<summary>Install the applications with <a href=(https://docs.microsoft.com/en-us/windows/package-manager/winget/#production-recommended)>winget</a></summary>
+<summary>Install the required software with <a href=(https://docs.microsoft.com/en-us/windows/package-manager/winget/#production-recommended)>winget</a></summary>
 
 <p>
 Note: This requires a PowerShell prompt with winget installed.  You should be able to copy and paste the code block to install.  If you use an elevated PowerShell prompt, UAC will not pop up during the installs.
@@ -53,7 +53,7 @@ Required Software:
 * [Node.js](https://nodejs.org/en/)
 
 <details>
-<summary>Install the applications with <a href=(https://brew.sh/)>homebrew</a></summary>
+<summary>Install the required software with <a href=(https://brew.sh/)>homebrew</a></summary>
 
 <p>
 
