@@ -172,7 +172,7 @@ npx cap sync
 </details>
 <br>
 
-Open Android Studio:
+Open Xcode:
 
 ```shell
 npx cap open ios
