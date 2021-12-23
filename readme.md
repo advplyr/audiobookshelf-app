@@ -71,7 +71,7 @@ brew install android-studio node cocoapods
 
 ### Start working on the Android app
 
-Clone or fork the project from cmd or powershell and `cd` into the project directory.
+Clone or fork the project from terminal or powershell and `cd` into the project directory.
 
 Install the required node packages:
 ```shell
@@ -81,7 +81,7 @@ npm install
 <details>
 <summary>Expand for screenshot</summary>
 
-![](/screenshots/dev_setup_npm_install.png)
+![](/screenshots/dev_setup_android_npm_install.png)
 </details>
 <br>
 
@@ -93,7 +93,7 @@ npm run generate
 <details>
 <summary>Expand for screenshot</summary>
 
-![](/screenshots/dev_setup_npm_run.png)
+![](/screenshots/dev_setup_android_npm_run.png)
 </details>
 <br>
 
@@ -105,7 +105,7 @@ npx cap sync
 <details>
 <summary>Expand for screenshot</summary>
 
-![](/screenshots/dev_setup_cap_sync.png)
+![](/screenshots/dev_setup_android_cap_sync.png)
 </details>
 <br>
 
@@ -119,6 +119,69 @@ npx cap open android
 <summary>Expand for screenshot</summary>
 
 ![](/screenshots/dev_setup_cap_android.png)
+</details>
+<br>
+
+Start coding!
+
+### Mac Environment Setup for iOS
+
+Required Software:
+
+* [Xcode](https://developer.apple.com/xcode/)
+* [Node.js](https://nodejs.org/en/)
+* [Cocoapods](https://guides.cocoapods.org/using/getting-started.html#installation)
+
+### Start working on the iOS app
+
+Clone or fork the project in the terminal and `cd` into the project directory.
+
+Install the required node packages:
+```shell
+npm install
+```
+
+<details>
+<summary>Expand for screenshot</summary>
+
+![](/screenshots/dev_setup_ios_npm_install.png)
+</details>
+<br>
+
+Generate static web app:
+```shell
+npm run generate
+```
+
+<details>
+<summary>Expand for screenshot</summary>
+
+![](/screenshots/dev_setup_ios_npm_generate.png)
+</details>
+<br>
+
+Copy web app into native android/ios folders:
+```shell
+npx cap sync
+```
+
+<details>
+<summary>Expand for screenshot</summary>
+
+![](/screenshots/dev_setup_ios_cap_sync.png)
+</details>
+<br>
+
+Open Android Studio:
+
+```shell
+npx cap open ios
+```
+
+<details>
+<summary>Expand for screenshot</summary>
+
+![](/screenshots/dev_setup_ios_cap_open.png)
 </details>
 <br>
 
