@@ -17,7 +17,7 @@ Get the Android app on the [Google Play Store](https://play.google.com/store/app
 
 ### Windows Environment Setup
 
-Required Software
+Required Software:
 
 * [Git](https://git-scm.com/downloads)
 * [Node.js](https://nodejs.org/en/)
@@ -47,26 +47,44 @@ Your Windows environment should now be set up and ready to proceed!
 
 ### Mac Environment Setup
 
+Required Software:
+
+* [Android Studio](https://developer.android.com/studio)
+* [Node.js](https://nodejs.org/en/)
+
+<details>
+<summary>Install the applications with <a href=(https://brew.sh/)>homebrew</a></summary>
+
+<p>
+
+```zsh
+brew install android-studio node
+```
+
+</p>
+</details>
 
 ### Start working on the project
 
-
 Clone or fork the project from cmd or powershell and `cd` into the project directory.
 
-Install the required node packages: 
-```
+Install the required node packages:
+```shell
 npm install
 ```
+
 <details>
 <summary>Expand for screenshot</summary>
 
 ![](/screenshots/dev_setup_npm_install.png)
 </details>
 <br>
-Generate static web app: 
-```
+
+Generate static web app:
+```shell
 npm run generate
 ```
+
 <details>
 <summary>Expand for screenshot</summary>
 
@@ -75,9 +93,10 @@ npm run generate
 <br>
 
 Copy web app into native android/ios folders:
-```
+```shell
 npx cap sync
 ```
+
 <details>
 <summary>Expand for screenshot</summary>
 
@@ -86,13 +105,16 @@ npx cap sync
 <br>
 
 Open Android Studio:
-```
+
+```shell
 npx cap open android
 ```
+
 <details>
 <summary>Expand for screenshot</summary>
 
 ![](/screenshots/dev_setup_cap_android.png)
 </details>
+<br>
 
 Start coding!
