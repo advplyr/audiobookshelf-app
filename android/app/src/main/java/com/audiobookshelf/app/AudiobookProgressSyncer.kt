@@ -111,6 +111,10 @@ class AudiobookProgressSyncer constructor(playerNotificationService:PlayerNotifi
     var serverUrl = playerNotificationService.getServerUrl()
     var token = playerNotificationService.getUserToken()
 
+    if (serverUrl == "" || token == "") {
+      return
+    }
+
     Log.d(tag, "Sync Stream $serverUrl | $token")
     var url = "$serverUrl/api/syncStream"
 

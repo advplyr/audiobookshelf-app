@@ -13,7 +13,7 @@ android {
         applicationId "com.audiobookshelf.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 54
+        versionCode 55
         versionName "0.9.35-beta"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
