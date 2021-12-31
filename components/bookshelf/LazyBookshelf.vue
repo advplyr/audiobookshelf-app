@@ -90,8 +90,9 @@ export default {
       return this.isCoverSquareAspectRatio ? 1 : 1.6
     },
     bookWidth() {
-      // var coverSize = this.$store.getters['user/getUserSetting']('bookshelfCoverSize')
       var coverSize = 100
+      if (window.innerWidth <= 375) coverSize = 90
+
       if (this.isCoverSquareAspectRatio) return coverSize * 1.6
       return coverSize
     },

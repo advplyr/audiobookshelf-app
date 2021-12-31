@@ -13,6 +13,7 @@ dependencies {
     implementation project(':capacitor-app')
     implementation project(':capacitor-dialog')
     implementation project(':capacitor-network')
+    implementation project(':capacitor-status-bar')
     implementation project(':capacitor-storage')
     implementation project(':robingenz-capacitor-app-update')
     implementation project(':capacitor-data-storage-sqlite')

@@ -1,7 +1,7 @@
 <template>
-  <div class="w-full min-h-screen h-full bg-bg text-white">
+  <div class="w-full layout-wrapper bg-bg text-white">
     <app-appbar />
-    <div id="content" class="overflow-hidden" :class="playerIsOpen ? 'playerOpen' : ''">
+    <div id="content" class="overflow-hidden relative" :class="playerIsOpen ? 'playerOpen' : ''">
       <Nuxt />
     </div>
     <app-audio-player-container ref="streamContainer" />
@@ -16,7 +16,6 @@ import { Capacitor } from '@capacitor/core'
 import { AppUpdate } from '@robingenz/capacitor-app-update'
 import AudioDownloader from '@/plugins/audio-downloader'
 import StorageManager from '@/plugins/storage-manager'
-import MyNativeAudio from '@/plugins/my-native-audio'
 
 export default {
   data() {
@@ -414,12 +413,3 @@ export default {
   }
 }
 </script>
-
-<style>
-#content {
-  height: calc(100vh - 64px);
-}
-#content.playerOpen {
-  height: calc(100vh - 164px);
-}
-</style>

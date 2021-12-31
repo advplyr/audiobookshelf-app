@@ -8,8 +8,8 @@
     <div v-show="showInfoMenu" v-click-outside="clickOutside" class="pagemenu absolute top-20 right-0 rounded-md overflow-y-auto bg-bg shadow-lg z-20 border border-gray-400 w-full" style="top: 72px">
       <div v-for="key in comicMetadataKeys" :key="key" class="w-full px-2 py-1">
         <p class="text-xs">
-          <strong>{{ key }}</strong
-          >: {{ comicMetadata[key] }}
+          <strong>{{ key }}</strong>
+          : {{ comicMetadata[key] }}
         </p>
       </div>
     </div>
@@ -210,10 +210,10 @@ export default {
 
 <style scoped>
 #comic-reader {
-  height: calc(100vh - 32px);
+  height: calc(100% - 32px);
 }
 .pagemenu {
-  max-height: calc(100vh - 80px);
+  max-height: calc(100% - 80px);
 }
 .comicimg {
   height: 100%;

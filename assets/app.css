@@ -1,7 +1,30 @@
 @import "./fonts.css";
 
+body {
+  background-color: #262626;
+}
+
+.layout-wrapper {
+  height: calc(100vh - env(safe-area-inset-top));
+  min-height: calc(100vh - env(safe-area-inset-top));
+  max-height: calc(100vh - env(safe-area-inset-top));
+  margin-top: env(safe-area-inset-top);
+}
+
+#content {
+  height: calc(100% - 64px);
+  min-height: calc(100% - 64px);
+  max-height: calc(100% - 64px);
+}
+#content.playerOpen {
+  height: calc(100% - 164px);
+  min-height: calc(100% - 164px);
+  max-height: calc(100% - 164px);
+}
+
 #bookshelf {
-  min-height: calc(100vh - 48px);
+  height: calc(100% - 48px);
+  min-height: calc(100% - 48px);
 }
 
 .box-shadow-sm {
