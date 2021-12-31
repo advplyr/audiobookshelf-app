@@ -378,7 +378,7 @@ export default {
       console.log('[StreamContainer] Stream Open: ' + this.title)
 
       if (!this.$refs.audioPlayer) {
-        console.error('No Audio Player Mini')
+        console.error('[StreamContainer] No Audio Player Mini')
         return
       }
 
@@ -406,7 +406,12 @@ export default {
         audiobookId: this.audiobookId,
         tracks: this.tracksForCast
       }
-
+      console.log('[StreamContainer] Set Audio Player', JSON.stringify(audiobookStreamData))
+      if (!this.$refs.audioPlayer) {
+        console.error('[StreamContainer] Invalid no audio player')
+      } else {
+        console.log('[StreamContainer] Has Audio Player Ref')
+      }
       this.$refs.audioPlayer.set(audiobookStreamData, stream, !this.stream)
 
       this.stream = stream

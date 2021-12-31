@@ -2,91 +2,96 @@
   <div class="w-full h-full py-6">
     <h1 class="text-2xl px-4">Downloads</h1>
 
-    <div class="w-full px-2 py-2" :class="hasStoragePermission ? '' : 'text-error'">
-      <div class="flex items-center">
-        <span class="material-icons" @click="changeDownloadFolderClick">{{ hasStoragePermission ? 'folder' : 'error' }}</span>
-        <p v-if="hasStoragePermission" class="text-sm px-4" @click="changeDownloadFolderClick">{{ downloadFolderSimplePath || 'No Download Folder Selected' }}</p>
-        <p v-else class="text-sm px-4" @click="changeDownloadFolderClick">No Storage Permissions. Click here</p>
-      </div>
-      <!-- <p v-if="hasStoragePermission" class="text-xs text-gray-400 break-all max-w-full">{{ downloadFolderUri }}</p> -->
+    <template v-if="isIos"></template>
+  </div>
+</template>
+<template v-else>
+  <div class="w-full px-2 py-2" :class="hasStoragePermission ? '' : 'text-error'">
+    <div class="flex items-center">
+      <span class="material-icons" @click="changeDownloadFolderClick">{{ hasStoragePermission ? 'folder' : 'error' }}</span>
+      <p v-if="hasStoragePermission" class="text-sm px-4" @click="changeDownloadFolderClick">{{ downloadFolderSimplePath || 'No Download Folder Selected' }}</p>
+      <p v-else class="text-sm px-4" @click="changeDownloadFolderClick">No Storage Permissions. Click here</p>
     </div>
+    <!-- <p v-if="hasStoragePermission" class="text-xs text-gray-400 break-all max-w-full">{{ downloadFolderUri }}</p> -->
+  </div>
 
-    <div class="w-full h-10 relative">
-      <div class="absolute top-px left-0 z-10 w-full h-full flex">
-        <div class="flex-grow h-full bg-primary rounded-t-md mr-px" @click="showingDownloads = true">
-          <div class="flex items-center justify-center rounded-t-md border-t border-l border-r border-white border-opacity-20 h-full" :class="showingDownloads ? 'text-gray-100' : 'border-b bg-black bg-opacity-20 text-gray-400'">
-            <p>Downloads</p>
-          </div>
-        </div>
-        <div class="flex-grow h-full bg-primary rounded-t-md ml-px" @click="showingDownloads = false">
-          <div class="flex items-center justify-center h-full rounded-t-md border-t border-l border-r border-white border-opacity-20" :class="!showingDownloads ? 'text-gray-100' : 'border-b bg-black bg-opacity-20 text-gray-400'">
-            <p>Files</p>
-          </div>
+  <div class="w-full h-10 relative">
+    <div class="absolute top-px left-0 z-10 w-full h-full flex">
+      <div class="flex-grow h-full bg-primary rounded-t-md mr-px" @click="showingDownloads = true">
+        <div class="flex items-center justify-center rounded-t-md border-t border-l border-r border-white border-opacity-20 h-full" :class="showingDownloads ? 'text-gray-100' : 'border-b bg-black bg-opacity-20 text-gray-400'">
+          <p>Downloads</p>
         </div>
       </div>
-    </div>
-    <div class="list-content-body relative w-full overflow-x-hidden bg-primary">
-      <template v-if="showingDownloads">
-        <div v-if="!totalDownloads" class="flex items-center justify-center h-40">
-          <p>No Downloads</p>
+      <div class="flex-grow h-full bg-primary rounded-t-md ml-px" @click="showingDownloads = false">
+        <div class="flex items-center justify-center h-full rounded-t-md border-t border-l border-r border-white border-opacity-20" :class="!showingDownloads ? 'text-gray-100' : 'border-b bg-black bg-opacity-20 text-gray-400'">
+          <p>Files</p>
         </div>
-        <ul v-else class="h-full w-full" role="listbox" aria-labelledby="listbox-label">
-          <template v-for="download in downloadsDownloading">
-            <li :key="download.id" class="text-gray-400 select-none relative px-4 py-5 border-b border-white border-opacity-10 bg-black bg-opacity-10">
-              <div class="flex items-center justify-center">
-                <div class="w-3/4">
-                  <span class="text-xs">({{ downloadingProgress[download.id] || 0 }}%) {{ download.isPreparing ? 'Preparing' : 'Downloading' }}...</span>
-                  <p class="font-normal truncate text-sm">{{ download.audiobook.book.title }}</p>
-                </div>
-                <div class="flex-grow" />
+      </div>
+    </div>
+  </div>
+  <div class="list-content-body relative w-full overflow-x-hidden bg-primary">
+    <template v-if="showingDownloads">
+      <div v-if="!totalDownloads" class="flex items-center justify-center h-40">
+        <p>No Downloads</p>
+      </div>
+      <ul v-else class="h-full w-full" role="listbox" aria-labelledby="listbox-label">
+        <template v-for="download in downloadsDownloading">
+          <li :key="download.id" class="text-gray-400 select-none relative px-4 py-5 border-b border-white border-opacity-10 bg-black bg-opacity-10">
+            <div class="flex items-center justify-center">
+              <div class="w-3/4">
+                <span class="text-xs">({{ downloadingProgress[download.id] || 0 }}%) {{ download.isPreparing ? 'Preparing' : 'Downloading' }}...</span>
+                <p class="font-normal truncate text-sm">{{ download.audiobook.book.title }}</p>
+              </div>
+              <div class="flex-grow" />
 
-                <div class="shadow-sm text-white flex items-center justify-center rounded-full animate-spin">
-                  <span class="material-icons">refresh</span>
-                </div>
+              <div class="shadow-sm text-white flex items-center justify-center rounded-full animate-spin">
+                <span class="material-icons">refresh</span>
               </div>
-            </li>
-          </template>
-          <template v-for="download in downloadsReady">
-            <li :key="download.id" class="text-gray-50 select-none relative pr-4 pl-2 py-5 border-b border-white border-opacity-10" @click="jumpToAudiobook(download)">
-              <modals-downloads-download-item :download="download" @play="playDownload" @delete="clickDeleteDownload" />
-            </li>
-          </template>
-        </ul>
-      </template>
-      <template v-else>
-        <div class="w-full h-full">
-          <div class="w-full flex justify-around py-4 px-2">
-            <ui-btn small @click="searchFolder">Re-Scan</ui-btn>
-            <ui-btn small @click="changeDownloadFolderClick">Change Folder</ui-btn>
-            <ui-btn small color="error" @click="resetFolder">Reset</ui-btn>
-          </div>
-          <p v-if="isScanning" class="text-center my-8">Scanning Folder..</p>
-          <p v-else-if="!mediaScanResults" class="text-center my-8">No Files Found</p>
-          <template v-else>
-            <template v-for="mediaFolder in mediaScanResults.folders">
-              <div :key="mediaFolder.uri" class="w-full px-2 py-2">
-                <div class="flex items-center">
-                  <span class="material-icons text-base text-white text-opacity-50">folder</span>
-                  <p class="ml-1 py-0.5">{{ mediaFolder.name }}</p>
-                </div>
-                <div v-for="mediaFile in mediaFolder.files" :key="mediaFile.uri" class="ml-3 flex items-center">
-                  <span class="material-icons text-base text-white text-opacity-50">{{ mediaFile.isAudio ? 'music_note' : 'image' }}</span>
-                  <p class="ml-1 py-0.5">{{ mediaFile.name }}</p>
-                </div>
-              </div>
-            </template>
-            <template v-for="mediaFile in mediaScanResults.files">
-              <div :key="mediaFile.uri" class="w-full px-2 py-2">
-                <div class="flex items-center">
-                  <span class="material-icons text-base text-white text-opacity-50">{{ mediaFile.isAudio ? 'music_note' : 'image' }}</span>
-                  <p class="ml-1 py-0.5">{{ mediaFile.name }}</p>
-                </div>
-              </div>
-            </template>
-          </template>
+            </div>
+          </li>
+        </template>
+        <template v-for="download in downloadsReady">
+          <li :key="download.id" class="text-gray-50 select-none relative pr-4 pl-2 py-5 border-b border-white border-opacity-10" @click="jumpToAudiobook(download)">
+            <modals-downloads-download-item :download="download" @play="playDownload" @delete="clickDeleteDownload" />
+          </li>
+        </template>
+      </ul>
+    </template>
+    <template v-else>
+      <div class="w-full h-full">
+        <div class="w-full flex justify-around py-4 px-2">
+          <ui-btn small @click="searchFolder">Re-Scan</ui-btn>
+          <ui-btn small @click="changeDownloadFolderClick">Change Folder</ui-btn>
+          <ui-btn small color="error" @click="resetFolder">Reset</ui-btn>
         </div>
-      </template>
-    </div>
+        <p v-if="isScanning" class="text-center my-8">Scanning Folder..</p>
+        <p v-else-if="!mediaScanResults" class="text-center my-8">No Files Found</p>
+        <template v-else>
+          <template v-for="mediaFolder in mediaScanResults.folders">
+            <div :key="mediaFolder.uri" class="w-full px-2 py-2">
+              <div class="flex items-center">
+                <span class="material-icons text-base text-white text-opacity-50">folder</span>
+                <p class="ml-1 py-0.5">{{ mediaFolder.name }}</p>
+              </div>
+              <div v-for="mediaFile in mediaFolder.files" :key="mediaFile.uri" class="ml-3 flex items-center">
+                <span class="material-icons text-base text-white text-opacity-50">{{ mediaFile.isAudio ? 'music_note' : 'image' }}</span>
+                <p class="ml-1 py-0.5">{{ mediaFile.name }}</p>
+              </div>
+            </div>
+          </template>
+          <template v-for="mediaFile in mediaScanResults.files">
+            <div :key="mediaFile.uri" class="w-full px-2 py-2">
+              <div class="flex items-center">
+                <span class="material-icons text-base text-white text-opacity-50">{{ mediaFile.isAudio ? 'music_note' : 'image' }}</span>
+                <p class="ml-1 py-0.5">{{ mediaFile.name }}</p>
+              </div>
+            </div>
+          </template>
+        </template>
+      </div>
+    </template>
+  </div>
+</template>
   </div>
 </template>
 
@@ -105,6 +110,9 @@ export default {
     }
   },
   computed: {
+    isIos() {
+      return this.$platform === 'ios'
+    },
     isSocketConnected() {
       return this.$store.state.socketConnected
     },

@@ -18,6 +18,7 @@
     "@capacitor/dialog": "^1.0.3",
     "@capacitor/ios": "^3.2.2",
     "@capacitor/network": "^1.0.3",
+    "@capacitor/status-bar": "^1.0.6",
     "@capacitor/storage": "^1.1.0",
     "@nuxtjs/axios": "^5.13.6",
     "@robingenz/capacitor-app-update": "^1.0.0",

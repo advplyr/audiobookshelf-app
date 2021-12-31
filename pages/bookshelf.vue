@@ -7,7 +7,7 @@
 
       <!-- <div v-if="isLoading" class="absolute top-0 left-0 w-full h-full flex items-center justify-center">
         <ui-loading-indicator />
-      </div> -->
+      </div>-->
     </div>
   </div>
 </template>
@@ -27,11 +27,13 @@ export default {
 
 <style>
 .main-content {
+  height: calc(100% - 72px);
   max-height: calc(100% - 72px);
   min-height: calc(100% - 72px);
   max-width: 100vw;
 }
 .main-content.home-page {
+  height: calc(100% - 36px);
   max-height: calc(100% - 36px);
   min-height: calc(100% - 36px);
 }

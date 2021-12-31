@@ -1,5 +1,5 @@
 <template>
-  <div class="fixed top-0 bottom-0 left-0 right-0 z-50 pointer-events-none" :class="showFullscreen ? 'fullscreen' : ''">
+  <div class="fixed top-0 left-0 layout-wrapper right-0 z-50 pointer-events-none" :class="showFullscreen ? 'fullscreen' : ''">
     <div v-if="showFullscreen" class="w-full h-full z-10 bg-bg absolute top-0 left-0 pointer-events-auto">
       <div class="top-2 left-4 absolute cursor-pointer">
         <span class="material-icons text-5xl" @click="collapseFullscreen">expand_more</span>
@@ -524,6 +524,7 @@ export default {
       this.streamId = stream ? stream.id : null
       this.audiobookId = audiobookStreamData.audiobookId
       this.initObject = { ...audiobookStreamData }
+      console.log('[AudioPlayer] Set Audio Player', !!stream)
 
       var init = true
       if (!!stream) {
@@ -612,6 +613,7 @@ export default {
         var data = await MyNativeAudio.getCurrentTime()
         this.currentTime = Number((data.value / 1000).toFixed(2))
         this.bufferedTime = Number((data.bufferedTime / 1000).toFixed(2))
+        console.log('[AudioPlayer] Got Current Time', this.currentTime)
         this.timeupdate()
       }, 1000)
     },

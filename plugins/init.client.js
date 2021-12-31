@@ -1,7 +1,13 @@
 import Vue from 'vue'
 import { App } from '@capacitor/app'
 import { Dialog } from '@capacitor/dialog'
+import { StatusBar, Style } from '@capacitor/status-bar';
 import { formatDistance, format } from 'date-fns'
+
+const setStatusBarStyleDark = async () => {
+  await StatusBar.setStyle({ style: Style.Dark })
+}
+setStatusBarStyleDark()
 
 App.addListener('backButton', async ({ canGoBack }) => {
   if (!canGoBack) {

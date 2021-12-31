@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full h-full">
+  <div class="w-full h-full min-h-full relative">
     <template v-for="(shelf, index) in shelves">
       <bookshelf-shelf :key="shelf.id" :label="shelf.label" :entities="shelf.entities" :type="shelf.type" :style="{ zIndex: shelves.length - index }" />
     </template>
@@ -7,19 +7,24 @@
     <div v-if="!shelves.length" class="absolute top-0 left-0 w-full h-full flex items-center justify-center">
       <div>
         <p class="mb-4 text-center text-xl">
-          Bookshelf empty<span v-show="isSocketConnected">
-            for library <strong>{{ currentLibraryName }}</strong></span
-          >
+          Bookshelf empty
+          <span v-show="isSocketConnected">
+            for library
+            <strong>{{ currentLibraryName }}</strong>
+          </span>
         </p>
         <div class="w-full" v-if="!isSocketConnected">
           <div class="flex justify-center items-center mb-3">
             <span class="material-icons text-error text-lg">cloud_off</span>
             <p class="pl-2 text-error text-sm">Audiobookshelf server not connected.</p>
           </div>
-          <p class="px-4 text-center text-error absolute bottom-12 left-0 right-0 mx-auto"><strong>Important!</strong> This app requires that you are running <u>your own server</u> and does not provide any content.</p>
+          <p class="px-4 text-center text-error absolute bottom-12 left-0 right-0 mx-auto">
+            <strong>Important!</strong> This app requires that you are running
+            <u>your own server</u> and does not provide any content.
+          </p>
         </div>
         <div class="flex justify-center">
-          <ui-btn v-if="!isSocketConnected" small @click="$router.push('/connect')" class="w-32"> Connect </ui-btn>
+          <ui-btn v-if="!isSocketConnected" small @click="$router.push('/connect')" class="w-32">Connect</ui-btn>
         </div>
       </div>
     </div>

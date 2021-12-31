@@ -15,7 +15,8 @@
         <h3 v-if="series" class="font-book text-gray-300 text-lg leading-7">{{ seriesText }}</h3>
         <p class="text-sm text-gray-400">by {{ author }}</p>
         <p v-if="numTracks" class="text-gray-300 text-sm my-1">
-          {{ $elapsedPretty(duration) }}<span class="px-4">{{ $bytesPretty(size) }}</span>
+          {{ $elapsedPretty(duration) }}
+          <span class="px-4">{{ $bytesPretty(size) }}</span>
         </p>
 
         <div v-if="progressPercent > 0" class="px-4 py-2 bg-primary text-sm font-semibold rounded-md text-gray-200 mt-4 relative" :class="resettingProgress ? 'opacity-25' : ''">
@@ -35,7 +36,7 @@
             <span class="material-icons">auto_stories</span>
             <span v-if="!showPlay" class="px-2 text-base">Read {{ ebookFormat }}</span>
           </ui-btn>
-          <ui-btn v-if="isConnected && showPlay" color="primary" class="flex items-center justify-center" :padding-x="2" @click="downloadClick">
+          <ui-btn v-if="isConnected && showPlay && !isIos" color="primary" class="flex items-center justify-center" :padding-x="2" @click="downloadClick">
             <span class="material-icons" :class="downloadObj ? 'animate-pulse' : ''">{{ downloadObj ? (isDownloading || isDownloadPreparing ? 'downloading' : 'download_done') : 'download' }}</span>
           </ui-btn>
         </div>
@@ -84,6 +85,9 @@ export default {
     }
   },
   computed: {
+    isIos() {
+      return this.$platform === 'ios'
+    },
     isConnected() {
       return this.$store.state.socketConnected
     },
