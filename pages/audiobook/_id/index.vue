@@ -21,7 +21,7 @@
 
         <div v-if="progressPercent > 0" class="px-4 py-2 bg-primary text-sm font-semibold rounded-md text-gray-200 mt-4 relative" :class="resettingProgress ? 'opacity-25' : ''">
           <p class="leading-6">Your Progress: {{ Math.round(progressPercent * 100) }}%</p>
-          <p class="text-gray-400 text-xs">{{ $elapsedPretty(userTimeRemaining) }} remaining</p>
+          <p v-if="progressPercent < 1" class="text-gray-400 text-xs">{{ $elapsedPretty(userTimeRemaining) }} remaining</p>
           <div v-if="!resettingProgress" class="absolute -top-1.5 -right-1.5 p-1 w-5 h-5 rounded-full bg-bg hover:bg-error border border-primary flex items-center justify-center cursor-pointer" @click.stop="clearProgressClick">
             <span class="material-icons text-sm">close</span>
           </div>
@@ -136,7 +136,7 @@ export default {
       return this.userAudiobook ? this.userAudiobook.currentTime : 0
     },
     userTimeRemaining() {
-      return this.duration - this.userCurrentTime
+      return Math.max(0, this.duration - this.userCurrentTime)
     },
     progressPercent() {
       return this.userAudiobook ? this.userAudiobook.progress : 0
