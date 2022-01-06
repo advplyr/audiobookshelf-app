@@ -70,8 +70,10 @@ class AudiobookProgressSyncer constructor(playerNotificationService:PlayerNotifi
     if (!listeningTimerRunning) return
     Log.d(tag, "stop: Stopping listening for $listeningBookTitle")
 
+    if (!webviewOpenOnStart) {
+      sync()
+    }
     reset()
-    sync()
   }
 
   fun reset() {

@@ -91,8 +91,8 @@ export default {
       this.closeMenu()
     },
     clickedOption(itemValue) {
-      this.$emit('action', itemValue)
       this.closeMenu()
+      this.$emit('action', itemValue)
     }
   },
   mounted() {}

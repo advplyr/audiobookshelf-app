@@ -8,7 +8,7 @@
         <span class="material-icons text-3xl" @click="castClick">cast</span>
       </div>
       <div class="top-4 right-4 absolute cursor-pointer">
-        <ui-dropdown-menu :items="menuItems" @action="clickMenuAction">
+        <ui-dropdown-menu ref="dropdownMenu" :items="menuItems" @action="clickMenuAction">
           <span class="material-icons text-3xl">more_vert</span>
         </ui-dropdown-menu>
       </div>
@@ -321,6 +321,7 @@ export default {
     },
     collapseFullscreen() {
       this.showFullscreen = false
+      this.forceCloseDropdownMenu()
     },
     jumpNextChapter() {
       if (this.loading) return
@@ -706,6 +707,11 @@ export default {
       } else if (action === 'close') {
         this.$emit('close')
       }
+    },
+    forceCloseDropdownMenu() {
+      if (this.$refs.dropdownMenu && this.$refs.dropdownMenu.closeMenu) {
+        this.$refs.dropdownMenu.closeMenu()
+      }
     }
   },
   mounted() {
@@ -715,6 +721,7 @@ export default {
     this.$nextTick(this.init)
   },
   beforeDestroy() {
+    this.forceCloseDropdownMenu()
     document.body.removeEventListener('touchstart', this.touchstart)
     document.body.removeEventListener('touchend', this.touchend)
 
