@@ -95,6 +95,11 @@ export default {
       this.$emit('action', itemValue)
     }
   },
-  mounted() {}
+  mounted() {},
+  beforeDestroy() {
+    if (this.menu) {
+      this.menu.remove()
+    }
+  }
 }
 </script>
