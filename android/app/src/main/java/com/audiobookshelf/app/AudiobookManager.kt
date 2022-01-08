@@ -2,6 +2,7 @@ package com.audiobookshelf.app
 
 import android.app.Activity
 import android.content.Context
+import android.content.SharedPreferences
 import android.os.Handler
 import android.os.Looper
 import android.support.v4.media.MediaMetadataCompat
@@ -33,6 +34,8 @@ class AudiobookManager {
   var audiobooks:MutableList<Audiobook> = mutableListOf()
   var audiobooksInProgress:MutableList<Audiobook> = mutableListOf()
 
+  var storageSharedPreferences: SharedPreferences? = null
+
   constructor(_ctx:Context, _client:OkHttpClient) {
     ctx = _ctx
     client = _client
@@ -41,11 +44,25 @@ class AudiobookManager {
   }
 
   fun init() {
-   var sharedPreferences = ctx.getSharedPreferences("CapacitorStorage", Activity.MODE_PRIVATE)
-    serverUrl = sharedPreferences.getString("serverUrl", "").toString()
+    storageSharedPreferences = ctx.getSharedPreferences("CapacitorStorage", Activity.MODE_PRIVATE)
+    serverUrl = storageSharedPreferences?.getString("serverUrl", "").toString()
     Log.d(tag, "SHARED PREF SERVERURL $serverUrl")
-    token = sharedPreferences.getString("token", "").toString()
+    token = storageSharedPreferences?.getString("token", "").toString()
     Log.d(tag, "SHARED PREF TOKEN $token")
+  }
+
+  fun getPlaybackRate() : Float {
+    if (storageSharedPreferences != null) {
+      var userSettings = storageSharedPreferences?.getString("userSettings", "").toString()
+      if (userSettings != "") {
+        var json = JSObject(userSettings)
+        var playbackRate =  json.getString("playbackRate", "1")
+        if (playbackRate != null) {
+          return playbackRate.toFloat()
+        }
+      }
+    }
+    return 1f
   }
 
   fun loadCategories(cb: (() -> Unit)) {
@@ -214,6 +231,8 @@ class AudiobookManager {
         response.use {
           if (!response.isSuccessful) throw IOException("Unexpected code $response")
 
+          var playbackRate = getPlaybackRate()
+
           var bodyString = response.body!!.string()
           var stream = JSObject(bodyString)
           var streamId = stream.getString("streamId", "").toString()
@@ -232,7 +251,7 @@ class AudiobookManager {
           abStreamDataObj.put("cover", audiobook.getCover())
           abStreamDataObj.put("duration", audiobook.getDurationLong())
           abStreamDataObj.put("startTime", startTimeLong)
-          abStreamDataObj.put("playbackSpeed", 1)
+          abStreamDataObj.put("playbackSpeed", playbackRate)
           abStreamDataObj.put("playWhenReady", true)
           abStreamDataObj.put("isLocal", false)
 
@@ -250,6 +269,8 @@ class AudiobookManager {
   }
 
   fun initDownloadPlay(audiobook:Audiobook):AudiobookStreamData {
+    var playbackRate = getPlaybackRate()
+
     var abStreamDataObj = JSObject()
     abStreamDataObj.put("id", "download")
     abStreamDataObj.put("audiobookId", audiobook.id)
@@ -260,7 +281,7 @@ class AudiobookManager {
     abStreamDataObj.put("cover", audiobook.getCover())
     abStreamDataObj.put("duration", audiobook.getDurationLong())
     abStreamDataObj.put("startTime", 0)
-    abStreamDataObj.put("playbackSpeed", 1)
+    abStreamDataObj.put("playbackSpeed", playbackRate)
     abStreamDataObj.put("playWhenReady", true)
     abStreamDataObj.put("isLocal", true)
 
