@@ -89,6 +89,11 @@ class AudiobookStreamData {
     }
   }
 
+  fun clearCover() {
+    coverUri = Uri.EMPTY
+    cover = ""
+  }
+
   fun getMediaMetadataCompat():MediaMetadataCompat {
     var metadataBuilder = MediaMetadataCompat.Builder()
       .putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
@@ -99,10 +104,10 @@ class AudiobookStreamData {
       .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, series)
       .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, id)
 
-    if (cover != "") {
-      metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_ART_URI, cover)
-      metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, cover)
-    }
+//    if (cover != "") {
+//      metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_ART_URI, cover)
+//      metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, cover)
+//    }
     return metadataBuilder.build()
   }
 
@@ -114,9 +119,9 @@ class AudiobookStreamData {
       .setAlbumArtist(author)
       .setSubtitle(author)
 
-    if (coverUri != Uri.EMPTY) {
-      metadataBuilder.setArtworkUri(coverUri)
-    }
+//    if (coverUri != Uri.EMPTY) {
+//      metadataBuilder.setArtworkUri(coverUri)
+//    }
     if (playlistUri != Uri.EMPTY) {
       metadataBuilder.setMediaUri(playlistUri)
     }

@@ -19,8 +19,10 @@ import android.util.Log
 import android.view.KeyEvent
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
+import androidx.documentfile.provider.DocumentFile
 import androidx.media.MediaBrowserServiceCompat
 import androidx.media.utils.MediaConstants
+import com.anggrayudi.storage.file.isExternalStorageDocument
 import com.getcapacitor.Bridge
 import com.getcapacitor.JSObject
 import com.google.android.exoplayer2.*
@@ -668,6 +670,23 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
     if (mPlayer.isPlaying) {
       Log.d(tag, "Init Player audiobook already playing")
+    }
+
+    // Issue with onenote plus crashing when using local cover art. https://github.com/advplyr/audiobookshelf-app/issues/35
+    if (currentAudiobookStreamData?.coverUri != null && currentAudiobookStreamData?.isLocal == true) {
+      try {
+        Log.d(tag, "CHECKING COVER ${currentAudiobookStreamData?.coverUri}")
+        var file = DocumentFile.fromTreeUri(ctx, currentAudiobookStreamData!!.coverUri)
+        Log.d(tag, "GOT FILE ${file?.name} | ${file?.type} | Can Read: ${file?.canRead()} |isExternalStorageDocument:  ${file?.isExternalStorageDocument}")
+        if (file?.canRead() !== true) {
+          Log.d(tag, "Invalid cover: no read access")
+          currentAudiobookStreamData?.clearCover()
+        }
+      } catch(e:Exception) {
+        Log.d(tag, "Invalid cover: Failed to read local cover file $e")
+        currentAudiobookStreamData?.clearCover()
+        e.printStackTrace()
+      }
     }
 
     var metadata = currentAudiobookStreamData!!.getMediaMetadataCompat()
