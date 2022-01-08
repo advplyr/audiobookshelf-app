@@ -4,33 +4,25 @@ export const state = () => ({
 
 export const getters = {
   getBookCoverSrc: (state, getters, rootState, rootGetters) => (bookItem, placeholder = '/book_placeholder.jpg') => {
+    if (!bookItem) return placeholder
     var book = bookItem.book
     if (!book || !book.cover || book.cover === placeholder) return placeholder
-    var cover = book.cover
 
     // Absolute URL covers (should no longer be used)
-    if (cover.startsWith('http:') || cover.startsWith('https:')) return cover
+    if (book.cover.startsWith('http:') || book.cover.startsWith('https:')) return book.cover
 
-    // Server hosted covers
-    try {
-      // Ensure cover is refreshed if cached
-      var bookLastUpdate = book.lastUpdate || Date.now()
-      var userToken = rootGetters['user/getToken']
+    var userToken = rootGetters['user/getToken']
+    var bookLastUpdate = book.lastUpdate || Date.now()
 
-      // Map old covers to new format /s/book/{bookid}/*
-      if (cover.substr(1).startsWith('local')) {
-        cover = cover.replace('local', `s/book/${bookItem.id}`)
-        if (cover.includes(bookItem.path)) { // Remove book path
-          cover = cover.replace(bookItem.path, '').replace('//', '/').replace('\\\\', '/')
-        }
-      }
-
-      var url = new URL(cover, rootState.serverUrl)
-      return url + `?token=${userToken}&ts=${bookLastUpdate}`
-    } catch (err) {
-      console.error(err)
-      return placeholder
+    if (!bookItem.id) {
+      console.error('No book item id', bookItem)
     }
+    if (process.env.NODE_ENV !== 'production') { // Testing
+      return `http://localhost:3333/api/books/${bookItem.id}/cover?token=${userToken}&ts=${bookLastUpdate}`
+    }
+
+    var url = new URL(`/api/books/${bookItem.id}/cover`, rootState.serverUrl)
+    return `${url}?token=${userToken}&ts=${bookLastUpdate}`
   }
 }
 
