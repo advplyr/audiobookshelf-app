@@ -78,7 +78,7 @@ export default {
     },
     currentChapter() {
       if (!this.audiobook || !this.chapters.length) return null
-      return this.chapters.find((ch) => ch.start <= this.currentTime && ch.end > this.currentTime)
+      return this.chapters.find((ch) => Number(ch.start) <= this.currentTime && Number(ch.end) > this.currentTime)
     },
     socketConnected() {
       return this.$store.state.socketConnected

@@ -185,15 +185,20 @@ export default {
       return this.book.authorFL
     },
     chapters() {
-      return this.audiobook ? this.audiobook.chapters || [] : []
+      return (this.audiobook ? this.audiobook.chapters || [] : []).map((chapter) => {
+        var chap = { ...chapter }
+        chap.start = Number(chap.start)
+        chap.end = Number(chap.end)
+        return chap
+      })
     },
     currentChapter() {
       if (!this.audiobook || !this.chapters.length) return null
-      return this.chapters.find((ch) => Number(ch.start.toFixed(2)) <= this.currentTime && Number(ch.end.toFixed(2)) > this.currentTime)
+      return this.chapters.find((ch) => Number(Number(ch.start).toFixed(2)) <= this.currentTime && Number(Number(ch.end).toFixed(2)) > this.currentTime)
     },
     nextChapter() {
       if (!this.chapters.length) return
-      return this.chapters.find((c) => Number(c.start.toFixed(2)) > this.currentTime)
+      return this.chapters.find((c) => Number(Number(c.start).toFixed(2)) > this.currentTime)
     },
     currentChapterTitle() {
       return this.currentChapter ? this.currentChapter.title : ''
@@ -336,7 +341,7 @@ export default {
 
       // If 1 second or less into current chapter, then go to previous
       if (this.currentTime - this.currentChapter.start <= 1) {
-        var currChapterIndex = this.chapters.findIndex((ch) => ch.start <= this.currentTime && ch.end >= this.currentTime)
+        var currChapterIndex = this.chapters.findIndex((ch) => Number(ch.start) <= this.currentTime && Number(ch.end) >= this.currentTime)
         if (currChapterIndex > 0) {
           var prevChapter = this.chapters[currChapterIndex - 1]
           this.seek(prevChapter.start)
