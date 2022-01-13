@@ -24,6 +24,7 @@ class AudiobookProgressSyncer constructor(playerNotificationService:PlayerNotifi
   var listeningTimerRunning:Boolean = false
 
   private var webviewOpenOnStart:Boolean = false
+  private var webviewClosedMidSession:Boolean = false
   private var listeningBookTitle:String? = ""
   private var listeningBookIsLocal:Boolean = false
   private var listeningBookId:String? = ""
@@ -54,9 +55,16 @@ class AudiobookProgressSyncer constructor(playerNotificationService:PlayerNotifi
     listeningTimerTask = Timer("ListeningTimer", false).schedule(0L, 5000L) {
       Handler(Looper.getMainLooper()).post() {
         // Webview was closed while android auto is open - switch to native sync
-        if (!playerNotificationService.getIsWebviewOpen() && webviewOpenOnStart) {
+        var isWebviewOpen = playerNotificationService.getIsWebviewOpen()
+        if (!isWebviewOpen && webviewOpenOnStart) {
           Log.d(tag, "Listening Timer: webview closed Switching to native sync tracking")
           webviewOpenOnStart = false
+          webviewClosedMidSession = true
+          lastUpdateTime = System.currentTimeMillis() / 1000L
+        } else if (isWebviewOpen && webviewClosedMidSession) {
+          Log.d(tag, "Listening Timer: webview re-opened Switching back to webview sync tracking")
+          webviewClosedMidSession = false
+          webviewOpenOnStart = true
           lastUpdateTime = System.currentTimeMillis() / 1000L
         }
         if (!webviewOpenOnStart && playerNotificationService.currentPlayer.isPlaying) {
@@ -97,7 +105,7 @@ class AudiobookProgressSyncer constructor(playerNotificationService:PlayerNotifi
       // Send sync data only for streaming books
       var syncData: JSObject = JSObject()
       syncData.put("timeListened", elapsed)
-      syncData.put("currentTime", playerNotificationService.getCurrentTime())
+      syncData.put("currentTime", playerNotificationService.getCurrentTime() / 1000)
       syncData.put("streamId", listeningStreamId)
       syncData.put("audiobookId", listeningBookId)
       sendStreamSyncData(syncData) {
