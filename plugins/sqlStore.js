@@ -23,7 +23,6 @@ class StoreService {
   init() {
     this.platform = Capacitor.getPlatform()
     this.store = CapacitorDataStorageSqlite
-    console.log('in init ', this.platform)
   }
 
   /**

@@ -56,7 +56,8 @@ export default {
         this.initSocketListeners()
 
         // Load libraries
-        this.$store.dispatch('libraries/load')
+        await this.$store.dispatch('libraries/load')
+        this.$eventBus.$emit('library-changed')
         this.$store.dispatch('libraries/fetch', this.currentLibraryId)
       } else {
         this.removeSocketListeners()

@@ -2,7 +2,7 @@ export const state = () => ({
   libraries: [],
   lastLoad: 0,
   listeners: [],
-  currentLibraryId: 'main',
+  currentLibraryId: '',
   showModal: false,
   folders: [],
   folderLastUpdate: 0,
@@ -65,17 +65,23 @@ export const actions = {
       return false
     }
 
-    this.$axios
+    return this.$axios
       .$get(`/api/libraries`)
       .then((data) => {
+        // Set current library
+        if (data.length) {
+          commit('setCurrentLibrary', data[0].id)
+        }
+
         commit('set', data)
         commit('setLastLoad')
+        return true
       })
       .catch((error) => {
         console.error('Failed', error)
         commit('set', [])
+        return false
       })
-    return true
   },
 
 }

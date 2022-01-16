@@ -18,10 +18,7 @@
             <span class="material-icons text-error text-lg">cloud_off</span>
             <p class="pl-2 text-error text-sm">Audiobookshelf server not connected.</p>
           </div>
-          <p class="px-4 text-center text-error absolute bottom-12 left-0 right-0 mx-auto">
-            <strong>Important!</strong> This app requires that you are running
-            <u>your own server</u> and does not provide any content.
-          </p>
+          <p class="px-4 text-center text-error absolute bottom-12 left-0 right-0 mx-auto"><strong>Important!</strong> This app requires that you are running <u>your own server</u> and does not provide any content.</p>
         </div>
         <div class="flex justify-center">
           <ui-btn v-if="!isSocketConnected" small @click="$router.push('/connect')" class="w-32">Connect</ui-btn>
@@ -136,7 +133,7 @@ export default {
       this.shelves = categories
     },
     async socketInit(isConnected) {
-      if (isConnected) {
+      if (isConnected && this.currentLibraryId) {
         console.log('Connected - Load from server')
         await this.fetchCategories()
       } else {
@@ -146,8 +143,7 @@ export default {
       this.loading = false
     },
     async libraryChanged(libid) {
-      console.log('Library changed', libid)
-      if (this.isSocketConnected) {
+      if (this.isSocketConnected && this.currentLibraryId) {
         await this.fetchCategories()
       } else {
         this.shelves = this.downloadOnlyShelves
@@ -246,7 +242,7 @@ export default {
   },
   mounted() {
     this.initListeners()
-    if (this.$server.initialized) {
+    if (this.$server.initialized && this.currentLibraryId) {
       this.fetchCategories()
     } else {
       this.shelves = this.downloadOnlyShelves
