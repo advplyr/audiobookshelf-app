@@ -18,7 +18,7 @@ export const getters = {
       console.error('No book item id', bookItem)
     }
     if (process.env.NODE_ENV !== 'production') { // Testing
-      return `http://localhost:3333/api/books/${bookItem.id}/cover?token=${userToken}&ts=${bookLastUpdate}`
+      // return `http://localhost:3333/api/books/${bookItem.id}/cover?token=${userToken}&ts=${bookLastUpdate}`
     }
 
     var url = new URL(`/api/books/${bookItem.id}/cover`, rootState.serverUrl)

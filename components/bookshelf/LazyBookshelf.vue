@@ -319,7 +319,6 @@ export default {
       if (this.isFirstInit) return
       this.isFirstInit = true
       this.initSizeData()
-
       await this.loadPage(0)
       var lastBookIndex = Math.min(this.totalEntities, this.shelvesPerPage * this.entitiesPerShelf)
       this.mountEntites(0, lastBookIndex)
