@@ -674,19 +674,29 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
     // Issue with onenote plus crashing when using local cover art. https://github.com/advplyr/audiobookshelf-app/issues/35
     if (currentAudiobookStreamData?.coverUri != null && currentAudiobookStreamData?.isLocal == true) {
-      try {
-        Log.d(tag, "CHECKING COVER ${currentAudiobookStreamData?.coverUri}")
-        var file = DocumentFile.fromTreeUri(ctx, currentAudiobookStreamData!!.coverUri)
-        Log.d(tag, "GOT FILE ${file?.name} | ${file?.type} | Can Read: ${file?.canRead()} |isExternalStorageDocument:  ${file?.isExternalStorageDocument}")
-        if (file?.canRead() !== true) {
-          Log.d(tag, "Invalid cover: no read access")
-          currentAudiobookStreamData?.clearCover()
-        }
-      } catch(e:Exception) {
-        Log.d(tag, "Invalid cover: Failed to read local cover file $e")
+      var deviceName = Build.DEVICE
+      var deviceMan = Build.MANUFACTURER
+      var deviceModel = Build.MODEL
+      Log.d(tag, "Checking device $deviceName | Model $deviceModel | Manufacturer $deviceMan")
+      if (deviceMan.toLowerCase().contains("oneplus") || deviceName.toLowerCase().contains("oneplus")) {
+        Log.d(tag, "Detected OnePlus device - removing local cover")
         currentAudiobookStreamData?.clearCover()
-        e.printStackTrace()
       }
+
+      // OnePlus devices were showing valid permissions for image
+//      try {
+//        Log.d(tag, "CHECKING COVER ${currentAudiobookStreamData?.coverUri}")
+//        var file = DocumentFile.fromTreeUri(ctx, currentAudiobookStreamData!!.coverUri)
+//        Log.d(tag, "GOT FILE ${file?.name} | ${file?.type} | Can Read: ${file?.canRead()} |isExternalStorageDocument:  ${file?.isExternalStorageDocument}")
+//        if (file?.canRead() !== true) {
+//          Log.d(tag, "Invalid cover: no read access")
+//          currentAudiobookStreamData?.clearCover()
+//        }
+//      } catch(e:Exception) {
+//        Log.d(tag, "Invalid cover: Failed to read local cover file $e")
+//        currentAudiobookStreamData?.clearCover()
+//        e.printStackTrace()
+//      }
     }
 
     var metadata = currentAudiobookStreamData!!.getMediaMetadataCompat()
