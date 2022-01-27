@@ -114,7 +114,34 @@ class AudiobookProgressSyncer constructor(playerNotificationService:PlayerNotifi
     } else if (listeningStreamId == "download") {
       // TODO: Save downloaded audiobook progress & send to server if connected
       Log.d(tag, "ListeningTimer: Is listening download")
+
+      // Send sync data only for local books
+      var syncData: JSObject = JSObject()
+      var duration = playerNotificationService.getAudiobookDuration() / 1000
+      var currentTime = playerNotificationService.getCurrentTime() / 1000
+      syncData.put("totalDuration", duration)
+      syncData.put("currentTime", currentTime)
+      syncData.put("progress", if (duration > 0) (currentTime / duration) else 0)
+      syncData.put("isRead", false)
+      syncData.put("lastUpdate", System.currentTimeMillis())
+      syncData.put("audiobookId", listeningBookId)
+      sendLocalSyncData(syncData) {
+        Log.d(tag, "Local sync done")
+      }
     }
+  }
+
+  fun sendLocalSyncData(payload:JSObject, cb: (() -> Unit)) {
+    var serverUrl = playerNotificationService.getServerUrl()
+    var token = playerNotificationService.getUserToken()
+
+    if (serverUrl == "" || token == "") {
+      return
+    }
+
+    Log.d(tag, "Sync Local $serverUrl | $token")
+    var url = "$serverUrl/api/syncLocal"
+    sendServerRequest(url, token, payload, cb)
   }
 
   fun sendStreamSyncData(payload:JSObject, cb: (() -> Unit)) {
@@ -127,7 +154,10 @@ class AudiobookProgressSyncer constructor(playerNotificationService:PlayerNotifi
 
     Log.d(tag, "Sync Stream $serverUrl | $token")
     var url = "$serverUrl/api/syncStream"
+    sendServerRequest(url, token, payload, cb)
+  }
 
+  fun sendServerRequest(url:String, token:String, payload:JSObject, cb: () -> Unit) {
     val mediaType = "application/json; charset=utf-8".toMediaType()
     val requestBody = payload.toString().toRequestBody(mediaType)
     val request = Request.Builder().post(requestBody)

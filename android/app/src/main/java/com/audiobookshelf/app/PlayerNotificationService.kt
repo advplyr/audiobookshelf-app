@@ -648,8 +648,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
           Log.d(tag, "Playing ${getCurrentBookTitle()} | ${currentPlayer.mediaMetadata.title} | ${currentPlayer.mediaMetadata.displayTitle}")
           if (player.isPlaying) {
             audiobookProgressSyncer.start()
-          }
-          if (!player.isPlaying && audiobookProgressSyncer.listeningTimerRunning) {
+          } else {
             audiobookProgressSyncer.stop()
           }
 
@@ -782,6 +781,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   fun getCurrentStreamId() : String? {
     return currentAudiobookStreamData?.id
+  }
+
+  // The duration stored on the audiobook
+  fun getAudiobookDuration() : Long {
+    if (currentAudiobookStreamData == null) return 0L
+    return currentAudiobookStreamData!!.duration
   }
 
   fun getServerUrl(): String {
