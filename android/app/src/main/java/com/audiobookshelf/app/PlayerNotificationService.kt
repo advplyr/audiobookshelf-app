@@ -672,6 +672,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     }
 
     // Issue with onenote plus crashing when using local cover art. https://github.com/advplyr/audiobookshelf-app/issues/35
+    // Same issue with sony xperia https://github.com/advplyr/audiobookshelf-app/issues/94
     if (currentAudiobookStreamData?.coverUri != null && currentAudiobookStreamData?.isLocal == true) {
       var deviceName = Build.DEVICE
       var deviceMan = Build.MANUFACTURER
@@ -680,22 +681,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       if (deviceMan.toLowerCase().contains("oneplus") || deviceName.toLowerCase().contains("oneplus")) {
         Log.d(tag, "Detected OnePlus device - removing local cover")
         currentAudiobookStreamData?.clearCover()
+      } else if (deviceName.toLowerCase().contains("xperia") || deviceModel.toLowerCase().contains("xperia")) {
+        Log.d(tag, "Detected Sony Xperia device - removing local cover")
+        currentAudiobookStreamData?.clearCover()
       }
-
-      // OnePlus devices were showing valid permissions for image
-//      try {
-//        Log.d(tag, "CHECKING COVER ${currentAudiobookStreamData?.coverUri}")
-//        var file = DocumentFile.fromTreeUri(ctx, currentAudiobookStreamData!!.coverUri)
-//        Log.d(tag, "GOT FILE ${file?.name} | ${file?.type} | Can Read: ${file?.canRead()} |isExternalStorageDocument:  ${file?.isExternalStorageDocument}")
-//        if (file?.canRead() !== true) {
-//          Log.d(tag, "Invalid cover: no read access")
-//          currentAudiobookStreamData?.clearCover()
-//        }
-//      } catch(e:Exception) {
-//        Log.d(tag, "Invalid cover: Failed to read local cover file $e")
-//        currentAudiobookStreamData?.clearCover()
-//        e.printStackTrace()
-//      }
     }
 
     var metadata = currentAudiobookStreamData!!.getMediaMetadataCompat()
