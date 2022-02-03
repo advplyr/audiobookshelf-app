@@ -1,6 +1,5 @@
 package com.audiobookshelf.app
 
-import android.hardware.SensorManager
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -17,6 +16,8 @@ class SleepTimerManager constructor(playerNotificationService:PlayerNotification
   private var sleepTimerTask:TimerTask? = null
   private var sleepTimerRunning:Boolean = false
   private var sleepTimerEndTime:Long = 0L
+  private var sleepTimerLength:Long = 0L
+  private var sleepTimerElapsed:Long = 0L
   private var sleepTimerExtensionTime:Long = 0L
   private var sleepTimerFinishedAt:Long = 0L
 
@@ -45,13 +46,12 @@ class SleepTimerManager constructor(playerNotificationService:PlayerNotification
   }
 
   private fun getSleepTimerTimeRemainingSeconds():Int {
+    if (sleepTimerEndTime == 0L && sleepTimerLength > 0) { // For regular timer
+      return ((sleepTimerLength - sleepTimerElapsed) / 1000).toDouble().roundToInt()
+    }
+    // For chapter end timer
     if (sleepTimerEndTime <= 0) return 0
-    var sleepTimeRemaining = sleepTimerEndTime - getCurrentTime()
-    return ((sleepTimeRemaining / 1000).toDouble()).roundToInt()
-  }
-
-  fun getIsSleepTimerRunning():Boolean {
-    return sleepTimerRunning
+    return (((sleepTimerEndTime - getCurrentTime()) / 1000).toDouble()).roundToInt()
   }
 
   fun setSleepTimer(time: Long, isChapterTime: Boolean) : Boolean {
@@ -59,6 +59,7 @@ class SleepTimerManager constructor(playerNotificationService:PlayerNotification
     sleepTimerTask?.cancel()
     sleepTimerRunning = false
     sleepTimerFinishedAt = 0L
+    sleepTimerElapsed = 0L
 
     // Register shake sensor
     playerNotificationService.registerSensor()
@@ -70,24 +71,36 @@ class SleepTimerManager constructor(playerNotificationService:PlayerNotification
         return false
       }
       sleepTimerEndTime = time
+      sleepTimerLength = 0
       sleepTimerExtensionTime = SLEEP_EXTENSION_TIME
+
+      if (sleepTimerEndTime > getDuration()) {
+        sleepTimerEndTime = getDuration()
+      }
     } else {
-      sleepTimerEndTime = currentTime + time
+      sleepTimerLength = time
+      sleepTimerEndTime = 0L
       sleepTimerExtensionTime = time
+
+      if (sleepTimerLength + getCurrentTime() > getDuration()) {
+        sleepTimerLength = getDuration() - getCurrentTime()
+      }
     }
 
-    if (sleepTimerEndTime > getDuration()) {
-      sleepTimerEndTime = getDuration()
-    }
-
-    playerNotificationService.listener?.onSleepTimerSet(sleepTimerEndTime)
+    playerNotificationService.listener?.onSleepTimerSet(getSleepTimerTimeRemainingSeconds())
 
     sleepTimerRunning = true
     sleepTimerTask = Timer("SleepTimer", false).schedule(0L, 1000L) {
       Handler(Looper.getMainLooper()).post() {
         if (getIsPlaying()) {
+          sleepTimerElapsed += 1000L
+
           var sleepTimeSecondsRemaining = getSleepTimerTimeRemainingSeconds()
-          Log.d(tag, "Sleep TIMER time remaining $sleepTimeSecondsRemaining s")
+          Log.d(tag, "Timer Elapsed $sleepTimerElapsed | Sleep TIMER time remaining $sleepTimeSecondsRemaining s")
+
+          if (sleepTimeSecondsRemaining > 0) {
+            playerNotificationService.listener?.onSleepTimerSet(sleepTimeSecondsRemaining)
+          }
 
           if (sleepTimeSecondsRemaining <= 0) {
             Log.d(tag, "Sleep Timer Pausing Player on Chapter")
@@ -129,9 +142,15 @@ class SleepTimerManager constructor(playerNotificationService:PlayerNotification
   private fun extendSleepTime() {
     if (!sleepTimerRunning) return
     setVolume(1F)
-    sleepTimerEndTime += sleepTimerExtensionTime
-    if (sleepTimerEndTime > getDuration()) sleepTimerEndTime = getDuration()
-    playerNotificationService.listener?.onSleepTimerSet(sleepTimerEndTime)
+    if (sleepTimerEndTime == 0L) {
+      sleepTimerLength += sleepTimerExtensionTime
+      if (sleepTimerLength + getCurrentTime() > getDuration()) sleepTimerLength = getDuration() - getCurrentTime()
+    } else {
+      sleepTimerEndTime += sleepTimerExtensionTime
+      if (sleepTimerEndTime > getDuration()) sleepTimerEndTime = getDuration()
+    }
+
+    playerNotificationService.listener?.onSleepTimerSet(getSleepTimerTimeRemainingSeconds())
   }
 
   fun checkShouldExtendSleepTimer() {
@@ -164,27 +183,42 @@ class SleepTimerManager constructor(playerNotificationService:PlayerNotification
   fun increaseSleepTime(time: Long) {
     Log.d(tag, "Increase Sleep time $time")
     if (!sleepTimerRunning) return
-    var newSleepEndTime = sleepTimerEndTime + time
-    sleepTimerEndTime = if (newSleepEndTime >= getDuration()) {
-      getDuration()
+
+    if (sleepTimerEndTime == 0L) {
+      sleepTimerLength += time
+      if (sleepTimerLength + getCurrentTime() > getDuration()) sleepTimerLength = getDuration() - getCurrentTime()
     } else {
-      newSleepEndTime
+      var newSleepEndTime = sleepTimerEndTime + time
+      sleepTimerEndTime = if (newSleepEndTime >= getDuration()) {
+        getDuration()
+      } else {
+        newSleepEndTime
+      }
     }
+
     setVolume(1F)
-    playerNotificationService.listener?.onSleepTimerSet(sleepTimerEndTime)
+    playerNotificationService.listener?.onSleepTimerSet(getSleepTimerTimeRemainingSeconds())
   }
 
   fun decreaseSleepTime(time: Long) {
     Log.d(tag, "Decrease Sleep time $time")
     if (!sleepTimerRunning) return
-    var newSleepEndTime = sleepTimerEndTime - time
-    sleepTimerEndTime = if (newSleepEndTime <= 1000) {
-      // End sleep timer in 1 second
-      getCurrentTime() + 1000
+
+
+    if (sleepTimerEndTime == 0L) {
+      sleepTimerLength -= time
+      if (sleepTimerLength <= 0) sleepTimerLength = 1000L
     } else {
-      newSleepEndTime
+      var newSleepEndTime = sleepTimerEndTime - time
+      sleepTimerEndTime = if (newSleepEndTime <= 1000) {
+        // End sleep timer in 1 second
+        getCurrentTime() + 1000
+      } else {
+        newSleepEndTime
+      }
     }
+
     setVolume(1F)
-    playerNotificationService.listener?.onSleepTimerSet(sleepTimerEndTime)
+    playerNotificationService.listener?.onSleepTimerSet(getSleepTimerTimeRemainingSeconds())
   }
 }
