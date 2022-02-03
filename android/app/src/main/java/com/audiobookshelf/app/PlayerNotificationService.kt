@@ -790,8 +790,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     if (lastPauseTime <= 0) return 0
     var time: Long = System.currentTimeMillis() - lastPauseTime
     var seekback: Long = 0
-    if (time < 3000) seekback = 0
-    else if (time < 60000) seekback = time / 6
+    if (time < 60000) seekback = 0
+    else if (time < 120000) seekback = 10000
     else if (time < 300000) seekback = 15000
     else if (time < 1800000) seekback = 20000
     else if (time < 3600000) seekback = 25000
