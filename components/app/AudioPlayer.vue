@@ -107,7 +107,7 @@ export default {
     },
     loading: Boolean,
     sleepTimerRunning: Boolean,
-    sleepTimerEndTime: Number
+    sleepTimeRemaining: Number
   },
   data() {
     return {
@@ -241,10 +241,10 @@ export default {
       if (!this.currentChapter) return 0
       return this.currentChapter.end - this.currentTime
     },
-    sleepTimeRemaining() {
-      if (!this.sleepTimerEndTime) return 0
-      return Math.max(0, this.sleepTimerEndTime / 1000 - this.currentTime)
-    },
+    // sleepTimeRemaining() {
+    //   if (!this.sleepTimerEndTime) return 0
+    //   return Math.max(0, this.sleepTimerEndTime / 1000 - this.currentTime)
+    // },
     sleepTimeRemainingPretty() {
       if (!this.sleepTimeRemaining) return '0s'
       var secondsRemaining = Math.round(this.sleepTimeRemaining)

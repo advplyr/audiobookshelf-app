@@ -55,7 +55,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     fun onMetadata(metadata: JSObject)
     fun onPrepare(audiobookId: String, playWhenReady: Boolean)
     fun onSleepTimerEnded(currentPosition: Long)
-    fun onSleepTimerSet(sleepTimerEndTime: Long)
+    fun onSleepTimerSet(sleepTimeRemaining: Int)
   }
 
   private val tag = "PlayerService"

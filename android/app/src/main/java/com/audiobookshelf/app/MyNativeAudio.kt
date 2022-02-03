@@ -45,8 +45,8 @@ class MyNativeAudio : Plugin() {
           emit("onSleepTimerEnded", currentPosition)
         }
 
-        override fun onSleepTimerSet(sleepTimerEndTime: Long) {
-          emit("onSleepTimerSet", sleepTimerEndTime)
+        override fun onSleepTimerSet(sleepTimeRemaining: Int) {
+          emit("onSleepTimerSet", sleepTimeRemaining)
         }
       })
     }

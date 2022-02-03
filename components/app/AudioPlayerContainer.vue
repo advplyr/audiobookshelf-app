@@ -9,7 +9,7 @@
         :loading="isLoading"
         :bookmarks="bookmarks"
         :sleep-timer-running="isSleepTimerRunning"
-        :sleep-timer-end-time="sleepTimerEndTime"
+        :sleep-time-remaining="sleepTimeRemaining"
         @close="cancelStream"
         @sync="sync"
         @setTotalDuration="setTotalDuration"
@@ -49,6 +49,7 @@ export default {
       currentTime: 0,
       isSleepTimerRunning: false,
       sleepTimerEndTime: 0,
+      sleepTimerRemaining: 0,
       onSleepTimerEndedListener: null,
       onSleepTimerSetListener: null,
       sleepInterval: null,
@@ -149,11 +150,11 @@ export default {
         return `${this.$store.state.serverUrl}/s/book/${this.audiobook.id}/${trelpath}?token=${this.userToken}`
       })
       return tracks
-    },
-    sleepTimeRemaining() {
-      if (!this.sleepTimerEndTime) return 0
-      return Math.max(0, this.sleepTimerEndTime / 1000 - this.currentTime)
     }
+    // sleepTimeRemaining() {
+    //   if (!this.sleepTimerEndTime) return 0
+    //   return Math.max(0, this.sleepTimerEndTime / 1000 - this.currentTime)
+    // }
   },
   methods: {
     showBookmarks() {
@@ -175,16 +176,16 @@ export default {
         this.updateTime(currentTime)
       }
     },
-    onSleepTimerSet({ value: sleepTimerEndTime }) {
-      console.log('SLEEP TIMER SET', sleepTimerEndTime)
-      if (sleepTimerEndTime === 0) {
+    onSleepTimerSet({ value: sleepTimeRemaining }) {
+      console.log('SLEEP TIMER SET', sleepTimeRemaining)
+      if (sleepTimeRemaining === 0) {
         console.log('Sleep timer canceled')
         this.isSleepTimerRunning = false
       } else {
         this.isSleepTimerRunning = true
       }
 
-      this.sleepTimerEndTime = sleepTimerEndTime
+      this.sleepTimeRemaining = sleepTimeRemaining
     },
     showSleepTimer() {
       if (this.currentChapter) {
