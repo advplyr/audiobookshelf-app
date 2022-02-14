@@ -5,7 +5,7 @@ AudioBookshelf is a self-hosted audiobook server for managing and playing your a
 ### Android (beta)
 Get the Android app on the [Google Play Store](https://play.google.com/store/apps/details?id=com.audiobookshelf.app)
 
-### iOS (beta)
+### iOS (early beta)
 
 Available to beta testers through Test Flight
 
@@ -17,6 +17,8 @@ Join the discussion: https://github.com/advplyr/audiobookshelf-app/discussions/6
 ---
 
 [Go to the main project repo github.com/advplyr/audiobookshelf](https://github.com/advplyr/audiobookshelf) or the project site [audiobookshelf.org](https://audiobookshelf.org)
+
+Join us on [discord](https://discord.gg/pJsjuNCKRq)
 
 **Requires an Audiobookshelf server to connect with**
 
