@@ -150,7 +150,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   @RequiresApi(Build.VERSION_CODES.O)
   private fun createNotificationChannel(channelId: String, channelName: String): String {
     val chan = NotificationChannel(channelId,
-      channelName, NotificationManager.IMPORTANCE_HIGH)
+      channelName, NotificationManager.IMPORTANCE_LOW)
     chan.lightColor = Color.DKGRAY
     chan.lockscreenVisibility = Notification.VISIBILITY_PUBLIC
     val service = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
