@@ -37,6 +37,7 @@ export default {
   plugins: [
     '@/plugins/server.js',
     '@/plugins/sqlStore.js',
+    '@/plugins/db.js',
     '@/plugins/localStore.js',
     '@/plugins/init.client.js',
     '@/plugins/axios.js',
