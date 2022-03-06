@@ -38,14 +38,11 @@ repositories {
 }
 
 dependencies {
-  implementation "com.anggrayudi:storage:0.13.0"
   implementation fileTree(include: ['*.jar'], dir: 'libs')
   implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
   implementation project(':capacitor-android')
 
   implementation 'androidx.coordinatorlayout:coordinatorlayout:1.1.0'
-
-  implementation 'com.squareup.okhttp3:okhttp:4.9.2'
 
   testImplementation "junit:junit:$junitVersion"
   androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
@@ -61,6 +58,7 @@ dependencies {
 
   implementation "androidx.media:media:$androidx_media_version"
 
+  // Exo Player
   if (findProject(':exoplayer-library-core') != null) {
     implementation project(':exoplayer-library-core')
     implementation project(':exoplayer-library-ui')
@@ -75,9 +73,18 @@ dependencies {
     implementation "com.google.android.exoplayer:exoplayer-hls:$exoplayer_version"
   }
 
-
+  // Glide for images
   implementation "com.github.bumptech.glide:glide:$glide_version"
   kapt "com.github.bumptech.glide:compiler:$glide_version"
+
+  // Paper NoSQL Db
+  implementation 'io.github.pilgr:paperdb:2.7.2'
+
+  // Simple Storage
+  implementation "com.anggrayudi:storage:0.13.0"
+
+  // OK HTTP
+  implementation 'com.squareup.okhttp3:okhttp:4.9.2'
 }
 
 apply from: 'capacitor.build.gradle'

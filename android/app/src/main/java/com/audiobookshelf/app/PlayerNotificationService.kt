@@ -23,6 +23,7 @@ import androidx.documentfile.provider.DocumentFile
 import androidx.media.MediaBrowserServiceCompat
 import androidx.media.utils.MediaConstants
 import com.anggrayudi.storage.file.isExternalStorageDocument
+import com.audiobookshelf.app.data.DbManager
 import com.getcapacitor.Bridge
 import com.getcapacitor.JSObject
 import com.google.android.exoplayer2.*
@@ -39,6 +40,7 @@ import com.google.android.gms.cast.*
 import com.google.android.gms.cast.framework.*
 import kotlinx.coroutines.*
 import okhttp3.OkHttpClient
+import org.json.JSONObject
 import java.util.*
 import kotlin.concurrent.schedule
 
