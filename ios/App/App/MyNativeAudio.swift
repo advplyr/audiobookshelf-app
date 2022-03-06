@@ -3,18 +3,13 @@ import Capacitor
 import MediaPlayer
 import AVKit
 
-
-extension UIImageView {
-    public func imageFromUrl(urlString: String) {
-        if let url = NSURL(string: urlString) {
-            let request = NSURLRequest(url: url as URL)
-            NSURLConnection.sendAsynchronousRequest(request as URLRequest, queue: OperationQueue.main) {
-                (response: URLResponse?, data: Data?, error: Error?) -> Void in
-                if let imageData = data as Data? {
-                    self.image = UIImage(data: imageData)
-                }
-            }
+extension UIImage {
+    func imageWith(newSize: CGSize) -> UIImage {
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        let image = renderer.image { _ in
+            self.draw(in: CGRect.init(origin: CGPoint.zero, size: newSize))
         }
+        return image.withRenderingMode(self.renderingMode)
     }
 }
 
@@ -24,7 +19,7 @@ struct Audiobook {
     var title = "No Title"
     var author = "Unknown"
     var playWhenReady = false
-    var startTime = 0
+    var startTime = 0.0
     var cover = ""
     var duration = 0
     var series = ""
@@ -74,7 +69,7 @@ public class MyNativeAudio: CAPPlugin {
             title: call.getString("title") ?? "No Title",
             author: call.getString("author") ?? "Unknown",
             playWhenReady: call.getBool("playWhenReady", false),
-            startTime: call.getInt("startTime") ?? 0,
+            startTime: Double(call.getString("startTime") ?? "0") ?? 0.0,
             cover: call.getString("cover") ?? "",
             duration: call.getInt("duration") ?? 0,
             series: call.getString("series") ?? "",
@@ -98,7 +93,7 @@ public class MyNativeAudio: CAPPlugin {
         
         // For play in background
         do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers, .allowAirPlay])
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio, options: [.allowAirPlay])
             NSLog("[TEST] Playback OK")
             try AVAudioSession.sharedInstance().setActive(true)
             NSLog("[TEST] Session is Active")
@@ -116,8 +111,11 @@ public class MyNativeAudio: CAPPlugin {
                                context: &playerItemContext)
 
         self.audioPlayer = AVPlayer(playerItem: playerItem)
-        let time = self.audioPlayer.currentItem?.currentTime()
         
+        let startTime = CMTime(seconds: (audiobook?.startTime ?? 0.0) / 1000, preferredTimescale: 1000)
+        self.audioPlayer.seek(to: startTime)
+        
+        let time = self.audioPlayer.currentItem?.currentTime()
         print("Audio Player Initialized \(String(describing: time))")
         
         call.resolve(["success": true])
@@ -206,9 +204,10 @@ public class MyNativeAudio: CAPPlugin {
         self.notifyListeners("onPlayingUpdate", data: [
             "value": true
         ])
+        sendMetadata()
         
         playerState = .playing
-        setupNowPlaying()
+        updateNowPlaying()
     }
     
     func pause() {
@@ -216,6 +215,7 @@ public class MyNativeAudio: CAPPlugin {
         self.notifyListeners("onPlayingUpdate", data: [
             "value": false
         ])
+        sendMetadata()
         
         playerState = .paused
     }
@@ -271,8 +271,10 @@ public class MyNativeAudio: CAPPlugin {
             case .readyToPlay:
                 // Player item is ready to play.
                 NSLog("AVPlayer ready to play")
+                
                 setNowPlayingMetadata()
                 sendMetadata()
+                
                 if (audiobook?.playWhenReady == true) {
                     NSLog("AVPlayer playWhenReady == true")
                     play()
@@ -291,7 +293,7 @@ public class MyNativeAudio: CAPPlugin {
     }
     
     @objc func appDidEnterBackground() {
-        setupNowPlaying()
+        updateNowPlaying()
         NSLog("[TEST] App Enter Backround")
     }
 
@@ -303,53 +305,89 @@ public class MyNativeAudio: CAPPlugin {
     func setupRemoteTransportControls() {
         // Get the shared MPRemoteCommandCenter
         let commandCenter = MPRemoteCommandCenter.shared()
-
-        // Add handler for Play Command
+        
+        commandCenter.playCommand.isEnabled = true
         commandCenter.playCommand.addTarget { [unowned self] event in
-            NSLog("[TEST] Play Command \(playbackRate())")
-            if playbackRate() == 0.0 {
-                play()
-                return .success
-            }
-            return .commandFailed
+            play()
+            return .success
         }
-
-        // Add handler for Pause Command
+        commandCenter.pauseCommand.isEnabled = true
         commandCenter.pauseCommand.addTarget { [unowned self] event in
-            NSLog("[TEST] Pause Command \(playbackRate())")
-            if playbackRate() == 1.0 {
-                pause()
-                return .success
+            pause()
+            return .success
+        }
+        
+        commandCenter.skipForwardCommand.isEnabled = true
+        commandCenter.skipForwardCommand.preferredIntervals = [30]
+        commandCenter.skipForwardCommand.addTarget { [unowned self] event in
+            guard let command = event.command as? MPSkipIntervalCommand else {
+                return .noSuchContent
             }
-            return .commandFailed
+            
+            self.audioPlayer.seek(to: CMTime(seconds: currentTime() + command.preferredIntervals[0].doubleValue, preferredTimescale: 1000))
+            updateNowPlaying()
+            
+            return .success
+        }
+        commandCenter.skipBackwardCommand.isEnabled = true
+        commandCenter.skipBackwardCommand.preferredIntervals = [30]
+        commandCenter.skipBackwardCommand.addTarget { [unowned self] event in
+            guard let command = event.command as? MPSkipIntervalCommand else {
+                return .noSuchContent
+            }
+            
+            self.audioPlayer.seek(to: CMTime(seconds: currentTime() - command.preferredIntervals[0].doubleValue, preferredTimescale: 1000))
+            updateNowPlaying()
+            
+            return .success
         }
     }
     
+    func getData(from url: URL, completion: @escaping (UIImage?) -> Void) {
+         URLSession.shared.dataTask(with: url, completionHandler: {(data, response, error) in
+             if let data = data {
+                 completion(UIImage(data:data))
+             }
+         })
+         .resume()
+     }
     func setNowPlayingMetadata() {
-       
+        if (audiobook?.cover != nil) {
+            guard let url = URL(string: audiobook!.cover) else { return }
+            getData(from: url) { [weak self] image in
+                guard let self = self,
+                      let downloadedImage = image else {
+                          return
+                      }
+                let artwork = MPMediaItemArtwork.init(boundsSize: downloadedImage.size, requestHandler: { _ -> UIImage in
+                    return downloadedImage
+                })
+                
+                self.setNowPlayingMetadataWithImage(artwork)
+            }
+        } else {
+            setNowPlayingMetadataWithImage(nil)
+        }
+    }
+    func setNowPlayingMetadataWithImage(_ artwork: MPMediaItemArtwork?) {
         let nowPlayingInfoCenter = MPNowPlayingInfoCenter.default()
         var nowPlayingInfo = [String: Any]()
         
         NSLog("%@", "**** Set track metadata: title \(audiobook?.title ?? "")")
-        nowPlayingInfo[MPNowPlayingInfoPropertyAssetURL] = audiobook?.playlistUrl ?? ""
+        nowPlayingInfo[MPNowPlayingInfoPropertyAssetURL] = audiobook?.playlistUrl != nil ? URL(string: audiobook!.playlistUrl) : nil
         nowPlayingInfo[MPNowPlayingInfoPropertyMediaType] = "hls"
         nowPlayingInfo[MPNowPlayingInfoPropertyIsLiveStream] = false
         nowPlayingInfo[MPMediaItemPropertyTitle] = audiobook?.title ?? ""
         nowPlayingInfo[MPMediaItemPropertyArtist] = audiobook?.author ?? ""
         
-        if (audiobook?.cover != nil) {
-            let myImageView = UIImageView()
-            myImageView.imageFromUrl(urlString: audiobook?.cover ?? "")
-            nowPlayingInfo[MPMediaItemPropertyArtwork] = myImageView.image
+        if (artwork != nil) {
+            nowPlayingInfo[MPMediaItemPropertyArtwork] = artwork
         }
-
-        nowPlayingInfo[MPMediaItemPropertyAlbumArtist] = audiobook?.author ?? ""
-        nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = audiobook?.title ?? ""
         
         nowPlayingInfoCenter.nowPlayingInfo = nowPlayingInfo
     }
     
-    func setupNowPlaying() {
+    func updateNowPlaying() {
         
         if (playerState != .playing) {
             NSLog("[TEST] Not current playing so not updating now playing info")
