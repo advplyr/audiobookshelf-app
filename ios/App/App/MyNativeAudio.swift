@@ -24,7 +24,7 @@ struct Audiobook {
     var title = "No Title"
     var author = "Unknown"
     var playWhenReady = false
-    var startTime = 0
+    var startTime = 0.0
     var cover = ""
     var duration = 0
     var series = ""
@@ -74,7 +74,7 @@ public class MyNativeAudio: CAPPlugin {
             title: call.getString("title") ?? "No Title",
             author: call.getString("author") ?? "Unknown",
             playWhenReady: call.getBool("playWhenReady", false),
-            startTime: call.getInt("startTime") ?? 0,
+            startTime: Double(call.getString("startTime") ?? "0") ?? 0.0,
             cover: call.getString("cover") ?? "",
             duration: call.getInt("duration") ?? 0,
             series: call.getString("series") ?? "",
@@ -98,7 +98,7 @@ public class MyNativeAudio: CAPPlugin {
         
         // For play in background
         do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers, .allowAirPlay])
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio, options: [.interruptSpokenAudioAndMixWithOthers, .allowAirPlay])
             NSLog("[TEST] Playback OK")
             try AVAudioSession.sharedInstance().setActive(true)
             NSLog("[TEST] Session is Active")
@@ -116,8 +116,11 @@ public class MyNativeAudio: CAPPlugin {
                                context: &playerItemContext)
 
         self.audioPlayer = AVPlayer(playerItem: playerItem)
-        let time = self.audioPlayer.currentItem?.currentTime()
         
+        let startTime = CMTime(seconds: (audiobook?.startTime ?? 0.0) / 1000, preferredTimescale: 1000)
+        self.audioPlayer.seek(to: startTime)
+        
+        let time = self.audioPlayer.currentItem?.currentTime()
         print("Audio Player Initialized \(String(describing: time))")
         
         call.resolve(["success": true])
@@ -206,6 +209,7 @@ public class MyNativeAudio: CAPPlugin {
         self.notifyListeners("onPlayingUpdate", data: [
             "value": true
         ])
+        sendMetadata()
         
         playerState = .playing
         setupNowPlaying()
@@ -216,6 +220,7 @@ public class MyNativeAudio: CAPPlugin {
         self.notifyListeners("onPlayingUpdate", data: [
             "value": false
         ])
+        sendMetadata()
         
         playerState = .paused
     }
