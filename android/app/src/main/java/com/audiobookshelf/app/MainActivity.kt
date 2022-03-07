@@ -6,7 +6,9 @@ import android.os.*
 import android.util.Log
 import com.anggrayudi.storage.SimpleStorage
 import com.anggrayudi.storage.SimpleStorageHelper
+import com.audiobookshelf.app.data.DbManager
 import com.getcapacitor.BridgeActivity
+import io.paperdb.Paper
 
 
 class MainActivity : BridgeActivity() {
@@ -44,11 +46,14 @@ class MainActivity : BridgeActivity() {
     registerPlugin(MyNativeAudio::class.java)
     registerPlugin(AudioDownloader::class.java)
     registerPlugin(StorageManager::class.java)
+    registerPlugin(DbManager::class.java)
 
     var filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE).apply {
       addAction(DownloadManager.ACTION_NOTIFICATION_CLICKED)
     }
     registerReceiver(broadcastReceiver, filter)
+
+    Paper.init(applicationContext)
   }
 
   override fun onDestroy() {
