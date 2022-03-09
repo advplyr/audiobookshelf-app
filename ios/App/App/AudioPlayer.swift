@@ -75,8 +75,6 @@ class AudioPlayer: NSObject {
         self.rate = self.tmpRate
         self.audioPlayer.rate = self.tmpRate
         
-        print("oof", self.rate, self.tmpRate)
-        
         updateNowPlaying()
     }
     public func pause() {
@@ -107,8 +105,6 @@ class AudioPlayer: NSObject {
             self.audioPlayer.rate = rate
         }
         if rate > 0.0 && !(observed && rate == 1) {
-            
-            print("yikes", self.rate, self.tmpRate)
             self.tmpRate = rate
         }
         
