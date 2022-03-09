@@ -142,7 +142,7 @@ public class MyNativeAudio: CAPPlugin {
     }
     @objc func getStreamSyncData(_ call: CAPPluginCall) {
         if self.currentPlayer == nil {
-            call.resolve([ "isPlaying": false as Any, "lastPauseTime": 0, "id": nil ])
+            call.resolve([ "isPlaying": false, "lastPauseTime": 0, "id": nil ])
             return
         }
         
