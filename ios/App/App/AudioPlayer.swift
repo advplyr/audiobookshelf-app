@@ -183,7 +183,7 @@ class AudioPlayer: NSObject {
     }
     
     func invokeMetadataUpdate() {
-        if !shouldFetchCover() && audiobook.artworkUrl != nil {
+        if !shouldFetchCover() || audiobook.artworkUrl == nil {
             setMetadata(nil)
             return
         }
@@ -234,7 +234,6 @@ class AudioPlayer: NSObject {
                 guard let playerStatus = AVPlayerItem.Status(rawValue: (change?[.newKey] as? Int ?? -1)) else { return }
                 
                 if playerStatus == .readyToPlay {
-                    NSLog("pain \(self.audiobook.startTime)")
                     updateNowPlaying()
                     
                     self.status = 0
