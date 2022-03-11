@@ -3,6 +3,10 @@ import Capacitor
 import MediaPlayer
 import AVKit
 
+func parseSleepTime(millis: String?) -> Double {
+    (Double(millis ?? "0") ?? 0) / 1000
+}
+
 @objc(MyNativeAudio)
 public class MyNativeAudio: CAPPlugin {
     var currentCall: CAPPluginCall?
@@ -10,10 +14,8 @@ public class MyNativeAudio: CAPPlugin {
     
     var playerContext = 0
     
-    override public func load() {
-        NSLog("Load MyNativeAudio")
-        // NotificationCenter.default.addObserver(self, selector: #selector(stop), name: Notification.Name.AVPlayerItemDidPlayToEndTime, object: nil)
-    }
+    var currentSleepTimer: Timer? = nil
+    var remainingSleepDuration: Double = 0
     
     @objc func initPlayer(_ call: CAPPluginCall)  {
         NSLog("Init Player")
@@ -32,13 +34,18 @@ public class MyNativeAudio: CAPPlugin {
             
             token: call.getString("token") ?? ""
         )
+        let playWhenReady = call.getBool("playWhenReady", false)
         
         if self.currentPlayer != nil && self.currentPlayer?.audiobook.streamId == audiobook.streamId {
+            if playWhenReady {
+                self.currentPlayer?.play()
+            }
+            
             call.resolve(["success": true])
             return
         }
         
-        self.currentPlayer = AudioPlayer(audiobook: audiobook, playWhenReady: call.getBool("playWhenReady", false))
+        self.currentPlayer = AudioPlayer(audiobook: audiobook, playWhenReady: playWhenReady)
         self.currentPlayer!.addObserver(self, forKeyPath: #keyPath(AudioPlayer.status), options: .new, context: &playerContext)
         
         call.resolve(["success": true])
@@ -142,12 +149,13 @@ public class MyNativeAudio: CAPPlugin {
     }
     @objc func getStreamSyncData(_ call: CAPPluginCall) {
         if self.currentPlayer == nil {
-            call.resolve([ "isPlaying": false as Any, "lastPauseTime": 0, "id": nil ])
+            call.resolve([ "isPlaying": false, "lastPauseTime": 0, "id": nil ])
             return
         }
         
         call.resolve([ "isPlaying": self.currentPlayer!.rate > 0.0, "lastPauseTime": 0, "id": self.currentPlayer?.audiobook.streamId as Any ])
     }
+    
     @objc func setPlaybackSpeed(_ call: CAPPluginCall) {
         if self.currentPlayer == nil {
             call.resolve()
@@ -160,11 +168,104 @@ public class MyNativeAudio: CAPPlugin {
         call.resolve()
     }
     
+    @objc func setSleepTimer(_ call: CAPPluginCall) {
+        if self.currentPlayer == nil {
+            call.resolve()
+            return
+        }
+        
+        let time = parseSleepTime(millis: call.getString("time"))
+        setSleepTimer(seconds: time)
+        
+        call.resolve([ "success": true ])
+    }
+    @objc func increaseSleepTime(_ call: CAPPluginCall) {
+        if self.currentPlayer == nil {
+            call.resolve()
+            return
+        }
+        
+        var time = self.remainingSleepDuration + parseSleepTime(millis: call.getString("time"))
+        if time > self.currentPlayer!.getDuration() {
+            time = self.currentPlayer!.getDuration()
+        }
+        
+        setSleepTimer(seconds: time)
+        call.resolve([ "success": true ])
+    }
+    @objc func decreaseSleepTime(_ call: CAPPluginCall) {
+        if self.currentSleepTimer == nil {
+            call.resolve()
+            return
+        }
+        
+        var time = parseSleepTime(millis: call.getString("time"))
+        if time < 0 {
+            time = 0
+        }
+        
+        setSleepTimer(seconds: time)
+        call.resolve([
+            "success": true,
+        ])
+    }
+    @objc func cancelSleepTimer(_ call: CAPPluginCall) {
+        setSleepTimer(seconds: 0)
+        call.resolve([
+            "success": true,
+        ])
+    }
+    
+    func setSleepTimer(seconds: Double) {
+        if currentPlayer == nil {
+            return
+        }
+        
+        remainingSleepDuration = seconds
+        currentSleepTimer?.invalidate()
+        
+        self.notifyListeners("onSleepTimerSet", data: [
+            "value": self.remainingSleepDuration,
+        ])
+        
+        if seconds == 0 {
+            return
+        }
+        
+        DispatchQueue.main.async {
+            self.currentSleepTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { timer in
+                self.updateSleepTime()
+            }
+        }
+    }
+    func updateSleepTime() {
+        if currentPlayer == nil {
+            return
+        }
+        
+        if self.remainingSleepDuration <= 0 {
+            if currentSleepTimer != nil {
+                currentSleepTimer!.invalidate()
+            }
+            self.notifyListeners("onSleepTimerEnded", data: [
+                "value": currentPlayer!.getCurrentTime(),
+            ])
+            
+            currentPlayer!.pause()
+            return
+        }
+        
+        remainingSleepDuration -= 1
+        self.notifyListeners("onSleepTimerSet", data: [
+            "value": self.remainingSleepDuration,
+        ])
+    }
+    
     func sendMetadata() {
         if self.currentPlayer == nil {
             return
         }
-            
+        
         self.notifyListeners("onMetadata", data: [
             "duration": self.currentPlayer!.getDuration() * 1000,
             "currentTime": self.currentPlayer!.getCurrentTime() * 1000,

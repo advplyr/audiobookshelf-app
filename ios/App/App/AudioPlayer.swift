@@ -22,6 +22,7 @@ class AudioPlayer: NSObject {
     // enums and @objc are not compatible
     @objc dynamic var status: Int
     @objc dynamic var rate: Float
+    private var tmpRate: Float = 1.0
     
     private var playerContext = 0
     private var playerItemContext = 0
@@ -71,7 +72,8 @@ class AudioPlayer: NSObject {
     public func play() {
         self.audioPlayer.play()
         self.status = 1
-        self.rate = 1.0
+        self.rate = self.tmpRate
+        self.audioPlayer.rate = self.tmpRate
         
         updateNowPlaying()
     }
@@ -97,10 +99,15 @@ class AudioPlayer: NSObject {
             self.updateNowPlaying()
         }
     }
-    public func setPlaybackRate(_ rate: Float) {
-        if(self.audioPlayer.rate != rate) {
+    
+    public func setPlaybackRate(_ rate: Float, observed: Bool = false) {
+        if self.audioPlayer.rate != rate {
             self.audioPlayer.rate = rate
         }
+        if rate > 0.0 && !(observed && rate == 1) {
+            self.tmpRate = rate
+        }
+        
         self.rate = rate
         
         self.updateNowPlaying()
@@ -183,7 +190,7 @@ class AudioPlayer: NSObject {
     }
     
     func invokeMetadataUpdate() {
-        if !shouldFetchCover() && audiobook.artworkUrl != nil {
+        if !shouldFetchCover() || audiobook.artworkUrl == nil {
             setMetadata(nil)
             return
         }
@@ -234,7 +241,6 @@ class AudioPlayer: NSObject {
                 guard let playerStatus = AVPlayerItem.Status(rawValue: (change?[.newKey] as? Int ?? -1)) else { return }
                 
                 if playerStatus == .readyToPlay {
-                    NSLog("pain \(self.audiobook.startTime)")
                     updateNowPlaying()
                     
                     self.status = 0
@@ -246,7 +252,7 @@ class AudioPlayer: NSObject {
             }
         } else if context == &playerContext {
             if keyPath == #keyPath(AVPlayer.rate) {
-                setPlaybackRate(change?[.newKey] as? Float ?? 1.0)
+                setPlaybackRate(change?[.newKey] as? Float ?? 1.0, observed: true)
             } else if keyPath == #keyPath(AVPlayer.currentItem) {
                 NSLog("WARNING: Item ended")
             }
