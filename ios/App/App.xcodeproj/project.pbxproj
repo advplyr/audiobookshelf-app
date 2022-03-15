@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
+		3A200C1527D64D7E00CBF02E /* AudioPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A200C1427D64D7E00CBF02E /* AudioPlayer.swift */; };
+		3A200C1727D64E0D00CBF02E /* Audiobook.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A200C1627D64E0D00CBF02E /* Audiobook.swift */; };
 		4D8D410C26E17C3A00BA5F0D /* MyNativeAudio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D8D410B26E17C3A00BA5F0D /* MyNativeAudio.swift */; };
 		4D8D412E26E187E500BA5F0D /* MyNativeAudio.m in Sources */ = {isa = PBXBuildFile; fileRef = 4D8D412D26E187E500BA5F0D /* MyNativeAudio.m */; };
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
@@ -21,6 +23,8 @@
 
 /* Begin PBXFileReference section */
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
+		3A200C1427D64D7E00CBF02E /* AudioPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayer.swift; sourceTree = "<group>"; };
+		3A200C1627D64E0D00CBF02E /* Audiobook.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Audiobook.swift; sourceTree = "<group>"; };
 		4D8D410B26E17C3A00BA5F0D /* MyNativeAudio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyNativeAudio.swift; sourceTree = "<group>"; };
 		4D8D412C26E187E400BA5F0D /* App-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "App-Bridging-Header.h"; sourceTree = "<group>"; };
 		4D8D412D26E187E500BA5F0D /* MyNativeAudio.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MyNativeAudio.m; sourceTree = "<group>"; };
@@ -78,6 +82,9 @@
 		504EC3061FED79650016851F /* App */ = {
 			isa = PBXGroup;
 			children = (
+				4D8D410B26E17C3A00BA5F0D /* MyNativeAudio.swift */,
+				4D8D412D26E187E500BA5F0D /* MyNativeAudio.m */,
+				3A200C1427D64D7E00CBF02E /* AudioPlayer.swift */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
@@ -86,9 +93,8 @@
 				504EC3131FED79650016851F /* Info.plist */,
 				2FAD9762203C412B000D30F8 /* config.xml */,
 				50B271D01FEDC1A000F3C39B /* public */,
-				4D8D410B26E17C3A00BA5F0D /* MyNativeAudio.swift */,
-				4D8D412D26E187E500BA5F0D /* MyNativeAudio.m */,
 				4D8D412C26E187E400BA5F0D /* App-Bridging-Header.h */,
+				3A200C1627D64E0D00CBF02E /* Audiobook.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -218,6 +224,8 @@
 				4D8D412E26E187E500BA5F0D /* MyNativeAudio.m in Sources */,
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				4D8D410C26E17C3A00BA5F0D /* MyNativeAudio.swift in Sources */,
+				3A200C1727D64E0D00CBF02E /* Audiobook.swift in Sources */,
+				3A200C1527D64D7E00CBF02E /* AudioPlayer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
