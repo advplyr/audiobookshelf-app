@@ -10,14 +10,6 @@ import AVFoundation
 import UIKit
 import MediaPlayer
 
-func getData(from url: URL, completion: @escaping (UIImage?) -> Void) {
-    URLSession.shared.dataTask(with: url, completionHandler: {(data, response, error) in
-        if let data = data {
-            completion(UIImage(data:data))
-        }
-    }).resume()
-}
-
 class AudioPlayer: NSObject {
     // enums and @objc are not compatible
     @objc dynamic var status: Int
@@ -28,7 +20,6 @@ class AudioPlayer: NSObject {
     
     private var playerContext = 0
     private var playerItemContext = 0
-    private var nowPlayingInfo: [String: Any] = [:]
     
     private var playWhenReady: Bool
     
@@ -46,7 +37,7 @@ class AudioPlayer: NSObject {
         
         initAudioSession()
         setupRemoteTransportControls()
-        invokeMetadataUpdate()
+        NowPlayingInfo.setAudiobook(audiobook: audiobook)
         
         // Listen to player events
         self.audioPlayer.addObserver(self, forKeyPath: #keyPath(AVPlayer.rate), options: .new, context: &playerContext)
@@ -67,10 +58,6 @@ class AudioPlayer: NSObject {
         pause()
         audioPlayer.replaceCurrentItem(with: nil)
         
-        DispatchQueue.main.sync {
-            UIApplication.shared.endReceivingRemoteControlEvents()
-        }
-        
         do {
             try AVAudioSession.sharedInstance().setActive(false)
         } catch {
@@ -78,10 +65,9 @@ class AudioPlayer: NSObject {
             print(error)
         }
         
-        nowPlayingInfo.removeAll()
-        nowPlayingInfo[MPMediaItemPropertyTitle] = ""
-        nowPlayingInfo[MPMediaItemPropertyArtist] = ""
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
+        DispatchQueue.main.sync {
+            UIApplication.shared.endReceivingRemoteControlEvents()
+        }
     }
     
     // MARK: - Methods
@@ -161,10 +147,7 @@ class AudioPlayer: NSObject {
             print(error)
         }
     }
-    
-    private func shouldFetchCover() -> Bool {
-        nowPlayingInfo[MPNowPlayingInfoPropertyExternalContentIdentifier] as? String != audiobook.streamId || nowPlayingInfo[MPMediaItemPropertyArtwork] == nil
-    }
+
     
     // MARK: - Now playing
     func setupRemoteTransportControls() {
@@ -216,7 +199,7 @@ class AudioPlayer: NSObject {
         }
         
         commandCenter.changePlaybackRateCommand.isEnabled = true
-        commandCenter.changePlaybackRateCommand.supportedPlaybackRates = [0.5, 0.75, 0.9, 1, 1.2, 1.5, 2]
+        commandCenter.changePlaybackRateCommand.supportedPlaybackRates = [0.5, 0.75, 1.0, 1.25, 1.5, 2]
         commandCenter.changePlaybackRateCommand.addTarget { event in
             guard let event = event as? MPChangePlaybackRateCommandEvent else {
                 return .noSuchContent
@@ -227,49 +210,8 @@ class AudioPlayer: NSObject {
         }
     }
     
-    func invokeMetadataUpdate() {
-        if !shouldFetchCover() || audiobook.artworkUrl == nil {
-            setMetadata(nil)
-            return
-        }
-        
-        guard let url = URL(string: audiobook.artworkUrl!) else { return }
-        getData(from: url) { [weak self] image in
-            guard let self = self,
-                  let downloadedImage = image else {
-                      return
-                  }
-            let artwork = MPMediaItemArtwork.init(boundsSize: downloadedImage.size, requestHandler: { _ -> UIImage in
-                return downloadedImage
-            })
-            
-            self.setMetadata(artwork)
-        }
-    }
-    func setMetadata(_ artwork: MPMediaItemArtwork?) {
-        if artwork != nil {
-            nowPlayingInfo[MPMediaItemPropertyArtwork] = artwork
-        } else if shouldFetchCover() {
-            nowPlayingInfo[MPMediaItemPropertyArtwork] = nil
-        }
-        
-        nowPlayingInfo[MPNowPlayingInfoPropertyExternalContentIdentifier] = audiobook.streamId
-        nowPlayingInfo[MPNowPlayingInfoPropertyAssetURL] = URL(string: audiobook.playlistUrl)
-        nowPlayingInfo[MPNowPlayingInfoPropertyIsLiveStream] = false
-        nowPlayingInfo[MPNowPlayingInfoPropertyMediaType] = "hls"
-        
-        nowPlayingInfo[MPMediaItemPropertyTitle] = audiobook.title
-        nowPlayingInfo[MPMediaItemPropertyArtist] = audiobook.author ?? "unknown"
-        nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = audiobook.series
-    }
-    
     func updateNowPlaying() {
-        nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = getDuration()
-        nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = getCurrentTime()
-        nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = rate
-        nowPlayingInfo[MPNowPlayingInfoPropertyDefaultPlaybackRate] = 1.0
-        
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
+        NowPlayingInfo.update(duration: getDuration(), currentTime: getCurrentTime(), rate: rate)
     }
     
     // MARK: - Observer
