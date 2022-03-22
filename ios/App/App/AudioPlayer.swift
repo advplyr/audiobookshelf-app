@@ -22,7 +22,9 @@ class AudioPlayer: NSObject {
     // enums and @objc are not compatible
     @objc dynamic var status: Int
     @objc dynamic var rate: Float
+    
     private var tmpRate: Float = 1.0
+    private var lastPlayTime: Double = 0.0
     
     private var playerContext = 0
     private var playerItemContext = 0
@@ -63,13 +65,34 @@ class AudioPlayer: NSObject {
     }
     func destroy() {
         pause()
+        audioPlayer.replaceCurrentItem(with: nil)
         
-        nowPlayingInfo = [:]
-        updateNowPlaying()
+        DispatchQueue.main.sync {
+            UIApplication.shared.endReceivingRemoteControlEvents()
+        }
+        
+        do {
+            try AVAudioSession.sharedInstance().setActive(false)
+        } catch {
+            NSLog("Failed to set AVAudioSession inactive")
+            print(error)
+        }
+        
+        nowPlayingInfo.removeAll()
+        nowPlayingInfo[MPMediaItemPropertyTitle] = ""
+        nowPlayingInfo[MPMediaItemPropertyArtist] = ""
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
     }
     
     // MARK: - Methods
-    public func play() {
+    public func play(allowSeekBack: Bool = false) {
+        if allowSeekBack {
+            if lastPlayTime + 5 < Date.timeIntervalSinceReferenceDate {
+                seek(getCurrentTime() - 1.5)
+            }
+        }
+        lastPlayTime = Date.timeIntervalSinceReferenceDate
+        
         self.audioPlayer.play()
         self.status = 1
         self.rate = self.tmpRate
@@ -83,6 +106,7 @@ class AudioPlayer: NSObject {
         self.rate = 0.0
         
         updateNowPlaying()
+        lastPlayTime = Date.timeIntervalSinceReferenceDate
     }
     public func seek(_ to: Double) {
         let continuePlaing = rate > 0.0
@@ -144,11 +168,14 @@ class AudioPlayer: NSObject {
     
     // MARK: - Now playing
     func setupRemoteTransportControls() {
+        DispatchQueue.main.sync {
+            UIApplication.shared.beginReceivingRemoteControlEvents()
+        }
         let commandCenter = MPRemoteCommandCenter.shared()
         
         commandCenter.playCommand.isEnabled = true
         commandCenter.playCommand.addTarget { [unowned self] event in
-            play()
+            play(allowSeekBack: true)
             return .success
         }
         commandCenter.pauseCommand.isEnabled = true
@@ -185,6 +212,17 @@ class AudioPlayer: NSObject {
             }
             
             self.seek(event.positionTime)
+            return .success
+        }
+        
+        commandCenter.changePlaybackRateCommand.isEnabled = true
+        commandCenter.changePlaybackRateCommand.supportedPlaybackRates = [0.5, 0.75, 0.9, 1, 1.2, 1.5, 2]
+        commandCenter.changePlaybackRateCommand.addTarget { event in
+            guard let event = event as? MPChangePlaybackRateCommandEvent else {
+                return .noSuchContent
+            }
+            
+            self.setPlaybackRate(event.playbackRate)
             return .success
         }
     }
