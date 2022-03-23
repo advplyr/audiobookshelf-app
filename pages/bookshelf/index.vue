@@ -122,7 +122,7 @@ export default {
   methods: {
     async fetchCategories() {
       var categories = await this.$axios
-        .$get(`/api/libraries/${this.currentLibraryId}/categories`)
+        .$get(`/api/libraries/${this.currentLibraryId}/personalized?minified=1`)
         .then((data) => {
           return data
         })
@@ -131,6 +131,7 @@ export default {
           return []
         })
       this.shelves = categories
+      console.log('Shelves', this.shelves)
     },
     async socketInit(isConnected) {
       if (isConnected && this.currentLibraryId) {

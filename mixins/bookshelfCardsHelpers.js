@@ -28,16 +28,7 @@ export default {
       if (this.entityComponentRefs[index]) {
         var bookComponent = this.entityComponentRefs[index]
         shelfEl.appendChild(bookComponent.$el)
-        if (this.isSelectionMode) {
-          bookComponent.setSelectionMode(true)
-          if (this.selectedAudiobooks.includes(bookComponent.audiobookId) || this.isSelectAll) {
-            bookComponent.selected = true
-          } else {
-            bookComponent.selected = false
-          }
-        } else {
-          bookComponent.setSelectionMode(false)
-        }
+        bookComponent.setSelectionMode(false)
         bookComponent.isHovering = false
         return
       }
@@ -77,12 +68,6 @@ export default {
 
       if (this.entities[index]) {
         instance.setEntity(this.entities[index])
-      }
-      if (this.isSelectionMode) {
-        instance.setSelectionMode(true)
-        if (instance.audiobookId && this.selectedAudiobooks.includes(instance.audiobookId) || this.isSelectAll) {
-          instance.selected = true
-        }
       }
     },
   }

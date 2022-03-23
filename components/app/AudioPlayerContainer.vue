@@ -450,18 +450,6 @@ export default {
         this.$refs.audioPlayer.setPlaybackSpeed(this.playbackSpeed)
       }
     },
-    streamUpdated(type, data) {
-      if (type === 'download') {
-        if (data) {
-          this.download = { ...data }
-          if (this.audioPlayerReady) {
-            this.playDownload()
-          }
-        } else if (this.download) {
-          this.cancelStream()
-        }
-      }
-    },
     setListeners() {
       if (!this.$server.socket) {
         console.error('Invalid server socket not set')
@@ -481,6 +469,16 @@ export default {
           this.$refs.audioPlayer.terminateStream()
         }
       }
+    },
+    async playLibraryItem(libraryItemId) {
+      var libraryItem = await this.$axios.$get(`/api/items/${libraryItemId}?expanded=1`).catch((error) => {
+        console.error('Failed to fetch full item', error)
+        return null
+      })
+      if (!libraryItem) return
+      this.$store.commit('setLibraryItemStream', libraryItem)
+
+      // TODO: Call load library item in native
     }
   },
   mounted() {
@@ -491,9 +489,9 @@ export default {
     console.log(`[AudioPlayerContainer] Init Playback Speed: ${this.playbackSpeed}`)
 
     this.setListeners()
+    this.$eventBus.$on('play-item', this.playLibraryItem)
     this.$eventBus.$on('close_stream', this.closeStreamOnly)
     this.$store.commit('user/addSettingsListener', { id: 'streamContainer', meth: this.settingsUpdated })
-    this.$store.commit('setStreamListener', this.streamUpdated)
   },
   beforeDestroy() {
     if (this.onSleepTimerEndedListener) this.onSleepTimerEndedListener.remove()
@@ -506,10 +504,9 @@ export default {
       this.$server.socket.off('stream_ready', this.streamReady)
       this.$server.socket.off('stream_reset', this.streamReset)
     }
-
+    this.$eventBus.$off('play-item', this.playLibraryItem)
     this.$eventBus.$off('close_stream', this.closeStreamOnly)
     this.$store.commit('user/removeSettingsListener', 'streamContainer')
-    this.$store.commit('removeStreamListener')
   }
 }
 </script>
