@@ -9,7 +9,6 @@ func parseSleepTime(millis: String?) -> Double {
 
 @objc(MyNativeAudio)
 public class MyNativeAudio: CAPPlugin {
-    var currentCall: CAPPluginCall?
     var currentPlayer: AudioPlayer?
     
     var playerContext = 0
@@ -36,17 +35,19 @@ public class MyNativeAudio: CAPPlugin {
         )
         let playWhenReady = call.getBool("playWhenReady", false)
         
-        if self.currentPlayer != nil && self.currentPlayer?.audiobook.streamId == audiobook.streamId {
+        if currentPlayer != nil && currentPlayer?.audiobook.streamId == audiobook.streamId {
             if playWhenReady {
                 self.currentPlayer?.play()
             }
             
             call.resolve(["success": true])
             return
+        } else if currentPlayer != nil && currentPlayer?.audiobook.streamId != audiobook.streamId {
+            stop()
         }
         
-        self.currentPlayer = AudioPlayer(audiobook: audiobook, playWhenReady: playWhenReady)
-        self.currentPlayer!.addObserver(self, forKeyPath: #keyPath(AudioPlayer.status), options: .new, context: &playerContext)
+        currentPlayer = AudioPlayer(audiobook: audiobook, playWhenReady: playWhenReady)
+        currentPlayer!.addObserver(self, forKeyPath: #keyPath(AudioPlayer.status), options: .new, context: &playerContext)
         
         call.resolve(["success": true])
     }
@@ -116,7 +117,7 @@ public class MyNativeAudio: CAPPlugin {
             return
         }
         
-        self.currentPlayer!.play()
+        self.currentPlayer!.play(allowSeekBack: true)
         
         sendPlaybackStatusUpdate(true)
         call.resolve()
@@ -126,15 +127,14 @@ public class MyNativeAudio: CAPPlugin {
         stop()
         call.resolve()
     }
-    @objc func stop() {
-        if let call = currentCall {
-            if self.currentPlayer != nil {
-                self.currentPlayer!.destroy()
-            }
-            
-            self.currentPlayer = nil
-            currentCall = nil;
-            call.resolve([ "result": true ])
+    @objc func stop(_ call: CAPPluginCall? = nil) {
+        if self.currentPlayer != nil {
+            self.currentPlayer!.destroy()
+        }
+        self.currentPlayer = nil
+        
+        if call != nil {
+            call!.resolve([ "result": true ])
         }
     }
     
