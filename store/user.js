@@ -20,6 +20,10 @@ export const getters = {
   getToken: (state) => {
     return state.user ? state.user.token : null
   },
+  getUserLibraryItemProgress: (state) => (libraryItemId) => {
+    if (!state.user.libraryItemProgress) return null
+    return state.user.libraryItemProgress.find(li => li.id == libraryItemId)
+  },
   getUserAudiobookData: (state, getters) => (audiobookId) => {
     return getters.getUserAudiobook(audiobookId)
   },

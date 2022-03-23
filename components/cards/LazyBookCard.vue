@@ -1,16 +1,27 @@
 <template>
-  <div ref="card" :id="`book-card-${index}`" :style="{ width: width + 'px', minWidth: width + 'px', height: height + 'px' }" class="rounded-sm z-10 bg-primary cursor-pointer box-shadow-book" @click="clickCard">
+  <div ref="card" :id="`book-card-${index}`" :style="{ minWidth: width + 'px', maxWidth: width + 'px', height: height + 'px' }" class="rounded-sm z-10 bg-primary cursor-pointer box-shadow-book" @click="clickCard">
     <!-- When cover image does not fill -->
     <div v-show="showCoverBg" class="absolute top-0 left-0 w-full h-full overflow-hidden rounded-sm bg-primary">
       <div class="absolute cover-bg" ref="coverBg" />
     </div>
+
+    <!-- Alternative bookshelf title/author/sort -->
+    <div v-if="isAlternativeBookshelfView" class="absolute left-0 z-50 w-full" :style="{ bottom: `-${titleDisplayBottomOffset}rem` }">
+      <p class="truncate" :style="{ fontSize: 0.9 * sizeMultiplier + 'rem' }">
+        {{ displayTitle }}
+      </p>
+      <p class="truncate text-gray-400" :style="{ fontSize: 0.8 * sizeMultiplier + 'rem' }">{{ displayAuthor }}</p>
+      <p v-if="displaySortLine" class="truncate text-gray-400" :style="{ fontSize: 0.8 * sizeMultiplier + 'rem' }">{{ displaySortLine }}</p>
+    </div>
+
+    <div v-if="booksInSeries" class="absolute z-20 top-1.5 right-1.5 rounded-md leading-3 text-sm p-1 font-semibold text-white flex items-center justify-center" style="background-color: #cd9d49dd">{{ booksInSeries }}</div>
 
     <div class="w-full h-full absolute top-0 left-0 rounded overflow-hidden z-10">
       <div v-show="audiobook && !imageReady" class="absolute top-0 left-0 w-full h-full flex items-center justify-center" :style="{ padding: sizeMultiplier * 0.5 + 'rem' }">
         <p :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }" class="font-book text-gray-300 text-center">{{ title }}</p>
       </div>
 
-      <img v-show="audiobook" ref="cover" :src="bookCoverSrc" class="w-full h-full transition-opacity duration-300" :class="hasCover ? 'object-contain' : 'object-fill'" @load="imageLoaded" :style="{ opacity: imageReady ? 1 : 0 }" />
+      <img v-show="audiobook" ref="cover" :src="bookCoverSrc" class="w-full h-full transition-opacity duration-300" :class="showCoverBg ? 'object-contain' : 'object-fill'" @load="imageLoaded" :style="{ opacity: imageReady ? 1 : 0 }" />
 
       <!-- Placeholder Cover Title & Author -->
       <div v-if="!hasCover" class="absolute top-0 left-0 right-0 bottom-0 w-full h-full flex items-center justify-center" :style="{ padding: placeholderCoverPadding + 'rem' }">
@@ -23,25 +34,26 @@
       </div>
     </div>
 
-    <!-- Downloaded indicator icon -->
-    <div v-if="hasDownload" class="absolute z-10" :style="{ top: 0.5 * sizeMultiplier + 'rem', right: 0.5 * sizeMultiplier + 'rem' }">
-      <span class="material-icons text-success" :style="{ fontSize: 1.1 * sizeMultiplier + 'rem' }">download_done</span>
-    </div>
+    <!-- No progress shown for collapsed series in library -->
+    <div v-if="!booksInSeries" class="absolute bottom-0 left-0 h-1 shadow-sm max-w-full z-10 rounded-b" :class="itemIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: width * userProgressPercent + 'px' }"></div>
 
-    <!-- Progress bar -->
-    <div class="absolute bottom-0 left-0 h-1 shadow-sm max-w-full z-10 rounded-b" :class="userIsRead ? 'bg-success' : 'bg-yellow-400'" :style="{ width: width * userProgressPercent + 'px' }"></div>
+    <!-- Error widget -->
+    <ui-tooltip v-if="showError" :text="errorText" class="absolute bottom-4 left-0 z-10">
+      <div :style="{ height: 1.5 * sizeMultiplier + 'rem', width: 2.5 * sizeMultiplier + 'rem' }" class="bg-error rounded-r-full shadow-md flex items-center justify-end border-r border-b border-red-300">
+        <span class="material-icons text-red-100 pr-1" :style="{ fontSize: 0.875 * sizeMultiplier + 'rem' }">priority_high</span>
+      </div>
+    </ui-tooltip>
 
-    <div v-if="showError" :style="{ height: 1.5 * sizeMultiplier + 'rem', width: 2.5 * sizeMultiplier + 'rem' }" class="bg-error rounded-r-full shadow-md flex items-center justify-end border-r border-b border-red-300">
-      <span class="material-icons text-red-100 pr-1" :style="{ fontSize: 0.875 * sizeMultiplier + 'rem' }">priority_high</span>
-    </div>
-
-    <div v-if="volumeNumber && showVolumeNumber && !isHovering && !isSelectionMode" class="absolute rounded-lg bg-black bg-opacity-90 box-shadow-md z-10" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }">
+    <!-- Volume number -->
+    <div v-if="volumeNumber && showVolumeNumber && !isSelectionMode" class="absolute rounded-lg bg-black bg-opacity-90 box-shadow-md z-10" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }">
       <p :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }">#{{ volumeNumber }}</p>
     </div>
   </div>
 </template>
 
 <script>
+import Vue from 'vue'
+
 export default {
   props: {
     index: Number,
@@ -55,15 +67,18 @@ export default {
     },
     bookCoverAspectRatio: Number,
     showVolumeNumber: Boolean,
+    bookshelfView: Number,
     bookMount: {
+      // Book can be passed as prop or set with setEntity()
       type: Object,
       default: () => null
-    }
+    },
+    orderBy: String,
+    filterBy: String,
+    sortingIgnorePrefix: Boolean
   },
   data() {
     return {
-      isHovering: false,
-      isMoreMenuOpen: false,
       isProcessingReadUpdate: false,
       audiobook: null,
       imageReady: false,
@@ -73,87 +88,145 @@ export default {
       showCoverBg: false
     }
   },
+  watch: {
+    bookMount: {
+      handler(newVal) {
+        if (newVal) {
+          this.audiobook = newVal
+        }
+      }
+    }
+  },
   computed: {
-    _audiobook() {
+    showExperimentalFeatures() {
+      return this.store.state.showExperimentalFeatures
+    },
+    _libraryItem() {
       return this.audiobook || {}
+    },
+    media() {
+      return this._libraryItem.media || {}
+    },
+    mediaMetadata() {
+      return this.media.metadata || {}
     },
     placeholderUrl() {
       return '/book_placeholder.jpg'
     },
-    hasDownload() {
-      return !!this._audiobook.download
-    },
-    downloadedCover() {
-      if (!this._audiobook.download) return null
-      return this._audiobook.download.cover
-    },
     bookCoverSrc() {
-      if (this.downloadedCover) return this.downloadedCover
-      return this.store.getters['audiobooks/getBookCoverSrc'](this._audiobook, this.placeholderUrl)
+      return this.store.getters['globals/getLibraryItemCoverSrc'](this._libraryItem, this.placeholderUrl)
     },
-    audiobookId() {
-      return this._audiobook.id
+    libraryItemId() {
+      return this._libraryItem.id
+    },
+    series() {
+      return this.mediaMetadata.series
+    },
+    libraryId() {
+      return this._libraryItem.libraryId
     },
     hasEbook() {
-      return this._audiobook.numEbooks
+      if (!this.media.ebooks) return 0
+      return this.media.ebooks.length
     },
-    hasTracks() {
-      return this._audiobook.numTracks
+    hasAudiobook() {
+      if (!this.media.audiobooks) return 0
+      return this.media.audiobooks.length
     },
-    book() {
-      return this._audiobook.book || {}
+    processingBatch() {
+      return this.store.state.processingBatch
+    },
+    booksInSeries() {
+      // Only added to audiobook object when collapseSeries is enabled
+      return this._libraryItem.booksInSeries
     },
     hasCover() {
-      return !!this.book.cover
+      return !!this.media.coverPath
     },
     squareAspectRatio() {
       return this.bookCoverAspectRatio === 1
     },
     sizeMultiplier() {
-      var baseSize = this.squareAspectRatio ? 160 : 100
+      var baseSize = this.squareAspectRatio ? 192 : 120
       return this.width / baseSize
     },
     title() {
-      return this.book.title || ''
+      return this.mediaMetadata.title || ''
+    },
+    playIconFontSize() {
+      return Math.max(2, 3 * this.sizeMultiplier)
+    },
+    authors() {
+      return this.mediaMetadata.authors || []
     },
     author() {
-      return this.book.author
-    },
-    authorFL() {
-      return this.book.authorFL || this.author
+      return this.authors.map((au) => au.name).join(', ')
     },
     authorLF() {
-      return this.book.authorLF || this.author
+      return this.authors
+        .map((au) => {
+          var parts = au.name.split(' ')
+          if (parts.length === 1) return parts[0]
+          return `${parts[1]}, ${parts[0]}`
+        })
+        .join(', ')
     },
     volumeNumber() {
-      return this.book.volumeNumber || null
+      return this.mediaMetadata.volumeNumber || null
+    },
+    displayTitle() {
+      if (this.orderBy === 'media.metadata.title' && this.sortingIgnorePrefix && this.title.toLowerCase().startsWith('the ')) {
+        return this.title.substr(4) + ', The'
+      }
+      return this.title
+    },
+    displayAuthor() {
+      if (this.orderBy === 'media.metadata.authorNameLF') return this.authorLF
+      return this.author
+    },
+    displaySortLine() {
+      if (this.orderBy === 'mtimeMs') return 'Modified ' + this.$formatDate(this._libraryItem.mtimeMs)
+      if (this.orderBy === 'birthtimeMs') return 'Born ' + this.$formatDate(this._libraryItem.birthtimeMs)
+      if (this.orderBy === 'addedAt') return 'Added ' + this.$formatDate(this._libraryItem.addedAt)
+      if (this.orderBy === 'duration') return 'Duration: ' + this.$elapsedPrettyExtended(this.media.duration, false)
+      if (this.orderBy === 'size') return 'Size: ' + this.$bytesPretty(this._libraryItem.size)
+      return null
     },
     userProgress() {
-      return this.store.getters['user/getUserAudiobook'](this.audiobookId)
+      return this.store.getters['user/getUserLibraryItemProgress'](this.libraryItemId)
     },
     userProgressPercent() {
       return this.userProgress ? this.userProgress.progress || 0 : 0
     },
-    userIsRead() {
-      return this.userProgress ? !!this.userProgress.isRead : false
+    itemIsFinished() {
+      return this.userProgress ? !!this.userProgress.isFinished : false
     },
     showError() {
       return this.hasMissingParts || this.hasInvalidParts || this.isMissing || this.isInvalid
     },
     isStreaming() {
-      return this.store.getters['getAudiobookIdStreaming'] === this.audiobookId
+      return this.store.getters['getlibraryItemIdStreaming'] === this.libraryItemId
+    },
+    showReadButton() {
+      return !this.isSelectionMode && this.showExperimentalFeatures && !this.showPlayButton && this.hasEbook
+    },
+    showPlayButton() {
+      return !this.isSelectionMode && !this.isMissing && !this.isInvalid && this.hasAudiobook && !this.isStreaming
+    },
+    showSmallEBookIcon() {
+      return !this.isSelectionMode && this.showExperimentalFeatures && this.hasEbook
     },
     isMissing() {
-      return this._audiobook.isMissing
+      return this._libraryItem.isMissing
     },
     isInvalid() {
-      return this._audiobook.isInvalid
+      return this._libraryItem.isInvalid
     },
     hasMissingParts() {
-      return this._audiobook.hasMissingParts
+      return this._libraryItem.hasMissingParts
     },
     hasInvalidParts() {
-      return this._audiobook.hasInvalidParts
+      return this._libraryItem.hasInvalidParts
     },
     errorText() {
       if (this.isMissing) return 'Audiobook directory is missing!'
@@ -167,6 +240,15 @@ export default {
         txt += `${this.hasInvalidParts} invalid parts.`
       }
       return txt || 'Unknown Error'
+    },
+    overlayWrapperClasslist() {
+      var classes = []
+      if (this.isSelectionMode) classes.push('bg-opacity-60')
+      else classes.push('bg-opacity-40')
+      if (this.selected) {
+        classes.push('border-2 border-yellow-400')
+      }
+      return classes
     },
     store() {
       return this.$store || this.$nuxt.$store
@@ -206,11 +288,21 @@ export default {
       return this.title
     },
     authorCleaned() {
-      if (!this.authorFL) return ''
-      if (this.authorFL.length > 30) {
-        return this.authorFL.slice(0, 27) + '...'
+      if (!this.author) return ''
+      if (this.author.length > 30) {
+        return this.author.slice(0, 27) + '...'
       }
-      return this.authorFL
+      return this.author
+    },
+    isAlternativeBookshelfView() {
+      return false
+      // var constants = this.$constants || this.$nuxt.$constants
+      // return this.bookshelfView === constants.BookshelfView.TITLES
+    },
+    titleDisplayBottomOffset() {
+      if (!this.isAlternativeBookshelfView) return 0
+      else if (!this.displaySortLine) return 3 * this.sizeMultiplier
+      return 4.25 * this.sizeMultiplier
     }
   },
   methods: {
@@ -218,8 +310,8 @@ export default {
       this.isSelectionMode = val
       if (!val) this.selected = false
     },
-    setEntity(audiobook) {
-      this.audiobook = audiobook
+    setEntity(libraryItem) {
+      this.audiobook = libraryItem
     },
     clickCard(e) {
       if (this.isSelectionMode) {
@@ -228,12 +320,84 @@ export default {
         this.selectBtnClick()
       } else {
         var router = this.$router || this.$nuxt.$router
-        if (router) router.push(`/audiobook/${this.audiobookId}`)
+        if (router) {
+          if (this.booksInSeries) router.push(`/library/${this.libraryId}/series/${this.$encode(this.series)}`)
+          else router.push(`/item/${this.libraryItemId}`)
+        }
       }
     },
+    editClick() {
+      this.$emit('edit', this.audiobook)
+    },
+    toggleFinished() {
+      var updatePayload = {
+        isFinished: !this.itemIsFinished
+      }
+      this.isProcessingReadUpdate = true
+      var toast = this.$toast || this.$nuxt.$toast
+      var axios = this.$axios || this.$nuxt.$axios
+      axios
+        .$patch(`/api/me/progress/${this.libraryItemId}`, updatePayload)
+        .then(() => {
+          this.isProcessingReadUpdate = false
+          toast.success(`Item marked as ${updatePayload.isFinished ? 'Finished' : 'Not Finished'}`)
+        })
+        .catch((error) => {
+          console.error('Failed', error)
+          this.isProcessingReadUpdate = false
+          toast.error(`Failed to mark as ${updatePayload.isFinished ? 'Finished' : 'Not Finished'}`)
+        })
+    },
+    rescan() {
+      this.rescanning = true
+      this.$axios
+        .$get(`/api/items/${this.libraryItemId}/scan`)
+        .then((data) => {
+          this.rescanning = false
+          var result = data.result
+          if (!result) {
+            this.$toast.error(`Re-Scan Failed for "${this.title}"`)
+          } else if (result === 'UPDATED') {
+            this.$toast.success(`Re-Scan complete item was updated`)
+          } else if (result === 'UPTODATE') {
+            this.$toast.success(`Re-Scan complete item was up to date`)
+          } else if (result === 'REMOVED') {
+            this.$toast.error(`Re-Scan complete item was removed`)
+          }
+        })
+        .catch((error) => {
+          console.error('Failed to scan library item', error)
+          this.$toast.error('Failed to scan library item')
+          this.rescanning = false
+        })
+    },
+    showEditModalTracks() {
+      // More menu func
+      this.store.commit('showEditModalOnTab', { libraryItem: this.audiobook, tab: 'tracks' })
+    },
+    showEditModalMatch() {
+      // More menu func
+      this.store.commit('showEditModalOnTab', { libraryItem: this.audiobook, tab: 'match' })
+    },
+    showEditModalDownload() {
+      // More menu func
+      this.store.commit('showEditModalOnTab', { libraryItem: this.audiobook, tab: 'download' })
+    },
+    openCollections() {
+      this.store.commit('setSelectedLibraryItem', this.audiobook)
+      this.store.commit('globals/setShowUserCollectionsModal', true)
+    },
+    clickReadEBook() {
+      this.store.commit('showEReader', this.audiobook)
+    },
     selectBtnClick() {
+      if (this.processingBatch) return
       this.selected = !this.selected
       this.$emit('select', this.audiobook)
+    },
+    play() {
+      var eventBus = this.$eventBus || this.$nuxt.$eventBus
+      eventBus.$emit('play-item', this.libraryItemId)
     },
     destroy() {
       // destroy the vue listeners, etc

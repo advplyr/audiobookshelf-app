@@ -51,7 +51,7 @@ export default {
     async connected(isConnected) {
       if (isConnected) {
         console.log('[Default] Connected socket sync user ab data')
-        this.$store.dispatch('user/syncUserAudiobookData')
+        // this.$store.dispatch('user/syncUserAudiobookData')
 
         this.initSocketListeners()
 
@@ -326,51 +326,49 @@ export default {
         }
       }
     },
-    audiobookAdded(audiobook) {
-      this.$store.commit('libraries/updateFilterDataWithAudiobook', audiobook)
-    },
-    audiobookUpdated(audiobook) {
-      this.$store.commit('libraries/updateFilterDataWithAudiobook', audiobook)
-    },
-    audiobookRemoved(audiobook) {
-      if (this.$route.name.startsWith('audiobook')) {
-        if (this.$route.params.id === audiobook.id) {
+    // audiobookAdded(audiobook) {
+    // this.$store.commit('libraries/updateFilterDataWithAudiobook', audiobook)
+    // },
+    // audiobookUpdated(audiobook) {
+    // this.$store.commit('libraries/updateFilterDataWithAudiobook', audiobook)
+    // },
+    itemRemoved(libraryItem) {
+      if (this.$route.name.startsWith('item')) {
+        if (this.$route.params.id === libraryItem.id) {
           this.$router.replace(`/bookshelf`)
         }
       }
     },
-    audiobooksAdded(audiobooks) {
-      audiobooks.forEach((ab) => {
-        this.audiobookAdded(ab)
-      })
-    },
-    audiobooksUpdated(audiobooks) {
-      audiobooks.forEach((ab) => {
-        this.audiobookUpdated(ab)
-      })
-    },
+    // audiobooksAdded(audiobooks) {
+    //   audiobooks.forEach((ab) => {
+    //     this.audiobookAdded(ab)
+    //   })
+    // },
+    // audiobooksUpdated(audiobooks) {
+    //   audiobooks.forEach((ab) => {
+    //     this.audiobookUpdated(ab)
+    //   })
+    // },
     userLoggedOut() {
       // Only cancels stream if streamining not playing downloaded
       this.$eventBus.$emit('close_stream')
     },
     initSocketListeners() {
       if (this.$server.socket) {
-        // Audiobook Listeners
-        this.$server.socket.on('audiobook_updated', this.audiobookUpdated)
-        this.$server.socket.on('audiobook_added', this.audiobookAdded)
-        this.$server.socket.on('audiobook_removed', this.audiobookRemoved)
-        this.$server.socket.on('audiobooks_updated', this.audiobooksUpdated)
-        this.$server.socket.on('audiobooks_added', this.audiobooksAdded)
+        // this.$server.socket.on('audiobook_updated', this.audiobookUpdated)
+        // this.$server.socket.on('audiobook_added', this.audiobookAdded)
+        this.$server.socket.on('item_removed', this.itemRemoved)
+        // this.$server.socket.on('audiobooks_updated', this.audiobooksUpdated)
+        // this.$server.socket.on('audiobooks_added', this.audiobooksAdded)
       }
     },
     removeSocketListeners() {
       if (this.$server.socket) {
-        // Audiobook Listeners
-        this.$server.socket.off('audiobook_updated', this.audiobookUpdated)
-        this.$server.socket.off('audiobook_added', this.audiobookAdded)
-        this.$server.socket.off('audiobook_removed', this.audiobookRemoved)
-        this.$server.socket.off('audiobooks_updated', this.audiobooksUpdated)
-        this.$server.socket.off('audiobooks_added', this.audiobooksAdded)
+        // this.$server.socket.off('audiobook_updated', this.audiobookUpdated)
+        // this.$server.socket.off('audiobook_added', this.audiobookAdded)
+        this.$server.socket.off('item_removed', this.itemRemoved)
+        // this.$server.socket.off('audiobooks_updated', this.audiobooksUpdated)
+        // this.$server.socket.off('audiobooks_added', this.audiobooksAdded)
       }
     }
   },
@@ -382,6 +380,7 @@ export default {
       console.log('Syncing on default mount')
       this.connected(true)
     }
+
     this.$server.on('logout', this.userLoggedOut)
     this.$server.on('connected', this.connected)
     this.$server.on('connectionFailed', this.socketConnectionFailed)

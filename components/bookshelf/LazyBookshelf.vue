@@ -144,19 +144,29 @@ export default {
       if (!this.initialized) {
         this.currentSFQueryString = this.buildSearchParams()
       }
-      var entityPath = this.entityName === 'books' ? `books/all` : this.entityName
+      // var entityPath = this.entityName === 'books' ? `books/all` : this.entityName
+      // var sfQueryString = this.currentSFQueryString ? this.currentSFQueryString + '&' : ''
+      // var queryString = `?${sfQueryString}&limit=${this.booksPerFetch}&page=${page}`
+
+      // if (this.entityName === 'series-books') {
+      //   entityPath = `series/${this.seriesId}`
+      //   queryString = ''
+      // }
+
+      // var payload = await this.$axios.$get(`/api/libraries/${this.currentLibraryId}/${entityPath}${queryString}`).catch((error) => {
+      //   console.error('failed to fetch books', error)
+      //   return null
+      // })
+
+      var entityPath = this.entityName === 'books' || this.entityName === 'series-books' ? `items` : this.entityName
       var sfQueryString = this.currentSFQueryString ? this.currentSFQueryString + '&' : ''
-      var queryString = `?${sfQueryString}&limit=${this.booksPerFetch}&page=${page}`
+      var fullQueryString = `?${sfQueryString}limit=${this.booksPerFetch}&page=${page}&minified=1`
 
-      if (this.entityName === 'series-books') {
-        entityPath = `series/${this.seriesId}`
-        queryString = ''
-      }
-
-      var payload = await this.$axios.$get(`/api/libraries/${this.currentLibraryId}/${entityPath}${queryString}`).catch((error) => {
+      var payload = await this.$axios.$get(`/api/libraries/${this.currentLibraryId}/${entityPath}${fullQueryString}`).catch((error) => {
         console.error('failed to fetch books', error)
         return null
       })
+
       this.isFetchingEntities = false
       if (this.pendingReset) {
         this.pendingReset = false
@@ -390,42 +400,42 @@ export default {
         this.resetEntities()
       }
     },
-    audiobookAdded(audiobook) {
-      console.log('Audiobook added', audiobook)
-      // TODO: Check if audiobook would be on this shelf
+    libraryItemAdded(libraryItem) {
+      console.log('libraryItem added', libraryItem)
+      // TODO: Check if item would be on this shelf
       this.resetEntities()
     },
-    audiobookUpdated(audiobook) {
-      console.log('Audiobook updated', audiobook)
+    libraryItemUpdated(libraryItem) {
+      console.log('Item updated', libraryItem)
       if (this.entityName === 'books' || this.entityName === 'series-books') {
-        var indexOf = this.entities.findIndex((ent) => ent && ent.id === audiobook.id)
+        var indexOf = this.entities.findIndex((ent) => ent && ent.id === libraryItem.id)
         if (indexOf >= 0) {
-          this.entities[indexOf] = audiobook
+          this.entities[indexOf] = libraryItem
           if (this.entityComponentRefs[indexOf]) {
-            this.entityComponentRefs[indexOf].setEntity(audiobook)
+            this.entityComponentRefs[indexOf].setEntity(libraryItem)
           }
         }
       }
     },
-    audiobookRemoved(audiobook) {
+    libraryItemRemoved(libraryItem) {
       if (this.entityName === 'books' || this.entityName === 'series-books') {
-        var indexOf = this.entities.findIndex((ent) => ent && ent.id === audiobook.id)
+        var indexOf = this.entities.findIndex((ent) => ent && ent.id === libraryItem.id)
         if (indexOf >= 0) {
-          this.entities = this.entities.filter((ent) => ent.id !== audiobook.id)
+          this.entities = this.entities.filter((ent) => ent.id !== libraryItem.id)
           this.totalEntities = this.entities.length
           this.$eventBus.$emit('bookshelf-total-entities', this.totalEntities)
-          this.remountEntities()
+          this.executeRebuild()
         }
       }
     },
-    audiobooksAdded(audiobooks) {
-      console.log('audiobooks added', audiobooks)
-      // TODO: Check if audiobook would be on this shelf
+    libraryItemsAdded(libraryItems) {
+      console.log('items added', libraryItems)
+      // TODO: Check if item would be on this shelf
       this.resetEntities()
     },
-    audiobooksUpdated(audiobooks) {
-      audiobooks.forEach((ab) => {
-        this.audiobookUpdated(ab)
+    libraryItemsUpdated(libraryItems) {
+      libraryItems.forEach((ab) => {
+        this.libraryItemUpdated(ab)
       })
     },
     initListeners() {
@@ -433,19 +443,17 @@ export default {
       if (bookshelf) {
         bookshelf.addEventListener('scroll', this.scroll)
       }
-      // this.$eventBus.$on('bookshelf-clear-selection', this.clearSelectedEntities)
-      // this.$eventBus.$on('bookshelf-select-all', this.selectAllEntities)
-      // this.$eventBus.$on('bookshelf-keyword-filter', this.updateKeywordFilter)
+
       this.$eventBus.$on('library-changed', this.libraryChanged)
       this.$eventBus.$on('downloads-loaded', this.downloadsLoaded)
       this.$store.commit('user/addSettingsListener', { id: 'lazy-bookshelf', meth: this.settingsUpdated })
 
       if (this.$server.socket) {
-        this.$server.socket.on('audiobook_updated', this.audiobookUpdated)
-        this.$server.socket.on('audiobook_added', this.audiobookAdded)
-        this.$server.socket.on('audiobook_removed', this.audiobookRemoved)
-        this.$server.socket.on('audiobooks_updated', this.audiobooksUpdated)
-        this.$server.socket.on('audiobooks_added', this.audiobooksAdded)
+        this.$server.socket.on('item_updated', this.libraryItemUpdated)
+        this.$server.socket.on('item_added', this.libraryItemAdded)
+        this.$server.socket.on('item_removed', this.libraryItemRemoved)
+        this.$server.socket.on('items_updated', this.libraryItemsUpdated)
+        this.$server.socket.on('items_added', this.libraryItemsAdded)
       } else {
         console.error('Bookshelf - Socket not initialized')
       }
@@ -455,16 +463,17 @@ export default {
       if (bookshelf) {
         bookshelf.removeEventListener('scroll', this.scroll)
       }
+
       this.$eventBus.$off('library-changed', this.libraryChanged)
       this.$eventBus.$off('downloads-loaded', this.downloadsLoaded)
       this.$store.commit('user/removeSettingsListener', 'lazy-bookshelf')
 
       if (this.$server.socket) {
-        this.$server.socket.off('audiobook_updated', this.audiobookUpdated)
-        this.$server.socket.off('audiobook_added', this.audiobookAdded)
-        this.$server.socket.off('audiobook_removed', this.audiobookRemoved)
-        this.$server.socket.off('audiobooks_updated', this.audiobooksUpdated)
-        this.$server.socket.off('audiobooks_added', this.audiobooksAdded)
+        this.$server.socket.off('item_updated', this.libraryItemUpdated)
+        this.$server.socket.off('item_added', this.libraryItemAdded)
+        this.$server.socket.off('item_removed', this.libraryItemRemoved)
+        this.$server.socket.off('items_updated', this.libraryItemsUpdated)
+        this.$server.socket.off('items_added', this.libraryItemsAdded)
       } else {
         console.error('Bookshelf - Socket not initialized')
       }
