@@ -73,8 +73,27 @@ class AudioPlayer: NSObject {
     // MARK: - Methods
     public func play(allowSeekBack: Bool = false) {
         if allowSeekBack {
-            if lastPlayTime + 5 < Date.timeIntervalSinceReferenceDate {
-                seek(getCurrentTime() - 1.5)
+            let diffrence = Date.timeIntervalSinceReferenceDate - lastPlayTime
+            var time: Int?
+            
+            if lastPlayTime == 0 {
+                time = 5
+            } else if diffrence < 6 {
+                time = 2
+            } else if diffrence < 12 {
+                time = 10
+            } else if diffrence < 30 {
+                time = 15
+            } else if diffrence < 180 {
+                time = 20
+            } else if diffrence < 3600 {
+                time = 25
+            } else {
+                time = 29
+            }
+            
+            if time != nil {
+                seek(getCurrentTime() - Double(time!))
             }
         }
         lastPlayTime = Date.timeIntervalSinceReferenceDate
