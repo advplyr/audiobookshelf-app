@@ -10,23 +10,16 @@ import AVFoundation
 import UIKit
 import MediaPlayer
 
-func getData(from url: URL, completion: @escaping (UIImage?) -> Void) {
-    URLSession.shared.dataTask(with: url, completionHandler: {(data, response, error) in
-        if let data = data {
-            completion(UIImage(data:data))
-        }
-    }).resume()
-}
-
 class AudioPlayer: NSObject {
     // enums and @objc are not compatible
     @objc dynamic var status: Int
     @objc dynamic var rate: Float
+    
     private var tmpRate: Float = 1.0
+    private var lastPlayTime: Double = 0.0
     
     private var playerContext = 0
     private var playerItemContext = 0
-    private var nowPlayingInfo: [String: Any] = [:]
     
     private var playWhenReady: Bool
     
@@ -44,7 +37,7 @@ class AudioPlayer: NSObject {
         
         initAudioSession()
         setupRemoteTransportControls()
-        invokeMetadataUpdate()
+        NowPlayingInfo.setAudiobook(audiobook: audiobook)
         
         // Listen to player events
         self.audioPlayer.addObserver(self, forKeyPath: #keyPath(AVPlayer.rate), options: .new, context: &playerContext)
@@ -63,13 +56,48 @@ class AudioPlayer: NSObject {
     }
     func destroy() {
         pause()
+        audioPlayer.replaceCurrentItem(with: nil)
         
-        nowPlayingInfo = [:]
-        updateNowPlaying()
+        do {
+            try AVAudioSession.sharedInstance().setActive(false)
+        } catch {
+            NSLog("Failed to set AVAudioSession inactive")
+            print(error)
+        }
+        
+        DispatchQueue.main.sync {
+            UIApplication.shared.endReceivingRemoteControlEvents()
+        }
     }
     
     // MARK: - Methods
-    public func play() {
+    public func play(allowSeekBack: Bool = false) {
+        if allowSeekBack {
+            let diffrence = Date.timeIntervalSinceReferenceDate - lastPlayTime
+            var time: Int?
+            
+            if lastPlayTime == 0 {
+                time = 5
+            } else if diffrence < 6 {
+                time = 2
+            } else if diffrence < 12 {
+                time = 10
+            } else if diffrence < 30 {
+                time = 15
+            } else if diffrence < 180 {
+                time = 20
+            } else if diffrence < 3600 {
+                time = 25
+            } else {
+                time = 29
+            }
+            
+            if time != nil {
+                seek(getCurrentTime() - Double(time!))
+            }
+        }
+        lastPlayTime = Date.timeIntervalSinceReferenceDate
+        
         self.audioPlayer.play()
         self.status = 1
         self.rate = self.tmpRate
@@ -83,6 +111,7 @@ class AudioPlayer: NSObject {
         self.rate = 0.0
         
         updateNowPlaying()
+        lastPlayTime = Date.timeIntervalSinceReferenceDate
     }
     public func seek(_ to: Double) {
         let continuePlaing = rate > 0.0
@@ -137,18 +166,18 @@ class AudioPlayer: NSObject {
             print(error)
         }
     }
-    
-    private func shouldFetchCover() -> Bool {
-        nowPlayingInfo[MPNowPlayingInfoPropertyExternalContentIdentifier] as? String != audiobook.streamId || nowPlayingInfo[MPMediaItemPropertyArtwork] == nil
-    }
+
     
     // MARK: - Now playing
     func setupRemoteTransportControls() {
+        DispatchQueue.main.sync {
+            UIApplication.shared.beginReceivingRemoteControlEvents()
+        }
         let commandCenter = MPRemoteCommandCenter.shared()
         
         commandCenter.playCommand.isEnabled = true
         commandCenter.playCommand.addTarget { [unowned self] event in
-            play()
+            play(allowSeekBack: true)
             return .success
         }
         commandCenter.pauseCommand.isEnabled = true
@@ -187,51 +216,21 @@ class AudioPlayer: NSObject {
             self.seek(event.positionTime)
             return .success
         }
-    }
-    
-    func invokeMetadataUpdate() {
-        if !shouldFetchCover() || audiobook.artworkUrl == nil {
-            setMetadata(nil)
-            return
-        }
         
-        guard let url = URL(string: audiobook.artworkUrl!) else { return }
-        getData(from: url) { [weak self] image in
-            guard let self = self,
-                  let downloadedImage = image else {
-                      return
-                  }
-            let artwork = MPMediaItemArtwork.init(boundsSize: downloadedImage.size, requestHandler: { _ -> UIImage in
-                return downloadedImage
-            })
+        commandCenter.changePlaybackRateCommand.isEnabled = true
+        commandCenter.changePlaybackRateCommand.supportedPlaybackRates = [0.5, 0.75, 1.0, 1.25, 1.5, 2]
+        commandCenter.changePlaybackRateCommand.addTarget { event in
+            guard let event = event as? MPChangePlaybackRateCommandEvent else {
+                return .noSuchContent
+            }
             
-            self.setMetadata(artwork)
+            self.setPlaybackRate(event.playbackRate)
+            return .success
         }
-    }
-    func setMetadata(_ artwork: MPMediaItemArtwork?) {
-        if artwork != nil {
-            nowPlayingInfo[MPMediaItemPropertyArtwork] = artwork
-        } else if shouldFetchCover() {
-            nowPlayingInfo[MPMediaItemPropertyArtwork] = nil
-        }
-        
-        nowPlayingInfo[MPNowPlayingInfoPropertyExternalContentIdentifier] = audiobook.streamId
-        nowPlayingInfo[MPNowPlayingInfoPropertyAssetURL] = URL(string: audiobook.playlistUrl)
-        nowPlayingInfo[MPNowPlayingInfoPropertyIsLiveStream] = false
-        nowPlayingInfo[MPNowPlayingInfoPropertyMediaType] = "hls"
-        
-        nowPlayingInfo[MPMediaItemPropertyTitle] = audiobook.title
-        nowPlayingInfo[MPMediaItemPropertyArtist] = audiobook.author ?? "unknown"
-        nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = audiobook.series
     }
     
     func updateNowPlaying() {
-        nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = getDuration()
-        nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = getCurrentTime()
-        nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = rate
-        nowPlayingInfo[MPNowPlayingInfoPropertyDefaultPlaybackRate] = 1.0
-        
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
+        NowPlayingInfo.update(duration: getDuration(), currentTime: getCurrentTime(), rate: rate)
     }
     
     // MARK: - Observer
