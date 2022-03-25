@@ -26,12 +26,16 @@
 
     <ui-btn v-if="!isUpdateAvailable || immediateUpdateAllowed" class="w-full my-4" color="primary" @click="openAppStore">Open app store</ui-btn>
 
+    <!-- Used for testing API -->
+    <ui-btn @click="testCall">Test Call</ui-btn>
+
     <p class="text-xs text-gray-400">UA: {{ updateAvailability }} | Avail: {{ availableVersion }} | Curr: {{ currentVersion }} | ImmedAllowed: {{ immediateUpdateAllowed }}</p>
   </div>
 </template>
 
 <script>
 import { AppUpdate } from '@robingenz/capacitor-app-update'
+import MyNativeAudio from '@/plugins/my-native-audio'
 
 export default {
   asyncData({ redirect, store }) {
@@ -74,6 +78,14 @@ export default {
     }
   },
   methods: {
+    testCall() {
+      // Used for testing API
+      console.log('Making Test call')
+      var libraryId = this.$store.state.libraries.currentLibraryId
+      MyNativeAudio.getLibraryItems({ libraryId }).then((res) => {
+        console.log('TEST CALL response', JSON.stringify(res))
+      })
+    },
     async logout() {
       await this.$axios.$post('/logout').catch((error) => {
         console.error(error)

@@ -5,7 +5,9 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.core.content.ContextCompat
+import com.audiobookshelf.app.server.ApiHandler
 import com.capacitorjs.plugins.app.AppPlugin
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.getcapacitor.*
 import com.getcapacitor.annotation.CapacitorPlugin
 import org.json.JSONObject
@@ -15,10 +17,12 @@ class MyNativeAudio : Plugin() {
   private val tag = "MyNativeAudio"
 
   lateinit var mainActivity:MainActivity
+  lateinit var apiHandler:ApiHandler
   lateinit var playerNotificationService: PlayerNotificationService
 
   override fun load() {
     mainActivity = (activity as MainActivity)
+    apiHandler = ApiHandler(mainActivity)
 
     var foregroundServiceReady : () -> Unit = {
       playerNotificationService = mainActivity.foregroundService
@@ -57,6 +61,37 @@ class MyNativeAudio : Plugin() {
     var ret:JSObject = JSObject()
     ret.put("value", value)
     notifyListeners(evtName, ret)
+  }
+
+  @PluginMethod
+  fun prepareLibraryItem(call: PluginCall) {
+    var libraryItemId = call.getString("libraryItemId", "").toString()
+    var mediaEntityId = call.getString("mediaEntityId", "").toString()
+
+    apiHandler.playLibraryItem(libraryItemId) {
+
+      Handler(Looper.getMainLooper()).post() {
+        Log.d(tag, "Preparing Player TEST ${jacksonObjectMapper().writeValueAsString(it)}")
+        playerNotificationService.preparePlayer(it)
+      }
+
+      call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(it)))
+    }
+  }
+
+  @PluginMethod
+  fun getLibraryItems(call: PluginCall) {
+    var libraryId = call.getString("libraryId", "").toString()
+    apiHandler.getLibraryItems(libraryId)  {
+      val mapper = jacksonObjectMapper()
+      var jsobj = JSObject()
+      var libarray = JSArray()
+      it.map {
+        libarray.put(JSObject(mapper.writeValueAsString(it)))
+      }
+      jsobj.put("value", libarray)
+      call.resolve(jsobj)
+    }
   }
 
   @PluginMethod

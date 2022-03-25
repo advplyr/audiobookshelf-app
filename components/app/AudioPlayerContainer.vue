@@ -479,6 +479,12 @@ export default {
       this.$store.commit('setLibraryItemStream', libraryItem)
 
       // TODO: Call load library item in native
+      console.log('TEST prepare library item', libraryItemId)
+      MyNativeAudio.prepareLibraryItem({ libraryItemId }).then((data) => {
+        console.log('TEST library item play response', JSON.stringify(data))
+      }).catch((error) => {
+        console.error('TEST failed', error)
+      })
     }
   },
   mounted() {

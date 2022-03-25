@@ -24,6 +24,7 @@ import androidx.media.MediaBrowserServiceCompat
 import androidx.media.utils.MediaConstants
 import com.anggrayudi.storage.file.isExternalStorageDocument
 import com.audiobookshelf.app.data.DbManager
+import com.audiobookshelf.app.data.PlaybackSession
 import com.getcapacitor.Bridge
 import com.getcapacitor.JSObject
 import com.google.android.exoplayer2.*
@@ -85,6 +86,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   private var channelName = "Audiobookshelf Channel"
 
   private var currentAudiobookStreamData:AudiobookStreamData? = null
+  private var currentPlaybackSession:PlaybackSession? = null
 
   private var mediaButtonClickCount: Int = 0
   var mediaButtonClickTimeout: Long = 1000  //ms
@@ -376,11 +378,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     val queueNavigator: TimelineQueueNavigator = object : TimelineQueueNavigator(mediaSession) {
       override fun getMediaDescription(player: Player, windowIndex: Int): MediaDescriptionCompat {
         var builder = MediaDescriptionCompat.Builder()
-          .setMediaId(currentAudiobookStreamData!!.id)
-          .setTitle(currentAudiobookStreamData!!.title)
-          .setSubtitle(currentAudiobookStreamData!!.author)
-          .setMediaUri(currentAudiobookStreamData!!.playlistUri)
-          .setIconUri(currentAudiobookStreamData!!.coverUri)
+          .setMediaId(currentPlaybackSession!!.id)
+          .setTitle(currentPlaybackSession!!.getTitle())
+          .setSubtitle(currentPlaybackSession!!.getAuthor())
+//          .setMediaUri(currentPlaybackSession!!.getContentUri())
+//          .setIconUri(currentAudiobookStreamData!!.)
         return builder.build()
       }
     }
@@ -600,7 +602,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
           if (currentPlayer.playbackState == Player.STATE_READY) {
             Log.d(tag, "STATE_READY : " + mPlayer.duration.toString())
 
-            currentAudiobookStreamData!!.hasPlayerLoaded = true
+//            currentAudiobookStreamData!!.hasPlayerLoaded = true
             if (lastPauseTime == 0L) {
               sendClientMetadata("ready_no_sync")
               lastPauseTime = -1;
@@ -664,6 +666,23 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   /*
     User callable methods
   */
+  fun preparePlayer(playbackSession: PlaybackSession) {
+    currentPlaybackSession = playbackSession
+    var metadata = playbackSession.getMediaMetadataCompat()
+    mediaSession.setMetadata(metadata)
+    var mediaMetadata = playbackSession.getMediaMetadata()
+    var mediaUrl = playbackSession.getContentUri()
+    var mimeType = playbackSession.getMimeType()
+    Log.d(tag, "Media URL $mediaUrl")
+    var mediaUri = Uri.parse(mediaUrl)
+    var mediaItem = MediaItem.Builder().setUri(mediaUri).setMediaMetadata(mediaMetadata).setMimeType(mimeType).build()
+    var dataSourceFactory = DefaultDataSourceFactory(ctx, channelId)
+    var mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
+    mPlayer.setMediaSource(mediaSource, 0L)
+    mPlayer.prepare()
+    mPlayer.playWhenReady = true
+  }
+
   fun initPlayer(audiobookStreamData: AudiobookStreamData) {
     currentAudiobookStreamData = audiobookStreamData
 
