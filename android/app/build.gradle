@@ -85,6 +85,9 @@ dependencies {
 
   // OK HTTP
   implementation 'com.squareup.okhttp3:okhttp:4.9.2'
+
+  // Jackson for JSON
+  implementation 'com.fasterxml.jackson.module:jackson-module-kotlin:2.12.1'
 }
 
 apply from: 'capacitor.build.gradle'
