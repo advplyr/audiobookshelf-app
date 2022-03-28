@@ -9,8 +9,6 @@ func parseSleepTime(millis: String?) -> Double {
 
 @objc(MyNativeAudio)
 public class MyNativeAudio: CAPPlugin {
-    var currentPlayer: AudioPlayer?
-    
     var playerContext = 0
     
     var currentSleepTimer: Timer? = nil
@@ -35,21 +33,26 @@ public class MyNativeAudio: CAPPlugin {
         )
         let playWhenReady = call.getBool("playWhenReady", false)
         
-        if currentPlayer != nil && currentPlayer?.audiobook.streamId == audiobook.streamId {
+        if AudioPlayer.instance != nil && AudioPlayer.instance?.audiobook.streamId == audiobook.streamId {
             if playWhenReady {
-                self.currentPlayer?.play()
+                AudioPlayer.instance?.play()
             }
             
             call.resolve(["success": true])
             return
-        } else if currentPlayer != nil && currentPlayer?.audiobook.streamId != audiobook.streamId {
+        } else if AudioPlayer.instance != nil && AudioPlayer.instance?.audiobook.streamId != audiobook.streamId {
             stop()
         }
         
-        currentPlayer = AudioPlayer(audiobook: audiobook, playWhenReady: playWhenReady)
-        currentPlayer!.addObserver(self, forKeyPath: #keyPath(AudioPlayer.status), options: .new, context: &playerContext)
+        AudioPlayer.instance = AudioPlayer(audiobook: audiobook, playWhenReady: playWhenReady)
+        AudioPlayer.instance!.addObserver(self, forKeyPath: #keyPath(AudioPlayer.status), options: .new, context: &playerContext)
         
         call.resolve(["success": true])
+    }
+    override public func load() {
+        NSLog("Load MyNativeAudio")
+        NotificationCenter.default.addObserver(self, selector: #selector(sendMetadata), name: UIApplication.willEnterForegroundNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(sendMetadata), name: UIApplication.didBecomeActiveNotification, object: nil)
     }
     
     public override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
@@ -57,38 +60,40 @@ public class MyNativeAudio: CAPPlugin {
             super.observeValue(forKeyPath: keyPath, of: object, change: change, context: context)
             return
         }
+        
+        NSLog("AudioPlayer state change: \(String(describing: keyPath))")
 
-        if keyPath == #keyPath(AudioPlayer.status) {
+        if keyPath == #keyPath(AudioPlayer.status) || keyPath == #keyPath(AudioPlayer.rate) {
             sendMetadata()
         }
     }
     
     @objc func seekForward(_ call: CAPPluginCall) {
-        if self.currentPlayer == nil {
+        if AudioPlayer.instance == nil {
             call.resolve()
             return
         }
         
         let amount = (Double(call.getString("amount", "0")) ?? 0) / 1000
-        let destinationTime = self.currentPlayer!.getCurrentTime() + amount
+        let destinationTime = AudioPlayer.instance!.getCurrentTime() + amount
         
-        self.currentPlayer!.seek(destinationTime)
+        AudioPlayer.instance!.seek(destinationTime)
         call.resolve()
     }
     @objc func seekBackward(_ call: CAPPluginCall) {
-        if self.currentPlayer == nil {
+        if AudioPlayer.instance == nil {
             call.resolve()
             return
         }
         
         let amount = (Double(call.getString("amount", "0")) ?? 0) / 1000
-        let destinationTime = self.currentPlayer!.getCurrentTime() - amount
+        let destinationTime = AudioPlayer.instance!.getCurrentTime() - amount
         
-        self.currentPlayer!.seek(destinationTime)
+        AudioPlayer.instance!.seek(destinationTime)
         call.resolve()
     }
     @objc func seekPlayer(_ call: CAPPluginCall) {
-        if self.currentPlayer == nil {
+        if AudioPlayer.instance == nil {
             call.resolve()
             return
         }
@@ -96,28 +101,28 @@ public class MyNativeAudio: CAPPlugin {
         let seekTime = (Double(call.getString("timeMs", "0")) ?? 0) / 1000
         NSLog("Seek Player \(seekTime)")
         
-        self.currentPlayer!.seek(seekTime)
+        AudioPlayer.instance!.seek(seekTime)
         call.resolve()
     }
     
     @objc func pausePlayer(_ call: CAPPluginCall) {
-        if self.currentPlayer == nil {
+        if AudioPlayer.instance == nil {
             call.resolve()
             return
         }
         
-        self.currentPlayer!.pause()
+        AudioPlayer.instance!.pause()
         
         sendPlaybackStatusUpdate(false)
         call.resolve()
     }
     @objc func playPlayer(_ call: CAPPluginCall) {
-        if self.currentPlayer == nil {
+        if AudioPlayer.instance == nil {
             call.resolve()
             return
         }
         
-        self.currentPlayer!.play(allowSeekBack: true)
+        AudioPlayer.instance!.play(allowSeekBack: true)
         
         sendPlaybackStatusUpdate(true)
         call.resolve()
@@ -128,10 +133,10 @@ public class MyNativeAudio: CAPPlugin {
         call.resolve()
     }
     @objc func stop(_ call: CAPPluginCall? = nil) {
-        if self.currentPlayer != nil {
-            self.currentPlayer!.destroy()
+        if AudioPlayer.instance != nil {
+            AudioPlayer.instance!.destroy()
         }
-        self.currentPlayer = nil
+        AudioPlayer.instance = nil
         
         if call != nil {
             call!.resolve([ "result": true ])
@@ -139,37 +144,37 @@ public class MyNativeAudio: CAPPlugin {
     }
     
     @objc func getCurrentTime(_ call: CAPPluginCall) {
-        if self.currentPlayer == nil {
+        if AudioPlayer.instance == nil {
             call.resolve()
             return
         }
         
-        let currentTime = self.currentPlayer?.getCurrentTime() ?? 0
+        let currentTime = AudioPlayer.instance?.getCurrentTime() ?? 0
         call.resolve([ "value": currentTime * 1000, "bufferedTime": currentTime * 1000 ])
     }
     @objc func getStreamSyncData(_ call: CAPPluginCall) {
-        if self.currentPlayer == nil {
+        if AudioPlayer.instance == nil {
             call.resolve([ "isPlaying": false, "lastPauseTime": 0, "id": nil ])
             return
         }
         
-        call.resolve([ "isPlaying": self.currentPlayer!.rate > 0.0, "lastPauseTime": 0, "id": self.currentPlayer?.audiobook.streamId as Any ])
+        call.resolve([ "isPlaying": AudioPlayer.instance!.rate > 0.0, "lastPauseTime": 0, "id": AudioPlayer.instance?.audiobook.streamId as Any ])
     }
     
     @objc func setPlaybackSpeed(_ call: CAPPluginCall) {
-        if self.currentPlayer == nil {
+        if AudioPlayer.instance == nil {
             call.resolve()
             return
         }
         
         let speed = call.getFloat("speed") ?? 0
-        self.currentPlayer!.setPlaybackRate(speed)
+        AudioPlayer.instance!.setPlaybackRate(speed)
         
         call.resolve()
     }
     
     @objc func setSleepTimer(_ call: CAPPluginCall) {
-        if self.currentPlayer == nil {
+        if AudioPlayer.instance == nil {
             call.resolve()
             return
         }
@@ -180,14 +185,14 @@ public class MyNativeAudio: CAPPlugin {
         call.resolve([ "success": true ])
     }
     @objc func increaseSleepTime(_ call: CAPPluginCall) {
-        if self.currentPlayer == nil {
+        if AudioPlayer.instance == nil {
             call.resolve()
             return
         }
         
         var time = self.remainingSleepDuration + parseSleepTime(millis: call.getString("time"))
-        if time > self.currentPlayer!.getDuration() {
-            time = self.currentPlayer!.getDuration()
+        if time > AudioPlayer.instance!.getDuration() {
+            time = AudioPlayer.instance!.getDuration()
         }
         
         setSleepTimer(seconds: time)
@@ -217,7 +222,7 @@ public class MyNativeAudio: CAPPlugin {
     }
     
     func setSleepTimer(seconds: Double) {
-        if currentPlayer == nil {
+        if AudioPlayer.instance == nil {
             return
         }
         
@@ -239,7 +244,7 @@ public class MyNativeAudio: CAPPlugin {
         }
     }
     func updateSleepTime() {
-        if currentPlayer == nil {
+        if AudioPlayer.instance == nil {
             return
         }
         
@@ -248,10 +253,10 @@ public class MyNativeAudio: CAPPlugin {
                 currentSleepTimer!.invalidate()
             }
             self.notifyListeners("onSleepTimerEnded", data: [
-                "value": currentPlayer!.getCurrentTime(),
+                "value": AudioPlayer.instance!.getCurrentTime(),
             ])
             
-            currentPlayer!.pause()
+            AudioPlayer.instance!.pause()
             return
         }
         
@@ -261,16 +266,21 @@ public class MyNativeAudio: CAPPlugin {
         ])
     }
     
-    func sendMetadata() {
-        if self.currentPlayer == nil {
+    @objc func sendMetadata() {
+        if AudioPlayer.instance == nil {
             return
         }
         
+        NSLog("fired metadata update")
+        
         self.notifyListeners("onMetadata", data: [
-            "duration": self.currentPlayer!.getDuration() * 1000,
-            "currentTime": self.currentPlayer!.getCurrentTime() * 1000,
-            "stateName": "unknown"
+            "duration": AudioPlayer.instance!.getDuration() * 1000,
+            "currentTime": AudioPlayer.instance!.getCurrentTime() * 1000,
+            "stateName": "unknown",
+            
+            "currentRate": AudioPlayer.instance!.rate
         ])
+        sendPlaybackStatusUpdate(AudioPlayer.instance!.rate != 0.0)
     }
     func sendPlaybackStatusUpdate(_ playing: Bool) {
         self.notifyListeners("onPlayingUpdate", data: [
