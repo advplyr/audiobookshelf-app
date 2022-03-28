@@ -63,10 +63,19 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
+		3AC8248B27F2316900529205 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				3AFCB5E527EA232A00ECCC05 /* models */,
+				3AFCB5E627EA23F700ECCC05 /* util */,
+				3A200C1427D64D7E00CBF02E /* AudioPlayer.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
 		3AFCB5E427EA231D00ECCC05 /* audio */ = {
 			isa = PBXGroup;
 			children = (
-				3A200C1427D64D7E00CBF02E /* AudioPlayer.swift */,
 				4D8D410B26E17C3A00BA5F0D /* MyNativeAudio.swift */,
 				4D8D412D26E187E500BA5F0D /* MyNativeAudio.m */,
 			);
@@ -92,6 +101,7 @@
 		504EC2FB1FED79650016851F = {
 			isa = PBXGroup;
 			children = (
+				3AC8248B27F2316900529205 /* Shared */,
 				504EC3061FED79650016851F /* App */,
 				504EC3051FED79650016851F /* Products */,
 				7F8756D8B27F46E3366F6CEA /* Pods */,
@@ -110,8 +120,6 @@
 		504EC3061FED79650016851F /* App */ = {
 			isa = PBXGroup;
 			children = (
-				3AFCB5E627EA23F700ECCC05 /* util */,
-				3AFCB5E527EA232A00ECCC05 /* models */,
 				3AFCB5E427EA231D00ECCC05 /* audio */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
@@ -163,8 +171,8 @@
 		504EC2FC1FED79650016851F /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastSwiftUpdateCheck = 0920;
-				LastUpgradeCheck = 0920;
+				LastSwiftUpdateCheck = 920;
+				LastUpgradeCheck = 920;
 				TargetAttributes = {
 					504EC3031FED79650016851F = {
 						CreatedOnToolsVersion = 9.2;
@@ -390,7 +398,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = FC68EB0AF532CFC21C3344DD /* Pods-App.debug.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = Icons;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 3;
@@ -414,7 +422,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = AF51FD2D460BCFE21FA515B2 /* Pods-App.release.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = Icons;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 3;

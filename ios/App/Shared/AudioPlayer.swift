@@ -26,6 +26,7 @@ class AudioPlayer: NSObject {
     private var audioPlayer: AVPlayer
     public var audiobook: Audiobook
     
+    // MARK: - Constructor
     init(audiobook: Audiobook, playWhenReady: Bool = false) {
         self.playWhenReady = playWhenReady
         self.audiobook = audiobook
@@ -54,7 +55,7 @@ class AudioPlayer: NSObject {
     deinit {
         destroy()
     }
-    func destroy() {
+    public func destroy() {
         pause()
         audioPlayer.replaceCurrentItem(with: nil)
         
@@ -166,10 +167,9 @@ class AudioPlayer: NSObject {
             print(error)
         }
     }
-
     
     // MARK: - Now playing
-    func setupRemoteTransportControls() {
+    private func setupRemoteTransportControls() {
         DispatchQueue.main.sync {
             UIApplication.shared.beginReceivingRemoteControlEvents()
         }
@@ -228,8 +228,7 @@ class AudioPlayer: NSObject {
             return .success
         }
     }
-    
-    func updateNowPlaying() {
+    private func updateNowPlaying() {
         NowPlayingInfo.update(duration: getDuration(), currentTime: getCurrentTime(), rate: rate)
     }
     
@@ -240,7 +239,7 @@ class AudioPlayer: NSObject {
                 guard let playerStatus = AVPlayerItem.Status(rawValue: (change?[.newKey] as? Int ?? -1)) else { return }
                 
                 if playerStatus == .readyToPlay {
-                    updateNowPlaying()
+                    self.updateNowPlaying()
                     
                     self.status = 0
                     if self.playWhenReady {
@@ -251,7 +250,7 @@ class AudioPlayer: NSObject {
             }
         } else if context == &playerContext {
             if keyPath == #keyPath(AVPlayer.rate) {
-                setPlaybackRate(change?[.newKey] as? Float ?? 1.0, observed: true)
+                self.setPlaybackRate(change?[.newKey] as? Float ?? 1.0, observed: true)
             } else if keyPath == #keyPath(AVPlayer.currentItem) {
                 NSLog("WARNING: Item ended")
             }
@@ -260,4 +259,7 @@ class AudioPlayer: NSObject {
             return
         }
     }
+    
+    // MARK: - Factory
+    public static var instance: AudioPlayer?
 }

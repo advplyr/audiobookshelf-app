@@ -658,6 +658,10 @@ export default {
         this.setFromObj()
       }
 
+      console.log("received metadata update", data);
+
+      if(data.currentRate && data.currentRate > 0) this.playbackSpeed = data.currentRate
+
       this.timeupdate()
     },
     async init() {
