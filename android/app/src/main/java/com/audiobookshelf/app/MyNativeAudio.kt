@@ -67,12 +67,13 @@ class MyNativeAudio : Plugin() {
   fun prepareLibraryItem(call: PluginCall) {
     var libraryItemId = call.getString("libraryItemId", "").toString()
     var mediaEntityId = call.getString("mediaEntityId", "").toString()
+    var playWhenReady = call.getBoolean("playWhenReady") == true
 
     apiHandler.playLibraryItem(libraryItemId) {
 
       Handler(Looper.getMainLooper()).post() {
         Log.d(tag, "Preparing Player TEST ${jacksonObjectMapper().writeValueAsString(it)}")
-        playerNotificationService.preparePlayer(it)
+        playerNotificationService.preparePlayer(it, playWhenReady)
       }
 
       call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(it)))

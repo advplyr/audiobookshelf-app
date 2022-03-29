@@ -2,7 +2,6 @@ import Vue from 'vue'
 import { Network } from '@capacitor/network'
 
 export const state = () => ({
-  streamLibraryItem: null,
   streamAudiobook: null,
   playingDownload: null,
   playOnLoad: false,
@@ -80,9 +79,6 @@ export const mutations = {
   },
   setPlayOnLoad(state, val) {
     state.playOnLoad = val
-  },
-  setLibraryItemStream(state, libraryItem) {
-    state.streamLibraryItem = libraryItem
   },
   setStreamAudiobook(state, audiobook) {
     if (audiobook) {

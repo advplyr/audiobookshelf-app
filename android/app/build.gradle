@@ -88,6 +88,9 @@ dependencies {
 
   // Jackson for JSON
   implementation 'com.fasterxml.jackson.module:jackson-module-kotlin:2.12.1'
+
+  // FFMPEG-Kit
+  implementation 'com.arthenica:ffmpeg-kit-full:4.5.1'
 }
 
 apply from: 'capacitor.build.gradle'

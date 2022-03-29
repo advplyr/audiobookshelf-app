@@ -6,6 +6,7 @@ import android.content.SharedPreferences
 import android.util.Log
 import com.audiobookshelf.app.data.Library
 import com.audiobookshelf.app.data.LibraryItem
+import com.audiobookshelf.app.data.MediaTypeMetadata
 import com.audiobookshelf.app.data.PlaybackSession
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue

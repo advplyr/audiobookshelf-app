@@ -13,6 +13,15 @@ import org.json.JSONObject
 class DbManager : Plugin() {
   val tag = "DbManager"
 
+  fun loadDeviceData():DeviceData {
+    var deviceData:DeviceData? = Paper.book("device").read("data")
+    return deviceData ?: DeviceData(mutableListOf(),null)
+  }
+
+  fun saveDeviceData(deviceData:DeviceData) {
+    Paper.book("device").write("data", deviceData)
+  }
+
   fun saveObject(db:String, key:String, value:JSONObject) {
     Log.d(tag, "Saving Object $key ${value.toString()}")
     Paper.book(db).write(key, value)

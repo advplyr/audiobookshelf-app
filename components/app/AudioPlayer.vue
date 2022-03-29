@@ -31,13 +31,13 @@
 
     <div class="cover-wrapper absolute z-30 pointer-events-auto" :class="bookCoverAspectRatio === 1 ? 'square-cover' : ''" @click="clickContainer">
       <div class="cover-container bookCoverWrapper bg-black bg-opacity-75 w-full h-full">
-        <covers-book-cover :audiobook="audiobook" :download-cover="downloadedCover" :width="bookCoverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" />
+        <covers-book-cover :library-item="libraryItem" :download-cover="downloadedCover" :width="bookCoverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" />
       </div>
     </div>
 
     <div class="title-author-texts absolute z-30 left-0 right-0 overflow-hidden">
       <p class="title-text font-book truncate">{{ title }}</p>
-      <p class="author-text text-white text-opacity-75 truncate">by {{ authorFL }}</p>
+      <p class="author-text text-white text-opacity-75 truncate">by {{ authorName }}</p>
     </div>
 
     <div id="streamContainer" class="w-full z-20 bg-primary absolute bottom-0 left-0 right-0 p-2 pointer-events-auto transition-all" @click="clickContainer">
@@ -58,19 +58,19 @@
 
       <div id="playerControls" class="absolute right-0 bottom-0 py-2">
         <div class="flex items-center justify-center">
-          <span v-show="showFullscreen" class="material-icons next-icon text-white text-opacity-75 cursor-pointer" :class="loading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpChapterStart">first_page</span>
-          <span class="material-icons jump-icon text-white cursor-pointer" :class="loading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="backward10">replay_10</span>
+          <span v-show="showFullscreen" class="material-icons next-icon text-white text-opacity-75 cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpChapterStart">first_page</span>
+          <span class="material-icons jump-icon text-white cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="backward10">replay_10</span>
           <div class="play-btn cursor-pointer shadow-sm bg-accent flex items-center justify-center rounded-full text-primary mx-4" :class="seekLoading ? 'animate-spin' : ''" @mousedown.prevent @mouseup.prevent @click.stop="playPauseClick">
-            <span v-if="!loading" class="material-icons">{{ seekLoading ? 'autorenew' : isPaused ? 'play_arrow' : 'pause' }}</span>
+            <span v-if="!isLoading" class="material-icons">{{ seekLoading ? 'autorenew' : isPaused ? 'play_arrow' : 'pause' }}</span>
             <widgets-spinner-icon v-else class="h-8 w-8" />
           </div>
-          <span class="material-icons jump-icon text-white cursor-pointer" :class="loading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="forward10">forward_10</span>
-          <span v-show="showFullscreen" class="material-icons next-icon text-white cursor-pointer" :class="nextChapter && !loading ? 'text-opacity-75' : 'text-opacity-10'" @click.stop="jumpNextChapter">last_page</span>
+          <span class="material-icons jump-icon text-white cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="forward10">forward_10</span>
+          <span v-show="showFullscreen" class="material-icons next-icon text-white cursor-pointer" :class="nextChapter && !isLoading ? 'text-opacity-75' : 'text-opacity-10'" @click.stop="jumpNextChapter">last_page</span>
         </div>
       </div>
 
       <div id="playerTrack" class="absolute bottom-0 left-0 w-full px-3">
-        <div ref="track" class="h-2 w-full bg-gray-500 bg-opacity-50 relative" :class="loading ? 'animate-pulse' : ''" @click="clickTrack">
+        <div ref="track" class="h-2 w-full bg-gray-500 bg-opacity-50 relative" :class="isLoading ? 'animate-pulse' : ''" @click="clickTrack">
           <div ref="readyTrack" class="h-full bg-gray-600 absolute top-0 left-0 pointer-events-none" />
           <div ref="bufferedTrack" class="h-full bg-gray-500 absolute top-0 left-0 pointer-events-none" />
           <div ref="playedTrack" class="h-full bg-gray-200 absolute top-0 left-0 pointer-events-none" />
@@ -93,7 +93,11 @@ import MyNativeAudio from '@/plugins/my-native-audio'
 export default {
   props: {
     playing: Boolean,
-    audiobook: {
+    libraryItem: {
+      type: Object,
+      default: () => {}
+    },
+    mediaEntity: {
       type: Object,
       default: () => {}
     },
@@ -105,7 +109,6 @@ export default {
       type: Array,
       default: () => []
     },
-    loading: Boolean,
     sleepTimerRunning: Boolean,
     sleepTimeRemaining: Number
   },
@@ -140,7 +143,8 @@ export default {
       listenTimeInterval: null,
       listeningTimeSinceLastUpdate: 0,
       totalListeningTimeInSession: 0,
-      useChapterTrack: false
+      useChapterTrack: false,
+      isLoading: true
     }
   },
   computed: {
@@ -175,17 +179,20 @@ export default {
       }
       return this.showFullscreen ? 200 : 60
     },
-    book() {
-      return this.audiobook.book || {}
+    media() {
+      return this.libraryItem.media || {}
+    },
+    mediaMetadata() {
+      return this.media.metadata || {}
     },
     title() {
-      return this.book.title
+      return this.mediaMetadata.title
     },
-    authorFL() {
-      return this.book.authorFL
+    authorName() {
+      return this.mediaMetadata.authorName
     },
     chapters() {
-      return (this.audiobook ? this.audiobook.chapters || [] : []).map((chapter) => {
+      return (this.mediaEntity ? this.mediaEntity.chapters || [] : []).map((chapter) => {
         var chap = { ...chapter }
         chap.start = Number(chap.start)
         chap.end = Number(chap.end)
@@ -193,7 +200,7 @@ export default {
       })
     },
     currentChapter() {
-      if (!this.audiobook || !this.chapters.length) return null
+      if (!this.mediaEntity || !this.chapters.length) return null
       return this.chapters.find((ch) => Number(Number(ch.start).toFixed(2)) <= this.currentTime && Number(Number(ch.end).toFixed(2)) > this.currentTime)
     },
     nextChapter() {
@@ -329,12 +336,12 @@ export default {
       this.forceCloseDropdownMenu()
     },
     jumpNextChapter() {
-      if (this.loading) return
+      if (this.isLoading) return
       if (!this.nextChapter) return
       this.seek(this.nextChapter.start)
     },
     jumpChapterStart() {
-      if (this.loading) return
+      if (this.isLoading) return
       if (!this.currentChapter) {
         return this.restart()
       }
@@ -362,11 +369,11 @@ export default {
       this.seek(0)
     },
     backward10() {
-      if (this.loading) return
+      if (this.isLoading) return
       MyNativeAudio.seekBackward({ amount: '10000' })
     },
     forward10() {
-      if (this.loading) return
+      if (this.isLoading) return
       MyNativeAudio.seekForward({ amount: '10000' })
     },
     setStreamReady() {
@@ -461,7 +468,7 @@ export default {
       }
     },
     seek(time) {
-      if (this.loading) return
+      if (this.isLoading) return
       if (this.seekLoading) {
         console.error('Already seek loading', this.seekedTime)
         return
@@ -482,7 +489,7 @@ export default {
       }
     },
     clickTrack(e) {
-      if (this.loading) return
+      if (this.isLoading) return
       if (!this.showFullscreen) {
         // Track not clickable on mini-player
         return
@@ -504,7 +511,7 @@ export default {
       this.seek(time)
     },
     playPauseClick() {
-      if (this.loading) return
+      if (this.isLoading) return
       if (this.isPaused) {
         console.log('playPause PLAY')
         this.play()
@@ -641,6 +648,7 @@ export default {
       MyNativeAudio.terminateStream()
     },
     onPlayingUpdate(data) {
+      console.log('onPlayingUpdate', JSON.stringify(data))
       this.isPaused = !data.value
       if (!this.isPaused) {
         this.startPlayInterval()
@@ -649,6 +657,9 @@ export default {
       }
     },
     onMetadata(data) {
+      console.log('onMetadata', JSON.stringify(data))
+      this.isLoading = false
+
       this.totalDuration = Number((data.duration / 1000).toFixed(2))
       this.$emit('setTotalDuration', this.totalDuration)
       this.currentTime = Number((data.currentTime / 1000).toFixed(2))

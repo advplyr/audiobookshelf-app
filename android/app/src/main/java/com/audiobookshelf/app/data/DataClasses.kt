@@ -1,9 +1,6 @@
 package com.audiobookshelf.app.data
 
-import android.net.Uri
-import android.support.v4.media.MediaMetadataCompat
 import com.fasterxml.jackson.annotation.*
-import com.google.android.exoplayer2.MediaMetadata
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class LibraryItem(
@@ -23,7 +20,7 @@ data class LibraryItem(
   var isMissing:Boolean,
   var isInvalid:Boolean,
   var mediaType:String,
-  var media:MediaEntity,
+  var media:MediaType,
   var libraryFiles:MutableList<LibraryFile>
 )
 
@@ -33,7 +30,7 @@ data class LibraryItem(
   JsonSubTypes.Type(Book::class),
   JsonSubTypes.Type(Podcast::class)
 )
-open class MediaEntity {}
+open class MediaType {}
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class Podcast(
@@ -42,15 +39,15 @@ data class Podcast(
   var tags:MutableList<String>,
   var episodes:MutableList<PodcastEpisode>,
   var autoDownloadEpisodes:Boolean
-) : MediaEntity()
+) : MediaType()
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class Book(
   var metadata:BookMetadata,
   var coverPath:String?,
   var tags:MutableList<String>,
-  var audiobooks:MutableList<Audiobook>
-) : MediaEntity()
+  var audioFiles:MutableList<AudioFile>
+) : MediaType()
 
 // This auto-detects whether it is a Book or Podcast
 @JsonTypeInfo(use=JsonTypeInfo.Id.DEDUCTION)
@@ -58,14 +55,29 @@ data class Book(
   JsonSubTypes.Type(BookMetadata::class),
   JsonSubTypes.Type(PodcastMetadata::class)
 )
-open class MediaEntityMetadata {}
+open class MediaTypeMetadata {}
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class BookMetadata(
   var title:String,
   var subtitle:String?,
-  var authors:MutableList<Author>
-) : MediaEntityMetadata()
+  var authors:MutableList<Author>,
+  var narrators:MutableList<String>,
+  var genres:MutableList<String>,
+  var publishedYear:String?,
+  var publishedDate:String?,
+  var publisher:String?,
+  var description:String?,
+  var isbn:String?,
+  var asin:String?,
+  var language:String?,
+  var explicit:Boolean,
+  // In toJSONExpanded
+  var authorName:String?,
+  var authorNameLF:String?,
+  var narratorName:String?,
+  var seriesName:String?
+) : MediaTypeMetadata()
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class PodcastMetadata(
@@ -73,21 +85,13 @@ data class PodcastMetadata(
   var author:String?,
   var feedUrl:String,
   var genres:MutableList<String>
-) : MediaEntityMetadata()
+) : MediaTypeMetadata()
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class Author(
   var id:String,
   var name:String,
   var coverPath:String?
-)
-
-@JsonIgnoreProperties(ignoreUnknown = true)
-data class Audiobook(
-  var id:String,
-  var index:Int,
-  var name:String,
-  var audioFiles:MutableList<AudioFile>
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -139,73 +143,12 @@ data class Folder(
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-class PlaybackSession(
-  var id:String,
-  var userId:String,
-  var libraryItemId:String,
-  var mediaEntityId:String,
-  var mediaType:String,
-  var mediaMetadata:MediaEntityMetadata,
-  var duration:Double,
-  var playMethod:Int,
-  var audioTracks:MutableList<AudioTrack>,
-  var currentTime:Double,
-  var serverUrl:String,
-  var token:String
-) {
-  fun getTitle():String {
-    var metadata = mediaMetadata as BookMetadata
-    return metadata.title
-  }
-  fun getAuthor():String {
-    var metadata = mediaMetadata as BookMetadata
-    return  metadata.authors.joinToString(",") { it.name }
-  }
-  fun getContentUri():String {
-    // TODO: Using Uri.parse here is throwing error with jackson
-    var audioTrack = audioTracks[0]
-    return "$serverUrl${audioTrack.contentUrl}?token=$token"
-  }
-  fun getMimeType():String {
-    var audioTrack = audioTracks[0]
-    return audioTrack.mimeType
-  }
-  fun getMediaMetadataCompat(): MediaMetadataCompat {
-      var metadata = mediaMetadata as BookMetadata
-
-    var metadataBuilder = MediaMetadataCompat.Builder()
-      .putString(MediaMetadataCompat.METADATA_KEY_TITLE, metadata.title)
-      .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, metadata.title)
-      .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, metadata.authors.joinToString(",") { it.name })
-      .putString(MediaMetadataCompat.METADATA_KEY_AUTHOR, metadata.authors.joinToString(",") { it.name })
-      .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, metadata.authors.joinToString(",") { it.name })
-      .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, "series")
-      .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, id)
-    return metadataBuilder.build()
-  }
-  fun getMediaMetadata(): MediaMetadata {
-    var metadata = mediaMetadata as BookMetadata
-    var authorName = metadata.authors.joinToString(",") { it.name }
-    var metadataBuilder = MediaMetadata.Builder()
-      .setTitle(metadata.title)
-      .setDisplayTitle(metadata.title)
-      .setArtist(authorName)
-      .setAlbumArtist(authorName)
-      .setSubtitle(authorName)
-
-//    var contentUri = this.getContentUri()
-//      metadataBuilder.setMediaUri(contentUri)
-
-    return metadataBuilder.build()
-  }
-}
-
-@JsonIgnoreProperties(ignoreUnknown = true)
 data class AudioTrack(
   var index:Int,
   var startOffset:Double,
   var duration:Double,
   var title:String,
   var contentUrl:String,
-  var mimeType:String
+  var mimeType:String,
+  var isLocal:Boolean
 )

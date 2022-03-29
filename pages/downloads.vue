@@ -134,16 +134,13 @@ export default {
   methods: {
     async changeDownloadFolderClick() {
       if (!this.hasStoragePermission) {
-        console.log('Requesting Storage Permission')
         StorageManager.requestStoragePermission()
       } else {
         var folderObj = await StorageManager.selectFolder()
         if (folderObj.error) {
           return this.$toast.error(`Error: ${folderObj.error || 'Unknown Error'}`)
         }
-
         var permissionsGood = await StorageManager.checkFolderPermissions({ folderUrl: folderObj.uri })
-        console.log('Storage Permission check folder ' + permissionsGood)
 
         if (!permissionsGood) {
           this.$toast.error('Folder permissions failed')

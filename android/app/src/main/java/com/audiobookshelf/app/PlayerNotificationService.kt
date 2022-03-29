@@ -381,8 +381,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
           .setMediaId(currentPlaybackSession!!.id)
           .setTitle(currentPlaybackSession!!.getTitle())
           .setSubtitle(currentPlaybackSession!!.getAuthor())
-//          .setMediaUri(currentPlaybackSession!!.getContentUri())
-//          .setIconUri(currentAudiobookStreamData!!.)
+          .setMediaUri(currentPlaybackSession!!.getContentUri())
+          .setIconUri(currentPlaybackSession!!.getCoverUri())
         return builder.build()
       }
     }
@@ -666,21 +666,44 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   /*
     User callable methods
   */
-  fun preparePlayer(playbackSession: PlaybackSession) {
+  fun preparePlayer(playbackSession: PlaybackSession, playWhenReady:Boolean) {
     currentPlaybackSession = playbackSession
     var metadata = playbackSession.getMediaMetadataCompat()
     mediaSession.setMetadata(metadata)
-    var mediaMetadata = playbackSession.getMediaMetadata()
-    var mediaUrl = playbackSession.getContentUri()
-    var mimeType = playbackSession.getMimeType()
-    Log.d(tag, "Media URL $mediaUrl")
-    var mediaUri = Uri.parse(mediaUrl)
-    var mediaItem = MediaItem.Builder().setUri(mediaUri).setMediaMetadata(mediaMetadata).setMimeType(mimeType).build()
-    var dataSourceFactory = DefaultDataSourceFactory(ctx, channelId)
-    var mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
-    mPlayer.setMediaSource(mediaSource, 0L)
-    mPlayer.prepare()
-    mPlayer.playWhenReady = true
+    var mediaMetadata = playbackSession.getExoMediaMetadata()
+
+
+//    var mediaUri = playbackSession.getContentUri()
+//    var mimeType = playbackSession.getMimeType()
+//    var mediaItem = MediaItem.Builder().setUri(mediaUri).setMediaMetadata(mediaMetadata).setMimeType(mimeType).build()
+//    var dataSourceFactory = DefaultDataSourceFactory(ctx, channelId)
+//    var mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
+//    mPlayer.setMediaSource(mediaSource, 0L)
+
+//    if (mPlayer == currentPlayer) {
+//      var mediaSource:MediaSource
+//
+//      if (currentAudiobookStreamData!!.isLocal) {
+//        Log.d(tag, "Playing Local File")
+//        var dataSourceFactory = DefaultDataSourceFactory(ctx, channelId)
+//        mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
+//      } else {
+//        Log.d(tag, "Playing HLS File")
+//        var dataSourceFactory = DefaultHttpDataSource.Factory()
+//        dataSourceFactory.setUserAgent(channelId)
+//        dataSourceFactory.setDefaultRequestProperties(hashMapOf("Authorization" to "Bearer ${currentAudiobookStreamData!!.token}"))
+//        mediaSource = HlsMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
+//      }
+//      mPlayer.setMediaSource(mediaSource, currentAudiobookStreamData!!.startTime)
+//    } else if (castPlayer != null) {
+////      var mediaQueue = currentAudiobookStreamData!!.getCastQueue()
+//      // TODO: Start position will need to be adjusted if using multi-track queue
+////      castPlayer?.setMediaItems(mediaQueue, 0, 0)
+//    }
+
+    currentPlayer.prepare()
+    currentPlayer.playWhenReady = playWhenReady
+    currentPlayer.setPlaybackSpeed(1f) // TODO: Playback speed should come from settings
   }
 
   fun initPlayer(audiobookStreamData: AudiobookStreamData) {

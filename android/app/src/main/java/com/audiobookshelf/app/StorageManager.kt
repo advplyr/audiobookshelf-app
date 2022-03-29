@@ -1,16 +1,20 @@
 package com.audiobookshelf.app
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.database.Cursor
 import android.net.Uri
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
+import androidx.core.app.ActivityCompat
 import androidx.documentfile.provider.DocumentFile
 
 import com.anggrayudi.storage.SimpleStorage
 import com.anggrayudi.storage.callback.FolderPickerCallback
 import com.anggrayudi.storage.callback.StorageAccessCallback
 import com.anggrayudi.storage.file.*
+import com.audiobookshelf.app.device.FolderScanner
 import com.getcapacitor.*
 import com.getcapacitor.annotation.CapacitorPlugin
 
@@ -112,6 +116,7 @@ class StorageManager : Plugin() {
         call.resolve(jsobj)
       }
     }
+
     mainActivity.storage.openFolderPicker(6)
   }
 
@@ -126,12 +131,11 @@ class StorageManager : Plugin() {
   @PluginMethod
   fun checkStoragePermission(call: PluginCall) {
     var res = false
-
     if (Build.VERSION.SDK_INT <= android.os.Build.VERSION_CODES.P) {
       res = SimpleStorage.hasStoragePermission(context)
-      Log.d(TAG, "Check Storage Access $res")
+      Log.d(TAG, "checkStoragePermission: Check Storage Access $res")
     } else {
-      Log.d(TAG, "Has permission on Android 10 or up")
+      Log.d(TAG, "checkStoragePermission: Has permission on Android 10 or up")
       res = true
     }
 
@@ -157,58 +161,63 @@ class StorageManager : Plugin() {
     var folderUrl = call.data.getString("folderUrl", "").toString()
     Log.d(TAG, "Searching folder $folderUrl")
 
-    var df: DocumentFile? = DocumentFileCompat.fromUri(context, Uri.parse(folderUrl))
-
-    if (df == null) {
-      Log.e(TAG, "Folder Doc File Invalid $folderUrl")
-      var jsobj = JSObject()
-      jsobj.put("folders", JSArray())
-      jsobj.put("files", JSArray())
-      call.resolve(jsobj)
-      return
-    }
-
-    Log.d(TAG, "Folder as DF ${df.isDirectory} | ${df.getSimplePath(context)} | ${df.getBasePath(context)} | ${df.name}")
-
-    var mediaFolders = mutableListOf<MediaFolder>()
-    var foldersFound = df.search(false, DocumentFileType.FOLDER)
-
-    foldersFound.forEach {
-      Log.d(TAG, "Iterating over Folder Found ${it.name} | ${it.getSimplePath(context)} | URI: ${it.uri}")
-      var folderName = it.name ?: ""
-      var mediaFiles = mutableListOf<MediaFile>()
-
-      var filesInFolder = it.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*"))
-      filesInFolder.forEach { it2 ->
-        var mimeType = it2?.mimeType ?: ""
-        var filename = it2?.name ?: ""
-        var isAudio = mimeType.startsWith("audio")
-        Log.d(TAG, "Found $mimeType file $filename in folder $folderName")
-        var imageFile = MediaFile(it2.uri, filename, it2.getSimplePath(context), it2.length(), mimeType, isAudio)
-        mediaFiles.add(imageFile)
-      }
-      if (mediaFiles.size > 0) {
-        mediaFolders.add(MediaFolder(it.uri, folderName, it.getSimplePath(context), mediaFiles))
-      }
-    }
-
-    // Files in root dir
-    var rootMediaFiles = mutableListOf<MediaFile>()
-    var mediaFilesFound:List<DocumentFile> = df.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*"))
-    mediaFilesFound.forEach {
-      Log.d(TAG, "Folder Root File Found ${it.name} | ${it.getSimplePath(context)} | URI: ${it.uri} | ${it.mimeType}")
-      var mimeType = it?.mimeType ?: ""
-      var filename = it?.name ?: ""
-      var isAudio = mimeType.startsWith("audio")
-      Log.d(TAG, "Found $mimeType file $filename in root folder")
-      var imageFile = MediaFile(it.uri, filename, it.getSimplePath(context), it.length(), mimeType, isAudio)
-      rootMediaFiles.add(imageFile)
-    }
-
-    var jsobj = JSObject()
-    jsobj.put("folders", mediaFolders.map{ it.toJSObject() })
-    jsobj.put("files", rootMediaFiles.map{ it.toJSObject() })
-    call.resolve(jsobj)
+    var folderScanner = FolderScanner(context)
+    var data = folderScanner.scanForAudiobooks(folderUrl)
+    Log.d(TAG, "Scan DATA $data")
+    call.resolve(JSObject())
+//
+//    var df: DocumentFile? = DocumentFileCompat.fromUri(context, Uri.parse(folderUrl))
+//
+//    if (df == null) {
+//      Log.e(TAG, "Folder Doc File Invalid $folderUrl")
+//      var jsobj = JSObject()
+//      jsobj.put("folders", JSArray())
+//      jsobj.put("files", JSArray())
+//      call.resolve(jsobj)
+//      return
+//    }
+//
+//    Log.d(TAG, "Folder as DF ${df.isDirectory} | ${df.getSimplePath(context)} | ${df.getBasePath(context)} | ${df.name}")
+//
+//    var mediaFolders = mutableListOf<MediaFolder>()
+//    var foldersFound = df.search(false, DocumentFileType.FOLDER)
+//
+//    foldersFound.forEach {
+//      Log.d(TAG, "Iterating over Folder Found ${it.name} | ${it.getSimplePath(context)} | URI: ${it.uri}")
+//      var folderName = it.name ?: ""
+//      var mediaFiles = mutableListOf<MediaFile>()
+//
+//      var filesInFolder = it.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*"))
+//      filesInFolder.forEach { it2 ->
+//        var mimeType = it2?.mimeType ?: ""
+//        var filename = it2?.name ?: ""
+//        var isAudio = mimeType.startsWith("audio")
+//        Log.d(TAG, "Found $mimeType file $filename in folder $folderName")
+//        var imageFile = MediaFile(it2.uri, filename, it2.getSimplePath(context), it2.length(), mimeType, isAudio)
+//        mediaFiles.add(imageFile)
+//      }
+//      if (mediaFiles.size > 0) {
+//        mediaFolders.add(MediaFolder(it.uri, folderName, it.getSimplePath(context), mediaFiles))
+//      }
+//    }
+//
+//    // Files in root dir
+//    var rootMediaFiles = mutableListOf<MediaFile>()
+//    var mediaFilesFound:List<DocumentFile> = df.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*"))
+//    mediaFilesFound.forEach {
+//      Log.d(TAG, "Folder Root File Found ${it.name} | ${it.getSimplePath(context)} | URI: ${it.uri} | ${it.mimeType}")
+//      var mimeType = it?.mimeType ?: ""
+//      var filename = it?.name ?: ""
+//      var isAudio = mimeType.startsWith("audio")
+//      Log.d(TAG, "Found $mimeType file $filename in root folder")
+//      var imageFile = MediaFile(it.uri, filename, it.getSimplePath(context), it.length(), mimeType, isAudio)
+//      rootMediaFiles.add(imageFile)
+//    }
+//
+//    var jsobj = JSObject()
+//    jsobj.put("folders", mediaFolders.map{ it.toJSObject() })
+//    jsobj.put("files", rootMediaFiles.map{ it.toJSObject() })
+//    call.resolve(jsobj)
   }
 
 

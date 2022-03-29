@@ -1,5 +1,6 @@
 export const state = () => ({
-
+  libraryItemPlaying: null,
+  mediaEntityPlaying: null
 })
 
 export const getters = {
@@ -28,5 +29,10 @@ export const actions = {
 }
 
 export const mutations = {
-
+  setLibraryItemPlaying(state, libraryItem) {
+    state.libraryItemPlaying = libraryItem
+  },
+  setMediaEntityPlaying(state, mediaEntity) {
+    state.mediaEntityPlaying = mediaEntity
+  }
 }
