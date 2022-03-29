@@ -1,12 +1,12 @@
 <template>
   <div>
-    <div v-if="audiobook" id="streamContainer">
+    <div v-if="libraryItemPlaying" id="streamContainer">
       <app-audio-player
         ref="audioPlayer"
         :playing.sync="isPlaying"
-        :audiobook="audiobook"
+        :library-item="libraryItemPlaying"
+        :media-entity="mediaEntityPlaying"
         :download="download"
-        :loading="isLoading"
         :bookmarks="bookmarks"
         :sleep-timer-running="isSleepTimerRunning"
         :sleep-time-remaining="sleepTimeRemaining"
@@ -69,6 +69,12 @@ export default {
     userToken() {
       return this.$store.getters['user/getToken']
     },
+    libraryItemPlaying() {
+      return this.$store.state.globals.libraryItemPlaying
+    },
+    mediaEntityPlaying() {
+      return this.$store.state.globals.mediaEntityPlaying
+    },
     userAudiobook() {
       if (!this.audiobookId) return
       return this.$store.getters['user/getUserAudiobookData'](this.audiobookId)
@@ -83,11 +89,6 @@ export default {
     },
     socketConnected() {
       return this.$store.state.socketConnected
-    },
-    isLoading() {
-      if (this.playingDownload) return false
-      if (!this.streamAudiobook) return false
-      return !this.stream || this.streamAudiobook.id !== this.stream.audiobook.id
     },
     playingDownload() {
       return this.$store.state.playingDownload
@@ -476,15 +477,17 @@ export default {
         return null
       })
       if (!libraryItem) return
-      this.$store.commit('setLibraryItemStream', libraryItem)
+      this.$store.commit('globals/setLibraryItemPlaying', libraryItem)
 
-      // TODO: Call load library item in native
-      console.log('TEST prepare library item', libraryItemId)
-      MyNativeAudio.prepareLibraryItem({ libraryItemId }).then((data) => {
-        console.log('TEST library item play response', JSON.stringify(data))
-      }).catch((error) => {
-        console.error('TEST failed', error)
-      })
+      MyNativeAudio.prepareLibraryItem({ libraryItemId, playWhenReady: true })
+        .then((data) => {
+          console.log('TEST library item play response', JSON.stringify(data))
+          var mediaEntity = data.mediaEntity
+          this.$store.commit('globals/setMediaEntityPlaying', mediaEntity)
+        })
+        .catch((error) => {
+          console.error('TEST failed', error)
+        })
     }
   },
   mounted() {

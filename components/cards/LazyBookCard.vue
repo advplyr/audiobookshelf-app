@@ -52,8 +52,6 @@
 </template>
 
 <script>
-import Vue from 'vue'
-
 export default {
   props: {
     index: Number,
@@ -126,12 +124,10 @@ export default {
       return this._libraryItem.libraryId
     },
     hasEbook() {
-      if (!this.media.ebooks) return 0
-      return this.media.ebooks.length
+      return this.media.ebookFile
     },
-    hasAudiobook() {
-      if (!this.media.audiobooks) return 0
-      return this.media.audiobooks.length
+    numTracks() {
+      return this.media.numTracks
     },
     processingBatch() {
       return this.store.state.processingBatch
@@ -211,7 +207,7 @@ export default {
       return !this.isSelectionMode && this.showExperimentalFeatures && !this.showPlayButton && this.hasEbook
     },
     showPlayButton() {
-      return !this.isSelectionMode && !this.isMissing && !this.isInvalid && this.hasAudiobook && !this.isStreaming
+      return !this.isSelectionMode && !this.isMissing && !this.isInvalid && this.numTracks && !this.isStreaming
     },
     showSmallEBookIcon() {
       return !this.isSelectionMode && this.showExperimentalFeatures && this.hasEbook

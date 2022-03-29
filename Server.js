@@ -1,13 +1,13 @@
 import { io } from 'socket.io-client'
 import { Storage } from '@capacitor/storage'
-import axios from 'axios'
 import EventEmitter from 'events'
 
 class Server extends EventEmitter {
-  constructor(store) {
+  constructor(store, $axios) {
     super()
 
     this.store = store
+    this.$axios = $axios
 
     this.url = null
     this.socket = null
@@ -119,7 +119,7 @@ class Server extends EventEmitter {
   async login(url, username, password) {
     var serverUrl = this.getServerUrl(url)
     var authUrl = serverUrl + '/login'
-    return axios.post(authUrl, { username, password }).then((res) => {
+    return this.$axios.post(authUrl, { username, password }).then((res) => {
       if (!res.data || !res.data.user) {
         console.error(res.data.error)
         return {
@@ -160,7 +160,7 @@ class Server extends EventEmitter {
 
   authorize(serverUrl, token) {
     var authUrl = serverUrl + '/api/authorize'
-    return axios.post(authUrl, null, { headers: { Authorization: `Bearer ${token}` } }).then((res) => {
+    return this.$axios.post(authUrl, null, { headers: { Authorization: `Bearer ${token}` } }).then((res) => {
       return res.data
     }).catch(error => {
       console.error('[Server] Server auth failed', error)
@@ -181,7 +181,7 @@ class Server extends EventEmitter {
   ping(url) {
     var pingUrl = url + '/ping'
     console.log('[Server] Check server', pingUrl)
-    return axios.get(pingUrl, { timeout: 1000 }).then((res) => {
+    return this.$axios.get(pingUrl, { timeout: 1000 }).then((res) => {
       return res.data
     }).catch(error => {
       console.error('Server check failed', error)

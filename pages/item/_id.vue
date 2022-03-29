@@ -115,20 +115,11 @@ export default {
     series() {
       return this.mediaMetadata.series || []
     },
-    audiobooks() {
-      return this.media.audiobooks || []
-    },
-    defaultAudiobook() {
-      if (!this.audiobooks.length) return null
-      return this.audiobooks[0]
-    },
     duration() {
-      if (!this.defaultAudiobook) return 0
-      return this.defaultAudiobook.duration
+      return this.media.duration
     },
     size() {
-      if (!this.defaultAudiobook) return 0
-      return this.defaultAudiobook.size
+      return this.media.size
     },
     userToken() {
       return this.$store.getters['user/getToken']
@@ -160,8 +151,8 @@ export default {
       return this.$store.getters['isAudiobookPlaying'](this.libraryItemId)
     },
     numTracks() {
-      if (!this.defaultAudiobook) return 0
-      return this.defaultAudiobook.tracks.length || 0
+      if (!this.media.tracks) return 0
+      return this.media.tracks.length || 0
     },
     isMissing() {
       return this.libraryItem.isMissing
@@ -173,17 +164,17 @@ export default {
       return this.downloadObj ? this.downloadObj.isDownloading : false
     },
     showPlay() {
-      return !this.isMissing && !this.isIncomplete && this.defaultAudiobook
+      return !this.isMissing && !this.isIncomplete && this.numTracks
     },
     showRead() {
-      return this.ebooks.length && this.ebookFormat !== '.pdf'
+      return this.ebookFile && this.ebookFormat !== '.pdf'
     },
-    ebooks() {
-      return this.media.ebooks || []
+    ebookFile() {
+      return this.media.ebookFile
     },
     ebookFormat() {
-      if (!this.ebooks.length) return null
-      return this.ebooks[0].ebookFile.ebookFormat
+      if (!this.ebookFile) return null
+      return this.ebookFile.ebookFormat
     },
     isDownloadPreparing() {
       return this.downloadObj ? this.downloadObj.isPreparing : false

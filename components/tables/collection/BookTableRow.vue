@@ -29,14 +29,6 @@ export default {
       processingRemove: false
     }
   },
-  watch: {
-    userIsRead: {
-      immediate: true,
-      handler(newVal) {
-        this.isRead = newVal
-      }
-    }
-  },
   computed: {
     bookCoverAspectRatio() {
       return this.$store.getters['getBookCoverAspectRatio']
@@ -71,15 +63,6 @@ export default {
     },
     showPlayBtn() {
       return !this.isMissing && !this.isIncomplete && !this.isStreaming && this.numTracks
-    },
-    userAudiobooks() {
-      return this.$store.state.user.user ? this.$store.state.user.user.audiobooks || {} : {}
-    },
-    userAudiobook() {
-      return this.userAudiobooks[this.book.id] || null
-    },
-    userIsRead() {
-      return this.userAudiobook ? !!this.userAudiobook.isRead : false
     }
   },
   methods: {
@@ -89,39 +72,6 @@ export default {
     },
     clickEdit() {
       this.$emit('edit', this.book)
-    },
-    toggleRead() {
-      var updatePayload = {
-        isRead: !this.isRead
-      }
-      this.isProcessingReadUpdate = true
-      this.$axios
-        .$patch(`/api/me/audiobook/${this.book.id}`, updatePayload)
-        .then(() => {
-          this.isProcessingReadUpdate = false
-          this.$toast.success(`"${this.bookTitle}" Marked as ${updatePayload.isRead ? 'Read' : 'Not Read'}`)
-        })
-        .catch((error) => {
-          console.error('Failed', error)
-          this.isProcessingReadUpdate = false
-          this.$toast.error(`Failed to mark as ${updatePayload.isRead ? 'Read' : 'Not Read'}`)
-        })
-    },
-    removeClick() {
-      this.processingRemove = true
-
-      this.$axios
-        .$delete(`/api/collections/${this.collectionId}/book/${this.book.id}`)
-        .then((updatedCollection) => {
-          console.log(`Book removed from collection`, updatedCollection)
-          this.$toast.success('Book removed from collection')
-          this.processingRemove = false
-        })
-        .catch((error) => {
-          console.error('Failed to remove book from collection', error)
-          this.$toast.error('Failed to remove book from collection')
-          this.processingRemove = false
-        })
     }
   },
   mounted() {}

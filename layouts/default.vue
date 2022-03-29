@@ -269,7 +269,7 @@ export default {
       var downloadFolder = await this.$localStore.getDownloadFolder()
 
       if (downloadFolder) {
-        await this.syncDownloads(downloads, downloadFolder)
+        // await this.syncDownloads(downloads, downloadFolder)
       }
       this.$eventBus.$emit('downloads-loaded')
 

@@ -1,9 +1,12 @@
 package com.audiobookshelf.app
 
+import android.Manifest
 import android.app.DownloadManager
 import android.content.*
+import android.content.pm.PackageManager
 import android.os.*
 import android.util.Log
+import androidx.core.app.ActivityCompat
 import com.anggrayudi.storage.SimpleStorage
 import com.anggrayudi.storage.SimpleStorageHelper
 import com.audiobookshelf.app.data.DbManager
@@ -24,6 +27,11 @@ class MainActivity : BridgeActivity() {
   val storageHelper = SimpleStorageHelper(this)
   val storage = SimpleStorage(this)
 
+  val REQUEST_PERMISSIONS = 1
+  var PERMISSIONS_ALL = arrayOf(
+    Manifest.permission.READ_EXTERNAL_STORAGE
+  )
+
   val broadcastReceiver = object: BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
       when (intent?.action) {
@@ -43,6 +51,14 @@ class MainActivity : BridgeActivity() {
     super.onCreate(savedInstanceState)
 
     Log.d(tag, "onCreate")
+
+    var permission = ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
+    if (permission != PackageManager.PERMISSION_GRANTED) {
+      ActivityCompat.requestPermissions(this,
+        PERMISSIONS_ALL,
+        REQUEST_PERMISSIONS)
+    }
+
     registerPlugin(MyNativeAudio::class.java)
     registerPlugin(AudioDownloader::class.java)
     registerPlugin(StorageManager::class.java)
