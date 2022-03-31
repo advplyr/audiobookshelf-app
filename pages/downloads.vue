@@ -56,6 +56,18 @@
             <ui-btn small @click="changeDownloadFolderClick">Change Folder</ui-btn>
             <ui-btn small color="error" @click="resetFolder">Reset</ui-btn>
           </div>
+
+          <!-- Temp testing new folder scan results -->
+          <div v-for="mediaItem in localMediaItems" :key="mediaItem.contentUrl" class="flex py-2">
+            <div class="w-12 h-12 bg-primary">
+              <img v-if="mediaItem.coverPathSrc" :src="mediaItem.coverPathSrc" class="w-full h-full object-contain" />
+            </div>
+            <div class="flex-grow px-2">
+              <p>{{ mediaItem.name }}</p>
+              <p>{{ mediaItem.audioTracks.length }} Tracks</p>
+            </div>
+          </div>
+
           <p v-if="isScanning" class="text-center my-8">Scanning Folder..</p>
           <p v-else-if="!mediaScanResults" class="text-center my-8">No Files Found</p>
           <div v-else>
@@ -83,6 +95,7 @@
 </template>
 
 <script>
+import { Capacitor } from '@capacitor/core'
 import { Dialog } from '@capacitor/dialog'
 import AudioDownloader from '@/plugins/audio-downloader'
 import StorageManager from '@/plugins/storage-manager'
@@ -93,7 +106,8 @@ export default {
       downloadingProgress: {},
       totalSize: 0,
       showingDownloads: true,
-      isScanning: false
+      isScanning: false,
+      localMediaItems: []
     }
   },
   computed: {
@@ -161,23 +175,35 @@ export default {
     async searchFolder() {
       this.isScanning = true
       var response = await StorageManager.searchFolder({ folderUrl: this.downloadFolderUri })
-      var searchResults = response
-      searchResults.folders = JSON.parse(searchResults.folders)
-      searchResults.files = JSON.parse(searchResults.files)
 
-      if (searchResults.folders.length) {
-        console.log('Search results folders length', searchResults.folders.length)
-
-        searchResults.folders = searchResults.folders.map((sr) => {
-          if (sr.files) {
-            sr.files = JSON.parse(sr.files)
+      if (response && response.localMediaItems) {
+        this.localMediaItems = response.localMediaItems.map((mi) => {
+          if (mi.coverPath) {
+            mi.coverPathSrc = Capacitor.convertFileSrc(mi.coverPath)
           }
-          return sr
+          return mi
         })
-        this.$store.commit('downloads/setMediaScanResults', searchResults)
+        console.log('Set Local Media Items', this.localMediaItems.length)
       } else {
-        this.$toast.warning('No audio or image files found')
+        console.log('No Local media items found')
       }
+      // var searchResults = response
+      // searchResults.folders = JSON.parse(searchResults.folders)
+      // searchResults.files = JSON.parse(searchResults.files)
+
+      // if (searchResults.folders.length) {
+      //   console.log('Search results folders length', searchResults.folders.length)
+
+      //   searchResults.folders = searchResults.folders.map((sr) => {
+      //     if (sr.files) {
+      //       sr.files = JSON.parse(sr.files)
+      //     }
+      //     return sr
+      //   })
+      //   this.$store.commit('downloads/setMediaScanResults', searchResults)
+      // } else {
+      //   this.$toast.warning('No audio or image files found')
+      // }
       this.isScanning = false
     },
     async resetFolder() {
