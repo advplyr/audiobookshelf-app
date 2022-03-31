@@ -1,6 +1,7 @@
 package com.audiobookshelf.app.data
 
 import android.net.Uri
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.getcapacitor.JSObject
 
 data class ServerConfig(
@@ -17,8 +18,24 @@ data class DeviceData(
   var lastServerConfigId:String?
 )
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 data class LocalMediaItem(
-  val name: String,
-  val simplePath: String,
-  val audioTracks:MutableList<AudioTrack>
+  var name: String,
+  var contentUrl:String,
+  var simplePath: String,
+  var absolutePath:String,
+  var audioTracks:MutableList<AudioTrack>,
+  var localFiles:MutableList<LocalFile>,
+  var coverPath:String?
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class LocalFile(
+  var id:String,
+  var filename:String?,
+  var contentUrl:String,
+  var absolutePath:String,
+  var simplePath:String,
+  var mimeType:String?,
+  var size:Long
 )

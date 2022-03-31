@@ -1,20 +1,17 @@
 package com.audiobookshelf.app
 
-import android.Manifest
-import android.content.pm.PackageManager
 import android.database.Cursor
 import android.net.Uri
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
-import androidx.core.app.ActivityCompat
 import androidx.documentfile.provider.DocumentFile
-
 import com.anggrayudi.storage.SimpleStorage
 import com.anggrayudi.storage.callback.FolderPickerCallback
 import com.anggrayudi.storage.callback.StorageAccessCallback
 import com.anggrayudi.storage.file.*
 import com.audiobookshelf.app.device.FolderScanner
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.getcapacitor.*
 import com.getcapacitor.annotation.CapacitorPlugin
 
@@ -159,12 +156,19 @@ class StorageManager : Plugin() {
   @PluginMethod
   fun searchFolder(call: PluginCall) {
     var folderUrl = call.data.getString("folderUrl", "").toString()
+    var mediaType = call.data.getString("mediaType", "book").toString()
     Log.d(TAG, "Searching folder $folderUrl")
 
     var folderScanner = FolderScanner(context)
-    var data = folderScanner.scanForAudiobooks(folderUrl)
-    Log.d(TAG, "Scan DATA $data")
-    call.resolve(JSObject())
+    var folderScanResult = folderScanner.scanForMediaItems(folderUrl, mediaType)
+    if (folderScanResult == null) {
+      Log.d(TAG, "NO Scan DATA")
+      call.resolve(JSObject())
+    } else {
+      Log.d(TAG, "Scan DATA ${jacksonObjectMapper().writeValueAsString(folderScanResult)}")
+      call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(folderScanResult)))
+    }
+
 //
 //    var df: DocumentFile? = DocumentFileCompat.fromUri(context, Uri.parse(folderUrl))
 //
