@@ -24,7 +24,7 @@ class DbService {
   }
 
   loadFolders() {
-    return DbManager.localFoldersFromWebView().then((data) => {
+    return DbManager.getLocalFolders_WV().then((data) => {
       console.log('Loaded local folders', JSON.stringify(data))
       if (data.folders && typeof data.folders == 'string') {
         return JSON.parse(data.folders)
@@ -36,8 +36,15 @@ class DbService {
     })
   }
 
-  loadLocalMediaItemsInFolder(folderId) {
-    return DbManager.loadMediaItemsInFolder({ folderId }).then((data) => {
+  getLocalFolder(folderId) {
+    return DbManager.getLocalFolder_WV({ folderId }).then((data) => {
+      console.log('Got local folder', JSON.stringify(data))
+      return data
+    })
+  }
+
+  getLocalMediaItemsInFolder(folderId) {
+    return DbManager.getLocalMediaItemsInFolder_WV({ folderId }).then((data) => {
       console.log('Loaded local media items in folder', JSON.stringify(data))
       if (data.localMediaItems && typeof data.localMediaItems == 'string') {
         return JSON.parse(data.localMediaItems)

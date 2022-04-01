@@ -3,7 +3,7 @@
     <p class="text-sm font-semibold" :class="disabled ? 'text-gray-300' : ''">{{ label }}</p>
     <button type="button" :disabled="disabled" class="relative w-full border rounded shadow-sm pl-3 pr-8 py-2 text-left focus:outline-none sm:text-sm" :class="buttonClass" aria-haspopup="listbox" aria-expanded="true" @click.stop.prevent="clickShowMenu">
       <span class="flex items-center">
-        <span class="block truncate" :class="small ? 'text-sm' : ''">{{ selectedText }}</span>
+        <span class="block truncate" :class="small ? 'text-sm' : ''">{{ selectedText || placeholder || '' }}</span>
       </span>
       <span class="ml-3 absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
         <span class="material-icons">expand_more</span>
@@ -37,7 +37,8 @@ export default {
       default: () => []
     },
     disabled: Boolean,
-    small: Boolean
+    small: Boolean,
+    placeholder: String
   },
   data() {
     return {
