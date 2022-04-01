@@ -488,6 +488,18 @@ export default {
         .catch((error) => {
           console.error('TEST failed', error)
         })
+    },
+    async playLocalItem(localMediaItemId) {
+      console.log('Called play local media item for lmi', localMediaItemId)
+      MyNativeAudio.playLocalLibraryItem({ localMediaItemId, playWhenReady: true })
+        .then((data) => {
+          console.log('TEST library item play response', JSON.stringify(data))
+          var mediaEntity = data.mediaEntity
+          this.$store.commit('globals/setMediaEntityPlaying', mediaEntity)
+        })
+        .catch((error) => {
+          console.error('TEST failed', error)
+        })
     }
   },
   mounted() {
@@ -499,6 +511,7 @@ export default {
 
     this.setListeners()
     this.$eventBus.$on('play-item', this.playLibraryItem)
+    this.$eventBus.$on('play-local-item', this.playLocalItem)
     this.$eventBus.$on('close_stream', this.closeStreamOnly)
     this.$store.commit('user/addSettingsListener', { id: 'streamContainer', meth: this.settingsUpdated })
   },
@@ -514,6 +527,7 @@ export default {
       this.$server.socket.off('stream_reset', this.streamReset)
     }
     this.$eventBus.$off('play-item', this.playLibraryItem)
+      this.$eventBus.$off('play-local-item', this.playLocalItem)
     this.$eventBus.$off('close_stream', this.closeStreamOnly)
     this.$store.commit('user/removeSettingsListener', 'streamContainer')
   }

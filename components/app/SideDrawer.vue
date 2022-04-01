@@ -83,8 +83,8 @@ export default {
         {
           icon: 'folder',
           iconOutlined: true,
-          text: 'Downloads',
-          to: '/downloads'
+          text: 'Local Media',
+          to: '/localMedia/folders'
         }
         // {
         //   icon: 'settings',

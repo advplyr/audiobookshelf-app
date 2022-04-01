@@ -2,46 +2,28 @@
   <div class="w-full h-full py-6">
     <h1 class="text-2xl px-4">Downloads</h1>
 
-    <div v-if="!isIos" class="w-full px-2 py-2">
+    <div v-if="!isIos" class="w-full max-w-full px-2 py-2">
       <template v-for="folder in localFolders">
-        <div :key="folder.id" class="flex items-center p-2">
-          <div class="flex-grow">
-            <p>{{ folder.id }}|{{ folder.name }}|{{ folder.contentUrl }}</p>
-          </div>
-          <div class="w-40">
-            <ui-btn @click="searchFolder(folder.id)">Scan</ui-btn>
-          </div>
-        </div>
+        <nuxt-link :to="`/localMedia/folders/${folder.id}`" :key="folder.id" class="flex items-center px-2 py-4 bg-primary rounded-md border-bg mb-1">
+          <span class="material-icons text-xl text-yellow-400">folder</span>
+          <p class="ml-2">{{ folder.id }}</p>
+          <div class="flex-grow" />
+          <p class="text-sm italic text-gray-300 px-2 capitalize">{{ folder.mediaType }}s</p>
+          <span class="material-icons text-base text-gray-300">arrow_right</span>
+        </nuxt-link>
       </template>
       <div v-if="!localFolders.length" class="flex justify-center">
         <p class="text-center">No Media Folders</p>
       </div>
-    </div>
-
-    <div v-if="!isIos" class="w-full px-2 py-2" :class="hasStoragePermission ? '' : 'text-error'">
-      <div class="flex items-center">
-        <span class="material-icons" @click="changeDownloadFolderClick">{{ hasStoragePermission ? 'folder' : 'error' }}</span>
-        <p v-if="hasStoragePermission" class="text-sm px-4" @click="changeDownloadFolderClick">{{ downloadFolderSimplePath || 'No Download Folder Selected' }}</p>
-        <p v-else class="text-sm px-4" @click="changeDownloadFolderClick">No Storage Permissions. Click here</p>
-      </div>
-      <!-- <p v-if="hasStoragePermission" class="text-xs text-gray-400 break-all max-w-full">{{ downloadFolderUri }}</p> -->
-    </div>
-
-    <div v-if="!isIos" class="w-full h-10 relative">
-      <div class="absolute top-px left-0 z-10 w-full h-full flex">
-        <div class="flex-grow h-full bg-primary rounded-t-md mr-px" @click="showingDownloads = true">
-          <div class="flex items-center justify-center rounded-t-md border-t border-l border-r border-white border-opacity-20 h-full" :class="showingDownloads ? 'text-gray-100' : 'border-b bg-black bg-opacity-20 text-gray-400'">
-            <p>Downloads</p>
-          </div>
+      <div class="flex p-2 border-t border-primary mt-2">
+        <div class="flex-grow pr-1">
+          <ui-dropdown v-model="newFolderMediaType" :items="mediaTypeItems" />
         </div>
-        <div class="flex-grow h-full bg-primary rounded-t-md ml-px" @click="showingDownloads = false">
-          <div class="flex items-center justify-center h-full rounded-t-md border-t border-l border-r border-white border-opacity-20" :class="!showingDownloads ? 'text-gray-100' : 'border-b bg-black bg-opacity-20 text-gray-400'">
-            <p>Files</p>
-          </div>
-        </div>
+        <ui-btn small class="w-28" @click="selectFolder">Add Folder</ui-btn>
       </div>
     </div>
-    <div v-if="!isIos" class="list-content-body relative w-full overflow-x-hidden overflow-y-auto bg-primary">
+
+    <!-- <div v-if="!isIos" class="list-content-body relative w-full overflow-x-hidden overflow-y-auto bg-primary">
       <template v-if="showingDownloads">
         <div v-if="!totalDownloads" class="flex items-center justify-center h-40">
           <p>No Downloads</p>
@@ -68,20 +50,7 @@
       <template v-else>
         <div class="w-full h-full">
           <div class="w-full flex justify-around py-4 px-2">
-            <!-- <ui-btn small @click="searchFolder">Re-Scan</ui-btn> -->
-            <!-- <ui-btn small @click="changeDownloadFolderClick">Change Folder</ui-btn> -->
             <ui-btn small color="error" @click="resetFolder">Reset</ui-btn>
-          </div>
-
-          <!-- Temp testing new folder scan results -->
-          <div v-for="mediaItem in localMediaItems" :key="mediaItem.contentUrl" class="flex py-2">
-            <div class="w-12 h-12 bg-primary">
-              <img v-if="mediaItem.coverPathSrc" :src="mediaItem.coverPathSrc" class="w-full h-full object-contain" />
-            </div>
-            <div class="flex-grow px-2">
-              <p>{{ mediaItem.name }}</p>
-              <p>{{ mediaItem.audioTracks.length }} Tracks</p>
-            </div>
           </div>
 
           <p v-if="isScanning" class="text-center my-8">Scanning Folder..</p>
@@ -106,7 +75,7 @@
           </div>
         </div>
       </template>
-    </div>
+    </div> -->
   </div>
 </template>
 
@@ -124,7 +93,18 @@ export default {
       showingDownloads: true,
       isScanning: false,
       localMediaItems: [],
-      localFolders: []
+      localFolders: [],
+      newFolderMediaType: 'book',
+      mediaTypeItems: [
+        {
+          value: 'book',
+          text: 'Books'
+        },
+        {
+          value: 'podcast',
+          text: 'Podcasts'
+        }
+      ]
     }
   },
   computed: {
@@ -163,6 +143,32 @@ export default {
     }
   },
   methods: {
+    async selectFolder() {
+      var folderObj = await StorageManager.selectFolder({ mediaType: this.newFolderMediaType })
+      if (folderObj.error) {
+        return this.$toast.error(`Error: ${folderObj.error || 'Unknown Error'}`)
+      }
+
+      var indexOfExisting = this.localFolders.findIndex((lf) => lf.id == folderObj.id)
+      if (indexOfExisting >= 0) {
+        this.localFolders.splice(indexOfExisting, 1, folderObj)
+      } else {
+        this.localFolders.push(folderObj)
+      }
+
+      var permissionsGood = await StorageManager.checkFolderPermissions({ folderUrl: folderObj.contentUrl })
+
+      if (!permissionsGood) {
+        this.$toast.error('Folder permissions failed')
+        return
+      } else {
+        this.$toast.success('Folder permission success')
+      }
+
+      // await this.searchFolder(folderObj.id)
+
+      this.$router.push(`/localMedia/folders/${folderObj.id}?scan=1`)
+    },
     async changeDownloadFolderClick() {
       if (!this.hasStoragePermission) {
         StorageManager.requestStoragePermission()
@@ -187,8 +193,6 @@ export default {
         } else {
           this.$toast.success('Folder permission success')
         }
-
-        // await this.$localStore.setDownloadFolder(folderObj)
         await this.searchFolder(folderObj.id)
 
         if (this.isSocketConnected) {
@@ -211,23 +215,6 @@ export default {
       } else {
         console.log('No Local media items found')
       }
-      // var searchResults = response
-      // searchResults.folders = JSON.parse(searchResults.folders)
-      // searchResults.files = JSON.parse(searchResults.files)
-
-      // if (searchResults.folders.length) {
-      //   console.log('Search results folders length', searchResults.folders.length)
-
-      //   searchResults.folders = searchResults.folders.map((sr) => {
-      //     if (sr.files) {
-      //       sr.files = JSON.parse(sr.files)
-      //     }
-      //     return sr
-      //   })
-      //   this.$store.commit('downloads/setMediaScanResults', searchResults)
-      // } else {
-      //   this.$toast.warning('No audio or image files found')
-      // }
       this.isScanning = false
     },
     async resetFolder() {

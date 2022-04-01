@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.core.content.ContextCompat
+import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.server.ApiHandler
 import com.capacitorjs.plugins.app.AppPlugin
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -78,6 +79,23 @@ class MyNativeAudio : Plugin() {
 
       call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(it)))
     }
+  }
+
+  @PluginMethod
+  fun playLocalLibraryItem(call:PluginCall) {
+    var localMediaItemId = call.getString("localMediaItemId", "").toString()
+    var playWhenReady = call.getBoolean("playWhenReady") == true
+
+    DeviceManager.dbManager.loadLocalMediaItem(localMediaItemId)?.let {
+      Handler(Looper.getMainLooper()).post() {
+        Log.d(tag, "Preparing Local Media item ${jacksonObjectMapper().writeValueAsString(it)}")
+        playerNotificationService.playLocalMediaItem(it, playWhenReady)
+      }
+      return call.resolve(JSObject())
+    }
+    var errObj = JSObject()
+    errObj.put("error", "Item Not Found")
+    call.resolve(errObj)
   }
 
   @PluginMethod
