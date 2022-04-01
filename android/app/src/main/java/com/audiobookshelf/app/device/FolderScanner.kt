@@ -20,6 +20,10 @@ class FolderScanner(var ctx: Context) {
        Log.e(tag, "Folder Doc File Invalid $folderUrl")
        return null
      }
+     var folderName = df.name ?: ""
+     var folderPath = df.getAbsolutePath(ctx)
+     var folderUrl = df.uri.toString()
+     var folderId = df.id
 
      var foldersFound = df.search(false, DocumentFileType.FOLDER)
 
@@ -27,7 +31,7 @@ class FolderScanner(var ctx: Context) {
 
      foldersFound.forEach {
        Log.d(tag, "Iterating over Folder Found ${it.name} | ${it.getSimplePath(ctx)} | URI: ${it.uri}")
-       var folderName = it.name ?: ""
+       var itemFolderName = it.name ?: ""
 
        var audioTracks = mutableListOf<AudioTrack>()
        var localFiles = mutableListOf<LocalFile>()
@@ -40,7 +44,7 @@ class FolderScanner(var ctx: Context) {
          var mimeType = it2?.mimeType ?: ""
          var filename = it2?.name ?: ""
          var isAudio = mimeType.startsWith("audio")
-         Log.d(tag, "Found $mimeType file $filename in folder $folderName")
+         Log.d(tag, "Found $mimeType file $filename in folder $itemFolderName")
 
          var localFile = LocalFile(it2.id,it2.name,it2.uri.toString(),it2.getAbsolutePath(ctx),it2.getSimplePath(ctx),it2.mimeType,it2.length())
          localFiles.add(localFile)
@@ -70,15 +74,16 @@ class FolderScanner(var ctx: Context) {
          }
        }
        if (audioTracks.size > 0) {
-        Log.d(tag, "Found local media item named $folderName with ${audioTracks.size} tracks")
-         var localMediaItem = LocalMediaItem(folderName, it.uri.toString(), it.getSimplePath(ctx), it.getAbsolutePath(ctx),audioTracks,localFiles,coverPath)
+        Log.d(tag, "Found local media item named $itemFolderName with ${audioTracks.size} tracks")
+         var localMediaItem = LocalMediaItem(it.id, itemFolderName, mediaType, folderId, it.uri.toString(), it.getSimplePath(ctx), it.getAbsolutePath(ctx),audioTracks,localFiles,coverPath)
          mediaItems.add(localMediaItem)
        }
      }
 
      return if (mediaItems.size > 0) {
        Log.d(tag, "Found ${mediaItems.size} Media Items")
-       FolderScanResult(df.name, df.getAbsolutePath(ctx), mediaType, df.uri.toString(), mediaItems)
+       DeviceManager.dbManager.saveLocalMediaItems(mediaItems)
+       FolderScanResult(folderName, folderPath, mediaType, folderUrl, mediaItems)
      } else {
        Log.d(tag, "No Media Items Found")
        null

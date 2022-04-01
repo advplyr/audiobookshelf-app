@@ -24,6 +24,7 @@ import androidx.media.MediaBrowserServiceCompat
 import androidx.media.utils.MediaConstants
 import com.anggrayudi.storage.file.isExternalStorageDocument
 import com.audiobookshelf.app.data.DbManager
+import com.audiobookshelf.app.data.LocalMediaItem
 import com.audiobookshelf.app.data.PlaybackSession
 import com.getcapacitor.Bridge
 import com.getcapacitor.JSObject
@@ -704,6 +705,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     currentPlayer.prepare()
     currentPlayer.playWhenReady = playWhenReady
     currentPlayer.setPlaybackSpeed(1f) // TODO: Playback speed should come from settings
+  }
+
+  fun playLocalMediaItem(localMediaItem: LocalMediaItem, playWhenReady:Boolean) {
+    Log.d(tag, "playLocalMediaItem ${localMediaItem}")
   }
 
   fun initPlayer(audiobookStreamData: AudiobookStreamData) {

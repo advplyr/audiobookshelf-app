@@ -10,6 +10,8 @@ import com.anggrayudi.storage.SimpleStorage
 import com.anggrayudi.storage.callback.FolderPickerCallback
 import com.anggrayudi.storage.callback.StorageAccessCallback
 import com.anggrayudi.storage.file.*
+import com.audiobookshelf.app.data.LocalFolder
+import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.device.FolderScanner
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.getcapacitor.*
@@ -20,30 +22,6 @@ class StorageManager : Plugin() {
   private val TAG = "StorageManager"
 
   lateinit var mainActivity:MainActivity
-
-  data class MediaFile(val uri: Uri, val name: String, val simplePath: String, val size: Long, val type: String, val isAudio: Boolean) {
-    fun toJSObject() : JSObject {
-      var obj = JSObject()
-      obj.put("uri", this.uri)
-      obj.put("name", this.name)
-      obj.put("simplePath", this.simplePath)
-      obj.put("size", this.size)
-      obj.put("type", this.type)
-      obj.put("isAudio", this.isAudio)
-      return obj
-    }
-  }
-
-  data class MediaFolder(val uri: Uri, val name: String, val simplePath: String, val mediaFiles:List<MediaFile>) {
-    fun toJSObject() : JSObject {
-      var obj = JSObject()
-      obj.put("uri", this.uri)
-      obj.put("name", this.name)
-      obj.put("simplePath", this.simplePath)
-      obj.put("files", this.mediaFiles.map { it.toJSObject() })
-      return obj
-    }
-  }
 
   override fun load() {
     mainActivity = (activity as MainActivity)
@@ -79,24 +57,19 @@ class StorageManager : Plugin() {
 
   @PluginMethod
   fun selectFolder(call: PluginCall) {
+    var mediaType = call.data.getString("mediaType", "book").toString()
+
     mainActivity.storage.folderPickerCallback = object : FolderPickerCallback {
       override fun onFolderSelected(requestCode: Int, folder: DocumentFile) {
         Log.d(TAG, "ON FOLDER SELECTED ${folder.uri} ${folder.name}")
-
         var absolutePath = folder.getAbsolutePath(activity)
-        var storageId = folder.getStorageId(activity)
         var storageType = folder.getStorageType(activity)
         var simplePath = folder.getSimplePath(activity)
-        var basePath = folder.getBasePath(activity)
 
-        var jsobj = JSObject()
-        jsobj.put("uri", folder.uri)
-        jsobj.put("absolutePath", absolutePath)
-        jsobj.put("storageId", storageId)
-        jsobj.put("storageType", storageType)
-        jsobj.put("simplePath", simplePath)
-        jsobj.put("basePath", basePath)
-        call.resolve(jsobj)
+        var localFolder = LocalFolder(folder.id, folder.name, folder.uri.toString(),absolutePath, simplePath, storageType.toString(), mediaType)
+
+        DeviceManager.dbManager.saveLocalFolder(localFolder)
+        call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(localFolder)))
       }
 
       override fun onStorageAccessDenied(requestCode: Int, folder: DocumentFile?, storageType: StorageType) {
@@ -155,19 +128,22 @@ class StorageManager : Plugin() {
 
   @PluginMethod
   fun searchFolder(call: PluginCall) {
-    var folderUrl = call.data.getString("folderUrl", "").toString()
-    var mediaType = call.data.getString("mediaType", "book").toString()
-    Log.d(TAG, "Searching folder $folderUrl")
-
-    var folderScanner = FolderScanner(context)
-    var folderScanResult = folderScanner.scanForMediaItems(folderUrl, mediaType)
-    if (folderScanResult == null) {
-      Log.d(TAG, "NO Scan DATA")
-      call.resolve(JSObject())
-    } else {
-      Log.d(TAG, "Scan DATA ${jacksonObjectMapper().writeValueAsString(folderScanResult)}")
-      call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(folderScanResult)))
+    var folderId =  call.data.getString("folderId", "").toString()
+    var folder: LocalFolder? = DeviceManager.dbManager.loadLocalFolder(folderId)
+    folder?.let {
+      Log.d(TAG, "Searching folder ${it.contentUrl}")
+      var folderScanner = FolderScanner(context)
+      var folderScanResult = folderScanner.scanForMediaItems(it.contentUrl, it.mediaType)
+      if (folderScanResult == null) {
+        Log.d(TAG, "NO Scan DATA")
+        return call.resolve(JSObject())
+      } else {
+        Log.d(TAG, "Scan DATA ${jacksonObjectMapper().writeValueAsString(folderScanResult)}")
+        return call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(folderScanResult)))
+      }
     }
+    Log.d(TAG, "Folder not found $folderId")
+    call.resolve(JSObject())
 
 //
 //    var df: DocumentFile? = DocumentFileCompat.fromUri(context, Uri.parse(folderUrl))
