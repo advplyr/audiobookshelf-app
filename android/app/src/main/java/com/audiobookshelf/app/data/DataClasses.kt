@@ -151,5 +151,6 @@ data class AudioTrack(
   var contentUrl:String,
   var mimeType:String,
   var isLocal:Boolean,
+  var localFileId:String?,
   var audioProbeResult:AudioProbeResult?
 )

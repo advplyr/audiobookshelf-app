@@ -1,10 +1,12 @@
 <template>
   <div class="w-full h-full py-6 px-2">
-    <div class="flex justify-between mb-4">
-      <ui-btn to="/localMedia/folders">Back</ui-btn>
-      <ui-btn :loading="isScanning" @click="searchFolder">Scan</ui-btn>
+    <div class="flex items-center mb-4">
+      <div class="flex-grow" />
+      <ui-btn v-if="!removingFolder" :loading="isScanning" small @click="clickScan">Scan</ui-btn>
+      <ui-btn v-if="!removingFolder && localMediaItems.length" :loading="isScanning" small class="ml-2" color="warning" @click="clickForceRescan">Force Re-Scan</ui-btn>
+      <ui-icon-btn class="ml-2" bg-color="error" outlined :loading="removingFolder" icon="delete" @click="clickDeleteFolder" />
     </div>
-    <p class="text-lg mb-0.5 text-white text-opacity-75">Folder: {{ folderId }}</p>
+    <p class="text-lg mb-0.5 text-white text-opacity-75">Folder: {{ folderName }}</p>
     <p class="mb-4 text-xl">Local Media Items ({{ localMediaItems.length }})</p>
     <div v-if="isScanning" class="w-full text-center p-4">
       <p>Scanning...</p>
@@ -32,6 +34,7 @@
 
 <script>
 import { Capacitor } from '@capacitor/core'
+import { Dialog } from '@capacitor/dialog'
 import StorageManager from '@/plugins/storage-manager'
 
 export default {
@@ -44,34 +47,78 @@ export default {
   data() {
     return {
       localMediaItems: [],
-      isScanning: false
+      folder: null,
+      isScanning: false,
+      removingFolder: false
     }
   },
-  computed: {},
+  computed: {
+    folderName() {
+      return this.folder ? this.folder.name : null
+    }
+  },
   methods: {
+    clickScan() {
+      this.scanFolder()
+    },
+    clickForceRescan() {
+      this.scanFolder(true)
+    },
+    async clickDeleteFolder() {
+      var deleteMessage = 'Are you sure you want to remove this folder? (does not delete anything in your file system)'
+      if (this.localMediaItems.length) {
+        deleteMessage = `Are you sure you want to remove this folder and ${this.localMediaItems.length} media items? (does not delete anything in your file system)`
+      }
+      const { value } = await Dialog.confirm({
+        title: 'Confirm',
+        message: deleteMessage
+      })
+      if (value) {
+        this.removingFolder = true
+        await StorageManager.removeFolder({ folderId: this.folderId })
+        this.removingFolder = false
+        this.$router.replace('/localMedia/folders')
+      }
+    },
     play(mediaItem) {
       this.$eventBus.$emit('play-local-item', mediaItem.id)
     },
-    async searchFolder() {
+    async scanFolder(forceAudioProbe = false) {
       this.isScanning = true
-      var response = await StorageManager.searchFolder({ folderId: this.folderId })
+      var response = await StorageManager.scanFolder({ folderId: this.folderId, forceAudioProbe })
 
       if (response && response.localMediaItems) {
-        this.localMediaItems = response.localMediaItems.map((mi) => {
-          if (mi.coverPath) {
-            mi.coverPathSrc = Capacitor.convertFileSrc(mi.coverPath)
-          }
-          return mi
-        })
-        console.log('Set Local Media Items', this.localMediaItems.length)
+        var itemsAdded = response.itemsAdded
+        var itemsUpdated = response.itemsUpdated
+        var itemsRemoved = response.itemsRemoved
+        var itemsUpToDate = response.itemsUpToDate
+        var toastMessages = []
+        if (itemsAdded) toastMessages.push(`${itemsAdded} Added`)
+        if (itemsUpdated) toastMessages.push(`${itemsUpdated} Updated`)
+        if (itemsRemoved) toastMessages.push(`${itemsRemoved} Removed`)
+        if (itemsUpToDate) toastMessages.push(`${itemsUpToDate} Up-to-date`)
+        this.$toast.info(`Folder scan complete:\n${toastMessages.join(' | ')}`)
+
+        // When all items are up-to-date then local media items are not returned
+        if (response.localMediaItems.length) {
+          this.localMediaItems = response.localMediaItems.map((mi) => {
+            if (mi.coverPath) {
+              mi.coverPathSrc = Capacitor.convertFileSrc(mi.coverPath)
+            }
+            return mi
+          })
+          console.log('Set Local Media Items', this.localMediaItems.length)
+        }
       } else {
         console.log('No Local media items found')
       }
-
       this.isScanning = false
     },
     async init() {
-      var items = (await this.$db.loadLocalMediaItemsInFolder(this.folderId)) || []
+      var folder = await this.$db.getLocalFolder(this.folderId)
+      this.folder = folder
+
+      var items = (await this.$db.getLocalMediaItemsInFolder(this.folderId)) || []
       console.log('Init folder', this.folderId, items)
       this.localMediaItems = items.map((lmi) => {
         return {
@@ -80,7 +127,7 @@ export default {
         }
       })
       if (this.shouldScan) {
-        this.searchFolder()
+        this.scanFolder()
       }
     }
   },

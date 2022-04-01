@@ -8,6 +8,9 @@ import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
 import io.paperdb.Paper
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 @CapacitorPlugin(name = "DbManager")
@@ -33,13 +36,26 @@ class DbManager : Plugin() {
     return localMediaItems
   }
 
+  fun getLocalMediaItemsInFolder(folderId:String):List<LocalMediaItem> {
+    var localMediaItems = loadLocalMediaItems()
+    return localMediaItems.filter {
+      it.folderId == folderId
+    }
+  }
+
   fun loadLocalMediaItem(localMediaItemId:String):LocalMediaItem? {
     return Paper.book("localMediaItems").read(localMediaItemId)
   }
 
+  fun removeLocalMediaItem(localMediaItemId:String) {
+    Paper.book("localMediaItems").delete(localMediaItemId)
+  }
+
   fun saveLocalMediaItems(localMediaItems:List<LocalMediaItem>) {
-    localMediaItems.map {
-      Paper.book("localMediaItems").write(it.id, it)
+    GlobalScope.launch(Dispatchers.IO) {
+      localMediaItems.map {
+        Paper.book("localMediaItems").write(it.id, it)
+      }
     }
   }
 
@@ -47,7 +63,7 @@ class DbManager : Plugin() {
     Paper.book("localFolders").write(localFolder.id,localFolder)
   }
 
-  fun loadLocalFolder(folderId:String):LocalFolder? {
+  fun getLocalFolder(folderId:String):LocalFolder? {
     return Paper.book("localFolders").read(folderId)
   }
 
@@ -60,6 +76,14 @@ class DbManager : Plugin() {
       }
     }
     return localFolders
+  }
+
+  fun removeLocalFolder(folderId:String) {
+    var localMediaItems = getLocalMediaItemsInFolder(folderId)
+    localMediaItems.forEach {
+      Paper.book("localMediaItems").delete(it.id)
+    }
+    Paper.book("localFolders").delete(folderId)
   }
 
   fun saveObject(db:String, key:String, value:JSONObject) {
@@ -78,13 +102,16 @@ class DbManager : Plugin() {
     var db = call.getString("db", "").toString()
     var key = call.getString("key", "").toString()
     var value = call.getObject("value")
-    if (db == "" || key == "" || value == null) {
-      Log.d(tag, "saveFromWebview Invalid key/value")
-    } else {
-      var json = value as JSONObject
-      saveObject(db, key, json)
+
+    GlobalScope.launch(Dispatchers.IO) {
+      if (db == "" || key == "" || value == null) {
+        Log.d(tag, "saveFromWebview Invalid key/value")
+      } else {
+        var json = value as JSONObject
+        saveObject(db, key, json)
+      }
+      call.resolve()
     }
-    call.resolve()
   }
 
   @PluginMethod
@@ -102,24 +129,36 @@ class DbManager : Plugin() {
   }
 
   @PluginMethod
-  fun localFoldersFromWebView(call:PluginCall) {
-    var folders = getAllLocalFolders()
-    var folderObjArray = jacksonObjectMapper().writeValueAsString(folders)
-    var jsobj = JSObject()
-    jsobj.put("folders", folderObjArray)
-    call.resolve(jsobj)
+  fun getLocalFolders_WV(call:PluginCall) {
+    GlobalScope.launch(Dispatchers.IO) {
+      var folders = getAllLocalFolders()
+      var folderObjArray = jacksonObjectMapper().writeValueAsString(folders)
+      var jsobj = JSObject()
+      jsobj.put("folders", folderObjArray)
+      call.resolve(jsobj)
+    }
   }
 
   @PluginMethod
-  fun loadMediaItemsInFolder(call:PluginCall) {
+  fun getLocalFolder_WV(call:PluginCall) {
     var folderId = call.getString("folderId", "").toString()
-    var localMediaItems = loadLocalMediaItems().filter {
-      it.folderId == folderId
+    GlobalScope.launch(Dispatchers.IO) {
+      getLocalFolder(folderId)?.let {
+        var folderObj = jacksonObjectMapper().writeValueAsString(it)
+        call.resolve(JSObject(folderObj))
+      } ?: call.resolve()
     }
+  }
 
-    var mediaItemsArray = jacksonObjectMapper().writeValueAsString(localMediaItems)
-    var jsobj = JSObject()
-    jsobj.put("localMediaItems", mediaItemsArray)
-    call.resolve(jsobj)
+  @PluginMethod
+  fun getLocalMediaItemsInFolder_WV(call:PluginCall) {
+    var folderId = call.getString("folderId", "").toString()
+    GlobalScope.launch(Dispatchers.IO) {
+      var localMediaItems = getLocalMediaItemsInFolder(folderId)
+      var mediaItemsArray = jacksonObjectMapper().writeValueAsString(localMediaItems)
+      var jsobj = JSObject()
+      jsobj.put("localMediaItems", mediaItemsArray)
+      call.resolve(jsobj)
+    }
   }
 }

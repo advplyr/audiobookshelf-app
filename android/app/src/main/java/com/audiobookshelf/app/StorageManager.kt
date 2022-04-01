@@ -65,8 +65,9 @@ class StorageManager : Plugin() {
         var absolutePath = folder.getAbsolutePath(activity)
         var storageType = folder.getStorageType(activity)
         var simplePath = folder.getSimplePath(activity)
+        var folderId = android.util.Base64.encodeToString(folder.id.toByteArray(), android.util.Base64.DEFAULT)
 
-        var localFolder = LocalFolder(folder.id, folder.name, folder.uri.toString(),absolutePath, simplePath, storageType.toString(), mediaType)
+        var localFolder = LocalFolder(folderId, folder.name, folder.uri.toString(),absolutePath, simplePath, storageType.toString(), mediaType)
 
         DeviceManager.dbManager.saveLocalFolder(localFolder)
         call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(localFolder)))
@@ -127,13 +128,15 @@ class StorageManager : Plugin() {
   }
 
   @PluginMethod
-  fun searchFolder(call: PluginCall) {
+  fun scanFolder(call: PluginCall) {
     var folderId =  call.data.getString("folderId", "").toString()
-    var folder: LocalFolder? = DeviceManager.dbManager.loadLocalFolder(folderId)
+    var forceAudioProbe = call.data.getBoolean("forceAudioProbe")
+    Log.d(TAG, "Scan Folder $folderId | Force Audio Probe $forceAudioProbe")
+
+    var folder: LocalFolder? = DeviceManager.dbManager.getLocalFolder(folderId)
     folder?.let {
-      Log.d(TAG, "Searching folder ${it.contentUrl}")
       var folderScanner = FolderScanner(context)
-      var folderScanResult = folderScanner.scanForMediaItems(it.contentUrl, it.mediaType)
+      var folderScanResult = folderScanner.scanForMediaItems(it, forceAudioProbe)
       if (folderScanResult == null) {
         Log.d(TAG, "NO Scan DATA")
         return call.resolve(JSObject())
@@ -141,65 +144,15 @@ class StorageManager : Plugin() {
         Log.d(TAG, "Scan DATA ${jacksonObjectMapper().writeValueAsString(folderScanResult)}")
         return call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(folderScanResult)))
       }
-    }
-    Log.d(TAG, "Folder not found $folderId")
-    call.resolve(JSObject())
-
-//
-//    var df: DocumentFile? = DocumentFileCompat.fromUri(context, Uri.parse(folderUrl))
-//
-//    if (df == null) {
-//      Log.e(TAG, "Folder Doc File Invalid $folderUrl")
-//      var jsobj = JSObject()
-//      jsobj.put("folders", JSArray())
-//      jsobj.put("files", JSArray())
-//      call.resolve(jsobj)
-//      return
-//    }
-//
-//    Log.d(TAG, "Folder as DF ${df.isDirectory} | ${df.getSimplePath(context)} | ${df.getBasePath(context)} | ${df.name}")
-//
-//    var mediaFolders = mutableListOf<MediaFolder>()
-//    var foldersFound = df.search(false, DocumentFileType.FOLDER)
-//
-//    foldersFound.forEach {
-//      Log.d(TAG, "Iterating over Folder Found ${it.name} | ${it.getSimplePath(context)} | URI: ${it.uri}")
-//      var folderName = it.name ?: ""
-//      var mediaFiles = mutableListOf<MediaFile>()
-//
-//      var filesInFolder = it.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*"))
-//      filesInFolder.forEach { it2 ->
-//        var mimeType = it2?.mimeType ?: ""
-//        var filename = it2?.name ?: ""
-//        var isAudio = mimeType.startsWith("audio")
-//        Log.d(TAG, "Found $mimeType file $filename in folder $folderName")
-//        var imageFile = MediaFile(it2.uri, filename, it2.getSimplePath(context), it2.length(), mimeType, isAudio)
-//        mediaFiles.add(imageFile)
-//      }
-//      if (mediaFiles.size > 0) {
-//        mediaFolders.add(MediaFolder(it.uri, folderName, it.getSimplePath(context), mediaFiles))
-//      }
-//    }
-//
-//    // Files in root dir
-//    var rootMediaFiles = mutableListOf<MediaFile>()
-//    var mediaFilesFound:List<DocumentFile> = df.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*"))
-//    mediaFilesFound.forEach {
-//      Log.d(TAG, "Folder Root File Found ${it.name} | ${it.getSimplePath(context)} | URI: ${it.uri} | ${it.mimeType}")
-//      var mimeType = it?.mimeType ?: ""
-//      var filename = it?.name ?: ""
-//      var isAudio = mimeType.startsWith("audio")
-//      Log.d(TAG, "Found $mimeType file $filename in root folder")
-//      var imageFile = MediaFile(it.uri, filename, it.getSimplePath(context), it.length(), mimeType, isAudio)
-//      rootMediaFiles.add(imageFile)
-//    }
-//
-//    var jsobj = JSObject()
-//    jsobj.put("folders", mediaFolders.map{ it.toJSObject() })
-//    jsobj.put("files", rootMediaFiles.map{ it.toJSObject() })
-//    call.resolve(jsobj)
+    } ?: call.resolve(JSObject())
   }
 
+  @PluginMethod
+  fun removeFolder(call: PluginCall) {
+    var folderId = call.data.getString("folderId", "").toString()
+    DeviceManager.dbManager.removeLocalFolder(folderId)
+    call.resolve()
+  }
 
   @PluginMethod
   fun delete(call: PluginCall) {

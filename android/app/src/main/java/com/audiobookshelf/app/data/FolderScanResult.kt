@@ -1,9 +1,10 @@
 package com.audiobookshelf.app.data
 
 data class FolderScanResult(
-  val name:String?,
-  val absolutePath:String,
-  val mediaType:String,
-  val contentUrl:String,
-  val localMediaItems:MutableList<LocalMediaItem>,
+  var itemsAdded:Int,
+  var itemsUpdated:Int,
+  var itemsRemoved:Int,
+  var itemsUpToDate:Int,
+  val localFolder:LocalFolder,
+  val localMediaItems:List<LocalMediaItem>,
 )
