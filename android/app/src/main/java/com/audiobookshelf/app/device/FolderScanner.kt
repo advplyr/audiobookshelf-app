@@ -11,6 +11,9 @@ import com.arthenica.ffmpegkit.Level
 import com.audiobookshelf.app.data.*
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 
 class FolderScanner(var ctx: Context) {
   private val tag = "FolderScanner"
@@ -69,7 +72,7 @@ class FolderScanner(var ctx: Context) {
        var localFiles = mutableListOf<LocalFile>()
        var index = 1
        var startOffset = 0.0
-       var coverPath:String? = null
+       var coverContentUrl:String? = null
 
        var filesInFolder = it.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*"))
 
@@ -146,14 +149,14 @@ class FolderScanner(var ctx: Context) {
            if (existingLocalFile == null) {
              isNewOrUpdated = true
            }
-           if (existingMediaItem != null && existingMediaItem.coverPath == null) {
+           if (existingMediaItem != null && existingMediaItem.coverContentUrl == null) {
              // Existing media item did not have a cover - cover found on scan
              isNewOrUpdated = true
            }
 
            // First image file use as cover path
-           if (coverPath == null) {
-             coverPath = localFile.contentUrl
+           if (coverContentUrl == null) {
+             coverContentUrl = localFile.contentUrl
            }
          }
        }
@@ -170,7 +173,7 @@ class FolderScanner(var ctx: Context) {
          else mediaItemsAdded++
 
         Log.d(tag, "Found local media item named $itemFolderName with ${audioTracks.size} tracks and ${localFiles.size} local files")
-         var localMediaItem = LocalMediaItem(itemId, itemFolderName, localFolder.mediaType, localFolder.id, it.uri.toString(), it.getSimplePath(ctx), it.getAbsolutePath(ctx),audioTracks,localFiles,coverPath)
+         var localMediaItem = LocalMediaItem(itemId, itemFolderName, localFolder.mediaType, localFolder.id, it.uri.toString(), it.getSimplePath(ctx), it.getAbsolutePath(ctx),audioTracks,localFiles,coverContentUrl)
          mediaItems.add(localMediaItem)
        }
      }

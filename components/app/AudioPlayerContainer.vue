@@ -1,20 +1,14 @@
 <template>
   <div>
-    <div v-if="libraryItemPlaying" id="streamContainer">
+    <div id="streamContainer">
       <app-audio-player
         ref="audioPlayer"
         :playing.sync="isPlaying"
-        :library-item="libraryItemPlaying"
-        :media-entity="mediaEntityPlaying"
-        :download="download"
         :bookmarks="bookmarks"
         :sleep-timer-running="isSleepTimerRunning"
         :sleep-time-remaining="sleepTimeRemaining"
-        @close="cancelStream"
-        @sync="sync"
         @setTotalDuration="setTotalDuration"
         @selectPlaybackSpeed="showPlaybackSpeedModal = true"
-        @selectChapter="clickChapterBtn"
         @updateTime="(t) => (currentTime = t)"
         @showSleepTimer="showSleepTimer"
         @showBookmarks="showBookmarks"
@@ -23,14 +17,12 @@
     </div>
 
     <modals-playback-speed-modal v-model="showPlaybackSpeedModal" :playback-rate.sync="playbackSpeed" @update:playbackRate="updatePlaybackSpeed" @change="changePlaybackSpeed" />
-    <modals-chapters-modal v-model="showChapterModal" :current-chapter="currentChapter" :chapters="chapters" @select="selectChapter" />
     <modals-sleep-timer-modal v-model="showSleepTimerModal" :current-time="sleepTimeRemaining" :sleep-timer-running="isSleepTimerRunning" :current-end-of-chapter-time="currentEndOfChapterTime" @change="selectSleepTimeout" @cancel="cancelSleepTimer" @increase="increaseSleepTimer" @decrease="decreaseSleepTimer" />
     <modals-bookmarks-modal v-model="showBookmarksModal" :audiobook-id="audiobookId" :bookmarks="bookmarks" :current-time="currentTime" @select="selectBookmark" />
   </div>
 </template>
 
 <script>
-import { Dialog } from '@capacitor/dialog'
 import MyNativeAudio from '@/plugins/my-native-audio'
 
 export default {
@@ -40,12 +32,10 @@ export default {
       audioPlayerReady: false,
       stream: null,
       download: null,
-      lastProgressTimeUpdate: 0,
       showPlaybackSpeedModal: false,
       showBookmarksModal: false,
       showSleepTimerModal: false,
       playbackSpeed: 1,
-      showChapterModal: false,
       currentTime: 0,
       isSleepTimerRunning: false,
       sleepTimerEndTime: 0,
@@ -66,96 +56,13 @@ export default {
     }
   },
   computed: {
-    userToken() {
-      return this.$store.getters['user/getToken']
-    },
-    libraryItemPlaying() {
-      return this.$store.state.globals.libraryItemPlaying
-    },
-    mediaEntityPlaying() {
-      return this.$store.state.globals.mediaEntityPlaying
-    },
-    userAudiobook() {
-      if (!this.audiobookId) return
-      return this.$store.getters['user/getUserAudiobookData'](this.audiobookId)
-    },
     bookmarks() {
-      if (!this.userAudiobook) return []
-      return this.userAudiobook.bookmarks || []
-    },
-    currentChapter() {
-      if (!this.audiobook || !this.chapters.length) return null
-      return this.chapters.find((ch) => Number(ch.start) <= this.currentTime && Number(ch.end) > this.currentTime)
+      // return this.$store.getters['user/getUserBookmarksForItem'](this.)
+      return []
     },
     socketConnected() {
       return this.$store.state.socketConnected
-    },
-    playingDownload() {
-      return this.$store.state.playingDownload
-    },
-    audiobook() {
-      if (this.playingDownload) return this.playingDownload.audiobook
-      return this.streamAudiobook
-    },
-    audiobookId() {
-      return this.audiobook ? this.audiobook.id : null
-    },
-    streamAudiobook() {
-      return this.$store.state.streamAudiobook
-    },
-    book() {
-      return this.audiobook ? this.audiobook.book || {} : {}
-    },
-    title() {
-      return this.book ? this.book.title : ''
-    },
-    author() {
-      return this.book ? this.book.author : ''
-    },
-    cover() {
-      return this.book ? this.book.cover : ''
-    },
-    series() {
-      return this.book ? this.book.series : ''
-    },
-    chapters() {
-      return this.audiobook ? this.audiobook.chapters || [] : []
-    },
-    volumeNumber() {
-      return this.book ? this.book.volumeNumber : ''
-    },
-    seriesTxt() {
-      if (!this.series) return ''
-      if (!this.volumeNumber) return this.series
-      return `${this.series} #${this.volumeNumber}`
-    },
-    duration() {
-      return this.audiobook ? this.audiobook.duration || 0 : 0
-    },
-    coverForNative() {
-      if (!this.cover) {
-        return `${this.$store.state.serverUrl}/Logo.png`
-      }
-      if (this.cover.startsWith('http')) return this.cover
-      var coverSrc = this.$store.getters['audiobooks/getBookCoverSrc'](this.audiobook)
-      return coverSrc
-    },
-    tracksForCast() {
-      if (!this.audiobook || !this.audiobook.tracks) {
-        return []
-      }
-      var abpath = this.audiobook.path
-      var tracks = this.audiobook.tracks.map((t) => {
-        var trelpath = t.path.replace(abpath, '')
-        if (trelpath.startsWith('/')) trelpath = trelpath.substr(1)
-        return `${this.$store.state.serverUrl}/s/book/${this.audiobook.id}/${trelpath}?token=${this.userToken}`
-      })
-      return tracks
     }
-    // sleepTimeRemaining() {
-    //   if (!this.sleepTimerEndTime) return 0
-    //   return Math.max(0, this.sleepTimerEndTime / 1000 - this.currentTime)
-    // }
   },
   methods: {
     showBookmarks() {
@@ -174,7 +81,7 @@ export default {
       if (currentPosition) {
         console.log('Sleep Timer Ended Current Position: ' + currentPosition)
         var currentTime = Math.floor(currentPosition / 1000)
-        this.updateTime(currentTime)
+        // TODO: Was syncing to the server here before
       }
     },
     onSleepTimerSet({ value: sleepTimeRemaining }) {
@@ -189,8 +96,8 @@ export default {
       this.sleepTimeRemaining = sleepTimeRemaining
     },
     showSleepTimer() {
-      if (this.currentChapter) {
-        this.currentEndOfChapterTime = Math.floor(this.currentChapter.end)
+      if (this.$refs.audioPlayer && this.$refs.audioPlayer.currentChapter) {
+        this.currentEndOfChapterTime = Math.floor(this.$refs.audioPlayer.currentChapter.end)
       } else {
         this.currentEndOfChapterTime = 0
       }
@@ -214,85 +121,11 @@ export default {
       console.log('Canceling sleep timer')
       await MyNativeAudio.cancelSleepTimer()
     },
-    clickChapterBtn() {
-      if (!this.chapters.length) return
-      this.showChapterModal = true
-    },
-    selectChapter(chapter) {
-      if (this.$refs.audioPlayer) {
-        this.$refs.audioPlayer.seek(chapter.start)
-      }
-      this.showChapterModal = false
-    },
-    async cancelStream() {
-      this.currentTime = 0
-
-      if (this.download) {
-        if (this.$refs.audioPlayer) {
-          this.$refs.audioPlayer.terminateStream()
-        }
-        this.download = null
-        this.$store.commit('setPlayingDownload', null)
-
-        this.$localStore.setCurrent(null)
-      } else {
-        const { value } = await Dialog.confirm({
-          title: 'Confirm',
-          message: 'Cancel this stream?'
-        })
-        if (value) {
-          this.$server.socket.emit('close_stream')
-          this.$store.commit('setStreamAudiobook', null)
-          this.$server.stream = null
-          if (this.$refs.audioPlayer) {
-            this.$refs.audioPlayer.terminateStream()
-          }
-        }
-      }
-    },
-    sync(syncData) {
-      var diff = syncData.currentTime - this.lastServerUpdateSentSeconds
-      if (Math.abs(diff) < 1 && !syncData.timeListened) {
-        // No need to sync
-        return
-      }
-
-      if (this.stream) {
-        this.$server.socket.emit('stream_sync', syncData)
-      } else {
-        var progressUpdate = {
-          audiobookId: syncData.audiobookId,
-          currentTime: syncData.currentTime,
-          totalDuration: syncData.totalDuration,
-          progress: syncData.totalDuration ? Number((syncData.currentTime / syncData.totalDuration).toFixed(3)) : 0,
-          lastUpdate: Date.now(),
-          isRead: false
-        }
-
-        if (this.$server.connected) {
-          this.$server.socket.emit('progress_update', progressUpdate)
-        } else {
-          this.$store.dispatch('user/updateUserAudiobookData', progressUpdate)
-        }
-      }
-    },
-    updateTime(currentTime) {
-      this.sync({
-        currentTime,
-        audiobookId: this.audiobookId,
-        streamId: this.stream ? this.stream.id : null,
-        timeListened: 0,
-        totalDuration: this.totalDuration || 0
-      })
-    },
     setTotalDuration(duration) {
       this.totalDuration = duration
     },
-    streamClosed(audiobookId) {
+    streamClosed() {
       console.log('Stream Closed')
-      if (this.stream.audiobook.id === audiobookId || audiobookId === 'n/a') {
-        this.$store.commit('setStreamAudiobook', null)
-      }
     },
     streamProgress(data) {
       if (!data.numSegments) return
@@ -308,129 +141,11 @@ export default {
       }
     },
     streamReset({ streamId, startTime }) {
+      console.log('received stream reset', streamId, startTime)
       if (this.$refs.audioPlayer) {
         if (this.stream && this.stream.id === streamId) {
           this.$refs.audioPlayer.resetStream(startTime)
         }
-      }
-    },
-    async getDownloadStartTime() {
-      var userAudiobook = this.$store.getters['user/getUserAudiobookData'](this.audiobookId)
-      if (!userAudiobook) {
-        console.log('[StreamContainer] getDownloadStartTime no user audiobook record found')
-        return 0
-      }
-      return userAudiobook.currentTime
-    },
-    async playDownload() {
-      if (this.stream) {
-        if (this.$refs.audioPlayer) {
-          this.$refs.audioPlayer.terminateStream()
-        }
-        this.stream = null
-      }
-
-      this.lastProgressTimeUpdate = 0
-      console.log('[StreamContainer] Playing local', this.playingDownload)
-      if (!this.$refs.audioPlayer) {
-        console.error('No Audio Player Mini')
-        return
-      }
-
-      var playOnLoad = this.$store.state.playOnLoad
-      if (playOnLoad) this.$store.commit('setPlayOnLoad', false)
-
-      var currentTime = await this.getDownloadStartTime()
-      if (isNaN(currentTime) || currentTime === null) currentTime = 0
-      this.currentTime = currentTime
-
-      // Update local current time
-      this.$localStore.setCurrent({
-        audiobookId: this.download.id,
-        lastUpdate: Date.now()
-      })
-
-      var audiobookStreamData = {
-        id: 'download',
-        title: this.title,
-        author: this.author,
-        playWhenReady: !!playOnLoad,
-        startTime: String(Math.floor(currentTime * 1000)),
-        playbackSpeed: this.playbackSpeed || 1,
-        cover: this.download.coverUrl || null,
-        duration: String(Math.floor(this.duration * 1000)),
-        series: this.seriesTxt,
-        token: this.userToken,
-        contentUrl: this.playingDownload.contentUrl,
-        isLocal: true,
-        audiobookId: this.download.id
-      }
-
-      this.$refs.audioPlayer.set(audiobookStreamData, null, false)
-    },
-    streamOpen(stream) {
-      if (this.download) {
-        if (this.$refs.audioPlayer) {
-          this.$refs.audioPlayer.terminateStream()
-        }
-        this.download = null
-      }
-
-      this.lastProgressTimeUpdate = 0
-      console.log('[StreamContainer] Stream Open: ' + this.title)
-
-      if (!this.$refs.audioPlayer) {
-        console.error('[StreamContainer] No Audio Player Mini')
-        return
-      }
-
-      // Update local remove current
-      this.$localStore.setCurrent(null)
-
-      var playlistUrl = stream.clientPlaylistUri
-      var currentTime = stream.clientCurrentTime || 0
-      this.currentTime = currentTime
-      var playOnLoad = this.$store.state.playOnLoad
-      if (playOnLoad) this.$store.commit('setPlayOnLoad', false)
-
-      var audiobookStreamData = {
-        id: stream.id,
-        title: this.title,
-        author: this.author,
-        playWhenReady: !!playOnLoad,
-        startTime: String(Math.floor(currentTime * 1000)),
-        playbackSpeed: this.playbackSpeed || 1,
-        cover: this.coverForNative,
-        duration: String(Math.floor(this.duration * 1000)),
-        series: this.seriesTxt,
-        playlistUrl: this.$server.url + playlistUrl,
-        token: this.userToken,
-        audiobookId: this.audiobookId,
-        tracks: this.tracksForCast
-      }
-      console.log('[StreamContainer] Set Audio Player', JSON.stringify(audiobookStreamData))
-      if (!this.$refs.audioPlayer) {
-        console.error('[StreamContainer] Invalid no audio player')
-      } else {
-        console.log('[StreamContainer] Has Audio Player Ref')
-      }
-      this.$refs.audioPlayer.set(audiobookStreamData, stream, !this.stream)
-
-      this.stream = stream
-    },
-    audioPlayerMounted() {
-      console.log('Audio Player Mounted', this.$server.stream)
-      this.audioPlayerReady = true
-
-      if (this.playingDownload) {
-        console.log('[StreamContainer] Play download on audio mount')
-        if (!this.download) {
-          this.download = { ...this.playingDownload }
-        }
-        this.playDownload()
-      } else if (this.$server.stream) {
-        console.log('[StreamContainer] Open stream on audio mount')
-        this.streamOpen(this.$server.stream)
       }
     },
     updatePlaybackSpeed(speed) {
@@ -463,39 +178,24 @@ export default {
       this.$server.socket.on('stream_reset', this.streamReset)
     },
     closeStreamOnly() {
-      // If user logs out or disconnects from server, close audio if streaming
-      if (!this.download) {
-        this.$store.commit('setStreamAudiobook', null)
-        if (this.$refs.audioPlayer) {
-          this.$refs.audioPlayer.terminateStream()
-        }
+      // If user logs out or disconnects from server and not playing local
+      if (this.$refs.audioPlayer && !this.$refs.audioPlayer.isLocalPlayMethod) {
+        this.$refs.audioPlayer.terminateStream()
       }
     },
     async playLibraryItem(libraryItemId) {
-      var libraryItem = await this.$axios.$get(`/api/items/${libraryItemId}?expanded=1`).catch((error) => {
-        console.error('Failed to fetch full item', error)
-        return null
-      })
-      if (!libraryItem) return
-      this.$store.commit('globals/setLibraryItemPlaying', libraryItem)
-
       MyNativeAudio.prepareLibraryItem({ libraryItemId, playWhenReady: true })
         .then((data) => {
           console.log('TEST library item play response', JSON.stringify(data))
-          var mediaEntity = data.mediaEntity
-          this.$store.commit('globals/setMediaEntityPlaying', mediaEntity)
         })
         .catch((error) => {
           console.error('TEST failed', error)
         })
     },
     async playLocalItem(localMediaItemId) {
-      console.log('Called play local media item for lmi', localMediaItemId)
       MyNativeAudio.playLocalLibraryItem({ localMediaItemId, playWhenReady: true })
         .then((data) => {
           console.log('TEST library item play response', JSON.stringify(data))
-          var mediaEntity = data.mediaEntity
-          this.$store.commit('globals/setMediaEntityPlaying', mediaEntity)
         })
         .catch((error) => {
           console.error('TEST failed', error)
@@ -512,7 +212,7 @@ export default {
     this.setListeners()
     this.$eventBus.$on('play-item', this.playLibraryItem)
     this.$eventBus.$on('play-local-item', this.playLocalItem)
-    this.$eventBus.$on('close_stream', this.closeStreamOnly)
+    this.$eventBus.$on('close-stream', this.closeStreamOnly)
     this.$store.commit('user/addSettingsListener', { id: 'streamContainer', meth: this.settingsUpdated })
   },
   beforeDestroy() {
@@ -527,8 +227,8 @@ export default {
       this.$server.socket.off('stream_reset', this.streamReset)
     }
     this.$eventBus.$off('play-item', this.playLibraryItem)
-      this.$eventBus.$off('play-local-item', this.playLocalItem)
-    this.$eventBus.$off('close_stream', this.closeStreamOnly)
+    this.$eventBus.$off('play-local-item', this.playLocalItem)
+    this.$eventBus.$off('close-stream', this.closeStreamOnly)
     this.$store.commit('user/removeSettingsListener', 'streamContainer')
   }
 }

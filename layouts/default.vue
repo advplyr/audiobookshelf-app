@@ -351,7 +351,7 @@ export default {
     // },
     userLoggedOut() {
       // Only cancels stream if streamining not playing downloaded
-      this.$eventBus.$emit('close_stream')
+      this.$eventBus.$emit('close-stream')
     },
     initSocketListeners() {
       if (this.$server.socket) {

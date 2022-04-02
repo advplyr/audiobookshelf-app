@@ -15,7 +15,7 @@
       <div v-if="!localFolders.length" class="flex justify-center">
         <p class="text-center">No Media Folders</p>
       </div>
-      <div class="flex p-2 border-t border-primary mt-2">
+      <div class="flex border-t border-primary my-4">
         <div class="flex-grow pr-1">
           <ui-dropdown v-model="newFolderMediaType" placeholder="Select media type" :items="mediaTypeItems" />
         </div>
@@ -56,7 +56,7 @@ export default {
   methods: {
     async selectFolder() {
       if (!this.newFolderMediaType) {
-        return this.$toast.warn('Must select a media type')
+        return this.$toast.error('Must select a media type')
       }
       var folderObj = await StorageManager.selectFolder({ mediaType: this.newFolderMediaType })
       if (folderObj.error) {

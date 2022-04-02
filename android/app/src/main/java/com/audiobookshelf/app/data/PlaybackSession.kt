@@ -19,9 +19,11 @@ class PlaybackSession(
   var userId:String?,
   var libraryItemId:String?,
   var episodeId:String?,
-  var mediaEntityId:String?,
   var mediaType:String,
   var mediaMetadata:MediaTypeMetadata,
+  var chapters:MutableList<BookChapter>,
+  var displayTitle: String?,
+  var displayAuthor: String?,
   var coverPath:String?,
   var duration:Double,
   var playMethod:Int,
@@ -38,22 +40,8 @@ class PlaybackSession(
   val currentTimeMs get() = (currentTime * 1000L).toLong()
 
   @JsonIgnore
-  fun getTitle():String {
-    if (mediaMetadata == null) return "Unset"
-    var metadata = mediaMetadata as BookMetadata
-    return metadata.title
-  }
-
-  @JsonIgnore
-  fun getAuthor():String {
-    if (mediaMetadata == null) return "Unset"
-    var metadata = mediaMetadata as BookMetadata
-    return metadata.authorName ?: "Unset"
-  }
-
-  @JsonIgnore
   fun getCoverUri(): Uri {
-    if (localMediaItem?.coverPath != null) return Uri.parse(localMediaItem?.coverPath) ?: Uri.parse("android.resource://com.audiobookshelf.app/" + R.drawable.icon)
+    if (localMediaItem?.coverContentUrl != null) return Uri.parse(localMediaItem?.coverContentUrl) ?: Uri.parse("android.resource://com.audiobookshelf.app/" + R.drawable.icon)
 
     if (coverPath == null) return Uri.parse("android.resource://com.audiobookshelf.app/" + R.drawable.icon)
     return Uri.parse("$serverUrl/api/items/$libraryItemId/cover?token=$token")
@@ -75,11 +63,11 @@ class PlaybackSession(
   @JsonIgnore
   fun getMediaMetadataCompat(): MediaMetadataCompat {
     var metadataBuilder = MediaMetadataCompat.Builder()
-      .putString(MediaMetadataCompat.METADATA_KEY_TITLE, this.getTitle())
-      .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, getTitle())
-      .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, this.getAuthor())
-      .putString(MediaMetadataCompat.METADATA_KEY_AUTHOR, this.getAuthor())
-      .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, this.getAuthor())
+      .putString(MediaMetadataCompat.METADATA_KEY_TITLE, displayTitle)
+      .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, displayTitle)
+      .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, displayAuthor)
+      .putString(MediaMetadataCompat.METADATA_KEY_AUTHOR, displayAuthor)
+      .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, displayAuthor)
       .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, "series")
       .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, id)
     return metadataBuilder.build()
@@ -87,13 +75,12 @@ class PlaybackSession(
 
   @JsonIgnore
   fun getExoMediaMetadata(): MediaMetadata {
-    var authorName = this.getAuthor()
     var metadataBuilder = MediaMetadata.Builder()
-      .setTitle(this.getTitle())
-      .setDisplayTitle(this.getTitle())
-      .setArtist(authorName)
-      .setAlbumArtist(authorName)
-      .setSubtitle(authorName)
+      .setTitle(displayTitle)
+      .setDisplayTitle(displayTitle)
+      .setArtist(displayAuthor)
+      .setAlbumArtist(displayAuthor)
+      .setSubtitle(displayAuthor)
 
     var contentUri = this.getContentUri()
     metadataBuilder.setMediaUri(contentUri)

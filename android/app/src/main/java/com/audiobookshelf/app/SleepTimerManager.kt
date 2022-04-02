@@ -87,7 +87,7 @@ class SleepTimerManager constructor(playerNotificationService:PlayerNotification
       }
     }
 
-    playerNotificationService.listener?.onSleepTimerSet(getSleepTimerTimeRemainingSeconds())
+    playerNotificationService.clientEventEmitter?.onSleepTimerSet(getSleepTimerTimeRemainingSeconds())
 
     sleepTimerRunning = true
     sleepTimerTask = Timer("SleepTimer", false).schedule(0L, 1000L) {
@@ -99,14 +99,14 @@ class SleepTimerManager constructor(playerNotificationService:PlayerNotification
           Log.d(tag, "Timer Elapsed $sleepTimerElapsed | Sleep TIMER time remaining $sleepTimeSecondsRemaining s")
 
           if (sleepTimeSecondsRemaining > 0) {
-            playerNotificationService.listener?.onSleepTimerSet(sleepTimeSecondsRemaining)
+            playerNotificationService.clientEventEmitter?.onSleepTimerSet(sleepTimeSecondsRemaining)
           }
 
           if (sleepTimeSecondsRemaining <= 0) {
             Log.d(tag, "Sleep Timer Pausing Player on Chapter")
             pause()
 
-            playerNotificationService.listener?.onSleepTimerEnded(getCurrentTime())
+            playerNotificationService.clientEventEmitter?.onSleepTimerEnded(getCurrentTime())
             clearSleepTimer()
             sleepTimerFinishedAt = System.currentTimeMillis()
           } else if (sleepTimeSecondsRemaining <= 30) {
@@ -136,7 +136,7 @@ class SleepTimerManager constructor(playerNotificationService:PlayerNotification
   fun cancelSleepTimer() {
     Log.d(tag, "Canceling Sleep Timer")
     clearSleepTimer()
-    playerNotificationService.listener?.onSleepTimerSet(0)
+    playerNotificationService.clientEventEmitter?.onSleepTimerSet(0)
   }
 
   private fun extendSleepTime() {
@@ -150,7 +150,7 @@ class SleepTimerManager constructor(playerNotificationService:PlayerNotification
       if (sleepTimerEndTime > getDuration()) sleepTimerEndTime = getDuration()
     }
 
-    playerNotificationService.listener?.onSleepTimerSet(getSleepTimerTimeRemainingSeconds())
+    playerNotificationService.clientEventEmitter?.onSleepTimerSet(getSleepTimerTimeRemainingSeconds())
   }
 
   fun checkShouldExtendSleepTimer() {
@@ -197,7 +197,7 @@ class SleepTimerManager constructor(playerNotificationService:PlayerNotification
     }
 
     setVolume(1F)
-    playerNotificationService.listener?.onSleepTimerSet(getSleepTimerTimeRemainingSeconds())
+    playerNotificationService.clientEventEmitter?.onSleepTimerSet(getSleepTimerTimeRemainingSeconds())
   }
 
   fun decreaseSleepTime(time: Long) {
@@ -219,6 +219,6 @@ class SleepTimerManager constructor(playerNotificationService:PlayerNotification
     }
 
     setVolume(1F)
-    playerNotificationService.listener?.onSleepTimerSet(getSleepTimerTimeRemainingSeconds())
+    playerNotificationService.clientEventEmitter?.onSleepTimerSet(getSleepTimerTimeRemainingSeconds())
   }
 }

@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.core.content.ContextCompat
+import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.server.ApiHandler
 import com.capacitorjs.plugins.app.AppPlugin
@@ -30,7 +31,15 @@ class MyNativeAudio : Plugin() {
 
       playerNotificationService.setBridge(bridge)
 
-      playerNotificationService.setCustomObjectListener(object : PlayerNotificationService.MyCustomObjectListener {
+      playerNotificationService.clientEventEmitter = (object : PlayerNotificationService.ClientEventEmitter {
+        override fun onPlaybackSession(playbackSession: PlaybackSession) {
+          notifyListeners("onPlaybackSession", JSObject(jacksonObjectMapper().writeValueAsString(playbackSession)))
+        }
+
+        override fun onPlaybackClosed() {
+          emit("onPlaybackClosed", true)
+        }
+
         override fun onPlayingUpdate(isPlaying: Boolean) {
           emit("onPlayingUpdate", isPlaying)
         }
@@ -67,10 +76,9 @@ class MyNativeAudio : Plugin() {
   @PluginMethod
   fun prepareLibraryItem(call: PluginCall) {
     var libraryItemId = call.getString("libraryItemId", "").toString()
-    var mediaEntityId = call.getString("mediaEntityId", "").toString()
     var playWhenReady = call.getBoolean("playWhenReady") == true
 
-    apiHandler.playLibraryItem(libraryItemId) {
+    apiHandler.playLibraryItem(libraryItemId, false) {
 
       Handler(Looper.getMainLooper()).post() {
         Log.d(tag, "Preparing Player TEST ${jacksonObjectMapper().writeValueAsString(it)}")

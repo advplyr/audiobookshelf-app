@@ -54,7 +54,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     var isStarted = false
   }
 
-  interface MyCustomObjectListener {
+  interface ClientEventEmitter {
+    fun onPlaybackSession(playbackSession:PlaybackSession)
+    fun onPlaybackClosed()
     fun onPlayingUpdate(isPlaying: Boolean)
     fun onMetadata(metadata: JSObject)
     fun onPrepare(audiobookId: String, playWhenReady: Boolean)
@@ -65,7 +67,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   private val tag = "PlayerService"
   private val binder = LocalBinder()
 
-  var listener:MyCustomObjectListener? = null
+  var clientEventEmitter:ClientEventEmitter? = null
 
   private lateinit var ctx:Context
   private lateinit var mediaSessionConnector: MediaSessionConnector
@@ -106,9 +108,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   private var mShakeDetector: ShakeDetector? = null
   private var shakeSensorUnregisterTask:TimerTask? = null
 
-  fun setCustomObjectListener(mylistener: MyCustomObjectListener) {
-    listener = mylistener
-  }
   fun setBridge(bridge: Bridge) {
     webviewBridge = bridge
   }
@@ -380,8 +379,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       override fun getMediaDescription(player: Player, windowIndex: Int): MediaDescriptionCompat {
         var builder = MediaDescriptionCompat.Builder()
           .setMediaId(currentPlaybackSession!!.id)
-          .setTitle(currentPlaybackSession!!.getTitle())
-          .setSubtitle(currentPlaybackSession!!.getAuthor())
+          .setTitle(currentPlaybackSession!!.displayTitle)
+          .setSubtitle(currentPlaybackSession!!.displayAuthor)
           .setMediaUri(currentPlaybackSession!!.getContentUri())
           .setIconUri(currentPlaybackSession!!.getCoverUri())
         return builder.build()
@@ -656,7 +655,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
             audiobookProgressSyncer.stop()
           }
 
-          listener?.onPlayingUpdate(player.isPlaying)
+          clientEventEmitter?.onPlayingUpdate(player.isPlaying)
         }
       }
     }
@@ -668,6 +667,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   */
   fun preparePlayer(playbackSession: PlaybackSession, playWhenReady:Boolean) {
     currentPlaybackSession = playbackSession
+
+    clientEventEmitter?.onPlaybackSession(playbackSession)
+
     var metadata = playbackSession.getMediaMetadataCompat()
     mediaSession.setMetadata(metadata)
     var mediaMetadata = playbackSession.getExoMediaMetadata()
@@ -679,7 +681,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     if (mPlayer == currentPlayer) {
       var mediaSource:MediaSource
 
-      if (currentPlaybackSession?.isLocal == true) {
+      if (!playbackSession.isHLS) {
         Log.d(tag, "Playing Local File")
         var dataSourceFactory = DefaultDataSourceFactory(ctx, channelId)
         mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
@@ -881,11 +883,13 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   }
 
   fun terminateStream() {
-    if (currentPlayer.playbackState == Player.STATE_READY) {
-      currentPlayer.clearMediaItems()
-    }
-    currentAudiobookStreamData?.id = ""
+//    if (currentPlayer.playbackState == Player.STATE_READY) {
+//      currentPlayer.clearMediaItems()
+//    }
+    currentPlayer.clearMediaItems()
+    currentPlaybackSession = null
     lastPauseTime = 0
+    clientEventEmitter?.onPlaybackClosed()
   }
 
   fun sendClientMetadata(stateName: String) {
@@ -895,7 +899,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     metadata.put("duration", duration)
     metadata.put("currentTime", mPlayer.currentPosition)
     metadata.put("stateName", stateName)
-    listener?.onMetadata(metadata)
+    clientEventEmitter?.onMetadata(metadata)
   }
 
 

@@ -109,11 +109,14 @@ class ApiHandler {
     }
   }
 
-  fun playLibraryItem(libraryItemId:String, cb: (PlaybackSession) -> Unit) {
+  fun playLibraryItem(libraryItemId:String, forceTranscode:Boolean, cb: (PlaybackSession) -> Unit) {
     val mapper = jacksonObjectMapper()
     var payload = JSObject()
     payload.put("mediaPlayer", "exo-player")
-    payload.put("forceDirectPlay", true)
+
+    // Only if direct play fails do we force transcode
+    if (!forceTranscode) payload.put("forceDirectPlay", true)
+    else payload.put("forceTranscode", true)
 
     postRequest("/api/items/$libraryItemId/play", payload) {
       it.put("serverUrl", serverUrl)

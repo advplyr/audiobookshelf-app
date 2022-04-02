@@ -102,8 +102,8 @@ export default {
         // When all items are up-to-date then local media items are not returned
         if (response.localMediaItems.length) {
           this.localMediaItems = response.localMediaItems.map((mi) => {
-            if (mi.coverPath) {
-              mi.coverPathSrc = Capacitor.convertFileSrc(mi.coverPath)
+            if (mi.coverContentUrl) {
+              mi.coverPathSrc = Capacitor.convertFileSrc(mi.coverContentUrl)
             }
             return mi
           })
@@ -123,7 +123,7 @@ export default {
       this.localMediaItems = items.map((lmi) => {
         return {
           ...lmi,
-          coverPathSrc: lmi.coverPath ? Capacitor.convertFileSrc(lmi.coverPath) : null
+          coverPathSrc: lmi.coverContentUrl ? Capacitor.convertFileSrc(lmi.coverContentUrl) : null
         }
       })
       if (this.shouldScan) {
