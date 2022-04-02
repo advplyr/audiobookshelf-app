@@ -46,7 +46,8 @@ data class Book(
   var metadata:BookMetadata,
   var coverPath:String?,
   var tags:MutableList<String>,
-  var audioFiles:MutableList<AudioFile>
+  var audioFiles:MutableList<AudioFile>,
+  var chapters:MutableList<BookChapter>
 ) : MediaType()
 
 // This auto-detects whether it is a Book or Podcast
@@ -153,4 +154,12 @@ data class AudioTrack(
   var isLocal:Boolean,
   var localFileId:String?,
   var audioProbeResult:AudioProbeResult?
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class BookChapter(
+  var id:Int,
+  var start:Double,
+  var end:Double,
+  var title:String?
 )

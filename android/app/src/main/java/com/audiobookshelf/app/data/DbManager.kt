@@ -52,11 +52,9 @@ class DbManager : Plugin() {
   }
 
   fun saveLocalMediaItems(localMediaItems:List<LocalMediaItem>) {
-    GlobalScope.launch(Dispatchers.IO) {
       localMediaItems.map {
         Paper.book("localMediaItems").write(it.id, it)
       }
-    }
   }
 
   fun saveLocalFolder(localFolder:LocalFolder) {

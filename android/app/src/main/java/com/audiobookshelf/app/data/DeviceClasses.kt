@@ -29,7 +29,7 @@ data class LocalMediaItem(
   var absolutePath:String,
   var audioTracks:MutableList<AudioTrack>,
   var localFiles:MutableList<LocalFile>,
-  var coverPath:String?
+  var coverContentUrl:String?
 ) {
 
   @JsonIgnore
@@ -53,7 +53,7 @@ data class LocalMediaItem(
     var sessionId = "play-${UUID.randomUUID()}"
 
     var mediaMetadata = getMediaMetadata()
-    return PlaybackSession(sessionId,null,null,null,null,mediaType,mediaMetadata,null,getDuration(),PLAYMETHOD_LOCAL,audioTracks,0.0,null,this,null,null)
+    return PlaybackSession(sessionId,null,null,null, mediaType, mediaMetadata, mutableListOf(), name, "author name here",null,getDuration(),PLAYMETHOD_LOCAL,audioTracks,0.0,null,this,null,null)
   }
 }
 

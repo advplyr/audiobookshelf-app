@@ -24,6 +24,10 @@ export const getters = {
     if (!state.user.libraryItemProgress) return null
     return state.user.libraryItemProgress.find(li => li.id == libraryItemId)
   },
+  getUserBookmarksForItem: (state) => (libraryItemId) => {
+    if (!state.user.bookmarks) return []
+    return state.user.bookmarks.filter(bm => bm.libraryItemId === libraryItemId)
+  },
   getUserAudiobookData: (state, getters) => (audiobookId) => {
     return getters.getUserAudiobook(audiobookId)
   },
