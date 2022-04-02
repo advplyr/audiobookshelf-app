@@ -7,6 +7,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.google.android.exoplayer2.MediaMetadata
 
+// TODO: enum or something in kotlin?
 val PLAYMETHOD_DIRECTPLAY = 0
 val PLAYMETHOD_DIRECTSTREAM = 1
 val PLAYMETHOD_TRANSCODE = 2
@@ -15,10 +16,10 @@ val PLAYMETHOD_LOCAL = 3
 @JsonIgnoreProperties(ignoreUnknown = true)
 class PlaybackSession(
   var id:String,
-  var userId:String,
-  var libraryItemId:String,
-  var episodeId:String,
-  var mediaEntityId:String,
+  var userId:String?,
+  var libraryItemId:String?,
+  var episodeId:String?,
+  var mediaEntityId:String?,
   var mediaType:String,
   var mediaMetadata:MediaTypeMetadata,
   var coverPath:String?,
@@ -26,15 +27,15 @@ class PlaybackSession(
   var playMethod:Int,
   var audioTracks:MutableList<AudioTrack>,
   var currentTime:Double,
-  var libraryItem:LibraryItem,
-  var serverUrl:String,
-  var token:String
+  var libraryItem:LibraryItem?,
+  var localMediaItem:LocalMediaItem?,
+  var serverUrl:String?,
+  var token:String?
 ) {
 
-  @JsonIgnore
-  fun getIsHls():Boolean {
-    return playMethod == PLAYMETHOD_TRANSCODE
-  }
+  val isHLS get() = playMethod == PLAYMETHOD_TRANSCODE
+  val isLocal get() = playMethod == PLAYMETHOD_LOCAL
+  val currentTimeMs get() = (currentTime * 1000L).toLong()
 
   @JsonIgnore
   fun getTitle():String {
@@ -47,11 +48,13 @@ class PlaybackSession(
   fun getAuthor():String {
     if (mediaMetadata == null) return "Unset"
     var metadata = mediaMetadata as BookMetadata
-    return  metadata.authors.joinToString(",") { it.name }
+    return metadata.authorName ?: "Unset"
   }
 
   @JsonIgnore
   fun getCoverUri(): Uri {
+    if (localMediaItem?.coverPath != null) return Uri.parse(localMediaItem?.coverPath) ?: Uri.parse("android.resource://com.audiobookshelf.app/" + R.drawable.icon)
+
     if (coverPath == null) return Uri.parse("android.resource://com.audiobookshelf.app/" + R.drawable.icon)
     return Uri.parse("$serverUrl/api/items/$libraryItemId/cover?token=$token")
   }
@@ -59,6 +62,7 @@ class PlaybackSession(
   @JsonIgnore
   fun getContentUri(): Uri {
     var audioTrack = audioTracks[0]
+    if (isLocal) return Uri.parse(audioTrack.contentUrl) // Local content url
     return Uri.parse("$serverUrl${audioTrack.contentUrl}?token=$token")
   }
 

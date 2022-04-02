@@ -83,7 +83,7 @@ data class BookMetadata(
 data class PodcastMetadata(
   var title:String,
   var author:String?,
-  var feedUrl:String,
+  var feedUrl:String?,
   var genres:MutableList<String>
 ) : MediaTypeMetadata()
 

@@ -603,7 +603,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
           if (currentPlayer.playbackState == Player.STATE_READY) {
             Log.d(tag, "STATE_READY : " + mPlayer.duration.toString())
 
-//            currentAudiobookStreamData!!.hasPlayerLoaded = true
             if (lastPauseTime == 0L) {
               sendClientMetadata("ready_no_sync")
               lastPauseTime = -1;
@@ -673,42 +672,35 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     mediaSession.setMetadata(metadata)
     var mediaMetadata = playbackSession.getExoMediaMetadata()
 
+    var mediaUri = playbackSession.getContentUri()
+    var mimeType = playbackSession.getMimeType()
+    var mediaItem = MediaItem.Builder().setUri(mediaUri).setMediaMetadata(mediaMetadata).setMimeType(mimeType).build()
 
-//    var mediaUri = playbackSession.getContentUri()
-//    var mimeType = playbackSession.getMimeType()
-//    var mediaItem = MediaItem.Builder().setUri(mediaUri).setMediaMetadata(mediaMetadata).setMimeType(mimeType).build()
-//    var dataSourceFactory = DefaultDataSourceFactory(ctx, channelId)
-//    var mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
-//    mPlayer.setMediaSource(mediaSource, 0L)
+    if (mPlayer == currentPlayer) {
+      var mediaSource:MediaSource
 
-//    if (mPlayer == currentPlayer) {
-//      var mediaSource:MediaSource
-//
-//      if (currentAudiobookStreamData!!.isLocal) {
-//        Log.d(tag, "Playing Local File")
-//        var dataSourceFactory = DefaultDataSourceFactory(ctx, channelId)
-//        mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
-//      } else {
-//        Log.d(tag, "Playing HLS File")
-//        var dataSourceFactory = DefaultHttpDataSource.Factory()
-//        dataSourceFactory.setUserAgent(channelId)
-//        dataSourceFactory.setDefaultRequestProperties(hashMapOf("Authorization" to "Bearer ${currentAudiobookStreamData!!.token}"))
-//        mediaSource = HlsMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
-//      }
-//      mPlayer.setMediaSource(mediaSource, currentAudiobookStreamData!!.startTime)
-//    } else if (castPlayer != null) {
+      if (currentPlaybackSession?.isLocal == true) {
+        Log.d(tag, "Playing Local File")
+        var dataSourceFactory = DefaultDataSourceFactory(ctx, channelId)
+        mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
+      } else {
+        Log.d(tag, "Playing HLS File")
+        var dataSourceFactory = DefaultHttpDataSource.Factory()
+        dataSourceFactory.setUserAgent(channelId)
+        dataSourceFactory.setDefaultRequestProperties(hashMapOf("Authorization" to "Bearer ${playbackSession.token}"))
+        mediaSource = HlsMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
+      }
+      Log.d(tag, "Playback Session CURRENT TIME ${playbackSession.currentTime} | ${playbackSession.currentTimeMs}")
+      mPlayer.setMediaSource(mediaSource, playbackSession.currentTimeMs)
+    } else if (castPlayer != null) {
 ////      var mediaQueue = currentAudiobookStreamData!!.getCastQueue()
 //      // TODO: Start position will need to be adjusted if using multi-track queue
 ////      castPlayer?.setMediaItems(mediaQueue, 0, 0)
-//    }
+    }
 
-    currentPlayer.prepare()
     currentPlayer.playWhenReady = playWhenReady
     currentPlayer.setPlaybackSpeed(1f) // TODO: Playback speed should come from settings
-  }
-
-  fun playLocalMediaItem(localMediaItem: LocalMediaItem, playWhenReady:Boolean) {
-    Log.d(tag, "playLocalMediaItem ${localMediaItem}")
+    currentPlayer.prepare()
   }
 
   fun initPlayer(audiobookStreamData: AudiobookStreamData) {
@@ -727,10 +719,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       var deviceMan = Build.MANUFACTURER
       var deviceModel = Build.MODEL
       Log.d(tag, "Checking device $deviceName | Model $deviceModel | Manufacturer $deviceMan")
-      if (deviceMan.toLowerCase().contains("oneplus") || deviceName.toLowerCase().contains("oneplus")) {
+      if (deviceMan.lowercase(Locale.getDefault()).contains("oneplus") || deviceName.lowercase(Locale.getDefault()).contains("oneplus")) {
         Log.d(tag, "Detected OnePlus device - removing local cover")
         currentAudiobookStreamData?.clearCover()
-      } else if (deviceName.toLowerCase().contains("xperia") || deviceModel.toLowerCase().contains("xperia")) {
+      } else if (deviceName.lowercase(Locale.getDefault()).contains("xperia") || deviceModel.lowercase(Locale.getDefault()).contains("xperia")) {
         Log.d(tag, "Detected Sony Xperia device - removing local cover")
         currentAudiobookStreamData?.clearCover()
       }

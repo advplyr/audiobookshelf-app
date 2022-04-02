@@ -85,11 +85,13 @@ class MyNativeAudio : Plugin() {
   fun playLocalLibraryItem(call:PluginCall) {
     var localMediaItemId = call.getString("localMediaItemId", "").toString()
     var playWhenReady = call.getBoolean("playWhenReady") == true
+    Log.d(tag, "playLocalLibraryItem $playWhenReady")
 
     DeviceManager.dbManager.loadLocalMediaItem(localMediaItemId)?.let {
       Handler(Looper.getMainLooper()).post() {
         Log.d(tag, "Preparing Local Media item ${jacksonObjectMapper().writeValueAsString(it)}")
-        playerNotificationService.playLocalMediaItem(it, playWhenReady)
+        var playbackSession = it.getPlaybackSession()
+        playerNotificationService.preparePlayer(playbackSession, playWhenReady)
       }
       return call.resolve(JSObject())
     }
