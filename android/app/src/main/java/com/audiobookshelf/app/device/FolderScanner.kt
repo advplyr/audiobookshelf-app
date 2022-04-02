@@ -153,7 +153,7 @@ class FolderScanner(var ctx: Context) {
 
            // First image file use as cover path
            if (coverPath == null) {
-             coverPath = localFile.absolutePath
+             coverPath = localFile.contentUrl
            }
          }
        }
