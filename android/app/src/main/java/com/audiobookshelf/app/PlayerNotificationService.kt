@@ -381,10 +381,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
           .setMediaId(currentPlaybackSession!!.id)
           .setTitle(currentPlaybackSession!!.displayTitle)
           .setSubtitle(currentPlaybackSession!!.displayAuthor)
-          .setMediaUri(currentPlaybackSession!!.getContentUri())
           .setIconUri(currentPlaybackSession!!.getCoverUri())
         return builder.build()
       }
+      // .setMediaUri(currentPlaybackSession!!.getContentUri())
     }
 
     val myPlaybackPreparer:MediaSessionConnector.PlaybackPreparer = object :MediaSessionConnector.PlaybackPreparer {
@@ -661,7 +661,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     }
   }
 
-
   /*
     User callable methods
   */
@@ -672,28 +671,44 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
     var metadata = playbackSession.getMediaMetadataCompat()
     mediaSession.setMetadata(metadata)
-    var mediaMetadata = playbackSession.getExoMediaMetadata()
 
-    var mediaUri = playbackSession.getContentUri()
-    var mimeType = playbackSession.getMimeType()
-    var mediaItem = MediaItem.Builder().setUri(mediaUri).setMediaMetadata(mediaMetadata).setMimeType(mimeType).build()
+    var mediaItems = playbackSession.getMediaItems()
 
     if (mPlayer == currentPlayer) {
       var mediaSource:MediaSource
 
-      if (!playbackSession.isHLS) {
-        Log.d(tag, "Playing Local File")
+      if (playbackSession.isLocal) {
+        Log.d(tag, "Playing Local Item")
         var dataSourceFactory = DefaultDataSourceFactory(ctx, channelId)
-        mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
+        mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItems[0])
+      } else if (!playbackSession.isHLS) {
+        Log.d(tag, "Direct Playing Item")
+        var dataSourceFactory = DefaultDataSourceFactory(ctx, channelId)
+        mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItems[0])
       } else {
-        Log.d(tag, "Playing HLS File")
+        Log.d(tag, "Playing HLS Item")
         var dataSourceFactory = DefaultHttpDataSource.Factory()
         dataSourceFactory.setUserAgent(channelId)
         dataSourceFactory.setDefaultRequestProperties(hashMapOf("Authorization" to "Bearer ${playbackSession.token}"))
-        mediaSource = HlsMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
+        mediaSource = HlsMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItems[0])
       }
-      Log.d(tag, "Playback Session CURRENT TIME ${playbackSession.currentTime} | ${playbackSession.currentTimeMs}")
-      mPlayer.setMediaSource(mediaSource, playbackSession.currentTimeMs)
+      mPlayer.setMediaSource(mediaSource)
+
+      // Add remaining media items if multi-track
+      if (mediaItems.size > 1) {
+        mPlayer.addMediaItems(mediaItems.subList(1, mediaItems.size))
+        Log.d(tag, "mPlayer total media items ${mPlayer.mediaItemCount}")
+
+        var currentTrackIndex = playbackSession.getCurrentTrackIndex()
+        var currentTrackTime = playbackSession.getCurrentTrackTimeMs()
+        Log.d(tag, "mPlayer current track index $currentTrackIndex & current track time $currentTrackTime")
+        mPlayer.seekTo(currentTrackIndex, currentTrackTime)
+      } else {
+        mPlayer.seekTo(playbackSession.currentTimeMs)
+      }
+
+
+
     } else if (castPlayer != null) {
 ////      var mediaQueue = currentAudiobookStreamData!!.getCastQueue()
 //      // TODO: Start position will need to be adjusted if using multi-track queue
@@ -784,11 +799,23 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   }
 
   fun getCurrentTime() : Long {
-    return currentPlayer.currentPosition
+    if (currentPlayer.mediaItemCount > 1) {
+      var windowIndex = currentPlayer.currentWindowIndex
+      var currentTrackStartOffset = currentPlaybackSession?.getTrackStartOffsetMs(windowIndex) ?: 0L
+      return currentPlayer.currentPosition + currentTrackStartOffset
+    } else {
+      return currentPlayer.currentPosition
+    }
   }
 
   fun getBufferedTime() : Long {
-    return currentPlayer.bufferedPosition
+    if (currentPlayer.mediaItemCount > 1) {
+      var windowIndex = currentPlayer.currentWindowIndex
+      var currentTrackStartOffset = currentPlaybackSession?.getTrackStartOffsetMs(windowIndex) ?: 0L
+      return currentPlayer.bufferedPosition + currentTrackStartOffset
+    } else {
+      return currentPlayer.bufferedPosition
+    }
   }
 
   fun getTheLastPauseTime() : Long {
@@ -867,7 +894,14 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   }
 
   fun seekPlayer(time: Long) {
-    currentPlayer.seekTo(time)
+    if (currentPlayer.mediaItemCount > 1) {
+      currentPlaybackSession?.currentTime = time / 1000.0
+      var newWindowIndex = currentPlaybackSession?.getCurrentTrackIndex() ?: 0
+      var newTimeOffset = currentPlaybackSession?.getCurrentTrackTimeMs() ?: 0
+      currentPlayer.seekTo(newWindowIndex, newTimeOffset)
+    } else {
+      currentPlayer.seekTo(time)
+    }
   }
 
   fun seekForward(amount: Long) {
@@ -883,9 +917,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   }
 
   fun terminateStream() {
-//    if (currentPlayer.playbackState == Player.STATE_READY) {
-//      currentPlayer.clearMediaItems()
-//    }
     currentPlayer.clearMediaItems()
     currentPlaybackSession = null
     lastPauseTime = 0
@@ -894,14 +925,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   fun sendClientMetadata(stateName: String) {
     var metadata = JSObject()
-    var duration = mPlayer.duration
-    if (duration < 0) duration = 0
+    var duration = currentPlaybackSession?.getTotalDuration() ?: 0
     metadata.put("duration", duration)
-    metadata.put("currentTime", mPlayer.currentPosition)
+    metadata.put("currentTime", getCurrentTime())
     metadata.put("stateName", stateName)
     clientEventEmitter?.onMetadata(metadata)
   }
-
 
   //
   // MEDIA BROWSER STUFF (ANDROID AUTO)

@@ -1,19 +1,7 @@
 <template>
   <div>
     <div id="streamContainer">
-      <app-audio-player
-        ref="audioPlayer"
-        :playing.sync="isPlaying"
-        :bookmarks="bookmarks"
-        :sleep-timer-running="isSleepTimerRunning"
-        :sleep-time-remaining="sleepTimeRemaining"
-        @setTotalDuration="setTotalDuration"
-        @selectPlaybackSpeed="showPlaybackSpeedModal = true"
-        @updateTime="(t) => (currentTime = t)"
-        @showSleepTimer="showSleepTimer"
-        @showBookmarks="showBookmarks"
-        @hook:mounted="audioPlayerMounted"
-      />
+      <app-audio-player ref="audioPlayer" :playing.sync="isPlaying" :bookmarks="bookmarks" :sleep-timer-running="isSleepTimerRunning" :sleep-time-remaining="sleepTimeRemaining" @selectPlaybackSpeed="showPlaybackSpeedModal = true" @updateTime="(t) => (currentTime = t)" @showSleepTimer="showSleepTimer" @showBookmarks="showBookmarks" @hook:mounted="audioPlayerMounted" />
     </div>
 
     <modals-playback-speed-modal v-model="showPlaybackSpeedModal" :playback-rate.sync="playbackSpeed" @update:playbackRate="updatePlaybackSpeed" @change="changePlaybackSpeed" />
@@ -43,8 +31,7 @@ export default {
       onSleepTimerEndedListener: null,
       onSleepTimerSetListener: null,
       sleepInterval: null,
-      currentEndOfChapterTime: 0,
-      totalDuration: 0
+      currentEndOfChapterTime: 0
     }
   },
   watch: {
@@ -120,9 +107,6 @@ export default {
     async cancelSleepTimer() {
       console.log('Canceling sleep timer')
       await MyNativeAudio.cancelSleepTimer()
-    },
-    setTotalDuration(duration) {
-      this.totalDuration = duration
     },
     streamClosed() {
       console.log('Stream Closed')

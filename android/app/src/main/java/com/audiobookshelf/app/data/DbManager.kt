@@ -1,6 +1,7 @@
 package com.audiobookshelf.app.data
 
 import android.util.Log
+import androidx.documentfile.provider.DocumentFile
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
@@ -12,6 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import java.io.File
 
 @CapacitorPlugin(name = "DbManager")
 class DbManager : Plugin() {
@@ -25,14 +27,28 @@ class DbManager : Plugin() {
     Paper.book("device").write("data", deviceData)
   }
 
-  fun loadLocalMediaItems():List<LocalMediaItem> {
+  fun loadLocalMediaItems():MutableList<LocalMediaItem> {
     var localMediaItems:MutableList<LocalMediaItem> = mutableListOf()
     Paper.book("localMediaItems").allKeys.forEach {
       var localMediaItem:LocalMediaItem? = Paper.book("localMediaItems").read(it)
       if (localMediaItem != null) {
-        localMediaItems.add(localMediaItem)
+//        if (localMediaItem.coverContentUrl != null) {
+//          var file = DocumentFile.fromSingleUri(ctx)
+//          if (!file.exists()) {
+//            Log.e(tag, "Local media item cover url does not exist ${localMediaItem.coverContentUrl}")
+//            removeLocalMediaItem(localMediaItem.id)
+//          } else {
+//            localMediaItems.add(localMediaItem)
+//          }
+//        } else {
+          localMediaItems.add(localMediaItem)
+//        }
       }
     }
+//    localMediaItems = localMediaItems.filter {
+//
+//      file.exists()
+//    }
     return localMediaItems
   }
 

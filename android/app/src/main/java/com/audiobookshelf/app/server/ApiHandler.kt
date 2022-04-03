@@ -94,14 +94,20 @@ class ApiHandler {
     }
   }
 
+  fun getLibraryItem(libraryItemId:String, cb: (LibraryItem) -> Unit) {
+    getRequest("/api/items/$libraryItemId?expanded=1") {
+      val libraryItem = jacksonObjectMapper().readValue<LibraryItem>(it.toString())
+      cb(libraryItem)
+    }
+  }
+
   fun getLibraryItems(libraryId:String, cb: (List<LibraryItem>) -> Unit) {
-    val mapper = jacksonObjectMapper()
     getRequest("/api/libraries/$libraryId/items") {
       val items = mutableListOf<LibraryItem>()
       if (it.has("results")) {
         var array = it.getJSONArray("results")
         for (i in 0 until array.length()) {
-          val item = mapper.readValue<LibraryItem>(array.get(i).toString())
+          val item = jacksonObjectMapper().readValue<LibraryItem>(array.get(i).toString())
           items.add(item)
         }
       }

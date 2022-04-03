@@ -47,7 +47,10 @@ data class Book(
   var coverPath:String?,
   var tags:MutableList<String>,
   var audioFiles:MutableList<AudioFile>,
-  var chapters:MutableList<BookChapter>
+  var chapters:MutableList<BookChapter>,
+  var tracks:MutableList<AudioFile>?,
+  var size:Long?,
+  var duration:Double?
 ) : MediaType()
 
 // This auto-detects whether it is a Book or Podcast
@@ -154,7 +157,15 @@ data class AudioTrack(
   var isLocal:Boolean,
   var localFileId:String?,
   var audioProbeResult:AudioProbeResult?
-)
+) {
+
+  @get:JsonIgnore
+  val startOffsetMs get() = (startOffset * 1000L).toLong()
+  @get:JsonIgnore
+  val durationMs get() = (duration * 1000L).toLong()
+  @get:JsonIgnore
+  val endOffsetMs get() = startOffsetMs + durationMs
+}
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class BookChapter(
