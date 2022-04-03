@@ -27,12 +27,6 @@ export const actions = {
       return false
     }
 
-    // var library = state.libraries.find(lib => lib.id === libraryId)
-    // if (library) {
-    //   commit('setCurrentLibrary', libraryId)
-    //   return library
-    // }
-
     return this.$axios
       .$get(`/api/libraries/${libraryId}?include=filterdata`)
       .then((data) => {

@@ -277,7 +277,7 @@ export default {
       }
     },
     async init() {
-      this.localFolders = (await this.$db.loadFolders()) || []
+      this.localFolders = (await this.$db.getLocalFolders()) || []
       AudioDownloader.addListener('onDownloadProgress', this.onDownloadProgress)
     }
   },

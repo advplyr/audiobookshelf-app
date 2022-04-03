@@ -47,11 +47,13 @@ export const getters = {
 }
 
 export const actions = {
+  // Listen for network connection
   async setupNetworkListener({ state, commit }) {
     if (state.isNetworkListenerInit) return
     commit('setNetworkListenerInit', true)
 
     var status = await Network.getStatus()
+    console.log('Network status', status)
     commit('setNetworkStatus', status)
 
     Network.addListener('networkStatusChange', (status) => {

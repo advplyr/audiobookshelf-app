@@ -1,13 +1,12 @@
 package com.audiobookshelf.app.server
 
-import android.app.Activity
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
 import com.audiobookshelf.app.data.Library
 import com.audiobookshelf.app.data.LibraryItem
-import com.audiobookshelf.app.data.MediaTypeMetadata
 import com.audiobookshelf.app.data.PlaybackSession
+import com.audiobookshelf.app.device.DeviceManager
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.getcapacitor.JSArray
@@ -21,26 +20,15 @@ class ApiHandler {
   val tag = "ApiHandler"
   private var client = OkHttpClient()
   var ctx: Context
-  var serverUrl = ""
-  var token = ""
   var storageSharedPreferences: SharedPreferences? = null
 
   constructor(_ctx: Context) {
     ctx = _ctx
-    init()
-  }
-
-  fun init() {
-    storageSharedPreferences = ctx.getSharedPreferences("CapacitorStorage", Activity.MODE_PRIVATE)
-    serverUrl = storageSharedPreferences?.getString("serverUrl", "").toString()
-    Log.d(tag, "SHARED PREF SERVERURL $serverUrl")
-    token = storageSharedPreferences?.getString("token", "").toString()
-    Log.d(tag, "SHARED PREF TOKEN $token")
   }
 
   fun getRequest(endpoint:String, cb: (JSObject) -> Unit) {
     val request = Request.Builder()
-      .url("$serverUrl$endpoint").addHeader("Authorization", "Bearer $token")
+      .url("${DeviceManager.serverAddress}$endpoint").addHeader("Authorization", "Bearer ${DeviceManager.token}")
       .build()
     makeRequest(request, cb)
   }
@@ -49,7 +37,7 @@ class ApiHandler {
     val mediaType = "application/json; charset=utf-8".toMediaType()
     val requestBody = payload.toString().toRequestBody(mediaType)
     val request = Request.Builder().post(requestBody)
-      .url("$serverUrl$endpoint").addHeader("Authorization", "Bearer $token")
+      .url("${DeviceManager.serverAddress}$endpoint").addHeader("Authorization", "Bearer ${DeviceManager.token}")
       .build()
     makeRequest(request, cb)
   }
@@ -125,8 +113,8 @@ class ApiHandler {
     else payload.put("forceTranscode", true)
 
     postRequest("/api/items/$libraryItemId/play", payload) {
-      it.put("serverUrl", serverUrl)
-      it.put("token", token)
+      it.put("serverUrl", DeviceManager.serverAddress)
+      it.put("token", DeviceManager.token)
       val playbackSession = mapper.readValue<PlaybackSession>(it.toString())
       cb(playbackSession)
     }

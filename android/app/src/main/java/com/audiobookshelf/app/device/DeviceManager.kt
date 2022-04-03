@@ -1,19 +1,18 @@
 package com.audiobookshelf.app.device
 
 import android.util.Log
-import com.anggrayudi.storage.file.id
 import com.audiobookshelf.app.data.DbManager
 import com.audiobookshelf.app.data.DeviceData
-import com.audiobookshelf.app.data.ServerConfig
+import com.audiobookshelf.app.data.ServerConnectionConfig
 
 object DeviceManager {
   val tag = "DeviceManager"
   val dbManager:DbManager = DbManager()
-  var deviceData:DeviceData = dbManager.loadDeviceData()
-  var currentServerConfig: ServerConfig? = null
+  var deviceData:DeviceData = dbManager.getDeviceData()
+  var serverConnectionConfig: ServerConnectionConfig? = null
 
-  val serverAddress get() = currentServerConfig?.address ?: ""
-  val token get() = currentServerConfig?.token ?: ""
+  val serverAddress get() = serverConnectionConfig?.address ?: ""
+  val token get() = serverConnectionConfig?.token ?: ""
 
   init {
     Log.d(tag, "Device Manager Singleton invoked")

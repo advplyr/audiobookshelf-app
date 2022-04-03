@@ -18,7 +18,7 @@ export const getters = {
       // return `http://localhost:3333/api/items/${libraryItem.id}/cover?token=${userToken}&ts=${lastUpdate}`
     }
 
-    var url = new URL(`/api/items/${libraryItem.id}/cover`, rootState.serverUrl)
+    var url = new URL(`/api/items/${libraryItem.id}/cover`, rootGetters['user/getServerAddress'])
     return `${url}?token=${userToken}&ts=${lastUpdate}`
   }
 }

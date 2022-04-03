@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import java.util.*
 
-data class ServerConfig(
+data class ServerConnectionConfig(
   var id:String,
   var index:Int,
   var name:String,
@@ -14,8 +14,8 @@ data class ServerConfig(
 )
 
 data class DeviceData(
-  var serverConfigs:MutableList<ServerConfig>,
-  var lastServerConfigId:String?
+  var serverConnectionConfigs:MutableList<ServerConnectionConfig>,
+  var lastServerConnectionConfigId:String?
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)

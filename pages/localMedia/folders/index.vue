@@ -82,7 +82,7 @@ export default {
       this.$router.push(`/localMedia/folders/${folderObj.id}?scan=1`)
     },
     async init() {
-      this.localFolders = (await this.$db.loadFolders()) || []
+      this.localFolders = (await this.$db.getLocalFolders()) || []
     }
   },
   mounted() {

@@ -61,7 +61,7 @@ export default {
     var libraryItemId = params.id
     var libraryItem = null
 
-    if (app.$server.connected) {
+    if (store.state.user.serverConnectionConfig) {
       libraryItem = await app.$axios.$get(`/api/items/${libraryItemId}?expanded=1`).catch((error) => {
         console.error('Failed', error)
         return false
@@ -218,10 +218,10 @@ export default {
       // }
     },
     async clearProgressClick() {
-      if (!this.$server.connected) {
-        this.$toast.info('Clear downloaded book progress not yet implemented')
-        return
-      }
+      // if (!this.$server.connected) {
+      //   this.$toast.info('Clear downloaded book progress not yet implemented')
+      //   return
+      // }
 
       const { value } = await Dialog.confirm({
         title: 'Confirm',
@@ -264,9 +264,6 @@ export default {
       this.download()
     },
     async download(selectedLocalFolder = null) {
-      console.log('downloadClick ' + this.$server.connected + ' | ' + !!this.downloadObj)
-      if (!this.$server.connected) return
-
       if (!this.numTracks || this.downloadObj) {
         return
       }
@@ -274,7 +271,7 @@ export default {
       // Get the local folder to download to
       var localFolder = selectedLocalFolder
       if (!localFolder) {
-        var localFolders = (await this.$db.loadFolders()) || []
+        var localFolders = (await this.$db.getLocalFolders()) || []
         console.log('Local folders loaded', localFolders.length)
         var foldersWithMediaType = localFolders.filter((lf) => {
           console.log('Checking local folder', lf.mediaType)
@@ -468,24 +465,24 @@ export default {
     }
   },
   mounted() {
-    if (!this.$server.socket) {
-      console.warn('Library Item Page mounted: Server socket not set')
-    } else {
-      this.$server.socket.on('download_ready', this.downloadReady)
-      this.$server.socket.on('download_killed', this.downloadKilled)
-      this.$server.socket.on('download_failed', this.downloadFailed)
-      this.$server.socket.on('item_updated', this.itemUpdated)
-    }
+    // if (!this.$server.socket) {
+    //   console.warn('Library Item Page mounted: Server socket not set')
+    // } else {
+    //   this.$server.socket.on('download_ready', this.downloadReady)
+    //   this.$server.socket.on('download_killed', this.downloadKilled)
+    //   this.$server.socket.on('download_failed', this.downloadFailed)
+    //   this.$server.socket.on('item_updated', this.itemUpdated)
+    // }
   },
   beforeDestroy() {
-    if (!this.$server.socket) {
-      console.warn('Library Item Page beforeDestroy: Server socket not set')
-    } else {
-      this.$server.socket.off('download_ready', this.downloadReady)
-      this.$server.socket.off('download_killed', this.downloadKilled)
-      this.$server.socket.off('download_failed', this.downloadFailed)
-      this.$server.socket.off('item_updated', this.itemUpdated)
-    }
+    // if (!this.$server.socket) {
+    //   console.warn('Library Item Page beforeDestroy: Server socket not set')
+    // } else {
+    //   this.$server.socket.off('download_ready', this.downloadReady)
+    //   this.$server.socket.off('download_killed', this.downloadKilled)
+    //   this.$server.socket.off('download_failed', this.downloadFailed)
+    //   this.$server.socket.off('item_updated', this.itemUpdated)
+    // }
   }
 }
 </script>
