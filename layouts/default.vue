@@ -73,6 +73,7 @@ export default {
       }
     },
     async checkForUpdate() {
+      if (this.$platform == 'web') return
       console.log('Checking for app update')
       const result = await AppUpdate.getAppUpdateInfo()
       if (!result) {
