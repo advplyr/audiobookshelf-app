@@ -12,7 +12,7 @@
 
       <!-- <p class="absolute bottom-16 left-0 right-0 px-2 text-center text-error"><strong>Important!</strong> This app requires that you are running <u>your own server</u> and does not provide any content.</p> -->
 
-      <connection-server-connect-form :server-connection-configs="serverConnectionConfigs" :last-server-connection-config="lastServerConnectionConfig" />
+      <connection-server-connect-form />
     </div>
 
     <div class="flex items-center justify-center pt-4 fixed bottom-4 left-0 right-0">

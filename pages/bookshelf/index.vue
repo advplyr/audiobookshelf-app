@@ -124,6 +124,7 @@ export default {
   },
   methods: {
     async fetchCategories() {
+      if (!this.currentLibraryId) return null
       var categories = await this.$axios
         .$get(`/api/libraries/${this.currentLibraryId}/personalized?minified=1`)
         .then((data) => {
