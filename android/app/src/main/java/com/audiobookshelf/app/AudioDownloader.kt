@@ -146,7 +146,7 @@ class AudioDownloader : Plugin() {
         Log.d(tag, "Audio File Server Path $serverPath | AF RelPath ${audioFile.metadata.relPath} | LocalFolder Path ${localFolder.absolutePath} | DestName ${destinationFilename}")
         var destinationFile = File("$itemFolderPath/$destinationFilename")
         var destinationUri = Uri.fromFile(destinationFile)
-        var downloadUri = Uri.parse("${apiHandler.serverUrl}${serverPath}?token=${apiHandler.token}")
+        var downloadUri = Uri.parse("${DeviceManager.serverAddress}${serverPath}?token=${DeviceManager.token}")
         Log.d(tag, "Audio File Destination Uri $destinationUri | Download URI $downloadUri")
         var downloadItemPart = DownloadItemPart(UUID.randomUUID().toString(), destinationFilename, bookTitle, serverPath, localFolder.name
           ?: "", localFolder.id, downloadUri, destinationUri, null, 0)

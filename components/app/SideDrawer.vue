@@ -3,7 +3,7 @@
     <div class="absolute top-0 left-0 w-full h-full bg-black transition-opacity duration-200" :class="show ? 'bg-opacity-60 pointer-events-auto' : 'bg-opacity-0'" @click="clickBackground" />
     <div class="absolute top-0 right-0 w-64 h-full bg-primary transform transition-transform py-6 pointer-events-auto" :class="show ? '' : 'translate-x-64'" @click.stop>
       <div class="px-6 mb-4">
-        <p v-if="socketConnected" class="text-base">
+        <p v-if="user" class="text-base">
           Welcome,
           <strong>{{ username }}</strong>
         </p>
@@ -16,12 +16,17 @@
           </nuxt-link>
         </template>
       </div>
-      <div class="absolute bottom-0 left-0 w-full flex items-center py-6 px-6 text-gray-300">
-        <p class="text-xs">{{ $config.version }}</p>
-        <div class="flex-grow" />
-        <div v-if="socketConnected" class="flex items-center" @click="logout">
-          <p class="text-xs pr-2">Logout</p>
-          <span class="material-icons text-sm">logout</span>
+      <div class="absolute bottom-0 left-0 w-full py-6 px-6 text-gray-300">
+        <div v-if="serverConnectionConfig" class="mb-4 flex justify-center">
+          <p class="text-xs">{{ serverConnectionConfig.address }}</p>
+        </div>
+        <div class="flex items-center">
+          <p class="text-xs">{{ $config.version }}</p>
+          <div class="flex-grow" />
+          <div v-if="user" class="flex items-center" @click="logout">
+            <p class="text-xs pr-2">Logout</p>
+            <span class="material-icons text-sm">logout</span>
+          </div>
         </div>
       </div>
     </div>
@@ -61,6 +66,9 @@ export default {
     },
     user() {
       return this.$store.state.user.user
+    },
+    serverConnectionConfig() {
+      return this.$store.state.user.serverConnectionConfig
     },
     username() {
       return this.user ? this.user.username : ''
@@ -112,7 +120,9 @@ export default {
       await this.$axios.$post('/logout').catch((error) => {
         console.error(error)
       })
-      this.$server.logout()
+      this.$socket.logout()
+      await this.$db.logout()
+      this.$store.commit('user/logout')
       this.$router.push('/connect')
     },
     touchstart(e) {

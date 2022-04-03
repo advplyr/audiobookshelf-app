@@ -8,20 +8,20 @@
       <div>
         <p class="mb-4 text-center text-xl">
           Bookshelf empty
-          <span v-show="isSocketConnected">
+          <span v-show="user">
             for library
             <strong>{{ currentLibraryName }}</strong>
           </span>
         </p>
-        <div class="w-full" v-if="!isSocketConnected">
+        <div class="w-full" v-if="!user">
           <div class="flex justify-center items-center mb-3">
             <span class="material-icons text-error text-lg">cloud_off</span>
             <p class="pl-2 text-error text-sm">Audiobookshelf server not connected.</p>
           </div>
-          <p class="px-4 text-center text-error absolute bottom-12 left-0 right-0 mx-auto"><strong>Important!</strong> This app requires that you are running <u>your own server</u> and does not provide any content.</p>
+          <!-- <p class="px-4 text-center text-error absolute bottom-12 left-0 right-0 mx-auto"><strong>Important!</strong> This app requires that you are running <u>your own server</u> and does not provide any content.</p> -->
         </div>
         <div class="flex justify-center">
-          <ui-btn v-if="!isSocketConnected" small @click="$router.push('/connect')" class="w-32">Connect</ui-btn>
+          <ui-btn v-if="!user" small @click="$router.push('/connect')" class="w-32">Connect</ui-btn>
         </div>
       </div>
     </div>
@@ -45,6 +45,9 @@ export default {
         ab.download = download
         return ab
       })
+    },
+    user() {
+      return this.$store.state.user.user
     },
     isSocketConnected() {
       return this.$store.state.socketConnected
@@ -133,16 +136,16 @@ export default {
       this.shelves = categories
       console.log('Shelves', this.shelves)
     },
-    async socketInit(isConnected) {
-      if (isConnected && this.currentLibraryId) {
-        console.log('Connected - Load from server')
-        await this.fetchCategories()
-      } else {
-        console.log('Disconnected - Reset to local storage')
-        this.shelves = this.downloadOnlyShelves
-      }
-      this.loading = false
-    },
+    // async socketInit(isConnected) {
+    //   if (isConnected && this.currentLibraryId) {
+    //     console.log('Connected - Load from server')
+    //     await this.fetchCategories()
+    //   } else {
+    //     console.log('Disconnected - Reset to local storage')
+    //     this.shelves = this.downloadOnlyShelves
+    //   }
+    //   this.loading = false
+    // },
     async libraryChanged(libid) {
       if (this.isSocketConnected && this.currentLibraryId) {
         await this.fetchCategories()
@@ -211,43 +214,24 @@ export default {
       })
     },
     initListeners() {
-      this.$server.on('initialized', this.socketInit)
+      // this.$server.on('initialized', this.socketInit)
       this.$eventBus.$on('library-changed', this.libraryChanged)
       this.$eventBus.$on('downloads-loaded', this.downloadsLoaded)
-
-      if (this.$server.socket) {
-        this.$server.socket.on('audiobook_updated', this.audiobookUpdated)
-        this.$server.socket.on('audiobook_added', this.audiobookAdded)
-        this.$server.socket.on('audiobook_removed', this.audiobookRemoved)
-        this.$server.socket.on('audiobooks_updated', this.audiobooksUpdated)
-        this.$server.socket.on('audiobooks_added', this.audiobooksAdded)
-      } else {
-        console.error('Error socket not initialized')
-      }
     },
     removeListeners() {
-      this.$server.off('initialized', this.socketInit)
+      // this.$server.off('initialized', this.socketInit)
       this.$eventBus.$off('library-changed', this.libraryChanged)
       this.$eventBus.$off('downloads-loaded', this.downloadsLoaded)
-
-      if (this.$server.socket) {
-        this.$server.socket.off('audiobook_updated', this.audiobookUpdated)
-        this.$server.socket.off('audiobook_added', this.audiobookAdded)
-        this.$server.socket.off('audiobook_removed', this.audiobookRemoved)
-        this.$server.socket.off('audiobooks_updated', this.audiobooksUpdated)
-        this.$server.socket.off('audiobooks_added', this.audiobooksAdded)
-      } else {
-        console.error('Error socket not initialized')
-      }
     }
   },
   mounted() {
     this.initListeners()
-    if (this.$server.initialized && this.currentLibraryId) {
-      this.fetchCategories()
-    } else {
-      this.shelves = this.downloadOnlyShelves
-    }
+    this.fetchCategories()
+    // if (this.$server.initialized && this.currentLibraryId) {
+    //   this.fetchCategories()
+    // } else {
+    //   this.shelves = this.downloadOnlyShelves
+    // }
   },
   beforeDestroy() {
     this.removeListeners()

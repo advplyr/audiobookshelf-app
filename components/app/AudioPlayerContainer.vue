@@ -151,15 +151,15 @@ export default {
       }
     },
     setListeners() {
-      if (!this.$server.socket) {
-        console.error('Invalid server socket not set')
-        return
-      }
-      this.$server.socket.on('stream_open', this.streamOpen)
-      this.$server.socket.on('stream_closed', this.streamClosed)
-      this.$server.socket.on('stream_progress', this.streamProgress)
-      this.$server.socket.on('stream_ready', this.streamReady)
-      this.$server.socket.on('stream_reset', this.streamReset)
+      // if (!this.$server.socket) {
+      //   console.error('Invalid server socket not set')
+      //   return
+      // }
+      // this.$server.socket.on('stream_open', this.streamOpen)
+      // this.$server.socket.on('stream_closed', this.streamClosed)
+      // this.$server.socket.on('stream_progress', this.streamProgress)
+      // this.$server.socket.on('stream_ready', this.streamReady)
+      // this.$server.socket.on('stream_reset', this.streamReset)
     },
     closeStreamOnly() {
       // If user logs out or disconnects from server and not playing local
@@ -203,13 +203,13 @@ export default {
     if (this.onSleepTimerEndedListener) this.onSleepTimerEndedListener.remove()
     if (this.onSleepTimerSetListener) this.onSleepTimerSetListener.remove()
 
-    if (this.$server.socket) {
-      this.$server.socket.off('stream_open', this.streamOpen)
-      this.$server.socket.off('stream_closed', this.streamClosed)
-      this.$server.socket.off('stream_progress', this.streamProgress)
-      this.$server.socket.off('stream_ready', this.streamReady)
-      this.$server.socket.off('stream_reset', this.streamReset)
-    }
+    // if (this.$server.socket) {
+    //   this.$server.socket.off('stream_open', this.streamOpen)
+    //   this.$server.socket.off('stream_closed', this.streamClosed)
+    //   this.$server.socket.off('stream_progress', this.streamProgress)
+    //   this.$server.socket.off('stream_ready', this.streamReady)
+    //   this.$server.socket.off('stream_reset', this.streamReset)
+    // }
     this.$eventBus.$off('play-item', this.playLibraryItem)
     this.$eventBus.$off('play-local-item', this.playLocalItem)
     this.$eventBus.$off('close-stream', this.closeStreamOnly)

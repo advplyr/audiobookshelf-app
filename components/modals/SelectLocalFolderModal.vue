@@ -53,7 +53,7 @@ export default {
       this.$emit('select', folder)
     },
     async init() {
-      var localFolders = (await this.$db.loadFolders()) || []
+      var localFolders = (await this.$db.getLocalFolders()) || []
       this.localFolders = localFolders.filter((lf) => lf.mediaType == this.mediaType)
     }
   },

@@ -448,15 +448,15 @@ export default {
       this.$eventBus.$on('downloads-loaded', this.downloadsLoaded)
       this.$store.commit('user/addSettingsListener', { id: 'lazy-bookshelf', meth: this.settingsUpdated })
 
-      if (this.$server.socket) {
-        this.$server.socket.on('item_updated', this.libraryItemUpdated)
-        this.$server.socket.on('item_added', this.libraryItemAdded)
-        this.$server.socket.on('item_removed', this.libraryItemRemoved)
-        this.$server.socket.on('items_updated', this.libraryItemsUpdated)
-        this.$server.socket.on('items_added', this.libraryItemsAdded)
-      } else {
-        console.error('Bookshelf - Socket not initialized')
-      }
+      // if (this.$server.socket) {
+      //   this.$server.socket.on('item_updated', this.libraryItemUpdated)
+      //   this.$server.socket.on('item_added', this.libraryItemAdded)
+      //   this.$server.socket.on('item_removed', this.libraryItemRemoved)
+      //   this.$server.socket.on('items_updated', this.libraryItemsUpdated)
+      //   this.$server.socket.on('items_added', this.libraryItemsAdded)
+      // } else {
+      //   console.error('Bookshelf - Socket not initialized')
+      // }
     },
     removeListeners() {
       var bookshelf = document.getElementById('bookshelf-wrapper')
@@ -468,28 +468,28 @@ export default {
       this.$eventBus.$off('downloads-loaded', this.downloadsLoaded)
       this.$store.commit('user/removeSettingsListener', 'lazy-bookshelf')
 
-      if (this.$server.socket) {
-        this.$server.socket.off('item_updated', this.libraryItemUpdated)
-        this.$server.socket.off('item_added', this.libraryItemAdded)
-        this.$server.socket.off('item_removed', this.libraryItemRemoved)
-        this.$server.socket.off('items_updated', this.libraryItemsUpdated)
-        this.$server.socket.off('items_added', this.libraryItemsAdded)
-      } else {
-        console.error('Bookshelf - Socket not initialized')
-      }
+      // if (this.$server.socket) {
+      //   this.$server.socket.off('item_updated', this.libraryItemUpdated)
+      //   this.$server.socket.off('item_added', this.libraryItemAdded)
+      //   this.$server.socket.off('item_removed', this.libraryItemRemoved)
+      //   this.$server.socket.off('items_updated', this.libraryItemsUpdated)
+      //   this.$server.socket.off('items_added', this.libraryItemsAdded)
+      // } else {
+      //   console.error('Bookshelf - Socket not initialized')
+      // }
     }
   },
   mounted() {
-    if (this.$server.initialized) {
-      this.init()
-    } else {
-      this.initDownloads()
-    }
-    this.$server.on('initialized', this.socketInit)
+    // if (this.$server.initialized) {
+    //   this.init()
+    // } else {
+    //   this.initDownloads()
+    // }
+    this.$socket.on('initialized', this.socketInit)
     this.initListeners()
   },
   beforeDestroy() {
-    this.$server.off('initialized', this.socketInit)
+    this.$socket.off('initialized', this.socketInit)
     this.removeListeners()
   }
 }

@@ -1,5 +1,6 @@
 export const state = () => ({
   user: null,
+  serverConnectionConfig: null,
   userAudiobookData: [],
   settings: {
     mobileOrderBy: 'addedAt',
@@ -19,6 +20,9 @@ export const getters = {
   getIsRoot: (state) => state.user && state.user.type === 'root',
   getToken: (state) => {
     return state.user ? state.user.token : null
+  },
+  getServerAddress: (state) => {
+    return state.serverConnectionConfig ? state.serverConnectionConfig.address : null
   },
   getUserLibraryItemProgress: (state) => (libraryItemId) => {
     if (!state.user.libraryItemProgress) return null
@@ -102,6 +106,16 @@ export const actions = {
 }
 
 export const mutations = {
+  logout(state) {
+    state.user = null
+    state.serverConnectionConfig = null
+  },
+  setUser(state, user) {
+    state.user = user
+  },
+  setServerConnectionConfig(state, serverConnectionConfig) {
+    state.serverConnectionConfig = serverConnectionConfig
+  },
   setUserAudiobookData(state, abdata) {
     var index = state.userAudiobookData.findIndex(uab => uab.audiobookId === abdata.audiobookId)
     if (index >= 0) {
@@ -115,16 +129,6 @@ export const mutations = {
   },
   setAllUserAudiobookData(state, allAbData) {
     state.userAudiobookData = allAbData
-  },
-  setUser(state, user) {
-    state.user = user
-    if (user) {
-      if (user.token) this.$localStore.setToken(user.token)
-      console.log('setUser', user.username)
-    } else {
-      this.$localStore.setToken(null)
-      console.warn('setUser cleared')
-    }
   },
   setSettings(state, settings) {
     if (!settings) return
