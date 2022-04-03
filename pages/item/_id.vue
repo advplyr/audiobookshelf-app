@@ -27,7 +27,21 @@
           </div>
         </div>
 
-        <div v-if="(isConnected && (showPlay || showRead)) || isDownloadPlayable" class="flex mt-4 -mr-2">
+        <div v-if="isLocal" class="flex mt-4 -mr-2">
+          <ui-btn color="success" :disabled="isPlaying" class="flex items-center justify-center flex-grow mr-2" :padding-x="4" @click="playClick">
+            <span v-show="!isPlaying" class="material-icons">play_arrow</span>
+            <span class="px-1 text-sm">{{ isPlaying ? 'Playing' : 'Play Local' }}</span>
+          </ui-btn>
+          <ui-btn v-if="showRead && isConnected" color="info" class="flex items-center justify-center mr-2" :class="showPlay ? '' : 'flex-grow'" :padding-x="2" @click="readBook">
+            <span class="material-icons">auto_stories</span>
+            <span v-if="!showPlay" class="px-2 text-base">Read {{ ebookFormat }}</span>
+          </ui-btn>
+          <ui-btn v-if="isConnected && showPlay && !isIos" color="primary" class="flex items-center justify-center" :padding-x="2" @click="downloadClick">
+            <span class="material-icons">download</span>
+            <!-- <span class="material-icons" :class="downloadObj ? 'animate-pulse' : ''">{{ downloadObj ? (isDownloading || isDownloadPreparing ? 'downloading' : 'download_done') : 'download' }}</span> -->
+          </ui-btn>
+        </div>
+        <div v-else-if="(isConnected && (showPlay || showRead)) || isDownloadPlayable" class="flex mt-4 -mr-2">
           <ui-btn v-if="showPlay" color="success" :disabled="isPlaying" class="flex items-center justify-center flex-grow mr-2" :padding-x="4" @click="playClick">
             <span v-show="!isPlaying" class="material-icons">play_arrow</span>
             <span class="px-1 text-sm">{{ isPlaying ? (isStreaming ? 'Streaming' : 'Playing') : isDownloadPlayable ? 'Play local' : 'Play stream' }}</span>
@@ -37,7 +51,8 @@
             <span v-if="!showPlay" class="px-2 text-base">Read {{ ebookFormat }}</span>
           </ui-btn>
           <ui-btn v-if="isConnected && showPlay && !isIos" color="primary" class="flex items-center justify-center" :padding-x="2" @click="downloadClick">
-            <span class="material-icons" :class="downloadObj ? 'animate-pulse' : ''">{{ downloadObj ? (isDownloading || isDownloadPreparing ? 'downloading' : 'download_done') : 'download' }}</span>
+            <span class="material-icons">download</span>
+            <!-- <span class="material-icons" :class="downloadObj ? 'animate-pulse' : ''">{{ downloadObj ? (isDownloading || isDownloadPreparing ? 'downloading' : 'download_done') : 'download' }}</span> -->
           </ui-btn>
         </div>
       </div>
@@ -61,16 +76,13 @@ export default {
     var libraryItemId = params.id
     var libraryItem = null
 
-    if (store.state.user.serverConnectionConfig) {
+    if (libraryItemId.startsWith('local')) {
+      libraryItem = await app.$db.getLocalLibraryItem(libraryItemId)
+    } else if (store.state.user.serverConnectionConfig) {
       libraryItem = await app.$axios.$get(`/api/items/${libraryItemId}?expanded=1`).catch((error) => {
         console.error('Failed', error)
         return false
       })
-    } else {
-      var download = store.getters['downloads/getDownload'](libraryItemId)
-      if (download) {
-        libraryItem = download.libraryItem
-      }
     }
 
     if (!libraryItem) {
@@ -90,6 +102,9 @@ export default {
   computed: {
     isIos() {
       return this.$platform === 'ios'
+    },
+    isLocal() {
+      return this.libraryItem.isLocal
     },
     isConnected() {
       return this.$store.state.socketConnected
@@ -182,18 +197,19 @@ export default {
       if (!this.ebookFile) return null
       return this.ebookFile.ebookFormat
     },
-    isDownloadPreparing() {
-      return this.downloadObj ? this.downloadObj.isPreparing : false
-    },
+    // isDownloadPreparing() {
+    //   return this.downloadObj ? this.downloadObj.isPreparing : false
+    // },
     isDownloadPlayable() {
-      return this.downloadObj && !this.isDownloading && !this.isDownloadPreparing
+      return false
+      // return this.downloadObj && !this.isDownloading && !this.isDownloadPreparing
     },
-    downloadedCover() {
-      return this.downloadObj ? this.downloadObj.cover : null
-    },
-    downloadObj() {
-      return this.$store.getters['downloads/getDownload'](this.libraryItemId)
-    },
+    // downloadedCover() {
+    //   return this.downloadObj ? this.downloadObj.cover : null
+    // },
+    // downloadObj() {
+    //   return this.$store.getters['downloads/getDownload'](this.libraryItemId)
+    // },
     hasStoragePermission() {
       return this.$store.state.hasStoragePermission
     }
@@ -264,7 +280,7 @@ export default {
       this.download()
     },
     async download(selectedLocalFolder = null) {
-      if (!this.numTracks || this.downloadObj) {
+      if (!this.numTracks) {
         return
       }
 

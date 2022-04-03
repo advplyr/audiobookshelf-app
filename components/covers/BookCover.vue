@@ -33,6 +33,8 @@
 </template>
 
 <script>
+import { Capacitor } from '@capacitor/core'
+
 export default {
   props: {
     libraryItem: {
@@ -60,6 +62,10 @@ export default {
     }
   },
   computed: {
+    isLocal() {
+      if (!this.libraryItem) return false
+      return this.libraryItem.isLocal
+    },
     squareAspectRatio() {
       return this.bookCoverAspectRatio === 1
     },
@@ -98,6 +104,10 @@ export default {
       return '/book_placeholder.jpg'
     },
     fullCoverUrl() {
+      if (this.isLocal) {
+        if (this.hasCover) return Capacitor.convertFileSrc(this.cover)
+        return this.placeholderUrl
+      }
       if (this.downloadCover) return this.downloadCover
       if (!this.libraryItem) return null
       var store = this.$store || this.$nuxt.$store

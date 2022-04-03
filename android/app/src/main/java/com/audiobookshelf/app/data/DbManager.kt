@@ -56,7 +56,7 @@ class DbManager : Plugin() {
     }
   }
 
-  fun loadLocalMediaItem(localMediaItemId:String):LocalMediaItem? {
+  fun getLocalMediaItem(localMediaItemId:String):LocalMediaItem? {
     return Paper.book("localMediaItems").read(localMediaItemId)
   }
 
@@ -150,6 +150,32 @@ class DbManager : Plugin() {
       var jsobj = JSObject()
       jsobj.put("localMediaItems", mediaItemsArray)
       call.resolve(jsobj)
+    }
+  }
+
+  @PluginMethod
+  fun getLocalLibraryItems_WV(call:PluginCall) {
+    GlobalScope.launch(Dispatchers.IO) {
+      var localLibraryItems = getLocalMediaItems().map {
+        it.getLocalLibraryItem()
+      }
+      var jsobj = JSObject()
+      jsobj.put("localLibraryItems", jacksonObjectMapper().writeValueAsString(localLibraryItems))
+      call.resolve(jsobj)
+    }
+  }
+
+  @PluginMethod
+  fun getLocalLibraryItem_WV(call:PluginCall) {
+    var id = call.getString("id", "").toString()
+    GlobalScope.launch(Dispatchers.IO) {
+      var mediaItem = getLocalMediaItem(id)
+      var localLibraryItem = mediaItem?.getLocalLibraryItem()
+      if (localLibraryItem == null) {
+        call.resolve()
+      } else {
+        call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(localLibraryItem)))
+      }
     }
   }
 

@@ -81,7 +81,7 @@ export default {
       }
     },
     play(mediaItem) {
-      this.$eventBus.$emit('play-local-item', mediaItem.id)
+      this.$eventBus.$emit('play-item', mediaItem.id)
     },
     async scanFolder(forceAudioProbe = false) {
       this.isScanning = true

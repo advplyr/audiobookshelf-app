@@ -45,10 +45,10 @@ data class Podcast(
 data class Book(
   var metadata:BookMetadata,
   var coverPath:String?,
-  var tags:MutableList<String>,
-  var audioFiles:MutableList<AudioFile>,
-  var chapters:MutableList<BookChapter>,
-  var tracks:MutableList<AudioFile>?,
+  var tags:List<String>,
+  var audioFiles:List<AudioFile>,
+  var chapters:List<BookChapter>,
+  var tracks:List<AudioTrack>?,
   var size:Long?,
   var duration:Double?
 ) : MediaType()
@@ -154,9 +154,10 @@ data class AudioTrack(
   var title:String,
   var contentUrl:String,
   var mimeType:String,
+  var metadata:FileMetadata?,
   var isLocal:Boolean,
   var localFileId:String?,
-  var audioProbeResult:AudioProbeResult?
+  var audioProbeResult:AudioProbeResult?,
 ) {
 
   @get:JsonIgnore
@@ -165,6 +166,13 @@ data class AudioTrack(
   val durationMs get() = (duration * 1000L).toLong()
   @get:JsonIgnore
   val endOffsetMs get() = startOffsetMs + durationMs
+  @get:JsonIgnore
+  val relPath get() = metadata?.relPath ?: ""
+
+  @JsonIgnore
+  fun getBookChapter():BookChapter {
+    return BookChapter(index + 1,startOffset, startOffset + duration, title)
+  }
 }
 
 @JsonIgnoreProperties(ignoreUnknown = true)

@@ -87,6 +87,22 @@ class DbService {
       return data.localMediaItems
     })
   }
+
+  getLocalLibraryItems() {
+    if (isWeb) return []
+    return DbManager.getLocalLibraryItems_WV().then((data) => {
+      console.log('Loaded all local media items', JSON.stringify(data))
+      if (data.localLibraryItems && typeof data.localLibraryItems == 'string') {
+        return JSON.parse(data.localLibraryItems)
+      }
+      return data.localLibraryItems
+    })
+  }
+
+  getLocalLibraryItem(id) {
+    if (isWeb) return null
+    return DbManager.getLocalLibraryItem_WV({ id })
+  }
 }
 
 export default ({ app, store }, inject) => {

@@ -78,34 +78,26 @@ class MyNativeAudio : Plugin() {
     var libraryItemId = call.getString("libraryItemId", "").toString()
     var playWhenReady = call.getBoolean("playWhenReady") == true
 
-    apiHandler.playLibraryItem(libraryItemId, false) {
-
-      Handler(Looper.getMainLooper()).post() {
-        Log.d(tag, "Preparing Player TEST ${jacksonObjectMapper().writeValueAsString(it)}")
-        playerNotificationService.preparePlayer(it, playWhenReady)
+    if (libraryItemId.startsWith("local")) { // Play local media item
+      DeviceManager.dbManager.getLocalMediaItem(libraryItemId)?.let {
+        Handler(Looper.getMainLooper()).post() {
+          Log.d(tag, "Preparing Local Media item ${jacksonObjectMapper().writeValueAsString(it)}")
+          var playbackSession = it.getPlaybackSession()
+          playerNotificationService.preparePlayer(playbackSession, playWhenReady)
+        }
+        return call.resolve(JSObject())
       }
+    } else { // Play library item from server
+      apiHandler.playLibraryItem(libraryItemId, false) {
 
-      call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(it)))
-    }
-  }
+        Handler(Looper.getMainLooper()).post() {
+          Log.d(tag, "Preparing Player TEST ${jacksonObjectMapper().writeValueAsString(it)}")
+          playerNotificationService.preparePlayer(it, playWhenReady)
+        }
 
-  @PluginMethod
-  fun playLocalLibraryItem(call:PluginCall) {
-    var localMediaItemId = call.getString("localMediaItemId", "").toString()
-    var playWhenReady = call.getBoolean("playWhenReady") == true
-    Log.d(tag, "playLocalLibraryItem $playWhenReady")
-
-    DeviceManager.dbManager.loadLocalMediaItem(localMediaItemId)?.let {
-      Handler(Looper.getMainLooper()).post() {
-        Log.d(tag, "Preparing Local Media item ${jacksonObjectMapper().writeValueAsString(it)}")
-        var playbackSession = it.getPlaybackSession()
-        playerNotificationService.preparePlayer(playbackSession, playWhenReady)
+        call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(it)))
       }
-      return call.resolve(JSObject())
     }
-    var errObj = JSObject()
-    errObj.put("error", "Item Not Found")
-    call.resolve(errObj)
   }
 
   @PluginMethod
