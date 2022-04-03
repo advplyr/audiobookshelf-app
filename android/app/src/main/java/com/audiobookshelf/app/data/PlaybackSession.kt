@@ -2,9 +2,11 @@ package com.audiobookshelf.app.data
 
 import android.net.Uri
 import android.support.v4.media.MediaMetadataCompat
+import android.util.Log
 import com.audiobookshelf.app.R
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.MediaMetadata
 
 // TODO: enum or something in kotlin?
@@ -40,6 +42,37 @@ class PlaybackSession(
   val currentTimeMs get() = (currentTime * 1000L).toLong()
 
   @JsonIgnore
+  fun getCurrentTrackIndex():Int {
+    for (i in 0..(audioTracks.size - 1)) {
+      var track = audioTracks[i]
+      if (currentTimeMs >= track.startOffsetMs && (track.endOffsetMs) > currentTimeMs) {
+        return i
+      }
+    }
+    return audioTracks.size - 1
+  }
+
+  @JsonIgnore
+  fun getCurrentTrackTimeMs():Long {
+    var currentTrack = audioTracks[this.getCurrentTrackIndex()]
+    var time = currentTime - currentTrack.startOffset
+    return (time * 1000L).toLong()
+  }
+
+  @JsonIgnore
+  fun getTrackStartOffsetMs(index:Int):Long {
+    var currentTrack = audioTracks[index]
+    return (currentTrack.startOffset * 1000L).toLong()
+  }
+
+  @JsonIgnore
+  fun getTotalDuration():Double {
+    var total = 0.0
+    audioTracks.forEach { total += it.duration }
+    return total
+  }
+
+  @JsonIgnore
   fun getCoverUri(): Uri {
     if (localMediaItem?.coverContentUrl != null) return Uri.parse(localMediaItem?.coverContentUrl) ?: Uri.parse("android.resource://com.audiobookshelf.app/" + R.drawable.icon)
 
@@ -48,16 +81,9 @@ class PlaybackSession(
   }
 
   @JsonIgnore
-  fun getContentUri(): Uri {
-    var audioTrack = audioTracks[0]
+  fun getContentUri(audioTrack:AudioTrack): Uri {
     if (isLocal) return Uri.parse(audioTrack.contentUrl) // Local content url
     return Uri.parse("$serverUrl${audioTrack.contentUrl}?token=$token")
-  }
-
-  @JsonIgnore
-  fun getMimeType():String {
-    var audioTrack = audioTracks[0]
-    return audioTrack.mimeType
   }
 
   @JsonIgnore
@@ -74,7 +100,7 @@ class PlaybackSession(
   }
 
   @JsonIgnore
-  fun getExoMediaMetadata(): MediaMetadata {
+  fun getExoMediaMetadata(audioTrack:AudioTrack): MediaMetadata {
     var metadataBuilder = MediaMetadata.Builder()
       .setTitle(displayTitle)
       .setDisplayTitle(displayTitle)
@@ -82,9 +108,23 @@ class PlaybackSession(
       .setAlbumArtist(displayAuthor)
       .setSubtitle(displayAuthor)
 
-    var contentUri = this.getContentUri()
+    var contentUri = this.getContentUri(audioTrack)
     metadataBuilder.setMediaUri(contentUri)
 
     return metadataBuilder.build()
+  }
+
+  @JsonIgnore
+  fun getMediaItems():List<MediaItem> {
+    var mediaItems:MutableList<MediaItem> = mutableListOf()
+
+    for (audioTrack in audioTracks) {
+      var mediaMetadata = this.getExoMediaMetadata(audioTrack)
+      var mediaUri = this.getContentUri(audioTrack)
+      var mimeType = audioTrack.mimeType
+      var mediaItem = MediaItem.Builder().setUri(mediaUri).setMediaMetadata(mediaMetadata).setMimeType(mimeType).build()
+      mediaItems.add(mediaItem)
+    }
+    return mediaItems
   }
 }

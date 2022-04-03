@@ -29,7 +29,8 @@ data class LocalMediaItem(
   var absolutePath:String,
   var audioTracks:MutableList<AudioTrack>,
   var localFiles:MutableList<LocalFile>,
-  var coverContentUrl:String?
+  var coverContentUrl:String?,
+  var coverAbsolutePath:String?
 ) {
 
   @JsonIgnore

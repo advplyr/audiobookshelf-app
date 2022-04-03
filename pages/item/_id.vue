@@ -45,6 +45,8 @@
     <div class="w-full py-4">
       <p>{{ description }}</p>
     </div>
+
+    <modals-select-local-folder-modal v-model="showSelectLocalFolder" :media-type="mediaType" @select="selectedLocalFolder" />
   </div>
 </template>
 
@@ -81,7 +83,8 @@ export default {
   },
   data() {
     return {
-      resettingProgress: false
+      resettingProgress: false,
+      showSelectLocalFolder: false
     }
   },
   computed: {
@@ -96,6 +99,9 @@ export default {
     },
     libraryItemId() {
       return this.libraryItem.id
+    },
+    mediaType() {
+      return this.libraryItem.mediaType
     },
     media() {
       return this.libraryItem.media || {}
@@ -235,17 +241,6 @@ export default {
             this.resettingProgress = false
           })
       }
-      // if (value) {
-      //   this.resettingProgress = true
-      //   this.$store.dispatch('user/updateUserAudiobookData', {
-      //     libraryItemId: this.libraryItemId,
-      //     currentTime: 0,
-      //     totalDuration: this.duration,
-      //     progress: 0,
-      //     lastUpdate: Date.now(),
-      //     isRead: false
-      //   })
-      // }
     },
     itemUpdated(libraryItem) {
       if (libraryItem.id === this.libraryItemId) {
@@ -253,14 +248,74 @@ export default {
         this.libraryItem = libraryItem
       }
     },
+    async selectFolder() {
+      // Select and save the local folder for media type
+      var folderObj = await StorageManager.selectFolder({ mediaType: this.mediaType })
+      if (folderObj.error) {
+        return this.$toast.error(`Error: ${folderObj.error || 'Unknown Error'}`)
+      }
+      return folderObj
+    },
+    selectedLocalFolder(localFolder) {
+      this.showSelectLocalFolder = false
+      this.download(localFolder)
+    },
     downloadClick() {
+      this.download()
+    },
+    async download(selectedLocalFolder = null) {
       console.log('downloadClick ' + this.$server.connected + ' | ' + !!this.downloadObj)
       if (!this.$server.connected) return
 
-      if (this.downloadObj) {
-        console.log('Already downloaded', this.downloadObj)
-      } else {
-        this.prepareDownload()
+      if (!this.numTracks || this.downloadObj) {
+        return
+      }
+
+      // Get the local folder to download to
+      var localFolder = selectedLocalFolder
+      if (!localFolder) {
+        var localFolders = (await this.$db.loadFolders()) || []
+        console.log('Local folders loaded', localFolders.length)
+        var foldersWithMediaType = localFolders.filter((lf) => {
+          console.log('Checking local folder', lf.mediaType)
+          return lf.mediaType == this.mediaType
+        })
+        console.log('Folders with media type', this.mediaType, foldersWithMediaType.length)
+        if (!foldersWithMediaType.length) {
+          // No local folders or no local folders with this media type
+          localFolder = await this.selectFolder()
+        } else if (foldersWithMediaType.length == 1) {
+          console.log('Only 1 local folder with this media type - auto select it')
+          localFolder = foldersWithMediaType[0]
+        } else {
+          console.log('Multiple folders with media type')
+          this.showSelectLocalFolder = true
+          return
+        }
+        if (!localFolder) {
+          return this.$toast.error('Invalid download folder')
+        }
+      }
+
+      console.log('Local folder', JSON.stringify(localFolder))
+
+      var startDownloadMessage = `Start download for "${this.title}" with ${this.numTracks} audio track${this.numTracks == 1 ? '' : 's'} to folder ${localFolder.name}?`
+      const { value } = await Dialog.confirm({
+        title: 'Confirm',
+        message: startDownloadMessage
+      })
+      if (value) {
+        this.startDownload(localFolder)
+      }
+    },
+    async startDownload(localFolder) {
+      console.log('Starting download to local folder', localFolder.name)
+      var downloadRes = await AudioDownloader.downloadLibraryItem({ libraryItemId: this.libraryItemId, localFolderId: localFolder.id })
+      if (downloadRes.error) {
+        var errorMsg = downloadRes.error || 'Unknown error'
+        console.error('Download error', errorMsg)
+        this.$toast.update(download.toastId, { content: `Error: ${errorMsg}`, options: { timeout: 5000, type: 'error' } })
+        this.$store.commit('downloads/removeDownload', download)
       }
     },
     async changeDownloadFolderClick() {
@@ -286,103 +341,103 @@ export default {
         await this.$localStore.setDownloadFolder(folderObj)
       }
     },
-    async prepareDownload() {
-      var audiobook = this.libraryItem
-      if (!audiobook) {
-        return
-      }
+    // async prepareDownload() {
+    //   var audiobook = this.libraryItem
+    //   if (!audiobook) {
+    //     return
+    //   }
 
-      // Download Path
-      var dlFolder = this.$localStore.downloadFolder
-      console.log('Prepare download: ' + this.hasStoragePermission + ' | ' + dlFolder)
+    //   // Download Path
+    //   var dlFolder = this.$localStore.downloadFolder
+    //   console.log('Prepare download: ' + this.hasStoragePermission + ' | ' + dlFolder)
 
-      if (!this.hasStoragePermission || !dlFolder) {
-        console.log('No download folder, request from user')
-        // User to select download folder from download modal to ensure permissions
-        // this.$store.commit('downloads/setShowModal', true)
-        this.changeDownloadFolderClick()
-        return
-      } else {
-        console.log('Has Download folder: ' + JSON.stringify(dlFolder))
-      }
+    //   if (!this.hasStoragePermission || !dlFolder) {
+    //     console.log('No download folder, request from user')
+    //     // User to select download folder from download modal to ensure permissions
+    //     // this.$store.commit('downloads/setShowModal', true)
+    //     this.changeDownloadFolderClick()
+    //     return
+    //   } else {
+    //     console.log('Has Download folder: ' + JSON.stringify(dlFolder))
+    //   }
 
-      var downloadObject = {
-        id: this.libraryItemId,
-        downloadFolderUrl: dlFolder.uri,
-        audiobook: {
-          ...audiobook
-        },
-        isPreparing: true,
-        isDownloading: false,
-        toastId: this.$toast(`Preparing download for "${this.title}"`, { timeout: false })
-      }
-      if (audiobook.tracks.length === 1) {
-        // Single track should not need preparation
-        console.log('Single track, start download no prep needed')
-        var track = audiobook.tracks[0]
-        var fileext = track.ext
+    //   var downloadObject = {
+    //     id: this.libraryItemId,
+    //     downloadFolderUrl: dlFolder.uri,
+    //     audiobook: {
+    //       ...audiobook
+    //     },
+    //     isPreparing: true,
+    //     isDownloading: false,
+    //     toastId: this.$toast(`Preparing download for "${this.title}"`, { timeout: false })
+    //   }
+    //   if (audiobook.tracks.length === 1) {
+    //     // Single track should not need preparation
+    //     console.log('Single track, start download no prep needed')
+    //     var track = audiobook.tracks[0]
+    //     var fileext = track.ext
 
-        console.log('Download Single Track Path: ' + track.path)
+    //     console.log('Download Single Track Path: ' + track.path)
 
-        var relTrackPath = track.path.replace('\\', '/').replace(this.libraryItem.path.replace('\\', '/'), '')
+    //     var relTrackPath = track.path.replace('\\', '/').replace(this.libraryItem.path.replace('\\', '/'), '')
 
-        var url = `${this.$store.state.serverUrl}/s/book/${this.libraryItemId}${relTrackPath}?token=${this.userToken}`
-        this.startDownload(url, fileext, downloadObject)
-      } else {
-        // Multi-track merge
-        this.$store.commit('downloads/addUpdateDownload', downloadObject)
+    //     var url = `${this.$store.state.serverUrl}/s/book/${this.libraryItemId}${relTrackPath}?token=${this.userToken}`
+    //     this.startDownload(url, fileext, downloadObject)
+    //   } else {
+    //     // Multi-track merge
+    //     this.$store.commit('downloads/addUpdateDownload', downloadObject)
 
-        var prepareDownloadPayload = {
-          audiobookId: this.libraryItemId,
-          audioFileType: 'same',
-          type: 'singleAudio'
-        }
-        this.$server.socket.emit('download', prepareDownloadPayload)
-      }
-    },
-    getCoverUrlForDownload() {
-      if (!this.book || !this.book.cover) return null
+    //     var prepareDownloadPayload = {
+    //       audiobookId: this.libraryItemId,
+    //       audioFileType: 'same',
+    //       type: 'singleAudio'
+    //     }
+    //     this.$server.socket.emit('download', prepareDownloadPayload)
+    //   }
+    // },
+    // getCoverUrlForDownload() {
+    //   if (!this.book || !this.book.cover) return null
 
-      var cover = this.book.cover
-      if (cover.startsWith('http')) return cover
-      var coverSrc = this.$store.getters['global/getLibraryItemCoverSrc'](this.libraryItem)
-      return coverSrc
-    },
-    async startDownload(url, fileext, download) {
-      this.$toast.update(download.toastId, { content: `Downloading "${download.audiobook.book.title}"...` })
+    //   var cover = this.book.cover
+    //   if (cover.startsWith('http')) return cover
+    //   var coverSrc = this.$store.getters['global/getLibraryItemCoverSrc'](this.libraryItem)
+    //   return coverSrc
+    // },
+    // async startDownload(url, fileext, download) {
+    //   this.$toast.update(download.toastId, { content: `Downloading "${download.audiobook.book.title}"...` })
 
-      var coverDownloadUrl = this.getCoverUrlForDownload()
-      var coverFilename = null
-      if (coverDownloadUrl) {
-        var coverNoQueryString = coverDownloadUrl.split('?')[0]
+    //   var coverDownloadUrl = this.getCoverUrlForDownload()
+    //   var coverFilename = null
+    //   if (coverDownloadUrl) {
+    //     var coverNoQueryString = coverDownloadUrl.split('?')[0]
 
-        var coverExt = Path.extname(coverNoQueryString) || '.jpg'
-        coverFilename = `cover-${download.id}${coverExt}`
-      }
+    //     var coverExt = Path.extname(coverNoQueryString) || '.jpg'
+    //     coverFilename = `cover-${download.id}${coverExt}`
+    //   }
 
-      download.isDownloading = true
-      download.isPreparing = false
-      download.filename = `${download.audiobook.book.title}${fileext}`
-      this.$store.commit('downloads/addUpdateDownload', download)
+    //   download.isDownloading = true
+    //   download.isPreparing = false
+    //   download.filename = `${download.audiobook.book.title}${fileext}`
+    //   this.$store.commit('downloads/addUpdateDownload', download)
 
-      console.log('Starting Download URL', url)
-      var downloadRequestPayload = {
-        audiobookId: download.id,
-        filename: download.filename,
-        coverFilename,
-        coverDownloadUrl,
-        downloadUrl: url,
-        title: download.audiobook.book.title,
-        downloadFolderUrl: download.downloadFolderUrl
-      }
-      var downloadRes = await AudioDownloader.download(downloadRequestPayload)
-      if (downloadRes.error) {
-        var errorMsg = downloadRes.error || 'Unknown error'
-        console.error('Download error', errorMsg)
-        this.$toast.update(download.toastId, { content: `Error: ${errorMsg}`, options: { timeout: 5000, type: 'error' } })
-        this.$store.commit('downloads/removeDownload', download)
-      }
-    },
+    //   console.log('Starting Download URL', url)
+    //   var downloadRequestPayload = {
+    //     audiobookId: download.id,
+    //     filename: download.filename,
+    //     coverFilename,
+    //     coverDownloadUrl,
+    //     downloadUrl: url,
+    //     title: download.audiobook.book.title,
+    //     downloadFolderUrl: download.downloadFolderUrl
+    //   }
+    //   var downloadRes = await AudioDownloader.download(downloadRequestPayload)
+    //   if (downloadRes.error) {
+    //     var errorMsg = downloadRes.error || 'Unknown error'
+    //     console.error('Download error', errorMsg)
+    //     this.$toast.update(download.toastId, { content: `Error: ${errorMsg}`, options: { timeout: 5000, type: 'error' } })
+    //     this.$store.commit('downloads/removeDownload', download)
+    //   }
+    // },
     downloadReady(prepareDownload) {
       var download = this.$store.getters['downloads/getDownload'](prepareDownload.audiobookId)
       if (download) {

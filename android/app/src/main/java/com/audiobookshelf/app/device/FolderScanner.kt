@@ -73,6 +73,7 @@ class FolderScanner(var ctx: Context) {
        var index = 1
        var startOffset = 0.0
        var coverContentUrl:String? = null
+       var coverAbsolutePath:String? = null
 
        var filesInFolder = it.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*"))
 
@@ -157,6 +158,7 @@ class FolderScanner(var ctx: Context) {
            // First image file use as cover path
            if (coverContentUrl == null) {
              coverContentUrl = localFile.contentUrl
+             coverAbsolutePath = localFile.absolutePath
            }
          }
        }
@@ -173,7 +175,7 @@ class FolderScanner(var ctx: Context) {
          else mediaItemsAdded++
 
         Log.d(tag, "Found local media item named $itemFolderName with ${audioTracks.size} tracks and ${localFiles.size} local files")
-         var localMediaItem = LocalMediaItem(itemId, itemFolderName, localFolder.mediaType, localFolder.id, it.uri.toString(), it.getSimplePath(ctx), it.getAbsolutePath(ctx),audioTracks,localFiles,coverContentUrl)
+         var localMediaItem = LocalMediaItem(itemId, itemFolderName, localFolder.mediaType, localFolder.id, it.uri.toString(), it.getSimplePath(ctx), it.getAbsolutePath(ctx),audioTracks,localFiles,coverContentUrl,coverAbsolutePath)
          mediaItems.add(localMediaItem)
        }
      }

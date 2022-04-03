@@ -253,17 +253,26 @@ export default {
         await this.$store.dispatch('downloads/linkOrphanDownloads')
       }
     },
+    onItemDownloadUpdate(data) {
+      console.log('ON ITEM DOWNLOAD UPDATE', JSON.stringify(data))
+    },
+    onItemDownloadComplete(data) {
+      console.log('ON ITEM DOWNLOAD COMPLETE', JSON.stringify(data))
+    },
     async initMediaStore() {
       // Request and setup listeners for media files on native
-      AudioDownloader.addListener('onDownloadComplete', (data) => {
-        this.onDownloadComplete(data)
+      AudioDownloader.addListener('onItemDownloadUpdate', (data) => {
+        this.onItemDownloadUpdate(data)
       })
-      AudioDownloader.addListener('onDownloadFailed', (data) => {
-        this.onDownloadFailed(data)
+      AudioDownloader.addListener('onItemDownloadComplete', (data) => {
+        this.onItemDownloadComplete(data)
       })
-      AudioDownloader.addListener('onDownloadProgress', (data) => {
-        this.onDownloadProgress(data)
-      })
+      // AudioDownloader.addListener('onDownloadFailed', (data) => {
+      //   this.onDownloadFailed(data)
+      // })
+      // AudioDownloader.addListener('onDownloadProgress', (data) => {
+      //   this.onDownloadProgress(data)
+      // })
 
       var downloads = await this.$store.dispatch('downloads/loadFromStorage')
       var downloadFolder = await this.$localStore.getDownloadFolder()

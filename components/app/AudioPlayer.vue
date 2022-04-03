@@ -291,8 +291,8 @@ export default {
         return this.restart()
       }
 
-      // If 1 second or less into current chapter, then go to previous
-      if (this.currentTime - this.currentChapter.start <= 1) {
+      // If 4 seconds or less into current chapter, then go to previous
+      if (this.currentTime - this.currentChapter.start <= 4) {
         var currChapterIndex = this.chapters.findIndex((ch) => Number(ch.start) <= this.currentTime && Number(ch.end) >= this.currentTime)
         if (currChapterIndex > 0) {
           var prevChapter = this.chapters[currChapterIndex - 1]
@@ -509,8 +509,8 @@ export default {
       console.log('onMetadata', JSON.stringify(data))
       this.isLoading = false
 
-      this.totalDuration = Number((data.duration / 1000).toFixed(2))
-      this.$emit('setTotalDuration', this.totalDuration)
+      // this.totalDuration = Number((data.duration / 1000).toFixed(2))
+      this.totalDuration = Number(data.duration.toFixed(2))
       this.currentTime = Number((data.currentTime / 1000).toFixed(2))
       this.stateName = data.stateName
 
