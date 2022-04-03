@@ -105,9 +105,9 @@ export default {
     networkConnected() {
       return this.$store.state.networkConnected
     },
-    // serverConnectionConfigs() {
-    //   return this.deviceData ? this.deviceData.serverConnectionConfigs || [] : []
-    // },
+    serverConnectionConfigs() {
+      return this.deviceData ? this.deviceData.serverConnectionConfigs || [] : []
+    },
     lastServerConnectionConfigId() {
       return this.deviceData ? this.deviceData.lastServerConnectionConfigId : null
     },
