@@ -17,11 +17,11 @@
     <div v-if="booksInSeries" class="absolute z-20 top-1.5 right-1.5 rounded-md leading-3 text-sm p-1 font-semibold text-white flex items-center justify-center" style="background-color: #cd9d49dd">{{ booksInSeries }}</div>
 
     <div class="w-full h-full absolute top-0 left-0 rounded overflow-hidden z-10">
-      <div v-show="audiobook && !imageReady" class="absolute top-0 left-0 w-full h-full flex items-center justify-center" :style="{ padding: sizeMultiplier * 0.5 + 'rem' }">
+      <div v-show="libraryItem && !imageReady" class="absolute top-0 left-0 w-full h-full flex items-center justify-center" :style="{ padding: sizeMultiplier * 0.5 + 'rem' }">
         <p :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }" class="font-book text-gray-300 text-center">{{ title }}</p>
       </div>
 
-      <img v-show="audiobook" ref="cover" :src="bookCoverSrc" class="w-full h-full transition-opacity duration-300" :class="showCoverBg ? 'object-contain' : 'object-fill'" @load="imageLoaded" :style="{ opacity: imageReady ? 1 : 0 }" />
+      <img v-show="libraryItem" ref="cover" :src="bookCoverSrc" class="w-full h-full transition-opacity duration-300" :class="showCoverBg ? 'object-contain' : 'object-fill'" @load="imageLoaded" :style="{ opacity: imageReady ? 1 : 0 }" />
 
       <!-- Placeholder Cover Title & Author -->
       <div v-if="!hasCover" class="absolute top-0 left-0 right-0 bottom-0 w-full h-full flex items-center justify-center" :style="{ padding: placeholderCoverPadding + 'rem' }">
@@ -52,6 +52,8 @@
 </template>
 
 <script>
+import { Capacitor } from '@capacitor/core'
+
 export default {
   props: {
     index: Number,
@@ -78,7 +80,7 @@ export default {
   data() {
     return {
       isProcessingReadUpdate: false,
-      audiobook: null,
+      libraryItem: null,
       imageReady: false,
       rescanning: false,
       selected: false,
@@ -90,7 +92,7 @@ export default {
     bookMount: {
       handler(newVal) {
         if (newVal) {
-          this.audiobook = newVal
+          this.libraryItem = newVal
         }
       }
     }
@@ -100,7 +102,11 @@ export default {
       return this.store.state.showExperimentalFeatures
     },
     _libraryItem() {
-      return this.audiobook || {}
+      return this.libraryItem || {}
+    },
+    isLocal() {
+      // Is local library item
+      return !!this._libraryItem.isLocal
     },
     media() {
       return this._libraryItem.media || {}
@@ -112,6 +118,10 @@ export default {
       return '/book_placeholder.jpg'
     },
     bookCoverSrc() {
+      if (this.isLocal) {
+        if (this.media.coverPath) return Capacitor.convertFileSrc(this.media.coverPath)
+        return this.placeholderUrl
+      }
       return this.store.getters['globals/getLibraryItemCoverSrc'](this._libraryItem, this.placeholderUrl)
     },
     libraryItemId() {
@@ -225,8 +235,8 @@ export default {
       return this._libraryItem.hasInvalidParts
     },
     errorText() {
-      if (this.isMissing) return 'Audiobook directory is missing!'
-      else if (this.isInvalid) return 'Audiobook has no audio tracks & ebook'
+      if (this.isMissing) return 'Item directory is missing!'
+      else if (this.isInvalid) return 'Item has no media files'
       var txt = ''
       if (this.hasMissingParts) {
         txt = `${this.hasMissingParts} missing parts.`
@@ -307,7 +317,7 @@ export default {
       if (!val) this.selected = false
     },
     setEntity(libraryItem) {
-      this.audiobook = libraryItem
+      this.libraryItem = libraryItem
     },
     clickCard(e) {
       if (this.isSelectionMode) {
@@ -323,7 +333,7 @@ export default {
       }
     },
     editClick() {
-      this.$emit('edit', this.audiobook)
+      this.$emit('edit', this.libraryItem)
     },
     toggleFinished() {
       var updatePayload = {
@@ -369,27 +379,27 @@ export default {
     },
     showEditModalTracks() {
       // More menu func
-      this.store.commit('showEditModalOnTab', { libraryItem: this.audiobook, tab: 'tracks' })
+      this.store.commit('showEditModalOnTab', { libraryItem: this.libraryItem, tab: 'tracks' })
     },
     showEditModalMatch() {
       // More menu func
-      this.store.commit('showEditModalOnTab', { libraryItem: this.audiobook, tab: 'match' })
+      this.store.commit('showEditModalOnTab', { libraryItem: this.libraryItem, tab: 'match' })
     },
     showEditModalDownload() {
       // More menu func
-      this.store.commit('showEditModalOnTab', { libraryItem: this.audiobook, tab: 'download' })
+      this.store.commit('showEditModalOnTab', { libraryItem: this.libraryItem, tab: 'download' })
     },
     openCollections() {
-      this.store.commit('setSelectedLibraryItem', this.audiobook)
+      this.store.commit('setSelectedLibraryItem', this.libraryItem)
       this.store.commit('globals/setShowUserCollectionsModal', true)
     },
     clickReadEBook() {
-      this.store.commit('showEReader', this.audiobook)
+      this.store.commit('showEReader', this.libraryItem)
     },
     selectBtnClick() {
       if (this.processingBatch) return
       this.selected = !this.selected
-      this.$emit('select', this.audiobook)
+      this.$emit('select', this.libraryItem)
     },
     play() {
       var eventBus = this.$eventBus || this.$nuxt.$eventBus

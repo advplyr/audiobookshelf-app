@@ -11,9 +11,6 @@ import com.arthenica.ffmpegkit.Level
 import com.audiobookshelf.app.data.*
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 
 class FolderScanner(var ctx: Context) {
   private val tag = "FolderScanner"
@@ -61,7 +58,7 @@ class FolderScanner(var ctx: Context) {
        Log.d(tag, "Iterating over Folder Found ${it.name} | ${it.getSimplePath(ctx)} | URI: ${it.uri}")
 
        var itemFolderName = it.name ?: ""
-       var itemId = DeviceManager.getBase64Id(it.id)
+       var itemId = "local_" + DeviceManager.getBase64Id(it.id)
 
        var existingMediaItem = existingMediaItems.find { emi -> emi.id == itemId }
        var existingLocalFiles = existingMediaItem?.localFiles ?: mutableListOf()
@@ -130,7 +127,7 @@ class FolderScanner(var ctx: Context) {
                audioTrackToAdd = existingAudioTrack
              } else {
                // Create new audio track
-               var track = AudioTrack(index, startOffset, audioProbeResult.duration, filename, localFile.contentUrl, mimeType, true, localFileId, audioProbeResult)
+               var track = AudioTrack(index, startOffset, audioProbeResult.duration, filename, localFile.contentUrl, mimeType, null, true, localFileId, audioProbeResult)
                audioTrackToAdd = track
              }
 

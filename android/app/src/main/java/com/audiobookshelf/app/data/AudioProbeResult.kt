@@ -1,6 +1,6 @@
 package com.audiobookshelf.app.data
 
-import android.net.Uri
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -24,8 +24,16 @@ data class AudioProbeChapter(
   val id:Int,
   val start:Int,
   val end:Int,
-  val tags:AudioProbeChapterTags
-)
+  val tags:AudioProbeChapterTags?
+) {
+  @JsonIgnore
+  fun getBookChapter():BookChapter {
+    var startS = start / 1000.0
+    var endS = end / 1000.0
+    var title = tags?.title ?: "Chapter $id"
+    return BookChapter(id, startS, endS, title)
+  }
+}
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class AudioProbeFormatTags(
@@ -57,4 +65,10 @@ class AudioProbeResult (
   val size get() = format.size
   val title get() = format.tags.title ?: format.filename.split("/").last()
   val artist get() = format.tags.artist ?: ""
+
+  @JsonIgnore
+  fun getBookChapters(): List<BookChapter> {
+    if (chapters.isEmpty()) return mutableListOf()
+    return chapters.map { it.getBookChapter() }
+  }
 }

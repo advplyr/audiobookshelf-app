@@ -141,9 +141,9 @@ class AudioDownloader : Plugin() {
       var downloadItem = DownloadItem(libraryItem.id, localFolder, bookTitle, mutableListOf())
       var itemFolderPath = localFolder.absolutePath + "/" + bookTitle
       tracks.forEach { audioFile ->
-        var serverPath = "/s/item/${libraryItem.id}/${cleanRelPath(audioFile.metadata.relPath)}"
-        var destinationFilename = getFilenameFromRelPath(audioFile.metadata.relPath)
-        Log.d(tag, "Audio File Server Path $serverPath | AF RelPath ${audioFile.metadata.relPath} | LocalFolder Path ${localFolder.absolutePath} | DestName ${destinationFilename}")
+        var serverPath = "/s/item/${libraryItem.id}/${cleanRelPath(audioFile.relPath)}"
+        var destinationFilename = getFilenameFromRelPath(audioFile.relPath)
+        Log.d(tag, "Audio File Server Path $serverPath | AF RelPath ${audioFile.relPath} | LocalFolder Path ${localFolder.absolutePath} | DestName ${destinationFilename}")
         var destinationFile = File("$itemFolderPath/$destinationFilename")
         var destinationUri = Uri.fromFile(destinationFile)
         var downloadUri = Uri.parse("${DeviceManager.serverAddress}${serverPath}?token=${DeviceManager.token}")

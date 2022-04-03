@@ -19,6 +19,18 @@ data class DeviceData(
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
+data class LocalLibraryItem(
+  var id:String,
+  var folderId:String,
+  var absolutePath:String,
+  var isInvalid:Boolean,
+  var mediaType:String,
+  var media:MediaType,
+  var localFiles:MutableList<LocalFile>,
+  var isLocal:Boolean
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
 data class LocalMediaItem(
   var id:String,
   var name: String,
@@ -41,6 +53,13 @@ data class LocalMediaItem(
   }
 
   @JsonIgnore
+  fun getTotalSize():Long {
+    var total = 0L
+    localFiles.forEach { total += it.size }
+    return total
+  }
+
+  @JsonIgnore
   fun getMediaMetadata():MediaTypeMetadata {
     return if (mediaType == "book") {
       BookMetadata(name,null, mutableListOf(), mutableListOf(), mutableListOf(),null,null,null,null,null,null,null,false,null,null,null,null)
@@ -54,7 +73,36 @@ data class LocalMediaItem(
     var sessionId = "play-${UUID.randomUUID()}"
 
     var mediaMetadata = getMediaMetadata()
-    return PlaybackSession(sessionId,null,null,null, mediaType, mediaMetadata, mutableListOf(), name, "author name here",null,getDuration(),PLAYMETHOD_LOCAL,audioTracks,0.0,null,this,null,null)
+    var chapters = getAudiobookChapters()
+    var authorName = "Unknown"
+    if (mediaType == "book") {
+      var bookMetadata = mediaMetadata as BookMetadata
+      authorName = bookMetadata?.authorName ?: "Unknown"
+    }
+    return PlaybackSession(sessionId,null,null,null, mediaType, mediaMetadata, chapters, name, authorName,null,getDuration(),PLAYMETHOD_LOCAL,audioTracks,0.0,null,this,null,null)
+  }
+
+  @JsonIgnore
+  fun getAudiobookChapters():List<BookChapter> {
+    if (mediaType != "book" || audioTracks.isEmpty()) return mutableListOf()
+    if (audioTracks.size == 1) { // Single track audiobook look for chapters from ffprobe
+      return audioTracks[0].audioProbeResult?.getBookChapters() ?: mutableListOf()
+    }
+    // Multi-track make chapters from tracks
+    return audioTracks.map { it.getBookChapter() }
+  }
+
+  @JsonIgnore
+  fun getLocalLibraryItem():LocalLibraryItem {
+    var mediaMetadata = getMediaMetadata()
+    if (mediaType == "book") {
+      var chapters = getAudiobookChapters()
+      var book = Book(mediaMetadata as BookMetadata, coverContentUrl, mutableListOf(), mutableListOf(), chapters,audioTracks,getTotalSize(),getDuration())
+      return LocalLibraryItem(id, folderId, absolutePath,  false,mediaType, book, localFiles, true)
+    } else {
+      var podcast = Podcast(mediaMetadata as PodcastMetadata, coverContentUrl, mutableListOf(), mutableListOf(), false)
+      return LocalLibraryItem(id, folderId, absolutePath, false, mediaType, podcast,localFiles,true)
+    }
   }
 }
 

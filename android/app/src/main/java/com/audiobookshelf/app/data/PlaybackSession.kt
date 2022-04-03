@@ -23,7 +23,7 @@ class PlaybackSession(
   var episodeId:String?,
   var mediaType:String,
   var mediaMetadata:MediaTypeMetadata,
-  var chapters:MutableList<BookChapter>,
+  var chapters:List<BookChapter>,
   var displayTitle: String?,
   var displayAuthor: String?,
   var coverPath:String?,
