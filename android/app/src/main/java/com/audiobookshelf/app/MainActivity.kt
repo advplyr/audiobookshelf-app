@@ -10,6 +10,7 @@ import androidx.core.app.ActivityCompat
 import com.anggrayudi.storage.SimpleStorage
 import com.anggrayudi.storage.SimpleStorageHelper
 import com.audiobookshelf.app.data.DbManager
+import com.audiobookshelf.app.player.PlayerNotificationService
 import com.getcapacitor.BridgeActivity
 import io.paperdb.Paper
 

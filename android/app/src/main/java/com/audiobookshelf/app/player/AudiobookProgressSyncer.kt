@@ -1,8 +1,9 @@
-package com.audiobookshelf.app
+package com.audiobookshelf.app.player
 
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.audiobookshelf.app.device.DeviceManager
 import com.getcapacitor.JSObject
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
@@ -45,9 +46,9 @@ class AudiobookProgressSyncer constructor(playerNotificationService:PlayerNotifi
 
     webviewOpenOnStart = playerNotificationService.getIsWebviewOpen()
     listeningBookTitle = playerNotificationService.getCurrentBookTitle()
-    listeningBookIsLocal = playerNotificationService.getCurrentBookIsLocal()
-    listeningBookId = playerNotificationService.getCurrentBookId()
-    listeningStreamId = playerNotificationService.getCurrentStreamId()
+    listeningBookIsLocal = false
+    listeningBookId = "empty"
+    listeningStreamId = "empty"
 
     lastPlaybackTime = playerNotificationService.getCurrentTime()
     lastUpdateTime = System.currentTimeMillis() / 1000L
@@ -117,7 +118,8 @@ class AudiobookProgressSyncer constructor(playerNotificationService:PlayerNotifi
 
       // Send sync data only for local books
       var syncData: JSObject = JSObject()
-      var duration = playerNotificationService.getAudiobookDuration() / 1000
+//      var duration = playerNotificationService.getAudiobookDuration() / 1000
+      var duration = 1000
       var currentTime = playerNotificationService.getCurrentTime() / 1000
       syncData.put("totalDuration", duration)
       syncData.put("currentTime", currentTime)
@@ -132,8 +134,8 @@ class AudiobookProgressSyncer constructor(playerNotificationService:PlayerNotifi
   }
 
   fun sendLocalSyncData(payload:JSObject, cb: (() -> Unit)) {
-    var serverUrl = playerNotificationService.getServerUrl()
-    var token = playerNotificationService.getUserToken()
+    var serverUrl = DeviceManager.serverAddress
+    var token = DeviceManager.token
 
     if (serverUrl == "" || token == "") {
       return
@@ -145,8 +147,8 @@ class AudiobookProgressSyncer constructor(playerNotificationService:PlayerNotifi
   }
 
   fun sendStreamSyncData(payload:JSObject, cb: (() -> Unit)) {
-    var serverUrl = playerNotificationService.getServerUrl()
-    var token = playerNotificationService.getUserToken()
+    var serverUrl = DeviceManager.serverAddress
+    var token = DeviceManager.token
 
     if (serverUrl == "" || token == "") {
       return

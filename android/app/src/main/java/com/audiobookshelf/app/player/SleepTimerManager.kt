@@ -1,4 +1,4 @@
-package com.audiobookshelf.app
+package com.audiobookshelf.app.player
 
 import android.os.Handler
 import android.os.Looper

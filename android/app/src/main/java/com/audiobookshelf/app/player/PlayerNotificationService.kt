@@ -1,4 +1,4 @@
-package com.audiobookshelf.app
+package com.audiobookshelf.app.player
 
 import android.annotation.SuppressLint
 import android.app.*
@@ -19,12 +19,10 @@ import android.util.Log
 import android.view.KeyEvent
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
-import androidx.documentfile.provider.DocumentFile
 import androidx.media.MediaBrowserServiceCompat
 import androidx.media.utils.MediaConstants
-import com.anggrayudi.storage.file.isExternalStorageDocument
-import com.audiobookshelf.app.data.DbManager
-import com.audiobookshelf.app.data.LocalMediaItem
+import com.audiobookshelf.app.Audiobook
+import com.audiobookshelf.app.AudiobookManager
 import com.audiobookshelf.app.data.PlaybackSession
 import com.getcapacitor.Bridge
 import com.getcapacitor.JSObject
@@ -38,11 +36,7 @@ import com.google.android.exoplayer2.source.ProgressiveMediaSource
 import com.google.android.exoplayer2.source.hls.HlsMediaSource
 import com.google.android.exoplayer2.ui.PlayerNotificationManager
 import com.google.android.exoplayer2.upstream.*
-import com.google.android.gms.cast.*
-import com.google.android.gms.cast.framework.*
-import kotlinx.coroutines.*
 import okhttp3.OkHttpClient
-import org.json.JSONObject
 import java.util.*
 import kotlin.concurrent.schedule
 
@@ -74,7 +68,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   private lateinit var playerNotificationManager: PlayerNotificationManager
   private lateinit var mediaSession: MediaSessionCompat
   private lateinit var transportControls:MediaControllerCompat.TransportControls
-  private lateinit var audiobookManager:AudiobookManager
+  private lateinit var audiobookManager: AudiobookManager
 
   lateinit var mPlayer: SimpleExoPlayer
   lateinit var currentPlayer:Player
@@ -88,7 +82,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   private var channelId = "audiobookshelf_channel"
   private var channelName = "Audiobookshelf Channel"
 
-  private var currentAudiobookStreamData:AudiobookStreamData? = null
   private var currentPlaybackSession:PlaybackSession? = null
 
   private var mediaButtonClickCount: Int = 0
@@ -162,54 +155,17 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     return channelId
   }
 
-  private fun playLocal(local: LocalMediaManager.LocalAudio, playWhenReady: Boolean) {
-    var asd = audiobookManager.initLocalPlay(local)
-    asd.playWhenReady = playWhenReady
-    initPlayer(asd)
-  }
-
-  private fun playFirstLocal(playWhenReady: Boolean) {
-    var localAudio = audiobookManager.getFirstLocal()
-    if (localAudio != null) {
-      playLocal(localAudio, playWhenReady)
-    }
-  }
-
   private fun playAudiobookFromMediaBrowser(audiobook: Audiobook, playWhenReady: Boolean) {
-    if (!audiobook.isDownloaded) {
-      var streamListener = object : AudiobookManager.OnStreamData {
-        override fun onStreamReady(asd: AudiobookStreamData) {
-          Log.d(tag, "Stream Ready ${asd.playlistUrl}")
-          asd.playWhenReady = playWhenReady
-          initPlayer(asd)
-        }
-      }
-      audiobookManager.openStream(audiobook, streamListener)
-    } else {
-      var asd = audiobookManager.initDownloadPlay(audiobook)
-      asd.playWhenReady = playWhenReady
-      initPlayer(asd)
-    }
+
   }
 
   private fun playFirstAudiobook(playWhenReady: Boolean) {
-    var firstAudiobook = audiobookManager.getFirstAudiobook()
-    if (firstAudiobook != null) {
-      playAudiobookFromMediaBrowser(firstAudiobook, playWhenReady)
-    } else {
-      playFirstLocal(playWhenReady)
-    }
+
   }
 
   private fun openFromMediaId(mediaId: String, playWhenReady: Boolean) {
     var audiobook = audiobookManager.audiobooks.find { it.id == mediaId }
     if (audiobook == null) {
-      var localAudio = audiobookManager.localMediaManager.localAudioFiles.find { it.id == mediaId }
-      if (localAudio != null) {
-        playLocal(localAudio, playWhenReady)
-        return
-      }
-
       Log.e(tag, "Audiobook NOT FOUND")
       return
     }
@@ -295,7 +251,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
     // Initialize audiobook manager
     audiobookManager = AudiobookManager(ctx, client)
-    audiobookManager.init()
 
     channelId = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
       createNotificationChannel(channelId, channelName)
@@ -719,68 +674,68 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     currentPlayer.setPlaybackSpeed(1f) // TODO: Playback speed should come from settings
     currentPlayer.prepare()
   }
-
-  fun initPlayer(audiobookStreamData: AudiobookStreamData) {
-    currentAudiobookStreamData = audiobookStreamData
-
-    Log.d(tag, "Init Player Audiobook ${currentAudiobookStreamData!!.playlistUrl} | ${currentAudiobookStreamData!!.title} | ${currentAudiobookStreamData!!.author}")
-
-    if (mPlayer.isPlaying) {
-      Log.d(tag, "Init Player audiobook already playing")
-    }
-
-    // Issue with onenote plus crashing when using local cover art. https://github.com/advplyr/audiobookshelf-app/issues/35
-    // Same issue with sony xperia https://github.com/advplyr/audiobookshelf-app/issues/94
-    if (currentAudiobookStreamData?.coverUri != null && currentAudiobookStreamData?.isLocal == true) {
-      var deviceName = Build.DEVICE
-      var deviceMan = Build.MANUFACTURER
-      var deviceModel = Build.MODEL
-      Log.d(tag, "Checking device $deviceName | Model $deviceModel | Manufacturer $deviceMan")
-      if (deviceMan.lowercase(Locale.getDefault()).contains("oneplus") || deviceName.lowercase(Locale.getDefault()).contains("oneplus")) {
-        Log.d(tag, "Detected OnePlus device - removing local cover")
-        currentAudiobookStreamData?.clearCover()
-      } else if (deviceName.lowercase(Locale.getDefault()).contains("xperia") || deviceModel.lowercase(Locale.getDefault()).contains("xperia")) {
-        Log.d(tag, "Detected Sony Xperia device - removing local cover")
-        currentAudiobookStreamData?.clearCover()
-      }
-    }
-
-    var metadata = currentAudiobookStreamData!!.getMediaMetadataCompat()
-    mediaSession.setMetadata(metadata)
-
-    var mediaUri:Uri = currentAudiobookStreamData!!.getMediaUri()
-    var mimeType:String = currentAudiobookStreamData!!.getMimeType()
-
-    var mediaMetadata = currentAudiobookStreamData!!.getMediaMetadata()
-    var mediaItem = MediaItem.Builder().setUri(mediaUri).setMediaMetadata(mediaMetadata).setMimeType(mimeType).build()
-
-    if (mPlayer == currentPlayer) {
-      var mediaSource:MediaSource
-
-      if (currentAudiobookStreamData!!.isLocal) {
-        Log.d(tag, "Playing Local File")
-        var dataSourceFactory = DefaultDataSourceFactory(ctx, channelId)
-        mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
-      } else {
-        Log.d(tag, "Playing HLS File")
-        var dataSourceFactory = DefaultHttpDataSource.Factory()
-        dataSourceFactory.setUserAgent(channelId)
-        dataSourceFactory.setDefaultRequestProperties(hashMapOf("Authorization" to "Bearer ${currentAudiobookStreamData!!.token}"))
-        mediaSource = HlsMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
-      }
-      mPlayer.setMediaSource(mediaSource, currentAudiobookStreamData!!.startTime)
-    } else if (castPlayer != null) {
-      var mediaQueue = currentAudiobookStreamData!!.getCastQueue()
-      // TODO: Start position will need to be adjusted if using multi-track queue
-      castPlayer?.setMediaItems(mediaQueue, 0, 0)
-    }
-
-    currentPlayer.prepare()
-    currentPlayer.playWhenReady = currentAudiobookStreamData!!.playWhenReady
-    currentPlayer.setPlaybackSpeed(audiobookStreamData.playbackSpeed)
-
-    lastPauseTime = 0
-  }
+//
+//  fun initPlayer(audiobookStreamData: AudiobookStreamData) {
+//    currentAudiobookStreamData = audiobookStreamData
+//
+//    Log.d(tag, "Init Player Audiobook ${currentAudiobookStreamData!!.playlistUrl} | ${currentAudiobookStreamData!!.title} | ${currentAudiobookStreamData!!.author}")
+//
+//    if (mPlayer.isPlaying) {
+//      Log.d(tag, "Init Player audiobook already playing")
+//    }
+//
+//    // Issue with onenote plus crashing when using local cover art. https://github.com/advplyr/audiobookshelf-app/issues/35
+//    // Same issue with sony xperia https://github.com/advplyr/audiobookshelf-app/issues/94
+//    if (currentAudiobookStreamData?.coverUri != null && currentAudiobookStreamData?.isLocal == true) {
+//      var deviceName = Build.DEVICE
+//      var deviceMan = Build.MANUFACTURER
+//      var deviceModel = Build.MODEL
+//      Log.d(tag, "Checking device $deviceName | Model $deviceModel | Manufacturer $deviceMan")
+//      if (deviceMan.lowercase(Locale.getDefault()).contains("oneplus") || deviceName.lowercase(Locale.getDefault()).contains("oneplus")) {
+//        Log.d(tag, "Detected OnePlus device - removing local cover")
+//        currentAudiobookStreamData?.clearCover()
+//      } else if (deviceName.lowercase(Locale.getDefault()).contains("xperia") || deviceModel.lowercase(Locale.getDefault()).contains("xperia")) {
+//        Log.d(tag, "Detected Sony Xperia device - removing local cover")
+//        currentAudiobookStreamData?.clearCover()
+//      }
+//    }
+//
+//    var metadata = currentAudiobookStreamData!!.getMediaMetadataCompat()
+//    mediaSession.setMetadata(metadata)
+//
+//    var mediaUri:Uri = currentAudiobookStreamData!!.getMediaUri()
+//    var mimeType:String = currentAudiobookStreamData!!.getMimeType()
+//
+//    var mediaMetadata = currentAudiobookStreamData!!.getMediaMetadata()
+//    var mediaItem = MediaItem.Builder().setUri(mediaUri).setMediaMetadata(mediaMetadata).setMimeType(mimeType).build()
+//
+//    if (mPlayer == currentPlayer) {
+//      var mediaSource:MediaSource
+//
+//      if (currentAudiobookStreamData!!.isLocal) {
+//        Log.d(tag, "Playing Local File")
+//        var dataSourceFactory = DefaultDataSourceFactory(ctx, channelId)
+//        mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
+//      } else {
+//        Log.d(tag, "Playing HLS File")
+//        var dataSourceFactory = DefaultHttpDataSource.Factory()
+//        dataSourceFactory.setUserAgent(channelId)
+//        dataSourceFactory.setDefaultRequestProperties(hashMapOf("Authorization" to "Bearer ${currentAudiobookStreamData!!.token}"))
+//        mediaSource = HlsMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
+//      }
+//      mPlayer.setMediaSource(mediaSource, currentAudiobookStreamData!!.startTime)
+//    } else if (castPlayer != null) {
+//      var mediaQueue = currentAudiobookStreamData!!.getCastQueue()
+//      // TODO: Start position will need to be adjusted if using multi-track queue
+//      castPlayer?.setMediaItems(mediaQueue, 0, 0)
+//    }
+//
+//    currentPlayer.prepare()
+//    currentPlayer.playWhenReady = currentAudiobookStreamData!!.playWhenReady
+//    currentPlayer.setPlaybackSpeed(audiobookStreamData.playbackSpeed)
+//
+//    lastPauseTime = 0
+//  }
 
   fun switchToPlayer(useCastPlayer: Boolean) {
     currentPlayer = if (useCastPlayer) {
@@ -792,9 +747,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       mediaSessionConnector.setPlayer(mPlayer)
       mPlayer
     }
-    if (currentAudiobookStreamData != null) {
+    if (currentPlaybackSession != null) {
       Log.d(tag, "switchToPlayer: Initing current ab stream data")
-      initPlayer(currentAudiobookStreamData!!)
+      preparePlayer(currentPlaybackSession!!, false)
     }
   }
 
@@ -827,33 +782,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   }
 
   fun getCurrentBookTitle() : String? {
-    return currentAudiobookStreamData?.title
-  }
-
-  fun getCurrentBookIsLocal() : Boolean {
-    return currentAudiobookStreamData?.isLocal == true
-  }
-
-  fun getCurrentBookId() : String? {
-    return currentAudiobookStreamData?.audiobookId
-  }
-
-  fun getCurrentStreamId() : String? {
-    return currentAudiobookStreamData?.id
-  }
-
-  // The duration stored on the audiobook
-  fun getAudiobookDuration() : Long {
-    if (currentAudiobookStreamData == null) return 0L
-    return currentAudiobookStreamData!!.duration
-  }
-
-  fun getServerUrl(): String {
-    return audiobookManager.serverUrl
-  }
-
-  fun getUserToken() : String {
-    return audiobookManager.token
+    return currentPlaybackSession?.displayTitle
   }
 
   fun calcPauseSeekBackTime() : Long {
@@ -867,14 +796,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     else if (time < 3600000) seekback = 25000
     else seekback = 29500
     return seekback
-  }
-
-  fun getPlayStatus() : Boolean {
-    return mPlayer.isPlaying
-  }
-
-  fun getCurrentAudiobookId() : String {
-    return currentAudiobookStreamData?.id.toString()
   }
 
   fun play() {

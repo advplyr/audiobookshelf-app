@@ -1,10 +1,11 @@
-package com.audiobookshelf.app
+package com.audiobookshelf.app.player
 
 import android.app.PendingIntent
 import android.graphics.Bitmap
 import android.net.Uri
 import android.support.v4.media.session.MediaControllerCompat
 import android.util.Log
+import com.audiobookshelf.app.R
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.request.RequestOptions

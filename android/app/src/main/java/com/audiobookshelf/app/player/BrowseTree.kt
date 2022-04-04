@@ -1,4 +1,4 @@
-package com.audiobookshelf.app
+package com.audiobookshelf.app.player
 
 import android.content.ContentResolver
 import android.content.Context
@@ -6,6 +6,8 @@ import android.net.Uri
 import android.support.v4.media.MediaMetadataCompat
 import android.util.Log
 import androidx.annotation.AnyRes
+import com.audiobookshelf.app.Audiobook
+import com.audiobookshelf.app.R
 
 
 class BrowseTree(

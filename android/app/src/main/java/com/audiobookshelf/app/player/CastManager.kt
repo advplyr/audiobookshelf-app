@@ -1,4 +1,4 @@
-package com.audiobookshelf.app
+package com.audiobookshelf.app.player
 
 import android.app.Activity
 import android.app.AlertDialog
@@ -22,7 +22,7 @@ class CastManager constructor(playerNotificationService:PlayerNotificationServic
   private val tag = "SleepTimerManager"
   private val playerNotificationService:PlayerNotificationService = playerNotificationService
 
-  private var newConnectionListener:SessionListener? = null
+  private var newConnectionListener: SessionListener? = null
   private var mainActivity:Activity? = null
 
   private fun switchToPlayer(useCastPlayer:Boolean) {
