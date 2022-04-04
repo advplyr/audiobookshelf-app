@@ -21,7 +21,7 @@ class DbManager : Plugin() {
   val tag = "DbManager"
 
   fun getDeviceData(): DeviceData {
-    return Paper.book("device").read("data") ?: DeviceData(mutableListOf(), null)
+    return Paper.book("device").read("data") ?: DeviceData(mutableListOf(), null, null)
   }
   fun saveDeviceData(deviceData:DeviceData) {
     Paper.book("device").write("data", deviceData)

@@ -8,9 +8,7 @@ import android.os.Looper
 import android.support.v4.media.MediaMetadataCompat
 
 import android.util.Log
-import com.getcapacitor.JSArray
 import com.getcapacitor.JSObject
-import com.jeep.plugin.capacitor.capacitordatastoragesqlite.CapacitorDataStorageSqlite
 import okhttp3.*
 import org.json.JSONArray
 import java.io.IOException
@@ -191,29 +189,6 @@ class AudiobookManager {
     hasLoaded = true
 
     localMediaManager.loadLocalAudio()
-
-    // Load downloads from sql db
-    var db = CapacitorDataStorageSqlite(ctx)
-    db.openStore("storage", "downloads", false, "no-encryption", 1)
-    var keyvalues = db.keysvalues()
-    keyvalues.forEach {
-      Log.d(tag, "keyvalue ${it.getString("key")} | ${it.getString("value")}")
-
-      var dlobj = JSObject(it.getString("value"))
-      if (dlobj.has("audiobook")) {
-        var abobj = dlobj.getJSObject("audiobook")!!
-        abobj.put("isDownloaded", true)
-        abobj.put("contentUrl", dlobj.getString("contentUrl", "").toString())
-        abobj.put("filename", dlobj.getString("filename", "").toString())
-        abobj.put("folderUrl", dlobj.getString("folderUrl", "").toString())
-        abobj.put("downloadFolderUrl", dlobj.getString("downloadFolderUrl", "").toString())
-        abobj.put("localCoverUrl", dlobj.getString("coverUrl", "").toString())
-        abobj.put("localCover", dlobj.getString("cover", "").toString())
-
-        var audiobook = Audiobook(abobj, serverUrl, token)
-        audiobooks.add(audiobook)
-      }
-    }
   }
 
   fun openStream(audiobook:Audiobook, streamListener:OnStreamData) {

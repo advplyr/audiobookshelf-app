@@ -9,7 +9,6 @@
         <p v-show="selectedSeriesName" class="ml-2 font-book pt-1">{{ selectedSeriesName }} ({{ totalEntities }})</p>
         <div class="flex-grow" />
         <template v-if="page === 'library'">
-          <!-- <span class="material-icons px-2" @click="changeView">{{ viewIcon }}</span> -->
           <div class="relative flex items-center px-2">
             <span class="material-icons" @click="showFilterModal = true">filter_alt</span>
             <div v-show="hasFilters" class="absolute top-0 right-2 w-2 h-2 rounded-full bg-success border border-green-300 shadow-sm z-10 pointer-events-none" />
@@ -31,7 +30,6 @@ export default {
       showSortModal: false,
       showFilterModal: false,
       settings: {},
-      isListView: false,
       totalEntities: 0
     }
   },
@@ -60,19 +58,9 @@ export default {
         return this.$decode(this.$route.params.id)
       }
       return null
-    },
-    viewIcon() {
-      return this.isListView ? 'grid_view' : 'view_stream'
     }
   },
   methods: {
-    changeView() {
-      this.isListView = !this.isListView
-
-      var bookshelfView = this.isListView ? 'list' : 'grid'
-      this.$localStore.setBookshelfView(bookshelfView)
-      this.$store.commit('setBookshelfView', bookshelfView)
-    },
     updateOrder() {
       this.saveSettings()
     },
@@ -85,11 +73,7 @@ export default {
     },
     async init() {
       this.settings = { ...this.$store.state.user.settings }
-
-      var bookshelfView = await this.$localStore.getBookshelfView()
-      this.isListView = bookshelfView === 'list'
       this.bookshelfReady = true
-      this.$store.commit('setBookshelfView', bookshelfView)
     },
     settingsUpdated(settings) {
       for (const key in settings) {

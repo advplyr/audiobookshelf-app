@@ -1,7 +1,7 @@
-import { registerPlugin, Capacitor } from '@capacitor/core';
+import { Capacitor } from '@capacitor/core';
+import { DbManager } from './capacitor/DbManager'
 
 const isWeb = Capacitor.getPlatform() == 'web'
-const DbManager = registerPlugin('DbManager')
 
 class DbService {
   constructor() { }
@@ -27,7 +27,6 @@ class DbService {
   }
 
   getDeviceData() {
-    if (isWeb) return {}
     return DbManager.getDeviceData_WV().then((data) => {
       console.log('Loaded device data', JSON.stringify(data))
       return data
@@ -35,7 +34,6 @@ class DbService {
   }
 
   setServerConnectionConfig(serverConnectionConfig) {
-    if (isWeb) return null
     return DbManager.setCurrentServerConnectionConfig_WV(serverConnectionConfig).then((data) => {
       console.log('Set server connection config', JSON.stringify(data))
       return data
@@ -43,7 +41,6 @@ class DbService {
   }
 
   removeServerConnectionConfig(serverConnectionConfigId) {
-    if (isWeb) return null
     return DbManager.removeServerConnectionConfig_WV({ serverConnectionConfigId }).then((data) => {
       console.log('Removed server connection config', serverConnectionConfigId)
       return true
@@ -51,7 +48,6 @@ class DbService {
   }
 
   logout() {
-    if (isWeb) return null
     return DbManager.logout_WV()
   }
 
