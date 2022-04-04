@@ -1,9 +1,6 @@
 package com.audiobookshelf.app
 
 import android.net.Uri
-import android.os.Bundle
-import android.support.v4.media.MediaBrowserCompat
-import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.MediaMetadataCompat
 import com.getcapacitor.JSObject
 
@@ -68,10 +65,6 @@ class Audiobook {
     }
     if (book.cover == "" || serverUrl == "" || token == "") return Uri.parse("android.resource://com.audiobookshelf.app/" + R.drawable.icon)
     return Uri.parse("$serverUrl${book.cover}?token=$token&ts=${book.lastUpdate}")
-  }
-
-  fun getDurationLong():Long {
-    return duration.toLong() * 1000L
   }
 
   fun toMediaMetadata():MediaMetadataCompat {

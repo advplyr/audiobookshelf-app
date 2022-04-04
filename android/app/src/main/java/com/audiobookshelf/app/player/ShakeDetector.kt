@@ -1,10 +1,9 @@
-package com.audiobookshelf.app
+package com.audiobookshelf.app.player
 
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
-import java.lang.Math.sqrt
 import kotlin.math.sqrt
 
 class ShakeDetector : SensorEventListener {

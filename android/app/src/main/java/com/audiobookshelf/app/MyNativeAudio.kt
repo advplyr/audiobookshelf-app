@@ -1,14 +1,13 @@
 package com.audiobookshelf.app
 
-import android.content.Intent
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import androidx.core.content.ContextCompat
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.device.DeviceManager
+import com.audiobookshelf.app.player.CastManager
+import com.audiobookshelf.app.player.PlayerNotificationService
 import com.audiobookshelf.app.server.ApiHandler
-import com.capacitorjs.plugins.app.AppPlugin
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.getcapacitor.*
 import com.getcapacitor.annotation.CapacitorPlugin
@@ -101,46 +100,6 @@ class MyNativeAudio : Plugin() {
   }
 
   @PluginMethod
-  fun getLibraryItems(call: PluginCall) {
-    var libraryId = call.getString("libraryId", "").toString()
-    apiHandler.getLibraryItems(libraryId)  {
-      val mapper = jacksonObjectMapper()
-      var jsobj = JSObject()
-      var libarray = JSArray()
-      it.map {
-        libarray.put(JSObject(mapper.writeValueAsString(it)))
-      }
-      jsobj.put("value", libarray)
-      call.resolve(jsobj)
-    }
-  }
-
-  @PluginMethod
-  fun initPlayer(call: PluginCall) {
-    if (!PlayerNotificationService.isStarted) {
-      Log.w(tag, "Starting foreground service --")
-      Intent(mainActivity, PlayerNotificationService::class.java).also { intent ->
-        ContextCompat.startForegroundService(mainActivity, intent)
-      }
-    }
-    var jsobj = JSObject()
-
-    var audiobookStreamData:AudiobookStreamData = AudiobookStreamData(call.data)
-    if (audiobookStreamData.playlistUrl == "" && audiobookStreamData.contentUrl == "") {
-      Log.e(tag, "Invalid URL for init audio player")
-
-      jsobj.put("success", false)
-      return call.resolve(jsobj)
-    }
-
-    Handler(Looper.getMainLooper()).post() {
-      playerNotificationService.initPlayer(audiobookStreamData)
-      jsobj.put("success", true)
-      call.resolve(jsobj)
-    }
-  }
-
-  @PluginMethod
   fun getCurrentTime(call: PluginCall) {
     Handler(Looper.getMainLooper()).post() {
       var currentTime = playerNotificationService.getCurrentTime()
@@ -148,28 +107,6 @@ class MyNativeAudio : Plugin() {
       val ret = JSObject()
       ret.put("value", currentTime)
       ret.put("bufferedTime", bufferedTime)
-      call.resolve(ret)
-    }
-  }
-
-  @PluginMethod
-  fun getStreamSyncData(call: PluginCall) {
-    Handler(Looper.getMainLooper()).post() {
-      var isPlaying = playerNotificationService.getPlayStatus()
-      var lastPauseTime = playerNotificationService.getTheLastPauseTime()
-      Log.d(tag, "Get Last Pause Time $lastPauseTime")
-      var currentTime = playerNotificationService.getCurrentTime()
-      //if (!isPlaying) currentTime -= playerNotificationService.calcPauseSeekBackTime()
-      var id = playerNotificationService.getCurrentAudiobookId()
-      Log.d(tag, "Get Current id $id")
-      var duration = playerNotificationService.getDuration()
-      Log.d(tag, "Get duration $duration")
-      val ret = JSObject()
-      ret.put("lastPauseTime", lastPauseTime)
-      ret.put("currentTime", currentTime)
-      ret.put("isPlaying", isPlaying)
-      ret.put("id", id)
-      ret.put("duration", duration)
       call.resolve(ret)
     }
   }

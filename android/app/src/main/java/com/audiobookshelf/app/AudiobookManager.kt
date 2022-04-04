@@ -8,6 +8,7 @@ import android.os.Looper
 import android.support.v4.media.MediaMetadataCompat
 
 import android.util.Log
+import com.audiobookshelf.app.device.DeviceManager
 import com.getcapacitor.JSObject
 import okhttp3.*
 import org.json.JSONArray
@@ -16,58 +17,23 @@ import java.io.IOException
 class AudiobookManager {
   var tag = "AudiobookManager"
 
-  interface OnStreamData {
-    fun onStreamReady(asd:AudiobookStreamData)
-  }
-
   var hasLoaded = false
   var isLoading = false
   var ctx: Context
-  var serverUrl = ""
-  var token = ""
   private var client:OkHttpClient
-
-  var localMediaManager:LocalMediaManager
 
   var audiobooks:MutableList<Audiobook> = mutableListOf()
   var audiobooksInProgress:MutableList<Audiobook> = mutableListOf()
 
-  var storageSharedPreferences: SharedPreferences? = null
-
   constructor(_ctx:Context, _client:OkHttpClient) {
     ctx = _ctx
     client = _client
-
-    localMediaManager = LocalMediaManager(ctx)
-  }
-
-  fun init() {
-    storageSharedPreferences = ctx.getSharedPreferences("CapacitorStorage", Activity.MODE_PRIVATE)
-    serverUrl = storageSharedPreferences?.getString("serverUrl", "").toString()
-    Log.d(tag, "SHARED PREF SERVERURL $serverUrl")
-    token = storageSharedPreferences?.getString("token", "").toString()
-    Log.d(tag, "SHARED PREF TOKEN $token")
-  }
-
-  fun getPlaybackRate() : Float {
-    if (storageSharedPreferences != null) {
-      var userSettings = storageSharedPreferences?.getString("userSettings", "").toString()
-      if (userSettings != "") {
-        var json = JSObject(userSettings)
-        var playbackRate =  json.getString("playbackRate", "1")
-        if (playbackRate != null) {
-          return playbackRate.toFloat()
-        }
-      }
-    }
-    return 1f
   }
 
   fun loadCategories(cb: (() -> Unit)) {
-    Log.d(tag, "LOAD Categories $serverUrl | $token")
-    var url = "$serverUrl/api/libraries/main/categories"
+    var url = "${DeviceManager.serverAddress}/api/libraries/main/categories"
     val request = Request.Builder()
-      .url(url).addHeader("Authorization", "Bearer $token")
+      .url(url).addHeader("Authorization", "Bearer ${DeviceManager.token}")
       .build()
 
     client.newCall(request).enqueue(object : Callback {
@@ -101,7 +67,7 @@ class AudiobookManager {
                 Log.d(tag, "Shelf category ab id $y = ${abobj.toString()}")
                 var abjsobj = JSObject(abobj.toString())
                 abjsobj.put("isDownloaded", false)
-                var audiobook = Audiobook(abjsobj, serverUrl, token)
+                var audiobook = Audiobook(abjsobj, DeviceManager.serverAddress, DeviceManager.token)
                 if (audiobook.isMissing || audiobook.isInvalid || audiobook.numTracks <= 0) {
                   Log.d(tag, "Not an audiobook or invalid/missing")
                 } else {
@@ -121,13 +87,12 @@ class AudiobookManager {
   }
 
   fun loadAudiobooks(cb: (() -> Unit)) {
-    Log.d(tag, "Load Audiobooks: $serverUrl | $token")
-    if (serverUrl == "" || token == "") {
+    if (DeviceManager.serverAddress == "" || DeviceManager.token == "") {
       Log.d(tag, "Load Audiobooks: No Server or Token set")
       cb()
       return
-    } else if (!serverUrl.startsWith("http")) {
-      Log.e(tag, "Load Audiobooks: Invalid server url $serverUrl")
+    } else if (!DeviceManager.serverAddress.startsWith("http")) {
+      Log.e(tag, "Load Audiobooks: Invalid server url ${DeviceManager.serverAddress}")
       cb()
       return
     }
@@ -135,9 +100,9 @@ class AudiobookManager {
     // First load currently reading
     loadCategories() {
       // Then load all
-      var url = "$serverUrl/api/libraries/main/books/all?sort=book.title"
+      var url = "${DeviceManager.serverAddress}/api/libraries/main/books/all?sort=book.title"
       val request = Request.Builder()
-        .url(url).addHeader("Authorization", "Bearer $token")
+        .url(url).addHeader("Authorization", "Bearer ${DeviceManager.token}")
         .build()
 
       client.newCall(request).enqueue(object : Callback {
@@ -161,7 +126,7 @@ class AudiobookManager {
               var jsobj = JSObject(abobj.toString())
 
               jsobj.put("isDownloaded", false)
-              var audiobook = Audiobook(jsobj, serverUrl, token)
+              var audiobook = Audiobook(jsobj, DeviceManager.serverAddress, DeviceManager.token)
 
               if (audiobook.isMissing || audiobook.isInvalid) {
                 Log.d(tag, "Audiobook ${audiobook.book.title} is missing or invalid")
@@ -187,100 +152,6 @@ class AudiobookManager {
   fun load() {
     isLoading = true
     hasLoaded = true
-
-    localMediaManager.loadLocalAudio()
-  }
-
-  fun openStream(audiobook:Audiobook, streamListener:OnStreamData) {
-    var url = "$serverUrl/api/books/${audiobook.id}/stream"
-    val request = Request.Builder()
-      .url(url).addHeader("Authorization", "Bearer $token")
-      .build()
-
-    client.newCall(request).enqueue(object : Callback {
-      override fun onFailure(call: Call, e: IOException) {
-        e.printStackTrace()
-      }
-
-      override fun onResponse(call: Call, response: Response) {
-        response.use {
-          if (!response.isSuccessful) throw IOException("Unexpected code $response")
-
-          var playbackRate = getPlaybackRate()
-
-          var bodyString = response.body!!.string()
-          var stream = JSObject(bodyString)
-          var streamId = stream.getString("streamId", "").toString()
-          var startTime = stream.getDouble("startTime")
-          var streamUrl = stream.getString("streamUrl", "").toString()
-
-          var startTimeLong = (startTime * 1000).toLong()
-
-          var abStreamDataObj = JSObject()
-          abStreamDataObj.put("id", streamId)
-          abStreamDataObj.put("audiobookId", audiobook.id)
-          abStreamDataObj.put("playlistUrl", "$serverUrl$streamUrl")
-          abStreamDataObj.put("title", audiobook.book.title)
-          abStreamDataObj.put("author", audiobook.book.authorFL)
-          abStreamDataObj.put("token", token)
-          abStreamDataObj.put("cover", audiobook.getCover())
-          abStreamDataObj.put("duration", audiobook.getDurationLong())
-          abStreamDataObj.put("startTime", startTimeLong)
-          abStreamDataObj.put("playbackSpeed", playbackRate)
-          abStreamDataObj.put("playWhenReady", true)
-          abStreamDataObj.put("isLocal", false)
-
-          var audiobookStreamData = AudiobookStreamData(abStreamDataObj)
-
-          Handler(Looper.getMainLooper()).post() {
-            Log.d(tag, "Stream Ready on Main Looper")
-            streamListener.onStreamReady(audiobookStreamData)
-          }
-
-          Log.d(tag, "Init Player Stream")
-        }
-      }
-    })
-  }
-
-  fun initDownloadPlay(audiobook:Audiobook):AudiobookStreamData {
-    var playbackRate = getPlaybackRate()
-
-    var abStreamDataObj = JSObject()
-    abStreamDataObj.put("id", "download")
-    abStreamDataObj.put("audiobookId", audiobook.id)
-    abStreamDataObj.put("contentUrl", audiobook.contentUrl)
-    abStreamDataObj.put("title", audiobook.book.title)
-    abStreamDataObj.put("author", audiobook.book.authorFL)
-    abStreamDataObj.put("token", null)
-    abStreamDataObj.put("cover", audiobook.getCover())
-    abStreamDataObj.put("duration", audiobook.getDurationLong())
-    abStreamDataObj.put("startTime", 0)
-    abStreamDataObj.put("playbackSpeed", playbackRate)
-    abStreamDataObj.put("playWhenReady", true)
-    abStreamDataObj.put("isLocal", true)
-
-    var audiobookStreamData = AudiobookStreamData(abStreamDataObj)
-    return audiobookStreamData
-  }
-
-  fun initLocalPlay(local: LocalMediaManager.LocalAudio):AudiobookStreamData {
-    var abStreamDataObj = JSObject()
-    abStreamDataObj.put("id", "local")
-    abStreamDataObj.put("audiobookId", local.id)
-    abStreamDataObj.put("contentUrl", local.uri.toString())
-    abStreamDataObj.put("title", local.name)
-    abStreamDataObj.put("author", "")
-    abStreamDataObj.put("token", null)
-    abStreamDataObj.put("cover", local.coverUri)
-    abStreamDataObj.put("duration", local.duration)
-    abStreamDataObj.put("startTime", 0)
-    abStreamDataObj.put("playbackSpeed", 1)
-    abStreamDataObj.put("playWhenReady", true)
-    abStreamDataObj.put("isLocal", true)
-
-    var audiobookStreamData = AudiobookStreamData(abStreamDataObj)
-    return audiobookStreamData
   }
 
   private fun levenshtein(lhs : CharSequence, rhs : CharSequence) : Int {
@@ -333,20 +204,14 @@ class AudiobookManager {
   }
 
   fun getFirstAudiobook():Audiobook? {
-    if (audiobooks.isEmpty()) return null
-    return audiobooks[0]
-  }
-
-  fun getFirstLocal(): LocalMediaManager.LocalAudio? {
-    if (localMediaManager.localAudioFiles.isEmpty()) return null
-    return localMediaManager.localAudioFiles[0]
+    return null
   }
 
   // Used for media browser loadChildren, fallback to using the samples if no audiobooks are there
   fun getAudiobooksMediaMetadata() : List<MediaMetadataCompat> {
     var mediaMetadata:MutableList<MediaMetadataCompat> = mutableListOf()
     if (audiobooks.isEmpty()) {
-      localMediaManager.localAudioFiles.forEach { mediaMetadata.add(it.toMediaMetadata()) }
+
     } else {
       audiobooks.forEach { mediaMetadata.add(it.toMediaMetadata()) }
     }
@@ -356,7 +221,7 @@ class AudiobookManager {
   fun getDownloadedAudiobooksMediaMetadata() : List<MediaMetadataCompat> {
     var mediaMetadata:MutableList<MediaMetadataCompat> = mutableListOf()
     if (audiobooks.isEmpty()) {
-      localMediaManager.localAudioFiles.forEach { mediaMetadata.add(it.toMediaMetadata()) }
+
     } else {
       audiobooks.forEach { if (it.isDownloaded) { mediaMetadata.add(it.toMediaMetadata()) } }
     }

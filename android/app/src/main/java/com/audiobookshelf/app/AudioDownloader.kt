@@ -4,13 +4,7 @@ import android.app.DownloadManager
 import android.content.Context
 import android.net.Uri
 import android.os.Build
-import android.os.Environment
 import android.util.Log
-import androidx.documentfile.provider.DocumentFile
-import com.anggrayudi.storage.SimpleStorage
-import com.anggrayudi.storage.callback.FileCallback
-import com.anggrayudi.storage.file.*
-import com.anggrayudi.storage.media.FileDescription
 import com.audiobookshelf.app.data.LibraryItem
 import com.audiobookshelf.app.data.LocalFolder
 import com.audiobookshelf.app.device.DeviceManager
@@ -28,7 +22,6 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
-import java.io.FileOutputStream
 import java.util.*
 
 
