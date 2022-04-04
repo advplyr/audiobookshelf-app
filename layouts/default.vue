@@ -51,14 +51,6 @@ export default {
     }
   },
   methods: {
-    currentUserAudiobookUpdate({ id, data }) {
-      if (data) {
-        console.log(`Current User Audiobook Updated ${id} ${JSON.stringify(data)}`)
-        this.$sqlStore.setUserAudiobookData(data)
-      } else {
-        this.$sqlStore.removeUserAudiobookData(id)
-      }
-    },
     initialStream(stream) {
       if (this.$refs.streamContainer && this.$refs.streamContainer.audioPlayerReady) {
         this.$refs.streamContainer.streamOpen(stream)
@@ -92,94 +84,6 @@ export default {
             onClick: this.clickUpdateToast
           })
         }, 5000)
-      }
-    },
-    onDownloadProgress(data) {
-      var progress = data.progress
-      var audiobookId = data.audiobookId
-
-      var downloadObj = this.$store.getters['downloads/getDownload'](audiobookId)
-      if (downloadObj) {
-        this.$toast.update(downloadObj.toastId, { content: `${progress}% Downloading ${downloadObj.audiobook.book.title}` })
-      }
-    },
-    onDownloadFailed(data) {
-      if (!data.audiobookId) {
-        console.error('Download failed invalid audiobook id', data)
-        return
-      }
-      var downloadObj = this.$store.getters['downloads/getDownload'](data.audiobookId)
-      if (!downloadObj) {
-        console.error('Failed to find download for audiobook', data.audiobookId)
-        return
-      }
-      var message = data.error || 'Unknown Error'
-      this.$toast.update(downloadObj.toastId, { content: `Failed. ${message}.`, options: { timeout: 5000, type: 'error' } }, true)
-      this.$store.commit('downloads/removeDownload', downloadObj)
-    },
-    onDownloadComplete(data) {
-      if (!data.audiobookId) {
-        console.error('Download compelte invalid audiobook id', data)
-        return
-      }
-      var downloadId = data.downloadId
-      var contentUrl = data.contentUrl
-      var folderUrl = data.folderUrl
-      var folderName = data.folderName
-      var storageId = data.storageId
-      var storageType = data.storageType
-      var simplePath = data.simplePath
-      var filename = data.filename
-      var audiobookId = data.audiobookId
-      var size = data.size || 0
-      var isCover = !!data.isCover
-
-      console.log(`Download complete "${contentUrl}" | ${filename} | DlId: ${downloadId} | Is Cover? ${isCover}`)
-      var downloadObj = this.$store.getters['downloads/getDownload'](audiobookId)
-      if (!downloadObj) {
-        console.error('Failed to find download for audiobook', audiobookId)
-        return
-      }
-
-      if (!isCover) {
-        // Notify server to remove prepared download
-        if (this.$server.socket) {
-          this.$server.socket.emit('remove_download', audiobookId)
-        }
-
-        this.$toast.update(downloadObj.toastId, { content: `Success! ${downloadObj.audiobook.book.title} downloaded.`, options: { timeout: 5000, type: 'success' } }, true)
-
-        delete downloadObj.isDownloading
-        delete downloadObj.isPreparing
-        downloadObj.contentUrl = contentUrl
-        downloadObj.simplePath = simplePath
-        downloadObj.folderUrl = folderUrl
-        downloadObj.folderName = folderName
-        downloadObj.storageType = storageType
-        downloadObj.storageId = storageId
-        downloadObj.basePath = data.basePath || null
-        downloadObj.size = size
-        this.$store.commit('downloads/addUpdateDownload', downloadObj)
-      } else {
-        downloadObj.coverUrl = contentUrl
-        downloadObj.cover = Capacitor.convertFileSrc(contentUrl)
-        downloadObj.coverSize = size
-        downloadObj.coverBasePath = data.basePath || null
-        console.log('Updating download with cover', downloadObj.cover)
-        this.$store.commit('downloads/addUpdateDownload', downloadObj)
-      }
-    },
-    async checkLoadCurrent() {
-      var currentObj = await this.$localStore.getCurrent()
-      if (!currentObj) return
-
-      console.log('Has Current playing', currentObj.audiobookId)
-      var download = this.$store.getters['downloads/getDownload'](currentObj.audiobookId)
-      if (download) {
-        this.$store.commit('setPlayingDownload', download)
-      } else {
-        console.warn('Download not available for previous current playing', currentObj.audiobookId)
-        this.$localStore.setCurrent(null)
       }
     },
     async searchFolder(downloadFolder) {
@@ -233,11 +137,6 @@ export default {
     //       }
     //     }
     //   })
-
-    //   // Match media scanned folders with books from server
-    //   if (this.isSocketConnected) {
-    //     await this.$store.dispatch('downloads/linkOrphanDownloads')
-    //   }
     // },
     onItemDownloadUpdate(data) {
       console.log('ON ITEM DOWNLOAD UPDATE', JSON.stringify(data))
@@ -253,25 +152,6 @@ export default {
       AudioDownloader.addListener('onItemDownloadComplete', (data) => {
         this.onItemDownloadComplete(data)
       })
-      // AudioDownloader.addListener('onDownloadFailed', (data) => {
-      //   this.onDownloadFailed(data)
-      // })
-      // AudioDownloader.addListener('onDownloadProgress', (data) => {
-      //   this.onDownloadProgress(data)
-      // })
-
-      // var downloads = await this.$store.dispatch('downloads/loadFromStorage')
-      // var downloadFolder = await this.$localStore.getDownloadFolder()
-      // this.$eventBus.$emit('downloads-loaded')
-
-      // var checkPermission = await StorageManager.checkStoragePermission()
-      // console.log('Storage Permission is' + checkPermission.value)
-      // if (!checkPermission.value) {
-      //   console.log('Will require permissions')
-      // } else {
-      //   console.log('Has Storage Permission')
-      //   this.$store.commit('setHasStoragePermission', true)
-      // }
     },
     async loadSavedSettings() {
       var userSavedServerSettings = await this.$localStore.getServerSettings()
@@ -283,9 +163,6 @@ export default {
       if (userSavedSettings) {
         this.$store.commit('user/setSettings', userSavedSettings)
       }
-
-      console.log('Loading offline user audiobook data')
-      await this.$store.dispatch('user/loadOfflineUserAudiobookData')
     },
     async attemptConnection() {
       if (!this.networkConnected) {
@@ -354,7 +231,6 @@ export default {
     // this.$server.on('connected', this.connected)
     // this.$server.on('connectionFailed', this.socketConnectionFailed)
     // this.$server.on('initialStream', this.initialStream)
-    // this.$server.on('currentUserAudiobookUpdate', this.currentUserAudiobookUpdate)
     // this.$server.on('show_error_toast', this.showErrorToast)
     // this.$server.on('show_success_toast', this.showSuccessToast)
 

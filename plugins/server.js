@@ -37,6 +37,11 @@ class ServerSocket extends EventEmitter {
     this.socket.on('connect', this.onConnect.bind(this))
     this.socket.on('disconnect', this.onDisconnect.bind(this))
     this.socket.on('init', this.onInit.bind(this))
+
+    this.socket.onAny((evt, args) => {
+      console.log(`[SOCKET] ${this.socket.id}: ${evt} ${JSON.stringify(args)}`)
+    })
+
   }
 
   onConnect() {

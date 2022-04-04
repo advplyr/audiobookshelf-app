@@ -59,14 +59,8 @@ export default {
     entityName() {
       return this.page
     },
-    bookshelfView() {
-      return this.$store.state.bookshelfView
-    },
     hasFilter() {
       return this.filterBy !== 'all'
-    },
-    isListView() {
-      return this.bookshelfView === 'list'
     },
     books() {
       return this.$store.getters['downloads/getAudiobooks']
@@ -121,13 +115,7 @@ export default {
       return this.$store.getters['downloads/getDownloads']
     },
     downloadedBooks() {
-      return this.downloads.map((dl) => {
-        var download = { ...dl }
-        var ab = { ...download.audiobook }
-        delete download.audiobook
-        ab.download = download
-        return ab
-      })
+      return []
     }
   },
   methods: {

@@ -15,7 +15,8 @@ data class ServerConnectionConfig(
 
 data class DeviceData(
   var serverConnectionConfigs:MutableList<ServerConnectionConfig>,
-  var lastServerConnectionConfigId:String?
+  var lastServerConnectionConfigId:String?,
+  var localLibraryItemIdPlaying:String?
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)

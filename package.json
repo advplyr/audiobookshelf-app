@@ -10,7 +10,6 @@
     "icons-android": "cordova-res android --skip-config --copy"
   },
   "dependencies": {
-    "@capacitor-community/sqlite": "^3.2.0",
     "@capacitor/android": "^3.2.2",
     "@capacitor/app": "^1.0.7",
     "@capacitor/cli": "^3.1.2",
@@ -22,11 +21,9 @@
     "@capacitor/storage": "^1.1.0",
     "@nuxtjs/axios": "^5.13.6",
     "@robingenz/capacitor-app-update": "^1.0.0",
-    "capacitor-data-storage-sqlite": "^3.2.0",
     "core-js": "^3.15.1",
     "date-fns": "^2.25.0",
     "epubjs": "^0.3.88",
-    "hls.js": "^1.0.9",
     "libarchive.js": "^1.3.0",
     "nuxt": "^2.15.7",
     "socket.io-client": "^4.1.3",

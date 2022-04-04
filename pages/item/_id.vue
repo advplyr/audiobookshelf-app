@@ -66,7 +66,6 @@
 </template>
 
 <script>
-import Path from 'path'
 import { Dialog } from '@capacitor/dialog'
 import AudioDownloader from '@/plugins/audio-downloader'
 import StorageManager from '@/plugins/storage-manager'
@@ -197,19 +196,10 @@ export default {
       if (!this.ebookFile) return null
       return this.ebookFile.ebookFormat
     },
-    // isDownloadPreparing() {
-    //   return this.downloadObj ? this.downloadObj.isPreparing : false
-    // },
     isDownloadPlayable() {
       return false
       // return this.downloadObj && !this.isDownloading && !this.isDownloadPreparing
     },
-    // downloadedCover() {
-    //   return this.downloadObj ? this.downloadObj.cover : null
-    // },
-    // downloadObj() {
-    //   return this.$store.getters['downloads/getDownload'](this.libraryItemId)
-    // },
     hasStoragePermission() {
       return this.$store.state.hasStoragePermission
     }
@@ -220,25 +210,8 @@ export default {
     },
     playClick() {
       this.$eventBus.$emit('play-item', this.libraryItem.id)
-
-      // this.$store.commit('setPlayOnLoad', true)
-      // if (!this.isDownloadPlayable) {
-      // Stream
-      // console.log('[PLAYCLICK] Set Playing STREAM ' + this.title)
-      // this.$store.commit('setStreamAudiobook', this.libraryItem)
-      // this.$server.socket.emit('open_stream', this.libraryItem.id)
-      // } else {
-      // Local
-      // console.log('[PLAYCLICK] Set Playing Local Download ' + this.title)
-      // this.$store.commit('setPlayingDownload', this.downloadObj)
-      // }
     },
     async clearProgressClick() {
-      // if (!this.$server.connected) {
-      //   this.$toast.info('Clear downloaded book progress not yet implemented')
-      //   return
-      // }
-
       const { value } = await Dialog.confirm({
         title: 'Confirm',
         message: 'Are you sure you want to reset your progress?'
@@ -327,33 +300,9 @@ export default {
       if (downloadRes.error) {
         var errorMsg = downloadRes.error || 'Unknown error'
         console.error('Download error', errorMsg)
-        this.$toast.update(download.toastId, { content: `Error: ${errorMsg}`, options: { timeout: 5000, type: 'error' } })
-        this.$store.commit('downloads/removeDownload', download)
+        this.$toast.error(errorMsg)
       }
-    },
-    async changeDownloadFolderClick() {
-      if (!this.hasStoragePermission) {
-        console.log('Requesting Storage Permission')
-        await StorageManager.requestStoragePermission()
-      } else {
-        var folderObj = await StorageManager.selectFolder()
-        if (folderObj.error) {
-          return this.$toast.error(`Error: ${folderObj.error || 'Unknown Error'}`)
-        }
-
-        var permissionsGood = await StorageManager.checkFolderPermissions({ folderUrl: folderObj.uri })
-        console.log('Storage Permission check folder ' + permissionsGood)
-
-        if (!permissionsGood) {
-          this.$toast.error('Folder permissions failed')
-          return
-        } else {
-          this.$toast.success('Folder permission success')
-        }
-
-        await this.$localStore.setDownloadFolder(folderObj)
-      }
-    },
+    }
     // async prepareDownload() {
     //   var audiobook = this.libraryItem
     //   if (!audiobook) {
@@ -451,34 +400,34 @@ export default {
     //     this.$store.commit('downloads/removeDownload', download)
     //   }
     // },
-    downloadReady(prepareDownload) {
-      var download = this.$store.getters['downloads/getDownload'](prepareDownload.audiobookId)
-      if (download) {
-        var fileext = prepareDownload.ext
-        var url = `${this.$store.state.serverUrl}/downloads/${prepareDownload.id}/${prepareDownload.filename}?token=${this.userToken}`
-        this.startDownload(url, fileext, download)
-      } else {
-        console.error('Prepare download killed but download not found', prepareDownload)
-      }
-    },
-    downloadKilled(prepareDownload) {
-      var download = this.$store.getters['downloads/getDownload'](prepareDownload.audiobookId)
-      if (download) {
-        this.$toast.update(download.toastId, { content: `Prepare download killed for "${download.audiobook.book.title}"`, options: { timeout: 5000, type: 'error' } })
-        this.$store.commit('downloads/removeDownload', download)
-      } else {
-        console.error('Prepare download killed but download not found', prepareDownload)
-      }
-    },
-    downloadFailed(prepareDownload) {
-      var download = this.$store.getters['downloads/getDownload'](prepareDownload.audiobookId)
-      if (download) {
-        this.$toast.update(download.toastId, { content: `Prepare download failed for "${download.audiobook.book.title}"`, options: { timeout: 5000, type: 'error' } })
-        this.$store.commit('downloads/removeDownload', download)
-      } else {
-        console.error('Prepare download failed but download not found', prepareDownload)
-      }
-    }
+    // downloadReady(prepareDownload) {
+    //   var download = this.$store.getters['downloads/getDownload'](prepareDownload.audiobookId)
+    //   if (download) {
+    //     var fileext = prepareDownload.ext
+    //     var url = `${this.$store.state.serverUrl}/downloads/${prepareDownload.id}/${prepareDownload.filename}?token=${this.userToken}`
+    //     this.startDownload(url, fileext, download)
+    //   } else {
+    //     console.error('Prepare download killed but download not found', prepareDownload)
+    //   }
+    // },
+    // downloadKilled(prepareDownload) {
+    //   var download = this.$store.getters['downloads/getDownload'](prepareDownload.audiobookId)
+    //   if (download) {
+    //     this.$toast.update(download.toastId, { content: `Prepare download killed for "${download.audiobook.book.title}"`, options: { timeout: 5000, type: 'error' } })
+    //     this.$store.commit('downloads/removeDownload', download)
+    //   } else {
+    //     console.error('Prepare download killed but download not found', prepareDownload)
+    //   }
+    // },
+    // downloadFailed(prepareDownload) {
+    //   var download = this.$store.getters['downloads/getDownload'](prepareDownload.audiobookId)
+    //   if (download) {
+    //     this.$toast.update(download.toastId, { content: `Prepare download failed for "${download.audiobook.book.title}"`, options: { timeout: 5000, type: 'error' } })
+    //     this.$store.commit('downloads/removeDownload', download)
+    //   } else {
+    //     console.error('Prepare download failed but download not found', prepareDownload)
+    //   }
+    // }
   },
   mounted() {
     // if (!this.$server.socket) {

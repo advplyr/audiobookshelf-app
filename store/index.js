@@ -15,10 +15,7 @@ export const state = () => ({
   hasStoragePermission: false,
   selectedBook: null,
   showReader: false,
-  downloadFolder: null,
-
   showSideDrawer: false,
-  bookshelfView: 'grid',
   isNetworkListenerInit: false,
   serverSettings: null
 })
@@ -120,14 +117,8 @@ export const mutations = {
   setShowReader(state, val) {
     state.showReader = val
   },
-  setDownloadFolder(state, val) {
-    state.downloadFolder = val
-  },
   setShowSideDrawer(state, val) {
     state.showSideDrawer = val
-  },
-  setBookshelfView(state, val) {
-    state.bookshelfView = val
   },
   setServerSettings(state, val) {
     state.serverSettings = val
