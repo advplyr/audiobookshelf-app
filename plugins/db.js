@@ -1,5 +1,5 @@
 import { Capacitor } from '@capacitor/core';
-import { DbManager } from './capacitor/DbManager'
+import { AbsDatabase } from './capacitor/AbsDatabase'
 
 const isWeb = Capacitor.getPlatform() == 'web'
 
@@ -8,7 +8,7 @@ class DbService {
 
   save(db, key, value) {
     if (isWeb) return
-    return DbManager.saveFromWebview({ db, key, value }).then(() => {
+    return AbsDatabase.saveFromWebview({ db, key, value }).then(() => {
       console.log('Saved data', db, key, JSON.stringify(value))
     }).catch((error) => {
       console.error('Failed to save data', error)
@@ -17,7 +17,7 @@ class DbService {
 
   load(db, key) {
     if (isWeb) return null
-    return DbManager.loadFromWebview({ db, key }).then((data) => {
+    return AbsDatabase.loadFromWebview({ db, key }).then((data) => {
       console.log('Loaded data', db, key, JSON.stringify(data))
       return data
     }).catch((error) => {
@@ -27,33 +27,33 @@ class DbService {
   }
 
   getDeviceData() {
-    return DbManager.getDeviceData_WV().then((data) => {
+    return AbsDatabase.getDeviceData().then((data) => {
       console.log('Loaded device data', JSON.stringify(data))
       return data
     })
   }
 
   setServerConnectionConfig(serverConnectionConfig) {
-    return DbManager.setCurrentServerConnectionConfig_WV(serverConnectionConfig).then((data) => {
+    return AbsDatabase.setCurrentServerConnectionConfig(serverConnectionConfig).then((data) => {
       console.log('Set server connection config', JSON.stringify(data))
       return data
     })
   }
 
   removeServerConnectionConfig(serverConnectionConfigId) {
-    return DbManager.removeServerConnectionConfig_WV({ serverConnectionConfigId }).then((data) => {
+    return AbsDatabase.removeServerConnectionConfig({ serverConnectionConfigId }).then((data) => {
       console.log('Removed server connection config', serverConnectionConfigId)
       return true
     })
   }
 
   logout() {
-    return DbManager.logout_WV()
+    return AbsDatabase.logout()
   }
 
   getLocalFolders() {
     if (isWeb) return []
-    return DbManager.getLocalFolders_WV().then((data) => {
+    return AbsDatabase.getLocalFolders().then((data) => {
       console.log('Loaded local folders', JSON.stringify(data))
       if (data.folders && typeof data.folders == 'string') {
         return JSON.parse(data.folders)
@@ -67,7 +67,7 @@ class DbService {
 
   getLocalFolder(folderId) {
     if (isWeb) return null
-    return DbManager.getLocalFolder_WV({ folderId }).then((data) => {
+    return AbsDatabase.getLocalFolder({ folderId }).then((data) => {
       console.log('Got local folder', JSON.stringify(data))
       return data
     })
@@ -75,7 +75,7 @@ class DbService {
 
   getLocalMediaItemsInFolder(folderId) {
     if (isWeb) return []
-    return DbManager.getLocalMediaItemsInFolder_WV({ folderId }).then((data) => {
+    return AbsDatabase.getLocalMediaItemsInFolder({ folderId }).then((data) => {
       console.log('Loaded local media items in folder', JSON.stringify(data))
       if (data.localMediaItems && typeof data.localMediaItems == 'string') {
         return JSON.parse(data.localMediaItems)
@@ -86,7 +86,7 @@ class DbService {
 
   getLocalLibraryItems() {
     if (isWeb) return []
-    return DbManager.getLocalLibraryItems_WV().then((data) => {
+    return AbsDatabase.getLocalLibraryItems().then((data) => {
       console.log('Loaded all local media items', JSON.stringify(data))
       if (data.localLibraryItems && typeof data.localLibraryItems == 'string') {
         return JSON.parse(data.localLibraryItems)
@@ -97,7 +97,7 @@ class DbService {
 
   getLocalLibraryItem(id) {
     if (isWeb) return null
-    return DbManager.getLocalLibraryItem_WV({ id })
+    return AbsDatabase.getLocalLibraryItem({ id })
   }
 }
 

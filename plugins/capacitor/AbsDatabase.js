@@ -1,11 +1,11 @@
 import { registerPlugin, Capacitor, WebPlugin } from '@capacitor/core';
 
-class DbWeb extends WebPlugin {
+class AbsDatabaseWeb extends WebPlugin {
   constructor() {
     super()
   }
 
-  async getDeviceData_WV() {
+  async getDeviceData() {
     var dd = localStorage.getItem('device')
     if (dd) {
       return JSON.parse(dd)
@@ -18,8 +18,8 @@ class DbWeb extends WebPlugin {
     return deviceData
   }
 
-  async setCurrentServerConnectionConfig_WV(serverConnectionConfig) {
-    var deviceData = await this.getDeviceData_WV()
+  async setCurrentServerConnectionConfig(serverConnectionConfig) {
+    var deviceData = await this.getDeviceData()
 
     var ssc = deviceData.serverConnectionConfigs.find(_ssc => _ssc.id == serverConnectionConfig.id)
     if (ssc) {
@@ -44,20 +44,22 @@ class DbWeb extends WebPlugin {
     return ssc
   }
 
-  async removeServerConnectionConfig_WV(serverConnectionConfigCallObject) {
+  async removeServerConnectionConfig(serverConnectionConfigCallObject) {
     var serverConnectionConfigId = serverConnectionConfigCallObject.serverConnectionConfigId
-    var deviceData = await this.getDeviceData_WV()
+    var deviceData = await this.getDeviceData()
     deviceData.serverConnectionConfigs = deviceData.serverConnectionConfigs.filter(ssc => ssc.id == serverConnectionConfigId)
     localStorage.setItem('device', JSON.stringify(deviceData))
   }
 
-  logout_WV() {
-    // Nothing to do on web
+  async logout() {
+    var deviceData = await this.getDeviceData()
+    deviceData.lastServerConnectionConfigId = null
+    localStorage.setItem('device', JSON.stringify(deviceData))
   }
 }
 
-const DbManager = registerPlugin('DbManager', {
-  web: () => new DbWeb()
+const AbsDatabase = registerPlugin('AbsDatabase', {
+  web: () => new AbsDatabaseWeb()
 })
 
-export { DbManager }
+export { AbsDatabase }

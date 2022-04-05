@@ -1,8 +1,9 @@
-package com.audiobookshelf.app
+package com.audiobookshelf.app.plugins
 
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.audiobookshelf.app.MainActivity
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.player.CastManager
@@ -13,11 +14,11 @@ import com.getcapacitor.*
 import com.getcapacitor.annotation.CapacitorPlugin
 import org.json.JSONObject
 
-@CapacitorPlugin(name = "MyNativeAudio")
-class MyNativeAudio : Plugin() {
-  private val tag = "MyNativeAudio"
+@CapacitorPlugin(name = "AbsAudioPlayer")
+class AbsAudioPlayer : Plugin() {
+  private val tag = "AbsAudioPlayer"
 
-  lateinit var mainActivity:MainActivity
+  lateinit var mainActivity: MainActivity
   lateinit var apiHandler:ApiHandler
   lateinit var playerNotificationService: PlayerNotificationService
 

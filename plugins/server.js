@@ -13,6 +13,16 @@ class ServerSocket extends EventEmitter {
     this.token = null
   }
 
+  $on(evt, callback) {
+    if (this.socket) this.socket.on(evt, callback)
+    else console.error('$on Socket not initialized')
+  }
+
+  $off(evt, callback) {
+    if (this.socket) this.socket.off(evt, callback)
+    else console.error('$off Socket not initialized')
+  }
+
   connect(serverAddress, token) {
     this.serverAddress = serverAddress
     this.token = token
@@ -33,7 +43,6 @@ class ServerSocket extends EventEmitter {
   }
 
   setSocketListeners() {
-    if (!this.socket) return
     this.socket.on('connect', this.onConnect.bind(this))
     this.socket.on('disconnect', this.onDisconnect.bind(this))
     this.socket.on('init', this.onInit.bind(this))
@@ -41,7 +50,6 @@ class ServerSocket extends EventEmitter {
     this.socket.onAny((evt, args) => {
       console.log(`[SOCKET] ${this.socket.id}: ${evt} ${JSON.stringify(args)}`)
     })
-
   }
 
   onConnect() {
@@ -73,6 +81,5 @@ class ServerSocket extends EventEmitter {
 }
 
 export default ({ app, store }, inject) => {
-  console.log('Check event bus', this, Vue.prototype.$eventBus)
   inject('socket', new ServerSocket(store))
 }

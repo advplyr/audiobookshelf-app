@@ -35,7 +35,7 @@
 <script>
 import { Capacitor } from '@capacitor/core'
 import { Dialog } from '@capacitor/dialog'
-import StorageManager from '@/plugins/storage-manager'
+import { AbsFileSystem } from '@/plugins/capacitor'
 
 export default {
   asyncData({ params, query }) {
@@ -75,7 +75,7 @@ export default {
       })
       if (value) {
         this.removingFolder = true
-        await StorageManager.removeFolder({ folderId: this.folderId })
+        await AbsFileSystem.removeFolder({ folderId: this.folderId })
         this.removingFolder = false
         this.$router.replace('/localMedia/folders')
       }
@@ -85,7 +85,7 @@ export default {
     },
     async scanFolder(forceAudioProbe = false) {
       this.isScanning = true
-      var response = await StorageManager.scanFolder({ folderId: this.folderId, forceAudioProbe })
+      var response = await AbsFileSystem.scanFolder({ folderId: this.folderId, forceAudioProbe })
 
       if (response && response.localMediaItems) {
         var itemsAdded = response.itemsAdded

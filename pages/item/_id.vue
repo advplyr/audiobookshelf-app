@@ -67,8 +67,7 @@
 
 <script>
 import { Dialog } from '@capacitor/dialog'
-import AudioDownloader from '@/plugins/audio-downloader'
-import StorageManager from '@/plugins/storage-manager'
+import { AbsFileSystem, AbsDownloader } from '@/plugins/capacitor'
 
 export default {
   async asyncData({ store, params, redirect, app }) {
@@ -239,7 +238,7 @@ export default {
     },
     async selectFolder() {
       // Select and save the local folder for media type
-      var folderObj = await StorageManager.selectFolder({ mediaType: this.mediaType })
+      var folderObj = await AbsFileSystem.selectFolder({ mediaType: this.mediaType })
       if (folderObj.error) {
         return this.$toast.error(`Error: ${folderObj.error || 'Unknown Error'}`)
       }
@@ -296,7 +295,7 @@ export default {
     },
     async startDownload(localFolder) {
       console.log('Starting download to local folder', localFolder.name)
-      var downloadRes = await AudioDownloader.downloadLibraryItem({ libraryItemId: this.libraryItemId, localFolderId: localFolder.id })
+      var downloadRes = await AbsDownloader.downloadLibraryItem({ libraryItemId: this.libraryItemId, localFolderId: localFolder.id })
       if (downloadRes.error) {
         var errorMsg = downloadRes.error || 'Unknown error'
         console.error('Download error', errorMsg)

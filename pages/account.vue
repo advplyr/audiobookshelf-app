@@ -35,7 +35,7 @@
 
 <script>
 import { AppUpdate } from '@robingenz/capacitor-app-update'
-import MyNativeAudio from '@/plugins/my-native-audio'
+import { AbsAudioPlayer } from '@/plugins/capacitor'
 
 export default {
   asyncData({ redirect, store }) {
@@ -82,7 +82,7 @@ export default {
       // Used for testing API
       console.log('Making Test call')
       var libraryId = this.$store.state.libraries.currentLibraryId
-      MyNativeAudio.getLibraryItems({ libraryId }).then((res) => {
+      AbsAudioPlayer.getLibraryItems({ libraryId }).then((res) => {
         console.log('TEST CALL response', JSON.stringify(res))
       })
     },

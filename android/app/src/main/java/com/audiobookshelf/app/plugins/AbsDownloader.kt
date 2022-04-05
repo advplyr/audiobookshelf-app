@@ -1,10 +1,11 @@
-package com.audiobookshelf.app
+package com.audiobookshelf.app.plugins
 
 import android.app.DownloadManager
 import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.util.Log
+import com.audiobookshelf.app.MainActivity
 import com.audiobookshelf.app.data.LibraryItem
 import com.audiobookshelf.app.data.LocalFolder
 import com.audiobookshelf.app.device.DeviceManager
@@ -25,9 +26,9 @@ import java.io.File
 import java.util.*
 
 
-@CapacitorPlugin(name = "AudioDownloader")
-class AudioDownloader : Plugin() {
-  private val tag = "AudioDownloader"
+@CapacitorPlugin(name = "AbsDownloader")
+class AbsDownloader : Plugin() {
+  private val tag = "AbsDownloader"
 
   lateinit var mainActivity: MainActivity
   lateinit var downloadManager: DownloadManager
@@ -76,7 +77,7 @@ class AudioDownloader : Plugin() {
       if (evt == "complete") {
       }
       if (evt == "clicked") {
-        Log.d(tag, "Clicked $id back in the audiodownloader")
+        Log.d(tag, "Clicked $id back in the downloader")
       }
     }
     mainActivity.registerBroadcastReceiver(recieverEvent)

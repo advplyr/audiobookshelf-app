@@ -35,7 +35,7 @@ export default {
   data() {
     return {
       shelves: [],
-      loading: true
+      loading: false
     }
   },
   computed: {
@@ -87,11 +87,14 @@ export default {
       return categories
     },
     async fetchCategories() {
+      if (this.loading) {
+        console.log('Already loading categories')
+        return
+      }
       this.loading = true
       this.shelves = []
 
       var localCategories = await this.getLocalMediaItemCategories()
-      console.log('Category shelves', localCategories.length)
       this.shelves = this.shelves.concat(localCategories)
 
       if (this.user || !this.currentLibraryId) {

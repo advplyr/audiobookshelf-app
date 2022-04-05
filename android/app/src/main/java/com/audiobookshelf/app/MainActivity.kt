@@ -9,8 +9,12 @@ import android.util.Log
 import androidx.core.app.ActivityCompat
 import com.anggrayudi.storage.SimpleStorage
 import com.anggrayudi.storage.SimpleStorageHelper
+import com.audiobookshelf.app.data.AbsDatabase
 import com.audiobookshelf.app.data.DbManager
 import com.audiobookshelf.app.player.PlayerNotificationService
+import com.audiobookshelf.app.plugins.AbsDownloader
+import com.audiobookshelf.app.plugins.AbsAudioPlayer
+import com.audiobookshelf.app.plugins.AbsFileSystem
 import com.getcapacitor.BridgeActivity
 import io.paperdb.Paper
 
@@ -63,10 +67,10 @@ class MainActivity : BridgeActivity() {
         REQUEST_PERMISSIONS)
     }
 
-    registerPlugin(MyNativeAudio::class.java)
-    registerPlugin(AudioDownloader::class.java)
-    registerPlugin(StorageManager::class.java)
-    registerPlugin(DbManager::class.java)
+    registerPlugin(AbsAudioPlayer::class.java)
+    registerPlugin(AbsDownloader::class.java)
+    registerPlugin(AbsFileSystem::class.java)
+    registerPlugin(AbsDatabase::class.java)
 
     var filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE).apply {
       addAction(DownloadManager.ACTION_NOTIFICATION_CLICKED)
@@ -98,7 +102,7 @@ class MainActivity : BridgeActivity() {
         val mLocalBinder = service as PlayerNotificationService.LocalBinder
         foregroundService = mLocalBinder.getService()
 
-        // Let MyNativeAudio know foreground service is ready and setup event listener
+        // Let NativeAudio know foreground service is ready and setup event listener
         if (pluginCallback != null) {
           pluginCallback()
         }

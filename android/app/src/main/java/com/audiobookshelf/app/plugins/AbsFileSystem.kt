@@ -1,4 +1,4 @@
-package com.audiobookshelf.app
+package com.audiobookshelf.app.plugins
 
 import android.database.Cursor
 import android.net.Uri
@@ -10,6 +10,7 @@ import com.anggrayudi.storage.SimpleStorage
 import com.anggrayudi.storage.callback.FolderPickerCallback
 import com.anggrayudi.storage.callback.StorageAccessCallback
 import com.anggrayudi.storage.file.*
+import com.audiobookshelf.app.MainActivity
 import com.audiobookshelf.app.data.LocalFolder
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.device.FolderScanner
@@ -17,11 +18,11 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.getcapacitor.*
 import com.getcapacitor.annotation.CapacitorPlugin
 
-@CapacitorPlugin(name = "StorageManager")
-class StorageManager : Plugin() {
-  private val TAG = "StorageManager"
+@CapacitorPlugin(name = "AbsFileSystem")
+class AbsFileSystem : Plugin() {
+  private val TAG = "AbsFileSystem"
 
-  lateinit var mainActivity:MainActivity
+  lateinit var mainActivity: MainActivity
 
   override fun load() {
     mainActivity = (activity as MainActivity)
