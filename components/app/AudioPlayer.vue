@@ -91,7 +91,7 @@
 
 <script>
 import { Capacitor } from '@capacitor/core'
-import MyNativeAudio from '@/plugins/my-native-audio'
+import { AbsAudioPlayer } from '@/plugins/capacitor'
 
 export default {
   props: {
@@ -266,7 +266,7 @@ export default {
     },
     castClick() {
       console.log('Cast Btn Click')
-      MyNativeAudio.requestSession()
+      AbsAudioPlayer.requestSession()
     },
     clickContainer() {
       this.showFullscreen = true
@@ -308,18 +308,18 @@ export default {
     setPlaybackSpeed(speed) {
       console.log(`[AudioPlayer] Set Playback Rate: ${speed}`)
       this.currentPlaybackRate = speed
-      MyNativeAudio.setPlaybackSpeed({ speed: speed })
+      AbsAudioPlayer.setPlaybackSpeed({ speed: speed })
     },
     restart() {
       this.seek(0)
     },
     backward10() {
       if (this.isLoading) return
-      MyNativeAudio.seekBackward({ amount: '10000' })
+      AbsAudioPlayer.seekBackward({ amount: '10000' })
     },
     forward10() {
       if (this.isLoading) return
-      MyNativeAudio.seekForward({ amount: '10000' })
+      AbsAudioPlayer.seekForward({ amount: '10000' })
     },
     setStreamReady() {
       this.readyTrackWidth = this.trackWidth
@@ -421,7 +421,7 @@ export default {
 
       this.seekedTime = time
       this.seekLoading = true
-      MyNativeAudio.seekPlayer({ timeMs: String(Math.floor(time * 1000)) })
+      AbsAudioPlayer.seekPlayer({ timeMs: String(Math.floor(time * 1000)) })
 
       if (this.$refs.playedTrack) {
         var perc = time / this.totalDuration
@@ -466,19 +466,19 @@ export default {
       }
     },
     play() {
-      MyNativeAudio.playPlayer()
+      AbsAudioPlayer.playPlayer()
       this.startPlayInterval()
       this.isPlaying = true
     },
     pause() {
-      MyNativeAudio.pausePlayer()
+      AbsAudioPlayer.pausePlayer()
       this.stopPlayInterval()
       this.isPlaying = false
     },
     startPlayInterval() {
       clearInterval(this.playInterval)
       this.playInterval = setInterval(async () => {
-        var data = await MyNativeAudio.getCurrentTime()
+        var data = await AbsAudioPlayer.getCurrentTime()
         this.currentTime = Number((data.value / 1000).toFixed(2))
         this.bufferedTime = Number((data.bufferedTime / 1000).toFixed(2))
         console.log('[AudioPlayer] Got Current Time', this.currentTime)
@@ -494,7 +494,7 @@ export default {
     },
     terminateStream() {
       if (!this.playbackSession) return
-      MyNativeAudio.terminateStream()
+      AbsAudioPlayer.terminateStream()
     },
     onPlayingUpdate(data) {
       console.log('onPlayingUpdate', JSON.stringify(data))
@@ -542,10 +542,10 @@ export default {
     async init() {
       this.useChapterTrack = await this.$localStore.getUseChapterTrack()
 
-      this.onPlaybackSessionListener = MyNativeAudio.addListener('onPlaybackSession', this.onPlaybackSession)
-      this.onPlaybackClosedListener = MyNativeAudio.addListener('onPlaybackClosed', this.onPlaybackClosed)
-      this.onPlayingUpdateListener = MyNativeAudio.addListener('onPlayingUpdate', this.onPlayingUpdate)
-      this.onMetadataListener = MyNativeAudio.addListener('onMetadata', this.onMetadata)
+      this.onPlaybackSessionListener = AbsAudioPlayer.addListener('onPlaybackSession', this.onPlaybackSession)
+      this.onPlaybackClosedListener = AbsAudioPlayer.addListener('onPlaybackClosed', this.onPlaybackClosed)
+      this.onPlayingUpdateListener = AbsAudioPlayer.addListener('onPlayingUpdate', this.onPlayingUpdate)
+      this.onMetadataListener = AbsAudioPlayer.addListener('onMetadata', this.onMetadata)
     },
     handleGesture() {
       var touchDistance = this.touchEndY - this.touchStartY

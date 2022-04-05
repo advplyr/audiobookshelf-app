@@ -26,7 +26,7 @@
 </template>
 
 <script>
-import StorageManager from '@/plugins/storage-manager'
+import { AbsFileSystem } from '@/plugins/capacitor'
 
 export default {
   data() {
@@ -58,7 +58,7 @@ export default {
       if (!this.newFolderMediaType) {
         return this.$toast.error('Must select a media type')
       }
-      var folderObj = await StorageManager.selectFolder({ mediaType: this.newFolderMediaType })
+      var folderObj = await AbsFileSystem.selectFolder({ mediaType: this.newFolderMediaType })
       if (folderObj.error) {
         return this.$toast.error(`Error: ${folderObj.error || 'Unknown Error'}`)
       }
@@ -70,7 +70,7 @@ export default {
         this.localFolders.push(folderObj)
       }
 
-      var permissionsGood = await StorageManager.checkFolderPermissions({ folderUrl: folderObj.contentUrl })
+      var permissionsGood = await AbsFileSystem.checkFolderPermissions({ folderUrl: folderObj.contentUrl })
 
       if (!permissionsGood) {
         this.$toast.error('Folder permissions failed')

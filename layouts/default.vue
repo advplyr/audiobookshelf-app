@@ -12,10 +12,8 @@
 </template>
 
 <script>
-import { Capacitor } from '@capacitor/core'
 import { AppUpdate } from '@robingenz/capacitor-app-update'
-import AudioDownloader from '@/plugins/audio-downloader'
-import StorageManager from '@/plugins/storage-manager'
+import { AbsFileSystem, AbsDownloader } from '@/plugins/capacitor'
 
 export default {
   data() {
@@ -88,7 +86,7 @@ export default {
     },
     async searchFolder(downloadFolder) {
       try {
-        var response = await StorageManager.searchFolder({ folderUrl: downloadFolder.uri })
+        var response = await AbsFileSystem.searchFolder({ folderUrl: downloadFolder.uri })
         var searchResults = response
         searchResults.folders = JSON.parse(searchResults.folders)
         searchResults.files = JSON.parse(searchResults.files)
@@ -146,10 +144,10 @@ export default {
     },
     async initMediaStore() {
       // Request and setup listeners for media files on native
-      AudioDownloader.addListener('onItemDownloadUpdate', (data) => {
+      AbsDownloader.addListener('onItemDownloadUpdate', (data) => {
         this.onItemDownloadUpdate(data)
       })
-      AudioDownloader.addListener('onItemDownloadComplete', (data) => {
+      AbsDownloader.addListener('onItemDownloadComplete', (data) => {
         this.onItemDownloadComplete(data)
       })
     },
@@ -253,11 +251,6 @@ export default {
     }
   },
   beforeDestroy() {
-    if (!this.$server) {
-      console.error('No Server beforeDestroy')
-      return
-    }
-
     this.$socket.off('connection-update', this.socketConnectionUpdate)
     this.$socket.off('initialized', this.socketInit)
   }

@@ -11,7 +11,7 @@
 </template>
 
 <script>
-import MyNativeAudio from '@/plugins/my-native-audio'
+import { AbsAudioPlayer } from '@/plugins/capacitor'
 
 export default {
   data() {
@@ -92,21 +92,21 @@ export default {
     },
     async selectSleepTimeout({ time, isChapterTime }) {
       console.log('Setting sleep timer', time, isChapterTime)
-      var res = await MyNativeAudio.setSleepTimer({ time: String(time), isChapterTime })
+      var res = await AbsAudioPlayer.setSleepTimer({ time: String(time), isChapterTime })
       if (!res.success) {
         return this.$toast.error('Sleep timer did not set, invalid time')
       }
     },
     increaseSleepTimer() {
       // Default time to increase = 5 min
-      MyNativeAudio.increaseSleepTime({ time: '300000' })
+      AbsAudioPlayer.increaseSleepTime({ time: '300000' })
     },
     decreaseSleepTimer() {
-      MyNativeAudio.decreaseSleepTime({ time: '300000' })
+      AbsAudioPlayer.decreaseSleepTime({ time: '300000' })
     },
     async cancelSleepTimer() {
       console.log('Canceling sleep timer')
-      await MyNativeAudio.cancelSleepTimer()
+      await AbsAudioPlayer.cancelSleepTimer()
     },
     streamClosed() {
       console.log('Stream Closed')
@@ -168,7 +168,7 @@ export default {
       }
     },
     async playLibraryItem(libraryItemId) {
-      MyNativeAudio.prepareLibraryItem({ libraryItemId, playWhenReady: true })
+      AbsAudioPlayer.prepareLibraryItem({ libraryItemId, playWhenReady: true })
         .then((data) => {
           console.log('TEST library item play response', JSON.stringify(data))
         })
@@ -178,8 +178,8 @@ export default {
     }
   },
   mounted() {
-    this.onSleepTimerEndedListener = MyNativeAudio.addListener('onSleepTimerEnded', this.onSleepTimerEnded)
-    this.onSleepTimerSetListener = MyNativeAudio.addListener('onSleepTimerSet', this.onSleepTimerSet)
+    this.onSleepTimerEndedListener = AbsAudioPlayer.addListener('onSleepTimerEnded', this.onSleepTimerEnded)
+    this.onSleepTimerSetListener = AbsAudioPlayer.addListener('onSleepTimerSet', this.onSleepTimerSet)
 
     this.playbackSpeed = this.$store.getters['user/getUserSetting']('playbackRate')
     console.log(`[AudioPlayerContainer] Init Playback Speed: ${this.playbackSpeed}`)
