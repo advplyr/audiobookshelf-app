@@ -30,28 +30,68 @@ data class LibraryItem(
   JsonSubTypes.Type(Book::class),
   JsonSubTypes.Type(Podcast::class)
 )
-open class MediaType {}
+open class MediaType(var metadata:MediaTypeMetadata, var coverPath:String?) {
+  @JsonIgnore
+  open fun getAudioTracks():List<AudioTrack> { return mutableListOf() }
+  @JsonIgnore
+  open fun setAudioTracks(audioTracks:List<AudioTrack>) { }
+}
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-data class Podcast(
-  var metadata:PodcastMetadata,
-  var coverPath:String?,
+class Podcast(
+  metadata:PodcastMetadata,
+  coverPath:String?,
   var tags:MutableList<String>,
   var episodes:MutableList<PodcastEpisode>,
   var autoDownloadEpisodes:Boolean
-) : MediaType()
+) : MediaType(metadata, coverPath) {
+  @JsonIgnore
+  override fun getAudioTracks():List<AudioTrack> {
+    var tracks = episodes.map { it.audioTrack }
+    return tracks.filterNotNull()
+  }
+  @JsonIgnore
+  override fun setAudioTracks(audioTracks:List<AudioTrack>) {
+    // Remove episodes no longer there in tracks
+    episodes = episodes.filter { ep ->
+      audioTracks.find { it.localFileId == ep.audioTrack?.localFileId } != null
+    } as MutableList<PodcastEpisode>
+    // Add new episodes
+    audioTracks.forEach { at ->
+      if (episodes.find{ it.audioTrack?.localFileId == at.localFileId } == null) {
+        var newEpisode = PodcastEpisode("local_" + at.localFileId,episodes.size + 1,null,null,at.title,null,null,null,at)
+        episodes.add(newEpisode)
+      }
+    }
+  }
+}
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-data class Book(
-  var metadata:BookMetadata,
-  var coverPath:String?,
+class Book(
+  metadata:BookMetadata,
+  coverPath:String?,
   var tags:List<String>,
   var audioFiles:List<AudioFile>,
   var chapters:List<BookChapter>,
   var tracks:List<AudioTrack>?,
   var size:Long?,
   var duration:Double?
-) : MediaType()
+) : MediaType(metadata, coverPath) {
+  @JsonIgnore
+  override fun getAudioTracks():List<AudioTrack> {
+    return tracks ?: mutableListOf()
+  }
+  @JsonIgnore
+  override fun setAudioTracks(audioTracks:List<AudioTrack>) {
+    tracks = audioTracks
+
+    var totalDuration = 0.0
+    tracks?.forEach {
+      totalDuration += it.duration
+    }
+    duration = totalDuration
+  }
+}
 
 // This auto-detects whether it is a Book or Podcast
 @JsonTypeInfo(use=JsonTypeInfo.Id.DEDUCTION)
@@ -59,11 +99,11 @@ data class Book(
   JsonSubTypes.Type(BookMetadata::class),
   JsonSubTypes.Type(PodcastMetadata::class)
 )
-open class MediaTypeMetadata {}
+open class MediaTypeMetadata(var title:String) {}
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-data class BookMetadata(
-  var title:String,
+class BookMetadata(
+  title:String,
   var subtitle:String?,
   var authors:MutableList<Author>,
   var narrators:MutableList<String>,
@@ -81,15 +121,15 @@ data class BookMetadata(
   var authorNameLF:String?,
   var narratorName:String?,
   var seriesName:String?
-) : MediaTypeMetadata()
+) : MediaTypeMetadata(title)
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-data class PodcastMetadata(
-  var title:String,
+class PodcastMetadata(
+  title:String,
   var author:String?,
   var feedUrl:String?,
   var genres:MutableList<String>
-) : MediaTypeMetadata()
+) : MediaTypeMetadata(title)
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class Author(
@@ -107,7 +147,8 @@ data class PodcastEpisode(
   var title:String?,
   var subtitle:String?,
   var description:String?,
-  var audioFile:AudioFile
+  var audioFile:AudioFile?,
+  var audioTrack:AudioTrack?
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)

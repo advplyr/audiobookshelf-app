@@ -71,7 +71,7 @@
       <service
         android:exported="true"
         android:enabled="true"
-        android:name=".PlayerNotificationService">
+        android:name=".player.PlayerNotificationService">
         <intent-filter>
           <action android:name="android.media.browse.MediaBrowserService"/>
         </intent-filter>

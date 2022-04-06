@@ -48,23 +48,22 @@ class AbsDatabase : Plugin() {
   }
 
   @PluginMethod
-  fun getLocalMediaItemsInFolder(call:PluginCall) {
-    var folderId = call.getString("folderId", "").toString()
+  fun getLocalLibraryItem(call:PluginCall) {
+    var id = call.getString("id", "").toString()
     GlobalScope.launch(Dispatchers.IO) {
-      var localMediaItems = DeviceManager.dbManager.getLocalMediaItemsInFolder(folderId)
-      var mediaItemsArray = jacksonObjectMapper().writeValueAsString(localMediaItems)
-      var jsobj = JSObject()
-      jsobj.put("localMediaItems", mediaItemsArray)
-      call.resolve(jsobj)
+      var localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(id)
+      if (localLibraryItem == null) {
+        call.resolve()
+      } else {
+        call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(localLibraryItem)))
+      }
     }
   }
 
   @PluginMethod
   fun getLocalLibraryItems(call:PluginCall) {
     GlobalScope.launch(Dispatchers.IO) {
-      var localLibraryItems = DeviceManager.dbManager.getLocalMediaItems().map {
-        it.getLocalLibraryItem()
-      }
+      var localLibraryItems = DeviceManager.dbManager.getLocalLibraryItems()
       var jsobj = JSObject()
       jsobj.put("localLibraryItems", jacksonObjectMapper().writeValueAsString(localLibraryItems))
       call.resolve(jsobj)
@@ -72,16 +71,14 @@ class AbsDatabase : Plugin() {
   }
 
   @PluginMethod
-  fun getLocalLibraryItem(call:PluginCall) {
-    var id = call.getString("id", "").toString()
+  fun getLocalLibraryItemsInFolder(call:PluginCall) {
+    var folderId = call.getString("folderId", "").toString()
     GlobalScope.launch(Dispatchers.IO) {
-      var mediaItem = DeviceManager.dbManager.getLocalMediaItem(id)
-      var localLibraryItem = mediaItem?.getLocalLibraryItem()
-      if (localLibraryItem == null) {
-        call.resolve()
-      } else {
-        call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(localLibraryItem)))
-      }
+      var localMediaItems = DeviceManager.dbManager.getLocalLibraryItemsInFolder(folderId)
+      var mediaItemsArray = jacksonObjectMapper().writeValueAsString(localMediaItems)
+      var jsobj = JSObject()
+      jsobj.put("localLibraryItems", mediaItemsArray)
+      call.resolve(jsobj)
     }
   }
 

@@ -14,11 +14,11 @@ class DbManager {
     Paper.book("device").write("data", deviceData)
   }
 
-  fun getLocalMediaItems():MutableList<LocalMediaItem> {
-    var localMediaItems:MutableList<LocalMediaItem> = mutableListOf()
-    Paper.book("localMediaItems").allKeys.forEach {
-      var localMediaItem:LocalMediaItem? = Paper.book("localMediaItems").read(it)
-      if (localMediaItem != null) {
+  fun getLocalLibraryItems():MutableList<LocalLibraryItem> {
+    var localLibraryItems:MutableList<LocalLibraryItem> = mutableListOf()
+    Paper.book("localLibraryItems").allKeys.forEach {
+      var localLibraryItem:LocalLibraryItem? = Paper.book("localLibraryItems").read(it)
+      if (localLibraryItem != null) {
         // TODO: Check to make sure all file paths exist
 //        if (localMediaItem.coverContentUrl != null) {
 //          var file = DocumentFile.fromSingleUri(ctx)
@@ -29,31 +29,31 @@ class DbManager {
 //            localMediaItems.add(localMediaItem)
 //          }
 //        } else {
-          localMediaItems.add(localMediaItem)
+        localLibraryItems.add(localLibraryItem)
 //        }
       }
     }
-    return localMediaItems
+    return localLibraryItems
   }
 
-  fun getLocalMediaItemsInFolder(folderId:String):List<LocalMediaItem> {
-    var localMediaItems = getLocalMediaItems()
-    return localMediaItems.filter {
+  fun getLocalLibraryItemsInFolder(folderId:String):List<LocalLibraryItem> {
+    var localLibraryItems = getLocalLibraryItems()
+    return localLibraryItems.filter {
       it.folderId == folderId
     }
   }
 
-  fun getLocalMediaItem(localMediaItemId:String):LocalMediaItem? {
-    return Paper.book("localMediaItems").read(localMediaItemId)
+  fun getLocalLibraryItem(localLibraryItemId:String):LocalLibraryItem? {
+    return Paper.book("localLibraryItems").read(localLibraryItemId)
   }
 
-  fun removeLocalMediaItem(localMediaItemId:String) {
-    Paper.book("localMediaItems").delete(localMediaItemId)
+  fun removeLocalLibraryItem(localLibraryItemId:String) {
+    Paper.book("localLibraryItems").delete(localLibraryItemId)
   }
 
-  fun saveLocalMediaItems(localMediaItems:List<LocalMediaItem>) {
-      localMediaItems.map {
-        Paper.book("localMediaItems").write(it.id, it)
+  fun saveLocalLibraryItems(localLibraryItems:List<LocalLibraryItem>) {
+    localLibraryItems.map {
+        Paper.book("localLibraryItems").write(it.id, it)
       }
   }
 
@@ -77,9 +77,9 @@ class DbManager {
   }
 
   fun removeLocalFolder(folderId:String) {
-    var localMediaItems = getLocalMediaItemsInFolder(folderId)
-    localMediaItems.forEach {
-      Paper.book("localMediaItems").delete(it.id)
+    var localLibraryItems = getLocalLibraryItemsInFolder(folderId)
+    localLibraryItems.forEach {
+      Paper.book("localLibraryItems").delete(it.id)
     }
     Paper.book("localFolders").delete(folderId)
   }

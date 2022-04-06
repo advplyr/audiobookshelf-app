@@ -1,5 +1,5 @@
 <template>
-  <div v-if="playbackSession" class="fixed top-0 left-0 layout-wrapper right-0 z-50 pointer-events-none" :class="showFullscreen ? 'fullscreen' : ''">
+  <div v-if="playbackSession" id="streamContainer" class="fixed top-0 left-0 layout-wrapper right-0 z-50 pointer-events-none" :class="showFullscreen ? 'fullscreen' : ''">
     <div v-if="showFullscreen" class="w-full h-full z-10 bg-bg absolute top-0 left-0 pointer-events-auto">
       <div class="top-2 left-4 absolute cursor-pointer">
         <span class="material-icons text-5xl" @click="collapseFullscreen">expand_more</span>
@@ -31,7 +31,7 @@
 
     <div class="cover-wrapper absolute z-30 pointer-events-auto" :class="bookCoverAspectRatio === 1 ? 'square-cover' : ''" @click="clickContainer">
       <div class="cover-container bookCoverWrapper bg-black bg-opacity-75 w-full h-full">
-        <covers-book-cover v-if="libraryItem || localMediaItemCoverSrc" :library-item="libraryItem" :download-cover="localMediaItemCoverSrc" :width="bookCoverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" />
+        <covers-book-cover v-if="libraryItem || localLibraryItemCoverSrc" :library-item="libraryItem" :download-cover="localLibraryItemCoverSrc" :width="bookCoverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" />
       </div>
     </div>
 
@@ -175,12 +175,12 @@ export default {
     libraryItem() {
       return this.playbackSession ? this.playbackSession.libraryItem || null : null
     },
-    localMediaItem() {
-      return this.playbackSession ? this.playbackSession.localMediaItem || null : null
+    localLibraryItem() {
+      return this.playbackSession ? this.playbackSession.localLibraryItem || null : null
     },
-    localMediaItemCoverSrc() {
-      var localMediaItemCover = this.localMediaItem ? this.localMediaItem.coverContentUrl : null
-      if (localMediaItemCover) return Capacitor.convertFileSrc(localMediaItemCover)
+    localLibraryItemCoverSrc() {
+      var localItemCover = this.localLibraryItem ? this.localLibraryItem.coverContentUrl : null
+      if (localItemCover) return Capacitor.convertFileSrc(localItemCover)
       return null
     },
     playMethod() {

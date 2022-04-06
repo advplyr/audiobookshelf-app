@@ -133,8 +133,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   }
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-    Log.d(tag, "onStartCommand $startId")
     isStarted = true
+    Log.d(tag, "onStartCommand $startId")
 
     return START_STICKY
   }

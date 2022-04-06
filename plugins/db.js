@@ -73,14 +73,14 @@ class DbService {
     })
   }
 
-  getLocalMediaItemsInFolder(folderId) {
+  getLocalLibraryItemsInFolder(folderId) {
     if (isWeb) return []
-    return AbsDatabase.getLocalMediaItemsInFolder({ folderId }).then((data) => {
-      console.log('Loaded local media items in folder', JSON.stringify(data))
-      if (data.localMediaItems && typeof data.localMediaItems == 'string') {
-        return JSON.parse(data.localMediaItems)
+    return AbsDatabase.getLocalLibraryItemsInFolder({ folderId }).then((data) => {
+      console.log('Loaded local library items in folder', JSON.stringify(data))
+      if (data.localLibraryItems && typeof data.localLibraryItems == 'string') {
+        return JSON.parse(data.localLibraryItems)
       }
-      return data.localMediaItems
+      return data.localLibraryItems
     })
   }
 

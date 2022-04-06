@@ -97,7 +97,7 @@ export default {
       var localCategories = await this.getLocalMediaItemCategories()
       this.shelves = this.shelves.concat(localCategories)
 
-      if (this.user || !this.currentLibraryId) {
+      if (this.user && this.currentLibraryId) {
         var categories = await this.$axios
           .$get(`/api/libraries/${this.currentLibraryId}/personalized?minified=1`)
           .then((data) => {

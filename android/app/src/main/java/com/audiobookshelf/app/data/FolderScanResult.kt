@@ -6,5 +6,5 @@ data class FolderScanResult(
   var itemsRemoved:Int,
   var itemsUpToDate:Int,
   val localFolder:LocalFolder,
-  val localMediaItems:List<LocalMediaItem>,
+  val localLibraryItems:List<LocalLibraryItem>,
 )
