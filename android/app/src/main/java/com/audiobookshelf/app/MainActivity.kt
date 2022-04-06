@@ -10,14 +10,12 @@ import androidx.core.app.ActivityCompat
 import com.anggrayudi.storage.SimpleStorage
 import com.anggrayudi.storage.SimpleStorageHelper
 import com.audiobookshelf.app.data.AbsDatabase
-import com.audiobookshelf.app.data.DbManager
 import com.audiobookshelf.app.player.PlayerNotificationService
 import com.audiobookshelf.app.plugins.AbsDownloader
 import com.audiobookshelf.app.plugins.AbsAudioPlayer
 import com.audiobookshelf.app.plugins.AbsFileSystem
 import com.getcapacitor.BridgeActivity
 import io.paperdb.Paper
-
 
 class MainActivity : BridgeActivity() {
   private val tag = "MainActivity"
@@ -87,6 +85,7 @@ class MainActivity : BridgeActivity() {
 
   override fun onPostCreate(savedInstanceState: Bundle?) {
     super.onPostCreate(savedInstanceState)
+    Log.d(tag, "onPostCreate MainActivity")
 
     mConnection = object : ServiceConnection {
       override fun onServiceDisconnected(name: ComponentName) {
@@ -96,7 +95,6 @@ class MainActivity : BridgeActivity() {
 
       override fun onServiceConnected(name: ComponentName, service: IBinder) {
         Log.d(tag, "Service Connected $name")
-
 
         mBounded = true
         val mLocalBinder = service as PlayerNotificationService.LocalBinder
@@ -109,8 +107,10 @@ class MainActivity : BridgeActivity() {
       }
     }
 
-    val startIntent = Intent(this, PlayerNotificationService::class.java)
-    bindService(startIntent, mConnection as ServiceConnection, Context.BIND_AUTO_CREATE);
+    Intent(this, PlayerNotificationService::class.java).also { intent ->
+      Log.d(tag, "Binding PlayerNotificationService")
+      bindService(intent, mConnection, Context.BIND_AUTO_CREATE)
+    }
   }
 
 

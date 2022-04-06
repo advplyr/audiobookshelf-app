@@ -15,6 +15,10 @@ import com.fasterxml.jackson.module.kotlin.readValue
 class FolderScanner(var ctx: Context) {
   private val tag = "FolderScanner"
 
+  private fun getLocalLibraryItemId(mediaItemId:String):String {
+    return "local_" + DeviceManager.getBase64Id(mediaItemId)
+  }
+
   // TODO: CLEAN this monster! Divide into bite-size methods
    fun scanForMediaItems(localFolder:LocalFolder, forceAudioProbe:Boolean):FolderScanResult? {
     FFmpegKitConfig.enableLogCallback { log ->
@@ -38,32 +42,32 @@ class FolderScanner(var ctx: Context) {
       // Search for files in media item folder
      var foldersFound = df.search(false, DocumentFileType.FOLDER)
 
-      // Match folders found with media items already saved in db
-     var existingMediaItems = DeviceManager.dbManager.getLocalMediaItemsInFolder(localFolder.id)
+      // Match folders found with local library items already saved in db
+     var existingLocalLibraryItems = DeviceManager.dbManager.getLocalLibraryItemsInFolder(localFolder.id)
 
      // Remove existing items no longer there
-     existingMediaItems = existingMediaItems.filter { lmi ->
-       var fileFound = foldersFound.find { f -> lmi.id == DeviceManager.getBase64Id(f.id)  }
+    existingLocalLibraryItems = existingLocalLibraryItems.filter { lli ->
+       var fileFound = foldersFound.find { f -> lli.id == getLocalLibraryItemId(f.id)  }
        if (fileFound == null) {
-         Log.d(tag, "Existing media item is no longer in file system ${lmi.name}")
-         DeviceManager.dbManager.removeLocalMediaItem(lmi.id)
+         Log.d(tag, "Existing local library item is no longer in file system ${lli.media.metadata.title}")
+         DeviceManager.dbManager.removeLocalLibraryItem(lli.id)
          mediaItemsRemoved++
        }
        fileFound != null
      }
 
-     var mediaItems = mutableListOf<LocalMediaItem>()
+      var localLibraryItems = mutableListOf<LocalLibraryItem>()
 
-     foldersFound.forEach {
-       Log.d(tag, "Iterating over Folder Found ${it.name} | ${it.getSimplePath(ctx)} | URI: ${it.uri}")
+     foldersFound.forEach { itemFolder ->
+       Log.d(tag, "Iterating over Folder Found ${itemFolder.name} | ${itemFolder.getSimplePath(ctx)} | URI: ${itemFolder.uri}")
 
-       var itemFolderName = it.name ?: ""
-       var itemId = "local_" + DeviceManager.getBase64Id(it.id)
+       var itemFolderName = itemFolder.name ?: ""
+       var itemId = getLocalLibraryItemId(itemFolder.id)
 
-       var existingMediaItem = existingMediaItems.find { emi -> emi.id == itemId }
-       var existingLocalFiles = existingMediaItem?.localFiles ?: mutableListOf()
-       var existingAudioTracks = existingMediaItem?.audioTracks ?: mutableListOf()
-       var isNewOrUpdated = existingMediaItem == null
+       var existingItem = existingLocalLibraryItems.find { emi -> emi.id == itemId }
+       var existingLocalFiles = existingItem?.localFiles ?: mutableListOf()
+       var existingAudioTracks = existingItem?.media?.getAudioTracks() ?: mutableListOf()
+       var isNewOrUpdated = existingItem == null
 
        var audioTracks = mutableListOf<AudioTrack>()
        var localFiles = mutableListOf<LocalFile>()
@@ -72,13 +76,14 @@ class FolderScanner(var ctx: Context) {
        var coverContentUrl:String? = null
        var coverAbsolutePath:String? = null
 
-       var filesInFolder = it.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*"))
+       var filesInFolder = itemFolder.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*"))
+
 
        var existingLocalFilesRemoved = existingLocalFiles.filter { elf ->
          filesInFolder.find { fif -> DeviceManager.getBase64Id(fif.id) == elf.id } == null // File was not found in media item folder
        }
        if (existingLocalFilesRemoved.isNotEmpty()) {
-         Log.d(tag, "${existingLocalFilesRemoved.size} Local files were removed from local media item ${existingMediaItem?.name}")
+         Log.d(tag, "${existingLocalFilesRemoved.size} Local files were removed from local media item ${existingItem?.media?.metadata?.title}")
          isNewOrUpdated = true
        }
 
@@ -147,9 +152,12 @@ class FolderScanner(var ctx: Context) {
            if (existingLocalFile == null) {
              isNewOrUpdated = true
            }
-           if (existingMediaItem != null && existingMediaItem.coverContentUrl == null) {
+           if (existingItem != null && existingItem.coverContentUrl == null) {
              // Existing media item did not have a cover - cover found on scan
              isNewOrUpdated = true
+             existingItem.coverAbsolutePath = localFile.absolutePath
+             existingItem.coverContentUrl = localFile.contentUrl
+             existingItem.media.coverPath = localFile.absolutePath
            }
 
            // First image file use as cover path
@@ -160,30 +168,36 @@ class FolderScanner(var ctx: Context) {
          }
        }
 
-       if (existingMediaItem != null && audioTracks.isEmpty()) {
-         Log.d(tag, "Local media item ${existingMediaItem.name} no longer has audio tracks - removing item")
-         DeviceManager.dbManager.removeLocalMediaItem(existingMediaItem.id)
+       if (existingItem != null && audioTracks.isEmpty()) {
+         Log.d(tag, "Local library item ${existingItem.media.metadata.title} no longer has audio tracks - removing item")
+         DeviceManager.dbManager.removeLocalLibraryItem(existingItem.id)
          mediaItemsRemoved++
-       } else if (existingMediaItem != null && !isNewOrUpdated) {
-         Log.d(tag, "Local media item ${existingMediaItem.name} has no updates")
+       } else if (existingItem != null && !isNewOrUpdated) {
+         Log.d(tag, "Local library item ${existingItem.media.metadata.title} has no updates")
          mediaItemsUpToDate++
-       } else if (audioTracks.isNotEmpty()) {
-         if (existingMediaItem != null) mediaItemsUpdated++
-         else mediaItemsAdded++
+       } else if (existingItem != null) {
+         Log.d(tag, "Updating local library item ${existingItem.media.metadata.title}")
+         mediaItemsUpdated++
 
-        Log.d(tag, "Found local media item named $itemFolderName with ${audioTracks.size} tracks and ${localFiles.size} local files")
-         var localMediaItem = LocalMediaItem(itemId, itemFolderName, localFolder.mediaType, localFolder.id, it.uri.toString(), it.getSimplePath(ctx), it.getAbsolutePath(ctx),audioTracks,localFiles,coverContentUrl,coverAbsolutePath)
-         mediaItems.add(localMediaItem)
+         existingItem.updateFromScan(audioTracks,localFiles)
+         localLibraryItems.add(existingItem)
+       } else if (audioTracks.isNotEmpty()) {
+         Log.d(tag, "Found local media item named $itemFolderName with ${audioTracks.size} tracks and ${localFiles.size} local files")
+         mediaItemsAdded++
+
+         var localMediaItem = LocalMediaItem(itemId, itemFolderName, localFolder.mediaType, localFolder.id, itemFolder.uri.toString(), itemFolder.getSimplePath(ctx), itemFolder.getAbsolutePath(ctx),audioTracks,localFiles,coverContentUrl,coverAbsolutePath)
+         var localLibraryItem = localMediaItem.getLocalLibraryItem()
+         localLibraryItems.add(localLibraryItem)
        }
      }
 
      Log.d(tag, "Folder $${localFolder.name} scan Results: $mediaItemsAdded Added | $mediaItemsUpdated Updated | $mediaItemsRemoved Removed | $mediaItemsUpToDate Up-to-date")
 
-     return if (mediaItems.isNotEmpty()) {
-       DeviceManager.dbManager.saveLocalMediaItems(mediaItems)
+     return if (localLibraryItems.isNotEmpty()) {
+       DeviceManager.dbManager.saveLocalLibraryItems(localLibraryItems)
 
-       var folderMediaItems = DeviceManager.dbManager.getLocalMediaItemsInFolder(localFolder.id) // Get all local media items
-       FolderScanResult(mediaItemsAdded, mediaItemsUpdated, mediaItemsRemoved, mediaItemsUpToDate, localFolder, folderMediaItems)
+       var folderLibraryItems = DeviceManager.dbManager.getLocalLibraryItemsInFolder(localFolder.id) // Get all local media items
+       FolderScanResult(mediaItemsAdded, mediaItemsUpdated, mediaItemsRemoved, mediaItemsUpToDate, localFolder, folderLibraryItems)
      } else {
        Log.d(tag, "No Media Items to save")
        FolderScanResult(mediaItemsAdded, mediaItemsUpdated, mediaItemsRemoved, mediaItemsUpToDate, localFolder, mutableListOf())

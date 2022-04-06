@@ -4,6 +4,8 @@ class AbsFileSystemWeb extends WebPlugin {
   constructor() {
     super()
   }
+
+  async selectFolder() { }
 }
 
 const AbsFileSystem = registerPlugin('AbsFileSystem', {

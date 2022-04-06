@@ -32,7 +32,7 @@ class PlaybackSession(
   var audioTracks:MutableList<AudioTrack>,
   var currentTime:Double,
   var libraryItem:LibraryItem?,
-  var localMediaItem:LocalMediaItem?,
+  var localLibraryItem:LocalLibraryItem?,
   var serverUrl:String?,
   var token:String?
 ) {
@@ -74,7 +74,7 @@ class PlaybackSession(
 
   @JsonIgnore
   fun getCoverUri(): Uri {
-    if (localMediaItem?.coverContentUrl != null) return Uri.parse(localMediaItem?.coverContentUrl) ?: Uri.parse("android.resource://com.audiobookshelf.app/" + R.drawable.icon)
+    if (localLibraryItem?.coverContentUrl != null) return Uri.parse(localLibraryItem?.coverContentUrl) ?: Uri.parse("android.resource://com.audiobookshelf.app/" + R.drawable.icon)
 
     if (coverPath == null) return Uri.parse("android.resource://com.audiobookshelf.app/" + R.drawable.icon)
     return Uri.parse("$serverUrl/api/items/$libraryItemId/cover?token=$token")

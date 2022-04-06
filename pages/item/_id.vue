@@ -3,7 +3,7 @@
     <div class="flex">
       <div class="w-32">
         <div class="relative">
-          <covers-book-cover :library-item="libraryItem" :download-cover="downloadedCover" :width="128" :book-cover-aspect-ratio="bookCoverAspectRatio" />
+          <covers-book-cover :library-item="libraryItem" :width="128" :book-cover-aspect-ratio="bookCoverAspectRatio" />
           <div class="absolute bottom-0 left-0 h-1.5 bg-yellow-400 shadow-sm z-10" :style="{ width: 128 * progressPercent + 'px' }"></div>
         </div>
         <div class="flex my-4">

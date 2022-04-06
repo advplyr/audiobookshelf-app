@@ -59,6 +59,7 @@ export default {
         return this.$toast.error('Must select a media type')
       }
       var folderObj = await AbsFileSystem.selectFolder({ mediaType: this.newFolderMediaType })
+      if (!folderObj) return
       if (folderObj.error) {
         return this.$toast.error(`Error: ${folderObj.error || 'Unknown Error'}`)
       }

@@ -118,11 +118,11 @@ class AbsDownloader : Plugin() {
   fun getAbMetadataText(libraryItem:LibraryItem):String {
     var bookMedia = libraryItem.media as com.audiobookshelf.app.data.Book
     var fileString = ";ABMETADATA1\n"
-    fileString += "#libraryItemId=${libraryItem.id}\n"
-    fileString += "title=${bookMedia.metadata.title}\n"
-    fileString += "author=${bookMedia.metadata.authorName}\n"
-    fileString += "narrator=${bookMedia.metadata.narratorName}\n"
-    fileString += "series=${bookMedia.metadata.seriesName}\n"
+//    fileString += "#libraryItemId=${libraryItem.id}\n"
+//    fileString += "title=${bookMedia.metadata.title}\n"
+//    fileString += "author=${bookMedia.metadata.authorName}\n"
+//    fileString += "narrator=${bookMedia.metadata.narratorName}\n"
+//    fileString += "series=${bookMedia.metadata.seriesName}\n"
     return fileString
   }
 

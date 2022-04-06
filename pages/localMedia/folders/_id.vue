@@ -3,23 +3,24 @@
     <div class="flex items-center mb-4">
       <div class="flex-grow" />
       <ui-btn v-if="!removingFolder" :loading="isScanning" small @click="clickScan">Scan</ui-btn>
-      <ui-btn v-if="!removingFolder && localMediaItems.length" :loading="isScanning" small class="ml-2" color="warning" @click="clickForceRescan">Force Re-Scan</ui-btn>
+      <ui-btn v-if="!removingFolder && localLibraryItems.length" :loading="isScanning" small class="ml-2" color="warning" @click="clickForceRescan">Force Re-Scan</ui-btn>
       <ui-icon-btn class="ml-2" bg-color="error" outlined :loading="removingFolder" icon="delete" @click="clickDeleteFolder" />
     </div>
     <p class="text-lg mb-0.5 text-white text-opacity-75">Folder: {{ folderName }}</p>
-    <p class="mb-4 text-xl">Local Media Items ({{ localMediaItems.length }})</p>
+    <p class="mb-4 text-xl">Local Library Items ({{ localLibraryItems.length }})</p>
     <div v-if="isScanning" class="w-full text-center p-4">
       <p>Scanning...</p>
     </div>
     <div v-else class="w-full media-item-container overflow-y-auto">
-      <template v-for="mediaItem in localMediaItems">
+      <template v-for="mediaItem in localLibraryItems">
         <div :key="mediaItem.id" class="flex my-1">
           <div class="w-12 h-12 bg-primary">
             <img v-if="mediaItem.coverPathSrc" :src="mediaItem.coverPathSrc" class="w-full h-full object-contain" />
           </div>
           <div class="flex-grow px-2">
-            <p>{{ mediaItem.name }}</p>
-            <p>{{ mediaItem.audioTracks.length }} Tracks</p>
+            <p>{{ mediaItem.media.metadata.title }}</p>
+            <p v-if="mediaItem.type == 'book'">{{ mediaItem.media.tracks.length }} Tracks</p>
+            <p v-else-if="mediaItem.type == 'podcast'">{{ mediaItem.media.episodes.length }} Tracks</p>
           </div>
           <div class="w-12 h-12 flex items-center justify-center">
             <button v-if="!isMissing" class="shadow-sm text-accent flex items-center justify-center rounded-full" @click.stop="play(mediaItem)">
@@ -46,7 +47,7 @@ export default {
   },
   data() {
     return {
-      localMediaItems: [],
+      localLibraryItems: [],
       folder: null,
       isScanning: false,
       removingFolder: false
@@ -66,8 +67,8 @@ export default {
     },
     async clickDeleteFolder() {
       var deleteMessage = 'Are you sure you want to remove this folder? (does not delete anything in your file system)'
-      if (this.localMediaItems.length) {
-        deleteMessage = `Are you sure you want to remove this folder and ${this.localMediaItems.length} media items? (does not delete anything in your file system)`
+      if (this.localLibraryItems.length) {
+        deleteMessage = `Are you sure you want to remove this folder and ${this.localLibraryItems.length} items? (does not delete anything in your file system)`
       }
       const { value } = await Dialog.confirm({
         title: 'Confirm',
@@ -87,7 +88,7 @@ export default {
       this.isScanning = true
       var response = await AbsFileSystem.scanFolder({ folderId: this.folderId, forceAudioProbe })
 
-      if (response && response.localMediaItems) {
+      if (response && response.localLibraryItems) {
         var itemsAdded = response.itemsAdded
         var itemsUpdated = response.itemsUpdated
         var itemsRemoved = response.itemsRemoved
@@ -100,14 +101,14 @@ export default {
         this.$toast.info(`Folder scan complete:\n${toastMessages.join(' | ')}`)
 
         // When all items are up-to-date then local media items are not returned
-        if (response.localMediaItems.length) {
-          this.localMediaItems = response.localMediaItems.map((mi) => {
+        if (response.localLibraryItems.length) {
+          this.localLibraryItems = response.localLibraryItems.map((mi) => {
             if (mi.coverContentUrl) {
               mi.coverPathSrc = Capacitor.convertFileSrc(mi.coverContentUrl)
             }
             return mi
           })
-          console.log('Set Local Media Items', this.localMediaItems.length)
+          console.log('Set Local Media Items', this.localLibraryItems.length)
         }
       } else {
         console.log('No Local media items found')
@@ -118,9 +119,9 @@ export default {
       var folder = await this.$db.getLocalFolder(this.folderId)
       this.folder = folder
 
-      var items = (await this.$db.getLocalMediaItemsInFolder(this.folderId)) || []
+      var items = (await this.$db.getLocalLibraryItemsInFolder(this.folderId)) || []
       console.log('Init folder', this.folderId, items)
-      this.localMediaItems = items.map((lmi) => {
+      this.localLibraryItems = items.map((lmi) => {
         return {
           ...lmi,
           coverPathSrc: lmi.coverContentUrl ? Capacitor.convertFileSrc(lmi.coverContentUrl) : null
