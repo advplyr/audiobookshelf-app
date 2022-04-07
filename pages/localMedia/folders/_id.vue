@@ -13,7 +13,7 @@
     </div>
     <div v-else class="w-full media-item-container overflow-y-auto">
       <template v-for="mediaItem in localLibraryItems">
-        <div :key="mediaItem.id" class="flex my-1">
+        <nuxt-link :to="`/localMedia/item/${mediaItem.id}`" :key="mediaItem.id" class="flex my-1">
           <div class="w-12 h-12 bg-primary">
             <img v-if="mediaItem.coverPathSrc" :src="mediaItem.coverPathSrc" class="w-full h-full object-contain" />
           </div>
@@ -23,11 +23,12 @@
             <p v-else-if="mediaItem.type == 'podcast'">{{ mediaItem.media.episodes.length }} Tracks</p>
           </div>
           <div class="w-12 h-12 flex items-center justify-center">
-            <button v-if="!isMissing" class="shadow-sm text-accent flex items-center justify-center rounded-full" @click.stop="play(mediaItem)">
+            <span class="material-icons text-xl text-gray-300">arrow_right</span>
+            <!-- <button class="shadow-sm text-accent flex items-center justify-center rounded-full" @click.stop="play(mediaItem)">
               <span class="material-icons" style="font-size: 2rem">play_arrow</span>
-            </button>
+            </button> -->
           </div>
-        </div>
+        </nuxt-link>
       </template>
     </div>
   </div>

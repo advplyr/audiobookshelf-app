@@ -1,6 +1,7 @@
 package com.audiobookshelf.app.data
 
 import android.util.Log
+import com.audiobookshelf.app.plugins.AbsDownloader
 import io.paperdb.Paper
 import org.json.JSONObject
 
@@ -57,6 +58,10 @@ class DbManager {
       }
   }
 
+  fun saveLocalLibraryItem(localLibraryItem:LocalLibraryItem) {
+    Paper.book("localLibraryItems").write(localLibraryItem.id, localLibraryItem)
+  }
+
   fun saveLocalFolder(localFolder:LocalFolder) {
     Paper.book("localFolders").write(localFolder.id,localFolder)
   }
@@ -82,6 +87,25 @@ class DbManager {
       Paper.book("localLibraryItems").delete(it.id)
     }
     Paper.book("localFolders").delete(folderId)
+  }
+
+  fun saveDownloadItem(downloadItem: AbsDownloader.DownloadItem) {
+    Paper.book("downloadItems").write(downloadItem.id, downloadItem)
+  }
+
+  fun removeDownloadItem(downloadItemId:String) {
+    Paper.book("downloadItems").delete(downloadItemId)
+  }
+
+  fun getDownloadItems():List<AbsDownloader.DownloadItem> {
+    var downloadItems:MutableList<AbsDownloader.DownloadItem> = mutableListOf()
+    Paper.book("downloadItems").allKeys.forEach {
+      var downloadItem:AbsDownloader.DownloadItem? = Paper.book("downloadItems").read(it)
+      if (downloadItem != null) {
+        downloadItems.add(downloadItem)
+      }
+    }
+    return downloadItems
   }
 
   fun saveObject(db:String, key:String, value:JSONObject) {

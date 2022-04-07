@@ -25,6 +25,7 @@ data class LocalLibraryItem(
   var libraryItemId:String?,
   var folderId:String,
   var absolutePath:String,
+  var contentUrl:String,
   var isInvalid:Boolean,
   var mediaType:String,
   var media:MediaType,
@@ -42,7 +43,7 @@ data class LocalLibraryItem(
   }
 
   @JsonIgnore
-  fun updateFromScan(audioTracks:List<AudioTrack>, _localFiles:MutableList<LocalFile>) {
+  fun updateFromScan(audioTracks:MutableList<AudioTrack>, _localFiles:MutableList<LocalFile>) {
     media.setAudioTracks(audioTracks)
     localFiles = _localFiles
 
@@ -125,10 +126,10 @@ data class LocalMediaItem(
     if (mediaType == "book") {
       var chapters = getAudiobookChapters()
       var book = Book(mediaMetadata as BookMetadata, coverAbsolutePath, mutableListOf(), mutableListOf(), chapters,audioTracks,getTotalSize(),getDuration())
-      return LocalLibraryItem(id, null, folderId, absolutePath,  false,mediaType, book, localFiles, coverContentUrl, coverAbsolutePath,true)
+      return LocalLibraryItem(id, null, folderId, absolutePath, contentUrl,  false,mediaType, book, localFiles, coverContentUrl, coverAbsolutePath,true)
     } else {
       var podcast = Podcast(mediaMetadata as PodcastMetadata, coverAbsolutePath, mutableListOf(), mutableListOf(), false)
-      return LocalLibraryItem(id, null, folderId, absolutePath, false, mediaType, podcast,localFiles,coverContentUrl, coverAbsolutePath, true)
+      return LocalLibraryItem(id, null, folderId, absolutePath, contentUrl, false, mediaType, podcast,localFiles,coverContentUrl, coverAbsolutePath, true)
     }
   }
 }
@@ -142,12 +143,17 @@ data class LocalFile(
   var simplePath:String,
   var mimeType:String?,
   var size:Long
-)
+) {
+  @JsonIgnore
+  fun isAudioFile():Boolean {
+    return mimeType?.startsWith("audio") == true
+  }
+}
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class LocalFolder(
   var id:String,
-  var name:String?,
+  var name:String,
   var contentUrl:String,
   var absolutePath:String,
   var simplePath:String,

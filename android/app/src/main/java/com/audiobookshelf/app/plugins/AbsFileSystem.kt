@@ -12,11 +12,15 @@ import com.anggrayudi.storage.callback.StorageAccessCallback
 import com.anggrayudi.storage.file.*
 import com.audiobookshelf.app.MainActivity
 import com.audiobookshelf.app.data.LocalFolder
+import com.audiobookshelf.app.data.LocalLibraryItem
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.device.FolderScanner
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.getcapacitor.*
 import com.getcapacitor.annotation.CapacitorPlugin
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 
 @CapacitorPlugin(name = "AbsFileSystem")
 class AbsFileSystem : Plugin() {
@@ -68,7 +72,7 @@ class AbsFileSystem : Plugin() {
         var simplePath = folder.getSimplePath(activity)
         var folderId = android.util.Base64.encodeToString(folder.id.toByteArray(), android.util.Base64.DEFAULT)
 
-        var localFolder = LocalFolder(folderId, folder.name, folder.uri.toString(),absolutePath, simplePath, storageType.toString(), mediaType)
+        var localFolder = LocalFolder(folderId, folder.name ?: "", folder.uri.toString(),absolutePath, simplePath, storageType.toString(), mediaType)
 
         DeviceManager.dbManager.saveLocalFolder(localFolder)
         call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(localFolder)))
@@ -153,6 +157,34 @@ class AbsFileSystem : Plugin() {
     var folderId = call.data.getString("folderId", "").toString()
     DeviceManager.dbManager.removeLocalFolder(folderId)
     call.resolve()
+  }
+
+  @PluginMethod
+  fun removeLocalLibraryItem(call: PluginCall) {
+    var localLibraryItemId = call.data.getString("localLibraryItemId", "").toString()
+    DeviceManager.dbManager.removeLocalLibraryItem(localLibraryItemId)
+    call.resolve()
+  }
+
+  @PluginMethod
+  fun scanLocalLibraryItem(call: PluginCall) {
+    var localLibraryItemId = call.data.getString("localLibraryItemId", "").toString()
+    var forceAudioProbe = call.data.getBoolean("forceAudioProbe")
+    Log.d(TAG, "Scan Local library item $localLibraryItemId | Force Audio Probe $forceAudioProbe")
+    GlobalScope.launch(Dispatchers.IO) {
+      var localLibraryItem: LocalLibraryItem? = DeviceManager.dbManager.getLocalLibraryItem(localLibraryItemId)
+      localLibraryItem?.let {
+        var folderScanner = FolderScanner(context)
+        var scanResult = folderScanner.scanLocalLibraryItem(it, forceAudioProbe)
+        if (scanResult == null) {
+          Log.d(TAG, "NO Scan DATA")
+          call.resolve(JSObject())
+        } else {
+          Log.d(TAG, "Scan DATA ${jacksonObjectMapper().writeValueAsString(scanResult)}")
+          call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(scanResult)))
+        }
+      } ?: call.resolve(JSObject())
+    }
   }
 
   @PluginMethod
