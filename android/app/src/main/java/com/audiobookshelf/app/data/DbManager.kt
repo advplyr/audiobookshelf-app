@@ -15,11 +15,11 @@ class DbManager {
     Paper.book("device").write("data", deviceData)
   }
 
-  fun getLocalLibraryItems():MutableList<LocalLibraryItem> {
+  fun getLocalLibraryItems(mediaType:String? = null):MutableList<LocalLibraryItem> {
     var localLibraryItems:MutableList<LocalLibraryItem> = mutableListOf()
     Paper.book("localLibraryItems").allKeys.forEach {
       var localLibraryItem:LocalLibraryItem? = Paper.book("localLibraryItems").read(it)
-      if (localLibraryItem != null) {
+      if (localLibraryItem != null && (mediaType.isNullOrEmpty() || mediaType == localLibraryItem?.mediaType)) {
         // TODO: Check to make sure all file paths exist
 //        if (localMediaItem.coverContentUrl != null) {
 //          var file = DocumentFile.fromSingleUri(ctx)
@@ -42,6 +42,10 @@ class DbManager {
     return localLibraryItems.filter {
       it.folderId == folderId
     }
+  }
+
+  fun getLocalLibraryItemByLLId(libraryItemId:String):LocalLibraryItem? {
+    return getLocalLibraryItems().find { it.libraryItemId == libraryItemId }
   }
 
   fun getLocalLibraryItem(localLibraryItemId:String):LocalLibraryItem? {

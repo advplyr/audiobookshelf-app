@@ -131,10 +131,29 @@ export default {
       if (this.shouldScan) {
         this.scanFolder()
       }
+    },
+    newLocalLibraryItem(item) {
+      if (item.folderId == this.folderId) {
+        console.log('New local library item', item.id)
+        if (this.localLibraryItems.find((li) => li.id == item.id)) {
+          console.warn('Item already added', item.id)
+          return
+        }
+
+        var _item = {
+          ...item,
+          coverPathSrc: item.coverContentUrl ? Capacitor.convertFileSrc(item.coverContentUrl) : null
+        }
+        this.localLibraryItems.push(_item)
+      }
     }
   },
   mounted() {
+    this.$eventBus.$on('new-local-library-item', this.newLocalLibraryItem)
     this.init()
+  },
+  beforeDestroy() {
+    this.$eventBus.$off('new-local-library-item', this.newLocalLibraryItem)
   }
 }
 </script>

@@ -36,27 +36,27 @@
             <span class="material-icons">auto_stories</span>
             <span v-if="!showPlay" class="px-2 text-base">Read {{ ebookFormat }}</span>
           </ui-btn>
-          <ui-btn v-if="isConnected && showPlay && !isIos" color="primary" class="flex items-center justify-center" :padding-x="2" @click="downloadClick">
-            <span class="material-icons">download</span>
-            <!-- <span class="material-icons" :class="downloadObj ? 'animate-pulse' : ''">{{ downloadObj ? (isDownloading || isDownloadPreparing ? 'downloading' : 'download_done') : 'download' }}</span> -->
-          </ui-btn>
         </div>
-        <div v-else-if="(isConnected && (showPlay || showRead)) || isDownloadPlayable" class="flex mt-4 -mr-2">
+        <div v-else-if="(user && (showPlay || showRead)) || hasLocal" class="flex mt-4 -mr-2">
           <ui-btn v-if="showPlay" color="success" :disabled="isPlaying" class="flex items-center justify-center flex-grow mr-2" :padding-x="4" @click="playClick">
             <span v-show="!isPlaying" class="material-icons">play_arrow</span>
-            <span class="px-1 text-sm">{{ isPlaying ? (isStreaming ? 'Streaming' : 'Playing') : isDownloadPlayable ? 'Play local' : 'Play stream' }}</span>
+            <span class="px-1 text-sm">{{ isPlaying ? (isStreaming ? 'Streaming' : 'Playing') : hasLocal ? 'Play Local' : 'Play Stream' }}</span>
           </ui-btn>
-          <ui-btn v-if="showRead && isConnected" color="info" class="flex items-center justify-center mr-2" :class="showPlay ? '' : 'flex-grow'" :padding-x="2" @click="readBook">
+          <ui-btn v-if="showRead && user" color="info" class="flex items-center justify-center mr-2" :class="showPlay ? '' : 'flex-grow'" :padding-x="2" @click="readBook">
             <span class="material-icons">auto_stories</span>
             <span v-if="!showPlay" class="px-2 text-base">Read {{ ebookFormat }}</span>
           </ui-btn>
-          <ui-btn v-if="isConnected && showPlay && !isIos" color="primary" class="flex items-center justify-center" :padding-x="2" @click="downloadClick">
-            <span class="material-icons">download</span>
-            <!-- <span class="material-icons" :class="downloadObj ? 'animate-pulse' : ''">{{ downloadObj ? (isDownloading || isDownloadPreparing ? 'downloading' : 'download_done') : 'download' }}</span> -->
+          <ui-btn v-if="user && showPlay && !isIos && !hasLocal" :color="downloadItem ? 'warning' : 'primary'" class="flex items-center justify-center" :padding-x="2" @click="downloadClick">
+            <span class="material-icons" :class="downloadItem ? 'animate-pulse' : ''">{{ downloadItem ? 'downloading' : 'download' }}</span>
           </ui-btn>
         </div>
       </div>
     </div>
+
+    <div v-if="downloadItem" class="py-3">
+      <p class="text-center text-lg">Downloading! ({{ Math.round(downloadItem.itemProgress * 100) }}%)</p>
+    </div>
+
     <div class="w-full py-4">
       <p>{{ description }}</p>
     </div>
@@ -81,6 +81,14 @@ export default {
         console.error('Failed', error)
         return false
       })
+      // Check if
+      if (libraryItem) {
+        var localLibraryItem = await app.$db.getLocalLibraryItemByLLId(libraryItemId)
+        if (localLibraryItem) {
+          console.log('Library item has local library item also', localLibraryItem.id)
+          libraryItem.localLibraryItem = localLibraryItem
+        }
+      }
     }
 
     if (!libraryItem) {
@@ -103,6 +111,14 @@ export default {
     },
     isLocal() {
       return this.libraryItem.isLocal
+    },
+    hasLocal() {
+      // Server library item has matching local library item
+      return this.isLocal || this.libraryItem.localLibraryItem
+    },
+    localLibraryItem() {
+      if (this.isLocal) return this.libraryItem
+      return this.libraryItem.localLibraryItem || null
     },
     isConnected() {
       return this.$store.state.socketConnected
@@ -139,6 +155,9 @@ export default {
     },
     size() {
       return this.media.size
+    },
+    user() {
+      return this.$store.state.user.user
     },
     userToken() {
       return this.$store.getters['user/getToken']
@@ -179,9 +198,6 @@ export default {
     isIncomplete() {
       return this.libraryItem.isIncomplete
     },
-    isDownloading() {
-      return this.downloadObj ? this.downloadObj.isDownloading : false
-    },
     showPlay() {
       return !this.isMissing && !this.isIncomplete && this.numTracks
     },
@@ -195,12 +211,14 @@ export default {
       if (!this.ebookFile) return null
       return this.ebookFile.ebookFormat
     },
-    isDownloadPlayable() {
-      return false
-      // return this.downloadObj && !this.isDownloading && !this.isDownloadPreparing
-    },
     hasStoragePermission() {
       return this.$store.state.hasStoragePermission
+    },
+    downloadItem() {
+      return this.$store.getters['globals/getDownloadItem'](this.libraryItemId)
+    },
+    downloadItems() {
+      return this.$store.state.globals.downloadItems || []
     }
   },
   methods: {
@@ -208,6 +226,8 @@ export default {
       this.$store.commit('openReader', this.libraryItem)
     },
     playClick() {
+      // Todo: Allow playing local or streaming
+      if (this.hasLocal) return this.$eventBus.$emit('play-item', this.localLibraryItem.id)
       this.$eventBus.$emit('play-item', this.libraryItem.id)
     },
     async clearProgressClick() {
@@ -249,6 +269,9 @@ export default {
       this.download(localFolder)
     },
     downloadClick() {
+      if (this.downloadItem) {
+        return
+      }
       this.download()
     },
     async download(selectedLocalFolder = null) {
@@ -296,10 +319,16 @@ export default {
     async startDownload(localFolder) {
       console.log('Starting download to local folder', localFolder.name)
       var downloadRes = await AbsDownloader.downloadLibraryItem({ libraryItemId: this.libraryItemId, localFolderId: localFolder.id })
-      if (downloadRes.error) {
+      if (downloadRes && downloadRes.error) {
         var errorMsg = downloadRes.error || 'Unknown error'
         console.error('Download error', errorMsg)
         this.$toast.error(errorMsg)
+      }
+    },
+    newLocalLibraryItem(item) {
+      if (item.libraryItemId == this.libraryItemId) {
+        console.log('New local library item', item.id)
+        this.$set(this.libraryItem, 'localLibraryItem', item)
       }
     }
     // async prepareDownload() {
@@ -429,6 +458,7 @@ export default {
     // }
   },
   mounted() {
+    this.$eventBus.$on('new-local-library-item', this.newLocalLibraryItem)
     // if (!this.$server.socket) {
     //   console.warn('Library Item Page mounted: Server socket not set')
     // } else {
@@ -439,6 +469,7 @@ export default {
     // }
   },
   beforeDestroy() {
+    this.$eventBus.$off('new-local-library-item', this.newLocalLibraryItem)
     // if (!this.$server.socket) {
     //   console.warn('Library Item Page beforeDestroy: Server socket not set')
     // } else {

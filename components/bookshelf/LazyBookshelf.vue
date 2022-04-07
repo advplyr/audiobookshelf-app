@@ -42,7 +42,8 @@ export default {
       entityIndexesMounted: [],
       pagesLoaded: {},
       isFirstInit: false,
-      pendingReset: false
+      pendingReset: false,
+      localLibraryItems: []
     }
   },
   computed: {
@@ -100,6 +101,9 @@ export default {
     },
     currentLibraryId() {
       return this.$store.state.libraries.currentLibraryId
+    },
+    currentLibraryMediaType() {
+      return this.$store.getters['libraries/getCurrentLibraryMediaType']
     },
     shelfHeight() {
       return this.entityHeight + 40
@@ -164,6 +168,13 @@ export default {
           this.entities[index] = payload.results[i]
           if (this.entityComponentRefs[index]) {
             this.entityComponentRefs[index].setEntity(this.entities[index])
+
+            if (this.isBookEntity) {
+              var localLibraryItem = this.localLibraryItems.find((lli) => lli.libraryItemId == this.entities[index].id)
+              if (localLibraryItem) {
+                this.entityComponentRefs[index].setLocalLibraryItem(localLibraryItem)
+              }
+            }
           }
         }
       }
@@ -204,6 +215,7 @@ export default {
         this.loadPage(lastBookPage)
       }
 
+      // Remove entities out of view
       this.entityIndexesMounted = this.entityIndexesMounted.filter((_index) => {
         if (_index < firstBookIndex || _index >= lastBookIndex) {
           var el = document.getElementById(`book-card-${_index}`)
@@ -295,6 +307,10 @@ export default {
     },
     async init() {
       if (this.isFirstInit) return
+
+      this.localLibraryItems = await this.$db.getLocalLibraryItems(this.currentLibraryMediaType)
+      console.log('Local library items loaded for lazy bookshelf', this.localLibraryItems.length)
+
       this.isFirstInit = true
       this.initSizeData()
       await this.loadPage(0)
@@ -360,6 +376,13 @@ export default {
           this.entities[indexOf] = libraryItem
           if (this.entityComponentRefs[indexOf]) {
             this.entityComponentRefs[indexOf].setEntity(libraryItem)
+
+            if (this.isBookEntity) {
+              var localLibraryItem = this.localLibraryItems.find((lli) => lli.libraryItemId == libraryItem.id)
+              if (localLibraryItem) {
+                this.entityComponentRefs[indexOf].setLocalLibraryItem(localLibraryItem)
+              }
+            }
           }
         }
       }

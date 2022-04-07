@@ -12,6 +12,9 @@
       </div>
       <p class="text-lg mb-0.5 text-white text-opacity-75">Folder: {{ folderName }}</p>
       <p class="mb-4 text-xl">{{ mediaMetadata.title }}</p>
+
+       <p class="mb-4 text-xs text-gray-400">{{ libraryItemId || 'Not linked to server library item' }}</p>
+
       <div v-if="isScanning" class="w-full text-center p-4">
         <p>Scanning...</p>
       </div>
@@ -88,6 +91,9 @@ export default {
     },
     mediaType() {
       return this.localLibraryItem ? this.localLibraryItem.mediaType : null
+    },
+        libraryItemId() {
+      return this.localLibraryItem ? this.localLibraryItem.libraryItemId : null
     },
     media() {
       return this.localLibraryItem ? this.localLibraryItem.media : null

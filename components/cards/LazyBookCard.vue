@@ -37,6 +37,10 @@
     <!-- No progress shown for collapsed series in library -->
     <div v-if="!booksInSeries" class="absolute bottom-0 left-0 h-1 shadow-sm max-w-full z-10 rounded-b" :class="itemIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: width * userProgressPercent + 'px' }"></div>
 
+    <div v-if="localLibraryItem || isLocal" class="absolute top-0 right-0 z-20" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }">
+      <span class="material-icons text-2xl text-success">{{ isLocalOnly ? 'task' : 'download_done' }}</span>
+    </div>
+
     <!-- Error widget -->
     <ui-tooltip v-if="showError" :text="errorText" class="absolute bottom-4 left-0 z-10">
       <div :style="{ height: 1.5 * sizeMultiplier + 'rem', width: 2.5 * sizeMultiplier + 'rem' }" class="bg-error rounded-r-full shadow-md flex items-center justify-end border-r border-b border-red-300">
@@ -85,7 +89,8 @@ export default {
       rescanning: false,
       selected: false,
       isSelectionMode: false,
-      showCoverBg: false
+      showCoverBg: false,
+      localLibraryItem: null
     }
   },
   watch: {
@@ -105,8 +110,11 @@ export default {
       return this.libraryItem || {}
     },
     isLocal() {
-      // Is local library item
       return !!this._libraryItem.isLocal
+    },
+    isLocalOnly() {
+      // Local item with no server match
+      return this.isLocal && !this._libraryItem.libraryItemId
     },
     media() {
       return this._libraryItem.media || {}
@@ -119,7 +127,7 @@ export default {
     },
     bookCoverSrc() {
       if (this.isLocal) {
-        if (this.media.coverPath) return Capacitor.convertFileSrc(this.media.coverPath)
+        if (this.libraryItem.coverContentUrl) return Capacitor.convertFileSrc(this.libraryItem.coverContentUrl)
         return this.placeholderUrl
       }
       return this.store.getters['globals/getLibraryItemCoverSrc'](this._libraryItem, this.placeholderUrl)
@@ -319,6 +327,10 @@ export default {
     setEntity(libraryItem) {
       this.libraryItem = libraryItem
     },
+    setLocalLibraryItem(localLibraryItem) {
+      // Server books may have a local library item
+      this.localLibraryItem = localLibraryItem
+    },
     clickCard(e) {
       if (this.isSelectionMode) {
         e.stopPropagation()
@@ -442,6 +454,10 @@ export default {
   mounted() {
     if (this.bookMount) {
       this.setEntity(this.bookMount)
+
+      if (this.bookMount.localLibraryItem) {
+        this.setLocalLibraryItem(this.bookMount.localLibraryItem)
+      }
     }
   }
 }

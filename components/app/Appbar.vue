@@ -7,7 +7,7 @@
       <a v-if="showBack" @click="back" class="rounded-full h-10 w-10 flex items-center justify-center hover:bg-white hover:bg-opacity-10 mr-2 cursor-pointer">
         <span class="material-icons text-3xl text-white">arrow_back</span>
       </a>
-      <div v-if="socketConnected">
+      <div v-if="user">
         <div class="px-4 py-2 bg-bg bg-opacity-30 rounded-md flex items-center" @click="clickShowLibraryModal">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
@@ -16,6 +16,8 @@
         </div>
       </div>
       <div class="flex-grow" />
+
+      <widgets-download-progress-indicator />
 
       <nuxt-link class="h-7 mx-2" to="/search">
         <span class="material-icons" style="font-size: 1.75rem">search</span>

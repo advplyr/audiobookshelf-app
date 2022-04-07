@@ -50,6 +50,7 @@ class AbsDatabase : Plugin() {
   @PluginMethod
   fun getLocalLibraryItem(call:PluginCall) {
     var id = call.getString("id", "").toString()
+
     GlobalScope.launch(Dispatchers.IO) {
       var localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(id)
       if (localLibraryItem == null) {
@@ -61,9 +62,24 @@ class AbsDatabase : Plugin() {
   }
 
   @PluginMethod
-  fun getLocalLibraryItems(call:PluginCall) {
+  fun getLocalLibraryItemByLLId(call:PluginCall) {
+    var libraryItemId = call.getString("libraryItemId", "").toString()
     GlobalScope.launch(Dispatchers.IO) {
-      var localLibraryItems = DeviceManager.dbManager.getLocalLibraryItems()
+      var localLibraryItem = DeviceManager.dbManager.getLocalLibraryItemByLLId(libraryItemId)
+      if (localLibraryItem == null) {
+        call.resolve()
+      } else {
+        call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(localLibraryItem)))
+      }
+    }
+  }
+
+  @PluginMethod
+  fun getLocalLibraryItems(call:PluginCall) {
+    var mediaType = call.getString("mediaType", "").toString()
+
+    GlobalScope.launch(Dispatchers.IO) {
+      var localLibraryItems = DeviceManager.dbManager.getLocalLibraryItems(mediaType)
       var jsobj = JSObject()
       jsobj.put("localLibraryItems", jacksonObjectMapper().writeValueAsString(localLibraryItems))
       call.resolve(jsobj)

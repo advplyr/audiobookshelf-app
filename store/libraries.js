@@ -17,6 +17,10 @@ export const getters = {
   getCurrentLibraryName: (state, getters) => {
     var currLib = getters.getCurrentLibrary
     return currLib ? currLib.name : null
+  },
+  getCurrentLibraryMediaType: (state, getters) => {
+    var currLib = getters.getCurrentLibrary
+    return currLib ? currLib.mediaType : null
   }
 }
 

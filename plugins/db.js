@@ -84,9 +84,9 @@ class DbService {
     })
   }
 
-  getLocalLibraryItems() {
+  getLocalLibraryItems(mediaType = null) {
     if (isWeb) return []
-    return AbsDatabase.getLocalLibraryItems().then((data) => {
+    return AbsDatabase.getLocalLibraryItems(mediaType).then((data) => {
       console.log('Loaded all local media items', JSON.stringify(data))
       if (data.localLibraryItems && typeof data.localLibraryItems == 'string') {
         return JSON.parse(data.localLibraryItems)
@@ -98,6 +98,11 @@ class DbService {
   getLocalLibraryItem(id) {
     if (isWeb) return null
     return AbsDatabase.getLocalLibraryItem({ id })
+  }
+
+  getLocalLibraryItemByLLId(libraryItemId) {
+    if (isWeb) return null
+    return AbsDatabase.getLocalLibraryItemByLLId({ libraryItemId })
   }
 }
 
