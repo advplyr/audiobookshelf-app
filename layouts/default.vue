@@ -13,17 +13,25 @@
 
 <script>
 import { AppUpdate } from '@robingenz/capacitor-app-update'
-import { AbsFileSystem, AbsDownloader } from '@/plugins/capacitor'
+import { AbsFileSystem } from '@/plugins/capacitor'
 
 export default {
   data() {
-    return {}
+    return {
+      attemptingConnection: false,
+      inittingLibraries: false
+    }
   },
   watch: {
     networkConnected: {
-      handler(newVal) {
+      handler(newVal, oldVal) {
         if (newVal) {
-          this.attemptConnection()
+          console.log(`[default] network connected changed ${oldVal} -> ${newVal}`)
+          if (!this.user) {
+            this.attemptConnection()
+          } else if (!this.currentLibraryId) {
+            this.initLibraries()
+          }
         }
       }
     }
@@ -136,20 +144,14 @@ export default {
     //     }
     //   })
     // },
-    onItemDownloadUpdate(data) {
-      console.log('ON ITEM DOWNLOAD UPDATE', JSON.stringify(data))
-    },
-    onItemDownloadComplete(data) {
-      console.log('ON ITEM DOWNLOAD COMPLETE', JSON.stringify(data))
-    },
     async initMediaStore() {
       // Request and setup listeners for media files on native
-      AbsDownloader.addListener('onItemDownloadUpdate', (data) => {
-        this.onItemDownloadUpdate(data)
-      })
-      AbsDownloader.addListener('onItemDownloadComplete', (data) => {
-        this.onItemDownloadComplete(data)
-      })
+      // AbsDownloader.addListener('onItemDownloadUpdate', (data) => {
+      //   this.onItemDownloadUpdate(data)
+      // })
+      // AbsDownloader.addListener('onItemDownloadComplete', (data) => {
+      //   this.onItemDownloadComplete(data)
+      // })
     },
     async loadSavedSettings() {
       var userSavedServerSettings = await this.$localStore.getServerSettings()
@@ -167,6 +169,10 @@ export default {
         console.warn('No network connection')
         return
       }
+      if (this.attemptingConnection) {
+        return
+      }
+      this.attemptingConnection = true
 
       var deviceData = await this.$db.getDeviceData()
       var serverConfig = null
@@ -175,8 +181,11 @@ export default {
       }
       if (!serverConfig) {
         // No last server config set
+        this.attemptingConnection = false
         return
       }
+
+      console.log(`[default] Got server config, attempt authorize ${serverConfig.address}`)
 
       var authRes = await this.$axios.$post(`${serverConfig.address}/api/authorize`, null, { headers: { Authorization: `Bearer ${serverConfig.token}` } }).catch((error) => {
         console.error('[Server] Server auth failed', error)
@@ -184,7 +193,10 @@ export default {
         this.error = errorMsg
         return false
       })
-      if (!authRes) return
+      if (!authRes) {
+        this.attemptingConnection = false
+        return
+      }
 
       const { user, userDefaultLibraryId } = authRes
       if (userDefaultLibraryId) {
@@ -199,6 +211,7 @@ export default {
 
       console.log('Successful connection on last saved connection config', JSON.stringify(serverConnectionConfig))
       await this.initLibraries()
+      this.attemptingConnection = false
     },
     itemRemoved(libraryItem) {
       if (this.$route.name.startsWith('item')) {
@@ -219,9 +232,15 @@ export default {
     },
     socketInit(data) {},
     async initLibraries() {
+      if (this.inittingLibraries) {
+        return
+      }
+      this.inittingLibraries = true
       await this.$store.dispatch('libraries/load')
+      console.log(`[default] initLibraries loaded`)
       this.$eventBus.$emit('library-changed')
       this.$store.dispatch('libraries/fetch', this.currentLibraryId)
+      this.inittingLibraries = false
     }
   },
   async mounted() {
@@ -240,8 +259,10 @@ export default {
       await this.$store.dispatch('setupNetworkListener')
 
       if (this.$store.state.user.serverConnectionConfig) {
+        console.log(`[default] server connection config set - call init libraries`)
         await this.initLibraries()
       } else {
+        console.log(`[default] no server connection config - call attempt connection`)
         await this.attemptConnection()
       }
 

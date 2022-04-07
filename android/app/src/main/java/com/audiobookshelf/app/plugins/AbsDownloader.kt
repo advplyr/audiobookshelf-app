@@ -144,13 +144,18 @@ class AbsDownloader : Plugin() {
       var itemFolderPath = localFolder.absolutePath + "/" + bookTitle
       var downloadItem = DownloadItem(libraryItem.id, libraryItem.mediaType, itemFolderPath, localFolder, bookTitle, libraryItem.media, mutableListOf())
 
-
       // Create download item part for each audio track
       tracks.forEach { audioTrack ->
         var serverPath = "/s/item/${libraryItem.id}/${cleanRelPath(audioTrack.relPath)}"
         var destinationFilename = getFilenameFromRelPath(audioTrack.relPath)
         Log.d(tag, "Audio File Server Path $serverPath | AF RelPath ${audioTrack.relPath} | LocalFolder Path ${localFolder.absolutePath} | DestName ${destinationFilename}")
         var destinationFile = File("$itemFolderPath/$destinationFilename")
+
+        if (destinationFile.exists()) {
+          Log.d(tag, "Audio file already exists, removing it from ${destinationFile.absolutePath}")
+          destinationFile.delete()
+        }
+
         var destinationUri = Uri.fromFile(destinationFile)
         var downloadUri = Uri.parse("${DeviceManager.serverAddress}${serverPath}?token=${DeviceManager.token}")
         Log.d(tag, "Audio File Destination Uri $destinationUri | Download URI $downloadUri")
@@ -169,6 +174,12 @@ class AbsDownloader : Plugin() {
           var serverPath = "/api/items/${libraryItem.id}/cover?format=jpeg"
           var destinationFilename = "cover.jpg"
           var destinationFile = File("$itemFolderPath/$destinationFilename")
+
+          if (destinationFile.exists()) {
+            Log.d(tag, "Cover already exists, removing it from ${destinationFile.absolutePath}")
+            destinationFile.delete()
+          }
+
           var destinationUri = Uri.fromFile(destinationFile)
           var downloadUri = Uri.parse("${DeviceManager.serverAddress}${serverPath}&token=${DeviceManager.token}")
           var downloadItemPart = DownloadItemPart(DeviceManager.getBase64Id(destinationFile.absolutePath), destinationFilename, destinationFile.absolutePath, bookTitle, serverPath, localFolder.name, localFolder.id, null, false, downloadUri, destinationUri, null, 0)
@@ -237,20 +248,20 @@ class AbsDownloader : Plugin() {
             val totalBytes = it.getInt(it.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
             val downloadStatus = it.getInt(it.getColumnIndex(DownloadManager.COLUMN_STATUS))
             val bytesDownloadedSoFar = it.getInt(it.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
-            Log.d(tag, "Download ${downloadItemPart.filename} bytes $totalBytes | bytes dled $bytesDownloadedSoFar | downloadStatus $downloadStatus")
+            Log.d(tag, "checkDownloads Download ${downloadItemPart.filename} bytes $totalBytes | bytes dled $bytesDownloadedSoFar | downloadStatus $downloadStatus")
 
             if (downloadStatus == DownloadManager.STATUS_SUCCESSFUL) {
-              Log.d(tag, "Download ${downloadItemPart.filename} Done")
+              Log.d(tag, "checkDownloads Download ${downloadItemPart.filename} Done")
 //              downloadItem.downloadItemParts.remove(downloadItemPart)
               downloadItemPart.completed = true
             } else if (downloadStatus == DownloadManager.STATUS_FAILED) {
-              Log.d(tag, "Download ${downloadItemPart.filename} Failed")
+              Log.d(tag, "checkDownloads Download ${downloadItemPart.filename} Failed")
               downloadItem.downloadItemParts.remove(downloadItemPart)
 //              downloadItemPart.completed = true
             } else {
               //update progress
               val percentProgress = if (totalBytes > 0) ((bytesDownloadedSoFar * 100L) / totalBytes) else 0
-              Log.d(tag, "${downloadItemPart.filename} Progress = $percentProgress%")
+              Log.d(tag, "checkDownloads Download ${downloadItemPart.filename} Progress = $percentProgress%")
               downloadItemPart.progress = percentProgress
             }
           } else {

@@ -67,7 +67,15 @@ export default {
       shelfEl.appendChild(instance.$el)
 
       if (this.entities[index]) {
-        instance.setEntity(this.entities[index])
+        var entity = this.entities[index]
+        instance.setEntity(entity)
+
+        if (this.isBookEntity && !entity.isLocal) {
+          var localLibraryItem = this.localLibraryItems.find(lli => lli.libraryItemId == entity.id)
+          if (localLibraryItem) {
+            instance.setLocalLibraryItem(localLibraryItem)
+          }
+        }
       }
     },
   }

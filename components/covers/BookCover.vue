@@ -66,6 +66,9 @@ export default {
       if (!this.libraryItem) return false
       return this.libraryItem.isLocal
     },
+    localCover() {
+      return this.libraryItem ? this.libraryItem.coverContentUrl : null
+    },
     squareAspectRatio() {
       return this.bookCoverAspectRatio === 1
     },
@@ -105,7 +108,7 @@ export default {
     },
     fullCoverUrl() {
       if (this.isLocal) {
-        if (this.hasCover) return Capacitor.convertFileSrc(this.cover)
+        if (this.localCover) return Capacitor.convertFileSrc(this.localCover)
         return this.placeholderUrl
       }
       if (this.downloadCover) return this.downloadCover

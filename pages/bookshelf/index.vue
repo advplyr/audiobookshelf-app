@@ -35,7 +35,8 @@ export default {
   data() {
     return {
       shelves: [],
-      loading: false
+      loading: false,
+      localLibraryItems: []
     }
   },
   computed: {
@@ -55,8 +56,9 @@ export default {
   methods: {
     async getLocalMediaItemCategories() {
       var localMedia = await this.$db.getLocalLibraryItems()
+      console.log('Got local library items', localMedia ? localMedia.length : 'N/A')
       if (!localMedia || !localMedia.length) return []
-      console.log('Got local library items', localMedia.length)
+
       var categories = []
       var books = []
       var podcasts = []
@@ -84,9 +86,11 @@ export default {
           entities: podcasts
         })
       }
+
       return categories
     },
-    async fetchCategories() {
+    async fetchCategories(from = null) {
+      console.log('[4breadcrumbs] fetchCategories', from)
       if (this.loading) {
         console.log('Already loading categories')
         return
@@ -94,36 +98,39 @@ export default {
       this.loading = true
       this.shelves = []
 
+      this.localLibraryItems = await this.$db.getLocalLibraryItems()
+
       var localCategories = await this.getLocalMediaItemCategories()
       this.shelves = this.shelves.concat(localCategories)
 
       if (this.user && this.currentLibraryId) {
-        var categories = await this.$axios
-          .$get(`/api/libraries/${this.currentLibraryId}/personalized?minified=1`)
-          .then((data) => {
-            return data
-          })
-          .catch((error) => {
-            console.error('Failed to fetch categories', error)
-            return []
-          })
+        var categories = await this.$axios.$get(`/api/libraries/${this.currentLibraryId}/personalized?minified=1`).catch((error) => {
+          console.error('Failed to fetch categories', error)
+          return []
+        })
+        categories = categories.map((cat) => {
+          console.log('[breadcrumb] Personalized category from server', cat.type)
+          if (cat.type == 'book' || cat.type == 'podcast') {
+            // Map localLibraryItem to entities
+            cat.entities = cat.entities.map((entity) => {
+              var localLibraryItem = this.localLibraryItems.find((lli) => {
+                return lli.libraryItemId == entity.id
+              })
+              if (localLibraryItem) {
+                entity.localLibraryItem = localLibraryItem
+              }
+              return entity
+            })
+          }
+          return cat
+        })
         this.shelves = this.shelves.concat(categories)
       }
       this.loading = false
     },
-    // async socketInit(isConnected) {
-    //   if (isConnected && this.currentLibraryId) {
-    //     console.log('Connected - Load from server')
-    //     await this.fetchCategories()
-    //   } else {
-    //     console.log('Disconnected - Reset to local storage')
-    //     this.shelves = this.downloadOnlyShelves
-    //   }
-    //   this.loading = false
-    // },
     async libraryChanged(libid) {
-      if (this.isSocketConnected && this.currentLibraryId) {
-        await this.fetchCategories()
+      if (this.currentLibraryId) {
+        await this.fetchCategories('libraryChanged')
       }
     },
     audiobookAdded(audiobook) {
@@ -181,7 +188,7 @@ export default {
   },
   mounted() {
     this.initListeners()
-    this.fetchCategories()
+    this.fetchCategories('mounted')
     // if (this.$server.initialized && this.currentLibraryId) {
     //   this.fetchCategories()
     // } else {
