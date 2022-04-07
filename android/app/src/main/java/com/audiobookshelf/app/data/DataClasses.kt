@@ -34,7 +34,11 @@ open class MediaType(var metadata:MediaTypeMetadata, var coverPath:String?) {
   @JsonIgnore
   open fun getAudioTracks():List<AudioTrack> { return mutableListOf() }
   @JsonIgnore
-  open fun setAudioTracks(audioTracks:List<AudioTrack>) { }
+  open fun setAudioTracks(audioTracks:MutableList<AudioTrack>) { }
+  @JsonIgnore
+  open fun addAudioTrack(audioTrack:AudioTrack) { }
+  @JsonIgnore
+  open fun removeAudioTrack(localFileId:String) { }
 }
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -51,7 +55,7 @@ class Podcast(
     return tracks.filterNotNull()
   }
   @JsonIgnore
-  override fun setAudioTracks(audioTracks:List<AudioTrack>) {
+  override fun setAudioTracks(audioTracks:MutableList<AudioTrack>) {
     // Remove episodes no longer there in tracks
     episodes = episodes.filter { ep ->
       audioTracks.find { it.localFileId == ep.audioTrack?.localFileId } != null
@@ -64,6 +68,15 @@ class Podcast(
       }
     }
   }
+  @JsonIgnore
+  override fun addAudioTrack(audioTrack:AudioTrack) {
+    var newEpisode = PodcastEpisode("local_" + audioTrack.localFileId,episodes.size + 1,null,null,audioTrack.title,null,null,null,audioTrack)
+    episodes.add(newEpisode)
+  }
+  @JsonIgnore
+  override fun removeAudioTrack(localFileId:String) {
+    episodes.removeIf { it.audioTrack?.localFileId == localFileId }
+  }
 }
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -73,7 +86,7 @@ class Book(
   var tags:List<String>,
   var audioFiles:List<AudioFile>,
   var chapters:List<BookChapter>,
-  var tracks:List<AudioTrack>?,
+  var tracks:MutableList<AudioTrack>?,
   var size:Long?,
   var duration:Double?
 ) : MediaType(metadata, coverPath) {
@@ -82,8 +95,29 @@ class Book(
     return tracks ?: mutableListOf()
   }
   @JsonIgnore
-  override fun setAudioTracks(audioTracks:List<AudioTrack>) {
+  override fun setAudioTracks(audioTracks:MutableList<AudioTrack>) {
     tracks = audioTracks
+
+    // TODO: Is it necessary to calculate this each time? check if can remove safely
+    var totalDuration = 0.0
+    tracks?.forEach {
+      totalDuration += it.duration
+    }
+    duration = totalDuration
+  }
+  @JsonIgnore
+  override fun addAudioTrack(audioTrack:AudioTrack) {
+    tracks?.add(audioTrack)
+
+    var totalDuration = 0.0
+    tracks?.forEach {
+      totalDuration += it.duration
+    }
+    duration = totalDuration
+  }
+  @JsonIgnore
+  override fun removeAudioTrack(localFileId:String) {
+    tracks?.removeIf { it.localFileId == localFileId }
 
     var totalDuration = 0.0
     tracks?.forEach {

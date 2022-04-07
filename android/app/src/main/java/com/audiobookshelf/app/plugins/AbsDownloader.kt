@@ -6,8 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.util.Log
 import com.audiobookshelf.app.MainActivity
-import com.audiobookshelf.app.data.LibraryItem
-import com.audiobookshelf.app.data.LocalFolder
+import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.device.FolderScanner
 import com.audiobookshelf.app.server.ApiHandler
@@ -37,11 +36,14 @@ class AbsDownloader : Plugin() {
 
   data class DownloadItemPart(
     val id: String,
-    val name: String,
+    val filename: String,
+    val destinationPath:String,
     val itemTitle: String,
     val serverPath: String,
-    val folderName: String,
+    val localFolderName: String,
     val localFolderId: String,
+    val audioTrack: AudioTrack?,
+    var completed:Boolean,
     @JsonIgnore val uri: Uri,
     @JsonIgnore val destinationUri: Uri,
     var downloadId: Long?,
@@ -50,8 +52,8 @@ class AbsDownloader : Plugin() {
     @JsonIgnore
     fun getDownloadRequest(): DownloadManager.Request {
       var dlRequest = DownloadManager.Request(uri)
-      dlRequest.setTitle(name)
-      dlRequest.setDescription("Downloading to $folderName for book $itemTitle")
+      dlRequest.setTitle(filename)
+      dlRequest.setDescription("Downloading to $localFolderName for book $itemTitle")
       dlRequest.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
       dlRequest.setDestinationUri(destinationUri)
       return dlRequest
@@ -60,8 +62,11 @@ class AbsDownloader : Plugin() {
 
   data class DownloadItem(
     val id: String,
+    val mediaType: String,
+    val itemFolderPath:String,
     val localFolder: LocalFolder,
     val itemTitle: String,
+    val media:MediaType,
     val downloadItemParts: MutableList<DownloadItemPart>
   )
 
@@ -91,16 +96,21 @@ class AbsDownloader : Plugin() {
     var localFolderId = call.data.getString("localFolderId").toString()
     Log.d(tag, "Download library item $libraryItemId to folder $localFolderId")
 
+    if (downloadQueue.find { it.id == libraryItemId } != null) {
+      Log.d(tag, "Download already started for this library item $libraryItemId")
+      return call.resolve(JSObject("{\"error\":\"Download already started for this library item\"}"))
+    }
+
     apiHandler.getLibraryItem(libraryItemId) { libraryItem ->
       Log.d(tag, "Got library item from server ${libraryItem.id}")
       var localFolder = DeviceManager.dbManager.getLocalFolder(localFolderId)
       if (localFolder != null) {
         startLibraryItemDownload(libraryItem, localFolder)
         call.resolve()
+      } else {
+        call.resolve(JSObject("{\"error\":\"Local Folder Not Found\"}"))
       }
     }
-
-    call.resolve(JSObject("{\"error\":\"Library Item not found\"}"))
   }
 
   // Clean folder path so it can be used in URL
@@ -128,22 +138,23 @@ class AbsDownloader : Plugin() {
 
   fun startLibraryItemDownload(libraryItem: LibraryItem, localFolder: LocalFolder) {
     if (libraryItem.mediaType == "book") {
-      var bookMedia = libraryItem.media as com.audiobookshelf.app.data.Book
-      var bookTitle = bookMedia.metadata.title
-      var tracks = bookMedia.tracks ?: mutableListOf()
+      var bookTitle = libraryItem.media.metadata.title
+      var tracks = libraryItem.media.getAudioTracks()
       Log.d(tag, "Starting library item download with ${tracks.size} tracks")
-      var downloadItem = DownloadItem(libraryItem.id, localFolder, bookTitle, mutableListOf())
       var itemFolderPath = localFolder.absolutePath + "/" + bookTitle
-      tracks.forEach { audioFile ->
-        var serverPath = "/s/item/${libraryItem.id}/${cleanRelPath(audioFile.relPath)}"
-        var destinationFilename = getFilenameFromRelPath(audioFile.relPath)
-        Log.d(tag, "Audio File Server Path $serverPath | AF RelPath ${audioFile.relPath} | LocalFolder Path ${localFolder.absolutePath} | DestName ${destinationFilename}")
+      var downloadItem = DownloadItem(libraryItem.id, libraryItem.mediaType, itemFolderPath, localFolder, bookTitle, libraryItem.media, mutableListOf())
+
+
+      // Create download item part for each audio track
+      tracks.forEach { audioTrack ->
+        var serverPath = "/s/item/${libraryItem.id}/${cleanRelPath(audioTrack.relPath)}"
+        var destinationFilename = getFilenameFromRelPath(audioTrack.relPath)
+        Log.d(tag, "Audio File Server Path $serverPath | AF RelPath ${audioTrack.relPath} | LocalFolder Path ${localFolder.absolutePath} | DestName ${destinationFilename}")
         var destinationFile = File("$itemFolderPath/$destinationFilename")
         var destinationUri = Uri.fromFile(destinationFile)
         var downloadUri = Uri.parse("${DeviceManager.serverAddress}${serverPath}?token=${DeviceManager.token}")
         Log.d(tag, "Audio File Destination Uri $destinationUri | Download URI $downloadUri")
-        var downloadItemPart = DownloadItemPart(UUID.randomUUID().toString(), destinationFilename, bookTitle, serverPath, localFolder.name
-          ?: "", localFolder.id, downloadUri, destinationUri, null, 0)
+        var downloadItemPart = DownloadItemPart(DeviceManager.getBase64Id(destinationFile.absolutePath), destinationFilename, destinationFile.absolutePath, bookTitle, serverPath, localFolder.name, localFolder.id, audioTrack, false, downloadUri, destinationUri, null, 0)
 
         downloadItem.downloadItemParts.add(downloadItemPart)
 
@@ -151,8 +162,24 @@ class AbsDownloader : Plugin() {
         var downloadId = downloadManager.enqueue(dlRequest)
         downloadItemPart.downloadId = downloadId
       }
-      Log.d(tag, "Done queueing downloads ${downloadQueue.size}")
+
       if (downloadItem.downloadItemParts.isNotEmpty()) {
+        // Add cover download item
+        if (libraryItem.media.coverPath != null && libraryItem.media.coverPath?.isNotEmpty() == true) {
+          var serverPath = "/api/items/${libraryItem.id}/cover?format=jpeg"
+          var destinationFilename = "cover.jpg"
+          var destinationFile = File("$itemFolderPath/$destinationFilename")
+          var destinationUri = Uri.fromFile(destinationFile)
+          var downloadUri = Uri.parse("${DeviceManager.serverAddress}${serverPath}&token=${DeviceManager.token}")
+          var downloadItemPart = DownloadItemPart(DeviceManager.getBase64Id(destinationFile.absolutePath), destinationFilename, destinationFile.absolutePath, bookTitle, serverPath, localFolder.name, localFolder.id, null, false, downloadUri, destinationUri, null, 0)
+
+          downloadItem.downloadItemParts.add(downloadItemPart)
+
+          var dlRequest = downloadItemPart.getDownloadRequest()
+          var downloadId = downloadManager.enqueue(dlRequest)
+          downloadItemPart.downloadId = downloadId
+        }
+
         // TODO: Cannot create new text file here but can download here... ??
 //        var abmetadataFile = File(itemFolderPath, "abmetadata.abs")
 //        abmetadataFile.createNewFileIfPossible()
@@ -160,6 +187,7 @@ class AbsDownloader : Plugin() {
 
         downloadQueue.add(downloadItem)
         startWatchingDownloads(downloadItem)
+        DeviceManager.dbManager.saveDownloadItem(downloadItem)
       }
     } else {
       // TODO: Download podcast episode(s)
@@ -168,26 +196,38 @@ class AbsDownloader : Plugin() {
 
   fun startWatchingDownloads(downloadItem: DownloadItem) {
     GlobalScope.launch(Dispatchers.IO) {
-      while (downloadItem.downloadItemParts.isNotEmpty()) {
+      while (downloadItem.downloadItemParts.find { !it.completed } != null) { // While some item is not completed
+        var numPartsBefore = downloadItem.downloadItemParts.size
         checkDownloads(downloadItem)
+
+        // Keep database updated as item parts finish downloading
+        if (downloadItem.downloadItemParts.size > 0 && downloadItem.downloadItemParts.size != numPartsBefore) {
+          Log.d(tag, "Save download item on num parts changed from $numPartsBefore to ${downloadItem.downloadItemParts.size}")
+          DeviceManager.dbManager.saveDownloadItem(downloadItem)
+        }
+
         notifyListeners("onItemDownloadUpdate", JSObject(jacksonObjectMapper().writeValueAsString(downloadItem)))
         delay(500)
       }
 
-      var folderScanResult = folderScanner.scanForMediaItems(downloadItem.localFolder, false)
+      var localLibraryItem = folderScanner.scanDownloadItem(downloadItem)
+      DeviceManager.dbManager.removeDownloadItem(downloadItem.id)
+      downloadQueue.remove(downloadItem)
 
-      Log.d(tag, "Item download complete ${downloadItem.itemTitle}")
+      Log.d(tag, "Item download complete ${downloadItem.itemTitle} | local library item id: ${localLibraryItem?.id} | Items remaining in Queue ${downloadQueue.size}")
+
       var jsobj = JSObject()
       jsobj.put("libraryItemId", downloadItem.id)
       jsobj.put("localFolderId", downloadItem.localFolder.id)
-      jsobj.put("folderScanResult", JSObject(jacksonObjectMapper().writeValueAsString(folderScanResult)))
+      if (localLibraryItem != null) {
+        jsobj.put("localLibraryItem", JSObject(jacksonObjectMapper().writeValueAsString(localLibraryItem)))
+      }
       notifyListeners("onItemDownloadComplete", jsobj)
     }
   }
 
   fun checkDownloads(downloadItem: DownloadItem) {
     var itemParts = downloadItem.downloadItemParts.map { it }
-    Log.d(tag, "Check Downloads ${itemParts.size}")
     for (downloadItemPart in itemParts) {
       if (downloadItemPart.downloadId != null) {
         var dlid = downloadItemPart.downloadId!!
@@ -195,24 +235,26 @@ class AbsDownloader : Plugin() {
         downloadManager.query(query).use {
           if (it.moveToFirst()) {
             val totalBytes = it.getInt(it.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
-            Log.d(tag, "Download ${downloadItemPart.name} bytes $totalBytes")
             val downloadStatus = it.getInt(it.getColumnIndex(DownloadManager.COLUMN_STATUS))
             val bytesDownloadedSoFar = it.getInt(it.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
+            Log.d(tag, "Download ${downloadItemPart.filename} bytes $totalBytes | bytes dled $bytesDownloadedSoFar | downloadStatus $downloadStatus")
 
             if (downloadStatus == DownloadManager.STATUS_SUCCESSFUL) {
-              Log.d(tag, "Download ${downloadItemPart.name} Done")
-              downloadItem.downloadItemParts.remove(downloadItemPart)
+              Log.d(tag, "Download ${downloadItemPart.filename} Done")
+//              downloadItem.downloadItemParts.remove(downloadItemPart)
+              downloadItemPart.completed = true
             } else if (downloadStatus == DownloadManager.STATUS_FAILED) {
-              Log.d(tag, "Download ${downloadItemPart.name} Failed")
+              Log.d(tag, "Download ${downloadItemPart.filename} Failed")
               downloadItem.downloadItemParts.remove(downloadItemPart)
+//              downloadItemPart.completed = true
             } else {
               //update progress
               val percentProgress = if (totalBytes > 0) ((bytesDownloadedSoFar * 100L) / totalBytes) else 0
-              Log.d(tag, "${downloadItemPart.name} Progress = $percentProgress%")
+              Log.d(tag, "${downloadItemPart.filename} Progress = $percentProgress%")
               downloadItemPart.progress = percentProgress
             }
           } else {
-            Log.d(tag, "Download ${downloadItemPart.name} not found in dlmanager")
+            Log.d(tag, "Download ${downloadItemPart.filename} not found in dlmanager")
             downloadItem.downloadItemParts.remove(downloadItemPart)
           }
         }

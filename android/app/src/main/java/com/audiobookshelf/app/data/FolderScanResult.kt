@@ -8,3 +8,8 @@ data class FolderScanResult(
   val localFolder:LocalFolder,
   val localLibraryItems:List<LocalLibraryItem>,
 )
+
+data class LocalLibraryItemScanResult(
+  val updated:Boolean,
+  val localLibraryItem:LocalLibraryItem,
+)
