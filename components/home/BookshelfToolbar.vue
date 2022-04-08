@@ -9,6 +9,7 @@
         <p v-show="selectedSeriesName" class="ml-2 font-book pt-1">{{ selectedSeriesName }} ({{ totalEntities }})</p>
         <div class="flex-grow" />
         <template v-if="page === 'library'">
+          <span class="material-icons px-2" @click="bookshelfListView = !bookshelfListView">{{ bookshelfListView ? 'view_list' : 'grid_view' }}</span>
           <div class="relative flex items-center px-2">
             <span class="material-icons" @click="showFilterModal = true">filter_alt</span>
             <div v-show="hasFilters" class="absolute top-0 right-2 w-2 h-2 rounded-full bg-success border border-green-300 shadow-sm z-10 pointer-events-none" />
@@ -34,6 +35,14 @@ export default {
     }
   },
   computed: {
+    bookshelfListView: {
+      get() {
+        return this.$store.state.globals.bookshelfListView
+      },
+      set(val) {
+        this.$store.commit('globals/setBookshelfListView', val)
+      }
+    },
     hasFilters() {
       return this.$store.getters['user/getUserSetting']('mobileFilterBy') !== 'all'
     },
