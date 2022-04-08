@@ -1,7 +1,7 @@
 <template>
   <div class="w-full">
-    <p class="px-1 pb-1 text-sm font-semibold">{{ label }}</p>
-    <ui-text-input v-model="inputValue" :disabled="disabled" :type="type" class="w-full px-4 py-2" />
+    <p class="pb-0.5 text-sm font-semibold">{{ label }}</p>
+    <ui-text-input v-model="inputValue" :disabled="disabled" :type="type" text-size="base" class="w-full" />
   </div>
 </template>
 

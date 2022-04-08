@@ -22,8 +22,10 @@ data class DeviceData(
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class LocalLibraryItem(
   var id:String,
+  var serverAddress:String?,
   var libraryItemId:String?,
   var folderId:String,
+  var basePath:String,
   var absolutePath:String,
   var contentUrl:String,
   var isInvalid:Boolean,
@@ -70,16 +72,23 @@ data class LocalLibraryItem(
     }
     return PlaybackSession(sessionId,null,null,null, mediaType, mediaMetadata, chapters, mediaMetadata.title, authorName,null,getDuration(),PLAYMETHOD_LOCAL, media.getAudioTracks() as MutableList<AudioTrack>,0.0,null,this,null,null)
   }
+
+  @JsonIgnore
+  fun removeLocalFile(localFileId:String) {
+    localFiles.removeIf { it.id == localFileId }
+  }
 }
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class LocalMediaItem(
   var id:String,
+  var serverAddress:String?,
   var name: String,
   var mediaType:String,
   var folderId:String,
   var contentUrl:String,
   var simplePath: String,
+  var basePath:String,
   var absolutePath:String,
   var audioTracks:MutableList<AudioTrack>,
   var localFiles:MutableList<LocalFile>,
@@ -126,10 +135,10 @@ data class LocalMediaItem(
     if (mediaType == "book") {
       var chapters = getAudiobookChapters()
       var book = Book(mediaMetadata as BookMetadata, coverAbsolutePath, mutableListOf(), mutableListOf(), chapters,audioTracks,getTotalSize(),getDuration())
-      return LocalLibraryItem(id, null, folderId, absolutePath, contentUrl,  false,mediaType, book, localFiles, coverContentUrl, coverAbsolutePath,true)
+      return LocalLibraryItem(id,serverAddress, null, folderId, basePath,absolutePath, contentUrl,  false,mediaType, book, localFiles, coverContentUrl, coverAbsolutePath,true)
     } else {
       var podcast = Podcast(mediaMetadata as PodcastMetadata, coverAbsolutePath, mutableListOf(), mutableListOf(), false)
-      return LocalLibraryItem(id, null, folderId, absolutePath, contentUrl, false, mediaType, podcast,localFiles,coverContentUrl, coverAbsolutePath, true)
+      return LocalLibraryItem(id,serverAddress, null, folderId, basePath,absolutePath, contentUrl, false, mediaType, podcast,localFiles,coverContentUrl, coverAbsolutePath, true)
     }
   }
 }
@@ -139,6 +148,7 @@ data class LocalFile(
   var id:String,
   var filename:String?,
   var contentUrl:String,
+  var basePath:String,
   var absolutePath:String,
   var simplePath:String,
   var mimeType:String?,
@@ -155,6 +165,7 @@ data class LocalFolder(
   var id:String,
   var name:String,
   var contentUrl:String,
+  var basePath:String,
   var absolutePath:String,
   var simplePath:String,
   var storageType:String,

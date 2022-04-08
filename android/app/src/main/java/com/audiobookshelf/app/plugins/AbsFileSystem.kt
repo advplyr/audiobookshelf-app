@@ -25,6 +25,7 @@ import kotlinx.coroutines.launch
 @CapacitorPlugin(name = "AbsFileSystem")
 class AbsFileSystem : Plugin() {
   private val TAG = "AbsFileSystem"
+  private val tag = "AbsFileSystem"
 
   lateinit var mainActivity: MainActivity
 
@@ -70,9 +71,10 @@ class AbsFileSystem : Plugin() {
         var absolutePath = folder.getAbsolutePath(activity)
         var storageType = folder.getStorageType(activity)
         var simplePath = folder.getSimplePath(activity)
+        var basePath = folder.getBasePath(activity)
         var folderId = android.util.Base64.encodeToString(folder.id.toByteArray(), android.util.Base64.DEFAULT)
 
-        var localFolder = LocalFolder(folderId, folder.name ?: "", folder.uri.toString(),absolutePath, simplePath, storageType.toString(), mediaType)
+        var localFolder = LocalFolder(folderId, folder.name ?: "", folder.uri.toString(),basePath,absolutePath, simplePath, storageType.toString(), mediaType)
 
         DeviceManager.dbManager.saveLocalFolder(localFolder)
         call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(localFolder)))
@@ -188,34 +190,44 @@ class AbsFileSystem : Plugin() {
   }
 
   @PluginMethod
-  fun delete(call: PluginCall) {
-    var url = call.data.getString("url", "").toString()
-    var coverUrl = call.data.getString("coverUrl", "").toString()
-    var folderUrl = call.data.getString("folderUrl", "").toString()
+  fun deleteItem(call: PluginCall) {
+    var localLibraryItemId = call.data.getString("id", "").toString()
+    var absolutePath = call.data.getString("absolutePath", "").toString()
+    var contentUrl = call.data.getString("contentUrl", "").toString()
+    Log.d(tag, "deleteItem $absolutePath | $contentUrl")
 
-    if (folderUrl != "") {
-      Log.d(TAG, "CALLED DELETE FOLDER: $folderUrl")
-      var folder = DocumentFileCompat.fromUri(context, Uri.parse(folderUrl))
-      var success = folder?.deleteRecursively(context)
-      var jsobj = JSObject()
-      jsobj.put("success", success)
-      call.resolve()
-    } else {
-      // Older audiobooks did not store a folder url, use cover and audiobook url
-      var abExists = checkUriExists(Uri.parse(url))
-      if (abExists) {
-        var abfile = DocumentFileCompat.fromUri(context, Uri.parse(url))
-        abfile?.delete()
-      }
-
-      var coverExists = checkUriExists(Uri.parse(coverUrl))
-      if (coverExists) {
-        var coverfile = DocumentFileCompat.fromUri(context, Uri.parse(coverUrl))
-        coverfile?.delete()
-      }
+    var docfile = DocumentFileCompat.fromUri(mainActivity, Uri.parse(contentUrl))
+    var success = docfile?.delete() == true
+    if (success) {
+      DeviceManager.dbManager.removeLocalLibraryItem(localLibraryItemId)
     }
+    call.resolve(JSObject("{\"success\":$success}"))
   }
 
+  @PluginMethod
+  fun deleteTrackFromItem(call: PluginCall) {
+    var localLibraryItemId = call.data.getString("id", "").toString()
+    var trackLocalFileId = call.data.getString("trackLocalFileId", "").toString()
+    var contentUrl = call.data.getString("trackContentUrl", "").toString()
+    Log.d(tag, "deleteTrackFromItem $contentUrl")
+
+    var localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(localLibraryItemId)
+    if (localLibraryItem == null) {
+      Log.e(tag, "deleteTrackFromItem: LLI does not exist $localLibraryItemId")
+      return call.resolve(JSObject("{\"success\":false}"))
+    }
+
+    var docfile = DocumentFileCompat.fromUri(mainActivity, Uri.parse(contentUrl))
+    var success = docfile?.delete() == true
+    if (success) {
+      localLibraryItem?.media?.removeAudioTrack(trackLocalFileId)
+      localLibraryItem?.removeLocalFile(trackLocalFileId)
+      DeviceManager.dbManager.saveLocalLibraryItem(localLibraryItem)
+      call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(localLibraryItem)))
+    } else {
+      call.resolve(JSObject("{\"success\":false}"))
+    }
+  }
 
   fun checkUriExists(uri: Uri?): Boolean {
     if (uri == null) return false

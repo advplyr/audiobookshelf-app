@@ -15,6 +15,7 @@
     "@capacitor/cli": "^3.1.2",
     "@capacitor/core": "^3.2.2",
     "@capacitor/dialog": "^1.0.3",
+    "@capacitor/haptics": "^1.1.4",
     "@capacitor/ios": "^3.2.2",
     "@capacitor/network": "^1.0.3",
     "@capacitor/status-bar": "^1.0.6",

@@ -1,12 +1,10 @@
 <template>
   <div class="w-full h-full p-4">
-    <div class="w-full max-w-xs mx-auto">
-      <ui-text-input-with-label :value="serverUrl" label="Server Url" disabled class="my-4" />
+    <ui-text-input-with-label :value="serverConnConfigName" label="Connection Config Name" disabled class="my-2" />
 
-      <ui-text-input-with-label :value="username" label="Username" disabled class="my-4" />
+    <ui-text-input-with-label :value="username" label="Username" disabled class="my-2" />
 
-      <ui-btn color="primary flex items-center justify-between text-base w-full mt-8" @click="logout">Logout<span class="material-icons" style="font-size: 1.1rem">logout</span></ui-btn>
-    </div>
+    <ui-btn color="primary flex items-center justify-between text-base w-full mt-8" @click="logout">Logout<span class="material-icons" style="font-size: 1.1rem">logout</span></ui-btn>
 
     <div class="flex items-center pt-8">
       <div class="flex-grow" />
@@ -25,9 +23,6 @@
     <ui-btn v-if="isUpdateAvailable" class="w-full my-4" color="success" @click="clickUpdate">Update is available</ui-btn>
 
     <ui-btn v-if="!isUpdateAvailable || immediateUpdateAllowed" class="w-full my-4" color="primary" @click="openAppStore">Open app store</ui-btn>
-
-    <!-- Used for testing API -->
-    <ui-btn @click="testCall">Test Call</ui-btn>
 
     <p class="text-xs text-gray-400">UA: {{ updateAvailability }} | Avail: {{ availableVersion }} | Curr: {{ currentVersion }} | ImmedAllowed: {{ immediateUpdateAllowed }}</p>
   </div>
@@ -55,8 +50,14 @@ export default {
     user() {
       return this.$store.state.user.user
     },
-    serverUrl() {
-      return this.$server.url
+    serverConnectionConfig() {
+      return this.$store.state.user.serverConnectionConfig || {}
+    },
+    serverConnConfigName() {
+      return this.serverConnectionConfig.name
+    },
+    serverAddress() {
+      return this.serverConnectionConfig.address
     },
     appUpdateInfo() {
       return this.$store.state.appUpdateInfo
@@ -78,14 +79,6 @@ export default {
     }
   },
   methods: {
-    testCall() {
-      // Used for testing API
-      console.log('Making Test call')
-      var libraryId = this.$store.state.libraries.currentLibraryId
-      AbsAudioPlayer.getLibraryItems({ libraryId }).then((res) => {
-        console.log('TEST CALL response', JSON.stringify(res))
-      })
-    },
     async logout() {
       await this.$axios.$post('/logout').catch((error) => {
         console.error(error)

@@ -62,6 +62,7 @@ class AbsDownloader : Plugin() {
 
   data class DownloadItem(
     val id: String,
+    val serverAddress:String,
     val mediaType: String,
     val itemFolderPath:String,
     val localFolder: LocalFolder,
@@ -142,7 +143,7 @@ class AbsDownloader : Plugin() {
       var tracks = libraryItem.media.getAudioTracks()
       Log.d(tag, "Starting library item download with ${tracks.size} tracks")
       var itemFolderPath = localFolder.absolutePath + "/" + bookTitle
-      var downloadItem = DownloadItem(libraryItem.id, libraryItem.mediaType, itemFolderPath, localFolder, bookTitle, libraryItem.media, mutableListOf())
+      var downloadItem = DownloadItem(libraryItem.id, DeviceManager.serverAddress, libraryItem.mediaType, itemFolderPath, localFolder, bookTitle, libraryItem.media, mutableListOf())
 
       // Create download item part for each audio track
       tracks.forEach { audioTrack ->

@@ -88,6 +88,11 @@ class AbsAudioPlayer : Plugin() {
     var libraryItemId = call.getString("libraryItemId", "").toString()
     var playWhenReady = call.getBoolean("playWhenReady") == true
 
+    if (libraryItemId.isEmpty()) {
+      Log.e(tag, "Invalid call to play library item no library item id")
+      return call.resolve()
+    }
+
     if (libraryItemId.startsWith("local")) { // Play local media item
       DeviceManager.dbManager.getLocalLibraryItem(libraryItemId)?.let {
         Handler(Looper.getMainLooper()).post() {

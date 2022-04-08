@@ -119,9 +119,18 @@ class Book(
   override fun removeAudioTrack(localFileId:String) {
     tracks?.removeIf { it.localFileId == localFileId }
 
+    tracks?.sortBy { it.index }
+
+    var index = 1
+    var startOffset = 0.0
     var totalDuration = 0.0
     tracks?.forEach {
+      it.index = index
+      it.startOffset = startOffset
       totalDuration += it.duration
+
+      index++
+      startOffset += it.duration
     }
     duration = totalDuration
   }
@@ -233,6 +242,7 @@ data class AudioTrack(
   var isLocal:Boolean,
   var localFileId:String?,
   var audioProbeResult:AudioProbeResult?,
+  var serverIndex:Int? // Need to know if server track index is different
 ) {
 
   @get:JsonIgnore
