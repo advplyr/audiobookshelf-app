@@ -1,5 +1,6 @@
 import Vue from 'vue'
 import LazyBookCard from '@/components/cards/LazyBookCard'
+import LazyListBookCard from '@/components/cards/LazyListBookCard'
 import LazySeriesCard from '@/components/cards/LazySeriesCard'
 import LazyCollectionCard from '@/components/cards/LazyCollectionCard'
 
@@ -15,6 +16,7 @@ export default {
     getComponentClass() {
       if (this.entityName === 'series') return Vue.extend(LazySeriesCard)
       if (this.entityName === 'collections') return Vue.extend(LazyCollectionCard)
+      if (this.showBookshelfListView) return Vue.extend(LazyListBookCard)
       return Vue.extend(LazyBookCard)
     },
     async mountEntityCard(index) {
@@ -32,10 +34,10 @@ export default {
         bookComponent.isHovering = false
         return
       }
-      var shelfOffsetY = this.isBookEntity ? 24 : 16
+      var shelfOffsetY = this.showBookshelfListView ? 8 : this.isBookEntity ? 24 : 16
       var row = index % this.entitiesPerShelf
 
-      var marginShiftLeft = 12
+      var marginShiftLeft = this.showBookshelfListView ? 0 : 12
       var shelfOffsetX = row * this.totalEntityCardWidth + this.bookshelfMarginLeft + marginShiftLeft
 
       var ComponentClass = this.getComponentClass()

@@ -89,8 +89,7 @@ export default {
 
       return categories
     },
-    async fetchCategories(from = null) {
-      console.log('[4breadcrumbs] fetchCategories', from)
+    async fetchCategories() {
       if (this.loading) {
         console.log('Already loading categories')
         return
@@ -130,7 +129,7 @@ export default {
     },
     async libraryChanged(libid) {
       if (this.currentLibraryId) {
-        await this.fetchCategories('libraryChanged')
+        await this.fetchCategories()
       }
     },
     audiobookAdded(audiobook) {
@@ -188,7 +187,7 @@ export default {
   },
   mounted() {
     this.initListeners()
-    this.fetchCategories('mounted')
+    this.fetchCategories()
     // if (this.$server.initialized && this.currentLibraryId) {
     //   this.fetchCategories()
     // } else {

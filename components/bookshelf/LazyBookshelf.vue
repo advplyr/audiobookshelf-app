@@ -1,8 +1,8 @@
 <template>
   <div id="bookshelf" class="w-full max-w-full h-full">
     <template v-for="shelf in totalShelves">
-      <div :key="shelf" class="w-full px-2 bookshelfRow relative" :id="`shelf-${shelf - 1}`" :style="{ height: shelfHeight + 'px' }">
-        <div class="bookshelfDivider w-full absolute bottom-0 left-0 z-30" style="min-height: 16px" :class="`h-${shelfDividerHeightIndex}`" />
+      <div :key="shelf" class="w-full px-2 relative" :class="showBookshelfListView ? '' : 'bookshelfRow'" :id="`shelf-${shelf - 1}`" :style="{ height: shelfHeight + 'px' }">
+        <div v-if="!showBookshelfListView" class="bookshelfDivider w-full absolute bottom-0 left-0 z-30" style="min-height: 16px" :class="`h-${shelfDividerHeightIndex}`" />
       </div>
     </template>
 
@@ -28,9 +28,8 @@ export default {
       bookshelfWidth: 0,
       bookshelfMarginLeft: 0,
       shelvesPerPage: 0,
-      entitiesPerShelf: 8,
+      entitiesPerShelf: 2,
       currentPage: 0,
-      currentBookWidth: 0,
       booksPerFetch: 20,
       initialized: false,
       currentSFQueryString: null,
@@ -46,6 +45,11 @@ export default {
       localLibraryItems: []
     }
   },
+  watch: {
+    showBookshelfListView(newVal) {
+      this.resetEntities()
+    }
+  },
   computed: {
     user() {
       return this.$store.state.user.user
@@ -56,6 +60,12 @@ export default {
     shelfDividerHeightIndex() {
       if (this.isBookEntity) return 4
       return 6
+    },
+    bookshelfListView() {
+      return this.$store.state.globals.bookshelfListView
+    },
+    showBookshelfListView() {
+      return this.isBookEntity && this.bookshelfListView
     },
     entityName() {
       return this.page
@@ -93,10 +103,12 @@ export default {
       return this.bookWidth * 1.6
     },
     entityWidth() {
+      if (this.showBookshelfListView) return this.bookshelfWidth - 16
       if (this.isBookEntity) return this.bookWidth
       return this.bookWidth * 2
     },
     entityHeight() {
+      if (this.showBookshelfListView) return 88
       return this.bookHeight
     },
     currentLibraryId() {
@@ -106,9 +118,11 @@ export default {
       return this.$store.getters['libraries/getCurrentLibraryMediaType']
     },
     shelfHeight() {
+      if (this.showBookshelfListView) return this.entityHeight
       return this.entityHeight + 40
     },
     totalEntityCardWidth() {
+      if (this.showBookshelfListView) return this.entityWidth
       // Includes margin
       return this.entityWidth + 24
     }
@@ -154,16 +168,6 @@ export default {
         }
 
         for (let i = 0; i < payload.results.length; i++) {
-          if (this.entityName === 'books' || this.entityName === 'series-books') {
-            // Check if has download and append download obj
-            // var download = this.downloads.find((dl) => dl.id === payload.results[i].id)
-            // if (download) {
-            //   var dl = { ...download }
-            //   delete dl.audiobook
-            //   payload.results[i].download = dl
-            // }
-          }
-
           var index = i + startIndex
           this.entities[index] = payload.results[i]
           if (this.entityComponentRefs[index]) {
@@ -294,12 +298,11 @@ export default {
       var { clientHeight, clientWidth } = bookshelf
       this.bookshelfHeight = clientHeight
       this.bookshelfWidth = clientWidth
-      this.entitiesPerShelf = Math.floor((this.bookshelfWidth - 16) / this.totalEntityCardWidth)
+      this.entitiesPerShelf = this.showBookshelfListView ? 1 : Math.floor((this.bookshelfWidth - 16) / this.totalEntityCardWidth)
 
       this.shelvesPerPage = Math.ceil(this.bookshelfHeight / this.shelfHeight) + 2
       this.bookshelfMarginLeft = (this.bookshelfWidth - this.entitiesPerShelf * this.totalEntityCardWidth) / 2
 
-      this.currentBookWidth = this.bookWidth
       if (this.totalEntities) {
         this.totalShelves = Math.ceil(this.totalEntities / this.entitiesPerShelf)
       }

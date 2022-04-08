@@ -29,35 +29,23 @@ export default {
       items: [
         {
           text: 'Title',
-          value: 'book.title'
+          value: 'media.metadata.title'
         },
         {
           text: 'Author (First Last)',
-          value: 'book.authorFL'
+          value: 'media.metadata.authorName'
         },
         {
           text: 'Author (Last, First)',
-          value: 'book.authorLF'
+          value: 'media.metadata.authorNameLF'
         },
         {
           text: 'Added At',
           value: 'addedAt'
         },
         {
-          text: 'Volume #',
-          value: 'book.volumeNumber'
-        },
-        {
-          text: 'Duration',
-          value: 'duration'
-        },
-        {
           text: 'Size',
           value: 'size'
-        },
-        {
-          text: 'Last Read',
-          value: 'recent'
         }
       ]
     }

@@ -1,5 +1,6 @@
 export const state = () => ({
-  itemDownloads: []
+  itemDownloads: [],
+  bookshelfListView: false
 })
 
 export const getters = {
@@ -41,5 +42,8 @@ export const mutations = {
   },
   removeItemDownload(state, id) {
     state.itemDownloads = state.itemDownloads.filter(i => i.id != id)
+  },
+  setBookshelfListView(state, val) {
+    state.bookshelfListView = val
   }
 }
