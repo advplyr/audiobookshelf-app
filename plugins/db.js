@@ -52,7 +52,6 @@ class DbService {
   }
 
   getLocalFolders() {
-    if (isWeb) return []
     return AbsDatabase.getLocalFolders().then((data) => {
       console.log('Loaded local folders', JSON.stringify(data))
       if (data.folders && typeof data.folders == 'string') {
@@ -66,7 +65,6 @@ class DbService {
   }
 
   getLocalFolder(folderId) {
-    if (isWeb) return null
     return AbsDatabase.getLocalFolder({ folderId }).then((data) => {
       console.log('Got local folder', JSON.stringify(data))
       return data
@@ -74,7 +72,6 @@ class DbService {
   }
 
   getLocalLibraryItemsInFolder(folderId) {
-    if (isWeb) return []
     return AbsDatabase.getLocalLibraryItemsInFolder({ folderId }).then((data) => {
       console.log('Loaded local library items in folder', JSON.stringify(data))
       if (data.localLibraryItems && typeof data.localLibraryItems == 'string') {
@@ -85,8 +82,7 @@ class DbService {
   }
 
   getLocalLibraryItems(mediaType = null) {
-    if (isWeb) return []
-    return AbsDatabase.getLocalLibraryItems(mediaType).then((data) => {
+    return AbsDatabase.getLocalLibraryItems({ mediaType }).then((data) => {
       console.log('Loaded all local media items', JSON.stringify(data))
       if (data.localLibraryItems && typeof data.localLibraryItems == 'string') {
         return JSON.parse(data.localLibraryItems)
@@ -96,12 +92,10 @@ class DbService {
   }
 
   getLocalLibraryItem(id) {
-    if (isWeb) return null
     return AbsDatabase.getLocalLibraryItem({ id })
   }
 
   getLocalLibraryItemByLLId(libraryItemId) {
-    if (isWeb) return null
     return AbsDatabase.getLocalLibraryItemByLLId({ libraryItemId })
   }
 }

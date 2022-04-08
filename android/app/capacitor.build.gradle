@@ -11,6 +11,7 @@ apply from: "../capacitor-cordova-android-plugins/cordova.variables.gradle"
 dependencies {
     implementation project(':capacitor-app')
     implementation project(':capacitor-dialog')
+    implementation project(':capacitor-haptics')
     implementation project(':capacitor-network')
     implementation project(':capacitor-status-bar')
     implementation project(':capacitor-storage')

@@ -23,7 +23,7 @@ export const getters = {
     return state.serverConnectionConfig ? state.serverConnectionConfig.address : null
   },
   getUserLibraryItemProgress: (state) => (libraryItemId) => {
-    if (!state.user.libraryItemProgress) return null
+    if (!state.user || !state.user.libraryItemProgress) return null
     return state.user.libraryItemProgress.find(li => li.id == libraryItemId)
   },
   getUserBookmarksForItem: (state) => (libraryItemId) => {

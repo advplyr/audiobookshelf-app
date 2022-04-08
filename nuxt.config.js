@@ -42,7 +42,8 @@ export default {
     '@/plugins/axios.js',
     '@/plugins/capacitor/index.js',
     '@/plugins/toast.js',
-    '@/plugins/constants.js'
+    '@/plugins/constants.js',
+    '@/plugins/haptics.js'
   ],
 
   components: true,

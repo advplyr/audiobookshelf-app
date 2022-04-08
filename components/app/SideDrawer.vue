@@ -8,9 +8,10 @@
           <strong>{{ username }}</strong>
         </p>
       </div>
+
       <div class="w-full overflow-y-auto">
         <template v-for="item in navItems">
-          <nuxt-link :to="item.to" :key="item.text" class="w-full hover:bg-bg hover:bg-opacity-60 flex items-center py-3 px-6 text-gray-300">
+          <nuxt-link :to="item.to" :key="item.text" class="w-full hover:bg-bg hover:bg-opacity-60 flex items-center py-3 px-6 text-gray-300" :class="currentRoutePath.startsWith(item.to) ? 'bg-bg bg-opacity-60' : ''">
             <span class="text-lg" :class="item.iconOutlined ? 'material-icons-outlined' : 'material-icons'">{{ item.icon }}</span>
             <p class="pl-4">{{ item.text }}</p>
           </nuxt-link>
@@ -82,25 +83,9 @@ export default {
           icon: 'home',
           text: 'Home',
           to: '/bookshelf'
-        },
-        {
-          icon: 'person',
-          text: 'Account',
-          to: '/account'
-        },
-        {
-          icon: 'folder',
-          iconOutlined: true,
-          text: 'Local Media',
-          to: '/localMedia/folders'
         }
-        // {
-        //   icon: 'settings',
-        //   text: 'Settings',
-        //   to: '/config'
-        // }
       ]
-      if (!this.socketConnected) {
+      if (!this.serverConnectionConfig) {
         items = [
           {
             icon: 'cloud_off',
@@ -108,8 +93,24 @@ export default {
             to: '/connect'
           }
         ].concat(items)
+      } else {
+        items.push({
+          icon: 'person',
+          text: 'Account',
+          to: '/account'
+        })
       }
+
+      items.push({
+        icon: 'folder',
+        iconOutlined: true,
+        text: 'Local Media',
+        to: '/localMedia/folders'
+      })
       return items
+    },
+    currentRoutePath() {
+      return this.$route.path
     }
   },
   methods: {

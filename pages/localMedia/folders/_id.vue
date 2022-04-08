@@ -1,13 +1,16 @@
 <template>
-  <div class="w-full h-full py-6 px-2">
-    <div class="flex items-center mb-4">
+  <div class="w-full h-full py-6 px-4">
+    <div class="flex items-center mb-2">
+      <p class="text-base font-semibold">Folder: {{ folderName }}</p>
       <div class="flex-grow" />
-      <ui-btn v-if="!removingFolder" :loading="isScanning" small @click="clickScan">Scan</ui-btn>
-      <ui-btn v-if="!removingFolder && localLibraryItems.length" :loading="isScanning" small class="ml-2" color="warning" @click="clickForceRescan">Force Re-Scan</ui-btn>
-      <ui-icon-btn class="ml-2" bg-color="error" outlined :loading="removingFolder" icon="delete" @click="clickDeleteFolder" />
+
+      <span class="material-icons" @click="showDialog = true">more_vert</span>
     </div>
-    <p class="text-lg mb-0.5 text-white text-opacity-75">Folder: {{ folderName }}</p>
-    <p class="mb-4 text-xl">Local Library Items ({{ localLibraryItems.length }})</p>
+
+    <p class="text-sm mb-4 text-white text-opacity-60">Media Type: {{ mediaType }}</p>
+
+    <p class="mb-2 text-base text-white">Local Library Items ({{ localLibraryItems.length }})</p>
+
     <div v-if="isScanning" class="w-full text-center p-4">
       <p>Scanning...</p>
     </div>
@@ -18,19 +21,18 @@
             <img v-if="mediaItem.coverPathSrc" :src="mediaItem.coverPathSrc" class="w-full h-full object-contain" />
           </div>
           <div class="flex-grow px-2">
-            <p>{{ mediaItem.media.metadata.title }}</p>
-            <p v-if="mediaItem.type == 'book'">{{ mediaItem.media.tracks.length }} Tracks</p>
-            <p v-else-if="mediaItem.type == 'podcast'">{{ mediaItem.media.episodes.length }} Tracks</p>
+            <p class="text-sm">{{ mediaItem.media.metadata.title }}</p>
+            <p v-if="mediaItem.mediaType == 'book'" class="text-xs text-gray-300">{{ mediaItem.media.tracks.length }} Track{{ mediaItem.media.tracks.length == 1 ? '' : 's' }}</p>
+            <p v-else-if="mediaItem.mediaType == 'podcast'" class="text-xs text-gray-300">{{ mediaItem.media.episodes.length }} Episode{{ mediaItem.media.tracks.length == 1 ? '' : 's' }}</p>
           </div>
           <div class="w-12 h-12 flex items-center justify-center">
             <span class="material-icons text-xl text-gray-300">arrow_right</span>
-            <!-- <button class="shadow-sm text-accent flex items-center justify-center rounded-full" @click.stop="play(mediaItem)">
-              <span class="material-icons" style="font-size: 2rem">play_arrow</span>
-            </button> -->
           </div>
         </nuxt-link>
       </template>
     </div>
+
+    <modals-dialog v-model="showDialog" :items="dialogItems" @action="dialogAction" />
   </div>
 </template>
 
@@ -51,22 +53,47 @@ export default {
       localLibraryItems: [],
       folder: null,
       isScanning: false,
-      removingFolder: false
+      removingFolder: false,
+      showDialog: false
     }
   },
   computed: {
     folderName() {
       return this.folder ? this.folder.name : null
+    },
+    mediaType() {
+      return this.folder ? this.folder.mediaType : null
+    },
+    dialogItems() {
+      return [
+        {
+          text: 'Scan',
+          value: 'scan'
+        },
+        {
+          text: 'Force Re-Scan',
+          value: 'rescan'
+        },
+        {
+          text: 'Remove',
+          value: 'remove'
+        }
+      ].filter((i) => !i.value == 'rescan' || this.localLibraryItems.length) // Filter out rescan if there are no local library items
     }
   },
   methods: {
-    clickScan() {
-      this.scanFolder()
+    dialogAction(action) {
+      console.log('Dialog action', action)
+      if (action == 'scan') {
+        this.scanFolder()
+      } else if (action == 'rescan') {
+        this.scanFolder(true)
+      } else if (action == 'remove') {
+        this.removeFolder()
+      }
+      this.showDialog = false
     },
-    clickForceRescan() {
-      this.scanFolder(true)
-    },
-    async clickDeleteFolder() {
+    async removeFolder() {
       var deleteMessage = 'Are you sure you want to remove this folder? (does not delete anything in your file system)'
       if (this.localLibraryItems.length) {
         deleteMessage = `Are you sure you want to remove this folder and ${this.localLibraryItems.length} items? (does not delete anything in your file system)`

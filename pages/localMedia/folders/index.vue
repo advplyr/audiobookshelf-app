@@ -1,8 +1,8 @@
 <template>
   <div class="w-full h-full py-6">
-    <h1 class="text-2xl px-4 mb-2">Local Folders</h1>
+    <h1 class="text-base font-semibold px-3 mb-2">Local Folders</h1>
 
-    <div v-if="!isIos" class="w-full max-w-full px-2 py-2">
+    <div v-if="!isIos" class="w-full max-w-full px-3 py-2">
       <template v-for="folder in localFolders">
         <nuxt-link :to="`/localMedia/folders/${folder.id}`" :key="folder.id" class="flex items-center px-2 py-4 bg-primary rounded-md border-bg mb-1">
           <span class="material-icons text-xl text-yellow-400">folder</span>
@@ -15,7 +15,7 @@
       <div v-if="!localFolders.length" class="flex justify-center">
         <p class="text-center">No Media Folders</p>
       </div>
-      <div class="flex border-t border-primary my-4">
+      <div class="flex border-t border-white border-opacity-10 my-4 py-4">
         <div class="flex-grow pr-1">
           <ui-dropdown v-model="newFolderMediaType" placeholder="Select media type" :items="mediaTypeItems" />
         </div>

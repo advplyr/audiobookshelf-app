@@ -73,9 +73,10 @@ export default {
   async asyncData({ store, params, redirect, app }) {
     var libraryItemId = params.id
     var libraryItem = null
-
+    console.log(libraryItemId)
     if (libraryItemId.startsWith('local')) {
       libraryItem = await app.$db.getLocalLibraryItem(libraryItemId)
+      console.log('Got lli', libraryItem)
     } else if (store.state.user.serverConnectionConfig) {
       libraryItem = await app.$axios.$get(`/api/items/${libraryItemId}?expanded=1`).catch((error) => {
         console.error('Failed', error)
@@ -331,153 +332,14 @@ export default {
         this.$set(this.libraryItem, 'localLibraryItem', item)
       }
     }
-    // async prepareDownload() {
-    //   var audiobook = this.libraryItem
-    //   if (!audiobook) {
-    //     return
-    //   }
-
-    //   // Download Path
-    //   var dlFolder = this.$localStore.downloadFolder
-    //   console.log('Prepare download: ' + this.hasStoragePermission + ' | ' + dlFolder)
-
-    //   if (!this.hasStoragePermission || !dlFolder) {
-    //     console.log('No download folder, request from user')
-    //     // User to select download folder from download modal to ensure permissions
-    //     // this.$store.commit('downloads/setShowModal', true)
-    //     this.changeDownloadFolderClick()
-    //     return
-    //   } else {
-    //     console.log('Has Download folder: ' + JSON.stringify(dlFolder))
-    //   }
-
-    //   var downloadObject = {
-    //     id: this.libraryItemId,
-    //     downloadFolderUrl: dlFolder.uri,
-    //     audiobook: {
-    //       ...audiobook
-    //     },
-    //     isPreparing: true,
-    //     isDownloading: false,
-    //     toastId: this.$toast(`Preparing download for "${this.title}"`, { timeout: false })
-    //   }
-    //   if (audiobook.tracks.length === 1) {
-    //     // Single track should not need preparation
-    //     console.log('Single track, start download no prep needed')
-    //     var track = audiobook.tracks[0]
-    //     var fileext = track.ext
-
-    //     console.log('Download Single Track Path: ' + track.path)
-
-    //     var relTrackPath = track.path.replace('\\', '/').replace(this.libraryItem.path.replace('\\', '/'), '')
-
-    //     var url = `${this.$store.state.serverUrl}/s/book/${this.libraryItemId}${relTrackPath}?token=${this.userToken}`
-    //     this.startDownload(url, fileext, downloadObject)
-    //   } else {
-    //     // Multi-track merge
-    //     this.$store.commit('downloads/addUpdateDownload', downloadObject)
-
-    //     var prepareDownloadPayload = {
-    //       audiobookId: this.libraryItemId,
-    //       audioFileType: 'same',
-    //       type: 'singleAudio'
-    //     }
-    //     this.$server.socket.emit('download', prepareDownloadPayload)
-    //   }
-    // },
-    // getCoverUrlForDownload() {
-    //   if (!this.book || !this.book.cover) return null
-
-    //   var cover = this.book.cover
-    //   if (cover.startsWith('http')) return cover
-    //   var coverSrc = this.$store.getters['global/getLibraryItemCoverSrc'](this.libraryItem)
-    //   return coverSrc
-    // },
-    // async startDownload(url, fileext, download) {
-    //   this.$toast.update(download.toastId, { content: `Downloading "${download.audiobook.book.title}"...` })
-
-    //   var coverDownloadUrl = this.getCoverUrlForDownload()
-    //   var coverFilename = null
-    //   if (coverDownloadUrl) {
-    //     var coverNoQueryString = coverDownloadUrl.split('?')[0]
-
-    //     var coverExt = Path.extname(coverNoQueryString) || '.jpg'
-    //     coverFilename = `cover-${download.id}${coverExt}`
-    //   }
-
-    //   download.isDownloading = true
-    //   download.isPreparing = false
-    //   download.filename = `${download.audiobook.book.title}${fileext}`
-    //   this.$store.commit('downloads/addUpdateDownload', download)
-
-    //   console.log('Starting Download URL', url)
-    //   var downloadRequestPayload = {
-    //     audiobookId: download.id,
-    //     filename: download.filename,
-    //     coverFilename,
-    //     coverDownloadUrl,
-    //     downloadUrl: url,
-    //     title: download.audiobook.book.title,
-    //     downloadFolderUrl: download.downloadFolderUrl
-    //   }
-    //   var downloadRes = await AudioDownloader.download(downloadRequestPayload)
-    //   if (downloadRes.error) {
-    //     var errorMsg = downloadRes.error || 'Unknown error'
-    //     console.error('Download error', errorMsg)
-    //     this.$toast.update(download.toastId, { content: `Error: ${errorMsg}`, options: { timeout: 5000, type: 'error' } })
-    //     this.$store.commit('downloads/removeDownload', download)
-    //   }
-    // },
-    // downloadReady(prepareDownload) {
-    //   var download = this.$store.getters['downloads/getDownload'](prepareDownload.audiobookId)
-    //   if (download) {
-    //     var fileext = prepareDownload.ext
-    //     var url = `${this.$store.state.serverUrl}/downloads/${prepareDownload.id}/${prepareDownload.filename}?token=${this.userToken}`
-    //     this.startDownload(url, fileext, download)
-    //   } else {
-    //     console.error('Prepare download killed but download not found', prepareDownload)
-    //   }
-    // },
-    // downloadKilled(prepareDownload) {
-    //   var download = this.$store.getters['downloads/getDownload'](prepareDownload.audiobookId)
-    //   if (download) {
-    //     this.$toast.update(download.toastId, { content: `Prepare download killed for "${download.audiobook.book.title}"`, options: { timeout: 5000, type: 'error' } })
-    //     this.$store.commit('downloads/removeDownload', download)
-    //   } else {
-    //     console.error('Prepare download killed but download not found', prepareDownload)
-    //   }
-    // },
-    // downloadFailed(prepareDownload) {
-    //   var download = this.$store.getters['downloads/getDownload'](prepareDownload.audiobookId)
-    //   if (download) {
-    //     this.$toast.update(download.toastId, { content: `Prepare download failed for "${download.audiobook.book.title}"`, options: { timeout: 5000, type: 'error' } })
-    //     this.$store.commit('downloads/removeDownload', download)
-    //   } else {
-    //     console.error('Prepare download failed but download not found', prepareDownload)
-    //   }
-    // }
   },
   mounted() {
     this.$eventBus.$on('new-local-library-item', this.newLocalLibraryItem)
-    // if (!this.$server.socket) {
-    //   console.warn('Library Item Page mounted: Server socket not set')
-    // } else {
-    //   this.$server.socket.on('download_ready', this.downloadReady)
-    //   this.$server.socket.on('download_killed', this.downloadKilled)
-    //   this.$server.socket.on('download_failed', this.downloadFailed)
     //   this.$server.socket.on('item_updated', this.itemUpdated)
-    // }
   },
   beforeDestroy() {
     this.$eventBus.$off('new-local-library-item', this.newLocalLibraryItem)
-    // if (!this.$server.socket) {
-    //   console.warn('Library Item Page beforeDestroy: Server socket not set')
-    // } else {
-    //   this.$server.socket.off('download_ready', this.downloadReady)
-    //   this.$server.socket.off('download_killed', this.downloadKilled)
-    //   this.$server.socket.off('download_failed', this.downloadFailed)
     //   this.$server.socket.off('item_updated', this.itemUpdated)
-    // }
   }
 }
 </script>

@@ -97,7 +97,7 @@ class FolderScanner(var ctx: Context) {
 
          var localFileId = DeviceManager.getBase64Id(file.id)
 
-         var localFile = LocalFile(localFileId,filename,file.uri.toString(),file.getAbsolutePath(ctx),file.getSimplePath(ctx),mimeType,file.length())
+         var localFile = LocalFile(localFileId,filename,file.uri.toString(),file.getBasePath(ctx), file.getAbsolutePath(ctx),file.getSimplePath(ctx),mimeType,file.length())
          localFiles.add(localFile)
 
          Log.d(tag, "File attributes Id:${localFileId}|ContentUrl:${localFile.contentUrl}|isDownloadsDocument:${file.isDownloadsDocument}")
@@ -134,7 +134,7 @@ class FolderScanner(var ctx: Context) {
                audioTrackToAdd = existingAudioTrack
              } else {
                // Create new audio track
-               var track = AudioTrack(index, startOffset, audioProbeResult.duration, filename, localFile.contentUrl, mimeType, null, true, localFileId, audioProbeResult)
+               var track = AudioTrack(index, startOffset, audioProbeResult.duration, filename, localFile.contentUrl, mimeType, null, true, localFileId, audioProbeResult, null)
                audioTrackToAdd = track
              }
 
@@ -186,7 +186,7 @@ class FolderScanner(var ctx: Context) {
          Log.d(tag, "Found local media item named $itemFolderName with ${audioTracks.size} tracks and ${localFiles.size} local files")
          mediaItemsAdded++
 
-         var localMediaItem = LocalMediaItem(itemId, itemFolderName, localFolder.mediaType, localFolder.id, itemFolder.uri.toString(), itemFolder.getSimplePath(ctx), itemFolder.getAbsolutePath(ctx),audioTracks,localFiles,coverContentUrl,coverAbsolutePath)
+         var localMediaItem = LocalMediaItem(itemId,null, itemFolderName, localFolder.mediaType, localFolder.id, itemFolder.uri.toString(), itemFolder.getSimplePath(ctx), itemFolder.getBasePath(ctx), itemFolder.getAbsolutePath(ctx),audioTracks,localFiles,coverContentUrl,coverAbsolutePath)
          var localLibraryItem = localMediaItem.getLocalLibraryItem()
          localLibraryItems.add(localLibraryItem)
        }
@@ -209,10 +209,14 @@ class FolderScanner(var ctx: Context) {
   fun scanDownloadItem(downloadItem: AbsDownloader.DownloadItem):LocalLibraryItem? {
     var folderDf = DocumentFileCompat.fromUri(ctx, Uri.parse(downloadItem.localFolder.contentUrl))
     var foldersFound =  folderDf?.search(false, DocumentFileType.FOLDER) ?: mutableListOf()
-    var itemFolderUrl:String = ""
+    var itemFolderUrl = ""
+    var itemFolderBasePath = ""
+    var itemFolderAbsolutePath = ""
     foldersFound.forEach {
       if (it.name == downloadItem.itemTitle) {
         itemFolderUrl = it.uri.toString()
+        itemFolderBasePath = it.getBasePath(ctx)
+        itemFolderAbsolutePath = it.getAbsolutePath(ctx)
       }
     }
 
@@ -232,7 +236,7 @@ class FolderScanner(var ctx: Context) {
     var filesFound = df.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*"))
     Log.d(tag, "scanDownloadItem ${filesFound.size} files found in ${downloadItem.itemFolderPath}")
 
-    var localLibraryItem = LocalLibraryItem("local_${downloadItem.id}", downloadItem.id, downloadItem.localFolder.id, downloadItem.itemFolderPath,itemFolderUrl, false, downloadItem.mediaType, downloadItem.media, mutableListOf(), null, null, true)
+    var localLibraryItem = LocalLibraryItem("local_${downloadItem.id}", downloadItem.serverAddress, downloadItem.id, downloadItem.localFolder.id, itemFolderBasePath, itemFolderAbsolutePath, itemFolderUrl, false, downloadItem.mediaType, downloadItem.media, mutableListOf(), null, null, true)
 
     var localFiles:MutableList<LocalFile> = mutableListOf()
     var audioTracks:MutableList<AudioTrack> = mutableListOf()
@@ -247,7 +251,7 @@ class FolderScanner(var ctx: Context) {
         var audioTrackFromServer = itemPart.audioTrack
 
         var localFileId = DeviceManager.getBase64Id(docFile.id)
-        var localFile = LocalFile(localFileId,docFile.name,docFile.uri.toString(),docFile.getAbsolutePath(ctx),docFile.getSimplePath(ctx),docFile.mimeType,docFile.length())
+        var localFile = LocalFile(localFileId,docFile.name,docFile.uri.toString(),docFile.getBasePath(ctx),docFile.getAbsolutePath(ctx),docFile.getSimplePath(ctx),docFile.mimeType,docFile.length())
         localFiles.add(localFile)
 
         // TODO: Make asynchronous
@@ -257,11 +261,11 @@ class FolderScanner(var ctx: Context) {
         Log.d(tag, "Probe Result DATA ${audioProbeResult.duration} | ${audioProbeResult.size} | ${audioProbeResult.title} | ${audioProbeResult.artist}")
 
           // Create new audio track
-        var track = AudioTrack(audioTrackFromServer?.index ?: 0, audioTrackFromServer?.startOffset ?: 0.0, audioProbeResult.duration, localFile.filename ?: "", localFile.contentUrl, localFile.mimeType ?: "", null, true, localFileId, audioProbeResult)
+        var track = AudioTrack(audioTrackFromServer?.index ?: -1, audioTrackFromServer?.startOffset ?: 0.0, audioProbeResult.duration, localFile.filename ?: "", localFile.contentUrl, localFile.mimeType ?: "", null, true, localFileId, audioProbeResult, audioTrackFromServer?.index ?: -1)
         audioTracks.add(track)
       } else { // Cover image
         var localFileId = DeviceManager.getBase64Id(docFile.id)
-        var localFile = LocalFile(localFileId,docFile.name,docFile.uri.toString(),docFile.getAbsolutePath(ctx),docFile.getSimplePath(ctx),docFile.mimeType,docFile.length())
+        var localFile = LocalFile(localFileId,docFile.name,docFile.uri.toString(),docFile.getBasePath(ctx),docFile.getAbsolutePath(ctx),docFile.getSimplePath(ctx),docFile.mimeType,docFile.length())
         localFiles.add(localFile)
 
         localLibraryItem.coverAbsolutePath = localFile.absolutePath
@@ -272,6 +276,19 @@ class FolderScanner(var ctx: Context) {
     if (audioTracks.isEmpty()) {
       Log.d(tag, "scanDownloadItem did not find any audio tracks in folder for ${downloadItem.itemFolderPath}")
       return null
+    }
+
+    audioTracks.sortBy { it.index }
+
+    var indexCheck = 1
+    var startOffset = 0.0
+    audioTracks.forEach { audioTrack ->
+      if (audioTrack.index != indexCheck || audioTrack.startOffset != startOffset) {
+        audioTrack.index = indexCheck
+        audioTrack.startOffset = startOffset
+      }
+      indexCheck++
+      startOffset += audioTrack.duration
     }
 
     localLibraryItem.media.setAudioTracks(audioTracks)
@@ -329,7 +346,7 @@ class FolderScanner(var ctx: Context) {
 
       if (existingLocalFile == null || (existingLocalFile.isAudioFile() && forceAudioProbe)) {
 
-        var localFile = existingLocalFile ?: LocalFile(localFileId,docFile.name,docFile.uri.toString(),docFile.getAbsolutePath(ctx),docFile.getSimplePath(ctx),docFile.mimeType,docFile.length())
+        var localFile = existingLocalFile ?: LocalFile(localFileId,docFile.name,docFile.uri.toString(),docFile.getBasePath(ctx), docFile.getAbsolutePath(ctx),docFile.getSimplePath(ctx),docFile.mimeType,docFile.length())
         if (existingLocalFile == null) {
           localLibraryItem.localFiles.add(localFile)
           Log.d(tag, "scanLocalLibraryItem new file found ${localFile.filename}")
@@ -350,7 +367,7 @@ class FolderScanner(var ctx: Context) {
             // Create new audio track
               var lastTrack = existingAudioTracks.lastOrNull()
             var startOffset = (lastTrack?.startOffset ?: 0.0) + (lastTrack?.duration ?: 0.0)
-            var track = AudioTrack(existingAudioTracks.size, startOffset, audioProbeResult.duration, localFile.filename ?: "", localFile.contentUrl, localFile.mimeType ?: "", null, true, localFileId, audioProbeResult)
+            var track = AudioTrack(existingAudioTracks.size, startOffset, audioProbeResult.duration, localFile.filename ?: "", localFile.contentUrl, localFile.mimeType ?: "", null, true, localFileId, audioProbeResult, null)
             localLibraryItem.media.addAudioTrack(track)
             wasUpdated = true
           } else {

@@ -166,12 +166,13 @@ export default {
       }
     },
     async playLibraryItem(libraryItemId) {
+      console.log('Called playLibraryItem', libraryItemId)
       AbsAudioPlayer.prepareLibraryItem({ libraryItemId, playWhenReady: true })
         .then((data) => {
-          console.log('TEST library item play response', JSON.stringify(data))
+          console.log('Library item play response', JSON.stringify(data))
         })
         .catch((error) => {
-          console.error('TEST failed', error)
+          console.error('Failed', error)
         })
     }
   },

@@ -56,6 +56,88 @@ class AbsDatabaseWeb extends WebPlugin {
     deviceData.lastServerConnectionConfigId = null
     localStorage.setItem('device', JSON.stringify(deviceData))
   }
+
+  //
+  // For testing on web
+  //
+  async getLocalFolders() {
+    return {
+      folders: [
+        {
+          id: 'test1',
+          name: 'Audiobooks',
+          contentUrl: 'test',
+          absolutePath: '/audiobooks',
+          simplePath: 'audiobooks',
+          storageType: 'primary',
+          mediaType: 'book'
+        }
+      ]
+    }
+  }
+  async getLocalFolder({ folderId }) {
+    return this.getLocalFolders().then((data) => data.folders[0])
+  }
+  async getLocalLibraryItems(payload) {
+    return {
+      localLibraryItems: [{
+        id: 'local_test',
+        libraryItemId: 'test34',
+        folderId: 'test1',
+        absolutePath: 'a',
+        contentUrl: 'c',
+        isInvalid: false,
+        mediaType: 'book',
+        media: {
+          metadata: {
+            title: 'Test Book',
+            authorName: 'Test Author Name'
+          },
+          coverPath: null,
+          tags: [],
+          audioFiles: [],
+          chapters: [],
+          tracks: [
+            {
+              index: 1,
+              startOffset: 0,
+              duration: 10000,
+              title: 'Track Title 1',
+              contentUrl: 'test',
+              mimeType: 'audio/mpeg',
+              metadata: null,
+              isLocal: true,
+              localFileId: 'lf1',
+              audioProbeResult: {}
+            }
+          ]
+        },
+        localFiles: [
+          {
+            id: 'lf1',
+            filename: 'lf1.mp3',
+            contentUrl: 'test',
+            absolutePath: 'test',
+            simplePath: 'test',
+            mimeType: 'audio/mpeg',
+            size: 39048290
+          }
+        ],
+        coverContentUrl: null,
+        coverAbsolutePath: null,
+        isLocal: true
+      }]
+    }
+  }
+  async getLocalLibraryItemsInFolder({ folderId }) {
+    return this.getLocalLibraryItems()
+  }
+  async getLocalLibraryItem({ id }) {
+    return this.getLocalLibraryItems().then((data) => data.localLibraryItems[0])
+  }
+  async getLocalLibraryItemByLLId({ libraryItemId }) {
+    return this.getLocalLibraryItems().then((data) => data.localLibraryItems.find(lli => lli.libraryItemId == libraryItemId))
+  }
 }
 
 const AbsDatabase = registerPlugin('AbsDatabase', {
