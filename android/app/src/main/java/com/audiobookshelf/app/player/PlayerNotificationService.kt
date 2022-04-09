@@ -24,6 +24,7 @@ import androidx.media.utils.MediaConstants
 import com.audiobookshelf.app.Audiobook
 import com.audiobookshelf.app.AudiobookManager
 import com.audiobookshelf.app.data.PlaybackSession
+import com.audiobookshelf.app.server.ApiHandler
 import com.getcapacitor.Bridge
 import com.getcapacitor.JSObject
 import com.google.android.exoplayer2.*
@@ -69,6 +70,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   private lateinit var mediaSession: MediaSessionCompat
   private lateinit var transportControls:MediaControllerCompat.TransportControls
   private lateinit var audiobookManager: AudiobookManager
+  lateinit var apiHandler: ApiHandler
 
   lateinit var mPlayer: SimpleExoPlayer
   lateinit var currentPlayer:Player
@@ -76,7 +78,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   lateinit var sleepTimerManager:SleepTimerManager
   lateinit var castManager:CastManager
-  lateinit var audiobookProgressSyncer:AudiobookProgressSyncer
+  lateinit var mediaProgressSyncer:MediaProgressSyncer
 
   private var notificationId = 10;
   private var channelId = "audiobookshelf_channel"
@@ -195,7 +197,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     playerNotificationManager.setPlayer(null)
     mPlayer.release()
     mediaSession.release()
-    audiobookProgressSyncer.reset()
+    mediaProgressSyncer.reset()
     Log.d(tag, "onDestroy")
     isStarted = false
 
@@ -236,14 +238,17 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
     var client: OkHttpClient = OkHttpClient()
 
+    // Initialize API
+    apiHandler = ApiHandler(ctx)
+
     // Initialize sleep timer
     sleepTimerManager = SleepTimerManager(this)
 
     // Initialize Cast Manager
     castManager = CastManager(this)
 
-    // Initialize Audiobook Progress Syncer (Only used for android auto when webview is not open)
-    audiobookProgressSyncer = AudiobookProgressSyncer(this, client)
+    // Initialize Media Progress Syncer
+    mediaProgressSyncer = MediaProgressSyncer(this, apiHandler)
 
     // Initialize shake sensor
     Log.d(tag, "onCreate Register sensor listener ${mAccelerometer?.isWakeUpSensor}")
@@ -601,13 +606,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
             }
           } else lastPauseTime = System.currentTimeMillis()
 
-          // If app is only running in android auto then webview will not be open
-          //  so progress needs to be synced natively
+          // Start/stop progress sync interval
           Log.d(tag, "Playing ${getCurrentBookTitle()} | ${currentPlayer.mediaMetadata.title} | ${currentPlayer.mediaMetadata.displayTitle}")
           if (player.isPlaying) {
-            audiobookProgressSyncer.start()
+            mediaProgressSyncer.start()
           } else {
-            audiobookProgressSyncer.stop()
+            mediaProgressSyncer.stop()
           }
 
           clientEventEmitter?.onPlayingUpdate(player.isPlaying)
@@ -763,6 +767,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     }
   }
 
+  fun getCurrentTimeSeconds() : Double {
+    return getCurrentTime() / 1000.0
+  }
+
   fun getBufferedTime() : Long {
     if (currentPlayer.mediaItemCount > 1) {
       var windowIndex = currentPlayer.currentWindowIndex
@@ -783,6 +791,14 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   fun getCurrentBookTitle() : String? {
     return currentPlaybackSession?.displayTitle
+  }
+
+  fun getCurrentPlaybackSessionCopy() :PlaybackSession? {
+    return currentPlaybackSession?.clone()
+  }
+
+  fun getCurrentPlaybackSessionId() :String? {
+    return currentPlaybackSession?.id
   }
 
   fun calcPauseSeekBackTime() : Long {
