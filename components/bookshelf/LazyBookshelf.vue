@@ -327,13 +327,26 @@ export default {
       this.handleScroll(scrollTop)
     },
     buildSearchParams() {
-      let searchParams = new URLSearchParams()
-      if (this.filterBy && this.filterBy !== 'all') {
-        searchParams.set('filter', this.filterBy)
+      if (this.page === 'search' || this.page === 'series' || this.page === 'collections') {
+        return ''
       }
-      if (this.orderBy) {
-        searchParams.set('sort', this.orderBy)
-        searchParams.set('desc', this.orderDesc ? 1 : 0)
+
+      let searchParams = new URLSearchParams()
+      if (this.page === 'series-books') {
+        searchParams.set('filter', `series.${this.$encode(this.seriesId)}`)
+        searchParams.set('sort', 'book.volumeNumber')
+        searchParams.set('desc', 0)
+      } else {
+        if (this.filterBy && this.filterBy !== 'all') {
+          searchParams.set('filter', this.filterBy)
+        }
+        if (this.orderBy) {
+          searchParams.set('sort', this.orderBy)
+          searchParams.set('desc', this.orderDesc ? 1 : 0)
+        }
+        if (this.collapseSeries) {
+          searchParams.set('collapseseries', 1)
+        }
       }
       return searchParams.toString()
     },

@@ -46,6 +46,7 @@ export default {
       return this.currentLibrary ? this.currentLibrary.name : 'Main'
     },
     showBack() {
+      if (!this.$route.name) return true
       return this.$route.name !== 'index' && !this.$route.name.startsWith('bookshelf')
     },
     user() {

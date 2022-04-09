@@ -164,7 +164,7 @@ export default {
       return this.$store.getters['user/getToken']
     },
     userItemProgress() {
-      return this.$store.getters['user/getUserLibraryItemProgress'](this.libraryItemId)
+      return this.$store.getters['user/getUserMediaProgress'](this.libraryItemId)
     },
     userIsFinished() {
       return this.userItemProgress ? !!this.userItemProgress.isFinished : false

@@ -1,6 +1,7 @@
 export const state = () => ({
   itemDownloads: [],
-  bookshelfListView: false
+  bookshelfListView: false,
+  series: null
 })
 
 export const getters = {
@@ -45,5 +46,8 @@ export const mutations = {
   },
   setBookshelfListView(state, val) {
     state.bookshelfListView = val
+  },
+  setSeries(state, val) {
+    state.series = val
   }
 }

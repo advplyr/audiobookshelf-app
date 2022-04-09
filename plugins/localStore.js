@@ -59,6 +59,25 @@ class LocalStorage {
       return false
     }
   }
+
+  async setBookshelfListView(useIt) {
+    try {
+      await Storage.set({ key: 'bookshelfListView', value: useIt ? '1' : '0' })
+      this.getBookshelfListView()
+    } catch (error) {
+      console.error('[LocalStorage] Failed to set bookshelf list view', error)
+    }
+  }
+
+  async getBookshelfListView() {
+    try {
+      var obj = await Storage.get({ key: 'bookshelfListView' }) || {}
+      return obj.value === '1'
+    } catch (error) {
+      console.error('[LocalStorage] Failed to get bookshelf list view', error)
+      return false
+    }
+  }
 }
 
 
