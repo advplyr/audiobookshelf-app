@@ -10,7 +10,6 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class LocalMediaItem(
   var id:String,
-  var serverAddress:String?,
   var name: String,
   var mediaType:String,
   var folderId:String,
@@ -63,10 +62,10 @@ data class LocalMediaItem(
     if (mediaType == "book") {
       var chapters = getAudiobookChapters()
       var book = Book(mediaMetadata as BookMetadata, coverAbsolutePath, mutableListOf(), mutableListOf(), chapters,audioTracks,getTotalSize(),getDuration())
-      return LocalLibraryItem(id,serverAddress, null, folderId, basePath,absolutePath, contentUrl,  false,mediaType, book, localFiles, coverContentUrl, coverAbsolutePath,true)
+      return LocalLibraryItem(id, folderId, basePath,absolutePath, contentUrl,  false,mediaType, book, localFiles, coverContentUrl, coverAbsolutePath,true,null,null,null,null)
     } else {
       var podcast = Podcast(mediaMetadata as PodcastMetadata, coverAbsolutePath, mutableListOf(), mutableListOf(), false)
-      return LocalLibraryItem(id,serverAddress, null, folderId, basePath,absolutePath, contentUrl, false, mediaType, podcast,localFiles,coverContentUrl, coverAbsolutePath, true)
+      return LocalLibraryItem(id, folderId, basePath,absolutePath, contentUrl, false, mediaType, podcast,localFiles,coverContentUrl, coverAbsolutePath, true, null,null,null,null)
     }
   }
 }

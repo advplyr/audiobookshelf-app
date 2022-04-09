@@ -9,6 +9,7 @@ data class ServerConnectionConfig(
   var index:Int,
   var name:String,
   var address:String,
+  var userId:String,
   var username:String,
   var token:String
 )
@@ -16,7 +17,7 @@ data class ServerConnectionConfig(
 data class DeviceData(
   var serverConnectionConfigs:MutableList<ServerConnectionConfig>,
   var lastServerConnectionConfigId:String?,
-  var localLibraryItemIdPlaying:String?
+  var currentLocalPlaybackSession:PlaybackSession? // Stored to open up where left off for local media
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)

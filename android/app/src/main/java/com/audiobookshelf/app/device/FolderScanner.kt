@@ -186,7 +186,7 @@ class FolderScanner(var ctx: Context) {
          Log.d(tag, "Found local media item named $itemFolderName with ${audioTracks.size} tracks and ${localFiles.size} local files")
          mediaItemsAdded++
 
-         var localMediaItem = LocalMediaItem(itemId,null, itemFolderName, localFolder.mediaType, localFolder.id, itemFolder.uri.toString(), itemFolder.getSimplePath(ctx), itemFolder.getBasePath(ctx), itemFolder.getAbsolutePath(ctx),audioTracks,localFiles,coverContentUrl,coverAbsolutePath)
+         var localMediaItem = LocalMediaItem(itemId, itemFolderName, localFolder.mediaType, localFolder.id, itemFolder.uri.toString(), itemFolder.getSimplePath(ctx), itemFolder.getBasePath(ctx), itemFolder.getAbsolutePath(ctx),audioTracks,localFiles,coverContentUrl,coverAbsolutePath)
          var localLibraryItem = localMediaItem.getLocalLibraryItem()
          localLibraryItems.add(localLibraryItem)
        }
@@ -236,7 +236,7 @@ class FolderScanner(var ctx: Context) {
     var filesFound = df.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*"))
     Log.d(tag, "scanDownloadItem ${filesFound.size} files found in ${downloadItem.itemFolderPath}")
 
-    var localLibraryItem = LocalLibraryItem("local_${downloadItem.id}", downloadItem.serverAddress, downloadItem.id, downloadItem.localFolder.id, itemFolderBasePath, itemFolderAbsolutePath, itemFolderUrl, false, downloadItem.mediaType, downloadItem.media, mutableListOf(), null, null, true)
+    var localLibraryItem = LocalLibraryItem("local_${downloadItem.id}", downloadItem.localFolder.id, itemFolderBasePath, itemFolderAbsolutePath, itemFolderUrl, false, downloadItem.mediaType, downloadItem.media, mutableListOf(), null, null, true,downloadItem.serverConnectionConfigId,downloadItem.serverAddress,downloadItem.serverUserId,downloadItem.id)
 
     var localFiles:MutableList<LocalFile> = mutableListOf()
     var audioTracks:MutableList<AudioTrack> = mutableListOf()

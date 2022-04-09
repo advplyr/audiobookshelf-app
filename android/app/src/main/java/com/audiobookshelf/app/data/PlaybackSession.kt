@@ -2,8 +2,9 @@ package com.audiobookshelf.app.data
 
 import android.net.Uri
 import android.support.v4.media.MediaMetadataCompat
-import android.util.Log
 import com.audiobookshelf.app.R
+import com.audiobookshelf.app.device.DeviceManager
+import com.audiobookshelf.app.player.MediaProgressSyncData
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.google.android.exoplayer2.MediaItem
@@ -29,17 +30,29 @@ class PlaybackSession(
   var coverPath:String?,
   var duration:Double,
   var playMethod:Int,
+  var startedAt:Long,
+  var updatedAt:Long,
+  var timeListening:Long,
   var audioTracks:MutableList<AudioTrack>,
   var currentTime:Double,
   var libraryItem:LibraryItem?,
   var localLibraryItem:LocalLibraryItem?,
-  var serverUrl:String?,
-  var token:String?
+  var serverConnectionConfigId:String?,
+  var serverAddress:String?
 ) {
 
+  @get:JsonIgnore
   val isHLS get() = playMethod == PLAYMETHOD_TRANSCODE
+  @get:JsonIgnore
   val isLocal get() = playMethod == PLAYMETHOD_LOCAL
+  @get:JsonIgnore
   val currentTimeMs get() = (currentTime * 1000L).toLong()
+  @get:JsonIgnore
+  val localLibraryItemId get() = localLibraryItem?.id ?: ""
+  @get:JsonIgnore
+  val localMediaProgressId get() = if (episodeId.isNullOrEmpty()) localLibraryItemId else "$localLibraryItemId-$episodeId"
+  @get:JsonIgnore
+  val progress get() = currentTime / getTotalDuration()
 
   @JsonIgnore
   fun getCurrentTrackIndex():Int {
@@ -77,13 +90,13 @@ class PlaybackSession(
     if (localLibraryItem?.coverContentUrl != null) return Uri.parse(localLibraryItem?.coverContentUrl) ?: Uri.parse("android.resource://com.audiobookshelf.app/" + R.drawable.icon)
 
     if (coverPath == null) return Uri.parse("android.resource://com.audiobookshelf.app/" + R.drawable.icon)
-    return Uri.parse("$serverUrl/api/items/$libraryItemId/cover?token=$token")
+    return Uri.parse("$serverAddress/api/items/$libraryItemId/cover?token=${DeviceManager.token}")
   }
 
   @JsonIgnore
   fun getContentUri(audioTrack:AudioTrack): Uri {
     if (isLocal) return Uri.parse(audioTrack.contentUrl) // Local content url
-    return Uri.parse("$serverUrl${audioTrack.contentUrl}?token=$token")
+    return Uri.parse("$serverAddress${audioTrack.contentUrl}?token=${DeviceManager.token}")
   }
 
   @JsonIgnore
@@ -130,6 +143,19 @@ class PlaybackSession(
 
   @JsonIgnore
   fun clone():PlaybackSession {
-    return PlaybackSession(id,userId,libraryItemId,episodeId,mediaType,mediaMetadata,chapters,displayTitle,displayAuthor,coverPath,duration,playMethod,audioTracks,currentTime,libraryItem,localLibraryItem,serverUrl,token)
+    return PlaybackSession(id,userId,libraryItemId,episodeId,mediaType,mediaMetadata,chapters,displayTitle,displayAuthor,coverPath,duration,playMethod,startedAt,updatedAt,timeListening,audioTracks,currentTime,libraryItem,localLibraryItem,serverConnectionConfigId,serverAddress)
+  }
+
+  @JsonIgnore
+  fun syncData(syncData:MediaProgressSyncData) {
+    timeListening += syncData.timeListened
+    updatedAt = System.currentTimeMillis()
+    currentTime = syncData.currentTime
+  }
+
+  @JsonIgnore
+  fun getNewLocalMediaProgress():LocalMediaProgress {
+    var dateNow = System.currentTimeMillis()
+    return LocalMediaProgress(localMediaProgressId,localLibraryItemId,episodeId,getTotalDuration(),progress,currentTime,false,dateNow,dateNow,null,serverConnectionConfigId,serverAddress,userId,libraryItemId)
   }
 }

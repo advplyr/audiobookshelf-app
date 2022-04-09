@@ -26,6 +26,7 @@ export default {
       isSleepTimerRunning: false,
       sleepTimerEndTime: 0,
       sleepTimeRemaining: 0,
+      onLocalMediaProgressUpdateListener: null,
       onSleepTimerEndedListener: null,
       onSleepTimerSetListener: null,
       sleepInterval: null,
@@ -174,9 +175,14 @@ export default {
         .catch((error) => {
           console.error('Failed', error)
         })
+    },
+    onLocalMediaProgressUpdate(localMediaProgress) {
+      console.log('Got local media progress update', localMediaProgress.progress, JSON.stringify(localMediaProgress))
+      this.$store.commit('globals/updateLocalMediaProgress', localMediaProgress)
     }
   },
   mounted() {
+    this.onLocalMediaProgressUpdateListener = AbsAudioPlayer.addListener('onLocalMediaProgressUpdate', this.onLocalMediaProgressUpdate)
     this.onSleepTimerEndedListener = AbsAudioPlayer.addListener('onSleepTimerEnded', this.onSleepTimerEnded)
     this.onSleepTimerSetListener = AbsAudioPlayer.addListener('onSleepTimerSet', this.onSleepTimerSet)
 
@@ -189,6 +195,7 @@ export default {
     this.$store.commit('user/addSettingsListener', { id: 'streamContainer', meth: this.settingsUpdated })
   },
   beforeDestroy() {
+    if (this.onLocalMediaProgressUpdateListener) this.onLocalMediaProgressUpdateListener.remove()
     if (this.onSleepTimerEndedListener) this.onSleepTimerEndedListener.remove()
     if (this.onSleepTimerSetListener) this.onSleepTimerSetListener.remove()
 

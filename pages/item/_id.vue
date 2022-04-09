@@ -164,6 +164,7 @@ export default {
       return this.$store.getters['user/getToken']
     },
     userItemProgress() {
+      if (this.isLocal) return this.$store.getters['globals/getLocalMediaProgressById'](this.libraryItemId)
       return this.$store.getters['user/getUserMediaProgress'](this.libraryItemId)
     },
     userIsFinished() {
@@ -238,17 +239,22 @@ export default {
       })
       if (value) {
         this.resettingProgress = true
-        this.$axios
-          .$delete(`/api/me/progress/${this.libraryItemId}`)
-          .then(() => {
-            console.log('Progress reset complete')
-            this.$toast.success(`Your progress was reset`)
-            this.resettingProgress = false
-          })
-          .catch((error) => {
-            console.error('Progress reset failed', error)
-            this.resettingProgress = false
-          })
+        if (this.isLocal) {
+          await this.$db.removeLocalMediaProgress(this.libraryItemId)
+          this.$store.commit('globals/removeLocalMediaProgress', this.libraryItemId)
+        } else {
+          await this.$axios
+            .$delete(`/api/me/progress/${this.libraryItemId}`)
+            .then(() => {
+              console.log('Progress reset complete')
+              this.$toast.success(`Your progress was reset`)
+            })
+            .catch((error) => {
+              console.error('Progress reset failed', error)
+            })
+        }
+
+        this.resettingProgress = false
       }
     },
     itemUpdated(libraryItem) {

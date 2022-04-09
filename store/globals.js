@@ -1,7 +1,8 @@
 export const state = () => ({
   itemDownloads: [],
   bookshelfListView: false,
-  series: null
+  series: null,
+  localMediaProgress: []
 })
 
 export const getters = {
@@ -25,11 +26,21 @@ export const getters = {
 
     var url = new URL(`/api/items/${libraryItem.id}/cover`, rootGetters['user/getServerAddress'])
     return `${url}?token=${userToken}&ts=${lastUpdate}`
+  },
+  getLocalMediaProgressById: (state) => (localLibraryItemId, episodeId = null) => {
+    return state.localMediaProgress.find(lmp => {
+      if (episodeId != null && lmp.episodeId != episodeId) return false
+      return lmp.localLibraryItemId == localLibraryItemId
+    })
   }
 }
 
 export const actions = {
-
+  async loadLocalMediaProgress({ state, commit }) {
+    var mediaProgress = await this.$db.getAllLocalMediaProgress()
+    console.log('Got all local media progress', JSON.stringify(mediaProgress))
+    commit('setLocalMediaProgress', mediaProgress)
+  }
 }
 
 export const mutations = {
@@ -49,5 +60,22 @@ export const mutations = {
   },
   setSeries(state, val) {
     state.series = val
+  },
+  setLocalMediaProgress(state, val) {
+    state.localMediaProgress = val
+  },
+  updateLocalMediaProgress(state, prog) {
+    if (!prog || !prog.id) {
+      return
+    }
+    var index = state.localMediaProgress.findIndex(lmp => lmp.id == prog.id)
+    if (index >= 0) {
+      state.localMediaProgress.splice(index, 1, prog)
+    } else {
+      state.localMediaProgress.push(prog)
+    }
+  },
+  removeLocalMediaProgress(state, id) {
+    state.localMediaProgress = state.localMediaProgress.filter(lmp => lmp.id != id)
   }
 }

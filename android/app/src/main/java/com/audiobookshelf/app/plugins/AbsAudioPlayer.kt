@@ -6,6 +6,7 @@ import android.os.Looper
 import android.util.Log
 import androidx.core.content.ContextCompat
 import com.audiobookshelf.app.MainActivity
+import com.audiobookshelf.app.data.LocalMediaProgress
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.player.CastManager
@@ -64,6 +65,10 @@ class AbsAudioPlayer : Plugin() {
         override fun onSleepTimerSet(sleepTimeRemaining: Int) {
           emit("onSleepTimerSet", sleepTimeRemaining)
         }
+
+        override fun onLocalMediaProgressUpdate(localMediaProgress: LocalMediaProgress) {
+          notifyListeners("onLocalMediaProgressUpdate", JSObject(jacksonObjectMapper().writeValueAsString(localMediaProgress)))
+        }
       })
     }
     mainActivity.pluginCallback = foregroundServiceReady
@@ -86,6 +91,7 @@ class AbsAudioPlayer : Plugin() {
     }
 
     var libraryItemId = call.getString("libraryItemId", "").toString()
+    var episodeId = call.getString("episodeId", "").toString()
     var playWhenReady = call.getBoolean("playWhenReady") == true
 
     if (libraryItemId.isEmpty()) {
@@ -97,13 +103,13 @@ class AbsAudioPlayer : Plugin() {
       DeviceManager.dbManager.getLocalLibraryItem(libraryItemId)?.let {
         Handler(Looper.getMainLooper()).post() {
           Log.d(tag, "Preparing Local Media item ${jacksonObjectMapper().writeValueAsString(it)}")
-          var playbackSession = it.getPlaybackSession()
+          var playbackSession = it.getPlaybackSession(episodeId)
           playerNotificationService.preparePlayer(playbackSession, playWhenReady)
         }
         return call.resolve(JSObject())
       }
     } else { // Play library item from server
-      apiHandler.playLibraryItem(libraryItemId, false) {
+      apiHandler.playLibraryItem(libraryItemId, episodeId, false) {
 
         Handler(Looper.getMainLooper()).post() {
           Log.d(tag, "Preparing Player TEST ${jacksonObjectMapper().writeValueAsString(it)}")

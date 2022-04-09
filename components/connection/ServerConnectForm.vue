@@ -123,6 +123,7 @@ export default {
       this.error = null
       this.serverConfig = {
         address: null,
+        userId: null,
         username: null
       }
     },
@@ -160,6 +161,7 @@ export default {
         this.deviceData.serverConnectionConfigs = this.deviceData.serverConnectionConfigs.filter((scc) => scc.id != this.serverConfig.id)
         this.serverConfig = {
           address: null,
+          userId: null,
           username: null
         }
         this.password = null
@@ -266,6 +268,7 @@ export default {
           this.$store.commit('libraries/setCurrentLibrary', userDefaultLibraryId)
         }
 
+        this.serverConfig.userId = user.id
         this.serverConfig.token = user.token
 
         var serverConnectionConfig = await this.$db.setServerConnectionConfig(this.serverConfig)
