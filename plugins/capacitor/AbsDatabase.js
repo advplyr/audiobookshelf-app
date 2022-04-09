@@ -13,7 +13,7 @@ class AbsDatabaseWeb extends WebPlugin {
     const deviceData = {
       serverConnectionConfigs: [],
       lastServerConnectionConfigId: null,
-      localLibraryItemIdPlaying: null
+      currentLocalPlaybackSession: null
     }
     return deviceData
   }
@@ -26,6 +26,7 @@ class AbsDatabaseWeb extends WebPlugin {
       deviceData.lastServerConnectionConfigId = ssc.id
       ssc.name = `${ssc.address} (${serverConnectionConfig.username})`
       ssc.token = serverConnectionConfig.token
+      ssc.userId = serverConnectionConfig.userId
       ssc.username = serverConnectionConfig.username
       localStorage.setItem('device', JSON.stringify(deviceData))
     } else {
@@ -33,6 +34,7 @@ class AbsDatabaseWeb extends WebPlugin {
         id: encodeURIComponent(Buffer.from(`${serverConnectionConfig.address}@${serverConnectionConfig.username}`).toString('base64')),
         index: deviceData.serverConnectionConfigs.length,
         name: `${serverConnectionConfig.address} (${serverConnectionConfig.username})`,
+        userId: serverConnectionConfig.userId,
         username: serverConnectionConfig.username,
         address: serverConnectionConfig.address,
         token: serverConnectionConfig.token
@@ -62,7 +64,7 @@ class AbsDatabaseWeb extends WebPlugin {
   //
   async getLocalFolders() {
     return {
-      folders: [
+      value: [
         {
           id: 'test1',
           name: 'Audiobooks',
@@ -76,11 +78,11 @@ class AbsDatabaseWeb extends WebPlugin {
     }
   }
   async getLocalFolder({ folderId }) {
-    return this.getLocalFolders().then((data) => data.folders[0])
+    return this.getLocalFolders().then((data) => data.value[0])
   }
   async getLocalLibraryItems(payload) {
     return {
-      localLibraryItems: [{
+      value: [{
         id: 'local_test',
         libraryItemId: 'test34',
         folderId: 'test1',
@@ -133,10 +135,36 @@ class AbsDatabaseWeb extends WebPlugin {
     return this.getLocalLibraryItems()
   }
   async getLocalLibraryItem({ id }) {
-    return this.getLocalLibraryItems().then((data) => data.localLibraryItems[0])
+    return this.getLocalLibraryItems().then((data) => data.value[0])
   }
   async getLocalLibraryItemByLLId({ libraryItemId }) {
-    return this.getLocalLibraryItems().then((data) => data.localLibraryItems.find(lli => lli.libraryItemId == libraryItemId))
+    return this.getLocalLibraryItems().then((data) => data.value.find(lli => lli.libraryItemId == libraryItemId))
+  }
+  async getAllLocalMediaProgress() {
+    return {
+      value: [
+        {
+          id: 'local_test',
+          localLibraryItemId: 'local_test',
+          episodeId: null,
+          duration: 100,
+          progress: 0.5,
+          currentTime: 50,
+          isFinished: false,
+          lastUpdate: 394089090,
+          startedAt: 239048209,
+          finishedAt: null,
+          // For local lib items from server to support server sync
+          // var serverConnectionConfigId:String?,
+          // var serverAddress:String?,
+          // var serverUserId:String?,
+          // var libraryItemId:String?
+        }
+      ]
+    }
+  }
+  async removeLocalMediaProgress({ localMediaProgressId }) {
+    return null
   }
 }
 

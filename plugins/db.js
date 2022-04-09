@@ -52,13 +52,7 @@ class DbService {
   }
 
   getLocalFolders() {
-    return AbsDatabase.getLocalFolders().then((data) => {
-      console.log('Loaded local folders', JSON.stringify(data))
-      if (data.folders && typeof data.folders == 'string') {
-        return JSON.parse(data.folders)
-      }
-      return data.folders
-    }).catch((error) => {
+    return AbsDatabase.getLocalFolders().then((data) => data.value).catch((error) => {
       console.error('Failed to load', error)
       return null
     })
@@ -72,23 +66,11 @@ class DbService {
   }
 
   getLocalLibraryItemsInFolder(folderId) {
-    return AbsDatabase.getLocalLibraryItemsInFolder({ folderId }).then((data) => {
-      console.log('Loaded local library items in folder', JSON.stringify(data))
-      if (data.localLibraryItems && typeof data.localLibraryItems == 'string') {
-        return JSON.parse(data.localLibraryItems)
-      }
-      return data.localLibraryItems
-    })
+    return AbsDatabase.getLocalLibraryItemsInFolder({ folderId }).then((data) => data.value)
   }
 
   getLocalLibraryItems(mediaType = null) {
-    return AbsDatabase.getLocalLibraryItems({ mediaType }).then((data) => {
-      console.log('Loaded all local media items', JSON.stringify(data))
-      if (data.localLibraryItems && typeof data.localLibraryItems == 'string') {
-        return JSON.parse(data.localLibraryItems)
-      }
-      return data.localLibraryItems
-    })
+    return AbsDatabase.getLocalLibraryItems({ mediaType }).then((data) => data.value)
   }
 
   getLocalLibraryItem(id) {
@@ -97,6 +79,14 @@ class DbService {
 
   getLocalLibraryItemByLLId(libraryItemId) {
     return AbsDatabase.getLocalLibraryItemByLLId({ libraryItemId })
+  }
+
+  getAllLocalMediaProgress() {
+    return AbsDatabase.getAllLocalMediaProgress().then((data) => data.value)
+  }
+
+  removeLocalMediaProgress(localMediaProgressId) {
+    return AbsDatabase.removeLocalMediaProgress({ localMediaProgressId })
   }
 }
 

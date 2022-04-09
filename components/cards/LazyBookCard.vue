@@ -207,6 +207,7 @@ export default {
       return null
     },
     userProgress() {
+      if (this.isLocal) return this.store.getters['globals/getLocalMediaProgressById'](this.libraryItemId)
       return this.store.getters['user/getUserMediaProgress'](this.libraryItemId)
     },
     userProgressPercent() {

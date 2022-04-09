@@ -76,10 +76,9 @@ class DbManager {
 
   fun getAllLocalFolders():List<LocalFolder> {
     var localFolders:MutableList<LocalFolder> = mutableListOf()
-    Paper.book("localFolders").allKeys.forEach {
-      var localFolder:LocalFolder? = Paper.book("localFolders").read(it)
-      if (localFolder != null) {
-        localFolders.add(localFolder)
+    Paper.book("localFolders").allKeys.forEach { localFolderId ->
+      Paper.book("localFolders").read<LocalFolder>(localFolderId)?.let {
+        localFolders.add(it)
       }
     }
     return localFolders
@@ -103,13 +102,39 @@ class DbManager {
 
   fun getDownloadItems():List<AbsDownloader.DownloadItem> {
     var downloadItems:MutableList<AbsDownloader.DownloadItem> = mutableListOf()
-    Paper.book("downloadItems").allKeys.forEach {
-      var downloadItem:AbsDownloader.DownloadItem? = Paper.book("downloadItems").read(it)
-      if (downloadItem != null) {
-        downloadItems.add(downloadItem)
+    Paper.book("downloadItems").allKeys.forEach { downloadItemId ->
+      Paper.book("downloadItems").read<AbsDownloader.DownloadItem>(downloadItemId)?.let {
+        downloadItems.add(it)
       }
     }
     return downloadItems
+  }
+
+  fun saveLocalMediaProgress(mediaProgress:LocalMediaProgress) {
+    Paper.book("localMediaProgress").write(mediaProgress.id,mediaProgress)
+  }
+  // For books this will just be the localLibraryItemId for podcast episodes this will be "{localLibraryItemId}-{episodeId}"
+  fun getLocalMediaProgress(localMediaProgressId:String):LocalMediaProgress? {
+    return Paper.book("localMediaProgress").read(localMediaProgressId)
+  }
+  fun getAllLocalMediaProgress():List<LocalMediaProgress> {
+    var mediaProgress:MutableList<LocalMediaProgress> = mutableListOf()
+    Paper.book("localMediaProgress").allKeys.forEach { localMediaProgressId ->
+      Paper.book("localMediaProgress").read<LocalMediaProgress>(localMediaProgressId)?.let {
+        mediaProgress.add(it)
+      }
+    }
+    return mediaProgress
+  }
+  fun removeLocalMediaProgress(localMediaProgressId:String) {
+    Paper.book("localMediaProgress").delete(localMediaProgressId)
+  }
+
+  fun saveLocalPlaybackSession(playbackSession:PlaybackSession) {
+    Paper.book("localPlaybackSession").write(playbackSession.id,playbackSession)
+  }
+  fun getLocalPlaybackSession(playbackSessionId:String):PlaybackSession? {
+    return Paper.book("localPlaybackSession").read(playbackSessionId)
   }
 
   fun saveObject(db:String, key:String, value:JSONObject) {

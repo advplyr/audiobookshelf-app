@@ -12,6 +12,7 @@ object DeviceManager {
   var serverConnectionConfig: ServerConnectionConfig? = null
 
   val serverAddress get() = serverConnectionConfig?.address ?: ""
+  val serverUserId get() = serverConnectionConfig?.userId ?: ""
   val token get() = serverConnectionConfig?.token ?: ""
 
   init {

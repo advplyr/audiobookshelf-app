@@ -23,7 +23,9 @@ import androidx.media.MediaBrowserServiceCompat
 import androidx.media.utils.MediaConstants
 import com.audiobookshelf.app.Audiobook
 import com.audiobookshelf.app.AudiobookManager
+import com.audiobookshelf.app.data.LocalMediaProgress
 import com.audiobookshelf.app.data.PlaybackSession
+import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.server.ApiHandler
 import com.getcapacitor.Bridge
 import com.getcapacitor.JSObject
@@ -57,6 +59,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     fun onPrepare(audiobookId: String, playWhenReady: Boolean)
     fun onSleepTimerEnded(currentPosition: Long)
     fun onSleepTimerSet(sleepTimeRemaining: Int)
+    fun onLocalMediaProgressUpdate(localMediaProgress: LocalMediaProgress)
   }
 
   private val tag = "PlayerService"
@@ -648,7 +651,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         Log.d(tag, "Playing HLS Item")
         var dataSourceFactory = DefaultHttpDataSource.Factory()
         dataSourceFactory.setUserAgent(channelId)
-        dataSourceFactory.setDefaultRequestProperties(hashMapOf("Authorization" to "Bearer ${playbackSession.token}"))
+        dataSourceFactory.setDefaultRequestProperties(hashMapOf("Authorization" to "Bearer ${DeviceManager.token}"))
         mediaSource = HlsMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItems[0])
       }
       mPlayer.setMediaSource(mediaSource)

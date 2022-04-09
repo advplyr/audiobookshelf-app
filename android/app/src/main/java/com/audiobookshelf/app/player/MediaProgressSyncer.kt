@@ -3,11 +3,13 @@ package com.audiobookshelf.app.player
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import com.audiobookshelf.app.data.MediaProgress
+import com.audiobookshelf.app.data.LocalMediaProgress
 import com.audiobookshelf.app.data.PlaybackSession
+import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.server.ApiHandler
 import java.util.*
 import kotlin.concurrent.schedule
+import kotlin.math.roundToInt
 
 data class MediaProgressSyncData(
   var timeListened:Long, // seconds
@@ -26,7 +28,7 @@ class MediaProgressSyncer(playerNotificationService:PlayerNotificationService, a
   private var lastSyncTime:Long = 0
 
   var currentPlaybackSession: PlaybackSession? = null // copy of pb session currently syncing
-//  var currentMediaProgress: MediaProgress? = null
+  var currentLocalMediaProgress: LocalMediaProgress? = null
 
   val currentDisplayTitle get() = currentPlaybackSession?.displayTitle ?: "Unset"
   val currentIsLocal get() = currentPlaybackSession?.isLocal == true
@@ -77,12 +79,37 @@ class MediaProgressSyncer(playerNotificationService:PlayerNotificationService, a
 
     var syncData = MediaProgressSyncData(listeningTimeToAdd,currentPlaybackDuration,currentTime)
 
+    currentPlaybackSession?.syncData(syncData)
     if (currentIsLocal) {
-      // TODO: Save local progress sync
+      // Save local progress sync
+      currentPlaybackSession?.let {
+        DeviceManager.dbManager.saveLocalPlaybackSession(it)
+        saveLocalProgress(it)
+      }
     } else {
       apiHandler.sendProgressSync(currentSessionId,syncData) {
         Log.d(tag, "Progress sync data sent to server $currentDisplayTitle for time $currentTime")
       }
+    }
+  }
+
+  private fun saveLocalProgress(playbackSession:PlaybackSession) {
+    if (currentLocalMediaProgress == null) {
+      var mediaProgress = DeviceManager.dbManager.getLocalMediaProgress(playbackSession.localMediaProgressId)
+      if (mediaProgress == null) {
+        currentLocalMediaProgress = playbackSession.getNewLocalMediaProgress()
+      } else {
+        currentLocalMediaProgress = mediaProgress
+      }
+    } else {
+      currentLocalMediaProgress?.currentTime = playbackSession.currentTime
+      currentLocalMediaProgress?.lastUpdate = System.currentTimeMillis()
+      currentLocalMediaProgress?.progress = playbackSession.progress
+    }
+    currentLocalMediaProgress?.let {
+      DeviceManager.dbManager.saveLocalMediaProgress(it)
+      playerNotificationService.clientEventEmitter?.onLocalMediaProgressUpdate(it)
+      Log.d(tag, "Saved Local Progress Current Time: ${it.currentTime} | Duration ${it.duration} | Progress ${(it.progress * 100).roundToInt()}%")
     }
   }
 

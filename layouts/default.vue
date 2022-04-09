@@ -144,15 +144,6 @@ export default {
     //     }
     //   })
     // },
-    async initMediaStore() {
-      // Request and setup listeners for media files on native
-      // AbsDownloader.addListener('onItemDownloadUpdate', (data) => {
-      //   this.onItemDownloadUpdate(data)
-      // })
-      // AbsDownloader.addListener('onItemDownloadComplete', (data) => {
-      //   this.onItemDownloadComplete(data)
-      // })
-    },
     async loadSavedSettings() {
       var userSavedServerSettings = await this.$localStore.getServerSettings()
       if (userSavedServerSettings) {
@@ -266,9 +257,9 @@ export default {
         await this.attemptConnection()
       }
 
+      this.$store.dispatch('globals/loadLocalMediaProgress')
       this.checkForUpdate()
       this.loadSavedSettings()
-      this.initMediaStore()
     }
   },
   beforeDestroy() {

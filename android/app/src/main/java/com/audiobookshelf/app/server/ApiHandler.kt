@@ -104,18 +104,20 @@ class ApiHandler {
     }
   }
 
-  fun playLibraryItem(libraryItemId:String, forceTranscode:Boolean, cb: (PlaybackSession) -> Unit) {
+  fun playLibraryItem(libraryItemId:String, episodeId:String, forceTranscode:Boolean, cb: (PlaybackSession) -> Unit) {
     val mapper = jacksonObjectMapper()
     var payload = JSObject()
     payload.put("mediaPlayer", "exo-player")
 
     // Only if direct play fails do we force transcode
+    // TODO: Fallback to transcode
     if (!forceTranscode) payload.put("forceDirectPlay", true)
     else payload.put("forceTranscode", true)
 
-    postRequest("/api/items/$libraryItemId/play", payload) {
-      it.put("serverUrl", DeviceManager.serverAddress)
-      it.put("token", DeviceManager.token)
+    val endpoint = if (episodeId.isNullOrEmpty()) "/api/items/$libraryItemId/play" else "/api/items/$libraryItemId/play/$episodeId"
+    postRequest(endpoint, payload) {
+      it.put("serverConnectionConfigId", DeviceManager.serverConnectionConfig?.id)
+      it.put("serverAddress", DeviceManager.serverAddress)
       val playbackSession = mapper.readValue<PlaybackSession>(it.toString())
       cb(playbackSession)
     }

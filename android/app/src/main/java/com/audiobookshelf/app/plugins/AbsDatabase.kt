@@ -17,6 +17,10 @@ import org.json.JSONObject
 class AbsDatabase : Plugin() {
   val tag = "AbsDatabase"
 
+  data class LocalMediaProgressPayload(val value:List<LocalMediaProgress>)
+  data class LocalLibraryItemsPayload(val value:List<LocalLibraryItem>)
+  data class LocalFoldersPayload(val value:List<LocalFolder>)
+
   @PluginMethod
   fun getDeviceData(call:PluginCall) {
     GlobalScope.launch(Dispatchers.IO) {
@@ -29,10 +33,7 @@ class AbsDatabase : Plugin() {
   fun getLocalFolders(call:PluginCall) {
     GlobalScope.launch(Dispatchers.IO) {
       var folders = DeviceManager.dbManager.getAllLocalFolders()
-      var folderObjArray = jacksonObjectMapper().writeValueAsString(folders)
-      var jsobj = JSObject()
-      jsobj.put("folders", folderObjArray)
-      call.resolve(jsobj)
+      call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(LocalFoldersPayload(folders))))
     }
   }
 
@@ -80,9 +81,7 @@ class AbsDatabase : Plugin() {
 
     GlobalScope.launch(Dispatchers.IO) {
       var localLibraryItems = DeviceManager.dbManager.getLocalLibraryItems(mediaType)
-      var jsobj = JSObject()
-      jsobj.put("localLibraryItems", jacksonObjectMapper().writeValueAsString(localLibraryItems))
-      call.resolve(jsobj)
+      call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(LocalLibraryItemsPayload(localLibraryItems))))
     }
   }
 
@@ -90,11 +89,8 @@ class AbsDatabase : Plugin() {
   fun getLocalLibraryItemsInFolder(call:PluginCall) {
     var folderId = call.getString("folderId", "").toString()
     GlobalScope.launch(Dispatchers.IO) {
-      var localMediaItems = DeviceManager.dbManager.getLocalLibraryItemsInFolder(folderId)
-      var mediaItemsArray = jacksonObjectMapper().writeValueAsString(localMediaItems)
-      var jsobj = JSObject()
-      jsobj.put("localLibraryItems", mediaItemsArray)
-      call.resolve(jsobj)
+      var localLibraryItems = DeviceManager.dbManager.getLocalLibraryItemsInFolder(folderId)
+      call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(LocalLibraryItemsPayload(localLibraryItems))))
     }
   }
 
@@ -103,6 +99,7 @@ class AbsDatabase : Plugin() {
     var serverConnectionConfigId = call.getString("id", "").toString()
     var serverConnectionConfig = DeviceManager.deviceData.serverConnectionConfigs.find { it.id == serverConnectionConfigId }
 
+    var userId = call.getString("userId", "").toString()
     var username = call.getString("username", "").toString()
     var token = call.getString("token", "").toString()
 
@@ -113,7 +110,7 @@ class AbsDatabase : Plugin() {
         // Create new server connection config
         var sscId = DeviceManager.getBase64Id("$serverAddress@$username")
         var sscIndex = DeviceManager.deviceData.serverConnectionConfigs.size
-        serverConnectionConfig = ServerConnectionConfig(sscId, sscIndex, "$serverAddress ($username)", serverAddress, username, token)
+        serverConnectionConfig = ServerConnectionConfig(sscId, sscIndex, "$serverAddress ($username)", serverAddress, userId, username, token)
 
         // Add and save
         DeviceManager.deviceData.serverConnectionConfigs.add(serverConnectionConfig!!)
@@ -122,6 +119,7 @@ class AbsDatabase : Plugin() {
       } else {
         var shouldSave = false
         if (serverConnectionConfig?.username != username || serverConnectionConfig?.token != token) {
+          serverConnectionConfig?.userId = userId
           serverConnectionConfig?.username = username
           serverConnectionConfig?.name = "${serverConnectionConfig?.address} (${serverConnectionConfig?.username})"
           serverConnectionConfig?.token = token
@@ -166,6 +164,22 @@ class AbsDatabase : Plugin() {
       DeviceManager.dbManager.saveDeviceData(DeviceManager.deviceData)
       call.resolve()
     }
+  }
+
+
+  @PluginMethod
+  fun getAllLocalMediaProgress(call:PluginCall) {
+    GlobalScope.launch(Dispatchers.IO) {
+      var localMediaProgress = DeviceManager.dbManager.getAllLocalMediaProgress()
+      call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(LocalMediaProgressPayload(localMediaProgress))))
+    }
+  }
+
+  @PluginMethod
+  fun removeLocalMediaProgress(call:PluginCall) {
+    var localMediaProgressId = call.getString("localMediaProgressId", "").toString()
+    DeviceManager.dbManager.removeLocalMediaProgress(localMediaProgressId)
+    call.resolve()
   }
 
   //
