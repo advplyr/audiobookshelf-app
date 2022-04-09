@@ -155,7 +155,6 @@ class PlaybackSession(
 
   @JsonIgnore
   fun getNewLocalMediaProgress():LocalMediaProgress {
-    var dateNow = System.currentTimeMillis()
-    return LocalMediaProgress(localMediaProgressId,localLibraryItemId,episodeId,getTotalDuration(),progress,currentTime,false,dateNow,dateNow,null,serverConnectionConfigId,serverAddress,userId,libraryItemId)
+    return LocalMediaProgress(localMediaProgressId,localLibraryItemId,episodeId,getTotalDuration(),progress,currentTime,false,updatedAt,startedAt,null,serverConnectionConfigId,serverAddress,userId,libraryItemId)
   }
 }

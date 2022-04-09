@@ -40,6 +40,7 @@ class MediaProgressSyncer(playerNotificationService:PlayerNotificationService, a
       Log.d(tag, "start: Timer already running for $currentDisplayTitle")
       if (playerNotificationService.getCurrentPlaybackSessionId() != currentSessionId) {
         Log.d(tag, "Playback session changed, reset timer")
+        currentLocalMediaProgress = null
         listeningTimerTask?.cancel()
         lastSyncTime = 0L
       } else {
@@ -85,9 +86,16 @@ class MediaProgressSyncer(playerNotificationService:PlayerNotificationService, a
       currentPlaybackSession?.let {
         DeviceManager.dbManager.saveLocalPlaybackSession(it)
         saveLocalProgress(it)
+
+        // Send sync to server also if connected to this server and local item belongs to this server
+        if (it.serverConnectionConfigId != null && DeviceManager.serverConnectionConfig?.id == it.serverConnectionConfigId) {
+          apiHandler.sendLocalProgressSync(it) {
+            Log.d(tag, "Local progress sync data sent to server $currentDisplayTitle for time $currentTime")
+          }
+        }
       }
     } else {
-      apiHandler.sendProgressSync(currentSessionId,syncData) {
+      apiHandler.sendProgressSync(currentSessionId, syncData) {
         Log.d(tag, "Progress sync data sent to server $currentDisplayTitle for time $currentTime")
       }
     }
@@ -103,7 +111,7 @@ class MediaProgressSyncer(playerNotificationService:PlayerNotificationService, a
       }
     } else {
       currentLocalMediaProgress?.currentTime = playbackSession.currentTime
-      currentLocalMediaProgress?.lastUpdate = System.currentTimeMillis()
+      currentLocalMediaProgress?.lastUpdate = playbackSession.updatedAt
       currentLocalMediaProgress?.progress = playbackSession.progress
     }
     currentLocalMediaProgress?.let {
@@ -118,6 +126,7 @@ class MediaProgressSyncer(playerNotificationService:PlayerNotificationService, a
     listeningTimerTask = null
     listeningTimerRunning = false
     currentPlaybackSession = null
+    currentLocalMediaProgress = null
     lastSyncTime = 0L
   }
 }

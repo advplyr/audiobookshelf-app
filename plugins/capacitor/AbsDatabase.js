@@ -166,6 +166,10 @@ class AbsDatabaseWeb extends WebPlugin {
   async removeLocalMediaProgress({ localMediaProgressId }) {
     return null
   }
+
+  async syncLocalMediaProgressWithServer() {
+    return null
+  }
 }
 
 const AbsDatabase = registerPlugin('AbsDatabase', {
