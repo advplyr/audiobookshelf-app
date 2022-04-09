@@ -1,7 +1,9 @@
 package com.audiobookshelf.app.data
 
 import android.util.Log
+import com.audiobookshelf.app.MainActivity
 import com.audiobookshelf.app.device.DeviceManager
+import com.audiobookshelf.app.server.ApiHandler
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
@@ -17,9 +19,17 @@ import org.json.JSONObject
 class AbsDatabase : Plugin() {
   val tag = "AbsDatabase"
 
+  lateinit var mainActivity: MainActivity
+  lateinit var apiHandler: ApiHandler
+
   data class LocalMediaProgressPayload(val value:List<LocalMediaProgress>)
   data class LocalLibraryItemsPayload(val value:List<LocalLibraryItem>)
   data class LocalFoldersPayload(val value:List<LocalFolder>)
+
+  override fun load() {
+    mainActivity = (activity as MainActivity)
+    apiHandler = ApiHandler(mainActivity)
+  }
 
   @PluginMethod
   fun getDeviceData(call:PluginCall) {
@@ -166,7 +176,6 @@ class AbsDatabase : Plugin() {
     }
   }
 
-
   @PluginMethod
   fun getAllLocalMediaProgress(call:PluginCall) {
     GlobalScope.launch(Dispatchers.IO) {
@@ -180,6 +189,17 @@ class AbsDatabase : Plugin() {
     var localMediaProgressId = call.getString("localMediaProgressId", "").toString()
     DeviceManager.dbManager.removeLocalMediaProgress(localMediaProgressId)
     call.resolve()
+  }
+
+  @PluginMethod
+  fun syncLocalMediaProgressWithServer(call:PluginCall) {
+    if (DeviceManager.serverConnectionConfig == null) {
+      Log.e(tag, "syncLocalMediaProgressWithServer not connected to server")
+      return call.resolve()
+    }
+    apiHandler.syncMediaProgress {
+      call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(it)))
+    }
   }
 
   //

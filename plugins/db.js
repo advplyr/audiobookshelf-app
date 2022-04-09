@@ -88,6 +88,10 @@ class DbService {
   removeLocalMediaProgress(localMediaProgressId) {
     return AbsDatabase.removeLocalMediaProgress({ localMediaProgressId })
   }
+
+  syncLocalMediaProgressWithServer() {
+    return AbsDatabase.syncLocalMediaProgressWithServer()
+  }
 }
 
 export default ({ app, store }, inject) => {

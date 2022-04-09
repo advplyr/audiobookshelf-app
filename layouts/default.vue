@@ -19,19 +19,37 @@ export default {
   data() {
     return {
       attemptingConnection: false,
-      inittingLibraries: false
+      inittingLibraries: false,
+      hasMounted: false,
+      disconnectTime: 0
     }
   },
   watch: {
     networkConnected: {
       handler(newVal, oldVal) {
+        if (!this.hasMounted) {
+          // watcher runs before mount, handling libraries/connection should be handled in mount
+          return
+        }
         if (newVal) {
           console.log(`[default] network connected changed ${oldVal} -> ${newVal}`)
           if (!this.user) {
             this.attemptConnection()
           } else if (!this.currentLibraryId) {
             this.initLibraries()
+          } else {
+            var timeSinceDisconnect = Date.now() - this.disconnectTime
+            if (timeSinceDisconnect > 5000) {
+              console.log('Time since disconnect was', timeSinceDisconnect, 'sync with server')
+              setTimeout(() => {
+                // TODO: Some issue here
+                this.syncLocalMediaProgress()
+              }, 4000)
+            }
           }
+        } else {
+          console.log(`[default] lost network connection`)
+          this.disconnectTime = Date.now()
         }
       }
     }
@@ -156,8 +174,9 @@ export default {
       }
     },
     async attemptConnection() {
+      console.warn('[default] attemptConnection')
       if (!this.networkConnected) {
-        console.warn('No network connection')
+        console.warn('[default] No network connection')
         return
       }
       if (this.attemptingConnection) {
@@ -200,7 +219,7 @@ export default {
 
       this.$socket.connect(serverConnectionConfig.address, serverConnectionConfig.token)
 
-      console.log('Successful connection on last saved connection config', JSON.stringify(serverConnectionConfig))
+      console.log('[default] Successful connection on last saved connection config', JSON.stringify(serverConnectionConfig))
       await this.initLibraries()
       this.attemptingConnection = false
     },
@@ -232,6 +251,29 @@ export default {
       this.$eventBus.$emit('library-changed')
       this.$store.dispatch('libraries/fetch', this.currentLibraryId)
       this.inittingLibraries = false
+    },
+    async syncLocalMediaProgress() {
+      if (!this.user) {
+        console.log('[default] No need to sync local media progress - not connected to server')
+        return
+      }
+
+      console.log('[default] Calling syncLocalMediaProgress')
+      var response = await this.$db.syncLocalMediaProgressWithServer()
+      if (!response) {
+        this.$toast.error('Failed to sync local media with server')
+        return
+      }
+      const { numLocalMediaProgressForServer, numServerProgressUpdates, numLocalProgressUpdates } = response
+      if (numLocalMediaProgressForServer > 0) {
+        if (numServerProgressUpdates > 0 || numLocalProgressUpdates > 0) {
+          console.log(`[default] ${numServerProgressUpdates} Server progress updates | ${numLocalProgressUpdates} Local progress updates`)
+        } else {
+          console.log('[default] syncLocalMediaProgress No updates were necessary')
+        }
+      } else {
+        console.log('[default] syncLocalMediaProgress No local media progress to sync')
+      }
     }
   },
   async mounted() {
@@ -257,9 +299,12 @@ export default {
         await this.attemptConnection()
       }
 
+      console.log(`[default] finished connection attempt or already connected ${!!this.user}`)
+      await this.syncLocalMediaProgress()
       this.$store.dispatch('globals/loadLocalMediaProgress')
       this.checkForUpdate()
       this.loadSavedSettings()
+      this.hasMounted = true
     }
   },
   beforeDestroy() {
