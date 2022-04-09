@@ -127,4 +127,9 @@ class PlaybackSession(
     }
     return mediaItems
   }
+
+  @JsonIgnore
+  fun clone():PlaybackSession {
+    return PlaybackSession(id,userId,libraryItemId,episodeId,mediaType,mediaMetadata,chapters,displayTitle,displayAuthor,coverPath,duration,playMethod,audioTracks,currentTime,libraryItem,localLibraryItem,serverUrl,token)
+  }
 }

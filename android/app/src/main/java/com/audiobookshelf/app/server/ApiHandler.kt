@@ -7,6 +7,7 @@ import com.audiobookshelf.app.data.Library
 import com.audiobookshelf.app.data.LibraryItem
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.device.DeviceManager
+import com.audiobookshelf.app.player.MediaProgressSyncData
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.getcapacitor.JSArray
@@ -117,6 +118,14 @@ class ApiHandler {
       it.put("token", DeviceManager.token)
       val playbackSession = mapper.readValue<PlaybackSession>(it.toString())
       cb(playbackSession)
+    }
+  }
+
+  fun sendProgressSync(sessionId:String, syncData: MediaProgressSyncData, cb: () -> Unit) {
+    var payload = JSObject(jacksonObjectMapper().writeValueAsString(syncData))
+
+    postRequest("/api/session/$sessionId/sync", payload) {
+      cb()
     }
   }
 }
