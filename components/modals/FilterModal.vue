@@ -143,13 +143,20 @@ export default {
       return this.filterData.narrators || []
     },
     progress() {
-      return ['Read', 'Unread', 'In Progress']
+      return ['Finished', 'In Progress', 'Not Started']
     },
     sublistItems() {
       return (this[this.sublist] || []).map((item) => {
-        return {
-          text: item,
-          value: this.$encode(item)
+        if (typeof item === 'string') {
+          return {
+            text: item,
+            value: this.$encode(item)
+          }
+        } else {
+          return {
+            text: item.name,
+            value: this.$encode(item.id)
+          }
         }
       })
     },

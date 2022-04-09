@@ -22,9 +22,12 @@ export const getters = {
   getServerAddress: (state) => {
     return state.serverConnectionConfig ? state.serverConnectionConfig.address : null
   },
-  getUserLibraryItemProgress: (state) => (libraryItemId) => {
-    if (!state.user || !state.user.libraryItemProgress) return null
-    return state.user.libraryItemProgress.find(li => li.id == libraryItemId)
+  getUserMediaProgress: (state) => (libraryItemId, episodeId = null) => {
+    if (!state.user || !state.user.mediaProgress) return null
+    return state.user.mediaProgress.find(li => {
+      if (episodeId && li.episodeId !== episodeId) return false
+      return li.id == libraryItemId
+    })
   },
   getUserBookmarksForItem: (state) => (libraryItemId) => {
     if (!state.user.bookmarks) return []
@@ -36,8 +39,8 @@ export const getters = {
 }
 
 export const actions = {
-  async updateUserSettings({ commit }, payload) {
-    if (this.$server.connected) {
+  async updateUserSettings({ state, commit }, payload) {
+    if (state.serverConnectionConfig) {
       var updatePayload = {
         ...payload
       }

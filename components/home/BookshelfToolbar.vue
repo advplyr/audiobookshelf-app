@@ -40,6 +40,7 @@ export default {
         return this.$store.state.globals.bookshelfListView
       },
       set(val) {
+        this.$localStore.setBookshelfListView(val)
         this.$store.commit('globals/setBookshelfListView', val)
       }
     },
@@ -63,8 +64,8 @@ export default {
       return ''
     },
     selectedSeriesName() {
-      if (this.page === 'series' && this.$route.params.id) {
-        return this.$decode(this.$route.params.id)
+      if (this.page === 'series' && this.$route.params.id && this.$store.state.globals.series) {
+        return this.$store.state.globals.series.name
       }
       return null
     }
@@ -78,9 +79,10 @@ export default {
     },
     saveSettings() {
       this.$store.commit('user/setSettings', this.settings) // Immediate update
-      this.$store.dispatch('user/updateUserSettings', this.settings)
+      this.$store.dispatch('user/updateUserSettings', this.settings) // TODO: No need to update settings on server...
     },
     async init() {
+      this.bookshelfListView = await this.$localStore.getBookshelfListView()
       this.settings = { ...this.$store.state.user.settings }
       this.bookshelfReady = true
     },

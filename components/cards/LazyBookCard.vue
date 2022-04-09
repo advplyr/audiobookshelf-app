@@ -207,7 +207,7 @@ export default {
       return null
     },
     userProgress() {
-      return this.store.getters['user/getUserLibraryItemProgress'](this.libraryItemId)
+      return this.store.getters['user/getUserMediaProgress'](this.libraryItemId)
     },
     userProgressPercent() {
       return this.userProgress ? this.userProgress.progress || 0 : 0
