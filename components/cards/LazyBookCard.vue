@@ -6,13 +6,13 @@
     </div>
 
     <!-- Alternative bookshelf title/author/sort -->
-    <div v-if="isAlternativeBookshelfView" class="absolute left-0 z-50 w-full" :style="{ bottom: `-${titleDisplayBottomOffset}rem` }">
+    <!-- <div v-if="isAlternativeBookshelfView" class="absolute left-0 z-50 w-full" :style="{ bottom: `-${titleDisplayBottomOffset}rem` }">
       <p class="truncate" :style="{ fontSize: 0.9 * sizeMultiplier + 'rem' }">
         {{ displayTitle }}
       </p>
       <p class="truncate text-gray-400" :style="{ fontSize: 0.8 * sizeMultiplier + 'rem' }">{{ displayAuthor }}</p>
       <p v-if="displaySortLine" class="truncate text-gray-400" :style="{ fontSize: 0.8 * sizeMultiplier + 'rem' }">{{ displaySortLine }}</p>
-    </div>
+    </div> -->
 
     <div v-if="booksInSeries" class="absolute z-20 top-1.5 right-1.5 rounded-md leading-3 text-sm p-1 font-semibold text-white flex items-center justify-center" style="background-color: #cd9d49dd">{{ booksInSeries }}</div>
 
@@ -35,7 +35,7 @@
     </div>
 
     <!-- No progress shown for collapsed series in library -->
-    <div v-if="!booksInSeries" class="absolute bottom-0 left-0 h-1 shadow-sm max-w-full z-10 rounded-b" :class="itemIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: width * userProgressPercent + 'px' }"></div>
+    <div v-if="!collapsedSeries && !isPodcast" class="absolute bottom-0 left-0 h-1 shadow-sm max-w-full z-10 rounded-b" :class="itemIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: width * userProgressPercent + 'px' }"></div>
 
     <div v-if="localLibraryItem || isLocal" class="absolute top-0 right-0 z-20" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }">
       <span class="material-icons text-2xl text-success">{{ isLocalOnly ? 'task' : 'download_done' }}</span>
@@ -49,8 +49,13 @@
     </ui-tooltip>
 
     <!-- Volume number -->
-    <div v-if="volumeNumber && showVolumeNumber && !isSelectionMode" class="absolute rounded-lg bg-black bg-opacity-90 box-shadow-md z-10" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }">
-      <p :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }">#{{ volumeNumber }}</p>
+    <div v-if="seriesSequence && showSequence && !isSelectionMode" class="absolute rounded-lg bg-black bg-opacity-90 box-shadow-md z-10" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }">
+      <p :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }">#{{ seriesSequence }}</p>
+    </div>
+
+    <!-- Podcast Num Episodes -->
+    <div v-if="numEpisodes && !isSelectionMode" class="absolute rounded-full bg-black bg-opacity-90 box-shadow-md z-10 flex items-center justify-center" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', width: 1.25 * sizeMultiplier + 'rem', height: 1.25 * sizeMultiplier + 'rem' }">
+      <p :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }">{{ numEpisodes }}</p>
     </div>
   </div>
 </template>
@@ -70,7 +75,7 @@ export default {
       default: 192
     },
     bookCoverAspectRatio: Number,
-    showVolumeNumber: Boolean,
+    showSequence: Boolean,
     bookshelfView: Number,
     bookMount: {
       // Book can be passed as prop or set with setEntity()
@@ -122,6 +127,12 @@ export default {
     mediaMetadata() {
       return this.media.metadata || {}
     },
+    mediaType() {
+      return this._libraryItem.mediaType
+    },
+    isPodcast() {
+      return this.mediaType === 'podcast'
+    },
     placeholderUrl() {
       return '/book_placeholder.jpg'
     },
@@ -135,9 +146,6 @@ export default {
     libraryItemId() {
       return this._libraryItem.id
     },
-    series() {
-      return this.mediaMetadata.series
-    },
     libraryId() {
       return this._libraryItem.libraryId
     },
@@ -146,6 +154,9 @@ export default {
     },
     numTracks() {
       return this.media.numTracks
+    },
+    numEpisodes() {
+      return this.media.numEpisodes
     },
     processingBatch() {
       return this.store.state.processingBatch
@@ -174,19 +185,26 @@ export default {
       return this.mediaMetadata.authors || []
     },
     author() {
-      return this.authors.map((au) => au.name).join(', ')
+      if (this.isPodcast) return this.mediaMetadata.author
+      return this.mediaMetadata.authorName
     },
     authorLF() {
-      return this.authors
-        .map((au) => {
-          var parts = au.name.split(' ')
-          if (parts.length === 1) return parts[0]
-          return `${parts[1]}, ${parts[0]}`
-        })
-        .join(', ')
+      return this.mediaMetadata.authorNameLF
     },
-    volumeNumber() {
-      return this.mediaMetadata.volumeNumber || null
+    series() {
+      // Only included when filtering by series or collapse series
+      return this.mediaMetadata.series
+    },
+    seriesSequence() {
+      return this.series ? this.series.sequence : null
+    },
+    collapsedSeries() {
+      // Only added to item object when collapseSeries is enabled
+      return this._libraryItem.collapsedSeries
+    },
+    booksInSeries() {
+      // Only added to item object when collapseSeries is enabled
+      return this.collapsedSeries ? this.collapsedSeries.numBooks : 0
     },
     displayTitle() {
       if (this.orderBy === 'media.metadata.title' && this.sortingIgnorePrefix && this.title.toLowerCase().startsWith('the ')) {
@@ -308,16 +326,6 @@ export default {
         return this.author.slice(0, 27) + '...'
       }
       return this.author
-    },
-    isAlternativeBookshelfView() {
-      return false
-      // var constants = this.$constants || this.$nuxt.$constants
-      // return this.bookshelfView === constants.BookshelfView.TITLES
-    },
-    titleDisplayBottomOffset() {
-      if (!this.isAlternativeBookshelfView) return 0
-      else if (!this.displaySortLine) return 3 * this.sizeMultiplier
-      return 4.25 * this.sizeMultiplier
     }
   },
   methods: {
@@ -340,7 +348,7 @@ export default {
       } else {
         var router = this.$router || this.$nuxt.$router
         if (router) {
-          if (this.booksInSeries) router.push(`/library/${this.libraryId}/series/${this.$encode(this.series)}`)
+          if (this.collapsedSeries) router.push(`/library/${this.libraryId}/series/${this.collapsedSeries.id}`)
           else router.push(`/item/${this.libraryItemId}`)
         }
       }
