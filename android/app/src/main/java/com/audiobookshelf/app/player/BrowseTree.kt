@@ -6,14 +6,14 @@ import android.net.Uri
 import android.support.v4.media.MediaMetadataCompat
 import android.util.Log
 import androidx.annotation.AnyRes
-import com.audiobookshelf.app.Audiobook
 import com.audiobookshelf.app.R
+import com.audiobookshelf.app.data.LibraryItem
 
 
 class BrowseTree(
   val context: Context,
-  audiobooksInProgress: List<Audiobook>,
-  audiobookMetadata: List<MediaMetadataCompat>,
+  itemsInProgress: List<LibraryItem>,
+  itemsMetadata: List<MediaMetadataCompat>,
   downloadedMetadata: List<MediaMetadataCompat>
 ) {
   private val mediaIdToChildren = mutableMapOf<String, MutableList<MediaMetadataCompat>>()
@@ -35,7 +35,6 @@ class BrowseTree(
   init {
     val rootList = mediaIdToChildren[AUTO_BROWSE_ROOT] ?: mutableListOf()
 
-
     val continueReadingMetadata = MediaMetadataCompat.Builder().apply {
       putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, CONTINUE_ROOT)
       putString(MediaMetadataCompat.METADATA_KEY_TITLE, "Reading")
@@ -44,13 +43,12 @@ class BrowseTree(
 
     val allMetadata = MediaMetadataCompat.Builder().apply {
       putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, ALL_ROOT)
-      putString(MediaMetadataCompat.METADATA_KEY_TITLE, "Audiobooks")
+      putString(MediaMetadataCompat.METADATA_KEY_TITLE, "Library Items")
 
       var resource = getUriToDrawable(context, R.drawable.exo_icon_books).toString()
       Log.d("BrowseTree", "RESOURCE $resource")
       putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, resource)
     }.build()
-
 
     val downloadsMetadata = MediaMetadataCompat.Builder().apply {
       putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, DOWNLOADS_ROOT)
@@ -58,13 +56,7 @@ class BrowseTree(
       putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getUriToDrawable(context, R.drawable.exo_icon_downloaddone).toString())
     }.build()
 
-//    val localsMetadata = MediaMetadataCompat.Builder().apply {
-//      putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, LOCAL_ROOT)
-//      putString(MediaMetadataCompat.METADATA_KEY_TITLE, "Samples")
-//      putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getUriToDrawable(context, R.drawable.exo_icon_localaudio).toString())
-//    }.build()
-
-    if (audiobooksInProgress.isNotEmpty()) {
+    if (itemsInProgress.isNotEmpty()) {
       rootList += continueReadingMetadata
     }
     rootList += allMetadata
@@ -72,13 +64,13 @@ class BrowseTree(
 //    rootList += localsMetadata
     mediaIdToChildren[AUTO_BROWSE_ROOT] = rootList
 
-    audiobooksInProgress.forEach { audiobook ->
+    itemsInProgress.forEach { libraryItem ->
       val children = mediaIdToChildren[CONTINUE_ROOT] ?: mutableListOf()
-      children += audiobook.toMediaMetadata()
+      children += libraryItem.getMediaMetadata()
       mediaIdToChildren[CONTINUE_ROOT] = children
     }
 
-    audiobookMetadata.forEach {
+    itemsMetadata.forEach {
       val allChildren = mediaIdToChildren[ALL_ROOT] ?: mutableListOf()
       allChildren += it
       mediaIdToChildren[ALL_ROOT] = allChildren
@@ -89,13 +81,6 @@ class BrowseTree(
       allChildren += it
       mediaIdToChildren[DOWNLOADS_ROOT] = allChildren
     }
-
-//    localAudio.forEach { local ->
-//      val localChildren = mediaIdToChildren[LOCAL_ROOT] ?: mutableListOf()
-//      localChildren += local.toMediaMetadata()
-//      mediaIdToChildren[LOCAL_ROOT] = localChildren
-//    }
-//    Log.d("BrowseTree", "Set LOCAL AUDIO ${localAudio.size}")
   }
 
   operator fun get(mediaId: String) = mediaIdToChildren[mediaId]

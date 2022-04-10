@@ -68,7 +68,7 @@ data class LocalLibraryItem(
 
     var episodeIdNullable = if (episodeId.isNullOrEmpty()) null else episodeId
     var dateNow = System.currentTimeMillis()
-    return PlaybackSession(sessionId,serverUserId,libraryItemId,episodeIdNullable, mediaType, mediaMetadata, chapters, mediaMetadata.title, authorName,null,getDuration(),PLAYMETHOD_LOCAL,dateNow,0L,0L, media.getAudioTracks() as MutableList<AudioTrack>,currentTime,null,this,serverConnectionConfigId, serverAddress)
+    return PlaybackSession(sessionId,serverUserId,libraryItemId,episodeIdNullable, mediaType, mediaMetadata, chapters ?: mutableListOf(), mediaMetadata.title, authorName,null,getDuration(),PLAYMETHOD_LOCAL,dateNow,0L,0L, media.getAudioTracks() as MutableList<AudioTrack>,currentTime,null,this,serverConnectionConfigId, serverAddress)
   }
 
   @JsonIgnore

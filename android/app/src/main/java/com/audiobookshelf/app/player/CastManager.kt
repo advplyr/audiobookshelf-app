@@ -304,7 +304,7 @@ class CastManager constructor(playerNotificationService:PlayerNotificationServic
           val castContext = CastContext.getSharedInstance(mainActivity)
           playerNotificationService.castPlayer = CastPlayer(castContext).apply {
             setSessionAvailabilityListener(CastSessionAvailabilityListener())
-            addListener(playerNotificationService.getPlayerListener())
+            addListener(PlayerListener(playerNotificationService))
           }
           Log.d(tag, "CAST Cast Player Applied")
           switchToPlayer(true)
@@ -313,8 +313,6 @@ class CastManager constructor(playerNotificationService:PlayerNotificationServic
             "Exception thrown when attempting to obtain CastContext. " + e.message)
           return
         }
-
-
 //        media.setSession(castSession)
 //        callback.onJoin(ChromecastUtilities.createSessionObject(castSession))
       }

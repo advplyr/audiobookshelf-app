@@ -127,7 +127,7 @@ class ApiHandler {
   }
 
   fun getLibraryItems(libraryId:String, cb: (List<LibraryItem>) -> Unit) {
-    getRequest("/api/libraries/$libraryId/items") {
+    getRequest("/api/libraries/$libraryId/items?limit=100&minified=1") {
       val items = mutableListOf<LibraryItem>()
       if (it.has("results")) {
         var array = it.getJSONArray("results")
