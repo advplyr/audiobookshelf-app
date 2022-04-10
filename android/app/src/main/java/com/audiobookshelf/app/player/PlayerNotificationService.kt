@@ -33,6 +33,7 @@ import com.google.android.exoplayer2.ext.mediasession.TimelineQueueNavigator
 import com.google.android.exoplayer2.source.MediaSource
 import com.google.android.exoplayer2.source.ProgressiveMediaSource
 import com.google.android.exoplayer2.source.hls.HlsMediaSource
+import com.google.android.exoplayer2.ui.PlayerControlView
 import com.google.android.exoplayer2.ui.PlayerNotificationManager
 import com.google.android.exoplayer2.upstream.*
 import okhttp3.OkHttpClient
@@ -184,8 +185,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
     currentPlayer = mPlayer
 
-    var client: OkHttpClient = OkHttpClient()
-
     // Initialize API
     apiHandler = ApiHandler(ctx)
 
@@ -219,9 +218,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         setSessionActivity(sessionActivityPendingIntent)
         isActive = true
       }
-
-
-    Log.d(tag, "Media Session Set")
 
     val mediaController = MediaControllerCompat(ctx, mediaSession.sessionToken)
 
@@ -293,10 +289,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
     var metadata = playbackSession.getMediaMetadataCompat()
     mediaSession.setMetadata(metadata)
-
     var mediaItems = playbackSession.getMediaItems()
-
     if (mPlayer == currentPlayer) {
+
       var mediaSource:MediaSource
 
       if (playbackSession.isLocal) {
@@ -316,24 +311,25 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       }
       mPlayer.setMediaSource(mediaSource)
 
-      // Add remaining media items if multi-track
-      if (mediaItems.size > 1) {
-        mPlayer.addMediaItems(mediaItems.subList(1, mediaItems.size))
-        Log.d(tag, "mPlayer total media items ${mPlayer.mediaItemCount}")
-
-        var currentTrackIndex = playbackSession.getCurrentTrackIndex()
-        var currentTrackTime = playbackSession.getCurrentTrackTimeMs()
-        Log.d(tag, "mPlayer current track index $currentTrackIndex & current track time $currentTrackTime")
-        mPlayer.seekTo(currentTrackIndex, currentTrackTime)
-      } else {
-        mPlayer.seekTo(playbackSession.currentTimeMs)
-      }
     } else if (castPlayer != null) {
-////      var mediaQueue = currentAudiobookStreamData!!.getCastQueue()
-//      // TODO: Start position will need to be adjusted if using multi-track queue
-////      castPlayer?.setMediaItems(mediaQueue, 0, 0)
+      castPlayer?.addMediaItem(mediaItems[0]) // TODO: Media items never actually get added, not sure what is going on....
+      Log.d(tag, "Cast Player ADDED MEDIA ITEM ${castPlayer?.currentMediaItem} | ${castPlayer?.duration} | ${castPlayer?.mediaItemCount}")
     }
 
+    // Add remaining media items if multi-track
+    if (mediaItems.size > 1) {
+      currentPlayer.addMediaItems(mediaItems.subList(1, mediaItems.size))
+      Log.d(tag, "currentPlayer total media items ${currentPlayer.mediaItemCount}")
+
+      var currentTrackIndex = playbackSession.getCurrentTrackIndex()
+      var currentTrackTime = playbackSession.getCurrentTrackTimeMs()
+      Log.d(tag, "currentPlayer current track index $currentTrackIndex & current track time $currentTrackTime")
+      currentPlayer.seekTo(currentTrackIndex, currentTrackTime)
+    } else {
+      currentPlayer.seekTo(playbackSession.currentTimeMs)
+    }
+
+    Log.d(tag, "Prepare complete for session ${currentPlaybackSession?.displayTitle} | ${currentPlayer.mediaItemCount}")
     currentPlayer.playWhenReady = playWhenReady
     currentPlayer.setPlaybackSpeed(1f) // TODO: Playback speed should come from settings
     currentPlayer.prepare()
@@ -349,9 +345,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       mediaSessionConnector.setPlayer(mPlayer)
       mPlayer
     }
-    if (currentPlaybackSession != null) {
-      Log.d(tag, "switchToPlayer: Initing current ab stream data")
-      preparePlayer(currentPlaybackSession!!, false)
+    currentPlaybackSession?.let {
+      Log.d(tag, "switchToPlayer: Preparing current playback session ${it.displayTitle}")
+      preparePlayer(it, false)
     }
   }
 
@@ -404,11 +400,22 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     if (currentPlayer == castPlayer) {
       Log.d(tag, "CAST Player set on play ${currentPlayer.isLoading} || ${currentPlayer.duration} | ${currentPlayer.currentPosition}")
     }
+
     currentPlayer.play()
   }
 
   fun pause() {
     currentPlayer.pause()
+  }
+
+  fun playPause():Boolean {
+    return if (currentPlayer.isPlaying) {
+      pause()
+      false
+    } else {
+      play()
+      true
+    }
   }
 
   fun seekPlayer(time: Long) {

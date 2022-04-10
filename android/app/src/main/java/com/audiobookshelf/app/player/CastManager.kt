@@ -9,17 +9,19 @@ import androidx.mediarouter.app.MediaRouteChooserDialog
 import androidx.mediarouter.media.MediaRouteSelector
 import androidx.mediarouter.media.MediaRouter
 import com.getcapacitor.PluginCall
+import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.ext.cast.CastPlayer
+import com.google.android.exoplayer2.ext.cast.MediaItemConverter
 import com.google.android.exoplayer2.ext.cast.SessionAvailabilityListener
 import com.google.android.gms.cast.Cast
 import com.google.android.gms.cast.CastDevice
 import com.google.android.gms.cast.CastMediaControlIntent
+import com.google.android.gms.cast.MediaQueueItem
 import com.google.android.gms.cast.framework.*
 import org.json.JSONObject
-import java.util.ArrayList
 
 class CastManager constructor(playerNotificationService:PlayerNotificationService) {
-  private val tag = "SleepTimerManager"
+  private val tag = "CastManager"
   private val playerNotificationService:PlayerNotificationService = playerNotificationService
 
   private var newConnectionListener: SessionListener? = null
@@ -291,6 +293,22 @@ class CastManager constructor(playerNotificationService:PlayerNotificationServic
     }
   }
 
+  inner class CustomConverter : MediaItemConverter {
+    override fun toMediaQueueItem(mediaItem: MediaItem): MediaQueueItem {
+      // The MediaQueueItem you build is expected to be in the tag.
+      var queueItem =  (mediaItem.playbackProperties!!.tag as MediaQueueItem?)!!
+      Log.d(tag, "Test toMediaQueueItem ${queueItem.media!!.contentUrl} | ${queueItem.playbackDuration} | ${queueItem.itemId}")
+      return queueItem
+    }
+
+    override fun toMediaItem(mediaQueueItem: MediaQueueItem): MediaItem {
+      return MediaItem.Builder()
+        .setUri(mediaQueueItem.media!!.contentUrl)
+        .setTag(mediaQueueItem)
+        .build()
+    }
+  }
+
   private fun listenForConnection(callback: ConnectionCallback) {
     // We should only ever have one of these listeners active at a time, so remove previous
     getSessionManager()?.removeSessionManagerListener(newConnectionListener, CastSession::class.java)
@@ -302,7 +320,8 @@ class CastManager constructor(playerNotificationService:PlayerNotificationServic
 
         try {
           val castContext = CastContext.getSharedInstance(mainActivity)
-          playerNotificationService.castPlayer = CastPlayer(castContext).apply {
+
+          playerNotificationService.castPlayer = CastPlayer(castContext, CustomConverter()).apply {
             setSessionAvailabilityListener(CastSessionAvailabilityListener())
             addListener(PlayerListener(playerNotificationService))
           }
