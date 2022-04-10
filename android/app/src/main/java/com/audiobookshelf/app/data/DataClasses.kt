@@ -1,5 +1,9 @@
 package com.audiobookshelf.app.data
 
+import android.net.Uri
+import android.support.v4.media.MediaMetadataCompat
+import com.audiobookshelf.app.R
+import com.audiobookshelf.app.device.DeviceManager
 import com.fasterxml.jackson.annotation.*
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -21,8 +25,36 @@ data class LibraryItem(
   var isInvalid:Boolean,
   var mediaType:String,
   var media:MediaType,
-  var libraryFiles:MutableList<LibraryFile>
-)
+  var libraryFiles:MutableList<LibraryFile>?
+) {
+  @get:JsonIgnore
+  val title get() = media.metadata.title
+  @get:JsonIgnore
+  val authorName get() = media.metadata.getAuthorDisplayName()
+
+  @JsonIgnore
+  fun getCoverUri():Uri {
+    if (media.coverPath == null) {
+      return Uri.parse("android.resource://com.audiobookshelf.app/" + R.drawable.icon)
+    }
+
+    return Uri.parse("${DeviceManager.serverAddress}/api/items/$id/cover?token=${DeviceManager.token}")
+  }
+
+  @JsonIgnore
+  fun getMediaMetadata(): MediaMetadataCompat {
+    return MediaMetadataCompat.Builder().apply {
+      putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, id)
+      putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, title)
+      putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
+      putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, authorName)
+      putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, getCoverUri().toString())
+      putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getCoverUri().toString())
+      putString(MediaMetadataCompat.METADATA_KEY_ART_URI, getCoverUri().toString())
+      putString(MediaMetadataCompat.METADATA_KEY_AUTHOR, authorName)
+    }.build()
+  }
+}
 
 // This auto-detects whether it is a Book or Podcast
 @JsonTypeInfo(use=JsonTypeInfo.Id.DEDUCTION)
@@ -46,36 +78,36 @@ class Podcast(
   metadata:PodcastMetadata,
   coverPath:String?,
   var tags:MutableList<String>,
-  var episodes:MutableList<PodcastEpisode>,
+  var episodes:MutableList<PodcastEpisode>?,
   var autoDownloadEpisodes:Boolean
 ) : MediaType(metadata, coverPath) {
   @JsonIgnore
   override fun getAudioTracks():List<AudioTrack> {
-    var tracks = episodes.map { it.audioTrack }
-    return tracks.filterNotNull()
+    var tracks = episodes?.map { it.audioTrack }
+    return tracks?.filterNotNull() ?: mutableListOf()
   }
   @JsonIgnore
   override fun setAudioTracks(audioTracks:MutableList<AudioTrack>) {
     // Remove episodes no longer there in tracks
-    episodes = episodes.filter { ep ->
+    episodes = episodes?.filter { ep ->
       audioTracks.find { it.localFileId == ep.audioTrack?.localFileId } != null
     } as MutableList<PodcastEpisode>
     // Add new episodes
     audioTracks.forEach { at ->
-      if (episodes.find{ it.audioTrack?.localFileId == at.localFileId } == null) {
-        var newEpisode = PodcastEpisode("local_" + at.localFileId,episodes.size + 1,null,null,at.title,null,null,null,at)
-        episodes.add(newEpisode)
+      if (episodes?.find{ it.audioTrack?.localFileId == at.localFileId } == null) {
+        var newEpisode = PodcastEpisode("local_" + at.localFileId,episodes?.size ?: 0 + 1,null,null,at.title,null,null,null,at)
+        episodes?.add(newEpisode)
       }
     }
   }
   @JsonIgnore
   override fun addAudioTrack(audioTrack:AudioTrack) {
-    var newEpisode = PodcastEpisode("local_" + audioTrack.localFileId,episodes.size + 1,null,null,audioTrack.title,null,null,null,audioTrack)
-    episodes.add(newEpisode)
+    var newEpisode = PodcastEpisode("local_" + audioTrack.localFileId,episodes?.size ?: 0 + 1,null,null,audioTrack.title,null,null,null,audioTrack)
+    episodes?.add(newEpisode)
   }
   @JsonIgnore
   override fun removeAudioTrack(localFileId:String) {
-    episodes.removeIf { it.audioTrack?.localFileId == localFileId }
+    episodes?.removeIf { it.audioTrack?.localFileId == localFileId }
   }
 }
 
@@ -84,8 +116,8 @@ class Book(
   metadata:BookMetadata,
   coverPath:String?,
   var tags:List<String>,
-  var audioFiles:List<AudioFile>,
-  var chapters:List<BookChapter>,
+  var audioFiles:List<AudioFile>?,
+  var chapters:List<BookChapter>?,
   var tracks:MutableList<AudioTrack>?,
   var size:Long?,
   var duration:Double?
@@ -136,20 +168,23 @@ class Book(
   }
 }
 
-// This auto-detects whether it is a Book or Podcast
+// This auto-detects whether it is a BookMetadata or PodcastMetadata
 @JsonTypeInfo(use=JsonTypeInfo.Id.DEDUCTION)
 @JsonSubTypes(
   JsonSubTypes.Type(BookMetadata::class),
   JsonSubTypes.Type(PodcastMetadata::class)
 )
-open class MediaTypeMetadata(var title:String) {}
+open class MediaTypeMetadata(var title:String) {
+  @JsonIgnore
+  open fun getAuthorDisplayName():String { return "Unknown" }
+}
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 class BookMetadata(
   title:String,
   var subtitle:String?,
-  var authors:MutableList<Author>,
-  var narrators:MutableList<String>,
+  var authors:MutableList<Author>?,
+  var narrators:MutableList<String>?,
   var genres:MutableList<String>,
   var publishedYear:String?,
   var publishedDate:String?,
@@ -164,7 +199,10 @@ class BookMetadata(
   var authorNameLF:String?,
   var narratorName:String?,
   var seriesName:String?
-) : MediaTypeMetadata(title)
+) : MediaTypeMetadata(title) {
+  @JsonIgnore
+  override fun getAuthorDisplayName():String { return authorName ?: "Unknown" }
+}
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 class PodcastMetadata(
@@ -172,7 +210,10 @@ class PodcastMetadata(
   var author:String?,
   var feedUrl:String?,
   var genres:MutableList<String>
-) : MediaTypeMetadata(title)
+) : MediaTypeMetadata(title) {
+  @JsonIgnore
+  override fun getAuthorDisplayName():String { return author ?: "Unknown" }
+}
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class Author(

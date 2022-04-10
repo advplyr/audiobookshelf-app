@@ -32,8 +32,6 @@ class AbsAudioPlayer : Plugin() {
     var foregroundServiceReady : () -> Unit = {
       playerNotificationService = mainActivity.foregroundService
 
-      playerNotificationService.setBridge(bridge)
-
       playerNotificationService.clientEventEmitter = (object : PlayerNotificationService.ClientEventEmitter {
         override fun onPlaybackSession(playbackSession: PlaybackSession) {
           notifyListeners("onPlaybackSession", JSObject(jacksonObjectMapper().writeValueAsString(playbackSession)))
