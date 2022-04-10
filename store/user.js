@@ -70,6 +70,10 @@ export const mutations = {
   setUser(state, user) {
     state.user = user
   },
+  removeMediaProgress(state, id) {
+    if (!state.user) return
+    state.user.mediaProgress = state.user.mediaProgress.filter(mp => mp.id != id)
+  },
   setServerConnectionConfig(state, serverConnectionConfig) {
     state.serverConnectionConfig = serverConnectionConfig
   },

@@ -47,7 +47,7 @@ export default {
         height: this.entityHeight,
         bookCoverAspectRatio: this.bookCoverAspectRatio
       }
-      if (this.entityName === 'series-books') props.showVolumeNumber = true
+      if (this.entityName === 'series-books') props.showSequence = true
 
       var _this = this
       var instance = new ComponentClass({

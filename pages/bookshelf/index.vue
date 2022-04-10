@@ -123,7 +123,13 @@ export default {
           }
           return cat
         })
-        this.shelves = this.shelves.concat(categories)
+        // Put continue listening shelf first
+        var continueListeningShelf = categories.find((c) => c.id == 'continue-listening')
+        if (continueListeningShelf) {
+          this.shelves = [continueListeningShelf, ...this.shelves]
+          console.log(this.shelves)
+        }
+        this.shelves = this.shelves.concat(categories.filter((c) => c.id != 'continue-listening'))
       }
       this.loading = false
     },

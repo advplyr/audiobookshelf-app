@@ -274,6 +274,12 @@ export default {
       } else {
         console.log('[default] syncLocalMediaProgress No local media progress to sync')
       }
+    },
+    userUpdated(user) {
+      console.log('User updated', user)
+      if (this.user && this.user.id == user.id) {
+        this.$store.commit('user/setUser', user)
+      }
     }
   },
   async mounted() {
@@ -286,6 +292,7 @@ export default {
 
     this.$socket.on('connection-update', this.socketConnectionUpdate)
     this.$socket.on('initialized', this.socketInit)
+    this.$socket.on('user_updated', this.userUpdated)
 
     if (this.$store.state.isFirstLoad) {
       this.$store.commit('setIsFirstLoad', false)
@@ -310,6 +317,7 @@ export default {
   beforeDestroy() {
     this.$socket.off('connection-update', this.socketConnectionUpdate)
     this.$socket.off('initialized', this.socketInit)
+    this.$socket.off('user_updated', this.userUpdated)
   }
 }
 </script>

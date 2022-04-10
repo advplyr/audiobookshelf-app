@@ -240,14 +240,17 @@ export default {
       if (value) {
         this.resettingProgress = true
         if (this.isLocal) {
+          // TODO: If connected to server also sync with server
           await this.$db.removeLocalMediaProgress(this.libraryItemId)
           this.$store.commit('globals/removeLocalMediaProgress', this.libraryItemId)
         } else {
+          var progressId = this.userItemProgress.id
           await this.$axios
             .$delete(`/api/me/progress/${this.libraryItemId}`)
             .then(() => {
               console.log('Progress reset complete')
               this.$toast.success(`Your progress was reset`)
+              this.$store.commit('user/removeMediaProgress', progressId)
             })
             .catch((error) => {
               console.error('Progress reset failed', error)
