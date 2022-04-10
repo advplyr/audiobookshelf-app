@@ -9,6 +9,9 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.MediaMetadata
+import com.google.android.gms.cast.MediaInfo
+import com.google.android.gms.cast.MediaQueueItem
+import com.google.android.gms.common.images.WebImage
 
 // TODO: enum or something in kotlin?
 val PLAYMETHOD_DIRECTPLAY = 0
@@ -135,10 +138,39 @@ class PlaybackSession(
       var mediaMetadata = this.getExoMediaMetadata(audioTrack)
       var mediaUri = this.getContentUri(audioTrack)
       var mimeType = audioTrack.mimeType
-      var mediaItem = MediaItem.Builder().setUri(mediaUri).setMediaMetadata(mediaMetadata).setMimeType(mimeType).build()
+
+      var queueItem = getQueueItem(audioTrack) // Queue item used in exo player CastManager
+      var mediaItem = MediaItem.Builder().setUri(mediaUri).setTag(queueItem).setMediaMetadata(mediaMetadata).setMimeType(mimeType).build()
       mediaItems.add(mediaItem)
     }
     return mediaItems
+  }
+
+  @JsonIgnore
+  fun getCastMediaMetadata(audioTrack:AudioTrack):com.google.android.gms.cast.MediaMetadata {
+    var castMetadata = com.google.android.gms.cast.MediaMetadata(com.google.android.gms.cast.MediaMetadata.MEDIA_TYPE_AUDIOBOOK_CHAPTER)
+    castMetadata.addImage(WebImage(getCoverUri()))
+    castMetadata.putString(com.google.android.gms.cast.MediaMetadata.KEY_TITLE, displayTitle)
+    castMetadata.putString(com.google.android.gms.cast.MediaMetadata.KEY_ARTIST, displayAuthor)
+    castMetadata.putInt(com.google.android.gms.cast.MediaMetadata.KEY_TRACK_NUMBER, audioTrack.index)
+    return castMetadata
+  }
+
+  @JsonIgnore
+  fun getQueueItem(audioTrack:AudioTrack):MediaQueueItem {
+    var castMetadata = getCastMediaMetadata(audioTrack)
+
+    var mediaUri = getContentUri(audioTrack)
+    var mediaInfoBuilder = MediaInfo.Builder(mediaUri.toString())
+    mediaInfoBuilder.setContentUrl(mediaUri.toString())
+    mediaInfoBuilder.setMetadata(castMetadata)
+    mediaInfoBuilder.setContentType(audioTrack.mimeType)
+    var mediaInfo = mediaInfoBuilder.build()
+
+    var queueItem = MediaQueueItem.Builder(mediaInfo)
+    queueItem.setItemId(audioTrack.index)
+    queueItem.setPlaybackDuration(audioTrack.duration)
+    return queueItem.build()
   }
 
   @JsonIgnore

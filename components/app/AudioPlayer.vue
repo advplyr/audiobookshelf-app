@@ -109,7 +109,7 @@ export default {
       playbackSession: null,
       // Others
       showChapterModal: false,
-      showCastBtn: false,
+      showCastBtn: true,
       showFullscreen: false,
       totalDuration: 0,
       currentPlaybackRate: 1,
@@ -455,15 +455,9 @@ export default {
       }
       this.seek(time)
     },
-    playPauseClick() {
+    async playPauseClick() {
       if (this.isLoading) return
-      if (this.isPaused) {
-        console.log('playPause PLAY')
-        this.play()
-      } else {
-        console.log('playPause PAUSE')
-        this.pause()
-      }
+      this.isPlaying = !!((await AbsAudioPlayer.playPause()) || {}).playing
     },
     play() {
       AbsAudioPlayer.playPlayer()

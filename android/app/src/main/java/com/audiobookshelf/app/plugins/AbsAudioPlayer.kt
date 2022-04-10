@@ -148,6 +148,14 @@ class AbsAudioPlayer : Plugin() {
   }
 
   @PluginMethod
+  fun playPause(call: PluginCall) {
+    Handler(Looper.getMainLooper()).post() {
+      var playing = playerNotificationService.playPause()
+      call.resolve(JSObject("{\"playing\":$playing}"))
+    }
+  }
+
+  @PluginMethod
   fun seekPlayer(call: PluginCall) {
     var time:Long = call.getString("timeMs", "0")!!.toLong()
     Handler(Looper.getMainLooper()).post() {
@@ -246,19 +254,19 @@ class AbsAudioPlayer : Plugin() {
   @PluginMethod
   fun requestSession(call: PluginCall) {
     Log.d(tag, "CAST REQUEST SESSION PLUGIN")
+    call.resolve()
+    playerNotificationService.castManager.requestSession(mainActivity, object : CastManager.RequestSessionCallback() {
+      override fun onError(errorCode: Int) {
+        Log.e(tag, "CAST REQUEST SESSION CALLBACK ERROR $errorCode")
+      }
 
-      playerNotificationService.castManager.requestSession(mainActivity, object : CastManager.RequestSessionCallback() {
-        override fun onError(errorCode: Int) {
-          Log.e(tag, "CAST REQUEST SESSION CALLBACK ERROR $errorCode")
-        }
+      override fun onCancel() {
+        Log.d(tag, "CAST REQUEST SESSION ON CANCEL")
+      }
 
-        override fun onCancel() {
-          Log.d(tag, "CAST REQUEST SESSION ON CANCEL")
-        }
-
-        override fun onJoin(jsonSession: JSONObject?) {
-          Log.d(tag, "CAST REQUEST SESSION ON JOIN")
-        }
-      })
+      override fun onJoin(jsonSession: JSONObject?) {
+        Log.d(tag, "CAST REQUEST SESSION ON JOIN")
+      }
+    })
   }
 }
