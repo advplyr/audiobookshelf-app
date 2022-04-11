@@ -36,16 +36,14 @@ export default {
 
   plugins: [
     '@/plugins/server.js',
-    '@/plugins/sqlStore.js',
     '@/plugins/db.js',
     '@/plugins/localStore.js',
     '@/plugins/init.client.js',
     '@/plugins/axios.js',
-    '@/plugins/my-native-audio.js',
-    '@/plugins/audio-downloader.js',
-    '@/plugins/storage-manager.js',
+    '@/plugins/capacitor/index.js',
     '@/plugins/toast.js',
-    '@/plugins/constants.js'
+    '@/plugins/constants.js',
+    '@/plugins/haptics.js'
   ],
 
   components: true,

@@ -1,27 +1,29 @@
 <template>
   <div class="w-full h-full min-h-full relative">
-    <template v-for="(shelf, index) in shelves">
-      <bookshelf-shelf :key="shelf.id" :label="shelf.label" :entities="shelf.entities" :type="shelf.type" :style="{ zIndex: shelves.length - index }" />
-    </template>
+    <div v-if="!loading" class="w-full">
+      <template v-for="(shelf, index) in shelves">
+        <bookshelf-shelf :key="shelf.id" :label="shelf.label" :entities="shelf.entities" :type="shelf.type" :style="{ zIndex: shelves.length - index }" />
+      </template>
+    </div>
 
     <div v-if="!shelves.length" class="absolute top-0 left-0 w-full h-full flex items-center justify-center">
       <div>
         <p class="mb-4 text-center text-xl">
           Bookshelf empty
-          <span v-show="isSocketConnected">
+          <span v-show="user">
             for library
             <strong>{{ currentLibraryName }}</strong>
           </span>
         </p>
-        <div class="w-full" v-if="!isSocketConnected">
+        <div class="w-full" v-if="!user">
           <div class="flex justify-center items-center mb-3">
             <span class="material-icons text-error text-lg">cloud_off</span>
             <p class="pl-2 text-error text-sm">Audiobookshelf server not connected.</p>
           </div>
-          <p class="px-4 text-center text-error absolute bottom-12 left-0 right-0 mx-auto"><strong>Important!</strong> This app requires that you are running <u>your own server</u> and does not provide any content.</p>
+          <!-- <p class="px-4 text-center text-error absolute bottom-12 left-0 right-0 mx-auto"><strong>Important!</strong> This app requires that you are running <u>your own server</u> and does not provide any content.</p> -->
         </div>
         <div class="flex justify-center">
-          <ui-btn v-if="!isSocketConnected" small @click="$router.push('/connect')" class="w-32">Connect</ui-btn>
+          <ui-btn v-if="!user" small @click="$router.push('/connect')" class="w-32">Connect</ui-btn>
         </div>
       </div>
     </div>
@@ -33,18 +35,13 @@ export default {
   data() {
     return {
       shelves: [],
-      loading: true
+      loading: false,
+      localLibraryItems: []
     }
   },
   computed: {
-    books() {
-      return this.$store.getters['downloads/getDownloads'].map((dl) => {
-        var download = { ...dl }
-        var ab = { ...download.audiobook }
-        delete download.audiobook
-        ab.download = download
-        return ab
-      })
+    user() {
+      return this.$store.state.user.user
     },
     isSocketConnected() {
       return this.$store.state.socketConnected
@@ -52,106 +49,93 @@ export default {
     currentLibraryName() {
       return this.$store.getters['libraries/getCurrentLibraryName']
     },
-    booksWithUserAbData() {
-      var books = this.books.map((b) => {
-        var userAbData = this.$store.getters['user/getUserAudiobookData'](b.id)
-        return { ...b, userAbData }
-      })
-      return books
-    },
-    booksCurrentlyReading() {
-      var books = this.booksWithUserAbData
-        .map((b) => ({ ...b }))
-        .filter((b) => b.userAbData && !b.userAbData.isRead && b.userAbData.progress > 0)
-        .sort((a, b) => {
-          return b.userAbData.lastUpdate - a.userAbData.lastUpdate
-        })
-      return books
-    },
-    booksRecentlyAdded() {
-      var books = this.books
-        .map((b) => {
-          return { ...b }
-        })
-        .sort((a, b) => b.addedAt - a.addedAt)
-      return books.slice(0, 10)
-    },
-    booksRead() {
-      var books = this.booksWithUserAbData
-        .filter((b) => b.userAbData && b.userAbData.isRead)
-        .sort((a, b) => {
-          return b.userAbData.lastUpdate - a.userAbData.lastUpdate
-        })
-      return books.slice(0, 10)
-    },
-    downloadOnlyShelves() {
-      var shelves = []
-
-      if (this.booksCurrentlyReading.length) {
-        shelves.push({
-          id: 'recent',
-          label: 'Continue Reading',
-          type: 'books',
-          entities: this.booksCurrentlyReading
-        })
-      }
-
-      if (this.booksRecentlyAdded.length) {
-        shelves.push({
-          id: 'added',
-          label: 'Recently Added',
-          type: 'books',
-          entities: this.booksRecentlyAdded
-        })
-      }
-
-      if (this.booksRead.length) {
-        shelves.push({
-          id: 'read',
-          label: 'Read Again',
-          type: 'books',
-          entities: this.booksRead
-        })
-      }
-      return shelves
-    },
     currentLibraryId() {
       return this.$store.state.libraries.currentLibraryId
     }
   },
   methods: {
-    async fetchCategories() {
-      var categories = await this.$axios
-        .$get(`/api/libraries/${this.currentLibraryId}/categories`)
-        .then((data) => {
-          return data
+    async getLocalMediaItemCategories() {
+      var localMedia = await this.$db.getLocalLibraryItems()
+      console.log('Got local library items', localMedia ? localMedia.length : 'N/A')
+      if (!localMedia || !localMedia.length) return []
+
+      var categories = []
+      var books = []
+      var podcasts = []
+      localMedia.forEach((item) => {
+        if (item.mediaType == 'book') {
+          books.push(item)
+        } else if (item.mediaType == 'podcast') {
+          podcasts.push(item)
+        }
+      })
+
+      if (books.length) {
+        categories.push({
+          id: 'local-books',
+          label: 'Local Books',
+          type: 'book',
+          entities: books
         })
-        .catch((error) => {
+      }
+      if (podcasts.length) {
+        categories.push({
+          id: 'local-podcasts',
+          label: 'Local Podcasts',
+          type: 'podcast',
+          entities: podcasts
+        })
+      }
+
+      return categories
+    },
+    async fetchCategories() {
+      if (this.loading) {
+        console.log('Already loading categories')
+        return
+      }
+      this.loading = true
+      this.shelves = []
+
+      this.localLibraryItems = await this.$db.getLocalLibraryItems()
+
+      var localCategories = await this.getLocalMediaItemCategories()
+      this.shelves = this.shelves.concat(localCategories)
+
+      if (this.user && this.currentLibraryId) {
+        var categories = await this.$axios.$get(`/api/libraries/${this.currentLibraryId}/personalized?minified=1`).catch((error) => {
           console.error('Failed to fetch categories', error)
           return []
         })
-      this.shelves = categories
-    },
-    async socketInit(isConnected) {
-      if (isConnected && this.currentLibraryId) {
-        console.log('Connected - Load from server')
-        await this.fetchCategories()
-      } else {
-        console.log('Disconnected - Reset to local storage')
-        this.shelves = this.downloadOnlyShelves
+        categories = categories.map((cat) => {
+          console.log('[breadcrumb] Personalized category from server', cat.type)
+          if (cat.type == 'book' || cat.type == 'podcast') {
+            // Map localLibraryItem to entities
+            cat.entities = cat.entities.map((entity) => {
+              var localLibraryItem = this.localLibraryItems.find((lli) => {
+                return lli.libraryItemId == entity.id
+              })
+              if (localLibraryItem) {
+                entity.localLibraryItem = localLibraryItem
+              }
+              return entity
+            })
+          }
+          return cat
+        })
+        // Put continue listening shelf first
+        var continueListeningShelf = categories.find((c) => c.id == 'continue-listening')
+        if (continueListeningShelf) {
+          this.shelves = [continueListeningShelf, ...this.shelves]
+          console.log(this.shelves)
+        }
+        this.shelves = this.shelves.concat(categories.filter((c) => c.id != 'continue-listening'))
       }
       this.loading = false
     },
     async libraryChanged(libid) {
-      if (this.isSocketConnected && this.currentLibraryId) {
+      if (this.currentLibraryId) {
         await this.fetchCategories()
-      } else {
-        this.shelves = this.downloadOnlyShelves
-      }
-    },
-    downloadsLoaded() {
-      if (!this.isSocketConnected) {
-        this.shelves = this.downloadOnlyShelves
       }
     },
     audiobookAdded(audiobook) {
@@ -196,57 +180,25 @@ export default {
         }
       })
     },
-    audiobookRemoved(audiobook) {
-      this.removeBookFromShelf(audiobook)
-    },
-    audiobooksAdded(audiobooks) {
-      console.log('audiobooks added', audiobooks)
-      // TODO: Check if audiobook would be on this shelf
-      this.fetchCategories()
-    },
-    audiobooksUpdated(audiobooks) {
-      audiobooks.forEach((ab) => {
-        this.audiobookUpdated(ab)
-      })
-    },
     initListeners() {
-      this.$server.on('initialized', this.socketInit)
+      // this.$server.on('initialized', this.socketInit)
       this.$eventBus.$on('library-changed', this.libraryChanged)
-      this.$eventBus.$on('downloads-loaded', this.downloadsLoaded)
-
-      if (this.$server.socket) {
-        this.$server.socket.on('audiobook_updated', this.audiobookUpdated)
-        this.$server.socket.on('audiobook_added', this.audiobookAdded)
-        this.$server.socket.on('audiobook_removed', this.audiobookRemoved)
-        this.$server.socket.on('audiobooks_updated', this.audiobooksUpdated)
-        this.$server.socket.on('audiobooks_added', this.audiobooksAdded)
-      } else {
-        console.error('Error socket not initialized')
-      }
+      // this.$eventBus.$on('downloads-loaded', this.downloadsLoaded)
     },
     removeListeners() {
-      this.$server.off('initialized', this.socketInit)
+      // this.$server.off('initialized', this.socketInit)
       this.$eventBus.$off('library-changed', this.libraryChanged)
-      this.$eventBus.$off('downloads-loaded', this.downloadsLoaded)
-
-      if (this.$server.socket) {
-        this.$server.socket.off('audiobook_updated', this.audiobookUpdated)
-        this.$server.socket.off('audiobook_added', this.audiobookAdded)
-        this.$server.socket.off('audiobook_removed', this.audiobookRemoved)
-        this.$server.socket.off('audiobooks_updated', this.audiobooksUpdated)
-        this.$server.socket.off('audiobooks_added', this.audiobooksAdded)
-      } else {
-        console.error('Error socket not initialized')
-      }
+      // this.$eventBus.$off('downloads-loaded', this.downloadsLoaded)
     }
   },
   mounted() {
     this.initListeners()
-    if (this.$server.initialized && this.currentLibraryId) {
-      this.fetchCategories()
-    } else {
-      this.shelves = this.downloadOnlyShelves
-    }
+    this.fetchCategories()
+    // if (this.$server.initialized && this.currentLibraryId) {
+    //   this.fetchCategories()
+    // } else {
+    //   this.shelves = this.downloadOnlyShelves
+    // }
   },
   beforeDestroy() {
     this.removeListeners()

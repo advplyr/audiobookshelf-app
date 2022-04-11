@@ -12,33 +12,59 @@
 </template>
 
 <script>
-import { Capacitor } from '@capacitor/core'
 import { AppUpdate } from '@robingenz/capacitor-app-update'
-import AudioDownloader from '@/plugins/audio-downloader'
-import StorageManager from '@/plugins/storage-manager'
 
 export default {
   data() {
-    return {}
+    return {
+      attemptingConnection: false,
+      inittingLibraries: false,
+      hasMounted: false,
+      disconnectTime: 0
+    }
   },
   watch: {
     networkConnected: {
-      handler(newVal) {
+      handler(newVal, oldVal) {
+        if (!this.hasMounted) {
+          // watcher runs before mount, handling libraries/connection should be handled in mount
+          return
+        }
         if (newVal) {
-          this.attemptConnection()
+          console.log(`[default] network connected changed ${oldVal} -> ${newVal}`)
+          if (!this.user) {
+            this.attemptConnection()
+          } else if (!this.currentLibraryId) {
+            this.initLibraries()
+          } else {
+            var timeSinceDisconnect = Date.now() - this.disconnectTime
+            if (timeSinceDisconnect > 5000) {
+              console.log('Time since disconnect was', timeSinceDisconnect, 'sync with server')
+              setTimeout(() => {
+                // TODO: Some issue here
+                this.syncLocalMediaProgress()
+              }, 4000)
+            }
+          }
+        } else {
+          console.log(`[default] lost network connection`)
+          this.disconnectTime = Date.now()
         }
       }
     }
   },
   computed: {
     playerIsOpen() {
-      return this.$store.getters['playerIsOpen']
+      return this.$store.state.playerLibraryItemId
     },
     routeName() {
       return this.$route.name
     },
     networkConnected() {
       return this.$store.state.networkConnected
+    },
+    user() {
+      return this.$store.state.user.user
     },
     currentLibraryId() {
       return this.$store.state.libraries.currentLibraryId
@@ -48,32 +74,6 @@ export default {
     }
   },
   methods: {
-    async connected(isConnected) {
-      if (isConnected) {
-        console.log('[Default] Connected socket sync user ab data')
-        this.$store.dispatch('user/syncUserAudiobookData')
-
-        this.initSocketListeners()
-
-        // Load libraries
-        await this.$store.dispatch('libraries/load')
-        this.$eventBus.$emit('library-changed')
-        this.$store.dispatch('libraries/fetch', this.currentLibraryId)
-      } else {
-        this.removeSocketListeners()
-      }
-    },
-    socketConnectionFailed(err) {
-      this.$toast.error('Socket connection error: ' + err.message)
-    },
-    currentUserAudiobookUpdate({ id, data }) {
-      if (data) {
-        console.log(`Current User Audiobook Updated ${id} ${JSON.stringify(data)}`)
-        this.$sqlStore.setUserAudiobookData(data)
-      } else {
-        this.$sqlStore.removeUserAudiobookData(id)
-      }
-    },
     initialStream(stream) {
       if (this.$refs.streamContainer && this.$refs.streamContainer.audioPlayerReady) {
         this.$refs.streamContainer.streamOpen(stream)
@@ -88,6 +88,7 @@ export default {
       }
     },
     async checkForUpdate() {
+      if (this.$platform == 'web') return
       console.log('Checking for app update')
       const result = await AppUpdate.getAppUpdateInfo()
       if (!result) {
@@ -108,180 +109,6 @@ export default {
         }, 5000)
       }
     },
-    onDownloadProgress(data) {
-      var progress = data.progress
-      var audiobookId = data.audiobookId
-
-      var downloadObj = this.$store.getters['downloads/getDownload'](audiobookId)
-      if (downloadObj) {
-        this.$toast.update(downloadObj.toastId, { content: `${progress}% Downloading ${downloadObj.audiobook.book.title}` })
-      }
-    },
-    onDownloadFailed(data) {
-      if (!data.audiobookId) {
-        console.error('Download failed invalid audiobook id', data)
-        return
-      }
-      var downloadObj = this.$store.getters['downloads/getDownload'](data.audiobookId)
-      if (!downloadObj) {
-        console.error('Failed to find download for audiobook', data.audiobookId)
-        return
-      }
-      var message = data.error || 'Unknown Error'
-      this.$toast.update(downloadObj.toastId, { content: `Failed. ${message}.`, options: { timeout: 5000, type: 'error' } }, true)
-      this.$store.commit('downloads/removeDownload', downloadObj)
-    },
-    onDownloadComplete(data) {
-      if (!data.audiobookId) {
-        console.error('Download compelte invalid audiobook id', data)
-        return
-      }
-      var downloadId = data.downloadId
-      var contentUrl = data.contentUrl
-      var folderUrl = data.folderUrl
-      var folderName = data.folderName
-      var storageId = data.storageId
-      var storageType = data.storageType
-      var simplePath = data.simplePath
-      var filename = data.filename
-      var audiobookId = data.audiobookId
-      var size = data.size || 0
-      var isCover = !!data.isCover
-
-      console.log(`Download complete "${contentUrl}" | ${filename} | DlId: ${downloadId} | Is Cover? ${isCover}`)
-      var downloadObj = this.$store.getters['downloads/getDownload'](audiobookId)
-      if (!downloadObj) {
-        console.error('Failed to find download for audiobook', audiobookId)
-        return
-      }
-
-      if (!isCover) {
-        // Notify server to remove prepared download
-        if (this.$server.socket) {
-          this.$server.socket.emit('remove_download', audiobookId)
-        }
-
-        this.$toast.update(downloadObj.toastId, { content: `Success! ${downloadObj.audiobook.book.title} downloaded.`, options: { timeout: 5000, type: 'success' } }, true)
-
-        delete downloadObj.isDownloading
-        delete downloadObj.isPreparing
-        downloadObj.contentUrl = contentUrl
-        downloadObj.simplePath = simplePath
-        downloadObj.folderUrl = folderUrl
-        downloadObj.folderName = folderName
-        downloadObj.storageType = storageType
-        downloadObj.storageId = storageId
-        downloadObj.basePath = data.basePath || null
-        downloadObj.size = size
-        this.$store.commit('downloads/addUpdateDownload', downloadObj)
-      } else {
-        downloadObj.coverUrl = contentUrl
-        downloadObj.cover = Capacitor.convertFileSrc(contentUrl)
-        downloadObj.coverSize = size
-        downloadObj.coverBasePath = data.basePath || null
-        console.log('Updating download with cover', downloadObj.cover)
-        this.$store.commit('downloads/addUpdateDownload', downloadObj)
-      }
-    },
-    async checkLoadCurrent() {
-      var currentObj = await this.$localStore.getCurrent()
-      if (!currentObj) return
-
-      console.log('Has Current playing', currentObj.audiobookId)
-      var download = this.$store.getters['downloads/getDownload'](currentObj.audiobookId)
-      if (download) {
-        this.$store.commit('setPlayingDownload', download)
-      } else {
-        console.warn('Download not available for previous current playing', currentObj.audiobookId)
-        this.$localStore.setCurrent(null)
-      }
-    },
-    async searchFolder(downloadFolder) {
-      try {
-        var response = await StorageManager.searchFolder({ folderUrl: downloadFolder.uri })
-        var searchResults = response
-        searchResults.folders = JSON.parse(searchResults.folders)
-        searchResults.files = JSON.parse(searchResults.files)
-
-        console.log('Search folders results length', searchResults.folders.length)
-        searchResults.folders = searchResults.folders.map((sr) => {
-          if (sr.files) {
-            sr.files = JSON.parse(sr.files)
-          }
-          return sr
-        })
-
-        return searchResults
-      } catch (error) {
-        console.error('Failed', error)
-        this.$toast.error('Failed to search downloads folder')
-        return {}
-      }
-    },
-    async syncDownloads(downloads, downloadFolder) {
-      console.log('Syncing downloads ' + downloads.length)
-      var mediaScanResults = await this.searchFolder(downloadFolder)
-
-      this.$store.commit('downloads/setMediaScanResults', mediaScanResults)
-
-      // Filter out media folders without any audio files
-      var mediaFolders = mediaScanResults.folders.filter((sr) => {
-        if (!sr.files) return false
-        var audioFiles = sr.files.filter((mf) => !!mf.isAudio)
-        return audioFiles.length
-      })
-
-      downloads.forEach((download) => {
-        var mediaFolder = mediaFolders.find((mf) => mf.name === download.folderName)
-        if (mediaFolder) {
-          console.log('Found download ' + download.folderName)
-          if (download.isMissing) {
-            download.isMissing = false
-            this.$store.commit('downloads/addUpdateDownload', download)
-          }
-        } else {
-          console.error('Download not found ' + download.folderName)
-          if (!download.isMissing) {
-            download.isMissing = true
-            this.$store.commit('downloads/addUpdateDownload', download)
-          }
-        }
-      })
-
-      // Match media scanned folders with books from server
-      if (this.isSocketConnected) {
-        await this.$store.dispatch('downloads/linkOrphanDownloads')
-      }
-    },
-    async initMediaStore() {
-      // Request and setup listeners for media files on native
-      AudioDownloader.addListener('onDownloadComplete', (data) => {
-        this.onDownloadComplete(data)
-      })
-      AudioDownloader.addListener('onDownloadFailed', (data) => {
-        this.onDownloadFailed(data)
-      })
-      AudioDownloader.addListener('onDownloadProgress', (data) => {
-        this.onDownloadProgress(data)
-      })
-
-      var downloads = await this.$store.dispatch('downloads/loadFromStorage')
-      var downloadFolder = await this.$localStore.getDownloadFolder()
-
-      if (downloadFolder) {
-        await this.syncDownloads(downloads, downloadFolder)
-      }
-      this.$eventBus.$emit('downloads-loaded')
-
-      var checkPermission = await StorageManager.checkStoragePermission()
-      console.log('Storage Permission is' + checkPermission.value)
-      if (!checkPermission.value) {
-        console.log('Will require permissions')
-      } else {
-        console.log('Has Storage Permission')
-        this.$store.commit('setHasStoragePermission', true)
-      }
-    },
     async loadSavedSettings() {
       var userSavedServerSettings = await this.$localStore.getServerSettings()
       if (userSavedServerSettings) {
@@ -292,125 +119,149 @@ export default {
       if (userSavedSettings) {
         this.$store.commit('user/setSettings', userSavedSettings)
       }
-
-      console.log('Loading offline user audiobook data')
-      await this.$store.dispatch('user/loadOfflineUserAudiobookData')
-    },
-    showErrorToast(message) {
-      this.$toast.error(message)
-    },
-    showSuccessToast(message) {
-      this.$toast.success(message)
     },
     async attemptConnection() {
-      if (!this.$server) return
+      console.warn('[default] attemptConnection')
       if (!this.networkConnected) {
-        console.warn('No network connection')
+        console.warn('[default] No network connection')
+        return
+      }
+      if (this.attemptingConnection) {
+        return
+      }
+      this.attemptingConnection = true
+
+      var deviceData = await this.$db.getDeviceData()
+      var serverConfig = null
+      if (deviceData && deviceData.lastServerConnectionConfigId && deviceData.serverConnectionConfigs.length) {
+        serverConfig = deviceData.serverConnectionConfigs.find((scc) => scc.id == deviceData.lastServerConnectionConfigId)
+      }
+      if (!serverConfig) {
+        // No last server config set
+        this.attemptingConnection = false
         return
       }
 
-      var localServerUrl = await this.$localStore.getServerUrl()
-      var localUserToken = await this.$localStore.getToken()
-      if (localServerUrl) {
-        // Server and Token are stored
-        if (localUserToken) {
-          var isSocketAlreadyEstablished = this.$server.socket
-          var success = await this.$server.connect(localServerUrl, localUserToken)
-          if (!success && !this.$server.url) {
-            // Bad URL
-          } else if (!success) {
-            // Failed to connect
-          } else if (isSocketAlreadyEstablished) {
-            // No need to wait for connect event
-          }
-        }
+      console.log(`[default] Got server config, attempt authorize ${serverConfig.address}`)
+
+      var authRes = await this.$axios.$post(`${serverConfig.address}/api/authorize`, null, { headers: { Authorization: `Bearer ${serverConfig.token}` } }).catch((error) => {
+        console.error('[Server] Server auth failed', error)
+        var errorMsg = error.response ? error.response.data || 'Unknown Error' : 'Unknown Error'
+        this.error = errorMsg
+        return false
+      })
+      if (!authRes) {
+        this.attemptingConnection = false
+        return
       }
+
+      const { user, userDefaultLibraryId } = authRes
+
+      // Set library - Use last library if set and available fallback to default user library
+      var lastLibraryId = await this.$localStore.getLastLibraryId()
+      if (lastLibraryId && (!user.librariesAccessible.length || user.librariesAccessible.includes(lastLibraryId))) {
+        this.$store.commit('libraries/setCurrentLibrary', lastLibraryId)
+      } else if (userDefaultLibraryId) {
+        this.$store.commit('libraries/setCurrentLibrary', userDefaultLibraryId)
+      }
+      var serverConnectionConfig = await this.$db.setServerConnectionConfig(serverConfig)
+
+      this.$store.commit('user/setUser', user)
+      this.$store.commit('user/setServerConnectionConfig', serverConnectionConfig)
+
+      this.$socket.connect(serverConnectionConfig.address, serverConnectionConfig.token)
+
+      console.log('[default] Successful connection on last saved connection config', JSON.stringify(serverConnectionConfig))
+      await this.initLibraries()
+      this.attemptingConnection = false
     },
-    audiobookAdded(audiobook) {
-      this.$store.commit('libraries/updateFilterDataWithAudiobook', audiobook)
-    },
-    audiobookUpdated(audiobook) {
-      this.$store.commit('libraries/updateFilterDataWithAudiobook', audiobook)
-    },
-    audiobookRemoved(audiobook) {
-      if (this.$route.name.startsWith('audiobook')) {
-        if (this.$route.params.id === audiobook.id) {
+    itemRemoved(libraryItem) {
+      if (this.$route.name.startsWith('item')) {
+        if (this.$route.params.id === libraryItem.id) {
           this.$router.replace(`/bookshelf`)
         }
       }
     },
-    audiobooksAdded(audiobooks) {
-      audiobooks.forEach((ab) => {
-        this.audiobookAdded(ab)
-      })
-    },
-    audiobooksUpdated(audiobooks) {
-      audiobooks.forEach((ab) => {
-        this.audiobookUpdated(ab)
-      })
-    },
     userLoggedOut() {
       // Only cancels stream if streamining not playing downloaded
-      this.$eventBus.$emit('close_stream')
+      this.$eventBus.$emit('close-stream')
     },
-    initSocketListeners() {
-      if (this.$server.socket) {
-        // Audiobook Listeners
-        this.$server.socket.on('audiobook_updated', this.audiobookUpdated)
-        this.$server.socket.on('audiobook_added', this.audiobookAdded)
-        this.$server.socket.on('audiobook_removed', this.audiobookRemoved)
-        this.$server.socket.on('audiobooks_updated', this.audiobooksUpdated)
-        this.$server.socket.on('audiobooks_added', this.audiobooksAdded)
+    socketConnectionUpdate(isConnected) {
+      console.log('Socket connection update', isConnected)
+    },
+    socketConnectionFailed(err) {
+      this.$toast.error('Socket connection error: ' + err.message)
+    },
+    socketInit(data) {},
+    async initLibraries() {
+      if (this.inittingLibraries) {
+        return
+      }
+      this.inittingLibraries = true
+      await this.$store.dispatch('libraries/load')
+      console.log(`[default] initLibraries loaded ${this.currentLibraryId}`)
+      this.$eventBus.$emit('library-changed')
+      this.$store.dispatch('libraries/fetch', this.currentLibraryId)
+      this.inittingLibraries = false
+    },
+    async syncLocalMediaProgress() {
+      if (!this.user) {
+        console.log('[default] No need to sync local media progress - not connected to server')
+        return
+      }
+
+      console.log('[default] Calling syncLocalMediaProgress')
+      var response = await this.$db.syncLocalMediaProgressWithServer()
+      if (!response) {
+        if (this.$platform != 'web') this.$toast.error('Failed to sync local media with server')
+        return
+      }
+      const { numLocalMediaProgressForServer, numServerProgressUpdates, numLocalProgressUpdates } = response
+      if (numLocalMediaProgressForServer > 0) {
+        if (numServerProgressUpdates > 0 || numLocalProgressUpdates > 0) {
+          console.log(`[default] ${numServerProgressUpdates} Server progress updates | ${numLocalProgressUpdates} Local progress updates`)
+        } else {
+          console.log('[default] syncLocalMediaProgress No updates were necessary')
+        }
+      } else {
+        console.log('[default] syncLocalMediaProgress No local media progress to sync')
       }
     },
-    removeSocketListeners() {
-      if (this.$server.socket) {
-        // Audiobook Listeners
-        this.$server.socket.off('audiobook_updated', this.audiobookUpdated)
-        this.$server.socket.off('audiobook_added', this.audiobookAdded)
-        this.$server.socket.off('audiobook_removed', this.audiobookRemoved)
-        this.$server.socket.off('audiobooks_updated', this.audiobooksUpdated)
-        this.$server.socket.off('audiobooks_added', this.audiobooksAdded)
+    userUpdated(user) {
+      if (this.user && this.user.id == user.id) {
+        this.$store.commit('user/setUser', user)
       }
     }
   },
   async mounted() {
-    if (!this.$server) return console.error('No Server')
-    // console.log(`Default Mounted set SOCKET listeners ${this.$server.connected}`)
-
-    if (this.$server.connected) {
-      console.log('Syncing on default mount')
-      this.connected(true)
-    }
-    this.$server.on('logout', this.userLoggedOut)
-    this.$server.on('connected', this.connected)
-    this.$server.on('connectionFailed', this.socketConnectionFailed)
-    this.$server.on('initialStream', this.initialStream)
-    this.$server.on('currentUserAudiobookUpdate', this.currentUserAudiobookUpdate)
-    this.$server.on('show_error_toast', this.showErrorToast)
-    this.$server.on('show_success_toast', this.showSuccessToast)
+    this.$socket.on('connection-update', this.socketConnectionUpdate)
+    this.$socket.on('initialized', this.socketInit)
+    this.$socket.on('user_updated', this.userUpdated)
 
     if (this.$store.state.isFirstLoad) {
       this.$store.commit('setIsFirstLoad', false)
       await this.$store.dispatch('setupNetworkListener')
-      this.attemptConnection()
+
+      if (this.$store.state.user.serverConnectionConfig) {
+        console.log(`[default] server connection config set - call init libraries`)
+        await this.initLibraries()
+      } else {
+        console.log(`[default] no server connection config - call attempt connection`)
+        await this.attemptConnection()
+      }
+
+      console.log(`[default] finished connection attempt or already connected ${!!this.user}`)
+      await this.syncLocalMediaProgress()
+      this.$store.dispatch('globals/loadLocalMediaProgress')
       this.checkForUpdate()
       this.loadSavedSettings()
-      this.initMediaStore()
+      this.hasMounted = true
     }
   },
   beforeDestroy() {
-    if (!this.$server) {
-      console.error('No Server beforeDestroy')
-      return
-    }
-    this.removeSocketListeners()
-    this.$server.off('logout', this.userLoggedOut)
-    this.$server.off('connected', this.connected)
-    this.$server.off('connectionFailed', this.socketConnectionFailed)
-    this.$server.off('initialStream', this.initialStream)
-    this.$server.off('show_error_toast', this.showErrorToast)
-    this.$server.off('show_success_toast', this.showSuccessToast)
+    this.$socket.off('connection-update', this.socketConnectionUpdate)
+    this.$socket.off('initialized', this.socketInit)
+    this.$socket.off('user_updated', this.userUpdated)
   }
 }
 </script>

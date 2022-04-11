@@ -11,7 +11,7 @@ export default function ({ $axios, store }) {
       console.warn('[Axios] No Bearer Token for request')
     }
 
-    var serverUrl = store.state.serverUrl
+    var serverUrl = store.getters['user/getServerAddress']
     if (serverUrl) {
       config.url = `${serverUrl}${config.url}`
     }

@@ -3,11 +3,16 @@ import { App } from '@capacitor/app'
 import { Dialog } from '@capacitor/dialog'
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { formatDistance, format } from 'date-fns'
+import { Capacitor } from '@capacitor/core';
 
-const setStatusBarStyleDark = async () => {
-  await StatusBar.setStyle({ style: Style.Dark })
+Vue.prototype.$eventBus = new Vue()
+
+if (Capacitor.getPlatform() != 'web') {
+  const setStatusBarStyleDark = async () => {
+    await StatusBar.setStyle({ style: Style.Dark })
+  }
+  setStatusBarStyleDark()
 }
-setStatusBarStyleDark()
 
 App.addListener('backButton', async ({ canGoBack }) => {
   if (!canGoBack) {
@@ -22,9 +27,7 @@ App.addListener('backButton', async ({ canGoBack }) => {
   } else {
     window.history.back()
   }
-});
-
-Vue.prototype.$eventBus = new Vue()
+})
 
 Vue.prototype.$isDev = process.env.NODE_ENV !== 'production'
 

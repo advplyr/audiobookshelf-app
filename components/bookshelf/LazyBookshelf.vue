@@ -1,8 +1,8 @@
 <template>
   <div id="bookshelf" class="w-full max-w-full h-full">
     <template v-for="shelf in totalShelves">
-      <div :key="shelf" class="w-full px-2 bookshelfRow relative" :id="`shelf-${shelf - 1}`" :style="{ height: shelfHeight + 'px' }">
-        <div class="bookshelfDivider w-full absolute bottom-0 left-0 z-30" style="min-height: 16px" :class="`h-${shelfDividerHeightIndex}`" />
+      <div :key="shelf" class="w-full px-2 relative" :class="showBookshelfListView ? '' : 'bookshelfRow'" :id="`shelf-${shelf - 1}`" :style="{ height: shelfHeight + 'px' }">
+        <div v-if="!showBookshelfListView" class="bookshelfDivider w-full absolute bottom-0 left-0 z-30" style="min-height: 16px" :class="`h-${shelfDividerHeightIndex}`" />
       </div>
     </template>
 
@@ -28,9 +28,8 @@ export default {
       bookshelfWidth: 0,
       bookshelfMarginLeft: 0,
       shelvesPerPage: 0,
-      entitiesPerShelf: 8,
+      entitiesPerShelf: 2,
       currentPage: 0,
-      currentBookWidth: 0,
       booksPerFetch: 20,
       initialized: false,
       currentSFQueryString: null,
@@ -42,12 +41,18 @@ export default {
       entityIndexesMounted: [],
       pagesLoaded: {},
       isFirstInit: false,
-      pendingReset: false
+      pendingReset: false,
+      localLibraryItems: []
+    }
+  },
+  watch: {
+    showBookshelfListView(newVal) {
+      this.resetEntities()
     }
   },
   computed: {
-    isSocketConnected() {
-      return this.$store.state.socketConnected
+    user() {
+      return this.$store.state.user.user
     },
     isBookEntity() {
       return this.entityName === 'books' || this.entityName === 'series-books'
@@ -56,20 +61,17 @@ export default {
       if (this.isBookEntity) return 4
       return 6
     },
+    bookshelfListView() {
+      return this.$store.state.globals.bookshelfListView
+    },
+    showBookshelfListView() {
+      return this.isBookEntity && this.bookshelfListView
+    },
     entityName() {
       return this.page
     },
-    bookshelfView() {
-      return this.$store.state.bookshelfView
-    },
     hasFilter() {
       return this.filterBy !== 'all'
-    },
-    isListView() {
-      return this.bookshelfView === 'list'
-    },
-    books() {
-      return this.$store.getters['downloads/getAudiobooks']
     },
     orderBy() {
       return this.$store.getters['user/getUserSetting']('mobileOrderBy')
@@ -101,33 +103,28 @@ export default {
       return this.bookWidth * 1.6
     },
     entityWidth() {
+      if (this.showBookshelfListView) return this.bookshelfWidth - 16
       if (this.isBookEntity) return this.bookWidth
       return this.bookWidth * 2
     },
     entityHeight() {
+      if (this.showBookshelfListView) return 88
       return this.bookHeight
     },
     currentLibraryId() {
       return this.$store.state.libraries.currentLibraryId
     },
+    currentLibraryMediaType() {
+      return this.$store.getters['libraries/getCurrentLibraryMediaType']
+    },
     shelfHeight() {
+      if (this.showBookshelfListView) return this.entityHeight
       return this.entityHeight + 40
     },
     totalEntityCardWidth() {
+      if (this.showBookshelfListView) return this.entityWidth
       // Includes margin
       return this.entityWidth + 24
-    },
-    downloads() {
-      return this.$store.getters['downloads/getDownloads']
-    },
-    downloadedBooks() {
-      return this.downloads.map((dl) => {
-        var download = { ...dl }
-        var ab = { ...download.audiobook }
-        delete download.audiobook
-        ab.download = download
-        return ab
-      })
     }
   },
   methods: {
@@ -144,19 +141,16 @@ export default {
       if (!this.initialized) {
         this.currentSFQueryString = this.buildSearchParams()
       }
-      var entityPath = this.entityName === 'books' ? `books/all` : this.entityName
+
+      var entityPath = this.entityName === 'books' || this.entityName === 'series-books' ? `items` : this.entityName
       var sfQueryString = this.currentSFQueryString ? this.currentSFQueryString + '&' : ''
-      var queryString = `?${sfQueryString}&limit=${this.booksPerFetch}&page=${page}`
+      var fullQueryString = `?${sfQueryString}limit=${this.booksPerFetch}&page=${page}&minified=1`
 
-      if (this.entityName === 'series-books') {
-        entityPath = `series/${this.seriesId}`
-        queryString = ''
-      }
-
-      var payload = await this.$axios.$get(`/api/libraries/${this.currentLibraryId}/${entityPath}${queryString}`).catch((error) => {
+      var payload = await this.$axios.$get(`/api/libraries/${this.currentLibraryId}/${entityPath}${fullQueryString}`).catch((error) => {
         console.error('failed to fetch books', error)
         return null
       })
+
       this.isFetchingEntities = false
       if (this.pendingReset) {
         this.pendingReset = false
@@ -174,25 +168,26 @@ export default {
         }
 
         for (let i = 0; i < payload.results.length; i++) {
-          if (this.entityName === 'books' || this.entityName === 'series-books') {
-            // Check if has download and append download obj
-            var download = this.downloads.find((dl) => dl.id === payload.results[i].id)
-            if (download) {
-              var dl = { ...download }
-              delete dl.audiobook
-              payload.results[i].download = dl
-            }
-          }
-
           var index = i + startIndex
           this.entities[index] = payload.results[i]
           if (this.entityComponentRefs[index]) {
             this.entityComponentRefs[index].setEntity(this.entities[index])
+
+            if (this.isBookEntity) {
+              var localLibraryItem = this.localLibraryItems.find((lli) => lli.libraryItemId == this.entities[index].id)
+              if (localLibraryItem) {
+                this.entityComponentRefs[index].setLocalLibraryItem(localLibraryItem)
+              }
+            }
           }
         }
       }
     },
     async loadPage(page) {
+      if (!this.currentLibraryId) {
+        console.error('[LazyBookshelf] loadPage current library id not set')
+        return
+      }
       this.pagesLoaded[page] = true
       await this.fetchEntities(page)
     },
@@ -224,6 +219,7 @@ export default {
         this.loadPage(lastBookPage)
       }
 
+      // Remove entities out of view
       this.entityIndexesMounted = this.entityIndexesMounted.filter((_index) => {
         if (_index < firstBookIndex || _index >= lastBookIndex) {
           var el = document.getElementById(`book-card-${_index}`)
@@ -243,7 +239,7 @@ export default {
     },
     setDownloads() {
       if (this.entityName === 'books') {
-        this.entities = this.downloadedBooks
+        this.entities = []
         // TOOD: Sort and filter here
         this.totalEntities = this.entities.length
         this.totalShelves = Math.ceil(this.totalEntities / this.entitiesPerShelf)
@@ -271,14 +267,12 @@ export default {
       this.initialized = false
 
       this.initSizeData()
-      if (this.isSocketConnected) {
+      if (this.user) {
         await this.loadPage(0)
         var lastBookIndex = Math.min(this.totalEntities, this.shelvesPerPage * this.entitiesPerShelf)
         this.mountEntites(0, lastBookIndex)
       } else {
-        this.setDownloads()
-
-        this.mountEntites(0, this.totalEntities - 1)
+        // Local only
       }
     },
     remountEntities() {
@@ -304,12 +298,11 @@ export default {
       var { clientHeight, clientWidth } = bookshelf
       this.bookshelfHeight = clientHeight
       this.bookshelfWidth = clientWidth
-      this.entitiesPerShelf = Math.floor((this.bookshelfWidth - 16) / this.totalEntityCardWidth)
+      this.entitiesPerShelf = this.showBookshelfListView ? 1 : Math.floor((this.bookshelfWidth - 16) / this.totalEntityCardWidth)
 
       this.shelvesPerPage = Math.ceil(this.bookshelfHeight / this.shelfHeight) + 2
       this.bookshelfMarginLeft = (this.bookshelfWidth - this.entitiesPerShelf * this.totalEntityCardWidth) / 2
 
-      this.currentBookWidth = this.bookWidth
       if (this.totalEntities) {
         this.totalShelves = Math.ceil(this.totalEntities / this.entitiesPerShelf)
       }
@@ -317,42 +310,43 @@ export default {
     },
     async init() {
       if (this.isFirstInit) return
+
+      this.localLibraryItems = await this.$db.getLocalLibraryItems(this.currentLibraryMediaType)
+      console.log('Local library items loaded for lazy bookshelf', this.localLibraryItems.length)
+
       this.isFirstInit = true
       this.initSizeData()
       await this.loadPage(0)
       var lastBookIndex = Math.min(this.totalEntities, this.shelvesPerPage * this.entitiesPerShelf)
       this.mountEntites(0, lastBookIndex)
     },
-    initDownloads() {
-      this.initSizeData()
-      this.setDownloads()
-      this.$nextTick(() => {
-        console.log('Mounting downloads', this.totalEntities, 'total shelves', this.totalShelves)
-        this.mountEntites(0, this.totalEntities)
-      })
-    },
     scroll(e) {
       if (!e || !e.target) return
-      if (!this.isSocketConnected) return // Offline books are all mounted at once
+      if (!this.user) return
       var { scrollTop } = e.target
       this.handleScroll(scrollTop)
     },
-    socketInit(isConnected) {
-      if (isConnected) {
-        this.init()
-      } else {
-        this.isFirstInit = false
-        this.resetEntities()
-      }
-    },
     buildSearchParams() {
-      let searchParams = new URLSearchParams()
-      if (this.filterBy && this.filterBy !== 'all') {
-        searchParams.set('filter', this.filterBy)
+      if (this.page === 'search' || this.page === 'series' || this.page === 'collections') {
+        return ''
       }
-      if (this.orderBy) {
-        searchParams.set('sort', this.orderBy)
-        searchParams.set('desc', this.orderDesc ? 1 : 0)
+
+      let searchParams = new URLSearchParams()
+      if (this.page === 'series-books') {
+        searchParams.set('filter', `series.${this.$encode(this.seriesId)}`)
+        searchParams.set('sort', 'book.volumeNumber')
+        searchParams.set('desc', 0)
+      } else {
+        if (this.filterBy && this.filterBy !== 'all') {
+          searchParams.set('filter', this.filterBy)
+        }
+        if (this.orderBy) {
+          searchParams.set('sort', this.orderBy)
+          searchParams.set('desc', this.orderDesc ? 1 : 0)
+        }
+        if (this.collapseSeries) {
+          searchParams.set('collapseseries', 1)
+        }
       }
       return searchParams.toString()
     },
@@ -385,47 +379,49 @@ export default {
         this.resetEntities()
       }
     },
-    downloadsLoaded() {
-      if (!this.isSocketConnected) {
-        this.resetEntities()
-      }
-    },
-    audiobookAdded(audiobook) {
-      console.log('Audiobook added', audiobook)
-      // TODO: Check if audiobook would be on this shelf
+    libraryItemAdded(libraryItem) {
+      console.log('libraryItem added', libraryItem)
+      // TODO: Check if item would be on this shelf
       this.resetEntities()
     },
-    audiobookUpdated(audiobook) {
-      console.log('Audiobook updated', audiobook)
+    libraryItemUpdated(libraryItem) {
+      console.log('Item updated', libraryItem)
       if (this.entityName === 'books' || this.entityName === 'series-books') {
-        var indexOf = this.entities.findIndex((ent) => ent && ent.id === audiobook.id)
+        var indexOf = this.entities.findIndex((ent) => ent && ent.id === libraryItem.id)
         if (indexOf >= 0) {
-          this.entities[indexOf] = audiobook
+          this.entities[indexOf] = libraryItem
           if (this.entityComponentRefs[indexOf]) {
-            this.entityComponentRefs[indexOf].setEntity(audiobook)
+            this.entityComponentRefs[indexOf].setEntity(libraryItem)
+
+            if (this.isBookEntity) {
+              var localLibraryItem = this.localLibraryItems.find((lli) => lli.libraryItemId == libraryItem.id)
+              if (localLibraryItem) {
+                this.entityComponentRefs[indexOf].setLocalLibraryItem(localLibraryItem)
+              }
+            }
           }
         }
       }
     },
-    audiobookRemoved(audiobook) {
+    libraryItemRemoved(libraryItem) {
       if (this.entityName === 'books' || this.entityName === 'series-books') {
-        var indexOf = this.entities.findIndex((ent) => ent && ent.id === audiobook.id)
+        var indexOf = this.entities.findIndex((ent) => ent && ent.id === libraryItem.id)
         if (indexOf >= 0) {
-          this.entities = this.entities.filter((ent) => ent.id !== audiobook.id)
+          this.entities = this.entities.filter((ent) => ent.id !== libraryItem.id)
           this.totalEntities = this.entities.length
           this.$eventBus.$emit('bookshelf-total-entities', this.totalEntities)
-          this.remountEntities()
+          this.executeRebuild()
         }
       }
     },
-    audiobooksAdded(audiobooks) {
-      console.log('audiobooks added', audiobooks)
-      // TODO: Check if audiobook would be on this shelf
+    libraryItemsAdded(libraryItems) {
+      console.log('items added', libraryItems)
+      // TODO: Check if item would be on this shelf
       this.resetEntities()
     },
-    audiobooksUpdated(audiobooks) {
-      audiobooks.forEach((ab) => {
-        this.audiobookUpdated(ab)
+    libraryItemsUpdated(libraryItems) {
+      libraryItems.forEach((ab) => {
+        this.libraryItemUpdated(ab)
       })
     },
     initListeners() {
@@ -433,54 +429,37 @@ export default {
       if (bookshelf) {
         bookshelf.addEventListener('scroll', this.scroll)
       }
-      // this.$eventBus.$on('bookshelf-clear-selection', this.clearSelectedEntities)
-      // this.$eventBus.$on('bookshelf-select-all', this.selectAllEntities)
-      // this.$eventBus.$on('bookshelf-keyword-filter', this.updateKeywordFilter)
+
       this.$eventBus.$on('library-changed', this.libraryChanged)
-      this.$eventBus.$on('downloads-loaded', this.downloadsLoaded)
       this.$store.commit('user/addSettingsListener', { id: 'lazy-bookshelf', meth: this.settingsUpdated })
 
-      if (this.$server.socket) {
-        this.$server.socket.on('audiobook_updated', this.audiobookUpdated)
-        this.$server.socket.on('audiobook_added', this.audiobookAdded)
-        this.$server.socket.on('audiobook_removed', this.audiobookRemoved)
-        this.$server.socket.on('audiobooks_updated', this.audiobooksUpdated)
-        this.$server.socket.on('audiobooks_added', this.audiobooksAdded)
-      } else {
-        console.error('Bookshelf - Socket not initialized')
-      }
+      this.$socket.$on('item_updated', this.libraryItemUpdated)
+      this.$socket.$on('item_added', this.libraryItemAdded)
+      this.$socket.$on('item_removed', this.libraryItemRemoved)
+      this.$socket.$on('items_updated', this.libraryItemsUpdated)
+      this.$socket.$on('items_added', this.libraryItemsAdded)
     },
     removeListeners() {
       var bookshelf = document.getElementById('bookshelf-wrapper')
       if (bookshelf) {
         bookshelf.removeEventListener('scroll', this.scroll)
       }
+
       this.$eventBus.$off('library-changed', this.libraryChanged)
-      this.$eventBus.$off('downloads-loaded', this.downloadsLoaded)
       this.$store.commit('user/removeSettingsListener', 'lazy-bookshelf')
 
-      if (this.$server.socket) {
-        this.$server.socket.off('audiobook_updated', this.audiobookUpdated)
-        this.$server.socket.off('audiobook_added', this.audiobookAdded)
-        this.$server.socket.off('audiobook_removed', this.audiobookRemoved)
-        this.$server.socket.off('audiobooks_updated', this.audiobooksUpdated)
-        this.$server.socket.off('audiobooks_added', this.audiobooksAdded)
-      } else {
-        console.error('Bookshelf - Socket not initialized')
-      }
+      this.$socket.$off('item_updated', this.libraryItemUpdated)
+      this.$socket.$off('item_added', this.libraryItemAdded)
+      this.$socket.$off('item_removed', this.libraryItemRemoved)
+      this.$socket.$off('items_updated', this.libraryItemsUpdated)
+      this.$socket.$off('items_added', this.libraryItemsAdded)
     }
   },
   mounted() {
-    if (this.$server.initialized) {
-      this.init()
-    } else {
-      this.initDownloads()
-    }
-    this.$server.on('initialized', this.socketInit)
+    this.init()
     this.initListeners()
   },
   beforeDestroy() {
-    this.$server.off('initialized', this.socketInit)
     this.removeListeners()
   }
 }

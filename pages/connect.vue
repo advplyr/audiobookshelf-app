@@ -6,57 +6,15 @@
       </nuxt-link>
       <div class="absolute top-0 left-0 w-full p-6 flex items-center flex-col justify-center z-0 short:hidden">
         <img src="/Logo.png" class="h-20 w-20 mb-2" />
-        <h1 class="text-2xl font-book">Audiobookshelf</h1>
+        <h1 class="text-2xl font-book">audiobookshelf</h1>
       </div>
-      <p class="hidden absolute short:block top-1.5 left-12 p-2 font-book text-xl">Audiobookshelf</p>
+      <p class="hidden absolute short:block top-1.5 left-12 p-2 font-book text-xl">audiobookshelf</p>
 
-      <p class="absolute bottom-16 left-0 right-0 px-2 text-center text-error"><strong>Important!</strong> This app requires that you are running <u>your own server</u> and does not provide any content.</p>
+      <!-- <p class="absolute bottom-16 left-0 right-0 px-2 text-center text-error"><strong>Important!</strong> This app requires that you are running <u>your own server</u> and does not provide any content.</p> -->
 
-      <div class="w-full max-w-md mx-auto px-4 sm:px-6 lg:px-8 z-10">
-        <div v-show="loggedIn" class="mt-8 bg-primary overflow-hidden shadow rounded-lg p-6 text-center">
-          <p class="text-success text-xl mb-2">Login Success!</p>
-          <p>Connecting socket..</p>
-        </div>
-        <div v-show="!loggedIn" class="mt-8 bg-primary overflow-hidden shadow rounded-lg p-6 w-full">
-          <h2 class="text-lg leading-7 mb-4">Enter an <span class="font-book font-normal">Audiobookshelf</span><br />server address:</h2>
-          <form v-show="!showAuth" @submit.prevent="submit" novalidate class="w-full">
-            <ui-text-input v-model="serverUrl" :disabled="processing || !networkConnected" placeholder="http://55.55.55.55:13378" type="url" class="w-full sm:w-72 h-10" />
-            <div class="flex justify-end">
-              <ui-btn :disabled="processing || !networkConnected" type="submit" :padding-x="3" class="h-10 mt-4">{{ networkConnected ? 'Submit' : 'No Internet' }}</ui-btn>
-            </div>
-          </form>
-          <template v-if="showAuth">
-            <div class="flex items-center">
-              <p class="">{{ serverUrl }}</p>
-              <div class="flex-grow" />
-              <span class="material-icons" style="font-size: 1.1rem" @click="editServerUrl">edit</span>
-            </div>
-            <div class="w-full h-px bg-gray-200 my-2" />
-            <form @submit.prevent="submitAuth" class="pt-3">
-              <ui-text-input v-model="username" :disabled="processing" placeholder="username" class="w-full my-1 text-lg" />
-              <ui-text-input v-model="password" type="password" :disabled="processing" placeholder="password" class="w-full my-1 text-lg" />
-
-              <ui-btn :disabled="processing || !networkConnected" type="submit" class="mt-1 h-10">{{ networkConnected ? 'Submit' : 'No Internet' }}</ui-btn>
-            </form>
-          </template>
-
-          <div v-show="error" class="w-full rounded-lg bg-red-600 bg-opacity-10 border border-error border-opacity-50 py-3 px-2 flex items-center mt-4">
-            <span class="material-icons mr-2 text-error" style="font-size: 1.1rem">warning</span>
-            <p class="text-error">{{ error }}</p>
-          </div>
-        </div>
-      </div>
+      <connection-server-connect-form />
     </div>
-    <div :class="processing ? 'opacity-100' : 'opacity-0 pointer-events-none'" class="fixed w-full h-full top-0 left-0 bg-black bg-opacity-75 flex items-center justify-center z-30 transition-opacity duration-500">
-      <div>
-        <div class="absolute top-0 left-0 w-full p-6 flex items-center flex-col justify-center z-0 short:hidden">
-          <img src="/Logo.png" class="h-20 w-20 mb-2" />
-        </div>
-        <svg class="animate-spin w-16 h-16" viewBox="0 0 24 24">
-          <path fill="currentColor" d="M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z" />
-        </svg>
-      </div>
-    </div>
+
     <div class="flex items-center justify-center pt-4 fixed bottom-4 left-0 right-0">
       <a href="https://github.com/advplyr/audiobookshelf-app" target="_blank" class="text-sm pr-2">Follow the project on Github</a>
       <a href="https://github.com/advplyr/audiobookshelf-app" target="_blank"
@@ -74,15 +32,7 @@
 export default {
   layout: 'blank',
   data() {
-    return {
-      serverUrl: null,
-      processing: false,
-      showAuth: false,
-      username: null,
-      password: null,
-      error: null,
-      loggedIn: false
-    }
+    return {}
   },
   computed: {
     networkConnected() {
@@ -90,110 +40,15 @@ export default {
     }
   },
   methods: {
-    async submit() {
-      if (!this.networkConnected) {
-        return
-      }
-      if (!this.serverUrl.startsWith('http')) {
-        this.serverUrl = 'http://' + this.serverUrl
-      }
-      this.processing = true
-      this.error = null
-      var response = await this.$server.check(this.serverUrl)
-      this.processing = false
-      if (!response || response.error) {
-        console.error('Server invalid')
-        this.error = response ? response.error : 'Invalid Server'
-      } else {
-        this.showAuth = true
-      }
-    },
-    async submitAuth() {
-      if (!this.networkConnected) {
-        return
-      }
-      if (!this.username) {
-        this.error = 'Invalid username'
-        return
-      }
-      this.error = null
-
-      this.processing = true
-      var response = await this.$server.login(this.serverUrl, this.username, this.password)
-      this.processing = false
-      if (response.error) {
-        console.error('Login failed')
-        this.error = response.error
-      } else {
-        console.log('Login Success!')
-        this.loggedIn = true
-      }
-    },
-    editServerUrl() {
-      this.error = null
-      this.showAuth = false
-    },
-    redirect() {
-      if (this.$route.query && this.$route.query.redirect) {
-        this.$router.replace(this.$route.query.redirect)
-      } else {
-        this.$router.replace('/bookshelf')
-      }
-    },
-    socketConnected() {
-      console.log('Socket connected')
-      this.redirect()
-    },
     async init() {
       await this.$store.dispatch('setupNetworkListener')
-
-      if (!this.$server) {
-        console.error('Invalid server not initialized')
-        return
-      }
-      if (this.$server.connected) {
-        console.warn('Server already connected')
-        return this.redirect()
-      }
-      this.$server.on('connected', this.socketConnected)
-
-      var localServerUrl = await this.$localStore.getServerUrl()
-      var localUserToken = await this.$localStore.getToken()
-
-      if (!this.networkConnected) return
-
-      if (localServerUrl) {
-        this.serverUrl = localServerUrl
-        if (localUserToken) {
-          this.processing = true
-          var response = await this.$server.connect(localServerUrl, localUserToken)
-          if (!response || response.error) {
-            var errorMsg = response ? response.error : 'Unknown Error'
-            this.processing = false
-            this.error = errorMsg
-            if (!this.$server.url) {
-              this.serverUrl = null
-              this.showAuth = false
-            }
-            return
-          }
-          console.log('Server connect success')
-          this.showAuth = true
-        } else {
-          this.submit()
-        }
-      }
     }
   },
   mounted() {
+    // Reset data on logouts
+    this.$store.commit('libraries/reset')
+    this.$store.commit('setIsFirstLoad', true)
     this.init()
-  },
-  beforeDestroy() {
-    if (!this.$server) {
-      console.error('Connected beforeDestroy: No Server')
-      return
-    }
-    this.$server.off('connected', this.socketConnected)
   }
 }
 </script>

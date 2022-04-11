@@ -1,12 +1,10 @@
 <template>
   <div class="w-full h-full p-4">
-    <div class="w-full max-w-xs mx-auto">
-      <ui-text-input-with-label :value="serverUrl" label="Server Url" disabled class="my-4" />
+    <ui-text-input-with-label :value="serverConnConfigName" label="Connection Config Name" disabled class="my-2" />
 
-      <ui-text-input-with-label :value="username" label="Username" disabled class="my-4" />
+    <ui-text-input-with-label :value="username" label="Username" disabled class="my-2" />
 
-      <ui-btn color="primary flex items-center justify-between text-base w-full mt-8" @click="logout">Logout<span class="material-icons" style="font-size: 1.1rem">logout</span></ui-btn>
-    </div>
+    <ui-btn color="primary flex items-center justify-between text-base w-full mt-8" @click="logout">Logout<span class="material-icons" style="font-size: 1.1rem">logout</span></ui-btn>
 
     <div class="flex items-center pt-8">
       <div class="flex-grow" />
@@ -32,6 +30,7 @@
 
 <script>
 import { AppUpdate } from '@robingenz/capacitor-app-update'
+import { AbsAudioPlayer } from '@/plugins/capacitor'
 
 export default {
   asyncData({ redirect, store }) {
@@ -51,8 +50,14 @@ export default {
     user() {
       return this.$store.state.user.user
     },
-    serverUrl() {
-      return this.$server.url
+    serverConnectionConfig() {
+      return this.$store.state.user.serverConnectionConfig || {}
+    },
+    serverConnConfigName() {
+      return this.serverConnectionConfig.name
+    },
+    serverAddress() {
+      return this.serverConnectionConfig.address
     },
     appUpdateInfo() {
       return this.$store.state.appUpdateInfo
