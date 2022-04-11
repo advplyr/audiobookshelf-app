@@ -55,7 +55,7 @@ export default {
       this.show = false
       await this.$store.dispatch('libraries/fetch', lib.id)
       this.$eventBus.$emit('library-changed', lib.id)
-      this.$localStore.setCurrentLibrary(lib)
+      this.$localStore.setLastLibraryId(lib.id)
     }
   },
   mounted() {}

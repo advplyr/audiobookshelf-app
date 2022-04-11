@@ -4,10 +4,11 @@
 
 <script>
 export default {
-  asyncData({ store, params, query }) {
+  async asyncData({ store, params, query }) {
     // Set filter by
     if (query.filter) {
-      store.dispatch('user/updateUserSettings', { mobileFilterBy: query.filter })
+      store.commit('user/setSettings', { mobileFilterBy: query.filter })
+      await store.dispatch('user/updateUserSettings', { mobileFilterBy: query.filter })
     }
   }
 }

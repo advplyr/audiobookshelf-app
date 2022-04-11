@@ -1,5 +1,5 @@
 <template>
-  <div class="fixed top-0 left-0 layout-wrapper right-0 z-50 pointer-events-none" :class="showFullscreen ? 'fullscreen' : ''">
+  <div v-if="playbackSession" id="streamContainer" class="fixed top-0 left-0 layout-wrapper right-0 z-50 pointer-events-none" :class="showFullscreen ? 'fullscreen' : ''">
     <div v-if="showFullscreen" class="w-full h-full z-10 bg-bg absolute top-0 left-0 pointer-events-auto">
       <div class="top-2 left-4 absolute cursor-pointer">
         <span class="material-icons text-5xl" @click="collapseFullscreen">expand_more</span>
@@ -31,13 +31,13 @@
 
     <div class="cover-wrapper absolute z-30 pointer-events-auto" :class="bookCoverAspectRatio === 1 ? 'square-cover' : ''" @click="clickContainer">
       <div class="cover-container bookCoverWrapper bg-black bg-opacity-75 w-full h-full">
-        <covers-book-cover :audiobook="audiobook" :download-cover="downloadedCover" :width="bookCoverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" />
+        <covers-book-cover v-if="libraryItem || localLibraryItemCoverSrc" :library-item="libraryItem" :download-cover="localLibraryItemCoverSrc" :width="bookCoverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" />
       </div>
     </div>
 
     <div class="title-author-texts absolute z-30 left-0 right-0 overflow-hidden">
       <p class="title-text font-book truncate">{{ title }}</p>
-      <p class="author-text text-white text-opacity-75 truncate">by {{ authorFL }}</p>
+      <p class="author-text text-white text-opacity-75 truncate">by {{ authorName }}</p>
     </div>
 
     <div id="streamContainer" class="w-full z-20 bg-primary absolute bottom-0 left-0 right-0 p-2 pointer-events-auto transition-all" @click="clickContainer">
@@ -52,25 +52,25 @@
             <p class="text-xl font-mono text-success">{{ sleepTimeRemainingPretty }}</p>
           </div>
 
-          <span class="material-icons text-3xl text-white cursor-pointer" :class="chapters.length ? 'text-opacity-75' : 'text-opacity-10'" @click="$emit('selectChapter')">format_list_bulleted</span>
+          <span class="material-icons text-3xl text-white cursor-pointer" :class="chapters.length ? 'text-opacity-75' : 'text-opacity-10'" @click="showChapterModal = true">format_list_bulleted</span>
         </div>
       </div>
 
       <div id="playerControls" class="absolute right-0 bottom-0 py-2">
         <div class="flex items-center justify-center">
-          <span v-show="showFullscreen" class="material-icons next-icon text-white text-opacity-75 cursor-pointer" :class="loading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpChapterStart">first_page</span>
-          <span class="material-icons jump-icon text-white cursor-pointer" :class="loading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="backward10">replay_10</span>
+          <span v-show="showFullscreen" class="material-icons next-icon text-white text-opacity-75 cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpChapterStart">first_page</span>
+          <span class="material-icons jump-icon text-white cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="backward10">replay_10</span>
           <div class="play-btn cursor-pointer shadow-sm bg-accent flex items-center justify-center rounded-full text-primary mx-4" :class="seekLoading ? 'animate-spin' : ''" @mousedown.prevent @mouseup.prevent @click.stop="playPauseClick">
-            <span v-if="!loading" class="material-icons">{{ seekLoading ? 'autorenew' : isPaused ? 'play_arrow' : 'pause' }}</span>
+            <span v-if="!isLoading" class="material-icons">{{ seekLoading ? 'autorenew' : isPaused ? 'play_arrow' : 'pause' }}</span>
             <widgets-spinner-icon v-else class="h-8 w-8" />
           </div>
-          <span class="material-icons jump-icon text-white cursor-pointer" :class="loading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="forward10">forward_10</span>
-          <span v-show="showFullscreen" class="material-icons next-icon text-white cursor-pointer" :class="nextChapter && !loading ? 'text-opacity-75' : 'text-opacity-10'" @click.stop="jumpNextChapter">last_page</span>
+          <span class="material-icons jump-icon text-white cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="forward10">forward_10</span>
+          <span v-show="showFullscreen" class="material-icons next-icon text-white cursor-pointer" :class="nextChapter && !isLoading ? 'text-opacity-75' : 'text-opacity-10'" @click.stop="jumpNextChapter">last_page</span>
         </div>
       </div>
 
       <div id="playerTrack" class="absolute bottom-0 left-0 w-full px-3">
-        <div ref="track" class="h-2 w-full bg-gray-500 bg-opacity-50 relative" :class="loading ? 'animate-pulse' : ''" @click="clickTrack">
+        <div ref="track" class="h-2 w-full bg-gray-500 bg-opacity-50 relative" :class="isLoading ? 'animate-pulse' : ''" @click="clickTrack">
           <div ref="readyTrack" class="h-full bg-gray-600 absolute top-0 left-0 pointer-events-none" />
           <div ref="bufferedTrack" class="h-full bg-gray-500 absolute top-0 left-0 pointer-events-none" />
           <div ref="playedTrack" class="h-full bg-gray-200 absolute top-0 left-0 pointer-events-none" />
@@ -84,33 +84,29 @@
         </div>
       </div>
     </div>
+
+    <modals-chapters-modal v-model="showChapterModal" :current-chapter="currentChapter" :chapters="chapters" @select="selectChapter" />
   </div>
 </template>
 
 <script>
-import MyNativeAudio from '@/plugins/my-native-audio'
+import { Capacitor } from '@capacitor/core'
+import { AbsAudioPlayer } from '@/plugins/capacitor'
 
 export default {
   props: {
     playing: Boolean,
-    audiobook: {
-      type: Object,
-      default: () => {}
-    },
-    download: {
-      type: Object,
-      default: () => {}
-    },
     bookmarks: {
       type: Array,
       default: () => []
     },
-    loading: Boolean,
     sleepTimerRunning: Boolean,
     sleepTimeRemaining: Number
   },
   data() {
     return {
+      playbackSession: null,
+      showChapterModal: false,
       showCastBtn: false,
       showFullscreen: false,
       totalDuration: 0,
@@ -118,9 +114,6 @@ export default {
       currentTime: 0,
       bufferedTime: 0,
       isResetting: false,
-      initObject: null,
-      streamId: null,
-      audiobookId: null,
       stateName: 'idle',
       playInterval: null,
       trackWidth: 0,
@@ -131,16 +124,15 @@ export default {
       playedTrackWidth: 0,
       seekedTime: 0,
       seekLoading: false,
+      onPlaybackSessionListener: null,
+      onPlaybackClosedListener: null,
       onPlayingUpdateListener: null,
       onMetadataListener: null,
-      // noSyncUpdateTime: false,
       touchStartY: 0,
       touchStartTime: 0,
       touchEndY: 0,
-      listenTimeInterval: null,
-      listeningTimeSinceLastUpdate: 0,
-      totalListeningTimeInSession: 0,
-      useChapterTrack: false
+      useChapterTrack: false,
+      isLoading: true
     }
   },
   computed: {
@@ -175,25 +167,42 @@ export default {
       }
       return this.showFullscreen ? 200 : 60
     },
-    book() {
-      return this.audiobook.book || {}
+    mediaMetadata() {
+      return this.playbackSession ? this.playbackSession.mediaMetadata : null
+    },
+    libraryItem() {
+      return this.playbackSession ? this.playbackSession.libraryItem || null : null
+    },
+    localLibraryItem() {
+      return this.playbackSession ? this.playbackSession.localLibraryItem || null : null
+    },
+    localLibraryItemCoverSrc() {
+      var localItemCover = this.localLibraryItem ? this.localLibraryItem.coverContentUrl : null
+      if (localItemCover) return Capacitor.convertFileSrc(localItemCover)
+      return null
+    },
+    playMethod() {
+      return this.playbackSession ? this.playbackSession.playMethod : null
+    },
+    isLocalPlayMethod() {
+      return this.playMethod == this.$constants.PlayMethod.LOCAL
     },
     title() {
-      return this.book.title
+      if (this.playbackSession) return this.playbackSession.displayTitle
+      return this.mediaMetadata ? this.mediaMetadata.title : 'Title'
     },
-    authorFL() {
-      return this.book.authorFL
+    authorName() {
+      if (this.playbackSession) return this.playbackSession.displayAuthor
+      return this.mediaMetadata ? this.mediaMetadata.authorName : 'Author'
     },
     chapters() {
-      return (this.audiobook ? this.audiobook.chapters || [] : []).map((chapter) => {
-        var chap = { ...chapter }
-        chap.start = Number(chap.start)
-        chap.end = Number(chap.end)
-        return chap
-      })
+      if (this.playbackSession && this.playbackSession.chapters) {
+        return this.playbackSession.chapters
+      }
+      return []
     },
     currentChapter() {
-      if (!this.audiobook || !this.chapters.length) return null
+      if (!this.chapters.length) return null
       return this.chapters.find((ch) => Number(Number(ch.start).toFixed(2)) <= this.currentTime && Number(Number(ch.end).toFixed(2)) > this.currentTime)
     },
     nextChapter() {
@@ -205,9 +214,6 @@ export default {
     },
     currentChapterDuration() {
       return this.currentChapter ? this.currentChapter.end - this.currentChapter.start : this.totalDuration
-    },
-    downloadedCover() {
-      return this.download ? this.download.cover : null
     },
     totalDurationPretty() {
       return this.$secondsToTimestamp(this.totalDuration)
@@ -241,10 +247,6 @@ export default {
       if (!this.currentChapter) return 0
       return this.currentChapter.end - this.currentTime
     },
-    // sleepTimeRemaining() {
-    //   if (!this.sleepTimerEndTime) return 0
-    //   return Math.max(0, this.sleepTimerEndTime / 1000 - this.currentTime)
-    // },
     sleepTimeRemainingPretty() {
       if (!this.sleepTimeRemaining) return '0s'
       var secondsRemaining = Math.round(this.sleepTimeRemaining)
@@ -256,65 +258,13 @@ export default {
     }
   },
   methods: {
+    selectChapter(chapter) {
+      this.seek(chapter.start)
+      this.showChapterModal = false
+    },
     castClick() {
       console.log('Cast Btn Click')
-      MyNativeAudio.requestSession()
-    },
-    sendStreamSync(timeListened = 0) {
-      var syncData = {
-        timeListened,
-        currentTime: this.currentTime,
-        streamId: this.streamId,
-        audiobookId: this.audiobookId,
-        totalDuration: this.totalDuration
-      }
-      this.$emit('sync', syncData)
-    },
-    sendAddListeningTime() {
-      var listeningTimeToAdd = Math.floor(this.listeningTimeSinceLastUpdate)
-      this.listeningTimeSinceLastUpdate = Math.max(0, this.listeningTimeSinceLastUpdate - listeningTimeToAdd)
-      this.sendStreamSync(listeningTimeToAdd)
-    },
-    cancelListenTimeInterval() {
-      this.sendAddListeningTime()
-      clearInterval(this.listenTimeInterval)
-      this.listenTimeInterval = null
-    },
-    startListenTimeInterval() {
-      clearInterval(this.listenTimeInterval)
-      var lastTime = this.currentTime
-      var lastTick = Date.now()
-      var noProgressCount = 0
-      this.listenTimeInterval = setInterval(() => {
-        var timeSinceLastTick = Date.now() - lastTick
-        lastTick = Date.now()
-
-        var expectedAudioTime = lastTime + timeSinceLastTick / 1000
-        var currentTime = this.currentTime
-        var differenceFromExpected = expectedAudioTime - currentTime
-        if (currentTime === lastTime) {
-          noProgressCount++
-          if (noProgressCount > 3) {
-            console.error('Audio current time has not increased - cancel interval and pause player')
-            this.pause()
-          }
-        } else if (Math.abs(differenceFromExpected) > 0.1) {
-          noProgressCount = 0
-          console.warn('Invalid time between interval - resync last', differenceFromExpected)
-          lastTime = currentTime
-        } else {
-          noProgressCount = 0
-          var exactPlayTimeDifference = currentTime - lastTime
-          // console.log('Difference from expected', differenceFromExpected, 'Exact play time diff', exactPlayTimeDifference)
-          lastTime = currentTime
-          this.listeningTimeSinceLastUpdate += exactPlayTimeDifference
-          this.totalListeningTimeInSession += exactPlayTimeDifference
-          // console.log('Time since last update:', this.listeningTimeSinceLastUpdate, 'Session listening time:', this.totalListeningTimeInSession)
-          if (this.listeningTimeSinceLastUpdate > 5) {
-            this.sendAddListeningTime()
-          }
-        }
-      }, 1000)
+      AbsAudioPlayer.requestSession()
     },
     clickContainer() {
       this.showFullscreen = true
@@ -329,18 +279,18 @@ export default {
       this.forceCloseDropdownMenu()
     },
     jumpNextChapter() {
-      if (this.loading) return
+      if (this.isLoading) return
       if (!this.nextChapter) return
       this.seek(this.nextChapter.start)
     },
     jumpChapterStart() {
-      if (this.loading) return
+      if (this.isLoading) return
       if (!this.currentChapter) {
         return this.restart()
       }
 
-      // If 1 second or less into current chapter, then go to previous
-      if (this.currentTime - this.currentChapter.start <= 1) {
+      // If 4 seconds or less into current chapter, then go to previous
+      if (this.currentTime - this.currentChapter.start <= 4) {
         var currChapterIndex = this.chapters.findIndex((ch) => Number(ch.start) <= this.currentTime && Number(ch.end) >= this.currentTime)
         if (currChapterIndex > 0) {
           var prevChapter = this.chapters[currChapterIndex - 1]
@@ -356,18 +306,18 @@ export default {
     setPlaybackSpeed(speed) {
       console.log(`[AudioPlayer] Set Playback Rate: ${speed}`)
       this.currentPlaybackRate = speed
-      MyNativeAudio.setPlaybackSpeed({ speed: speed })
+      AbsAudioPlayer.setPlaybackSpeed({ speed: speed })
     },
     restart() {
       this.seek(0)
     },
     backward10() {
-      if (this.loading) return
-      MyNativeAudio.seekBackward({ amount: '10000' })
+      if (this.isLoading) return
+      AbsAudioPlayer.seekBackward({ amount: '10000' })
     },
     forward10() {
-      if (this.loading) return
-      MyNativeAudio.seekForward({ amount: '10000' })
+      if (this.isLoading) return
+      AbsAudioPlayer.seekForward({ amount: '10000' })
     },
     setStreamReady() {
       this.readyTrackWidth = this.trackWidth
@@ -461,7 +411,7 @@ export default {
       }
     },
     seek(time) {
-      if (this.loading) return
+      if (this.isLoading) return
       if (this.seekLoading) {
         console.error('Already seek loading', this.seekedTime)
         return
@@ -469,7 +419,7 @@ export default {
 
       this.seekedTime = time
       this.seekLoading = true
-      MyNativeAudio.seekPlayer({ timeMs: String(Math.floor(time * 1000)) })
+      AbsAudioPlayer.seekPlayer({ timeMs: String(Math.floor(time * 1000)) })
 
       if (this.$refs.playedTrack) {
         var perc = time / this.totalDuration
@@ -482,7 +432,7 @@ export default {
       }
     },
     clickTrack(e) {
-      if (this.loading) return
+      if (this.isLoading) return
       if (!this.showFullscreen) {
         // Track not clickable on mini-player
         return
@@ -503,120 +453,24 @@ export default {
       }
       this.seek(time)
     },
-    playPauseClick() {
-      if (this.loading) return
-      if (this.isPaused) {
-        console.log('playPause PLAY')
-        this.play()
-      } else {
-        console.log('playPause PAUSE')
-        this.pause()
-      }
-    },
-    calcSeekBackTime(lastUpdate) {
-      var time = Date.now() - lastUpdate
-      var seekback = 0
-      if (time < 60000) seekback = 0
-      else if (time < 120000) seekback = 10000
-      else if (time < 300000) seekback = 15000
-      else if (time < 1800000) seekback = 20000
-      else if (time < 3600000) seekback = 25000
-      else seekback = 29500
-      return seekback
-    },
-    async set(audiobookStreamData, stream, fromAppDestroy) {
-      this.isResetting = false
-      this.bufferedTime = 0
-      this.streamId = stream ? stream.id : null
-      this.audiobookId = audiobookStreamData.audiobookId
-      this.initObject = { ...audiobookStreamData }
-      console.log('[AudioPlayer] Set Audio Player', !!stream)
-
-      var init = true
-      if (!!stream) {
-        //console.log(JSON.stringify(stream))
-        var data = await MyNativeAudio.getStreamSyncData()
-        console.log('getStreamSyncData', JSON.stringify(data))
-        console.log('lastUpdate', stream.lastUpdate || 0)
-        //Same audiobook
-        if (data.id == stream.id && (data.isPlaying || data.lastPauseTime >= (stream.lastUpdate || 0))) {
-          console.log('Same audiobook')
-          this.isPaused = !data.isPlaying
-          this.currentTime = Number((data.currentTime / 1000).toFixed(2))
-          this.totalDuration = Number((data.duration / 1000).toFixed(2))
-          this.$emit('setTotalDuration', this.totalDuration)
-          this.timeupdate()
-          if (data.isPlaying) {
-            console.log('playing - continue')
-            if (fromAppDestroy) this.startPlayInterval()
-          } else console.log('paused and newer')
-          if (!fromAppDestroy) return
-          init = false
-          this.initObject.startTime = String(Math.floor(this.currentTime * 1000))
-        }
-        //new audiobook stream or sync from other client
-        else if (stream.clientCurrentTime > 0) {
-          console.log('new audiobook stream or sync from other client')
-          if (!!stream.lastUpdate) {
-            var backTime = this.calcSeekBackTime(stream.lastUpdate)
-            var currentTime = Math.floor(stream.clientCurrentTime * 1000)
-            if (backTime >= currentTime) backTime = currentTime - 500
-            console.log('SeekBackTime', backTime)
-            this.initObject.startTime = String(Math.floor(currentTime - backTime))
-          }
-        }
-      }
-
-      this.currentPlaybackRate = this.initObject.playbackSpeed
-      console.log(`[AudioPlayer] Set Stream Playback Rate: ${this.currentPlaybackRate}`)
-
-      if (init)
-        MyNativeAudio.initPlayer(this.initObject).then((res) => {
-          if (res && res.success) {
-            console.log('Success init audio player')
-          } else {
-            console.error('Failed to init audio player')
-          }
-        })
-
-      if (audiobookStreamData.isLocal) {
-        this.setStreamReady()
-      }
-    },
-    setFromObj() {
-      if (!this.initObject) {
-        console.error('Cannot set from obj')
-        return
-      }
-      this.isResetting = false
-      MyNativeAudio.initPlayer(this.initObject).then((res) => {
-        if (res && res.success) {
-          console.log('Success init audio player')
-        } else {
-          console.error('Failed to init audio player')
-        }
-      })
-
-      if (audiobookStreamData.isLocal) {
-        this.setStreamReady()
-      }
+    async playPauseClick() {
+      if (this.isLoading) return
+      this.isPlaying = !!((await AbsAudioPlayer.playPause()) || {}).playing
     },
     play() {
-      MyNativeAudio.playPlayer()
+      AbsAudioPlayer.playPlayer()
       this.startPlayInterval()
       this.isPlaying = true
     },
     pause() {
-      MyNativeAudio.pausePlayer()
+      AbsAudioPlayer.pausePlayer()
       this.stopPlayInterval()
       this.isPlaying = false
     },
     startPlayInterval() {
-      this.startListenTimeInterval()
-
       clearInterval(this.playInterval)
       this.playInterval = setInterval(async () => {
-        var data = await MyNativeAudio.getCurrentTime()
+        var data = await AbsAudioPlayer.getCurrentTime()
         this.currentTime = Number((data.value / 1000).toFixed(2))
         this.bufferedTime = Number((data.bufferedTime / 1000).toFixed(2))
         console.log('[AudioPlayer] Got Current Time', this.currentTime)
@@ -624,24 +478,20 @@ export default {
       }, 1000)
     },
     stopPlayInterval() {
-      this.cancelListenTimeInterval()
       clearInterval(this.playInterval)
     },
     resetStream(startTime) {
-      var _time = String(Math.floor(startTime * 1000))
-      if (!this.initObject) {
-        console.error('Terminate stream when no init object is set...')
-        return
-      }
       this.isResetting = true
-      this.initObject.currentTime = _time
       this.terminateStream()
     },
     terminateStream() {
-      MyNativeAudio.terminateStream()
+      if (!this.playbackSession) return
+      AbsAudioPlayer.terminateStream()
     },
     onPlayingUpdate(data) {
+      console.log('onPlayingUpdate', JSON.stringify(data))
       this.isPaused = !data.value
+      this.$store.commit('setPlayerPlaying', !this.isPaused)
       if (!this.isPaused) {
         this.startPlayInterval()
       } else {
@@ -649,8 +499,11 @@ export default {
       }
     },
     onMetadata(data) {
-      this.totalDuration = Number((data.duration / 1000).toFixed(2))
-      this.$emit('setTotalDuration', this.totalDuration)
+      console.log('onMetadata', JSON.stringify(data))
+      this.isLoading = false
+
+      // this.totalDuration = Number((data.duration / 1000).toFixed(2))
+      this.totalDuration = Number(data.duration.toFixed(2))
       this.currentTime = Number((data.currentTime / 1000).toFixed(2))
       this.stateName = data.stateName
 
@@ -664,17 +517,35 @@ export default {
 
       this.timeupdate()
     },
+    // When a playback session is started the native android/ios will send the session
+    onPlaybackSession(playbackSession) {
+      console.log('onPlaybackSession received', JSON.stringify(playbackSession))
+      this.playbackSession = playbackSession
+
+      this.$store.commit('setPlayerItem', this.playbackSession)
+
+      // Set track width
+      this.$nextTick(() => {
+        if (this.$refs.track) {
+          this.trackWidth = this.$refs.track.clientWidth
+        } else {
+          console.error('Track not loaded', this.$refs)
+        }
+      })
+    },
+    onPlaybackClosed() {
+      console.log('Received onPlaybackClosed evt')
+      this.$store.commit('setPlayerItem', null)
+      this.showFullscreen = false
+      this.playbackSession = null
+    },
     async init() {
       this.useChapterTrack = await this.$localStore.getUseChapterTrack()
 
-      this.onPlayingUpdateListener = MyNativeAudio.addListener('onPlayingUpdate', this.onPlayingUpdate)
-      this.onMetadataListener = MyNativeAudio.addListener('onMetadata', this.onMetadata)
-
-      if (this.$refs.track) {
-        this.trackWidth = this.$refs.track.clientWidth
-      } else {
-        console.error('Track not loaded', this.$refs)
-      }
+      this.onPlaybackSessionListener = AbsAudioPlayer.addListener('onPlaybackSession', this.onPlaybackSession)
+      this.onPlaybackClosedListener = AbsAudioPlayer.addListener('onPlaybackClosed', this.onPlaybackClosed)
+      this.onPlayingUpdateListener = AbsAudioPlayer.addListener('onPlayingUpdate', this.onPlayingUpdate)
+      this.onMetadataListener = AbsAudioPlayer.addListener('onMetadata', this.onMetadata)
     },
     handleGesture() {
       var touchDistance = this.touchEndY - this.touchStartY
@@ -714,7 +585,7 @@ export default {
         })
         this.$localStore.setUseChapterTrack(this.useChapterTrack)
       } else if (action === 'close') {
-        this.$emit('close')
+        this.terminateStream()
       }
     },
     forceCloseDropdownMenu() {
@@ -736,6 +607,8 @@ export default {
 
     if (this.onPlayingUpdateListener) this.onPlayingUpdateListener.remove()
     if (this.onMetadataListener) this.onMetadataListener.remove()
+    if (this.onPlaybackSessionListener) this.onPlaybackSessionListener.remove()
+    if (this.onPlaybackClosedListener) this.onPlaybackClosedListener.remove()
     clearInterval(this.playInterval)
   }
 }

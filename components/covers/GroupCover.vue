@@ -17,6 +17,7 @@ export default {
     },
     width: Number,
     height: Number,
+    groupTo: String,
     bookCoverAspectRatio: Number
   },
   data() {
@@ -31,7 +32,6 @@ export default {
       isFannedOut: false,
       isDetached: false,
       isAttaching: false,
-      windowWidth: 0,
       isInit: false
     }
   },
@@ -48,8 +48,11 @@ export default {
   },
   computed: {
     sizeMultiplier() {
-      if (this.bookCoverAspectRatio === 1) return this.width / (100 * 1.6 * 2)
-      return this.width / 200
+      if (this.bookCoverAspectRatio === 1) return this.width / (120 * 1.6 * 2)
+      return this.width / 240
+    },
+    showExperimentalFeatures() {
+      return this.store.state.showExperimentalFeatures
     },
     store() {
       return this.$store || this.$nuxt.$store
@@ -59,44 +62,8 @@ export default {
     }
   },
   methods: {
-    detchCoverWrapper() {
-      if (!this.coverWrapperEl || !this.$refs.wrapper || this.isDetached) return
-
-      this.coverWrapperEl.remove()
-
-      this.isDetached = true
-      document.body.appendChild(this.coverWrapperEl)
-      this.coverWrapperEl.addEventListener('mouseleave', this.mouseleaveCover)
-
-      this.coverWrapperEl.style.position = 'absolute'
-      this.coverWrapperEl.style.zIndex = 40
-
-      this.updatePosition()
-    },
-    attachCoverWrapper() {
-      if (!this.coverWrapperEl || !this.$refs.wrapper || !this.isDetached) return
-
-      this.coverWrapperEl.remove()
-      this.coverWrapperEl.style.position = 'relative'
-      this.coverWrapperEl.style.left = 'unset'
-      this.coverWrapperEl.style.top = 'unset'
-      this.coverWrapperEl.style.width = this.$refs.wrapper.clientWidth + 'px'
-
-      this.$refs.wrapper.appendChild(this.coverWrapperEl)
-
-      this.isDetached = false
-    },
-    updatePosition() {
-      var rect = this.$refs.wrapper.getBoundingClientRect()
-      this.coverWrapperEl.style.top = rect.top + window.scrollY + 'px'
-
-      this.coverWrapperEl.style.left = rect.left + window.scrollX + 4 + 'px'
-
-      this.coverWrapperEl.style.height = rect.height + 'px'
-      this.coverWrapperEl.style.width = rect.width + 'px'
-    },
     getCoverUrl(book) {
-      return this.store.getters['audiobooks/getBookCoverSrc'](book, '')
+      return this.store.getters['globals/getLibraryItemCoverSrc'](book, '')
     },
     async buildCoverImg(coverData, bgCoverWidth, offsetLeft, zIndex, forceCoverBg = false) {
       var src = coverData.coverUrl
@@ -156,6 +123,22 @@ export default {
       imgdiv.appendChild(img)
       return imgdiv
     },
+    createSeriesNameCover(offsetLeft) {
+      var imgdiv = document.createElement('div')
+      imgdiv.style.height = this.height + 'px'
+      imgdiv.style.width = this.height / this.bookCoverAspectRatio + 'px'
+      imgdiv.style.left = offsetLeft + 'px'
+      imgdiv.className = 'absolute top-0 box-shadow-book transition-transform flex items-center justify-center'
+      imgdiv.style.boxShadow = '4px 0px 4px #11111166'
+      imgdiv.style.backgroundColor = '#111'
+
+      var innerP = document.createElement('p')
+      innerP.textContent = this.name
+      innerP.className = 'text-sm font-book text-white'
+      imgdiv.appendChild(innerP)
+
+      return imgdiv
+    },
     async init() {
       if (this.isInit) return
       this.isInit = true
@@ -168,7 +151,6 @@ export default {
         .map((bookItem) => {
           return {
             id: bookItem.id,
-            volumeNumber: bookItem.book ? bookItem.book.volumeNumber : null,
             coverUrl: this.getCoverUrl(bookItem)
           }
         })
@@ -178,6 +160,8 @@ export default {
         return
       }
       this.noValidCovers = false
+
+      validCovers = validCovers.slice(0, 10)
 
       var coverWidth = this.width
       var widthPer = this.width
@@ -189,7 +173,7 @@ export default {
       this.offsetIncrement = widthPer
 
       var outerdiv = document.createElement('div')
-      outerdiv.id = `group-cover-${this.id || this.$encode(this.name)}`
+      outerdiv.id = `group-cover-${this.id}`
       this.coverWrapperEl = outerdiv
       outerdiv.className = 'w-full h-full relative box-shadow-book'
 
@@ -211,9 +195,7 @@ export default {
       }
     }
   },
-  mounted() {
-    this.windowWidth = window.innerWidth
-  },
+  mounted() {},
   beforeDestroy() {
     if (this.coverWrapperEl) this.coverWrapperEl.remove()
     if (this.coverImageEls && this.coverImageEls.length) {

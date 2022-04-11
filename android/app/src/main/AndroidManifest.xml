@@ -7,7 +7,8 @@
     <!-- Permissions -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
 
     <application
@@ -70,7 +71,7 @@
       <service
         android:exported="true"
         android:enabled="true"
-        android:name=".PlayerNotificationService">
+        android:name=".player.PlayerNotificationService">
         <intent-filter>
           <action android:name="android.media.browse.MediaBrowserService"/>
         </intent-filter>

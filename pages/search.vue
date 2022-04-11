@@ -13,7 +13,7 @@
       <p v-if="bookResults.length" class="font-semibold text-sm mb-1">Books</p>
       <template v-for="bookResult in bookResults">
         <div :key="bookResult.audiobook.id" class="w-full h-16 py-1">
-          <nuxt-link :to="`/audiobook/${bookResult.audiobook.id}`">
+          <nuxt-link :to="`/item/${bookResult.audiobook.id}`">
             <cards-book-search-card :audiobook="bookResult.audiobook" :search="lastSearch" :match-key="bookResult.matchKey" :match-text="bookResult.matchText" />
           </nuxt-link>
         </div>

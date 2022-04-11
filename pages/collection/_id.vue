@@ -18,10 +18,6 @@
           </ui-btn>
         </div>
 
-        <!-- <ui-icon-btn icon="edit" class="mx-0.5" @click="editClick" />
-
-            <ui-icon-btn icon="delete" class="mx-0.5" @click="removeClick" /> -->
-
         <div class="my-8 max-w-2xl">
           <p class="text-base text-gray-100">{{ description }}</p>
         </div>
@@ -75,36 +71,24 @@ export default {
     },
     playableBooks() {
       return this.bookItems.filter((book) => {
-        return !book.isMissing && !book.isIncomplete && book.numTracks
+        return !book.isMissing && !book.isInvalid && book.media.tracks.length
       })
     },
     streaming() {
-      return !!this.playableBooks.find((b) => b.id === this.$store.getters['getAudiobookIdStreaming'])
+      return !!this.playableBooks.find((b) => this.$store.getters['getIsItemStreaming'](b.id))
     },
     showPlayButton() {
       return this.playableBooks.length
-    },
-    userAudiobooks() {
-      return this.$store.state.user.user ? this.$store.state.user.user.audiobooks || {} : {}
     }
   },
   methods: {
     clickPlay() {
-      var nextBookNotRead = this.playableBooks.find((pb) => !this.userAudiobooks[pb.id] || !this.userAudiobooks[pb.id].isRead)
+      var nextBookNotRead = this.playableBooks.find((pb) => {
+        var prog = this.$store.getters['user/getUserMediaProgress'](pb.id)
+        return !prog || !prog.isFinished
+      })
       if (nextBookNotRead) {
-        var dlObj = this.$store.getters['downloads/getDownload'](nextBookNotRead.id)
-
-        this.$store.commit('setPlayOnLoad', true)
-        if (dlObj && !dlObj.isDownloading && !dlObj.isPreparing) {
-          // Local
-          console.log('[PLAYCLICK] Set Playing Local Download ' + nextBookNotRead.book.title)
-          this.$store.commit('setPlayingDownload', dlObj)
-        } else {
-          // Stream
-          console.log('[PLAYCLICK] Set Playing STREAM ' + nextBookNotRead.book.title)
-          this.$store.commit('setStreamAudiobook', nextBookNotRead)
-          this.$server.socket.emit('open_stream', nextBookNotRead.id)
-        }
+        this.$eventBus.$emit('play-item', { libraryItemId: nextBookNotRead.id })
       }
     }
   },

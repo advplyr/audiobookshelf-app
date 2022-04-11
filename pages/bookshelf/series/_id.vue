@@ -4,8 +4,17 @@
 
 <script>
 export default {
-  asyncData({ params }) {
+  async asyncData({ params, app, store }) {
+    var series = await app.$axios.$get(`/api/series/${params.id}`).catch((error) => {
+      console.error('Failed', error)
+      return false
+    })
+    if (!series) {
+      return redirect('/oops?message=Series not found')
+    }
+    store.commit('globals/setSeries', series)
     return {
+      series,
       seriesId: params.id
     }
   },

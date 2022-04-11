@@ -1,17 +1,8 @@
 <template>
   <div class="w-full h-9 bg-bg relative">
     <div id="bookshelf-navbar" class="absolute z-10 top-0 left-0 w-full h-full flex bg-secondary text-gray-200">
-      <nuxt-link to="/bookshelf" class="w-1/4 h-full flex items-center justify-center" :class="routeName === 'bookshelf' ? 'bg-primary' : 'text-gray-400'">
-        <p>Home</p>
-      </nuxt-link>
-      <nuxt-link to="/bookshelf/library" class="w-1/4 h-full flex items-center justify-center" :class="routeName === 'bookshelf-library' ? 'bg-primary' : 'text-gray-400'">
-        <p>Library</p>
-      </nuxt-link>
-      <nuxt-link to="/bookshelf/series" class="w-1/4 h-full flex items-center justify-center" :class="routeName === 'bookshelf-series' ? 'bg-primary' : 'text-gray-400'">
-        <p>Series</p>
-      </nuxt-link>
-      <nuxt-link to="/bookshelf/collections" class="w-1/4 h-full flex items-center justify-center" :class="routeName === 'bookshelf-collections' ? 'bg-primary' : 'text-gray-400'">
-        <p>Collections</p>
+      <nuxt-link v-for="item in items" :key="item.to" :to="item.to" class="h-full flex items-center justify-center" :style="{ width: isPodcast ? '50%' : '25%' }" :class="routeName === item.routeName ? 'bg-primary' : 'text-gray-400'">
+        <p>{{ item.text }}</p>
       </nuxt-link>
     </div>
   </div>
@@ -23,8 +14,52 @@ export default {
     return {}
   },
   computed: {
+    items() {
+      if (this.isPodcast) {
+        return [
+          {
+            to: '/bookshelf',
+            routeName: 'bookshelf',
+            text: 'Home'
+          },
+          {
+            to: '/bookshelf/library',
+            routeName: 'bookshelf-library',
+            text: 'Library'
+          }
+        ]
+      }
+      return [
+        {
+          to: '/bookshelf',
+          routeName: 'bookshelf',
+          text: 'Home'
+        },
+        {
+          to: '/bookshelf/library',
+          routeName: 'bookshelf-library',
+          text: 'Library'
+        },
+        {
+          to: '/bookshelf/series',
+          routeName: 'bookshelf-series',
+          text: 'Series'
+        },
+        {
+          to: '/bookshelf/collections',
+          routeName: 'bookshelf-collections',
+          text: 'Collections'
+        }
+      ]
+    },
     routeName() {
       return this.$route.name
+    },
+    isPodcast() {
+      return this.libraryMediaType == 'podcast'
+    },
+    libraryMediaType() {
+      return this.$store.getters['libraries/getCurrentLibraryMediaType']
     }
   },
   methods: {},

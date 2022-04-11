@@ -3,25 +3,31 @@
     <div class="absolute top-0 left-0 w-full h-full bg-black transition-opacity duration-200" :class="show ? 'bg-opacity-60 pointer-events-auto' : 'bg-opacity-0'" @click="clickBackground" />
     <div class="absolute top-0 right-0 w-64 h-full bg-primary transform transition-transform py-6 pointer-events-auto" :class="show ? '' : 'translate-x-64'" @click.stop>
       <div class="px-6 mb-4">
-        <p v-if="socketConnected" class="text-base">
+        <p v-if="user" class="text-base">
           Welcome,
           <strong>{{ username }}</strong>
         </p>
       </div>
+
       <div class="w-full overflow-y-auto">
         <template v-for="item in navItems">
-          <nuxt-link :to="item.to" :key="item.text" class="w-full hover:bg-bg hover:bg-opacity-60 flex items-center py-3 px-6 text-gray-300">
+          <nuxt-link :to="item.to" :key="item.text" class="w-full hover:bg-bg hover:bg-opacity-60 flex items-center py-3 px-6 text-gray-300" :class="currentRoutePath.startsWith(item.to) ? 'bg-bg bg-opacity-60' : ''">
             <span class="text-lg" :class="item.iconOutlined ? 'material-icons-outlined' : 'material-icons'">{{ item.icon }}</span>
             <p class="pl-4">{{ item.text }}</p>
           </nuxt-link>
         </template>
       </div>
-      <div class="absolute bottom-0 left-0 w-full flex items-center py-6 px-6 text-gray-300">
-        <p class="text-xs">{{ $config.version }}</p>
-        <div class="flex-grow" />
-        <div v-if="socketConnected" class="flex items-center" @click="logout">
-          <p class="text-xs pr-2">Logout</p>
-          <span class="material-icons text-sm">logout</span>
+      <div class="absolute bottom-0 left-0 w-full py-6 px-6 text-gray-300">
+        <div v-if="serverConnectionConfig" class="mb-4 flex justify-center">
+          <p class="text-xs">{{ serverConnectionConfig.address }}</p>
+        </div>
+        <div class="flex items-center">
+          <p class="text-xs">{{ $config.version }}</p>
+          <div class="flex-grow" />
+          <div v-if="user" class="flex items-center" @click="logout">
+            <p class="text-xs pr-2">Logout</p>
+            <span class="material-icons text-sm">logout</span>
+          </div>
         </div>
       </div>
     </div>
@@ -62,6 +68,9 @@ export default {
     user() {
       return this.$store.state.user.user
     },
+    serverConnectionConfig() {
+      return this.$store.state.user.serverConnectionConfig
+    },
     username() {
       return this.user ? this.user.username : ''
     },
@@ -74,25 +83,9 @@ export default {
           icon: 'home',
           text: 'Home',
           to: '/bookshelf'
-        },
-        {
-          icon: 'person',
-          text: 'Account',
-          to: '/account'
-        },
-        {
-          icon: 'folder',
-          iconOutlined: true,
-          text: 'Downloads',
-          to: '/downloads'
         }
-        // {
-        //   icon: 'settings',
-        //   text: 'Settings',
-        //   to: '/config'
-        // }
       ]
-      if (!this.socketConnected) {
+      if (!this.serverConnectionConfig) {
         items = [
           {
             icon: 'cloud_off',
@@ -100,8 +93,24 @@ export default {
             to: '/connect'
           }
         ].concat(items)
+      } else {
+        items.push({
+          icon: 'person',
+          text: 'Account',
+          to: '/account'
+        })
       }
+
+      items.push({
+        icon: 'folder',
+        iconOutlined: true,
+        text: 'Local Media',
+        to: '/localMedia/folders'
+      })
       return items
+    },
+    currentRoutePath() {
+      return this.$route.path
     }
   },
   methods: {
@@ -112,7 +121,9 @@ export default {
       await this.$axios.$post('/logout').catch((error) => {
         console.error(error)
       })
-      this.$server.logout()
+      this.$socket.logout()
+      await this.$db.logout()
+      this.$store.commit('user/logout')
       this.$router.push('/connect')
     },
     touchstart(e) {

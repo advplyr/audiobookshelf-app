@@ -1,11 +1,8 @@
 export const state = () => ({
   libraries: [],
   lastLoad: 0,
-  listeners: [],
   currentLibraryId: '',
   showModal: false,
-  folders: [],
-  folderLastUpdate: 0,
   issues: 0,
   filterData: null
 })
@@ -17,6 +14,10 @@ export const getters = {
   getCurrentLibraryName: (state, getters) => {
     var currLib = getters.getCurrentLibrary
     return currLib ? currLib.name : null
+  },
+  getCurrentLibraryMediaType: (state, getters) => {
+    var currLib = getters.getCurrentLibrary
+    return currLib ? currLib.mediaType : null
   }
 }
 
@@ -26,12 +27,6 @@ export const actions = {
       console.error('libraries/fetch - User not set')
       return false
     }
-
-    // var library = state.libraries.find(lib => lib.id === libraryId)
-    // if (library) {
-    //   commit('setCurrentLibrary', libraryId)
-    //   return library
-    // }
 
     return this.$axios
       .$get(`/api/libraries/${libraryId}?include=filterdata`)
@@ -68,13 +63,13 @@ export const actions = {
     return this.$axios
       .$get(`/api/libraries`)
       .then((data) => {
-        // Set current library
-        if (data.length) {
+        // Set current library if not already set or was not returned in results
+        if (data.length && (!state.currentLibraryId || !data.find(li => li.id == state.currentLibraryId))) {
           commit('setCurrentLibrary', data[0].id)
         }
 
         commit('set', data)
-        commit('setLastLoad')
+        commit('setLastLoad', Date.now())
         return true
       })
       .catch((error) => {
@@ -87,27 +82,21 @@ export const actions = {
 }
 
 export const mutations = {
-  setFolders(state, folders) {
-    state.folders = folders
-  },
-  setFoldersLastUpdate(state) {
-    state.folderLastUpdate = Date.now()
-  },
   setShowModal(state, val) {
     state.showModal = val
   },
-  setLastLoad(state) {
-    state.lastLoad = Date.now()
+  setLastLoad(state, val) {
+    state.lastLoad = val
+  },
+  reset(state) {
+    state.lastLoad = 0
+    state.libraries = []
   },
   setCurrentLibrary(state, val) {
     state.currentLibraryId = val
   },
   set(state, libraries) {
-    console.log('set libraries', libraries)
     state.libraries = libraries
-    state.listeners.forEach((listener) => {
-      listener.meth()
-    })
   },
   addUpdate(state, library) {
     var index = state.libraries.findIndex(a => a.id === library.id)
@@ -116,25 +105,9 @@ export const mutations = {
     } else {
       state.libraries.push(library)
     }
-
-    state.listeners.forEach((listener) => {
-      listener.meth()
-    })
   },
   remove(state, library) {
     state.libraries = state.libraries.filter(a => a.id !== library.id)
-
-    state.listeners.forEach((listener) => {
-      listener.meth()
-    })
-  },
-  addListener(state, listener) {
-    var index = state.listeners.findIndex(l => l.id === listener.id)
-    if (index >= 0) state.listeners.splice(index, 1, listener)
-    else state.listeners.push(listener)
-  },
-  removeListener(state, listenerId) {
-    state.listeners = state.listeners.filter(l => l.id !== listenerId)
   },
   setLibraryIssues(state, val) {
     state.issues = val

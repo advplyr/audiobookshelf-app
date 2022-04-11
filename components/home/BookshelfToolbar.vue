@@ -8,8 +8,8 @@
         <p v-show="!selectedSeriesName" class="font-book pt-1">{{ totalEntities }} {{ entityTitle }}</p>
         <p v-show="selectedSeriesName" class="ml-2 font-book pt-1">{{ selectedSeriesName }} ({{ totalEntities }})</p>
         <div class="flex-grow" />
+        <span v-if="page == 'library' || seriesBookPage" class="material-icons px-2" @click="bookshelfListView = !bookshelfListView">{{ bookshelfListView ? 'view_list' : 'grid_view' }}</span>
         <template v-if="page === 'library'">
-          <!-- <span class="material-icons px-2" @click="changeView">{{ viewIcon }}</span> -->
           <div class="relative flex items-center px-2">
             <span class="material-icons" @click="showFilterModal = true">filter_alt</span>
             <div v-show="hasFilters" class="absolute top-0 right-2 w-2 h-2 rounded-full bg-success border border-green-300 shadow-sm z-10 pointer-events-none" />
@@ -31,17 +31,28 @@ export default {
       showSortModal: false,
       showFilterModal: false,
       settings: {},
-      isListView: false,
       totalEntities: 0
     }
   },
   computed: {
+    bookshelfListView: {
+      get() {
+        return this.$store.state.globals.bookshelfListView
+      },
+      set(val) {
+        this.$localStore.setBookshelfListView(val)
+        this.$store.commit('globals/setBookshelfListView', val)
+      }
+    },
     hasFilters() {
       return this.$store.getters['user/getUserSetting']('mobileFilterBy') !== 'all'
     },
     page() {
       var routeName = this.$route.name || ''
       return routeName.split('-')[1]
+    },
+    seriesBookPage() {
+      return this.$route.name == 'bookshelf-series-id'
     },
     routeQuery() {
       return this.$route.query || {}
@@ -56,23 +67,13 @@ export default {
       return ''
     },
     selectedSeriesName() {
-      if (this.page === 'series' && this.$route.params.id) {
-        return this.$decode(this.$route.params.id)
+      if (this.page === 'series' && this.$route.params.id && this.$store.state.globals.series) {
+        return this.$store.state.globals.series.name
       }
       return null
-    },
-    viewIcon() {
-      return this.isListView ? 'grid_view' : 'view_stream'
     }
   },
   methods: {
-    changeView() {
-      this.isListView = !this.isListView
-
-      var bookshelfView = this.isListView ? 'list' : 'grid'
-      this.$localStore.setBookshelfView(bookshelfView)
-      this.$store.commit('setBookshelfView', bookshelfView)
-    },
     updateOrder() {
       this.saveSettings()
     },
@@ -81,15 +82,12 @@ export default {
     },
     saveSettings() {
       this.$store.commit('user/setSettings', this.settings) // Immediate update
-      this.$store.dispatch('user/updateUserSettings', this.settings)
+      this.$store.dispatch('user/updateUserSettings', this.settings) // TODO: No need to update settings on server...
     },
     async init() {
+      this.bookshelfListView = await this.$localStore.getBookshelfListView()
       this.settings = { ...this.$store.state.user.settings }
-
-      var bookshelfView = await this.$localStore.getBookshelfView()
-      this.isListView = bookshelfView === 'list'
       this.bookshelfReady = true
-      this.$store.commit('setBookshelfView', bookshelfView)
     },
     settingsUpdated(settings) {
       for (const key in settings) {

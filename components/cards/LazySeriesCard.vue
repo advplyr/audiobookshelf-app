@@ -56,7 +56,7 @@ export default {
       return this.store.state.libraries.currentLibraryId
     },
     seriesId() {
-      return this.series ? this.$encode(this.series.id) : null
+      return this.series ? this.series.id : null
     },
     hasValidCovers() {
       var validCovers = this.books.map((bookItem) => bookItem.book.cover)

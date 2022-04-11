@@ -1,15 +1,21 @@
 package com.audiobookshelf.app
 
+import android.Manifest
 import android.app.DownloadManager
 import android.content.*
+import android.content.pm.PackageManager
 import android.os.*
 import android.util.Log
+import androidx.core.app.ActivityCompat
 import com.anggrayudi.storage.SimpleStorage
 import com.anggrayudi.storage.SimpleStorageHelper
-import com.audiobookshelf.app.data.DbManager
+import com.audiobookshelf.app.data.AbsDatabase
+import com.audiobookshelf.app.player.PlayerNotificationService
+import com.audiobookshelf.app.plugins.AbsDownloader
+import com.audiobookshelf.app.plugins.AbsAudioPlayer
+import com.audiobookshelf.app.plugins.AbsFileSystem
 import com.getcapacitor.BridgeActivity
 import io.paperdb.Paper
-
 
 class MainActivity : BridgeActivity() {
   private val tag = "MainActivity"
@@ -23,6 +29,11 @@ class MainActivity : BridgeActivity() {
 
   val storageHelper = SimpleStorageHelper(this)
   val storage = SimpleStorage(this)
+
+  val REQUEST_PERMISSIONS = 1
+  var PERMISSIONS_ALL = arrayOf(
+    Manifest.permission.READ_EXTERNAL_STORAGE
+  )
 
   val broadcastReceiver = object: BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
@@ -43,10 +54,21 @@ class MainActivity : BridgeActivity() {
     super.onCreate(savedInstanceState)
 
     Log.d(tag, "onCreate")
-    registerPlugin(MyNativeAudio::class.java)
-    registerPlugin(AudioDownloader::class.java)
-    registerPlugin(StorageManager::class.java)
-    registerPlugin(DbManager::class.java)
+
+//    var ss = SimpleStorage(this)
+//    ss.requestFullStorageAccess()
+
+    var permission = ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
+    if (permission != PackageManager.PERMISSION_GRANTED) {
+      ActivityCompat.requestPermissions(this,
+        PERMISSIONS_ALL,
+        REQUEST_PERMISSIONS)
+    }
+
+    registerPlugin(AbsAudioPlayer::class.java)
+    registerPlugin(AbsDownloader::class.java)
+    registerPlugin(AbsFileSystem::class.java)
+    registerPlugin(AbsDatabase::class.java)
 
     var filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE).apply {
       addAction(DownloadManager.ACTION_NOTIFICATION_CLICKED)
@@ -63,6 +85,7 @@ class MainActivity : BridgeActivity() {
 
   override fun onPostCreate(savedInstanceState: Bundle?) {
     super.onPostCreate(savedInstanceState)
+    Log.d(tag, "onPostCreate MainActivity")
 
     mConnection = object : ServiceConnection {
       override fun onServiceDisconnected(name: ComponentName) {
@@ -73,20 +96,21 @@ class MainActivity : BridgeActivity() {
       override fun onServiceConnected(name: ComponentName, service: IBinder) {
         Log.d(tag, "Service Connected $name")
 
-
         mBounded = true
         val mLocalBinder = service as PlayerNotificationService.LocalBinder
         foregroundService = mLocalBinder.getService()
 
-        // Let MyNativeAudio know foreground service is ready and setup event listener
+        // Let NativeAudio know foreground service is ready and setup event listener
         if (pluginCallback != null) {
           pluginCallback()
         }
       }
     }
 
-    val startIntent = Intent(this, PlayerNotificationService::class.java)
-    bindService(startIntent, mConnection as ServiceConnection, Context.BIND_AUTO_CREATE);
+    Intent(this, PlayerNotificationService::class.java).also { intent ->
+      Log.d(tag, "Binding PlayerNotificationService")
+      bindService(intent, mConnection, Context.BIND_AUTO_CREATE)
+    }
   }
 
 
