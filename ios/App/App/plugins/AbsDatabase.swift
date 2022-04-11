@@ -50,12 +50,23 @@ public class AbsDatabase: CAPPlugin {
             config.token = token
             
             Store.serverConfig = config
-            call.resolve(serverConnectionConfigToJSON(config: config))
+            call.resolve(convertServerConnectionConfigToJSON(config: config))
         }
     }
     @objc func getDeviceData(_ call: CAPPluginCall) {
         Database.realmQueue.sync {
-            call.resolve(serverConnectionConfigToJSON(config: Store.serverConfig))
+            let configs = Database.getServerConnectionConfigs()
+            let index = Database.getActiveServerConfigIndex()
+            
+            call.resolve([
+                "serverConnectionConfigs": configs.map { config in
+                    return convertServerConnectionConfigToJSON(config: config)
+                },
+                "lastServerConnectionConfigId": index < 0 ? -1 : configs[index].id,
+                "currentLocalPlaybackSession": nil, // Luckily this isn't implemented yet
+            ])
         }
     }
+    
+    
 }
