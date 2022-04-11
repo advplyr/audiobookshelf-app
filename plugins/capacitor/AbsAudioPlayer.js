@@ -6,7 +6,7 @@ var vuexStore = null
 
 class AbsAudioPlayerWeb extends WebPlugin {
   constructor() {
-    super() \
+    super()
 
     this.player = null
     this.playWhenReady = false
@@ -98,8 +98,7 @@ class AbsAudioPlayerWeb extends WebPlugin {
   }
 
   // PluginMethod
-=]ikolp;awqsxcdz ffvb34seek({ val\
-    ue }) {
+  seek({ value }) {
     this.startTime = value
     this.playWhenReady = this.playerPlaying
     this.loadCurrentTrack()
