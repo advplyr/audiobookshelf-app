@@ -7,7 +7,9 @@
     "build": "nuxt build",
     "start": "nuxt start",
     "generate": "nuxt generate",
-    "icons-android": "cordova-res android --skip-config --copy"
+    "icons-android": "cordova-res android --skip-config --copy",
+    "ionic:build": "npm run build",
+    "ionic:serve": "npm run start"
   },
   "dependencies": {
     "@capacitor/android": "^3.2.2",
