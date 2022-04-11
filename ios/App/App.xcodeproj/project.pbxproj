@@ -9,10 +9,14 @@
 /* Begin PBXBuildFile section */
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
 		3A200C1527D64D7E00CBF02E /* AudioPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A200C1427D64D7E00CBF02E /* AudioPlayer.swift */; };
-		3A200C1727D64E0D00CBF02E /* Audiobook.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A200C1627D64E0D00CBF02E /* Audiobook.swift */; };
+		3ABF618F2804325C0070250E /* PlayerHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3ABF618E2804325C0070250E /* PlayerHandler.swift */; };
+		3AD4FCE528043E50006DB301 /* AbsDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AD4FCE428043E50006DB301 /* AbsDatabase.swift */; };
+		3AD4FCE728043E72006DB301 /* AbsDatabase.m in Sources */ = {isa = PBXBuildFile; fileRef = 3AD4FCE628043E72006DB301 /* AbsDatabase.m */; };
+		3AD4FCE928043FD7006DB301 /* ServerConnectionConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AD4FCE828043FD7006DB301 /* ServerConnectionConfig.swift */; };
+		3AD4FCEB280443DD006DB301 /* Database.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AD4FCEA280443DD006DB301 /* Database.swift */; };
+		3AD4FCED28044E6C006DB301 /* Store.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AD4FCEC28044E6C006DB301 /* Store.swift */; };
+		3AD4FCEF28045D7C006DB301 /* Audiobook.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AD4FCEE28045D7C006DB301 /* Audiobook.swift */; };
 		3AFCB5E827EA240D00ECCC05 /* NowPlayingInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AFCB5E727EA240D00ECCC05 /* NowPlayingInfo.swift */; };
-		4D8D410C26E17C3A00BA5F0D /* MyNativeAudio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D8D410B26E17C3A00BA5F0D /* MyNativeAudio.swift */; };
-		4D8D412E26E187E500BA5F0D /* MyNativeAudio.m in Sources */ = {isa = PBXBuildFile; fileRef = 4D8D412D26E187E500BA5F0D /* MyNativeAudio.m */; };
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
 		504EC3081FED79650016851F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504EC3071FED79650016851F /* AppDelegate.swift */; };
 		504EC30D1FED79650016851F /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30B1FED79650016851F /* Main.storyboard */; };
@@ -25,11 +29,15 @@
 /* Begin PBXFileReference section */
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
 		3A200C1427D64D7E00CBF02E /* AudioPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayer.swift; sourceTree = "<group>"; };
-		3A200C1627D64E0D00CBF02E /* Audiobook.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Audiobook.swift; sourceTree = "<group>"; };
+		3ABF618E2804325C0070250E /* PlayerHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerHandler.swift; sourceTree = "<group>"; };
+		3AD4FCE428043E50006DB301 /* AbsDatabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AbsDatabase.swift; sourceTree = "<group>"; };
+		3AD4FCE628043E72006DB301 /* AbsDatabase.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AbsDatabase.m; sourceTree = "<group>"; };
+		3AD4FCE828043FD7006DB301 /* ServerConnectionConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerConnectionConfig.swift; sourceTree = "<group>"; };
+		3AD4FCEA280443DD006DB301 /* Database.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Database.swift; sourceTree = "<group>"; };
+		3AD4FCEC28044E6C006DB301 /* Store.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Store.swift; sourceTree = "<group>"; };
+		3AD4FCEE28045D7C006DB301 /* Audiobook.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Audiobook.swift; sourceTree = "<group>"; };
 		3AFCB5E727EA240D00ECCC05 /* NowPlayingInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingInfo.swift; sourceTree = "<group>"; };
-		4D8D410B26E17C3A00BA5F0D /* MyNativeAudio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyNativeAudio.swift; sourceTree = "<group>"; };
 		4D8D412C26E187E400BA5F0D /* App-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "App-Bridging-Header.h"; sourceTree = "<group>"; };
-		4D8D412D26E187E500BA5F0D /* MyNativeAudio.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MyNativeAudio.m; sourceTree = "<group>"; };
 		50379B222058CBB4000EE86E /* capacitor.config.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = capacitor.config.json; sourceTree = "<group>"; };
 		504EC3041FED79650016851F /* App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = App.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		504EC3071FED79650016851F /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -63,29 +71,39 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
+		3ABF6190280432610070250E /* player */ = {
+			isa = PBXGroup;
+			children = (
+				3A200C1427D64D7E00CBF02E /* AudioPlayer.swift */,
+				3ABF618E2804325C0070250E /* PlayerHandler.swift */,
+			);
+			path = player;
+			sourceTree = "<group>";
+		};
 		3AC8248B27F2316900529205 /* Shared */ = {
 			isa = PBXGroup;
 			children = (
 				3AFCB5E527EA232A00ECCC05 /* models */,
 				3AFCB5E627EA23F700ECCC05 /* util */,
-				3A200C1427D64D7E00CBF02E /* AudioPlayer.swift */,
+				3ABF6190280432610070250E /* player */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
 		};
-		3AFCB5E427EA231D00ECCC05 /* audio */ = {
+		3AFCB5E427EA231D00ECCC05 /* plugins */ = {
 			isa = PBXGroup;
 			children = (
-				4D8D410B26E17C3A00BA5F0D /* MyNativeAudio.swift */,
-				4D8D412D26E187E500BA5F0D /* MyNativeAudio.m */,
+				3AD4FCE428043E50006DB301 /* AbsDatabase.swift */,
+				3AD4FCE628043E72006DB301 /* AbsDatabase.m */,
 			);
-			path = audio;
+			path = plugins;
 			sourceTree = "<group>";
 		};
 		3AFCB5E527EA232A00ECCC05 /* models */ = {
 			isa = PBXGroup;
 			children = (
-				3A200C1627D64E0D00CBF02E /* Audiobook.swift */,
+				3AD4FCEE28045D7C006DB301 /* Audiobook.swift */,
+				3AD4FCE828043FD7006DB301 /* ServerConnectionConfig.swift */,
 			);
 			path = models;
 			sourceTree = "<group>";
@@ -94,6 +112,8 @@
 			isa = PBXGroup;
 			children = (
 				3AFCB5E727EA240D00ECCC05 /* NowPlayingInfo.swift */,
+				3AD4FCEA280443DD006DB301 /* Database.swift */,
+				3AD4FCEC28044E6C006DB301 /* Store.swift */,
 			);
 			path = util;
 			sourceTree = "<group>";
@@ -120,7 +140,7 @@
 		504EC3061FED79650016851F /* App */ = {
 			isa = PBXGroup;
 			children = (
-				3AFCB5E427EA231D00ECCC05 /* audio */,
+				3AFCB5E427EA231D00ECCC05 /* plugins */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
@@ -256,12 +276,16 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				4D8D412E26E187E500BA5F0D /* MyNativeAudio.m in Sources */,
+				3AD4FCE728043E72006DB301 /* AbsDatabase.m in Sources */,
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
-				4D8D410C26E17C3A00BA5F0D /* MyNativeAudio.swift in Sources */,
-				3A200C1727D64E0D00CBF02E /* Audiobook.swift in Sources */,
+				3ABF618F2804325C0070250E /* PlayerHandler.swift in Sources */,
+				3AD4FCED28044E6C006DB301 /* Store.swift in Sources */,
+				3AD4FCE928043FD7006DB301 /* ServerConnectionConfig.swift in Sources */,
+				3AD4FCEF28045D7C006DB301 /* Audiobook.swift in Sources */,
 				3A200C1527D64D7E00CBF02E /* AudioPlayer.swift in Sources */,
 				3AFCB5E827EA240D00ECCC05 /* NowPlayingInfo.swift in Sources */,
+				3AD4FCEB280443DD006DB301 /* Database.swift in Sources */,
+				3AD4FCE528043E50006DB301 /* AbsDatabase.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -402,7 +426,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 3;
-				DEVELOPMENT_TEAM = 7UFJ7D8V6A;
+				DEVELOPMENT_TEAM = N8AA4S3S96;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
@@ -426,7 +450,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 3;
-				DEVELOPMENT_TEAM = 7UFJ7D8V6A;
+				DEVELOPMENT_TEAM = N8AA4S3S96;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
