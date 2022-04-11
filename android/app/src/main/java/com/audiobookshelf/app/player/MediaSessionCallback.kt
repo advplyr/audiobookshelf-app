@@ -141,7 +141,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
             playerNotificationService.seekBackward(seekAmount)
           }
           KeyEvent.KEYCODE_MEDIA_STOP -> {
-            playerNotificationService.terminateStream()
+            playerNotificationService.closePlayback()
           }
           KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
             if (playerNotificationService.mPlayer.isPlaying) {

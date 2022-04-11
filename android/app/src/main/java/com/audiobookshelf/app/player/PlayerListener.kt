@@ -1,6 +1,7 @@
 package com.audiobookshelf.app.player
 
 import android.util.Log
+import com.audiobookshelf.app.data.PlayerState
 import com.google.android.exoplayer2.PlaybackException
 import com.google.android.exoplayer2.Player
 
@@ -32,22 +33,21 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
         Log.d(tag, "STATE_READY : " + playerNotificationService.mPlayer.duration.toString())
 
         if (lastPauseTime == 0L) {
-          playerNotificationService.sendClientMetadata("ready_no_sync")
           lastPauseTime = -1;
-        } else playerNotificationService.sendClientMetadata("ready")
+        }
+        playerNotificationService.sendClientMetadata(PlayerState.READY)
       }
       if (playerNotificationService.currentPlayer.playbackState == Player.STATE_BUFFERING) {
         Log.d(tag, "STATE_BUFFERING : " + playerNotificationService.mPlayer.currentPosition.toString())
-        if (lastPauseTime == 0L) playerNotificationService.sendClientMetadata("buffering_no_sync")
-        else playerNotificationService.sendClientMetadata("buffering")
+        playerNotificationService.sendClientMetadata(PlayerState.BUFFERING)
       }
       if (playerNotificationService.currentPlayer.playbackState == Player.STATE_ENDED) {
         Log.d(tag, "STATE_ENDED")
-        playerNotificationService.sendClientMetadata("ended")
+        playerNotificationService.sendClientMetadata(PlayerState.ENDED)
       }
       if (playerNotificationService.currentPlayer.playbackState == Player.STATE_IDLE) {
         Log.d(tag, "STATE_IDLE")
-        playerNotificationService.sendClientMetadata("idle")
+        playerNotificationService.sendClientMetadata(PlayerState.IDLE)
       }
     }
 
