@@ -105,11 +105,9 @@ export default {
   },
   data() {
     return {
-      // Main
       playbackSession: null,
-      // Others
       showChapterModal: false,
-      showCastBtn: true,
+      showCastBtn: false,
       showFullscreen: false,
       totalDuration: 0,
       currentPlaybackRate: 1,
@@ -493,6 +491,7 @@ export default {
     onPlayingUpdate(data) {
       console.log('onPlayingUpdate', JSON.stringify(data))
       this.isPaused = !data.value
+      this.$store.commit('setPlayerPlaying', !this.isPaused)
       if (!this.isPaused) {
         this.startPlayInterval()
       } else {
@@ -519,6 +518,8 @@ export default {
       console.log('onPlaybackSession received', JSON.stringify(playbackSession))
       this.playbackSession = playbackSession
 
+      this.$store.commit('setPlayerItem', this.playbackSession)
+
       // Set track width
       this.$nextTick(() => {
         if (this.$refs.track) {
@@ -530,6 +531,7 @@ export default {
     },
     onPlaybackClosed() {
       console.log('Received onPlaybackClosed evt')
+      this.$store.commit('setPlayerItem', null)
       this.showFullscreen = false
       this.playbackSession = null
     },

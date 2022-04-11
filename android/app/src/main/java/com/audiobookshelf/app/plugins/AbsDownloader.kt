@@ -43,6 +43,7 @@ class AbsDownloader : Plugin() {
     val localFolderName: String,
     val localFolderId: String,
     val audioTrack: AudioTrack?,
+    val episode:PodcastEpisode?,
     var completed:Boolean,
     @JsonIgnore val uri: Uri,
     @JsonIgnore val destinationUri: Uri,
@@ -62,6 +63,8 @@ class AbsDownloader : Plugin() {
 
   data class DownloadItem(
     val id: String,
+    val libraryItemId:String,
+    val episodeId:String?,
     val serverConnectionConfigId:String,
     val serverAddress:String,
     val serverUserId:String,
@@ -96,20 +99,40 @@ class AbsDownloader : Plugin() {
   @PluginMethod
   fun downloadLibraryItem(call: PluginCall) {
     var libraryItemId = call.data.getString("libraryItemId").toString()
+    var episodeId = call.data.getString("episodeId").toString()
     var localFolderId = call.data.getString("localFolderId").toString()
     Log.d(tag, "Download library item $libraryItemId to folder $localFolderId")
 
-    if (downloadQueue.find { it.id == libraryItemId } != null) {
-      Log.d(tag, "Download already started for this library item $libraryItemId")
-      return call.resolve(JSObject("{\"error\":\"Download already started for this library item\"}"))
+    var downloadId = if (episodeId.isNullOrEmpty()) libraryItemId else "$libraryItemId-$episodeId"
+    if (downloadQueue.find { it.id == downloadId } != null) {
+      Log.d(tag, "Download already started for this media entity $downloadId")
+      return call.resolve(JSObject("{\"error\":\"Download already started for this media entity\"}"))
     }
 
     apiHandler.getLibraryItem(libraryItemId) { libraryItem ->
       Log.d(tag, "Got library item from server ${libraryItem.id}")
+
       var localFolder = DeviceManager.dbManager.getLocalFolder(localFolderId)
       if (localFolder != null) {
-        startLibraryItemDownload(libraryItem, localFolder)
-        call.resolve()
+
+        if (!episodeId.isNullOrEmpty() && libraryItem.mediaType != "podcast") {
+          Log.e(tag, "Library item is not a podcast but episode was requested")
+          call.resolve(JSObject("{\"error\":\"Invalid library item not a podcast\"}"))
+        } else if (!episodeId.isNullOrEmpty()) {
+          var podcast = libraryItem.media as Podcast
+          var episode = podcast.episodes?.find { podcastEpisode ->
+            podcastEpisode.id == episodeId
+          }
+          if (episode == null) {
+            call.resolve(JSObject("{\"error\":\"Invalid podcast episode not found\"}"))
+          } else {
+            startLibraryItemDownload(libraryItem, localFolder, episode)
+            call.resolve()
+          }
+        } else {
+          startLibraryItemDownload(libraryItem, localFolder, null)
+          call.resolve()
+        }
       } else {
         call.resolve(JSObject("{\"error\":\"Local Folder Not Found\"}"))
       }
@@ -139,13 +162,13 @@ class AbsDownloader : Plugin() {
     return fileString
   }
 
-  fun startLibraryItemDownload(libraryItem: LibraryItem, localFolder: LocalFolder) {
+  fun startLibraryItemDownload(libraryItem: LibraryItem, localFolder: LocalFolder, episode:PodcastEpisode?) {
     if (libraryItem.mediaType == "book") {
       var bookTitle = libraryItem.media.metadata.title
       var tracks = libraryItem.media.getAudioTracks()
       Log.d(tag, "Starting library item download with ${tracks.size} tracks")
       var itemFolderPath = localFolder.absolutePath + "/" + bookTitle
-      var downloadItem = DownloadItem(libraryItem.id, DeviceManager.serverConnectionConfig?.id ?: "", DeviceManager.serverAddress, DeviceManager.serverUserId, libraryItem.mediaType, itemFolderPath, localFolder, bookTitle, libraryItem.media, mutableListOf())
+      var downloadItem = DownloadItem(libraryItem.id, libraryItem.id, null,DeviceManager.serverConnectionConfig?.id ?: "", DeviceManager.serverAddress, DeviceManager.serverUserId, libraryItem.mediaType, itemFolderPath, localFolder, bookTitle, libraryItem.media, mutableListOf())
 
       // Create download item part for each audio track
       tracks.forEach { audioTrack ->
@@ -162,7 +185,7 @@ class AbsDownloader : Plugin() {
         var destinationUri = Uri.fromFile(destinationFile)
         var downloadUri = Uri.parse("${DeviceManager.serverAddress}${serverPath}?token=${DeviceManager.token}")
         Log.d(tag, "Audio File Destination Uri $destinationUri | Download URI $downloadUri")
-        var downloadItemPart = DownloadItemPart(DeviceManager.getBase64Id(destinationFile.absolutePath), destinationFilename, destinationFile.absolutePath, bookTitle, serverPath, localFolder.name, localFolder.id, audioTrack, false, downloadUri, destinationUri, null, 0)
+        var downloadItemPart = DownloadItemPart(DeviceManager.getBase64Id(destinationFile.absolutePath), destinationFilename, destinationFile.absolutePath, bookTitle, serverPath, localFolder.name, localFolder.id, audioTrack, null, false, downloadUri, destinationUri, null, 0)
 
         downloadItem.downloadItemParts.add(downloadItemPart)
 
@@ -185,7 +208,7 @@ class AbsDownloader : Plugin() {
 
           var destinationUri = Uri.fromFile(destinationFile)
           var downloadUri = Uri.parse("${DeviceManager.serverAddress}${serverPath}&token=${DeviceManager.token}")
-          var downloadItemPart = DownloadItemPart(DeviceManager.getBase64Id(destinationFile.absolutePath), destinationFilename, destinationFile.absolutePath, bookTitle, serverPath, localFolder.name, localFolder.id, null, false, downloadUri, destinationUri, null, 0)
+          var downloadItemPart = DownloadItemPart(DeviceManager.getBase64Id(destinationFile.absolutePath), destinationFilename, destinationFile.absolutePath, bookTitle, serverPath, localFolder.name, localFolder.id, null,null, false, downloadUri, destinationUri, null, 0)
 
           downloadItem.downloadItemParts.add(downloadItemPart)
 
@@ -204,7 +227,57 @@ class AbsDownloader : Plugin() {
         DeviceManager.dbManager.saveDownloadItem(downloadItem)
       }
     } else {
-      // TODO: Download podcast episode(s)
+      // Podcast episode download
+
+      var podcastTitle = libraryItem.media.metadata.title
+      var audioTrack = episode?.audioTrack
+      Log.d(tag, "Starting podcast episode download")
+      var itemFolderPath = localFolder.absolutePath + "/" + podcastTitle
+      var downloadItemId = "${libraryItem.id}-${episode?.id}"
+      var downloadItem = DownloadItem(downloadItemId, libraryItem.id, episode?.id, DeviceManager.serverConnectionConfig?.id ?: "", DeviceManager.serverAddress, DeviceManager.serverUserId, libraryItem.mediaType, itemFolderPath, localFolder, podcastTitle, libraryItem.media, mutableListOf())
+
+      var serverPath = "/s/item/${libraryItem.id}/${cleanRelPath(audioTrack?.relPath ?: "")}"
+      var destinationFilename = getFilenameFromRelPath(audioTrack?.relPath ?: "")
+      Log.d(tag, "Audio File Server Path $serverPath | AF RelPath ${audioTrack?.relPath} | LocalFolder Path ${localFolder.absolutePath} | DestName ${destinationFilename}")
+      var destinationFile = File("$itemFolderPath/$destinationFilename")
+      if (destinationFile.exists()) {
+        Log.d(tag, "Audio file already exists, removing it from ${destinationFile.absolutePath}")
+        destinationFile.delete()
+      }
+
+      var destinationUri = Uri.fromFile(destinationFile)
+      var downloadUri = Uri.parse("${DeviceManager.serverAddress}${serverPath}?token=${DeviceManager.token}")
+      Log.d(tag, "Audio File Destination Uri $destinationUri | Download URI $downloadUri")
+      var downloadItemPart = DownloadItemPart(DeviceManager.getBase64Id(destinationFile.absolutePath), destinationFilename, destinationFile.absolutePath, podcastTitle, serverPath, localFolder.name, localFolder.id, audioTrack, episode,false, downloadUri, destinationUri, null, 0)
+      downloadItem.downloadItemParts.add(downloadItemPart)
+
+      var dlRequest = downloadItemPart.getDownloadRequest()
+      var downloadId = downloadManager.enqueue(dlRequest)
+      downloadItemPart.downloadId = downloadId
+
+      if (libraryItem.media.coverPath != null && libraryItem.media.coverPath?.isNotEmpty() == true) {
+        var serverPath = "/api/items/${libraryItem.id}/cover?format=jpeg"
+        var destinationFilename = "cover.jpg"
+        var destinationFile = File("$itemFolderPath/$destinationFilename")
+
+        if (destinationFile.exists()) {
+          Log.d(tag, "Podcast cover already exists - not downloading cover again")
+        } else {
+          var destinationUri = Uri.fromFile(destinationFile)
+          var downloadUri = Uri.parse("${DeviceManager.serverAddress}${serverPath}&token=${DeviceManager.token}")
+          var downloadItemPart = DownloadItemPart(DeviceManager.getBase64Id(destinationFile.absolutePath), destinationFilename, destinationFile.absolutePath, podcastTitle, serverPath, localFolder.name, localFolder.id, null,null, false, downloadUri, destinationUri, null, 0)
+
+          downloadItem.downloadItemParts.add(downloadItemPart)
+
+          var dlRequest = downloadItemPart.getDownloadRequest()
+          var downloadId = downloadManager.enqueue(dlRequest)
+          downloadItemPart.downloadId = downloadId
+        }
+      }
+
+      downloadQueue.add(downloadItem)
+      startWatchingDownloads(downloadItem)
+      DeviceManager.dbManager.saveDownloadItem(downloadItem)
     }
   }
 

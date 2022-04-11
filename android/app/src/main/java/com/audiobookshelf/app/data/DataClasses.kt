@@ -99,15 +99,44 @@ class Podcast(
         episodes?.add(newEpisode)
       }
     }
+
+    var index = 1
+    episodes?.forEach {
+      it.index = index
+      index++
+    }
   }
   @JsonIgnore
   override fun addAudioTrack(audioTrack:AudioTrack) {
     var newEpisode = PodcastEpisode("local_" + audioTrack.localFileId,episodes?.size ?: 0 + 1,null,null,audioTrack.title,null,null,null,audioTrack)
     episodes?.add(newEpisode)
+
+    var index = 1
+    episodes?.forEach {
+      it.index = index
+      index++
+    }
   }
   @JsonIgnore
   override fun removeAudioTrack(localFileId:String) {
     episodes?.removeIf { it.audioTrack?.localFileId == localFileId }
+
+    var index = 1
+    episodes?.forEach {
+      it.index = index
+      index++
+    }
+  }
+  @JsonIgnore
+  fun addEpisode(audioTrack:AudioTrack, episode:PodcastEpisode) {
+    var newEpisode = PodcastEpisode("local_" + episode.id,episodes?.size ?: 0 + 1,episode.episode,episode.episodeType,episode.title,episode.subtitle,episode.description,null,audioTrack)
+    episodes?.add(newEpisode)
+
+    var index = 1
+    episodes?.forEach {
+      it.index = index
+      index++
+    }
   }
 }
 

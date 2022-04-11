@@ -23,7 +23,7 @@
           <div class="flex-grow px-2">
             <p class="text-sm">{{ mediaItem.media.metadata.title }}</p>
             <p v-if="mediaItem.mediaType == 'book'" class="text-xs text-gray-300">{{ mediaItem.media.tracks.length }} Track{{ mediaItem.media.tracks.length == 1 ? '' : 's' }}</p>
-            <p v-else-if="mediaItem.mediaType == 'podcast'" class="text-xs text-gray-300">{{ mediaItem.media.episodes.length }} Episode{{ mediaItem.media.tracks.length == 1 ? '' : 's' }}</p>
+            <p v-else-if="mediaItem.mediaType == 'podcast'" class="text-xs text-gray-300">{{ mediaItem.media.episodes.length }} Episode{{ mediaItem.media.episodes.length == 1 ? '' : 's' }}</p>
           </div>
           <div class="w-12 h-12 flex items-center justify-center">
             <span class="material-icons text-xl text-gray-300">arrow_right</span>
@@ -78,7 +78,7 @@ export default {
           text: 'Remove',
           value: 'remove'
         }
-      ].filter((i) => !i.value == 'rescan' || this.localLibraryItems.length) // Filter out rescan if there are no local library items
+      ].filter((i) => i.value != 'rescan' || this.localLibraryItems.length) // Filter out rescan if there are no local library items
     }
   },
   methods: {
@@ -110,7 +110,7 @@ export default {
       }
     },
     play(mediaItem) {
-      this.$eventBus.$emit('play-item', mediaItem.id)
+      this.$eventBus.$emit('play-item', { libraryItemId: mediaItem.id })
     },
     async scanFolder(forceAudioProbe = false) {
       this.isScanning = true
@@ -150,11 +150,13 @@ export default {
       var items = (await this.$db.getLocalLibraryItemsInFolder(this.folderId)) || []
       console.log('Init folder', this.folderId, items)
       this.localLibraryItems = items.map((lmi) => {
+        console.log('Local library item', JSON.stringify(lmi))
         return {
           ...lmi,
           coverPathSrc: lmi.coverContentUrl ? Capacitor.convertFileSrc(lmi.coverContentUrl) : null
         }
       })
+
       if (this.shouldScan) {
         this.scanFolder()
       }

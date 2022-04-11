@@ -261,24 +261,28 @@ export default {
       }
     },
     async setUserAndConnection(user, userDefaultLibraryId) {
-      if (user) {
-        console.log('Successfully logged in', JSON.stringify(user))
+      if (!user) return
 
-        if (userDefaultLibraryId) {
-          this.$store.commit('libraries/setCurrentLibrary', userDefaultLibraryId)
-        }
+      console.log('Successfully logged in', JSON.stringify(user))
 
-        this.serverConfig.userId = user.id
-        this.serverConfig.token = user.token
-
-        var serverConnectionConfig = await this.$db.setServerConnectionConfig(this.serverConfig)
-
-        this.$store.commit('user/setUser', user)
-        this.$store.commit('user/setServerConnectionConfig', serverConnectionConfig)
-
-        this.$socket.connect(this.serverConfig.address, this.serverConfig.token)
-        this.$router.replace('/bookshelf')
+      // Set library - Use last library if set and available fallback to default user library
+      var lastLibraryId = await this.$localStore.getLastLibraryId()
+      if (lastLibraryId && (!user.librariesAccessible.length || user.librariesAccessible.includes(lastLibraryId))) {
+        this.$store.commit('libraries/setCurrentLibrary', lastLibraryId)
+      } else if (userDefaultLibraryId) {
+        this.$store.commit('libraries/setCurrentLibrary', userDefaultLibraryId)
       }
+
+      this.serverConfig.userId = user.id
+      this.serverConfig.token = user.token
+
+      var serverConnectionConfig = await this.$db.setServerConnectionConfig(this.serverConfig)
+
+      this.$store.commit('user/setUser', user)
+      this.$store.commit('user/setServerConnectionConfig', serverConnectionConfig)
+
+      this.$socket.connect(this.serverConfig.address, this.serverConfig.token)
+      this.$router.replace('/bookshelf')
     },
     async authenticateToken() {
       if (!this.networkConnected) return

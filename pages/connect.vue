@@ -45,6 +45,9 @@ export default {
     }
   },
   mounted() {
+    // Reset data on logouts
+    this.$store.commit('libraries/reset')
+    this.$store.commit('setIsFirstLoad', true)
     this.init()
   }
 }

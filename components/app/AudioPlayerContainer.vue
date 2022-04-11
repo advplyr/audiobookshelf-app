@@ -166,15 +166,23 @@ export default {
         this.$refs.audioPlayer.terminateStream()
       }
     },
-    async playLibraryItem(libraryItemId) {
+    async playLibraryItem(payload) {
+      var libraryItemId = payload.libraryItemId
+      var episodeId = payload.episodeId
+
       console.log('Called playLibraryItem', libraryItemId)
-      AbsAudioPlayer.prepareLibraryItem({ libraryItemId, playWhenReady: true })
+      AbsAudioPlayer.prepareLibraryItem({ libraryItemId, episodeId, playWhenReady: true })
         .then((data) => {
           console.log('Library item play response', JSON.stringify(data))
         })
         .catch((error) => {
           console.error('Failed', error)
         })
+    },
+    pauseItem() {
+      if (this.$refs.audioPlayer && !this.$refs.audioPlayer.isPaused) {
+        this.$refs.audioPlayer.pause()
+      }
     },
     onLocalMediaProgressUpdate(localMediaProgress) {
       console.log('Got local media progress update', localMediaProgress.progress, JSON.stringify(localMediaProgress))
@@ -191,6 +199,7 @@ export default {
 
     this.setListeners()
     this.$eventBus.$on('play-item', this.playLibraryItem)
+    this.$eventBus.$on('pause-item', this.pauseItem)
     this.$eventBus.$on('close-stream', this.closeStreamOnly)
     this.$store.commit('user/addSettingsListener', { id: 'streamContainer', meth: this.settingsUpdated })
   },
@@ -207,6 +216,7 @@ export default {
     //   this.$server.socket.off('stream_reset', this.streamReset)
     // }
     this.$eventBus.$off('play-item', this.playLibraryItem)
+    this.$eventBus.$off('pause-item', this.pauseItem)
     this.$eventBus.$off('close-stream', this.closeStreamOnly)
     this.$store.commit('user/removeSettingsListener', 'streamContainer')
   }

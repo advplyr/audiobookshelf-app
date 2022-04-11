@@ -6,8 +6,11 @@ export const state = () => ({
 })
 
 export const getters = {
-  getDownloadItem: state => libraryItemId => {
-    return state.itemDownloads.find(i => i.id == libraryItemId)
+  getDownloadItem: state => (libraryItemId, episodeId = null) => {
+    return state.itemDownloads.find(i => {
+      if (episodeId && !i.episodes.some(e => e.id == episodeId)) return false
+      return i.id == libraryItemId
+    })
   },
   getLibraryItemCoverSrc: (state, getters, rootState, rootGetters) => (libraryItem, placeholder = '/book_placeholder.jpg') => {
     if (!libraryItem) return placeholder

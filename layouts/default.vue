@@ -13,7 +13,6 @@
 
 <script>
 import { AppUpdate } from '@robingenz/capacitor-app-update'
-import { AbsFileSystem } from '@/plugins/capacitor'
 
 export default {
   data() {
@@ -56,7 +55,7 @@ export default {
   },
   computed: {
     playerIsOpen() {
-      return this.$store.getters['playerIsOpen']
+      return this.$store.state.playerLibraryItemId
     },
     routeName() {
       return this.$route.name
@@ -110,58 +109,6 @@ export default {
         }, 5000)
       }
     },
-    async searchFolder(downloadFolder) {
-      try {
-        var response = await AbsFileSystem.searchFolder({ folderUrl: downloadFolder.uri })
-        var searchResults = response
-        searchResults.folders = JSON.parse(searchResults.folders)
-        searchResults.files = JSON.parse(searchResults.files)
-
-        console.log('Search folders results length', searchResults.folders.length)
-        searchResults.folders = searchResults.folders.map((sr) => {
-          if (sr.files) {
-            sr.files = JSON.parse(sr.files)
-          }
-          return sr
-        })
-
-        return searchResults
-      } catch (error) {
-        console.error('Failed', error)
-        this.$toast.error('Failed to search downloads folder')
-        return {}
-      }
-    },
-    // async syncDownloads(downloads, downloadFolder) {
-    //   console.log('Syncing downloads ' + downloads.length)
-    //   var mediaScanResults = await this.searchFolder(downloadFolder)
-
-    //   this.$store.commit('downloads/setMediaScanResults', mediaScanResults)
-
-    //   // Filter out media folders without any audio files
-    //   var mediaFolders = mediaScanResults.folders.filter((sr) => {
-    //     if (!sr.files) return false
-    //     var audioFiles = sr.files.filter((mf) => !!mf.isAudio)
-    //     return audioFiles.length
-    //   })
-
-    //   downloads.forEach((download) => {
-    //     var mediaFolder = mediaFolders.find((mf) => mf.name === download.folderName)
-    //     if (mediaFolder) {
-    //       console.log('Found download ' + download.folderName)
-    //       if (download.isMissing) {
-    //         download.isMissing = false
-    //         this.$store.commit('downloads/addUpdateDownload', download)
-    //       }
-    //     } else {
-    //       console.error('Download not found ' + download.folderName)
-    //       if (!download.isMissing) {
-    //         download.isMissing = true
-    //         this.$store.commit('downloads/addUpdateDownload', download)
-    //       }
-    //     }
-    //   })
-    // },
     async loadSavedSettings() {
       var userSavedServerSettings = await this.$localStore.getServerSettings()
       if (userSavedServerSettings) {
@@ -209,7 +156,12 @@ export default {
       }
 
       const { user, userDefaultLibraryId } = authRes
-      if (userDefaultLibraryId) {
+
+      // Set library - Use last library if set and available fallback to default user library
+      var lastLibraryId = await this.$localStore.getLastLibraryId()
+      if (lastLibraryId && (!user.librariesAccessible.length || user.librariesAccessible.includes(lastLibraryId))) {
+        this.$store.commit('libraries/setCurrentLibrary', lastLibraryId)
+      } else if (userDefaultLibraryId) {
         this.$store.commit('libraries/setCurrentLibrary', userDefaultLibraryId)
       }
       var serverConnectionConfig = await this.$db.setServerConnectionConfig(serverConfig)
@@ -247,7 +199,7 @@ export default {
       }
       this.inittingLibraries = true
       await this.$store.dispatch('libraries/load')
-      console.log(`[default] initLibraries loaded`)
+      console.log(`[default] initLibraries loaded ${this.currentLibraryId}`)
       this.$eventBus.$emit('library-changed')
       this.$store.dispatch('libraries/fetch', this.currentLibraryId)
       this.inittingLibraries = false
@@ -261,7 +213,7 @@ export default {
       console.log('[default] Calling syncLocalMediaProgress')
       var response = await this.$db.syncLocalMediaProgressWithServer()
       if (!response) {
-        this.$toast.error('Failed to sync local media with server')
+        if (this.$platform != 'web') this.$toast.error('Failed to sync local media with server')
         return
       }
       const { numLocalMediaProgressForServer, numServerProgressUpdates, numLocalProgressUpdates } = response
@@ -276,20 +228,12 @@ export default {
       }
     },
     userUpdated(user) {
-      console.log('User updated', user)
       if (this.user && this.user.id == user.id) {
         this.$store.commit('user/setUser', user)
       }
     }
   },
   async mounted() {
-    // this.$server.on('logout', this.userLoggedOut)
-    // this.$server.on('connected', this.connected)
-    // this.$server.on('connectionFailed', this.socketConnectionFailed)
-    // this.$server.on('initialStream', this.initialStream)
-    // this.$server.on('show_error_toast', this.showErrorToast)
-    // this.$server.on('show_success_toast', this.showSuccessToast)
-
     this.$socket.on('connection-update', this.socketConnectionUpdate)
     this.$socket.on('initialized', this.socketInit)
     this.$socket.on('user_updated', this.userUpdated)
