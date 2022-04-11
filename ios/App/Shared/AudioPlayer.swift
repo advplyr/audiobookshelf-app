@@ -260,6 +260,5 @@ class AudioPlayer: NSObject {
         }
     }
     
-    // MARK: - Factory
     public static var instance: AudioPlayer?
 }
