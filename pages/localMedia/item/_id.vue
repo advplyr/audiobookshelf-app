@@ -1,42 +1,64 @@
 <template>
-  <div class="w-full h-full py-6 px-4">
+  <div class="w-full h-full py-6 px-2">
     <div v-if="localLibraryItem" class="w-full h-full">
-      <div class="flex items-center mb-2">
+      <div class="px-2 flex items-center mb-2">
         <p class="text-base font-book font-semibold">{{ mediaMetadata.title }}</p>
         <div class="flex-grow" />
 
-        <button v-if="audioTracks.length" class="shadow-sm text-accent flex items-center justify-center rounded-full mx-2" @click.stop="play">
+        <button v-if="audioTracks.length && !isPodcast" class="shadow-sm text-accent flex items-center justify-center rounded-full mx-2" @click.stop="play">
           <span class="material-icons" style="font-size: 2rem">play_arrow</span>
         </button>
         <span class="material-icons" @click="showItemDialog">more_vert</span>
       </div>
 
-      <p class="text-sm mb-0.5 text-white text-opacity-75">Folder: {{ folderName }}</p>
+      <p class="px-2 text-sm mb-0.5 text-white text-opacity-75">Folder: {{ folderName }}</p>
 
-      <p class="mb-4 text-xs text-gray-400">{{ libraryItemId ? 'Linked to item on server ' + liServerAddress : 'Not linked to server item' }}</p>
+      <p class="px-2 mb-4 text-xs text-gray-400">{{ libraryItemId ? 'Linked to item on server ' + liServerAddress : 'Not linked to server item' }}</p>
 
       <div v-if="isScanning" class="w-full text-center p-4">
         <p>Scanning...</p>
       </div>
       <div v-else class="w-full media-item-container overflow-y-auto">
-        <p class="text-base mb-2">Audio Tracks ({{ audioTracks.length }})</p>
-        <template v-for="track in audioTracks">
-          <div :key="track.localFileId" class="flex items-center my-1">
-            <div class="w-12 h-12 flex items-center justify-center" style="min-width: 48px">
-              <p class="font-mono font-bold text-xl">{{ track.index }}</p>
+        <div v-if="!isPodcast" class="w-full">
+          <p class="text-base mb-2">Audio Tracks ({{ audioTracks.length }})</p>
+          <template v-for="track in audioTracks">
+            <div :key="track.localFileId" class="flex items-center my-1">
+              <div class="w-10 h-12 flex items-center justify-center" style="min-width: 48px">
+                <p class="font-mono font-bold text-xl">{{ track.index }}</p>
+              </div>
+              <div class="flex-grow px-2">
+                <p class="text-xs">{{ track.title }}</p>
+              </div>
+              <div class="w-20 text-center text-gray-300" style="min-width: 80px">
+                <p class="text-xs">{{ track.mimeType }}</p>
+                <p class="text-sm">{{ $elapsedPretty(track.duration) }}</p>
+              </div>
+              <div class="w-12 h-12 flex items-center justify-center" style="min-width: 48px">
+                <span class="material-icons" @click="showTrackDialog(track)">more_vert</span>
+              </div>
             </div>
-            <div class="flex-grow px-2">
-              <p class="text-sm">{{ track.title }}</p>
+          </template>
+        </div>
+        <div v-else class="w-full">
+          <p class="text-base mb-2">Episodes ({{ audioTracks.length }})</p>
+          <template v-for="episode in audioTracks">
+            <div :key="episode.id" class="flex items-center my-1">
+              <div class="w-10 h-12 flex items-center justify-center" style="min-width: 48px">
+                <p class="font-mono font-bold text-xl">{{ episode.index }}</p>
+              </div>
+              <div class="flex-grow px-2">
+                <p class="text-xs">{{ episode.title }}</p>
+              </div>
+              <div class="w-20 text-center text-gray-300" style="min-width: 80px">
+                <p class="text-xs">{{ episode.audioTrack.mimeType }}</p>
+                <p class="text-sm">{{ $elapsedPretty(episode.audioTrack.duration) }}</p>
+              </div>
+              <div class="w-12 h-12 flex items-center justify-center" style="min-width: 48px">
+                <span class="material-icons" @click="showTrackDialog(episode)">more_vert</span>
+              </div>
             </div>
-            <div class="w-20 text-center text-gray-300" style="min-width: 80px">
-              <p class="text-xs">{{ track.mimeType }}</p>
-              <p class="text-sm">{{ $elapsedPretty(track.duration) }}</p>
-            </div>
-            <div class="w-12 h-12 flex items-center justify-center" style="min-width: 48px">
-              <span class="material-icons" @click="showTrackDialog(track)">more_vert</span>
-            </div>
-          </div>
-        </template>
+          </template>
+        </div>
 
         <p v-if="otherFiles.length" class="text-lg mb-2 pt-8">Other Files</p>
         <template v-for="file in otherFiles">
@@ -56,7 +78,7 @@
         </template>
       </div>
     </div>
-    <div v-else class="w-full h-full">
+    <div v-else class="px-2 w-full h-full">
       <p class="text-lg text-center px-8">{{ failed ? 'Failed to get local library item ' + localLibraryItemId : 'Loading..' }}</p>
     </div>
 
@@ -84,7 +106,8 @@ export default {
       folder: null,
       isScanning: false,
       showDialog: false,
-      selectedAudioTrack: null
+      selectedAudioTrack: null,
+      selectedEpisode: null
     }
   },
   computed: {
@@ -100,6 +123,7 @@ export default {
         return []
       }
       return this.localFiles.filter((lf) => {
+        if (this.isPodcast) return !this.audioTracks.find((episode) => episode.audioTrack.localFileId == lf.id)
         return !this.audioTracks.find((at) => at.localFileId == lf.id)
       })
     },
@@ -108,6 +132,9 @@ export default {
     },
     mediaType() {
       return this.localLibraryItem ? this.localLibraryItem.mediaType : null
+    },
+    isPodcast() {
+      return this.mediaType == 'podcast'
     },
     libraryItemId() {
       return this.localLibraryItem ? this.localLibraryItem.libraryItemId : null
@@ -165,11 +192,17 @@ export default {
       this.showDialog = true
     },
     showTrackDialog(track) {
-      this.selectedAudioTrack = track
+      if (this.isPodcast) {
+        this.selectedAudioTrack = null
+        this.selectedEpisode = track
+      } else {
+        this.selectedEpisode = null
+        this.selectedAudioTrack = track
+      }
       this.showDialog = true
     },
     play() {
-      this.$eventBus.$emit('play-item', this.localLibraryItemId)
+      this.$eventBus.$emit('play-item', { libraryItemId: this.localLibraryItemId })
     },
     getCapImageSrc(contentUrl) {
       return Capacitor.convertFileSrc(contentUrl)
@@ -185,12 +218,33 @@ export default {
       } else if (action == 'delete') {
         this.deleteItem()
       } else if (action == 'track-delete') {
-        this.deleteTrack()
+        if (this.isPodcast) this.deleteEpisode()
+        else this.deleteTrack()
       }
       this.showDialog = false
     },
     getLocalFileForTrack(localFileId) {
       return this.localFiles.find((lf) => lf.id == localFileId)
+    },
+    async deleteEpisode() {
+      if (!this.selectedEpisode) return
+      var localFile = this.getLocalFileForTrack(this.selectedEpisode.audioTrack.localFileId)
+      if (!localFile) {
+        this.$toast.error('Audio track does not have matching local file..')
+        return
+      }
+      var trackPath = localFile ? localFile.basePath : this.selectedEpisode.title
+      const { value } = await Dialog.confirm({
+        title: 'Confirm',
+        message: `Warning! This will delete the audio file "${trackPath}" from your file system. Are you sure?`
+      })
+      if (value) {
+        var res = await AbsFileSystem.deleteTrackFromItem({ id: this.localLibraryItem.id, trackLocalFileId: localFile.id, trackContentUrl: this.selectedEpisode.audioTrack.contentUrl })
+        if (res && res.id) {
+          this.$toast.success('Deleted track successfully')
+          this.localLibraryItem = res
+        } else this.$toast.error('Failed to delete')
+      }
     },
     async deleteTrack() {
       if (!this.selectedAudioTrack) {

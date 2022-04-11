@@ -65,7 +65,7 @@ export default {
       return this.book.numTracks
     },
     isStreaming() {
-      return this.$store.getters['getAudiobookIdStreaming'] === this.book.id
+      return this.$store.getters['getIsItemStreaming'](this.book.id)
     },
     showPlayBtn() {
       return !this.isMissing && !this.isIncomplete && !this.isStreaming && this.numTracks

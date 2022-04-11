@@ -1,4 +1,3 @@
-import Vue from 'vue'
 import { io } from 'socket.io-client'
 import EventEmitter from 'events'
 
@@ -58,6 +57,7 @@ class ServerSocket extends EventEmitter {
     this.connected = true
     this.$store.commit('setSocketConnected', true)
     this.emit('connection-update', true)
+    this.socket.emit('auth', this.token) // Required to connect a user with their socket
   }
 
   onDisconnect(reason) {

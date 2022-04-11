@@ -4,7 +4,7 @@
       <div class="w-32">
         <div class="relative">
           <covers-book-cover :library-item="libraryItem" :width="128" :book-cover-aspect-ratio="bookCoverAspectRatio" />
-          <div class="absolute bottom-0 left-0 h-1.5 bg-yellow-400 shadow-sm z-10" :style="{ width: 128 * progressPercent + 'px' }"></div>
+          <div v-if="!isPodcast" class="absolute bottom-0 left-0 h-1.5 bg-yellow-400 shadow-sm z-10" :style="{ width: 128 * progressPercent + 'px' }"></div>
         </div>
         <div class="flex my-4">
           <p v-if="numTracks" class="text-sm">{{ numTracks }} Tracks</p>
@@ -19,7 +19,7 @@
           <span class="px-4">{{ $bytesPretty(size) }}</span>
         </p>
 
-        <div v-if="progressPercent > 0" class="px-4 py-2 bg-primary text-sm font-semibold rounded-md text-gray-200 mt-4 relative" :class="resettingProgress ? 'opacity-25' : ''">
+        <div v-if="!isPodcast && progressPercent > 0" class="px-4 py-2 bg-primary text-sm font-semibold rounded-md text-gray-200 mt-4 relative" :class="resettingProgress ? 'opacity-25' : ''">
           <p class="leading-6">Your Progress: {{ Math.round(progressPercent * 100) }}%</p>
           <p v-if="progressPercent < 1" class="text-gray-400 text-xs">{{ $elapsedPretty(userTimeRemaining) }} remaining</p>
           <div v-if="!resettingProgress" class="absolute -top-1.5 -right-1.5 p-1 w-5 h-5 rounded-full bg-bg hover:bg-error border border-primary flex items-center justify-center cursor-pointer" @click.stop="clearProgressClick">
@@ -60,6 +60,8 @@
     <div class="w-full py-4">
       <p>{{ description }}</p>
     </div>
+
+    <tables-podcast-episodes-table v-if="isPodcast" :library-item-id="libraryItemId" :episodes="episodes" />
 
     <modals-select-local-folder-modal v-model="showSelectLocalFolder" :media-type="mediaType" @select="selectedLocalFolder" />
   </div>
@@ -133,6 +135,9 @@ export default {
     mediaType() {
       return this.libraryItem.mediaType
     },
+    isPodcast() {
+      return this.mediaType == 'podcast'
+    },
     media() {
       return this.libraryItem.media || {}
     },
@@ -143,6 +148,7 @@ export default {
       return this.mediaMetadata.title
     },
     author() {
+      if (this.isPodcast) return this.mediaMetadata.author
       return this.mediaMetadata.authorName
     },
     description() {
@@ -185,10 +191,10 @@ export default {
       return this.userItemProgress ? this.userItemProgress.finishedAt : 0
     },
     isStreaming() {
-      return this.$store.getters['isAudiobookStreaming'](this.libraryItemId)
+      return this.isPlaying && !this.$store.state.playerIsLocal
     },
     isPlaying() {
-      return this.$store.getters['isAudiobookPlaying'](this.libraryItemId)
+      return this.$store.getters['getIsItemStreaming'](this.libraryItemId)
     },
     numTracks() {
       if (!this.media.tracks) return 0
@@ -219,8 +225,8 @@ export default {
     downloadItem() {
       return this.$store.getters['globals/getDownloadItem'](this.libraryItemId)
     },
-    downloadItems() {
-      return this.$store.state.globals.downloadItems || []
+    episodes() {
+      return this.media.episodes || []
     }
   },
   methods: {
@@ -229,8 +235,8 @@ export default {
     },
     playClick() {
       // Todo: Allow playing local or streaming
-      if (this.hasLocal) return this.$eventBus.$emit('play-item', this.localLibraryItem.id)
-      this.$eventBus.$emit('play-item', this.libraryItem.id)
+      if (this.hasLocal) return this.$eventBus.$emit('play-item', { libraryItemId: this.localLibraryItem.id })
+      this.$eventBus.$emit('play-item', { libraryItemId: this.libraryItemId })
     },
     async clearProgressClick() {
       const { value } = await Dialog.confirm({

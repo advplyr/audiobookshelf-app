@@ -62,12 +62,14 @@ export default {
 
       var update = {
         id: data.id,
+        libraryItemId: data.libraryItemId,
         partsRemaining,
         partsCompleted,
         totalParts: downloadItemParts.length,
         itemProgress
       }
       data.itemProgress = itemProgress
+      data.episodes = downloadItemParts.filter((dip) => dip.episode).map((dip) => dip.episode)
 
       console.log('Saving item update download payload', JSON.stringify(update))
       this.$set(this.itemDownloadingMap, update.id, update)

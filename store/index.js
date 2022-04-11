@@ -1,16 +1,14 @@
-import Vue from 'vue'
 import { Network } from '@capacitor/network'
 
 export const state = () => ({
-  streamAudiobook: null,
-  playingDownload: null,
-  playOnLoad: false,
-  serverUrl: null,
+  playerLibraryItemId: null,
+  playerEpisodeId: null,
+  playerIsLocal: false,
+  playerIsPlaying: false,
   appUpdateInfo: null,
   socketConnected: false,
   networkConnected: false,
   networkConnectionType: null,
-  streamListener: null,
   isFirstLoad: true,
   hasStoragePermission: false,
   selectedBook: null,
@@ -22,16 +20,13 @@ export const state = () => ({
 
 export const getters = {
   playerIsOpen: (state) => {
-    return state.streamAudiobook || state.playingDownload
+    return state.streamAudiobook
   },
-  isAudiobookStreaming: (state) => id => {
-    return (state.streamAudiobook && state.streamAudiobook.id === id)
+  getIsItemStreaming: state => libraryItemId => {
+    return state.playerLibraryItemId == libraryItemId
   },
-  isAudiobookPlaying: (state) => id => {
-    return (state.playingDownload && state.playingDownload.id === id) || (state.streamAudiobook && state.streamAudiobook.id === id)
-  },
-  getAudiobookIdStreaming: state => {
-    return state.streamAudiobook ? state.streamAudiobook.id : null
+  getIsEpisodeStreaming: state => (libraryItemId, episodeId) => {
+    return state.playerLibraryItemId == libraryItemId && state.playerEpisodeId == episodeId
   },
   getServerSetting: state => key => {
     if (!state.serverSettings) return null
@@ -61,6 +56,14 @@ export const actions = {
 }
 
 export const mutations = {
+  setPlayerItem(state, playbackSession) {
+    state.playerLibraryItemId = playbackSession ? playbackSession.libraryItemId || null : null
+    state.playerEpisodeId = playbackSession ? playbackSession.episodeId || null : null
+    state.playerIsLocal = playbackSession ? playbackSession.playMethod == this.$constants.PlayMethod.LOCAL : false
+  },
+  setPlayerPlaying(state, val) {
+    state.playerIsPlaying = val
+  },
   setHasStoragePermission(state, val) {
     state.hasStoragePermission = val
   },
@@ -69,36 +72,6 @@ export const mutations = {
   },
   setAppUpdateInfo(state, info) {
     state.appUpdateInfo = info
-  },
-  closeStream(state, audiobookId) {
-    if (state.streamAudiobook && state.streamAudiobook.id !== audiobookId) {
-      return
-    }
-    state.streamAudiobook = null
-  },
-  setPlayOnLoad(state, val) {
-    state.playOnLoad = val
-  },
-  setStreamAudiobook(state, audiobook) {
-    if (audiobook) {
-      state.playingDownload = null
-    }
-    Vue.set(state, 'streamAudiobook', audiobook)
-    if (state.streamListener) {
-      state.streamListener('stream', audiobook)
-    }
-  },
-  setPlayingDownload(state, download) {
-    if (download) {
-      state.streamAudiobook = null
-    }
-    Vue.set(state, 'playingDownload', download)
-    if (state.streamListener) {
-      state.streamListener('download', download)
-    }
-  },
-  setServerUrl(state, url) {
-    state.serverUrl = url
   },
   setSocketConnected(state, val) {
     state.socketConnected = val

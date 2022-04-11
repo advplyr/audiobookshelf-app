@@ -75,7 +75,7 @@ export default {
       })
     },
     streaming() {
-      return !!this.playableBooks.find((b) => b.id === this.$store.getters['getAudiobookIdStreaming'])
+      return !!this.playableBooks.find((b) => this.$store.getters['getIsItemStreaming'](b.id))
     },
     showPlayButton() {
       return this.playableBooks.length
@@ -88,7 +88,7 @@ export default {
         return !prog || !prog.isFinished
       })
       if (nextBookNotRead) {
-        this.$eventBus.$emit('play-item', nextBookNotRead.id)
+        this.$eventBus.$emit('play-item', { libraryItemId: nextBookNotRead.id })
       }
     }
   },
