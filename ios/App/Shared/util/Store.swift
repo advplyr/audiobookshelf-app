@@ -12,7 +12,8 @@ class Store {
     // ONLY USE REALM IN Database.realmQueue OR ELSE THE APP WILL CRASH
     public static var serverConfig: ServerConnectionConfig {
         get {
-            return Database.getServerConnectionConfig()
+            // TODO: change this when multiple configs are possible
+            Database.getServerConnectionConfigs()[Database.getActiveServerConfigIndex()]
         }
         set(updated) {
             Database.setServerConnectionConfig(config: updated)

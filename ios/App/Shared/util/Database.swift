@@ -10,23 +10,36 @@ import RealmSwift
 
 class Database {
     public static let realmQueue = DispatchQueue(label: "realm-queue")
+    public static func getActiveServerConfigIndex() -> Int {
+        let realm = try! Realm(queue: realmQueue)
+        guard let config = realm.objects(ServerConnectionConfig.self).first else {
+            return -1
+        }
+        return config.index
+    }
     
     public static func setServerConnectionConfig(config: ServerConnectionConfig) {
+        // TODO: handle thread errors
         let realm = try! Realm(queue: realmQueue)
-        let existing = realm.objects(ServerConnectionConfig.self)
+        var existing: ServerConnectionConfig?
         
+        if config.id != nil {
+            existing = realm.object(ofType: ServerConnectionConfig.self, forPrimaryKey: config.id)
+        }
         try! realm.write {
-            realm.delete(existing)
+            if existing != nil {
+                realm.delete(existing!)
+            }
             realm.add(config)
         }
     }
-    public static func getServerConnectionConfig() -> ServerConnectionConfig {
+    public static func getServerConnectionConfigs() -> [ServerConnectionConfig] {
         let realm = try! Realm(queue: realmQueue)
-        guard let config = realm.objects(ServerConnectionConfig.self).first else {
-            let fallback = ServerConnectionConfig()
-            return fallback
-        }
+        let configs = realm.objects(ServerConnectionConfig.self)
         
-        return config
+        if configs.count <= 0 {
+            return []
+        }
+        return Array(configs)
     }
 }

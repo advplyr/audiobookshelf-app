@@ -9,8 +9,8 @@ import Foundation
 import RealmSwift
 
 class ServerConnectionConfig: Object {
-    @Persisted var id: String
-    @Persisted var index: Int = 0
+    @Persisted(primaryKey: true) var id: String
+    @Persisted(indexed: true) var index: Int
     @Persisted var name: String
     @Persisted var address: String
     @Persisted var userId: String
@@ -18,7 +18,7 @@ class ServerConnectionConfig: Object {
     @Persisted var token: String
 }
 
-func serverConnectionConfigToJSON(config: ServerConnectionConfig) -> Dictionary<String, Any> {
+func convertServerConnectionConfigToJSON(config: ServerConnectionConfig) -> Dictionary<String, Any> {
     return [
         "id": config.id,
         "name": config.name,

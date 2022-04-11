@@ -6,6 +6,7 @@ const isWeb = Capacitor.getPlatform() == 'web'
 class DbService {
   constructor() { }
 
+  // Please dont use this, it is not implemented in ios (maybe key: primary value: any ?)
   save(db, key, value) {
     if (isWeb) return
     return AbsDatabase.saveFromWebview({ db, key, value }).then(() => {
@@ -15,6 +16,7 @@ class DbService {
     })
   }
 
+  // Please dont use this, it is not implemented in ios
   load(db, key) {
     if (isWeb) return null
     return AbsDatabase.loadFromWebview({ db, key }).then((data) => {
