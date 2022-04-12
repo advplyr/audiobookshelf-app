@@ -61,7 +61,7 @@
           <span v-show="showFullscreen" class="material-icons next-icon text-white text-opacity-75 cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpChapterStart">first_page</span>
           <span class="material-icons jump-icon text-white cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="backward10">replay_10</span>
           <div class="play-btn cursor-pointer shadow-sm bg-accent flex items-center justify-center rounded-full text-primary mx-4" :class="seekLoading ? 'animate-spin' : ''" @mousedown.prevent @mouseup.prevent @click.stop="playPauseClick">
-            <span v-if="!isLoading" class="material-icons">{{ seekLoading ? 'autorenew' : isPaused ? 'play_arrow' : 'pause' }}</span>
+            <span v-if="!isLoading" class="material-icons">{{ seekLoading ? 'autorenew' : !isPlaying ? 'play_arrow' : 'pause' }}</span>
             <widgets-spinner-icon v-else class="h-8 w-8" />
           </div>
           <span class="material-icons jump-icon text-white cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="forward10">forward_10</span>
@@ -95,7 +95,6 @@ import { AbsAudioPlayer } from '@/plugins/capacitor'
 
 export default {
   props: {
-    playing: Boolean,
     bookmarks: {
       type: Array,
       default: () => []
@@ -113,12 +112,10 @@ export default {
       currentPlaybackRate: 1,
       currentTime: 0,
       bufferedTime: 0,
-      isResetting: false,
-      stateName: 'idle',
       playInterval: null,
       trackWidth: 0,
-      isPaused: true,
-      src: null,
+      isPlaying: false,
+      isEnded: false,
       volume: 0.5,
       readyTrackWidth: 0,
       playedTrackWidth: 0,
@@ -136,14 +133,6 @@ export default {
     }
   },
   computed: {
-    isPlaying: {
-      get() {
-        return this.playing
-      },
-      set(val) {
-        this.$emit('update:playing', val)
-      }
-    },
     menuItems() {
       var items = []
       items.push({
@@ -306,18 +295,18 @@ export default {
     setPlaybackSpeed(speed) {
       console.log(`[AudioPlayer] Set Playback Rate: ${speed}`)
       this.currentPlaybackRate = speed
-      AbsAudioPlayer.setPlaybackSpeed({ speed: speed })
+      AbsAudioPlayer.setPlaybackSpeed({ value: speed })
     },
     restart() {
       this.seek(0)
     },
     backward10() {
       if (this.isLoading) return
-      AbsAudioPlayer.seekBackward({ amount: '10000' })
+      AbsAudioPlayer.seekBackward({ value: 10 })
     },
     forward10() {
       if (this.isLoading) return
-      AbsAudioPlayer.seekForward({ amount: '10000' })
+      AbsAudioPlayer.seekForward({ value: 10 })
     },
     setStreamReady() {
       this.readyTrackWidth = this.trackWidth
@@ -387,6 +376,7 @@ export default {
       this.updateTrack()
     },
     updateTrack() {
+      // Update progress track UI
       var percentDone = this.currentTime / this.totalDuration
       var totalPercentDone = percentDone
       var bufferedPercent = this.bufferedTime / this.totalDuration
@@ -419,7 +409,8 @@ export default {
 
       this.seekedTime = time
       this.seekLoading = true
-      AbsAudioPlayer.seekPlayer({ timeMs: String(Math.floor(time * 1000)) })
+
+      AbsAudioPlayer.seek({ value: Math.floor(time) })
 
       if (this.$refs.playedTrack) {
         var perc = time / this.totalDuration
@@ -455,7 +446,9 @@ export default {
     },
     async playPauseClick() {
       if (this.isLoading) return
+
       this.isPlaying = !!((await AbsAudioPlayer.playPause()) || {}).playing
+      this.isEnded = false
     },
     play() {
       AbsAudioPlayer.playPlayer()
@@ -471,8 +464,8 @@ export default {
       clearInterval(this.playInterval)
       this.playInterval = setInterval(async () => {
         var data = await AbsAudioPlayer.getCurrentTime()
-        this.currentTime = Number((data.value / 1000).toFixed(2))
-        this.bufferedTime = Number((data.bufferedTime / 1000).toFixed(2))
+        this.currentTime = Number(data.value.toFixed(2))
+        this.bufferedTime = Number(data.bufferedTime.toFixed(2))
         console.log('[AudioPlayer] Got Current Time', this.currentTime)
         this.timeupdate()
       }, 1000)
@@ -481,71 +474,11 @@ export default {
       clearInterval(this.playInterval)
     },
     resetStream(startTime) {
-      this.isResetting = true
-      this.terminateStream()
+      this.closePlayback()
     },
-    terminateStream() {
+    closePlayback() {
       if (!this.playbackSession) return
-      AbsAudioPlayer.terminateStream()
-    },
-    onPlayingUpdate(data) {
-      console.log('onPlayingUpdate', JSON.stringify(data))
-      this.isPaused = !data.value
-      this.$store.commit('setPlayerPlaying', !this.isPaused)
-      if (!this.isPaused) {
-        this.startPlayInterval()
-      } else {
-        this.stopPlayInterval()
-      }
-    },
-    onMetadata(data) {
-      console.log('onMetadata', JSON.stringify(data))
-      this.isLoading = false
-
-      // this.totalDuration = Number((data.duration / 1000).toFixed(2))
-      this.totalDuration = Number(data.duration.toFixed(2))
-      this.currentTime = Number((data.currentTime / 1000).toFixed(2))
-      this.stateName = data.stateName
-
-      if (this.stateName === 'ended' && this.isResetting) {
-        this.setFromObj()
-      }
-
-      console.log("received metadata update", data);
-
-      if(data.currentRate && data.currentRate > 0) this.playbackSpeed = data.currentRate
-
-      this.timeupdate()
-    },
-    // When a playback session is started the native android/ios will send the session
-    onPlaybackSession(playbackSession) {
-      console.log('onPlaybackSession received', JSON.stringify(playbackSession))
-      this.playbackSession = playbackSession
-
-      this.$store.commit('setPlayerItem', this.playbackSession)
-
-      // Set track width
-      this.$nextTick(() => {
-        if (this.$refs.track) {
-          this.trackWidth = this.$refs.track.clientWidth
-        } else {
-          console.error('Track not loaded', this.$refs)
-        }
-      })
-    },
-    onPlaybackClosed() {
-      console.log('Received onPlaybackClosed evt')
-      this.$store.commit('setPlayerItem', null)
-      this.showFullscreen = false
-      this.playbackSession = null
-    },
-    async init() {
-      this.useChapterTrack = await this.$localStore.getUseChapterTrack()
-
-      this.onPlaybackSessionListener = AbsAudioPlayer.addListener('onPlaybackSession', this.onPlaybackSession)
-      this.onPlaybackClosedListener = AbsAudioPlayer.addListener('onPlaybackClosed', this.onPlaybackClosed)
-      this.onPlayingUpdateListener = AbsAudioPlayer.addListener('onPlayingUpdate', this.onPlayingUpdate)
-      this.onMetadataListener = AbsAudioPlayer.addListener('onMetadata', this.onMetadata)
+      AbsAudioPlayer.closePlayback()
     },
     handleGesture() {
       var touchDistance = this.touchEndY - this.touchStartY
@@ -585,13 +518,77 @@ export default {
         })
         this.$localStore.setUseChapterTrack(this.useChapterTrack)
       } else if (action === 'close') {
-        this.terminateStream()
+        this.closePlayback()
       }
     },
     forceCloseDropdownMenu() {
       if (this.$refs.dropdownMenu && this.$refs.dropdownMenu.closeMenu) {
         this.$refs.dropdownMenu.closeMenu()
       }
+    },
+    //
+    // Listeners from audio AbsAudioPlayer
+    //
+    onPlayingUpdate(data) {
+      console.log('onPlayingUpdate', JSON.stringify(data))
+      this.isPlaying = !!data.value
+      this.$store.commit('setPlayerPlaying', this.isPlaying)
+      if (this.isPlaying) {
+        this.startPlayInterval()
+      } else {
+        this.stopPlayInterval()
+      }
+    },
+    onMetadata(data) {
+      console.log('onMetadata', JSON.stringify(data))
+      this.isLoading = false
+
+      this.totalDuration = Number(data.duration.toFixed(2))
+      this.currentTime = Number(data.currentTime.toFixed(2))
+      // Also includes player state data.playerState
+
+      if (data.playerState == this.$constants.PlayerState.ENDED) {
+        console.log('[AudioPlayer] Playback ended')
+      }
+      this.isEnded = data.playerState == this.$constants.PlayerState.ENDED
+
+      console.log("received metadata update", data);
+
+      if(data.currentRate && data.currentRate > 0) this.playbackSpeed = data.currentRate
+
+      this.timeupdate()
+    },
+    // When a playback session is started the native android/ios will send the session
+    onPlaybackSession(playbackSession) {
+      console.log('onPlaybackSession received', JSON.stringify(playbackSession))
+      this.playbackSession = playbackSession
+
+      this.isEnded = false
+      this.$store.commit('setPlayerItem', this.playbackSession)
+
+      // Set track width
+      this.$nextTick(() => {
+        if (this.$refs.track) {
+          this.trackWidth = this.$refs.track.clientWidth
+        } else {
+          console.error('Track not loaded', this.$refs)
+        }
+      })
+    },
+    onPlaybackClosed() {
+      console.log('Received onPlaybackClosed evt')
+      this.$store.commit('setPlayerItem', null)
+      this.showFullscreen = false
+      this.isEnded = false
+      this.playbackSession = null
+    },
+    async init() {
+      this.useChapterTrack = await this.$localStore.getUseChapterTrack()
+
+      this.onPlaybackSessionListener = AbsAudioPlayer.addListener('onPlaybackSession', this.onPlaybackSession)
+      this.onPlaybackClosedListener = AbsAudioPlayer.addListener('onPlaybackClosed', this.onPlaybackClosed)
+      this.onPlayingUpdateListener = AbsAudioPlayer.addListener('onPlayingUpdate', this.onPlayingUpdate)
+      this.onMetadataListener = AbsAudioPlayer.addListener('onMetadata', this.onMetadata)
     }
   },
   mounted() {

@@ -41,6 +41,7 @@ export default {
     '@/plugins/init.client.js',
     '@/plugins/axios.js',
     '@/plugins/capacitor/index.js',
+    '@/plugins/capacitor/AbsAudioPlayer.js',
     '@/plugins/toast.js',
     '@/plugins/constants.js',
     '@/plugins/haptics.js'
