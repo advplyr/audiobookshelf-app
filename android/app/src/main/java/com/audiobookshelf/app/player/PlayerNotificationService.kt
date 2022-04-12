@@ -18,9 +18,7 @@ import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import androidx.media.MediaBrowserServiceCompat
 import androidx.media.utils.MediaConstants
-import com.audiobookshelf.app.data.LibraryItem
-import com.audiobookshelf.app.data.LocalMediaProgress
-import com.audiobookshelf.app.data.PlaybackSession
+import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.server.ApiHandler
@@ -52,7 +50,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     fun onPlaybackSession(playbackSession:PlaybackSession)
     fun onPlaybackClosed()
     fun onPlayingUpdate(isPlaying: Boolean)
-    fun onMetadata(metadata: JSObject)
+    fun onMetadata(metadata: PlaybackMetadata)
     fun onPrepare(audiobookId: String, playWhenReady: Boolean)
     fun onSleepTimerEnded(currentPosition: Long)
     fun onSleepTimerSet(sleepTimeRemaining: Int)
@@ -375,6 +373,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     }
   }
 
+  fun getBufferedTimeSeconds() : Double {
+    return getBufferedTime() / 1000.0
+  }
+
   fun getDuration() : Long {
     return currentPlayer.duration
   }
@@ -441,20 +443,16 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     currentPlayer.setPlaybackSpeed(speed)
   }
 
-  fun terminateStream() {
+  fun closePlayback() {
     currentPlayer.clearMediaItems()
     currentPlaybackSession = null
     clientEventEmitter?.onPlaybackClosed()
     PlayerListener.lastPauseTime = 0
   }
 
-  fun sendClientMetadata(stateName: String) {
-    var metadata = JSObject()
-    var duration = currentPlaybackSession?.getTotalDuration() ?: 0
-    metadata.put("duration", duration)
-    metadata.put("currentTime", getCurrentTime())
-    metadata.put("stateName", stateName)
-    clientEventEmitter?.onMetadata(metadata)
+  fun sendClientMetadata(playerState: PlayerState) {
+    var duration = currentPlaybackSession?.getTotalDuration() ?: 0.0
+    clientEventEmitter?.onMetadata(PlaybackMetadata(duration, getCurrentTimeSeconds(), playerState))
   }
 
   //
