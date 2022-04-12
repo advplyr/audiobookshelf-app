@@ -16,19 +16,25 @@ func getData(from url: URL, completion: @escaping (UIImage?) -> Void) {
     }).resume()
 }
 
+struct NowPlayingMetadata {
+    var id: String
+    var artworkUrl: String?
+    var title: String
+    var author: String?
+    var series: String?
+}
+
 class NowPlayingInfo {
     private static var nowPlayingInfo: [String: Any] = [:]
-    private static var audiobook: Audiobook?
     
-    public static func setAudiobook(audiobook: Audiobook) {
-        self.audiobook = audiobook
-        setMetadata(nil)
+    public static func setAudiobook(metadata: NowPlayingMetadata) {
+        setMetadata(artwork: nil, metadata: nil)
         
-        if !shouldFetchCover() || audiobook.artworkUrl == nil {
+        if !shouldFetchCover(id: metadata.id) || metadata.artworkUrl == nil {
             return
         }
         
-        guard let url = URL(string: audiobook.artworkUrl!) else { return }
+        guard let url = URL(string: metadata.artworkUrl!) else { return }
         getData(from: url) { [self] image in
             guard let downloadedImage = image else {
                 return
@@ -37,7 +43,7 @@ class NowPlayingInfo {
                 return downloadedImage
             })
             
-            self.setMetadata(artwork)
+            self.setMetadata(artwork: artwork, metadata: metadata)
         }
     }
     public static func update(duration: Double, currentTime: Double, rate: Float) {
@@ -49,31 +55,29 @@ class NowPlayingInfo {
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
     }
     public static func reset() {
-        audiobook = nil
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
     }
     
-    private static func setMetadata(_ artwork: MPMediaItemArtwork?) {
-        if self.audiobook == nil {
+    private static func setMetadata(artwork: MPMediaItemArtwork?, metadata: NowPlayingMetadata?) {
+        if metadata == nil {
             return
         }
         
         if artwork != nil {
             nowPlayingInfo[MPMediaItemPropertyArtwork] = artwork
-        } else if shouldFetchCover() {
+        } else if shouldFetchCover(id: metadata!.id) {
             nowPlayingInfo[MPMediaItemPropertyArtwork] = nil
         }
         
-        nowPlayingInfo[MPNowPlayingInfoPropertyExternalContentIdentifier] = audiobook!.streamId
-        nowPlayingInfo[MPNowPlayingInfoPropertyAssetURL] = URL(string: audiobook!.playlistUrl)
+        nowPlayingInfo[MPNowPlayingInfoPropertyExternalContentIdentifier] = metadata!.id
         nowPlayingInfo[MPNowPlayingInfoPropertyIsLiveStream] = false
         nowPlayingInfo[MPNowPlayingInfoPropertyMediaType] = "hls"
         
-        nowPlayingInfo[MPMediaItemPropertyTitle] = audiobook!.title
-        nowPlayingInfo[MPMediaItemPropertyArtist] = audiobook!.author ?? "unknown"
-        nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = audiobook!.series
+        nowPlayingInfo[MPMediaItemPropertyTitle] = metadata!.title
+        nowPlayingInfo[MPMediaItemPropertyArtist] = metadata!.author ?? "unknown"
+        nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = metadata!.series
     }
-    private static func shouldFetchCover() -> Bool {
-        audiobook != nil && (nowPlayingInfo[MPNowPlayingInfoPropertyExternalContentIdentifier] as? String != audiobook!.streamId || nowPlayingInfo[MPMediaItemPropertyArtwork] == nil)
+    private static func shouldFetchCover(id: String) -> Bool {
+        nowPlayingInfo[MPNowPlayingInfoPropertyExternalContentIdentifier] as? String != id || nowPlayingInfo[MPMediaItemPropertyArtwork] == nil
     }
 }

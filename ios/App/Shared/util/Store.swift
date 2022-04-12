@@ -9,14 +9,23 @@ import Foundation
 import RealmSwift
 
 class Store {
+    private static var _serverConfig: ServerConnectionConfig?
     // ONLY USE REALM IN Database.realmQueue OR ELSE THE APP WILL CRASH
     public static var serverConfig: ServerConnectionConfig {
         get {
-            // TODO: change this when multiple configs are possible
-            Database.getServerConnectionConfigs()[Database.getActiveServerConfigIndex()]
+            if _serverConfig == nil {
+                let index = Database.getActiveServerConfigIndex()
+                // TODO: change this when multiple configs are possible
+                _serverConfig = Database.getServerConnectionConfigs().first { config in
+                    return config.index == index
+                }
+            }
+            
+            return _serverConfig ?? ServerConnectionConfig()
         }
         set(updated) {
             Database.setServerConnectionConfig(config: updated)
+            _serverConfig = updated
         }
     }
 }

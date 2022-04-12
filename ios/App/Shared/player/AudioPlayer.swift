@@ -24,21 +24,30 @@ class AudioPlayer: NSObject {
     private var playWhenReady: Bool
     
     private var audioPlayer: AVPlayer
-    public var audiobook: Audiobook
+    private var playbackSession: PlaybackSession
+    private var activeAudioTrack: AudioTrack
     
     // MARK: - Constructor
-    init(audiobook: Audiobook, playWhenReady: Bool = false) {
+    init(playbackSession: PlaybackSession, playWhenReady: Bool = false) {
         self.playWhenReady = playWhenReady
-        self.audiobook = audiobook
         self.audioPlayer = AVPlayer()
+        self.playbackSession = playbackSession
         self.status = -1
         self.rate = 0.0
+        
+        if playbackSession.audioTracks.count != 1 || playbackSession.audioTracks[0].mimeType != "application/vnd.apple.mpegurl" {
+            NSLog("The player only support HLS streams right now")
+            self.activeAudioTrack = AudioTrack(index: 0, startOffset: -1, duration: -1, title: "", contentUrl: "", mimeType: "")
+            
+            super.init()
+            return
+        }
+        self.activeAudioTrack = playbackSession.audioTracks[0]
         
         super.init()
         
         initAudioSession()
         setupRemoteTransportControls()
-        NowPlayingInfo.setAudiobook(audiobook: audiobook)
         
         // Listen to player events
         self.audioPlayer.addObserver(self, forKeyPath: #keyPath(AVPlayer.rate), options: .new, context: &playerContext)
@@ -48,7 +57,7 @@ class AudioPlayer: NSObject {
         playerItem.addObserver(self, forKeyPath: #keyPath(AVPlayerItem.status), options: .new, context: &playerItemContext)
         
         self.audioPlayer.replaceCurrentItem(with: playerItem)
-        seek(self.audiobook.startTime)
+        seek(self.playbackSession.currentTime)
         
         NSLog("Audioplayer ready")
     }
@@ -153,10 +162,10 @@ class AudioPlayer: NSObject {
     // MARK: - Private
     private func createAsset() -> AVAsset {
         let headers: [String: String] = [
-            "Authorization": "Bearer \(audiobook.token)"
+            "Authorization": "Bearer \(Store.serverConfig.token)"
         ]
         
-        return AVURLAsset(url: URL(string: audiobook.playlistUrl)!, options: ["AVURLAssetHTTPHeaderFieldsKey": headers])
+        return AVURLAsset(url: URL(string: activeAudioTrack.contentUrl)!, options: ["AVURLAssetHTTPHeaderFieldsKey": headers])
     }
     private func initAudioSession() {
         do {
