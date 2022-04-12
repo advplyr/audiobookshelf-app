@@ -62,7 +62,10 @@ public class AbsDatabase: CAPPlugin {
                 "serverConnectionConfigs": configs.map { config in
                     return convertServerConnectionConfigToJSON(config: config)
                 },
-                "lastServerConnectionConfigId": index < 0 ? -1 : configs[index].id,
+                "lastServerConnectionConfigId": index < 0 ? -1 : configs.first(where: {
+                    (config: ServerConnectionConfig) -> Bool in
+                    return config.index == index
+                })!.id,
                 "currentLocalPlaybackSession": nil, // Luckily this isn't implemented yet
             ])
         }

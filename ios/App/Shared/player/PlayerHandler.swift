@@ -9,9 +9,12 @@ import Foundation
 
 class PlayerHandler {
     private static var player: AudioPlayer?
-    // private static var item: any
+    private static var session: PlaybackSession?
     
-    public static func setItem() {
-        
+    public static func startPlayback(session: PlaybackSession) {
+        if player != nil {
+            player?.destroy()
+            player = nil
+        }
     }
 }
