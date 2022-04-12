@@ -22,7 +22,7 @@
         <p class="whitespace-normal" :style="{ fontSize: 0.8 * sizeMultiplier + 'rem' }">
           {{ displayTitle }}<span v-if="seriesSequence">&nbsp;#{{ seriesSequence }}</span>
         </p>
-        <p class="truncate text-gray-400" :style="{ fontSize: 0.7 * sizeMultiplier + 'rem' }">{{ displayAuthor }}</p>
+        <p class="truncate text-gray-400" :style="{ fontSize: 0.7 * sizeMultiplier + 'rem' }">by {{ displayAuthor }}</p>
         <p v-if="displaySortLine" class="truncate text-gray-400" :style="{ fontSize: 0.7 * sizeMultiplier + 'rem' }">{{ displaySortLine }}</p>
       </div>
     </div>
@@ -150,10 +150,11 @@ export default {
       return Math.max(2, 3 * this.sizeMultiplier)
     },
     author() {
-      return this.mediaMetadata.authorName || ''
+      if (this.isPodcast) return this.mediaMetadata.author || 'Unknown'
+      return this.mediaMetadata.authorName || 'Unknown'
     },
     authorLF() {
-      return this.mediaMetadata.authorNameLF || ''
+      return this.mediaMetadata.authorNameLF || 'Unknown'
     },
     series() {
       // Only included when filtering by series or collapse series
@@ -177,6 +178,7 @@ export default {
       return this.title
     },
     displayAuthor() {
+      if (this.isPodcast) return this.author
       if (this.orderBy === 'media.metadata.authorNameLF') return this.authorLF
       return this.author
     },
@@ -184,7 +186,6 @@ export default {
       if (this.orderBy === 'mtimeMs') return 'Modified ' + this.$formatDate(this._libraryItem.mtimeMs)
       if (this.orderBy === 'birthtimeMs') return 'Born ' + this.$formatDate(this._libraryItem.birthtimeMs)
       if (this.orderBy === 'addedAt') return 'Added ' + this.$formatDate(this._libraryItem.addedAt)
-      if (this.orderBy === 'duration') return 'Duration: ' + this.$elapsedPrettyExtended(this.media.duration, false)
       if (this.orderBy === 'size') return 'Size: ' + this.$bytesPretty(this._libraryItem.size)
       return null
     },

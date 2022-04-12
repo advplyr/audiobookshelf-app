@@ -26,7 +26,7 @@ export default {
   },
   data() {
     return {
-      items: [
+      bookItems: [
         {
           text: 'Title',
           value: 'media.metadata.title'
@@ -46,6 +46,32 @@ export default {
         {
           text: 'Size',
           value: 'size'
+        }
+      ],
+      podcastItems: [
+        {
+          text: 'Title',
+          value: 'media.metadata.title'
+        },
+        {
+          text: 'Author',
+          value: 'media.metadata.author'
+        },
+        {
+          text: 'Added At',
+          value: 'addedAt'
+        },
+        {
+          text: 'Size',
+          value: 'size'
+        },
+        {
+          text: 'File Birthtime',
+          value: 'birthtimeMs'
+        },
+        {
+          text: 'File Modified',
+          value: 'mtimeMs'
         }
       ]
     }
@@ -74,6 +100,13 @@ export default {
       set(val) {
         this.$emit('update:descending', val)
       }
+    },
+    isPodcast() {
+      return this.$store.getters['libraries/getCurrentLibraryMediaType'] === 'podcast'
+    },
+    items() {
+      if (this.isPodcast) return this.podcastItems
+      return this.bookItems
     }
   },
   methods: {

@@ -1,12 +1,14 @@
 <template>
-  <div class="w-full px-2 py-3 overflow-hidden relative border-b border-white border-opacity-10">
-    <div v-if="episode" class="flex items-center h-24">
+  <div class="w-full px-0 py-4 overflow-hidden relative border-b border-white border-opacity-10">
+    <div v-if="episode" class="flex items-center">
       <!-- <div class="w-12 min-w-12 max-w-16 h-full">
         <div class="flex h-full items-center justify-center">
           <span class="material-icons drag-handle text-lg text-white text-opacity-50 hover:text-opacity-100">menu</span>
         </div>
       </div> -->
-      <div class="flex-grow px-2">
+      <div class="flex-grow px-1">
+        <p v-if="publishedAt" class="text-xs text-gray-400 mb-1">Published {{ $formatDate(publishedAt, 'MMM do, yyyy') }}</p>
+
         <p class="text-sm font-semibold">
           {{ title }}
         </p>
@@ -19,10 +21,8 @@
             <p class="pl-2 pr-1 text-sm font-semibold">{{ timeRemaining }}</p>
           </div>
 
-          <span class="material-icons px-2" :class="downloadItem ? 'animate-bounce text-warning text-opacity-75' : ''" @click="downloadClick">{{ downloadItem ? 'downloading' : 'download' }}</span>
-
           <ui-read-icon-btn :disabled="isProcessingReadUpdate" :is-read="userIsFinished" borderless class="mx-1 mt-0.5" @click="toggleFinished" />
-          <p v-if="publishedAt" class="px-4 text-sm text-gray-300">Published {{ $formatDate(publishedAt, 'MMM do, yyyy') }}</p>
+          <span class="material-icons px-2" :class="downloadItem ? 'animate-bounce text-warning text-opacity-75 text-xl' : 'text-gray-300 text-xl'" @click="downloadClick">{{ downloadItem ? 'downloading' : 'download' }}</span>
         </div>
       </div>
     </div>
