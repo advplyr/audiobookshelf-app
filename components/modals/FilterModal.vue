@@ -56,7 +56,7 @@ export default {
   data() {
     return {
       sublist: null,
-      items: [
+      bookItems: [
         {
           text: 'All',
           value: 'all'
@@ -96,6 +96,22 @@ export default {
           value: 'issues',
           sublist: false
         }
+      ],
+      podcastItems: [
+        {
+          text: 'All',
+          value: 'all'
+        },
+        {
+          text: 'Genre',
+          value: 'genres',
+          sublist: true
+        },
+        {
+          text: 'Tag',
+          value: 'tags',
+          sublist: true
+        }
       ]
     }
   },
@@ -123,6 +139,13 @@ export default {
       set(val) {
         this.$emit('update:filterBy', val)
       }
+    },
+    isPodcast() {
+      return this.$store.getters['libraries/getCurrentLibraryMediaType'] === 'podcast'
+    },
+    items() {
+      if (this.isPodcast) return this.podcastItems
+      return this.bookItems
     },
     selectedItemSublist() {
       return this.selected && this.selected.includes('.') ? this.selected.split('.')[0] : false
