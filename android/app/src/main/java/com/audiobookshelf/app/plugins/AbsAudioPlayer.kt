@@ -7,6 +7,7 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import com.audiobookshelf.app.MainActivity
 import com.audiobookshelf.app.data.LocalMediaProgress
+import com.audiobookshelf.app.data.PlaybackMetadata
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.player.CastManager
@@ -46,8 +47,8 @@ class AbsAudioPlayer : Plugin() {
           emit("onPlayingUpdate", isPlaying)
         }
 
-        override fun onMetadata(metadata: JSObject) {
-          notifyListeners("onMetadata", metadata)
+        override fun onMetadata(metadata: PlaybackMetadata) {
+          notifyListeners("onMetadata", JSObject(jacksonObjectMapper().writeValueAsString(metadata)))
         }
 
         override fun onPrepare(audiobookId: String, playWhenReady: Boolean) {
@@ -123,8 +124,8 @@ class AbsAudioPlayer : Plugin() {
   @PluginMethod
   fun getCurrentTime(call: PluginCall) {
     Handler(Looper.getMainLooper()).post() {
-      var currentTime = playerNotificationService.getCurrentTime()
-      var bufferedTime = playerNotificationService.getBufferedTime()
+      var currentTime = playerNotificationService.getCurrentTimeSeconds()
+      var bufferedTime = playerNotificationService.getBufferedTimeSeconds()
       val ret = JSObject()
       ret.put("value", currentTime)
       ret.put("bufferedTime", bufferedTime)
@@ -157,35 +158,35 @@ class AbsAudioPlayer : Plugin() {
   }
 
   @PluginMethod
-  fun seekPlayer(call: PluginCall) {
-    var time:Long = call.getString("timeMs", "0")!!.toLong()
+  fun seek(call: PluginCall) {
+    var time:Int = call.getInt("value", 0) ?: 0 // Value in seconds
     Handler(Looper.getMainLooper()).post() {
-      playerNotificationService.seekPlayer(time)
+      playerNotificationService.seekPlayer(time * 1000L) // convert to ms
       call.resolve()
     }
   }
 
   @PluginMethod
   fun seekForward(call: PluginCall) {
-    var amount:Long = call.getString("amount", "0")!!.toLong()
+    var amount:Int = call.getInt("value", 0) ?: 0
     Handler(Looper.getMainLooper()).post() {
-      playerNotificationService.seekForward(amount)
+      playerNotificationService.seekForward(amount * 1000L) // convert to ms
       call.resolve()
     }
   }
 
   @PluginMethod
   fun seekBackward(call: PluginCall) {
-    var amount:Long = call.getString("amount", "0")!!.toLong()
+    var amount:Int = call.getInt("value", 0) ?: 0 // Value in seconds
     Handler(Looper.getMainLooper()).post() {
-      playerNotificationService.seekBackward(amount)
+      playerNotificationService.seekBackward(amount * 1000L) // convert to ms
       call.resolve()
     }
   }
 
   @PluginMethod
   fun setPlaybackSpeed(call: PluginCall) {
-    var playbackSpeed:Float = call.getFloat("speed", 1.0f)!!
+    var playbackSpeed:Float = call.getFloat("value", 1.0f) ?: 1.0f
 
     Handler(Looper.getMainLooper()).post() {
       playerNotificationService.setPlaybackSpeed(playbackSpeed)
@@ -194,9 +195,9 @@ class AbsAudioPlayer : Plugin() {
   }
 
   @PluginMethod
-  fun terminateStream(call: PluginCall) {
+  fun closePlayback(call: PluginCall) {
     Handler(Looper.getMainLooper()).post() {
-      playerNotificationService.terminateStream()
+      playerNotificationService.closePlayback()
       call.resolve()
     }
   }

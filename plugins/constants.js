@@ -22,11 +22,23 @@ const PlayMethod = {
   LOCAL: 3
 }
 
+const PlayerState = {
+  IDLE: 0,
+  BUFFERING: 1,
+  READY: 2,
+  ENDED: 3
+}
+
 const Constants = {
   DownloadStatus,
   CoverDestination,
   BookCoverAspectRatio,
-  PlayMethod
+  PlayMethod,
+  PlayerState
+}
+
+export {
+  PlayerState
 }
 
 export default ({ app }, inject) => {
