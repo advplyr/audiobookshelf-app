@@ -13,10 +13,7 @@
             <li :key="library.id" class="text-gray-50 select-none relative py-3 cursor-pointer hover:bg-black-400" :class="currentLibraryId === library.id ? 'bg-bg bg-opacity-80' : ''" role="option" @click="clickedOption(library)">
               <div v-show="currentLibraryId === library.id" class="absolute top-0 left-0 w-0.5 bg-warning h-full" />
               <div class="flex items-center px-3">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
-                </svg>
-
+                <widgets-library-icon :icon="library.icon" />
                 <span class="font-normal block truncate text-lg ml-4">{{ library.name }}</span>
               </div>
             </li>
