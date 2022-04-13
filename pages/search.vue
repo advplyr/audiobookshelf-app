@@ -11,28 +11,37 @@
         <p class="text-lg text-gray-400">Nothing found</p>
       </div>
       <p v-if="bookResults.length" class="font-semibold text-sm mb-1">Books</p>
-      <template v-for="bookResult in bookResults">
-        <div :key="bookResult.audiobook.id" class="w-full h-16 py-1">
-          <nuxt-link :to="`/item/${bookResult.audiobook.id}`">
-            <cards-book-search-card :audiobook="bookResult.audiobook" :search="lastSearch" :match-key="bookResult.matchKey" :match-text="bookResult.matchText" />
+      <template v-for="item in bookResults">
+        <div :key="item.id" class="w-full h-16 py-1">
+          <nuxt-link :to="`/item/${item.id}`">
+            <cards-item-search-card :library-item="item.libraryItem" :match-key="item.matchKey" :match-text="item.matchText" :search="lastSearch" />
+          </nuxt-link>
+        </div>
+      </template>
+
+      <p v-if="podcastResults.length" class="uppercase text-xs text-gray-400 my-1 px-1 font-semibold">Podcasts</p>
+      <template v-for="item in podcastResults">
+        <div :key="item.id" class="text-gray-50 select-none relative cursor-pointer hover:bg-black-400 py-1">
+          <nuxt-link :to="`/item/${item.id}`">
+            <cards-item-search-card :library-item="item.libraryItem" :match-key="item.matchKey" :match-text="item.matchText" :search="lastSearch" />
           </nuxt-link>
         </div>
       </template>
 
       <p v-if="seriesResults.length" class="font-semibold text-sm mb-1 mt-2">Series</p>
       <template v-for="seriesResult in seriesResults">
-        <div :key="seriesResult.series" class="w-full h-16 py-1">
-          <nuxt-link :to="`/bookshelf/series/${$encode(seriesResult.series)}`">
-            <cards-series-search-card :series="seriesResult.series" :book-items="seriesResult.audiobooks" />
+        <div :key="seriesResult.series.id" class="w-full h-16 py-1">
+          <nuxt-link :to="`/bookshelf/series/${seriesResult.series.id}`">
+            <cards-series-search-card :series="seriesResult.series" :book-items="seriesResult.books" />
           </nuxt-link>
         </div>
       </template>
 
       <p v-if="authorResults.length" class="font-semibold text-sm mb-1 mt-2">Authors</p>
       <template v-for="authorResult in authorResults">
-        <div :key="authorResult.author" class="w-full h-14 py-1">
-          <nuxt-link :to="`/bookshelf/library?filter=authors.${$encode(authorResult.author)}`">
-            <cards-author-search-card :key="authorResult.author" :author="authorResult.author" />
+        <div :key="authorResult.id" class="w-full h-14 py-1">
+          <nuxt-link :to="`/bookshelf/library?filter=authors.${$encode(authorResult.id)}`">
+            <cards-author-search-card :key="authorResult.id" :author="authorResult" />
           </nuxt-link>
         </div>
       </template>
@@ -49,6 +58,7 @@ export default {
       lastSearch: null,
       isFetching: false,
       bookResults: [],
+      podcastResults: [],
       seriesResults: [],
       authorResults: []
     }
@@ -61,7 +71,7 @@ export default {
       return this.$store.getters['getBookCoverAspectRatio']
     },
     totalResults() {
-      return this.bookResults.length + this.seriesResults.length + this.authorResults.length
+      return this.bookResults.length + this.seriesResults.length + this.authorResults.length + this.podcastResults.length
     }
   },
   methods: {
@@ -69,6 +79,7 @@ export default {
       this.lastSearch = value
       if (!this.lastSearch) {
         this.bookResults = []
+        this.podcastResults = []
         this.seriesResults = []
         this.authorResults = []
         return
@@ -82,7 +93,8 @@ export default {
 
       this.isFetching = false
 
-      this.bookResults = results ? results.audiobooks || [] : []
+      this.bookResults = results ? results.book || [] : []
+      this.podcastResults = results ? results.podcast || [] : []
       this.seriesResults = results ? results.series || [] : []
       this.authorResults = results ? results.authors || [] : []
     },

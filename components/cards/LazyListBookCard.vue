@@ -7,7 +7,7 @@
           <div class="absolute cover-bg" ref="coverBg" />
         </div>
 
-        <div class="w-full h-full absolute top-0 left-0">
+        <div class="w-full h-full absolute top-0 left-0 bg-primary">
           <img v-show="libraryItem" ref="cover" :src="bookCoverSrc" class="w-full h-full transition-opacity duration-300" :class="showCoverBg ? 'object-contain' : 'object-fill'" @load="imageLoaded" :style="{ opacity: imageReady ? 1 : 0 }" />
         </div>
 
