@@ -67,15 +67,14 @@ public class AbsDatabase: CAPPlugin {
         ])
     }
     
-    // We have to send a empty array or the client will break
     @objc func getLocalLibraryItems(_ call: CAPPluginCall) {
         call.resolve([ "value": [] ])
     }
     @objc func getLocalLibraryItem(_ call: CAPPluginCall) {
-        call.resolve([ "value": [] ])
+        call.resolve()
     }
     @objc func getLocalLibraryItemByLLId(_ call: CAPPluginCall) {
-        call.resolve([ "value": [] ])
+        call.resolve()
     }
     @objc func getLocalLibraryItemsInFolder(_ call: CAPPluginCall) {
         call.resolve([ "value": [] ])
