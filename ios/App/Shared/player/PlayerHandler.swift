@@ -21,4 +21,64 @@ class PlayerHandler {
         self.session = session
         player = AudioPlayer(playbackSession: session, playWhenReady: playWhenReady)
     }
+    public static func stopPlayback() {
+        player?.destroy()
+        player = nil
+        
+        NowPlayingInfo.reset()
+    }
+    
+    public static func getCurrentTime() -> Double? {
+        self.player?.getCurrentTime()
+    }
+    public static func setPlaybackSpeed(speed: Float) {
+        self.player?.setPlaybackRate(speed)
+    }
+    
+    public static func play() {
+        self.player?.play()
+    }
+    public static func pause() {
+        self.player?.play()
+    }
+    public static func playPause() {
+        if paused() {
+            self.player?.play()
+        } else {
+            self.player?.pause()
+        }
+    }
+    
+    public static func seekForward(amount: Double) {
+        if player == nil {
+            return
+        }
+        
+        let destinationTime = player!.getCurrentTime() + amount
+        player!.seek(destinationTime)
+    }
+    public static func seekBackward(amount: Double) {
+        if player == nil {
+            return
+        }
+        
+        let destinationTime = player!.getCurrentTime() - amount
+        player!.seek(destinationTime)
+    }
+    public static func seek(amount: Double) {
+        player?.seek(amount)
+    }
+    
+    public static func paused() -> Bool {
+        player?.rate == 0.0
+    }
+    
+    public static func getMetdata() -> [String: Any] {
+        return [
+            "duration": player?.getDuration() ?? 0,
+            "currentTime": player?.getCurrentTime() ?? 0,
+            "playerState": !paused(),
+            "currentRate": player?.rate ?? 0,
+        ]
+    }
 }

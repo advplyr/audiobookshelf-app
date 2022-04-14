@@ -78,6 +78,8 @@ class AudioPlayer: NSObject {
         // DispatchQueue.main.sync {
             UIApplication.shared.endReceivingRemoteControlEvents()
         // }
+        
+        NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.closed.rawValue), object: nil)
     }
     
     // MARK: - Methods
@@ -239,6 +241,7 @@ class AudioPlayer: NSObject {
         }
     }
     private func updateNowPlaying() {
+        NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.update.rawValue), object: nil)
         NowPlayingInfo.update(duration: getDuration(), currentTime: getCurrentTime(), rate: rate)
     }
     
