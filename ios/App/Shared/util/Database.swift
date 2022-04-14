@@ -8,8 +8,6 @@
 import Foundation
 import RealmSwift
 
-extension String: Error {}
-
 class Database {
     public static let realmQueue = DispatchQueue(label: "realm-queue")
     

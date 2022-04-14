@@ -17,7 +17,7 @@ class PlayerHandler {
             player = nil
         }
         
-        NowPlayingInfo.setSessionMetadata(metadata: NowPlayingMetadata(id: session.id, artworkUrl: "\(Store.serverConfig.address)/api/items/\(String(describing: session.libraryItemId))/cover?token=\(Store.serverConfig.token)", title: session.displayTitle ?? "Unknown title", author: session.displayAuthor, series: nil))
+        NowPlayingInfo.setSessionMetadata(metadata: NowPlayingMetadata(id: session.id, itemId: session.libraryItemId!, artworkUrl: session.coverPath, title: session.displayTitle ?? "Unknown title", author: session.displayAuthor, series: nil))
         self.session = session
         player = AudioPlayer(playbackSession: session, playWhenReady: playWhenReady)
     }

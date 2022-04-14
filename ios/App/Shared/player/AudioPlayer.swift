@@ -75,9 +75,9 @@ class AudioPlayer: NSObject {
             print(error)
         }
         
-        DispatchQueue.main.sync {
+        // DispatchQueue.main.sync {
             UIApplication.shared.endReceivingRemoteControlEvents()
-        }
+        // }
     }
     
     // MARK: - Methods
@@ -165,7 +165,8 @@ class AudioPlayer: NSObject {
             "Authorization": "Bearer \(Store.serverConfig.token)"
         ]
         
-        return AVURLAsset(url: URL(string: activeAudioTrack.contentUrl)!, options: ["AVURLAssetHTTPHeaderFieldsKey": headers])
+        debugPrint(activeAudioTrack)
+        return AVURLAsset(url: URL(string: "\(Store.serverConfig.address)\(activeAudioTrack.contentUrl)")!, options: ["AVURLAssetHTTPHeaderFieldsKey": headers])
     }
     private func initAudioSession() {
         do {
@@ -179,9 +180,9 @@ class AudioPlayer: NSObject {
     
     // MARK: - Now playing
     private func setupRemoteTransportControls() {
-        DispatchQueue.main.sync {
+        // DispatchQueue.main.sync {
             UIApplication.shared.beginReceivingRemoteControlEvents()
-        }
+        // }
         let commandCenter = MPRemoteCommandCenter.shared()
         
         commandCenter.playCommand.isEnabled = true
