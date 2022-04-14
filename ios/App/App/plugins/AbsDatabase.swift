@@ -63,7 +63,8 @@ public class AbsDatabase: CAPPlugin {
                 (config: ServerConnectionConfig) -> Bool in
                 return config.index == index
             })!.id,
-            "currentLocalPlaybackSession": nil, // Luckily this isn't implemented yet
+            // Luckily this isn't implemented yet
+            // "currentLocalPlaybackSession": nil,
         ])
     }
     
