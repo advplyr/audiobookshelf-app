@@ -1,5 +1,5 @@
 <template>
-  <div @mouseover="mouseover" @mouseout="mouseout">
+  <div>
     <div :style="{ width: width + 'px', height: height + 'px' }" class="bg-primary box-shadow-book rounded-md relative overflow-hidden">
       <!-- Image or placeholder -->
       <covers-author-image :author="author" />
@@ -8,14 +8,6 @@
       <div v-show="!searching && !nameBelow" class="absolute bottom-0 left-0 w-full py-1 bg-black bg-opacity-60 px-2">
         <p class="text-center font-semibold truncate" :style="{ fontSize: sizeMultiplier * 0.75 + 'rem' }">{{ name }}</p>
         <p class="text-center text-gray-200" :style="{ fontSize: sizeMultiplier * 0.65 + 'rem' }">{{ numBooks }} Book{{ numBooks === 1 ? '' : 's' }}</p>
-      </div>
-
-      <!-- Search icon btn -->
-      <div v-show="!searching && isHovering" class="absolute top-0 left-0 p-2 cursor-pointer hover:text-white text-gray-200 transform transition-transform hover:scale-125" @click.prevent.stop="searchAuthor">
-        <span class="material-icons text-lg">search</span>
-      </div>
-      <div v-show="isHovering && !searching" class="absolute top-0 right-0 p-2 cursor-pointer hover:text-white text-gray-200 transform transition-transform hover:scale-125" @click.prevent.stop="$emit('edit', author)">
-        <span class="material-icons text-lg">edit</span>
       </div>
 
       <!-- Loading spinner -->
@@ -46,8 +38,7 @@ export default {
   },
   data() {
     return {
-      searching: false,
-      isHovering: false
+      searching: false
     }
   },
   computed: {
@@ -68,12 +59,6 @@ export default {
     }
   },
   methods: {
-    mouseover() {
-      this.isHovering = true
-    },
-    mouseout() {
-      this.isHovering = false
-    },
     async searchAuthor() {
       this.searching = true
       var response = await this.$axios.$post(`/api/authors/${this.authorId}/match`, { q: this.name }).catch((error) => {

@@ -8,11 +8,9 @@
         <span class="material-icons text-3xl text-white">arrow_back</span>
       </a>
       <div v-if="user">
-        <div class="px-4 py-2 bg-bg bg-opacity-30 rounded-md flex items-center" @click="clickShowLibraryModal">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
-          </svg>
-          <p class="text-base font-book leading-4 ml-2">{{ currentLibraryName }}</p>
+        <div class="pl-3 pr-4 py-2 bg-bg bg-opacity-30 rounded-md flex items-center" @click="clickShowLibraryModal">
+          <widgets-library-icon :icon="currentLibraryIcon" :size="4" />
+          <p class="text-base font-book leading-4 ml-2 mt-0.5">{{ currentLibraryName }}</p>
         </div>
       </div>
       <div class="flex-grow" />
@@ -44,6 +42,9 @@ export default {
     },
     currentLibraryName() {
       return this.currentLibrary ? this.currentLibrary.name : 'Main'
+    },
+    currentLibraryIcon() {
+      return this.currentLibrary ? this.currentLibrary.icon : 'database'
     },
     showBack() {
       if (!this.$route.name) return true

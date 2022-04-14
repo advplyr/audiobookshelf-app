@@ -18,10 +18,36 @@
       <div v-if="isScanning" class="w-full text-center p-4">
         <p>Scanning...</p>
       </div>
-      <div v-else class="w-full media-item-container overflow-y-auto">
+      <div v-else class="w-full max-w-full media-item-container overflow-y-auto overflow-x-hidden relative">
         <div v-if="!isPodcast" class="w-full">
           <p class="text-base mb-2">Audio Tracks ({{ audioTracks.length }})</p>
-          <template v-for="track in audioTracks">
+
+          <draggable v-model="audioTracksCopy" v-bind="dragOptions" handle=".drag-handle" draggable=".item" tag="div" @start="drag = true" @end="drag = false" @update="draggableUpdate">
+            <transition-group type="transition" :name="!drag ? 'dragtrack' : null">
+              <template v-for="track in audioTracksCopy">
+                <div :key="track.localFileId" class="flex items-center my-1 item">
+                  <div class="w-8 h-12 flex items-center justify-center" style="min-width: 32px">
+                    <span class="material-icons drag-handle text-lg text-white text-opacity-50 hover:text-opacity-100">menu</span>
+                  </div>
+                  <div class="w-8 h-12 flex items-center justify-center" style="min-width: 32px">
+                    <p class="font-mono font-bold text-xl">{{ track.index }}</p>
+                  </div>
+                  <div class="flex-grow px-2">
+                    <p class="text-xs">{{ track.title }}</p>
+                  </div>
+                  <div class="w-20 text-center text-gray-300" style="min-width: 80px">
+                    <p class="text-xs">{{ track.mimeType }}</p>
+                    <p class="text-sm">{{ $elapsedPretty(track.duration) }}</p>
+                  </div>
+                  <div class="w-12 h-12 flex items-center justify-center" style="min-width: 48px">
+                    <span class="material-icons" @click="showTrackDialog(track)">more_vert</span>
+                  </div>
+                </div>
+              </template>
+            </transition-group>
+          </draggable>
+
+          <!-- <template v-for="track in audioTracks">
             <div :key="track.localFileId" class="flex items-center my-1">
               <div class="w-10 h-12 flex items-center justify-center" style="min-width: 48px">
                 <p class="font-mono font-bold text-xl">{{ track.index }}</p>
@@ -37,7 +63,7 @@
                 <span class="material-icons" @click="showTrackDialog(track)">more_vert</span>
               </div>
             </div>
-          </template>
+          </template> -->
         </div>
         <div v-else class="w-full">
           <p class="text-base mb-2">Episodes ({{ audioTracks.length }})</p>
@@ -87,11 +113,16 @@
 </template>
 
 <script>
+import draggable from 'vuedraggable'
+
 import { Capacitor } from '@capacitor/core'
 import { Dialog } from '@capacitor/dialog'
 import { AbsFileSystem } from '@/plugins/capacitor'
 
 export default {
+  components: {
+    draggable
+  },
   asyncData({ params }) {
     return {
       localLibraryItemId: params.id
@@ -99,8 +130,16 @@ export default {
   },
   data() {
     return {
+      drag: false,
+      dragOptions: {
+        animation: 200,
+        group: 'description',
+        delay: 40,
+        delayOnTouchOnly: true
+      },
       failed: false,
       localLibraryItem: null,
+      audioTracksCopy: [],
       removingItem: false,
       folderId: null,
       folder: null,
@@ -187,6 +226,15 @@ export default {
     }
   },
   methods: {
+    draggableUpdate() {
+      console.log('Draggable update', this.audioTracksCopy)
+      // var copyOfCopy = this.audioTracksCopy.map((at) => ({ ...at }))
+      // const payload = {
+      //   localLibraryItemId: this.localLibraryItemId,
+      //   tracks: copyOfCopy
+      // }
+      // this.$db.updateLocalTrackOrder(payload)
+    },
     showItemDialog() {
       this.selectedAudioTrack = null
       this.showDialog = true
@@ -322,6 +370,8 @@ export default {
         return
       }
 
+      this.audioTracksCopy = this.audioTracks.map((at) => ({ ...at }))
+
       this.folderId = this.localLibraryItem.folderId
       this.folder = await this.$db.getLocalFolder(this.folderId)
     }
@@ -332,9 +382,21 @@ export default {
 }
 </script>
 
-<style scoped>
+<style>
 .media-item-container {
   height: calc(100vh - 200px);
   max-height: calc(100vh - 200px);
+}
+.sortable-ghost {
+  opacity: 0.5;
+}
+.dragtrack-enter-from,
+.dragtrack-leave-to {
+  opacity: 0;
+  transform: translateX(30px);
+}
+
+.dragtrack-leave-active {
+  position: absolute;
 }
 </style>

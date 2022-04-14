@@ -6,9 +6,6 @@
           <covers-book-cover :library-item="libraryItem" :width="128" :book-cover-aspect-ratio="bookCoverAspectRatio" />
           <div v-if="!isPodcast" class="absolute bottom-0 left-0 h-1.5 bg-yellow-400 shadow-sm z-10" :style="{ width: 128 * progressPercent + 'px' }"></div>
         </div>
-        <div class="flex my-4">
-          <p v-if="numTracks" class="text-sm">{{ numTracks }} Tracks</p>
-        </div>
       </div>
       <div class="flex-grow px-3">
         <h1 class="text-lg">{{ title }}</h1>
@@ -58,7 +55,7 @@
     </div>
 
     <div class="w-full py-4">
-      <p>{{ description }}</p>
+      <p class="text-sm">{{ description }}</p>
     </div>
 
     <tables-podcast-episodes-table v-if="isPodcast" :library-item-id="libraryItemId" :episodes="episodes" />
