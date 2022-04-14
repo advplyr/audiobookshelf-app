@@ -9,7 +9,7 @@ import Foundation
 import RealmSwift
 
 class Store {
-    private static var _serverConfig: ServerConnectionConfig?
+    @ThreadSafe private static var _serverConfig: ServerConnectionConfig?
     // ONLY USE REALM IN Database.realmQueue OR ELSE THE APP WILL CRASH
     public static var serverConfig: ServerConnectionConfig {
         get {
@@ -25,7 +25,7 @@ class Store {
         }
         set(updated) {
             Database.setServerConnectionConfig(config: updated)
-            _serverConfig = updated
+            _serverConfig = nil
         }
     }
 }

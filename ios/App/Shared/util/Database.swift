@@ -8,6 +8,8 @@
 import Foundation
 import RealmSwift
 
+extension String: Error {}
+
 class Database {
     public static let realmQueue = DispatchQueue(label: "realm-queue")
     
@@ -18,28 +20,64 @@ class Database {
     }()
     
     public static func getActiveServerConfigIndex() -> Int {
-        guard let config = instance.objects(ServerConnectionConfig.self).first else {
-            return -1
+        return realmQueue.sync {
+            guard let config = instance.objects(ServerConnectionConfig.self).first else {
+                return -1
+            }
+            return config.index
         }
-        return config.index
     }
     
     public static func setServerConnectionConfig(config: ServerConnectionConfig) {
-        let existing: ServerConnectionConfig? = instance.object(ofType: ServerConnectionConfig.self, forPrimaryKey: config.id)
+        var refrence: ThreadSafeReference<ServerConnectionConfig>?
+        if config.realm != nil {
+            refrence = ThreadSafeReference(to: config)
+        }
         
-        try! instance.write {
-            if existing != nil {
-                instance.delete(existing!)
+        realmQueue.sync {
+            let existing: ServerConnectionConfig? = instance.object(ofType: ServerConnectionConfig.self, forPrimaryKey: config.id)
+            
+            do {
+                try instance.write {
+                    if existing != nil {
+                        instance.delete(existing!)
+                    }
+                    if refrence == nil {
+                        instance.add(config)
+                    } else {
+                        guard let resolved = instance.resolve(refrence!) else {
+                            throw "unable to resolve refrence"
+                        }
+                        
+                        instance.add(resolved);
+                    }
+                }
+            } catch(let exception) {
+                NSLog("failed to save server config")
+                debugPrint(exception)
             }
-            instance.add(config)
         }
     }
     public static func getServerConnectionConfigs() -> [ServerConnectionConfig] {
-        let configs = instance.objects(ServerConnectionConfig.self)
+        var refrences: [ThreadSafeReference<ServerConnectionConfig>] = []
         
-        if configs.count <= 0 {
+        realmQueue.sync {
+            let configs = instance.objects(ServerConnectionConfig.self)
+            refrences = configs.map { config in
+                return ThreadSafeReference(to: config)
+            }
+        }
+        
+        do {
+            let realm = try Realm()
+            
+            return refrences.map { refrence in
+                return realm.resolve(refrence)!
+            }
+        } catch(let exception) {
+            NSLog("error while readling configs")
+            debugPrint(exception)
             return []
         }
-        return Array(configs)
     }
 }

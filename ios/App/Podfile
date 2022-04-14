@@ -23,4 +23,5 @@ target 'App' do
   # Add your Pods here
   
   pod 'RealmSwift', '~>10'
+  pod 'Alamofire', '~> 5.5'
 end

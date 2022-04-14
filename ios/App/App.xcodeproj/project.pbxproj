@@ -10,12 +10,16 @@
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
 		3A200C1527D64D7E00CBF02E /* AudioPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A200C1427D64D7E00CBF02E /* AudioPlayer.swift */; };
 		3ABF580928059BAE005DFBE5 /* PlaybackSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3ABF580828059BAE005DFBE5 /* PlaybackSession.swift */; };
+		3ABF580B2805A837005DFBE5 /* PlaybackReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3ABF580A2805A837005DFBE5 /* PlaybackReport.swift */; };
 		3ABF618F2804325C0070250E /* PlayerHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3ABF618E2804325C0070250E /* PlayerHandler.swift */; };
 		3AD4FCE528043E50006DB301 /* AbsDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AD4FCE428043E50006DB301 /* AbsDatabase.swift */; };
 		3AD4FCE728043E72006DB301 /* AbsDatabase.m in Sources */ = {isa = PBXBuildFile; fileRef = 3AD4FCE628043E72006DB301 /* AbsDatabase.m */; };
 		3AD4FCE928043FD7006DB301 /* ServerConnectionConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AD4FCE828043FD7006DB301 /* ServerConnectionConfig.swift */; };
 		3AD4FCEB280443DD006DB301 /* Database.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AD4FCEA280443DD006DB301 /* Database.swift */; };
 		3AD4FCED28044E6C006DB301 /* Store.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AD4FCEC28044E6C006DB301 /* Store.swift */; };
+		3AF1970C2806E2590096F747 /* ApiClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AF1970B2806E2590096F747 /* ApiClient.swift */; };
+		3AF1970E2806E3CA0096F747 /* AbsAudioPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AF1970D2806E3CA0096F747 /* AbsAudioPlayer.swift */; };
+		3AF197102806E3DC0096F747 /* AbsAudioPlayer.m in Sources */ = {isa = PBXBuildFile; fileRef = 3AF1970F2806E3DC0096F747 /* AbsAudioPlayer.m */; };
 		3AFCB5E827EA240D00ECCC05 /* NowPlayingInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AFCB5E727EA240D00ECCC05 /* NowPlayingInfo.swift */; };
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
 		504EC3081FED79650016851F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504EC3071FED79650016851F /* AppDelegate.swift */; };
@@ -30,12 +34,16 @@
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
 		3A200C1427D64D7E00CBF02E /* AudioPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayer.swift; sourceTree = "<group>"; };
 		3ABF580828059BAE005DFBE5 /* PlaybackSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackSession.swift; sourceTree = "<group>"; };
+		3ABF580A2805A837005DFBE5 /* PlaybackReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackReport.swift; sourceTree = "<group>"; };
 		3ABF618E2804325C0070250E /* PlayerHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerHandler.swift; sourceTree = "<group>"; };
 		3AD4FCE428043E50006DB301 /* AbsDatabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AbsDatabase.swift; sourceTree = "<group>"; };
 		3AD4FCE628043E72006DB301 /* AbsDatabase.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AbsDatabase.m; sourceTree = "<group>"; };
 		3AD4FCE828043FD7006DB301 /* ServerConnectionConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerConnectionConfig.swift; sourceTree = "<group>"; };
 		3AD4FCEA280443DD006DB301 /* Database.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Database.swift; sourceTree = "<group>"; };
 		3AD4FCEC28044E6C006DB301 /* Store.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Store.swift; sourceTree = "<group>"; };
+		3AF1970B2806E2590096F747 /* ApiClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApiClient.swift; sourceTree = "<group>"; };
+		3AF1970D2806E3CA0096F747 /* AbsAudioPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AbsAudioPlayer.swift; sourceTree = "<group>"; };
+		3AF1970F2806E3DC0096F747 /* AbsAudioPlayer.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AbsAudioPlayer.m; sourceTree = "<group>"; };
 		3AFCB5E727EA240D00ECCC05 /* NowPlayingInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingInfo.swift; sourceTree = "<group>"; };
 		4D8D412C26E187E400BA5F0D /* App-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "App-Bridging-Header.h"; sourceTree = "<group>"; };
 		50379B222058CBB4000EE86E /* capacitor.config.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = capacitor.config.json; sourceTree = "<group>"; };
@@ -95,6 +103,8 @@
 			children = (
 				3AD4FCE428043E50006DB301 /* AbsDatabase.swift */,
 				3AD4FCE628043E72006DB301 /* AbsDatabase.m */,
+				3AF1970D2806E3CA0096F747 /* AbsAudioPlayer.swift */,
+				3AF1970F2806E3DC0096F747 /* AbsAudioPlayer.m */,
 			);
 			path = plugins;
 			sourceTree = "<group>";
@@ -104,6 +114,7 @@
 			children = (
 				3AD4FCE828043FD7006DB301 /* ServerConnectionConfig.swift */,
 				3ABF580828059BAE005DFBE5 /* PlaybackSession.swift */,
+				3ABF580A2805A837005DFBE5 /* PlaybackReport.swift */,
 			);
 			path = models;
 			sourceTree = "<group>";
@@ -114,6 +125,7 @@
 				3AFCB5E727EA240D00ECCC05 /* NowPlayingInfo.swift */,
 				3AD4FCEA280443DD006DB301 /* Database.swift */,
 				3AD4FCEC28044E6C006DB301 /* Store.swift */,
+				3AF1970B2806E2590096F747 /* ApiClient.swift */,
 			);
 			path = util;
 			sourceTree = "<group>";
@@ -281,11 +293,15 @@
 				3ABF580928059BAE005DFBE5 /* PlaybackSession.swift in Sources */,
 				3ABF618F2804325C0070250E /* PlayerHandler.swift in Sources */,
 				3AD4FCED28044E6C006DB301 /* Store.swift in Sources */,
+				3ABF580B2805A837005DFBE5 /* PlaybackReport.swift in Sources */,
+				3AF1970E2806E3CA0096F747 /* AbsAudioPlayer.swift in Sources */,
 				3AD4FCE928043FD7006DB301 /* ServerConnectionConfig.swift in Sources */,
 				3A200C1527D64D7E00CBF02E /* AudioPlayer.swift in Sources */,
 				3AFCB5E827EA240D00ECCC05 /* NowPlayingInfo.swift in Sources */,
 				3AD4FCEB280443DD006DB301 /* Database.swift in Sources */,
 				3AD4FCE528043E50006DB301 /* AbsDatabase.swift in Sources */,
+				3AF197102806E3DC0096F747 /* AbsAudioPlayer.m in Sources */,
+				3AF1970C2806E2590096F747 /* ApiClient.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
