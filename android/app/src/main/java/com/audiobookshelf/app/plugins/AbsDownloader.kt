@@ -100,8 +100,9 @@ class AbsDownloader : Plugin() {
   fun downloadLibraryItem(call: PluginCall) {
     var libraryItemId = call.data.getString("libraryItemId").toString()
     var episodeId = call.data.getString("episodeId").toString()
+    if (episodeId == "null") episodeId = ""
     var localFolderId = call.data.getString("localFolderId").toString()
-    Log.d(tag, "Download library item $libraryItemId to folder $localFolderId")
+    Log.d(tag, "Download library item $libraryItemId to folder $localFolderId / episode: $episodeId")
 
     var downloadId = if (episodeId.isNullOrEmpty()) libraryItemId else "$libraryItemId-$episodeId"
     if (downloadQueue.find { it.id == downloadId } != null) {

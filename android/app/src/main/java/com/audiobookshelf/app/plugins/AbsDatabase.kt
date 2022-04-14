@@ -5,10 +5,7 @@ import com.audiobookshelf.app.MainActivity
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.server.ApiHandler
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.getcapacitor.JSObject
-import com.getcapacitor.Plugin
-import com.getcapacitor.PluginCall
-import com.getcapacitor.PluginMethod
+import com.getcapacitor.*
 import com.getcapacitor.annotation.CapacitorPlugin
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -200,6 +197,27 @@ class AbsDatabase : Plugin() {
     apiHandler.syncMediaProgress {
       call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(it)))
     }
+  }
+
+  @PluginMethod
+  fun updateLocalTrackOrder(call:PluginCall) {
+    var localLibraryItemId = call.getString("localLibraryItemId", "") ?: ""
+    var localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(localLibraryItemId)
+    if (localLibraryItem == null) {
+      call.resolve()
+      return
+    }
+
+    var tracks:JSArray = call.getArray("tracks") ?: JSArray()
+    Log.d(tag, "updateLocalTrackOrder $tracks")
+
+    for (i in 0..tracks.length()) {
+      var track = tracks.getJSONObject(i)
+      var localFileId = track.getString("localFileId")
+      Log.d(tag, "LOCAL FILE ID $localFileId")
+    }
+
+    call.resolve()
   }
 
   //

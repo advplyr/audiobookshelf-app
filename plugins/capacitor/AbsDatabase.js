@@ -111,6 +111,30 @@ class AbsDatabaseWeb extends WebPlugin {
               isLocal: true,
               localFileId: 'lf1',
               audioProbeResult: {}
+            },
+            {
+              index: 2,
+              startOffset: 0,
+              duration: 15000,
+              title: 'Track Title 2',
+              contentUrl: 'test2',
+              mimeType: 'audio/mpeg',
+              metadata: null,
+              isLocal: true,
+              localFileId: 'lf2',
+              audioProbeResult: {}
+            },
+            {
+              index: 3,
+              startOffset: 0,
+              duration: 20000,
+              title: 'Track Title 3',
+              contentUrl: 'test3',
+              mimeType: 'audio/mpeg',
+              metadata: null,
+              isLocal: true,
+              localFileId: 'lf3',
+              audioProbeResult: {}
             }
           ]
         },
@@ -169,6 +193,10 @@ class AbsDatabaseWeb extends WebPlugin {
 
   async syncLocalMediaProgressWithServer() {
     return null
+  }
+
+  async updateLocalTrackOrder({ localLibraryItemId, tracks }) {
+    return []
   }
 }
 
