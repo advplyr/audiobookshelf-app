@@ -48,6 +48,11 @@ export default {
         bookCoverAspectRatio: this.bookCoverAspectRatio
       }
       if (this.entityName === 'series-books') props.showSequence = true
+      if (this.entityName === 'books') {
+        props.filterBy = this.filterBy
+        props.orderBy = this.orderBy
+        props.sortingIgnorePrefix = !!this.sortingIgnorePrefix
+      }
 
       var _this = this
       var instance = new ComponentClass({

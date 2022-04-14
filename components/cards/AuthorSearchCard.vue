@@ -1,6 +1,13 @@
 <template>
-  <div class="flex h-full px-1 overflow-hidden shadow-sm">
-    <!-- <img src="/icons/NoUserPhoto.png" class="w-40 h-40 max-h-40 object-contain" style="max-height: 40px; max-width: 40px" /> -->
+  <div class="flex h-full px-1 overflow-hidden">
+    <div class="overflow-hidden bg-primary rounded" style="height: 50px; width: 40px">
+      <covers-author-image :author="author" />
+    </div>
+    <div class="flex-grow px-2 authorSearchCardContent h-full">
+      <p class="truncate text-sm">{{ name }}</p>
+    </div>
+  </div>
+  <!-- <div class="flex h-full px-1 overflow-hidden shadow-sm">
     <div style="max-height: 48px; max-width: 48px" class="w-12 h-12 bg-primary overflow-hidden rounded">
       <svg width="140%" height="140%" style="margin-left: -20%; margin-top: -20%; opacity: 0.6" viewBox="0 0 177 266" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path fill="white" d="M40.7156 165.47C10.2694 150.865 -31.5407 148.629 -38.0532 155.529L63.3191 204.159L76.9443 190.899C66.828 181.394 54.006 171.846 40.7156 165.47Z" stroke="white" stroke-width="4" transform="translate(-2 -1)" />
@@ -19,18 +26,25 @@
     <div class="flex-grow px-2 authorSearchCardContent h-full">
       <p class="truncate text-sm">{{ author }}</p>
     </div>
-  </div>
+  </div> -->
 </template>
 
 <script>
 export default {
   props: {
-    author: String
+    author: {
+      type: Object,
+      default: () => {}
+    }
   },
   data() {
     return {}
   },
-  computed: {},
+  computed: {
+    name() {
+      return this.author.name
+    }
+  },
   methods: {},
   mounted() {}
 }

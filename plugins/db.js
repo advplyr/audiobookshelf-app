@@ -94,6 +94,10 @@ class DbService {
   syncLocalMediaProgressWithServer() {
     return AbsDatabase.syncLocalMediaProgressWithServer()
   }
+
+  updateLocalTrackOrder(payload) {
+    return AbsDatabase.updateLocalTrackOrder(payload)
+  }
 }
 
 export default ({ app, store }, inject) => {

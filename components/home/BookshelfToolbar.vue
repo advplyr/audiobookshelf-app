@@ -58,6 +58,7 @@ export default {
       return this.$route.query || {}
     },
     entityTitle() {
+      if (this.isPodcast) return 'Podcasts'
       if (this.page === 'library') return 'Books'
       else if (this.page === 'series') {
         return 'Series'
@@ -71,6 +72,9 @@ export default {
         return this.$store.state.globals.series.name
       }
       return null
+    },
+    isPodcast() {
+      return this.$store.getters['libraries/getCurrentLibraryMediaType'] === 'podcast'
     }
   },
   methods: {
