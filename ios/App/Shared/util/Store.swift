@@ -10,7 +10,6 @@ import RealmSwift
 
 class Store {
     @ThreadSafe private static var _serverConfig: ServerConnectionConfig?
-    // ONLY USE REALM IN Database.realmQueue OR ELSE THE APP WILL CRASH
     public static var serverConfig: ServerConnectionConfig {
         get {
             if _serverConfig == nil {

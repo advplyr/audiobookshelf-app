@@ -18,6 +18,7 @@ func getData(from url: URL, completion: @escaping (UIImage?) -> Void) {
 
 struct NowPlayingMetadata {
     var id: String
+    var itemId: String
     var artworkUrl: String?
     var title: String
     var author: String?
@@ -28,13 +29,18 @@ class NowPlayingInfo {
     private static var nowPlayingInfo: [String: Any] = [:]
     
     public static func setSessionMetadata(metadata: NowPlayingMetadata) {
-        setMetadata(artwork: nil, metadata: nil)
+        setMetadata(artwork: nil, metadata: metadata)
         
+        /*
         if !shouldFetchCover(id: metadata.id) || metadata.artworkUrl == nil {
             return
         }
+         */
         
-        guard let url = URL(string: metadata.artworkUrl!) else { return }
+        guard let url = URL(string: "\(Store.serverConfig.address)/api/items/\(metadata.itemId)/cover?token=\(Store.serverConfig.token)") else {
+            return
+        }
+        
         getData(from: url) { [self] image in
             guard let downloadedImage = image else {
                 return

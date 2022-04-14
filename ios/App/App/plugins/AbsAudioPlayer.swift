@@ -25,8 +25,15 @@ public class AbsAudioPlayer: CAPPlugin {
         }
         
         ApiClient.startPlaybackSession(libraryItemId: libraryItemId!, episodeId: episodeId) { session in
-            NSLog(OperationQueue.current)
             PlayerHandler.startPlayback(session: session, playWhenReady: playWhenReady)
+            do {
+                call.resolve(try session.asDictionary())
+            } catch(let exception) {
+                NSLog("failed to convert session to json")
+                debugPrint(exception)
+                
+                call.resolve([:])
+            }
         }
     }
 }
