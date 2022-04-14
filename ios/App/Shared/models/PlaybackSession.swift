@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct PlaybackSession {
+struct PlaybackSession: Decodable {
     var id: String
     var userId: String?
     var libraryItemId: String?
@@ -20,8 +20,8 @@ struct PlaybackSession {
     var coverPath: String?
     var duration: Double
     var playMethod: Int
-    var startedAt: Double
-    var updatedAt: Double
+    var startedAt: Double?
+    var updatedAt: Double?
     var timeListening: Double
     var audioTracks: [AudioTrack]
     var currentTime: Double
@@ -30,14 +30,14 @@ struct PlaybackSession {
     var serverConnectionConfigId: String?
     var serverAddress: String?
 }
-struct Chapter {
+struct Chapter: Decodable {
     var id: Int
     var start: Double
     var end: Double
     var title: String?
 }
-struct AudioTrack {
-    var index: Int
+struct AudioTrack: Decodable {
+    var index: Int?
     var startOffset: Double
     var duration: Double
     var title: String
@@ -46,10 +46,10 @@ struct AudioTrack {
     var metadata: FileMetadata?
     // var isLocal: Bool
     // var localFileId: String?
-    // var audioProbeResult: AudioProbeResult? Need for local playback
+    // var audioProbeResult: AudioProbeResult? Needed for local playback
     var serverIndex: Int?
 }
-struct FileMetadata {
+struct FileMetadata: Decodable {
     var filename: String
     var ext: String
     var path: String

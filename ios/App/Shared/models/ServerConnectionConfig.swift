@@ -19,13 +19,15 @@ class ServerConnectionConfig: Object {
 }
 
 func convertServerConnectionConfigToJSON(config: ServerConnectionConfig) -> Dictionary<String, Any> {
-    return [
-        "id": config.id,
-        "name": config.name,
-        "index": config.index,
-        "address": config.address,
-        "userId": config.userId,
-        "username": config.username,
-        "token": config.token,
-    ]
+    return Database.realmQueue.sync {
+        return [
+            "id": config.id,
+            "name": config.name,
+            "index": config.index,
+            "address": config.address,
+            "userId": config.userId,
+            "username": config.username,
+            "token": config.token,
+        ]
+    }
 }

@@ -27,7 +27,7 @@ struct NowPlayingMetadata {
 class NowPlayingInfo {
     private static var nowPlayingInfo: [String: Any] = [:]
     
-    public static func setAudiobook(metadata: NowPlayingMetadata) {
+    public static func setSessionMetadata(metadata: NowPlayingMetadata) {
         setMetadata(artwork: nil, metadata: nil)
         
         if !shouldFetchCover(id: metadata.id) || metadata.artworkUrl == nil {
