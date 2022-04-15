@@ -10,20 +10,17 @@ import RealmSwift
 
 class Store {
     @ThreadSafe private static var _serverConfig: ServerConnectionConfig?
-    public static var serverConfig: ServerConnectionConfig {
+    public static var serverConfig: ServerConnectionConfig? {
         get {
-            if _serverConfig == nil {
-                let index = Database.getActiveServerConfigIndex()
-                // TODO: change this when multiple configs are possible
-                _serverConfig = Database.getServerConnectionConfigs().first { config in
-                    return config.index == index
-                }
-            }
-            
-            return _serverConfig ?? ServerConnectionConfig()
+            return _serverConfig
         }
         set(updated) {
-            Database.setServerConnectionConfig(config: updated)
+            if updated != nil {
+                Database.setServerConnectionConfig(config: updated!)
+            } else {
+                Database.setLastActiveConfigIndexToNil()
+            }
+            
             _serverConfig = nil
         }
     }

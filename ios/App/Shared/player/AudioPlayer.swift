@@ -164,11 +164,11 @@ class AudioPlayer: NSObject {
     // MARK: - Private
     private func createAsset() -> AVAsset {
         let headers: [String: String] = [
-            "Authorization": "Bearer \(Store.serverConfig.token)"
+            "Authorization": "Bearer \(Store.serverConfig!.token)"
         ]
         
         debugPrint(activeAudioTrack)
-        return AVURLAsset(url: URL(string: "\(Store.serverConfig.address)\(activeAudioTrack.contentUrl)")!, options: ["AVURLAssetHTTPHeaderFieldsKey": headers])
+        return AVURLAsset(url: URL(string: "\(Store.serverConfig!.address)\(activeAudioTrack.contentUrl)")!, options: ["AVURLAssetHTTPHeaderFieldsKey": headers])
     }
     private func initAudioSession() {
         do {

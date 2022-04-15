@@ -51,18 +51,18 @@ public class AbsDatabase: CAPPlugin {
         Store.serverConfig = config
         call.resolve(convertServerConnectionConfigToJSON(config: config))
     }
+    @objc func logout(_ call: CAPPluginCall) {
+        Store.serverConfig = nil
+        call.resolve()
+    }
+    
     @objc func getDeviceData(_ call: CAPPluginCall) {
         let configs = Database.getServerConnectionConfigs()
-        let index = Database.getActiveServerConfigIndex()
+        let index = Database.getLastActiveConfigIndex()
         
         call.resolve([
-            "serverConnectionConfigs": configs.map { config in
-                return convertServerConnectionConfigToJSON(config: config)
-            },
-            "lastServerConnectionConfigId": index < 0 ? -1 : configs.first(where: {
-                (config: ServerConnectionConfig) -> Bool in
-                return config.index == index
-            })!.id,
+            "serverConnectionConfigs": configs.map { config in convertServerConnectionConfigToJSON(config: config) },
+            "lastServerConnectionConfigId": configs.first { config in config.index == index }?.id,
             // Luckily this isn't implemented yet
             // "currentLocalPlaybackSession": nil,
         ])
