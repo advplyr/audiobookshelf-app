@@ -17,6 +17,11 @@ class ServerConnectionConfig: Object {
     @Persisted var username: String
     @Persisted var token: String
 }
+class ServerConnectionConfigActiveIndex: Object {
+    // This could overflow, but you really would have to try
+    @Persisted var index: Int?
+
+}
 
 func convertServerConnectionConfigToJSON(config: ServerConnectionConfig) -> Dictionary<String, Any> {
     return Database.realmQueue.sync {

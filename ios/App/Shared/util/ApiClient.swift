@@ -24,10 +24,10 @@ class ApiClient {
     
     public static func postResource<T: Decodable>(endpoint: String, parameters: [String: String], decodable: T.Type = T.self, callback: ((_ param: T) -> Void)?) {
         let headers: HTTPHeaders = [
-            "Authorization": "Bearer \(Store.serverConfig.token)"
+            "Authorization": "Bearer \(Store.serverConfig!.token)"
         ]
         
-        AF.request("\(Store.serverConfig.address)/\(endpoint)", method: .post, parameters: parameters, encoder: JSONParameterEncoder.default, headers: headers).responseDecodable(of: decodable) { response in
+        AF.request("\(Store.serverConfig!.address)/\(endpoint)", method: .post, parameters: parameters, encoder: JSONParameterEncoder.default, headers: headers).responseDecodable(of: decodable) { response in
             switch response.result {
             case .success(let obj):
                 callback?(obj)
@@ -50,8 +50,8 @@ class ApiClient {
         ], decodable: PlaybackSession.self) { obj in
             var session = obj
             
-            session.serverConnectionConfigId = Store.serverConfig.id
-            session.serverAddress = Store.serverConfig.address
+            session.serverConnectionConfigId = Store.serverConfig!.id
+            session.serverAddress = Store.serverConfig!.address
             
             callback(session)
         }

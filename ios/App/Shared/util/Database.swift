@@ -9,22 +9,11 @@ import Foundation
 import RealmSwift
 
 class Database {
-    public static let realmQueue = DispatchQueue(label: "realm-queue")
-    
     // All DB releated actions must be executed on "realm-queue"
+    public static let realmQueue = DispatchQueue(label: "realm-queue")
     private static var instance: Realm = {
-        // TODO: handle thread errors
         try! Realm(queue: realmQueue)
     }()
-    
-    public static func getActiveServerConfigIndex() -> Int {
-        return realmQueue.sync {
-            guard let config = instance.objects(ServerConnectionConfig.self).first else {
-                return -1
-            }
-            return config.index
-        }
-    }
     
     public static func setServerConnectionConfig(config: ServerConnectionConfig) {
         var refrence: ThreadSafeReference<ServerConnectionConfig>?
@@ -34,6 +23,16 @@ class Database {
         
         realmQueue.sync {
             let existing: ServerConnectionConfig? = instance.object(ofType: ServerConnectionConfig.self, forPrimaryKey: config.id)
+            
+            if config.index == 0 {
+                let lastConfig: ServerConnectionConfig? = instance.objects(ServerConnectionConfig.self).last
+                
+                if lastConfig != nil {
+                    config.index = lastConfig!.index + 1
+                } else {
+                    config.index = 1
+                }
+            }
             
             do {
                 try instance.write {
@@ -54,6 +53,8 @@ class Database {
                 NSLog("failed to save server config")
                 debugPrint(exception)
             }
+            
+            setLastActiveConfigIndex(index: config.index)
         }
     }
     public static func getServerConnectionConfigs() -> [ServerConnectionConfig] {
@@ -76,6 +77,32 @@ class Database {
             NSLog("error while readling configs")
             debugPrint(exception)
             return []
+        }
+    }
+    
+    public static func setLastActiveConfigIndexToNil() {
+        realmQueue.sync {
+            setLastActiveConfigIndex(index: nil)
+        }
+    }
+    public static func setLastActiveConfigIndex(index: Int?) {
+        let existing = instance.objects(ServerConnectionConfigActiveIndex.self)
+        let obj = ServerConnectionConfigActiveIndex()
+        obj.index = index
+     
+        do {
+            try instance.write {
+                instance.delete(existing)
+                instance.add(obj)
+            }
+        } catch(let exception) {
+            NSLog("failed to save server config active index")
+            debugPrint(exception)
+        }
+    }
+    public static func getLastActiveConfigIndex() -> Int? {
+        return realmQueue.sync {
+            return instance.objects(ServerConnectionConfigActiveIndex.self).first?.index ?? nil
         }
     }
 }

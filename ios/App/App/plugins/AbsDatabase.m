@@ -10,6 +10,7 @@
 
 CAP_PLUGIN(AbsDatabase, "AbsDatabase",
            CAP_PLUGIN_METHOD(setCurrentServerConnectionConfig, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(logout, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(getDeviceData, CAPPluginReturnPromise);
            
            CAP_PLUGIN_METHOD(getLocalLibraryItems, CAPPluginReturnPromise);

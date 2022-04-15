@@ -37,7 +37,7 @@ class NowPlayingInfo {
         }
          */
         
-        guard let url = URL(string: "\(Store.serverConfig.address)/api/items/\(metadata.itemId)/cover?token=\(Store.serverConfig.token)") else {
+        guard let url = URL(string: "\(Store.serverConfig!.address)/api/items/\(metadata.itemId)/cover?token=\(Store.serverConfig!.token)") else {
             return
         }
         
