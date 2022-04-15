@@ -9,19 +9,6 @@ import Foundation
 import Alamofire
 
 class ApiClient {
-    /*
-    public static func getResource<T: Decodable>(endpoint: String, decodable: T.Type = T.self, callback: ((_ param: DataRequest) -> Void)?) {
-        let headers: HTTPHeaders = [
-            "Authorization": "Bearer \(Store.serverConfig.token)"
-        ]
-        
-        AF.request("\(Store.serverConfig.address)/\(endpoint)", headers: headers).responseDecodable(of: decodable) { response in
-            // callback(response)
-            debugPrint("Response: \(response)")
-        }
-    }
-     */
-    
     public static func postResource<T: Decodable>(endpoint: String, parameters: [String: String], decodable: T.Type = T.self, callback: ((_ param: T) -> Void)?) {
         let headers: HTTPHeaders = [
             "Authorization": "Bearer \(Store.serverConfig!.token)"
@@ -34,6 +21,23 @@ class ApiClient {
             case .failure(let error):
                 NSLog("api request to \(endpoint) failed")
                 print(error)
+            }
+        }
+    }
+    public static func postResource(endpoint: String, parameters: [String: String], callback: ((_ success: Bool) -> Void)?) {
+        let headers: HTTPHeaders = [
+            "Authorization": "Bearer \(Store.serverConfig!.token)"
+        ]
+        
+        AF.request("\(Store.serverConfig!.address)/\(endpoint)", method: .post, parameters: parameters, encoder: JSONParameterEncoder.default, headers: headers).response { response in
+            switch response.result {
+            case .success(let _):
+                callback?(true)
+            case .failure(let error):
+                NSLog("api request to \(endpoint) failed")
+                print(error)
+                
+                callback?(false)
             }
         }
     }
@@ -55,5 +59,8 @@ class ApiClient {
             
             callback(session)
         }
+    }
+    public static func reportPlaybackProgress(report: PlaybackReport, sessionId: String) {
+        try? postResource(endpoint: "api/session/\(sessionId)/sync", parameters: report.asDictionary().mapValues({ value in "\(value)" }), callback: nil)
     }
 }

@@ -21,7 +21,9 @@ class Store {
                 Database.setLastActiveConfigIndexToNil()
             }
             
-            _serverConfig = nil
+            Database.realmQueue.sync {
+                _serverConfig = updated
+            }
         }
     }
 }
