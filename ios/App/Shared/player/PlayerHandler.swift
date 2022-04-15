@@ -12,7 +12,7 @@ class PlayerHandler {
     private static var session: PlaybackSession?
     private static var timer: Timer?
     
-    private static var listningTimePassedSinceLastSync = 0.0
+    private static var listeningTimePassedSinceLastSync = 0.0
     
     public static func startPlayback(session: PlaybackSession, playWhenReady: Bool) {
         if player != nil {
@@ -26,9 +26,9 @@ class PlayerHandler {
         player = AudioPlayer(playbackSession: session, playWhenReady: playWhenReady)
         
         // DispatchQueue.main.sync {
-            timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-                self.tick()
-            }
+        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+            self.tick()
+        }
         // }
     }
     public static func stopPlayback() {
@@ -101,10 +101,10 @@ class PlayerHandler {
     
     private static func tick() {
         if !paused() {
-            listningTimePassedSinceLastSync += 1
+            listeningTimePassedSinceLastSync += 1
         }
         
-        if listningTimePassedSinceLastSync > 3 {
+        if listeningTimePassedSinceLastSync > 3 {
             syncProgress()
         }
     }
@@ -113,10 +113,10 @@ class PlayerHandler {
             return
         }
         
-        let report = PlaybackReport(currentTime: player!.getCurrentTime(), duration: player!.getDuration(), timeListened: listningTimePassedSinceLastSync)
+        let report = PlaybackReport(currentTime: player!.getCurrentTime(), duration: player!.getDuration(), timeListened: listeningTimePassedSinceLastSync)
         
         session!.currentTime = player!.getCurrentTime()
-        listningTimePassedSinceLastSync = 0
+        listeningTimePassedSinceLastSync = 0
         
         // TODO: check if online
         NSLog("sending playback report")

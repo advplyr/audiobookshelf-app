@@ -57,7 +57,6 @@ class AudioPlayer: NSObject {
         playerItem.addObserver(self, forKeyPath: #keyPath(AVPlayerItem.status), options: .new, context: &playerItemContext)
         
         self.audioPlayer.replaceCurrentItem(with: playerItem)
-        seek(playbackSession.currentTime)
         
         NSLog("Audioplayer ready")
     }
@@ -259,6 +258,8 @@ class AudioPlayer: NSObject {
                         self.playWhenReady = false
                         self.play()
                     }
+                    
+                    seek(playbackSession.currentTime)
                 }
             }
         } else if context == &playerContext {
