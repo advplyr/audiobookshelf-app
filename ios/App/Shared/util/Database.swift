@@ -11,9 +11,7 @@ import RealmSwift
 class Database {
     // All DB releated actions must be executed on "realm-queue"
     public static let realmQueue = DispatchQueue(label: "realm-queue")
-    private static var instance: Realm = {
-        try! Realm(queue: realmQueue)
-    }()
+    private static var instance: Realm = try! Realm(queue: realmQueue)
     
     public static func setServerConnectionConfig(config: ServerConnectionConfig) {
         var refrence: ThreadSafeReference<ServerConnectionConfig>?
@@ -55,6 +53,22 @@ class Database {
             }
             
             setLastActiveConfigIndex(index: config.index)
+        }
+    }
+    public static func deleteServerConnectionConfig(id: String) {
+        realmQueue.sync {
+            let config = instance.object(ofType: ServerConnectionConfig.self, forPrimaryKey: id)
+            
+            do {
+                try instance.write {
+                    if config != nil {
+                        instance.delete(config!)
+                    }
+                }
+            } catch(let exception) {
+                NSLog("failed to delete server config")
+                debugPrint(exception)
+            }
         }
     }
     public static func getServerConnectionConfigs() -> [ServerConnectionConfig] {

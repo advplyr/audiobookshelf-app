@@ -51,6 +51,12 @@ public class AbsDatabase: CAPPlugin {
         Store.serverConfig = config
         call.resolve(convertServerConnectionConfigToJSON(config: config))
     }
+    @objc func removeServerConnectionConfig(_ call: CAPPluginCall) {
+        let id = call.getString("serverConnectionConfigId", "")
+        Database.deleteServerConnectionConfig(id: id)
+        
+        call.resolve()
+    }
     @objc func logout(_ call: CAPPluginCall) {
         Store.serverConfig = nil
         call.resolve()
