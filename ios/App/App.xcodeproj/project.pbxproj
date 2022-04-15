@@ -9,10 +9,10 @@
 /* Begin PBXBuildFile section */
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
 		3A200C1527D64D7E00CBF02E /* AudioPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A200C1427D64D7E00CBF02E /* AudioPlayer.swift */; };
+		3A90295F280968E700E1D427 /* PlaybackReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A90295E280968E700E1D427 /* PlaybackReport.swift */; };
 		3AB34053280829BF0039308B /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AB34052280829BF0039308B /* Extensions.swift */; };
 		3AB34055280832720039308B /* PlayerEvents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AB34054280832720039308B /* PlayerEvents.swift */; };
 		3ABF580928059BAE005DFBE5 /* PlaybackSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3ABF580828059BAE005DFBE5 /* PlaybackSession.swift */; };
-		3ABF580B2805A837005DFBE5 /* PlaybackReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3ABF580A2805A837005DFBE5 /* PlaybackReport.swift */; };
 		3ABF618F2804325C0070250E /* PlayerHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3ABF618E2804325C0070250E /* PlayerHandler.swift */; };
 		3AD4FCE528043E50006DB301 /* AbsDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AD4FCE428043E50006DB301 /* AbsDatabase.swift */; };
 		3AD4FCE728043E72006DB301 /* AbsDatabase.m in Sources */ = {isa = PBXBuildFile; fileRef = 3AD4FCE628043E72006DB301 /* AbsDatabase.m */; };
@@ -35,10 +35,10 @@
 /* Begin PBXFileReference section */
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
 		3A200C1427D64D7E00CBF02E /* AudioPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayer.swift; sourceTree = "<group>"; };
+		3A90295E280968E700E1D427 /* PlaybackReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackReport.swift; sourceTree = "<group>"; };
 		3AB34052280829BF0039308B /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
 		3AB34054280832720039308B /* PlayerEvents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerEvents.swift; sourceTree = "<group>"; };
 		3ABF580828059BAE005DFBE5 /* PlaybackSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackSession.swift; sourceTree = "<group>"; };
-		3ABF580A2805A837005DFBE5 /* PlaybackReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackReport.swift; sourceTree = "<group>"; };
 		3ABF618E2804325C0070250E /* PlayerHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerHandler.swift; sourceTree = "<group>"; };
 		3AD4FCE428043E50006DB301 /* AbsDatabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AbsDatabase.swift; sourceTree = "<group>"; };
 		3AD4FCE628043E72006DB301 /* AbsDatabase.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AbsDatabase.m; sourceTree = "<group>"; };
@@ -118,7 +118,7 @@
 			children = (
 				3AD4FCE828043FD7006DB301 /* ServerConnectionConfig.swift */,
 				3ABF580828059BAE005DFBE5 /* PlaybackSession.swift */,
-				3ABF580A2805A837005DFBE5 /* PlaybackReport.swift */,
+				3A90295E280968E700E1D427 /* PlaybackReport.swift */,
 			);
 			path = models;
 			sourceTree = "<group>";
@@ -296,10 +296,10 @@
 			files = (
 				3AD4FCE728043E72006DB301 /* AbsDatabase.m in Sources */,
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
+				3A90295F280968E700E1D427 /* PlaybackReport.swift in Sources */,
 				3ABF580928059BAE005DFBE5 /* PlaybackSession.swift in Sources */,
 				3ABF618F2804325C0070250E /* PlayerHandler.swift in Sources */,
 				3AD4FCED28044E6C006DB301 /* Store.swift in Sources */,
-				3ABF580B2805A837005DFBE5 /* PlaybackReport.swift in Sources */,
 				3AF1970E2806E3CA0096F747 /* AbsAudioPlayer.swift in Sources */,
 				3AD4FCE928043FD7006DB301 /* ServerConnectionConfig.swift in Sources */,
 				3A200C1527D64D7E00CBF02E /* AudioPlayer.swift in Sources */,

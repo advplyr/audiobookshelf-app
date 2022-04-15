@@ -10,6 +10,9 @@ import Foundation
 class PlayerHandler {
     private static var player: AudioPlayer?
     private static var session: PlaybackSession?
+    private static var timer: Timer?
+    
+    private static var listningTimePassedSinceLastSync = 0.0
     
     public static func startPlayback(session: PlaybackSession, playWhenReady: Bool) {
         if player != nil {
@@ -18,12 +21,22 @@ class PlayerHandler {
         }
         
         NowPlayingInfo.setSessionMetadata(metadata: NowPlayingMetadata(id: session.id, itemId: session.libraryItemId!, artworkUrl: session.coverPath, title: session.displayTitle ?? "Unknown title", author: session.displayAuthor, series: nil))
+        
         self.session = session
         player = AudioPlayer(playbackSession: session, playWhenReady: playWhenReady)
+        
+        // DispatchQueue.main.sync {
+            timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+                self.tick()
+            }
+        // }
     }
     public static func stopPlayback() {
         player?.destroy()
         player = nil
+        
+        timer?.invalidate()
+        timer = nil
         
         NowPlayingInfo.reset()
     }
@@ -74,11 +87,39 @@ class PlayerHandler {
     }
     
     public static func getMetdata() -> [String: Any] {
+        DispatchQueue.main.async {
+            syncProgress()
+        }
+        
         return [
             "duration": player?.getDuration() ?? 0,
             "currentTime": player?.getCurrentTime() ?? 0,
             "playerState": !paused(),
             "currentRate": player?.rate ?? 0,
         ]
+    }
+    
+    private static func tick() {
+        if !paused() {
+            listningTimePassedSinceLastSync += 1
+        }
+        
+        if listningTimePassedSinceLastSync > 3 {
+            syncProgress()
+        }
+    }
+    public static func syncProgress() {
+        if player == nil || session == nil {
+            return
+        }
+        
+        let report = PlaybackReport(currentTime: player!.getCurrentTime(), duration: player!.getDuration(), timeListened: listningTimePassedSinceLastSync)
+        
+        session!.currentTime = player!.getCurrentTime()
+        listningTimePassedSinceLastSync = 0
+        
+        // TODO: check if online
+        NSLog("sending playback report")
+        ApiClient.reportPlaybackProgress(report: report, sessionId: session!.id)
     }
 }

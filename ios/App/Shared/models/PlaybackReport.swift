@@ -2,12 +2,13 @@
 //  PlaybackReport.swift
 //  App
 //
-//  Created by Rasmus Krämer on 12.04.22.
+//  Created by Rasmus Krämer on 15.04.22.
 //
 
 import Foundation
-import RealmSwift
 
-class PlaybackReport: Object {
-    @Persisted var token: String
+struct PlaybackReport: Decodable, Encodable {
+    var currentTime: Double
+    var duration: Double
+    var timeListened: Double
 }
