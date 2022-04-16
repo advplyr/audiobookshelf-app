@@ -253,13 +253,15 @@ class AudioPlayer: NSObject {
                 if playerStatus == .readyToPlay {
                     self.updateNowPlaying()
                     
+                    let firstReady = self.status < 0
                     self.status = 0
                     if self.playWhenReady {
+                        seek(playbackSession.currentTime)
                         self.playWhenReady = false
                         self.play()
+                    } else if (firstReady) { // Only seek on first readyToPlay
+                        seek(playbackSession.currentTime)
                     }
-                    
-                    seek(playbackSession.currentTime)
                 }
             }
         } else if context == &playerContext {
