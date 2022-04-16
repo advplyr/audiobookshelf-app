@@ -58,7 +58,7 @@
       <p class="text-sm">{{ description }}</p>
     </div>
 
-    <tables-podcast-episodes-table v-if="isPodcast" :library-item-id="libraryItemId" :episodes="episodes" />
+    <tables-podcast-episodes-table v-if="isPodcast" :library-item-id="libraryItemId" :local-library-item-id="localLibraryItemId" :episodes="episodes" :local-episodes="localLibraryItemEpisodes" :is-local="isLocal" />
 
     <modals-select-local-folder-modal v-model="showSelectLocalFolder" :media-type="mediaType" @select="selectedLocalFolder" />
   </div>
@@ -119,6 +119,14 @@ export default {
     localLibraryItem() {
       if (this.isLocal) return this.libraryItem
       return this.libraryItem.localLibraryItem || null
+    },
+    localLibraryItemId() {
+      return this.localLibraryItem ? this.localLibraryItem.id : null
+    },
+    localLibraryItemEpisodes() {
+      if (!this.isPodcast || !this.localLibraryItem) return []
+      var podcastMedia = this.localLibraryItem.media
+      return podcastMedia ? podcastMedia.episodes || [] : []
     },
     isConnected() {
       return this.$store.state.socketConnected

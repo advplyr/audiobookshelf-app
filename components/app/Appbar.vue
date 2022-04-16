@@ -17,7 +17,7 @@
 
       <widgets-download-progress-indicator />
 
-      <nuxt-link class="h-7 mx-2" to="/search">
+      <nuxt-link v-if="user" class="h-7 mx-2" to="/search">
         <span class="material-icons" style="font-size: 1.75rem">search</span>
       </nuxt-link>
 

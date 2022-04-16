@@ -11,6 +11,7 @@ import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.device.FolderScanner
 import com.audiobookshelf.app.server.ApiHandler
 import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.core.json.JsonReadFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
@@ -28,6 +29,7 @@ import java.util.*
 @CapacitorPlugin(name = "AbsDownloader")
 class AbsDownloader : Plugin() {
   private val tag = "AbsDownloader"
+  var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
 
   lateinit var mainActivity: MainActivity
   lateinit var downloadManager: DownloadManager
@@ -294,7 +296,7 @@ class AbsDownloader : Plugin() {
           DeviceManager.dbManager.saveDownloadItem(downloadItem)
         }
 
-        notifyListeners("onItemDownloadUpdate", JSObject(jacksonObjectMapper().writeValueAsString(downloadItem)))
+        notifyListeners("onItemDownloadUpdate", JSObject(jacksonMapper.writeValueAsString(downloadItem)))
         delay(500)
       }
 
@@ -308,7 +310,7 @@ class AbsDownloader : Plugin() {
       jsobj.put("libraryItemId", downloadItem.id)
       jsobj.put("localFolderId", downloadItem.localFolder.id)
       if (localLibraryItem != null) {
-        jsobj.put("localLibraryItem", JSObject(jacksonObjectMapper().writeValueAsString(localLibraryItem)))
+        jsobj.put("localLibraryItem", JSObject(jacksonMapper.writeValueAsString(localLibraryItem)))
       }
       notifyListeners("onItemDownloadComplete", jsobj)
     }

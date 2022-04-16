@@ -74,6 +74,15 @@ export const mutations = {
     if (!state.user) return
     state.user.mediaProgress = state.user.mediaProgress.filter(mp => mp.id != id)
   },
+  updateUserMediaProgress(state, data) {
+    if (!data || !state.user) return
+    var mediaProgressIndex = state.user.mediaProgress.findIndex(mp => mp.id === data.id)
+    if (mediaProgressIndex >= 0) {
+      state.user.mediaProgress.splice(mediaProgressIndex, 1, data)
+    } else {
+      state.user.mediaProgress.push(data)
+    }
+  },
   setServerConnectionConfig(state, serverConnectionConfig) {
     state.serverConnectionConfig = serverConnectionConfig
   },

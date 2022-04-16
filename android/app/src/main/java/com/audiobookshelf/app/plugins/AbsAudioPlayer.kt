@@ -6,9 +6,7 @@ import android.os.Looper
 import android.util.Log
 import androidx.core.content.ContextCompat
 import com.audiobookshelf.app.MainActivity
-import com.audiobookshelf.app.data.LocalMediaProgress
-import com.audiobookshelf.app.data.PlaybackMetadata
-import com.audiobookshelf.app.data.PlaybackSession
+import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.player.CastManager
 import com.audiobookshelf.app.player.PlayerNotificationService
@@ -22,6 +20,7 @@ import org.json.JSONObject
 @CapacitorPlugin(name = "AbsAudioPlayer")
 class AbsAudioPlayer : Plugin() {
   private val tag = "AbsAudioPlayer"
+  var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
 
   lateinit var mainActivity: MainActivity
   lateinit var apiHandler:ApiHandler
@@ -36,7 +35,7 @@ class AbsAudioPlayer : Plugin() {
 
       playerNotificationService.clientEventEmitter = (object : PlayerNotificationService.ClientEventEmitter {
         override fun onPlaybackSession(playbackSession: PlaybackSession) {
-          notifyListeners("onPlaybackSession", JSObject(jacksonObjectMapper().writeValueAsString(playbackSession)))
+          notifyListeners("onPlaybackSession", JSObject(jacksonMapper.writeValueAsString(playbackSession)))
         }
 
         override fun onPlaybackClosed() {
@@ -48,7 +47,7 @@ class AbsAudioPlayer : Plugin() {
         }
 
         override fun onMetadata(metadata: PlaybackMetadata) {
-          notifyListeners("onMetadata", JSObject(jacksonObjectMapper().writeValueAsString(metadata)))
+          notifyListeners("onMetadata", JSObject(jacksonMapper.writeValueAsString(metadata)))
         }
 
         override fun onPrepare(audiobookId: String, playWhenReady: Boolean) {
@@ -67,7 +66,7 @@ class AbsAudioPlayer : Plugin() {
         }
 
         override fun onLocalMediaProgressUpdate(localMediaProgress: LocalMediaProgress) {
-          notifyListeners("onLocalMediaProgressUpdate", JSObject(jacksonObjectMapper().writeValueAsString(localMediaProgress)))
+          notifyListeners("onLocalMediaProgressUpdate", JSObject(jacksonMapper.writeValueAsString(localMediaProgress)))
         }
       })
     }
@@ -101,9 +100,19 @@ class AbsAudioPlayer : Plugin() {
 
     if (libraryItemId.startsWith("local")) { // Play local media item
       DeviceManager.dbManager.getLocalLibraryItem(libraryItemId)?.let {
+        var episode: PodcastEpisode? = null
+        if (!episodeId.isNullOrEmpty()) {
+          var podcastMedia = it.media as Podcast
+          episode = podcastMedia.episodes?.find { ep -> ep.id == episodeId }
+          if (episode == null) {
+            Log.e(tag, "prepareLibraryItem: Podcast episode not found $episodeId")
+            return call.resolve(JSObject())
+          }
+        }
+
         Handler(Looper.getMainLooper()).post() {
-          Log.d(tag, "Preparing Local Media item ${jacksonObjectMapper().writeValueAsString(it)}")
-          var playbackSession = it.getPlaybackSession(episodeId)
+          Log.d(tag, "prepareLibraryItem: Preparing Local Media item ${jacksonMapper.writeValueAsString(it)}")
+          var playbackSession = it.getPlaybackSession(episode)
           playerNotificationService.preparePlayer(playbackSession, playWhenReady)
         }
         return call.resolve(JSObject())
@@ -112,11 +121,11 @@ class AbsAudioPlayer : Plugin() {
       apiHandler.playLibraryItem(libraryItemId, episodeId, false) {
 
         Handler(Looper.getMainLooper()).post() {
-          Log.d(tag, "Preparing Player TEST ${jacksonObjectMapper().writeValueAsString(it)}")
+          Log.d(tag, "Preparing Player TEST ${jacksonMapper.writeValueAsString(it)}")
           playerNotificationService.preparePlayer(it, playWhenReady)
         }
 
-        call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(it)))
+        call.resolve(JSObject(jacksonMapper.writeValueAsString(it)))
       }
     }
   }

@@ -4,6 +4,7 @@ import android.util.Log
 import com.audiobookshelf.app.plugins.AbsDownloader
 import io.paperdb.Paper
 import org.json.JSONObject
+import java.io.File
 
 class DbManager {
   val tag = "DbManager"
@@ -128,6 +129,92 @@ class DbManager {
   }
   fun removeLocalMediaProgress(localMediaProgressId:String) {
     Paper.book("localMediaProgress").delete(localMediaProgressId)
+  }
+
+  fun removeAllLocalMediaProgress() {
+    Paper.book("localMediaProgress").destroy()
+  }
+
+  // Make sure all local file ids still exist
+  fun cleanLocalLibraryItems() {
+    var localLibraryItems = getLocalLibraryItems()
+
+    localLibraryItems.forEach { lli ->
+      var hasUpates = false
+
+      // Check local files
+      lli.localFiles = lli.localFiles.filter { localFile ->
+        var file = File(localFile.absolutePath)
+        if (!file.exists()) {
+          Log.d(tag, "cleanLocalLibraryItems: Local file ${localFile.absolutePath} was removed from library item ${lli.media.metadata.title}")
+          hasUpates = true
+        }
+        file.exists()
+      } as MutableList<LocalFile>
+
+      // Check audio tracks and episodes
+      if (lli.isPodcast) {
+        var podcast = lli.media as Podcast
+        podcast.episodes = podcast.episodes?.filter { ep ->
+          if (lli.localFiles.find { lf -> lf.id == ep.audioTrack?.localFileId } == null) {
+            Log.d(tag, "cleanLocalLibraryItems: Podcast episode ${ep.title} was removed from library item ${lli.media.metadata.title}")
+            hasUpates = true
+          }
+          ep.audioTrack != null && lli.localFiles.find { lf -> lf.id == ep.audioTrack?.localFileId } != null
+        } as MutableList<PodcastEpisode>
+      } else {
+        var book = lli.media as Book
+        book.tracks = book.tracks?.filter { track ->
+          if (lli.localFiles.find { lf -> lf.id == track.localFileId } == null) {
+            Log.d(tag, "cleanLocalLibraryItems: Audio track ${track.title} was removed from library item ${lli.media.metadata.title}")
+            hasUpates = true
+          }
+          lli.localFiles.find { lf -> lf.id == track.localFileId } != null
+        } as MutableList<AudioTrack>
+      }
+
+      // Check cover still there
+      lli.coverAbsolutePath?.let {
+        var coverFile = File(it)
+
+        if (!coverFile.exists()) {
+          Log.d(tag, "cleanLocalLibraryItems: Cover $it was removed from library item ${lli.media.metadata.title}")
+          lli.coverAbsolutePath = null
+          lli.coverContentUrl = null
+          hasUpates = true
+        }
+      }
+
+      if (hasUpates) {
+        Log.d(tag, "cleanLocalLibraryItems: Saving local library item ${lli.id}")
+        Paper.book("localLibraryItems").write(lli.id, lli)
+      }
+    }
+  }
+
+  // Remove any local media progress where the local media item is not found
+  fun cleanLocalMediaProgress() {
+    var localMediaProgress = getAllLocalMediaProgress()
+    var localLibraryItems = getLocalLibraryItems()
+    localMediaProgress.forEach {
+      var matchingLLI = localLibraryItems.find { lli -> lli.id == it.localLibraryItemId }
+      if (matchingLLI == null) {
+        Log.d(tag, "cleanLocalMediaProgress: No matching local library item for local media progress ${it.id} - removing")
+        Paper.book("localMediaProgress").delete(it.id)
+      } else if (matchingLLI.isPodcast) {
+        if (it.localEpisodeId.isNullOrEmpty()) {
+          Log.d(tag, "cleanLocalMediaProgress: Podcast media progress has no episode id - removing")
+          Paper.book("localMediaProgress").delete(it.id)
+        } else {
+          var podcast = matchingLLI.media as Podcast
+          var matchingLEp = podcast.episodes?.find { ep -> ep.id == it.localEpisodeId }
+          if (matchingLEp == null) {
+            Log.d(tag, "cleanLocalMediaProgress: Podcast media progress for episode ${it.localEpisodeId} not found - removing")
+            Paper.book("localMediaProgress").delete(it.id)
+          }
+        }
+      }
+    }
   }
 
   fun saveLocalPlaybackSession(playbackSession:PlaybackSession) {
