@@ -13,8 +13,6 @@
 export default {
   data() {
     return {
-      ebookType: null,
-      ebookUrl: null,
       touchstartX: 0,
       touchendX: 0
     }
@@ -23,7 +21,6 @@ export default {
     show: {
       handler(newVal) {
         if (newVal) {
-          this.init()
           this.registerListeners()
         } else {
           this.unregisterListeners()
@@ -41,10 +38,16 @@ export default {
       }
     },
     title() {
-      return this.selectedBook ? this.selectedBook.book.title : null
+      return this.mediaMetadata.title || 'No Title'
     },
-    selectedBook() {
-      return this.$store.state.selectedBook
+    selectedLibraryItem() {
+      return this.$store.state.selectedLibraryItem
+    },
+    media() {
+      return this.selectedLibraryItem ? this.selectedLibraryItem.media : null
+    },
+    mediaMetadata() {
+      return this.media ? this.media.metadata || {} : {}
     },
     readerComponentName() {
       if (this.ebookType === 'epub') return 'readers-epub-reader'
@@ -52,40 +55,52 @@ export default {
       else if (this.ebookType === 'comic') return 'readers-comic-reader'
       return null
     },
-    ebook() {
-      if (!this.selectedBook || !this.selectedBook.ebooks || !this.selectedBook.ebooks.length) return null
-      return this.selectedBook.ebooks[0]
-    },
-    ebookPath() {
-      return this.ebook ? this.ebook.path : null
-    },
     folderId() {
-      return this.selectedBook ? this.selectedBook.folderId : null
+      return this.selectedLibraryItem ? this.selectedLibraryItem.folderId : null
     },
     libraryId() {
-      return this.selectedBook ? this.selectedBook.libraryId : null
+      return this.selectedLibraryItem ? this.selectedLibraryItem.libraryId : null
     },
-    ebookRelPath() {
-      return `/ebook/${this.libraryId}/${this.folderId}/${this.ebookPath}`
+    ebookFile() {
+      return this.media ? this.media.ebookFile : null
+    },
+    ebookFormat() {
+      if (!this.ebookFile) return null
+      return this.ebookFile.ebookFormat
+    },
+    ebookType() {
+      if (this.isMobi) return 'mobi'
+      else if (this.isEpub) return 'epub'
+      else if (this.isPdf) return 'pdf'
+      else if (this.isComic) return 'comic'
+      return null
+    },
+    isEpub() {
+      return this.ebookFormat == 'epub'
+    },
+    isMobi() {
+      return this.ebookFormat == 'mobi' || this.ebookFormat == 'azw3'
+    },
+    isPdf() {
+      return this.ebookFormat == 'pdf'
+    },
+    isComic() {
+      return this.ebookFormat == 'cbz' || this.ebookFormat == 'cbr'
+    },
+    ebookUrl() {
+      if (!this.ebookFile) return null
+
+      var itemRelPath = this.selectedLibraryItem.relPath
+      if (itemRelPath.startsWith('/')) itemRelPath = itemRelPath.slice(1)
+
+      var relPath = this.ebookFile.metadata.relPath
+      if (relPath.startsWith('/')) relPath = relPath.slice(1)
+
+      var serverAddress = this.$store.getters['user/getServerAddress']
+      return `${serverAddress}/ebook/${this.libraryId}/${this.folderId}/${itemRelPath}/${relPath}`
     }
   },
   methods: {
-    init() {
-      if (!this.ebook) {
-        console.error('No ebook for book', this.selectedBook)
-        return
-      }
-      if (this.ebook.ext === '.epub') {
-        this.ebookType = 'epub'
-      } else if (this.ebook.ext === '.mobi' || this.ebook.ext === '.azw3') {
-        this.ebookType = 'mobi'
-      } else if (this.ebook.ext === '.cbr' || this.ebook.ext === '.cbz') {
-        this.ebookType = 'comic'
-      }
-
-      var serverUrl = this.$store.state.serverUrl
-      this.ebookUrl = `${serverUrl}${this.ebookRelPath}`
-    },
     next() {
       if (this.$refs.readerComponent && this.$refs.readerComponent.next) {
         this.$refs.readerComponent.next()

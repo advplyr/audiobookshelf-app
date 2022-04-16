@@ -215,7 +215,7 @@ export default {
       return !this.isMissing && !this.isIncomplete && this.numTracks
     },
     showRead() {
-      return this.ebookFile && this.ebookFormat !== '.pdf'
+      return this.ebookFile && this.ebookFormat !== 'pdf'
     },
     ebookFile() {
       return this.media.ebookFile

@@ -141,7 +141,7 @@ export default {
       return this.bookCoverAspectRatio === 1
     },
     sizeMultiplier() {
-      return this.width / 364
+      return Math.min(1, this.width / 364)
     },
     title() {
       return this.mediaMetadata.title || ''

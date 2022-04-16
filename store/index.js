@@ -11,7 +11,7 @@ export const state = () => ({
   networkConnectionType: null,
   isFirstLoad: true,
   hasStoragePermission: false,
-  selectedBook: null,
+  selectedLibraryItem: null,
   showReader: false,
   showSideDrawer: false,
   isNetworkListenerInit: false,
@@ -91,8 +91,8 @@ export const mutations = {
     state.networkConnected = val.connected
     state.networkConnectionType = val.connectionType
   },
-  openReader(state, audiobook) {
-    state.selectedBook = audiobook
+  openReader(state, libraryItem) {
+    state.selectedLibraryItem = libraryItem
     state.showReader = true
   },
   setShowReader(state, val) {
