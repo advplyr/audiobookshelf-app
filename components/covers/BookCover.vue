@@ -120,7 +120,7 @@ export default {
       return this.media.coverPath || this.placeholderUrl
     },
     hasCover() {
-      return !!this.media.coverPath || this.localCover
+      return !!this.media.coverPath || this.localCover || this.downloadCover
     },
     sizeMultiplier() {
       var baseSize = this.squareAspectRatio ? 192 : 120

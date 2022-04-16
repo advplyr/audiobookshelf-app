@@ -71,6 +71,8 @@ open class MediaType(var metadata:MediaTypeMetadata, var coverPath:String?) {
   open fun addAudioTrack(audioTrack:AudioTrack) { }
   @JsonIgnore
   open fun removeAudioTrack(localFileId:String) { }
+  @JsonIgnore
+  open fun getLocalCopy():MediaType { return MediaType(MediaTypeMetadata(""),null) }
 }
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -92,10 +94,11 @@ class Podcast(
     episodes = episodes?.filter { ep ->
       audioTracks.find { it.localFileId == ep.audioTrack?.localFileId } != null
     } as MutableList<PodcastEpisode>
+
     // Add new episodes
     audioTracks.forEach { at ->
       if (episodes?.find{ it.audioTrack?.localFileId == at.localFileId } == null) {
-        var newEpisode = PodcastEpisode("local_" + at.localFileId,episodes?.size ?: 0 + 1,null,null,at.title,null,null,null,at)
+        var newEpisode = PodcastEpisode("local_" + at.localFileId,episodes?.size ?: 0 + 1,null,null,at.title,null,null,null,at,at.duration,0, null)
         episodes?.add(newEpisode)
       }
     }
@@ -108,7 +111,7 @@ class Podcast(
   }
   @JsonIgnore
   override fun addAudioTrack(audioTrack:AudioTrack) {
-    var newEpisode = PodcastEpisode("local_" + audioTrack.localFileId,episodes?.size ?: 0 + 1,null,null,audioTrack.title,null,null,null,audioTrack)
+    var newEpisode = PodcastEpisode("local_" + audioTrack.localFileId,episodes?.size ?: 0 + 1,null,null,audioTrack.title,null,null,null,audioTrack,audioTrack.duration,0, null)
     episodes?.add(newEpisode)
 
     var index = 1
@@ -129,7 +132,7 @@ class Podcast(
   }
   @JsonIgnore
   fun addEpisode(audioTrack:AudioTrack, episode:PodcastEpisode) {
-    var newEpisode = PodcastEpisode("local_" + episode.id,episodes?.size ?: 0 + 1,episode.episode,episode.episodeType,episode.title,episode.subtitle,episode.description,null,audioTrack)
+    var newEpisode = PodcastEpisode("local_" + episode.id,episodes?.size ?: 0 + 1,episode.episode,episode.episodeType,episode.title,episode.subtitle,episode.description,null,audioTrack,audioTrack.duration,0, episode.id)
     episodes?.add(newEpisode)
 
     var index = 1
@@ -137,6 +140,12 @@ class Podcast(
       it.index = index
       index++
     }
+  }
+
+  // Used for FolderScanner local podcast item to get copy of Podcast excluding episodes
+  @JsonIgnore
+  override fun getLocalCopy(): Podcast {
+    return Podcast(metadata as PodcastMetadata,coverPath,tags, mutableListOf(),autoDownloadEpisodes)
   }
 }
 
@@ -158,7 +167,7 @@ class Book(
   @JsonIgnore
   override fun setAudioTracks(audioTracks:MutableList<AudioTrack>) {
     tracks = audioTracks
-
+    tracks?.sortBy { it.index }
     // TODO: Is it necessary to calculate this each time? check if can remove safely
     var totalDuration = 0.0
     tracks?.forEach {
@@ -194,6 +203,11 @@ class Book(
       startOffset += it.duration
     }
     duration = totalDuration
+  }
+
+  @JsonIgnore
+  override fun getLocalCopy(): Book {
+    return Book(metadata as BookMetadata,coverPath,tags, mutableListOf(),chapters,mutableListOf(),null,null)
   }
 }
 
@@ -261,7 +275,10 @@ data class PodcastEpisode(
   var subtitle:String?,
   var description:String?,
   var audioFile:AudioFile?,
-  var audioTrack:AudioTrack?
+  var audioTrack:AudioTrack?,
+  var duration:Double?,
+  var size:Long?,
+  var serverEpisodeId:String? // For local podcasts to match with server podcasts
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -275,7 +292,8 @@ data class FileMetadata(
   var filename:String,
   var ext:String,
   var path:String,
-  var relPath:String
+  var relPath:String,
+  var size:Long?
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)

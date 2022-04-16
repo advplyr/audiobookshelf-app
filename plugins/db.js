@@ -98,6 +98,11 @@ class DbService {
   updateLocalTrackOrder(payload) {
     return AbsDatabase.updateLocalTrackOrder(payload)
   }
+
+  // input: { localMediaProgressId:String, isFinished:Boolean }
+  updateLocalMediaProgressFinished(payload) {
+    return AbsDatabase.updateLocalMediaProgressFinished(payload)
+  }
 }
 
 export default ({ app, store }, inject) => {

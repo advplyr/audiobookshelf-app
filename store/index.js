@@ -57,9 +57,17 @@ export const actions = {
 
 export const mutations = {
   setPlayerItem(state, playbackSession) {
-    state.playerLibraryItemId = playbackSession ? playbackSession.libraryItemId || null : null
-    state.playerEpisodeId = playbackSession ? playbackSession.episodeId || null : null
     state.playerIsLocal = playbackSession ? playbackSession.playMethod == this.$constants.PlayMethod.LOCAL : false
+
+    if (state.playerIsLocal) {
+      state.playerLibraryItemId = playbackSession ? playbackSession.localLibraryItem.id || null : null
+      state.playerEpisodeId = playbackSession ? playbackSession.localEpisodeId || null : null
+    } else {
+      state.playerLibraryItemId = playbackSession ? playbackSession.libraryItemId || null : null
+      state.playerEpisodeId = playbackSession ? playbackSession.episodeId || null : null
+    }
+
+    console.log('setPlayerItem', state.playerLibraryItemId, state.playerEpisodeId, state.playerIsLocal)
   },
   setPlayerPlaying(state, val) {
     state.playerIsPlaying = val
