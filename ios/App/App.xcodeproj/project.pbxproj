@@ -9,10 +9,20 @@
 /* Begin PBXBuildFile section */
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
 		3A200C1527D64D7E00CBF02E /* AudioPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A200C1427D64D7E00CBF02E /* AudioPlayer.swift */; };
-		3A200C1727D64E0D00CBF02E /* Audiobook.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A200C1627D64E0D00CBF02E /* Audiobook.swift */; };
+		3A90295F280968E700E1D427 /* PlaybackReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A90295E280968E700E1D427 /* PlaybackReport.swift */; };
+		3AB34053280829BF0039308B /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AB34052280829BF0039308B /* Extensions.swift */; };
+		3AB34055280832720039308B /* PlayerEvents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AB34054280832720039308B /* PlayerEvents.swift */; };
+		3ABF580928059BAE005DFBE5 /* PlaybackSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3ABF580828059BAE005DFBE5 /* PlaybackSession.swift */; };
+		3ABF618F2804325C0070250E /* PlayerHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3ABF618E2804325C0070250E /* PlayerHandler.swift */; };
+		3AD4FCE528043E50006DB301 /* AbsDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AD4FCE428043E50006DB301 /* AbsDatabase.swift */; };
+		3AD4FCE728043E72006DB301 /* AbsDatabase.m in Sources */ = {isa = PBXBuildFile; fileRef = 3AD4FCE628043E72006DB301 /* AbsDatabase.m */; };
+		3AD4FCE928043FD7006DB301 /* ServerConnectionConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AD4FCE828043FD7006DB301 /* ServerConnectionConfig.swift */; };
+		3AD4FCEB280443DD006DB301 /* Database.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AD4FCEA280443DD006DB301 /* Database.swift */; };
+		3AD4FCED28044E6C006DB301 /* Store.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AD4FCEC28044E6C006DB301 /* Store.swift */; };
+		3AF1970C2806E2590096F747 /* ApiClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AF1970B2806E2590096F747 /* ApiClient.swift */; };
+		3AF1970E2806E3CA0096F747 /* AbsAudioPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AF1970D2806E3CA0096F747 /* AbsAudioPlayer.swift */; };
+		3AF197102806E3DC0096F747 /* AbsAudioPlayer.m in Sources */ = {isa = PBXBuildFile; fileRef = 3AF1970F2806E3DC0096F747 /* AbsAudioPlayer.m */; };
 		3AFCB5E827EA240D00ECCC05 /* NowPlayingInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AFCB5E727EA240D00ECCC05 /* NowPlayingInfo.swift */; };
-		4D8D410C26E17C3A00BA5F0D /* MyNativeAudio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D8D410B26E17C3A00BA5F0D /* MyNativeAudio.swift */; };
-		4D8D412E26E187E500BA5F0D /* MyNativeAudio.m in Sources */ = {isa = PBXBuildFile; fileRef = 4D8D412D26E187E500BA5F0D /* MyNativeAudio.m */; };
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
 		504EC3081FED79650016851F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504EC3071FED79650016851F /* AppDelegate.swift */; };
 		504EC30D1FED79650016851F /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30B1FED79650016851F /* Main.storyboard */; };
@@ -25,11 +35,21 @@
 /* Begin PBXFileReference section */
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
 		3A200C1427D64D7E00CBF02E /* AudioPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayer.swift; sourceTree = "<group>"; };
-		3A200C1627D64E0D00CBF02E /* Audiobook.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Audiobook.swift; sourceTree = "<group>"; };
+		3A90295E280968E700E1D427 /* PlaybackReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackReport.swift; sourceTree = "<group>"; };
+		3AB34052280829BF0039308B /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
+		3AB34054280832720039308B /* PlayerEvents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerEvents.swift; sourceTree = "<group>"; };
+		3ABF580828059BAE005DFBE5 /* PlaybackSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackSession.swift; sourceTree = "<group>"; };
+		3ABF618E2804325C0070250E /* PlayerHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerHandler.swift; sourceTree = "<group>"; };
+		3AD4FCE428043E50006DB301 /* AbsDatabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AbsDatabase.swift; sourceTree = "<group>"; };
+		3AD4FCE628043E72006DB301 /* AbsDatabase.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AbsDatabase.m; sourceTree = "<group>"; };
+		3AD4FCE828043FD7006DB301 /* ServerConnectionConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerConnectionConfig.swift; sourceTree = "<group>"; };
+		3AD4FCEA280443DD006DB301 /* Database.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Database.swift; sourceTree = "<group>"; };
+		3AD4FCEC28044E6C006DB301 /* Store.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Store.swift; sourceTree = "<group>"; };
+		3AF1970B2806E2590096F747 /* ApiClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApiClient.swift; sourceTree = "<group>"; };
+		3AF1970D2806E3CA0096F747 /* AbsAudioPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AbsAudioPlayer.swift; sourceTree = "<group>"; };
+		3AF1970F2806E3DC0096F747 /* AbsAudioPlayer.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AbsAudioPlayer.m; sourceTree = "<group>"; };
 		3AFCB5E727EA240D00ECCC05 /* NowPlayingInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingInfo.swift; sourceTree = "<group>"; };
-		4D8D410B26E17C3A00BA5F0D /* MyNativeAudio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyNativeAudio.swift; sourceTree = "<group>"; };
 		4D8D412C26E187E400BA5F0D /* App-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "App-Bridging-Header.h"; sourceTree = "<group>"; };
-		4D8D412D26E187E500BA5F0D /* MyNativeAudio.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MyNativeAudio.m; sourceTree = "<group>"; };
 		50379B222058CBB4000EE86E /* capacitor.config.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = capacitor.config.json; sourceTree = "<group>"; };
 		504EC3041FED79650016851F /* App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = App.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		504EC3071FED79650016851F /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -63,20 +83,42 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		3AFCB5E427EA231D00ECCC05 /* audio */ = {
+		3ABF6190280432610070250E /* player */ = {
 			isa = PBXGroup;
 			children = (
 				3A200C1427D64D7E00CBF02E /* AudioPlayer.swift */,
-				4D8D410B26E17C3A00BA5F0D /* MyNativeAudio.swift */,
-				4D8D412D26E187E500BA5F0D /* MyNativeAudio.m */,
+				3ABF618E2804325C0070250E /* PlayerHandler.swift */,
 			);
-			path = audio;
+			path = player;
+			sourceTree = "<group>";
+		};
+		3AC8248B27F2316900529205 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				3AFCB5E527EA232A00ECCC05 /* models */,
+				3AFCB5E627EA23F700ECCC05 /* util */,
+				3ABF6190280432610070250E /* player */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		3AFCB5E427EA231D00ECCC05 /* plugins */ = {
+			isa = PBXGroup;
+			children = (
+				3AD4FCE428043E50006DB301 /* AbsDatabase.swift */,
+				3AD4FCE628043E72006DB301 /* AbsDatabase.m */,
+				3AF1970D2806E3CA0096F747 /* AbsAudioPlayer.swift */,
+				3AF1970F2806E3DC0096F747 /* AbsAudioPlayer.m */,
+			);
+			path = plugins;
 			sourceTree = "<group>";
 		};
 		3AFCB5E527EA232A00ECCC05 /* models */ = {
 			isa = PBXGroup;
 			children = (
-				3A200C1627D64E0D00CBF02E /* Audiobook.swift */,
+				3AD4FCE828043FD7006DB301 /* ServerConnectionConfig.swift */,
+				3ABF580828059BAE005DFBE5 /* PlaybackSession.swift */,
+				3A90295E280968E700E1D427 /* PlaybackReport.swift */,
 			);
 			path = models;
 			sourceTree = "<group>";
@@ -85,6 +127,11 @@
 			isa = PBXGroup;
 			children = (
 				3AFCB5E727EA240D00ECCC05 /* NowPlayingInfo.swift */,
+				3AD4FCEA280443DD006DB301 /* Database.swift */,
+				3AD4FCEC28044E6C006DB301 /* Store.swift */,
+				3AF1970B2806E2590096F747 /* ApiClient.swift */,
+				3AB34052280829BF0039308B /* Extensions.swift */,
+				3AB34054280832720039308B /* PlayerEvents.swift */,
 			);
 			path = util;
 			sourceTree = "<group>";
@@ -92,6 +139,7 @@
 		504EC2FB1FED79650016851F = {
 			isa = PBXGroup;
 			children = (
+				3AC8248B27F2316900529205 /* Shared */,
 				504EC3061FED79650016851F /* App */,
 				504EC3051FED79650016851F /* Products */,
 				7F8756D8B27F46E3366F6CEA /* Pods */,
@@ -110,9 +158,7 @@
 		504EC3061FED79650016851F /* App */ = {
 			isa = PBXGroup;
 			children = (
-				3AFCB5E627EA23F700ECCC05 /* util */,
-				3AFCB5E527EA232A00ECCC05 /* models */,
-				3AFCB5E427EA231D00ECCC05 /* audio */,
+				3AFCB5E427EA231D00ECCC05 /* plugins */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
@@ -163,8 +209,8 @@
 		504EC2FC1FED79650016851F /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastSwiftUpdateCheck = 0920;
-				LastUpgradeCheck = 0920;
+				LastSwiftUpdateCheck = 920;
+				LastUpgradeCheck = 1330;
 				TargetAttributes = {
 					504EC3031FED79650016851F = {
 						CreatedOnToolsVersion = 9.2;
@@ -248,12 +294,22 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				4D8D412E26E187E500BA5F0D /* MyNativeAudio.m in Sources */,
+				3AD4FCE728043E72006DB301 /* AbsDatabase.m in Sources */,
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
-				4D8D410C26E17C3A00BA5F0D /* MyNativeAudio.swift in Sources */,
-				3A200C1727D64E0D00CBF02E /* Audiobook.swift in Sources */,
+				3A90295F280968E700E1D427 /* PlaybackReport.swift in Sources */,
+				3ABF580928059BAE005DFBE5 /* PlaybackSession.swift in Sources */,
+				3ABF618F2804325C0070250E /* PlayerHandler.swift in Sources */,
+				3AD4FCED28044E6C006DB301 /* Store.swift in Sources */,
+				3AF1970E2806E3CA0096F747 /* AbsAudioPlayer.swift in Sources */,
+				3AD4FCE928043FD7006DB301 /* ServerConnectionConfig.swift in Sources */,
 				3A200C1527D64D7E00CBF02E /* AudioPlayer.swift in Sources */,
 				3AFCB5E827EA240D00ECCC05 /* NowPlayingInfo.swift in Sources */,
+				3AB34053280829BF0039308B /* Extensions.swift in Sources */,
+				3AD4FCEB280443DD006DB301 /* Database.swift in Sources */,
+				3AD4FCE528043E50006DB301 /* AbsDatabase.swift in Sources */,
+				3AF197102806E3DC0096F747 /* AbsAudioPlayer.m in Sources */,
+				3AF1970C2806E2590096F747 /* ApiClient.swift in Sources */,
+				3AB34055280832720039308B /* PlayerEvents.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -293,6 +349,7 @@
 				CLANG_WARN_BOOL_CONVERSION = YES;
 				CLANG_WARN_COMMA = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
 				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_EMPTY_BODY = YES;
@@ -300,8 +357,10 @@
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
 				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
 				CLANG_WARN_STRICT_PROTOTYPES = YES;
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
@@ -350,6 +409,7 @@
 				CLANG_WARN_BOOL_CONVERSION = YES;
 				CLANG_WARN_COMMA = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
 				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_EMPTY_BODY = YES;
@@ -357,8 +417,10 @@
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
 				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
 				CLANG_WARN_STRICT_PROTOTYPES = YES;
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
@@ -390,11 +452,11 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = FC68EB0AF532CFC21C3344DD /* Pods-App.debug.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = Icons;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 3;
-				DEVELOPMENT_TEAM = 7UFJ7D8V6A;
+				DEVELOPMENT_TEAM = N8AA4S3S96;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
@@ -414,11 +476,11 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = AF51FD2D460BCFE21FA515B2 /* Pods-App.release.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = Icons;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 3;
-				DEVELOPMENT_TEAM = 7UFJ7D8V6A;
+				DEVELOPMENT_TEAM = N8AA4S3S96;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";

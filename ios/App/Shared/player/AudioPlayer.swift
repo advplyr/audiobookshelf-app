@@ -24,20 +24,30 @@ class AudioPlayer: NSObject {
     private var playWhenReady: Bool
     
     private var audioPlayer: AVPlayer
-    public var audiobook: Audiobook
+    private var playbackSession: PlaybackSession
+    private var activeAudioTrack: AudioTrack
     
-    init(audiobook: Audiobook, playWhenReady: Bool = false) {
+    // MARK: - Constructor
+    init(playbackSession: PlaybackSession, playWhenReady: Bool = false) {
         self.playWhenReady = playWhenReady
-        self.audiobook = audiobook
         self.audioPlayer = AVPlayer()
+        self.playbackSession = playbackSession
         self.status = -1
         self.rate = 0.0
+        
+        if playbackSession.audioTracks.count != 1 || playbackSession.audioTracks[0].mimeType != "application/vnd.apple.mpegurl" {
+            NSLog("The player only support HLS streams right now")
+            self.activeAudioTrack = AudioTrack(index: 0, startOffset: -1, duration: -1, title: "", contentUrl: "", mimeType: "")
+            
+            super.init()
+            return
+        }
+        self.activeAudioTrack = playbackSession.audioTracks[0]
         
         super.init()
         
         initAudioSession()
         setupRemoteTransportControls()
-        NowPlayingInfo.setAudiobook(audiobook: audiobook)
         
         // Listen to player events
         self.audioPlayer.addObserver(self, forKeyPath: #keyPath(AVPlayer.rate), options: .new, context: &playerContext)
@@ -47,14 +57,13 @@ class AudioPlayer: NSObject {
         playerItem.addObserver(self, forKeyPath: #keyPath(AVPlayerItem.status), options: .new, context: &playerItemContext)
         
         self.audioPlayer.replaceCurrentItem(with: playerItem)
-        seek(self.audiobook.startTime)
         
         NSLog("Audioplayer ready")
     }
     deinit {
         destroy()
     }
-    func destroy() {
+    public func destroy() {
         pause()
         audioPlayer.replaceCurrentItem(with: nil)
         
@@ -65,9 +74,11 @@ class AudioPlayer: NSObject {
             print(error)
         }
         
-        DispatchQueue.main.sync {
+        // DispatchQueue.main.sync {
             UIApplication.shared.endReceivingRemoteControlEvents()
-        }
+        // }
+        
+        NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.closed.rawValue), object: nil)
     }
     
     // MARK: - Methods
@@ -152,10 +163,11 @@ class AudioPlayer: NSObject {
     // MARK: - Private
     private func createAsset() -> AVAsset {
         let headers: [String: String] = [
-            "Authorization": "Bearer \(audiobook.token)"
+            "Authorization": "Bearer \(Store.serverConfig!.token)"
         ]
         
-        return AVURLAsset(url: URL(string: audiobook.playlistUrl)!, options: ["AVURLAssetHTTPHeaderFieldsKey": headers])
+        debugPrint(activeAudioTrack)
+        return AVURLAsset(url: URL(string: "\(Store.serverConfig!.address)\(activeAudioTrack.contentUrl)")!, options: ["AVURLAssetHTTPHeaderFieldsKey": headers])
     }
     private func initAudioSession() {
         do {
@@ -166,13 +178,12 @@ class AudioPlayer: NSObject {
             print(error)
         }
     }
-
     
     // MARK: - Now playing
-    func setupRemoteTransportControls() {
-        DispatchQueue.main.sync {
+    private func setupRemoteTransportControls() {
+        // DispatchQueue.main.sync {
             UIApplication.shared.beginReceivingRemoteControlEvents()
-        }
+        // }
         let commandCenter = MPRemoteCommandCenter.shared()
         
         commandCenter.playCommand.isEnabled = true
@@ -228,8 +239,8 @@ class AudioPlayer: NSObject {
             return .success
         }
     }
-    
-    func updateNowPlaying() {
+    private func updateNowPlaying() {
+        NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.update.rawValue), object: nil)
         NowPlayingInfo.update(duration: getDuration(), currentTime: getCurrentTime(), rate: rate)
     }
     
@@ -240,18 +251,20 @@ class AudioPlayer: NSObject {
                 guard let playerStatus = AVPlayerItem.Status(rawValue: (change?[.newKey] as? Int ?? -1)) else { return }
                 
                 if playerStatus == .readyToPlay {
-                    updateNowPlaying()
+                    self.updateNowPlaying()
                     
                     self.status = 0
                     if self.playWhenReady {
                         self.playWhenReady = false
                         self.play()
                     }
+                    
+                    seek(playbackSession.currentTime)
                 }
             }
         } else if context == &playerContext {
             if keyPath == #keyPath(AVPlayer.rate) {
-                setPlaybackRate(change?[.newKey] as? Float ?? 1.0, observed: true)
+                self.setPlaybackRate(change?[.newKey] as? Float ?? 1.0, observed: true)
             } else if keyPath == #keyPath(AVPlayer.currentItem) {
                 NSLog("WARNING: Item ended")
             }
@@ -260,4 +273,6 @@ class AudioPlayer: NSObject {
             return
         }
     }
+    
+    public static var instance: AudioPlayer?
 }
