@@ -535,6 +535,12 @@ export default {
         this.$refs.dropdownMenu.closeMenu()
       }
     },
+    closePlayback() {
+      this.$store.commit('setPlayerItem', null)
+      this.showFullscreen = false
+      this.isEnded = false
+      this.playbackSession = null
+    },
     //
     // Listeners from audio AbsAudioPlayer
     //
@@ -586,16 +592,20 @@ export default {
     },
     onPlaybackClosed() {
       console.log('Received onPlaybackClosed evt')
-      this.$store.commit('setPlayerItem', null)
-      this.showFullscreen = false
-      this.isEnded = false
-      this.playbackSession = null
+      this.closePlayback()
+    },
+    onPlaybackFailed(data) {
+      console.log('Received onPlaybackFailed evt')
+      var errorMessage = data.value || 'Unknown Error'
+      this.$toast.error(`Playback Failed: ${errorMessage}`)
+      this.closePlayback()
     },
     async init() {
       this.useChapterTrack = await this.$localStore.getUseChapterTrack()
 
       this.onPlaybackSessionListener = AbsAudioPlayer.addListener('onPlaybackSession', this.onPlaybackSession)
       this.onPlaybackClosedListener = AbsAudioPlayer.addListener('onPlaybackClosed', this.onPlaybackClosed)
+      this.onPlaybackFailedListener = AbsAudioPlayer.addListener('onPlaybackFailed', this.onPlaybackFailed)
       this.onPlayingUpdateListener = AbsAudioPlayer.addListener('onPlayingUpdate', this.onPlayingUpdate)
       this.onMetadataListener = AbsAudioPlayer.addListener('onMetadata', this.onMetadata)
     }
@@ -615,6 +625,7 @@ export default {
     if (this.onMetadataListener) this.onMetadataListener.remove()
     if (this.onPlaybackSessionListener) this.onPlaybackSessionListener.remove()
     if (this.onPlaybackClosedListener) this.onPlaybackClosedListener.remove()
+    if (this.onPlaybackFailedListener) this.onPlaybackFailedListener.remove()
     clearInterval(this.playInterval)
   }
 }

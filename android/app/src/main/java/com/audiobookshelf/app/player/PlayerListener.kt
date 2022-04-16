@@ -15,8 +15,9 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
   private var onSeekBack: Boolean = false
 
   override fun onPlayerError(error: PlaybackException) {
-    error.message?.let { Log.e(tag, it) }
-    error.localizedMessage?.let { Log.e(tag, it) }
+    var errorMessage = error.message ?: "Unknown Error"
+    Log.e(tag, "onPlayerError $errorMessage")
+    playerNotificationService.handlePlayerPlaybackError(errorMessage) // If was direct playing session, fallback to transcode
   }
 
   override fun onEvents(player: Player, events: Player.Events) {

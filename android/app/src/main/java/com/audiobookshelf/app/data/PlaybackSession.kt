@@ -48,6 +48,8 @@ class PlaybackSession(
   @get:JsonIgnore
   val isHLS get() = playMethod == PLAYMETHOD_TRANSCODE
   @get:JsonIgnore
+  val isDirectPlay get() = playMethod == PLAYMETHOD_DIRECTPLAY
+  @get:JsonIgnore
   val isLocal get() = playMethod == PLAYMETHOD_LOCAL
   @get:JsonIgnore
   val currentTimeMs get() = (currentTime * 1000L).toLong()

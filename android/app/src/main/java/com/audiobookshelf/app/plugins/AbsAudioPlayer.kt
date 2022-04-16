@@ -68,6 +68,10 @@ class AbsAudioPlayer : Plugin() {
         override fun onLocalMediaProgressUpdate(localMediaProgress: LocalMediaProgress) {
           notifyListeners("onLocalMediaProgressUpdate", JSObject(jacksonMapper.writeValueAsString(localMediaProgress)))
         }
+
+        override fun onPlaybackFailed(errorMessage: String) {
+          emit("onPlaybackFailed", errorMessage)
+        }
       })
     }
     mainActivity.pluginCallback = foregroundServiceReady
