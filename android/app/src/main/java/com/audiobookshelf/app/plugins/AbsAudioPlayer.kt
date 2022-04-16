@@ -24,8 +24,8 @@ class AbsAudioPlayer : Plugin() {
 
   lateinit var mainActivity: MainActivity
   lateinit var apiHandler:ApiHandler
-  lateinit var playerNotificationService: PlayerNotificationService
 
+  lateinit var playerNotificationService: PlayerNotificationService
   override fun load() {
     mainActivity = (activity as MainActivity)
     apiHandler = ApiHandler(mainActivity)
