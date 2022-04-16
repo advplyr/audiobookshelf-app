@@ -55,6 +55,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     fun onSleepTimerEnded(currentPosition: Long)
     fun onSleepTimerSet(sleepTimeRemaining: Int)
     fun onLocalMediaProgressUpdate(localMediaProgress: LocalMediaProgress)
+    fun onPlaybackFailed(errorMessage:String)
   }
 
   private val tag = "PlayerService"
@@ -289,7 +290,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     mediaSession.setMetadata(metadata)
     var mediaItems = playbackSession.getMediaItems()
     if (mPlayer == currentPlayer) {
-
       var mediaSource:MediaSource
 
       if (playbackSession.isLocal) {
@@ -331,6 +331,26 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     currentPlayer.playWhenReady = playWhenReady
     currentPlayer.setPlaybackSpeed(1f) // TODO: Playback speed should come from settings
     currentPlayer.prepare()
+  }
+
+  fun handlePlayerPlaybackError(errorMessage:String) {
+    // On error and was attempting to direct play - fallback to transcode
+    currentPlaybackSession?.let { playbackSession ->
+      if (playbackSession.isDirectPlay) {
+        Log.d(tag, "Fallback to transcode")
+
+        var libraryItemId = playbackSession.libraryItemId ?: "" // Must be true since direct play
+        var episodeId = playbackSession.episodeId
+        apiHandler.playLibraryItem(libraryItemId, episodeId, true) {
+          Handler(Looper.getMainLooper()).post() {
+            preparePlayer(it, true)
+          }
+        }
+      } else {
+        clientEventEmitter?.onPlaybackFailed(errorMessage)
+        closePlayback()
+      }
+    }
   }
 
   fun switchToPlayer(useCastPlayer: Boolean) {
