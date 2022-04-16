@@ -15,6 +15,7 @@ import com.audiobookshelf.app.data.LocalFolder
 import com.audiobookshelf.app.data.LocalLibraryItem
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.device.FolderScanner
+import com.fasterxml.jackson.core.json.JsonReadFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.getcapacitor.*
 import com.getcapacitor.annotation.CapacitorPlugin
@@ -26,6 +27,7 @@ import kotlinx.coroutines.launch
 class AbsFileSystem : Plugin() {
   private val TAG = "AbsFileSystem"
   private val tag = "AbsFileSystem"
+  var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
 
   lateinit var mainActivity: MainActivity
 
@@ -77,7 +79,7 @@ class AbsFileSystem : Plugin() {
         var localFolder = LocalFolder(folderId, folder.name ?: "", folder.uri.toString(),basePath,absolutePath, simplePath, storageType.toString(), mediaType)
 
         DeviceManager.dbManager.saveLocalFolder(localFolder)
-        call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(localFolder)))
+        call.resolve(JSObject(jacksonMapper.writeValueAsString(localFolder)))
       }
 
       override fun onStorageAccessDenied(requestCode: Int, folder: DocumentFile?, storageType: StorageType) {
@@ -148,8 +150,8 @@ class AbsFileSystem : Plugin() {
         Log.d(TAG, "NO Scan DATA")
         return call.resolve(JSObject())
       } else {
-        Log.d(TAG, "Scan DATA ${jacksonObjectMapper().writeValueAsString(folderScanResult)}")
-        return call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(folderScanResult)))
+        Log.d(TAG, "Scan DATA ${jacksonMapper.writeValueAsString(folderScanResult)}")
+        return call.resolve(JSObject(jacksonMapper.writeValueAsString(folderScanResult)))
       }
     } ?: call.resolve(JSObject())
   }
@@ -182,8 +184,8 @@ class AbsFileSystem : Plugin() {
           Log.d(TAG, "NO Scan DATA")
           call.resolve(JSObject())
         } else {
-          Log.d(TAG, "Scan DATA ${jacksonObjectMapper().writeValueAsString(scanResult)}")
-          call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(scanResult)))
+          Log.d(TAG, "Scan DATA ${jacksonMapper.writeValueAsString(scanResult)}")
+          call.resolve(JSObject(jacksonMapper.writeValueAsString(scanResult)))
         }
       } ?: call.resolve(JSObject())
     }
@@ -223,7 +225,7 @@ class AbsFileSystem : Plugin() {
       localLibraryItem?.media?.removeAudioTrack(trackLocalFileId)
       localLibraryItem?.removeLocalFile(trackLocalFileId)
       DeviceManager.dbManager.saveLocalLibraryItem(localLibraryItem)
-      call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(localLibraryItem)))
+      call.resolve(JSObject(jacksonMapper.writeValueAsString(localLibraryItem)))
     } else {
       call.resolve(JSObject("{\"success\":false}"))
     }

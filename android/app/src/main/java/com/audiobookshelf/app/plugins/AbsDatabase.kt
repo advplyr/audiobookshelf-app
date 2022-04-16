@@ -4,6 +4,7 @@ import android.util.Log
 import com.audiobookshelf.app.MainActivity
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.server.ApiHandler
+import com.fasterxml.jackson.core.json.JsonReadFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.getcapacitor.*
 import com.getcapacitor.annotation.CapacitorPlugin
@@ -15,6 +16,7 @@ import org.json.JSONObject
 @CapacitorPlugin(name = "AbsDatabase")
 class AbsDatabase : Plugin() {
   val tag = "AbsDatabase"
+  var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
 
   lateinit var mainActivity: MainActivity
   lateinit var apiHandler: ApiHandler
@@ -26,13 +28,16 @@ class AbsDatabase : Plugin() {
   override fun load() {
     mainActivity = (activity as MainActivity)
     apiHandler = ApiHandler(mainActivity)
+
+    DeviceManager.dbManager.cleanLocalMediaProgress()
+    DeviceManager.dbManager.cleanLocalLibraryItems()
   }
 
   @PluginMethod
   fun getDeviceData(call:PluginCall) {
     GlobalScope.launch(Dispatchers.IO) {
       var deviceData = DeviceManager.dbManager.getDeviceData()
-      call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(deviceData)))
+      call.resolve(JSObject(jacksonMapper.writeValueAsString(deviceData)))
     }
   }
 
@@ -40,7 +45,7 @@ class AbsDatabase : Plugin() {
   fun getLocalFolders(call:PluginCall) {
     GlobalScope.launch(Dispatchers.IO) {
       var folders = DeviceManager.dbManager.getAllLocalFolders()
-      call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(LocalFoldersPayload(folders))))
+      call.resolve(JSObject(jacksonMapper.writeValueAsString(LocalFoldersPayload(folders))))
     }
   }
 
@@ -49,7 +54,7 @@ class AbsDatabase : Plugin() {
     var folderId = call.getString("folderId", "").toString()
     GlobalScope.launch(Dispatchers.IO) {
       DeviceManager.dbManager.getLocalFolder(folderId)?.let {
-        var folderObj = jacksonObjectMapper().writeValueAsString(it)
+        var folderObj = jacksonMapper.writeValueAsString(it)
         call.resolve(JSObject(folderObj))
       } ?: call.resolve()
     }
@@ -64,7 +69,7 @@ class AbsDatabase : Plugin() {
       if (localLibraryItem == null) {
         call.resolve()
       } else {
-        call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(localLibraryItem)))
+        call.resolve(JSObject(jacksonMapper.writeValueAsString(localLibraryItem)))
       }
     }
   }
@@ -77,7 +82,7 @@ class AbsDatabase : Plugin() {
       if (localLibraryItem == null) {
         call.resolve()
       } else {
-        call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(localLibraryItem)))
+        call.resolve(JSObject(jacksonMapper.writeValueAsString(localLibraryItem)))
       }
     }
   }
@@ -88,7 +93,7 @@ class AbsDatabase : Plugin() {
 
     GlobalScope.launch(Dispatchers.IO) {
       var localLibraryItems = DeviceManager.dbManager.getLocalLibraryItems(mediaType)
-      call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(LocalLibraryItemsPayload(localLibraryItems))))
+      call.resolve(JSObject(jacksonMapper.writeValueAsString(LocalLibraryItemsPayload(localLibraryItems))))
     }
   }
 
@@ -97,7 +102,7 @@ class AbsDatabase : Plugin() {
     var folderId = call.getString("folderId", "").toString()
     GlobalScope.launch(Dispatchers.IO) {
       var localLibraryItems = DeviceManager.dbManager.getLocalLibraryItemsInFolder(folderId)
-      call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(LocalLibraryItemsPayload(localLibraryItems))))
+      call.resolve(JSObject(jacksonMapper.writeValueAsString(LocalLibraryItemsPayload(localLibraryItems))))
     }
   }
 
@@ -143,7 +148,7 @@ class AbsDatabase : Plugin() {
       }
 
       DeviceManager.serverConnectionConfig = serverConnectionConfig
-      call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(DeviceManager.serverConnectionConfig)))
+      call.resolve(JSObject(jacksonMapper.writeValueAsString(DeviceManager.serverConnectionConfig)))
     }
   }
 
@@ -177,7 +182,7 @@ class AbsDatabase : Plugin() {
   fun getAllLocalMediaProgress(call:PluginCall) {
     GlobalScope.launch(Dispatchers.IO) {
       var localMediaProgress = DeviceManager.dbManager.getAllLocalMediaProgress()
-      call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(LocalMediaProgressPayload(localMediaProgress))))
+      call.resolve(JSObject(jacksonMapper.writeValueAsString(LocalMediaProgressPayload(localMediaProgress))))
     }
   }
 
@@ -195,7 +200,51 @@ class AbsDatabase : Plugin() {
       return call.resolve()
     }
     apiHandler.syncMediaProgress {
-      call.resolve(JSObject(jacksonObjectMapper().writeValueAsString(it)))
+      call.resolve(JSObject(jacksonMapper.writeValueAsString(it)))
+    }
+  }
+
+  @PluginMethod
+  fun updateLocalMediaProgressFinished(call:PluginCall) {
+    var localMediaProgressId = call.getString("localMediaProgressId", "").toString()
+    var isFinished = call.getBoolean("isFinished", false) == true
+    Log.d(tag, "updateLocalMediaProgressFinished $localMediaProgressId | Is Finished:$isFinished")
+    var localMediaProgress = DeviceManager.dbManager.getLocalMediaProgress(localMediaProgressId)
+    if (localMediaProgress == null) {
+     Log.e(tag, "updateLocalMediaProgressFinished Local Media Progress not found $localMediaProgressId")
+      call.resolve(JSObject("{\"error\":\"Progress not found\"}"))
+    } else {
+      localMediaProgress.updateIsFinished(isFinished)
+
+      var lmpstring = jacksonMapper.writeValueAsString(localMediaProgress)
+      Log.d(tag, "updateLocalMediaProgressFinished: Local Media Progress String $lmpstring")
+
+      // Send update to server media progress is linked to a server and user is logged into that server
+      localMediaProgress.serverConnectionConfigId?.let { configId ->
+        if (DeviceManager.serverConnectionConfigId == configId) {
+          var libraryItemId = localMediaProgress.libraryItemId ?: ""
+          var episodeId = localMediaProgress.episodeId ?: ""
+          var updatePayload = JSObject()
+          updatePayload.put("isFinished", isFinished)
+          apiHandler.updateMediaProgress(libraryItemId,episodeId,updatePayload) {
+            Log.d(tag, "updateLocalMediaProgressFinished: Updated media progress isFinished on server")
+            var jsobj = JSObject()
+            jsobj.put("local", true)
+            jsobj.put("server", true)
+            jsobj.put("localMediaProgress", JSObject(lmpstring))
+            call.resolve(jsobj)
+//            call.resolve(JSObject("{\"local\":true,\"server\":true,\"localMediaProgress\":$lmpstring}"))
+          }
+        }
+      }
+      if (localMediaProgress.serverConnectionConfigId == null || DeviceManager.serverConnectionConfigId != localMediaProgress.serverConnectionConfigId) {
+//        call.resolve(JSObject("{\"local\":true,\"localMediaProgress\":$lmpstring}}"))
+        var jsobj = JSObject()
+        jsobj.put("local", true)
+        jsobj.put("server", false)
+        jsobj.put("localMediaProgress", JSObject(lmpstring))
+        call.resolve(jsobj)
+      }
     }
   }
 
@@ -208,16 +257,36 @@ class AbsDatabase : Plugin() {
       return
     }
 
+    var audioTracks = localLibraryItem.media.getAudioTracks() as MutableList
+
     var tracks:JSArray = call.getArray("tracks") ?: JSArray()
     Log.d(tag, "updateLocalTrackOrder $tracks")
 
-    for (i in 0..tracks.length()) {
+    var index = 1
+    var hasUpdates = false
+    for (i in 0 until tracks.length()) {
       var track = tracks.getJSONObject(i)
       var localFileId = track.getString("localFileId")
-      Log.d(tag, "LOCAL FILE ID $localFileId")
+
+      var existingTrack = audioTracks.find{ it.localFileId == localFileId }
+      if (existingTrack != null) {
+        Log.d(tag, "Found existing track ${existingTrack.localFileId} that has index ${existingTrack.index} should be index $index")
+        if (existingTrack.index != index) hasUpdates = true
+        existingTrack.index = index++
+      } else {
+        Log.e(tag, "Audio track with local file id not found")
+      }
     }
 
-    call.resolve()
+    if (hasUpdates) {
+      Log.d(tag, "Save library item track orders")
+      localLibraryItem.media.setAudioTracks(audioTracks)
+      DeviceManager.dbManager.saveLocalLibraryItem(localLibraryItem)
+      call.resolve(JSObject(jacksonMapper.writeValueAsString(localLibraryItem)))
+    } else {
+      Log.d(tag, "No tracks need to be updated")
+      call.resolve()
+    }
   }
 
   //

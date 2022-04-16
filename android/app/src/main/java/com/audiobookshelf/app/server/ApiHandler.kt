@@ -13,6 +13,7 @@ import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.player.MediaProgressSyncData
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.fasterxml.jackson.core.json.JsonReadFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.getcapacitor.JSArray
@@ -26,6 +27,7 @@ import java.io.IOException
 class ApiHandler {
   val tag = "ApiHandler"
   private var client = OkHttpClient()
+  var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
   var ctx: Context
   var storageSharedPreferences: SharedPreferences? = null
 
@@ -49,6 +51,15 @@ class ApiHandler {
     val mediaType = "application/json; charset=utf-8".toMediaType()
     val requestBody = payload.toString().toRequestBody(mediaType)
     val request = Request.Builder().post(requestBody)
+      .url("${DeviceManager.serverAddress}$endpoint").addHeader("Authorization", "Bearer ${DeviceManager.token}")
+      .build()
+    makeRequest(request, cb)
+  }
+
+  fun patchRequest(endpoint:String, payload: JSObject, cb: (JSObject) -> Unit) {
+    val mediaType = "application/json; charset=utf-8".toMediaType()
+    val requestBody = payload.toString().toRequestBody(mediaType)
+    val request = Request.Builder().patch(requestBody)
       .url("${DeviceManager.serverAddress}$endpoint").addHeader("Authorization", "Bearer ${DeviceManager.token}")
       .build()
     makeRequest(request, cb)
@@ -105,7 +116,7 @@ class ApiHandler {
   }
 
   fun getLibraries(cb: (List<Library>) -> Unit) {
-    val mapper = jacksonObjectMapper()
+    val mapper = jacksonMapper
     getRequest("/api/libraries") {
       val libraries = mutableListOf<Library>()
       if (it.has("value")) {
@@ -121,7 +132,7 @@ class ApiHandler {
 
   fun getLibraryItem(libraryItemId:String, cb: (LibraryItem) -> Unit) {
     getRequest("/api/items/$libraryItemId?expanded=1") {
-      val libraryItem = jacksonObjectMapper().readValue<LibraryItem>(it.toString())
+      val libraryItem = jacksonMapper.readValue<LibraryItem>(it.toString())
       cb(libraryItem)
     }
   }
@@ -132,7 +143,7 @@ class ApiHandler {
       if (it.has("results")) {
         var array = it.getJSONArray("results")
         for (i in 0 until array.length()) {
-          val item = jacksonObjectMapper().readValue<LibraryItem>(array.get(i).toString())
+          val item = jacksonMapper.readValue<LibraryItem>(array.get(i).toString())
           items.add(item)
         }
       }
@@ -153,13 +164,13 @@ class ApiHandler {
     postRequest(endpoint, payload) {
       it.put("serverConnectionConfigId", DeviceManager.serverConnectionConfig?.id)
       it.put("serverAddress", DeviceManager.serverAddress)
-      val playbackSession = jacksonObjectMapper().readValue<PlaybackSession>(it.toString())
+      val playbackSession = jacksonMapper.readValue<PlaybackSession>(it.toString())
       cb(playbackSession)
     }
   }
 
   fun sendProgressSync(sessionId:String, syncData: MediaProgressSyncData, cb: () -> Unit) {
-    var payload = JSObject(jacksonObjectMapper().writeValueAsString(syncData))
+    var payload = JSObject(jacksonMapper.writeValueAsString(syncData))
 
     postRequest("/api/session/$sessionId/sync", payload) {
       cb()
@@ -167,7 +178,7 @@ class ApiHandler {
   }
 
   fun sendLocalProgressSync(playbackSession:PlaybackSession, cb: () -> Unit) {
-    var payload = JSObject(jacksonObjectMapper().writeValueAsString(playbackSession))
+    var payload = JSObject(jacksonMapper.writeValueAsString(playbackSession))
 
     postRequest("/api/session/local", payload) {
       cb()
@@ -190,14 +201,14 @@ class ApiHandler {
 
     if (localMediaProgress.isNotEmpty()) {
       Log.d(tag, "Sending sync local progress request with ${localMediaProgress.size} progress items")
-      var payload = JSObject(jacksonObjectMapper().writeValueAsString(LocalMediaProgressSyncPayload(localMediaProgress)))
+      var payload = JSObject(jacksonMapper.writeValueAsString(LocalMediaProgressSyncPayload(localMediaProgress)))
       postRequest("/api/me/sync-local-progress", payload) {
         Log.d(tag, "Media Progress Sync payload $payload - response ${it.toString()}")
 
         if (it.toString() == "{}") {
           Log.e(tag, "Progress sync received empty object")
         } else {
-          val progressSyncResponsePayload = jacksonObjectMapper().readValue<MediaProgressSyncResponsePayload>(it.toString())
+          val progressSyncResponsePayload = jacksonMapper.readValue<MediaProgressSyncResponsePayload>(it.toString())
 
           localSyncResultsPayload.numLocalProgressUpdates = progressSyncResponsePayload.localProgressUpdates.size
           localSyncResultsPayload.numServerProgressUpdates = progressSyncResponsePayload.numServerProgressUpdates
@@ -215,6 +226,15 @@ class ApiHandler {
     } else {
       Log.d(tag, "No local media progress to sync")
       cb(localSyncResultsPayload)
+    }
+  }
+
+  fun updateMediaProgress(libraryItemId:String,episodeId:String?,updatePayload:JSObject, cb: () -> Unit) {
+    Log.d(tag, "updateMediaProgress $libraryItemId $episodeId $updatePayload")
+    var endpoint = if(episodeId.isNullOrEmpty()) "/api/me/progress/$libraryItemId" else "/api/me/progress/$libraryItemId/$episodeId"
+    patchRequest(endpoint,updatePayload) {
+      Log.d(tag, "updateMediaProgress patched progress")
+      cb()
     }
   }
 }

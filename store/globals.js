@@ -9,7 +9,7 @@ export const getters = {
   getDownloadItem: state => (libraryItemId, episodeId = null) => {
     return state.itemDownloads.find(i => {
       if (episodeId && !i.episodes.some(e => e.id == episodeId)) return false
-      return i.id == libraryItemId
+      return i.libraryItemId == libraryItemId
     })
   },
   getLibraryItemCoverSrc: (state, getters, rootState, rootGetters) => (libraryItem, placeholder = '/book_placeholder.jpg') => {
@@ -32,7 +32,7 @@ export const getters = {
   },
   getLocalMediaProgressById: (state) => (localLibraryItemId, episodeId = null) => {
     return state.localMediaProgress.find(lmp => {
-      if (episodeId != null && lmp.episodeId != episodeId) return false
+      if (episodeId != null && lmp.localEpisodeId != episodeId) return false
       return lmp.localLibraryItemId == localLibraryItemId
     })
   }
@@ -73,8 +73,10 @@ export const mutations = {
     }
     var index = state.localMediaProgress.findIndex(lmp => lmp.id == prog.id)
     if (index >= 0) {
+      console.log('UpdateLocalMediaProgress updating', prog.id, prog.progress)
       state.localMediaProgress.splice(index, 1, prog)
     } else {
+      console.log('updateLocalMediaProgress inserting new progress', prog.id, prog.progress)
       state.localMediaProgress.push(prog)
     }
   },

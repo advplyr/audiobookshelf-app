@@ -2,6 +2,7 @@ package com.audiobookshelf.app.player
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import androidx.appcompat.R
@@ -13,10 +14,7 @@ import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.ext.cast.CastPlayer
 import com.google.android.exoplayer2.ext.cast.MediaItemConverter
 import com.google.android.exoplayer2.ext.cast.SessionAvailabilityListener
-import com.google.android.gms.cast.Cast
-import com.google.android.gms.cast.CastDevice
-import com.google.android.gms.cast.CastMediaControlIntent
-import com.google.android.gms.cast.MediaQueueItem
+import com.google.android.gms.cast.*
 import com.google.android.gms.cast.framework.*
 import org.json.JSONObject
 
@@ -321,12 +319,36 @@ class CastManager constructor(playerNotificationService:PlayerNotificationServic
         try {
           val castContext = CastContext.getSharedInstance(mainActivity)
 
-          playerNotificationService.castPlayer = CastPlayer(castContext, CustomConverter()).apply {
-            setSessionAvailabilityListener(CastSessionAvailabilityListener())
-            addListener(PlayerListener(playerNotificationService))
+          // Work in progress using the cast api
+          var currentSession = playerNotificationService.getCurrentPlaybackSessionCopy()
+          var firstTrack = currentSession?.audioTracks?.get(0)
+          var uri = firstTrack?.let { currentSession?.getContentUri(it) } ?: Uri.EMPTY
+          var url = uri.toString()
+          var mimeType = firstTrack?.mimeType ?: ""
+          var castMediaMetadata = firstTrack?.let { currentSession?.getCastMediaMetadata(it) }
+          Log.d(tag, "CastManager set url $url")
+          var duration = (currentSession?.getTotalDuration() ?: 0L * 1000L).toLong()
+
+          if (castMediaMetadata != null) {
+            Log.d(tag, "CastManager duration $duration got cast media metadata $castMediaMetadata")
+
+            val mediaInfo = MediaInfo.Builder(url)
+              .setStreamType(MediaInfo.STREAM_TYPE_BUFFERED)
+              .setContentType(mimeType)
+              .setMetadata(castMediaMetadata)
+              .setStreamDuration(duration)
+              .build()
+            val remoteMediaClient = castSession?.remoteMediaClient
+            remoteMediaClient?.load(MediaLoadRequestData.Builder().setMediaInfo(mediaInfo).build())
           }
-          Log.d(tag, "CAST Cast Player Applied")
-          switchToPlayer(true)
+
+          // Not working using the exo player CastPlayer
+//          playerNotificationService.castPlayer = CastPlayer(castContext, CustomConverter()).apply {
+//            setSessionAvailabilityListener(CastSessionAvailabilityListener())
+//            addListener(PlayerListener(playerNotificationService))
+//          }
+//          Log.d(tag, "CAST Cast Player Applied")
+//          switchToPlayer(true)
         } catch (e: Exception) {
           Log.i(tag, "Cast is not available on this device. " +
             "Exception thrown when attempting to obtain CastContext. " + e.message)

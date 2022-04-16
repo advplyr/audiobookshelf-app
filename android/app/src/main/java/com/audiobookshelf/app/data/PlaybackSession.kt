@@ -40,6 +40,7 @@ class PlaybackSession(
   var currentTime:Double,
   var libraryItem:LibraryItem?,
   var localLibraryItem:LocalLibraryItem?,
+  var localEpisodeId:String?,
   var serverConnectionConfigId:String?,
   var serverAddress:String?
 ) {
@@ -53,7 +54,7 @@ class PlaybackSession(
   @get:JsonIgnore
   val localLibraryItemId get() = localLibraryItem?.id ?: ""
   @get:JsonIgnore
-  val localMediaProgressId get() = if (episodeId.isNullOrEmpty()) localLibraryItemId else "$localLibraryItemId-$episodeId"
+  val localMediaProgressId get() = if (episodeId.isNullOrEmpty()) localLibraryItemId else "$localLibraryItemId-$localEpisodeId"
   @get:JsonIgnore
   val progress get() = currentTime / getTotalDuration()
 
@@ -175,7 +176,7 @@ class PlaybackSession(
 
   @JsonIgnore
   fun clone():PlaybackSession {
-    return PlaybackSession(id,userId,libraryItemId,episodeId,mediaType,mediaMetadata,chapters,displayTitle,displayAuthor,coverPath,duration,playMethod,startedAt,updatedAt,timeListening,audioTracks,currentTime,libraryItem,localLibraryItem,serverConnectionConfigId,serverAddress)
+    return PlaybackSession(id,userId,libraryItemId,episodeId,mediaType,mediaMetadata,chapters,displayTitle,displayAuthor,coverPath,duration,playMethod,startedAt,updatedAt,timeListening,audioTracks,currentTime,libraryItem,localLibraryItem,localEpisodeId,serverConnectionConfigId,serverAddress)
   }
 
   @JsonIgnore
@@ -187,6 +188,6 @@ class PlaybackSession(
 
   @JsonIgnore
   fun getNewLocalMediaProgress():LocalMediaProgress {
-    return LocalMediaProgress(localMediaProgressId,localLibraryItemId,episodeId,getTotalDuration(),progress,currentTime,false,updatedAt,startedAt,null,serverConnectionConfigId,serverAddress,userId,libraryItemId)
+    return LocalMediaProgress(localMediaProgressId,localLibraryItemId,localEpisodeId,getTotalDuration(),progress,currentTime,false,updatedAt,startedAt,null,serverConnectionConfigId,serverAddress,userId,libraryItemId,episodeId)
   }
 }

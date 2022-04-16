@@ -1,6 +1,6 @@
 <template>
   <div class="w-full h-full py-6 px-2">
-    <div v-if="localLibraryItem" class="w-full h-full">
+    <div v-if="localLibraryItem" class="w-full h-full" :class="orderChanged ? 'pb-20' : ''">
       <div class="px-2 flex items-center mb-2">
         <p class="text-base font-book font-semibold">{{ mediaMetadata.title }}</p>
         <div class="flex-grow" />
@@ -46,28 +46,10 @@
               </template>
             </transition-group>
           </draggable>
-
-          <!-- <template v-for="track in audioTracks">
-            <div :key="track.localFileId" class="flex items-center my-1">
-              <div class="w-10 h-12 flex items-center justify-center" style="min-width: 48px">
-                <p class="font-mono font-bold text-xl">{{ track.index }}</p>
-              </div>
-              <div class="flex-grow px-2">
-                <p class="text-xs">{{ track.title }}</p>
-              </div>
-              <div class="w-20 text-center text-gray-300" style="min-width: 80px">
-                <p class="text-xs">{{ track.mimeType }}</p>
-                <p class="text-sm">{{ $elapsedPretty(track.duration) }}</p>
-              </div>
-              <div class="w-12 h-12 flex items-center justify-center" style="min-width: 48px">
-                <span class="material-icons" @click="showTrackDialog(track)">more_vert</span>
-              </div>
-            </div>
-          </template> -->
         </div>
         <div v-else class="w-full">
-          <p class="text-base mb-2">Episodes ({{ audioTracks.length }})</p>
-          <template v-for="episode in audioTracks">
+          <p class="text-base mb-2">Episodes ({{ episodes.length }})</p>
+          <template v-for="episode in episodes">
             <div :key="episode.id" class="flex items-center my-1">
               <div class="w-10 h-12 flex items-center justify-center" style="min-width: 48px">
                 <p class="font-mono font-bold text-xl">{{ episode.index }}</p>
@@ -108,6 +90,11 @@
       <p class="text-lg text-center px-8">{{ failed ? 'Failed to get local library item ' + localLibraryItemId : 'Loading..' }}</p>
     </div>
 
+    <div v-if="orderChanged" class="fixed bottom-0 left-0 w-full py-4 px-4 bg-bg box-shadow-book flex items-center">
+      <div class="flex-grow" />
+      <ui-btn small color="success" @click="saveTrackOrder">Save Order</ui-btn>
+    </div>
+
     <modals-dialog v-model="showDialog" :items="dialogItems" @action="dialogAction" />
   </div>
 </template>
@@ -146,7 +133,8 @@ export default {
       isScanning: false,
       showDialog: false,
       selectedAudioTrack: null,
-      selectedEpisode: null
+      selectedEpisode: null,
+      orderChanged: false
     }
   },
   computed: {
@@ -162,7 +150,6 @@ export default {
         return []
       }
       return this.localFiles.filter((lf) => {
-        if (this.isPodcast) return !this.audioTracks.find((episode) => episode.audioTrack.localFileId == lf.id)
         return !this.audioTracks.find((at) => at.localFileId == lf.id)
       })
     },
@@ -187,16 +174,19 @@ export default {
     mediaMetadata() {
       return this.media ? this.media.metadata || {} : {}
     },
+    episodes() {
+      return this.media.episodes || []
+    },
     audioTracks() {
       if (!this.media) return []
       if (this.mediaType == 'book') {
         return this.media.tracks || []
       } else {
-        return this.media.episodes || []
+        return (this.media.episodes || []).map((ep) => ep.audioTrack)
       }
     },
     dialogItems() {
-      if (this.selectedAudioTrack) {
+      if (this.selectedAudioTrack || this.selectedEpisode) {
         return [
           {
             text: 'Hard Delete',
@@ -227,13 +217,33 @@ export default {
   },
   methods: {
     draggableUpdate() {
-      console.log('Draggable update', this.audioTracksCopy)
-      // var copyOfCopy = this.audioTracksCopy.map((at) => ({ ...at }))
-      // const payload = {
-      //   localLibraryItemId: this.localLibraryItemId,
-      //   tracks: copyOfCopy
-      // }
-      // this.$db.updateLocalTrackOrder(payload)
+      console.log('Draggable Update')
+      for (let i = 0; i < this.audioTracksCopy.length; i++) {
+        var trackCopy = this.audioTracksCopy[i]
+        var track = this.audioTracks[i]
+        if (track.localFileId !== trackCopy.localFileId) {
+          this.orderChanged = true
+          return
+        }
+      }
+      this.orderChanged = false
+    },
+    async saveTrackOrder() {
+      var copyOfCopy = this.audioTracksCopy.map((at) => ({ ...at }))
+      const payload = {
+        localLibraryItemId: this.localLibraryItemId,
+        tracks: copyOfCopy
+      }
+      var response = await this.$db.updateLocalTrackOrder(payload)
+      if (response) {
+        this.$toast.success('Library item updated')
+        console.log('updateLocal track order response', JSON.stringify(response))
+        this.localLibraryItem = response
+        this.audioTracksCopy = this.audioTracks.map((at) => ({ ...at }))
+      } else {
+        this.$toast.info(`No updates necessary`)
+      }
+      this.orderChanged = false
     },
     showItemDialog() {
       this.selectedAudioTrack = null

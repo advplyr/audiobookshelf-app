@@ -43,7 +43,10 @@
     <div id="streamContainer" class="w-full z-20 bg-primary absolute bottom-0 left-0 right-0 p-2 pointer-events-auto transition-all" @click="clickContainer">
       <div v-if="showFullscreen" class="absolute top-0 left-0 right-0 w-full py-3 mx-auto px-3" style="max-width: 380px">
         <div class="flex items-center justify-between pointer-events-auto">
-          <span class="material-icons text-3xl text-white text-opacity-75 cursor-pointer" @click="$emit('showBookmarks')">{{ bookmarks.length ? 'bookmark' : 'bookmark_border' }}</span>
+          <span v-if="!isPodcast" class="material-icons text-3xl text-white text-opacity-75 cursor-pointer" @click="$emit('showBookmarks')">{{ bookmarks.length ? 'bookmark' : 'bookmark_border' }}</span>
+          <!-- hidden for podcasts but still using this as a placeholder -->
+          <span v-else class="material-icons text-3xl text-white text-opacity-0">bookmark</span>
+
           <span class="font-mono text-white text-opacity-75 cursor-pointer" style="font-size: 1.35rem" @click="$emit('selectPlaybackSpeed')">{{ currentPlaybackRate }}x</span>
           <svg v-if="!sleepTimerRunning" xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-white text-opacity-75 cursor-pointer" fill="none" viewBox="0 0 24 24" stroke="currentColor" @click.stop="$emit('showSleepTimer')">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
@@ -155,6 +158,12 @@ export default {
         return this.showFullscreen ? 260 : 60
       }
       return this.showFullscreen ? 200 : 60
+    },
+    mediaType() {
+      return this.playbackSession ? this.playbackSession.mediaType : null
+    },
+    isPodcast() {
+      return this.mediaType === 'podcast'
     },
     mediaMetadata() {
       return this.playbackSession ? this.playbackSession.mediaMetadata : null
@@ -551,6 +560,10 @@ export default {
         console.log('[AudioPlayer] Playback ended')
       }
       this.isEnded = data.playerState == this.$constants.PlayerState.ENDED
+
+      console.log('received metadata update', data)
+
+      if (data.currentRate && data.currentRate > 0) this.playbackSpeed = data.currentRate
 
       this.timeupdate()
     },

@@ -101,12 +101,14 @@ export default {
         })
       }
 
-      items.push({
-        icon: 'folder',
-        iconOutlined: true,
-        text: 'Local Media',
-        to: '/localMedia/folders'
-      })
+      if (this.$platform !== 'ios') {
+        items.push({
+          icon: 'folder',
+          iconOutlined: true,
+          text: 'Local Media',
+          to: '/localMedia/folders'
+        })
+      }
       return items
     },
     currentRoutePath() {

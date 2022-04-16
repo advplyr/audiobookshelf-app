@@ -198,6 +198,10 @@ class AbsDatabaseWeb extends WebPlugin {
   async updateLocalTrackOrder({ localLibraryItemId, tracks }) {
     return []
   }
+
+  async updateLocalMediaProgressFinished({ localMediaProgressId, isFinished }) {
+    return null
+  }
 }
 
 const AbsDatabase = registerPlugin('AbsDatabase', {
