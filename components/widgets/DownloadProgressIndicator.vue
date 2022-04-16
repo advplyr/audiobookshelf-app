@@ -71,7 +71,9 @@ export default {
       data.itemProgress = itemProgress
       data.episodes = downloadItemParts.filter((dip) => dip.episode).map((dip) => dip.episode)
 
-      console.log('Saving item update download payload', JSON.stringify(update))
+      console.log('[download] Saving item update download payload', JSON.stringify(update))
+      console.log('[download] Download Progress indicator data', JSON.stringify(data))
+
       this.$set(this.itemDownloadingMap, update.id, update)
 
       this.$store.commit('globals/addUpdateItemDownload', data)

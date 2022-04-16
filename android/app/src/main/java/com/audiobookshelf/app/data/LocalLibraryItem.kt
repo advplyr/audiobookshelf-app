@@ -1,5 +1,6 @@
 package com.audiobookshelf.app.data
 
+import android.util.Log
 import com.audiobookshelf.app.device.DeviceManager
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
@@ -26,6 +27,9 @@ data class LocalLibraryItem(
   var libraryItemId:String?
   ) {
 
+  @get:JsonIgnore
+  val isPodcast get() = mediaType == "podcast"
+
   @JsonIgnore
   fun getDuration():Double {
     var total = 0.0
@@ -50,25 +54,26 @@ data class LocalLibraryItem(
   }
 
   @JsonIgnore
-  fun getPlaybackSession(episodeId:String):PlaybackSession {
-    var sessionId = "play-${UUID.randomUUID()}"
+  fun getPlaybackSession(episode:PodcastEpisode?):PlaybackSession {
+    var localEpisodeId = episode?.id
+    var sessionId = "play_local_${UUID.randomUUID()}"
 
-    val mediaProgressId = if (episodeId.isNullOrEmpty()) id else "$id-$episodeId"
+    val mediaProgressId = if (localEpisodeId.isNullOrEmpty()) id else "$id-$localEpisodeId"
     var mediaProgress = DeviceManager.dbManager.getLocalMediaProgress(mediaProgressId)
     var currentTime = mediaProgress?.currentTime ?: 0.0
 
     // TODO: Clean up add mediaType methods for displayTitle and displayAuthor
     var mediaMetadata = media.metadata
     var chapters = if (mediaType == "book") (media as Book).chapters else mutableListOf()
-    var authorName = "Unknown"
-    if (mediaType == "book") {
-      var bookMetadata = mediaMetadata as BookMetadata
-      authorName = bookMetadata?.authorName ?: "Unknown"
+    var audioTracks = media.getAudioTracks() as MutableList<AudioTrack>
+    var authorName = mediaMetadata.getAuthorDisplayName()
+    if (episode != null) { // Get podcast episode audio track
+      episode.audioTrack?.let { at -> mutableListOf(at) }?.let { tracks -> audioTracks = tracks }
+      Log.d("LocalLibraryItem", "getPlaybackSession: Got podcast episode audio track ${audioTracks.size}")
     }
 
-    var episodeIdNullable = if (episodeId.isNullOrEmpty()) null else episodeId
     var dateNow = System.currentTimeMillis()
-    return PlaybackSession(sessionId,serverUserId,libraryItemId,episodeIdNullable, mediaType, mediaMetadata, chapters ?: mutableListOf(), mediaMetadata.title, authorName,null,getDuration(),PLAYMETHOD_LOCAL,dateNow,0L,0L, media.getAudioTracks() as MutableList<AudioTrack>,currentTime,null,this,serverConnectionConfigId, serverAddress)
+    return PlaybackSession(sessionId,serverUserId,libraryItemId,episode?.serverEpisodeId, mediaType, mediaMetadata, chapters ?: mutableListOf(), mediaMetadata.title, authorName,null,getDuration(),PLAYMETHOD_LOCAL,dateNow,0L,0L, audioTracks,currentTime,null,this,localEpisodeId,serverConnectionConfigId, serverAddress)
   }
 
   @JsonIgnore

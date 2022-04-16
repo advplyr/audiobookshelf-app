@@ -110,14 +110,12 @@ class MediaProgressSyncer(playerNotificationService:PlayerNotificationService, a
         currentLocalMediaProgress = mediaProgress
       }
     } else {
-      currentLocalMediaProgress?.currentTime = playbackSession.currentTime
-      currentLocalMediaProgress?.lastUpdate = playbackSession.updatedAt
-      currentLocalMediaProgress?.progress = playbackSession.progress
+      currentLocalMediaProgress?.updateFromPlaybackSession(playbackSession)
     }
     currentLocalMediaProgress?.let {
       DeviceManager.dbManager.saveLocalMediaProgress(it)
       playerNotificationService.clientEventEmitter?.onLocalMediaProgressUpdate(it)
-      Log.d(tag, "Saved Local Progress Current Time: ${it.currentTime} | Duration ${it.duration} | Progress ${(it.progress * 100).roundToInt()}%")
+      Log.d(tag, "Saved Local Progress Current Time: ID ${it.id} | ${it.currentTime} | Duration ${it.duration} | Progress ${(it.progress * 100).roundToInt()}%")
     }
   }
 

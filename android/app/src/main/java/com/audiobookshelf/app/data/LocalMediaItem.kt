@@ -65,6 +65,7 @@ data class LocalMediaItem(
       return LocalLibraryItem(id, folderId, basePath,absolutePath, contentUrl,  false,mediaType, book, localFiles, coverContentUrl, coverAbsolutePath,true,null,null,null,null)
     } else {
       var podcast = Podcast(mediaMetadata as PodcastMetadata, coverAbsolutePath, mutableListOf(), mutableListOf(), false)
+      podcast.setAudioTracks(audioTracks) // Builds episodes from audio tracks
       return LocalLibraryItem(id, folderId, basePath,absolutePath, contentUrl, false, mediaType, podcast,localFiles,coverContentUrl, coverAbsolutePath, true, null,null,null,null)
     }
   }
