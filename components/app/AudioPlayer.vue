@@ -109,7 +109,6 @@ export default {
     return {
       playbackSession: null,
       showChapterModal: false,
-      showCastBtn: true,
       showFullscreen: false,
       totalDuration: 0,
       currentPlaybackRate: 1,
@@ -158,6 +157,9 @@ export default {
         return this.showFullscreen ? 260 : 60
       }
       return this.showFullscreen ? 200 : 60
+    },
+    showCastBtn() {
+      return this.$store.state.isCastAvailable && !this.isLocalPlayMethod
     },
     isCasting() {
       return this.mediaPlayer === 'cast-player'
