@@ -15,6 +15,7 @@ import com.fasterxml.jackson.core.json.JsonReadFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.getcapacitor.*
 import com.getcapacitor.annotation.CapacitorPlugin
+import com.google.android.gms.cast.CastDevice
 import org.json.JSONObject
 
 @CapacitorPlugin(name = "AbsAudioPlayer")
@@ -24,11 +25,17 @@ class AbsAudioPlayer : Plugin() {
 
   lateinit var mainActivity: MainActivity
   lateinit var apiHandler:ApiHandler
+  lateinit var castManager:CastManager
 
   lateinit var playerNotificationService: PlayerNotificationService
+
+  private var isCastAvailable:Boolean = false
+
   override fun load() {
     mainActivity = (activity as MainActivity)
     apiHandler = ApiHandler(mainActivity)
+
+    initCastManager()
 
     var foregroundServiceReady : () -> Unit = {
       playerNotificationService = mainActivity.foregroundService
@@ -72,15 +79,56 @@ class AbsAudioPlayer : Plugin() {
         override fun onPlaybackFailed(errorMessage: String) {
           emit("onPlaybackFailed", errorMessage)
         }
+
+        override fun onMediaPlayerChanged(mediaPlayer:String) {
+          emit("onMediaPlayerChanged", mediaPlayer)
+        }
       })
     }
     mainActivity.pluginCallback = foregroundServiceReady
   }
 
   fun emit(evtName: String, value: Any) {
-    var ret:JSObject = JSObject()
+    var ret = JSObject()
     ret.put("value", value)
     notifyListeners(evtName, ret)
+  }
+
+  fun initCastManager() {
+    var connListener = object: CastManager.ChromecastListener() {
+      override fun onReceiverAvailableUpdate(available: Boolean) {
+        Log.d(tag, "ChromecastListener: CAST Receiver Update Available $available")
+        isCastAvailable = available
+        emit("onCastAvailableUpdate", available)
+      }
+
+      override fun onSessionRejoin(jsonSession: JSONObject?) {
+        Log.d(tag, "ChromecastListener: CAST onSessionRejoin")
+      }
+
+      override fun onMediaLoaded(jsonMedia: JSONObject?) {
+        Log.d(tag, "ChromecastListener: CAST onMediaLoaded")
+      }
+
+      override fun onMediaUpdate(jsonMedia: JSONObject?) {
+        Log.d(tag, "ChromecastListener: CAST onMediaUpdate")
+      }
+
+      override fun onSessionUpdate(jsonSession: JSONObject?) {
+        Log.d(tag, "ChromecastListener: CAST onSessionUpdate")
+      }
+
+      override fun onSessionEnd(jsonSession: JSONObject?) {
+        Log.d(tag, "ChromecastListener: CAST onSessionEnd")
+      }
+
+      override fun onMessageReceived(p0: CastDevice, p1: String, p2: String) {
+        Log.d(tag, "ChromecastListener: CAST onMessageReceived")
+      }
+    }
+
+    castManager = CastManager(mainActivity)
+    castManager.startRouteScan(connListener)
   }
 
   @PluginMethod
@@ -122,7 +170,9 @@ class AbsAudioPlayer : Plugin() {
         return call.resolve(JSObject())
       }
     } else { // Play library item from server
-      apiHandler.playLibraryItem(libraryItemId, episodeId, false) {
+      var mediaPlayer = playerNotificationService.getMediaPlayer()
+
+      apiHandler.playLibraryItem(libraryItemId, episodeId, false, mediaPlayer) {
 
         Handler(Looper.getMainLooper()).post() {
           Log.d(tag, "Preparing Player TEST ${jacksonMapper.writeValueAsString(it)}")
@@ -268,9 +318,10 @@ class AbsAudioPlayer : Plugin() {
 
   @PluginMethod
   fun requestSession(call: PluginCall) {
+    // Need to make sure the player service has been started
     Log.d(tag, "CAST REQUEST SESSION PLUGIN")
     call.resolve()
-    playerNotificationService.castManager.requestSession(mainActivity, object : CastManager.RequestSessionCallback() {
+    castManager.requestSession(playerNotificationService, object : CastManager.RequestSessionCallback() {
       override fun onError(errorCode: Int) {
         Log.e(tag, "CAST REQUEST SESSION CALLBACK ERROR $errorCode")
       }
@@ -283,5 +334,12 @@ class AbsAudioPlayer : Plugin() {
         Log.d(tag, "CAST REQUEST SESSION ON JOIN")
       }
     })
+  }
+
+  @PluginMethod
+  fun getIsCastAvailable(call: PluginCall) {
+    var jsobj = JSObject()
+    jsobj.put("value", isCastAvailable)
+    call.resolve(jsobj)
   }
 }

@@ -21,17 +21,21 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
   }
 
   override fun onEvents(player: Player, events: Player.Events) {
+    Log.d(tag, "onEvents ${player.deviceInfo} | ${playerNotificationService.getMediaPlayer()} | ${events.size()}")
+
     if (events.contains(Player.EVENT_POSITION_DISCONTINUITY)) {
       Log.d(tag, "EVENT_POSITION_DISCONTINUITY")
     }
 
     if (events.contains(Player.EVENT_IS_LOADING_CHANGED)) {
-      Log.d(tag, "EVENT_IS_LOADING_CHANGED : " + playerNotificationService.mPlayer.isLoading.toString())
+      Log.d(tag, "EVENT_IS_LOADING_CHANGED : " + playerNotificationService.currentPlayer.isLoading)
     }
 
     if (events.contains(Player.EVENT_PLAYBACK_STATE_CHANGED)) {
+      Log.d(tag, "EVENT_PLAYBACK_STATE_CHANGED MediaPlayer = ${playerNotificationService.getMediaPlayer()}")
+
       if (playerNotificationService.currentPlayer.playbackState == Player.STATE_READY) {
-        Log.d(tag, "STATE_READY : " + playerNotificationService.mPlayer.duration.toString())
+        Log.d(tag, "STATE_READY : " + playerNotificationService.currentPlayer.duration)
 
         if (lastPauseTime == 0L) {
           lastPauseTime = -1;
@@ -39,7 +43,7 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
         playerNotificationService.sendClientMetadata(PlayerState.READY)
       }
       if (playerNotificationService.currentPlayer.playbackState == Player.STATE_BUFFERING) {
-        Log.d(tag, "STATE_BUFFERING : " + playerNotificationService.mPlayer.currentPosition.toString())
+        Log.d(tag, "STATE_BUFFERING : " + playerNotificationService.currentPlayer.currentPosition)
         playerNotificationService.sendClientMetadata(PlayerState.BUFFERING)
       }
       if (playerNotificationService.currentPlayer.playbackState == Player.STATE_ENDED) {
@@ -53,13 +57,13 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
     }
 
     if (events.contains(Player.EVENT_MEDIA_METADATA_CHANGED)) {
-      Log.d(tag, "EVENT_MEDIA_METADATA_CHANGED")
+      Log.d(tag, "EVENT_MEDIA_METADATA_CHANGED ${playerNotificationService.getMediaPlayer()}")
     }
     if (events.contains(Player.EVENT_PLAYLIST_METADATA_CHANGED)) {
-      Log.d(tag, "EVENT_PLAYLIST_METADATA_CHANGED")
+      Log.d(tag, "EVENT_PLAYLIST_METADATA_CHANGED ${playerNotificationService.getMediaPlayer()}")
     }
     if (events.contains(Player.EVENT_IS_PLAYING_CHANGED)) {
-      Log.d(tag, "EVENT IS PLAYING CHANGED")
+      Log.d(tag, "EVENT IS PLAYING CHANGED ${playerNotificationService.getMediaPlayer()}")
 
       if (player.isPlaying) {
         if (lastPauseTime > 0) {

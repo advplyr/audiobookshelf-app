@@ -34,8 +34,8 @@ class MediaManager(var apiHandler: ApiHandler) {
     }
   }
 
-  fun play(libraryItem:LibraryItem, cb: (PlaybackSession) -> Unit) {
-    apiHandler.playLibraryItem(libraryItem.id,"",false) {
+  fun play(libraryItem:LibraryItem, mediaPlayer:String, cb: (PlaybackSession) -> Unit) {
+    apiHandler.playLibraryItem(libraryItem.id,"",false, mediaPlayer) {
       cb(it)
     }
   }

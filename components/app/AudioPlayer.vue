@@ -5,7 +5,7 @@
         <span class="material-icons text-5xl" @click="collapseFullscreen">expand_more</span>
       </div>
       <div v-show="showCastBtn" class="top-3.5 right-20 absolute cursor-pointer">
-        <span class="material-icons text-3xl" @click="castClick">cast</span>
+        <span class="material-icons text-3xl" :class="isCasting ? 'text-success' : ''" @click="castClick">cast</span>
       </div>
       <div class="top-4 right-4 absolute cursor-pointer">
         <ui-dropdown-menu ref="dropdownMenu" :items="menuItems" @action="clickMenuAction">
@@ -109,7 +109,7 @@ export default {
     return {
       playbackSession: null,
       showChapterModal: false,
-      showCastBtn: false,
+      showCastBtn: true,
       showFullscreen: false,
       totalDuration: 0,
       currentPlaybackRate: 1,
@@ -158,6 +158,12 @@ export default {
         return this.showFullscreen ? 260 : 60
       }
       return this.showFullscreen ? 200 : 60
+    },
+    isCasting() {
+      return this.mediaPlayer === 'cast-player'
+    },
+    mediaPlayer() {
+      return this.playbackSession ? this.playbackSession.mediaPlayer : null
     },
     mediaType() {
       return this.playbackSession ? this.playbackSession.mediaType : null
@@ -262,6 +268,11 @@ export default {
     },
     castClick() {
       console.log('Cast Btn Click')
+      if (this.isLocalPlayMethod) {
+        this.$toast.warn('Cannot cast downloaded media items')
+        return
+      }
+
       AbsAudioPlayer.requestSession()
     },
     clickContainer() {

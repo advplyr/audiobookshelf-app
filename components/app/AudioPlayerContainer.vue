@@ -10,6 +10,7 @@
 
 <script>
 import { AbsAudioPlayer } from '@/plugins/capacitor'
+import { Dialog } from '@capacitor/dialog'
 
 export default {
   data() {
@@ -28,6 +29,7 @@ export default {
       onLocalMediaProgressUpdateListener: null,
       onSleepTimerEndedListener: null,
       onSleepTimerSetListener: null,
+      onMediaPlayerChangedListener: null,
       sleepInterval: null,
       currentEndOfChapterTime: 0
     }
@@ -169,6 +171,16 @@ export default {
       var libraryItemId = payload.libraryItemId
       var episodeId = payload.episodeId
 
+      if (libraryItemId.startsWith('local') && this.$store.state.isCasting) {
+        const { value } = await Dialog.confirm({
+          title: 'Warning',
+          message: `Cannot cast downloaded media items. Confirm to close cast and play on your device.`
+        })
+        if (!value) {
+          return
+        }
+      }
+
       console.log('Called playLibraryItem', libraryItemId)
       AbsAudioPlayer.prepareLibraryItem({ libraryItemId, episodeId, playWhenReady: true })
         .then((data) => {
@@ -186,12 +198,17 @@ export default {
     onLocalMediaProgressUpdate(localMediaProgress) {
       console.log('Got local media progress update', localMediaProgress.progress, JSON.stringify(localMediaProgress))
       this.$store.commit('globals/updateLocalMediaProgress', localMediaProgress)
+    },
+    onMediaPlayerChanged(data) {
+      var mediaPlayer = data.value
+      this.$store.commit('setMediaPlayer', mediaPlayer)
     }
   },
   mounted() {
     this.onLocalMediaProgressUpdateListener = AbsAudioPlayer.addListener('onLocalMediaProgressUpdate', this.onLocalMediaProgressUpdate)
     this.onSleepTimerEndedListener = AbsAudioPlayer.addListener('onSleepTimerEnded', this.onSleepTimerEnded)
     this.onSleepTimerSetListener = AbsAudioPlayer.addListener('onSleepTimerSet', this.onSleepTimerSet)
+    this.onMediaPlayerChangedListener = AbsAudioPlayer.addListener('onMediaPlayerChanged', this.onMediaPlayerChanged)
 
     this.playbackSpeed = this.$store.getters['user/getUserSetting']('playbackRate')
     console.log(`[AudioPlayerContainer] Init Playback Speed: ${this.playbackSpeed}`)
@@ -206,6 +223,7 @@ export default {
     if (this.onLocalMediaProgressUpdateListener) this.onLocalMediaProgressUpdateListener.remove()
     if (this.onSleepTimerEndedListener) this.onSleepTimerEndedListener.remove()
     if (this.onSleepTimerSetListener) this.onSleepTimerSetListener.remove()
+    if (this.onMediaPlayerChangedListener) this.onMediaPlayerChangedListener.remove()
 
     // if (this.$server.socket) {
     //   this.$server.socket.off('stream_open', this.streamOpen)

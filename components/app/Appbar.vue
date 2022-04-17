@@ -17,6 +17,10 @@
 
       <widgets-download-progress-indicator />
 
+      <div v-show="isCastAvailable" class="mx-2 cursor-pointer">
+        <span class="material-icons" :class="isCasting ? 'text-success' : ''" style="font-size: 1.75rem" @click="castClick">cast</span>
+      </div>
+
       <nuxt-link v-if="user" class="h-7 mx-2" to="/search">
         <span class="material-icons" style="font-size: 1.75rem">search</span>
       </nuxt-link>
@@ -29,9 +33,14 @@
 </template>
 
 <script>
+import { AbsAudioPlayer } from '@/plugins/capacitor'
+
 export default {
   data() {
-    return {}
+    return {
+      onCastAvailableUpdateListener: null,
+      isCastAvailable: false
+    }
   },
   computed: {
     socketConnected() {
@@ -55,9 +64,21 @@ export default {
     },
     username() {
       return this.user ? this.user.username : 'err'
+    },
+    isCasting() {
+      return this.$store.state.isCasting
     }
   },
   methods: {
+    castClick() {
+      if (this.$store.state.playerIsLocal) {
+        this.$toast.warn('Cannot cast downloaded media item')
+        return
+      }
+
+      console.log('Cast Btn Click')
+      AbsAudioPlayer.requestSession()
+    },
     clickShowSideDrawer() {
       this.$store.commit('setShowSideDrawer', true)
     },
@@ -66,9 +87,20 @@ export default {
     },
     back() {
       window.history.back()
+    },
+    onCastAvailableUpdate(data) {
+      this.isCastAvailable = data && data.value
     }
   },
-  mounted() {}
+  mounted() {
+    AbsAudioPlayer.getIsCastAvailable().then((data) => {
+      this.isCastAvailable = data && data.value
+    })
+    this.onCastAvailableUpdateListener = AbsAudioPlayer.addListener('onCastAvailableUpdate', this.onCastAvailableUpdate)
+  },
+  beforeDestroy() {
+    if (this.onCastAvailableUpdateListener) this.onCastAvailableUpdateListener.remove()
+  }
 }
 </script>
 

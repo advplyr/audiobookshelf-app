@@ -20,19 +20,8 @@ class DbManager {
     var localLibraryItems:MutableList<LocalLibraryItem> = mutableListOf()
     Paper.book("localLibraryItems").allKeys.forEach {
       var localLibraryItem:LocalLibraryItem? = Paper.book("localLibraryItems").read(it)
-      if (localLibraryItem != null && (mediaType.isNullOrEmpty() || mediaType == localLibraryItem?.mediaType)) {
-        // TODO: Check to make sure all file paths exist
-//        if (localMediaItem.coverContentUrl != null) {
-//          var file = DocumentFile.fromSingleUri(ctx)
-//          if (!file.exists()) {
-//            Log.e(tag, "Local media item cover url does not exist ${localMediaItem.coverContentUrl}")
-//            removeLocalMediaItem(localMediaItem.id)
-//          } else {
-//            localMediaItems.add(localMediaItem)
-//          }
-//        } else {
+      if (localLibraryItem != null && (mediaType.isNullOrEmpty() || mediaType == localLibraryItem.mediaType)) {
         localLibraryItems.add(localLibraryItem)
-//        }
       }
     }
     return localLibraryItems
