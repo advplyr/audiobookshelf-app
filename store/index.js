@@ -6,6 +6,7 @@ export const state = () => ({
   playerIsLocal: false,
   playerIsPlaying: false,
   isCasting: false,
+  isCastAvailable: false,
   appUpdateInfo: null,
   socketConnected: false,
   networkConnected: false,
@@ -75,6 +76,9 @@ export const mutations = {
   },
   setMediaPlayer(state, mediaPlayer) {
     state.isCasting = mediaPlayer === 'cast-player'
+  },
+  setCastAvailable(state, available) {
+    state.isCastAvailable = available
   },
   setPlayerPlaying(state, val) {
     state.playerIsPlaying = val

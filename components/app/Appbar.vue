@@ -39,11 +39,18 @@ import { AbsAudioPlayer } from '@/plugins/capacitor'
 export default {
   data() {
     return {
-      onCastAvailableUpdateListener: null,
-      isCastAvailable: false
+      onCastAvailableUpdateListener: null
     }
   },
   computed: {
+    isCastAvailable: {
+      get() {
+        return this.$store.state.isCastAvailable
+      },
+      set(val) {
+        this.$store.commit('setCastAvailable', val)
+      }
+    },
     socketConnected() {
       return this.$store.state.socketConnected
     },
