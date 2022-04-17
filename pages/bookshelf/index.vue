@@ -75,7 +75,7 @@ export default {
           id: 'local-books',
           label: 'Local Books',
           type: 'book',
-          entities: books
+          entities: books.slice(0, 10)
         })
       }
       if (podcasts.length) {
@@ -83,7 +83,7 @@ export default {
           id: 'local-podcasts',
           label: 'Local Podcasts',
           type: 'podcast',
-          entities: podcasts
+          entities: podcasts.slice(0, 10)
         })
       }
 

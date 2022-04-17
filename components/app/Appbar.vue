@@ -17,7 +17,8 @@
 
       <widgets-download-progress-indicator />
 
-      <div v-show="isCastAvailable" class="mx-2 cursor-pointer">
+      <!-- Must be connected to a server to cast, only supports media items on server -->
+      <div v-show="isCastAvailable && user" class="mx-2 cursor-pointer">
         <span class="material-icons" :class="isCasting ? 'text-success' : ''" style="font-size: 1.75rem" @click="castClick">cast</span>
       </div>
 

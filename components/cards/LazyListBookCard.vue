@@ -1,6 +1,6 @@
 <template>
   <div ref="card" :id="`book-card-${index}`" :style="{ minWidth: width + 'px', maxWidth: width + 'px', height: height + 'px' }" class="rounded-sm z-10 cursor-pointer py-1" @click="clickCard">
-    <div class="h-full flex">
+    <div class="h-full flex relative">
       <div class="w-20 h-20 relative" style="min-width: 80px; max-width: 80px">
         <!-- When cover image does not fill -->
         <div v-show="showCoverBg" class="absolute top-0 left-0 w-full h-full overflow-hidden rounded-sm bg-primary">
@@ -13,10 +13,6 @@
 
         <!-- No progress shown for collapsed series or podcasts in library -->
         <div v-if="!isPodcast && !collapsedSeries" class="absolute bottom-0 left-0 h-1 shadow-sm max-w-full z-10 rounded-b" :class="itemIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: 80 * userProgressPercent + 'px' }"></div>
-
-        <div v-if="localLibraryItem || isLocal" class="absolute top-0 right-0 z-20" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }">
-          <span class="material-icons text-2xl text-success">{{ isLocalOnly ? 'task' : 'download_done' }}</span>
-        </div>
       </div>
       <div class="flex-grow px-2">
         <p class="whitespace-normal" :style="{ fontSize: 0.8 * sizeMultiplier + 'rem' }">
@@ -24,6 +20,10 @@
         </p>
         <p class="truncate text-gray-400" :style="{ fontSize: 0.7 * sizeMultiplier + 'rem' }">by {{ displayAuthor }}</p>
         <p v-if="displaySortLine" class="truncate text-gray-400" :style="{ fontSize: 0.7 * sizeMultiplier + 'rem' }">{{ displaySortLine }}</p>
+      </div>
+
+      <div v-if="localLibraryItem || isLocal" class="absolute top-0 right-0 z-20" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }">
+        <span class="material-icons text-2xl text-success">{{ isLocalOnly ? 'task' : 'download_done' }}</span>
       </div>
     </div>
   </div>

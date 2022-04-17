@@ -4,7 +4,7 @@
       <div class="w-32">
         <div class="relative">
           <covers-book-cover :library-item="libraryItem" :width="128" :book-cover-aspect-ratio="bookCoverAspectRatio" />
-          <div v-if="!isPodcast" class="absolute bottom-0 left-0 h-1.5 bg-yellow-400 shadow-sm z-10" :style="{ width: 128 * progressPercent + 'px' }"></div>
+          <div v-if="!isPodcast" class="absolute bottom-0 left-0 h-1.5 shadow-sm z-10" :class="userIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: 128 * progressPercent + 'px' }"></div>
         </div>
       </div>
       <div class="flex-grow px-3">
