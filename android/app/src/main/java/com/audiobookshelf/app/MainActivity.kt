@@ -53,19 +53,18 @@ class MainActivity : BridgeActivity() {
   }
 
   public override fun onCreate(savedInstanceState: Bundle?) {
-    StrictMode.setThreadPolicy(StrictMode.ThreadPolicy.Builder()
-      .detectDiskReads()
-      .detectDiskWrites().detectAll()
-      .detectNetwork() // or .detectAll() for all detectable problems
-      .penaltyLog()
-      .build())
-    StrictMode.setVmPolicy(VmPolicy.Builder()
-      .detectLeakedSqlLiteObjects()
-      .detectLeakedClosableObjects()
-      .penaltyLog()
-//      .penaltyDeath()
-      .build())
-
+    // TODO: Optimize using strict mode logs
+//    StrictMode.setThreadPolicy(StrictMode.ThreadPolicy.Builder()
+//      .detectDiskReads()
+//      .detectDiskWrites().detectAll()
+//      .detectNetwork() // or .detectAll() for all detectable problems
+//      .penaltyLog()
+//      .build())
+//    StrictMode.setVmPolicy(VmPolicy.Builder()
+//      .detectLeakedSqlLiteObjects()
+//      .detectLeakedClosableObjects()
+//      .penaltyLog()
+//      .build())
 
     super.onCreate(savedInstanceState)
 
