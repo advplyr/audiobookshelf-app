@@ -151,9 +151,9 @@ class ApiHandler {
     }
   }
 
-  fun playLibraryItem(libraryItemId:String, episodeId:String?, forceTranscode:Boolean, cb: (PlaybackSession) -> Unit) {
+  fun playLibraryItem(libraryItemId:String, episodeId:String?, forceTranscode:Boolean, mediaPlayer:String, cb: (PlaybackSession) -> Unit) {
     var payload = JSObject()
-    payload.put("mediaPlayer", "exo-player")
+    payload.put("mediaPlayer", mediaPlayer)
 
     // Only if direct play fails do we force transcode
     if (!forceTranscode) payload.put("forceDirectPlay", true)

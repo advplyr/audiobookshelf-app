@@ -2,31 +2,30 @@ package com.audiobookshelf.app.player
 
 import android.app.Activity
 import android.app.AlertDialog
-import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import androidx.appcompat.R
 import androidx.mediarouter.app.MediaRouteChooserDialog
 import androidx.mediarouter.media.MediaRouteSelector
 import androidx.mediarouter.media.MediaRouter
 import com.getcapacitor.PluginCall
-import com.google.android.exoplayer2.MediaItem
-import com.google.android.exoplayer2.ext.cast.CastPlayer
-import com.google.android.exoplayer2.ext.cast.MediaItemConverter
 import com.google.android.exoplayer2.ext.cast.SessionAvailabilityListener
 import com.google.android.gms.cast.*
 import com.google.android.gms.cast.framework.*
 import org.json.JSONObject
 
-class CastManager constructor(playerNotificationService:PlayerNotificationService) {
+class CastManager constructor(val mainActivity:Activity) {
   private val tag = "CastManager"
-  private val playerNotificationService:PlayerNotificationService = playerNotificationService
 
+  private var playerNotificationService:PlayerNotificationService? = null
   private var newConnectionListener: SessionListener? = null
-  private var mainActivity:Activity? = null
 
   private fun switchToPlayer(useCastPlayer:Boolean) {
-    playerNotificationService.switchToPlayer(useCastPlayer)
+    Handler(Looper.getMainLooper()).post() {
+      playerNotificationService?.switchToPlayer(useCastPlayer)
+    }
   }
 
   private inner class CastSessionAvailabilityListener : SessionAvailabilityListener {
@@ -36,6 +35,7 @@ class CastManager constructor(playerNotificationService:PlayerNotificationServic
      * remote Cast receiver rather than play audio locally.
      */
     override fun onCastSessionAvailable() {
+      Log.d(tag, "SessionAvailabilityListener: onCastSessionAvailable")
       switchToPlayer(true)
     }
 
@@ -48,42 +48,39 @@ class CastManager constructor(playerNotificationService:PlayerNotificationServic
     }
   }
 
-  fun requestSession(mainActivity: Activity, callback: RequestSessionCallback) {
-    this.mainActivity = mainActivity
+  fun requestSession(playerNotificationService: PlayerNotificationService, callback: RequestSessionCallback) {
+    this.playerNotificationService = playerNotificationService
 
-    mainActivity.runOnUiThread(object : Runnable {
-      override fun run() {
-        Log.d(tag, "CAST RUNNING ON MAIN THREAD")
+    mainActivity.runOnUiThread {
+      val session: CastSession? = getSession()
+      if (session == null) {
+        // show the "choose a connection" dialog
+        // Add the connection listener callback
+        listenForConnection(callback)
 
-        val session: CastSession? = getSession()
-        if (session == null) {
-          // show the "choose a connection" dialog
-
-          // Add the connection listener callback
-          listenForConnection(callback)
-
-          val builder = MediaRouteChooserDialog(mainActivity, R.style.Theme_AppCompat_NoActionBar)
-          builder.routeSelector = MediaRouteSelector.Builder()
-            .addControlCategory(CastMediaControlIntent.categoryForCast(CastMediaControlIntent.DEFAULT_MEDIA_RECEIVER_APPLICATION_ID))
-            .build()
-          builder.setCanceledOnTouchOutside(true)
-          builder.setOnCancelListener {
-            getSessionManager()!!.removeSessionManagerListener(newConnectionListener, CastSession::class.java)
-            callback.onCancel()
+        val builder = MediaRouteChooserDialog(mainActivity, R.style.Theme_AppCompat_NoActionBar)
+        builder.routeSelector = MediaRouteSelector.Builder()
+          .addControlCategory(CastMediaControlIntent.categoryForCast(CastMediaControlIntent.DEFAULT_MEDIA_RECEIVER_APPLICATION_ID))
+          .build()
+        builder.setCanceledOnTouchOutside(true)
+        builder.setOnCancelListener {
+          newConnectionListener?.let { ncl ->
+            getSessionManager()?.removeSessionManagerListener(ncl, CastSession::class.java)
           }
-          builder.show()
-        } else {
-          // We are are already connected, so show the "connection options" Dialog
-          val builder: AlertDialog.Builder = AlertDialog.Builder(mainActivity)
-          if (session.castDevice != null) {
-            builder.setTitle(session.castDevice.friendlyName)
-          }
-          builder.setOnDismissListener { callback.onCancel() }
-          builder.setPositiveButton("Stop Casting") { dialog, which -> endSession(true, null) }
-          builder.show()
+          callback.onCancel()
         }
+        builder.show()
+      } else {
+        // We are are already connected, so show the "connection options" Dialog
+        val builder: AlertDialog.Builder = AlertDialog.Builder(mainActivity)
+        session.castDevice?.let {
+          builder.setTitle(it.friendlyName)
+        }
+        builder.setOnDismissListener { callback.onCancel() }
+        builder.setPositiveButton("Stop Casting") { dialog, which -> endSession(true, null) }
+        builder.show()
       }
-    })
+    }
   }
 
   abstract class RequestSessionCallback : ConnectionCallback {
@@ -103,12 +100,10 @@ class CastManager constructor(playerNotificationService:PlayerNotificationServic
   fun endSession(stopCasting: Boolean, pluginCall: PluginCall?) {
 
     getSessionManager()!!.addSessionManagerListener(object : SessionListener() {
-      override fun onSessionEnded(castSession: CastSession?, error: Int) {
+      override fun onSessionEnded(castSession: CastSession, error: Int) {
         getSessionManager()!!.removeSessionManagerListener(this, CastSession::class.java)
         Log.d(tag, "CAST END SESSION")
-//        media.setSession(null)
         pluginCall?.resolve()
-//        listener.onSessionEnd(ChromecastUtilities.createSessionObject(castSession, if (stopCasting) "stopped" else "disconnected"))
       }
     }, CastSession::class.java)
     getSessionManager()!!.endCurrentSession(stopCasting)
@@ -116,78 +111,47 @@ class CastManager constructor(playerNotificationService:PlayerNotificationServic
   }
 
   open class SessionListener : SessionManagerListener<CastSession> {
-    override fun onSessionStarting(castSession: CastSession?) {}
-    override fun onSessionStarted(castSession: CastSession?, sessionId: String) {}
-    override fun onSessionStartFailed(castSession: CastSession?, error: Int) {}
-    override fun onSessionEnding(castSession: CastSession?) {}
-    override fun onSessionEnded(castSession: CastSession?, error: Int) {}
-    override fun onSessionResuming(castSession: CastSession?, sessionId: String) {}
-    override fun onSessionResumed(castSession: CastSession?, wasSuspended: Boolean) {}
-    override fun onSessionResumeFailed(castSession: CastSession?, error: Int) {}
-    override fun onSessionSuspended(castSession: CastSession?, reason: Int) {}
+    override fun onSessionStarting(castSession: CastSession) {}
+    override fun onSessionStarted(castSession: CastSession, sessionId: String) {}
+    override fun onSessionStartFailed(castSession: CastSession, error: Int) {}
+    override fun onSessionEnding(castSession: CastSession) {}
+    override fun onSessionEnded(castSession: CastSession, error: Int) {}
+    override fun onSessionResuming(castSession: CastSession, sessionId: String) {}
+    override fun onSessionResumed(castSession: CastSession, wasSuspended: Boolean) {}
+    override fun onSessionResumeFailed(castSession: CastSession, error: Int) {}
+    override fun onSessionSuspended(castSession: CastSession, reason: Int) {}
   }
 
-  private fun startRouteScan() {
-    var connListener = object: ChromecastListener() {
-      override fun onReceiverAvailableUpdate(available: Boolean) {
-        Log.d(tag, "CAST RECEIVER UPDATE AVAILABLE $available")
-      }
-
-      override fun onSessionRejoin(jsonSession: JSONObject?) {
-        Log.d(tag, "CAST onSessionRejoin")
-      }
-
-      override fun onMediaLoaded(jsonMedia: JSONObject?) {
-        Log.d(tag, "CAST onMediaLoaded")
-      }
-
-      override fun onMediaUpdate(jsonMedia: JSONObject?) {
-        Log.d(tag, "CAST onMediaUpdate")
-      }
-
-      override fun onSessionUpdate(jsonSession: JSONObject?) {
-        Log.d(tag, "CAST onSessionUpdate")
-      }
-
-      override fun onSessionEnd(jsonSession: JSONObject?) {
-        Log.d(tag, "CAST onSessionEnd")
-      }
-
-      override fun onMessageReceived(p0: CastDevice, p1: String, p2: String) {
-        Log.d(tag, "CAST onMessageReceived")
-      }
-    }
-
+  fun startRouteScan(connListener:ChromecastListener) {
     var callback = object : ScanCallback() {
       override fun onRouteUpdate(routes: List<MediaRouter.RouteInfo>?) {
         Log.d(tag, "CAST On ROUTE UPDATED ${routes?.size} | ${getContext().castState}")
         // if the routes have changed, we may have an available device
         // If there is at least one device available
         if (getContext().castState != CastState.NO_DEVICES_AVAILABLE) {
-
           routes?.forEach { Log.d(tag, "CAST ROUTE ${it.description} | ${it.deviceType} | ${it.isBluetooth} | ${it.name}") }
 
           // Stop the scan
-          stopRouteScan(this, null);
+          stopRouteScan(this, null)
           // Let the client know a receiver is available
-          connListener.onReceiverAvailableUpdate(true);
+          connListener.onReceiverAvailableUpdate(true)
           // Since we have a receiver we may also have an active session
-          var session = getSessionManager()?.currentCastSession;
+          var session = getSessionManager()?.currentCastSession
           // If we do have a session
           if (session != null) {
             // Let the client know
-            Log.d(tag, "LET SESSION KNOW ABOUT")
-//            media.setSession(session);
-//            connListener.onSessionRejoin(ChromecastUtilities.createSessionObject(session));
           }
+        } else {
+          Log.d(tag, "No cast devices available")
         }
       }
     }
+
     callback.setMediaRouter(getMediaRouter())
 
-    callback.onFilteredRouteUpdate();
+    callback.onFilteredRouteUpdate()
 
-    getMediaRouter()!!.addCallback(MediaRouteSelector.Builder()
+    getMediaRouter()?.addCallback(MediaRouteSelector.Builder()
       .addControlCategory(CastMediaControlIntent.categoryForCast(CastMediaControlIntent.DEFAULT_MEDIA_RECEIVER_APPLICATION_ID))
       .build(),
       callback,
@@ -201,7 +165,7 @@ class CastManager constructor(playerNotificationService:PlayerNotificationServic
     fun onSessionEnd(jsonSession: JSONObject?)
   }
 
-  internal abstract class ChromecastListener : CastStateListener, CastListener {
+  abstract class ChromecastListener : CastStateListener, CastListener {
     abstract fun onReceiverAvailableUpdate(available: Boolean)
     abstract fun onSessionRejoin(jsonSession: JSONObject?)
 
@@ -212,15 +176,19 @@ class CastManager constructor(playerNotificationService:PlayerNotificationServic
   }
 
   fun stopRouteScan(callback: ScanCallback?, completionCallback: Runnable?) {
+    Log.d(tag, "stopRouteScan")
     if (callback == null) {
-      completionCallback!!.run()
+      completionCallback?.run()
       return
     }
-//    ctx.runOnUiThread(Runnable {
-    callback.stop()
-    getMediaRouter()!!.removeCallback(callback)
-    completionCallback?.run()
-//    })
+
+//    mainActivity.runOnUiThread {
+      Log.d(tag, "Removing callback on media router")
+      callback.stop()
+      getMediaRouter()?.removeCallback(callback)
+      completionCallback?.run()
+//    }
+
   }
 
   abstract class ScanCallback : MediaRouter.Callback() {
@@ -271,7 +239,7 @@ class CastManager constructor(playerNotificationService:PlayerNotificationServic
         }
         if (!route.isDefault
           && !route.description.equals("Google Cast Multizone Member")
-          && route.playbackType === MediaRouter.RouteInfo.PLAYBACK_TYPE_REMOTE) {
+          && route.playbackType == MediaRouter.RouteInfo.PLAYBACK_TYPE_REMOTE) {
           outRoutes.add(route)
         }
       }
@@ -291,87 +259,50 @@ class CastManager constructor(playerNotificationService:PlayerNotificationServic
     }
   }
 
-  inner class CustomConverter : MediaItemConverter {
-    override fun toMediaQueueItem(mediaItem: MediaItem): MediaQueueItem {
-      // The MediaQueueItem you build is expected to be in the tag.
-      var queueItem =  (mediaItem.playbackProperties!!.tag as MediaQueueItem?)!!
-      Log.d(tag, "Test toMediaQueueItem ${queueItem.media!!.contentUrl} | ${queueItem.playbackDuration} | ${queueItem.itemId}")
-      return queueItem
-    }
-
-    override fun toMediaItem(mediaQueueItem: MediaQueueItem): MediaItem {
-      return MediaItem.Builder()
-        .setUri(mediaQueueItem.media!!.contentUrl)
-        .setTag(mediaQueueItem)
-        .build()
-    }
-  }
-
   private fun listenForConnection(callback: ConnectionCallback) {
     // We should only ever have one of these listeners active at a time, so remove previous
-    getSessionManager()?.removeSessionManagerListener(newConnectionListener, CastSession::class.java)
+    newConnectionListener?.let { ncl ->
+      getSessionManager()?.removeSessionManagerListener(ncl, CastSession::class.java)
+    }
 
     newConnectionListener = object : SessionListener() {
-      override fun onSessionStarted(castSession: CastSession?, sessionId: String) {
-        Log.d(tag, "CAST SESSION STARTED ${castSession?.castDevice?.friendlyName}")
+      override fun onSessionStarted(castSession: CastSession, sessionId: String) {
+        Log.d(tag, "CAST SESSION STARTED ${castSession.castDevice?.friendlyName}")
         getSessionManager()?.removeSessionManagerListener(this, CastSession::class.java)
 
-        try {
-          val castContext = CastContext.getSharedInstance(mainActivity)
+        val castContext = CastContext.getSharedInstance(mainActivity)
 
-          // Work in progress using the cast api
-          var currentSession = playerNotificationService.getCurrentPlaybackSessionCopy()
-          var firstTrack = currentSession?.audioTracks?.get(0)
-          var uri = firstTrack?.let { currentSession?.getContentUri(it) } ?: Uri.EMPTY
-          var url = uri.toString()
-          var mimeType = firstTrack?.mimeType ?: ""
-          var castMediaMetadata = firstTrack?.let { currentSession?.getCastMediaMetadata(it) }
-          Log.d(tag, "CastManager set url $url")
-          var duration = (currentSession?.getTotalDuration() ?: 0L * 1000L).toLong()
-
-          if (castMediaMetadata != null) {
-            Log.d(tag, "CastManager duration $duration got cast media metadata $castMediaMetadata")
-
-            val mediaInfo = MediaInfo.Builder(url)
-              .setStreamType(MediaInfo.STREAM_TYPE_BUFFERED)
-              .setContentType(mimeType)
-              .setMetadata(castMediaMetadata)
-              .setStreamDuration(duration)
-              .build()
-            val remoteMediaClient = castSession?.remoteMediaClient
-            remoteMediaClient?.load(MediaLoadRequestData.Builder().setMediaInfo(mediaInfo).build())
+        playerNotificationService?.let {
+          if (it.castPlayer == null) {
+            Log.d(tag, "Initializing castPlayer on session started - switch to cast player")
+            it.castPlayer = CastPlayer(castContext).apply {
+              addListener(PlayerListener(it))
+              setSessionAvailabilityListener(CastSessionAvailabilityListener())
+            }
+            switchToPlayer(true)
+          } else {
+            Log.d(tag, "castPlayer is already initialized on session started")
           }
-
-          // Not working using the exo player CastPlayer
-//          playerNotificationService.castPlayer = CastPlayer(castContext, CustomConverter()).apply {
-//            setSessionAvailabilityListener(CastSessionAvailabilityListener())
-//            addListener(PlayerListener(playerNotificationService))
-//          }
-//          Log.d(tag, "CAST Cast Player Applied")
-//          switchToPlayer(true)
-        } catch (e: Exception) {
-          Log.i(tag, "Cast is not available on this device. " +
-            "Exception thrown when attempting to obtain CastContext. " + e.message)
-          return
         }
-//        media.setSession(castSession)
-//        callback.onJoin(ChromecastUtilities.createSessionObject(castSession))
       }
 
-      override fun onSessionStartFailed(castSession: CastSession?, errCode: Int) {
+      override fun onSessionStartFailed(castSession: CastSession, errCode: Int) {
         if (callback.onSessionStartFailed(errCode)) {
           getSessionManager()?.removeSessionManagerListener(this, CastSession::class.java)
         }
       }
 
-      override fun onSessionEnded(castSession: CastSession?, errCode: Int) {
+      override fun onSessionEnded(castSession: CastSession, errCode: Int) {
         if (callback.onSessionEndedBeforeStart(errCode)) {
           getSessionManager()?.removeSessionManagerListener(this, CastSession::class.java)
         }
       }
     }
 
-    getSessionManager()?.addSessionManagerListener(newConnectionListener, CastSession::class.java)
+    newConnectionListener?.let {
+      Log.d(tag, "Add session manager listener")
+      getSessionManager()?.addSessionManagerListener(it, CastSession::class.java)
+    }
   }
 
   private fun getContext(): CastContext {
@@ -383,7 +314,7 @@ class CastManager constructor(playerNotificationService:PlayerNotificationServic
   }
 
   private fun getMediaRouter(): MediaRouter? {
-    return mainActivity?.let { MediaRouter.getInstance(it) }
+    return MediaRouter.getInstance(mainActivity)
   }
 
   private fun getSession(): CastSession? {

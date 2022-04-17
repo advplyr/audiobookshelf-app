@@ -15,9 +15,8 @@ import kotlinx.coroutines.*
 
 const val NOTIFICATION_LARGE_ICON_SIZE = 144 // px
 
-class AbMediaDescriptionAdapter constructor(private val controller: MediaControllerCompat, playerNotificationService: PlayerNotificationService) : PlayerNotificationManager.MediaDescriptionAdapter {
+class AbMediaDescriptionAdapter constructor(private val controller: MediaControllerCompat, val playerNotificationService: PlayerNotificationService) : PlayerNotificationManager.MediaDescriptionAdapter {
   private val tag = "MediaDescriptionAdapter"
-  private val playerNotificationService:PlayerNotificationService = playerNotificationService
 
   var currentIconUri: Uri? = null
   var currentBitmap: Bitmap? = null

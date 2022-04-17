@@ -26,7 +26,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
   override fun onPrepare() {
     Log.d(tag, "ON PREPARE MEDIA SESSION COMPAT")
     playerNotificationService.mediaManager.getFirstItem()?.let { li ->
-      playerNotificationService.mediaManager.play(li) {
+      playerNotificationService.mediaManager.play(li, playerNotificationService.getMediaPlayer()) {
         Log.d(tag, "About to prepare player with li ${li.title}")
         Handler(Looper.getMainLooper()).post() {
           playerNotificationService.preparePlayer(it,true)
@@ -48,7 +48,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
   override fun onPlayFromSearch(query: String?, extras: Bundle?) {
     Log.d(tag, "ON PLAY FROM SEARCH $query")
     playerNotificationService.mediaManager.getFromSearch(query)?.let { li ->
-      playerNotificationService.mediaManager.play(li) {
+      playerNotificationService.mediaManager.play(li, playerNotificationService.getMediaPlayer()) {
         Log.d(tag, "About to prepare player with li ${li.title}")
         Handler(Looper.getMainLooper()).post() {
           playerNotificationService.preparePlayer(it,true)
@@ -96,7 +96,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
     }
 
     libraryItem?.let { li ->
-      playerNotificationService.mediaManager.play(li) {
+      playerNotificationService.mediaManager.play(li, playerNotificationService.getMediaPlayer()) {
         Log.d(tag, "About to prepare player with li ${li.title}")
         Handler(Looper.getMainLooper()).post() {
           playerNotificationService.preparePlayer(it,true)

@@ -5,6 +5,7 @@ export const state = () => ({
   playerEpisodeId: null,
   playerIsLocal: false,
   playerIsPlaying: false,
+  isCasting: false,
   appUpdateInfo: null,
   socketConnected: false,
   networkConnected: false,
@@ -67,7 +68,13 @@ export const mutations = {
       state.playerEpisodeId = playbackSession ? playbackSession.episodeId || null : null
     }
 
+    var mediaPlayer = playbackSession ? playbackSession.mediaPlayer : null
+    state.isCasting = mediaPlayer === "cast-player"
+
     console.log('setPlayerItem', state.playerLibraryItemId, state.playerEpisodeId, state.playerIsLocal)
+  },
+  setMediaPlayer(state, mediaPlayer) {
+    state.isCasting = mediaPlayer === 'cast-player'
   },
   setPlayerPlaying(state, val) {
     state.playerIsPlaying = val

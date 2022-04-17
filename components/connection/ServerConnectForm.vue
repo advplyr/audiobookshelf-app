@@ -14,7 +14,7 @@
           <ui-btn class="w-full" @click="newServerConfigClick">Add New Server</ui-btn>
         </div>
       </template>
-      <template v-else>
+      <div v-else class="w-full">
         <form v-show="!showAuth" @submit.prevent="submit" novalidate class="w-full">
           <h2 class="text-lg leading-7 mb-2">Server address</h2>
           <ui-text-input v-model="serverConfig.address" :disabled="processing || !networkConnected || serverConfig.id" placeholder="http://55.55.55.55:13378" type="url" class="w-full sm:w-72 h-10" />
@@ -44,12 +44,12 @@
             </div>
           </form>
         </template>
+      </div>
 
-        <div v-show="error" class="w-full rounded-lg bg-red-600 bg-opacity-10 border border-error border-opacity-50 py-3 px-2 flex items-center mt-4">
-          <span class="material-icons mr-2 text-error" style="font-size: 1.1rem">warning</span>
-          <p class="text-error">{{ error }}</p>
-        </div>
-      </template>
+      <div v-show="error" class="w-full rounded-lg bg-red-600 bg-opacity-10 border border-error border-opacity-50 py-3 px-2 flex items-center mt-4">
+        <span class="material-icons mr-2 text-error" style="font-size: 1.1rem">warning</span>
+        <p class="text-error">{{ error }}</p>
+      </div>
     </div>
 
     <div :class="processing ? 'opacity-100' : 'opacity-0 pointer-events-none'" class="fixed w-full h-full top-0 left-0 bg-black bg-opacity-75 flex items-center justify-center z-30 transition-opacity duration-500">
@@ -73,22 +73,6 @@ export default {
   data() {
     return {
       deviceData: null,
-      // serverConnectionConfigs: [
-      //   {
-      //     id: 'test1',
-      //     name: 'http://192.168.0.1:3333 (root)',
-      //     address: 'http://192.168.0.1:3333',
-      //     username: 'root',
-      //     token: 'asdf'
-      //   },
-      //   {
-      //     id: 'test2',
-      //     name: 'https://someserver.com (user)',
-      //     address: 'https://someserver.com',
-      //     username: 'user',
-      //     token: 'asdf'
-      //   }
-      // ],
       loggedIn: false,
       showAuth: false,
       processing: false,
@@ -128,18 +112,23 @@ export default {
       }
     },
     async connectToServer(config) {
+      console.log('[ServerConnectForm] connectToServer', config.address)
       this.processing = true
       this.serverConfig = {
         ...config
       }
       this.showForm = true
       var success = await this.pingServerAddress(config.address)
+      this.processing = false
+      console.log(`[ServerConnectForm] pingServer result ${success}`)
       if (!success) {
+        this.showForm = false
+        this.showAuth = false
+        console.log(`[ServerConnectForm] showForm ${this.showForm}`)
         return
       }
 
       this.error = null
-      this.processing = false
       var payload = await this.authenticateToken()
 
       if (payload) {
@@ -179,8 +168,14 @@ export default {
       console.log('Edit server config', serverConfig)
     },
     newServerConfigClick() {
+      this.serverConfig = {
+        address: '',
+        userId: '',
+        username: ''
+      }
       this.showForm = true
       this.showAuth = false
+      this.error = null
     },
     editServerAddress() {
       this.error = null

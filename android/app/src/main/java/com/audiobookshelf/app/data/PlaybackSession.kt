@@ -2,11 +2,13 @@ package com.audiobookshelf.app.data
 
 import android.net.Uri
 import android.support.v4.media.MediaMetadataCompat
+import androidx.core.app.NotificationCompat
 import com.audiobookshelf.app.R
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.player.MediaProgressSyncData
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.google.android.exoplayer2.C
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.MediaMetadata
 import com.google.android.gms.cast.MediaInfo
@@ -42,7 +44,8 @@ class PlaybackSession(
   var localLibraryItem:LocalLibraryItem?,
   var localEpisodeId:String?,
   var serverConnectionConfigId:String?,
-  var serverAddress:String?
+  var serverAddress:String?,
+  var mediaPlayer:String?
 ) {
 
   @get:JsonIgnore
@@ -152,9 +155,14 @@ class PlaybackSession(
   @JsonIgnore
   fun getCastMediaMetadata(audioTrack:AudioTrack):com.google.android.gms.cast.MediaMetadata {
     var castMetadata = com.google.android.gms.cast.MediaMetadata(com.google.android.gms.cast.MediaMetadata.MEDIA_TYPE_AUDIOBOOK_CHAPTER)
-    castMetadata.addImage(WebImage(getCoverUri()))
-    castMetadata.putString(com.google.android.gms.cast.MediaMetadata.KEY_TITLE, displayTitle)
-    castMetadata.putString(com.google.android.gms.cast.MediaMetadata.KEY_ARTIST, displayAuthor)
+
+    coverPath?.let {
+      castMetadata.addImage(WebImage(Uri.parse("$serverAddress/api/items/$libraryItemId/cover?token=${DeviceManager.token}")))
+    }
+
+    castMetadata.putString(com.google.android.gms.cast.MediaMetadata.KEY_TITLE, displayTitle ?: "")
+    castMetadata.putString(com.google.android.gms.cast.MediaMetadata.KEY_ARTIST, displayAuthor ?: "")
+    castMetadata.putString(com.google.android.gms.cast.MediaMetadata.KEY_CHAPTER_TITLE, audioTrack.title)
     castMetadata.putInt(com.google.android.gms.cast.MediaMetadata.KEY_TRACK_NUMBER, audioTrack.index)
     return castMetadata
   }
@@ -164,21 +172,22 @@ class PlaybackSession(
     var castMetadata = getCastMediaMetadata(audioTrack)
 
     var mediaUri = getContentUri(audioTrack)
-    var mediaInfoBuilder = MediaInfo.Builder(mediaUri.toString())
-    mediaInfoBuilder.setContentUrl(mediaUri.toString())
-    mediaInfoBuilder.setMetadata(castMetadata)
-    mediaInfoBuilder.setContentType(audioTrack.mimeType)
-    var mediaInfo = mediaInfoBuilder.build()
 
-    var queueItem = MediaQueueItem.Builder(mediaInfo)
-    queueItem.setItemId(audioTrack.index)
-    queueItem.setPlaybackDuration(audioTrack.duration)
-    return queueItem.build()
+    var mediaInfo = MediaInfo.Builder(mediaUri.toString()).apply {
+      setContentUrl(mediaUri.toString())
+      setContentType(audioTrack.mimeType)
+      setMetadata(castMetadata)
+      setStreamType(MediaInfo.STREAM_TYPE_BUFFERED)
+    }.build()
+
+    return MediaQueueItem.Builder(mediaInfo).apply {
+      setPlaybackDuration(audioTrack.duration)
+    }.build()
   }
 
   @JsonIgnore
   fun clone():PlaybackSession {
-    return PlaybackSession(id,userId,libraryItemId,episodeId,mediaType,mediaMetadata,chapters,displayTitle,displayAuthor,coverPath,duration,playMethod,startedAt,updatedAt,timeListening,audioTracks,currentTime,libraryItem,localLibraryItem,localEpisodeId,serverConnectionConfigId,serverAddress)
+    return PlaybackSession(id,userId,libraryItemId,episodeId,mediaType,mediaMetadata,chapters,displayTitle,displayAuthor,coverPath,duration,playMethod,startedAt,updatedAt,timeListening,audioTracks,currentTime,libraryItem,localLibraryItem,localEpisodeId,serverConnectionConfigId,serverAddress, mediaPlayer)
   }
 
   @JsonIgnore

@@ -5,17 +5,19 @@ import android.app.DownloadManager
 import android.content.*
 import android.content.pm.PackageManager
 import android.os.*
+import android.os.StrictMode.VmPolicy
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import com.anggrayudi.storage.SimpleStorage
 import com.anggrayudi.storage.SimpleStorageHelper
 import com.audiobookshelf.app.data.AbsDatabase
 import com.audiobookshelf.app.player.PlayerNotificationService
-import com.audiobookshelf.app.plugins.AbsDownloader
 import com.audiobookshelf.app.plugins.AbsAudioPlayer
+import com.audiobookshelf.app.plugins.AbsDownloader
 import com.audiobookshelf.app.plugins.AbsFileSystem
 import com.getcapacitor.BridgeActivity
 import io.paperdb.Paper
+
 
 class MainActivity : BridgeActivity() {
   private val tag = "MainActivity"
@@ -51,6 +53,20 @@ class MainActivity : BridgeActivity() {
   }
 
   public override fun onCreate(savedInstanceState: Bundle?) {
+    StrictMode.setThreadPolicy(StrictMode.ThreadPolicy.Builder()
+      .detectDiskReads()
+      .detectDiskWrites().detectAll()
+      .detectNetwork() // or .detectAll() for all detectable problems
+      .penaltyLog()
+      .build())
+    StrictMode.setVmPolicy(VmPolicy.Builder()
+      .detectLeakedSqlLiteObjects()
+      .detectLeakedClosableObjects()
+      .penaltyLog()
+//      .penaltyDeath()
+      .build())
+
+
     super.onCreate(savedInstanceState)
 
     Log.d(tag, "onCreate")

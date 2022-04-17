@@ -22,19 +22,15 @@ import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.server.ApiHandler
-import com.getcapacitor.JSObject
 import com.google.android.exoplayer2.*
 import com.google.android.exoplayer2.audio.AudioAttributes
-import com.google.android.exoplayer2.ext.cast.CastPlayer
 import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector
 import com.google.android.exoplayer2.ext.mediasession.TimelineQueueNavigator
 import com.google.android.exoplayer2.source.MediaSource
 import com.google.android.exoplayer2.source.ProgressiveMediaSource
 import com.google.android.exoplayer2.source.hls.HlsMediaSource
-import com.google.android.exoplayer2.ui.PlayerControlView
 import com.google.android.exoplayer2.ui.PlayerNotificationManager
 import com.google.android.exoplayer2.upstream.*
-import okhttp3.OkHttpClient
 import java.util.*
 import kotlin.concurrent.schedule
 
@@ -56,6 +52,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     fun onSleepTimerSet(sleepTimeRemaining: Int)
     fun onLocalMediaProgressUpdate(localMediaProgress: LocalMediaProgress)
     fun onPlaybackFailed(errorMessage:String)
+    fun onMediaPlayerChanged(mediaPlayer:String)
   }
 
   private val tag = "PlayerService"
@@ -68,6 +65,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   private lateinit var playerNotificationManager: PlayerNotificationManager
   private lateinit var mediaSession: MediaSessionCompat
   private lateinit var transportControls:MediaControllerCompat.TransportControls
+
   lateinit var mediaManager: MediaManager
   lateinit var apiHandler: ApiHandler
 
@@ -76,7 +74,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   var castPlayer:CastPlayer? = null
 
   lateinit var sleepTimerManager:SleepTimerManager
-  lateinit var castManager:CastManager
   lateinit var mediaProgressSyncer:MediaProgressSyncer
 
   private var notificationId = 10;
@@ -144,6 +141,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   override fun onDestroy() {
     playerNotificationManager.setPlayer(null)
     mPlayer.release()
+    castPlayer?.release()
     mediaSession.release()
     mediaProgressSyncer.reset()
     Log.d(tag, "onDestroy")
@@ -189,9 +187,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
     // Initialize sleep timer
     sleepTimerManager = SleepTimerManager(this)
-
-    // Initialize Cast Manager
-    castManager = CastManager(this)
 
     // Initialize Media Progress Syncer
     mediaProgressSyncer = MediaProgressSyncer(this, apiHandler)
@@ -282,7 +277,23 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     User callable methods
   */
   fun preparePlayer(playbackSession: PlaybackSession, playWhenReady:Boolean) {
+    playbackSession.mediaPlayer = getMediaPlayer()
+
+    if (playbackSession.mediaPlayer == "cast-player" && playbackSession.isLocal) {
+      Log.w(tag, "Cannot cast local media item - switching player")
+      currentPlaybackSession = null
+      switchToPlayer(false)
+      playbackSession.mediaPlayer = getMediaPlayer()
+    }
+
+    if (playbackSession.mediaPlayer == "cast-player") {
+      // If cast-player is the first player to be used
+      mediaSessionConnector.setPlayer(castPlayer)
+      playerNotificationManager.setPlayer(castPlayer)
+    }
+
     currentPlaybackSession = playbackSession
+    Log.d(tag, "Set CurrentPlaybackSession MediaPlayer ${currentPlaybackSession?.mediaPlayer}")
 
     clientEventEmitter?.onPlaybackSession(playbackSession)
 
@@ -309,39 +320,45 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       }
       mPlayer.setMediaSource(mediaSource)
 
+
+      // Add remaining media items if multi-track
+      if (mediaItems.size > 1) {
+        currentPlayer.addMediaItems(mediaItems.subList(1, mediaItems.size))
+        Log.d(tag, "currentPlayer total media items ${currentPlayer.mediaItemCount}")
+
+        var currentTrackIndex = playbackSession.getCurrentTrackIndex()
+        var currentTrackTime = playbackSession.getCurrentTrackTimeMs()
+        Log.d(tag, "currentPlayer current track index $currentTrackIndex & current track time $currentTrackTime")
+        currentPlayer.seekTo(currentTrackIndex, currentTrackTime)
+      } else {
+        currentPlayer.seekTo(playbackSession.currentTimeMs)
+      }
+
+      Log.d(tag, "Prepare complete for session ${currentPlaybackSession?.displayTitle} | ${currentPlayer.mediaItemCount}")
+      currentPlayer.playWhenReady = playWhenReady
+      currentPlayer.setPlaybackSpeed(1f) // TODO: Playback speed should come from settings
+      currentPlayer.prepare()
+
     } else if (castPlayer != null) {
-      castPlayer?.addMediaItem(mediaItems[0]) // TODO: Media items never actually get added, not sure what is going on....
-      Log.d(tag, "Cast Player ADDED MEDIA ITEM ${castPlayer?.currentMediaItem} | ${castPlayer?.duration} | ${castPlayer?.mediaItemCount}")
-    }
-
-    // Add remaining media items if multi-track
-    if (mediaItems.size > 1) {
-      currentPlayer.addMediaItems(mediaItems.subList(1, mediaItems.size))
-      Log.d(tag, "currentPlayer total media items ${currentPlayer.mediaItemCount}")
-
       var currentTrackIndex = playbackSession.getCurrentTrackIndex()
       var currentTrackTime = playbackSession.getCurrentTrackTimeMs()
-      Log.d(tag, "currentPlayer current track index $currentTrackIndex & current track time $currentTrackTime")
-      currentPlayer.seekTo(currentTrackIndex, currentTrackTime)
-    } else {
-      currentPlayer.seekTo(playbackSession.currentTimeMs)
-    }
+      var mediaType = playbackSession.mediaType
+      Log.d(tag, "Loading cast player $currentTrackIndex $currentTrackTime $mediaType")
 
-    Log.d(tag, "Prepare complete for session ${currentPlaybackSession?.displayTitle} | ${currentPlayer.mediaItemCount}")
-    currentPlayer.playWhenReady = playWhenReady
-    currentPlayer.setPlaybackSpeed(1f) // TODO: Playback speed should come from settings
-    currentPlayer.prepare()
+      castPlayer?.load(mediaItems, currentTrackIndex, currentTrackTime, playWhenReady, 1f, mediaType)
+    }
   }
 
   fun handlePlayerPlaybackError(errorMessage:String) {
     // On error and was attempting to direct play - fallback to transcode
     currentPlaybackSession?.let { playbackSession ->
       if (playbackSession.isDirectPlay) {
-        Log.d(tag, "Fallback to transcode")
+        var mediaPlayer = getMediaPlayer()
+        Log.d(tag, "Fallback to transcode $mediaPlayer")
 
         var libraryItemId = playbackSession.libraryItemId ?: "" // Must be true since direct play
         var episodeId = playbackSession.episodeId
-        apiHandler.playLibraryItem(libraryItemId, episodeId, true) {
+        apiHandler.playLibraryItem(libraryItemId, episodeId, true, mediaPlayer) {
           Handler(Looper.getMainLooper()).post() {
             preparePlayer(it, true)
           }
@@ -354,17 +371,48 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   }
 
   fun switchToPlayer(useCastPlayer: Boolean) {
+    var wasPlaying = currentPlayer.isPlaying
+    if (useCastPlayer) {
+      if (currentPlayer == castPlayer) {
+        Log.d(tag, "switchToPlayer: Already using Cast Player " + castPlayer?.deviceInfo)
+        return
+      } else {
+        Log.d(tag, "switchToPlayer: Switching to cast player from exo player stop exo player")
+        mPlayer.stop()
+      }
+    } else {
+      if (currentPlayer == mPlayer) {
+        Log.d(tag, "switchToPlayer: Already using Exo Player " + mPlayer.deviceInfo)
+        return
+      } else if (castPlayer != null) {
+        Log.d(tag, "switchToPlayer: Switching to exo player from cast player stop cast player")
+        castPlayer?.stop()
+      }
+    }
+
     currentPlayer = if (useCastPlayer) {
       Log.d(tag, "switchToPlayer: Using Cast Player " + castPlayer?.deviceInfo)
       mediaSessionConnector.setPlayer(castPlayer)
+      playerNotificationManager.setPlayer(castPlayer)
       castPlayer as CastPlayer
     } else {
       Log.d(tag, "switchToPlayer: Using ExoPlayer")
       mediaSessionConnector.setPlayer(mPlayer)
+      playerNotificationManager.setPlayer(mPlayer)
       mPlayer
     }
+
+    clientEventEmitter?.onMediaPlayerChanged(getMediaPlayer())
+
+    if (currentPlaybackSession == null) {
+      Log.d(tag, "switchToPlayer: No Current playback session")
+    }
+
     currentPlaybackSession?.let {
       Log.d(tag, "switchToPlayer: Preparing current playback session ${it.displayTitle}")
+      if (wasPlaying) { // media is paused when switching players
+        clientEventEmitter?.onPlayingUpdate(false)
+      }
       preparePlayer(it, false)
     }
   }
@@ -441,6 +489,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   }
 
   fun seekPlayer(time: Long) {
+    Log.d(tag, "seekPlayer mediaCount = ${currentPlayer.mediaItemCount} | $time")
     if (currentPlayer.mediaItemCount > 1) {
       currentPlaybackSession?.currentTime = time / 1000.0
       var newWindowIndex = currentPlaybackSession?.getCurrentTrackIndex() ?: 0
@@ -452,11 +501,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   }
 
   fun seekForward(amount: Long) {
-    currentPlayer.seekTo(mPlayer.currentPosition + amount)
+    currentPlayer.seekTo(currentPlayer.currentPosition + amount)
   }
 
   fun seekBackward(amount: Long) {
-    currentPlayer.seekTo(mPlayer.currentPosition - amount)
+    currentPlayer.seekTo(currentPlayer.currentPosition - amount)
   }
 
   fun setPlaybackSpeed(speed: Float) {
@@ -465,6 +514,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   fun closePlayback() {
     currentPlayer.clearMediaItems()
+    currentPlayer.stop()
     currentPlaybackSession = null
     clientEventEmitter?.onPlaybackClosed()
     PlayerListener.lastPauseTime = 0
@@ -473,6 +523,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   fun sendClientMetadata(playerState: PlayerState) {
     var duration = currentPlaybackSession?.getTotalDuration() ?: 0.0
     clientEventEmitter?.onMetadata(PlaybackMetadata(duration, getCurrentTimeSeconds(), playerState))
+  }
+
+  fun getMediaPlayer():String {
+    return if(currentPlayer == castPlayer) "cast-player" else "exo-player"
   }
 
   //
