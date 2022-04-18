@@ -61,6 +61,7 @@ class NowPlayingInfo {
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
     }
     public static func reset() {
+        nowPlayingInfo = [:]
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
     }
     

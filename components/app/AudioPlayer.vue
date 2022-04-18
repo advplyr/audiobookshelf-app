@@ -498,10 +498,6 @@ export default {
     resetStream(startTime) {
       this.closePlayback()
     },
-    closePlayback() {
-      if (!this.playbackSession) return
-      AbsAudioPlayer.closePlayback()
-    },
     handleGesture() {
       var touchDistance = this.touchEndY - this.touchStartY
       if (touchDistance > 100) {
@@ -553,6 +549,8 @@ export default {
       this.showFullscreen = false
       this.isEnded = false
       this.playbackSession = null
+      
+      AbsAudioPlayer.closePlayback()
     },
     //
     // Listeners from audio AbsAudioPlayer
