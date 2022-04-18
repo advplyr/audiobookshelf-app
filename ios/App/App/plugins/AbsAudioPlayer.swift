@@ -50,6 +50,8 @@ public class AbsAudioPlayer: CAPPlugin {
         }
     }
     @objc func closePlayback(_ call: CAPPluginCall) {
+        NSLog("Close playback")
+        
         PlayerHandler.stopPlayback()
         call.resolve()
     }
