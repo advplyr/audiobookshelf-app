@@ -74,10 +74,9 @@ class AudioPlayer: NSObject {
             print(error)
         }
         
-        // DispatchQueue.main.sync {
+        DispatchQueue.main.sync {
             UIApplication.shared.endReceivingRemoteControlEvents()
-        // }
-        
+        }
         NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.closed.rawValue), object: nil)
     }
     
@@ -166,7 +165,6 @@ class AudioPlayer: NSObject {
             "Authorization": "Bearer \(Store.serverConfig!.token)"
         ]
         
-        debugPrint(activeAudioTrack)
         return AVURLAsset(url: URL(string: "\(Store.serverConfig!.address)\(activeAudioTrack.contentUrl)")!, options: ["AVURLAssetHTTPHeaderFieldsKey": headers])
     }
     private func initAudioSession() {
