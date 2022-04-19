@@ -12,8 +12,8 @@
       </div>
       <p v-if="bookResults.length" class="font-semibold text-sm mb-1">Books</p>
       <template v-for="item in bookResults">
-        <div :key="item.id" class="w-full h-16 py-1">
-          <nuxt-link :to="`/item/${item.id}`">
+        <div :key="item.libraryItem.id" class="w-full h-16 py-1">
+          <nuxt-link :to="`/item/${item.libraryItem.id}`">
             <cards-item-search-card :library-item="item.libraryItem" :match-key="item.matchKey" :match-text="item.matchText" :search="lastSearch" />
           </nuxt-link>
         </div>
@@ -21,8 +21,8 @@
 
       <p v-if="podcastResults.length" class="uppercase text-xs text-gray-400 my-1 px-1 font-semibold">Podcasts</p>
       <template v-for="item in podcastResults">
-        <div :key="item.id" class="text-gray-50 select-none relative cursor-pointer hover:bg-black-400 py-1">
-          <nuxt-link :to="`/item/${item.id}`">
+        <div :key="item.libraryItem.id" class="text-gray-50 select-none relative cursor-pointer hover:bg-black-400 py-1">
+          <nuxt-link :to="`/item/${item.libraryItem.id}`">
             <cards-item-search-card :library-item="item.libraryItem" :match-key="item.matchKey" :match-text="item.matchText" :search="lastSearch" />
           </nuxt-link>
         </div>
