@@ -31,6 +31,7 @@ import com.google.android.exoplayer2.source.ProgressiveMediaSource
 import com.google.android.exoplayer2.source.hls.HlsMediaSource
 import com.google.android.exoplayer2.ui.PlayerNotificationManager
 import com.google.android.exoplayer2.upstream.*
+import io.paperdb.Paper
 import java.util.*
 import kotlin.concurrent.schedule
 
@@ -196,7 +197,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     initSensor()
 
     // Initialize media manager
-    mediaManager = MediaManager(apiHandler)
+    mediaManager = MediaManager(apiHandler, ctx)
 
     channelId = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
       createNotificationChannel(channelId, channelName)
@@ -300,6 +301,13 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     var metadata = playbackSession.getMediaMetadataCompat()
     mediaSession.setMetadata(metadata)
     var mediaItems = playbackSession.getMediaItems()
+
+    if (mediaItems.isEmpty()) {
+      Log.e(tag, "Invalid playback session no media items to play")
+      currentPlaybackSession = null
+      return
+    }
+
     if (mPlayer == currentPlayer) {
       var mediaSource:MediaSource
 
@@ -561,7 +569,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       // No further calls will be made to other media browsing methods.
       null
     } else {
-      // Flag is used to enable syncing progress natively (normally syncing is handled in webview)
+      if (!isStarted) {
+        Log.d(tag, "AA Not yet started")
+        mediaManager.initializeAndroidAuto()
+        isStarted = true
+      }
+
       isAndroidAuto = true
 
       val extras = Bundle()
@@ -584,9 +597,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     var flag = if (parentMediaId == AUTO_MEDIA_ROOT) MediaBrowserCompat.MediaItem.FLAG_BROWSABLE else MediaBrowserCompat.MediaItem.FLAG_PLAYABLE
 
     result.detach()
-    mediaManager.loadLibraryItems { libraryItems ->
-      var itemMediaMetadata:List<MediaMetadataCompat> = libraryItems.map { it.getMediaMetadata() }
-      browseTree = BrowseTree(this, mutableListOf(), itemMediaMetadata, mutableListOf())
+
+    mediaManager.loadAndroidAutoItems("main") { libraryCategories ->
+      browseTree = BrowseTree(this, libraryCategories)
       val children = browseTree[parentMediaId]?.map { item ->
         MediaBrowserCompat.MediaItem(item.description, flag)
       }
@@ -605,9 +618,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   override fun onSearch(query: String, extras: Bundle?, result: Result<MutableList<MediaBrowserCompat.MediaItem>>) {
     result.detach()
-    mediaManager.loadLibraryItems { libraryItems ->
-      var itemMediaMetadata:List<MediaMetadataCompat> = libraryItems.map { it.getMediaMetadata() }
-      browseTree = BrowseTree(this, mutableListOf(), itemMediaMetadata, mutableListOf())
+    mediaManager.loadAndroidAutoItems("main") { libraryCategories ->
+      browseTree = BrowseTree(this, libraryCategories)
       val children = browseTree[ALL_ROOT]?.map { item ->
         MediaBrowserCompat.MediaItem(item.description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
       }

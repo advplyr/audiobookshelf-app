@@ -26,7 +26,7 @@ data class LibraryItem(
   var mediaType:String,
   var media:MediaType,
   var libraryFiles:MutableList<LibraryFile>?
-) {
+) : LibraryItemWrapper() {
   @get:JsonIgnore
   val title get() = media.metadata.title
   @get:JsonIgnore

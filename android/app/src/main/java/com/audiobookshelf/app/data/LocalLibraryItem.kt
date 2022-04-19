@@ -1,6 +1,9 @@
 package com.audiobookshelf.app.data
 
+import android.net.Uri
+import android.support.v4.media.MediaMetadataCompat
 import android.util.Log
+import com.audiobookshelf.app.R
 import com.audiobookshelf.app.device.DeviceManager
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
@@ -25,10 +28,18 @@ data class LocalLibraryItem(
   var serverAddress:String?,
   var serverUserId:String?,
   var libraryItemId:String?
-  ) {
-
+  ) : LibraryItemWrapper() {
+  @get:JsonIgnore
+  val title get() = media.metadata.title
+  @get:JsonIgnore
+  val authorName get() = media.metadata.getAuthorDisplayName()
   @get:JsonIgnore
   val isPodcast get() = mediaType == "podcast"
+
+  @JsonIgnore
+  fun getCoverUri(): Uri {
+    return if (coverContentUrl != null) Uri.parse(coverContentUrl) else Uri.parse("android.resource://com.audiobookshelf.app/" + R.drawable.icon)
+  }
 
   @JsonIgnore
   fun getDuration():Double {
@@ -79,5 +90,19 @@ data class LocalLibraryItem(
   @JsonIgnore
   fun removeLocalFile(localFileId:String) {
     localFiles.removeIf { it.id == localFileId }
+  }
+
+  @JsonIgnore
+  fun getMediaMetadata(): MediaMetadataCompat {
+    return MediaMetadataCompat.Builder().apply {
+      putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, id)
+      putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, title)
+      putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
+      putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, authorName)
+      putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, getCoverUri().toString())
+      putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getCoverUri().toString())
+      putString(MediaMetadataCompat.METADATA_KEY_ART_URI, getCoverUri().toString())
+      putString(MediaMetadataCompat.METADATA_KEY_AUTHOR, authorName)
+    }.build()
   }
 }

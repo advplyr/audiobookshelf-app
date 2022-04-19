@@ -2,6 +2,8 @@ package com.audiobookshelf.app.data
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.JsonTypeInfo
 import java.util.*
 
 data class ServerConnectionConfig(
@@ -18,7 +20,14 @@ data class DeviceData(
   var serverConnectionConfigs:MutableList<ServerConnectionConfig>,
   var lastServerConnectionConfigId:String?,
   var currentLocalPlaybackSession:PlaybackSession? // Stored to open up where left off for local media
-)
+) {
+  @JsonIgnore
+  fun getLastServerConnectionConfig():ServerConnectionConfig? {
+    return lastServerConnectionConfigId?.let { lsccid ->
+      return serverConnectionConfigs.find { it.id == lsccid }
+    }
+  }
+}
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class LocalFile(
@@ -48,3 +57,10 @@ data class LocalFolder(
   var storageType:String,
   var mediaType:String
 )
+
+@JsonTypeInfo(use= JsonTypeInfo.Id.DEDUCTION)
+@JsonSubTypes(
+  JsonSubTypes.Type(LibraryItem::class),
+  JsonSubTypes.Type(LocalLibraryItem::class)
+)
+open class LibraryItemWrapper()

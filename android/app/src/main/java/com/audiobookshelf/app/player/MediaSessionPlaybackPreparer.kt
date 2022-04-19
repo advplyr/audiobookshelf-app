@@ -8,6 +8,7 @@ import android.os.ResultReceiver
 import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
 import com.audiobookshelf.app.data.LibraryItem
+import com.audiobookshelf.app.data.LibraryItemWrapper
 import com.google.android.exoplayer2.Player
 import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector
 
@@ -40,10 +41,10 @@ class MediaSessionPlaybackPreparer(var playerNotificationService:PlayerNotificat
   override fun onPrepareFromMediaId(mediaId: String, playWhenReady: Boolean, extras: Bundle?) {
     Log.d(tag, "ON PREPARE FROM MEDIA ID $mediaId $playWhenReady")
 
-    var libraryItem: LibraryItem? = playerNotificationService.mediaManager.getById(mediaId)
-    libraryItem?.let { li ->
+    var libraryItemWrapper: LibraryItemWrapper? = playerNotificationService.mediaManager.getById(mediaId)
+    libraryItemWrapper?.let { li ->
       playerNotificationService.mediaManager.play(li, playerNotificationService.getMediaPlayer()) {
-        Log.d(tag, "About to prepare player with li ${li.title}")
+        Log.d(tag, "About to prepare player with ${it.displayTitle}")
         Handler(Looper.getMainLooper()).post() {
           playerNotificationService.preparePlayer(it,playWhenReady)
         }
@@ -55,7 +56,7 @@ class MediaSessionPlaybackPreparer(var playerNotificationService:PlayerNotificat
     Log.d(tag, "ON PREPARE FROM SEARCH $query")
     playerNotificationService.mediaManager.getFromSearch(query)?.let { li ->
       playerNotificationService.mediaManager.play(li, playerNotificationService.getMediaPlayer()) {
-        Log.d(tag, "About to prepare player with li ${li.title}")
+        Log.d(tag, "About to prepare player with ${it.displayTitle}")
         Handler(Looper.getMainLooper()).post() {
           playerNotificationService.preparePlayer(it,playWhenReady)
         }
