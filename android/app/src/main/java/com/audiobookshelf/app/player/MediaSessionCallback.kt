@@ -10,6 +10,7 @@ import android.support.v4.media.session.MediaSessionCompat
 import android.util.Log
 import android.view.KeyEvent
 import com.audiobookshelf.app.data.LibraryItem
+import com.audiobookshelf.app.data.LibraryItemWrapper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -27,7 +28,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
     Log.d(tag, "ON PREPARE MEDIA SESSION COMPAT")
     playerNotificationService.mediaManager.getFirstItem()?.let { li ->
       playerNotificationService.mediaManager.play(li, playerNotificationService.getMediaPlayer()) {
-        Log.d(tag, "About to prepare player with li ${li.title}")
+        Log.d(tag, "About to prepare player with ${it.displayTitle}")
         Handler(Looper.getMainLooper()).post() {
           playerNotificationService.preparePlayer(it,true)
         }
@@ -49,7 +50,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
     Log.d(tag, "ON PLAY FROM SEARCH $query")
     playerNotificationService.mediaManager.getFromSearch(query)?.let { li ->
       playerNotificationService.mediaManager.play(li, playerNotificationService.getMediaPlayer()) {
-        Log.d(tag, "About to prepare player with li ${li.title}")
+        Log.d(tag, "About to prepare player with ${it.displayTitle}")
         Handler(Looper.getMainLooper()).post() {
           playerNotificationService.preparePlayer(it,true)
         }
@@ -88,16 +89,16 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
 
   override fun onPlayFromMediaId(mediaId: String?, extras: Bundle?) {
     Log.d(tag, "ON PLAY FROM MEDIA ID $mediaId")
-    var libraryItem: LibraryItem? = null
+    var libraryItemWrapper: LibraryItemWrapper? = null
     if (mediaId.isNullOrEmpty()) {
-      libraryItem = playerNotificationService.mediaManager.getFirstItem()
+      libraryItemWrapper = playerNotificationService.mediaManager.getFirstItem()
     } else {
-      libraryItem = playerNotificationService.mediaManager.getById(mediaId)
+      libraryItemWrapper = playerNotificationService.mediaManager.getById(mediaId)
     }
 
-    libraryItem?.let { li ->
+    libraryItemWrapper?.let { li ->
       playerNotificationService.mediaManager.play(li, playerNotificationService.getMediaPlayer()) {
-        Log.d(tag, "About to prepare player with li ${li.title}")
+        Log.d(tag, "About to prepare player with ${it.displayTitle}")
         Handler(Looper.getMainLooper()).post() {
           playerNotificationService.preparePlayer(it,true)
         }
@@ -110,7 +111,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
   }
 
   fun handleCallMediaButton(intent: Intent): Boolean {
-    if(Intent.ACTION_MEDIA_BUTTON == intent.getAction()) {
+    if(Intent.ACTION_MEDIA_BUTTON == intent.action) {
       var keyEvent = intent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
       if (keyEvent?.getAction() == KeyEvent.ACTION_UP) {
         when (keyEvent?.getKeyCode()) {

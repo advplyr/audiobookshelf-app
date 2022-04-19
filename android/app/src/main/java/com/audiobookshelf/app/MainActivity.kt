@@ -70,8 +70,9 @@ class MainActivity : BridgeActivity() {
 
     Log.d(tag, "onCreate")
 
-//    var ss = SimpleStorage(this)
-//    ss.requestFullStorageAccess()
+    // Grant full storage access for testing
+    // var ss = SimpleStorage(this)
+    // ss.requestFullStorageAccess()
 
     var permission = ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
     if (permission != PackageManager.PERMISSION_GRANTED) {

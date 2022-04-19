@@ -6,7 +6,8 @@ import com.audiobookshelf.app.data.DeviceData
 import com.audiobookshelf.app.data.ServerConnectionConfig
 
 object DeviceManager {
-  val tag = "DeviceManager"
+  const val tag = "DeviceManager"
+
   val dbManager:DbManager = DbManager()
   var deviceData:DeviceData = dbManager.getDeviceData()
   var serverConnectionConfig: ServerConnectionConfig? = null
@@ -15,6 +16,8 @@ object DeviceManager {
   val serverAddress get() = serverConnectionConfig?.address ?: ""
   val serverUserId get() = serverConnectionConfig?.userId ?: ""
   val token get() = serverConnectionConfig?.token ?: ""
+  val isConnectedToServer get() = serverConnectionConfig != null
+  val hasLastServerConnectionConfig get() = deviceData.getLastServerConnectionConfig() != null
 
   init {
     Log.d(tag, "Device Manager Singleton invoked")

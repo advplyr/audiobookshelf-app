@@ -5,11 +5,7 @@ import android.content.SharedPreferences
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.util.Log
-import androidx.core.content.ContextCompat.getSystemService
-import com.audiobookshelf.app.data.Library
-import com.audiobookshelf.app.data.LibraryItem
-import com.audiobookshelf.app.data.LocalMediaProgress
-import com.audiobookshelf.app.data.PlaybackSession
+import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.player.MediaProgressSyncData
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
@@ -21,24 +17,21 @@ import com.getcapacitor.JSObject
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
 import java.io.IOException
 
-
-class ApiHandler {
+class ApiHandler(var ctx:Context) {
   val tag = "ApiHandler"
+
   private var client = OkHttpClient()
   var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
-  var ctx: Context
+
   var storageSharedPreferences: SharedPreferences? = null
 
   data class LocalMediaProgressSyncPayload(val localMediaProgress:List<LocalMediaProgress>)
   @JsonIgnoreProperties(ignoreUnknown = true)
   data class MediaProgressSyncResponsePayload(val numServerProgressUpdates:Int, val localProgressUpdates:List<LocalMediaProgress>)
   data class LocalMediaProgressSyncResultsPayload(var numLocalMediaProgressForServer:Int, var numServerProgressUpdates:Int, var numLocalProgressUpdates:Int)
-
-  constructor(_ctx: Context) {
-    ctx = _ctx
-  }
 
   fun getRequest(endpoint:String, cb: (JSObject) -> Unit) {
     val request = Request.Builder()
@@ -67,19 +60,17 @@ class ApiHandler {
 
   fun isOnline(): Boolean {
     val connectivityManager = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-    if (connectivityManager != null) {
-      val capabilities = connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
-      if (capabilities != null) {
-        if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
-          Log.i("Internet", "NetworkCapabilities.TRANSPORT_CELLULAR")
-          return true
-        } else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
-          Log.i("Internet", "NetworkCapabilities.TRANSPORT_WIFI")
-          return true
-        } else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) {
-          Log.i("Internet", "NetworkCapabilities.TRANSPORT_ETHERNET")
-          return true
-        }
+    val capabilities = connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
+    if (capabilities != null) {
+      if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
+        Log.i("Internet", "NetworkCapabilities.TRANSPORT_CELLULAR")
+        return true
+      } else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
+        Log.i("Internet", "NetworkCapabilities.TRANSPORT_WIFI")
+        return true
+      } else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) {
+        Log.i("Internet", "NetworkCapabilities.TRANSPORT_ETHERNET")
+        return true
       }
     }
     return false
@@ -145,6 +136,27 @@ class ApiHandler {
         for (i in 0 until array.length()) {
           val item = jacksonMapper.readValue<LibraryItem>(array.get(i).toString())
           items.add(item)
+        }
+      }
+      cb(items)
+    }
+  }
+
+  fun getLibraryCategories(libraryId:String, cb: (List<LibraryCategory>) -> Unit) {
+    getRequest("/api/libraries/$libraryId/personalized") {
+      val items = mutableListOf<LibraryCategory>()
+      if (it.has("value")) {
+        var array = it.getJSONArray("value")
+        for (i in 0 until array.length()) {
+          var jsobj = array.get(i) as JSONObject
+
+          var type = jsobj.get("type").toString()
+          // Only support for podcast and book in android auto
+          if (type == "podcast" || type == "book") {
+            jsobj.put("isLocal", false)
+            val item = jacksonMapper.readValue<LibraryCategory>(jsobj.toString())
+            items.add(item)
+          }
         }
       }
       cb(items)
