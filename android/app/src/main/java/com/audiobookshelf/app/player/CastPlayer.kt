@@ -149,7 +149,7 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
 
   private fun toMediaQueueItem(mediaItem: MediaItem): MediaQueueItem {
     // The MediaQueueItem you build is expected to be in the tag.
-    return (mediaItem.playbackProperties!!.tag as MediaQueueItem?)!!
+    return (mediaItem.localConfiguration!!.tag as MediaQueueItem?)!!
   }
 
   @JvmName("setRemoteMediaClient1")
@@ -373,7 +373,6 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
       listeners.queueEvent(
         EVENT_POSITION_DISCONTINUITY
       ) { listener: Listener ->
-        listener.onPositionDiscontinuity(DISCONTINUITY_REASON_AUTO_TRANSITION)
         listener.onPositionDiscontinuity(
           oldPosition, newPosition, DISCONTINUITY_REASON_AUTO_TRANSITION)
       }
@@ -385,9 +384,6 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
       }
     }
     if (updateTracksAndSelectionsAndNotifyIfChanged()) {
-      listeners.queueEvent(
-        EVENT_TRACKS_CHANGED
-      ) { listener: Listener -> listener.onTracksChanged(currentTrackGroups, currentTrackSelections) }
       listeners.queueEvent(
         EVENT_TRACKS_CHANGED) { listener: Listener -> listener.onTracksInfoChanged(currentTracksInfo) }
     }
@@ -640,8 +636,6 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
         pendingSeekWindowIndex = C.INDEX_UNSET
         pendingSeekPositionMs = C.TIME_UNSET
 
-
-        listeners.sendEvent( /* eventFlag= */C.INDEX_UNSET) { obj: Player.Listener -> obj.onSeekProcessed() }
         // Playback state change will send metadata to client and stop seek loading
         listeners.sendEvent(EVENT_PLAYBACK_STATE_CHANGED) { obj: Player.Listener -> obj.onPlaybackStateChanged(currentPlaybackState) }
       }
@@ -651,27 +645,27 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
 
     // We assume the default position is 0. There is no support for seeking to the default position
     // in RemoteMediaClient.
-    var positionMs = if (positionMs != C.TIME_UNSET) positionMs else 0
+    var positionMsFinal = if (positionMs != C.TIME_UNSET) positionMs else 0
     if (mediaStatus != null) {
       if (currentMediaItemIndex != mediaItemIndex) {
         Log.d(tag, "seekTo: Changing media item index from $currentMediaItemIndex to $mediaItemIndex")
-        remoteMediaClient?.queueJumpToItem(myCurrentTimeline.getPeriod(mediaItemIndex, period).uid as Int, positionMs, JSONObject())?.setResultCallback(resultCb)
+        remoteMediaClient?.queueJumpToItem(myCurrentTimeline.getPeriod(mediaItemIndex, period).uid as Int, positionMsFinal, JSONObject())?.setResultCallback(resultCb)
       } else {
-        Log.d(tag, "seekTo: Same media index seek to position $positionMs")
-        var mediaSeekOptions = MediaSeekOptions.Builder().setPosition(positionMs).build()
+        Log.d(tag, "seekTo: Same media index seek to position $positionMsFinal")
+        var mediaSeekOptions = MediaSeekOptions.Builder().setPosition(positionMsFinal).build()
         remoteMediaClient?.seek(mediaSeekOptions)?.setResultCallback(resultCb)
       }
       val oldPosition = getCurrentPositionInfo()
       pendingSeekCount++
       pendingSeekWindowIndex = mediaItemIndex
-      pendingSeekPositionMs = positionMs
+      pendingSeekPositionMs = positionMsFinal
       val newPosition = getCurrentPositionInfo()
       listeners.queueEvent(
         EVENT_POSITION_DISCONTINUITY
       ) { listener: Player.Listener ->
         listener.onPositionDiscontinuity(oldPosition, newPosition, DISCONTINUITY_REASON_SEEK)
       }
-      if (oldPosition.windowIndex != newPosition.windowIndex) {
+      if (oldPosition.mediaItemIndex != newPosition.mediaItemIndex) {
         val mediaItem = currentTimeline.getWindow(mediaItemIndex, window).mediaItem
         listeners.queueEvent(
           EVENT_MEDIA_ITEM_TRANSITION
@@ -680,7 +674,8 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
       updateAvailableCommandsAndNotifyIfChanged()
     } else if (pendingSeekCount == 0) {
       Log.w(tag, "seekTo Media Status is null")
-      listeners.queueEvent( /* eventFlag= */C.INDEX_UNSET) { obj: Player.Listener -> obj.onSeekProcessed() }
+      // Playback state change will send metadata to client and stop seek loading
+      listeners.sendEvent(EVENT_PLAYBACK_STATE_CHANGED) { obj: Player.Listener -> obj.onPlaybackStateChanged(currentPlaybackState) }
     }
     listeners.flushEvents()
   }

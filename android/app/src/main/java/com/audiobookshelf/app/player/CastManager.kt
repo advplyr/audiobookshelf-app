@@ -77,7 +77,7 @@ class CastManager constructor(val mainActivity:Activity) {
           builder.setTitle(it.friendlyName)
         }
         builder.setOnDismissListener { callback.onCancel() }
-        builder.setPositiveButton("Stop Casting") { dialog, which -> endSession(true, null) }
+        builder.setPositiveButton("Stop Casting") { _, _ -> endSession(true, null) }
         builder.show()
       }
     }
@@ -286,14 +286,14 @@ class CastManager constructor(val mainActivity:Activity) {
         }
       }
 
-      override fun onSessionStartFailed(castSession: CastSession, errCode: Int) {
-        if (callback.onSessionStartFailed(errCode)) {
+      override fun onSessionStartFailed(castSession: CastSession, error: Int) {
+        if (callback.onSessionStartFailed(error)) {
           getSessionManager()?.removeSessionManagerListener(this, CastSession::class.java)
         }
       }
 
-      override fun onSessionEnded(castSession: CastSession, errCode: Int) {
-        if (callback.onSessionEndedBeforeStart(errCode)) {
+      override fun onSessionEnded(castSession: CastSession, error: Int) {
+        if (callback.onSessionEndedBeforeStart(error)) {
           getSessionManager()?.removeSessionManagerListener(this, CastSession::class.java)
         }
       }

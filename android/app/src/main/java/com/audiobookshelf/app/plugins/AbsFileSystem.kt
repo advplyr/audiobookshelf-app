@@ -110,7 +110,7 @@ class AbsFileSystem : Plugin() {
 
   @PluginMethod
   fun checkStoragePermission(call: PluginCall) {
-    var res = false
+    var res: Boolean
     if (Build.VERSION.SDK_INT <= android.os.Build.VERSION_CODES.P) {
       res = SimpleStorage.hasStoragePermission(context)
       Log.d(TAG, "checkStoragePermission: Check Storage Access $res")
@@ -222,32 +222,12 @@ class AbsFileSystem : Plugin() {
     var docfile = DocumentFileCompat.fromUri(mainActivity, Uri.parse(contentUrl))
     var success = docfile?.delete() == true
     if (success) {
-      localLibraryItem?.media?.removeAudioTrack(trackLocalFileId)
-      localLibraryItem?.removeLocalFile(trackLocalFileId)
+      localLibraryItem.media.removeAudioTrack(trackLocalFileId)
+      localLibraryItem.removeLocalFile(trackLocalFileId)
       DeviceManager.dbManager.saveLocalLibraryItem(localLibraryItem)
       call.resolve(JSObject(jacksonMapper.writeValueAsString(localLibraryItem)))
     } else {
       call.resolve(JSObject("{\"success\":false}"))
-    }
-  }
-
-  fun checkUriExists(uri: Uri?): Boolean {
-    if (uri == null) return false
-    val resolver = context.contentResolver
-    var cursor: Cursor? = null
-    return try {
-      cursor = resolver.query(uri, null, null, null, null)
-      //cursor null: content Uri was invalid or some other error occurred
-      //cursor.moveToFirst() false: Uri was ok but no entry found.
-      (cursor != null && cursor.moveToFirst())
-    } catch (t: Throwable) {
-      false
-    } finally {
-      try {
-        cursor?.close()
-      } catch (t: Throwable) {
-      }
-      false
     }
   }
 }

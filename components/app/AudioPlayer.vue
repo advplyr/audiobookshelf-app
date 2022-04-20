@@ -131,7 +131,7 @@ export default {
       touchStartTime: 0,
       touchEndY: 0,
       useChapterTrack: false,
-      isLoading: true
+      isLoading: false
     }
   },
   computed: {
@@ -548,8 +548,9 @@ export default {
       this.$store.commit('setPlayerItem', null)
       this.showFullscreen = false
       this.isEnded = false
+      this.isLoading = false
       this.playbackSession = null
-      
+
       AbsAudioPlayer.closePlayback()
     },
     //
@@ -567,16 +568,18 @@ export default {
     },
     onMetadata(data) {
       console.log('onMetadata', JSON.stringify(data))
-      this.isLoading = false
-
       this.totalDuration = Number(data.duration.toFixed(2))
       this.currentTime = Number(data.currentTime.toFixed(2))
-      // Also includes player state data.playerState
 
-      if (data.playerState == this.$constants.PlayerState.ENDED) {
+      // Done loading
+      if (data.playerState !== 'BUFFERING' && data.playerState !== 'IDLE') {
+        this.isLoading = false
+      }
+
+      if (data.playerState === 'ENDED') {
         console.log('[AudioPlayer] Playback ended')
       }
-      this.isEnded = data.playerState == this.$constants.PlayerState.ENDED
+      this.isEnded = data.playerState === 'ENDED'
 
       console.log('received metadata update', data)
 
@@ -590,6 +593,7 @@ export default {
       this.playbackSession = playbackSession
 
       this.isEnded = false
+      this.isLoading = true
       this.$store.commit('setPlayerItem', this.playbackSession)
 
       // Set track width
