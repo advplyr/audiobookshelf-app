@@ -111,7 +111,7 @@ class ApiHandler(var ctx:Context) {
     getRequest("/api/libraries") {
       val libraries = mutableListOf<Library>()
       if (it.has("value")) {
-        var array = it.getJSONArray("value")!!
+        var array = it.getJSONArray("value")
         for (i in 0 until array.length()) {
           val library = mapper.readValue<Library>(array.get(i).toString())
           libraries.add(library)

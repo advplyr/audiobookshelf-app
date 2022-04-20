@@ -5,7 +5,6 @@ import android.app.DownloadManager
 import android.content.*
 import android.content.pm.PackageManager
 import android.os.*
-import android.os.StrictMode.VmPolicy
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import com.anggrayudi.storage.SimpleStorage
@@ -132,7 +131,7 @@ class MainActivity : BridgeActivity() {
 
   fun stopMyService() {
     if (mBounded) {
-      mConnection?.let { unbindService(it) };
+      mConnection.let { unbindService(it) };
       mBounded = false;
     }
     val stopIntent = Intent(this, PlayerNotificationService::class.java)

@@ -92,10 +92,10 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
     }
   }
 
-  fun calcPauseSeekBackTime() : Long {
+  private fun calcPauseSeekBackTime() : Long {
     if (lastPauseTime <= 0) return 0
     var time: Long = System.currentTimeMillis() - lastPauseTime
-    var seekback: Long = 0
+    var seekback: Long
     if (time < 60000) seekback = 0
     else if (time < 120000) seekback = 10000
     else if (time < 300000) seekback = 15000
