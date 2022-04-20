@@ -23,8 +23,6 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
-import java.util.*
-
 
 @CapacitorPlugin(name = "AbsDownloader")
 class AbsDownloader : Plugin() {
@@ -54,7 +52,7 @@ class AbsDownloader : Plugin() {
   ) {
     @JsonIgnore
     fun getDownloadRequest(): DownloadManager.Request {
-      var dlRequest = DownloadManager.Request(uri)
+      val dlRequest = DownloadManager.Request(uri)
       dlRequest.setTitle(filename)
       dlRequest.setDescription("Downloading to $localFolderName for book $itemTitle")
       dlRequest.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
@@ -86,21 +84,12 @@ class AbsDownloader : Plugin() {
     folderScanner = FolderScanner(mainActivity)
     apiHandler = ApiHandler(mainActivity)
 
-    var recieverEvent: (evt: String, id: Long) -> Unit = { evt: String, id: Long ->
-      if (evt == "complete") {
-      }
-      if (evt == "clicked") {
-        Log.d(tag, "Clicked $id back in the downloader")
-      }
-    }
-    mainActivity.registerBroadcastReceiver(recieverEvent)
-
     Log.d(tag, "Build SDK ${Build.VERSION.SDK_INT}")
   }
 
   @PluginMethod
   fun downloadLibraryItem(call: PluginCall) {
-    var libraryItemId = call.data.getString("libraryItemId").toString()
+    val libraryItemId = call.data.getString("libraryItemId").toString()
     var episodeId = call.data.getString("episodeId").toString()
     if (episodeId == "null") episodeId = ""
     var localFolderId = call.data.getString("localFolderId").toString()
@@ -152,17 +141,6 @@ class AbsDownloader : Plugin() {
   fun getFilenameFromRelPath(relPath: String): String {
     var cleanedRelPath = relPath.replace("\\", "_").replace("/", "_")
     return if (cleanedRelPath.startsWith("_")) cleanedRelPath.substring(1) else cleanedRelPath
-  }
-
-  fun getAbMetadataText(libraryItem:LibraryItem):String {
-    var bookMedia = libraryItem.media as com.audiobookshelf.app.data.Book
-    var fileString = ";ABMETADATA1\n"
-//    fileString += "#libraryItemId=${libraryItem.id}\n"
-//    fileString += "title=${bookMedia.metadata.title}\n"
-//    fileString += "author=${bookMedia.metadata.authorName}\n"
-//    fileString += "narrator=${bookMedia.metadata.narratorName}\n"
-//    fileString += "series=${bookMedia.metadata.seriesName}\n"
-    return fileString
   }
 
   fun startLibraryItemDownload(libraryItem: LibraryItem, localFolder: LocalFolder, episode:PodcastEpisode?) {
@@ -259,21 +237,21 @@ class AbsDownloader : Plugin() {
       downloadItemPart.downloadId = downloadId
 
       if (libraryItem.media.coverPath != null && libraryItem.media.coverPath?.isNotEmpty() == true) {
-        var serverPath = "/api/items/${libraryItem.id}/cover?format=jpeg"
-        var destinationFilename = "cover.jpg"
-        var destinationFile = File("$itemFolderPath/$destinationFilename")
+        serverPath = "/api/items/${libraryItem.id}/cover?format=jpeg"
+        destinationFilename = "cover.jpg"
+        destinationFile = File("$itemFolderPath/$destinationFilename")
 
         if (destinationFile.exists()) {
           Log.d(tag, "Podcast cover already exists - not downloading cover again")
         } else {
-          var destinationUri = Uri.fromFile(destinationFile)
-          var downloadUri = Uri.parse("${DeviceManager.serverAddress}${serverPath}&token=${DeviceManager.token}")
-          var downloadItemPart = DownloadItemPart(DeviceManager.getBase64Id(destinationFile.absolutePath), destinationFilename, destinationFile.absolutePath, podcastTitle, serverPath, localFolder.name, localFolder.id, null,null, false, downloadUri, destinationUri, null, 0)
+          destinationUri = Uri.fromFile(destinationFile)
+          downloadUri = Uri.parse("${DeviceManager.serverAddress}${serverPath}&token=${DeviceManager.token}")
+          downloadItemPart = DownloadItemPart(DeviceManager.getBase64Id(destinationFile.absolutePath), destinationFilename, destinationFile.absolutePath, podcastTitle, serverPath, localFolder.name, localFolder.id, null,null, false, downloadUri, destinationUri, null, 0)
 
           downloadItem.downloadItemParts.add(downloadItemPart)
 
-          var dlRequest = downloadItemPart.getDownloadRequest()
-          var downloadId = downloadManager.enqueue(dlRequest)
+          dlRequest = downloadItemPart.getDownloadRequest()
+          downloadId = downloadManager.enqueue(dlRequest)
           downloadItemPart.downloadId = downloadId
         }
       }

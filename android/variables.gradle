@@ -12,7 +12,6 @@ ext {
     androidxJunitVersion = '1.1.2'
     androidxEspressoCoreVersion = '3.3.0'
     cordovaAndroidVersion = '10.1.1'
-    androidx_app_compat_version = '1.2.0'
     androidx_car_version = '1.0.0-alpha7'
     androidx_core_ktx_version = '1.7.0'
     androidx_media_version = '1.5.0'
