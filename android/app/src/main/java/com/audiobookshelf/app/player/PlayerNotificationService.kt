@@ -70,7 +70,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   lateinit var mediaManager: MediaManager
   lateinit var apiHandler: ApiHandler
 
-  lateinit var mPlayer: SimpleExoPlayer
+  lateinit var mPlayer: ExoPlayer
   lateinit var currentPlayer:Player
   var castPlayer:CastPlayer? = null
 
@@ -171,11 +171,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       1000 * 20 // 20s playback rebuffer
     ).build()
 
-    var simpleExoPlayerBuilder = SimpleExoPlayer.Builder(this)
-    simpleExoPlayerBuilder.setLoadControl(customLoadControl)
-    simpleExoPlayerBuilder.setSeekBackIncrementMs(10000)
-    simpleExoPlayerBuilder.setSeekForwardIncrementMs(10000)
-    mPlayer = simpleExoPlayerBuilder.build()
+    mPlayer = ExoPlayer.Builder(this)
+      .setLoadControl(customLoadControl)
+      .setSeekBackIncrementMs(10000)
+      .setSeekForwardIncrementMs(10000)
+      .build()
     mPlayer.setHandleAudioBecomingNoisy(true)
     mPlayer.addListener(PlayerListener(this))
     var audioAttributes:AudioAttributes = AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.CONTENT_TYPE_SPEECH).build()
@@ -246,14 +246,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     mediaSessionConnector = MediaSessionConnector(mediaSession)
     val queueNavigator: TimelineQueueNavigator = object : TimelineQueueNavigator(mediaSession) {
       override fun getMediaDescription(player: Player, windowIndex: Int): MediaDescriptionCompat {
-        var builder = MediaDescriptionCompat.Builder()
+        return MediaDescriptionCompat.Builder()
           .setMediaId(currentPlaybackSession!!.id)
           .setTitle(currentPlaybackSession!!.displayTitle)
           .setSubtitle(currentPlaybackSession!!.displayAuthor)
-          .setIconUri(currentPlaybackSession!!.getCoverUri())
-        return builder.build()
+          .setIconUri(currentPlaybackSession!!.getCoverUri()).build()
       }
-      // .setMediaUri(currentPlaybackSession!!.getContentUri())
     }
 
     mediaSessionConnector.setEnabledPlaybackActions(
@@ -311,18 +309,16 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     if (mPlayer == currentPlayer) {
       var mediaSource:MediaSource
 
+      var dataSourceFactory = DefaultHttpDataSource.Factory()
+      dataSourceFactory.setUserAgent(channelId)
       if (playbackSession.isLocal) {
         Log.d(tag, "Playing Local Item")
-        var dataSourceFactory = DefaultDataSourceFactory(ctx, channelId)
         mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItems[0])
       } else if (!playbackSession.isHLS) {
         Log.d(tag, "Direct Playing Item")
-        var dataSourceFactory = DefaultDataSourceFactory(ctx, channelId)
         mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItems[0])
       } else {
         Log.d(tag, "Playing HLS Item")
-        var dataSourceFactory = DefaultHttpDataSource.Factory()
-        dataSourceFactory.setUserAgent(channelId)
         dataSourceFactory.setDefaultRequestProperties(hashMapOf("Authorization" to "Bearer ${DeviceManager.token}"))
         mediaSource = HlsMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItems[0])
       }
@@ -426,12 +422,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   }
 
   fun getCurrentTime() : Long {
-    if (currentPlayer.mediaItemCount > 1) {
-      var windowIndex = currentPlayer.currentWindowIndex
-      var currentTrackStartOffset = currentPlaybackSession?.getTrackStartOffsetMs(windowIndex) ?: 0L
-      return currentPlayer.currentPosition + currentTrackStartOffset
+    return if (currentPlayer.mediaItemCount > 1) {
+      val windowIndex = currentPlayer.currentMediaItemIndex
+      val currentTrackStartOffset = currentPlaybackSession?.getTrackStartOffsetMs(windowIndex) ?: 0L
+      currentPlayer.currentPosition + currentTrackStartOffset
     } else {
-      return currentPlayer.currentPosition
+      currentPlayer.currentPosition
     }
   }
 
@@ -439,13 +435,13 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     return getCurrentTime() / 1000.0
   }
 
-  fun getBufferedTime() : Long {
-    if (currentPlayer.mediaItemCount > 1) {
-      var windowIndex = currentPlayer.currentWindowIndex
-      var currentTrackStartOffset = currentPlaybackSession?.getTrackStartOffsetMs(windowIndex) ?: 0L
-      return currentPlayer.bufferedPosition + currentTrackStartOffset
+  private fun getBufferedTime() : Long {
+    return if (currentPlayer.mediaItemCount > 1) {
+      val windowIndex = currentPlayer.currentMediaItemIndex
+      val currentTrackStartOffset = currentPlaybackSession?.getTrackStartOffsetMs(windowIndex) ?: 0L
+      currentPlayer.bufferedPosition + currentTrackStartOffset
     } else {
-      return currentPlayer.bufferedPosition
+      currentPlayer.bufferedPosition
     }
   }
 

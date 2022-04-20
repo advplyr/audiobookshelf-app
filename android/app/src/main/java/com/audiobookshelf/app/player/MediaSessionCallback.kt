@@ -157,7 +157,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
             }
           }
           else -> {
-            Log.d(tag, "KeyCode:${keyEvent?.getKeyCode()}")
+            Log.d(tag, "KeyCode:${keyEvent.getKeyCode()}")
             return false
           }
         }
