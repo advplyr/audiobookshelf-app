@@ -194,7 +194,7 @@ export default {
     },
     pingServerAddress(address) {
       return this.$axios
-        .$get(`${address}/ping`, { timeout: 1000 })
+        .$get(`${address}/ping`, { timeout: 3000 })
         .then((data) => data.success)
         .catch((error) => {
           console.error('Server check failed', error)
