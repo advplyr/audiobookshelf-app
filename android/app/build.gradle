@@ -29,7 +29,7 @@ android {
         applicationId "com.audiobookshelf.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 69
+        versionCode 70
         versionName "0.9.41-beta"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
@@ -120,7 +120,7 @@ dependencies {
   implementation 'com.fasterxml.jackson.module:jackson-module-kotlin:2.12.1'
 
   // FFMPEG-Kit
-  implementation 'com.arthenica:ffmpeg-kit-full:4.5.1'
+  implementation 'com.arthenica:ffmpeg-kit-min:4.5.1'
 }
 
 apply from: 'capacitor.build.gradle'
