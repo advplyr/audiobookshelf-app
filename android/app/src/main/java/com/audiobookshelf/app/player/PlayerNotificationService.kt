@@ -309,16 +309,19 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     if (mPlayer == currentPlayer) {
       var mediaSource:MediaSource
 
-      var dataSourceFactory = DefaultHttpDataSource.Factory()
-      dataSourceFactory.setUserAgent(channelId)
       if (playbackSession.isLocal) {
         Log.d(tag, "Playing Local Item")
+        var dataSourceFactory = DefaultDataSource.Factory(ctx)
         mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItems[0])
       } else if (!playbackSession.isHLS) {
         Log.d(tag, "Direct Playing Item")
+        var dataSourceFactory = DefaultHttpDataSource.Factory()
+        dataSourceFactory.setUserAgent(channelId)
         mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItems[0])
       } else {
         Log.d(tag, "Playing HLS Item")
+        var dataSourceFactory = DefaultHttpDataSource.Factory()
+        dataSourceFactory.setUserAgent(channelId)
         dataSourceFactory.setDefaultRequestProperties(hashMapOf("Authorization" to "Bearer ${DeviceManager.token}"))
         mediaSource = HlsMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItems[0])
       }

@@ -545,13 +545,15 @@ export default {
       }
     },
     closePlayback() {
+      this.endPlayback()
+      AbsAudioPlayer.closePlayback()
+    },
+    endPlayback() {
       this.$store.commit('setPlayerItem', null)
       this.showFullscreen = false
       this.isEnded = false
       this.isLoading = false
       this.playbackSession = null
-
-      AbsAudioPlayer.closePlayback()
     },
     //
     // Listeners from audio AbsAudioPlayer
@@ -607,13 +609,13 @@ export default {
     },
     onPlaybackClosed() {
       console.log('Received onPlaybackClosed evt')
-      this.closePlayback()
+      this.endPlayback()
     },
     onPlaybackFailed(data) {
       console.log('Received onPlaybackFailed evt')
       var errorMessage = data.value || 'Unknown Error'
       this.$toast.error(`Playback Failed: ${errorMessage}`)
-      this.closePlayback()
+      this.endPlayback()
     },
     async init() {
       this.useChapterTrack = await this.$localStore.getUseChapterTrack()

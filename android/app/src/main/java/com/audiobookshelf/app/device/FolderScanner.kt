@@ -104,7 +104,9 @@ class FolderScanner(var ctx: Context) {
     var coverContentUrl:String? = null
     var coverAbsolutePath:String? = null
 
-    var filesInFolder = itemFolder.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*"))
+//    itemFolder.search(false, DocumentFileType.FILE, arrayOf("audio"))
+
+    var filesInFolder = itemFolder.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*", "video/mp4"))
 
     var existingLocalFilesRemoved = existingLocalFiles.filter { elf ->
       filesInFolder.find { fif -> DeviceManager.getBase64Id(fif.id) == elf.id } == null // File was not found in media item folder
@@ -117,7 +119,7 @@ class FolderScanner(var ctx: Context) {
     filesInFolder.forEach { file ->
       var mimeType = file.mimeType ?: ""
       var filename = file.name ?: ""
-      var isAudio = mimeType.startsWith("audio")
+      var isAudio = mimeType.startsWith("audio") || mimeType == "video/mp4"
       Log.d(tag, "Found $mimeType file $filename in folder $itemFolderName")
 
       var localFileId = DeviceManager.getBase64Id(file.id)
