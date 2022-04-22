@@ -26,7 +26,6 @@ class MainActivity : BridgeActivity() {
   private lateinit var mConnection : ServiceConnection
 
   lateinit var pluginCallback : () -> Unit
-  lateinit var downloaderCallback : (String, Long) -> Unit
 
   val storageHelper = SimpleStorageHelper(this)
   val storage = SimpleStorage(this)
@@ -35,21 +34,6 @@ class MainActivity : BridgeActivity() {
   var PERMISSIONS_ALL = arrayOf(
     Manifest.permission.READ_EXTERNAL_STORAGE
   )
-
-  val broadcastReceiver = object: BroadcastReceiver() {
-    override fun onReceive(context: Context?, intent: Intent?) {
-      when (intent?.action) {
-        DownloadManager.ACTION_DOWNLOAD_COMPLETE -> {
-          var thisdlid = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, 0L)
-          downloaderCallback("complete", thisdlid)
-        }
-        DownloadManager.ACTION_NOTIFICATION_CLICKED -> {
-          var thisdlid = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, 0L)
-          downloaderCallback("clicked", thisdlid)
-        }
-      }
-    }
-  }
 
   public override fun onCreate(savedInstanceState: Bundle?) {
     // TODO: Optimize using strict mode logs
@@ -85,17 +69,11 @@ class MainActivity : BridgeActivity() {
     registerPlugin(AbsFileSystem::class.java)
     registerPlugin(AbsDatabase::class.java)
 
-    var filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE).apply {
-      addAction(DownloadManager.ACTION_NOTIFICATION_CLICKED)
-    }
-    registerReceiver(broadcastReceiver, filter)
-
     Paper.init(applicationContext)
   }
 
   override fun onDestroy() {
     super.onDestroy()
-    unregisterReceiver(broadcastReceiver)
   }
 
   override fun onPostCreate(savedInstanceState: Bundle?) {
@@ -136,10 +114,6 @@ class MainActivity : BridgeActivity() {
     }
     val stopIntent = Intent(this, PlayerNotificationService::class.java)
     stopService(stopIntent)
-  }
-
-  fun registerBroadcastReceiver(cb: (String, Long) -> Unit) {
-    downloaderCallback = cb
   }
 
   override fun onSaveInstanceState(outState: Bundle) {
