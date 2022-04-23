@@ -14,7 +14,7 @@ class PlayerHandler {
     
     private static var listeningTimePassedSinceLastSync = 0.0
     
-    public static func startPlayback(session: PlaybackSession, playWhenReady: Bool) {
+    public static func startPlayback(session: PlaybackSession, playWhenReady: Bool, playbackRate: Float) {
         if player != nil {
             player?.destroy()
             player = nil
@@ -23,7 +23,7 @@ class PlayerHandler {
         NowPlayingInfo.setSessionMetadata(metadata: NowPlayingMetadata(id: session.id, itemId: session.libraryItemId!, artworkUrl: session.coverPath, title: session.displayTitle ?? "Unknown title", author: session.displayAuthor, series: nil))
         
         self.session = session
-        player = AudioPlayer(playbackSession: session, playWhenReady: playWhenReady)
+        player = AudioPlayer(playbackSession: session, playWhenReady: playWhenReady, playbackRate: playbackRate)
         
         // DispatchQueue.main.sync {
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
