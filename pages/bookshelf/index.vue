@@ -6,7 +6,7 @@
       </template>
     </div>
 
-    <div v-if="!shelves.length" class="absolute top-0 left-0 w-full h-full flex items-center justify-center">
+    <div v-if="!shelves.length && !loading" class="absolute top-0 left-0 w-full h-full flex items-center justify-center">
       <div>
         <p class="mb-4 text-center text-xl">
           Bookshelf empty
@@ -26,6 +26,9 @@
           <ui-btn v-if="!user" small @click="$router.push('/connect')" class="w-32">Connect</ui-btn>
         </div>
       </div>
+    </div>
+    <div v-if="loading" class="absolute top-0 left-0 w-full h-full flex items-center justify-center">
+      <ui-loading-indicator text="Loading Library...">
     </div>
   </div>
 </template>
