@@ -184,8 +184,13 @@ export default {
 
       this.serverLibraryItemId = null
 
+      var playbackRate = 1
+      if (this.$refs.audioPlayer) {
+        playbackRate = this.$refs.audioPlayer.currentPlaybackRate || 1
+      }
+
       console.log('Called playLibraryItem', libraryItemId)
-      AbsAudioPlayer.prepareLibraryItem({ libraryItemId, episodeId, playWhenReady: true })
+      AbsAudioPlayer.prepareLibraryItem({ libraryItemId, episodeId, playWhenReady: true, playbackRate })
         .then((data) => {
           console.log('Library item play response', JSON.stringify(data))
           if (!libraryItemId.startsWith('local')) {
