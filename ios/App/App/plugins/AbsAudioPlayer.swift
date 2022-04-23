@@ -22,6 +22,7 @@ public class AbsAudioPlayer: CAPPlugin {
         let libraryItemId = call.getString("libraryItemId")
         let episodeId = call.getString("episodeId")
         let playWhenReady = call.getBool("playWhenReady", true)
+        let playbackRate = call.getFloat("playbackRate", 1)
         
         if libraryItemId == nil {
             NSLog("provide library item id")
@@ -34,7 +35,7 @@ public class AbsAudioPlayer: CAPPlugin {
         
         sendPrepareMetadataEvent(itemId: libraryItemId!, playWhenReady: playWhenReady)
         ApiClient.startPlaybackSession(libraryItemId: libraryItemId!, episodeId: episodeId) { session in
-            PlayerHandler.startPlayback(session: session, playWhenReady: playWhenReady)
+            PlayerHandler.startPlayback(session: session, playWhenReady: playWhenReady, playbackRate: playbackRate)
             
             do {
                 self.sendPlaybackSession(session: try session.asDictionary())
