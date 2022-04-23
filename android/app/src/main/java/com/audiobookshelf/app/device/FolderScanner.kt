@@ -251,7 +251,7 @@ class FolderScanner(var ctx: Context) {
     Log.d(tag, "scanDownloadItem starting for ${downloadItem.itemFolderPath} | ${df.uri} | Item Folder Id:$itemFolderId | LLI Id:$localLibraryItemId")
 
     // Search for files in media item folder
-    var filesFound = df.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*"))
+    var filesFound = df.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*", "video/mp4"))
     Log.d(tag, "scanDownloadItem ${filesFound.size} files found in ${downloadItem.itemFolderPath}")
 
     var localLibraryItem:LocalLibraryItem? = null
@@ -349,7 +349,7 @@ class FolderScanner(var ctx: Context) {
     var wasUpdated = false
 
     // Search for files in media item folder
-    var filesFound = df.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*"))
+    var filesFound = df.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*", "video/mp4"))
     Log.d(tag, "scanLocalLibraryItem ${filesFound.size} files found in ${localLibraryItem.absolutePath}")
 
     filesFound.forEach {
