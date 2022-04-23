@@ -45,6 +45,7 @@
 </template>
 
 <script>
+import { Dialog } from '@capacitor/dialog'
 export default {
   props: {
     value: Boolean,
@@ -56,7 +57,7 @@ export default {
       type: Number,
       default: 0
     },
-    audiobookId: String
+    libraryItemId: String
   },
   data() {
     return {
@@ -96,12 +97,62 @@ export default {
       this.newBookmarkTitle = bm.title
       this.showBookmarkTitleInput = true
     },
-    deleteBookmark(bm) {
-      var bookmark = { ...bm, audiobookId: this.audiobookId }
-      this.$server.socket.emit('delete_bookmark', bookmark)
+    async deleteBookmark(bm) {
+      const { value } = await Dialog.confirm({
+        title: 'Remove Bookmark',
+        message: `Are you sure you want to remove bookmark?`
+      })
+      if (!value) return
+
+      this.$axios
+        .$delete(`/api/me/item/${this.libraryItemId}/bookmark/${bm.time}`)
+        .then(() => {
+          this.$toast.success('Bookmark removed')
+        })
+        .catch((error) => {
+          this.$toast.error(`Failed to remove bookmark`)
+          console.error(error)
+        })
+      this.show = false
     },
     clickBookmark(bm) {
       this.$emit('select', bm)
+    },
+    submitUpdateBookmark(updatedBookmark) {
+      var bookmark = { ...updatedBookmark }
+      this.$axios
+        .$patch(`/api/me/item/${this.libraryItemId}/bookmark`, bookmark)
+        .then(() => {
+          this.$toast.success('Bookmark updated')
+        })
+        .catch((error) => {
+          this.$toast.error(`Failed to update bookmark`)
+          console.error(error)
+        })
+      this.show = false
+    },
+    submitCreateBookmark() {
+      if (!this.newBookmarkTitle) {
+        this.newBookmarkTitle = this.$formatDate(Date.now(), 'MMM dd, yyyy HH:mm')
+      }
+      var bookmark = {
+        title: this.newBookmarkTitle,
+        time: Math.floor(this.currentTime)
+      }
+      this.$axios
+        .$post(`/api/me/item/${this.libraryItemId}/bookmark`, bookmark)
+        .then(() => {
+          this.$toast.success('Bookmark added')
+        })
+        .catch((error) => {
+          this.$toast.error(`Failed to create bookmark`)
+          console.error(error)
+        })
+
+      this.newBookmarkTitle = ''
+      this.showBookmarkTitleInput = false
+
+      this.show = false
     },
     createBookmark() {
       this.selectedBookmark = null
@@ -109,27 +160,15 @@ export default {
       this.showBookmarkTitleInput = true
     },
     submitBookmark() {
-      console.log(`[BookmarksModal] Submit Bookmark ${this.newBookmarkTitle}/${this.audiobookId}`)
       if (this.selectedBookmark) {
-        if (this.selectedBookmark.title !== this.newBookmarkTitle) {
-          var bookmark = { ...this.selectedBookmark }
-          bookmark.audiobookId = this.audiobookId
-          bookmark.title = this.newBookmarkTitle
-          console.log(`[BookmarksModal] Update Bookmark ${JSON.stringify(bookmark)}`)
-          this.$server.socket.emit('update_bookmark', bookmark)
+        var updatePayload = {
+          ...this.selectedBookmark,
+          title: this.newBookmarkTitle
         }
+        this.submitUpdateBookmark(updatePayload)
       } else {
-        var bookmark = {
-          audiobookId: this.audiobookId,
-          title: this.newBookmarkTitle,
-          time: this.currentTime
-        }
-        console.log(`[BookmarksModal] Create Bookmark ${JSON.stringify(bookmark)}`)
-        this.$server.socket.emit('create_bookmark', bookmark)
+        this.submitCreateBookmark()
       }
-      this.newBookmarkTitle = ''
-      this.showBookmarkTitleInput = false
-      this.show = false
     }
   },
   mounted() {}
