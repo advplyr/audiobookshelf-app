@@ -35,7 +35,7 @@ export const getters = {
     return state.serverSettings[key]
   },
   getBookCoverAspectRatio: state => {
-    if (!state.serverSettings || !state.serverSettings.coverAspectRatio) return 1
+    if (!state.serverSettings) return 1
     return state.serverSettings.coverAspectRatio === 0 ? 1.6 : 1
   },
 }
@@ -71,8 +71,6 @@ export const mutations = {
 
     var mediaPlayer = playbackSession ? playbackSession.mediaPlayer : null
     state.isCasting = mediaPlayer === "cast-player"
-
-    console.log('setPlayerItem', state.playerLibraryItemId, state.playerEpisodeId, state.playerIsLocal)
   },
   setMediaPlayer(state, mediaPlayer) {
     state.isCasting = mediaPlayer === 'cast-player'
