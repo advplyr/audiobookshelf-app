@@ -46,6 +46,7 @@
           <ui-btn v-if="user && showPlay && !isIos && !hasLocal" :color="downloadItem ? 'warning' : 'primary'" class="flex items-center justify-center" :padding-x="2" @click="downloadClick">
             <span class="material-icons" :class="downloadItem ? 'animate-pulse' : ''">{{ downloadItem ? 'downloading' : 'download' }}</span>
           </ui-btn>
+          <ui-read-icon-btn :disabled="isProcessingReadUpdate" :is-read="userIsFinished" class="mx-0.5" @click="toggleFinished" />
         </div>
       </div>
     </div>
@@ -102,6 +103,7 @@ export default {
   data() {
     return {
       resettingProgress: false,
+      isProcessingReadUpdate: false,
       showSelectLocalFolder: false
     }
   },
@@ -351,7 +353,22 @@ export default {
         console.log('New local library item', item.id)
         this.$set(this.libraryItem, 'localLibraryItem', item)
       }
-    }
+    },
+    toggleFinished() {
+      var updatePayload = {
+        isFinished: !this.userIsFinished
+      }
+      this.isProcessingReadUpdate = true
+      this.$axios
+        .$patch(`/api/me/progress/${this.libraryItemId}`, updatePayload)
+        .then(() => {
+          this.isProcessingReadUpdate = false
+        })
+        .catch((error) => {
+          console.error('Failed', error)
+          this.isProcessingReadUpdate = false
+        })
+    },
   },
   mounted() {
     this.$eventBus.$on('new-local-library-item', this.newLocalLibraryItem)
