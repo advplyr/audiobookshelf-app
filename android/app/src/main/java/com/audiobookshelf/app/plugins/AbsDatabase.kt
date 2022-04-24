@@ -288,38 +288,4 @@ class AbsDatabase : Plugin() {
       call.resolve()
     }
   }
-
-  //
-  // Generic Webview calls to db
-  //
-  @PluginMethod
-  fun saveFromWebview(call: PluginCall) {
-    var db = call.getString("db", "").toString()
-    var key = call.getString("key", "").toString()
-    var value = call.getObject("value")
-
-    GlobalScope.launch(Dispatchers.IO) {
-      if (db == "" || key == "" || value == null) {
-        Log.d(tag, "saveFromWebview Invalid key/value")
-      } else {
-        var json = value as JSONObject
-        DeviceManager.dbManager.saveObject(db, key, json)
-      }
-      call.resolve()
-    }
-  }
-
-  @PluginMethod
-  fun loadFromWebview(call:PluginCall) {
-    var db = call.getString("db", "").toString()
-    var key = call.getString("key", "").toString()
-    if (db == "" || key == "") {
-      Log.d(tag, "loadFromWebview Invalid Key")
-      call.resolve()
-      return
-    }
-    var json = DeviceManager.dbManager.loadObject(db, key)
-    var jsobj = JSObject.fromJSONObject(json)
-    call.resolve(jsobj)
-  }
 }
