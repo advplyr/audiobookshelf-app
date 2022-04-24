@@ -2,11 +2,6 @@ package com.audiobookshelf.app.data
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-import com.fasterxml.jackson.annotation.JsonInclude
-import com.fasterxml.jackson.annotation.JsonProperty
-import com.fasterxml.jackson.core.json.JsonReadFeature
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize
-import com.fasterxml.jackson.databind.jsonschema.JsonSerializableSchema
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class AudioProbeStream(
@@ -27,15 +22,15 @@ data class AudioProbeChapterTags(
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class AudioProbeChapter(
   val id:Int,
-  val start:Int,
-  val end:Int,
+  val start:Long,
+  val end:Long,
   val tags:AudioProbeChapterTags?
 ) {
   @JsonIgnore
   fun getBookChapter():BookChapter {
-    var startS = start / 1000.0
-    var endS = end / 1000.0
-    var title = tags?.title ?: "Chapter $id"
+    val startS = start / 1000.0
+    val endS = end / 1000.0
+    val title = tags?.title ?: "Chapter $id"
     return BookChapter(id, startS, endS, title)
   }
 }
