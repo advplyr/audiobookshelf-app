@@ -25,22 +25,24 @@ struct LibraryItem: Codable {
     var isMissing: Bool
     var isInvalid: Bool
     var mediaType: String
-//    var media: MediaType
+    var media: MediaType
     var libraryFiles: [LibraryFile]
 }
-struct Book: Codable {
+struct MediaType: Codable {
     var libraryItemId: String?
-    var metadata: BookMetadata
+    var metadata: Metadata
     var coverPath: String?
-    var tags: [String]
+    var tags: [String]?
     var audioFiles: [AudioTrack]?
     var chapters: [Chapter]?
     var tracks: [AudioTrack]?
     var size: Int64?
     var duration: Double?
+    var episodes: [PodcastEpisode]?
+    var autoDownloadEpisodes: Bool?
 }
-struct BookMetadata: Codable {
-    var title:String
+struct Metadata: Codable {
+    var title: String
     var subtitle: String?
     var authors: [Author]?
     var narrators: [String]?
@@ -57,26 +59,14 @@ struct BookMetadata: Codable {
     var authorNameLF: String?
     var narratorName: String?
     var seriesName: String?
-}
-struct Podcast: Codable {
-    var metadata: PodcastMetadata
-    var coverPath: String?
-    var tags: [String]
-    var episodes: [PodcastEpisode]
-    var autoDownloadEpisodes: Bool
-}
-struct PodcastMetadata: Codable {
-    var title: String
-    var author: String?
     var feedUrl: String?
-    var genres: [String]
 }
 struct PodcastEpisode: Codable {
     var id: String
     var index: Int
     var episode: String?
     var episodeType: String?
-    var title: String?
+    var title: String
     var subtitle: String?
     var description: String?
     var audioFile: AudioFile?
@@ -103,10 +93,10 @@ struct Chapter: Codable {
 }
 struct AudioTrack: Codable {
     var index: Int?
-    var startOffset: Double
+    var startOffset: Double?
     var duration: Double
-    var title: String
-    var contentUrl: String
+    var title: String?
+    var contentUrl: String?
     var mimeType: String
     var metadata: FileMetadata?
     // var isLocal: Bool
