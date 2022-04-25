@@ -85,7 +85,7 @@ class Podcast(
 ) : MediaType(metadata, coverPath) {
   @JsonIgnore
   override fun getAudioTracks():List<AudioTrack> {
-    var tracks = episodes?.map { it.audioTrack }
+    val tracks = episodes?.map { it.audioTrack }
     return tracks?.filterNotNull() ?: mutableListOf()
   }
   @JsonIgnore
@@ -98,7 +98,7 @@ class Podcast(
     // Add new episodes
     audioTracks.forEach { at ->
       if (episodes?.find{ it.audioTrack?.localFileId == at.localFileId } == null) {
-        var newEpisode = PodcastEpisode("local_" + at.localFileId,episodes?.size ?: 0 + 1,null,null,at.title,null,null,null,at,at.duration,0, null)
+        val newEpisode = PodcastEpisode("local_" + at.localFileId,episodes?.size ?: 0 + 1,null,null,at.title,null,null,null,at,at.duration,0, null)
         episodes?.add(newEpisode)
       }
     }
@@ -111,7 +111,7 @@ class Podcast(
   }
   @JsonIgnore
   override fun addAudioTrack(audioTrack:AudioTrack) {
-    var newEpisode = PodcastEpisode("local_" + audioTrack.localFileId,episodes?.size ?: 0 + 1,null,null,audioTrack.title,null,null,null,audioTrack,audioTrack.duration,0, null)
+    val newEpisode = PodcastEpisode("local_" + audioTrack.localFileId,episodes?.size ?: 0 + 1,null,null,audioTrack.title,null,null,null,audioTrack,audioTrack.duration,0, null)
     episodes?.add(newEpisode)
 
     var index = 1
@@ -132,7 +132,7 @@ class Podcast(
   }
   @JsonIgnore
   fun addEpisode(audioTrack:AudioTrack, episode:PodcastEpisode) {
-    var newEpisode = PodcastEpisode("local_" + episode.id,episodes?.size ?: 0 + 1,episode.episode,episode.episodeType,episode.title,episode.subtitle,episode.description,null,audioTrack,audioTrack.duration,0, episode.id)
+    val newEpisode = PodcastEpisode("local_" + episode.id,episodes?.size ?: 0 + 1,episode.episode,episode.episodeType,episode.title,episode.subtitle,episode.description,null,audioTrack,audioTrack.duration,0, episode.id)
     episodes?.add(newEpisode)
 
     var index = 1

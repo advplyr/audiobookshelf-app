@@ -34,8 +34,13 @@
       </div>
     </div>
 
+    <!-- Play/pause button for podcast episode -->
+    <div v-if="recentEpisode" class="absolute z-10 top-0 left-0 bottom-0 right-0 m-auto flex items-center justify-center w-12 h-12 rounded-full bg-white bg-opacity-70">
+      <span class="material-icons text-6xl text-black text-opacity-80">{{ streamIsPlaying ? 'pause_circle' : 'play_circle_filled' }}</span>
+    </div>
+
     <!-- No progress shown for collapsed series in library -->
-    <div v-if="!collapsedSeries && !isPodcast" class="absolute bottom-0 left-0 h-1 shadow-sm max-w-full z-10 rounded-b" :class="itemIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: width * userProgressPercent + 'px' }"></div>
+    <div v-if="!collapsedSeries && (!isPodcast || recentEpisode)" class="absolute bottom-0 left-0 h-1 shadow-sm max-w-full z-10 rounded-b" :class="itemIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: width * userProgressPercent + 'px' }"></div>
 
     <div v-if="localLibraryItem || isLocal" class="absolute top-0 right-0 z-20" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }">
       <span class="material-icons text-2xl text-success">{{ isLocalOnly ? 'task' : 'download_done' }}</span>
@@ -46,13 +51,18 @@
       <span class="material-icons text-red-100 pr-1" :style="{ fontSize: 0.875 * sizeMultiplier + 'rem' }">priority_high</span>
     </div>
 
-    <!-- Volume number -->
+    <!-- Series sequence -->
     <div v-if="seriesSequence && showSequence && !isSelectionMode" class="absolute rounded-lg bg-black bg-opacity-90 box-shadow-md z-10" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }">
       <p :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }">#{{ seriesSequence }}</p>
     </div>
 
+    <!-- Podcast Episode # -->
+    <div v-if="recentEpisodeNumber && !isSelectionMode" class="absolute rounded-lg bg-black bg-opacity-90 box-shadow-md z-10" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }">
+      <p :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }">Episode #{{ recentEpisodeNumber }}</p>
+    </div>
+
     <!-- Podcast Num Episodes -->
-    <div v-if="numEpisodes && !isSelectionMode" class="absolute rounded-full bg-black bg-opacity-90 box-shadow-md z-10 flex items-center justify-center" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', width: 1.25 * sizeMultiplier + 'rem', height: 1.25 * sizeMultiplier + 'rem' }">
+    <div v-else-if="numEpisodes && !isSelectionMode" class="absolute rounded-full bg-black bg-opacity-90 box-shadow-md z-10 flex items-center justify-center" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', width: 1.25 * sizeMultiplier + 'rem', height: 1.25 * sizeMultiplier + 'rem' }">
       <p :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }">{{ numEpisodes }}</p>
     </div>
   </div>
@@ -196,6 +206,17 @@ export default {
     seriesSequence() {
       return this.series ? this.series.sequence : null
     },
+    recentEpisode() {
+      // Only added to item when getting currently listening podcasts
+      return this._libraryItem.recentEpisode
+    },
+    recentEpisodeNumber() {
+      if (!this.recentEpisode) return null
+      if (this.recentEpisode.episode) {
+        return this.recentEpisode.episode.replace(/^#/, '')
+      }
+      return this.recentEpisode.index
+    },
     collapsedSeries() {
       // Only added to item object when collapseSeries is enabled
       return this._libraryItem.collapsedSeries
@@ -222,7 +243,14 @@ export default {
       if (this.orderBy === 'size') return 'Size: ' + this.$bytesPretty(this._libraryItem.size)
       return null
     },
+    episodeProgress() {
+      // Only used on home page currently listening podcast shelf
+      if (!this.recentEpisode) return null
+      if (this.isLocal) return this.store.getters['globals/getLocalMediaProgressById'](this.libraryItemId, this.recentEpisode.id)
+      return this.store.getters['user/getUserMediaProgress'](this.libraryItemId, this.recentEpisode.id)
+    },
     userProgress() {
+      if (this.episodeProgress) return this.episodeProgress
       if (this.isLocal) return this.store.getters['globals/getLocalMediaProgressById'](this.libraryItemId)
       return this.store.getters['user/getUserMediaProgress'](this.libraryItemId)
     },
@@ -233,19 +261,28 @@ export default {
       return this.userProgress ? !!this.userProgress.isFinished : false
     },
     showError() {
-      return this.hasMissingParts || this.hasInvalidParts || this.isMissing || this.isInvalid
+      return this.numMissingParts || this.isMissing || this.isInvalid
+    },
+    playerIsLocal() {
+      return !!this.$store.state.playerIsLocal
+    },
+    localLibraryItemId() {
+      if (this.isLocal) return this.libraryItemId
+      return this.localLibraryItem ? this.localLibraryItem.id : null
     },
     isStreaming() {
-      return this.store.getters['getlibraryItemIdStreaming'] === this.libraryItemId
+      if (this.isPodcast) {
+        if (this.playerIsLocal) {
+          // Check is streaming local version of this episode
+          return false // episode cards not implemented for local yet
+        }
+        return this.$store.getters['getIsEpisodeStreaming'](this.libraryItemId, this.recentEpisode.id)
+      } else {
+        return false // not yet necessary for books
+      }
     },
-    showReadButton() {
-      return !this.isSelectionMode && this.showExperimentalFeatures && !this.showPlayButton && this.hasEbook
-    },
-    showPlayButton() {
-      return !this.isSelectionMode && !this.isMissing && !this.isInvalid && this.numTracks && !this.isStreaming
-    },
-    showSmallEBookIcon() {
-      return !this.isSelectionMode && this.showExperimentalFeatures && this.hasEbook
+    streamIsPlaying() {
+      return this.$store.state.playerIsPlaying && this.isStreaming
     },
     isMissing() {
       return this._libraryItem.isMissing
@@ -253,24 +290,9 @@ export default {
     isInvalid() {
       return this._libraryItem.isInvalid
     },
-    hasMissingParts() {
-      return this._libraryItem.hasMissingParts
-    },
-    hasInvalidParts() {
-      return this._libraryItem.hasInvalidParts
-    },
-    errorText() {
-      if (this.isMissing) return 'Item directory is missing!'
-      else if (this.isInvalid) return 'Item has no media files'
-      var txt = ''
-      if (this.hasMissingParts) {
-        txt = `${this.hasMissingParts} missing parts.`
-      }
-      if (this.hasInvalidParts) {
-        if (this.hasMissingParts) txt += ' '
-        txt += `${this.hasInvalidParts} invalid parts.`
-      }
-      return txt || 'Unknown Error'
+    numMissingParts() {
+      if (this.isPodcast) return 0
+      return this.media.numMissingParts
     },
     overlayWrapperClasslist() {
       var classes = []
@@ -343,6 +365,10 @@ export default {
         e.stopPropagation()
         e.preventDefault()
         this.selectBtnClick()
+      } else if (this.recentEpisode) {
+        var eventBus = this.$eventBus || this.$nuxt.$eventBus
+        if (this.streamIsPlaying) eventBus.$emit('pause-item')
+        else eventBus.$emit('play-item', { libraryItemId: this.libraryItemId, episodeId: this.recentEpisode.id })
       } else {
         var router = this.$router || this.$nuxt.$router
         if (router) {

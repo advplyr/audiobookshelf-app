@@ -4,7 +4,7 @@
 
     <modals-playback-speed-modal v-model="showPlaybackSpeedModal" :playback-rate.sync="playbackSpeed" @update:playbackRate="updatePlaybackSpeed" @change="changePlaybackSpeed" />
     <modals-sleep-timer-modal v-model="showSleepTimerModal" :current-time="sleepTimeRemaining" :sleep-timer-running="isSleepTimerRunning" :current-end-of-chapter-time="currentEndOfChapterTime" @change="selectSleepTimeout" @cancel="cancelSleepTimer" @increase="increaseSleepTimer" @decrease="decreaseSleepTimer" />
-    <modals-bookmarks-modal v-model="showBookmarksModal" :bookmarks="bookmarks" :current-time="currentTime" @select="selectBookmark" />
+    <modals-bookmarks-modal v-model="showBookmarksModal" :bookmarks="bookmarks" :current-time="currentTime" :library-item-id="serverLibraryItemId" @select="selectBookmark" />
   </div>
 </template>
 
@@ -31,7 +31,8 @@ export default {
       onSleepTimerSetListener: null,
       onMediaPlayerChangedListener: null,
       sleepInterval: null,
-      currentEndOfChapterTime: 0
+      currentEndOfChapterTime: 0,
+      serverLibraryItemId: null
     }
   },
   watch: {
@@ -44,8 +45,8 @@ export default {
   },
   computed: {
     bookmarks() {
-      // return this.$store.getters['user/getUserBookmarksForItem'](this.)
-      return []
+      if (!this.serverLibraryItemId) return []
+      return this.$store.getters['user/getUserBookmarksForItem'](this.serverLibraryItemId)
     },
     socketConnected() {
       return this.$store.state.socketConnected
@@ -181,10 +182,20 @@ export default {
         }
       }
 
+      this.serverLibraryItemId = null
+
+      var playbackRate = 1
+      if (this.$refs.audioPlayer) {
+        playbackRate = this.$refs.audioPlayer.currentPlaybackRate || 1
+      }
+
       console.log('Called playLibraryItem', libraryItemId)
-      AbsAudioPlayer.prepareLibraryItem({ libraryItemId, episodeId, playWhenReady: true })
+      AbsAudioPlayer.prepareLibraryItem({ libraryItemId, episodeId, playWhenReady: true, playbackRate })
         .then((data) => {
           console.log('Library item play response', JSON.stringify(data))
+          if (!libraryItemId.startsWith('local')) {
+            this.serverLibraryItemId = libraryItemId
+          }
         })
         .catch((error) => {
           console.error('Failed', error)

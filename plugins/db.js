@@ -6,28 +6,6 @@ const isWeb = Capacitor.getPlatform() == 'web'
 class DbService {
   constructor() { }
 
-  // Please dont use this, it is not implemented in ios (maybe key: primary value: any ?)
-  save(db, key, value) {
-    if (isWeb) return
-    return AbsDatabase.saveFromWebview({ db, key, value }).then(() => {
-      console.log('Saved data', db, key, JSON.stringify(value))
-    }).catch((error) => {
-      console.error('Failed to save data', error)
-    })
-  }
-
-  // Please dont use this, it is not implemented in ios
-  load(db, key) {
-    if (isWeb) return null
-    return AbsDatabase.loadFromWebview({ db, key }).then((data) => {
-      console.log('Loaded data', db, key, JSON.stringify(data))
-      return data
-    }).catch((error) => {
-      console.error('Failed to load', error)
-      return null
-    })
-  }
-
   getDeviceData() {
     return AbsDatabase.getDeviceData().then((data) => {
       console.log('Loaded device data', JSON.stringify(data))
