@@ -32,7 +32,7 @@ class MediaSessionPlaybackPreparer(var playerNotificationService:PlayerNotificat
     playerNotificationService.mediaManager.getFirstItem()?.let { li ->
       playerNotificationService.mediaManager.play(li, playerNotificationService.getMediaPlayer()) {
         Handler(Looper.getMainLooper()).post() {
-          playerNotificationService.preparePlayer(it,playWhenReady)
+          playerNotificationService.preparePlayer(it,playWhenReady,null)
         }
       }
     }
@@ -46,7 +46,7 @@ class MediaSessionPlaybackPreparer(var playerNotificationService:PlayerNotificat
       playerNotificationService.mediaManager.play(li, playerNotificationService.getMediaPlayer()) {
         Log.d(tag, "About to prepare player with ${it.displayTitle}")
         Handler(Looper.getMainLooper()).post() {
-          playerNotificationService.preparePlayer(it,playWhenReady)
+          playerNotificationService.preparePlayer(it,playWhenReady,null)
         }
       }
     }
@@ -58,7 +58,7 @@ class MediaSessionPlaybackPreparer(var playerNotificationService:PlayerNotificat
       playerNotificationService.mediaManager.play(li, playerNotificationService.getMediaPlayer()) {
         Log.d(tag, "About to prepare player with ${it.displayTitle}")
         Handler(Looper.getMainLooper()).post() {
-          playerNotificationService.preparePlayer(it,playWhenReady)
+          playerNotificationService.preparePlayer(it,playWhenReady,null)
         }
       }
     }

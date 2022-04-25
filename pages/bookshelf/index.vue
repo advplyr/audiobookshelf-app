@@ -6,7 +6,7 @@
       </template>
     </div>
 
-    <div v-if="!shelves.length" class="absolute top-0 left-0 w-full h-full flex items-center justify-center">
+    <div v-if="!shelves.length && !loading" class="absolute top-0 left-0 w-full h-full flex items-center justify-center">
       <div>
         <p class="mb-4 text-center text-xl">
           Bookshelf empty
@@ -20,12 +20,14 @@
             <span class="material-icons text-error text-lg">cloud_off</span>
             <p class="pl-2 text-error text-sm">Audiobookshelf server not connected.</p>
           </div>
-          <!-- <p class="px-4 text-center text-error absolute bottom-12 left-0 right-0 mx-auto"><strong>Important!</strong> This app requires that you are running <u>your own server</u> and does not provide any content.</p> -->
         </div>
         <div class="flex justify-center">
           <ui-btn v-if="!user" small @click="$router.push('/connect')" class="w-32">Connect</ui-btn>
         </div>
       </div>
+    </div>
+    <div v-if="loading" class="absolute top-0 left-0 w-full h-full flex items-center justify-center">
+      <ui-loading-indicator text="Loading Library..." />
     </div>
   </div>
 </template>

@@ -9,7 +9,6 @@ import android.hardware.SensorManager
 import android.os.*
 import android.support.v4.media.MediaBrowserCompat
 import android.support.v4.media.MediaDescriptionCompat
-import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaControllerCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
@@ -31,7 +30,6 @@ import com.google.android.exoplayer2.source.ProgressiveMediaSource
 import com.google.android.exoplayer2.source.hls.HlsMediaSource
 import com.google.android.exoplayer2.ui.PlayerNotificationManager
 import com.google.android.exoplayer2.upstream.*
-import io.paperdb.Paper
 import java.util.*
 import kotlin.concurrent.schedule
 
@@ -82,8 +80,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   private var channelName = "Audiobookshelf Channel"
 
   private var currentPlaybackSession:PlaybackSession? = null
+  private var initialPlaybackRate:Float? = null
 
-  var isAndroidAuto = false
+  private var isAndroidAuto = false
 
   // The following are used for the shake detection
   private var isShakeSensorRegistered:Boolean = false
@@ -164,7 +163,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     ctx = this
 
     // Initialize player
-    var customLoadControl:LoadControl = DefaultLoadControl.Builder().setBufferDurationsMs(
+    val customLoadControl:LoadControl = DefaultLoadControl.Builder().setBufferDurationsMs(
       1000 * 20, // 20s min buffer
       1000 * 45, // 45s max buffer
       1000 * 5, // 5s playback start
@@ -178,7 +177,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       .build()
     mPlayer.setHandleAudioBecomingNoisy(true)
     mPlayer.addListener(PlayerListener(this))
-    var audioAttributes:AudioAttributes = AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.CONTENT_TYPE_SPEECH).build()
+    val audioAttributes:AudioAttributes = AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.CONTENT_TYPE_SPEECH).build()
     mPlayer.setAudioAttributes(audioAttributes, true)
 
     currentPlayer = mPlayer
@@ -205,7 +204,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
     val sessionActivityPendingIntent =
       packageManager?.getLaunchIntentForPackage(packageName)?.let { sessionIntent ->
-        PendingIntent.getActivity(this, 0, sessionIntent, 0)
+        PendingIntent.getActivity(this, 0, sessionIntent, PendingIntent.FLAG_IMMUTABLE)
       }
 
     mediaSession = MediaSessionCompat(this, tag)
@@ -275,7 +274,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   /*
     User callable methods
   */
-  fun preparePlayer(playbackSession: PlaybackSession, playWhenReady:Boolean) {
+  fun preparePlayer(playbackSession: PlaybackSession, playWhenReady:Boolean, playbackRate:Float?) {
+    val playbackRateToUse = playbackRate ?: initialPlaybackRate ?: 1f
+    initialPlaybackRate = playbackRate
+
     playbackSession.mediaPlayer = getMediaPlayer()
 
     if (playbackSession.mediaPlayer == "cast-player" && playbackSession.isLocal) {
@@ -296,9 +298,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
     clientEventEmitter?.onPlaybackSession(playbackSession)
 
-    var metadata = playbackSession.getMediaMetadataCompat()
+    val metadata = playbackSession.getMediaMetadataCompat()
     mediaSession.setMetadata(metadata)
-    var mediaItems = playbackSession.getMediaItems()
+    val mediaItems = playbackSession.getMediaItems()
 
     if (mediaItems.isEmpty()) {
       Log.e(tag, "Invalid playback session no media items to play")
@@ -307,20 +309,20 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     }
 
     if (mPlayer == currentPlayer) {
-      var mediaSource:MediaSource
+      val mediaSource:MediaSource
 
       if (playbackSession.isLocal) {
         Log.d(tag, "Playing Local Item")
-        var dataSourceFactory = DefaultDataSource.Factory(ctx)
+        val dataSourceFactory = DefaultDataSource.Factory(ctx)
         mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItems[0])
       } else if (!playbackSession.isHLS) {
         Log.d(tag, "Direct Playing Item")
-        var dataSourceFactory = DefaultHttpDataSource.Factory()
+        val dataSourceFactory = DefaultHttpDataSource.Factory()
         dataSourceFactory.setUserAgent(channelId)
         mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItems[0])
       } else {
         Log.d(tag, "Playing HLS Item")
-        var dataSourceFactory = DefaultHttpDataSource.Factory()
+        val dataSourceFactory = DefaultHttpDataSource.Factory()
         dataSourceFactory.setUserAgent(channelId)
         dataSourceFactory.setDefaultRequestProperties(hashMapOf("Authorization" to "Bearer ${DeviceManager.token}"))
         mediaSource = HlsMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItems[0])
@@ -333,8 +335,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         currentPlayer.addMediaItems(mediaItems.subList(1, mediaItems.size))
         Log.d(tag, "currentPlayer total media items ${currentPlayer.mediaItemCount}")
 
-        var currentTrackIndex = playbackSession.getCurrentTrackIndex()
-        var currentTrackTime = playbackSession.getCurrentTrackTimeMs()
+        val currentTrackIndex = playbackSession.getCurrentTrackIndex()
+        val currentTrackTime = playbackSession.getCurrentTrackTimeMs()
         Log.d(tag, "currentPlayer current track index $currentTrackIndex & current track time $currentTrackTime")
         currentPlayer.seekTo(currentTrackIndex, currentTrackTime)
       } else {
@@ -343,16 +345,15 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
       Log.d(tag, "Prepare complete for session ${currentPlaybackSession?.displayTitle} | ${currentPlayer.mediaItemCount}")
       currentPlayer.playWhenReady = playWhenReady
-      currentPlayer.setPlaybackSpeed(1f) // TODO: Playback speed should come from settings
+      currentPlayer.setPlaybackSpeed(playbackRateToUse)
       currentPlayer.prepare()
-
     } else if (castPlayer != null) {
-      var currentTrackIndex = playbackSession.getCurrentTrackIndex()
-      var currentTrackTime = playbackSession.getCurrentTrackTimeMs()
-      var mediaType = playbackSession.mediaType
+      val currentTrackIndex = playbackSession.getCurrentTrackIndex()
+      val currentTrackTime = playbackSession.getCurrentTrackTimeMs()
+      val mediaType = playbackSession.mediaType
       Log.d(tag, "Loading cast player $currentTrackIndex $currentTrackTime $mediaType")
 
-      castPlayer?.load(mediaItems, currentTrackIndex, currentTrackTime, playWhenReady, 1f, mediaType)
+      castPlayer?.load(mediaItems, currentTrackIndex, currentTrackTime, playWhenReady, playbackRateToUse, mediaType)
     }
   }
 
@@ -360,14 +361,14 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     // On error and was attempting to direct play - fallback to transcode
     currentPlaybackSession?.let { playbackSession ->
       if (playbackSession.isDirectPlay) {
-        var mediaPlayer = getMediaPlayer()
+        val mediaPlayer = getMediaPlayer()
         Log.d(tag, "Fallback to transcode $mediaPlayer")
 
-        var libraryItemId = playbackSession.libraryItemId ?: "" // Must be true since direct play
-        var episodeId = playbackSession.episodeId
+        val libraryItemId = playbackSession.libraryItemId ?: "" // Must be true since direct play
+        val episodeId = playbackSession.episodeId
         apiHandler.playLibraryItem(libraryItemId, episodeId, true, mediaPlayer) {
           Handler(Looper.getMainLooper()).post() {
-            preparePlayer(it, true)
+            preparePlayer(it, true, null)
           }
         }
       } else {
@@ -378,7 +379,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   }
 
   fun switchToPlayer(useCastPlayer: Boolean) {
-    var wasPlaying = currentPlayer.isPlaying
+    val wasPlaying = currentPlayer.isPlaying
     if (useCastPlayer) {
       if (currentPlayer == castPlayer) {
         Log.d(tag, "switchToPlayer: Already using Cast Player " + castPlayer?.deviceInfo)
@@ -420,7 +421,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       if (wasPlaying) { // media is paused when switching players
         clientEventEmitter?.onPlayingUpdate(false)
       }
-      preparePlayer(it, false)
+      preparePlayer(it, false, null)
     }
   }
 
@@ -499,8 +500,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     Log.d(tag, "seekPlayer mediaCount = ${currentPlayer.mediaItemCount} | $time")
     if (currentPlayer.mediaItemCount > 1) {
       currentPlaybackSession?.currentTime = time / 1000.0
-      var newWindowIndex = currentPlaybackSession?.getCurrentTrackIndex() ?: 0
-      var newTimeOffset = currentPlaybackSession?.getCurrentTrackTimeMs() ?: 0
+      val newWindowIndex = currentPlaybackSession?.getCurrentTrackIndex() ?: 0
+      val newTimeOffset = currentPlaybackSession?.getCurrentTrackTimeMs() ?: 0
       currentPlayer.seekTo(newWindowIndex, newTimeOffset)
     } else {
       currentPlayer.seekTo(time)
@@ -528,7 +529,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   }
 
   fun sendClientMetadata(playerState: PlayerState) {
-    var duration = currentPlaybackSession?.getTotalDuration() ?: 0.0
+    val duration = currentPlaybackSession?.getTotalDuration() ?: 0.0
     clientEventEmitter?.onMetadata(PlaybackMetadata(duration, getCurrentTimeSeconds(), playerState))
   }
 
@@ -593,7 +594,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   override fun onLoadChildren(parentMediaId: String, result: Result<MutableList<MediaBrowserCompat.MediaItem>>) {
     Log.d(tag, "ON LOAD CHILDREN $parentMediaId")
 
-    var flag = if (parentMediaId == AUTO_MEDIA_ROOT) MediaBrowserCompat.MediaItem.FLAG_BROWSABLE else MediaBrowserCompat.MediaItem.FLAG_PLAYABLE
+    val flag = if (parentMediaId == AUTO_MEDIA_ROOT) MediaBrowserCompat.MediaItem.FLAG_BROWSABLE else MediaBrowserCompat.MediaItem.FLAG_PLAYABLE
 
     result.detach()
 
@@ -652,7 +653,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     shakeSensorUnregisterTask?.cancel()
 
     Log.d(tag, "Registering shake SENSOR ${mAccelerometer?.isWakeUpSensor}")
-    var success = mSensorManager!!.registerListener(
+    val success = mSensorManager!!.registerListener(
       mShakeDetector,
       mAccelerometer,
       SensorManager.SENSOR_DELAY_UI

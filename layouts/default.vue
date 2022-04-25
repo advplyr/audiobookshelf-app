@@ -192,7 +192,9 @@ export default {
     socketConnectionFailed(err) {
       this.$toast.error('Socket connection error: ' + err.message)
     },
-    socketInit(data) {},
+    socketInit(data) {
+      console.log('Socket init', data)
+    },
     async initLibraries() {
       if (this.inittingLibraries) {
         return

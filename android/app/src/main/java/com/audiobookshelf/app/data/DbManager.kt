@@ -17,9 +17,9 @@ class DbManager {
   }
 
   fun getLocalLibraryItems(mediaType:String? = null):MutableList<LocalLibraryItem> {
-    var localLibraryItems:MutableList<LocalLibraryItem> = mutableListOf()
+    val localLibraryItems:MutableList<LocalLibraryItem> = mutableListOf()
     Paper.book("localLibraryItems").allKeys.forEach {
-      var localLibraryItem:LocalLibraryItem? = Paper.book("localLibraryItems").read(it)
+      val localLibraryItem:LocalLibraryItem? = Paper.book("localLibraryItems").read(it)
       if (localLibraryItem != null && (mediaType.isNullOrEmpty() || mediaType == localLibraryItem.mediaType)) {
         localLibraryItems.add(localLibraryItem)
       }
@@ -28,7 +28,7 @@ class DbManager {
   }
 
   fun getLocalLibraryItemsInFolder(folderId:String):List<LocalLibraryItem> {
-    var localLibraryItems = getLocalLibraryItems()
+    val localLibraryItems = getLocalLibraryItems()
     return localLibraryItems.filter {
       it.folderId == folderId
     }
@@ -65,7 +65,7 @@ class DbManager {
   }
 
   fun getAllLocalFolders():List<LocalFolder> {
-    var localFolders:MutableList<LocalFolder> = mutableListOf()
+    val localFolders:MutableList<LocalFolder> = mutableListOf()
     Paper.book("localFolders").allKeys.forEach { localFolderId ->
       Paper.book("localFolders").read<LocalFolder>(localFolderId)?.let {
         localFolders.add(it)
@@ -75,7 +75,7 @@ class DbManager {
   }
 
   fun removeLocalFolder(folderId:String) {
-    var localLibraryItems = getLocalLibraryItemsInFolder(folderId)
+    val localLibraryItems = getLocalLibraryItemsInFolder(folderId)
     localLibraryItems.forEach {
       Paper.book("localLibraryItems").delete(it.id)
     }
@@ -91,7 +91,7 @@ class DbManager {
   }
 
   fun getDownloadItems():List<AbsDownloader.DownloadItem> {
-    var downloadItems:MutableList<AbsDownloader.DownloadItem> = mutableListOf()
+    val downloadItems:MutableList<AbsDownloader.DownloadItem> = mutableListOf()
     Paper.book("downloadItems").allKeys.forEach { downloadItemId ->
       Paper.book("downloadItems").read<AbsDownloader.DownloadItem>(downloadItemId)?.let {
         downloadItems.add(it)
@@ -108,7 +108,7 @@ class DbManager {
     return Paper.book("localMediaProgress").read(localMediaProgressId)
   }
   fun getAllLocalMediaProgress():List<LocalMediaProgress> {
-    var mediaProgress:MutableList<LocalMediaProgress> = mutableListOf()
+    val mediaProgress:MutableList<LocalMediaProgress> = mutableListOf()
     Paper.book("localMediaProgress").allKeys.forEach { localMediaProgressId ->
       Paper.book("localMediaProgress").read<LocalMediaProgress>(localMediaProgressId)?.let {
         mediaProgress.add(it)
@@ -126,14 +126,14 @@ class DbManager {
 
   // Make sure all local file ids still exist
   fun cleanLocalLibraryItems() {
-    var localLibraryItems = getLocalLibraryItems()
+    val localLibraryItems = getLocalLibraryItems()
 
     localLibraryItems.forEach { lli ->
       var hasUpates = false
 
       // Check local files
       lli.localFiles = lli.localFiles.filter { localFile ->
-        var file = File(localFile.absolutePath)
+        val file = File(localFile.absolutePath)
         if (!file.exists()) {
           Log.d(tag, "cleanLocalLibraryItems: Local file ${localFile.absolutePath} was removed from library item ${lli.media.metadata.title}")
           hasUpates = true
@@ -143,7 +143,7 @@ class DbManager {
 
       // Check audio tracks and episodes
       if (lli.isPodcast) {
-        var podcast = lli.media as Podcast
+        val podcast = lli.media as Podcast
         podcast.episodes = podcast.episodes?.filter { ep ->
           if (lli.localFiles.find { lf -> lf.id == ep.audioTrack?.localFileId } == null) {
             Log.d(tag, "cleanLocalLibraryItems: Podcast episode ${ep.title} was removed from library item ${lli.media.metadata.title}")
@@ -152,7 +152,7 @@ class DbManager {
           ep.audioTrack != null && lli.localFiles.find { lf -> lf.id == ep.audioTrack?.localFileId } != null
         } as MutableList<PodcastEpisode>
       } else {
-        var book = lli.media as Book
+        val book = lli.media as Book
         book.tracks = book.tracks?.filter { track ->
           if (lli.localFiles.find { lf -> lf.id == track.localFileId } == null) {
             Log.d(tag, "cleanLocalLibraryItems: Audio track ${track.title} was removed from library item ${lli.media.metadata.title}")
@@ -164,7 +164,7 @@ class DbManager {
 
       // Check cover still there
       lli.coverAbsolutePath?.let {
-        var coverFile = File(it)
+        val coverFile = File(it)
 
         if (!coverFile.exists()) {
           Log.d(tag, "cleanLocalLibraryItems: Cover $it was removed from library item ${lli.media.metadata.title}")
@@ -183,10 +183,10 @@ class DbManager {
 
   // Remove any local media progress where the local media item is not found
   fun cleanLocalMediaProgress() {
-    var localMediaProgress = getAllLocalMediaProgress()
-    var localLibraryItems = getLocalLibraryItems()
+    val localMediaProgress = getAllLocalMediaProgress()
+    val localLibraryItems = getLocalLibraryItems()
     localMediaProgress.forEach {
-      var matchingLLI = localLibraryItems.find { lli -> lli.id == it.localLibraryItemId }
+      val matchingLLI = localLibraryItems.find { lli -> lli.id == it.localLibraryItemId }
       if (matchingLLI == null) {
         Log.d(tag, "cleanLocalMediaProgress: No matching local library item for local media progress ${it.id} - removing")
         Paper.book("localMediaProgress").delete(it.id)
@@ -195,8 +195,8 @@ class DbManager {
           Log.d(tag, "cleanLocalMediaProgress: Podcast media progress has no episode id - removing")
           Paper.book("localMediaProgress").delete(it.id)
         } else {
-          var podcast = matchingLLI.media as Podcast
-          var matchingLEp = podcast.episodes?.find { ep -> ep.id == it.localEpisodeId }
+          val podcast = matchingLLI.media as Podcast
+          val matchingLEp = podcast.episodes?.find { ep -> ep.id == it.localEpisodeId }
           if (matchingLEp == null) {
             Log.d(tag, "cleanLocalMediaProgress: Podcast media progress for episode ${it.localEpisodeId} not found - removing")
             Paper.book("localMediaProgress").delete(it.id)
@@ -211,16 +211,5 @@ class DbManager {
   }
   fun getLocalPlaybackSession(playbackSessionId:String):PlaybackSession? {
     return Paper.book("localPlaybackSession").read(playbackSessionId)
-  }
-
-  fun saveObject(db:String, key:String, value:JSONObject) {
-    Log.d(tag, "Saving Object $key ${value.toString()}")
-    Paper.book(db).write(key, value)
-  }
-
-  fun loadObject(db:String, key:String):JSONObject? {
-    var json: JSONObject? = Paper.book(db).read(key)
-    Log.d(tag, "Loaded Object $key $json")
-    return json
   }
 }

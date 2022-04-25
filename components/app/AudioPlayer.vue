@@ -43,7 +43,7 @@
     <div id="streamContainer" class="w-full z-20 bg-primary absolute bottom-0 left-0 right-0 p-2 pointer-events-auto transition-all" @click="clickContainer">
       <div v-if="showFullscreen" class="absolute top-0 left-0 right-0 w-full py-3 mx-auto px-3" style="max-width: 380px">
         <div class="flex items-center justify-between pointer-events-auto">
-          <span v-if="!isPodcast" class="material-icons text-3xl text-white text-opacity-75 cursor-pointer" @click="$emit('showBookmarks')">{{ bookmarks.length ? 'bookmark' : 'bookmark_border' }}</span>
+          <span v-if="!isPodcast && !isLocalPlayMethod" class="material-icons text-3xl text-white text-opacity-75 cursor-pointer" @click="$emit('showBookmarks')">{{ bookmarks.length ? 'bookmark' : 'bookmark_border' }}</span>
           <!-- hidden for podcasts but still using this as a placeholder -->
           <span v-else class="material-icons text-3xl text-white text-opacity-0">bookmark</span>
 
