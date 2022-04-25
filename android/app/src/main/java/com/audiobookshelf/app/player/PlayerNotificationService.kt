@@ -454,7 +454,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   }
 
   fun getDuration() : Long {
-    return currentPlayer.duration
+    return currentPlaybackSession?.totalDurationMs ?: 0L
   }
 
   fun getCurrentBookTitle() : String? {

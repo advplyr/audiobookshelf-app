@@ -13,8 +13,9 @@
         <p class="text-sm text-gray-400">by {{ author }}</p>
         <p v-if="numTracks" class="text-gray-300 text-sm my-1">
           {{ $elapsedPretty(duration) }}
-          <span class="px-4">{{ $bytesPretty(size) }}</span>
+          <span v-if="!isLocal" class="px-4">{{ $bytesPretty(size) }}</span>
         </p>
+        <p v-if="numTracks" class="text-gray-300 text-sm my-1">{{ numTracks }} Tracks</p>
 
         <div v-if="!isPodcast && progressPercent > 0" class="px-4 py-2 bg-primary text-sm font-semibold rounded-md text-gray-200 mt-4 relative" :class="resettingProgress ? 'opacity-25' : ''">
           <p class="leading-6">Your Progress: {{ Math.round(progressPercent * 100) }}%</p>
