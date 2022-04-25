@@ -51,8 +51,8 @@ data class LocalLibraryItem(
 
   @JsonIgnore
   fun updateFromScan(audioTracks:MutableList<AudioTrack>, _localFiles:MutableList<LocalFile>) {
-    media.setAudioTracks(audioTracks)
     localFiles = _localFiles
+    media.setAudioTracks(audioTracks)
 
     if (coverContentUrl != null) {
       if (localFiles.find { it.contentUrl == coverContentUrl } == null) {

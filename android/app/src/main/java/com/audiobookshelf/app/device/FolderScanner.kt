@@ -36,7 +36,7 @@ class FolderScanner(var ctx: Context) {
       }
     }
 
-     var df: DocumentFile? = DocumentFileCompat.fromUri(ctx, Uri.parse(localFolder.contentUrl))
+     val df: DocumentFile? = DocumentFileCompat.fromUri(ctx, Uri.parse(localFolder.contentUrl))
 
      if (df == null) {
        Log.e(tag, "Folder Doc File Invalid $localFolder.contentUrl")
@@ -49,7 +49,7 @@ class FolderScanner(var ctx: Context) {
      var mediaItemsUpToDate = 0
 
       // Search for files in media item folder
-     var foldersFound = df.search(false, DocumentFileType.FOLDER)
+     val foldersFound = df.search(false, DocumentFileType.FOLDER)
 
       // Match folders found with local library items already saved in db
      var existingLocalLibraryItems = DeviceManager.dbManager.getLocalLibraryItemsInFolder(localFolder.id)
@@ -57,7 +57,7 @@ class FolderScanner(var ctx: Context) {
      // Remove existing items no longer there
     existingLocalLibraryItems = existingLocalLibraryItems.filter { lli ->
       Log.d(tag, "scanForMediaItems Checking Existing LLI ${lli.id}")
-       var fileFound = foldersFound.find { f -> lli.id == getLocalLibraryItemId(f.id) }
+       val fileFound = foldersFound.find { f -> lli.id == getLocalLibraryItemId(f.id) }
        if (fileFound == null) {
          Log.d(tag, "Existing local library item is no longer in file system ${lli.media.metadata.title}")
          DeviceManager.dbManager.removeLocalLibraryItem(lli.id)
@@ -68,9 +68,9 @@ class FolderScanner(var ctx: Context) {
 
      foldersFound.forEach { itemFolder ->
        Log.d(tag, "Iterating over Folder Found ${itemFolder.name} | ${itemFolder.getSimplePath(ctx)} | URI: ${itemFolder.uri}")
-       var existingItem = existingLocalLibraryItems.find { emi -> emi.id == getLocalLibraryItemId(itemFolder.id) }
+       val existingItem = existingLocalLibraryItems.find { emi -> emi.id == getLocalLibraryItemId(itemFolder.id) }
 
-       var result = scanLibraryItemFolder(itemFolder, localFolder, existingItem, forceAudioProbe)
+       val result = scanLibraryItemFolder(itemFolder, localFolder, existingItem, forceAudioProbe)
 
        if (result == ItemScanResult.REMOVED) mediaItemsRemoved++
        else if (result == ItemScanResult.UPDATED) mediaItemsUpdated++
@@ -90,25 +90,23 @@ class FolderScanner(var ctx: Context) {
    }
 
   fun scanLibraryItemFolder(itemFolder:DocumentFile, localFolder:LocalFolder, existingItem:LocalLibraryItem?, forceAudioProbe:Boolean):ItemScanResult {
-    var itemFolderName = itemFolder.name ?: ""
-    var itemId = getLocalLibraryItemId(itemFolder.id)
+    val itemFolderName = itemFolder.name ?: ""
+    val itemId = getLocalLibraryItemId(itemFolder.id)
 
-    var existingLocalFiles = existingItem?.localFiles ?: mutableListOf()
-    var existingAudioTracks = existingItem?.media?.getAudioTracks() ?: mutableListOf()
+    val existingLocalFiles = existingItem?.localFiles ?: mutableListOf()
+    val existingAudioTracks = existingItem?.media?.getAudioTracks() ?: mutableListOf()
     var isNewOrUpdated = existingItem == null
 
-    var audioTracks = mutableListOf<AudioTrack>()
-    var localFiles = mutableListOf<LocalFile>()
+    val audioTracks = mutableListOf<AudioTrack>()
+    val localFiles = mutableListOf<LocalFile>()
     var index = 1
     var startOffset = 0.0
     var coverContentUrl:String? = null
     var coverAbsolutePath:String? = null
 
-//    itemFolder.search(false, DocumentFileType.FILE, arrayOf("audio"))
+    val filesInFolder = itemFolder.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*", "video/mp4"))
 
-    var filesInFolder = itemFolder.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*", "video/mp4"))
-
-    var existingLocalFilesRemoved = existingLocalFiles.filter { elf ->
+    val existingLocalFilesRemoved = existingLocalFiles.filter { elf ->
       filesInFolder.find { fif -> DeviceManager.getBase64Id(fif.id) == elf.id } == null // File was not found in media item folder
     }
     if (existingLocalFilesRemoved.isNotEmpty()) {
@@ -117,14 +115,14 @@ class FolderScanner(var ctx: Context) {
     }
 
     filesInFolder.forEach { file ->
-      var mimeType = file.mimeType ?: ""
-      var filename = file.name ?: ""
-      var isAudio = mimeType.startsWith("audio") || mimeType == "video/mp4"
+      val mimeType = file.mimeType ?: ""
+      val filename = file.name ?: ""
+      val isAudio = mimeType.startsWith("audio") || mimeType == "video/mp4"
       Log.d(tag, "Found $mimeType file $filename in folder $itemFolderName")
 
-      var localFileId = DeviceManager.getBase64Id(file.id)
+      val localFileId = DeviceManager.getBase64Id(file.id)
 
-      var localFile = LocalFile(localFileId,filename,file.uri.toString(),file.getBasePath(ctx), file.getAbsolutePath(ctx),file.getSimplePath(ctx),mimeType,file.length())
+      val localFile = LocalFile(localFileId,filename,file.uri.toString(),file.getBasePath(ctx), file.getAbsolutePath(ctx),file.getSimplePath(ctx),mimeType,file.length())
       localFiles.add(localFile)
 
       Log.d(tag, "File attributes Id:${localFileId}|ContentUrl:${localFile.contentUrl}|isDownloadsDocument:${file.isDownloadsDocument}")
@@ -132,7 +130,7 @@ class FolderScanner(var ctx: Context) {
       if (isAudio) {
         var audioTrackToAdd:AudioTrack? = null
 
-        var existingAudioTrack = existingAudioTracks.find { eat -> eat.localFileId == localFileId }
+        val existingAudioTrack = existingAudioTracks.find { eat -> eat.localFileId == localFileId }
         if (existingAudioTrack != null) { // Update existing audio track
           if (existingAudioTrack.index != index) {
             Log.d(tag, "scanLibraryItemFolder Updating Audio track index from ${existingAudioTrack.index} to $index")
@@ -150,7 +148,7 @@ class FolderScanner(var ctx: Context) {
           Log.d(tag, "scanLibraryItemFolder Scanning Audio File Path ${localFile.absolutePath} | ForceAudioProbe=${forceAudioProbe}")
 
           // TODO: Make asynchronous
-          var audioProbeResult = probeAudioFile(localFile.absolutePath)
+          val audioProbeResult = probeAudioFile(localFile.absolutePath)
 
           if (existingAudioTrack != null) {
             // Update audio probe data on existing audio track
@@ -172,7 +170,7 @@ class FolderScanner(var ctx: Context) {
         index++
         audioTracks.add(audioTrackToAdd)
       } else {
-        var existingLocalFile = existingLocalFiles.find { elf -> elf.id == localFileId }
+        val existingLocalFile = existingLocalFiles.find { elf -> elf.id == localFileId }
 
         if (existingLocalFile == null) {
           Log.d(tag, "scanLibraryItemFolder new local file found ${localFile.absolutePath}")
@@ -209,8 +207,8 @@ class FolderScanner(var ctx: Context) {
       return ItemScanResult.UPDATED
     } else if (audioTracks.isNotEmpty()) {
       Log.d(tag, "Found local media item named $itemFolderName with ${audioTracks.size} tracks and ${localFiles.size} local files")
-      var localMediaItem = LocalMediaItem(itemId, itemFolderName, localFolder.mediaType, localFolder.id, itemFolder.uri.toString(), itemFolder.getSimplePath(ctx), itemFolder.getBasePath(ctx), itemFolder.getAbsolutePath(ctx),audioTracks,localFiles,coverContentUrl,coverAbsolutePath)
-      var localLibraryItem = localMediaItem.getLocalLibraryItem()
+      val localMediaItem = LocalMediaItem(itemId, itemFolderName, localFolder.mediaType, localFolder.id, itemFolder.uri.toString(), itemFolder.getSimplePath(ctx), itemFolder.getBasePath(ctx), itemFolder.getAbsolutePath(ctx),audioTracks,localFiles,coverContentUrl,coverAbsolutePath)
+      val localLibraryItem = localMediaItem.getLocalLibraryItem()
       DeviceManager.dbManager.saveLocalLibraryItem(localLibraryItem)
       return ItemScanResult.ADDED
     } else {
