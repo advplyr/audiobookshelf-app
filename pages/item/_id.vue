@@ -354,21 +354,52 @@ export default {
         this.$set(this.libraryItem, 'localLibraryItem', item)
       }
     },
-    toggleFinished() {
-      var updatePayload = {
-        isFinished: !this.userIsFinished
-      }
+    async toggleFinished() {
       this.isProcessingReadUpdate = true
-      this.$axios
-        .$patch(`/api/me/progress/${this.libraryItemId}`, updatePayload)
-        .then(() => {
-          this.isProcessingReadUpdate = false
-        })
-        .catch((error) => {
-          console.error('Failed', error)
-          this.isProcessingReadUpdate = false
-        })
-    },
+      if (this.isLocal || this.localEpisode) {
+        var isFinished = !this.userIsFinished
+        var localMediaProgressId = this.localLibraryItemId
+        console.log('toggleFinished local media progress id', localMediaProgressId, isFinished)
+        var payload = await this.$db.updateLocalMediaProgressFinished({ localMediaProgressId, isFinished })
+        console.log('toggleFinished payload', JSON.stringify(payload))
+        if (!payload || payload.error) {
+          var errorMsg = payload ? payload.error : 'Unknown error'
+          this.$toast.error(errorMsg)
+        } else {
+          var localMediaProgress = payload.localMediaProgress
+          console.log('toggleFinished localMediaProgress', JSON.stringify(localMediaProgress))
+          if (localMediaProgress) {
+            this.$store.commit('globals/updateLocalMediaProgress', localMediaProgress)
+          }
+
+          var lmp = this.$store.getters['globals/getLocalMediaProgressById'](this.libraryItemId)
+          console.log('toggleFinished Check LMP', this.libraryItemId, JSON.stringify(lmp))
+
+          var serverUpdated = payload.server
+          if (serverUpdated) {
+            this.$toast.success(`Local & Server Item marked as ${isFinished ? 'Finished' : 'Not Finished'}`)
+          } else {
+            this.$toast.success(`Local Item marked as ${isFinished ? 'Finished' : 'Not Finished'}`)
+          }
+        }
+        this.isProcessingReadUpdate = false
+      } else {
+        var updatePayload = {
+          isFinished: !this.userIsFinished
+        }
+        this.$axios
+          .$patch(`/api/me/progress/${this.libraryItemId}`, updatePayload)
+          .then(() => {
+            this.isProcessingReadUpdate = false
+            this.$toast.success(`Item marked as ${updatePayload.isFinished ? 'Finished' : 'Not Finished'}`)
+          })
+          .catch((error) => {
+            console.error('Failed', error)
+            this.isProcessingReadUpdate = false
+            this.$toast.error(`Failed to mark as ${updatePayload.isFinished ? 'Finished' : 'Not Finished'}`)
+          })
+      }
+    }
   },
   mounted() {
     this.$eventBus.$on('new-local-library-item', this.newLocalLibraryItem)
