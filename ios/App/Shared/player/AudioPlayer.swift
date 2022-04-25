@@ -40,7 +40,7 @@ class AudioPlayer: NSObject {
         
         if playbackSession.audioTracks.count != 1 || playbackSession.audioTracks[0].mimeType != "application/vnd.apple.mpegurl" {
             NSLog("The player only support HLS streams right now")
-            self.activeAudioTrack = AudioTrack(index: 0, startOffset: -1, duration: -1, title: "", contentUrl: "", mimeType: "")
+            self.activeAudioTrack = AudioTrack(index: 0, startOffset: -1, duration: -1, title: "", contentUrl: nil, mimeType: "", metadata: nil, serverIndex: 0)
             
             super.init()
             return
@@ -168,7 +168,7 @@ class AudioPlayer: NSObject {
             "Authorization": "Bearer \(Store.serverConfig!.token)"
         ]
         
-        return AVURLAsset(url: URL(string: "\(Store.serverConfig!.address)\(activeAudioTrack.contentUrl)")!, options: ["AVURLAssetHTTPHeaderFieldsKey": headers])
+        return AVURLAsset(url: URL(string: "\(Store.serverConfig!.address)\(activeAudioTrack.contentUrl ?? "")")!, options: ["AVURLAssetHTTPHeaderFieldsKey": headers])
     }
     private func initAudioSession() {
         do {
