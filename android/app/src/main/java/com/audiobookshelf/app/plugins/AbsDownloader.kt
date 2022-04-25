@@ -63,7 +63,10 @@ class AbsDownloader : Plugin() {
       fun make(filename:String, destinationFile:File, finalDestinationFile:File, itemTitle:String, serverPath:String, localFolder:LocalFolder, audioTrack:AudioTrack?, episode:PodcastEpisode?) :DownloadItemPart {
         val destinationUri = Uri.fromFile(destinationFile)
         val finalDestinationUri = Uri.fromFile(finalDestinationFile)
-        val downloadUri = Uri.parse("${DeviceManager.serverAddress}${serverPath}?token=${DeviceManager.token}")
+
+        var downloadUrl = "${DeviceManager.serverAddress}${serverPath}?token=${DeviceManager.token}"
+        if (serverPath.endsWith("/cover")) downloadUrl += "&format=jpeg" // For cover images force to jpeg
+        val downloadUri = Uri.parse(downloadUrl)
         Log.d("DownloadItemPart", "Audio File Destination Uri: $destinationUri | Final Destination Uri: $finalDestinationUri | Download URI $downloadUri")
         return DownloadItemPart(
           id = DeviceManager.getBase64Id(finalDestinationFile.absolutePath),
@@ -215,7 +218,7 @@ class AbsDownloader : Plugin() {
       if (downloadItem.downloadItemParts.isNotEmpty()) {
         // Add cover download item
         if (libraryItem.media.coverPath != null && libraryItem.media.coverPath?.isNotEmpty() == true) {
-          val serverPath = "/api/items/${libraryItem.id}/cover?format=jpeg"
+          val serverPath = "/api/items/${libraryItem.id}/cover"
           val destinationFilename = "cover.jpg"
           val destinationFile = File("$tempFolderPath/$destinationFilename")
           val finalDestinationFile = File("$itemFolderPath/$destinationFilename")
@@ -266,7 +269,7 @@ class AbsDownloader : Plugin() {
       downloadItemPart.downloadId = downloadId
 
       if (libraryItem.media.coverPath != null && libraryItem.media.coverPath?.isNotEmpty() == true) {
-        serverPath = "/api/items/${libraryItem.id}/cover?format=jpeg"
+        serverPath = "/api/items/${libraryItem.id}/cover"
         destinationFilename = "cover.jpg"
 
         destinationFile = File("$tempFolderPath/$destinationFilename")
@@ -290,7 +293,7 @@ class AbsDownloader : Plugin() {
     }
   }
 
-  fun startWatchingDownloads(downloadItem: DownloadItem) {
+  private fun startWatchingDownloads(downloadItem: DownloadItem) {
     GlobalScope.launch(Dispatchers.IO) {
       while (downloadItem.downloadItemParts.find { !it.moved && !it.failed } != null) { // While some item is not completed
         val numPartsBefore = downloadItem.downloadItemParts.size
