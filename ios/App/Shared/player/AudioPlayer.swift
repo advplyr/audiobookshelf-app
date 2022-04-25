@@ -22,18 +22,21 @@ class AudioPlayer: NSObject {
     private var playerItemContext = 0
     
     private var playWhenReady: Bool
+    private var initialPlaybackRate: Float
     
     private var audioPlayer: AVPlayer
     private var playbackSession: PlaybackSession
     private var activeAudioTrack: AudioTrack
     
     // MARK: - Constructor
-    init(playbackSession: PlaybackSession, playWhenReady: Bool = false) {
+    init(playbackSession: PlaybackSession, playWhenReady: Bool = false, playbackRate: Float = 1) {
         self.playWhenReady = playWhenReady
+        self.initialPlaybackRate = playbackRate
         self.audioPlayer = AVPlayer()
         self.playbackSession = playbackSession
         self.status = -1
         self.rate = 0.0
+        self.tmpRate = playbackRate
         
         if playbackSession.audioTracks.count != 1 || playbackSession.audioTracks[0].mimeType != "application/vnd.apple.mpegurl" {
             NSLog("The player only support HLS streams right now")
@@ -74,9 +77,9 @@ class AudioPlayer: NSObject {
             print(error)
         }
         
-        DispatchQueue.main.sync {
+//        DispatchQueue.main.sync {
             UIApplication.shared.endReceivingRemoteControlEvents()
-        }
+//        }
         NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.closed.rawValue), object: nil)
     }
     

@@ -1,11 +1,11 @@
 <template>
-  <div :key="bookmark.id" :id="`bookmark-row-${bookmark.id}`" class="flex items-center px-4 py-4 justify-start cursor-pointer hover:bg-bg relative" :class="highlight ? 'bg-bg bg-opacity-60' : ' bg-opacity-20'" @click="click">
-    <span class="material-icons" :class="highlight ? 'text-success' : 'text-white text-opacity-60'">{{ highlight ? 'bookmark' : 'bookmark_border' }}</span>
+  <div :key="bookmark.id" :id="`bookmark-row-${bookmark.id}`" class="flex items-center px-3 py-4 justify-start cursor-pointer hover:bg-bg relative" :class="highlight ? 'bg-bg bg-opacity-60' : ' bg-opacity-20'" @click="click">
+    <span class="material-icons text-xl" :class="highlight ? 'text-success' : 'text-white text-opacity-60'">{{ highlight ? 'bookmark' : 'bookmark_border' }}</span>
     <div class="flex-grow overflow-hidden">
-      <p class="pl-2 pr-2 truncate">{{ bookmark.title }}</p>
+      <p class="pl-2 pr-2 truncate text-sm">{{ bookmark.title }}</p>
     </div>
-    <div class="h-full flex items-center w-16 justify-end">
-      <span class="font-mono text-sm text-gray-300">{{ $secondsToTimestamp(bookmark.time) }}</span>
+    <div class="h-full flex items-center w-14 justify-end">
+      <span class="font-mono text-xs text-gray-300">{{ $secondsToTimestamp(bookmark.time) }}</span>
     </div>
     <div class="h-full flex items-center justify-end transform w-16">
       <span class="material-icons text-lg mr-2 text-gray-200 hover:text-yellow-400" @click.stop="editClick">edit</span>
