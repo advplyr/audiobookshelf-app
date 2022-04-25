@@ -30,7 +30,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
       playerNotificationService.mediaManager.play(li, playerNotificationService.getMediaPlayer()) {
         Log.d(tag, "About to prepare player with ${it.displayTitle}")
         Handler(Looper.getMainLooper()).post() {
-          playerNotificationService.preparePlayer(it,true)
+          playerNotificationService.preparePlayer(it,true,null)
         }
       }
     }
@@ -52,7 +52,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
       playerNotificationService.mediaManager.play(li, playerNotificationService.getMediaPlayer()) {
         Log.d(tag, "About to prepare player with ${it.displayTitle}")
         Handler(Looper.getMainLooper()).post() {
-          playerNotificationService.preparePlayer(it,true)
+          playerNotificationService.preparePlayer(it,true,null)
         }
       }
     }
@@ -100,7 +100,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
       playerNotificationService.mediaManager.play(li, playerNotificationService.getMediaPlayer()) {
         Log.d(tag, "About to prepare player with ${it.displayTitle}")
         Handler(Looper.getMainLooper()).post() {
-          playerNotificationService.preparePlayer(it,true)
+          playerNotificationService.preparePlayer(it,true,null)
         }
       }
     }

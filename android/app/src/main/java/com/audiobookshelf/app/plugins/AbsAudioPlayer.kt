@@ -23,8 +23,8 @@ class AbsAudioPlayer : Plugin() {
   private val tag = "AbsAudioPlayer"
   var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
 
-  lateinit var mainActivity: MainActivity
-  lateinit var apiHandler:ApiHandler
+  private lateinit var mainActivity: MainActivity
+  private lateinit var apiHandler:ApiHandler
   lateinit var castManager:CastManager
 
   lateinit var playerNotificationService: PlayerNotificationService
@@ -37,7 +37,7 @@ class AbsAudioPlayer : Plugin() {
 
     initCastManager()
 
-    var foregroundServiceReady : () -> Unit = {
+    val foregroundServiceReady : () -> Unit = {
       playerNotificationService = mainActivity.foregroundService
 
       playerNotificationService.clientEventEmitter = (object : PlayerNotificationService.ClientEventEmitter {
@@ -58,7 +58,7 @@ class AbsAudioPlayer : Plugin() {
         }
 
         override fun onPrepare(audiobookId: String, playWhenReady: Boolean) {
-          var jsobj = JSObject()
+          val jsobj = JSObject()
           jsobj.put("audiobookId", audiobookId)
           jsobj.put("playWhenReady", playWhenReady)
           notifyListeners("onPrepareMedia", jsobj)
@@ -89,13 +89,13 @@ class AbsAudioPlayer : Plugin() {
   }
 
   fun emit(evtName: String, value: Any) {
-    var ret = JSObject()
+    val ret = JSObject()
     ret.put("value", value)
     notifyListeners(evtName, ret)
   }
 
-  fun initCastManager() {
-    var connListener = object: CastManager.ChromecastListener() {
+  private fun initCastManager() {
+    val connListener = object: CastManager.ChromecastListener() {
       override fun onReceiverAvailableUpdate(available: Boolean) {
         Log.d(tag, "ChromecastListener: CAST Receiver Update Available $available")
         isCastAvailable = available
@@ -141,9 +141,10 @@ class AbsAudioPlayer : Plugin() {
       }
     }
 
-    var libraryItemId = call.getString("libraryItemId", "").toString()
-    var episodeId = call.getString("episodeId", "").toString()
-    var playWhenReady = call.getBoolean("playWhenReady") == true
+    val libraryItemId = call.getString("libraryItemId", "").toString()
+    val episodeId = call.getString("episodeId", "").toString()
+    val playWhenReady = call.getBoolean("playWhenReady") == true
+    var playbackRate = call.getFloat("playbackRate",1f) ?: 1f
 
     if (libraryItemId.isEmpty()) {
       Log.e(tag, "Invalid call to play library item no library item id")
@@ -153,8 +154,8 @@ class AbsAudioPlayer : Plugin() {
     if (libraryItemId.startsWith("local")) { // Play local media item
       DeviceManager.dbManager.getLocalLibraryItem(libraryItemId)?.let {
         var episode: PodcastEpisode? = null
-        if (!episodeId.isNullOrEmpty()) {
-          var podcastMedia = it.media as Podcast
+        if (episodeId.isNotEmpty()) {
+          val podcastMedia = it.media as Podcast
           episode = podcastMedia.episodes?.find { ep -> ep.id == episodeId }
           if (episode == null) {
             Log.e(tag, "prepareLibraryItem: Podcast episode not found $episodeId")
@@ -162,21 +163,21 @@ class AbsAudioPlayer : Plugin() {
           }
         }
 
-        Handler(Looper.getMainLooper()).post() {
+        Handler(Looper.getMainLooper()).post {
           Log.d(tag, "prepareLibraryItem: Preparing Local Media item ${jacksonMapper.writeValueAsString(it)}")
-          var playbackSession = it.getPlaybackSession(episode)
-          playerNotificationService.preparePlayer(playbackSession, playWhenReady)
+          val playbackSession = it.getPlaybackSession(episode)
+          playerNotificationService.preparePlayer(playbackSession, playWhenReady, playbackRate)
         }
         return call.resolve(JSObject())
       }
     } else { // Play library item from server
-      var mediaPlayer = playerNotificationService.getMediaPlayer()
+      val mediaPlayer = playerNotificationService.getMediaPlayer()
 
       apiHandler.playLibraryItem(libraryItemId, episodeId, false, mediaPlayer) {
 
-        Handler(Looper.getMainLooper()).post() {
+        Handler(Looper.getMainLooper()).post {
           Log.d(tag, "Preparing Player TEST ${jacksonMapper.writeValueAsString(it)}")
-          playerNotificationService.preparePlayer(it, playWhenReady)
+          playerNotificationService.preparePlayer(it, playWhenReady, playbackRate)
         }
 
         call.resolve(JSObject(jacksonMapper.writeValueAsString(it)))
@@ -186,9 +187,9 @@ class AbsAudioPlayer : Plugin() {
 
   @PluginMethod
   fun getCurrentTime(call: PluginCall) {
-    Handler(Looper.getMainLooper()).post() {
-      var currentTime = playerNotificationService.getCurrentTimeSeconds()
-      var bufferedTime = playerNotificationService.getBufferedTimeSeconds()
+    Handler(Looper.getMainLooper()).post {
+      val currentTime = playerNotificationService.getCurrentTimeSeconds()
+      val bufferedTime = playerNotificationService.getBufferedTimeSeconds()
       val ret = JSObject()
       ret.put("value", currentTime)
       ret.put("bufferedTime", bufferedTime)
@@ -198,7 +199,7 @@ class AbsAudioPlayer : Plugin() {
 
   @PluginMethod
   fun pausePlayer(call: PluginCall) {
-    Handler(Looper.getMainLooper()).post() {
+    Handler(Looper.getMainLooper()).post {
       playerNotificationService.pause()
       call.resolve()
     }
@@ -206,7 +207,7 @@ class AbsAudioPlayer : Plugin() {
 
   @PluginMethod
   fun playPlayer(call: PluginCall) {
-    Handler(Looper.getMainLooper()).post() {
+    Handler(Looper.getMainLooper()).post {
       playerNotificationService.play()
       call.resolve()
     }
@@ -214,16 +215,16 @@ class AbsAudioPlayer : Plugin() {
 
   @PluginMethod
   fun playPause(call: PluginCall) {
-    Handler(Looper.getMainLooper()).post() {
-      var playing = playerNotificationService.playPause()
+    Handler(Looper.getMainLooper()).post {
+      val playing = playerNotificationService.playPause()
       call.resolve(JSObject("{\"playing\":$playing}"))
     }
   }
 
   @PluginMethod
   fun seek(call: PluginCall) {
-    var time:Int = call.getInt("value", 0) ?: 0 // Value in seconds
-    Handler(Looper.getMainLooper()).post() {
+    val time:Int = call.getInt("value", 0) ?: 0 // Value in seconds
+    Handler(Looper.getMainLooper()).post {
       playerNotificationService.seekPlayer(time * 1000L) // convert to ms
       call.resolve()
     }
@@ -231,8 +232,8 @@ class AbsAudioPlayer : Plugin() {
 
   @PluginMethod
   fun seekForward(call: PluginCall) {
-    var amount:Int = call.getInt("value", 0) ?: 0
-    Handler(Looper.getMainLooper()).post() {
+    val amount:Int = call.getInt("value", 0) ?: 0
+    Handler(Looper.getMainLooper()).post {
       playerNotificationService.seekForward(amount * 1000L) // convert to ms
       call.resolve()
     }
@@ -240,8 +241,8 @@ class AbsAudioPlayer : Plugin() {
 
   @PluginMethod
   fun seekBackward(call: PluginCall) {
-    var amount:Int = call.getInt("value", 0) ?: 0 // Value in seconds
-    Handler(Looper.getMainLooper()).post() {
+    val amount:Int = call.getInt("value", 0) ?: 0 // Value in seconds
+    Handler(Looper.getMainLooper()).post {
       playerNotificationService.seekBackward(amount * 1000L) // convert to ms
       call.resolve()
     }
@@ -249,9 +250,9 @@ class AbsAudioPlayer : Plugin() {
 
   @PluginMethod
   fun setPlaybackSpeed(call: PluginCall) {
-    var playbackSpeed:Float = call.getFloat("value", 1.0f) ?: 1.0f
+    val playbackSpeed:Float = call.getFloat("value", 1.0f) ?: 1.0f
 
-    Handler(Looper.getMainLooper()).post() {
+    Handler(Looper.getMainLooper()).post {
       playerNotificationService.setPlaybackSpeed(playbackSpeed)
       call.resolve()
     }
@@ -259,7 +260,7 @@ class AbsAudioPlayer : Plugin() {
 
   @PluginMethod
   fun closePlayback(call: PluginCall) {
-    Handler(Looper.getMainLooper()).post() {
+    Handler(Looper.getMainLooper()).post {
       playerNotificationService.closePlayback()
       call.resolve()
     }
@@ -267,11 +268,11 @@ class AbsAudioPlayer : Plugin() {
 
   @PluginMethod
   fun setSleepTimer(call: PluginCall) {
-    var time:Long = call.getString("time", "360000")!!.toLong()
-    var isChapterTime:Boolean = call.getBoolean("isChapterTime", false) == true
+    val time:Long = call.getString("time", "360000")!!.toLong()
+    val isChapterTime:Boolean = call.getBoolean("isChapterTime", false) == true
 
-    Handler(Looper.getMainLooper()).post() {
-        var success:Boolean = playerNotificationService.sleepTimerManager.setSleepTimer(time, isChapterTime)
+    Handler(Looper.getMainLooper()).post {
+        val success:Boolean = playerNotificationService.sleepTimerManager.setSleepTimer(time, isChapterTime)
         val ret = JSObject()
         ret.put("success", success)
         call.resolve(ret)
@@ -280,7 +281,7 @@ class AbsAudioPlayer : Plugin() {
 
   @PluginMethod
   fun getSleepTimerTime(call: PluginCall) {
-    var time = playerNotificationService.sleepTimerManager.getSleepTimerTime()
+    val time = playerNotificationService.sleepTimerManager.getSleepTimerTime()
     val ret = JSObject()
     ret.put("value", time)
     call.resolve(ret)
@@ -288,9 +289,9 @@ class AbsAudioPlayer : Plugin() {
 
   @PluginMethod
   fun increaseSleepTime(call: PluginCall) {
-    var time:Long = call.getString("time", "300000")!!.toLong()
+    val time:Long = call.getString("time", "300000")!!.toLong()
 
-    Handler(Looper.getMainLooper()).post() {
+    Handler(Looper.getMainLooper()).post {
       playerNotificationService.sleepTimerManager.increaseSleepTime(time)
       val ret = JSObject()
       ret.put("success", true)
@@ -300,9 +301,9 @@ class AbsAudioPlayer : Plugin() {
 
   @PluginMethod
   fun decreaseSleepTime(call: PluginCall) {
-    var time:Long = call.getString("time", "300000")!!.toLong()
+    val time:Long = call.getString("time", "300000")!!.toLong()
 
-    Handler(Looper.getMainLooper()).post() {
+    Handler(Looper.getMainLooper()).post {
       playerNotificationService.sleepTimerManager.decreaseSleepTime(time)
       val ret = JSObject()
       ret.put("success", true)
@@ -338,7 +339,7 @@ class AbsAudioPlayer : Plugin() {
 
   @PluginMethod
   fun getIsCastAvailable(call: PluginCall) {
-    var jsobj = JSObject()
+    val jsobj = JSObject()
     jsobj.put("value", isCastAvailable)
     call.resolve(jsobj)
   }

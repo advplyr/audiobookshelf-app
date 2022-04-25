@@ -48,9 +48,10 @@ class ServerSocket extends EventEmitter {
     this.socket.on('user_updated', this.onUserUpdated.bind(this))
     this.socket.on('user_item_progress_updated', this.onUserItemProgressUpdated.bind(this))
 
-    this.socket.onAny((evt, args) => {
-      console.log(`[SOCKET] onAny: ${this.socket.id}: ${evt} ${JSON.stringify(args)}`)
-    })
+    // Good for testing socket requests
+    // this.socket.onAny((evt, args) => {
+    //   console.log(`[SOCKET] onAny: ${this.socket.id}: ${evt} ${JSON.stringify(args)}`)
+    // })
   }
 
   onConnect() {
