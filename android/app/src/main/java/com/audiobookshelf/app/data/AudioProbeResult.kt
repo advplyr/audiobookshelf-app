@@ -52,7 +52,7 @@ data class AudioProbeFormat(
   val duration:Double,
   val size:Long,
   val bit_rate:Double,
-  val tags:AudioProbeFormatTags
+  val tags:AudioProbeFormatTags?
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -63,8 +63,8 @@ class AudioProbeResult (
 
   val duration get() = format.duration
   val size get() = format.size
-  val title get() = format.tags.title ?: format.filename.split("/").last()
-  val artist get() = format.tags.artist ?: ""
+  val title get() = format.tags?.title ?: format.filename.split("/").last()
+  val artist get() = format.tags?.artist ?: ""
 
   @JsonIgnore
   fun getBookChapters(): List<BookChapter> {
