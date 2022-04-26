@@ -634,6 +634,11 @@ export default {
     this.$nextTick(this.init)
   },
   beforeDestroy() {
+    if (this.playbackSession) {
+      console.log('[AudioPlayer] Before destroy closing playback')
+      this.closePlayback()
+    }
+
     this.forceCloseDropdownMenu()
     document.body.removeEventListener('touchstart', this.touchstart)
     document.body.removeEventListener('touchend', this.touchend)
