@@ -97,6 +97,11 @@ export default {
         this.$eventBus.$emit('new-local-library-item', data.localLibraryItem)
       }
 
+      if (data.localMediaProgress) {
+        console.log('onItemDownloadComplete updating local media progress', data.localMediaProgress.id)
+        this.$store.commit('globals/updateLocalMediaProgress', data.localMediaProgress)
+      }
+
       this.$store.commit('globals/removeItemDownload', data.libraryItemId)
     }
   },

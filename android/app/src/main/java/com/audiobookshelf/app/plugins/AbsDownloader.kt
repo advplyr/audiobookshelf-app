@@ -105,6 +105,7 @@ class AbsDownloader : Plugin() {
     val id: String,
     val libraryItemId:String,
     val episodeId:String?,
+    val userMediaProgress:MediaProgress?,
     val serverConnectionConfigId:String,
     val serverAddress:String,
     val serverUserId:String,
@@ -141,7 +142,7 @@ class AbsDownloader : Plugin() {
       return call.resolve(JSObject("{\"error\":\"Download already started for this media entity\"}"))
     }
 
-    apiHandler.getLibraryItem(libraryItemId) { libraryItem ->
+    apiHandler.getLibraryItemWithProgress(libraryItemId, episodeId) { libraryItem ->
       Log.d(tag, "Got library item from server ${libraryItem.id}")
 
       val localFolder = DeviceManager.dbManager.getLocalFolder(localFolderId)
@@ -191,7 +192,7 @@ class AbsDownloader : Plugin() {
       val tracks = libraryItem.media.getAudioTracks()
       Log.d(tag, "Starting library item download with ${tracks.size} tracks")
       val itemFolderPath = localFolder.absolutePath + "/" + bookTitle
-      val downloadItem = DownloadItem(libraryItem.id, libraryItem.id, null,DeviceManager.serverConnectionConfig?.id ?: "", DeviceManager.serverAddress, DeviceManager.serverUserId, libraryItem.mediaType, itemFolderPath, localFolder, bookTitle, libraryItem.media, mutableListOf())
+      val downloadItem = DownloadItem(libraryItem.id, libraryItem.id, null, libraryItem.userMediaProgress,DeviceManager.serverConnectionConfig?.id ?: "", DeviceManager.serverAddress, DeviceManager.serverUserId, libraryItem.mediaType, itemFolderPath, localFolder, bookTitle, libraryItem.media, mutableListOf())
 
       // Create download item part for each audio track
       tracks.forEach { audioTrack ->
@@ -248,7 +249,7 @@ class AbsDownloader : Plugin() {
       Log.d(tag, "Starting podcast episode download")
       val itemFolderPath = localFolder.absolutePath + "/" + podcastTitle
       val downloadItemId = "${libraryItem.id}-${episode?.id}"
-      val downloadItem = DownloadItem(downloadItemId, libraryItem.id, episode?.id, DeviceManager.serverConnectionConfig?.id ?: "", DeviceManager.serverAddress, DeviceManager.serverUserId, libraryItem.mediaType, itemFolderPath, localFolder, podcastTitle, libraryItem.media, mutableListOf())
+      val downloadItem = DownloadItem(downloadItemId, libraryItem.id, episode?.id, libraryItem.userMediaProgress, DeviceManager.serverConnectionConfig?.id ?: "", DeviceManager.serverAddress, DeviceManager.serverUserId, libraryItem.mediaType, itemFolderPath, localFolder, podcastTitle, libraryItem.media, mutableListOf())
 
       var serverPath = "/s/item/${libraryItem.id}/${cleanRelPath(audioTrack?.relPath ?: "")}"
       var destinationFilename = getFilenameFromRelPath(audioTrack?.relPath ?: "")
@@ -309,17 +310,21 @@ class AbsDownloader : Plugin() {
         delay(500)
       }
 
-      val localLibraryItem = folderScanner.scanDownloadItem(downloadItem)
+      val downloadItemScanResult = folderScanner.scanDownloadItem(downloadItem)
       DeviceManager.dbManager.removeDownloadItem(downloadItem.id)
       downloadQueue.remove(downloadItem)
 
-      Log.d(tag, "Item download complete ${downloadItem.itemTitle} | local library item id: ${localLibraryItem?.id} | Items remaining in Queue ${downloadQueue.size}")
+      Log.d(tag, "Item download complete ${downloadItem.itemTitle} | local library item id: ${downloadItemScanResult?.localLibraryItem?.id} | Items remaining in Queue ${downloadQueue.size}")
 
       val jsobj = JSObject()
       jsobj.put("libraryItemId", downloadItem.id)
       jsobj.put("localFolderId", downloadItem.localFolder.id)
-      if (localLibraryItem != null) {
+
+      downloadItemScanResult?.localLibraryItem?.let { localLibraryItem ->
         jsobj.put("localLibraryItem", JSObject(jacksonMapper.writeValueAsString(localLibraryItem)))
+      }
+      downloadItemScanResult?.localMediaProgress?.let { localMediaProgress ->
+        jsobj.put("localMediaProgress", JSObject(jacksonMapper.writeValueAsString(localMediaProgress)))
       }
       notifyListeners("onItemDownloadComplete", jsobj)
     }

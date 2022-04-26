@@ -88,13 +88,13 @@ class ApiHandler(var ctx:Context) {
         response.use {
           if (!it.isSuccessful) throw IOException("Unexpected code $response")
 
-              var bodyString = it.body!!.string()
+              val bodyString = it.body!!.string()
           if (bodyString == "OK") {
             cb(JSObject())
           } else {
             var jsonObj = JSObject()
             if (bodyString.startsWith("[")) {
-              var array = JSArray(bodyString)
+              val array = JSArray(bodyString)
               jsonObj.put("value", array)
             } else {
               jsonObj = JSObject(bodyString)
@@ -111,7 +111,7 @@ class ApiHandler(var ctx:Context) {
     getRequest("/api/libraries") {
       val libraries = mutableListOf<Library>()
       if (it.has("value")) {
-        var array = it.getJSONArray("value")
+        val array = it.getJSONArray("value")
         for (i in 0 until array.length()) {
           val library = mapper.readValue<Library>(array.get(i).toString())
           libraries.add(library)
@@ -128,11 +128,20 @@ class ApiHandler(var ctx:Context) {
     }
   }
 
+  fun getLibraryItemWithProgress(libraryItemId:String, episodeId:String?, cb: (LibraryItem) -> Unit) {
+    var requestUrl = "/api/items/$libraryItemId?expanded=1&include=progress"
+    if (!episodeId.isNullOrEmpty()) requestUrl += "&episode=$episodeId"
+    getRequest(requestUrl) {
+      val libraryItem = jacksonMapper.readValue<LibraryItem>(it.toString())
+      cb(libraryItem)
+    }
+  }
+
   fun getLibraryItems(libraryId:String, cb: (List<LibraryItem>) -> Unit) {
     getRequest("/api/libraries/$libraryId/items?limit=100&minified=1") {
       val items = mutableListOf<LibraryItem>()
       if (it.has("results")) {
-        var array = it.getJSONArray("results")
+        val array = it.getJSONArray("results")
         for (i in 0 until array.length()) {
           val item = jacksonMapper.readValue<LibraryItem>(array.get(i).toString())
           items.add(item)
@@ -146,11 +155,11 @@ class ApiHandler(var ctx:Context) {
     getRequest("/api/libraries/$libraryId/personalized") {
       val items = mutableListOf<LibraryCategory>()
       if (it.has("value")) {
-        var array = it.getJSONArray("value")
+        val array = it.getJSONArray("value")
         for (i in 0 until array.length()) {
-          var jsobj = array.get(i) as JSONObject
+          val jsobj = array.get(i) as JSONObject
 
-          var type = jsobj.get("type").toString()
+          val type = jsobj.get("type").toString()
           // Only support for podcast and book in android auto
           if (type == "podcast" || type == "book") {
             jsobj.put("isLocal", false)
@@ -164,7 +173,7 @@ class ApiHandler(var ctx:Context) {
   }
 
   fun playLibraryItem(libraryItemId:String, episodeId:String?, forceTranscode:Boolean, mediaPlayer:String, cb: (PlaybackSession) -> Unit) {
-    var payload = JSObject()
+    val payload = JSObject()
     payload.put("mediaPlayer", mediaPlayer)
 
     // Only if direct play fails do we force transcode
@@ -181,7 +190,7 @@ class ApiHandler(var ctx:Context) {
   }
 
   fun sendProgressSync(sessionId:String, syncData: MediaProgressSyncData, cb: () -> Unit) {
-    var payload = JSObject(jacksonMapper.writeValueAsString(syncData))
+    val payload = JSObject(jacksonMapper.writeValueAsString(syncData))
 
     postRequest("/api/session/$sessionId/sync", payload) {
       cb()
@@ -189,7 +198,7 @@ class ApiHandler(var ctx:Context) {
   }
 
   fun sendLocalProgressSync(playbackSession:PlaybackSession, cb: () -> Unit) {
-    var payload = JSObject(jacksonMapper.writeValueAsString(playbackSession))
+    val payload = JSObject(jacksonMapper.writeValueAsString(playbackSession))
 
     postRequest("/api/session/local", payload) {
       cb()
@@ -204,15 +213,15 @@ class ApiHandler(var ctx:Context) {
     }
 
     // Get all local media progress connected to items on the current connected server
-    var localMediaProgress = DeviceManager.dbManager.getAllLocalMediaProgress().filter {
+    val localMediaProgress = DeviceManager.dbManager.getAllLocalMediaProgress().filter {
       it.serverConnectionConfigId == DeviceManager.serverConnectionConfig?.id
     }
 
-    var localSyncResultsPayload = LocalMediaProgressSyncResultsPayload(localMediaProgress.size,0, 0)
+    val localSyncResultsPayload = LocalMediaProgressSyncResultsPayload(localMediaProgress.size,0, 0)
 
     if (localMediaProgress.isNotEmpty()) {
       Log.d(tag, "Sending sync local progress request with ${localMediaProgress.size} progress items")
-      var payload = JSObject(jacksonMapper.writeValueAsString(LocalMediaProgressSyncPayload(localMediaProgress)))
+      val payload = JSObject(jacksonMapper.writeValueAsString(LocalMediaProgressSyncPayload(localMediaProgress)))
       postRequest("/api/me/sync-local-progress", payload) {
         Log.d(tag, "Media Progress Sync payload $payload - response ${it.toString()}")
 
@@ -242,7 +251,7 @@ class ApiHandler(var ctx:Context) {
 
   fun updateMediaProgress(libraryItemId:String,episodeId:String?,updatePayload:JSObject, cb: () -> Unit) {
     Log.d(tag, "updateMediaProgress $libraryItemId $episodeId $updatePayload")
-    var endpoint = if(episodeId.isNullOrEmpty()) "/api/me/progress/$libraryItemId" else "/api/me/progress/$libraryItemId/$episodeId"
+    val endpoint = if(episodeId.isNullOrEmpty()) "/api/me/progress/$libraryItemId" else "/api/me/progress/$libraryItemId/$episodeId"
     patchRequest(endpoint,updatePayload) {
       Log.d(tag, "updateMediaProgress patched progress")
       cb()
