@@ -25,7 +25,8 @@ data class LibraryItem(
   var isInvalid:Boolean,
   var mediaType:String,
   var media:MediaType,
-  var libraryFiles:MutableList<LibraryFile>?
+  var libraryFiles:MutableList<LibraryFile>?,
+  var userMediaProgress:MediaProgress? // Only included when requesting library item with progress (for downloads)
 ) : LibraryItemWrapper() {
   @get:JsonIgnore
   val title get() = media.metadata.title
@@ -131,7 +132,7 @@ class Podcast(
     }
   }
   @JsonIgnore
-  fun addEpisode(audioTrack:AudioTrack, episode:PodcastEpisode) {
+  fun addEpisode(audioTrack:AudioTrack, episode:PodcastEpisode):PodcastEpisode {
     val newEpisode = PodcastEpisode("local_" + episode.id,episodes?.size ?: 0 + 1,episode.episode,episode.episodeType,episode.title,episode.subtitle,episode.description,null,audioTrack,audioTrack.duration,0, episode.id)
     episodes?.add(newEpisode)
 
@@ -140,6 +141,7 @@ class Podcast(
       it.index = index
       index++
     }
+    return newEpisode
   }
 
   // Used for FolderScanner local podcast item to get copy of Podcast excluding episodes
@@ -354,4 +356,18 @@ data class BookChapter(
   var start:Double,
   var end:Double,
   var title:String?
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class MediaProgress(
+  var id:String,
+  var libraryItemId:String,
+  var episodeId:String?,
+  var duration:Double, // seconds
+  var progress:Double, // 0 to 1
+  var currentTime:Double,
+  var isFinished:Boolean,
+  var lastUpdate:Long,
+  var startedAt:Long,
+  var finishedAt:Long?
 )
