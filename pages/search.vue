@@ -76,7 +76,11 @@ export default {
   },
   methods: {
     async runSearch(value) {
+      if (this.isFetching && this.lastSearch === value) return
+
       this.lastSearch = value
+      this.$store.commit('globals/setLastSearch', value)
+
       if (!this.lastSearch) {
         this.bookResults = []
         this.podcastResults = []
@@ -89,6 +93,10 @@ export default {
         console.error('Search error', error)
         return []
       })
+      if (value !== this.lastSearch) {
+        console.log(`runSearch: New search was made for ${this.lastSearch} - results are from ${value}`)
+        return
+      }
       console.log('RESULTS', results)
 
       this.isFetching = false
@@ -113,7 +121,12 @@ export default {
     }
   },
   mounted() {
-    this.$nextTick(this.setFocus())
+    if (this.$store.state.globals.lastSearch) {
+      this.search = this.$store.state.globals.lastSearch
+      this.runSearch(this.search)
+    } else {
+      this.$nextTick(this.setFocus())
+    }
   }
 }
 </script>
