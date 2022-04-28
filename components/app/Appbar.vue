@@ -18,8 +18,8 @@
       <widgets-download-progress-indicator />
 
       <!-- Must be connected to a server to cast, only supports media items on server -->
-      <div v-show="isCastAvailable && user" class="mx-2 cursor-pointer">
-        <span class="material-icons" :class="isCasting ? 'text-success' : ''" style="font-size: 1.75rem" @click="castClick">cast</span>
+      <div v-show="isCastAvailable && user" class="mx-2 cursor-pointer mt-1.5">
+        <span class="material-icons" :class="isCasting ? 'text-success' : ''" style="font-size: 1.6rem" @click="castClick">cast</span>
       </div>
 
       <nuxt-link v-if="user" class="h-7 mx-2" to="/search">

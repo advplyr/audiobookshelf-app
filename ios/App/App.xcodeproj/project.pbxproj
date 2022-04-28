@@ -30,6 +30,7 @@
 		504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3101FED79650016851F /* LaunchScreen.storyboard */; };
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 		A084ECDBA7D38E1E42DFC39D /* Pods_App.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AF277DCFFFF123FFC6DF26C7 /* Pods_App.framework */; };
+		C4D0677528106D0C00B8F875 /* DataClasses.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D0677428106D0C00B8F875 /* DataClasses.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -60,6 +61,7 @@
 		50B271D01FEDC1A000F3C39B /* public */ = {isa = PBXFileReference; lastKnownFileType = folder; path = public; sourceTree = "<group>"; };
 		AF277DCFFFF123FFC6DF26C7 /* Pods_App.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_App.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		AF51FD2D460BCFE21FA515B2 /* Pods-App.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-App.release.xcconfig"; path = "Pods/Target Support Files/Pods-App/Pods-App.release.xcconfig"; sourceTree = "<group>"; };
+		C4D0677428106D0C00B8F875 /* DataClasses.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataClasses.swift; sourceTree = "<group>"; };
 		FC68EB0AF532CFC21C3344DD /* Pods-App.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-App.debug.xcconfig"; path = "Pods/Target Support Files/Pods-App/Pods-App.debug.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -118,6 +120,7 @@
 			children = (
 				3AD4FCE828043FD7006DB301 /* ServerConnectionConfig.swift */,
 				3ABF580828059BAE005DFBE5 /* PlaybackSession.swift */,
+				C4D0677428106D0C00B8F875 /* DataClasses.swift */,
 				3A90295E280968E700E1D427 /* PlaybackReport.swift */,
 			);
 			path = models;
@@ -309,6 +312,7 @@
 				3AD4FCE528043E50006DB301 /* AbsDatabase.swift in Sources */,
 				3AF197102806E3DC0096F747 /* AbsAudioPlayer.m in Sources */,
 				3AF1970C2806E2590096F747 /* ApiClient.swift in Sources */,
+				C4D0677528106D0C00B8F875 /* DataClasses.swift in Sources */,
 				3AB34055280832720039308B /* PlayerEvents.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

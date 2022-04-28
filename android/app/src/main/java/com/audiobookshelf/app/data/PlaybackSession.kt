@@ -57,6 +57,8 @@ class PlaybackSession(
   @get:JsonIgnore
   val currentTimeMs get() = (currentTime * 1000L).toLong()
   @get:JsonIgnore
+  val totalDurationMs get() = (getTotalDuration() * 1000L).toLong()
+  @get:JsonIgnore
   val localLibraryItemId get() = localLibraryItem?.id ?: ""
   @get:JsonIgnore
   val localMediaProgressId get() = if (episodeId.isNullOrEmpty()) localLibraryItemId else "$localLibraryItemId-$localEpisodeId"

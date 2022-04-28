@@ -2,7 +2,8 @@ export const state = () => ({
   itemDownloads: [],
   bookshelfListView: false,
   series: null,
-  localMediaProgress: []
+  localMediaProgress: [],
+  lastSearch: null
 })
 
 export const getters = {
@@ -82,5 +83,8 @@ export const mutations = {
   },
   removeLocalMediaProgress(state, id) {
     state.localMediaProgress = state.localMediaProgress.filter(lmp => lmp.id != id)
+  },
+  setLastSearch(state, val) {
+    state.lastSearch = val
   }
 }
