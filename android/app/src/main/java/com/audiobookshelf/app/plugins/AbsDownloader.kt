@@ -330,7 +330,7 @@ class AbsDownloader : Plugin() {
     }
   }
 
-  fun checkDownloads(downloadItem: DownloadItem) {
+  private fun checkDownloads(downloadItem: DownloadItem) {
     val itemParts = downloadItem.downloadItemParts.map { it }
     for (downloadItemPart in itemParts) {
       if (downloadItemPart.downloadId != null) {
