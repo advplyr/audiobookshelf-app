@@ -26,7 +26,7 @@
         </div>
 
         <div v-if="isLocal" class="flex mt-4 -mr-2">
-          <ui-btn color="success" :disabled="isPlaying" small class="flex flex-grow justify-center items-center h-9 mr-2" :padding-x="4" @click="playClick">
+          <ui-btn color="success" :disabled="isPlaying" class="flex items-center justify-center flex-grow mr-2" :padding-x="4" @click="playClick">
             <span v-show="!isPlaying" class="material-icons">play_arrow</span>
             <span class="px-1 text-sm">{{ isPlaying ? 'Playing' : 'Play Local' }}</span>
           </ui-btn>
@@ -37,7 +37,7 @@
           <ui-read-icon-btn v-if="!isPodcast" :disabled="isProcessingReadUpdate" :is-read="userIsFinished" class="mx-0.5 flex items-center justify-center" @click="toggleFinished" />
         </div>
         <div v-else-if="(user && (showPlay || showRead)) || hasLocal" class="flex mt-4 -mr-2">
-          <ui-btn color="success" :disabled="isPlaying" small class="flex flex-grow justify-center items-center h-9 mr-2" :padding-x="4" @click="playClick">
+          <ui-btn v-if="showPlay" color="success" :disabled="isPlaying" class="flex items-center justify-center flex-grow mr-2" :padding-x="4" @click="playClick">
             <span v-show="!isPlaying" class="material-icons">play_arrow</span>
             <span class="px-1 text-sm">{{ isPlaying ? (isStreaming ? 'Streaming' : 'Playing') : hasLocal ? 'Play Local' : 'Play Stream' }}</span>
           </ui-btn>
@@ -48,7 +48,7 @@
           <ui-btn v-if="user && showPlay && !isIos && !hasLocal" :color="downloadItem ? 'warning' : 'primary'" class="flex items-center justify-center" :padding-x="2" @click="downloadClick">
             <span class="material-icons" :class="downloadItem ? 'animate-pulse' : ''">{{ downloadItem ? 'downloading' : 'download' }}</span>
           </ui-btn>
-          <ui-read-icon-btn v-if="!isPodcast" :disabled="isProcessingReadUpdate" :is-read="userIsFinished" class="flex items-center justify-center mx-0.5" @click="toggleFinished" />
+          <ui-read-icon-btn v-if="!isPodcast" :disabled="isProcessingReadUpdate" :is-read="userIsFinished" class="flex items-center justify-center" :padding-x="2" @click="toggleFinished" />
         </div>
       </div>
     </div>
