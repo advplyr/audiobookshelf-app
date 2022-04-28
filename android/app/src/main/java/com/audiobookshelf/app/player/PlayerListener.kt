@@ -66,19 +66,26 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
       Log.d(tag, "EVENT IS PLAYING CHANGED ${playerNotificationService.getMediaPlayer()}")
 
       if (player.isPlaying) {
+        Log.d(tag, "SeekBackTime: Player is playing")
         if (lastPauseTime > 0) {
           if (onSeekBack) onSeekBack = false
           else {
+            Log.d(tag, "SeekBackTime: playing started now set seek back time $lastPauseTime")
             var backTime = calcPauseSeekBackTime()
             if (backTime > 0) {
-              if (backTime >= playerNotificationService.mPlayer.currentPosition) backTime = playerNotificationService.mPlayer.currentPosition - 500
+              if (backTime >= playerNotificationService.getCurrentTime()) backTime = playerNotificationService.getCurrentTime() - 500
               Log.d(tag, "SeekBackTime $backTime")
               onSeekBack = true
               playerNotificationService.seekBackward(backTime)
+            } else {
+              Log.d(tag, "SeekBackTime: back time is 0")
             }
           }
         }
-      } else lastPauseTime = System.currentTimeMillis()
+      } else {
+        Log.d(tag, "SeekBackTime: Player not playing set last pause time")
+        lastPauseTime = System.currentTimeMillis()
+      }
 
       // Start/stop progress sync interval
       Log.d(tag, "Playing ${playerNotificationService.getCurrentBookTitle()}")
@@ -96,12 +103,10 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
     if (lastPauseTime <= 0) return 0
     var time: Long = System.currentTimeMillis() - lastPauseTime
     var seekback: Long
-    if (time < 60000) seekback = 0
-    else if (time < 120000) seekback = 10000
-    else if (time < 300000) seekback = 15000
-    else if (time < 1800000) seekback = 20000
-    else if (time < 3600000) seekback = 25000
-    else seekback = 29500
+    if (time < 3000) seekback = 0
+    else if (time < 300000) seekback = 10000 // 3s to 5m = jump back 10s
+    else if (time < 1800000) seekback = 20000 // 5m to 30m = jump back 20s
+    else seekback = 29500 // 30m and up = jump back 30s
     return seekback
   }
 }

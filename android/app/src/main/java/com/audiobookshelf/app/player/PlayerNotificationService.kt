@@ -509,11 +509,13 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   }
 
   fun seekForward(amount: Long) {
-    currentPlayer.seekTo(currentPlayer.currentPosition + amount)
+   seekPlayer(getCurrentTime() + amount)
+//    currentPlayer.seekTo(currentPlayer.currentPosition + amount)
   }
 
   fun seekBackward(amount: Long) {
-    currentPlayer.seekTo(currentPlayer.currentPosition - amount)
+    seekPlayer(getCurrentTime() - amount)
+//    currentPlayer.seekTo(currentPlayer.currentPosition - amount)
   }
 
   fun setPlaybackSpeed(speed: Float) {
