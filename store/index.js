@@ -21,9 +21,6 @@ export const state = () => ({
 })
 
 export const getters = {
-  playerIsOpen: (state) => {
-    return state.streamAudiobook
-  },
   getIsItemStreaming: state => libraryItemId => {
     return state.playerLibraryItemId == libraryItemId
   },
