@@ -10,6 +10,11 @@ import Alamofire
 
 class ApiClient {
     public static func postResource<T: Decodable>(endpoint: String, parameters: [String: String], decodable: T.Type = T.self, callback: ((_ param: T) -> Void)?) {
+        if (Store.serverConfig == nil) {
+            NSLog("Server config not set")
+            return
+        }
+        
         let headers: HTTPHeaders = [
             "Authorization": "Bearer \(Store.serverConfig!.token)"
         ]
@@ -25,6 +30,12 @@ class ApiClient {
         }
     }
     public static func postResource(endpoint: String, parameters: [String: String], callback: ((_ success: Bool) -> Void)?) {
+        if (Store.serverConfig == nil) {
+            NSLog("Server config not set")
+            callback?(false)
+            return
+        }
+        
         let headers: HTTPHeaders = [
             "Authorization": "Bearer \(Store.serverConfig!.token)"
         ]
@@ -43,6 +54,7 @@ class ApiClient {
     }
     
     public static func startPlaybackSession(libraryItemId: String, episodeId: String?, callback: @escaping (_ param: PlaybackSession) -> Void) {
+        
         var endpoint = "api/items/\(libraryItemId)/play"
         if episodeId != nil {
             endpoint += "/\(episodeId!)"
