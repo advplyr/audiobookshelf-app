@@ -29,7 +29,7 @@
 
         <div v-if="!isIos">
           <span v-if="isLocal" class="material-icons-outlined px-2 text-success text-lg">audio_file</span>
-          <span v-else-if="!localEpisode" class="material-icons px-2" :class="downloadItem ? 'animate-bounce text-warning text-opacity-75 text-xl' : 'text-gray-300 text-xl'" @click="downloadClick">{{ downloadItem ? 'downloading' : 'download' }}</span>
+          <span v-else-if="!localEpisode" class="material-icons mx-1 mt-2" :class="downloadItem ? 'animate-bounce text-warning text-opacity-75 text-xl' : 'text-gray-300 text-xl'" @click="downloadClick">{{ downloadItem ? 'downloading' : 'download' }}</span>
           <span v-else class="material-icons px-2 text-success text-xl">download_done</span>
         </div>
       </div>

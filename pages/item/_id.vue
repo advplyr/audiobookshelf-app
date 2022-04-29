@@ -25,7 +25,7 @@
           </div>
         </div>
 
-        <div v-if="isLocal" class="flex mt-4 -mr-2">
+        <div v-if="isLocal" class="flex mt-4">
           <ui-btn color="success" :disabled="isPlaying" class="flex items-center justify-center flex-grow mr-2" :padding-x="4" @click="playClick">
             <span v-show="!isPlaying" class="material-icons">play_arrow</span>
             <span class="px-1 text-sm">{{ isPlaying ? 'Playing' : 'Play Local' }}</span>
@@ -34,9 +34,9 @@
             <span class="material-icons">auto_stories</span>
             <span v-if="!showPlay" class="px-2 text-base">Read {{ ebookFormat }}</span>
           </ui-btn>
-          <ui-read-icon-btn v-if="!isPodcast" :disabled="isProcessingReadUpdate" :is-read="userIsFinished" class="mx-0.5 flex items-center justify-center" @click="toggleFinished" />
+          <ui-read-icon-btn v-if="!isPodcast" :disabled="isProcessingReadUpdate" :is-read="userIsFinished" class="flex items-center justify-center" @click="toggleFinished" />
         </div>
-        <div v-else-if="(user && (showPlay || showRead)) || hasLocal" class="flex mt-4 -mr-2">
+        <div v-else-if="(user && (showPlay || showRead)) || hasLocal" class="flex mt-4">
           <ui-btn v-if="showPlay" color="success" :disabled="isPlaying" class="flex items-center justify-center flex-grow mr-2" :padding-x="4" @click="playClick">
             <span v-show="!isPlaying" class="material-icons">play_arrow</span>
             <span class="px-1 text-sm">{{ isPlaying ? (isStreaming ? 'Streaming' : 'Playing') : hasLocal ? 'Play Local' : 'Play Stream' }}</span>
@@ -45,10 +45,10 @@
             <span class="material-icons">auto_stories</span>
             <span v-if="!showPlay" class="px-2 text-base">Read {{ ebookFormat }}</span>
           </ui-btn>
-          <ui-btn v-if="user && showPlay && !isIos && !hasLocal" :color="downloadItem ? 'warning' : 'primary'" class="flex items-center justify-center" :padding-x="2" @click="downloadClick">
+          <ui-btn v-if="user && showPlay && !isIos && !hasLocal" :color="downloadItem ? 'warning' : 'primary'" class="flex items-center justify-center mr-2" :padding-x="2" @click="downloadClick">
             <span class="material-icons" :class="downloadItem ? 'animate-pulse' : ''">{{ downloadItem ? 'downloading' : 'download' }}</span>
           </ui-btn>
-          <ui-read-icon-btn v-if="!isPodcast" :disabled="isProcessingReadUpdate" :is-read="userIsFinished" class="flex items-center justify-center" :padding-x="2" @click="toggleFinished" />
+          <ui-read-icon-btn v-if="!isPodcast" :disabled="isProcessingReadUpdate" :is-read="userIsFinished" class="flex items-center justify-center" @click="toggleFinished" />
         </div>
       </div>
     </div>
