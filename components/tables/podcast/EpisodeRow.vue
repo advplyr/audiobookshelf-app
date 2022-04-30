@@ -209,9 +209,7 @@ export default {
         var isFinished = !this.userIsFinished
         var localLibraryItemId = this.isLocal ? this.libraryItemId : this.localLibraryItemId
         var localEpisodeId = this.isLocal ? this.episode.id : this.localEpisode.id
-        var localMediaProgressId = `${localLibraryItemId}-${localEpisodeId}`
-        console.log('toggleFinished local media progress id', localMediaProgressId, isFinished)
-        var payload = await this.$db.updateLocalMediaProgressFinished({ localMediaProgressId, isFinished })
+        var payload = await this.$db.updateLocalMediaProgressFinished({ localLibraryItemId, localEpisodeId, isFinished })
         console.log('toggleFinished payload', JSON.stringify(payload))
         if (!payload || payload.error) {
           var errorMsg = payload ? payload.error : 'Unknown error'
