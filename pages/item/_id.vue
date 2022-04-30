@@ -28,7 +28,7 @@
         <div v-if="isLocal" class="flex mt-4">
           <ui-btn color="success" :disabled="isPlaying" class="flex items-center justify-center flex-grow mr-2" :padding-x="4" @click="playClick">
             <span v-show="!isPlaying" class="material-icons">play_arrow</span>
-            <span class="px-1 text-sm">{{ isPlaying ? 'Playing' : 'Play Local' }}</span>
+            <span class="px-1 text-sm">{{ isPlaying ? 'Playing' : 'Play' }}</span>
           </ui-btn>
           <ui-btn v-if="showRead && isConnected" color="info" class="flex items-center justify-center mr-2" :class="showPlay ? '' : 'flex-grow'" :padding-x="2" @click="readBook">
             <span class="material-icons">auto_stories</span>
@@ -39,7 +39,7 @@
         <div v-else-if="(user && (showPlay || showRead)) || hasLocal" class="flex mt-4">
           <ui-btn v-if="showPlay" color="success" :disabled="isPlaying" class="flex items-center justify-center flex-grow mr-2" :padding-x="4" @click="playClick">
             <span v-show="!isPlaying" class="material-icons">play_arrow</span>
-            <span class="px-1 text-sm">{{ isPlaying ? (isStreaming ? 'Streaming' : 'Playing') : hasLocal ? 'Play Local' : 'Play Stream' }}</span>
+            <span class="px-1 text-sm">{{ isPlaying ? (isStreaming ? 'Streaming' : 'Playing') : hasLocal ? 'Play' : 'Stream' }}</span>
           </ui-btn>
           <ui-btn v-if="showRead && user" color="info" class="flex items-center justify-center mr-2" :class="showPlay ? '' : 'flex-grow'" :padding-x="2" @click="readBook">
             <span class="material-icons">auto_stories</span>
