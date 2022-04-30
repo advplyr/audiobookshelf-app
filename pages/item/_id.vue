@@ -20,6 +20,7 @@
         <div v-if="!isPodcast && progressPercent > 0" class="px-4 py-2 bg-primary text-sm font-semibold rounded-md text-gray-200 mt-4 relative" :class="resettingProgress ? 'opacity-25' : ''">
           <p class="leading-6">Your Progress: {{ Math.round(progressPercent * 100) }}%</p>
           <p v-if="progressPercent < 1" class="text-gray-400 text-xs">{{ $elapsedPretty(userTimeRemaining) }} remaining</p>
+          <p v-else class="text-gray-400 text-xs">Finished {{ $formatDate(userProgressFinishedAt) }}</p>
           <div v-if="!resettingProgress" class="absolute -top-1.5 -right-1.5 p-1 w-5 h-5 rounded-full bg-bg hover:bg-error border border-primary flex items-center justify-center cursor-pointer" @click.stop="clearProgressClick">
             <span class="material-icons text-sm">close</span>
           </div>
@@ -360,9 +361,7 @@ export default {
       this.isProcessingReadUpdate = true
       if (this.isLocal) {
         var isFinished = !this.userIsFinished
-        var localMediaProgressId = this.localLibraryItemId
-        console.log('toggleFinished local media progress id', localMediaProgressId, isFinished)
-        var payload = await this.$db.updateLocalMediaProgressFinished({ localMediaProgressId, isFinished })
+        var payload = await this.$db.updateLocalMediaProgressFinished({ localLibraryItemId: this.localLibraryItemId, isFinished })
         console.log('toggleFinished payload', JSON.stringify(payload))
         if (!payload || payload.error) {
           var errorMsg = payload ? payload.error : 'Unknown error'
