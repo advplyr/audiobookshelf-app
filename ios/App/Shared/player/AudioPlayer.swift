@@ -60,6 +60,7 @@ class AudioPlayer: NSObject {
         playerItem.addObserver(self, forKeyPath: #keyPath(AVPlayerItem.status), options: .new, context: &playerItemContext)
         
         self.audioPlayer.replaceCurrentItem(with: playerItem)
+        seek(playbackSession.currentTime)
         
         NSLog("Audioplayer ready")
     }
@@ -155,7 +156,6 @@ class AudioPlayer: NSObject {
         }
         
         self.rate = rate
-        
         self.updateNowPlaying()
     }
     
@@ -258,14 +258,11 @@ class AudioPlayer: NSObject {
                 if playerStatus == .readyToPlay {
                     self.updateNowPlaying()
                     
-                    let firstReady = self.status < 0
                     self.status = 0
                     if self.playWhenReady {
                         seek(playbackSession.currentTime)
                         self.playWhenReady = false
                         self.play()
-                    } else if (firstReady) { // Only seek on first readyToPlay
-                        seek(playbackSession.currentTime)
                     }
                 }
             }
@@ -273,6 +270,7 @@ class AudioPlayer: NSObject {
             if keyPath == #keyPath(AVPlayer.rate) {
                 self.setPlaybackRate(change?[.newKey] as? Float ?? 1.0, observed: true)
             } else if keyPath == #keyPath(AVPlayer.currentItem) {
+                NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.update.rawValue), object: nil)
                 NSLog("WARNING: Item ended")
             }
         } else {
