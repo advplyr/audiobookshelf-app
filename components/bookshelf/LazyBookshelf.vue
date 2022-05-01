@@ -3,6 +3,7 @@
     <template v-for="shelf in totalShelves">
       <div :key="shelf" class="w-full px-2 relative" :class="showBookshelfListView ? '' : 'bookshelfRow'" :id="`shelf-${shelf - 1}`" :style="{ height: shelfHeight + 'px' }">
         <div v-if="!showBookshelfListView" class="bookshelfDivider w-full absolute bottom-0 left-0 z-30" style="min-height: 16px" :class="`h-${shelfDividerHeightIndex}`" />
+        <div v-else class="flex border-t border-white border-opacity-10 my-3 py-1"/>
       </div>
     </template>
 
