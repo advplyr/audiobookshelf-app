@@ -13,6 +13,7 @@ class PlayerHandler {
     private static var timer: Timer?
     
     private static var listeningTimePassedSinceLastSync = 0.0
+    private static var lastSyncReport:PlaybackReport?
     
     public static func startPlayback(session: PlaybackSession, playWhenReady: Bool, playbackRate: Float) {
         if player != nil {
@@ -68,7 +69,7 @@ class PlayerHandler {
         }
         
         let destinationTime = player!.getCurrentTime() + amount
-        player!.seek(destinationTime)
+        player!.seek(destinationTime, from: "handler")
     }
     public static func seekBackward(amount: Double) {
         if player == nil {
@@ -76,10 +77,10 @@ class PlayerHandler {
         }
         
         let destinationTime = player!.getCurrentTime() - amount
-        player!.seek(destinationTime)
+        player!.seek(destinationTime, from: "handler")
     }
     public static func seek(amount: Double) {
-        player?.seek(amount)
+        player?.seek(amount, from: "handler")
     }
     
     public static func paused() -> Bool {
@@ -113,10 +114,17 @@ class PlayerHandler {
             return
         }
         
-        let report = PlaybackReport(currentTime: player!.getCurrentTime(), duration: player!.getDuration(), timeListened: listeningTimePassedSinceLastSync)
+        let playerCurrentTime = player!.getCurrentTime()
+        if (lastSyncReport != nil && lastSyncReport?.currentTime == playerCurrentTime) {
+            // No need to syncProgress
+            return
+        }
         
-        session!.currentTime = player!.getCurrentTime()
+        let report = PlaybackReport(currentTime: playerCurrentTime, duration: player!.getDuration(), timeListened: listeningTimePassedSinceLastSync)
+        
+        session!.currentTime = playerCurrentTime
         listeningTimePassedSinceLastSync = 0
+        lastSyncReport = report
         
         // TODO: check if online
         NSLog("sending playback report")
