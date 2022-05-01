@@ -114,6 +114,8 @@ export default {
         } else {
           return this.media.numEpisodes + ' episodes'
         }
+      } else {
+        return null
       }
     },
     placeholderUrl() {
