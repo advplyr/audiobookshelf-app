@@ -20,6 +20,7 @@
         </p>
         <p class="truncate text-gray-400" :style="{ fontSize: 0.7 * sizeMultiplier + 'rem' }">by {{ displayAuthor }}</p>
         <p v-if="displaySortLine" class="truncate text-gray-400" :style="{ fontSize: 0.7 * sizeMultiplier + 'rem' }">{{ displaySortLine }}</p>
+        <p class="truncate text-gray-400" :style="{ fontSize: 0.7 * sizeMultiplier + 'rem' }">{{ $elapsedPretty(duration) }}</p>
       </div>
 
       <div v-if="localLibraryItem || isLocal" class="absolute top-0 right-0 z-20" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }">
@@ -98,6 +99,9 @@ export default {
     },
     mediaType() {
       return this._libraryItem.mediaType
+    },
+    duration() {
+      return this.media.duration
     },
     isPodcast() {
       return this.mediaType === 'podcast'
