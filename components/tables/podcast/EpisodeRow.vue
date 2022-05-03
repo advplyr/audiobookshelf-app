@@ -27,9 +27,11 @@
 
         <ui-read-icon-btn :disabled="isProcessingReadUpdate" :is-read="userIsFinished" borderless class="mx-1 mt-0.5" @click="toggleFinished" />
 
-        <span v-if="isLocal" class="material-icons-outlined px-2 text-success text-lg">audio_file</span>
-        <span v-else-if="!localEpisode" class="material-icons px-2" :class="downloadItem ? 'animate-bounce text-warning text-opacity-75 text-xl' : 'text-gray-300 text-xl'" @click="downloadClick">{{ downloadItem ? 'downloading' : 'download' }}</span>
-        <span v-else class="material-icons px-2 text-success text-xl">download_done</span>
+        <div v-if="!isIos">
+          <span v-if="isLocal" class="material-icons-outlined px-2 text-success text-lg">audio_file</span>
+          <span v-else-if="!localEpisode" class="material-icons mx-1 mt-2" :class="downloadItem ? 'animate-bounce text-warning text-opacity-75 text-xl' : 'text-gray-300 text-xl'" @click="downloadClick">{{ downloadItem ? 'downloading' : 'download' }}</span>
+          <span v-else class="material-icons px-2 text-success text-xl">download_done</span>
+        </div>
       </div>
     </div>
 
@@ -61,6 +63,9 @@ export default {
     }
   },
   computed: {
+    isIos() {
+      return this.$platform === 'ios'
+    },
     mediaType() {
       return 'podcast'
     },
@@ -204,9 +209,7 @@ export default {
         var isFinished = !this.userIsFinished
         var localLibraryItemId = this.isLocal ? this.libraryItemId : this.localLibraryItemId
         var localEpisodeId = this.isLocal ? this.episode.id : this.localEpisode.id
-        var localMediaProgressId = `${localLibraryItemId}-${localEpisodeId}`
-        console.log('toggleFinished local media progress id', localMediaProgressId, isFinished)
-        var payload = await this.$db.updateLocalMediaProgressFinished({ localMediaProgressId, isFinished })
+        var payload = await this.$db.updateLocalMediaProgressFinished({ localLibraryItemId, localEpisodeId, isFinished })
         console.log('toggleFinished payload', JSON.stringify(payload))
         if (!payload || payload.error) {
           var errorMsg = payload ? payload.error : 'Unknown error'

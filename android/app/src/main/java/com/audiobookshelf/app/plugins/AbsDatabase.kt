@@ -206,45 +206,93 @@ class AbsDatabase : Plugin() {
 
   @PluginMethod
   fun updateLocalMediaProgressFinished(call:PluginCall) {
-    var localMediaProgressId = call.getString("localMediaProgressId", "").toString()
-    var isFinished = call.getBoolean("isFinished", false) == true
+    val localLibraryItemId = call.getString("localLibraryItemId", "").toString()
+    var localEpisodeId:String? = call.getString("localEpisodeId", "").toString()
+    if (localEpisodeId.isNullOrEmpty()) localEpisodeId = null
+
+    val localMediaProgressId = if (localEpisodeId.isNullOrEmpty()) localLibraryItemId else "$localLibraryItemId-$localEpisodeId"
+    val isFinished = call.getBoolean("isFinished", false) == true
+
     Log.d(tag, "updateLocalMediaProgressFinished $localMediaProgressId | Is Finished:$isFinished")
     var localMediaProgress = DeviceManager.dbManager.getLocalMediaProgress(localMediaProgressId)
-    if (localMediaProgress == null) {
-     Log.e(tag, "updateLocalMediaProgressFinished Local Media Progress not found $localMediaProgressId")
-      call.resolve(JSObject("{\"error\":\"Progress not found\"}"))
+
+    if (localMediaProgress == null) { // Create new local media progress if does not exist
+     Log.d(tag, "updateLocalMediaProgressFinished Local Media Progress not found $localMediaProgressId - Creating new")
+      val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(localLibraryItemId)
+
+      if (localLibraryItem == null) {
+        return call.resolve(JSObject("{\"error\":\"Library Item not found\"}"))
+      }
+      if (localLibraryItem.mediaType != "podcast" && !localEpisodeId.isNullOrEmpty()) {
+        return call.resolve(JSObject("{\"error\":\"Invalid library item not a podcast\"}"))
+      }
+
+      var duration = 0.0
+      var podcastEpisode:PodcastEpisode? = null
+      if (!localEpisodeId.isNullOrEmpty()) {
+          val podcast = localLibraryItem.media as Podcast
+        podcastEpisode = podcast.episodes?.find { episode ->
+            episode.id == localEpisodeId
+          }
+        if (podcastEpisode == null) {
+          return call.resolve(JSObject("{\"error\":\"Podcast episode not found\"}"))
+        }
+        duration = podcastEpisode.duration ?: 0.0
+      } else {
+        val book = localLibraryItem.media as Book
+        duration = book.duration ?: 0.0
+      }
+
+      val currentTime = System.currentTimeMillis()
+      localMediaProgress = LocalMediaProgress(
+        id = localMediaProgressId,
+        localLibraryItemId = localLibraryItemId,
+        localEpisodeId = localEpisodeId,
+        duration = duration,
+        progress = if (isFinished) 1.0 else 0.0,
+        currentTime = 0.0,
+        isFinished = isFinished,
+        lastUpdate = currentTime,
+        startedAt = if (isFinished) currentTime else 0L,
+        finishedAt = if (isFinished) currentTime else null,
+        serverConnectionConfigId = localLibraryItem.serverConnectionConfigId,
+        serverAddress = localLibraryItem.serverAddress,
+        serverUserId = localLibraryItem.serverUserId,
+        libraryItemId = localLibraryItem.libraryItemId,
+        episodeId = podcastEpisode?.serverEpisodeId)
     } else {
       localMediaProgress.updateIsFinished(isFinished)
+    }
 
-      var lmpstring = jacksonMapper.writeValueAsString(localMediaProgress)
-      Log.d(tag, "updateLocalMediaProgressFinished: Local Media Progress String $lmpstring")
+    // Save local media progress locally
+    DeviceManager.dbManager.saveLocalMediaProgress(localMediaProgress)
 
-      // Send update to server media progress is linked to a server and user is logged into that server
-      localMediaProgress.serverConnectionConfigId?.let { configId ->
-        if (DeviceManager.serverConnectionConfigId == configId) {
-          var libraryItemId = localMediaProgress.libraryItemId ?: ""
-          var episodeId = localMediaProgress.episodeId ?: ""
-          var updatePayload = JSObject()
-          updatePayload.put("isFinished", isFinished)
-          apiHandler.updateMediaProgress(libraryItemId,episodeId,updatePayload) {
-            Log.d(tag, "updateLocalMediaProgressFinished: Updated media progress isFinished on server")
-            var jsobj = JSObject()
-            jsobj.put("local", true)
-            jsobj.put("server", true)
-            jsobj.put("localMediaProgress", JSObject(lmpstring))
-            call.resolve(jsobj)
-//            call.resolve(JSObject("{\"local\":true,\"server\":true,\"localMediaProgress\":$lmpstring}"))
-          }
+    val lmpstring = jacksonMapper.writeValueAsString(localMediaProgress)
+    Log.d(tag, "updateLocalMediaProgressFinished: Local Media Progress String $lmpstring")
+
+    // Send update to server media progress is linked to a server and user is logged into that server
+    localMediaProgress.serverConnectionConfigId?.let { configId ->
+      if (DeviceManager.serverConnectionConfigId == configId) {
+        var libraryItemId = localMediaProgress.libraryItemId ?: ""
+        var episodeId = localMediaProgress.episodeId ?: ""
+        var updatePayload = JSObject()
+        updatePayload.put("isFinished", isFinished)
+        apiHandler.updateMediaProgress(libraryItemId,episodeId,updatePayload) {
+          Log.d(tag, "updateLocalMediaProgressFinished: Updated media progress isFinished on server")
+          var jsobj = JSObject()
+          jsobj.put("local", true)
+          jsobj.put("server", true)
+          jsobj.put("localMediaProgress", JSObject(lmpstring))
+          call.resolve(jsobj)
         }
       }
-      if (localMediaProgress.serverConnectionConfigId == null || DeviceManager.serverConnectionConfigId != localMediaProgress.serverConnectionConfigId) {
-//        call.resolve(JSObject("{\"local\":true,\"localMediaProgress\":$lmpstring}}"))
-        var jsobj = JSObject()
-        jsobj.put("local", true)
-        jsobj.put("server", false)
-        jsobj.put("localMediaProgress", JSObject(lmpstring))
-        call.resolve(jsobj)
-      }
+    }
+    if (localMediaProgress.serverConnectionConfigId == null || DeviceManager.serverConnectionConfigId != localMediaProgress.serverConnectionConfigId) {
+      var jsobj = JSObject()
+      jsobj.put("local", true)
+      jsobj.put("server", false)
+      jsobj.put("localMediaProgress", JSObject(lmpstring))
+      call.resolve(jsobj)
     }
   }
 
