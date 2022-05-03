@@ -24,28 +24,24 @@ class AudioPlayer: NSObject {
     private var playWhenReady: Bool
     private var initialPlaybackRate: Float
     
-    private var audioPlayer: AVPlayer
+    private var audioPlayer: AVQueuePlayer
     private var playbackSession: PlaybackSession
-    private var activeAudioTrack: AudioTrack
+
+    private var queueObserver:NSKeyValueObservation?
+    private var queueItemStatusObserver:NSKeyValueObservation?
+    
+    private var currentTrackIndex = 0
+    private var allPlayerItems:[AVPlayerItem] = []
     
     // MARK: - Constructor
     init(playbackSession: PlaybackSession, playWhenReady: Bool = false, playbackRate: Float = 1) {
         self.playWhenReady = playWhenReady
         self.initialPlaybackRate = playbackRate
-        self.audioPlayer = AVPlayer()
+        self.audioPlayer = AVQueuePlayer()
         self.playbackSession = playbackSession
         self.status = -1
         self.rate = 0.0
         self.tmpRate = playbackRate
-        
-        if playbackSession.audioTracks.count != 1 || playbackSession.audioTracks[0].mimeType != "application/vnd.apple.mpegurl" {
-            NSLog("The player only support HLS streams right now")
-            self.activeAudioTrack = AudioTrack(index: 0, startOffset: -1, duration: -1, title: "", contentUrl: nil, mimeType: "", metadata: nil, serverIndex: 0)
-            
-            super.init()
-            return
-        }
-        self.activeAudioTrack = playbackSession.audioTracks[0]
         
         super.init()
         
@@ -56,15 +52,29 @@ class AudioPlayer: NSObject {
         self.audioPlayer.addObserver(self, forKeyPath: #keyPath(AVPlayer.rate), options: .new, context: &playerContext)
         self.audioPlayer.addObserver(self, forKeyPath: #keyPath(AVPlayer.currentItem), options: .new, context: &playerContext)
         
-        let playerItem = AVPlayerItem(asset: createAsset())
-        playerItem.addObserver(self, forKeyPath: #keyPath(AVPlayerItem.status), options: .new, context: &playerItemContext)
+        for track in playbackSession.audioTracks {
+            let playerItem = AVPlayerItem(asset: createAsset(itemId: playbackSession.libraryItemId!, track: track))
+            self.allPlayerItems.append(playerItem)
+        }
         
-        self.audioPlayer.replaceCurrentItem(with: playerItem)
-        seek(playbackSession.currentTime)
+        self.currentTrackIndex = getItemIndexForTime(time: playbackSession.currentTime)
+        NSLog("TEST: Starting track index \(self.currentTrackIndex) for start time \(playbackSession.currentTime)")
         
+        let playerItems = self.allPlayerItems[self.currentTrackIndex..<self.allPlayerItems.count]
+        NSLog("TEST: Setting player items \(playerItems.count)")
+        
+        for item in Array(playerItems) {
+            self.audioPlayer.insert(item, after:self.audioPlayer.items().last)
+        }
+
+        setupQueueObserver()
+        setupQueueItemStatusObserver()
+
         NSLog("Audioplayer ready")
     }
     deinit {
+        self.queueObserver?.invalidate()
+        self.queueItemStatusObserver?.invalidate()
         destroy()
     }
     public func destroy() {
@@ -85,6 +95,50 @@ class AudioPlayer: NSObject {
             UIApplication.shared.endReceivingRemoteControlEvents()
         }
         NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.closed.rawValue), object: nil)
+    }
+    
+    func getItemIndexForTime(time:Double) -> Int {
+        for index in 0..<self.allPlayerItems.count {
+            let startOffset = playbackSession.audioTracks[index].startOffset ?? 0.0
+            let duration = playbackSession.audioTracks[index].duration
+            let trackEnd = startOffset + duration
+            if (time < trackEnd.rounded(.down)) {
+                return index
+            }
+        }
+        return 0
+    }
+    
+    func setupQueueObserver() {
+        self.queueObserver = self.audioPlayer.observe(\.currentItem, options: [.new]) {_,_ in
+            let prevTrackIndex = self.currentTrackIndex
+            self.audioPlayer.currentItem.map { item in
+                self.currentTrackIndex = self.allPlayerItems.firstIndex(of:item) ?? 0
+                if (self.currentTrackIndex != prevTrackIndex) {
+                    NSLog("TEST: New Current track index \(self.currentTrackIndex)")
+                }
+            }
+        }
+    }
+    
+    func setupQueueItemStatusObserver() {
+        self.queueItemStatusObserver?.invalidate()
+        self.queueItemStatusObserver = self.audioPlayer.currentItem?.observe(\.status, options: [.new, .old], changeHandler: { (playerItem, change) in
+            if (playerItem.status == .readyToPlay) {
+                NSLog("TEST: queueStatusObserver: Current Item Ready to play. PlayWhenReady: \(self.playWhenReady)")
+                self.updateNowPlaying()
+                
+                let firstReady = self.status < 0
+                self.status = 0
+                if self.playWhenReady {
+                    self.seek(self.playbackSession.currentTime, from: "queueItemStatusObserver")
+                    self.playWhenReady = false
+                    self.play()
+                } else if (firstReady) { // Only seek on first readyToPlay
+                    self.seek(self.playbackSession.currentTime, from: "queueItemStatusObserver")
+                }
+            }
+        })
     }
     
     // MARK: - Methods
@@ -110,11 +164,11 @@ class AudioPlayer: NSObject {
             }
             
             if time != nil {
-                seek(getCurrentTime() - Double(time!))
+                seek(getCurrentTime() - Double(time!), from: "play")
             }
         }
         lastPlayTime = Date.timeIntervalSinceReferenceDate
-        
+
         self.audioPlayer.play()
         self.status = 1
         self.rate = self.tmpRate
@@ -122,6 +176,7 @@ class AudioPlayer: NSObject {
         
         updateNowPlaying()
     }
+    
     public func pause() {
         self.audioPlayer.pause()
         self.status = 0
@@ -130,24 +185,60 @@ class AudioPlayer: NSObject {
         updateNowPlaying()
         lastPlayTime = Date.timeIntervalSinceReferenceDate
     }
-    public func seek(_ to: Double) {
-        let continuePlaing = rate > 0.0
+    
+    public func seek(_ to: Double, from:String) {
+        let continuePlaying = rate > 0.0
         
         pause()
-        self.audioPlayer.seek(to: CMTime(seconds: to, preferredTimescale: 1000)) { completed in
-            if !completed {
-                NSLog("WARNING: seeking not completed (to \(to)")
+        
+        NSLog("TEST: Seek to \(to) from \(from)")
+        
+        let currentTrack = self.playbackSession.audioTracks[self.currentTrackIndex]
+        let ctso = currentTrack.startOffset ?? 0.0
+        let trackEnd = ctso + currentTrack.duration
+        NSLog("TEST: Seek current track END = \(trackEnd)")
+        
+        
+        let indexOfSeek = getItemIndexForTime(time: to)
+        NSLog("TEST: Seek to index \(indexOfSeek) | Current index \(self.currentTrackIndex)")
+        
+        // Reconstruct queue if seeking to a different track
+        if (self.currentTrackIndex != indexOfSeek) {
+            self.currentTrackIndex = indexOfSeek
+            
+            self.playbackSession.currentTime = to
+            
+            self.playWhenReady = continuePlaying // Only playWhenReady if already playing
+            self.status = -1
+            let playerItems = self.allPlayerItems[indexOfSeek..<self.allPlayerItems.count]
+            
+            self.audioPlayer.removeAllItems()
+            for item in Array(playerItems) {
+                self.audioPlayer.insert(item, after:self.audioPlayer.items().last)
             }
             
-            if continuePlaing {
-                self.play()
+            setupQueueItemStatusObserver()
+        } else {
+            NSLog("TEST: Seeking in current item \(to)")
+            let currentTrackStartOffset = self.playbackSession.audioTracks[self.currentTrackIndex].startOffset ?? 0.0
+            let seekTime = to - currentTrackStartOffset
+            
+            self.audioPlayer.seek(to: CMTime(seconds: seekTime, preferredTimescale: 1000)) { completed in
+                if !completed {
+                    NSLog("WARNING: seeking not completed (to \(seekTime)")
+                }
+                
+                if continuePlaying {
+                    self.play()
+                }
+                self.updateNowPlaying()
             }
-            self.updateNowPlaying()
         }
     }
     
     public func setPlaybackRate(_ rate: Float, observed: Bool = false) {
         if self.audioPlayer.rate != rate {
+            NSLog("TEST: setPlaybakRate rate changed from \(self.audioPlayer.rate) to \(rate)")
             self.audioPlayer.rate = rate
         }
         if rate > 0.0 && !(observed && rate == 1) {
@@ -159,20 +250,31 @@ class AudioPlayer: NSObject {
     }
     
     public func getCurrentTime() -> Double {
-        self.audioPlayer.currentTime().seconds
+        let currentTrackTime = self.audioPlayer.currentTime().seconds
+        let audioTrack = playbackSession.audioTracks[currentTrackIndex]
+        let startOffset = audioTrack.startOffset ?? 0.0
+        return startOffset + currentTrackTime
     }
     public func getDuration() -> Double {
-        self.audioPlayer.currentItem?.duration.seconds ?? 0
+        return playbackSession.duration
     }
     
     // MARK: - Private
-    private func createAsset() -> AVAsset {
-        let headers: [String: String] = [
-            "Authorization": "Bearer \(Store.serverConfig!.token)"
-        ]
+    private func createAsset(itemId:String, track:AudioTrack) -> AVAsset {
+        let filename = track.metadata?.filename ?? ""
+        let filenameEncoded = filename.addingPercentEncoding(withAllowedCharacters: NSCharacterSet.urlQueryAllowed)
+        let urlstr = "\(Store.serverConfig!.address)/s/item/\(itemId)/\(filenameEncoded ?? "")?token=\(Store.serverConfig!.token)"
+        let url = URL(string: urlstr)!
+        return AVURLAsset(url: url)
         
-        return AVURLAsset(url: URL(string: "\(Store.serverConfig!.address)\(activeAudioTrack.contentUrl ?? "")")!, options: ["AVURLAssetHTTPHeaderFieldsKey": headers])
+        // Method for HLS
+//        let headers: [String: String] = [
+//            "Authorization": "Bearer \(Store.serverConfig!.token)"
+//        ]
+//
+//        return AVURLAsset(url: URL(string: "\(Store.serverConfig!.address)\(activeAudioTrack.contentUrl ?? "")")!, options: ["AVURLAssetHTTPHeaderFieldsKey": headers])
     }
+    
     private func initAudioSession() {
         do {
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio, options: [.allowAirPlay])
@@ -208,7 +310,7 @@ class AudioPlayer: NSObject {
                 return .noSuchContent
             }
             
-            seek(getCurrentTime() + command.preferredIntervals[0].doubleValue)
+            seek(getCurrentTime() + command.preferredIntervals[0].doubleValue, from: "remote")
             return .success
         }
         commandCenter.skipBackwardCommand.isEnabled = true
@@ -218,7 +320,7 @@ class AudioPlayer: NSObject {
                 return .noSuchContent
             }
             
-            seek(getCurrentTime() - command.preferredIntervals[0].doubleValue)
+            seek(getCurrentTime() - command.preferredIntervals[0].doubleValue, from: "remote")
             return .success
         }
         
@@ -228,7 +330,7 @@ class AudioPlayer: NSObject {
                 return .noSuchContent
             }
             
-            self.seek(event.positionTime)
+            self.seek(event.positionTime, from: "remote")
             return .success
         }
         
@@ -250,23 +352,9 @@ class AudioPlayer: NSObject {
     
     // MARK: - Observer
     public override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
-        if context == &playerItemContext {
-            if keyPath == #keyPath(AVPlayer.status) {
-                guard let playerStatus = AVPlayerItem.Status(rawValue: (change?[.newKey] as? Int ?? -1)) else { return }
-                
-                if playerStatus == .readyToPlay {
-                    self.updateNowPlaying()
-                    
-                    self.status = 0
-                    if self.playWhenReady {
-                        seek(playbackSession.currentTime)
-                        self.playWhenReady = false
-                        self.play()
-                    }
-                }
-            }
-        } else if context == &playerContext {
+        if context == &playerContext {
             if keyPath == #keyPath(AVPlayer.rate) {
+                NSLog("TEST: playerContext observer player rate")
                 self.setPlaybackRate(change?[.newKey] as? Float ?? 1.0, observed: true)
             } else if keyPath == #keyPath(AVPlayer.currentItem) {
                 NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.update.rawValue), object: nil)

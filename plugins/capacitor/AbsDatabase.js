@@ -199,7 +199,8 @@ class AbsDatabaseWeb extends WebPlugin {
     return []
   }
 
-  async updateLocalMediaProgressFinished({ localMediaProgressId, isFinished }) {
+  async updateLocalMediaProgressFinished(payload) {
+    // { localLibraryItemId, localEpisodeId, isFinished }
     return null
   }
 }
