@@ -71,10 +71,6 @@ public class AbsAudioPlayer: CAPPlugin {
         call.resolve()
     }
     
-    @objc func playPause(_ call: CAPPluginCall) {
-        PlayerHandler.paused = !PlayerHandler.paused
-        call.resolve([ "playing": !PlayerHandler.paused ])
-    }
     @objc func playPlayer(_ call: CAPPluginCall) {
         PlayerHandler.paused = false
         call.resolve()
@@ -82,6 +78,11 @@ public class AbsAudioPlayer: CAPPlugin {
     @objc func pausePlayer(_ call: CAPPluginCall) {
         PlayerHandler.paused = true
         call.resolve()
+    }
+    // I have no clue why but after i moved this block of code from above "playPlayer" to here the app stopped crashing. Move it back up if you want to
+    @objc func playPause(_ call: CAPPluginCall) {
+        PlayerHandler.paused = !PlayerHandler.paused
+        call.resolve([ "playing": !PlayerHandler.paused ])
     }
     
     @objc func seek(_ call: CAPPluginCall) {
