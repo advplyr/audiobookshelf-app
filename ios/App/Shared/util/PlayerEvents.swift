@@ -10,4 +10,6 @@ import Foundation
 enum PlayerEvents: String {
     case update = "com.audiobookshelf.app.player.update"
     case closed = "com.audiobookshelf.app.player.closed"
+    case sleepSet = "com.audiobookshelf.app.player.sleep.set"
+    case sleepEnded = "com.audiobookshelf.app.player.sleep.ended"
 }
