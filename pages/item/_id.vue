@@ -20,33 +20,36 @@
         <div v-if="!isPodcast && progressPercent > 0" class="px-4 py-2 bg-primary text-sm font-semibold rounded-md text-gray-200 mt-4 relative" :class="resettingProgress ? 'opacity-25' : ''">
           <p class="leading-6">Your Progress: {{ Math.round(progressPercent * 100) }}%</p>
           <p v-if="progressPercent < 1" class="text-gray-400 text-xs">{{ $elapsedPretty(userTimeRemaining) }} remaining</p>
+          <p v-else class="text-gray-400 text-xs">Finished {{ $formatDate(userProgressFinishedAt) }}</p>
           <div v-if="!resettingProgress" class="absolute -top-1.5 -right-1.5 p-1 w-5 h-5 rounded-full bg-bg hover:bg-error border border-primary flex items-center justify-center cursor-pointer" @click.stop="clearProgressClick">
             <span class="material-icons text-sm">close</span>
           </div>
         </div>
 
-        <div v-if="isLocal" class="flex mt-4 -mr-2">
+        <div v-if="isLocal" class="flex mt-4">
           <ui-btn color="success" :disabled="isPlaying" class="flex items-center justify-center flex-grow mr-2" :padding-x="4" @click="playClick">
             <span v-show="!isPlaying" class="material-icons">play_arrow</span>
-            <span class="px-1 text-sm">{{ isPlaying ? 'Playing' : 'Play Local' }}</span>
+            <span class="px-1 text-sm">{{ isPlaying ? 'Playing' : 'Play' }}</span>
           </ui-btn>
           <ui-btn v-if="showRead && isConnected" color="info" class="flex items-center justify-center mr-2" :class="showPlay ? '' : 'flex-grow'" :padding-x="2" @click="readBook">
             <span class="material-icons">auto_stories</span>
             <span v-if="!showPlay" class="px-2 text-base">Read {{ ebookFormat }}</span>
           </ui-btn>
+          <ui-read-icon-btn v-if="!isPodcast" :disabled="isProcessingReadUpdate" :is-read="userIsFinished" class="flex items-center justify-center" @click="toggleFinished" />
         </div>
-        <div v-else-if="(user && (showPlay || showRead)) || hasLocal" class="flex mt-4 -mr-2">
+        <div v-else-if="(user && (showPlay || showRead)) || hasLocal" class="flex mt-4">
           <ui-btn v-if="showPlay" color="success" :disabled="isPlaying" class="flex items-center justify-center flex-grow mr-2" :padding-x="4" @click="playClick">
             <span v-show="!isPlaying" class="material-icons">play_arrow</span>
-            <span class="px-1 text-sm">{{ isPlaying ? (isStreaming ? 'Streaming' : 'Playing') : hasLocal ? 'Play Local' : 'Play Stream' }}</span>
+            <span class="px-1 text-sm">{{ isPlaying ? (isStreaming ? 'Streaming' : 'Playing') : hasLocal ? 'Play' : 'Stream' }}</span>
           </ui-btn>
           <ui-btn v-if="showRead && user" color="info" class="flex items-center justify-center mr-2" :class="showPlay ? '' : 'flex-grow'" :padding-x="2" @click="readBook">
             <span class="material-icons">auto_stories</span>
             <span v-if="!showPlay" class="px-2 text-base">Read {{ ebookFormat }}</span>
           </ui-btn>
-          <ui-btn v-if="user && showPlay && !isIos && !hasLocal" :color="downloadItem ? 'warning' : 'primary'" class="flex items-center justify-center" :padding-x="2" @click="downloadClick">
+          <ui-btn v-if="user && showPlay && !isIos && !hasLocal" :color="downloadItem ? 'warning' : 'primary'" class="flex items-center justify-center mr-2" :padding-x="2" @click="downloadClick">
             <span class="material-icons" :class="downloadItem ? 'animate-pulse' : ''">{{ downloadItem ? 'downloading' : 'download' }}</span>
           </ui-btn>
+          <ui-read-icon-btn v-if="!isPodcast" :disabled="isProcessingReadUpdate" :is-read="userIsFinished" class="flex items-center justify-center" @click="toggleFinished" />
         </div>
       </div>
     </div>
@@ -103,6 +106,7 @@ export default {
   data() {
     return {
       resettingProgress: false,
+      isProcessingReadUpdate: false,
       showSelectLocalFolder: false
     }
   },
@@ -351,6 +355,50 @@ export default {
       if (item.libraryItemId == this.libraryItemId) {
         console.log('New local library item', item.id)
         this.$set(this.libraryItem, 'localLibraryItem', item)
+      }
+    },
+    async toggleFinished() {
+      this.isProcessingReadUpdate = true
+      if (this.isLocal) {
+        var isFinished = !this.userIsFinished
+        var payload = await this.$db.updateLocalMediaProgressFinished({ localLibraryItemId: this.localLibraryItemId, isFinished })
+        console.log('toggleFinished payload', JSON.stringify(payload))
+        if (!payload || payload.error) {
+          var errorMsg = payload ? payload.error : 'Unknown error'
+          this.$toast.error(errorMsg)
+        } else {
+          var localMediaProgress = payload.localMediaProgress
+          console.log('toggleFinished localMediaProgress', JSON.stringify(localMediaProgress))
+          if (localMediaProgress) {
+            this.$store.commit('globals/updateLocalMediaProgress', localMediaProgress)
+          }
+
+          var lmp = this.$store.getters['globals/getLocalMediaProgressById'](this.libraryItemId)
+          console.log('toggleFinished Check LMP', this.libraryItemId, JSON.stringify(lmp))
+
+          var serverUpdated = payload.server
+          if (serverUpdated) {
+            this.$toast.success(`Local & Server Item marked as ${isFinished ? 'Finished' : 'Not Finished'}`)
+          } else {
+            this.$toast.success(`Local Item marked as ${isFinished ? 'Finished' : 'Not Finished'}`)
+          }
+        }
+        this.isProcessingReadUpdate = false
+      } else {
+        var updatePayload = {
+          isFinished: !this.userIsFinished
+        }
+        this.$axios
+          .$patch(`/api/me/progress/${this.libraryItemId}`, updatePayload)
+          .then(() => {
+            this.isProcessingReadUpdate = false
+            this.$toast.success(`Item marked as ${updatePayload.isFinished ? 'Finished' : 'Not Finished'}`)
+          })
+          .catch((error) => {
+            console.error('Failed', error)
+            this.isProcessingReadUpdate = false
+            this.$toast.error(`Failed to mark as ${updatePayload.isFinished ? 'Finished' : 'Not Finished'}`)
+          })
       }
     }
   },

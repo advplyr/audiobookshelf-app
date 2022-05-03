@@ -180,15 +180,30 @@ class AbsDownloader : Plugin() {
 
   // Item filenames could be the same if they are in sub-folders, this will make them unique
   private fun getFilenameFromRelPath(relPath: String): String {
-    val cleanedRelPath = relPath.replace("\\", "_").replace("/", "_")
+    var cleanedRelPath = relPath.replace("\\", "_").replace("/", "_")
+    cleanedRelPath = cleanStringForFileSystem(cleanedRelPath)
     return if (cleanedRelPath.startsWith("_")) cleanedRelPath.substring(1) else cleanedRelPath
+  }
+
+  // Replace characters that cant be used in the file system
+  // Reserved characters: ?:\"*|/\\<>
+  private fun cleanStringForFileSystem(str:String):String {
+    val reservedCharacters = listOf("?", "\"", "*", "|", "/", "\\", "<", ">")
+    var newTitle = str
+    newTitle = newTitle.replace(":", " -") // Special case replace : with -
+
+    reservedCharacters.forEach {
+      newTitle = newTitle.replace(it, "")
+    }
+    return newTitle
   }
 
   private fun startLibraryItemDownload(libraryItem: LibraryItem, localFolder: LocalFolder, episode:PodcastEpisode?) {
     val tempFolderPath = mainActivity.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
 
     if (libraryItem.mediaType == "book") {
-      val bookTitle = libraryItem.media.metadata.title
+      val bookTitle = cleanStringForFileSystem(libraryItem.media.metadata.title)
+
       val tracks = libraryItem.media.getAudioTracks()
       Log.d(tag, "Starting library item download with ${tracks.size} tracks")
       val itemFolderPath = localFolder.absolutePath + "/" + bookTitle
@@ -243,8 +258,8 @@ class AbsDownloader : Plugin() {
       }
     } else {
       // Podcast episode download
+      val podcastTitle = cleanStringForFileSystem(libraryItem.media.metadata.title)
 
-      val podcastTitle = libraryItem.media.metadata.title
       val audioTrack = episode?.audioTrack
       Log.d(tag, "Starting podcast episode download")
       val itemFolderPath = localFolder.absolutePath + "/" + podcastTitle

@@ -68,7 +68,8 @@ class ApiClient {
         }
         
         ApiClient.postResource(endpoint: endpoint, parameters: [
-            "forceTranscode": "true", // TODO: direct play
+            "forceDirectPlay": "true",
+            "forceTranscode": "false", // TODO: direct play
             "mediaPlayer": "AVPlayer",
         ], decodable: PlaybackSession.self) { obj in
             var session = obj
