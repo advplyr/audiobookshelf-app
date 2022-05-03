@@ -186,7 +186,7 @@ class AudioPlayer: NSObject {
         lastPlayTime = Date.timeIntervalSinceReferenceDate
     }
     
-    public func seek(_ to: Double, from:String) {
+    public func seek(_ to: Double, from: String) {
         let continuePlaying = rate > 0.0
         
         pause()

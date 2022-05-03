@@ -36,7 +36,11 @@ class PlayerHandler {
     
     public static var paused: Bool {
         get {
-            return player?.rate == 0.0
+            guard let player = player else {
+                return true
+            }
+            
+            return player.rate == 0.0
         }
         set(paused) {
             if paused {
