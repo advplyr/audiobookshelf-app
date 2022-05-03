@@ -20,16 +20,16 @@ class PlayerHandler {
             player = nil
         }
         
-        NowPlayingInfo.setSessionMetadata(metadata: NowPlayingMetadata(id: session.id, itemId: session.libraryItemId!, artworkUrl: session.coverPath, title: session.displayTitle ?? "Unknown title", author: session.displayAuthor, series: nil))
+        NowPlayingInfo.shared.setSessionMetadata(metadata: NowPlayingMetadata(id: session.id, itemId: session.libraryItemId!, artworkUrl: session.coverPath, title: session.displayTitle ?? "Unknown title", author: session.displayAuthor, series: nil))
         
         self.session = session
         player = AudioPlayer(playbackSession: session, playWhenReady: playWhenReady, playbackRate: playbackRate)
         
-        // DispatchQueue.main.sync {
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-            self.tick()
+        DispatchQueue.runOnMainQueue {
+            timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+                self.tick()
+            }
         }
-        // }
     }
     public static func stopPlayback() {
         player?.destroy()
@@ -38,7 +38,7 @@ class PlayerHandler {
         timer?.invalidate()
         timer = nil
         
-        NowPlayingInfo.reset()
+        NowPlayingInfo.shared.reset()
     }
     
     public static func getCurrentTime() -> Double? {
@@ -63,20 +63,20 @@ class PlayerHandler {
     }
     
     public static func seekForward(amount: Double) {
-        if player == nil {
+        guard let player = player else {
             return
         }
         
-        let destinationTime = player!.getCurrentTime() + amount
-        player!.seek(destinationTime)
+        let destinationTime = player.getCurrentTime() + amount
+        player.seek(destinationTime)
     }
     public static func seekBackward(amount: Double) {
-        if player == nil {
+        guard let player = player else {
             return
         }
         
-        let destinationTime = player!.getCurrentTime() - amount
-        player!.seek(destinationTime)
+        let destinationTime = player.getCurrentTime() - amount
+        player.seek(destinationTime)
     }
     public static func seek(amount: Double) {
         player?.seek(amount)
@@ -109,13 +109,16 @@ class PlayerHandler {
         }
     }
     public static func syncProgress() {
-        if player == nil || session == nil {
+        if session == nil {
+            return
+        }
+        guard let player = player else {
             return
         }
         
-        let report = PlaybackReport(currentTime: player!.getCurrentTime(), duration: player!.getDuration(), timeListened: listeningTimePassedSinceLastSync)
+        let report = PlaybackReport(currentTime: player.getCurrentTime(), duration: player.getDuration(), timeListened: listeningTimePassedSinceLastSync)
         
-        session!.currentTime = player!.getCurrentTime()
+        session!.currentTime = player.getCurrentTime()
         listeningTimePassedSinceLastSync = 0
         
         // TODO: check if online

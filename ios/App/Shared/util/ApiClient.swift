@@ -9,6 +9,14 @@ import Foundation
 import Alamofire
 
 class ApiClient {
+    public static func getData(from url: URL, completion: @escaping (UIImage?) -> Void) {
+        URLSession.shared.dataTask(with: url, completionHandler: {(data, response, error) in
+            if let data = data {
+                completion(UIImage(data:data))
+            }
+        }).resume()
+    }
+    
     public static func postResource<T: Decodable>(endpoint: String, parameters: [String: String], decodable: T.Type = T.self, callback: ((_ param: T) -> Void)?) {
         if (Store.serverConfig == nil) {
             NSLog("Server config not set")
@@ -54,7 +62,6 @@ class ApiClient {
     }
     
     public static func startPlaybackSession(libraryItemId: String, episodeId: String?, callback: @escaping (_ param: PlaybackSession) -> Void) {
-        
         var endpoint = "api/items/\(libraryItemId)/play"
         if episodeId != nil {
             endpoint += "/\(episodeId!)"

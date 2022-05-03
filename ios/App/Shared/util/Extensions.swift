@@ -18,3 +18,14 @@ extension Encodable {
     return dictionary
   }
 }
+extension DispatchQueue {
+    static func runOnMainQueue(callback: @escaping (() -> Void)) {
+        if Thread.isMainThread {
+            callback()
+        } else {
+            DispatchQueue.main.sync {
+                callback()
+            }
+        }
+    }
+}
