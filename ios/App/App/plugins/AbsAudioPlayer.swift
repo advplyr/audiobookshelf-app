@@ -171,32 +171,4 @@ public class AbsAudioPlayer: CAPPlugin {
     @objc func sendPlaybackSession(session: [String: Any]) {
         self.notifyListeners("onPlaybackSession", data: session)
     }
-    
-    /*
-     IMPLEMENTED:
-     
-     * cancelSleepTimer
-     decreaseSleepTime (millis)
-     increaseSleepTime (millis)
-     * getSleepTimerTime (millis)
-     * setSleepTimer (millis)
-     * closePlayback
-     * setPlaybackSpeed
-     * seekBackward
-     * seekForward
-     * seek
-     * playPause
-     * playPlayer
-     * pausePlayer
-     * getCurrentTime
-     
-     * onPlaybackSession
-     * onPrepareMedia
-     
-     * onPlaybackClosed
-     * onPlayingUpdate
-     * onMetadata
-     onSleepTimerEnded (millis)
-     onSleepTimerSet (millis)
-     */
 }
