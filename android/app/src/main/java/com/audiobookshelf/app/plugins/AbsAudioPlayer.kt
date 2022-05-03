@@ -16,6 +16,8 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.getcapacitor.*
 import com.getcapacitor.annotation.CapacitorPlugin
 import com.google.android.gms.cast.CastDevice
+import com.google.android.gms.common.ConnectionResult
+import com.google.android.gms.common.GoogleApiAvailability
 import org.json.JSONObject
 
 @CapacitorPlugin(name = "AbsAudioPlayer")
@@ -25,7 +27,7 @@ class AbsAudioPlayer : Plugin() {
 
   private lateinit var mainActivity: MainActivity
   private lateinit var apiHandler:ApiHandler
-  lateinit var castManager:CastManager
+  var castManager:CastManager? = null
 
   lateinit var playerNotificationService: PlayerNotificationService
 
@@ -95,6 +97,24 @@ class AbsAudioPlayer : Plugin() {
   }
 
   private fun initCastManager() {
+    val googleApi = GoogleApiAvailability.getInstance()
+    val statusCode = googleApi.isGooglePlayServicesAvailable(mainActivity)
+
+    if (statusCode != ConnectionResult.SUCCESS) {
+        if (statusCode == ConnectionResult.SERVICE_MISSING) {
+          Log.w(tag, "initCastManager: Google Api Missing")
+        } else if (statusCode == ConnectionResult.SERVICE_DISABLED) {
+          Log.w(tag, "initCastManager: Google Api Disabled")
+        } else if (statusCode == ConnectionResult.SERVICE_INVALID) {
+          Log.w(tag, "initCastManager: Google Api Invalid")
+        } else if (statusCode == ConnectionResult.SERVICE_UPDATING) {
+          Log.w(tag, "initCastManager: Google Api Updating")
+        } else if (statusCode == ConnectionResult.SERVICE_VERSION_UPDATE_REQUIRED) {
+          Log.w(tag, "initCastManager: Google Api Update Required")
+        }
+        return
+    }
+
     val connListener = object: CastManager.ChromecastListener() {
       override fun onReceiverAvailableUpdate(available: Boolean) {
         Log.d(tag, "ChromecastListener: CAST Receiver Update Available $available")
@@ -128,7 +148,7 @@ class AbsAudioPlayer : Plugin() {
     }
 
     castManager = CastManager(mainActivity)
-    castManager.startRouteScan(connListener)
+    castManager?.startRouteScan(connListener)
   }
 
   @PluginMethod
@@ -144,7 +164,7 @@ class AbsAudioPlayer : Plugin() {
     val libraryItemId = call.getString("libraryItemId", "").toString()
     val episodeId = call.getString("episodeId", "").toString()
     val playWhenReady = call.getBoolean("playWhenReady") == true
-    var playbackRate = call.getFloat("playbackRate",1f) ?: 1f
+    val playbackRate = call.getFloat("playbackRate",1f) ?: 1f
 
     if (libraryItemId.isEmpty()) {
       Log.e(tag, "Invalid call to play library item no library item id")
@@ -322,7 +342,11 @@ class AbsAudioPlayer : Plugin() {
     // Need to make sure the player service has been started
     Log.d(tag, "CAST REQUEST SESSION PLUGIN")
     call.resolve()
-    castManager.requestSession(playerNotificationService, object : CastManager.RequestSessionCallback() {
+    if (castManager == null) {
+      Log.e(tag, "Cast Manager not initialized")
+      return
+    }
+    castManager?.requestSession(playerNotificationService, object : CastManager.RequestSessionCallback() {
       override fun onError(errorCode: Int) {
         Log.e(tag, "CAST REQUEST SESSION CALLBACK ERROR $errorCode")
       }
