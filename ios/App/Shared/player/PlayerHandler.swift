@@ -12,7 +12,39 @@ class PlayerHandler {
     private static var session: PlaybackSession?
     private static var timer: Timer?
     
-    private static var listeningTimePassedSinceLastSync = 0.0
+    private static var _remainingSleepTime: Int? = nil
+    public static var remainingSleepTime: Int? {
+        get {
+            return _remainingSleepTime
+        }
+        set(time) {
+            if time != nil && time! < 0 {
+                _remainingSleepTime = nil
+            } else {
+                _remainingSleepTime = time
+            }
+            
+            if _remainingSleepTime == nil {
+                NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.sleepEnded.rawValue), object: _remainingSleepTime)
+            } else {
+                NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.sleepSet.rawValue), object: _remainingSleepTime)
+            }
+        }
+    }
+    private static var listeningTimePassedSinceLastSync: Double = 0.0
+    
+    public static var paused: Bool {
+        get {
+            return player?.rate == 0.0
+        }
+        set(paused) {
+            if paused {
+                self.player?.pause()
+            } else {
+                self.player?.play()
+            }
+        }
+    }
     
     public static func startPlayback(session: PlaybackSession, playWhenReady: Bool, playbackRate: Float) {
         if player != nil {
@@ -48,20 +80,6 @@ class PlayerHandler {
         self.player?.setPlaybackRate(speed)
     }
     
-    public static func play() {
-        self.player?.play()
-    }
-    public static func pause() {
-        self.player?.play()
-    }
-    public static func playPause() {
-        if paused() {
-            self.player?.play()
-        } else {
-            self.player?.pause()
-        }
-    }
-    
     public static func seekForward(amount: Double) {
         guard let player = player else {
             return
@@ -81,11 +99,6 @@ class PlayerHandler {
     public static func seek(amount: Double) {
         player?.seek(amount)
     }
-    
-    public static func paused() -> Bool {
-        player?.rate == 0.0
-    }
-    
     public static func getMetdata() -> [String: Any] {
         DispatchQueue.main.async {
             syncProgress()
@@ -94,27 +107,30 @@ class PlayerHandler {
         return [
             "duration": player?.getDuration() ?? 0,
             "currentTime": player?.getCurrentTime() ?? 0,
-            "playerState": !paused(),
+            "playerState": !paused,
             "currentRate": player?.rate ?? 0,
         ]
     }
     
     private static func tick() {
-        if !paused() {
+        if !paused {
             listeningTimePassedSinceLastSync += 1
         }
         
         if listeningTimePassedSinceLastSync > 3 {
             syncProgress()
         }
+        
+        if remainingSleepTime != nil {
+            if remainingSleepTime! == 0 {
+                paused = true
+            }
+            remainingSleepTime! -= 1
+        }
     }
     public static func syncProgress() {
-        if session == nil {
-            return
-        }
-        guard let player = player else {
-            return
-        }
+        if session == nil { return }
+        guard let player = player else { return }
         
         let report = PlaybackReport(currentTime: player.getCurrentTime(), duration: player.getDuration(), timeListened: listeningTimePassedSinceLastSync)
         
