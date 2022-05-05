@@ -111,7 +111,7 @@ public class AbsAudioPlayer: CAPPlugin {
         guard let time = Int(timeString) else { return call.resolve([ "success": false ]) }
         guard let currentSleepTime = PlayerHandler.remainingSleepTime else { return call.resolve([ "success": false ]) }
         
-        PlayerHandler.remainingSleepTime = currentSleepTime - time
+        PlayerHandler.remainingSleepTime = currentSleepTime - (time / 1000)
         call.resolve()
     }
     @objc func increaseSleepTime(_ call: CAPPluginCall) {
@@ -119,7 +119,7 @@ public class AbsAudioPlayer: CAPPlugin {
         guard let time = Int(timeString) else { return call.resolve([ "success": false ]) }
         guard let currentSleepTime = PlayerHandler.remainingSleepTime else { return call.resolve([ "success": false ]) }
         
-        PlayerHandler.remainingSleepTime = currentSleepTime + time
+        PlayerHandler.remainingSleepTime = currentSleepTime + (time / 1000)
         call.resolve()
     }
     @objc func setSleepTimer(_ call: CAPPluginCall) {
