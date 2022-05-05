@@ -168,9 +168,35 @@ export default {
         this.$refs.audioPlayer.closePlayback()
       }
     },
+    castLocalItem() {
+      if (!this.serverLibraryItemId) {
+        this.$toast.error(`Cannot cast locally downloaded media`)
+      } else {
+        // Change to server library item
+        this.playServerLibraryItemAndCast(this.serverLibraryItemId)
+      }
+    },
+    playServerLibraryItemAndCast(libraryItemId) {
+      var playbackRate = 1
+      if (this.$refs.audioPlayer) {
+        playbackRate = this.$refs.audioPlayer.currentPlaybackRate || 1
+      }
+      AbsAudioPlayer.prepareLibraryItem({ libraryItemId, episodeId: null, playWhenReady: false, playbackRate })
+        .then((data) => {
+          console.log('Library item play response', JSON.stringify(data))
+          AbsAudioPlayer.requestSession()
+        })
+        .catch((error) => {
+          console.error('Failed', error)
+        })
+    },
     async playLibraryItem(payload) {
       var libraryItemId = payload.libraryItemId
       var episodeId = payload.episodeId
+
+      // When playing local library item and can also play this item from the server
+      //   then store the server library item id so it can be used if a cast is made
+      var serverLibraryItemId = payload.serverLibraryItemId || null
 
       if (libraryItemId.startsWith('local') && this.$store.state.isCasting) {
         const { value } = await Dialog.confirm({
@@ -195,6 +221,8 @@ export default {
           console.log('Library item play response', JSON.stringify(data))
           if (!libraryItemId.startsWith('local')) {
             this.serverLibraryItemId = libraryItemId
+          } else {
+            this.serverLibraryItemId = serverLibraryItemId
           }
         })
         .catch((error) => {
@@ -228,6 +256,7 @@ export default {
     this.$eventBus.$on('play-item', this.playLibraryItem)
     this.$eventBus.$on('pause-item', this.pauseItem)
     this.$eventBus.$on('close-stream', this.closeStreamOnly)
+    this.$eventBus.$on('cast-local-item', this.castLocalItem)
     this.$store.commit('user/addSettingsListener', { id: 'streamContainer', meth: this.settingsUpdated })
   },
   beforeDestroy() {
@@ -246,6 +275,7 @@ export default {
     this.$eventBus.$off('play-item', this.playLibraryItem)
     this.$eventBus.$off('pause-item', this.pauseItem)
     this.$eventBus.$off('close-stream', this.closeStreamOnly)
+    this.$eventBus.$off('cast-local-item', this.castLocalItem)
     this.$store.commit('user/removeSettingsListener', 'streamContainer')
   }
 }
