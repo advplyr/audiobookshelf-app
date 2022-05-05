@@ -10,16 +10,25 @@ import RealmSwift
 
 class Database {
     // All DB releated actions must be executed on "realm-queue"
-    public static let realmQueue = DispatchQueue(label: "realm-queue")
-    private static var instance: Realm = try! Realm(queue: realmQueue)
+    public static let realmQueue: DispatchQueue = DispatchQueue(label: "realm-queue")
+    public static var shared = {
+        realmQueue.sync {
+            return Database()
+        }
+    }()
+
+    private var instance: Realm
+    private init() {
+        self.instance = try! Realm(queue: Database.realmQueue)
+    }
     
-    public static func setServerConnectionConfig(config: ServerConnectionConfig) {
+    public func setServerConnectionConfig(config: ServerConnectionConfig) {
         var refrence: ThreadSafeReference<ServerConnectionConfig>?
         if config.realm != nil {
             refrence = ThreadSafeReference(to: config)
         }
         
-        realmQueue.sync {
+        Database.realmQueue.sync {
             let existing: ServerConnectionConfig? = instance.object(ofType: ServerConnectionConfig.self, forPrimaryKey: config.id)
             
             if config.index == 0 {
@@ -55,8 +64,8 @@ class Database {
             setLastActiveConfigIndex(index: config.index)
         }
     }
-    public static func deleteServerConnectionConfig(id: String) {
-        realmQueue.sync {
+    public func deleteServerConnectionConfig(id: String) {
+        Database.realmQueue.sync {
             let config = instance.object(ofType: ServerConnectionConfig.self, forPrimaryKey: id)
             
             do {
@@ -71,10 +80,10 @@ class Database {
             }
         }
     }
-    public static func getServerConnectionConfigs() -> [ServerConnectionConfig] {
+    public func getServerConnectionConfigs() -> [ServerConnectionConfig] {
         var refrences: [ThreadSafeReference<ServerConnectionConfig>] = []
         
-        realmQueue.sync {
+        Database.realmQueue.sync {
             let configs = instance.objects(ServerConnectionConfig.self)
             refrences = configs.map { config in
                 return ThreadSafeReference(to: config)
@@ -94,12 +103,12 @@ class Database {
         }
     }
     
-    public static func setLastActiveConfigIndexToNil() {
-        realmQueue.sync {
+    public func setLastActiveConfigIndexToNil() {
+        Database.realmQueue.sync {
             setLastActiveConfigIndex(index: nil)
         }
     }
-    public static func setLastActiveConfigIndex(index: Int?) {
+    public func setLastActiveConfigIndex(index: Int?) {
         let existing = instance.objects(ServerConnectionConfigActiveIndex.self)
         let obj = ServerConnectionConfigActiveIndex()
         obj.index = index
@@ -114,8 +123,8 @@ class Database {
             debugPrint(exception)
         }
     }
-    public static func getLastActiveConfigIndex() -> Int? {
-        return realmQueue.sync {
+    public func getLastActiveConfigIndex() -> Int? {
+        return Database.realmQueue.sync {
             return instance.objects(ServerConnectionConfigActiveIndex.self).first?.index ?? nil
         }
     }

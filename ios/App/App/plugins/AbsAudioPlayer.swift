@@ -13,9 +13,12 @@ public class AbsAudioPlayer: CAPPlugin {
     override public func load() {
         NotificationCenter.default.addObserver(self, selector: #selector(sendMetadata), name: NSNotification.Name(PlayerEvents.update.rawValue), object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(sendPlaybackClosedEvent), name: NSNotification.Name(PlayerEvents.closed.rawValue), object: nil)
-        self.bridge?.webView?.allowsBackForwardNavigationGestures = true;
         NotificationCenter.default.addObserver(self, selector: #selector(sendMetadata), name: UIApplication.didBecomeActiveNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(sendMetadata), name: UIApplication.willEnterForegroundNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(sendSleepTimerSet), name: NSNotification.Name(PlayerEvents.sleepSet.rawValue), object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(sendSleepTimerEnded), name: NSNotification.Name(PlayerEvents.sleepEnded.rawValue), object: nil)
+        
+        self.bridge?.webView?.allowsBackForwardNavigationGestures = true;
     }
     
     @objc func prepareLibraryItem(_ call: CAPPluginCall) {
@@ -68,17 +71,18 @@ public class AbsAudioPlayer: CAPPlugin {
         call.resolve()
     }
     
-    @objc func playPause(_ call: CAPPluginCall) {
-        PlayerHandler.playPause()
-        call.resolve([ "playing": !PlayerHandler.paused() ])
-    }
     @objc func playPlayer(_ call: CAPPluginCall) {
-        PlayerHandler.play()
+        PlayerHandler.paused = false
         call.resolve()
     }
     @objc func pausePlayer(_ call: CAPPluginCall) {
-        PlayerHandler.pause()
+        PlayerHandler.paused = true
         call.resolve()
+    }
+    // I have no clue why but after i moved this block of code from above "playPlayer" to here the app stopped crashing. Move it back up if you want to
+    @objc func playPause(_ call: CAPPluginCall) {
+        PlayerHandler.paused = !PlayerHandler.paused
+        call.resolve([ "playing": !PlayerHandler.paused ])
     }
     
     @objc func seek(_ call: CAPPluginCall) {
@@ -95,11 +99,67 @@ public class AbsAudioPlayer: CAPPlugin {
     }
     
     @objc func sendMetadata() {
-        self.notifyListeners("onPlayingUpdate", data: [ "value": !PlayerHandler.paused() ])
+        self.notifyListeners("onPlayingUpdate", data: [ "value": !PlayerHandler.paused ])
         self.notifyListeners("onMetadata", data: PlayerHandler.getMetdata())
     }
     @objc func sendPlaybackClosedEvent() {
         self.notifyListeners("onPlaybackClosed", data: [ "value": true ])
+    }
+    
+    @objc func decreaseSleepTime(_ call: CAPPluginCall) {
+        guard let timeString = call.getString("time") else { return call.resolve([ "success": false ]) }
+        guard let time = Int(timeString) else { return call.resolve([ "success": false ]) }
+        guard let currentSleepTime = PlayerHandler.remainingSleepTime else { return call.resolve([ "success": false ]) }
+        
+        PlayerHandler.remainingSleepTime = currentSleepTime - (time / 1000)
+        call.resolve()
+    }
+    @objc func increaseSleepTime(_ call: CAPPluginCall) {
+        guard let timeString = call.getString("time") else { return call.resolve([ "success": false ]) }
+        guard let time = Int(timeString) else { return call.resolve([ "success": false ]) }
+        guard let currentSleepTime = PlayerHandler.remainingSleepTime else { return call.resolve([ "success": false ]) }
+        
+        PlayerHandler.remainingSleepTime = currentSleepTime + (time / 1000)
+        call.resolve()
+    }
+    @objc func setSleepTimer(_ call: CAPPluginCall) {
+        guard let timeString = call.getString("time") else { return call.resolve([ "success": false ]) }
+        guard let time = Int(timeString) else { return call.resolve([ "success": false ]) }
+        
+        NSLog("chapter time: \(call.getBool("isChapterTime", false))")
+        
+        if call.getBool("isChapterTime", false) {
+            let timeToPause = time / 1000 - Int(PlayerHandler.getCurrentTime() ?? 0)
+            if timeToPause < 0 { return call.resolve([ "success": false ]) }
+            
+            NSLog("oof \(timeToPause)")
+            
+            PlayerHandler.remainingSleepTime = timeToPause
+            return call.resolve([ "success": true ])
+        }
+        
+        PlayerHandler.remainingSleepTime = time / 1000
+        call.resolve([ "success": true ])
+    }
+    @objc func cancelSleepTimer(_ call: CAPPluginCall) {
+        PlayerHandler.remainingSleepTime = nil
+        call.resolve()
+    }
+    @objc func getSleepTimerTime(_ call: CAPPluginCall) {
+        call.resolve([
+            "value": PlayerHandler.remainingSleepTime
+        ])
+    }
+    
+    @objc func sendSleepTimerEnded() {
+        self.notifyListeners("onSleepTimerEnded", data: [
+            "value": PlayerHandler.getCurrentTime()
+        ])
+    }
+    @objc func sendSleepTimerSet() {
+        self.notifyListeners("onSleepTimerSet", data: [
+            "value": PlayerHandler.remainingSleepTime
+        ])
     }
     
     @objc func sendPrepareMetadataEvent(itemId: String, playWhenReady: Bool) {
@@ -111,32 +171,4 @@ public class AbsAudioPlayer: CAPPlugin {
     @objc func sendPlaybackSession(session: [String: Any]) {
         self.notifyListeners("onPlaybackSession", data: session)
     }
-    
-    /*
-     IMPLEMENTED:
-     
-     cancelSleepTimer
-     decreaseSleepTime
-     increaseSleepTime
-     getSleepTimerTime
-     setSleepTimer
-     * closePlayback
-     * setPlaybackSpeed
-     * seekBackward
-     * seekForward
-     * seek
-     * playPause
-     * playPlayer
-     * pausePlayer
-     * getCurrentTime
-     
-     * onPlaybackSession
-     * onPrepareMedia
-     
-     * onPlaybackClosed
-     * onPlayingUpdate
-     * onMetadata
-     onSleepTimerEnded
-     onSleepTimerSet
-     */
 }

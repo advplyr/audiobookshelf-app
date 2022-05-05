@@ -16,9 +16,9 @@ class Store {
         }
         set(updated) {
             if updated != nil {
-                Database.setServerConnectionConfig(config: updated!)
+                Database.shared.setServerConnectionConfig(config: updated!)
             } else {
-                Database.setLastActiveConfigIndexToNil()
+                Database.shared.setLastActiveConfigIndexToNil()
             }
             
             Database.realmQueue.sync {

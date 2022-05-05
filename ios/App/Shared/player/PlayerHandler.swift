@@ -12,8 +12,44 @@ class PlayerHandler {
     private static var session: PlaybackSession?
     private static var timer: Timer?
     
-    private static var listeningTimePassedSinceLastSync = 0.0
-    private static var lastSyncReport:PlaybackReport?
+    private static var _remainingSleepTime: Int? = nil
+    public static var remainingSleepTime: Int? {
+        get {
+            return _remainingSleepTime
+        }
+        set(time) {
+            if time != nil && time! < 0 {
+                _remainingSleepTime = nil
+            } else {
+                _remainingSleepTime = time
+            }
+            
+            if _remainingSleepTime == nil {
+                NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.sleepEnded.rawValue), object: _remainingSleepTime)
+            } else {
+                NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.sleepSet.rawValue), object: _remainingSleepTime)
+            }
+        }
+    }
+    private static var listeningTimePassedSinceLastSync: Double = 0.0
+    private static var lastSyncReport: PlaybackReport?
+    
+    public static var paused: Bool {
+        get {
+            guard let player = player else {
+                return true
+            }
+            
+            return player.rate == 0.0
+        }
+        set(paused) {
+            if paused {
+                self.player?.pause()
+            } else {
+                self.player?.play()
+            }
+        }
+    }
     
     public static func startPlayback(session: PlaybackSession, playWhenReady: Bool, playbackRate: Float) {
         if player != nil {
@@ -21,16 +57,16 @@ class PlayerHandler {
             player = nil
         }
         
-        NowPlayingInfo.setSessionMetadata(metadata: NowPlayingMetadata(id: session.id, itemId: session.libraryItemId!, artworkUrl: session.coverPath, title: session.displayTitle ?? "Unknown title", author: session.displayAuthor, series: nil))
+        NowPlayingInfo.shared.setSessionMetadata(metadata: NowPlayingMetadata(id: session.id, itemId: session.libraryItemId!, artworkUrl: session.coverPath, title: session.displayTitle ?? "Unknown title", author: session.displayAuthor, series: nil))
         
         self.session = session
         player = AudioPlayer(playbackSession: session, playWhenReady: playWhenReady, playbackRate: playbackRate)
         
-        // DispatchQueue.main.sync {
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-            self.tick()
+        DispatchQueue.runOnMainQueue {
+            timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+                self.tick()
+            }
         }
-        // }
     }
     public static func stopPlayback() {
         player?.destroy()
@@ -39,7 +75,7 @@ class PlayerHandler {
         timer?.invalidate()
         timer = nil
         
-        NowPlayingInfo.reset()
+        NowPlayingInfo.shared.reset()
     }
     
     public static func getCurrentTime() -> Double? {
@@ -49,44 +85,25 @@ class PlayerHandler {
         self.player?.setPlaybackRate(speed)
     }
     
-    public static func play() {
-        self.player?.play()
-    }
-    public static func pause() {
-        self.player?.play()
-    }
-    public static func playPause() {
-        if paused() {
-            self.player?.play()
-        } else {
-            self.player?.pause()
-        }
-    }
-    
     public static func seekForward(amount: Double) {
-        if player == nil {
+        guard let player = player else {
             return
         }
         
-        let destinationTime = player!.getCurrentTime() + amount
-        player!.seek(destinationTime, from: "handler")
+        let destinationTime = player.getCurrentTime() + amount
+        player.seek(destinationTime, from: "handler")
     }
     public static func seekBackward(amount: Double) {
-        if player == nil {
+        guard let player = player else {
             return
         }
         
-        let destinationTime = player!.getCurrentTime() - amount
-        player!.seek(destinationTime, from: "handler")
+        let destinationTime = player.getCurrentTime() - amount
+        player.seek(destinationTime, from: "handler")
     }
     public static func seek(amount: Double) {
         player?.seek(amount, from: "handler")
     }
-    
-    public static func paused() -> Bool {
-        player?.rate == 0.0
-    }
-    
     public static func getMetdata() -> [String: Any] {
         DispatchQueue.main.async {
             syncProgress()
@@ -95,32 +112,38 @@ class PlayerHandler {
         return [
             "duration": player?.getDuration() ?? 0,
             "currentTime": player?.getCurrentTime() ?? 0,
-            "playerState": !paused(),
+            "playerState": !paused,
             "currentRate": player?.rate ?? 0,
         ]
     }
     
     private static func tick() {
-        if !paused() {
+        if !paused {
             listeningTimePassedSinceLastSync += 1
         }
         
         if listeningTimePassedSinceLastSync > 3 {
             syncProgress()
         }
+        
+        if remainingSleepTime != nil {
+            if remainingSleepTime! == 0 {
+                paused = true
+            }
+            remainingSleepTime! -= 1
+        }
     }
     public static func syncProgress() {
-        if player == nil || session == nil {
-            return
-        }
+        if session == nil { return }
+        guard let player = player else { return }
         
-        let playerCurrentTime = player!.getCurrentTime()
+        let playerCurrentTime = player.getCurrentTime()
         if (lastSyncReport != nil && lastSyncReport?.currentTime == playerCurrentTime) {
             // No need to syncProgress
             return
         }
         
-        let report = PlaybackReport(currentTime: playerCurrentTime, duration: player!.getDuration(), timeListened: listeningTimePassedSinceLastSync)
+        let report = PlaybackReport(currentTime: playerCurrentTime, duration: player.getDuration(), timeListened: listeningTimePassedSinceLastSync)
         
         session!.currentTime = playerCurrentTime
         listeningTimePassedSinceLastSync = 0
