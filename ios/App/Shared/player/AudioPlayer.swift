@@ -80,6 +80,7 @@ class AudioPlayer: NSObject {
     public func destroy() {
         // Pause is not synchronous causing this error on below lines:
         // AVAudioSession_iOS.mm:1206  Deactivating an audio session that has running I/O. All I/O should be stopped or paused prior to deactivating the audio session
+        // It is related to L79 `AVAudioSession.sharedInstance().setActive(false)`
         pause()
         audioPlayer.replaceCurrentItem(with: nil)
         
@@ -90,11 +91,9 @@ class AudioPlayer: NSObject {
             print(error)
         }
         
-        // Throws error Possibly related to the error above
-//        DispatchQueue.main.sync {
-//            UIApplication.shared.endReceivingRemoteControlEvents()
-//        }
-        
+        DispatchQueue.runOnMainQueue {
+            UIApplication.shared.endReceivingRemoteControlEvents()
+        }
         NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.closed.rawValue), object: nil)
     }
     
@@ -187,7 +186,7 @@ class AudioPlayer: NSObject {
         lastPlayTime = Date.timeIntervalSinceReferenceDate
     }
     
-    public func seek(_ to: Double, from:String) {
+    public func seek(_ to: Double, from: String) {
         let continuePlaying = rate > 0.0
         
         pause()
@@ -247,7 +246,6 @@ class AudioPlayer: NSObject {
         }
         
         self.rate = rate
-        
         self.updateNowPlaying()
     }
     
@@ -289,9 +287,9 @@ class AudioPlayer: NSObject {
     
     // MARK: - Now playing
     private func setupRemoteTransportControls() {
-        // DispatchQueue.main.sync {
+        DispatchQueue.runOnMainQueue {
             UIApplication.shared.beginReceivingRemoteControlEvents()
-        // }
+        }
         let commandCenter = MPRemoteCommandCenter.shared()
         
         commandCenter.playCommand.isEnabled = true
@@ -349,7 +347,7 @@ class AudioPlayer: NSObject {
     }
     private func updateNowPlaying() {
         NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.update.rawValue), object: nil)
-        NowPlayingInfo.update(duration: getDuration(), currentTime: getCurrentTime(), rate: rate)
+        NowPlayingInfo.shared.update(duration: getDuration(), currentTime: getCurrentTime(), rate: rate)
     }
     
     // MARK: - Observer
@@ -359,6 +357,7 @@ class AudioPlayer: NSObject {
                 NSLog("TEST: playerContext observer player rate")
                 self.setPlaybackRate(change?[.newKey] as? Float ?? 1.0, observed: true)
             } else if keyPath == #keyPath(AVPlayer.currentItem) {
+                NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.update.rawValue), object: nil)
                 NSLog("WARNING: Item ended")
             }
         } else {

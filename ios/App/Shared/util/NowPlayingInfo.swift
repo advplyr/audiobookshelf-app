@@ -8,14 +8,6 @@
 import Foundation
 import MediaPlayer
 
-func getData(from url: URL, completion: @escaping (UIImage?) -> Void) {
-    URLSession.shared.dataTask(with: url, completionHandler: {(data, response, error) in
-        if let data = data {
-            completion(UIImage(data:data))
-        }
-    }).resume()
-}
-
 struct NowPlayingMetadata {
     var id: String
     var itemId: String
@@ -26,22 +18,22 @@ struct NowPlayingMetadata {
 }
 
 class NowPlayingInfo {
-    private static var nowPlayingInfo: [String: Any] = [:]
+    static var shared = {
+        return NowPlayingInfo()
+    }()
     
-    public static func setSessionMetadata(metadata: NowPlayingMetadata) {
+    private var nowPlayingInfo: [String: Any]
+    private init() {
+        self.nowPlayingInfo = [:]
+    }
+    
+    public func setSessionMetadata(metadata: NowPlayingMetadata) {
         setMetadata(artwork: nil, metadata: metadata)
-        
-        /*
-        if !shouldFetchCover(id: metadata.id) || metadata.artworkUrl == nil {
-            return
-        }
-         */
         
         guard let url = URL(string: "\(Store.serverConfig!.address)/api/items/\(metadata.itemId)/cover?token=\(Store.serverConfig!.token)") else {
             return
         }
-        
-        getData(from: url) { [self] image in
+        ApiClient.getData(from: url) { [self] image in
             guard let downloadedImage = image else {
                 return
             }
@@ -52,7 +44,7 @@ class NowPlayingInfo {
             self.setMetadata(artwork: artwork, metadata: metadata)
         }
     }
-    public static func update(duration: Double, currentTime: Double, rate: Float) {
+    public func update(duration: Double, currentTime: Double, rate: Float) {
         nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = duration
         nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = currentTime
         nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = rate
@@ -60,12 +52,12 @@ class NowPlayingInfo {
             
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
     }
-    public static func reset() {
+    public func reset() {
         nowPlayingInfo = [:]
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
     }
     
-    private static func setMetadata(artwork: MPMediaItemArtwork?, metadata: NowPlayingMetadata?) {
+    private func setMetadata(artwork: MPMediaItemArtwork?, metadata: NowPlayingMetadata?) {
         if metadata == nil {
             return
         }
@@ -84,7 +76,7 @@ class NowPlayingInfo {
         nowPlayingInfo[MPMediaItemPropertyArtist] = metadata!.author ?? "unknown"
         nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = metadata!.series
     }
-    private static func shouldFetchCover(id: String) -> Bool {
+    private func shouldFetchCover(id: String) -> Bool {
         nowPlayingInfo[MPNowPlayingInfoPropertyExternalContentIdentifier] as? String != id || nowPlayingInfo[MPMediaItemPropertyArtwork] == nil
     }
 }

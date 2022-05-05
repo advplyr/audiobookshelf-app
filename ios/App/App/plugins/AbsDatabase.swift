@@ -53,7 +53,7 @@ public class AbsDatabase: CAPPlugin {
     }
     @objc func removeServerConnectionConfig(_ call: CAPPluginCall) {
         let id = call.getString("serverConnectionConfigId", "")
-        Database.deleteServerConnectionConfig(id: id)
+        Database.shared.deleteServerConnectionConfig(id: id)
         
         call.resolve()
     }
@@ -63,13 +63,12 @@ public class AbsDatabase: CAPPlugin {
     }
     
     @objc func getDeviceData(_ call: CAPPluginCall) {
-        let configs = Database.getServerConnectionConfigs()
-        let index = Database.getLastActiveConfigIndex()
+        let configs = Database.shared.getServerConnectionConfigs()
+        let index = Database.shared.getLastActiveConfigIndex()
         
         call.resolve([
             "serverConnectionConfigs": configs.map { config in convertServerConnectionConfigToJSON(config: config) },
-            "lastServerConnectionConfigId": configs.first { config in config.index == index }?.id,
-            // Luckily this isn't implemented yet
+            "lastServerConnectionConfigId": configs.first { config in config.index == index }?.id as Any,
             // "currentLocalPlaybackSession": nil,
         ])
     }
