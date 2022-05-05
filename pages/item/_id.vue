@@ -6,10 +6,13 @@
           <covers-book-cover :library-item="libraryItem" :width="128" :book-cover-aspect-ratio="bookCoverAspectRatio" />
           <div v-if="!isPodcast" class="absolute bottom-0 left-0 h-1.5 shadow-sm z-10" :class="userIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: 128 * progressPercent + 'px' }"></div>
         </div>
+        <!-- Show an indicator for local library items whether they are linked to a server item and if that server item is connected -->
+        <p v-if="isLocal && serverLibraryItemId" style="font-size: 10px" class="text-success py-1 uppercase tracking-widest">connected</p>
+        <p v-else-if="isLocal && libraryItem.serverAddress" style="font-size: 10px" class="text-gray-400 py-1">{{ libraryItem.serverAddress }}</p>
       </div>
       <div class="flex-grow px-3">
         <h1 class="text-lg">{{ title }}</h1>
-        <!-- <h3 v-if="series" class="font-book text-gray-300 text-lg leading-7">{{ seriesText }}</h3> -->
+        <h3 v-if="seriesName" class="text-gray-300 text-sm leading-6">{{ seriesName }}</h3>
         <p class="text-sm text-gray-400">by {{ author }}</p>
         <p v-if="numTracks" class="text-gray-300 text-sm my-1">
           {{ $elapsedPretty(duration) }}
@@ -31,7 +34,7 @@
             <span v-show="!isPlaying" class="material-icons">play_arrow</span>
             <span class="px-1 text-sm">{{ isPlaying ? 'Playing' : 'Play' }}</span>
           </ui-btn>
-          <ui-btn v-if="showRead && isConnected" color="info" class="flex items-center justify-center mr-2" :class="showPlay ? '' : 'flex-grow'" :padding-x="2" @click="readBook">
+          <ui-btn v-if="showRead" color="info" class="flex items-center justify-center mr-2" :class="showPlay ? '' : 'flex-grow'" :padding-x="2" @click="readBook">
             <span class="material-icons">auto_stories</span>
             <span v-if="!showPlay" class="px-2 text-base">Read {{ ebookFormat }}</span>
           </ui-btn>
@@ -133,8 +136,14 @@ export default {
       var podcastMedia = this.localLibraryItem.media
       return podcastMedia ? podcastMedia.episodes || [] : []
     },
-    isConnected() {
-      return this.$store.state.socketConnected
+    serverLibraryItemId() {
+      if (!this.isLocal) return this.libraryItem.id
+      // Check if local library item is connected to the current server
+      if (!this.libraryItem.serverAddress || !this.libraryItem.libraryItemId) return null
+      if (this.$store.getters['user/getServerAddress'] === this.libraryItem.serverAddress) {
+        return this.libraryItem.libraryItemId
+      }
+      return null
     },
     bookCoverAspectRatio() {
       return this.$store.getters['getBookCoverAspectRatio']
@@ -166,6 +175,10 @@ export default {
     },
     series() {
       return this.mediaMetadata.series || []
+    },
+    seriesName() {
+      // For books only on toJSONExpanded
+      return this.mediaMetadata.seriesName || ''
     },
     duration() {
       return this.media.duration
@@ -237,6 +250,9 @@ export default {
     },
     episodes() {
       return this.media.episodes || []
+    },
+    isCasting() {
+      return this.$store.state.isCasting
     }
   },
   methods: {
@@ -245,7 +261,12 @@ export default {
     },
     playClick() {
       // Todo: Allow playing local or streaming
-      if (this.hasLocal) return this.$eventBus.$emit('play-item', { libraryItemId: this.localLibraryItem.id })
+      if (this.hasLocal && this.serverLibraryItemId && this.isCasting) {
+        // If casting and connected to server for local library item then send server library item id
+        this.$eventBus.$emit('play-item', { libraryItemId: this.serverLibraryItemId })
+        return
+      }
+      if (this.hasLocal) return this.$eventBus.$emit('play-item', { libraryItemId: this.localLibraryItem.id, serverLibraryItemId: this.serverLibraryItemId })
       this.$eventBus.$emit('play-item', { libraryItemId: this.libraryItemId })
     },
     async clearProgressClick() {
@@ -404,11 +425,11 @@ export default {
   },
   mounted() {
     this.$eventBus.$on('new-local-library-item', this.newLocalLibraryItem)
-    //   this.$server.socket.on('item_updated', this.itemUpdated)
+    this.$socket.on('item_updated', this.itemUpdated)
   },
   beforeDestroy() {
     this.$eventBus.$off('new-local-library-item', this.newLocalLibraryItem)
-    //   this.$server.socket.off('item_updated', this.itemUpdated)
+    this.$socket.off('item_updated', this.itemUpdated)
   }
 }
 </script>

@@ -80,11 +80,9 @@ export default {
   methods: {
     castClick() {
       if (this.$store.state.playerIsLocal) {
-        this.$toast.warn('Cannot cast downloaded media item')
+        this.$eventBus.$emit('cast-local-item')
         return
       }
-
-      console.log('Cast Btn Click')
       AbsAudioPlayer.requestSession()
     },
     clickShowSideDrawer() {

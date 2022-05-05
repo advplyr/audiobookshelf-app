@@ -4,7 +4,7 @@
       <div class="top-2 left-4 absolute cursor-pointer">
         <span class="material-icons text-5xl" @click="collapseFullscreen">expand_more</span>
       </div>
-      <div v-show="showCastBtn" class="top-3.5 right-20 absolute cursor-pointer">
+      <div v-show="showCastBtn" class="top-4 right-16 absolute cursor-pointer">
         <span class="material-icons text-3xl" :class="isCasting ? 'text-success' : ''" @click="castClick">cast</span>
       </div>
       <div class="top-4 right-4 absolute cursor-pointer">
@@ -12,6 +12,7 @@
           <span class="material-icons text-3xl">more_vert</span>
         </ui-dropdown-menu>
       </div>
+      <p class="top-2 absolute left-0 right-0 mx-auto text-center uppercase tracking-widest text-opacity-75" style="font-size: 10px" :class="{ 'text-success': isLocalPlayMethod, 'text-accent': !isLocalPlayMethod }">{{ isDirectPlayMethod ? 'Direct' : isLocalPlayMethod ? 'Local' : 'Transcode' }}</p>
     </div>
 
     <div v-if="useChapterTrack && showFullscreen" class="absolute total-track w-full px-3 z-30">
@@ -63,7 +64,7 @@
         <div class="flex items-center justify-center">
           <span v-show="showFullscreen" class="material-icons next-icon text-white text-opacity-75 cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpChapterStart">first_page</span>
           <span class="material-icons jump-icon text-white cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="backward10">replay_10</span>
-          <div class="play-btn cursor-pointer shadow-sm bg-accent flex items-center justify-center rounded-full text-primary mx-4" :class="seekLoading ? 'animate-spin' : ''" @mousedown.prevent @mouseup.prevent @click.stop="playPauseClick">
+          <div class="play-btn cursor-pointer shadow-sm flex items-center justify-center rounded-full text-primary mx-4" :class="{ 'animate-spin': seekLoading, 'bg-accent': !isLocalPlayMethod, 'bg-success': isLocalPlayMethod }" @mousedown.prevent @mouseup.prevent @click.stop="playPauseClick">
             <span v-if="!isLoading" class="material-icons">{{ seekLoading ? 'autorenew' : !isPlaying ? 'play_arrow' : 'pause' }}</span>
             <widgets-spinner-icon v-else class="h-8 w-8" />
           </div>
@@ -159,7 +160,7 @@ export default {
       return this.showFullscreen ? 200 : 60
     },
     showCastBtn() {
-      return this.$store.state.isCastAvailable && !this.isLocalPlayMethod
+      return this.$store.state.isCastAvailable
     },
     isCasting() {
       return this.mediaPlayer === 'cast-player'
@@ -192,6 +193,9 @@ export default {
     },
     isLocalPlayMethod() {
       return this.playMethod == this.$constants.PlayMethod.LOCAL
+    },
+    isDirectPlayMethod() {
+      return this.playMethod == this.$constants.PlayMethod.DIRECTPLAY
     },
     title() {
       if (this.playbackSession) return this.playbackSession.displayTitle
@@ -269,12 +273,10 @@ export default {
       this.showChapterModal = false
     },
     castClick() {
-      console.log('Cast Btn Click')
       if (this.isLocalPlayMethod) {
-        this.$toast.warn('Cannot cast downloaded media items')
+        this.$eventBus.$emit('cast-local-item')
         return
       }
-
       AbsAudioPlayer.requestSession()
     },
     clickContainer() {

@@ -446,10 +446,6 @@ export default {
       this.selected = !this.selected
       this.$emit('select', this.libraryItem)
     },
-    play() {
-      var eventBus = this.$eventBus || this.$nuxt.$eventBus
-      eventBus.$emit('play-item', { libraryItemId: this.libraryItemId })
-    },
     destroy() {
       // destroy the vue listeners, etc
       this.$destroy()
