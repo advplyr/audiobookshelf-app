@@ -10,6 +10,13 @@ import AVFoundation
 import UIKit
 import MediaPlayer
 
+enum PlayMethod:Int {
+    case directplay = 0
+    case directstream = 1
+    case transcode = 2
+    case local = 3
+}
+
 class AudioPlayer: NSObject {
     // enums and @objc are not compatible
     @objc dynamic var status: Int
@@ -137,6 +144,10 @@ class AudioPlayer: NSObject {
                 } else if (firstReady) { // Only seek on first readyToPlay
                     self.seek(self.playbackSession.currentTime, from: "queueItemStatusObserver")
                 }
+            } else if (playerItem.status == .failed) {
+                NSLog("TEST: queueStatusObserver: FAILED \(playerItem.error?.localizedDescription ?? "")")
+                
+                NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.failed.rawValue), object: nil)
             }
         })
     }
@@ -255,24 +266,31 @@ class AudioPlayer: NSObject {
         let startOffset = audioTrack.startOffset ?? 0.0
         return startOffset + currentTrackTime
     }
+    public func getPlayMethod() -> Int {
+        return self.playbackSession.playMethod
+    }
+    public func getPlaybackSession() -> PlaybackSession {
+        return self.playbackSession
+    }
     public func getDuration() -> Double {
         return playbackSession.duration
     }
     
     // MARK: - Private
     private func createAsset(itemId:String, track:AudioTrack) -> AVAsset {
-        let filename = track.metadata?.filename ?? ""
-        let filenameEncoded = filename.addingPercentEncoding(withAllowedCharacters: NSCharacterSet.urlQueryAllowed)
-        let urlstr = "\(Store.serverConfig!.address)/s/item/\(itemId)/\(filenameEncoded ?? "")?token=\(Store.serverConfig!.token)"
-        let url = URL(string: urlstr)!
-        return AVURLAsset(url: url)
-        
-        // Method for HLS
-//        let headers: [String: String] = [
-//            "Authorization": "Bearer \(Store.serverConfig!.token)"
-//        ]
-//
-//        return AVURLAsset(url: URL(string: "\(Store.serverConfig!.address)\(activeAudioTrack.contentUrl ?? "")")!, options: ["AVURLAssetHTTPHeaderFieldsKey": headers])
+        if (playbackSession.playMethod == PlayMethod.directplay.rawValue) {
+            // The only reason this is separate is because the filename needs to be encoded
+            let filename = track.metadata?.filename ?? ""
+            let filenameEncoded = filename.addingPercentEncoding(withAllowedCharacters: NSCharacterSet.urlQueryAllowed)
+            let urlstr = "\(Store.serverConfig!.address)/s/item/\(itemId)/\(filenameEncoded ?? "")?token=\(Store.serverConfig!.token)"
+            let url = URL(string: urlstr)!
+            return AVURLAsset(url: url)
+        } else { // HLS Transcode
+            let headers: [String: String] = [
+                "Authorization": "Bearer \(Store.serverConfig!.token)"
+            ]
+            return AVURLAsset(url: URL(string: "\(Store.serverConfig!.address)\(track.contentUrl ?? "")")!, options: ["AVURLAssetHTTPHeaderFieldsKey": headers])
+        }
     }
     
     private func initAudioSession() {

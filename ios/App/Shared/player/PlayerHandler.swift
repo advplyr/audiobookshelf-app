@@ -84,6 +84,12 @@ class PlayerHandler {
     public static func setPlaybackSpeed(speed: Float) {
         self.player?.setPlaybackRate(speed)
     }
+    public static func getPlayMethod() -> Int? {
+        self.player?.getPlayMethod()
+    }
+    public static func getPlaybackSession() -> PlaybackSession? {
+        self.player?.getPlaybackSession()
+    }
     
     public static func seekForward(amount: Double) {
         guard let player = player else {
