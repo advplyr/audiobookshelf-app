@@ -61,15 +61,15 @@ class ApiClient {
         }
     }
     
-    public static func startPlaybackSession(libraryItemId: String, episodeId: String?, callback: @escaping (_ param: PlaybackSession) -> Void) {
+    public static func startPlaybackSession(libraryItemId: String, episodeId: String?, forceTranscode:Bool, callback: @escaping (_ param: PlaybackSession) -> Void) {
         var endpoint = "api/items/\(libraryItemId)/play"
         if episodeId != nil {
             endpoint += "/\(episodeId!)"
         }
         
         ApiClient.postResource(endpoint: endpoint, parameters: [
-            "forceDirectPlay": "true",
-            "forceTranscode": "false", // TODO: direct play
+            "forceDirectPlay": !forceTranscode ? "1" : "",
+            "forceTranscode": forceTranscode ? "1" : "",
             "mediaPlayer": "AVPlayer",
         ], decodable: PlaybackSession.self) { obj in
             var session = obj
