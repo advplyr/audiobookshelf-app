@@ -539,6 +539,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     return if(currentPlayer == castPlayer) "cast-player" else "exo-player"
   }
 
+  fun getContext():Context {
+    return ctx
+  }
+
   //
   // MEDIA BROWSER STUFF (ANDROID AUTO)
   //
