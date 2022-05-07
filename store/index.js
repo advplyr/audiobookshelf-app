@@ -7,7 +7,6 @@ export const state = () => ({
   playerIsPlaying: false,
   isCasting: false,
   isCastAvailable: false,
-  appUpdateInfo: null,
   socketConnected: false,
   networkConnected: false,
   networkConnectionType: null,
@@ -83,9 +82,6 @@ export const mutations = {
   },
   setIsFirstLoad(state, val) {
     state.isFirstLoad = val
-  },
-  setAppUpdateInfo(state, info) {
-    state.appUpdateInfo = info
   },
   setSocketConnected(state, val) {
     state.socketConnected = val
