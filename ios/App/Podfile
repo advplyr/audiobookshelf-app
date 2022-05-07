@@ -15,7 +15,6 @@ def capacitor_pods
   pod 'CapacitorNetwork', :path => '..\..\node_modules\@capacitor\network'
   pod 'CapacitorStatusBar', :path => '..\..\node_modules\@capacitor\status-bar'
   pod 'CapacitorStorage', :path => '..\..\node_modules\@capacitor\storage'
-  pod 'RobingenzCapacitorAppUpdate', :path => '..\..\node_modules\@robingenz\capacitor-app-update'
 end
 
 target 'App' do

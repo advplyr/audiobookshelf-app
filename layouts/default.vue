@@ -12,8 +12,6 @@
 </template>
 
 <script>
-import { AppUpdate } from '@robingenz/capacitor-app-update'
-
 export default {
   data() {
     return {
@@ -77,36 +75,6 @@ export default {
     initialStream(stream) {
       if (this.$refs.streamContainer && this.$refs.streamContainer.audioPlayerReady) {
         this.$refs.streamContainer.streamOpen(stream)
-      }
-    },
-    async clickUpdateToast() {
-      var immediateUpdateAllowed = this.$store.state.appUpdateInfo.immediateUpdateAllowed
-      if (immediateUpdateAllowed) {
-        await AppUpdate.performImmediateUpdate()
-      } else {
-        await AppUpdate.openAppStore()
-      }
-    },
-    async checkForUpdate() {
-      if (this.$platform == 'web') return
-      console.log('Checking for app update')
-      const result = await AppUpdate.getAppUpdateInfo()
-      if (!result) {
-        console.error('Invalid version check')
-        return
-      }
-      console.log('App Update Info', JSON.stringify(result))
-      this.$store.commit('setAppUpdateInfo', result)
-      if (result.updateAvailability === 2) {
-        setTimeout(() => {
-          this.$toast.info(`Update is available! Click to update.`, {
-            draggable: false,
-            hideProgressBar: false,
-            timeout: 20000,
-            closeButton: true,
-            onClick: this.clickUpdateToast
-          })
-        }, 5000)
       }
     },
     async loadSavedSettings() {
@@ -255,7 +223,6 @@ export default {
       console.log(`[default] finished connection attempt or already connected ${!!this.user}`)
       await this.syncLocalMediaProgress()
       this.$store.dispatch('globals/loadLocalMediaProgress')
-      this.checkForUpdate()
       this.loadSavedSettings()
       this.hasMounted = true
     }

@@ -22,9 +22,5 @@
 	{
 		"pkg": "@capacitor/storage",
 		"classpath": "com.capacitorjs.plugins.storage.StoragePlugin"
-	},
-	{
-		"pkg": "@robingenz/capacitor-app-update",
-		"classpath": "dev.robingenz.capacitor.appupdate.AppUpdatePlugin"
 	}
 ]
