@@ -1,7 +1,7 @@
 package com.audiobookshelf.app.player
 
-import android.os.Handler
-import android.os.Looper
+import android.content.Context
+import android.os.*
 import android.util.Log
 import java.util.*
 import kotlin.concurrent.schedule
@@ -9,9 +9,8 @@ import kotlin.math.roundToInt
 
 const val SLEEP_EXTENSION_TIME = 900000L // 15m
 
-class SleepTimerManager constructor(playerNotificationService:PlayerNotificationService) {
+class SleepTimerManager constructor(val playerNotificationService:PlayerNotificationService) {
   private val tag = "SleepTimerManager"
-  private val playerNotificationService:PlayerNotificationService = playerNotificationService
 
   private var sleepTimerTask:TimerTask? = null
   private var sleepTimerRunning:Boolean = false
@@ -64,7 +63,7 @@ class SleepTimerManager constructor(playerNotificationService:PlayerNotification
     // Register shake sensor
     playerNotificationService.registerSensor()
 
-    var currentTime = getCurrentTime()
+    val currentTime = getCurrentTime()
     if (isChapterTime) {
       if (currentTime > time) {
         Log.d(tag, "Invalid sleep timer - current time is already passed chapter time $time")
@@ -95,7 +94,7 @@ class SleepTimerManager constructor(playerNotificationService:PlayerNotification
         if (getIsPlaying()) {
           sleepTimerElapsed += 1000L
 
-          var sleepTimeSecondsRemaining = getSleepTimerTimeRemainingSeconds()
+          val sleepTimeSecondsRemaining = getSleepTimerTimeRemainingSeconds()
           Log.d(tag, "Timer Elapsed $sleepTimerElapsed | Sleep TIMER time remaining $sleepTimeSecondsRemaining s")
 
           if (sleepTimeSecondsRemaining > 0) {
@@ -111,7 +110,7 @@ class SleepTimerManager constructor(playerNotificationService:PlayerNotification
             sleepTimerFinishedAt = System.currentTimeMillis()
           } else if (sleepTimeSecondsRemaining <= 30) {
             // Start fading out audio
-            var volume = sleepTimeSecondsRemaining / 30F
+            val volume = sleepTimeSecondsRemaining / 30F
             Log.d(tag, "SLEEP VOLUME FADE $volume | ${sleepTimeSecondsRemaining}s remaining")
             setVolume(volume)
           }
@@ -129,7 +128,7 @@ class SleepTimerManager constructor(playerNotificationService:PlayerNotification
     playerNotificationService.unregisterSensor()
   }
 
-  fun getSleepTimerTime():Long? {
+  fun getSleepTimerTime():Long {
     return sleepTimerEndTime
   }
 
@@ -137,6 +136,30 @@ class SleepTimerManager constructor(playerNotificationService:PlayerNotification
     Log.d(tag, "Canceling Sleep Timer")
     clearSleepTimer()
     playerNotificationService.clientEventEmitter?.onSleepTimerSet(0)
+  }
+
+  // Vibrate when extending sleep timer by shaking
+  private fun vibrate() {
+    val context = playerNotificationService.getContext()
+    val vibrator:Vibrator
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+      val vibratorManager =
+        context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+      vibrator = vibratorManager.defaultVibrator
+    } else {
+      @Suppress("DEPRECATION")
+      vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+    }
+
+    vibrator.let {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val vibrationEffect = VibrationEffect.createWaveform(longArrayOf(0, 150, 150, 150),-1)
+        it.vibrate(vibrationEffect)
+      } else {
+        @Suppress("DEPRECATION")
+        it.vibrate(10)
+      }
+    }
   }
 
   private fun extendSleepTime() {
@@ -157,7 +180,7 @@ class SleepTimerManager constructor(playerNotificationService:PlayerNotification
     if (!sleepTimerRunning) {
       if (sleepTimerFinishedAt <= 0L) return
 
-      var finishedAtDistance = System.currentTimeMillis() - sleepTimerFinishedAt
+      val finishedAtDistance = System.currentTimeMillis() - sleepTimerFinishedAt
       if (finishedAtDistance > SLEEP_TIMER_WAKE_UP_EXPIRATION) // 2 minutes
       {
         Log.d(tag, "Sleep timer finished over 2 mins ago, clearing it")
@@ -165,14 +188,18 @@ class SleepTimerManager constructor(playerNotificationService:PlayerNotification
         return
       }
 
-      var newSleepTime = if (sleepTimerExtensionTime >= 0) sleepTimerExtensionTime else SLEEP_EXTENSION_TIME
+      val newSleepTime = if (sleepTimerExtensionTime >= 0) sleepTimerExtensionTime else SLEEP_EXTENSION_TIME
+      vibrate()
       setSleepTimer(newSleepTime, false)
       play()
       return
     }
     // Only extend if within 30 seconds of finishing
-    var sleepTimeRemaining = getSleepTimerTimeRemainingSeconds()
-    if (sleepTimeRemaining <= 30) extendSleepTime()
+    val sleepTimeRemaining = getSleepTimerTimeRemainingSeconds()
+    if (sleepTimeRemaining <= 30) {
+      vibrate()
+      extendSleepTime()
+    }
   }
 
   fun handleShake() {
@@ -188,7 +215,7 @@ class SleepTimerManager constructor(playerNotificationService:PlayerNotification
       sleepTimerLength += time
       if (sleepTimerLength + getCurrentTime() > getDuration()) sleepTimerLength = getDuration() - getCurrentTime()
     } else {
-      var newSleepEndTime = sleepTimerEndTime + time
+      val newSleepEndTime = sleepTimerEndTime + time
       sleepTimerEndTime = if (newSleepEndTime >= getDuration()) {
         getDuration()
       } else {
@@ -209,7 +236,7 @@ class SleepTimerManager constructor(playerNotificationService:PlayerNotification
       sleepTimerLength -= time
       if (sleepTimerLength <= 0) sleepTimerLength = 1000L
     } else {
-      var newSleepEndTime = sleepTimerEndTime - time
+      val newSleepEndTime = sleepTimerEndTime - time
       sleepTimerEndTime = if (newSleepEndTime <= 1000) {
         // End sleep timer in 1 second
         getCurrentTime() + 1000
