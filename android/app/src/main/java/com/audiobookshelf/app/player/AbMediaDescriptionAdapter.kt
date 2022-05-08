@@ -79,7 +79,7 @@ class AbMediaDescriptionAdapter constructor(private val controller: MediaControl
       }
 
       try {
-        Glide.with(context).applyDefaultRequestOptions(glideOptions)
+        Glide.with(playerNotificationService)
           .asBitmap()
           .load(urival)
           .placeholder(R.drawable.icon)
@@ -89,7 +89,7 @@ class AbMediaDescriptionAdapter constructor(private val controller: MediaControl
       } catch (e: Exception) {
         e.printStackTrace()
 
-        Glide.with(context).applyDefaultRequestOptions(glideOptions)
+        Glide.with(playerNotificationService)
           .asBitmap()
           .load(Uri.parse("android.resource://com.audiobookshelf.app/" + R.drawable.icon))
           .submit(NOTIFICATION_LARGE_ICON_SIZE, NOTIFICATION_LARGE_ICON_SIZE)

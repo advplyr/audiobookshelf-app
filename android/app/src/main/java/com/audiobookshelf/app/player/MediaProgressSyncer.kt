@@ -17,10 +17,8 @@ data class MediaProgressSyncData(
   var currentTime:Double // seconds
 )
 
-class MediaProgressSyncer(playerNotificationService:PlayerNotificationService, apiHandler: ApiHandler) {
+class MediaProgressSyncer(val playerNotificationService:PlayerNotificationService, private val apiHandler: ApiHandler) {
   private val tag = "MediaProgressSync"
-  private val playerNotificationService:PlayerNotificationService = playerNotificationService
-  private val apiHandler = apiHandler
 
   private var listeningTimerTask: TimerTask? = null
   var listeningTimerRunning:Boolean = false
