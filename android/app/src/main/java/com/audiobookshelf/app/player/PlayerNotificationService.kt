@@ -247,7 +247,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       override fun getMediaDescription(player: Player, windowIndex: Int): MediaDescriptionCompat {
         val coverUri = currentPlaybackSession!!.getCoverUri()
 
-        // Fix for local images crashing on Android 10 for specific devices
+        // Fix for local images crashing on Android 11 for specific devices
         // https://stackoverflow.com/questions/64186578/android-11-mediastyle-notification-crash/64232958#64232958
         ctx.grantUriPermission(
           "com.android.systemui",
