@@ -5,9 +5,6 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.support.v4.media.session.MediaControllerCompat
 import android.util.Log
-import androidx.documentfile.provider.DocumentFile
-import com.anggrayudi.storage.file.getAbsolutePath
-import com.anggrayudi.storage.file.toRawFile
 import com.audiobookshelf.app.R
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
@@ -62,26 +59,10 @@ class AbMediaDescriptionAdapter constructor(private val controller: MediaControl
 
   private suspend fun resolveUriAsBitmap(uri: Uri): Bitmap? {
     return withContext(Dispatchers.IO) {
-      // Block on downloading artwork.
-      val context = playerNotificationService.getContext()
-
-      // Fix attempt for #35 local cover crashing
-      //  Convert content uri to a file and pass to Glide
-      var urival:Any = uri
-      if (uri.toString().startsWith("content:")) {
-        val imageDocFile = DocumentFile.fromSingleUri(context, uri)
-        Log.d(tag, "Converting local content url $uri to file with path ${imageDocFile?.getAbsolutePath(context)}")
-        val file = imageDocFile?.toRawFile(context)
-        file?.let {
-          Log.d(tag, "Using local file image instead of content uri ${it.absolutePath}")
-          urival = it
-        }
-      }
-
       try {
         Glide.with(playerNotificationService)
           .asBitmap()
-          .load(urival)
+          .load(uri)
           .placeholder(R.drawable.icon)
           .error(R.drawable.icon)
           .submit(NOTIFICATION_LARGE_ICON_SIZE, NOTIFICATION_LARGE_ICON_SIZE)
