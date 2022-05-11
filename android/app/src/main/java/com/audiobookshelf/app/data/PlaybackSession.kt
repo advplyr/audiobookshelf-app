@@ -2,13 +2,11 @@ package com.audiobookshelf.app.data
 
 import android.net.Uri
 import android.support.v4.media.MediaMetadataCompat
-import androidx.core.app.NotificationCompat
 import com.audiobookshelf.app.R
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.player.MediaProgressSyncData
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-import com.google.android.exoplayer2.C
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.MediaMetadata
 import com.google.android.gms.cast.MediaInfo
@@ -68,7 +66,7 @@ class PlaybackSession(
   @JsonIgnore
   fun getCurrentTrackIndex():Int {
     for (i in 0..(audioTracks.size - 1)) {
-      var track = audioTracks[i]
+      val track = audioTracks[i]
       if (currentTimeMs >= track.startOffsetMs && (track.endOffsetMs) > currentTimeMs) {
         return i
       }
@@ -78,14 +76,14 @@ class PlaybackSession(
 
   @JsonIgnore
   fun getCurrentTrackTimeMs():Long {
-    var currentTrack = audioTracks[this.getCurrentTrackIndex()]
-    var time = currentTime - currentTrack.startOffset
+    val currentTrack = audioTracks[this.getCurrentTrackIndex()]
+    val time = currentTime - currentTrack.startOffset
     return (time * 1000L).toLong()
   }
 
   @JsonIgnore
   fun getTrackStartOffsetMs(index:Int):Long {
-    var currentTrack = audioTracks[index]
+    val currentTrack = audioTracks[index]
     return (currentTrack.startOffset * 1000L).toLong()
   }
 
@@ -112,7 +110,7 @@ class PlaybackSession(
 
   @JsonIgnore
   fun getMediaMetadataCompat(): MediaMetadataCompat {
-    var metadataBuilder = MediaMetadataCompat.Builder()
+    val metadataBuilder = MediaMetadataCompat.Builder()
       .putString(MediaMetadataCompat.METADATA_KEY_TITLE, displayTitle)
       .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, displayTitle)
       .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, displayAuthor)
@@ -125,14 +123,14 @@ class PlaybackSession(
 
   @JsonIgnore
   fun getExoMediaMetadata(audioTrack:AudioTrack): MediaMetadata {
-    var metadataBuilder = MediaMetadata.Builder()
+    val metadataBuilder = MediaMetadata.Builder()
       .setTitle(displayTitle)
       .setDisplayTitle(displayTitle)
       .setArtist(displayAuthor)
       .setAlbumArtist(displayAuthor)
       .setSubtitle(displayAuthor)
 
-    var contentUri = this.getContentUri(audioTrack)
+    val contentUri = this.getContentUri(audioTrack)
     metadataBuilder.setMediaUri(contentUri)
 
     return metadataBuilder.build()
@@ -140,15 +138,15 @@ class PlaybackSession(
 
   @JsonIgnore
   fun getMediaItems():List<MediaItem> {
-    var mediaItems:MutableList<MediaItem> = mutableListOf()
+    val mediaItems:MutableList<MediaItem> = mutableListOf()
 
     for (audioTrack in audioTracks) {
-      var mediaMetadata = this.getExoMediaMetadata(audioTrack)
-      var mediaUri = this.getContentUri(audioTrack)
-      var mimeType = audioTrack.mimeType
+      val mediaMetadata = this.getExoMediaMetadata(audioTrack)
+      val mediaUri = this.getContentUri(audioTrack)
+      val mimeType = audioTrack.mimeType
 
-      var queueItem = getQueueItem(audioTrack) // Queue item used in exo player CastManager
-      var mediaItem = MediaItem.Builder().setUri(mediaUri).setTag(queueItem).setMediaMetadata(mediaMetadata).setMimeType(mimeType).build()
+      val queueItem = getQueueItem(audioTrack) // Queue item used in exo player CastManager
+      val mediaItem = MediaItem.Builder().setUri(mediaUri).setTag(queueItem).setMediaMetadata(mediaMetadata).setMimeType(mimeType).build()
       mediaItems.add(mediaItem)
     }
     return mediaItems
@@ -156,7 +154,7 @@ class PlaybackSession(
 
   @JsonIgnore
   fun getCastMediaMetadata(audioTrack:AudioTrack):com.google.android.gms.cast.MediaMetadata {
-    var castMetadata = com.google.android.gms.cast.MediaMetadata(com.google.android.gms.cast.MediaMetadata.MEDIA_TYPE_AUDIOBOOK_CHAPTER)
+    val castMetadata = com.google.android.gms.cast.MediaMetadata(com.google.android.gms.cast.MediaMetadata.MEDIA_TYPE_AUDIOBOOK_CHAPTER)
 
     coverPath?.let {
       castMetadata.addImage(WebImage(Uri.parse("$serverAddress/api/items/$libraryItemId/cover?token=${DeviceManager.token}")))
@@ -171,11 +169,11 @@ class PlaybackSession(
 
   @JsonIgnore
   fun getQueueItem(audioTrack:AudioTrack):MediaQueueItem {
-    var castMetadata = getCastMediaMetadata(audioTrack)
+    val castMetadata = getCastMediaMetadata(audioTrack)
 
-    var mediaUri = getContentUri(audioTrack)
+    val mediaUri = getContentUri(audioTrack)
 
-    var mediaInfo = MediaInfo.Builder(mediaUri.toString()).apply {
+    val mediaInfo = MediaInfo.Builder(mediaUri.toString()).apply {
       setContentUrl(mediaUri.toString())
       setContentType(audioTrack.mimeType)
       setMetadata(castMetadata)
