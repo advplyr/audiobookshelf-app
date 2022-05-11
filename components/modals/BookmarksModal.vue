@@ -83,11 +83,7 @@ export default {
         this.$emit('input', val)
       }
     },
-    isConnected() {
-      return this.$store.state.socketConnected
-    },
     canCreateBookmark() {
-      if (!this.isConnected) return false
       return !this.bookmarks.find((bm) => bm.time === this.currentTime)
     }
   },
