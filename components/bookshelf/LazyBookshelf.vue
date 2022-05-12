@@ -3,7 +3,7 @@
     <template v-for="shelf in totalShelves">
       <div :key="shelf" class="w-full px-2 relative" :class="showBookshelfListView ? '' : 'bookshelfRow'" :id="`shelf-${shelf - 1}`" :style="{ height: shelfHeight + 'px' }">
         <div v-if="!showBookshelfListView" class="bookshelfDivider w-full absolute bottom-0 left-0 z-30" style="min-height: 16px" :class="`h-${shelfDividerHeightIndex}`" />
-        <div v-else class="flex border-t border-white border-opacity-10 my-3 py-1"/>
+        <div v-else class="flex border-t border-white border-opacity-10" />
       </div>
     </template>
 
@@ -25,11 +25,11 @@ export default {
   mixins: [bookshelfCardsHelpers],
   data() {
     return {
+      entitiesPerShelf: 2,
       bookshelfHeight: 0,
       bookshelfWidth: 0,
       bookshelfMarginLeft: 0,
       shelvesPerPage: 0,
-      entitiesPerShelf: 2,
       currentPage: 0,
       booksPerFetch: 20,
       initialized: false,
@@ -119,7 +119,7 @@ export default {
       return this.$store.getters['libraries/getCurrentLibraryMediaType']
     },
     shelfHeight() {
-      if (this.showBookshelfListView) return this.entityHeight
+      if (this.showBookshelfListView) return this.entityHeight + 16
       return this.entityHeight + 40
     },
     totalEntityCardWidth() {
