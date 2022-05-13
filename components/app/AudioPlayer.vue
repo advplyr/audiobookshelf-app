@@ -1,5 +1,5 @@
 <template>
-  <div v-if="playbackSession" id="streamContainer" class="fixed top-0 left-0 layout-wrapper right-0 z-50 pointer-events-none" :class="showFullscreen ? 'fullscreen' : ''">
+  <div v-if="playbackSession" id="streamContainer" class="playerContainer fixed top-0 left-0 layout-wrapper right-0 z-50 pointer-events-none" :class="{ fullscreen: showFullscreen, 'ios-player': $platform === 'ios', 'web-player': $platform === 'web' }">
     <div v-if="showFullscreen" class="w-full h-full z-10 bg-bg absolute top-0 left-0 pointer-events-auto">
       <div class="top-2 left-4 absolute cursor-pointer">
         <span class="material-icons text-5xl" @click="collapseFullscreen">expand_more</span>
@@ -41,7 +41,7 @@
       <p class="author-text text-white text-opacity-75 truncate">by {{ authorName }}</p>
     </div>
 
-    <div id="streamContainer" class="w-full z-20 bg-primary absolute bottom-0 left-0 right-0 p-2 pointer-events-auto transition-all" @click="clickContainer">
+    <div id="playerContent" class="playerContainer w-full z-20 bg-primary absolute bottom-0 left-0 right-0 p-2 pointer-events-auto transition-all" @click="clickContainer">
       <div v-if="showFullscreen" class="absolute top-0 left-0 right-0 w-full py-3 mx-auto px-3" style="max-width: 380px">
         <div class="flex items-center justify-between pointer-events-auto">
           <span v-if="!isPodcast && !isLocalPlayMethod" class="material-icons text-3xl text-white text-opacity-75 cursor-pointer" @click="$emit('showBookmarks')">{{ bookmarks.length ? 'bookmark' : 'bookmark_border' }}</span>
@@ -79,7 +79,7 @@
           <div ref="bufferedTrack" class="h-full bg-gray-500 absolute top-0 left-0 pointer-events-none" />
           <div ref="playedTrack" class="h-full bg-gray-200 absolute top-0 left-0 pointer-events-none" />
         </div>
-        <div class="flex pt-0.5">
+        <div id="timestamp-row" class="flex pt-0.5">
           <p class="font-mono text-white text-opacity-90" style="font-size: 0.8rem" ref="currentTimestamp">0:00</p>
           <div class="flex-grow" />
           <p v-show="showFullscreen" class="text-sm truncate text-white text-opacity-75" style="max-width: 65%">{{ currentChapterTitle }}</p>
@@ -659,12 +659,14 @@ export default {
 .bookCoverWrapper {
   box-shadow: 3px -2px 5px #00000066;
 }
-#streamContainer {
-  box-shadow: 0px -8px 8px #11111155;
+.playerContainer {
   height: 100px;
 }
-.fullscreen #streamContainer {
+.fullscreen .playerContainer {
   height: 200px;
+}
+#playerContent {
+  box-shadow: 0px -8px 8px #11111155;
 }
 
 #playerTrack {
@@ -674,6 +676,11 @@ export default {
 }
 .fullscreen #playerTrack {
   margin-bottom: 18px;
+}
+
+.ios-player #timestamp-row {
+  padding-left: 16px;
+  padding-right: 16px;
 }
 
 .cover-wrapper {

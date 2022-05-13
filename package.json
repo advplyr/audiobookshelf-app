@@ -3,7 +3,7 @@
   "version": "0.9.44-beta",
   "author": "advplyr",
   "scripts": {
-    "dev": "nuxt --hostname localhost --port 1337",
+    "dev": "nuxt --hostname 0.0.0.0 --port 1337",
     "build": "nuxt build",
     "start": "nuxt start",
     "generate": "nuxt generate",
