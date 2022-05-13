@@ -83,14 +83,11 @@ export default {
     filterBy() {
       return this.$store.getters['user/getUserSetting']('mobileFilterBy')
     },
-    coverAspectRatio() {
-      return this.$store.getters['getServerSetting']('coverAspectRatio')
-    },
     isCoverSquareAspectRatio() {
-      return this.coverAspectRatio === this.$constants.BookCoverAspectRatio.SQUARE
+      return this.bookCoverAspectRatio === 1
     },
     bookCoverAspectRatio() {
-      return this.isCoverSquareAspectRatio ? 1 : 1.6
+      return this.$store.getters['getBookCoverAspectRatio']
     },
     bookWidth() {
       var coverSize = 100
@@ -300,7 +297,6 @@ export default {
       this.bookshelfHeight = clientHeight
       this.bookshelfWidth = clientWidth
       this.entitiesPerShelf = this.showBookshelfListView ? 1 : Math.floor((this.bookshelfWidth - 16) / this.totalEntityCardWidth)
-
       this.shelvesPerPage = Math.ceil(this.bookshelfHeight / this.shelfHeight) + 2
       this.bookshelfMarginLeft = (this.bookshelfWidth - this.entitiesPerShelf * this.totalEntityCardWidth) / 2
 
