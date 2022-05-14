@@ -49,7 +49,7 @@
             <span class="material-icons">auto_stories</span>
             <span v-if="!showPlay" class="px-2 text-base">Read {{ ebookFormat }}</span>
           </ui-btn>
-          <ui-btn v-if="user && showPlay && !isIos && !hasLocal" :color="downloadItem ? 'warning' : 'primary'" class="flex items-center justify-center mr-2" :padding-x="2" @click="downloadClick">
+          <ui-btn v-if="user && showPlay && !hasLocal" :color="downloadItem ? 'warning' : 'primary'" class="flex items-center justify-center mr-2" :padding-x="2" @click="downloadClick">
             <span class="material-icons" :class="downloadItem ? 'animate-pulse' : ''">{{ downloadItem ? 'downloading' : 'download' }}</span>
           </ui-btn>
           <ui-read-icon-btn v-if="!isPodcast" :disabled="isProcessingReadUpdate" :is-read="userIsFinished" class="flex items-center justify-center" @click="toggleFinished" />
@@ -319,13 +319,17 @@ export default {
       if (this.downloadItem) {
         return
       }
-      this.download()
-    },
-    async download(selectedLocalFolder = null) {
       if (!this.numTracks) {
         return
       }
-
+      if (this.isIos) {
+        // no local folders on iOS
+        this.startDownload()
+      } else {
+        this.download()
+      }
+    },
+    async download(selectedLocalFolder = null) {
       // Get the local folder to download to
       var localFolder = selectedLocalFolder
       if (!localFolder) {
@@ -363,9 +367,15 @@ export default {
         this.startDownload(localFolder)
       }
     },
-    async startDownload(localFolder) {
-      console.log('Starting download to local folder', localFolder.name)
-      var downloadRes = await AbsDownloader.downloadLibraryItem({ libraryItemId: this.libraryItemId, localFolderId: localFolder.id })
+    async startDownload(localFolder = null) {
+      const payload = {
+        libraryItemId: this.libraryItemId
+      }
+      if (localFolder) {
+        console.log('Starting download to local folder', localFolder.name)
+        payload.localFolderId = localFolder.id
+      }
+      var downloadRes = await AbsDownloader.downloadLibraryItem(payload)
       if (downloadRes && downloadRes.error) {
         var errorMsg = downloadRes.error || 'Unknown error'
         console.error('Download error', errorMsg)
