@@ -60,6 +60,27 @@ class ApiClient {
             }
         }
     }
+    public static func getResource<T: Decodable>(endpoint: String, decodable: T.Type = T.self, callback: ((_ param: T?) -> Void)?) {
+        if (Store.serverConfig == nil) {
+            NSLog("Server config not set")
+            callback?(nil)
+            return
+        }
+        
+        let headers: HTTPHeaders = [
+            "Authorization": "Bearer \(Store.serverConfig!.token)"
+        ]
+        
+        AF.request("\(Store.serverConfig!.address)/\(endpoint)", method: .get, encoding: JSONEncoding.default, headers: headers).responseDecodable(of: decodable) { response in
+            switch response.result {
+                case .success(let obj):
+                    callback?(obj)
+                case .failure(let error):
+                    NSLog("api request to \(endpoint) failed")
+                    print(error)
+            }
+        }
+    }
     
     public static func startPlaybackSession(libraryItemId: String, episodeId: String?, forceTranscode:Bool, callback: @escaping (_ param: PlaybackSession) -> Void) {
         var endpoint = "api/items/\(libraryItemId)/play"
@@ -82,5 +103,15 @@ class ApiClient {
     }
     public static func reportPlaybackProgress(report: PlaybackReport, sessionId: String) {
         try? postResource(endpoint: "api/session/\(sessionId)/sync", parameters: report.asDictionary().mapValues({ value in "\(value)" }), callback: nil)
+    }
+    public static func getLibraryItemWithProgress(libraryItemId:String, episodeId:String?, callback: @escaping (_ param: LibraryItem?) -> Void) {
+        var endpoint = "api/items/\(libraryItemId)?expanded=1&include=progress"
+        if episodeId != nil {
+            endpoint += "&episodeId=\(episodeId!)"
+        }
+        
+        ApiClient.getResource(endpoint: endpoint, decodable: LibraryItem.self) { obj in
+                callback(obj)
+        }
     }
 }
