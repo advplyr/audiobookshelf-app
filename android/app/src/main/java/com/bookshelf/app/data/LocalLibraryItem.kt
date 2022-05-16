@@ -1,5 +1,6 @@
 package com.bookshelf.app.data
 
+import android.content.Context
 import android.net.Uri
 import android.support.v4.media.MediaMetadataCompat
 import android.util.Log
@@ -44,7 +45,7 @@ data class LocalLibraryItem(
   @JsonIgnore
   fun getDuration():Double {
     var total = 0.0
-    var audioTracks = media.getAudioTracks()
+    val audioTracks = media.getAudioTracks()
     audioTracks.forEach{ total += it.duration }
     return total
   }
@@ -94,15 +95,17 @@ data class LocalLibraryItem(
   }
 
   @JsonIgnore
-  fun getMediaMetadata(): MediaMetadataCompat {
+  fun getMediaMetadata(ctx: Context): MediaMetadataCompat {
+    val coverUri = getCoverUri()
+
     return MediaMetadataCompat.Builder().apply {
       putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, id)
       putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, title)
       putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
       putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, authorName)
-      putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, getCoverUri().toString())
-      putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getCoverUri().toString())
-      putString(MediaMetadataCompat.METADATA_KEY_ART_URI, getCoverUri().toString())
+      putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, coverUri.toString())
+      putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, coverUri.toString())
+      putString(MediaMetadataCompat.METADATA_KEY_ART_URI, coverUri.toString())
       putString(MediaMetadataCompat.METADATA_KEY_AUTHOR, authorName)
     }.build()
   }

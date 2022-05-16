@@ -15,6 +15,7 @@ struct LibraryItem: Codable {
     var folderId: String
     var path: String
     var relPath: String
+    var isFile: Bool
     var mtimeMs: Int64
     var ctimeMs: Int64
     var birthtimeMs: Int64
@@ -27,6 +28,7 @@ struct LibraryItem: Codable {
     var mediaType: String
     var media: MediaType
     var libraryFiles: [LibraryFile]
+    var userMediaProgress:MediaProgress?
 }
 struct MediaType: Codable {
     var libraryItemId: String?
@@ -124,4 +126,16 @@ struct Folder: Codable {
 struct LibraryFile: Codable {
     var ino: String
     var metadata: FileMetadata
+}
+struct MediaProgress:Codable {
+    var id:String
+    var libraryItemId:String
+    var episodeId:String?
+    var duration:Double
+    var progress:Double
+    var currentTime:Double
+    var isFinished:Bool
+    var lastUpdate:Int64
+    var startedAt:Int64
+    var finishedAt:Int64?
 }

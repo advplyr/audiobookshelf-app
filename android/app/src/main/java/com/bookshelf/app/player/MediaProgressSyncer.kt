@@ -17,10 +17,8 @@ data class MediaProgressSyncData(
   var currentTime:Double // seconds
 )
 
-class MediaProgressSyncer(playerNotificationService:PlayerNotificationService, apiHandler: ApiHandler) {
+class MediaProgressSyncer(val playerNotificationService:PlayerNotificationService, private val apiHandler: ApiHandler) {
   private val tag = "MediaProgressSync"
-  private val playerNotificationService:PlayerNotificationService = playerNotificationService
-  private val apiHandler = apiHandler
 
   private var listeningTimerTask: TimerTask? = null
   var listeningTimerRunning:Boolean = false
@@ -54,7 +52,7 @@ class MediaProgressSyncer(playerNotificationService:PlayerNotificationService, a
     listeningTimerTask = Timer("ListeningTimer", false).schedule(0L, 5000L) {
       Handler(Looper.getMainLooper()).post() {
         if (playerNotificationService.currentPlayer.isPlaying) {
-          var currentTime = playerNotificationService.getCurrentTimeSeconds()
+          val currentTime = playerNotificationService.getCurrentTimeSeconds()
           sync(currentTime)
         }
       }
@@ -65,20 +63,20 @@ class MediaProgressSyncer(playerNotificationService:PlayerNotificationService, a
     if (!listeningTimerRunning) return
     Log.d(tag, "stop: Stopping listening for $currentDisplayTitle")
 
-    var currentTime = playerNotificationService.getCurrentTimeSeconds()
+    val currentTime = playerNotificationService.getCurrentTimeSeconds()
     sync(currentTime)
     reset()
   }
 
   fun sync(currentTime:Double) {
-    var diffSinceLastSync = System.currentTimeMillis() - lastSyncTime
+    val diffSinceLastSync = System.currentTimeMillis() - lastSyncTime
     if (diffSinceLastSync < 1000L) {
       return
     }
-    var listeningTimeToAdd = diffSinceLastSync / 1000L
+    val listeningTimeToAdd = diffSinceLastSync / 1000L
     lastSyncTime = System.currentTimeMillis()
 
-    var syncData = MediaProgressSyncData(listeningTimeToAdd,currentPlaybackDuration,currentTime)
+    val syncData = MediaProgressSyncData(listeningTimeToAdd,currentPlaybackDuration,currentTime)
 
     currentPlaybackSession?.syncData(syncData)
     if (currentIsLocal) {
@@ -87,10 +85,16 @@ class MediaProgressSyncer(playerNotificationService:PlayerNotificationService, a
         DeviceManager.dbManager.saveLocalPlaybackSession(it)
         saveLocalProgress(it)
 
-        // Send sync to server also if connected to this server and local item belongs to this server
-        if (it.serverConnectionConfigId != null && DeviceManager.serverConnectionConfig?.id == it.serverConnectionConfigId) {
-          apiHandler.sendLocalProgressSync(it) {
-            Log.d(tag, "Local progress sync data sent to server $currentDisplayTitle for time $currentTime")
+        // Local library item is linked to a server library item
+        if (!it.libraryItemId.isNullOrEmpty()) {
+          // Send sync to server also if connected to this server and local item belongs to this server
+          if (it.serverConnectionConfigId != null && DeviceManager.serverConnectionConfig?.id == it.serverConnectionConfigId) {
+            apiHandler.sendLocalProgressSync(it) {
+              Log.d(
+                tag,
+                "Local progress sync data sent to server $currentDisplayTitle for time $currentTime"
+              )
+            }
           }
         }
       }
@@ -103,7 +107,7 @@ class MediaProgressSyncer(playerNotificationService:PlayerNotificationService, a
 
   private fun saveLocalProgress(playbackSession:PlaybackSession) {
     if (currentLocalMediaProgress == null) {
-      var mediaProgress = DeviceManager.dbManager.getLocalMediaProgress(playbackSession.localMediaProgressId)
+      val mediaProgress = DeviceManager.dbManager.getLocalMediaProgress(playbackSession.localMediaProgressId)
       if (mediaProgress == null) {
         currentLocalMediaProgress = playbackSession.getNewLocalMediaProgress()
       } else {

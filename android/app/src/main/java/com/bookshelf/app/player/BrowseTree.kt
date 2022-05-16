@@ -55,8 +55,8 @@ class BrowseTree(
 
     // Server continue Listening cat
     libraryCategories.find { it.id == "continue-listening" }?.let { continueListeningCategory ->
-      var continueListeningMediaMetadata = continueListeningCategory.entities.map { liw ->
-        var libraryItem = liw as LibraryItem
+      val continueListeningMediaMetadata = continueListeningCategory.entities.map { liw ->
+        val libraryItem = liw as LibraryItem
         libraryItem.getMediaMetadata()
       }
       if (continueListeningMediaMetadata.isNotEmpty()) {
@@ -74,8 +74,8 @@ class BrowseTree(
 
     // Server library cat
     libraryCategories.find { it.id == "library" }?.let { libraryCategory ->
-      var libraryMediaMetadata = libraryCategory.entities.map { libc ->
-        var libraryItem = libc as LibraryItem
+      val libraryMediaMetadata = libraryCategory.entities.map { libc ->
+        val libraryItem = libc as LibraryItem
         libraryItem.getMediaMetadata()
       }
       libraryMediaMetadata.forEach {
@@ -86,9 +86,9 @@ class BrowseTree(
     }
 
     libraryCategories.find { it.id == "local-books" }?.let { localBooksCat ->
-      var localMediaMetadata = localBooksCat.entities.map { libc ->
-        var libraryItem = libc as LocalLibraryItem
-        libraryItem.getMediaMetadata()
+      val localMediaMetadata = localBooksCat.entities.map { libc ->
+        val libraryItem = libc as LocalLibraryItem
+        libraryItem.getMediaMetadata(context)
       }
       localMediaMetadata.forEach {
         val children = mediaIdToChildren[DOWNLOADS_ROOT] ?: mutableListOf()

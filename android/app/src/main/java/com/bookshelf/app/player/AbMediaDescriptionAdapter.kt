@@ -59,9 +59,8 @@ class AbMediaDescriptionAdapter constructor(private val controller: MediaControl
 
   private suspend fun resolveUriAsBitmap(uri: Uri): Bitmap? {
     return withContext(Dispatchers.IO) {
-      // Block on downloading artwork.
       try {
-        Glide.with(playerNotificationService).applyDefaultRequestOptions(glideOptions)
+        Glide.with(playerNotificationService)
           .asBitmap()
           .load(uri)
           .placeholder(R.drawable.icon)
@@ -71,7 +70,7 @@ class AbMediaDescriptionAdapter constructor(private val controller: MediaControl
       } catch (e: Exception) {
         e.printStackTrace()
 
-        Glide.with(playerNotificationService).applyDefaultRequestOptions(glideOptions)
+        Glide.with(playerNotificationService)
           .asBitmap()
           .load(Uri.parse("android.resource://com.bookshelf.app/" + R.drawable.icon))
           .submit(NOTIFICATION_LARGE_ICON_SIZE, NOTIFICATION_LARGE_ICON_SIZE)

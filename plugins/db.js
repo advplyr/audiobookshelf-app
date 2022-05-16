@@ -1,7 +1,4 @@
-import { Capacitor } from '@capacitor/core';
 import { AbsDatabase } from './capacitor/AbsDatabase'
-
-const isWeb = Capacitor.getPlatform() == 'web'
 
 class DbService {
   constructor() { }

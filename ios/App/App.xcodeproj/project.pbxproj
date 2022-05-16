@@ -23,6 +23,10 @@
 		3AF1970E2806E3CA0096F747 /* AbsAudioPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AF1970D2806E3CA0096F747 /* AbsAudioPlayer.swift */; };
 		3AF197102806E3DC0096F747 /* AbsAudioPlayer.m in Sources */ = {isa = PBXBuildFile; fileRef = 3AF1970F2806E3DC0096F747 /* AbsAudioPlayer.m */; };
 		3AFCB5E827EA240D00ECCC05 /* NowPlayingInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AFCB5E727EA240D00ECCC05 /* NowPlayingInfo.swift */; };
+		4D66B952282EE822008272D4 /* AbsDownloader.m in Sources */ = {isa = PBXBuildFile; fileRef = 4D66B951282EE822008272D4 /* AbsDownloader.m */; };
+		4D66B954282EE87C008272D4 /* AbsDownloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D66B953282EE87C008272D4 /* AbsDownloader.swift */; };
+		4D66B956282EE951008272D4 /* AbsFileSystem.m in Sources */ = {isa = PBXBuildFile; fileRef = 4D66B955282EE951008272D4 /* AbsFileSystem.m */; };
+		4D66B958282EEA14008272D4 /* AbsFileSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D66B957282EEA14008272D4 /* AbsFileSystem.swift */; };
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
 		504EC3081FED79650016851F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504EC3071FED79650016851F /* AppDelegate.swift */; };
 		504EC30D1FED79650016851F /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30B1FED79650016851F /* Main.storyboard */; };
@@ -50,6 +54,10 @@
 		3AF1970D2806E3CA0096F747 /* AbsAudioPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AbsAudioPlayer.swift; sourceTree = "<group>"; };
 		3AF1970F2806E3DC0096F747 /* AbsAudioPlayer.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AbsAudioPlayer.m; sourceTree = "<group>"; };
 		3AFCB5E727EA240D00ECCC05 /* NowPlayingInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingInfo.swift; sourceTree = "<group>"; };
+		4D66B951282EE822008272D4 /* AbsDownloader.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AbsDownloader.m; sourceTree = "<group>"; };
+		4D66B953282EE87C008272D4 /* AbsDownloader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AbsDownloader.swift; sourceTree = "<group>"; };
+		4D66B955282EE951008272D4 /* AbsFileSystem.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AbsFileSystem.m; sourceTree = "<group>"; };
+		4D66B957282EEA14008272D4 /* AbsFileSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AbsFileSystem.swift; sourceTree = "<group>"; };
 		4D8D412C26E187E400BA5F0D /* App-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "App-Bridging-Header.h"; sourceTree = "<group>"; };
 		50379B222058CBB4000EE86E /* capacitor.config.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = capacitor.config.json; sourceTree = "<group>"; };
 		504EC3041FED79650016851F /* App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = App.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -111,6 +119,10 @@
 				3AD4FCE628043E72006DB301 /* AbsDatabase.m */,
 				3AF1970D2806E3CA0096F747 /* AbsAudioPlayer.swift */,
 				3AF1970F2806E3DC0096F747 /* AbsAudioPlayer.m */,
+				4D66B951282EE822008272D4 /* AbsDownloader.m */,
+				4D66B953282EE87C008272D4 /* AbsDownloader.swift */,
+				4D66B955282EE951008272D4 /* AbsFileSystem.m */,
+				4D66B957282EEA14008272D4 /* AbsFileSystem.swift */,
 			);
 			path = plugins;
 			sourceTree = "<group>";
@@ -303,16 +315,20 @@
 				3ABF580928059BAE005DFBE5 /* PlaybackSession.swift in Sources */,
 				3ABF618F2804325C0070250E /* PlayerHandler.swift in Sources */,
 				3AD4FCED28044E6C006DB301 /* Store.swift in Sources */,
+				4D66B958282EEA14008272D4 /* AbsFileSystem.swift in Sources */,
 				3AF1970E2806E3CA0096F747 /* AbsAudioPlayer.swift in Sources */,
 				3AD4FCE928043FD7006DB301 /* ServerConnectionConfig.swift in Sources */,
 				3A200C1527D64D7E00CBF02E /* AudioPlayer.swift in Sources */,
+				4D66B956282EE951008272D4 /* AbsFileSystem.m in Sources */,
 				3AFCB5E827EA240D00ECCC05 /* NowPlayingInfo.swift in Sources */,
 				3AB34053280829BF0039308B /* Extensions.swift in Sources */,
 				3AD4FCEB280443DD006DB301 /* Database.swift in Sources */,
 				3AD4FCE528043E50006DB301 /* AbsDatabase.swift in Sources */,
+				4D66B952282EE822008272D4 /* AbsDownloader.m in Sources */,
 				3AF197102806E3DC0096F747 /* AbsAudioPlayer.m in Sources */,
 				3AF1970C2806E2590096F747 /* ApiClient.swift in Sources */,
 				C4D0677528106D0C00B8F875 /* DataClasses.swift in Sources */,
+				4D66B954282EE87C008272D4 /* AbsDownloader.swift in Sources */,
 				3AB34055280832720039308B /* PlayerEvents.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -459,12 +475,12 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = Icons;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 6;
-				DEVELOPMENT_TEAM = N8AA4S3S96;
+				CURRENT_PROJECT_VERSION = 7;
+				DEVELOPMENT_TEAM = 7UFJ7D8V6A;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				MARKETING_VERSION = 0.9.43;
+				MARKETING_VERSION = 0.9.44;
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" \"-DDEBUG\"";
 				PRODUCT_BUNDLE_IDENTIFIER = com.bookshelf.app.dev;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -483,13 +499,18 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = Icons;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 6;
-				DEVELOPMENT_TEAM = "";
+				CURRENT_PROJECT_VERSION = 7;
+				DEVELOPMENT_TEAM = 7UFJ7D8V6A;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+<<<<<<< HEAD
 				MARKETING_VERSION = 0.9.43;
 				PRODUCT_BUNDLE_IDENTIFIER = com.bookshelf.app;
+=======
+				MARKETING_VERSION = 0.9.44;
+				PRODUCT_BUNDLE_IDENTIFIER = com.audiobookshelf.app;
+>>>>>>> d626686614e0a5a5008927729435b58a9df4a24b
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
 				SWIFT_OBJC_BRIDGING_HEADER = "App/App-Bridging-Header.h";

@@ -325,6 +325,13 @@ class AbsDownloader : Plugin() {
         delay(500)
       }
 
+      // Remove download notifications
+      downloadItem.downloadItemParts.forEach { downloadItemPart ->
+        downloadItemPart.downloadId?.let {
+          downloadManager.remove(it)
+        }
+      }
+
       val downloadItemScanResult = folderScanner.scanDownloadItem(downloadItem)
       DeviceManager.dbManager.removeDownloadItem(downloadItem.id)
       downloadQueue.remove(downloadItem)
@@ -367,6 +374,7 @@ class AbsDownloader : Plugin() {
               if (!downloadItemPart.completed) {
                 Log.d(tag, "checkDownloads Download ${downloadItemPart.filename} Done")
                 downloadItemPart.completed = true
+
                 val file = DocumentFileCompat.fromUri(mainActivity, downloadItemPart.destinationUri)
                 Log.d(tag, "DOWNLOAD: Attempt move for file at destination ${downloadItemPart.destinationUri} | ${file?.getBasePath(mainActivity)}")
 

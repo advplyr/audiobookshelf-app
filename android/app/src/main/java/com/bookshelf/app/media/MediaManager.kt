@@ -57,9 +57,9 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
 
   // TODO: Load currently listening category for local items
   fun loadLocalCategory():List<LibraryCategory> {
-    var localBooks = DeviceManager.dbManager.getLocalLibraryItems("book")
-    var localPodcasts = DeviceManager.dbManager.getLocalLibraryItems("podcast")
-    var cats = mutableListOf<LibraryCategory>()
+    val localBooks = DeviceManager.dbManager.getLocalLibraryItems("book")
+    val localPodcasts = DeviceManager.dbManager.getLocalLibraryItems("podcast")
+    val cats = mutableListOf<LibraryCategory>()
     if (localBooks.isNotEmpty()) {
       cats.add(LibraryCategory("local-books", "Local Books", "book", localBooks, true))
     }
@@ -71,9 +71,9 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
 
   fun loadAndroidAutoItems(libraryId:String, cb: (List<LibraryCategory>) -> Unit) {
     Log.d(tag, "Load android auto items for library id $libraryId")
-    var cats = mutableListOf<LibraryCategory>()
+    val cats = mutableListOf<LibraryCategory>()
 
-    var localCategories = loadLocalCategory()
+    val localCategories = loadLocalCategory()
     cats.addAll(localCategories)
 
     // Connected to server and has internet - load other cats
@@ -84,7 +84,7 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
       }
 
       loadLibraries { libraries ->
-        var library = libraries.find { it.id == libraryId } ?: libraries[0]
+        val library = libraries.find { it.id == libraryId } ?: libraries[0]
         Log.d(tag, "Loading categories for library ${library.name} - ${library.id} - ${library.mediaType}")
 
         loadLibraryCategories(libraryId) { libraryCategories ->
@@ -99,7 +99,7 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
           }
 
           loadLibraryItems(libraryId) { libraryItems ->
-            var mainCat = LibraryCategory("library", "Library", library.mediaType, libraryItems, false)
+            val mainCat = LibraryCategory("library", "Library", library.mediaType, libraryItems, false)
             cats.add(mainCat)
 
             cb(cats)
@@ -115,7 +115,7 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
     if (serverLibraryItems.isNotEmpty()) {
       return serverLibraryItems[0]
     } else {
-      var localBooks = DeviceManager.dbManager.getLocalLibraryItems("book")
+      val localBooks = DeviceManager.dbManager.getLocalLibraryItems("book")
       return if (localBooks.isNotEmpty()) return localBooks[0] else null
     }
   }
@@ -137,10 +137,10 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
 
   fun play(libraryItemWrapper:LibraryItemWrapper, mediaPlayer:String, cb: (PlaybackSession) -> Unit) {
    if (libraryItemWrapper is LocalLibraryItem) {
-    var localLibraryItem = libraryItemWrapper as LocalLibraryItem
+    val localLibraryItem = libraryItemWrapper as LocalLibraryItem
     cb(localLibraryItem.getPlaybackSession(null))
    } else {
-     var libraryItem = libraryItemWrapper as LibraryItem
+     val libraryItem = libraryItemWrapper as LibraryItem
      apiHandler.playLibraryItem(libraryItem.id,"",false, mediaPlayer) {
        cb(it)
      }

@@ -1,9 +1,14 @@
 {
+<<<<<<< HEAD
   "name": "bookshelf-app",
   "version": "0.9.43-beta",
+=======
+  "name": "audiobookshelf-app",
+  "version": "0.9.45-beta",
+>>>>>>> d626686614e0a5a5008927729435b58a9df4a24b
   "author": "advplyr",
   "scripts": {
-    "dev": "nuxt --hostname localhost --port 1337",
+    "dev": "nuxt --hostname 0.0.0.0 --port 1337",
     "build": "nuxt build",
     "start": "nuxt start",
     "generate": "nuxt generate",
@@ -23,7 +28,6 @@
     "@capacitor/status-bar": "^1.0.8",
     "@capacitor/storage": "^1.2.5",
     "@nuxtjs/axios": "^5.13.6",
-    "@robingenz/capacitor-app-update": "^1.3.1",
     "core-js": "^3.15.1",
     "date-fns": "^2.25.0",
     "epubjs": "^0.3.88",

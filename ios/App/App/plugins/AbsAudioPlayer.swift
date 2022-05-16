@@ -10,6 +10,9 @@ import Capacitor
 
 @objc(AbsAudioPlayer)
 public class AbsAudioPlayer: CAPPlugin {
+    private var initialPlayWhenReady = false
+    private var initialPlaybackRate:Float = 1
+    
     override public func load() {
         NotificationCenter.default.addObserver(self, selector: #selector(sendMetadata), name: NSNotification.Name(PlayerEvents.update.rawValue), object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(sendPlaybackClosedEvent), name: NSNotification.Name(PlayerEvents.closed.rawValue), object: nil)
@@ -17,6 +20,7 @@ public class AbsAudioPlayer: CAPPlugin {
         NotificationCenter.default.addObserver(self, selector: #selector(sendMetadata), name: UIApplication.willEnterForegroundNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(sendSleepTimerSet), name: NSNotification.Name(PlayerEvents.sleepSet.rawValue), object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(sendSleepTimerEnded), name: NSNotification.Name(PlayerEvents.sleepEnded.rawValue), object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(onPlaybackFailed), name: NSNotification.Name(PlayerEvents.failed.rawValue), object: nil)
         
         self.bridge?.webView?.allowsBackForwardNavigationGestures = true;
     }
@@ -36,8 +40,11 @@ public class AbsAudioPlayer: CAPPlugin {
             return call.resolve()
         }
         
+        initialPlayWhenReady = playWhenReady
+        initialPlaybackRate = playbackRate
+        
         sendPrepareMetadataEvent(itemId: libraryItemId!, playWhenReady: playWhenReady)
-        ApiClient.startPlaybackSession(libraryItemId: libraryItemId!, episodeId: episodeId) { session in
+        ApiClient.startPlaybackSession(libraryItemId: libraryItemId!, episodeId: episodeId, forceTranscode: false) { session in
             PlayerHandler.startPlayback(session: session, playWhenReady: playWhenReady, playbackRate: playbackRate)
             
             do {
@@ -46,7 +53,6 @@ public class AbsAudioPlayer: CAPPlugin {
             } catch(let exception) {
                 NSLog("failed to convert session to json")
                 debugPrint(exception)
-                
                 call.resolve([:])
             }
             
@@ -160,6 +166,34 @@ public class AbsAudioPlayer: CAPPlugin {
         self.notifyListeners("onSleepTimerSet", data: [
             "value": PlayerHandler.remainingSleepTime
         ])
+    }
+    
+    @objc func onPlaybackFailed() {
+        if (PlayerHandler.getPlayMethod() == PlayMethod.directplay.rawValue) {
+            let playbackSession = PlayerHandler.getPlaybackSession()
+            let libraryItemId = playbackSession?.libraryItemId ?? ""
+            let episodeId = playbackSession?.episodeId ?? nil
+            NSLog("TEST: Forcing Transcode")
+            
+            // If direct playing then fallback to transcode
+            ApiClient.startPlaybackSession(libraryItemId: libraryItemId, episodeId: episodeId, forceTranscode: true) { session in
+                PlayerHandler.startPlayback(session: session, playWhenReady: self.initialPlayWhenReady, playbackRate: self.initialPlaybackRate)
+                
+                do {
+                    self.sendPlaybackSession(session: try session.asDictionary())
+                } catch(let exception) {
+                    NSLog("failed to convert session to json")
+                    debugPrint(exception)
+                }
+                
+                self.sendMetadata()
+            }
+        } else {
+            self.notifyListeners("onPlaybackFailed", data: [
+                "value": "Playback Error"
+            ])
+        }
+        
     }
     
     @objc func sendPrepareMetadataEvent(itemId: String, playWhenReady: Bool) {

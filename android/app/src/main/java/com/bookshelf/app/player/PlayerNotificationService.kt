@@ -66,7 +66,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   private lateinit var transportControls:MediaControllerCompat.TransportControls
 
   lateinit var mediaManager: MediaManager
-  lateinit var apiHandler: ApiHandler
+  private lateinit var apiHandler: ApiHandler
 
   lateinit var mPlayer: ExoPlayer
   lateinit var currentPlayer:Player
@@ -75,9 +75,15 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   lateinit var sleepTimerManager:SleepTimerManager
   lateinit var mediaProgressSyncer:MediaProgressSyncer
 
+<<<<<<< HEAD:android/app/src/main/java/com/bookshelf/app/player/PlayerNotificationService.kt
   private var notificationId = 10;
   private var channelId = "bookshelf_channel"
   private var channelName = "Bookshelf Channel"
+=======
+  private var notificationId = 10
+  private var channelId = "audiobookshelf_channel"
+  private var channelName = "Audiobookshelf Channel"
+>>>>>>> d626686614e0a5a5008927729435b58a9df4a24b:android/app/src/main/java/com/audiobookshelf/app/player/PlayerNotificationService.kt
 
   private var currentPlaybackSession:PlaybackSession? = null
   private var initialPlaybackRate:Float? = null
@@ -100,7 +106,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
      // Android Auto Media Browser Service
      if (SERVICE_INTERFACE == intent.action) {
        Log.d(tag, "Is Media Browser Service")
-       return super.onBind(intent);
+       return super.onBind(intent)
      }
     return binder
   }
@@ -245,11 +251,21 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     mediaSessionConnector = MediaSessionConnector(mediaSession)
     val queueNavigator: TimelineQueueNavigator = object : TimelineQueueNavigator(mediaSession) {
       override fun getMediaDescription(player: Player, windowIndex: Int): MediaDescriptionCompat {
+        val coverUri = currentPlaybackSession!!.getCoverUri()
+
+        // Fix for local images crashing on Android 11 for specific devices
+        // https://stackoverflow.com/questions/64186578/android-11-mediastyle-notification-crash/64232958#64232958
+        ctx.grantUriPermission(
+          "com.android.systemui",
+          coverUri,
+          Intent.FLAG_GRANT_READ_URI_PERMISSION
+        )
+
         return MediaDescriptionCompat.Builder()
           .setMediaId(currentPlaybackSession!!.id)
           .setTitle(currentPlaybackSession!!.displayTitle)
           .setSubtitle(currentPlaybackSession!!.displayAuthor)
-          .setIconUri(currentPlaybackSession!!.getCoverUri()).build()
+          .setIconUri(coverUri).build()
       }
     }
 
@@ -367,7 +383,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         val libraryItemId = playbackSession.libraryItemId ?: "" // Must be true since direct play
         val episodeId = playbackSession.episodeId
         apiHandler.playLibraryItem(libraryItemId, episodeId, true, mediaPlayer) {
-          Handler(Looper.getMainLooper()).post() {
+          Handler(Looper.getMainLooper()).post {
             preparePlayer(it, true, null)
           }
         }
@@ -537,6 +553,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   fun getMediaPlayer():String {
     return if(currentPlayer == castPlayer) "cast-player" else "exo-player"
+  }
+
+  fun getContext():Context {
+    return ctx
   }
 
   //

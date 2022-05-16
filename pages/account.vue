@@ -19,19 +19,10 @@
     </div>
 
     <p class="font-mono pt-1 pb-4">{{ $config.version }}</p>
-
-    <ui-btn v-if="isUpdateAvailable" class="w-full my-4" color="success" @click="clickUpdate">Update is available</ui-btn>
-
-    <ui-btn v-if="!isUpdateAvailable || immediateUpdateAllowed" class="w-full my-4" color="primary" @click="openAppStore">Open app store</ui-btn>
-
-    <p class="text-xs text-gray-400">UA: {{ updateAvailability }} | Avail: {{ availableVersion }} | Curr: {{ currentVersion }} | ImmedAllowed: {{ immediateUpdateAllowed }}</p>
   </div>
 </template>
 
 <script>
-import { AppUpdate } from '@robingenz/capacitor-app-update'
-import { AbsAudioPlayer } from '@/plugins/capacitor'
-
 export default {
   asyncData({ redirect, store }) {
     if (!store.state.socketConnected) {
@@ -58,24 +49,6 @@ export default {
     },
     serverAddress() {
       return this.serverConnectionConfig.address
-    },
-    appUpdateInfo() {
-      return this.$store.state.appUpdateInfo
-    },
-    availableVersion() {
-      return this.appUpdateInfo ? this.appUpdateInfo.availableVersion : null
-    },
-    currentVersion() {
-      return this.appUpdateInfo ? this.appUpdateInfo.currentVersion : null
-    },
-    immediateUpdateAllowed() {
-      return this.appUpdateInfo ? !!this.appUpdateInfo.immediateUpdateAllowed : false
-    },
-    updateAvailability() {
-      return this.appUpdateInfo ? this.appUpdateInfo.updateAvailability : null
-    },
-    isUpdateAvailable() {
-      return this.updateAvailability === 2
     }
   },
   methods: {
@@ -85,16 +58,6 @@ export default {
       })
       this.$server.logout()
       this.$router.push('/connect')
-    },
-    openAppStore() {
-      AppUpdate.openAppStore()
-    },
-    async clickUpdate() {
-      if (this.immediateUpdateAllowed) {
-        AppUpdate.performImmediateUpdate()
-      } else {
-        AppUpdate.openAppStore()
-      }
     }
   },
   mounted() {}
