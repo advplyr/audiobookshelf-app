@@ -2,12 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
   xmlns:dist="http://schemas.android.com/apk/distribution"
   xmlns:tools="http://schemas.android.com/tools"
-<<<<<<< HEAD
-  package="com.bookshelf.app">
-=======
   android:installLocation="preferExternal"
-  package="com.audiobookshelf.app">
->>>>>>> d626686614e0a5a5008927729435b58a9df4a24b
+  package="com.bookshelf.app">
 
     <!-- Permissions -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />

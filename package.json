@@ -1,11 +1,6 @@
 {
-<<<<<<< HEAD
-  "name": "bookshelf-app",
-  "version": "0.9.43-beta",
-=======
   "name": "audiobookshelf-app",
   "version": "0.9.45-beta",
->>>>>>> d626686614e0a5a5008927729435b58a9df4a24b
   "author": "advplyr",
   "scripts": {
     "dev": "nuxt --hostname 0.0.0.0 --port 1337",
