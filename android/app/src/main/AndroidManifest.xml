@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
   xmlns:dist="http://schemas.android.com/apk/distribution"
   xmlns:tools="http://schemas.android.com/tools"
-  package="com.audiobookshelf.app">
+  package="com.bookshelf.app">
 
     <!-- Permissions -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -32,11 +32,11 @@
 
         <!-- Support for Cast -->
         <meta-data android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
-          android:value="com.audiobookshelf.app.CastOptionsProvider"/>
+          android:value="com.bookshelf.app.CastOptionsProvider"/>
 
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"
-            android:name="com.audiobookshelf.app.MainActivity"
+            android:name="com.bookshelf.app.MainActivity"
             android:label="@string/title_activity_main"
             android:exported="true"
             android:theme="@style/AppTheme.NoActionBarLaunch"

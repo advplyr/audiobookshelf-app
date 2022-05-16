@@ -1,9 +1,9 @@
-# Audiobookshelf Mobile App
+# The Book Shelf Mobile App
 
-AudioBookshelf is a self-hosted audiobook server for managing and playing your audiobooks.
+The Book Shelf is a self-hosted audiobook server for managing and playing your audiobooks.
 
 ### Android (beta)
-Get the Android app on the [Google Play Store](https://play.google.com/store/apps/details?id=com.audiobookshelf.app)
+Get the Android app on the [Google Play Store](https://play.google.com/store/apps/details?id=com.bookshelf.app)
 
 ### iOS (early beta)
 
@@ -12,17 +12,17 @@ Available to beta testers through Test Flight
 Join the beta testers and install the iOS app: https://testflight.apple.com/join/wiic7QIW
 
 
-Join the discussion: https://github.com/advplyr/audiobookshelf-app/discussions/60
+Join the discussion: https://github.com/Oasis256/bookShelf-app/discussions/60
 
 ---
 
-[Go to the main project repo github.com/advplyr/audiobookshelf](https://github.com/advplyr/audiobookshelf) or the project site [audiobookshelf.org](https://audiobookshelf.org)
+[Go to the main project repo github.com/Oasis256/bookShelf](https://github.com/Oasis256/bookShelf) or the project site [shule.live](https://shule.live)
 
 Join us on [discord](https://discord.gg/pJsjuNCKRq)
 
-**Requires an Audiobookshelf server to connect with**
+**Requires an The Book Shelf server to connect with**
 
-<img alt="Screenshot1" src="https://github.com/advplyr/audiobookshelf-app/raw/master/screenshots/BookshelfViews.png" />
+<img alt="Screenshot1" src="https://github.com/Oasis256/bookShelf-app/raw/master/screenshots/audiobookshelfViews.png" />
 
 
 ## Contributing

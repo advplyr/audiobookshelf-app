@@ -1,6 +1,6 @@
 {
-	"appId": "com.audiobookshelf.app",
-	"appName": "audiobookshelf-app",
+	"appId": "com.bookshelf.app",
+	"appName": "bookshelf-app",
 	"webDir": "dist",
 	"bundledWebRuntime": false
 }

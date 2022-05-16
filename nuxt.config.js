@@ -5,7 +5,7 @@ export default {
 
   env: {
     PROD: '1',
-    ANDROID_APP_URL: 'https://play.google.com/store/apps/details?id=com.audiobookshelf.app',
+    ANDROID_APP_URL: 'https://play.google.com/store/apps/details?id=com.bookshelf.app',
     IOS_APP_URL: ''
   },
 
@@ -14,7 +14,7 @@ export default {
   },
 
   head: {
-    title: 'Audiobookshelf',
+    title: 'The Book Shelf',
     htmlAttrs: {
       lang: 'en'
     },

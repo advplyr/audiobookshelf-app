@@ -19,7 +19,7 @@ labels: bug
 
 ### Environment data
 
-Audiobookshelf Version:
+The Book Shelf Version:
 
 - [ ] Android App?
 - [ ] iOS App?

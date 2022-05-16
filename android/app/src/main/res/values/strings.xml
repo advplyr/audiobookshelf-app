@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">audiobookshelf</string>
-    <string name="title_activity_main">audiobookshelf</string>
-    <string name="package_name">com.audiobookshelf.app</string>
-    <string name="custom_url_scheme">com.audiobookshelf.app</string>
+    <string name="app_name">The Book Shelf</string>
+    <string name="title_activity_main">The Book Shelf</string>
+    <string name="package_name">com.bookshelf.app</string>
+    <string name="custom_url_scheme">com.bookshelf.app</string>
 </resources>
