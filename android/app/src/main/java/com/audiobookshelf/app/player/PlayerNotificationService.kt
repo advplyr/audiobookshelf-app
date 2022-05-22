@@ -9,7 +9,6 @@ import android.hardware.SensorManager
 import android.os.*
 import android.support.v4.media.MediaBrowserCompat
 import android.support.v4.media.MediaDescriptionCompat
-import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaControllerCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
@@ -357,7 +356,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       Log.d(tag, "Prepare complete for session ${currentPlaybackSession?.displayTitle} | ${currentPlayer.mediaItemCount}")
       currentPlayer.playWhenReady = playWhenReady
       currentPlayer.setPlaybackSpeed(playbackRateToUse)
+
       currentPlayer.prepare()
+
     } else if (castPlayer != null) {
       val currentTrackIndex = playbackSession.getCurrentTrackIndex()
       val currentTrackTime = playbackSession.getCurrentTrackTimeMs()
@@ -521,12 +522,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   fun seekForward(amount: Long) {
    seekPlayer(getCurrentTime() + amount)
-//    currentPlayer.seekTo(currentPlayer.currentPosition + amount)
   }
 
   fun seekBackward(amount: Long) {
     seekPlayer(getCurrentTime() - amount)
-//    currentPlayer.seekTo(currentPlayer.currentPosition - amount)
   }
 
   fun setPlaybackSpeed(speed: Float) {

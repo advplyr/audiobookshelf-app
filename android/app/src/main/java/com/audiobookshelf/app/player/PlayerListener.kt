@@ -15,7 +15,7 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
   private var onSeekBack: Boolean = false
 
   override fun onPlayerError(error: PlaybackException) {
-    var errorMessage = error.message ?: "Unknown Error"
+    val errorMessage = error.message ?: "Unknown Error"
     Log.e(tag, "onPlayerError $errorMessage")
     playerNotificationService.handlePlayerPlaybackError(errorMessage) // If was direct playing session, fallback to transcode
   }
@@ -90,6 +90,7 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
       // Start/stop progress sync interval
       Log.d(tag, "Playing ${playerNotificationService.getCurrentBookTitle()}")
       if (player.isPlaying) {
+        player.volume = 1F // Volume on sleep timer might have decreased this
         playerNotificationService.mediaProgressSyncer.start()
       } else {
         playerNotificationService.mediaProgressSyncer.stop()
