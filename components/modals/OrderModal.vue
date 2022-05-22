@@ -48,6 +48,10 @@ export default {
           value: 'size'
         },
         {
+          text: 'Duration',
+          value: 'media.duration'
+        },
+        {
           text: 'File Birthtime',
           value: 'birthtimeMs'
         },
