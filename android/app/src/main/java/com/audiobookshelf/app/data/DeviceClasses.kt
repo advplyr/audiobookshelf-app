@@ -42,6 +42,8 @@ data class LocalFile(
 ) {
   @JsonIgnore
   fun isAudioFile():Boolean {
+    if (mimeType == "application/octet-stream") return true
+    if (mimeType == "video/mp4") return true
     return mimeType?.startsWith("audio") == true
   }
 }
