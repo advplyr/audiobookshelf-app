@@ -42,6 +42,20 @@ class DbManager {
     return Paper.book("localLibraryItems").read(localLibraryItemId)
   }
 
+  fun getLocalLibraryItemWithEpisode(podcastEpisodeId:String):LibraryItemWithEpisode? {
+    var podcastEpisode:PodcastEpisode? = null
+    val localLibraryItem = getLocalLibraryItems("podcast").find { localLibraryItem ->
+      val podcast = localLibraryItem.media as Podcast
+      podcastEpisode = podcast.episodes?.find { it.id == podcastEpisodeId }
+      podcastEpisode != null
+    }
+    return if (localLibraryItem != null) {
+      LibraryItemWithEpisode(localLibraryItem, podcastEpisode!!)
+    } else {
+      null
+    }
+  }
+
   fun removeLocalLibraryItem(localLibraryItemId:String) {
     Paper.book("localLibraryItems").delete(localLibraryItemId)
   }

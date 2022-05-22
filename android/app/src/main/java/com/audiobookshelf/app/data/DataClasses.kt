@@ -43,6 +43,15 @@ data class LibraryItem(
   }
 
   @JsonIgnore
+  fun checkHasTracks():Boolean {
+    return if (mediaType == "podcast") {
+      ((media as Podcast).numEpisodes ?: 0) > 0
+    } else {
+      ((media as Book).numTracks ?: 0) > 0
+    }
+  }
+
+  @JsonIgnore
   fun getMediaMetadata(): MediaMetadataCompat {
     return MediaMetadataCompat.Builder().apply {
       putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, id)
@@ -74,6 +83,7 @@ open class MediaType(var metadata:MediaTypeMetadata, var coverPath:String?) {
   open fun removeAudioTrack(localFileId:String) { }
   @JsonIgnore
   open fun getLocalCopy():MediaType { return MediaType(MediaTypeMetadata(""),null) }
+
 }
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -82,7 +92,8 @@ class Podcast(
   coverPath:String?,
   var tags:MutableList<String>,
   var episodes:MutableList<PodcastEpisode>?,
-  var autoDownloadEpisodes:Boolean
+  var autoDownloadEpisodes:Boolean,
+  var numEpisodes:Int?
 ) : MediaType(metadata, coverPath) {
   @JsonIgnore
   override fun getAudioTracks():List<AudioTrack> {
@@ -99,7 +110,7 @@ class Podcast(
     // Add new episodes
     audioTracks.forEach { at ->
       if (episodes?.find{ it.audioTrack?.localFileId == at.localFileId } == null) {
-        val newEpisode = PodcastEpisode("local_" + at.localFileId,episodes?.size ?: 0 + 1,null,null,at.title,null,null,null,at,at.duration,0, null)
+        val newEpisode = PodcastEpisode("local_ep_" + at.localFileId,episodes?.size ?: 0 + 1,null,null,at.title,null,null,null,at,at.duration,0, null)
         episodes?.add(newEpisode)
       }
     }
@@ -147,7 +158,7 @@ class Podcast(
   // Used for FolderScanner local podcast item to get copy of Podcast excluding episodes
   @JsonIgnore
   override fun getLocalCopy(): Podcast {
-    return Podcast(metadata as PodcastMetadata,coverPath,tags, mutableListOf(),autoDownloadEpisodes)
+    return Podcast(metadata as PodcastMetadata,coverPath,tags, mutableListOf(),autoDownloadEpisodes, 0)
   }
 }
 
@@ -160,7 +171,8 @@ class Book(
   var chapters:List<BookChapter>?,
   var tracks:MutableList<AudioTrack>?,
   var size:Long?,
-  var duration:Double?
+  var duration:Double?,
+  var numTracks:Int?
 ) : MediaType(metadata, coverPath) {
   @JsonIgnore
   override fun getAudioTracks():List<AudioTrack> {
@@ -209,7 +221,7 @@ class Book(
 
   @JsonIgnore
   override fun getLocalCopy(): Book {
-    return Book(metadata as BookMetadata,coverPath,tags, mutableListOf(),chapters,mutableListOf(),null,null)
+    return Book(metadata as BookMetadata,coverPath,tags, mutableListOf(),chapters,mutableListOf(),null,null, 0)
   }
 }
 
@@ -281,7 +293,29 @@ data class PodcastEpisode(
   var duration:Double?,
   var size:Long?,
   var serverEpisodeId:String? // For local podcasts to match with server podcasts
-)
+) {
+  @JsonIgnore
+  fun getMediaMetadata(libraryItem:LibraryItemWrapper): MediaMetadataCompat {
+    var coverUri:Uri = Uri.EMPTY
+    val podcast = if(libraryItem is LocalLibraryItem) {
+      coverUri = libraryItem.getCoverUri()
+      libraryItem.media as Podcast
+    } else {
+      coverUri = (libraryItem as LibraryItem).getCoverUri()
+      (libraryItem as LibraryItem).media as Podcast
+    }
+
+    return MediaMetadataCompat.Builder().apply {
+      putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, id)
+      putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, title)
+      putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
+      putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, podcast.metadata.getAuthorDisplayName())
+      putString(MediaMetadataCompat.METADATA_KEY_AUTHOR, podcast.metadata.getAuthorDisplayName())
+      putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, coverUri.toString())
+
+    }.build()
+  }
+}
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class LibraryFile(
@@ -312,7 +346,16 @@ data class Library(
   var folders:MutableList<Folder>,
   var icon:String,
   var mediaType:String
-)
+) {
+  @JsonIgnore
+  fun getMediaMetadata(): MediaMetadataCompat {
+    return MediaMetadataCompat.Builder().apply {
+      putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, id)
+      putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, name)
+      putString(MediaMetadataCompat.METADATA_KEY_TITLE, name)
+    }.build()
+  }
+}
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class Folder(
@@ -370,4 +413,10 @@ data class MediaProgress(
   var lastUpdate:Long,
   var startedAt:Long,
   var finishedAt:Long?
+)
+
+// Helper class
+data class LibraryItemWithEpisode(
+  var libraryItemWrapper:LibraryItemWrapper,
+  var episode:PodcastEpisode
 )

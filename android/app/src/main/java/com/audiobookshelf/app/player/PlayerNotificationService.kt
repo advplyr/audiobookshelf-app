@@ -9,6 +9,7 @@ import android.hardware.SensorManager
 import android.os.*
 import android.support.v4.media.MediaBrowserCompat
 import android.support.v4.media.MediaDescriptionCompat
+import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaControllerCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
@@ -565,6 +566,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   private val AUTO_MEDIA_ROOT = "/"
   private val ALL_ROOT = "__ALL__"
+  private val LIBRARIES_ROOT = "__LIBRARIES__"
   private lateinit var browseTree:BrowseTree
 
 
@@ -610,32 +612,66 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   override fun onLoadChildren(parentMediaId: String, result: Result<MutableList<MediaBrowserCompat.MediaItem>>) {
     Log.d(tag, "ON LOAD CHILDREN $parentMediaId")
 
-    val flag = if (parentMediaId == AUTO_MEDIA_ROOT) MediaBrowserCompat.MediaItem.FLAG_BROWSABLE else MediaBrowserCompat.MediaItem.FLAG_PLAYABLE
+    var flag = if (parentMediaId == AUTO_MEDIA_ROOT || parentMediaId == LIBRARIES_ROOT) MediaBrowserCompat.MediaItem.FLAG_BROWSABLE else MediaBrowserCompat.MediaItem.FLAG_PLAYABLE
 
     result.detach()
 
-    mediaManager.loadAndroidAutoItems("main") { libraryCategories ->
-      browseTree = BrowseTree(this, libraryCategories)
-      val children = browseTree[parentMediaId]?.map { item ->
-        MediaBrowserCompat.MediaItem(item.description, flag)
+    if (parentMediaId.startsWith("li_") || parentMediaId.startsWith("local_")) { // Show podcast episodes
+      Log.d(tag, "Loading podcast episodes")
+      mediaManager.loadPodcastEpisodeMediaBrowserItems(parentMediaId) {
+        result.sendResult(it)
       }
-      result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
-    }
+    } else if (::browseTree.isInitialized && browseTree[parentMediaId] == null && mediaManager.getIsLibrary(parentMediaId)) { // Load library items for library
 
-    // TODO: For using sub menus. Check if this is the root menu:
-//    if (AUTO_MEDIA_ROOT == parentMediaId) {
-      // build the MediaItem objects for the top level,
-      // and put them in the mediaItems list
-//    } else {
-      // examine the passed parentMediaId to see which submenu we're at,
-      // and put the children of that menu in the mediaItems list
-//    }
+      mediaManager.loadLibraryItemsWithAudio(parentMediaId) { libraryItems ->
+        val children = libraryItems.map { libraryItem ->
+          val libraryItemMediaMetadata = libraryItem.getMediaMetadata()
+
+          if (libraryItem.mediaType == "podcast") { // Podcasts are browseable
+            flag = MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
+          }
+
+          MediaBrowserCompat.MediaItem(libraryItemMediaMetadata.description, flag)
+        }
+        result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
+      }
+    } else if (parentMediaId == "__DOWNLOADS__") { // Load downloads
+
+      val localBooks = DeviceManager.dbManager.getLocalLibraryItems("book")
+      val localPodcasts = DeviceManager.dbManager.getLocalLibraryItems("podcast")
+      val localBrowseItems:MutableList<MediaBrowserCompat.MediaItem> = mutableListOf()
+
+      localBooks.forEach { localLibraryItem ->
+        val mediaMetadata = localLibraryItem.getMediaMetadata(ctx)
+        localBrowseItems += MediaBrowserCompat.MediaItem(mediaMetadata.description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
+      }
+
+      localPodcasts.forEach { localLibraryItem ->
+        val mediaMetadata = localLibraryItem.getMediaMetadata(ctx)
+        localBrowseItems += MediaBrowserCompat.MediaItem(mediaMetadata.description, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE)
+      }
+
+      result.sendResult(localBrowseItems)
+
+    } else { // Load categories
+
+      mediaManager.loadAndroidAutoItems() { libraryCategories ->
+        browseTree = BrowseTree(this, libraryCategories, mediaManager.serverLibraries)
+
+        val children = browseTree[parentMediaId]?.map { item ->
+          Log.d(tag, "Loading Browser Media Item ${item.description.title} $flag")
+
+          MediaBrowserCompat.MediaItem(item.description, flag)
+        }
+        result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
+      }
+    }
   }
 
   override fun onSearch(query: String, extras: Bundle?, result: Result<MutableList<MediaBrowserCompat.MediaItem>>) {
     result.detach()
-    mediaManager.loadAndroidAutoItems("main") { libraryCategories ->
-      browseTree = BrowseTree(this, libraryCategories)
+    mediaManager.loadAndroidAutoItems() { libraryCategories ->
+      browseTree = BrowseTree(this, libraryCategories, mediaManager.serverLibraries)
       val children = browseTree[ALL_ROOT]?.map { item ->
         MediaBrowserCompat.MediaItem(item.description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
       }
