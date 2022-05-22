@@ -11,6 +11,7 @@ import android.util.Log
 import android.view.KeyEvent
 import com.audiobookshelf.app.data.LibraryItem
 import com.audiobookshelf.app.data.LibraryItemWrapper
+import com.audiobookshelf.app.data.PodcastEpisode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -27,7 +28,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
   override fun onPrepare() {
     Log.d(tag, "ON PREPARE MEDIA SESSION COMPAT")
     playerNotificationService.mediaManager.getFirstItem()?.let { li ->
-      playerNotificationService.mediaManager.play(li, playerNotificationService.getMediaPlayer()) {
+      playerNotificationService.mediaManager.play(li, null, playerNotificationService.getMediaPlayer()) {
         Log.d(tag, "About to prepare player with ${it.displayTitle}")
         Handler(Looper.getMainLooper()).post() {
           playerNotificationService.preparePlayer(it,true,null)
@@ -49,7 +50,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
   override fun onPlayFromSearch(query: String?, extras: Bundle?) {
     Log.d(tag, "ON PLAY FROM SEARCH $query")
     playerNotificationService.mediaManager.getFromSearch(query)?.let { li ->
-      playerNotificationService.mediaManager.play(li, playerNotificationService.getMediaPlayer()) {
+      playerNotificationService.mediaManager.play(li, null, playerNotificationService.getMediaPlayer()) {
         Log.d(tag, "About to prepare player with ${it.displayTitle}")
         Handler(Looper.getMainLooper()).post() {
           playerNotificationService.preparePlayer(it,true,null)
@@ -90,14 +91,20 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
   override fun onPlayFromMediaId(mediaId: String?, extras: Bundle?) {
     Log.d(tag, "ON PLAY FROM MEDIA ID $mediaId")
     var libraryItemWrapper: LibraryItemWrapper? = null
+    var podcastEpisode: PodcastEpisode? = null
+
     if (mediaId.isNullOrEmpty()) {
       libraryItemWrapper = playerNotificationService.mediaManager.getFirstItem()
+    } else if (mediaId.startsWith("ep_") || mediaId.startsWith("local_ep_")) { // Playing podcast episode
+      val libraryItemWithEpisode = playerNotificationService.mediaManager.getPodcastWithEpisodeByEpisodeId(mediaId)
+      libraryItemWrapper = libraryItemWithEpisode?.libraryItemWrapper
+      podcastEpisode = libraryItemWithEpisode?.episode
     } else {
       libraryItemWrapper = playerNotificationService.mediaManager.getById(mediaId)
     }
 
     libraryItemWrapper?.let { li ->
-      playerNotificationService.mediaManager.play(li, playerNotificationService.getMediaPlayer()) {
+      playerNotificationService.mediaManager.play(li, podcastEpisode, playerNotificationService.getMediaPlayer()) {
         Log.d(tag, "About to prepare player with ${it.displayTitle}")
         Handler(Looper.getMainLooper()).post() {
           playerNotificationService.preparePlayer(it,true,null)
