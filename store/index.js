@@ -16,7 +16,8 @@ export const state = () => ({
   showReader: false,
   showSideDrawer: false,
   isNetworkListenerInit: false,
-  serverSettings: null
+  serverSettings: null,
+  lastBookshelfScrollData: {}
 })
 
 export const getters = {
@@ -54,6 +55,9 @@ export const actions = {
 }
 
 export const mutations = {
+  setLastBookshelfScrollData(state, { scrollTop, path, name }) {
+    state.lastBookshelfScrollData[name] = { scrollTop, path }
+  },
   setPlayerItem(state, playbackSession) {
     state.playerIsLocal = playbackSession ? playbackSession.playMethod == this.$constants.PlayMethod.LOCAL : false
 
