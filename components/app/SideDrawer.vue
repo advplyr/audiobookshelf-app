@@ -74,9 +74,6 @@ export default {
     username() {
       return this.user ? this.user.username : ''
     },
-    socketConnected() {
-      return this.$store.state.socketConnected
-    },
     navItems() {
       var items = [
         {

@@ -35,6 +35,9 @@ export const getters = {
   },
   getUserSetting: (state) => (key) => {
     return state.settings ? state.settings[key] || null : null
+  },
+  getUserCanDownload: (state) => {
+    return state.user && state.user.permissions ? !!state.user.permissions.download : false
   }
 }
 
