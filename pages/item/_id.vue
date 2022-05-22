@@ -49,7 +49,7 @@
             <span class="material-icons">auto_stories</span>
             <span v-if="!showPlay" class="px-2 text-base">Read {{ ebookFormat }}</span>
           </ui-btn>
-          <ui-btn v-if="user && showPlay && !hasLocal" :color="downloadItem ? 'warning' : 'primary'" class="flex items-center justify-center mr-2" :padding-x="2" @click="downloadClick">
+          <ui-btn v-if="showDownload" :color="downloadItem ? 'warning' : 'primary'" class="flex items-center justify-center mr-2" :padding-x="2" @click="downloadClick">
             <span class="material-icons" :class="downloadItem ? 'animate-pulse' : ''">{{ downloadItem ? 'downloading' : 'download' }}</span>
           </ui-btn>
           <ui-read-icon-btn v-if="!isPodcast" :disabled="isProcessingReadUpdate" :is-read="userIsFinished" class="flex items-center justify-center" @click="toggleFinished" />
@@ -116,6 +116,9 @@ export default {
   computed: {
     isIos() {
       return this.$platform === 'ios'
+    },
+    userCanDownload() {
+      return this.$store.getters['user/getUserCanDownload']
     },
     isLocal() {
       return this.libraryItem.isLocal
@@ -235,15 +238,15 @@ export default {
     showRead() {
       return this.ebookFile && this.ebookFormat !== 'pdf'
     },
+    showDownload() {
+      return this.user && this.userCanDownload && this.showPlay && !this.hasLocal
+    },
     ebookFile() {
       return this.media.ebookFile
     },
     ebookFormat() {
       if (!this.ebookFile) return null
       return this.ebookFile.ebookFormat
-    },
-    hasStoragePermission() {
-      return this.$store.state.hasStoragePermission
     },
     downloadItem() {
       return this.$store.getters['globals/getDownloadItem'](this.libraryItemId)
