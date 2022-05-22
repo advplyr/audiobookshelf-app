@@ -248,9 +248,10 @@ class FolderScanner(var ctx: Context) {
 
     val localLibraryItemId = getLocalLibraryItemId(itemFolderId)
     Log.d(tag, "scanDownloadItem starting for ${downloadItem.itemFolderPath} | ${df.uri} | Item Folder Id:$itemFolderId | LLI Id:$localLibraryItemId")
-
+    
     // Search for files in media item folder
-    val filesFound = df.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*", "video/mp4"))
+    // m4b files showing as mimeType application/octet-stream on Android 10 and earlier see #154
+    val filesFound = df.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*", "video/mp4", "application/octet-stream"))
     Log.d(tag, "scanDownloadItem ${filesFound.size} files found in ${downloadItem.itemFolderPath}")
 
     var localEpisodeId:String? = null
