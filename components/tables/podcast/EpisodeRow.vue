@@ -41,7 +41,7 @@
 
 <script>
 import { Dialog } from '@capacitor/dialog'
-import { AbsDownloader } from '@/plugins/capacitor'
+import { AbsFileSystem, AbsDownloader } from '@/plugins/capacitor'
 
 export default {
   props: {
@@ -135,8 +135,12 @@ export default {
     }
   },
   methods: {
-    selectFolder() {
-      this.$toast.error('Folder selector not implemented for podcasts yet')
+    async selectFolder() {
+      var folderObj = await AbsFileSystem.selectFolder({ mediaType: this.mediaType })
+      if (folderObj.error) {
+        return this.$toast.error(`Error: ${folderObj.error || 'Unknown Error'}`)
+      }
+      return folderObj
     },
     downloadClick() {
       if (this.downloadItem) return
