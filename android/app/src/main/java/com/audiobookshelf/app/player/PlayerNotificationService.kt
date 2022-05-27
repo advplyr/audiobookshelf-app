@@ -17,7 +17,9 @@ import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import androidx.media.MediaBrowserServiceCompat
 import androidx.media.utils.MediaConstants
+import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.data.*
+import com.audiobookshelf.app.data.DeviceInfo
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.server.ApiHandler
@@ -373,12 +375,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     // On error and was attempting to direct play - fallback to transcode
     currentPlaybackSession?.let { playbackSession ->
       if (playbackSession.isDirectPlay) {
-        val mediaPlayer = getMediaPlayer()
-        Log.d(tag, "Fallback to transcode $mediaPlayer")
+        val playItemRequestPayload = getPlayItemRequestPayload(true)
+        Log.d(tag, "Fallback to transcode $playItemRequestPayload.mediaPlayer")
 
         val libraryItemId = playbackSession.libraryItemId ?: "" // Must be true since direct play
         val episodeId = playbackSession.episodeId
-        apiHandler.playLibraryItem(libraryItemId, episodeId, true, mediaPlayer) {
+        apiHandler.playLibraryItem(libraryItemId, episodeId, playItemRequestPayload) {
           Handler(Looper.getMainLooper()).post {
             preparePlayer(it, true, null)
           }
@@ -547,6 +549,21 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   fun getMediaPlayer():String {
     return if(currentPlayer == castPlayer) "cast-player" else "exo-player"
+  }
+
+  fun getDeviceInfo(): DeviceInfo {
+    /* EXAMPLE
+      manufacturer: Google
+      model: Pixel 6
+      brand: google
+      sdkVersion: 32
+      appVersion: 0.9.46-beta
+     */
+    return DeviceInfo(Build.MANUFACTURER, Build.MODEL, Build.BRAND, Build.VERSION.SDK_INT, BuildConfig.VERSION_NAME)
+  }
+
+  fun getPlayItemRequestPayload(forceTranscode:Boolean):PlayItemRequestPayload {
+    return PlayItemRequestPayload(getMediaPlayer(), getDeviceInfo(), !forceTranscode, forceTranscode)
   }
 
   fun getContext():Context {

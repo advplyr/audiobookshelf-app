@@ -172,13 +172,8 @@ class ApiHandler(var ctx:Context) {
     }
   }
 
-  fun playLibraryItem(libraryItemId:String, episodeId:String?, forceTranscode:Boolean, mediaPlayer:String, cb: (PlaybackSession) -> Unit) {
-    val payload = JSObject()
-    payload.put("mediaPlayer", mediaPlayer)
-
-    // Only if direct play fails do we force transcode
-    if (!forceTranscode) payload.put("forceDirectPlay", true)
-    else payload.put("forceTranscode", true)
+  fun playLibraryItem(libraryItemId:String, episodeId:String?, playItemRequestPayload:PlayItemRequestPayload, cb: (PlaybackSession) -> Unit) {
+    val payload = JSObject(jacksonMapper.writeValueAsString(playItemRequestPayload))
 
     val endpoint = if (episodeId.isNullOrEmpty()) "/api/items/$libraryItemId/play" else "/api/items/$libraryItemId/play/$episodeId"
     postRequest(endpoint, payload) {
