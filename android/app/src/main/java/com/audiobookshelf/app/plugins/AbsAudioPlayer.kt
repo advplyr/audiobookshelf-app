@@ -191,9 +191,9 @@ class AbsAudioPlayer : Plugin() {
         return call.resolve(JSObject())
       }
     } else { // Play library item from server
-      val mediaPlayer = playerNotificationService.getMediaPlayer()
+      val playItemRequestPayload = playerNotificationService.getPlayItemRequestPayload(false)
 
-      apiHandler.playLibraryItem(libraryItemId, episodeId, false, mediaPlayer) {
+      apiHandler.playLibraryItem(libraryItemId, episodeId, playItemRequestPayload) {
 
         Handler(Looper.getMainLooper()).post {
           Log.d(tag, "Preparing Player TEST ${jacksonMapper.writeValueAsString(it)}")

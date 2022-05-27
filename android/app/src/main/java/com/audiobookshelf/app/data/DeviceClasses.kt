@@ -66,3 +66,20 @@ data class LocalFolder(
   JsonSubTypes.Type(LocalLibraryItem::class)
 )
 open class LibraryItemWrapper()
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class DeviceInfo(
+  var manufacturer:String,
+  var model:String,
+  var brand:String,
+  var sdkVersion:Int,
+  var clientVersion: String
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class PlayItemRequestPayload(
+  var mediaPlayer:String,
+  var forceDirectPlay:Boolean,
+  var forceTranscode:Boolean,
+  var deviceInfo:DeviceInfo
+)

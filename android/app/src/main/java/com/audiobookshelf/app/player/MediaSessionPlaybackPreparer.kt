@@ -30,7 +30,7 @@ class MediaSessionPlaybackPreparer(var playerNotificationService:PlayerNotificat
   override fun onPrepare(playWhenReady: Boolean) {
     Log.d(tag, "ON PREPARE $playWhenReady")
     playerNotificationService.mediaManager.getFirstItem()?.let { li ->
-      playerNotificationService.mediaManager.play(li, null, playerNotificationService.getMediaPlayer()) {
+      playerNotificationService.mediaManager.play(li, null, playerNotificationService.getPlayItemRequestPayload(false)) {
         Handler(Looper.getMainLooper()).post() {
           playerNotificationService.preparePlayer(it,playWhenReady,null)
         }
@@ -53,7 +53,7 @@ class MediaSessionPlaybackPreparer(var playerNotificationService:PlayerNotificat
     }
 
     libraryItemWrapper?.let { li ->
-      playerNotificationService.mediaManager.play(li, podcastEpisode, playerNotificationService.getMediaPlayer()) {
+      playerNotificationService.mediaManager.play(li, podcastEpisode, playerNotificationService.getPlayItemRequestPayload(false)) {
         Log.d(tag, "About to prepare player with ${it.displayTitle}")
         Handler(Looper.getMainLooper()).post() {
           playerNotificationService.preparePlayer(it,playWhenReady,null)
@@ -65,7 +65,7 @@ class MediaSessionPlaybackPreparer(var playerNotificationService:PlayerNotificat
   override fun onPrepareFromSearch(query: String, playWhenReady: Boolean, extras: Bundle?) {
     Log.d(tag, "ON PREPARE FROM SEARCH $query")
     playerNotificationService.mediaManager.getFromSearch(query)?.let { li ->
-      playerNotificationService.mediaManager.play(li, null, playerNotificationService.getMediaPlayer()) {
+      playerNotificationService.mediaManager.play(li, null, playerNotificationService.getPlayItemRequestPayload(false)) {
         Log.d(tag, "About to prepare player with ${it.displayTitle}")
         Handler(Looper.getMainLooper()).post() {
           playerNotificationService.preparePlayer(it,playWhenReady,null)
