@@ -563,7 +563,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   }
 
   fun getPlayItemRequestPayload(forceTranscode:Boolean):PlayItemRequestPayload {
-    return PlayItemRequestPayload(getMediaPlayer(), getDeviceInfo(), !forceTranscode, forceTranscode)
+    return PlayItemRequestPayload(getMediaPlayer(), !forceTranscode, forceTranscode, getDeviceInfo())
   }
 
   fun getContext():Context {
