@@ -187,6 +187,7 @@ class AbsAudioPlayerWeb extends WebPlugin {
       return
     }
     this.player.currentTime = this.trackStartTime
+
     this.sendPlaybackMetadata(PlayerState.READY)
     if (this.playWhenReady) {
       this.player.play()
@@ -195,10 +196,9 @@ class AbsAudioPlayerWeb extends WebPlugin {
   evtTimeupdate() { }
 
   sendPlaybackMetadata(playerState) {
-    var currentTime = this.player ? this.player.currentTime || 0 : 0
     this.notifyListeners('onMetadata', {
       duration: this.totalDuration,
-      currentTime,
+      currentTime: this.overallCurrentTime,
       playerState
     })
   }
