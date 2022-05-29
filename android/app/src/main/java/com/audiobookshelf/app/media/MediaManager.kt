@@ -1,13 +1,10 @@
 package com.audiobookshelf.app.media
 
-import android.bluetooth.BluetoothClass
 import android.content.Context
 import android.support.v4.media.MediaBrowserCompat
-import android.support.v4.media.MediaMetadataCompat
 import android.util.Log
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
-import com.audiobookshelf.app.player.PlayerNotificationService
 import com.audiobookshelf.app.server.ApiHandler
 import java.util.*
 import io.paperdb.Paper
@@ -32,6 +29,18 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
 
   fun getIsLibrary(id:String) : Boolean {
     return serverLibraries.find { it.id == id } != null
+  }
+
+  fun checkResetServerItems() {
+    // When opening android auto need to check if still connected to server
+    //   and reset any server data already set
+    if (!DeviceManager.isConnectedToServer) {
+      serverPodcastEpisodes = listOf()
+      serverLibraryCategories = listOf()
+      serverLibraries = listOf()
+      serverLibraryItems = listOf()
+      selectedLibraryId = ""
+    }
   }
 
   fun loadLibraryCategories(libraryId:String, cb: (List<LibraryCategory>) -> Unit) {

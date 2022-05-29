@@ -608,6 +608,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         mediaManager.initializeAndroidAuto()
         isStarted = true
       }
+      mediaManager.checkResetServerItems() // Reset any server items if no longer connected to server
 
       isAndroidAuto = true
 
