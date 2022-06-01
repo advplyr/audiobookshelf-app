@@ -62,6 +62,7 @@
     </div>
 
     <div class="w-full py-4">
+      <p v-if="narrators" class="text-sm text-gray-400">Narrated by {{ narrators }}</p>
       <p class="text-sm">{{ description }}</p>
     </div>
 
@@ -172,6 +173,10 @@ export default {
     author() {
       if (this.isPodcast) return this.mediaMetadata.author
       return this.mediaMetadata.authorName
+    },
+    narrators() {
+      if (this.isPodcast) return ''
+      return this.mediaMetadata.narratorName
     },
     description() {
       return this.mediaMetadata.description || ''
