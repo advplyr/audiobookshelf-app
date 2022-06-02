@@ -197,9 +197,58 @@ export default {
         console.log('[default] syncLocalMediaProgress No local media progress to sync')
       }
     },
-    userUpdated(user) {
+    async userUpdated(user) {
       if (this.user && this.user.id == user.id) {
         this.$store.commit('user/setUser', user)
+      }
+    },
+    async userMediaProgressUpdated(prog) {
+      console.log(`[default] userMediaProgressUpdate checking for local media progress ${prog.id}`)
+
+      // Update local media progress if exists
+      var localProg = this.$store.getters['globals/getLocalMediaProgressByServerItemId'](prog.libraryItemId, prog.episodeId)
+      var newLocalMediaProgress = null
+      if (localProg && localProg.lastUpdate < prog.lastUpdate) {
+        // Server progress is more up-to-date
+        console.log(`[default] syncing progress from server with local item for "${prog.libraryItemId}" ${prog.episodeId ? `episode ${prog.episodeId}` : ''}`)
+        const payload = {
+          localMediaProgressId: localProg.id,
+          mediaProgress: prog
+        }
+        newLocalMediaProgress = await this.$db.syncServerMediaProgressWithLocalMediaProgress(payload)
+      } else {
+        // Check if local library item exists
+        var localLibraryItem = await this.$db.getLocalLibraryItemByLLId(prog.libraryItemId)
+        if (localLibraryItem) {
+          if (prog.episodeId) {
+            // If episode check if local episode exists
+            var lliEpisodes = localLibraryItem.media.episodes || []
+            var localEpisode = lliEpisodes.find((ep) => ep.serverEpisodeId === prog.episodeId)
+            if (localEpisode) {
+              // Add new local media progress
+              const payload = {
+                localLibraryItemId: localLibraryItem.id,
+                localEpisodeId: localEpisode.id,
+                mediaProgress: prog
+              }
+              newLocalMediaProgress = await this.$db.syncServerMediaProgressWithLocalMediaProgress(payload)
+            }
+          } else {
+            // Add new local media progress
+            const payload = {
+              localLibraryItemId: localLibraryItem.id,
+              mediaProgress: prog
+            }
+            newLocalMediaProgress = await this.$db.syncServerMediaProgressWithLocalMediaProgress(payload)
+          }
+        } else {
+          console.log(`[default] userMediaProgressUpdate no local media progress or lli found for this server item ${prog.id}`)
+        }
+      }
+
+      if (newLocalMediaProgress && newLocalMediaProgress.id) {
+        console.log(`[default] local media progress updated for ${newLocalMediaProgress.id}`)
+        this.$store.commit('globals/updateLocalMediaProgress', newLocalMediaProgress)
       }
     }
   },
@@ -207,6 +256,7 @@ export default {
     this.$socket.on('connection-update', this.socketConnectionUpdate)
     this.$socket.on('initialized', this.socketInit)
     this.$socket.on('user_updated', this.userUpdated)
+    this.$socket.on('user_media_progress_updated', this.userMediaProgressUpdated)
 
     if (this.$store.state.isFirstLoad) {
       this.$store.commit('setIsFirstLoad', false)
@@ -231,6 +281,7 @@ export default {
     this.$socket.off('connection-update', this.socketConnectionUpdate)
     this.$socket.off('initialized', this.socketInit)
     this.$socket.off('user_updated', this.userUpdated)
+    this.$socket.off('user_media_progress_updated', this.userMediaProgressUpdated)
   }
 }
 </script>

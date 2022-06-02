@@ -82,7 +82,7 @@ export default {
     console.log(libraryItemId)
     if (libraryItemId.startsWith('local')) {
       libraryItem = await app.$db.getLocalLibraryItem(libraryItemId)
-      console.log('Got lli', libraryItem)
+      console.log('Got lli', libraryItemId)
     } else if (store.state.user.serverConnectionConfig) {
       libraryItem = await app.$axios.$get(`/api/items/${libraryItemId}?expanded=1`).catch((error) => {
         console.error('Failed', error)
@@ -283,7 +283,7 @@ export default {
         if (this.isLocal) {
           // TODO: If connected to server also sync with server
           await this.$db.removeLocalMediaProgress(this.libraryItemId)
-          this.$store.commit('globals/removeLocalMediaProgress', this.libraryItemId)
+          this.$store.commit('globals/removeLocalMediaProgressForItem', this.libraryItemId)
         } else {
           var progressId = this.userItemProgress.id
           await this.$axios

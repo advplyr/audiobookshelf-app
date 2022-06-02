@@ -36,6 +36,12 @@ export const getters = {
       if (episodeId != null && lmp.localEpisodeId != episodeId) return false
       return lmp.localLibraryItemId == localLibraryItemId
     })
+  },
+  getLocalMediaProgressByServerItemId: (state) => (libraryItemId, episodeId = null) => {
+    return state.localMediaProgress.find(lmp => {
+      if (episodeId != null && lmp.episodeId != episodeId) return false
+      return lmp.libraryItemId == libraryItemId
+    })
   }
 }
 
@@ -83,6 +89,9 @@ export const mutations = {
   },
   removeLocalMediaProgress(state, id) {
     state.localMediaProgress = state.localMediaProgress.filter(lmp => lmp.id != id)
+  },
+  removeLocalMediaProgressForItem(state, llid) {
+    state.localMediaProgress = state.localMediaProgress.filter(lmp => lmp.localLibraryItemId !== llid)
   },
   setLastSearch(state, val) {
     state.lastSearch = val

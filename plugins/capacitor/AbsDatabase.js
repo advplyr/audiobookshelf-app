@@ -195,6 +195,10 @@ class AbsDatabaseWeb extends WebPlugin {
     return null
   }
 
+  async syncServerMediaProgressWithLocalMediaProgress(payload) {
+    return null
+  }
+
   async updateLocalTrackOrder({ localLibraryItemId, tracks }) {
     return []
   }
