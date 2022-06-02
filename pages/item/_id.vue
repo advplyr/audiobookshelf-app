@@ -1,59 +1,81 @@
 <template>
   <div class="w-full h-full px-3 py-4 overflow-y-auto">
     <div class="flex">
-      <div class="w-32">
+      <div class="w-16">
         <div class="relative">
-          <covers-book-cover :library-item="libraryItem" :width="128" :book-cover-aspect-ratio="bookCoverAspectRatio" />
-          <div v-if="!isPodcast" class="absolute bottom-0 left-0 h-1.5 shadow-sm z-10" :class="userIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: 128 * progressPercent + 'px' }"></div>
+          <covers-book-cover :library-item="libraryItem" :width="64" :book-cover-aspect-ratio="bookCoverAspectRatio" />
+          <div v-if="!isPodcast" class="absolute bottom-0 left-0 h-1 shadow-sm z-10" :class="userIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: 64 * progressPercent + 'px' }"></div>
         </div>
-        <!-- Show an indicator for local library items whether they are linked to a server item and if that server item is connected -->
-        <p v-if="isLocal && serverLibraryItemId" style="font-size: 10px" class="text-success py-1 uppercase tracking-widest">connected</p>
-        <p v-else-if="isLocal && libraryItem.serverAddress" style="font-size: 10px" class="text-gray-400 py-1">{{ libraryItem.serverAddress }}</p>
       </div>
-      <div class="flex-grow px-3">
-        <h1 class="text-lg">{{ title }}</h1>
+      <div class="title-container flex-grow pl-2">
+        <div class="flex relative pr-6">
+          <h1 class="text-base">{{ title }}</h1>
+
+          <button class="absolute top-0 right-0 h-full px-1 outline-none" @click="moreButtonPress">
+            <span class="material-icons text-xl">more_vert</span>
+          </button>
+        </div>
         <h3 v-if="seriesName" class="text-gray-300 text-sm leading-6">{{ seriesName }}</h3>
-        <p class="text-sm text-gray-400">by {{ author }}</p>
-        <p v-if="numTracks" class="text-gray-300 text-sm my-1">
-          {{ $elapsedPretty(duration) }}
-          <span v-if="!isLocal" class="px-4">{{ $bytesPretty(size) }}</span>
-        </p>
-        <p v-if="numTracks" class="text-gray-300 text-sm my-1">{{ numTracks }} Tracks</p>
+        <p class="text-sm text-gray-400 py-px">By {{ author }}</p>
+        <p v-if="narratorName" class="text-xs text-gray-400 py-px truncate">Narrated By {{ narratorName }}</p>
+      </div>
+    </div>
 
-        <div v-if="!isPodcast && progressPercent > 0" class="px-4 py-2 bg-primary text-sm font-semibold rounded-md text-gray-200 mt-4 relative" :class="resettingProgress ? 'opacity-25' : ''">
-          <p class="leading-6">Your Progress: {{ Math.round(progressPercent * 100) }}%</p>
-          <p v-if="progressPercent < 1" class="text-gray-400 text-xs">{{ $elapsedPretty(userTimeRemaining) }} remaining</p>
-          <p v-else class="text-gray-400 text-xs">Finished {{ $formatDate(userProgressFinishedAt) }}</p>
-          <div v-if="!resettingProgress" class="absolute -top-1.5 -right-1.5 p-1 w-5 h-5 rounded-full bg-bg hover:bg-error border border-primary flex items-center justify-center cursor-pointer" @click.stop="clearProgressClick">
-            <span class="material-icons text-sm">close</span>
-          </div>
-        </div>
+    <div>
+      <!-- Show an indicator for local library items whether they are linked to a server item and if that server item is connected -->
+      <p v-if="isLocal && serverLibraryItemId" style="font-size: 10px" class="text-success py-1 uppercase tracking-widest">connected</p>
+      <p v-else-if="isLocal && libraryItem.serverAddress" style="font-size: 10px" class="text-gray-400 py-1">{{ libraryItem.serverAddress }}</p>
 
-        <div v-if="isLocal" class="flex mt-4">
-          <ui-btn color="success" :disabled="isPlaying" class="flex items-center justify-center flex-grow mr-2" :padding-x="4" @click="playClick">
-            <span v-show="!isPlaying" class="material-icons">play_arrow</span>
-            <span class="px-1 text-sm">{{ isPlaying ? 'Playing' : 'Play' }}</span>
-          </ui-btn>
-          <ui-btn v-if="showRead" color="info" class="flex items-center justify-center mr-2" :class="showPlay ? '' : 'flex-grow'" :padding-x="2" @click="readBook">
-            <span class="material-icons">auto_stories</span>
-            <span v-if="!showPlay" class="px-2 text-base">Read {{ ebookFormat }}</span>
-          </ui-btn>
-          <ui-read-icon-btn v-if="!isPodcast" :disabled="isProcessingReadUpdate" :is-read="userIsFinished" class="flex items-center justify-center" @click="toggleFinished" />
+      <div v-if="numTracks" class="flex text-gray-100 text-xs my-2 -mx-0.5">
+        <div class="bg-primary bg-opacity-80 px-3 py-0.5 rounded-full mx-0.5">
+          <p>{{ $elapsedPretty(duration) }}</p>
         </div>
-        <div v-else-if="(user && (showPlay || showRead)) || hasLocal" class="flex mt-4">
-          <ui-btn v-if="showPlay" color="success" :disabled="isPlaying" class="flex items-center justify-center flex-grow mr-2" :padding-x="4" @click="playClick">
-            <span v-show="!isPlaying" class="material-icons">play_arrow</span>
-            <span class="px-1 text-sm">{{ isPlaying ? (isStreaming ? 'Streaming' : 'Playing') : hasLocal ? 'Play' : 'Stream' }}</span>
-          </ui-btn>
-          <ui-btn v-if="showRead && user" color="info" class="flex items-center justify-center mr-2" :class="showPlay ? '' : 'flex-grow'" :padding-x="2" @click="readBook">
-            <span class="material-icons">auto_stories</span>
-            <span v-if="!showPlay" class="px-2 text-base">Read {{ ebookFormat }}</span>
-          </ui-btn>
-          <ui-btn v-if="showDownload" :color="downloadItem ? 'warning' : 'primary'" class="flex items-center justify-center mr-2" :padding-x="2" @click="downloadClick">
-            <span class="material-icons" :class="downloadItem ? 'animate-pulse' : ''">{{ downloadItem ? 'downloading' : 'download' }}</span>
-          </ui-btn>
-          <ui-read-icon-btn v-if="!isPodcast" :disabled="isProcessingReadUpdate" :is-read="userIsFinished" class="flex items-center justify-center" @click="toggleFinished" />
+        <div class="bg-primary bg-opacity-80 px-3 py-0.5 rounded-full mx-0.5">
+          <p>{{ $bytesPretty(size) }}</p>
         </div>
+        <div class="bg-primary bg-opacity-80 px-3 py-0.5 rounded-full mx-0.5">
+          <p>{{ numTracks }} Track{{ numTracks > 1 ? 's' : '' }}</p>
+        </div>
+        <div v-if="numChapters" class="bg-primary bg-opacity-80 px-3 py-0.5 rounded-full mx-0.5">
+          <p>{{ numChapters }} Chapter{{ numChapters > 1 ? 's' : '' }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div v-if="!isPodcast && progressPercent > 0" class="px-4 py-2 bg-primary text-sm font-semibold rounded-md text-gray-200 mt-4 relative" :class="resettingProgress ? 'opacity-25' : ''">
+        <p class="leading-6">Your Progress: {{ Math.round(progressPercent * 100) }}%</p>
+        <p v-if="progressPercent < 1" class="text-gray-400 text-xs">{{ $elapsedPretty(userTimeRemaining) }} remaining</p>
+        <p v-else class="text-gray-400 text-xs">Finished {{ $formatDate(userProgressFinishedAt) }}</p>
+        <div v-if="!resettingProgress" class="absolute -top-1.5 -right-1.5 p-1 w-5 h-5 rounded-full bg-bg hover:bg-error border border-primary flex items-center justify-center cursor-pointer" @click.stop="clearProgressClick">
+          <span class="material-icons text-sm">close</span>
+        </div>
+      </div>
+
+      <div v-if="isLocal" class="flex mt-4">
+        <ui-btn color="success" :disabled="isPlaying" class="flex items-center justify-center flex-grow mr-2" :padding-x="4" @click="playClick">
+          <span v-show="!isPlaying" class="material-icons">play_arrow</span>
+          <span class="px-1 text-sm">{{ isPlaying ? 'Playing' : 'Play' }}</span>
+        </ui-btn>
+        <ui-btn v-if="showRead" color="info" class="flex items-center justify-center mr-2" :class="showPlay ? '' : 'flex-grow'" :padding-x="2" @click="readBook">
+          <span class="material-icons">auto_stories</span>
+          <span v-if="!showPlay" class="px-2 text-base">Read {{ ebookFormat }}</span>
+        </ui-btn>
+        <ui-read-icon-btn v-if="!isPodcast" :disabled="isProcessingReadUpdate" :is-read="userIsFinished" class="flex items-center justify-center" @click="toggleFinished" />
+      </div>
+      <div v-else-if="(user && (showPlay || showRead)) || hasLocal" class="flex mt-4">
+        <ui-btn v-if="showPlay" color="success" :disabled="isPlaying" class="flex items-center justify-center flex-grow mr-2" :padding-x="4" @click="playClick">
+          <span v-show="!isPlaying" class="material-icons">play_arrow</span>
+          <span class="px-1 text-sm">{{ isPlaying ? (isStreaming ? 'Streaming' : 'Playing') : hasLocal ? 'Play' : 'Stream' }}</span>
+        </ui-btn>
+        <ui-btn v-if="showRead && user" color="info" class="flex items-center justify-center mr-2" :class="showPlay ? '' : 'flex-grow'" :padding-x="2" @click="readBook">
+          <span class="material-icons">auto_stories</span>
+          <span v-if="!showPlay" class="px-2 text-base">Read {{ ebookFormat }}</span>
+        </ui-btn>
+        <ui-btn v-if="showDownload" :color="downloadItem ? 'warning' : 'primary'" class="flex items-center justify-center mr-2" :padding-x="2" @click="downloadClick">
+          <span class="material-icons" :class="downloadItem ? 'animate-pulse' : ''">{{ downloadItem ? 'downloading' : 'download' }}</span>
+        </ui-btn>
+        <ui-read-icon-btn v-if="!isPodcast" :disabled="isProcessingReadUpdate" :is-read="userIsFinished" class="flex items-center justify-center" @click="toggleFinished" />
       </div>
     </div>
 
@@ -68,6 +90,10 @@
     <tables-podcast-episodes-table v-if="isPodcast" :library-item-id="libraryItemId" :local-library-item-id="localLibraryItemId" :episodes="episodes" :local-episodes="localLibraryItemEpisodes" :is-local="isLocal" />
 
     <modals-select-local-folder-modal v-model="showSelectLocalFolder" :media-type="mediaType" @select="selectedLocalFolder" />
+
+    <modals-dialog v-model="showMoreMenu" title="" :items="moreMenuItems" @action="moreMenuAction" />
+
+    <modals-item-details-modal v-model="showDetailsModal" :library-item="libraryItem" />
   </div>
 </template>
 
@@ -110,7 +136,9 @@ export default {
     return {
       resettingProgress: false,
       isProcessingReadUpdate: false,
-      showSelectLocalFolder: false
+      showSelectLocalFolder: false,
+      showMoreMenu: false,
+      showDetailsModal: false
     }
   },
   computed: {
@@ -173,6 +201,10 @@ export default {
       if (this.isPodcast) return this.mediaMetadata.author
       return this.mediaMetadata.authorName
     },
+    narratorName() {
+      if (this.isPodcast) return null
+      return this.mediaMetadata.narratorName
+    },
     description() {
       return this.mediaMetadata.description || ''
     },
@@ -226,6 +258,10 @@ export default {
       if (!this.media.tracks) return 0
       return this.media.tracks.length || 0
     },
+    numChapters() {
+      if (!this.media.chapters) return 0
+      return this.media.chapters.length || 0
+    },
     isMissing() {
       return this.libraryItem.isMissing
     },
@@ -257,9 +293,41 @@ export default {
     },
     isCasting() {
       return this.$store.state.isCasting
+    },
+    moreMenuItems() {
+      if (this.isLocal) {
+        return [
+          {
+            text: 'Manage Local Files',
+            value: 'manageLocal'
+          },
+          {
+            text: 'View Details',
+            value: 'details'
+          }
+        ]
+      } else {
+        return [
+          {
+            text: 'View Details',
+            value: 'details'
+          }
+        ]
+      }
     }
   },
   methods: {
+    moreMenuAction(action) {
+      this.showMoreMenu = false
+      if (action === 'manageLocal') {
+        this.$router.push(`/localMedia/item/${this.libraryItemId}`)
+      } else if (action === 'details') {
+        this.showDetailsModal = true
+      }
+    },
+    moreButtonPress() {
+      this.showMoreMenu = true
+    },
     readBook() {
       this.$store.commit('openReader', this.libraryItem)
     },
@@ -447,3 +515,10 @@ export default {
   }
 }
 </script>
+
+<style>
+.title-container {
+  width: calc(100% - 64px);
+  max-width: calc(100% - 64px);
+}
+</style>
