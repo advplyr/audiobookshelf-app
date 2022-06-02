@@ -189,7 +189,7 @@ export default {
       if (this.selectedAudioTrack || this.selectedEpisode) {
         return [
           {
-            text: 'Hard Delete',
+            text: 'Remove & Delete Files',
             value: 'track-delete'
           }
         ]
@@ -208,7 +208,7 @@ export default {
             value: 'remove'
           },
           {
-            text: 'Hard Delete',
+            text: 'Remove & Delete Files',
             value: 'delete'
           }
         ]
