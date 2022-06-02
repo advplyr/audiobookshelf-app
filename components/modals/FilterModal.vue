@@ -166,7 +166,7 @@ export default {
       return this.filterData.narrators || []
     },
     progress() {
-      return ['Finished', 'In Progress', 'Not Started']
+      return ['Finished', 'In Progress', 'Not Started', 'Not Finished']
     },
     sublistItems() {
       return (this[this.sublist] || []).map((item) => {
