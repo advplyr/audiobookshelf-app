@@ -1,20 +1,13 @@
 package com.audiobookshelf.app.data
 
-import android.content.ContentResolver
 import android.content.Context
-import android.content.Intent
-import android.graphics.Bitmap
 import android.net.Uri
 import android.support.v4.media.MediaMetadataCompat
 import android.util.Log
 import com.audiobookshelf.app.R
 import com.audiobookshelf.app.device.DeviceManager
-import com.audiobookshelf.app.player.NOTIFICATION_LARGE_ICON_SIZE
-import com.bumptech.glide.Glide
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.util.*
 
 @JsonIgnoreProperties(ignoreUnknown = true)

@@ -30,7 +30,8 @@
         <div class="bg-primary bg-opacity-80 px-3 py-0.5 rounded-full mx-0.5">
           <p>{{ $elapsedPretty(duration) }}</p>
         </div>
-        <div class="bg-primary bg-opacity-80 px-3 py-0.5 rounded-full mx-0.5">
+        <!-- TODO: Local books dont save the size -->
+        <div v-if="size" class="bg-primary bg-opacity-80 px-3 py-0.5 rounded-full mx-0.5">
           <p>{{ $bytesPretty(size) }}</p>
         </div>
         <div class="bg-primary bg-opacity-80 px-3 py-0.5 rounded-full mx-0.5">
