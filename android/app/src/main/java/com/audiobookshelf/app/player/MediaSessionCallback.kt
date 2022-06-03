@@ -9,12 +9,8 @@ import android.os.Message
 import android.support.v4.media.session.MediaSessionCompat
 import android.util.Log
 import android.view.KeyEvent
-import com.audiobookshelf.app.data.LibraryItem
 import com.audiobookshelf.app.data.LibraryItemWrapper
 import com.audiobookshelf.app.data.PodcastEpisode
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 import java.util.*
 import kotlin.concurrent.schedule
 
@@ -119,10 +115,13 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
 
   fun handleCallMediaButton(intent: Intent): Boolean {
     if(Intent.ACTION_MEDIA_BUTTON == intent.action) {
-      var keyEvent = intent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
-      if (keyEvent?.getAction() == KeyEvent.ACTION_UP) {
-        when (keyEvent?.getKeyCode()) {
+      val keyEvent = intent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
+
+      if (keyEvent?.action == KeyEvent.ACTION_UP) {
+        Log.d(tag, "handleCallMediaButton: key action_up for ${keyEvent.keyCode}")
+        when (keyEvent.keyCode) {
           KeyEvent.KEYCODE_HEADSETHOOK -> {
+            Log.d(tag, "handleCallMediaButton: Headset Hook")
             if (0 == mediaButtonClickCount) {
               if (playerNotificationService.mPlayer.isPlaying)
                 playerNotificationService.pause()
@@ -132,6 +131,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
             handleMediaButtonClickCount()
           }
           KeyEvent.KEYCODE_MEDIA_PLAY -> {
+            Log.d(tag, "handleCallMediaButton: Media Play")
             if (0 == mediaButtonClickCount) {
               playerNotificationService.play()
               playerNotificationService.sleepTimerManager.checkShouldExtendSleepTimer()
@@ -139,6 +139,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
             handleMediaButtonClickCount()
           }
           KeyEvent.KEYCODE_MEDIA_PAUSE -> {
+            Log.d(tag, "handleCallMediaButton: Media Pause")
             if (0 == mediaButtonClickCount) playerNotificationService.pause()
             handleMediaButtonClickCount()
           }
@@ -152,6 +153,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
             playerNotificationService.closePlayback()
           }
           KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
+            Log.d(tag, "handleCallMediaButton: Media Play/Pause")
             if (playerNotificationService.mPlayer.isPlaying) {
               if (0 == mediaButtonClickCount) playerNotificationService.pause()
               handleMediaButtonClickCount()
@@ -164,7 +166,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
             }
           }
           else -> {
-            Log.d(tag, "KeyCode:${keyEvent.getKeyCode()}")
+            Log.d(tag, "KeyCode:${keyEvent.keyCode}")
             return false
           }
         }
@@ -173,7 +175,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
     return true
   }
 
-  fun handleMediaButtonClickCount() {
+  private fun handleMediaButtonClickCount() {
     mediaButtonClickCount++
     if (1 == mediaButtonClickCount) {
       Timer().schedule(mediaButtonClickTimeout) {
