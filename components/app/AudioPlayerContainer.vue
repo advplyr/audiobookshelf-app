@@ -30,9 +30,11 @@ export default {
       onSleepTimerEndedListener: null,
       onSleepTimerSetListener: null,
       onMediaPlayerChangedListener: null,
+      onProgressSyncFailing: null,
       sleepInterval: null,
       currentEndOfChapterTime: 0,
-      serverLibraryItemId: null
+      serverLibraryItemId: null,
+      syncFailedToast: null
     }
   },
   watch: {
@@ -241,6 +243,10 @@ export default {
     onMediaPlayerChanged(data) {
       var mediaPlayer = data.value
       this.$store.commit('setMediaPlayer', mediaPlayer)
+    },
+    showProgressSyncIsFailing() {
+      if (!isNaN(this.syncFailedToast)) this.$toast.dismiss(this.syncFailedToast)
+      this.syncFailedToast = this.$toast('Progress is not being synced', { timeout: false, type: 'error' })
     }
   },
   mounted() {
@@ -248,6 +254,7 @@ export default {
     this.onSleepTimerEndedListener = AbsAudioPlayer.addListener('onSleepTimerEnded', this.onSleepTimerEnded)
     this.onSleepTimerSetListener = AbsAudioPlayer.addListener('onSleepTimerSet', this.onSleepTimerSet)
     this.onMediaPlayerChangedListener = AbsAudioPlayer.addListener('onMediaPlayerChanged', this.onMediaPlayerChanged)
+    this.onProgressSyncFailing = AbsAudioPlayer.addListener('onProgressSyncFailing', this.showProgressSyncIsFailing)
 
     this.playbackSpeed = this.$store.getters['user/getUserSetting']('playbackRate')
     console.log(`[AudioPlayerContainer] Init Playback Speed: ${this.playbackSpeed}`)
@@ -264,6 +271,7 @@ export default {
     if (this.onSleepTimerEndedListener) this.onSleepTimerEndedListener.remove()
     if (this.onSleepTimerSetListener) this.onSleepTimerSetListener.remove()
     if (this.onMediaPlayerChangedListener) this.onMediaPlayerChangedListener.remove()
+    if (this.onProgressSyncFailing) this.onProgressSyncFailing.remove()
 
     // if (this.$server.socket) {
     //   this.$server.socket.off('stream_open', this.streamOpen)

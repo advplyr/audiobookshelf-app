@@ -48,12 +48,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     fun onPlaybackClosed()
     fun onPlayingUpdate(isPlaying: Boolean)
     fun onMetadata(metadata: PlaybackMetadata)
-    fun onPrepare(audiobookId: String, playWhenReady: Boolean)
     fun onSleepTimerEnded(currentPosition: Long)
     fun onSleepTimerSet(sleepTimeRemaining: Int)
     fun onLocalMediaProgressUpdate(localMediaProgress: LocalMediaProgress)
     fun onPlaybackFailed(errorMessage:String)
     fun onMediaPlayerChanged(mediaPlayer:String)
+    fun onProgressSyncFailing()
   }
 
   private val tag = "PlayerService"
@@ -68,7 +68,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   private lateinit var transportControls:MediaControllerCompat.TransportControls
 
   lateinit var mediaManager: MediaManager
-  private lateinit var apiHandler: ApiHandler
+  lateinit var apiHandler: ApiHandler
 
   lateinit var mPlayer: ExoPlayer
   lateinit var currentPlayer:Player
@@ -392,6 +392,21 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     }
   }
 
+  fun startNewPlaybackSession() {
+    currentPlaybackSession?.let { playbackSession ->
+      val forceTranscode = playbackSession.isHLS // If already HLS then force
+      val playItemRequestPayload = getPlayItemRequestPayload(forceTranscode)
+
+      val libraryItemId = playbackSession.libraryItemId ?: "" // Must be true since direct play
+      val episodeId = playbackSession.episodeId
+      apiHandler.playLibraryItem(libraryItemId, episodeId, playItemRequestPayload) {
+        Handler(Looper.getMainLooper()).post {
+          preparePlayer(it, true, null)
+        }
+      }
+    }
+  }
+
   fun switchToPlayer(useCastPlayer: Boolean) {
     val wasPlaying = currentPlayer.isPlaying
     if (useCastPlayer) {
@@ -483,6 +498,67 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     return currentPlaybackSession?.id
   }
 
+  // Called from PlayerListener play event
+  // check with server if progress has updated since last play and sync progress update
+  fun checkCurrentSessionProgress():Boolean {
+    if (currentPlaybackSession == null) return true
+
+    currentPlaybackSession?.let { playbackSession ->
+      if (!apiHandler.isOnline() || playbackSession.isLocalLibraryItemOnly) {
+        return true // carry on
+      }
+
+      if (playbackSession.isLocal) {
+        // Local playback session check if server has updated media progress
+        Log.d(tag, "checkCurrentSessionProgress: Checking if local media progress was updated on server")
+        apiHandler.getMediaProgress(playbackSession.libraryItemId!!, playbackSession.episodeId) { mediaProgress ->
+          if (mediaProgress.lastUpdate > playbackSession.updatedAt && mediaProgress.currentTime != playbackSession.currentTime) {
+            Log.d(tag, "checkCurrentSessionProgress: Media progress was updated since last play time updating from ${playbackSession.currentTime} to ${mediaProgress.currentTime}")
+            mediaProgressSyncer.syncFromServerProgress(mediaProgress)
+
+            Handler(Looper.getMainLooper()).post {
+              seekPlayer(playbackSession.currentTimeMs)
+            }
+          }
+
+          Handler(Looper.getMainLooper()).post {
+            // Should already be playing
+            currentPlayer.volume = 1F // Volume on sleep timer might have decreased this
+            mediaProgressSyncer.start()
+            clientEventEmitter?.onPlayingUpdate(true)
+          }
+        }
+      } else {
+        // Streaming from server so check if playback session still exists on server
+        Log.d(
+          tag,
+          "checkCurrentSessionProgress: Checking if playback session for server stream is still available"
+        )
+        apiHandler.getPlaybackSession(playbackSession.id) {
+          if (it == null) {
+            Log.d(
+              tag,
+              "checkCurrentSessionProgress: Playback session does not exist on server - start new playback session"
+            )
+
+            Handler(Looper.getMainLooper()).post {
+              currentPlayer.pause()
+              startNewPlaybackSession()
+            }
+          } else {
+              Log.d(tag, "checkCurrentSessionProgress: Playback session still available on server")
+              Handler(Looper.getMainLooper()).post {
+                currentPlayer.volume = 1F // Volume on sleep timer might have decreased this
+                mediaProgressSyncer.start()
+                clientEventEmitter?.onPlayingUpdate(true)
+              }
+          }
+        }
+      }
+    }
+    return false
+  }
+
   fun play() {
     if (currentPlayer.isPlaying) {
       Log.d(tag, "Already playing")
@@ -568,6 +644,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   fun getContext():Context {
     return ctx
+  }
+
+  fun alertSyncFailing() {
+    clientEventEmitter?.onProgressSyncFailing()
   }
 
   //

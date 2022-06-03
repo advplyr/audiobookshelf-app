@@ -86,9 +86,15 @@ class ApiHandler(var ctx:Context) {
 
       override fun onResponse(call: Call, response: Response) {
         response.use {
-          if (!it.isSuccessful) throw IOException("Unexpected code $response")
+          if (!it.isSuccessful) {
+//            throw IOException("Unexpected code $response")
+            val jsobj = JSObject()
+            jsobj.put("error", "Unexpected code $response")
+            cb(jsobj)
+            return
+          }
 
-              val bodyString = it.body!!.string()
+          val bodyString = it.body!!.string()
           if (bodyString == "OK") {
             cb(JSObject())
           } else {
@@ -184,11 +190,15 @@ class ApiHandler(var ctx:Context) {
     }
   }
 
-  fun sendProgressSync(sessionId:String, syncData: MediaProgressSyncData, cb: () -> Unit) {
+  fun sendProgressSync(sessionId:String, syncData: MediaProgressSyncData, cb: (Boolean) -> Unit) {
     val payload = JSObject(jacksonMapper.writeValueAsString(syncData))
 
     postRequest("/api/session/$sessionId/sync", payload) {
-      cb()
+      if (!it.getString("error").isNullOrEmpty()) {
+        cb(false)
+      } else {
+        cb(true)
+      }
     }
   }
 
@@ -250,6 +260,26 @@ class ApiHandler(var ctx:Context) {
     patchRequest(endpoint,updatePayload) {
       Log.d(tag, "updateMediaProgress patched progress")
       cb()
+    }
+  }
+
+  fun getMediaProgress(libraryItemId:String, episodeId:String?, cb: (MediaProgress) -> Unit) {
+    val endpoint = if(episodeId.isNullOrEmpty()) "/api/me/progress/$libraryItemId" else "/api/me/progress/$libraryItemId/$episodeId"
+    getRequest(endpoint) {
+      val progress = jacksonMapper.readValue<MediaProgress>(it.toString())
+      cb(progress)
+    }
+  }
+
+  fun getPlaybackSession(playbackSessionId:String, cb: (PlaybackSession?) -> Unit) {
+    val endpoint = "/api/session/$playbackSessionId"
+    getRequest(endpoint) {
+      val err = it.getString("error")
+      if (!err.isNullOrEmpty()) {
+        cb(null)
+      } else {
+        cb(jacksonMapper.readValue<PlaybackSession>(it.toString()))
+      }
     }
   }
 }
