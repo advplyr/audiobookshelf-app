@@ -15,31 +15,48 @@
             <span class="material-icons text-xl">more_vert</span>
           </button>
         </div>
-        <h3 v-if="seriesName" class="text-gray-300 text-sm leading-6">{{ seriesName }}</h3>
-        <p class="text-sm text-gray-400 py-px">By {{ author }}</p>
-        <p v-if="narratorName" class="text-xs text-gray-400 py-px truncate">Narrated By {{ narratorName }}</p>
+        <p v-if="seriesList && seriesList.length" class="text-sm text-gray-300 py-0.5">
+          <template v-for="(series, index) in seriesList"
+            ><nuxt-link :key="series.id" :to="`/bookshelf/series/${series.id}`">{{ series.text }}</nuxt-link
+            ><span :key="`${series.id}-comma`" v-if="index < seriesList.length - 1">,&nbsp;</span></template
+          >
+        </p>
+        <p v-if="podcastAuthor" class="text-sm text-gray-400 py-0.5">By {{ author }}</p>
+        <p v-else-if="bookAuthors && bookAuthors.length" class="text-sm text-gray-400 py-0.5">
+          By
+          <template v-for="(author, index) in bookAuthors"
+            ><nuxt-link :key="author.id" :to="`/bookshelf/library?filter=authors.${$encode(author.id)}`">{{ author.name }}</nuxt-link
+            ><span :key="`${author.id}-comma`" v-if="index < bookAuthors.length - 1">,&nbsp;</span></template
+          >
+        </p>
       </div>
     </div>
 
-    <div>
-      <!-- Show an indicator for local library items whether they are linked to a server item and if that server item is connected -->
-      <p v-if="isLocal && serverLibraryItemId" style="font-size: 10px" class="text-success py-1 uppercase tracking-widest">connected</p>
-      <p v-else-if="isLocal && libraryItem.serverAddress" style="font-size: 10px" class="text-gray-400 py-1">{{ libraryItem.serverAddress }}</p>
+    <p v-if="narrators && narrators.length" class="text-sm text-gray-400 py-0.5">
+      Narrated By
+      <template v-for="(narrator, index) in narrators"
+        ><nuxt-link :key="narrator" :to="`/bookshelf/library?filter=narrators.${$encode(narrator)}`">{{ narrator }}</nuxt-link
+        ><span :key="`${narrator}-comma`" v-if="index < narrators.length - 1">,&nbsp;</span></template
+      >
+    </p>
 
-      <div v-if="numTracks" class="flex text-gray-100 text-xs my-2 -mx-0.5">
-        <div class="bg-primary bg-opacity-80 px-3 py-0.5 rounded-full mx-0.5">
-          <p>{{ $elapsedPretty(duration) }}</p>
-        </div>
-        <!-- TODO: Local books dont save the size -->
-        <div v-if="size" class="bg-primary bg-opacity-80 px-3 py-0.5 rounded-full mx-0.5">
-          <p>{{ $bytesPretty(size) }}</p>
-        </div>
-        <div class="bg-primary bg-opacity-80 px-3 py-0.5 rounded-full mx-0.5">
-          <p>{{ numTracks }} Track{{ numTracks > 1 ? 's' : '' }}</p>
-        </div>
-        <div v-if="numChapters" class="bg-primary bg-opacity-80 px-3 py-0.5 rounded-full mx-0.5">
-          <p>{{ numChapters }} Chapter{{ numChapters > 1 ? 's' : '' }}</p>
-        </div>
+    <!-- Show an indicator for local library items whether they are linked to a server item and if that server item is connected -->
+    <p v-if="isLocal && serverLibraryItemId" style="font-size: 10px" class="text-success py-1 uppercase tracking-widest">connected</p>
+    <p v-else-if="isLocal && libraryItem.serverAddress" style="font-size: 10px" class="text-gray-400 py-1">{{ libraryItem.serverAddress }}</p>
+
+    <div v-if="numTracks" class="flex text-gray-100 text-xs my-2 -mx-0.5">
+      <div class="bg-primary bg-opacity-80 px-3 py-0.5 rounded-full mx-0.5">
+        <p>{{ $elapsedPretty(duration) }}</p>
+      </div>
+      <!-- TODO: Local books dont save the size -->
+      <div v-if="size" class="bg-primary bg-opacity-80 px-3 py-0.5 rounded-full mx-0.5">
+        <p>{{ $bytesPretty(size) }}</p>
+      </div>
+      <div class="bg-primary bg-opacity-80 px-3 py-0.5 rounded-full mx-0.5">
+        <p>{{ numTracks }} Track{{ numTracks > 1 ? 's' : '' }}</p>
+      </div>
+      <div v-if="numChapters" class="bg-primary bg-opacity-80 px-3 py-0.5 rounded-full mx-0.5">
+        <p>{{ numChapters }} Chapter{{ numChapters > 1 ? 's' : '' }}</p>
       </div>
     </div>
 
@@ -198,13 +215,17 @@ export default {
     title() {
       return this.mediaMetadata.title
     },
-    author() {
-      if (this.isPodcast) return this.mediaMetadata.author
-      return this.mediaMetadata.authorName
+    podcastAuthor() {
+      if (!this.isPodcast) return null
+      return this.mediaMetadata.author || ''
     },
-    narratorName() {
+    bookAuthors() {
       if (this.isPodcast) return null
-      return this.mediaMetadata.narratorName
+      return this.mediaMetadata.authors || []
+    },
+    narrators() {
+      if (this.isPodcast) return null
+      return this.mediaMetadata.narrators || []
     },
     description() {
       return this.mediaMetadata.description || ''
@@ -212,9 +233,16 @@ export default {
     series() {
       return this.mediaMetadata.series || []
     },
-    seriesName() {
-      // For books only on toJSONExpanded
-      return this.mediaMetadata.seriesName || ''
+    seriesList() {
+      if (this.isPodcast) return null
+      return this.series.map((se) => {
+        var text = se.name
+        if (se.sequence) text += ` #${se.sequence}`
+        return {
+          ...se,
+          text
+        }
+      })
     },
     duration() {
       return this.media.duration
