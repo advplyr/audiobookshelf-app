@@ -5,7 +5,7 @@
       <div class="flex-grow" />
       <button class="outline:none mx-3 pt-0.5 relative" @click="showFilters">
         <span class="material-icons text-xl text-gray-200">filter_alt</span>
-        <div v-show="filterKey !== 'all'" class="absolute top-0 right-0 w-1.5 h-1.5 rounded-full bg-success border border-green-300 shadow-sm z-10 pointer-events-none" />
+        <div v-show="filterKey !== 'all' && episodesAreFiltered" class="absolute top-0 right-0 w-1.5 h-1.5 rounded-full bg-success border border-green-300 shadow-sm z-10 pointer-events-none" />
       </button>
 
       <div class="flex items-center border border-white border-opacity-25 rounded px-2" @click="clickSort">
@@ -14,9 +14,13 @@
       </div>
     </div>
 
-    <template v-for="episode in episodesFiltered">
+    <template v-for="episode in episodesSorted">
       <tables-podcast-episode-row :episode="episode" :local-episode="localEpisodeMap[episode.id]" :library-item-id="libraryItemId" :local-library-item-id="localLibraryItemId" :is-local="isLocal" :key="episode.id" />
     </template>
+
+    <!-- What in tarnation is going on here?
+        Without anything below the template it will not re-render -->
+    <p>&nbsp;</p>
 
     <modals-dialog v-model="showFiltersModal" title="Episode Filter" :items="filterItems" :selected="filterKey" @action="setFilter" />
   </div>
@@ -43,8 +47,7 @@ export default {
       showFiltersModal: false,
       sortKey: 'publishedAt',
       sortDesc: false,
-      filterKey: 'all',
-      episodesFiltered: [],
+      filterKey: 'incomplete',
       episodeSortItems: [
         {
           text: 'Pub Date',
@@ -89,19 +92,28 @@ export default {
       handler() {
         this.init()
       }
-    },
-    filterKey: {
-      handler() {
-        this.setEpisodesFiltered()
-      }
-    },
-    sortKey: {
-      handler() {
-        this.setEpisodesFiltered()
-      }
     }
   },
   computed: {
+    episodesAreFiltered() {
+      return this.episodesFiltered.length !== this.episodesCopy.length
+    },
+    episodesFiltered() {
+      return this.episodesCopy.filter((ep) => {
+        var mediaProgress = this.getEpisodeProgress(ep)
+        if (this.filterKey === 'incomplete') {
+          return !mediaProgress || !mediaProgress.isFinished
+        } else if (this.filterKey === 'complete') {
+          return mediaProgress && mediaProgress.isFinished
+        } else if (this.filterKey === 'inProgress') {
+          return mediaProgress && !mediaProgress.isFinished
+        } else if (this.filterKey === 'all') {
+          console.log('Filter key is all')
+          return true
+        }
+        return true
+      })
+    },
     episodesSorted() {
       return this.episodesFiltered.sort((a, b) => {
         if (this.sortDesc) {
@@ -128,29 +140,6 @@ export default {
     }
   },
   methods: {
-    setEpisodesFiltered() {
-      this.episodesFiltered = this.episodesCopy
-        .filter((ep) => {
-          var mediaProgress = this.getEpisodeProgress(ep)
-          if (this.filterKey === 'incomplete') {
-            return !mediaProgress || !mediaProgress.isFinished
-          } else if (this.filterKey === 'complete') {
-            return mediaProgress && mediaProgress.isFinished
-          } else if (this.filterKey === 'inProgress') {
-            return mediaProgress && !mediaProgress.isFinished
-          } else if (this.filterKey === 'all') {
-            console.log('Filter key is all')
-            return true
-          }
-          return true
-        })
-        .sort((a, b) => {
-          if (this.sortDesc) {
-            return String(b[this.sortKey]).localeCompare(String(a[this.sortKey]), undefined, { numeric: true, sensitivity: 'base' })
-          }
-          return String(a[this.sortKey]).localeCompare(String(b[this.sortKey]), undefined, { numeric: true, sensitivity: 'base' })
-        })
-    },
     setFilter(filter) {
       this.filterKey = filter
       console.log('Set filter', this.filterKey)
@@ -170,7 +159,6 @@ export default {
       this.episodesCopy = this.episodes.map((ep) => {
         return { ...ep }
       })
-      this.setEpisodesFiltered()
     }
   },
   mounted() {}
