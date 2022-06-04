@@ -17,7 +17,7 @@ class ApiClient {
         }).resume()
     }
     
-    public static func postResource<T: Decodable>(endpoint: String, parameters: [String: String], decodable: T.Type = T.self, callback: ((_ param: T) -> Void)?) {
+    public static func postResource<T: Decodable>(endpoint: String, parameters: [String: Any], decodable: T.Type = T.self, callback: ((_ param: T) -> Void)?) {
         if (Store.serverConfig == nil) {
             NSLog("Server config not set")
             return
@@ -27,7 +27,7 @@ class ApiClient {
             "Authorization": "Bearer \(Store.serverConfig!.token)"
         ]
         
-        AF.request("\(Store.serverConfig!.address)/\(endpoint)", method: .post, parameters: parameters, encoder: JSONParameterEncoder.default, headers: headers).responseDecodable(of: decodable) { response in
+        AF.request("\(Store.serverConfig!.address)/\(endpoint)", method: .post, parameters: parameters, encoding: JSONEncoding.default, headers: headers).responseDecodable(of: decodable) { response in
             switch response.result {
             case .success(let obj):
                 callback?(obj)
@@ -88,10 +88,23 @@ class ApiClient {
             endpoint += "/\(episodeId!)"
         }
         
+        var systemInfo = utsname()
+        uname(&systemInfo)
+        let modelCode = withUnsafePointer(to: &systemInfo.machine) {
+            $0.withMemoryRebound(to: CChar.self, capacity: 1) {
+                ptr in String.init(validatingUTF8: ptr)
+            }
+        }
+        
         ApiClient.postResource(endpoint: endpoint, parameters: [
             "forceDirectPlay": !forceTranscode ? "1" : "",
             "forceTranscode": forceTranscode ? "1" : "",
             "mediaPlayer": "AVPlayer",
+            "deviceInfo": [
+                "manufacturer": "Apple",
+                "model": modelCode,
+                "clientVersion": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
+            ]
         ], decodable: PlaybackSession.self) { obj in
             var session = obj
             
