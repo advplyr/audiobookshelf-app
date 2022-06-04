@@ -21,6 +21,7 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
   var serverPodcastEpisodes = listOf<PodcastEpisode>()
   var serverLibraryCategories = listOf<LibraryCategory>()
   var serverLibraries = listOf<Library>()
+  var serverConfigIdUsed:String? = null
 
   fun initializeAndroidAuto() {
     Log.d(tag, "Android Auto started when MainActivity was never started - initializing Paper")
@@ -34,7 +35,9 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
   fun checkResetServerItems() {
     // When opening android auto need to check if still connected to server
     //   and reset any server data already set
-    if (!DeviceManager.isConnectedToServer) {
+    val serverConnConfig = if (DeviceManager.isConnectedToServer) DeviceManager.serverConnectionConfig else DeviceManager.deviceData.getLastServerConnectionConfig()
+
+    if (!DeviceManager.isConnectedToServer || !apiHandler.isOnline() || serverConnConfig == null || serverConnConfig.id !== serverConfigIdUsed) {
       serverPodcastEpisodes = listOf()
       serverLibraryCategories = listOf()
       serverLibraries = listOf()
@@ -161,6 +164,8 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
         DeviceManager.serverConnectionConfig = DeviceManager.deviceData.getLastServerConnectionConfig()
         Log.d(tag, "Not connected to server, set last server \"${DeviceManager.serverAddress}\"")
       }
+
+      serverConfigIdUsed = DeviceManager.serverConnectionConfigId
 
       loadLibraries { libraries ->
         val library = libraries[0]

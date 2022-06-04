@@ -97,6 +97,10 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
       podcastEpisode = libraryItemWithEpisode?.episode
     } else {
       libraryItemWrapper = playerNotificationService.mediaManager.getById(mediaId)
+
+      if (libraryItemWrapper == null) {
+        Log.e(tag, "onPlayFromMediaId: Media item not found $mediaId")
+      }
     }
 
     libraryItemWrapper?.let { li ->
