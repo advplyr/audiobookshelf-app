@@ -45,6 +45,7 @@ class AudioPlayer: NSObject {
         self.playWhenReady = playWhenReady
         self.initialPlaybackRate = playbackRate
         self.audioPlayer = AVQueuePlayer()
+        self.audioPlayer.automaticallyWaitsToMinimizeStalling = false
         self.playbackSession = playbackSession
         self.status = -1
         self.rate = 0.0
