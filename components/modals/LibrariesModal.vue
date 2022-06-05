@@ -51,7 +51,7 @@ export default {
     async clickedOption(lib) {
       this.show = false
       await this.$store.dispatch('libraries/fetch', lib.id)
-      this.$eventBus.$emit('library-changed', lib.id)
+      this.$eventBus.$emit('library-changed')
       this.$localStore.setLastLibraryId(lib.id)
     }
   },
