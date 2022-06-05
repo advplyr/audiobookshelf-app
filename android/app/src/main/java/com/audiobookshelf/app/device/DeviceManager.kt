@@ -26,4 +26,9 @@ object DeviceManager {
   fun getBase64Id(id:String):String {
     return android.util.Base64.encodeToString(id.toByteArray(), android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP)
   }
+
+  fun getServerConnectionConfig(id:String?):ServerConnectionConfig? {
+    if (id == null) return null
+    return deviceData.serverConnectionConfigs.find { it.id == id }
+  }
 }

@@ -509,10 +509,19 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       }
 
       if (playbackSession.isLocal) {
+
+        // Make sure this connection config exists
+        val serverConnectionConfig = DeviceManager.getServerConnectionConfig(playbackSession.serverConnectionConfigId)
+        if (serverConnectionConfig == null) {
+          Log.d(tag, "checkCurrentSessionProgress: Local library item server connection config is not saved ${playbackSession.serverConnectionConfigId}")
+          return true // carry on
+        }
+
         // Local playback session check if server has updated media progress
         Log.d(tag, "checkCurrentSessionProgress: Checking if local media progress was updated on server")
-        apiHandler.getMediaProgress(playbackSession.libraryItemId!!, playbackSession.episodeId) { mediaProgress ->
-          if (mediaProgress.lastUpdate > playbackSession.updatedAt && mediaProgress.currentTime != playbackSession.currentTime) {
+        apiHandler.getMediaProgress(playbackSession.libraryItemId!!, playbackSession.episodeId, serverConnectionConfig) { mediaProgress ->
+
+          if (mediaProgress != null && mediaProgress.lastUpdate > playbackSession.updatedAt && mediaProgress.currentTime != playbackSession.currentTime) {
             Log.d(tag, "checkCurrentSessionProgress: Media progress was updated since last play time updating from ${playbackSession.currentTime} to ${mediaProgress.currentTime}")
             mediaProgressSyncer.syncFromServerProgress(mediaProgress)
 

@@ -5,7 +5,7 @@ import com.audiobookshelf.app.data.PlayerState
 import com.google.android.exoplayer2.PlaybackException
 import com.google.android.exoplayer2.Player
 
-const val PAUSE_LEN_BEFORE_RECHECK = 60000 // 1 minute
+const val PAUSE_LEN_BEFORE_RECHECK = 30000 // 30 seconds
 
 class PlayerListener(var playerNotificationService:PlayerNotificationService) : Player.Listener {
   var tag = "PlayerListener"
@@ -85,7 +85,8 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
           }
 
           // Check if playback session still exists or sync media progress if updated
-          if (lastPauseTime > PAUSE_LEN_BEFORE_RECHECK) {
+          val pauseLength: Long = System.currentTimeMillis() - lastPauseTime
+          if (pauseLength > PAUSE_LEN_BEFORE_RECHECK) {
             val shouldCarryOn = playerNotificationService.checkCurrentSessionProgress()
             if (!shouldCarryOn) return
           }
