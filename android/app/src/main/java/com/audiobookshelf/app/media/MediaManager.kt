@@ -8,6 +8,10 @@ import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.server.ApiHandler
 import java.util.*
 import io.paperdb.Paper
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.runBlocking
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
   val tag = "MediaManager"
@@ -137,6 +141,48 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
     }
   }
 
+  suspend fun checkServerConnection(config:ServerConnectionConfig) : Boolean {
+    var successfulPing = false
+    suspendCoroutine<Boolean> { cont ->
+      apiHandler.pingServer(config) {
+        Log.d(tag, "checkServerConnection: Checked server conn for ${config.address} result = $it")
+        successfulPing = it
+        cont.resume(it)
+      }
+    }
+    return successfulPing
+  }
+
+  fun checkSetValidServerConnectionConfig(cb: (Boolean) -> Unit) = runBlocking {
+    if (!apiHandler.isOnline()) cb(false)
+    else {
+      coroutineScope {
+        var hasValidConn = false
+
+        // First check if the current selected config is pingable
+        DeviceManager.serverConnectionConfig?.let {
+          hasValidConn = checkServerConnection(it)
+          Log.d(tag, "checkSetValidServerConnectionConfig: Current config ${DeviceManager.serverAddress} is pingable? $hasValidConn")
+        }
+
+        if (!hasValidConn) {
+          // Loop through available configs and check if can connect
+          for (config: ServerConnectionConfig in DeviceManager.deviceData.serverConnectionConfigs) {
+            val result = checkServerConnection(config)
+
+            if (result) {
+              hasValidConn = true
+              DeviceManager.serverConnectionConfig = config
+              break
+            }
+          }
+        }
+
+        cb(hasValidConn)
+      }
+    }
+  }
+
   // TODO: Load currently listening category for local items
   fun loadLocalCategory():List<LibraryCategory> {
     val localBooks = DeviceManager.dbManager.getLocalLibraryItems("book")
@@ -158,35 +204,32 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
     val localCategories = loadLocalCategory()
     cats.addAll(localCategories)
 
-    // Connected to server and has internet - load other cats
-    if (apiHandler.isOnline() && (DeviceManager.isConnectedToServer || DeviceManager.hasLastServerConnectionConfig)) {
-      if (!DeviceManager.isConnectedToServer) {
-        DeviceManager.serverConnectionConfig = DeviceManager.deviceData.getLastServerConnectionConfig()
-        Log.d(tag, "Not connected to server, set last server \"${DeviceManager.serverAddress}\"")
-      }
+    // Check if any valid server connection if not use locally downloaded books
+    checkSetValidServerConnectionConfig { isConnected ->
+      if (isConnected) {
+        serverConfigIdUsed = DeviceManager.serverConnectionConfigId
 
-      serverConfigIdUsed = DeviceManager.serverConnectionConfigId
+        loadLibraries { libraries ->
+          val library = libraries[0]
+          Log.d(tag, "Loading categories for library ${library.name} - ${library.id} - ${library.mediaType}")
 
-      loadLibraries { libraries ->
-        val library = libraries[0]
-        Log.d(tag, "Loading categories for library ${library.name} - ${library.id} - ${library.mediaType}")
+          loadLibraryCategories(library.id) { libraryCategories ->
 
-        loadLibraryCategories(library.id) { libraryCategories ->
-
-          // Only using book or podcast library categories for now
-          libraryCategories.forEach {
-            // Log.d(tag, "Found library category ${it.label} with type ${it.type}")
-            if (it.type == library.mediaType) {
-              // Log.d(tag, "Using library category ${it.id}")
-              cats.add(it)
+            // Only using book or podcast library categories for now
+            libraryCategories.forEach {
+              // Log.d(tag, "Found library category ${it.label} with type ${it.type}")
+              if (it.type == library.mediaType) {
+                // Log.d(tag, "Using library category ${it.id}")
+                cats.add(it)
+              }
             }
-          }
 
-          cb(cats)
+            cb(cats)
+          }
         }
+      } else { // Not connected/no internet sent downloaded cats only
+        cb(cats)
       }
-    } else { // Not connected/no internet sent downloaded cats only
-      cb(cats)
     }
   }
 

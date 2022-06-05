@@ -19,11 +19,13 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.IOException
+import java.util.concurrent.TimeUnit
 
 class ApiHandler(var ctx:Context) {
   val tag = "ApiHandler"
 
-  private var client = OkHttpClient()
+  private var defaultClient = OkHttpClient()
+  private var pingClient = OkHttpClient.Builder().callTimeout(3, TimeUnit.SECONDS).build()
   var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
 
   var storageSharedPreferences: SharedPreferences? = null
@@ -33,11 +35,14 @@ class ApiHandler(var ctx:Context) {
   data class MediaProgressSyncResponsePayload(val numServerProgressUpdates:Int, val localProgressUpdates:List<LocalMediaProgress>)
   data class LocalMediaProgressSyncResultsPayload(var numLocalMediaProgressForServer:Int, var numServerProgressUpdates:Int, var numLocalProgressUpdates:Int)
 
-  fun getRequest(endpoint:String, cb: (JSObject) -> Unit) {
+  fun getRequest(endpoint:String, httpClient:OkHttpClient?, config:ServerConnectionConfig?, cb: (JSObject) -> Unit) {
+    val address = config?.address ?: DeviceManager.serverAddress
+    val token = config?.token ?: DeviceManager.token
+
     val request = Request.Builder()
-      .url("${DeviceManager.serverAddress}$endpoint").addHeader("Authorization", "Bearer ${DeviceManager.token}")
+      .url("${address}$endpoint").addHeader("Authorization", "Bearer $token")
       .build()
-    makeRequest(request, cb)
+    makeRequest(request, httpClient, cb)
   }
 
   fun postRequest(endpoint:String, payload: JSObject, cb: (JSObject) -> Unit) {
@@ -46,7 +51,7 @@ class ApiHandler(var ctx:Context) {
     val request = Request.Builder().post(requestBody)
       .url("${DeviceManager.serverAddress}$endpoint").addHeader("Authorization", "Bearer ${DeviceManager.token}")
       .build()
-    makeRequest(request, cb)
+    makeRequest(request, null, cb)
   }
 
   fun patchRequest(endpoint:String, payload: JSObject, cb: (JSObject) -> Unit) {
@@ -55,7 +60,7 @@ class ApiHandler(var ctx:Context) {
     val request = Request.Builder().patch(requestBody)
       .url("${DeviceManager.serverAddress}$endpoint").addHeader("Authorization", "Bearer ${DeviceManager.token}")
       .build()
-    makeRequest(request, cb)
+    makeRequest(request, null, cb)
   }
 
   fun isOnline(): Boolean {
@@ -76,7 +81,8 @@ class ApiHandler(var ctx:Context) {
     return false
   }
 
-  fun makeRequest(request:Request, cb: (JSObject) -> Unit) {
+  fun makeRequest(request:Request, httpClient:OkHttpClient?, cb: (JSObject) -> Unit) {
+    val client = httpClient ?: defaultClient
     client.newCall(request).enqueue(object : Callback {
       override fun onFailure(call: Call, e: IOException) {
         Log.d(tag, "FAILURE TO CONNECT")
@@ -114,7 +120,7 @@ class ApiHandler(var ctx:Context) {
 
   fun getLibraries(cb: (List<Library>) -> Unit) {
     val mapper = jacksonMapper
-    getRequest("/api/libraries") {
+    getRequest("/api/libraries", null,null) {
       val libraries = mutableListOf<Library>()
       if (it.has("value")) {
         val array = it.getJSONArray("value")
@@ -128,7 +134,7 @@ class ApiHandler(var ctx:Context) {
   }
 
   fun getLibraryItem(libraryItemId:String, cb: (LibraryItem) -> Unit) {
-    getRequest("/api/items/$libraryItemId?expanded=1") {
+    getRequest("/api/items/$libraryItemId?expanded=1", null, null) {
       val libraryItem = jacksonMapper.readValue<LibraryItem>(it.toString())
       cb(libraryItem)
     }
@@ -137,14 +143,14 @@ class ApiHandler(var ctx:Context) {
   fun getLibraryItemWithProgress(libraryItemId:String, episodeId:String?, cb: (LibraryItem) -> Unit) {
     var requestUrl = "/api/items/$libraryItemId?expanded=1&include=progress"
     if (!episodeId.isNullOrEmpty()) requestUrl += "&episode=$episodeId"
-    getRequest(requestUrl) {
+    getRequest(requestUrl, null, null) {
       val libraryItem = jacksonMapper.readValue<LibraryItem>(it.toString())
       cb(libraryItem)
     }
   }
 
   fun getLibraryItems(libraryId:String, cb: (List<LibraryItem>) -> Unit) {
-    getRequest("/api/libraries/$libraryId/items?limit=100&minified=1") {
+    getRequest("/api/libraries/$libraryId/items?limit=100&minified=1", null, null) {
       val items = mutableListOf<LibraryItem>()
       if (it.has("results")) {
         val array = it.getJSONArray("results")
@@ -158,7 +164,7 @@ class ApiHandler(var ctx:Context) {
   }
 
   fun getLibraryCategories(libraryId:String, cb: (List<LibraryCategory>) -> Unit) {
-    getRequest("/api/libraries/$libraryId/personalized") {
+    getRequest("/api/libraries/$libraryId/personalized", null, null) {
       val items = mutableListOf<LibraryCategory>()
       if (it.has("value")) {
         val array = it.getJSONArray("value")
@@ -265,7 +271,7 @@ class ApiHandler(var ctx:Context) {
 
   fun getMediaProgress(libraryItemId:String, episodeId:String?, cb: (MediaProgress) -> Unit) {
     val endpoint = if(episodeId.isNullOrEmpty()) "/api/me/progress/$libraryItemId" else "/api/me/progress/$libraryItemId/$episodeId"
-    getRequest(endpoint) {
+    getRequest(endpoint, null, null) {
       val progress = jacksonMapper.readValue<MediaProgress>(it.toString())
       cb(progress)
     }
@@ -273,12 +279,26 @@ class ApiHandler(var ctx:Context) {
 
   fun getPlaybackSession(playbackSessionId:String, cb: (PlaybackSession?) -> Unit) {
     val endpoint = "/api/session/$playbackSessionId"
-    getRequest(endpoint) {
+    getRequest(endpoint, null, null) {
       val err = it.getString("error")
       if (!err.isNullOrEmpty()) {
         cb(null)
       } else {
         cb(jacksonMapper.readValue<PlaybackSession>(it.toString()))
+      }
+    }
+  }
+
+  fun pingServer(config:ServerConnectionConfig, cb: (Boolean) -> Unit) {
+    Log.d(tag, "pingServer: Pinging ${config.address}")
+    getRequest("/ping", pingClient, config) {
+      val success = it.getString("success")
+      if (success.isNullOrEmpty()) {
+        Log.d(tag, "pingServer: Ping ${config.address} Failed")
+        cb(false)
+      } else {
+        Log.d(tag, "pingServer: Ping ${config.address} Successful")
+        cb(true)
       }
     }
   }
