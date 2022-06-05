@@ -56,7 +56,9 @@ export default {
       await this.$axios.$post('/logout').catch((error) => {
         console.error(error)
       })
-      this.$server.logout()
+      this.$socket.logout()
+      await this.$db.logout()
+      this.$store.commit('user/logout')
       this.$router.push('/connect')
     }
   },
