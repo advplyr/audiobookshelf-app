@@ -105,7 +105,7 @@ class FolderScanner(var ctx: Context) {
     var coverContentUrl:String? = null
     var coverAbsolutePath:String? = null
 
-    val filesInFolder = itemFolder.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*", "video/mp4"))
+    val filesInFolder = itemFolder.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*", "video/mp4", "application/octet-stream"))
 
     val existingLocalFilesRemoved = existingLocalFiles.filter { elf ->
       filesInFolder.find { fif -> DeviceManager.getBase64Id(fif.id) == elf.id } == null // File was not found in media item folder
@@ -248,7 +248,7 @@ class FolderScanner(var ctx: Context) {
 
     val localLibraryItemId = getLocalLibraryItemId(itemFolderId)
     Log.d(tag, "scanDownloadItem starting for ${downloadItem.itemFolderPath} | ${df.uri} | Item Folder Id:$itemFolderId | LLI Id:$localLibraryItemId")
-    
+
     // Search for files in media item folder
     // m4b files showing as mimeType application/octet-stream on Android 10 and earlier see #154
     val filesFound = df.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*", "video/mp4", "application/octet-stream"))
@@ -378,7 +378,7 @@ class FolderScanner(var ctx: Context) {
     var wasUpdated = false
 
     // Search for files in media item folder
-    val filesFound = df.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*", "video/mp4"))
+    val filesFound = df.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*", "video/mp4", "application/octet-stream"))
     Log.d(tag, "scanLocalLibraryItem ${filesFound.size} files found in ${localLibraryItem.absolutePath}")
 
     filesFound.forEach {
