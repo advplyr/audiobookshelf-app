@@ -87,13 +87,15 @@ class ApiHandler(var ctx:Context) {
       override fun onFailure(call: Call, e: IOException) {
         Log.d(tag, "FAILURE TO CONNECT")
         e.printStackTrace()
-        cb(JSObject())
+
+        val jsobj = JSObject()
+        jsobj.put("error", "Failed to connect")
+        cb(jsobj)
       }
 
       override fun onResponse(call: Call, response: Response) {
         response.use {
           if (!it.isSuccessful) {
-//            throw IOException("Unexpected code $response")
             val jsobj = JSObject()
             jsobj.put("error", "Unexpected code $response")
             cb(jsobj)
@@ -269,11 +271,18 @@ class ApiHandler(var ctx:Context) {
     }
   }
 
-  fun getMediaProgress(libraryItemId:String, episodeId:String?, cb: (MediaProgress) -> Unit) {
+  fun getMediaProgress(libraryItemId:String, episodeId:String?, serverConnectionConfig:ServerConnectionConfig?, cb: (MediaProgress?) -> Unit) {
     val endpoint = if(episodeId.isNullOrEmpty()) "/api/me/progress/$libraryItemId" else "/api/me/progress/$libraryItemId/$episodeId"
-    getRequest(endpoint, null, null) {
-      val progress = jacksonMapper.readValue<MediaProgress>(it.toString())
-      cb(progress)
+
+    // TODO: Using ping client here allows for shorter timeout (3 seconds), maybe rename or make diff client for requests requiring quicker response
+    getRequest(endpoint, pingClient, serverConnectionConfig) {
+      if (it.has("error")) {
+        Log.e(tag, "getMediaProgress: Failed to get progress")
+        cb(null)
+      } else {
+        val progress = jacksonMapper.readValue<MediaProgress>(it.toString())
+        cb(progress)
+      }
     }
   }
 
