@@ -22,13 +22,16 @@ export const getters = {
     if (media.coverPath.startsWith('http:') || media.coverPath.startsWith('https:')) return media.coverPath
 
     var userToken = rootGetters['user/getToken']
+    var serverAddress = rootGetters['user/getServerAddress']
+    if (!userToken || !serverAddress) return placeholder
+
     var lastUpdate = libraryItem.updatedAt || Date.now()
 
     if (process.env.NODE_ENV !== 'production') { // Testing
       // return `http://localhost:3333/api/items/${libraryItem.id}/cover?token=${userToken}&ts=${lastUpdate}`
     }
 
-    var url = new URL(`/api/items/${libraryItem.id}/cover`, rootGetters['user/getServerAddress'])
+    var url = new URL(`/api/items/${libraryItem.id}/cover`, serverAddress)
     return `${url}?token=${userToken}&ts=${lastUpdate}`
   },
   getLocalMediaProgressById: (state) => (localLibraryItemId, episodeId = null) => {

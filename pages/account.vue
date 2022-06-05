@@ -53,11 +53,15 @@ export default {
   },
   methods: {
     async logout() {
-      await this.$axios.$post('/logout').catch((error) => {
-        console.error(error)
-      })
+      if (this.user) {
+        await this.$axios.$post('/logout').catch((error) => {
+          console.error(error)
+        })
+      }
+
       this.$socket.logout()
       await this.$db.logout()
+      this.$localStore.removeLastLibraryId()
       this.$store.commit('user/logout')
       this.$router.push('/connect')
     }

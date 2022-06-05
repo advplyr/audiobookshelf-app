@@ -170,8 +170,8 @@ export default {
       this.inittingLibraries = true
       await this.$store.dispatch('libraries/load')
       console.log(`[default] initLibraries loaded ${this.currentLibraryId}`)
+      await this.$store.dispatch('libraries/fetch', this.currentLibraryId)
       this.$eventBus.$emit('library-changed')
-      this.$store.dispatch('libraries/fetch', this.currentLibraryId)
       this.inittingLibraries = false
     },
     async syncLocalMediaProgress() {

@@ -382,7 +382,7 @@ export default {
         this.resetEntities()
       }
     },
-    libraryChanged(libid) {
+    libraryChanged() {
       if (this.hasFilter) {
         this.clearFilter()
       } else {
