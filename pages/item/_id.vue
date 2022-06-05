@@ -71,7 +71,7 @@
       </div>
 
       <div v-if="isLocal" class="flex mt-4">
-        <ui-btn color="success" :disabled="isPlaying" class="flex items-center justify-center flex-grow mr-2" :padding-x="4" @click="playClick">
+        <ui-btn v-if="showPlay" color="success" :disabled="isPlaying" class="flex items-center justify-center flex-grow mr-2" :padding-x="4" @click="playClick">
           <span v-show="!isPlaying" class="material-icons">play_arrow</span>
           <span class="px-1 text-sm">{{ isPlaying ? 'Playing' : 'Play' }}</span>
         </ui-btn>
