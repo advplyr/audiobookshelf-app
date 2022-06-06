@@ -147,6 +147,7 @@ class DbManager {
 
       // Check local files
       lli.localFiles = lli.localFiles.filter { localFile ->
+
         val file = File(localFile.absolutePath)
         if (!file.exists()) {
           Log.d(tag, "cleanLocalLibraryItems: Local file ${localFile.absolutePath} was removed from library item ${lli.media.metadata.title}")
