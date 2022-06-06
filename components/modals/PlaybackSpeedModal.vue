@@ -1,12 +1,12 @@
 <template>
-  <modals-modal v-model="show" :width="200" height="100%">
+  <modals-modal v-model="show" @input="modalInput" :width="200" height="100%">
     <template #outer>
       <div class="absolute top-5 left-4 z-40">
         <p class="text-white text-2xl truncate">Playback Speed</p>
       </div>
     </template>
 
-    <div class="w-full h-full overflow-hidden absolute top-0 left-0 flex items-center justify-center" @click="closeMenu">
+    <div class="w-full h-full overflow-hidden absolute top-0 left-0 flex items-center justify-center">
       <div class="w-full overflow-x-hidden overflow-y-auto bg-primary rounded-lg border border-white border-opacity-20" style="max-height: 75%" @click.stop>
         <ul class="w-full" role="listbox" aria-labelledby="listbox-label">
           <template v-for="rate in rates">
@@ -91,15 +91,17 @@ export default {
       var newPlaybackRate = this.selected - 0.1
       this.selected = Number(newPlaybackRate.toFixed(1))
     },
-    closeMenu() {
-      if (this.currentPlaybackRate !== this.selected) {
-        this.$emit('change', this.selected)
+    modalInput(val) {
+      if (!val) {
+        if (this.currentPlaybackRate !== this.selected) {
+          this.$emit('change', this.selected)
+        }
       }
-      this.show = false
     },
     clickedOption(rate) {
       this.selected = Number(rate)
-      this.$nextTick(this.closeMenu)
+      this.show = false
+      this.$emit('change', Number(rate))
     }
   },
   mounted() {}
