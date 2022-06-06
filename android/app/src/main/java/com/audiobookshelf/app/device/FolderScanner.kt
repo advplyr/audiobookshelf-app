@@ -157,11 +157,11 @@ class FolderScanner(var ctx: Context) {
             audioTrackToAdd = existingAudioTrack
           } else {
             // Create new audio track
-            var track = AudioTrack(index, startOffset, audioProbeResult.duration, filename, localFile.contentUrl, mimeType, null, true, localFileId, audioProbeResult, null)
+            val track = AudioTrack(index, startOffset, audioProbeResult?.duration ?: 0.0, filename, localFile.contentUrl, mimeType, null, true, localFileId, audioProbeResult, null)
             audioTrackToAdd = track
           }
 
-          startOffset += audioProbeResult.duration
+          startOffset += audioProbeResult?.duration ?: 0.0
           isNewOrUpdated = true
         } else {
           audioTrackToAdd = existingAudioTrack
@@ -289,7 +289,7 @@ class FolderScanner(var ctx: Context) {
           val audioProbeResult = probeAudioFile(localFile.absolutePath)
 
           // Create new audio track
-          val track = AudioTrack(audioTrackFromServer.index, audioTrackFromServer.startOffset, audioProbeResult.duration, localFile.filename ?: "", localFile.contentUrl, localFile.mimeType ?: "", null, true, localFileId, audioProbeResult, audioTrackFromServer?.index ?: -1)
+          val track = AudioTrack(audioTrackFromServer.index, audioTrackFromServer.startOffset, audioProbeResult?.duration ?: 0.0, localFile.filename ?: "", localFile.contentUrl, localFile.mimeType ?: "", null, true, localFileId, audioProbeResult, audioTrackFromServer.index)
           audioTracks.add(track)
 
           Log.d(tag, "scanDownloadItem: Created Audio Track with index ${track.index} from local file ${localFile.absolutePath}")
@@ -431,7 +431,7 @@ class FolderScanner(var ctx: Context) {
             // Create new audio track
             val lastTrack = existingAudioTracks.lastOrNull()
             val startOffset = (lastTrack?.startOffset ?: 0.0) + (lastTrack?.duration ?: 0.0)
-            val track = AudioTrack(existingAudioTracks.size, startOffset, audioProbeResult.duration, localFile.filename ?: "", localFile.contentUrl, localFile.mimeType ?: "", null, true, localFileId, audioProbeResult, null)
+            val track = AudioTrack(existingAudioTracks.size, startOffset, audioProbeResult?.duration ?: 0.0, localFile.filename ?: "", localFile.contentUrl, localFile.mimeType ?: "", null, true, localFileId, audioProbeResult, null)
             localLibraryItem.media.addAudioTrack(track)
             Log.d(tag, "Added New Audio Track ${track.title}")
             wasUpdated = true
@@ -463,12 +463,18 @@ class FolderScanner(var ctx: Context) {
     return LocalLibraryItemScanResult(wasUpdated, localLibraryItem)
   }
 
-  fun probeAudioFile(absolutePath:String):AudioProbeResult {
-    var session = FFprobeKit.execute("-i \"${absolutePath}\" -print_format json -show_format -show_streams -select_streams a -show_chapters -loglevel quiet")
+  fun probeAudioFile(absolutePath:String):AudioProbeResult? {
+    val session = FFprobeKit.execute("-i \"${absolutePath}\" -print_format json -show_format -show_streams -select_streams a -show_chapters -loglevel quiet")
     Log.d(tag, "FFprobe output ${JSObject(session.output)}")
 
-    val audioProbeResult = jacksonMapper.readValue<AudioProbeResult>(session.output)
-    Log.d(tag, "Probe Result DATA ${audioProbeResult.duration} | ${audioProbeResult.size} | ${audioProbeResult.title} | ${audioProbeResult.artist}")
-    return audioProbeResult
+    val probeObject = JSObject(session.output)
+    if (!probeObject.has("streams")) { // Check if output is empty
+      Log.d(tag, "probeAudioFile Probe audio file $absolutePath is empty")
+      return null
+    } else {
+      val audioProbeResult = jacksonMapper.readValue<AudioProbeResult>(session.output)
+      Log.d(tag, "Probe Result DATA ${audioProbeResult.duration} | ${audioProbeResult.size} | ${audioProbeResult.title} | ${audioProbeResult.artist}")
+      return audioProbeResult
+    }
   }
 }
