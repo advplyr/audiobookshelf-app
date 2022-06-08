@@ -75,15 +75,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   lateinit var sleepTimerManager:SleepTimerManager
   lateinit var mediaProgressSyncer:MediaProgressSyncer
 
-<<<<<<< HEAD:android/app/src/main/java/com/bookshelf/app/player/PlayerNotificationService.kt
   private var notificationId = 10;
   private var channelId = "bookshelf_channel"
   private var channelName = "Bookshelf Channel"
-=======
-  private var notificationId = 10
-  private var channelId = "audiobookshelf_channel"
-  private var channelName = "Audiobookshelf Channel"
->>>>>>> d626686614e0a5a5008927729435b58a9df4a24b:android/app/src/main/java/com/audiobookshelf/app/player/PlayerNotificationService.kt
 
   private var currentPlaybackSession:PlaybackSession? = null
   private var initialPlaybackRate:Float? = null

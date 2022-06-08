@@ -6,9 +6,9 @@
       </nuxt-link>
       <div class="absolute top-0 left-0 w-full p-6 flex items-center flex-col justify-center z-0 short:hidden">
         <img src="/Logo.png" class="h-20 w-20 mb-2" />
-        <h1 class="text-2xl font-book">the book shelf</h1>
+        <h1 class="text-2xl font-book">The Book Shelf</h1>
       </div>
-      <p class="hidden absolute short:block top-1.5 left-12 p-2 font-book text-xl">the book shelf</p>
+      <p class="hidden absolute short:block top-1.5 left-12 p-2 font-book text-xl">The Book Shelf</p>
 
       <!-- <p class="absolute bottom-16 left-0 right-0 px-2 text-center text-error"><strong>Important!</strong> This app requires that you are running <u>your own server</u> and does not provide any content.</p> -->
 
@@ -16,7 +16,7 @@
     </div>
 
     <div class="flex items-center justify-center pt-4 fixed bottom-4 left-0 right-0">
-      <a href="https://github.com/Oasis256/bookShelf-app" target="_blank" class="text-sm pr-2">Follow the project on Github</a>
+      <a href="https://github.com/Oasis256/bookShelf-app" target="_blank" class="text-sm pr-2">Follow The Book Shelf on Github</a>
       <a href="https://github.com/Oasis256/bookShelf-app" target="_blank"
         ><svg class="w-8 h-8 text-gray-100" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" width="32" height="32" preserveAspectRatio="xMidYMid meet" viewBox="0 0 24 24">
           <path

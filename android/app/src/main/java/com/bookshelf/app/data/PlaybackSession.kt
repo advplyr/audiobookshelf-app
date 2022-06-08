@@ -2,16 +2,10 @@ package com.bookshelf.app.data
 
 import android.net.Uri
 import android.support.v4.media.MediaMetadataCompat
-<<<<<<< HEAD:android/app/src/main/java/com/bookshelf/app/data/PlaybackSession.kt
 import androidx.core.app.NotificationCompat
 import com.bookshelf.app.R
 import com.bookshelf.app.device.DeviceManager
 import com.bookshelf.app.player.MediaProgressSyncData
-=======
-import com.audiobookshelf.app.R
-import com.audiobookshelf.app.device.DeviceManager
-import com.audiobookshelf.app.player.MediaProgressSyncData
->>>>>>> d626686614e0a5a5008927729435b58a9df4a24b:android/app/src/main/java/com/audiobookshelf/app/data/PlaybackSession.kt
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.google.android.exoplayer2.MediaItem
