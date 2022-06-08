@@ -74,10 +74,11 @@
       </div>
 
       <div id="playerTrack" class="absolute bottom-0 left-0 w-full px-3">
-        <div ref="track" class="h-2 w-full bg-gray-500 bg-opacity-50 relative" :class="isLoading ? 'animate-pulse' : ''" @click="clickTrack">
+        <div ref="track" class="h-2 w-full bg-gray-500 bg-opacity-50 relative" :class="isLoading ? 'animate-pulse' : ''" @touchstart="touchstartTrack" @click="clickTrack">
           <div ref="readyTrack" class="h-full bg-gray-600 absolute top-0 left-0 pointer-events-none" />
           <div ref="bufferedTrack" class="h-full bg-gray-500 absolute top-0 left-0 pointer-events-none" />
           <div ref="playedTrack" class="h-full bg-gray-200 absolute top-0 left-0 pointer-events-none" />
+          <div ref="draggingTrack" class="h-full bg-warning bg-opacity-25 absolute top-0 left-0 pointer-events-none" />
         </div>
         <div id="timestamp-row" class="flex pt-0.5">
           <p class="font-mono text-white text-opacity-90" style="font-size: 0.8rem" ref="currentTimestamp">0:00</p>
@@ -132,7 +133,9 @@ export default {
       touchStartTime: 0,
       touchEndY: 0,
       useChapterTrack: false,
-      isLoading: false
+      isLoading: false,
+      touchTrackStart: false,
+      dragPercent: 0
     }
   },
   computed: {
@@ -268,6 +271,10 @@ export default {
     }
   },
   methods: {
+    touchstartTrack(e) {
+      if (!e || !e.touches || !this.$refs.track || !this.showFullscreen) return
+      this.touchTrackStart = true
+    },
     selectChapter(chapter) {
       this.seek(chapter.start)
       this.showChapterModal = false
@@ -517,15 +524,60 @@ export default {
       this.touchStartTime = Date.now()
     },
     touchend(e) {
-      if (!this.showFullscreen || !e.changedTouches) return
+      if (!e.changedTouches) return
 
-      this.touchEndY = e.changedTouches[0].screenY
-      var touchDuration = Date.now() - this.touchStartTime
-      if (touchDuration > 1200) {
-        // console.log('touch too long', touchDuration)
-        return
+      if (this.touchTrackStart) {
+        var touch = e.changedTouches[0]
+        const touchOnTrackPos = touch.pageX - 12
+        const dragPercent = Math.max(0, Math.min(1, touchOnTrackPos / this.trackWidth))
+
+        var seekToTime = 0
+        if (this.useChapterTrack && this.currentChapter) {
+          const currChapTime = dragPercent * this.currentChapterDuration
+          seekToTime = this.currentChapter.start + currChapTime
+        } else {
+          seekToTime = dragPercent * this.totalDuration
+        }
+        this.seek(seekToTime)
+
+        if (this.$refs.draggingTrack) {
+          this.$refs.draggingTrack.style.width = '0px'
+        }
+        this.touchTrackStart = false
+      } else if (this.showFullscreen) {
+        this.touchEndY = e.changedTouches[0].screenY
+        var touchDuration = Date.now() - this.touchStartTime
+        if (touchDuration > 1200) {
+          // console.log('touch too long', touchDuration)
+          return
+        }
+        this.handleGesture()
       }
-      this.handleGesture()
+    },
+    touchmove(e) {
+      if (!this.touchTrackStart) return
+
+      var touch = e.touches[0]
+      const touchOnTrackPos = touch.pageX - 12
+      const dragPercent = Math.max(0, Math.min(1, touchOnTrackPos / this.trackWidth))
+      this.dragPercent = dragPercent
+
+      if (this.$refs.draggingTrack) {
+        this.$refs.draggingTrack.style.width = this.dragPercent * this.trackWidth + 'px'
+      }
+
+      var ts = this.$refs.currentTimestamp
+      if (ts) {
+        var currTimeStr = ''
+        if (this.useChapterTrack && this.currentChapter) {
+          const currChapTime = dragPercent * this.currentChapterDuration
+          currTimeStr = this.$secondsToTimestamp(currChapTime)
+        } else {
+          const dragTime = dragPercent * this.totalDuration
+          currTimeStr = this.$secondsToTimestamp(dragTime)
+        }
+        ts.innerText = currTimeStr
+      }
     },
     clickMenuAction(action) {
       if (action === 'chapter_track') {
@@ -632,7 +684,7 @@ export default {
   mounted() {
     document.body.addEventListener('touchstart', this.touchstart)
     document.body.addEventListener('touchend', this.touchend)
-
+    document.body.addEventListener('touchmove', this.touchmove)
     this.$nextTick(this.init)
   },
   beforeDestroy() {
@@ -644,6 +696,7 @@ export default {
     this.forceCloseDropdownMenu()
     document.body.removeEventListener('touchstart', this.touchstart)
     document.body.removeEventListener('touchend', this.touchend)
+    document.body.removeEventListener('touchmove', this.touchmove)
 
     if (this.onPlayingUpdateListener) this.onPlayingUpdateListener.remove()
     if (this.onMetadataListener) this.onMetadataListener.remove()

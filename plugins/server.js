@@ -91,6 +91,7 @@ class ServerSocket extends EventEmitter {
     console.log('[SOCKET] User Item Progress Updated', JSON.stringify(data))
     var progress = data.data
     this.$store.commit('user/updateUserMediaProgress', progress)
+    this.emit('user_media_progress_updated', progress)
   }
 }
 

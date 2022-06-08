@@ -59,13 +59,6 @@ class AbsAudioPlayer : Plugin() {
           notifyListeners("onMetadata", JSObject(jacksonMapper.writeValueAsString(metadata)))
         }
 
-        override fun onPrepare(audiobookId: String, playWhenReady: Boolean) {
-          val jsobj = JSObject()
-          jsobj.put("audiobookId", audiobookId)
-          jsobj.put("playWhenReady", playWhenReady)
-          notifyListeners("onPrepareMedia", jsobj)
-        }
-
         override fun onSleepTimerEnded(currentPosition: Long) {
           emit("onSleepTimerEnded", currentPosition)
         }
@@ -84,6 +77,10 @@ class AbsAudioPlayer : Plugin() {
 
         override fun onMediaPlayerChanged(mediaPlayer:String) {
           emit("onMediaPlayerChanged", mediaPlayer)
+        }
+
+        override fun onProgressSyncFailing() {
+          emit("onProgressSyncFailing", "")
         }
       })
     }
@@ -191,9 +188,9 @@ class AbsAudioPlayer : Plugin() {
         return call.resolve(JSObject())
       }
     } else { // Play library item from server
-      val mediaPlayer = playerNotificationService.getMediaPlayer()
+      val playItemRequestPayload = playerNotificationService.getPlayItemRequestPayload(false)
 
-      apiHandler.playLibraryItem(libraryItemId, episodeId, false, mediaPlayer) {
+      apiHandler.playLibraryItem(libraryItemId, episodeId, playItemRequestPayload) {
 
         Handler(Looper.getMainLooper()).post {
           Log.d(tag, "Preparing Player TEST ${jacksonMapper.writeValueAsString(it)}")

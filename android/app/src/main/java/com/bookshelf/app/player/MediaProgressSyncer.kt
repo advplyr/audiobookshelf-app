@@ -4,6 +4,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import com.bookshelf.app.data.LocalMediaProgress
+import com.bookshelf.app.data.MediaProgress
 import com.bookshelf.app.data.PlaybackSession
 import com.bookshelf.app.device.DeviceManager
 import com.bookshelf.app.server.ApiHandler
@@ -24,6 +25,7 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
   var listeningTimerRunning:Boolean = false
 
   private var lastSyncTime:Long = 0
+  private var failedSyncs:Int = 0
 
   var currentPlaybackSession: PlaybackSession? = null // copy of pb session currently syncing
   var currentLocalMediaProgress: LocalMediaProgress? = null
@@ -41,6 +43,7 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
         currentLocalMediaProgress = null
         listeningTimerTask?.cancel()
         lastSyncTime = 0L
+        failedSyncs = 0
       } else {
         return
       }
@@ -66,6 +69,16 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
     val currentTime = playerNotificationService.getCurrentTimeSeconds()
     sync(currentTime)
     reset()
+  }
+
+  fun syncFromServerProgress(mediaProgress: MediaProgress) {
+    currentPlaybackSession?.let {
+      it.updatedAt = mediaProgress.lastUpdate
+      it.currentTime = mediaProgress.currentTime
+
+      DeviceManager.dbManager.saveLocalPlaybackSession(it)
+      saveLocalProgress(it)
+    }
   }
 
   fun sync(currentTime:Double) {
@@ -100,7 +113,17 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
       }
     } else {
       apiHandler.sendProgressSync(currentSessionId, syncData) {
-        Log.d(tag, "Progress sync data sent to server $currentDisplayTitle for time $currentTime")
+        if (it) {
+          Log.d(tag, "Progress sync data sent to server $currentDisplayTitle for time $currentTime")
+          failedSyncs = 0
+        } else {
+          failedSyncs++
+          if (failedSyncs == 2) {
+            playerNotificationService.alertSyncFailing() // Show alert in client
+            failedSyncs = 0
+          }
+          Log.d(tag, "Progress sync failed ($failedSyncs) to send to server $currentDisplayTitle for time $currentTime")
+        }
       }
     }
   }
@@ -130,5 +153,6 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
     currentPlaybackSession = null
     currentLocalMediaProgress = null
     lastSyncTime = 0L
+    failedSyncs = 0
   }
 }

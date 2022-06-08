@@ -74,9 +74,6 @@ export default {
     username() {
       return this.user ? this.user.username : ''
     },
-    socketConnected() {
-      return this.$store.state.socketConnected
-    },
     navItems() {
       var items = [
         {
@@ -125,11 +122,15 @@ export default {
       this.show = false
     },
     async logout() {
-      await this.$axios.$post('/logout').catch((error) => {
-        console.error(error)
-      })
+      if (this.user) {
+        await this.$axios.$post('/logout').catch((error) => {
+          console.error(error)
+        })
+      }
+
       this.$socket.logout()
       await this.$db.logout()
+      this.$localStore.removeLastLibraryId()
       this.$store.commit('user/logout')
       this.$router.push('/connect')
     },

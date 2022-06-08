@@ -17,10 +17,19 @@ import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import androidx.media.MediaBrowserServiceCompat
 import androidx.media.utils.MediaConstants
+<<<<<<< HEAD:android/app/src/main/java/com/bookshelf/app/player/PlayerNotificationService.kt
 import com.bookshelf.app.data.*
 import com.bookshelf.app.device.DeviceManager
 import com.bookshelf.app.media.MediaManager
 import com.bookshelf.app.server.ApiHandler
+=======
+import com.bookshelf.app.BuildConfig
+import com.bookshelf.app.data.*
+import com.bookshelf.app.data.DeviceInfo
+import com.bookshelf.app.device.DeviceManager
+import com.bookshelf.app.media.MediaManager
+import com.bookshelf.app.server.ApiHandler
+>>>>>>> fc6d16bdd929595e0c0f924c1b2485adb36af94e:android/app/src/main/java/com/audiobookshelf/app/player/PlayerNotificationService.kt
 import com.google.android.exoplayer2.*
 import com.google.android.exoplayer2.audio.AudioAttributes
 import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector
@@ -46,12 +55,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     fun onPlaybackClosed()
     fun onPlayingUpdate(isPlaying: Boolean)
     fun onMetadata(metadata: PlaybackMetadata)
-    fun onPrepare(audiobookId: String, playWhenReady: Boolean)
     fun onSleepTimerEnded(currentPosition: Long)
     fun onSleepTimerSet(sleepTimeRemaining: Int)
     fun onLocalMediaProgressUpdate(localMediaProgress: LocalMediaProgress)
     fun onPlaybackFailed(errorMessage:String)
     fun onMediaPlayerChanged(mediaPlayer:String)
+    fun onProgressSyncFailing()
   }
 
   private val tag = "PlayerService"
@@ -66,7 +75,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   private lateinit var transportControls:MediaControllerCompat.TransportControls
 
   lateinit var mediaManager: MediaManager
-  private lateinit var apiHandler: ApiHandler
+  lateinit var apiHandler: ApiHandler
 
   lateinit var mPlayer: ExoPlayer
   lateinit var currentPlayer:Player
@@ -356,7 +365,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       Log.d(tag, "Prepare complete for session ${currentPlaybackSession?.displayTitle} | ${currentPlayer.mediaItemCount}")
       currentPlayer.playWhenReady = playWhenReady
       currentPlayer.setPlaybackSpeed(playbackRateToUse)
+
       currentPlayer.prepare()
+
     } else if (castPlayer != null) {
       val currentTrackIndex = playbackSession.getCurrentTrackIndex()
       val currentTrackTime = playbackSession.getCurrentTrackTimeMs()
@@ -371,12 +382,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     // On error and was attempting to direct play - fallback to transcode
     currentPlaybackSession?.let { playbackSession ->
       if (playbackSession.isDirectPlay) {
-        val mediaPlayer = getMediaPlayer()
-        Log.d(tag, "Fallback to transcode $mediaPlayer")
+        val playItemRequestPayload = getPlayItemRequestPayload(true)
+        Log.d(tag, "Fallback to transcode $playItemRequestPayload.mediaPlayer")
 
         val libraryItemId = playbackSession.libraryItemId ?: "" // Must be true since direct play
         val episodeId = playbackSession.episodeId
-        apiHandler.playLibraryItem(libraryItemId, episodeId, true, mediaPlayer) {
+        apiHandler.playLibraryItem(libraryItemId, episodeId, playItemRequestPayload) {
           Handler(Looper.getMainLooper()).post {
             preparePlayer(it, true, null)
           }
@@ -384,6 +395,21 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       } else {
         clientEventEmitter?.onPlaybackFailed(errorMessage)
         closePlayback()
+      }
+    }
+  }
+
+  fun startNewPlaybackSession() {
+    currentPlaybackSession?.let { playbackSession ->
+      val forceTranscode = playbackSession.isHLS // If already HLS then force
+      val playItemRequestPayload = getPlayItemRequestPayload(forceTranscode)
+
+      val libraryItemId = playbackSession.libraryItemId ?: "" // Must be true since direct play
+      val episodeId = playbackSession.episodeId
+      apiHandler.playLibraryItem(libraryItemId, episodeId, playItemRequestPayload) {
+        Handler(Looper.getMainLooper()).post {
+          preparePlayer(it, true, null)
+        }
       }
     }
   }
@@ -479,6 +505,76 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     return currentPlaybackSession?.id
   }
 
+  // Called from PlayerListener play event
+  // check with server if progress has updated since last play and sync progress update
+  fun checkCurrentSessionProgress():Boolean {
+    if (currentPlaybackSession == null) return true
+
+    currentPlaybackSession?.let { playbackSession ->
+      if (!apiHandler.isOnline() || playbackSession.isLocalLibraryItemOnly) {
+        return true // carry on
+      }
+
+      if (playbackSession.isLocal) {
+
+        // Make sure this connection config exists
+        val serverConnectionConfig = DeviceManager.getServerConnectionConfig(playbackSession.serverConnectionConfigId)
+        if (serverConnectionConfig == null) {
+          Log.d(tag, "checkCurrentSessionProgress: Local library item server connection config is not saved ${playbackSession.serverConnectionConfigId}")
+          return true // carry on
+        }
+
+        // Local playback session check if server has updated media progress
+        Log.d(tag, "checkCurrentSessionProgress: Checking if local media progress was updated on server")
+        apiHandler.getMediaProgress(playbackSession.libraryItemId!!, playbackSession.episodeId, serverConnectionConfig) { mediaProgress ->
+
+          if (mediaProgress != null && mediaProgress.lastUpdate > playbackSession.updatedAt && mediaProgress.currentTime != playbackSession.currentTime) {
+            Log.d(tag, "checkCurrentSessionProgress: Media progress was updated since last play time updating from ${playbackSession.currentTime} to ${mediaProgress.currentTime}")
+            mediaProgressSyncer.syncFromServerProgress(mediaProgress)
+
+            Handler(Looper.getMainLooper()).post {
+              seekPlayer(playbackSession.currentTimeMs)
+            }
+          }
+
+          Handler(Looper.getMainLooper()).post {
+            // Should already be playing
+            currentPlayer.volume = 1F // Volume on sleep timer might have decreased this
+            mediaProgressSyncer.start()
+            clientEventEmitter?.onPlayingUpdate(true)
+          }
+        }
+      } else {
+        // Streaming from server so check if playback session still exists on server
+        Log.d(
+          tag,
+          "checkCurrentSessionProgress: Checking if playback session for server stream is still available"
+        )
+        apiHandler.getPlaybackSession(playbackSession.id) {
+          if (it == null) {
+            Log.d(
+              tag,
+              "checkCurrentSessionProgress: Playback session does not exist on server - start new playback session"
+            )
+
+            Handler(Looper.getMainLooper()).post {
+              currentPlayer.pause()
+              startNewPlaybackSession()
+            }
+          } else {
+              Log.d(tag, "checkCurrentSessionProgress: Playback session still available on server")
+              Handler(Looper.getMainLooper()).post {
+                currentPlayer.volume = 1F // Volume on sleep timer might have decreased this
+                mediaProgressSyncer.start()
+                clientEventEmitter?.onPlayingUpdate(true)
+              }
+          }
+        }
+      }
+    }
+    return false
+  }
+
   fun play() {
     if (currentPlayer.isPlaying) {
       Log.d(tag, "Already playing")
@@ -520,12 +616,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   fun seekForward(amount: Long) {
    seekPlayer(getCurrentTime() + amount)
-//    currentPlayer.seekTo(currentPlayer.currentPosition + amount)
   }
 
   fun seekBackward(amount: Long) {
     seekPlayer(getCurrentTime() - amount)
-//    currentPlayer.seekTo(currentPlayer.currentPosition - amount)
   }
 
   fun setPlaybackSpeed(speed: Float) {
@@ -549,8 +643,27 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     return if(currentPlayer == castPlayer) "cast-player" else "exo-player"
   }
 
+  fun getDeviceInfo(): DeviceInfo {
+    /* EXAMPLE
+      manufacturer: Google
+      model: Pixel 6
+      brand: google
+      sdkVersion: 32
+      appVersion: 0.9.46-beta
+     */
+    return DeviceInfo(Build.MANUFACTURER, Build.MODEL, Build.BRAND, Build.VERSION.SDK_INT, BuildConfig.VERSION_NAME)
+  }
+
+  fun getPlayItemRequestPayload(forceTranscode:Boolean):PlayItemRequestPayload {
+    return PlayItemRequestPayload(getMediaPlayer(), !forceTranscode, forceTranscode, getDeviceInfo())
+  }
+
   fun getContext():Context {
     return ctx
+  }
+
+  fun alertSyncFailing() {
+    clientEventEmitter?.onProgressSyncFailing()
   }
 
   //
@@ -565,6 +678,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   private val AUTO_MEDIA_ROOT = "/"
   private val ALL_ROOT = "__ALL__"
+  private val LIBRARIES_ROOT = "__LIBRARIES__"
   private lateinit var browseTree:BrowseTree
 
 
@@ -590,6 +704,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         mediaManager.initializeAndroidAuto()
         isStarted = true
       }
+      mediaManager.checkResetServerItems() // Reset any server items if no longer connected to server
 
       isAndroidAuto = true
 
@@ -610,32 +725,66 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   override fun onLoadChildren(parentMediaId: String, result: Result<MutableList<MediaBrowserCompat.MediaItem>>) {
     Log.d(tag, "ON LOAD CHILDREN $parentMediaId")
 
-    val flag = if (parentMediaId == AUTO_MEDIA_ROOT) MediaBrowserCompat.MediaItem.FLAG_BROWSABLE else MediaBrowserCompat.MediaItem.FLAG_PLAYABLE
+    var flag = if (parentMediaId == AUTO_MEDIA_ROOT || parentMediaId == LIBRARIES_ROOT) MediaBrowserCompat.MediaItem.FLAG_BROWSABLE else MediaBrowserCompat.MediaItem.FLAG_PLAYABLE
 
     result.detach()
 
-    mediaManager.loadAndroidAutoItems("main") { libraryCategories ->
-      browseTree = BrowseTree(this, libraryCategories)
-      val children = browseTree[parentMediaId]?.map { item ->
-        MediaBrowserCompat.MediaItem(item.description, flag)
+    if (parentMediaId.startsWith("li_") || parentMediaId.startsWith("local_")) { // Show podcast episodes
+      Log.d(tag, "Loading podcast episodes")
+      mediaManager.loadPodcastEpisodeMediaBrowserItems(parentMediaId) {
+        result.sendResult(it)
       }
-      result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
-    }
+    } else if (::browseTree.isInitialized && browseTree[parentMediaId] == null && mediaManager.getIsLibrary(parentMediaId)) { // Load library items for library
 
-    // TODO: For using sub menus. Check if this is the root menu:
-//    if (AUTO_MEDIA_ROOT == parentMediaId) {
-      // build the MediaItem objects for the top level,
-      // and put them in the mediaItems list
-//    } else {
-      // examine the passed parentMediaId to see which submenu we're at,
-      // and put the children of that menu in the mediaItems list
-//    }
+      mediaManager.loadLibraryItemsWithAudio(parentMediaId) { libraryItems ->
+        val children = libraryItems.map { libraryItem ->
+          val libraryItemMediaMetadata = libraryItem.getMediaMetadata()
+
+          if (libraryItem.mediaType == "podcast") { // Podcasts are browseable
+            flag = MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
+          }
+
+          MediaBrowserCompat.MediaItem(libraryItemMediaMetadata.description, flag)
+        }
+        result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
+      }
+    } else if (parentMediaId == "__DOWNLOADS__") { // Load downloads
+
+      val localBooks = DeviceManager.dbManager.getLocalLibraryItems("book")
+      val localPodcasts = DeviceManager.dbManager.getLocalLibraryItems("podcast")
+      val localBrowseItems:MutableList<MediaBrowserCompat.MediaItem> = mutableListOf()
+
+      localBooks.forEach { localLibraryItem ->
+        val mediaMetadata = localLibraryItem.getMediaMetadata(ctx)
+        localBrowseItems += MediaBrowserCompat.MediaItem(mediaMetadata.description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
+      }
+
+      localPodcasts.forEach { localLibraryItem ->
+        val mediaMetadata = localLibraryItem.getMediaMetadata(ctx)
+        localBrowseItems += MediaBrowserCompat.MediaItem(mediaMetadata.description, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE)
+      }
+
+      result.sendResult(localBrowseItems)
+
+    } else { // Load categories
+
+      mediaManager.loadAndroidAutoItems() { libraryCategories ->
+        browseTree = BrowseTree(this, libraryCategories, mediaManager.serverLibraries)
+
+        val children = browseTree[parentMediaId]?.map { item ->
+          Log.d(tag, "Loading Browser Media Item ${item.description.title} $flag")
+
+          MediaBrowserCompat.MediaItem(item.description, flag)
+        }
+        result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
+      }
+    }
   }
 
   override fun onSearch(query: String, extras: Bundle?, result: Result<MutableList<MediaBrowserCompat.MediaItem>>) {
     result.detach()
-    mediaManager.loadAndroidAutoItems("main") { libraryCategories ->
-      browseTree = BrowseTree(this, libraryCategories)
+    mediaManager.loadAndroidAutoItems() { libraryCategories ->
+      browseTree = BrowseTree(this, libraryCategories, mediaManager.serverLibraries)
       val children = browseTree[ALL_ROOT]?.map { item ->
         MediaBrowserCompat.MediaItem(item.description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
       }

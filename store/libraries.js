@@ -90,6 +90,7 @@ export const mutations = {
   },
   reset(state) {
     state.lastLoad = 0
+    state.currentLibraryId = null
     state.libraries = []
   },
   setCurrentLibrary(state, val) {

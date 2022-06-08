@@ -1,25 +1,53 @@
 package com.bookshelf.app.media
 
-import android.bluetooth.BluetoothClass
 import android.content.Context
+import android.support.v4.media.MediaBrowserCompat
 import android.util.Log
-import com.bookshelf.app.data.*
+import com.bokshelf.app.data.*
 import com.bookshelf.app.device.DeviceManager
-import com.bookshelf.app.player.PlayerNotificationService
 import com.bookshelf.app.server.ApiHandler
 import java.util.*
 import io.paperdb.Paper
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.runBlocking
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
   val tag = "MediaManager"
 
   var serverLibraryItems = listOf<LibraryItem>()
+  var selectedLibraryId = ""
+
+  var selectedLibraryItemWrapper:LibraryItemWrapper? = null
+  var selectedPodcast:Podcast? = null
+  var selectedLibraryItemId:String? = null
+  var serverPodcastEpisodes = listOf<PodcastEpisode>()
   var serverLibraryCategories = listOf<LibraryCategory>()
   var serverLibraries = listOf<Library>()
+  var serverConfigIdUsed:String? = null
 
   fun initializeAndroidAuto() {
     Log.d(tag, "Android Auto started when MainActivity was never started - initializing Paper")
     Paper.init(ctx)
+  }
+
+  fun getIsLibrary(id:String) : Boolean {
+    return serverLibraries.find { it.id == id } != null
+  }
+
+  fun checkResetServerItems() {
+    // When opening android auto need to check if still connected to server
+    //   and reset any server data already set
+    val serverConnConfig = if (DeviceManager.isConnectedToServer) DeviceManager.serverConnectionConfig else DeviceManager.deviceData.getLastServerConnectionConfig()
+
+    if (!DeviceManager.isConnectedToServer || !apiHandler.isOnline() || serverConnConfig == null || serverConnConfig.id !== serverConfigIdUsed) {
+      serverPodcastEpisodes = listOf()
+      serverLibraryCategories = listOf()
+      serverLibraries = listOf()
+      serverLibraryItems = listOf()
+      selectedLibraryId = ""
+    }
   }
 
   fun loadLibraryCategories(libraryId:String, cb: (List<LibraryCategory>) -> Unit) {
@@ -33,15 +61,73 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
     }
   }
 
-  fun loadLibraryItems(libraryId:String, cb: (List<LibraryItem>) -> Unit) {
-    if (serverLibraryItems.isNotEmpty()) {
+  fun loadLibraryItemsWithAudio(libraryId:String, cb: (List<LibraryItem>) -> Unit) {
+    if (serverLibraryItems.isNotEmpty() && selectedLibraryId == libraryId) {
       cb(serverLibraryItems)
     } else {
       apiHandler.getLibraryItems(libraryId) { libraryItems ->
-        serverLibraryItems = libraryItems
-        cb(libraryItems)
+        val libraryItemsWithAudio = libraryItems.filter { li -> li.checkHasTracks() }
+        if (libraryItemsWithAudio.isNotEmpty()) selectedLibraryId = libraryId
+
+        serverLibraryItems = libraryItemsWithAudio
+        cb(libraryItemsWithAudio)
       }
     }
+  }
+
+  fun loadLibraryItem(libraryItemId:String, cb: (LibraryItemWrapper?) -> Unit) {
+    if (libraryItemId.startsWith("local")) {
+      cb(DeviceManager.dbManager.getLocalLibraryItem(libraryItemId))
+    } else {
+      Log.d(tag, "loadLibraryItem: $libraryItemId")
+      apiHandler.getLibraryItem(libraryItemId) { libraryItem ->
+        Log.d(tag, "loadLibraryItem: Got library item $libraryItem")
+        cb(libraryItem)
+      }
+    }
+  }
+
+  fun loadPodcastEpisodeMediaBrowserItems(libraryItemId:String, cb: (MutableList<MediaBrowserCompat.MediaItem>) -> Unit) {
+      loadLibraryItem(libraryItemId) { libraryItemWrapper ->
+        Log.d(tag, "Loaded Podcast library item $libraryItemWrapper")
+
+        selectedLibraryItemWrapper = libraryItemWrapper
+
+        libraryItemWrapper?.let {
+          if (libraryItemWrapper is LocalLibraryItem) { // Local podcast episodes
+            if (libraryItemWrapper.mediaType != "podcast" || libraryItemWrapper.media.getAudioTracks().isEmpty()) {
+              serverPodcastEpisodes = listOf()
+              cb(mutableListOf())
+            } else {
+              val podcast = libraryItemWrapper.media as Podcast
+              serverPodcastEpisodes = podcast.episodes ?: listOf()
+              selectedLibraryItemId = libraryItemWrapper.id
+              selectedPodcast = podcast
+
+              val children = podcast.episodes?.map { podcastEpisode ->
+                Log.d(tag, "Local Podcast Episode ${podcastEpisode.title} | ${podcastEpisode.id}")
+                MediaBrowserCompat.MediaItem(podcastEpisode.getMediaMetadata(libraryItemWrapper).description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
+              }
+              children?.let { cb(children as MutableList) } ?: cb(mutableListOf())
+            }
+          } else if (libraryItemWrapper is LibraryItem) { // Server podcast episodes
+            if (libraryItemWrapper.mediaType != "podcast" || libraryItemWrapper.media.getAudioTracks().isEmpty()) {
+              serverPodcastEpisodes = listOf()
+              cb(mutableListOf())
+            } else {
+              val podcast = libraryItemWrapper.media as Podcast
+              serverPodcastEpisodes = podcast.episodes ?: listOf()
+              selectedLibraryItemId = libraryItemWrapper.id
+              selectedPodcast = podcast
+
+              val children = podcast.episodes?.map { podcastEpisode ->
+                MediaBrowserCompat.MediaItem(podcastEpisode.getMediaMetadata(libraryItemWrapper).description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
+              }
+              children?.let { cb(children as MutableList) } ?: cb(mutableListOf())
+            }
+          }
+        }
+      }
   }
 
   fun loadLibraries(cb: (List<Library>) -> Unit) {
@@ -51,6 +137,48 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
       apiHandler.getLibraries {
         serverLibraries = it
         cb(it)
+      }
+    }
+  }
+
+  suspend fun checkServerConnection(config:ServerConnectionConfig) : Boolean {
+    var successfulPing = false
+    suspendCoroutine<Boolean> { cont ->
+      apiHandler.pingServer(config) {
+        Log.d(tag, "checkServerConnection: Checked server conn for ${config.address} result = $it")
+        successfulPing = it
+        cont.resume(it)
+      }
+    }
+    return successfulPing
+  }
+
+  fun checkSetValidServerConnectionConfig(cb: (Boolean) -> Unit) = runBlocking {
+    if (!apiHandler.isOnline()) cb(false)
+    else {
+      coroutineScope {
+        var hasValidConn = false
+
+        // First check if the current selected config is pingable
+        DeviceManager.serverConnectionConfig?.let {
+          hasValidConn = checkServerConnection(it)
+          Log.d(tag, "checkSetValidServerConnectionConfig: Current config ${DeviceManager.serverAddress} is pingable? $hasValidConn")
+        }
+
+        if (!hasValidConn) {
+          // Loop through available configs and check if can connect
+          for (config: ServerConnectionConfig in DeviceManager.deviceData.serverConnectionConfigs) {
+            val result = checkServerConnection(config)
+
+            if (result) {
+              hasValidConn = true
+              DeviceManager.serverConnectionConfig = config
+              break
+            }
+          }
+        }
+
+        cb(hasValidConn)
       }
     }
   }
@@ -69,45 +197,39 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
     return cats
   }
 
-  fun loadAndroidAutoItems(libraryId:String, cb: (List<LibraryCategory>) -> Unit) {
-    Log.d(tag, "Load android auto items for library id $libraryId")
+  fun loadAndroidAutoItems(cb: (List<LibraryCategory>) -> Unit) {
+    Log.d(tag, "Load android auto items")
     val cats = mutableListOf<LibraryCategory>()
 
     val localCategories = loadLocalCategory()
     cats.addAll(localCategories)
 
-    // Connected to server and has internet - load other cats
-    if (apiHandler.isOnline() && (DeviceManager.isConnectedToServer || DeviceManager.hasLastServerConnectionConfig)) {
-      if (!DeviceManager.isConnectedToServer) {
-        DeviceManager.serverConnectionConfig = DeviceManager.deviceData.getLastServerConnectionConfig()
-        Log.d(tag, "Not connected to server, set last server \"${DeviceManager.serverAddress}\"")
-      }
+    // Check if any valid server connection if not use locally downloaded books
+    checkSetValidServerConnectionConfig { isConnected ->
+      if (isConnected) {
+        serverConfigIdUsed = DeviceManager.serverConnectionConfigId
 
-      loadLibraries { libraries ->
-        val library = libraries.find { it.id == libraryId } ?: libraries[0]
-        Log.d(tag, "Loading categories for library ${library.name} - ${library.id} - ${library.mediaType}")
+        loadLibraries { libraries ->
+          val library = libraries[0]
+          Log.d(tag, "Loading categories for library ${library.name} - ${library.id} - ${library.mediaType}")
 
-        loadLibraryCategories(libraryId) { libraryCategories ->
+          loadLibraryCategories(library.id) { libraryCategories ->
 
-          // Only using book or podcast library categories for now
-          libraryCategories.forEach {
-            Log.d(tag, "Found library category ${it.label} with type ${it.type}")
-            if (it.type == library.mediaType) {
-              Log.d(tag, "Using library category ${it.id}")
-              cats.add(it)
+            // Only using book or podcast library categories for now
+            libraryCategories.forEach {
+              // Log.d(tag, "Found library category ${it.label} with type ${it.type}")
+              if (it.type == library.mediaType) {
+                // Log.d(tag, "Using library category ${it.id}")
+                cats.add(it)
+              }
             }
-          }
-
-          loadLibraryItems(libraryId) { libraryItems ->
-            val mainCat = LibraryCategory("library", "Library", library.mediaType, libraryItems, false)
-            cats.add(mainCat)
 
             cb(cats)
           }
         }
+      } else { // Not connected/no internet sent downloaded cats only
+        cb(cats)
       }
-    } else { // Not connected/no internet sent downloaded cats only
-      cb(cats)
     }
   }
 
@@ -117,6 +239,19 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
     } else {
       val localBooks = DeviceManager.dbManager.getLocalLibraryItems("book")
       return if (localBooks.isNotEmpty()) return localBooks[0] else null
+    }
+  }
+
+  fun getPodcastWithEpisodeByEpisodeId(id:String) : LibraryItemWithEpisode? {
+    if (id.startsWith("local")) {
+      return DeviceManager.dbManager.getLocalLibraryItemWithEpisode(id)
+    } else {
+      val podcastEpisode = serverPodcastEpisodes.find { it.id == id }
+      return if (podcastEpisode != null && selectedLibraryItemWrapper != null) {
+        LibraryItemWithEpisode(selectedLibraryItemWrapper!!, podcastEpisode)
+      } else {
+        null
+      }
     }
   }
 
@@ -135,13 +270,13 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
     }
   }
 
-  fun play(libraryItemWrapper:LibraryItemWrapper, mediaPlayer:String, cb: (PlaybackSession) -> Unit) {
+  fun play(libraryItemWrapper:LibraryItemWrapper, episode:PodcastEpisode?, playItemRequestPayload:PlayItemRequestPayload, cb: (PlaybackSession) -> Unit) {
    if (libraryItemWrapper is LocalLibraryItem) {
     val localLibraryItem = libraryItemWrapper as LocalLibraryItem
-    cb(localLibraryItem.getPlaybackSession(null))
+    cb(localLibraryItem.getPlaybackSession(episode))
    } else {
      val libraryItem = libraryItemWrapper as LibraryItem
-     apiHandler.playLibraryItem(libraryItem.id,"",false, mediaPlayer) {
+     apiHandler.playLibraryItem(libraryItem.id,episode?.id ?: "",playItemRequestPayload) {
        cb(it)
      }
    }

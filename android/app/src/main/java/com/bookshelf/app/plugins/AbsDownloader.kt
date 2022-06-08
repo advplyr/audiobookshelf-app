@@ -277,7 +277,7 @@ class AbsDownloader : Plugin() {
         finalDestinationFile.delete()
       }
 
-      var downloadItemPart = DownloadItemPart.make(destinationFilename,destinationFile,finalDestinationFile,podcastTitle,serverPath,localFolder,audioTrack,null)
+      var downloadItemPart = DownloadItemPart.make(destinationFilename,destinationFile,finalDestinationFile,podcastTitle,serverPath,localFolder,audioTrack,episode)
       downloadItem.downloadItemParts.add(downloadItemPart)
 
       var dlRequest = downloadItemPart.getDownloadRequest()
@@ -294,7 +294,7 @@ class AbsDownloader : Plugin() {
         if (finalDestinationFile.exists()) {
           Log.d(tag, "Podcast cover already exists - not downloading cover again")
         } else {
-          downloadItemPart = DownloadItemPart.make(destinationFilename,destinationFile,finalDestinationFile,podcastTitle,serverPath,localFolder,audioTrack,null)
+          downloadItemPart = DownloadItemPart.make(destinationFilename,destinationFile,finalDestinationFile,podcastTitle,serverPath,localFolder,null,null)
           downloadItem.downloadItemParts.add(downloadItemPart)
 
           dlRequest = downloadItemPart.getDownloadRequest()

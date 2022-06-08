@@ -135,7 +135,7 @@ export default {
       }
       this.loading = false
     },
-    async libraryChanged(libid) {
+    async libraryChanged() {
       if (this.currentLibraryId) {
         await this.fetchCategories()
       }

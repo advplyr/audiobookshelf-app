@@ -42,6 +42,8 @@ data class LocalFile(
 ) {
   @JsonIgnore
   fun isAudioFile():Boolean {
+    if (mimeType == "application/octet-stream") return true
+    if (mimeType == "video/mp4") return true
     return mimeType?.startsWith("audio") == true
   }
 }
@@ -64,3 +66,20 @@ data class LocalFolder(
   JsonSubTypes.Type(LocalLibraryItem::class)
 )
 open class LibraryItemWrapper()
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class DeviceInfo(
+  var manufacturer:String,
+  var model:String,
+  var brand:String,
+  var sdkVersion:Int,
+  var clientVersion: String
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class PlayItemRequestPayload(
+  var mediaPlayer:String,
+  var forceDirectPlay:Boolean,
+  var forceTranscode:Boolean,
+  var deviceInfo:DeviceInfo
+)

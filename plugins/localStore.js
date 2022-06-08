@@ -83,7 +83,16 @@ class LocalStorage {
       await Storage.set({ key: 'lastLibraryId', value: libraryId })
       console.log('[LocalStorage] Set Last Library Id', libraryId)
     } catch (error) {
-      console.error('[LocalStorage] Failed to set current library', error)
+      console.error('[LocalStorage] Failed to set last library id', error)
+    }
+  }
+
+  async removeLastLibraryId() {
+    try {
+      await Storage.remove({ key: 'lastLibraryId' })
+      console.log('[LocalStorage] Remove Last Library Id')
+    } catch (error) {
+      console.error('[LocalStorage] Failed to remove last library id', error)
     }
   }
 

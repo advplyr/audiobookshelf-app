@@ -9,11 +9,8 @@ import android.os.Message
 import android.support.v4.media.session.MediaSessionCompat
 import android.util.Log
 import android.view.KeyEvent
-import com.bookshelf.app.data.LibraryItem
 import com.bookshelf.app.data.LibraryItemWrapper
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
+import com.bookshelf.app.data.PodcastEpisode
 import java.util.*
 import kotlin.concurrent.schedule
 
@@ -27,7 +24,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
   override fun onPrepare() {
     Log.d(tag, "ON PREPARE MEDIA SESSION COMPAT")
     playerNotificationService.mediaManager.getFirstItem()?.let { li ->
-      playerNotificationService.mediaManager.play(li, playerNotificationService.getMediaPlayer()) {
+      playerNotificationService.mediaManager.play(li, null, playerNotificationService.getPlayItemRequestPayload(false)) {
         Log.d(tag, "About to prepare player with ${it.displayTitle}")
         Handler(Looper.getMainLooper()).post() {
           playerNotificationService.preparePlayer(it,true,null)
@@ -49,7 +46,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
   override fun onPlayFromSearch(query: String?, extras: Bundle?) {
     Log.d(tag, "ON PLAY FROM SEARCH $query")
     playerNotificationService.mediaManager.getFromSearch(query)?.let { li ->
-      playerNotificationService.mediaManager.play(li, playerNotificationService.getMediaPlayer()) {
+      playerNotificationService.mediaManager.play(li, null, playerNotificationService.getPlayItemRequestPayload(false)) {
         Log.d(tag, "About to prepare player with ${it.displayTitle}")
         Handler(Looper.getMainLooper()).post() {
           playerNotificationService.preparePlayer(it,true,null)
@@ -90,14 +87,24 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
   override fun onPlayFromMediaId(mediaId: String?, extras: Bundle?) {
     Log.d(tag, "ON PLAY FROM MEDIA ID $mediaId")
     var libraryItemWrapper: LibraryItemWrapper? = null
+    var podcastEpisode: PodcastEpisode? = null
+
     if (mediaId.isNullOrEmpty()) {
       libraryItemWrapper = playerNotificationService.mediaManager.getFirstItem()
+    } else if (mediaId.startsWith("ep_") || mediaId.startsWith("local_ep_")) { // Playing podcast episode
+      val libraryItemWithEpisode = playerNotificationService.mediaManager.getPodcastWithEpisodeByEpisodeId(mediaId)
+      libraryItemWrapper = libraryItemWithEpisode?.libraryItemWrapper
+      podcastEpisode = libraryItemWithEpisode?.episode
     } else {
       libraryItemWrapper = playerNotificationService.mediaManager.getById(mediaId)
+
+      if (libraryItemWrapper == null) {
+        Log.e(tag, "onPlayFromMediaId: Media item not found $mediaId")
+      }
     }
 
     libraryItemWrapper?.let { li ->
-      playerNotificationService.mediaManager.play(li, playerNotificationService.getMediaPlayer()) {
+      playerNotificationService.mediaManager.play(li, podcastEpisode, playerNotificationService.getPlayItemRequestPayload(false)) {
         Log.d(tag, "About to prepare player with ${it.displayTitle}")
         Handler(Looper.getMainLooper()).post() {
           playerNotificationService.preparePlayer(it,true,null)
@@ -112,10 +119,13 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
 
   fun handleCallMediaButton(intent: Intent): Boolean {
     if(Intent.ACTION_MEDIA_BUTTON == intent.action) {
-      var keyEvent = intent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
-      if (keyEvent?.getAction() == KeyEvent.ACTION_UP) {
-        when (keyEvent?.getKeyCode()) {
+      val keyEvent = intent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
+
+      if (keyEvent?.action == KeyEvent.ACTION_UP) {
+        Log.d(tag, "handleCallMediaButton: key action_up for ${keyEvent.keyCode}")
+        when (keyEvent.keyCode) {
           KeyEvent.KEYCODE_HEADSETHOOK -> {
+            Log.d(tag, "handleCallMediaButton: Headset Hook")
             if (0 == mediaButtonClickCount) {
               if (playerNotificationService.mPlayer.isPlaying)
                 playerNotificationService.pause()
@@ -125,6 +135,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
             handleMediaButtonClickCount()
           }
           KeyEvent.KEYCODE_MEDIA_PLAY -> {
+            Log.d(tag, "handleCallMediaButton: Media Play")
             if (0 == mediaButtonClickCount) {
               playerNotificationService.play()
               playerNotificationService.sleepTimerManager.checkShouldExtendSleepTimer()
@@ -132,6 +143,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
             handleMediaButtonClickCount()
           }
           KeyEvent.KEYCODE_MEDIA_PAUSE -> {
+            Log.d(tag, "handleCallMediaButton: Media Pause")
             if (0 == mediaButtonClickCount) playerNotificationService.pause()
             handleMediaButtonClickCount()
           }
@@ -145,6 +157,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
             playerNotificationService.closePlayback()
           }
           KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
+            Log.d(tag, "handleCallMediaButton: Media Play/Pause")
             if (playerNotificationService.mPlayer.isPlaying) {
               if (0 == mediaButtonClickCount) playerNotificationService.pause()
               handleMediaButtonClickCount()
@@ -157,7 +170,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
             }
           }
           else -> {
-            Log.d(tag, "KeyCode:${keyEvent.getKeyCode()}")
+            Log.d(tag, "KeyCode:${keyEvent.keyCode}")
             return false
           }
         }
@@ -166,7 +179,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
     return true
   }
 
-  fun handleMediaButtonClickCount() {
+  private fun handleMediaButtonClickCount() {
     mediaButtonClickCount++
     if (1 == mediaButtonClickCount) {
       Timer().schedule(mediaButtonClickTimeout) {

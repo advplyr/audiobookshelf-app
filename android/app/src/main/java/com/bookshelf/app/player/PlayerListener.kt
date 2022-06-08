@@ -5,6 +5,8 @@ import com.bookshelf.app.data.PlayerState
 import com.google.android.exoplayer2.PlaybackException
 import com.google.android.exoplayer2.Player
 
+const val PAUSE_LEN_BEFORE_RECHECK = 30000 // 30 seconds
+
 class PlayerListener(var playerNotificationService:PlayerNotificationService) : Player.Listener {
   var tag = "PlayerListener"
 
@@ -15,7 +17,7 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
   private var onSeekBack: Boolean = false
 
   override fun onPlayerError(error: PlaybackException) {
-    var errorMessage = error.message ?: "Unknown Error"
+    val errorMessage = error.message ?: "Unknown Error"
     Log.e(tag, "onPlayerError $errorMessage")
     playerNotificationService.handlePlayerPlaybackError(errorMessage) // If was direct playing session, fallback to transcode
   }
@@ -81,6 +83,13 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
               Log.d(tag, "SeekBackTime: back time is 0")
             }
           }
+
+          // Check if playback session still exists or sync media progress if updated
+          val pauseLength: Long = System.currentTimeMillis() - lastPauseTime
+          if (pauseLength > PAUSE_LEN_BEFORE_RECHECK) {
+            val shouldCarryOn = playerNotificationService.checkCurrentSessionProgress()
+            if (!shouldCarryOn) return
+          }
         }
       } else {
         Log.d(tag, "SeekBackTime: Player not playing set last pause time")
@@ -90,6 +99,7 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
       // Start/stop progress sync interval
       Log.d(tag, "Playing ${playerNotificationService.getCurrentBookTitle()}")
       if (player.isPlaying) {
+        player.volume = 1F // Volume on sleep timer might have decreased this
         playerNotificationService.mediaProgressSyncer.start()
       } else {
         playerNotificationService.mediaProgressSyncer.stop()
@@ -101,8 +111,8 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
 
   private fun calcPauseSeekBackTime() : Long {
     if (lastPauseTime <= 0) return 0
-    var time: Long = System.currentTimeMillis() - lastPauseTime
-    var seekback: Long
+    val time: Long = System.currentTimeMillis() - lastPauseTime
+    val seekback: Long
     if (time < 3000) seekback = 0
     else if (time < 300000) seekback = 10000 // 3s to 5m = jump back 10s
     else if (time < 1800000) seekback = 20000 // 5m to 30m = jump back 20s

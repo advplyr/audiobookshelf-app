@@ -42,4 +42,15 @@ data class LocalMediaProgress(
     isFinished = playbackSession.progress >= 0.99
     finishedAt = if (isFinished) lastUpdate else null
   }
+
+  @JsonIgnore
+  fun updateFromServerMediaProgress(serverMediaProgress:MediaProgress) {
+    isFinished = serverMediaProgress.isFinished
+    progress = serverMediaProgress.progress
+    currentTime = serverMediaProgress.currentTime
+    duration = serverMediaProgress.duration
+    lastUpdate = serverMediaProgress.lastUpdate
+    finishedAt = serverMediaProgress.finishedAt
+    startedAt = serverMediaProgress.startedAt
+  }
 }

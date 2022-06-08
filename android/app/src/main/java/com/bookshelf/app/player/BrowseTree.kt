@@ -7,14 +7,15 @@ import android.support.v4.media.MediaMetadataCompat
 import android.util.Log
 import androidx.annotation.AnyRes
 import com.bookshelf.app.R
+import com.bookshelf.app.data.Library
 import com.bookshelf.app.data.LibraryCategory
 import com.bookshelf.app.data.LibraryItem
 import com.bookshelf.app.data.LocalLibraryItem
 
-
 class BrowseTree(
   val context: Context,
-  libraryCategories: List<LibraryCategory>
+  libraryCategories: List<LibraryCategory>,
+  libraries: List<Library>
 ) {
   private val mediaIdToChildren = mutableMapOf<String, MutableList<MediaMetadataCompat>>()
 
@@ -41,16 +42,16 @@ class BrowseTree(
       putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getUriToDrawable(context, R.drawable.exo_icon_localaudio).toString())
     }.build()
 
-    val allMetadata = MediaMetadataCompat.Builder().apply {
-      putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, ALL_ROOT)
-      putString(MediaMetadataCompat.METADATA_KEY_TITLE, "Library Items")
-      putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getUriToDrawable(context, R.drawable.exo_icon_books).toString())
-    }.build()
-
     val downloadsMetadata = MediaMetadataCompat.Builder().apply {
       putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, DOWNLOADS_ROOT)
       putString(MediaMetadataCompat.METADATA_KEY_TITLE, "Downloads")
       putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getUriToDrawable(context, R.drawable.exo_icon_downloaddone).toString())
+    }.build()
+
+    val librariesMetadata = MediaMetadataCompat.Builder().apply {
+      putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, LIBRARIES_ROOT)
+      putString(MediaMetadataCompat.METADATA_KEY_TITLE, "Libraries")
+      putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getUriToDrawable(context, R.drawable.icon_library_folder).toString())
     }.build()
 
     // Server continue Listening cat
@@ -69,30 +70,32 @@ class BrowseTree(
       }
     }
 
-    rootList += allMetadata
-    rootList += downloadsMetadata
+    if (libraries.isNotEmpty()) {
+      rootList += librariesMetadata
 
-    // Server library cat
-    libraryCategories.find { it.id == "library" }?.let { libraryCategory ->
-      val libraryMediaMetadata = libraryCategory.entities.map { libc ->
-        val libraryItem = libc as LibraryItem
-        libraryItem.getMediaMetadata()
-      }
-      libraryMediaMetadata.forEach {
-        val children = mediaIdToChildren[ALL_ROOT] ?: mutableListOf()
-        children += it
-        mediaIdToChildren[ALL_ROOT] = children
+      libraries.forEach { library ->
+        val libraryMediaMetadata = library.getMediaMetadata()
+        val children = mediaIdToChildren[LIBRARIES_ROOT] ?: mutableListOf()
+        children += libraryMediaMetadata
+        mediaIdToChildren[LIBRARIES_ROOT] = children
       }
     }
 
+    rootList += downloadsMetadata
     libraryCategories.find { it.id == "local-books" }?.let { localBooksCat ->
-      val localMediaMetadata = localBooksCat.entities.map { libc ->
+       localBooksCat.entities.forEach { libc ->
         val libraryItem = libc as LocalLibraryItem
-        libraryItem.getMediaMetadata(context)
+         val children = mediaIdToChildren[DOWNLOADS_ROOT] ?: mutableListOf()
+         children += libraryItem.getMediaMetadata(context)
+         mediaIdToChildren[DOWNLOADS_ROOT] = children
       }
-      localMediaMetadata.forEach {
+    }
+
+    libraryCategories.find { it.id == "local-podcasts" }?.let { localPodcastsCat ->
+      localPodcastsCat.entities.forEach { libc ->
+        val libraryItem = libc as LocalLibraryItem
         val children = mediaIdToChildren[DOWNLOADS_ROOT] ?: mutableListOf()
-        children += it
+        children += libraryItem.getMediaMetadata(context)
         mediaIdToChildren[DOWNLOADS_ROOT] = children
       }
     }
@@ -104,6 +107,6 @@ class BrowseTree(
 }
 
 const val AUTO_BROWSE_ROOT = "/"
-const val ALL_ROOT = "__ALL__"
 const val CONTINUE_ROOT = "__CONTINUE__"
 const val DOWNLOADS_ROOT = "__DOWNLOADS__"
+const val LIBRARIES_ROOT = "__LIBRARIES__"
