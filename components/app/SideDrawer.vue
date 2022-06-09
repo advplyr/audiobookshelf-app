@@ -19,7 +19,7 @@
       </div>
       <div class="absolute bottom-0 left-0 w-full py-6 px-6 text-gray-300">
         <div v-if="serverConnectionConfig" class="mb-4 flex justify-center">
-          <p class="text-xs">{{ serverConnectionConfig.address }}</p>
+          <p class="text-xs" style="word-break: break-word">{{ serverConnectionConfig.address }} (v{{serverSettings.version}})</p>
         </div>
         <div class="flex items-center">
           <p class="text-xs">{{ $config.version }}</p>
@@ -70,6 +70,9 @@ export default {
     },
     serverConnectionConfig() {
       return this.$store.state.user.serverConnectionConfig
+    },
+    serverSettings() {
+      return this.$store.state.serverSettings || {}
     },
     username() {
       return this.user ? this.user.username : ''
