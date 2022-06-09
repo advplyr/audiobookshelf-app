@@ -72,7 +72,7 @@ export default {
       return this.$store.state.user.serverConnectionConfig
     },
     serverSettings() {
-      return this.$store.state.serverSettings || 'Version Unavailable'
+      return this.$store.state.serverSettings || {}
     },
     username() {
       return this.user ? this.user.username : ''
