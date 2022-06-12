@@ -1,6 +1,6 @@
 # Audiobookshelf Mobile App
 
-AudioBookshelf is a self-hosted audiobook server for managing and playing your audiobooks.
+Audiobookshelf is a self-hosted audiobook and podcast server.
 
 ### Android (beta)
 Get the Android app on the [Google Play Store](https://play.google.com/store/apps/details?id=com.audiobookshelf.app)
