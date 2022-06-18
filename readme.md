@@ -1,5 +1,4 @@
 # The Book Shelf Mobile App
-
 The Book Shelf is a self-hosted audiobook server for managing and playing your audiobooks.
 
 ### Android (beta)

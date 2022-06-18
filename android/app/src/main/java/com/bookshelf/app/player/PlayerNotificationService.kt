@@ -17,19 +17,12 @@ import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import androidx.media.MediaBrowserServiceCompat
 import androidx.media.utils.MediaConstants
-<<<<<<< HEAD:android/app/src/main/java/com/bookshelf/app/player/PlayerNotificationService.kt
-import com.bookshelf.app.data.*
-import com.bookshelf.app.device.DeviceManager
-import com.bookshelf.app.media.MediaManager
-import com.bookshelf.app.server.ApiHandler
-=======
 import com.bookshelf.app.BuildConfig
 import com.bookshelf.app.data.*
 import com.bookshelf.app.data.DeviceInfo
 import com.bookshelf.app.device.DeviceManager
 import com.bookshelf.app.media.MediaManager
 import com.bookshelf.app.server.ApiHandler
->>>>>>> fc6d16bdd929595e0c0f924c1b2485adb36af94e:android/app/src/main/java/com/audiobookshelf/app/player/PlayerNotificationService.kt
 import com.google.android.exoplayer2.*
 import com.google.android.exoplayer2.audio.AudioAttributes
 import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector

@@ -3,7 +3,7 @@ package com.bookshelf.app.media
 import android.content.Context
 import android.support.v4.media.MediaBrowserCompat
 import android.util.Log
-import com.bokshelf.app.data.*
+import com.bookshelf.app.data.*
 import com.bookshelf.app.device.DeviceManager
 import com.bookshelf.app.server.ApiHandler
 import java.util.*
