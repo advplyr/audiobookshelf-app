@@ -381,8 +381,13 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         val libraryItemId = playbackSession.libraryItemId ?: "" // Must be true since direct play
         val episodeId = playbackSession.episodeId
         apiHandler.playLibraryItem(libraryItemId, episodeId, playItemRequestPayload) {
-          Handler(Looper.getMainLooper()).post {
-            preparePlayer(it, true, null)
+          if (it == null) { // Play request failed
+            clientEventEmitter?.onPlaybackFailed(errorMessage)
+            closePlayback()
+          } else {
+            Handler(Looper.getMainLooper()).post {
+              preparePlayer(it, true, null)
+            }
           }
         }
       } else {
@@ -400,8 +405,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       val libraryItemId = playbackSession.libraryItemId ?: "" // Must be true since direct play
       val episodeId = playbackSession.episodeId
       apiHandler.playLibraryItem(libraryItemId, episodeId, playItemRequestPayload) {
-        Handler(Looper.getMainLooper()).post {
-          preparePlayer(it, true, null)
+        if (it == null) {
+          Log.e(tag, "Failed to start new playback session")
+        } else {
+          Handler(Looper.getMainLooper()).post {
+            preparePlayer(it, true, null)
+          }
         }
       }
     }
