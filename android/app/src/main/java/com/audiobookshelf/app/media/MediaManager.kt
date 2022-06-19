@@ -16,6 +16,8 @@ import kotlin.coroutines.suspendCoroutine
 class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
   val tag = "MediaManager"
 
+  var isPaperInitialized = false
+
   var serverLibraryItems = listOf<LibraryItem>()
   var selectedLibraryId = ""
 
@@ -28,8 +30,11 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
   var serverConfigIdUsed:String? = null
 
   fun initializeAndroidAuto() {
-    Log.d(tag, "Android Auto started when MainActivity was never started - initializing Paper")
-    Paper.init(ctx)
+    if (!isPaperInitialized) {
+      Log.d(tag, "Android Auto started when MainActivity was never started - initializing Paper")
+      Paper.init(ctx)
+      isPaperInitialized = true
+    }
   }
 
   fun getIsLibrary(id:String) : Boolean {

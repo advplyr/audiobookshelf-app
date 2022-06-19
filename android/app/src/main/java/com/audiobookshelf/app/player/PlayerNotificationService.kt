@@ -701,11 +701,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       // No further calls will be made to other media browsing methods.
       null
     } else {
-      if (!isStarted) {
-        Log.d(tag, "AA Not yet started")
-        mediaManager.initializeAndroidAuto()
-        isStarted = true
-      }
+      isStarted = true
+      mediaManager.initializeAndroidAuto()
       mediaManager.checkResetServerItems() // Reset any server items if no longer connected to server
 
       isAndroidAuto = true
