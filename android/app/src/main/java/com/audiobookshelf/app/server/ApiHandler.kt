@@ -135,19 +135,29 @@ class ApiHandler(var ctx:Context) {
     }
   }
 
-  fun getLibraryItem(libraryItemId:String, cb: (LibraryItem) -> Unit) {
+  fun getLibraryItem(libraryItemId:String, cb: (LibraryItem?) -> Unit) {
     getRequest("/api/items/$libraryItemId?expanded=1", null, null) {
-      val libraryItem = jacksonMapper.readValue<LibraryItem>(it.toString())
-      cb(libraryItem)
+      if (it.has("error")) {
+        Log.e(tag, it.getString("error") ?: "getLibraryItem Failed")
+        cb(null)
+      } else {
+        val libraryItem = jacksonMapper.readValue<LibraryItem>(it.toString())
+        cb(libraryItem)
+      }
     }
   }
 
-  fun getLibraryItemWithProgress(libraryItemId:String, episodeId:String?, cb: (LibraryItem) -> Unit) {
+  fun getLibraryItemWithProgress(libraryItemId:String, episodeId:String?, cb: (LibraryItem?) -> Unit) {
     var requestUrl = "/api/items/$libraryItemId?expanded=1&include=progress"
     if (!episodeId.isNullOrEmpty()) requestUrl += "&episode=$episodeId"
     getRequest(requestUrl, null, null) {
-      val libraryItem = jacksonMapper.readValue<LibraryItem>(it.toString())
-      cb(libraryItem)
+      if (it.has("error")) {
+        Log.e(tag, it.getString("error") ?: "getLibraryItemWithProgress Failed")
+        cb(null)
+      } else {
+        val libraryItem = jacksonMapper.readValue<LibraryItem>(it.toString())
+        cb(libraryItem)
+      }
     }
   }
 
@@ -186,15 +196,20 @@ class ApiHandler(var ctx:Context) {
     }
   }
 
-  fun playLibraryItem(libraryItemId:String, episodeId:String?, playItemRequestPayload:PlayItemRequestPayload, cb: (PlaybackSession) -> Unit) {
+  fun playLibraryItem(libraryItemId:String, episodeId:String?, playItemRequestPayload:PlayItemRequestPayload, cb: (PlaybackSession?) -> Unit) {
     val payload = JSObject(jacksonMapper.writeValueAsString(playItemRequestPayload))
 
     val endpoint = if (episodeId.isNullOrEmpty()) "/api/items/$libraryItemId/play" else "/api/items/$libraryItemId/play/$episodeId"
     postRequest(endpoint, payload) {
-      it.put("serverConnectionConfigId", DeviceManager.serverConnectionConfig?.id)
-      it.put("serverAddress", DeviceManager.serverAddress)
-      val playbackSession = jacksonMapper.readValue<PlaybackSession>(it.toString())
-      cb(playbackSession)
+      if (it.has("error")) {
+        Log.e(tag, it.getString("error") ?: "Play Library Item Failed")
+        cb(null)
+      } else {
+        it.put("serverConnectionConfigId", DeviceManager.serverConnectionConfig?.id)
+        it.put("serverAddress", DeviceManager.serverAddress)
+        val playbackSession = jacksonMapper.readValue<PlaybackSession>(it.toString())
+        cb(playbackSession)
+      }
     }
   }
 
@@ -236,10 +251,12 @@ class ApiHandler(var ctx:Context) {
       Log.d(tag, "Sending sync local progress request with ${localMediaProgress.size} progress items")
       val payload = JSObject(jacksonMapper.writeValueAsString(LocalMediaProgressSyncPayload(localMediaProgress)))
       postRequest("/api/me/sync-local-progress", payload) {
-        Log.d(tag, "Media Progress Sync payload $payload - response ${it.toString()}")
+        Log.d(tag, "Media Progress Sync payload $payload - response ${it}")
 
         if (it.toString() == "{}") {
           Log.e(tag, "Progress sync received empty object")
+        } else if (it.has("error")) {
+          Log.e(tag, it.getString("error") ?: "Progress sync error")
         } else {
           val progressSyncResponsePayload = jacksonMapper.readValue<MediaProgressSyncResponsePayload>(it.toString())
 

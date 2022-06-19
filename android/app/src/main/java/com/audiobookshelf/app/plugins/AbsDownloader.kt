@@ -143,31 +143,35 @@ class AbsDownloader : Plugin() {
     }
 
     apiHandler.getLibraryItemWithProgress(libraryItemId, episodeId) { libraryItem ->
-      Log.d(tag, "Got library item from server ${libraryItem.id}")
+      if (libraryItem == null) {
+        call.resolve(JSObject("{\"error\":\"Server request failed\"}"))
+      } else {
+        Log.d(tag, "Got library item from server ${libraryItem.id}")
 
-      val localFolder = DeviceManager.dbManager.getLocalFolder(localFolderId)
-      if (localFolder != null) {
+        val localFolder = DeviceManager.dbManager.getLocalFolder(localFolderId)
+        if (localFolder != null) {
 
-        if (episodeId.isNotEmpty() && libraryItem.mediaType != "podcast") {
-          Log.e(tag, "Library item is not a podcast but episode was requested")
-          call.resolve(JSObject("{\"error\":\"Invalid library item not a podcast\"}"))
-        } else if (episodeId.isNotEmpty()) {
-          val podcast = libraryItem.media as Podcast
-          val episode = podcast.episodes?.find { podcastEpisode ->
-            podcastEpisode.id == episodeId
-          }
-          if (episode == null) {
-            call.resolve(JSObject("{\"error\":\"Invalid podcast episode not found\"}"))
+          if (episodeId.isNotEmpty() && libraryItem.mediaType != "podcast") {
+            Log.e(tag, "Library item is not a podcast but episode was requested")
+            call.resolve(JSObject("{\"error\":\"Invalid library item not a podcast\"}"))
+          } else if (episodeId.isNotEmpty()) {
+            val podcast = libraryItem.media as Podcast
+            val episode = podcast.episodes?.find { podcastEpisode ->
+              podcastEpisode.id == episodeId
+            }
+            if (episode == null) {
+              call.resolve(JSObject("{\"error\":\"Invalid podcast episode not found\"}"))
+            } else {
+              startLibraryItemDownload(libraryItem, localFolder, episode)
+              call.resolve()
+            }
           } else {
-            startLibraryItemDownload(libraryItem, localFolder, episode)
+            startLibraryItemDownload(libraryItem, localFolder, null)
             call.resolve()
           }
         } else {
-          startLibraryItemDownload(libraryItem, localFolder, null)
-          call.resolve()
+          call.resolve(JSObject("{\"error\":\"Local Folder Not Found\"}"))
         }
-      } else {
-        call.resolve(JSObject("{\"error\":\"Local Folder Not Found\"}"))
       }
     }
   }

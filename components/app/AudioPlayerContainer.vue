@@ -185,11 +185,17 @@ export default {
       }
       AbsAudioPlayer.prepareLibraryItem({ libraryItemId, episodeId: null, playWhenReady: false, playbackRate })
         .then((data) => {
-          console.log('Library item play response', JSON.stringify(data))
-          AbsAudioPlayer.requestSession()
+          if (data.error) {
+            const errorMsg = data.error || 'Failed to play'
+            this.$toast.error(errorMsg)
+          } else {
+            console.log('Library item play response', JSON.stringify(data))
+            AbsAudioPlayer.requestSession()
+          }
         })
         .catch((error) => {
           console.error('Failed', error)
+          this.$toast.error('Failed to play')
         })
     },
     async playLibraryItem(payload) {
@@ -220,15 +226,21 @@ export default {
       console.log('Called playLibraryItem', libraryItemId)
       AbsAudioPlayer.prepareLibraryItem({ libraryItemId, episodeId, playWhenReady: true, playbackRate })
         .then((data) => {
-          console.log('Library item play response', JSON.stringify(data))
-          if (!libraryItemId.startsWith('local')) {
-            this.serverLibraryItemId = libraryItemId
+          if (data.error) {
+            const errorMsg = data.error || 'Failed to play'
+            this.$toast.error(errorMsg)
           } else {
-            this.serverLibraryItemId = serverLibraryItemId
+            console.log('Library item play response', JSON.stringify(data))
+            if (!libraryItemId.startsWith('local')) {
+              this.serverLibraryItemId = libraryItemId
+            } else {
+              this.serverLibraryItemId = serverLibraryItemId
+            }
           }
         })
         .catch((error) => {
           console.error('Failed', error)
+          this.$toast.error('Failed to play')
         })
     },
     pauseItem() {

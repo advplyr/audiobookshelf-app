@@ -165,7 +165,7 @@ class AbsAudioPlayer : Plugin() {
 
     if (libraryItemId.isEmpty()) {
       Log.e(tag, "Invalid call to play library item no library item id")
-      return call.resolve()
+      return call.resolve(JSObject("{\"error\":\"Invalid request\"}"))
     }
 
     if (libraryItemId.startsWith("local")) { // Play local media item
@@ -176,7 +176,7 @@ class AbsAudioPlayer : Plugin() {
           episode = podcastMedia.episodes?.find { ep -> ep.id == episodeId }
           if (episode == null) {
             Log.e(tag, "prepareLibraryItem: Podcast episode not found $episodeId")
-            return call.resolve(JSObject())
+            return call.resolve(JSObject("{\"error\":\"Podcast episode not found\"}"))
           }
         }
 
@@ -191,13 +191,16 @@ class AbsAudioPlayer : Plugin() {
       val playItemRequestPayload = playerNotificationService.getPlayItemRequestPayload(false)
 
       apiHandler.playLibraryItem(libraryItemId, episodeId, playItemRequestPayload) {
+        if (it == null) {
+          call.resolve(JSObject("{\"error\":\"Server play request failed\"}"))
+        } else {
+          Handler(Looper.getMainLooper()).post {
+            Log.d(tag, "Preparing Player TEST ${jacksonMapper.writeValueAsString(it)}")
+            playerNotificationService.preparePlayer(it, playWhenReady, playbackRate)
+          }
 
-        Handler(Looper.getMainLooper()).post {
-          Log.d(tag, "Preparing Player TEST ${jacksonMapper.writeValueAsString(it)}")
-          playerNotificationService.preparePlayer(it, playWhenReady, playbackRate)
+          call.resolve(JSObject(jacksonMapper.writeValueAsString(it)))
         }
-
-        call.resolve(JSObject(jacksonMapper.writeValueAsString(it)))
       }
     }
   }
