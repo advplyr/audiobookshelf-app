@@ -67,13 +67,19 @@ class PlaybackSession(
 
   @JsonIgnore
   fun getCurrentTrackIndex():Int {
-    for (i in 0..(audioTracks.size - 1)) {
+    for (i in 0 until audioTracks.size) {
       val track = audioTracks[i]
-      if (currentTimeMs >= track.startOffsetMs && (track.endOffsetMs) > currentTimeMs) {
+      if (currentTimeMs >= track.startOffsetMs && (track.endOffsetMs > currentTimeMs)) {
         return i
       }
     }
     return audioTracks.size - 1
+  }
+
+  @JsonIgnore
+  fun getChapterForTime(time:Long):BookChapter? {
+    if (chapters.isEmpty()) return null
+    return chapters.find { time >= it.startMs && it.endMs > time}
   }
 
   @JsonIgnore

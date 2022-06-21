@@ -399,7 +399,12 @@ data class BookChapter(
   var start:Double,
   var end:Double,
   var title:String?
-)
+) {
+  @get:JsonIgnore
+  val startMs get() = (start * 1000L).toLong()
+  @get:JsonIgnore
+  val endMs get() = (end * 1000L).toLong()
+}
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class MediaProgress(
