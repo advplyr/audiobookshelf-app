@@ -88,7 +88,7 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
   private var currentMediaItemIndex = 0
   private var pendingMediaItemRemovalPosition:PositionInfo? = null
   private var pendingSeekCount = 0
-  private var pendingSeekWindowIndex = 0
+  private var pendingSeekWindowIndex = C.INDEX_UNSET
   private var pendingSeekPositionMs = 0L
 
   init {
