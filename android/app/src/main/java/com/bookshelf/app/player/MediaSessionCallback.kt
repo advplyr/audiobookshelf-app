@@ -25,9 +25,12 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
     Log.d(tag, "ON PREPARE MEDIA SESSION COMPAT")
     playerNotificationService.mediaManager.getFirstItem()?.let { li ->
       playerNotificationService.mediaManager.play(li, null, playerNotificationService.getPlayItemRequestPayload(false)) {
-        Log.d(tag, "About to prepare player with ${it.displayTitle}")
-        Handler(Looper.getMainLooper()).post() {
-          playerNotificationService.preparePlayer(it,true,null)
+        if (it == null) {
+          Log.e(tag, "Failed to play library item")
+        } else {
+          Handler(Looper.getMainLooper()).post() {
+            playerNotificationService.preparePlayer(it,true,null)
+          }
         }
       }
     }
@@ -47,9 +50,12 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
     Log.d(tag, "ON PLAY FROM SEARCH $query")
     playerNotificationService.mediaManager.getFromSearch(query)?.let { li ->
       playerNotificationService.mediaManager.play(li, null, playerNotificationService.getPlayItemRequestPayload(false)) {
-        Log.d(tag, "About to prepare player with ${it.displayTitle}")
-        Handler(Looper.getMainLooper()).post() {
-          playerNotificationService.preparePlayer(it,true,null)
+        if (it == null) {
+           Log.e(tag, "Failed to play library item")
+        } else {
+          Handler(Looper.getMainLooper()).post() {
+            playerNotificationService.preparePlayer(it, true, null)
+          }
         }
       }
     }
@@ -105,9 +111,12 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
 
     libraryItemWrapper?.let { li ->
       playerNotificationService.mediaManager.play(li, podcastEpisode, playerNotificationService.getPlayItemRequestPayload(false)) {
-        Log.d(tag, "About to prepare player with ${it.displayTitle}")
-        Handler(Looper.getMainLooper()).post() {
-          playerNotificationService.preparePlayer(it,true,null)
+        if (it == null) {
+         Log.e(tag, "Failed to play library item")
+        } else {
+          Handler(Looper.getMainLooper()).post() {
+            playerNotificationService.preparePlayer(it, true, null)
+          }
         }
       }
     }

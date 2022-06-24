@@ -381,8 +381,13 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         val libraryItemId = playbackSession.libraryItemId ?: "" // Must be true since direct play
         val episodeId = playbackSession.episodeId
         apiHandler.playLibraryItem(libraryItemId, episodeId, playItemRequestPayload) {
-          Handler(Looper.getMainLooper()).post {
-            preparePlayer(it, true, null)
+          if (it == null) { // Play request failed
+            clientEventEmitter?.onPlaybackFailed(errorMessage)
+            closePlayback()
+          } else {
+            Handler(Looper.getMainLooper()).post {
+              preparePlayer(it, true, null)
+            }
           }
         }
       } else {
@@ -400,8 +405,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       val libraryItemId = playbackSession.libraryItemId ?: "" // Must be true since direct play
       val episodeId = playbackSession.episodeId
       apiHandler.playLibraryItem(libraryItemId, episodeId, playItemRequestPayload) {
-        Handler(Looper.getMainLooper()).post {
-          preparePlayer(it, true, null)
+        if (it == null) {
+          Log.e(tag, "Failed to start new playback session")
+        } else {
+          Handler(Looper.getMainLooper()).post {
+            preparePlayer(it, true, null)
+          }
         }
       }
     }
@@ -496,6 +505,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   fun getCurrentPlaybackSessionId() :String? {
     return currentPlaybackSession?.id
+  }
+
+  fun getCurrentBookChapter():BookChapter? {
+    return currentPlaybackSession?.getChapterForTime(this.getCurrentTime())
   }
 
   // Called from PlayerListener play event
@@ -692,11 +705,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       // No further calls will be made to other media browsing methods.
       null
     } else {
-      if (!isStarted) {
-        Log.d(tag, "AA Not yet started")
-        mediaManager.initializeAndroidAuto()
-        isStarted = true
-      }
+      isStarted = true
+      mediaManager.initializeAndroidAuto()
       mediaManager.checkResetServerItems() // Reset any server items if no longer connected to server
 
       isAndroidAuto = true

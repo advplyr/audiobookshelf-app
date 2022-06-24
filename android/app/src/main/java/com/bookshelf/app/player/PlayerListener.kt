@@ -75,12 +75,18 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
             Log.d(tag, "SeekBackTime: playing started now set seek back time $lastPauseTime")
             var backTime = calcPauseSeekBackTime()
             if (backTime > 0) {
-              if (backTime >= playerNotificationService.getCurrentTime()) backTime = playerNotificationService.getCurrentTime() - 500
+              // Current chapter is used so that seek back does not go back to the previous chapter
+              val currentChapter = playerNotificationService.getCurrentBookChapter()
+              val minSeekBackTime = currentChapter?.startMs ?: 0
+
+              val currentTime = playerNotificationService.getCurrentTime()
+              val newTime = currentTime - backTime
+              if (newTime < minSeekBackTime) {
+                backTime = currentTime - minSeekBackTime
+              }
               Log.d(tag, "SeekBackTime $backTime")
               onSeekBack = true
               playerNotificationService.seekBackward(backTime)
-            } else {
-              Log.d(tag, "SeekBackTime: back time is 0")
             }
           }
 
@@ -113,8 +119,9 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
     if (lastPauseTime <= 0) return 0
     val time: Long = System.currentTimeMillis() - lastPauseTime
     val seekback: Long
-    if (time < 3000) seekback = 0
-    else if (time < 300000) seekback = 10000 // 3s to 5m = jump back 10s
+    if (time < 10000) seekback = 0 // 10s or less = no seekback
+    else if (time < 60000) seekback = 3000 // 10s to 1m = jump back 3s
+    else if (time < 300000) seekback = 10000 // 1m to 5m = jump back 10s
     else if (time < 1800000) seekback = 20000 // 5m to 30m = jump back 20s
     else seekback = 29500 // 30m and up = jump back 30s
     return seekback
