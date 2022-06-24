@@ -6,7 +6,7 @@
       <span class="material-icons text-4xl">close</span>
     </div>
     <slot name="outer" />
-    <div ref="content" style="max-width: 90%; min-height: 200px" class="relative text-white max-h-screen" :style="{ height: modalHeight, width: modalWidth }" v-click-outside="clickBg">
+    <div ref="content" style="min-height: 200px" class="relative text-white max-h-screen" :style="{ height: modalHeight, width: modalWidth, maxWidth: maxWidth }" v-click-outside="clickBg">
       <slot />
     </div>
   </div>
@@ -28,6 +28,10 @@ export default {
     height: {
       type: [String, Number],
       default: 'unset'
+    },
+    maxWidth: {
+      type: String,
+      default: '90%'
     }
   },
   data() {
