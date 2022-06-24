@@ -30,7 +30,7 @@
       </div>
     </div>
 
-    <div class="cover-wrapper absolute z-30 pointer-events-auto" :class="bookCoverAspectRatio === 1 ? 'square-cover' : ''" @click="clickContainer">
+    <div class="cover-wrapper absolute z-30 pointer-events-auto" @click="clickContainer">
       <div class="cover-container bookCoverWrapper bg-black bg-opacity-75 w-full h-full">
         <covers-book-cover v-if="libraryItem || localLibraryItemCoverSrc" :library-item="libraryItem" :download-cover="localLibraryItemCoverSrc" :width="bookCoverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" />
       </div>
@@ -109,6 +109,7 @@ export default {
   },
   data() {
     return {
+      windowHeight: 0,
       playbackSession: null,
       showChapterModal: false,
       showFullscreen: false,
@@ -138,6 +139,11 @@ export default {
       dragPercent: 0
     }
   },
+  watch: {
+    showFullscreen() {
+      this.updateScreenSize()
+    }
+  },
   computed: {
     menuItems() {
       var items = []
@@ -157,10 +163,15 @@ export default {
       return this.$store.getters['getBookCoverAspectRatio']
     },
     bookCoverWidth() {
+      if (this.showFullscreen) return this.fullscreenBookCoverWidth
+      return 60
+    },
+    fullscreenBookCoverWidth() {
+      var heightScale = (this.windowHeight - 200) / 651
       if (this.bookCoverAspectRatio === 1) {
-        return this.showFullscreen ? 260 : 60
+        return 260 * heightScale
       }
-      return this.showFullscreen ? 200 : 60
+      return 200 * heightScale
     },
     showCastBtn() {
       return this.$store.state.isCastAvailable
@@ -679,15 +690,28 @@ export default {
       this.onPlaybackFailedListener = AbsAudioPlayer.addListener('onPlaybackFailed', this.onPlaybackFailed)
       this.onPlayingUpdateListener = AbsAudioPlayer.addListener('onPlayingUpdate', this.onPlayingUpdate)
       this.onMetadataListener = AbsAudioPlayer.addListener('onMetadata', this.onMetadata)
+    },
+    screenOrientationChange() {
+      setTimeout(this.updateScreenSize, 50)
+    },
+    updateScreenSize() {
+      this.windowHeight = window.innerHeight
+      var coverHeight = this.fullscreenBookCoverWidth * this.bookCoverAspectRatio
+      document.documentElement.style.setProperty('--cover-image-width', this.fullscreenBookCoverWidth + 'px')
+      document.documentElement.style.setProperty('--cover-image-height', coverHeight + 'px')
     }
   },
   mounted() {
+    this.updateScreenSize()
+    screen.orientation.addEventListener('change', this.screenOrientationChange)
     document.body.addEventListener('touchstart', this.touchstart)
     document.body.addEventListener('touchend', this.touchend)
     document.body.addEventListener('touchmove', this.touchmove)
     this.$nextTick(this.init)
   },
   beforeDestroy() {
+    screen.orientation.removeEventListener('change', this.screenOrientationChange)
+
     if (this.playbackSession) {
       console.log('[AudioPlayer] Before destroy closing playback')
       this.closePlayback()
@@ -709,6 +733,13 @@ export default {
 </script>
 
 <style>
+:root {
+  --cover-image-width: 0px;
+  --cover-image-height: 0px;
+  --cover-image-width-collapsed: 60px;
+  --cover-image-height-collapsed: 60px;
+  --test-var: 100px;
+}
 .bookCoverWrapper {
   box-shadow: 3px -2px 5px #00000066;
 }
@@ -739,14 +770,11 @@ export default {
 .cover-wrapper {
   bottom: 44px;
   left: 12px;
-  height: 96px;
-  width: 60px;
+  height: var(--cover-image-height-collapsed);
+  width: var(--cover-image-width-collapsed);
   transition: all 0.25s cubic-bezier(0.39, 0.575, 0.565, 1);
   transition-property: left, bottom, width, height;
   transform-origin: left bottom;
-}
-.cover-wrapper.square-cover {
-  height: 60px;
 }
 
 .total-track {
@@ -779,16 +807,17 @@ export default {
 }
 
 .fullscreen .title-author-texts {
-  bottom: 36%;
+  bottom: calc(50% - var(--cover-image-height) / 2 + 50px);
   width: 80%;
   left: 10%;
   text-align: center;
+  padding-bottom: calc(((260px - var(--cover-image-height)) / 260) * 40);
 }
 .fullscreen .title-author-texts .title-text {
-  font-size: 1.2rem;
+  font-size: clamp(0.8rem, calc(var(--cover-image-height) / 260 * 20), 1.2rem);
 }
 .fullscreen .title-author-texts .author-text {
-  font-size: 1rem;
+  font-size: clamp(0.6rem, calc(var(--cover-image-height) / 260 * 16), 1rem);
 }
 
 #playerControls {
@@ -826,16 +855,11 @@ export default {
 }
 
 .fullscreen .cover-wrapper {
-  bottom: 46%;
-  left: calc(50% - 100px);
   margin: 0 auto;
-  height: 320px;
-  width: 200px;
-}
-.fullscreen .cover-wrapper.square-cover {
-  height: 260px;
-  width: 260px;
-  left: calc(50% - 130px);
+  height: var(--cover-image-height);
+  width: var(--cover-image-width);
+  left: calc(50% - (calc(var(--cover-image-width)) / 2));
+  bottom: calc(50% + 120px - (calc(var(--cover-image-height)) / 2));
 }
 
 .fullscreen #playerControls {
