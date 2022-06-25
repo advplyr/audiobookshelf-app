@@ -2,7 +2,7 @@
   <div class="w-full h-full px-3 py-4 overflow-y-auto">
     <div class="flex">
       <div class="w-16">
-        <div class="relative">
+        <div class="relative" @click="showFullscreenCover = true">
           <covers-book-cover :library-item="libraryItem" :width="64" :book-cover-aspect-ratio="bookCoverAspectRatio" />
           <div v-if="!isPodcast" class="absolute bottom-0 left-0 h-1 shadow-sm z-10" :class="userIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: 64 * progressPercent + 'px' }"></div>
         </div>
@@ -112,6 +112,8 @@
     <modals-dialog v-model="showMoreMenu" title="" :items="moreMenuItems" @action="moreMenuAction" />
 
     <modals-item-details-modal v-model="showDetailsModal" :library-item="libraryItem" />
+
+    <modals-fullscreen-cover v-model="showFullscreenCover" :library-item="libraryItem" />
   </div>
 </template>
 
@@ -156,7 +158,8 @@ export default {
       isProcessingReadUpdate: false,
       showSelectLocalFolder: false,
       showMoreMenu: false,
-      showDetailsModal: false
+      showDetailsModal: false,
+      showFullscreenCover: false
     }
   },
   computed: {
