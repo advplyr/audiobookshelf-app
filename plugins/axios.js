@@ -4,6 +4,14 @@ export default function ({ $axios, store }) {
     if (config.url.startsWith('http:') || config.url.startsWith('https:')) {
       return
     }
+
+    var customHeaders = store.getters['user/getCustomHeaders']
+    if (customHeaders) {
+      for (const key in customHeaders) {
+        config.headers.common[key] = customHeaders[key]
+      }
+    }
+
     var bearerToken = store.getters['user/getToken']
     if (bearerToken) {
       config.headers.common['Authorization'] = `Bearer ${bearerToken}`
