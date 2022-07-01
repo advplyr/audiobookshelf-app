@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import java.util.*
 
 data class ServerConnectionConfig(
   var id:String,
@@ -13,7 +12,8 @@ data class ServerConnectionConfig(
   var address:String,
   var userId:String,
   var username:String,
-  var token:String
+  var token:String,
+  var customHeaders:Map<String, String>?
 )
 
 data class DeviceData(

@@ -22,6 +22,9 @@ export const getters = {
   getServerAddress: (state) => {
     return state.serverConnectionConfig ? state.serverConnectionConfig.address : null
   },
+  getCustomHeaders: (state) => {
+    return state.serverConnectionConfig ? state.serverConnectionConfig.customHeaders : null
+  },
   getUserMediaProgress: (state) => (libraryItemId, episodeId = null) => {
     if (!state.user || !state.user.mediaProgress) return null
     return state.user.mediaProgress.find(li => {
