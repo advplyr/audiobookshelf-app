@@ -1,4 +1,5 @@
 @import "./fonts.css";
+@import './defaultStyles.css';
 
 body {
   background-color: #262626;
