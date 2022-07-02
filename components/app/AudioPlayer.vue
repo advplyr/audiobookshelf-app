@@ -36,7 +36,7 @@
       </div>
     </div>
 
-    <div class="title-author-texts absolute z-30 left-0 right-0 overflow-hidden">
+    <div class="title-author-texts absolute z-30 left-0 right-0 overflow-hidden" @click="clickTitleAndAuthor">
       <p class="title-text font-book truncate">{{ title }}</p>
       <p class="author-text text-white text-opacity-75 truncate">by {{ authorName }}</p>
     </div>
@@ -293,6 +293,14 @@ export default {
     }
   },
   methods: {
+    clickTitleAndAuthor() {
+      if (!this.showFullscreen) return
+      const llid = this.libraryItem ? this.libraryItem.id : this.localLibraryItem ? this.localLibraryItem.id : null
+      if (llid) {
+        this.$router.push(`/item/${llid}`)
+        this.showFullscreen = false
+      }
+    },
     touchstartTrack(e) {
       if (!e || !e.touches || !this.$refs.track || !this.showFullscreen) return
       this.touchTrackStart = true
@@ -818,6 +826,7 @@ export default {
   left: 10%;
   text-align: center;
   padding-bottom: calc(((260px - var(--cover-image-height)) / 260) * 40);
+  pointer-events: auto;
 }
 .fullscreen .title-author-texts .title-text {
   font-size: clamp(0.8rem, calc(var(--cover-image-height) / 260 * 20), 1.2rem);
