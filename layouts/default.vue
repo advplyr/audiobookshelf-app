@@ -260,6 +260,10 @@ export default {
 
     if (this.$store.state.isFirstLoad) {
       this.$store.commit('setIsFirstLoad', false)
+
+      const deviceData = await this.$db.getDeviceData()
+      this.$store.commit('setDeviceData', deviceData)
+
       await this.$store.dispatch('setupNetworkListener')
 
       if (this.$store.state.user.serverConnectionConfig) {

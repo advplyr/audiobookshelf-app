@@ -1,6 +1,7 @@
 import { Network } from '@capacitor/network'
 
 export const state = () => ({
+  deviceData: null,
   playerLibraryItemId: null,
   playerEpisodeId: null,
   playerIsLocal: false,
@@ -35,6 +36,14 @@ export const getters = {
     if (!state.serverSettings) return 1
     return state.serverSettings.coverAspectRatio === 0 ? 1.6 : 1
   },
+  getJumpForwardTime: state => {
+    if (!state.deviceData || !state.deviceData.deviceSettings) return 10
+    return state.deviceData.deviceSettings.jumpForwardTime || 10
+  },
+  getJumpBackwardsTime: state => {
+    if (!state.deviceData || !state.deviceData.deviceSettings) return 10
+    return state.deviceData.deviceSettings.jumpBackwardsTime || 10
+  }
 }
 
 export const actions = {
@@ -55,6 +64,9 @@ export const actions = {
 }
 
 export const mutations = {
+  setDeviceData(state, deviceData) {
+    state.deviceData = deviceData
+  },
   setLastBookshelfScrollData(state, { scrollTop, path, name }) {
     state.lastBookshelfScrollData[name] = { scrollTop, path }
   },

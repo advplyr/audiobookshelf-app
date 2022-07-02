@@ -12,9 +12,9 @@
       </div>
       <p class="pl-4">Jump backwards time</p>
     </div>
-    <div class="flex items-center py-3" @click="toggleJumpForwards">
+    <div class="flex items-center py-3" @click="toggleJumpForward">
       <div class="w-10 flex justify-center">
-        <span class="material-icons text-4xl">{{ currentJumpForwardsTimeIcon }}</span>
+        <span class="material-icons text-4xl">{{ currentJumpForwardTimeIcon }}</span>
       </div>
       <p class="pl-4">Jump forwards time</p>
     </div>
@@ -25,53 +25,34 @@
 export default {
   data() {
     return {
+      deviceData: null,
       settings: {
         disableAutoRewind: false,
-        jumpForwardsTime: 10000,
-        jumpBackwardsTime: 10000
-      },
-      jumpForwardsItems: [
-        {
-          icon: 'forward_5',
-          value: 5000
-        },
-        {
-          icon: 'forward_10',
-          value: 10000
-        },
-        {
-          icon: 'forward_30',
-          value: 30000
-        }
-      ],
-      jumpBackwardsItems: [
-        {
-          icon: 'replay_5',
-          value: 5000
-        },
-        {
-          icon: 'replay_10',
-          value: 10000
-        },
-        {
-          icon: 'replay_30',
-          value: 30000
-        }
-      ]
+        jumpForwardTime: 10,
+        jumpBackwardsTime: 10
+      }
     }
   },
   computed: {
-    currentJumpForwardsTimeIcon() {
-      return this.jumpForwardsItems[this.currentJumpForwardsTimeIndex].icon
+    jumpForwardItems() {
+      return this.$store.state.globals.jumpForwardItems || []
     },
-    currentJumpForwardsTimeIndex() {
-      return this.jumpForwardsItems.findIndex((jfi) => jfi.value === this.settings.jumpForwardsTime)
+    jumpBackwardsItems() {
+      return this.$store.state.globals.jumpBackwardsItems || []
+    },
+    currentJumpForwardTimeIcon() {
+      return this.jumpForwardItems[this.currentJumpForwardTimeIndex].icon
+    },
+    currentJumpForwardTimeIndex() {
+      var index = this.jumpForwardItems.findIndex((jfi) => jfi.value === this.settings.jumpForwardTime)
+      return index >= 0 ? index : 1
     },
     currentJumpBackwardsTimeIcon() {
       return this.jumpBackwardsItems[this.currentJumpBackwardsTimeIndex].icon
     },
     currentJumpBackwardsTimeIndex() {
-      return this.jumpBackwardsItems.findIndex((jfi) => jfi.value === this.settings.jumpBackwardsTime)
+      var index = this.jumpBackwardsItems.findIndex((jfi) => jfi.value === this.settings.jumpBackwardsTime)
+      return index >= 0 ? index : 1
     }
   },
   methods: {
@@ -79,24 +60,37 @@ export default {
       this.settings.disableAutoRewind = !this.settings.disableAutoRewind
       this.saveSettings()
     },
-    toggleJumpForwards() {
-      var next = (this.currentJumpForwardsTimeIndex + 1) % 3
-      this.settings.jumpForwardsTime = this.jumpForwardsItems[next].value
+    toggleJumpForward() {
+      var next = (this.currentJumpForwardTimeIndex + 1) % 3
+      this.settings.jumpForwardTime = this.jumpForwardItems[next].value
       this.saveSettings()
     },
     toggleJumpBackwards() {
       var next = (this.currentJumpBackwardsTimeIndex + 4) % 3
-      console.log('next', next)
       if (next > 2) return
       this.settings.jumpBackwardsTime = this.jumpBackwardsItems[next].value
       this.saveSettings()
     },
-    saveSettings() {
-      // TODO: Save settings
+    async saveSettings() {
+      const updatedDeviceData = await this.$db.updateDeviceSettings({ ...this.settings })
+      console.log('Saved device data', updatedDeviceData)
+      if (updatedDeviceData) {
+        this.$store.commit('setDeviceData', updatedDeviceData)
+        this.init()
+      }
+    },
+    async init() {
+      this.deviceData = await this.$db.getDeviceData()
+      this.$store.commit('setDeviceData', this.deviceData)
+
+      const deviceSettings = this.deviceData.deviceSettings || {}
+      this.settings.disableAutoRewind = !!deviceSettings.disableAutoRewind
+      this.settings.jumpForwardTime = deviceSettings.jumpForwardTime || 10
+      this.settings.jumpBackwardsTime = deviceSettings.jumpBackwardsTime || 10
     }
   },
   mounted() {
-    // TODO: Load settings
+    this.init()
   }
 }
 </script>

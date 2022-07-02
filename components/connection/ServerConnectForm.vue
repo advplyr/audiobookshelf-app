@@ -322,8 +322,6 @@ export default {
       return authRes
     },
     async init() {
-      this.deviceData = await this.$db.getDeviceData()
-
       if (this.lastServerConnectionConfig) {
         this.connectToServer(this.lastServerConnectionConfig)
       } else {

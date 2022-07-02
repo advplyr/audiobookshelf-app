@@ -10,7 +10,7 @@ class DbManager {
   val tag = "DbManager"
 
   fun getDeviceData(): DeviceData {
-    return Paper.book("device").read("data") ?: DeviceData(mutableListOf(), null, null)
+    return Paper.book("device").read("data") ?: DeviceData(mutableListOf(), null, null, DeviceSettings.default())
   }
   fun saveDeviceData(deviceData:DeviceData) {
     Paper.book("device").write("data", deviceData)
