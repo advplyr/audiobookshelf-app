@@ -76,10 +76,14 @@
 import { Dialog } from '@capacitor/dialog'
 
 export default {
-  props: {},
+  props: {
+    deviceData: {
+      type: Object,
+      default: () => {}
+    }
+  },
   data() {
     return {
-      deviceData: null,
       loggedIn: false,
       showAuth: false,
       processing: false,
