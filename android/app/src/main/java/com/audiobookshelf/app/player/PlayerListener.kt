@@ -2,6 +2,7 @@ package com.audiobookshelf.app.player
 
 import android.util.Log
 import com.audiobookshelf.app.data.PlayerState
+import com.audiobookshelf.app.device.DeviceManager
 import com.google.android.exoplayer2.PlaybackException
 import com.google.android.exoplayer2.Player
 
@@ -23,7 +24,7 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
   }
 
   override fun onEvents(player: Player, events: Player.Events) {
-    Log.d(tag, "onEvents ${player.deviceInfo} | ${playerNotificationService.getMediaPlayer()} | ${events.size()}")
+    Log.d(tag, "onEvents ${playerNotificationService.getMediaPlayer()} | ${events.size()}")
 
     if (events.contains(Player.EVENT_POSITION_DISCONTINUITY)) {
       Log.d(tag, "EVENT_POSITION_DISCONTINUITY")
@@ -69,7 +70,7 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
 
       if (player.isPlaying) {
         Log.d(tag, "SeekBackTime: Player is playing")
-        if (lastPauseTime > 0) {
+        if (lastPauseTime > 0 && DeviceManager.deviceData.deviceSettings?.disableAutoRewind != true) {
           if (onSeekBack) onSeekBack = false
           else {
             Log.d(tag, "SeekBackTime: playing started now set seek back time $lastPauseTime")

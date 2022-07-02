@@ -41,6 +41,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   companion object {
     var isStarted = false
+    var isClosed = false
   }
 
   interface ClientEventEmitter {
@@ -112,11 +113,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     fun getService(): PlayerNotificationService = this@PlayerNotificationService
   }
 
-  fun stopService(context: Context) {
-    val stopIntent = Intent(context, PlayerNotificationService::class.java)
-    context.stopService(stopIntent)
-  }
-
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
     isStarted = true
     Log.d(tag, "onStartCommand $startId")
@@ -159,30 +155,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     stopSelf()
   }
 
-
   override fun onCreate() {
+    Log.d(tag, "onCreate")
     super.onCreate()
     ctx = this
-
-    // Initialize player
-    val customLoadControl:LoadControl = DefaultLoadControl.Builder().setBufferDurationsMs(
-      1000 * 20, // 20s min buffer
-      1000 * 45, // 45s max buffer
-      1000 * 5, // 5s playback start
-      1000 * 20 // 20s playback rebuffer
-    ).build()
-
-    mPlayer = ExoPlayer.Builder(this)
-      .setLoadControl(customLoadControl)
-      .setSeekBackIncrementMs(10000)
-      .setSeekForwardIncrementMs(10000)
-      .build()
-    mPlayer.setHandleAudioBecomingNoisy(true)
-    mPlayer.addListener(PlayerListener(this))
-    val audioAttributes:AudioAttributes = AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.CONTENT_TYPE_SPEECH).build()
-    mPlayer.setAudioAttributes(audioAttributes, true)
-
-    currentPlayer = mPlayer
 
     // Initialize API
     apiHandler = ApiHandler(ctx)
@@ -234,6 +210,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     playerNotificationManager.setUseNextAction(false)
     playerNotificationManager.setUsePreviousAction(false)
     playerNotificationManager.setUseChronometer(false)
+    playerNotificationManager.setUseStopAction(true)
     playerNotificationManager.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
     playerNotificationManager.setPriority(NotificationCompat.PRIORITY_MAX)
     playerNotificationManager.setUseFastForwardActionInCompactView(true)
@@ -276,17 +253,47 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     )
     mediaSessionConnector.setQueueNavigator(queueNavigator)
     mediaSessionConnector.setPlaybackPreparer(MediaSessionPlaybackPreparer(this))
-    mediaSessionConnector.setPlayer(mPlayer)
+
+    mediaSession.setCallback(MediaSessionCallback(this))
+
+    initializeMPlayer()
+    currentPlayer = mPlayer
+  }
+
+  private fun initializeMPlayer() {
+    val customLoadControl:LoadControl = DefaultLoadControl.Builder().setBufferDurationsMs(
+      1000 * 20, // 20s min buffer
+      1000 * 45, // 45s max buffer
+      1000 * 5, // 5s playback start
+      1000 * 20 // 20s playback rebuffer
+    ).build()
+
+    val seekBackTime = DeviceManager.deviceData.deviceSettings?.jumpBackwardsTimeMs ?: 10000
+    val seekForwardTime = DeviceManager.deviceData.deviceSettings?.jumpForwardTimeMs ?: 10000
+    Log.d(tag, "Seek Back Time $seekBackTime")
+    Log.d(tag, "Seek Forward Time $seekForwardTime")
+
+    mPlayer = ExoPlayer.Builder(this)
+      .setLoadControl(customLoadControl)
+      .setSeekBackIncrementMs(seekBackTime)
+      .setSeekForwardIncrementMs(seekForwardTime)
+      .build()
+    mPlayer.setHandleAudioBecomingNoisy(true)
+    mPlayer.addListener(PlayerListener(this))
+    val audioAttributes:AudioAttributes = AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.CONTENT_TYPE_SPEECH).build()
+    mPlayer.setAudioAttributes(audioAttributes, true)
 
     //attach player to playerNotificationManager
     playerNotificationManager.setPlayer(mPlayer)
-    mediaSession.setCallback(MediaSessionCallback(this))
+
+    mediaSessionConnector.setPlayer(mPlayer)
   }
 
   /*
     User callable methods
   */
   fun preparePlayer(playbackSession: PlaybackSession, playWhenReady:Boolean, playbackRate:Float?) {
+    isClosed = false
     val playbackRateToUse = playbackRate ?: initialPlaybackRate ?: 1f
     initialPlaybackRate = playbackRate
 
@@ -633,11 +640,14 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   }
 
   fun closePlayback() {
+    Log.d(tag, "closePlayback")
     currentPlayer.clearMediaItems()
     currentPlayer.stop()
     currentPlaybackSession = null
     clientEventEmitter?.onPlaybackClosed()
     PlayerListener.lastPauseTime = 0
+    isClosed = true
+    stopForeground(true)
   }
 
   fun sendClientMetadata(playerState: PlayerState) {
