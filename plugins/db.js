@@ -82,6 +82,10 @@ class DbService {
   updateLocalMediaProgressFinished(payload) {
     return AbsDatabase.updateLocalMediaProgressFinished(payload)
   }
+
+  updateDeviceSettings(payload) {
+    return AbsDatabase.updateDeviceSettings(payload)
+  }
 }
 
 export default ({ app, store }, inject) => {

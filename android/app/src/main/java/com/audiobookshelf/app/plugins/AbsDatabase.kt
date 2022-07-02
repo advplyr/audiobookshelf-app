@@ -112,7 +112,6 @@ class AbsDatabase : Plugin() {
   fun setCurrentServerConnectionConfig(call:PluginCall) {
     Log.d(tag, "setCurrentServerConnectionConfig ${call.data}")
     val serverConfigPayload = jacksonMapper.readValue<ServerConnConfigPayload>(call.data.toString())
-    Log.d(tag, "[TEST] Check custom headers ${serverConfigPayload.customHeaders}")
     var serverConnectionConfig = DeviceManager.deviceData.serverConnectionConfigs.find { it.id == serverConfigPayload.id }
 
     val userId =  serverConfigPayload.userId
@@ -395,6 +394,17 @@ class AbsDatabase : Plugin() {
     } else {
       Log.d(tag, "No tracks need to be updated")
       call.resolve()
+    }
+  }
+
+  @PluginMethod
+  fun updateDeviceSettings(call:PluginCall) { // Returns device data
+    Log.d(tag, "updateDeviceSettings ${call.data}")
+    val newDeviceSettings = jacksonMapper.readValue<DeviceSettings>(call.data.toString())
+    GlobalScope.launch(Dispatchers.IO) {
+      DeviceManager.deviceData.deviceSettings = newDeviceSettings
+      DeviceManager.dbManager.saveDeviceData(DeviceManager.deviceData)
+      call.resolve(JSObject(jacksonMapper.writeValueAsString(DeviceManager.deviceData)))
     }
   }
 }

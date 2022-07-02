@@ -13,7 +13,8 @@ class AbsDatabaseWeb extends WebPlugin {
     const deviceData = {
       serverConnectionConfigs: [],
       lastServerConnectionConfigId: null,
-      currentLocalPlaybackSession: null
+      currentLocalPlaybackSession: null,
+      deviceSettings: {}
     }
     return deviceData
   }
@@ -208,6 +209,13 @@ class AbsDatabaseWeb extends WebPlugin {
   async updateLocalMediaProgressFinished(payload) {
     // { localLibraryItemId, localEpisodeId, isFinished }
     return null
+  }
+
+  async updateDeviceSettings(payload) {
+    var deviceData = await this.getDeviceData()
+    deviceData.deviceSettings = payload
+    localStorage.setItem('device', JSON.stringify(deviceData))
+    return deviceData
   }
 }
 

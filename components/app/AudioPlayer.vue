@@ -63,12 +63,12 @@
       <div id="playerControls" class="absolute right-0 bottom-0 py-2">
         <div class="flex items-center justify-center">
           <span v-show="showFullscreen" class="material-icons next-icon text-white text-opacity-75 cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpChapterStart">first_page</span>
-          <span class="material-icons jump-icon text-white cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="backward10">replay_10</span>
+          <span class="material-icons jump-icon text-white cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpBackwards">{{ jumpBackwardsIcon }}</span>
           <div class="play-btn cursor-pointer shadow-sm flex items-center justify-center rounded-full text-primary mx-4" :class="{ 'animate-spin': seekLoading, 'bg-accent': !isLocalPlayMethod, 'bg-success': isLocalPlayMethod }" @mousedown.prevent @mouseup.prevent @click.stop="playPauseClick">
             <span v-if="!isLoading" class="material-icons">{{ seekLoading ? 'autorenew' : !isPlaying ? 'play_arrow' : 'pause' }}</span>
             <widgets-spinner-icon v-else class="h-8 w-8" />
           </div>
-          <span class="material-icons jump-icon text-white cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="forward10">forward_10</span>
+          <span class="material-icons jump-icon text-white cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpForward">{{ jumpForwardIcon }}</span>
           <span v-show="showFullscreen" class="material-icons next-icon text-white cursor-pointer" :class="nextChapter && !isLoading ? 'text-opacity-75' : 'text-opacity-10'" @click.stop="jumpNextChapter">last_page</span>
         </div>
       </div>
@@ -158,6 +158,18 @@ export default {
         icon: 'close'
       })
       return items
+    },
+    jumpForwardIcon() {
+      return this.$store.getters['globals/getJumpForwardIcon'](this.jumpForwardTime)
+    },
+    jumpBackwardsIcon() {
+      return this.$store.getters['globals/getJumpBackwardsIcon'](this.jumpBackwardsTime)
+    },
+    jumpForwardTime() {
+      return this.$store.getters['getJumpForwardTime']
+    },
+    jumpBackwardsTime() {
+      return this.$store.getters['getJumpBackwardsTime']
     },
     bookCoverAspectRatio() {
       return this.$store.getters['getBookCoverAspectRatio']
@@ -342,13 +354,13 @@ export default {
     restart() {
       this.seek(0)
     },
-    backward10() {
+    jumpBackwards() {
       if (this.isLoading) return
-      AbsAudioPlayer.seekBackward({ value: 10 })
+      AbsAudioPlayer.seekBackward({ value: this.jumpBackwardsTime })
     },
-    forward10() {
+    jumpForward() {
       if (this.isLoading) return
-      AbsAudioPlayer.seekForward({ value: 10 })
+      AbsAudioPlayer.seekForward({ value: this.jumpForwardTime })
     },
     setStreamReady() {
       this.readyTrackWidth = this.trackWidth

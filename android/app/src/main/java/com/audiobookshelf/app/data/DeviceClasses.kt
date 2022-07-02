@@ -16,10 +16,24 @@ data class ServerConnectionConfig(
   var customHeaders:Map<String, String>?
 )
 
+data class DeviceSettings(
+  var disableAutoRewind:Boolean,
+  var jumpBackwardsTime:Int,
+  var jumpForwardTime:Int
+) {
+  companion object {
+    // Static method to get default device settings
+    fun default():DeviceSettings {
+      return DeviceSettings(false, 10, 10)
+    }
+  }
+}
+
 data class DeviceData(
   var serverConnectionConfigs:MutableList<ServerConnectionConfig>,
   var lastServerConnectionConfigId:String?,
-  var currentLocalPlaybackSession:PlaybackSession? // Stored to open up where left off for local media
+  var currentLocalPlaybackSession:PlaybackSession?, // Stored to open up where left off for local media
+  var deviceSettings:DeviceSettings?
 ) {
   @JsonIgnore
   fun getLastServerConnectionConfig():ServerConnectionConfig? {
