@@ -43,10 +43,10 @@ public class AbsAudioPlayer: CAPPlugin {
         initialPlayWhenReady = playWhenReady
         initialPlaybackRate = playbackRate
         
+        PlayerHandler.stopPlayback()
+        
         sendPrepareMetadataEvent(itemId: libraryItemId!, playWhenReady: playWhenReady)
         ApiClient.startPlaybackSession(libraryItemId: libraryItemId!, episodeId: episodeId, forceTranscode: false) { session in
-            PlayerHandler.startPlayback(session: session, playWhenReady: playWhenReady, playbackRate: playbackRate)
-            
             do {
                 self.sendPlaybackSession(session: try session.asDictionary())
                 call.resolve(try session.asDictionary())
@@ -56,6 +56,8 @@ public class AbsAudioPlayer: CAPPlugin {
                 call.resolve([:])
             }
             
+            
+            PlayerHandler.startPlayback(session: session, playWhenReady: playWhenReady, playbackRate: playbackRate)
             self.sendMetadata()
         }
     }
@@ -173,7 +175,7 @@ public class AbsAudioPlayer: CAPPlugin {
             let playbackSession = PlayerHandler.getPlaybackSession()
             let libraryItemId = playbackSession?.libraryItemId ?? ""
             let episodeId = playbackSession?.episodeId ?? nil
-            NSLog("TEST: Forcing Transcode")
+            NSLog("Forcing Transcode")
             
             // If direct playing then fallback to transcode
             ApiClient.startPlaybackSession(libraryItemId: libraryItemId, episodeId: episodeId, forceTranscode: true) { session in

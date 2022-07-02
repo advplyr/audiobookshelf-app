@@ -687,7 +687,6 @@ export default {
       })
     },
     onPlaybackClosed() {
-      console.log('Received onPlaybackClosed evt')
       this.endPlayback()
     },
     onPlaybackFailed(data) {
@@ -717,14 +716,18 @@ export default {
   },
   mounted() {
     this.updateScreenSize()
-    screen.orientation.addEventListener('change', this.screenOrientationChange)
+    if (screen.orientation) {
+      screen.orientation.addEventListener('change', this.screenOrientationChange)
+    }
     document.body.addEventListener('touchstart', this.touchstart)
     document.body.addEventListener('touchend', this.touchend)
     document.body.addEventListener('touchmove', this.touchmove)
     this.$nextTick(this.init)
   },
   beforeDestroy() {
-    screen.orientation.removeEventListener('change', this.screenOrientationChange)
+    if (screen.orientation) {
+      screen.orientation.removeEventListener('change', this.screenOrientationChange)
+    }
 
     if (this.playbackSession) {
       console.log('[AudioPlayer] Before destroy closing playback')
@@ -752,7 +755,6 @@ export default {
   --cover-image-height: 0px;
   --cover-image-width-collapsed: 60px;
   --cover-image-height-collapsed: 60px;
-  --test-var: 100px;
 }
 .bookCoverWrapper {
   box-shadow: 3px -2px 5px #00000066;

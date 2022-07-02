@@ -1,6 +1,6 @@
 <template>
   <div class="w-full h-full p-8">
-    <div class="flex items-center py-3" @click="toggleDisableAutoRewind">
+    <div v-if="$platform !== 'ios'" class="flex items-center py-3" @click="toggleDisableAutoRewind">
       <div class="w-10 flex justify-center">
         <ui-toggle-switch v-model="settings.disableAutoRewind" @input="saveSettings" />
       </div>

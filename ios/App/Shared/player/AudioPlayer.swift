@@ -66,10 +66,10 @@ class AudioPlayer: NSObject {
         }
         
         self.currentTrackIndex = getItemIndexForTime(time: playbackSession.currentTime)
-        NSLog("TEST: Starting track index \(self.currentTrackIndex) for start time \(playbackSession.currentTime)")
+        NSLog("Starting track index \(self.currentTrackIndex) for start time \(playbackSession.currentTime)")
         
         let playerItems = self.allPlayerItems[self.currentTrackIndex..<self.allPlayerItems.count]
-        NSLog("TEST: Setting player items \(playerItems.count)")
+        NSLog("Setting player items \(playerItems.count)")
         
         for item in Array(playerItems) {
             self.audioPlayer.insert(item, after:self.audioPlayer.items().last)
@@ -123,7 +123,7 @@ class AudioPlayer: NSObject {
             self.audioPlayer.currentItem.map { item in
                 self.currentTrackIndex = self.allPlayerItems.firstIndex(of:item) ?? 0
                 if (self.currentTrackIndex != prevTrackIndex) {
-                    NSLog("TEST: New Current track index \(self.currentTrackIndex)")
+                    NSLog("New Current track index \(self.currentTrackIndex)")
                 }
             }
         }
@@ -133,7 +133,7 @@ class AudioPlayer: NSObject {
         self.queueItemStatusObserver?.invalidate()
         self.queueItemStatusObserver = self.audioPlayer.currentItem?.observe(\.status, options: [.new, .old], changeHandler: { (playerItem, change) in
             if (playerItem.status == .readyToPlay) {
-                NSLog("TEST: queueStatusObserver: Current Item Ready to play. PlayWhenReady: \(self.playWhenReady)")
+                NSLog("queueStatusObserver: Current Item Ready to play. PlayWhenReady: \(self.playWhenReady)")
                 self.updateNowPlaying()
                 
                 let firstReady = self.status < 0
@@ -146,7 +146,7 @@ class AudioPlayer: NSObject {
                     self.seek(self.playbackSession.currentTime, from: "queueItemStatusObserver")
                 }
             } else if (playerItem.status == .failed) {
-                NSLog("TEST: queueStatusObserver: FAILED \(playerItem.error?.localizedDescription ?? "")")
+                NSLog("queueStatusObserver: FAILED \(playerItem.error?.localizedDescription ?? "")")
                 
                 NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.failed.rawValue), object: nil)
             }
@@ -203,16 +203,16 @@ class AudioPlayer: NSObject {
         
         pause()
         
-        NSLog("TEST: Seek to \(to) from \(from)")
+        NSLog("Seek to \(to) from \(from)")
         
         let currentTrack = self.playbackSession.audioTracks[self.currentTrackIndex]
         let ctso = currentTrack.startOffset ?? 0.0
         let trackEnd = ctso + currentTrack.duration
-        NSLog("TEST: Seek current track END = \(trackEnd)")
+        NSLog("Seek current track END = \(trackEnd)")
         
         
         let indexOfSeek = getItemIndexForTime(time: to)
-        NSLog("TEST: Seek to index \(indexOfSeek) | Current index \(self.currentTrackIndex)")
+        NSLog("Seek to index \(indexOfSeek) | Current index \(self.currentTrackIndex)")
         
         // Reconstruct queue if seeking to a different track
         if (self.currentTrackIndex != indexOfSeek) {
@@ -231,7 +231,7 @@ class AudioPlayer: NSObject {
             
             setupQueueItemStatusObserver()
         } else {
-            NSLog("TEST: Seeking in current item \(to)")
+            NSLog("Seeking in current item \(to)")
             let currentTrackStartOffset = self.playbackSession.audioTracks[self.currentTrackIndex].startOffset ?? 0.0
             let seekTime = to - currentTrackStartOffset
             
@@ -250,7 +250,7 @@ class AudioPlayer: NSObject {
     
     public func setPlaybackRate(_ rate: Float, observed: Bool = false) {
         if self.audioPlayer.rate != rate {
-            NSLog("TEST: setPlaybakRate rate changed from \(self.audioPlayer.rate) to \(rate)")
+            NSLog("setPlaybakRate rate changed from \(self.audioPlayer.rate) to \(rate)")
             self.audioPlayer.rate = rate
         }
         if rate > 0.0 && !(observed && rate == 1) {
@@ -373,7 +373,7 @@ class AudioPlayer: NSObject {
     public override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
         if context == &playerContext {
             if keyPath == #keyPath(AVPlayer.rate) {
-                NSLog("TEST: playerContext observer player rate")
+                NSLog("playerContext observer player rate")
                 self.setPlaybackRate(change?[.newKey] as? Float ?? 1.0, observed: true)
             } else if keyPath == #keyPath(AVPlayer.currentItem) {
                 NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.update.rawValue), object: nil)
