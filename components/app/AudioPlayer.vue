@@ -123,7 +123,6 @@ export default {
       isEnded: false,
       volume: 0.5,
       readyTrackWidth: 0,
-      playedTrackWidth: 0,
       seekedTime: 0,
       seekLoading: false,
       onPlaybackSessionListener: null,
@@ -442,12 +441,8 @@ export default {
         bufferedPercent = (this.bufferedTime - this.currentChapter.start) / this.currentChapterDuration
       }
       var ptWidth = Math.round(percentDone * this.trackWidth)
-      if (this.playedTrackWidth === ptWidth) {
-        return
-      }
       this.$refs.playedTrack.style.width = ptWidth + 'px'
       this.$refs.bufferedTrack.style.width = Math.round(bufferedPercent * this.trackWidth) + 'px'
-      this.playedTrackWidth = ptWidth
 
       if (this.useChapterTrack) {
         if (this.$refs.totalPlayedTrack) this.$refs.totalPlayedTrack.style.width = Math.round(totalPercentDone * this.trackWidth) + 'px'
@@ -470,7 +465,6 @@ export default {
         var perc = time / this.totalDuration
         var ptWidth = Math.round(perc * this.trackWidth)
         this.$refs.playedTrack.style.width = ptWidth + 'px'
-        this.playedTrackWidth = ptWidth
 
         this.$refs.playedTrack.classList.remove('bg-gray-200')
         this.$refs.playedTrack.classList.add('bg-yellow-300')
