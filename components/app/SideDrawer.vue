@@ -108,12 +108,12 @@ export default {
           text: 'Local Media',
           to: '/localMedia/folders'
         })
-        items.push({
-          icon: 'settings',
-          text: 'Settings',
-          to: '/settings'
-        })
       }
+      items.push({
+        icon: 'settings',
+        text: 'Settings',
+        to: '/settings'
+      })
       return items
     },
     currentRoutePath() {

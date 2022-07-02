@@ -65,11 +65,12 @@ public class AbsDatabase: CAPPlugin {
     @objc func getDeviceData(_ call: CAPPluginCall) {
         let configs = Database.shared.getServerConnectionConfigs()
         let index = Database.shared.getLastActiveConfigIndex()
+        let settings = Database.shared.getDeviceSettings()
         
         call.resolve([
             "serverConnectionConfigs": configs.map { config in convertServerConnectionConfigToJSON(config: config) },
             "lastServerConnectionConfigId": configs.first { config in config.index == index }?.id as Any,
-            // "currentLocalPlaybackSession": nil,
+            "deviceSettings": deviceSettingsToJSON(settings: settings)
         ])
     }
     
@@ -84,5 +85,19 @@ public class AbsDatabase: CAPPlugin {
     }
     @objc func getLocalLibraryItemsInFolder(_ call: CAPPluginCall) {
         call.resolve([ "value": [] ])
+    }
+    @objc func updateDeviceSettings(_ call: CAPPluginCall) {
+        let disableAutoRewind = call.getBool("disableAutoRewind") ?? false
+        let jumpBackwardsTime = call.getInt("jumpBackwardsTime") ?? 10
+        let jumpForwardTime = call.getInt("jumpForwardTime") ?? 10
+        let settings = DeviceSettings()
+        settings.disableAutoRewind = disableAutoRewind
+        settings.jumpBackwardsTime = jumpBackwardsTime
+        settings.jumpForwardTime = jumpForwardTime
+        
+        Database.shared.setDeviceSettings(deviceSettings: settings)
+        
+//        call.resolve([ "value": [] ])
+        getDeviceData(call)
     }
 }
