@@ -160,6 +160,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     super.onCreate()
     ctx = this
 
+    DbManager.initialize(ctx)
+
     // Initialize API
     apiHandler = ApiHandler(ctx)
 
@@ -716,7 +718,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       null
     } else {
       isStarted = true
-      mediaManager.initializeAndroidAuto()
       mediaManager.checkResetServerItems() // Reset any server items if no longer connected to server
 
       isAndroidAuto = true

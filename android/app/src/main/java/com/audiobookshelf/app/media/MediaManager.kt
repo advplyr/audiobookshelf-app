@@ -7,7 +7,6 @@ import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.server.ApiHandler
 import java.util.*
-import io.paperdb.Paper
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import kotlin.coroutines.resume
@@ -15,8 +14,6 @@ import kotlin.coroutines.suspendCoroutine
 
 class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
   val tag = "MediaManager"
-
-  var isPaperInitialized = false
 
   var serverLibraryItems = listOf<LibraryItem>()
   var selectedLibraryId = ""
@@ -28,14 +25,6 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
   var serverLibraryCategories = listOf<LibraryCategory>()
   var serverLibraries = listOf<Library>()
   var serverConfigIdUsed:String? = null
-
-  fun initializeAndroidAuto() {
-    if (!isPaperInitialized) {
-      Log.d(tag, "Android Auto started when MainActivity was never started - initializing Paper")
-      Paper.init(ctx)
-      isPaperInitialized = true
-    }
-  }
 
   fun getIsLibrary(id:String) : Boolean {
     return serverLibraries.find { it.id == id } != null
