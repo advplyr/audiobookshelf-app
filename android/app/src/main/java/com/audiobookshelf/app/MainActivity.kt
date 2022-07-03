@@ -13,6 +13,7 @@ import androidx.core.app.ActivityCompat
 import com.anggrayudi.storage.SimpleStorage
 import com.anggrayudi.storage.SimpleStorageHelper
 import com.audiobookshelf.app.data.AbsDatabase
+import com.audiobookshelf.app.data.DbManager
 import com.audiobookshelf.app.player.PlayerNotificationService
 import com.audiobookshelf.app.plugins.AbsAudioPlayer
 import com.audiobookshelf.app.plugins.AbsDownloader
@@ -53,14 +54,15 @@ class MainActivity : BridgeActivity() {
 //      .build())
 
     super.onCreate(savedInstanceState)
-
     Log.d(tag, "onCreate")
+
+    DbManager.initialize(applicationContext)
 
     // Grant full storage access for testing
     // var ss = SimpleStorage(this)
     // ss.requestFullStorageAccess()
 
-    var permission = ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
+    val permission = ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
     if (permission != PackageManager.PERMISSION_GRANTED) {
       ActivityCompat.requestPermissions(this,
         PERMISSIONS_ALL,
@@ -71,8 +73,6 @@ class MainActivity : BridgeActivity() {
     registerPlugin(AbsDownloader::class.java)
     registerPlugin(AbsFileSystem::class.java)
     registerPlugin(AbsDatabase::class.java)
-
-    Paper.init(applicationContext)
   }
 
   override fun onDestroy() {

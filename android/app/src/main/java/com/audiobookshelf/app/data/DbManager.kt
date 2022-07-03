@@ -1,13 +1,24 @@
 package com.audiobookshelf.app.data
 
+import android.content.Context
 import android.util.Log
 import com.audiobookshelf.app.plugins.AbsDownloader
 import io.paperdb.Paper
-import org.json.JSONObject
 import java.io.File
 
 class DbManager {
   val tag = "DbManager"
+
+  companion object {
+    var isDbInitialized = false
+
+    fun initialize(ctx: Context) {
+      if (isDbInitialized) return
+      Paper.init(ctx)
+      isDbInitialized = true
+      Log.i("DbManager", "Initialized Paper db")
+    }
+  }
 
   fun getDeviceData(): DeviceData {
     return Paper.book("device").read("data") ?: DeviceData(mutableListOf(), null, null, DeviceSettings.default())
