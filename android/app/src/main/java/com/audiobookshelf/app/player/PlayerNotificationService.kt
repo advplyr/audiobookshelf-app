@@ -226,6 +226,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     mediaSessionConnector = MediaSessionConnector(mediaSession)
     val queueNavigator: TimelineQueueNavigator = object : TimelineQueueNavigator(mediaSession) {
       override fun getMediaDescription(player: Player, windowIndex: Int): MediaDescriptionCompat {
+        if (currentPlaybackSession == null) {
+          Log.e(tag,"Playback session is not set - returning blank MediaDescriptionCompat")
+          return MediaDescriptionCompat.Builder().build()
+        }
+
         val coverUri = currentPlaybackSession!!.getCoverUri()
 
         // Fix for local images crashing on Android 11 for specific devices
@@ -643,8 +648,13 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   fun closePlayback() {
     Log.d(tag, "closePlayback")
-    currentPlayer.clearMediaItems()
-    currentPlayer.stop()
+    try {
+      currentPlayer.stop()
+      currentPlayer.clearMediaItems()
+    } catch(e:Exception) {
+      Log.e(tag, "Exception clearing exoplayer $e")
+    }
+
     currentPlaybackSession = null
     clientEventEmitter?.onPlaybackClosed()
     PlayerListener.lastPauseTime = 0

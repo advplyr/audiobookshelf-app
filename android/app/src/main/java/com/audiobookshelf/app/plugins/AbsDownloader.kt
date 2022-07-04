@@ -401,9 +401,13 @@ class AbsDownloader : Plugin() {
 
                 Log.d(tag, "DOWNLOAD: Move file to final destination path: ${downloadItemPart.finalDestinationPath}")
                 val localFolderFile = DocumentFileCompat.fromUri(mainActivity,Uri.parse(downloadItemPart.localFolderUrl))
-                val mimetype = if (downloadItemPart.audioTrack != null) MimeType.AUDIO else MimeType.IMAGE
-                val fileDescription = FileDescription(downloadItemPart.filename, downloadItemPart.itemTitle, mimetype)
-                file?.moveFileTo(mainActivity,localFolderFile!!,fileDescription,fcb)
+                if (localFolderFile == null) {
+                  Log.e(tag, "Local Folder File from uri is null")
+                } else {
+                  val mimetype = if (downloadItemPart.audioTrack != null) MimeType.AUDIO else MimeType.IMAGE
+                  val fileDescription = FileDescription(downloadItemPart.filename, downloadItemPart.itemTitle, mimetype)
+                  file?.moveFileTo(mainActivity,localFolderFile,fileDescription,fcb)
+                }
               } else {
                 // Why is kotlin requiring an else here..
               }
