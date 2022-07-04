@@ -52,7 +52,7 @@ class AbsDatabaseWeb extends WebPlugin {
   async removeServerConnectionConfig(serverConnectionConfigCallObject) {
     var serverConnectionConfigId = serverConnectionConfigCallObject.serverConnectionConfigId
     var deviceData = await this.getDeviceData()
-    deviceData.serverConnectionConfigs = deviceData.serverConnectionConfigs.filter(ssc => ssc.id == serverConnectionConfigId)
+    deviceData.serverConnectionConfigs = deviceData.serverConnectionConfigs.filter(ssc => ssc.id != serverConnectionConfigId)
     localStorage.setItem('device', JSON.stringify(deviceData))
   }
 
