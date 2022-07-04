@@ -17,7 +17,7 @@
       <div v-else class="w-full">
         <form v-show="!showAuth" @submit.prevent="submit" novalidate class="w-full">
           <h2 class="text-lg leading-7 mb-2">Server address</h2>
-          <ui-text-input v-model="serverConfig.address" :disabled="processing || !networkConnected || serverConfig.id" placeholder="http://55.55.55.55:13378" type="url" class="w-full h-10" />
+          <ui-text-input v-model="serverConfig.address" :disabled="processing || !networkConnected || !!serverConfig.id" placeholder="http://55.55.55.55:13378" type="url" class="w-full h-10" />
           <div class="flex justify-end items-center mt-6">
             <!-- <div class="relative flex">
               <button class="outline-none uppercase tracking-wide font-semibold text-xs text-gray-300" type="button" @click="addCustomHeaders">Add Custom Headers</button>
@@ -76,12 +76,6 @@
 import { Dialog } from '@capacitor/dialog'
 
 export default {
-  props: {
-    deviceData: {
-      type: Object,
-      default: () => {}
-    }
-  },
   data() {
     return {
       loggedIn: false,
@@ -99,6 +93,9 @@ export default {
     }
   },
   computed: {
+    deviceData() {
+      return this.$store.state.deviceData || {}
+    },
     networkConnected() {
       return this.$store.state.networkConnected
     },
@@ -167,7 +164,10 @@ export default {
       if (value) {
         this.processing = true
         await this.$db.removeServerConnectionConfig(this.serverConfig.id)
-        this.deviceData.serverConnectionConfigs = this.deviceData.serverConnectionConfigs.filter((scc) => scc.id != this.serverConfig.id)
+        const updatedDeviceData = { ...this.deviceData }
+        updatedDeviceData.serverConnectionConfigs = this.deviceData.serverConnectionConfigs.filter((scc) => scc.id != this.serverConfig.id)
+        this.$store.commit('setDeviceData', updatedDeviceData)
+
         this.serverConfig = {
           address: null,
           userId: null,
@@ -185,7 +185,6 @@ export default {
       }
       this.showForm = true
       this.showAuth = true
-      console.log('Edit server config', serverConfig)
     },
     newServerConfigClick() {
       this.serverConfig = {
@@ -274,6 +273,12 @@ export default {
         this.error = 'Invalid username'
         return
       }
+      const duplicateConfig = this.serverConnectionConfigs.find((scc) => scc.address === this.serverConfig.address && scc.username === this.serverConfig.username)
+      if (duplicateConfig) {
+        this.error = 'Config already exists for this address and username'
+        return
+      }
+
       this.error = null
       this.processing = true
 
