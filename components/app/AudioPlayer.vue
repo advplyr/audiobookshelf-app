@@ -447,7 +447,7 @@ export default {
       if (this.useChapterTrack && this.currentChapter) {
         var currChapTime = this.currentTime - this.currentChapter.start
         percentDone = currChapTime / this.currentChapterDuration
-        bufferedPercent = (this.bufferedTime - this.currentChapter.start) / this.currentChapterDuration
+        bufferedPercent = Math.max(0, Math.min(1, (this.bufferedTime - this.currentChapter.start) / this.currentChapterDuration))
       }
       var ptWidth = Math.round(percentDone * this.trackWidth)
       this.$refs.playedTrack.style.width = ptWidth + 'px'
