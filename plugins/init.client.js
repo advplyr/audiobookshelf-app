@@ -120,7 +120,22 @@ Vue.prototype.$encode = encode
 const decode = (text) => Buffer.from(decodeURIComponent(text), 'base64').toString()
 Vue.prototype.$decode = decode
 
-export default ({ store }) => {
+export default ({ store, app }) => {
+  // iOS Only
+  //  backButton event does not work with iOS swipe navigation so use this workaround
+  if (app.router && Capacitor.getPlatform() === 'ios') {
+    app.router.beforeEach((to, from, next) => {
+      if (store.state.globals.isModalOpen) {
+        Vue.prototype.$eventBus.$emit('close-modal')
+      }
+      if (store.state.playerIsFullscreen) {
+        Vue.prototype.$eventBus.$emit('minimize-player')
+      }
+      next()
+    })
+  }
+
+  // Android only
   App.addListener('backButton', async ({ canGoBack }) => {
     if (store.state.globals.isModalOpen) {
       Vue.prototype.$eventBus.$emit('close-modal')

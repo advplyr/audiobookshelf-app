@@ -23,8 +23,9 @@ public class AbsAudioPlayer: CAPPlugin {
         NotificationCenter.default.addObserver(self, selector: #selector(onPlaybackFailed), name: NSNotification.Name(PlayerEvents.failed.rawValue), object: nil)
         
         self.bridge?.webView?.allowsBackForwardNavigationGestures = true;
+        
     }
-    
+
     @objc func prepareLibraryItem(_ call: CAPPluginCall) {
         let libraryItemId = call.getString("libraryItemId")
         let episodeId = call.getString("episodeId")
