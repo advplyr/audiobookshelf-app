@@ -6,6 +6,7 @@ export const state = () => ({
   playerEpisodeId: null,
   playerIsLocal: false,
   playerIsPlaying: false,
+  playerIsFullscreen: false,
   isCasting: false,
   isCastAvailable: false,
   socketConnected: false,
@@ -92,6 +93,9 @@ export const mutations = {
   },
   setPlayerPlaying(state, val) {
     state.playerIsPlaying = val
+  },
+  setPlayerFullscreen(state, val) {
+    state.playerIsFullscreen = val
   },
   setHasStoragePermission(state, val) {
     state.hasStoragePermission = val
