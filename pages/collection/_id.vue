@@ -6,8 +6,8 @@
           <covers-collection-cover :book-items="bookItems" :width="240" :height="120 * bookCoverAspectRatio" :book-cover-aspect-ratio="bookCoverAspectRatio" />
         </div>
       </div>
-      <div class="flex-grow px-2 py-6 md:py-0 md:px-10">
-        <div class="flex items-center">
+      <div class="flex-grow py-6">
+        <div class="flex items-center px-2">
           <h1 class="text-xl font-sans">
             {{ collectionName }}
           </h1>
@@ -18,7 +18,7 @@
           </ui-btn>
         </div>
 
-        <div class="my-8 max-w-2xl">
+        <div class="my-8 max-w-2xl px-2">
           <p class="text-base text-gray-100">{{ description }}</p>
         </div>
 
