@@ -139,8 +139,9 @@ export default {
     }
   },
   watch: {
-    showFullscreen() {
+    showFullscreen(val) {
       this.updateScreenSize()
+      this.$store.commit('setPlayerFullscreen', !!val)
     }
   },
   computed: {
@@ -712,6 +713,10 @@ export default {
       var coverHeight = this.fullscreenBookCoverWidth * this.bookCoverAspectRatio
       document.documentElement.style.setProperty('--cover-image-width', this.fullscreenBookCoverWidth + 'px')
       document.documentElement.style.setProperty('--cover-image-height', coverHeight + 'px')
+    },
+    minimizePlayerEvt() {
+      console.log('Minimize Player Evt')
+      this.showFullscreen = false
     }
   },
   mounted() {
@@ -719,6 +724,8 @@ export default {
     if (screen.orientation) {
       screen.orientation.addEventListener('change', this.screenOrientationChange)
     }
+
+    this.$eventBus.$on('minimize-player', this.minimizePlayerEvt)
     document.body.addEventListener('touchstart', this.touchstart)
     document.body.addEventListener('touchend', this.touchend)
     document.body.addEventListener('touchmove', this.touchmove)
@@ -735,6 +742,7 @@ export default {
     }
 
     this.forceCloseDropdownMenu()
+    this.$eventBus.$off('minimize-player', this.minimizePlayerEvt)
     document.body.removeEventListener('touchstart', this.touchstart)
     document.body.removeEventListener('touchend', this.touchend)
     document.body.removeEventListener('touchmove', this.touchmove)

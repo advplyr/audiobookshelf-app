@@ -14,21 +14,6 @@ if (Capacitor.getPlatform() != 'web') {
   setStatusBarStyleDark()
 }
 
-App.addListener('backButton', async ({ canGoBack }) => {
-  if (!canGoBack) {
-    const { value } = await Dialog.confirm({
-      title: 'Confirm',
-      message: `Did you want to exit the app?`,
-    })
-    if (value) {
-      App.exitApp()
-    }
-
-  } else {
-    window.history.back()
-  }
-})
-
 Vue.prototype.$isDev = process.env.NODE_ENV !== 'production'
 
 Vue.prototype.$dateDistanceFromNow = (unixms) => {
@@ -134,6 +119,30 @@ const encode = (text) => encodeURIComponent(Buffer.from(text).toString('base64')
 Vue.prototype.$encode = encode
 const decode = (text) => Buffer.from(decodeURIComponent(text), 'base64').toString()
 Vue.prototype.$decode = decode
+
+export default ({ store }) => {
+  App.addListener('backButton', async ({ canGoBack }) => {
+    if (store.state.globals.isModalOpen) {
+      Vue.prototype.$eventBus.$emit('close-modal')
+      return
+    }
+    if (store.state.playerIsFullscreen) {
+      Vue.prototype.$eventBus.$emit('minimize-player')
+      return
+    }
+    if (!canGoBack) {
+      const { value } = await Dialog.confirm({
+        title: 'Confirm',
+        message: `Did you want to exit the app?`,
+      })
+      if (value) {
+        App.exitApp()
+      }
+    } else {
+      window.history.back()
+    }
+  })
+}
 
 export {
   encode,

@@ -1,4 +1,5 @@
 export const state = () => ({
+  isModalOpen: false,
   itemDownloads: [],
   bookshelfListView: false,
   series: null,
@@ -93,6 +94,9 @@ export const actions = {
 }
 
 export const mutations = {
+  setIsModalOpen(state, val) {
+    state.isModalOpen = val
+  },
   addUpdateItemDownload(state, downloadItem) {
     var index = state.itemDownloads.findIndex(i => i.id == downloadItem.id)
     if (index >= 0) {

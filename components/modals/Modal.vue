@@ -77,6 +77,8 @@ export default {
       }
     },
     setShow() {
+      this.$store.commit('globals/setIsModalOpen', true)
+
       document.body.appendChild(this.el)
       setTimeout(() => {
         this.content.style.transform = 'scale(1)'
@@ -84,18 +86,28 @@ export default {
       document.documentElement.classList.add('modal-open')
     },
     setHide() {
+      this.$store.commit('globals/setIsModalOpen', false)
+
       this.content.style.transform = 'scale(0)'
       this.el.remove()
       document.documentElement.classList.remove('modal-open')
+    },
+    closeModalEvt() {
+      console.log('Close modal event')
+      this.show = false
     }
   },
   mounted() {
+    this.$eventBus.$on('close-modal', this.closeModalEvt)
     this.el = this.$refs.wrapper
     this.content = this.$refs.content
     this.content.style.transform = 'scale(0)'
     this.content.style.transition = 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
     this.el.style.opacity = 1
     this.el.remove()
+  },
+  beforeDestroy() {
+    this.$eventBus.$off('close-modal', this.closeModalEvt)
   }
 }
 </script>
