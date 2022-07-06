@@ -2,11 +2,12 @@
 //  DataClasses.swift
 //  App
 //
-//  Created by Benonymity on 4/20/22.
+//  Created by benonymity on 4/20/22.
 //
 
 import Foundation
 import CoreMedia
+import RealmSwift
 
 struct LibraryItem: Codable {
     var id: String
@@ -30,87 +31,88 @@ struct LibraryItem: Codable {
     var libraryFiles: [LibraryFile]
     var userMediaProgress:MediaProgress?
 }
-struct MediaType: Codable {
-    var libraryItemId: String?
-    var metadata: Metadata
-    var coverPath: String?
-    var tags: [String]?
-    var audioFiles: [AudioTrack]?
-    var chapters: [Chapter]?
-    var tracks: [AudioTrack]?
-    var size: Int64?
-    var duration: Double?
-    var episodes: [PodcastEpisode]?
-    var autoDownloadEpisodes: Bool?
+class MediaType: Object, Codable {
+    var libraryItemId: String? = ""
+    var metadata: Metadata?
+    var coverPath: String? = ""
+    var tags: List<String?>
+    var audioFiles: List<AudioFile>
+    var chapters: List<Chapter>
+    var tracks: List<AudioTrack>
+    var size: Int64? = nil
+    var duration: Double? = nil
+    var episodes: List<PodcastEpisode>
+    var autoDownloadEpisodes: Bool? = nil
 }
-struct Metadata: Codable {
+class Metadata: Object, Codable {
     var title: String
-    var subtitle: String?
-    var authors: [Author]?
-    var narrators: [String]?
-    var genres: [String]
-    var publishedYear: String?
-    var publishedDate: String?
-    var publisher: String?
-    var description: String?
-    var isbn: String?
-    var asin: String?
-    var language: String?
+    var subtitle: String? = ""
+    var authors: List<Author>
+    var narrators: List<String?>
+    var genres: List<String?>
+    var publishedYear: String? = ""
+    var publishedDate: String? = ""
+    var publisher: String? = ""
+    // I think calling the below variable description conflicts with some public variables declared in some of the Pods we use, so it's desc. ¯\_(ツ)_/¯
+    final var description: String
+    var isbn: String? = ""
+    var asin: String? = ""
+    var language: String? = ""
     var explicit: Bool
-    var authorName: String?
-    var authorNameLF: String?
-    var narratorName: String?
-    var seriesName: String?
-    var feedUrl: String?
+    var authorName: String? = ""
+    var authorNameLF: String? = ""
+    var narratorName: String? = ""
+    var seriesName: String? = ""
+    var feedUrl: String? = ""
 }
-struct PodcastEpisode: Codable {
+class PodcastEpisode: Object, Codable {
     var id: String
     var index: Int
-    var episode: String?
-    var episodeType: String?
+    var episode: String? = ""
+    var episodeType: String? = ""
     var title: String
-    var subtitle: String?
-    var description: String?
-    var audioFile: AudioFile?
-    var audioTrack: AudioTrack?
+    var subtitle: String? = ""
+    var escription: String? = ""
+    var audioFile: AudioFile? = nil
+    var audioTrack: AudioTrack? = nil
     var duration: Double
     var size: Int64
 //    var serverEpisodeId: String?
 }
-struct AudioFile: Codable {
-    var index: Int
-    var ino: String
-    var metadata: FileMetadata
+class AudioFile: Object, Codable {
+    @Persisted var index: Int
+    @Persisted var ino: String
+    @Persisted var metadata: FileMetadata?
 }
-struct Author: Codable {
-    var id: String
-    var name: String
-    var coverPath: String?
+class Author: Object, Codable {
+    @Persisted var id: String
+    @Persisted var name: String
+    @Persisted var coverPath: String? = ""
 }
-struct Chapter: Codable {
-    var id: Int
-    var start: Double
-    var end: Double
-    var title: String?
+class Chapter: Object, Codable {
+    @Persisted var id: Int
+    @Persisted var start: Double
+    @Persisted var end: Double
+    @Persisted var title: String? = nil
 }
 struct AudioTrack: Codable {
-    var index: Int?
-    var startOffset: Double?
+    var index: Int? = nil
+    var startOffset: Double? = nil
     var duration: Double
-    var title: String?
-    var contentUrl: String?
+    var title: String? = ""
+    var contentUrl: String? = ""
     var mimeType: String
-    var metadata: FileMetadata?
-    // var isLocal: Bool
-    // var localFileId: String?
-    // var audioProbeResult: AudioProbeResult? Needed for local playback
-    var serverIndex: Int?
+    var metadata: FileMetadata? = nil
+    var isLocal: Bool
+    var localFileId: String? = ""
+//     var audioProbeResult: AudioProbeResult? // Needed for local playback. Requires local FFMPEG? Not sure how doable this is on iOS
+    var serverIndex: Int? = nil
 }
-struct FileMetadata: Codable {
-    var filename: String
-    var ext: String
-    var path: String
-    var relPath: String
+class FileMetadata: Object, Codable {
+    @Persisted var filename: String
+    @Persisted var ext: String
+    @Persisted var path: String
+    @Persisted var relPath: String
 }
 struct Library: Codable {
     var id: String
@@ -125,17 +127,28 @@ struct Folder: Codable {
 }
 struct LibraryFile: Codable {
     var ino: String
-    var metadata: FileMetadata
+    var metadata: FileMetadata?
 }
-struct MediaProgress:Codable {
-    var id:String
-    var libraryItemId:String
-    var episodeId:String?
-    var duration:Double
-    var progress:Double
-    var currentTime:Double
-    var isFinished:Bool
-    var lastUpdate:Int64
-    var startedAt:Int64
-    var finishedAt:Int64?
+struct MediaProgress: Codable {
+    var id: String
+    var libraryItemId: String
+    var episodeId: String?
+    var duration: Double
+    var progress: Double
+    var currentTime: Double
+    var isFinished: Bool
+    var lastUpdate: Int64
+    var startedAt: Int64
+    var finishedAt: Int64?
+}
+struct PlaybackMetadata: Codable {
+    var duration: Double
+    var currentTime: Double
+    var playerState: PlayerState
+}
+enum PlayerState: Codable {
+    case IDLE
+    case BUFFERING
+    case READY
+    case ENDED
 }
