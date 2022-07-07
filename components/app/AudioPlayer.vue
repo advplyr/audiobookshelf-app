@@ -523,7 +523,6 @@ export default {
         var data = await AbsAudioPlayer.getCurrentTime()
         this.currentTime = Number(data.value.toFixed(2))
         this.bufferedTime = Number(data.bufferedTime.toFixed(2))
-        console.log('[AudioPlayer] Got Current Time', this.currentTime)
         this.timeupdate()
       }, 1000)
     },

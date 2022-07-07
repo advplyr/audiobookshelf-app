@@ -13,20 +13,23 @@
           <p class="text-base font-book leading-4 ml-2 mt-0.5">{{ currentLibraryName }}</p>
         </div>
       </div>
+
+      <widgets-connection-indicator />
+
       <div class="flex-grow" />
 
       <widgets-download-progress-indicator />
 
       <!-- Must be connected to a server to cast, only supports media items on server -->
       <div v-show="isCastAvailable && user" class="mx-2 cursor-pointer mt-1.5">
-        <span class="material-icons" :class="isCasting ? 'text-success' : ''" style="font-size: 1.6rem" @click="castClick">cast</span>
+        <span class="material-icons text-2xl" :class="isCasting ? 'text-success' : ''" @click="castClick">cast</span>
       </div>
 
-      <nuxt-link v-if="user" class="h-7 mx-2" to="/search">
+      <nuxt-link v-if="user" class="h-7 mx-1.5" to="/search">
         <span class="material-icons" style="font-size: 1.75rem">search</span>
       </nuxt-link>
 
-      <div class="h-7 mx-2">
+      <div class="h-7 mx-1.5">
         <span class="material-icons" style="font-size: 1.75rem" @click="clickShowSideDrawer">menu</span>
       </div>
     </div>
