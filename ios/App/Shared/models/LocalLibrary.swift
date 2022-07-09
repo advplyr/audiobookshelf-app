@@ -9,25 +9,72 @@ import Foundation
 import RealmSwift
 
 
-class LocalLibraryItem: Object, Codable {
+class LocalLibraryItem: Object {
     @Persisted(primaryKey: true) var id: String
-    @Persisted var basePath: String
-    @Persisted var absolutePath: String
+    @Persisted var basePath: String = ""
+    @Persisted var absolutePath: String = ""
     @Persisted var contentUrl: String
-    @Persisted var isInvalid: Bool
+    @Persisted var isInvalid: Bool = false
     @Persisted var mediaType: String
     @Persisted var media: LocalMediaType?
     @Persisted var localFiles: List<LocalFile>
     @Persisted var coverContentUrl: String? = nil
     @Persisted var coverAbsolutePath: String? = nil
-    @Persisted var isLocal: Bool
+    @Persisted var isLocal: Bool = true
     @Persisted var serverConnectionConfigId: String? = nil
     @Persisted var serverAddress: String? = nil
     @Persisted var serverUserId: String? = nil
     @Persisted var libraryItemId: String? = nil
+    
+    override init() {
+        super.init()
+    }
+    
+    init(item: LibraryItem, localUrl: URL, server: ServerConnectionConfig) {
+        super.init()
+        self.id = item.id
+        self.contentUrl = localUrl.absoluteString
+        self.mediaType = item.mediaType
+        self.media = LocalMediaType(mediaType: item.media)
+        // TODO: self.localFiles
+        // TODO: self.coverContentURL
+        // TODO: self.converAbsolutePath
+        self.libraryItemId = item.id
+        self.serverConnectionConfigId = server.id
+        self.serverAddress = server.address
+        self.serverUserId = server.userId
+    }
 }
 
-class LocalMediaItem: Object, Codable {
+class LocalMediaType: Object {
+    @Persisted var libraryItemId: String? = ""
+    @Persisted var metadata: LocalMetadata?
+    @Persisted var coverPath: String? = ""
+    @Persisted var tags: List<String?>
+    @Persisted var audioFiles: List<LocalAudioFile>
+    @Persisted var chapters: List<LocalChapter>
+    @Persisted var tracks: List<LocalAudioTrack>
+    @Persisted var size: Int64? = nil
+    @Persisted var duration: Double? = nil
+    @Persisted var episodes: List<LocalPodcastEpisode>
+    @Persisted var autoDownloadEpisodes: Bool? = nil
+    
+    override init() {
+        super.init()
+    }
+    
+    init(mediaType: MediaType) {
+        super.init()
+        self.libraryItemId = mediaType.libraryItemId
+        self.metadata = LocalMetadata(metadata: mediaType.metadata)
+        self.tags.append(objectsIn: mediaType.tags ?? [])
+        self.size = mediaType.size
+        self.duration = mediaType.duration
+        self.autoDownloadEpisodes = mediaType.autoDownloadEpisodes
+    }
+}
+
+class LocalMediaItem: Object {
     @Persisted var id: String
     @Persisted var name: String
     @Persisted var mediaType: String
@@ -42,21 +89,7 @@ class LocalMediaItem: Object, Codable {
     @Persisted var coverAbsolutePath: String? = ""
 }
 
-class LocalMediaType: Object, Codable {
-    @Persisted var libraryItemId: String? = ""
-    @Persisted var metadata: LocalMetadata?
-    @Persisted var coverPath: String? = ""
-    @Persisted var tags: List<String?>
-    @Persisted var audioFiles: List<LocalAudioFile>
-    @Persisted var chapters: List<LocalChapter>
-    @Persisted var tracks: List<LocalAudioTrack>
-    @Persisted var size: Int64? = nil
-    @Persisted var duration: Double? = nil
-    @Persisted var episodes: List<LocalPodcastEpisode>
-    @Persisted var autoDownloadEpisodes: Bool? = nil
-}
-
-class LocalMetadata: Object, Codable {
+class LocalMetadata: Object {
     @Persisted var title: String
     @Persisted var subtitle: String? = ""
     @Persisted var authors: List<LocalAuthor>
@@ -65,8 +98,7 @@ class LocalMetadata: Object, Codable {
     @Persisted var publishedYear: String? = ""
     @Persisted var publishedDate: String? = ""
     @Persisted var publisher: String? = ""
-    // I think calling the below variable description conflicts with some public variables declared in some of the Pods we use, so it's desc. ¯\_(ツ)_/¯
-    @Persisted final var desc: String
+    @Persisted var desc: String? = ""
     @Persisted var isbn: String? = ""
     @Persisted var asin: String? = ""
     @Persisted var language: String? = ""
@@ -76,6 +108,31 @@ class LocalMetadata: Object, Codable {
     @Persisted var narratorName: String? = ""
     @Persisted var seriesName: String? = ""
     @Persisted var feedUrl: String? = ""
+    
+    override init() {
+        super.init()
+    }
+    
+    init(metadata: Metadata) {
+        super.init()
+        self.title = metadata.title
+        self.subtitle = metadata.subtitle
+        self.narrators.append(objectsIn: metadata.narrators ?? [])
+        self.genres.append(objectsIn: metadata.genres)
+        self.publishedYear = metadata.publishedYear
+        self.publishedDate = metadata.publishedDate
+        self.publisher = metadata.publisher
+        self.desc = metadata.description
+        self.isbn = metadata.isbn
+        self.asin = metadata.asin
+        self.language = metadata.language
+        self.explicit = metadata.explicit
+        self.authorName = metadata.authorName
+        self.authorNameLF = metadata.authorNameLF
+        self.narratorName = metadata.narratorName
+        self.seriesName = metadata.seriesName
+        self.feedUrl = metadata.feedUrl
+    }
 }
 
 class LocalPodcastEpisode: Object, Codable {
@@ -85,7 +142,7 @@ class LocalPodcastEpisode: Object, Codable {
     @Persisted var episodeType: String? = ""
     @Persisted var title: String
     @Persisted var subtitle: String? = ""
-    @Persisted var escription: String? = ""
+    @Persisted var desc: String? = ""
     @Persisted var audioFile: LocalAudioFile? = nil
     @Persisted var audioTrack: LocalAudioTrack? = nil
     @Persisted var duration: Double
@@ -110,6 +167,18 @@ class LocalChapter: Object, Codable {
     @Persisted var start: Double
     @Persisted var end: Double
     @Persisted var title: String? = nil
+    
+    override init() {
+        super.init()
+    }
+    
+    init(chapter: Chapter) {
+        super.init()
+        self.id = chapter.id
+        self.start = chapter.start
+        self.end = chapter.end
+        self.title = chapter.title
+    }
 }
 
 class LocalAudioTrack: Object, Codable {
@@ -133,7 +202,7 @@ class LocalFileMetadata: Object, Codable {
     @Persisted var relPath: String
 }
 
-class LocalFile: Object, Codable {
+class LocalFile: Object {
     @Persisted var id: String
     @Persisted var filename: String? = ""
     @Persisted var contentUrl: String

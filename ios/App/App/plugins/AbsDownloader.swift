@@ -10,6 +10,8 @@ import Capacitor
 
 @objc(AbsDownloader)
 public class AbsDownloader: CAPPlugin {
+    let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+    
     @objc func downloadLibraryItem(_ call: CAPPluginCall) {
         let libraryItemId = call.getString("libraryItemId")
         let episodeId = call.getString("episodeId")
@@ -31,28 +33,32 @@ public class AbsDownloader: CAPPlugin {
     private func startLibraryItemDownload(item: LibraryItem) {
         let length = item.media.tracks?.count ?? 0
         if length > 0 {
+            let localLibraryItem = LocalLibraryItem(item: item, localUrl: documentsDirectory, server: Store.serverConfig!)
+            
             item.media.tracks?.enumerated().forEach { position, track in
                 startLibraryItemTrackDownload(item: item, position: position, track: track)
             }
+            
+            Database.shared.saveLocalLibraryItem(localLibraryItem: localLibraryItem)
         } else {
             NSLog("No audio tracks for the supplied library item")
         }
     }
     
-    private func startLibraryItemTrackDownload(item: LibraryItem, position: Int, track: AudioTrack) -> URLSessionDownloadTask? {
+    private func startLibraryItemTrackDownload(item: LibraryItem, position: Int, track: AudioTrack) {
         NSLog("TRACK \(track.contentUrl!)")
         
         // If we don't name metadata, then we can't proceed
         guard let filename = track.metadata?.filename else {
             NSLog("No metadata for track, unable to download")
-            return nil
+            return
         }
         
         let serverUrl = urlForTrack(item: item, track: track)
         let itemDirectory = createLibraryItemFileDirectory(item: item)
         let localUrl = itemDirectory.appendingPathComponent("\(filename)")
         
-        return downloadTrack(serverUrl: serverUrl, localUrl: localUrl)
+        downloadTrack(serverUrl: serverUrl, localUrl: localUrl)
     }
     
     private func urlForTrack(item: LibraryItem, track: AudioTrack) -> URL {
@@ -63,7 +69,6 @@ public class AbsDownloader: CAPPlugin {
     }
     
     private func createLibraryItemFileDirectory(item: LibraryItem) -> URL {
-        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let itemDirectory = documentsDirectory.appendingPathComponent("\(item.id)")
         
         NSLog("ITEM DIR \(itemDirectory)")
