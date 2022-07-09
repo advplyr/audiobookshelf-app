@@ -28,10 +28,11 @@ public class AbsDownloader: CAPPlugin {
             }
         }
     }
+    
     func startLibraryItemDownload(libraryItem: LibraryItem) {
-        let length = libraryItem.media.tracks.count
+        let length = libraryItem.media.tracks?.count ?? 0
         if length > 0 {
-            libraryItem.media.tracks.enumerated().forEach { position, track in
+            libraryItem.media.tracks?.enumerated().forEach { position, track in
                 NSLog("TRACK \(track.contentUrl!)")
                 // filename needs to be encoded otherwise would just use contentUrl
                 let filename = track.metadata?.filename ?? ""
