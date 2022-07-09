@@ -37,7 +37,7 @@ struct MediaType: Codable {
     var metadata: Metadata
     var coverPath: String?
     var tags: [String]?
-    var audioFiles: [AudioTrack]?
+    var audioFiles: [AudioFile]?
     var chapters: [Chapter]?
     var tracks: [AudioTrack]?
     var size: Int64?

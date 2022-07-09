@@ -33,25 +33,24 @@ public class AbsDownloader: CAPPlugin {
     private func startLibraryItemDownload(item: LibraryItem) {
         let length = item.media.tracks?.count ?? 0
         if length > 0 {
-            let localLibraryItem = LocalLibraryItem(item: item, localUrl: documentsDirectory, server: Store.serverConfig!)
-            
-            item.media.tracks?.enumerated().forEach { position, track in
-                startLibraryItemTrackDownload(item: item, position: position, track: track)
+            let files = item.media.tracks!.enumerated().map {
+                position, track -> LocalFile in startLibraryItemTrackDownload(item: item, position: position, track: track)
             }
             
+            let localLibraryItem = LocalLibraryItem(item: item, localUrl: documentsDirectory, server: Store.serverConfig!, files: files)
             Database.shared.saveLocalLibraryItem(localLibraryItem: localLibraryItem)
         } else {
             NSLog("No audio tracks for the supplied library item")
         }
     }
     
-    private func startLibraryItemTrackDownload(item: LibraryItem, position: Int, track: AudioTrack) {
+    private func startLibraryItemTrackDownload(item: LibraryItem, position: Int, track: AudioTrack) -> LocalFile {
         NSLog("TRACK \(track.contentUrl!)")
         
         // If we don't name metadata, then we can't proceed
         guard let filename = track.metadata?.filename else {
             NSLog("No metadata for track, unable to download")
-            return
+            return LocalFile()
         }
         
         let serverUrl = urlForTrack(item: item, track: track)
@@ -59,6 +58,7 @@ public class AbsDownloader: CAPPlugin {
         let localUrl = itemDirectory.appendingPathComponent("\(filename)")
         
         downloadTrack(serverUrl: serverUrl, localUrl: localUrl)
+        return LocalFile(filename: filename, localUrl: localUrl)
     }
     
     private func urlForTrack(item: LibraryItem, track: AudioTrack) -> URL {
@@ -83,7 +83,7 @@ public class AbsDownloader: CAPPlugin {
         return itemDirectory
     }
     
-    private func downloadTrack(serverUrl: URL, localUrl: URL) -> URLSessionDownloadTask {
+    private func downloadTrack(serverUrl: URL, localUrl: URL) {
         let downloadTask = URLSession.shared.downloadTask(with: serverUrl) { urlOrNil, responseOrNil, errorOrNil in
 
             guard let fileURL = urlOrNil else { return }
@@ -100,8 +100,6 @@ public class AbsDownloader: CAPPlugin {
         
         // Start the download
         downloadTask.resume()
-        
-        return downloadTask
     }
 }
 

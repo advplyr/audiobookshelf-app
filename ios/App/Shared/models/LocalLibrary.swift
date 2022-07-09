@@ -30,13 +30,13 @@ class LocalLibraryItem: Object {
         super.init()
     }
     
-    init(item: LibraryItem, localUrl: URL, server: ServerConnectionConfig) {
+    init(item: LibraryItem, localUrl: URL, server: ServerConnectionConfig, files: [LocalFile]) {
         super.init()
         self.id = item.id
         self.contentUrl = localUrl.absoluteString
         self.mediaType = item.mediaType
         self.media = LocalMediaType(mediaType: item.media)
-        // TODO: self.localFiles
+        self.localFiles.append(objectsIn: files)
         // TODO: self.coverContentURL
         // TODO: self.converAbsolutePath
         self.libraryItemId = item.id
@@ -67,26 +67,22 @@ class LocalMediaType: Object {
         super.init()
         self.libraryItemId = mediaType.libraryItemId
         self.metadata = LocalMetadata(metadata: mediaType.metadata)
+        // TODO: self.coverPath
         self.tags.append(objectsIn: mediaType.tags ?? [])
+        self.audioFiles.append(objectsIn: mediaType.audioFiles!.enumerated().map() {
+            i, audioFile -> LocalAudioFile in LocalAudioFile(audioFile: audioFile)
+        })
+        self.chapters.append(objectsIn: mediaType.chapters!.enumerated().map() {
+            i, chapter -> LocalChapter in LocalChapter(chapter: chapter)
+        })
+        self.tracks.append(objectsIn: mediaType.tracks!.enumerated().map() {
+            i, track in LocalAudioTrack(track: track)
+        })
         self.size = mediaType.size
         self.duration = mediaType.duration
+        // TODO: self.episodes
         self.autoDownloadEpisodes = mediaType.autoDownloadEpisodes
     }
-}
-
-class LocalMediaItem: Object {
-    @Persisted var id: String
-    @Persisted var name: String
-    @Persisted var mediaType: String
-    @Persisted var folderId: String
-    @Persisted var contentUrl: String
-    @Persisted var simplePath: String
-    @Persisted var basePath: String
-    @Persisted var absolutePath: String
-    @Persisted var audioTracks: List<LocalAudioTrack>
-    @Persisted var localFiles: List<LocalFile>
-    @Persisted var coverContentUrl: String? = ""
-    @Persisted var coverAbsolutePath: String? = ""
 }
 
 class LocalMetadata: Object {
@@ -135,7 +131,7 @@ class LocalMetadata: Object {
     }
 }
 
-class LocalPodcastEpisode: Object, Codable {
+class LocalPodcastEpisode: Object {
     @Persisted var id: String
     @Persisted var index: Int
     @Persisted var episode: String? = ""
@@ -154,6 +150,16 @@ class LocalAudioFile: Object, Codable {
     @Persisted var index: Int
     @Persisted var ino: String
     @Persisted var metadata: LocalFileMetadata?
+    
+    override init() {
+        super.init()
+    }
+    
+    init(audioFile: AudioFile) {
+        self.index = audioFile.index
+        self.ino = audioFile.ino
+        // TODO: self.metadata
+    }
 }
 
 class LocalAuthor: Object, Codable {
@@ -181,7 +187,7 @@ class LocalChapter: Object, Codable {
     }
 }
 
-class LocalAudioTrack: Object, Codable {
+class LocalAudioTrack: Object {
     @Persisted var index: Int? = nil
     @Persisted var startOffset: Double? = nil
     @Persisted var duration: Double
@@ -189,10 +195,25 @@ class LocalAudioTrack: Object, Codable {
     @Persisted var contentUrl: String? = ""
     @Persisted var mimeType: String
     @Persisted var metadata: LocalFileMetadata? = nil
-    @Persisted var isLocal: Bool
+    @Persisted var isLocal: Bool = true
     @Persisted var localFileId: String? = ""
-//     var audioProbeResult: AudioProbeResult? // Needed for local playback. Requires local FFMPEG? Not sure how doable this is on iOS
     @Persisted var serverIndex: Int? = nil
+    
+    override init() {
+        super.init()
+    }
+    
+    init(track: AudioTrack) {
+        self.index = track.index
+        self.startOffset = track.startOffset
+        self.duration = track.duration
+        self.title = track.title
+        self.contentUrl = track.contentUrl // TODO: Different URL
+        self.mimeType = track.mimeType
+        // TODO: self.metadata
+        // TODO: self.localFileId
+        self.serverIndex = track.serverIndex
+    }
 }
 
 class LocalFileMetadata: Object, Codable {
@@ -211,6 +232,20 @@ class LocalFile: Object {
     @Persisted var simplePath: String
     @Persisted var mimeType: String? = ""
     @Persisted var size: Int64
+    
+    override init() {
+        super.init()
+    }
+    
+    init(filename: String, localUrl: URL) {
+        self.filename = filename
+        self.contentUrl = localUrl.absoluteString
+        // TODO: self.baseUrl
+        self.absolutePath = localUrl.absoluteString
+        self.simplePath = localUrl.path
+        // TODO: self.mimeType
+        // TODO: self.size
+    }
 }
 
 class LocalMediaProgress: Object, Codable {
