@@ -132,6 +132,7 @@ class Database {
             return instance.objects(ServerConnectionConfigActiveIndex.self).first?.index ?? nil
         }
     }
+    
     public func setDeviceSettings(deviceSettings: DeviceSettings) {
         Database.realmQueue.sync {
             let existing = instance.objects(DeviceSettings.self)
@@ -143,6 +144,9 @@ class Database {
                 }
             } catch(let exception) {
                 NSLog("failed to save device settings")
+            }
+        }
+    }
     
     public func getLocalLibraryItems(mediaType: MediaType? = nil) -> [LocalLibraryItem] {
         var localLibraryItems: [ThreadSafeReference<LocalLibraryItem>] = []
@@ -190,6 +194,7 @@ class Database {
             }
         }
     }
+    
     public func getDeviceSettings() -> DeviceSettings {
         return Database.realmQueue.sync {
             return instance.objects(DeviceSettings.self).first ?? getDefaultDeviceSettings()
@@ -207,10 +212,10 @@ class Database {
                         NSLog("Unable to find local library item to delete")
                     }
                 }
-            } catch(let exception) {
-                    NSLog("Unable to delete local library item")
-                    debugPrint(exception)
-                }
+            } catch (let exception) {
+                NSLog("Unable to delete local library item")
+                debugPrint(exception)
             }
         }
+    }
 }
