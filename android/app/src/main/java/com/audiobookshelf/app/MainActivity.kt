@@ -5,11 +5,9 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
-import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
-import androidx.core.app.ActivityCompat
 import com.anggrayudi.storage.SimpleStorage
 import com.anggrayudi.storage.SimpleStorageHelper
 import com.audiobookshelf.app.data.AbsDatabase
@@ -19,7 +17,6 @@ import com.audiobookshelf.app.plugins.AbsAudioPlayer
 import com.audiobookshelf.app.plugins.AbsDownloader
 import com.audiobookshelf.app.plugins.AbsFileSystem
 import com.getcapacitor.BridgeActivity
-import io.paperdb.Paper
 
 
 class MainActivity : BridgeActivity() {
@@ -33,11 +30,6 @@ class MainActivity : BridgeActivity() {
 
   val storageHelper = SimpleStorageHelper(this)
   val storage = SimpleStorage(this)
-
-  val REQUEST_PERMISSIONS = 1
-  var PERMISSIONS_ALL = arrayOf(
-    Manifest.permission.READ_EXTERNAL_STORAGE
-  )
 
   public override fun onCreate(savedInstanceState: Bundle?) {
     // TODO: Optimize using strict mode logs
@@ -58,16 +50,6 @@ class MainActivity : BridgeActivity() {
 
     DbManager.initialize(applicationContext)
 
-    // Grant full storage access for testing
-    // var ss = SimpleStorage(this)
-    // ss.requestFullStorageAccess()
-
-    val permission = ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
-    if (permission != PackageManager.PERMISSION_GRANTED) {
-      ActivityCompat.requestPermissions(this,
-        PERMISSIONS_ALL,
-        REQUEST_PERMISSIONS)
-    }
 
     registerPlugin(AbsAudioPlayer::class.java)
     registerPlugin(AbsDownloader::class.java)

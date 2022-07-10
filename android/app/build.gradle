@@ -111,7 +111,7 @@ dependencies {
   implementation 'io.github.pilgr:paperdb:2.7.2'
 
   // Simple Storage
-  implementation "com.anggrayudi:storage:0.13.0"
+  implementation "com.anggrayudi:storage:1.3.0"
 
   // OK HTTP
   implementation 'com.squareup.okhttp3:okhttp:4.9.2'
