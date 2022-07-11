@@ -19,7 +19,6 @@ import com.audiobookshelf.app.plugins.AbsAudioPlayer
 import com.audiobookshelf.app.plugins.AbsDownloader
 import com.audiobookshelf.app.plugins.AbsFileSystem
 import com.getcapacitor.BridgeActivity
-import io.paperdb.Paper
 
 
 class MainActivity : BridgeActivity() {
@@ -57,10 +56,6 @@ class MainActivity : BridgeActivity() {
     Log.d(tag, "onCreate")
 
     DbManager.initialize(applicationContext)
-
-    // Grant full storage access for testing
-    // var ss = SimpleStorage(this)
-    // ss.requestFullStorageAccess()
 
     val permission = ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
     if (permission != PackageManager.PERMISSION_GRANTED) {
