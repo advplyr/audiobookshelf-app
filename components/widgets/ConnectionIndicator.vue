@@ -28,18 +28,16 @@ export default {
       return this.networkConnectionType === 'cellular'
     },
     icon() {
+      if (!this.user) return null // hide when not connected to server
+
       if (!this.networkConnected) {
         return 'wifi_off'
       } else if (!this.socketConnected) {
         return 'cloud_off'
-      } else if (this.user) {
-        if (this.isCellular) {
-          return 'signal_cellular_alt'
-        } else {
-          return 'cloud_done'
-        }
+      } else if (this.isCellular) {
+        return 'signal_cellular_alt'
       } else {
-        return null
+        return 'cloud_done'
       }
     },
     iconClass() {
