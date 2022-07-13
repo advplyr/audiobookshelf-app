@@ -80,7 +80,7 @@ public class AbsDatabase: CAPPlugin {
     @objc func getLocalLibraryItem(_ call: CAPPluginCall) {
         call.resolve()
     }
-    @objc func getLocalLibraryItemByLLId(_ call: CAPPluginCall) {
+    @objc func getLocalLibraryItemByLId(_ call: CAPPluginCall) {
         call.resolve()
     }
     @objc func getLocalLibraryItemsInFolder(_ call: CAPPluginCall) {

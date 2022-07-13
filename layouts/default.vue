@@ -215,7 +215,7 @@ export default {
         newLocalMediaProgress = await this.$db.syncServerMediaProgressWithLocalMediaProgress(payload)
       } else {
         // Check if local library item exists
-        var localLibraryItem = await this.$db.getLocalLibraryItemByLLId(prog.libraryItemId)
+        var localLibraryItem = await this.$db.getLocalLibraryItemByLId(prog.libraryItemId)
         if (localLibraryItem) {
           if (prog.episodeId) {
             // If episode check if local episode exists

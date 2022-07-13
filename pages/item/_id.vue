@@ -136,7 +136,7 @@ export default {
       })
       // Check if
       if (libraryItem) {
-        var localLibraryItem = await app.$db.getLocalLibraryItemByLLId(libraryItemId)
+        var localLibraryItem = await app.$db.getLocalLibraryItemByLId(libraryItemId)
         if (localLibraryItem) {
           console.log('Library item has local library item also', localLibraryItem.id)
           libraryItem.localLibraryItem = localLibraryItem
