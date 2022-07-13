@@ -8,9 +8,9 @@
         <span class="material-icons text-3xl text-white">arrow_back</span>
       </a>
       <div v-if="user && currentLibrary">
-        <div class="pl-3 pr-4 py-2 bg-bg bg-opacity-30 rounded-md flex items-center" @click="clickShowLibraryModal">
+        <div class="pl-1.5 pr-2.5 py-2 bg-bg bg-opacity-30 rounded-md flex items-center" @click="clickShowLibraryModal">
           <widgets-library-icon :icon="currentLibraryIcon" :size="4" />
-          <p class="text-base font-book leading-4 ml-2 mt-0.5">{{ currentLibraryName }}</p>
+          <p class="text-sm font-book leading-4 ml-2 mt-0.5 max-w-24 truncate">{{ currentLibraryName }}</p>
         </div>
       </div>
 
