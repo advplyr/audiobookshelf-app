@@ -77,10 +77,10 @@ class AbsDatabase : Plugin() {
   }
 
   @PluginMethod
-  fun getLocalLibraryItemByLLId(call:PluginCall) {
+  fun getLocalLibraryItemByLId(call:PluginCall) {
     val libraryItemId = call.getString("libraryItemId", "").toString()
     GlobalScope.launch(Dispatchers.IO) {
-      val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItemByLLId(libraryItemId)
+      val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItemByLId(libraryItemId)
       if (localLibraryItem == null) {
         call.resolve()
       } else {

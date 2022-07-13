@@ -45,7 +45,7 @@ class DbManager {
     }
   }
 
-  fun getLocalLibraryItemByLLId(libraryItemId:String):LocalLibraryItem? {
+  fun getLocalLibraryItemByLId(libraryItemId:String):LocalLibraryItem? {
     return getLocalLibraryItems().find { it.libraryItemId == libraryItemId }
   }
 
