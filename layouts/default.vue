@@ -66,9 +66,6 @@ export default {
     },
     currentLibraryId() {
       return this.$store.state.libraries.currentLibraryId
-    },
-    isSocketConnected() {
-      return this.$store.state.socketConnected
     }
   },
   methods: {
@@ -174,6 +171,7 @@ export default {
     async syncLocalMediaProgress() {
       if (!this.user) {
         console.log('[default] No need to sync local media progress - not connected to server')
+        this.$store.commit('setLastLocalMediaSyncResults', null)
         return
       }
 
@@ -181,10 +179,15 @@ export default {
       var response = await this.$db.syncLocalMediaProgressWithServer()
       if (!response) {
         if (this.$platform != 'web') this.$toast.error('Failed to sync local media with server')
+        this.$store.commit('setLastLocalMediaSyncResults', null)
         return
       }
       const { numLocalMediaProgressForServer, numServerProgressUpdates, numLocalProgressUpdates } = response
       if (numLocalMediaProgressForServer > 0) {
+        response.syncedAt = Date.now()
+        response.serverConfigName = this.$store.getters['user/getServerConfigName']
+        this.$store.commit('setLastLocalMediaSyncResults', response)
+
         if (numServerProgressUpdates > 0 || numLocalProgressUpdates > 0) {
           console.log(`[default] ${numServerProgressUpdates} Server progress updates | ${numLocalProgressUpdates} Local progress updates`)
         } else {
@@ -192,6 +195,7 @@ export default {
         }
       } else {
         console.log('[default] syncLocalMediaProgress No local media progress to sync')
+        this.$store.commit('setLastLocalMediaSyncResults', null)
       }
     },
     async userUpdated(user) {
