@@ -19,7 +19,8 @@ export const state = () => ({
   showSideDrawer: false,
   isNetworkListenerInit: false,
   serverSettings: null,
-  lastBookshelfScrollData: {}
+  lastBookshelfScrollData: {},
+  lastLocalMediaSyncResults: null
 })
 
 export const getters = {
@@ -126,5 +127,8 @@ export const mutations = {
   setServerSettings(state, val) {
     state.serverSettings = val
     this.$localStore.setServerSettings(state.serverSettings)
+  },
+  setLastLocalMediaSyncResults(state, val) {
+    state.lastLocalMediaSyncResults = val
   }
 }
