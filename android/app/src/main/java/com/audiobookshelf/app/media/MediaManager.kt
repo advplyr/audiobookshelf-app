@@ -15,7 +15,7 @@ import kotlin.coroutines.suspendCoroutine
 class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
   val tag = "MediaManager"
 
-  var serverLibraryItems = listOf<LibraryItem>()
+  var serverLibraryItems = mutableListOf<LibraryItem>()
   var selectedLibraryId = ""
 
   var selectedLibraryItemWrapper:LibraryItemWrapper? = null
@@ -39,7 +39,7 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
       serverPodcastEpisodes = listOf()
       serverLibraryCategories = listOf()
       serverLibraries = listOf()
-      serverLibraryItems = listOf()
+      serverLibraryItems = mutableListOf()
       selectedLibraryId = ""
     }
   }
@@ -63,7 +63,11 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
         val libraryItemsWithAudio = libraryItems.filter { li -> li.checkHasTracks() }
         if (libraryItemsWithAudio.isNotEmpty()) selectedLibraryId = libraryId
 
-        serverLibraryItems = libraryItemsWithAudio
+        libraryItemsWithAudio.forEach { libraryItem ->
+          if (serverLibraryItems.find { li -> li.id == libraryItem.id } == null) {
+            serverLibraryItems.add(libraryItem)
+          }
+        }
         cb(libraryItemsWithAudio)
       }
     }
@@ -211,6 +215,17 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
 
             // Only using book or podcast library categories for now
             libraryCategories.forEach {
+
+              // Add items in continue listening to serverLibraryItems
+              if (it.id == "continue-listening") {
+                it.entities.forEach { libraryItemWrapper ->
+                  val libraryItem = libraryItemWrapper as LibraryItem
+                  if (serverLibraryItems.find { li -> li.id == libraryItem.id } == null) {
+                    serverLibraryItems.add(libraryItem)
+                  }
+                }
+              }
+
               // Log.d(tag, "Found library category ${it.label} with type ${it.type}")
               if (it.type == library.mediaType) {
                 // Log.d(tag, "Using library category ${it.id}")
