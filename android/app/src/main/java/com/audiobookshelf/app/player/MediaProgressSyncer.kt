@@ -10,7 +10,6 @@ import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.server.ApiHandler
 import java.util.*
 import kotlin.concurrent.schedule
-import kotlin.math.roundToInt
 
 data class MediaProgressSyncData(
   var timeListened:Long, // seconds
@@ -56,7 +55,9 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
       Handler(Looper.getMainLooper()).post() {
         if (playerNotificationService.currentPlayer.isPlaying) {
           val currentTime = playerNotificationService.getCurrentTimeSeconds()
-          sync(currentTime)
+          sync(currentTime) {
+            Log.d(tag, "Sync complete")
+          }
         }
       }
     }
@@ -67,8 +68,9 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
     Log.d(tag, "stop: Stopping listening for $currentDisplayTitle")
 
     val currentTime = playerNotificationService.getCurrentTimeSeconds()
-    sync(currentTime)
-    reset()
+    sync(currentTime) {
+      reset()
+    }
   }
 
   fun syncFromServerProgress(mediaProgress: MediaProgress) {
@@ -81,10 +83,10 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
     }
   }
 
-  fun sync(currentTime:Double) {
+  fun sync(currentTime:Double, cb: () -> Unit) {
     val diffSinceLastSync = System.currentTimeMillis() - lastSyncTime
     if (diffSinceLastSync < 1000L) {
-      return
+      return cb()
     }
     val listeningTimeToAdd = diffSinceLastSync / 1000L
     lastSyncTime = System.currentTimeMillis()
@@ -92,6 +94,12 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
     val syncData = MediaProgressSyncData(listeningTimeToAdd,currentPlaybackDuration,currentTime)
 
     currentPlaybackSession?.syncData(syncData)
+
+    if (currentPlaybackSession?.progress?.isNaN() == true) {
+      Log.e(tag, "Current Playback Session invalid progress ${currentPlaybackSession?.progress} | Current Time: ${currentPlaybackSession?.currentTime} | Duration: ${currentPlaybackSession?.getTotalDuration()}")
+      return cb()
+    }
+
     if (currentIsLocal) {
       // Save local progress sync
       currentPlaybackSession?.let {
@@ -99,16 +107,17 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
         saveLocalProgress(it)
 
         // Local library item is linked to a server library item
-        if (!it.libraryItemId.isNullOrEmpty()) {
-          // Send sync to server also if connected to this server and local item belongs to this server
-          if (it.serverConnectionConfigId != null && DeviceManager.serverConnectionConfig?.id == it.serverConnectionConfigId) {
-            apiHandler.sendLocalProgressSync(it) {
-              Log.d(
-                tag,
-                "Local progress sync data sent to server $currentDisplayTitle for time $currentTime"
-              )
-            }
+        // Send sync to server also if connected to this server and local item belongs to this server
+        if (!it.libraryItemId.isNullOrEmpty() && it.serverConnectionConfigId != null && DeviceManager.serverConnectionConfig?.id == it.serverConnectionConfigId) {
+          apiHandler.sendLocalProgressSync(it) {
+            Log.d(
+              tag,
+              "Local progress sync data sent to server $currentDisplayTitle for time $currentTime"
+            )
+            cb()
           }
+        } else {
+          cb()
         }
       }
     } else {
@@ -124,6 +133,7 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
           }
           Log.d(tag, "Progress sync failed ($failedSyncs) to send to server $currentDisplayTitle for time $currentTime")
         }
+        cb()
       }
     }
   }
@@ -140,9 +150,14 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
       currentLocalMediaProgress?.updateFromPlaybackSession(playbackSession)
     }
     currentLocalMediaProgress?.let {
-      DeviceManager.dbManager.saveLocalMediaProgress(it)
-      playerNotificationService.clientEventEmitter?.onLocalMediaProgressUpdate(it)
-      Log.d(tag, "Saved Local Progress Current Time: ID ${it.id} | ${it.currentTime} | Duration ${it.duration} | Progress ${(it.progress * 100).roundToInt()}%")
+      if (it.progress.isNaN()) {
+        Log.e(tag, "Invalid progress on local media progress")
+      } else {
+        DeviceManager.dbManager.saveLocalMediaProgress(it)
+        playerNotificationService.clientEventEmitter?.onLocalMediaProgressUpdate(it)
+
+        Log.d(tag, "Saved Local Progress Current Time: ID ${it.id} | ${it.currentTime} | Duration ${it.duration} | Progress ${it.progressPercent}%")
+      }
     }
   }
 
