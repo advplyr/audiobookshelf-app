@@ -17,6 +17,7 @@ import com.getcapacitor.JSObject
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONException
 import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
@@ -106,14 +107,21 @@ class ApiHandler(var ctx:Context) {
           if (bodyString == "OK") {
             cb(JSObject())
           } else {
-            var jsonObj = JSObject()
-            if (bodyString.startsWith("[")) {
-              val array = JSArray(bodyString)
-              jsonObj.put("value", array)
-            } else {
-              jsonObj = JSObject(bodyString)
+            try {
+              var jsonObj = JSObject()
+              if (bodyString.startsWith("[")) {
+                val array = JSArray(bodyString)
+                jsonObj.put("value", array)
+              } else {
+                jsonObj = JSObject(bodyString)
+              }
+              cb(jsonObj)
+            } catch(je:JSONException) {
+              Log.e(tag, "Invalid JSON response ${je.localizedMessage} from body $bodyString")
+              val jsobj = JSObject()
+              jsobj.put("error", "Invalid response body")
+              cb(jsobj)
             }
-            cb(jsonObj)
           }
         }
       }
