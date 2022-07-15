@@ -15,6 +15,7 @@ import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import androidx.media.MediaBrowserServiceCompat
 import androidx.media.utils.MediaConstants
 import com.audiobookshelf.app.BuildConfig
@@ -300,6 +301,13 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     User callable methods
   */
   fun preparePlayer(playbackSession: PlaybackSession, playWhenReady:Boolean, playbackRate:Float?) {
+    if (!isStarted) {
+      Log.i(tag, "preparePlayer: foreground service not started - Starting service --")
+      Intent(ctx, PlayerNotificationService::class.java).also { intent ->
+        ContextCompat.startForegroundService(ctx, intent)
+      }
+    }
+
     isClosed = false
     val playbackRateToUse = playbackRate ?: initialPlaybackRate ?: 1f
     initialPlaybackRate = playbackRate
@@ -660,6 +668,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     PlayerListener.lastPauseTime = 0
     isClosed = true
     stopForeground(true)
+    stopSelf()
   }
 
   fun sendClientMetadata(playerState: PlayerState) {

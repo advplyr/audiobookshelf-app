@@ -92,9 +92,7 @@ class MainActivity : BridgeActivity() {
         foregroundService = mLocalBinder.getService()
 
         // Let NativeAudio know foreground service is ready and setup event listener
-        if (pluginCallback != null) {
-          pluginCallback()
-        }
+        pluginCallback()
       }
     }
 
