@@ -1,7 +1,6 @@
 package com.audiobookshelf.app.server
 
 import android.content.Context
-import android.content.SharedPreferences
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.util.Log
@@ -28,8 +27,6 @@ class ApiHandler(var ctx:Context) {
   private var defaultClient = OkHttpClient()
   private var pingClient = OkHttpClient.Builder().callTimeout(3, TimeUnit.SECONDS).build()
   var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
-
-  var storageSharedPreferences: SharedPreferences? = null
 
   data class LocalMediaProgressSyncPayload(val localMediaProgress:List<LocalMediaProgress>)
   @JsonIgnoreProperties(ignoreUnknown = true)

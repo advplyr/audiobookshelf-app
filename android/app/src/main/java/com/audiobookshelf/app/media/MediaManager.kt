@@ -1,14 +1,17 @@
 package com.audiobookshelf.app.media
 
+import android.app.Activity
 import android.content.Context
 import android.support.v4.media.MediaBrowserCompat
 import android.util.Log
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.server.ApiHandler
+import com.getcapacitor.JSObject
 import java.util.*
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
+import org.json.JSONException
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -26,8 +29,33 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
   var serverLibraries = listOf<Library>()
   var serverConfigIdUsed:String? = null
 
+  var userSettingsPlaybackRate:Float? = null
+
   fun getIsLibrary(id:String) : Boolean {
     return serverLibraries.find { it.id == id } != null
+  }
+
+  fun getSavedPlaybackRate():Float {
+    if (userSettingsPlaybackRate != null) {
+      return userSettingsPlaybackRate ?: 1f
+    }
+
+    val sharedPrefs = ctx.getSharedPreferences("CapacitorStorage", Activity.MODE_PRIVATE)
+    if (sharedPrefs != null) {
+      val userSettingsPref = sharedPrefs.getString("userSettings", null)
+      if (userSettingsPref != null) {
+        try {
+          val userSettings = JSObject(userSettingsPref)
+          if (userSettings.has("playbackRate")) {
+            userSettingsPlaybackRate = userSettings.getDouble("playbackRate").toFloat()
+            return userSettingsPlaybackRate ?: 1f
+          }
+        } catch(je:JSONException) {
+          Log.e(tag, "Failed to parse userSettings JSON ${je.localizedMessage}")
+        }
+      }
+    }
+    return 1f
   }
 
   fun checkResetServerItems() {
@@ -280,19 +308,18 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
   }
 
   fun play(libraryItemWrapper:LibraryItemWrapper, episode:PodcastEpisode?, playItemRequestPayload:PlayItemRequestPayload, cb: (PlaybackSession?) -> Unit) {
-   if (libraryItemWrapper is LocalLibraryItem) {
-    val localLibraryItem = libraryItemWrapper as LocalLibraryItem
-    cb(localLibraryItem.getPlaybackSession(episode))
-   } else {
-     val libraryItem = libraryItemWrapper as LibraryItem
-     apiHandler.playLibraryItem(libraryItem.id,episode?.id ?: "",playItemRequestPayload) {
-       if (it == null) {
-         cb(null)
-       } else {
-         cb(it)
-       }
-     }
-   }
+    if (libraryItemWrapper is LocalLibraryItem) {
+      cb(libraryItemWrapper.getPlaybackSession(episode))
+    } else {
+      val libraryItem = libraryItemWrapper as LibraryItem
+      apiHandler.playLibraryItem(libraryItem.id,episode?.id ?: "", playItemRequestPayload) {
+        if (it == null) {
+          cb(null)
+        } else {
+          cb(it)
+        }
+      }
+    }
   }
 
   private fun levenshtein(lhs : CharSequence, rhs : CharSequence) : Int {
