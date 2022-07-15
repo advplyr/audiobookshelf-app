@@ -1,10 +1,8 @@
 package com.audiobookshelf.app.plugins
 
-import android.content.Intent
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import androidx.core.content.ContextCompat
 import com.audiobookshelf.app.MainActivity
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
@@ -150,14 +148,6 @@ class AbsAudioPlayer : Plugin() {
 
   @PluginMethod
   fun prepareLibraryItem(call: PluginCall) {
-    // Need to make sure the player service has been started
-    if (!PlayerNotificationService.isStarted) {
-      Log.w(tag, "prepareLibraryItem: PlayerService not started - Starting foreground service --")
-      Intent(mainActivity, PlayerNotificationService::class.java).also { intent ->
-        ContextCompat.startForegroundService(mainActivity, intent)
-      }
-    }
-
     val libraryItemId = call.getString("libraryItemId", "").toString()
     val episodeId = call.getString("episodeId", "").toString()
     val playWhenReady = call.getBoolean("playWhenReady") == true
