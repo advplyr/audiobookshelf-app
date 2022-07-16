@@ -7,8 +7,10 @@ import android.os.Handler
 import android.os.Looper
 import android.os.Message
 import android.support.v4.media.session.MediaSessionCompat
+import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
 import android.view.KeyEvent
+import com.audiobookshelf.app.R
 import com.audiobookshelf.app.data.LibraryItemWrapper
 import com.audiobookshelf.app.data.PodcastEpisode
 import java.util.*
@@ -217,4 +219,12 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
     }
   }
 
+  // Example Using a custom action in android auto
+//  override fun onCustomAction(action: String?, extras: Bundle?) {
+//    super.onCustomAction(action, extras)
+//
+//    if ("com.audiobookshelf.app.PLAYBACK_RATE" == action) {
+//
+//    }
+//  }
 }

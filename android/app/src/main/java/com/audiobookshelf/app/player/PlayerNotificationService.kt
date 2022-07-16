@@ -16,9 +16,11 @@ import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
 import androidx.media.MediaBrowserServiceCompat
 import androidx.media.utils.MediaConstants
 import com.audiobookshelf.app.BuildConfig
+import com.audiobookshelf.app.R
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.data.DeviceInfo
 import com.audiobookshelf.app.device.DeviceManager
@@ -66,7 +68,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   private lateinit var ctx:Context
   private lateinit var mediaSessionConnector: MediaSessionConnector
   private lateinit var playerNotificationManager: PlayerNotificationManager
-  private lateinit var mediaSession: MediaSessionCompat
+  lateinit var mediaSession: MediaSessionCompat
   private lateinit var transportControls:MediaControllerCompat.TransportControls
 
   lateinit var mediaManager: MediaManager
@@ -261,6 +263,18 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     )
     mediaSessionConnector.setQueueNavigator(queueNavigator)
     mediaSessionConnector.setPlaybackPreparer(MediaSessionPlaybackPreparer(this))
+
+    // Example adding custom action with icon in android auto
+//    mediaSessionConnector.setCustomActionProviders(object : MediaSessionConnector.CustomActionProvider {
+//      override fun onCustomAction(player: Player, action: String, extras: Bundle?) {
+//      }
+//      override fun getCustomAction(player: Player): PlaybackStateCompat.CustomAction? {
+//        var icon = R.drawable.exo_icon_rewind
+//       return PlaybackStateCompat.CustomAction.Builder(
+//         "com.audiobookshelf.app.PLAYBACK_RATE", "Playback Rate", icon)
+//         .build()
+//      }
+//    })
 
     mediaSession.setCallback(MediaSessionCallback(this))
 
