@@ -9,7 +9,7 @@ import Foundation
 import RealmSwift
 
 
-class LocalLibraryItem: Object {
+class LocalLibraryItem: Object, Encodable {
     @Persisted(primaryKey: true) var id: String
     @Persisted var basePath: String = ""
     @Persisted var absolutePath: String = ""
@@ -43,6 +43,15 @@ class LocalLibraryItem: Object {
         self.serverConnectionConfigId = server.id
         self.serverAddress = server.address
         self.serverUserId = server.userId
+    }
+    
+    enum CodingKeys: CodingKey {
+        case id
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
     }
 }
 
@@ -146,7 +155,7 @@ class LocalPodcastEpisode: Object {
 //    @Persisted var serverEpisodeId: String?
 }
 
-class LocalAudioFile: Object, Codable {
+class LocalAudioFile: Object {
     @Persisted var index: Int
     @Persisted var ino: String
     @Persisted var metadata: LocalFileMetadata?
@@ -162,13 +171,13 @@ class LocalAudioFile: Object, Codable {
     }
 }
 
-class LocalAuthor: Object, Codable {
+class LocalAuthor: Object {
     @Persisted var id: String
     @Persisted var name: String
     @Persisted var coverPath: String? = ""
 }
 
-class LocalChapter: Object, Codable {
+class LocalChapter: Object {
     @Persisted var id: Int
     @Persisted var start: Double
     @Persisted var end: Double
@@ -216,7 +225,7 @@ class LocalAudioTrack: Object {
     }
 }
 
-class LocalFileMetadata: Object, Codable {
+class LocalFileMetadata: Object {
     @Persisted var filename: String
     @Persisted var ext: String
     @Persisted var path: String
@@ -248,7 +257,7 @@ class LocalFile: Object {
     }
 }
 
-class LocalMediaProgress: Object, Codable {
+class LocalMediaProgress: Object {
     @Persisted var id: String
     @Persisted var localLibraryItemId: String
     @Persisted var localEpisodeId: String? = ""
