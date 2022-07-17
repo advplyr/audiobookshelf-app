@@ -37,7 +37,7 @@ public class AbsDownloader: CAPPlugin {
                 position, track -> LocalFile in startLibraryItemTrackDownload(item: item, position: position, track: track)
             }
             
-            let localLibraryItem = LocalLibraryItem(item: item, localUrl: documentsDirectory, server: Store.serverConfig!, files: files)
+            let localLibraryItem = LocalLibraryItem(item, localUrl: documentsDirectory, server: Store.serverConfig!, files: files)
             Database.shared.saveLocalLibraryItem(localLibraryItem: localLibraryItem)
         } else {
             NSLog("No audio tracks for the supplied library item")

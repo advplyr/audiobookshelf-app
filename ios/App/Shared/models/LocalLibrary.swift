@@ -25,34 +25,6 @@ class LocalLibraryItem: Object, Encodable {
     @Persisted var serverAddress: String? = nil
     @Persisted var serverUserId: String? = nil
     @Persisted var libraryItemId: String? = nil
-    
-    override init() {
-        super.init()
-    }
-    
-    init(item: LibraryItem, localUrl: URL, server: ServerConnectionConfig, files: [LocalFile]) {
-        super.init()
-        self.id = item.id
-        self.contentUrl = localUrl.absoluteString
-        self.mediaType = item.mediaType
-        self.media = LocalMediaType(mediaType: item.media)
-        self.localFiles.append(objectsIn: files)
-        // TODO: self.coverContentURL
-        // TODO: self.converAbsolutePath
-        self.libraryItemId = item.id
-        self.serverConnectionConfigId = server.id
-        self.serverAddress = server.address
-        self.serverUserId = server.userId
-    }
-    
-    enum CodingKeys: CodingKey {
-        case id
-    }
-    
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(id, forKey: .id)
-    }
 }
 
 class LocalMediaType: Object {
@@ -113,13 +85,10 @@ class LocalMetadata: Object {
     @Persisted var narratorName: String? = ""
     @Persisted var seriesName: String? = ""
     @Persisted var feedUrl: String? = ""
-    
-    override init() {
-        super.init()
-    }
-    
-    init(metadata: Metadata) {
-        super.init()
+}
+
+extension LocalMetadata {
+    convenience init(metadata: Metadata) {
         self.title = metadata.title
         self.subtitle = metadata.subtitle
         self.narrators.append(objectsIn: metadata.narrators ?? [])

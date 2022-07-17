@@ -37,6 +37,7 @@
 		A084ECDBA7D38E1E42DFC39D /* Pods_App.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AF277DCFFFF123FFC6DF26C7 /* Pods_App.framework */; };
 		C4B265F5285A5A6600E1B5C3 /* LocalLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4B265F4285A5A6600E1B5C3 /* LocalLibrary.swift */; };
 		C4D0677528106D0C00B8F875 /* DataClasses.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D0677428106D0C00B8F875 /* DataClasses.swift */; };
+		E99C8C932883A00F00E3279A /* LocalLibraryExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99C8C922883A00F00E3279A /* LocalLibraryExtensions.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -74,6 +75,7 @@
 		AF51FD2D460BCFE21FA515B2 /* Pods-App.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-App.release.xcconfig"; path = "Pods/Target Support Files/Pods-App/Pods-App.release.xcconfig"; sourceTree = "<group>"; };
 		C4B265F4285A5A6600E1B5C3 /* LocalLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalLibrary.swift; sourceTree = "<group>"; };
 		C4D0677428106D0C00B8F875 /* DataClasses.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataClasses.swift; sourceTree = "<group>"; };
+		E99C8C922883A00F00E3279A /* LocalLibraryExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalLibraryExtensions.swift; sourceTree = "<group>"; };
 		FC68EB0AF532CFC21C3344DD /* Pods-App.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-App.debug.xcconfig"; path = "Pods/Target Support Files/Pods-App/Pods-App.debug.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -138,6 +140,7 @@
 				3ABF580828059BAE005DFBE5 /* PlaybackSession.swift */,
 				C4D0677428106D0C00B8F875 /* DataClasses.swift */,
 				C4B265F4285A5A6600E1B5C3 /* LocalLibrary.swift */,
+				E99C8C922883A00F00E3279A /* LocalLibraryExtensions.swift */,
 				3A90295E280968E700E1D427 /* PlaybackReport.swift */,
 				4DF74911287105C600AC7814 /* DeviceSettings.swift */,
 			);
@@ -338,6 +341,7 @@
 				C4D0677528106D0C00B8F875 /* DataClasses.swift in Sources */,
 				4D66B954282EE87C008272D4 /* AbsDownloader.swift in Sources */,
 				3AB34055280832720039308B /* PlayerEvents.swift in Sources */,
+				E99C8C932883A00F00E3279A /* LocalLibraryExtensions.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
