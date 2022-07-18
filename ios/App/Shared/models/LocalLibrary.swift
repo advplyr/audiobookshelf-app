@@ -10,7 +10,7 @@ import RealmSwift
 
 
 class LocalLibraryItem: Object, Encodable {
-    @Persisted(primaryKey: true) var id: String
+    @Persisted(primaryKey: true) var id: String = UUID().uuidString
     @Persisted var basePath: String = ""
     @Persisted var absolutePath: String = ""
     @Persisted var contentUrl: String
@@ -27,7 +27,7 @@ class LocalLibraryItem: Object, Encodable {
     @Persisted var libraryItemId: String? = nil
 }
 
-class LocalMediaType: Object {
+class LocalMediaType: Object, Encodable {
     @Persisted var libraryItemId: String? = ""
     @Persisted var metadata: LocalMetadata?
     @Persisted var coverPath: String? = ""
@@ -39,34 +39,9 @@ class LocalMediaType: Object {
     @Persisted var duration: Double? = nil
     @Persisted var episodes: List<LocalPodcastEpisode>
     @Persisted var autoDownloadEpisodes: Bool? = nil
-    
-    override init() {
-        super.init()
-    }
-    
-    init(mediaType: MediaType) {
-        super.init()
-        self.libraryItemId = mediaType.libraryItemId
-        self.metadata = LocalMetadata(metadata: mediaType.metadata)
-        // TODO: self.coverPath
-        self.tags.append(objectsIn: mediaType.tags ?? [])
-        self.audioFiles.append(objectsIn: mediaType.audioFiles!.enumerated().map() {
-            i, audioFile -> LocalAudioFile in LocalAudioFile(audioFile: audioFile)
-        })
-        self.chapters.append(objectsIn: mediaType.chapters!.enumerated().map() {
-            i, chapter -> LocalChapter in LocalChapter(chapter: chapter)
-        })
-        self.tracks.append(objectsIn: mediaType.tracks!.enumerated().map() {
-            i, track in LocalAudioTrack(track: track)
-        })
-        self.size = mediaType.size
-        self.duration = mediaType.duration
-        // TODO: self.episodes
-        self.autoDownloadEpisodes = mediaType.autoDownloadEpisodes
-    }
 }
 
-class LocalMetadata: Object {
+class LocalMetadata: Object, Encodable {
     @Persisted var title: String
     @Persisted var subtitle: String? = ""
     @Persisted var authors: List<LocalAuthor>
@@ -87,30 +62,8 @@ class LocalMetadata: Object {
     @Persisted var feedUrl: String? = ""
 }
 
-extension LocalMetadata {
-    convenience init(metadata: Metadata) {
-        self.title = metadata.title
-        self.subtitle = metadata.subtitle
-        self.narrators.append(objectsIn: metadata.narrators ?? [])
-        self.genres.append(objectsIn: metadata.genres)
-        self.publishedYear = metadata.publishedYear
-        self.publishedDate = metadata.publishedDate
-        self.publisher = metadata.publisher
-        self.desc = metadata.description
-        self.isbn = metadata.isbn
-        self.asin = metadata.asin
-        self.language = metadata.language
-        self.explicit = metadata.explicit
-        self.authorName = metadata.authorName
-        self.authorNameLF = metadata.authorNameLF
-        self.narratorName = metadata.narratorName
-        self.seriesName = metadata.seriesName
-        self.feedUrl = metadata.feedUrl
-    }
-}
-
-class LocalPodcastEpisode: Object {
-    @Persisted var id: String
+class LocalPodcastEpisode: Object, Encodable {
+    @Persisted var id: String = UUID().uuidString
     @Persisted var index: Int
     @Persisted var episode: String? = ""
     @Persisted var episodeType: String? = ""
@@ -121,51 +74,29 @@ class LocalPodcastEpisode: Object {
     @Persisted var audioTrack: LocalAudioTrack? = nil
     @Persisted var duration: Double
     @Persisted var size: Int64
-//    @Persisted var serverEpisodeId: String?
+    @Persisted var serverEpisodeId: String?
 }
 
-class LocalAudioFile: Object {
+class LocalAudioFile: Object, Encodable {
     @Persisted var index: Int
     @Persisted var ino: String
     @Persisted var metadata: LocalFileMetadata?
-    
-    override init() {
-        super.init()
-    }
-    
-    init(audioFile: AudioFile) {
-        self.index = audioFile.index
-        self.ino = audioFile.ino
-        // TODO: self.metadata
-    }
 }
 
-class LocalAuthor: Object {
-    @Persisted var id: String
+class LocalAuthor: Object, Encodable {
+    @Persisted var id: String = UUID().uuidString
     @Persisted var name: String
     @Persisted var coverPath: String? = ""
 }
 
-class LocalChapter: Object {
+class LocalChapter: Object, Encodable {
     @Persisted var id: Int
     @Persisted var start: Double
     @Persisted var end: Double
     @Persisted var title: String? = nil
-    
-    override init() {
-        super.init()
-    }
-    
-    init(chapter: Chapter) {
-        super.init()
-        self.id = chapter.id
-        self.start = chapter.start
-        self.end = chapter.end
-        self.title = chapter.title
-    }
 }
 
-class LocalAudioTrack: Object {
+class LocalAudioTrack: Object, Encodable {
     @Persisted var index: Int? = nil
     @Persisted var startOffset: Double? = nil
     @Persisted var duration: Double
@@ -176,33 +107,17 @@ class LocalAudioTrack: Object {
     @Persisted var isLocal: Bool = true
     @Persisted var localFileId: String? = ""
     @Persisted var serverIndex: Int? = nil
-    
-    override init() {
-        super.init()
-    }
-    
-    init(track: AudioTrack) {
-        self.index = track.index
-        self.startOffset = track.startOffset
-        self.duration = track.duration
-        self.title = track.title
-        self.contentUrl = track.contentUrl // TODO: Different URL
-        self.mimeType = track.mimeType
-        // TODO: self.metadata
-        // TODO: self.localFileId
-        self.serverIndex = track.serverIndex
-    }
 }
 
-class LocalFileMetadata: Object {
+class LocalFileMetadata: Object, Encodable {
     @Persisted var filename: String
     @Persisted var ext: String
     @Persisted var path: String
     @Persisted var relPath: String
 }
 
-class LocalFile: Object {
-    @Persisted var id: String
+class LocalFile: Object, Encodable {
+    @Persisted var id: String = UUID().uuidString
     @Persisted var filename: String? = ""
     @Persisted var contentUrl: String
     @Persisted var basePath: String
@@ -210,24 +125,10 @@ class LocalFile: Object {
     @Persisted var simplePath: String
     @Persisted var mimeType: String? = ""
     @Persisted var size: Int64
-    
-    override init() {
-        super.init()
-    }
-    
-    init(filename: String, localUrl: URL) {
-        self.filename = filename
-        self.contentUrl = localUrl.absoluteString
-        // TODO: self.baseUrl
-        self.absolutePath = localUrl.absoluteString
-        self.simplePath = localUrl.path
-        // TODO: self.mimeType
-        // TODO: self.size
-    }
 }
 
-class LocalMediaProgress: Object {
-    @Persisted var id: String
+class LocalMediaProgress: Object, Encodable {
+    @Persisted var id: String = UUID().uuidString
     @Persisted var localLibraryItemId: String
     @Persisted var localEpisodeId: String? = ""
     @Persisted var duration: Double
