@@ -58,6 +58,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     fun onPlaybackFailed(errorMessage:String)
     fun onMediaPlayerChanged(mediaPlayer:String)
     fun onProgressSyncFailing()
+    fun onProgressSyncSuccess()
   }
 
   private val tag = "PlayerService"
@@ -720,6 +721,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   fun alertSyncFailing() {
     clientEventEmitter?.onProgressSyncFailing()
+  }
+
+  fun alertSyncSuccess() {
+    clientEventEmitter?.onProgressSyncSuccess()
   }
 
   //

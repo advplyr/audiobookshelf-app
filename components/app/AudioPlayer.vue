@@ -34,6 +34,10 @@
       <div class="cover-container bookCoverWrapper bg-black bg-opacity-75 w-full h-full">
         <covers-book-cover v-if="libraryItem || localLibraryItemCoverSrc" :library-item="libraryItem" :download-cover="localLibraryItemCoverSrc" :width="bookCoverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" />
       </div>
+
+      <div v-if="syncStatus === $constants.SyncStatus.FAILED" class="absolute top-0 left-0 w-full h-full flex items-center justify-center z-30">
+        <span class="material-icons text-error text-3xl">error</span>
+      </div>
     </div>
 
     <div class="title-author-texts absolute z-30 left-0 right-0 overflow-hidden" @click="clickTitleAndAuthor">
@@ -129,13 +133,16 @@ export default {
       onPlaybackClosedListener: null,
       onPlayingUpdateListener: null,
       onMetadataListener: null,
+      onProgressSyncFailing: null,
+      onProgressSyncSuccess: null,
       touchStartY: 0,
       touchStartTime: 0,
       touchEndY: 0,
       useChapterTrack: false,
       isLoading: false,
       touchTrackStart: false,
-      dragPercent: 0
+      dragPercent: 0,
+      syncStatus: 0
     }
   },
   watch: {
@@ -675,6 +682,7 @@ export default {
 
       this.isEnded = false
       this.isLoading = true
+      this.syncStatus = 0
       this.$store.commit('setPlayerItem', this.playbackSession)
 
       // Set track width
@@ -703,6 +711,8 @@ export default {
       this.onPlaybackFailedListener = AbsAudioPlayer.addListener('onPlaybackFailed', this.onPlaybackFailed)
       this.onPlayingUpdateListener = AbsAudioPlayer.addListener('onPlayingUpdate', this.onPlayingUpdate)
       this.onMetadataListener = AbsAudioPlayer.addListener('onMetadata', this.onMetadata)
+      this.onProgressSyncFailing = AbsAudioPlayer.addListener('onProgressSyncFailing', this.showProgressSyncIsFailing)
+      this.onProgressSyncSuccess = AbsAudioPlayer.addListener('onProgressSyncSuccess', this.showProgressSyncSuccess)
     },
     screenOrientationChange() {
       setTimeout(this.updateScreenSize, 50)
@@ -716,6 +726,12 @@ export default {
     minimizePlayerEvt() {
       console.log('Minimize Player Evt')
       this.showFullscreen = false
+    },
+    showProgressSyncIsFailing() {
+      this.syncStatus = this.$constants.SyncStatus.FAILED
+    },
+    showProgressSyncSuccess() {
+      this.syncStatus = this.$constants.SyncStatus.SUCCESS
     }
   },
   mounted() {
@@ -751,6 +767,8 @@ export default {
     if (this.onPlaybackSessionListener) this.onPlaybackSessionListener.remove()
     if (this.onPlaybackClosedListener) this.onPlaybackClosedListener.remove()
     if (this.onPlaybackFailedListener) this.onPlaybackFailedListener.remove()
+    if (this.onProgressSyncFailing) this.onProgressSyncFailing.remove()
+    if (this.onProgressSyncSuccess) this.onProgressSyncSuccess.remove()
     clearInterval(this.playInterval)
   }
 }

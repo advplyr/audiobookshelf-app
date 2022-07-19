@@ -80,6 +80,10 @@ class AbsAudioPlayer : Plugin() {
         override fun onProgressSyncFailing() {
           emit("onProgressSyncFailing", "")
         }
+
+        override fun onProgressSyncSuccess() {
+          emit("onProgressSyncSuccess", "")
+        }
       })
     }
     mainActivity.pluginCallback = foregroundServiceReady
