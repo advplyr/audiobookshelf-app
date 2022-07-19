@@ -16,6 +16,9 @@
       </template>
       <div v-else class="w-full">
         <form v-show="!showAuth" @submit.prevent="submit" novalidate class="w-full">
+          <div v-if="serverConnectionConfigs.length" class="flex items-center mb-4" @click="showServerList">
+            <span class="material-icons text-gray-300">arrow_back</span>
+          </div>
           <h2 class="text-lg leading-7 mb-2">Server address</h2>
           <ui-text-input v-model="serverConfig.address" :disabled="processing || !networkConnected || !!serverConfig.id" placeholder="http://55.55.55.55:13378" type="url" class="w-full h-10" />
           <div class="flex justify-end items-center mt-6">
@@ -273,7 +276,8 @@ export default {
         this.error = 'Invalid username'
         return
       }
-      const duplicateConfig = this.serverConnectionConfigs.find((scc) => scc.address === this.serverConfig.address && scc.username === this.serverConfig.username)
+
+      const duplicateConfig = this.serverConnectionConfigs.find((scc) => scc.address === this.serverConfig.address && scc.username === this.serverConfig.username && this.serverConfig.id !== scc.id)
       if (duplicateConfig) {
         this.error = 'Config already exists for this address and username'
         return
@@ -293,7 +297,7 @@ export default {
 
       console.log('Successfully logged in', JSON.stringify(user))
 
-      this.$store.commit('setServerSettings', data.serverSettings)
+      this.$store.commit('setServerSettings', serverSettings)
 
       // Set library - Use last library if set and available fallback to default user library
       var lastLibraryId = await this.$localStore.getLastLibraryId()
