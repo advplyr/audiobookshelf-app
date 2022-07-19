@@ -670,6 +670,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   fun closePlayback() {
     Log.d(tag, "closePlayback")
+    if (mediaProgressSyncer.listeningTimerRunning) {
+      Log.i(tag, "About to close playback so stopping media progress syncer first")
+      mediaProgressSyncer.stop()
+    }
+
     try {
       currentPlayer.stop()
       currentPlayer.clearMediaItems()
