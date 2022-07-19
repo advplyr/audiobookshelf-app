@@ -230,11 +230,15 @@ class ApiHandler(var ctx:Context) {
     }
   }
 
-  fun sendLocalProgressSync(playbackSession:PlaybackSession, cb: () -> Unit) {
+  fun sendLocalProgressSync(playbackSession:PlaybackSession, cb: (Boolean) -> Unit) {
     val payload = JSObject(jacksonMapper.writeValueAsString(playbackSession))
 
     postRequest("/api/session/local", payload) {
-      cb()
+      if (!it.getString("error").isNullOrEmpty()) {
+        cb(false)
+      } else {
+        cb(true)
+      }
     }
   }
 

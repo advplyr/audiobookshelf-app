@@ -152,7 +152,7 @@ export default {
       var payload = await this.authenticateToken()
 
       if (payload) {
-        this.setUserAndConnection(payload.user, payload.userDefaultLibraryId)
+        this.setUserAndConnection(payload)
       } else {
         this.showAuth = true
       }

@@ -109,11 +109,23 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
         // Local library item is linked to a server library item
         // Send sync to server also if connected to this server and local item belongs to this server
         if (!it.libraryItemId.isNullOrEmpty() && it.serverConnectionConfigId != null && DeviceManager.serverConnectionConfig?.id == it.serverConnectionConfigId) {
-          apiHandler.sendLocalProgressSync(it) {
+          apiHandler.sendLocalProgressSync(it) { syncSuccess ->
             Log.d(
               tag,
               "Local progress sync data sent to server $currentDisplayTitle for time $currentTime"
             )
+            if (syncSuccess) {
+              failedSyncs = 0
+              playerNotificationService.alertSyncSuccess()
+            } else {
+              failedSyncs++
+              if (failedSyncs == 2) {
+                playerNotificationService.alertSyncFailing() // Show alert in client
+                failedSyncs = 0
+              }
+              Log.e(tag, "Local Progress sync failed ($failedSyncs) to send to server $currentDisplayTitle for time $currentTime")
+            }
+
             cb()
           }
         } else {
@@ -125,13 +137,14 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
         if (it) {
           Log.d(tag, "Progress sync data sent to server $currentDisplayTitle for time $currentTime")
           failedSyncs = 0
+          playerNotificationService.alertSyncSuccess()
         } else {
           failedSyncs++
           if (failedSyncs == 2) {
             playerNotificationService.alertSyncFailing() // Show alert in client
             failedSyncs = 0
           }
-          Log.d(tag, "Progress sync failed ($failedSyncs) to send to server $currentDisplayTitle for time $currentTime")
+          Log.e(tag, "Progress sync failed ($failedSyncs) to send to server $currentDisplayTitle for time $currentTime")
         }
         cb()
       }
