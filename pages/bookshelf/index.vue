@@ -183,12 +183,10 @@ export default {
       })
     },
     initListeners() {
-      // this.$server.on('initialized', this.socketInit)
       this.$eventBus.$on('library-changed', this.libraryChanged)
       // this.$eventBus.$on('downloads-loaded', this.downloadsLoaded)
     },
     removeListeners() {
-      // this.$server.off('initialized', this.socketInit)
       this.$eventBus.$off('library-changed', this.libraryChanged)
       // this.$eventBus.$off('downloads-loaded', this.downloadsLoaded)
     }

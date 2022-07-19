@@ -80,9 +80,6 @@ class ServerSocket extends EventEmitter {
 
   onInit(data) {
     console.log('[SOCKET] Initial socket data received', data)
-    if (data.serverSettings) {
-      this.$store.commit('setServerSettings', data.serverSettings)
-    }
     this.emit('initialized', true)
   }
 

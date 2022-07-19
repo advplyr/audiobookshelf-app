@@ -285,13 +285,15 @@ export default {
       var payload = await this.requestServerLogin()
       this.processing = false
       if (payload) {
-        this.setUserAndConnection(payload.user, payload.userDefaultLibraryId)
+        this.setUserAndConnection(payload)
       }
     },
-    async setUserAndConnection(user, userDefaultLibraryId) {
+    async setUserAndConnection({ user, userDefaultLibraryId, serverSettings }) {
       if (!user) return
 
       console.log('Successfully logged in', JSON.stringify(user))
+
+      this.$store.commit('setServerSettings', data.serverSettings)
 
       // Set library - Use last library if set and available fallback to default user library
       var lastLibraryId = await this.$localStore.getLastLibraryId()

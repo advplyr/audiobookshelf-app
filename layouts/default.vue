@@ -154,9 +154,6 @@ export default {
     socketConnectionFailed(err) {
       this.$toast.error('Socket connection error: ' + err.message)
     },
-    socketInit(data) {
-      console.log('Socket init', data)
-    },
     async initLibraries() {
       if (this.inittingLibraries) {
         return
@@ -255,7 +252,6 @@ export default {
     }
   },
   async mounted() {
-    this.$socket.on('initialized', this.socketInit)
     this.$socket.on('user_updated', this.userUpdated)
     this.$socket.on('user_media_progress_updated', this.userMediaProgressUpdated)
 
@@ -283,7 +279,6 @@ export default {
     }
   },
   beforeDestroy() {
-    this.$socket.off('initialized', this.socketInit)
     this.$socket.off('user_updated', this.userUpdated)
     this.$socket.off('user_media_progress_updated', this.userMediaProgressUpdated)
   }
