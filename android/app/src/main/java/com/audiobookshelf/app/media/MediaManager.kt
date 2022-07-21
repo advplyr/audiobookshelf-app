@@ -236,32 +236,37 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
         serverConfigIdUsed = DeviceManager.serverConnectionConfigId
 
         loadLibraries { libraries ->
-          val library = libraries[0]
-          Log.d(tag, "Loading categories for library ${library.name} - ${library.id} - ${library.mediaType}")
+          if (libraries.isEmpty()) {
+            Log.w(tag, "No libraries returned from server request")
+            cb(cats) // Return download category only
+          } else {
+            val library = libraries[0]
+            Log.d(tag, "Loading categories for library ${library.name} - ${library.id} - ${library.mediaType}")
 
-          loadLibraryCategories(library.id) { libraryCategories ->
+            loadLibraryCategories(library.id) { libraryCategories ->
 
-            // Only using book or podcast library categories for now
-            libraryCategories.forEach {
+              // Only using book or podcast library categories for now
+              libraryCategories.forEach {
 
-              // Add items in continue listening to serverLibraryItems
-              if (it.id == "continue-listening") {
-                it.entities.forEach { libraryItemWrapper ->
-                  val libraryItem = libraryItemWrapper as LibraryItem
-                  if (serverLibraryItems.find { li -> li.id == libraryItem.id } == null) {
-                    serverLibraryItems.add(libraryItem)
+                // Add items in continue listening to serverLibraryItems
+                if (it.id == "continue-listening") {
+                  it.entities.forEach { libraryItemWrapper ->
+                    val libraryItem = libraryItemWrapper as LibraryItem
+                    if (serverLibraryItems.find { li -> li.id == libraryItem.id } == null) {
+                      serverLibraryItems.add(libraryItem)
+                    }
                   }
+                }
+
+                // Log.d(tag, "Found library category ${it.label} with type ${it.type}")
+                if (it.type == library.mediaType) {
+                  // Log.d(tag, "Using library category ${it.id}")
+                  cats.add(it)
                 }
               }
 
-              // Log.d(tag, "Found library category ${it.label} with type ${it.type}")
-              if (it.type == library.mediaType) {
-                // Log.d(tag, "Using library category ${it.id}")
-                cats.add(it)
-              }
+              cb(cats)
             }
-
-            cb(cats)
           }
         }
       } else { // Not connected/no internet sent downloaded cats only
