@@ -177,7 +177,21 @@ class AbsAudioPlayer : Plugin() {
         Handler(Looper.getMainLooper()).post {
           Log.d(tag, "prepareLibraryItem: Preparing Local Media item ${jacksonMapper.writeValueAsString(it)}")
           val playbackSession = it.getPlaybackSession(episode)
-          playerNotificationService.preparePlayer(playbackSession, playWhenReady, playbackRate)
+
+          if (playerNotificationService.mediaProgressSyncer.listeningTimerRunning) { // If progress syncing then first stop before preparing next
+            playerNotificationService.mediaProgressSyncer.stop {
+              Log.d(tag, "Media progress syncer was already syncing - stopped")
+              Handler(Looper.getMainLooper()).post { // TODO: This was needed again which is probably a design a flaw
+                playerNotificationService.preparePlayer(
+                  playbackSession,
+                  playWhenReady,
+                  playbackRate
+                )
+              }
+            }
+          } else {
+            playerNotificationService.preparePlayer(playbackSession, playWhenReady, playbackRate)
+          }
         }
         return call.resolve(JSObject())
       }
@@ -188,9 +202,20 @@ class AbsAudioPlayer : Plugin() {
         if (it == null) {
           call.resolve(JSObject("{\"error\":\"Server play request failed\"}"))
         } else {
+
           Handler(Looper.getMainLooper()).post {
-            Log.d(tag, "Preparing Player TEST ${jacksonMapper.writeValueAsString(it)}")
-            playerNotificationService.preparePlayer(it, playWhenReady, playbackRate)
+            Log.d(tag, "Preparing Player playback session ${jacksonMapper.writeValueAsString(it)}")
+
+            if (playerNotificationService.mediaProgressSyncer.listeningTimerRunning) { // If progress syncing then first stop before preparing next
+              playerNotificationService.mediaProgressSyncer.stop {
+                Log.d(tag, "Media progress syncer was already syncing - stopped")
+                Handler(Looper.getMainLooper()).post { // TODO: This was needed again which is probably a design a flaw
+                  playerNotificationService.preparePlayer(it, playWhenReady, playbackRate)
+                }
+              }
+            } else {
+              playerNotificationService.preparePlayer(it, playWhenReady, playbackRate)
+            }
           }
 
           call.resolve(JSObject(jacksonMapper.writeValueAsString(it)))

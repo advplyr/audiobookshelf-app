@@ -46,7 +46,10 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
       } else {
         return
       }
+    } else if (playerNotificationService.getCurrentPlaybackSessionId() != currentSessionId) {
+      currentLocalMediaProgress = null
     }
+
     listeningTimerRunning = true
     lastSyncTime = System.currentTimeMillis()
     currentPlaybackSession = playerNotificationService.getCurrentPlaybackSessionCopy()
@@ -63,13 +66,30 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
     }
   }
 
-  fun stop() {
+  fun stop(cb: () -> Unit) {
     if (!listeningTimerRunning) return
     Log.d(tag, "stop: Stopping listening for $currentDisplayTitle")
 
     val currentTime = playerNotificationService.getCurrentTimeSeconds()
     sync(currentTime) {
       reset()
+      cb()
+    }
+  }
+
+  fun pause(cb: () -> Unit) {
+    if (!listeningTimerRunning) return
+    Log.d(tag, "pause: Pausing progress syncer for $currentDisplayTitle")
+
+    val currentTime = playerNotificationService.getCurrentTimeSeconds()
+    sync(currentTime) {
+      listeningTimerTask?.cancel()
+      listeningTimerTask = null
+      listeningTimerRunning = false
+      lastSyncTime = 0L
+      failedSyncs = 0
+
+      cb()
     }
   }
 
@@ -77,7 +97,6 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
     currentPlaybackSession?.let {
       it.updatedAt = mediaProgress.lastUpdate
       it.currentTime = mediaProgress.currentTime
-
       DeviceManager.dbManager.saveLocalPlaybackSession(it)
       saveLocalProgress(it)
     }

@@ -550,10 +550,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   // Called from PlayerListener play event
   // check with server if progress has updated since last play and sync progress update
-  fun checkCurrentSessionProgress():Boolean {
+  fun checkCurrentSessionProgress(seekBackTime:Long):Boolean {
     if (currentPlaybackSession == null) return true
 
-    currentPlaybackSession?.let { playbackSession ->
+    mediaProgressSyncer.currentPlaybackSession?.let { playbackSession ->
       if (!apiHandler.isOnline() || playbackSession.isLocalLibraryItemOnly) {
         return true // carry on
       }
@@ -575,16 +575,28 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
             Log.d(tag, "checkCurrentSessionProgress: Media progress was updated since last play time updating from ${playbackSession.currentTime} to ${mediaProgress.currentTime}")
             mediaProgressSyncer.syncFromServerProgress(mediaProgress)
 
+            // Update current playback session stored in PNS since MediaProgressSyncer version is a copy
+            mediaProgressSyncer.currentPlaybackSession?.let { updatedPlaybackSession ->
+              currentPlaybackSession = updatedPlaybackSession
+            }
+
             Handler(Looper.getMainLooper()).post {
               seekPlayer(playbackSession.currentTimeMs)
+              // Should already be playing
+              currentPlayer.volume = 1F // Volume on sleep timer might have decreased this
+              mediaProgressSyncer.start()
+              clientEventEmitter?.onPlayingUpdate(true)
             }
-          }
-
-          Handler(Looper.getMainLooper()).post {
-            // Should already be playing
-            currentPlayer.volume = 1F // Volume on sleep timer might have decreased this
-            mediaProgressSyncer.start()
-            clientEventEmitter?.onPlayingUpdate(true)
+          } else {
+            Handler(Looper.getMainLooper()).post {
+              if (seekBackTime > 0L) {
+                seekBackward(seekBackTime)
+              }
+              // Should already be playing
+              currentPlayer.volume = 1F // Volume on sleep timer might have decreased this
+              mediaProgressSyncer.start()
+              clientEventEmitter?.onPlayingUpdate(true)
+            }
           }
         }
       } else {
@@ -607,6 +619,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
           } else {
               Log.d(tag, "checkCurrentSessionProgress: Playback session still available on server")
               Handler(Looper.getMainLooper()).post {
+                if (seekBackTime > 0L) {
+                  seekBackward(seekBackTime)
+                }
+
                 currentPlayer.volume = 1F // Volume on sleep timer might have decreased this
                 mediaProgressSyncer.start()
                 clientEventEmitter?.onPlayingUpdate(true)
@@ -673,7 +689,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     Log.d(tag, "closePlayback")
     if (mediaProgressSyncer.listeningTimerRunning) {
       Log.i(tag, "About to close playback so stopping media progress syncer first")
-      mediaProgressSyncer.stop()
+      mediaProgressSyncer.stop {
+        Log.d(tag, "Media Progress syncer stopped and synced")
+      }
     }
 
     try {
