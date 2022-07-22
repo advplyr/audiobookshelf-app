@@ -6,6 +6,10 @@ import android.content.Intent
 import android.graphics.Color
 import android.hardware.Sensor
 import android.hardware.SensorManager
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.os.*
 import android.support.v4.media.MediaBrowserCompat
 import android.support.v4.media.MediaDescriptionCompat
@@ -45,6 +49,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   companion object {
     var isStarted = false
     var isClosed = false
+    var isUnmeteredNetwork = false
   }
 
   interface ClientEventEmitter {
@@ -59,6 +64,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     fun onMediaPlayerChanged(mediaPlayer:String)
     fun onProgressSyncFailing()
     fun onProgressSyncSuccess()
+    fun onNetworkMeteredChanged(isUnmetered:Boolean)
   }
 
   private val tag = "PlayerService"
@@ -163,6 +169,15 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     Log.d(tag, "onCreate")
     super.onCreate()
     ctx = this
+
+    // To listen for network change from metered to unmetered
+    val networkRequest = NetworkRequest.Builder()
+      .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+      .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+      .addTransportType(NetworkCapabilities.TRANSPORT_CELLULAR)
+      .build()
+    val connectivityManager = getSystemService(ConnectivityManager::class.java) as ConnectivityManager
+    connectivityManager.registerNetworkCallback(networkRequest, networkCallback)
 
     DbManager.initialize(ctx)
 
@@ -912,6 +927,20 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         mSensorManager!!.unregisterListener(mShakeDetector)
         isShakeSensorRegistered = false
       }
+    }
+  }
+
+  private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+    // Network capabilities have changed for the network
+    override fun onCapabilitiesChanged(
+      network: Network,
+      networkCapabilities: NetworkCapabilities
+    ) {
+      super.onCapabilitiesChanged(network, networkCapabilities)
+      val unmetered = networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+      Log.i(tag, "Network capabilities changed is unmetered = $unmetered")
+      isUnmeteredNetwork = unmetered
+      clientEventEmitter?.onNetworkMeteredChanged(unmetered)
     }
   }
 }

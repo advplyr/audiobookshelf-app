@@ -19,6 +19,7 @@ data class MediaProgressSyncData(
 
 class MediaProgressSyncer(val playerNotificationService:PlayerNotificationService, private val apiHandler: ApiHandler) {
   private val tag = "MediaProgressSync"
+  private val METERED_CONNECTION_SYNC_INTERVAL = 60000
 
   private var listeningTimerTask: TimerTask? = null
   var listeningTimerRunning:Boolean = false
@@ -57,8 +58,11 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
     listeningTimerTask = Timer("ListeningTimer", false).schedule(0L, 5000L) {
       Handler(Looper.getMainLooper()).post() {
         if (playerNotificationService.currentPlayer.isPlaying) {
+          // Only sync with server on unmetered connection every 5s OR sync with server if last sync time is >= 60s
+          val shouldSyncServer = PlayerNotificationService.isUnmeteredNetwork || System.currentTimeMillis() - lastSyncTime >= METERED_CONNECTION_SYNC_INTERVAL
+
           val currentTime = playerNotificationService.getCurrentTimeSeconds()
-          sync(currentTime) {
+          sync(shouldSyncServer, currentTime) {
             Log.d(tag, "Sync complete")
           }
         }
@@ -71,7 +75,7 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
     Log.d(tag, "stop: Stopping listening for $currentDisplayTitle")
 
     val currentTime = playerNotificationService.getCurrentTimeSeconds()
-    sync(currentTime) {
+    sync(true, currentTime) {
       reset()
       cb()
     }
@@ -82,7 +86,7 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
     Log.d(tag, "pause: Pausing progress syncer for $currentDisplayTitle")
 
     val currentTime = playerNotificationService.getCurrentTimeSeconds()
-    sync(currentTime) {
+    sync(true, currentTime) {
       listeningTimerTask?.cancel()
       listeningTimerTask = null
       listeningTimerRunning = false
@@ -102,13 +106,12 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
     }
   }
 
-  fun sync(currentTime:Double, cb: () -> Unit) {
+  fun sync(shouldSyncServer:Boolean, currentTime:Double, cb: () -> Unit) {
     val diffSinceLastSync = System.currentTimeMillis() - lastSyncTime
     if (diffSinceLastSync < 1000L) {
       return cb()
     }
     val listeningTimeToAdd = diffSinceLastSync / 1000L
-    lastSyncTime = System.currentTimeMillis()
 
     val syncData = MediaProgressSyncData(listeningTimeToAdd,currentPlaybackDuration,currentTime)
 
@@ -124,10 +127,11 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
       currentPlaybackSession?.let {
         DeviceManager.dbManager.saveLocalPlaybackSession(it)
         saveLocalProgress(it)
+        lastSyncTime = System.currentTimeMillis()
 
         // Local library item is linked to a server library item
         // Send sync to server also if connected to this server and local item belongs to this server
-        if (!it.libraryItemId.isNullOrEmpty() && it.serverConnectionConfigId != null && DeviceManager.serverConnectionConfig?.id == it.serverConnectionConfigId) {
+        if (shouldSyncServer && !it.libraryItemId.isNullOrEmpty() && it.serverConnectionConfigId != null && DeviceManager.serverConnectionConfig?.id == it.serverConnectionConfigId) {
           apiHandler.sendLocalProgressSync(it) { syncSuccess ->
             Log.d(
               tag,
@@ -151,12 +155,13 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
           cb()
         }
       }
-    } else {
+    } else if (shouldSyncServer) {
       apiHandler.sendProgressSync(currentSessionId, syncData) {
         if (it) {
           Log.d(tag, "Progress sync data sent to server $currentDisplayTitle for time $currentTime")
           failedSyncs = 0
           playerNotificationService.alertSyncSuccess()
+          lastSyncTime = System.currentTimeMillis()
         } else {
           failedSyncs++
           if (failedSyncs == 2) {
@@ -167,6 +172,8 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
         }
         cb()
       }
+    } else {
+      cb()
     }
   }
 

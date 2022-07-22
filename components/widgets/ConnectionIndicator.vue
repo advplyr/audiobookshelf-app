@@ -24,6 +24,9 @@ export default {
     networkConnectionType() {
       return this.$store.state.networkConnectionType
     },
+    isNetworkUnmetered() {
+      return this.$store.state.isNetworkUnmetered
+    },
     isCellular() {
       return this.networkConnectionType === 'cellular'
     },
@@ -43,6 +46,7 @@ export default {
     iconClass() {
       if (!this.networkConnected) return 'text-error'
       else if (!this.socketConnected) return 'text-warning'
+      else if (!this.isNetworkUnmetered) return 'text-yellow-400'
       else if (this.isCellular) return 'text-gray-200'
       else return 'text-success'
     }
@@ -50,14 +54,15 @@ export default {
   methods: {
     showAlertDialog() {
       var msg = ''
+      var meteredString = this.isNetworkUnmetered ? 'unmetered' : 'metered'
       if (!this.networkConnected) {
         msg = 'No internet'
       } else if (!this.socketConnected) {
         msg = 'Socket not connected'
       } else if (this.isCellular) {
-        msg = 'Socket connected over cellular'
+        msg = `Socket connected over ${meteredString} cellular`
       } else {
-        msg = 'Socket connected over wifi'
+        msg = `Socket connected over ${meteredString} wifi`
       }
       Dialog.alert({
         title: 'Connection Status',
