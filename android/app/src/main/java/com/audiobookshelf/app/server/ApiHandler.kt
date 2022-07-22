@@ -79,6 +79,12 @@ class ApiHandler(var ctx:Context) {
     return false
   }
 
+  fun isUsingCellularData(): Boolean {
+    val connectivityManager = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    val capabilities = connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
+    return capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true
+  }
+
   fun makeRequest(request:Request, httpClient:OkHttpClient?, cb: (JSObject) -> Unit) {
     val client = httpClient ?: defaultClient
     client.newCall(request).enqueue(object : Callback {

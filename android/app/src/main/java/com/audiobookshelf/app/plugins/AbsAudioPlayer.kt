@@ -84,6 +84,10 @@ class AbsAudioPlayer : Plugin() {
         override fun onProgressSyncSuccess() {
           emit("onProgressSyncSuccess", "")
         }
+
+        override fun onNetworkMeteredChanged(isUnmetered:Boolean) {
+          emit("onNetworkMeteredChanged", isUnmetered)
+        }
       })
     }
     mainActivity.pluginCallback = foregroundServiceReady

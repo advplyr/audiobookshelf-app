@@ -1,4 +1,5 @@
 import { Network } from '@capacitor/network'
+import { AbsAudioPlayer } from '@/plugins/capacitor'
 
 export const state = () => ({
   deviceData: null,
@@ -12,6 +13,7 @@ export const state = () => ({
   socketConnected: false,
   networkConnected: false,
   networkConnectionType: null,
+  isNetworkUnmetered: true,
   isFirstLoad: true,
   hasStoragePermission: false,
   selectedLibraryItem: null,
@@ -61,6 +63,12 @@ export const actions = {
     Network.addListener('networkStatusChange', (status) => {
       console.log('Network status changed', status.connected, status.connectionType)
       commit('setNetworkStatus', status)
+    })
+
+    AbsAudioPlayer.addListener('onNetworkMeteredChanged', (payload) => {
+      const isUnmetered = payload.value
+      console.log('On network metered changed', isUnmetered)
+      commit('setIsNetworkUnmetered', isUnmetered)
     })
   }
 }
@@ -113,6 +121,9 @@ export const mutations = {
   setNetworkStatus(state, val) {
     state.networkConnected = val.connected
     state.networkConnectionType = val.connectionType
+  },
+  setIsNetworkUnmetered(state, val) {
+    state.isNetworkUnmetered = val
   },
   openReader(state, libraryItem) {
     state.selectedLibraryItem = libraryItem
