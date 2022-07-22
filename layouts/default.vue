@@ -109,7 +109,7 @@ export default {
 
       console.log(`[default] Got server config, attempt authorize ${serverConfig.address}`)
 
-      var authRes = await this.$axios.$post(`${serverConfig.address}/api/authorize`, null, { headers: { Authorization: `Bearer ${serverConfig.token}` } }).catch((error) => {
+      var authRes = await this.$axios.$post(`${serverConfig.address}/api/authorize`, null, { headers: { Authorization: `Bearer ${serverConfig.token}` }, timeout: 3000 }).catch((error) => {
         console.error('[Server] Server auth failed', error)
         var errorMsg = error.response ? error.response.data || 'Unknown Error' : 'Unknown Error'
         this.error = errorMsg
@@ -263,6 +263,8 @@ export default {
 
       await this.$store.dispatch('setupNetworkListener')
 
+      await this.$store.dispatch('globals/loadLocalMediaProgress')
+
       if (this.$store.state.user.serverConnectionConfig) {
         console.log(`[default] server connection config set - call init libraries`)
         await this.initLibraries()
@@ -273,7 +275,7 @@ export default {
 
       console.log(`[default] finished connection attempt or already connected ${!!this.user}`)
       await this.syncLocalMediaProgress()
-      this.$store.dispatch('globals/loadLocalMediaProgress')
+
       this.loadSavedSettings()
       this.hasMounted = true
     }
