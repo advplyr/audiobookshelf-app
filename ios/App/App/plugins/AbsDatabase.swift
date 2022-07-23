@@ -75,7 +75,13 @@ public class AbsDatabase: CAPPlugin {
     }
     
     @objc func getLocalLibraryItems(_ call: CAPPluginCall) {
-        call.resolve([ "value": [] ])
+        do {
+            let items = Database.shared.getLocalLibraryItems()
+            call.resolve([ "value": try items.asDictionaryArray() ])
+        } catch(let exception) {
+            NSLog("error while readling local library items")
+            debugPrint(exception)
+        }
     }
     @objc func getLocalLibraryItem(_ call: CAPPluginCall) {
         call.resolve()

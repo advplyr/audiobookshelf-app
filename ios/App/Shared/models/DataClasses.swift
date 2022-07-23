@@ -2,11 +2,12 @@
 //  DataClasses.swift
 //  App
 //
-//  Created by Benonymity on 4/20/22.
+//  Created by benonymity on 4/20/22.
 //
 
 import Foundation
 import CoreMedia
+import RealmSwift
 
 struct LibraryItem: Codable {
     var id: String
@@ -28,14 +29,15 @@ struct LibraryItem: Codable {
     var mediaType: String
     var media: MediaType
     var libraryFiles: [LibraryFile]
-    var userMediaProgress:MediaProgress?
+    var userMediaProgress: MediaProgress?
 }
+
 struct MediaType: Codable {
     var libraryItemId: String?
     var metadata: Metadata
     var coverPath: String?
     var tags: [String]?
-    var audioFiles: [AudioTrack]?
+    var audioFiles: [AudioFile]?
     var chapters: [Chapter]?
     var tracks: [AudioTrack]?
     var size: Int64?
@@ -43,6 +45,7 @@ struct MediaType: Codable {
     var episodes: [PodcastEpisode]?
     var autoDownloadEpisodes: Bool?
 }
+
 struct Metadata: Codable {
     var title: String
     var subtitle: String?
@@ -63,6 +66,7 @@ struct Metadata: Codable {
     var seriesName: String?
     var feedUrl: String?
 }
+
 struct PodcastEpisode: Codable {
     var id: String
     var index: Int
@@ -77,22 +81,26 @@ struct PodcastEpisode: Codable {
     var size: Int64
 //    var serverEpisodeId: String?
 }
+
 struct AudioFile: Codable {
     var index: Int
     var ino: String
     var metadata: FileMetadata
 }
+
 struct Author: Codable {
     var id: String
     var name: String
     var coverPath: String?
 }
+
 struct Chapter: Codable {
     var id: Int
     var start: Double
     var end: Double
     var title: String?
 }
+
 struct AudioTrack: Codable {
     var index: Int?
     var startOffset: Double?
@@ -106,12 +114,14 @@ struct AudioTrack: Codable {
     // var audioProbeResult: AudioProbeResult? Needed for local playback
     var serverIndex: Int?
 }
+
 struct FileMetadata: Codable {
     var filename: String
     var ext: String
     var path: String
     var relPath: String
 }
+
 struct Library: Codable {
     var id: String
     var name: String
@@ -119,14 +129,17 @@ struct Library: Codable {
     var icon: String
     var mediaType: String
 }
+
 struct Folder: Codable {
     var id: String
     var fullPath: String
 }
+
 struct LibraryFile: Codable {
     var ino: String
     var metadata: FileMetadata
 }
+
 struct MediaProgress:Codable {
     var id:String
     var libraryItemId:String
@@ -138,4 +151,17 @@ struct MediaProgress:Codable {
     var lastUpdate:Int64
     var startedAt:Int64
     var finishedAt:Int64?
+}
+
+struct PlaybackMetadata: Codable {
+    var duration: Double
+    var currentTime: Double
+    var playerState: PlayerState
+}
+
+enum PlayerState: Codable {
+    case IDLE
+    case BUFFERING
+    case READY
+    case ENDED
 }
