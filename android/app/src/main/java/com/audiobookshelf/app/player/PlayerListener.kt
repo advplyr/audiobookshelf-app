@@ -118,6 +118,8 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
       }
 
       playerNotificationService.clientEventEmitter?.onPlayingUpdate(player.isPlaying)
+
+      DeviceManager.widgetUpdater?.onPlayerChanged(playerNotificationService)
     }
   }
 

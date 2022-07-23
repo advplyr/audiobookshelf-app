@@ -21,7 +21,11 @@ kotlin {
 }
 
 android {
-    kotlinOptions {
+
+  buildFeatures {
+    viewBinding true
+  }
+  kotlinOptions {
       freeCompilerArgs = ['-Xjvm-default=all']
     }
     compileSdkVersion rootProject.ext.compileSdkVersion
