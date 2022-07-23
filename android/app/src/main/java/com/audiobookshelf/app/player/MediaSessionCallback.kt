@@ -132,8 +132,25 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
   }
 
   fun handleCallMediaButton(intent: Intent): Boolean {
+    Log.w(tag, "handleCallMediaButton $intent | ${intent.action}")
+
     if(Intent.ACTION_MEDIA_BUTTON == intent.action) {
       val keyEvent = intent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
+      Log.d(tag, "handleCallMediaButton keyEvent = $keyEvent | action ${keyEvent?.action}")
+
+      if (keyEvent?.action == KeyEvent.ACTION_DOWN) {
+        Log.d(tag, "handleCallMediaButton: key action_down for ${keyEvent.keyCode}")
+        when (keyEvent.keyCode) {
+          KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
+            Log.d(tag, "handleCallMediaButton: Media Play/Pause")
+            if (playerNotificationService.mPlayer.isPlaying) {
+              playerNotificationService.pause()
+            } else {
+              playerNotificationService.play()
+            }
+          }
+        }
+      }
 
       if (keyEvent?.action == KeyEvent.ACTION_UP) {
         Log.d(tag, "handleCallMediaButton: key action_up for ${keyEvent.keyCode}")

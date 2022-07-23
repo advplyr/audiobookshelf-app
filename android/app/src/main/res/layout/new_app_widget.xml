@@ -1,0 +1,26 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:app="http://schemas.android.com/apk/res-auto"
+  style="@style/Widget.Android.AppWidget.Container"
+    android:id="@+id/appWidget"
+    android:theme="@style/AppTheme.AppWidgetContainer"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+  <ImageView
+    android:id="@+id/imageView"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layout_centerInParent="true"
+    android:adjustViewBounds="true"
+    android:alpha="0.75"
+    android:contentDescription="Cover image"
+    android:visibility="visible" />
+
+  <ImageView
+    android:id="@+id/playPauseIcon"
+    android:layout_width="71dp"
+    android:layout_height="55dp"
+    android:layout_centerInParent="true"
+    app:srcCompat="@drawable/cast_ic_expanded_controller_play" />
+
+</RelativeLayout>
