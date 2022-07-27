@@ -47,6 +47,10 @@ export const getters = {
   getJumpBackwardsTime: state => {
     if (!state.deviceData || !state.deviceData.deviceSettings) return 10
     return state.deviceData.deviceSettings.jumpBackwardsTime || 10
+  },
+  getAltViewEnabled: state => {
+    if (!state.deviceData || !state.deviceData.deviceSettings) return false
+    return state.deviceData.deviceSettings.enableAltView
   }
 }
 
