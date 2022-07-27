@@ -18,6 +18,7 @@ data class ServerConnectionConfig(
 
 data class DeviceSettings(
   var disableAutoRewind:Boolean,
+  var enableAltView:Boolean,
   var jumpBackwardsTime:Int,
   var jumpForwardTime:Int
 ) {

@@ -6,6 +6,12 @@
       </div>
       <p class="pl-4">Disable Auto Rewind</p>
     </div>
+    <div class="flex items-center py-3" @click="toggleEnableAltView">
+      <div class="w-10 flex justify-center">
+        <ui-toggle-switch v-model="settings.enableAltView" @input="saveSettings" />
+      </div>
+      <p class="pl-4">Alternative Bookshelf View</p>
+    </div>
     <div class="flex items-center py-3" @click="toggleJumpBackwards">
       <div class="w-10 flex justify-center">
         <span class="material-icons text-4xl">{{ currentJumpBackwardsTimeIcon }}</span>
@@ -28,6 +34,7 @@ export default {
       deviceData: null,
       settings: {
         disableAutoRewind: false,
+        enableAltView: false,
         jumpForwardTime: 10,
         jumpBackwardsTime: 10
       }
@@ -60,6 +67,10 @@ export default {
       this.settings.disableAutoRewind = !this.settings.disableAutoRewind
       this.saveSettings()
     },
+    toggleEnableAltView() {
+      this.settings.enableAltView = !this.settings.enableAltView
+      this.saveSettings()
+    },
     toggleJumpForward() {
       var next = (this.currentJumpForwardTimeIndex + 1) % 3
       this.settings.jumpForwardTime = this.jumpForwardItems[next].value
@@ -85,6 +96,7 @@ export default {
 
       const deviceSettings = this.deviceData.deviceSettings || {}
       this.settings.disableAutoRewind = !!deviceSettings.disableAutoRewind
+      this.settings.enableAltView = !!deviceSettings.enableAltView
       this.settings.jumpForwardTime = deviceSettings.jumpForwardTime || 10
       this.settings.jumpBackwardsTime = deviceSettings.jumpBackwardsTime || 10
     }

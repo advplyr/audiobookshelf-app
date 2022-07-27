@@ -86,6 +86,11 @@ sw.*
 # macOS
 .DS_Store
 
+# xCode
+*.pbxproj
+ios/app/Podfile
+
+
 # Vim swap files
 *.swp
 
