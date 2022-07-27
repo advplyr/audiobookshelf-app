@@ -1,16 +1,16 @@
 <template>
   <div class="w-full h-full p-8">
-    <div v-if="$platform !== 'ios'" class="flex items-center py-3" @click="toggleDisableAutoRewind">
-      <div class="w-10 flex justify-center">
-        <ui-toggle-switch v-model="settings.disableAutoRewind" @input="saveSettings" />
-      </div>
-      <p class="pl-4">Disable Auto Rewind</p>
-    </div>
     <div class="flex items-center py-3" @click="toggleEnableAltView">
       <div class="w-10 flex justify-center">
         <ui-toggle-switch v-model="settings.enableAltView" @input="saveSettings" />
       </div>
       <p class="pl-4">Alternative Bookshelf View</p>
+    </div>
+    <div v-if="$platform !== 'ios'" class="flex items-center py-3" @click="toggleDisableAutoRewind">
+      <div class="w-10 flex justify-center">
+        <ui-toggle-switch v-model="settings.disableAutoRewind" @input="saveSettings" />
+      </div>
+      <p class="pl-4">Disable Auto Rewind</p>
     </div>
     <div class="flex items-center py-3" @click="toggleJumpBackwards">
       <div class="w-10 flex justify-center">

@@ -1,9 +1,9 @@
 <template>
   <div id="bookshelf" class="w-full max-w-full h-full">
     <template v-for="shelf in totalShelves">
-      <div :key="shelf" class="w-full px-2 relative" :class="showBookshelfListView ? '' : bookshelfRowStyle" :id="`shelf-${shelf - 1}`" :style="{ height: shelfHeight + 'px' }">
-        <div v-if="!showBookshelfListView" class="w-full absolute bottom-0 left-0 z-30" style="min-height: 16px" :class="[(bookshelfDividerStyle), (`h-${shelfDividerHeightIndex}`)]" />
-        <div v-else class="flex border-t border-white border-opacity-10" />
+      <div :key="shelf" class="w-full px-2 relative" :class="showBookshelfListView || altViewEnabled ? '' : 'bookshelfRow'" :id="`shelf-${shelf - 1}`" :style="{ height: shelfHeight + 'px' }">
+        <div v-if="!showBookshelfListView && !altViewEnabled" class="w-full absolute bottom-0 left-0 z-30 bookshelfDivider" style="min-height: 16px" :class="`h-${shelfDividerHeightIndex}`" />
+        <div v-else-if="showBookshelfListView" class="flex border-t border-white border-opacity-10" />
       </div>
     </template>
 
@@ -69,14 +69,6 @@ export default {
     showBookshelfListView() {
       return this.isBookEntity && this.bookshelfListView
     },
-    bookshelfRowStyle() {
-      if (this.altViewEnabled) return 'altBookshelfRow'
-      return 'bookshelfRow'
-    },
-    bookshelfDividerStyle() {
-      if (this.altViewEnabled) return 'altBookshelfDivider'
-      return 'bookshelfDivider'
-    },
     entityName() {
       return this.page
     },
@@ -127,6 +119,10 @@ export default {
     },
     shelfHeight() {
       if (this.showBookshelfListView) return this.entityHeight + 16
+      if (this.altViewEnabled) {
+        var extraTitleSpace = this.isBookEntity ? 80 : 40
+        return this.entityHeight + extraTitleSpace * this.sizeMultiplier
+      }
       return this.entityHeight + 40
     },
     totalEntityCardWidth() {
@@ -135,7 +131,11 @@ export default {
       return this.entityWidth + 24
     },
     altViewEnabled() {
-      return this.$store.getters['getAltViewEnabled'];
+      return this.$store.getters['getAltViewEnabled']
+    },
+    sizeMultiplier() {
+      var baseSize = this.isCoverSquareAspectRatio ? 192 : 120
+      return this.entityWidth / baseSize
     }
   },
   methods: {
