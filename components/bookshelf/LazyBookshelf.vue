@@ -1,8 +1,8 @@
 <template>
   <div id="bookshelf" class="w-full max-w-full h-full">
     <template v-for="shelf in totalShelves">
-      <div :key="shelf" class="w-full px-2 relative" :class="showBookshelfListView ? '' : 'bookshelfRow'" :id="`shelf-${shelf - 1}`" :style="{ height: shelfHeight + 'px' }">
-        <div v-if="!showBookshelfListView" class="bookshelfDivider w-full absolute bottom-0 left-0 z-30" style="min-height: 16px" :class="`h-${shelfDividerHeightIndex}`" />
+      <div :key="shelf" class="w-full px-2 relative" :class="showBookshelfListView ? '' : bookshelfRowStyle" :id="`shelf-${shelf - 1}`" :style="{ height: shelfHeight + 'px' }">
+        <div v-if="!showBookshelfListView" class="w-full absolute bottom-0 left-0 z-30" style="min-height: 16px" :class="[(shelfDividerStyle), (`h-${shelfDividerHeightIndex}`)]" />
         <div v-else class="flex border-t border-white border-opacity-10" />
       </div>
     </template>
@@ -69,6 +69,14 @@ export default {
     showBookshelfListView() {
       return this.isBookEntity && this.bookshelfListView
     },
+    bookshelfRowStyle() {
+      if (this.altViewEnabled) return 'altBookshelfRow'
+      return 'bookshelfRow'
+    },
+    bookshelfDividerStyle() {
+      if (this.altViewEnabled) return 'altBookshelfDivider'
+      return 'bookshelfDivider'
+    },
     entityName() {
       return this.page
     },
@@ -125,6 +133,9 @@ export default {
       if (this.showBookshelfListView) return this.entityWidth
       // Includes margin
       return this.entityWidth + 24
+    },
+    altViewEnabled() {
+      return this.$store.getters['getAltViewEnabled'];
     }
   },
   methods: {
