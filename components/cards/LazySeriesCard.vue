@@ -5,8 +5,11 @@
       <covers-group-cover v-if="series" ref="cover" :id="seriesId" :name="title" :book-items="books" :width="width" :height="height" :book-cover-aspect-ratio="bookCoverAspectRatio" />
     </div>
 
-    <div v-if="!isCategorized" class="categoryPlacard absolute z-30 left-0 right-0 mx-auto -bottom-6 h-6 rounded-md font-book text-center" :style="{ width: Math.min(160, width) + 'px' }">
-      <div class="w-full h-full altBookshelfLabel flex items-center justify-center rounded-sm border" :style="{ padding: `0rem ${0.5 * sizeMultiplier}rem` }">
+    <div v-if="isAltViewEnabled && isCategorized" class="absolute z-30 left-0 right-0 mx-auto -bottom-8 h-8 py-1 rounded-md text-center">
+      <p class="truncate" :style="{ fontSize: labelFontSize + 'rem' }">{{ title }}</p>
+    </div>
+    <div v-if="!isCategorized" class="categoryPlacard absolute z-30 left-0 right-0 mx-auto -bottom-6 h-6 rounded-md font-book text-center" :style="{ width: Math.min(240, width) + 'px' }">
+      <div class="w-full h-full flex items-center justify-center rounded-sm border" :class="isAltViewEnabled ? 'altBookshelfLabel' : 'shinyBlack'" :style="{ padding: `0rem ${0.5 * sizeMultiplier}rem` }">
         <p class="truncate" :style="{ fontSize: labelFontSize + 'rem' }">{{ title }}</p>
       </div>
     </div>
@@ -24,6 +27,7 @@ export default {
       type: Object,
       default: () => null
     },
+    isAltViewEnabled: Boolean,
     isCategorized: Boolean
   },
   data() {

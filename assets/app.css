@@ -57,11 +57,6 @@ body {
   background-image: url(/wood_panels.jpg);
 }
 
-.altBookshelfRow {
-  background-image: url(/grey_panel.jpg);
-  background-size: cover;
-}
-
 .bookshelfDivider {
   background: rgb(149, 119, 90);
   background: linear-gradient(180deg, rgba(149, 119, 90, 1) 0%, rgba(103, 70, 37, 1) 17%, rgba(103, 70, 37, 1) 88%, rgba(71, 48, 25, 1) 100%);
