@@ -45,7 +45,8 @@ export default {
         index,
         width: this.entityWidth,
         height: this.entityHeight,
-        bookCoverAspectRatio: this.bookCoverAspectRatio
+        bookCoverAspectRatio: this.bookCoverAspectRatio,
+        isAltViewEnabled: this.altViewEnabled
       }
       if (this.entityName === 'series-books') props.showSequence = true
       if (this.entityName === 'books') {
@@ -54,7 +55,7 @@ export default {
         props.sortingIgnorePrefix = !!this.sortingIgnorePrefix
       }
 
-      var _this = this
+      // var _this = this
       var instance = new ComponentClass({
         propsData: props,
         created() {
