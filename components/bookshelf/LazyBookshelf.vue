@@ -2,7 +2,7 @@
   <div id="bookshelf" class="w-full max-w-full h-full">
     <template v-for="shelf in totalShelves">
       <div :key="shelf" class="w-full px-2 relative" :class="showBookshelfListView ? '' : bookshelfRowStyle" :id="`shelf-${shelf - 1}`" :style="{ height: shelfHeight + 'px' }">
-        <div v-if="!showBookshelfListView" class="w-full absolute bottom-0 left-0 z-30" style="min-height: 16px" :class="[(shelfDividerStyle), (`h-${shelfDividerHeightIndex}`)]" />
+        <div v-if="!showBookshelfListView" class="w-full absolute bottom-0 left-0 z-30" style="min-height: 16px" :class="[(bookshelfDividerStyle), (`h-${shelfDividerHeightIndex}`)]" />
         <div v-else class="flex border-t border-white border-opacity-10" />
       </div>
     </template>
