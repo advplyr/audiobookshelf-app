@@ -1,6 +1,6 @@
 <template>
   <div class="w-full relative">
-    <div class="bookshelfRow flex items-end px-3 max-w-full overflow-x-auto" :style="{ height: shelfHeight + 'px' }">
+    <div class="flex items-end px-3 max-w-full overflow-x-auto" :class="bookshelfRowStyle" :style="{ height: shelfHeight + 'px' }">
       <template v-for="(entity, index) in entities">
         <cards-lazy-book-card v-if="type === 'book' || type === 'podcast'" :key="entity.id" :index="index" :book-mount="entity" :width="bookWidth" :height="entityHeight" :book-cover-aspect-ratio="bookCoverAspectRatio" is-categorized class="mx-2 relative" />
         <cards-lazy-book-card v-if="type === 'episode'" :key="entity.recentEpisode.id" :index="index" :book-mount="entity" :width="bookWidth" :height="entityHeight" :book-cover-aspect-ratio="bookCoverAspectRatio" is-categorized class="mx-2 relative" />
@@ -10,11 +10,11 @@
     </div>
 
     <div class="absolute text-center categoryPlacard font-book transform z-30 bottom-0.5 left-4 md:left-8 w-36 rounded-md" style="height: 18px">
-      <div class="w-full h-full shinyBlack flex items-center justify-center rounded-sm border">
+      <div class="w-full h-full flex items-center justify-center rounded-sm border" :class="bookshelfLabelStyle">
         <p class="transform text-xs">{{ label }}</p>
       </div>
     </div>
-    <div class="w-full h-5 z-40 bookshelfDivider"></div>
+    <div class="w-full h-5 z-40" :class="bookshelfDividerStyle"></div>
   </div>
 </template>
 
@@ -49,6 +49,21 @@ export default {
     },
     bookCoverAspectRatio() {
       return this.$store.getters['getBookCoverAspectRatio']
+    },
+    bookshelfRowStyle() {
+      if (this.altViewEnabled) return 'altBookshelfRow'
+      return 'bookshelfRow'
+    },
+    bookshelfLabelStyle() {
+      if (this.altViewEnabled) return 'altBookshelfLabel'
+      return 'shinyBlack'
+    },
+    bookshelfDividerStyle() {
+      if (this.altViewEnabled) return 'altBookshelfDivider'
+      return 'bookshelfDivider'
+    },
+    altViewEnabled() {
+      return this.$store.getters['getAltViewEnabled']
     }
   },
   methods: {},
