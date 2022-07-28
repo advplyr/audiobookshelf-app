@@ -18,13 +18,19 @@ data class ServerConnectionConfig(
 
 data class DeviceSettings(
   var disableAutoRewind:Boolean,
+  var enableAltView:Boolean,
   var jumpBackwardsTime:Int,
   var jumpForwardTime:Int
 ) {
   companion object {
     // Static method to get default device settings
     fun default():DeviceSettings {
-      return DeviceSettings(false, 10, 10)
+      return DeviceSettings(
+        disableAutoRewind = false,
+        enableAltView = false,
+        jumpBackwardsTime = 10,
+        jumpForwardTime = 10
+      )
     }
   }
 
