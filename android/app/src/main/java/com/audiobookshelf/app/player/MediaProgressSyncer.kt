@@ -43,6 +43,7 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
         currentLocalMediaProgress = null
         listeningTimerTask?.cancel()
         lastSyncTime = 0L
+        Log.d(tag, "start: Set last sync time 0 $lastSyncTime")
         failedSyncs = 0
       } else {
         return
@@ -53,6 +54,7 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
 
     listeningTimerRunning = true
     lastSyncTime = System.currentTimeMillis()
+    Log.d(tag, "start: init last sync time $lastSyncTime")
     currentPlaybackSession = playerNotificationService.getCurrentPlaybackSessionCopy()
 
     listeningTimerTask = Timer("ListeningTimer", false).schedule(0L, 5000L) {
@@ -62,8 +64,10 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
           val shouldSyncServer = PlayerNotificationService.isUnmeteredNetwork || System.currentTimeMillis() - lastSyncTime >= METERED_CONNECTION_SYNC_INTERVAL
 
           val currentTime = playerNotificationService.getCurrentTimeSeconds()
-          sync(shouldSyncServer, currentTime) {
-            Log.d(tag, "Sync complete")
+          if (currentTime > 0) {
+            sync(shouldSyncServer, currentTime) {
+              Log.d(tag, "Sync complete")
+            }
           }
         }
       }
@@ -72,10 +76,18 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
 
   fun stop(cb: () -> Unit) {
     if (!listeningTimerRunning) return
+    listeningTimerTask?.cancel()
+    listeningTimerTask = null
+    listeningTimerRunning = false
     Log.d(tag, "stop: Stopping listening for $currentDisplayTitle")
 
     val currentTime = playerNotificationService.getCurrentTimeSeconds()
-    sync(true, currentTime) {
+    if (currentTime > 0) { // Current time should always be > 0 on stop
+      sync(true, currentTime) {
+        reset()
+        cb()
+      }
+    } else {
       reset()
       cb()
     }
@@ -83,18 +95,27 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
 
   fun pause(cb: () -> Unit) {
     if (!listeningTimerRunning) return
+    listeningTimerTask?.cancel()
+    listeningTimerTask = null
+    listeningTimerRunning = false
     Log.d(tag, "pause: Pausing progress syncer for $currentDisplayTitle")
+    Log.d(tag, "pause: Last sync time $lastSyncTime")
 
     val currentTime = playerNotificationService.getCurrentTimeSeconds()
-    sync(true, currentTime) {
-      listeningTimerTask?.cancel()
-      listeningTimerTask = null
-      listeningTimerRunning = false
+    if (currentTime > 0) { // Current time should always be > 0 on pause
+      sync(true, currentTime) {
+        lastSyncTime = 0L
+        Log.d(tag, "pause: Set last sync time 0 $lastSyncTime")
+        failedSyncs = 0
+        cb()
+      }
+    } else {
       lastSyncTime = 0L
+      Log.d(tag, "pause: Set last sync time 0 $lastSyncTime (current time < 0)")
       failedSyncs = 0
-
       cb()
     }
+
   }
 
   fun syncFromServerProgress(mediaProgress: MediaProgress) {
@@ -107,6 +128,11 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
   }
 
   fun sync(shouldSyncServer:Boolean, currentTime:Double, cb: () -> Unit) {
+    if (lastSyncTime <= 0) {
+      Log.e(tag, "Last sync time is not set $lastSyncTime")
+      return
+    }
+
     val diffSinceLastSync = System.currentTimeMillis() - lastSyncTime
     if (diffSinceLastSync < 1000L) {
       return cb()
@@ -201,12 +227,10 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
   }
 
   fun reset() {
-    listeningTimerTask?.cancel()
-    listeningTimerTask = null
-    listeningTimerRunning = false
     currentPlaybackSession = null
     currentLocalMediaProgress = null
     lastSyncTime = 0L
+    Log.d(tag, "reset: Set last sync time 0 $lastSyncTime")
     failedSyncs = 0
   }
 }

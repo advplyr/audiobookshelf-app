@@ -199,6 +199,7 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
             if (result) {
               hasValidConn = true
               DeviceManager.serverConnectionConfig = config
+              Log.d(tag, "checkSetValidServerConnectionConfig: Set server connection config ${DeviceManager.serverConnectionConfigId}")
               break
             }
           }
