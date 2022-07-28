@@ -769,7 +769,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   private val ANDROID_WEARABLE_PKG_NAME = "com.google.android.wearable.app"
   private val ANDROID_GSEARCH_PKG_NAME = "com.google.android.googlequicksearchbox"
   private val ANDROID_AUTOMOTIVE_PKG_NAME = "com.google.android.carassistant"
-  private val VALID_MEDIA_BROWSERS = mutableListOf("com.audiobookshelf.app", "com.android.systemui", ANDROID_AUTO_PKG_NAME, ANDROID_AUTO_SIMULATOR_PKG_NAME, ANDROID_WEARABLE_PKG_NAME, ANDROID_GSEARCH_PKG_NAME, ANDROID_AUTOMOTIVE_PKG_NAME)
+  private val VALID_MEDIA_BROWSERS = mutableListOf("com.audiobookshelf.app", ANDROID_AUTO_PKG_NAME, ANDROID_AUTO_SIMULATOR_PKG_NAME, ANDROID_WEARABLE_PKG_NAME, ANDROID_GSEARCH_PKG_NAME, ANDROID_AUTOMOTIVE_PKG_NAME)
 
   private val AUTO_MEDIA_ROOT = "/"
   private val ALL_ROOT = "__ALL__"
