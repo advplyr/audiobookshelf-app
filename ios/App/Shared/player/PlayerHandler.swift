@@ -11,6 +11,7 @@ class PlayerHandler {
     private static var player: AudioPlayer?
     private static var session: PlaybackSession?
     private static var timer: Timer?
+    private static var lastSyncTime:Double = 0.0
     
     private static var _remainingSleepTime: Int? = nil
     public static var remainingSleepTime: Int? {
@@ -128,7 +129,7 @@ class PlayerHandler {
             listeningTimePassedSinceLastSync += 1
         }
         
-        if listeningTimePassedSinceLastSync > 3 {
+        if listeningTimePassedSinceLastSync >= 5 {
             syncProgress()
         }
         
@@ -148,6 +149,15 @@ class PlayerHandler {
             // No need to syncProgress
             return
         }
+        
+        // Prevent multiple sync requests
+        let timeSinceLastSync = Date().timeIntervalSince1970 - lastSyncTime
+        if (lastSyncTime > 0 && timeSinceLastSync < 1) {
+            NSLog("syncProgress last sync time was < 1 second so not syncing")
+            return
+        }
+        
+        lastSyncTime = Date().timeIntervalSince1970 // seconds
         
         let report = PlaybackReport(currentTime: playerCurrentTime, duration: player.getDuration(), timeListened: listeningTimePassedSinceLastSync)
         
