@@ -86,6 +86,9 @@ public class AbsDatabase: CAPPlugin {
     @objc func getLocalLibraryItemsInFolder(_ call: CAPPluginCall) {
         call.resolve([ "value": [] ])
     }
+    @objc func getAllLocalMediaProgress(_ call: CAPPluginCall) {
+        call.resolve([ "value": [] ])
+    }
     @objc func updateDeviceSettings(_ call: CAPPluginCall) {
         let disableAutoRewind = call.getBool("disableAutoRewind") ?? false
         let enableAltView = call.getBool("enableAltView") ?? false
