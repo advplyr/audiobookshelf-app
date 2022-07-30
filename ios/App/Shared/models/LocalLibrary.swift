@@ -9,7 +9,7 @@ import Foundation
 import RealmSwift
 
 class LocalLibraryItem: Object, Encodable {
-    @Persisted(primaryKey: true) var id: String = UUID().uuidString
+    @Persisted(primaryKey: true) var id: String = "local_\(UUID().uuidString)"
     @Persisted var basePath: String = ""
     @Persisted var absolutePath: String = ""
     @Persisted var contentUrl: String

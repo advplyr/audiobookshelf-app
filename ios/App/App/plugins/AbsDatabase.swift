@@ -87,7 +87,7 @@ public class AbsDatabase: CAPPlugin {
     
     @objc func getLocalLibraryItem(_ call: CAPPluginCall) {
         do {
-            let item = Database.shared.getLocalLibraryItemByLLId(libraryItem: call.getString("id") ?? "")
+            let item = Database.shared.getLocalLibraryItem(localLibraryItem: call.getString("id") ?? "")
             switch item {
                 case .some(let foundItem):
                     call.resolve(try foundItem.asDictionary())
