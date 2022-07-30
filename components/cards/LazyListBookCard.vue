@@ -16,7 +16,7 @@
       </div>
       <div class="flex-grow px-2">
         <p class="whitespace-normal" :style="{ fontSize: 0.8 * sizeMultiplier + 'rem' }">
-          {{ displayTitle }}<span v-if="seriesSequence">&nbsp;#{{ seriesSequence }}</span>
+          <span v-if="seriesSequence">#{{ seriesSequence }}&nbsp;</span>{{ displayTitle }}
         </p>
         <p class="truncate text-gray-400" :style="{ fontSize: 0.7 * sizeMultiplier + 'rem' }">by {{ displayAuthor }}</p>
         <p v-if="displaySortLine" class="truncate text-gray-400" :style="{ fontSize: 0.7 * sizeMultiplier + 'rem' }">{{ displaySortLine }}</p>
@@ -109,8 +109,8 @@ export default {
     },
     episodes() {
       if (this.isPodcast) {
-        if (this.media.numEpisodes==1) {
-          return "1 episode"
+        if (this.media.numEpisodes == 1) {
+          return '1 episode'
         } else {
           return this.media.numEpisodes + ' episodes'
         }
