@@ -120,9 +120,7 @@ class LocalFile: Object, Encodable {
     @Persisted var id: String = UUID().uuidString
     @Persisted var filename: String? = ""
     @Persisted var contentUrl: String
-    @Persisted var basePath: String
     @Persisted var absolutePath: String
-    @Persisted var simplePath: String
     @Persisted var mimeType: String? = ""
     @Persisted var size: Int64
 }

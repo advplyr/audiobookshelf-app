@@ -58,7 +58,7 @@ public class AbsDownloader: CAPPlugin {
         let localUrl = itemDirectory.appendingPathComponent("\(filename)")
         
         downloadTrack(serverUrl: serverUrl, localUrl: localUrl)
-        return LocalFile(filename: filename, localUrl: localUrl)
+        return LocalFile(filename, track.mimeType, localUrl)
     }
     
     private func urlForTrack(item: LibraryItem, track: AudioTrack) -> URL {

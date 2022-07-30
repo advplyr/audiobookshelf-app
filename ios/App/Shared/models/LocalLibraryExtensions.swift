@@ -337,9 +337,7 @@ extension LocalFile {
         case id
         case filename
         case contentUrl
-        case basePath
         case absolutePath
-        case simplePath
         case mimeType
         case size
     }
@@ -349,22 +347,28 @@ extension LocalFile {
         try container.encode(id, forKey: .id)
         try container.encode(filename, forKey: .filename)
         try container.encode(contentUrl, forKey: .contentUrl)
-        try container.encode(basePath, forKey: .basePath)
         try container.encode(absolutePath, forKey: .absolutePath)
-        try container.encode(simplePath, forKey: .simplePath)
         try container.encode(mimeType, forKey: .mimeType)
         try container.encode(size, forKey: .size)
     }
     
-    convenience init(filename: String, localUrl: URL) {
+    convenience init(_ filename: String, _ mimeType: String, _ localUrl: URL) {
         self.init()
+        self.id = localUrl.absoluteString.toBase64()
         self.filename = filename
         self.contentUrl = localUrl.absoluteString
-        // TODO: self.baseUrl
-        self.absolutePath = localUrl.absoluteString
-        self.simplePath = localUrl.path
-        // TODO: self.mimeType
-        // TODO: self.size
+        self.absolutePath = localUrl.path
+        self.size = localUrl.fileSize
+    }
+    
+    func isAudioFile() -> Bool {
+        switch self.mimeType {
+        case "application/octet-stream",
+            "video/mp4":
+            return true
+        default:
+            return self.mimeType?.starts(with: "audio") ?? false
+        }
     }
 }
 
