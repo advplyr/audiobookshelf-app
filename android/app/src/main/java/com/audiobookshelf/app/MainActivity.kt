@@ -19,7 +19,6 @@ import com.audiobookshelf.app.plugins.AbsAudioPlayer
 import com.audiobookshelf.app.plugins.AbsDownloader
 import com.audiobookshelf.app.plugins.AbsFileSystem
 import com.getcapacitor.BridgeActivity
-import io.paperdb.Paper
 
 
 class MainActivity : BridgeActivity() {
@@ -58,10 +57,6 @@ class MainActivity : BridgeActivity() {
 
     DbManager.initialize(applicationContext)
 
-    // Grant full storage access for testing
-    // var ss = SimpleStorage(this)
-    // ss.requestFullStorageAccess()
-
     val permission = ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
     if (permission != PackageManager.PERMISSION_GRANTED) {
       ActivityCompat.requestPermissions(this,
@@ -97,9 +92,7 @@ class MainActivity : BridgeActivity() {
         foregroundService = mLocalBinder.getService()
 
         // Let NativeAudio know foreground service is ready and setup event listener
-        if (pluginCallback != null) {
-          pluginCallback()
-        }
+        pluginCallback()
       }
     }
 

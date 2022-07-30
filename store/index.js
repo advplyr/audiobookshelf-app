@@ -1,4 +1,5 @@
 import { Network } from '@capacitor/network'
+import { AbsAudioPlayer } from '@/plugins/capacitor'
 
 export const state = () => ({
   deviceData: null,
@@ -12,6 +13,7 @@ export const state = () => ({
   socketConnected: false,
   networkConnected: false,
   networkConnectionType: null,
+  isNetworkUnmetered: true,
   isFirstLoad: true,
   hasStoragePermission: false,
   selectedLibraryItem: null,
@@ -19,7 +21,8 @@ export const state = () => ({
   showSideDrawer: false,
   isNetworkListenerInit: false,
   serverSettings: null,
-  lastBookshelfScrollData: {}
+  lastBookshelfScrollData: {},
+  lastLocalMediaSyncResults: null
 })
 
 export const getters = {
@@ -44,6 +47,10 @@ export const getters = {
   getJumpBackwardsTime: state => {
     if (!state.deviceData || !state.deviceData.deviceSettings) return 10
     return state.deviceData.deviceSettings.jumpBackwardsTime || 10
+  },
+  getAltViewEnabled: state => {
+    if (!state.deviceData || !state.deviceData.deviceSettings) return false
+    return state.deviceData.deviceSettings.enableAltView
   }
 }
 
@@ -60,6 +67,12 @@ export const actions = {
     Network.addListener('networkStatusChange', (status) => {
       console.log('Network status changed', status.connected, status.connectionType)
       commit('setNetworkStatus', status)
+    })
+
+    AbsAudioPlayer.addListener('onNetworkMeteredChanged', (payload) => {
+      const isUnmetered = payload.value
+      console.log('On network metered changed', isUnmetered)
+      commit('setIsNetworkUnmetered', isUnmetered)
     })
   }
 }
@@ -113,6 +126,9 @@ export const mutations = {
     state.networkConnected = val.connected
     state.networkConnectionType = val.connectionType
   },
+  setIsNetworkUnmetered(state, val) {
+    state.isNetworkUnmetered = val
+  },
   openReader(state, libraryItem) {
     state.selectedLibraryItem = libraryItem
     state.showReader = true
@@ -126,5 +142,8 @@ export const mutations = {
   setServerSettings(state, val) {
     state.serverSettings = val
     this.$localStore.setServerSettings(state.serverSettings)
+  },
+  setLastLocalMediaSyncResults(state, val) {
+    state.lastLocalMediaSyncResults = val
   }
 }

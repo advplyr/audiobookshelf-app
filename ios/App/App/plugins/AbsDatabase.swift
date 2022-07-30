@@ -86,18 +86,23 @@ public class AbsDatabase: CAPPlugin {
     @objc func getLocalLibraryItem(_ call: CAPPluginCall) {
         call.resolve()
     }
-    @objc func getLocalLibraryItemByLLId(_ call: CAPPluginCall) {
+    @objc func getLocalLibraryItemByLId(_ call: CAPPluginCall) {
         call.resolve()
     }
     @objc func getLocalLibraryItemsInFolder(_ call: CAPPluginCall) {
         call.resolve([ "value": [] ])
     }
+    @objc func getAllLocalMediaProgress(_ call: CAPPluginCall) {
+        call.resolve([ "value": [] ])
+    }
     @objc func updateDeviceSettings(_ call: CAPPluginCall) {
         let disableAutoRewind = call.getBool("disableAutoRewind") ?? false
+        let enableAltView = call.getBool("enableAltView") ?? false
         let jumpBackwardsTime = call.getInt("jumpBackwardsTime") ?? 10
         let jumpForwardTime = call.getInt("jumpForwardTime") ?? 10
         let settings = DeviceSettings()
         settings.disableAutoRewind = disableAutoRewind
+        settings.enableAltView = enableAltView
         settings.jumpBackwardsTime = jumpBackwardsTime
         settings.jumpForwardTime = jumpForwardTime
         

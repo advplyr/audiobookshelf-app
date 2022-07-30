@@ -2,6 +2,7 @@ package com.audiobookshelf.app.data
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import kotlin.math.roundToInt
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class LocalMediaProgress(
@@ -22,6 +23,9 @@ data class LocalMediaProgress(
   var libraryItemId:String?,
   var episodeId:String?
 ) {
+  @get:JsonIgnore
+  val progressPercent get() = if (progress.isNaN()) 0 else (progress * 100).roundToInt()
+
   @JsonIgnore
   fun updateIsFinished(finished:Boolean) {
     if (isFinished != finished) { // If finished changed then set progress

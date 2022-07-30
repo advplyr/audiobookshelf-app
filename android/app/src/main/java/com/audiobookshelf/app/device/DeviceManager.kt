@@ -1,9 +1,12 @@
 package com.audiobookshelf.app.device
 
 import android.util.Log
-import com.audiobookshelf.app.data.DbManager
-import com.audiobookshelf.app.data.DeviceData
-import com.audiobookshelf.app.data.ServerConnectionConfig
+import com.audiobookshelf.app.data.*
+import com.audiobookshelf.app.player.PlayerNotificationService
+
+interface WidgetEventEmitter {
+  fun onPlayerChanged(pns:PlayerNotificationService)
+}
 
 object DeviceManager {
   const val tag = "DeviceManager"
@@ -18,6 +21,8 @@ object DeviceManager {
   val token get() = serverConnectionConfig?.token ?: ""
   val isConnectedToServer get() = serverConnectionConfig != null
   val hasLastServerConnectionConfig get() = deviceData.getLastServerConnectionConfig() != null
+
+  var widgetUpdater:WidgetEventEmitter? = null
 
   init {
     Log.d(tag, "Device Manager Singleton invoked")

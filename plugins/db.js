@@ -54,8 +54,8 @@ class DbService {
     return AbsDatabase.getLocalLibraryItem({ id })
   }
 
-  getLocalLibraryItemByLLId(libraryItemId) {
-    return AbsDatabase.getLocalLibraryItemByLLId({ libraryItemId })
+  getLocalLibraryItemByLId(libraryItemId) {
+    return AbsDatabase.getLocalLibraryItemByLId({ libraryItemId })
   }
 
   getAllLocalMediaProgress() {

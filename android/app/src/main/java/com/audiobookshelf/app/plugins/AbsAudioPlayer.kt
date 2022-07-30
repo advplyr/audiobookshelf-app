@@ -1,10 +1,8 @@
 package com.audiobookshelf.app.plugins
 
-import android.content.Intent
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import androidx.core.content.ContextCompat
 import com.audiobookshelf.app.MainActivity
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
@@ -82,6 +80,14 @@ class AbsAudioPlayer : Plugin() {
         override fun onProgressSyncFailing() {
           emit("onProgressSyncFailing", "")
         }
+
+        override fun onProgressSyncSuccess() {
+          emit("onProgressSyncSuccess", "")
+        }
+
+        override fun onNetworkMeteredChanged(isUnmetered:Boolean) {
+          emit("onNetworkMeteredChanged", isUnmetered)
+        }
       })
     }
     mainActivity.pluginCallback = foregroundServiceReady
@@ -150,14 +156,6 @@ class AbsAudioPlayer : Plugin() {
 
   @PluginMethod
   fun prepareLibraryItem(call: PluginCall) {
-    // Need to make sure the player service has been started
-    if (!PlayerNotificationService.isStarted) {
-      Log.w(tag, "prepareLibraryItem: PlayerService not started - Starting foreground service --")
-      Intent(mainActivity, PlayerNotificationService::class.java).also { intent ->
-        ContextCompat.startForegroundService(mainActivity, intent)
-      }
-    }
-
     val libraryItemId = call.getString("libraryItemId", "").toString()
     val episodeId = call.getString("episodeId", "").toString()
     val playWhenReady = call.getBoolean("playWhenReady") == true
@@ -183,7 +181,21 @@ class AbsAudioPlayer : Plugin() {
         Handler(Looper.getMainLooper()).post {
           Log.d(tag, "prepareLibraryItem: Preparing Local Media item ${jacksonMapper.writeValueAsString(it)}")
           val playbackSession = it.getPlaybackSession(episode)
-          playerNotificationService.preparePlayer(playbackSession, playWhenReady, playbackRate)
+
+          if (playerNotificationService.mediaProgressSyncer.listeningTimerRunning) { // If progress syncing then first stop before preparing next
+            playerNotificationService.mediaProgressSyncer.stop {
+              Log.d(tag, "Media progress syncer was already syncing - stopped")
+              Handler(Looper.getMainLooper()).post { // TODO: This was needed again which is probably a design a flaw
+                playerNotificationService.preparePlayer(
+                  playbackSession,
+                  playWhenReady,
+                  playbackRate
+                )
+              }
+            }
+          } else {
+            playerNotificationService.preparePlayer(playbackSession, playWhenReady, playbackRate)
+          }
         }
         return call.resolve(JSObject())
       }
@@ -194,9 +206,20 @@ class AbsAudioPlayer : Plugin() {
         if (it == null) {
           call.resolve(JSObject("{\"error\":\"Server play request failed\"}"))
         } else {
+
           Handler(Looper.getMainLooper()).post {
-            Log.d(tag, "Preparing Player TEST ${jacksonMapper.writeValueAsString(it)}")
-            playerNotificationService.preparePlayer(it, playWhenReady, playbackRate)
+            Log.d(tag, "Preparing Player playback session ${jacksonMapper.writeValueAsString(it)}")
+
+            if (playerNotificationService.mediaProgressSyncer.listeningTimerRunning) { // If progress syncing then first stop before preparing next
+              playerNotificationService.mediaProgressSyncer.stop {
+                Log.d(tag, "Media progress syncer was already syncing - stopped")
+                Handler(Looper.getMainLooper()).post { // TODO: This was needed again which is probably a design a flaw
+                  playerNotificationService.preparePlayer(it, playWhenReady, playbackRate)
+                }
+              }
+            } else {
+              playerNotificationService.preparePlayer(it, playWhenReady, playbackRate)
+            }
           }
 
           call.resolve(JSObject(jacksonMapper.writeValueAsString(it)))

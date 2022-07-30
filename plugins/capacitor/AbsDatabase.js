@@ -164,7 +164,7 @@ class AbsDatabaseWeb extends WebPlugin {
   async getLocalLibraryItem({ id }) {
     return this.getLocalLibraryItems().then((data) => data.value[0])
   }
-  async getLocalLibraryItemByLLId({ libraryItemId }) {
+  async getLocalLibraryItemByLId({ libraryItemId }) {
     return this.getLocalLibraryItems().then((data) => data.value.find(lli => lli.libraryItemId == libraryItemId))
   }
   async getAllLocalMediaProgress() {
