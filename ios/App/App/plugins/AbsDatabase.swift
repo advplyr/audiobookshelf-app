@@ -81,14 +81,42 @@ public class AbsDatabase: CAPPlugin {
         } catch(let exception) {
             NSLog("error while readling local library items")
             debugPrint(exception)
+            call.resolve()
         }
     }
+    
     @objc func getLocalLibraryItem(_ call: CAPPluginCall) {
-        call.resolve()
+        do {
+            let item = Database.shared.getLocalLibraryItemByLLId(libraryItem: call.getString("id") ?? "")
+            switch item {
+                case .some(let foundItem):
+                    call.resolve(try foundItem.asDictionary())
+                default:
+                    call.resolve()
+            }
+        } catch(let exception) {
+            NSLog("error while readling local library items")
+            debugPrint(exception)
+            call.resolve()
+        }
     }
+    
     @objc func getLocalLibraryItemByLId(_ call: CAPPluginCall) {
-        call.resolve()
+        do {
+            let item = Database.shared.getLocalLibraryItemByLLId(libraryItem: call.getString("libraryItemId") ?? "")
+            switch item {
+                case .some(let foundItem):
+                    call.resolve(try foundItem.asDictionary())
+                default:
+                    call.resolve()
+            }
+        } catch(let exception) {
+            NSLog("error while readling local library items")
+            debugPrint(exception)
+            call.resolve()
+        }
     }
+    
     @objc func getLocalLibraryItemsInFolder(_ call: CAPPluginCall) {
         call.resolve([ "value": [] ])
     }

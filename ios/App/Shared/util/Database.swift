@@ -174,11 +174,22 @@ class Database {
     public func getLocalLibraryItemByLLId(libraryItem: String) -> LocalLibraryItem? {
         let items = getLocalLibraryItems()
         for item in items {
-            if (item.id == libraryItem) {
+            if (item.libraryItemId == libraryItem) {
                 return item
             }
         }
         NSLog("Local library item with id \(libraryItem) not found")
+        return nil
+    }
+    
+    public func getLocalLibraryItem(localLibraryItem: String) -> LocalLibraryItem? {
+        let items = getLocalLibraryItems()
+        for item in items {
+            if (item.id == localLibraryItem) {
+                return item
+            }
+        }
+        NSLog("Local library item with id \(localLibraryItem) not found")
         return nil
     }
     

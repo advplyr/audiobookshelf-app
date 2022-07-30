@@ -373,11 +373,11 @@ extension LocalFile {
     
     func isAudioFile() -> Bool {
         switch self.mimeType {
-        case "application/octet-stream",
-            "video/mp4":
-            return true
-        default:
-            return self.mimeType?.starts(with: "audio") ?? false
+            case "application/octet-stream",
+                "video/mp4":
+                return true
+            default:
+                return self.mimeType?.starts(with: "audio") ?? false
         }
     }
 }
