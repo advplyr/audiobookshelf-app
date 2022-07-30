@@ -49,7 +49,7 @@ extension LocalLibraryItem {
         self.init()
         self.contentUrl = localUrl.absoluteString
         self.mediaType = item.mediaType
-        self.media = LocalMediaType(item.media)
+        self.media = LocalMediaType(item.media, coverPath: "", files: files)
         self.localFiles.append(objectsIn: files)
         // TODO: self.coverContentURL
         // TODO: self.converAbsolutePath
@@ -90,11 +90,11 @@ extension LocalMediaType {
         try container.encode(autoDownloadEpisodes, forKey: .autoDownloadEpisodes)
     }
     
-    convenience init(_ mediaType: MediaType) {
+    convenience init(_ mediaType: MediaType, coverPath: String, files: [LocalFile]) {
         self.init()
         self.libraryItemId = mediaType.libraryItemId
         self.metadata = LocalMetadata(mediaType.metadata)
-        // TODO: self.coverPath
+        self.coverPath = coverPath
         self.tags.append(objectsIn: mediaType.tags ?? [])
         self.audioFiles.append(objectsIn: mediaType.audioFiles!.enumerated().map() {
             i, audioFile -> LocalAudioFile in LocalAudioFile(audioFile)
@@ -103,11 +103,12 @@ extension LocalMediaType {
             i, chapter -> LocalChapter in LocalChapter(chapter)
         })
         self.tracks.append(objectsIn: mediaType.tracks!.enumerated().map() {
-            i, track in LocalAudioTrack(track)
+            i, track in LocalAudioTrack(track, libraryItemId: self.libraryItemId ?? "", filename: files[i].filename ?? "")
         })
         self.size = mediaType.size
         self.duration = mediaType.duration
         // TODO: self.episodes
+        // TODO: Handle podcast auto downloads
         self.autoDownloadEpisodes = mediaType.autoDownloadEpisodes
     }
 }
@@ -222,7 +223,7 @@ extension LocalAudioFile {
         self.init()
         self.index = audioFile.index
         self.ino = audioFile.ino
-        // TODO: self.metadata
+        // self.metadata
     }
     
     func encode(to encoder: Encoder) throws {
@@ -245,6 +246,13 @@ extension LocalAuthor {
         try container.encode(id, forKey: .id)
         try container.encode(name, forKey: .name)
         try container.encode(coverPath, forKey: .coverPath)
+    }
+    
+    convenience init(_ author: Author) {
+        self.init()
+        self.id = author.id
+        self.name = author.name
+        // self.coverPath
     }
 }
 
@@ -301,16 +309,16 @@ extension LocalAudioTrack {
         try container.encode(serverIndex, forKey: .serverIndex)
     }
     
-    convenience init(_ track: AudioTrack) {
+    convenience init(_ track: AudioTrack, libraryItemId: String, filename: String) {
         self.init()
         self.index = track.index
         self.startOffset = track.startOffset
         self.duration = track.duration
         self.title = track.title
-        self.contentUrl = track.contentUrl // TODO: Different URL
+        self.contentUrl = "" // TODO: Different URL
         self.mimeType = track.mimeType
         // TODO: self.metadata
-        // TODO: self.localFileId
+        self.localFileId = "\(libraryItemId)_\(filename.toBase64())"
         self.serverIndex = track.serverIndex
     }
 }
@@ -330,6 +338,8 @@ extension LocalFileMetadata {
         try container.encode(path, forKey: .path)
         try container.encode(relPath, forKey: .relPath)
     }
+    
+    /* TODO: Can we skip this object? */
 }
 
 extension LocalFile {
@@ -352,9 +362,9 @@ extension LocalFile {
         try container.encode(size, forKey: .size)
     }
     
-    convenience init(_ filename: String, _ mimeType: String, _ localUrl: URL) {
+    convenience init(_ libraryItemId: String, _ filename: String, _ mimeType: String, _ localUrl: URL) {
         self.init()
-        self.id = localUrl.absoluteString.toBase64()
+        self.id = "\(libraryItemId)_\(filename.toBase64())"
         self.filename = filename
         self.contentUrl = localUrl.absoluteString
         self.absolutePath = localUrl.path

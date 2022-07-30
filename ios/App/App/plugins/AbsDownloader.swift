@@ -58,7 +58,7 @@ public class AbsDownloader: CAPPlugin {
         let localUrl = itemDirectory.appendingPathComponent("\(filename)")
         
         downloadTrack(serverUrl: serverUrl, localUrl: localUrl)
-        return LocalFile(filename, track.mimeType, localUrl)
+        return LocalFile(item.id, filename, track.mimeType, localUrl)
     }
     
     private func urlForTrack(item: LibraryItem, track: AudioTrack) -> URL {
@@ -75,7 +75,7 @@ public class AbsDownloader: CAPPlugin {
         
         // Create library item directory
         do {
-            try FileManager.default.createDirectory(at: itemDirectory, withIntermediateDirectories: false)
+            try FileManager.default.createDirectory(at: itemDirectory, withIntermediateDirectories: true)
         } catch {
             NSLog("Failed to CREATE LI DIRECTORY \(error)")
         }
