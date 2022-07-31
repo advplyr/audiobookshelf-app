@@ -36,30 +36,36 @@ public class AbsAudioPlayer: CAPPlugin {
             NSLog("provide library item id")
             return call.resolve()
         }
-        if libraryItemId!.starts(with: "local") {
-            NSLog("local items are not implemnted")
-            return call.resolve()
-        }
         
         initialPlayWhenReady = playWhenReady
         initialPlaybackRate = playbackRate
         
         PlayerHandler.stopPlayback()
         
-        sendPrepareMetadataEvent(itemId: libraryItemId!, playWhenReady: playWhenReady)
-        ApiClient.startPlaybackSession(libraryItemId: libraryItemId!, episodeId: episodeId, forceTranscode: false) { session in
-            do {
-                self.sendPlaybackSession(session: try session.asDictionary())
-                call.resolve(try session.asDictionary())
-            } catch(let exception) {
-                NSLog("failed to convert session to json")
-                debugPrint(exception)
-                call.resolve([:])
-            }
-            
-            
-            PlayerHandler.startPlayback(session: session, playWhenReady: playWhenReady, playbackRate: playbackRate)
+        let isLocalItem = libraryItemId?.starts(with: "local_") ?? false
+        if (isLocalItem) {
+            let item = Database.shared.getLocalLibraryItem(localLibraryItem: libraryItemId!)
+            // TODO: Logic required for podcasts here
+            let playbackSession = item?.getPlaybackSession(episode: nil)
+            PlayerHandler.startPlayback(session: playbackSession!, playWhenReady: playWhenReady, playbackRate: playbackRate)
             self.sendMetadata()
+            call.resolve()
+        } else { // Playing from the server
+            sendPrepareMetadataEvent(itemId: libraryItemId!, playWhenReady: playWhenReady)
+            ApiClient.startPlaybackSession(libraryItemId: libraryItemId!, episodeId: episodeId, forceTranscode: false) { session in
+                do {
+                    self.sendPlaybackSession(session: try session.asDictionary())
+                    call.resolve(try session.asDictionary())
+                } catch(let exception) {
+                    NSLog("failed to convert session to json")
+                    debugPrint(exception)
+                    call.resolve([:])
+                }
+                
+                
+                PlayerHandler.startPlayback(session: session, playWhenReady: playWhenReady, playbackRate: playbackRate)
+                self.sendMetadata()
+            }
         }
     }
     @objc func closePlayback(_ call: CAPPluginCall) {

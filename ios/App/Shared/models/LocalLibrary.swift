@@ -125,7 +125,7 @@ class LocalFile: Object, Encodable {
 }
 
 class LocalMediaProgress: Object, Encodable {
-    @Persisted var id: String = UUID().uuidString
+    @Persisted(primaryKey: true) var id: String = UUID().uuidString
     @Persisted var localLibraryItemId: String
     @Persisted var localEpisodeId: String? = ""
     @Persisted var duration: Double

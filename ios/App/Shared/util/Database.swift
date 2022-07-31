@@ -229,4 +229,26 @@ class Database {
             }
         }
     }
+    
+    public func saveLocalMediaProgress(_ mediaProgress: LocalMediaProgress) {
+        Database.realmQueue.sync {
+            try! instance.write { instance.add(mediaProgress) }
+        }
+    }
+    
+    // For books this will just be the localLibraryItemId for podcast episodes this will be "{localLibraryItemId}-{episodeId}"
+    public func getLocalMediaProgress(localMediaProgressId: String) -> LocalMediaProgress? {
+        Database.realmQueue.sync {
+            instance.object(ofType: LocalMediaProgress.self, forPrimaryKey: localMediaProgressId)
+        }
+    }
+    
+    public func removeLocalMediaProgress(localMediaProgressId: String) {
+        Database.realmQueue.sync {
+            try! instance.write {
+                let progress = instance.object(ofType: LocalMediaProgress.self, forPrimaryKey: localMediaProgressId)
+                instance.delete(progress!)
+            }
+        }
+    }
 }
