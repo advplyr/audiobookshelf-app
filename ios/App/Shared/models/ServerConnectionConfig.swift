@@ -7,20 +7,29 @@
 
 import Foundation
 import RealmSwift
+import Unrealm
 
-class ServerConnectionConfig: Object {
-    @Persisted(primaryKey: true) var id: String
-    @Persisted(indexed: true) var index: Int
-    @Persisted var name: String
-    @Persisted var address: String
-    @Persisted var userId: String
-    @Persisted var username: String
-    @Persisted var token: String
+struct ServerConnectionConfig: Realmable {
+    var id: String = UUID().uuidString
+    var index: Int = 0
+    var name: String = ""
+    var address: String = ""
+    var userId: String = ""
+    var username: String = ""
+    var token: String = ""
+    
+    static func primaryKey() -> String? {
+        return "id"
+    }
+    
+    static func indexedProperties() -> [String] {
+        return ["index"]
+    }
 }
-class ServerConnectionConfigActiveIndex: Object {
-    // This could overflow, but you really would have to try
-    @Persisted var index: Int?
 
+struct ServerConnectionConfigActiveIndex: Realmable {
+    // This could overflow, but you really would have to try
+    var index: Int?
 }
 
 func convertServerConnectionConfigToJSON(config: ServerConnectionConfig) -> Dictionary<String, Any> {

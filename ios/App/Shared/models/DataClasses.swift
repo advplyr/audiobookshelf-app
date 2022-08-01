@@ -7,22 +7,22 @@
 
 import Foundation
 import CoreMedia
-import RealmSwift
+import Unrealm
 
-struct LibraryItem: Codable {
+struct LibraryItem: Realmable, Codable {
     var id: String
-    var ino:String
+    var ino: String
     var libraryId: String
     var folderId: String
     var path: String
     var relPath: String
     var isFile: Bool
-    var mtimeMs: Int64
-    var ctimeMs: Int64
-    var birthtimeMs: Int64
-    var addedAt: Int64
-    var updatedAt: Int64
-    var lastScan: Int64?
+    var mtimeMs: Int
+    var ctimeMs: Int
+    var birthtimeMs: Int
+    var addedAt: Int
+    var updatedAt: Int
+    var lastScan: Int?
     var scanVersion: String?
     var isMissing: Bool
     var isInvalid: Bool
@@ -30,9 +30,29 @@ struct LibraryItem: Codable {
     var media: MediaType
     var libraryFiles: [LibraryFile]
     var userMediaProgress: MediaProgress?
+    
+    init() {
+        id = ""
+        ino = ""
+        libraryId = ""
+        folderId = ""
+        path = ""
+        relPath = ""
+        isFile = true
+        mtimeMs = 0
+        ctimeMs = 0
+        birthtimeMs = 0
+        addedAt = 0
+        updatedAt = 0
+        isMissing = false
+        isInvalid = false
+        mediaType = ""
+        media = MediaType()
+        libraryFiles = []
+    }
 }
 
-struct MediaType: Codable {
+struct MediaType: Realmable, Codable {
     var libraryItemId: String?
     var metadata: Metadata
     var coverPath: String?
@@ -40,13 +60,17 @@ struct MediaType: Codable {
     var audioFiles: [AudioFile]?
     var chapters: [Chapter]?
     var tracks: [AudioTrack]?
-    var size: Int64?
+    var size: Int?
     var duration: Double?
     var episodes: [PodcastEpisode]?
     var autoDownloadEpisodes: Bool?
+    
+    init() {
+        metadata = Metadata()
+    }
 }
 
-struct Metadata: Codable {
+struct Metadata: Realmable, Codable {
     var title: String
     var subtitle: String?
     var authors: [Author]?
@@ -65,9 +89,15 @@ struct Metadata: Codable {
     var narratorName: String?
     var seriesName: String?
     var feedUrl: String?
+    
+    init() {
+        title = "Unknown"
+        genres = []
+        explicit = false
+    }
 }
 
-struct PodcastEpisode: Codable {
+struct PodcastEpisode: Realmable, Codable {
     var id: String
     var index: Int
     var episode: String?
@@ -78,30 +108,55 @@ struct PodcastEpisode: Codable {
     var audioFile: AudioFile?
     var audioTrack: AudioTrack?
     var duration: Double
-    var size: Int64
+    var size: Int
 //    var serverEpisodeId: String?
+    
+    init() {
+        id = ""
+        index = 0
+        title = "Unknown"
+        duration = 0
+        size = 0
+    }
 }
 
-struct AudioFile: Codable {
+struct AudioFile: Realmable, Codable {
     var index: Int
     var ino: String
     var metadata: FileMetadata
+    
+    init() {
+        index = 0
+        ino = ""
+        metadata = FileMetadata()
+    }
 }
 
-struct Author: Codable {
+struct Author: Realmable, Codable {
     var id: String
     var name: String
     var coverPath: String?
+    
+    init() {
+        id = ""
+        name = "Unknown"
+    }
 }
 
-struct Chapter: Codable {
+struct Chapter: Realmable, Codable {
     var id: Int
     var start: Double
     var end: Double
     var title: String?
+    
+    init() {
+        id = 0
+        start = 0
+        end = 0
+    }
 }
 
-struct AudioTrack: Codable {
+struct AudioTrack: Realmable, Codable {
     var index: Int?
     var startOffset: Double?
     var duration: Double
@@ -113,50 +168,101 @@ struct AudioTrack: Codable {
     // var localFileId: String?
     // var audioProbeResult: AudioProbeResult? Needed for local playback
     var serverIndex: Int?
+    
+    init() {
+        duration = 0
+        mimeType = ""
+    }
 }
 
-struct FileMetadata: Codable {
+struct FileMetadata: Realmable, Codable {
     var filename: String
     var ext: String
     var path: String
     var relPath: String
+    
+    init() {
+        filename = ""
+        ext = ""
+        path = ""
+        relPath = ""
+    }
 }
 
-struct Library: Codable {
+struct Library: Realmable, Codable {
     var id: String
     var name: String
     var folders: [Folder]
     var icon: String
     var mediaType: String
+    
+    init() {
+        id = ""
+        name = "Unknown"
+        folders = []
+        icon = ""
+        mediaType = ""
+    }
 }
 
-struct Folder: Codable {
+struct Folder: Realmable, Codable {
     var id: String
     var fullPath: String
+    
+    init() {
+        id = ""
+        fullPath = ""
+    }
 }
 
-struct LibraryFile: Codable {
+struct LibraryFile: Realmable, Codable {
     var ino: String
     var metadata: FileMetadata
+    
+    init() {
+        ino = ""
+        metadata = FileMetadata()
+    }
 }
 
-struct MediaProgress:Codable {
-    var id:String
-    var libraryItemId:String
-    var episodeId:String?
-    var duration:Double
-    var progress:Double
-    var currentTime:Double
-    var isFinished:Bool
-    var lastUpdate:Int64
-    var startedAt:Int64
-    var finishedAt:Int64?
+struct MediaProgress: Realmable, Codable {
+    var id: String
+    var libraryItemId: String
+    var episodeId: String?
+    var duration: Double
+    var progress: Double
+    var currentTime: Double
+    var isFinished: Bool
+    var lastUpdate: Int
+    var startedAt: Int
+    var finishedAt: Int?
+    
+    init() {
+        id = ""
+        libraryItemId = ""
+        duration = 0
+        progress = 0
+        currentTime = 0
+        isFinished = false
+        lastUpdate = 0
+        startedAt = 0
+    }
 }
 
-struct PlaybackMetadata: Codable {
+struct PlaybackMetadata: Realmable, Codable {
     var duration: Double
     var currentTime: Double
     var playerState: PlayerState
+    
+    init() {
+        duration = 0
+        currentTime = 0
+        playerState = PlayerState.IDLE
+    }
+    
+    static func ignoredProperties() -> [String] {
+        return ["playerState"]
+    }
 }
 
 enum PlayerState: Codable {

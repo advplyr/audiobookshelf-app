@@ -35,18 +35,12 @@ public class AbsDatabase: CAPPlugin {
         let token = call.getString("token", "")
         
         let name = "\(address) (\(username))"
-        let config = ServerConnectionConfig()
         
         if id == nil {
             id = "\(address)@\(username)".toBase64()
         }
         
-        config.id = id!
-        config.name = name
-        config.address = address
-        config.userId = userId
-        config.username = username
-        config.token = token
+        let config = ServerConnectionConfig(id: id!, index: 0, name: name, address: address, userId: userId, username: username, token: token)
         
         Store.serverConfig = config
         call.resolve(convertServerConnectionConfigToJSON(config: config))
@@ -77,7 +71,7 @@ public class AbsDatabase: CAPPlugin {
     @objc func getLocalLibraryItems(_ call: CAPPluginCall) {
         do {
             let items = Database.shared.getLocalLibraryItems()
-            call.resolve([ "value": try items.asDictionaryArray() ])
+            call.resolve([ "value": try items.asDictionaryArray()])
         } catch(let exception) {
             NSLog("error while readling local library items")
             debugPrint(exception)
@@ -128,11 +122,7 @@ public class AbsDatabase: CAPPlugin {
         let enableAltView = call.getBool("enableAltView") ?? false
         let jumpBackwardsTime = call.getInt("jumpBackwardsTime") ?? 10
         let jumpForwardTime = call.getInt("jumpForwardTime") ?? 10
-        let settings = DeviceSettings()
-        settings.disableAutoRewind = disableAutoRewind
-        settings.enableAltView = enableAltView
-        settings.jumpBackwardsTime = jumpBackwardsTime
-        settings.jumpForwardTime = jumpForwardTime
+        let settings = DeviceSettings(disableAutoRewind: disableAutoRewind, enableAltView: enableAltView, jumpBackwardsTime: jumpBackwardsTime, jumpForwardTime: jumpForwardTime)
         
         Database.shared.setDeviceSettings(deviceSettings: settings)
         

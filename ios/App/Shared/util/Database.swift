@@ -23,16 +23,12 @@ class Database {
     }
     
     public func setServerConnectionConfig(config: ServerConnectionConfig) {
-        var refrence: ThreadSafeReference<ServerConnectionConfig>?
-        if config.realm != nil {
-            refrence = ThreadSafeReference(to: config)
-        }
-        
+        var config = config
         Database.realmQueue.sync {
-            let existing: ServerConnectionConfig? = instance.object(ofType: ServerConnectionConfig.self, forPrimaryKey: config.id)
+            var existing: ServerConnectionConfig? = instance.object(ofType: ServerConnectionConfig.self, forPrimaryKey: config.id)
             
             if config.index == 0 {
-                let lastConfig: ServerConnectionConfig? = instance.objects(ServerConnectionConfig.self).last
+                var lastConfig: ServerConnectionConfig? = instance.objects(ServerConnectionConfig.self).last
                 
                 if lastConfig != nil {
                     config.index = lastConfig!.index + 1
@@ -46,15 +42,7 @@ class Database {
                     if existing != nil {
                         instance.delete(existing!)
                     }
-                    if refrence == nil {
-                        instance.add(config)
-                    } else {
-                        guard let resolved = instance.resolve(refrence!) else {
-                            throw "unable to resolve refrence"
-                        }
-                        
-                        instance.add(resolved);
-                    }
+                    instance.add(config)
                 }
             } catch(let exception) {
                 NSLog("failed to save server config")
@@ -83,25 +71,8 @@ class Database {
     }
     
     public func getServerConnectionConfigs() -> [ServerConnectionConfig] {
-        var refrences: [ThreadSafeReference<ServerConnectionConfig>] = []
-        
         Database.realmQueue.sync {
-            let configs = instance.objects(ServerConnectionConfig.self)
-            refrences = configs.map { config in
-                return ThreadSafeReference(to: config)
-            }
-        }
-        
-        do {
-            let realm = try Realm()
-            
-            return refrences.map { refrence in
-                return realm.resolve(refrence)!
-            }
-        } catch(let exception) {
-            NSLog("error while readling configs")
-            debugPrint(exception)
-            return []
+            return Array(instance.objects(ServerConnectionConfig.self))
         }
     }
     
@@ -113,7 +84,7 @@ class Database {
     
     public func setLastActiveConfigIndex(index: Int?) {
         let existing = instance.objects(ServerConnectionConfigActiveIndex.self)
-        let obj = ServerConnectionConfigActiveIndex()
+        var obj = ServerConnectionConfigActiveIndex()
         obj.index = index
      
         do {
@@ -149,25 +120,8 @@ class Database {
     }
     
     public func getLocalLibraryItems(mediaType: MediaType? = nil) -> [LocalLibraryItem] {
-        var localLibraryItems: [ThreadSafeReference<LocalLibraryItem>] = []
-        
         Database.realmQueue.sync {
-            let items = instance.objects(LocalLibraryItem.self)
-            localLibraryItems = items.map { item in
-                return ThreadSafeReference(to: item)
-            }
-        }
-        
-        do {
-            let realm = try Realm()
-            
-            return localLibraryItems.map { item in
-                return realm.resolve(item)!
-            }
-        } catch(let exception) {
-            NSLog("error while readling local library items")
-            debugPrint(exception)
-            return []
+            Array(instance.objects(LocalLibraryItem.self))
         }
     }
     
@@ -183,26 +137,14 @@ class Database {
     }
     
     public func getLocalLibraryItem(localLibraryItem: String) -> LocalLibraryItem? {
-        let items = getLocalLibraryItems()
-        for item in items {
-            if (item.id == localLibraryItem) {
-                return item
-            }
+        Database.realmQueue.sync {
+            instance.object(ofType: LocalLibraryItem.self, forPrimaryKey: localLibraryItem)
         }
-        NSLog("Local library item with id \(localLibraryItem) not found")
-        return nil
     }
     
     public func saveLocalLibraryItem(localLibraryItem: LocalLibraryItem) {
         Database.realmQueue.sync {
-            do {
-                try instance.write {
-                    instance.add(localLibraryItem);
-                }
-            } catch(let exception) {
-                NSLog("Unable to save local library item")
-                debugPrint(exception)
-            }
+            try! instance.write { instance.add(localLibraryItem) }
         }
     }
     
@@ -213,19 +155,10 @@ class Database {
     }
     
     public func removeLocalLibraryItem(localLibraryItemId: String) {
-        let item = getLocalLibraryItemByLLId(libraryItem: localLibraryItemId)
         Database.realmQueue.sync {
-            do {
-                try instance.write {
-                    if item != nil {
-                        instance.delete(item!)
-                    } else {
-                        NSLog("Unable to find local library item to delete")
-                    }
-                }
-            } catch (let exception) {
-                NSLog("Unable to delete local library item")
-                debugPrint(exception)
+            try! instance.write {
+                let item = getLocalLibraryItemByLLId(libraryItem: localLibraryItemId)
+                instance.delete(item!)
             }
         }
     }

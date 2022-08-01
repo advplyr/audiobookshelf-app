@@ -114,9 +114,11 @@ class ApiClient {
             callback(session)
         }
     }
+    
     public static func reportPlaybackProgress(report: PlaybackReport, sessionId: String) {
         try? postResource(endpoint: "api/session/\(sessionId)/sync", parameters: report.asDictionary().mapValues({ value in "\(value)" }), callback: nil)
     }
+    
     public static func getLibraryItemWithProgress(libraryItemId:String, episodeId:String?, callback: @escaping (_ param: LibraryItem?) -> Void) {
         var endpoint = "api/items/\(libraryItemId)?expanded=1&include=progress"
         if episodeId != nil {
