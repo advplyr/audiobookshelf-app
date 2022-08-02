@@ -40,7 +40,7 @@ public class AbsDatabase: CAPPlugin {
             id = "\(address)@\(username)".toBase64()
         }
         
-        let config = ServerConnectionConfig(id: id!, index: 0, name: name, address: address, userId: userId, username: username, token: token)
+        let config = ServerConnectionConfig(id: id!, index: 1, name: name, address: address, userId: userId, username: username, token: token)
         
         Store.serverConfig = config
         call.resolve(convertServerConnectionConfigToJSON(config: config))

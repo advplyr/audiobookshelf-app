@@ -76,21 +76,16 @@ class Database {
         }
     }
     
-    public func setLastActiveConfigIndexToNil() {
-        Database.realmQueue.sync {
-            setLastActiveConfigIndex(index: nil)
-        }
+    private func setLastActiveConfigIndexToNil() {
+        setLastActiveConfigIndex(index: nil)
     }
     
-    public func setLastActiveConfigIndex(index: Int?) {
-        let existing = instance.objects(ServerConnectionConfigActiveIndex.self)
-        var obj = ServerConnectionConfigActiveIndex()
-        obj.index = index
-     
+    private func setLastActiveConfigIndex(index: Int?) {
         do {
             try instance.write {
-                instance.delete(existing)
-                instance.add(obj)
+                var existing = instance.objects(ServerConnectionConfigActiveIndex.self).last ?? ServerConnectionConfigActiveIndex(index: index)
+                existing.index = index
+                instance.add(existing, update: .modified)
             }
         } catch(let exception) {
             NSLog("failed to save server config active index")

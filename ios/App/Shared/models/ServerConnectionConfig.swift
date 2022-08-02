@@ -11,7 +11,7 @@ import Unrealm
 
 struct ServerConnectionConfig: Realmable {
     var id: String = UUID().uuidString
-    var index: Int = 0
+    var index: Int = 1
     var name: String = ""
     var address: String = ""
     var userId: String = ""
@@ -30,6 +30,10 @@ struct ServerConnectionConfig: Realmable {
 struct ServerConnectionConfigActiveIndex: Realmable {
     // This could overflow, but you really would have to try
     var index: Int?
+    
+    static func primaryKey() -> String? {
+        return "index"
+    }
 }
 
 func convertServerConnectionConfigToJSON(config: ServerConnectionConfig) -> Dictionary<String, Any> {
