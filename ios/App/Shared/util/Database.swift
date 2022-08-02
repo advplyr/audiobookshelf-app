@@ -76,8 +76,10 @@ class Database {
         }
     }
     
-    private func setLastActiveConfigIndexToNil() {
-        setLastActiveConfigIndex(index: nil)
+    public func setLastActiveConfigIndexToNil() {
+        Database.realmQueue.sync {
+            setLastActiveConfigIndex(index: nil)
+        }
     }
     
     private func setLastActiveConfigIndex(index: Int?) {
