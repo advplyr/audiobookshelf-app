@@ -22,6 +22,9 @@ export const getters = {
   getServerAddress: (state) => {
     return state.serverConnectionConfig ? state.serverConnectionConfig.address : null
   },
+  getServerConfigName: (state) => {
+    return state.serverConnectionConfig ? state.serverConnectionConfig.name : null
+  },
   getCustomHeaders: (state) => {
     return state.serverConnectionConfig ? state.serverConnectionConfig.customHeaders : null
   },

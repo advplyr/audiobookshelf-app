@@ -36,6 +36,15 @@ module.exports = {
       },
       fontSize: {
         xxs: '0.625rem'
+      },
+      maxWidth: {
+        '24': '6rem'
+      },
+      minWidth: {
+        '12': '3rem'
+      },
+      minHeight: {
+        '12': '3rem'
       }
     }
   },

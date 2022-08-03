@@ -71,31 +71,35 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
       if (player.isPlaying) {
         Log.d(tag, "SeekBackTime: Player is playing")
         if (lastPauseTime > 0 && DeviceManager.deviceData.deviceSettings?.disableAutoRewind != true) {
+          var seekBackTime = 0L
           if (onSeekBack) onSeekBack = false
           else {
             Log.d(tag, "SeekBackTime: playing started now set seek back time $lastPauseTime")
-            var backTime = calcPauseSeekBackTime()
-            if (backTime > 0) {
+            seekBackTime = calcPauseSeekBackTime()
+            if (seekBackTime > 0) {
               // Current chapter is used so that seek back does not go back to the previous chapter
               val currentChapter = playerNotificationService.getCurrentBookChapter()
               val minSeekBackTime = currentChapter?.startMs ?: 0
 
               val currentTime = playerNotificationService.getCurrentTime()
-              val newTime = currentTime - backTime
+              val newTime = currentTime - seekBackTime
               if (newTime < minSeekBackTime) {
-                backTime = currentTime - minSeekBackTime
+                seekBackTime = currentTime - minSeekBackTime
               }
-              Log.d(tag, "SeekBackTime $backTime")
+              Log.d(tag, "SeekBackTime $seekBackTime")
               onSeekBack = true
-              playerNotificationService.seekBackward(backTime)
             }
           }
 
           // Check if playback session still exists or sync media progress if updated
           val pauseLength: Long = System.currentTimeMillis() - lastPauseTime
           if (pauseLength > PAUSE_LEN_BEFORE_RECHECK) {
-            val shouldCarryOn = playerNotificationService.checkCurrentSessionProgress()
+            val shouldCarryOn = playerNotificationService.checkCurrentSessionProgress(seekBackTime)
             if (!shouldCarryOn) return
+          }
+
+          if (seekBackTime > 0L) {
+            playerNotificationService.seekBackward(seekBackTime)
           }
         }
       } else {
@@ -104,15 +108,18 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
       }
 
       // Start/stop progress sync interval
-      Log.d(tag, "Playing ${playerNotificationService.getCurrentBookTitle()}")
       if (player.isPlaying) {
         player.volume = 1F // Volume on sleep timer might have decreased this
         playerNotificationService.mediaProgressSyncer.start()
       } else {
-        playerNotificationService.mediaProgressSyncer.stop()
+        playerNotificationService.mediaProgressSyncer.pause {
+          Log.d(tag, "Media Progress Syncer paused and synced")
+        }
       }
 
       playerNotificationService.clientEventEmitter?.onPlayingUpdate(player.isPlaying)
+
+      DeviceManager.widgetUpdater?.onPlayerChanged(playerNotificationService)
     }
   }
 

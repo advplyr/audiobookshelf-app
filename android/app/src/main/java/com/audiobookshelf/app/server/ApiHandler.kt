@@ -1,7 +1,6 @@
 package com.audiobookshelf.app.server
 
 import android.content.Context
-import android.content.SharedPreferences
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.util.Log
@@ -17,6 +16,7 @@ import com.getcapacitor.JSObject
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONException
 import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
@@ -27,8 +27,6 @@ class ApiHandler(var ctx:Context) {
   private var defaultClient = OkHttpClient()
   private var pingClient = OkHttpClient.Builder().callTimeout(3, TimeUnit.SECONDS).build()
   var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
-
-  var storageSharedPreferences: SharedPreferences? = null
 
   data class LocalMediaProgressSyncPayload(val localMediaProgress:List<LocalMediaProgress>)
   @JsonIgnoreProperties(ignoreUnknown = true)
@@ -81,6 +79,12 @@ class ApiHandler(var ctx:Context) {
     return false
   }
 
+  fun isUsingCellularData(): Boolean {
+    val connectivityManager = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    val capabilities = connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
+    return capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true
+  }
+
   fun makeRequest(request:Request, httpClient:OkHttpClient?, cb: (JSObject) -> Unit) {
     val client = httpClient ?: defaultClient
     client.newCall(request).enqueue(object : Callback {
@@ -106,14 +110,21 @@ class ApiHandler(var ctx:Context) {
           if (bodyString == "OK") {
             cb(JSObject())
           } else {
-            var jsonObj = JSObject()
-            if (bodyString.startsWith("[")) {
-              val array = JSArray(bodyString)
-              jsonObj.put("value", array)
-            } else {
-              jsonObj = JSObject(bodyString)
+            try {
+              var jsonObj = JSObject()
+              if (bodyString.startsWith("[")) {
+                val array = JSArray(bodyString)
+                jsonObj.put("value", array)
+              } else {
+                jsonObj = JSObject(bodyString)
+              }
+              cb(jsonObj)
+            } catch(je:JSONException) {
+              Log.e(tag, "Invalid JSON response ${je.localizedMessage} from body $bodyString")
+              val jsobj = JSObject()
+              jsobj.put("error", "Invalid response body")
+              cb(jsobj)
             }
-            cb(jsonObj)
           }
         }
       }
@@ -225,11 +236,15 @@ class ApiHandler(var ctx:Context) {
     }
   }
 
-  fun sendLocalProgressSync(playbackSession:PlaybackSession, cb: () -> Unit) {
+  fun sendLocalProgressSync(playbackSession:PlaybackSession, cb: (Boolean) -> Unit) {
     val payload = JSObject(jacksonMapper.writeValueAsString(playbackSession))
 
     postRequest("/api/session/local", payload) {
-      cb()
+      if (!it.getString("error").isNullOrEmpty()) {
+        cb(false)
+      } else {
+        cb(true)
+      }
     }
   }
 

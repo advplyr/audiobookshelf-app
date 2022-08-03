@@ -7,8 +7,10 @@ import android.os.Handler
 import android.os.Looper
 import android.os.Message
 import android.support.v4.media.session.MediaSessionCompat
+import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
 import android.view.KeyEvent
+import com.audiobookshelf.app.R
 import com.audiobookshelf.app.data.LibraryItemWrapper
 import com.audiobookshelf.app.data.PodcastEpisode
 import java.util.*
@@ -28,8 +30,9 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
         if (it == null) {
           Log.e(tag, "Failed to play library item")
         } else {
+          val playbackRate = playerNotificationService.mediaManager.getSavedPlaybackRate()
           Handler(Looper.getMainLooper()).post() {
-            playerNotificationService.preparePlayer(it,true,null)
+            playerNotificationService.preparePlayer(it,true, playbackRate)
           }
         }
       }
@@ -53,8 +56,9 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
         if (it == null) {
            Log.e(tag, "Failed to play library item")
         } else {
+          val playbackRate = playerNotificationService.mediaManager.getSavedPlaybackRate()
           Handler(Looper.getMainLooper()).post() {
-            playerNotificationService.preparePlayer(it, true, null)
+            playerNotificationService.preparePlayer(it, true, playbackRate)
           }
         }
       }
@@ -114,8 +118,9 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
         if (it == null) {
          Log.e(tag, "Failed to play library item")
         } else {
+          val playbackRate = playerNotificationService.mediaManager.getSavedPlaybackRate()
           Handler(Looper.getMainLooper()).post() {
-            playerNotificationService.preparePlayer(it, true, null)
+            playerNotificationService.preparePlayer(it, true, playbackRate)
           }
         }
       }
@@ -127,8 +132,25 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
   }
 
   fun handleCallMediaButton(intent: Intent): Boolean {
+    Log.w(tag, "handleCallMediaButton $intent | ${intent.action}")
+
     if(Intent.ACTION_MEDIA_BUTTON == intent.action) {
       val keyEvent = intent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
+      Log.d(tag, "handleCallMediaButton keyEvent = $keyEvent | action ${keyEvent?.action}")
+
+      if (keyEvent?.action == KeyEvent.ACTION_DOWN) {
+        Log.d(tag, "handleCallMediaButton: key action_down for ${keyEvent.keyCode}")
+        when (keyEvent.keyCode) {
+          KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
+            Log.d(tag, "handleCallMediaButton: Media Play/Pause")
+            if (playerNotificationService.mPlayer.isPlaying) {
+              playerNotificationService.pause()
+            } else {
+              playerNotificationService.play()
+            }
+          }
+        }
+      }
 
       if (keyEvent?.action == KeyEvent.ACTION_UP) {
         Log.d(tag, "handleCallMediaButton: key action_up for ${keyEvent.keyCode}")
@@ -214,4 +236,12 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
     }
   }
 
+  // Example Using a custom action in android auto
+//  override fun onCustomAction(action: String?, extras: Bundle?) {
+//    super.onCustomAction(action, extras)
+//
+//    if ("com.audiobookshelf.app.PLAYBACK_RATE" == action) {
+//
+//    }
+//  }
 }
