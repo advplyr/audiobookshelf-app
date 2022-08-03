@@ -79,7 +79,7 @@ struct Metadata: Realmable, Codable {
     var publishedYear: String?
     var publishedDate: String?
     var publisher: String?
-    var description: String?
+    var desc: String?
     var isbn: String?
     var asin: String?
     var language: String?
@@ -95,6 +95,27 @@ struct Metadata: Realmable, Codable {
         genres = []
         explicit = false
     }
+    
+    private enum CodingKeys : String, CodingKey {
+        case title,
+             subtitle,
+             authors,
+             narrators,
+             genres,
+             publishedYear,
+             publishedDate,
+             publisher,
+             desc = "description", // Fixes a collision with the base Swift object's field "description"
+             isbn,
+             asin,
+             language,
+             explicit,
+             authorName,
+             authorNameLF,
+             narratorName,
+             seriesName,
+             feedUrl
+    }
 }
 
 struct PodcastEpisode: Realmable, Codable {
@@ -104,7 +125,7 @@ struct PodcastEpisode: Realmable, Codable {
     var episodeType: String?
     var title: String
     var subtitle: String?
-    var description: String?
+    var desc: String?
     var audioFile: AudioFile?
     var audioTrack: AudioTrack?
     var duration: Double
@@ -117,6 +138,20 @@ struct PodcastEpisode: Realmable, Codable {
         title = "Unknown"
         duration = 0
         size = 0
+    }
+    
+    private enum CodingKeys : String, CodingKey {
+        case id,
+             index,
+             episode,
+             episodeType,
+             title,
+             subtitle,
+             desc = "description", // Fixes a collision with the base Swift object's field "description"
+             audioFile,
+             audioTrack,
+             duration,
+             size
     }
 }
 
