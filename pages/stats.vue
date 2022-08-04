@@ -5,13 +5,7 @@
 
       <div class="flex text-center justify-center">
         <div class="flex p-2">
-          <!-- <svg class="hidden sm:block h-14 w-14 lg:h-18 lg:w-18" viewBox="0 0 24 24"> -->
-          <!--   <path -->
-          <!--     fill="currentColor" -->
-          <!--     d="M19 1L14 6V17L19 12.5V1M21 5V18.5C19.9 18.15 18.7 18 17.5 18C15.8 18 13.35 18.65 12 19.5V6C10.55 4.9 8.45 4.5 6.5 4.5C4.55 4.5 2.45 4.9 1 6V20.65C1 20.9 1.25 21.15 1.5 21.15C1.6 21.15 1.65 21.1 1.75 21.1C3.1 20.45 5.05 20 6.5 20C8.45 20 10.55 20.4 12 21.5C13.35 20.65 15.8 20 17.5 20C19.15 20 20.85 20.3 22.25 21.05C22.35 21.1 22.4 21.1 22.5 21.1C22.75 21.1 23 20.85 23 20.6V6C22.4 5.55 21.75 5.25 21 5M10 18.41C8.75 18.09 7.5 18 6.5 18C5.44 18 4.18 18.19 3 18.5V7.13C3.91 6.73 5.14 6.5 6.5 6.5C7.86 6.5 9.09 6.73 10 7.13V18.41Z" -->
-          <!--   /> -->
-          <!-- </svg> -->
-          <div class="px-3">
+         <div class="px-3">
             <p class="text-4xl md:text-5xl font-bold">{{ userItemsFinished.length }}</p>
             <p class="font-book text-xs md:text-sm text-white text-opacity-80">Items Finished</p>
             <div class="flex justify-center">
@@ -26,10 +20,7 @@
         </div>
 
         <div class="flex p-2">
-          <!-- <div class="hidden sm:block"> -->
-            <!-- <span class="hidden sm:block material-icons-outlined text-5xl lg:text-6xl">event</span> -->
-          <!-- </div> -->
-          <div class="px-1">
+         <div class="px-1">
             <p class="text-4xl md:text-5xl font-bold">{{ totalDaysListened }}</p>
             <p class="font-book text-xs md:text-sm text-white text-opacity-80">Days Listened</p>
             <span class="hidden sm:block material-icons-outlined py-1 text-5xl lg:text-6xl">event</span>
@@ -37,10 +28,7 @@
         </div>
 
         <div class="flex p-2">
-          <!-- <div class="hidden sm:block"> -->
-          <!--   <span class="material-icons-outlined text-5xl lg:text-6xl">watch_later</span> -->
-          <!-- </div> -->
-          <div class="px-1">
+         <div class="px-1">
             <p class="text-4xl md:text-5xl font-bold">{{ totalMinutesListening }}</p>
             <p class="font-book text-xs md:text-sm text-white text-opacity-80">Minutes Listening</p>
             <span class="material-icons-outlined text-5xl py-1 lg:text-6xl">watch_later</span>
@@ -53,7 +41,6 @@
           <div class="flex mb-4 items-center">
             <h1 class="text-2xl font-book">Recent Sessions</h1>
             <div class="flex-grow" />
-            <!-- <ui-btn :to="`/config/users/${user.id}/sessions`" class="text-xs" :padding-x="1.5" :padding-y="1">View All</ui-btn> -->
           </div>
           <p v-if="!mostRecentListeningSessions.length">No Listening Sessions</p>
           <template v-for="(item, index) in mostRecentListeningSessions">
@@ -74,9 +61,6 @@
         </div>
       </div>
     </div>
-
-    <!-- <stats-heatmap v-if="listeningStats" :days-listening="listeningStats.days" class="my-2" /> -->
-  <!-- </div> -->
 </template>
 
 <script>
