@@ -38,6 +38,7 @@
 		C4B265F5285A5A6600E1B5C3 /* LocalLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4B265F4285A5A6600E1B5C3 /* LocalLibrary.swift */; };
 		C4D0677528106D0C00B8F875 /* DataClasses.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D0677428106D0C00B8F875 /* DataClasses.swift */; };
 		E99C8C932883A00F00E3279A /* LocalLibraryExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99C8C922883A00F00E3279A /* LocalLibraryExtensions.swift */; };
+		E9D38158289A0A6F0019EEED /* LibraryItemDownloadSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D38157289A0A6F0019EEED /* LibraryItemDownloadSession.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -76,6 +77,7 @@
 		C4B265F4285A5A6600E1B5C3 /* LocalLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalLibrary.swift; sourceTree = "<group>"; };
 		C4D0677428106D0C00B8F875 /* DataClasses.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataClasses.swift; sourceTree = "<group>"; };
 		E99C8C922883A00F00E3279A /* LocalLibraryExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalLibraryExtensions.swift; sourceTree = "<group>"; };
+		E9D38157289A0A6F0019EEED /* LibraryItemDownloadSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryItemDownloadSession.swift; sourceTree = "<group>"; };
 		FC68EB0AF532CFC21C3344DD /* Pods-App.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-App.debug.xcconfig"; path = "Pods/Target Support Files/Pods-App/Pods-App.debug.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -156,6 +158,7 @@
 				3AF1970B2806E2590096F747 /* ApiClient.swift */,
 				3AB34052280829BF0039308B /* Extensions.swift */,
 				3AB34054280832720039308B /* PlayerEvents.swift */,
+				E9D38157289A0A6F0019EEED /* LibraryItemDownloadSession.swift */,
 			);
 			path = util;
 			sourceTree = "<group>";
@@ -341,6 +344,7 @@
 				C4D0677528106D0C00B8F875 /* DataClasses.swift in Sources */,
 				4D66B954282EE87C008272D4 /* AbsDownloader.swift in Sources */,
 				3AB34055280832720039308B /* PlayerEvents.swift in Sources */,
+				E9D38158289A0A6F0019EEED /* LibraryItemDownloadSession.swift in Sources */,
 				E99C8C932883A00F00E3279A /* LocalLibraryExtensions.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
