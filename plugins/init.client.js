@@ -2,7 +2,7 @@ import Vue from 'vue'
 import { App } from '@capacitor/app'
 import { Dialog } from '@capacitor/dialog'
 import { StatusBar, Style } from '@capacitor/status-bar';
-import { formatDistance, format } from 'date-fns'
+import { formatDistance, format, addDays, isDate } from 'date-fns'
 import { Capacitor } from '@capacitor/core';
 
 Vue.prototype.$eventBus = new Vue()
@@ -24,7 +24,20 @@ Vue.prototype.$formatDate = (unixms, fnsFormat = 'MM/dd/yyyy HH:mm') => {
   if (!unixms) return ''
   return format(unixms, fnsFormat)
 }
-
+Vue.prototype.$formatJsDate = (jsdate, fnsFormat = 'MM/dd/yyyy HH:mm') => {
+  if (!jsdate || !isDate(jsdate)) return ''
+  return format(jsdate, fnsFormat)
+}
+Vue.prototype.$addDaysToToday = (daysToAdd) => {
+  var date = addDays(new Date(), daysToAdd)
+  if (!date || !isDate(date)) return null
+  return date
+}
+Vue.prototype.$addDaysToDate = (jsdate, daysToAdd) => {
+  var date = addDays(jsdate, daysToAdd)
+  if (!date || !isDate(date)) return null
+  return date
+}
 Vue.prototype.$bytesPretty = (bytes, decimals = 2) => {
   if (isNaN(bytes) || bytes === null) return 'Invalid Bytes'
   if (bytes === 0) {
