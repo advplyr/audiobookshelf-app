@@ -8,7 +8,7 @@
       </div>
 
       <div class="flex-grow" />
-      <p v-if="totalDuration">{{ totalDurationPretty }}</p>
+      <p v-if="totalDuration" class="text-sm text-gray-200">{{ totalDurationPretty }}</p>
     </div>
     <template v-for="book in booksCopy">
       <tables-collection-book-table-row :key="book.id" :book="book" :collection-id="collectionId" class="item collection-book-item" @edit="editBook" />
@@ -41,12 +41,12 @@ export default {
     totalDuration() {
       var _total = 0
       this.books.forEach((book) => {
-        _total += book.duration
+        _total += book.media.duration
       })
       return _total
     },
     totalDurationPretty() {
-      return this.$elapsedPretty(this.totalDuration)
+      return this.$elapsedPrettyExtended(this.totalDuration)
     }
   },
   methods: {
