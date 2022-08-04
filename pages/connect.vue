@@ -12,7 +12,7 @@
 
       <!-- <p class="absolute bottom-16 left-0 right-0 px-2 text-center text-error"><strong>Important!</strong> This app requires that you are running <u>your own server</u> and does not provide any content.</p> -->
 
-      <connection-server-connect-form />
+      <connection-server-connect-form v-if="deviceData" />
     </div>
 
     <div class="flex items-center justify-center pt-4 fixed bottom-4 left-0 right-0">
@@ -32,7 +32,9 @@
 export default {
   layout: 'blank',
   data() {
-    return {}
+    return {
+      deviceData: null
+    }
   },
   computed: {
     networkConnected() {
@@ -41,6 +43,8 @@ export default {
   },
   methods: {
     async init() {
+      this.deviceData = await this.$db.getDeviceData()
+      this.$store.commit('setDeviceData', this.deviceData)
       await this.$store.dispatch('setupNetworkListener')
     }
   },

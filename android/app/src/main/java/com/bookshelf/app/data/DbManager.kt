@@ -1,16 +1,27 @@
 package com.bookshelf.app.data
 
+import android.content.Context
 import android.util.Log
 import com.bookshelf.app.plugins.AbsDownloader
 import io.paperdb.Paper
-import org.json.JSONObject
 import java.io.File
 
 class DbManager {
   val tag = "DbManager"
 
+  companion object {
+    var isDbInitialized = false
+
+    fun initialize(ctx: Context) {
+      if (isDbInitialized) return
+      Paper.init(ctx)
+      isDbInitialized = true
+      Log.i("DbManager", "Initialized Paper db")
+    }
+  }
+
   fun getDeviceData(): DeviceData {
-    return Paper.book("device").read("data") ?: DeviceData(mutableListOf(), null, null)
+    return Paper.book("device").read("data") ?: DeviceData(mutableListOf(), null, null, DeviceSettings.default())
   }
   fun saveDeviceData(deviceData:DeviceData) {
     Paper.book("device").write("data", deviceData)
@@ -34,7 +45,7 @@ class DbManager {
     }
   }
 
-  fun getLocalLibraryItemByLLId(libraryItemId:String):LocalLibraryItem? {
+  fun getLocalLibraryItemByLId(libraryItemId:String):LocalLibraryItem? {
     return getLocalLibraryItems().find { it.libraryItemId == libraryItemId }
   }
 
@@ -202,7 +213,11 @@ class DbManager {
     val localLibraryItems = getLocalLibraryItems()
     localMediaProgress.forEach {
       val matchingLLI = localLibraryItems.find { lli -> lli.id == it.localLibraryItemId }
-      if (matchingLLI == null) {
+      if (!it.id.startsWith("local")) {
+        // A bug on the server when syncing local media progress was replacing the media progress id causing duplicate progress. Remove them.
+        Log.d(tag, "cleanLocalMediaProgress: Invalid local media progress does not start with 'local' (fixed on server 2.0.24)")
+        Paper.book("localMediaProgress").delete(it.id)
+      } else if (matchingLLI == null) {
         Log.d(tag, "cleanLocalMediaProgress: No matching local library item for local media progress ${it.id} - removing")
         Paper.book("localMediaProgress").delete(it.id)
       } else if (matchingLLI.isPodcast) {

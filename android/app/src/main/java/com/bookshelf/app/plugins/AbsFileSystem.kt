@@ -1,5 +1,6 @@
 package com.bookshelf.app.plugins
 
+import android.app.AlertDialog
 import android.database.Cursor
 import android.net.Uri
 import android.os.Build
@@ -65,39 +66,59 @@ class AbsFileSystem : Plugin() {
 
   @PluginMethod
   fun selectFolder(call: PluginCall) {
-    var mediaType = call.data.getString("mediaType", "book").toString()
+    val mediaType = call.data.getString("mediaType", "book").toString()
+    val REQUEST_CODE_SELECT_FOLDER = 6
+    val REQUEST_CODE_SDCARD_ACCESS = 7
 
     mainActivity.storage.folderPickerCallback = object : FolderPickerCallback {
       override fun onFolderSelected(requestCode: Int, folder: DocumentFile) {
         Log.d(TAG, "ON FOLDER SELECTED ${folder.uri} ${folder.name}")
-        var absolutePath = folder.getAbsolutePath(activity)
-        var storageType = folder.getStorageType(activity)
-        var simplePath = folder.getSimplePath(activity)
-        var basePath = folder.getBasePath(activity)
-        var folderId = android.util.Base64.encodeToString(folder.id.toByteArray(), android.util.Base64.DEFAULT)
+        val absolutePath = folder.getAbsolutePath(activity)
+        val storageType = folder.getStorageType(activity)
+        val simplePath = folder.getSimplePath(activity)
+        val basePath = folder.getBasePath(activity)
+        val folderId = android.util.Base64.encodeToString(folder.id.toByteArray(), android.util.Base64.DEFAULT)
 
-        var localFolder = LocalFolder(folderId, folder.name ?: "", folder.uri.toString(),basePath,absolutePath, simplePath, storageType.toString(), mediaType)
+        val localFolder = LocalFolder(folderId, folder.name ?: "", folder.uri.toString(),basePath,absolutePath, simplePath, storageType.toString(), mediaType)
 
         DeviceManager.dbManager.saveLocalFolder(localFolder)
         call.resolve(JSObject(jacksonMapper.writeValueAsString(localFolder)))
       }
 
       override fun onStorageAccessDenied(requestCode: Int, folder: DocumentFile?, storageType: StorageType) {
-        Log.e(TAG, "STORAGE ACCESS DENIED")
-        var jsobj = JSObject()
-        jsobj.put("error", "Access Denied")
-        call.resolve(jsobj)
+        val jsobj = JSObject()
+        if (requestCode == REQUEST_CODE_SELECT_FOLDER) {
+
+          val builder: AlertDialog.Builder = AlertDialog.Builder(mainActivity)
+          builder.setMessage(
+            "You have no write access to this storage, thus selecting this folder is useless." +
+            "\nWould you like to grant access to this folder?")
+          builder.setNegativeButton("Dont Allow") { _, _ ->
+            run {
+              jsobj.put("error", "User Canceled, Access Denied")
+              call.resolve(jsobj)
+            }
+          }
+          builder.setPositiveButton("Allow.") { _, _ -> mainActivity.storageHelper.requestStorageAccess(REQUEST_CODE_SDCARD_ACCESS, storageType) }
+          builder.show()
+        } else {
+          Log.d(TAG, "STORAGE ACCESS DENIED $requestCode")
+          jsobj.put("error", "Access Denied")
+          call.resolve(jsobj)
+        }
       }
+
 
       override fun onStoragePermissionDenied(requestCode: Int) {
         Log.d(TAG, "STORAGE PERMISSION DENIED $requestCode")
-        var jsobj = JSObject()
+        val jsobj = JSObject()
         jsobj.put("error", "Permission Denied")
         call.resolve(jsobj)
       }
+
     }
 
-    mainActivity.storage.openFolderPicker(6)
+    mainActivity.storage.openFolderPicker(REQUEST_CODE_SELECT_FOLDER)
   }
 
   @RequiresApi(Build.VERSION_CODES.R)

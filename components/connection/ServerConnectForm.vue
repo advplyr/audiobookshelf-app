@@ -1,6 +1,6 @@
 <template>
-  <div class="w-full max-w-md mx-auto px-4 sm:px-6 lg:px-8 z-10">
-    <div v-show="!loggedIn" class="mt-8 bg-primary overflow-hidden shadow rounded-lg p-6 w-full">
+  <div class="w-full max-w-md mx-auto px-2 sm:px-4 lg:px-8 z-10">
+    <div v-show="!loggedIn" class="mt-8 bg-primary overflow-hidden shadow rounded-lg px-4 py-6 w-full">
       <template v-if="!showForm">
         <div v-for="config in serverConnectionConfigs" :key="config.id" class="flex items-center py-4 my-1 border-b border-white border-opacity-10 relative" @click="connectToServer(config)">
           <span class="material-icons-outlined text-xl text-gray-300">dns</span>
@@ -16,10 +16,18 @@
       </template>
       <div v-else class="w-full">
         <form v-show="!showAuth" @submit.prevent="submit" novalidate class="w-full">
+          <div v-if="serverConnectionConfigs.length" class="flex items-center mb-4" @click="showServerList">
+            <span class="material-icons text-gray-300">arrow_back</span>
+          </div>
           <h2 class="text-lg leading-7 mb-2">Server address</h2>
-          <ui-text-input v-model="serverConfig.address" :disabled="processing || !networkConnected || serverConfig.id" placeholder="http://55.55.55.55:13378" type="url" class="w-full sm:w-72 h-10" />
-          <div class="flex justify-end">
-            <ui-btn :disabled="processing || !networkConnected" type="submit" :padding-x="3" class="h-10 mt-4">{{ networkConnected ? 'Submit' : 'No Internet' }}</ui-btn>
+          <ui-text-input v-model="serverConfig.address" :disabled="processing || !networkConnected || !!serverConfig.id" placeholder="http://55.55.55.55:13378" type="url" class="w-full h-10" />
+          <div class="flex justify-end items-center mt-6">
+            <!-- <div class="relative flex">
+              <button class="outline-none uppercase tracking-wide font-semibold text-xs text-gray-300" type="button" @click="addCustomHeaders">Add Custom Headers</button>
+              <div v-if="numCustomHeaders" class="rounded-full h-5 w-5 flex items-center justify-center text-xs bg-success bg-opacity-40 leading-3 font-semibold font-mono ml-1">{{ numCustomHeaders }}</div>
+            </div> -->
+
+            <ui-btn :disabled="processing || !networkConnected" type="submit" :padding-x="3" class="h-10">{{ networkConnected ? 'Submit' : 'No Internet' }}</ui-btn>
           </div>
         </form>
         <template v-if="showAuth">
@@ -62,6 +70,8 @@
         </svg>
       </div>
     </div>
+
+    <modals-custom-headers-modal v-model="showAddCustomHeaders" :custom-headers.sync="serverConfig.customHeaders" />
   </div>
 </template>
 
@@ -69,23 +79,26 @@
 import { Dialog } from '@capacitor/dialog'
 
 export default {
-  props: {},
   data() {
     return {
-      deviceData: null,
       loggedIn: false,
       showAuth: false,
       processing: false,
       serverConfig: {
         address: null,
-        username: null
+        username: null,
+        customHeaders: null
       },
       password: null,
       error: null,
-      showForm: false
+      showForm: false,
+      showAddCustomHeaders: false
     }
   },
   computed: {
+    deviceData() {
+      return this.$store.state.deviceData || {}
+    },
     networkConnected() {
       return this.$store.state.networkConnected
     },
@@ -98,9 +111,16 @@ export default {
     lastServerConnectionConfig() {
       if (!this.lastServerConnectionConfigId || !this.serverConnectionConfigs.length) return null
       return this.serverConnectionConfigs.find((s) => s.id == this.lastServerConnectionConfigId)
+    },
+    numCustomHeaders() {
+      if (!this.serverConfig.customHeaders) return 0
+      return Object.keys(this.serverConfig.customHeaders).length
     }
   },
   methods: {
+    addCustomHeaders() {
+      this.showAddCustomHeaders = true
+    },
     showServerList() {
       this.showForm = false
       this.showAuth = false
@@ -132,7 +152,7 @@ export default {
       var payload = await this.authenticateToken()
 
       if (payload) {
-        this.setUserAndConnection(payload.user, payload.userDefaultLibraryId)
+        this.setUserAndConnection(payload)
       } else {
         this.showAuth = true
       }
@@ -147,7 +167,10 @@ export default {
       if (value) {
         this.processing = true
         await this.$db.removeServerConnectionConfig(this.serverConfig.id)
-        this.deviceData.serverConnectionConfigs = this.deviceData.serverConnectionConfigs.filter((scc) => scc.id != this.serverConfig.id)
+        const updatedDeviceData = { ...this.deviceData }
+        updatedDeviceData.serverConnectionConfigs = this.deviceData.serverConnectionConfigs.filter((scc) => scc.id != this.serverConfig.id)
+        this.$store.commit('setDeviceData', updatedDeviceData)
+
         this.serverConfig = {
           address: null,
           userId: null,
@@ -165,7 +188,6 @@ export default {
       }
       this.showForm = true
       this.showAuth = true
-      console.log('Edit server config', serverConfig)
     },
     newServerConfigClick() {
       this.serverConfig = {
@@ -192,9 +214,13 @@ export default {
         return null
       }
     },
-    pingServerAddress(address) {
+    pingServerAddress(address, customHeaders) {
+      const options = { timeout: 3000 }
+      if (customHeaders) {
+        options.headers = customHeaders
+      }
       return this.$axios
-        .$get(`${address}/ping`, { timeout: 3000 })
+        .$get(`${address}/ping`, options)
         .then((data) => data.success)
         .catch((error) => {
           console.error('Server check failed', error)
@@ -203,8 +229,12 @@ export default {
         })
     },
     requestServerLogin() {
+      const options = {}
+      if (this.serverConfig.customHeaders) {
+        options.headers = this.serverConfig.customHeaders
+      }
       return this.$axios
-        .$post(`${this.serverConfig.address}/login`, { username: this.serverConfig.username, password: this.password })
+        .$post(`${this.serverConfig.address}/login`, { username: this.serverConfig.username, password: this.password }, options)
         .then((data) => {
           if (!data.user) {
             console.error(data.error)
@@ -236,7 +266,7 @@ export default {
       this.processing = true
       this.error = null
 
-      var success = await this.pingServerAddress(this.serverConfig.address)
+      var success = await this.pingServerAddress(this.serverConfig.address, this.serverConfig.customHeaders)
       this.processing = false
       if (success) this.showAuth = true
     },
@@ -246,19 +276,28 @@ export default {
         this.error = 'Invalid username'
         return
       }
+
+      const duplicateConfig = this.serverConnectionConfigs.find((scc) => scc.address === this.serverConfig.address && scc.username === this.serverConfig.username && this.serverConfig.id !== scc.id)
+      if (duplicateConfig) {
+        this.error = 'Config already exists for this address and username'
+        return
+      }
+
       this.error = null
       this.processing = true
 
       var payload = await this.requestServerLogin()
       this.processing = false
       if (payload) {
-        this.setUserAndConnection(payload.user, payload.userDefaultLibraryId)
+        this.setUserAndConnection(payload)
       }
     },
-    async setUserAndConnection(user, userDefaultLibraryId) {
+    async setUserAndConnection({ user, userDefaultLibraryId, serverSettings }) {
       if (!user) return
 
       console.log('Successfully logged in', JSON.stringify(user))
+
+      this.$store.commit('setServerSettings', serverSettings)
 
       // Set library - Use last library if set and available fallback to default user library
       var lastLibraryId = await this.$localStore.getLastLibraryId()
@@ -298,8 +337,6 @@ export default {
       return authRes
     },
     async init() {
-      this.deviceData = await this.$db.getDeviceData()
-
       if (this.lastServerConnectionConfig) {
         this.connectToServer(this.lastServerConnectionConfig)
       } else {

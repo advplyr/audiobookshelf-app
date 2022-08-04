@@ -128,4 +128,24 @@ class Database {
             return instance.objects(ServerConnectionConfigActiveIndex.self).first?.index ?? nil
         }
     }
+    public func setDeviceSettings(deviceSettings: DeviceSettings) {
+        Database.realmQueue.sync {
+            let existing = instance.objects(DeviceSettings.self)
+
+            do {
+                try instance.write {
+                    instance.delete(existing)
+                    instance.add(deviceSettings)
+                }
+            } catch(let exception) {
+                NSLog("failed to save device settings")
+                debugPrint(exception)
+            }
+        }
+    }
+    public func getDeviceSettings() -> DeviceSettings {
+        return Database.realmQueue.sync {
+            return instance.objects(DeviceSettings.self).first ?? getDefaultDeviceSettings()
+        }
+    }
 }

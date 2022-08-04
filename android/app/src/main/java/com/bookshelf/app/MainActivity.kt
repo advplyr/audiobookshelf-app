@@ -1,21 +1,32 @@
 package com.bookshelf.app
 
 import android.Manifest
-import android.app.DownloadManager
-import android.content.*
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.content.ServiceConnection
 import android.content.pm.PackageManager
-import android.os.*
+import android.os.Bundle
+import android.os.IBinder
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import com.anggrayudi.storage.SimpleStorage
 import com.anggrayudi.storage.SimpleStorageHelper
+<<<<<<< HEAD:android/app/src/main/java/com/bookshelf/app/MainActivity.kt
 import com.bookshelf.app.data.AbsDatabase
 import com.bookshelf.app.player.PlayerNotificationService
 import com.bookshelf.app.plugins.AbsAudioPlayer
 import com.bookshelf.app.plugins.AbsDownloader
 import com.bookshelf.app.plugins.AbsFileSystem
+=======
+import com.audiobookshelf.app.data.AbsDatabase
+import com.audiobookshelf.app.data.DbManager
+import com.audiobookshelf.app.player.PlayerNotificationService
+import com.audiobookshelf.app.plugins.AbsAudioPlayer
+import com.audiobookshelf.app.plugins.AbsDownloader
+import com.audiobookshelf.app.plugins.AbsFileSystem
+>>>>>>> 837df329e2c5362480009fe3173cb0f58e0ed884:android/app/src/main/java/com/audiobookshelf/app/MainActivity.kt
 import com.getcapacitor.BridgeActivity
-import io.paperdb.Paper
 
 
 class MainActivity : BridgeActivity() {
@@ -50,14 +61,11 @@ class MainActivity : BridgeActivity() {
 //      .build())
 
     super.onCreate(savedInstanceState)
-
     Log.d(tag, "onCreate")
 
-    // Grant full storage access for testing
-    // var ss = SimpleStorage(this)
-    // ss.requestFullStorageAccess()
+    DbManager.initialize(applicationContext)
 
-    var permission = ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
+    val permission = ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
     if (permission != PackageManager.PERMISSION_GRANTED) {
       ActivityCompat.requestPermissions(this,
         PERMISSIONS_ALL,
@@ -68,8 +76,6 @@ class MainActivity : BridgeActivity() {
     registerPlugin(AbsDownloader::class.java)
     registerPlugin(AbsFileSystem::class.java)
     registerPlugin(AbsDatabase::class.java)
-
-    Paper.init(applicationContext)
   }
 
   override fun onDestroy() {
@@ -94,9 +100,7 @@ class MainActivity : BridgeActivity() {
         foregroundService = mLocalBinder.getService()
 
         // Let NativeAudio know foreground service is ready and setup event listener
-        if (pluginCallback != null) {
-          pluginCallback()
-        }
+        pluginCallback()
       }
     }
 
@@ -140,9 +144,4 @@ class MainActivity : BridgeActivity() {
     // Mandatory for Activity, but not for Fragment & ComponentActivity
     storageHelper.onRequestPermissionsResult(requestCode, permissions, grantResults)
   }
-
-//  override fun onUserInteraction() {
-//    super.onUserInteraction()
-//    Log.d(tag, "USER INTERACTION")
-//  }
 }

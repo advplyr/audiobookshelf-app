@@ -4,7 +4,6 @@ import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
 import android.support.v4.media.MediaMetadataCompat
-import android.util.Log
 import androidx.annotation.AnyRes
 import com.bookshelf.app.R
 import com.bookshelf.app.data.Library

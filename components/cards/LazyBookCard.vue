@@ -6,13 +6,13 @@
     </div>
 
     <!-- Alternative bookshelf title/author/sort -->
-    <!-- <div v-if="isAlternativeBookshelfView" class="absolute left-0 z-50 w-full" :style="{ bottom: `-${titleDisplayBottomOffset}rem` }">
+    <div v-if="isAltViewEnabled" class="absolute left-0 z-50 w-full" :style="{ bottom: `-${titleDisplayBottomOffset}rem` }">
       <p class="truncate" :style="{ fontSize: 0.9 * sizeMultiplier + 'rem' }">
         {{ displayTitle }}
       </p>
-      <p class="truncate text-gray-400" :style="{ fontSize: 0.8 * sizeMultiplier + 'rem' }">{{ displayAuthor }}</p>
+      <p class="truncate text-gray-400" :style="{ fontSize: 0.8 * sizeMultiplier + 'rem' }">{{ displayAuthor || '&nbsp;' }}</p>
       <p v-if="displaySortLine" class="truncate text-gray-400" :style="{ fontSize: 0.8 * sizeMultiplier + 'rem' }">{{ displaySortLine }}</p>
-    </div> -->
+    </div>
 
     <div v-if="booksInSeries" class="absolute z-20 top-1.5 right-1.5 rounded-md leading-3 text-sm p-1 font-semibold text-white flex items-center justify-center" style="background-color: #cd9d49dd">{{ booksInSeries }}</div>
 
@@ -84,7 +84,7 @@ export default {
     },
     bookCoverAspectRatio: Number,
     showSequence: Boolean,
-    bookshelfView: Number,
+    isAltViewEnabled: Boolean,
     bookMount: {
       // Book can be passed as prop or set with setEntity()
       type: Object,
@@ -239,7 +239,7 @@ export default {
       if (this.orderBy === 'mtimeMs') return 'Modified ' + this.$formatDate(this._libraryItem.mtimeMs)
       if (this.orderBy === 'birthtimeMs') return 'Born ' + this.$formatDate(this._libraryItem.birthtimeMs)
       if (this.orderBy === 'addedAt') return 'Added ' + this.$formatDate(this._libraryItem.addedAt)
-      if (this.orderBy === 'duration') return 'Duration: ' + this.$elapsedPrettyExtended(this.media.duration, false)
+      if (this.orderBy === 'media.duration') return 'Duration: ' + this.$elapsedPrettyExtended(this.media.duration, false)
       if (this.orderBy === 'size') return 'Size: ' + this.$bytesPretty(this._libraryItem.size)
       return null
     },
@@ -346,6 +346,11 @@ export default {
         return this.author.slice(0, 27) + '...'
       }
       return this.author
+    },
+    titleDisplayBottomOffset() {
+      if (!this.isAltViewEnabled) return 0
+      else if (!this.displaySortLine) return 3 * this.sizeMultiplier
+      return 4.25 * this.sizeMultiplier
     }
   },
   methods: {

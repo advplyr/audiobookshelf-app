@@ -8,7 +8,7 @@
         <p v-show="!selectedSeriesName" class="font-book pt-1">{{ totalEntities }} {{ entityTitle }}</p>
         <p v-show="selectedSeriesName" class="ml-2 font-book pt-1">{{ selectedSeriesName }} ({{ totalEntities }})</p>
         <div class="flex-grow" />
-        <span v-if="page == 'library' || seriesBookPage" class="material-icons px-2" @click="bookshelfListView = !bookshelfListView">{{ bookshelfListView ? 'view_list' : 'grid_view' }}</span>
+        <span v-if="page == 'library' || seriesBookPage" class="material-icons px-2" @click="bookshelfListView = !bookshelfListView">{{ !bookshelfListView ? 'view_list' : 'grid_view' }}</span>
         <template v-if="page === 'library'">
           <div class="relative flex items-center px-2">
             <span class="material-icons" @click="showFilterModal = true">filter_alt</span>

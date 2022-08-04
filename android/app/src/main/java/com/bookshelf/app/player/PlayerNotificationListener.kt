@@ -14,6 +14,7 @@ class PlayerNotificationListener(var playerNotificationService:PlayerNotificatio
 
     // Start foreground service
     Log.d(tag, "Notification Posted $notificationId - Start Foreground | $notification")
+    PlayerNotificationService.isClosed = false
     playerNotificationService.startForeground(notificationId, notification)
   }
 
@@ -26,6 +27,12 @@ class PlayerNotificationListener(var playerNotificationService:PlayerNotificatio
       playerNotificationService.stopSelf()
     } else {
       Log.d(tag, "onNotificationCancelled not dismissed by user")
+
+      // When stop button is pressed on the notification I guess it isn't considered "dismissedByUser" so we need to close playback ourselves
+      if (!PlayerNotificationService.isClosed) {
+        Log.d(tag, "PNS is not closed - closing it now")
+        playerNotificationService.closePlayback()
+      }
     }
   }
 }

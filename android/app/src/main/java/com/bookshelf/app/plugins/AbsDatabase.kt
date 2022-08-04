@@ -25,6 +25,7 @@ class AbsDatabase : Plugin() {
   data class LocalMediaProgressPayload(val value:List<LocalMediaProgress>)
   data class LocalLibraryItemsPayload(val value:List<LocalLibraryItem>)
   data class LocalFoldersPayload(val value:List<LocalFolder>)
+  data class ServerConnConfigPayload(val id:String?, val index:Int, val name:String?, val userId:String, val username:String, val token:String, val address:String?, val customHeaders:Map<String,String>?)
 
   override fun load() {
     mainActivity = (activity as MainActivity)
@@ -37,7 +38,7 @@ class AbsDatabase : Plugin() {
   @PluginMethod
   fun getDeviceData(call:PluginCall) {
     GlobalScope.launch(Dispatchers.IO) {
-      var deviceData = DeviceManager.dbManager.getDeviceData()
+      val deviceData = DeviceManager.dbManager.getDeviceData()
       call.resolve(JSObject(jacksonMapper.writeValueAsString(deviceData)))
     }
   }
@@ -45,17 +46,17 @@ class AbsDatabase : Plugin() {
   @PluginMethod
   fun getLocalFolders(call:PluginCall) {
     GlobalScope.launch(Dispatchers.IO) {
-      var folders = DeviceManager.dbManager.getAllLocalFolders()
+      val folders = DeviceManager.dbManager.getAllLocalFolders()
       call.resolve(JSObject(jacksonMapper.writeValueAsString(LocalFoldersPayload(folders))))
     }
   }
 
   @PluginMethod
   fun getLocalFolder(call:PluginCall) {
-    var folderId = call.getString("folderId", "").toString()
+    val folderId = call.getString("folderId", "").toString()
     GlobalScope.launch(Dispatchers.IO) {
       DeviceManager.dbManager.getLocalFolder(folderId)?.let {
-        var folderObj = jacksonMapper.writeValueAsString(it)
+        val folderObj = jacksonMapper.writeValueAsString(it)
         call.resolve(JSObject(folderObj))
       } ?: call.resolve()
     }
@@ -63,10 +64,10 @@ class AbsDatabase : Plugin() {
 
   @PluginMethod
   fun getLocalLibraryItem(call:PluginCall) {
-    var id = call.getString("id", "").toString()
+    val id = call.getString("id", "").toString()
 
     GlobalScope.launch(Dispatchers.IO) {
-      var localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(id)
+      val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(id)
       if (localLibraryItem == null) {
         call.resolve()
       } else {
@@ -76,10 +77,10 @@ class AbsDatabase : Plugin() {
   }
 
   @PluginMethod
-  fun getLocalLibraryItemByLLId(call:PluginCall) {
-    var libraryItemId = call.getString("libraryItemId", "").toString()
+  fun getLocalLibraryItemByLId(call:PluginCall) {
+    val libraryItemId = call.getString("libraryItemId", "").toString()
     GlobalScope.launch(Dispatchers.IO) {
-      var localLibraryItem = DeviceManager.dbManager.getLocalLibraryItemByLLId(libraryItemId)
+      val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItemByLId(libraryItemId)
       if (localLibraryItem == null) {
         call.resolve()
       } else {
@@ -90,40 +91,41 @@ class AbsDatabase : Plugin() {
 
   @PluginMethod
   fun getLocalLibraryItems(call:PluginCall) {
-    var mediaType = call.getString("mediaType", "").toString()
+    val mediaType = call.getString("mediaType", "").toString()
 
     GlobalScope.launch(Dispatchers.IO) {
-      var localLibraryItems = DeviceManager.dbManager.getLocalLibraryItems(mediaType)
+      val localLibraryItems = DeviceManager.dbManager.getLocalLibraryItems(mediaType)
       call.resolve(JSObject(jacksonMapper.writeValueAsString(LocalLibraryItemsPayload(localLibraryItems))))
     }
   }
 
   @PluginMethod
   fun getLocalLibraryItemsInFolder(call:PluginCall) {
-    var folderId = call.getString("folderId", "").toString()
+    val folderId = call.getString("folderId", "").toString()
     GlobalScope.launch(Dispatchers.IO) {
-      var localLibraryItems = DeviceManager.dbManager.getLocalLibraryItemsInFolder(folderId)
+      val localLibraryItems = DeviceManager.dbManager.getLocalLibraryItemsInFolder(folderId)
       call.resolve(JSObject(jacksonMapper.writeValueAsString(LocalLibraryItemsPayload(localLibraryItems))))
     }
   }
 
   @PluginMethod
   fun setCurrentServerConnectionConfig(call:PluginCall) {
-    var serverConnectionConfigId = call.getString("id", "").toString()
-    var serverConnectionConfig = DeviceManager.deviceData.serverConnectionConfigs.find { it.id == serverConnectionConfigId }
+    Log.d(tag, "setCurrentServerConnectionConfig ${call.data}")
+    val serverConfigPayload = jacksonMapper.readValue<ServerConnConfigPayload>(call.data.toString())
+    var serverConnectionConfig = DeviceManager.deviceData.serverConnectionConfigs.find { it.id == serverConfigPayload.id }
 
-    var userId = call.getString("userId", "").toString()
-    var username = call.getString("username", "").toString()
-    var token = call.getString("token", "").toString()
+    val userId =  serverConfigPayload.userId
+    val username = serverConfigPayload.username
+    val token = serverConfigPayload.token
 
     GlobalScope.launch(Dispatchers.IO) {
       if (serverConnectionConfig == null) { // New Server Connection
-        var serverAddress = call.getString("address", "").toString()
+        val serverAddress = call.getString("address", "").toString()
 
         // Create new server connection config
-        var sscId = DeviceManager.getBase64Id("$serverAddress@$username")
-        var sscIndex = DeviceManager.deviceData.serverConnectionConfigs.size
-        serverConnectionConfig = ServerConnectionConfig(sscId, sscIndex, "$serverAddress ($username)", serverAddress, userId, username, token)
+        val sscId = DeviceManager.getBase64Id("$serverAddress@$username")
+        val sscIndex = DeviceManager.deviceData.serverConnectionConfigs.size
+        serverConnectionConfig = ServerConnectionConfig(sscId, sscIndex, "$serverAddress ($username)", serverAddress, userId, username, token, serverConfigPayload.customHeaders)
 
         // Add and save
         DeviceManager.deviceData.serverConnectionConfigs.add(serverConnectionConfig!!)
@@ -140,8 +142,8 @@ class AbsDatabase : Plugin() {
         }
 
         // Set last connection config
-        if (DeviceManager.deviceData.lastServerConnectionConfigId != serverConnectionConfigId) {
-          DeviceManager.deviceData.lastServerConnectionConfigId = serverConnectionConfigId
+        if (DeviceManager.deviceData.lastServerConnectionConfigId != serverConfigPayload.id) {
+          DeviceManager.deviceData.lastServerConnectionConfigId = serverConfigPayload.id
           shouldSave = true
         }
 
@@ -156,7 +158,7 @@ class AbsDatabase : Plugin() {
   @PluginMethod
   fun removeServerConnectionConfig(call:PluginCall) {
     GlobalScope.launch(Dispatchers.IO) {
-      var serverConnectionConfigId = call.getString("serverConnectionConfigId", "").toString()
+      val serverConnectionConfigId = call.getString("serverConnectionConfigId", "").toString()
       DeviceManager.deviceData.serverConnectionConfigs = DeviceManager.deviceData.serverConnectionConfigs.filter { it.id != serverConnectionConfigId } as MutableList<ServerConnectionConfig>
       if (DeviceManager.deviceData.lastServerConnectionConfigId == serverConnectionConfigId) {
         DeviceManager.deviceData.lastServerConnectionConfigId = null
@@ -182,7 +184,7 @@ class AbsDatabase : Plugin() {
   @PluginMethod
   fun getAllLocalMediaProgress(call:PluginCall) {
     GlobalScope.launch(Dispatchers.IO) {
-      var localMediaProgress = DeviceManager.dbManager.getAllLocalMediaProgress()
+      val localMediaProgress = DeviceManager.dbManager.getAllLocalMediaProgress()
       call.resolve(JSObject(jacksonMapper.writeValueAsString(LocalMediaProgressPayload(localMediaProgress))))
     }
   }
@@ -331,13 +333,13 @@ class AbsDatabase : Plugin() {
     // Send update to server media progress is linked to a server and user is logged into that server
     localMediaProgress.serverConnectionConfigId?.let { configId ->
       if (DeviceManager.serverConnectionConfigId == configId) {
-        var libraryItemId = localMediaProgress.libraryItemId ?: ""
-        var episodeId = localMediaProgress.episodeId ?: ""
-        var updatePayload = JSObject()
+        val libraryItemId = localMediaProgress.libraryItemId ?: ""
+        val episodeId = localMediaProgress.episodeId ?: ""
+        val updatePayload = JSObject()
         updatePayload.put("isFinished", isFinished)
         apiHandler.updateMediaProgress(libraryItemId,episodeId,updatePayload) {
           Log.d(tag, "updateLocalMediaProgressFinished: Updated media progress isFinished on server")
-          var jsobj = JSObject()
+          val jsobj = JSObject()
           jsobj.put("local", true)
           jsobj.put("server", true)
           jsobj.put("localMediaProgress", JSObject(lmpstring))
@@ -346,7 +348,7 @@ class AbsDatabase : Plugin() {
       }
     }
     if (localMediaProgress.serverConnectionConfigId == null || DeviceManager.serverConnectionConfigId != localMediaProgress.serverConnectionConfigId) {
-      var jsobj = JSObject()
+      val jsobj = JSObject()
       jsobj.put("local", true)
       jsobj.put("server", false)
       jsobj.put("localMediaProgress", JSObject(lmpstring))
@@ -356,25 +358,25 @@ class AbsDatabase : Plugin() {
 
   @PluginMethod
   fun updateLocalTrackOrder(call:PluginCall) {
-    var localLibraryItemId = call.getString("localLibraryItemId", "") ?: ""
-    var localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(localLibraryItemId)
+    val localLibraryItemId = call.getString("localLibraryItemId", "") ?: ""
+    val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(localLibraryItemId)
     if (localLibraryItem == null) {
       call.resolve()
       return
     }
 
-    var audioTracks = localLibraryItem.media.getAudioTracks() as MutableList
+    val audioTracks = localLibraryItem.media.getAudioTracks() as MutableList
 
-    var tracks:JSArray = call.getArray("tracks") ?: JSArray()
+    val tracks:JSArray = call.getArray("tracks") ?: JSArray()
     Log.d(tag, "updateLocalTrackOrder $tracks")
 
     var index = 1
     var hasUpdates = false
     for (i in 0 until tracks.length()) {
-      var track = tracks.getJSONObject(i)
-      var localFileId = track.getString("localFileId")
+      val track = tracks.getJSONObject(i)
+      val localFileId = track.getString("localFileId")
 
-      var existingTrack = audioTracks.find{ it.localFileId == localFileId }
+      val existingTrack = audioTracks.find{ it.localFileId == localFileId }
       if (existingTrack != null) {
         Log.d(tag, "Found existing track ${existingTrack.localFileId} that has index ${existingTrack.index} should be index $index")
         if (existingTrack.index != index) hasUpdates = true
@@ -392,6 +394,17 @@ class AbsDatabase : Plugin() {
     } else {
       Log.d(tag, "No tracks need to be updated")
       call.resolve()
+    }
+  }
+
+  @PluginMethod
+  fun updateDeviceSettings(call:PluginCall) { // Returns device data
+    Log.d(tag, "updateDeviceSettings ${call.data}")
+    val newDeviceSettings = jacksonMapper.readValue<DeviceSettings>(call.data.toString())
+    GlobalScope.launch(Dispatchers.IO) {
+      DeviceManager.deviceData.deviceSettings = newDeviceSettings
+      DeviceManager.dbManager.saveDeviceData(DeviceManager.deviceData)
+      call.resolve(JSObject(jacksonMapper.writeValueAsString(DeviceManager.deviceData)))
     }
   }
 }

@@ -66,9 +66,6 @@ export default {
     },
     currentLibraryId() {
       return this.$store.state.libraries.currentLibraryId
-    },
-    isSocketConnected() {
-      return this.$store.state.socketConnected
     }
   },
   methods: {
@@ -112,7 +109,7 @@ export default {
 
       console.log(`[default] Got server config, attempt authorize ${serverConfig.address}`)
 
-      var authRes = await this.$axios.$post(`${serverConfig.address}/api/authorize`, null, { headers: { Authorization: `Bearer ${serverConfig.token}` } }).catch((error) => {
+      var authRes = await this.$axios.$post(`${serverConfig.address}/api/authorize`, null, { headers: { Authorization: `Bearer ${serverConfig.token}` }, timeout: 3000 }).catch((error) => {
         console.error('[Server] Server auth failed', error)
         var errorMsg = error.response ? error.response.data || 'Unknown Error' : 'Unknown Error'
         this.error = errorMsg
@@ -123,7 +120,8 @@ export default {
         return
       }
 
-      const { user, userDefaultLibraryId } = authRes
+      const { user, userDefaultLibraryId, serverSettings } = authRes
+      this.$store.commit('setServerSettings', serverSettings)
 
       // Set library - Use last library if set and available fallback to default user library
       var lastLibraryId = await this.$localStore.getLastLibraryId()
@@ -154,14 +152,8 @@ export default {
       // Only cancels stream if streamining not playing downloaded
       this.$eventBus.$emit('close-stream')
     },
-    socketConnectionUpdate(isConnected) {
-      console.log('Socket connection update', isConnected)
-    },
     socketConnectionFailed(err) {
       this.$toast.error('Socket connection error: ' + err.message)
-    },
-    socketInit(data) {
-      console.log('Socket init', data)
     },
     async initLibraries() {
       if (this.inittingLibraries) {
@@ -177,6 +169,7 @@ export default {
     async syncLocalMediaProgress() {
       if (!this.user) {
         console.log('[default] No need to sync local media progress - not connected to server')
+        this.$store.commit('setLastLocalMediaSyncResults', null)
         return
       }
 
@@ -184,10 +177,15 @@ export default {
       var response = await this.$db.syncLocalMediaProgressWithServer()
       if (!response) {
         if (this.$platform != 'web') this.$toast.error('Failed to sync local media with server')
+        this.$store.commit('setLastLocalMediaSyncResults', null)
         return
       }
       const { numLocalMediaProgressForServer, numServerProgressUpdates, numLocalProgressUpdates } = response
       if (numLocalMediaProgressForServer > 0) {
+        response.syncedAt = Date.now()
+        response.serverConfigName = this.$store.getters['user/getServerConfigName']
+        this.$store.commit('setLastLocalMediaSyncResults', response)
+
         if (numServerProgressUpdates > 0 || numLocalProgressUpdates > 0) {
           console.log(`[default] ${numServerProgressUpdates} Server progress updates | ${numLocalProgressUpdates} Local progress updates`)
         } else {
@@ -195,6 +193,7 @@ export default {
         }
       } else {
         console.log('[default] syncLocalMediaProgress No local media progress to sync')
+        this.$store.commit('setLastLocalMediaSyncResults', null)
       }
     },
     async userUpdated(user) {
@@ -216,9 +215,10 @@ export default {
           mediaProgress: prog
         }
         newLocalMediaProgress = await this.$db.syncServerMediaProgressWithLocalMediaProgress(payload)
-      } else {
+      } else if (!localProg) {
         // Check if local library item exists
-        var localLibraryItem = await this.$db.getLocalLibraryItemByLLId(prog.libraryItemId)
+        //   local media progress may not exist yet if it hasn't been played
+        var localLibraryItem = await this.$db.getLocalLibraryItemByLId(prog.libraryItemId)
         if (localLibraryItem) {
           if (prog.episodeId) {
             // If episode check if local episode exists
@@ -253,14 +253,18 @@ export default {
     }
   },
   async mounted() {
-    this.$socket.on('connection-update', this.socketConnectionUpdate)
-    this.$socket.on('initialized', this.socketInit)
     this.$socket.on('user_updated', this.userUpdated)
     this.$socket.on('user_media_progress_updated', this.userMediaProgressUpdated)
 
     if (this.$store.state.isFirstLoad) {
       this.$store.commit('setIsFirstLoad', false)
+
+      const deviceData = await this.$db.getDeviceData()
+      this.$store.commit('setDeviceData', deviceData)
+
       await this.$store.dispatch('setupNetworkListener')
+
+      await this.$store.dispatch('globals/loadLocalMediaProgress')
 
       if (this.$store.state.user.serverConnectionConfig) {
         console.log(`[default] server connection config set - call init libraries`)
@@ -272,14 +276,12 @@ export default {
 
       console.log(`[default] finished connection attempt or already connected ${!!this.user}`)
       await this.syncLocalMediaProgress()
-      this.$store.dispatch('globals/loadLocalMediaProgress')
+
       this.loadSavedSettings()
       this.hasMounted = true
     }
   },
   beforeDestroy() {
-    this.$socket.off('connection-update', this.socketConnectionUpdate)
-    this.$socket.off('initialized', this.socketInit)
     this.$socket.off('user_updated', this.userUpdated)
     this.$socket.off('user_media_progress_updated', this.userMediaProgressUpdated)
   }

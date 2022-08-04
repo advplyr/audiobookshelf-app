@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import java.util.*
 
 data class ServerConnectionConfig(
   var id:String,
@@ -13,13 +12,39 @@ data class ServerConnectionConfig(
   var address:String,
   var userId:String,
   var username:String,
-  var token:String
+  var token:String,
+  var customHeaders:Map<String, String>?
 )
+
+data class DeviceSettings(
+  var disableAutoRewind:Boolean,
+  var enableAltView:Boolean,
+  var jumpBackwardsTime:Int,
+  var jumpForwardTime:Int
+) {
+  companion object {
+    // Static method to get default device settings
+    fun default():DeviceSettings {
+      return DeviceSettings(
+        disableAutoRewind = false,
+        enableAltView = false,
+        jumpBackwardsTime = 10,
+        jumpForwardTime = 10
+      )
+    }
+  }
+
+  @get:JsonIgnore
+  val jumpBackwardsTimeMs get() = jumpBackwardsTime * 1000L
+  @get:JsonIgnore
+  val jumpForwardTimeMs get() = jumpForwardTime * 1000L
+}
 
 data class DeviceData(
   var serverConnectionConfigs:MutableList<ServerConnectionConfig>,
   var lastServerConnectionConfigId:String?,
-  var currentLocalPlaybackSession:PlaybackSession? // Stored to open up where left off for local media
+  var currentLocalPlaybackSession:PlaybackSession?, // Stored to open up where left off for local media
+  var deviceSettings:DeviceSettings?
 ) {
   @JsonIgnore
   fun getLastServerConnectionConfig():ServerConnectionConfig? {

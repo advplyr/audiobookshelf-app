@@ -17,7 +17,7 @@
     <div v-else class="w-full media-item-container overflow-y-auto">
       <template v-for="mediaItem in localLibraryItems">
         <nuxt-link :to="`/localMedia/item/${mediaItem.id}`" :key="mediaItem.id" class="flex my-1">
-          <div class="w-12 h-12 bg-primary">
+          <div class="w-12 h-12 min-w-12 min-h-12 bg-primary">
             <img v-if="mediaItem.coverPathSrc" :src="mediaItem.coverPathSrc" class="w-full h-full object-contain" />
           </div>
           <div class="flex-grow px-2">

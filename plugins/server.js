@@ -39,6 +39,7 @@ class ServerSocket extends EventEmitter {
 
   logout() {
     if (this.socket) this.socket.disconnect()
+    this.removeListeners()
   }
 
   setSocketListeners() {
@@ -54,6 +55,14 @@ class ServerSocket extends EventEmitter {
     // })
   }
 
+  removeListeners() {
+    if (!this.socket) return
+    this.socket.removeAllListeners()
+    if (this.socket.io && this.socket.io.removeAllListeners) {
+      this.socket.io.removeAllListeners()
+    }
+  }
+
   onConnect() {
     console.log('[SOCKET] Socket Connected ' + this.socket.id)
     this.connected = true
@@ -67,18 +76,10 @@ class ServerSocket extends EventEmitter {
     this.connected = false
     this.$store.commit('setSocketConnected', false)
     this.emit('connection-update', false)
-
-    this.socket.removeAllListeners()
-    if (this.socket.io && this.socket.io.removeAllListeners) {
-      this.socket.io.removeAllListeners()
-    }
   }
 
   onInit(data) {
     console.log('[SOCKET] Initial socket data received', data)
-    if (data.serverSettings) {
-      this.$store.commit('setServerSettings', data.serverSettings)
-    }
     this.emit('initialized', true)
   }
 

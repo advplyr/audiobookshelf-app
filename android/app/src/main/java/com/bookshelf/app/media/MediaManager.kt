@@ -1,24 +1,30 @@
 package com.bookshelf.app.media
 
+import android.app.Activity
 import android.content.Context
 import android.support.v4.media.MediaBrowserCompat
 import android.util.Log
+<<<<<<< HEAD:android/app/src/main/java/com/bookshelf/app/media/MediaManager.kt
 import com.bookshelf.app.data.*
 import com.bookshelf.app.device.DeviceManager
 import com.bookshelf.app.server.ApiHandler
+=======
+import com.audiobookshelf.app.data.*
+import com.audiobookshelf.app.device.DeviceManager
+import com.audiobookshelf.app.server.ApiHandler
+import com.getcapacitor.JSObject
+>>>>>>> 837df329e2c5362480009fe3173cb0f58e0ed884:android/app/src/main/java/com/audiobookshelf/app/media/MediaManager.kt
 import java.util.*
-import io.paperdb.Paper
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
+import org.json.JSONException
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
 class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
   val tag = "MediaManager"
 
-  var isPaperInitialized = false
-
-  var serverLibraryItems = listOf<LibraryItem>()
+  var serverLibraryItems = mutableListOf<LibraryItem>()
   var selectedLibraryId = ""
 
   var selectedLibraryItemWrapper:LibraryItemWrapper? = null
@@ -29,16 +35,33 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
   var serverLibraries = listOf<Library>()
   var serverConfigIdUsed:String? = null
 
-  fun initializeAndroidAuto() {
-    if (!isPaperInitialized) {
-      Log.d(tag, "Android Auto started when MainActivity was never started - initializing Paper")
-      Paper.init(ctx)
-      isPaperInitialized = true
-    }
-  }
+  var userSettingsPlaybackRate:Float? = null
 
   fun getIsLibrary(id:String) : Boolean {
     return serverLibraries.find { it.id == id } != null
+  }
+
+  fun getSavedPlaybackRate():Float {
+    if (userSettingsPlaybackRate != null) {
+      return userSettingsPlaybackRate ?: 1f
+    }
+
+    val sharedPrefs = ctx.getSharedPreferences("CapacitorStorage", Activity.MODE_PRIVATE)
+    if (sharedPrefs != null) {
+      val userSettingsPref = sharedPrefs.getString("userSettings", null)
+      if (userSettingsPref != null) {
+        try {
+          val userSettings = JSObject(userSettingsPref)
+          if (userSettings.has("playbackRate")) {
+            userSettingsPlaybackRate = userSettings.getDouble("playbackRate").toFloat()
+            return userSettingsPlaybackRate ?: 1f
+          }
+        } catch(je:JSONException) {
+          Log.e(tag, "Failed to parse userSettings JSON ${je.localizedMessage}")
+        }
+      }
+    }
+    return 1f
   }
 
   fun checkResetServerItems() {
@@ -50,7 +73,7 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
       serverPodcastEpisodes = listOf()
       serverLibraryCategories = listOf()
       serverLibraries = listOf()
-      serverLibraryItems = listOf()
+      serverLibraryItems = mutableListOf()
       selectedLibraryId = ""
     }
   }
@@ -74,7 +97,11 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
         val libraryItemsWithAudio = libraryItems.filter { li -> li.checkHasTracks() }
         if (libraryItemsWithAudio.isNotEmpty()) selectedLibraryId = libraryId
 
-        serverLibraryItems = libraryItemsWithAudio
+        libraryItemsWithAudio.forEach { libraryItem ->
+          if (serverLibraryItems.find { li -> li.id == libraryItem.id } == null) {
+            serverLibraryItems.add(libraryItem)
+          }
+        }
         cb(libraryItemsWithAudio)
       }
     }
@@ -178,6 +205,7 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
             if (result) {
               hasValidConn = true
               DeviceManager.serverConnectionConfig = config
+              Log.d(tag, "checkSetValidServerConnectionConfig: Set server connection config ${DeviceManager.serverConnectionConfigId}")
               break
             }
           }
@@ -215,21 +243,37 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
         serverConfigIdUsed = DeviceManager.serverConnectionConfigId
 
         loadLibraries { libraries ->
-          val library = libraries[0]
-          Log.d(tag, "Loading categories for library ${library.name} - ${library.id} - ${library.mediaType}")
+          if (libraries.isEmpty()) {
+            Log.w(tag, "No libraries returned from server request")
+            cb(cats) // Return download category only
+          } else {
+            val library = libraries[0]
+            Log.d(tag, "Loading categories for library ${library.name} - ${library.id} - ${library.mediaType}")
 
-          loadLibraryCategories(library.id) { libraryCategories ->
+            loadLibraryCategories(library.id) { libraryCategories ->
 
-            // Only using book or podcast library categories for now
-            libraryCategories.forEach {
-              // Log.d(tag, "Found library category ${it.label} with type ${it.type}")
-              if (it.type == library.mediaType) {
-                // Log.d(tag, "Using library category ${it.id}")
-                cats.add(it)
+              // Only using book or podcast library categories for now
+              libraryCategories.forEach {
+
+                // Add items in continue listening to serverLibraryItems
+                if (it.id == "continue-listening") {
+                  it.entities.forEach { libraryItemWrapper ->
+                    val libraryItem = libraryItemWrapper as LibraryItem
+                    if (serverLibraryItems.find { li -> li.id == libraryItem.id } == null) {
+                      serverLibraryItems.add(libraryItem)
+                    }
+                  }
+                }
+
+                // Log.d(tag, "Found library category ${it.label} with type ${it.type}")
+                if (it.type == library.mediaType) {
+                  // Log.d(tag, "Using library category ${it.id}")
+                  cats.add(it)
+                }
               }
-            }
 
-            cb(cats)
+              cb(cats)
+            }
           }
         }
       } else { // Not connected/no internet sent downloaded cats only
@@ -276,19 +320,18 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
   }
 
   fun play(libraryItemWrapper:LibraryItemWrapper, episode:PodcastEpisode?, playItemRequestPayload:PlayItemRequestPayload, cb: (PlaybackSession?) -> Unit) {
-   if (libraryItemWrapper is LocalLibraryItem) {
-    val localLibraryItem = libraryItemWrapper as LocalLibraryItem
-    cb(localLibraryItem.getPlaybackSession(episode))
-   } else {
-     val libraryItem = libraryItemWrapper as LibraryItem
-     apiHandler.playLibraryItem(libraryItem.id,episode?.id ?: "",playItemRequestPayload) {
-       if (it == null) {
-         cb(null)
-       } else {
-         cb(it)
-       }
-     }
-   }
+    if (libraryItemWrapper is LocalLibraryItem) {
+      cb(libraryItemWrapper.getPlaybackSession(episode))
+    } else {
+      val libraryItem = libraryItemWrapper as LibraryItem
+      apiHandler.playLibraryItem(libraryItem.id,episode?.id ?: "", playItemRequestPayload) {
+        if (it == null) {
+          cb(null)
+        } else {
+          cb(it)
+        }
+      }
+    }
   }
 
   private fun levenshtein(lhs : CharSequence, rhs : CharSequence) : Int {

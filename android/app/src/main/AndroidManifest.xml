@@ -1,83 +1,115 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+<<<<<<< HEAD
   xmlns:dist="http://schemas.android.com/apk/distribution"
   xmlns:tools="http://schemas.android.com/tools"
   android:installLocation="preferExternal"
   package="com.bookshelf.app">
+=======
+    xmlns:dist="http://schemas.android.com/apk/distribution"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.audiobookshelf.app"
+    android:installLocation="preferExternal" >
+>>>>>>> 837df329e2c5362480009fe3173cb0f58e0ed884
 
     <!-- Permissions -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.INTERNET" />
-
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
 
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:requestLegacyExternalStorage="true"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
-        android:usesCleartextTraffic="true"
-        android:networkSecurityConfig="@xml/network_security_config"
-        android:requestLegacyExternalStorage="true">
+        android:usesCleartextTraffic="true" >
+<!--        <receiver-->
+<!--            android:name=".NewAppWidget"-->
+<!--            android:exported="true" >-->
+<!--            <intent-filter>-->
+<!--                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />-->
+<!--            </intent-filter>-->
 
+<!--            <meta-data-->
+<!--                android:name="android.appwidget.provider"-->
+<!--                android:resource="@xml/new_app_widget_info" />-->
+<!--        </receiver>-->
 
-        <!--Used by Android Auto-->
-        <meta-data android:name="com.google.android.gms.car.notification.SmallIcon"
-          android:resource="@drawable/icon" />
+        <!-- Used by Android Auto -->
         <meta-data
+<<<<<<< HEAD
           android:name="com.google.android.gms.car.application"
           android:resource="@xml/automotive_app_desc"/>
 
         <!-- Support for Cast -->
         <meta-data android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
           android:value="com.bookshelf.app.CastOptionsProvider"/>
+=======
+            android:name="com.google.android.gms.car.notification.SmallIcon"
+            android:resource="@drawable/icon" />
+        <meta-data
+            android:name="com.google.android.gms.car.application"
+            android:resource="@xml/automotive_app_desc" /> <!-- Support for Cast -->
+        <meta-data
+            android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
+            android:value="com.audiobookshelf.app.CastOptionsProvider" />
+>>>>>>> 837df329e2c5362480009fe3173cb0f58e0ed884
 
         <activity
+            android:name=".MainActivity"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"
+<<<<<<< HEAD
             android:name="com.bookshelf.app.MainActivity"
             android:label="@string/title_activity_main"
+=======
+>>>>>>> 837df329e2c5362480009fe3173cb0f58e0ed884
             android:exported="true"
-            android:theme="@style/AppTheme.NoActionBarLaunch"
-            android:launchMode="singleTask">
+            android:label="@string/title_activity_main"
+            android:launchMode="singleTask"
+            android:theme="@style/AppTheme.NoActionBarLaunch" >
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
 
-          <intent-filter>
-              <action android:name="android.intent.action.MAIN" />
-              <category android:name="android.intent.category.LAUNCHER" />
-          </intent-filter>
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" />
 
-          <intent-filter>
-            <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" />
-            <category android:name="android.intent.category.DEFAULT" />
-          </intent-filter>
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
 
-          <!-- Register URL scheme -->
-          <intent-filter>
-            <action android:name="android.intent.action.VIEW" />
-            <category android:name="android.intent.category.DEFAULT" />
-            <category android:name="android.intent.category.BROWSABLE" />
-            <data android:scheme="@string/custom_url_scheme" />
-          </intent-filter>
+            <!-- Register URL scheme -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="@string/custom_url_scheme" />
+            </intent-filter>
         </activity>
 
+        <receiver android:name="androidx.media.session.MediaButtonReceiver" >
+            <intent-filter>
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
+            </intent-filter>
+        </receiver>
 
-      <receiver android:name="androidx.media.session.MediaButtonReceiver" >
-        <intent-filter>
-          <action android:name="android.intent.action.MEDIA_BUTTON" />
-        </intent-filter>
-      </receiver>
-
-      <service
-        android:exported="true"
-        android:enabled="true"
-        android:name=".player.PlayerNotificationService">
-        <intent-filter>
-          <action android:name="android.media.browse.MediaBrowserService"/>
-        </intent-filter>
-      </service>
-
+        <service
+            android:name=".player.PlayerNotificationService"
+            android:enabled="true"
+            android:exported="true" >
+            <intent-filter>
+                <action android:name="android.media.browse.MediaBrowserService" />
+            </intent-filter>
+        </service>
     </application>
 
 </manifest>

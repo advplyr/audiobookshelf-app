@@ -33,6 +33,18 @@ module.exports = {
         sans: ['Source Sans Pro', ...defaultTheme.fontFamily.sans],
         mono: ['Ubuntu Mono', ...defaultTheme.fontFamily.mono],
         book: ['Gentium Book Basic', 'serif']
+      },
+      fontSize: {
+        xxs: '0.625rem'
+      },
+      maxWidth: {
+        '24': '6rem'
+      },
+      minWidth: {
+        '12': '3rem'
+      },
+      minHeight: {
+        '12': '3rem'
       }
     }
   },

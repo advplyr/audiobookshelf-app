@@ -13,7 +13,8 @@ class AbsDatabaseWeb extends WebPlugin {
     const deviceData = {
       serverConnectionConfigs: [],
       lastServerConnectionConfigId: null,
-      currentLocalPlaybackSession: null
+      currentLocalPlaybackSession: null,
+      deviceSettings: {}
     }
     return deviceData
   }
@@ -28,6 +29,7 @@ class AbsDatabaseWeb extends WebPlugin {
       ssc.token = serverConnectionConfig.token
       ssc.userId = serverConnectionConfig.userId
       ssc.username = serverConnectionConfig.username
+      ssc.customHeaders = serverConnectionConfig.customHeaders || {}
       localStorage.setItem('device', JSON.stringify(deviceData))
     } else {
       ssc = {
@@ -37,7 +39,8 @@ class AbsDatabaseWeb extends WebPlugin {
         userId: serverConnectionConfig.userId,
         username: serverConnectionConfig.username,
         address: serverConnectionConfig.address,
-        token: serverConnectionConfig.token
+        token: serverConnectionConfig.token,
+        customHeaders: serverConnectionConfig.customHeaders || {}
       }
       deviceData.serverConnectionConfigs.push(ssc)
       deviceData.lastServerConnectionConfigId = ssc.id
@@ -49,7 +52,7 @@ class AbsDatabaseWeb extends WebPlugin {
   async removeServerConnectionConfig(serverConnectionConfigCallObject) {
     var serverConnectionConfigId = serverConnectionConfigCallObject.serverConnectionConfigId
     var deviceData = await this.getDeviceData()
-    deviceData.serverConnectionConfigs = deviceData.serverConnectionConfigs.filter(ssc => ssc.id == serverConnectionConfigId)
+    deviceData.serverConnectionConfigs = deviceData.serverConnectionConfigs.filter(ssc => ssc.id != serverConnectionConfigId)
     localStorage.setItem('device', JSON.stringify(deviceData))
   }
 
@@ -161,7 +164,7 @@ class AbsDatabaseWeb extends WebPlugin {
   async getLocalLibraryItem({ id }) {
     return this.getLocalLibraryItems().then((data) => data.value[0])
   }
-  async getLocalLibraryItemByLLId({ libraryItemId }) {
+  async getLocalLibraryItemByLId({ libraryItemId }) {
     return this.getLocalLibraryItems().then((data) => data.value.find(lli => lli.libraryItemId == libraryItemId))
   }
   async getAllLocalMediaProgress() {
@@ -206,6 +209,13 @@ class AbsDatabaseWeb extends WebPlugin {
   async updateLocalMediaProgressFinished(payload) {
     // { localLibraryItemId, localEpisodeId, isFinished }
     return null
+  }
+
+  async updateDeviceSettings(payload) {
+    var deviceData = await this.getDeviceData()
+    deviceData.deviceSettings = payload
+    localStorage.setItem('device', JSON.stringify(deviceData))
+    return deviceData
   }
 }
 

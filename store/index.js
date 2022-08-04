@@ -1,15 +1,19 @@
 import { Network } from '@capacitor/network'
+import { AbsAudioPlayer } from '@/plugins/capacitor'
 
 export const state = () => ({
+  deviceData: null,
   playerLibraryItemId: null,
   playerEpisodeId: null,
   playerIsLocal: false,
   playerIsPlaying: false,
+  playerIsFullscreen: false,
   isCasting: false,
   isCastAvailable: false,
   socketConnected: false,
   networkConnected: false,
   networkConnectionType: null,
+  isNetworkUnmetered: true,
   isFirstLoad: true,
   hasStoragePermission: false,
   selectedLibraryItem: null,
@@ -17,7 +21,8 @@ export const state = () => ({
   showSideDrawer: false,
   isNetworkListenerInit: false,
   serverSettings: null,
-  lastBookshelfScrollData: {}
+  lastBookshelfScrollData: {},
+  lastLocalMediaSyncResults: null
 })
 
 export const getters = {
@@ -35,6 +40,18 @@ export const getters = {
     if (!state.serverSettings) return 1
     return state.serverSettings.coverAspectRatio === 0 ? 1.6 : 1
   },
+  getJumpForwardTime: state => {
+    if (!state.deviceData || !state.deviceData.deviceSettings) return 10
+    return state.deviceData.deviceSettings.jumpForwardTime || 10
+  },
+  getJumpBackwardsTime: state => {
+    if (!state.deviceData || !state.deviceData.deviceSettings) return 10
+    return state.deviceData.deviceSettings.jumpBackwardsTime || 10
+  },
+  getAltViewEnabled: state => {
+    if (!state.deviceData || !state.deviceData.deviceSettings) return false
+    return state.deviceData.deviceSettings.enableAltView
+  }
 }
 
 export const actions = {
@@ -51,10 +68,19 @@ export const actions = {
       console.log('Network status changed', status.connected, status.connectionType)
       commit('setNetworkStatus', status)
     })
+
+    AbsAudioPlayer.addListener('onNetworkMeteredChanged', (payload) => {
+      const isUnmetered = payload.value
+      console.log('On network metered changed', isUnmetered)
+      commit('setIsNetworkUnmetered', isUnmetered)
+    })
   }
 }
 
 export const mutations = {
+  setDeviceData(state, deviceData) {
+    state.deviceData = deviceData
+  },
   setLastBookshelfScrollData(state, { scrollTop, path, name }) {
     state.lastBookshelfScrollData[name] = { scrollTop, path }
   },
@@ -81,6 +107,9 @@ export const mutations = {
   setPlayerPlaying(state, val) {
     state.playerIsPlaying = val
   },
+  setPlayerFullscreen(state, val) {
+    state.playerIsFullscreen = val
+  },
   setHasStoragePermission(state, val) {
     state.hasStoragePermission = val
   },
@@ -97,6 +126,9 @@ export const mutations = {
     state.networkConnected = val.connected
     state.networkConnectionType = val.connectionType
   },
+  setIsNetworkUnmetered(state, val) {
+    state.isNetworkUnmetered = val
+  },
   openReader(state, libraryItem) {
     state.selectedLibraryItem = libraryItem
     state.showReader = true
@@ -110,5 +142,8 @@ export const mutations = {
   setServerSettings(state, val) {
     state.serverSettings = val
     this.$localStore.setServerSettings(state.serverSettings)
+  },
+  setLastLocalMediaSyncResults(state, val) {
+    state.lastLocalMediaSyncResults = val
   }
 }

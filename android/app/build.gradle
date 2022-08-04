@@ -21,7 +21,11 @@ kotlin {
 }
 
 android {
-    kotlinOptions {
+
+  buildFeatures {
+    viewBinding true
+  }
+  kotlinOptions {
       freeCompilerArgs = ['-Xjvm-default=all']
     }
     compileSdkVersion rootProject.ext.compileSdkVersion
@@ -29,8 +33,8 @@ android {
         applicationId "com.bookshelf.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 80
-        versionName "0.9.49-beta"
+        versionCode 86
+        versionName "0.9.55-beta"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -111,7 +115,7 @@ dependencies {
   implementation 'io.github.pilgr:paperdb:2.7.2'
 
   // Simple Storage
-  implementation "com.anggrayudi:storage:0.13.0"
+  implementation "com.anggrayudi:storage:0.14.0"
 
   // OK HTTP
   implementation 'com.squareup.okhttp3:okhttp:4.9.2'

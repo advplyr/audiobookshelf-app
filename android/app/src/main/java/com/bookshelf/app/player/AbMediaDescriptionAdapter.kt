@@ -21,9 +21,6 @@ class AbMediaDescriptionAdapter constructor(private val controller: MediaControl
   var currentIconUri: Uri? = null
   var currentBitmap: Bitmap? = null
 
-  private val glideOptions = RequestOptions()
-    .fallback(R.drawable.icon)
-    .diskCacheStrategy(DiskCacheStrategy.DATA)
   private val serviceJob = SupervisorJob()
   private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
 

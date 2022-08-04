@@ -1,6 +1,6 @@
 <template>
   <div class="w-full h-full min-h-full relative">
-    <div v-if="!loading" class="w-full">
+    <div v-if="!loading" class="w-full" :class="{ 'py-6': altViewEnabled }">
       <template v-for="(shelf, index) in shelves">
         <bookshelf-shelf :key="shelf.id" :label="shelf.label" :entities="shelf.entities" :type="shelf.type" :style="{ zIndex: shelves.length - index }" />
       </template>
@@ -53,6 +53,9 @@ export default {
     },
     currentLibraryId() {
       return this.$store.state.libraries.currentLibraryId
+    },
+    altViewEnabled() {
+      return this.$store.getters['getAltViewEnabled']
     }
   },
   methods: {
@@ -183,12 +186,10 @@ export default {
       })
     },
     initListeners() {
-      // this.$server.on('initialized', this.socketInit)
       this.$eventBus.$on('library-changed', this.libraryChanged)
       // this.$eventBus.$on('downloads-loaded', this.downloadsLoaded)
     },
     removeListeners() {
-      // this.$server.off('initialized', this.socketInit)
       this.$eventBus.$off('library-changed', this.libraryChanged)
       // this.$eventBus.$off('downloads-loaded', this.downloadsLoaded)
     }

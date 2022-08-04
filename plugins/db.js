@@ -54,8 +54,8 @@ class DbService {
     return AbsDatabase.getLocalLibraryItem({ id })
   }
 
-  getLocalLibraryItemByLLId(libraryItemId) {
-    return AbsDatabase.getLocalLibraryItemByLLId({ libraryItemId })
+  getLocalLibraryItemByLId(libraryItemId) {
+    return AbsDatabase.getLocalLibraryItemByLId({ libraryItemId })
   }
 
   getAllLocalMediaProgress() {
@@ -81,6 +81,10 @@ class DbService {
   // input: { localMediaProgressId:String, isFinished:Boolean }
   updateLocalMediaProgressFinished(payload) {
     return AbsDatabase.updateLocalMediaProgressFinished(payload)
+  }
+
+  updateDeviceSettings(payload) {
+    return AbsDatabase.updateDeviceSettings(payload)
   }
 }
 

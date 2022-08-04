@@ -6,6 +6,10 @@ import android.content.Intent
 import android.graphics.Color
 import android.hardware.Sensor
 import android.hardware.SensorManager
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.os.*
 import android.support.v4.media.MediaBrowserCompat
 import android.support.v4.media.MediaDescriptionCompat
@@ -15,14 +19,26 @@ import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
 import androidx.media.MediaBrowserServiceCompat
 import androidx.media.utils.MediaConstants
+<<<<<<< HEAD:android/app/src/main/java/com/bookshelf/app/player/PlayerNotificationService.kt
 import com.bookshelf.app.BuildConfig
 import com.bookshelf.app.data.*
 import com.bookshelf.app.data.DeviceInfo
 import com.bookshelf.app.device.DeviceManager
 import com.bookshelf.app.media.MediaManager
 import com.bookshelf.app.server.ApiHandler
+=======
+import com.audiobookshelf.app.BuildConfig
+import com.audiobookshelf.app.R
+import com.audiobookshelf.app.data.*
+import com.audiobookshelf.app.data.DeviceInfo
+import com.audiobookshelf.app.device.DeviceManager
+import com.audiobookshelf.app.media.MediaManager
+import com.audiobookshelf.app.server.ApiHandler
+>>>>>>> 837df329e2c5362480009fe3173cb0f58e0ed884:android/app/src/main/java/com/audiobookshelf/app/player/PlayerNotificationService.kt
 import com.google.android.exoplayer2.*
 import com.google.android.exoplayer2.audio.AudioAttributes
 import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector
@@ -41,6 +57,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   companion object {
     var isStarted = false
+    var isClosed = false
+    var isUnmeteredNetwork = false
   }
 
   interface ClientEventEmitter {
@@ -54,6 +72,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     fun onPlaybackFailed(errorMessage:String)
     fun onMediaPlayerChanged(mediaPlayer:String)
     fun onProgressSyncFailing()
+    fun onProgressSyncSuccess()
+    fun onNetworkMeteredChanged(isUnmetered:Boolean)
   }
 
   private val tag = "PlayerService"
@@ -64,7 +84,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   private lateinit var ctx:Context
   private lateinit var mediaSessionConnector: MediaSessionConnector
   private lateinit var playerNotificationManager: PlayerNotificationManager
-  private lateinit var mediaSession: MediaSessionCompat
+  lateinit var mediaSession: MediaSessionCompat
   private lateinit var transportControls:MediaControllerCompat.TransportControls
 
   lateinit var mediaManager: MediaManager
@@ -112,11 +132,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     fun getService(): PlayerNotificationService = this@PlayerNotificationService
   }
 
-  fun stopService(context: Context) {
-    val stopIntent = Intent(context, PlayerNotificationService::class.java)
-    context.stopService(stopIntent)
-  }
-
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
     isStarted = true
     Log.d(tag, "onStartCommand $startId")
@@ -159,30 +174,21 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     stopSelf()
   }
 
-
   override fun onCreate() {
+    Log.d(tag, "onCreate")
     super.onCreate()
     ctx = this
 
-    // Initialize player
-    val customLoadControl:LoadControl = DefaultLoadControl.Builder().setBufferDurationsMs(
-      1000 * 20, // 20s min buffer
-      1000 * 45, // 45s max buffer
-      1000 * 5, // 5s playback start
-      1000 * 20 // 20s playback rebuffer
-    ).build()
-
-    mPlayer = ExoPlayer.Builder(this)
-      .setLoadControl(customLoadControl)
-      .setSeekBackIncrementMs(10000)
-      .setSeekForwardIncrementMs(10000)
+    // To listen for network change from metered to unmetered
+    val networkRequest = NetworkRequest.Builder()
+      .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+      .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+      .addTransportType(NetworkCapabilities.TRANSPORT_CELLULAR)
       .build()
-    mPlayer.setHandleAudioBecomingNoisy(true)
-    mPlayer.addListener(PlayerListener(this))
-    val audioAttributes:AudioAttributes = AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.CONTENT_TYPE_SPEECH).build()
-    mPlayer.setAudioAttributes(audioAttributes, true)
+    val connectivityManager = getSystemService(ConnectivityManager::class.java) as ConnectivityManager
+    connectivityManager.registerNetworkCallback(networkRequest, networkCallback)
 
-    currentPlayer = mPlayer
+    DbManager.initialize(ctx)
 
     // Initialize API
     apiHandler = ApiHandler(ctx)
@@ -213,6 +219,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       .apply {
         setSessionActivity(sessionActivityPendingIntent)
         isActive = true
+        setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS)
       }
 
     val mediaController = MediaControllerCompat(ctx, mediaSession.sessionToken)
@@ -234,6 +241,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     playerNotificationManager.setUseNextAction(false)
     playerNotificationManager.setUsePreviousAction(false)
     playerNotificationManager.setUseChronometer(false)
+    playerNotificationManager.setUseStopAction(true)
     playerNotificationManager.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
     playerNotificationManager.setPriority(NotificationCompat.PRIORITY_MAX)
     playerNotificationManager.setUseFastForwardActionInCompactView(true)
@@ -247,6 +255,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     mediaSessionConnector = MediaSessionConnector(mediaSession)
     val queueNavigator: TimelineQueueNavigator = object : TimelineQueueNavigator(mediaSession) {
       override fun getMediaDescription(player: Player, windowIndex: Int): MediaDescriptionCompat {
+        if (currentPlaybackSession == null) {
+          Log.e(tag,"Playback session is not set - returning blank MediaDescriptionCompat")
+          return MediaDescriptionCompat.Builder().build()
+        }
+
         val coverUri = currentPlaybackSession!!.getCoverUri()
 
         // Fix for local images crashing on Android 11 for specific devices
@@ -276,17 +289,66 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     )
     mediaSessionConnector.setQueueNavigator(queueNavigator)
     mediaSessionConnector.setPlaybackPreparer(MediaSessionPlaybackPreparer(this))
-    mediaSessionConnector.setPlayer(mPlayer)
+
+    // Example adding custom action with icon in android auto
+//    mediaSessionConnector.setCustomActionProviders(object : MediaSessionConnector.CustomActionProvider {
+//      override fun onCustomAction(player: Player, action: String, extras: Bundle?) {
+//      }
+//      override fun getCustomAction(player: Player): PlaybackStateCompat.CustomAction? {
+//        var icon = R.drawable.exo_icon_rewind
+//       return PlaybackStateCompat.CustomAction.Builder(
+//         "com.audiobookshelf.app.PLAYBACK_RATE", "Playback Rate", icon)
+//         .build()
+//      }
+//    })
+
+    mediaSession.setCallback(MediaSessionCallback(this))
+
+    initializeMPlayer()
+    currentPlayer = mPlayer
+  }
+
+  private fun initializeMPlayer() {
+    val customLoadControl:LoadControl = DefaultLoadControl.Builder().setBufferDurationsMs(
+      1000 * 20, // 20s min buffer
+      1000 * 45, // 45s max buffer
+      1000 * 5, // 5s playback start
+      1000 * 20 // 20s playback rebuffer
+    ).build()
+
+    val seekBackTime = DeviceManager.deviceData.deviceSettings?.jumpBackwardsTimeMs ?: 10000
+    val seekForwardTime = DeviceManager.deviceData.deviceSettings?.jumpForwardTimeMs ?: 10000
+    Log.d(tag, "Seek Back Time $seekBackTime")
+    Log.d(tag, "Seek Forward Time $seekForwardTime")
+
+    mPlayer = ExoPlayer.Builder(this)
+      .setLoadControl(customLoadControl)
+      .setSeekBackIncrementMs(seekBackTime)
+      .setSeekForwardIncrementMs(seekForwardTime)
+      .build()
+    mPlayer.setHandleAudioBecomingNoisy(true)
+    mPlayer.addListener(PlayerListener(this))
+    val audioAttributes:AudioAttributes = AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.CONTENT_TYPE_SPEECH).build()
+    mPlayer.setAudioAttributes(audioAttributes, true)
 
     //attach player to playerNotificationManager
     playerNotificationManager.setPlayer(mPlayer)
-    mediaSession.setCallback(MediaSessionCallback(this))
+
+    mediaSessionConnector.setPlayer(mPlayer)
   }
 
   /*
     User callable methods
   */
   fun preparePlayer(playbackSession: PlaybackSession, playWhenReady:Boolean, playbackRate:Float?) {
+    if (!isStarted) {
+      Log.i(tag, "preparePlayer: foreground service not started - Starting service --")
+      Intent(ctx, PlayerNotificationService::class.java).also { intent ->
+        ContextCompat.startForegroundService(ctx, intent)
+      }
+    }
+
+    isClosed = false
     val playbackRateToUse = playbackRate ?: initialPlaybackRate ?: 1f
     initialPlaybackRate = playbackRate
 
@@ -513,10 +575,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   // Called from PlayerListener play event
   // check with server if progress has updated since last play and sync progress update
-  fun checkCurrentSessionProgress():Boolean {
+  fun checkCurrentSessionProgress(seekBackTime:Long):Boolean {
     if (currentPlaybackSession == null) return true
 
-    currentPlaybackSession?.let { playbackSession ->
+    mediaProgressSyncer.currentPlaybackSession?.let { playbackSession ->
       if (!apiHandler.isOnline() || playbackSession.isLocalLibraryItemOnly) {
         return true // carry on
       }
@@ -538,16 +600,28 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
             Log.d(tag, "checkCurrentSessionProgress: Media progress was updated since last play time updating from ${playbackSession.currentTime} to ${mediaProgress.currentTime}")
             mediaProgressSyncer.syncFromServerProgress(mediaProgress)
 
+            // Update current playback session stored in PNS since MediaProgressSyncer version is a copy
+            mediaProgressSyncer.currentPlaybackSession?.let { updatedPlaybackSession ->
+              currentPlaybackSession = updatedPlaybackSession
+            }
+
             Handler(Looper.getMainLooper()).post {
               seekPlayer(playbackSession.currentTimeMs)
+              // Should already be playing
+              currentPlayer.volume = 1F // Volume on sleep timer might have decreased this
+              mediaProgressSyncer.start()
+              clientEventEmitter?.onPlayingUpdate(true)
             }
-          }
-
-          Handler(Looper.getMainLooper()).post {
-            // Should already be playing
-            currentPlayer.volume = 1F // Volume on sleep timer might have decreased this
-            mediaProgressSyncer.start()
-            clientEventEmitter?.onPlayingUpdate(true)
+          } else {
+            Handler(Looper.getMainLooper()).post {
+              if (seekBackTime > 0L) {
+                seekBackward(seekBackTime)
+              }
+              // Should already be playing
+              currentPlayer.volume = 1F // Volume on sleep timer might have decreased this
+              mediaProgressSyncer.start()
+              clientEventEmitter?.onPlayingUpdate(true)
+            }
           }
         }
       } else {
@@ -570,6 +644,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
           } else {
               Log.d(tag, "checkCurrentSessionProgress: Playback session still available on server")
               Handler(Looper.getMainLooper()).post {
+                if (seekBackTime > 0L) {
+                  seekBackward(seekBackTime)
+                }
+
                 currentPlayer.volume = 1F // Volume on sleep timer might have decreased this
                 mediaProgressSyncer.start()
                 clientEventEmitter?.onPlayingUpdate(true)
@@ -633,11 +711,27 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   }
 
   fun closePlayback() {
-    currentPlayer.clearMediaItems()
-    currentPlayer.stop()
+    Log.d(tag, "closePlayback")
+    if (mediaProgressSyncer.listeningTimerRunning) {
+      Log.i(tag, "About to close playback so stopping media progress syncer first")
+      mediaProgressSyncer.stop {
+        Log.d(tag, "Media Progress syncer stopped and synced")
+      }
+    }
+
+    try {
+      currentPlayer.stop()
+      currentPlayer.clearMediaItems()
+    } catch(e:Exception) {
+      Log.e(tag, "Exception clearing exoplayer $e")
+    }
+
     currentPlaybackSession = null
     clientEventEmitter?.onPlaybackClosed()
     PlayerListener.lastPauseTime = 0
+    isClosed = true
+    stopForeground(true)
+    stopSelf()
   }
 
   fun sendClientMetadata(playerState: PlayerState) {
@@ -672,6 +766,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     clientEventEmitter?.onProgressSyncFailing()
   }
 
+  fun alertSyncSuccess() {
+    clientEventEmitter?.onProgressSyncSuccess()
+  }
+
   //
   // MEDIA BROWSER STUFF (ANDROID AUTO)
   //
@@ -680,7 +778,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   private val ANDROID_WEARABLE_PKG_NAME = "com.google.android.wearable.app"
   private val ANDROID_GSEARCH_PKG_NAME = "com.google.android.googlequicksearchbox"
   private val ANDROID_AUTOMOTIVE_PKG_NAME = "com.google.android.carassistant"
-  private val VALID_MEDIA_BROWSERS = mutableListOf<String>(ANDROID_AUTO_PKG_NAME, ANDROID_AUTO_SIMULATOR_PKG_NAME, ANDROID_WEARABLE_PKG_NAME, ANDROID_GSEARCH_PKG_NAME, ANDROID_AUTOMOTIVE_PKG_NAME)
+  private val VALID_MEDIA_BROWSERS = mutableListOf("com.audiobookshelf.app", ANDROID_AUTO_PKG_NAME, ANDROID_AUTO_SIMULATOR_PKG_NAME, ANDROID_WEARABLE_PKG_NAME, ANDROID_GSEARCH_PKG_NAME, ANDROID_AUTOMOTIVE_PKG_NAME)
 
   private val AUTO_MEDIA_ROOT = "/"
   private val ALL_ROOT = "__ALL__"
@@ -706,7 +804,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       null
     } else {
       isStarted = true
-      mediaManager.initializeAndroidAuto()
       mediaManager.checkResetServerItems() // Reset any server items if no longer connected to server
 
       isAndroidAuto = true
@@ -840,6 +937,20 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         mSensorManager!!.unregisterListener(mShakeDetector)
         isShakeSensorRegistered = false
       }
+    }
+  }
+
+  private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+    // Network capabilities have changed for the network
+    override fun onCapabilitiesChanged(
+      network: Network,
+      networkCapabilities: NetworkCapabilities
+    ) {
+      super.onCapabilitiesChanged(network, networkCapabilities)
+      val unmetered = networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+      Log.i(tag, "Network capabilities changed is unmetered = $unmetered")
+      isUnmeteredNetwork = unmetered
+      clientEventEmitter?.onNetworkMeteredChanged(unmetered)
     }
   }
 }

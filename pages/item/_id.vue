@@ -21,7 +21,7 @@
             ><span :key="`${series.id}-comma`" v-if="index < seriesList.length - 1">,&nbsp;</span></template
           >
         </p>
-        <p v-if="podcastAuthor" class="text-sm text-gray-400 py-0.5">By {{ author }}</p>
+        <p v-if="podcastAuthor" class="text-sm text-gray-400 py-0.5">By {{ podcastAuthor }}</p>
         <p v-else-if="bookAuthors && bookAuthors.length" class="text-sm text-gray-400 py-0.5">
           By
           <template v-for="(author, index) in bookAuthors"
@@ -136,7 +136,7 @@ export default {
       })
       // Check if
       if (libraryItem) {
-        var localLibraryItem = await app.$db.getLocalLibraryItemByLLId(libraryItemId)
+        var localLibraryItem = await app.$db.getLocalLibraryItemByLId(libraryItemId)
         if (localLibraryItem) {
           console.log('Library item has local library item also', localLibraryItem.id)
           libraryItem.localLibraryItem = localLibraryItem

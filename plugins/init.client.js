@@ -14,21 +14,6 @@ if (Capacitor.getPlatform() != 'web') {
   setStatusBarStyleDark()
 }
 
-App.addListener('backButton', async ({ canGoBack }) => {
-  if (!canGoBack) {
-    const { value } = await Dialog.confirm({
-      title: 'Confirm',
-      message: `Did you want to exit the app?`,
-    })
-    if (value) {
-      App.exitApp()
-    }
-
-  } else {
-    window.history.back()
-  }
-})
-
 Vue.prototype.$isDev = process.env.NODE_ENV !== 'production'
 
 Vue.prototype.$dateDistanceFromNow = (unixms) => {
@@ -52,17 +37,20 @@ Vue.prototype.$bytesPretty = (bytes, decimals = 2) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i]
 }
 
-Vue.prototype.$elapsedPretty = (seconds) => {
+Vue.prototype.$elapsedPretty = (seconds, useFullNames = false) => {
+  if (seconds < 60) {
+    return `${Math.floor(seconds)} sec${useFullNames ? 'onds' : ''}`
+  }
   var minutes = Math.floor(seconds / 60)
   if (minutes < 70) {
-    return `${minutes} min`
+    return `${minutes} min${useFullNames ? `ute${minutes === 1 ? '' : 's'}` : ''}`
   }
   var hours = Math.floor(minutes / 60)
   minutes -= hours * 60
   if (!minutes) {
-    return `${hours} hr`
+    return `${hours} ${useFullNames ? 'hours' : 'hr'}`
   }
-  return `${hours} hr ${minutes} min`
+  return `${hours} ${useFullNames ? `hour${hours === 1 ? '' : 's'}` : 'hr'} ${minutes} ${useFullNames ? `minute${minutes === 1 ? '' : 's'}` : 'min'}`
 }
 
 Vue.prototype.$secondsToTimestamp = (seconds) => {
@@ -131,6 +119,45 @@ const encode = (text) => encodeURIComponent(Buffer.from(text).toString('base64')
 Vue.prototype.$encode = encode
 const decode = (text) => Buffer.from(decodeURIComponent(text), 'base64').toString()
 Vue.prototype.$decode = decode
+
+export default ({ store, app }) => {
+  // iOS Only
+  //  backButton event does not work with iOS swipe navigation so use this workaround
+  if (app.router && Capacitor.getPlatform() === 'ios') {
+    app.router.beforeEach((to, from, next) => {
+      if (store.state.globals.isModalOpen) {
+        Vue.prototype.$eventBus.$emit('close-modal')
+      }
+      if (store.state.playerIsFullscreen) {
+        Vue.prototype.$eventBus.$emit('minimize-player')
+      }
+      next()
+    })
+  }
+
+  // Android only
+  App.addListener('backButton', async ({ canGoBack }) => {
+    if (store.state.globals.isModalOpen) {
+      Vue.prototype.$eventBus.$emit('close-modal')
+      return
+    }
+    if (store.state.playerIsFullscreen) {
+      Vue.prototype.$eventBus.$emit('minimize-player')
+      return
+    }
+    if (!canGoBack) {
+      const { value } = await Dialog.confirm({
+        title: 'Confirm',
+        message: `Did you want to exit the app?`,
+      })
+      if (value) {
+        App.exitApp()
+      }
+    } else {
+      window.history.back()
+    }
+  })
+}
 
 export {
   encode,

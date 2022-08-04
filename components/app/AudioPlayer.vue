@@ -34,9 +34,13 @@
       <div class="cover-container bookCoverWrapper bg-black bg-opacity-75 w-full h-full">
         <covers-book-cover v-if="libraryItem || localLibraryItemCoverSrc" :library-item="libraryItem" :download-cover="localLibraryItemCoverSrc" :width="bookCoverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" />
       </div>
+
+      <div v-if="syncStatus === $constants.SyncStatus.FAILED" class="absolute top-0 left-0 w-full h-full flex items-center justify-center z-30">
+        <span class="material-icons text-error text-3xl">error</span>
+      </div>
     </div>
 
-    <div class="title-author-texts absolute z-30 left-0 right-0 overflow-hidden">
+    <div class="title-author-texts absolute z-30 left-0 right-0 overflow-hidden" @click="clickTitleAndAuthor">
       <p class="title-text font-book truncate">{{ title }}</p>
       <p class="author-text text-white text-opacity-75 truncate">by {{ authorName }}</p>
     </div>
@@ -63,12 +67,12 @@
       <div id="playerControls" class="absolute right-0 bottom-0 py-2">
         <div class="flex items-center justify-center">
           <span v-show="showFullscreen" class="material-icons next-icon text-white text-opacity-75 cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpChapterStart">first_page</span>
-          <span class="material-icons jump-icon text-white cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="backward10">replay_10</span>
+          <span class="material-icons jump-icon text-white cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpBackwards">{{ jumpBackwardsIcon }}</span>
           <div class="play-btn cursor-pointer shadow-sm flex items-center justify-center rounded-full text-primary mx-4" :class="{ 'animate-spin': seekLoading, 'bg-accent': !isLocalPlayMethod, 'bg-success': isLocalPlayMethod }" @mousedown.prevent @mouseup.prevent @click.stop="playPauseClick">
             <span v-if="!isLoading" class="material-icons">{{ seekLoading ? 'autorenew' : !isPlaying ? 'play_arrow' : 'pause' }}</span>
             <widgets-spinner-icon v-else class="h-8 w-8" />
           </div>
-          <span class="material-icons jump-icon text-white cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="forward10">forward_10</span>
+          <span class="material-icons jump-icon text-white cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpForward">{{ jumpForwardIcon }}</span>
           <span v-show="showFullscreen" class="material-icons next-icon text-white cursor-pointer" :class="nextChapter && !isLoading ? 'text-opacity-75' : 'text-opacity-10'" @click.stop="jumpNextChapter">last_page</span>
         </div>
       </div>
@@ -123,25 +127,28 @@ export default {
       isEnded: false,
       volume: 0.5,
       readyTrackWidth: 0,
-      playedTrackWidth: 0,
       seekedTime: 0,
       seekLoading: false,
       onPlaybackSessionListener: null,
       onPlaybackClosedListener: null,
       onPlayingUpdateListener: null,
       onMetadataListener: null,
+      onProgressSyncFailing: null,
+      onProgressSyncSuccess: null,
       touchStartY: 0,
       touchStartTime: 0,
       touchEndY: 0,
       useChapterTrack: false,
       isLoading: false,
       touchTrackStart: false,
-      dragPercent: 0
+      dragPercent: 0,
+      syncStatus: 0
     }
   },
   watch: {
-    showFullscreen() {
+    showFullscreen(val) {
       this.updateScreenSize()
+      this.$store.commit('setPlayerFullscreen', !!val)
     }
   },
   computed: {
@@ -158,6 +165,18 @@ export default {
         icon: 'close'
       })
       return items
+    },
+    jumpForwardIcon() {
+      return this.$store.getters['globals/getJumpForwardIcon'](this.jumpForwardTime)
+    },
+    jumpBackwardsIcon() {
+      return this.$store.getters['globals/getJumpBackwardsIcon'](this.jumpBackwardsTime)
+    },
+    jumpForwardTime() {
+      return this.$store.getters['getJumpForwardTime']
+    },
+    jumpBackwardsTime() {
+      return this.$store.getters['getJumpBackwardsTime']
     },
     bookCoverAspectRatio() {
       return this.$store.getters['getBookCoverAspectRatio']
@@ -282,6 +301,14 @@ export default {
     }
   },
   methods: {
+    clickTitleAndAuthor() {
+      if (!this.showFullscreen) return
+      const llid = this.libraryItem ? this.libraryItem.id : this.localLibraryItem ? this.localLibraryItem.id : null
+      if (llid) {
+        this.$router.push(`/item/${llid}`)
+        this.showFullscreen = false
+      }
+    },
     touchstartTrack(e) {
       if (!e || !e.touches || !this.$refs.track || !this.showFullscreen) return
       this.touchTrackStart = true
@@ -342,13 +369,13 @@ export default {
     restart() {
       this.seek(0)
     },
-    backward10() {
+    jumpBackwards() {
       if (this.isLoading) return
-      AbsAudioPlayer.seekBackward({ value: 10 })
+      AbsAudioPlayer.seekBackward({ value: this.jumpBackwardsTime })
     },
-    forward10() {
+    jumpForward() {
       if (this.isLoading) return
-      AbsAudioPlayer.seekForward({ value: 10 })
+      AbsAudioPlayer.seekForward({ value: this.jumpForwardTime })
     },
     setStreamReady() {
       this.readyTrackWidth = this.trackWidth
@@ -427,15 +454,11 @@ export default {
       if (this.useChapterTrack && this.currentChapter) {
         var currChapTime = this.currentTime - this.currentChapter.start
         percentDone = currChapTime / this.currentChapterDuration
-        bufferedPercent = (this.bufferedTime - this.currentChapter.start) / this.currentChapterDuration
+        bufferedPercent = Math.max(0, Math.min(1, (this.bufferedTime - this.currentChapter.start) / this.currentChapterDuration))
       }
       var ptWidth = Math.round(percentDone * this.trackWidth)
-      if (this.playedTrackWidth === ptWidth) {
-        return
-      }
       this.$refs.playedTrack.style.width = ptWidth + 'px'
       this.$refs.bufferedTrack.style.width = Math.round(bufferedPercent * this.trackWidth) + 'px'
-      this.playedTrackWidth = ptWidth
 
       if (this.useChapterTrack) {
         if (this.$refs.totalPlayedTrack) this.$refs.totalPlayedTrack.style.width = Math.round(totalPercentDone * this.trackWidth) + 'px'
@@ -458,7 +481,6 @@ export default {
         var perc = time / this.totalDuration
         var ptWidth = Math.round(perc * this.trackWidth)
         this.$refs.playedTrack.style.width = ptWidth + 'px'
-        this.playedTrackWidth = ptWidth
 
         this.$refs.playedTrack.classList.remove('bg-gray-200')
         this.$refs.playedTrack.classList.add('bg-yellow-300')
@@ -508,7 +530,6 @@ export default {
         var data = await AbsAudioPlayer.getCurrentTime()
         this.currentTime = Number(data.value.toFixed(2))
         this.bufferedTime = Number(data.bufferedTime.toFixed(2))
-        console.log('[AudioPlayer] Got Current Time', this.currentTime)
         this.timeupdate()
       }, 1000)
     },
@@ -661,6 +682,7 @@ export default {
 
       this.isEnded = false
       this.isLoading = true
+      this.syncStatus = 0
       this.$store.commit('setPlayerItem', this.playbackSession)
 
       // Set track width
@@ -673,7 +695,6 @@ export default {
       })
     },
     onPlaybackClosed() {
-      console.log('Received onPlaybackClosed evt')
       this.endPlayback()
     },
     onPlaybackFailed(data) {
@@ -690,6 +711,8 @@ export default {
       this.onPlaybackFailedListener = AbsAudioPlayer.addListener('onPlaybackFailed', this.onPlaybackFailed)
       this.onPlayingUpdateListener = AbsAudioPlayer.addListener('onPlayingUpdate', this.onPlayingUpdate)
       this.onMetadataListener = AbsAudioPlayer.addListener('onMetadata', this.onMetadata)
+      this.onProgressSyncFailing = AbsAudioPlayer.addListener('onProgressSyncFailing', this.showProgressSyncIsFailing)
+      this.onProgressSyncSuccess = AbsAudioPlayer.addListener('onProgressSyncSuccess', this.showProgressSyncSuccess)
     },
     screenOrientationChange() {
       setTimeout(this.updateScreenSize, 50)
@@ -699,18 +722,34 @@ export default {
       var coverHeight = this.fullscreenBookCoverWidth * this.bookCoverAspectRatio
       document.documentElement.style.setProperty('--cover-image-width', this.fullscreenBookCoverWidth + 'px')
       document.documentElement.style.setProperty('--cover-image-height', coverHeight + 'px')
+    },
+    minimizePlayerEvt() {
+      console.log('Minimize Player Evt')
+      this.showFullscreen = false
+    },
+    showProgressSyncIsFailing() {
+      this.syncStatus = this.$constants.SyncStatus.FAILED
+    },
+    showProgressSyncSuccess() {
+      this.syncStatus = this.$constants.SyncStatus.SUCCESS
     }
   },
   mounted() {
     this.updateScreenSize()
-    screen.orientation.addEventListener('change', this.screenOrientationChange)
+    if (screen.orientation) {
+      screen.orientation.addEventListener('change', this.screenOrientationChange)
+    }
+
+    this.$eventBus.$on('minimize-player', this.minimizePlayerEvt)
     document.body.addEventListener('touchstart', this.touchstart)
     document.body.addEventListener('touchend', this.touchend)
     document.body.addEventListener('touchmove', this.touchmove)
     this.$nextTick(this.init)
   },
   beforeDestroy() {
-    screen.orientation.removeEventListener('change', this.screenOrientationChange)
+    if (screen.orientation) {
+      screen.orientation.removeEventListener('change', this.screenOrientationChange)
+    }
 
     if (this.playbackSession) {
       console.log('[AudioPlayer] Before destroy closing playback')
@@ -718,6 +757,7 @@ export default {
     }
 
     this.forceCloseDropdownMenu()
+    this.$eventBus.$off('minimize-player', this.minimizePlayerEvt)
     document.body.removeEventListener('touchstart', this.touchstart)
     document.body.removeEventListener('touchend', this.touchend)
     document.body.removeEventListener('touchmove', this.touchmove)
@@ -727,6 +767,8 @@ export default {
     if (this.onPlaybackSessionListener) this.onPlaybackSessionListener.remove()
     if (this.onPlaybackClosedListener) this.onPlaybackClosedListener.remove()
     if (this.onPlaybackFailedListener) this.onPlaybackFailedListener.remove()
+    if (this.onProgressSyncFailing) this.onProgressSyncFailing.remove()
+    if (this.onProgressSyncSuccess) this.onProgressSyncSuccess.remove()
     clearInterval(this.playInterval)
   }
 }
@@ -738,7 +780,6 @@ export default {
   --cover-image-height: 0px;
   --cover-image-width-collapsed: 60px;
   --cover-image-height-collapsed: 60px;
-  --test-var: 100px;
 }
 .bookCoverWrapper {
   box-shadow: 3px -2px 5px #00000066;
@@ -812,6 +853,7 @@ export default {
   left: 10%;
   text-align: center;
   padding-bottom: calc(((260px - var(--cover-image-height)) / 260) * 40);
+  pointer-events: auto;
 }
 .fullscreen .title-author-texts .title-text {
   font-size: clamp(0.8rem, calc(var(--cover-image-height) / 260 * 20), 1.2rem);
