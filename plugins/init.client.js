@@ -66,6 +66,29 @@ Vue.prototype.$elapsedPretty = (seconds, useFullNames = false) => {
   return `${hours} ${useFullNames ? `hour${hours === 1 ? '' : 's'}` : 'hr'} ${minutes} ${useFullNames ? `minute${minutes === 1 ? '' : 's'}` : 'min'}`
 }
 
+Vue.prototype.$elapsedPrettyExtended = (seconds, useDays = true) => {
+  if (isNaN(seconds) || seconds === null) return ''
+  seconds = Math.round(seconds)
+
+  var minutes = Math.floor(seconds / 60)
+  seconds -= minutes * 60
+  var hours = Math.floor(minutes / 60)
+  minutes -= hours * 60
+
+  var days = 0
+  if (useDays || Math.floor(hours / 24) >= 100) {
+    days = Math.floor(hours / 24)
+    hours -= days * 24
+  }
+
+  var strs = []
+  if (days) strs.push(`${days}d`)
+  if (hours) strs.push(`${hours}h`)
+  if (minutes) strs.push(`${minutes}m`)
+  if (seconds) strs.push(`${seconds}s`)
+  return strs.join(' ')
+}
+
 Vue.prototype.$secondsToTimestamp = (seconds) => {
   var _seconds = seconds
   var _minutes = Math.floor(seconds / 60)
