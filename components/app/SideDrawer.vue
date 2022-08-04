@@ -99,6 +99,11 @@ export default {
           text: 'Account',
           to: '/account'
         })
+        items.push({
+          icon: 'equalizer',
+          text: 'User Stats',
+          to: '/stats'
+        })
       }
 
       if (this.$platform !== 'ios') {
