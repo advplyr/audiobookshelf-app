@@ -145,6 +145,30 @@ class Database {
         }
     }
     
+    public func getDownloadItem(downloadItemId: String) -> DownloadItem? {
+        Database.realmQueue.sync {
+            instance.object(ofType: DownloadItem.self, forPrimaryKey: downloadItemId)
+        }
+    }
+    
+    public func getDownloadItem(libraryItemId: String) -> DownloadItem? {
+        Database.realmQueue.sync {
+            instance.objects(DownloadItem.self).filter("libraryItemId == %@", libraryItemId).first
+        }
+    }
+    
+    public func getDownloadItem(downloadItemPartId: String) -> DownloadItem? {
+        Database.realmQueue.sync {
+            instance.objects(DownloadItem.self).filter("SUBQUERY(downloadItemParts, $part, $part.id == %@) .@count > 0", downloadItemPartId).first
+        }
+    }
+    
+    public func saveDownloadItem(_ downloadItem: DownloadItem) {
+        Database.realmQueue.sync {
+            try! instance.write { instance.add(downloadItem) }
+        }
+    }
+    
     public func getDeviceSettings() -> DeviceSettings {
         return Database.realmQueue.sync {
             return instance.objects(DeviceSettings.self).first ?? getDefaultDeviceSettings()

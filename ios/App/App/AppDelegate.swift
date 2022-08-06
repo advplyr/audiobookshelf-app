@@ -49,6 +49,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         Realm.registerRealmables(LocalFile.self)
         Realm.registerRealmables(LocalMediaProgress.self)
         
+        // Download item
+        Realm.registerRealmables(DownloadItem.self)
+        Realm.registerRealmables(DownloadItemPart.self)
+        
         return true
     }
 
