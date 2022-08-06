@@ -169,15 +169,9 @@ class Database {
         }
     }
     
-    public func updateDownloadItemPartPercent(downloadItemPartId: String, percent: Double) {
+    public func updateDownloadItemPart(_ part: DownloadItemPart) {
         Database.realmQueue.sync {
             try! instance.write {
-                let part = instance.object(ofType: DownloadItemPart.self, forPrimaryKey: downloadItemPartId)
-                guard var part = part else {
-                    NSLog("downloadItemPartId not found (\(downloadItemPartId)")
-                    return
-                }
-                part.progress = percent
                 instance.add(part, update: .modified)
             }
         }

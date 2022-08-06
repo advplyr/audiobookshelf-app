@@ -34,25 +34,30 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
     }
     
     public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
-        // Find the download item
-        guard let downloadItemPartId = downloadTask.taskDescription else { return }
-        let downloadItem = Database.shared.getDownloadItem(downloadItemPartId: downloadItemPartId)
-        guard let downloadItem = downloadItem else {
-            NSLog("Download item part (%@) not found!", downloadItemPartId)
-            return
+        do {
+            guard let downloadItemPartId = downloadTask.taskDescription else { throw LibraryItemDownloadError.noTaskDescription }
+        
+            // Calculate the download percentage
+            let percentDownloaded = (Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)) * 100
+            NSLog("Received download status \(downloadItemPartId): \(percentDownloaded)")
+        
+            // Find the download item
+            let downloadItem = Database.shared.getDownloadItem(downloadItemPartId: downloadItemPartId)
+            guard let downloadItem = downloadItem else { throw LibraryItemDownloadError.downloadItemNotFound }
+        
+            // Find the download item part
+            let downloadItemPart = downloadItem.downloadItemParts.filter { $0.id == downloadItemPartId }.first
+            guard var downloadItemPart = downloadItemPart else { throw LibraryItemDownloadError.downloadItemPartNotFound }
+            
+            // Update the progress
+            downloadItemPart.progress = percentDownloaded
+            Database.shared.updateDownloadItemPart(downloadItemPart)
+        
+            // Notify the UI
+            try! notifyListeners("onItemDownloadUpdate", data: downloadItem.asDictionary())
+        } catch {
+            NSLog("DownloadItemError: \(error)")
         }
-        
-        // Calculate the download percentage
-        let percentDownloaded = (Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)) * 100
-        NSLog("Received download status \(downloadItemPartId): \(percentDownloaded)")
-        Database.shared.updateDownloadItemPartPercent(downloadItemPartId: downloadItemPartId, percent: percentDownloaded)
-        let downloadItemPart = downloadItem.downloadItemParts.filter { part in
-            part.id == downloadItemPartId
-        }.first
-        
-        // Notify the UI
-        NSLog("Download progress: \(downloadItemPart?.progress ?? 0)")
-        try! notifyListeners("onItemDownloadUpdate", data: downloadItem.asDictionary())
     }
     
     @objc func downloadLibraryItem(_ call: CAPPluginCall) {
@@ -153,4 +158,7 @@ enum LibraryItemDownloadError: String, Error {
     case noMetadata = "No metadata for track, unable to download"
     case failedDirectory = "Failed to create directory"
     case failedDownload = "Failed to download item"
+    case noTaskDescription = "No task description"
+    case downloadItemNotFound = "DownloadItem not found"
+    case downloadItemPartNotFound = "DownloadItemPart not found"
 }
