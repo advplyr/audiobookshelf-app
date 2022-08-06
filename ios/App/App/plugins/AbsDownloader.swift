@@ -34,7 +34,25 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
     }
     
     public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
-        NSLog("Received download status \(downloadTask.taskDescription ?? "Unknown Task"): \(totalBytesWritten)")
+        // Find the download item
+        guard let downloadItemPartId = downloadTask.taskDescription else { return }
+        let downloadItem = Database.shared.getDownloadItem(downloadItemPartId: downloadItemPartId)
+        guard let downloadItem = downloadItem else {
+            NSLog("Download item part (%@) not found!", downloadItemPartId)
+            return
+        }
+        
+        // Calculate the download percentage
+        let percentDownloaded = (Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)) * 100
+        NSLog("Received download status \(downloadItemPartId): \(percentDownloaded)")
+        Database.shared.updateDownloadItemPartPercent(downloadItemPartId: downloadItemPartId, percent: percentDownloaded)
+        let downloadItemPart = downloadItem.downloadItemParts.filter { part in
+            part.id == downloadItemPartId
+        }.first
+        
+        // Notify the UI
+        NSLog("Download progress: \(downloadItemPart?.progress ?? 0)")
+        try! notifyListeners("onItemDownloadUpdate", data: downloadItem.asDictionary())
     }
     
     @objc func downloadLibraryItem(_ call: CAPPluginCall) {
@@ -47,16 +65,17 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
         ApiClient.getLibraryItemWithProgress(libraryItemId: libraryItemId, episodeId: episodeId) { libraryItem in
             if (libraryItem == nil) {
                 NSLog("Library item not found")
+                call.resolve(["error": "Library item not found"])
             } else {
                 NSLog("Got library item from server \(libraryItem!.id)")
                 do {
                     try self.startLibraryItemDownload(libraryItem!)
-                    //Database.shared.saveLocalLibraryItem(localLibraryItem: localLibraryItem)
+                    call.resolve()
                 } catch {
                     NSLog("Failed to download \(error)")
+                    call.resolve(["error": "Failed to download"])
                 }
             }
-            call.resolve()
         }
     }
     

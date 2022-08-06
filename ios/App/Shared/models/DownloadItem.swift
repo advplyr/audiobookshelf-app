@@ -28,6 +28,10 @@ struct DownloadItem: Realmable, Codable {
     static func indexedProperties() -> [String] {
         ["libraryItemId"]
     }
+    
+    private enum CodingKeys : String, CodingKey {
+        case id, libraryItemId, episodeId, userMediaProgress, serverConnectionConfigId, serverAddress, serverUserId, mediaType, itemTitle, downloadItemParts
+    }
 }
 
 extension DownloadItem {
@@ -58,16 +62,19 @@ struct DownloadItemPart: Realmable, Codable {
     var uri: String?
     var destinationUri: String?
     var finalDestinationUri: String?
-    var downloadId: Int?
-    var progress: Int = 0
+    var progress: Double = 0
     var task: URLSessionDownloadTask!
     
-    private enum CodingKeys : String, CodingKey {
-        case id, progress
+    static func primaryKey() -> String? {
+        return "id"
     }
     
     static func ignoredProperties() -> [String] {
         ["task"]
+    }
+    
+    private enum CodingKeys : String, CodingKey {
+        case id, filename, completed, moved, failed, progress
     }
 }
 
