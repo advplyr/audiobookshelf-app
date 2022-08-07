@@ -51,7 +51,6 @@ extension DownloadItem {
 struct DownloadItemPart: Realmable, Codable {
     var id: String = UUID().uuidString
     var filename: String?
-    var finalDestinationPath: String?
     var itemTitle: String?
     var serverPath: String?
     var audioTrack: AudioTrack?
@@ -61,7 +60,6 @@ struct DownloadItemPart: Realmable, Codable {
     var failed: Bool = false
     var uri: String?
     var destinationUri: String?
-    var finalDestinationUri: String?
     var progress: Double = 0
     var task: URLSessionDownloadTask!
     
@@ -74,15 +72,40 @@ struct DownloadItemPart: Realmable, Codable {
     }
     
     private enum CodingKeys : String, CodingKey {
-        case id, filename, completed, moved, failed, progress
+        case id, filename, itemTitle, completed, moved, failed, progress
     }
 }
 
 extension DownloadItemPart {
-    init(filename: String, destination: URL, itemTitle: String, serverPath: String, audioTrack:AudioTrack?, episode: PodcastEpisode?) {
-        var downloadUrl = "" // TODO: Set this
+    init(filename: String, destination: URL, itemTitle: String, serverPath: String, audioTrack: AudioTrack?, episode: PodcastEpisode?) {
+        self.filename = filename
+        self.itemTitle = itemTitle
+        self.serverPath = serverPath
+        self.audioTrack = audioTrack
+        self.episode = episode
+        
+        let config = Store.serverConfig!
+        var downloadUrl = "\(config.address)\(serverPath)?token=\(config.token)"
         if (serverPath.hasSuffix("/cover")) {
             downloadUrl += "&format=jpeg" // For cover images force to jpeg
+        }
+        self.uri = downloadUrl
+        self.destinationUri = destination.path
+    }
+    
+    func downloadURL() -> URL? {
+        if let uri = self.uri {
+            return URL(string: uri)
+        } else {
+            return nil
+        }
+    }
+    
+    func destinationURL() -> URL? {
+        if let destinationUri = self.destinationUri {
+            return URL(fileURLWithPath: destinationUri)
+        } else {
+            return nil
         }
     }
 }

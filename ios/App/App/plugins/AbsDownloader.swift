@@ -11,36 +11,53 @@ import Capacitor
 @objc(AbsDownloader)
 public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
     
+    typealias DownloadProgressHandler = (_ downloadItem: DownloadItem, _ downloadItemPart: inout DownloadItemPart) throws -> Void
+    
     private let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-    private lazy var session = URLSession(configuration: .default, delegate: self, delegateQueue: .current)
+    private lazy var session = URLSession(configuration: .default, delegate: self, delegateQueue: OperationQueue.main)
     
     public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
-        NSLog("Finished downloading \(downloadTask.taskDescription ?? "Unknown Task")")
-        
-        guard let downloadItemPartId = downloadTask.taskDescription else { return }
-        
-        let downloadItem = Database.shared.getDownloadItem(downloadItemPartId: downloadItemPartId)
-        guard let downloadItem = downloadItem else {
-            NSLog("Download item part (%@) not found! Unable to move file!", downloadItemPartId)
-            return
+        handleDownloadTaskUpdate(downloadTask: downloadTask) { downloadItem, downloadItemPart in
+            downloadItemPart.progress = 1
+            downloadItemPart.completed = true
+            
+            do {
+                // Move the downloaded file into place
+                guard let destinationUrl = downloadItemPart.destinationURL() else {
+                    throw LibraryItemDownloadError.downloadItemPartDestinationUrlNotDefined
+                }
+                try? FileManager.default.removeItem(at: destinationUrl)
+                try FileManager.default.moveItem(at: location, to: destinationUrl)
+                downloadItemPart.moved = true
+            } catch {
+                downloadItemPart.failed = true
+                throw error
+            }
         }
-        
-        NSLog("Found downloadItem(%@)", downloadItem.id)
-        self.moveLibraryItemToFileDirectory(tempUrl: location)
     }
     
     public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        NSLog("Error downloading \(task.taskDescription ?? "Unknown Task"): \(error ?? "Unknown Error")")
+        handleDownloadTaskUpdate(downloadTask: task) { downloadItem, downloadItemPart in
+            if let error = error {
+                downloadItemPart.failed = true
+                throw error
+            }
+        }
     }
     
     public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
-        do {
-            guard let downloadItemPartId = downloadTask.taskDescription else { throw LibraryItemDownloadError.noTaskDescription }
-        
+        handleDownloadTaskUpdate(downloadTask: downloadTask) { downloadItem, downloadItemPart in
             // Calculate the download percentage
             let percentDownloaded = (Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)) * 100
-            NSLog("Received download status \(downloadItemPartId): \(percentDownloaded)")
-        
+            downloadItemPart.progress = percentDownloaded
+        }
+    }
+    
+    private func handleDownloadTaskUpdate(downloadTask: URLSessionTask, progressHandler: DownloadProgressHandler) {
+        do {
+            guard let downloadItemPartId = downloadTask.taskDescription else { throw LibraryItemDownloadError.noTaskDescription }
+            NSLog("Received download update for \(downloadItemPartId)")
+            
             // Find the download item
             let downloadItem = Database.shared.getDownloadItem(downloadItemPartId: downloadItemPartId)
             guard let downloadItem = downloadItem else { throw LibraryItemDownloadError.downloadItemNotFound }
@@ -49,14 +66,22 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
             let downloadItemPart = downloadItem.downloadItemParts.filter { $0.id == downloadItemPartId }.first
             guard var downloadItemPart = downloadItemPart else { throw LibraryItemDownloadError.downloadItemPartNotFound }
             
+            // Call the progress handler
+            do {
+                try progressHandler(downloadItem, &downloadItemPart)
+            } catch {
+                NSLog("Error while processing progress")
+                debugPrint(error)
+            }
+            
             // Update the progress
-            downloadItemPart.progress = percentDownloaded
             Database.shared.updateDownloadItemPart(downloadItemPart)
-        
+            
             // Notify the UI
             try! notifyListeners("onItemDownloadUpdate", data: downloadItem.asDictionary())
         } catch {
-            NSLog("DownloadItemError: \(error)")
+            NSLog("DownloadItemError")
+            debugPrint(error)
         }
     }
     
@@ -147,10 +172,6 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
         return itemDirectory
     }
     
-    private func moveLibraryItemToFileDirectory(tempUrl: URL) {
-        //try FileManager.default.moveItem(at: tempUrl, to: localUrl)
-    }
-    
 }
 
 enum LibraryItemDownloadError: String, Error {
@@ -161,4 +182,5 @@ enum LibraryItemDownloadError: String, Error {
     case noTaskDescription = "No task description"
     case downloadItemNotFound = "DownloadItem not found"
     case downloadItemPartNotFound = "DownloadItemPart not found"
+    case downloadItemPartDestinationUrlNotDefined = "DownloadItemPart destination URL not defined"
 }
