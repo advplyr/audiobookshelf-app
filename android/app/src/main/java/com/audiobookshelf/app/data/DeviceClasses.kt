@@ -20,7 +20,8 @@ data class DeviceSettings(
   var disableAutoRewind:Boolean,
   var enableAltView:Boolean,
   var jumpBackwardsTime:Int,
-  var jumpForwardTime:Int
+  var jumpForwardTime:Int,
+  var disableShakeToResetSleepTimer:Boolean
 ) {
   companion object {
     // Static method to get default device settings
@@ -29,7 +30,8 @@ data class DeviceSettings(
         disableAutoRewind = false,
         enableAltView = false,
         jumpBackwardsTime = 10,
-        jumpForwardTime = 10
+        jumpForwardTime = 10,
+        disableShakeToResetSleepTimer = false
       )
     }
   }
