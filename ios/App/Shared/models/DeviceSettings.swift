@@ -21,12 +21,10 @@ func getDefaultDeviceSettings() -> DeviceSettings {
 }
 
 func deviceSettingsToJSON(settings: DeviceSettings) -> Dictionary<String, Any> {
-    return Database.realmQueue.sync {
-        return [
-            "disableAutoRewind": settings.disableAutoRewind,
-            "enableAltView": settings.enableAltView,
-            "jumpBackwardsTime": settings.jumpBackwardsTime,
-            "jumpForwardTime": settings.jumpForwardTime
-        ]
-    }
+    return [
+        "disableAutoRewind": settings.disableAutoRewind,
+        "enableAltView": settings.enableAltView,
+        "jumpBackwardsTime": settings.jumpBackwardsTime,
+        "jumpForwardTime": settings.jumpForwardTime
+    ]
 }

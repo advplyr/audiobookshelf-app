@@ -37,15 +37,13 @@ struct ServerConnectionConfigActiveIndex: Realmable {
 }
 
 func convertServerConnectionConfigToJSON(config: ServerConnectionConfig) -> Dictionary<String, Any> {
-    return Database.realmQueue.sync {
-        return [
-            "id": config.id,
-            "name": config.name,
-            "index": config.index,
-            "address": config.address,
-            "userId": config.userId,
-            "username": config.username,
-            "token": config.token,
-        ]
-    }
+    return [
+        "id": config.id,
+        "name": config.name,
+        "index": config.index,
+        "address": config.address,
+        "userId": config.userId,
+        "username": config.username,
+        "token": config.token,
+    ]
 }
