@@ -56,6 +56,9 @@ export default {
     },
     altViewEnabled() {
       return this.$store.getters['getAltViewEnabled']
+    },
+    localMediaProgress() {
+      return this.$store.state.globals.localMediaProgress
     }
   },
   methods: {
@@ -69,6 +72,7 @@ export default {
       var podcasts = []
       localMedia.forEach((item) => {
         if (item.mediaType == 'book') {
+          item.progress = this.localMediaProgress.find((lmp) => lmp.id === item.id)
           books.push(item)
         } else if (item.mediaType == 'podcast') {
           podcasts.push(item)
@@ -80,7 +84,11 @@ export default {
           id: 'local-books',
           label: 'Local Books',
           type: 'book',
-          entities: books
+          entities: books.sort((a, b) => {
+            if (a.progress && a.progress.isFinished) return 1
+            else if (b.progress && b.progress.isFinished) return -1
+            return 0
+          })
         })
       }
       if (podcasts.length) {
