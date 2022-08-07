@@ -177,6 +177,12 @@ class Database {
         }
     }
     
+    public func removeDownloadItem(_ downloadItem: DownloadItem) {
+        Database.realmQueue.sync {
+            try! instance.write { instance.delete(downloadItem) }
+        }
+    }
+    
     public func getDeviceSettings() -> DeviceSettings {
         return Database.realmQueue.sync {
             return instance.objects(DeviceSettings.self).first ?? getDefaultDeviceSettings()

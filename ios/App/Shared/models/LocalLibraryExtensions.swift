@@ -75,6 +75,7 @@ extension LocalFile {
         self.init()
         self.id = "\(libraryItemId)_\(filename.toBase64())"
         self.filename = filename
+        self.mimeType = mimeType
         self.contentUrl = localUrl.absoluteString
         self.absolutePath = localUrl.path
         self.size = Int(localUrl.fileSize)
@@ -88,5 +89,29 @@ extension LocalFile {
             default:
                 return self.mimeType?.starts(with: "audio") ?? false
         }
+    }
+}
+
+extension LocalMediaProgress {
+    init(localLibraryItem: LocalLibraryItem, episode: LocalPodcastEpisode?, progress: MediaProgress) {
+        self.id = localLibraryItem.id
+        self.localLibraryItemId = localLibraryItem.id
+        self.libraryItemId = localLibraryItem.libraryItemId
+        
+        if let episode = episode {
+            self.id += "-\(episode.id)"
+            self.episodeId = episode.id
+        }
+        
+        self.serverAddress = localLibraryItem.serverAddress
+        self.serverUserId = localLibraryItem.serverUserId
+        self.serverConnectionConfigId = localLibraryItem.serverConnectionConfigId
+        
+        self.duration = progress.duration
+        self.currentTime = progress.currentTime
+        self.isFinished = false
+        self.lastUpdate = progress.lastUpdate
+        self.startedAt = progress.startedAt
+        self.finishedAt = progress.finishedAt
     }
 }

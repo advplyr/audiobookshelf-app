@@ -63,7 +63,7 @@ struct LocalFile: Realmable, Codable {
 }
 
 struct LocalMediaProgress: Realmable, Codable {
-    var id: String = UUID().uuidString
+    var id: String = ""
     var localLibraryItemId: String = ""
     var localEpisodeId: String?
     var duration: Double = 0

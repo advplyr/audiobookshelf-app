@@ -83,6 +83,8 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
             
             // Handle a completed download
             if ( downloadItem.isDoneDownloading() ) {
+                // Delete the download item on exit even if handling complete errors
+                defer { Database.shared.removeDownloadItem(downloadItem) }
                 handleDownloadTaskCompleteFromDownloadItem(downloadItem)
             }
         } catch {
@@ -92,17 +94,31 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
     }
     
     private func handleDownloadTaskCompleteFromDownloadItem(_ downloadItem: DownloadItem) {
-        var statusNotification = [String: String]()
-        
         if ( downloadItem.didDownloadSuccessfully() ) {
+            
             ApiClient.getLibraryItemWithProgress(libraryItemId: downloadItem.libraryItemId!, episodeId: downloadItem.episodeId) { libraryItem in
-            //let localDirectory = documentsDirectory.appendingPathComponent("\(libraryItem.id)")
-            //let localLibraryItem = LocalLibraryItem(libraryItem, localUrl: localDirectory, server: Store.serverConfig!, files: <#T##[LocalFile]#>)
+                var statusNotification = [String: Any]()
+                statusNotification["libraryItemId"] = libraryItem?.id
+                
+                guard let libraryItem = libraryItem else { NSLog("LibraryItem not found"); return }
+                let localDirectory = self.documentsDirectory.appendingPathComponent("\(libraryItem.id)")
+                let files = downloadItem.downloadItemParts.map { part in LocalFile(libraryItem.id, part.filename!, part.mimeType()!, part.destinationURL()!) }
+                let localLibraryItem = LocalLibraryItem(libraryItem, localUrl: localDirectory, server: Store.serverConfig!, files: files)
+                
+                Database.shared.saveLocalLibraryItem(localLibraryItem: localLibraryItem)
+                statusNotification["localLibraryItem"] = try? localLibraryItem.asDictionary()
+                
+                if let progress = libraryItem.userMediaProgress {
+                    // TODO: Handle podcast
+                    let localMediaProgress = LocalMediaProgress(localLibraryItem: localLibraryItem, episode: nil, progress: progress)
+                    Database.shared.saveLocalMediaProgress(localMediaProgress)
+                    statusNotification["localMediaProgress"] = try? localMediaProgress.asDictionary()
+                }
+                
+                self.notifyListeners("onItemDownloadComplete", data: statusNotification)
             }
             
         }
-        
-        notifyListeners("onItemDownloadComplete", data: statusNotification)
     }
     
     @objc func downloadLibraryItem(_ call: CAPPluginCall) {
@@ -203,4 +219,5 @@ enum LibraryItemDownloadError: String, Error {
     case downloadItemNotFound = "DownloadItem not found"
     case downloadItemPartNotFound = "DownloadItemPart not found"
     case downloadItemPartDestinationUrlNotDefined = "DownloadItemPart destination URL not defined"
+    case libraryItemNotFound = "LibraryItem not found for id"
 }

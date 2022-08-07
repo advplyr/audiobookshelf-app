@@ -9,7 +9,7 @@ import Foundation
 import Unrealm
 
 struct DownloadItem: Realmable, Codable {
-    var id: String = UUID().uuidString
+    var id: String?
     var libraryItemId: String?
     var episodeId: String?
     var userMediaProgress: MediaProgress?
@@ -36,6 +36,7 @@ struct DownloadItem: Realmable, Codable {
 
 extension DownloadItem {
     init(libraryItem: LibraryItem, server: ServerConnectionConfig) {
+        self.id = libraryItem.id
         self.libraryItemId = libraryItem.id
         //self.episodeId // TODO
         self.userMediaProgress = libraryItem.userMediaProgress
@@ -52,7 +53,7 @@ extension DownloadItem {
     }
     
     func didDownloadSuccessfully() -> Bool {
-        self.downloadItemParts.allSatisfy({ $0.failed = false })
+        self.downloadItemParts.allSatisfy({ $0.failed == false })
     }
 }
 
@@ -99,6 +100,10 @@ extension DownloadItemPart {
         }
         self.uri = downloadUrl
         self.destinationUri = destination.path
+    }
+    
+    func mimeType() -> String? {
+        audioTrack?.mimeType ?? episode?.audioTrack?.mimeType
     }
     
     func downloadURL() -> URL? {
