@@ -46,6 +46,14 @@ extension DownloadItem {
         self.itemTitle = libraryItem.media.metadata.title
         self.media = libraryItem.media
     }
+    
+    func isDoneDownloading() -> Bool {
+        self.downloadItemParts.allSatisfy({ $0.completed })
+    }
+    
+    func didDownloadSuccessfully() -> Bool {
+        self.downloadItemParts.allSatisfy({ $0.failed = false })
+    }
 }
 
 struct DownloadItemPart: Realmable, Codable {

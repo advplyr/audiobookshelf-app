@@ -39,6 +39,7 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
     public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         handleDownloadTaskUpdate(downloadTask: task) { downloadItem, downloadItemPart in
             if let error = error {
+                downloadItemPart.completed = true
                 downloadItemPart.failed = true
                 throw error
             }
@@ -78,11 +79,30 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
             Database.shared.updateDownloadItemPart(downloadItemPart)
             
             // Notify the UI
-            try! notifyListeners("onItemDownloadUpdate", data: downloadItem.asDictionary())
+            try? notifyListeners("onItemDownloadUpdate", data: downloadItem.asDictionary())
+            
+            // Handle a completed download
+            if ( downloadItem.isDoneDownloading() ) {
+                handleDownloadTaskCompleteFromDownloadItem(downloadItem)
+            }
         } catch {
             NSLog("DownloadItemError")
             debugPrint(error)
         }
+    }
+    
+    private func handleDownloadTaskCompleteFromDownloadItem(_ downloadItem: DownloadItem) {
+        var statusNotification = [String: String]()
+        
+        if ( downloadItem.didDownloadSuccessfully() ) {
+            ApiClient.getLibraryItemWithProgress(libraryItemId: downloadItem.libraryItemId!, episodeId: downloadItem.episodeId) { libraryItem in
+            //let localDirectory = documentsDirectory.appendingPathComponent("\(libraryItem.id)")
+            //let localLibraryItem = LocalLibraryItem(libraryItem, localUrl: localDirectory, server: Store.serverConfig!, files: <#T##[LocalFile]#>)
+            }
+            
+        }
+        
+        notifyListeners("onItemDownloadComplete", data: statusNotification)
     }
     
     @objc func downloadLibraryItem(_ call: CAPPluginCall) {
