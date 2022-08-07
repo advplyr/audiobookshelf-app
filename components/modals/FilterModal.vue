@@ -87,6 +87,11 @@ export default {
           sublist: true
         },
         {
+          text: 'Language',
+          value: 'languages',
+          sublist: true
+        },
+        {
           text: 'Progress',
           value: 'progress',
           sublist: true
@@ -164,6 +169,9 @@ export default {
     },
     narrators() {
       return this.filterData.narrators || []
+    },
+    languages() {
+      return this.filterData.languages || []
     },
     progress() {
       return ['Finished', 'In Progress', 'Not Started', 'Not Finished']
