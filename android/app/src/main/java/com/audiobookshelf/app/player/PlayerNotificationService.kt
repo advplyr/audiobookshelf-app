@@ -816,7 +816,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   override fun onLoadChildren(parentMediaId: String, result: Result<MutableList<MediaBrowserCompat.MediaItem>>) {
     Log.d(tag, "ON LOAD CHILDREN $parentMediaId")
 
-    var flag = if (parentMediaId == AUTO_MEDIA_ROOT || parentMediaId == LIBRARIES_ROOT) MediaBrowserCompat.MediaItem.FLAG_BROWSABLE else MediaBrowserCompat.MediaItem.FLAG_PLAYABLE
+    val flag = if (parentMediaId == AUTO_MEDIA_ROOT || parentMediaId == LIBRARIES_ROOT) MediaBrowserCompat.MediaItem.FLAG_BROWSABLE else MediaBrowserCompat.MediaItem.FLAG_PLAYABLE
 
     result.detach()
 
@@ -832,10 +832,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
           val libraryItemMediaMetadata = libraryItem.getMediaMetadata()
 
           if (libraryItem.mediaType == "podcast") { // Podcasts are browseable
-            flag = MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
+            MediaBrowserCompat.MediaItem(libraryItemMediaMetadata.description, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE)
+          } else {
+            val progress = mediaManager.serverUserMediaProgress.find { it.libraryItemId == libraryItemMediaMetadata.description.mediaId }
+            val description = mediaManager.getMediaDescriptionFromMediaMetadata(libraryItemMediaMetadata, progress)
+            MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
           }
-
-          MediaBrowserCompat.MediaItem(libraryItemMediaMetadata.description, flag)
         }
         result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
       }
@@ -846,26 +848,34 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       val localBrowseItems:MutableList<MediaBrowserCompat.MediaItem> = mutableListOf()
 
       localBooks.forEach { localLibraryItem ->
-        val mediaMetadata = localLibraryItem.getMediaMetadata(ctx)
-        localBrowseItems += MediaBrowserCompat.MediaItem(mediaMetadata.description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
+        val mediaMetadata = localLibraryItem.getMediaMetadata()
+        val progress = DeviceManager.dbManager.getLocalMediaProgress(mediaMetadata.description.mediaId ?: "")
+        val description = mediaManager.getMediaDescriptionFromMediaMetadata(mediaMetadata, progress)
+
+        localBrowseItems += MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
       }
 
       localPodcasts.forEach { localLibraryItem ->
-        val mediaMetadata = localLibraryItem.getMediaMetadata(ctx)
+        val mediaMetadata = localLibraryItem.getMediaMetadata()
         localBrowseItems += MediaBrowserCompat.MediaItem(mediaMetadata.description, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE)
       }
 
       result.sendResult(localBrowseItems)
 
     } else { // Load categories
-
       mediaManager.loadAndroidAutoItems() { libraryCategories ->
         browseTree = BrowseTree(this, libraryCategories, mediaManager.serverLibraries)
 
         val children = browseTree[parentMediaId]?.map { item ->
           Log.d(tag, "Loading Browser Media Item ${item.description.title} $flag")
 
-          MediaBrowserCompat.MediaItem(item.description, flag)
+          if (flag == MediaBrowserCompat.MediaItem.FLAG_PLAYABLE) {
+            val progress = mediaManager.serverUserMediaProgress.find { it.libraryItemId == item.description.mediaId }
+            val description = mediaManager.getMediaDescriptionFromMediaMetadata(item, progress)
+            MediaBrowserCompat.MediaItem(description, flag)
+          } else {
+            MediaBrowserCompat.MediaItem(item.description, flag)
+          }
         }
         result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
       }

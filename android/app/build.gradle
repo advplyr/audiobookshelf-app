@@ -121,7 +121,7 @@ dependencies {
   implementation 'com.squareup.okhttp3:okhttp:4.9.2'
 
   // Jackson for JSON
-  implementation 'com.fasterxml.jackson.module:jackson-module-kotlin:2.12.1'
+  implementation 'com.fasterxml.jackson.module:jackson-module-kotlin:2.12.2'
 
   // FFMPEG-Kit
   implementation 'com.arthenica:ffmpeg-kit-min:4.5.1'
