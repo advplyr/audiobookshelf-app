@@ -9,20 +9,21 @@
       </div>
       <div class="title-container flex-grow pl-2">
         <div class="flex relative pr-6">
-          <h1 class="text-base">{{ title }}</h1>
+          <h1 class="text-base font-semibold">{{ title }}</h1>
 
           <button class="absolute top-0 right-0 h-full px-1 outline-none" @click="moreButtonPress">
             <span class="material-icons text-xl">more_vert</span>
           </button>
         </div>
+        <p v-if="subtitle" class="text-gray-100 text-sm py-0.5">{{ subtitle }}</p>
         <p v-if="seriesList && seriesList.length" class="text-sm text-gray-300 py-0.5">
           <template v-for="(series, index) in seriesList"
             ><nuxt-link :key="series.id" :to="`/bookshelf/series/${series.id}`">{{ series.text }}</nuxt-link
             ><span :key="`${series.id}-comma`" v-if="index < seriesList.length - 1">,&nbsp;</span></template
           >
         </p>
-        <p v-if="podcastAuthor" class="text-sm text-gray-400 py-0.5">By {{ podcastAuthor }}</p>
-        <p v-else-if="bookAuthors && bookAuthors.length" class="text-sm text-gray-400 py-0.5">
+        <p v-if="podcastAuthor" class="text-sm text-gray-300 py-0.5">By {{ podcastAuthor }}</p>
+        <p v-else-if="bookAuthors && bookAuthors.length" class="text-sm text-gray-300 py-0.5">
           By
           <template v-for="(author, index) in bookAuthors"
             ><nuxt-link :key="author.id" :to="`/bookshelf/library?filter=authors.${$encode(author.id)}`">{{ author.name }}</nuxt-link
@@ -217,6 +218,9 @@ export default {
     },
     title() {
       return this.mediaMetadata.title
+    },
+    subtitle() {
+      return this.mediaMetadata.subtitle
     },
     podcastAuthor() {
       if (!this.isPodcast) return null
