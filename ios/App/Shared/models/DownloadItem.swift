@@ -35,10 +35,9 @@ struct DownloadItem: Realmable, Codable {
 }
 
 extension DownloadItem {
-    init(libraryItem: LibraryItem, server: ServerConnectionConfig) {
+    init(libraryItem: LibraryItem, episodeId: String?, server: ServerConnectionConfig) {
         self.id = libraryItem.id
         self.libraryItemId = libraryItem.id
-        //self.episodeId // TODO
         self.userMediaProgress = libraryItem.userMediaProgress
         self.serverConnectionConfigId = server.id
         self.serverAddress = server.address
@@ -46,6 +45,11 @@ extension DownloadItem {
         self.mediaType = libraryItem.mediaType
         self.itemTitle = libraryItem.media.metadata.title
         self.media = libraryItem.media
+        
+        if let episodeId = episodeId {
+            self.id! += "-\(episodeId)"
+            self.episodeId = episodeId
+        }
     }
     
     func isDoneDownloading() -> Bool {

@@ -123,38 +123,78 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
     
     @objc func downloadLibraryItem(_ call: CAPPluginCall) {
         let libraryItemId = call.getString("libraryItemId")
-        let episodeId = call.getString("episodeId")
+        var episodeId = call.getString("episodeId")
+        if ( episodeId == "null" ) { episodeId = nil }
         
-        NSLog("Download library item \(libraryItemId ?? "N/A") / episode \(episodeId ?? "")")
-        guard let libraryItemId = libraryItemId else { call.resolve(); return; }
+        NSLog("Download library item \(libraryItemId ?? "N/A") / episode \(episodeId ?? "N/A")")
+        guard let libraryItemId = libraryItemId else { return call.resolve(["error": "libraryItemId not specified"]) }
+        
+        // Verify the file isn't already downloading
+        let downloadItemId = episodeId != nil ? "\(libraryItemId)-\(episodeId!)" : libraryItemId
+        let downloadItem = Database.shared.getDownloadItem(downloadItemId: downloadItemId)
+        if ( downloadItem != nil ) {
+            return call.resolve(["error": "Download already started for this media entity"])
+        }
         
         ApiClient.getLibraryItemWithProgress(libraryItemId: libraryItemId, episodeId: episodeId) { libraryItem in
-            if (libraryItem == nil) {
-                NSLog("Library item not found")
-                call.resolve(["error": "Library item not found"])
-            } else {
-                NSLog("Got library item from server \(libraryItem!.id)")
+            if let libraryItem = libraryItem {
+                NSLog("Got library item from server \(libraryItem.id)")
                 do {
-                    try self.startLibraryItemDownload(libraryItem!)
+                    if let episodeId = episodeId {
+                        // Download a podcast episode
+                        guard libraryItem.mediaType == "podcast" else { throw LibraryItemDownloadError.libraryItemNotPodcast }
+                        let episode = libraryItem.media.episodes?.first(where: { $0.id == episodeId })
+                        guard let episode = episode else { throw LibraryItemDownloadError.podcastEpisodeNotFound }
+                        try self.startLibraryItemDownload(libraryItem, episode: episode)
+                    } else {
+                        // Download a book
+                        try self.startLibraryItemDownload(libraryItem)
+                    }
                     call.resolve()
                 } catch {
-                    NSLog("Failed to download \(error)")
+                    debugPrint(error)
                     call.resolve(["error": "Failed to download"])
                 }
+            } else {
+                call.resolve(["error": "Server request failed"])
             }
         }
     }
     
     private func startLibraryItemDownload(_ item: LibraryItem) throws {
-        guard let tracks = item.media.tracks else {
-            throw LibraryItemDownloadError.noTracks
+        try startLibraryItemDownload(item, episode: nil)
+    }
+    
+    private func startLibraryItemDownload(_ item: LibraryItem, episode: PodcastEpisode?) throws {
+        var tracks: [AudioTrack]
+        var episodeId: String?
+        
+        // Handle the different media type downloads
+        switch item.mediaType {
+        case "book":
+            guard let bookTracks = item.media.tracks else { throw LibraryItemDownloadError.noTracks }
+            tracks = bookTracks
+        case "podcast":
+            guard let episode = episode else { throw LibraryItemDownloadError.podcastEpisodeNotFound }
+            guard let podcastTrack = episode.audioTrack else { throw LibraryItemDownloadError.noTracks }
+            episodeId = episode.id
+            tracks = [podcastTrack]
+        default:
+            throw LibraryItemDownloadError.unknownMediaType
         }
         
         // Queue up everything for downloading
-        var downloadItem = DownloadItem(libraryItem: item, server: Store.serverConfig!)
+        var downloadItem = DownloadItem(libraryItem: item, episodeId: episodeId, server: Store.serverConfig!)
         downloadItem.downloadItemParts = try tracks.enumerated().map({ i, track in
             try startLibraryItemTrackDownload(item: item, position: i, track: track)
         })
+        
+        // Also download the cover
+        if item.media.coverPath != nil && !item.media.coverPath!.isEmpty {
+            if let coverDownload = try? startLibraryItemCoverDownload(item: item) {
+                downloadItem.downloadItemParts.append(coverDownload)
+            }
+        }
         
         // Persist in the database before status start coming in
         Database.shared.saveDownloadItem(downloadItem)
@@ -187,6 +227,15 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
         return downloadItemPart
     }
     
+    private func startLibraryItemCoverDownload(item: LibraryItem) throws -> DownloadItemPart {
+        let filename = "cover.jpg"
+        let serverPath = "/api/items/\(item.id)/cover"
+        let itemDirectory = try createLibraryItemFileDirectory(item: item)
+        let localUrl = itemDirectory.appendingPathComponent("\(filename)")
+        
+        return DownloadItemPart(filename: filename, destination: localUrl, itemTitle: "cover", serverPath: serverPath, audioTrack: nil, episode: nil)
+    }
+    
     private func urlForTrack(item: LibraryItem, track: AudioTrack) -> URL {
         // filename needs to be encoded otherwise would just use contentUrl
         let filenameEncoded = track.metadata?.filename.addingPercentEncoding(withAllowedCharacters: NSCharacterSet.urlQueryAllowed)
@@ -213,6 +262,9 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
 enum LibraryItemDownloadError: String, Error {
     case noTracks = "No tracks on library item"
     case noMetadata = "No metadata for track, unable to download"
+    case libraryItemNotPodcast = "Library item is not a podcast but episode was requested"
+    case podcastEpisodeNotFound = "Invalid podcast episode not found"
+    case unknownMediaType = "Unknown media type"
     case failedDirectory = "Failed to create directory"
     case failedDownload = "Failed to download item"
     case noTaskDescription = "No task description"
