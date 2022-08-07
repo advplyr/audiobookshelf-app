@@ -16,6 +16,7 @@ import com.getcapacitor.JSObject
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.IOException
@@ -43,11 +44,13 @@ class ApiHandler(var ctx:Context) {
     makeRequest(request, httpClient, cb)
   }
 
-  fun postRequest(endpoint:String, payload: JSObject, cb: (JSObject) -> Unit) {
+  fun postRequest(endpoint:String, payload: JSObject, config:ServerConnectionConfig?, cb: (JSObject) -> Unit) {
+    val address = config?.address ?: DeviceManager.serverAddress
+    val token = config?.token ?: DeviceManager.token
     val mediaType = "application/json; charset=utf-8".toMediaType()
     val requestBody = payload.toString().toRequestBody(mediaType)
     val request = Request.Builder().post(requestBody)
-      .url("${DeviceManager.serverAddress}$endpoint").addHeader("Authorization", "Bearer ${DeviceManager.token}")
+      .url("${address}$endpoint").addHeader("Authorization", "Bearer ${token}")
       .build()
     makeRequest(request, null, cb)
   }
@@ -211,7 +214,7 @@ class ApiHandler(var ctx:Context) {
     val payload = JSObject(jacksonMapper.writeValueAsString(playItemRequestPayload))
 
     val endpoint = if (episodeId.isNullOrEmpty()) "/api/items/$libraryItemId/play" else "/api/items/$libraryItemId/play/$episodeId"
-    postRequest(endpoint, payload) {
+    postRequest(endpoint, payload, null) {
       if (it.has("error")) {
         Log.e(tag, it.getString("error") ?: "Play Library Item Failed")
         cb(null)
@@ -227,7 +230,7 @@ class ApiHandler(var ctx:Context) {
   fun sendProgressSync(sessionId:String, syncData: MediaProgressSyncData, cb: (Boolean) -> Unit) {
     val payload = JSObject(jacksonMapper.writeValueAsString(syncData))
 
-    postRequest("/api/session/$sessionId/sync", payload) {
+    postRequest("/api/session/$sessionId/sync", payload, null) {
       if (!it.getString("error").isNullOrEmpty()) {
         cb(false)
       } else {
@@ -239,7 +242,7 @@ class ApiHandler(var ctx:Context) {
   fun sendLocalProgressSync(playbackSession:PlaybackSession, cb: (Boolean) -> Unit) {
     val payload = JSObject(jacksonMapper.writeValueAsString(playbackSession))
 
-    postRequest("/api/session/local", payload) {
+    postRequest("/api/session/local", payload, null) {
       if (!it.getString("error").isNullOrEmpty()) {
         cb(false)
       } else {
@@ -265,7 +268,7 @@ class ApiHandler(var ctx:Context) {
     if (localMediaProgress.isNotEmpty()) {
       Log.d(tag, "Sending sync local progress request with ${localMediaProgress.size} progress items")
       val payload = JSObject(jacksonMapper.writeValueAsString(LocalMediaProgressSyncPayload(localMediaProgress)))
-      postRequest("/api/me/sync-local-progress", payload) {
+      postRequest("/api/me/sync-local-progress", payload, null) {
         Log.d(tag, "Media Progress Sync payload $payload - response ${it}")
 
         if (it.toString() == "{}") {
@@ -340,6 +343,27 @@ class ApiHandler(var ctx:Context) {
       } else {
         Log.d(tag, "pingServer: Ping ${config.address} Successful")
         cb(true)
+      }
+    }
+  }
+
+  fun authorize(config:ServerConnectionConfig, cb: (MutableList<MediaProgress>?) -> Unit) {
+    Log.d(tag, "authorize: Authorizing ${config.address}")
+    postRequest("/api/authorize", JSObject(), config) {
+      val error = it.getString("error")
+      if (!error.isNullOrEmpty()) {
+        Log.d(tag, "authorize: Authorize ${config.address} Failed: $error")
+        cb(null)
+      } else {
+        val mediaProgressList:MutableList<MediaProgress> = mutableListOf()
+        val user = it.getJSObject("user")
+        val mediaProgress = user?.getJSONArray("mediaProgress") ?: JSONArray()
+        for (i in 0 until mediaProgress.length()) {
+          val mediaProg = jacksonMapper.readValue<MediaProgress>(mediaProgress.getJSONObject(i).toString())
+          mediaProgressList.add(mediaProg)
+        }
+        Log.d(tag, "authorize: Authorize ${config.address} Successful")
+        cb(mediaProgressList)
       }
     }
   }

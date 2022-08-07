@@ -2,8 +2,12 @@ package com.audiobookshelf.app.media
 
 import android.app.Activity
 import android.content.Context
+import android.os.Bundle
 import android.support.v4.media.MediaBrowserCompat
+import android.support.v4.media.MediaDescriptionCompat
+import android.support.v4.media.MediaMetadataCompat
 import android.util.Log
+import androidx.media.utils.MediaConstants
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.server.ApiHandler
@@ -28,6 +32,8 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
   var serverLibraryCategories = listOf<LibraryCategory>()
   var serverLibraries = listOf<Library>()
   var serverConfigIdUsed:String? = null
+  var serverConfigLastPing:Long = 0L
+  var serverUserMediaProgress:MutableList<MediaProgress> = mutableListOf()
 
   var userSettingsPlaybackRate:Float? = null
 
@@ -132,7 +138,11 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
 
               val children = podcast.episodes?.map { podcastEpisode ->
                 Log.d(tag, "Local Podcast Episode ${podcastEpisode.title} | ${podcastEpisode.id}")
-                MediaBrowserCompat.MediaItem(podcastEpisode.getMediaMetadata(libraryItemWrapper).description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
+
+                val mediaMetadata = podcastEpisode.getMediaMetadata(libraryItemWrapper)
+                val progress = DeviceManager.dbManager.getLocalMediaProgress("${libraryItemWrapper.id}-${podcastEpisode.id}")
+                val description = getMediaDescriptionFromMediaMetadata(mediaMetadata, progress)
+                MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
               }
               children?.let { cb(children as MutableList) } ?: cb(mutableListOf())
             }
@@ -147,7 +157,11 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
               selectedPodcast = podcast
 
               val children = podcast.episodes?.map { podcastEpisode ->
-                MediaBrowserCompat.MediaItem(podcastEpisode.getMediaMetadata(libraryItemWrapper).description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
+
+                val mediaMetadata = podcastEpisode.getMediaMetadata(libraryItemWrapper)
+                val progress = serverUserMediaProgress.find { it.libraryItemId == libraryItemWrapper.id && it.episodeId == podcastEpisode.id }
+                val description = getMediaDescriptionFromMediaMetadata(mediaMetadata, progress)
+                MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
               }
               children?.let { cb(children as MutableList) } ?: cb(mutableListOf())
             }
@@ -179,16 +193,49 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
     return successfulPing
   }
 
-  fun checkSetValidServerConnectionConfig(cb: (Boolean) -> Unit) = runBlocking {
-    if (!apiHandler.isOnline()) cb(false)
-    else {
-      coroutineScope {
-        var hasValidConn = false
+  suspend fun authorize(config:ServerConnectionConfig) : MutableList<MediaProgress> {
+    var mediaProgress:MutableList<MediaProgress> = mutableListOf()
+    suspendCoroutine<MutableList<MediaProgress>> { cont ->
+      apiHandler.authorize(config) {
+        Log.d(tag, "authorize: Authorized server config ${config.address} result = $it")
+        if (!it.isNullOrEmpty()) {
+          mediaProgress = it
+        }
+        cont.resume(mediaProgress)
+      }
+    }
+    return mediaProgress
+  }
 
-        // First check if the current selected config is pingable
-        DeviceManager.serverConnectionConfig?.let {
-          hasValidConn = checkServerConnection(it)
-          Log.d(tag, "checkSetValidServerConnectionConfig: Current config ${DeviceManager.serverAddress} is pingable? $hasValidConn")
+  fun checkSetValidServerConnectionConfig(cb: (Boolean) -> Unit) = runBlocking {
+    Log.d(tag, "checkSetValidServerConnectionConfig | $serverConfigIdUsed")
+
+    coroutineScope {
+      if (!apiHandler.isOnline()) {
+        serverUserMediaProgress = mutableListOf()
+        cb(false)
+      } else {
+
+        var hasValidConn = false
+        var lookupMediaProgress = true
+
+        if (!serverConfigIdUsed.isNullOrEmpty() && serverConfigLastPing > 0L && System.currentTimeMillis() - serverConfigLastPing < 5000) {
+            Log.d(tag, "checkSetValidServerConnectionConfig last ping less than a 5 seconds ago")
+          hasValidConn = true
+          lookupMediaProgress = false
+        } else {
+          serverUserMediaProgress = mutableListOf()
+        }
+
+        if (!hasValidConn) {
+          // First check if the current selected config is pingable
+          DeviceManager.serverConnectionConfig?.let {
+            hasValidConn = checkServerConnection(it)
+            Log.d(
+              tag,
+              "checkSetValidServerConnectionConfig: Current config ${DeviceManager.serverAddress} is pingable? $hasValidConn"
+            )
+          }
         }
 
         if (!hasValidConn) {
@@ -205,9 +252,21 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
           }
         }
 
+        if (hasValidConn) {
+          serverConfigLastPing = System.currentTimeMillis()
+
+          if (lookupMediaProgress) {
+            Log.d(tag, "Has valid conn now get user media progress")
+            DeviceManager.serverConnectionConfig?.let {
+              serverUserMediaProgress = authorize(it)
+            }
+          }
+        }
+
         cb(hasValidConn)
       }
     }
+
   }
 
   // TODO: Load currently listening category for local items
@@ -326,6 +385,41 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
         }
       }
     }
+  }
+
+  fun getMediaDescriptionFromMediaMetadata(item: MediaMetadataCompat, progress:MediaProgressWrapper?): MediaDescriptionCompat {
+
+    val extras = Bundle()
+    if (progress != null) {
+      Log.d(tag, "Has media progress for ${item.description.title} | ${progress}")
+      if (progress.isFinished) {
+        extras.putInt(
+          MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
+          MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_FULLY_PLAYED
+        )
+      } else {
+        extras.putInt(
+          MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
+          MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_PARTIALLY_PLAYED
+        )
+        extras.putDouble(
+          MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_PERCENTAGE, progress.progress
+        )
+      }
+    } else {
+      Log.d(tag, "No media progress for ${item.description.title} | ${item.description.mediaId}")
+      extras.putInt(
+        MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
+        MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_NOT_PLAYED
+      )
+    }
+
+    return MediaDescriptionCompat.Builder()
+      .setMediaId(item.description.mediaId)
+      .setTitle(item.description.title)
+      .setIconUri(item.description.iconUri)
+      .setSubtitle(item.description.subtitle)
+      .setExtras(extras).build()
   }
 
   private fun levenshtein(lhs : CharSequence, rhs : CharSequence) : Int {

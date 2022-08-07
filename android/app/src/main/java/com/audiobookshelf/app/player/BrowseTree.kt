@@ -6,10 +6,7 @@ import android.net.Uri
 import android.support.v4.media.MediaMetadataCompat
 import androidx.annotation.AnyRes
 import com.audiobookshelf.app.R
-import com.audiobookshelf.app.data.Library
-import com.audiobookshelf.app.data.LibraryCategory
-import com.audiobookshelf.app.data.LibraryItem
-import com.audiobookshelf.app.data.LocalLibraryItem
+import com.audiobookshelf.app.data.*
 
 class BrowseTree(
   val context: Context,
@@ -85,7 +82,7 @@ class BrowseTree(
        localBooksCat.entities.forEach { libc ->
         val libraryItem = libc as LocalLibraryItem
          val children = mediaIdToChildren[DOWNLOADS_ROOT] ?: mutableListOf()
-         children += libraryItem.getMediaMetadata(context)
+         children += libraryItem.getMediaMetadata()
          mediaIdToChildren[DOWNLOADS_ROOT] = children
       }
     }
@@ -94,7 +91,7 @@ class BrowseTree(
       localPodcastsCat.entities.forEach { libc ->
         val libraryItem = libc as LocalLibraryItem
         val children = mediaIdToChildren[DOWNLOADS_ROOT] ?: mutableListOf()
-        children += libraryItem.getMediaMetadata(context)
+        children += libraryItem.getMediaMetadata()
         mediaIdToChildren[DOWNLOADS_ROOT] = children
       }
     }
