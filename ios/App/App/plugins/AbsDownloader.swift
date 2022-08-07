@@ -102,8 +102,24 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
                 
                 guard let libraryItem = libraryItem else { NSLog("LibraryItem not found"); return }
                 let localDirectory = self.documentsDirectory.appendingPathComponent("\(libraryItem.id)")
-                let files = downloadItem.downloadItemParts.map { part in LocalFile(libraryItem.id, part.filename!, part.mimeType()!, part.destinationURL()!) }
-                let localLibraryItem = LocalLibraryItem(libraryItem, localUrl: localDirectory, server: Store.serverConfig!, files: files)
+                var coverFile: URL?
+                
+                // Assemble the local library item
+                let files = downloadItem.downloadItemParts.compactMap { part -> LocalFile? in
+                    if part.filename == "cover.jpg" {
+                        coverFile = part.destinationURL()
+                        return nil
+                    } else {
+                        return LocalFile(libraryItem.id, part.filename!, part.mimeType()!, part.destinationURL()!)
+                    }
+                }
+                var localLibraryItem = LocalLibraryItem(libraryItem, localUrl: localDirectory, server: Store.serverConfig!, files: files)
+                
+                // Store the cover file
+                if let coverFile = coverFile {
+                    localLibraryItem.coverContentUrl = coverFile.absoluteString
+                    localLibraryItem.coverAbsolutePath = coverFile.path
+                }
                 
                 Database.shared.saveLocalLibraryItem(localLibraryItem: localLibraryItem)
                 statusNotification["localLibraryItem"] = try? localLibraryItem.asDictionary()
@@ -233,7 +249,14 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
         let itemDirectory = try createLibraryItemFileDirectory(item: item)
         let localUrl = itemDirectory.appendingPathComponent("\(filename)")
         
-        return DownloadItemPart(filename: filename, destination: localUrl, itemTitle: "cover", serverPath: serverPath, audioTrack: nil, episode: nil)
+        var downloadItemPart = DownloadItemPart(filename: filename, destination: localUrl, itemTitle: "cover", serverPath: serverPath, audioTrack: nil, episode: nil)
+        let task = session.downloadTask(with: downloadItemPart.downloadURL()!)
+        
+        // Store the id on the task so the download item can be pulled from the database later
+        task.taskDescription = downloadItemPart.id
+        downloadItemPart.task = task
+        
+        return downloadItemPart
     }
     
     private func urlForTrack(item: LibraryItem, track: AudioTrack) -> URL {
