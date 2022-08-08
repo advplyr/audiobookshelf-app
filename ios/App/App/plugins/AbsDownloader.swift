@@ -14,11 +14,11 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
     typealias DownloadProgressHandler = (_ downloadItem: DownloadItem, _ downloadItemPart: inout DownloadItemPart) throws -> Void
     
     private let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-    private lazy var session = URLSession(configuration: .default, delegate: self, delegateQueue: OperationQueue.main)
-    
-    private let progressStatusQueue = DispatchQueue(label: "progress-status")
-    private var progressStatusWorkItem: DispatchWorkItem?
-    private var downloadItemQueue = [String: DownloadItem]()
+    private lazy var session: URLSession = {
+        let queue = OperationQueue()
+        queue.maxConcurrentOperationCount = 5
+        return URLSession(configuration: .default, delegate: self, delegateQueue: queue)
+    }()
     
     public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         handleDownloadTaskUpdate(downloadTask: downloadTask) { downloadItem, downloadItemPart in
@@ -66,7 +66,6 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
             // Find the download item
             let downloadItem = Database.shared.getDownloadItem(downloadItemPartId: downloadItemPartId)
             guard var downloadItem = downloadItem else { throw LibraryItemDownloadError.downloadItemNotFound }
-            downloadItem = self.downloadItemQueue[downloadItem.id!] ?? downloadItem
         
             // Find the download item part
             let partIndex = downloadItem.downloadItemParts.firstIndex(where: { $0.id == downloadItemPartId })
@@ -81,13 +80,14 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
             }
             
             // Update the progress
-            self.downloadItemQueue.updateValue(downloadItem, forKey: downloadItem.id!)
+            Database.shared.updateDownloadItemPart(downloadItem.downloadItemParts[partIndex])
             
             // Notify the UI
-            self.notifyDownloadProgress()
+            try? self.notifyListeners("onItemDownloadUpdate", data: downloadItem.asDictionary())
             
             // Handle a completed download
             if ( downloadItem.isDoneDownloading() ) {
+                // TODO: Prevent this block from firing multiple times
                 defer { Database.shared.removeDownloadItem(downloadItem) }
                 handleDownloadTaskCompleteFromDownloadItem(downloadItem)
             }
@@ -97,38 +97,8 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
         }
     }
     
-    // We want to handle updating the UI in the background and throttled so we don't overload the UI with progress updates
-    private func notifyDownloadProgress() {
-        // Return if the loop is running
-        guard self.progressStatusWorkItem == nil else { return }
-        
-        // Create a background thread to send the download status
-        self.progressStatusWorkItem = DispatchWorkItem { [weak self] in // Weak capture so the bg thread is pulling latest data
-            // Clean up the work item when done
-            defer { self?.progressStatusWorkItem = nil }
-            
-            while !(self?.downloadItemQueue.isEmpty ?? true) {
-                for item in self!.downloadItemQueue.values {
-                    try? self!.notifyListeners("onItemDownloadUpdate", data: item.asDictionary())
-                    
-                    // Clean up a completed download
-                    if item.isDoneDownloading() {
-                        self!.downloadItemQueue.removeValue(forKey: item.id!)
-                    }
-                }
-                
-                // Wait 200ms before reporting status again
-                Thread.sleep(forTimeInterval: TimeInterval(0.2))
-            }
-        }
-        
-        // Start the thread
-        self.progressStatusQueue.async(execute: self.progressStatusWorkItem!)
-    }
-    
     private func handleDownloadTaskCompleteFromDownloadItem(_ downloadItem: DownloadItem) {
         if ( downloadItem.didDownloadSuccessfully() ) {
-            
             ApiClient.getLibraryItemWithProgress(libraryItemId: downloadItem.libraryItemId!, episodeId: downloadItem.episodeId) { libraryItem in
                 var statusNotification = [String: Any]()
                 statusNotification["libraryItemId"] = libraryItem?.id
