@@ -106,38 +106,34 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
         self.progressStatusWorkItem = DispatchWorkItem { [weak self] in
             // Clean up the work item when done
             defer { self?.progressStatusWorkItem = nil }
-            var downloadItemProgress = [String: DownloadItem]()
             
-            // Get the latest progress
-            self?.progressStatusQueue.sync {
-                if let progressItems = self?.downloadItemProgress {
-                    downloadItemProgress = progressItems
+            // Fetch active downloads in a thread-safe way
+            func fetchActiveDownloads() -> [String: DownloadItem]? {
+                self?.progressStatusQueue.sync { self?.downloadItemProgress }
+            }
+            
+            // Remove a completed download item in a thread-safe way
+            func handleDoneDownloadItem(_ item: DownloadItem) {
+                self?.progressStatusQueue.async(flags: .barrier) {
+                    defer {
+                        Database.shared.removeDownloadItem(item)
+                        self?.downloadItemProgress.removeValue(forKey: item.id!)
+                    }
+                    self?.handleDownloadTaskCompleteFromDownloadItem(item)
                 }
             }
             
-            while !downloadItemProgress.isEmpty {
-                for item in downloadItemProgress.values {
-                    try? self?.notifyListeners("onItemDownloadUpdate", data: item.asDictionary())
-                    
-                    // Clean up a completed download
-                    if item.isDoneDownloading() {
-                        self?.progressStatusQueue.async(flags: .barrier) {
-                            self?.downloadItemProgress.removeValue(forKey: item.id!)
-                        }
-                        defer { Database.shared.removeDownloadItem(item) }
-                        self?.handleDownloadTaskCompleteFromDownloadItem(item)
+            // While there are active download items, emit status updates
+            while !(fetchActiveDownloads()?.isEmpty ?? false) {
+                if let activeDownloads = fetchActiveDownloads() {
+                    for item in activeDownloads.values {
+                        try? self?.notifyListeners("onItemDownloadUpdate", data: item.asDictionary())
+                        if item.isDoneDownloading() { handleDoneDownloadItem(item) }
                     }
                 }
                 
                 // Wait 200ms before reporting status again
                 Thread.sleep(forTimeInterval: TimeInterval(0.2))
-                
-                // Get the latest progress
-                self?.progressStatusQueue.sync {
-                    if let progressItems = self?.downloadItemProgress {
-                        downloadItemProgress = progressItems
-                    }
-                }
             }
         }
         
