@@ -11,9 +11,10 @@ import Capacitor
 @objc(AbsDownloader)
 public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
     
+    static let downloadsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+    
     typealias DownloadProgressHandler = (_ downloadItem: DownloadItem, _ downloadItemPart: inout DownloadItemPart) throws -> Void
     
-    private let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     private lazy var session: URLSession = {
         let queue = OperationQueue()
         queue.maxConcurrentOperationCount = 5
@@ -30,7 +31,7 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
             
             do {
                 // Move the downloaded file into place
-                guard let destinationUrl = downloadItemPart.destinationURL() else {
+                guard let destinationUrl = downloadItemPart.destinationURL else {
                     throw LibraryItemDownloadError.downloadItemPartDestinationUrlNotDefined
                 }
                 try? FileManager.default.removeItem(at: destinationUrl)
@@ -142,31 +143,25 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
     }
     
     private func handleDownloadTaskCompleteFromDownloadItem(_ downloadItem: DownloadItem) {
+        var statusNotification = [String: Any]()
+        statusNotification["libraryItemId"] = downloadItem.libraryItemId
+        
         if ( downloadItem.didDownloadSuccessfully() ) {
             ApiClient.getLibraryItemWithProgress(libraryItemId: downloadItem.libraryItemId!, episodeId: downloadItem.episodeId) { libraryItem in
-                var statusNotification = [String: Any]()
-                statusNotification["libraryItemId"] = libraryItem?.id
-                
                 guard let libraryItem = libraryItem else { NSLog("LibraryItem not found"); return }
-                let localDirectory = self.documentsDirectory.appendingPathComponent("\(libraryItem.id)")
-                var coverFile: URL?
+                let localDirectory = libraryItem.id
+                var coverFile: String?
                 
                 // Assemble the local library item
                 let files = downloadItem.downloadItemParts.compactMap { part -> LocalFile? in
                     if part.filename == "cover.jpg" {
-                        coverFile = part.destinationURL()
+                        coverFile = part.destinationUri
                         return nil
                     } else {
-                        return LocalFile(libraryItem.id, part.filename!, part.mimeType()!, part.destinationURL()!)
+                        return LocalFile(libraryItem.id, part.filename!, part.mimeType()!, part.destinationUri!, fileSize: Int(part.destinationURL!.fileSize))
                     }
                 }
-                var localLibraryItem = LocalLibraryItem(libraryItem, localUrl: localDirectory, server: Store.serverConfig!, files: files)
-                
-                // Store the cover file
-                if let coverFile = coverFile {
-                    localLibraryItem.coverContentUrl = coverFile.absoluteString
-                    localLibraryItem.coverAbsolutePath = coverFile.path
-                }
+                let localLibraryItem = LocalLibraryItem(libraryItem, localUrl: localDirectory, server: Store.serverConfig!, files: files, coverPath: coverFile)
                 
                 Database.shared.saveLocalLibraryItem(localLibraryItem: localLibraryItem)
                 statusNotification["localLibraryItem"] = try? localLibraryItem.asDictionary()
@@ -180,6 +175,8 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
                 
                 self.notifyListeners("onItemDownloadComplete", data: statusNotification)
             }
+        } else {
+            self.notifyListeners("onItemDownloadComplete", data: statusNotification)
         }
     }
     
@@ -270,7 +267,7 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
         
         let serverUrl = urlForTrack(item: item, track: track)
         let itemDirectory = try createLibraryItemFileDirectory(item: item)
-        let localUrl = itemDirectory.appendingPathComponent("\(filename)")
+        let localUrl = "\(itemDirectory)/\(filename)"
         
         let task = session.downloadTask(with: serverUrl)
         var downloadItemPart = DownloadItemPart(filename: filename, destination: localUrl, itemTitle: track.title ?? "Unknown", serverPath: Store.serverConfig!.address, audioTrack: track, episode: nil)
@@ -286,10 +283,10 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
         let filename = "cover.jpg"
         let serverPath = "/api/items/\(item.id)/cover"
         let itemDirectory = try createLibraryItemFileDirectory(item: item)
-        let localUrl = itemDirectory.appendingPathComponent("\(filename)")
+        let localUrl = "\(itemDirectory)/\(filename)"
         
         var downloadItemPart = DownloadItemPart(filename: filename, destination: localUrl, itemTitle: "cover", serverPath: serverPath, audioTrack: nil, episode: nil)
-        let task = session.downloadTask(with: downloadItemPart.downloadURL()!)
+        let task = session.downloadTask(with: downloadItemPart.downloadURL!)
         
         // Store the id on the task so the download item can be pulled from the database later
         task.taskDescription = downloadItemPart.id
@@ -305,12 +302,12 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
         return URL(string: urlstr)!
     }
     
-    private func createLibraryItemFileDirectory(item: LibraryItem) throws -> URL {
-        let itemDirectory = documentsDirectory.appendingPathComponent("\(item.id)")
+    private func createLibraryItemFileDirectory(item: LibraryItem) throws -> String {
+        let itemDirectory = item.id
         NSLog("ITEM DIR \(itemDirectory)")
         
         do {
-            try FileManager.default.createDirectory(at: itemDirectory, withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(at: AbsDownloader.downloadsDirectory.appendingPathComponent(itemDirectory), withIntermediateDirectories: true)
         } catch {
             NSLog("Failed to CREATE LI DIRECTORY \(error)")
             throw LibraryItemDownloadError.failedDirectory

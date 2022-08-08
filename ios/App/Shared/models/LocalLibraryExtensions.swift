@@ -8,14 +8,13 @@
 import Foundation
 
 extension LocalLibraryItem {
-    init(_ item: LibraryItem, localUrl: URL, server: ServerConnectionConfig, files: [LocalFile]) {
+    init(_ item: LibraryItem, localUrl: String, server: ServerConnectionConfig, files: [LocalFile], coverPath: String?) {
         self.init()
-        self.contentUrl = localUrl.absoluteString
+        self.contentUrl = localUrl
         self.mediaType = item.mediaType
         self.media = item.media
         self.localFiles = files
-        // TODO: self.coverContentURL
-        // TODO: self.converAbsolutePath
+        self.coverContentUrl = coverPath
         self.libraryItemId = item.id
         self.serverConnectionConfigId = server.id
         self.serverAddress = server.address
@@ -71,14 +70,13 @@ extension LocalLibraryItem {
 }
 
 extension LocalFile {
-    init(_ libraryItemId: String, _ filename: String, _ mimeType: String, _ localUrl: URL) {
+    init(_ libraryItemId: String, _ filename: String, _ mimeType: String, _ localUrl: String, fileSize: Int) {
         self.init()
         self.id = "\(libraryItemId)_\(filename.toBase64())"
         self.filename = filename
         self.mimeType = mimeType
-        self.contentUrl = localUrl.absoluteString
-        self.absolutePath = localUrl.path
-        self.size = Int(localUrl.fileSize)
+        self.contentUrl = localUrl
+        self.size = fileSize
     }
     
     func isAudioFile() -> Bool {

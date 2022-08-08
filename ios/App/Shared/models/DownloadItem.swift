@@ -72,7 +72,21 @@ struct DownloadItemPart: Realmable, Codable {
     var moved: Bool = false
     var failed: Bool = false
     var uri: String?
+    var downloadURL: URL? {
+        if let uri = self.uri {
+            return URL(string: uri)
+        } else {
+            return nil
+        }
+    }
     var destinationUri: String?
+    var destinationURL: URL? {
+        if let destinationUri = self.destinationUri {
+            return AbsDownloader.downloadsDirectory.appendingPathComponent(destinationUri)
+        } else {
+            return nil
+        }
+    }
     var progress: Double = 0
     var task: URLSessionDownloadTask!
     
@@ -90,7 +104,7 @@ struct DownloadItemPart: Realmable, Codable {
 }
 
 extension DownloadItemPart {
-    init(filename: String, destination: URL, itemTitle: String, serverPath: String, audioTrack: AudioTrack?, episode: PodcastEpisode?) {
+    init(filename: String, destination: String, itemTitle: String, serverPath: String, audioTrack: AudioTrack?, episode: PodcastEpisode?) {
         self.filename = filename
         self.itemTitle = itemTitle
         self.serverPath = serverPath
@@ -103,26 +117,10 @@ extension DownloadItemPart {
             downloadUrl += "&format=jpeg" // For cover images force to jpeg
         }
         self.uri = downloadUrl
-        self.destinationUri = destination.path
+        self.destinationUri = destination
     }
     
     func mimeType() -> String? {
         audioTrack?.mimeType ?? episode?.audioTrack?.mimeType
-    }
-    
-    func downloadURL() -> URL? {
-        if let uri = self.uri {
-            return URL(string: uri)
-        } else {
-            return nil
-        }
-    }
-    
-    func destinationURL() -> URL? {
-        if let destinationUri = self.destinationUri {
-            return URL(fileURLWithPath: destinationUri)
-        } else {
-            return nil
-        }
     }
 }
