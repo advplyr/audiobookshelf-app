@@ -30,7 +30,7 @@ struct DownloadItem: Realmable, Codable {
     }
     
     private enum CodingKeys : String, CodingKey {
-        case id, libraryItemId, episodeId, userMediaProgress, serverConnectionConfigId, serverAddress, serverUserId, mediaType, itemTitle, downloadItemParts
+        case id, libraryItemId, episodeId, serverConnectionConfigId, serverAddress, serverUserId, mediaType, itemTitle, downloadItemParts
     }
 }
 

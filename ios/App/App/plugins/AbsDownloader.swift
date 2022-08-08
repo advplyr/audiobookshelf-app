@@ -19,11 +19,9 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
         queue.maxConcurrentOperationCount = 5
         return URLSession(configuration: .default, delegate: self, delegateQueue: queue)
     }()
-    private let progressStatusQueue: OperationQueue = {
-        let queue = OperationQueue()
-        queue.maxConcurrentOperationCount = 1
-        return queue
-    }()
+    private let progressStatusQueue = DispatchQueue(label: "progress-status-queue", attributes: .concurrent)
+    private var progressStatusWorkItem: DispatchWorkItem?
+    private var downloadItemProgress = [String: DownloadItem]()
     
     public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         handleDownloadTaskUpdate(downloadTask: downloadTask) { downloadItem, downloadItemPart in
@@ -59,7 +57,10 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
         handleDownloadTaskUpdate(downloadTask: downloadTask) { downloadItem, downloadItemPart in
             // Calculate the download percentage
             let percentDownloaded = (Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)) * 100
-            downloadItemPart.progress = percentDownloaded
+            // Only update the progress if we received accurate progress data
+            if percentDownloaded >= 0.0 && percentDownloaded <= 1.0 {
+                downloadItemPart.progress = percentDownloaded
+            }
         }
     }
     
@@ -86,27 +87,62 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
             
             // Update the progress
             Database.shared.updateDownloadItemPart(downloadItem.downloadItemParts[partIndex])
-            
-            // Notify the UI
-            try? self.notifyListeners("onItemDownloadUpdate", data: downloadItem.asDictionary())
-            
-            // Handle a completed download
-            if ( downloadItem.isDoneDownloading() ) {
-                // Prevent race condition when multiple parts finish downloading at the same time by using a queue
-                self.progressStatusQueue.addOperation {
-                    // Remove the download item after the operation completes
-                    defer { Database.shared.removeDownloadItem(downloadItem) }
-                    // Fetch the latest download item, so we know if it was removed in another thread
-                    let downloadItem = Database.shared.getDownloadItem(downloadItemId: downloadItem.id!)
-                    // We already processed this download item on another thread, skip it
-                    guard let downloadItem = downloadItem else { return }
-                    self.handleDownloadTaskCompleteFromDownloadItem(downloadItem)
-                }
+            self.progressStatusQueue.async(flags: .barrier) {
+                self.downloadItemProgress.updateValue(downloadItem, forKey: downloadItem.id!)
+                self.notifyDownloadProgress()
             }
         } catch {
             NSLog("DownloadItemError")
             debugPrint(error)
         }
+    }
+    
+    // We want to handle updating the UI in the background and throttled so we don't overload the UI with progress updates
+    private func notifyDownloadProgress() {
+        // Return if the loop is running
+        guard self.progressStatusWorkItem == nil else { return }
+        
+        // Create a background thread to send the download status
+        self.progressStatusWorkItem = DispatchWorkItem { [weak self] in
+            // Clean up the work item when done
+            defer { self?.progressStatusWorkItem = nil }
+            var downloadItemProgress = [String: DownloadItem]()
+            
+            // Get the latest progress
+            self?.progressStatusQueue.sync {
+                if let progressItems = self?.downloadItemProgress {
+                    downloadItemProgress = progressItems
+                }
+            }
+            
+            while !downloadItemProgress.isEmpty {
+                for item in downloadItemProgress.values {
+                    try? self?.notifyListeners("onItemDownloadUpdate", data: item.asDictionary())
+                    
+                    // Clean up a completed download
+                    if item.isDoneDownloading() {
+                        self?.progressStatusQueue.async(flags: .barrier) {
+                            self?.downloadItemProgress.removeValue(forKey: item.id!)
+                        }
+                        defer { Database.shared.removeDownloadItem(item) }
+                        self?.handleDownloadTaskCompleteFromDownloadItem(item)
+                    }
+                }
+                
+                // Wait 200ms before reporting status again
+                Thread.sleep(forTimeInterval: TimeInterval(0.2))
+                
+                // Get the latest progress
+                self?.progressStatusQueue.sync {
+                    if let progressItems = self?.downloadItemProgress {
+                        downloadItemProgress = progressItems
+                    }
+                }
+            }
+        }
+        
+        // Start the thread
+        DispatchQueue.global(qos: .userInteractive).async(execute: self.progressStatusWorkItem!)
     }
     
     private func handleDownloadTaskCompleteFromDownloadItem(_ downloadItem: DownloadItem) {
