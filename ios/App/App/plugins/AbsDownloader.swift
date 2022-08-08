@@ -19,6 +19,11 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
         queue.maxConcurrentOperationCount = 5
         return URLSession(configuration: .default, delegate: self, delegateQueue: queue)
     }()
+    private let progressStatusQueue: OperationQueue = {
+        let queue = OperationQueue()
+        queue.maxConcurrentOperationCount = 1
+        return queue
+    }()
     
     public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         handleDownloadTaskUpdate(downloadTask: downloadTask) { downloadItem, downloadItemPart in
@@ -87,9 +92,16 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
             
             // Handle a completed download
             if ( downloadItem.isDoneDownloading() ) {
-                // TODO: Prevent this block from firing multiple times
-                defer { Database.shared.removeDownloadItem(downloadItem) }
-                handleDownloadTaskCompleteFromDownloadItem(downloadItem)
+                // Prevent race condition when multiple parts finish downloading at the same time by using a queue
+                self.progressStatusQueue.addOperation {
+                    // Remove the download item after the operation completes
+                    defer { Database.shared.removeDownloadItem(downloadItem) }
+                    // Fetch the latest download item, so we know if it was removed in another thread
+                    let downloadItem = Database.shared.getDownloadItem(downloadItemId: downloadItem.id!)
+                    // We already processed this download item on another thread, skip it
+                    guard let downloadItem = downloadItem else { return }
+                    self.handleDownloadTaskCompleteFromDownloadItem(downloadItem)
+                }
             }
         } catch {
             NSLog("DownloadItemError")
@@ -136,7 +148,6 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
                 
                 self.notifyListeners("onItemDownloadComplete", data: statusNotification)
             }
-            
         }
     }
     
