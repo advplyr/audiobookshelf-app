@@ -120,7 +120,7 @@ class Database {
     
     public func saveLocalLibraryItem(localLibraryItem: LocalLibraryItem) {
         let realm = try! Realm()
-        try! realm.write { realm.add(localLibraryItem) }
+        try! realm.write { realm.add(localLibraryItem, update: .modified) }
     }
     
     public func getDownloadItem(downloadItemId: String) -> DownloadItem? {
@@ -140,7 +140,7 @@ class Database {
     
     public func saveDownloadItem(_ downloadItem: DownloadItem) {
         let realm = try! Realm()
-        return try! realm.write { realm.add(downloadItem) }
+        return try! realm.write { realm.add(downloadItem, update: .modified) }
     }
     
     public func updateDownloadItemPart(_ part: DownloadItemPart) {

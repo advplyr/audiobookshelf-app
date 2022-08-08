@@ -16,6 +16,10 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
     private let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     private lazy var session = URLSession(configuration: .default, delegate: self, delegateQueue: OperationQueue.main)
     
+    private let progressStatusQueue = DispatchQueue(label: "progress-status")
+    private var progressStatusWorkItem: DispatchWorkItem?
+    private var downloadItemQueue = [String: DownloadItem]()
+    
     public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         handleDownloadTaskUpdate(downloadTask: downloadTask) { downloadItem, downloadItemPart in
             downloadItemPart.progress = 1
@@ -61,29 +65,29 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
             
             // Find the download item
             let downloadItem = Database.shared.getDownloadItem(downloadItemPartId: downloadItemPartId)
-            guard let downloadItem = downloadItem else { throw LibraryItemDownloadError.downloadItemNotFound }
+            guard var downloadItem = downloadItem else { throw LibraryItemDownloadError.downloadItemNotFound }
+            downloadItem = self.downloadItemQueue[downloadItem.id!] ?? downloadItem
         
             // Find the download item part
-            let downloadItemPart = downloadItem.downloadItemParts.filter { $0.id == downloadItemPartId }.first
-            guard var downloadItemPart = downloadItemPart else { throw LibraryItemDownloadError.downloadItemPartNotFound }
+            let partIndex = downloadItem.downloadItemParts.firstIndex(where: { $0.id == downloadItemPartId })
+            guard let partIndex = partIndex else { throw LibraryItemDownloadError.downloadItemPartNotFound }
             
             // Call the progress handler
             do {
-                try progressHandler(downloadItem, &downloadItemPart)
+                try progressHandler(downloadItem, &downloadItem.downloadItemParts[partIndex])
             } catch {
                 NSLog("Error while processing progress")
                 debugPrint(error)
             }
             
             // Update the progress
-            Database.shared.updateDownloadItemPart(downloadItemPart)
+            self.downloadItemQueue.updateValue(downloadItem, forKey: downloadItem.id!)
             
             // Notify the UI
-            try? notifyListeners("onItemDownloadUpdate", data: downloadItem.asDictionary())
+            self.notifyDownloadProgress()
             
             // Handle a completed download
             if ( downloadItem.isDoneDownloading() ) {
-                // Delete the download item on exit even if handling complete errors
                 defer { Database.shared.removeDownloadItem(downloadItem) }
                 handleDownloadTaskCompleteFromDownloadItem(downloadItem)
             }
@@ -91,6 +95,35 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
             NSLog("DownloadItemError")
             debugPrint(error)
         }
+    }
+    
+    // We want to handle updating the UI in the background and throttled so we don't overload the UI with progress updates
+    private func notifyDownloadProgress() {
+        // Return if the loop is running
+        guard self.progressStatusWorkItem == nil else { return }
+        
+        // Create a background thread to send the download status
+        self.progressStatusWorkItem = DispatchWorkItem { [weak self] in // Weak capture so the bg thread is pulling latest data
+            // Clean up the work item when done
+            defer { self?.progressStatusWorkItem = nil }
+            
+            while !(self?.downloadItemQueue.isEmpty ?? true) {
+                for item in self!.downloadItemQueue.values {
+                    try? self!.notifyListeners("onItemDownloadUpdate", data: item.asDictionary())
+                    
+                    // Clean up a completed download
+                    if item.isDoneDownloading() {
+                        self!.downloadItemQueue.removeValue(forKey: item.id!)
+                    }
+                }
+                
+                // Wait 200ms before reporting status again
+                Thread.sleep(forTimeInterval: TimeInterval(0.2))
+            }
+        }
+        
+        // Start the thread
+        self.progressStatusQueue.async(execute: self.progressStatusWorkItem!)
     }
     
     private func handleDownloadTaskCompleteFromDownloadItem(_ downloadItem: DownloadItem) {
@@ -144,13 +177,6 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
         
         NSLog("Download library item \(libraryItemId ?? "N/A") / episode \(episodeId ?? "N/A")")
         guard let libraryItemId = libraryItemId else { return call.resolve(["error": "libraryItemId not specified"]) }
-        
-        // Verify the file isn't already downloading
-        let downloadItemId = episodeId != nil ? "\(libraryItemId)-\(episodeId!)" : libraryItemId
-        let downloadItem = Database.shared.getDownloadItem(downloadItemId: downloadItemId)
-        if ( downloadItem != nil ) {
-            return call.resolve(["error": "Download already started for this media entity"])
-        }
         
         ApiClient.getLibraryItemWithProgress(libraryItemId: libraryItemId, episodeId: episodeId) { libraryItem in
             if let libraryItem = libraryItem {
