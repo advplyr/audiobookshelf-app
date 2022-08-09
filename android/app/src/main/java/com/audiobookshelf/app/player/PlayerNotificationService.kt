@@ -475,7 +475,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         return
       } else {
         Log.d(tag, "switchToPlayer: Switching to cast player from exo player stop exo player")
-        isSwitchingPlayer = true
         mPlayer.stop()
       }
     } else {
@@ -484,9 +483,20 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         return
       } else if (castPlayer != null) {
         Log.d(tag, "switchToPlayer: Switching to exo player from cast player stop cast player")
-        isSwitchingPlayer = true
         castPlayer?.stop()
       }
+    }
+
+    if (currentPlaybackSession == null) {
+      Log.e(tag, "switchToPlayer: No Current playback session")
+    } else {
+      isSwitchingPlayer = true
+    }
+
+    // Playback session in progress syncer is a copy that is up-to-date so replace current here with that
+    //  TODO: bad design here implemented to prevent the session in MediaProgressSyncer from changing while syncing
+    if (mediaProgressSyncer.currentPlaybackSession != null) {
+      currentPlaybackSession = mediaProgressSyncer.currentPlaybackSession?.clone()
     }
 
     currentPlayer = if (useCastPlayer) {
@@ -503,15 +513,13 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
     clientEventEmitter?.onMediaPlayerChanged(getMediaPlayer())
 
-    if (currentPlaybackSession == null) {
-      Log.d(tag, "switchToPlayer: No Current playback session")
-    }
-
     currentPlaybackSession?.let {
-      Log.d(tag, "switchToPlayer: Preparing current playback session ${it.displayTitle}")
+      Log.d(tag, "switchToPlayer: Starting new playback session ${it.displayTitle}")
       if (wasPlaying) { // media is paused when switching players
         clientEventEmitter?.onPlayingUpdate(false)
       }
+
+      // TODO: Start a new playback session here instead of using the existing
       preparePlayer(it, false, null)
     }
   }
