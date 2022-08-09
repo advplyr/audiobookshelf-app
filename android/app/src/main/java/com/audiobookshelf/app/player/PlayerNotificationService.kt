@@ -50,6 +50,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     var isStarted = false
     var isClosed = false
     var isUnmeteredNetwork = false
+    var isSwitchingPlayer = false // Used when switching between cast player and exoplayer
   }
 
   interface ClientEventEmitter {
@@ -309,8 +310,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
     val seekBackTime = DeviceManager.deviceData.deviceSettings?.jumpBackwardsTimeMs ?: 10000
     val seekForwardTime = DeviceManager.deviceData.deviceSettings?.jumpForwardTimeMs ?: 10000
-    Log.d(tag, "Seek Back Time $seekBackTime")
-    Log.d(tag, "Seek Forward Time $seekForwardTime")
 
     mPlayer = ExoPlayer.Builder(this)
       .setLoadControl(customLoadControl)
@@ -413,7 +412,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       currentPlayer.setPlaybackSpeed(playbackRateToUse)
 
       currentPlayer.prepare()
-
     } else if (castPlayer != null) {
       val currentTrackIndex = playbackSession.getCurrentTrackIndex()
       val currentTrackTime = playbackSession.getCurrentTrackTimeMs()
@@ -477,6 +475,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         return
       } else {
         Log.d(tag, "switchToPlayer: Switching to cast player from exo player stop exo player")
+        isSwitchingPlayer = true
         mPlayer.stop()
       }
     } else {
@@ -485,6 +484,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         return
       } else if (castPlayer != null) {
         Log.d(tag, "switchToPlayer: Switching to exo player from cast player stop cast player")
+        isSwitchingPlayer = true
         castPlayer?.stop()
       }
     }
@@ -546,10 +546,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   fun getDuration() : Long {
     return currentPlaybackSession?.totalDurationMs ?: 0L
-  }
-
-  fun getCurrentBookTitle() : String? {
-    return currentPlaybackSession?.displayTitle
   }
 
   fun getCurrentPlaybackSessionCopy() :PlaybackSession? {
@@ -656,10 +652,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       return
     }
     currentPlayer.volume = 1F
-    if (currentPlayer == castPlayer) {
-      Log.d(tag, "CAST Player set on play ${currentPlayer.isLoading} || ${currentPlayer.duration} | ${currentPlayer.currentPosition}")
-    }
-
     currentPlayer.play()
   }
 

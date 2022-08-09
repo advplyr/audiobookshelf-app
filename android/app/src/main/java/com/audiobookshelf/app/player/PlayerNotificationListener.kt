@@ -29,9 +29,14 @@ class PlayerNotificationListener(var playerNotificationService:PlayerNotificatio
       Log.d(tag, "onNotificationCancelled not dismissed by user")
 
       // When stop button is pressed on the notification I guess it isn't considered "dismissedByUser" so we need to close playback ourselves
-      if (!PlayerNotificationService.isClosed) {
+      if (!PlayerNotificationService.isClosed && !PlayerNotificationService.isSwitchingPlayer) {
         Log.d(tag, "PNS is not closed - closing it now")
         playerNotificationService.closePlayback()
+      } else if (PlayerNotificationService.isSwitchingPlayer) {
+        // When switching from cast player to exo player and vice versa the notification is cancelled and posted again
+          // so we don't want to cancel the playback during this switch
+        Log.d(tag, "PNS is switching player")
+        PlayerNotificationService.isSwitchingPlayer = false
       }
     }
   }
