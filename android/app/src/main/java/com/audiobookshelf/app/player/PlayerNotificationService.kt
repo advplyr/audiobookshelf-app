@@ -863,7 +863,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       result.sendResult(localBrowseItems)
 
     } else { // Load categories
-      mediaManager.loadAndroidAutoItems() { libraryCategories ->
+      mediaManager.loadAndroidAutoItems { libraryCategories ->
         browseTree = BrowseTree(this, libraryCategories, mediaManager.serverLibraries)
 
         val children = browseTree[parentMediaId]?.map { item ->
