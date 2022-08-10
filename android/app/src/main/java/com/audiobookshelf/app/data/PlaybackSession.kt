@@ -91,6 +91,7 @@ class PlaybackSession(
 
   @JsonIgnore
   fun getTrackStartOffsetMs(index:Int):Long {
+    if (index < 0 || index >= audioTracks.size) return 0L
     val currentTrack = audioTracks[index]
     return (currentTrack.startOffset * 1000L).toLong()
   }
