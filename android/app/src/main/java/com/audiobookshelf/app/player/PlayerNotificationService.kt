@@ -438,7 +438,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         apiHandler.playLibraryItem(libraryItemId, episodeId, playItemRequestPayload) {
           if (it == null) { // Play request failed
             clientEventEmitter?.onPlaybackFailed(errorMessage)
-            closePlayback()
+            closePlayback(true)
           } else {
             Handler(Looper.getMainLooper()).post {
               preparePlayer(it, true, null)
@@ -447,7 +447,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         }
       } else {
         clientEventEmitter?.onPlaybackFailed(errorMessage)
-        closePlayback()
+        closePlayback(true)
       }
     }
   }
@@ -705,12 +705,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     currentPlayer.setPlaybackSpeed(speed)
   }
 
-  fun closePlayback() {
+  fun closePlayback(calledOnError:Boolean? = false) {
     Log.d(tag, "closePlayback")
     if (mediaProgressSyncer.listeningTimerRunning) {
       Log.i(tag, "About to close playback so stopping media progress syncer first")
-      mediaProgressSyncer.stop {
-        Log.d(tag, "Media Progress syncer stopped and synced")
+      mediaProgressSyncer.stop(calledOnError == false) { // If closing on error then do not sync progress (causes exception)
+        Log.d(tag, "Media Progress syncer stopped")
       }
     }
 
