@@ -148,6 +148,14 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   // detach player
   override fun onDestroy() {
+    try {
+      val connectivityManager = getSystemService(ConnectivityManager::class.java) as ConnectivityManager
+      connectivityManager.unregisterNetworkCallback(networkCallback)
+    } catch(error:Exception) {
+      Log.e(tag, "Error unregistering network listening callback $error")
+    }
+
+    Log.d(tag, "onDestroy")
     playerNotificationManager.setPlayer(null)
     mPlayer.release()
     castPlayer?.release()
