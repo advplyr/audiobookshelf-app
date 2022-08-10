@@ -40,7 +40,14 @@ public class AbsDatabase: CAPPlugin {
             id = "\(address)@\(username)".toBase64()
         }
         
-        let config = ServerConnectionConfig(id: id!, index: 1, name: name, address: address, userId: userId, username: username, token: token)
+        let config = ServerConnectionConfig()
+        config.id = id ?? ""
+        config.index = 1
+        config.name = name
+        config.address = address
+        config.userId = userId
+        config.username = username
+        config.token = token
         
         Store.serverConfig = config
         call.resolve(convertServerConnectionConfigToJSON(config: config))
@@ -122,7 +129,11 @@ public class AbsDatabase: CAPPlugin {
         let enableAltView = call.getBool("enableAltView") ?? false
         let jumpBackwardsTime = call.getInt("jumpBackwardsTime") ?? 10
         let jumpForwardTime = call.getInt("jumpForwardTime") ?? 10
-        let settings = DeviceSettings(disableAutoRewind: disableAutoRewind, enableAltView: enableAltView, jumpBackwardsTime: jumpBackwardsTime, jumpForwardTime: jumpForwardTime)
+        let settings = DeviceSettings()
+        settings.disableAutoRewind = disableAutoRewind
+        settings.enableAltView = enableAltView
+        settings.jumpBackwardsTime = jumpBackwardsTime
+        settings.jumpForwardTime = jumpForwardTime
         
         Database.shared.setDeviceSettings(deviceSettings: settings)
         

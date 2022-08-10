@@ -7,6 +7,7 @@
 
 import Foundation
 import Capacitor
+import RealmSwift
 
 @objc(AbsDownloader)
 public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
@@ -151,7 +152,7 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
                 var coverFile: String?
                 
                 // Assemble the local library item
-                let files = downloadItem.downloadItemParts.compactMap { part -> LocalFile? in
+                let files = downloadItem.downloadItemParts.enumerated().compactMap { _, part -> LocalFile? in
                     if part.filename == "cover.jpg" {
                         coverFile = part.destinationUri
                         return nil
@@ -193,7 +194,7 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
                     if let episodeId = episodeId {
                         // Download a podcast episode
                         guard libraryItem.mediaType == "podcast" else { throw LibraryItemDownloadError.libraryItemNotPodcast }
-                        let episode = libraryItem.media.episodes?.first(where: { $0.id == episodeId })
+                        let episode = libraryItem.media?.episodes.enumerated().first(where: { $1.id == episodeId })?.element
                         guard let episode = episode else { throw LibraryItemDownloadError.podcastEpisodeNotFound }
                         try self.startLibraryItemDownload(libraryItem, episode: episode)
                     } else {
@@ -216,31 +217,31 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
     }
     
     private func startLibraryItemDownload(_ item: LibraryItem, episode: PodcastEpisode?) throws {
-        var tracks: [AudioTrack]
+        var tracks = List<AudioTrack>()
         var episodeId: String?
         
         // Handle the different media type downloads
         switch item.mediaType {
         case "book":
-            guard let bookTracks = item.media.tracks else { throw LibraryItemDownloadError.noTracks }
-            tracks = bookTracks
+            guard item.media?.tracks.count ?? 0 > 0 else { throw LibraryItemDownloadError.noTracks }
+            tracks = item.media?.tracks ?? tracks
         case "podcast":
             guard let episode = episode else { throw LibraryItemDownloadError.podcastEpisodeNotFound }
             guard let podcastTrack = episode.audioTrack else { throw LibraryItemDownloadError.noTracks }
             episodeId = episode.id
-            tracks = [podcastTrack]
+            tracks.append(podcastTrack)
         default:
             throw LibraryItemDownloadError.unknownMediaType
         }
         
         // Queue up everything for downloading
-        var downloadItem = DownloadItem(libraryItem: item, episodeId: episodeId, server: Store.serverConfig!)
-        downloadItem.downloadItemParts = try tracks.enumerated().map({ i, track in
-            try startLibraryItemTrackDownload(item: item, position: i, track: track)
-        })
+        let downloadItem = DownloadItem(libraryItem: item, episodeId: episodeId, server: Store.serverConfig!)
+        for (i, track) in tracks.enumerated() {
+            downloadItem.downloadItemParts.append(try startLibraryItemTrackDownload(item: item, position: i, track: track))
+        }
         
         // Also download the cover
-        if item.media.coverPath != nil && !item.media.coverPath!.isEmpty {
+        if item.media?.coverPath != nil && !(item.media?.coverPath!.isEmpty ?? true) {
             if let coverDownload = try? startLibraryItemCoverDownload(item: item) {
                 downloadItem.downloadItemParts.append(coverDownload)
             }
@@ -251,7 +252,7 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
         
         // Start all the downloads
         for downloadItemPart in downloadItem.downloadItemParts {
-            downloadItemPart.task.resume()
+            downloadItemPart.task?.resume()
         }
     }
     
@@ -268,7 +269,7 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
         let localUrl = "\(itemDirectory)/\(filename)"
         
         let task = session.downloadTask(with: serverUrl)
-        var downloadItemPart = DownloadItemPart(filename: filename, destination: localUrl, itemTitle: track.title ?? "Unknown", serverPath: Store.serverConfig!.address, audioTrack: track, episode: nil)
+        let downloadItemPart = DownloadItemPart(filename: filename, destination: localUrl, itemTitle: track.title ?? "Unknown", serverPath: Store.serverConfig!.address, audioTrack: track, episode: nil)
         
         // Store the id on the task so the download item can be pulled from the database later
         task.taskDescription = downloadItemPart.id
@@ -283,7 +284,7 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
         let itemDirectory = try createLibraryItemFileDirectory(item: item)
         let localUrl = "\(itemDirectory)/\(filename)"
         
-        var downloadItemPart = DownloadItemPart(filename: filename, destination: localUrl, itemTitle: "cover", serverPath: serverPath, audioTrack: nil, episode: nil)
+        let downloadItemPart = DownloadItemPart(filename: filename, destination: localUrl, itemTitle: "cover", serverPath: serverPath, audioTrack: nil, episode: nil)
         let task = session.downloadTask(with: downloadItemPart.downloadURL!)
         
         // Store the id on the task so the download item can be pulled from the database later

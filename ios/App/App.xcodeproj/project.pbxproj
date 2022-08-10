@@ -39,6 +39,7 @@
 		C4D0677528106D0C00B8F875 /* DataClasses.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D0677428106D0C00B8F875 /* DataClasses.swift */; };
 		E99C8C932883A00F00E3279A /* LocalLibraryExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99C8C922883A00F00E3279A /* LocalLibraryExtensions.swift */; };
 		E9D3815C289E0C9B0019EEED /* DownloadItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D3815B289E0C9B0019EEED /* DownloadItem.swift */; };
+		E9D3815E28A2F00A0019EEED /* DownloadItemExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D3815D28A2F00A0019EEED /* DownloadItemExtensions.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -78,6 +79,7 @@
 		C4D0677428106D0C00B8F875 /* DataClasses.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataClasses.swift; sourceTree = "<group>"; };
 		E99C8C922883A00F00E3279A /* LocalLibraryExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalLibraryExtensions.swift; sourceTree = "<group>"; };
 		E9D3815B289E0C9B0019EEED /* DownloadItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadItem.swift; sourceTree = "<group>"; };
+		E9D3815D28A2F00A0019EEED /* DownloadItemExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadItemExtensions.swift; sourceTree = "<group>"; };
 		FC68EB0AF532CFC21C3344DD /* Pods-App.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-App.debug.xcconfig"; path = "Pods/Target Support Files/Pods-App/Pods-App.debug.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -144,6 +146,7 @@
 				C4B265F4285A5A6600E1B5C3 /* LocalLibrary.swift */,
 				E99C8C922883A00F00E3279A /* LocalLibraryExtensions.swift */,
 				E9D3815B289E0C9B0019EEED /* DownloadItem.swift */,
+				E9D3815D28A2F00A0019EEED /* DownloadItemExtensions.swift */,
 				3A90295E280968E700E1D427 /* PlaybackReport.swift */,
 				4DF74911287105C600AC7814 /* DeviceSettings.swift */,
 			);
@@ -321,6 +324,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E9D3815E28A2F00A0019EEED /* DownloadItemExtensions.swift in Sources */,
 				3AD4FCE728043E72006DB301 /* AbsDatabase.m in Sources */,
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				3A90295F280968E700E1D427 /* PlaybackReport.swift in Sources */,

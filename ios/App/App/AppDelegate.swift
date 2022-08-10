@@ -15,43 +15,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             migrationBlock: { migration, oldSchemaVersion in
                 if (oldSchemaVersion < 1) {
                     NSLog("Realm schema version was \(oldSchemaVersion)")
-                    migration.enumerateObjects(ofType: DeviceSettings.rlmClassName()) { oldObject, newObject in
+                    migration.enumerateObjects(ofType: DeviceSettings.className()) { oldObject, newObject in
                         newObject?["enableAltView"] = false
                     }
                 }
             }
         )
         Realm.Configuration.defaultConfiguration = configuration
-        
-        Realm.registerRealmables(DeviceSettings.self)
-        Realm.registerRealmables(ServerConnectionConfig.self)
-        Realm.registerRealmables(ServerConnectionConfigActiveIndex.self)
-        
-        // Data classes
-        Realm.registerRealmables(LibraryItem.self)
-        Realm.registerRealmables(MediaType.self)
-        Realm.registerRealmables(Metadata.self)
-        Realm.registerRealmables(PodcastEpisode.self)
-        Realm.registerRealmables(AudioFile.self)
-        Realm.registerRealmables(Author.self)
-        Realm.registerRealmables(Chapter.self)
-        Realm.registerRealmables(AudioTrack.self)
-        Realm.registerRealmables(FileMetadata.self)
-        Realm.registerRealmables(Library.self)
-        Realm.registerRealmables(Folder.self)
-        Realm.registerRealmables(LibraryFile.self)
-        Realm.registerRealmables(MediaProgress.self)
-        Realm.registerRealmables(PlaybackMetadata.self)
-        
-        // Local library
-        Realm.registerRealmables(LocalLibraryItem.self)
-        Realm.registerRealmables(LocalPodcastEpisode.self)
-        Realm.registerRealmables(LocalFile.self)
-        Realm.registerRealmables(LocalMediaProgress.self)
-        
-        // Download item
-        Realm.registerRealmables(DownloadItem.self)
-        Realm.registerRealmables(DownloadItemPart.self)
         
         return true
     }

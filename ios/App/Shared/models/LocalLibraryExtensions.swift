@@ -8,12 +8,13 @@
 import Foundation
 
 extension LocalLibraryItem {
-    init(_ item: LibraryItem, localUrl: String, server: ServerConnectionConfig, files: [LocalFile], coverPath: String?) {
+    convenience init(_ item: LibraryItem, localUrl: String, server: ServerConnectionConfig, files: [LocalFile], coverPath: String?) {
         self.init()
+        
         self.contentUrl = localUrl
         self.mediaType = item.mediaType
         self.media = item.media
-        self.localFiles = files
+        self.localFiles.append(objectsIn: files)
         self.coverContentUrl = coverPath
         self.libraryItemId = item.id
         self.serverConnectionConfigId = server.id
@@ -21,9 +22,35 @@ extension LocalLibraryItem {
         self.serverUserId = server.userId
     }
     
+    var contentUrl: String? {
+        set(url) {
+            _contentUrl = url
+        }
+        get {
+            if let path = _contentUrl {
+                return AbsDownloader.downloadsDirectory.appendingPathComponent(path).absoluteString
+            } else {
+                return nil
+            }
+        }
+    }
+    
+    var coverContentUrl: String? {
+        set(url) {
+            _coverContentUrl = url
+        }
+        get {
+            if let path = self._coverContentUrl {
+                return AbsDownloader.downloadsDirectory.appendingPathComponent(path).absoluteString
+            } else {
+                return nil
+            }
+        }
+    }
+    
     func getDuration() -> Double {
         var total = 0.0
-        self.media?.tracks?.forEach { track in total += track.duration }
+        self.media?.tracks.enumerated().forEach { _, track in total += track.duration }
         return total
     }
     
@@ -70,13 +97,18 @@ extension LocalLibraryItem {
 }
 
 extension LocalFile {
-    init(_ libraryItemId: String, _ filename: String, _ mimeType: String, _ localUrl: String, fileSize: Int) {
+    convenience init(_ libraryItemId: String, _ filename: String, _ mimeType: String, _ localUrl: String, fileSize: Int) {
         self.init()
+        
         self.id = "\(libraryItemId)_\(filename.toBase64())"
         self.filename = filename
         self.mimeType = mimeType
         self.contentUrl = localUrl
         self.size = fileSize
+    }
+    
+    var absolutePath: String {
+        return AbsDownloader.downloadsDirectory.appendingPathComponent(self.contentUrl).absoluteString
     }
     
     func isAudioFile() -> Bool {
@@ -91,7 +123,9 @@ extension LocalFile {
 }
 
 extension LocalMediaProgress {
-    init(localLibraryItem: LocalLibraryItem, episode: LocalPodcastEpisode?, progress: MediaProgress) {
+    convenience init(localLibraryItem: LocalLibraryItem, episode: LocalPodcastEpisode?, progress: MediaProgress) {
+        self.init()
+        
         self.id = localLibraryItem.id
         self.localLibraryItemId = localLibraryItem.id
         self.libraryItemId = localLibraryItem.libraryItemId

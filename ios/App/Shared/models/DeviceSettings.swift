@@ -7,13 +7,12 @@
 
 import Foundation
 import RealmSwift
-import Unrealm
 
-struct DeviceSettings: Realmable {
-    var disableAutoRewind: Bool = false
-    var enableAltView: Bool = false
-    var jumpBackwardsTime: Int = 10
-    var jumpForwardTime: Int = 10
+class DeviceSettings: Object {
+    @Persisted var disableAutoRewind: Bool = false
+    @Persisted var enableAltView: Bool = false
+    @Persisted var jumpBackwardsTime: Int = 10
+    @Persisted var jumpForwardTime: Int = 10
 }
 
 func getDefaultDeviceSettings() -> DeviceSettings {

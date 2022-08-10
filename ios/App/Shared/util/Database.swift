@@ -16,7 +16,7 @@ class Database {
     private init() {}
     
     public func setServerConnectionConfig(config: ServerConnectionConfig) {
-        var config = config
+        let config = config
         let realm = try! Realm()
         let existing: ServerConnectionConfig? = realm.object(ofType: ServerConnectionConfig.self, forPrimaryKey: config.id)
         
@@ -74,9 +74,17 @@ class Database {
         let realm = try! Realm()
         do {
             try realm.write {
-                var existing = realm.objects(ServerConnectionConfigActiveIndex.self).last ?? ServerConnectionConfigActiveIndex(index: index)
-                existing.index = index
-                realm.add(existing, update: .modified)
+                let existing = realm.objects(ServerConnectionConfigActiveIndex.self).last
+                
+                if ( existing?.index != index ) {
+                    if let existing = existing {
+                        realm.delete(existing)
+                    }
+                    
+                    let activeConfig = ServerConnectionConfigActiveIndex()
+                    activeConfig.index = index
+                    realm.add(activeConfig)
+                }
             }
         } catch(let exception) {
             NSLog("failed to save server config active index")
