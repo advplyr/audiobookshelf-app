@@ -22,7 +22,8 @@ import kotlin.coroutines.suspendCoroutine
 class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
   val tag = "MediaManager"
 
-  var serverLibraryItems = mutableListOf<LibraryItem>()
+  var serverLibraryItems = mutableListOf<LibraryItem>() // Store all items here
+  var selectedLibraryItems = mutableListOf<LibraryItem>()
   var selectedLibraryId = ""
 
   var selectedLibraryItemWrapper:LibraryItemWrapper? = null
@@ -74,6 +75,7 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
       serverLibraryCategories = listOf()
       serverLibraries = listOf()
       serverLibraryItems = mutableListOf()
+      selectedLibraryItems = mutableListOf()
       selectedLibraryId = ""
     }
   }
@@ -90,8 +92,8 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
   }
 
   fun loadLibraryItemsWithAudio(libraryId:String, cb: (List<LibraryItem>) -> Unit) {
-    if (serverLibraryItems.isNotEmpty() && selectedLibraryId == libraryId) {
-      cb(serverLibraryItems)
+    if (selectedLibraryItems.isNotEmpty() && selectedLibraryId == libraryId) {
+      cb(selectedLibraryItems)
     } else {
       apiHandler.getLibraryItems(libraryId) { libraryItems ->
         val libraryItemsWithAudio = libraryItems.filter { li -> li.checkHasTracks() }
@@ -99,9 +101,12 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
           selectedLibraryId = libraryId
         }
 
-        serverLibraryItems = mutableListOf()
+        selectedLibraryItems = mutableListOf()
         libraryItemsWithAudio.forEach { libraryItem ->
+          selectedLibraryItems.add(libraryItem)
+          if (serverLibraryItems.find { li -> li.id == libraryItem.id } == null) {
             serverLibraryItems.add(libraryItem)
+          }
         }
         cb(libraryItemsWithAudio)
       }
@@ -308,6 +313,18 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
 
               // Only using book or podcast library categories for now
               libraryCategories.forEach {
+
+                // Add items in continue listening to serverLibraryItems
+                if (it.id == "continue-listening") {
+                  it.entities.forEach { libraryItemWrapper ->
+                    val libraryItem = libraryItemWrapper as LibraryItem
+                    if (serverLibraryItems.find { li -> li.id == libraryItem.id } == null) {
+                      serverLibraryItems.add(libraryItem)
+                    }
+                  }
+                }
+
+
                 // Log.d(tag, "Found library category ${it.label} with type ${it.type}")
                 if (it.type == library.mediaType) {
                   // Log.d(tag, "Using library category ${it.id}")
