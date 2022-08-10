@@ -74,14 +74,14 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
     }
   }
 
-  fun stop(cb: () -> Unit) {
+  fun stop(shouldSync:Boolean? = true, cb: () -> Unit) {
     if (!listeningTimerRunning) return
     listeningTimerTask?.cancel()
     listeningTimerTask = null
     listeningTimerRunning = false
     Log.d(tag, "stop: Stopping listening for $currentDisplayTitle")
 
-    val currentTime = playerNotificationService.getCurrentTimeSeconds()
+    val currentTime = if (shouldSync == true) playerNotificationService.getCurrentTimeSeconds() else 0.0
     if (currentTime > 0) { // Current time should always be > 0 on stop
       sync(true, currentTime) {
         reset()
