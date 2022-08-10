@@ -256,11 +256,15 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
         // Fix for local images crashing on Android 11 for specific devices
         // https://stackoverflow.com/questions/64186578/android-11-mediastyle-notification-crash/64232958#64232958
-        ctx.grantUriPermission(
-          "com.android.systemui",
-          coverUri,
-          Intent.FLAG_GRANT_READ_URI_PERMISSION
-        )
+        try {
+          ctx.grantUriPermission(
+            "com.android.systemui",
+            coverUri,
+            Intent.FLAG_GRANT_READ_URI_PERMISSION
+          )
+        } catch(error:Exception) {
+          Log.e(tag, "Grant uri permission error $error")
+        }
 
         return MediaDescriptionCompat.Builder()
           .setMediaId(currentPlaybackSession!!.id)
