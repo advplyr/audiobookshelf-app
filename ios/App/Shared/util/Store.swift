@@ -21,7 +21,8 @@ class Store {
                 Database.shared.setLastActiveConfigIndexToNil()
             }
             
-           _serverConfig = updated
+            // Make safe for accessing on all threads
+            _serverConfig = updated?.freeze()
         }
     }
 }
