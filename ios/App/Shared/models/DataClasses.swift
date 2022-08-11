@@ -325,6 +325,56 @@ struct MediaProgress: Realmable, Codable {
         lastUpdate = 0
         startedAt = 0
     }
+    
+    private enum CodingKeys : String, CodingKey {
+        case id, libraryItemId, episodeId, duration, progress, currentTime, isFinished, lastUpdate, startedAt, finishedAt
+    }
+    
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decode(String.self, forKey: .id)
+        libraryItemId = try values.decode(String.self, forKey: .libraryItemId)
+        episodeId = try? values.decode(String.self, forKey: .episodeId)
+        duration = try MediaProgress.doubleOrStringDecoder(from: decoder, with: values, key: .duration)
+        progress = try MediaProgress.doubleOrStringDecoder(from: decoder, with: values, key: .progress)
+        currentTime = try MediaProgress.doubleOrStringDecoder(from: decoder, with: values, key: .currentTime)
+        isFinished = try values.decode(Bool.self, forKey: .isFinished)
+        lastUpdate = try MediaProgress.intOrStringDecoder(from: decoder, with: values, key: .lastUpdate)
+        startedAt = try MediaProgress.intOrStringDecoder(from: decoder, with: values, key: .startedAt)
+        finishedAt = try? MediaProgress.intOrStringDecoder(from: decoder, with: values, key: .finishedAt)
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(libraryItemId, forKey: .libraryItemId)
+        try container.encode(episodeId, forKey: .episodeId)
+        try container.encode(duration, forKey: .duration)
+        try container.encode(progress, forKey: .progress)
+        try container.encode(currentTime, forKey: .currentTime)
+        try container.encode(isFinished, forKey: .isFinished)
+        try container.encode(lastUpdate, forKey: .lastUpdate)
+        try container.encode(startedAt, forKey: .startedAt)
+        try container.encode(finishedAt, forKey: .finishedAt)
+    }
+    
+    static private func doubleOrStringDecoder(from decoder: Decoder, with values: KeyedDecodingContainer<CodingKeys>, key: MediaProgress.CodingKeys) throws -> Double {
+        do {
+            return try values.decode(Double.self, forKey: key)
+        } catch {
+            let stringDuration = try values.decode(String.self, forKey: key)
+            return Double(stringDuration) ?? 0.0
+        }
+    }
+    
+    static private func intOrStringDecoder(from decoder: Decoder, with values: KeyedDecodingContainer<CodingKeys>, key: MediaProgress.CodingKeys) throws -> Int {
+        do {
+            return try values.decode(Int.self, forKey: key)
+        } catch {
+            let stringDuration = try values.decode(String.self, forKey: key)
+            return Int(stringDuration) ?? 0
+        }
+    }
 }
 
 struct PlaybackMetadata: Realmable, Codable {
