@@ -322,13 +322,13 @@ export default {
     async deleteItem() {
       const { value } = await Dialog.confirm({
         title: 'Confirm',
-        message: `Warning! This will delete the folder "${this.basePath}" and all contents. Are you sure?`
+        message: `Warning! This will delete "${this.media.metadata.title}" and all associated local files. Are you sure?`
       })
       if (value) {
         var res = await AbsFileSystem.deleteItem(this.localLibraryItem)
         if (res && res.success) {
           this.$toast.success('Deleted Successfully')
-          this.$router.replace(`/localMedia/folders/${this.folderId}`)
+          this.$router.replace(this.isIos ? '/bookshelf' : `/localMedia/folders/${this.folderId}`)
         } else this.$toast.error('Failed to delete')
       }
     },

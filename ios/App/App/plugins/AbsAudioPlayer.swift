@@ -44,7 +44,7 @@ public class AbsAudioPlayer: CAPPlugin {
         
         let isLocalItem = libraryItemId?.starts(with: "local_") ?? false
         if (isLocalItem) {
-            let item = Database.shared.getLocalLibraryItem(localLibraryItem: libraryItemId!)
+            let item = Database.shared.getLocalLibraryItem(localLibraryItemId: libraryItemId!)
             // TODO: Logic required for podcasts here
             let playbackSession = item?.getPlaybackSession(episode: nil)
             PlayerHandler.startPlayback(session: playbackSession!, playWhenReady: playWhenReady, playbackRate: playbackRate)

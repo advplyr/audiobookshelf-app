@@ -157,7 +157,7 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
                     }
                     return LocalFile(libraryItem.id, part.filename!, part.mimeType()!, part.destinationUri!, fileSize: Int(part.destinationURL!.fileSize))
                 }
-                var localLibraryItem = Database.shared.getLocalLibraryItemByLLId(libraryItem: libraryItem.id)
+                var localLibraryItem = Database.shared.getLocalLibraryItem(byServerLibraryItemId: libraryItem.id)
                 if (localLibraryItem != nil && localLibraryItem!.isPodcast) {
                     try! localLibraryItem?.addFiles(files, item: libraryItem)
                 } else {

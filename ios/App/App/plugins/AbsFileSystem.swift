@@ -67,13 +67,23 @@ public class AbsFileSystem: CAPPlugin {
     }
     
     @objc func deleteItem(_ call: CAPPluginCall) {
-        let localLibraryItemId = call.getString("localLibraryItemId")
+        let localLibraryItemId = call.getString("id")
         let contentUrl = call.getString("contentUrl")
-
-        // TODO: Implement
+        
         NSLog("deleteItem \(localLibraryItemId ?? "UNSET") url \(contentUrl ?? "UNSET")")
         
-        call.resolve()
+        var success = false
+        do {
+            if let localLibraryItemId = localLibraryItemId, let item = Database.shared.getLocalLibraryItem(localLibraryItemId: localLibraryItemId) {
+                try FileManager.default.removeItem(at: item.contentDirectory!)
+                Database.shared.removeLocalLibraryItem(localLibraryItemId: localLibraryItemId)
+                success = true
+            }
+        } catch {
+            NSLog("Failed to delete \(error)")
+        }
+        
+        call.resolve(["success": success])
     }
     
     @objc func deleteTrackFromItem(_ call: CAPPluginCall) {

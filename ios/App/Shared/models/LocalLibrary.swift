@@ -31,6 +31,14 @@ struct LocalLibraryItem: Realmable, Codable {
         }
     }
     
+    var contentDirectory: URL? {
+        if let path = _contentUrl {
+            return AbsDownloader.itemDownloadFolder(path: path)
+        } else {
+            return nil
+        }
+    }
+    
     var coverContentUrl: String? {
         if let path = self._coverContentUrl {
             return AbsDownloader.itemDownloadFolder(path: path)!.absoluteString
