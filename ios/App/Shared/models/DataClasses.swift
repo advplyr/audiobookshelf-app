@@ -161,7 +161,6 @@ struct AudioFile: Realmable, Codable {
     var metadata: FileMetadata
     
     init() {
-        index = 0
         ino = ""
         metadata = FileMetadata()
     }

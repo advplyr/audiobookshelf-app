@@ -234,7 +234,7 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
         // Queue up everything for downloading
         var downloadItem = DownloadItem(libraryItem: item, episodeId: episodeId, server: Store.serverConfig!)
         downloadItem.downloadItemParts = try tracks.enumerated().map({ i, track in
-            try startLibraryItemTrackDownload(item: item, position: i, track: track)
+            try startLibraryItemTrackDownload(item: item, position: i, track: track, episode: episode)
         })
         
         // Also download the cover
@@ -253,7 +253,7 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
         }
     }
     
-    private func startLibraryItemTrackDownload(item: LibraryItem, position: Int, track: AudioTrack) throws -> DownloadItemPart {
+    private func startLibraryItemTrackDownload(item: LibraryItem, position: Int, track: AudioTrack, episode: PodcastEpisode?) throws -> DownloadItemPart {
         NSLog("TRACK \(track.contentUrl!)")
         
         // If we don't name metadata, then we can't proceed
@@ -266,7 +266,7 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
         let localUrl = "\(itemDirectory)/\(filename)"
         
         let task = session.downloadTask(with: serverUrl)
-        var downloadItemPart = DownloadItemPart(filename: filename, destination: localUrl, itemTitle: track.title ?? "Unknown", serverPath: Store.serverConfig!.address, audioTrack: track, episode: nil)
+        var downloadItemPart = DownloadItemPart(filename: filename, destination: localUrl, itemTitle: track.title ?? "Unknown", serverPath: Store.serverConfig!.address, audioTrack: track, episode: episode)
         
         // Store the id on the task so the download item can be pulled from the database later
         task.taskDescription = downloadItemPart.id
