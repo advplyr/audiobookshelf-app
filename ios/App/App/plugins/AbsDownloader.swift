@@ -26,7 +26,7 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
     
     public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         handleDownloadTaskUpdate(downloadTask: downloadTask) { downloadItem, downloadItemPart in
-            downloadItemPart.progress = 1
+            downloadItemPart.progress = 100
             downloadItemPart.completed = true
             
             do {
