@@ -190,7 +190,7 @@ export default {
     async startDownload(localFolder) {
       var payload = {
         libraryItemId: this.libraryItemId,
-        episodeId: this.episodeId
+        episodeId: this.episode.id
       }
       if (localFolder) {
         this.localFolderId = localFolder.id
