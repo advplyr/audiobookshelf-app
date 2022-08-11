@@ -22,11 +22,11 @@
         <div v-if="!isPodcast" class="w-full">
           <p class="text-base mb-2">Audio Tracks ({{ audioTracks.length }})</p>
 
-          <draggable v-model="audioTracksCopy" v-bind="dragOptions" handle=".drag-handle" draggable=".item" tag="div" @start="drag = true" @end="drag = false" @update="draggableUpdate">
+          <draggable v-model="audioTracksCopy" v-bind="dragOptions" handle=".drag-handle" draggable=".item" tag="div" @start="drag = true" @end="drag = false" @update="draggableUpdate" :disabled="isIos">
             <transition-group type="transition" :name="!drag ? 'dragtrack' : null">
               <template v-for="track in audioTracksCopy">
                 <div :key="track.localFileId" class="flex items-center my-1 item">
-                  <div class="w-8 h-12 flex items-center justify-center" style="min-width: 32px">
+                  <div v-if="!isIos" class="w-8 h-12 flex items-center justify-center" style="min-width: 32px">
                     <span class="material-icons drag-handle text-lg text-white text-opacity-50 hover:text-opacity-100">menu</span>
                   </div>
                   <div class="w-8 h-12 flex items-center justify-center" style="min-width: 32px">
@@ -39,7 +39,7 @@
                     <p class="text-xs">{{ track.mimeType }}</p>
                     <p class="text-sm">{{ $elapsedPretty(track.duration) }}</p>
                   </div>
-                  <div class="w-12 h-12 flex items-center justify-center" style="min-width: 48px">
+                  <div v-if="!isIos" class="w-12 h-12 flex items-center justify-center" style="min-width: 48px">
                     <span class="material-icons" @click="showTrackDialog(track)">more_vert</span>
                   </div>
                 </div>
