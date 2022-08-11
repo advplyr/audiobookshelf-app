@@ -286,6 +286,17 @@ class AudioPlayer: NSObject {
             let urlstr = "\(Store.serverConfig!.address)/s/item/\(itemId)/\(filenameEncoded ?? "")?token=\(Store.serverConfig!.token)"
             let url = URL(string: urlstr)!
             return AVURLAsset(url: url)
+        } else if (playbackSession.playMethod == PlayMethod.local.rawValue) {
+            guard let localFile = track.getLocalFile() else {
+                // Worst case we can stream the file
+                NSLog("Unable to play local file. Resulting to streaming \(track.localFileId ?? "Unknown")")
+                let filename = track.metadata?.filename ?? ""
+                let filenameEncoded = filename.addingPercentEncoding(withAllowedCharacters: NSCharacterSet.urlQueryAllowed)
+                let urlstr = "\(Store.serverConfig!.address)/s/item/\(itemId)/\(filenameEncoded ?? "")?token=\(Store.serverConfig!.token)"
+                let url = URL(string: urlstr)!
+                return AVURLAsset(url: url)
+            }
+            return AVURLAsset(url: localFile.contentPath)
         } else { // HLS Transcode
             let headers: [String: String] = [
                 "Authorization": "Bearer \(Store.serverConfig!.token)"

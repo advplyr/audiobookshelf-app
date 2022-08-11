@@ -90,6 +90,8 @@ struct Metadata: Realmable, Codable {
     var seriesName: String?
     var feedUrl: String?
     
+    var authorDisplayName: String { self.authorName ?? "Unknown" }
+    
     init() {
         title = "Unknown"
         genres = []
@@ -250,6 +252,11 @@ struct AudioTrack: Realmable, Codable {
             return true
         }
         return false
+    }
+    
+    func getLocalFile() -> LocalFile? {
+        guard let localFileId = self.localFileId else { return nil }
+        return Database.shared.getLocalFile(localFileId: localFileId)
     }
 }
 

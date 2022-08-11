@@ -59,6 +59,12 @@ extension LocalLibraryItem {
         return total
     }
     
+    func getPodcastEpisode(episodeId: String?) -> PodcastEpisode? {
+        guard self.isPodcast else { return nil }
+        guard let episodes = self.media?.episodes else { return nil }
+        return episodes.first(where: { $0.id == episodeId })
+    }
+    
     func getPlaybackSession(episode: PodcastEpisode?) -> PlaybackSession {
         let localEpisodeId = episode?.id
         let sessionId = "play_local_\(UUID().uuidString)"
@@ -67,13 +73,13 @@ extension LocalLibraryItem {
         let mediaProgressId = (localEpisodeId != nil) ? "\(self.id)-\(localEpisodeId!)" : self.id
         let mediaProgress = Database.shared.getLocalMediaProgress(localMediaProgressId: mediaProgressId)
         
-        // TODO: Clean up add mediaType methods for displayTitle and displayAuthor
         let mediaMetadata = self.media?.metadata
-        let audioTracks = self.media?.tracks
-        let authorName = mediaMetadata?.authorName
+        let chapters = self.media?.chapters
+        var audioTracks = self.media?.tracks
+        let authorName = mediaMetadata?.authorDisplayName
         
-        if let episode = episode {
-            // TODO: Implement podcast
+        if let episode = episode, let track = episode.audioTrack {
+            audioTracks = [track]
         }
         
         let dateNow = Date().timeIntervalSince1970
@@ -81,18 +87,18 @@ extension LocalLibraryItem {
             id: sessionId,
             userId: self.serverUserId,
             libraryItemId: self.libraryItemId,
-            episodeId: episode?.id,
+            episodeId: episode?.serverEpisodeId,
             mediaType: self.mediaType,
-            chapters: [],
+            chapters: chapters ?? [],
             displayTitle: mediaMetadata?.title,
             displayAuthor: authorName,
-            coverPath: nil,
+            coverPath: self.coverContentUrl,
             duration: self.getDuration(),
-            playMethod: 3,
+            playMethod: PlayMethod.local.rawValue,
             startedAt: dateNow,
             updatedAt: 0,
             timeListening: 0.0,
-            audioTracks: [],
+            audioTracks: audioTracks ?? [],
             currentTime: mediaProgress?.currentTime ?? 0.0,
             libraryItem: nil,
             serverConnectionConfigId: self.serverConnectionConfigId,

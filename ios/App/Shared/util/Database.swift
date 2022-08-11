@@ -131,6 +131,11 @@ class Database {
         }
     }
     
+    public func getLocalFile(localFileId: String) -> LocalFile? {
+        let realm = try! Realm()
+        return realm.object(ofType: LocalFile.self, forPrimaryKey: localFileId)
+    }
+    
     public func getDownloadItem(downloadItemId: String) -> DownloadItem? {
         let realm = try! Realm()
         return realm.object(ofType: DownloadItem.self, forPrimaryKey: downloadItemId)
