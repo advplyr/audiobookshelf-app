@@ -32,7 +32,8 @@ export default {
       onMediaPlayerChangedListener: null,
       sleepInterval: null,
       currentEndOfChapterTime: 0,
-      serverLibraryItemId: null
+      serverLibraryItemId: null,
+      serverEpisodeId: null
     }
   },
   watch: {
@@ -173,15 +174,15 @@ export default {
         this.$toast.error(`Cannot cast locally downloaded media`)
       } else {
         // Change to server library item
-        this.playServerLibraryItemAndCast(this.serverLibraryItemId)
+        this.playServerLibraryItemAndCast(this.serverLibraryItemId, this.serverEpisodeId)
       }
     },
-    playServerLibraryItemAndCast(libraryItemId) {
+    playServerLibraryItemAndCast(libraryItemId, episodeId) {
       var playbackRate = 1
       if (this.$refs.audioPlayer) {
         playbackRate = this.$refs.audioPlayer.currentPlaybackRate || 1
       }
-      AbsAudioPlayer.prepareLibraryItem({ libraryItemId, episodeId: null, playWhenReady: false, playbackRate })
+      AbsAudioPlayer.prepareLibraryItem({ libraryItemId, episodeId, playWhenReady: false, playbackRate })
         .then((data) => {
           if (data.error) {
             const errorMsg = data.error || 'Failed to play'
@@ -203,6 +204,7 @@ export default {
       // When playing local library item and can also play this item from the server
       //   then store the server library item id so it can be used if a cast is made
       var serverLibraryItemId = payload.serverLibraryItemId || null
+      var serverEpisodeId = payload.serverEpisodeId || null
 
       if (libraryItemId.startsWith('local') && this.$store.state.isCasting) {
         const { value } = await Dialog.confirm({
@@ -215,6 +217,7 @@ export default {
       }
 
       this.serverLibraryItemId = null
+      this.serverEpisodeId = null
 
       var playbackRate = 1
       if (this.$refs.audioPlayer) {
@@ -233,6 +236,11 @@ export default {
               this.serverLibraryItemId = libraryItemId
             } else {
               this.serverLibraryItemId = serverLibraryItemId
+            }
+            if (episodeId && !episodeId.startsWith('local')) {
+              this.serverEpisodeId = episodeId
+            } else {
+              this.serverEpisodeId = serverEpisodeId
             }
           }
         })
