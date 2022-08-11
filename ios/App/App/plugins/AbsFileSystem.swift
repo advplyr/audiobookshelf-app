@@ -13,7 +13,6 @@ public class AbsFileSystem: CAPPlugin {
     @objc func selectFolder(_ call: CAPPluginCall) {
         let mediaType = call.getString("mediaType")
 
-        // TODO: Implement
         NSLog("Select Folder for media type \(mediaType ?? "UNSET")")
         
         call.unavailable("Not available on iOS")
@@ -22,7 +21,6 @@ public class AbsFileSystem: CAPPlugin {
     @objc func checkFolderPermission(_ call: CAPPluginCall) {
         let folderUrl = call.getString("folderUrl")
 
-        // TODO: Is this even necessary on iOS?
         NSLog("checkFolderPermission for folder \(folderUrl ?? "UNSET")")
         
         call.unavailable("Not available on iOS")
@@ -32,7 +30,6 @@ public class AbsFileSystem: CAPPlugin {
         let folderId = call.getString("folderId")
         let forceAudioProbe = call.getBool("forceAudioProbe", false)
 
-        // TODO: Implement
         NSLog("scanFolder \(folderId ?? "UNSET") | Force Probe = \(forceAudioProbe)")
         
         call.unavailable("Not available on iOS")
@@ -41,7 +38,6 @@ public class AbsFileSystem: CAPPlugin {
     @objc func removeFolder(_ call: CAPPluginCall) {
         let folderId = call.getString("folderId")
 
-        // TODO: Implement
         NSLog("removeFolder \(folderId ?? "UNSET")")
         
         call.unavailable("Not available on iOS")
@@ -50,7 +46,6 @@ public class AbsFileSystem: CAPPlugin {
     @objc func removeLocalLibraryItem(_ call: CAPPluginCall) {
         let localLibraryItemId = call.getString("localLibraryItemId")
 
-        // TODO: Implement
         NSLog("removeLocalLibraryItem \(localLibraryItemId ?? "UNSET")")
         
         call.unavailable("Not available on iOS")
@@ -60,7 +55,6 @@ public class AbsFileSystem: CAPPlugin {
         let localLibraryItemId = call.getString("localLibraryItemId")
         let forceAudioProbe = call.getBool("forceAudioProbe", false)
 
-        // TODO: Implement
         NSLog("scanLocalLibraryItem \(localLibraryItemId ?? "UNSET") | Force Probe = \(forceAudioProbe)")
         
         call.unavailable("Not available on iOS")
