@@ -142,7 +142,7 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
     
     private func handleDownloadTaskCompleteFromDownloadItem(_ downloadItem: DownloadItem) {
         var statusNotification = [String: Any]()
-        statusNotification["libraryItemId"] = downloadItem.libraryItemId
+        statusNotification["libraryItemId"] = downloadItem.id
         
         if ( downloadItem.didDownloadSuccessfully() ) {
             ApiClient.getLibraryItemWithProgress(libraryItemId: downloadItem.libraryItemId!, episodeId: downloadItem.episodeId) { libraryItem in

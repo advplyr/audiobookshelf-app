@@ -130,7 +130,7 @@ struct PodcastEpisode: Realmable, Codable {
     var audioTrack: AudioTrack?
     var duration: Double?
     var size: Int?
-//    var serverEpisodeId: String?
+    var serverEpisodeId: String { self.id }
     
     init() {
         id = ""
@@ -138,6 +138,10 @@ struct PodcastEpisode: Realmable, Codable {
         title = "Unknown"
         duration = 0
         size = 0
+    }
+    
+    static func ignoredProperties() -> [String] {
+        ["serverEpisodeId"]
     }
     
     private enum CodingKeys : String, CodingKey {
@@ -151,7 +155,39 @@ struct PodcastEpisode: Realmable, Codable {
              audioFile,
              audioTrack,
              duration,
-             size
+             size,
+             serverEpisodeId
+    }
+    
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decode(String.self, forKey: .id)
+        index = try? values.decode(Int.self, forKey: .index)
+        episode = try? values.decode(String.self, forKey: .episode)
+        episodeType = try? values.decode(String.self, forKey: .episodeType)
+        title = try values.decode(String.self, forKey: .title)
+        subtitle = try? values.decode(String.self, forKey: .subtitle)
+        desc = try? values.decode(String.self, forKey: .desc)
+        audioFile = try? values.decode(AudioFile.self, forKey: .audioFile)
+        audioTrack = try? values.decode(AudioTrack.self, forKey: .audioTrack)
+        duration = try? values.decode(Double.self, forKey: .duration)
+        size = try? values.decode(Int.self, forKey: .size)
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(index, forKey: .index)
+        try container.encode(episode, forKey: .episode)
+        try container.encode(episodeType, forKey: .episodeType)
+        try container.encode(title, forKey: .title)
+        try container.encode(subtitle, forKey: .subtitle)
+        try container.encode(desc, forKey: .desc)
+        try container.encode(audioFile, forKey: .audioFile)
+        try container.encode(audioTrack, forKey: .audioTrack)
+        try container.encode(duration, forKey: .duration)
+        try container.encode(size, forKey: .size)
+        try container.encode(serverEpisodeId, forKey: .serverEpisodeId)
     }
 }
 
