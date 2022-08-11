@@ -11,7 +11,7 @@ import Capacitor
 @objc(AbsDownloader)
 public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
     
-    static let downloadsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+    static private let downloadsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     
     typealias DownloadProgressHandler = (_ downloadItem: DownloadItem, _ downloadItemPart: inout DownloadItemPart) throws -> Void
     
@@ -307,14 +307,32 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
         let itemDirectory = item.id
         NSLog("ITEM DIR \(itemDirectory)")
         
-        do {
-            try FileManager.default.createDirectory(at: AbsDownloader.downloadsDirectory.appendingPathComponent(itemDirectory), withIntermediateDirectories: true)
-        } catch {
-            NSLog("Failed to CREATE LI DIRECTORY \(error)")
+        guard AbsDownloader.itemDownloadFolder(path: itemDirectory) != nil else {
+            NSLog("Failed to CREATE LI DIRECTORY \(itemDirectory)")
             throw LibraryItemDownloadError.failedDirectory
         }
         
         return itemDirectory
+    }
+    
+    static func itemDownloadFolder(path: String) -> URL? {
+        do {
+            var itemFolder = AbsDownloader.downloadsDirectory.appendingPathComponent(path)
+            
+            if !FileManager.default.fileExists(atPath: itemFolder.path) {
+                try FileManager.default.createDirectory(at: itemFolder, withIntermediateDirectories: true)
+            }
+            
+            // Make sure we don't backup download files to iCloud
+            var resourceValues = URLResourceValues()
+            resourceValues.isExcludedFromBackup = true
+            try itemFolder.setResourceValues(resourceValues)
+            
+            return itemFolder
+        } catch {
+            NSLog("Failed to CREATE LI DIRECTORY \(error)")
+            return nil
+        }
     }
     
 }

@@ -25,7 +25,7 @@ struct LocalLibraryItem: Realmable, Codable {
     
     var contentUrl: String? {
         if let path = _contentUrl {
-            return AbsDownloader.downloadsDirectory.appendingPathComponent(path).absoluteString
+            return AbsDownloader.itemDownloadFolder(path: path)!.absoluteString
         } else {
             return nil
         }
@@ -33,7 +33,7 @@ struct LocalLibraryItem: Realmable, Codable {
     
     var coverContentUrl: String? {
         if let path = self._coverContentUrl {
-            return AbsDownloader.downloadsDirectory.appendingPathComponent(path).absoluteString
+            return AbsDownloader.itemDownloadFolder(path: path)!.absoluteString
         } else {
             return nil
         }
@@ -93,7 +93,7 @@ struct LocalFile: Realmable, Codable {
     var size: Int = 0
     
     var contentUrl: String {
-        return AbsDownloader.downloadsDirectory.appendingPathComponent(_contentUrl).absoluteString
+        return AbsDownloader.itemDownloadFolder(path: _contentUrl)!.absoluteString
     }
     
     static func primaryKey() -> String? {
