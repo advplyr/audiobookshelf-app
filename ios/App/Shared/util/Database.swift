@@ -168,7 +168,7 @@ class Database {
     
     public func saveLocalMediaProgress(_ mediaProgress: LocalMediaProgress) {
         let realm = try! Realm()
-        try! realm.write { realm.add(mediaProgress) }
+        try! realm.write { realm.add(mediaProgress, update: .modified) }
     }
     
     // For books this will just be the localLibraryItemId for podcast episodes this will be "{localLibraryItemId}-{episodeId}"

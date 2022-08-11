@@ -207,11 +207,13 @@ struct AudioTrack: Realmable, Codable {
         mimeType = ""
     }
     
-    mutating func setLocalInfo(filenameIdMap: [String: String], serverIndex: Int) {
+    mutating func setLocalInfo(filenameIdMap: [String: String], serverIndex: Int) -> Bool {
         if let localFileId = filenameIdMap[self.metadata?.filename ?? ""] {
             self.localFileId = localFileId
             self.serverIndex = serverIndex
+            return true
         }
+        return false
     }
 }
 

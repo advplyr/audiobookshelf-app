@@ -10,6 +10,7 @@ import Foundation
 extension LocalLibraryItem {
     init(_ item: LibraryItem, localUrl: String, server: ServerConnectionConfig, files: [LocalFile], coverPath: String?) {
         self.init()
+        self.id = "local_\(item.id)"
         self._contentUrl = localUrl
         self.mediaType = item.mediaType
         self.localFiles = files
@@ -20,22 +21,36 @@ extension LocalLibraryItem {
         self.serverUserId = server.userId
         
         // Link the audio tracks and files
-        var media = item.media
-        let fileIdByFilename = Dictionary(uniqueKeysWithValues: files.map { ($0.filename ?? "", $0.id) } )
-        if ( item.mediaType == "book" ) {
-            if let tracks = media.tracks {
+        linkLocalFiles(files, fromMedia: item.media)
+    }
+    
+    mutating func addFiles(_ files: [LocalFile], item: LibraryItem) throws {
+        guard self.isPodcast else { throw LibraryItemDownloadError.podcastOnlySupported }
+        self.localFiles.append(contentsOf: files.filter({ $0.isAudioFile() }))
+        linkLocalFiles(self.localFiles, fromMedia: item.media)
+    }
+    
+    mutating private func linkLocalFiles(_ files: [LocalFile], fromMedia: MediaType) {
+        var fromMedia = fromMedia
+        let fileMap = files.map { ($0.filename ?? "", $0.id) }
+        let fileIdByFilename = Dictionary(fileMap, uniquingKeysWith: { (_, last) in last })
+        if ( self.mediaType == "book" ) {
+            if let tracks = fromMedia.tracks {
                 for i in tracks.indices {
-                    media.tracks?[i].setLocalInfo(filenameIdMap: fileIdByFilename, serverIndex: i)
+                    _ = fromMedia.tracks?[i].setLocalInfo(filenameIdMap: fileIdByFilename, serverIndex: i)
                 }
             }
-        } else if ( item.mediaType == "podcast" ) {
-            if let episodes = media.episodes {
-                for i in episodes.indices {
-                    media.episodes?[i].audioTrack?.setLocalInfo(filenameIdMap: fileIdByFilename, serverIndex: 0)
+        } else if ( self.mediaType == "podcast" ) {
+            if let episodes = fromMedia.episodes {
+                fromMedia.episodes = episodes.compactMap { episode in
+                    // Filter out episodes not downloaded
+                    var episode = episode
+                    let episodeIsDownloaded = episode.audioTrack?.setLocalInfo(filenameIdMap: fileIdByFilename, serverIndex: 0) ?? false
+                    return episodeIsDownloaded ? episode : nil
                 }
             }
         }
-        self.media = media
+        self.media = fromMedia
     }
     
     func getDuration() -> Double {

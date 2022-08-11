@@ -9,7 +9,7 @@ import Foundation
 import Unrealm
 
 struct LocalLibraryItem: Realmable, Codable {
-    var id: String = "local_\(UUID().uuidString)"
+    var id: String = ""
     var basePath: String = ""
     var _contentUrl: String?
     var isInvalid: Bool = false
@@ -38,6 +38,8 @@ struct LocalLibraryItem: Realmable, Codable {
             return nil
         }
     }
+    
+    var isPodcast: Bool { self.mediaType == "podcast" }
     
     static func primaryKey() -> String? {
         return "id"

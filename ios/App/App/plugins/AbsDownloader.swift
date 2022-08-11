@@ -157,14 +157,19 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
                     }
                     return LocalFile(libraryItem.id, part.filename!, part.mimeType()!, part.destinationUri!, fileSize: Int(part.destinationURL!.fileSize))
                 }
-                let localLibraryItem = LocalLibraryItem(libraryItem, localUrl: localDirectory, server: Store.serverConfig!, files: files, coverPath: coverFile)
+                var localLibraryItem = Database.shared.getLocalLibraryItemByLLId(libraryItem: libraryItem.id)
+                if (localLibraryItem != nil && localLibraryItem!.isPodcast) {
+                    try! localLibraryItem?.addFiles(files, item: libraryItem)
+                } else {
+                    localLibraryItem = LocalLibraryItem(libraryItem, localUrl: localDirectory, server: Store.serverConfig!, files: files, coverPath: coverFile)
+                }
                 
-                Database.shared.saveLocalLibraryItem(localLibraryItem: localLibraryItem)
+                Database.shared.saveLocalLibraryItem(localLibraryItem: localLibraryItem!)
                 statusNotification["localLibraryItem"] = try? localLibraryItem.asDictionary()
                 
                 if let progress = libraryItem.userMediaProgress {
                     let episode = downloadItem.media?.episodes?.first(where: { $0.id == downloadItem.episodeId })
-                    let localMediaProgress = LocalMediaProgress(localLibraryItem: localLibraryItem, episode: episode, progress: progress)
+                    let localMediaProgress = LocalMediaProgress(localLibraryItem: localLibraryItem!, episode: episode, progress: progress)
                     Database.shared.saveLocalMediaProgress(localMediaProgress)
                     statusNotification["localMediaProgress"] = try? localMediaProgress.asDictionary()
                 }
@@ -319,6 +324,7 @@ enum LibraryItemDownloadError: String, Error {
     case noMetadata = "No metadata for track, unable to download"
     case libraryItemNotPodcast = "Library item is not a podcast but episode was requested"
     case podcastEpisodeNotFound = "Invalid podcast episode not found"
+    case podcastOnlySupported = "Only podcasts are supported for this function"
     case unknownMediaType = "Unknown media type"
     case failedDirectory = "Failed to create directory"
     case failedDownload = "Failed to download item"
