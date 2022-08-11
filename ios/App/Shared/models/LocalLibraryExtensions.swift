@@ -34,13 +34,13 @@ extension LocalLibraryItem {
         var fromMedia = fromMedia
         let fileMap = files.map { ($0.filename ?? "", $0.id) }
         let fileIdByFilename = Dictionary(fileMap, uniquingKeysWith: { (_, last) in last })
-        if ( self.mediaType == "book" ) {
+        if ( self.isBook ) {
             if let tracks = fromMedia.tracks {
                 for i in tracks.indices {
                     _ = fromMedia.tracks?[i].setLocalInfo(filenameIdMap: fileIdByFilename, serverIndex: i)
                 }
             }
-        } else if ( self.mediaType == "podcast" ) {
+        } else if ( self.isPodcast ) {
             if let episodes = fromMedia.episodes {
                 fromMedia.episodes = episodes.compactMap { episode in
                     // Filter out episodes not downloaded

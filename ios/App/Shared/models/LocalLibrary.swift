@@ -39,6 +39,7 @@ struct LocalLibraryItem: Realmable, Codable {
         }
     }
     
+    var isBook: Bool { self.mediaType == "book" }
     var isPodcast: Bool { self.mediaType == "podcast" }
     
     static func primaryKey() -> String? {
