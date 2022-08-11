@@ -81,19 +81,40 @@ public class AbsFileSystem: CAPPlugin {
             }
         } catch {
             NSLog("Failed to delete \(error)")
+            success = false
         }
         
         call.resolve(["success": success])
     }
     
     @objc func deleteTrackFromItem(_ call: CAPPluginCall) {
-        let localLibraryItemId = call.getString("localLibraryItemId")
+        let localLibraryItemId = call.getString("id")
         let trackLocalFileId = call.getString("trackLocalFileId")
-        let contentUrl = call.getString("contentUrl")
 
-        // TODO: Implement
-        NSLog("deleteTrackFromItem \(localLibraryItemId ?? "UNSET") track file \(trackLocalFileId ?? "UNSET") url \(contentUrl ?? "UNSET")")
+        NSLog("deleteTrackFromItem \(localLibraryItemId ?? "UNSET") track file \(trackLocalFileId ?? "UNSET")")
         
-        call.resolve()
+        var success = false
+        do {
+            if let localLibraryItemId = localLibraryItemId, let trackLocalFileId = trackLocalFileId, var item = Database.shared.getLocalLibraryItem(localLibraryItemId: localLibraryItemId) {
+                if let fileIndex = item.localFiles.firstIndex(where: { $0.id == trackLocalFileId }) {
+                    try FileManager.default.removeItem(at: item.localFiles[fileIndex].contentPath)
+                    item.localFiles.remove(at: fileIndex)
+                    if item.isPodcast, var media = item.media {
+                        media.episodes = media.episodes?.filter { $0.audioTrack?.localFileId != trackLocalFileId }
+                        item.media = media
+                    }
+                    Database.shared.saveLocalLibraryItem(localLibraryItem: item)
+                    call.resolve(try item.asDictionary())
+                    success = true
+                }
+            }
+        } catch {
+            NSLog("Failed to delete \(error)")
+            success = false
+        }
+        
+        if !success {
+            call.resolve(["success": success])
+        }
     }
 }

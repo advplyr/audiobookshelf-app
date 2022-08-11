@@ -100,16 +100,16 @@ struct LocalFile: Realmable, Codable {
     var mimeType: String?
     var size: Int = 0
     
-    var contentUrl: String {
-        return AbsDownloader.itemDownloadFolder(path: _contentUrl)!.absoluteString
-    }
+    var contentUrl: String { AbsDownloader.itemDownloadFolder(path: _contentUrl)!.absoluteString }
+    var contentPath: URL { AbsDownloader.itemDownloadFolder(path: _contentUrl)! }
+    var basePath: String? { self.filename }
     
     static func primaryKey() -> String? {
         return "id"
     }
     
     private enum CodingKeys : String, CodingKey {
-        case id, filename, contentUrl, mimeType, size
+        case id, filename, contentUrl, mimeType, size, basePath
     }
     
     init() {}
@@ -129,6 +129,7 @@ struct LocalFile: Realmable, Codable {
         try container.encode(contentUrl, forKey: .contentUrl)
         try container.encode(mimeType, forKey: .mimeType)
         try container.encode(size, forKey: .size)
+        try container.encode(basePath, forKey: .basePath)
     }
 }
 
