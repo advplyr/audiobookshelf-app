@@ -154,10 +154,8 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
                 let files = downloadItem.downloadItemParts.compactMap { part -> LocalFile? in
                     if part.filename == "cover.jpg" {
                         coverFile = part.destinationUri
-                        return nil
-                    } else {
-                        return LocalFile(libraryItem.id, part.filename!, part.mimeType()!, part.destinationUri!, fileSize: Int(part.destinationURL!.fileSize))
                     }
+                    return LocalFile(libraryItem.id, part.filename!, part.mimeType()!, part.destinationUri!, fileSize: Int(part.destinationURL!.fileSize))
                 }
                 let localLibraryItem = LocalLibraryItem(libraryItem, localUrl: localDirectory, server: Store.serverConfig!, files: files, coverPath: coverFile)
                 
@@ -165,8 +163,8 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
                 statusNotification["localLibraryItem"] = try? localLibraryItem.asDictionary()
                 
                 if let progress = libraryItem.userMediaProgress {
-                    // TODO: Handle podcast
-                    let localMediaProgress = LocalMediaProgress(localLibraryItem: localLibraryItem, episode: nil, progress: progress)
+                    let episode = downloadItem.media?.episodes?.first(where: { $0.id == downloadItem.episodeId })
+                    let localMediaProgress = LocalMediaProgress(localLibraryItem: localLibraryItem, episode: episode, progress: progress)
                     Database.shared.saveLocalMediaProgress(localMediaProgress)
                     statusNotification["localMediaProgress"] = try? localMediaProgress.asDictionary()
                 }

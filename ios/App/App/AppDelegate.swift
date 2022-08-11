@@ -45,7 +45,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         
         // Local library
         Realm.registerRealmables(LocalLibraryItem.self)
-        Realm.registerRealmables(LocalPodcastEpisode.self)
         Realm.registerRealmables(LocalFile.self)
         Realm.registerRealmables(LocalMediaProgress.self)
         

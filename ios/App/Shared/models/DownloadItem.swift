@@ -121,6 +121,14 @@ extension DownloadItemPart {
     }
     
     func mimeType() -> String? {
-        audioTrack?.mimeType ?? episode?.audioTrack?.mimeType
+        if let track = audioTrack {
+            return track.mimeType
+        } else if let podcastTrack = episode?.audioTrack {
+            return podcastTrack.mimeType
+        } else if serverPath?.hasSuffix("/cover") ?? false {
+            return "image/jpg"
+        } else {
+            return nil
+        }
     }
 }

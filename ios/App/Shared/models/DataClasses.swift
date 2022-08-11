@@ -199,14 +199,20 @@ struct AudioTrack: Realmable, Codable {
     var contentUrl: String?
     var mimeType: String
     var metadata: FileMetadata?
-    // var isLocal: Bool
-    // var localFileId: String?
+    var localFileId: String?
     // var audioProbeResult: AudioProbeResult? Needed for local playback
     var serverIndex: Int?
     
     init() {
         duration = 0
         mimeType = ""
+    }
+    
+    mutating func setLocalInfo(filenameIdMap: [String: String], serverIndex: Int) {
+        if let localFileId = filenameIdMap[self.metadata?.filename ?? ""] {
+            self.localFileId = localFileId
+            self.serverIndex = serverIndex
+        }
     }
 }
 

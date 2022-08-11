@@ -10,15 +10,32 @@ import Foundation
 extension LocalLibraryItem {
     init(_ item: LibraryItem, localUrl: String, server: ServerConnectionConfig, files: [LocalFile], coverPath: String?) {
         self.init()
-        self.contentUrl = localUrl
+        self._contentUrl = localUrl
         self.mediaType = item.mediaType
-        self.media = item.media
         self.localFiles = files
-        self.coverContentUrl = coverPath
+        self._coverContentUrl = coverPath
         self.libraryItemId = item.id
         self.serverConnectionConfigId = server.id
         self.serverAddress = server.address
         self.serverUserId = server.userId
+        
+        // Link the audio tracks and files
+        var media = item.media
+        let fileIdByFilename = Dictionary(uniqueKeysWithValues: files.map { ($0.filename ?? "", $0.id) } )
+        if ( item.mediaType == "book" ) {
+            if let tracks = media.tracks {
+                for i in tracks.indices {
+                    media.tracks?[i].setLocalInfo(filenameIdMap: fileIdByFilename, serverIndex: i)
+                }
+            }
+        } else if ( item.mediaType == "podcast" ) {
+            if let episodes = media.episodes {
+                for i in episodes.indices {
+                    media.episodes?[i].audioTrack?.setLocalInfo(filenameIdMap: fileIdByFilename, serverIndex: 0)
+                }
+            }
+        }
+        self.media = media
     }
     
     func getDuration() -> Double {
@@ -27,7 +44,7 @@ extension LocalLibraryItem {
         return total
     }
     
-    func getPlaybackSession(episode: LocalPodcastEpisode?) -> PlaybackSession {
+    func getPlaybackSession(episode: PodcastEpisode?) -> PlaybackSession {
         let localEpisodeId = episode?.id
         let sessionId = "play_local_\(UUID().uuidString)"
         
@@ -49,7 +66,7 @@ extension LocalLibraryItem {
             id: sessionId,
             userId: self.serverUserId,
             libraryItemId: self.libraryItemId,
-            episodeId: episode?.serverEpisodeId,
+            episodeId: episode?.id,
             mediaType: self.mediaType,
             chapters: [],
             displayTitle: mediaMetadata?.title,
@@ -75,7 +92,7 @@ extension LocalFile {
         self.id = "\(libraryItemId)_\(filename.toBase64())"
         self.filename = filename
         self.mimeType = mimeType
-        self.contentUrl = localUrl
+        self._contentUrl = localUrl
         self.size = fileSize
     }
     
@@ -91,7 +108,7 @@ extension LocalFile {
 }
 
 extension LocalMediaProgress {
-    init(localLibraryItem: LocalLibraryItem, episode: LocalPodcastEpisode?, progress: MediaProgress) {
+    init(localLibraryItem: LocalLibraryItem, episode: PodcastEpisode?, progress: MediaProgress) {
         self.id = localLibraryItem.id
         self.localLibraryItemId = localLibraryItem.id
         self.libraryItemId = localLibraryItem.libraryItemId

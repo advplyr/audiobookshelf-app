@@ -11,12 +11,12 @@ import Unrealm
 struct LocalLibraryItem: Realmable, Codable {
     var id: String = "local_\(UUID().uuidString)"
     var basePath: String = ""
-    dynamic var _contentUrl: String?
+    var _contentUrl: String?
     var isInvalid: Bool = false
     var mediaType: String = ""
     var media: MediaType?
     var localFiles: [LocalFile] = []
-    dynamic var _coverContentUrl: String?
+    var _coverContentUrl: String?
     var isLocal: Bool = true
     var serverConnectionConfigId: String?
     var serverAddress: String?
@@ -24,28 +24,18 @@ struct LocalLibraryItem: Realmable, Codable {
     var libraryItemId: String?
     
     var contentUrl: String? {
-        set(url) {
-            _contentUrl = url
-        }
-        get {
-            if let path = _contentUrl {
-                return AbsDownloader.downloadsDirectory.appendingPathComponent(path).absoluteString
-            } else {
-                return nil
-            }
+        if let path = _contentUrl {
+            return AbsDownloader.downloadsDirectory.appendingPathComponent(path).absoluteString
+        } else {
+            return nil
         }
     }
     
     var coverContentUrl: String? {
-        set(url) {
-            _coverContentUrl = url
-        }
-        get {
-            if let path = self._coverContentUrl {
-                return AbsDownloader.downloadsDirectory.appendingPathComponent(path).absoluteString
-            } else {
-                return nil
-            }
+        if let path = self._coverContentUrl {
+            return AbsDownloader.downloadsDirectory.appendingPathComponent(path).absoluteString
+        } else {
+            return nil
         }
     }
     
@@ -63,17 +53,15 @@ struct LocalLibraryItem: Realmable, Codable {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         id = try values.decode(String.self, forKey: .id)
         basePath = try values.decode(String.self, forKey: .basePath)
-        contentUrl = try values.decode(String.self, forKey: .contentUrl)
         isInvalid = try values.decode(Bool.self, forKey: .isInvalid)
         mediaType = try values.decode(String.self, forKey: .mediaType)
         media = try values.decode(MediaType.self, forKey: .media)
         localFiles = try values.decode([LocalFile].self, forKey: .localFiles)
-        coverContentUrl = try values.decode(String.self, forKey: .coverContentUrl)
         isLocal = try values.decode(Bool.self, forKey: .isLocal)
-        serverConnectionConfigId = try values.decode(String.self, forKey: .serverConnectionConfigId)
-        serverAddress = try values.decode(String.self, forKey: .serverAddress)
-        serverUserId = try values.decode(String.self, forKey: .serverUserId)
-        libraryItemId = try values.decode(String.self, forKey: .libraryItemId)
+        serverConnectionConfigId = try? values.decode(String.self, forKey: .serverConnectionConfigId)
+        serverAddress = try? values.decode(String.self, forKey: .serverAddress)
+        serverUserId = try? values.decode(String.self, forKey: .serverUserId)
+        libraryItemId = try? values.decode(String.self, forKey: .libraryItemId)
     }
     
     func encode(to encoder: Encoder) throws {
@@ -94,41 +82,23 @@ struct LocalLibraryItem: Realmable, Codable {
     }
 }
 
-struct LocalPodcastEpisode: Realmable, Codable {
-    var id: String = UUID().uuidString
-    var index: Int = 0
-    var episode: String?
-    var episodeType: String?
-    var title: String = "Unknown"
-    var subtitle: String?
-    var desc: String?
-    var audioFile: AudioFile?
-    var audioTrack: AudioTrack?
-    var duration: Double = 0
-    var size: Int = 0
-    var serverEpisodeId: String?
-    
-    static func primaryKey() -> String? {
-        return "id"
-    }
-}
-
 struct LocalFile: Realmable, Codable {
     var id: String = UUID().uuidString
     var filename: String?
-    var contentUrl: String = ""
-    var absolutePath: String {
-        return AbsDownloader.downloadsDirectory.appendingPathComponent(self.contentUrl).absoluteString
-    }
+    var _contentUrl: String = ""
     var mimeType: String?
     var size: Int = 0
+    
+    var contentUrl: String {
+        return AbsDownloader.downloadsDirectory.appendingPathComponent(_contentUrl).absoluteString
+    }
     
     static func primaryKey() -> String? {
         return "id"
     }
     
     private enum CodingKeys : String, CodingKey {
-        case id, filename, contentUrl, absolutePath, mimeType, size
+        case id, filename, contentUrl, mimeType, size
     }
     
     init() {}
@@ -137,8 +107,7 @@ struct LocalFile: Realmable, Codable {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         id = try values.decode(String.self, forKey: .id)
         filename = try values.decode(String.self, forKey: .filename)
-        contentUrl = try values.decode(String.self, forKey: .contentUrl)
-        mimeType = try values.decode(String.self, forKey: .mimeType)
+        mimeType = try? values.decode(String.self, forKey: .mimeType)
         size = try values.decode(Int.self, forKey: .size)
     }
     
@@ -147,7 +116,6 @@ struct LocalFile: Realmable, Codable {
         try container.encode(id, forKey: .id)
         try container.encode(filename, forKey: .filename)
         try container.encode(contentUrl, forKey: .contentUrl)
-        try container.encode(absolutePath, forKey: .absolutePath)
         try container.encode(mimeType, forKey: .mimeType)
         try container.encode(size, forKey: .size)
     }
