@@ -16,7 +16,7 @@ public class AbsFileSystem: CAPPlugin {
         // TODO: Implement
         NSLog("Select Folder for media type \(mediaType ?? "UNSET")")
         
-        call.resolve()
+        call.unavailable("Not available on iOS")
     }
     
     @objc func checkFolderPermission(_ call: CAPPluginCall) {
@@ -25,9 +25,7 @@ public class AbsFileSystem: CAPPlugin {
         // TODO: Is this even necessary on iOS?
         NSLog("checkFolderPermission for folder \(folderUrl ?? "UNSET")")
         
-        call.resolve([
-            "value": true
-        ])
+        call.unavailable("Not available on iOS")
     }
     
     @objc func scanFolder(_ call: CAPPluginCall) {
@@ -37,7 +35,7 @@ public class AbsFileSystem: CAPPlugin {
         // TODO: Implement
         NSLog("scanFolder \(folderId ?? "UNSET") | Force Probe = \(forceAudioProbe)")
         
-        call.resolve()
+        call.unavailable("Not available on iOS")
     }
 
     @objc func removeFolder(_ call: CAPPluginCall) {
@@ -46,7 +44,7 @@ public class AbsFileSystem: CAPPlugin {
         // TODO: Implement
         NSLog("removeFolder \(folderId ?? "UNSET")")
         
-        call.resolve()
+        call.unavailable("Not available on iOS")
     }
     
     @objc func removeLocalLibraryItem(_ call: CAPPluginCall) {
@@ -55,7 +53,7 @@ public class AbsFileSystem: CAPPlugin {
         // TODO: Implement
         NSLog("removeLocalLibraryItem \(localLibraryItemId ?? "UNSET")")
         
-        call.resolve()
+        call.unavailable("Not available on iOS")
     }
     
     @objc func scanLocalLibraryItem(_ call: CAPPluginCall) {
@@ -65,7 +63,7 @@ public class AbsFileSystem: CAPPlugin {
         // TODO: Implement
         NSLog("scanLocalLibraryItem \(localLibraryItemId ?? "UNSET") | Force Probe = \(forceAudioProbe)")
         
-        call.resolve()
+        call.unavailable("Not available on iOS")
     }
     
     @objc func deleteItem(_ call: CAPPluginCall) {

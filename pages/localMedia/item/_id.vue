@@ -11,7 +11,7 @@
         <span class="material-icons" @click="showItemDialog">more_vert</span>
       </div>
 
-      <p class="px-2 text-sm mb-0.5 text-white text-opacity-75">Folder: {{ folderName }}</p>
+      <p v-if="!isIos" class="px-2 text-sm mb-0.5 text-white text-opacity-75">Folder: {{ folderName }}</p>
 
       <p class="px-2 mb-4 text-xs text-gray-400">{{ libraryItemId ? 'Linked to item on server ' + liServerAddress : 'Not linked to server item' }}</p>
 
@@ -138,6 +138,9 @@ export default {
     }
   },
   computed: {
+    isIos() {
+      return this.$platform === 'ios'
+    },
     basePath() {
       return this.localLibraryItem ? this.localLibraryItem.basePath : null
     },
@@ -194,24 +197,14 @@ export default {
           }
         ]
       } else {
-        return [
-          {
-            text: 'Scan',
-            value: 'scan'
-          },
-          {
-            text: 'Force Re-Scan',
-            value: 'rescan'
-          },
-          {
-            text: 'Remove',
-            value: 'remove'
-          },
-          {
-            text: 'Remove & Delete Files',
-            value: 'delete'
-          }
-        ]
+        var options = []
+        if ( !this.isIos ) {
+          options.push({ text: 'Scan', value: 'scan'})
+          options.push({ text: 'Force Re-Scan', value: 'rescan'})
+          options.push({ text: 'Remove', value: 'remove'})
+        }
+        options.push({ text: 'Remove & Delete Files', value: 'delete'})
+        return options
       }
     }
   },
