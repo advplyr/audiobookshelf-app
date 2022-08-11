@@ -26,7 +26,7 @@ struct PlaybackSession: Decodable, Encodable {
     var audioTracks: [AudioTrack]
     var currentTime: Double
     var libraryItem: LibraryItem?
-    //var localLibraryItem: LocalLibraryItem?
+    var localLibraryItem: LocalLibraryItem?
     var serverConnectionConfigId: String?
     var serverAddress: String?
 }

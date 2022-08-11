@@ -101,6 +101,7 @@ extension LocalLibraryItem {
             audioTracks: audioTracks ?? [],
             currentTime: mediaProgress?.currentTime ?? 0.0,
             libraryItem: nil,
+            localLibraryItem: self,
             serverConnectionConfigId: self.serverConnectionConfigId,
             serverAddress: self.serverAddress
         )
