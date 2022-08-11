@@ -114,9 +114,17 @@ public class AbsDatabase: CAPPlugin {
     @objc func getLocalLibraryItemsInFolder(_ call: CAPPluginCall) {
         call.resolve([ "value": [] ])
     }
+    
     @objc func getAllLocalMediaProgress(_ call: CAPPluginCall) {
-        call.resolve([ "value": [] ])
+        do {
+            call.resolve([ "value": try Database.shared.getAllLocalMediaProgress().asDictionaryArray() ])
+        } catch {
+            NSLog("Error while loading local media progress")
+            debugPrint(error)
+            call.resolve(["value": []])
+        }
     }
+    
     @objc func updateDeviceSettings(_ call: CAPPluginCall) {
         let disableAutoRewind = call.getBool("disableAutoRewind") ?? false
         let enableAltView = call.getBool("enableAltView") ?? false

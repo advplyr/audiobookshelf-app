@@ -166,6 +166,11 @@ class Database {
         return realm.objects(DeviceSettings.self).first ?? getDefaultDeviceSettings()
     }
     
+    public func getAllLocalMediaProgress() -> [LocalMediaProgress] {
+        let realm = try! Realm()
+        return Array(realm.objects(LocalMediaProgress.self))
+    }
+    
     public func saveLocalMediaProgress(_ mediaProgress: LocalMediaProgress) {
         let realm = try! Realm()
         try! realm.write { realm.add(mediaProgress, update: .modified) }

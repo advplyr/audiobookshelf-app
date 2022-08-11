@@ -138,6 +138,7 @@ extension LocalMediaProgress {
         self.serverConnectionConfigId = localLibraryItem.serverConnectionConfigId
         
         self.duration = progress.duration
+        self.progress = progress.progress
         self.currentTime = progress.currentTime
         self.isFinished = false
         self.lastUpdate = progress.lastUpdate
