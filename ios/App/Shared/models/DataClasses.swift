@@ -120,7 +120,7 @@ struct Metadata: Realmable, Codable {
 
 struct PodcastEpisode: Realmable, Codable {
     var id: String
-    var index: Int
+    var index: Int?
     var episode: String?
     var episodeType: String?
     var title: String
@@ -128,8 +128,8 @@ struct PodcastEpisode: Realmable, Codable {
     var desc: String?
     var audioFile: AudioFile?
     var audioTrack: AudioTrack?
-    var duration: Double
-    var size: Int
+    var duration: Double?
+    var size: Int?
 //    var serverEpisodeId: String?
     
     init() {
@@ -156,7 +156,7 @@ struct PodcastEpisode: Realmable, Codable {
 }
 
 struct AudioFile: Realmable, Codable {
-    var index: Int
+    var index: Int?
     var ino: String
     var metadata: FileMetadata
     
