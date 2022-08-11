@@ -199,7 +199,9 @@ export default {
 
           this.$eventBus.$emit('play-item', {
             libraryItemId: this.localLibraryItemId,
-            episodeId: this.localEpisode.id
+            episodeId: this.localEpisode.id,
+            serverLibraryItemId: this.libraryItemId,
+            serverEpisodeId: this.episode.id
           })
         } else {
           this.$eventBus.$emit('play-item', {
