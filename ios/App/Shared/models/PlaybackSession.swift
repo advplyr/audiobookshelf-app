@@ -29,4 +29,11 @@ struct PlaybackSession: Decodable, Encodable {
     var localLibraryItem: LocalLibraryItem?
     var serverConnectionConfigId: String?
     var serverAddress: String?
+    
+    var totalDuration: Double {
+        var total = 0.0
+        self.audioTracks.forEach { total += $0.duration }
+        return total
+    }
+    var progress: Double { self.currentTime / self.totalDuration }
 }

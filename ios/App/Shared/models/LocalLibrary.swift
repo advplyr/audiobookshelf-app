@@ -151,6 +151,8 @@ struct LocalMediaProgress: Realmable, Codable {
     var libraryItemId: String?
     var episodeId: String?
     
+    var progressPercent: Int { Int(self.progress * 100) }
+    
     static func primaryKey() -> String? {
         return "id"
     }

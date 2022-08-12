@@ -152,4 +152,32 @@ extension LocalMediaProgress {
         self.startedAt = progress.startedAt
         self.finishedAt = progress.finishedAt
     }
+    
+    mutating func updateIsFinished(_ finished: Bool) {
+        if self.isFinished != finished {
+            self.progress = finished ? 1.0 : 0.0
+        }
+        
+        self.isFinished = finished
+        self.lastUpdate = Int(Date().timeIntervalSince1970)
+        self.finishedAt = finished ? lastUpdate : nil
+    }
+    
+    mutating func updateFromPlaybackSession(_ playbackSession: PlaybackSession) {
+        self.currentTime = playbackSession.currentTime
+        self.progress = playbackSession.progress
+        self.lastUpdate = Int(Date().timeIntervalSince1970)
+        self.isFinished = playbackSession.progress >= 100.0
+        self.finishedAt = self.isFinished ? self.lastUpdate : nil
+    }
+    
+    mutating func updateFromServerMediaProgress(_ serverMediaProgress: MediaProgress) {
+        self.isFinished = serverMediaProgress.isFinished
+        self.progress = serverMediaProgress.progress
+        self.currentTime = serverMediaProgress.currentTime
+        self.duration = serverMediaProgress.duration
+        self.lastUpdate = serverMediaProgress.lastUpdate
+        self.finishedAt = serverMediaProgress.finishedAt
+        self.startedAt = serverMediaProgress.startedAt
+    }
 }

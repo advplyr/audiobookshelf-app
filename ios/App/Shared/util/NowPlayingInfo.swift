@@ -65,6 +65,7 @@ class NowPlayingInfo {
             
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
     }
+    
     public func reset() {
         nowPlayingInfo = [:]
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
@@ -89,6 +90,7 @@ class NowPlayingInfo {
         nowPlayingInfo[MPMediaItemPropertyArtist] = metadata!.author ?? "unknown"
         nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = metadata!.series
     }
+    
     private func shouldFetchCover(id: String) -> Bool {
         nowPlayingInfo[MPNowPlayingInfoPropertyExternalContentIdentifier] as? String != id || nowPlayingInfo[MPMediaItemPropertyArtwork] == nil
     }
