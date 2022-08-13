@@ -38,7 +38,7 @@ class ApiClient {
         }
     }
     
-    public static func postResource(endpoint: String, parameters: [String: String], callback: ((_ success: Bool) -> Void)?) {
+    public static func postResource<T:Encodable>(endpoint: String, parameters: T, callback: ((_ success: Bool) -> Void)?) {
         if (Store.serverConfig == nil) {
             NSLog("Server config not set")
             callback?(false)
@@ -144,6 +144,10 @@ class ApiClient {
         try? postResource(endpoint: "api/session/\(sessionId)/sync", parameters: report.asDictionary().mapValues({ value in "\(value)" }), callback: nil)
     }
     
+    public static func reportLocalMediaProgress(_ localMediaProgress: LocalMediaProgress, callback: @escaping (_ success: Bool) -> Void) {
+        postResource(endpoint: "/api/session/local", parameters: localMediaProgress, callback: callback)
+    }
+    
     public static func syncMediaProgress(callback: @escaping (_ results: LocalMediaProgressSyncResultsPayload) -> Void) {
         let localMediaProgressList = Database.shared.getAllLocalMediaProgress().filter {
             $0.serverConnectionConfigId == Store.serverConfig?.id
@@ -204,4 +208,11 @@ struct LocalMediaProgressSyncResultsPayload: Codable {
     var numLocalMediaProgressForServer: Int?
     var numServerProgressUpdates: Int?
     var numLocalProgressUpdates: Int?
+}
+
+struct Connectivity {
+  static private let sharedInstance = NetworkReachabilityManager()!
+  static var isConnectedToInternet:Bool {
+      return self.sharedInstance.isReachable
+    }
 }

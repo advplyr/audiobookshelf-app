@@ -166,7 +166,7 @@ public class AbsDatabase: CAPPlugin {
                 return
             }
             
-            let localMediaProgress = fetchOrCreateLocalMediaProgress(localMediaProgressId: localMediaProgressId, localLibraryItemId: localLibraryItemId, localEpisodeId: localEpisodeId)
+            let localMediaProgress = LocalMediaProgress.fetchOrCreateLocalMediaProgress(localMediaProgressId: localMediaProgressId, localLibraryItemId: localLibraryItemId, localEpisodeId: localEpisodeId)
             guard var localMediaProgress = localMediaProgress else {
                 call.reject("Local media progress not found or created")
                 return
@@ -190,7 +190,7 @@ public class AbsDatabase: CAPPlugin {
         
         NSLog("updateLocalMediaProgressFinished \(localMediaProgressId ?? "Unknown") | Is Finished: \(isFinished)")
         
-        let localMediaProgress = fetchOrCreateLocalMediaProgress(localMediaProgressId: localMediaProgressId, localLibraryItemId: localLibraryItemId, localEpisodeId: localEpisodeId)
+        let localMediaProgress = LocalMediaProgress.fetchOrCreateLocalMediaProgress(localMediaProgressId: localMediaProgressId, localLibraryItemId: localLibraryItemId, localEpisodeId: localEpisodeId)
         guard var localMediaProgress = localMediaProgress else {
             call.resolve(["error": "Library Item not found"])
             return
@@ -216,19 +216,6 @@ public class AbsDatabase: CAPPlugin {
         } else {
             call.resolve(response)
         }
-    }
-    
-    private func fetchOrCreateLocalMediaProgress(localMediaProgressId: String?, localLibraryItemId: String?, localEpisodeId: String?) -> LocalMediaProgress? {
-        if let localMediaProgressId = localMediaProgressId {
-            return Database.shared.getLocalMediaProgress(localMediaProgressId: localMediaProgressId)
-        } else if let localLibraryItemId = localLibraryItemId {
-            guard let localLibraryItem = Database.shared.getLocalLibraryItem(localLibraryItemId: localLibraryItemId) else { return nil }
-            let episode = localLibraryItem.getPodcastEpisode(episodeId: localEpisodeId)
-            return LocalMediaProgress(localLibraryItem: localLibraryItem, episode: episode)
-        } else {
-            return nil
-        }
-        
     }
     
     @objc func updateDeviceSettings(_ call: CAPPluginCall) {

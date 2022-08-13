@@ -179,10 +179,15 @@ public class AbsAudioPlayer: CAPPlugin {
             "value": PlayerHandler.getCurrentTime()
         ])
     }
+    
     @objc func sendSleepTimerSet() {
         self.notifyListeners("onSleepTimerSet", data: [
             "value": PlayerHandler.remainingSleepTime
         ])
+    }
+    
+    @objc func onLocalMediaProgressUpdate(_ localMediaProgress: [String: Any]) {
+        self.notifyListeners("onLocalMediaProgressUpdate", data: localMediaProgress)
     }
     
     @objc func onPlaybackFailed() {
@@ -219,6 +224,7 @@ public class AbsAudioPlayer: CAPPlugin {
             "playWhenReady": playWhenReady,
         ])
     }
+    
     @objc func sendPlaybackSession(session: [String: Any]) {
         self.notifyListeners("onPlaybackSession", data: session)
     }

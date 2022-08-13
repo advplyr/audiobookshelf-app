@@ -196,4 +196,16 @@ extension LocalMediaProgress {
         self.finishedAt = serverMediaProgress.finishedAt
         self.startedAt = serverMediaProgress.startedAt
     }
+    
+    static func fetchOrCreateLocalMediaProgress(localMediaProgressId: String?, localLibraryItemId: String?, localEpisodeId: String?) -> LocalMediaProgress? {
+        if let localMediaProgressId = localMediaProgressId {
+            return Database.shared.getLocalMediaProgress(localMediaProgressId: localMediaProgressId)
+        } else if let localLibraryItemId = localLibraryItemId {
+            guard let localLibraryItem = Database.shared.getLocalLibraryItem(localLibraryItemId: localLibraryItemId) else { return nil }
+            let episode = localLibraryItem.getPodcastEpisode(episodeId: localEpisodeId)
+            return LocalMediaProgress(localLibraryItem: localLibraryItem, episode: episode)
+        } else {
+            return nil
+        }
+    }
 }
