@@ -21,6 +21,7 @@ public class AbsAudioPlayer: CAPPlugin {
         NotificationCenter.default.addObserver(self, selector: #selector(sendSleepTimerSet), name: NSNotification.Name(PlayerEvents.sleepSet.rawValue), object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(sendSleepTimerEnded), name: NSNotification.Name(PlayerEvents.sleepEnded.rawValue), object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(onPlaybackFailed), name: NSNotification.Name(PlayerEvents.failed.rawValue), object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(onLocalMediaProgressUpdate), name: NSNotification.Name(PlayerEvents.localProgress.rawValue), object: nil)
         
         self.bridge?.webView?.allowsBackForwardNavigationGestures = true;
         
@@ -186,8 +187,12 @@ public class AbsAudioPlayer: CAPPlugin {
         ])
     }
     
-    @objc func onLocalMediaProgressUpdate(_ localMediaProgress: [String: Any]) {
-        self.notifyListeners("onLocalMediaProgressUpdate", data: localMediaProgress)
+    @objc func onLocalMediaProgressUpdate() {
+        guard let localMediaProgressId = PlayerHandler.getPlaybackSession()?.localMediaProgressId else { return }
+        guard let localMediaProgress = Database.shared.getLocalMediaProgress(localMediaProgressId: localMediaProgressId) else { return }
+        guard let progressUpdate = try? localMediaProgress.asDictionary() else { return }
+        NSLog("Sending local progress back to the UI")
+        self.notifyListeners("onLocalMediaProgressUpdate", data: progressUpdate)
     }
     
     @objc func onPlaybackFailed() {

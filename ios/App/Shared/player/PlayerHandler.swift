@@ -201,7 +201,10 @@ class PlayerHandler {
         localMediaProgress.updateFromPlaybackSession(session)
         Database.shared.saveLocalMediaProgress(localMediaProgress)
         
-        // TODO: Send local media progress back to UI
+        NSLog("Local progress saved to the database")
+        
+        // Send the local progress back to front-end
+        NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.localProgress.rawValue), object: nil)
         
         return localMediaProgress
     }
