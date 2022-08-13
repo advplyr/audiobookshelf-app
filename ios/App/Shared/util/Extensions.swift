@@ -8,6 +8,7 @@
 import Foundation
 import RealmSwift
 import Capacitor
+import CoreMedia
 
 extension String: Error {}
 
@@ -31,11 +32,31 @@ extension Collection where Iterator.Element: Encodable {
     }
 }
 
+extension KeyedDecodingContainer {
+    func doubleOrStringDecoder(key: KeyedDecodingContainer<K>.Key) throws -> Double {
+        do {
+            return try decode(Double.self, forKey: key)
+        } catch {
+            let stringValue = try decode(String.self, forKey: key)
+            return Double(stringValue) ?? 0.0
+        }
+    }
+    
+    func intOrStringDecoder(key: KeyedDecodingContainer<K>.Key) throws -> Int {
+        do {
+            return try decode(Int.self, forKey: key)
+        } catch {
+            let stringValue = try decode(String.self, forKey: key)
+            return Int(stringValue) ?? 0
+        }
+    }
+}
+
 extension CAPPluginCall {
     func getJson<T: Decodable>(_ key: String, type: T.Type) -> T? {
-        guard let value = getString(key) else { return nil }
-        guard let valueData = value.data(using: .utf8) else { return nil }
-        return try? JSONDecoder().decode(type, from: valueData)
+        guard let value = getObject(key) else { return nil }
+        guard let json = try? JSONSerialization.data(withJSONObject: value) else { return nil }
+        return try? JSONDecoder().decode(type, from: json)
     }
 }
 

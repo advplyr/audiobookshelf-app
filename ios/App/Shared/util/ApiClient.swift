@@ -38,6 +38,27 @@ class ApiClient {
         }
     }
     
+    public static func postResource<T: Encodable, U: Decodable>(endpoint: String, parameters: T, decodable: U.Type = U.self, callback: ((_ param: U) -> Void)?) {
+        if (Store.serverConfig == nil) {
+            NSLog("Server config not set")
+            return
+        }
+        
+        let headers: HTTPHeaders = [
+            "Authorization": "Bearer \(Store.serverConfig!.token)"
+        ]
+        
+        AF.request("\(Store.serverConfig!.address)/\(endpoint)", method: .post, parameters: parameters, encoder: JSONParameterEncoder.default, headers: headers).responseDecodable(of: decodable) { response in
+            switch response.result {
+            case .success(let obj):
+                callback?(obj)
+            case .failure(let error):
+                NSLog("api request to \(endpoint) failed")
+                print(error)
+            }
+        }
+    }
+    
     public static func postResource<T:Encodable>(endpoint: String, parameters: T, callback: ((_ success: Bool) -> Void)?) {
         if (Store.serverConfig == nil) {
             NSLog("Server config not set")
@@ -62,7 +83,7 @@ class ApiClient {
         }
     }
     
-    public static func patchResource<T:Encodable>(endpoint: String, parameters: T, callback: ((_ success: Bool) -> Void)?) {
+    public static func patchResource<T: Encodable>(endpoint: String, parameters: T, callback: ((_ success: Bool) -> Void)?) {
         if (Store.serverConfig == nil) {
             NSLog("Server config not set")
             callback?(false)
@@ -121,7 +142,7 @@ class ApiClient {
             }
         }
         
-        ApiClient.postResource(endpoint: endpoint, parameters: [
+        let parameters: [String: Any] = [
             "forceDirectPlay": !forceTranscode ? "1" : "",
             "forceTranscode": forceTranscode ? "1" : "",
             "mediaPlayer": "AVPlayer",
@@ -130,7 +151,8 @@ class ApiClient {
                 "model": modelCode,
                 "clientVersion": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
             ]
-        ], decodable: PlaybackSession.self) { obj in
+        ]
+        ApiClient.postResource(endpoint: endpoint, parameters: parameters, decodable: PlaybackSession.self) { obj in
             var session = obj
             
             session.serverConnectionConfigId = Store.serverConfig!.id
@@ -145,7 +167,7 @@ class ApiClient {
     }
     
     public static func reportLocalMediaProgress(_ localMediaProgress: LocalMediaProgress, callback: @escaping (_ success: Bool) -> Void) {
-        postResource(endpoint: "/api/session/local", parameters: localMediaProgress, callback: callback)
+        postResource(endpoint: "api/session/local", parameters: localMediaProgress, callback: callback)
     }
     
     public static func syncMediaProgress(callback: @escaping (_ results: LocalMediaProgressSyncResultsPayload) -> Void) {
@@ -156,8 +178,7 @@ class ApiClient {
         if ( !localMediaProgressList.isEmpty ) {
             let payload = LocalMediaProgressSyncPayload(localMediaProgress: localMediaProgressList)
             NSLog("Sending sync local progress request with \(localMediaProgressList.count) progress items")
-            try? postResource(endpoint: "/api/me/sync-local-progress", parameters: payload.asDictionary(), decodable: MediaProgressSyncResponsePayload.self) { response in
-                
+            postResource(endpoint: "api/me/sync-local-progress", parameters: payload, decodable: MediaProgressSyncResponsePayload.self) { response in
                 let resultsPayload = LocalMediaProgressSyncResultsPayload(numLocalMediaProgressForServer: localMediaProgressList.count, numServerProgressUpdates: response.numServerProgressUpdates, numLocalProgressUpdates: response.localProgressUpdates?.count)
                 NSLog("Media Progress Sync | \(String(describing: try? resultsPayload.asDictionary()))")
                 
@@ -177,7 +198,7 @@ class ApiClient {
     
     public static func updateMediaProgress<T:Encodable>(libraryItemId: String, episodeId: String?, payload: T, callback: @escaping () -> Void) {
         NSLog("updateMediaProgress \(libraryItemId) \(episodeId ?? "NIL") \(payload)")
-        let endpoint = episodeId?.isEmpty ?? true ? "/api/me/progress/\(libraryItemId)" : "/api/me/progress/\(libraryItemId)/\(episodeId ?? "")"
+        let endpoint = episodeId?.isEmpty ?? true ? "api/me/progress/\(libraryItemId)" : "api/me/progress/\(libraryItemId)/\(episodeId ?? "")"
         patchResource(endpoint: endpoint, parameters: payload) { success in
             callback()
         }
@@ -199,9 +220,19 @@ struct LocalMediaProgressSyncPayload: Codable {
     var localMediaProgress: [LocalMediaProgress]
 }
 
-struct MediaProgressSyncResponsePayload: Codable {
+struct MediaProgressSyncResponsePayload: Decodable {
     var numServerProgressUpdates: Int?
     var localProgressUpdates: [LocalMediaProgress]?
+    
+    private enum CodingKeys : String, CodingKey {
+        case numServerProgressUpdates, localProgressUpdates
+    }
+    
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        numServerProgressUpdates = try? values.intOrStringDecoder(key: .numServerProgressUpdates)
+        localProgressUpdates = try? values.decode([LocalMediaProgress].self, forKey: .localProgressUpdates)
+    }
 }
 
 struct LocalMediaProgressSyncResultsPayload: Codable {

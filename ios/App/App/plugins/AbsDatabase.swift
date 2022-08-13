@@ -157,13 +157,11 @@ public class AbsDatabase: CAPPlugin {
         let localMediaProgressId = call.getString("localMediaProgressId")
         
         do {
-            guard let localLibraryItemId = localLibraryItemId else {
-                call.reject("localLibraryItemId not specified")
-                return
-            }
             guard let serverMediaProgress = serverMediaProgress else {
-                call.reject("serverMediaProgress not specified")
-                return
+                return call.reject("serverMediaProgress not specified")
+            }
+            guard localLibraryItemId != nil || localMediaProgressId != nil else {
+                return call.reject("localLibraryItemId or localMediaProgressId must be specified")
             }
             
             let localMediaProgress = LocalMediaProgress.fetchOrCreateLocalMediaProgress(localMediaProgressId: localMediaProgressId, localLibraryItemId: localLibraryItemId, localEpisodeId: localEpisodeId)

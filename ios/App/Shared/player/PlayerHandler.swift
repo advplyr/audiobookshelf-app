@@ -71,11 +71,15 @@ class PlayerHandler {
     }
     
     public static func stopPlayback() {
-        player?.destroy()
-        player = nil
+        // Pause playback first, so we can sync our current progress
+        player?.pause()
         
+        // Stop updating progress before we destory the player, so we don't receive bad data
         timer?.invalidate()
         timer = nil
+        
+        player?.destroy()
+        player = nil
         
         NowPlayingInfo.shared.reset()
     }
@@ -163,6 +167,9 @@ class PlayerHandler {
             NSLog("syncProgress last sync time was < 1 second so not syncing")
             return
         }
+        
+        // Prevent a sync if we got junk data from the player (occurs when exiting out of memory
+        guard !playerCurrentTime.isNaN else { return }
         
         lastSyncTime = Date().timeIntervalSince1970 // seconds
         let report = PlaybackReport(currentTime: playerCurrentTime, duration: player.getDuration(), timeListened: listeningTimePassedSinceLastSync)

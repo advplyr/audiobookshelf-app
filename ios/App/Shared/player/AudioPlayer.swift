@@ -267,6 +267,7 @@ class AudioPlayer: NSObject {
         let startOffset = audioTrack.startOffset ?? 0.0
         return startOffset + currentTrackTime
     }
+
     public func getPlayMethod() -> Int {
         return self.playbackSession.playMethod
     }
