@@ -6,8 +6,8 @@
 //
 
 import Foundation
-import SwiftUI
 import RealmSwift
+import Capacitor
 
 extension String: Error {}
 
@@ -28,6 +28,14 @@ extension Collection where Iterator.Element: Encodable {
         return try self.enumerated().map() {
             i, element -> [String: Any] in try element.asDictionary()
         }
+    }
+}
+
+extension CAPPluginCall {
+    func getJson<T: Decodable>(_ key: String, type: T.Type) -> T? {
+        guard let value = getString(key) else { return nil }
+        guard let valueData = value.data(using: .utf8) else { return nil }
+        return try? JSONDecoder().decode(type, from: valueData)
     }
 }
 

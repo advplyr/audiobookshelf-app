@@ -130,24 +130,36 @@ extension LocalFile {
 }
 
 extension LocalMediaProgress {
-    init(localLibraryItem: LocalLibraryItem, episode: PodcastEpisode?, progress: MediaProgress) {
+    init(localLibraryItem: LocalLibraryItem, episode: PodcastEpisode?) {
         self.id = localLibraryItem.id
         self.localLibraryItemId = localLibraryItem.id
         self.libraryItemId = localLibraryItem.libraryItemId
-        
-        if let episode = episode {
-            self.id += "-\(episode.id)"
-            self.episodeId = episode.id
-        }
         
         self.serverAddress = localLibraryItem.serverAddress
         self.serverUserId = localLibraryItem.serverUserId
         self.serverConnectionConfigId = localLibraryItem.serverConnectionConfigId
         
+        self.duration = localLibraryItem.getDuration()
+        self.progress = 0.0
+        self.currentTime = 0.0
+        self.isFinished = false
+        self.lastUpdate = Int(Date().timeIntervalSince1970)
+        self.startedAt = 0
+        self.finishedAt = nil
+        
+        if let episode = episode {
+            self.id += "-\(episode.id)"
+            self.episodeId = episode.id
+            self.duration = episode.duration ?? 0.0
+        }
+    }
+    
+    init(localLibraryItem: LocalLibraryItem, episode: PodcastEpisode?, progress: MediaProgress) {
+        self.init(localLibraryItem: localLibraryItem, episode: episode)
         self.duration = progress.duration
         self.progress = progress.progress
         self.currentTime = progress.currentTime
-        self.isFinished = false
+        self.isFinished = progress.isFinished
         self.lastUpdate = progress.lastUpdate
         self.startedAt = progress.startedAt
         self.finishedAt = progress.finishedAt
@@ -156,6 +168,10 @@ extension LocalMediaProgress {
     mutating func updateIsFinished(_ finished: Bool) {
         if self.isFinished != finished {
             self.progress = finished ? 1.0 : 0.0
+        }
+
+        if self.startedAt == 0 && finished {
+            self.startedAt = Int(Date().timeIntervalSince1970)
         }
         
         self.isFinished = finished

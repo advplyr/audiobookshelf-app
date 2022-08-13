@@ -8,6 +8,7 @@
 import Foundation
 import Capacitor
 import RealmSwift
+import SwiftUI
 
 extension String {
 
@@ -123,6 +124,111 @@ public class AbsDatabase: CAPPlugin {
             debugPrint(error)
             call.resolve(["value": []])
         }
+    }
+    
+    @objc func removeLocalMediaProgress(_ call: CAPPluginCall) {
+        let localMediaProgressId = call.getString("localMediaProgressId")
+        guard let localMediaProgressId = localMediaProgressId else {
+            call.reject("localMediaProgressId not specificed")
+            return
+        }
+        Database.shared.removeLocalMediaProgress(localMediaProgressId: localMediaProgressId)
+        call.resolve()
+    }
+    
+    @objc func syncLocalMediaProgressWithServer(_ call: CAPPluginCall) {
+        guard Store.serverConfig != nil else {
+            call.reject("syncLocalMediaProgressWithServer not connected to server")
+            return
+        }
+        ApiClient.syncMediaProgress { results in
+            do {
+                call.resolve(try results.asDictionary())
+            } catch {
+                call.reject("Failed to report synced media progress")
+            }
+        }
+    }
+    
+    @objc func syncServerMediaProgressWithLocalMediaProgress(_ call: CAPPluginCall) {
+        let serverMediaProgress = call.getJson("mediaProgress", type: MediaProgress.self)
+        let localLibraryItemId = call.getString("localLibraryItemId")
+        let localEpisodeId = call.getString("localEpisodeId")
+        let localMediaProgressId = call.getString("localMediaProgressId")
+        
+        do {
+            guard let localLibraryItemId = localLibraryItemId else {
+                call.reject("localLibraryItemId not specified")
+                return
+            }
+            guard let serverMediaProgress = serverMediaProgress else {
+                call.reject("serverMediaProgress not specified")
+                return
+            }
+            
+            let localMediaProgress = fetchOrCreateLocalMediaProgress(localMediaProgressId: localMediaProgressId, localLibraryItemId: localLibraryItemId, localEpisodeId: localEpisodeId)
+            guard var localMediaProgress = localMediaProgress else {
+                call.reject("Local media progress not found or created")
+                return
+            }
+            localMediaProgress.updateFromServerMediaProgress(serverMediaProgress)
+            
+            NSLog("syncServerMediaProgressWithLocalMediaProgress: Saving local media progress")
+            Database.shared.saveLocalMediaProgress(localMediaProgress)
+            call.resolve(try localMediaProgress.asDictionary())
+        } catch {
+            call.reject("Failed to sync media progress")
+            debugPrint(error)
+        }
+    }
+    
+    @objc func updateLocalMediaProgressFinished(_ call: CAPPluginCall) {
+        let localLibraryItemId = call.getString("localLibraryItemId")
+        let localEpisodeId = call.getString("localEpisodeId")
+        let localMediaProgressId = call.getString("localMediaProgressId")
+        let isFinished = call.getBool("isFinished", false)
+        
+        NSLog("updateLocalMediaProgressFinished \(localMediaProgressId ?? "Unknown") | Is Finished: \(isFinished)")
+        
+        let localMediaProgress = fetchOrCreateLocalMediaProgress(localMediaProgressId: localMediaProgressId, localLibraryItemId: localLibraryItemId, localEpisodeId: localEpisodeId)
+        guard var localMediaProgress = localMediaProgress else {
+            call.resolve(["error": "Library Item not found"])
+            return
+        }
+
+        // Update finished status
+        localMediaProgress.updateIsFinished(isFinished)
+        Database.shared.saveLocalMediaProgress(localMediaProgress)
+        
+        // Build API response
+        let progressDictionary = try? localMediaProgress.asDictionary()
+        var response: [String: Any] = ["local": true, "server": false, "localMediaProgress": progressDictionary ?? ""]
+        
+        // Send update to the server if logged in
+        let hasLinkedServer = localMediaProgress.serverConnectionConfigId != nil
+        let loggedIntoServer = Store.serverConfig?.id == localMediaProgress.serverConnectionConfigId
+        if hasLinkedServer && loggedIntoServer {
+            response["server"] = true
+            let payload = ["isFinished": isFinished]
+            ApiClient.updateMediaProgress(libraryItemId: localMediaProgress.libraryItemId!, episodeId: localEpisodeId, payload: payload) {
+                call.resolve(response)
+            }
+        } else {
+            call.resolve(response)
+        }
+    }
+    
+    private func fetchOrCreateLocalMediaProgress(localMediaProgressId: String?, localLibraryItemId: String?, localEpisodeId: String?) -> LocalMediaProgress? {
+        if let localMediaProgressId = localMediaProgressId {
+            return Database.shared.getLocalMediaProgress(localMediaProgressId: localMediaProgressId)
+        } else if let localLibraryItemId = localLibraryItemId {
+            guard let localLibraryItem = Database.shared.getLocalLibraryItem(localLibraryItemId: localLibraryItemId) else { return nil }
+            let episode = localLibraryItem.getPodcastEpisode(episodeId: localEpisodeId)
+            return LocalMediaProgress(localLibraryItem: localLibraryItem, episode: episode)
+        } else {
+            return nil
+        }
+        
     }
     
     @objc func updateDeviceSettings(_ call: CAPPluginCall) {
