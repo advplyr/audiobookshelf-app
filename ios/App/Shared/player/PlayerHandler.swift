@@ -52,6 +52,22 @@ class PlayerHandler {
         }
     }
     
+    public static func startTickTimer() {
+        DispatchQueue.runOnMainQueue {
+            NSLog("Starting the tick timer")
+            timer?.invalidate()
+            timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+                self.tick()
+            }
+        }
+    }
+    
+    public static func stopTickTimer() {
+        NSLog("Stopping the tick timer")
+        timer?.invalidate()
+        timer = nil
+    }
+    
     public static func startPlayback(session: PlaybackSession, playWhenReady: Bool, playbackRate: Float) {
         if player != nil {
             player?.destroy()
@@ -63,11 +79,7 @@ class PlayerHandler {
         self.session = session
         player = AudioPlayer(playbackSession: session, playWhenReady: playWhenReady, playbackRate: playbackRate)
         
-        DispatchQueue.runOnMainQueue {
-            timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-                self.tick()
-            }
-        }
+        startTickTimer()
     }
     
     public static func stopPlayback() {
@@ -75,8 +87,7 @@ class PlayerHandler {
         player?.pause()
         
         // Stop updating progress before we destory the player, so we don't receive bad data
-        timer?.invalidate()
-        timer = nil
+        stopTickTimer()
         
         player?.destroy()
         player = nil
