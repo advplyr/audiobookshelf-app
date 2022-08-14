@@ -133,7 +133,7 @@ class LocalPodcastEpisode: Object, Codable {
 class LocalFile: Object, Codable {
     @Persisted(primaryKey: true) var id: String = UUID().uuidString
     @Persisted var filename: String?
-    @Persisted var contentUrl: String = ""
+    @Persisted var _contentUrl: String = ""
     @Persisted var mimeType: String?
     @Persisted var size: Int = 0
 

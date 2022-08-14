@@ -175,6 +175,8 @@ class Metadata: Object, Codable {
     @Persisted var seriesName: String?
     @Persisted var feedUrl: String?
     
+    var authorDisplayName: String { self.authorName ?? "Unknown" }
+    
     private enum CodingKeys : String, CodingKey {
         case title,
              subtitle,
@@ -254,7 +256,7 @@ class Metadata: Object, Codable {
 
 class PodcastEpisode: Object, Codable {
     @Persisted var id: String = ""
-    @Persisted var index: Int = 0
+    @Persisted var index: Int?
     @Persisted var episode: String?
     @Persisted var episodeType: String?
     @Persisted var title: String = "Unknown"
@@ -262,8 +264,8 @@ class PodcastEpisode: Object, Codable {
     @Persisted var desc: String?
     @Persisted var audioFile: AudioFile?
     @Persisted var audioTrack: AudioTrack?
-    @Persisted var duration: Double = 0
-    @Persisted var size: Int = 0
+    @Persisted var duration: Double?
+    @Persisted var size: Int?
     var serverEpisodeId: String { self.id }
     
     private enum CodingKeys : String, CodingKey {
@@ -281,7 +283,9 @@ class PodcastEpisode: Object, Codable {
              serverEpisodeId
     }
     
-    init(from decoder: Decoder) throws {
+    override init() {}
+    
+    required init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         id = try values.decode(String.self, forKey: .id)
         index = try? values.decode(Int.self, forKey: .index)
@@ -369,9 +373,6 @@ class Author: Object, Codable {
         try container.encode(name, forKey: .name)
         try container.encode(coverPath, forKey: .coverPath)
     }
-    
-    override init() {
-        super.init()
 }
 
 class Chapter: Object, Codable {
@@ -451,7 +452,7 @@ class AudioTrack: Object, Codable {
         try container.encode(serverIndex, forKey: .serverIndex)
     }
 
-    mutating func setLocalInfo(filenameIdMap: [String: String], serverIndex: Int) -> Bool {
+    func setLocalInfo(filenameIdMap: [String: String], serverIndex: Int) -> Bool {
         if let localFileId = filenameIdMap[self.metadata?.filename ?? ""] {
             self.localFileId = localFileId
             self.serverIndex = serverIndex

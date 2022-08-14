@@ -74,35 +74,6 @@ class DownloadItemPart: Object, Codable {
     @Persisted var destinationUri: String?
     @Persisted var progress: Double = 0
     var task: URLSessionDownloadTask?
-
-struct DownloadItemPart: Realmable, Codable {
-    var id: String = UUID().uuidString
-    var filename: String?
-    var itemTitle: String?
-    var serverPath: String?
-    var audioTrack: AudioTrack?
-    var episode: PodcastEpisode?
-    var completed: Bool = false
-    var moved: Bool = false
-    var failed: Bool = false
-    var uri: String?
-    var downloadURL: URL? {
-        if let uri = self.uri {
-            return URL(string: uri)
-        } else {
-            return nil
-        }
-    }
-    var destinationUri: String?
-    var destinationURL: URL? {
-        if let destinationUri = self.destinationUri {
-            return AbsDownloader.itemDownloadFolder(path: destinationUri)!
-        } else {
-            return nil
-        }
-    }
-    var progress: Double = 0
-    var task: URLSessionDownloadTask!
     
     private enum CodingKeys : String, CodingKey {
         case id, filename, itemTitle, completed, moved, failed, progress
@@ -132,38 +103,5 @@ struct DownloadItemPart: Realmable, Codable {
         try container.encode(moved, forKey: .moved)
         try container.encode(failed, forKey: .failed)
         try container.encode(progress, forKey: .progress)
-    }
-}
-
-extension DownloadItemPart {
-    init(filename: String, destination: String, itemTitle: String, serverPath: String, audioTrack: AudioTrack?, episode: PodcastEpisode?) {
-        self.filename = filename
-        self.itemTitle = itemTitle
-        self.serverPath = serverPath
-        self.audioTrack = audioTrack
-        self.episode = episode
-        
-        let config = Store.serverConfig!
-        var downloadUrl = ""
-        if (serverPath.hasSuffix("/cover")) {
-            downloadUrl += "\(config.address)\(serverPath)?token=\(config.token)"
-            downloadUrl += "&format=jpeg" // For cover images force to jpeg
-        } else {
-            downloadUrl = destination
-        }
-        self.uri = downloadUrl
-        self.destinationUri = destination
-    }
-    
-    func mimeType() -> String? {
-        if let track = audioTrack {
-            return track.mimeType
-        } else if let podcastTrack = episode?.audioTrack {
-            return podcastTrack.mimeType
-        } else if serverPath?.hasSuffix("/cover") ?? false {
-            return "image/jpg"
-        } else {
-            return nil
-        }
     }
 }

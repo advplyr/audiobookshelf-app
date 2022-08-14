@@ -65,7 +65,7 @@ extension DownloadItemPart {
     
     var destinationURL: URL? {
         if let destinationUri = self.destinationUri {
-            return AbsDownloader.downloadsDirectory.appendingPathComponent(destinationUri)
+            return AbsDownloader.itemDownloadFolder(path: destinationUri)
         } else {
             return nil
         }

@@ -171,7 +171,7 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
                 statusNotification["localLibraryItem"] = try? localLibraryItem.asDictionary()
                 
                 if let progress = libraryItem.userMediaProgress {
-                    let episode = downloadItem.media?.episodes?.first(where: { $0.id == downloadItem.episodeId })
+                    let episode = downloadItem.media?.episodes.first(where: { $0.id == downloadItem.episodeId })
                     let localMediaProgress = LocalMediaProgress(localLibraryItem: localLibraryItem!, episode: episode, progress: progress)
                     Database.shared.saveLocalMediaProgress(localMediaProgress)
                     statusNotification["localMediaProgress"] = try? localMediaProgress.asDictionary()

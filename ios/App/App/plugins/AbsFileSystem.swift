@@ -89,12 +89,14 @@ public class AbsFileSystem: CAPPlugin {
         
         var success = false
         do {
-            if let localLibraryItemId = localLibraryItemId, let trackLocalFileId = trackLocalFileId, var item = Database.shared.getLocalLibraryItem(localLibraryItemId: localLibraryItemId) {
+            if let localLibraryItemId = localLibraryItemId, let trackLocalFileId = trackLocalFileId, let item = Database.shared.getLocalLibraryItem(localLibraryItemId: localLibraryItemId) {
                 if let fileIndex = item.localFiles.firstIndex(where: { $0.id == trackLocalFileId }) {
                     try FileManager.default.removeItem(at: item.localFiles[fileIndex].contentPath)
                     item.localFiles.remove(at: fileIndex)
-                    if item.isPodcast, var media = item.media {
-                        media.episodes = media.episodes?.filter { $0.audioTrack?.localFileId != trackLocalFileId }
+                    if item.isPodcast, let media = item.media {
+                        if let episodeIndex = media.episodes.firstIndex(where: { $0.audioTrack?.localFileId == trackLocalFileId }) {
+                            media.episodes.remove(at: episodeIndex)
+                        }
                         item.media = media
                     }
                     Database.shared.saveLocalLibraryItem(localLibraryItem: item)
