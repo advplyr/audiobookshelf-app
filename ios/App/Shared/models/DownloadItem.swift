@@ -112,9 +112,12 @@ extension DownloadItemPart {
         self.episode = episode
         
         let config = Store.serverConfig!
-        var downloadUrl = "\(config.address)\(serverPath)?token=\(config.token)"
+        var downloadUrl = ""
         if (serverPath.hasSuffix("/cover")) {
+            downloadUrl += "\(config.address)\(serverPath)?token=\(config.token)"
             downloadUrl += "&format=jpeg" // For cover images force to jpeg
+        } else {
+            downloadUrl = destination
         }
         self.uri = downloadUrl
         self.destinationUri = destination
