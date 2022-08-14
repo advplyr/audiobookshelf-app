@@ -22,7 +22,7 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
     }()
     private let progressStatusQueue = DispatchQueue(label: "progress-status-queue", attributes: .concurrent)
     private var downloadItemProgress = [String: DownloadItem]()
-    private var isMonitoringProgress = false
+    private var monitoringProgressTimer: Timer?
     
     public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         handleDownloadTaskUpdate(downloadTask: downloadTask) { downloadItem, downloadItemPart in
@@ -102,40 +102,42 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
     
     // We want to handle updating the UI in the background and throttled so we don't overload the UI with progress updates
     private func notifyDownloadProgress() {
-        if !self.isMonitoringProgress {
-            self.isMonitoringProgress = true
-            DispatchQueue.global(qos: .userInteractive).async {
-                NSLog("Starting monitoring download progress...")
-                
-                // Fetch active downloads in a thread-safe way
-                func fetchActiveDownloads() -> [String: DownloadItem]? {
-                    self.progressStatusQueue.sync { self.downloadItemProgress }
-                }
-                
-                // Remove a completed download item in a thread-safe way
-                func handleDoneDownloadItem(_ item: DownloadItem) {
-                    self.progressStatusQueue.async(flags: .barrier) {
-                        self.downloadItemProgress.removeValue(forKey: item.id!)
+        if self.monitoringProgressTimer == nil {
+            NSLog("Already monitoring progress, no need to start timer again")
+        } else {
+            DispatchQueue.runOnMainQueue {
+                self.monitoringProgressTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true, block: { t in
+                    NSLog("Starting monitoring download progress...")
+                    
+                    // Fetch active downloads in a thread-safe way
+                    func fetchActiveDownloads() -> [String: DownloadItem]? {
+                        self.progressStatusQueue.sync {
+                            let activeDownloads = self.downloadItemProgress
+                            if activeDownloads.isEmpty {
+                                NSLog("Finishing monitoring download progress...")
+                                t.invalidate()
+                            }
+                            return activeDownloads
+                        }
                     }
-                    Database.shared.removeDownloadItem(item)
-                    self.handleDownloadTaskCompleteFromDownloadItem(item)
-                }
-                
-                // While there are active download items, emit status updates
-                while !(fetchActiveDownloads()?.isEmpty ?? false) {
+                    
+                    // Remove a completed download item in a thread-safe way
+                    func handleDoneDownloadItem(_ item: DownloadItem) {
+                        self.progressStatusQueue.async(flags: .barrier) {
+                            self.downloadItemProgress.removeValue(forKey: item.id!)
+                        }
+                        Database.shared.removeDownloadItem(item)
+                        self.handleDownloadTaskCompleteFromDownloadItem(item)
+                    }
+                    
+                    // Emit status for active downloads
                     if let activeDownloads = fetchActiveDownloads() {
                         for item in activeDownloads.values {
                             try? self.notifyListeners("onItemDownloadUpdate", data: item.asDictionary())
                             if item.isDoneDownloading() { handleDoneDownloadItem(item) }
                         }
                     }
-                    
-                    // Wait 200ms before reporting status again
-                    Thread.sleep(forTimeInterval: TimeInterval(0.2))
-                }
-                
-                NSLog("Finished monitoring download progress...")
-                self.isMonitoringProgress = false
+                })
             }
         }
     }
