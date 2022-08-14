@@ -264,7 +264,7 @@ class PodcastEpisode: Object, Codable {
     @Persisted var audioTrack: AudioTrack?
     @Persisted var duration: Double = 0
     @Persisted var size: Int = 0
-//    var serverEpisodeId: String?
+    var serverEpisodeId: String { self.id }
     
     private enum CodingKeys : String, CodingKey {
         case id,
@@ -277,14 +277,44 @@ class PodcastEpisode: Object, Codable {
              audioFile,
              audioTrack,
              duration,
-             size
+             size,
+             serverEpisodeId
     }
     
-    // TODO: Encoding
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decode(String.self, forKey: .id)
+        index = try? values.decode(Int.self, forKey: .index)
+        episode = try? values.decode(String.self, forKey: .episode)
+        episodeType = try? values.decode(String.self, forKey: .episodeType)
+        title = try values.decode(String.self, forKey: .title)
+        subtitle = try? values.decode(String.self, forKey: .subtitle)
+        desc = try? values.decode(String.self, forKey: .desc)
+        audioFile = try? values.decode(AudioFile.self, forKey: .audioFile)
+        audioTrack = try? values.decode(AudioTrack.self, forKey: .audioTrack)
+        duration = try? values.decode(Double.self, forKey: .duration)
+        size = try? values.decode(Int.self, forKey: .size)
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(index, forKey: .index)
+        try container.encode(episode, forKey: .episode)
+        try container.encode(episodeType, forKey: .episodeType)
+        try container.encode(title, forKey: .title)
+        try container.encode(subtitle, forKey: .subtitle)
+        try container.encode(desc, forKey: .desc)
+        try container.encode(audioFile, forKey: .audioFile)
+        try container.encode(audioTrack, forKey: .audioTrack)
+        try container.encode(duration, forKey: .duration)
+        try container.encode(size, forKey: .size)
+        try container.encode(serverEpisodeId, forKey: .serverEpisodeId)
+    }
 }
 
 class AudioFile: Object, Codable {
-    @Persisted var index: Int = 0
+    @Persisted var index: Int?
     @Persisted var ino: String = ""
     @Persisted var metadata: FileMetadata?
     
@@ -299,7 +329,7 @@ class AudioFile: Object, Codable {
     required init(from decoder: Decoder) throws {
         super.init()
         let values = try decoder.container(keyedBy: CodingKeys.self)
-        index = try values.decode(Int.self, forKey: .index)
+        index = try? values.decode(Int.self, forKey: .index)
         ino = try values.decode(String.self, forKey: .ino)
         metadata = try? values.decode(FileMetadata.self, forKey: .metadata)
     }
@@ -339,6 +369,9 @@ class Author: Object, Codable {
         try container.encode(name, forKey: .name)
         try container.encode(coverPath, forKey: .coverPath)
     }
+    
+    override init() {
+        super.init()
 }
 
 class Chapter: Object, Codable {
@@ -381,8 +414,7 @@ class AudioTrack: Object, Codable {
     @Persisted var contentUrl: String?
     @Persisted var mimeType: String = ""
     @Persisted var metadata: FileMetadata?
-    // var isLocal: Bool
-    // var localFileId: String?
+    var localFileId: String?
     // var audioProbeResult: AudioProbeResult? Needed for local playback
     @Persisted var serverIndex: Int?
     
@@ -417,6 +449,20 @@ class AudioTrack: Object, Codable {
         try container.encode(mimeType, forKey: .mimeType)
         try container.encode(metadata, forKey: .metadata)
         try container.encode(serverIndex, forKey: .serverIndex)
+    }
+
+    mutating func setLocalInfo(filenameIdMap: [String: String], serverIndex: Int) -> Bool {
+        if let localFileId = filenameIdMap[self.metadata?.filename ?? ""] {
+            self.localFileId = localFileId
+            self.serverIndex = serverIndex
+            return true
+        }
+        return false
+    }
+    
+    func getLocalFile() -> LocalFile? {
+        guard let localFileId = self.localFileId else { return nil }
+        return Database.shared.getLocalFile(localFileId: localFileId)
     }
 }
 
@@ -562,18 +608,17 @@ class MediaProgress: Object, Codable {
     }
     
     required init(from decoder: Decoder) throws {
-        super.init()
         let values = try decoder.container(keyedBy: CodingKeys.self)
         id = try values.decode(String.self, forKey: .id)
         libraryItemId = try values.decode(String.self, forKey: .libraryItemId)
         episodeId = try? values.decode(String.self, forKey: .episodeId)
-        duration = try values.decode(Double.self, forKey: .duration)
-        progress = try values.decode(Double.self, forKey: .progress)
-        currentTime = try values.decode(Double.self, forKey: .currentTime)
+        duration = try values.doubleOrStringDecoder(key: .duration)
+        progress = try values.doubleOrStringDecoder(key: .progress)
+        currentTime = try values.doubleOrStringDecoder(key: .currentTime)
         isFinished = try values.decode(Bool.self, forKey: .isFinished)
-        lastUpdate = try values.decode(Int.self, forKey: .lastUpdate)
-        startedAt = try values.decode(Int.self, forKey: .startedAt)
-        finishedAt = try? values.decode(Int.self, forKey: .finishedAt)
+        lastUpdate = try values.intOrStringDecoder(key: .lastUpdate)
+        startedAt = try values.intOrStringDecoder(key: .startedAt)
+        finishedAt = try? values.intOrStringDecoder(key: .finishedAt)
     }
     
     func encode(to encoder: Encoder) throws {

@@ -12,7 +12,7 @@ import RealmSwift
 @objc(AbsDownloader)
 public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
     
-    static let downloadsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+    static private let downloadsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     
     typealias DownloadProgressHandler = (_ downloadItem: DownloadItem, _ downloadItemPart: inout DownloadItemPart) throws -> Void
     
@@ -23,11 +23,11 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
     }()
     private let progressStatusQueue = DispatchQueue(label: "progress-status-queue", attributes: .concurrent)
     private var downloadItemProgress = [String: DownloadItem]()
-    private var isMonitoringProgress = false
+    private var monitoringProgressTimer: Timer?
     
     public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         handleDownloadTaskUpdate(downloadTask: downloadTask) { downloadItem, downloadItemPart in
-            downloadItemPart.progress = 1
+            downloadItemPart.progress = 100
             downloadItemPart.completed = true
             
             do {
@@ -103,47 +103,49 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
     
     // We want to handle updating the UI in the background and throttled so we don't overload the UI with progress updates
     private func notifyDownloadProgress() {
-        if !self.isMonitoringProgress {
-            self.isMonitoringProgress = true
-            DispatchQueue.global(qos: .userInteractive).async {
-                NSLog("Starting monitoring download progress...")
-                
-                // Fetch active downloads in a thread-safe way
-                func fetchActiveDownloads() -> [String: DownloadItem]? {
-                    self.progressStatusQueue.sync { self.downloadItemProgress }
-                }
-                
-                // Remove a completed download item in a thread-safe way
-                func handleDoneDownloadItem(_ item: DownloadItem) {
-                    self.progressStatusQueue.async(flags: .barrier) {
-                        self.downloadItemProgress.removeValue(forKey: item.id!)
+        if self.monitoringProgressTimer == nil {
+            NSLog("Already monitoring progress, no need to start timer again")
+        } else {
+            DispatchQueue.runOnMainQueue {
+                self.monitoringProgressTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true, block: { t in
+                    NSLog("Starting monitoring download progress...")
+                    
+                    // Fetch active downloads in a thread-safe way
+                    func fetchActiveDownloads() -> [String: DownloadItem]? {
+                        self.progressStatusQueue.sync {
+                            let activeDownloads = self.downloadItemProgress
+                            if activeDownloads.isEmpty {
+                                NSLog("Finishing monitoring download progress...")
+                                t.invalidate()
+                            }
+                            return activeDownloads
+                        }
                     }
-                    Database.shared.removeDownloadItem(item)
-                    self.handleDownloadTaskCompleteFromDownloadItem(item)
-                }
-                
-                // While there are active download items, emit status updates
-                while !(fetchActiveDownloads()?.isEmpty ?? false) {
+                    
+                    // Remove a completed download item in a thread-safe way
+                    func handleDoneDownloadItem(_ item: DownloadItem) {
+                        self.progressStatusQueue.async(flags: .barrier) {
+                            self.downloadItemProgress.removeValue(forKey: item.id!)
+                        }
+                        Database.shared.removeDownloadItem(item)
+                        self.handleDownloadTaskCompleteFromDownloadItem(item)
+                    }
+                    
+                    // Emit status for active downloads
                     if let activeDownloads = fetchActiveDownloads() {
                         for item in activeDownloads.values {
                             try? self.notifyListeners("onItemDownloadUpdate", data: item.asDictionary())
                             if item.isDoneDownloading() { handleDoneDownloadItem(item) }
                         }
                     }
-                    
-                    // Wait 200ms before reporting status again
-                    Thread.sleep(forTimeInterval: TimeInterval(0.2))
-                }
-                
-                NSLog("Finished monitoring download progress...")
-                self.isMonitoringProgress = false
+                })
             }
         }
     }
     
     private func handleDownloadTaskCompleteFromDownloadItem(_ downloadItem: DownloadItem) {
         var statusNotification = [String: Any]()
-        statusNotification["libraryItemId"] = downloadItem.libraryItemId
+        statusNotification["libraryItemId"] = downloadItem.id
         
         if ( downloadItem.didDownloadSuccessfully() ) {
             ApiClient.getLibraryItemWithProgress(libraryItemId: downloadItem.libraryItemId!, episodeId: downloadItem.episodeId) { libraryItem in
@@ -155,19 +157,22 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
                 let files = downloadItem.downloadItemParts.enumerated().compactMap { _, part -> LocalFile? in
                     if part.filename == "cover.jpg" {
                         coverFile = part.destinationUri
-                        return nil
-                    } else {
-                        return LocalFile(libraryItem.id, part.filename!, part.mimeType()!, part.destinationUri!, fileSize: Int(part.destinationURL!.fileSize))
                     }
+                    return LocalFile(libraryItem.id, part.filename!, part.mimeType()!, part.destinationUri!, fileSize: Int(part.destinationURL!.fileSize))
                 }
-                let localLibraryItem = LocalLibraryItem(libraryItem, localUrl: localDirectory, server: Store.serverConfig!, files: files, coverPath: coverFile)
+                var localLibraryItem = Database.shared.getLocalLibraryItem(byServerLibraryItemId: libraryItem.id)
+                if (localLibraryItem != nil && localLibraryItem!.isPodcast) {
+                    try! localLibraryItem?.addFiles(files, item: libraryItem)
+                } else {
+                    localLibraryItem = LocalLibraryItem(libraryItem, localUrl: localDirectory, server: Store.serverConfig!, files: files, coverPath: coverFile)
+                }
                 
-                Database.shared.saveLocalLibraryItem(localLibraryItem: localLibraryItem)
+                Database.shared.saveLocalLibraryItem(localLibraryItem: localLibraryItem!)
                 statusNotification["localLibraryItem"] = try? localLibraryItem.asDictionary()
                 
                 if let progress = libraryItem.userMediaProgress {
-                    // TODO: Handle podcast
-                    let localMediaProgress = LocalMediaProgress(localLibraryItem: localLibraryItem, episode: nil, progress: progress)
+                    let episode = downloadItem.media?.episodes?.first(where: { $0.id == downloadItem.episodeId })
+                    let localMediaProgress = LocalMediaProgress(localLibraryItem: localLibraryItem!, episode: episode, progress: progress)
                     Database.shared.saveLocalMediaProgress(localMediaProgress)
                     statusNotification["localMediaProgress"] = try? localMediaProgress.asDictionary()
                 }
@@ -237,7 +242,7 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
         // Queue up everything for downloading
         let downloadItem = DownloadItem(libraryItem: item, episodeId: episodeId, server: Store.serverConfig!)
         for (i, track) in tracks.enumerated() {
-            downloadItem.downloadItemParts.append(try startLibraryItemTrackDownload(item: item, position: i, track: track))
+            downloadItem.downloadItemParts.append(try startLibraryItemTrackDownload(item: item, position: i, track: track, episode: episode))
         }
         
         // Also download the cover
@@ -256,7 +261,7 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
         }
     }
     
-    private func startLibraryItemTrackDownload(item: LibraryItem, position: Int, track: AudioTrack) throws -> DownloadItemPart {
+    private func startLibraryItemTrackDownload(item: LibraryItem, position: Int, track: AudioTrack, episode: PodcastEpisode?) throws -> DownloadItemPart {
         NSLog("TRACK \(track.contentUrl!)")
         
         // If we don't name metadata, then we can't proceed
@@ -269,7 +274,7 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
         let localUrl = "\(itemDirectory)/\(filename)"
         
         let task = session.downloadTask(with: serverUrl)
-        let downloadItemPart = DownloadItemPart(filename: filename, destination: localUrl, itemTitle: track.title ?? "Unknown", serverPath: Store.serverConfig!.address, audioTrack: track, episode: nil)
+        var downloadItemPart = DownloadItemPart(filename: filename, destination: localUrl, itemTitle: track.title ?? "Unknown", serverPath: Store.serverConfig!.address, audioTrack: track, episode: episode)
         
         // Store the id on the task so the download item can be pulled from the database later
         task.taskDescription = downloadItemPart.id
@@ -305,14 +310,32 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
         let itemDirectory = item.id
         NSLog("ITEM DIR \(itemDirectory)")
         
-        do {
-            try FileManager.default.createDirectory(at: AbsDownloader.downloadsDirectory.appendingPathComponent(itemDirectory), withIntermediateDirectories: true)
-        } catch {
-            NSLog("Failed to CREATE LI DIRECTORY \(error)")
+        guard AbsDownloader.itemDownloadFolder(path: itemDirectory) != nil else {
+            NSLog("Failed to CREATE LI DIRECTORY \(itemDirectory)")
             throw LibraryItemDownloadError.failedDirectory
         }
         
         return itemDirectory
+    }
+    
+    static func itemDownloadFolder(path: String) -> URL? {
+        do {
+            var itemFolder = AbsDownloader.downloadsDirectory.appendingPathComponent(path)
+            
+            if !FileManager.default.fileExists(atPath: itemFolder.path) {
+                try FileManager.default.createDirectory(at: itemFolder, withIntermediateDirectories: true)
+            }
+            
+            // Make sure we don't backup download files to iCloud
+            var resourceValues = URLResourceValues()
+            resourceValues.isExcludedFromBackup = true
+            try itemFolder.setResourceValues(resourceValues)
+            
+            return itemFolder
+        } catch {
+            NSLog("Failed to CREATE LI DIRECTORY \(error)")
+            return nil
+        }
     }
     
 }
@@ -322,6 +345,7 @@ enum LibraryItemDownloadError: String, Error {
     case noMetadata = "No metadata for track, unable to download"
     case libraryItemNotPodcast = "Library item is not a podcast but episode was requested"
     case podcastEpisodeNotFound = "Invalid podcast episode not found"
+    case podcastOnlySupported = "Only podcasts are supported for this function"
     case unknownMediaType = "Unknown media type"
     case failedDirectory = "Failed to create directory"
     case failedDownload = "Failed to download item"

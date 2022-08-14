@@ -21,6 +21,7 @@ public class AbsAudioPlayer: CAPPlugin {
         NotificationCenter.default.addObserver(self, selector: #selector(sendSleepTimerSet), name: NSNotification.Name(PlayerEvents.sleepSet.rawValue), object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(sendSleepTimerEnded), name: NSNotification.Name(PlayerEvents.sleepEnded.rawValue), object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(onPlaybackFailed), name: NSNotification.Name(PlayerEvents.failed.rawValue), object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(onLocalMediaProgressUpdate), name: NSNotification.Name(PlayerEvents.localProgress.rawValue), object: nil)
         
         self.bridge?.webView?.allowsBackForwardNavigationGestures = true;
         
@@ -44,12 +45,20 @@ public class AbsAudioPlayer: CAPPlugin {
         
         let isLocalItem = libraryItemId?.starts(with: "local_") ?? false
         if (isLocalItem) {
-            let item = Database.shared.getLocalLibraryItem(localLibraryItem: libraryItemId!)
-            // TODO: Logic required for podcasts here
-            let playbackSession = item?.getPlaybackSession(episode: nil)
+            let item = Database.shared.getLocalLibraryItem(localLibraryItemId: libraryItemId!)
+            let episode = item?.getPodcastEpisode(episodeId: episodeId)
+            let playbackSession = item?.getPlaybackSession(episode: episode)
+            sendPrepareMetadataEvent(itemId: libraryItemId!, playWhenReady: playWhenReady)
+            do {
+                self.sendPlaybackSession(session: try playbackSession.asDictionary())
+                call.resolve(try playbackSession.asDictionary())
+            } catch(let exception) {
+                NSLog("failed to convert session to json")
+                debugPrint(exception)
+                call.resolve([:])
+            }
             PlayerHandler.startPlayback(session: playbackSession!, playWhenReady: playWhenReady, playbackRate: playbackRate)
             self.sendMetadata()
-            call.resolve()
         } else { // Playing from the server
             sendPrepareMetadataEvent(itemId: libraryItemId!, playWhenReady: playWhenReady)
             ApiClient.startPlaybackSession(libraryItemId: libraryItemId!, episodeId: episodeId, forceTranscode: false) { session in
@@ -62,12 +71,12 @@ public class AbsAudioPlayer: CAPPlugin {
                     call.resolve([:])
                 }
                 
-                
                 PlayerHandler.startPlayback(session: session, playWhenReady: playWhenReady, playbackRate: playbackRate)
                 self.sendMetadata()
             }
         }
     }
+    
     @objc func closePlayback(_ call: CAPPluginCall) {
         NSLog("Close playback")
         
@@ -171,10 +180,19 @@ public class AbsAudioPlayer: CAPPlugin {
             "value": PlayerHandler.getCurrentTime()
         ])
     }
+    
     @objc func sendSleepTimerSet() {
         self.notifyListeners("onSleepTimerSet", data: [
             "value": PlayerHandler.remainingSleepTime
         ])
+    }
+    
+    @objc func onLocalMediaProgressUpdate() {
+        guard let localMediaProgressId = PlayerHandler.getPlaybackSession()?.localMediaProgressId else { return }
+        guard let localMediaProgress = Database.shared.getLocalMediaProgress(localMediaProgressId: localMediaProgressId) else { return }
+        guard let progressUpdate = try? localMediaProgress.asDictionary() else { return }
+        NSLog("Sending local progress back to the UI")
+        self.notifyListeners("onLocalMediaProgressUpdate", data: progressUpdate)
     }
     
     @objc func onPlaybackFailed() {
@@ -211,6 +229,7 @@ public class AbsAudioPlayer: CAPPlugin {
             "playWhenReady": playWhenReady,
         ])
     }
+    
     @objc func sendPlaybackSession(session: [String: Any]) {
         self.notifyListeners("onPlaybackSession", data: session)
     }

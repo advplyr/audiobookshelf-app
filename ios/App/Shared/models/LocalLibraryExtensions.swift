@@ -13,39 +13,44 @@ extension LocalLibraryItem {
         
         self.contentUrl = localUrl
         self.mediaType = item.mediaType
-        self.media = item.media
         self.localFiles.append(objectsIn: files)
-        self.coverContentUrl = coverPath
+        self._coverContentUrl = coverPath
         self.libraryItemId = item.id
         self.serverConnectionConfigId = server.id
         self.serverAddress = server.address
         self.serverUserId = server.userId
+        
+        // Link the audio tracks and files
+        linkLocalFiles(files, fromMedia: item.media)
     }
     
-    var contentUrl: String? {
-        set(url) {
-            _contentUrl = url
-        }
-        get {
-            if let path = _contentUrl {
-                return AbsDownloader.downloadsDirectory.appendingPathComponent(path).absoluteString
-            } else {
-                return nil
-            }
-        }
+    mutating func addFiles(_ files: [LocalFile], item: LibraryItem) throws {
+        guard self.isPodcast else { throw LibraryItemDownloadError.podcastOnlySupported }
+        self.localFiles.append(contentsOf: files.filter({ $0.isAudioFile() }))
+        linkLocalFiles(self.localFiles, fromMedia: item.media)
     }
     
-    var coverContentUrl: String? {
-        set(url) {
-            _coverContentUrl = url
-        }
-        get {
-            if let path = self._coverContentUrl {
-                return AbsDownloader.downloadsDirectory.appendingPathComponent(path).absoluteString
-            } else {
-                return nil
+    mutating private func linkLocalFiles(_ files: [LocalFile], fromMedia: MediaType) {
+        var fromMedia = fromMedia
+        let fileMap = files.map { ($0.filename ?? "", $0.id) }
+        let fileIdByFilename = Dictionary(fileMap, uniquingKeysWith: { (_, last) in last })
+        if ( self.isBook ) {
+            if let tracks = fromMedia.tracks {
+                for i in tracks.indices {
+                    _ = fromMedia.tracks?[i].setLocalInfo(filenameIdMap: fileIdByFilename, serverIndex: i)
+                }
+            }
+        } else if ( self.isPodcast ) {
+            if let episodes = fromMedia.episodes {
+                fromMedia.episodes = episodes.compactMap { episode in
+                    // Filter out episodes not downloaded
+                    var episode = episode
+                    let episodeIsDownloaded = episode.audioTrack?.setLocalInfo(filenameIdMap: fileIdByFilename, serverIndex: 0) ?? false
+                    return episodeIsDownloaded ? episode : nil
+                }
             }
         }
+        self.media = fromMedia
     }
     
     func getDuration() -> Double {
@@ -54,7 +59,13 @@ extension LocalLibraryItem {
         return total
     }
     
-    func getPlaybackSession(episode: LocalPodcastEpisode?) -> PlaybackSession {
+    func getPodcastEpisode(episodeId: String?) -> PodcastEpisode? {
+        guard self.isPodcast else { return nil }
+        guard let episodes = self.media?.episodes else { return nil }
+        return episodes.first(where: { $0.id == episodeId })
+    }
+    
+    func getPlaybackSession(episode: PodcastEpisode?) -> PlaybackSession {
         let localEpisodeId = episode?.id
         let sessionId = "play_local_\(UUID().uuidString)"
         
@@ -62,13 +73,13 @@ extension LocalLibraryItem {
         let mediaProgressId = (localEpisodeId != nil) ? "\(self.id)-\(localEpisodeId!)" : self.id
         let mediaProgress = Database.shared.getLocalMediaProgress(localMediaProgressId: mediaProgressId)
         
-        // TODO: Clean up add mediaType methods for displayTitle and displayAuthor
         let mediaMetadata = self.media?.metadata
-        let audioTracks = self.media?.tracks
-        let authorName = mediaMetadata?.authorName
+        let chapters = self.media?.chapters
+        var audioTracks = self.media?.tracks
+        let authorName = mediaMetadata?.authorDisplayName
         
-        if let episode = episode {
-            // TODO: Implement podcast
+        if let episode = episode, let track = episode.audioTrack {
+            audioTracks = [track]
         }
         
         let dateNow = Date().timeIntervalSince1970
@@ -78,18 +89,19 @@ extension LocalLibraryItem {
             libraryItemId: self.libraryItemId,
             episodeId: episode?.serverEpisodeId,
             mediaType: self.mediaType,
-            chapters: [],
+            chapters: chapters ?? [],
             displayTitle: mediaMetadata?.title,
             displayAuthor: authorName,
-            coverPath: nil,
+            coverPath: self.coverContentUrl,
             duration: self.getDuration(),
-            playMethod: 3,
+            playMethod: PlayMethod.local.rawValue,
             startedAt: dateNow,
             updatedAt: 0,
             timeListening: 0.0,
-            audioTracks: [],
+            audioTracks: audioTracks ?? [],
             currentTime: mediaProgress?.currentTime ?? 0.0,
             libraryItem: nil,
+            localLibraryItem: self,
             serverConnectionConfigId: self.serverConnectionConfigId,
             serverAddress: self.serverAddress
         )
@@ -103,7 +115,7 @@ extension LocalFile {
         self.id = "\(libraryItemId)_\(filename.toBase64())"
         self.filename = filename
         self.mimeType = mimeType
-        self.contentUrl = localUrl
+        self._contentUrl = localUrl
         self.size = fileSize
     }
     
@@ -123,27 +135,84 @@ extension LocalFile {
 }
 
 extension LocalMediaProgress {
-    convenience init(localLibraryItem: LocalLibraryItem, episode: LocalPodcastEpisode?, progress: MediaProgress) {
+    convenience init(localLibraryItem: LocalLibraryItem, episode: PodcastEpisode?) {
         self.init()
         
         self.id = localLibraryItem.id
         self.localLibraryItemId = localLibraryItem.id
         self.libraryItemId = localLibraryItem.libraryItemId
         
-        if let episode = episode {
-            self.id += "-\(episode.id)"
-            self.episodeId = episode.id
-        }
-        
         self.serverAddress = localLibraryItem.serverAddress
         self.serverUserId = localLibraryItem.serverUserId
         self.serverConnectionConfigId = localLibraryItem.serverConnectionConfigId
         
-        self.duration = progress.duration
-        self.currentTime = progress.currentTime
+        self.duration = localLibraryItem.getDuration()
+        self.progress = 0.0
+        self.currentTime = 0.0
         self.isFinished = false
+        self.lastUpdate = Int(Date().timeIntervalSince1970)
+        self.startedAt = 0
+        self.finishedAt = nil
+        
+        if let episode = episode {
+            self.id += "-\(episode.id)"
+            self.episodeId = episode.id
+            self.duration = episode.duration ?? 0.0
+        }
+    }
+    
+    init(localLibraryItem: LocalLibraryItem, episode: PodcastEpisode?, progress: MediaProgress) {
+        self.init(localLibraryItem: localLibraryItem, episode: episode)
+        self.duration = progress.duration
+        self.progress = progress.progress
+        self.currentTime = progress.currentTime
+        self.isFinished = progress.isFinished
         self.lastUpdate = progress.lastUpdate
         self.startedAt = progress.startedAt
         self.finishedAt = progress.finishedAt
+    }
+    
+    mutating func updateIsFinished(_ finished: Bool) {
+        if self.isFinished != finished {
+            self.progress = finished ? 1.0 : 0.0
+        }
+
+        if self.startedAt == 0 && finished {
+            self.startedAt = Int(Date().timeIntervalSince1970)
+        }
+        
+        self.isFinished = finished
+        self.lastUpdate = Int(Date().timeIntervalSince1970)
+        self.finishedAt = finished ? lastUpdate : nil
+    }
+    
+    mutating func updateFromPlaybackSession(_ playbackSession: PlaybackSession) {
+        self.currentTime = playbackSession.currentTime
+        self.progress = playbackSession.progress
+        self.lastUpdate = Int(Date().timeIntervalSince1970)
+        self.isFinished = playbackSession.progress >= 100.0
+        self.finishedAt = self.isFinished ? self.lastUpdate : nil
+    }
+    
+    mutating func updateFromServerMediaProgress(_ serverMediaProgress: MediaProgress) {
+        self.isFinished = serverMediaProgress.isFinished
+        self.progress = serverMediaProgress.progress
+        self.currentTime = serverMediaProgress.currentTime
+        self.duration = serverMediaProgress.duration
+        self.lastUpdate = serverMediaProgress.lastUpdate
+        self.finishedAt = serverMediaProgress.finishedAt
+        self.startedAt = serverMediaProgress.startedAt
+    }
+    
+    static func fetchOrCreateLocalMediaProgress(localMediaProgressId: String?, localLibraryItemId: String?, localEpisodeId: String?) -> LocalMediaProgress? {
+        if let localMediaProgressId = localMediaProgressId {
+            return Database.shared.getLocalMediaProgress(localMediaProgressId: localMediaProgressId)
+        } else if let localLibraryItemId = localLibraryItemId {
+            guard let localLibraryItem = Database.shared.getLocalLibraryItem(localLibraryItemId: localLibraryItemId) else { return nil }
+            let episode = localLibraryItem.getPodcastEpisode(episodeId: localEpisodeId)
+            return LocalMediaProgress(localLibraryItem: localLibraryItem, episode: episode)
+        } else {
+            return nil
+        }
     }
 }

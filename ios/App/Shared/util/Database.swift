@@ -116,19 +116,32 @@ class Database {
         return Array(realm.objects(LocalLibraryItem.self))
     }
     
-    public func getLocalLibraryItemByLLId(libraryItem: String) -> LocalLibraryItem? {
+    public func getLocalLibraryItem(byServerLibraryItemId: String) -> LocalLibraryItem? {
         let realm = try! Realm()
-        return realm.objects(LocalLibraryItem.self).first(where: { $0.libraryItemId == libraryItem })
+        return realm.objects(LocalLibraryItem.self).first(where: { $0.libraryItemId == byServerLibraryItemId })
     }
     
-    public func getLocalLibraryItem(localLibraryItem: String) -> LocalLibraryItem? {
+    public func getLocalLibraryItem(localLibraryItemId: String) -> LocalLibraryItem? {
         let realm = try! Realm()
-        return realm.object(ofType: LocalLibraryItem.self, forPrimaryKey: localLibraryItem)
+        return realm.object(ofType: LocalLibraryItem.self, forPrimaryKey: localLibraryItemId)
     }
     
     public func saveLocalLibraryItem(localLibraryItem: LocalLibraryItem) {
         let realm = try! Realm()
         try! realm.write { realm.add(localLibraryItem, update: .modified) }
+    }
+    
+    public func removeLocalLibraryItem(localLibraryItemId: String) {
+        let realm = try! Realm()
+        try! realm.write {
+            let item = getLocalLibraryItem(localLibraryItemId: localLibraryItemId)
+            realm.delete(item!)
+        }
+    }
+    
+    public func getLocalFile(localFileId: String) -> LocalFile? {
+        let realm = try! Realm()
+        return realm.object(ofType: LocalFile.self, forPrimaryKey: localFileId)
     }
     
     public func getDownloadItem(downloadItemId: String) -> DownloadItem? {
@@ -166,17 +179,14 @@ class Database {
         return realm.objects(DeviceSettings.self).first ?? getDefaultDeviceSettings()
     }
     
-    public func removeLocalLibraryItem(localLibraryItemId: String) {
+    public func getAllLocalMediaProgress() -> [LocalMediaProgress] {
         let realm = try! Realm()
-        try! realm.write {
-            let item = getLocalLibraryItemByLLId(libraryItem: localLibraryItemId)
-            realm.delete(item!)
-        }
+        return Array(realm.objects(LocalMediaProgress.self))
     }
     
     public func saveLocalMediaProgress(_ mediaProgress: LocalMediaProgress) {
         let realm = try! Realm()
-        try! realm.write { realm.add(mediaProgress) }
+        try! realm.write { realm.add(mediaProgress, update: .modified) }
     }
     
     // For books this will just be the localLibraryItemId for podcast episodes this will be "{localLibraryItemId}-{episodeId}"

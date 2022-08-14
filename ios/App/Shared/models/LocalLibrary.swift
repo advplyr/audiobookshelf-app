@@ -22,6 +22,33 @@ class LocalLibraryItem: Object, Codable {
     @Persisted var serverAddress: String?
     @Persisted var serverUserId: String?
     @Persisted(indexed: true) var libraryItemId: String?
+
+    var contentUrl: String? {
+        if let path = _contentUrl {
+            return AbsDownloader.itemDownloadFolder(path: path)!.absoluteString
+        } else {
+            return nil
+        }
+    }
+    
+    var contentDirectory: URL? {
+        if let path = _contentUrl {
+            return AbsDownloader.itemDownloadFolder(path: path)
+        } else {
+            return nil
+        }
+    }
+    
+    var coverContentUrl: String? {
+        if let path = self._coverContentUrl {
+            return AbsDownloader.itemDownloadFolder(path: path)!.absoluteString
+        } else {
+            return nil
+        }
+    }
+    
+    var isBook: Bool { self.mediaType == "book" }
+    var isPodcast: Bool { self.mediaType == "podcast" }
     
     private enum CodingKeys : String, CodingKey {
         case id, basePath, contentUrl, isInvalid, mediaType, media, localFiles, coverContentUrl, isLocal, serverConnectionConfigId, serverAddress, serverUserId, libraryItemId
@@ -37,14 +64,12 @@ class LocalLibraryItem: Object, Codable {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         id = try values.decode(String.self, forKey: .id)
         basePath = try values.decode(String.self, forKey: .basePath)
-        contentUrl = try values.decode(String.self, forKey: .contentUrl)
         isInvalid = try values.decode(Bool.self, forKey: .isInvalid)
         mediaType = try values.decode(String.self, forKey: .mediaType)
         media = try? values.decode(MediaType.self, forKey: .media)
         if let files = try? values.decode([LocalFile].self, forKey: .localFiles) {
             localFiles.append(objectsIn: files)
         }
-        _coverContentUrl = try values.decode(String.self, forKey: .coverContentUrl)
         isLocal = try values.decode(Bool.self, forKey: .isLocal)
         serverConnectionConfigId = try? values.decode(String.self, forKey: .serverConnectionConfigId)
         serverAddress = try? values.decode(String.self, forKey: .serverAddress)
@@ -111,9 +136,13 @@ class LocalFile: Object, Codable {
     @Persisted var contentUrl: String = ""
     @Persisted var mimeType: String?
     @Persisted var size: Int = 0
+
+    var contentUrl: String { AbsDownloader.itemDownloadFolder(path: _contentUrl)!.absoluteString }
+    var contentPath: URL { AbsDownloader.itemDownloadFolder(path: _contentUrl)! }
+    var basePath: String? { self.filename }
     
     private enum CodingKeys : String, CodingKey {
-        case id, filename, contentUrl, absolutePath, mimeType, size
+        case id, filename, contentUrl, mimeType, size, basePath
     }
     
     override init() {
@@ -124,7 +153,6 @@ class LocalFile: Object, Codable {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         id = try values.decode(String.self, forKey: .id)
         filename = try? values.decode(String.self, forKey: .filename)
-        contentUrl = try values.decode(String.self, forKey: .contentUrl)
         mimeType = try? values.decode(String.self, forKey: .mimeType)
         size = try values.decode(Int.self, forKey: .size)
     }
@@ -134,9 +162,9 @@ class LocalFile: Object, Codable {
         try container.encode(id, forKey: .id)
         try container.encode(filename, forKey: .filename)
         try container.encode(contentUrl, forKey: .contentUrl)
-        try container.encode(absolutePath, forKey: .absolutePath)
         try container.encode(mimeType, forKey: .mimeType)
         try container.encode(size, forKey: .size)
+        try container.encode(basePath, forKey: .basePath)
     }
 }
 
@@ -157,6 +185,8 @@ class LocalMediaProgress: Object, Codable {
     @Persisted var serverUserId: String?
     @Persisted(indexed: true) var libraryItemId: String?
     @Persisted(indexed: true) var episodeId: String?
+
+    var progressPercent: Int { Int(self.progress * 100) }
     
     private enum CodingKeys : String, CodingKey {
         case id, localLibraryItemId, localEpisodeId, duration, progress, currentTime, isFinished, lastUpdate, startedAt, finishedAt, serverConnectionConfigId, serverAddress, serverUserId, libraryItemId, episodeId

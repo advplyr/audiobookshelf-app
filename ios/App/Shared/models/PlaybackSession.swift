@@ -7,7 +7,7 @@
 
 import Foundation
          
-struct PlaybackSession: Decodable, Encodable {
+struct PlaybackSession: Codable {
     var id: String
     var userId: String?
     var libraryItemId: String?
@@ -26,7 +26,25 @@ struct PlaybackSession: Decodable, Encodable {
     var audioTracks: [AudioTrack]
     var currentTime: Double
     var libraryItem: LibraryItem?
-    //var localLibraryItem: LocalLibraryItem?
+    var localLibraryItem: LocalLibraryItem?
     var serverConnectionConfigId: String?
     var serverAddress: String?
+    
+    var isLocal: Bool { self.localLibraryItem != nil }
+    
+    var localMediaProgressId: String {
+        if let episodeId = episodeId {
+            return "\(localLibraryItem!.id)-\(episodeId)"
+        } else {
+            return localLibraryItem!.id
+        }
+    }
+    
+    var totalDuration: Double {
+        var total = 0.0
+        self.audioTracks.forEach { total += $0.duration }
+        return total
+    }
+    
+    var progress: Double { self.currentTime / self.totalDuration }
 }
