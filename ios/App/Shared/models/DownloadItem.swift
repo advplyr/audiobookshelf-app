@@ -73,7 +73,6 @@ class DownloadItemPart: Object, Codable {
     @Persisted var uri: String?
     @Persisted var destinationUri: String?
     @Persisted var progress: Double = 0
-    var task: URLSessionDownloadTask?
     
     private enum CodingKeys : String, CodingKey {
         case id, filename, itemTitle, completed, moved, failed, progress

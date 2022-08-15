@@ -164,11 +164,6 @@ class Database {
         return try! realm.write { realm.add(downloadItem, update: .modified) }
     }
     
-    public func updateDownloadItemPart(_ part: DownloadItemPart) {
-        let realm = try! Realm()
-        return try! realm.write { realm.add(part, update: .modified) }
-    }
-    
     public func removeDownloadItem(_ downloadItem: DownloadItem) {
         let realm = try! Realm()
         return try! realm.write { realm.delete(downloadItem) }
