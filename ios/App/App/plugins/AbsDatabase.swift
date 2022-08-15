@@ -172,7 +172,7 @@ public class AbsDatabase: CAPPlugin {
             }
             
             let localMediaProgress = LocalMediaProgress.fetchOrCreateLocalMediaProgress(localMediaProgressId: localMediaProgressId, localLibraryItemId: localLibraryItemId, localEpisodeId: localEpisodeId)
-            guard var localMediaProgress = localMediaProgress else {
+            guard let localMediaProgress = localMediaProgress else {
                 call.reject("Local media progress not found or created")
                 return
             }
@@ -196,7 +196,7 @@ public class AbsDatabase: CAPPlugin {
         NSLog("updateLocalMediaProgressFinished \(localMediaProgressId ?? "Unknown") | Is Finished: \(isFinished)")
         
         let localMediaProgress = LocalMediaProgress.fetchOrCreateLocalMediaProgress(localMediaProgressId: localMediaProgressId, localLibraryItemId: localLibraryItemId, localEpisodeId: localEpisodeId)
-        guard var localMediaProgress = localMediaProgress else {
+        guard let localMediaProgress = localMediaProgress else {
             call.resolve(["error": "Library Item not found"])
             return
         }
