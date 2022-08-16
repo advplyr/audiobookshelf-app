@@ -3,6 +3,7 @@ package com.audiobookshelf.app.player
 import android.content.Context
 import android.os.*
 import android.util.Log
+import com.audiobookshelf.app.device.DeviceManager
 import java.util.*
 import kotlin.concurrent.schedule
 import kotlin.math.roundToInt
@@ -203,8 +204,13 @@ class SleepTimerManager constructor(val playerNotificationService:PlayerNotifica
   }
 
   fun handleShake() {
-    Log.d(tag, "HANDLE SHAKE HERE")
-    if (sleepTimerRunning || sleepTimerFinishedAt > 0L) checkShouldExtendSleepTimer()
+    if (sleepTimerRunning || sleepTimerFinishedAt > 0L) {
+      if (DeviceManager.deviceData.deviceSettings?.disableShakeToResetSleepTimer == true) {
+        Log.d(tag, "Shake to reset sleep timer is disabled")
+        return
+      }
+      checkShouldExtendSleepTimer()
+    }
   }
 
   fun increaseSleepTime(time: Long) {

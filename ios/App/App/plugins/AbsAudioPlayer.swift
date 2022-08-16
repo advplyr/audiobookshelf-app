@@ -155,24 +155,26 @@ public class AbsAudioPlayer: CAPPlugin {
     @objc func setSleepTimer(_ call: CAPPluginCall) {
         guard let timeString = call.getString("time") else { return call.resolve([ "success": false ]) }
         guard let time = Int(timeString) else { return call.resolve([ "success": false ]) }
+        let timeSeconds = time / 1000
         
         NSLog("chapter time: \(call.getBool("isChapterTime", false))")
         
         if call.getBool("isChapterTime", false) {
-            let timeToPause = time / 1000 - Int(PlayerHandler.getCurrentTime() ?? 0)
+            let timeToPause = timeSeconds - Int(PlayerHandler.getCurrentTime() ?? 0)
             if timeToPause < 0 { return call.resolve([ "success": false ]) }
             
-            NSLog("oof \(timeToPause)")
-            
+            PlayerHandler.sleepTimerChapterStopTime = timeSeconds
             PlayerHandler.remainingSleepTime = timeToPause
             return call.resolve([ "success": true ])
         }
         
-        PlayerHandler.remainingSleepTime = time / 1000
+        PlayerHandler.sleepTimerChapterStopTime = nil
+        PlayerHandler.remainingSleepTime = timeSeconds
         call.resolve([ "success": true ])
     }
     @objc func cancelSleepTimer(_ call: CAPPluginCall) {
         PlayerHandler.remainingSleepTime = nil
+        PlayerHandler.sleepTimerChapterStopTime = nil
         call.resolve()
     }
     @objc func getSleepTimerTime(_ call: CAPPluginCall) {

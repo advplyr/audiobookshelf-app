@@ -59,8 +59,6 @@ data class LibraryItem(
       putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
       putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, authorName)
       putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, getCoverUri().toString())
-      putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getCoverUri().toString())
-      putString(MediaMetadataCompat.METADATA_KEY_ART_URI, getCoverUri().toString())
       putString(MediaMetadataCompat.METADATA_KEY_AUTHOR, authorName)
     }.build()
   }
@@ -309,7 +307,6 @@ data class PodcastEpisode(
       putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, id)
       putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, title)
       putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
-      putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, podcast.metadata.getAuthorDisplayName())
       putString(MediaMetadataCompat.METADATA_KEY_AUTHOR, podcast.metadata.getAuthorDisplayName())
       putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, coverUri.toString())
 
@@ -407,18 +404,25 @@ data class BookChapter(
 }
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-data class MediaProgress(
+class MediaProgress(
   var id:String,
   var libraryItemId:String,
   var episodeId:String?,
   var duration:Double, // seconds
-  var progress:Double, // 0 to 1
+  progress:Double, // 0 to 1
   var currentTime:Double,
-  var isFinished:Boolean,
+  isFinished:Boolean,
   var lastUpdate:Long,
   var startedAt:Long,
   var finishedAt:Long?
+) : MediaProgressWrapper(isFinished, progress)
+
+@JsonTypeInfo(use= JsonTypeInfo.Id.DEDUCTION, defaultImpl = MediaProgress::class)
+@JsonSubTypes(
+  JsonSubTypes.Type(MediaProgress::class),
+  JsonSubTypes.Type(LocalMediaProgress::class)
 )
+open class MediaProgressWrapper(var isFinished:Boolean, var progress:Double)
 
 // Helper class
 data class LibraryItemWithEpisode(

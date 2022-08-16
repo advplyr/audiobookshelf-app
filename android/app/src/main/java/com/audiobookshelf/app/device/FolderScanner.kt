@@ -14,6 +14,7 @@ import com.fasterxml.jackson.core.json.JsonReadFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.getcapacitor.JSObject
+import org.json.JSONException
 
 class FolderScanner(var ctx: Context) {
   private val tag = "FolderScanner"
@@ -465,11 +466,17 @@ class FolderScanner(var ctx: Context) {
 
   fun probeAudioFile(absolutePath:String):AudioProbeResult? {
     val session = FFprobeKit.execute("-i \"${absolutePath}\" -print_format json -show_format -show_streams -select_streams a -show_chapters -loglevel quiet")
-    Log.d(tag, "FFprobe output ${JSObject(session.output)}")
 
-    val probeObject = JSObject(session.output)
-    if (!probeObject.has("streams")) { // Check if output is empty
-      Log.d(tag, "probeAudioFile Probe audio file $absolutePath is empty")
+    var probeObject:JSObject? = null
+    try {
+      probeObject = JSObject(session.output)
+    } catch(error:JSONException) {
+      Log.e(tag, "Failed to parse probe result $error")
+    }
+
+    Log.d(tag, "FFprobe output $probeObject")
+    if (probeObject == null || !probeObject.has("streams")) { // Check if output is empty
+      Log.d(tag, "probeAudioFile Probe audio file $absolutePath failed or invalid")
       return null
     } else {
       val audioProbeResult = jacksonMapper.readValue<AudioProbeResult>(session.output)

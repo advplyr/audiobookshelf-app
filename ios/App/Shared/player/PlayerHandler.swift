@@ -13,6 +13,7 @@ class PlayerHandler {
     private static var timer: Timer?
     private static var lastSyncTime: Double = 0.0
     
+    public static var sleepTimerChapterStopTime: Int? = nil
     private static var _remainingSleepTime: Int? = nil
     public static var remainingSleepTime: Int? {
         get {
@@ -151,17 +152,27 @@ class PlayerHandler {
     private static func tick() {
         if !paused {
             listeningTimePassedSinceLastSync += 1
+            
+            if remainingSleepTime != nil {
+                if sleepTimerChapterStopTime != nil {
+                    let timeUntilChapterEnd = Double(sleepTimerChapterStopTime ?? 0) - (getCurrentTime() ?? 0)
+                    if timeUntilChapterEnd <= 0 {
+                        paused = true
+                        remainingSleepTime = nil
+                    } else {
+                        remainingSleepTime = Int(timeUntilChapterEnd.rounded())
+                    }
+                } else {
+                    if remainingSleepTime! <= 0 {
+                        paused = true
+                    }
+                    remainingSleepTime! -= 1
+                }
+            }
         }
         
         if listeningTimePassedSinceLastSync >= 5 {
             syncProgress()
-        }
-        
-        if remainingSleepTime != nil {
-            if remainingSleepTime! == 0 {
-                paused = true
-            }
-            remainingSleepTime! -= 1
         }
     }
     

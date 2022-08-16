@@ -2,7 +2,7 @@ import Vue from 'vue'
 import { App } from '@capacitor/app'
 import { Dialog } from '@capacitor/dialog'
 import { StatusBar, Style } from '@capacitor/status-bar';
-import { formatDistance, format } from 'date-fns'
+import { formatDistance, format, addDays, isDate } from 'date-fns'
 import { Capacitor } from '@capacitor/core';
 
 Vue.prototype.$eventBus = new Vue()
@@ -24,7 +24,20 @@ Vue.prototype.$formatDate = (unixms, fnsFormat = 'MM/dd/yyyy HH:mm') => {
   if (!unixms) return ''
   return format(unixms, fnsFormat)
 }
-
+Vue.prototype.$formatJsDate = (jsdate, fnsFormat = 'MM/dd/yyyy HH:mm') => {
+  if (!jsdate || !isDate(jsdate)) return ''
+  return format(jsdate, fnsFormat)
+}
+Vue.prototype.$addDaysToToday = (daysToAdd) => {
+  var date = addDays(new Date(), daysToAdd)
+  if (!date || !isDate(date)) return null
+  return date
+}
+Vue.prototype.$addDaysToDate = (jsdate, daysToAdd) => {
+  var date = addDays(jsdate, daysToAdd)
+  if (!date || !isDate(date)) return null
+  return date
+}
 Vue.prototype.$bytesPretty = (bytes, decimals = 2) => {
   if (isNaN(bytes) || bytes === null) return 'Invalid Bytes'
   if (bytes === 0) {
@@ -51,6 +64,29 @@ Vue.prototype.$elapsedPretty = (seconds, useFullNames = false) => {
     return `${hours} ${useFullNames ? 'hours' : 'hr'}`
   }
   return `${hours} ${useFullNames ? `hour${hours === 1 ? '' : 's'}` : 'hr'} ${minutes} ${useFullNames ? `minute${minutes === 1 ? '' : 's'}` : 'min'}`
+}
+
+Vue.prototype.$elapsedPrettyExtended = (seconds, useDays = true) => {
+  if (isNaN(seconds) || seconds === null) return ''
+  seconds = Math.round(seconds)
+
+  var minutes = Math.floor(seconds / 60)
+  seconds -= minutes * 60
+  var hours = Math.floor(minutes / 60)
+  minutes -= hours * 60
+
+  var days = 0
+  if (useDays || Math.floor(hours / 24) >= 100) {
+    days = Math.floor(hours / 24)
+    hours -= days * 24
+  }
+
+  var strs = []
+  if (days) strs.push(`${days}d`)
+  if (hours) strs.push(`${hours}h`)
+  if (minutes) strs.push(`${minutes}m`)
+  if (seconds) strs.push(`${seconds}s`)
+  return strs.join(' ')
 }
 
 Vue.prototype.$secondsToTimestamp = (seconds) => {

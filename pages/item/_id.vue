@@ -9,20 +9,21 @@
       </div>
       <div class="title-container flex-grow pl-2">
         <div class="flex relative pr-6">
-          <h1 class="text-base">{{ title }}</h1>
+          <h1 class="text-base font-semibold">{{ title }}</h1>
 
           <button class="absolute top-0 right-0 h-full px-1 outline-none" @click="moreButtonPress">
             <span class="material-icons text-xl">more_vert</span>
           </button>
         </div>
+        <p v-if="subtitle" class="text-gray-100 text-sm py-0.5">{{ subtitle }}</p>
         <p v-if="seriesList && seriesList.length" class="text-sm text-gray-300 py-0.5">
           <template v-for="(series, index) in seriesList"
             ><nuxt-link :key="series.id" :to="`/bookshelf/series/${series.id}`">{{ series.text }}</nuxt-link
             ><span :key="`${series.id}-comma`" v-if="index < seriesList.length - 1">,&nbsp;</span></template
           >
         </p>
-        <p v-if="podcastAuthor" class="text-sm text-gray-400 py-0.5">By {{ podcastAuthor }}</p>
-        <p v-else-if="bookAuthors && bookAuthors.length" class="text-sm text-gray-400 py-0.5">
+        <p v-if="podcastAuthor" class="text-sm text-gray-300 py-0.5">By {{ podcastAuthor }}</p>
+        <p v-else-if="bookAuthors && bookAuthors.length" class="text-sm text-gray-300 py-0.5">
           By
           <template v-for="(author, index) in bookAuthors"
             ><nuxt-link :key="author.id" :to="`/bookshelf/library?filter=authors.${$encode(author.id)}`">{{ author.name }}</nuxt-link
@@ -84,7 +85,7 @@
       <div v-else-if="(user && (showPlay || showRead)) || hasLocal" class="flex mt-4">
         <ui-btn v-if="showPlay" color="success" :disabled="isPlaying" class="flex items-center justify-center flex-grow mr-2" :padding-x="4" @click="playClick">
           <span v-show="!isPlaying" class="material-icons">play_arrow</span>
-          <span class="px-1 text-sm">{{ isPlaying ? (isStreaming ? 'Streaming' : 'Playing') : hasLocal ? 'Play' : 'Stream' }}</span>
+          <span class="px-1 text-sm">{{ isPlaying ? (isStreaming ? 'Streaming' : 'Playing') : isPodcast ? 'Next Episode' : hasLocal ? 'Play' : 'Stream' }}</span>
         </ui-btn>
         <ui-btn v-if="showRead && user" color="info" class="flex items-center justify-center mr-2" :class="showPlay ? '' : 'flex-grow'" :padding-x="2" @click="readBook">
           <span class="material-icons">auto_stories</span>
@@ -218,6 +219,9 @@ export default {
     title() {
       return this.mediaMetadata.title
     },
+    subtitle() {
+      return this.mediaMetadata.subtitle
+    },
     podcastAuthor() {
       if (!this.isPodcast) return null
       return this.mediaMetadata.author || ''
@@ -301,13 +305,13 @@ export default {
       return this.libraryItem.isIncomplete
     },
     showPlay() {
-      return !this.isMissing && !this.isIncomplete && this.numTracks
+      return !this.isMissing && !this.isIncomplete && (this.numTracks || this.episodes.length)
     },
     showRead() {
       return this.ebookFile && this.ebookFormat !== 'pdf'
     },
     showDownload() {
-      // if (this.isIos) return false
+      if (this.isPodcast) return false
       return this.user && this.userCanDownload && this.showPlay && !this.hasLocal
     },
     ebookFile() {
@@ -364,14 +368,58 @@ export default {
       this.$store.commit('openReader', this.libraryItem)
     },
     playClick() {
-      // Todo: Allow playing local or streaming
-      if (this.hasLocal && this.serverLibraryItemId && this.isCasting) {
-        // If casting and connected to server for local library item then send server library item id
-        this.$eventBus.$emit('play-item', { libraryItemId: this.serverLibraryItemId })
-        return
+      var episodeId = null
+
+      if (this.isPodcast) {
+        this.episodes.sort((a, b) => {
+          return String(b.publishedAt).localeCompare(String(a.publishedAt), undefined, { numeric: true, sensitivity: 'base' })
+        })
+
+        var episode = this.episodes.find((ep) => {
+          var podcastProgress = null
+          if (!this.isLocal) {
+            podcastProgress = this.$store.getters['user/getUserMediaProgress'](this.libraryItemId, ep.id)
+          } else {
+            podcastProgress = this.$store.getters['globals/getLocalMediaProgressById'](this.libraryItemId, ep.id)
+          }
+          return !podcastProgress || !podcastProgress.isFinished
+        })
+
+        if (!episode) episode = this.episodes[0]
+
+        episodeId = episode.id
+
+        var localEpisode = null
+        if (this.hasLocal && !this.isLocal) {
+          localEpisode = this.localLibraryItem.media.episodes.find((ep) => ep.serverEpisodeId == episodeId)
+        } else if (this.isLocal) {
+          localEpisode = episode
+        }
+        var serverEpisodeId = !this.isLocal ? episodeId : localEpisode ? localEpisode.serverEpisodeId : null
+
+        if (serverEpisodeId && this.serverLibraryItemId && this.isCasting) {
+          // If casting and connected to server for local library item then send server library item id
+          this.$eventBus.$emit('play-item', { libraryItemId: this.serverLibraryItemId, episodeId: serverEpisodeId })
+          return
+        }
+        if (localEpisode) {
+          this.$eventBus.$emit('play-item', { libraryItemId: this.localLibraryItem.id, episodeId: localEpisode.id, serverLibraryItemId: this.serverLibraryItemId, serverEpisodeId })
+          return
+        }
+      } else {
+        // Audiobook
+        if (this.hasLocal && this.serverLibraryItemId && this.isCasting) {
+          // If casting and connected to server for local library item then send server library item id
+          this.$eventBus.$emit('play-item', { libraryItemId: this.serverLibraryItemId })
+          return
+        }
+        if (this.hasLocal) {
+          this.$eventBus.$emit('play-item', { libraryItemId: this.localLibraryItem.id, serverLibraryItemId: this.serverLibraryItemId })
+          return
+        }
       }
-      if (this.hasLocal) return this.$eventBus.$emit('play-item', { libraryItemId: this.localLibraryItem.id, serverLibraryItemId: this.serverLibraryItemId })
-      this.$eventBus.$emit('play-item', { libraryItemId: this.libraryItemId })
+
+      this.$eventBus.$emit('play-item', { libraryItemId: this.libraryItemId, episodeId })
     },
     async clearProgressClick() {
       const { value } = await Dialog.confirm({

@@ -2,8 +2,11 @@ package com.audiobookshelf.app.data
 
 import android.content.Context
 import android.net.Uri
+import android.os.Bundle
+import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.MediaMetadataCompat
 import android.util.Log
+import androidx.media.utils.MediaConstants
 import com.audiobookshelf.app.R
 import com.audiobookshelf.app.device.DeviceManager
 import com.fasterxml.jackson.annotation.JsonIgnore
@@ -95,7 +98,7 @@ data class LocalLibraryItem(
   }
 
   @JsonIgnore
-  fun getMediaMetadata(ctx: Context): MediaMetadataCompat {
+  fun getMediaMetadata(): MediaMetadataCompat {
     val coverUri = getCoverUri()
 
     return MediaMetadataCompat.Builder().apply {
@@ -104,8 +107,6 @@ data class LocalLibraryItem(
       putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
       putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, authorName)
       putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, coverUri.toString())
-      putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, coverUri.toString())
-      putString(MediaMetadataCompat.METADATA_KEY_ART_URI, coverUri.toString())
       putString(MediaMetadataCompat.METADATA_KEY_AUTHOR, authorName)
     }.build()
   }

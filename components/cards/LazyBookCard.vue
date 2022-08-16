@@ -250,7 +250,7 @@ export default {
       return this.store.getters['user/getUserMediaProgress'](this.libraryItemId, this.recentEpisode.id)
     },
     userProgress() {
-      if (this.episodeProgress) return this.episodeProgress
+      if (this.recentEpisode) return this.episodeProgress || null
       if (this.isLocal) return this.store.getters['globals/getLocalMediaProgressById'](this.libraryItemId)
       return this.store.getters['user/getUserMediaProgress'](this.libraryItemId)
     },
