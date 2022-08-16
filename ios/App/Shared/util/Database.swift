@@ -131,14 +131,6 @@ class Database {
         try! realm.write { realm.add(localLibraryItem, update: .modified) }
     }
     
-    public func removeLocalLibraryItem(localLibraryItemId: String) {
-        let realm = try! Realm()
-        try! realm.write {
-            let item = getLocalLibraryItem(localLibraryItemId: localLibraryItemId)
-            realm.delete(item!)
-        }
-    }
-    
     public func getLocalFile(localFileId: String) -> LocalFile? {
         let realm = try! Realm()
         return realm.object(ofType: LocalFile.self, forPrimaryKey: localFileId)
@@ -162,11 +154,6 @@ class Database {
     public func saveDownloadItem(_ downloadItem: DownloadItem) {
         let realm = try! Realm()
         return try! realm.write { realm.add(downloadItem, update: .modified) }
-    }
-    
-    public func removeDownloadItem(_ downloadItem: DownloadItem) {
-        let realm = try! Realm()
-        return try! realm.write { realm.delete(downloadItem) }
     }
     
     public func getDeviceSettings() -> DeviceSettings {

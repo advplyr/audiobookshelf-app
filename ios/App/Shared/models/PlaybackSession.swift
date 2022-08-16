@@ -33,11 +33,13 @@ class PlaybackSession: Object, Codable {
     
     var isLocal: Bool { self.localLibraryItem != nil }
     
-    var localMediaProgressId: String {
-        if let episodeId = episodeId {
-            return "\(localLibraryItem!.id)-\(episodeId)"
+    var localMediaProgressId: String? {
+        if let localLibraryItem = localLibraryItem, let episodeId = episodeId {
+            return "\(localLibraryItem.id)-\(episodeId)"
+        } else if let localLibraryItem = localLibraryItem {
+            return localLibraryItem.id
         } else {
-            return localLibraryItem!.id
+            return nil
         }
     }
     

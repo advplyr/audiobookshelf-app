@@ -94,19 +94,3 @@ extension URL {
         return attributes?[.creationDate] as? Date
     }
 }
-
-// MARK: - DAO Methods
-extension Object {
-    func save() {
-        let realm = try! Realm()
-        try! realm.write {
-            realm.add(self, update: .modified)
-        }
-    }
-    
-    func update(handler: () -> Void?) {
-        try! self.realm?.write {
-            handler()
-        }
-    }
-}

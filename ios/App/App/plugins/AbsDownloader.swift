@@ -137,10 +137,10 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
                         self.progressStatusQueue.async(flags: .barrier) {
                             self.downloadItemProgress.removeValue(forKey: item.id!)
                         }
-                        if let item = Database.shared.getDownloadItem(downloadItemId: item.id!) {
-                            Database.shared.removeDownloadItem(item)
-                        }
                         self.handleDownloadTaskCompleteFromDownloadItem(item)
+                        if let item = Database.shared.getDownloadItem(downloadItemId: item.id!) {
+                            item.delete()
+                        }
                     }
                     
                     // Emit status for active downloads
@@ -241,19 +241,19 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
     }
     
     private func startLibraryItemDownload(_ item: LibraryItem, episode: PodcastEpisode?) throws {
-        var tracks = List<AudioTrack>()
+        let tracks = List<AudioTrack>()
         var episodeId: String?
         
         // Handle the different media type downloads
         switch item.mediaType {
         case "book":
             guard item.media?.tracks.count ?? 0 > 0 else { throw LibraryItemDownloadError.noTracks }
-            tracks = item.media?.tracks ?? tracks
+            item.media?.tracks.forEach { t in tracks.append(AudioTrack.detachCopy(of: t)!) }
         case "podcast":
             guard let episode = episode else { throw LibraryItemDownloadError.podcastEpisodeNotFound }
             guard let podcastTrack = episode.audioTrack else { throw LibraryItemDownloadError.noTracks }
             episodeId = episode.id
-            tracks.append(podcastTrack)
+            tracks.append(AudioTrack.detachCopy(of: podcastTrack)!)
         default:
             throw LibraryItemDownloadError.unknownMediaType
         }

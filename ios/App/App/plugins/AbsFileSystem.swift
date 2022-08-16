@@ -70,7 +70,7 @@ public class AbsFileSystem: CAPPlugin {
         do {
             if let localLibraryItemId = localLibraryItemId, let item = Database.shared.getLocalLibraryItem(localLibraryItemId: localLibraryItemId) {
                 try FileManager.default.removeItem(at: item.contentDirectory!)
-                Database.shared.removeLocalLibraryItem(localLibraryItemId: localLibraryItemId)
+                item.delete()
                 success = true
             }
         } catch {
@@ -88,25 +88,26 @@ public class AbsFileSystem: CAPPlugin {
         NSLog("deleteTrackFromItem \(localLibraryItemId ?? "UNSET") track file \(trackLocalFileId ?? "UNSET")")
         
         var success = false
-        do {
-            if let localLibraryItemId = localLibraryItemId, let trackLocalFileId = trackLocalFileId, let item = Database.shared.getLocalLibraryItem(localLibraryItemId: localLibraryItemId) {
-                if let fileIndex = item.localFiles.firstIndex(where: { $0.id == trackLocalFileId }) {
-                    try FileManager.default.removeItem(at: item.localFiles[fileIndex].contentPath)
-                    item.localFiles.remove(at: fileIndex)
-                    if item.isPodcast, let media = item.media {
-                        if let episodeIndex = media.episodes.firstIndex(where: { $0.audioTrack?.localFileId == trackLocalFileId }) {
-                            media.episodes.remove(at: episodeIndex)
+        if let localLibraryItemId = localLibraryItemId, let trackLocalFileId = trackLocalFileId, let item = Database.shared.getLocalLibraryItem(localLibraryItemId: localLibraryItemId) {
+            item.update {
+                do {
+                    if let fileIndex = item.localFiles.firstIndex(where: { $0.id == trackLocalFileId }) {
+                        try FileManager.default.removeItem(at: item.localFiles[fileIndex].contentPath)
+                        item.realm?.delete(item.localFiles[fileIndex])
+                        if item.isPodcast, let media = item.media {
+                            if let episodeIndex = media.episodes.firstIndex(where: { $0.audioTrack?.localFileId == trackLocalFileId }) {
+                                media.episodes.remove(at: episodeIndex)
+                            }
+                            item.media = media
                         }
-                        item.media = media
+                        call.resolve(try item.asDictionary())
+                        success = true
                     }
-                    Database.shared.saveLocalLibraryItem(localLibraryItem: item)
-                    call.resolve(try item.asDictionary())
-                    success = true
+                } catch {
+                    NSLog("Failed to delete \(error)")
+                    success = false
                 }
             }
-        } catch {
-            NSLog("Failed to delete \(error)")
-            success = false
         }
         
         if !success {

@@ -2,7 +2,7 @@
 //  DownloadItem.swift
 //  App
 //
-//  Created by Ron Heft on 8/5/22.
+//  Created by Ron Heft on 8/16/22.
 //
 
 import Foundation
@@ -60,47 +60,38 @@ class DownloadItem: Object, Codable {
     }
 }
 
-class DownloadItemPart: Object, Codable {
-    @Persisted(primaryKey: true) var id: String = UUID().uuidString
-    @Persisted var filename: String?
-    @Persisted var itemTitle: String?
-    @Persisted var serverPath: String?
-    @Persisted var audioTrack: AudioTrack?
-    @Persisted var episode: PodcastEpisode?
-    @Persisted var completed: Bool = false
-    @Persisted var moved: Bool = false
-    @Persisted var failed: Bool = false
-    @Persisted var uri: String?
-    @Persisted var destinationUri: String?
-    @Persisted var progress: Double = 0
-    
-    private enum CodingKeys : String, CodingKey {
-        case id, filename, itemTitle, completed, moved, failed, progress
+extension DownloadItem {
+    convenience init(libraryItem: LibraryItem, episodeId: String?, server: ServerConnectionConfig) {
+        self.init()
+        
+        self.id = libraryItem.id
+        self.libraryItemId = libraryItem.id
+        self.userMediaProgress = libraryItem.userMediaProgress
+        self.serverConnectionConfigId = server.id
+        self.serverAddress = server.address
+        self.serverUserId = server.userId
+        self.mediaType = libraryItem.mediaType
+        self.itemTitle = libraryItem.media?.metadata?.title
+        self.media = libraryItem.media
+        
+        if let episodeId = episodeId {
+            self.id! += "-\(episodeId)"
+            self.episodeId = episodeId
+        }
     }
     
-    override init() {
-        super.init()
+    func isDoneDownloading() -> Bool {
+        self.downloadItemParts.allSatisfy({ $0.completed })
     }
     
-    required init(from decoder: Decoder) throws {
-        let values = try decoder.container(keyedBy: CodingKeys.self)
-        id = try values.decode(String.self, forKey: .id)
-        filename = try? values.decode(String.self, forKey: .filename)
-        itemTitle = try? values.decode(String.self, forKey: .itemTitle)
-        completed = try values.decode(Bool.self, forKey: .completed)
-        moved = try values.decode(Bool.self, forKey: .moved)
-        failed = try values.decode(Bool.self, forKey: .failed)
-        progress = try values.decode(Double.self, forKey: .progress)
+    func didDownloadSuccessfully() -> Bool {
+        self.downloadItemParts.allSatisfy({ $0.failed == false })
     }
     
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(id, forKey: .id)
-        try container.encode(filename, forKey: .filename)
-        try container.encode(itemTitle, forKey: .itemTitle)
-        try container.encode(completed, forKey: .completed)
-        try container.encode(moved, forKey: .moved)
-        try container.encode(failed, forKey: .failed)
-        try container.encode(progress, forKey: .progress)
+    func delete() {
+        try! self.realm?.write {
+            self.realm?.delete(self.downloadItemParts)
+            self.realm?.delete(self)
+        }
     }
 }
