@@ -6,10 +6,10 @@
 //
 
 import Foundation
+import RealmSwift
 
 class PlayerHandler {
     private static var player: AudioPlayer?
-    private static var session: PlaybackSession?
     private static var timer: Timer?
     private static var lastSyncTime: Double = 0.0
     
@@ -68,7 +68,8 @@ class PlayerHandler {
         timer = nil
     }
     
-    public static func startPlayback(session: PlaybackSession, playWhenReady: Bool, playbackRate: Float) {
+    public static func startPlayback(sessionId: String, playWhenReady: Bool, playbackRate: Float) {
+        guard let session = Database.shared.getPlaybackSession(id: sessionId) else { return }
         if player != nil {
             player?.destroy()
             player = nil
@@ -76,8 +77,7 @@ class PlayerHandler {
         
         NowPlayingInfo.shared.setSessionMetadata(metadata: NowPlayingMetadata(id: session.id, itemId: session.libraryItemId!, artworkUrl: session.coverPath, title: session.displayTitle ?? "Unknown title", author: session.displayAuthor, series: nil))
         
-        self.session = session
-        player = AudioPlayer(playbackSession: session, playWhenReady: playWhenReady, playbackRate: playbackRate)
+        player = AudioPlayer(sessionId: sessionId, playWhenReady: playWhenReady, playbackRate: playbackRate)
         
         startTickTimer()
     }
@@ -108,7 +108,9 @@ class PlayerHandler {
     }
     
     public static func getPlaybackSession() -> PlaybackSession? {
-        self.player?.getPlaybackSession()
+        guard let player = player else { return nil }
+        guard let session = Database.shared.getPlaybackSession(id: player.getPlaybackSessionId()) else { return nil }
+        return session
     }
     
     public static func seekForward(amount: Double) {
@@ -164,8 +166,8 @@ class PlayerHandler {
     }
     
     public static func syncProgress() {
-        if session == nil { return }
         guard let player = player else { return }
+        guard let session = getPlaybackSession() else { return }
         
         // Prevent a sync at the current time
         let playerCurrentTime = player.getCurrentTime()
@@ -185,15 +187,17 @@ class PlayerHandler {
         lastSyncTime = Date().timeIntervalSince1970 // seconds
         let report = PlaybackReport(currentTime: playerCurrentTime, duration: player.getDuration(), timeListened: listeningTimePassedSinceLastSync)
         
-        session!.currentTime = playerCurrentTime
+        session.update {
+            session.currentTime = playerCurrentTime
+        }
         listeningTimePassedSinceLastSync = 0
         lastSyncReport = report
         
-        let sessionIsLocal = session!.isLocal
+        let sessionIsLocal = session.isLocal
         if !sessionIsLocal {
             if Connectivity.isConnectedToInternet {
                 NSLog("sending playback report")
-                ApiClient.reportPlaybackProgress(report: report, sessionId: session!.id)
+                ApiClient.reportPlaybackProgress(report: report, sessionId: session.id)
             }
         } else {
             if let localMediaProgress = syncLocalProgress() {
@@ -207,10 +211,10 @@ class PlayerHandler {
     }
     
     private static func syncLocalProgress() -> LocalMediaProgress? {
-        guard let session = session else { return nil }
+        guard let session = getPlaybackSession() else { return nil }
         
         let localMediaProgress = LocalMediaProgress.fetchOrCreateLocalMediaProgress(localMediaProgressId: session.localMediaProgressId, localLibraryItemId: session.localLibraryItem?.id, localEpisodeId: session.episodeId)
-        guard var localMediaProgress = localMediaProgress else {
+        guard let localMediaProgress = localMediaProgress else {
             // Local media progress should have been created
             // If we're here, it means a library id is invalid
             return nil

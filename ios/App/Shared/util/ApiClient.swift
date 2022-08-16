@@ -167,13 +167,14 @@ class ApiClient {
     }
     
     public static func reportLocalMediaProgress(_ localMediaProgress: LocalMediaProgress, callback: @escaping (_ success: Bool) -> Void) {
-        postResource(endpoint: "api/session/local", parameters: localMediaProgress, callback: callback)
+        let progress = localMediaProgress.freeze()
+        postResource(endpoint: "api/session/local", parameters: progress, callback: callback)
     }
     
     public static func syncMediaProgress(callback: @escaping (_ results: LocalMediaProgressSyncResultsPayload) -> Void) {
         let localMediaProgressList = Database.shared.getAllLocalMediaProgress().filter {
             $0.serverConnectionConfigId == Store.serverConfig?.id
-        }
+        }.map { $0.freeze() }
         
         if ( !localMediaProgressList.isEmpty ) {
             let payload = LocalMediaProgressSyncPayload(localMediaProgress: localMediaProgressList)

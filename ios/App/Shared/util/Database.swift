@@ -197,4 +197,9 @@ class Database {
             realm.delete(progress!)
         }
     }
+    
+    public func getPlaybackSession(id: String) -> PlaybackSession? {
+        let realm = try! Realm()
+        return realm.object(ofType: PlaybackSession.self, forPrimaryKey: id)
+    }
 }

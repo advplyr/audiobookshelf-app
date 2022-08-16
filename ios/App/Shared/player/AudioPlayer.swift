@@ -32,7 +32,7 @@ class AudioPlayer: NSObject {
     private var initialPlaybackRate: Float
     
     private var audioPlayer: AVQueuePlayer
-    private var playbackSession: PlaybackSession
+    private var sessionId: String
 
     private var queueObserver:NSKeyValueObservation?
     private var queueItemStatusObserver:NSKeyValueObservation?
@@ -41,12 +41,12 @@ class AudioPlayer: NSObject {
     private var allPlayerItems:[AVPlayerItem] = []
     
     // MARK: - Constructor
-    init(playbackSession: PlaybackSession, playWhenReady: Bool = false, playbackRate: Float = 1) {
+    init(sessionId: String, playWhenReady: Bool = false, playbackRate: Float = 1) {
         self.playWhenReady = playWhenReady
         self.initialPlaybackRate = playbackRate
         self.audioPlayer = AVQueuePlayer()
         self.audioPlayer.automaticallyWaitsToMinimizeStalling = false
-        self.playbackSession = playbackSession
+        self.sessionId = sessionId
         self.status = -1
         self.rate = 0.0
         self.tmpRate = playbackRate
@@ -55,6 +55,8 @@ class AudioPlayer: NSObject {
         
         initAudioSession()
         setupRemoteTransportControls()
+        
+        let playbackSession = Database.shared.getPlaybackSession(id: self.sessionId)!
         
         // Listen to player events
         self.audioPlayer.addObserver(self, forKeyPath: #keyPath(AVPlayer.rate), options: .new, context: &playerContext)
@@ -106,6 +108,7 @@ class AudioPlayer: NSObject {
     }
     
     func getItemIndexForTime(time:Double) -> Int {
+        let playbackSession = Database.shared.getPlaybackSession(id: self.sessionId)!
         for index in 0..<self.allPlayerItems.count {
             let startOffset = playbackSession.audioTracks[index].startOffset ?? 0.0
             let duration = playbackSession.audioTracks[index].duration
@@ -132,6 +135,7 @@ class AudioPlayer: NSObject {
     func setupQueueItemStatusObserver() {
         self.queueItemStatusObserver?.invalidate()
         self.queueItemStatusObserver = self.audioPlayer.currentItem?.observe(\.status, options: [.new, .old], changeHandler: { (playerItem, change) in
+            let playbackSession = Database.shared.getPlaybackSession(id: self.sessionId)!
             if (playerItem.status == .readyToPlay) {
                 NSLog("queueStatusObserver: Current Item Ready to play. PlayWhenReady: \(self.playWhenReady)")
                 self.updateNowPlaying()
@@ -139,11 +143,11 @@ class AudioPlayer: NSObject {
                 let firstReady = self.status < 0
                 self.status = 0
                 if self.playWhenReady {
-                    self.seek(self.playbackSession.currentTime, from: "queueItemStatusObserver")
+                    self.seek(playbackSession.currentTime, from: "queueItemStatusObserver")
                     self.playWhenReady = false
                     self.play()
                 } else if (firstReady) { // Only seek on first readyToPlay
-                    self.seek(self.playbackSession.currentTime, from: "queueItemStatusObserver")
+                    self.seek(playbackSession.currentTime, from: "queueItemStatusObserver")
                 }
             } else if (playerItem.status == .failed) {
                 NSLog("queueStatusObserver: FAILED \(playerItem.error?.localizedDescription ?? "")")
@@ -205,7 +209,9 @@ class AudioPlayer: NSObject {
         
         NSLog("Seek to \(to) from \(from)")
         
-        let currentTrack = self.playbackSession.audioTracks[self.currentTrackIndex]
+        let playbackSession = Database.shared.getPlaybackSession(id: self.sessionId)!
+        
+        let currentTrack = playbackSession.audioTracks[self.currentTrackIndex]
         let ctso = currentTrack.startOffset ?? 0.0
         let trackEnd = ctso + currentTrack.duration
         NSLog("Seek current track END = \(trackEnd)")
@@ -218,7 +224,9 @@ class AudioPlayer: NSObject {
         if (self.currentTrackIndex != indexOfSeek) {
             self.currentTrackIndex = indexOfSeek
             
-            self.playbackSession.currentTime = to
+            playbackSession.update {
+                playbackSession.currentTime = to
+            }
             
             self.playWhenReady = continuePlaying // Only playWhenReady if already playing
             self.status = -1
@@ -232,7 +240,7 @@ class AudioPlayer: NSObject {
             setupQueueItemStatusObserver()
         } else {
             NSLog("Seeking in current item \(to)")
-            let currentTrackStartOffset = self.playbackSession.audioTracks[self.currentTrackIndex].startOffset ?? 0.0
+            let currentTrackStartOffset = playbackSession.audioTracks[self.currentTrackIndex].startOffset ?? 0.0
             let seekTime = to - currentTrackStartOffset
             
             self.audioPlayer.seek(to: CMTime(seconds: seekTime, preferredTimescale: 1000)) { completed in
@@ -262,6 +270,7 @@ class AudioPlayer: NSObject {
     }
     
     public func getCurrentTime() -> Double {
+        let playbackSession = Database.shared.getPlaybackSession(id: self.sessionId)!
         let currentTrackTime = self.audioPlayer.currentTime().seconds
         let audioTrack = playbackSession.audioTracks[currentTrackIndex]
         let startOffset = audioTrack.startOffset ?? 0.0
@@ -269,17 +278,20 @@ class AudioPlayer: NSObject {
     }
 
     public func getPlayMethod() -> Int {
-        return self.playbackSession.playMethod
+        let playbackSession = Database.shared.getPlaybackSession(id: self.sessionId)!
+        return playbackSession.playMethod
     }
-    public func getPlaybackSession() -> PlaybackSession {
-        return self.playbackSession
+    public func getPlaybackSessionId() -> String {
+        return self.sessionId
     }
     public func getDuration() -> Double {
+        let playbackSession = Database.shared.getPlaybackSession(id: self.sessionId)!
         return playbackSession.duration
     }
     
     // MARK: - Private
     private func createAsset(itemId:String, track:AudioTrack) -> AVAsset {
+        let playbackSession = Database.shared.getPlaybackSession(id: self.sessionId)!
         if (playbackSession.playMethod == PlayMethod.directplay.rawValue) {
             // The only reason this is separate is because the filename needs to be encoded
             let filename = track.metadata?.filename ?? ""

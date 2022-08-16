@@ -74,14 +74,14 @@ extension LocalLibraryItem {
         let mediaProgress = Database.shared.getLocalMediaProgress(localMediaProgressId: mediaProgressId)
         
         let mediaMetadata = self.media?.metadata
-        let chapters = Array(self.media?.chapters ?? List<Chapter>())
+        let chapters = self.media?.chapters ?? List<Chapter>()
         let authorName = mediaMetadata?.authorDisplayName
         
-        var audioTracks = [AudioTrack]()
+        let audioTracks = List<AudioTrack>()
         if let episode = episode, let track = episode.audioTrack {
             audioTracks.append(track)
         } else if let tracks = self.media?.tracks {
-            audioTracks.append(contentsOf: tracks)
+            audioTracks.append(objectsIn: tracks)
         }
         
         let dateNow = Date().timeIntervalSince1970
@@ -175,35 +175,41 @@ extension LocalMediaProgress {
     }
     
     func updateIsFinished(_ finished: Bool) {
-        if self.isFinished != finished {
-            self.progress = finished ? 1.0 : 0.0
-        }
+        try! Realm().write {
+            if self.isFinished != finished {
+                self.progress = finished ? 1.0 : 0.0
+            }
 
-        if self.startedAt == 0 && finished {
-            self.startedAt = Int(Date().timeIntervalSince1970)
+            if self.startedAt == 0 && finished {
+                self.startedAt = Int(Date().timeIntervalSince1970)
+            }
+            
+            self.isFinished = finished
+            self.lastUpdate = Int(Date().timeIntervalSince1970)
+            self.finishedAt = finished ? lastUpdate : nil
         }
-        
-        self.isFinished = finished
-        self.lastUpdate = Int(Date().timeIntervalSince1970)
-        self.finishedAt = finished ? lastUpdate : nil
     }
     
     func updateFromPlaybackSession(_ playbackSession: PlaybackSession) {
-        self.currentTime = playbackSession.currentTime
-        self.progress = playbackSession.progress
-        self.lastUpdate = Int(Date().timeIntervalSince1970)
-        self.isFinished = playbackSession.progress >= 100.0
-        self.finishedAt = self.isFinished ? self.lastUpdate : nil
+        try! Realm().write {
+            self.currentTime = playbackSession.currentTime
+            self.progress = playbackSession.progress
+            self.lastUpdate = Int(Date().timeIntervalSince1970)
+            self.isFinished = playbackSession.progress >= 100.0
+            self.finishedAt = self.isFinished ? self.lastUpdate : nil
+        }
     }
     
     func updateFromServerMediaProgress(_ serverMediaProgress: MediaProgress) {
-        self.isFinished = serverMediaProgress.isFinished
-        self.progress = serverMediaProgress.progress
-        self.currentTime = serverMediaProgress.currentTime
-        self.duration = serverMediaProgress.duration
-        self.lastUpdate = serverMediaProgress.lastUpdate
-        self.finishedAt = serverMediaProgress.finishedAt
-        self.startedAt = serverMediaProgress.startedAt
+        try! Realm().write {
+            self.isFinished = serverMediaProgress.isFinished
+            self.progress = serverMediaProgress.progress
+            self.currentTime = serverMediaProgress.currentTime
+            self.duration = serverMediaProgress.duration
+            self.lastUpdate = serverMediaProgress.lastUpdate
+            self.finishedAt = serverMediaProgress.finishedAt
+            self.startedAt = serverMediaProgress.startedAt
+        }
     }
     
     static func fetchOrCreateLocalMediaProgress(localMediaProgressId: String?, localLibraryItemId: String?, localEpisodeId: String?) -> LocalMediaProgress? {

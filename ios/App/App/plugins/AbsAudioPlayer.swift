@@ -7,6 +7,7 @@
 
 import Foundation
 import Capacitor
+import RealmSwift
 
 @objc(AbsAudioPlayer)
 public class AbsAudioPlayer: CAPPlugin {
@@ -47,7 +48,11 @@ public class AbsAudioPlayer: CAPPlugin {
         if (isLocalItem) {
             let item = Database.shared.getLocalLibraryItem(localLibraryItemId: libraryItemId!)
             let episode = item?.getPodcastEpisode(episodeId: episodeId)
-            let playbackSession = item?.getPlaybackSession(episode: episode)
+            guard let playbackSession = item?.getPlaybackSession(episode: episode) else {
+                NSLog("Failed to get local playback session")
+                return call.resolve([:])
+            }
+            playbackSession.save()
             sendPrepareMetadataEvent(itemId: libraryItemId!, playWhenReady: playWhenReady)
             do {
                 self.sendPlaybackSession(session: try playbackSession.asDictionary())
@@ -57,7 +62,7 @@ public class AbsAudioPlayer: CAPPlugin {
                 debugPrint(exception)
                 call.resolve([:])
             }
-            PlayerHandler.startPlayback(session: playbackSession!, playWhenReady: playWhenReady, playbackRate: playbackRate)
+            PlayerHandler.startPlayback(sessionId: playbackSession.id, playWhenReady: playWhenReady, playbackRate: playbackRate)
             self.sendMetadata()
         } else { // Playing from the server
             sendPrepareMetadataEvent(itemId: libraryItemId!, playWhenReady: playWhenReady)
@@ -71,7 +76,8 @@ public class AbsAudioPlayer: CAPPlugin {
                     call.resolve([:])
                 }
                 
-                PlayerHandler.startPlayback(session: session, playWhenReady: playWhenReady, playbackRate: playbackRate)
+                session.save()
+                PlayerHandler.startPlayback(sessionId: session.id, playWhenReady: playWhenReady, playbackRate: playbackRate)
                 self.sendMetadata()
             }
         }
@@ -197,14 +203,15 @@ public class AbsAudioPlayer: CAPPlugin {
     
     @objc func onPlaybackFailed() {
         if (PlayerHandler.getPlayMethod() == PlayMethod.directplay.rawValue) {
-            let playbackSession = PlayerHandler.getPlaybackSession()
-            let libraryItemId = playbackSession?.libraryItemId ?? ""
-            let episodeId = playbackSession?.episodeId ?? nil
+            let session = PlayerHandler.getPlaybackSession()
+            let libraryItemId = session?.libraryItemId ?? ""
+            let episodeId = session?.episodeId ?? nil
             NSLog("Forcing Transcode")
             
             // If direct playing then fallback to transcode
             ApiClient.startPlaybackSession(libraryItemId: libraryItemId, episodeId: episodeId, forceTranscode: true) { session in
-                PlayerHandler.startPlayback(session: session, playWhenReady: self.initialPlayWhenReady, playbackRate: self.initialPlaybackRate)
+                session.save()
+                PlayerHandler.startPlayback(sessionId: session.id, playWhenReady: self.initialPlayWhenReady, playbackRate: self.initialPlaybackRate)
                 
                 do {
                     self.sendPlaybackSession(session: try session.asDictionary())
