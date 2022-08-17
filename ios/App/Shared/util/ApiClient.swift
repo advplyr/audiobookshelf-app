@@ -166,8 +166,8 @@ class ApiClient {
         try? postResource(endpoint: "api/session/\(sessionId)/sync", parameters: report.asDictionary().mapValues({ value in "\(value)" }), callback: nil)
     }
     
-    public static func reportLocalMediaProgress(_ localMediaProgress: LocalMediaProgress, callback: @escaping (_ success: Bool) -> Void) {
-        let progress = localMediaProgress.freeze()
+    public static func reportLocalPlaybackProgress(_ session: PlaybackSession, callback: @escaping (_ success: Bool) -> Void) {
+        let progress = session.freeze()
         postResource(endpoint: "api/session/local", parameters: progress, callback: callback)
     }
     

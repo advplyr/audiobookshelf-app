@@ -8,7 +8,7 @@
 import Foundation
 import RealmSwift
          
-class PlaybackSession: Object, Codable {
+class PlaybackSession: Object, Codable, Deletable {
     @Persisted(primaryKey: true) var id: String = ""
     var userId: String?
     @Persisted var libraryItemId: String?
@@ -20,7 +20,7 @@ class PlaybackSession: Object, Codable {
     @Persisted var displayAuthor: String?
     @Persisted var coverPath: String?
     @Persisted var duration: Double = 0
-    @Persisted var playMethod: Int = 1
+    @Persisted var playMethod: Int = PlayMethod.directplay.rawValue
     @Persisted var startedAt: Double?
     @Persisted var updatedAt: Double?
     @Persisted var timeListening: Double = 0
@@ -30,8 +30,24 @@ class PlaybackSession: Object, Codable {
     @Persisted var localLibraryItem: LocalLibraryItem?
     @Persisted var serverConnectionConfigId: String?
     @Persisted var serverAddress: String?
+    @Persisted var isActiveSession = true
     
     var isLocal: Bool { self.localLibraryItem != nil }
+    var mediaPlayer: String { "AVPlayer" }
+    var deviceInfo: [String: String?]? {
+        var systemInfo = utsname()
+        uname(&systemInfo)
+        let modelCode = withUnsafePointer(to: &systemInfo.machine) {
+            $0.withMemoryRebound(to: CChar.self, capacity: 1) {
+                ptr in String.init(validatingUTF8: ptr)
+            }
+        }
+        return [
+            "manufacturer": "Apple",
+            "model": modelCode,
+            "clientVersion": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
+        ]
+    }
     
     var localMediaProgressId: String? {
         if let localLibraryItem = localLibraryItem, let episodeId = episodeId {
@@ -72,10 +88,11 @@ class PlaybackSession: Object, Codable {
         self.localLibraryItem = localLibraryItem
         self.serverConnectionConfigId = serverConnectionConfigId
         self.serverAddress = serverAddress
+        self.isActiveSession = true
     }
     
     private enum CodingKeys : String, CodingKey {
-        case id, userId, libraryItemId, episodeId, mediaType, chapters, displayTitle, displayAuthor, coverPath, duration, playMethod, startedAt, updatedAt, timeListening, audioTracks, currentTime, libraryItem, localLibraryItem, serverConnectionConfigId, serverAddress, isLocal, localMediaProgressId
+        case id, userId, libraryItemId, episodeId, mediaType, chapters, displayTitle, displayAuthor, coverPath, duration, playMethod, mediaPlayer, deviceInfo, startedAt, updatedAt, timeListening, audioTracks, currentTime, libraryItem, localLibraryItem, serverConnectionConfigId, serverAddress, isLocal, localMediaProgressId
     }
     
     override init() {}
@@ -107,6 +124,7 @@ class PlaybackSession: Object, Codable {
         localLibraryItem = try values.decodeIfPresent(LocalLibraryItem.self, forKey: .localLibraryItem)
         serverConnectionConfigId = try values.decodeIfPresent(String.self, forKey: .serverConnectionConfigId)
         serverAddress = try values.decodeIfPresent(String.self, forKey: .serverAddress)
+        isActiveSession = true
     }
     
     func encode(to encoder: Encoder) throws {
@@ -122,6 +140,8 @@ class PlaybackSession: Object, Codable {
         try container.encode(coverPath, forKey: .coverPath)
         try container.encode(duration, forKey: .duration)
         try container.encode(playMethod, forKey: .playMethod)
+        try container.encode(mediaPlayer, forKey: .mediaPlayer)
+        try container.encode(deviceInfo, forKey: .deviceInfo)
         try container.encode(startedAt, forKey: .startedAt)
         try container.encode(updatedAt, forKey: .updatedAt)
         try container.encode(timeListening, forKey: .timeListening)

@@ -34,7 +34,6 @@ class PlayerHandler {
         }
     }
     private static var listeningTimePassedSinceLastSync: Double = 0.0
-    private static var lastSyncReport: PlaybackReport?
     
     public static var paused: Bool {
         get {
@@ -69,15 +68,35 @@ class PlayerHandler {
         timer = nil
     }
     
+    private static func cleanupOldSessions(currentSessionId: String?) {
+        if let currentSessionId = currentSessionId {
+            let realm = try! Realm()
+            let oldSessions = realm.objects(PlaybackSession.self)
+                .where({ $0.isActiveSession == true && $0.id != currentSessionId })
+            try! realm.write {
+                for s in oldSessions {
+                    s.isActiveSession = false
+                }
+            }
+        }
+    }
+    
     public static func startPlayback(sessionId: String, playWhenReady: Bool, playbackRate: Float) {
         guard let session = Database.shared.getPlaybackSession(id: sessionId) else { return }
+        
+        // Clean up the existing player
         if player != nil {
             player?.destroy()
             player = nil
         }
         
+        // Cleanup old sessions
+        cleanupOldSessions(currentSessionId: sessionId)
+        
+        // Set now playing info
         NowPlayingInfo.shared.setSessionMetadata(metadata: NowPlayingMetadata(id: session.id, itemId: session.libraryItemId!, artworkUrl: session.coverPath, title: session.displayTitle ?? "Unknown title", author: session.displayAuthor, series: nil))
         
+        // Create the audio player
         player = AudioPlayer(sessionId: sessionId, playWhenReady: playWhenReady, playbackRate: playbackRate)
         
         startTickTimer()
@@ -92,6 +111,8 @@ class PlayerHandler {
         
         player?.destroy()
         player = nil
+        
+        cleanupOldSessions(currentSessionId: nil)
         
         NowPlayingInfo.shared.reset()
     }
@@ -180,10 +201,8 @@ class PlayerHandler {
         guard let player = player else { return }
         guard let session = getPlaybackSession() else { return }
         
-        // Prevent a sync at the current time
+        // Get current time
         let playerCurrentTime = player.getCurrentTime()
-        let hasSyncAtCurrentTime = lastSyncReport?.currentTime.isEqual(to: playerCurrentTime) ?? false
-        if hasSyncAtCurrentTime { return }
         
         // Prevent multiple sync requests
         let timeSinceLastSync = Date().timeIntervalSince1970 - lastSyncTime
@@ -196,29 +215,18 @@ class PlayerHandler {
         guard !playerCurrentTime.isNaN else { return }
         
         lastSyncTime = Date().timeIntervalSince1970 // seconds
-        let report = PlaybackReport(currentTime: playerCurrentTime, duration: player.getDuration(), timeListened: listeningTimePassedSinceLastSync)
         
         session.update {
             session.currentTime = playerCurrentTime
+            session.timeListening += listeningTimePassedSinceLastSync
         }
         listeningTimePassedSinceLastSync = 0
-        lastSyncReport = report
         
-        let sessionIsLocal = session.isLocal
-        if !sessionIsLocal {
-            if Connectivity.isConnectedToInternet {
-                NSLog("sending playback report")
-                ApiClient.reportPlaybackProgress(report: report, sessionId: session.id)
-            }
-        } else {
-            if let localMediaProgress = syncLocalProgress() {
-                if Connectivity.isConnectedToInternet {
-                    ApiClient.reportLocalMediaProgress(localMediaProgress) { success in
-                        NSLog("Synced local media progress: \(success)")
-                    }
-                }
-            }
+        // Persist items in the database and sync to the server
+        if session.isLocal {
+            _ = syncLocalProgress()
         }
+        syncPlaybackSessionsToServer()
     }
     
     private static func syncLocalProgress() -> LocalMediaProgress? {
@@ -240,5 +248,24 @@ class PlayerHandler {
         NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.localProgress.rawValue), object: nil)
         
         return localMediaProgress
+    }
+    
+    private static func syncPlaybackSessionsToServer() {
+        guard Connectivity.isConnectedToInternet else { return }
+        DispatchQueue.global(qos: .utility).async {
+            let realm = try! Realm()
+            for session in realm.objects(PlaybackSession.self) {
+                NSLog("Sending sessionId(\(session.id)) to server")
+                let sessionRef = ThreadSafeReference(to: session)
+                ApiClient.reportLocalPlaybackProgress(session.freeze()) { success in
+                    // Remove old sessions after they synced with the server
+                    let session = try! Realm().resolve(sessionRef)
+                    if success && !(session?.isActiveSession ?? false) {
+                        NSLog("Deleting sessionId(\(session!.id)) as is no longer active")
+                        session?.delete()
+                    }
+                }
+            }
+        }
     }
 }
