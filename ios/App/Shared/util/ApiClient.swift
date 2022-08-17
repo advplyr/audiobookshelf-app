@@ -162,8 +162,8 @@ class ApiClient {
         }
     }
     
-    public static func reportPlaybackProgress(report: PlaybackReport, sessionId: String) {
-        try? postResource(endpoint: "api/session/\(sessionId)/sync", parameters: report.asDictionary().mapValues({ value in "\(value)" }), callback: nil)
+    public static func reportPlaybackProgress(report: PlaybackReport, sessionId: String, callback: @escaping (_ success: Bool) -> Void) {
+        try? postResource(endpoint: "api/session/\(sessionId)/sync", parameters: report.asDictionary().mapValues({ value in "\(value)" }), callback: callback)
     }
     
     public static func reportLocalPlaybackProgress(_ session: PlaybackSession, callback: @escaping (_ success: Bool) -> Void) {

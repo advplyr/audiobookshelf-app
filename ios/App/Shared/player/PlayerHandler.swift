@@ -261,12 +261,24 @@ class PlayerHandler {
             for session in realm.objects(PlaybackSession.self).where({ $0.serverConnectionConfigId == Store.serverConfig?.id }) {
                 NSLog("Sending sessionId(\(session.id)) to server")
                 let sessionRef = ThreadSafeReference(to: session)
-                ApiClient.reportLocalPlaybackProgress(session.freeze()) { success in
+                
+                func handleSuccess(_ success: Bool) {
                     // Remove old sessions after they synced with the server
                     let session = try! Realm().resolve(sessionRef)
                     if success && !(session?.isActiveSession ?? false) {
                         NSLog("Deleting sessionId(\(session!.id)) as is no longer active")
                         session?.delete()
+                    }
+                }
+                
+                if session.isLocal {
+                    ApiClient.reportLocalPlaybackProgress(session.freeze()) { success in
+                        handleSuccess(success)
+                    }
+                } else {
+                    let playbackReport = PlaybackReport(currentTime: session.currentTime, duration: session.duration, timeListened: session.timeListening)
+                    ApiClient.reportPlaybackProgress(report: playbackReport, sessionId: session.id) { success in
+                        handleSuccess(success)
                     }
                 }
             }
