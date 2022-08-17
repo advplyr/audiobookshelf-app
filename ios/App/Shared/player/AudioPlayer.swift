@@ -107,6 +107,10 @@ class AudioPlayer: NSObject {
         NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.closed.rawValue), object: nil)
     }
     
+    func isInitialized() -> Bool {
+        return self.status != -1
+    }
+    
     func getItemIndexForTime(time:Double) -> Int {
         let playbackSession = Database.shared.getPlaybackSession(id: self.sessionId)!
         for index in 0..<self.allPlayerItems.count {

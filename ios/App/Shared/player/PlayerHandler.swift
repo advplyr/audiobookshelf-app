@@ -157,16 +157,19 @@ class PlayerHandler {
         player?.seek(amount, from: "handler")
     }
     
-    public static func getMetdata() -> [String: Any] {
+    public static func getMetdata() -> [String: Any]? {
+        guard let player = player else { return nil }
+        guard player.isInitialized() else { return nil }
+        
         DispatchQueue.main.async {
             syncProgress()
         }
         
         return [
-            "duration": player?.getDuration() ?? 0,
-            "currentTime": player?.getCurrentTime() ?? 0,
+            "duration": player.getDuration(),
+            "currentTime": player.getCurrentTime(),
             "playerState": !paused,
-            "currentRate": player?.rate ?? 0,
+            "currentRate": player.rate,
         ]
     }
     
@@ -199,6 +202,7 @@ class PlayerHandler {
     
     public static func syncProgress() {
         guard let player = player else { return }
+        guard player.isInitialized() else { return }
         guard let session = getPlaybackSession() else { return }
         
         // Get current time
@@ -254,7 +258,7 @@ class PlayerHandler {
         guard Connectivity.isConnectedToInternet else { return }
         DispatchQueue.global(qos: .utility).async {
             let realm = try! Realm()
-            for session in realm.objects(PlaybackSession.self) {
+            for session in realm.objects(PlaybackSession.self).where({ $0.serverConnectionConfigId == Store.serverConfig?.id }) {
                 NSLog("Sending sessionId(\(session.id)) to server")
                 let sessionRef = ThreadSafeReference(to: session)
                 ApiClient.reportLocalPlaybackProgress(session.freeze()) { success in

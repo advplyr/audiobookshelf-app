@@ -130,7 +130,9 @@ public class AbsAudioPlayer: CAPPlugin {
     
     @objc func sendMetadata() {
         self.notifyListeners("onPlayingUpdate", data: [ "value": !PlayerHandler.paused ])
-        self.notifyListeners("onMetadata", data: PlayerHandler.getMetdata())
+        if let metadata = PlayerHandler.getMetdata() {
+            self.notifyListeners("onMetadata", data: metadata)
+        }
     }
     @objc func sendPlaybackClosedEvent() {
         self.notifyListeners("onPlaybackClosed", data: [ "value": true ])
