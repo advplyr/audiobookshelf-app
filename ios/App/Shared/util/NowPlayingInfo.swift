@@ -16,7 +16,8 @@ struct NowPlayingMetadata {
     var author: String?
     var series: String?
     var coverUrl: URL? {
-        guard let url = URL(string: "\(Store.serverConfig!.address)/api/items/\(itemId)/cover?token=\(Store.serverConfig!.token)") else { return nil }
+        guard let config = Store.serverConfig else { return nil }
+        guard let url = URL(string: "\(config.address)/api/items/\(itemId)/cover?token=\(config.token)") else { return nil }
         return url
     }
 }
