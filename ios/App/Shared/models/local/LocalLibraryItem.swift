@@ -186,7 +186,7 @@ extension LocalLibraryItem {
             duration: self.getDuration(),
             playMethod: PlayMethod.local.rawValue,
             startedAt: dateNow,
-            updatedAt: 0,
+            updatedAt: dateNow,
             timeListening: 0.0,
             audioTracks: audioTracks,
             currentTime: mediaProgress?.currentTime ?? 0.0,

@@ -223,6 +223,7 @@ class PlayerHandler {
         session.update {
             session.currentTime = playerCurrentTime
             session.timeListening += listeningTimePassedSinceLastSync
+            session.updatedAt = Date().timeIntervalSince1970
         }
         listeningTimePassedSinceLastSync = 0
         

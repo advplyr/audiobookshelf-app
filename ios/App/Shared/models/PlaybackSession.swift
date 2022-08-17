@@ -10,7 +10,7 @@ import RealmSwift
          
 class PlaybackSession: Object, Codable, Deletable {
     @Persisted(primaryKey: true) var id: String = ""
-    var userId: String?
+    @Persisted var userId: String?
     @Persisted var libraryItemId: String?
     @Persisted var episodeId: String?
     @Persisted var mediaType: String = ""
