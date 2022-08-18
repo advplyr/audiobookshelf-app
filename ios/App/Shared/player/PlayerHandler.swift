@@ -319,6 +319,7 @@ class PlayerHandler {
                 if serverIsNewerThanLocal && currentTimeIsDifferent {
                     session.update {
                         session.currentTime = serverCurrentTime
+                        session.updatedAt = serverLastUpdate
                     }
                     self.seek(amount: session.currentTime)
                 }
