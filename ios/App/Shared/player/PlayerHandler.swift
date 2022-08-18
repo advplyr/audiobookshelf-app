@@ -162,7 +162,7 @@ class PlayerHandler {
         guard player.isInitialized() else { return nil }
         
         DispatchQueue.main.async {
-            syncProgress()
+            syncPlayerProgress()
         }
         
         return [
@@ -196,11 +196,11 @@ class PlayerHandler {
         }
         
         if listeningTimePassedSinceLastSync >= 5 {
-            syncProgress()
+            syncPlayerProgress()
         }
     }
     
-    public static func syncProgress() {
+    public static func syncPlayerProgress() {
         guard let player = player else { return }
         guard player.isInitialized() else { return }
         guard let session = getPlaybackSession() else { return }
@@ -228,34 +228,33 @@ class PlayerHandler {
         listeningTimePassedSinceLastSync = 0
         
         // Persist items in the database and sync to the server
-        if session.isLocal {
-            _ = syncLocalProgress()
-        }
-        syncPlaybackSessionsToServer()
+        if session.isLocal { syncLocalProgress() }
+        syncServerProgress()
     }
     
-    private static func syncLocalProgress() -> LocalMediaProgress? {
-        guard let session = getPlaybackSession() else { return nil }
-        
-        let localMediaProgress = LocalMediaProgress.fetchOrCreateLocalMediaProgress(localMediaProgressId: session.localMediaProgressId, localLibraryItemId: session.localLibraryItem?.id, localEpisodeId: session.episodeId)
-        guard let localMediaProgress = localMediaProgress else {
-            // Local media progress should have been created
-            // If we're here, it means a library id is invalid
-            return nil
-        }
+    private static func syncLocalProgress() {
+        DispatchQueue.global(qos: .utility).async {
+            guard let session = getPlaybackSession() else { return }
+            guard session.isLocal else { return }
+            
+            let localMediaProgress = LocalMediaProgress.fetchOrCreateLocalMediaProgress(localMediaProgressId: session.localMediaProgressId, localLibraryItemId: session.localLibraryItem?.id, localEpisodeId: session.episodeId)
+            guard let localMediaProgress = localMediaProgress else {
+                // Local media progress should have been created
+                // If we're here, it means a library id is invalid
+                return
+            }
 
-        localMediaProgress.updateFromPlaybackSession(session)
-        Database.shared.saveLocalMediaProgress(localMediaProgress)
-        
-        NSLog("Local progress saved to the database")
-        
-        // Send the local progress back to front-end
-        NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.localProgress.rawValue), object: nil)
-        
-        return localMediaProgress
+            localMediaProgress.updateFromPlaybackSession(session)
+            Database.shared.saveLocalMediaProgress(localMediaProgress)
+            
+            NSLog("Local progress saved to the database")
+            
+            // Send the local progress back to front-end
+            NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.localProgress.rawValue), object: nil)
+        }
     }
     
-    private static func syncPlaybackSessionsToServer() {
+    public static func syncServerProgress() {
         guard Connectivity.isConnectedToInternet else { return }
         DispatchQueue.global(qos: .utility).async {
             let realm = try! Realm()
@@ -263,7 +262,7 @@ class PlayerHandler {
                 NSLog("Sending sessionId(\(session.id)) to server")
                 let sessionRef = ThreadSafeReference(to: session)
                 
-                func handleSuccess(_ success: Bool) {
+                func handleSyncSuccess(_ success: Bool) {
                     // Remove old sessions after they synced with the server
                     let session = try! Realm().resolve(sessionRef)
                     if success && !(session?.isActiveSession ?? false) {
@@ -274,12 +273,12 @@ class PlayerHandler {
                 
                 if session.isLocal {
                     ApiClient.reportLocalPlaybackProgress(session.freeze()) { success in
-                        handleSuccess(success)
+                        handleSyncSuccess(success)
                     }
                 } else {
                     let playbackReport = PlaybackReport(currentTime: session.currentTime, duration: session.duration, timeListened: session.timeListening)
                     ApiClient.reportPlaybackProgress(report: playbackReport, sessionId: session.id) { success in
-                        handleSuccess(success)
+                        handleSyncSuccess(success)
                     }
                 }
             }
