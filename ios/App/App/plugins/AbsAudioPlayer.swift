@@ -40,6 +40,7 @@ public class AbsAudioPlayer: CAPPlugin {
             let activeSession = try Realm().objects(PlaybackSession.self).where({ $0.isActiveSession == true }).last
             if let activeSession = activeSession {
                 try self.startPlaybackSession(activeSession, playWhenReady: false)
+                PlayerHandler.syncServerProgressDuringPause()
             }
         } catch {
             NSLog("Failed to restore playback session")

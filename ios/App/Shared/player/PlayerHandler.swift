@@ -11,6 +11,7 @@ import RealmSwift
 class PlayerHandler {
     private static var player: AudioPlayer?
     private static var timer: Timer?
+    private static var pausedTimer: Timer?
     private static var lastSyncTime: Double = 0.0
     
     public static var sleepTimerChapterStopTime: Int? = nil
@@ -48,6 +49,7 @@ class PlayerHandler {
                 self.player?.pause()
             } else {
                 self.player?.play()
+                self.pausedTimer?.invalidate()
             }
         }
     }
@@ -56,6 +58,7 @@ class PlayerHandler {
         DispatchQueue.runOnMainQueue {
             NSLog("Starting the tick timer")
             timer?.invalidate()
+            pausedTimer?.invalidate()
             timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
                 self.tick()
             }
@@ -65,7 +68,14 @@ class PlayerHandler {
     public static func stopTickTimer() {
         NSLog("Stopping the tick timer")
         timer?.invalidate()
+        pausedTimer?.invalidate()
         timer = nil
+    }
+    
+    private static func startPausedTimer() {
+        guard self.paused else { return }
+        self.pausedTimer?.invalidate()
+        self.pausedTimer = Timer.scheduledTimer(timeInterval: 30, target: self, selector: #selector(syncServerProgressDuringPause), userInfo: nil, repeats: true)
     }
     
     private static func cleanupOldSessions(currentSessionId: String?) {
@@ -99,6 +109,7 @@ class PlayerHandler {
         player = AudioPlayer(sessionId: sessionId, playWhenReady: playWhenReady, playbackRate: playbackRate)
         
         startTickTimer()
+        startPausedTimer()
     }
     
     public static func stopPlayback() {
@@ -204,6 +215,8 @@ class PlayerHandler {
         guard player.isInitialized() else { return }
         guard let session = getPlaybackSession() else { return }
         
+        NSLog("Syncing player progress")
+        
         // Get current time
         let playerCurrentTime = player.getCurrentTime()
         
@@ -279,6 +292,35 @@ class PlayerHandler {
                     ApiClient.reportPlaybackProgress(report: playbackReport, sessionId: session.id) { success in
                         handleSyncSuccess(success)
                     }
+                }
+            }
+        }
+    }
+    
+    @objc public static func syncServerProgressDuringPause() {
+        guard Connectivity.isConnectedToInternet else { return }
+        DispatchQueue.global(qos: .utility).async {
+            NSLog("checkCurrentSessionProgress: Checking if local media progress was updated on server")
+            guard let session = getPlaybackSession() else { return }
+            let sessionRef = ThreadSafeReference(to: session)
+            
+            ApiClient.getMediaProgress(libraryItemId: session.libraryItemId!, episodeId: session.episodeId) { progress in
+                guard let session = try! Realm().resolve(sessionRef) else { return }
+                guard let progress = progress else { return }
+                
+                let serverLastUpdate = progress.lastUpdate
+                guard let localLastUpdate = session.updatedAt else { return }
+                let serverCurrentTime = progress.currentTime
+                let localCurrentTime = session.currentTime
+                
+                let serverIsNewerThanLocal = serverLastUpdate > localLastUpdate
+                let currentTimeIsDifferent = serverCurrentTime != localCurrentTime
+                
+                if serverIsNewerThanLocal && currentTimeIsDifferent {
+                    session.update {
+                        session.currentTime = serverCurrentTime
+                    }
+                    self.seek(amount: session.currentTime)
                 }
             }
         }

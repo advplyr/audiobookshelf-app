@@ -205,6 +205,14 @@ class ApiClient {
         }
     }
     
+    public static func getMediaProgress(libraryItemId: String, episodeId: String?, callback: @escaping (_ progress: MediaProgress?) -> Void) {
+        NSLog("getMediaProgress \(libraryItemId) \(episodeId ?? "NIL")")
+        let endpoint = episodeId?.isEmpty ?? true ? "api/me/progress/\(libraryItemId)" : "api/me/progress/\(libraryItemId)/\(episodeId ?? "")"
+        getResource(endpoint: endpoint, decodable: MediaProgress.self) { obj in
+            callback(obj)
+        }
+    }
+    
     public static func getLibraryItemWithProgress(libraryItemId:String, episodeId:String?, callback: @escaping (_ param: LibraryItem?) -> Void) {
         var endpoint = "api/items/\(libraryItemId)?expanded=1&include=progress"
         if episodeId != nil {
