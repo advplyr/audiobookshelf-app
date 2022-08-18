@@ -25,7 +25,7 @@ public class AbsAudioPlayer: CAPPlugin {
         NotificationCenter.default.addObserver(self, selector: #selector(onLocalMediaProgressUpdate), name: NSNotification.Name(PlayerEvents.localProgress.rawValue), object: nil)
         
         // Restore the playack session when plugin loads
-        Timer.scheduledTimer(timeInterval: 0.5, target: self, selector: #selector(restorePlaybackSession), userInfo: nil, repeats: false)
+        Timer.scheduledTimer(timeInterval: 1, target: self, selector: #selector(restorePlaybackSession), userInfo: nil, repeats: false)
         
         self.bridge?.webView?.allowsBackForwardNavigationGestures = true;
         
