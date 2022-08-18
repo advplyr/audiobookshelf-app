@@ -172,7 +172,7 @@ extension LocalLibraryItem {
             tracks.forEach { t in audioTracks.append(AudioTrack.detachCopy(of: t)!) }
         }
         
-        let dateNow = Date().timeIntervalSince1970
+        let dateNow = Date().timeIntervalSince1970 * 1000
         return PlaybackSession(
             id: sessionId,
             userId: self.serverUserId,
