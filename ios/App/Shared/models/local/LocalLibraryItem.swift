@@ -179,6 +179,7 @@ extension LocalLibraryItem {
             libraryItemId: self.libraryItemId,
             episodeId: episode?.serverEpisodeId,
             mediaType: self.mediaType,
+            mediaMetadata: mediaMetadata,
             chapters: chapters,
             displayTitle: mediaMetadata?.title,
             displayAuthor: authorName,

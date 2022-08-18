@@ -14,7 +14,7 @@ class PlaybackSession: Object, Codable, Deletable {
     @Persisted var libraryItemId: String?
     @Persisted var episodeId: String?
     @Persisted var mediaType: String = ""
-    // var mediaMetadata: MediaTypeMetadata - It is not implemented in android?
+    @Persisted var mediaMetadata: Metadata?
     @Persisted var chapters = List<Chapter>()
     @Persisted var displayTitle: String?
     @Persisted var displayAuthor: String?
@@ -67,12 +67,13 @@ class PlaybackSession: Object, Codable, Deletable {
     
     var progress: Double { self.currentTime / self.totalDuration }
     
-    internal init(id: String, userId: String? = nil, libraryItemId: String? = nil, episodeId: String? = nil, mediaType: String, chapters: List<Chapter> = List<Chapter>(), displayTitle: String? = nil, displayAuthor: String? = nil, coverPath: String? = nil, duration: Double, playMethod: Int, startedAt: Double? = nil, updatedAt: Double? = nil, timeListening: Double, audioTracks: List<AudioTrack> = List<AudioTrack>(), currentTime: Double, libraryItem: LibraryItem? = nil, localLibraryItem: LocalLibraryItem? = nil, serverConnectionConfigId: String? = nil, serverAddress: String? = nil) {
+    internal init(id: String, userId: String? = nil, libraryItemId: String? = nil, episodeId: String? = nil, mediaType: String, mediaMetadata: Metadata?, chapters: List<Chapter> = List<Chapter>(), displayTitle: String? = nil, displayAuthor: String? = nil, coverPath: String? = nil, duration: Double, playMethod: Int, startedAt: Double? = nil, updatedAt: Double? = nil, timeListening: Double, audioTracks: List<AudioTrack> = List<AudioTrack>(), currentTime: Double, libraryItem: LibraryItem? = nil, localLibraryItem: LocalLibraryItem? = nil, serverConnectionConfigId: String? = nil, serverAddress: String? = nil) {
         self.id = id
         self.userId = userId
         self.libraryItemId = libraryItemId
         self.episodeId = episodeId
         self.mediaType = mediaType
+        self.mediaMetadata = mediaMetadata
         self.chapters = chapters
         self.displayTitle = displayTitle
         self.displayAuthor = displayAuthor
@@ -92,7 +93,7 @@ class PlaybackSession: Object, Codable, Deletable {
     }
     
     private enum CodingKeys : String, CodingKey {
-        case id, userId, libraryItemId, episodeId, mediaType, chapters, displayTitle, displayAuthor, coverPath, duration, playMethod, mediaPlayer, deviceInfo, startedAt, updatedAt, timeListening, audioTracks, currentTime, libraryItem, localLibraryItem, serverConnectionConfigId, serverAddress, isLocal, localMediaProgressId
+        case id, userId, libraryItemId, episodeId, mediaType, mediaMetadata, chapters, displayTitle, displayAuthor, coverPath, duration, playMethod, mediaPlayer, deviceInfo, startedAt, updatedAt, timeListening, audioTracks, currentTime, libraryItem, localLibraryItem, serverConnectionConfigId, serverAddress, isLocal, localMediaProgressId
     }
     
     override init() {}
@@ -105,6 +106,7 @@ class PlaybackSession: Object, Codable, Deletable {
         libraryItemId = try values.decodeIfPresent(String.self, forKey: .libraryItemId)
         episodeId = try values.decodeIfPresent(String.self, forKey: .episodeId)
         mediaType = try values.decode(String.self, forKey: .mediaType)
+        mediaMetadata = try values.decodeIfPresent(Metadata.self, forKey: .mediaMetadata)
         if let chapterList = try values.decodeIfPresent([Chapter].self, forKey: .chapters) {
             chapters.append(objectsIn: chapterList)
         }
@@ -134,6 +136,7 @@ class PlaybackSession: Object, Codable, Deletable {
         try container.encode(libraryItemId, forKey: .libraryItemId)
         try container.encode(episodeId, forKey: .episodeId)
         try container.encode(mediaType, forKey: .mediaType)
+        try container.encode(mediaMetadata, forKey: .mediaMetadata)
         try container.encode(Array(chapters), forKey: .chapters)
         try container.encode(displayTitle, forKey: .displayTitle)
         try container.encode(displayAuthor, forKey: .displayAuthor)
