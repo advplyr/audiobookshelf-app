@@ -27,6 +27,15 @@ public class AbsAudioPlayer: CAPPlugin {
         self.bridge?.webView?.allowsBackForwardNavigationGestures = true;
         
     }
+    
+    @objc func startPlaybackSession(_ session: PlaybackSession, playWhenReady: Bool, playbackRate: Float = 1.0) throws {
+        guard let libraryItemId = session.libraryItemId else { throw PlayerError.libraryItemIdNotSpecified }
+        
+        self.sendPrepareMetadataEvent(itemId: libraryItemId, playWhenReady: playWhenReady)
+        self.sendPlaybackSession(session: try session.asDictionary())
+        PlayerHandler.startPlayback(sessionId: session.id, playWhenReady: playWhenReady, playbackRate: playbackRate)
+        self.sendMetadata()
+    }
 
     @objc func prepareLibraryItem(_ call: CAPPluginCall) {
         let libraryItemId = call.getString("libraryItemId")
@@ -39,9 +48,6 @@ public class AbsAudioPlayer: CAPPlugin {
             return call.resolve()
         }
         
-        initialPlayWhenReady = playWhenReady
-        initialPlaybackRate = playbackRate
-        
         PlayerHandler.stopPlayback()
         
         let isLocalItem = libraryItemId?.starts(with: "local_") ?? false
@@ -53,32 +59,26 @@ public class AbsAudioPlayer: CAPPlugin {
                 return call.resolve([:])
             }
             playbackSession.save()
-            sendPrepareMetadataEvent(itemId: libraryItemId!, playWhenReady: playWhenReady)
+            
             do {
-                self.sendPlaybackSession(session: try playbackSession.asDictionary())
+                try self.startPlaybackSession(playbackSession, playWhenReady: playWhenReady, playbackRate: playbackRate)
                 call.resolve(try playbackSession.asDictionary())
             } catch(let exception) {
-                NSLog("failed to convert session to json")
+                NSLog("Failed to start session")
                 debugPrint(exception)
                 call.resolve([:])
             }
-            PlayerHandler.startPlayback(sessionId: playbackSession.id, playWhenReady: playWhenReady, playbackRate: playbackRate)
-            self.sendMetadata()
         } else { // Playing from the server
-            sendPrepareMetadataEvent(itemId: libraryItemId!, playWhenReady: playWhenReady)
             ApiClient.startPlaybackSession(libraryItemId: libraryItemId!, episodeId: episodeId, forceTranscode: false) { session in
+                session.save()
                 do {
-                    self.sendPlaybackSession(session: try session.asDictionary())
+                    try self.startPlaybackSession(session, playWhenReady: playWhenReady, playbackRate: playbackRate)
                     call.resolve(try session.asDictionary())
                 } catch(let exception) {
-                    NSLog("failed to convert session to json")
+                    NSLog("Failed to start session")
                     debugPrint(exception)
                     call.resolve([:])
                 }
-                
-                session.save()
-                PlayerHandler.startPlayback(sessionId: session.id, playWhenReady: playWhenReady, playbackRate: playbackRate)
-                self.sendMetadata()
             }
         }
     }
@@ -244,4 +244,8 @@ public class AbsAudioPlayer: CAPPlugin {
     @objc func sendPlaybackSession(session: [String: Any]) {
         self.notifyListeners("onPlaybackSession", data: session)
     }
+}
+
+enum PlayerError: String, Error {
+    case libraryItemIdNotSpecified = "No libraryItemId provided on session"
 }
