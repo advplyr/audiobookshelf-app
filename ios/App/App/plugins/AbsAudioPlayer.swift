@@ -24,8 +24,27 @@ public class AbsAudioPlayer: CAPPlugin {
         NotificationCenter.default.addObserver(self, selector: #selector(onPlaybackFailed), name: NSNotification.Name(PlayerEvents.failed.rawValue), object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(onLocalMediaProgressUpdate), name: NSNotification.Name(PlayerEvents.localProgress.rawValue), object: nil)
         
+        // Restore the playack session when plugin loads
+        Timer.scheduledTimer(timeInterval: 0.5, target: self, selector: #selector(restorePlaybackSession), userInfo: nil, repeats: false)
+        
         self.bridge?.webView?.allowsBackForwardNavigationGestures = true;
         
+    }
+    
+    @objc func restorePlaybackSession() {
+        // We don't need to restore if we have an active session
+        guard PlayerHandler.getPlaybackSession() == nil else { return }
+        
+        do {
+            // Fetch the most recent active session
+            let activeSession = try Realm().objects(PlaybackSession.self).where({ $0.isActiveSession == true }).last
+            if let activeSession = activeSession {
+                try self.startPlaybackSession(activeSession, playWhenReady: false)
+            }
+        } catch {
+            NSLog("Failed to restore playback session")
+            debugPrint(error)
+        }
     }
     
     @objc func startPlaybackSession(_ session: PlaybackSession, playWhenReady: Bool, playbackRate: Float = 1.0) throws {
