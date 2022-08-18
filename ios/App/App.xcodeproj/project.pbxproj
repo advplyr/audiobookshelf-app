@@ -57,6 +57,7 @@
 		E9D5506F28AC1E8E00C746DD /* DownloadItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D5506E28AC1E8E00C746DD /* DownloadItem.swift */; };
 		E9D5507128AC1EC700C746DD /* DownloadItemPart.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D5507028AC1EC700C746DD /* DownloadItemPart.swift */; };
 		E9D5507328AC218300C746DD /* DaoExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D5507228AC218300C746DD /* DaoExtensions.swift */; };
+		E9D5507528AEF93100C746DD /* PlayerSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D5507428AEF93100C746DD /* PlayerSettings.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -114,6 +115,7 @@
 		E9D5506E28AC1E8E00C746DD /* DownloadItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadItem.swift; sourceTree = "<group>"; };
 		E9D5507028AC1EC700C746DD /* DownloadItemPart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadItemPart.swift; sourceTree = "<group>"; };
 		E9D5507228AC218300C746DD /* DaoExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaoExtensions.swift; sourceTree = "<group>"; };
+		E9D5507428AEF93100C746DD /* PlayerSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerSettings.swift; sourceTree = "<group>"; };
 		FC68EB0AF532CFC21C3344DD /* Pods-App.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-App.debug.xcconfig"; path = "Pods/Target Support Files/Pods-App/Pods-App.debug.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -180,6 +182,7 @@
 				E9D5505F28AC1CA900C746DD /* PlaybackMetadata.swift */,
 				E9D5506128AC1CC900C746DD /* PlayerState.swift */,
 				4DF74911287105C600AC7814 /* DeviceSettings.swift */,
+				E9D5507428AEF93100C746DD /* PlayerSettings.swift */,
 				E9D5506328AC1D3F00C746DD /* server */,
 				E9D5506428AC1D5800C746DD /* local */,
 				E9D5506D28AC1E7400C746DD /* download */,
@@ -436,6 +439,7 @@
 				4DF74912287105C600AC7814 /* DeviceSettings.swift in Sources */,
 				E9D5504A28AC1AA600C746DD /* Metadata.swift in Sources */,
 				3AF197102806E3DC0096F747 /* AbsAudioPlayer.m in Sources */,
+				E9D5507528AEF93100C746DD /* PlayerSettings.swift in Sources */,
 				E9D5505028AC1B3E00C746DD /* Author.swift in Sources */,
 				3AF1970C2806E2590096F747 /* ApiClient.swift in Sources */,
 				4D66B954282EE87C008272D4 /* AbsDownloader.swift in Sources */,

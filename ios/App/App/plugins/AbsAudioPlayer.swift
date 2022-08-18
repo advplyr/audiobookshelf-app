@@ -12,7 +12,6 @@ import RealmSwift
 @objc(AbsAudioPlayer)
 public class AbsAudioPlayer: CAPPlugin {
     private var initialPlayWhenReady = false
-    private var initialPlaybackRate:Float = 1
     
     override public func load() {
         NotificationCenter.default.addObserver(self, selector: #selector(sendMetadata), name: NSNotification.Name(PlayerEvents.update.rawValue), object: nil)
@@ -39,7 +38,7 @@ public class AbsAudioPlayer: CAPPlugin {
             // Fetch the most recent active session
             let activeSession = try Realm().objects(PlaybackSession.self).where({ $0.isActiveSession == true }).last
             if let activeSession = activeSession {
-                try self.startPlaybackSession(activeSession, playWhenReady: false)
+                try self.startPlaybackSession(activeSession, playWhenReady: false, playbackRate: PlayerSettings.main().playbackRate)
                 PlayerHandler.syncServerProgressDuringPause()
             }
         } catch {
@@ -48,7 +47,7 @@ public class AbsAudioPlayer: CAPPlugin {
         }
     }
     
-    @objc func startPlaybackSession(_ session: PlaybackSession, playWhenReady: Bool, playbackRate: Float = 1.0) throws {
+    @objc func startPlaybackSession(_ session: PlaybackSession, playWhenReady: Bool, playbackRate: Float) throws {
         guard let libraryItemId = session.libraryItemId else { throw PlayerError.libraryItemIdNotSpecified }
         
         self.sendPrepareMetadataEvent(itemId: libraryItemId, playWhenReady: playWhenReady)
@@ -117,7 +116,12 @@ public class AbsAudioPlayer: CAPPlugin {
         ])
     }
     @objc func setPlaybackSpeed(_ call: CAPPluginCall) {
-        PlayerHandler.setPlaybackSpeed(speed: call.getFloat("value", 1.0))
+        let playbackRate = call.getFloat("value", 1.0)
+        let settings = PlayerSettings.main()
+        settings.update {
+            settings.playbackRate = playbackRate
+        }
+        PlayerHandler.setPlaybackSpeed(speed: settings.playbackRate)
         call.resolve()
     }
     
@@ -235,7 +239,7 @@ public class AbsAudioPlayer: CAPPlugin {
             // If direct playing then fallback to transcode
             ApiClient.startPlaybackSession(libraryItemId: libraryItemId, episodeId: episodeId, forceTranscode: true) { session in
                 session.save()
-                PlayerHandler.startPlayback(sessionId: session.id, playWhenReady: self.initialPlayWhenReady, playbackRate: self.initialPlaybackRate)
+                PlayerHandler.startPlayback(sessionId: session.id, playWhenReady: self.initialPlayWhenReady, playbackRate: PlayerSettings.main().playbackRate)
                 
                 do {
                     self.sendPlaybackSession(session: try session.asDictionary())
