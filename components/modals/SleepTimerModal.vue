@@ -20,7 +20,7 @@
           <li>
             <div class="flex my-2 justify-between">
               <ui-btn @click="manualTimeoutMin--" class="w-9 h-9" :padding-x="0" small style="max-width: 36px"><span class="material-icons">remove</span></ui-btn>
-              <p class="text-2xl font-mono text-center">{{ manualTimeoutMin }}</p>
+              <p class="text-2xl font-mono text-center">{{ manualTimeoutMin }} min</p>
               <ui-btn @click="manualTimeoutMin++" class="w-9 h-9" :padding-x="0" small style="max-width: 36px"><span class="material-icons">add</span></ui-btn>
             </div>
           </li>
@@ -28,7 +28,8 @@
             <div class="flex items-center justify-center">
               <span class="font-normal block truncate text-lg text-center">Set sleep timer</span>
             </div>
-          </li>        </ul>
+          </li>
+        </ul>
         <ul v-show="!manualTimerModal" v-if="!sleepTimerRunning" class="h-full w-full" role="listbox" aria-labelledby="listbox-label">
           <template v-for="timeout in timeouts">
             <li :key="timeout" class="text-gray-50 select-none relative py-4 cursor-pointer hover:bg-black-400" role="option" @click="clickedOption(timeout)">
