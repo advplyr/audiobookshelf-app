@@ -16,9 +16,9 @@ class LocalMediaProgress: Object, Codable {
     @Persisted var progress: Double = 0
     @Persisted var currentTime: Double = 0
     @Persisted var isFinished: Bool = false
-    @Persisted var lastUpdate: Int = 0
-    @Persisted var startedAt: Int = 0
-    @Persisted var finishedAt: Int?
+    @Persisted var lastUpdate: Double = 0
+    @Persisted var startedAt: Double = 0
+    @Persisted var finishedAt: Double?
     // For local lib items from server to support server sync
     @Persisted var serverConnectionConfigId: String?
     @Persisted var serverAddress: String?
@@ -42,19 +42,19 @@ class LocalMediaProgress: Object, Codable {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         id = try values.decode(String.self, forKey: .id)
         localLibraryItemId = try values.decode(String.self, forKey: .localLibraryItemId)
-        localEpisodeId = try? values.decode(String.self, forKey: .localEpisodeId)
+        localEpisodeId = try values.decodeIfPresent(String.self, forKey: .localEpisodeId)
         duration = try values.decode(Double.self, forKey: .duration)
         progress = try values.decode(Double.self, forKey: .progress)
         currentTime = try values.decode(Double.self, forKey: .currentTime)
         isFinished = try values.decode(Bool.self, forKey: .isFinished)
-        lastUpdate = try values.decode(Int.self, forKey: .lastUpdate)
-        startedAt = try values.decode(Int.self, forKey: .startedAt)
-        finishedAt = try? values.decode(Int.self, forKey: .finishedAt)
-        serverConnectionConfigId = try? values.decode(String.self, forKey: .serverConnectionConfigId)
-        serverAddress = try? values.decode(String.self, forKey: .serverAddress)
-        serverUserId = try? values.decode(String.self, forKey: .serverUserId)
-        libraryItemId = try? values.decode(String.self, forKey: .libraryItemId)
-        episodeId = try? values.decode(String.self, forKey: .episodeId)
+        lastUpdate = try values.decode(Double.self, forKey: .lastUpdate)
+        startedAt = try values.decode(Double.self, forKey: .startedAt)
+        finishedAt = try values.decodeIfPresent(Double.self, forKey: .finishedAt)
+        serverConnectionConfigId = try values.decodeIfPresent(String.self, forKey: .serverConnectionConfigId)
+        serverAddress = try values.decodeIfPresent(String.self, forKey: .serverAddress)
+        serverUserId = try values.decodeIfPresent(String.self, forKey: .serverUserId)
+        libraryItemId = try values.decodeIfPresent(String.self, forKey: .libraryItemId)
+        episodeId = try values.decodeIfPresent(String.self, forKey: .episodeId)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -93,7 +93,7 @@ extension LocalMediaProgress {
         self.progress = 0.0
         self.currentTime = 0.0
         self.isFinished = false
-        self.lastUpdate = Int(Date().timeIntervalSince1970)
+        self.lastUpdate = Date().timeIntervalSince1970 * 1000
         self.startedAt = 0
         self.finishedAt = nil
         
@@ -122,11 +122,11 @@ extension LocalMediaProgress {
             }
 
             if self.startedAt == 0 && finished {
-                self.startedAt = Int(Date().timeIntervalSince1970)
+                self.startedAt = Date().timeIntervalSince1970 * 1000
             }
             
             self.isFinished = finished
-            self.lastUpdate = Int(Date().timeIntervalSince1970)
+            self.lastUpdate = Date().timeIntervalSince1970 * 1000
             self.finishedAt = finished ? lastUpdate : nil
         }
     }
@@ -135,7 +135,7 @@ extension LocalMediaProgress {
         try! Realm().write {
             self.currentTime = playbackSession.currentTime
             self.progress = playbackSession.progress
-            self.lastUpdate = Int(Date().timeIntervalSince1970)
+            self.lastUpdate = Date().timeIntervalSince1970 * 1000
             self.isFinished = playbackSession.progress >= 100.0
             self.finishedAt = self.isFinished ? self.lastUpdate : nil
         }

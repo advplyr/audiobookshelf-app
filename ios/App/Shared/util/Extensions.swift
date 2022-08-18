@@ -55,8 +55,14 @@ extension KeyedDecodingContainer {
 extension CAPPluginCall {
     func getJson<T: Decodable>(_ key: String, type: T.Type) -> T? {
         guard let value = getObject(key) else { return nil }
-        guard let json = try? JSONSerialization.data(withJSONObject: value) else { return nil }
-        return try? JSONDecoder().decode(type, from: json)
+        do {
+            let json = try JSONSerialization.data(withJSONObject: value)
+            return try JSONDecoder().decode(type, from: json)
+        } catch {
+            NSLog("Failed to get json for \(key)")
+            debugPrint(error)
+            return nil
+        }
     }
 }
 

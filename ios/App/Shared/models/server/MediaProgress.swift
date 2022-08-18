@@ -16,9 +16,9 @@ class MediaProgress: EmbeddedObject, Codable {
     @Persisted var progress: Double = 0
     @Persisted var currentTime: Double = 0
     @Persisted var isFinished: Bool = false
-    @Persisted var lastUpdate: Int = 0
-    @Persisted var startedAt: Int = 0
-    @Persisted var finishedAt: Int?
+    @Persisted var lastUpdate: Double = 0
+    @Persisted var startedAt: Double = 0
+    @Persisted var finishedAt: Double?
     
     private enum CodingKeys : String, CodingKey {
         case id, libraryItemId, episodeId, duration, progress, currentTime, isFinished, lastUpdate, startedAt, finishedAt
@@ -37,9 +37,9 @@ class MediaProgress: EmbeddedObject, Codable {
         progress = try values.doubleOrStringDecoder(key: .progress)
         currentTime = try values.doubleOrStringDecoder(key: .currentTime)
         isFinished = try values.decode(Bool.self, forKey: .isFinished)
-        lastUpdate = try values.intOrStringDecoder(key: .lastUpdate)
-        startedAt = try values.intOrStringDecoder(key: .startedAt)
-        finishedAt = try? values.intOrStringDecoder(key: .finishedAt)
+        lastUpdate = try values.doubleOrStringDecoder(key: .lastUpdate)
+        startedAt = try values.doubleOrStringDecoder(key: .startedAt)
+        finishedAt = try? values.doubleOrStringDecoder(key: .finishedAt)
     }
     
     func encode(to encoder: Encoder) throws {
