@@ -12,6 +12,7 @@ import RealmSwift
 @objc(AbsAudioPlayer)
 public class AbsAudioPlayer: CAPPlugin {
     private var initialPlayWhenReady = false
+    private var isUIReady = false
     
     override public func load() {
         NotificationCenter.default.addObserver(self, selector: #selector(sendMetadata), name: NSNotification.Name(PlayerEvents.update.rawValue), object: nil)
@@ -22,15 +23,21 @@ public class AbsAudioPlayer: CAPPlugin {
         NotificationCenter.default.addObserver(self, selector: #selector(sendSleepTimerEnded), name: NSNotification.Name(PlayerEvents.sleepEnded.rawValue), object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(onPlaybackFailed), name: NSNotification.Name(PlayerEvents.failed.rawValue), object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(onLocalMediaProgressUpdate), name: NSNotification.Name(PlayerEvents.localProgress.rawValue), object: nil)
-        
-        // Restore the playack session when plugin loads
-        Timer.scheduledTimer(timeInterval: 1, target: self, selector: #selector(restorePlaybackSession), userInfo: nil, repeats: false)
+        NotificationCenter.default.addObserver(self, selector: #selector(userInterfaceReady), name: NSNotification.Name(PlayerEvents.playerUserInterfaceReady.rawValue), object: nil)
         
         self.bridge?.webView?.allowsBackForwardNavigationGestures = true;
         
     }
     
-    @objc func restorePlaybackSession() {
+    @objc func userInterfaceReady() {
+        if !self.isUIReady {
+            NSLog("User interface is ready. Performing state restore...")
+            self.restorePlaybackSession()
+            self.isUIReady = true
+        }
+    }
+    
+    func restorePlaybackSession() {
         // We don't need to restore if we have an active session
         guard PlayerHandler.getPlaybackSession() == nil else { return }
         

@@ -261,6 +261,12 @@ class AudioPlayer: NSObject {
     }
     
     public func setPlaybackRate(_ rate: Float, observed: Bool = false) {
+        // Handle a race condition on first launch
+        guard self.status != -1 else {
+            NSLog("Did not set playback rate as player is not initialized")
+            return
+        }
+        
         if self.audioPlayer.rate != rate {
             NSLog("setPlaybakRate rate changed from \(self.audioPlayer.rate) to \(rate)")
             self.audioPlayer.rate = rate

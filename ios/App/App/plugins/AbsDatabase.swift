@@ -155,6 +155,10 @@ public class AbsDatabase: CAPPlugin {
                 call.reject("Failed to report synced media progress")
             }
         }
+        
+        // If we're syncing progress with the server, we also have the UI ready
+        // This will restore the player to the last playback session
+        NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.playerUserInterfaceReady.rawValue), object: nil)
     }
     
     @objc func syncServerMediaProgressWithLocalMediaProgress(_ call: CAPPluginCall) {
