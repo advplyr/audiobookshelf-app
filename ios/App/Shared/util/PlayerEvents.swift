@@ -14,5 +14,4 @@ enum PlayerEvents: String {
     case sleepEnded = "com.audiobookshelf.app.player.sleep.ended"
     case failed = "com.audiobookshelf.app.player.failed"
     case localProgress = "com.audiobookshelf.app.player.localProgress"
-    case playerUserInterfaceReady = "com.audiobookshelf.app.player.playerUserInterfaceReady"
 }

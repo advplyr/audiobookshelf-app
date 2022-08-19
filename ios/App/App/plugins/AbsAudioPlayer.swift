@@ -23,18 +23,13 @@ public class AbsAudioPlayer: CAPPlugin {
         NotificationCenter.default.addObserver(self, selector: #selector(sendSleepTimerEnded), name: NSNotification.Name(PlayerEvents.sleepEnded.rawValue), object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(onPlaybackFailed), name: NSNotification.Name(PlayerEvents.failed.rawValue), object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(onLocalMediaProgressUpdate), name: NSNotification.Name(PlayerEvents.localProgress.rawValue), object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(userInterfaceReady), name: NSNotification.Name(PlayerEvents.playerUserInterfaceReady.rawValue), object: nil)
         
         self.bridge?.webView?.allowsBackForwardNavigationGestures = true;
         
     }
     
-    @objc func userInterfaceReady() {
-        if !self.isUIReady {
-            NSLog("User interface is ready. Performing state restore...")
-            self.restorePlaybackSession()
-            self.isUIReady = true
-        }
+    @objc func onReady(_ call: CAPPluginCall) {
+        self.restorePlaybackSession()
     }
     
     func restorePlaybackSession() {
@@ -46,7 +41,7 @@ public class AbsAudioPlayer: CAPPlugin {
             let activeSession = try Realm().objects(PlaybackSession.self).where({ $0.isActiveSession == true }).last
             if let activeSession = activeSession {
                 try self.startPlaybackSession(activeSession, playWhenReady: false, playbackRate: PlayerSettings.main().playbackRate)
-                PlayerHandler.syncServerProgressDuringPause()
+                //PlayerHandler.syncServerProgressDuringPause()
             }
         } catch {
             NSLog("Failed to restore playback session")
