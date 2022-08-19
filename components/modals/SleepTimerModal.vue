@@ -15,9 +15,9 @@
             </div>
           </div>
           <div class="flex my-2 justify-between">
-            <ui-btn @click="manualTimeoutMin--" class="w-9 h-9" :padding-x="0" small style="max-width: 36px"><span class="material-icons">remove</span></ui-btn>
+            <ui-btn @click="decreaseManualTimeout" class="w-9 h-9" :padding-x="0" small style="max-width: 36px"><span class="material-icons">remove</span></ui-btn>
             <p class="text-2xl font-mono text-center">{{ manualTimeoutMin }} min</p>
-            <ui-btn @click="manualTimeoutMin++" class="w-9 h-9" :padding-x="0" small style="max-width: 36px"><span class="material-icons">add</span></ui-btn>
+            <ui-btn @click="increaseManualTimeout" class="w-9 h-9" :padding-x="0" small style="max-width: 36px"><span class="material-icons">add</span></ui-btn>
           </div>
           <ui-btn @click="clickedOption(manualTimeoutMin)" class="w-full">Set Timer</ui-btn>
         </div>
@@ -104,6 +104,12 @@ export default {
     },
     decreaseSleepTime() {
       this.$emit('decrease')
+    },
+    increaseManualTimeout() {
+      this.manualTimeoutMin++
+    },
+    decreaseManualTimeout() {
+      if (this.manualTimeoutMin > 0) this.manualTimeoutMin--
     }
   },
   mounted() {}
