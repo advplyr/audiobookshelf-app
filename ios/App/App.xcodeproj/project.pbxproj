@@ -58,6 +58,7 @@
 		E9D5507128AC1EC700C746DD /* DownloadItemPart.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D5507028AC1EC700C746DD /* DownloadItemPart.swift */; };
 		E9D5507328AC218300C746DD /* DaoExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D5507228AC218300C746DD /* DaoExtensions.swift */; };
 		E9D5507528AEF93100C746DD /* PlayerSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D5507428AEF93100C746DD /* PlayerSettings.swift */; };
+		E9E985F828B02D9400957F23 /* PlayerProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9E985F728B02D9400957F23 /* PlayerProgress.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -116,6 +117,7 @@
 		E9D5507028AC1EC700C746DD /* DownloadItemPart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadItemPart.swift; sourceTree = "<group>"; };
 		E9D5507228AC218300C746DD /* DaoExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaoExtensions.swift; sourceTree = "<group>"; };
 		E9D5507428AEF93100C746DD /* PlayerSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerSettings.swift; sourceTree = "<group>"; };
+		E9E985F728B02D9400957F23 /* PlayerProgress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerProgress.swift; sourceTree = "<group>"; };
 		FC68EB0AF532CFC21C3344DD /* Pods-App.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-App.debug.xcconfig"; path = "Pods/Target Support Files/Pods-App/Pods-App.debug.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -144,6 +146,7 @@
 			children = (
 				3A200C1427D64D7E00CBF02E /* AudioPlayer.swift */,
 				3ABF618E2804325C0070250E /* PlayerHandler.swift */,
+				E9E985F728B02D9400957F23 /* PlayerProgress.swift */,
 			);
 			path = player;
 			sourceTree = "<group>";
@@ -419,6 +422,7 @@
 				3AF1970E2806E3CA0096F747 /* AbsAudioPlayer.swift in Sources */,
 				E9D5506F28AC1E8E00C746DD /* DownloadItem.swift in Sources */,
 				3AD4FCE928043FD7006DB301 /* ServerConnectionConfig.swift in Sources */,
+				E9E985F828B02D9400957F23 /* PlayerProgress.swift in Sources */,
 				E9D5505E28AC1C8500C746DD /* MediaProgress.swift in Sources */,
 				3A200C1527D64D7E00CBF02E /* AudioPlayer.swift in Sources */,
 				E9D5507128AC1EC700C746DD /* DownloadItemPart.swift in Sources */,

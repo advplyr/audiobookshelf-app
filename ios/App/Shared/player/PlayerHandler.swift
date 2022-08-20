@@ -297,33 +297,7 @@ class PlayerHandler {
         }
     }
     
-    @objc public static func syncServerProgressDuringPause() {
-        guard Connectivity.isConnectedToInternet else { return }
-        DispatchQueue.global(qos: .utility).async {
-            NSLog("checkCurrentSessionProgress: Checking if local media progress was updated on server")
-            guard let session = getPlaybackSession() else { return }
-            let sessionRef = ThreadSafeReference(to: session)
-            
-            ApiClient.getMediaProgress(libraryItemId: session.libraryItemId!, episodeId: session.episodeId) { progress in
-                guard let session = try! Realm().resolve(sessionRef) else { return }
-                guard let progress = progress else { return }
-                
-                let serverLastUpdate = progress.lastUpdate
-                guard let localLastUpdate = session.updatedAt else { return }
-                let serverCurrentTime = progress.currentTime
-                let localCurrentTime = session.currentTime
-                
-                let serverIsNewerThanLocal = serverLastUpdate > localLastUpdate
-                let currentTimeIsDifferent = serverCurrentTime != localCurrentTime
-                
-                if serverIsNewerThanLocal && currentTimeIsDifferent {
-                    session.update {
-                        session.currentTime = serverCurrentTime
-                        session.updatedAt = serverLastUpdate
-                    }
-                    self.seek(amount: session.currentTime)
-                }
-            }
-        }
+    @objc private static func syncServerProgressDuringPause() {
+        Task { await PlayerProgress.syncLocalFromServer() }
     }
 }

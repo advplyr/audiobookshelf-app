@@ -29,19 +29,19 @@ public class AbsAudioPlayer: CAPPlugin {
     }
     
     @objc func onReady(_ call: CAPPluginCall) {
-        self.restorePlaybackSession()
+        Task { await self.restorePlaybackSession() }
     }
     
-    func restorePlaybackSession() {
+    func restorePlaybackSession() async {
         // We don't need to restore if we have an active session
         guard PlayerHandler.getPlaybackSession() == nil else { return }
         
         do {
             // Fetch the most recent active session
-            let activeSession = try Realm().objects(PlaybackSession.self).where({ $0.isActiveSession == true }).last
+            let activeSession = try await Realm().objects(PlaybackSession.self).where({ $0.isActiveSession == true }).last
             if let activeSession = activeSession {
+                await PlayerProgress.syncLocalFromServer()
                 try self.startPlaybackSession(activeSession, playWhenReady: false, playbackRate: PlayerSettings.main().playbackRate)
-                //PlayerHandler.syncServerProgressDuringPause()
             }
         } catch {
             NSLog("Failed to restore playback session")

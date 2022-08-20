@@ -106,6 +106,14 @@ class ApiClient {
         }
     }
     
+    public static func getResource<T: Decodable>(endpoint: String, decodable: T.Type = T.self) async -> T? {
+        return await withCheckedContinuation { continuation in
+            getResource(endpoint: endpoint, decodable: decodable) { result in
+                continuation.resume(returning: result)
+            }
+        }
+    }
+    
     public static func getResource<T: Decodable>(endpoint: String, decodable: T.Type = T.self, callback: ((_ param: T?) -> Void)?) {
         if (Store.serverConfig == nil) {
             NSLog("Server config not set")
@@ -205,12 +213,10 @@ class ApiClient {
         }
     }
     
-    public static func getMediaProgress(libraryItemId: String, episodeId: String?, callback: @escaping (_ progress: MediaProgress?) -> Void) {
+    public static func getMediaProgress(libraryItemId: String, episodeId: String?) async -> MediaProgress? {
         NSLog("getMediaProgress \(libraryItemId) \(episodeId ?? "NIL")")
         let endpoint = episodeId?.isEmpty ?? true ? "api/me/progress/\(libraryItemId)" : "api/me/progress/\(libraryItemId)/\(episodeId ?? "")"
-        getResource(endpoint: endpoint, decodable: MediaProgress.self) { obj in
-            callback(obj)
-        }
+        return await getResource(endpoint: endpoint, decodable: MediaProgress.self)
     }
     
     public static func getLibraryItemWithProgress(libraryItemId:String, episodeId:String?, callback: @escaping (_ param: LibraryItem?) -> Void) {
