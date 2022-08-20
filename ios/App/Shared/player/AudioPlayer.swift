@@ -144,18 +144,22 @@ class AudioPlayer: NSObject {
                 NSLog("queueStatusObserver: Current Item Ready to play. PlayWhenReady: \(self.playWhenReady)")
                 self.updateNowPlaying()
                 
+                // Seek the player before initializing, so a currentTime of 0 does not appear in MediaProgress / session
                 let firstReady = self.status < 0
-                self.status = 0
-                if self.playWhenReady {
+                if firstReady || self.playWhenReady {
                     self.seek(playbackSession.currentTime, from: "queueItemStatusObserver")
+                }
+                
+                // Mark the player as ready
+                self.status = 0
+                
+                // Start the player, if requested
+                if self.playWhenReady {
                     self.playWhenReady = false
                     self.play()
-                } else if (firstReady) { // Only seek on first readyToPlay
-                    self.seek(playbackSession.currentTime, from: "queueItemStatusObserver")
                 }
             } else if (playerItem.status == .failed) {
                 NSLog("queueStatusObserver: FAILED \(playerItem.error?.localizedDescription ?? "")")
-                
                 NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.failed.rawValue), object: nil)
             }
         })
