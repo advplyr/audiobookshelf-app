@@ -59,6 +59,14 @@ class ApiClient {
         }
     }
     
+    public static func postResource<T:Encodable>(endpoint: String, parameters: T) async -> Bool {
+        return await withCheckedContinuation { continuation in
+            postResource(endpoint: endpoint, parameters: parameters) { success in
+                continuation.resume(returning: success)
+            }
+        }
+    }
+    
     public static func postResource<T:Encodable>(endpoint: String, parameters: T, callback: ((_ success: Bool) -> Void)?) {
         if (Store.serverConfig == nil) {
             NSLog("Server config not set")
@@ -170,13 +178,12 @@ class ApiClient {
         }
     }
     
-    public static func reportPlaybackProgress(report: PlaybackReport, sessionId: String, callback: @escaping (_ success: Bool) -> Void) {
-        try? postResource(endpoint: "api/session/\(sessionId)/sync", parameters: report.asDictionary().mapValues({ value in "\(value)" }), callback: callback)
+    public static func reportPlaybackProgress(report: PlaybackReport, sessionId: String) async -> Bool {
+        return await postResource(endpoint: "api/session/\(sessionId)/sync", parameters: report)
     }
     
-    public static func reportLocalPlaybackProgress(_ session: PlaybackSession, callback: @escaping (_ success: Bool) -> Void) {
-        let progress = session.freeze()
-        postResource(endpoint: "api/session/local", parameters: progress, callback: callback)
+    public static func reportLocalPlaybackProgress(_ session: PlaybackSession) async -> Bool {
+        return await postResource(endpoint: "api/session/local", parameters: session)
     }
     
     public static func syncMediaProgress(callback: @escaping (_ results: LocalMediaProgressSyncResultsPayload) -> Void) {

@@ -10,7 +10,7 @@ import RealmSwift
 
 class PlayerHandler {
     private static var player: AudioPlayer?
-    private static var timer: Timer?
+    private static var playingTimer: Timer?
     private static var pausedTimer: Timer?
     private static var lastSyncTime: Double = 0.0
     
@@ -240,64 +240,11 @@ class PlayerHandler {
         listeningTimePassedSinceLastSync = 0
         
         // Persist items in the database and sync to the server
-        if session.isLocal { syncLocalProgress() }
-        syncServerProgress()
+        if session.isLocal { PlayerProgress.syncFromPlayer() }
+        Task { await PlayerProgress.syncToServer() }
     }
     
-    private static func syncLocalProgress() {
-        DispatchQueue.global(qos: .utility).async {
-            guard let session = getPlaybackSession() else { return }
-            guard session.isLocal else { return }
-            
-            let localMediaProgress = LocalMediaProgress.fetchOrCreateLocalMediaProgress(localMediaProgressId: session.localMediaProgressId, localLibraryItemId: session.localLibraryItem?.id, localEpisodeId: session.episodeId)
-            guard let localMediaProgress = localMediaProgress else {
-                // Local media progress should have been created
-                // If we're here, it means a library id is invalid
-                return
-            }
-
-            localMediaProgress.updateFromPlaybackSession(session)
-            Database.shared.saveLocalMediaProgress(localMediaProgress)
-            
-            NSLog("Local progress saved to the database")
-            
-            // Send the local progress back to front-end
-            NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.localProgress.rawValue), object: nil)
-        }
-    }
-    
-    public static func syncServerProgress() {
-        guard Connectivity.isConnectedToInternet else { return }
-        DispatchQueue.global(qos: .utility).async {
-            let realm = try! Realm()
-            for session in realm.objects(PlaybackSession.self).where({ $0.serverConnectionConfigId == Store.serverConfig?.id }) {
-                NSLog("Sending sessionId(\(session.id)) to server")
-                let sessionRef = ThreadSafeReference(to: session)
-                
-                func handleSyncSuccess(_ success: Bool) {
-                    // Remove old sessions after they synced with the server
-                    let session = try! Realm().resolve(sessionRef)
-                    if success && !(session?.isActiveSession ?? false) {
-                        NSLog("Deleting sessionId(\(session!.id)) as is no longer active")
-                        session?.delete()
-                    }
-                }
-                
-                if session.isLocal {
-                    ApiClient.reportLocalPlaybackProgress(session.freeze()) { success in
-                        handleSyncSuccess(success)
-                    }
-                } else {
-                    let playbackReport = PlaybackReport(currentTime: session.currentTime, duration: session.duration, timeListened: session.timeListening)
-                    ApiClient.reportPlaybackProgress(report: playbackReport, sessionId: session.id) { success in
-                        handleSyncSuccess(success)
-                    }
-                }
-            }
-        }
-    }
-    
-    @objc private static func syncServerProgressDuringPause() {
-        Task { await PlayerProgress.syncLocalFromServer() }
+    @objc public static func syncServerProgressDuringPause() {
+        Task { await PlayerProgress.syncFromServer() }
     }
 }
