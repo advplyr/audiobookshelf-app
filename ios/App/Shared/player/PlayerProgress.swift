@@ -29,10 +29,6 @@ class PlayerProgress {
         await UIApplication.shared.endBackgroundTask(backgroundToken)
     }
     
-    private static func updateLocalSessionFromActivePlayer() {
-        
-    }
-    
     private static func updateLocalMediaProgressFromLocalSession() {
         guard let session = PlayerHandler.getPlaybackSession() else { return }
         guard session.isLocal else { return }

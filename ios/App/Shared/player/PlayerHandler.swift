@@ -57,9 +57,9 @@ class PlayerHandler {
     public static func startTickTimer() {
         DispatchQueue.runOnMainQueue {
             NSLog("Starting the tick timer")
-            timer?.invalidate()
+            playingTimer?.invalidate()
             pausedTimer?.invalidate()
-            timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+            playingTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
                 self.tick()
             }
         }
@@ -67,9 +67,9 @@ class PlayerHandler {
     
     public static func stopTickTimer() {
         NSLog("Stopping the tick timer")
-        timer?.invalidate()
+        playingTimer?.invalidate()
         pausedTimer?.invalidate()
-        timer = nil
+        playingTimer = nil
     }
     
     private static func startPausedTimer() {
