@@ -15,8 +15,10 @@ class PlayerProgress {
     
     private init() {}
     
-    public func syncFromPlayer() {
+    public func syncFromPlayer() async {
+        let backgroundToken = await UIApplication.shared.beginBackgroundTask(withName: "ABS:syncFromPlayer")
         updateLocalMediaProgressFromLocalSession()
+        await UIApplication.shared.endBackgroundTask(backgroundToken)
     }
     
     public func syncToServer() async {
@@ -29,6 +31,10 @@ class PlayerProgress {
         let backgroundToken = await UIApplication.shared.beginBackgroundTask(withName: "ABS:syncFromServer")
         await updateLocalSessionFromServerMediaProgress()
         await UIApplication.shared.endBackgroundTask(backgroundToken)
+    }
+    
+    private func updateLocalSessionFromPlayer() async {
+        
     }
     
     private func updateLocalMediaProgressFromLocalSession() {

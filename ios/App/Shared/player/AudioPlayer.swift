@@ -34,6 +34,7 @@ class AudioPlayer: NSObject {
     private var audioPlayer: AVQueuePlayer
     private var sessionId: String
 
+    private var timeObserverToken: Any?
     private var queueObserver:NSKeyValueObservation?
     private var queueItemStatusObserver:NSKeyValueObservation?
     
@@ -77,12 +78,14 @@ class AudioPlayer: NSObject {
             self.audioPlayer.insert(item, after:self.audioPlayer.items().last)
         }
 
+        setupTimeObserver()
         setupQueueObserver()
         setupQueueItemStatusObserver()
 
         NSLog("Audioplayer ready")
     }
     deinit {
+        self.removeTimeObserver()
         self.queueObserver?.invalidate()
         self.queueItemStatusObserver?.invalidate()
         destroy()
@@ -122,6 +125,21 @@ class AudioPlayer: NSObject {
             }
         }
         return 0
+    }
+    
+    private func setupTimeObserver() {
+        let timeScale = CMTimeScale(NSEC_PER_SEC)
+        let time = CMTime(seconds: 1, preferredTimescale: timeScale)
+        self.timeObserverToken = self.audioPlayer.addPeriodicTimeObserver(forInterval: time, queue: .main) { [weak self] currentTime in
+            NSLog("currentTime: \(currentTime)")
+        }
+    }
+    
+    private func removeTimeObserver() {
+        if let timeObserverToken = timeObserverToken {
+            self.audioPlayer.removeTimeObserver(timeObserverToken)
+            self.timeObserverToken = nil
+        }
     }
     
     func setupQueueObserver() {

@@ -141,23 +141,20 @@ class PlayerHandler {
     
     public static func getPlaybackSession() -> PlaybackSession? {
         guard let player = player else { return nil }
+        guard player.isInitialized() else { return nil }
         guard let session = Database.shared.getPlaybackSession(id: player.getPlaybackSessionId()) else { return nil }
         return session
     }
     
     public static func seekForward(amount: Double) {
-        guard let player = player else {
-            return
-        }
+        guard let player = player else { return }
         
         let destinationTime = player.getCurrentTime() + amount
         player.seek(destinationTime, from: "handler")
     }
     
     public static func seekBackward(amount: Double) {
-        guard let player = player else {
-            return
-        }
+        guard let player = player else { return }
         
         let destinationTime = player.getCurrentTime() - amount
         player.seek(destinationTime, from: "handler")
@@ -240,7 +237,7 @@ class PlayerHandler {
         listeningTimePassedSinceLastSync = 0
         
         // Persist items in the database and sync to the server
-        if session.isLocal { PlayerProgress.shared.syncFromPlayer() }
+        if session.isLocal { Task { await PlayerProgress.shared.syncFromPlayer() } }
         Task { await PlayerProgress.shared.syncToServer() }
     }
     
