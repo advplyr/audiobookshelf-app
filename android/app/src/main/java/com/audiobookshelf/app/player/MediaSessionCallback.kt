@@ -7,10 +7,8 @@ import android.os.Handler
 import android.os.Looper
 import android.os.Message
 import android.support.v4.media.session.MediaSessionCompat
-import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
 import android.view.KeyEvent
-import com.audiobookshelf.app.R
 import com.audiobookshelf.app.data.LibraryItemWrapper
 import com.audiobookshelf.app.data.PodcastEpisode
 import java.util.*
@@ -21,7 +19,6 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
 
   private var mediaButtonClickCount: Int = 0
   var mediaButtonClickTimeout: Long = 1000  //ms
-  var seekAmount: Long = 20000   //ms
 
   override fun onPrepare() {
     Log.d(tag, "ON PREPARE MEDIA SESSION COMPAT")
@@ -75,19 +72,19 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
   }
 
   override fun onSkipToPrevious() {
-    playerNotificationService.seekBackward(seekAmount)
+    playerNotificationService.skipToPrevious()
   }
 
   override fun onSkipToNext() {
-    playerNotificationService.seekForward(seekAmount)
+    playerNotificationService.skipToNext()
   }
 
   override fun onFastForward() {
-    playerNotificationService.seekForward(seekAmount)
+    playerNotificationService.jumpForward()
   }
 
   override fun onRewind() {
-    playerNotificationService.seekForward(seekAmount)
+    playerNotificationService.jumpBackward()
   }
 
   override fun onSeekTo(pos: Long) {
@@ -179,10 +176,10 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
             handleMediaButtonClickCount()
           }
           KeyEvent.KEYCODE_MEDIA_NEXT -> {
-            playerNotificationService.seekForward(seekAmount)
+            playerNotificationService.jumpForward()
           }
           KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
-            playerNotificationService.seekBackward(seekAmount)
+            playerNotificationService.jumpBackward()
           }
           KeyEvent.KEYCODE_MEDIA_STOP -> {
             playerNotificationService.closePlayback()
@@ -226,22 +223,22 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
     override fun handleMessage(msg: Message) {
       super.handleMessage(msg)
       if (2 == msg.what) {
-        playerNotificationService.seekBackward(seekAmount)
+        playerNotificationService.jumpBackward()
         playerNotificationService.play()
       }
       else if (msg.what >= 3) {
-        playerNotificationService.seekForward(seekAmount)
+        playerNotificationService.jumpForward()
         playerNotificationService.play()
       }
     }
   }
 
-  // Example Using a custom action in android auto
-//  override fun onCustomAction(action: String?, extras: Bundle?) {
-//    super.onCustomAction(action, extras)
-//
-//    if ("com.audiobookshelf.app.PLAYBACK_RATE" == action) {
-//
-//    }
-//  }
+  override fun onCustomAction(action: String?, extras: Bundle?) {
+    super.onCustomAction(action, extras)
+
+    when (action) {
+      CUSTOM_ACTION_JUMP_FORWARD -> onFastForward()
+      CUSTOM_ACTION_JUMP_BACKWARD -> onRewind()
+    }
+  }
 }
