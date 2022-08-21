@@ -122,7 +122,7 @@ export default {
         })
         categories = categories.map((cat) => {
           console.log('[breadcrumb] Personalized category from server', cat.type)
-          if (cat.type == 'book' || cat.type == 'podcast') {
+          if (cat.type == 'book' || cat.type == 'podcast' || cat.type == 'episode') {
             // Map localLibraryItem to entities
             cat.entities = cat.entities.map((entity) => {
               var localLibraryItem = this.localLibraryItems.find((lli) => {

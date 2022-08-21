@@ -193,7 +193,7 @@ export default {
         episodeId: this.episode.id
       }
       if (localFolder) {
-        this.localFolderId = localFolder.id
+        payload.localFolderId = localFolder.id
       }
       var downloadRes = await AbsDownloader.downloadLibraryItem(payload)
       if (downloadRes && downloadRes.error) {
