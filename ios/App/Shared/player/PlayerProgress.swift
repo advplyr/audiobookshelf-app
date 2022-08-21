@@ -11,25 +11,27 @@ import RealmSwift
 
 class PlayerProgress {
     
+    public static let shared = PlayerProgress()
+    
     private init() {}
     
-    public static func syncFromPlayer() {
+    public func syncFromPlayer() {
         updateLocalMediaProgressFromLocalSession()
     }
     
-    public static func syncToServer() async {
+    public func syncToServer() async {
         let backgroundToken = await UIApplication.shared.beginBackgroundTask(withName: "ABS:syncToServer")
         updateAllServerSessionFromLocalSession()
         await UIApplication.shared.endBackgroundTask(backgroundToken)
     }
     
-    public static func syncFromServer() async {
+    public func syncFromServer() async {
         let backgroundToken = await UIApplication.shared.beginBackgroundTask(withName: "ABS:syncFromServer")
         await updateLocalSessionFromServerMediaProgress()
         await UIApplication.shared.endBackgroundTask(backgroundToken)
     }
     
-    private static func updateLocalMediaProgressFromLocalSession() {
+    private func updateLocalMediaProgressFromLocalSession() {
         guard let session = PlayerHandler.getPlaybackSession() else { return }
         guard session.isLocal else { return }
         
@@ -49,7 +51,7 @@ class PlayerProgress {
         NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.localProgress.rawValue), object: nil)
     }
     
-    private static func updateAllServerSessionFromLocalSession() {
+    private func updateAllServerSessionFromLocalSession() {
         let sessions = try! Realm().objects(PlaybackSession.self).where({ $0.serverConnectionConfigId == Store.serverConfig?.id })
         for session in sessions {
             let session = session.freeze()
@@ -57,7 +59,7 @@ class PlayerProgress {
         }
     }
     
-    private static func updateServerSessionFromLocalSession(_ session: PlaybackSession) async {
+    private func updateServerSessionFromLocalSession(_ session: PlaybackSession) async {
         NSLog("Sending sessionId(\(session.id)) to server")
         
         var success = false
@@ -75,7 +77,7 @@ class PlayerProgress {
         }
     }
     
-    private static func updateLocalSessionFromServerMediaProgress() async {
+    private func updateLocalSessionFromServerMediaProgress() async {
         NSLog("checkCurrentSessionProgress: Checking if local media progress was updated on server")
         guard let session = PlayerHandler.getPlaybackSession()?.freeze() else { return }
         

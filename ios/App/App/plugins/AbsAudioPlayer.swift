@@ -40,7 +40,7 @@ public class AbsAudioPlayer: CAPPlugin {
             // Fetch the most recent active session
             let activeSession = try await Realm().objects(PlaybackSession.self).where({ $0.isActiveSession == true }).last
             if let activeSession = activeSession {
-                await PlayerProgress.syncFromServer()
+                await PlayerProgress.shared.syncFromServer()
                 try self.startPlaybackSession(activeSession, playWhenReady: false, playbackRate: PlayerSettings.main().playbackRate)
             }
         } catch {

@@ -240,11 +240,11 @@ class PlayerHandler {
         listeningTimePassedSinceLastSync = 0
         
         // Persist items in the database and sync to the server
-        if session.isLocal { PlayerProgress.syncFromPlayer() }
-        Task { await PlayerProgress.syncToServer() }
+        if session.isLocal { PlayerProgress.shared.syncFromPlayer() }
+        Task { await PlayerProgress.shared.syncToServer() }
     }
     
     @objc public static func syncServerProgressDuringPause() {
-        Task { await PlayerProgress.syncFromServer() }
+        Task { await PlayerProgress.shared.syncFromServer() }
     }
 }
