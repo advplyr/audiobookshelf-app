@@ -167,6 +167,8 @@ class AudioPlayer: NSObject {
     
     // MARK: - Methods
     public func play(allowSeekBack: Bool = false) {
+        guard self.isInitialized() else { return }
+        
         if allowSeekBack {
             let diffrence = Date.timeIntervalSinceReferenceDate - lastPlayTime
             var time: Int?
@@ -202,6 +204,8 @@ class AudioPlayer: NSObject {
     }
     
     public func pause() {
+        guard self.isInitialized() else { return }
+        
         self.audioPlayer.pause()
         self.status = 0
         self.rate = 0.0
