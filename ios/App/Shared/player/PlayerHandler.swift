@@ -6,12 +6,13 @@
 //
 
 import Foundation
+import RealmSwift
 
 class PlayerHandler {
     private static var player: AudioPlayer?
-    private static var session: PlaybackSession?
-    private static var timer: Timer?
-    private static var lastSyncTime:Double = 0.0
+    private static var playingTimer: Timer?
+    private static var pausedTimer: Timer?
+    private static var lastSyncTime: Double = 0.0
     
     public static var sleepTimerChapterStopTime: Int? = nil
     private static var _remainingSleepTime: Int? = nil
@@ -34,7 +35,6 @@ class PlayerHandler {
         }
     }
     private static var listeningTimePassedSinceLastSync: Double = 0.0
-    private static var lastSyncReport: PlaybackReport?
     
     public static var paused: Bool {
         get {
@@ -49,33 +49,80 @@ class PlayerHandler {
                 self.player?.pause()
             } else {
                 self.player?.play()
+                self.pausedTimer?.invalidate()
             }
         }
     }
     
-    public static func startPlayback(session: PlaybackSession, playWhenReady: Bool, playbackRate: Float) {
+    public static func startTickTimer() {
+        DispatchQueue.runOnMainQueue {
+            NSLog("Starting the tick timer")
+            playingTimer?.invalidate()
+            pausedTimer?.invalidate()
+            playingTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+                self.tick()
+            }
+        }
+    }
+    
+    public static func stopTickTimer() {
+        NSLog("Stopping the tick timer")
+        playingTimer?.invalidate()
+        pausedTimer?.invalidate()
+        playingTimer = nil
+    }
+    
+    private static func startPausedTimer() {
+        guard self.paused else { return }
+        self.pausedTimer?.invalidate()
+        self.pausedTimer = Timer.scheduledTimer(timeInterval: 30, target: self, selector: #selector(syncServerProgressDuringPause), userInfo: nil, repeats: true)
+    }
+    
+    private static func cleanupOldSessions(currentSessionId: String?) {
+        let realm = try! Realm()
+        let oldSessions = realm.objects(PlaybackSession.self) .where({ $0.isActiveSession == true })
+        try! realm.write {
+            for s in oldSessions {
+                if s.id != currentSessionId {
+                    s.isActiveSession = false
+                }
+            }
+        }
+    }
+    
+    public static func startPlayback(sessionId: String, playWhenReady: Bool, playbackRate: Float) {
+        guard let session = Database.shared.getPlaybackSession(id: sessionId) else { return }
+        
+        // Clean up the existing player
         if player != nil {
             player?.destroy()
             player = nil
         }
         
+        // Cleanup old sessions
+        cleanupOldSessions(currentSessionId: sessionId)
+        
+        // Set now playing info
         NowPlayingInfo.shared.setSessionMetadata(metadata: NowPlayingMetadata(id: session.id, itemId: session.libraryItemId!, artworkUrl: session.coverPath, title: session.displayTitle ?? "Unknown title", author: session.displayAuthor, series: nil))
         
-        self.session = session
-        player = AudioPlayer(playbackSession: session, playWhenReady: playWhenReady, playbackRate: playbackRate)
+        // Create the audio player
+        player = AudioPlayer(sessionId: sessionId, playWhenReady: playWhenReady, playbackRate: playbackRate)
         
-        DispatchQueue.runOnMainQueue {
-            timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-                self.tick()
-            }
-        }
+        startTickTimer()
+        startPausedTimer()
     }
+    
     public static func stopPlayback() {
+        // Pause playback first, so we can sync our current progress
+        player?.pause()
+        
+        // Stop updating progress before we destory the player, so we don't receive bad data
+        stopTickTimer()
+        
         player?.destroy()
         player = nil
         
-        timer?.invalidate()
-        timer = nil
+        cleanupOldSessions(currentSessionId: nil)
         
         NowPlayingInfo.shared.reset()
     }
@@ -83,14 +130,19 @@ class PlayerHandler {
     public static func getCurrentTime() -> Double? {
         self.player?.getCurrentTime()
     }
+    
     public static func setPlaybackSpeed(speed: Float) {
         self.player?.setPlaybackRate(speed)
     }
+    
     public static func getPlayMethod() -> Int? {
         self.player?.getPlayMethod()
     }
+    
     public static func getPlaybackSession() -> PlaybackSession? {
-        self.player?.getPlaybackSession()
+        guard let player = player else { return nil }
+        guard let session = Database.shared.getPlaybackSession(id: player.getPlaybackSessionId()) else { return nil }
+        return session
     }
     
     public static func seekForward(amount: Double) {
@@ -101,6 +153,7 @@ class PlayerHandler {
         let destinationTime = player.getCurrentTime() + amount
         player.seek(destinationTime, from: "handler")
     }
+    
     public static func seekBackward(amount: Double) {
         guard let player = player else {
             return
@@ -109,19 +162,24 @@ class PlayerHandler {
         let destinationTime = player.getCurrentTime() - amount
         player.seek(destinationTime, from: "handler")
     }
+    
     public static func seek(amount: Double) {
         player?.seek(amount, from: "handler")
     }
-    public static func getMetdata() -> [String: Any] {
+    
+    public static func getMetdata() -> [String: Any]? {
+        guard let player = player else { return nil }
+        guard player.isInitialized() else { return nil }
+        
         DispatchQueue.main.async {
-            syncProgress()
+            syncPlayerProgress()
         }
         
         return [
-            "duration": player?.getDuration() ?? 0,
-            "currentTime": player?.getCurrentTime() ?? 0,
+            "duration": player.getDuration(),
+            "currentTime": player.getCurrentTime(),
             "playerState": !paused,
-            "currentRate": player?.rate ?? 0,
+            "currentRate": player.rate,
         ]
     }
     
@@ -148,18 +206,19 @@ class PlayerHandler {
         }
         
         if listeningTimePassedSinceLastSync >= 5 {
-            syncProgress()
+            syncPlayerProgress()
         }
     }
-    public static func syncProgress() {
-        if session == nil { return }
+    
+    public static func syncPlayerProgress() {
         guard let player = player else { return }
+        guard player.isInitialized() else { return }
+        guard let session = getPlaybackSession() else { return }
         
+        NSLog("Syncing player progress")
+        
+        // Get current time
         let playerCurrentTime = player.getCurrentTime()
-        if (lastSyncReport != nil && lastSyncReport?.currentTime == playerCurrentTime) {
-            // No need to syncProgress
-            return
-        }
         
         // Prevent multiple sync requests
         let timeSinceLastSync = Date().timeIntervalSince1970 - lastSyncTime
@@ -168,16 +227,24 @@ class PlayerHandler {
             return
         }
         
+        // Prevent a sync if we got junk data from the player (occurs when exiting out of memory
+        guard !playerCurrentTime.isNaN else { return }
+        
         lastSyncTime = Date().timeIntervalSince1970 // seconds
         
-        let report = PlaybackReport(currentTime: playerCurrentTime, duration: player.getDuration(), timeListened: listeningTimePassedSinceLastSync)
-        
-        session!.currentTime = playerCurrentTime
+        session.update {
+            session.currentTime = playerCurrentTime
+            session.timeListening += listeningTimePassedSinceLastSync
+            session.updatedAt = Date().timeIntervalSince1970 * 1000
+        }
         listeningTimePassedSinceLastSync = 0
-        lastSyncReport = report
         
-        // TODO: check if online
-        NSLog("sending playback report")
-        ApiClient.reportPlaybackProgress(report: report, sessionId: session!.id)
+        // Persist items in the database and sync to the server
+        if session.isLocal { PlayerProgress.syncFromPlayer() }
+        Task { await PlayerProgress.syncToServer() }
+    }
+    
+    @objc public static func syncServerProgressDuringPause() {
+        Task { await PlayerProgress.syncFromServer() }
     }
 }

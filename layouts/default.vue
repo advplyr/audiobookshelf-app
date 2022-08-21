@@ -279,6 +279,9 @@ export default {
 
       this.loadSavedSettings()
       this.hasMounted = true
+
+      console.log('[default] fully initialized')
+      this.$eventBus.$emit('abs-ui-ready')
     }
   },
   beforeDestroy() {

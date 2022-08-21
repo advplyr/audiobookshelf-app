@@ -9,30 +9,28 @@ import Foundation
 import RealmSwift
 
 class ServerConnectionConfig: Object {
-    @Persisted(primaryKey: true) var id: String
-    @Persisted(indexed: true) var index: Int
-    @Persisted var name: String
-    @Persisted var address: String
-    @Persisted var userId: String
-    @Persisted var username: String
-    @Persisted var token: String
+    @Persisted(primaryKey: true) var id: String = UUID().uuidString
+    @Persisted(indexed: true) var index: Int = 1
+    @Persisted var name: String = ""
+    @Persisted var address: String = ""
+    @Persisted var userId: String = ""
+    @Persisted var username: String = ""
+    @Persisted var token: String = ""
 }
+
 class ServerConnectionConfigActiveIndex: Object {
     // This could overflow, but you really would have to try
-    @Persisted var index: Int?
-
+    @Persisted(primaryKey: true) var index: Int?
 }
 
 func convertServerConnectionConfigToJSON(config: ServerConnectionConfig) -> Dictionary<String, Any> {
-    return Database.realmQueue.sync {
-        return [
-            "id": config.id,
-            "name": config.name,
-            "index": config.index,
-            "address": config.address,
-            "userId": config.userId,
-            "username": config.username,
-            "token": config.token,
-        ]
-    }
+    return [
+        "id": config.id,
+        "name": config.name,
+        "index": config.index,
+        "address": config.address,
+        "userId": config.userId,
+        "username": config.username,
+        "token": config.token,
+    ]
 }

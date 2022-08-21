@@ -7,11 +7,12 @@
 
 import Foundation
 import Capacitor
+import RealmSwift
 
 @objc(AbsAudioPlayer)
 public class AbsAudioPlayer: CAPPlugin {
     private var initialPlayWhenReady = false
-    private var initialPlaybackRate:Float = 1
+    private var isUIReady = false
     
     override public func load() {
         NotificationCenter.default.addObserver(self, selector: #selector(sendMetadata), name: NSNotification.Name(PlayerEvents.update.rawValue), object: nil)
@@ -21,9 +22,40 @@ public class AbsAudioPlayer: CAPPlugin {
         NotificationCenter.default.addObserver(self, selector: #selector(sendSleepTimerSet), name: NSNotification.Name(PlayerEvents.sleepSet.rawValue), object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(sendSleepTimerEnded), name: NSNotification.Name(PlayerEvents.sleepEnded.rawValue), object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(onPlaybackFailed), name: NSNotification.Name(PlayerEvents.failed.rawValue), object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(onLocalMediaProgressUpdate), name: NSNotification.Name(PlayerEvents.localProgress.rawValue), object: nil)
         
         self.bridge?.webView?.allowsBackForwardNavigationGestures = true;
         
+    }
+    
+    @objc func onReady(_ call: CAPPluginCall) {
+        Task { await self.restorePlaybackSession() }
+    }
+    
+    func restorePlaybackSession() async {
+        // We don't need to restore if we have an active session
+        guard PlayerHandler.getPlaybackSession() == nil else { return }
+        
+        do {
+            // Fetch the most recent active session
+            let activeSession = try await Realm().objects(PlaybackSession.self).where({ $0.isActiveSession == true }).last
+            if let activeSession = activeSession {
+                await PlayerProgress.syncFromServer()
+                try self.startPlaybackSession(activeSession, playWhenReady: false, playbackRate: PlayerSettings.main().playbackRate)
+            }
+        } catch {
+            NSLog("Failed to restore playback session")
+            debugPrint(error)
+        }
+    }
+    
+    @objc func startPlaybackSession(_ session: PlaybackSession, playWhenReady: Bool, playbackRate: Float) throws {
+        guard let libraryItemId = session.libraryItemId else { throw PlayerError.libraryItemIdNotSpecified }
+        
+        self.sendPrepareMetadataEvent(itemId: libraryItemId, playWhenReady: playWhenReady)
+        self.sendPlaybackSession(session: try session.asDictionary())
+        PlayerHandler.startPlayback(sessionId: session.id, playWhenReady: playWhenReady, playbackRate: playbackRate)
+        self.sendMetadata()
     }
 
     @objc func prepareLibraryItem(_ call: CAPPluginCall) {
@@ -36,32 +68,42 @@ public class AbsAudioPlayer: CAPPlugin {
             NSLog("provide library item id")
             return call.resolve()
         }
-        if libraryItemId!.starts(with: "local") {
-            NSLog("local items are not implemnted")
-            return call.resolve()
-        }
-        
-        initialPlayWhenReady = playWhenReady
-        initialPlaybackRate = playbackRate
         
         PlayerHandler.stopPlayback()
         
-        sendPrepareMetadataEvent(itemId: libraryItemId!, playWhenReady: playWhenReady)
-        ApiClient.startPlaybackSession(libraryItemId: libraryItemId!, episodeId: episodeId, forceTranscode: false) { session in
+        let isLocalItem = libraryItemId?.starts(with: "local_") ?? false
+        if (isLocalItem) {
+            let item = Database.shared.getLocalLibraryItem(localLibraryItemId: libraryItemId!)
+            let episode = item?.getPodcastEpisode(episodeId: episodeId)
+            guard let playbackSession = item?.getPlaybackSession(episode: episode) else {
+                NSLog("Failed to get local playback session")
+                return call.resolve([:])
+            }
+            playbackSession.save()
+            
             do {
-                self.sendPlaybackSession(session: try session.asDictionary())
-                call.resolve(try session.asDictionary())
+                try self.startPlaybackSession(playbackSession, playWhenReady: playWhenReady, playbackRate: playbackRate)
+                call.resolve(try playbackSession.asDictionary())
             } catch(let exception) {
-                NSLog("failed to convert session to json")
+                NSLog("Failed to start session")
                 debugPrint(exception)
                 call.resolve([:])
             }
-            
-            
-            PlayerHandler.startPlayback(session: session, playWhenReady: playWhenReady, playbackRate: playbackRate)
-            self.sendMetadata()
+        } else { // Playing from the server
+            ApiClient.startPlaybackSession(libraryItemId: libraryItemId!, episodeId: episodeId, forceTranscode: false) { session in
+                session.save()
+                do {
+                    try self.startPlaybackSession(session, playWhenReady: playWhenReady, playbackRate: playbackRate)
+                    call.resolve(try session.asDictionary())
+                } catch(let exception) {
+                    NSLog("Failed to start session")
+                    debugPrint(exception)
+                    call.resolve([:])
+                }
+            }
         }
     }
+    
     @objc func closePlayback(_ call: CAPPluginCall) {
         NSLog("Close playback")
         
@@ -76,7 +118,12 @@ public class AbsAudioPlayer: CAPPlugin {
         ])
     }
     @objc func setPlaybackSpeed(_ call: CAPPluginCall) {
-        PlayerHandler.setPlaybackSpeed(speed: call.getFloat("value", 1.0))
+        let playbackRate = call.getFloat("value", 1.0)
+        let settings = PlayerSettings.main()
+        settings.update {
+            settings.playbackRate = playbackRate
+        }
+        PlayerHandler.setPlaybackSpeed(speed: settings.playbackRate)
         call.resolve()
     }
     
@@ -109,7 +156,9 @@ public class AbsAudioPlayer: CAPPlugin {
     
     @objc func sendMetadata() {
         self.notifyListeners("onPlayingUpdate", data: [ "value": !PlayerHandler.paused ])
-        self.notifyListeners("onMetadata", data: PlayerHandler.getMetdata())
+        if let metadata = PlayerHandler.getMetdata() {
+            self.notifyListeners("onMetadata", data: metadata)
+        }
     }
     @objc func sendPlaybackClosedEvent() {
         self.notifyListeners("onPlaybackClosed", data: [ "value": true ])
@@ -167,22 +216,32 @@ public class AbsAudioPlayer: CAPPlugin {
             "value": PlayerHandler.getCurrentTime()
         ])
     }
+    
     @objc func sendSleepTimerSet() {
         self.notifyListeners("onSleepTimerSet", data: [
             "value": PlayerHandler.remainingSleepTime
         ])
     }
     
+    @objc func onLocalMediaProgressUpdate() {
+        guard let localMediaProgressId = PlayerHandler.getPlaybackSession()?.localMediaProgressId else { return }
+        guard let localMediaProgress = Database.shared.getLocalMediaProgress(localMediaProgressId: localMediaProgressId) else { return }
+        guard let progressUpdate = try? localMediaProgress.asDictionary() else { return }
+        NSLog("Sending local progress back to the UI")
+        self.notifyListeners("onLocalMediaProgressUpdate", data: progressUpdate)
+    }
+    
     @objc func onPlaybackFailed() {
         if (PlayerHandler.getPlayMethod() == PlayMethod.directplay.rawValue) {
-            let playbackSession = PlayerHandler.getPlaybackSession()
-            let libraryItemId = playbackSession?.libraryItemId ?? ""
-            let episodeId = playbackSession?.episodeId ?? nil
+            let session = PlayerHandler.getPlaybackSession()
+            let libraryItemId = session?.libraryItemId ?? ""
+            let episodeId = session?.episodeId ?? nil
             NSLog("Forcing Transcode")
             
             // If direct playing then fallback to transcode
             ApiClient.startPlaybackSession(libraryItemId: libraryItemId, episodeId: episodeId, forceTranscode: true) { session in
-                PlayerHandler.startPlayback(session: session, playWhenReady: self.initialPlayWhenReady, playbackRate: self.initialPlaybackRate)
+                session.save()
+                PlayerHandler.startPlayback(sessionId: session.id, playWhenReady: self.initialPlayWhenReady, playbackRate: PlayerSettings.main().playbackRate)
                 
                 do {
                     self.sendPlaybackSession(session: try session.asDictionary())
@@ -207,7 +266,12 @@ public class AbsAudioPlayer: CAPPlugin {
             "playWhenReady": playWhenReady,
         ])
     }
+    
     @objc func sendPlaybackSession(session: [String: Any]) {
         self.notifyListeners("onPlaybackSession", data: session)
     }
+}
+
+enum PlayerError: String, Error {
+    case libraryItemIdNotSpecified = "No libraryItemId provided on session"
 }
