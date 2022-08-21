@@ -311,7 +311,6 @@ export default {
       return this.ebookFile && this.ebookFormat !== 'pdf'
     },
     showDownload() {
-      if (this.isIos) return false
       if (this.isPodcast) return false
       return this.user && this.userCanDownload && this.showPlay && !this.hasLocal
     },

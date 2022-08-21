@@ -9,7 +9,7 @@ import Foundation
 import RealmSwift
 
 class Store {
-    @ThreadSafe private static var _serverConfig: ServerConnectionConfig?
+    private static var _serverConfig: ServerConnectionConfig?
     public static var serverConfig: ServerConnectionConfig? {
         get {
             return _serverConfig
@@ -21,9 +21,8 @@ class Store {
                 Database.shared.setLastActiveConfigIndexToNil()
             }
             
-            Database.realmQueue.sync {
-                _serverConfig = updated
-            }
+            // Make safe for accessing on all threads
+            _serverConfig = updated?.freeze()
         }
     }
 }

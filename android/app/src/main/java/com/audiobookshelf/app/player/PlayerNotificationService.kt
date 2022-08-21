@@ -20,7 +20,6 @@ import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
-import androidx.core.content.res.ResourcesCompat
 import androidx.media.MediaBrowserServiceCompat
 import androidx.media.utils.MediaConstants
 import com.audiobookshelf.app.BuildConfig
@@ -30,9 +29,11 @@ import com.audiobookshelf.app.data.DeviceInfo
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.server.ApiHandler
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.google.android.exoplayer2.*
 import com.google.android.exoplayer2.audio.AudioAttributes
 import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector
+import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector.CustomActionProvider
 import com.google.android.exoplayer2.ext.mediasession.TimelineQueueNavigator
 import com.google.android.exoplayer2.source.MediaSource
 import com.google.android.exoplayer2.source.ProgressiveMediaSource
@@ -41,6 +42,7 @@ import com.google.android.exoplayer2.ui.PlayerNotificationManager
 import com.google.android.exoplayer2.upstream.*
 import java.util.*
 import kotlin.concurrent.schedule
+
 
 const val SLEEP_TIMER_WAKE_UP_EXPIRATION = 120000L // 2m
 
@@ -294,17 +296,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     mediaSessionConnector.setQueueNavigator(queueNavigator)
     mediaSessionConnector.setPlaybackPreparer(MediaSessionPlaybackPreparer(this))
 
-    // Example adding custom action with icon in android auto
-//    mediaSessionConnector.setCustomActionProviders(object : MediaSessionConnector.CustomActionProvider {
-//      override fun onCustomAction(player: Player, action: String, extras: Bundle?) {
-//      }
-//      override fun getCustomAction(player: Player): PlaybackStateCompat.CustomAction? {
-//        var icon = R.drawable.exo_icon_rewind
-//       return PlaybackStateCompat.CustomAction.Builder(
-//         "com.audiobookshelf.app.PLAYBACK_RATE", "Playback Rate", icon)
-//         .build()
-//      }
-//    })
+    mediaSessionConnector.setCustomActionProviders(
+      JumpForwardCustomActionProvider(),
+      JumpBackwardCustomActionProvider(),
+    )
 
     mediaSession.setCallback(MediaSessionCallback(this))
 
@@ -320,13 +315,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       1000 * 20 // 20s playback rebuffer
     ).build()
 
-    val seekBackTime = DeviceManager.deviceData.deviceSettings?.jumpBackwardsTimeMs ?: 10000
-    val seekForwardTime = DeviceManager.deviceData.deviceSettings?.jumpForwardTimeMs ?: 10000
-
     mPlayer = ExoPlayer.Builder(this)
       .setLoadControl(customLoadControl)
-      .setSeekBackIncrementMs(seekBackTime)
-      .setSeekForwardIncrementMs(seekForwardTime)
+      .setSeekBackIncrementMs(deviceSettings.jumpBackwardsTimeMs)
+      .setSeekForwardIncrementMs(deviceSettings.jumpForwardTimeMs)
       .build()
     mPlayer.setHandleAudioBecomingNoisy(true)
     mPlayer.addListener(PlayerListener(this))
@@ -701,6 +693,22 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     }
   }
 
+  fun skipToPrevious() {
+    currentPlayer.seekToPrevious()
+  }
+
+  fun skipToNext() {
+    currentPlayer.seekToNext()
+  }
+
+  fun jumpForward() {
+    seekForward(deviceSettings.jumpForwardTimeMs)
+  }
+
+  fun jumpBackward() {
+    seekBackward(deviceSettings.jumpBackwardsTimeMs)
+  }
+
   fun seekForward(amount: Long) {
    seekPlayer(getCurrentTime() + amount)
   }
@@ -756,6 +764,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
      */
     return DeviceInfo(Build.MANUFACTURER, Build.MODEL, Build.BRAND, Build.VERSION.SDK_INT, BuildConfig.VERSION_NAME)
   }
+
+  @get:JsonIgnore
+  val deviceSettings get() = DeviceManager.deviceData.deviceSettings ?: DeviceSettings.default()
 
   fun getPlayItemRequestPayload(forceTranscode:Boolean):PlayItemRequestPayload {
     return PlayItemRequestPayload(getMediaPlayer(), !forceTranscode, forceTranscode, getDeviceInfo())
@@ -964,6 +975,40 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       Log.i(tag, "Network capabilities changed is unmetered = $unmetered")
       isUnmeteredNetwork = unmetered
       clientEventEmitter?.onNetworkMeteredChanged(unmetered)
+    }
+  }
+
+  inner class JumpBackwardCustomActionProvider : CustomActionProvider {
+    override fun onCustomAction(player: Player, action: String, extras: Bundle?) {
+      /*
+      This does not appear to ever get called. Instead, MediaSessionCallback.onCustomAction() is
+      responsible to reacting to a custom action.
+       */
+    }
+
+    override fun getCustomAction(player: Player): PlaybackStateCompat.CustomAction? {
+      return PlaybackStateCompat.CustomAction.Builder(
+        CUSTOM_ACTION_JUMP_BACKWARD,
+        getContext().getString(R.string.action_jump_backward),
+        R.drawable.exo_icon_rewind
+      ).build()
+    }
+  }
+
+  inner class JumpForwardCustomActionProvider : CustomActionProvider {
+    override fun onCustomAction(player: Player, action: String, extras: Bundle?) {
+      /*
+      This does not appear to ever get called. Instead, MediaSessionCallback.onCustomAction() is
+      responsible to reacting to a custom action.
+       */
+    }
+
+    override fun getCustomAction(player: Player): PlaybackStateCompat.CustomAction? {
+      return PlaybackStateCompat.CustomAction.Builder(
+        CUSTOM_ACTION_JUMP_FORWARD,
+        getContext().getString(R.string.action_jump_forward),
+        R.drawable.exo_icon_fastforward
+      ).build()
     }
   }
 }

@@ -9,6 +9,8 @@
 #import <Capacitor/Capacitor.h>
 
 CAP_PLUGIN(AbsAudioPlayer, "AbsAudioPlayer",
+           CAP_PLUGIN_METHOD(onReady, CAPPluginReturnNone);
+           
            CAP_PLUGIN_METHOD(prepareLibraryItem, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(closePlayback, CAPPluginReturnPromise);
            

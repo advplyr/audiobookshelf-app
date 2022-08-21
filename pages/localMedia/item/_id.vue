@@ -11,7 +11,7 @@
         <span class="material-icons" @click="showItemDialog">more_vert</span>
       </div>
 
-      <p class="px-2 text-sm mb-0.5 text-white text-opacity-75">Folder: {{ folderName }}</p>
+      <p v-if="!isIos" class="px-2 text-sm mb-0.5 text-white text-opacity-75">Folder: {{ folderName }}</p>
 
       <p class="px-2 mb-4 text-xs text-gray-400">{{ libraryItemId ? 'Linked to item on server ' + liServerAddress : 'Not linked to server item' }}</p>
 
@@ -22,11 +22,11 @@
         <div v-if="!isPodcast" class="w-full">
           <p class="text-base mb-2">Audio Tracks ({{ audioTracks.length }})</p>
 
-          <draggable v-model="audioTracksCopy" v-bind="dragOptions" handle=".drag-handle" draggable=".item" tag="div" @start="drag = true" @end="drag = false" @update="draggableUpdate">
+          <draggable v-model="audioTracksCopy" v-bind="dragOptions" handle=".drag-handle" draggable=".item" tag="div" @start="drag = true" @end="drag = false" @update="draggableUpdate" :disabled="isIos">
             <transition-group type="transition" :name="!drag ? 'dragtrack' : null">
               <template v-for="track in audioTracksCopy">
                 <div :key="track.localFileId" class="flex items-center my-1 item">
-                  <div class="w-8 h-12 flex items-center justify-center" style="min-width: 32px">
+                  <div v-if="!isIos" class="w-8 h-12 flex items-center justify-center" style="min-width: 32px">
                     <span class="material-icons drag-handle text-lg text-white text-opacity-50 hover:text-opacity-100">menu</span>
                   </div>
                   <div class="w-8 h-12 flex items-center justify-center" style="min-width: 32px">
@@ -39,7 +39,7 @@
                     <p class="text-xs">{{ track.mimeType }}</p>
                     <p class="text-sm">{{ $elapsedPretty(track.duration) }}</p>
                   </div>
-                  <div class="w-12 h-12 flex items-center justify-center" style="min-width: 48px">
+                  <div v-if="!isIos" class="w-12 h-12 flex items-center justify-center" style="min-width: 48px">
                     <span class="material-icons" @click="showTrackDialog(track)">more_vert</span>
                   </div>
                 </div>
@@ -138,6 +138,9 @@ export default {
     }
   },
   computed: {
+    isIos() {
+      return this.$platform === 'ios'
+    },
     basePath() {
       return this.localLibraryItem ? this.localLibraryItem.basePath : null
     },
@@ -194,24 +197,14 @@ export default {
           }
         ]
       } else {
-        return [
-          {
-            text: 'Scan',
-            value: 'scan'
-          },
-          {
-            text: 'Force Re-Scan',
-            value: 'rescan'
-          },
-          {
-            text: 'Remove',
-            value: 'remove'
-          },
-          {
-            text: 'Remove & Delete Files',
-            value: 'delete'
-          }
-        ]
+        var options = []
+        if ( !this.isIos ) {
+          options.push({ text: 'Scan', value: 'scan'})
+          options.push({ text: 'Force Re-Scan', value: 'rescan'})
+          options.push({ text: 'Remove', value: 'remove'})
+        }
+        options.push({ text: 'Remove & Delete Files', value: 'delete'})
+        return options
       }
     }
   },
@@ -329,13 +322,13 @@ export default {
     async deleteItem() {
       const { value } = await Dialog.confirm({
         title: 'Confirm',
-        message: `Warning! This will delete the folder "${this.basePath}" and all contents. Are you sure?`
+        message: `Warning! This will delete "${this.media.metadata.title}" and all associated local files. Are you sure?`
       })
       if (value) {
         var res = await AbsFileSystem.deleteItem(this.localLibraryItem)
         if (res && res.success) {
           this.$toast.success('Deleted Successfully')
-          this.$router.replace(`/localMedia/folders/${this.folderId}`)
+          this.$router.replace(this.isIos ? '/bookshelf' : `/localMedia/folders/${this.folderId}`)
         } else this.$toast.error('Failed to delete')
       }
     },
