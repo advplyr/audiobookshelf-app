@@ -47,6 +47,7 @@ class PlayerProgress {
     
     private func updateLocalSessionFromPlayer(currentTime: Double, includesPlayProgress: Bool) async -> PlaybackSession? {
         guard let session = PlayerHandler.getPlaybackSession() else { return nil }
+        guard !currentTime.isNaN else { return nil } // Prevent bad data on player stop
         
         let now = Date().timeIntervalSince1970 * 1000
         let lastUpdate = session.updatedAt ?? now
