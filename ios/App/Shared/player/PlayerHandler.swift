@@ -101,10 +101,12 @@ class PlayerHandler {
     }
     
     public static func increaseSleepTime(increaseSeconds: Double) {
+        self.sleepTimerChapterStopTime = nil
         self.player?.increaseSleepTime(extraTimeInSeconds: increaseSeconds)
     }
     
     public static func decreaseSleepTime(decreaseSeconds: Double) {
+        self.sleepTimerChapterStopTime = nil
         self.player?.decreaseSleepTime(removeTimeInSeconds: decreaseSeconds)
     }
     
