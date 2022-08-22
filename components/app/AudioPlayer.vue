@@ -772,8 +772,12 @@ export default {
   mounted() {
     this.updateScreenSize()
     if (screen.orientation) {
+      // Not available on ios
       screen.orientation.addEventListener('change', this.screenOrientationChange)
+    } else {
+      document.addEventListener('orientationchange', this.screenOrientationChange)
     }
+    window.addEventListener('resize', this.screenOrientationChange)
 
     this.$eventBus.$on('minimize-player', this.minimizePlayerEvt)
     document.body.addEventListener('touchstart', this.touchstart)
@@ -783,8 +787,12 @@ export default {
   },
   beforeDestroy() {
     if (screen.orientation) {
+      // Not available on ios
       screen.orientation.removeEventListener('change', this.screenOrientationChange)
+    } else {
+      document.removeEventListener('orientationchange', this.screenOrientationChange)
     }
+    window.removeEventListener('resize', this.screenOrientationChange)
 
     if (this.playbackSession) {
       console.log('[AudioPlayer] Before destroy closing playback')
