@@ -8,9 +8,7 @@
         <span class="material-icons text-3xl" :class="isCasting ? 'text-success' : ''" @click="castClick">cast</span>
       </div>
       <div class="top-4 right-4 absolute cursor-pointer">
-        <ui-dropdown-menu ref="dropdownMenu" :items="menuItems" @action="clickMenuAction">
-          <span class="material-icons text-3xl">more_vert</span>
-        </ui-dropdown-menu>
+        <span class="material-icons text-3xl" @click="showMoreMenuDialog = true">more_vert</span>
       </div>
       <p class="top-2 absolute left-0 right-0 mx-auto text-center uppercase tracking-widest text-opacity-75" style="font-size: 10px" :class="{ 'text-success': isLocalPlayMethod, 'text-accent': !isLocalPlayMethod }">{{ isDirectPlayMethod ? 'Direct' : isLocalPlayMethod ? 'Local' : 'Transcode' }}</p>
     </div>
@@ -95,6 +93,16 @@
     </div>
 
     <modals-chapters-modal v-model="showChapterModal" :current-chapter="currentChapter" :chapters="chapters" @select="selectChapter" />
+    <modals-dialog v-model="showMoreMenuDialog" :items="menuItems" @action="clickMenuAction">
+      <template v-slot:chapter_track="{ item }">
+        <li class="text-gray-50 select-none relative py-4 cursor-pointer hover:bg-black-400" role="option" @click="clickMenuAction('chapter_track')">
+          <div class="flex items-center px-3">
+            <span v-if="item.icon" class="material-icons-outlined text-xl mr-2 text-white text-opacity-80">{{ item.icon }}</span>
+            <span class="font-normal block truncate text-base text-white text-opacity-80">Use Chapter Track</span>
+          </div>
+        </li>
+      </template>
+    </modals-dialog>
   </div>
 </template>
 
@@ -142,7 +150,8 @@ export default {
       isLoading: false,
       touchTrackStart: false,
       dragPercent: 0,
-      syncStatus: 0
+      syncStatus: 0,
+      showMoreMenuDialog: false
     }
   },
   watch: {
@@ -612,6 +621,7 @@ export default {
       }
     },
     clickMenuAction(action) {
+      this.showMoreMenuDialog = false
       if (action === 'chapter_track') {
         this.useChapterTrack = !this.useChapterTrack
 
