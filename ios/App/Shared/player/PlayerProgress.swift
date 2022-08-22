@@ -123,7 +123,7 @@ class PlayerProgress {
         }
     }
     
-    private static func updateLocalSessionFromServerMediaProgress() async {
+    private func updateLocalSessionFromServerMediaProgress() async {
         NSLog("updateLocalSessionFromServerMediaProgress: Checking if local media progress was updated on server")
         guard let session = try! await Realm().objects(PlaybackSession.self).last(where: { $0.isActiveSession == true })?.freeze() else {
             NSLog("updateLocalSessionFromServerMediaProgress: Failed to get session")
