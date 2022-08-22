@@ -63,8 +63,12 @@ class LocalMediaProgress: Object, Codable {
         try container.encode(localLibraryItemId, forKey: .localLibraryItemId)
         try container.encode(localEpisodeId, forKey: .localEpisodeId)
         try container.encode(duration, forKey: .duration)
-        try container.encode(progress, forKey: .progress)
-        try container.encode(currentTime, forKey: .currentTime)
+        if progress.isNaN == false {
+            try container.encode(progress, forKey: .progress)
+        }
+        if currentTime.isNaN == false {
+            try container.encode(currentTime, forKey: .currentTime)
+        }
         try container.encode(isFinished, forKey: .isFinished)
         try container.encode(lastUpdate, forKey: .lastUpdate)
         try container.encode(startedAt, forKey: .startedAt)
