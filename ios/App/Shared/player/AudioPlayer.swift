@@ -132,16 +132,20 @@ class AudioPlayer: NSObject {
     }
     
     private func setupTimeObserver() {
+        removeTimeObserver()
+        
         let timeScale = CMTimeScale(NSEC_PER_SEC)
-        // Observe multiple times per seconds, as rate will be different depending on playback speed
-        let time = CMTime(seconds: 0.25, preferredTimescale: timeScale)
-        self.timeObserverToken = self.audioPlayer.addPeriodicTimeObserver(forInterval: time, queue: .main) { time in
+        // Rate will be different depending on playback speed, aim for 2 observations/sec
+        let seconds = 0.5 * (self.rate > 0 ? self.rate : 1.0)
+        let time = CMTime(seconds: Double(seconds), preferredTimescale: timeScale)
+        self.timeObserverToken = self.audioPlayer.addPeriodicTimeObserver(forInterval: time, queue: .main) { [weak self] time in
+            let sleepTimeStopAt = self?.sleepTimeStopAt
             Task {
                 // Let the player update the current playback positions
                 await PlayerProgress.shared.syncFromPlayer(currentTime: time.seconds, includesPlayProgress: true, isStopping: false)
                 
                 // Update the sleep time, if set
-                if self.sleepTimeStopAt != nil {
+                if sleepTimeStopAt != nil {
                     NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.sleepSet.rawValue), object: nil)
                 }
             }
@@ -329,6 +333,9 @@ class AudioPlayer: NSObject {
         
         // If we have an active sleep timer, reschedule based on rate
         self.rescheduleSleepTimerAtTime(time: self.getCurrentTime(), secondsRemaining: sleepSecondsRemaining)
+        
+        // Setup the time observer again at the new rate
+        self.setupTimeObserver()
     }
     
     public func getSleepStopAt() -> Double? {
