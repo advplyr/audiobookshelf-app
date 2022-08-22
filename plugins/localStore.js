@@ -60,6 +60,24 @@ class LocalStorage {
     }
   }
 
+  async setPlayerLock(lock) {
+    try {
+      await Storage.set({ key: 'playerLock', value: lock ? '1' : '0' })
+    } catch (error) {
+      console.error('[LocalStorage] Failed to set player lock', error)
+    }
+  }
+
+  async getPlayerLock() {
+    try {
+      var obj = await Storage.get({ key: 'playerLock' }) || {}
+      return obj.value === '1'
+    } catch (error) {
+      console.error('[LocalStorage] Failed to get player lock', error)
+      return false
+    }
+  }
+
   async setBookshelfListView(useIt) {
     try {
       await Storage.set({ key: 'bookshelfListView', value: useIt ? '1' : '0' })
