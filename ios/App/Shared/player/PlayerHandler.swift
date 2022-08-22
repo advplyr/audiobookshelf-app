@@ -168,8 +168,4 @@ class PlayerHandler {
             }
         }
     }
-    
-    @objc public static func syncServerProgressDuringPause() {
-        Task { await PlayerProgress.shared.syncFromServer() }
-    }
 }

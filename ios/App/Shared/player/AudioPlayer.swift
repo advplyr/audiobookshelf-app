@@ -44,6 +44,8 @@ class AudioPlayer: NSObject {
     private var currentTrackIndex = 0
     private var allPlayerItems:[AVPlayerItem] = []
     
+    private var pausedTimer: Timer?
+    
     // MARK: - Constructor
     init(sessionId: String, playWhenReady: Bool = false, playbackRate: Float = 1) {
         self.playWhenReady = playWhenReady
@@ -88,6 +90,7 @@ class AudioPlayer: NSObject {
         NSLog("Audioplayer ready")
     }
     deinit {
+        self.stopPausedTimer()
         self.removeSleepTimer()
         self.removeTimeObserver()
         self.queueObserver?.invalidate()
@@ -200,6 +203,21 @@ class AudioPlayer: NSObject {
         })
     }
     
+    private func startPausedTimer() {
+        guard self.pausedTimer == nil else { return }
+        DispatchQueue.main.async {
+            self.pausedTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { timer in
+                NSLog("PAUSE TIMER: Syncing from server")
+                Task { await PlayerProgress.shared.syncFromServer() }
+            }
+        }
+    }
+    
+    private func stopPausedTimer() {
+        self.pausedTimer?.invalidate()
+        self.pausedTimer = nil
+    }
+    
     // MARK: - Methods
     public func play(allowSeekBack: Bool = false) {
         if allowSeekBack {
@@ -228,6 +246,8 @@ class AudioPlayer: NSObject {
         }
         lastPlayTime = Date.timeIntervalSinceReferenceDate
         
+        self.stopPausedTimer()
+        
         Task {
             let isPlaying = self.status > 0
             await PlayerProgress.shared.syncFromPlayer(currentTime: self.getCurrentTime(), includesPlayProgress: isPlaying, isStopping: false)
@@ -252,6 +272,8 @@ class AudioPlayer: NSObject {
         
         updateNowPlaying()
         lastPlayTime = Date.timeIntervalSinceReferenceDate
+        
+        self.startPausedTimer()
     }
     
     public func seek(_ to: Double, from: String) {
