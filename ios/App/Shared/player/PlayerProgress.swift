@@ -123,17 +123,26 @@ class PlayerProgress {
         }
     }
     
-    private func updateLocalSessionFromServerMediaProgress() async {
-        NSLog("checkCurrentSessionProgress: Checking if local media progress was updated on server")
-        guard let session = PlayerHandler.getPlaybackSession()?.freeze() else { return }
+    private static func updateLocalSessionFromServerMediaProgress() async {
+        NSLog("updateLocalSessionFromServerMediaProgress: Checking if local media progress was updated on server")
+        guard let session = try! await Realm().objects(PlaybackSession.self).last(where: { $0.isActiveSession == true })?.freeze() else {
+            NSLog("updateLocalSessionFromServerMediaProgress: Failed to get session")
+            return
+        }
         
         // Fetch the current progress
         let progress = await ApiClient.getMediaProgress(libraryItemId: session.libraryItemId!, episodeId: session.episodeId)
-        guard let progress = progress else { return }
+        guard let progress = progress else {
+            NSLog("updateLocalSessionFromServerMediaProgress: No progress object")
+            return
+        }
         
         // Determine which session is newer
         let serverLastUpdate = progress.lastUpdate
-        guard let localLastUpdate = session.updatedAt else { return }
+        guard let localLastUpdate = session.updatedAt else {
+            NSLog("updateLocalSessionFromServerMediaProgress: No local session updatedAt")
+            return
+        }
         let serverCurrentTime = progress.currentTime
         let localCurrentTime = session.currentTime
         
@@ -142,12 +151,16 @@ class PlayerProgress {
         
         // Update the session, if needed
         if serverIsNewerThanLocal && currentTimeIsDifferent {
+            NSLog("updateLocalSessionFromServerMediaProgress: Server has newer time than local serverLastUpdate=\(serverLastUpdate) localLastUpdate=\(localLastUpdate)")
             guard let session = session.thaw() else { return }
             session.update {
                 session.currentTime = serverCurrentTime
                 session.updatedAt = serverLastUpdate
             }
+            NSLog("updateLocalSessionFromServerMediaProgress: Updated session currentTime newCurrentTime=\(serverCurrentTime) previousCurrentTime=\(localCurrentTime)")
             PlayerHandler.seek(amount: session.currentTime)
+        } else {
+            NSLog("updateLocalSessionFromServerMediaProgress: Local session does not need updating; local has latest progress")
         }
     }
     

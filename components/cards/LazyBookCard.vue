@@ -42,7 +42,7 @@
     <!-- No progress shown for collapsed series in library -->
     <div v-if="!collapsedSeries && (!isPodcast || recentEpisode)" class="absolute bottom-0 left-0 h-1 shadow-sm max-w-full z-10 rounded-b" :class="itemIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: width * userProgressPercent + 'px' }"></div>
 
-    <div v-if="localLibraryItem || isLocal" class="absolute top-0 right-0 z-20" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }">
+    <div v-if="showHasLocalDownload" class="absolute right-0 top-0 z-20" :style="{ top: (isPodcast ? 1.75 : 0.375) * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }">
       <span class="material-icons text-2xl text-success">{{ isLocalOnly ? 'task' : 'download_done' }}</span>
     </div>
 
@@ -164,6 +164,7 @@ export default {
       return this.media.numTracks
     },
     numEpisodes() {
+      if (this.isLocal && this.isPodcast && this.media.episodes) return this.media.episodes.length
       return this.media.numEpisodes
     },
     processingBatch() {
@@ -351,6 +352,17 @@ export default {
       if (!this.isAltViewEnabled) return 0
       else if (!this.displaySortLine) return 3 * this.sizeMultiplier
       return 4.25 * this.sizeMultiplier
+    },
+    showHasLocalDownload() {
+      if (this.localLibraryItem || this.isLocal) {
+        if (this.recentEpisode && !this.isLocal) {
+          const localEpisode = this.localLibraryItem.media.episodes.find((ep) => ep.serverEpisodeId === this.recentEpisode.id)
+          return !!localEpisode
+        } else {
+          return true
+        }
+      }
+      return false
     }
   },
   methods: {
@@ -399,8 +411,26 @@ export default {
         this.selectBtnClick()
       } else if (this.recentEpisode) {
         var eventBus = this.$eventBus || this.$nuxt.$eventBus
-        if (this.streamIsPlaying) eventBus.$emit('pause-item')
-        else eventBus.$emit('play-item', { libraryItemId: this.libraryItemId, episodeId: this.recentEpisode.id })
+        if (this.streamIsPlaying) {
+          eventBus.$emit('pause-item')
+          return
+        }
+
+        if (this.localLibraryItem) {
+          const localEpisode = this.localLibraryItem.media.episodes.find((ep) => ep.serverEpisodeId === this.recentEpisode.id)
+          if (localEpisode) {
+            // Play episode locally
+            eventBus.$emit('play-item', {
+              libraryItemId: this.localLibraryItemId,
+              episodeId: localEpisode.id,
+              serverLibraryItemId: this.libraryItemId,
+              serverEpisodeId: this.recentEpisode.id
+            })
+            return
+          }
+        }
+
+        eventBus.$emit('play-item', { libraryItemId: this.libraryItemId, episodeId: this.recentEpisode.id })
       } else {
         var router = this.$router || this.$nuxt.$router
         if (router) {

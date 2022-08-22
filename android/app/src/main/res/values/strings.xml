@@ -6,4 +6,6 @@
     <string name="custom_url_scheme">com.audiobookshelf.app</string>
     <string name="add_widget">Add widget</string>
     <string name="app_widget_description">Simple widget for audiobookshelf playback</string>
+    <string name="action_jump_forward">Jump Forward</string>
+    <string name="action_jump_backward">Jump Backward</string>
 </resources>

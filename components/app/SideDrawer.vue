@@ -113,6 +113,13 @@ export default {
           text: 'Local Media',
           to: '/localMedia/folders'
         })
+      } else {
+        items.push({
+        icon: 'download',
+        iconOutlined: false,
+        text: 'Downloads',
+        to: '/downloads'
+        })
       }
       items.push({
         icon: 'settings',
