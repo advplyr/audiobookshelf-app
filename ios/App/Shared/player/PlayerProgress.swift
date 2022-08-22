@@ -13,11 +13,20 @@ class PlayerProgress {
     
     public static let shared = PlayerProgress()
     
+    private static let TIME_BETWEEN_SESSION_SYNC_IN_SECONDS = 10.0
+    
     private init() {}
     
-    public func syncFromPlayer() async {
+    
+    // MARK: - SYNC HOOKS
+    
+    public func syncFromPlayer(currentTime: Double, includesPlayProgress: Bool, isStopping: Bool) async {
         let backgroundToken = await UIApplication.shared.beginBackgroundTask(withName: "ABS:syncFromPlayer")
+        let session = await updateLocalSessionFromPlayer(currentTime: currentTime, includesPlayProgress: includesPlayProgress)
         updateLocalMediaProgressFromLocalSession()
+        if let session = session {
+            await updateServerSessionFromLocalSession(session, rateLimitSync: !isStopping)
+        }
         await UIApplication.shared.endBackgroundTask(backgroundToken)
     }
     
@@ -33,8 +42,26 @@ class PlayerProgress {
         await UIApplication.shared.endBackgroundTask(backgroundToken)
     }
     
-    private func updateLocalSessionFromPlayer() async {
+    
+    // MARK: - SYNC LOGIC
+    
+    private func updateLocalSessionFromPlayer(currentTime: Double, includesPlayProgress: Bool) async -> PlaybackSession? {
+        guard let session = PlayerHandler.getPlaybackSession() else { return nil }
         
+        let now = Date().timeIntervalSince1970 * 1000
+        let lastUpdate = session.updatedAt ?? now
+        let timeSinceLastUpdate = now - lastUpdate
+        
+        session.update {
+            session.currentTime = currentTime
+            session.updatedAt = now
+            
+            if includesPlayProgress {
+                session.timeListening += timeSinceLastUpdate
+            }
+        }
+        
+        return session.freeze()
     }
     
     private func updateLocalMediaProgressFromLocalSession() {
@@ -65,7 +92,19 @@ class PlayerProgress {
         }
     }
     
-    private func updateServerSessionFromLocalSession(_ session: PlaybackSession) async {
+    private func updateServerSessionFromLocalSession(_ session: PlaybackSession, rateLimitSync: Bool = false) async {
+        // If required, rate limit requests based on session last update
+        if rateLimitSync {
+            let now = Date().timeIntervalSince1970 * 1000
+            let lastUpdate = session.updatedAt ?? now
+            let timeSinceLastSync = now - lastUpdate
+            let timeBetweenSessionSync = PlayerProgress.TIME_BETWEEN_SESSION_SYNC_IN_SECONDS * 1000
+            guard timeSinceLastSync > timeBetweenSessionSync else {
+                // Skipping sync since last occurred within session sync time
+                return
+            }
+        }
+        
         NSLog("Sending sessionId(\(session.id)) to server")
         
         var success = false

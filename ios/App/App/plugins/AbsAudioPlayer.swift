@@ -166,45 +166,47 @@ public class AbsAudioPlayer: CAPPlugin {
     
     @objc func decreaseSleepTime(_ call: CAPPluginCall) {
         guard let timeString = call.getString("time") else { return call.resolve([ "success": false ]) }
-        guard let time = Int(timeString) else { return call.resolve([ "success": false ]) }
-        guard let currentSleepTime = PlayerHandler.remainingSleepTime else { return call.resolve([ "success": false ]) }
+        guard let time = Double(timeString) else { return call.resolve([ "success": false ]) }
+        guard let _ = PlayerHandler.remainingSleepTime else { return call.resolve([ "success": false ]) }
         
-        PlayerHandler.remainingSleepTime = currentSleepTime - (time / 1000)
+        let seconds = time/1000
+        PlayerHandler.decreaseSleepTime(decreaseSeconds: seconds)
         call.resolve()
     }
+    
     @objc func increaseSleepTime(_ call: CAPPluginCall) {
         guard let timeString = call.getString("time") else { return call.resolve([ "success": false ]) }
-        guard let time = Int(timeString) else { return call.resolve([ "success": false ]) }
-        guard let currentSleepTime = PlayerHandler.remainingSleepTime else { return call.resolve([ "success": false ]) }
+        guard let time = Double(timeString) else { return call.resolve([ "success": false ]) }
+        guard let _ = PlayerHandler.remainingSleepTime else { return call.resolve([ "success": false ]) }
         
-        PlayerHandler.remainingSleepTime = currentSleepTime + (time / 1000)
+        let seconds = time/1000
+        PlayerHandler.increaseSleepTime(increaseSeconds: seconds)
         call.resolve()
     }
+    
     @objc func setSleepTimer(_ call: CAPPluginCall) {
         guard let timeString = call.getString("time") else { return call.resolve([ "success": false ]) }
         guard let time = Int(timeString) else { return call.resolve([ "success": false ]) }
-        let timeSeconds = time / 1000
+        let isChapterTime = call.getBool("isChapterTime", false)
         
-        NSLog("chapter time: \(call.getBool("isChapterTime", false))")
+        let seconds = time / 1000
         
-        if call.getBool("isChapterTime", false) {
-            let timeToPause = timeSeconds - Int(PlayerHandler.getCurrentTime() ?? 0)
-            if timeToPause < 0 { return call.resolve([ "success": false ]) }
-            
-            PlayerHandler.sleepTimerChapterStopTime = timeSeconds
-            PlayerHandler.remainingSleepTime = timeToPause
+        NSLog("chapter time: \(isChapterTime)")
+        if isChapterTime {
+            PlayerHandler.setChapterSleepTime(stopAt: Double(seconds))
             return call.resolve([ "success": true ])
         }
         
-        PlayerHandler.sleepTimerChapterStopTime = nil
-        PlayerHandler.remainingSleepTime = timeSeconds
+        PlayerHandler.setSleepTime(secondsUntilSleep: Double(seconds))
         call.resolve([ "success": true ])
     }
+    
     @objc func cancelSleepTimer(_ call: CAPPluginCall) {
-        PlayerHandler.remainingSleepTime = nil
+        PlayerHandler.cancelSleepTime()
         PlayerHandler.sleepTimerChapterStopTime = nil
         call.resolve()
     }
+    
     @objc func getSleepTimerTime(_ call: CAPPluginCall) {
         call.resolve([
             "value": PlayerHandler.remainingSleepTime
