@@ -334,7 +334,7 @@ class AudioPlayer: NSObject {
                 self?.updateNowPlaying()
                 
                 // If we have an active sleep timer, reschedule based on seek, since seek is fuzzy
-                // Theis needs to occur after play() to capture the correct rate
+                // This needs to occur after play() to capture the correct playback rate
                 if let currentTime = self?.getCurrentTime() {
                     self?.rescheduleSleepTimerAtTime(time: currentTime, secondsRemaining: sleepSecondsRemaining)
                 }
