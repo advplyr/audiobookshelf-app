@@ -96,11 +96,12 @@ class PlayerProgress {
     }
     
     private func updateServerSessionFromLocalSession(_ session: PlaybackSession, rateLimitSync: Bool = false) async {
+        let nowInMilliseconds = Date().timeIntervalSince1970 * 1000
+        
         // If required, rate limit requests based on session last update
         if rateLimitSync {
-            let now = Date().timeIntervalSince1970 * 1000
-            let lastUpdate = session.updatedAt ?? now
-            let timeSinceLastSync = now - lastUpdate
+            let lastUpdateInMilliseconds = session.serverUpdatedAt
+            let timeSinceLastSync = nowInMilliseconds - lastUpdateInMilliseconds
             let timeBetweenSessionSync = PlayerProgress.TIME_BETWEEN_SESSION_SYNC_IN_SECONDS * 1000
             guard timeSinceLastSync > timeBetweenSessionSync else {
                 // Skipping sync since last occurred within session sync time
@@ -118,10 +119,18 @@ class PlayerProgress {
             success = await ApiClient.reportPlaybackProgress(report: playbackReport, sessionId: session.id)
         }
         
-        // Remove old sessions after they synced with the server
-        if success && !session.isActiveSession {
-            NSLog("Deleting sessionId(\(session.id)) as is no longer active")
-            session.thaw()?.delete()
+        if success {
+            if let session = session.thaw() {
+                // Update the server sync time, which is different than lastUpdate
+                session.update {
+                    session.serverUpdatedAt = nowInMilliseconds
+                }
+                
+                // Remove old sessions after they synced with the server
+                if !session.isActiveSession {
+                    session.delete()
+                }
+            }
         }
     }
     
