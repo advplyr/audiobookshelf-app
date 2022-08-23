@@ -32,7 +32,7 @@ class PlayerProgress {
     
     public func syncToServer() async {
         let backgroundToken = await UIApplication.shared.beginBackgroundTask(withName: "ABS:syncToServer")
-        updateAllServerSessionFromLocalSession()
+        await updateAllServerSessionFromLocalSession()
         await UIApplication.shared.endBackgroundTask(backgroundToken)
     }
     
@@ -87,11 +87,15 @@ class PlayerProgress {
         NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.localProgress.rawValue), object: nil)
     }
     
-    private func updateAllServerSessionFromLocalSession() {
-        let sessions = try! Realm().objects(PlaybackSession.self).where({ $0.serverConnectionConfigId == Store.serverConfig?.id })
-        for session in sessions {
-            let session = session.freeze()
-            Task { await updateServerSessionFromLocalSession(session) }
+    private func updateAllServerSessionFromLocalSession() async {
+        await withTaskGroup(of: Void.self) { [self] group in
+            for session in try! await Realm().objects(PlaybackSession.self).where({ $0.serverConnectionConfigId == Store.serverConfig?.id }) {
+                let session = session.freeze()
+                group.addTask {
+                    await self.updateServerSessionFromLocalSession(session)
+                }
+            }
+            await group.waitForAll()
         }
     }
     
