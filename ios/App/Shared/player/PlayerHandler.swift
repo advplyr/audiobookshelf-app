@@ -159,7 +159,9 @@ class PlayerHandler {
     
     private static func cleanupOldSessions(currentSessionId: String?) {
         let realm = try! Realm()
-        let oldSessions = realm.objects(PlaybackSession.self) .where({ $0.isActiveSession == true })
+        let oldSessions = realm.objects(PlaybackSession.self) .where({
+            $0.isActiveSession == true && $0.serverConnectionConfigId == Store.serverConfig?.id
+        })
         try! realm.write {
             for s in oldSessions {
                 if s.id != currentSessionId {
