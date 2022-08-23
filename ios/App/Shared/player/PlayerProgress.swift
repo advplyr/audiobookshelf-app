@@ -49,16 +49,18 @@ class PlayerProgress {
         guard let session = PlayerHandler.getPlaybackSession() else { return nil }
         guard !currentTime.isNaN else { return nil } // Prevent bad data on player stop
         
-        let now = Date().timeIntervalSince1970 * 1000
-        let lastUpdate = session.updatedAt ?? now
-        let timeSinceLastUpdate = now - lastUpdate
+        let nowInSeconds = Date().timeIntervalSince1970
+        let nowInMilliseconds = nowInSeconds * 1000
+        let lastUpdateInMilliseconds = session.updatedAt ?? nowInMilliseconds
+        let lastUpdateInSeconds = lastUpdateInMilliseconds / 1000
+        let secondsSinceLastUpdate = nowInSeconds - lastUpdateInSeconds
         
         session.update {
             session.currentTime = currentTime
-            session.updatedAt = now
+            session.updatedAt = nowInMilliseconds
             
             if includesPlayProgress {
-                session.timeListening += timeSinceLastUpdate
+                session.timeListening += secondsSinceLastUpdate
             }
         }
         
