@@ -49,13 +49,15 @@ class PlayerProgress {
         guard let session = PlayerHandler.getPlaybackSession() else { return nil }
         guard !currentTime.isNaN else { return nil } // Prevent bad data on player stop
         
-        let nowInSeconds = Date().timeIntervalSince1970
-        let nowInMilliseconds = nowInSeconds * 1000
-        let lastUpdateInMilliseconds = session.updatedAt ?? nowInMilliseconds
-        let lastUpdateInSeconds = lastUpdateInMilliseconds / 1000
-        let secondsSinceLastUpdate = nowInSeconds - lastUpdateInSeconds
-        
         session.update {
+            session.realm?.refresh()
+            
+            let nowInSeconds = Date().timeIntervalSince1970
+            let nowInMilliseconds = nowInSeconds * 1000
+            let lastUpdateInMilliseconds = session.updatedAt ?? nowInMilliseconds
+            let lastUpdateInSeconds = lastUpdateInMilliseconds / 1000
+            let secondsSinceLastUpdate = nowInSeconds - lastUpdateInSeconds
+            
             session.currentTime = currentTime
             session.updatedAt = nowInMilliseconds
             
@@ -100,18 +102,31 @@ class PlayerProgress {
     }
     
     private func updateServerSessionFromLocalSession(_ session: PlaybackSession, rateLimitSync: Bool = false) async {
-        let nowInMilliseconds = Date().timeIntervalSince1970 * 1000
+        guard var session = session.thaw() else { return }
+        var safeToSync = true
         
-        // If required, rate limit requests based on session last update
-        if rateLimitSync {
+        // We need to update and check the server time in a transaction for thread-safety
+        session.update {
+            session.realm?.refresh()
+            
+            let nowInMilliseconds = Date().timeIntervalSince1970 * 1000
             let lastUpdateInMilliseconds = session.serverUpdatedAt
-            let timeSinceLastSync = nowInMilliseconds - lastUpdateInMilliseconds
-            let timeBetweenSessionSync = PlayerProgress.TIME_BETWEEN_SESSION_SYNC_IN_SECONDS * 1000
-            guard timeSinceLastSync > timeBetweenSessionSync else {
-                // Skipping sync since last occurred within session sync time
-                return
+            
+            // If required, rate limit requests based on session last update
+            if rateLimitSync {
+                let timeSinceLastSync = nowInMilliseconds - lastUpdateInMilliseconds
+                let timeBetweenSessionSync = PlayerProgress.TIME_BETWEEN_SESSION_SYNC_IN_SECONDS * 1000
+                safeToSync = timeSinceLastSync > timeBetweenSessionSync
+                if !safeToSync {
+                    return // This only exits the update block
+                }
             }
+            
+            session.serverUpdatedAt = nowInMilliseconds
         }
+        session = session.freeze()
+        
+        guard safeToSync else { return }
         
         NSLog("Sending sessionId(\(session.id)) to server")
         
@@ -123,17 +138,10 @@ class PlayerProgress {
             success = await ApiClient.reportPlaybackProgress(report: playbackReport, sessionId: session.id)
         }
         
-        if success {
+        // Remove old sessions after they synced with the server
+        if success && !session.isActiveSession {
             if let session = session.thaw() {
-                // Update the server sync time, which is different than lastUpdate
-                session.update {
-                    session.serverUpdatedAt = nowInMilliseconds
-                }
-                
-                // Remove old sessions after they synced with the server
-                if !session.isActiveSession {
-                    session.delete()
-                }
+                session.delete()
             }
         }
     }
