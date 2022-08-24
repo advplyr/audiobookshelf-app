@@ -176,10 +176,10 @@ public class AbsDatabase: CAPPlugin {
                 call.reject("Local media progress not found or created")
                 return
             }
-            localMediaProgress.updateFromServerMediaProgress(serverMediaProgress)
             
             NSLog("syncServerMediaProgressWithLocalMediaProgress: Saving local media progress")
-            Database.shared.saveLocalMediaProgress(localMediaProgress)
+            localMediaProgress.updateFromServerMediaProgress(serverMediaProgress)
+            
             call.resolve(try localMediaProgress.asDictionary())
         } catch {
             call.reject("Failed to sync media progress")
@@ -203,7 +203,6 @@ public class AbsDatabase: CAPPlugin {
 
         // Update finished status
         localMediaProgress.updateIsFinished(isFinished)
-        Database.shared.saveLocalMediaProgress(localMediaProgress)
         
         // Build API response
         let progressDictionary = try? localMediaProgress.asDictionary()

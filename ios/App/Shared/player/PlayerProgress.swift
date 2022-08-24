@@ -84,7 +84,6 @@ class PlayerProgress {
             }
 
             localMediaProgress.updateFromPlaybackSession(session)
-            Database.shared.saveLocalMediaProgress(localMediaProgress)
             
             NSLog("Local progress saved to the database")
             

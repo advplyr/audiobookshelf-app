@@ -158,19 +158,24 @@ extension LocalMediaProgress {
     }
     
     static func fetchOrCreateLocalMediaProgress(localMediaProgressId: String?, localLibraryItemId: String?, localEpisodeId: String?) -> LocalMediaProgress? {
-        if let localMediaProgressId = localMediaProgressId {
-            // Check if it existing in the database, if not, we need to create it
-            if let progress = Database.shared.getLocalMediaProgress(localMediaProgressId: localMediaProgressId) {
-                return progress
+        let realm = try! Realm()
+        return try! realm.write { () -> LocalMediaProgress? in
+            if let localMediaProgressId = localMediaProgressId {
+                // Check if it existing in the database, if not, we need to create it
+                if let progress = Database.shared.getLocalMediaProgress(localMediaProgressId: localMediaProgressId) {
+                    return progress
+                }
             }
-        }
-        
-        if let localLibraryItemId = localLibraryItemId {
-            guard let localLibraryItem = Database.shared.getLocalLibraryItem(localLibraryItemId: localLibraryItemId) else { return nil }
-            let episode = localLibraryItem.getPodcastEpisode(episodeId: localEpisodeId)
-            return LocalMediaProgress(localLibraryItem: localLibraryItem, episode: episode)
-        } else {
-            return nil
+            
+            if let localLibraryItemId = localLibraryItemId {
+                guard let localLibraryItem = Database.shared.getLocalLibraryItem(localLibraryItemId: localLibraryItemId) else { return nil }
+                let episode = localLibraryItem.getPodcastEpisode(episodeId: localEpisodeId)
+                let progress = LocalMediaProgress(localLibraryItem: localLibraryItem, episode: episode)
+                realm.add(progress)
+                return progress
+            } else {
+                return nil
+            }
         }
     }
 }
