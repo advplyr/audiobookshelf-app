@@ -120,7 +120,7 @@ extension LocalMediaProgress {
     }
     
     func updateIsFinished(_ finished: Bool) {
-        try! Realm().write {
+        try! self.realm?.write {
             if self.isFinished != finished {
                 self.progress = finished ? 1.0 : 0.0
             }
@@ -136,7 +136,7 @@ extension LocalMediaProgress {
     }
     
     func updateFromPlaybackSession(_ playbackSession: PlaybackSession) {
-        try! Realm().write {
+        try! self.realm?.write {
             self.currentTime = playbackSession.currentTime
             self.progress = playbackSession.progress
             self.lastUpdate = Date().timeIntervalSince1970 * 1000
@@ -146,7 +146,7 @@ extension LocalMediaProgress {
     }
     
     func updateFromServerMediaProgress(_ serverMediaProgress: MediaProgress) {
-        try! Realm().write {
+        try! self.realm?.write {
             self.isFinished = serverMediaProgress.isFinished
             self.progress = serverMediaProgress.progress
             self.currentTime = serverMediaProgress.currentTime
