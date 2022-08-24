@@ -18,6 +18,8 @@ enum PlayMethod:Int {
 }
 
 class AudioPlayer: NSObject {
+    private let queue = DispatchQueue(label: "ABSAudioPlayerQueue")
+    
     // enums and @objc are not compatible
     @objc dynamic var status: Int
     @objc dynamic var rate: Float
@@ -141,7 +143,7 @@ class AudioPlayer: NSObject {
         // Rate will be different depending on playback speed, aim for 2 observations/sec
         let seconds = 0.5 * (self.rate > 0 ? self.rate : 1.0)
         let time = CMTime(seconds: Double(seconds), preferredTimescale: timeScale)
-        self.timeObserverToken = self.audioPlayer.addPeriodicTimeObserver(forInterval: time, queue: PlayerProgress.queue) { [weak self] time in
+        self.timeObserverToken = self.audioPlayer.addPeriodicTimeObserver(forInterval: time, queue: queue) { [weak self] time in
             let sleepTimeStopAt = self?.sleepTimeStopAt
             Task {
                 // Let the player update the current playback positions
@@ -205,7 +207,7 @@ class AudioPlayer: NSObject {
     
     private func startPausedTimer() {
         guard self.pausedTimer == nil else { return }
-        PlayerProgress.queue.async {
+        self.queue.async {
             self.pausedTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { timer in
                 NSLog("PAUSE TIMER: Syncing from server")
                 Task { await PlayerProgress.shared.syncFromServer() }
@@ -398,7 +400,7 @@ class AudioPlayer: NSObject {
         var times = [NSValue]()
         times.append(NSValue(time: sleepTime))
         
-        sleepTimeToken = self.audioPlayer.addBoundaryTimeObserver(forTimes: times, queue: PlayerProgress.queue) { [weak self] in
+        sleepTimeToken = self.audioPlayer.addBoundaryTimeObserver(forTimes: times, queue: queue) { [weak self] in
             NSLog("SLEEP TIMER: Pausing audio")
             self?.pause()
             self?.removeSleepTimer()

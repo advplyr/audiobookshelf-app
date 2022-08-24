@@ -11,7 +11,6 @@ import RealmSwift
 
 class PlayerProgress {
     public static let shared = PlayerProgress()
-    public static let queue = DispatchQueue(label: "ABSPlayerProgressQueue")
     
     private static let TIME_BETWEEN_SESSION_SYNC_IN_SECONDS = 10.0
     
@@ -46,50 +45,46 @@ class PlayerProgress {
     // MARK: - SYNC LOGIC
     
     private func updateLocalSessionFromPlayer(currentTime: Double, includesPlayProgress: Bool) -> PlaybackSession? {
-        PlayerProgress.queue.sync {
-            guard let session = PlayerHandler.getPlaybackSession() else { return nil }
-            guard !currentTime.isNaN else { return nil } // Prevent bad data on player stop
+        guard let session = PlayerHandler.getPlaybackSession() else { return nil }
+        guard !currentTime.isNaN else { return nil } // Prevent bad data on player stop
+        
+        session.update {
+            session.realm?.refresh()
             
-            session.update {
-                session.realm?.refresh()
-                
-                let nowInSeconds = Date().timeIntervalSince1970
-                let nowInMilliseconds = nowInSeconds * 1000
-                let lastUpdateInMilliseconds = session.updatedAt ?? nowInMilliseconds
-                let lastUpdateInSeconds = lastUpdateInMilliseconds / 1000
-                let secondsSinceLastUpdate = nowInSeconds - lastUpdateInSeconds
-                
-                session.currentTime = currentTime
-                session.updatedAt = nowInMilliseconds
-                
-                if includesPlayProgress {
-                    session.timeListening += secondsSinceLastUpdate
-                }
+            let nowInSeconds = Date().timeIntervalSince1970
+            let nowInMilliseconds = nowInSeconds * 1000
+            let lastUpdateInMilliseconds = session.updatedAt ?? nowInMilliseconds
+            let lastUpdateInSeconds = lastUpdateInMilliseconds / 1000
+            let secondsSinceLastUpdate = nowInSeconds - lastUpdateInSeconds
+            
+            session.currentTime = currentTime
+            session.updatedAt = nowInMilliseconds
+            
+            if includesPlayProgress {
+                session.timeListening += secondsSinceLastUpdate
             }
-            
-            return session.freeze()
         }
+        
+        return session.freeze()
     }
     
     private func updateLocalMediaProgressFromLocalSession() {
-        PlayerProgress.queue.sync {
-            guard let session = PlayerHandler.getPlaybackSession() else { return }
-            guard session.isLocal else { return }
-            
-            let localMediaProgress = LocalMediaProgress.fetchOrCreateLocalMediaProgress(localMediaProgressId: session.localMediaProgressId, localLibraryItemId: session.localLibraryItem?.id, localEpisodeId: session.episodeId)
-            guard let localMediaProgress = localMediaProgress else {
-                // Local media progress should have been created
-                // If we're here, it means a library id is invalid
-                return
-            }
-
-            localMediaProgress.updateFromPlaybackSession(session)
-            
-            NSLog("Local progress saved to the database")
-            
-            // Send the local progress back to front-end
-            NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.localProgress.rawValue), object: nil)
+        guard let session = PlayerHandler.getPlaybackSession() else { return }
+        guard session.isLocal else { return }
+        
+        let localMediaProgress = LocalMediaProgress.fetchOrCreateLocalMediaProgress(localMediaProgressId: session.localMediaProgressId, localLibraryItemId: session.localLibraryItem?.id, localEpisodeId: session.episodeId)
+        guard let localMediaProgress = localMediaProgress else {
+            // Local media progress should have been created
+            // If we're here, it means a library id is invalid
+            return
         }
+
+        localMediaProgress.updateFromPlaybackSession(session)
+        
+        NSLog("Local progress saved to the database")
+        
+        // Send the local progress back to front-end
+        NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.localProgress.rawValue), object: nil)
     }
     
     private func updateAllServerSessionFromLocalSession() async {
@@ -105,33 +100,32 @@ class PlayerProgress {
     }
     
     private func updateServerSessionFromLocalSession(_ session: PlaybackSession, rateLimitSync: Bool = false) async {
-        PlayerProgress.queue.sync {
-            var safeToSync = true
-            guard var session = session.thaw() else { return }
-            
-            // We need to update and check the server time in a transaction for thread-safety
-            session.update {
-                session.realm?.refresh()
-                
-                let nowInMilliseconds = Date().timeIntervalSince1970 * 1000
-                let lastUpdateInMilliseconds = session.serverUpdatedAt
-                
-                // If required, rate limit requests based on session last update
-                if rateLimitSync {
-                    let timeSinceLastSync = nowInMilliseconds - lastUpdateInMilliseconds
-                    let timeBetweenSessionSync = PlayerProgress.TIME_BETWEEN_SESSION_SYNC_IN_SECONDS * 1000
-                    safeToSync = timeSinceLastSync > timeBetweenSessionSync
-                    if !safeToSync {
-                        return // This only exits the update block
-                    }
-                }
-                
-                session.serverUpdatedAt = nowInMilliseconds
-            }
-            session = session.freeze()
-            guard safeToSync else { return }
-        }
+        var safeToSync = true
         
+        guard var session = session.thaw() else { return }
+        
+        // We need to update and check the server time in a transaction for thread-safety
+        session.update {
+            session.realm?.refresh()
+            
+            let nowInMilliseconds = Date().timeIntervalSince1970 * 1000
+            let lastUpdateInMilliseconds = session.serverUpdatedAt
+            
+            // If required, rate limit requests based on session last update
+            if rateLimitSync {
+                let timeSinceLastSync = nowInMilliseconds - lastUpdateInMilliseconds
+                let timeBetweenSessionSync = PlayerProgress.TIME_BETWEEN_SESSION_SYNC_IN_SECONDS * 1000
+                safeToSync = timeSinceLastSync > timeBetweenSessionSync
+                if !safeToSync {
+                    return // This only exits the update block
+                }
+            }
+            
+            session.serverUpdatedAt = nowInMilliseconds
+        }
+        session = session.freeze()
+        
+        guard safeToSync else { return }
         NSLog("Sending sessionId(\(session.id)) to server")
         
         var success = false
@@ -145,10 +139,8 @@ class PlayerProgress {
         
         // Remove old sessions after they synced with the server
         if success && !session.isActiveSession {
-            PlayerProgress.queue.sync {
-                if let session = session.thaw() {
-                    session.delete()
-                }
+            if let session = session.thaw() {
+                session.delete()
             }
         }
     }
@@ -183,16 +175,14 @@ class PlayerProgress {
         
         // Update the session, if needed
         if serverIsNewerThanLocal && currentTimeIsDifferent {
-            PlayerProgress.queue.sync {
-                NSLog("updateLocalSessionFromServerMediaProgress: Server has newer time than local serverLastUpdate=\(serverLastUpdate) localLastUpdate=\(localLastUpdate)")
-                guard let session = session.thaw() else { return }
-                session.update {
-                    session.currentTime = serverCurrentTime
-                    session.updatedAt = serverLastUpdate
-                }
-                NSLog("updateLocalSessionFromServerMediaProgress: Updated session currentTime newCurrentTime=\(serverCurrentTime) previousCurrentTime=\(localCurrentTime)")
-                PlayerHandler.seek(amount: session.currentTime)
+            NSLog("updateLocalSessionFromServerMediaProgress: Server has newer time than local serverLastUpdate=\(serverLastUpdate) localLastUpdate=\(localLastUpdate)")
+            guard let session = session.thaw() else { return }
+            session.update {
+                session.currentTime = serverCurrentTime
+                session.updatedAt = serverLastUpdate
             }
+            NSLog("updateLocalSessionFromServerMediaProgress: Updated session currentTime newCurrentTime=\(serverCurrentTime) previousCurrentTime=\(localCurrentTime)")
+            PlayerHandler.seek(amount: session.currentTime)
         } else {
             NSLog("updateLocalSessionFromServerMediaProgress: Local session does not need updating; local has latest progress")
         }
