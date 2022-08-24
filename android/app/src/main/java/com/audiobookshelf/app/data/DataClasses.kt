@@ -1,68 +1,10 @@
 package com.audiobookshelf.app.data
 
-import android.net.Uri
+import android.os.Bundle
+import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.MediaMetadataCompat
-import com.audiobookshelf.app.R
-import com.audiobookshelf.app.device.DeviceManager
+import androidx.media.utils.MediaConstants
 import com.fasterxml.jackson.annotation.*
-
-@JsonIgnoreProperties(ignoreUnknown = true)
-data class LibraryItem(
-  var id:String,
-  var ino:String,
-  var libraryId:String,
-  var folderId:String,
-  var path:String,
-  var relPath:String,
-  var mtimeMs:Long,
-  var ctimeMs:Long,
-  var birthtimeMs:Long,
-  var addedAt:Long,
-  var updatedAt:Long,
-  var lastScan:Long?,
-  var scanVersion:String?,
-  var isMissing:Boolean,
-  var isInvalid:Boolean,
-  var mediaType:String,
-  var media:MediaType,
-  var libraryFiles:MutableList<LibraryFile>?,
-  var userMediaProgress:MediaProgress? // Only included when requesting library item with progress (for downloads)
-) : LibraryItemWrapper() {
-  @get:JsonIgnore
-  val title get() = media.metadata.title
-  @get:JsonIgnore
-  val authorName get() = media.metadata.getAuthorDisplayName()
-
-  @JsonIgnore
-  fun getCoverUri():Uri {
-    if (media.coverPath == null) {
-      return Uri.parse("android.resource://com.audiobookshelf.app/" + R.drawable.icon)
-    }
-
-    return Uri.parse("${DeviceManager.serverAddress}/api/items/$id/cover?token=${DeviceManager.token}")
-  }
-
-  @JsonIgnore
-  fun checkHasTracks():Boolean {
-    return if (mediaType == "podcast") {
-      ((media as Podcast).numEpisodes ?: 0) > 0
-    } else {
-      ((media as Book).numTracks ?: 0) > 0
-    }
-  }
-
-  @JsonIgnore
-  fun getMediaMetadata(): MediaMetadataCompat {
-    return MediaMetadataCompat.Builder().apply {
-      putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, id)
-      putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, title)
-      putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
-      putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, authorName)
-      putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, getCoverUri().toString())
-      putString(MediaMetadataCompat.METADATA_KEY_AUTHOR, authorName)
-    }.build()
-  }
-}
 
 // This auto-detects whether it is a Book or Podcast
 @JsonTypeInfo(use=JsonTypeInfo.Id.DEDUCTION)
@@ -121,7 +63,7 @@ class Podcast(
   }
   @JsonIgnore
   override fun addAudioTrack(audioTrack:AudioTrack) {
-    val newEpisode = PodcastEpisode("local_" + audioTrack.localFileId,episodes?.size ?: 0 + 1,null,null,audioTrack.title,null,null,null,audioTrack,audioTrack.duration,0, null)
+    val newEpisode = PodcastEpisode("local_" + audioTrack.localFileId,(episodes?.size ?: 0) + 1,null,null,audioTrack.title,null,null,null,audioTrack,audioTrack.duration,0, null)
     episodes?.add(newEpisode)
 
     var index = 1
@@ -142,7 +84,7 @@ class Podcast(
   }
   @JsonIgnore
   fun addEpisode(audioTrack:AudioTrack, episode:PodcastEpisode):PodcastEpisode {
-    val newEpisode = PodcastEpisode("local_" + episode.id,episodes?.size ?: 0 + 1,episode.episode,episode.episodeType,episode.title,episode.subtitle,episode.description,null,audioTrack,audioTrack.duration,0, episode.id)
+    val newEpisode = PodcastEpisode("local_" + episode.id,(episodes?.size ?: 0) + 1,episode.episode,episode.episodeType,episode.title,episode.subtitle,episode.description,null,audioTrack,audioTrack.duration,0, episode.id)
     episodes?.add(newEpisode)
 
     var index = 1
@@ -293,24 +235,51 @@ data class PodcastEpisode(
   var serverEpisodeId:String? // For local podcasts to match with server podcasts
 ) {
   @JsonIgnore
-  fun getMediaMetadata(libraryItem:LibraryItemWrapper): MediaMetadataCompat {
-    var coverUri:Uri = Uri.EMPTY
-    val podcast = if(libraryItem is LocalLibraryItem) {
-      coverUri = libraryItem.getCoverUri()
-      libraryItem.media as Podcast
+  fun getMediaDescription(libraryItem:LibraryItemWrapper, progress:MediaProgressWrapper?): MediaDescriptionCompat {
+    val coverUri = if(libraryItem is LocalLibraryItem) {
+      libraryItem.getCoverUri()
     } else {
-      coverUri = (libraryItem as LibraryItem).getCoverUri()
-      (libraryItem as LibraryItem).media as Podcast
+      (libraryItem as LibraryItem).getCoverUri()
     }
 
-    return MediaMetadataCompat.Builder().apply {
-      putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, id)
-      putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, title)
-      putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
-      putString(MediaMetadataCompat.METADATA_KEY_AUTHOR, podcast.metadata.getAuthorDisplayName())
-      putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, coverUri.toString())
-
-    }.build()
+    val extras = Bundle()
+    if (progress != null) {
+      if (progress.isFinished) {
+        extras.putInt(
+          MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
+          MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_FULLY_PLAYED
+        )
+      } else {
+        extras.putInt(
+          MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
+          MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_PARTIALLY_PLAYED
+        )
+        extras.putDouble(
+          MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_PERCENTAGE, progress.progress
+        )
+      }
+    } else {
+      extras.putInt(
+        MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
+        MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_NOT_PLAYED
+      )
+    }
+//    return MediaMetadataCompat.Builder().apply {
+//      putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, id)
+//      putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, title)
+//      putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
+//      putString(MediaMetadataCompat.METADATA_KEY_AUTHOR, podcast.metadata.getAuthorDisplayName())
+//      putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, coverUri.toString())
+//
+//    }.build()
+    val libraryItemDescription = libraryItem.getMediaDescription(null)
+    return MediaDescriptionCompat.Builder()
+      .setMediaId(id)
+      .setTitle(title)
+      .setIconUri(coverUri)
+      .setSubtitle(libraryItemDescription.title)
+      .setExtras(extras)
+      .build()
   }
 }
 

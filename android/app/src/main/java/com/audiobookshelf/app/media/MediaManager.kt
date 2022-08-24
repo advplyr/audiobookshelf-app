@@ -2,12 +2,8 @@ package com.audiobookshelf.app.media
 
 import android.app.Activity
 import android.content.Context
-import android.os.Bundle
 import android.support.v4.media.MediaBrowserCompat
-import android.support.v4.media.MediaDescriptionCompat
-import android.support.v4.media.MediaMetadataCompat
 import android.util.Log
-import androidx.media.utils.MediaConstants
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.server.ApiHandler
@@ -26,11 +22,11 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
   var selectedLibraryItems = mutableListOf<LibraryItem>()
   var selectedLibraryId = ""
 
-  var selectedLibraryItemWrapper:LibraryItemWrapper? = null
   var selectedPodcast:Podcast? = null
   var selectedLibraryItemId:String? = null
-  var serverPodcastEpisodes = listOf<PodcastEpisode>()
+  var podcastEpisodeLibraryItemMap = mutableMapOf<String, LibraryItemWithEpisode>()
   var serverLibraryCategories = listOf<LibraryCategory>()
+  var serverItemsInProgress = listOf<ItemInProgress>()
   var serverLibraries = listOf<Library>()
   var serverConfigIdUsed:String? = null
   var serverConfigLastPing:Long = 0L
@@ -71,7 +67,7 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
     val serverConnConfig = if (DeviceManager.isConnectedToServer) DeviceManager.serverConnectionConfig else DeviceManager.deviceData.getLastServerConnectionConfig()
 
     if (!DeviceManager.isConnectedToServer || !apiHandler.isOnline() || serverConnConfig == null || serverConnConfig.id !== serverConfigIdUsed) {
-      serverPodcastEpisodes = listOf()
+      podcastEpisodeLibraryItemMap = mutableMapOf()
       serverLibraryCategories = listOf()
       serverLibraries = listOf()
       serverLibraryItems = mutableListOf()
@@ -80,13 +76,13 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
     }
   }
 
-  fun loadLibraryCategories(libraryId:String, cb: (List<LibraryCategory>) -> Unit) {
-    if (serverLibraryCategories.isNotEmpty()) {
-      cb(serverLibraryCategories)
+  fun loadItemsInProgressForAllLibraries(cb: (List<ItemInProgress>) -> Unit) {
+    if (serverItemsInProgress.isNotEmpty()) {
+      cb(serverItemsInProgress)
     } else {
-      apiHandler.getLibraryCategories(libraryId) {
-        serverLibraryCategories = it
-        cb(it)
+      apiHandler.getAllItemsInProgress { itemsInProgress ->
+        serverItemsInProgress = itemsInProgress
+        cb(serverItemsInProgress)
       }
     }
   }
@@ -129,44 +125,39 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
       loadLibraryItem(libraryItemId) { libraryItemWrapper ->
         Log.d(tag, "Loaded Podcast library item $libraryItemWrapper")
 
-        selectedLibraryItemWrapper = libraryItemWrapper
-
         libraryItemWrapper?.let {
           if (libraryItemWrapper is LocalLibraryItem) { // Local podcast episodes
             if (libraryItemWrapper.mediaType != "podcast" || libraryItemWrapper.media.getAudioTracks().isEmpty()) {
-              serverPodcastEpisodes = listOf()
               cb(mutableListOf())
             } else {
               val podcast = libraryItemWrapper.media as Podcast
-              serverPodcastEpisodes = podcast.episodes ?: listOf()
               selectedLibraryItemId = libraryItemWrapper.id
               selectedPodcast = podcast
 
               val children = podcast.episodes?.map { podcastEpisode ->
                 Log.d(tag, "Local Podcast Episode ${podcastEpisode.title} | ${podcastEpisode.id}")
 
-                val mediaMetadata = podcastEpisode.getMediaMetadata(libraryItemWrapper)
                 val progress = DeviceManager.dbManager.getLocalMediaProgress("${libraryItemWrapper.id}-${podcastEpisode.id}")
-                val description = getMediaDescriptionFromMediaMetadata(mediaMetadata, progress)
+                val description = podcastEpisode.getMediaDescription(libraryItemWrapper, progress)
                 MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
               }
               children?.let { cb(children as MutableList) } ?: cb(mutableListOf())
             }
           } else if (libraryItemWrapper is LibraryItem) { // Server podcast episodes
             if (libraryItemWrapper.mediaType != "podcast" || libraryItemWrapper.media.getAudioTracks().isEmpty()) {
-              serverPodcastEpisodes = listOf()
               cb(mutableListOf())
             } else {
               val podcast = libraryItemWrapper.media as Podcast
-              serverPodcastEpisodes = podcast.episodes ?: listOf()
+              podcast.episodes?.forEach { podcastEpisode ->
+                podcastEpisodeLibraryItemMap[podcastEpisode.id] = LibraryItemWithEpisode(libraryItemWrapper, podcastEpisode)
+              }
               selectedLibraryItemId = libraryItemWrapper.id
               selectedPodcast = podcast
 
               val children = podcast.episodes?.map { podcastEpisode ->
 
-                val mediaMetadata = podcastEpisode.getMediaMetadata(libraryItemWrapper)
                 val progress = serverUserMediaProgress.find { it.libraryItemId == libraryItemWrapper.id && it.episodeId == podcastEpisode.id }
-                val description = getMediaDescriptionFromMediaMetadata(mediaMetadata, progress)
+                val description = podcastEpisode.getMediaDescription(libraryItemWrapper, progress)
                 MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
               }
               children?.let { cb(children as MutableList) } ?: cb(mutableListOf())
@@ -275,26 +266,8 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
 
   }
 
-  // TODO: Load currently listening category for local items
-  fun loadLocalCategory():List<LibraryCategory> {
-    val localBooks = DeviceManager.dbManager.getLocalLibraryItems("book")
-    val localPodcasts = DeviceManager.dbManager.getLocalLibraryItems("podcast")
-    val cats = mutableListOf<LibraryCategory>()
-    if (localBooks.isNotEmpty()) {
-      cats.add(LibraryCategory("local-books", "Local Books", "book", localBooks, true))
-    }
-    if (localPodcasts.isNotEmpty()) {
-      cats.add(LibraryCategory("local-podcasts", "Local Podcasts", "podcast", localPodcasts, true))
-    }
-    return cats
-  }
-
-  fun loadAndroidAutoItems(cb: (List<LibraryCategory>) -> Unit) {
+  fun loadAndroidAutoItems(cb: () -> Unit) {
     Log.d(tag, "Load android auto items")
-    val cats = mutableListOf<LibraryCategory>()
-
-    val localCategories = loadLocalCategory()
-    cats.addAll(localCategories)
 
     // Check if any valid server connection if not use locally downloaded books
     checkSetValidServerConnectionConfig { isConnected ->
@@ -304,40 +277,29 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
         loadLibraries { libraries ->
           if (libraries.isEmpty()) {
             Log.w(tag, "No libraries returned from server request")
-            cb(cats) // Return download category only
+            cb()
           } else {
             val library = libraries[0]
             Log.d(tag, "Loading categories for library ${library.name} - ${library.id} - ${library.mediaType}")
 
-            loadLibraryCategories(library.id) { libraryCategories ->
-
-              // Only using book or podcast library categories for now
-              libraryCategories.forEach {
-
-                // Add items in continue listening to serverLibraryItems
-                if (it.id == "continue-listening") {
-                  it.entities.forEach { libraryItemWrapper ->
-                    val libraryItem = libraryItemWrapper as LibraryItem
-                    if (serverLibraryItems.find { li -> li.id == libraryItem.id } == null) {
-                      serverLibraryItems.add(libraryItem)
-                    }
-                  }
+            loadItemsInProgressForAllLibraries { itemsInProgress ->
+              itemsInProgress.forEach {
+                val libraryItem = it.libraryItemWrapper as LibraryItem
+                if (serverLibraryItems.find { li -> li.id == libraryItem.id } == null) {
+                  serverLibraryItems.add(libraryItem)
                 }
 
-
-                // Log.d(tag, "Found library category ${it.label} with type ${it.type}")
-                if (it.type == library.mediaType) {
-                  // Log.d(tag, "Using library category ${it.id}")
-                  cats.add(it)
+                if (it.episode != null) {
+                  podcastEpisodeLibraryItemMap[it.episode.id] = LibraryItemWithEpisode(it.libraryItemWrapper, it.episode)
                 }
               }
 
-              cb(cats)
+              cb() // Fully loaded
             }
           }
         }
-      } else { // Not connected/no internet sent downloaded cats only
-        cb(cats)
+      } else { // Not connected to server
+        cb()
       }
     }
   }
@@ -355,12 +317,7 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
     if (id.startsWith("local")) {
       return DeviceManager.dbManager.getLocalLibraryItemWithEpisode(id)
     } else {
-      val podcastEpisode = serverPodcastEpisodes.find { it.id == id }
-      return if (podcastEpisode != null && selectedLibraryItemWrapper != null) {
-        LibraryItemWithEpisode(selectedLibraryItemWrapper!!, podcastEpisode)
-      } else {
-        null
-      }
+      return podcastEpisodeLibraryItemMap[id]
     }
   }
 
@@ -392,41 +349,6 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
         }
       }
     }
-  }
-
-  fun getMediaDescriptionFromMediaMetadata(item: MediaMetadataCompat, progress:MediaProgressWrapper?): MediaDescriptionCompat {
-
-    val extras = Bundle()
-    if (progress != null) {
-      Log.d(tag, "Has media progress for ${item.description.title} | ${progress}")
-      if (progress.isFinished) {
-        extras.putInt(
-          MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
-          MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_FULLY_PLAYED
-        )
-      } else {
-        extras.putInt(
-          MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
-          MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_PARTIALLY_PLAYED
-        )
-        extras.putDouble(
-          MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_PERCENTAGE, progress.progress
-        )
-      }
-    } else {
-      Log.d(tag, "No media progress for ${item.description.title} | ${item.description.mediaId}")
-      extras.putInt(
-        MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
-        MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_NOT_PLAYED
-      )
-    }
-
-    return MediaDescriptionCompat.Builder()
-      .setMediaId(item.description.mediaId)
-      .setTitle(item.description.title)
-      .setIconUri(item.description.iconUri)
-      .setSubtitle(item.description.subtitle)
-      .setExtras(extras).build()
   }
 
   private fun levenshtein(lhs : CharSequence, rhs : CharSequence) : Int {
