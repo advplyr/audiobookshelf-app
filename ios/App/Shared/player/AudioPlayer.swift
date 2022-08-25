@@ -224,6 +224,9 @@ class AudioPlayer: NSObject {
     public func play(allowSeekBack: Bool = false) {
         guard self.isInitialized() else { return }
         
+        // Capture remaining sleep time before changing the track position
+        let sleepSecondsRemaining = PlayerHandler.remainingSleepTime
+        
         if allowSeekBack {
             let diffrence = Date.timeIntervalSinceReferenceDate - lastPlayTime
             var time: Int?
@@ -261,6 +264,9 @@ class AudioPlayer: NSObject {
         self.status = 1
         self.rate = self.tmpRate
         self.audioPlayer.rate = self.tmpRate
+        
+        // If we have an active sleep timer, reschedule based on rate
+        self.rescheduleSleepTimerAtTime(time: self.getCurrentTime(), secondsRemaining: sleepSecondsRemaining)
         
         updateNowPlaying()
     }
