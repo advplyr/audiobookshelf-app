@@ -179,7 +179,7 @@ export default {
           icon: this.useChapterTrack ? 'check_box' : 'check_box_outline_blank'
         },
         {
-          text: 'Lock/Unlock',
+          text: this.lockUi ? 'Unlock Player' : 'Lock Player',
           value: 'lock',
           icon: this.lockUi ? 'lock' : 'lock_open'
         },
@@ -643,21 +643,21 @@ export default {
     },
     clickMenuAction(action) {
       this.showMoreMenuDialog = false
-      if (action === 'lock') {
-        this.lockUi = !this.lockUi
-        this.$localStore.setPlayerLock(this.lockUi)
-      } else if (action === 'chapter_track') {
-        this.useChapterTrack = !this.useChapterTrack
+      this.$nextTick(() => {
+        if (action === 'lock') {
+          this.lockUi = !this.lockUi
+          this.$localStore.setPlayerLock(this.lockUi)
+        } else if (action === 'chapter_track') {
+          this.useChapterTrack = !this.useChapterTrack
 
-        this.$nextTick(() => {
           this.updateTimestamp()
           this.updateTrack()
           this.updateReadyTrack()
-        })
-        this.$localStore.setUseChapterTrack(this.useChapterTrack)
-      } else if (action === 'close') {
-        this.closePlayback()
-      }
+          this.$localStore.setUseChapterTrack(this.useChapterTrack)
+        } else if (action === 'close') {
+          this.closePlayback()
+        }
+      })
     },
     forceCloseDropdownMenu() {
       if (this.$refs.dropdownMenu && this.$refs.dropdownMenu.closeMenu) {
