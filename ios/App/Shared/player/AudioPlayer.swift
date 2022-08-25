@@ -25,7 +25,6 @@ class AudioPlayer: NSObject {
     @objc dynamic var rate: Float
     
     private var tmpRate: Float = 1.0
-    private var lastPlayTime: Double = 0.0
     
     private var playerContext = 0
     private var playerItemContext = 0
@@ -229,21 +228,22 @@ class AudioPlayer: NSObject {
         // Capture remaining sleep time before changing the track position
         let sleepSecondsRemaining = PlayerHandler.remainingSleepTime
         
-        if allowSeekBack {
-            let diffrence = Date.timeIntervalSinceReferenceDate - lastPlayTime
+        if allowSeekBack, let session = Database.shared.getPlaybackSession(id: self.sessionId) {
+            let lastPlayed = (session.updatedAt ?? 0)/1000
+            let difference = Date.timeIntervalSinceReferenceDate - lastPlayed
             var time: Int?
             
-            if lastPlayTime == 0 {
+            if lastPlayed == 0 {
                 time = 5
-            } else if diffrence < 6 {
+            } else if difference < 6 {
                 time = 2
-            } else if diffrence < 12 {
+            } else if difference < 12 {
                 time = 10
-            } else if diffrence < 30 {
+            } else if difference < 30 {
                 time = 15
-            } else if diffrence < 180 {
+            } else if difference < 180 {
                 time = 20
-            } else if diffrence < 3600 {
+            } else if difference < 3600 {
                 time = 25
             } else {
                 time = 29
@@ -253,7 +253,6 @@ class AudioPlayer: NSObject {
                 seek(getCurrentTime() - Double(time!), from: "play")
             }
         }
-        lastPlayTime = Date.timeIntervalSinceReferenceDate
         
         self.stopPausedTimer()
         
@@ -285,7 +284,6 @@ class AudioPlayer: NSObject {
         }
         
         updateNowPlaying()
-        lastPlayTime = Date.timeIntervalSinceReferenceDate
         
         self.startPausedTimer()
     }
