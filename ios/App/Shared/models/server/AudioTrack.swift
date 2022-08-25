@@ -37,7 +37,7 @@ class AudioTrack: EmbeddedObject, Codable {
         contentUrl = try? values.decode(String.self, forKey: .contentUrl)
         mimeType = try values.decode(String.self, forKey: .mimeType)
         metadata = try? values.decode(FileMetadata.self, forKey: .metadata)
-        localFileId = try! values.decodeIfPresent(String.self, forKey: .localFileId)
+        localFileId = try? values.decodeIfPresent(String.self, forKey: .localFileId)
         serverIndex = try? values.decode(Int.self, forKey: .serverIndex)
     }
     

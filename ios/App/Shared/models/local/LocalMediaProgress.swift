@@ -119,8 +119,8 @@ extension LocalMediaProgress {
         self.finishedAt = progress.finishedAt
     }
     
-    func updateIsFinished(_ finished: Bool) {
-        try! self.realm?.write {
+    func updateIsFinished(_ finished: Bool) throws {
+        try self.realm?.write {
             if self.isFinished != finished {
                 self.progress = finished ? 1.0 : 0.0
             }
@@ -135,8 +135,8 @@ extension LocalMediaProgress {
         }
     }
     
-    func updateFromPlaybackSession(_ playbackSession: PlaybackSession) {
-        try! self.realm?.write {
+    func updateFromPlaybackSession(_ playbackSession: PlaybackSession) throws {
+        try self.realm?.write {
             self.currentTime = playbackSession.currentTime
             self.progress = playbackSession.progress
             self.lastUpdate = Date().timeIntervalSince1970 * 1000
@@ -145,8 +145,8 @@ extension LocalMediaProgress {
         }
     }
     
-    func updateFromServerMediaProgress(_ serverMediaProgress: MediaProgress) {
-        try! self.realm?.write {
+    func updateFromServerMediaProgress(_ serverMediaProgress: MediaProgress) throws {
+        try self.realm?.write {
             self.isFinished = serverMediaProgress.isFinished
             self.progress = serverMediaProgress.progress
             self.currentTime = serverMediaProgress.currentTime
@@ -157,9 +157,9 @@ extension LocalMediaProgress {
         }
     }
     
-    static func fetchOrCreateLocalMediaProgress(localMediaProgressId: String?, localLibraryItemId: String?, localEpisodeId: String?) -> LocalMediaProgress? {
-        let realm = try! Realm()
-        return try! realm.write { () -> LocalMediaProgress? in
+    static func fetchOrCreateLocalMediaProgress(localMediaProgressId: String?, localLibraryItemId: String?, localEpisodeId: String?) throws -> LocalMediaProgress? {
+        let realm = try Realm()
+        return try realm.write { () -> LocalMediaProgress? in
             if let localMediaProgressId = localMediaProgressId {
                 // Check if it existing in the database, if not, we need to create it
                 if let progress = Database.shared.getLocalMediaProgress(localMediaProgressId: localMediaProgressId) {

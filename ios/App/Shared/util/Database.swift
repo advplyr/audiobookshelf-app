@@ -112,48 +112,83 @@ class Database {
     }
     
     public func getLocalLibraryItems(mediaType: MediaType? = nil) -> [LocalLibraryItem] {
-        let realm = try! Realm()
-        return Array(realm.objects(LocalLibraryItem.self))
+        do {
+            let realm = try Realm()
+            return Array(realm.objects(LocalLibraryItem.self))
+        } catch {
+            debugPrint(error)
+            return []
+        }
     }
     
     public func getLocalLibraryItem(byServerLibraryItemId: String) -> LocalLibraryItem? {
-        let realm = try! Realm()
-        return realm.objects(LocalLibraryItem.self).first(where: { $0.libraryItemId == byServerLibraryItemId })
+        do {
+            let realm = try Realm()
+            return realm.objects(LocalLibraryItem.self).first(where: { $0.libraryItemId == byServerLibraryItemId })
+        } catch {
+            debugPrint(error)
+            return nil
+        }
     }
     
     public func getLocalLibraryItem(localLibraryItemId: String) -> LocalLibraryItem? {
-        let realm = try! Realm()
-        return realm.object(ofType: LocalLibraryItem.self, forPrimaryKey: localLibraryItemId)
+        do {
+            let realm = try Realm()
+            return realm.object(ofType: LocalLibraryItem.self, forPrimaryKey: localLibraryItemId)
+        } catch {
+            debugPrint(error)
+            return nil
+        }
     }
     
-    public func saveLocalLibraryItem(localLibraryItem: LocalLibraryItem) {
-        let realm = try! Realm()
-        try! realm.write { realm.add(localLibraryItem, update: .modified) }
+    public func saveLocalLibraryItem(localLibraryItem: LocalLibraryItem) throws {
+        let realm = try Realm()
+        try realm.write { realm.add(localLibraryItem, update: .modified) }
     }
     
     public func getLocalFile(localFileId: String) -> LocalFile? {
-        let realm = try! Realm()
-        return realm.object(ofType: LocalFile.self, forPrimaryKey: localFileId)
+        do {
+            let realm = try Realm()
+            return realm.object(ofType: LocalFile.self, forPrimaryKey: localFileId)
+        } catch {
+            debugPrint(error)
+            return nil
+        }
     }
     
     public func getDownloadItem(downloadItemId: String) -> DownloadItem? {
-        let realm = try! Realm()
-        return realm.object(ofType: DownloadItem.self, forPrimaryKey: downloadItemId)
+        do {
+            let realm = try Realm()
+            return realm.object(ofType: DownloadItem.self, forPrimaryKey: downloadItemId)
+        } catch {
+            debugPrint(error)
+            return nil
+        }
     }
     
     public func getDownloadItem(libraryItemId: String) -> DownloadItem? {
-        let realm = try! Realm()
-        return realm.objects(DownloadItem.self).filter("libraryItemId == %@", libraryItemId).first
+        do {
+            let realm = try Realm()
+            return realm.objects(DownloadItem.self).filter("libraryItemId == %@", libraryItemId).first
+        } catch {
+            debugPrint(error)
+            return nil
+        }
     }
     
     public func getDownloadItem(downloadItemPartId: String) -> DownloadItem? {
-        let realm = try! Realm()
-        return realm.objects(DownloadItem.self).filter("SUBQUERY(downloadItemParts, $part, $part.id == %@) .@count > 0", downloadItemPartId).first
+        do {
+            let realm = try Realm()
+            return realm.objects(DownloadItem.self).filter("SUBQUERY(downloadItemParts, $part, $part.id == %@) .@count > 0", downloadItemPartId).first
+        } catch {
+            debugPrint(error)
+            return nil
+        }
     }
     
-    public func saveDownloadItem(_ downloadItem: DownloadItem) {
-        let realm = try! Realm()
-        return try! realm.write { realm.add(downloadItem, update: .modified) }
+    public func saveDownloadItem(_ downloadItem: DownloadItem) throws {
+        let realm = try Realm()
+        return try realm.write { realm.add(downloadItem, update: .modified) }
     }
     
     public func getDeviceSettings() -> DeviceSettings {
@@ -162,31 +197,41 @@ class Database {
     }
     
     public func getAllLocalMediaProgress() -> [LocalMediaProgress] {
-        let realm = try! Realm()
-        return Array(realm.objects(LocalMediaProgress.self))
-    }
-    
-    public func saveLocalMediaProgress(_ mediaProgress: LocalMediaProgress) {
-        let realm = try! Realm()
-        try! realm.write { realm.add(mediaProgress, update: .modified) }
+        do {
+            let realm = try Realm()
+            return Array(realm.objects(LocalMediaProgress.self))
+        } catch {
+            debugPrint(error)
+            return []
+        }
     }
     
     // For books this will just be the localLibraryItemId for podcast episodes this will be "{localLibraryItemId}-{episodeId}"
     public func getLocalMediaProgress(localMediaProgressId: String) -> LocalMediaProgress? {
-        let realm = try! Realm()
-        return realm.object(ofType: LocalMediaProgress.self, forPrimaryKey: localMediaProgressId)
+        do {
+            let realm = try Realm()
+            return realm.object(ofType: LocalMediaProgress.self, forPrimaryKey: localMediaProgressId)
+        } catch {
+            debugPrint(error)
+            return nil
+        }
     }
     
-    public func removeLocalMediaProgress(localMediaProgressId: String) {
-        let realm = try! Realm()
-        try! realm.write {
+    public func removeLocalMediaProgress(localMediaProgressId: String) throws {
+        let realm = try Realm()
+        try realm.write {
             let progress = realm.object(ofType: LocalMediaProgress.self, forPrimaryKey: localMediaProgressId)
             realm.delete(progress!)
         }
     }
     
     public func getPlaybackSession(id: String) -> PlaybackSession? {
-        let realm = try! Realm()
-        return realm.object(ofType: PlaybackSession.self, forPrimaryKey: id)
+        do {
+            let realm = try Realm()
+            return realm.object(ofType: PlaybackSession.self, forPrimaryKey: id)
+        } catch {
+            debugPrint(error)
+            return nil
+        }
     }
 }

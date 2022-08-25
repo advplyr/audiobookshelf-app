@@ -88,8 +88,8 @@ extension DownloadItem {
         self.downloadItemParts.allSatisfy({ $0.failed == false })
     }
     
-    func delete() {
-        try! self.realm?.write {
+    func delete() throws {
+        try self.realm?.write {
             self.realm?.delete(self.downloadItemParts)
             self.realm?.delete(self)
         }

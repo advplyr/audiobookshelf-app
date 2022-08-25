@@ -9,15 +9,15 @@ import Foundation
 import RealmSwift
 
 extension Object {
-    func save() {
-        let realm = try! Realm()
-        try! realm.write {
+    func save() throws {
+        let realm = try Realm()
+        try realm.write {
             realm.add(self, update: .modified)
         }
     }
     
-    func update(handler: () -> Void) {
-        try! self.realm?.write {
+    func update(handler: () -> Void) throws {
+        try self.realm?.write {
             handler()
         }
     }
@@ -33,12 +33,12 @@ extension EmbeddedObject {
 }
 
 protocol Deletable {
-    func delete()
+    func delete() throws
 }
 
 extension Deletable where Self: Object {
-    func delete() {
-        try! self.realm?.write {
+    func delete() throws {
+        try self.realm?.write {
             self.realm?.delete(self)
         }
     }

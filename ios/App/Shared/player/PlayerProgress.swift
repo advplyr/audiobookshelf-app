@@ -21,34 +21,49 @@ class PlayerProgress {
     
     public func syncFromPlayer(currentTime: Double, includesPlayProgress: Bool, isStopping: Bool) async {
         let backgroundToken = await UIApplication.shared.beginBackgroundTask(withName: "ABS:syncFromPlayer")
-        let session = updateLocalSessionFromPlayer(currentTime: currentTime, includesPlayProgress: includesPlayProgress)
-        updateLocalMediaProgressFromLocalSession()
-        if let session = session {
-            await updateServerSessionFromLocalSession(session, rateLimitSync: !isStopping)
+        do {
+            let session = try updateLocalSessionFromPlayer(currentTime: currentTime, includesPlayProgress: includesPlayProgress)
+            try updateLocalMediaProgressFromLocalSession()
+            if let session = session {
+                try await updateServerSessionFromLocalSession(session, rateLimitSync: !isStopping)
+            }
+        } catch {
+            debugPrint("Failed to syncFromPlayer")
+            debugPrint(error)
         }
         await UIApplication.shared.endBackgroundTask(backgroundToken)
     }
     
     public func syncToServer() async {
         let backgroundToken = await UIApplication.shared.beginBackgroundTask(withName: "ABS:syncToServer")
-        await updateAllServerSessionFromLocalSession()
+        do {
+            try await updateAllServerSessionFromLocalSession()
+        } catch {
+            debugPrint("Failed to syncToServer")
+            debugPrint(error)
+        }
         await UIApplication.shared.endBackgroundTask(backgroundToken)
     }
     
     public func syncFromServer() async {
         let backgroundToken = await UIApplication.shared.beginBackgroundTask(withName: "ABS:syncFromServer")
-        await updateLocalSessionFromServerMediaProgress()
+        do {
+            try await updateLocalSessionFromServerMediaProgress()
+        } catch {
+            debugPrint("Failed to syncFromServer")
+            debugPrint(error)
+        }
         await UIApplication.shared.endBackgroundTask(backgroundToken)
     }
     
     
     // MARK: - SYNC LOGIC
     
-    private func updateLocalSessionFromPlayer(currentTime: Double, includesPlayProgress: Bool) -> PlaybackSession? {
+    private func updateLocalSessionFromPlayer(currentTime: Double, includesPlayProgress: Bool) throws -> PlaybackSession? {
         guard let session = PlayerHandler.getPlaybackSession() else { return nil }
         guard !currentTime.isNaN else { return nil } // Prevent bad data on player stop
         
-        session.update {
+        try session.update {
             session.realm?.refresh()
             
             let nowInSeconds = Date().timeIntervalSince1970
@@ -68,18 +83,18 @@ class PlayerProgress {
         return session.freeze()
     }
     
-    private func updateLocalMediaProgressFromLocalSession() {
+    private func updateLocalMediaProgressFromLocalSession() throws {
         guard let session = PlayerHandler.getPlaybackSession() else { return }
         guard session.isLocal else { return }
         
-        let localMediaProgress = LocalMediaProgress.fetchOrCreateLocalMediaProgress(localMediaProgressId: session.localMediaProgressId, localLibraryItemId: session.localLibraryItem?.id, localEpisodeId: session.episodeId)
+        let localMediaProgress = try LocalMediaProgress.fetchOrCreateLocalMediaProgress(localMediaProgressId: session.localMediaProgressId, localLibraryItemId: session.localLibraryItem?.id, localEpisodeId: session.episodeId)
         guard let localMediaProgress = localMediaProgress else {
             // Local media progress should have been created
             // If we're here, it means a library id is invalid
             return
         }
 
-        localMediaProgress.updateFromPlaybackSession(session)
+        try localMediaProgress.updateFromPlaybackSession(session)
         
         NSLog("Local progress saved to the database")
         
@@ -87,25 +102,25 @@ class PlayerProgress {
         NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.localProgress.rawValue), object: nil)
     }
     
-    private func updateAllServerSessionFromLocalSession() async {
-        await withTaskGroup(of: Void.self) { [self] group in
-            for session in try! await Realm().objects(PlaybackSession.self).where({ $0.serverConnectionConfigId == Store.serverConfig?.id }) {
+    private func updateAllServerSessionFromLocalSession() async throws {
+        try await withThrowingTaskGroup(of: Void.self) { [self] group in
+            for session in try await Realm().objects(PlaybackSession.self).where({ $0.serverConnectionConfigId == Store.serverConfig?.id }) {
                 let session = session.freeze()
                 group.addTask {
-                    await self.updateServerSessionFromLocalSession(session)
+                    try await self.updateServerSessionFromLocalSession(session)
                 }
             }
-            await group.waitForAll()
+            try await group.waitForAll()
         }
     }
     
-    private func updateServerSessionFromLocalSession(_ session: PlaybackSession, rateLimitSync: Bool = false) async {
+    private func updateServerSessionFromLocalSession(_ session: PlaybackSession, rateLimitSync: Bool = false) async throws {
         var safeToSync = true
         
         guard var session = session.thaw() else { return }
         
         // We need to update and check the server time in a transaction for thread-safety
-        session.update {
+        try session.update {
             session.realm?.refresh()
             
             let nowInMilliseconds = Date().timeIntervalSince1970 * 1000
@@ -140,14 +155,14 @@ class PlayerProgress {
         // Remove old sessions after they synced with the server
         if success && !session.isActiveSession {
             if let session = session.thaw() {
-                session.delete()
+                try session.delete()
             }
         }
     }
     
-    private func updateLocalSessionFromServerMediaProgress() async {
+    private func updateLocalSessionFromServerMediaProgress() async throws {
         NSLog("updateLocalSessionFromServerMediaProgress: Checking if local media progress was updated on server")
-        guard let session = try! await Realm().objects(PlaybackSession.self).last(where: {
+        guard let session = try await Realm().objects(PlaybackSession.self).last(where: {
             $0.isActiveSession == true && $0.serverConnectionConfigId == Store.serverConfig?.id
         })?.freeze() else {
             NSLog("updateLocalSessionFromServerMediaProgress: Failed to get session")
@@ -177,7 +192,7 @@ class PlayerProgress {
         if serverIsNewerThanLocal && currentTimeIsDifferent {
             NSLog("updateLocalSessionFromServerMediaProgress: Server has newer time than local serverLastUpdate=\(serverLastUpdate) localLastUpdate=\(localLastUpdate)")
             guard let session = session.thaw() else { return }
-            session.update {
+            try session.update {
                 session.currentTime = serverCurrentTime
                 session.updatedAt = serverLastUpdate
             }

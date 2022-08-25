@@ -81,9 +81,9 @@ public class AbsAudioPlayer: CAPPlugin {
                 NSLog("Failed to get local playback session")
                 return call.resolve([:])
             }
-            playbackSession.save()
             
             do {
+                try playbackSession.save()
                 try self.startPlaybackSession(playbackSession, playWhenReady: playWhenReady, playbackRate: playbackRate)
                 call.resolve(try playbackSession.asDictionary())
             } catch(let exception) {
@@ -93,8 +93,8 @@ public class AbsAudioPlayer: CAPPlugin {
             }
         } else { // Playing from the server
             ApiClient.startPlaybackSession(libraryItemId: libraryItemId!, episodeId: episodeId, forceTranscode: false) { session in
-                session.save()
                 do {
+                    try session.save()
                     try self.startPlaybackSession(session, playWhenReady: playWhenReady, playbackRate: playbackRate)
                     call.resolve(try session.asDictionary())
                 } catch(let exception) {
@@ -122,7 +122,7 @@ public class AbsAudioPlayer: CAPPlugin {
     @objc func setPlaybackSpeed(_ call: CAPPluginCall) {
         let playbackRate = call.getFloat("value", 1.0)
         let settings = PlayerSettings.main()
-        settings.update {
+        try? settings.update {
             settings.playbackRate = playbackRate
         }
         PlayerHandler.setPlaybackSpeed(speed: settings.playbackRate)
@@ -244,17 +244,15 @@ public class AbsAudioPlayer: CAPPlugin {
             
             // If direct playing then fallback to transcode
             ApiClient.startPlaybackSession(libraryItemId: libraryItemId, episodeId: episodeId, forceTranscode: true) { session in
-                session.save()
-                PlayerHandler.startPlayback(sessionId: session.id, playWhenReady: self.initialPlayWhenReady, playbackRate: PlayerSettings.main().playbackRate)
-                
                 do {
+                    try session.save()
+                    PlayerHandler.startPlayback(sessionId: session.id, playWhenReady: self.initialPlayWhenReady, playbackRate: PlayerSettings.main().playbackRate)
                     self.sendPlaybackSession(session: try session.asDictionary())
+                    self.sendMetadata()
                 } catch(let exception) {
-                    NSLog("failed to convert session to json")
+                    NSLog("Failed to start transcoded session")
                     debugPrint(exception)
                 }
-                
-                self.sendMetadata()
             }
         } else {
             self.notifyListeners("onPlaybackFailed", data: [

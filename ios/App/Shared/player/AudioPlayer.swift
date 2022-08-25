@@ -306,7 +306,7 @@ class AudioPlayer: NSObject {
         if (self.currentTrackIndex != indexOfSeek) {
             self.currentTrackIndex = indexOfSeek
             
-            playbackSession.update {
+            try? playbackSession.update {
                 playbackSession.currentTime = to
             }
             
