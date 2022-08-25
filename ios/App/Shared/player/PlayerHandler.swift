@@ -111,6 +111,7 @@ class PlayerHandler {
     }
     
     public static func cancelSleepTime() {
+        PlayerHandler.sleepTimerChapterStopTime = nil
         self.player?.removeSleepTimer()
     }
     

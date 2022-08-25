@@ -413,6 +413,7 @@ class AudioPlayer: NSObject {
         sleepTimeToken = self.audioPlayer.addBoundaryTimeObserver(forTimes: times, queue: queue) { [weak self] in
             NSLog("SLEEP TIMER: Pausing audio")
             self?.pause()
+            PlayerHandler.sleepTimerChapterStopTime = nil
             self?.removeSleepTimer()
         }
         
@@ -454,7 +455,6 @@ class AudioPlayer: NSObject {
     }
     
     public func removeSleepTimer() {
-        PlayerHandler.sleepTimerChapterStopTime = nil
         self.sleepTimeStopAt = nil
         if let token = sleepTimeToken {
             self.audioPlayer.removeTimeObserver(token)
