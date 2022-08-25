@@ -276,12 +276,14 @@ class AudioPlayer: NSObject {
         guard self.isInitialized() else { return }
         
         self.audioPlayer.pause()
-        self.status = 0
-        self.rate = 0.0
         
         Task {
-            await PlayerProgress.shared.syncFromPlayer(currentTime: self.getCurrentTime(), includesPlayProgress: true, isStopping: true)
+            let wasPlaying = self.status > 0
+            await PlayerProgress.shared.syncFromPlayer(currentTime: self.getCurrentTime(), includesPlayProgress: wasPlaying, isStopping: true)
         }
+        
+        self.status = 0
+        self.rate = 0.0
         
         updateNowPlaying()
         
