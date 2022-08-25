@@ -9,10 +9,17 @@ import Foundation
 import RealmSwift
 
 class Store {
-    private static var _serverConfig: ServerConnectionConfig?
     public static var serverConfig: ServerConnectionConfig? {
         get {
-            return _serverConfig
+            do {
+                // Fetch each time, as holding onto a live or frozen realm object is bad
+                let index = Database.shared.getLastActiveConfigIndex()
+                let realm = try Realm()
+                return realm.objects(ServerConnectionConfig.self).first(where: { $0.index == index })
+            } catch {
+                debugPrint(error)
+                return nil
+            }
         }
         set(updated) {
             if updated != nil {
@@ -20,9 +27,6 @@ class Store {
             } else {
                 Database.shared.setLastActiveConfigIndexToNil()
             }
-            
-            // Make safe for accessing on all threads
-            _serverConfig = updated?.freeze()
         }
     }
 }
