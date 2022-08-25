@@ -144,15 +144,14 @@ class AudioPlayer: NSObject {
         let seconds = 0.5 * (self.rate > 0 ? self.rate : 1.0)
         let time = CMTime(seconds: Double(seconds), preferredTimescale: timeScale)
         self.timeObserverToken = self.audioPlayer.addPeriodicTimeObserver(forInterval: time, queue: queue) { [weak self] time in
-            let sleepTimeStopAt = self?.sleepTimeStopAt
             Task {
                 // Let the player update the current playback positions
                 await PlayerProgress.shared.syncFromPlayer(currentTime: time.seconds, includesPlayProgress: true, isStopping: false)
-                
-                // Update the sleep time, if set
-                if sleepTimeStopAt != nil {
-                    NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.sleepSet.rawValue), object: nil)
-                }
+            }
+            
+            // Update the sleep time, if set
+            if self?.sleepTimeStopAt != nil {
+                NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.sleepSet.rawValue), object: nil)
             }
         }
     }
@@ -351,25 +350,27 @@ class AudioPlayer: NSObject {
     }
     
     public func setPlaybackRate(_ rate: Float, observed: Bool = false) {
+        // Capture remaining sleep time before changing the rate
+        let sleepSecondsRemaining = PlayerHandler.remainingSleepTime
+        let playbackSpeedChanged = rate > 0.0 && rate != self.tmpRate && !(observed && rate == 1)
+        
         if self.audioPlayer.rate != rate {
             NSLog("setPlaybakRate rate changed from \(self.audioPlayer.rate) to \(rate)")
             self.audioPlayer.rate = rate
         }
-        if rate > 0.0 && !(observed && rate == 1) {
-            self.tmpRate = rate
-        }
-        
-        // Capture remaining sleep time before changing the rate
-        let sleepSecondsRemaining = PlayerHandler.remainingSleepTime
         
         self.rate = rate
         self.updateNowPlaying()
         
-        // If we have an active sleep timer, reschedule based on rate
-        self.rescheduleSleepTimerAtTime(time: self.getCurrentTime(), secondsRemaining: sleepSecondsRemaining)
-        
-        // Setup the time observer again at the new rate
-        self.setupTimeObserver()
+        if playbackSpeedChanged {
+            self.tmpRate = rate
+            
+            // If we have an active sleep timer, reschedule based on rate
+            self.rescheduleSleepTimerAtTime(time: self.getCurrentTime(), secondsRemaining: sleepSecondsRemaining)
+            
+            // Setup the time observer again at the new rate
+            self.setupTimeObserver()
+        }
     }
     
     public func getSleepStopAt() -> Double? {
