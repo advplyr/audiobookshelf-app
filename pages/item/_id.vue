@@ -583,13 +583,20 @@ export default {
             this.$toast.error(`Failed to mark as ${updatePayload.isFinished ? 'Finished' : 'Not Finished'}`)
           })
       }
+    },
+    libraryChanged(libraryId) {
+      if (this.libraryItem.libraryId !== libraryId) {
+        this.$router.replace('/bookshelf')
+      }
     }
   },
   mounted() {
+    this.$eventBus.$on('library-changed', this.libraryChanged)
     this.$eventBus.$on('new-local-library-item', this.newLocalLibraryItem)
     this.$socket.on('item_updated', this.itemUpdated)
   },
   beforeDestroy() {
+    this.$eventBus.$off('library-changed', this.libraryChanged)
     this.$eventBus.$off('new-local-library-item', this.newLocalLibraryItem)
     this.$socket.off('item_updated', this.itemUpdated)
   }
