@@ -332,7 +332,7 @@ class AudioPlayer: NSObject {
     
     private func initAudioSession() {
         do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio, options: [.allowAirPlay])
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio)
             try AVAudioSession.sharedInstance().setActive(true)
         } catch {
             NSLog("Failed to set AVAudioSession category")
