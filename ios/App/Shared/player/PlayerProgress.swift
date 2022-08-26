@@ -141,7 +141,7 @@ class PlayerProgress {
         session = session.freeze()
         
         guard safeToSync else { return }
-        NSLog("Sending sessionId(\(session.id)) to server")
+        NSLog("Sending sessionId(\(session.id)) to server with currentTime(\(session.currentTime))")
         
         var success = false
         if session.isLocal {
