@@ -63,16 +63,22 @@ class PlayerHandler {
         get {
             guard let player = player else { return nil }
             
-            // Consider paused as playing at 1x
-            let rate = Double(player.rate > 0 ? player.rate : 1)
-            
+            // Return the player time until sleep
+            var timeUntilSleep: Double? = nil
             if let sleepTimerChapterStopTime = sleepTimerChapterStopTime {
-                let timeUntilChapterEnd = Double(sleepTimerChapterStopTime) - player.getCurrentTime()
-                let timeUntilChapterEndScaled = timeUntilChapterEnd / rate
-                return Int(timeUntilChapterEndScaled.rounded())
+                timeUntilSleep = Double(sleepTimerChapterStopTime) - player.getCurrentTime()
             } else if let stopAt = player.getSleepStopAt() {
-                let timeUntilSleep = stopAt - player.getCurrentTime()
+                timeUntilSleep = stopAt - player.getCurrentTime()
+            }
+            
+            // Scale the time until sleep based on the playback rate
+            if let timeUntilSleep = timeUntilSleep {
+                // Consider paused as playing at 1x
+                let rate = Double(player.rate > 0 ? player.rate : 1)
+                
                 let timeUntilSleepScaled = timeUntilSleep / rate
+                guard timeUntilSleepScaled.isNaN == false else { return nil }
+                
                 return Int(timeUntilSleepScaled.rounded())
             } else {
                 return nil

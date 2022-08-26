@@ -423,13 +423,31 @@ class AudioPlayer: NSObject {
     
     private func rescheduleSleepTimerAtTime(time: Double, secondsRemaining: Int?) {
         // Not a chapter sleep timer
+        let hadToCancelChapterSleepTimer = decideIfChapterSleepTimerNeedsToBeCanceled(time: time)
+        guard !hadToCancelChapterSleepTimer else { return }
         guard PlayerHandler.sleepTimerChapterStopTime == nil else { return }
+        
+        // Verify sleep timer is set
+        guard self.sleepTimeToken != nil else { return }
         
         // Update the sleep timer
         if let secondsRemaining = secondsRemaining {
             let newSleepTimerPosition = time + Double(secondsRemaining)
             self.setSleepTime(stopAt: newSleepTimerPosition, scaleBasedOnSpeed: true)
         }
+    }
+    
+    private func decideIfChapterSleepTimerNeedsToBeCanceled(time: Double) -> Bool {
+        if let chapterSleepTime = PlayerHandler.sleepTimerChapterStopTime {
+            let sleepIsBeforeCurrentTime = Double(chapterSleepTime) <= time
+            if sleepIsBeforeCurrentTime {
+                PlayerHandler.sleepTimerChapterStopTime = nil
+                self.removeSleepTimer()
+                return true
+            }
+        }
+        
+        return false
     }
     
     public func increaseSleepTime(extraTimeInSeconds: Double) {
