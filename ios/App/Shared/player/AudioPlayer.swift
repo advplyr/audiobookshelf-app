@@ -137,14 +137,14 @@ class AudioPlayer: NSObject {
     
     private func setupTimeObserver() {
         // Time observer should be configured on the main queue
-        DispatchQueue.main.sync {
+        DispatchQueue.runOnMainQueue {
             self.removeTimeObserver()
             
             let timeScale = CMTimeScale(NSEC_PER_SEC)
             // Rate will be different depending on playback speed, aim for 2 observations/sec
             let seconds = 0.5 * (self.rate > 0 ? self.rate : 1.0)
             let time = CMTime(seconds: Double(seconds), preferredTimescale: timeScale)
-            self.timeObserverToken = self.audioPlayer.addPeriodicTimeObserver(forInterval: time, queue: queue) { [weak self] time in
+            self.timeObserverToken = self.audioPlayer.addPeriodicTimeObserver(forInterval: time, queue: self.queue) { [weak self] time in
                 Task {
                     // Let the player update the current playback positions
                     await PlayerProgress.shared.syncFromPlayer(currentTime: time.seconds, includesPlayProgress: true, isStopping: false)
