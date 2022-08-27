@@ -18,12 +18,13 @@ enum PlayMethod:Int {
 }
 
 class AudioPlayer: NSObject {
+    private let queue = DispatchQueue(label: "ABSAudioPlayerQueue")
+    
     // enums and @objc are not compatible
     @objc dynamic var status: Int
     @objc dynamic var rate: Float
     
     private var tmpRate: Float = 1.0
-    private var lastPlayTime: Double = 0.0
     
     private var playerContext = 0
     private var playerItemContext = 0
@@ -34,11 +35,17 @@ class AudioPlayer: NSObject {
     private var audioPlayer: AVQueuePlayer
     private var sessionId: String
 
+    private var timeObserverToken: Any?
     private var queueObserver:NSKeyValueObservation?
     private var queueItemStatusObserver:NSKeyValueObservation?
     
+    private var sleepTimeStopAt: Double?
+    private var sleepTimeToken: Any?
+    
     private var currentTrackIndex = 0
     private var allPlayerItems:[AVPlayerItem] = []
+    
+    private var pausedTimer: Timer?
     
     // MARK: - Constructor
     init(sessionId: String, playWhenReady: Bool = false, playbackRate: Float = 1) {
@@ -77,12 +84,16 @@ class AudioPlayer: NSObject {
             self.audioPlayer.insert(item, after:self.audioPlayer.items().last)
         }
 
+        setupTimeObserver()
         setupQueueObserver()
         setupQueueItemStatusObserver()
 
         NSLog("Audioplayer ready")
     }
     deinit {
+        self.stopPausedTimer()
+        self.removeSleepTimer()
+        self.removeTimeObserver()
         self.queueObserver?.invalidate()
         self.queueItemStatusObserver?.invalidate()
         destroy()
@@ -122,6 +133,36 @@ class AudioPlayer: NSObject {
             }
         }
         return 0
+    }
+    
+    private func setupTimeObserver() {
+        // Time observer should be configured on the main queue
+        DispatchQueue.runOnMainQueue {
+            self.removeTimeObserver()
+            
+            let timeScale = CMTimeScale(NSEC_PER_SEC)
+            // Rate will be different depending on playback speed, aim for 2 observations/sec
+            let seconds = 0.5 * (self.rate > 0 ? self.rate : 1.0)
+            let time = CMTime(seconds: Double(seconds), preferredTimescale: timeScale)
+            self.timeObserverToken = self.audioPlayer.addPeriodicTimeObserver(forInterval: time, queue: self.queue) { [weak self] time in
+                Task {
+                    // Let the player update the current playback positions
+                    await PlayerProgress.shared.syncFromPlayer(currentTime: time.seconds, includesPlayProgress: true, isStopping: false)
+                }
+                
+                // Update the sleep time, if set
+                if self?.sleepTimeStopAt != nil {
+                    NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.sleepSet.rawValue), object: nil)
+                }
+            }
+        }
+    }
+    
+    private func removeTimeObserver() {
+        if let timeObserverToken = timeObserverToken {
+            self.audioPlayer.removeTimeObserver(timeObserverToken)
+            self.timeObserverToken = nil
+        }
     }
     
     func setupQueueObserver() {
@@ -165,25 +206,44 @@ class AudioPlayer: NSObject {
         })
     }
     
+    private func startPausedTimer() {
+        guard self.pausedTimer == nil else { return }
+        self.queue.async {
+            self.pausedTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { timer in
+                NSLog("PAUSE TIMER: Syncing from server")
+                Task { await PlayerProgress.shared.syncFromServer() }
+            }
+        }
+    }
+    
+    private func stopPausedTimer() {
+        self.pausedTimer?.invalidate()
+        self.pausedTimer = nil
+    }
+    
     // MARK: - Methods
     public func play(allowSeekBack: Bool = false) {
         guard self.isInitialized() else { return }
         
-        if allowSeekBack {
-            let diffrence = Date.timeIntervalSinceReferenceDate - lastPlayTime
+        // Capture remaining sleep time before changing the track position
+        let sleepSecondsRemaining = PlayerHandler.remainingSleepTime
+        
+        if allowSeekBack, let session = Database.shared.getPlaybackSession(id: self.sessionId) {
+            let lastPlayed = (session.updatedAt ?? 0)/1000
+            let difference = Date.timeIntervalSinceReferenceDate - lastPlayed
             var time: Int?
             
-            if lastPlayTime == 0 {
+            if lastPlayed == 0 {
                 time = 5
-            } else if diffrence < 6 {
+            } else if difference < 6 {
                 time = 2
-            } else if diffrence < 12 {
+            } else if difference < 12 {
                 time = 10
-            } else if diffrence < 30 {
+            } else if difference < 30 {
                 time = 15
-            } else if diffrence < 180 {
+            } else if difference < 180 {
                 time = 20
-            } else if diffrence < 3600 {
+            } else if difference < 3600 {
                 time = 25
             } else {
                 time = 29
@@ -193,12 +253,21 @@ class AudioPlayer: NSObject {
                 seek(getCurrentTime() - Double(time!), from: "play")
             }
         }
-        lastPlayTime = Date.timeIntervalSinceReferenceDate
+        
+        self.stopPausedTimer()
+        
+        Task {
+            let isPlaying = self.status > 0
+            await PlayerProgress.shared.syncFromPlayer(currentTime: self.getCurrentTime(), includesPlayProgress: isPlaying, isStopping: false)
+        }
 
         self.audioPlayer.play()
         self.status = 1
         self.rate = self.tmpRate
         self.audioPlayer.rate = self.tmpRate
+        
+        // If we have an active sleep timer, reschedule based on rate
+        self.rescheduleSleepTimerAtTime(time: self.getCurrentTime(), secondsRemaining: sleepSecondsRemaining)
         
         updateNowPlaying()
     }
@@ -207,11 +276,18 @@ class AudioPlayer: NSObject {
         guard self.isInitialized() else { return }
         
         self.audioPlayer.pause()
+        
+        Task {
+            let wasPlaying = self.status > 0
+            await PlayerProgress.shared.syncFromPlayer(currentTime: self.getCurrentTime(), includesPlayProgress: wasPlaying, isStopping: true)
+        }
+        
         self.status = 0
         self.rate = 0.0
         
         updateNowPlaying()
-        lastPlayTime = Date.timeIntervalSinceReferenceDate
+        
+        self.startPausedTimer()
     }
     
     public func seek(_ to: Double, from: String) {
@@ -228,6 +304,8 @@ class AudioPlayer: NSObject {
         let trackEnd = ctso + currentTrack.duration
         NSLog("Seek current track END = \(trackEnd)")
         
+        // Capture remaining sleep time before changing the track position
+        let sleepSecondsRemaining = PlayerHandler.remainingSleepTime
         
         let indexOfSeek = getItemIndexForTime(time: to)
         NSLog("Seek to index \(indexOfSeek) | Current index \(self.currentTrackIndex)")
@@ -236,7 +314,7 @@ class AudioPlayer: NSObject {
         if (self.currentTrackIndex != indexOfSeek) {
             self.currentTrackIndex = indexOfSeek
             
-            playbackSession.update {
+            try? playbackSession.update {
                 playbackSession.currentTime = to
             }
             
@@ -255,30 +333,154 @@ class AudioPlayer: NSObject {
             let currentTrackStartOffset = playbackSession.audioTracks[self.currentTrackIndex].startOffset ?? 0.0
             let seekTime = to - currentTrackStartOffset
             
-            self.audioPlayer.seek(to: CMTime(seconds: seekTime, preferredTimescale: 1000)) { completed in
+            self.audioPlayer.seek(to: CMTime(seconds: seekTime, preferredTimescale: 1000)) { [weak self] completed in
                 if !completed {
                     NSLog("WARNING: seeking not completed (to \(seekTime)")
                 }
                 
                 if continuePlaying {
-                    self.play()
+                    self?.play()
                 }
-                self.updateNowPlaying()
+                self?.updateNowPlaying()
+                
+                // If we have an active sleep timer, reschedule based on seek, since seek is fuzzy
+                // This needs to occur after play() to capture the correct playback rate
+                if let currentTime = self?.getCurrentTime() {
+                    self?.rescheduleSleepTimerAtTime(time: currentTime, secondsRemaining: sleepSecondsRemaining)
+                }
             }
         }
     }
     
     public func setPlaybackRate(_ rate: Float, observed: Bool = false) {
+        // Capture remaining sleep time before changing the rate
+        let sleepSecondsRemaining = PlayerHandler.remainingSleepTime
+        let playbackSpeedChanged = rate > 0.0 && rate != self.tmpRate && !(observed && rate == 1)
+        
         if self.audioPlayer.rate != rate {
             NSLog("setPlaybakRate rate changed from \(self.audioPlayer.rate) to \(rate)")
             self.audioPlayer.rate = rate
         }
-        if rate > 0.0 && !(observed && rate == 1) {
-            self.tmpRate = rate
-        }
         
         self.rate = rate
         self.updateNowPlaying()
+        
+        if playbackSpeedChanged {
+            self.tmpRate = rate
+            
+            // If we have an active sleep timer, reschedule based on rate
+            self.rescheduleSleepTimerAtTime(time: self.getCurrentTime(), secondsRemaining: sleepSecondsRemaining)
+            
+            // Setup the time observer again at the new rate
+            self.setupTimeObserver()
+        }
+    }
+    
+    public func getSleepStopAt() -> Double? {
+        return self.sleepTimeStopAt
+    }
+    
+    // Let iOS handle the sleep timer logic by letting us know when it's time to stop
+    public func setSleepTime(stopAt: Double, scaleBasedOnSpeed: Bool = false) {
+        NSLog("SLEEP TIMER: Scheduling for \(stopAt)")
+        
+        // Reset any previous sleep timer
+        self.removeSleepTimer()
+        
+        let currentTime = getCurrentTime()
+        
+        // Mark the time to stop playing
+        if scaleBasedOnSpeed {
+            // Consider paused as playing at 1x
+            let rate = Double(self.rate > 0 ? self.rate : 1)
+            
+            // Calculate the scaled time to stop at
+            let timeUntilSleep = (stopAt - currentTime) * rate
+            self.sleepTimeStopAt = currentTime + timeUntilSleep
+            
+            NSLog("SLEEP TIMER: Adjusted based on playback speed of \(rate) to \(self.sleepTimeStopAt!)")
+        } else {
+            self.sleepTimeStopAt = stopAt
+        }
+        
+        guard let sleepTimeStopAt = self.sleepTimeStopAt else { return }
+        let sleepTime = CMTime(seconds: sleepTimeStopAt, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+        
+        // Schedule the observation time
+        var times = [NSValue]()
+        times.append(NSValue(time: sleepTime))
+        
+        sleepTimeToken = self.audioPlayer.addBoundaryTimeObserver(forTimes: times, queue: queue) { [weak self] in
+            NSLog("SLEEP TIMER: Pausing audio")
+            self?.pause()
+            PlayerHandler.sleepTimerChapterStopTime = nil
+            self?.removeSleepTimer()
+        }
+        
+        // Update the UI
+        NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.sleepSet.rawValue), object: nil)
+    }
+    
+    private func rescheduleSleepTimerAtTime(time: Double, secondsRemaining: Int?) {
+        // Not a chapter sleep timer
+        let hadToCancelChapterSleepTimer = decideIfChapterSleepTimerNeedsToBeCanceled(time: time)
+        guard !hadToCancelChapterSleepTimer else { return }
+        guard PlayerHandler.sleepTimerChapterStopTime == nil else { return }
+        
+        // Verify sleep timer is set
+        guard self.sleepTimeToken != nil else { return }
+        
+        // Update the sleep timer
+        if let secondsRemaining = secondsRemaining {
+            let newSleepTimerPosition = time + Double(secondsRemaining)
+            self.setSleepTime(stopAt: newSleepTimerPosition, scaleBasedOnSpeed: true)
+        }
+    }
+    
+    private func decideIfChapterSleepTimerNeedsToBeCanceled(time: Double) -> Bool {
+        if let chapterSleepTime = PlayerHandler.sleepTimerChapterStopTime {
+            let sleepIsBeforeCurrentTime = Double(chapterSleepTime) <= time
+            if sleepIsBeforeCurrentTime {
+                PlayerHandler.sleepTimerChapterStopTime = nil
+                self.removeSleepTimer()
+                return true
+            }
+        }
+        
+        return false
+    }
+    
+    public func increaseSleepTime(extraTimeInSeconds: Double) {
+        if let sleepTime = PlayerHandler.remainingSleepTime {
+            let currentTime = getCurrentTime()
+            let newSleepTimerPosition = currentTime + Double(sleepTime) + extraTimeInSeconds
+            if newSleepTimerPosition > currentTime {
+                self.setSleepTime(stopAt: newSleepTimerPosition, scaleBasedOnSpeed: true)
+            }
+        }
+    }
+    
+    public func decreaseSleepTime(removeTimeInSeconds: Double) {
+        if let sleepTime = PlayerHandler.remainingSleepTime {
+            let currentTime = getCurrentTime()
+            let newSleepTimerPosition = currentTime + Double(sleepTime) - removeTimeInSeconds
+            guard newSleepTimerPosition > currentTime else { return }
+            if newSleepTimerPosition > currentTime {
+                self.setSleepTime(stopAt: newSleepTimerPosition, scaleBasedOnSpeed: true)
+            }
+        }
+
+    }
+    
+    public func removeSleepTimer() {
+        self.sleepTimeStopAt = nil
+        if let token = sleepTimeToken {
+            self.audioPlayer.removeTimeObserver(token)
+            sleepTimeToken = nil
+        }
+        
+        // Update the UI
+        NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.sleepEnded.rawValue), object: self)
     }
     
     public func getCurrentTime() -> Double {
@@ -332,7 +534,7 @@ class AudioPlayer: NSObject {
     
     private func initAudioSession() {
         do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio, options: [.allowAirPlay])
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio)
             try AVAudioSession.sharedInstance().setActive(true)
         } catch {
             NSLog("Failed to set AVAudioSession category")
@@ -346,6 +548,7 @@ class AudioPlayer: NSObject {
             UIApplication.shared.beginReceivingRemoteControlEvents()
         }
         let commandCenter = MPRemoteCommandCenter.shared()
+        let deviceSettings = Database.shared.getDeviceSettings()
         
         commandCenter.playCommand.isEnabled = true
         commandCenter.playCommand.addTarget { [unowned self] event in
@@ -359,7 +562,7 @@ class AudioPlayer: NSObject {
         }
         
         commandCenter.skipForwardCommand.isEnabled = true
-        commandCenter.skipForwardCommand.preferredIntervals = [30]
+        commandCenter.skipForwardCommand.preferredIntervals = [NSNumber(value: deviceSettings.jumpForwardTime)]
         commandCenter.skipForwardCommand.addTarget { [unowned self] event in
             guard let command = event.command as? MPSkipIntervalCommand else {
                 return .noSuchContent
@@ -369,7 +572,7 @@ class AudioPlayer: NSObject {
             return .success
         }
         commandCenter.skipBackwardCommand.isEnabled = true
-        commandCenter.skipBackwardCommand.preferredIntervals = [30]
+        commandCenter.skipBackwardCommand.preferredIntervals = [NSNumber(value: deviceSettings.jumpBackwardsTime)]
         commandCenter.skipBackwardCommand.addTarget { [unowned self] event in
             guard let command = event.command as? MPSkipIntervalCommand else {
                 return .noSuchContent

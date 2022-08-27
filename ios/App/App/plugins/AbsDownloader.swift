@@ -28,7 +28,7 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
     
     public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         handleDownloadTaskUpdate(downloadTask: downloadTask) { downloadItem, downloadItemPart in
-            let realm = try! Realm()
+            let realm = try Realm()
             try realm.write {
                 downloadItemPart.progress = 100
                 downloadItemPart.completed = true
@@ -139,7 +139,7 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
                         }
                         self.handleDownloadTaskCompleteFromDownloadItem(item)
                         if let item = Database.shared.getDownloadItem(downloadItemId: item.id!) {
-                            item.delete()
+                            try? item.delete()
                         }
                     }
                     
@@ -181,7 +181,7 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
                     }
                 } else {
                     localLibraryItem = LocalLibraryItem(libraryItem, localUrl: localDirectory, server: Store.serverConfig!, files: files, coverPath: coverFile)
-                    Database.shared.saveLocalLibraryItem(localLibraryItem: localLibraryItem!)
+                    try? Database.shared.saveLocalLibraryItem(localLibraryItem: localLibraryItem!)
                 }
                 
                 statusNotification["localLibraryItem"] = try? localLibraryItem.asDictionary()
@@ -189,7 +189,7 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
                 if let progress = libraryItem.userMediaProgress {
                     let episode = downloadItem.media?.episodes.first(where: { $0.id == downloadItem.episodeId })
                     let localMediaProgress = LocalMediaProgress(localLibraryItem: localLibraryItem!, episode: episode, progress: progress)
-                    Database.shared.saveLocalMediaProgress(localMediaProgress)
+                    try? localMediaProgress.save()
                     statusNotification["localMediaProgress"] = try? localMediaProgress.asDictionary()
                 }
                 
@@ -276,7 +276,7 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
         }
         
         // Persist in the database before status start coming in
-        Database.shared.saveDownloadItem(downloadItem)
+        try Database.shared.saveDownloadItem(downloadItem)
         
         // Start all the downloads
         for task in tasks {

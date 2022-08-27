@@ -11,12 +11,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Override point for customization after application launch.
         
         let configuration = Realm.Configuration(
-            schemaVersion: 2,
+            schemaVersion: 4,
             migrationBlock: { migration, oldSchemaVersion in
                 if (oldSchemaVersion < 1) {
                     NSLog("Realm schema version was \(oldSchemaVersion)")
                     migration.enumerateObjects(ofType: DeviceSettings.className()) { oldObject, newObject in
                         newObject?["enableAltView"] = false
+                    }
+                }
+                if (oldSchemaVersion < 4) {
+                    NSLog("Realm schema version was \(oldSchemaVersion)... Reindexing server configs")
+                    var indexCounter = 1
+                    migration.enumerateObjects(ofType: ServerConnectionConfig.className()) { oldObject, newObject in
+                        newObject?["index"] = indexCounter
+                        indexCounter += 1
                     }
                 }
             }
