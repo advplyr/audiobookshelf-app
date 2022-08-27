@@ -33,6 +33,8 @@ class Database {
                 NSLog("failed to update server config")
                 debugPrint(error)
             }
+            
+            setLastActiveConfigIndex(index: existing.index)
         } else {
             if config.index == 0 {
                 let lastConfig: ServerConnectionConfig? = realm.objects(ServerConnectionConfig.self).last
@@ -52,9 +54,9 @@ class Database {
                 NSLog("failed to save server config")
                 debugPrint(exception)
             }
+            
+            setLastActiveConfigIndex(index: config.index)
         }
-        
-        setLastActiveConfigIndex(index: config.index)
     }
     
     public func deleteServerConnectionConfig(id: String) {

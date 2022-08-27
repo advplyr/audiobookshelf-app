@@ -51,7 +51,8 @@ public class AbsDatabase: CAPPlugin {
         config.token = token
         
         Store.serverConfig = config
-        call.resolve(convertServerConnectionConfigToJSON(config: config))
+        let savedConfig = Store.serverConfig // Fetch the latest value
+        call.resolve(convertServerConnectionConfigToJSON(config: savedConfig!))
     }
     @objc func removeServerConnectionConfig(_ call: CAPPluginCall) {
         let id = call.getString("serverConnectionConfigId", "")
