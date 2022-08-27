@@ -548,6 +548,7 @@ class AudioPlayer: NSObject {
             UIApplication.shared.beginReceivingRemoteControlEvents()
         }
         let commandCenter = MPRemoteCommandCenter.shared()
+        let deviceSettings = Database.shared.getDeviceSettings()
         
         commandCenter.playCommand.isEnabled = true
         commandCenter.playCommand.addTarget { [unowned self] event in
@@ -561,7 +562,7 @@ class AudioPlayer: NSObject {
         }
         
         commandCenter.skipForwardCommand.isEnabled = true
-        commandCenter.skipForwardCommand.preferredIntervals = [30]
+        commandCenter.skipForwardCommand.preferredIntervals = [NSNumber(value: deviceSettings.jumpForwardTime)]
         commandCenter.skipForwardCommand.addTarget { [unowned self] event in
             guard let command = event.command as? MPSkipIntervalCommand else {
                 return .noSuchContent
@@ -571,7 +572,7 @@ class AudioPlayer: NSObject {
             return .success
         }
         commandCenter.skipBackwardCommand.isEnabled = true
-        commandCenter.skipBackwardCommand.preferredIntervals = [30]
+        commandCenter.skipBackwardCommand.preferredIntervals = [NSNumber(value: deviceSettings.jumpBackwardsTime)]
         commandCenter.skipBackwardCommand.addTarget { [unowned self] event in
             guard let command = event.command as? MPSkipIntervalCommand else {
                 return .noSuchContent
