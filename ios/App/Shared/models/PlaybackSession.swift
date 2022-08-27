@@ -159,3 +159,11 @@ class PlaybackSession: Object, Codable, Deletable {
         try container.encode(localMediaProgressId, forKey: .localMediaProgressId)
     }
 }
+
+extension PlaybackSession {
+    func getCurrentChapter() -> Chapter? {
+        return chapters.first { chapter in
+            chapter.start <= self.currentTime && chapter.end > self.currentTime
+        }
+    }
+}

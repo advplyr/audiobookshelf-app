@@ -154,6 +154,9 @@ class AudioPlayer: NSObject {
                 if self?.sleepTimeStopAt != nil {
                     NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.sleepSet.rawValue), object: nil)
                 }
+                
+                // Update the now playing and chapter info
+                self?.updateNowPlaying()
             }
         }
     }
@@ -605,7 +608,12 @@ class AudioPlayer: NSObject {
     }
     private func updateNowPlaying() {
         NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.update.rawValue), object: nil)
-        NowPlayingInfo.shared.update(duration: getDuration(), currentTime: getCurrentTime(), rate: rate)
+        
+        if let session = Database.shared.getPlaybackSession(id: self.sessionId), let currentChapter = session.getCurrentChapter() {
+            NowPlayingInfo.shared.update(duration: currentChapter.getRelativeChapterEndTime(), currentTime: currentChapter.getRelativeChapterCurrentTime(sessionCurrentTime: session.currentTime), rate: rate, chapterName: currentChapter.title)
+        } else {
+            NowPlayingInfo.shared.update(duration: getDuration(), currentTime: getCurrentTime(), rate: rate)
+        }
     }
     
     // MARK: - Observer
