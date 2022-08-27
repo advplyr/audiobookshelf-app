@@ -48,6 +48,36 @@ export const getters = {
 }
 
 export const actions = {
+  // When changing libraries make sure sort and filter is still valid
+  checkUpdateLibrarySortFilter({ state, dispatch, commit }, mediaType) {
+    var settingsUpdate = {}
+    if (mediaType == 'podcast') {
+      if (state.settings.mobileOrderBy == 'media.metadata.authorName' || state.settings.mobileOrderBy == 'media.metadata.authorNameLF') {
+        settingsUpdate.mobileOrderBy = 'media.metadata.author'
+      }
+      if (state.settings.mobileOrderBy == 'media.duration') {
+        settingsUpdate.mobileOrderBy = 'media.numTracks'
+      }
+      if (state.settings.mobileOrderBy == 'media.metadata.publishedYear') {
+        settingsUpdate.mobileOrderBy = 'media.metadata.title'
+      }
+      var invalidFilters = ['series', 'authors', 'narrators', 'languages', 'progress', 'issues']
+      var filterByFirstPart = (state.settings.mobileFilterBy || '').split('.').shift()
+      if (invalidFilters.includes(filterByFirstPart)) {
+        settingsUpdate.filterBy = 'all'
+      }
+    } else {
+      if (state.settings.mobileOrderBy == 'media.metadata.author') {
+        settingsUpdate.mobileOrderBy = 'media.metadata.authorName'
+      }
+      if (state.settings.mobileOrderBy == 'media.numTracks') {
+        settingsUpdate.mobileOrderBy = 'media.duration'
+      }
+    }
+    if (Object.keys(settingsUpdate).length) {
+      dispatch('updateUserSettings', settingsUpdate)
+    }
+  },
   async updateUserSettings({ state, commit }, payload) {
     if (state.serverConnectionConfig) {
       var updatePayload = {
