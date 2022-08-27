@@ -610,7 +610,14 @@ class AudioPlayer: NSObject {
         NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.update.rawValue), object: nil)
         
         if let session = Database.shared.getPlaybackSession(id: self.sessionId), let currentChapter = session.getCurrentChapter() {
-            NowPlayingInfo.shared.update(duration: currentChapter.getRelativeChapterEndTime(), currentTime: currentChapter.getRelativeChapterCurrentTime(sessionCurrentTime: session.currentTime), rate: rate, chapterName: currentChapter.title)
+            NowPlayingInfo.shared.update(
+                duration: currentChapter.getRelativeChapterEndTime(),
+                currentTime: currentChapter.getRelativeChapterCurrentTime(sessionCurrentTime: session.currentTime),
+                rate: rate,
+                chapterName: currentChapter.title,
+                chapterNumber: (session.chapters.firstIndex(of: currentChapter) ?? 0) + 1,
+                chapterCount: session.chapters.count
+            )
         } else {
             NowPlayingInfo.shared.update(duration: getDuration(), currentTime: getCurrentTime(), rate: rate)
         }
