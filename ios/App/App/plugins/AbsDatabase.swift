@@ -43,7 +43,7 @@ public class AbsDatabase: CAPPlugin {
         
         let config = ServerConnectionConfig()
         config.id = id ?? ""
-        config.index = 1
+        config.index = 0
         config.name = name
         config.address = address
         config.userId = userId

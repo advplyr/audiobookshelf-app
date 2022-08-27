@@ -20,26 +20,38 @@ class Database {
         let realm = try! Realm()
         let existing: ServerConnectionConfig? = realm.object(ofType: ServerConnectionConfig.self, forPrimaryKey: config.id)
         
-        if config.index == 0 {
-            let lastConfig: ServerConnectionConfig? = realm.objects(ServerConnectionConfig.self).last
-            
-            if lastConfig != nil {
-                config.index = lastConfig!.index + 1
-            } else {
-                config.index = 1
-            }
-        }
-        
-        do {
-            try realm.write {
-                if existing != nil {
-                    realm.delete(existing!)
+        if let existing = existing {
+            do {
+                try existing.update {
+                    existing.name = config.name
+                    existing.address = config.address
+                    existing.userId = config.userId
+                    existing.username = config.username
+                    existing.token = config.token
                 }
-                realm.add(config)
+            } catch {
+                NSLog("failed to update server config")
+                debugPrint(error)
             }
-        } catch(let exception) {
-            NSLog("failed to save server config")
-            debugPrint(exception)
+        } else {
+            if config.index == 0 {
+                let lastConfig: ServerConnectionConfig? = realm.objects(ServerConnectionConfig.self).last
+                
+                if lastConfig != nil {
+                    config.index = lastConfig!.index + 1
+                } else {
+                    config.index = 1
+                }
+            }
+            
+            do {
+                try realm.write {
+                    realm.add(config)
+                }
+            } catch(let exception) {
+                NSLog("failed to save server config")
+                debugPrint(exception)
+            }
         }
         
         setLastActiveConfigIndex(index: config.index)
