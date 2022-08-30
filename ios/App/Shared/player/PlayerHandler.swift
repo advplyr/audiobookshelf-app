@@ -62,13 +62,14 @@ class PlayerHandler {
     public static var remainingSleepTime: Int? {
         get {
             guard let player = player else { return nil }
+            guard let currentTime = player.getCurrentTime() else { return nil }
             
             // Return the player time until sleep
             var timeUntilSleep: Double? = nil
             if let sleepTimerChapterStopTime = sleepTimerChapterStopTime {
-                timeUntilSleep = Double(sleepTimerChapterStopTime) - player.getCurrentTime()
+                timeUntilSleep = Double(sleepTimerChapterStopTime) - currentTime
             } else if let stopAt = player.getSleepStopAt() {
-                timeUntilSleep = stopAt - player.getCurrentTime()
+                timeUntilSleep = stopAt - currentTime
             }
             
             // Scale the time until sleep based on the playback rate
@@ -96,7 +97,8 @@ class PlayerHandler {
     
     public static func setSleepTime(secondsUntilSleep: Double) {
         guard let player = player else { return }
-        let stopAt = secondsUntilSleep + player.getCurrentTime()
+        guard let currentTime = player.getCurrentTime() else { return }
+        let stopAt = secondsUntilSleep + currentTime
         player.setSleepTime(stopAt: stopAt, scaleBasedOnSpeed: true)
     }
     
@@ -134,15 +136,17 @@ class PlayerHandler {
     
     public static func seekForward(amount: Double) {
         guard let player = player else { return }
+        guard let currentTime = player.getCurrentTime() else { return }
         
-        let destinationTime = player.getCurrentTime() + amount
+        let destinationTime = currentTime + amount
         player.seek(destinationTime, from: "handler")
     }
     
     public static func seekBackward(amount: Double) {
         guard let player = player else { return }
+        guard let currentTime = player.getCurrentTime() else { return }
         
-        let destinationTime = player.getCurrentTime() - amount
+        let destinationTime = currentTime - amount
         player.seek(destinationTime, from: "handler")
     }
     
