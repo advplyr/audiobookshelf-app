@@ -161,7 +161,7 @@ class AudioPlayer: NSObject {
                 }
                 
                 // Update the now playing and chapter info
-                self?.updateNowPlaying()
+                self.updateNowPlaying()
             }
         }
     }
