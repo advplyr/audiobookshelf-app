@@ -145,9 +145,11 @@ class AudioPlayer: NSObject {
             let seconds = 0.5 * (self.rate > 0 ? self.rate : 1.0)
             let time = CMTime(seconds: Double(seconds), preferredTimescale: timeScale)
             self.timeObserverToken = self.audioPlayer.addPeriodicTimeObserver(forInterval: time, queue: self.queue) { [weak self] time in
+                let isPlaying = self?.isPlaying() ?? false
+                
                 Task {
                     // Let the player update the current playback positions
-                    await PlayerProgress.shared.syncFromPlayer(currentTime: time.seconds, includesPlayProgress: true, isStopping: false)
+                    await PlayerProgress.shared.syncFromPlayer(currentTime: time.seconds, includesPlayProgress: isPlaying, isStopping: false)
                 }
                 
                 // Update the sleep time, if set
@@ -257,8 +259,7 @@ class AudioPlayer: NSObject {
         self.stopPausedTimer()
         
         Task {
-            let isPlaying = self.status > 0
-            await PlayerProgress.shared.syncFromPlayer(currentTime: self.getCurrentTime(), includesPlayProgress: isPlaying, isStopping: false)
+            await PlayerProgress.shared.syncFromPlayer(currentTime: self.getCurrentTime(), includesPlayProgress: self.isPlaying(), isStopping: false)
         }
 
         self.audioPlayer.play()
@@ -278,8 +279,7 @@ class AudioPlayer: NSObject {
         self.audioPlayer.pause()
         
         Task {
-            let wasPlaying = self.status > 0
-            await PlayerProgress.shared.syncFromPlayer(currentTime: self.getCurrentTime(), includesPlayProgress: wasPlaying, isStopping: true)
+            await PlayerProgress.shared.syncFromPlayer(currentTime: self.getCurrentTime(), includesPlayProgress: self.isPlaying(), isStopping: true)
         }
         
         self.status = 0
@@ -495,12 +495,18 @@ class AudioPlayer: NSObject {
         let playbackSession = Database.shared.getPlaybackSession(id: self.sessionId)!
         return playbackSession.playMethod
     }
+    
     public func getPlaybackSessionId() -> String {
         return self.sessionId
     }
+    
     public func getDuration() -> Double {
         let playbackSession = Database.shared.getPlaybackSession(id: self.sessionId)!
         return playbackSession.duration
+    }
+    
+    public func isPlaying() -> Bool {
+        return self.status > 0
     }
     
     // MARK: - Private
