@@ -145,15 +145,18 @@ class AudioPlayer: NSObject {
             let seconds = 0.5 * (self.rate > 0 ? self.rate : 1.0)
             let time = CMTime(seconds: Double(seconds), preferredTimescale: timeScale)
             self.timeObserverToken = self.audioPlayer.addPeriodicTimeObserver(forInterval: time, queue: self.queue) { [weak self] time in
-                let isPlaying = self?.isPlaying() ?? false
+                guard let self = self else { return }
+                
+                let currentTime = self.getCurrentTime()
+                let isPlaying = self.isPlaying()
                 
                 Task {
                     // Let the player update the current playback positions
-                    await PlayerProgress.shared.syncFromPlayer(currentTime: time.seconds, includesPlayProgress: isPlaying, isStopping: false)
+                    await PlayerProgress.shared.syncFromPlayer(currentTime: currentTime, includesPlayProgress: isPlaying, isStopping: false)
                 }
                 
                 // Update the sleep time, if set
-                if self?.sleepTimeStopAt != nil {
+                if self.sleepTimeStopAt != nil {
                     NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.sleepSet.rawValue), object: nil)
                 }
             }
