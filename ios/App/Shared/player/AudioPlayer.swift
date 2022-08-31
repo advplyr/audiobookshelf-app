@@ -284,7 +284,8 @@ class AudioPlayer: NSObject {
                 await PlayerProgress.shared.syncFromPlayer(currentTime: currentTime, includesPlayProgress: self.isPlaying(), isStopping: false)
             }
         }
-
+        
+        self.markAudioSessionAs(active: true)
         self.audioPlayer.play()
         self.status = 1
         self.rate = self.tmpRate
@@ -302,6 +303,7 @@ class AudioPlayer: NSObject {
         guard self.isInitialized() else { return }
         
         self.audioPlayer.pause()
+        self.markAudioSessionAs(active: false)
         
         Task {
             if let currentTime = self.getCurrentTime() {
@@ -572,10 +574,17 @@ class AudioPlayer: NSObject {
     private func initAudioSession() {
         do {
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio)
-            try AVAudioSession.sharedInstance().setActive(true)
         } catch {
             NSLog("Failed to set AVAudioSession category")
             print(error)
+        }
+    }
+    
+    private func markAudioSessionAs(active: Bool) {
+        do {
+            try AVAudioSession.sharedInstance().setActive(active)
+        } catch {
+            NSLog("Failed to set audio session as active=\(active)")
         }
     }
     
