@@ -15,9 +15,10 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
     static private let downloadsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     
     private lazy var session: URLSession = {
+        let config = URLSessionConfiguration.background(withIdentifier: "AbsDownloader")
         let queue = OperationQueue()
         queue.maxConcurrentOperationCount = 5
-        return URLSession(configuration: .default, delegate: self, delegateQueue: queue)
+        return URLSession(configuration: config, delegate: self, delegateQueue: queue)
     }()
     private let progressStatusQueue = DispatchQueue(label: "progress-status-queue", attributes: .concurrent)
     private var downloadItemProgress = [String: DownloadItem]()
@@ -75,6 +76,18 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
                     downloadItemPart.progress = percentDownloaded
                 }
             }
+        }
+    }
+    
+    // Called when downloads are complete on the background thread
+    public func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
+        DispatchQueue.main.async {
+            guard let appDelegate = UIApplication.shared.delegate as? AppDelegate,
+                let backgroundCompletionHandler =
+                appDelegate.backgroundCompletionHandler else {
+                    return
+            }
+            backgroundCompletionHandler()
         }
     }
     
