@@ -71,6 +71,7 @@ class AudioPlayer: NSObject {
         }
         
         // Listen to player events
+        self.setupInteruptionNotification()
         self.audioPlayer.addObserver(self, forKeyPath: #keyPath(AVPlayer.rate), options: .new, context: &playerContext)
         self.audioPlayer.addObserver(self, forKeyPath: #keyPath(AVPlayer.currentItem), options: .new, context: &playerContext)
         
@@ -119,6 +120,7 @@ class AudioPlayer: NSObject {
             print(error)
         }
         
+        self.removeInteruptionNotification()
         DispatchQueue.runOnMainQueue {
             UIApplication.shared.endReceivingRemoteControlEvents()
         }
@@ -144,6 +146,14 @@ class AudioPlayer: NSObject {
             }
         }
         return 0
+    }
+    
+    private func setupInteruptionNotification() {
+        NotificationCenter.default.addObserver(self, selector: #selector(handleInteruption), name: AVAudioSession.interruptionNotification, object: AVAudioSession.sharedInstance())
+    }
+    
+    private func removeInteruptionNotification() {
+        NotificationCenter.default.removeObserver(self, name: AVAudioSession.interruptionNotification, object: AVAudioSession.sharedInstance())
     }
     
     private func setupTimeObserver() {
@@ -585,6 +595,25 @@ class AudioPlayer: NSObject {
             try AVAudioSession.sharedInstance().setActive(active)
         } catch {
             NSLog("Failed to set audio session as active=\(active)")
+        }
+    }
+    
+    // MARK: - iOS audio interupt notifications
+    @objc private func handleInteruption(notification: Notification) {
+        guard let userInfo = notification.userInfo,
+            let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+            let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
+                return
+        }
+        
+        switch type {
+        case .ended:
+            guard let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt else { return }
+            let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+            if options.contains(.shouldResume) {
+                self.play(allowSeekBack: true)
+            }
+        default: ()
         }
     }
     
