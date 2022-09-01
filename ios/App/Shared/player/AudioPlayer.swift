@@ -219,7 +219,7 @@ class AudioPlayer: NSObject {
             
             // Seek the player before initializing, so a currentTime of 0 does not appear in MediaProgress / session
             let firstReady = self.status < 0
-            if firstReady || !self.playWhenReady {
+            if firstReady && !self.playWhenReady {
                 // Seek is async, and if we call this when also pressing play, we will get weird jumps in the scrub bar depending on timing
                 // Seeking to the correct position happens during play()
                 self.seek(playbackSession.currentTime, from: "queueItemStatusObserver")
