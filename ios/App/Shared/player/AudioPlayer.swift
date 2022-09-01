@@ -195,34 +195,46 @@ class AudioPlayer: NSObject {
     
     private func setupQueueItemStatusObserver() {
         self.queueItemStatusObserver?.invalidate()
-        self.queueItemStatusObserver = self.audioPlayer.currentItem?.observe(\.status, options: [.new, .old], changeHandler: { (playerItem, change) in
-            guard let playbackSession = self.getPlaybackSession() else {
-                NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.failed.rawValue), object: nil)
-                return
-            }
-            if (playerItem.status == .readyToPlay) {
-                NSLog("queueStatusObserver: Current Item Ready to play. PlayWhenReady: \(self.playWhenReady)")
-                self.updateNowPlaying()
-                
-                // Seek the player before initializing, so a currentTime of 0 does not appear in MediaProgress / session
-                let firstReady = self.status < 0
-                if firstReady || self.playWhenReady {
-                    self.seek(playbackSession.currentTime, from: "queueItemStatusObserver")
-                }
-                
-                // Mark the player as ready
-                self.status = 0
-                
-                // Start the player, if requested
-                if self.playWhenReady {
-                    self.playWhenReady = false
-                    self.play()
-                }
-            } else if (playerItem.status == .failed) {
-                NSLog("queueStatusObserver: FAILED \(playerItem.error?.localizedDescription ?? "")")
-                NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.failed.rawValue), object: nil)
-            }
+        let status = self.audioPlayer.currentItem?.status.rawValue ?? -1
+        
+        NSLog("queueStatusObserver: Setting up status=\(status)")
+        // First item already loaded, we need to fire manually
+        if status == 1, let playerItem = self.audioPlayer.currentItem {
+            self.handleQueueItemStatus(playerItem: playerItem)
+        }
+        // Now listen for future updates
+        self.queueItemStatusObserver = self.audioPlayer.currentItem?.observe(\.status, options: [.new, .old], changeHandler: { playerItem, change in
+            self.handleQueueItemStatus(playerItem: playerItem)
         })
+    }
+    
+    private func handleQueueItemStatus(playerItem: AVPlayerItem) {
+        NSLog("queueStatusObserver: Current item status changed")
+        guard let playbackSession = self.getPlaybackSession() else {
+            NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.failed.rawValue), object: nil)
+            return
+        }
+        if (playerItem.status == .readyToPlay) {
+            NSLog("queueStatusObserver: Current Item Ready to play. PlayWhenReady: \(self.playWhenReady)")
+            
+            // Seek the player before initializing, so a currentTime of 0 does not appear in MediaProgress / session
+            let firstReady = self.status < 0
+            if firstReady || self.playWhenReady {
+                self.seek(playbackSession.currentTime, from: "queueItemStatusObserver")
+            }
+            
+            // Mark the player as ready
+            self.status = 0
+            
+            // Start the player, if requested
+            if self.playWhenReady {
+                self.playWhenReady = false
+                self.play()
+            }
+        } else if (playerItem.status == .failed) {
+            NSLog("queueStatusObserver: FAILED \(playerItem.error?.localizedDescription ?? "")")
+            NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.failed.rawValue), object: nil)
+        }
     }
     
     private func startPausedTimer() {
