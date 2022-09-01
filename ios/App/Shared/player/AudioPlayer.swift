@@ -219,7 +219,9 @@ class AudioPlayer: NSObject {
             
             // Seek the player before initializing, so a currentTime of 0 does not appear in MediaProgress / session
             let firstReady = self.status < 0
-            if firstReady || self.playWhenReady {
+            if firstReady || !self.playWhenReady {
+                // Seek is async, and if we call this when also pressing play, we will get weird jumps in the scrub bar depending on timing
+                // Seeking to the correct position happens during play()
                 self.seek(playbackSession.currentTime, from: "queueItemStatusObserver")
             }
             
@@ -255,59 +257,67 @@ class AudioPlayer: NSObject {
     // MARK: - Methods
     public func play(allowSeekBack: Bool = false) {
         guard self.isInitialized() else { return }
+        guard let session = self.getPlaybackSession() else {
+            NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.failed.rawValue), object: nil)
+            return
+        }
         
         // Capture remaining sleep time before changing the track position
         let sleepSecondsRemaining = PlayerHandler.remainingSleepTime
         
-        if allowSeekBack, let session = self.getPlaybackSession() {
-            let lastPlayed = (session.updatedAt ?? 0)/1000
-            let difference = Date.timeIntervalSinceReferenceDate - lastPlayed
-            var time: Int?
-            
-            if lastPlayed == 0 {
-                time = 5
-            } else if difference < 6 {
-                time = 2
-            } else if difference < 12 {
-                time = 10
-            } else if difference < 30 {
-                time = 15
-            } else if difference < 180 {
-                time = 20
-            } else if difference < 3600 {
-                time = 25
-            } else {
-                time = 29
-            }
-            
-            if time != nil {
-                guard let currentTime = self.getCurrentTime() else {
-                    NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.failed.rawValue), object: nil)
-                    return
-                }
-                seek(currentTime - Double(time!), from: "play")
-            }
-        }
-        
+        // Stop the paused timer
         self.stopPausedTimer()
         
-        Task {
-            if let currentTime = self.getCurrentTime() {
-                await PlayerProgress.shared.syncFromPlayer(currentTime: currentTime, includesPlayProgress: self.isPlaying(), isStopping: false)
+        // Determine where we are starting playback
+        let lastPlayed = (session.updatedAt ?? 0)/1000
+        let currentTime = allowSeekBack ? calculateSeekBackTimeAtCurrentTime(session.currentTime, lastPlayed: lastPlayed) : session.currentTime
+        
+        // Sync our new playback position
+        Task { await PlayerProgress.shared.syncFromPlayer(currentTime: currentTime, includesPlayProgress: self.isPlaying(), isStopping: false) }
+
+        // Start playback, with a seek, for as smooth a scrub bar start as possible
+        let currentTrackStartOffset = session.audioTracks[self.currentTrackIndex].startOffset ?? 0.0
+        let seekTime = currentTime - currentTrackStartOffset
+        self.audioPlayer.seek(to: CMTime(seconds: seekTime, preferredTimescale: 1000), toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] completed in
+            if completed, let self = self {
+                // Start playback
+                self.audioPlayer.play()
+                self.rate = self.tmpRate
+                self.audioPlayer.rate = self.tmpRate
+                self.status = 1
+                
+                // If we have an active sleep timer, reschedule based on rate
+                self.rescheduleSleepTimerAtTime(time: currentTime, secondsRemaining: sleepSecondsRemaining)
+                
+                // Update the progress
+                self.updateNowPlaying()
             }
         }
-
-        self.audioPlayer.play()
-        self.status = 1
-        self.rate = self.tmpRate
-        self.audioPlayer.rate = self.tmpRate
+    }
+    
+    private func calculateSeekBackTimeAtCurrentTime(_ currentTime: Double, lastPlayed: Double) -> Double {
+        let difference = Date.timeIntervalSinceReferenceDate - lastPlayed
+        var time: Double = 0
         
-        // If we have an active sleep timer, reschedule based on rate
-        if let currentTime = self.getCurrentTime() {
-            self.rescheduleSleepTimerAtTime(time: currentTime, secondsRemaining: sleepSecondsRemaining)
+        // Scale seek back time based on how long since last play
+        if lastPlayed == 0 {
+            time = 5
+        } else if difference < 6 {
+            time = 2
+        } else if difference < 12 {
+            time = 10
+        } else if difference < 30 {
+            time = 15
+        } else if difference < 180 {
+            time = 20
+        } else if difference < 3600 {
+            time = 25
+        } else {
+            time = 29
         }
         
-        updateNowPlaying()
+        // Wind the clock back
+        return currentTime - time
     }
     
     public func pause() {
