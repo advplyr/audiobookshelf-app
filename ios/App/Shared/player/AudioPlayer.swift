@@ -194,18 +194,18 @@ class AudioPlayer: NSObject {
     }
     
     private func setupQueueItemStatusObserver() {
+        NSLog("queueStatusObserver: Setting up")
+
+        // Listen for player item updates
         self.queueItemStatusObserver?.invalidate()
-        let status = self.audioPlayer.currentItem?.status.rawValue ?? -1
-        
-        NSLog("queueStatusObserver: Setting up status=\(status)")
-        // First item already loaded, we need to fire manually
-        if status == 1, let playerItem = self.audioPlayer.currentItem {
-            self.handleQueueItemStatus(playerItem: playerItem)
-        }
-        // Now listen for future updates
         self.queueItemStatusObserver = self.audioPlayer.currentItem?.observe(\.status, options: [.new, .old], changeHandler: { playerItem, change in
             self.handleQueueItemStatus(playerItem: playerItem)
         })
+        
+        // Ensure we didn't miss a player item update during initialization
+        if let playerItem = self.audioPlayer.currentItem {
+            self.handleQueueItemStatus(playerItem: playerItem)
+        }
     }
     
     private func handleQueueItemStatus(playerItem: AVPlayerItem) {
