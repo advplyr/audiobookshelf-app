@@ -41,8 +41,9 @@ class AudioPlayer: NSObject {
     
     // Sleep timer values
     internal var sleepTimeChapterStopAt: Double?
-    internal var sleepTimeStopAt: Double?
-    internal var sleepTimeToken: Any?
+    internal var sleepTimeChapterToken: Any?
+    internal var sleepTimer: Timer?
+    internal var sleepTimeRemaining: Double?
     
     private var currentTrackIndex = 0
     private var allPlayerItems:[AVPlayerItem] = []
@@ -168,8 +169,8 @@ class AudioPlayer: NSObject {
                     await PlayerProgress.shared.syncFromPlayer(currentTime: currentTime, includesPlayProgress: isPlaying, isStopping: false)
                 }
                 
-                // Update the sleep time, if set
-                if self.sleepTimeStopAt != nil {
+                if self.isSleepTimerSet() {
+                    // Update the UI
                     NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.sleepSet.rawValue), object: nil)
                 }
             }
@@ -264,12 +265,6 @@ class AudioPlayer: NSObject {
             return
         }
         
-        // Capture remaining sleep time before changing the track position
-        let sleepSecondsRemaining = self.getSleepTimeRemaining()
-        
-        // Stop the paused timer
-        self.stopPausedTimer()
-        
         // Determine where we are starting playback
         let lastPlayed = (session.updatedAt ?? 0)/1000
         let currentTime = allowSeekBack ? calculateSeekBackTimeAtCurrentTime(session.currentTime, lastPlayed: lastPlayed) : session.currentTime
@@ -282,16 +277,7 @@ class AudioPlayer: NSObject {
         let seekTime = currentTime - currentTrackStartOffset
         self.audioPlayer.seek(to: CMTime(seconds: seekTime, preferredTimescale: 1000), toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] completed in
             guard completed else { return }
-            guard let self = self else { return }
-            
-            // Start playback
-            self.audioPlayer.play()
-            self.rate = self.tmpRate
-            self.audioPlayer.rate = self.tmpRate
-            self.status = 1
-            
-            // Update the progress
-            self.updateNowPlaying()
+            self?.resumePlayback()
         }
     }
     
@@ -320,9 +306,24 @@ class AudioPlayer: NSObject {
         return currentTime - time
     }
     
+    private func resumePlayback() {
+        NSLog("PLAY: Resuming playback")
+        
+        // Stop the paused timer
+        self.stopPausedTimer()
+        
+        self.audioPlayer.play()
+        self.audioPlayer.rate = self.tmpRate
+        self.status = 1
+        
+        // Update the progress
+        self.updateNowPlaying()
+    }
+    
     public func pause() {
         guard self.isInitialized() else { return }
         
+        NSLog("PAUSE: Pausing playback")
         self.audioPlayer.pause()
         
         Task {
@@ -332,7 +333,6 @@ class AudioPlayer: NSObject {
         }
         
         self.status = 0
-        self.rate = 0.0
         
         updateNowPlaying()
         
@@ -342,10 +342,7 @@ class AudioPlayer: NSObject {
     public func seek(_ to: Double, from: String) {
         let continuePlaying = rate > 0.0
         
-        // Capture remaining sleep time before changing the track position or pausing
-        let sleepSecondsRemaining = self.getSleepTimeRemaining()
-        
-        pause()
+        self.pause()
         
         NSLog("SEEK: Seek to \(to) from \(from)")
         
@@ -386,22 +383,16 @@ class AudioPlayer: NSObject {
                 guard completed else { return NSLog("SEEK: WARNING: seeking not completed (to \(seekTime)") }
                 guard let self = self else { return }
                 
-                // Reschedule the sleep timer
-                if let currentTime = self.getCurrentTime() {
-                    self.rescheduleSleepTimerAtTime(time: currentTime, secondsRemaining: sleepSecondsRemaining)
+                if continuePlaying {
+                    self.resumePlayback()
                 }
                 
-                if continuePlaying {
-                    self.play()
-                }
                 self.updateNowPlaying()
             }
         }
     }
     
     public func setPlaybackRate(_ rate: Float, observed: Bool = false) {
-        // Capture remaining sleep time before changing the rate
-        let sleepSecondsRemaining = self.getSleepTimeRemaining()
         let playbackSpeedChanged = rate > 0.0 && rate != self.tmpRate && !(observed && rate == 1)
         
         if self.audioPlayer.rate != rate {
@@ -414,11 +405,6 @@ class AudioPlayer: NSObject {
         
         if playbackSpeedChanged {
             self.tmpRate = rate
-            
-            // If we have an active sleep timer, reschedule based on rate
-            if let currentTime = self.getCurrentTime() {
-                self.rescheduleSleepTimerAtTime(time: currentTime, secondsRemaining: sleepSecondsRemaining)
-            }
             
             // Setup the time observer again at the new rate
             self.setupTimeObserver()

@@ -12,54 +12,59 @@ extension AudioPlayer {
     
     // MARK: - Public API
     
+    public func isSleepTimerSet() -> Bool {
+        return self.isCountdownSleepTimerSet() || self.isChapterSleepTimerSet()
+    }
+    
     public func getSleepTimeRemaining() -> Double? {
         guard let currentTime = self.getCurrentTime() else { return nil }
         
         // Return the player time until sleep
-        var timeUntilSleep: Double? = nil
+        var sleepTimeRemaining: Double? = nil
         if let chapterStopAt = self.sleepTimeChapterStopAt {
-            timeUntilSleep = chapterStopAt - currentTime
-        } else if let stopAt = self.sleepTimeStopAt {
-            timeUntilSleep = stopAt - currentTime
+            sleepTimeRemaining = chapterStopAt - currentTime
+        } else if self.isCountdownSleepTimerSet() {
+            sleepTimeRemaining = self.sleepTimeRemaining
         }
         
-        // Scale the time until sleep based on the playback rate
-        if let timeUntilSleep = timeUntilSleep {
-            let timeUntilSleepScaled = timeUntilSleep / self.getPlaybackRate()
-            guard timeUntilSleepScaled.isNaN == false else { return nil }
-            
-            return timeUntilSleepScaled.rounded()
-        } else {
+        // Guard against invalid sleep timers
+        if sleepTimeRemaining?.isLess(than: 0) ?? false {
+            self.removeSleepTimer()
             return nil
         }
+        
+        return sleepTimeRemaining
     }
     
-    // Let iOS handle the sleep timer logic by letting us know when it's time to stop
-    public func setSleepTime(stopAt: Double, scaleBasedOnSpeed: Bool = false) {
-        NSLog("SLEEP TIMER: Scheduling for \(stopAt)")
+    public func setSleepTimer(secondsUntilSleep: Double) {
+        NSLog("SLEEP TIMER: Sleeping in \(secondsUntilSleep) seconds")
+        self.removeSleepTimer()
+        self.sleepTimeRemaining = secondsUntilSleep
         
-        // Reset any previous sleep timer
-        let isChapterSleepTimer = !scaleBasedOnSpeed
-        self.removeSleepTimer(resetStopAt: !isChapterSleepTimer)
-        
-        guard let currentTime = getCurrentTime() else {
-            NSLog("SLEEP TIMER: Failed to get currenTime")
-            return
+        DispatchQueue.runOnMainQueue {
+            self.sleepTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+                if self.isPlaying() {
+                    self.decrementSleepTimerIfRunning()
+                }
+            }
         }
         
-        // Mark the time to stop playing
-        let scaledStopAt = self.calculateScaledStopAt(stopAt, currentTime: currentTime, scaleBasedOnSpeed: scaleBasedOnSpeed)
-        self.sleepTimeStopAt = scaledStopAt
-        let sleepTime = CMTime(seconds: scaledStopAt, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+        // Update the UI
+        NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.sleepSet.rawValue), object: nil)
+    }
+    
+    public func setChapterSleepTimer(stopAt: Double) {
+        NSLog("SLEEP TIMER: Scheduling for chapter end \(stopAt)")
+        self.removeSleepTimer()
         
         // Schedule the observation time
+        self.sleepTimeChapterStopAt = stopAt
+        let sleepTime = CMTime(seconds: stopAt, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
         var times = [NSValue]()
         times.append(NSValue(time: sleepTime))
         
-        self.sleepTimeToken = self.audioPlayer.addBoundaryTimeObserver(forTimes: times, queue: self.queue) { [weak self] in
-            NSLog("SLEEP TIMER: Pausing audio")
-            self?.pause()
-            self?.removeSleepTimer()
+        self.sleepTimeChapterToken = self.audioPlayer.addBoundaryTimeObserver(forTimes: times, queue: self.queue) { [weak self] in
+            self?.handleSleepEnd()
         }
         
         // Update the UI
@@ -67,56 +72,66 @@ extension AudioPlayer {
     }
     
     public func increaseSleepTime(extraTimeInSeconds: Double) {
-        if let sleepTime = self.getSleepTimeRemaining(), let currentTime = getCurrentTime() {
-            let newSleepTimerPosition = currentTime + sleepTime + extraTimeInSeconds
-            if newSleepTimerPosition > currentTime {
-                self.setSleepTime(stopAt: newSleepTimerPosition, scaleBasedOnSpeed: true)
-            }
-        }
+        self.removeChapterSleepTimer()
+        guard let sleepTimeRemaining = self.sleepTimeRemaining else { return }
+        self.sleepTimeRemaining = sleepTimeRemaining + extraTimeInSeconds
+        
+        // Update the UI
+        NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.sleepSet.rawValue), object: nil)
     }
     
     public func decreaseSleepTime(removeTimeInSeconds: Double) {
-        if let sleepTime = self.getSleepTimeRemaining(), let currentTime = getCurrentTime() {
-            let newSleepTimerPosition = currentTime + sleepTime - removeTimeInSeconds
-            if newSleepTimerPosition > currentTime {
-                self.setSleepTime(stopAt: newSleepTimerPosition, scaleBasedOnSpeed: true)
-            }
-        }
-
-    }
-    
-    public func removeSleepTimer(resetStopAt: Bool = true) {
-        if resetStopAt {
-            self.sleepTimeStopAt = nil
-            self.sleepTimeChapterStopAt = nil
-        }
-        
-        if let token = self.sleepTimeToken {
-            self.audioPlayer.removeTimeObserver(token)
-            self.sleepTimeToken = nil
-        }
+        self.removeChapterSleepTimer()
+        guard let sleepTimeRemaining = self.sleepTimeRemaining else { return }
+        self.sleepTimeRemaining = sleepTimeRemaining - removeTimeInSeconds
         
         // Update the UI
-        NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.sleepEnded.rawValue), object: self)
+        NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.sleepSet.rawValue), object: nil)
+    }
+    
+    public func removeSleepTimer() {
+        self.sleepTimer?.invalidate()
+        self.sleepTimer = nil
+        self.removeChapterSleepTimer()
+        self.sleepTimeRemaining = nil
+        
+        // Update the UI after a delay, to avoid a race condition when changing chapters
+        DispatchQueue.runOnMainQueue {
+            Timer.scheduledTimer(withTimeInterval: 0.1, repeats: false) { _ in
+                if !self.isSleepTimerSet() {
+                    NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.sleepEnded.rawValue), object: self)
+                }
+            }
+        }
     }
     
     
     // MARK: - Internal helpers
     
-    internal func rescheduleSleepTimerAtTime(time: Double, secondsRemaining: Double?) {
-        guard self.isSleepTimerSet() else { return }
-        
-        // Cancel a chapter sleep timer that is no longer valid
-        if isChapterSleepTimerBeforeTime(time) {
-            return self.removeSleepTimer()
+    internal func decrementSleepTimerIfRunning() {
+        if var sleepTimeRemaining = self.sleepTimeRemaining {
+            sleepTimeRemaining -= 1
+            self.sleepTimeRemaining = sleepTimeRemaining
+            
+            // Handle the sleep if the timer has expired
+            if sleepTimeRemaining <= 0 {
+                self.handleSleepEnd()
+            }
         }
-        
-        // Update the sleep timer
-        if !isChapterSleepTimer() {
-            guard let secondsRemaining = secondsRemaining else { return }
-            let newSleepTimerPosition = time + secondsRemaining
-            self.setSleepTime(stopAt: newSleepTimerPosition, scaleBasedOnSpeed: true)
+    }
+    
+    private func handleSleepEnd() {
+        NSLog("SLEEP TIMER: Pausing audio")
+        self.pause()
+        self.removeSleepTimer()
+    }
+    
+    private func removeChapterSleepTimer() {
+        if let token = self.sleepTimeChapterToken {
+            self.audioPlayer.removeTimeObserver(token)
         }
+        self.sleepTimeChapterToken = nil
+        self.sleepTimeChapterStopAt = nil
     }
     
     private func isChapterSleepTimerBeforeTime(_ time: Double) -> Bool {
@@ -127,29 +142,12 @@ extension AudioPlayer {
         return false
     }
     
-    private func isSleepTimerSet() -> Bool {
-        return self.sleepTimeStopAt != nil
+    private func isCountdownSleepTimerSet() -> Bool {
+        return self.sleepTimeRemaining != nil
     }
     
-    private func isChapterSleepTimer() -> Bool {
+    private func isChapterSleepTimerSet() -> Bool {
         return self.sleepTimeChapterStopAt != nil
-    }
-    
-    private func getPlaybackRate() -> Double {
-        // Consider paused as playing at 1x
-        return Double(self.rate > 0 ? self.rate : 1)
-    }
-    
-    private func calculateScaledStopAt(_ stopAt: Double, currentTime: Double, scaleBasedOnSpeed: Bool) -> Double {
-        if scaleBasedOnSpeed {
-            // Calculate the scaled time to stop at
-            let secondsUntilStopAt1x = stopAt - currentTime
-            let secondsUntilSleep = secondsUntilStopAt1x * self.getPlaybackRate()
-            NSLog("SLEEP TIMER: Adjusted based on playback speed of \(self.getPlaybackRate()) to \(secondsUntilSleep)")
-            return currentTime + secondsUntilSleep
-        } else {
-            return stopAt
-        }
     }
     
 }

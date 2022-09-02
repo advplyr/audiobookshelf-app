@@ -70,13 +70,11 @@ class PlayerHandler {
     }
     
     public static func setSleepTime(secondsUntilSleep: Double) {
-        guard let currentTime = self.player?.getCurrentTime() else { return }
-        let stopAt = secondsUntilSleep + currentTime
-        self.player?.setSleepTime(stopAt: stopAt, scaleBasedOnSpeed: true)
+        self.player?.setSleepTimer(secondsUntilSleep: secondsUntilSleep)
     }
     
     public static func setChapterSleepTime(stopAt: Double) {
-        self.player?.setSleepTime(stopAt: stopAt, scaleBasedOnSpeed: false)
+        self.player?.setChapterSleepTimer(stopAt: stopAt)
     }
     
     public static func increaseSleepTime(increaseSeconds: Double) {
