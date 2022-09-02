@@ -22,7 +22,7 @@ extension AudioPlayer {
         // Return the player time until sleep
         var sleepTimeRemaining: Double? = nil
         if let chapterStopAt = self.sleepTimeChapterStopAt {
-            sleepTimeRemaining = chapterStopAt - currentTime
+            sleepTimeRemaining = (chapterStopAt - currentTime) / Double(self.rate > 0 ? self.rate : 1.0)
         } else if self.isCountdownSleepTimerSet() {
             sleepTimeRemaining = self.sleepTimeRemaining
         }
@@ -59,7 +59,22 @@ extension AudioPlayer {
         
         // Schedule the observation time
         self.sleepTimeChapterStopAt = stopAt
-        let sleepTime = CMTime(seconds: stopAt, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+        
+        // Get the current track
+        guard let playbackSession = self.getPlaybackSession() else { return }
+        let currentTrack = playbackSession.audioTracks[currentTrackIndex]
+
+        // Set values
+        guard let trackStartTime = currentTrack.startOffset else { return }
+        guard let trackEndTime = currentTrack.endOffset else { return }
+
+        // Verify the stop is during the current audio track
+        guard trackEndTime >= stopAt else { return }
+
+        // Schedule the observation time
+        let trackBasedStopTime = stopAt - trackStartTime
+        
+        let sleepTime = CMTime(seconds: trackBasedStopTime, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
         var times = [NSValue]()
         times.append(NSValue(time: sleepTime))
         
