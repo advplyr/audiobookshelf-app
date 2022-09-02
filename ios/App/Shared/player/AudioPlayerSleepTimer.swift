@@ -27,8 +27,8 @@ extension AudioPlayer {
             sleepTimeRemaining = self.sleepTimeRemaining
         }
         
-        // Guard against invalid sleep timers
-        if sleepTimeRemaining?.isLess(than: 0) ?? false {
+        // Guard against invalid sleep timers, but give it a chance to go 1 second negative to prevent a raise condition
+        if sleepTimeRemaining?.isLess(than: -1) ?? false {
             self.removeSleepTimer()
             return nil
         }
