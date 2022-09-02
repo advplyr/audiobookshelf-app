@@ -104,6 +104,7 @@ class PlayerHandler {
     
     public static func seekForward(amount: Double) {
         guard let player = player else { return }
+        guard player.isInitialized() else { return }
         guard let currentTime = player.getCurrentTime() else { return }
         
         let destinationTime = currentTime + amount
@@ -112,6 +113,7 @@ class PlayerHandler {
     
     public static func seekBackward(amount: Double) {
         guard let player = player else { return }
+        guard player.isInitialized() else { return }
         guard let currentTime = player.getCurrentTime() else { return }
         
         let destinationTime = currentTime - amount
@@ -119,7 +121,10 @@ class PlayerHandler {
     }
     
     public static func seek(amount: Double) {
-        player?.seek(amount, from: "handler")
+        guard let player = player else { return }
+        guard player.isInitialized() else { return }
+        
+        player.seek(amount, from: "handler")
     }
     
     public static func getMetdata() -> [String: Any]? {
