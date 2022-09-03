@@ -157,7 +157,19 @@ extension LocalMediaProgress {
         }
     }
     
+    static func getLocalMediaProgressId(localLibraryItemId: String?, localEpisodeId: String?) -> String? {
+        if let itemId = localLibraryItemId, let episodeId = localEpisodeId {
+            return "\(itemId)-\(episodeId)"
+        } else if let itemId = localLibraryItemId {
+            return itemId
+        } else {
+            return nil
+        }
+    }
+    
     static func fetchOrCreateLocalMediaProgress(localMediaProgressId: String?, localLibraryItemId: String?, localEpisodeId: String?) throws -> LocalMediaProgress? {
+        let localMediaProgressId = localMediaProgressId != nil ? localMediaProgressId : LocalMediaProgress.getLocalMediaProgressId(localLibraryItemId: localLibraryItemId, localEpisodeId: localEpisodeId)
+        
         let realm = try Realm()
         return try realm.write { () -> LocalMediaProgress? in
             if let localMediaProgressId = localMediaProgressId {
