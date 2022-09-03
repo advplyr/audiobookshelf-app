@@ -74,6 +74,7 @@ class AudioPlayer: NSObject {
         }
         
         // Listen to player events
+        self.setupAudioSessionNotifications()
         self.audioPlayer.addObserver(self, forKeyPath: #keyPath(AVPlayer.rate), options: .new, context: &playerContext)
         self.audioPlayer.addObserver(self, forKeyPath: #keyPath(AVPlayer.currentItem), options: .new, context: &playerContext)
         
@@ -123,6 +124,7 @@ class AudioPlayer: NSObject {
             print(error)
         }
         
+        self.removeAudioSessionNotifications()
         DispatchQueue.runOnMainQueue {
             UIApplication.shared.endReceivingRemoteControlEvents()
         }
@@ -153,6 +155,16 @@ class AudioPlayer: NSObject {
             }
         }
         return 0
+    }
+    
+    private func setupAudioSessionNotifications() {
+        NotificationCenter.default.addObserver(self, selector: #selector(handleInteruption), name: AVAudioSession.interruptionNotification, object: AVAudioSession.sharedInstance())
+        NotificationCenter.default.addObserver(self, selector: #selector(handleRouteChange), name: AVAudioSession.routeChangeNotification, object: AVAudioSession.sharedInstance())
+    }
+    
+    private func removeAudioSessionNotifications() {
+        NotificationCenter.default.removeObserver(self, name: AVAudioSession.interruptionNotification, object: AVAudioSession.sharedInstance())
+        NotificationCenter.default.removeObserver(self, name: AVAudioSession.routeChangeNotification, object: AVAudioSession.sharedInstance())
     }
     
     private func setupTimeObserver() {
@@ -327,6 +339,7 @@ class AudioPlayer: NSObject {
         // Stop the paused timer
         self.stopPausedTimer()
         
+        self.markAudioSessionAs(active: true)
         self.audioPlayer.play()
         self.audioPlayer.rate = self.tmpRate
         self.status = 1
@@ -340,6 +353,7 @@ class AudioPlayer: NSObject {
         
         NSLog("PAUSE: Pausing playback")
         self.audioPlayer.pause()
+        self.markAudioSessionAs(active: false)
         
         Task {
             if let currentTime = self.getCurrentTime() {
@@ -485,11 +499,69 @@ class AudioPlayer: NSObject {
     private func initAudioSession() {
         do {
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio)
-            try AVAudioSession.sharedInstance().setActive(true)
         } catch {
             NSLog("Failed to set AVAudioSession category")
             print(error)
         }
+    }
+    
+    private func markAudioSessionAs(active: Bool) {
+        do {
+            try AVAudioSession.sharedInstance().setActive(active)
+        } catch {
+            NSLog("Failed to set audio session as active=\(active)")
+        }
+    }
+    
+    // MARK: - iOS audio session notifications
+    @objc private func handleInteruption(notification: Notification) {
+        guard let userInfo = notification.userInfo,
+            let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+            let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
+                return
+        }
+        
+        switch type {
+        case .ended:
+            guard let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt else { return }
+            let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+            if options.contains(.shouldResume) {
+                self.play(allowSeekBack: true)
+            }
+        default: ()
+        }
+    }
+    
+    @objc private func handleRouteChange(notification: Notification) {
+        guard let userInfo = notification.userInfo,
+            let reasonValue = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
+            let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) else {
+                return
+        }
+        
+        switch reason {
+        case .newDeviceAvailable: // New device found.
+            let session = AVAudioSession.sharedInstance()
+            let headphonesConnected = hasHeadphones(in: session.currentRoute)
+            if headphonesConnected {
+                // We should just let things be, as it's okay to go from speaker to headphones
+            }
+        case .oldDeviceUnavailable: // Old device removed.
+            if let previousRoute = userInfo[AVAudioSessionRouteChangePreviousRouteKey] as? AVAudioSessionRouteDescription {
+                let headphonesWereConnected = hasHeadphones(in: previousRoute)
+                if headphonesWereConnected {
+                    // Removing headphones we should pause instead of keeping on playing
+                    self.pause()
+                }
+            }
+        
+        default: ()
+        }
+    }
+    
+    private func hasHeadphones(in routeDescription: AVAudioSessionRouteDescription) -> Bool {
+        // Filter the outputs to only those with a port type of headphones.
+        return !routeDescription.outputs.filter({$0.portType == .headphones}).isEmpty
     }
     
     // MARK: - Now playing
