@@ -27,12 +27,6 @@ extension AudioPlayer {
             sleepTimeRemaining = self.sleepTimeRemaining
         }
         
-        // Guard against invalid sleep timers, but give it a chance to go 1 second negative to prevent a raise condition
-        if sleepTimeRemaining?.isLess(than: -1) ?? false {
-            self.removeSleepTimer()
-            return nil
-        }
-        
         return sleepTimeRemaining
     }
     
@@ -110,14 +104,8 @@ extension AudioPlayer {
         self.removeChapterSleepTimer()
         self.sleepTimeRemaining = nil
         
-        // Update the UI after a delay, to avoid a race condition when changing chapters
-        DispatchQueue.runOnMainQueue {
-            Timer.scheduledTimer(withTimeInterval: 0.1, repeats: false) { _ in
-                if !self.isSleepTimerSet() {
-                    NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.sleepEnded.rawValue), object: self)
-                }
-            }
-        }
+        // Update the UI
+        NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.sleepEnded.rawValue), object: self)
     }
     
     
@@ -149,7 +137,7 @@ extension AudioPlayer {
         self.sleepTimeChapterStopAt = nil
     }
     
-    private func isChapterSleepTimerBeforeTime(_ time: Double) -> Bool {
+    internal func isChapterSleepTimerBeforeTime(_ time: Double) -> Bool {
         if let chapterStopAt = self.sleepTimeChapterStopAt {
             return chapterStopAt <= time
         }
@@ -157,11 +145,11 @@ extension AudioPlayer {
         return false
     }
     
-    private func isCountdownSleepTimerSet() -> Bool {
+    internal func isCountdownSleepTimerSet() -> Bool {
         return self.sleepTimeRemaining != nil
     }
     
-    private func isChapterSleepTimerSet() -> Bool {
+    internal func isChapterSleepTimerSet() -> Bool {
         return self.sleepTimeChapterStopAt != nil
     }
     

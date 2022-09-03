@@ -178,6 +178,11 @@ class AudioPlayer: NSObject {
                 if self.isSleepTimerSet() {
                     // Update the UI
                     NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.sleepSet.rawValue), object: nil)
+                    
+                    // Handle a sitation where the user skips past the chapter end
+                    if self.isChapterSleepTimerBeforeTime(currentTime) {
+                        self.removeSleepTimer()
+                    }
                 }
             }
         }
