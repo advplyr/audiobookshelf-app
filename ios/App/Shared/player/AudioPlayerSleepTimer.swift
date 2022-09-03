@@ -42,9 +42,9 @@ extension AudioPlayer {
         self.sleepTimeRemaining = secondsUntilSleep
         
         DispatchQueue.runOnMainQueue {
-            self.sleepTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-                if self.isPlaying() {
-                    self.decrementSleepTimerIfRunning()
+            self.sleepTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+                if self?.isPlaying() ?? false {
+                    self?.decrementSleepTimerIfRunning()
                 }
             }
         }

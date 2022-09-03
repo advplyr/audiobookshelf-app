@@ -100,20 +100,21 @@ class AudioPlayer: NSObject {
 
         NSLog("Audioplayer ready")
     }
+    
     deinit {
         self.stopPausedTimer()
         self.removeSleepTimer()
         self.removeTimeObserver()
         self.queueObserver?.invalidate()
         self.queueItemStatusObserver?.invalidate()
-        destroy()
     }
+    
     public func destroy() {
         // Pause is not synchronous causing this error on below lines:
         // AVAudioSession_iOS.mm:1206  Deactivating an audio session that has running I/O. All I/O should be stopped or paused prior to deactivating the audio session
         // It is related to L79 `AVAudioSession.sharedInstance().setActive(false)`
-        pause()
-        audioPlayer.replaceCurrentItem(with: nil)
+        self.pause()
+        self.audioPlayer.replaceCurrentItem(with: nil)
         
         do {
             try AVAudioSession.sharedInstance().setActive(false)
@@ -125,6 +126,11 @@ class AudioPlayer: NSObject {
         DispatchQueue.runOnMainQueue {
             UIApplication.shared.endReceivingRemoteControlEvents()
         }
+        
+        // Remove observers
+        self.audioPlayer.removeObserver(self, forKeyPath: #keyPath(AVPlayer.rate), context: &playerContext)
+        self.audioPlayer.removeObserver(self, forKeyPath: #keyPath(AVPlayer.currentItem), context: &playerContext)
+        
         NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.closed.rawValue), object: nil)
     }
     
@@ -185,7 +191,8 @@ class AudioPlayer: NSObject {
     }
     
     private func setupQueueObserver() {
-        self.queueObserver = self.audioPlayer.observe(\.currentItem, options: [.new]) {_,_ in
+        self.queueObserver = self.audioPlayer.observe(\.currentItem, options: [.new]) { [weak self] _,_ in
+            guard let self = self else { return }
             let prevTrackIndex = self.currentTrackIndex
             self.audioPlayer.currentItem.map { item in
                 self.currentTrackIndex = self.allPlayerItems.firstIndex(of:item) ?? 0
@@ -201,8 +208,8 @@ class AudioPlayer: NSObject {
 
         // Listen for player item updates
         self.queueItemStatusObserver?.invalidate()
-        self.queueItemStatusObserver = self.audioPlayer.currentItem?.observe(\.status, options: [.new, .old], changeHandler: { playerItem, change in
-            self.handleQueueItemStatus(playerItem: playerItem)
+        self.queueItemStatusObserver = self.audioPlayer.currentItem?.observe(\.status, options: [.new, .old], changeHandler: { [weak self] playerItem, change in
+            self?.handleQueueItemStatus(playerItem: playerItem)
         })
         
         // Ensure we didn't miss a player item update during initialization
@@ -486,59 +493,59 @@ class AudioPlayer: NSObject {
         let deviceSettings = Database.shared.getDeviceSettings()
         
         commandCenter.playCommand.isEnabled = true
-        commandCenter.playCommand.addTarget { [unowned self] event in
-            play(allowSeekBack: true)
+        commandCenter.playCommand.addTarget { [weak self] event in
+            self?.play(allowSeekBack: true)
             return .success
         }
         commandCenter.pauseCommand.isEnabled = true
-        commandCenter.pauseCommand.addTarget { [unowned self] event in
-            pause()
+        commandCenter.pauseCommand.addTarget { [weak self] event in
+            self?.pause()
             return .success
         }
         
         commandCenter.skipForwardCommand.isEnabled = true
         commandCenter.skipForwardCommand.preferredIntervals = [NSNumber(value: deviceSettings.jumpForwardTime)]
-        commandCenter.skipForwardCommand.addTarget { [unowned self] event in
+        commandCenter.skipForwardCommand.addTarget { [weak self] event in
             guard let command = event.command as? MPSkipIntervalCommand else {
                 return .noSuchContent
             }
-            guard let currentTime = self.getCurrentTime() else {
+            guard let currentTime = self?.getCurrentTime() else {
                 return .commandFailed
             }
-            seek(currentTime + command.preferredIntervals[0].doubleValue, from: "remote")
+            self?.seek(currentTime + command.preferredIntervals[0].doubleValue, from: "remote")
             return .success
         }
         commandCenter.skipBackwardCommand.isEnabled = true
         commandCenter.skipBackwardCommand.preferredIntervals = [NSNumber(value: deviceSettings.jumpBackwardsTime)]
-        commandCenter.skipBackwardCommand.addTarget { [unowned self] event in
+        commandCenter.skipBackwardCommand.addTarget { [weak self] event in
             guard let command = event.command as? MPSkipIntervalCommand else {
                 return .noSuchContent
             }
-            guard let currentTime = self.getCurrentTime() else {
+            guard let currentTime = self?.getCurrentTime() else {
                 return .commandFailed
             }
-            seek(currentTime - command.preferredIntervals[0].doubleValue, from: "remote")
+            self?.seek(currentTime - command.preferredIntervals[0].doubleValue, from: "remote")
             return .success
         }
         
         commandCenter.changePlaybackPositionCommand.isEnabled = true
-        commandCenter.changePlaybackPositionCommand.addTarget { event in
+        commandCenter.changePlaybackPositionCommand.addTarget { [weak self] event in
             guard let event = event as? MPChangePlaybackPositionCommandEvent else {
                 return .noSuchContent
             }
             
-            self.seek(event.positionTime, from: "remote")
+            self?.seek(event.positionTime, from: "remote")
             return .success
         }
         
         commandCenter.changePlaybackRateCommand.isEnabled = true
         commandCenter.changePlaybackRateCommand.supportedPlaybackRates = [0.5, 0.75, 1.0, 1.25, 1.5, 2]
-        commandCenter.changePlaybackRateCommand.addTarget { event in
+        commandCenter.changePlaybackRateCommand.addTarget { [weak self] event in
             guard let event = event as? MPChangePlaybackRateCommandEvent else {
                 return .noSuchContent
             }
             
-            self.setPlaybackRate(event.playbackRate)
+            self?.setPlaybackRate(event.playbackRate)
             return .success
         }
     }
