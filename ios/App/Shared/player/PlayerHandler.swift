@@ -11,8 +11,6 @@ import RealmSwift
 class PlayerHandler {
     private static var player: AudioPlayer?
     
-    public static var sleepTimerChapterStopTime: Int? = nil
-    
     public static func startPlayback(sessionId: String, playWhenReady: Bool, playbackRate: Float) {
         guard let session = Database.shared.getPlaybackSession(id: sessionId) else { return }
         
@@ -59,34 +57,6 @@ class PlayerHandler {
         }
     }
     
-    public static var remainingSleepTime: Int? {
-        get {
-            guard let player = player else { return nil }
-            guard let currentTime = player.getCurrentTime() else { return nil }
-            
-            // Return the player time until sleep
-            var timeUntilSleep: Double? = nil
-            if let sleepTimerChapterStopTime = sleepTimerChapterStopTime {
-                timeUntilSleep = Double(sleepTimerChapterStopTime) - currentTime
-            } else if let stopAt = player.getSleepStopAt() {
-                timeUntilSleep = stopAt - currentTime
-            }
-            
-            // Scale the time until sleep based on the playback rate
-            if let timeUntilSleep = timeUntilSleep {
-                // Consider paused as playing at 1x
-                let rate = Double(player.rate > 0 ? player.rate : 1)
-                
-                let timeUntilSleepScaled = timeUntilSleep / rate
-                guard timeUntilSleepScaled.isNaN == false else { return nil }
-                
-                return Int(timeUntilSleepScaled.rounded())
-            } else {
-                return nil
-            }
-        }
-    }
-    
     public static func getCurrentTime() -> Double? {
         self.player?.getCurrentTime()
     }
@@ -95,31 +65,27 @@ class PlayerHandler {
         self.player?.setPlaybackRate(speed)
     }
     
+    public static func getSleepTimeRemaining() -> Double? {
+        return self.player?.getSleepTimeRemaining()
+    }
+    
     public static func setSleepTime(secondsUntilSleep: Double) {
-        guard let player = player else { return }
-        guard let currentTime = player.getCurrentTime() else { return }
-        let stopAt = secondsUntilSleep + currentTime
-        player.setSleepTime(stopAt: stopAt, scaleBasedOnSpeed: true)
+        self.player?.setSleepTimer(secondsUntilSleep: secondsUntilSleep)
     }
     
     public static func setChapterSleepTime(stopAt: Double) {
-        guard let player = player else { return }
-        self.sleepTimerChapterStopTime = Int(stopAt)
-        player.setSleepTime(stopAt: stopAt, scaleBasedOnSpeed: false)
+        self.player?.setChapterSleepTimer(stopAt: stopAt)
     }
     
     public static func increaseSleepTime(increaseSeconds: Double) {
-        self.sleepTimerChapterStopTime = nil
         self.player?.increaseSleepTime(extraTimeInSeconds: increaseSeconds)
     }
     
     public static func decreaseSleepTime(decreaseSeconds: Double) {
-        self.sleepTimerChapterStopTime = nil
         self.player?.decreaseSleepTime(removeTimeInSeconds: decreaseSeconds)
     }
     
     public static func cancelSleepTime() {
-        PlayerHandler.sleepTimerChapterStopTime = nil
         self.player?.removeSleepTimer()
     }
     
@@ -136,6 +102,7 @@ class PlayerHandler {
     
     public static func seekForward(amount: Double) {
         guard let player = player else { return }
+        guard player.isInitialized() else { return }
         guard let currentTime = player.getCurrentTime() else { return }
         
         let destinationTime = currentTime + amount
@@ -144,6 +111,7 @@ class PlayerHandler {
     
     public static func seekBackward(amount: Double) {
         guard let player = player else { return }
+        guard player.isInitialized() else { return }
         guard let currentTime = player.getCurrentTime() else { return }
         
         let destinationTime = currentTime - amount
@@ -151,7 +119,10 @@ class PlayerHandler {
     }
     
     public static func seek(amount: Double) {
-        player?.seek(amount, from: "handler")
+        guard let player = player else { return }
+        guard player.isInitialized() else { return }
+        
+        player.seek(amount, from: "handler")
     }
     
     public static func getMetdata() -> [String: Any]? {
