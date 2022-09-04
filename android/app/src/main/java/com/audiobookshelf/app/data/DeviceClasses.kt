@@ -39,7 +39,7 @@ data class DeviceSettings(
   @get:JsonIgnore
   val jumpBackwardsTimeMs get() = (jumpBackwardsTime ?: default().jumpBackwardsTime) * 1000L
   @get:JsonIgnore
-  val jumpForwardTimeMs get() = (jumpForwardTime ?: default().jumpBackwardsTime) * 1000L
+  val jumpForwardTimeMs get() = (jumpForwardTime ?: default().jumpForwardTime) * 1000L
 }
 
 data class DeviceData(

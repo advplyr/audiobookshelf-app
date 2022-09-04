@@ -45,6 +45,8 @@ import kotlin.concurrent.schedule
 
 
 const val SLEEP_TIMER_WAKE_UP_EXPIRATION = 120000L // 2m
+const val PLAYER_CAST = "cast-player";
+const val PLAYER_EXO = "exo-player";
 
 class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
@@ -256,6 +258,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
     mediaSessionConnector = MediaSessionConnector(mediaSession)
     val queueNavigator: TimelineQueueNavigator = object : TimelineQueueNavigator(mediaSession) {
+      override fun getSupportedQueueNavigatorActions(player: Player): Long {
+        return PlaybackStateCompat.ACTION_PLAY_PAUSE or PlaybackStateCompat.ACTION_PLAY or PlaybackStateCompat.ACTION_PAUSE
+      }
+
       override fun getMediaDescription(player: Player, windowIndex: Int): MediaDescriptionCompat {
         if (currentPlaybackSession == null) {
           Log.e(tag,"Playback session is not set - returning blank MediaDescriptionCompat")
@@ -295,11 +301,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     )
     mediaSessionConnector.setQueueNavigator(queueNavigator)
     mediaSessionConnector.setPlaybackPreparer(MediaSessionPlaybackPreparer(this))
-
-    mediaSessionConnector.setCustomActionProviders(
-      JumpForwardCustomActionProvider(),
-      JumpBackwardCustomActionProvider(),
-    )
 
     mediaSession.setCallback(MediaSessionCallback(this))
 
@@ -343,19 +344,34 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     }
 
     isClosed = false
+    val customActionProviders = mutableListOf(
+      JumpBackwardCustomActionProvider(),
+      JumpForwardCustomActionProvider(),
+    )
+    val metadata = playbackSession.getMediaMetadataCompat()
+    mediaSession.setMetadata(metadata)
+    val mediaItems = playbackSession.getMediaItems()
     val playbackRateToUse = playbackRate ?: initialPlaybackRate ?: 1f
     initialPlaybackRate = playbackRate
 
+    if (playbackSession.mediaPlayer != PLAYER_CAST && mediaItems.size > 1) {
+      customActionProviders.addAll(listOf(
+        SkipBackwardCustomActionProvider(),
+        SkipForwardCustomActionProvider(),
+      ));
+    }
+    mediaSessionConnector.setCustomActionProviders(*customActionProviders.toTypedArray());
+
     playbackSession.mediaPlayer = getMediaPlayer()
 
-    if (playbackSession.mediaPlayer == "cast-player" && playbackSession.isLocal) {
+    if (playbackSession.mediaPlayer == PLAYER_CAST && playbackSession.isLocal) {
       Log.w(tag, "Cannot cast local media item - switching player")
       currentPlaybackSession = null
       switchToPlayer(false)
       playbackSession.mediaPlayer = getMediaPlayer()
     }
 
-    if (playbackSession.mediaPlayer == "cast-player") {
+    if (playbackSession.mediaPlayer == PLAYER_CAST) {
       // If cast-player is the first player to be used
       mediaSessionConnector.setPlayer(castPlayer)
       playerNotificationManager.setPlayer(castPlayer)
@@ -365,10 +381,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     Log.d(tag, "Set CurrentPlaybackSession MediaPlayer ${currentPlaybackSession?.mediaPlayer}")
 
     clientEventEmitter?.onPlaybackSession(playbackSession)
-
-    val metadata = playbackSession.getMediaMetadataCompat()
-    mediaSession.setMetadata(metadata)
-    val mediaItems = playbackSession.getMediaItems()
 
     if (mediaItems.isEmpty()) {
       Log.e(tag, "Invalid playback session no media items to play")
@@ -751,7 +763,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   }
 
   fun getMediaPlayer():String {
-    return if(currentPlayer == castPlayer) "cast-player" else "exo-player"
+    return if(currentPlayer == castPlayer) PLAYER_CAST else PLAYER_EXO
   }
 
   fun getDeviceInfo(): DeviceInfo {
@@ -1008,6 +1020,40 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         CUSTOM_ACTION_JUMP_FORWARD,
         getContext().getString(R.string.action_jump_forward),
         R.drawable.exo_icon_fastforward
+      ).build()
+    }
+  }
+
+  inner class SkipForwardCustomActionProvider : CustomActionProvider {
+    override fun onCustomAction(player: Player, action: String, extras: Bundle?) {
+      /*
+      This does not appear to ever get called. Instead, MediaSessionCallback.onCustomAction() is
+      responsible to reacting to a custom action.
+       */
+    }
+
+    override fun getCustomAction(player: Player): PlaybackStateCompat.CustomAction? {
+      return PlaybackStateCompat.CustomAction.Builder(
+        CUSTOM_ACTION_SKIP_FORWARD,
+        getContext().getString(R.string.action_skip_forward),
+        R.drawable.skip_next_24
+      ).build()
+    }
+  }
+
+  inner class SkipBackwardCustomActionProvider : CustomActionProvider {
+    override fun onCustomAction(player: Player, action: String, extras: Bundle?) {
+      /*
+      This does not appear to ever get called. Instead, MediaSessionCallback.onCustomAction() is
+      responsible to reacting to a custom action.
+       */
+    }
+
+    override fun getCustomAction(player: Player): PlaybackStateCompat.CustomAction? {
+      return PlaybackStateCompat.CustomAction.Builder(
+        CUSTOM_ACTION_SKIP_BACKWARD,
+        getContext().getString(R.string.action_skip_backward),
+        R.drawable.skip_previous_24
       ).build()
     }
   }
