@@ -8,9 +8,7 @@
         <span class="material-icons text-3xl" :class="isCasting ? 'text-success' : ''" @click="castClick">cast</span>
       </div>
       <div class="top-4 right-4 absolute cursor-pointer">
-        <ui-dropdown-menu ref="dropdownMenu" :items="menuItems" @action="clickMenuAction">
-          <span class="material-icons text-3xl">more_vert</span>
-        </ui-dropdown-menu>
+        <span class="material-icons text-3xl" @click="showMoreMenuDialog = true">more_vert</span>
       </div>
       <p class="top-2 absolute left-0 right-0 mx-auto text-center uppercase tracking-widest text-opacity-75" style="font-size: 10px" :class="{ 'text-success': isLocalPlayMethod, 'text-accent': !isLocalPlayMethod }">{{ isDirectPlayMethod ? 'Direct' : isLocalPlayMethod ? 'Local' : 'Transcode' }}</p>
     </div>
@@ -66,23 +64,24 @@
 
       <div id="playerControls" class="absolute right-0 bottom-0 py-2">
         <div class="flex items-center justify-center">
-          <span v-show="showFullscreen" class="material-icons next-icon text-white text-opacity-75 cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpChapterStart">first_page</span>
-          <span class="material-icons jump-icon text-white cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpBackwards">{{ jumpBackwardsIcon }}</span>
+          <span v-show="showFullscreen && !lockUi" class="material-icons next-icon text-white text-opacity-75 cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpChapterStart">first_page</span>
+          <span v-show="!lockUi" class="material-icons jump-icon text-white cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpBackwards">{{ jumpBackwardsIcon }}</span>
           <div class="play-btn cursor-pointer shadow-sm flex items-center justify-center rounded-full text-primary mx-4" :class="{ 'animate-spin': seekLoading, 'bg-accent': !isLocalPlayMethod, 'bg-success': isLocalPlayMethod }" @mousedown.prevent @mouseup.prevent @click.stop="playPauseClick">
             <span v-if="!isLoading" class="material-icons">{{ seekLoading ? 'autorenew' : !isPlaying ? 'play_arrow' : 'pause' }}</span>
             <widgets-spinner-icon v-else class="h-8 w-8" />
           </div>
-          <span class="material-icons jump-icon text-white cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpForward">{{ jumpForwardIcon }}</span>
-          <span v-show="showFullscreen" class="material-icons next-icon text-white cursor-pointer" :class="nextChapter && !isLoading ? 'text-opacity-75' : 'text-opacity-10'" @click.stop="jumpNextChapter">last_page</span>
+          <span v-show="!lockUi" class="material-icons jump-icon text-white cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpForward">{{ jumpForwardIcon }}</span>
+          <span v-show="showFullscreen && !lockUi" class="material-icons next-icon text-white cursor-pointer" :class="nextChapter && !isLoading ? 'text-opacity-75' : 'text-opacity-10'" @click.stop="jumpNextChapter">last_page</span>
         </div>
       </div>
 
       <div id="playerTrack" class="absolute bottom-0 left-0 w-full px-3">
-        <div ref="track" class="h-2 w-full bg-gray-500 bg-opacity-50 relative" :class="isLoading ? 'animate-pulse' : ''" @touchstart="touchstartTrack" @click="clickTrack">
+        <div ref="track" class="h-1.5 w-full bg-gray-500 bg-opacity-50 relative" :class="{ 'animate-pulse': isLoading }" @touchstart="touchstartTrack" @click="clickTrack">
           <div ref="readyTrack" class="h-full bg-gray-600 absolute top-0 left-0 pointer-events-none" />
           <div ref="bufferedTrack" class="h-full bg-gray-500 absolute top-0 left-0 pointer-events-none" />
           <div ref="playedTrack" class="h-full bg-gray-200 absolute top-0 left-0 pointer-events-none" />
           <div ref="draggingTrack" class="h-full bg-warning bg-opacity-25 absolute top-0 left-0 pointer-events-none" />
+          <div ref="trackCursor" class="h-3.5 w-3.5 rounded-full bg-gray-200 absolute -top-1 pointer-events-none" :class="{ 'opacity-0': lockUi }" />
         </div>
         <div id="timestamp-row" class="flex pt-0.5">
           <p class="font-mono text-white text-opacity-90" style="font-size: 0.8rem" ref="currentTimestamp">0:00</p>
@@ -95,6 +94,24 @@
     </div>
 
     <modals-chapters-modal v-model="showChapterModal" :current-chapter="currentChapter" :chapters="chapters" @select="selectChapter" />
+    <modals-dialog v-model="showMoreMenuDialog" :items="menuItems" @action="clickMenuAction">
+      <template v-slot:chapter_track="{ item }">
+        <li class="text-gray-50 select-none relative py-4 cursor-pointer hover:bg-black-400" role="option" @click="clickMenuAction(item.value)">
+          <div class="flex items-center px-3">
+            <span v-if="item.icon" class="material-icons-outlined text-xl mr-2 text-white text-opacity-80">{{ item.icon }}</span>
+            <span class="font-normal block truncate text-base text-white text-opacity-80">{{ item.text }}</span>
+          </div>
+        </li>
+      </template>
+      <template v-slot:lock="{ item }">
+        <li class="text-gray-50 select-none relative py-4 cursor-pointer hover:bg-black-400" role="option" @click="clickMenuAction(item.value)">
+          <div class="flex items-center px-3">
+            <span v-if="item.icon" class="material-icons-outlined text-xl mr-2 text-opacity-80" :class="{ 'text-red-500': lockUi, 'text-white': !lockUi }">{{ item.icon }}</span>
+            <span class="font-normal block truncate text-base text-white text-opacity-80">{{ item.text }}</span>
+          </div>
+        </li>
+      </template>
+    </modals-dialog>
   </div>
 </template>
 
@@ -139,10 +156,12 @@ export default {
       touchStartTime: 0,
       touchEndY: 0,
       useChapterTrack: false,
+      lockUi: false,
       isLoading: false,
       touchTrackStart: false,
       dragPercent: 0,
-      syncStatus: 0
+      syncStatus: 0,
+      showMoreMenuDialog: false
     }
   },
   watch: {
@@ -153,17 +172,24 @@ export default {
   },
   computed: {
     menuItems() {
-      var items = []
-      items.push({
-        text: 'Chapter Track',
-        value: 'chapter_track',
-        icon: this.useChapterTrack ? 'check_box' : 'check_box_outline_blank'
-      })
-      items.push({
-        text: 'Close Player',
-        value: 'close',
-        icon: 'close'
-      })
+      var items = [
+        {
+          text: 'Chapter Track',
+          value: 'chapter_track',
+          icon: this.useChapterTrack ? 'check_box' : 'check_box_outline_blank'
+        },
+        {
+          text: this.lockUi ? 'Unlock Player' : 'Lock Player',
+          value: 'lock',
+          icon: this.lockUi ? 'lock' : 'lock_open'
+        },
+        {
+          text: 'Close Player',
+          value: 'close',
+          icon: 'close'
+        }
+      ]
+
       return items
     },
     jumpForwardIcon() {
@@ -310,7 +336,7 @@ export default {
       }
     },
     touchstartTrack(e) {
-      if (!e || !e.touches || !this.$refs.track || !this.showFullscreen) return
+      if (!e || !e.touches || !this.$refs.track || !this.showFullscreen || this.lockUi) return
       this.touchTrackStart = true
     },
     selectChapter(chapter) {
@@ -460,6 +486,10 @@ export default {
       this.$refs.playedTrack.style.width = ptWidth + 'px'
       this.$refs.bufferedTrack.style.width = Math.round(bufferedPercent * this.trackWidth) + 'px'
 
+      if (this.$refs.trackCursor) {
+        this.$refs.trackCursor.style.left = ptWidth - 8 + 'px'
+      }
+
       if (this.useChapterTrack) {
         if (this.$refs.totalPlayedTrack) this.$refs.totalPlayedTrack.style.width = Math.round(totalPercentDone * this.trackWidth) + 'px'
         if (this.$refs.totalBufferedTrack) this.$refs.totalBufferedTrack.style.width = Math.round(totalBufferedPercent * this.trackWidth) + 'px'
@@ -487,7 +517,7 @@ export default {
       }
     },
     clickTrack(e) {
-      if (this.isLoading) return
+      if (this.isLoading || this.lockUi) return
       if (!this.showFullscreen) {
         // Track not clickable on mini-player
         return
@@ -612,18 +642,22 @@ export default {
       }
     },
     clickMenuAction(action) {
-      if (action === 'chapter_track') {
-        this.useChapterTrack = !this.useChapterTrack
+      this.showMoreMenuDialog = false
+      this.$nextTick(() => {
+        if (action === 'lock') {
+          this.lockUi = !this.lockUi
+          this.$localStore.setPlayerLock(this.lockUi)
+        } else if (action === 'chapter_track') {
+          this.useChapterTrack = !this.useChapterTrack
 
-        this.$nextTick(() => {
           this.updateTimestamp()
           this.updateTrack()
           this.updateReadyTrack()
-        })
-        this.$localStore.setUseChapterTrack(this.useChapterTrack)
-      } else if (action === 'close') {
-        this.closePlayback()
-      }
+          this.$localStore.setUseChapterTrack(this.useChapterTrack)
+        } else if (action === 'close') {
+          this.closePlayback()
+        }
+      })
     },
     forceCloseDropdownMenu() {
       if (this.$refs.dropdownMenu && this.$refs.dropdownMenu.closeMenu) {
@@ -705,6 +739,7 @@ export default {
     },
     async init() {
       this.useChapterTrack = await this.$localStore.getUseChapterTrack()
+      this.lockUi = await this.$localStore.getPlayerLock()
 
       this.onPlaybackSessionListener = AbsAudioPlayer.addListener('onPlaybackSession', this.onPlaybackSession)
       this.onPlaybackClosedListener = AbsAudioPlayer.addListener('onPlaybackClosed', this.onPlaybackClosed)
@@ -737,8 +772,12 @@ export default {
   mounted() {
     this.updateScreenSize()
     if (screen.orientation) {
+      // Not available on ios
       screen.orientation.addEventListener('change', this.screenOrientationChange)
+    } else {
+      document.addEventListener('orientationchange', this.screenOrientationChange)
     }
+    window.addEventListener('resize', this.screenOrientationChange)
 
     this.$eventBus.$on('minimize-player', this.minimizePlayerEvt)
     document.body.addEventListener('touchstart', this.touchstart)
@@ -748,8 +787,12 @@ export default {
   },
   beforeDestroy() {
     if (screen.orientation) {
+      // Not available on ios
       screen.orientation.removeEventListener('change', this.screenOrientationChange)
+    } else {
+      document.removeEventListener('orientationchange', this.screenOrientationChange)
     }
+    window.removeEventListener('resize', this.screenOrientationChange)
 
     if (this.playbackSession) {
       console.log('[AudioPlayer] Before destroy closing playback')

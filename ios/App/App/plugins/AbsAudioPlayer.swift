@@ -38,9 +38,11 @@ public class AbsAudioPlayer: CAPPlugin {
         
         do {
             // Fetch the most recent active session
-            let activeSession = try await Realm().objects(PlaybackSession.self).where({ $0.isActiveSession == true }).last?.freeze()
+            let activeSession = try await Realm().objects(PlaybackSession.self).where({
+                $0.isActiveSession == true && $0.serverConnectionConfigId == Store.serverConfig?.id
+            }).last?.freeze()
             if let activeSession = activeSession {
-                await PlayerProgress.syncFromServer()
+                await PlayerProgress.shared.syncFromServer()
                 try self.startPlaybackSession(activeSession, playWhenReady: false, playbackRate: PlayerSettings.main().playbackRate)
             }
         } catch {
@@ -79,9 +81,9 @@ public class AbsAudioPlayer: CAPPlugin {
                 NSLog("Failed to get local playback session")
                 return call.resolve([:])
             }
-            playbackSession.save()
             
             do {
+                try playbackSession.save()
                 try self.startPlaybackSession(playbackSession, playWhenReady: playWhenReady, playbackRate: playbackRate)
                 call.resolve(try playbackSession.asDictionary())
             } catch(let exception) {
@@ -91,8 +93,8 @@ public class AbsAudioPlayer: CAPPlugin {
             }
         } else { // Playing from the server
             ApiClient.startPlaybackSession(libraryItemId: libraryItemId!, episodeId: episodeId, forceTranscode: false) { session in
-                session.save()
                 do {
+                    try session.save()
                     try self.startPlaybackSession(session, playWhenReady: playWhenReady, playbackRate: playbackRate)
                     call.resolve(try session.asDictionary())
                 } catch(let exception) {
@@ -120,7 +122,7 @@ public class AbsAudioPlayer: CAPPlugin {
     @objc func setPlaybackSpeed(_ call: CAPPluginCall) {
         let playbackRate = call.getFloat("value", 1.0)
         let settings = PlayerSettings.main()
-        settings.update {
+        try? settings.update {
             settings.playbackRate = playbackRate
         }
         PlayerHandler.setPlaybackSpeed(speed: settings.playbackRate)
@@ -166,48 +168,49 @@ public class AbsAudioPlayer: CAPPlugin {
     
     @objc func decreaseSleepTime(_ call: CAPPluginCall) {
         guard let timeString = call.getString("time") else { return call.resolve([ "success": false ]) }
-        guard let time = Int(timeString) else { return call.resolve([ "success": false ]) }
-        guard let currentSleepTime = PlayerHandler.remainingSleepTime else { return call.resolve([ "success": false ]) }
+        guard let time = Double(timeString) else { return call.resolve([ "success": false ]) }
+        guard let _ = PlayerHandler.getSleepTimeRemaining() else { return call.resolve([ "success": false ]) }
         
-        PlayerHandler.remainingSleepTime = currentSleepTime - (time / 1000)
+        let seconds = time/1000
+        PlayerHandler.decreaseSleepTime(decreaseSeconds: seconds)
         call.resolve()
     }
+    
     @objc func increaseSleepTime(_ call: CAPPluginCall) {
         guard let timeString = call.getString("time") else { return call.resolve([ "success": false ]) }
-        guard let time = Int(timeString) else { return call.resolve([ "success": false ]) }
-        guard let currentSleepTime = PlayerHandler.remainingSleepTime else { return call.resolve([ "success": false ]) }
+        guard let time = Double(timeString) else { return call.resolve([ "success": false ]) }
+        guard let _ = PlayerHandler.getSleepTimeRemaining() else { return call.resolve([ "success": false ]) }
         
-        PlayerHandler.remainingSleepTime = currentSleepTime + (time / 1000)
+        let seconds = time/1000
+        PlayerHandler.increaseSleepTime(increaseSeconds: seconds)
         call.resolve()
     }
+    
     @objc func setSleepTimer(_ call: CAPPluginCall) {
         guard let timeString = call.getString("time") else { return call.resolve([ "success": false ]) }
-        guard let time = Int(timeString) else { return call.resolve([ "success": false ]) }
-        let timeSeconds = time / 1000
+        guard let time = Double(timeString) else { return call.resolve([ "success": false ]) }
+        let isChapterTime = call.getBool("isChapterTime", false)
         
-        NSLog("chapter time: \(call.getBool("isChapterTime", false))")
+        let seconds = time / 1000
         
-        if call.getBool("isChapterTime", false) {
-            let timeToPause = timeSeconds - Int(PlayerHandler.getCurrentTime() ?? 0)
-            if timeToPause < 0 { return call.resolve([ "success": false ]) }
-            
-            PlayerHandler.sleepTimerChapterStopTime = timeSeconds
-            PlayerHandler.remainingSleepTime = timeToPause
+        NSLog("chapter time: \(isChapterTime)")
+        if isChapterTime {
+            PlayerHandler.setChapterSleepTime(stopAt: seconds)
             return call.resolve([ "success": true ])
+        } else {
+            PlayerHandler.setSleepTime(secondsUntilSleep: seconds)
+            call.resolve([ "success": true ])
         }
-        
-        PlayerHandler.sleepTimerChapterStopTime = nil
-        PlayerHandler.remainingSleepTime = timeSeconds
-        call.resolve([ "success": true ])
     }
+    
     @objc func cancelSleepTimer(_ call: CAPPluginCall) {
-        PlayerHandler.remainingSleepTime = nil
-        PlayerHandler.sleepTimerChapterStopTime = nil
+        PlayerHandler.cancelSleepTime()
         call.resolve()
     }
+    
     @objc func getSleepTimerTime(_ call: CAPPluginCall) {
         call.resolve([
-            "value": PlayerHandler.remainingSleepTime
+            "value": PlayerHandler.getSleepTimeRemaining()
         ])
     }
     
@@ -219,7 +222,7 @@ public class AbsAudioPlayer: CAPPlugin {
     
     @objc func sendSleepTimerSet() {
         self.notifyListeners("onSleepTimerSet", data: [
-            "value": PlayerHandler.remainingSleepTime
+            "value": PlayerHandler.getSleepTimeRemaining()
         ])
     }
     
@@ -240,17 +243,15 @@ public class AbsAudioPlayer: CAPPlugin {
             
             // If direct playing then fallback to transcode
             ApiClient.startPlaybackSession(libraryItemId: libraryItemId, episodeId: episodeId, forceTranscode: true) { session in
-                session.save()
-                PlayerHandler.startPlayback(sessionId: session.id, playWhenReady: self.initialPlayWhenReady, playbackRate: PlayerSettings.main().playbackRate)
-                
                 do {
+                    try session.save()
+                    PlayerHandler.startPlayback(sessionId: session.id, playWhenReady: self.initialPlayWhenReady, playbackRate: PlayerSettings.main().playbackRate)
                     self.sendPlaybackSession(session: try session.asDictionary())
+                    self.sendMetadata()
                 } catch(let exception) {
-                    NSLog("failed to convert session to json")
+                    NSLog("Failed to start transcoded session")
                     debugPrint(exception)
                 }
-                
-                self.sendMetadata()
             }
         } else {
             self.notifyListeners("onPlaybackFailed", data: [

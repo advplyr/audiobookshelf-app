@@ -59,12 +59,17 @@ class NowPlayingInfo {
         }
     }
     public func update(duration: Double, currentTime: Double, rate: Float) {
-        nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = duration
-        nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = currentTime
-        nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = rate
-        nowPlayingInfo[MPNowPlayingInfoPropertyDefaultPlaybackRate] = 1.0
-            
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
+        // Update on the main to prevent access collisions
+        DispatchQueue.main.async { [weak self] in
+            if let self = self {
+                self.nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = duration
+                self.nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = currentTime
+                self.nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = rate
+                self.nowPlayingInfo[MPNowPlayingInfoPropertyDefaultPlaybackRate] = 1.0
+                    
+                MPNowPlayingInfoCenter.default().nowPlayingInfo = self.nowPlayingInfo
+            }
+        }
     }
     
     public func reset() {

@@ -1,10 +1,8 @@
 package com.audiobookshelf.app.data
 
-import android.content.Context
 import android.net.Uri
 import android.os.Bundle
 import android.support.v4.media.MediaDescriptionCompat
-import android.support.v4.media.MediaMetadataCompat
 import android.util.Log
 import androidx.media.utils.MediaConstants
 import com.audiobookshelf.app.R
@@ -14,8 +12,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import java.util.*
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-data class LocalLibraryItem(
-  var id:String,
+class LocalLibraryItem(
+  id:String,
   var folderId:String,
   var basePath:String,
   var absolutePath:String,
@@ -32,7 +30,7 @@ data class LocalLibraryItem(
   var serverAddress:String?,
   var serverUserId:String?,
   var libraryItemId:String?
-  ) : LibraryItemWrapper() {
+  ) : LibraryItemWrapper(id) {
   @get:JsonIgnore
   val title get() = media.metadata.title
   @get:JsonIgnore
@@ -98,16 +96,38 @@ data class LocalLibraryItem(
   }
 
   @JsonIgnore
-  fun getMediaMetadata(): MediaMetadataCompat {
+  override fun getMediaDescription(progress:MediaProgressWrapper?): MediaDescriptionCompat {
     val coverUri = getCoverUri()
 
-    return MediaMetadataCompat.Builder().apply {
-      putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, id)
-      putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, title)
-      putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
-      putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, authorName)
-      putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, coverUri.toString())
-      putString(MediaMetadataCompat.METADATA_KEY_AUTHOR, authorName)
-    }.build()
+    val extras = Bundle()
+    if (progress != null) {
+      if (progress.isFinished) {
+        extras.putInt(
+          MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
+          MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_FULLY_PLAYED
+        )
+      } else {
+        extras.putInt(
+          MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
+          MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_PARTIALLY_PLAYED
+        )
+        extras.putDouble(
+          MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_PERCENTAGE, progress.progress
+        )
+      }
+    } else if (mediaType != "podcast") {
+      extras.putInt(
+        MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
+        MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_NOT_PLAYED
+      )
+    }
+
+    return MediaDescriptionCompat.Builder()
+      .setMediaId(id)
+      .setTitle(title)
+      .setIconUri(coverUri)
+      .setSubtitle(authorName)
+      .setExtras(extras)
+      .build()
   }
 }

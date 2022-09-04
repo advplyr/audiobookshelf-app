@@ -200,7 +200,12 @@ class ApiClient {
                 
                 if let updates = response.localProgressUpdates {
                     for update in updates {
-                        Database.shared.saveLocalMediaProgress(update)
+                        do {
+                            try update.save()
+                        } catch {
+                            debugPrint("Failed to update local media progress")
+                            debugPrint(error)
+                        }
                     }
                 }
                 

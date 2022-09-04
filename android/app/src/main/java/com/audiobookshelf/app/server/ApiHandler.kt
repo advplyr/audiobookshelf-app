@@ -189,21 +189,16 @@ class ApiHandler(var ctx:Context) {
     }
   }
 
-  fun getLibraryCategories(libraryId:String, cb: (List<LibraryCategory>) -> Unit) {
-    getRequest("/api/libraries/$libraryId/personalized", null, null) {
-      val items = mutableListOf<LibraryCategory>()
-      if (it.has("value")) {
-        val array = it.getJSONArray("value")
+  fun getAllItemsInProgress(cb: (List<ItemInProgress>) -> Unit) {
+    getRequest("/api/me/items-in-progress", null, null) {
+      val items = mutableListOf<ItemInProgress>()
+      if (it.has("libraryItems")) {
+        val array = it.getJSONArray("libraryItems")
         for (i in 0 until array.length()) {
           val jsobj = array.get(i) as JSONObject
 
-          val type = jsobj.get("type").toString()
-          // Only support for podcast and book in android auto
-          if (type == "podcast" || type == "book") {
-            jsobj.put("isLocal", false)
-            val item = jacksonMapper.readValue<LibraryCategory>(jsobj.toString())
-            items.add(item)
-          }
+          val itemInProgress = ItemInProgress.makeFromServerObject(jsobj)
+          items.add(itemInProgress)
         }
       }
       cb(items)

@@ -198,8 +198,8 @@ extension LocalLibraryItem {
         )
     }
     
-    func delete() {
-        try! self.realm?.write {
+    func delete() throws {
+        try self.realm?.write {
             self.realm?.delete(self.localFiles)
             self.realm?.delete(self)
         }

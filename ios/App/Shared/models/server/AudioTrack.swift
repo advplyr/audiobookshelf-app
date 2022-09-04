@@ -19,6 +19,13 @@ class AudioTrack: EmbeddedObject, Codable {
     @Persisted var localFileId: String?
     @Persisted var serverIndex: Int?
     
+    var endOffset: Double? {
+        if let startOffset = startOffset {
+            return startOffset + duration
+        }
+        return nil
+    }
+    
     private enum CodingKeys : String, CodingKey {
         case index, startOffset, duration, title, contentUrl, mimeType, metadata, localFileId, serverIndex
     }
@@ -37,7 +44,7 @@ class AudioTrack: EmbeddedObject, Codable {
         contentUrl = try? values.decode(String.self, forKey: .contentUrl)
         mimeType = try values.decode(String.self, forKey: .mimeType)
         metadata = try? values.decode(FileMetadata.self, forKey: .metadata)
-        localFileId = try! values.decodeIfPresent(String.self, forKey: .localFileId)
+        localFileId = try? values.decodeIfPresent(String.self, forKey: .localFileId)
         serverIndex = try? values.decode(Int.self, forKey: .serverIndex)
     }
     

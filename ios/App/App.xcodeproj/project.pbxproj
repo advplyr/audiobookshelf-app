@@ -58,6 +58,7 @@
 		E9D5507128AC1EC700C746DD /* DownloadItemPart.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D5507028AC1EC700C746DD /* DownloadItemPart.swift */; };
 		E9D5507328AC218300C746DD /* DaoExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D5507228AC218300C746DD /* DaoExtensions.swift */; };
 		E9D5507528AEF93100C746DD /* PlayerSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D5507428AEF93100C746DD /* PlayerSettings.swift */; };
+		E9DFCBFB28C28F4A00B36356 /* AudioPlayerSleepTimer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9DFCBFA28C28F4A00B36356 /* AudioPlayerSleepTimer.swift */; };
 		E9E985F828B02D9400957F23 /* PlayerProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9E985F728B02D9400957F23 /* PlayerProgress.swift */; };
 /* End PBXBuildFile section */
 
@@ -117,6 +118,7 @@
 		E9D5507028AC1EC700C746DD /* DownloadItemPart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadItemPart.swift; sourceTree = "<group>"; };
 		E9D5507228AC218300C746DD /* DaoExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaoExtensions.swift; sourceTree = "<group>"; };
 		E9D5507428AEF93100C746DD /* PlayerSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerSettings.swift; sourceTree = "<group>"; };
+		E9DFCBFA28C28F4A00B36356 /* AudioPlayerSleepTimer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayerSleepTimer.swift; sourceTree = "<group>"; };
 		E9E985F728B02D9400957F23 /* PlayerProgress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerProgress.swift; sourceTree = "<group>"; };
 		FC68EB0AF532CFC21C3344DD /* Pods-App.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-App.debug.xcconfig"; path = "Pods/Target Support Files/Pods-App/Pods-App.debug.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -145,6 +147,7 @@
 			isa = PBXGroup;
 			children = (
 				3A200C1427D64D7E00CBF02E /* AudioPlayer.swift */,
+				E9DFCBFA28C28F4A00B36356 /* AudioPlayerSleepTimer.swift */,
 				3ABF618E2804325C0070250E /* PlayerHandler.swift */,
 				E9E985F728B02D9400957F23 /* PlayerProgress.swift */,
 			);
@@ -438,6 +441,7 @@
 				E9D5506028AC1CA900C746DD /* PlaybackMetadata.swift in Sources */,
 				E9D5504828AC1A7A00C746DD /* MediaType.swift in Sources */,
 				E9D5504E28AC1B0700C746DD /* AudioFile.swift in Sources */,
+				E9DFCBFB28C28F4A00B36356 /* AudioPlayerSleepTimer.swift in Sources */,
 				E9D5505428AC1B7900C746DD /* AudioTrack.swift in Sources */,
 				E9D5505C28AC1C6200C746DD /* LibraryFile.swift in Sources */,
 				4DF74912287105C600AC7814 /* DeviceSettings.swift in Sources */,
@@ -595,12 +599,12 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = Icons;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 13;
+				CURRENT_PROJECT_VERSION = 15;
 				DEVELOPMENT_TEAM = 7UFJ7D8V6A;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				MARKETING_VERSION = 0.9.56;
+				MARKETING_VERSION = 0.9.58;
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" \"-DDEBUG\"";
 				PRODUCT_BUNDLE_IDENTIFIER = com.audiobookshelf.app.dev;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -619,12 +623,12 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = Icons;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 13;
+				CURRENT_PROJECT_VERSION = 15;
 				DEVELOPMENT_TEAM = 7UFJ7D8V6A;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				MARKETING_VERSION = 0.9.56;
+				MARKETING_VERSION = 0.9.58;
 				PRODUCT_BUNDLE_IDENTIFIER = com.audiobookshelf.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
