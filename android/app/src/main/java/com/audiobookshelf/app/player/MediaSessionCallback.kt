@@ -239,6 +239,8 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
     when (action) {
       CUSTOM_ACTION_JUMP_FORWARD -> onFastForward()
       CUSTOM_ACTION_JUMP_BACKWARD -> onRewind()
+      CUSTOM_ACTION_SKIP_FORWARD -> onSkipToNext()
+      CUSTOM_ACTION_SKIP_BACKWARD -> onSkipToPrevious()
     }
   }
 }

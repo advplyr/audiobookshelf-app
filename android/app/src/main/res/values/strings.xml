@@ -8,4 +8,6 @@
     <string name="app_widget_description">Simple widget for audiobookshelf playback</string>
     <string name="action_jump_forward">Jump Forward</string>
     <string name="action_jump_backward">Jump Backward</string>
+    <string name="action_skip_forward">Skip Forward</string>
+    <string name="action_skip_backward">Skip Backward</string>
 </resources>
