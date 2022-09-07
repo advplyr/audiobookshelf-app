@@ -26,7 +26,7 @@
 
         <ui-read-icon-btn :disabled="isProcessingReadUpdate" :is-read="userIsFinished" borderless class="mx-1 mt-0.5" @click="toggleFinished" />
 
-        <div v-if="!isIos && userCanDownload">
+        <div v-if="userCanDownload">
           <span v-if="isLocal" class="material-icons-outlined px-2 text-success text-lg">audio_file</span>
           <span v-else-if="!localEpisode" class="material-icons mx-1 mt-2" :class="downloadItem ? 'animate-bounce text-warning text-opacity-75 text-xl' : 'text-gray-300 text-xl'" @click="downloadClick">{{ downloadItem ? 'downloading' : 'download' }}</span>
           <span v-else class="material-icons px-2 text-success text-xl">download_done</span>
@@ -143,7 +143,12 @@ export default {
     },
     downloadClick() {
       if (this.downloadItem) return
-      this.download()
+      if (this.isIos) {
+        // no local folders on iOS
+        this.startDownload()
+      } else {
+        this.download()
+      }
     },
     async download(selectedLocalFolder = null) {
       var localFolder = selectedLocalFolder
@@ -183,7 +188,14 @@ export default {
       }
     },
     async startDownload(localFolder) {
-      var downloadRes = await AbsDownloader.downloadLibraryItem({ libraryItemId: this.libraryItemId, localFolderId: localFolder.id, episodeId: this.episode.id })
+      var payload = {
+        libraryItemId: this.libraryItemId,
+        episodeId: this.episode.id
+      }
+      if (localFolder) {
+        payload.localFolderId = localFolder.id
+      }
+      var downloadRes = await AbsDownloader.downloadLibraryItem(payload)
       if (downloadRes && downloadRes.error) {
         var errorMsg = downloadRes.error || 'Unknown error'
         console.error('Download error', errorMsg)
@@ -199,7 +211,9 @@ export default {
 
           this.$eventBus.$emit('play-item', {
             libraryItemId: this.localLibraryItemId,
-            episodeId: this.localEpisode.id
+            episodeId: this.localEpisode.id,
+            serverLibraryItemId: this.libraryItemId,
+            serverEpisodeId: this.episode.id
           })
         } else {
           this.$eventBus.$emit('play-item', {

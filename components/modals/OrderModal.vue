@@ -40,6 +40,10 @@ export default {
           value: 'media.metadata.authorNameLF'
         },
         {
+          text: 'Published Year',
+          value: 'media.metadata.publishedYear'
+        },
+        {
           text: 'Added At',
           value: 'addedAt'
         },

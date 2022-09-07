@@ -46,7 +46,7 @@ export default {
       episodesCopy: [],
       showFiltersModal: false,
       sortKey: 'publishedAt',
-      sortDesc: false,
+      sortDesc: true,
       filterKey: 'incomplete',
       episodeSortItems: [
         {

@@ -20,6 +20,9 @@ CAP_PLUGIN(AbsDatabase, "AbsDatabase",
            CAP_PLUGIN_METHOD(getLocalLibraryItemByLId, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(getLocalLibraryItemsInFolder, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(getAllLocalMediaProgress, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(removeLocalMediaProgress, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(syncLocalMediaProgressWithServer, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(syncServerMediaProgressWithLocalMediaProgress, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(updateLocalMediaProgressFinished, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(updateDeviceSettings, CAPPluginReturnPromise);
            )
-

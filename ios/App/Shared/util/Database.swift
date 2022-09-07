@@ -9,30 +9,35 @@ import Foundation
 import RealmSwift
 
 class Database {
-    // All DB releated actions must be executed on "realm-queue"
-    public static let realmQueue: DispatchQueue = DispatchQueue(label: "realm-queue")
     public static var shared = {
-        realmQueue.sync {
-            return Database()
-        }
+        return Database()
     }()
 
-    private var instance: Realm
-    private init() {
-        self.instance = try! Realm(queue: Database.realmQueue)
-    }
+    private init() {}
     
     public func setServerConnectionConfig(config: ServerConnectionConfig) {
-        var refrence: ThreadSafeReference<ServerConnectionConfig>?
-        if config.realm != nil {
-            refrence = ThreadSafeReference(to: config)
-        }
+        let config = config
+        let realm = try! Realm()
+        let existing: ServerConnectionConfig? = realm.object(ofType: ServerConnectionConfig.self, forPrimaryKey: config.id)
         
-        Database.realmQueue.sync {
-            let existing: ServerConnectionConfig? = instance.object(ofType: ServerConnectionConfig.self, forPrimaryKey: config.id)
+        if let existing = existing {
+            do {
+                try existing.update {
+                    existing.name = config.name
+                    existing.address = config.address
+                    existing.userId = config.userId
+                    existing.username = config.username
+                    existing.token = config.token
+                }
+            } catch {
+                NSLog("failed to update server config")
+                debugPrint(error)
+            }
             
+            setLastActiveConfigIndex(index: existing.index)
+        } else {
             if config.index == 0 {
-                let lastConfig: ServerConnectionConfig? = instance.objects(ServerConnectionConfig.self).last
+                let lastConfig: ServerConnectionConfig? = realm.objects(ServerConnectionConfig.self).last
                 
                 if lastConfig != nil {
                     config.index = lastConfig!.index + 1
@@ -42,19 +47,8 @@ class Database {
             }
             
             do {
-                try instance.write {
-                    if existing != nil {
-                        instance.delete(existing!)
-                    }
-                    if refrence == nil {
-                        instance.add(config)
-                    } else {
-                        guard let resolved = instance.resolve(refrence!) else {
-                            throw "unable to resolve refrence"
-                        }
-                        
-                        instance.add(resolved);
-                    }
+                try realm.write {
+                    realm.add(config)
                 }
             } catch(let exception) {
                 NSLog("failed to save server config")
@@ -64,88 +58,194 @@ class Database {
             setLastActiveConfigIndex(index: config.index)
         }
     }
+    
     public func deleteServerConnectionConfig(id: String) {
-        Database.realmQueue.sync {
-            let config = instance.object(ofType: ServerConnectionConfig.self, forPrimaryKey: id)
-            
-            do {
-                try instance.write {
-                    if config != nil {
-                        instance.delete(config!)
-                    }
-                }
-            } catch(let exception) {
-                NSLog("failed to delete server config")
-                debugPrint(exception)
-            }
-        }
-    }
-    public func getServerConnectionConfigs() -> [ServerConnectionConfig] {
-        var refrences: [ThreadSafeReference<ServerConnectionConfig>] = []
-        
-        Database.realmQueue.sync {
-            let configs = instance.objects(ServerConnectionConfig.self)
-            refrences = configs.map { config in
-                return ThreadSafeReference(to: config)
-            }
-        }
+        let realm = try! Realm()
+        let config = realm.object(ofType: ServerConnectionConfig.self, forPrimaryKey: id)
         
         do {
-            let realm = try Realm()
-            
-            return refrences.map { refrence in
-                return realm.resolve(refrence)!
+            try realm.write {
+                if config != nil {
+                    realm.delete(config!)
+                }
             }
         } catch(let exception) {
-            NSLog("error while readling configs")
+            NSLog("failed to delete server config")
             debugPrint(exception)
-            return []
         }
     }
     
-    public func setLastActiveConfigIndexToNil() {
-        Database.realmQueue.sync {
-            setLastActiveConfigIndex(index: nil)
-        }
+    public func getServerConnectionConfigs() -> [ServerConnectionConfig] {
+        let realm = try! Realm()
+        return Array(realm.objects(ServerConnectionConfig.self))
     }
-    public func setLastActiveConfigIndex(index: Int?) {
-        let existing = instance.objects(ServerConnectionConfigActiveIndex.self)
-        let obj = ServerConnectionConfigActiveIndex()
-        obj.index = index
-     
+    
+    public func setLastActiveConfigIndexToNil() {
+        setLastActiveConfigIndex(index: nil)
+    }
+    
+    private func setLastActiveConfigIndex(index: Int?) {
+        let realm = try! Realm()
         do {
-            try instance.write {
-                instance.delete(existing)
-                instance.add(obj)
+            try realm.write {
+                let existing = realm.objects(ServerConnectionConfigActiveIndex.self).last
+                
+                if ( existing?.index != index ) {
+                    if let existing = existing {
+                        realm.delete(existing)
+                    }
+                    
+                    let activeConfig = ServerConnectionConfigActiveIndex()
+                    activeConfig.index = index
+                    realm.add(activeConfig)
+                }
             }
         } catch(let exception) {
             NSLog("failed to save server config active index")
             debugPrint(exception)
         }
     }
+    
     public func getLastActiveConfigIndex() -> Int? {
-        return Database.realmQueue.sync {
-            return instance.objects(ServerConnectionConfigActiveIndex.self).first?.index ?? nil
-        }
+        let realm = try! Realm()
+        return realm.objects(ServerConnectionConfigActiveIndex.self).first?.index ?? nil
     }
+    
     public func setDeviceSettings(deviceSettings: DeviceSettings) {
-        Database.realmQueue.sync {
-            let existing = instance.objects(DeviceSettings.self)
+        let realm = try! Realm()
+        let existing = realm.objects(DeviceSettings.self)
 
-            do {
-                try instance.write {
-                    instance.delete(existing)
-                    instance.add(deviceSettings)
-                }
-            } catch(let exception) {
-                NSLog("failed to save device settings")
-                debugPrint(exception)
+        do {
+            try realm.write {
+                realm.delete(existing)
+                realm.add(deviceSettings)
             }
+        } catch {
+            NSLog("failed to save device settings")
         }
     }
+    
+    public func getLocalLibraryItems(mediaType: MediaType? = nil) -> [LocalLibraryItem] {
+        do {
+            let realm = try Realm()
+            return Array(realm.objects(LocalLibraryItem.self))
+        } catch {
+            debugPrint(error)
+            return []
+        }
+    }
+    
+    public func getLocalLibraryItem(byServerLibraryItemId: String) -> LocalLibraryItem? {
+        do {
+            let realm = try Realm()
+            return realm.objects(LocalLibraryItem.self).first(where: { $0.libraryItemId == byServerLibraryItemId })
+        } catch {
+            debugPrint(error)
+            return nil
+        }
+    }
+    
+    public func getLocalLibraryItem(localLibraryItemId: String) -> LocalLibraryItem? {
+        do {
+            let realm = try Realm()
+            return realm.object(ofType: LocalLibraryItem.self, forPrimaryKey: localLibraryItemId)
+        } catch {
+            debugPrint(error)
+            return nil
+        }
+    }
+    
+    public func saveLocalLibraryItem(localLibraryItem: LocalLibraryItem) throws {
+        let realm = try Realm()
+        try realm.write { realm.add(localLibraryItem, update: .modified) }
+    }
+    
+    public func getLocalFile(localFileId: String) -> LocalFile? {
+        do {
+            let realm = try Realm()
+            return realm.object(ofType: LocalFile.self, forPrimaryKey: localFileId)
+        } catch {
+            debugPrint(error)
+            return nil
+        }
+    }
+    
+    public func getDownloadItem(downloadItemId: String) -> DownloadItem? {
+        do {
+            let realm = try Realm()
+            return realm.object(ofType: DownloadItem.self, forPrimaryKey: downloadItemId)
+        } catch {
+            debugPrint(error)
+            return nil
+        }
+    }
+    
+    public func getDownloadItem(libraryItemId: String) -> DownloadItem? {
+        do {
+            let realm = try Realm()
+            return realm.objects(DownloadItem.self).filter("libraryItemId == %@", libraryItemId).first
+        } catch {
+            debugPrint(error)
+            return nil
+        }
+    }
+    
+    public func getDownloadItem(downloadItemPartId: String) -> DownloadItem? {
+        do {
+            let realm = try Realm()
+            return realm.objects(DownloadItem.self).filter("SUBQUERY(downloadItemParts, $part, $part.id == %@) .@count > 0", downloadItemPartId).first
+        } catch {
+            debugPrint(error)
+            return nil
+        }
+    }
+    
+    public func saveDownloadItem(_ downloadItem: DownloadItem) throws {
+        let realm = try Realm()
+        return try realm.write { realm.add(downloadItem, update: .modified) }
+    }
+    
     public func getDeviceSettings() -> DeviceSettings {
-        return Database.realmQueue.sync {
-            return instance.objects(DeviceSettings.self).first ?? getDefaultDeviceSettings()
+        let realm = try! Realm()
+        return realm.objects(DeviceSettings.self).first ?? getDefaultDeviceSettings()
+    }
+    
+    public func getAllLocalMediaProgress() -> [LocalMediaProgress] {
+        do {
+            let realm = try Realm()
+            return Array(realm.objects(LocalMediaProgress.self))
+        } catch {
+            debugPrint(error)
+            return []
+        }
+    }
+    
+    // For books this will just be the localLibraryItemId for podcast episodes this will be "{localLibraryItemId}-{episodeId}"
+    public func getLocalMediaProgress(localMediaProgressId: String) -> LocalMediaProgress? {
+        do {
+            let realm = try Realm()
+            return realm.object(ofType: LocalMediaProgress.self, forPrimaryKey: localMediaProgressId)
+        } catch {
+            debugPrint(error)
+            return nil
+        }
+    }
+    
+    public func removeLocalMediaProgress(localMediaProgressId: String) throws {
+        let realm = try Realm()
+        try realm.write {
+            let progress = realm.object(ofType: LocalMediaProgress.self, forPrimaryKey: localMediaProgressId)
+            realm.delete(progress!)
+        }
+    }
+    
+    public func getPlaybackSession(id: String) -> PlaybackSession? {
+        do {
+            let realm = try Realm()
+            return realm.object(ofType: PlaybackSession.self, forPrimaryKey: id)
+        } catch {
+            debugPrint(error)
+            return nil
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.bookshelf.app.data
 
+import android.support.v4.media.MediaDescriptionCompat
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonSubTypes
@@ -20,7 +21,8 @@ data class DeviceSettings(
   var disableAutoRewind:Boolean,
   var enableAltView:Boolean,
   var jumpBackwardsTime:Int,
-  var jumpForwardTime:Int
+  var jumpForwardTime:Int,
+  var disableShakeToResetSleepTimer:Boolean
 ) {
   companion object {
     // Static method to get default device settings
@@ -29,15 +31,16 @@ data class DeviceSettings(
         disableAutoRewind = false,
         enableAltView = false,
         jumpBackwardsTime = 10,
-        jumpForwardTime = 10
+        jumpForwardTime = 10,
+        disableShakeToResetSleepTimer = false
       )
     }
   }
 
   @get:JsonIgnore
-  val jumpBackwardsTimeMs get() = jumpBackwardsTime * 1000L
+  val jumpBackwardsTimeMs get() = (jumpBackwardsTime ?: default().jumpBackwardsTime) * 1000L
   @get:JsonIgnore
-  val jumpForwardTimeMs get() = jumpForwardTime * 1000L
+  val jumpForwardTimeMs get() = (jumpForwardTime ?: default().jumpForwardTime) * 1000L
 }
 
 data class DeviceData(
@@ -90,7 +93,10 @@ data class LocalFolder(
   JsonSubTypes.Type(LibraryItem::class),
   JsonSubTypes.Type(LocalLibraryItem::class)
 )
-open class LibraryItemWrapper()
+open class LibraryItemWrapper(var id:String) {
+  @JsonIgnore
+  open fun getMediaDescription(progress:MediaProgressWrapper?): MediaDescriptionCompat { return MediaDescriptionCompat.Builder().build() }
+}
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class DeviceInfo(

@@ -5,14 +5,14 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import kotlin.math.roundToInt
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-data class LocalMediaProgress(
+class LocalMediaProgress(
   var id:String,
   var localLibraryItemId:String,
   var localEpisodeId:String?,
   var duration:Double,
-  var progress:Double, // 0 to 1
+  progress:Double, // 0 to 1
   var currentTime:Double,
-  var isFinished:Boolean,
+  isFinished:Boolean,
   var lastUpdate:Long,
   var startedAt:Long,
   var finishedAt:Long?,
@@ -22,7 +22,7 @@ data class LocalMediaProgress(
   var serverUserId:String?,
   var libraryItemId:String?,
   var episodeId:String?
-) {
+) : MediaProgressWrapper(isFinished, progress) {
   @get:JsonIgnore
   val progressPercent get() = if (progress.isNaN()) 0 else (progress * 100).roundToInt()
 

@@ -1,17 +1,17 @@
 <template>
   <div class="w-full px-2 py-2 overflow-hidden relative">
-    <div v-if="book" class="flex w-full">
+    <nuxt-link v-if="book" :to="`/item/${book.id}`" class="flex w-full">
       <div class="h-full relative" :style="{ width: bookWidth + 'px' }">
         <covers-book-cover :library-item="book" :width="bookWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" />
       </div>
       <div class="flex-grow book-table-content h-full px-2 flex items-center">
         <div class="max-w-full">
-          <nuxt-link :to="`/item/${book.id}`" class="truncate block text-sm">{{ bookTitle }}</nuxt-link>
+          <p class="truncate block text-sm">{{ bookTitle }}</p>
           <p class="truncate block text-gray-400 text-xs">{{ bookAuthor }}</p>
           <p class="text-xxs text-gray-500">{{ bookDuration }}</p>
         </div>
       </div>
-    </div>
+    </nuxt-link>
   </div>
 </template>
 

@@ -92,6 +92,7 @@ class PlaybackSession(
 
   @JsonIgnore
   fun getTrackStartOffsetMs(index:Int):Long {
+    if (index < 0 || index >= audioTracks.size) return 0L
     val currentTrack = audioTracks[index]
     return (currentTrack.startOffset * 1000L).toLong()
   }
@@ -124,8 +125,6 @@ class PlaybackSession(
       .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, displayTitle)
       .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, displayAuthor)
       .putString(MediaMetadataCompat.METADATA_KEY_AUTHOR, displayAuthor)
-      .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, displayAuthor)
-      .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, "series")
       .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, id)
     return metadataBuilder.build()
   }
