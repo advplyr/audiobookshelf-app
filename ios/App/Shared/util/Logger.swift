@@ -59,7 +59,7 @@ public extension AppLogger {
     }
     
     func debug(_ information: String, isPrivate: Bool = Defaults.isPrivate) {
-        log(information, isPrivate)
+        self.log(information, isPrivate: isPrivate)
     }
     
     func error(_ information: String, isPrivate: Bool = Defaults.isPrivate) {
