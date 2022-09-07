@@ -12,20 +12,12 @@ import android.util.Log
 import androidx.core.app.ActivityCompat
 import com.anggrayudi.storage.SimpleStorage
 import com.anggrayudi.storage.SimpleStorageHelper
-<<<<<<< HEAD:android/app/src/main/java/com/bookshelf/app/MainActivity.kt
 import com.bookshelf.app.data.AbsDatabase
+import com.bookshelf.app.data.DbManager
 import com.bookshelf.app.player.PlayerNotificationService
 import com.bookshelf.app.plugins.AbsAudioPlayer
 import com.bookshelf.app.plugins.AbsDownloader
 import com.bookshelf.app.plugins.AbsFileSystem
-=======
-import com.audiobookshelf.app.data.AbsDatabase
-import com.audiobookshelf.app.data.DbManager
-import com.audiobookshelf.app.player.PlayerNotificationService
-import com.audiobookshelf.app.plugins.AbsAudioPlayer
-import com.audiobookshelf.app.plugins.AbsDownloader
-import com.audiobookshelf.app.plugins.AbsFileSystem
->>>>>>> 837df329e2c5362480009fe3173cb0f58e0ed884:android/app/src/main/java/com/audiobookshelf/app/MainActivity.kt
 import com.getcapacitor.BridgeActivity
 
 

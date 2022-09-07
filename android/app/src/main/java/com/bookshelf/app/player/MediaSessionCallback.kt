@@ -10,14 +10,9 @@ import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
 import android.view.KeyEvent
-<<<<<<< HEAD:android/app/src/main/java/com/bookshelf/app/player/MediaSessionCallback.kt
 import com.bookshelf.app.data.LibraryItemWrapper
 import com.bookshelf.app.data.PodcastEpisode
-=======
-import com.audiobookshelf.app.R
-import com.audiobookshelf.app.data.LibraryItemWrapper
-import com.audiobookshelf.app.data.PodcastEpisode
->>>>>>> 837df329e2c5362480009fe3173cb0f58e0ed884:android/app/src/main/java/com/audiobookshelf/app/player/MediaSessionCallback.kt
+import com.bookshelf.app.R
 import java.util.*
 import kotlin.concurrent.schedule
 
@@ -245,7 +240,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
 //  override fun onCustomAction(action: String?, extras: Bundle?) {
 //    super.onCustomAction(action, extras)
 //
-//    if ("com.audiobookshelf.app.PLAYBACK_RATE" == action) {
+//    if ("com.bookshelf.app.PLAYBACK_RATE" == action) {
 //
 //    }
 //  }

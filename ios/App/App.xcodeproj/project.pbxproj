@@ -508,22 +508,8 @@
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-				MARKETING_VERSION = 0.9.43;
-				PRODUCT_BUNDLE_IDENTIFIER = com.bookshelf.app;
-=======
-				MARKETING_VERSION = 0.9.44;
-=======
-				MARKETING_VERSION = 0.9.47;
->>>>>>> fc6d16bdd929595e0c0f924c1b2485adb36af94e
-				PRODUCT_BUNDLE_IDENTIFIER = com.bookshelf.app;
->>>>>>> d626686614e0a5a5008927729435b58a9df4a24b
-=======
 				MARKETING_VERSION = 0.9.55;
-				PRODUCT_BUNDLE_IDENTIFIER = com.audiobookshelf.app;
->>>>>>> 837df329e2c5362480009fe3173cb0f58e0ed884
+				PRODUCT_BUNDLE_IDENTIFIER = com.bookshelf.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
 				SWIFT_OBJC_BRIDGING_HEADER = "App/App-Bridging-Header.h";

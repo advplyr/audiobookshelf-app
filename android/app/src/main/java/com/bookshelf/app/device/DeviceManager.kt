@@ -1,18 +1,15 @@
 package com.bookshelf.app.device
 
 import android.util.Log
-<<<<<<< HEAD:android/app/src/main/java/com/bookshelf/app/device/DeviceManager.kt
 import com.bookshelf.app.data.DbManager
 import com.bookshelf.app.data.DeviceData
 import com.bookshelf.app.data.ServerConnectionConfig
-=======
-import com.audiobookshelf.app.data.*
-import com.audiobookshelf.app.player.PlayerNotificationService
+import com.bookshelf.app.data.*
+import com.bookshelf.app.player.PlayerNotificationService
 
 interface WidgetEventEmitter {
   fun onPlayerChanged(pns:PlayerNotificationService)
 }
->>>>>>> 837df329e2c5362480009fe3173cb0f58e0ed884:android/app/src/main/java/com/audiobookshelf/app/device/DeviceManager.kt
 
 object DeviceManager {
   const val tag = "DeviceManager"

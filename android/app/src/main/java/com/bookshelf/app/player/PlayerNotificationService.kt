@@ -23,22 +23,13 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.media.MediaBrowserServiceCompat
 import androidx.media.utils.MediaConstants
-<<<<<<< HEAD:android/app/src/main/java/com/bookshelf/app/player/PlayerNotificationService.kt
 import com.bookshelf.app.BuildConfig
 import com.bookshelf.app.data.*
 import com.bookshelf.app.data.DeviceInfo
 import com.bookshelf.app.device.DeviceManager
 import com.bookshelf.app.media.MediaManager
 import com.bookshelf.app.server.ApiHandler
-=======
-import com.audiobookshelf.app.BuildConfig
-import com.audiobookshelf.app.R
-import com.audiobookshelf.app.data.*
-import com.audiobookshelf.app.data.DeviceInfo
-import com.audiobookshelf.app.device.DeviceManager
-import com.audiobookshelf.app.media.MediaManager
-import com.audiobookshelf.app.server.ApiHandler
->>>>>>> 837df329e2c5362480009fe3173cb0f58e0ed884:android/app/src/main/java/com/audiobookshelf/app/player/PlayerNotificationService.kt
+import com.bookshelf.app.R
 import com.google.android.exoplayer2.*
 import com.google.android.exoplayer2.audio.AudioAttributes
 import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector
@@ -297,7 +288,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 //      override fun getCustomAction(player: Player): PlaybackStateCompat.CustomAction? {
 //        var icon = R.drawable.exo_icon_rewind
 //       return PlaybackStateCompat.CustomAction.Builder(
-//         "com.audiobookshelf.app.PLAYBACK_RATE", "Playback Rate", icon)
+//         "com.bookshelf.app.PLAYBACK_RATE", "Playback Rate", icon)
 //         .build()
 //      }
 //    })
@@ -778,7 +769,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   private val ANDROID_WEARABLE_PKG_NAME = "com.google.android.wearable.app"
   private val ANDROID_GSEARCH_PKG_NAME = "com.google.android.googlequicksearchbox"
   private val ANDROID_AUTOMOTIVE_PKG_NAME = "com.google.android.carassistant"
-  private val VALID_MEDIA_BROWSERS = mutableListOf("com.audiobookshelf.app", ANDROID_AUTO_PKG_NAME, ANDROID_AUTO_SIMULATOR_PKG_NAME, ANDROID_WEARABLE_PKG_NAME, ANDROID_GSEARCH_PKG_NAME, ANDROID_AUTOMOTIVE_PKG_NAME)
+  private val VALID_MEDIA_BROWSERS = mutableListOf("com.bookshelf.app", ANDROID_AUTO_PKG_NAME, ANDROID_AUTO_SIMULATOR_PKG_NAME, ANDROID_WEARABLE_PKG_NAME, ANDROID_GSEARCH_PKG_NAME, ANDROID_AUTOMOTIVE_PKG_NAME)
 
   private val AUTO_MEDIA_ROOT = "/"
   private val ALL_ROOT = "__ALL__"

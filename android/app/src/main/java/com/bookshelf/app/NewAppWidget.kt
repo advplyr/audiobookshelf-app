@@ -1,4 +1,4 @@
-package com.audiobookshelf.app
+package com.bookshelf.app
 
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
@@ -12,9 +12,9 @@ import android.support.v4.media.session.PlaybackStateCompat.ACTION_PLAY_PAUSE
 import android.util.Log
 import android.widget.RemoteViews
 import androidx.media.session.MediaButtonReceiver.buildMediaButtonPendingIntent
-import com.audiobookshelf.app.device.DeviceManager
-import com.audiobookshelf.app.device.WidgetEventEmitter
-import com.audiobookshelf.app.player.PlayerNotificationService
+import com.bookshelf.app.device.DeviceManager
+import com.bookshelf.app.device.WidgetEventEmitter
+import com.bookshelf.app.player.PlayerNotificationService
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import com.bumptech.glide.request.target.AppWidgetTarget
@@ -78,7 +78,7 @@ internal fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManage
     )
     views.setOnClickPendingIntent(R.id.appWidget, wholeWidgetClickPI)
 
-    val imageUri = coverUri ?: Uri.parse("android.resource://com.audiobookshelf.app/" + R.drawable.icon)
+    val imageUri = coverUri ?: Uri.parse("android.resource://com.bookshelf.app/" + R.drawable.icon)
     val awt: AppWidgetTarget = object : AppWidgetTarget(context.applicationContext, R.id.imageView, views, appWidgetId) {
       override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
         super.onResourceReady(resource, transition)

@@ -1,16 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-<<<<<<< HEAD
-  xmlns:dist="http://schemas.android.com/apk/distribution"
-  xmlns:tools="http://schemas.android.com/tools"
-  android:installLocation="preferExternal"
-  package="com.bookshelf.app">
-=======
     xmlns:dist="http://schemas.android.com/apk/distribution"
     xmlns:tools="http://schemas.android.com/tools"
-    package="com.audiobookshelf.app"
+    package="com.bookshelf.app"
     android:installLocation="preferExternal" >
->>>>>>> 837df329e2c5362480009fe3173cb0f58e0ed884
 
     <!-- Permissions -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -30,7 +23,8 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="true" >
-<!--        <receiver-->
+
+<!--       <receiver>-->
 <!--            android:name=".NewAppWidget"-->
 <!--            android:exported="true" >-->
 <!--            <intent-filter>-->
@@ -44,14 +38,6 @@
 
         <!-- Used by Android Auto -->
         <meta-data
-<<<<<<< HEAD
-          android:name="com.google.android.gms.car.application"
-          android:resource="@xml/automotive_app_desc"/>
-
-        <!-- Support for Cast -->
-        <meta-data android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
-          android:value="com.bookshelf.app.CastOptionsProvider"/>
-=======
             android:name="com.google.android.gms.car.notification.SmallIcon"
             android:resource="@drawable/icon" />
         <meta-data
@@ -59,17 +45,11 @@
             android:resource="@xml/automotive_app_desc" /> <!-- Support for Cast -->
         <meta-data
             android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
-            android:value="com.audiobookshelf.app.CastOptionsProvider" />
->>>>>>> 837df329e2c5362480009fe3173cb0f58e0ed884
+            android:value="com.bookshelf.app.CastOptionsProvider" />
 
         <activity
             android:name=".MainActivity"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"
-<<<<<<< HEAD
-            android:name="com.bookshelf.app.MainActivity"
-            android:label="@string/title_activity_main"
-=======
->>>>>>> 837df329e2c5362480009fe3173cb0f58e0ed884
             android:exported="true"
             android:label="@string/title_activity_main"
             android:launchMode="singleTask"

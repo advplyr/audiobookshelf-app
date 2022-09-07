@@ -1,12 +1,8 @@
 package com.bookshelf.app.player
 
 import android.util.Log
-<<<<<<< HEAD:android/app/src/main/java/com/bookshelf/app/player/PlayerListener.kt
 import com.bookshelf.app.data.PlayerState
-=======
-import com.audiobookshelf.app.data.PlayerState
-import com.audiobookshelf.app.device.DeviceManager
->>>>>>> 837df329e2c5362480009fe3173cb0f58e0ed884:android/app/src/main/java/com/audiobookshelf/app/player/PlayerListener.kt
+import com.bookshelf.app.device.DeviceManager
 import com.google.android.exoplayer2.PlaybackException
 import com.google.android.exoplayer2.Player
 

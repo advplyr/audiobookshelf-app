@@ -4,22 +4,18 @@ import android.app.Activity
 import android.content.Context
 import android.support.v4.media.MediaBrowserCompat
 import android.util.Log
-<<<<<<< HEAD:android/app/src/main/java/com/bookshelf/app/media/MediaManager.kt
 import com.bookshelf.app.data.*
 import com.bookshelf.app.device.DeviceManager
 import com.bookshelf.app.server.ApiHandler
-=======
-import com.audiobookshelf.app.data.*
-import com.audiobookshelf.app.device.DeviceManager
-import com.audiobookshelf.app.server.ApiHandler
 import com.getcapacitor.JSObject
->>>>>>> 837df329e2c5362480009fe3173cb0f58e0ed884:android/app/src/main/java/com/audiobookshelf/app/media/MediaManager.kt
 import java.util.*
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import org.json.JSONException
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
+
+
 
 class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
   val tag = "MediaManager"
