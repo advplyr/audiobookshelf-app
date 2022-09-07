@@ -233,16 +233,6 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
     }
   }
 
-<<<<<<< HEAD:android/app/src/main/java/com/bookshelf/app/player/MediaSessionCallback.kt
-  // Example Using a custom action in android auto
-//  override fun onCustomAction(action: String?, extras: Bundle?) {
-//    super.onCustomAction(action, extras)
-//
-//    if ("com.bookshelf.app.PLAYBACK_RATE" == action) {
-//
-//    }
-//  }
-=======
   override fun onCustomAction(action: String?, extras: Bundle?) {
     super.onCustomAction(action, extras)
 
@@ -253,5 +243,4 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
       CUSTOM_ACTION_SKIP_BACKWARD -> onSkipToPrevious()
     }
   }
->>>>>>> 9dd532285cf9d812817db9330b75ce2095afc7a3:android/app/src/main/java/com/audiobookshelf/app/player/MediaSessionCallback.kt
 }
