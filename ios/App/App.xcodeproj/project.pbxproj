@@ -60,6 +60,7 @@
 		E9D5507528AEF93100C746DD /* PlayerSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D5507428AEF93100C746DD /* PlayerSettings.swift */; };
 		E9DFCBFB28C28F4A00B36356 /* AudioPlayerSleepTimer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9DFCBFA28C28F4A00B36356 /* AudioPlayerSleepTimer.swift */; };
 		E9E985F828B02D9400957F23 /* PlayerProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9E985F728B02D9400957F23 /* PlayerProgress.swift */; };
+		E9FA07E328C82848005520B0 /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9FA07E228C82848005520B0 /* Logger.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -120,6 +121,7 @@
 		E9D5507428AEF93100C746DD /* PlayerSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerSettings.swift; sourceTree = "<group>"; };
 		E9DFCBFA28C28F4A00B36356 /* AudioPlayerSleepTimer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayerSleepTimer.swift; sourceTree = "<group>"; };
 		E9E985F728B02D9400957F23 /* PlayerProgress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerProgress.swift; sourceTree = "<group>"; };
+		E9FA07E228C82848005520B0 /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
 		FC68EB0AF532CFC21C3344DD /* Pods-App.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-App.debug.xcconfig"; path = "Pods/Target Support Files/Pods-App/Pods-App.debug.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -199,6 +201,7 @@
 		3AFCB5E627EA23F700ECCC05 /* util */ = {
 			isa = PBXGroup;
 			children = (
+				E9FA07E228C82848005520B0 /* Logger.swift */,
 				3AFCB5E727EA240D00ECCC05 /* NowPlayingInfo.swift */,
 				3AD4FCEA280443DD006DB301 /* Database.swift */,
 				3AD4FCEC28044E6C006DB301 /* Store.swift */,
@@ -412,6 +415,7 @@
 				E9D5506228AC1CC900C746DD /* PlayerState.swift in Sources */,
 				3AD4FCE728043E72006DB301 /* AbsDatabase.m in Sources */,
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
+				E9FA07E328C82848005520B0 /* Logger.swift in Sources */,
 				3A90295F280968E700E1D427 /* PlaybackReport.swift in Sources */,
 				E9D5505A28AC1C4500C746DD /* Folder.swift in Sources */,
 				3ABF580928059BAE005DFBE5 /* PlaybackSession.swift in Sources */,
