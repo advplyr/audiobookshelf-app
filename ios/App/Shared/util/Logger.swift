@@ -52,14 +52,10 @@ public extension AppLogger {
     
     func log(_ information: String, isPrivate: Bool = Defaults.isPrivate) {
         if isPrivate {
-            logger.debug("\(information, privacy: .private)")
+            logger.log("\(information, privacy: .private)")
         } else {
-            logger.debug("\(information, privacy: .public)")
+            logger.log("\(information, privacy: .public)")
         }
-    }
-    
-    func debug(_ information: String, isPrivate: Bool = Defaults.isPrivate) {
-        self.log(information, isPrivate: isPrivate)
     }
     
     func error(_ information: String, isPrivate: Bool = Defaults.isPrivate) {

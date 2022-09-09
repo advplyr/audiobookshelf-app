@@ -98,7 +98,7 @@ class PlayerProgress {
 
         try localMediaProgress.updateFromPlaybackSession(session)
         
-        logger.debug("Local progress saved to the database")
+        logger.log("Local progress saved to the database")
         
         // Send the local progress back to front-end
         NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.localProgress.rawValue), object: nil)
@@ -143,7 +143,7 @@ class PlayerProgress {
         session = session.freeze()
         
         guard safeToSync else { return }
-        logger.debug("Sending sessionId(\(session.id)) to server with currentTime(\(session.currentTime))")
+        logger.log("Sending sessionId(\(session.id)) to server with currentTime(\(session.currentTime))")
         
         var success = false
         if session.isLocal {
@@ -163,25 +163,25 @@ class PlayerProgress {
     }
     
     private func updateLocalSessionFromServerMediaProgress() async throws {
-        logger.debug("updateLocalSessionFromServerMediaProgress: Checking if local media progress was updated on server")
+        logger.log("updateLocalSessionFromServerMediaProgress: Checking if local media progress was updated on server")
         guard let session = try await Realm().objects(PlaybackSession.self).last(where: {
             $0.isActiveSession == true && $0.serverConnectionConfigId == Store.serverConfig?.id
         })?.freeze() else {
-            logger.debug("updateLocalSessionFromServerMediaProgress: Failed to get session")
+            logger.log("updateLocalSessionFromServerMediaProgress: Failed to get session")
             return
         }
         
         // Fetch the current progress
         let progress = await ApiClient.getMediaProgress(libraryItemId: session.libraryItemId!, episodeId: session.episodeId)
         guard let progress = progress else {
-            logger.debug("updateLocalSessionFromServerMediaProgress: No progress object")
+            logger.log("updateLocalSessionFromServerMediaProgress: No progress object")
             return
         }
         
         // Determine which session is newer
         let serverLastUpdate = progress.lastUpdate
         guard let localLastUpdate = session.updatedAt else {
-            logger.debug("updateLocalSessionFromServerMediaProgress: No local session updatedAt")
+            logger.log("updateLocalSessionFromServerMediaProgress: No local session updatedAt")
             return
         }
         let serverCurrentTime = progress.currentTime
@@ -192,16 +192,16 @@ class PlayerProgress {
         
         // Update the session, if needed
         if serverIsNewerThanLocal && currentTimeIsDifferent {
-            logger.debug("updateLocalSessionFromServerMediaProgress: Server has newer time than local serverLastUpdate=\(serverLastUpdate) localLastUpdate=\(localLastUpdate)")
+            logger.log("updateLocalSessionFromServerMediaProgress: Server has newer time than local serverLastUpdate=\(serverLastUpdate) localLastUpdate=\(localLastUpdate)")
             guard let session = session.thaw() else { return }
             try session.update {
                 session.currentTime = serverCurrentTime
                 session.updatedAt = serverLastUpdate
             }
-            logger.debug("updateLocalSessionFromServerMediaProgress: Updated session currentTime newCurrentTime=\(serverCurrentTime) previousCurrentTime=\(localCurrentTime)")
+            logger.log("updateLocalSessionFromServerMediaProgress: Updated session currentTime newCurrentTime=\(serverCurrentTime) previousCurrentTime=\(localCurrentTime)")
             PlayerHandler.seek(amount: session.currentTime)
         } else {
-            logger.debug("updateLocalSessionFromServerMediaProgress: Local session does not need updating; local has latest progress")
+            logger.log("updateLocalSessionFromServerMediaProgress: Local session does not need updating; local has latest progress")
         }
     }
     
