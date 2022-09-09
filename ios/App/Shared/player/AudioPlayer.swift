@@ -193,10 +193,6 @@ class AudioPlayer: NSObject {
                     
                     // Handle a sitation where the user skips past the chapter end
                     if self.isChapterSleepTimerBeforeTime(currentTime) {
-                        // If we are firing before the chapter sleep timer trigger
-                        if let timeUntilSleep = self.getSleepTimeRemaining(), timeUntilSleep <= 1 {
-                            self.pause()
-                        }
                         self.removeSleepTimer()
                     }
                 }
