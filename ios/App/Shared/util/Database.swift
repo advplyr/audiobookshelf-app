@@ -12,6 +12,8 @@ class Database {
     public static var shared = {
         return Database()
     }()
+    
+    private let logger = AppLogger(category: "Database")
 
     private init() {}
     
@@ -30,7 +32,7 @@ class Database {
                     existing.token = config.token
                 }
             } catch {
-                NSLog("failed to update server config")
+                logger.error("failed to update server config")
                 debugPrint(error)
             }
             
@@ -51,7 +53,7 @@ class Database {
                     realm.add(config)
                 }
             } catch(let exception) {
-                NSLog("failed to save server config")
+                logger.error("failed to save server config")
                 debugPrint(exception)
             }
             
@@ -70,7 +72,7 @@ class Database {
                 }
             }
         } catch(let exception) {
-            NSLog("failed to delete server config")
+            logger.error("failed to delete server config")
             debugPrint(exception)
         }
     }
@@ -101,7 +103,7 @@ class Database {
                 }
             }
         } catch(let exception) {
-            NSLog("failed to save server config active index")
+            logger.error("failed to save server config active index")
             debugPrint(exception)
         }
     }
@@ -121,7 +123,7 @@ class Database {
                 realm.add(deviceSettings)
             }
         } catch {
-            NSLog("failed to save device settings")
+            logger.error("failed to save device settings")
         }
     }
     

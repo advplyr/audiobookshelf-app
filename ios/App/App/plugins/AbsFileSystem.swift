@@ -10,10 +10,12 @@ import Capacitor
 
 @objc(AbsFileSystem)
 public class AbsFileSystem: CAPPlugin {
+    private let logger = AppLogger(category: "AbsFileSystem")
+    
     @objc func selectFolder(_ call: CAPPluginCall) {
         let mediaType = call.getString("mediaType")
 
-        NSLog("Select Folder for media type \(mediaType ?? "UNSET")")
+        logger.log("Select Folder for media type \(mediaType ?? "UNSET")")
         
         call.unavailable("Not available on iOS")
     }
@@ -21,7 +23,7 @@ public class AbsFileSystem: CAPPlugin {
     @objc func checkFolderPermission(_ call: CAPPluginCall) {
         let folderUrl = call.getString("folderUrl")
 
-        NSLog("checkFolderPermission for folder \(folderUrl ?? "UNSET")")
+        logger.log("checkFolderPermission for folder \(folderUrl ?? "UNSET")")
         
         call.unavailable("Not available on iOS")
     }
@@ -30,7 +32,7 @@ public class AbsFileSystem: CAPPlugin {
         let folderId = call.getString("folderId")
         let forceAudioProbe = call.getBool("forceAudioProbe", false)
 
-        NSLog("scanFolder \(folderId ?? "UNSET") | Force Probe = \(forceAudioProbe)")
+        logger.log("scanFolder \(folderId ?? "UNSET") | Force Probe = \(forceAudioProbe)")
         
         call.unavailable("Not available on iOS")
     }
@@ -38,7 +40,7 @@ public class AbsFileSystem: CAPPlugin {
     @objc func removeFolder(_ call: CAPPluginCall) {
         let folderId = call.getString("folderId")
 
-        NSLog("removeFolder \(folderId ?? "UNSET")")
+        logger.log("removeFolder \(folderId ?? "UNSET")")
         
         call.unavailable("Not available on iOS")
     }
@@ -46,7 +48,7 @@ public class AbsFileSystem: CAPPlugin {
     @objc func removeLocalLibraryItem(_ call: CAPPluginCall) {
         let localLibraryItemId = call.getString("localLibraryItemId")
 
-        NSLog("removeLocalLibraryItem \(localLibraryItemId ?? "UNSET")")
+        logger.log("removeLocalLibraryItem \(localLibraryItemId ?? "UNSET")")
         
         call.unavailable("Not available on iOS")
     }
@@ -55,7 +57,7 @@ public class AbsFileSystem: CAPPlugin {
         let localLibraryItemId = call.getString("localLibraryItemId")
         let forceAudioProbe = call.getBool("forceAudioProbe", false)
 
-        NSLog("scanLocalLibraryItem \(localLibraryItemId ?? "UNSET") | Force Probe = \(forceAudioProbe)")
+        logger.log("scanLocalLibraryItem \(localLibraryItemId ?? "UNSET") | Force Probe = \(forceAudioProbe)")
         
         call.unavailable("Not available on iOS")
     }
@@ -64,7 +66,7 @@ public class AbsFileSystem: CAPPlugin {
         let localLibraryItemId = call.getString("id")
         let contentUrl = call.getString("contentUrl")
         
-        NSLog("deleteItem \(localLibraryItemId ?? "UNSET") url \(contentUrl ?? "UNSET")")
+        logger.log("deleteItem \(localLibraryItemId ?? "UNSET") url \(contentUrl ?? "UNSET")")
         
         var success = false
         do {
@@ -74,7 +76,7 @@ public class AbsFileSystem: CAPPlugin {
                 success = true
             }
         } catch {
-            NSLog("Failed to delete \(error)")
+            logger.error("Failed to delete \(error)")
             success = false
         }
         
@@ -85,7 +87,7 @@ public class AbsFileSystem: CAPPlugin {
         let localLibraryItemId = call.getString("id")
         let trackLocalFileId = call.getString("trackLocalFileId")
 
-        NSLog("deleteTrackFromItem \(localLibraryItemId ?? "UNSET") track file \(trackLocalFileId ?? "UNSET")")
+        logger.log("deleteTrackFromItem \(localLibraryItemId ?? "UNSET") track file \(trackLocalFileId ?? "UNSET")")
         
         var success = false
         if let localLibraryItemId = localLibraryItemId, let trackLocalFileId = trackLocalFileId, let item = Database.shared.getLocalLibraryItem(localLibraryItemId: localLibraryItemId) {
@@ -105,12 +107,12 @@ public class AbsFileSystem: CAPPlugin {
                             success = true
                         }
                     } catch {
-                        NSLog("Failed to delete \(error)")
+                        logger.error("Failed to delete \(error)")
                         success = false
                     }
                 }
             } catch {
-                NSLog("Failed to delete \(error)")
+                logger.error("Failed to delete \(error)")
                 success = false
             }
         }

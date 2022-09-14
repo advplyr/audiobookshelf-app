@@ -9,6 +9,8 @@ import Foundation
 import Alamofire
 
 class ApiClient {
+    private static let logger = AppLogger(category: "ApiClient")
+    
     public static func getData(from url: URL, completion: @escaping (UIImage?) -> Void) {
         URLSession.shared.dataTask(with: url, completionHandler: {(data, response, error) in
             if let data = data {
@@ -19,7 +21,7 @@ class ApiClient {
     
     public static func postResource<T: Decodable>(endpoint: String, parameters: [String: Any], decodable: T.Type = T.self, callback: ((_ param: T) -> Void)?) {
         if (Store.serverConfig == nil) {
-            NSLog("Server config not set")
+            logger.error("Server config not set")
             return
         }
         
@@ -32,7 +34,7 @@ class ApiClient {
             case .success(let obj):
                 callback?(obj)
             case .failure(let error):
-                NSLog("api request to \(endpoint) failed")
+                logger.error("api request to \(endpoint) failed")
                 print(error)
             }
         }
@@ -40,7 +42,7 @@ class ApiClient {
     
     public static func postResource<T: Encodable, U: Decodable>(endpoint: String, parameters: T, decodable: U.Type = U.self, callback: ((_ param: U) -> Void)?) {
         if (Store.serverConfig == nil) {
-            NSLog("Server config not set")
+            logger.error("Server config not set")
             return
         }
         
@@ -53,7 +55,7 @@ class ApiClient {
             case .success(let obj):
                 callback?(obj)
             case .failure(let error):
-                NSLog("api request to \(endpoint) failed")
+                logger.error("api request to \(endpoint) failed")
                 print(error)
             }
         }
@@ -69,7 +71,7 @@ class ApiClient {
     
     public static func postResource<T:Encodable>(endpoint: String, parameters: T, callback: ((_ success: Bool) -> Void)?) {
         if (Store.serverConfig == nil) {
-            NSLog("Server config not set")
+            logger.error("Server config not set")
             callback?(false)
             return
         }
@@ -83,7 +85,7 @@ class ApiClient {
             case .success(_):
                 callback?(true)
             case .failure(let error):
-                NSLog("api request to \(endpoint) failed")
+                logger.error("api request to \(endpoint) failed")
                 print(error)
                 
                 callback?(false)
@@ -93,7 +95,7 @@ class ApiClient {
     
     public static func patchResource<T: Encodable>(endpoint: String, parameters: T, callback: ((_ success: Bool) -> Void)?) {
         if (Store.serverConfig == nil) {
-            NSLog("Server config not set")
+            logger.error("Server config not set")
             callback?(false)
             return
         }
@@ -107,7 +109,7 @@ class ApiClient {
             case .success(_):
                 callback?(true)
             case .failure(let error):
-                NSLog("api request to \(endpoint) failed")
+                logger.error("api request to \(endpoint) failed")
                 print(error)
                 callback?(false)
             }
@@ -124,7 +126,7 @@ class ApiClient {
     
     public static func getResource<T: Decodable>(endpoint: String, decodable: T.Type = T.self, callback: ((_ param: T?) -> Void)?) {
         if (Store.serverConfig == nil) {
-            NSLog("Server config not set")
+            logger.error("Server config not set")
             callback?(nil)
             return
         }
@@ -138,7 +140,7 @@ class ApiClient {
                 case .success(let obj):
                     callback?(obj)
                 case .failure(let error):
-                    NSLog("api request to \(endpoint) failed")
+                    logger.error("api request to \(endpoint) failed")
                     print(error)
             }
         }
@@ -193,10 +195,10 @@ class ApiClient {
         
         if ( !localMediaProgressList.isEmpty ) {
             let payload = LocalMediaProgressSyncPayload(localMediaProgress: localMediaProgressList)
-            NSLog("Sending sync local progress request with \(localMediaProgressList.count) progress items")
+            logger.log("Sending sync local progress request with \(localMediaProgressList.count) progress items")
             postResource(endpoint: "api/me/sync-local-progress", parameters: payload, decodable: MediaProgressSyncResponsePayload.self) { response in
                 let resultsPayload = LocalMediaProgressSyncResultsPayload(numLocalMediaProgressForServer: localMediaProgressList.count, numServerProgressUpdates: response.numServerProgressUpdates, numLocalProgressUpdates: response.localProgressUpdates?.count)
-                NSLog("Media Progress Sync | \(String(describing: try? resultsPayload.asDictionary()))")
+                logger.log("Media Progress Sync | \(String(describing: try? resultsPayload.asDictionary()))")
                 
                 if let updates = response.localProgressUpdates {
                     for update in updates {
@@ -212,13 +214,13 @@ class ApiClient {
                 callback(resultsPayload)
             }
         } else {
-            NSLog("No local media progress to sync")
+            logger.log("No local media progress to sync")
             callback(LocalMediaProgressSyncResultsPayload(numLocalMediaProgressForServer: 0, numServerProgressUpdates: 0, numLocalProgressUpdates: 0))
         }
     }
     
     public static func updateMediaProgress<T:Encodable>(libraryItemId: String, episodeId: String?, payload: T, callback: @escaping () -> Void) {
-        NSLog("updateMediaProgress \(libraryItemId) \(episodeId ?? "NIL") \(payload)")
+        logger.log("updateMediaProgress \(libraryItemId) \(episodeId ?? "NIL") \(payload)")
         let endpoint = episodeId?.isEmpty ?? true ? "api/me/progress/\(libraryItemId)" : "api/me/progress/\(libraryItemId)/\(episodeId ?? "")"
         patchResource(endpoint: endpoint, parameters: payload) { success in
             callback()
@@ -226,7 +228,7 @@ class ApiClient {
     }
     
     public static func getMediaProgress(libraryItemId: String, episodeId: String?) async -> MediaProgress? {
-        NSLog("getMediaProgress \(libraryItemId) \(episodeId ?? "NIL")")
+        logger.log("getMediaProgress \(libraryItemId) \(episodeId ?? "NIL")")
         let endpoint = episodeId?.isEmpty ?? true ? "api/me/progress/\(libraryItemId)" : "api/me/progress/\(libraryItemId)/\(episodeId ?? "")"
         return await getResource(endpoint: endpoint, decodable: MediaProgress.self)
     }
