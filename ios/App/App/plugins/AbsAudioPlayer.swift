@@ -11,6 +11,8 @@ import RealmSwift
 
 @objc(AbsAudioPlayer)
 public class AbsAudioPlayer: CAPPlugin {
+    private let logger = AppLogger(category: "AbsAudioPlayer")
+    
     private var initialPlayWhenReady = false
     private var isUIReady = false
     
@@ -46,7 +48,7 @@ public class AbsAudioPlayer: CAPPlugin {
                 try self.startPlaybackSession(activeSession, playWhenReady: false, playbackRate: PlayerSettings.main().playbackRate)
             }
         } catch {
-            NSLog("Failed to restore playback session")
+            logger.error("Failed to restore playback session")
             debugPrint(error)
         }
     }
@@ -67,7 +69,7 @@ public class AbsAudioPlayer: CAPPlugin {
         let playbackRate = call.getFloat("playbackRate", 1)
         
         if libraryItemId == nil {
-            NSLog("provide library item id")
+            logger.error("provide library item id")
             return call.resolve()
         }
         
@@ -78,7 +80,7 @@ public class AbsAudioPlayer: CAPPlugin {
             let item = Database.shared.getLocalLibraryItem(localLibraryItemId: libraryItemId!)
             let episode = item?.getPodcastEpisode(episodeId: episodeId)
             guard let playbackSession = item?.getPlaybackSession(episode: episode) else {
-                NSLog("Failed to get local playback session")
+                logger.error("Failed to get local playback session")
                 return call.resolve([:])
             }
             
@@ -87,18 +89,18 @@ public class AbsAudioPlayer: CAPPlugin {
                 try self.startPlaybackSession(playbackSession, playWhenReady: playWhenReady, playbackRate: playbackRate)
                 call.resolve(try playbackSession.asDictionary())
             } catch(let exception) {
-                NSLog("Failed to start session")
+                logger.error("Failed to start session")
                 debugPrint(exception)
                 call.resolve([:])
             }
         } else { // Playing from the server
-            ApiClient.startPlaybackSession(libraryItemId: libraryItemId!, episodeId: episodeId, forceTranscode: false) { session in
+            ApiClient.startPlaybackSession(libraryItemId: libraryItemId!, episodeId: episodeId, forceTranscode: false) { [weak self] session in
                 do {
                     try session.save()
-                    try self.startPlaybackSession(session, playWhenReady: playWhenReady, playbackRate: playbackRate)
+                    try self?.startPlaybackSession(session, playWhenReady: playWhenReady, playbackRate: playbackRate)
                     call.resolve(try session.asDictionary())
                 } catch(let exception) {
-                    NSLog("Failed to start session")
+                    self?.logger.error("Failed to start session")
                     debugPrint(exception)
                     call.resolve([:])
                 }
@@ -107,7 +109,7 @@ public class AbsAudioPlayer: CAPPlugin {
     }
     
     @objc func closePlayback(_ call: CAPPluginCall) {
-        NSLog("Close playback")
+        logger.log("Close playback")
         
         PlayerHandler.stopPlayback()
         call.resolve()
@@ -193,7 +195,7 @@ public class AbsAudioPlayer: CAPPlugin {
         
         let seconds = time / 1000
         
-        NSLog("chapter time: \(isChapterTime)")
+        logger.log("chapter time: \(isChapterTime)")
         if isChapterTime {
             PlayerHandler.setChapterSleepTime(stopAt: seconds)
             return call.resolve([ "success": true ])
@@ -230,7 +232,7 @@ public class AbsAudioPlayer: CAPPlugin {
         guard let localMediaProgressId = PlayerHandler.getPlaybackSession()?.localMediaProgressId else { return }
         guard let localMediaProgress = Database.shared.getLocalMediaProgress(localMediaProgressId: localMediaProgressId) else { return }
         guard let progressUpdate = try? localMediaProgress.asDictionary() else { return }
-        NSLog("Sending local progress back to the UI")
+        logger.log("Sending local progress back to the UI")
         self.notifyListeners("onLocalMediaProgressUpdate", data: progressUpdate)
     }
     
@@ -239,17 +241,18 @@ public class AbsAudioPlayer: CAPPlugin {
             let session = PlayerHandler.getPlaybackSession()
             let libraryItemId = session?.libraryItemId ?? ""
             let episodeId = session?.episodeId ?? nil
-            NSLog("Forcing Transcode")
+            logger.log("Forcing Transcode")
             
             // If direct playing then fallback to transcode
-            ApiClient.startPlaybackSession(libraryItemId: libraryItemId, episodeId: episodeId, forceTranscode: true) { session in
+            ApiClient.startPlaybackSession(libraryItemId: libraryItemId, episodeId: episodeId, forceTranscode: true) { [weak self] session in
                 do {
+                    guard let self = self else { return }
                     try session.save()
                     PlayerHandler.startPlayback(sessionId: session.id, playWhenReady: self.initialPlayWhenReady, playbackRate: PlayerSettings.main().playbackRate)
                     self.sendPlaybackSession(session: try session.asDictionary())
                     self.sendMetadata()
                 } catch(let exception) {
-                    NSLog("Failed to start transcoded session")
+                    self?.logger.error("Failed to start transcoded session")
                     debugPrint(exception)
                 }
             }
