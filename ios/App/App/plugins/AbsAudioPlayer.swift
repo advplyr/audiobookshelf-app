@@ -14,7 +14,6 @@ public class AbsAudioPlayer: CAPPlugin {
     private let logger = AppLogger(category: "AbsAudioPlayer")
     
     private var initialPlayWhenReady = false
-    private var isUIReady = false
     
     override public func load() {
         NotificationCenter.default.addObserver(self, selector: #selector(sendMetadata), name: NSNotification.Name(PlayerEvents.update.rawValue), object: nil)
@@ -35,15 +34,14 @@ public class AbsAudioPlayer: CAPPlugin {
     }
     
     func restorePlaybackSession() async {
-        // We don't need to restore if we have an active session
-        guard PlayerHandler.getPlaybackSession() == nil else { return }
-        
         do {
             // Fetch the most recent active session
             let activeSession = try await Realm().objects(PlaybackSession.self).where({
                 $0.isActiveSession == true && $0.serverConnectionConfigId == Store.serverConfig?.id
             }).last?.freeze()
+            
             if let activeSession = activeSession {
+                PlayerHandler.stopPlayback(currentSessionId: activeSession.id)
                 await PlayerProgress.shared.syncFromServer()
                 try self.startPlaybackSession(activeSession, playWhenReady: false, playbackRate: PlayerSettings.main().playbackRate)
             }

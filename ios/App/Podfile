@@ -17,7 +17,7 @@ def capacitor_pods
   pod 'CapacitorStorage', :path => '../../node_modules/@capacitor/storage'
 end
 
-target 'App' do
+target 'Audiobookshelf' do
   capacitor_pods
   # Add your Pods here
   

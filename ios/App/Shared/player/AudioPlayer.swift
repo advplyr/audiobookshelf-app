@@ -104,9 +104,6 @@ class AudioPlayer: NSObject {
     }
     
     deinit {
-        self.stopPausedTimer()
-        self.removeSleepTimer()
-        self.removeTimeObserver()
         self.queueObserver?.invalidate()
         self.queueItemStatusObserver?.invalidate()
     }
@@ -133,8 +130,13 @@ class AudioPlayer: NSObject {
         // Remove observers
         self.audioPlayer.removeObserver(self, forKeyPath: #keyPath(AVPlayer.rate), context: &playerContext)
         self.audioPlayer.removeObserver(self, forKeyPath: #keyPath(AVPlayer.currentItem), context: &playerContext)
+        self.removeTimeObserver()
         
         NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.closed.rawValue), object: nil)
+        
+        // Remove timers
+        self.stopPausedTimer()
+        self.removeSleepTimer()
     }
     
     public func isInitialized() -> Bool {
@@ -300,9 +302,12 @@ class AudioPlayer: NSObject {
         // Start playback, with a seek, for as smooth a scrub bar start as possible
         let currentTrackStartOffset = session.audioTracks[self.currentTrackIndex].startOffset ?? 0.0
         let seekTime = currentTime - currentTrackStartOffset
-        self.audioPlayer.seek(to: CMTime(seconds: seekTime, preferredTimescale: 1000), toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] completed in
-            guard completed else { return }
-            self?.resumePlayback()
+        
+        DispatchQueue.runOnMainQueue {
+            self.audioPlayer.seek(to: CMTime(seconds: seekTime, preferredTimescale: 1000), toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] completed in
+                guard completed else { return }
+                self?.resumePlayback()
+            }
         }
     }
     
@@ -338,8 +343,10 @@ class AudioPlayer: NSObject {
         self.stopPausedTimer()
         
         self.markAudioSessionAs(active: true)
-        self.audioPlayer.play()
-        self.audioPlayer.rate = self.tmpRate
+        DispatchQueue.runOnMainQueue {
+            self.audioPlayer.play()
+            self.audioPlayer.rate = self.tmpRate
+        }
         self.status = 1
         
         // Update the progress
@@ -350,7 +357,9 @@ class AudioPlayer: NSObject {
         guard self.isInitialized() else { return }
         
         logger.log("PAUSE: Pausing playback")
-        self.audioPlayer.pause()
+        DispatchQueue.runOnMainQueue {
+            self.audioPlayer.pause()
+        }
         self.markAudioSessionAs(active: false)
         
         Task {
@@ -395,9 +404,11 @@ class AudioPlayer: NSObject {
             self.status = -1
             let playerItems = self.allPlayerItems[indexOfSeek..<self.allPlayerItems.count]
             
-            self.audioPlayer.removeAllItems()
-            for item in Array(playerItems) {
-                self.audioPlayer.insert(item, after:self.audioPlayer.items().last)
+            DispatchQueue.runOnMainQueue {
+                self.audioPlayer.removeAllItems()
+                for item in Array(playerItems) {
+                    self.audioPlayer.insert(item, after:self.audioPlayer.items().last)
+                }
             }
             
             setupQueueItemStatusObserver()
@@ -406,18 +417,20 @@ class AudioPlayer: NSObject {
             let currentTrackStartOffset = playbackSession.audioTracks[self.currentTrackIndex].startOffset ?? 0.0
             let seekTime = to - currentTrackStartOffset
             
-            self.audioPlayer.seek(to: CMTime(seconds: seekTime, preferredTimescale: 1000)) { [weak self] completed in
-                guard completed else {
-                    self?.logger.log("SEEK: WARNING: seeking not completed (to \(seekTime)")
-                    return
+            DispatchQueue.runOnMainQueue {
+                self.audioPlayer.seek(to: CMTime(seconds: seekTime, preferredTimescale: 1000)) { [weak self] completed in
+                    guard completed else {
+                        self?.logger.log("SEEK: WARNING: seeking not completed (to \(seekTime)")
+                        return
+                    }
+                    guard let self = self else { return }
+                    
+                    if continuePlaying {
+                        self.resumePlayback()
+                    }
+                    
+                    self.updateNowPlaying()
                 }
-                guard let self = self else { return }
-                
-                if continuePlaying {
-                    self.resumePlayback()
-                }
-                
-                self.updateNowPlaying()
             }
         }
     }
@@ -427,7 +440,9 @@ class AudioPlayer: NSObject {
         
         if self.audioPlayer.rate != rate {
             logger.log("setPlaybakRate rate changed from \(self.audioPlayer.rate) to \(rate)")
-            self.audioPlayer.rate = rate
+            DispatchQueue.runOnMainQueue {
+                self.audioPlayer.rate = rate
+            }
         }
         
         self.rate = rate

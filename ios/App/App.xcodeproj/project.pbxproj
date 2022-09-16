@@ -34,7 +34,7 @@
 		504EC30F1FED79650016851F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30E1FED79650016851F /* Assets.xcassets */; };
 		504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3101FED79650016851F /* LaunchScreen.storyboard */; };
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
-		A084ECDBA7D38E1E42DFC39D /* Pods_App.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AF277DCFFFF123FFC6DF26C7 /* Pods_App.framework */; };
+		AC98F95F300E46A27FAE47A4 /* Pods_Audiobookshelf.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B775656E49492CFD6763B7B6 /* Pods_Audiobookshelf.framework */; };
 		E9D5504628AC1A3900C746DD /* LibraryItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D5504528AC1A3900C746DD /* LibraryItem.swift */; };
 		E9D5504828AC1A7A00C746DD /* MediaType.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D5504728AC1A7A00C746DD /* MediaType.swift */; };
 		E9D5504A28AC1AA600C746DD /* Metadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D5504928AC1AA600C746DD /* Metadata.swift */; };
@@ -94,8 +94,10 @@
 		504EC3111FED79650016851F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		504EC3131FED79650016851F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		50B271D01FEDC1A000F3C39B /* public */ = {isa = PBXFileReference; lastKnownFileType = folder; path = public; sourceTree = "<group>"; };
-		AF277DCFFFF123FFC6DF26C7 /* Pods_App.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_App.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		5F7EC3E03050241EA35154B3 /* Pods-Audiobookshelf.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Audiobookshelf.release.xcconfig"; path = "Pods/Target Support Files/Pods-Audiobookshelf/Pods-Audiobookshelf.release.xcconfig"; sourceTree = "<group>"; };
+		8FBD5FE4076DDFA0DA782256 /* Pods-Audiobookshelf.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Audiobookshelf.debug.xcconfig"; path = "Pods/Target Support Files/Pods-Audiobookshelf/Pods-Audiobookshelf.debug.xcconfig"; sourceTree = "<group>"; };
 		AF51FD2D460BCFE21FA515B2 /* Pods-App.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-App.release.xcconfig"; path = "Pods/Target Support Files/Pods-App/Pods-App.release.xcconfig"; sourceTree = "<group>"; };
+		B775656E49492CFD6763B7B6 /* Pods_Audiobookshelf.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Audiobookshelf.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		E9D5504528AC1A3900C746DD /* LibraryItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryItem.swift; sourceTree = "<group>"; };
 		E9D5504728AC1A7A00C746DD /* MediaType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaType.swift; sourceTree = "<group>"; };
 		E9D5504928AC1AA600C746DD /* Metadata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Metadata.swift; sourceTree = "<group>"; };
@@ -130,7 +132,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A084ECDBA7D38E1E42DFC39D /* Pods_App.framework in Frameworks */,
+				AC98F95F300E46A27FAE47A4 /* Pods_Audiobookshelf.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -140,7 +142,7 @@
 		27E2DDA53C4D2A4D1A88CE4A /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				AF277DCFFFF123FFC6DF26C7 /* Pods_App.framework */,
+				B775656E49492CFD6763B7B6 /* Pods_Audiobookshelf.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -254,6 +256,8 @@
 			children = (
 				FC68EB0AF532CFC21C3344DD /* Pods-App.debug.xcconfig */,
 				AF51FD2D460BCFE21FA515B2 /* Pods-App.release.xcconfig */,
+				8FBD5FE4076DDFA0DA782256 /* Pods-Audiobookshelf.debug.xcconfig */,
+				5F7EC3E03050241EA35154B3 /* Pods-Audiobookshelf.release.xcconfig */,
 			);
 			name = Pods;
 			sourceTree = "<group>";
@@ -382,7 +386,7 @@
 			);
 			name = "[CP] Check Pods Manifest.lock";
 			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-App-checkManifestLockResult.txt",
+				"$(DERIVED_FILE_DIR)/Pods-Audiobookshelf-checkManifestLockResult.txt",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -401,7 +405,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-App/Pods-App-frameworks.sh\"\n";
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Audiobookshelf/Pods-Audiobookshelf-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */
@@ -598,7 +602,7 @@
 		};
 		504EC3171FED79650016851F /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = FC68EB0AF532CFC21C3344DD /* Pods-App.debug.xcconfig */;
+			baseConfigurationReference = 8FBD5FE4076DDFA0DA782256 /* Pods-Audiobookshelf.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = Icons;
 				CLANG_ENABLE_MODULES = YES;
@@ -622,7 +626,7 @@
 		};
 		504EC3181FED79650016851F /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = AF51FD2D460BCFE21FA515B2 /* Pods-App.release.xcconfig */;
+			baseConfigurationReference = 5F7EC3E03050241EA35154B3 /* Pods-Audiobookshelf.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = Icons;
 				CLANG_ENABLE_MODULES = YES;

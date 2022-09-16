@@ -7,7 +7,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     
     private let logger = AppLogger(category: "AppDelegate")
 
-    var window: UIWindow?
+    lazy var window: UIWindow? = UIWindow(frame: UIScreen.main.bounds)
     var backgroundCompletionHandler: (() -> Void)?
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
@@ -85,10 +85,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         super.touchesBegan(touches, with: event)
 
-        let statusBarRect = UIApplication.shared.statusBarFrame
+        let statusBarRect = self.window?.windowScene?.statusBarManager?.statusBarFrame
         guard let touchPoint = event?.allTouches?.first?.location(in: self.window) else { return }
 
-        if statusBarRect.contains(touchPoint) {
+        if statusBarRect?.contains(touchPoint) ?? false {
             NotificationCenter.default.post(name: .capacitorStatusBarTapped, object: nil)
         }
     }
