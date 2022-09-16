@@ -104,9 +104,6 @@ class AudioPlayer: NSObject {
     }
     
     deinit {
-        self.stopPausedTimer()
-        self.removeSleepTimer()
-        self.removeTimeObserver()
         self.queueObserver?.invalidate()
         self.queueItemStatusObserver?.invalidate()
     }
@@ -133,8 +130,13 @@ class AudioPlayer: NSObject {
         // Remove observers
         self.audioPlayer.removeObserver(self, forKeyPath: #keyPath(AVPlayer.rate), context: &playerContext)
         self.audioPlayer.removeObserver(self, forKeyPath: #keyPath(AVPlayer.currentItem), context: &playerContext)
+        self.removeTimeObserver()
         
         NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.closed.rawValue), object: nil)
+        
+        // Remove timers
+        self.stopPausedTimer()
+        self.removeSleepTimer()
     }
     
     public func isInitialized() -> Bool {

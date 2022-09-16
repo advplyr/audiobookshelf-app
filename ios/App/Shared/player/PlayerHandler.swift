@@ -15,10 +15,7 @@ class PlayerHandler {
         guard let session = Database.shared.getPlaybackSession(id: sessionId) else { return }
         
         // Clean up the existing player
-        if player != nil {
-            player?.destroy()
-            player = nil
-        }
+        resetPlayer()
         
         // Cleanup and sync old sessions
         cleanupOldSessions(currentSessionId: sessionId)
@@ -31,15 +28,11 @@ class PlayerHandler {
         player = AudioPlayer(sessionId: sessionId, playWhenReady: playWhenReady, playbackRate: playbackRate)
     }
     
-    public static func stopPlayback() {
+    public static func stopPlayback(currentSessionId: String? = nil) {
         // Pause playback first, so we can sync our current progress
         player?.pause()
-        
-        player?.destroy()
-        player = nil
-        
-        cleanupOldSessions(currentSessionId: nil)
-        
+        resetPlayer()
+        cleanupOldSessions(currentSessionId: currentSessionId)
         NowPlayingInfo.shared.reset()
     }
     
@@ -156,5 +149,10 @@ class PlayerHandler {
             debugPrint("Failed to cleanup sessions")
             debugPrint(error)
         }
+    }
+    
+    private static func resetPlayer() {
+        player?.destroy()
+        player = nil
     }
 }
