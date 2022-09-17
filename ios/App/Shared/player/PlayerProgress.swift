@@ -106,7 +106,7 @@ class PlayerProgress {
     
     private func updateAllServerSessionFromLocalSession() async throws {
         try await withThrowingTaskGroup(of: Void.self) { [self] group in
-            for session in try await Realm().objects(PlaybackSession.self).where({ $0.serverConnectionConfigId == Store.serverConfig?.id }) {
+            for session in try Realm(queue: nil).objects(PlaybackSession.self).where({ $0.serverConnectionConfigId == Store.serverConfig?.id }) {
                 let session = session.freeze()
                 group.addTask {
                     try await self.updateServerSessionFromLocalSession(session)
@@ -164,7 +164,7 @@ class PlayerProgress {
     
     private func updateLocalSessionFromServerMediaProgress() async throws {
         logger.log("updateLocalSessionFromServerMediaProgress: Checking if local media progress was updated on server")
-        guard let session = try await Realm().objects(PlaybackSession.self).last(where: {
+        guard let session = try Realm(queue: nil).objects(PlaybackSession.self).last(where: {
             $0.isActiveSession == true && $0.serverConnectionConfigId == Store.serverConfig?.id
         })?.freeze() else {
             logger.log("updateLocalSessionFromServerMediaProgress: Failed to get session")
