@@ -256,13 +256,13 @@ class AudioPlayer: NSObject {
                 self.seek(playbackSession.currentTime, from: "queueItemStatusObserver")
             }
             
-            // Mark the player as ready
-            self.status = 0
-            
             // Start the player, if requested
             if self.playWhenReady {
                 self.playWhenReady = false
-                self.play()
+                self.play(allowSeekBack: false, isInitializing: true)
+            } else {
+                // Mark the player as ready
+                self.status = 0
             }
         } else if (playerItem.status == .failed) {
             logger.error("queueStatusObserver: FAILED \(playerItem.error?.localizedDescription ?? "")")
@@ -286,8 +286,8 @@ class AudioPlayer: NSObject {
     }
     
     // MARK: - Methods
-    public func play(allowSeekBack: Bool = false) {
-        guard self.isInitialized() else { return }
+    public func play(allowSeekBack: Bool = false, isInitializing: Bool = false) {
+        guard self.isInitialized() || isInitializing else { return }
         guard let session = self.getPlaybackSession() else {
             NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.failed.rawValue), object: nil)
             return
@@ -381,7 +381,7 @@ class AudioPlayer: NSObject {
         
         self.pause()
         
-        logger.log("SEEK: Seek to \(to) from \(from)")
+        logger.log("SEEK: Seek to \(to) from \(from) and continuePlaying(\(continuePlaying)")
         
         guard let playbackSession = self.getPlaybackSession() else { return }
         
@@ -420,6 +420,7 @@ class AudioPlayer: NSObject {
             
             DispatchQueue.runOnMainQueue {
                 self.audioPlayer.seek(to: CMTime(seconds: seekTime, preferredTimescale: 1000)) { [weak self] completed in
+                    self?.logger.log("SEEK: Completion handler called and continuePlaying(\(continuePlaying)")
                     guard completed else {
                         self?.logger.log("SEEK: WARNING: seeking not completed (to \(seekTime)")
                         return
