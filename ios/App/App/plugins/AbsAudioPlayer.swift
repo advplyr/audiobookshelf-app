@@ -36,7 +36,7 @@ public class AbsAudioPlayer: CAPPlugin {
     func restorePlaybackSession() async {
         do {
             // Fetch the most recent active session
-            let activeSession = try await Realm().objects(PlaybackSession.self).where({
+            let activeSession = try Realm(queue: nil).objects(PlaybackSession.self).where({
                 $0.isActiveSession == true && $0.serverConnectionConfigId == Store.serverConfig?.id
             }).last?.freeze()
             
