@@ -181,6 +181,7 @@ class AudioPlayer: NSObject {
             let time = CMTime(seconds: Double(seconds), preferredTimescale: timeScale)
             self.timeObserverToken = self.audioPlayer.addPeriodicTimeObserver(forInterval: time, queue: self.queue) { [weak self] time in
                 guard let self = self else { return }
+                guard self.isInitialized() else { return }
                 
                 guard let currentTime = self.getCurrentTime() else { return }
                 let isPlaying = self.isPlaying()
@@ -312,7 +313,7 @@ class AudioPlayer: NSObject {
     }
     
     private func calculateSeekBackTimeAtCurrentTime(_ currentTime: Double, lastPlayed: Double) -> Double {
-        let difference = Date.timeIntervalSinceReferenceDate - lastPlayed
+        let difference = Date().timeIntervalSince1970 - lastPlayed
         var time: Double = 0
         
         // Scale seek back time based on how long since last play

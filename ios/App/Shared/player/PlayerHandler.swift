@@ -45,7 +45,7 @@ class PlayerHandler {
             if paused {
                 self.player?.pause()
             } else {
-                self.player?.play()
+                self.player?.play(allowSeekBack: true)
             }
         }
     }
