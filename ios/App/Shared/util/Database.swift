@@ -244,6 +244,7 @@ class Database {
     public func getPlaybackSession(id: String) -> PlaybackSession? {
         do {
             let realm = try Realm()
+            realm.refresh() // Refresh, because working with stale sessions leads to wrong times
             return realm.object(ofType: PlaybackSession.self, forPrimaryKey: id)
         } catch {
             debugPrint(error)
