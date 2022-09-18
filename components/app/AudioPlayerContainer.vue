@@ -155,8 +155,10 @@ export default {
       }
 
       // Settings have been loaded (at least once, so it's safe to kickoff onReady)
-      this.settingsLoaded = true
-      this.notifyOnReady()
+      if (!this.settingsLoaded) {
+        this.settingsLoaded = true
+        this.notifyOnReady()
+      }
     },
     setListeners() {
       // if (!this.$server.socket) {
