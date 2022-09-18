@@ -20,6 +20,8 @@ struct NowPlayingMetadata {
         guard let url = URL(string: "\(config.address)/api/items/\(itemId)/cover?token=\(config.token)") else { return nil }
         return url
     }
+    
+    var isLocal: Bool { id.starts(with: "play_local_") }
 }
 
 class NowPlayingInfo {
@@ -35,8 +37,7 @@ class NowPlayingInfo {
     public func setSessionMetadata(metadata: NowPlayingMetadata) {
         setMetadata(artwork: nil, metadata: metadata)
         
-        let isLocalItem = metadata.itemId.starts(with: "local_")
-        if isLocalItem {
+        if metadata.isLocal {
             guard let artworkUrl = metadata.artworkUrl else { return }
             let coverImage = UIImage(contentsOfFile: artworkUrl)
             guard let coverImage = coverImage else { return }
