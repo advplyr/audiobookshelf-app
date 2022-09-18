@@ -11,15 +11,22 @@ import MediaPlayer
 struct NowPlayingMetadata {
     var id: String
     var itemId: String
-    var artworkUrl: String?
     var title: String
     var author: String?
     var series: String?
+    
     var coverUrl: URL? {
-        guard let config = Store.serverConfig else { return nil }
-        guard let url = URL(string: "\(config.address)/api/items/\(itemId)/cover?token=\(config.token)") else { return nil }
-        return url
+        if self.isLocal {
+            guard let item = Database.shared.getLocalLibraryItem(byServerLibraryItemId: self.itemId) else { return nil }
+            return item.coverUrl
+        } else {
+            guard let config = Store.serverConfig else { return nil }
+            guard let url = URL(string: "\(config.address)/api/items/\(itemId)/cover?token=\(config.token)") else { return nil }
+            return url
+        }
     }
+    
+    var isLocal: Bool { id.starts(with: "play_local_") }
 }
 
 class NowPlayingInfo {
@@ -34,28 +41,17 @@ class NowPlayingInfo {
     
     public func setSessionMetadata(metadata: NowPlayingMetadata) {
         setMetadata(artwork: nil, metadata: metadata)
-        
-        let isLocalItem = metadata.itemId.starts(with: "local_")
-        if isLocalItem {
-            guard let artworkUrl = metadata.artworkUrl else { return }
-            let coverImage = UIImage(contentsOfFile: artworkUrl)
-            guard let coverImage = coverImage else { return }
-            let artwork = MPMediaItemArtwork(boundsSize: coverImage.size) { _ -> UIImage in
-                return coverImage
+        guard let url = metadata.coverUrl else { return }
+        // For local images, "downloading" is occurring off disk, hence this code path works as expected
+        ApiClient.getData(from: url) { [self] image in
+            guard let downloadedImage = image else {
+                return
             }
+            let artwork = MPMediaItemArtwork.init(boundsSize: downloadedImage.size, requestHandler: { _ -> UIImage in
+                return downloadedImage
+            })
+            
             self.setMetadata(artwork: artwork, metadata: metadata)
-        } else {
-            guard let url = metadata.coverUrl else { return }
-            ApiClient.getData(from: url) { [self] image in
-                guard let downloadedImage = image else {
-                    return
-                }
-                let artwork = MPMediaItemArtwork.init(boundsSize: downloadedImage.size, requestHandler: { _ -> UIImage in
-                    return downloadedImage
-                })
-                
-                self.setMetadata(artwork: artwork, metadata: metadata)
-            }
         }
     }
     public func update(duration: Double, currentTime: Double, rate: Float) {
