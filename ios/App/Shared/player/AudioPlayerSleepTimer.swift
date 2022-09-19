@@ -47,9 +47,13 @@ extension AudioPlayer {
         NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.sleepSet.rawValue), object: nil)
     }
     
-    public func setChapterSleepTimer(stopAt: Double) {
-        logger.log("SLEEP TIMER: Scheduling for chapter end \(stopAt)")
+    public func setChapterSleepTimer(stopAt: Double?) {
         self.removeSleepTimer()
+        guard let stopAt = stopAt else { return }
+        guard let currentTime = self.getCurrentTime() else { return }
+        guard stopAt >= currentTime else { return }
+        
+        logger.log("SLEEP TIMER: Scheduling for chapter end \(stopAt)")
         
         // Schedule the observation time
         self.sleepTimeChapterStopAt = stopAt
@@ -111,7 +115,12 @@ extension AudioPlayer {
     
     // MARK: - Internal helpers
     
-    internal func decrementSleepTimerIfRunning() {
+    internal func handleTrackChangeForChapterSleepTimer() {
+        // If no sleep timer is set, this does nothing
+        self.setChapterSleepTimer(stopAt: self.sleepTimeChapterStopAt)
+    }
+    
+    private func decrementSleepTimerIfRunning() {
         if var sleepTimeRemaining = self.sleepTimeRemaining {
             sleepTimeRemaining -= 1
             self.sleepTimeRemaining = sleepTimeRemaining
@@ -137,19 +146,11 @@ extension AudioPlayer {
         self.sleepTimeChapterStopAt = nil
     }
     
-    internal func isChapterSleepTimerBeforeTime(_ time: Double) -> Bool {
-        if let chapterStopAt = self.sleepTimeChapterStopAt {
-            return chapterStopAt <= time
-        }
-        
-        return false
-    }
-    
-    internal func isCountdownSleepTimerSet() -> Bool {
+    private func isCountdownSleepTimerSet() -> Bool {
         return self.sleepTimeRemaining != nil
     }
     
-    internal func isChapterSleepTimerSet() -> Bool {
+    private func isChapterSleepTimerSet() -> Bool {
         return self.sleepTimeChapterStopAt != nil
     }
     
