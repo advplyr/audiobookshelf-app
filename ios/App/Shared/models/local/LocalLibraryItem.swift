@@ -39,12 +39,16 @@ class LocalLibraryItem: Object, Codable {
         }
     }
     
-    var coverContentUrl: String? {
+    var coverUrl: URL? {
         if let path = self._coverContentUrl {
-            return AbsDownloader.itemDownloadFolder(path: path)!.absoluteString
+            return AbsDownloader.itemDownloadFolder(path: path)
         } else {
             return nil
         }
+    }
+    
+    var coverContentUrl: String? {
+        return self.coverUrl?.absoluteString
     }
     
     var isBook: Bool { self.mediaType == "book" }

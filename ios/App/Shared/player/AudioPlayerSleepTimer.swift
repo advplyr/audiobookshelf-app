@@ -31,7 +31,7 @@ extension AudioPlayer {
     }
     
     public func setSleepTimer(secondsUntilSleep: Double) {
-        NSLog("SLEEP TIMER: Sleeping in \(secondsUntilSleep) seconds")
+        logger.log("SLEEP TIMER: Sleeping in \(secondsUntilSleep) seconds")
         self.removeSleepTimer()
         self.sleepTimeRemaining = secondsUntilSleep
         
@@ -48,7 +48,7 @@ extension AudioPlayer {
     }
     
     public func setChapterSleepTimer(stopAt: Double) {
-        NSLog("SLEEP TIMER: Scheduling for chapter end \(stopAt)")
+        logger.log("SLEEP TIMER: Scheduling for chapter end \(stopAt)")
         self.removeSleepTimer()
         
         // Schedule the observation time
@@ -124,7 +124,7 @@ extension AudioPlayer {
     }
     
     private func handleSleepEnd() {
-        NSLog("SLEEP TIMER: Pausing audio")
+        logger.log("SLEEP TIMER: Pausing audio")
         self.pause()
         self.removeSleepTimer()
     }

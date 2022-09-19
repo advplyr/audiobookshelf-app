@@ -59,7 +59,7 @@ extension CAPPluginCall {
             let json = try JSONSerialization.data(withJSONObject: value)
             return try JSONDecoder().decode(type, from: json)
         } catch {
-            NSLog("Failed to get json for \(key)")
+            AppLogger().error("Failed to get json for \(key)")
             debugPrint(error)
             return nil
         }
