@@ -14,7 +14,8 @@ class PlayerTimeUtils {
     static func calcSeekBackTime(currentTime: TimeInterval, lastPlayedMs: Double?) -> TimeInterval {
         let sinceLastPlayed = timeSinceLastPlayed(lastPlayedMs)
         let timeToSeekBack = timeToSeekBackForSinceLastPlayed(sinceLastPlayed)
-        return currentTime.advanced(by: -timeToSeekBack)
+        let currentTimeAfterSeekBack = currentTime.advanced(by: -timeToSeekBack)
+        return max(currentTimeAfterSeekBack, 0)
     }
     
     static internal func timeSinceLastPlayed(_ lastPlayedMs: Double?) -> TimeInterval? {

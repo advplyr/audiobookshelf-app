@@ -16,6 +16,13 @@ final class PlayerTimeUtilsTests: XCTestCase {
         let lastPlayedMs = threeSecondsAgo.timeIntervalSince1970 * 1000
         XCTAssertEqual(PlayerTimeUtils.calcSeekBackTime(currentTime: currentTime, lastPlayedMs: lastPlayedMs), 998)
     }
+    
+    func testCalcSeekBackTimeWithZeroCurrentTime() {
+        let currentTime: Double = 0
+        let threeHundredSecondsAgo = Date(timeIntervalSinceNow: -300)
+        let lastPlayedMs = threeHundredSecondsAgo.timeIntervalSince1970 * 1000
+        XCTAssertEqual(PlayerTimeUtils.calcSeekBackTime(currentTime: currentTime, lastPlayedMs: lastPlayedMs), 0)
+    }
 
     func testTimeSinceLastPlayed() throws {
         let fiveSecondsAgo = Date(timeIntervalSinceNow: -5)
