@@ -581,18 +581,15 @@ class AudioPlayer: NSObject {
         let commandCenter = MPRemoteCommandCenter.shared()
         let deviceSettings = Database.shared.getDeviceSettings()
         
-        commandCenter.playCommand.isEnabled = true
         commandCenter.playCommand.addTarget { [weak self] event in
             self?.play(allowSeekBack: true)
             return .success
         }
-        commandCenter.pauseCommand.isEnabled = true
         commandCenter.pauseCommand.addTarget { [weak self] event in
             self?.pause()
             return .success
         }
         
-        commandCenter.skipForwardCommand.isEnabled = true
         commandCenter.skipForwardCommand.preferredIntervals = [NSNumber(value: deviceSettings.jumpForwardTime)]
         commandCenter.skipForwardCommand.addTarget { [weak self] event in
             guard let command = event.command as? MPSkipIntervalCommand else {
@@ -604,7 +601,7 @@ class AudioPlayer: NSObject {
             self?.seek(currentTime + command.preferredIntervals[0].doubleValue, from: "remote")
             return .success
         }
-        commandCenter.skipBackwardCommand.isEnabled = true
+        
         commandCenter.skipBackwardCommand.preferredIntervals = [NSNumber(value: deviceSettings.jumpBackwardsTime)]
         commandCenter.skipBackwardCommand.addTarget { [weak self] event in
             guard let command = event.command as? MPSkipIntervalCommand else {
@@ -617,7 +614,6 @@ class AudioPlayer: NSObject {
             return .success
         }
         
-        commandCenter.changePlaybackPositionCommand.isEnabled = true
         commandCenter.changePlaybackPositionCommand.addTarget { [weak self] event in
             guard let event = event as? MPChangePlaybackPositionCommandEvent else {
                 return .noSuchContent
@@ -627,7 +623,6 @@ class AudioPlayer: NSObject {
             return .success
         }
         
-        commandCenter.changePlaybackRateCommand.isEnabled = true
         commandCenter.changePlaybackRateCommand.supportedPlaybackRates = [0.5, 0.75, 1.0, 1.25, 1.5, 2]
         commandCenter.changePlaybackRateCommand.addTarget { [weak self] event in
             guard let event = event as? MPChangePlaybackRateCommandEvent else {
@@ -638,6 +633,7 @@ class AudioPlayer: NSObject {
             return .success
         }
     }
+    
     private func updateNowPlaying() {
         NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.update.rawValue), object: nil)
         if let duration = self.getDuration(), let currentTime = self.getCurrentTime() {
