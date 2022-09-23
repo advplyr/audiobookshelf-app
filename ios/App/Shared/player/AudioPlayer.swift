@@ -123,9 +123,6 @@ class AudioPlayer: NSObject {
         }
         
         self.removeAudioSessionNotifications()
-        DispatchQueue.runOnMainQueue {
-            UIApplication.shared.endReceivingRemoteControlEvents()
-        }
         
         // Remove observers
         self.audioPlayer.removeObserver(self, forKeyPath: #keyPath(AVPlayer.rate), context: &playerContext)
@@ -581,9 +578,6 @@ class AudioPlayer: NSObject {
     
     // MARK: - Now playing
     private func setupRemoteTransportControls() {
-        DispatchQueue.runOnMainQueue {
-            UIApplication.shared.beginReceivingRemoteControlEvents()
-        }
         let commandCenter = MPRemoteCommandCenter.shared()
         let deviceSettings = Database.shared.getDeviceSettings()
         
