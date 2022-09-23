@@ -289,8 +289,7 @@ class AudioPlayer: NSObject {
         }
         
         // Determine where we are starting playback
-        let lastPlayed = (session.updatedAt ?? 0)/1000
-        let currentTime = allowSeekBack ? calculateSeekBackTimeAtCurrentTime(session.currentTime, lastPlayed: lastPlayed) : session.currentTime
+        let currentTime = allowSeekBack ? PlayerTimeUtils.calcSeekBackTime(currentTime: session.currentTime, lastPlayedMs: session.updatedAt) : session.currentTime
         
         // Sync our new playback position
         Task { await PlayerProgress.shared.syncFromPlayer(currentTime: currentTime, includesPlayProgress: self.isPlaying(), isStopping: false) }
@@ -305,31 +304,6 @@ class AudioPlayer: NSObject {
                 self?.resumePlayback()
             }
         }
-    }
-    
-    private func calculateSeekBackTimeAtCurrentTime(_ currentTime: Double, lastPlayed: Double) -> Double {
-        let difference = Date().timeIntervalSince1970 - lastPlayed
-        var time: Double = 0
-        
-        // Scale seek back time based on how long since last play
-        if lastPlayed == 0 {
-            time = 5
-        } else if difference < 6 {
-            time = 2
-        } else if difference < 12 {
-            time = 10
-        } else if difference < 30 {
-            time = 15
-        } else if difference < 180 {
-            time = 20
-        } else if difference < 3600 {
-            time = 25
-        } else {
-            time = 29
-        }
-        
-        // Wind the clock back
-        return currentTime - time
     }
     
     private func resumePlayback() {
