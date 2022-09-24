@@ -22,7 +22,7 @@ extension AudioPlayer {
         // Return the player time until sleep
         var sleepTimeRemaining: Double? = nil
         if let chapterStopAt = self.sleepTimeChapterStopAt {
-            sleepTimeRemaining = (chapterStopAt - currentTime) / Double(self.rate > 0 ? self.rate : 1.0)
+            sleepTimeRemaining = (chapterStopAt - currentTime) / Double(self.audioPlayer.rate > 0 ? self.audioPlayer.rate : 1.0)
         } else if self.isCountdownSleepTimerSet() {
             sleepTimeRemaining = self.sleepTimeRemaining
         }

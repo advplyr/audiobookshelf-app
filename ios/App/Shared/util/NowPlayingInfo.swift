@@ -61,7 +61,7 @@ class NowPlayingInfo {
                 self.nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = duration
                 self.nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = currentTime
                 self.nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = rate
-                self.nowPlayingInfo[MPNowPlayingInfoPropertyDefaultPlaybackRate] = 1.0
+                self.nowPlayingInfo[MPNowPlayingInfoPropertyDefaultPlaybackRate] = rate
                     
                 MPNowPlayingInfoCenter.default().nowPlayingInfo = self.nowPlayingInfo
             }

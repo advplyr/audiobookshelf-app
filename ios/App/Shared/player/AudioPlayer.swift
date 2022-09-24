@@ -23,9 +23,7 @@ class AudioPlayer: NSObject {
     
     // enums and @objc are not compatible
     @objc dynamic var status: Int
-    @objc dynamic var rate: Float
-    
-    private var tmpRate: Float = 1.0
+    public var defaultRate: Float = 1.0
     
     private var playerContext = 0
     private var playerItemContext = 0
@@ -59,8 +57,7 @@ class AudioPlayer: NSObject {
         self.audioPlayer.automaticallyWaitsToMinimizeStalling = false
         self.sessionId = sessionId
         self.status = -1
-        self.rate = 0.0
-        self.tmpRate = playbackRate
+        self.defaultRate = playbackRate
         
         super.init()
         
@@ -174,7 +171,7 @@ class AudioPlayer: NSObject {
             
             let timeScale = CMTimeScale(NSEC_PER_SEC)
             // Rate will be different depending on playback speed, aim for 2 observations/sec
-            let seconds = 0.5 * (self.rate > 0 ? self.rate : 1.0)
+            let seconds = 0.5 * (self.audioPlayer.rate > 0 ? self.audioPlayer.rate : 1.0)
             let time = CMTime(seconds: Double(seconds), preferredTimescale: timeScale)
             self.timeObserverToken = self.audioPlayer.addPeriodicTimeObserver(forInterval: time, queue: self.queue) { [weak self] time in
                 guard let self = self else { return }
@@ -312,7 +309,7 @@ class AudioPlayer: NSObject {
         self.markAudioSessionAs(active: true)
         DispatchQueue.runOnMainQueue {
             self.audioPlayer.play()
-            self.audioPlayer.rate = self.tmpRate
+            self.audioPlayer.rate = self.defaultRate
         }
         self.status = 1
         
@@ -346,7 +343,7 @@ class AudioPlayer: NSObject {
     }
     
     public func seek(_ to: Double, from: String) {
-        let continuePlaying = rate > 0.0
+        let continuePlaying = self.audioPlayer.rate > 0.0
         
         self.pause()
         
@@ -407,21 +404,20 @@ class AudioPlayer: NSObject {
     }
     
     public func setPlaybackRate(_ rate: Float, observed: Bool = false) {
-        let playbackSpeedChanged = rate > 0.0 && rate != self.tmpRate && !(observed && rate == 1)
+        let rateChanged = self.audioPlayer.rate != rate
+        let playbackSpeedChanged = rate > 0.0 && rateChanged
         
-        if self.audioPlayer.rate != rate {
+        if playbackSpeedChanged {
             logger.log("setPlaybakRate rate changed from \(self.audioPlayer.rate) to \(rate)")
             DispatchQueue.runOnMainQueue {
                 self.audioPlayer.rate = rate
+                self.defaultRate = rate
             }
         }
         
-        self.rate = rate
         self.updateNowPlaying()
         
         if playbackSpeedChanged {
-            self.tmpRate = rate
-            
             // Setup the time observer again at the new rate
             self.setupTimeObserver()
         }
@@ -612,7 +608,7 @@ class AudioPlayer: NSObject {
     private func updateNowPlaying() {
         NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.update.rawValue), object: nil)
         if let duration = self.getDuration(), let currentTime = self.getCurrentTime() {
-            NowPlayingInfo.shared.update(duration: duration, currentTime: currentTime, rate: rate)
+            NowPlayingInfo.shared.update(duration: duration, currentTime: currentTime, rate: self.audioPlayer.rate)
         }
     }
     

@@ -39,7 +39,7 @@ class PlayerHandler {
     public static var paused: Bool {
         get {
             guard let player = player else { return true }
-            return player.rate == 0.0
+            return player.audioPlayer.rate == 0.0
         }
         set(paused) {
             if paused {
@@ -126,7 +126,7 @@ class PlayerHandler {
             "duration": player.getDuration(),
             "currentTime": player.getCurrentTime(),
             "playerState": !paused,
-            "currentRate": player.rate,
+            "currentRate": player.defaultRate,
         ]
     }
     
