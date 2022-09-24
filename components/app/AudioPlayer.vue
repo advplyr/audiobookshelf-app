@@ -705,7 +705,7 @@ export default {
 
       console.log('received metadata update', data)
 
-      if (data.currentRate && data.currentRate > 0) this.playbackSpeed = data.currentRate
+      if (data.currentRate && data.currentRate > 0) this.currentPlaybackRate = data.currentRate
 
       this.timeupdate()
     },
