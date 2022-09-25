@@ -552,15 +552,19 @@ class AudioPlayer: NSObject {
         let commandCenter = MPRemoteCommandCenter.shared()
         let deviceSettings = Database.shared.getDeviceSettings()
         
+        commandCenter.playCommand.removeTarget(nil)
         commandCenter.playCommand.addTarget { [weak self] event in
             self?.play(allowSeekBack: true)
             return .success
         }
+        
+        commandCenter.pauseCommand.removeTarget(nil)
         commandCenter.pauseCommand.addTarget { [weak self] event in
             self?.pause()
             return .success
         }
         
+        commandCenter.skipForwardCommand.removeTarget(nil)
         commandCenter.skipForwardCommand.preferredIntervals = [NSNumber(value: deviceSettings.jumpForwardTime)]
         commandCenter.skipForwardCommand.addTarget { [weak self] event in
             guard let command = event.command as? MPSkipIntervalCommand else {
@@ -573,6 +577,7 @@ class AudioPlayer: NSObject {
             return .success
         }
         
+        commandCenter.skipBackwardCommand.removeTarget(nil)
         commandCenter.skipBackwardCommand.preferredIntervals = [NSNumber(value: deviceSettings.jumpBackwardsTime)]
         commandCenter.skipBackwardCommand.addTarget { [weak self] event in
             guard let command = event.command as? MPSkipIntervalCommand else {
@@ -585,6 +590,7 @@ class AudioPlayer: NSObject {
             return .success
         }
         
+        commandCenter.changePlaybackPositionCommand.removeTarget(nil)
         commandCenter.changePlaybackPositionCommand.addTarget { [weak self] event in
             guard let event = event as? MPChangePlaybackPositionCommandEvent else {
                 return .noSuchContent
@@ -594,6 +600,7 @@ class AudioPlayer: NSObject {
             return .success
         }
         
+        commandCenter.changePlaybackRateCommand.removeTarget(nil)
         commandCenter.changePlaybackRateCommand.supportedPlaybackRates = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
         commandCenter.changePlaybackRateCommand.addTarget { [weak self] event in
             guard let event = event as? MPChangePlaybackRateCommandEvent else {
