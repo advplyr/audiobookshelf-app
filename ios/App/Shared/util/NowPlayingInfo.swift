@@ -37,7 +37,7 @@ class NowPlayingInfo {
     private var nowPlayingInfo: [String: Any]
     
     private init() {
-        self.nowPlayingInfo = [:]
+        self.nowPlayingInfo = [String: Any]()
     }
     
     public func setSessionMetadata(metadata: NowPlayingMetadata) {
@@ -53,20 +53,32 @@ class NowPlayingInfo {
             self.setMetadata(artwork: artwork, metadata: metadata)
         }
     }
-    public func update(duration: Double, currentTime: Double, rate: Float) {
+    
+    public func update(duration: Double, currentTime: Double, rate: Float, assetURL: URL?) {
         DispatchQueue.runOnMainQueue {
-            self.nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = duration
-            self.nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = currentTime
-            self.nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = rate
-            self.nowPlayingInfo[MPNowPlayingInfoPropertyDefaultPlaybackRate] = rate
+            var nowPlaying = self.nowPlayingInfo
             
-            self.updateSystemNowPlaying(self.nowPlayingInfo)
+            nowPlaying[MPMediaItemPropertyPlaybackDuration] = duration
+            nowPlaying[MPNowPlayingInfoPropertyElapsedPlaybackTime] = currentTime
+            nowPlaying[MPNowPlayingInfoPropertyPlaybackRate] = rate
+            
+            // Update the resume rate if not paused and set 1.0 if not set yet
+            if rate > 0.0 {
+                nowPlaying[MPNowPlayingInfoPropertyDefaultPlaybackRate] = rate
+            } else if !self.nowPlayingInfo.keys.contains(MPNowPlayingInfoPropertyDefaultPlaybackRate) {
+                nowPlaying[MPNowPlayingInfoPropertyDefaultPlaybackRate] = Float(1.0)
+            }
+            
+            nowPlaying[MPNowPlayingInfoPropertyAssetURL] = assetURL
+            
+            self.nowPlayingInfo = nowPlaying
+            self.updateSystemNowPlaying(nowPlaying)
         }
     }
     
     public func reset() {
         DispatchQueue.runOnMainQueue {
-            self.nowPlayingInfo = [:]
+            self.nowPlayingInfo = [String: Any]()
             self.updateSystemNowPlaying(nil)
         }
     }
@@ -75,20 +87,23 @@ class NowPlayingInfo {
         guard let metadata = metadata else { return }
         
         DispatchQueue.runOnMainQueue {
+            var nowPlaying = self.nowPlayingInfo
+            
             if artwork != nil {
-                self.nowPlayingInfo[MPMediaItemPropertyArtwork] = artwork
+                nowPlaying[MPMediaItemPropertyArtwork] = artwork
             } else if self.shouldFetchCover(id: metadata.id) {
-                self.nowPlayingInfo[MPMediaItemPropertyArtwork] = nil
+                nowPlaying[MPMediaItemPropertyArtwork] = nil
             }
             
-            self.nowPlayingInfo[MPNowPlayingInfoPropertyExternalContentIdentifier] = metadata.id
-            self.nowPlayingInfo[MPNowPlayingInfoPropertyIsLiveStream] = false
-            self.nowPlayingInfo[MPNowPlayingInfoPropertyMediaType] = MPNowPlayingInfoMediaType.audio.rawValue
+            nowPlaying[MPNowPlayingInfoPropertyExternalContentIdentifier] = metadata.id
+            nowPlaying[MPNowPlayingInfoPropertyIsLiveStream] = false
+            nowPlaying[MPNowPlayingInfoPropertyMediaType] = MPNowPlayingInfoMediaType.audio.rawValue
             
-            self.nowPlayingInfo[MPMediaItemPropertyTitle] = metadata.title
-            self.nowPlayingInfo[MPMediaItemPropertyArtist] = metadata.author ?? "unknown"
-            self.nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = metadata.series
+            nowPlaying[MPMediaItemPropertyTitle] = metadata.title
+            nowPlaying[MPMediaItemPropertyArtist] = metadata.author ?? "unknown"
+            nowPlaying[MPMediaItemPropertyAlbumTitle] = metadata.series
             
+            self.nowPlayingInfo = nowPlaying
             self.updateSystemNowPlaying(self.nowPlayingInfo)
         }
     }
@@ -98,6 +113,6 @@ class NowPlayingInfo {
     }
     
     private func updateSystemNowPlaying(_ nowPlaying: [String: Any]?) {
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = self.nowPlayingInfo
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlaying
     }
 }

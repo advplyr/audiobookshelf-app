@@ -614,8 +614,10 @@ class AudioPlayer: NSObject {
     
     private func updateNowPlaying() {
         NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.update.rawValue), object: nil)
-        if let duration = self.getDuration(), let currentTime = self.getCurrentTime() {
-            NowPlayingInfo.shared.update(duration: duration, currentTime: currentTime, rate: self.audioPlayer.rate)
+        if let duration = self.getDuration(), let currentTime = self.getCurrentTime(), let currentItem = self.audioPlayer.currentItem {
+            let rate = self.audioPlayer.rate
+            let asset = currentItem.asset as? AVURLAsset
+            NowPlayingInfo.shared.update(duration: duration, currentTime: currentTime, rate: rate, assetURL: asset?.url)
         }
     }
     
