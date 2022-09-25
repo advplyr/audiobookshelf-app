@@ -564,6 +564,12 @@ class AudioPlayer: NSObject {
             return .success
         }
         
+        commandCenter.togglePlayPauseCommand.removeTarget(nil)
+        commandCenter.togglePlayPauseCommand.addTarget { event in
+            PlayerHandler.paused = !PlayerHandler.paused
+            return .success
+        }
+        
         commandCenter.skipForwardCommand.removeTarget(nil)
         commandCenter.skipForwardCommand.preferredIntervals = [NSNumber(value: deviceSettings.jumpForwardTime)]
         commandCenter.skipForwardCommand.addTarget { [weak self] event in
