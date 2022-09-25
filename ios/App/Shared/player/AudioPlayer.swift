@@ -61,20 +61,12 @@ class AudioPlayer: NSObject {
         
         super.init()
         
-        initAudioSession()
-        setupRemoteTransportControls()
-        
         let playbackSession = self.getPlaybackSession()
         guard let playbackSession = playbackSession else {
             logger.error("Failed to fetch playback session. Player will not initialize")
             NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.failed.rawValue), object: nil)
             return
         }
-        
-        // Listen to player events
-        self.setupAudioSessionNotifications()
-        self.audioPlayer.addObserver(self, forKeyPath: #keyPath(AVPlayer.rate), options: .new, context: &playerContext)
-        self.audioPlayer.addObserver(self, forKeyPath: #keyPath(AVPlayer.currentItem), options: .new, context: &playerContext)
         
         for track in playbackSession.audioTracks {
             if let playerAsset = createAsset(itemId: playbackSession.libraryItemId!, track: track) {
@@ -92,7 +84,17 @@ class AudioPlayer: NSObject {
         for item in Array(playerItems) {
             self.audioPlayer.insert(item, after:self.audioPlayer.items().last)
         }
+        
+        // Setup Now Playing
+        initAudioSession()
+        setupRemoteTransportControls()
+        
+        // Listen to player events
+        self.setupAudioSessionNotifications()
+        self.audioPlayer.addObserver(self, forKeyPath: #keyPath(AVPlayer.rate), options: .new, context: &playerContext)
+        self.audioPlayer.addObserver(self, forKeyPath: #keyPath(AVPlayer.currentItem), options: .new, context: &playerContext)
 
+        // Setup time observers
         setupTimeObserver()
         setupQueueObserver()
         setupQueueItemStatusObserver()
@@ -179,6 +181,8 @@ class AudioPlayer: NSObject {
                 
                 guard let currentTime = self.getCurrentTime() else { return }
                 let isPlaying = self.isPlaying()
+                
+                self.updateNowPlaying()
                 
                 Task {
                     // Let the player update the current playback positions
@@ -337,7 +341,7 @@ class AudioPlayer: NSObject {
         
         self.status = 0
         
-        updateNowPlaying()
+        self.updateNowPlaying()
         
         self.startPausedTimer()
     }
