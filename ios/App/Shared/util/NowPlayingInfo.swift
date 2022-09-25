@@ -35,65 +35,69 @@ class NowPlayingInfo {
     }()
     
     private var nowPlayingInfo: [String: Any]
+    
     private init() {
         self.nowPlayingInfo = [:]
     }
     
     public func setSessionMetadata(metadata: NowPlayingMetadata) {
-        setMetadata(artwork: nil, metadata: metadata)
+        self.setMetadata(artwork: nil, metadata: metadata)
         guard let url = metadata.coverUrl else { return }
+        
         // For local images, "downloading" is occurring off disk, hence this code path works as expected
         ApiClient.getData(from: url) { [self] image in
-            guard let downloadedImage = image else {
-                return
-            }
+            guard let downloadedImage = image else { return }
             let artwork = MPMediaItemArtwork.init(boundsSize: downloadedImage.size, requestHandler: { _ -> UIImage in
                 return downloadedImage
             })
-            
             self.setMetadata(artwork: artwork, metadata: metadata)
         }
     }
     public func update(duration: Double, currentTime: Double, rate: Float) {
-        // Update on the main to prevent access collisions
-        DispatchQueue.main.async { [weak self] in
-            if let self = self {
-                self.nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = duration
-                self.nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = currentTime
-                self.nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = rate
-                self.nowPlayingInfo[MPNowPlayingInfoPropertyDefaultPlaybackRate] = rate
-                    
-                MPNowPlayingInfoCenter.default().nowPlayingInfo = self.nowPlayingInfo
-            }
+        DispatchQueue.runOnMainQueue {
+            self.nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = duration
+            self.nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = currentTime
+            self.nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = rate
+            self.nowPlayingInfo[MPNowPlayingInfoPropertyDefaultPlaybackRate] = rate
+            
+            self.updateSystemNowPlaying(self.nowPlayingInfo)
         }
     }
     
     public func reset() {
-        nowPlayingInfo = [:]
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        DispatchQueue.runOnMainQueue {
+            self.nowPlayingInfo = [:]
+            self.updateSystemNowPlaying(nil)
+        }
     }
     
     private func setMetadata(artwork: MPMediaItemArtwork?, metadata: NowPlayingMetadata?) {
-        if metadata == nil {
-            return
+        guard let metadata = metadata else { return }
+        
+        DispatchQueue.runOnMainQueue {
+            if artwork != nil {
+                self.nowPlayingInfo[MPMediaItemPropertyArtwork] = artwork
+            } else if self.shouldFetchCover(id: metadata.id) {
+                self.nowPlayingInfo[MPMediaItemPropertyArtwork] = nil
+            }
+            
+            self.nowPlayingInfo[MPNowPlayingInfoPropertyExternalContentIdentifier] = metadata.id
+            self.nowPlayingInfo[MPNowPlayingInfoPropertyIsLiveStream] = false
+            self.nowPlayingInfo[MPNowPlayingInfoPropertyMediaType] = MPNowPlayingInfoMediaType.audio.rawValue
+            
+            self.nowPlayingInfo[MPMediaItemPropertyTitle] = metadata.title
+            self.nowPlayingInfo[MPMediaItemPropertyArtist] = metadata.author ?? "unknown"
+            self.nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = metadata.series
+            
+            self.updateSystemNowPlaying(self.nowPlayingInfo)
         }
-        
-        if artwork != nil {
-            nowPlayingInfo[MPMediaItemPropertyArtwork] = artwork
-        } else if shouldFetchCover(id: metadata!.id) {
-            nowPlayingInfo[MPMediaItemPropertyArtwork] = nil
-        }
-        
-        nowPlayingInfo[MPNowPlayingInfoPropertyExternalContentIdentifier] = metadata!.id
-        nowPlayingInfo[MPNowPlayingInfoPropertyIsLiveStream] = false
-        nowPlayingInfo[MPNowPlayingInfoPropertyMediaType] = MPNowPlayingInfoMediaType.audio.rawValue
-        
-        nowPlayingInfo[MPMediaItemPropertyTitle] = metadata!.title
-        nowPlayingInfo[MPMediaItemPropertyArtist] = metadata!.author ?? "unknown"
-        nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = metadata!.series
     }
     
     private func shouldFetchCover(id: String) -> Bool {
         nowPlayingInfo[MPNowPlayingInfoPropertyExternalContentIdentifier] as? String != id || nowPlayingInfo[MPMediaItemPropertyArtwork] == nil
+    }
+    
+    private func updateSystemNowPlaying(_ nowPlaying: [String: Any]?) {
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = self.nowPlayingInfo
     }
 }
