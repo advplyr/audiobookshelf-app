@@ -86,7 +86,7 @@ class NowPlayingInfo {
         
         nowPlayingInfo[MPNowPlayingInfoPropertyExternalContentIdentifier] = metadata!.id
         nowPlayingInfo[MPNowPlayingInfoPropertyIsLiveStream] = false
-        nowPlayingInfo[MPNowPlayingInfoPropertyMediaType] = "hls"
+        nowPlayingInfo[MPNowPlayingInfoPropertyMediaType] = MPNowPlayingInfoMediaType.audio.rawValue
         
         nowPlayingInfo[MPMediaItemPropertyTitle] = metadata!.title
         nowPlayingInfo[MPMediaItemPropertyArtist] = metadata!.author ?? "unknown"
