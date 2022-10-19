@@ -1,5 +1,6 @@
 @import "./fonts.css";
 @import './defaultStyles.css';
+@import './absicons.css';
 
 body {
   background-color: #262626;
