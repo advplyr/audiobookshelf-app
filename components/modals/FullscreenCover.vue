@@ -40,7 +40,7 @@ export default {
       }
     },
     bookCoverAspectRatio() {
-      return this.$store.getters['getBookCoverAspectRatio']
+      return this.$store.getters['libraries/getBookCoverAspectRatio']
     }
   },
   methods: {

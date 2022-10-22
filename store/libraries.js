@@ -1,3 +1,5 @@
+const { BookCoverAspectRatio } = require('../plugins/constants')
+
 export const state = () => ({
   libraries: [],
   lastLoad: 0,
@@ -18,6 +20,14 @@ export const getters = {
   getCurrentLibraryMediaType: (state, getters) => {
     var currLib = getters.getCurrentLibrary
     return currLib ? currLib.mediaType : null
+  },
+  getCurrentLibrarySettings: (state, getters) => {
+    if (!getters.getCurrentLibrary) return null
+    return getters.getCurrentLibrary.settings
+  },
+  getBookCoverAspectRatio: (state, getters) => {
+    if (!getters.getCurrentLibrarySettings || isNaN(getters.getCurrentLibrarySettings.coverAspectRatio)) return 1
+    return getters.getCurrentLibrarySettings.coverAspectRatio === BookCoverAspectRatio.STANDARD ? 1.6 : 1
   }
 }
 

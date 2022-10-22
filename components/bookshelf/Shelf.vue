@@ -69,7 +69,7 @@ export default {
       return this.bookCoverAspectRatio === 1
     },
     bookCoverAspectRatio() {
-      return this.$store.getters['getBookCoverAspectRatio']
+      return this.$store.getters['libraries/getBookCoverAspectRatio']
     },
     altViewEnabled() {
       return this.$store.getters['getAltViewEnabled']

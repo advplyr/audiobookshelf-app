@@ -50,7 +50,7 @@ export default {
       return this.$elapsedPretty(this.media.duration)
     },
     bookCoverAspectRatio() {
-      return this.$store.getters['getBookCoverAspectRatio']
+      return this.$store.getters['libraries/getBookCoverAspectRatio']
     },
     bookWidth() {
       if (this.bookCoverAspectRatio === 1) return 50

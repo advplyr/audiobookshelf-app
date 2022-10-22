@@ -205,7 +205,7 @@ export default {
       return this.$store.getters['getJumpBackwardsTime']
     },
     bookCoverAspectRatio() {
-      return this.$store.getters['getBookCoverAspectRatio']
+      return this.$store.getters['libraries/getBookCoverAspectRatio']
     },
     bookCoverWidth() {
       if (this.showFullscreen) return this.fullscreenBookCoverWidth

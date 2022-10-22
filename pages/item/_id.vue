@@ -199,7 +199,7 @@ export default {
       return null
     },
     bookCoverAspectRatio() {
-      return this.$store.getters['getBookCoverAspectRatio']
+      return this.$store.getters['libraries/getBookCoverAspectRatio']
     },
     libraryItemId() {
       return this.libraryItem.id
