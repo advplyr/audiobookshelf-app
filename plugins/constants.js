@@ -45,7 +45,8 @@ const Constants = {
 }
 
 export {
-  PlayerState
+  PlayerState,
+  BookCoverAspectRatio
 }
 
 export default ({ app }, inject) => {

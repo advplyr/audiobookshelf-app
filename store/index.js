@@ -36,10 +36,6 @@ export const getters = {
     if (!state.serverSettings) return null
     return state.serverSettings[key]
   },
-  getBookCoverAspectRatio: state => {
-    if (!state.serverSettings) return 1
-    return state.serverSettings.coverAspectRatio === 0 ? 1.6 : 1
-  },
   getJumpForwardTime: state => {
     if (!state.deviceData || !state.deviceData.deviceSettings) return 10
     return state.deviceData.deviceSettings.jumpForwardTime || 10
