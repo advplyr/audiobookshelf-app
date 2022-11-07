@@ -22,7 +22,9 @@ kotlin {
 
 android {
 
-  buildFeatures {
+
+    namespace 'com.bookshelf.app'
+    buildFeatures {
     viewBinding true
   }
   kotlinOptions {
