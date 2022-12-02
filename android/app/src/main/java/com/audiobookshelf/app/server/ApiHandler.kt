@@ -138,12 +138,16 @@ class ApiHandler(var ctx:Context) {
     val mapper = jacksonMapper
     getRequest("/api/libraries", null,null) {
       val libraries = mutableListOf<Library>()
-      if (it.has("value")) {
-        val array = it.getJSONArray("value")
-        for (i in 0 until array.length()) {
-          val library = mapper.readValue<Library>(array.get(i).toString())
-          libraries.add(library)
-        }
+
+      var array = JSONArray()
+      if (it.has("libraries")) { // TODO: Server 2.2.9 changed to this
+        array = it.getJSONArray("libraries")
+      } else if (it.has("value")) {
+        array = it.getJSONArray("value")
+      }
+
+      for (i in 0 until array.length()) {
+        libraries.add(mapper.readValue(array.get(i).toString()))
       }
       cb(libraries)
     }

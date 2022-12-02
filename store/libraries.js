@@ -75,12 +75,15 @@ export const actions = {
     return this.$axios
       .$get(`/api/libraries`)
       .then((data) => {
+        // TODO: Server release 2.2.9 changed response to an object. Remove after a few releases
+        const libraries = data.libraries || data
+
         // Set current library if not already set or was not returned in results
-        if (data.length && (!state.currentLibraryId || !data.find(li => li.id == state.currentLibraryId))) {
-          commit('setCurrentLibrary', data[0].id)
+        if (libraries.length && (!state.currentLibraryId || !libraries.find(li => li.id == state.currentLibraryId))) {
+          commit('setCurrentLibrary', libraries[0].id)
         }
 
-        commit('set', data)
+        commit('set', libraries)
         commit('setLastLoad', Date.now())
         return true
       })
