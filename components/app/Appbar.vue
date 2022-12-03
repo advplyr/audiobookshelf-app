@@ -25,8 +25,8 @@
         <span class="material-icons text-2xl" :class="isCasting ? 'text-success' : ''" @click="castClick">cast</span>
       </div>
 
-      <nuxt-link v-if="user" class="h-7 mx-1.5" to="/search">
-        <span class="material-icons" style="font-size: 1.75rem">search</span>
+      <nuxt-link v-if="user" class="h-7 mx-1.5" style="padding-top: 3px" to="/search">
+        <span class="material-icons">search</span>
       </nuxt-link>
 
       <div class="h-7 mx-1.5">

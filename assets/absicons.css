@@ -13,7 +13,6 @@
 .abs-icons {
   /* use !important to prevent issues with browser extensions that change fonts */
   font-family: 'absicons' !important;
-  speak: never;
   font-style: normal;
   font-weight: normal;
   font-variant: normal;
@@ -23,6 +22,18 @@
   /* Better Font Rendering =========== */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-list:before {
+  content: "\e907";
+}
+
+.icon-home:before {
+  content: "\e909";
+}
+
+.icon-authors:before {
+  content: "\e90a";
 }
 
 .icon-books-1:before {
@@ -51,6 +62,10 @@
 
 .icon-microphone-2:before {
   content: "\e901";
+}
+
+.icon-columns:before {
+  content: "\e90b";
 }
 
 .icon-headphones:before {
