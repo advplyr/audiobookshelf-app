@@ -1,49 +1,70 @@
 <template>
   <div class="w-full h-full px-3 py-4 overflow-y-auto">
-    <div class="flex">
-      <div class="w-16">
-        <div class="relative" @click="showFullscreenCover = true">
-          <covers-book-cover :library-item="libraryItem" :width="64" :book-cover-aspect-ratio="bookCoverAspectRatio" />
-          <div v-if="!isPodcast" class="absolute bottom-0 left-0 h-1 shadow-sm z-10" :class="userIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: 64 * progressPercent + 'px' }"></div>
-        </div>
+    <div class="w-full flex justify-center relative mb-2">
+      <div class="relative" @click="showFullscreenCover = true">
+        <covers-book-cover :library-item="libraryItem" :width="175" :book-cover-aspect-ratio="bookCoverAspectRatio" />
+        <div v-if="!isPodcast" class="absolute bottom-0 left-0 h-1 shadow-sm z-10" :class="userIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: 64 * progressPercent + 'px' }"></div>
       </div>
-      <div class="title-container flex-grow pl-2">
-        <div class="flex relative pr-6">
-          <h1 class="text-base font-semibold">{{ title }}</h1>
 
-          <button class="absolute top-0 right-0 h-full px-1 outline-none" @click="moreButtonPress">
-            <span class="material-icons text-xl">more_vert</span>
-          </button>
-        </div>
-        <p v-if="subtitle" class="text-gray-100 text-sm py-0.5">{{ subtitle }}</p>
-        <p v-if="seriesList && seriesList.length" class="text-sm text-gray-300 py-0.5">
-          <template v-for="(series, index) in seriesList"
-            ><nuxt-link :key="series.id" :to="`/bookshelf/series/${series.id}`">{{ series.text }}</nuxt-link
-            ><span :key="`${series.id}-comma`" v-if="index < seriesList.length - 1">,&nbsp;</span></template
-          >
-        </p>
-        <p v-if="podcastAuthor" class="text-sm text-gray-300 py-0.5">By {{ podcastAuthor }}</p>
-        <p v-else-if="bookAuthors && bookAuthors.length" class="text-sm text-gray-300 py-0.5">
-          By
-          <template v-for="(author, index) in bookAuthors"
-            ><nuxt-link :key="author.id" :to="`/bookshelf/library?filter=authors.${$encode(author.id)}`">{{ author.name }}</nuxt-link
-            ><span :key="`${author.id}-comma`" v-if="index < bookAuthors.length - 1">,&nbsp;</span></template
-          >
-        </p>
-      </div>
+      <button class="absolute top-0 right-0 px-1 outline-none" @click="moreButtonPress">
+        <span class="material-icons text-xl">more_vert</span>
+      </button>
     </div>
 
-    <p v-if="narrators && narrators.length" class="text-sm text-gray-400 py-0.5">
-      Narrated By
-      <template v-for="(narrator, index) in narrators"
-        ><nuxt-link :key="narrator" :to="`/bookshelf/library?filter=narrators.${$encode(narrator)}`">{{ narrator }}</nuxt-link
-        ><span :key="`${narrator}-comma`" v-if="index < narrators.length - 1">,&nbsp;</span></template
+    <h1 class="text-lg font-semibold">{{ title }}</h1>
+
+    <p v-if="subtitle" class="text-gray-100 text-sm py-0.5 mb-0.5">{{ subtitle }}</p>
+
+    <p v-if="seriesList && seriesList.length" class="text-sm text-gray-300 py-0.5">
+      <template v-for="(series, index) in seriesList"
+        ><nuxt-link :key="series.id" :to="`/bookshelf/series/${series.id}`">{{ series.text }}</nuxt-link
+        ><span :key="`${series.id}-comma`" v-if="index < seriesList.length - 1">,&nbsp;</span></template
+      >
+    </p>
+
+    <p v-if="podcastAuthor" class="text-sm text-gray-300 py-0.5">by {{ podcastAuthor }}</p>
+    <p v-else-if="bookAuthors && bookAuthors.length" class="text-sm text-gray-300 py-0.5">
+      by
+      <template v-for="(author, index) in bookAuthors"
+        ><nuxt-link :key="author.id" :to="`/bookshelf/library?filter=authors.${$encode(author.id)}`">{{ author.name }}</nuxt-link
+        ><span :key="`${author.id}-comma`" v-if="index < bookAuthors.length - 1">,&nbsp;</span></template
       >
     </p>
 
     <!-- Show an indicator for local library items whether they are linked to a server item and if that server item is connected -->
     <p v-if="isLocal && serverLibraryItemId" style="font-size: 10px" class="text-success py-1 uppercase tracking-widest">connected</p>
     <p v-else-if="isLocal && libraryItem.serverAddress" style="font-size: 10px" class="text-gray-400 py-1">{{ libraryItem.serverAddress }}</p>
+
+    <div v-if="narrators && narrators.length" class="flex py-0.5 mt-4">
+      <div class="w-24">
+        <span class="text-white text-opacity-60 uppercase text-xs">Narrators</span>
+      </div>
+      <div class="max-w-[calc(100vw-10rem)] overflow-hidden overflow-ellipsis text-sm">
+        <template v-for="(narrator, index) in narrators">
+          <nuxt-link :key="narrator" :to="`/bookshelf?filter=narrators.${$encode(narrator)}`">{{ narrator }}</nuxt-link
+          ><span :key="index" v-if="index < narrators.length - 1">,&nbsp;</span>
+        </template>
+      </div>
+    </div>
+    <div v-if="publishedYear" class="flex py-0.5">
+      <div class="w-24">
+        <span class="text-white text-opacity-60 uppercase text-xs">Publish Year</span>
+      </div>
+      <div class="text-sm">
+        {{ publishedYear }}
+      </div>
+    </div>
+    <div class="flex py-0.5" v-if="genres.length">
+      <div class="w-24">
+        <span class="text-white text-opacity-60 uppercase text-xs">Genres</span>
+      </div>
+      <div class="max-w-[calc(100vw-10rem)] overflow-hidden overflow-ellipsis text-sm">
+        <template v-for="(genre, index) in genres">
+          <nuxt-link :key="genre" :to="`/bookshelf?filter=genres.${$encode(genre)}`" class="hover:underline">{{ genre }}</nuxt-link
+          ><span :key="index" v-if="index < genres.length - 1">,&nbsp;</span>
+        </template>
+      </div>
+    </div>
 
     <div v-if="numTracks" class="flex text-gray-100 text-xs my-2 -mx-0.5">
       <div class="bg-primary bg-opacity-80 px-3 py-0.5 rounded-full mx-0.5">
@@ -221,6 +242,12 @@ export default {
     },
     subtitle() {
       return this.mediaMetadata.subtitle
+    },
+    genres() {
+      return this.mediaMetadata.genres || []
+    },
+    publishedYear() {
+      return this.mediaMetadata.publishedYear
     },
     podcastAuthor() {
       if (!this.isPodcast) return null
