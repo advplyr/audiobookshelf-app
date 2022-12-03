@@ -6,6 +6,7 @@
     </div>
     <app-audio-player-container ref="streamContainer" />
     <modals-libraries-modal />
+    <modals-playlists-add-create-modal />
     <app-side-drawer />
     <readers-reader />
   </div>

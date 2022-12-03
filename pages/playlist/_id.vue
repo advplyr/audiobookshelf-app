@@ -86,7 +86,7 @@ export default {
         return !prog || !prog.isFinished
       })
       if (nextItem) {
-        this.$eventBus.$emit('play-item', { libraryItemId: nextItem.libraryItemId })
+        this.$eventBus.$emit('play-item', { libraryItemId: nextItem.libraryItemId, episodeId: nextItem.episodeId })
       }
     }
   },

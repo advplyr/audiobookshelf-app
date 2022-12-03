@@ -33,7 +33,9 @@ export const state = () => ({
       value: 30
     }
   ],
-  libraryIcons: ['database', 'audiobookshelf', 'books-1', 'books-2', 'book-1', 'microphone-1', 'microphone-3', 'radio', 'podcast', 'rss', 'headphones', 'music', 'file-picture', 'rocket', 'power', 'star', 'heart']
+  libraryIcons: ['database', 'audiobookshelf', 'books-1', 'books-2', 'book-1', 'microphone-1', 'microphone-3', 'radio', 'podcast', 'rss', 'headphones', 'music', 'file-picture', 'rocket', 'power', 'star', 'heart'],
+  selectedPlaylistItems: [],
+  showPlaylistsAddCreateModal: false
 })
 
 export const getters = {
@@ -89,7 +91,6 @@ export const getters = {
 export const actions = {
   async loadLocalMediaProgress({ state, commit }) {
     var mediaProgress = await this.$db.getAllLocalMediaProgress()
-    console.log('Got all local media progress', JSON.stringify(mediaProgress))
     commit('setLocalMediaProgress', mediaProgress)
   }
 }
@@ -124,10 +125,8 @@ export const mutations = {
     }
     var index = state.localMediaProgress.findIndex(lmp => lmp.id == prog.id)
     if (index >= 0) {
-      console.log('UpdateLocalMediaProgress updating', prog.id, prog.progress)
       state.localMediaProgress.splice(index, 1, prog)
     } else {
-      console.log('updateLocalMediaProgress inserting new progress', prog.id, prog.progress)
       state.localMediaProgress.push(prog)
     }
   },
@@ -139,5 +138,11 @@ export const mutations = {
   },
   setLastSearch(state, val) {
     state.lastSearch = val
+  },
+  setSelectedPlaylistItems(state, items) {
+    state.selectedPlaylistItems = items
+  },
+  setShowPlaylistsAddCreateModal(state, val) {
+    state.showPlaylistsAddCreateModal = val
   }
 }

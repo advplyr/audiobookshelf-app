@@ -26,6 +26,10 @@
 
         <ui-read-icon-btn :disabled="isProcessingReadUpdate" :is-read="userIsFinished" borderless class="mx-1 mt-0.5" @click="toggleFinished" />
 
+        <button v-if="!isLocal" class="mx-1.5 mt-1.5" @click="addToPlaylist">
+          <span class="material-icons text-2xl">playlist_add</span>
+        </button>
+
         <div v-if="userCanDownload">
           <span v-if="isLocal" class="material-icons-outlined px-2 text-success text-lg">audio_file</span>
           <span v-else-if="!localEpisode" class="material-icons mx-1 mt-2" :class="downloadItem ? 'animate-bounce text-warning text-opacity-75 text-xl' : 'text-gray-300 text-xl'" @click="downloadClick">{{ downloadItem ? 'downloading' : 'download' }}</span>
@@ -134,6 +138,9 @@ export default {
     }
   },
   methods: {
+    addToPlaylist() {
+      this.$emit('addToPlaylist', this.episode)
+    },
     async selectFolder() {
       var folderObj = await AbsFileSystem.selectFolder({ mediaType: this.mediaType })
       if (folderObj.error) {

@@ -6,7 +6,8 @@ export const state = () => ({
   currentLibraryId: '',
   showModal: false,
   issues: 0,
-  filterData: null
+  filterData: null,
+  numUserPlaylists: 0
 })
 
 export const getters = {
@@ -41,15 +42,17 @@ export const actions = {
     return this.$axios
       .$get(`/api/libraries/${libraryId}?include=filterdata`)
       .then((data) => {
-        var library = data.library
-        var filterData = data.filterdata
-        var issues = data.issues || 0
+        const library = data.library
+        const filterData = data.filterdata
+        const issues = data.issues || 0
+        const numUserPlaylists = data.numUserPlaylists || 0
 
         dispatch('user/checkUpdateLibrarySortFilter', library.mediaType, { root: true })
 
         commit('addUpdate', library)
         commit('setLibraryIssues', issues)
         commit('setLibraryFilterData', filterData)
+        commit('setNumUserPlaylists', numUserPlaylists)
         commit('setCurrentLibrary', libraryId)
         return data
       })
@@ -127,6 +130,9 @@ export const mutations = {
   },
   setLibraryIssues(state, val) {
     state.issues = val
+  },
+  setNumUserPlaylists(state, numUserPlaylists) {
+    state.numUserPlaylists = numUserPlaylists
   },
   setLibraryFilterData(state, filterData) {
     state.filterData = filterData

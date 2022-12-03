@@ -106,7 +106,7 @@
       <p class="text-sm">{{ description }}</p>
     </div>
 
-    <tables-podcast-episodes-table v-if="isPodcast" :library-item-id="libraryItemId" :local-library-item-id="localLibraryItemId" :episodes="episodes" :local-episodes="localLibraryItemEpisodes" :is-local="isLocal" />
+    <tables-podcast-episodes-table v-if="isPodcast" :library-item="libraryItem" :local-library-item-id="localLibraryItemId" :episodes="episodes" :local-episodes="localLibraryItemEpisodes" :is-local="isLocal" />
 
     <modals-select-local-folder-modal v-model="showSelectLocalFolder" :media-type="mediaType" @select="selectedLocalFolder" />
 
@@ -343,12 +343,21 @@ export default {
           }
         ]
       } else {
-        return [
+        const items = [
           {
             text: 'View Details',
             value: 'details'
           }
         ]
+
+        if (!this.isPodcast) {
+          items.push({
+            text: 'Add to Playlist',
+            value: 'playlist'
+          })
+        }
+
+        return items
       }
     }
   },
@@ -359,6 +368,9 @@ export default {
         this.$router.push(`/localMedia/item/${this.libraryItemId}`)
       } else if (action === 'details') {
         this.showDetailsModal = true
+      } else if (action === 'playlist') {
+        this.$store.commit('globals/setSelectedPlaylistItems', [{ libraryItem: this.libraryItem, episode: null }])
+        this.$store.commit('globals/setShowPlaylistsAddCreateModal', true)
       }
     },
     moreButtonPress() {

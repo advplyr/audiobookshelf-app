@@ -15,7 +15,7 @@
     </div>
 
     <template v-for="episode in episodesSorted">
-      <tables-podcast-episode-row :episode="episode" :local-episode="localEpisodeMap[episode.id]" :library-item-id="libraryItemId" :local-library-item-id="localLibraryItemId" :is-local="isLocal" :key="episode.id" />
+      <tables-podcast-episode-row :episode="episode" :local-episode="localEpisodeMap[episode.id]" :library-item-id="libraryItemId" :local-library-item-id="localLibraryItemId" :is-local="isLocal" :key="episode.id" @addToPlaylist="addEpisodeToPlaylist" />
     </template>
 
     <!-- What in tarnation is going on here?
@@ -29,7 +29,10 @@
 <script>
 export default {
   props: {
-    libraryItemId: String,
+    libraryItem: {
+      type: Object,
+      default: () => {}
+    },
     episodes: {
       type: Array,
       default: () => []
@@ -95,6 +98,9 @@ export default {
     }
   },
   computed: {
+    libraryItemId() {
+      return this.libraryItem ? this.libraryItem.id : null
+    },
     episodesAreFiltered() {
       return this.episodesFiltered.length !== this.episodesCopy.length
     },
@@ -140,6 +146,10 @@ export default {
     }
   },
   methods: {
+    addEpisodeToPlaylist(episode) {
+      this.$store.commit('globals/setSelectedPlaylistItems', [{ libraryItem: this.libraryItem, episode }])
+      this.$store.commit('globals/setShowPlaylistsAddCreateModal', true)
+    },
     setFilter(filter) {
       this.filterKey = filter
       console.log('Set filter', this.filterKey)

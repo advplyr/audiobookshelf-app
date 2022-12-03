@@ -319,9 +319,6 @@ export default {
     userIsRoot() {
       return this.store.getters['user/getIsRoot']
     },
-    _socket() {
-      return this.$root.socket || this.$nuxt.$root.socket
-    },
     titleFontSize() {
       return 0.75 * this.sizeMultiplier
     },

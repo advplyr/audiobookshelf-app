@@ -22,9 +22,13 @@ export default {
     currentLibraryIcon() {
       return this.currentLibrary ? this.currentLibrary.icon : 'database'
     },
+    userHasPlaylists() {
+      return this.$store.state.libraries.numUserPlaylists
+    },
     items() {
+      let items = []
       if (this.isPodcast) {
-        return [
+        items = [
           {
             to: '/bookshelf',
             routeName: 'bookshelf',
@@ -50,56 +54,62 @@ export default {
             text: 'Library'
           }
         ]
+      } else {
+        items = [
+          {
+            to: '/bookshelf',
+            routeName: 'bookshelf',
+            iconPack: 'abs-icons',
+            icon: 'home',
+            iconClass: 'text-xl',
+            text: 'Home'
+          },
+          {
+            to: '/bookshelf/library',
+            routeName: 'bookshelf-library',
+            iconPack: 'abs-icons',
+            icon: this.currentLibraryIcon,
+            iconClass: 'text-lg',
+            text: 'Library'
+          },
+          {
+            to: '/bookshelf/series',
+            routeName: 'bookshelf-series',
+            iconPack: 'abs-icons',
+            icon: 'columns',
+            iconClass: 'text-lg pt-px',
+            text: 'Series'
+          },
+          {
+            to: '/bookshelf/collections',
+            routeName: 'bookshelf-collections',
+            iconPack: 'material-icons-outlined',
+            icon: 'collections_bookmark',
+            iconClass: 'text-xl',
+            text: 'Collections'
+          }
+          // {
+          //   to: '/bookshelf/authors',
+          //   routeName: 'bookshelf-authors',
+          //   iconPack: 'abs-icons',
+          //   icon: 'authors',
+          //   iconClass: 'text-2xl pb-px',
+          //   text: 'Authors'
+          // }
+        ]
       }
-      return [
-        {
-          to: '/bookshelf',
-          routeName: 'bookshelf',
-          iconPack: 'abs-icons',
-          icon: 'home',
-          iconClass: 'text-xl',
-          text: 'Home'
-        },
-        {
-          to: '/bookshelf/library',
-          routeName: 'bookshelf-library',
-          iconPack: 'abs-icons',
-          icon: this.currentLibraryIcon,
-          iconClass: 'text-lg',
-          text: 'Library'
-        },
-        {
-          to: '/bookshelf/series',
-          routeName: 'bookshelf-series',
-          iconPack: 'abs-icons',
-          icon: 'columns',
-          iconClass: 'text-lg pt-px',
-          text: 'Series'
-        },
-        {
-          to: '/bookshelf/collections',
-          routeName: 'bookshelf-collections',
-          iconPack: 'material-icons-outlined',
-          icon: 'collections_bookmark',
-          iconClass: 'text-xl',
-          text: 'Collections'
-        },
-        // {
-        //   to: '/bookshelf/authors',
-        //   routeName: 'bookshelf-authors',
-        //   iconPack: 'abs-icons',
-        //   icon: 'authors',
-        //   iconClass: 'text-2xl pb-px',
-        //   text: 'Authors'
-        // },
-        {
+
+      if (this.userHasPlaylists) {
+        items.push({
           to: '/bookshelf/playlists',
           routeName: 'bookshelf-playlists',
           iconPack: 'material-icons',
           icon: 'queue_music',
           text: 'Playlists'
-        }
-      ]
+        })
+      }
+
+      return items
     },
     routeName() {
       return this.$route.name
