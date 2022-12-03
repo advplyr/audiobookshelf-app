@@ -41,7 +41,7 @@
       </div>
       <div class="max-w-[calc(100vw-10rem)] overflow-hidden overflow-ellipsis text-sm">
         <template v-for="(narrator, index) in narrators">
-          <nuxt-link :key="narrator" :to="`/bookshelf?filter=narrators.${$encode(narrator)}`">{{ narrator }}</nuxt-link
+          <nuxt-link :key="narrator" :to="`/bookshelf/library?filter=narrators.${$encode(narrator)}`">{{ narrator }}</nuxt-link
           ><span :key="index" v-if="index < narrators.length - 1">,&nbsp;</span>
         </template>
       </div>
@@ -60,7 +60,7 @@
       </div>
       <div class="max-w-[calc(100vw-10rem)] overflow-hidden overflow-ellipsis text-sm">
         <template v-for="(genre, index) in genres">
-          <nuxt-link :key="genre" :to="`/bookshelf?filter=genres.${$encode(genre)}`" class="hover:underline">{{ genre }}</nuxt-link
+          <nuxt-link :key="genre" :to="`/bookshelf/library?filter=genres.${$encode(genre)}`" class="hover:underline">{{ genre }}</nuxt-link
           ><span :key="index" v-if="index < genres.length - 1">,&nbsp;</span>
         </template>
       </div>
