@@ -1,5 +1,5 @@
 <template>
-  <div>Playlists</div>
+  <bookshelf-lazy-bookshelf page="playlists" />
 </template>
 
 <script>

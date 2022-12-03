@@ -95,16 +95,16 @@ export default {
       var coverSize = 100
       if (window.innerWidth <= 375) coverSize = 90
 
-      if (this.isCoverSquareAspectRatio) return coverSize * 1.6
+      if (this.isCoverSquareAspectRatio || this.entityName === 'playlists') return coverSize * 1.6
       return coverSize
     },
     bookHeight() {
-      if (this.isCoverSquareAspectRatio) return this.bookWidth
+      if (this.isCoverSquareAspectRatio || this.entityName === 'playlists') return this.bookWidth
       return this.bookWidth * 1.6
     },
     entityWidth() {
       if (this.showBookshelfListView) return this.bookshelfWidth - 16
-      if (this.isBookEntity) return this.bookWidth
+      if (this.isBookEntity || this.entityName === 'playlists') return this.bookWidth
       return this.bookWidth * 2
     },
     entityHeight() {

@@ -64,6 +64,8 @@ export default {
         return 'Series'
       } else if (this.page === 'collections') {
         return 'Collections'
+      } else if (this.page === 'playlists') {
+        return 'Playlists'
       }
       return ''
     },

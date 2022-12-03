@@ -26,6 +26,11 @@ export const state = () => ({
 })
 
 export const getters = {
+  getIsMediaStreaming: state => (libraryItemId, episodeId) => {
+    if (!state.playerLibraryItemId) return null
+    if (!episodeId) return state.playerLibraryItemId == libraryItemId
+    return state.playerLibraryItemId == libraryItemId && state.playerEpisodeId == episodeId
+  },
   getIsItemStreaming: state => libraryItemId => {
     return state.playerLibraryItemId == libraryItemId
   },

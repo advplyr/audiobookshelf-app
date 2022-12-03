@@ -12,7 +12,7 @@
             {{ collectionName }}
           </h1>
           <div class="flex-grow" />
-          <ui-btn v-if="showPlayButton" :disabled="streaming" color="success" :padding-x="4" small class="flex items-center h-9 mr-2 w-20" @click="clickPlay">
+          <ui-btn v-if="showPlayButton" :disabled="streaming" color="success" :padding-x="4" small class="flex items-center justify-center h-9 mr-2 w-24" @click="clickPlay">
             <span v-show="!streaming" class="material-icons -ml-2 pr-1 text-white">play_arrow</span>
             {{ streaming ? 'Streaming' : 'Play' }}
           </ui-btn>
