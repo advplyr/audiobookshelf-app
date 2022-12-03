@@ -1,7 +1,7 @@
 <template>
   <div class="w-full h-full">
     <home-bookshelf-nav-bar />
-    <home-bookshelf-toolbar v-show="!isHome" />
+    <home-bookshelf-toolbar v-show="!isHome && !isLatest" />
     <div id="bookshelf-wrapper" class="main-content overflow-y-auto overflow-x-hidden relative" :class="isHome ? 'home-page' : ''">
       <nuxt-child />
     </div>
@@ -16,6 +16,9 @@ export default {
   computed: {
     isHome() {
       return this.$route.name === 'bookshelf'
+    },
+    isLatest() {
+      return this.$route.name === 'bookshelf-latest'
     }
   }
 }
