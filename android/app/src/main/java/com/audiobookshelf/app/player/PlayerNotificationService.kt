@@ -358,7 +358,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       customActionProviders.addAll(listOf(
         SkipBackwardCustomActionProvider(),
         SkipForwardCustomActionProvider(),
-      ));
+      ))
     }
     mediaSessionConnector.setCustomActionProviders(*customActionProviders.toTypedArray());
 

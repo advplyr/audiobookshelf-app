@@ -122,10 +122,13 @@ class Book(
   override fun setAudioTracks(audioTracks:MutableList<AudioTrack>) {
     tracks = audioTracks
     tracks?.sortBy { it.index }
-    // TODO: Is it necessary to calculate this each time? check if can remove safely
+
     var totalDuration = 0.0
+    var currentStartOffset = 0.0
     tracks?.forEach {
       totalDuration += it.duration
+      it.startOffset = currentStartOffset
+      currentStartOffset += it.duration
     }
     duration = totalDuration
   }
@@ -158,7 +161,6 @@ class Book(
     }
     duration = totalDuration
   }
-
   @JsonIgnore
   override fun getLocalCopy(): Book {
     return Book(metadata as BookMetadata,coverPath,tags, mutableListOf(),chapters,mutableListOf(),null,null, 0)
@@ -328,36 +330,6 @@ data class Folder(
   var id:String,
   var fullPath:String
 )
-
-@JsonIgnoreProperties(ignoreUnknown = true)
-data class AudioTrack(
-  var index:Int,
-  var startOffset:Double,
-  var duration:Double,
-  var title:String,
-  var contentUrl:String,
-  var mimeType:String,
-  var metadata:FileMetadata?,
-  var isLocal:Boolean,
-  var localFileId:String?,
-  var audioProbeResult:AudioProbeResult?,
-  var serverIndex:Int? // Need to know if server track index is different
-) {
-
-  @get:JsonIgnore
-  val startOffsetMs get() = (startOffset * 1000L).toLong()
-  @get:JsonIgnore
-  val durationMs get() = (duration * 1000L).toLong()
-  @get:JsonIgnore
-  val endOffsetMs get() = startOffsetMs + durationMs
-  @get:JsonIgnore
-  val relPath get() = metadata?.relPath ?: ""
-
-  @JsonIgnore
-  fun getBookChapter():BookChapter {
-    return BookChapter(index + 1,startOffset, startOffset + duration, title)
-  }
-}
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class BookChapter(
