@@ -47,7 +47,8 @@ export default {
       default: 120
     },
     bookCoverAspectRatio: Number,
-    downloadCover: String
+    downloadCover: String,
+    raw: Boolean
   },
   data() {
     return {
@@ -115,7 +116,7 @@ export default {
       if (this.downloadCover) return this.downloadCover
       if (!this.libraryItem) return null
       var store = this.$store || this.$nuxt.$store
-      return store.getters['globals/getLibraryItemCoverSrc'](this.libraryItem, this.placeholderUrl)
+      return store.getters['globals/getLibraryItemCoverSrc'](this.libraryItem, this.placeholderUrl, this.raw)
     },
     cover() {
       return this.media.coverPath || this.placeholderUrl
