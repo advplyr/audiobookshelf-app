@@ -6,6 +6,10 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 
+enum class LockOrientationSetting {
+  NONE, PORTRAIT, LANDSCAPE
+}
+
 data class ServerConnectionConfig(
   var id:String,
   var index:Int,
@@ -22,7 +26,8 @@ data class DeviceSettings(
   var enableAltView:Boolean,
   var jumpBackwardsTime:Int,
   var jumpForwardTime:Int,
-  var disableShakeToResetSleepTimer:Boolean
+  var disableShakeToResetSleepTimer:Boolean,
+  var lockOrientation:LockOrientationSetting
 ) {
   companion object {
     // Static method to get default device settings
@@ -32,7 +37,8 @@ data class DeviceSettings(
         enableAltView = false,
         jumpBackwardsTime = 10,
         jumpForwardTime = 10,
-        disableShakeToResetSleepTimer = false
+        disableShakeToResetSleepTimer = false,
+        lockOrientation = LockOrientationSetting.NONE
       )
     }
   }

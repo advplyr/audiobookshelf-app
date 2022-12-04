@@ -156,6 +156,16 @@ Vue.prototype.$encode = encode
 const decode = (text) => Buffer.from(decodeURIComponent(text), 'base64').toString()
 Vue.prototype.$decode = decode
 
+Vue.prototype.$setOrientationLock = (orientationLockSetting) => {
+  if (orientationLockSetting == 'PORTRAIT') {
+    window.screen.orientation.lock('portrait')
+  } else if (orientationLockSetting == 'LANDSCAPE') {
+    window.screen.orientation.lock('landscape')
+  } else {
+    window.screen.orientation.unlock()
+  }
+}
+
 export default ({ store, app }) => {
   // iOS Only
   //  backButton event does not work with iOS swipe navigation so use this workaround

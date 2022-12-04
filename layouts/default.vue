@@ -262,6 +262,7 @@ export default {
 
       const deviceData = await this.$db.getDeviceData()
       this.$store.commit('setDeviceData', deviceData)
+      this.$setOrientationLock(this.$store.getters['getOrientationLockSetting'])
 
       await this.$store.dispatch('setupNetworkListener')
 
