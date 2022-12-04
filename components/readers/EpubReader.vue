@@ -1,7 +1,7 @@
 <template>
   <div id="epub-frame" class="w-full">
     <div id="viewer" class="border border-gray-100 bg-white shadow-md h-full w-full"></div>
-    <div class="fixed bottom-0 left-0 h-8 w-full bg-bg px-2 flex items-center">
+    <div class="fixed left-0 h-8 w-full bg-bg px-2 flex items-center" :style="{ bottom: playerLibraryItemId ? '100px' : '0px' }">
       <p class="text-xs">epub</p>
       <div class="flex-grow" />
 
@@ -29,8 +29,25 @@ export default {
       hasPrev: false
     }
   },
-  computed: {},
+  watch: {
+    playerLibraryItemId() {
+      this.updateHeight()
+    }
+  },
+  computed: {
+    playerLibraryItemId() {
+      return this.$store.state.playerLibraryItemId
+    },
+    readerHeightOffset() {
+      return this.playerLibraryItemId ? 164 : 64
+    }
+  },
   methods: {
+    updateHeight() {
+      if (this.rendition && this.rendition.resize) {
+        this.rendition.resize(window.innerWidth, window.innerHeight - this.readerHeightOffset)
+      }
+    },
     prev() {
       if (this.rendition) {
         this.rendition.prev()
@@ -54,12 +71,12 @@ export default {
 
       this.rendition = book.renderTo('viewer', {
         width: window.innerWidth,
-        height: window.innerHeight - 64,
+        height: window.innerHeight - this.readerHeightOffset,
         snap: true,
         manager: 'continuous',
         flow: 'paginated'
       })
-      var displayed = this.rendition.display()
+      const displayed = this.rendition.display()
 
       book.ready
         .then(() => {
@@ -125,6 +142,11 @@ export default {
 #epub-frame {
   height: calc(100% - 32px);
   max-height: calc(100% - 32px);
+  overflow: hidden;
+}
+.reader-player-open #epub-frame {
+  height: calc(100% - 132px);
+  max-height: calc(100% - 132px);
   overflow: hidden;
 }
 </style>

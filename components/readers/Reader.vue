@@ -1,5 +1,5 @@
 <template>
-  <div v-if="show" class="absolute top-0 left-0 w-full h-full bg-bg z-40 pt-8">
+  <div v-if="show" class="absolute top-0 left-0 w-full h-full bg-bg z-40 pt-8" :class="{ 'reader-player-open': !!playerLibraryItemId }">
     <div class="h-8 w-full bg-primary flex items-center px-2 fixed top-0 left-0 z-30 box-shadow-sm">
       <p class="w-5/6 truncate">{{ title }}</p>
       <div class="flex-grow" />
@@ -98,6 +98,9 @@ export default {
 
       var serverAddress = this.$store.getters['user/getServerAddress']
       return `${serverAddress}/ebook/${this.libraryId}/${this.folderId}/${itemRelPath}/${relPath}`
+    },
+    playerLibraryItemId() {
+      return this.$store.state.playerLibraryItemId
     }
   },
   methods: {
