@@ -1,16 +1,16 @@
 <template>
   <div v-if="playbackSession" id="streamContainer" class="playerContainer fixed top-0 left-0 layout-wrapper right-0 z-50 pointer-events-none" :class="{ fullscreen: showFullscreen, 'ios-player': $platform === 'ios', 'web-player': $platform === 'web' }">
     <div v-if="showFullscreen" class="w-full h-full z-10 bg-bg absolute top-0 left-0 pointer-events-auto">
-      <div class="top-2 left-4 absolute cursor-pointer">
+      <div class="top-4 left-4 absolute cursor-pointer">
         <span class="material-icons text-5xl" @click="collapseFullscreen">expand_more</span>
       </div>
-      <div v-show="showCastBtn" class="top-4 right-16 absolute cursor-pointer">
+      <div v-show="showCastBtn" class="top-6 right-16 absolute cursor-pointer">
         <span class="material-icons text-3xl" :class="isCasting ? 'text-success' : ''" @click="castClick">cast</span>
       </div>
-      <div class="top-4 right-4 absolute cursor-pointer">
+      <div class="top-6 right-4 absolute cursor-pointer">
         <span class="material-icons text-3xl" @click="showMoreMenuDialog = true">more_vert</span>
       </div>
-      <p class="top-2 absolute left-0 right-0 mx-auto text-center uppercase tracking-widest text-opacity-75" style="font-size: 10px" :class="{ 'text-success': isLocalPlayMethod, 'text-accent': !isLocalPlayMethod }">{{ isDirectPlayMethod ? 'Direct' : isLocalPlayMethod ? 'Local' : 'Transcode' }}</p>
+      <p class="top-4 absolute left-0 right-0 mx-auto text-center uppercase tracking-widest text-opacity-75" style="font-size: 10px" :class="{ 'text-success': isLocalPlayMethod, 'text-accent': !isLocalPlayMethod }">{{ isDirectPlayMethod ? 'Direct' : isLocalPlayMethod ? 'Local' : 'Transcode' }}</p>
     </div>
 
     <div v-if="useChapterTrack && showFullscreen" class="absolute total-track w-full px-3 z-30">
@@ -75,7 +75,7 @@
         </div>
       </div>
 
-      <div id="playerTrack" class="absolute bottom-0 left-0 w-full px-3">
+      <div id="playerTrack" class="absolute left-0 w-full px-3">
         <div ref="track" class="h-1.5 w-full bg-gray-500 bg-opacity-50 relative" :class="{ 'animate-pulse': isLoading }" @touchstart="touchstartTrack" @click="clickTrack">
           <div ref="readyTrack" class="h-full bg-gray-600 absolute top-0 left-0 pointer-events-none" />
           <div ref="bufferedTrack" class="h-full bg-gray-500 absolute top-0 left-0 pointer-events-none" />
@@ -209,7 +209,7 @@ export default {
     },
     bookCoverWidth() {
       if (this.showFullscreen) return this.fullscreenBookCoverWidth
-      return 60
+      return 46 / this.bookCoverAspectRatio
     },
     fullscreenBookCoverWidth() {
       var heightScale = (this.windowHeight - 200) / 651
@@ -754,12 +754,11 @@ export default {
     },
     updateScreenSize() {
       this.windowHeight = window.innerHeight
-      var coverHeight = this.fullscreenBookCoverWidth * this.bookCoverAspectRatio
+      const coverHeight = this.fullscreenBookCoverWidth * this.bookCoverAspectRatio
       document.documentElement.style.setProperty('--cover-image-width', this.fullscreenBookCoverWidth + 'px')
       document.documentElement.style.setProperty('--cover-image-height', coverHeight + 'px')
     },
     minimizePlayerEvt() {
-      console.log('Minimize Player Evt')
       this.showFullscreen = false
     },
     showProgressSyncIsFailing() {
@@ -821,8 +820,8 @@ export default {
 :root {
   --cover-image-width: 0px;
   --cover-image-height: 0px;
-  --cover-image-width-collapsed: 60px;
-  --cover-image-height-collapsed: 60px;
+  --cover-image-width-collapsed: 46px;
+  --cover-image-height-collapsed: 46px;
 }
 .bookCoverWrapper {
   box-shadow: 3px -2px 5px #00000066;
@@ -840,10 +839,10 @@ export default {
 #playerTrack {
   transition: all 0.15s cubic-bezier(0.39, 0.575, 0.565, 1);
   transition-property: margin;
-  margin-bottom: 4px;
+  bottom: 10px;
 }
 .fullscreen #playerTrack {
-  margin-bottom: 18px;
+  bottom: 32px;
 }
 
 .ios-player #timestamp-row {
@@ -852,7 +851,7 @@ export default {
 }
 
 .cover-wrapper {
-  bottom: 44px;
+  bottom: 48px;
   left: 12px;
   height: var(--cover-image-height-collapsed);
   width: var(--cover-image-width-collapsed);
@@ -873,8 +872,8 @@ export default {
   transform-origin: left bottom;
 
   width: 40%;
-  bottom: 50px;
-  left: 80px;
+  bottom: 56px;
+  left: 70px;
   text-align: left;
 }
 .title-author-texts .title-text {
@@ -912,7 +911,7 @@ export default {
   width: 140px;
   padding-left: 12px;
   padding-right: 12px;
-  bottom: 45px;
+  bottom: 50px;
 }
 #playerControls .jump-icon {
   transition: all 0.15s cubic-bezier(0.39, 0.575, 0.565, 1);
@@ -949,7 +948,7 @@ export default {
 
 .fullscreen #playerControls {
   width: 100%;
-  bottom: 100px;
+  bottom: 105px;
 }
 .fullscreen #playerControls .jump-icon {
   margin: 0px 18px;
