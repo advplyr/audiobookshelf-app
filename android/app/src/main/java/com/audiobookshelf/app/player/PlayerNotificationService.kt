@@ -694,14 +694,23 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   }
 
   fun seekPlayer(time: Long) {
-    Log.d(tag, "seekPlayer mediaCount = ${currentPlayer.mediaItemCount} | $time")
+    var timeToSeek = time
+    Log.d(tag, "seekPlayer mediaCount = ${currentPlayer.mediaItemCount} | $timeToSeek")
+    if (timeToSeek < 0) {
+      Log.w(tag, "seekPlayer invalid time ${timeToSeek} - setting to 0")
+      timeToSeek = 0L
+    } else if (timeToSeek > getDuration()) {
+      Log.w(tag, "seekPlayer invalid time ${timeToSeek} - setting to MAX - 2000")
+      timeToSeek = getDuration() - 2000L
+    }
+
     if (currentPlayer.mediaItemCount > 1) {
-      currentPlaybackSession?.currentTime = time / 1000.0
+      currentPlaybackSession?.currentTime = timeToSeek / 1000.0
       val newWindowIndex = currentPlaybackSession?.getCurrentTrackIndex() ?: 0
       val newTimeOffset = currentPlaybackSession?.getCurrentTrackTimeMs() ?: 0
       currentPlayer.seekTo(newWindowIndex, newTimeOffset)
     } else {
-      currentPlayer.seekTo(time)
+      currentPlayer.seekTo(timeToSeek)
     }
   }
 
