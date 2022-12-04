@@ -181,6 +181,12 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
           KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
             playerNotificationService.jumpBackward()
           }
+          KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
+            playerNotificationService.jumpForward()
+          }
+          KeyEvent.KEYCODE_MEDIA_REWIND -> {
+            playerNotificationService.jumpBackward()
+          }
           KeyEvent.KEYCODE_MEDIA_STOP -> {
             playerNotificationService.closePlayback()
           }
