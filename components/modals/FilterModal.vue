@@ -3,7 +3,6 @@
     <template #outer>
       <div v-show="selected !== 'all'" class="absolute top-4 left-4 z-40">
         <ui-btn class="text-xl border-yellow-400 border-opacity-40" @click="clearSelected">Clear</ui-btn>
-        <!-- <span class="font-semibold uppercase text-white text-2xl">Clear</span> -->
       </div>
     </template>
     <div class="w-full h-full overflow-hidden absolute top-0 left-0 flex items-center justify-center" @click="show = false">
@@ -174,7 +173,24 @@ export default {
       return this.filterData.languages || []
     },
     progress() {
-      return ['Finished', 'In Progress', 'Not Started', 'Not Finished']
+      return [
+        {
+          id: 'finished',
+          name: 'Finished'
+        },
+        {
+          id: 'in-progress',
+          name: 'In Progress'
+        },
+        {
+          id: 'not-started',
+          name: 'Not Started'
+        },
+        {
+          id: 'not-finished',
+          name: 'Not Finished'
+        }
+      ]
     },
     sublistItems() {
       return (this[this.sublist] || []).map((item) => {
