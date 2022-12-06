@@ -16,6 +16,9 @@ if (Capacitor.getPlatform() != 'web') {
 
 Vue.prototype.$isDev = process.env.NODE_ENV !== 'production'
 
+Vue.prototype.$encodeUriPath = (path) => {
+  return path.replace(/\\/g, '/').replace(/%/g, '%25').replace(/#/g, '%23')
+}
 Vue.prototype.$dateDistanceFromNow = (unixms) => {
   if (!unixms) return ''
   return formatDistance(unixms, Date.now(), { addSuffix: true })

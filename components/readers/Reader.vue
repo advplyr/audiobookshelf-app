@@ -89,15 +89,18 @@ export default {
     },
     ebookUrl() {
       if (!this.ebookFile) return null
+      let filepath = ''
+      if (this.selectedLibraryItem.isFile) {
+        filepath = this.$encodeUriPath(this.ebookFile.metadata.filename)
+      } else {
+        const itemRelPath = this.selectedLibraryItem.relPath
+        if (itemRelPath.startsWith('/')) itemRelPath = itemRelPath.slice(1)
+        const relPath = this.ebookFile.metadata.relPath
+        if (relPath.startsWith('/')) relPath = relPath.slice(1)
 
-      var itemRelPath = this.selectedLibraryItem.relPath
-      if (itemRelPath.startsWith('/')) itemRelPath = itemRelPath.slice(1)
-
-      var relPath = this.ebookFile.metadata.relPath
-      if (relPath.startsWith('/')) relPath = relPath.slice(1)
-
-      var serverAddress = this.$store.getters['user/getServerAddress']
-      return `${serverAddress}/ebook/${this.libraryId}/${this.folderId}/${itemRelPath}/${relPath}`
+        filepath = this.$encodeUriPath(`${itemRelPath}/${relPath}`)
+      }
+      return `/ebook/${this.libraryId}/${this.folderId}/${filepath}`
     },
     playerLibraryItemId() {
       return this.$store.state.playerLibraryItemId
