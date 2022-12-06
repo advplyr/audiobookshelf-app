@@ -335,7 +335,7 @@ export default {
       return !this.isMissing && !this.isIncomplete && (this.numTracks || this.episodes.length)
     },
     showRead() {
-      return this.ebookFile && this.ebookFormat !== 'pdf'
+      return this.ebookFile
     },
     showDownload() {
       if (this.isPodcast) return false
