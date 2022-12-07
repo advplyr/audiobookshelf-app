@@ -14,7 +14,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Override point for customization after application launch.
         
         let configuration = Realm.Configuration(
-            schemaVersion: 4,
+            schemaVersion: 5,
             migrationBlock: { [weak self] migration, oldSchemaVersion in
                 if (oldSchemaVersion < 1) {
                     self?.logger.log("Realm schema version was \(oldSchemaVersion)")
@@ -28,6 +28,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                     migration.enumerateObjects(ofType: ServerConnectionConfig.className()) { oldObject, newObject in
                         newObject?["index"] = indexCounter
                         indexCounter += 1
+                    }
+                }
+                if (oldSchemaVersion < 5) {
+                    self?.logger.log("Realm schema version was \(oldSchemaVersion)... Adding lockOrientation setting")
+                    migration.enumerateObjects(ofType: DeviceSettings.className()) { oldObject, newObject in
+                        newObject?["lockOrientation"] = "NONE"
                     }
                 }
             }

@@ -8,18 +8,12 @@
 import Foundation
 import RealmSwift
 
-enum LockOrientationSetting: Codable {
-    case NONE
-    case PORTRAIT
-    case LANDSCAPE
-}
-
 class DeviceSettings: Object {
     @Persisted var disableAutoRewind: Bool = false
     @Persisted var enableAltView: Bool = false
     @Persisted var jumpBackwardsTime: Int = 10
     @Persisted var jumpForwardTime: Int = 10
-    @Persisted var lockOrientation: LockOrientationSetting = LockOrientationSetting.NONE
+    @Persisted var lockOrientation: String = "NONE"
 }
 
 func getDefaultDeviceSettings() -> DeviceSettings {
