@@ -151,6 +151,14 @@ class PlayerProgress {
         } else {
             let playbackReport = PlaybackReport(currentTime: session.currentTime, duration: session.duration, timeListened: session.timeListening)
             success = await ApiClient.reportPlaybackProgress(report: playbackReport, sessionId: session.id)
+            // Reset time listening becuase server expects that time to be since last sync, not for the whole session
+            if success {
+                if let session = session.thaw() {
+                    try session.update {
+                        session.timeListening = 0
+                    }
+                }
+            }
         }
         
         
