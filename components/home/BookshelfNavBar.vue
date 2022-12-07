@@ -52,6 +52,14 @@ export default {
             icon: this.currentLibraryIcon,
             iconClass: 'text-lg',
             text: 'Library'
+          },
+          {
+            to: '/bookshelf/search',
+            routeName: 'bookshelf-search',
+            iconPack: 'abs-icons',
+            icon: 'podcast',
+            iconClass: 'text-lg',
+            text: 'Search'
           }
         ]
       } else {
