@@ -236,13 +236,13 @@ public class AbsDatabase: CAPPlugin {
         let enableAltView = call.getBool("enableAltView") ?? false
         let jumpBackwardsTime = call.getInt("jumpBackwardsTime") ?? 10
         let jumpForwardTime = call.getInt("jumpForwardTime") ?? 10
-        let lockOrientation call.getString("lockOrientation") ?? "NONE"
+        let lockOrientation = call.getString("lockOrientation") ?? "NONE"
         let settings = DeviceSettings()
         settings.disableAutoRewind = disableAutoRewind
         settings.enableAltView = enableAltView
         settings.jumpBackwardsTime = jumpBackwardsTime
         settings.jumpForwardTime = jumpForwardTime
-        settings.lockOrientation = LockOrientationSetting(rawValue: lockOrientation)
+        settings.lockOrientation = lockOrientation
         
         Database.shared.setDeviceSettings(deviceSettings: settings)
         
