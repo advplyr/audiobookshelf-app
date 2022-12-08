@@ -25,6 +25,9 @@ export default {
     userHasPlaylists() {
       return this.$store.state.libraries.numUserPlaylists
     },
+    userIsAdminOrUp() {
+      return this.$store.getters['user/getIsAdminOrUp']
+    },
     items() {
       let items = []
       if (this.isPodcast) {
@@ -52,16 +55,19 @@ export default {
             icon: this.currentLibraryIcon,
             iconClass: 'text-lg',
             text: 'Library'
-          },
-          {
+          }
+        ]
+
+        if (this.userIsAdminOrUp) {
+          items.push({
             to: '/bookshelf/search',
             routeName: 'bookshelf-search',
             iconPack: 'abs-icons',
             icon: 'podcast',
             iconClass: 'text-lg',
             text: 'Search'
-          }
-        ]
+          })
+        }
       } else {
         items = [
           {
