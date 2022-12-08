@@ -1,6 +1,6 @@
 <template>
   <div class="relative">
-    <input v-model="input" ref="input" autofocus :type="type" :disabled="disabled" autocorrect="off" autocapitalize="none" autocomplete="off" :placeholder="placeholder" class="py-2 w-full outline-none" :class="inputClass" @keyup="keyup" />
+    <input v-model="input" ref="input" autofocus :type="type" :disabled="disabled" autocorrect="off" autocapitalize="none" autocomplete="off" :placeholder="placeholder" class="py-2 w-full outline-none bg-primary" :class="inputClass" @keyup="keyup" />
     <div v-if="prependIcon" class="absolute top-0 left-0 h-full px-2 flex items-center justify-center">
       <span class="material-icons text-lg">{{ prependIcon }}</span>
     </div>
@@ -26,10 +26,6 @@ export default {
     prependIcon: {
       type: String,
       default: null
-    },
-    textSize: {
-      type: String,
-      default: 'lg'
     }
   },
   data() {
@@ -45,7 +41,7 @@ export default {
       }
     },
     inputClass() {
-      var classes = [`bg-${this.bg}`, `rounded-${this.rounded}`, `text-${this.textSize}`]
+      var classes = [`bg-${this.bg}`, `rounded-${this.rounded}`]
       if (this.disabled) classes.push('text-gray-300')
       else classes.push('text-white')
 

@@ -5,21 +5,21 @@ export default function ({ $axios, store }) {
       return
     }
 
-    var customHeaders = store.getters['user/getCustomHeaders']
+    const customHeaders = store.getters['user/getCustomHeaders']
     if (customHeaders) {
       for (const key in customHeaders) {
         config.headers.common[key] = customHeaders[key]
       }
     }
 
-    var bearerToken = store.getters['user/getToken']
+    const bearerToken = store.getters['user/getToken']
     if (bearerToken) {
       config.headers.common['Authorization'] = `Bearer ${bearerToken}`
     } else {
       console.warn('[Axios] No Bearer Token for request')
     }
 
-    var serverUrl = store.getters['user/getServerAddress']
+    const serverUrl = store.getters['user/getServerAddress']
     if (serverUrl) {
       config.url = `${serverUrl}${config.url}`
     }

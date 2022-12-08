@@ -31,15 +31,15 @@
       </div>
     </template>
     <template v-else>
-      <div class="flex items-center mb-4 py-4 px-2">
+      <div class="flex items-center py-4 px-2">
         <div class="flex items-center" @click="clearSelected">
           <span class="material-icons text-2xl text-gray-300">arrow_back</span>
           <p class="pl-2 uppercase text-sm font-semibold text-gray-300 leading-4 pb-px">Back</p>
         </div>
       </div>
 
-      <div class="p-2">
-        <p>Selected Podcast Feed</p>
+      <div class="w-full py-2 search-results-container overflow-y-auto overflow-x-hidden">
+        <forms-new-podcast-form :podcast-data="selectedPodcast" :podcast-feed-data="selectedPodcastFeed" :processing.sync="processing" />
       </div>
     </template>
 

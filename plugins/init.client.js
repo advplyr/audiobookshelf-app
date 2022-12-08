@@ -105,6 +105,43 @@ Vue.prototype.$secondsToTimestamp = (seconds) => {
   return `${_hours}:${_minutes.toString().padStart(2, '0')}:${_seconds.toString().padStart(2, '0')}`
 }
 
+Vue.prototype.$sanitizeFilename = (input, colonReplacement = ' - ') => {
+  if (typeof input !== 'string') {
+    return false
+  }
+
+  // Max is actually 255-260 for windows but this leaves padding incase ext wasnt put on yet
+  const MAX_FILENAME_LEN = 240
+
+  var replacement = ''
+  var illegalRe = /[\/\?<>\\:\*\|"]/g
+  var controlRe = /[\x00-\x1f\x80-\x9f]/g
+  var reservedRe = /^\.+$/
+  var windowsReservedRe = /^(con|prn|aux|nul|com[0-9]|lpt[0-9])(\..*)?$/i
+  var windowsTrailingRe = /[\. ]+$/
+  var lineBreaks = /[\n\r]/g
+
+  var sanitized = input
+    .replace(':', colonReplacement) // Replace first occurrence of a colon
+    .replace(illegalRe, replacement)
+    .replace(controlRe, replacement)
+    .replace(reservedRe, replacement)
+    .replace(lineBreaks, replacement)
+    .replace(windowsReservedRe, replacement)
+    .replace(windowsTrailingRe, replacement)
+
+
+  if (sanitized.length > MAX_FILENAME_LEN) {
+    var lenToRemove = sanitized.length - MAX_FILENAME_LEN
+    var ext = Path.extname(sanitized)
+    var basename = Path.basename(sanitized, ext)
+    basename = basename.slice(0, basename.length - lenToRemove)
+    sanitized = basename + ext
+  }
+
+  return sanitized
+}
+
 function isClickedOutsideEl(clickEvent, elToCheckOutside, ignoreSelectors = [], ignoreElems = []) {
   const isDOMElement = (element) => {
     return element instanceof Element || element instanceof HTMLDocument
