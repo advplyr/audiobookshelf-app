@@ -18,6 +18,8 @@
 </template>
 
 <script>
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
+
 export default {
   props: {
     value: Boolean,
@@ -126,7 +128,8 @@ export default {
     }
   },
   methods: {
-    clickedOption(val) {
+    async clickedOption(val) {
+      await Haptics.impact({ style: ImpactStyle.Medium });
       if (this.selected === val) {
         this.selectedDesc = !this.selectedDesc
       } else {

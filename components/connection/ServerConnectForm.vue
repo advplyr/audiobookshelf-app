@@ -77,6 +77,7 @@
 
 <script>
 import { Dialog } from '@capacitor/dialog'
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
 
 export default {
   data() {
@@ -132,6 +133,7 @@ export default {
       }
     },
     async connectToServer(config) {
+      await Haptics.impact({ style: ImpactStyle.Medium });
       console.log('[ServerConnectForm] connectToServer', config.address)
       this.processing = true
       this.serverConfig = {
@@ -159,6 +161,7 @@ export default {
     },
     async removeServerConfigClick() {
       if (!this.serverConfig.id) return
+      await Haptics.impact({ style: ImpactStyle.Medium });
 
       const { value } = await Dialog.confirm({
         title: 'Confirm',
@@ -189,7 +192,8 @@ export default {
       this.showForm = true
       this.showAuth = true
     },
-    newServerConfigClick() {
+    async newServerConfigClick() {
+      await Haptics.impact({ style: ImpactStyle.Medium });
       this.serverConfig = {
         address: '',
         userId: '',

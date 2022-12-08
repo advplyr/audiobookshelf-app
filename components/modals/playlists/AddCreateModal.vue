@@ -39,6 +39,8 @@
 </template>
 
 <script>
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
+
 export default {
   props: {
     libraryItemId: String
@@ -114,7 +116,8 @@ export default {
           this.loading = false
         })
     },
-    clickPlaylist(playlist) {
+    async clickPlaylist(playlist) {
+      await Haptics.impact({ style: ImpactStyle.Medium });
       if (playlist.isItemIncluded) {
         this.removeFromPlaylist(playlist)
       } else {
@@ -163,7 +166,8 @@ export default {
       this.newPlaylistName = ''
       this.showPlaylistNameInput = true
     },
-    submitCreatePlaylist() {
+    async submitCreatePlaylist() {
+      await Haptics.impact({ style: ImpactStyle.Medium });
       if (!this.newPlaylistName || !this.selectedPlaylistItems.length) {
         return
       }

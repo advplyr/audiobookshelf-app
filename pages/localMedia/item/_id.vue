@@ -105,6 +105,7 @@ import draggable from 'vuedraggable'
 import { Capacitor } from '@capacitor/core'
 import { Dialog } from '@capacitor/dialog'
 import { AbsFileSystem } from '@/plugins/capacitor'
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
 
 export default {
   components: {
@@ -255,14 +256,16 @@ export default {
       }
       this.showDialog = true
     },
-    play() {
+    async play() {
+      await Haptics.impact({ style: ImpactStyle.Medium });
       this.$eventBus.$emit('play-item', { libraryItemId: this.localLibraryItemId })
     },
     getCapImageSrc(contentUrl) {
       return Capacitor.convertFileSrc(contentUrl)
     },
-    dialogAction(action) {
+    async dialogAction(action) {
       console.log('Dialog action', action)
+      await Haptics.impact({ style: ImpactStyle.Medium });
       if (action == 'scan') {
         this.scanItem()
       } else if (action == 'rescan') {

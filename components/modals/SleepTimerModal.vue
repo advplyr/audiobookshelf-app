@@ -59,6 +59,8 @@
 </template>
 
 <script>
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
+
 export default {
   props: {
     value: Boolean,
@@ -89,30 +91,37 @@ export default {
     }
   },
   methods: {
-    clickedChapterOption() {
+    async clickedChapterOption() {
+      await Haptics.impact({ style: ImpactStyle.Medium });
       this.show = false
       this.$nextTick(() => this.$emit('change', { time: this.currentEndOfChapterTime * 1000, isChapterTime: true }))
     },
-    clickedOption(timeoutMin) {
+    async clickedOption(timeoutMin) {
+      await Haptics.impact({ style: ImpactStyle.Medium });
       var timeout = timeoutMin * 1000 * 60
       this.show = false
       this.manualTimerModal = false
       this.$nextTick(() => this.$emit('change', { time: timeout, isChapterTime: false }))
     },
-    cancelSleepTimer() {
+    async cancelSleepTimer() {
+      await Haptics.impact({ style: ImpactStyle.Medium });
       this.$emit('cancel')
       this.show = false
     },
-    increaseSleepTime() {
+    async increaseSleepTime() {
+      await Haptics.impact({ style: ImpactStyle.Medium });
       this.$emit('increase')
     },
-    decreaseSleepTime() {
+    async decreaseSleepTime() {
+      await Haptics.impact({ style: ImpactStyle.Medium });
       this.$emit('decrease')
     },
-    increaseManualTimeout() {
+    async increaseManualTimeout() {
+      await Haptics.impact({ style: ImpactStyle.Medium });
       this.manualTimeoutMin++
     },
-    decreaseManualTimeout() {
+    async decreaseManualTimeout() {
+      await Haptics.impact({ style: ImpactStyle.Medium });
       if (this.manualTimeoutMin > 1) this.manualTimeoutMin--
     }
   },

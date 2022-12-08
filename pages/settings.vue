@@ -47,6 +47,7 @@
 
 <script>
 import { Dialog } from '@capacitor/dialog'
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
 
 export default {
   data() {
@@ -149,6 +150,7 @@ export default {
       this.saveSettings()
     },
     async saveSettings() {
+      await Haptics.impact({ style: ImpactStyle.Medium });
       const updatedDeviceData = await this.$db.updateDeviceSettings({ ...this.settings })
       console.log('Saved device data', updatedDeviceData)
       if (updatedDeviceData) {

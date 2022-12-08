@@ -45,6 +45,7 @@
 <script>
 import { Dialog } from '@capacitor/dialog'
 import { AbsFileSystem, AbsDownloader } from '@/plugins/capacitor'
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
 
 export default {
   props: {
@@ -148,8 +149,9 @@ export default {
       }
       return folderObj
     },
-    downloadClick() {
+    async downloadClick() {
       if (this.downloadItem) return
+      await Haptics.impact({ style: ImpactStyle.Medium });
       if (this.isIos) {
         // no local folders on iOS
         this.startDownload()
@@ -209,7 +211,8 @@ export default {
         this.$toast.error(errorMsg)
       }
     },
-    playClick() {
+    async playClick() {
+      await Haptics.impact({ style: ImpactStyle.Medium });
       if (this.streamIsPlaying) {
         this.$eventBus.$emit('pause-item')
       } else {
@@ -231,6 +234,7 @@ export default {
       }
     },
     async toggleFinished() {
+      await Haptics.impact({ style: ImpactStyle.Medium });
       this.isProcessingReadUpdate = true
       if (this.isLocal || this.localEpisode) {
         var isFinished = !this.userIsFinished

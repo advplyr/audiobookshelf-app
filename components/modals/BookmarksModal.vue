@@ -46,6 +46,8 @@
 
 <script>
 import { Dialog } from '@capacitor/dialog'
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
+
 export default {
   props: {
     value: Boolean,
@@ -94,6 +96,7 @@ export default {
       this.showBookmarkTitleInput = true
     },
     async deleteBookmark(bm) {
+      await Haptics.impact({ style: ImpactStyle.Medium });
       const { value } = await Dialog.confirm({
         title: 'Remove Bookmark',
         message: `Are you sure you want to remove bookmark?`
@@ -111,7 +114,8 @@ export default {
         })
       this.show = false
     },
-    clickBookmark(bm) {
+    async clickBookmark(bm) {
+      await Haptics.impact({ style: ImpactStyle.Medium });
       this.$emit('select', bm)
     },
     submitUpdateBookmark(updatedBookmark) {
@@ -155,7 +159,8 @@ export default {
       this.newBookmarkTitle = this.$formatDate(Date.now(), 'MMM dd, yyyy HH:mm')
       this.showBookmarkTitleInput = true
     },
-    submitBookmark() {
+    async submitBookmark() {
+      await Haptics.impact({ style: ImpactStyle.Medium });
       if (this.selectedBookmark) {
         var updatePayload = {
           ...this.selectedBookmark,
