@@ -47,7 +47,6 @@
 
 <script>
 import { Dialog } from '@capacitor/dialog'
-import { Haptics, ImpactStyle } from '@capacitor/haptics';
 
 export default {
   data() {
