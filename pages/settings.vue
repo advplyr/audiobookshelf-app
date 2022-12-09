@@ -149,7 +149,7 @@ export default {
       this.saveSettings()
     },
     async saveSettings() {
-      await Haptics.impact({ style: ImpactStyle.Medium });
+      await this.$hapticsImpactMedium()
       const updatedDeviceData = await this.$db.updateDeviceSettings({ ...this.settings })
       console.log('Saved device data', updatedDeviceData)
       if (updatedDeviceData) {
