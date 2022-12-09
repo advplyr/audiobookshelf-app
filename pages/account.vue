@@ -23,8 +23,6 @@
 </template>
 
 <script>
-import { Haptics, ImpactStyle } from '@capacitor/haptics';
-
 export default {
   asyncData({ redirect, store }) {
     if (!store.state.socketConnected) {
@@ -55,7 +53,7 @@ export default {
   },
   methods: {
     async logout() {
-      await Haptics.impact({ style: ImpactStyle.Medium });
+      await this.$hapticsImpactMedium()
       if (this.user) {
         await this.$axios.$post('/logout').catch((error) => {
           console.error(error)

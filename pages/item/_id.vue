@@ -142,7 +142,6 @@
 <script>
 import { Dialog } from '@capacitor/dialog'
 import { AbsFileSystem, AbsDownloader } from '@/plugins/capacitor'
-import { Haptics, ImpactStyle } from '@capacitor/haptics';
 
 
 export default {
@@ -410,7 +409,7 @@ export default {
     },
     async playClick() {
       var episodeId = null
-      await Haptics.impact({ style: ImpactStyle.Medium });
+      await this.$hapticsImpactMedium()
 
       if (this.isPodcast) {
         this.episodes.sort((a, b) => {
@@ -464,7 +463,7 @@ export default {
       this.$eventBus.$emit('play-item', { libraryItemId: this.libraryItemId, episodeId })
     },
     async clearProgressClick() {
-      await Haptics.impact({ style: ImpactStyle.Medium });
+      await this.$hapticsImpactMedium()
       const { value } = await Dialog.confirm({
         title: 'Confirm',
         message: 'Are you sure you want to reset your progress?'
@@ -517,7 +516,7 @@ export default {
       if (!this.numTracks) {
         return
       }
-      await Haptics.impact({ style: ImpactStyle.Medium });
+      await this.$hapticsImpactMedium()
       if (this.isIos) {
         // no local folders on iOS
         this.startDownload()
@@ -585,7 +584,7 @@ export default {
       }
     },
     async toggleFinished() {
-      await Haptics.impact({ style: ImpactStyle.Medium });
+      await this.$hapticsImpactMedium()
       this.isProcessingReadUpdate = true
       if (this.isLocal) {
         var isFinished = !this.userIsFinished

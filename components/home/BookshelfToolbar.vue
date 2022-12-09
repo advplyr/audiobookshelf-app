@@ -25,8 +25,6 @@
 </template>
 
 <script>
-import { Haptics, ImpactStyle } from '@capacitor/haptics';
-
 export default {
   data() {
     return {
@@ -107,7 +105,7 @@ export default {
     },
     async changeView() {
       this.bookshelfListView = !this.bookshelfListView
-      await Haptics.impact({ style: ImpactStyle.Medium });
+      await this.$hapticsImpactMedium()
     }
   },
   mounted() {

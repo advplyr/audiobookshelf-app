@@ -70,7 +70,6 @@
 
 <script>
 import { Capacitor } from '@capacitor/core'
-import { Haptics, ImpactStyle } from '@capacitor/haptics';
 
 export default {
   props: {
@@ -408,7 +407,7 @@ export default {
         e.preventDefault()
         this.selectBtnClick()
       } else if (this.recentEpisode) {
-        await Haptics.impact({ style: ImpactStyle.Medium });
+        await this.$hapticsImpactMedium()
         var eventBus = this.$eventBus || this.$nuxt.$eventBus
         if (this.streamIsPlaying) {
           eventBus.$emit('pause-item')

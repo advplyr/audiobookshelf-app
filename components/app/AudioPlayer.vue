@@ -118,7 +118,6 @@
 <script>
 import { Capacitor } from '@capacitor/core'
 import { AbsAudioPlayer } from '@/plugins/capacitor'
-import { Haptics, ImpactStyle } from '@capacitor/haptics';
 
 export default {
   props: {
@@ -337,17 +336,17 @@ export default {
       }
     },
     async touchstartTrack(e) {
-      await Haptics.impact({ style: ImpactStyle.Medium });
+      await this.$hapticsImpactMedium()
       if (!e || !e.touches || !this.$refs.track || !this.showFullscreen || this.lockUi) return
       this.touchTrackStart = true
     },
     async selectChapter(chapter) {
-      await Haptics.impact({ style: ImpactStyle.Medium });
+      await this.$hapticsImpactMedium()
       this.seek(chapter.start)
       this.showChapterModal = false
     },
     async castClick() {
-      await Haptics.impact({ style: ImpactStyle.Medium });
+      await this.$hapticsImpactMedium()
       if (this.isLocalPlayMethod) {
         this.$eventBus.$emit('cast-local-item')
         return
@@ -367,13 +366,13 @@ export default {
       this.forceCloseDropdownMenu()
     },
     async jumpNextChapter() {
-      await Haptics.impact({ style: ImpactStyle.Medium });
+      await this.$hapticsImpactMedium()
       if (this.isLoading) return
       if (!this.nextChapter) return
       this.seek(this.nextChapter.start)
     },
     async jumpChapterStart() {
-      await Haptics.impact({ style: ImpactStyle.Medium });
+      await this.$hapticsImpactMedium()
       if (this.isLoading) return
       if (!this.currentChapter) {
         return this.restart()
@@ -394,7 +393,7 @@ export default {
       this.$emit('showSleepTimer')
     },
     async setPlaybackSpeed(speed) {
-      await Haptics.impact({ style: ImpactStyle.Medium });
+      await this.$hapticsImpactMedium()
       console.log(`[AudioPlayer] Set Playback Rate: ${speed}`)
       this.currentPlaybackRate = speed
       AbsAudioPlayer.setPlaybackSpeed({ value: speed })
@@ -403,12 +402,12 @@ export default {
       this.seek(0)
     },
     async jumpBackwards() {
-      await Haptics.impact({ style: ImpactStyle.Medium });
+      await this.$hapticsImpactMedium()
       if (this.isLoading) return
       AbsAudioPlayer.seekBackward({ value: this.jumpBackwardsTime })
     },
     async jumpForward() {
-      await Haptics.impact({ style: ImpactStyle.Medium });
+      await this.$hapticsImpactMedium()
       if (this.isLoading) return
       AbsAudioPlayer.seekForward({ value: this.jumpForwardTime })
     },
@@ -548,7 +547,7 @@ export default {
       this.seek(time)
     },
     async playPauseClick() {
-      await Haptics.impact({ style: ImpactStyle.Medium });
+      await this.$hapticsImpactMedium()
       if (this.isLoading) return
 
       this.isPlaying = !!((await AbsAudioPlayer.playPause()) || {}).playing
@@ -652,7 +651,7 @@ export default {
       }
     },
     async clickMenuAction(action) {
-      await Haptics.impact({ style: ImpactStyle.Medium });
+      await this.$hapticsImpactMedium()
       this.showMoreMenuDialog = false
       this.$nextTick(() => {
         if (action === 'lock') {

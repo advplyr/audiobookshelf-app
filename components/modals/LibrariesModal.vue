@@ -25,8 +25,6 @@
 </template>
 
 <script>
-import { Haptics, ImpactStyle } from '@capacitor/haptics';
-
 export default {
   data() {
     return {
@@ -51,7 +49,7 @@ export default {
   },
   methods: {
     async clickedOption(lib) {
-      await Haptics.impact({ style: ImpactStyle.Medium });
+      await this.$hapticsImpactMedium()
       this.show = false
       if (lib.id === this.currentLibraryId) return
       await this.$store.dispatch('libraries/fetch', lib.id)

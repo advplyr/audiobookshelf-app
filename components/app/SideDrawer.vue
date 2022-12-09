@@ -36,7 +36,6 @@
 
 <script>
 import TouchEvent from '@/objects/TouchEvent'
-import { Haptics, ImpactStyle } from '@capacitor/haptics';
 
 export default {
   data() {
@@ -138,7 +137,7 @@ export default {
       this.show = false
     },
     async logout() {
-      await Haptics.impact({ style: ImpactStyle.Medium });
+      await this.$hapticsImpactMedium()
       if (this.user) {
         await this.$axios.$post('/logout').catch((error) => {
           console.error(error)

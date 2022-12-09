@@ -48,8 +48,6 @@
 </template>
 
 <script>
-import { Haptics, ImpactStyle } from '@capacitor/haptics';
-
 export default {
   props: {
     value: Boolean,
@@ -199,7 +197,7 @@ export default {
   },
   methods: {
     async clearSelected() {
-      await Haptics.impact({ style: ImpactStyle.Medium });
+      await this.$hapticsImpactMedium()
       this.selected = 'all'
       this.show = false
       this.$nextTick(() => this.$emit('change', 'all'))
@@ -218,7 +216,7 @@ export default {
         this.show = false
         return
       }
-      await Haptics.impact({ style: ImpactStyle.Medium });
+      await this.$hapticsImpactMedium()
       this.selected = val
       this.show = false
       this.$nextTick(() => this.$emit('change', val))
