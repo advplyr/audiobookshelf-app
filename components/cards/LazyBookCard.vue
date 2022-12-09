@@ -401,12 +401,13 @@ export default {
       // Server books may have a local library item
       this.localLibraryItem = localLibraryItem
     },
-    clickCard(e) {
+    async clickCard(e) {
       if (this.isSelectionMode) {
         e.stopPropagation()
         e.preventDefault()
         this.selectBtnClick()
       } else if (this.recentEpisode) {
+        await this.$hapticsImpactMedium()
         var eventBus = this.$eventBus || this.$nuxt.$eventBus
         if (this.streamIsPlaying) {
           eventBus.$emit('pause-item')

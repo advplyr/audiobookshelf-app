@@ -143,6 +143,7 @@
 import { Dialog } from '@capacitor/dialog'
 import { AbsFileSystem, AbsDownloader } from '@/plugins/capacitor'
 
+
 export default {
   async asyncData({ store, params, redirect, app }) {
     var libraryItemId = params.id
@@ -406,8 +407,9 @@ export default {
     readBook() {
       this.$store.commit('openReader', this.libraryItem)
     },
-    playClick() {
+    async playClick() {
       var episodeId = null
+      await this.$hapticsImpactMedium()
 
       if (this.isPodcast) {
         this.episodes.sort((a, b) => {
@@ -461,6 +463,7 @@ export default {
       this.$eventBus.$emit('play-item', { libraryItemId: this.libraryItemId, episodeId })
     },
     async clearProgressClick() {
+      await this.$hapticsImpactMedium()
       const { value } = await Dialog.confirm({
         title: 'Confirm',
         message: 'Are you sure you want to reset your progress?'
@@ -506,13 +509,14 @@ export default {
       this.showSelectLocalFolder = false
       this.download(localFolder)
     },
-    downloadClick() {
+    async downloadClick() {
       if (this.downloadItem) {
         return
       }
       if (!this.numTracks) {
         return
       }
+      await this.$hapticsImpactMedium()
       if (this.isIos) {
         // no local folders on iOS
         this.startDownload()
@@ -580,6 +584,7 @@ export default {
       }
     },
     async toggleFinished() {
+      await this.$hapticsImpactMedium()
       this.isProcessingReadUpdate = true
       if (this.isLocal) {
         var isFinished = !this.userIsFinished

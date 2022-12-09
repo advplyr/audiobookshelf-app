@@ -255,14 +255,16 @@ export default {
       }
       this.showDialog = true
     },
-    play() {
+    async play() {
+      await this.$hapticsImpactMedium()
       this.$eventBus.$emit('play-item', { libraryItemId: this.localLibraryItemId })
     },
     getCapImageSrc(contentUrl) {
       return Capacitor.convertFileSrc(contentUrl)
     },
-    dialogAction(action) {
+    async dialogAction(action) {
       console.log('Dialog action', action)
+      await this.$hapticsImpactMedium()
       if (action == 'scan') {
         this.scanItem()
       } else if (action == 'rescan') {
