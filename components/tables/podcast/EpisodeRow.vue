@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full px-0 py-4 overflow-hidden relative border-b border-white border-opacity-10">
+  <div class="w-full py-4 overflow-hidden relative border-b border-white border-opacity-10">
     <div v-if="episode" class="w-full px-1">
       <!-- Help debug for testing -->
       <!-- <template>
@@ -32,10 +32,20 @@
 
         <div v-if="userCanDownload">
           <span v-if="isLocal" class="material-icons-outlined px-2 text-success text-lg">audio_file</span>
-          <span v-else-if="!localEpisode" class="material-icons mx-1 mt-2" :class="downloadItem ? 'animate-bounce text-warning text-opacity-75 text-xl' : 'text-gray-300 text-xl'" @click="downloadClick">{{ downloadItem ? 'downloading' : 'download' }}</span>
+          <span v-else-if="!localEpisode" class="material-icons mx-1.5 mt-2 text-xl" :class="downloadItem ? 'animate-bounce text-warning text-opacity-75' : ''" @click="downloadClick">{{ downloadItem ? 'downloading' : 'download' }}</span>
           <span v-else class="material-icons px-2 text-success text-xl">download_done</span>
         </div>
+
+        <div class="flex-grow" />
+
+        <button v-if="!isLocal && isAdminOrUp" class="mx-1.5 mt-1.5" @click="deleteEpisodeFromServerClick">
+          <span class="material-icons text-xl">delete_forever</span>
+        </button>
       </div>
+    </div>
+
+    <div v-if="processing" class="absolute top-0 left-0 w-full h-full bg-black bg-opacity-30 flex items-center justify-center">
+      <widgets-loading-spinner size="la-lg" />
     </div>
 
     <div v-if="!userIsFinished" class="absolute bottom-0 left-0 h-0.5 bg-warning" :style="{ width: itemProgressPercent * 100 + '%' }" />
@@ -62,7 +72,8 @@ export default {
   },
   data() {
     return {
-      isProcessingReadUpdate: false
+      isProcessingReadUpdate: false,
+      processing: false
     }
   },
   computed: {
@@ -141,6 +152,29 @@ export default {
     }
   },
   methods: {
+    async deleteEpisodeFromServerClick() {
+      const { value } = await Dialog.confirm({
+        title: 'Confirm',
+        message: `Are you sure you want to delete episode "${this.title}" from the server?\nWarning: This will delete the audio file.`
+      })
+
+      if (value) {
+        this.processing = true
+        this.$axios
+          .$delete(`/api/podcasts/${this.libraryItemId}/episode/${this.episode.id}?hard=1`)
+          .then(() => {
+            this.$toast.success('Episode deleted from server')
+          })
+          .catch((error) => {
+            const errorMsg = error.response && error.response.data ? error.response.data : 'Failed to delete episode'
+            console.error('Failed to delete episode', error)
+            this.$toast.error(errorMsg)
+          })
+          .finally(() => {
+            this.processing = false
+          })
+      }
+    },
     addToPlaylist() {
       this.$emit('addToPlaylist', this.episode)
     },
