@@ -134,6 +134,9 @@ export default {
     isAdminOrUp() {
       return this.$store.getters['user/getIsAdminOrUp']
     },
+    networkConnected() {
+      return this.$store.state.networkConnected
+    },
     libraryItemId() {
       return this.libraryItem ? this.libraryItem.id : null
     },
@@ -208,6 +211,10 @@ export default {
       }
     },
     async searchEpisodes() {
+      if (!this.networkConnected) {
+        return this.$toast.error('No network connection')
+      }
+
       if (!this.mediaMetadata.feedUrl) {
         return this.$toast.error('Podcast does not have an RSS Feed')
       }
@@ -236,7 +243,6 @@ export default {
     },
     setFilter(filter) {
       this.filterKey = filter
-      console.log('Set filter', this.filterKey)
       this.showFiltersModal = false
     },
     showFilters() {
