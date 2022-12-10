@@ -8,7 +8,7 @@
         </form>
       </div>
 
-      <div v-if="networkConnected" class="w-full text-center py-6">
+      <div v-if="!networkConnected" class="w-full text-center py-6">
         <p class="text-lg text-error">No network connection</p>
       </div>
       <div v-else class="w-full mx-auto pb-2 search-results-container overflow-y-auto overflow-x-hidden">

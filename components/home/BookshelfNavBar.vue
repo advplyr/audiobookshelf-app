@@ -62,9 +62,9 @@ export default {
           items.push({
             to: '/bookshelf/search',
             routeName: 'bookshelf-search',
-            iconPack: 'abs-icons',
-            icon: 'podcast',
-            iconClass: 'text-lg',
+            iconPack: 'material-icons',
+            icon: 'podcasts',
+            iconClass: 'text-xl',
             text: 'Search'
           })
         }
