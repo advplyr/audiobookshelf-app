@@ -1,5 +1,5 @@
 <template>
-  <modals-modal v-model="show" :width="300" height="100%">
+  <modals-modal v-model="show" :width="350" height="100%">
     <template #outer>
       <div v-if="currentChapter" class="absolute top-7 left-4 z-40" style="max-width: 80%">
         <p class="text-white text-lg truncate">Current: {{ currentChapterTitle }}</p>
@@ -11,10 +11,10 @@
         <ul class="h-full w-full" role="listbox" aria-labelledby="listbox-label">
           <template v-for="chapter in chapters">
             <li :key="chapter.id" :id="`chapter-row-${chapter.id}`" class="text-gray-50 select-none relative py-4 cursor-pointer hover:bg-black-400" :class="currentChapterId === chapter.id ? 'bg-bg bg-opacity-80' : ''" role="option" @click="clickedOption(chapter)">
-              <div class="relative flex items-center pl-3" style="padding-right: 4.5rem">
+              <div class="relative flex items-center pl-3 pr-20">
                 <p class="font-normal block truncate text-sm text-white text-opacity-80">{{ chapter.title }}</p>
                 <div class="absolute top-0 right-3 -mt-0.5">
-                  <span class="font-mono text-white text-opacity-90 leading-3" style="letter-spacing: -0.5px">{{ $secondsToTimestamp(chapter.start) }}</span>
+                  <span class="font-mono text-white text-opacity-90 leading-3 text-sm" style="letter-spacing: -0.5px">{{ $secondsToTimestamp(chapter.start) }}</span>
                 </div>
               </div>
 
