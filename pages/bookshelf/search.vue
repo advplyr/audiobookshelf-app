@@ -1,14 +1,17 @@
 <template>
   <div class="w-full h-full relative overflow-hidden">
     <template v-if="!showSelectedFeed">
-      <div class="w-full mx-auto flex py-5 px-2">
-        <form @submit.prevent="submit" class="flex flex-grow">
-          <ui-text-input v-model="searchInput" :disabled="processing" placeholder="Enter search term or RSS feed URL" text-size="sm" class="flex-grow mr-2" />
+      <div class="w-full mx-auto py-5 px-2">
+        <form @submit.prevent="submit">
+          <ui-text-input v-model="searchInput" :disabled="processing || !networkConnected" placeholder="Enter search term or RSS feed URL" text-size="sm" />
           <!-- <ui-btn type="submit" :disabled="processing" small>Submit</ui-btn> -->
         </form>
       </div>
 
-      <div class="w-full mx-auto pb-2 search-results-container overflow-y-auto overflow-x-hidden">
+      <div v-if="networkConnected" class="w-full text-center py-6">
+        <p class="text-lg text-error">No network connection</p>
+      </div>
+      <div v-else class="w-full mx-auto pb-2 search-results-container overflow-y-auto overflow-x-hidden">
         <p v-if="termSearched && !results.length && !processing" class="text-center text-xl">No Podcasts Found</p>
         <template v-for="podcast in results">
           <div :key="podcast.id" class="p-2 border-b border-white border-opacity-10" @click="selectPodcast(podcast)">
@@ -62,7 +65,11 @@ export default {
       showSelectedFeed: false
     }
   },
-  computed: {},
+  computed: {
+    networkConnected() {
+      return this.$store.state.networkConnected
+    }
+  },
   methods: {
     clearSelected() {
       this.selectedPodcastFeed = null
