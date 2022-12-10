@@ -134,7 +134,7 @@ export default {
       return this.$store.getters['getAltViewEnabled']
     },
     sizeMultiplier() {
-      var baseSize = this.isCoverSquareAspectRatio ? 192 : 120
+      const baseSize = this.isCoverSquareAspectRatio ? 192 : 120
       return this.entityWidth / baseSize
     }
   },
@@ -145,7 +145,7 @@ export default {
       })
     },
     async fetchEntities(page) {
-      var startIndex = page * this.booksPerFetch
+      const startIndex = page * this.booksPerFetch
 
       this.isFetchingEntities = true
 
@@ -153,11 +153,11 @@ export default {
         this.currentSFQueryString = this.buildSearchParams()
       }
 
-      var entityPath = this.entityName === 'books' || this.entityName === 'series-books' ? `items` : this.entityName
-      var sfQueryString = this.currentSFQueryString ? this.currentSFQueryString + '&' : ''
-      var fullQueryString = `?${sfQueryString}limit=${this.booksPerFetch}&page=${page}&minified=1`
+      const entityPath = this.entityName === 'books' || this.entityName === 'series-books' ? `items` : this.entityName
+      const sfQueryString = this.currentSFQueryString ? this.currentSFQueryString + '&' : ''
+      const fullQueryString = `?${sfQueryString}limit=${this.booksPerFetch}&page=${page}&minified=1`
 
-      var payload = await this.$axios.$get(`/api/libraries/${this.currentLibraryId}/${entityPath}${fullQueryString}`).catch((error) => {
+      const payload = await this.$axios.$get(`/api/libraries/${this.currentLibraryId}/${entityPath}${fullQueryString}`).catch((error) => {
         console.error('failed to fetch books', error)
         return null
       })
@@ -179,13 +179,13 @@ export default {
         }
 
         for (let i = 0; i < payload.results.length; i++) {
-          var index = i + startIndex
+          const index = i + startIndex
           this.entities[index] = payload.results[i]
           if (this.entityComponentRefs[index]) {
             this.entityComponentRefs[index].setEntity(this.entities[index])
 
             if (this.isBookEntity) {
-              var localLibraryItem = this.localLibraryItems.find((lli) => lli.libraryItemId == this.entities[index].id)
+              const localLibraryItem = this.localLibraryItems.find((lli) => lli.libraryItemId == this.entities[index].id)
               if (localLibraryItem) {
                 this.entityComponentRefs[index].setLocalLibraryItem(localLibraryItem)
               }

@@ -41,18 +41,28 @@ export default {
       localLibraryItems: []
     }
   },
+  watch: {
+    networkConnected(newVal) {
+      // Update shelves when network connect status changes
+      console.log(`Network changed to ${newVal} - fetch categories`)
+      this.fetchCategories()
+    }
+  },
   computed: {
     user() {
       return this.$store.state.user.user
     },
-    isSocketConnected() {
-      return this.$store.state.socketConnected
+    networkConnected() {
+      return this.$store.state.networkConnected
     },
     currentLibraryName() {
       return this.$store.getters['libraries/getCurrentLibraryName']
     },
     currentLibraryId() {
       return this.$store.state.libraries.currentLibraryId
+    },
+    currentLibraryMediaType() {
+      return this.$store.getters['libraries/getCurrentLibraryMediaType']
     },
     altViewEnabled() {
       return this.$store.getters['getAltViewEnabled']
@@ -111,21 +121,19 @@ export default {
       this.shelves = []
 
       this.localLibraryItems = await this.$db.getLocalLibraryItems()
-
-      var localCategories = await this.getLocalMediaItemCategories()
-      this.shelves = this.shelves.concat(localCategories)
+      const localCategories = await this.getLocalMediaItemCategories()
 
       if (this.user && this.currentLibraryId) {
-        var categories = await this.$axios.$get(`/api/libraries/${this.currentLibraryId}/personalized?minified=1`).catch((error) => {
+        const categories = await this.$axios.$get(`/api/libraries/${this.currentLibraryId}/personalized?minified=1`).catch((error) => {
           console.error('Failed to fetch categories', error)
           return []
         })
-        categories = categories.map((cat) => {
+        this.shelves = categories.map((cat) => {
           console.log('[breadcrumb] Personalized category from server', cat.type)
           if (cat.type == 'book' || cat.type == 'podcast' || cat.type == 'episode') {
             // Map localLibraryItem to entities
             cat.entities = cat.entities.map((entity) => {
-              var localLibraryItem = this.localLibraryItems.find((lli) => {
+              const localLibraryItem = this.localLibraryItems.find((lli) => {
                 return lli.libraryItemId == entity.id
               })
               if (localLibraryItem) {
@@ -136,14 +144,15 @@ export default {
           }
           return cat
         })
-        // Put continue listening shelf first
-        var continueListeningShelf = categories.find((c) => c.id == 'continue-listening')
-        if (continueListeningShelf) {
-          this.shelves = [continueListeningShelf, ...this.shelves]
-          console.log(this.shelves)
-        }
-        this.shelves = this.shelves.concat(categories.filter((c) => c.id != 'continue-listening'))
+
+        // Only add the local shelf with the same media type
+        const localShelves = localCategories.filter((cat) => cat.type === this.currentLibraryMediaType)
+        this.shelves.push(...localShelves)
+      } else {
+        // Offline only local
+        this.shelves = localCategories
       }
+
       this.loading = false
     },
     async libraryChanged() {
@@ -195,21 +204,14 @@ export default {
     },
     initListeners() {
       this.$eventBus.$on('library-changed', this.libraryChanged)
-      // this.$eventBus.$on('downloads-loaded', this.downloadsLoaded)
     },
     removeListeners() {
       this.$eventBus.$off('library-changed', this.libraryChanged)
-      // this.$eventBus.$off('downloads-loaded', this.downloadsLoaded)
     }
   },
   mounted() {
     this.initListeners()
     this.fetchCategories()
-    // if (this.$server.initialized && this.currentLibraryId) {
-    //   this.fetchCategories()
-    // } else {
-    //   this.shelves = this.downloadOnlyShelves
-    // }
   },
   beforeDestroy() {
     this.removeListeners()
