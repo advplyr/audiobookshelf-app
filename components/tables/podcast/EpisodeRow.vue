@@ -66,6 +66,9 @@ export default {
     }
   },
   computed: {
+    isAdminOrUp() {
+      return this.$store.getters['user/getIsAdminOrUp']
+    },
     isIos() {
       return this.$platform === 'ios'
     },

@@ -1,5 +1,22 @@
 <template>
   <div class="w-full">
+    <!-- Podcast episode downloads queue -->
+    <div v-if="episodeDownloadsQueued.length" class="px-4 py-2 my-2 bg-info bg-opacity-40 text-sm font-semibold rounded-md text-gray-100 relative w-full">
+      <div class="flex items-center">
+        <p class="text-sm py-1">{{ episodeDownloadsQueued.length }} Episode(s) queued for download</p>
+        <div class="flex-grow" />
+        <span v-if="isAdminOrUp" class="material-icons text-xl ml-3 cursor-pointer" @click="clearDownloadQueue">close</span>
+      </div>
+    </div>
+
+    <!-- Podcast episodes currently downloading -->
+    <div v-if="episodesDownloading.length" class="px-4 py-2 my-2 bg-success bg-opacity-20 text-sm font-semibold rounded-md text-gray-100 relative w-full">
+      <div v-for="episode in episodesDownloading" :key="episode.id" class="flex items-center">
+        <widgets-loading-spinner />
+        <p class="text-sm py-1 pl-4">Downloading episode "{{ episode.episodeDisplayTitle }}"</p>
+      </div>
+    </div>
+
     <div class="flex items-center">
       <p class="text-lg mb-1 font-semibold">Episodes ({{ episodesFiltered.length }})</p>
 
@@ -36,6 +53,8 @@
 </template>
 
 <script>
+import { Dialog } from '@capacitor/dialog'
+
 export default {
   props: {
     libraryItem: {
@@ -98,7 +117,9 @@ export default {
       ],
       fetchingRSSFeed: false,
       podcastFeedEpisodes: [],
-      showPodcastEpisodeFeed: false
+      showPodcastEpisodeFeed: false,
+      episodesDownloading: [],
+      episodeDownloadsQueued: []
     }
   },
   watch: {
@@ -167,6 +188,25 @@ export default {
     }
   },
   methods: {
+    async clearDownloadQueue() {
+      const { value } = await Dialog.confirm({
+        title: 'Confirm',
+        message: `Are you sure you want to clear episode download queue?`
+      })
+
+      if (value) {
+        this.$axios
+          .$get(`/api/podcasts/${this.libraryItemId}/clear-queue`)
+          .then(() => {
+            this.$toast.success('Episode download queue cleared')
+            this.episodeDownloadQueued = []
+          })
+          .catch((error) => {
+            console.error('Failed to clear queue', error)
+            this.$toast.error('Failed to clear queue')
+          })
+      }
+    },
     async searchEpisodes() {
       if (!this.mediaMetadata.feedUrl) {
         return this.$toast.error('Podcast does not have an RSS Feed')
@@ -213,8 +253,34 @@ export default {
       this.episodesCopy = this.episodes.map((ep) => {
         return { ...ep }
       })
+    },
+    episodeDownloadQueued(episodeDownload) {
+      if (episodeDownload.libraryItemId === this.libraryItemId) {
+        this.episodeDownloadsQueued.push(episodeDownload)
+      }
+    },
+    episodeDownloadStarted(episodeDownload) {
+      if (episodeDownload.libraryItemId === this.libraryItemId) {
+        this.episodeDownloadsQueued = this.episodeDownloadsQueued.filter((d) => d.id !== episodeDownload.id)
+        this.episodesDownloading.push(episodeDownload)
+      }
+    },
+    episodeDownloadFinished(episodeDownload) {
+      if (episodeDownload.libraryItemId === this.libraryItemId) {
+        this.episodeDownloadsQueued = this.episodeDownloadsQueued.filter((d) => d.id !== episodeDownload.id)
+        this.episodesDownloading = this.episodesDownloading.filter((d) => d.id !== episodeDownload.id)
+      }
     }
   },
-  mounted() {}
+  mounted() {
+    this.$socket.$on('episode_download_queued', this.episodeDownloadQueued)
+    this.$socket.$on('episode_download_started', this.episodeDownloadStarted)
+    this.$socket.$on('episode_download_finished', this.episodeDownloadFinished)
+  },
+  beforeDestroy() {
+    this.$socket.$off('episode_download_queued', this.episodeDownloadQueued)
+    this.$socket.$off('episode_download_started', this.episodeDownloadStarted)
+    this.$socket.$off('episode_download_finished', this.episodeDownloadFinished)
+  }
 }
 </script>

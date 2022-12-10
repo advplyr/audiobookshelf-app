@@ -143,7 +143,6 @@
 import { Dialog } from '@capacitor/dialog'
 import { AbsFileSystem, AbsDownloader } from '@/plugins/capacitor'
 
-
 export default {
   async asyncData({ store, params, redirect, app }) {
     var libraryItemId = params.id
@@ -637,12 +636,12 @@ export default {
   mounted() {
     this.$eventBus.$on('library-changed', this.libraryChanged)
     this.$eventBus.$on('new-local-library-item', this.newLocalLibraryItem)
-    this.$socket.on('item_updated', this.itemUpdated)
+    this.$socket.$on('item_updated', this.itemUpdated)
   },
   beforeDestroy() {
     this.$eventBus.$off('library-changed', this.libraryChanged)
     this.$eventBus.$off('new-local-library-item', this.newLocalLibraryItem)
-    this.$socket.off('item_updated', this.itemUpdated)
+    this.$socket.$off('item_updated', this.itemUpdated)
   }
 }
 </script>
