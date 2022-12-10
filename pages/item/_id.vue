@@ -358,41 +358,34 @@ export default {
       return this.$store.state.isCasting
     },
     moreMenuItems() {
-      if (this.isLocal) {
-        return [
-          {
-            text: 'Manage Local Files',
-            value: 'manageLocal'
-          },
-          {
-            text: 'View Details',
-            value: 'details'
-          }
-        ]
-      } else {
-        const items = [
-          {
-            text: 'View Details',
-            value: 'details'
-          }
-        ]
-
-        if (!this.isPodcast) {
-          items.push({
-            text: 'Add to Playlist',
-            value: 'playlist'
-          })
-        }
-
-        return items
+      const items = []
+      if (this.localLibraryItemId) {
+        items.push({
+          text: 'Manage Local Files',
+          value: 'manageLocal'
+        })
       }
+
+      items.push({
+        text: 'View Details',
+        value: 'details'
+      })
+
+      if (!this.isPodcast && this.serverLibraryItemId) {
+        items.push({
+          text: 'Add to Playlist',
+          value: 'playlist'
+        })
+      }
+
+      return items
     }
   },
   methods: {
     moreMenuAction(action) {
       this.showMoreMenu = false
       if (action === 'manageLocal') {
-        this.$router.push(`/localMedia/item/${this.libraryItemId}`)
+        this.$router.push(`/localMedia/item/${this.localLibraryItemId}`)
       } else if (action === 'details') {
         this.showDetailsModal = true
       } else if (action === 'playlist') {
@@ -407,7 +400,7 @@ export default {
       this.$store.commit('openReader', this.libraryItem)
     },
     async playClick() {
-      var episodeId = null
+      let episodeId = null
       await this.$hapticsImpactMedium()
 
       if (this.isPodcast) {
@@ -415,7 +408,7 @@ export default {
           return String(b.publishedAt).localeCompare(String(a.publishedAt), undefined, { numeric: true, sensitivity: 'base' })
         })
 
-        var episode = this.episodes.find((ep) => {
+        let episode = this.episodes.find((ep) => {
           var podcastProgress = null
           if (!this.isLocal) {
             podcastProgress = this.$store.getters['user/getUserMediaProgress'](this.libraryItemId, ep.id)
@@ -429,13 +422,13 @@ export default {
 
         episodeId = episode.id
 
-        var localEpisode = null
+        let localEpisode = null
         if (this.hasLocal && !this.isLocal) {
           localEpisode = this.localLibraryItem.media.episodes.find((ep) => ep.serverEpisodeId == episodeId)
         } else if (this.isLocal) {
           localEpisode = episode
         }
-        var serverEpisodeId = !this.isLocal ? episodeId : localEpisode ? localEpisode.serverEpisodeId : null
+        const serverEpisodeId = !this.isLocal ? episodeId : localEpisode ? localEpisode.serverEpisodeId : null
 
         if (serverEpisodeId && this.serverLibraryItemId && this.isCasting) {
           // If casting and connected to server for local library item then send server library item id
