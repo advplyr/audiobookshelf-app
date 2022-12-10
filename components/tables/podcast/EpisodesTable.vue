@@ -2,7 +2,14 @@
   <div class="w-full">
     <div class="flex items-center">
       <p class="text-lg mb-1 font-semibold">Episodes ({{ episodesFiltered.length }})</p>
+
       <div class="flex-grow" />
+
+      <button v-if="isAdminOrUp && !fetchingRSSFeed" class="outline:none mx-1 pt-0.5 relative" @click="searchEpisodes">
+        <span class="material-icons text-xl text-gray-200">search</span>
+      </button>
+      <widgets-loading-spinner v-else-if="fetchingRSSFeed" class="mx-1" />
+
       <button class="outline:none mx-3 pt-0.5 relative" @click="showFilters">
         <span class="material-icons text-xl text-gray-200">filter_alt</span>
         <div v-show="filterKey !== 'all' && episodesAreFiltered" class="absolute top-0 right-0 w-1.5 h-1.5 rounded-full bg-success border border-green-300 shadow-sm z-10 pointer-events-none" />
@@ -18,11 +25,13 @@
       <tables-podcast-episode-row :episode="episode" :local-episode="localEpisodeMap[episode.id]" :library-item-id="libraryItemId" :local-library-item-id="localLibraryItemId" :is-local="isLocal" :key="episode.id" @addToPlaylist="addEpisodeToPlaylist" />
     </template>
 
-    <!-- What in tarnation is going on here?
+    <!-- Huhhh?
         Without anything below the template it will not re-render -->
     <p>&nbsp;</p>
 
     <modals-dialog v-model="showFiltersModal" title="Episode Filter" :items="filterItems" :selected="filterKey" @action="setFilter" />
+
+    <modals-podcast-episodes-feed-modal v-model="showPodcastEpisodeFeed" :library-item="libraryItem" :episodes="podcastFeedEpisodes" />
   </div>
 </template>
 
@@ -86,7 +95,10 @@ export default {
           text: 'Complete',
           value: 'complete'
         }
-      ]
+      ],
+      fetchingRSSFeed: false,
+      podcastFeedEpisodes: [],
+      showPodcastEpisodeFeed: false
     }
   },
   watch: {
@@ -98,8 +110,17 @@ export default {
     }
   },
   computed: {
+    isAdminOrUp() {
+      return this.$store.getters['user/getIsAdminOrUp']
+    },
     libraryItemId() {
       return this.libraryItem ? this.libraryItem.id : null
+    },
+    media() {
+      return this.libraryItem ? this.libraryItem.media || {} : {}
+    },
+    mediaMetadata() {
+      return this.media.metadata || {}
     },
     episodesAreFiltered() {
       return this.episodesFiltered.length !== this.episodesCopy.length
@@ -146,6 +167,29 @@ export default {
     }
   },
   methods: {
+    async searchEpisodes() {
+      if (!this.mediaMetadata.feedUrl) {
+        return this.$toast.error('Podcast does not have an RSS Feed')
+      }
+      this.fetchingRSSFeed = true
+      const payload = await this.$axios.$post(`/api/podcasts/feed`, { rssFeed: this.mediaMetadata.feedUrl }).catch((error) => {
+        console.error('Failed to get feed', error)
+        this.$toast.error('Failed to get podcast feed')
+        return null
+      })
+      this.fetchingRSSFeed = false
+      if (!payload) return
+
+      console.log('Podcast feed', payload)
+      const podcastfeed = payload.podcast
+      if (!podcastfeed.episodes || !podcastfeed.episodes.length) {
+        this.$toast.info('No episodes found in RSS feed')
+        return
+      }
+
+      this.podcastFeedEpisodes = podcastfeed.episodes
+      this.showPodcastEpisodeFeed = true
+    },
     addEpisodeToPlaylist(episode) {
       this.$store.commit('globals/setSelectedPlaylistItems', [{ libraryItem: this.libraryItem, episode }])
       this.$store.commit('globals/setShowPlaylistsAddCreateModal', true)
