@@ -9,12 +9,12 @@ install! 'cocoapods', :disable_input_output_paths => true
 def capacitor_pods
   pod 'Capacitor', :path => '../../node_modules/@capacitor/ios'
   pod 'CapacitorCordova', :path => '../../node_modules/@capacitor/ios'
-  pod 'CapacitorApp', :path => '..\..\node_modules\@capacitor\app'
-  pod 'CapacitorDialog', :path => '..\..\node_modules\@capacitor\dialog'
-  pod 'CapacitorHaptics', :path => '..\..\node_modules\@capacitor\haptics'
-  pod 'CapacitorNetwork', :path => '..\..\node_modules\@capacitor\network'
-  pod 'CapacitorStatusBar', :path => '..\..\node_modules\@capacitor\status-bar'
-  pod 'CapacitorStorage', :path => '..\..\node_modules\@capacitor\storage'
+  pod 'CapacitorApp', :path => '../../node_modules/@capacitor/app'
+  pod 'CapacitorDialog', :path => '../../node_modules/@capacitor/dialog'
+  pod 'CapacitorHaptics', :path => '../../node_modules/@capacitor/haptics'
+  pod 'CapacitorNetwork', :path => '../../node_modules/@capacitor/network'
+  pod 'CapacitorStatusBar', :path => '../../node_modules/@capacitor/status-bar'
+  pod 'CapacitorStorage', :path => '../../node_modules/@capacitor/storage'
   pod 'CordovaPlugins', :path => '../capacitor-cordova-ios-plugins'
 end
 
