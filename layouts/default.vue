@@ -175,7 +175,7 @@ export default {
       }
 
       console.log('[default] Calling syncLocalMediaProgress')
-      var response = await this.$db.syncLocalMediaProgressWithServer()
+      const response = await this.$db.syncLocalMediaProgressWithServer()
       if (!response) {
         if (this.$platform != 'web') this.$toast.error('Failed to sync local media with server')
         this.$store.commit('setLastLocalMediaSyncResults', null)

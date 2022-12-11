@@ -1,5 +1,10 @@
 <template>
   <div class="w-full h-full py-6">
+    <div v-if="localLibraryItemsOnCurrentServer.length" class="flex items-center justify-between mb-4 pb-2 px-2 border-b border-white border-opacity-10">
+      <p class="text-sm text-gray-100">{{ localLibraryItemsOnCurrentServer.length }} local items on this server</p>
+      <ui-btn small :loading="syncing" @click="syncLocalMedia">Sync</ui-btn>
+    </div>
+
     <div v-if="lastLocalMediaSyncResults" class="px-2 mb-4">
       <div class="w-full pl-2 pr-2 py-2 bg-black bg-opacity-25 rounded-lg relative">
         <div class="flex items-center mb-1">
@@ -23,9 +28,9 @@
       </div>
     </div>
 
-    <h1 class="text-base font-semibold px-3 mb-2">Local Folders</h1>
+    <h1 class="text-base font-semibold px-2 mb-2">Local Folders</h1>
 
-    <div v-if="!isIos" class="w-full max-w-full px-3 py-2">
+    <div v-if="!isIos" class="w-full max-w-full px-2 py-2">
       <template v-for="folder in localFolders">
         <nuxt-link :to="`/localMedia/folders/${folder.id}`" :key="folder.id" class="flex items-center px-2 py-4 bg-primary rounded-md border-bg mb-1">
           <span class="material-icons text-xl text-yellow-400">folder</span>
@@ -55,6 +60,7 @@ export default {
   data() {
     return {
       localFolders: [],
+      localLibraryItems: [],
       newFolderMediaType: null,
       mediaTypeItems: [
         {
@@ -65,7 +71,8 @@ export default {
           value: 'podcast',
           text: 'Podcasts'
         }
-      ]
+      ],
+      syncing: false
     }
   },
   computed: {
@@ -74,6 +81,14 @@ export default {
     },
     lastLocalMediaSyncResults() {
       return this.$store.state.lastLocalMediaSyncResults
+    },
+    serverConnectionConfigId() {
+      return this.$store.getters['user/getServerConnectionConfigId']
+    },
+    localLibraryItemsOnCurrentServer() {
+      return this.localLibraryItems.filter((lli) => {
+        return lli.serverConnectionConfigId === this.serverConnectionConfigId
+      })
     },
     numLocalMediaSynced() {
       if (!this.lastLocalMediaSyncResults) return 0
@@ -97,6 +112,33 @@ export default {
     }
   },
   methods: {
+    async syncLocalMedia() {
+      console.log('[localMedia] Calling syncLocalMediaProgress')
+      this.syncing = true
+      const response = await this.$db.syncLocalMediaProgressWithServer()
+      if (!response) {
+        if (this.$platform != 'web') this.$toast.error('Failed to sync local media with server')
+        this.$store.commit('setLastLocalMediaSyncResults', null)
+        this.syncing = false
+        return
+      }
+      const { numLocalMediaProgressForServer, numServerProgressUpdates, numLocalProgressUpdates } = response
+      if (numLocalMediaProgressForServer > 0) {
+        response.syncedAt = Date.now()
+        response.serverConfigName = this.$store.getters['user/getServerConfigName']
+        this.$store.commit('setLastLocalMediaSyncResults', response)
+
+        if (numServerProgressUpdates > 0 || numLocalProgressUpdates > 0) {
+          console.log(`[localMedia] ${numServerProgressUpdates} Server progress updates | ${numLocalProgressUpdates} Local progress updates`)
+        } else {
+          console.log('[localMedia] syncLocalMediaProgress No updates were necessary')
+        }
+      } else {
+        console.log('[localMedia] syncLocalMediaProgress No local media progress to sync')
+        this.$store.commit('setLastLocalMediaSyncResults', null)
+      }
+      this.syncing = false
+    },
     async selectFolder() {
       if (!this.newFolderMediaType) {
         return this.$toast.error('Must select a media type')
@@ -107,14 +149,14 @@ export default {
         return this.$toast.error(`Error: ${folderObj.error || 'Unknown Error'}`)
       }
 
-      var indexOfExisting = this.localFolders.findIndex((lf) => lf.id == folderObj.id)
+      const indexOfExisting = this.localFolders.findIndex((lf) => lf.id == folderObj.id)
       if (indexOfExisting >= 0) {
         this.localFolders.splice(indexOfExisting, 1, folderObj)
       } else {
         this.localFolders.push(folderObj)
       }
 
-      var permissionsGood = await AbsFileSystem.checkFolderPermissions({ folderUrl: folderObj.contentUrl })
+      const permissionsGood = await AbsFileSystem.checkFolderPermissions({ folderUrl: folderObj.contentUrl })
 
       if (!permissionsGood) {
         this.$toast.error('Folder permissions failed')
@@ -127,6 +169,7 @@ export default {
     },
     async init() {
       this.localFolders = (await this.$db.getLocalFolders()) || []
+      this.localLibraryItems = await this.$db.getLocalLibraryItems()
     }
   },
   mounted() {

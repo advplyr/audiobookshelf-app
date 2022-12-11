@@ -20,6 +20,9 @@ export const getters = {
   getToken: (state) => {
     return state.user ? state.user.token : null
   },
+  getServerConnectionConfigId: (state) => {
+    return state.serverConnectionConfig ? state.serverConnectionConfig.id : null
+  },
   getServerAddress: (state) => {
     return state.serverConnectionConfig ? state.serverConnectionConfig.address : null
   },

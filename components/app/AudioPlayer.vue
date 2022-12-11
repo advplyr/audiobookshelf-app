@@ -766,9 +766,11 @@ export default {
     screenOrientationChange() {
       setTimeout(() => {
         this.updateScreenSize()
-        this.trackWidth = this.$refs.track.clientWidth
-        this.updateTrack()
-        this.updateReadyTrack()
+        if (this.$refs.track) {
+          this.trackWidth = this.$refs.track.clientWidth
+          this.updateTrack()
+          this.updateReadyTrack()
+        }
       }, 50)
     },
     updateScreenSize() {
