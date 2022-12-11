@@ -1,6 +1,11 @@
 package com.audiobookshelf.app.data
 
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.ImageDecoder
 import android.net.Uri
+import android.os.Build
+import android.provider.MediaStore
 import android.support.v4.media.MediaMetadataCompat
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.player.MediaProgressSyncData
@@ -118,7 +123,7 @@ class PlaybackSession(
   }
 
   @JsonIgnore
-  fun getMediaMetadataCompat(): MediaMetadataCompat {
+  fun getMediaMetadataCompat(ctx: Context): MediaMetadataCompat {
     val metadataBuilder = MediaMetadataCompat.Builder()
       .putString(MediaMetadataCompat.METADATA_KEY_TITLE, displayTitle)
       .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, displayTitle)
@@ -130,6 +135,20 @@ class PlaybackSession(
       .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION, displayAuthor)
       .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, id)
       .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getCoverUri().toString())
+      .putString(MediaMetadataCompat.METADATA_KEY_ART_URI, getCoverUri().toString())
+
+    // Local covers get bitmap
+    if (localLibraryItem?.coverContentUrl != null) {
+      val bitmap = if (Build.VERSION.SDK_INT < 28) {
+        MediaStore.Images.Media.getBitmap(ctx.contentResolver, getCoverUri())
+      } else {
+        val source: ImageDecoder.Source = ImageDecoder.createSource(ctx.contentResolver, getCoverUri())
+        ImageDecoder.decodeBitmap(source)
+      }
+      metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
+      metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, bitmap)
+    }
+
     return metadataBuilder.build()
   }
 
@@ -143,6 +162,7 @@ class PlaybackSession(
       .setSubtitle(displayAuthor)
       .setAlbumTitle(displayAuthor)
       .setDescription(displayAuthor)
+      .setArtworkUri(getCoverUri())
 
     val contentUri = this.getContentUri(audioTrack)
     metadataBuilder.setMediaUri(contentUri)

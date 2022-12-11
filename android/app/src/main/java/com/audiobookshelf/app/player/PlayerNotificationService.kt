@@ -13,6 +13,7 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.os.*
+import android.provider.MediaStore
 import android.support.v4.media.MediaBrowserCompat
 import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.MediaMetadataCompat
@@ -274,6 +275,17 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
         val coverUri = currentPlaybackSession!!.getCoverUri()
 
+        var bitmap:Bitmap? = null
+        // Local covers get bitmap
+        if (currentPlaybackSession!!.localLibraryItem?.coverContentUrl != null) {
+          bitmap = if (Build.VERSION.SDK_INT < 28) {
+            MediaStore.Images.Media.getBitmap(ctx.contentResolver, coverUri)
+          } else {
+            val source: ImageDecoder.Source = ImageDecoder.createSource(ctx.contentResolver, coverUri)
+            ImageDecoder.decodeBitmap(source)
+          }
+        }
+
         // Fix for local images crashing on Android 11 for specific devices
         // https://stackoverflow.com/questions/64186578/android-11-mediastyle-notification-crash/64232958#64232958
         try {
@@ -293,6 +305,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
           .setExtras(extra)
           .setTitle(currentPlaybackSession!!.displayTitle)
           .setIconUri(coverUri)
+
+        bitmap?.let {
+          mediaDescriptionBuilder.setIconBitmap(it)
+        }
 
         return mediaDescriptionBuilder.build()
       }
@@ -356,7 +372,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       JumpBackwardCustomActionProvider(),
       JumpForwardCustomActionProvider(),
     )
-    val metadata = playbackSession.getMediaMetadataCompat()
+    val metadata = playbackSession.getMediaMetadataCompat(ctx)
     mediaSession.setMetadata(metadata)
     val mediaItems = playbackSession.getMediaItems()
     val playbackRateToUse = playbackRate ?: initialPlaybackRate ?: 1f
