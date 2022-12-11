@@ -380,9 +380,9 @@ export default {
 
       // If 4 seconds or less into current chapter, then go to previous
       if (this.currentTime - this.currentChapter.start <= 4) {
-        var currChapterIndex = this.chapters.findIndex((ch) => Number(ch.start) <= this.currentTime && Number(ch.end) >= this.currentTime)
+        const currChapterIndex = this.chapters.findIndex((ch) => Number(ch.start) <= this.currentTime && Number(ch.end) >= this.currentTime)
         if (currChapterIndex > 0) {
-          var prevChapter = this.chapters[currChapterIndex - 1]
+          const prevChapter = this.chapters[currChapterIndex - 1]
           this.seek(prevChapter.start)
         }
       } else {
@@ -416,19 +416,19 @@ export default {
       this.updateReadyTrack()
     },
     setChunksReady(chunks, numSegments) {
-      var largestSeg = 0
+      let largestSeg = 0
       for (let i = 0; i < chunks.length; i++) {
-        var chunk = chunks[i]
+        const chunk = chunks[i]
         if (typeof chunk === 'string') {
-          var chunkRange = chunk.split('-').map((c) => Number(c))
+          const chunkRange = chunk.split('-').map((c) => Number(c))
           if (chunkRange.length < 2) continue
           if (chunkRange[1] > largestSeg) largestSeg = chunkRange[1]
         } else if (chunk > largestSeg) {
           largestSeg = chunk
         }
       }
-      var percentageReady = largestSeg / numSegments
-      var widthReady = Math.round(this.trackWidth * percentageReady)
+      const percentageReady = largestSeg / numSegments
+      const widthReady = Math.round(this.trackWidth * percentageReady)
       if (this.readyTrackWidth === widthReady) {
         return
       }
@@ -480,17 +480,17 @@ export default {
     },
     updateTrack() {
       // Update progress track UI
-      var percentDone = this.currentTime / this.totalDuration
-      var totalPercentDone = percentDone
-      var bufferedPercent = this.bufferedTime / this.totalDuration
-      var totalBufferedPercent = bufferedPercent
+      let percentDone = this.currentTime / this.totalDuration
+      const totalPercentDone = percentDone
+      let bufferedPercent = this.bufferedTime / this.totalDuration
+      const totalBufferedPercent = bufferedPercent
 
       if (this.useChapterTrack && this.currentChapter) {
-        var currChapTime = this.currentTime - this.currentChapter.start
+        const currChapTime = this.currentTime - this.currentChapter.start
         percentDone = currChapTime / this.currentChapterDuration
         bufferedPercent = Math.max(0, Math.min(1, (this.bufferedTime - this.currentChapter.start) / this.currentChapterDuration))
       }
-      var ptWidth = Math.round(percentDone * this.trackWidth)
+      const ptWidth = Math.round(percentDone * this.trackWidth)
       this.$refs.playedTrack.style.width = ptWidth + 'px'
       this.$refs.bufferedTrack.style.width = Math.round(bufferedPercent * this.trackWidth) + 'px'
 
@@ -760,7 +760,12 @@ export default {
       this.onProgressSyncSuccess = AbsAudioPlayer.addListener('onProgressSyncSuccess', this.showProgressSyncSuccess)
     },
     screenOrientationChange() {
-      setTimeout(this.updateScreenSize, 50)
+      setTimeout(() => {
+        this.updateScreenSize()
+        this.trackWidth = this.$refs.track.clientWidth
+        this.updateTrack()
+        this.updateReadyTrack()
+      }, 50)
     },
     updateScreenSize() {
       this.windowHeight = window.innerHeight
