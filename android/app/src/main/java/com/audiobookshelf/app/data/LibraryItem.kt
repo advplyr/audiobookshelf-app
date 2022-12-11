@@ -1,5 +1,6 @@
 package com.audiobookshelf.app.data
 
+import android.content.Context
 import android.net.Uri
 import android.os.Bundle
 import android.support.v4.media.MediaDescriptionCompat
@@ -55,8 +56,9 @@ class LibraryItem(
   }
 
   @JsonIgnore
-  override fun getMediaDescription(progress:MediaProgressWrapper?): MediaDescriptionCompat {
+  override fun getMediaDescription(progress:MediaProgressWrapper?, ctx: Context?): MediaDescriptionCompat {
     val extras = Bundle()
+
     if (progress != null) {
       if (progress.isFinished) {
         extras.putInt(

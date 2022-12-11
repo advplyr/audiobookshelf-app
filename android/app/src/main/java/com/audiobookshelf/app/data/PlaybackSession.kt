@@ -2,7 +2,6 @@ package com.audiobookshelf.app.data
 
 import android.net.Uri
 import android.support.v4.media.MediaMetadataCompat
-import com.audiobookshelf.app.R
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.player.MediaProgressSyncData
 import com.fasterxml.jackson.annotation.JsonIgnore
@@ -12,6 +11,7 @@ import com.google.android.exoplayer2.MediaMetadata
 import com.google.android.gms.cast.MediaInfo
 import com.google.android.gms.cast.MediaQueueItem
 import com.google.android.gms.common.images.WebImage
+
 
 // TODO: enum or something in kotlin?
 val PLAYMETHOD_DIRECTPLAY = 0
@@ -105,9 +105,9 @@ class PlaybackSession(
 
   @JsonIgnore
   fun getCoverUri(): Uri {
-    if (localLibraryItem?.coverContentUrl != null) return Uri.parse(localLibraryItem?.coverContentUrl) ?: Uri.parse("android.resource://com.audiobookshelf.app/" + R.drawable.icon)
+    if (localLibraryItem?.coverContentUrl != null) return Uri.parse(localLibraryItem?.coverContentUrl) ?: Uri.parse("android.resource://com.audiobookshelf.app/" + com.audiobookshelf.app.R.drawable.icon)
 
-    if (coverPath == null) return Uri.parse("android.resource://com.audiobookshelf.app/" + R.drawable.icon)
+    if (coverPath == null) return Uri.parse("android.resource://com.audiobookshelf.app/" + com.audiobookshelf.app.R.drawable.icon)
     return Uri.parse("$serverAddress/api/items/$libraryItemId/cover?token=${DeviceManager.token}")
   }
 
@@ -124,7 +124,12 @@ class PlaybackSession(
       .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, displayTitle)
       .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, displayAuthor)
       .putString(MediaMetadataCompat.METADATA_KEY_AUTHOR, displayAuthor)
+      .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, displayAuthor)
+      .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, displayAuthor)
+      .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ARTIST, displayAuthor)
+      .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION, displayAuthor)
       .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, id)
+      .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getCoverUri().toString())
     return metadataBuilder.build()
   }
 
@@ -136,6 +141,8 @@ class PlaybackSession(
       .setArtist(displayAuthor)
       .setAlbumArtist(displayAuthor)
       .setSubtitle(displayAuthor)
+      .setAlbumTitle(displayAuthor)
+      .setDescription(displayAuthor)
 
     val contentUri = this.getContentUri(audioTrack)
     metadataBuilder.setMediaUri(contentUri)

@@ -81,7 +81,7 @@
           <div ref="bufferedTrack" class="h-full bg-gray-500 absolute top-0 left-0 pointer-events-none" />
           <div ref="playedTrack" class="h-full bg-gray-200 absolute top-0 left-0 pointer-events-none" />
           <div ref="draggingTrack" class="h-full bg-warning bg-opacity-25 absolute top-0 left-0 pointer-events-none" />
-          <div ref="trackCursor" class="h-3.5 w-3.5 rounded-full bg-gray-200 absolute -top-1 pointer-events-none" :class="{ 'opacity-0': lockUi }" />
+          <div ref="trackCursor" class="h-3.5 w-3.5 rounded-full bg-gray-200 absolute -top-1 pointer-events-none" :class="{ 'opacity-0': lockUi || !showFullscreen }" />
         </div>
         <div id="timestamp-row" class="flex pt-0.5">
           <p class="font-mono text-white text-opacity-90" style="font-size: 0.8rem" ref="currentTimestamp">0:00</p>

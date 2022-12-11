@@ -1,5 +1,6 @@
 package com.audiobookshelf.app.data
 
+import android.content.Context
 import android.os.Bundle
 import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.MediaMetadataCompat
@@ -237,8 +238,8 @@ data class PodcastEpisode(
   var serverEpisodeId:String? // For local podcasts to match with server podcasts
 ) {
   @JsonIgnore
-  fun getMediaDescription(libraryItem:LibraryItemWrapper, progress:MediaProgressWrapper?): MediaDescriptionCompat {
-    val coverUri = if(libraryItem is LocalLibraryItem) {
+  fun getMediaDescription(libraryItem:LibraryItemWrapper, progress:MediaProgressWrapper?, ctx: Context?): MediaDescriptionCompat {
+    val coverUri = if (libraryItem is LocalLibraryItem) {
       libraryItem.getCoverUri()
     } else {
       (libraryItem as LibraryItem).getCoverUri()
@@ -266,22 +267,20 @@ data class PodcastEpisode(
         MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_NOT_PLAYED
       )
     }
-//    return MediaMetadataCompat.Builder().apply {
-//      putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, id)
-//      putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, title)
-//      putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
-//      putString(MediaMetadataCompat.METADATA_KEY_AUTHOR, podcast.metadata.getAuthorDisplayName())
-//      putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, coverUri.toString())
-//
-//    }.build()
-    val libraryItemDescription = libraryItem.getMediaDescription(null)
-    return MediaDescriptionCompat.Builder()
+
+    val libraryItemDescription = libraryItem.getMediaDescription(null, ctx)
+    val mediaDescriptionBuilder = MediaDescriptionCompat.Builder()
       .setMediaId(id)
       .setTitle(title)
       .setIconUri(coverUri)
       .setSubtitle(libraryItemDescription.title)
       .setExtras(extras)
-      .build()
+
+    libraryItemDescription.iconBitmap?.let {
+      mediaDescriptionBuilder.setIconBitmap(it)
+    }
+
+    return mediaDescriptionBuilder.build()
   }
 }
 

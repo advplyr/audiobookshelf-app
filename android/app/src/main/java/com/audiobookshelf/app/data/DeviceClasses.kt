@@ -1,5 +1,6 @@
 package com.audiobookshelf.app.data
 
+import android.content.Context
 import android.support.v4.media.MediaDescriptionCompat
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
@@ -101,7 +102,7 @@ data class LocalFolder(
 )
 open class LibraryItemWrapper(var id:String) {
   @JsonIgnore
-  open fun getMediaDescription(progress:MediaProgressWrapper?): MediaDescriptionCompat { return MediaDescriptionCompat.Builder().build() }
+  open fun getMediaDescription(progress:MediaProgressWrapper?, ctx: Context?): MediaDescriptionCompat { return MediaDescriptionCompat.Builder().build() }
 }
 
 @JsonIgnoreProperties(ignoreUnknown = true)

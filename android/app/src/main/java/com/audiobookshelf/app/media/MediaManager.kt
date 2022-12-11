@@ -121,7 +121,7 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
     }
   }
 
-  fun loadPodcastEpisodeMediaBrowserItems(libraryItemId:String, cb: (MutableList<MediaBrowserCompat.MediaItem>) -> Unit) {
+  fun loadPodcastEpisodeMediaBrowserItems(libraryItemId:String, ctx:Context, cb: (MutableList<MediaBrowserCompat.MediaItem>) -> Unit) {
       loadLibraryItem(libraryItemId) { libraryItemWrapper ->
         Log.d(tag, "Loaded Podcast library item $libraryItemWrapper")
 
@@ -138,7 +138,7 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
                 Log.d(tag, "Local Podcast Episode ${podcastEpisode.title} | ${podcastEpisode.id}")
 
                 val progress = DeviceManager.dbManager.getLocalMediaProgress("${libraryItemWrapper.id}-${podcastEpisode.id}")
-                val description = podcastEpisode.getMediaDescription(libraryItemWrapper, progress)
+                val description = podcastEpisode.getMediaDescription(libraryItemWrapper, progress, ctx)
                 MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
               }
               children?.let { cb(children as MutableList) } ?: cb(mutableListOf())
@@ -157,7 +157,7 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
               val children = podcast.episodes?.map { podcastEpisode ->
 
                 val progress = serverUserMediaProgress.find { it.libraryItemId == libraryItemWrapper.id && it.episodeId == podcastEpisode.id }
-                val description = podcastEpisode.getMediaDescription(libraryItemWrapper, progress)
+                val description = podcastEpisode.getMediaDescription(libraryItemWrapper, progress, ctx)
                 MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
               }
               children?.let { cb(children as MutableList) } ?: cb(mutableListOf())
