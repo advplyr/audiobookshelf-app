@@ -3,7 +3,7 @@
     <div class="w-full flex justify-center relative mb-2">
       <div class="relative" @click="showFullscreenCover = true">
         <covers-book-cover :library-item="libraryItem" :width="175" :book-cover-aspect-ratio="bookCoverAspectRatio" />
-        <div v-if="!isPodcast" class="absolute bottom-0 left-0 h-1 shadow-sm z-10" :class="userIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: 64 * progressPercent + 'px' }"></div>
+        <div v-if="!isPodcast" class="absolute bottom-0 left-0 h-1 shadow-sm z-10" :class="userIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: 175 * progressPercent + 'px' }"></div>
       </div>
 
       <button class="absolute top-0 right-0 px-1 outline-none" @click="moreButtonPress">
