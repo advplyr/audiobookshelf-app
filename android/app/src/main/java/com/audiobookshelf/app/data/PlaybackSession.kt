@@ -1,7 +1,6 @@
 package com.audiobookshelf.app.data
 
 import android.content.Context
-import android.graphics.Bitmap
 import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
@@ -57,6 +56,8 @@ class PlaybackSession(
   val isDirectPlay get() = playMethod == PLAYMETHOD_DIRECTPLAY
   @get:JsonIgnore
   val isLocal get() = playMethod == PLAYMETHOD_LOCAL
+  @get:JsonIgnore
+  val isPodcastEpisode get() = mediaType == "podcast"
   @get:JsonIgnore
   val currentTimeMs get() = (currentTime * 1000L).toLong()
   @get:JsonIgnore
@@ -136,6 +137,7 @@ class PlaybackSession(
       .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, id)
       .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getCoverUri().toString())
       .putString(MediaMetadataCompat.METADATA_KEY_ART_URI, getCoverUri().toString())
+      .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, getCoverUri().toString())
 
     // Local covers get bitmap
     if (localLibraryItem?.coverContentUrl != null) {
@@ -196,7 +198,9 @@ class PlaybackSession(
 
     castMetadata.putString(com.google.android.gms.cast.MediaMetadata.KEY_TITLE, displayTitle ?: "")
     castMetadata.putString(com.google.android.gms.cast.MediaMetadata.KEY_ARTIST, displayAuthor ?: "")
+    castMetadata.putString(com.google.android.gms.cast.MediaMetadata.KEY_ALBUM_TITLE, displayAuthor ?: "")
     castMetadata.putString(com.google.android.gms.cast.MediaMetadata.KEY_CHAPTER_TITLE, audioTrack.title)
+
     castMetadata.putInt(com.google.android.gms.cast.MediaMetadata.KEY_TRACK_NUMBER, audioTrack.index)
     return castMetadata
   }

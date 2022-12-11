@@ -367,6 +367,14 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       }
     }
 
+    // TODO: When an item isFinished the currentTime should be reset to 0
+    //        will reset the time if currentTime is within 5s of duration (for android auto)
+    Log.d(tag, "Prepare Player Session Current Time=${playbackSession.currentTime}, Duration=${playbackSession.duration}")
+    if (playbackSession.duration - playbackSession.currentTime < 5) {
+      Log.d(tag, "Prepare Player Session is finished, so restart it")
+      playbackSession.currentTime = 0.0
+    }
+
     isClosed = false
     val customActionProviders = mutableListOf(
       JumpBackwardCustomActionProvider(),
@@ -484,6 +492,36 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       } else {
         clientEventEmitter?.onPlaybackFailed(errorMessage)
         closePlayback(true)
+      }
+    }
+  }
+
+  fun handlePlaybackEnded() {
+    Log.d(tag, "handlePlaybackEnded")
+    if (isAndroidAuto && currentPlaybackSession?.isPodcastEpisode == true) {
+      Log.d(tag, "Podcast playback ended on android auto")
+      val libraryItem = currentPlaybackSession?.libraryItem ?: return
+
+      // Need to sync with server to set as finished
+      mediaProgressSyncer.finished {
+        // Need to reload media progress
+        mediaManager.loadServerUserMediaProgress {
+          val podcast = libraryItem.media as Podcast
+          val nextEpisode = podcast.getNextUnfinishedEpisode(libraryItem.id, mediaManager)
+          Log.d(tag, "handlePlaybackEnded nextEpisode=$nextEpisode")
+          nextEpisode?.let { podcastEpisode ->
+            mediaManager.play(libraryItem, podcastEpisode, getPlayItemRequestPayload(false)) {
+              if (it == null) {
+                Log.e(tag, "Failed to play library item")
+              } else {
+                val playbackRate = mediaManager.getSavedPlaybackRate()
+                Handler(Looper.getMainLooper()).post {
+                  preparePlayer(it,true, playbackRate)
+                }
+              }
+            }
+          }
+        }
       }
     }
   }
@@ -663,7 +701,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         // Streaming from server so check if playback session still exists on server
         Log.d(
           tag,
-          "checkCurrentSessionProgress: Checking if playback session for server stream is still available"
+          "checkCurrentSessionProgress: Checking if playback session ${playbackSession.id} for server stream is still available"
         )
         apiHandler.getPlaybackSession(playbackSession.id) {
           if (it == null) {

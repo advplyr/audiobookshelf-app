@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.MediaMetadataCompat
 import androidx.media.utils.MediaConstants
+import com.audiobookshelf.app.media.MediaManager
 import com.fasterxml.jackson.annotation.*
 
 // This auto-detects whether it is a Book or Podcast
@@ -51,7 +52,7 @@ class Podcast(
     // Add new episodes
     audioTracks.forEach { at ->
       if (episodes?.find{ it.audioTrack?.localFileId == at.localFileId } == null) {
-        val newEpisode = PodcastEpisode("local_ep_" + at.localFileId,episodes?.size ?: 0 + 1,null,null,at.title,null,null,null,at,at.duration,0, null)
+        val newEpisode = PodcastEpisode("local_ep_" + at.localFileId,(episodes?.size ?: 0) + 1,null,null,at.title,null,null,null, null, null, at,at.duration,0, null)
         episodes?.add(newEpisode)
       }
     }
@@ -64,7 +65,7 @@ class Podcast(
   }
   @JsonIgnore
   override fun addAudioTrack(audioTrack:AudioTrack) {
-    val newEpisode = PodcastEpisode("local_" + audioTrack.localFileId,(episodes?.size ?: 0) + 1,null,null,audioTrack.title,null,null,null,audioTrack,audioTrack.duration,0, null)
+    val newEpisode = PodcastEpisode("local_ep_" + audioTrack.localFileId,(episodes?.size ?: 0) + 1,null,null,audioTrack.title,null,null,null, null, null,audioTrack,audioTrack.duration,0, null)
     episodes?.add(newEpisode)
 
     var index = 1
@@ -83,9 +84,16 @@ class Podcast(
       index++
     }
   }
+
+  // Used for FolderScanner local podcast item to get copy of Podcast excluding episodes
+  @JsonIgnore
+  override fun getLocalCopy(): Podcast {
+    return Podcast(metadata as PodcastMetadata,coverPath,tags, mutableListOf(),autoDownloadEpisodes, 0)
+  }
+
   @JsonIgnore
   fun addEpisode(audioTrack:AudioTrack, episode:PodcastEpisode):PodcastEpisode {
-    val newEpisode = PodcastEpisode("local_" + episode.id,(episodes?.size ?: 0) + 1,episode.episode,episode.episodeType,episode.title,episode.subtitle,episode.description,null,audioTrack,audioTrack.duration,0, episode.id)
+    val newEpisode = PodcastEpisode("local_ep_" + episode.id,(episodes?.size ?: 0) + 1,episode.episode,episode.episodeType,episode.title,episode.subtitle,episode.description,null,null,null,audioTrack,audioTrack.duration,0, episode.id)
     episodes?.add(newEpisode)
 
     var index = 1
@@ -96,10 +104,14 @@ class Podcast(
     return newEpisode
   }
 
-  // Used for FolderScanner local podcast item to get copy of Podcast excluding episodes
   @JsonIgnore
-  override fun getLocalCopy(): Podcast {
-    return Podcast(metadata as PodcastMetadata,coverPath,tags, mutableListOf(),autoDownloadEpisodes, 0)
+  fun getNextUnfinishedEpisode(libraryItemId:String, mediaManager: MediaManager):PodcastEpisode? {
+    val sortedEpisodes = episodes?.sortedByDescending { it.publishedAt }
+    val podcastEpisode = sortedEpisodes?.find { episode ->
+      val progress = mediaManager.serverUserMediaProgress.find { it.libraryItemId == libraryItemId && it.episodeId == episode.id }
+      progress == null || !progress.isFinished
+    }
+    return podcastEpisode
   }
 }
 
@@ -231,6 +243,8 @@ data class PodcastEpisode(
   var title:String?,
   var subtitle:String?,
   var description:String?,
+  var pubDate:String?,
+  var publishedAt:Long?,
   var audioFile:AudioFile?,
   var audioTrack:AudioTrack?,
   var duration:Double?,

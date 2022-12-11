@@ -321,6 +321,7 @@ class ApiHandler(var ctx:Context) {
   }
 
   fun getPlaybackSession(playbackSessionId:String, cb: (PlaybackSession?) -> Unit) {
+    Log.d(tag, "getPlaybackSession for $playbackSessionId for server ${DeviceManager.serverAddress}")
     val endpoint = "/api/session/$playbackSessionId"
     getRequest(endpoint, null, null) {
       val err = it.getString("error")

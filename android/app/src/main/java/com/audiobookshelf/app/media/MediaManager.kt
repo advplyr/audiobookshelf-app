@@ -266,6 +266,23 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
 
   }
 
+  fun loadServerUserMediaProgress(cb: () -> Unit) {
+    Log.d(tag, "Loading server media progress")
+    if (DeviceManager.serverConnectionConfig == null) {
+      return cb()
+    }
+
+    DeviceManager.serverConnectionConfig?.let { config ->
+      apiHandler.authorize(config) {
+        Log.d(tag, "loadServerUserMediaProgress: Authorized server config ${config.address} result = $it")
+        if (!it.isNullOrEmpty()) {
+          serverUserMediaProgress = it
+        }
+        cb()
+      }
+    }
+  }
+
   fun loadAndroidAutoItems(cb: () -> Unit) {
     Log.d(tag, "Load android auto items")
 
