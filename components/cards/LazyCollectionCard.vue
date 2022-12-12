@@ -63,9 +63,6 @@ export default {
       var router = this.$router || this.$nuxt.$router
       router.push(`/collection/${this.collection.id}`)
     },
-    clickEdit() {
-      this.$emit('edit', this.collection)
-    },
     destroy() {
       // destroy the vue listeners, etc
       this.$destroy()

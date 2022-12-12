@@ -26,6 +26,11 @@ export const state = () => ({
 })
 
 export const getters = {
+  getIsMediaStreaming: state => (libraryItemId, episodeId) => {
+    if (!state.playerLibraryItemId) return null
+    if (!episodeId) return state.playerLibraryItemId == libraryItemId
+    return state.playerLibraryItemId == libraryItemId && state.playerEpisodeId == episodeId
+  },
   getIsItemStreaming: state => libraryItemId => {
     return state.playerLibraryItemId == libraryItemId
   },
@@ -47,6 +52,10 @@ export const getters = {
   getAltViewEnabled: state => {
     if (!state.deviceData || !state.deviceData.deviceSettings) return false
     return state.deviceData.deviceSettings.enableAltView
+  },
+  getOrientationLockSetting: state => {
+    if (!state.deviceData || !state.deviceData.deviceSettings) return false
+    return state.deviceData.deviceSettings.lockOrientation
   }
 }
 

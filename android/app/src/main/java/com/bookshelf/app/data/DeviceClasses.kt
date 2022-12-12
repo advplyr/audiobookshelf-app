@@ -1,10 +1,15 @@
 package com.bookshelf.app.data
 
+import android.content.Context
 import android.support.v4.media.MediaDescriptionCompat
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+
+enum class LockOrientationSetting {
+  NONE, PORTRAIT, LANDSCAPE
+}
 
 data class ServerConnectionConfig(
   var id:String,
@@ -22,7 +27,8 @@ data class DeviceSettings(
   var enableAltView:Boolean,
   var jumpBackwardsTime:Int,
   var jumpForwardTime:Int,
-  var disableShakeToResetSleepTimer:Boolean
+  var disableShakeToResetSleepTimer:Boolean,
+  var lockOrientation:LockOrientationSetting
 ) {
   companion object {
     // Static method to get default device settings
@@ -32,7 +38,8 @@ data class DeviceSettings(
         enableAltView = false,
         jumpBackwardsTime = 10,
         jumpForwardTime = 10,
-        disableShakeToResetSleepTimer = false
+        disableShakeToResetSleepTimer = false,
+        lockOrientation = LockOrientationSetting.NONE
       )
     }
   }
@@ -95,7 +102,7 @@ data class LocalFolder(
 )
 open class LibraryItemWrapper(var id:String) {
   @JsonIgnore
-  open fun getMediaDescription(progress:MediaProgressWrapper?): MediaDescriptionCompat { return MediaDescriptionCompat.Builder().build() }
+  open fun getMediaDescription(progress:MediaProgressWrapper?, ctx: Context?): MediaDescriptionCompat { return MediaDescriptionCompat.Builder().build() }
 }
 
 @JsonIgnoreProperties(ignoreUnknown = true)

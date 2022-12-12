@@ -7,6 +7,12 @@
       </div>
       <p class="pl-4">Alternative bookshelf view</p>
     </div>
+    <div class="flex items-center py-3" @click.stop="toggleLockOrientation">
+      <div class="w-10 flex justify-center">
+        <ui-toggle-switch v-model="lockCurrentOrientation" @input="saveSettings" />
+      </div>
+      <p class="pl-4">Lock orientation</p>
+    </div>
 
     <p class="uppercase text-xs font-semibold text-gray-300 mb-2 mt-6">Playback Settings</p>
     <div v-if="!isiOS" class="flex items-center py-3" @click="toggleDisableAutoRewind">
@@ -51,14 +57,16 @@ export default {
         enableAltView: false,
         jumpForwardTime: 10,
         jumpBackwardsTime: 10,
-        disableShakeToResetSleepTimer: false
+        disableShakeToResetSleepTimer: false,
+        lockOrientation: 0
       },
       settingInfo: {
         disableShakeToResetSleepTimer: {
           name: 'Disable shake to reset sleep timer',
           message: 'The sleep timer will start fading out when 30s is remaining. Shaking your device will reset the timer if it is within 30s OR has finished less than 2 mintues ago. Enable this setting to disable that feature.'
         }
-      }
+      },
+      lockCurrentOrientation: false
     }
   },
   computed: {
@@ -107,6 +115,28 @@ export default {
       this.settings.enableAltView = !this.settings.enableAltView
       this.saveSettings()
     },
+    getCurrentOrientation() {
+      const orientation = window.screen ? window.screen.orientation || {} : {}
+      const type = orientation.type || ''
+      console.log('getCurrentOrientation=' + type)
+
+      if (type.includes('landscape')) return 'LANDSCAPE'
+      return 'PORTRAIT' // default
+    },
+    toggleLockOrientation() {
+      console.log('TOGGLE LOCK ORIENTATION', this.lockCurrentOrientation)
+      this.lockCurrentOrientation = !this.lockCurrentOrientation
+      if (this.lockCurrentOrientation) {
+        console.log('CURRENT ORIENTATION=', this.getCurrentOrientation())
+        this.settings.lockOrientation = this.getCurrentOrientation()
+      } else {
+        console.log('SETTING CURRENT ORIENTATION TO NONE')
+        this.settings.lockOrientation = 'NONE'
+      }
+      this.$setOrientationLock(this.settings.lockOrientation)
+      console.log('NOW SAVING SETTINGS', this.settings.lockOrientation)
+      this.saveSettings()
+    },
     toggleJumpForward() {
       var next = (this.currentJumpForwardTimeIndex + 1) % 3
       this.settings.jumpForwardTime = this.jumpForwardItems[next].value
@@ -119,6 +149,7 @@ export default {
       this.saveSettings()
     },
     async saveSettings() {
+      await this.$hapticsImpactMedium()
       const updatedDeviceData = await this.$db.updateDeviceSettings({ ...this.settings })
       console.log('Saved device data', updatedDeviceData)
       if (updatedDeviceData) {
@@ -136,6 +167,10 @@ export default {
       this.settings.jumpForwardTime = deviceSettings.jumpForwardTime || 10
       this.settings.jumpBackwardsTime = deviceSettings.jumpBackwardsTime || 10
       this.settings.disableShakeToResetSleepTimer = !!deviceSettings.disableShakeToResetSleepTimer
+      this.settings.lockOrientation = deviceSettings.lockOrientation || 'NONE'
+
+      console.log('INIT SETTINGS LOCK ORIENTATION=', this.settings.lockOrientation)
+      this.lockCurrentOrientation = this.settings.lockOrientation !== 'NONE'
     }
   },
   mounted() {

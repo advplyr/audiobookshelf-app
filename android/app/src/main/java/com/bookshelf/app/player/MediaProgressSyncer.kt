@@ -115,7 +115,19 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
       failedSyncs = 0
       cb()
     }
+  }
 
+  fun finished(cb: () -> Unit) {
+    if (!listeningTimerRunning) return
+    listeningTimerTask?.cancel()
+    listeningTimerTask = null
+    listeningTimerRunning = false
+    Log.d(tag, "stop: Stopping listening for $currentDisplayTitle")
+
+    sync(true, currentPlaybackSession?.duration ?: 0.0) {
+      reset()
+      cb()
+    }
   }
 
   fun syncFromServerProgress(mediaProgress: MediaProgress) {

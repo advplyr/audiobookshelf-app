@@ -52,6 +52,8 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
       if (playerNotificationService.currentPlayer.playbackState == Player.STATE_ENDED) {
         Log.d(tag, "STATE_ENDED")
         playerNotificationService.sendClientMetadata(PlayerState.ENDED)
+
+        playerNotificationService.handlePlaybackEnded()
       }
       if (playerNotificationService.currentPlayer.playbackState == Player.STATE_IDLE) {
         Log.d(tag, "STATE_IDLE")

@@ -90,7 +90,7 @@
       <p class="text-lg text-center px-8">{{ failed ? 'Failed to get local library item ' + localLibraryItemId : 'Loading..' }}</p>
     </div>
 
-    <div v-if="orderChanged" class="fixed bottom-0 left-0 w-full py-4 px-4 bg-bg box-shadow-book flex items-center">
+    <div v-if="orderChanged" class="fixed left-0 w-full py-4 px-4 bg-bg box-shadow-book flex items-center" :style="{ bottom: playerLibraryItemId ? '100px' : '0px' }">
       <div class="flex-grow" />
       <ui-btn small color="success" @click="saveTrackOrder">Save Order</ui-btn>
     </div>
@@ -138,6 +138,9 @@ export default {
     }
   },
   computed: {
+    playerLibraryItemId() {
+      return this.$store.state.playerLibraryItemId
+    },
     isIos() {
       return this.$platform === 'ios'
     },
@@ -198,12 +201,12 @@ export default {
         ]
       } else {
         var options = []
-        if ( !this.isIos ) {
-          options.push({ text: 'Scan', value: 'scan'})
-          options.push({ text: 'Force Re-Scan', value: 'rescan'})
-          options.push({ text: 'Remove', value: 'remove'})
+        if (!this.isIos) {
+          options.push({ text: 'Scan', value: 'scan' })
+          options.push({ text: 'Force Re-Scan', value: 'rescan' })
+          options.push({ text: 'Remove', value: 'remove' })
         }
-        options.push({ text: 'Remove & Delete Files', value: 'delete'})
+        options.push({ text: 'Remove & Delete Files', value: 'delete' })
         return options
       }
     }
@@ -252,14 +255,16 @@ export default {
       }
       this.showDialog = true
     },
-    play() {
+    async play() {
+      await this.$hapticsImpactMedium()
       this.$eventBus.$emit('play-item', { libraryItemId: this.localLibraryItemId })
     },
     getCapImageSrc(contentUrl) {
       return Capacitor.convertFileSrc(contentUrl)
     },
-    dialogAction(action) {
+    async dialogAction(action) {
       console.log('Dialog action', action)
+      await this.$hapticsImpactMedium()
       if (action == 'scan') {
         this.scanItem()
       } else if (action == 'rescan') {

@@ -2,7 +2,10 @@ package com.bookshelf.app.player
 
 import android.app.PendingIntent
 import android.graphics.Bitmap
+import android.graphics.ImageDecoder
 import android.net.Uri
+import android.os.Build
+import android.provider.MediaStore
 import android.support.v4.media.session.MediaControllerCompat
 import android.util.Log
 import com.bookshelf.app.R
@@ -42,13 +45,25 @@ class AbMediaDescriptionAdapter constructor(private val controller: MediaControl
       // `getCurrentLargeIcon` don't cause the bitmap to be recreated.
       currentIconUri = albumArtUri
       Log.d(tag, "ART $currentIconUri")
-      serviceScope.launch {
-        currentBitmap = albumArtUri?.let {
-          resolveUriAsBitmap(it)
+
+      if (currentIconUri.toString().startsWith("content://")) {
+        currentBitmap = if (Build.VERSION.SDK_INT < 28) {
+          MediaStore.Images.Media.getBitmap(playerNotificationService.contentResolver, currentIconUri)
+        } else {
+          val source: ImageDecoder.Source = ImageDecoder.createSource(playerNotificationService.contentResolver, currentIconUri!!)
+          ImageDecoder.decodeBitmap(source)
         }
-        currentBitmap?.let { callback.onBitmap(it) }
+        currentBitmap
+      } else {
+        serviceScope.launch {
+          currentBitmap = albumArtUri?.let {
+            resolveUriAsBitmap(it)
+          }
+          currentBitmap?.let { callback.onBitmap(it) }
+        }
+        null
       }
-      null
+
     } else {
       currentBitmap
     }

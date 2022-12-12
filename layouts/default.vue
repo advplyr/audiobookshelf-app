@@ -1,11 +1,12 @@
 <template>
-  <div class="w-full layout-wrapper bg-bg text-white">
+  <div class="select-none w-full layout-wrapper bg-bg text-white">
     <app-appbar />
     <div id="content" class="overflow-hidden relative" :class="playerIsOpen ? 'playerOpen' : ''">
       <Nuxt />
     </div>
     <app-audio-player-container ref="streamContainer" />
     <modals-libraries-modal />
+    <modals-playlists-add-create-modal />
     <app-side-drawer />
     <readers-reader />
   </div>
@@ -174,7 +175,7 @@ export default {
       }
 
       console.log('[default] Calling syncLocalMediaProgress')
-      var response = await this.$db.syncLocalMediaProgressWithServer()
+      const response = await this.$db.syncLocalMediaProgressWithServer()
       if (!response) {
         if (this.$platform != 'web') this.$toast.error('Failed to sync local media with server')
         this.$store.commit('setLastLocalMediaSyncResults', null)
@@ -261,6 +262,7 @@ export default {
 
       const deviceData = await this.$db.getDeviceData()
       this.$store.commit('setDeviceData', deviceData)
+      this.$setOrientationLock(this.$store.getters['getOrientationLockSetting'])
 
       await this.$store.dispatch('setupNetworkListener')
 

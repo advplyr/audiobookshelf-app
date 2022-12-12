@@ -12,7 +12,6 @@ import com.getcapacitor.annotation.CapacitorPlugin
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import org.json.JSONObject
 
 @CapacitorPlugin(name = "AbsDatabase")
 class AbsDatabase : Plugin() {

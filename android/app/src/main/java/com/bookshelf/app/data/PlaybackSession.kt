@@ -1,11 +1,20 @@
 package com.bookshelf.app.data
 
+import android.content.Context
+import android.graphics.ImageDecoder
 import android.net.Uri
+import android.os.Build
+import android.provider.MediaStore
 import android.support.v4.media.MediaMetadataCompat
+<<<<<<< HEAD:android/app/src/main/java/com/bookshelf/app/data/PlaybackSession.kt
 import androidx.core.app.NotificationCompat
 import com.bookshelf.app.R
 import com.bookshelf.app.device.DeviceManager
 import com.bookshelf.app.player.MediaProgressSyncData
+=======
+import com.audiobookshelf.app.device.DeviceManager
+import com.audiobookshelf.app.player.MediaProgressSyncData
+>>>>>>> 4fd4cc5604f498b126c0a3125577451835d8979f:android/app/src/main/java/com/audiobookshelf/app/data/PlaybackSession.kt
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.google.android.exoplayer2.MediaItem
@@ -13,6 +22,7 @@ import com.google.android.exoplayer2.MediaMetadata
 import com.google.android.gms.cast.MediaInfo
 import com.google.android.gms.cast.MediaQueueItem
 import com.google.android.gms.common.images.WebImage
+
 
 // TODO: enum or something in kotlin?
 val PLAYMETHOD_DIRECTPLAY = 0
@@ -53,6 +63,8 @@ class PlaybackSession(
   val isDirectPlay get() = playMethod == PLAYMETHOD_DIRECTPLAY
   @get:JsonIgnore
   val isLocal get() = playMethod == PLAYMETHOD_LOCAL
+  @get:JsonIgnore
+  val isPodcastEpisode get() = mediaType == "podcast"
   @get:JsonIgnore
   val currentTimeMs get() = (currentTime * 1000L).toLong()
   @get:JsonIgnore
@@ -106,9 +118,15 @@ class PlaybackSession(
 
   @JsonIgnore
   fun getCoverUri(): Uri {
+<<<<<<< HEAD:android/app/src/main/java/com/bookshelf/app/data/PlaybackSession.kt
     if (localLibraryItem?.coverContentUrl != null) return Uri.parse(localLibraryItem?.coverContentUrl) ?: Uri.parse("android.resource://com.bookshelf.app/" + R.drawable.icon)
 
     if (coverPath == null) return Uri.parse("android.resource://com.bookshelf.app/" + R.drawable.icon)
+=======
+    if (localLibraryItem?.coverContentUrl != null) return Uri.parse(localLibraryItem?.coverContentUrl) ?: Uri.parse("android.resource://com.audiobookshelf.app/" + com.audiobookshelf.app.R.drawable.icon)
+
+    if (coverPath == null) return Uri.parse("android.resource://com.audiobookshelf.app/" + com.audiobookshelf.app.R.drawable.icon)
+>>>>>>> 4fd4cc5604f498b126c0a3125577451835d8979f:android/app/src/main/java/com/audiobookshelf/app/data/PlaybackSession.kt
     return Uri.parse("$serverAddress/api/items/$libraryItemId/cover?token=${DeviceManager.token}")
   }
 
@@ -119,13 +137,33 @@ class PlaybackSession(
   }
 
   @JsonIgnore
-  fun getMediaMetadataCompat(): MediaMetadataCompat {
+  fun getMediaMetadataCompat(ctx: Context): MediaMetadataCompat {
     val metadataBuilder = MediaMetadataCompat.Builder()
       .putString(MediaMetadataCompat.METADATA_KEY_TITLE, displayTitle)
       .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, displayTitle)
       .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, displayAuthor)
       .putString(MediaMetadataCompat.METADATA_KEY_AUTHOR, displayAuthor)
+      .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, displayAuthor)
+      .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, displayAuthor)
+      .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ARTIST, displayAuthor)
+      .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION, displayAuthor)
       .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, id)
+      .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getCoverUri().toString())
+      .putString(MediaMetadataCompat.METADATA_KEY_ART_URI, getCoverUri().toString())
+      .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, getCoverUri().toString())
+
+    // Local covers get bitmap
+    if (localLibraryItem?.coverContentUrl != null) {
+      val bitmap = if (Build.VERSION.SDK_INT < 28) {
+        MediaStore.Images.Media.getBitmap(ctx.contentResolver, getCoverUri())
+      } else {
+        val source: ImageDecoder.Source = ImageDecoder.createSource(ctx.contentResolver, getCoverUri())
+        ImageDecoder.decodeBitmap(source)
+      }
+      metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
+      metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, bitmap)
+    }
+
     return metadataBuilder.build()
   }
 
@@ -137,6 +175,9 @@ class PlaybackSession(
       .setArtist(displayAuthor)
       .setAlbumArtist(displayAuthor)
       .setSubtitle(displayAuthor)
+      .setAlbumTitle(displayAuthor)
+      .setDescription(displayAuthor)
+      .setArtworkUri(getCoverUri())
 
     val contentUri = this.getContentUri(audioTrack)
     metadataBuilder.setMediaUri(contentUri)
@@ -170,7 +211,9 @@ class PlaybackSession(
 
     castMetadata.putString(com.google.android.gms.cast.MediaMetadata.KEY_TITLE, displayTitle ?: "")
     castMetadata.putString(com.google.android.gms.cast.MediaMetadata.KEY_ARTIST, displayAuthor ?: "")
+    castMetadata.putString(com.google.android.gms.cast.MediaMetadata.KEY_ALBUM_TITLE, displayAuthor ?: "")
     castMetadata.putString(com.google.android.gms.cast.MediaMetadata.KEY_CHAPTER_TITLE, audioTrack.title)
+
     castMetadata.putInt(com.google.android.gms.cast.MediaMetadata.KEY_TRACK_NUMBER, audioTrack.index)
     return castMetadata
   }

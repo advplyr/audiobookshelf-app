@@ -6,7 +6,8 @@ export const state = () => ({
   currentLibraryId: '',
   showModal: false,
   issues: 0,
-  filterData: null
+  filterData: null,
+  numUserPlaylists: 0
 })
 
 export const getters = {
@@ -41,15 +42,17 @@ export const actions = {
     return this.$axios
       .$get(`/api/libraries/${libraryId}?include=filterdata`)
       .then((data) => {
-        var library = data.library
-        var filterData = data.filterdata
-        var issues = data.issues || 0
+        const library = data.library
+        const filterData = data.filterdata
+        const issues = data.issues || 0
+        const numUserPlaylists = data.numUserPlaylists || 0
 
         dispatch('user/checkUpdateLibrarySortFilter', library.mediaType, { root: true })
 
         commit('addUpdate', library)
         commit('setLibraryIssues', issues)
         commit('setLibraryFilterData', filterData)
+        commit('setNumUserPlaylists', numUserPlaylists)
         commit('setCurrentLibrary', libraryId)
         return data
       })
@@ -75,12 +78,15 @@ export const actions = {
     return this.$axios
       .$get(`/api/libraries`)
       .then((data) => {
+        // TODO: Server release 2.2.9 changed response to an object. Remove after a few releases
+        const libraries = data.libraries || data
+
         // Set current library if not already set or was not returned in results
-        if (data.length && (!state.currentLibraryId || !data.find(li => li.id == state.currentLibraryId))) {
-          commit('setCurrentLibrary', data[0].id)
+        if (libraries.length && (!state.currentLibraryId || !libraries.find(li => li.id == state.currentLibraryId))) {
+          commit('setCurrentLibrary', libraries[0].id)
         }
 
-        commit('set', data)
+        commit('set', libraries)
         commit('setLastLoad', Date.now())
         return true
       })
@@ -124,6 +130,9 @@ export const mutations = {
   },
   setLibraryIssues(state, val) {
     state.issues = val
+  },
+  setNumUserPlaylists(state, numUserPlaylists) {
+    state.numUserPlaylists = numUserPlaylists
   },
   setLibraryFilterData(state, filterData) {
     state.filterData = filterData

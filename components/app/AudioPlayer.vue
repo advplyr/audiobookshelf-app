@@ -1,16 +1,16 @@
 <template>
   <div v-if="playbackSession" id="streamContainer" class="playerContainer fixed top-0 left-0 layout-wrapper right-0 z-50 pointer-events-none" :class="{ fullscreen: showFullscreen, 'ios-player': $platform === 'ios', 'web-player': $platform === 'web' }">
     <div v-if="showFullscreen" class="w-full h-full z-10 bg-bg absolute top-0 left-0 pointer-events-auto">
-      <div class="top-2 left-4 absolute cursor-pointer">
+      <div class="top-4 left-4 absolute cursor-pointer">
         <span class="material-icons text-5xl" @click="collapseFullscreen">expand_more</span>
       </div>
-      <div v-show="showCastBtn" class="top-4 right-16 absolute cursor-pointer">
+      <div v-show="showCastBtn" class="top-6 right-16 absolute cursor-pointer">
         <span class="material-icons text-3xl" :class="isCasting ? 'text-success' : ''" @click="castClick">cast</span>
       </div>
-      <div class="top-4 right-4 absolute cursor-pointer">
+      <div class="top-6 right-4 absolute cursor-pointer">
         <span class="material-icons text-3xl" @click="showMoreMenuDialog = true">more_vert</span>
       </div>
-      <p class="top-2 absolute left-0 right-0 mx-auto text-center uppercase tracking-widest text-opacity-75" style="font-size: 10px" :class="{ 'text-success': isLocalPlayMethod, 'text-accent': !isLocalPlayMethod }">{{ isDirectPlayMethod ? 'Direct' : isLocalPlayMethod ? 'Local' : 'Transcode' }}</p>
+      <p class="top-4 absolute left-0 right-0 mx-auto text-center uppercase tracking-widest text-opacity-75" style="font-size: 10px" :class="{ 'text-success': isLocalPlayMethod, 'text-accent': !isLocalPlayMethod }">{{ isDirectPlayMethod ? 'Direct' : isLocalPlayMethod ? 'Local' : 'Transcode' }}</p>
     </div>
 
     <div v-if="useChapterTrack && showFullscreen" class="absolute total-track w-full px-3 z-30">
@@ -46,7 +46,7 @@
     <div id="playerContent" class="playerContainer w-full z-20 bg-primary absolute bottom-0 left-0 right-0 p-2 pointer-events-auto transition-all" @click="clickContainer">
       <div v-if="showFullscreen" class="absolute top-0 left-0 right-0 w-full py-3 mx-auto px-3" style="max-width: 380px">
         <div class="flex items-center justify-between pointer-events-auto">
-          <span v-if="!isPodcast && !isLocalPlayMethod" class="material-icons text-3xl text-white text-opacity-75 cursor-pointer" @click="$emit('showBookmarks')">{{ bookmarks.length ? 'bookmark' : 'bookmark_border' }}</span>
+          <span v-if="!isPodcast && isServerItem && networkConnected" class="material-icons text-3xl text-white text-opacity-75 cursor-pointer" @click="$emit('showBookmarks')">{{ bookmarks.length ? 'bookmark' : 'bookmark_border' }}</span>
           <!-- hidden for podcasts but still using this as a placeholder -->
           <span v-else class="material-icons text-3xl text-white text-opacity-0">bookmark</span>
 
@@ -75,13 +75,13 @@
         </div>
       </div>
 
-      <div id="playerTrack" class="absolute bottom-0 left-0 w-full px-3">
+      <div id="playerTrack" class="absolute left-0 w-full px-3">
         <div ref="track" class="h-1.5 w-full bg-gray-500 bg-opacity-50 relative" :class="{ 'animate-pulse': isLoading }" @touchstart="touchstartTrack" @click="clickTrack">
           <div ref="readyTrack" class="h-full bg-gray-600 absolute top-0 left-0 pointer-events-none" />
           <div ref="bufferedTrack" class="h-full bg-gray-500 absolute top-0 left-0 pointer-events-none" />
           <div ref="playedTrack" class="h-full bg-gray-200 absolute top-0 left-0 pointer-events-none" />
           <div ref="draggingTrack" class="h-full bg-warning bg-opacity-25 absolute top-0 left-0 pointer-events-none" />
-          <div ref="trackCursor" class="h-3.5 w-3.5 rounded-full bg-gray-200 absolute -top-1 pointer-events-none" :class="{ 'opacity-0': lockUi }" />
+          <div ref="trackCursor" class="h-3.5 w-3.5 rounded-full bg-gray-200 absolute -top-1 pointer-events-none" :class="{ 'opacity-0': lockUi || !showFullscreen }" />
         </div>
         <div id="timestamp-row" class="flex pt-0.5">
           <p class="font-mono text-white text-opacity-90" style="font-size: 0.8rem" ref="currentTimestamp">0:00</p>
@@ -126,7 +126,8 @@ export default {
       default: () => []
     },
     sleepTimerRunning: Boolean,
-    sleepTimeRemaining: Number
+    sleepTimeRemaining: Number,
+    isServerItem: Boolean
   },
   data() {
     return {
@@ -209,7 +210,7 @@ export default {
     },
     bookCoverWidth() {
       if (this.showFullscreen) return this.fullscreenBookCoverWidth
-      return 60
+      return 46 / this.bookCoverAspectRatio
     },
     fullscreenBookCoverWidth() {
       var heightScale = (this.windowHeight - 200) / 651
@@ -324,6 +325,9 @@ export default {
       } else {
         return secondsRemaining + 's'
       }
+    },
+    networkConnected() {
+      return this.$store.state.networkConnected
     }
   },
   methods: {
@@ -335,15 +339,18 @@ export default {
         this.showFullscreen = false
       }
     },
-    touchstartTrack(e) {
+    async touchstartTrack(e) {
+      await this.$hapticsImpactMedium()
       if (!e || !e.touches || !this.$refs.track || !this.showFullscreen || this.lockUi) return
       this.touchTrackStart = true
     },
-    selectChapter(chapter) {
+    async selectChapter(chapter) {
+      await this.$hapticsImpactMedium()
       this.seek(chapter.start)
       this.showChapterModal = false
     },
-    castClick() {
+    async castClick() {
+      await this.$hapticsImpactMedium()
       if (this.isLocalPlayMethod) {
         this.$eventBus.$emit('cast-local-item')
         return
@@ -362,12 +369,14 @@ export default {
       this.showFullscreen = false
       this.forceCloseDropdownMenu()
     },
-    jumpNextChapter() {
+    async jumpNextChapter() {
+      await this.$hapticsImpactMedium()
       if (this.isLoading) return
       if (!this.nextChapter) return
       this.seek(this.nextChapter.start)
     },
-    jumpChapterStart() {
+    async jumpChapterStart() {
+      await this.$hapticsImpactMedium()
       if (this.isLoading) return
       if (!this.currentChapter) {
         return this.restart()
@@ -375,9 +384,9 @@ export default {
 
       // If 4 seconds or less into current chapter, then go to previous
       if (this.currentTime - this.currentChapter.start <= 4) {
-        var currChapterIndex = this.chapters.findIndex((ch) => Number(ch.start) <= this.currentTime && Number(ch.end) >= this.currentTime)
+        const currChapterIndex = this.chapters.findIndex((ch) => Number(ch.start) <= this.currentTime && Number(ch.end) >= this.currentTime)
         if (currChapterIndex > 0) {
-          var prevChapter = this.chapters[currChapterIndex - 1]
+          const prevChapter = this.chapters[currChapterIndex - 1]
           this.seek(prevChapter.start)
         }
       } else {
@@ -387,7 +396,8 @@ export default {
     showSleepTimerModal() {
       this.$emit('showSleepTimer')
     },
-    setPlaybackSpeed(speed) {
+    async setPlaybackSpeed(speed) {
+      await this.$hapticsImpactMedium()
       console.log(`[AudioPlayer] Set Playback Rate: ${speed}`)
       this.currentPlaybackRate = speed
       AbsAudioPlayer.setPlaybackSpeed({ value: speed })
@@ -395,11 +405,13 @@ export default {
     restart() {
       this.seek(0)
     },
-    jumpBackwards() {
+    async jumpBackwards() {
+      await this.$hapticsImpactMedium()
       if (this.isLoading) return
       AbsAudioPlayer.seekBackward({ value: this.jumpBackwardsTime })
     },
-    jumpForward() {
+    async jumpForward() {
+      await this.$hapticsImpactMedium()
       if (this.isLoading) return
       AbsAudioPlayer.seekForward({ value: this.jumpForwardTime })
     },
@@ -408,19 +420,19 @@ export default {
       this.updateReadyTrack()
     },
     setChunksReady(chunks, numSegments) {
-      var largestSeg = 0
+      let largestSeg = 0
       for (let i = 0; i < chunks.length; i++) {
-        var chunk = chunks[i]
+        const chunk = chunks[i]
         if (typeof chunk === 'string') {
-          var chunkRange = chunk.split('-').map((c) => Number(c))
+          const chunkRange = chunk.split('-').map((c) => Number(c))
           if (chunkRange.length < 2) continue
           if (chunkRange[1] > largestSeg) largestSeg = chunkRange[1]
         } else if (chunk > largestSeg) {
           largestSeg = chunk
         }
       }
-      var percentageReady = largestSeg / numSegments
-      var widthReady = Math.round(this.trackWidth * percentageReady)
+      const percentageReady = largestSeg / numSegments
+      const widthReady = Math.round(this.trackWidth * percentageReady)
       if (this.readyTrackWidth === widthReady) {
         return
       }
@@ -472,17 +484,17 @@ export default {
     },
     updateTrack() {
       // Update progress track UI
-      var percentDone = this.currentTime / this.totalDuration
-      var totalPercentDone = percentDone
-      var bufferedPercent = this.bufferedTime / this.totalDuration
-      var totalBufferedPercent = bufferedPercent
+      let percentDone = this.currentTime / this.totalDuration
+      const totalPercentDone = percentDone
+      let bufferedPercent = this.bufferedTime / this.totalDuration
+      const totalBufferedPercent = bufferedPercent
 
       if (this.useChapterTrack && this.currentChapter) {
-        var currChapTime = this.currentTime - this.currentChapter.start
+        const currChapTime = this.currentTime - this.currentChapter.start
         percentDone = currChapTime / this.currentChapterDuration
         bufferedPercent = Math.max(0, Math.min(1, (this.bufferedTime - this.currentChapter.start) / this.currentChapterDuration))
       }
-      var ptWidth = Math.round(percentDone * this.trackWidth)
+      const ptWidth = Math.round(percentDone * this.trackWidth)
       this.$refs.playedTrack.style.width = ptWidth + 'px'
       this.$refs.bufferedTrack.style.width = Math.round(bufferedPercent * this.trackWidth) + 'px'
 
@@ -539,6 +551,7 @@ export default {
       this.seek(time)
     },
     async playPauseClick() {
+      await this.$hapticsImpactMedium()
       if (this.isLoading) return
 
       this.isPlaying = !!((await AbsAudioPlayer.playPause()) || {}).playing
@@ -641,7 +654,8 @@ export default {
         ts.innerText = currTimeStr
       }
     },
-    clickMenuAction(action) {
+    async clickMenuAction(action) {
+      await this.$hapticsImpactMedium()
       this.showMoreMenuDialog = false
       this.$nextTick(() => {
         if (action === 'lock') {
@@ -750,16 +764,22 @@ export default {
       this.onProgressSyncSuccess = AbsAudioPlayer.addListener('onProgressSyncSuccess', this.showProgressSyncSuccess)
     },
     screenOrientationChange() {
-      setTimeout(this.updateScreenSize, 50)
+      setTimeout(() => {
+        this.updateScreenSize()
+        if (this.$refs.track) {
+          this.trackWidth = this.$refs.track.clientWidth
+          this.updateTrack()
+          this.updateReadyTrack()
+        }
+      }, 50)
     },
     updateScreenSize() {
       this.windowHeight = window.innerHeight
-      var coverHeight = this.fullscreenBookCoverWidth * this.bookCoverAspectRatio
+      const coverHeight = this.fullscreenBookCoverWidth * this.bookCoverAspectRatio
       document.documentElement.style.setProperty('--cover-image-width', this.fullscreenBookCoverWidth + 'px')
       document.documentElement.style.setProperty('--cover-image-height', coverHeight + 'px')
     },
     minimizePlayerEvt() {
-      console.log('Minimize Player Evt')
       this.showFullscreen = false
     },
     showProgressSyncIsFailing() {
@@ -821,8 +841,8 @@ export default {
 :root {
   --cover-image-width: 0px;
   --cover-image-height: 0px;
-  --cover-image-width-collapsed: 60px;
-  --cover-image-height-collapsed: 60px;
+  --cover-image-width-collapsed: 46px;
+  --cover-image-height-collapsed: 46px;
 }
 .bookCoverWrapper {
   box-shadow: 3px -2px 5px #00000066;
@@ -840,10 +860,10 @@ export default {
 #playerTrack {
   transition: all 0.15s cubic-bezier(0.39, 0.575, 0.565, 1);
   transition-property: margin;
-  margin-bottom: 4px;
+  bottom: 10px;
 }
 .fullscreen #playerTrack {
-  margin-bottom: 18px;
+  bottom: 32px;
 }
 
 .ios-player #timestamp-row {
@@ -852,7 +872,7 @@ export default {
 }
 
 .cover-wrapper {
-  bottom: 44px;
+  bottom: 48px;
   left: 12px;
   height: var(--cover-image-height-collapsed);
   width: var(--cover-image-width-collapsed);
@@ -873,8 +893,8 @@ export default {
   transform-origin: left bottom;
 
   width: 40%;
-  bottom: 50px;
-  left: 80px;
+  bottom: 56px;
+  left: 70px;
   text-align: left;
 }
 .title-author-texts .title-text {
@@ -912,7 +932,7 @@ export default {
   width: 140px;
   padding-left: 12px;
   padding-right: 12px;
-  bottom: 45px;
+  bottom: 50px;
 }
 #playerControls .jump-icon {
   transition: all 0.15s cubic-bezier(0.39, 0.575, 0.565, 1);
@@ -949,7 +969,7 @@ export default {
 
 .fullscreen #playerControls {
   width: 100%;
-  bottom: 100px;
+  bottom: 105px;
 }
 .fullscreen #playerControls .jump-icon {
   margin: 0px 18px;

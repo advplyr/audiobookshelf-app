@@ -1,7 +1,12 @@
 package com.bookshelf.app.data
 
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.ImageDecoder
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.MediaStore
 import android.support.v4.media.MediaDescriptionCompat
 import android.util.Log
 import androidx.media.utils.MediaConstants
@@ -96,8 +101,20 @@ class LocalLibraryItem(
   }
 
   @JsonIgnore
-  override fun getMediaDescription(progress:MediaProgressWrapper?): MediaDescriptionCompat {
+  override fun getMediaDescription(progress:MediaProgressWrapper?, ctx:Context?): MediaDescriptionCompat {
     val coverUri = getCoverUri()
+
+    var bitmap:Bitmap? = null
+    if (coverContentUrl != null) {
+      ctx?.let {
+        bitmap = if (Build.VERSION.SDK_INT < 28) {
+          MediaStore.Images.Media.getBitmap(it.contentResolver, coverUri)
+        } else {
+          val source: ImageDecoder.Source = ImageDecoder.createSource(it.contentResolver, coverUri)
+          ImageDecoder.decodeBitmap(source)
+        }
+      }
+    }
 
     val extras = Bundle()
     if (progress != null) {
@@ -122,12 +139,17 @@ class LocalLibraryItem(
       )
     }
 
-    return MediaDescriptionCompat.Builder()
+    val mediaDescriptionBuilder = MediaDescriptionCompat.Builder()
       .setMediaId(id)
       .setTitle(title)
       .setIconUri(coverUri)
       .setSubtitle(authorName)
       .setExtras(extras)
-      .build()
+
+    bitmap?.let {
+      mediaDescriptionBuilder.setIconBitmap(bitmap)
+    }
+
+    return mediaDescriptionBuilder.build()
   }
 }

@@ -1,7 +1,7 @@
 <template>
-  <div class="relative w-full" v-click-outside="clickOutsideObj">
+  <div class="relative w-full" v-click-outside="clickedOutside">
     <p class="text-sm font-semibold" :class="disabled ? 'text-gray-300' : ''">{{ label }}</p>
-    <button type="button" :disabled="disabled" class="relative w-full border rounded shadow-sm pl-3 pr-8 py-2 text-left focus:outline-none sm:text-sm" :class="buttonClass" aria-haspopup="listbox" aria-expanded="true" @click.stop.prevent="clickShowMenu">
+    <button type="button" :disabled="disabled" class="relative w-full border rounded shadow-sm pl-3 pr-8 py-2 text-left focus:outline-none text-sm" :class="buttonClass" aria-haspopup="listbox" aria-expanded="true" @click.stop.prevent="clickShowMenu">
       <span class="flex items-center" :class="!selectedText ? 'text-gray-300' : 'text-white'">
         <span class="block truncate" :class="small ? 'text-sm' : ''">{{ selectedText || placeholder || '' }}</span>
       </span>
@@ -11,9 +11,9 @@
     </button>
 
     <transition name="menu">
-      <ul v-show="showMenu" class="absolute z-10 -mt-px w-full bg-primary border border-gray-600 shadow-lg max-h-56 rounded-b-md py-1 ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm" tabindex="-1" role="listbox">
+      <ul v-show="showMenu" class="absolute z-10 -mt-px w-full bg-primary border border-gray-600 shadow-lg max-h-56 rounded-b-md py-1 ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none text-sm" role="listbox">
         <template v-for="item in items">
-          <li :key="item.value" class="text-gray-100 select-none relative py-2 cursor-pointer hover:bg-black-400" id="listbox-option-0" role="option" @click="clickedOption(item.value)">
+          <li :key="item.value" class="text-gray-100 select-none relative py-2 cursor-pointer hover:bg-black-400" role="option" @click="clickedOption(item.value)">
             <div class="flex items-center">
               <span class="font-normal ml-3 block truncate font-sans text-sm">{{ item.text }}</span>
             </div>
@@ -42,11 +42,6 @@ export default {
   },
   data() {
     return {
-      clickOutsideObj: {
-        handler: this.clickedOutside,
-        events: ['mousedown'],
-        isActive: true
-      },
       showMenu: false
     }
   },

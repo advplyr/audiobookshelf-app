@@ -13,6 +13,7 @@ class DeviceSettings: Object {
     @Persisted var enableAltView: Bool = false
     @Persisted var jumpBackwardsTime: Int = 10
     @Persisted var jumpForwardTime: Int = 10
+    @Persisted var lockOrientation: String = "NONE"
 }
 
 func getDefaultDeviceSettings() -> DeviceSettings {
@@ -24,6 +25,7 @@ func deviceSettingsToJSON(settings: DeviceSettings) -> Dictionary<String, Any> {
         "disableAutoRewind": settings.disableAutoRewind,
         "enableAltView": settings.enableAltView,
         "jumpBackwardsTime": settings.jumpBackwardsTime,
-        "jumpForwardTime": settings.jumpForwardTime
+        "jumpForwardTime": settings.jumpForwardTime,
+        "lockOrientation": settings.lockOrientation
     ]
 }

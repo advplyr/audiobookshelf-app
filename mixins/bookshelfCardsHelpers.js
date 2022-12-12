@@ -3,6 +3,7 @@ import LazyBookCard from '@/components/cards/LazyBookCard'
 import LazyListBookCard from '@/components/cards/LazyListBookCard'
 import LazySeriesCard from '@/components/cards/LazySeriesCard'
 import LazyCollectionCard from '@/components/cards/LazyCollectionCard'
+import LazyPlaylistCard from '@/components/cards/LazyPlaylistCard'
 
 export default {
   data() {
@@ -16,6 +17,7 @@ export default {
     getComponentClass() {
       if (this.entityName === 'series') return Vue.extend(LazySeriesCard)
       if (this.entityName === 'collections') return Vue.extend(LazyCollectionCard)
+      if (this.entityName === 'playlists') return Vue.extend(LazyPlaylistCard)
       if (this.showBookshelfListView) return Vue.extend(LazyListBookCard)
       return Vue.extend(LazyBookCard)
     },

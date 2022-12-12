@@ -89,9 +89,9 @@ export default {
         return
       }
       this.isFetching = true
-      var results = await this.$axios.$get(`/api/libraries/${this.currentLibraryId}/search?q=${value}&limit=5`).catch((error) => {
+      const results = await this.$axios.$get(`/api/libraries/${this.currentLibraryId}/search?q=${value}&limit=5`).catch((error) => {
         console.error('Search error', error)
-        return []
+        return null
       })
       if (value !== this.lastSearch) {
         console.log(`runSearch: New search was made for ${this.lastSearch} - results are from ${value}`)

@@ -1,5 +1,5 @@
 <template>
-  <div v-if="show" class="absolute top-0 left-0 w-full h-full bg-bg z-40 pt-8">
+  <div v-if="show" class="absolute top-0 left-0 w-full h-full bg-bg z-40 pt-8" :class="{ 'reader-player-open': !!playerLibraryItemId }">
     <div class="h-8 w-full bg-primary flex items-center px-2 fixed top-0 left-0 z-30 box-shadow-sm">
       <p class="w-5/6 truncate">{{ title }}</p>
       <div class="flex-grow" />
@@ -14,7 +14,10 @@ export default {
   data() {
     return {
       touchstartX: 0,
-      touchendX: 0
+      touchstartY: 0,
+      touchendX: 0,
+      touchendY: 0,
+      touchstartTime: 0
     }
   },
   watch: {
@@ -53,6 +56,7 @@ export default {
       if (this.ebookType === 'epub') return 'readers-epub-reader'
       else if (this.ebookType === 'mobi') return 'readers-mobi-reader'
       else if (this.ebookType === 'comic') return 'readers-comic-reader'
+      else if (this.ebookType === 'pdf') return 'readers-pdf-reader'
       return null
     },
     folderId() {
@@ -89,15 +93,22 @@ export default {
     },
     ebookUrl() {
       if (!this.ebookFile) return null
+      let filepath = ''
+      if (this.selectedLibraryItem.isFile) {
+        filepath = this.$encodeUriPath(this.ebookFile.metadata.filename)
+      } else {
+        const itemRelPath = this.selectedLibraryItem.relPath
+        if (itemRelPath.startsWith('/')) itemRelPath = itemRelPath.slice(1)
+        const relPath = this.ebookFile.metadata.relPath
+        if (relPath.startsWith('/')) relPath = relPath.slice(1)
 
-      var itemRelPath = this.selectedLibraryItem.relPath
-      if (itemRelPath.startsWith('/')) itemRelPath = itemRelPath.slice(1)
-
-      var relPath = this.ebookFile.metadata.relPath
-      if (relPath.startsWith('/')) relPath = relPath.slice(1)
-
-      var serverAddress = this.$store.getters['user/getServerAddress']
-      return `${serverAddress}/ebook/${this.libraryId}/${this.folderId}/${itemRelPath}/${relPath}`
+        filepath = this.$encodeUriPath(`${itemRelPath}/${relPath}`)
+      }
+      const serverAddress = this.$store.getters['user/getServerAddress']
+      return `${serverAddress}/ebook/${this.libraryId}/${this.folderId}/${filepath}`
+    },
+    playerLibraryItemId() {
+      return this.$store.state.playerLibraryItemId
     }
   },
   methods: {
@@ -112,9 +123,19 @@ export default {
       }
     },
     handleGesture() {
+      // Touch must be less than 1s. Must be > 100px drag and X distance > Y distance
+      const touchTimeMs = Date.now() - this.touchstartTime
+      if (touchTimeMs >= 1000) {
+        console.log('Touch too long', touchTimeMs)
+        return
+      }
+
+      const touchDistanceX = Math.abs(this.touchendX - this.touchstartX)
+      const touchDistanceY = Math.abs(this.touchendY - this.touchstartY)
+      if (touchDistanceX < 100 || touchDistanceY > touchDistanceX) return
+
       if (this.touchendX < this.touchstartX) {
         console.log('swiped left')
-
         this.next()
       }
       if (this.touchendX > this.touchstartX) {
@@ -124,9 +145,12 @@ export default {
     },
     touchstart(e) {
       this.touchstartX = e.changedTouches[0].screenX
+      this.touchstartY = e.changedTouches[0].screenY
+      this.touchstartTime = Date.now()
     },
     touchend(e) {
       this.touchendX = e.changedTouches[0].screenX
+      this.touchendY = e.changedTouches[0].screenY
       this.handleGesture()
     },
     registerListeners() {
