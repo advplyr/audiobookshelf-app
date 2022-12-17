@@ -273,7 +273,7 @@ export default {
     this.$eventBus.$on('pause-item', this.pauseItem)
     this.$eventBus.$on('close-stream', this.closeStreamOnly)
     this.$eventBus.$on('cast-local-item', this.castLocalItem)
-    this.$store.commit('user/addSettingsListener', { id: 'streamContainer', meth: this.settingsUpdated })
+    this.$eventBus.$on('user-settings', this.settingsUpdated)
   },
   beforeDestroy() {
     if (this.onLocalMediaProgressUpdateListener) this.onLocalMediaProgressUpdateListener.remove()
@@ -286,7 +286,7 @@ export default {
     this.$eventBus.$off('pause-item', this.pauseItem)
     this.$eventBus.$off('close-stream', this.closeStreamOnly)
     this.$eventBus.$off('cast-local-item', this.castLocalItem)
-    this.$store.commit('user/removeSettingsListener', 'streamContainer')
+    this.$eventBus.$off('user-settings', this.settingsUpdated)
   }
 }
 </script>

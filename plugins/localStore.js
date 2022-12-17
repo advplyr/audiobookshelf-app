@@ -15,7 +15,7 @@ class LocalStorage {
 
   async getUserSettings() {
     try {
-      var settingsObj = await Storage.get({ key: 'userSettings' }) || {}
+      const settingsObj = await Storage.get({ key: 'userSettings' }) || {}
       return settingsObj.value ? JSON.parse(settingsObj.value) : null
     } catch (error) {
       console.error('[LocalStorage] Failed to get user settings', error)

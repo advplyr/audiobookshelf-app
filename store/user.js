@@ -5,13 +5,8 @@ export const state = () => ({
     mobileOrderBy: 'addedAt',
     mobileOrderDesc: true,
     mobileFilterBy: 'all',
-    orderBy: 'book.title',
-    orderDesc: false,
-    filterBy: 'all',
-    playbackRate: 1,
-    bookshelfCoverSize: 120
-  },
-  settingsListeners: []
+    playbackRate: 1
+  }
 })
 
 export const getters = {
@@ -54,7 +49,7 @@ export const getters = {
 export const actions = {
   // When changing libraries make sure sort and filter is still valid
   checkUpdateLibrarySortFilter({ state, dispatch, commit }, mediaType) {
-    var settingsUpdate = {}
+    const settingsUpdate = {}
     if (mediaType == 'podcast') {
       if (state.settings.mobileOrderBy == 'media.metadata.authorName' || state.settings.mobileOrderBy == 'media.metadata.authorNameLF') {
         settingsUpdate.mobileOrderBy = 'media.metadata.author'
@@ -65,10 +60,10 @@ export const actions = {
       if (state.settings.mobileOrderBy == 'media.metadata.publishedYear') {
         settingsUpdate.mobileOrderBy = 'media.metadata.title'
       }
-      var invalidFilters = ['series', 'authors', 'narrators', 'languages', 'progress', 'issues']
-      var filterByFirstPart = (state.settings.mobileFilterBy || '').split('.').shift()
+      const invalidFilters = ['series', 'authors', 'narrators', 'languages', 'progress', 'issues']
+      const filterByFirstPart = (state.settings.mobileFilterBy || '').split('.').shift()
       if (invalidFilters.includes(filterByFirstPart)) {
-        settingsUpdate.filterBy = 'all'
+        settingsUpdate.mobileFilterBy = 'all'
       }
     } else {
       if (state.settings.mobileOrderBy == 'media.metadata.author') {
@@ -83,24 +78,34 @@ export const actions = {
     }
   },
   async updateUserSettings({ state, commit }, payload) {
-    if (state.serverConnectionConfig) {
-      var updatePayload = {
-        ...payload
+    if (!payload) return false
+
+    let hasChanges = false
+    const existingSettings = { ...state.settings }
+    for (const key in existingSettings) {
+      if (payload[key] !== undefined && existingSettings[key] !== payload[key]) {
+        hasChanges = true
+        existingSettings[key] = payload[key]
       }
-      return this.$axios.$patch('/api/me/settings', updatePayload).then((result) => {
-        if (result.success) {
-          commit('setSettings', result.settings)
-          return true
-        } else {
-          return false
+    }
+    if (hasChanges) {
+      await this.$localStore.setUserSettings(existingSettings)
+      commit('setSettings', existingSettings)
+      this.$eventBus.$emit('user-settings', state.settings)
+    }
+  },
+  async loadUserSettings({ state, commit }) {
+    const userSettingsFromLocal = await this.$localStore.getUserSettings()
+
+    if (userSettingsFromLocal) {
+      const userSettings = { ...state.settings }
+      for (const key in userSettings) {
+        if (userSettingsFromLocal[key] !== undefined) {
+          userSettings[key] = userSettingsFromLocal[key]
         }
-      }).catch((error) => {
-        console.error('Failed to update settings', error)
-        return false
-      })
-    } else {
-      console.log('Update settings without server')
-      commit('setSettings', payload)
+      }
+      commit('setSettings', userSettings)
+      this.$eventBus.$emit('user-settings', state.settings)
     }
   }
 }
@@ -131,30 +136,6 @@ export const mutations = {
   },
   setSettings(state, settings) {
     if (!settings) return
-
-    var hasChanges = false
-    for (const key in settings) {
-      if (state.settings[key] !== settings[key]) {
-        if (key === 'mobileOrderBy' && settings[key] === 'recent') {
-          settings[key] = 'addedAt'
-        }
-        hasChanges = true
-        state.settings[key] = settings[key]
-      }
-    }
-    if (hasChanges) {
-      this.$localStore.setUserSettings({ ...state.settings })
-      state.settingsListeners.forEach((listener) => {
-        listener.meth(state.settings)
-      })
-    }
-  },
-  addSettingsListener(state, listener) {
-    var index = state.settingsListeners.findIndex(l => l.id === listener.id)
-    if (index >= 0) state.settingsListeners.splice(index, 1, listener)
-    else state.settingsListeners.push(listener)
-  },
-  removeSettingsListener(state, listenerId) {
-    state.settingsListeners = state.settingsListeners.filter(l => l.id !== listenerId)
+    state.settings = settings
   }
 }
