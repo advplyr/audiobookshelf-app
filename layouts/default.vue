@@ -76,15 +76,12 @@ export default {
       }
     },
     async loadSavedSettings() {
-      var userSavedServerSettings = await this.$localStore.getServerSettings()
+      const userSavedServerSettings = await this.$localStore.getServerSettings()
       if (userSavedServerSettings) {
         this.$store.commit('setServerSettings', userSavedServerSettings)
       }
 
-      var userSavedSettings = await this.$localStore.getUserSettings()
-      if (userSavedSettings) {
-        this.$store.commit('user/setSettings', userSavedSettings)
-      }
+      await this.$store.dispatch('user/loadUserSettings')
     },
     async attemptConnection() {
       console.warn('[default] attemptConnection')

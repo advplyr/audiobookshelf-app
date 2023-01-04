@@ -453,7 +453,7 @@ export default {
       }
 
       this.$eventBus.$on('library-changed', this.libraryChanged)
-      this.$store.commit('user/addSettingsListener', { id: 'lazy-bookshelf', meth: this.settingsUpdated })
+      this.$eventBus.$on('user-settings', this.settingsUpdated)
 
       this.$socket.$on('item_updated', this.libraryItemUpdated)
       this.$socket.$on('item_added', this.libraryItemAdded)
@@ -468,7 +468,7 @@ export default {
       }
 
       this.$eventBus.$off('library-changed', this.libraryChanged)
-      this.$store.commit('user/removeSettingsListener', 'lazy-bookshelf')
+      this.$eventBus.$off('user-settings', this.settingsUpdated)
 
       this.$socket.$off('item_updated', this.libraryItemUpdated)
       this.$socket.$off('item_added', this.libraryItemAdded)

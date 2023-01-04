@@ -5,8 +5,6 @@ import { StatusBar, Style } from '@capacitor/status-bar';
 import { formatDistance, format, addDays, isDate } from 'date-fns'
 import { Capacitor } from '@capacitor/core';
 
-Vue.prototype.$eventBus = new Vue()
-
 if (Capacitor.getPlatform() != 'web') {
   const setStatusBarStyleDark = async () => {
     await StatusBar.setStyle({ style: Style.Dark })
@@ -206,7 +204,9 @@ Vue.prototype.$setOrientationLock = (orientationLockSetting) => {
   }
 }
 
-export default ({ store, app }) => {
+export default ({ store, app }, inject) => {
+  inject('eventBus', new Vue())
+
   // iOS Only
   //  backButton event does not work with iOS swipe navigation so use this workaround
   if (app.router && Capacitor.getPlatform() === 'ios') {

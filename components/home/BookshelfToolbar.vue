@@ -87,8 +87,7 @@ export default {
       this.saveSettings()
     },
     saveSettings() {
-      this.$store.commit('user/setSettings', this.settings) // Immediate update
-      this.$store.dispatch('user/updateUserSettings', this.settings) // TODO: No need to update settings on server...
+      this.$store.dispatch('user/updateUserSettings', this.settings)
     },
     async init() {
       this.bookshelfListView = await this.$localStore.getBookshelfListView()
@@ -111,11 +110,11 @@ export default {
   mounted() {
     this.init()
     this.$eventBus.$on('bookshelf-total-entities', this.setTotalEntities)
-    this.$store.commit('user/addSettingsListener', { id: 'bookshelftoolbar', meth: this.settingsUpdated })
+    this.$eventBus.$on('user-settings', this.settingsUpdated)
   },
   beforeDestroy() {
     this.$eventBus.$off('bookshelf-total-entities', this.setTotalEntities)
-    this.$store.commit('user/removeSettingsListener', 'bookshelftoolbar')
+    this.$eventBus.$off('user-settings', this.settingsUpdated)
   }
 }
 </script>
