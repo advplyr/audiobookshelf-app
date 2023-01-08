@@ -117,6 +117,10 @@ class LocalLibraryItem(
     }
 
     val extras = Bundle()
+    extras.putLong(
+      MediaDescriptionCompat.EXTRA_DOWNLOAD_STATUS,
+      MediaDescriptionCompat.STATUS_DOWNLOADED
+    )
     if (progress != null) {
       if (progress.isFinished) {
         extras.putInt(

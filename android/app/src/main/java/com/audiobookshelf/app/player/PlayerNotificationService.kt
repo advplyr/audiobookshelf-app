@@ -939,6 +939,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
             MediaBrowserCompat.MediaItem(mediaDescription, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE)
           } else {
             val progress = mediaManager.serverUserMediaProgress.find { it.libraryItemId == libraryItem.id }
+            val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItemByLId(libraryItem.id)
+            libraryItem.localLibraryItemId = localLibraryItem?.id
             val description = libraryItem.getMediaDescription(progress, ctx)
             MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
           }
@@ -975,6 +977,14 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
              progress = DeviceManager.dbManager.getLocalMediaProgress("${itemInProgress.libraryItemWrapper.id}-${itemInProgress.episode.id}")
            } else {
              progress = mediaManager.serverUserMediaProgress.find { it.libraryItemId == itemInProgress.libraryItemWrapper.id && it.episodeId == itemInProgress.episode.id }
+
+             // to show download icon
+             val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItemByLId(itemInProgress.libraryItemWrapper.id)
+             localLibraryItem?.let { lli ->
+               val localEpisode = (lli.media as Podcast).episodes?.find { it.serverEpisodeId == itemInProgress.episode.id }
+               itemInProgress.episode.localEpisodeId = localEpisode?.id
+             }
+
            }
           mediaDescription = itemInProgress.episode.getMediaDescription(itemInProgress.libraryItemWrapper, progress, ctx)
         } else {
@@ -982,6 +992,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
             progress = DeviceManager.dbManager.getLocalMediaProgress(itemInProgress.libraryItemWrapper.id)
           } else {
             progress = mediaManager.serverUserMediaProgress.find { it.libraryItemId == itemInProgress.libraryItemWrapper.id }
+
+            val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItemByLId(itemInProgress.libraryItemWrapper.id)
+            (itemInProgress.libraryItemWrapper as LibraryItem).localLibraryItemId = localLibraryItem?.id // To show downloaded icon
           }
           mediaDescription = itemInProgress.libraryItemWrapper.getMediaDescription(progress, ctx)
         }

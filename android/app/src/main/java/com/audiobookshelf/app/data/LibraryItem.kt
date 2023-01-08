@@ -30,7 +30,8 @@ class LibraryItem(
   var mediaType:String,
   var media:MediaType,
   var libraryFiles:MutableList<LibraryFile>?,
-  var userMediaProgress:MediaProgress? // Only included when requesting library item with progress (for downloads)
+  var userMediaProgress:MediaProgress?, // Only included when requesting library item with progress (for downloads)
+  var localLibraryItemId:String? // For Android Auto
 ) : LibraryItemWrapper(id) {
   @get:JsonIgnore
   val title get() = media.metadata.title
@@ -59,6 +60,13 @@ class LibraryItem(
   override fun getMediaDescription(progress:MediaProgressWrapper?, ctx: Context?): MediaDescriptionCompat {
     val extras = Bundle()
 
+    if (localLibraryItemId != null) {
+      extras.putLong(
+        MediaDescriptionCompat.EXTRA_DOWNLOAD_STATUS,
+        MediaDescriptionCompat.STATUS_DOWNLOADED
+      )
+    }
+
     if (progress != null) {
       if (progress.isFinished) {
         extras.putInt(
@@ -81,8 +89,9 @@ class LibraryItem(
       )
     }
 
+    val mediaId = localLibraryItemId ?: id
     return MediaDescriptionCompat.Builder()
-      .setMediaId(id)
+      .setMediaId(mediaId)
       .setTitle(title)
       .setIconUri(getCoverUri())
       .setSubtitle(authorName)

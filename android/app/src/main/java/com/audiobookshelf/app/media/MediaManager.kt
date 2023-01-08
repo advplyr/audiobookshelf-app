@@ -139,6 +139,7 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
 
                 val progress = DeviceManager.dbManager.getLocalMediaProgress("${libraryItemWrapper.id}-${podcastEpisode.id}")
                 val description = podcastEpisode.getMediaDescription(libraryItemWrapper, progress, ctx)
+
                 MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
               }
               children?.let { cb(children as MutableList) } ?: cb(mutableListOf())
@@ -157,6 +158,14 @@ class MediaManager(var apiHandler: ApiHandler, var ctx: Context) {
               val children = podcast.episodes?.map { podcastEpisode ->
 
                 val progress = serverUserMediaProgress.find { it.libraryItemId == libraryItemWrapper.id && it.episodeId == podcastEpisode.id }
+
+                // to show download icon
+                val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItemByLId(libraryItemWrapper.id)
+                localLibraryItem?.let { lli ->
+                  val localEpisode = (lli.media as Podcast).episodes?.find { it.serverEpisodeId == podcastEpisode.id }
+                  podcastEpisode.localEpisodeId = localEpisode?.id
+                }
+
                 val description = podcastEpisode.getMediaDescription(libraryItemWrapper, progress, ctx)
                 MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
               }
