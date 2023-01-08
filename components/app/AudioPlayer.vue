@@ -44,7 +44,7 @@
     </div>
 
     <div id="playerContent" class="playerContainer w-full z-20 bg-primary absolute bottom-0 left-0 right-0 p-2 pointer-events-auto transition-all" @click="clickContainer">
-      <div v-if="showFullscreen" class="absolute top-0 left-0 right-0 w-full py-3 mx-auto px-3" style="max-width: 380px">
+      <div v-if="showFullscreen" class="absolute bottom-4 left-0 right-0 w-full py-3 mx-auto px-3" style="max-width: 380px">
         <div class="flex items-center justify-between pointer-events-auto">
           <span v-if="!isPodcast && isServerItem && networkConnected" class="material-icons text-3xl text-white text-opacity-75 cursor-pointer" @click="$emit('showBookmarks')">{{ bookmarks.length ? 'bookmark' : 'bookmark_border' }}</span>
           <!-- hidden for podcasts but still using this as a placeholder -->
@@ -76,19 +76,19 @@
       </div>
 
       <div id="playerTrack" class="absolute left-0 w-full px-3">
+        <div id="timestamp-row" class="flex pb-0.5">
+          <p class="font-mono text-white text-opacity-90" style="font-size: 0.8rem" ref="currentTimestamp">0:00</p>
+          <div class="flex-grow" />
+          <p v-show="showFullscreen" class="text-sm truncate text-white text-opacity-75" style="max-width: 65%">{{ currentChapterTitle }}</p>
+          <div class="flex-grow" />
+          <p class="font-mono text-white text-opacity-90" style="font-size: 0.8rem">{{ timeRemainingPretty }}</p>
+        </div>
         <div ref="track" class="h-1.5 w-full bg-gray-500 bg-opacity-50 relative" :class="{ 'animate-pulse': isLoading }" @touchstart="touchstartTrack" @click="clickTrack">
           <div ref="readyTrack" class="h-full bg-gray-600 absolute top-0 left-0 pointer-events-none" />
           <div ref="bufferedTrack" class="h-full bg-gray-500 absolute top-0 left-0 pointer-events-none" />
           <div ref="playedTrack" class="h-full bg-gray-200 absolute top-0 left-0 pointer-events-none" />
           <div ref="draggingTrack" class="h-full bg-warning bg-opacity-25 absolute top-0 left-0 pointer-events-none" />
           <div ref="trackCursor" class="h-3.5 w-3.5 rounded-full bg-gray-200 absolute -top-1 pointer-events-none" :class="{ 'opacity-0': lockUi || !showFullscreen }" />
-        </div>
-        <div id="timestamp-row" class="flex pt-0.5">
-          <p class="font-mono text-white text-opacity-90" style="font-size: 0.8rem" ref="currentTimestamp">0:00</p>
-          <div class="flex-grow" />
-          <p v-show="showFullscreen" class="text-sm truncate text-white text-opacity-75" style="max-width: 65%">{{ currentChapterTitle }}</p>
-          <div class="flex-grow" />
-          <p class="font-mono text-white text-opacity-90" style="font-size: 0.8rem">{{ timeRemainingPretty }}</p>
         </div>
       </div>
     </div>
@@ -878,10 +878,11 @@ export default {
 #playerTrack {
   transition: all 0.15s cubic-bezier(0.39, 0.575, 0.565, 1);
   transition-property: margin;
-  bottom: 10px;
+  bottom: 20px;
 }
 .fullscreen #playerTrack {
-  bottom: 32px;
+  top: 20px;
+  bottom: unset;
 }
 
 .ios-player #timestamp-row {
@@ -987,7 +988,7 @@ export default {
 
 .fullscreen #playerControls {
   width: 100%;
-  bottom: 105px;
+  bottom: 94px;
 }
 .fullscreen #playerControls .jump-icon {
   margin: 0px 18px;
