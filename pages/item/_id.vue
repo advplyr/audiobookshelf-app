@@ -299,7 +299,7 @@ export default {
     },
     userTimeRemaining() {
       if (!this.userItemProgress) return 0
-      var duration = this.userItemProgress.duration || this.duration
+      const duration = this.userItemProgress.duration || this.duration
       return duration - this.userItemProgress.currentTime
     },
     progressPercent() {
@@ -315,6 +315,7 @@ export default {
       return this.isPlaying && !this.$store.state.playerIsLocal
     },
     isPlaying() {
+      if (this.localLibraryItemId && this.$store.getters['getIsItemStreaming'](this.localLibraryItemId)) return true
       return this.$store.getters['getIsItemStreaming'](this.libraryItemId)
     },
     numTracks() {
