@@ -9,8 +9,8 @@
       <p class="pl-4">Alternative bookshelf view</p>
     </div>
     <div class="flex items-center py-3" @click.stop="toggleLockOrientation">
-      <div class="w-10 flex justify-center">
-        <ui-toggle-switch v-model="lockCurrentOrientation" @input="saveSettings" />
+      <div class="w-10 flex justify-center pointer-events-none">
+        <ui-toggle-switch v-model="lockCurrentOrientation" />
       </div>
       <p class="pl-4">Lock orientation</p>
     </div>
@@ -148,7 +148,6 @@ export default {
     getCurrentOrientation() {
       const orientation = window.screen ? window.screen.orientation || {} : {}
       const type = orientation.type || ''
-      console.log('getCurrentOrientation=' + type)
 
       if (type.includes('landscape')) return 'LANDSCAPE'
       return 'PORTRAIT' // default
