@@ -402,7 +402,7 @@ export default {
     },
     async playClick() {
       let episodeId = null
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
 
       if (this.isPodcast) {
         this.episodes.sort((a, b) => {
@@ -456,7 +456,7 @@ export default {
       this.$eventBus.$emit('play-item', { libraryItemId: this.libraryItemId, episodeId })
     },
     async clearProgressClick() {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       const { value } = await Dialog.confirm({
         title: 'Confirm',
         message: 'Are you sure you want to reset your progress?'
@@ -509,7 +509,7 @@ export default {
       if (!this.numTracks) {
         return
       }
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       if (this.isIos) {
         // no local folders on iOS
         this.startDownload()
@@ -577,7 +577,7 @@ export default {
       }
     },
     async toggleFinished() {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       this.isProcessingReadUpdate = true
       if (this.isLocal) {
         var isFinished = !this.userIsFinished

@@ -237,12 +237,14 @@ public class AbsDatabase: CAPPlugin {
         let jumpBackwardsTime = call.getInt("jumpBackwardsTime") ?? 10
         let jumpForwardTime = call.getInt("jumpForwardTime") ?? 10
         let lockOrientation = call.getString("lockOrientation") ?? "NONE"
+        let hapticFeedback = call.getString("hapticFeedback") ?? "LIGHT"
         let settings = DeviceSettings()
         settings.disableAutoRewind = disableAutoRewind
         settings.enableAltView = enableAltView
         settings.jumpBackwardsTime = jumpBackwardsTime
         settings.jumpForwardTime = jumpForwardTime
         settings.lockOrientation = lockOrientation
+        settings.hapticFeedback = hapticFeedback
         
         Database.shared.setDeviceSettings(deviceSettings: settings)
         

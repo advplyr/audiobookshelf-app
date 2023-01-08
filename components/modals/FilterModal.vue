@@ -213,7 +213,7 @@ export default {
   },
   methods: {
     async clearSelected() {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       this.selected = 'all'
       this.show = false
       this.$nextTick(() => this.$emit('change', 'all'))
@@ -232,7 +232,7 @@ export default {
         this.show = false
         return
       }
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       this.selected = val
       this.show = false
       this.$nextTick(() => this.$emit('change', val))

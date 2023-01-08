@@ -212,7 +212,7 @@ class AbsDatabaseWeb extends WebPlugin {
   }
 
   async updateDeviceSettings(payload) {
-    var deviceData = await this.getDeviceData()
+    const deviceData = await this.getDeviceData()
     deviceData.deviceSettings = payload
     localStorage.setItem('device', JSON.stringify(deviceData))
     return deviceData

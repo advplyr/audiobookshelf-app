@@ -94,11 +94,16 @@ export default {
       }
       this.attemptingConnection = true
 
-      var deviceData = await this.$db.getDeviceData()
-      var serverConfig = null
-      if (deviceData && deviceData.lastServerConnectionConfigId && deviceData.serverConnectionConfigs.length) {
-        serverConfig = deviceData.serverConnectionConfigs.find((scc) => scc.id == deviceData.lastServerConnectionConfigId)
+      const deviceData = await this.$db.getDeviceData()
+      let serverConfig = null
+      if (deviceData) {
+        this.$store.commit('globals/setHapticFeedback', deviceData.hapticFeedback)
+
+        if (deviceData.lastServerConnectionConfigId && deviceData.serverConnectionConfigs.length) {
+          serverConfig = deviceData.serverConnectionConfigs.find((scc) => scc.id == deviceData.lastServerConnectionConfigId)
+        }
       }
+
       if (!serverConfig) {
         // No last server config set
         this.attemptingConnection = false
@@ -107,9 +112,9 @@ export default {
 
       console.log(`[default] Got server config, attempt authorize ${serverConfig.address}`)
 
-      var authRes = await this.$axios.$post(`${serverConfig.address}/api/authorize`, null, { headers: { Authorization: `Bearer ${serverConfig.token}` }, timeout: 3000 }).catch((error) => {
+      const authRes = await this.$axios.$post(`${serverConfig.address}/api/authorize`, null, { headers: { Authorization: `Bearer ${serverConfig.token}` }, timeout: 3000 }).catch((error) => {
         console.error('[Server] Server auth failed', error)
-        var errorMsg = error.response ? error.response.data || 'Unknown Error' : 'Unknown Error'
+        const errorMsg = error.response ? error.response.data || 'Unknown Error' : 'Unknown Error'
         this.error = errorMsg
         return false
       })
@@ -122,13 +127,13 @@ export default {
       this.$store.commit('setServerSettings', serverSettings)
 
       // Set library - Use last library if set and available fallback to default user library
-      var lastLibraryId = await this.$localStore.getLastLibraryId()
+      const lastLibraryId = await this.$localStore.getLastLibraryId()
       if (lastLibraryId && (!user.librariesAccessible.length || user.librariesAccessible.includes(lastLibraryId))) {
         this.$store.commit('libraries/setCurrentLibrary', lastLibraryId)
       } else if (userDefaultLibraryId) {
         this.$store.commit('libraries/setCurrentLibrary', userDefaultLibraryId)
       }
-      var serverConnectionConfig = await this.$db.setServerConnectionConfig(serverConfig)
+      const serverConnectionConfig = await this.$db.setServerConnectionConfig(serverConfig)
 
       this.$store.commit('user/setUser', user)
       this.$store.commit('user/setServerConnectionConfig', serverConnectionConfig)

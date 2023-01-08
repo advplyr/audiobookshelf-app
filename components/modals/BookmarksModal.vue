@@ -95,7 +95,7 @@ export default {
       this.showBookmarkTitleInput = true
     },
     async deleteBookmark(bm) {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       const { value } = await Dialog.confirm({
         title: 'Remove Bookmark',
         message: `Are you sure you want to remove bookmark?`
@@ -114,7 +114,7 @@ export default {
       this.show = false
     },
     async clickBookmark(bm) {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       this.$emit('select', bm)
     },
     submitUpdateBookmark(updatedBookmark) {
@@ -159,7 +159,7 @@ export default {
       this.showBookmarkTitleInput = true
     },
     async submitBookmark() {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       if (this.selectedBookmark) {
         var updatePayload = {
           ...this.selectedBookmark,

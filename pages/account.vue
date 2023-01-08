@@ -53,7 +53,7 @@ export default {
   },
   methods: {
     async logout() {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       if (this.user) {
         await this.$axios.$post('/logout').catch((error) => {
           console.error(error)

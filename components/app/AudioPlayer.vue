@@ -352,17 +352,17 @@ export default {
       }
     },
     async touchstartTrack(e) {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       if (!e || !e.touches || !this.$refs.track || !this.showFullscreen || this.lockUi) return
       this.touchTrackStart = true
     },
     async selectChapter(chapter) {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       this.seek(chapter.start)
       this.showChapterModal = false
     },
     async castClick() {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       if (this.isLocalPlayMethod) {
         this.$eventBus.$emit('cast-local-item')
         return
@@ -382,13 +382,13 @@ export default {
       this.forceCloseDropdownMenu()
     },
     async jumpNextChapter() {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       if (this.isLoading) return
       if (!this.nextChapter) return
       this.seek(this.nextChapter.start)
     },
     async jumpChapterStart() {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       if (this.isLoading) return
       if (!this.currentChapter) {
         return this.restart()
@@ -409,7 +409,7 @@ export default {
       this.$emit('showSleepTimer')
     },
     async setPlaybackSpeed(speed) {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       console.log(`[AudioPlayer] Set Playback Rate: ${speed}`)
       this.currentPlaybackRate = speed
       AbsAudioPlayer.setPlaybackSpeed({ value: speed })
@@ -418,12 +418,12 @@ export default {
       this.seek(0)
     },
     async jumpBackwards() {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       if (this.isLoading) return
       AbsAudioPlayer.seekBackward({ value: this.jumpBackwardsTime })
     },
     async jumpForward() {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       if (this.isLoading) return
       AbsAudioPlayer.seekForward({ value: this.jumpForwardTime })
     },
@@ -563,7 +563,7 @@ export default {
       this.seek(time)
     },
     async playPauseClick() {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       if (this.isLoading) return
 
       this.isPlaying = !!((await AbsAudioPlayer.playPause()) || {}).playing
@@ -667,7 +667,7 @@ export default {
       }
     },
     async clickMenuAction(action) {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       this.showMoreMenuDialog = false
       this.$nextTick(() => {
         if (action === 'lock') {

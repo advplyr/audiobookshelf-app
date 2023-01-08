@@ -35,7 +35,8 @@ export const state = () => ({
   ],
   libraryIcons: ['database', 'audiobookshelf', 'books-1', 'books-2', 'book-1', 'microphone-1', 'microphone-3', 'radio', 'podcast', 'rss', 'headphones', 'music', 'file-picture', 'rocket', 'power', 'star', 'heart'],
   selectedPlaylistItems: [],
-  showPlaylistsAddCreateModal: false
+  showPlaylistsAddCreateModal: false,
+  hapticFeedback: 'LIGHT'
 })
 
 export const getters = {
@@ -144,5 +145,8 @@ export const mutations = {
   },
   setShowPlaylistsAddCreateModal(state, val) {
     state.showPlaylistsAddCreateModal = val
+  },
+  setHapticFeedback(state, val) {
+    state.hapticFeedback = val || 'LIGHT'
   }
 }

@@ -407,7 +407,7 @@ export default {
         e.preventDefault()
         this.selectBtnClick()
       } else if (this.recentEpisode) {
-        await this.$hapticsImpactMedium()
+        await this.$hapticsImpact()
         var eventBus = this.$eventBus || this.$nuxt.$eventBus
         if (this.streamIsPlaying) {
           eventBus.$emit('pause-item')

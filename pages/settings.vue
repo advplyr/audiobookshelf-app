@@ -1,6 +1,7 @@
 <template>
   <div class="w-full h-full p-8">
-    <p class="uppercase text-xs font-semibold text-gray-300 mb-2">Display Settings</p>
+    <!-- Display settings -->
+    <p class="uppercase text-xs font-semibold text-gray-300 mb-2">User Interface Settings</p>
     <div class="flex items-center py-3" @click="toggleEnableAltView">
       <div class="w-10 flex justify-center">
         <ui-toggle-switch v-model="settings.enableAltView" @input="saveSettings" />
@@ -13,7 +14,12 @@
       </div>
       <p class="pl-4">Lock orientation</p>
     </div>
+    <div class="py-3 flex items-center">
+      <p class="pr-4">Haptic feedback</p>
+      <ui-dropdown v-model="settings.hapticFeedback" :items="hapticFeedbackItems" style="max-width: 105px" @input="hapticFeedbackUpdated" />
+    </div>
 
+    <!-- Playback settings -->
     <p class="uppercase text-xs font-semibold text-gray-300 mb-2 mt-6">Playback Settings</p>
     <div v-if="!isiOS" class="flex items-center py-3" @click="toggleDisableAutoRewind">
       <div class="w-10 flex justify-center">
@@ -34,6 +40,7 @@
       <p class="pl-4">Jump forwards time</p>
     </div>
 
+    <!-- Sleep timer settings -->
     <p v-if="!isiOS" class="uppercase text-xs font-semibold text-gray-300 mb-2 mt-6">Sleep Timer Settings</p>
     <div v-if="!isiOS" class="flex items-center py-3" @click="toggleDisableShakeToResetSleepTimer">
       <div class="w-10 flex justify-center">
@@ -58,7 +65,8 @@ export default {
         jumpForwardTime: 10,
         jumpBackwardsTime: 10,
         disableShakeToResetSleepTimer: false,
-        lockOrientation: 0
+        lockOrientation: 0,
+        hapticFeedback: 'LIGHT'
       },
       settingInfo: {
         disableShakeToResetSleepTimer: {
@@ -66,7 +74,25 @@ export default {
           message: 'The sleep timer will start fading out when 30s is remaining. Shaking your device will reset the timer if it is within 30s OR has finished less than 2 mintues ago. Enable this setting to disable that feature.'
         }
       },
-      lockCurrentOrientation: false
+      lockCurrentOrientation: false,
+      hapticFeedbackItems: [
+        {
+          text: 'Off',
+          value: 'OFF'
+        },
+        {
+          text: 'Light',
+          value: 'LIGHT'
+        },
+        {
+          text: 'Medium',
+          value: 'MEDIUM'
+        },
+        {
+          text: 'Heavy',
+          value: 'HEAVY'
+        }
+      ]
     }
   },
   computed: {
@@ -95,6 +121,10 @@ export default {
     }
   },
   methods: {
+    hapticFeedbackUpdated(val) {
+      this.$store.commit('globals/setHapticFeedback', val)
+      this.saveSettings()
+    },
     showInfo(setting) {
       if (this.settingInfo[setting]) {
         Dialog.alert({
@@ -124,17 +154,13 @@ export default {
       return 'PORTRAIT' // default
     },
     toggleLockOrientation() {
-      console.log('TOGGLE LOCK ORIENTATION', this.lockCurrentOrientation)
       this.lockCurrentOrientation = !this.lockCurrentOrientation
       if (this.lockCurrentOrientation) {
-        console.log('CURRENT ORIENTATION=', this.getCurrentOrientation())
         this.settings.lockOrientation = this.getCurrentOrientation()
       } else {
-        console.log('SETTING CURRENT ORIENTATION TO NONE')
         this.settings.lockOrientation = 'NONE'
       }
       this.$setOrientationLock(this.settings.lockOrientation)
-      console.log('NOW SAVING SETTINGS', this.settings.lockOrientation)
       this.saveSettings()
     },
     toggleJumpForward() {
@@ -149,7 +175,7 @@ export default {
       this.saveSettings()
     },
     async saveSettings() {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       const updatedDeviceData = await this.$db.updateDeviceSettings({ ...this.settings })
       console.log('Saved device data', updatedDeviceData)
       if (updatedDeviceData) {
@@ -168,9 +194,8 @@ export default {
       this.settings.jumpBackwardsTime = deviceSettings.jumpBackwardsTime || 10
       this.settings.disableShakeToResetSleepTimer = !!deviceSettings.disableShakeToResetSleepTimer
       this.settings.lockOrientation = deviceSettings.lockOrientation || 'NONE'
-
-      console.log('INIT SETTINGS LOCK ORIENTATION=', this.settings.lockOrientation)
       this.lockCurrentOrientation = this.settings.lockOrientation !== 'NONE'
+      this.settings.hapticFeedback = deviceSettings.hapticFeedback || 'LIGHT'
     }
   },
   mounted() {

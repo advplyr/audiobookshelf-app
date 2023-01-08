@@ -11,6 +11,10 @@ enum class LockOrientationSetting {
   NONE, PORTRAIT, LANDSCAPE
 }
 
+enum class HapticFeedbackSetting {
+  OFF, LIGHT, MEDIUM, HEAVY
+}
+
 data class ServerConnectionConfig(
   var id:String,
   var index:Int,
@@ -28,7 +32,8 @@ data class DeviceSettings(
   var jumpBackwardsTime:Int,
   var jumpForwardTime:Int,
   var disableShakeToResetSleepTimer:Boolean,
-  var lockOrientation:LockOrientationSetting
+  var lockOrientation:LockOrientationSetting,
+  var hapticFeedback: HapticFeedbackSetting
 ) {
   companion object {
     // Static method to get default device settings
@@ -39,7 +44,8 @@ data class DeviceSettings(
         jumpBackwardsTime = 10,
         jumpForwardTime = 10,
         disableShakeToResetSleepTimer = false,
-        lockOrientation = LockOrientationSetting.NONE
+        lockOrientation = LockOrientationSetting.NONE,
+        hapticFeedback = HapticFeedbackSetting.LIGHT
       )
     }
   }

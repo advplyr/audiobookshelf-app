@@ -14,6 +14,7 @@ class DeviceSettings: Object {
     @Persisted var jumpBackwardsTime: Int = 10
     @Persisted var jumpForwardTime: Int = 10
     @Persisted var lockOrientation: String = "NONE"
+    @Persisted var hapticFeedback: String = "LIGHT"
 }
 
 func getDefaultDeviceSettings() -> DeviceSettings {
@@ -26,6 +27,7 @@ func deviceSettingsToJSON(settings: DeviceSettings) -> Dictionary<String, Any> {
         "enableAltView": settings.enableAltView,
         "jumpBackwardsTime": settings.jumpBackwardsTime,
         "jumpForwardTime": settings.jumpForwardTime,
-        "lockOrientation": settings.lockOrientation
+        "lockOrientation": settings.lockOrientation,
+        "hapticFeedback": settings.hapticFeedback
     ]
 }

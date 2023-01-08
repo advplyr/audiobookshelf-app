@@ -4,7 +4,7 @@ import { Haptics, ImpactStyle, NotificationType } from "@capacitor/haptics"
 const hapticsImpactHeavy = async () => {
   await Haptics.impact({ style: ImpactStyle.Heavy })
 }
-Vue.prototype.$hapticsImpactHeavy = hapticsImpactHeavy;
+Vue.prototype.$hapticsImpactHeavy = hapticsImpactHeavy
 
 const hapticsImpactMedium = async () => {
   await Haptics.impact({ style: ImpactStyle.Medium })
@@ -19,7 +19,7 @@ Vue.prototype.$hapticsImpactLight = hapticsImpactLight
 const hapticsVibrate = async () => {
   await Haptics.vibrate()
 }
-Vue.prototype.$hapticsVibrate = hapticsVibrate;
+Vue.prototype.$hapticsVibrate = hapticsVibrate
 
 const hapticsNotificationSuccess = async () => {
   await Haptics.notification({ type: NotificationType.Success })
@@ -50,3 +50,13 @@ const hapticsSelectionEnd = async () => {
   await Haptics.selectionEnd()
 }
 Vue.prototype.$hapticsSelectionEnd = hapticsSelectionEnd
+
+export default ({ store }, inject) => {
+  inject('hapticsImpact', () => {
+    const hapticFeedback = store.state.globals.hapticFeedback
+    if (hapticFeedback === 'OFF') return
+    if (hapticFeedback === 'LIGHT') return hapticsImpactLight()
+    if (hapticFeedback === 'MEDIUM') return hapticsImpactMedium()
+    return hapticsImpactHeavy()
+  })
+}

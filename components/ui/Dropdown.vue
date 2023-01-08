@@ -61,7 +61,7 @@ export default {
       return this.selectedItem ? this.selectedItem.text : ''
     },
     buttonClass() {
-      var classes = []
+      const classes = []
       if (this.small) classes.push('h-9')
       else classes.push('h-10')
 

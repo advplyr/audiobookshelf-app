@@ -115,7 +115,7 @@ export default {
         })
     },
     async clickPlaylist(playlist) {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       if (playlist.isItemIncluded) {
         this.removeFromPlaylist(playlist)
       } else {
@@ -165,7 +165,7 @@ export default {
       this.showPlaylistNameInput = true
     },
     async submitCreatePlaylist() {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       if (!this.newPlaylistName || !this.selectedPlaylistItems.length) {
         return
       }

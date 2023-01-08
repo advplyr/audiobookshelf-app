@@ -256,7 +256,7 @@ export default {
       this.showDialog = true
     },
     async play() {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       this.$eventBus.$emit('play-item', { libraryItemId: this.localLibraryItemId })
     },
     getCapImageSrc(contentUrl) {
@@ -264,7 +264,7 @@ export default {
     },
     async dialogAction(action) {
       console.log('Dialog action', action)
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       if (action == 'scan') {
         this.scanItem()
       } else if (action == 'rescan') {

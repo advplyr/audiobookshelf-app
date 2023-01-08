@@ -90,36 +90,36 @@ export default {
   },
   methods: {
     async clickedChapterOption() {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       this.show = false
       this.$nextTick(() => this.$emit('change', { time: this.currentEndOfChapterTime * 1000, isChapterTime: true }))
     },
     async clickedOption(timeoutMin) {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       var timeout = timeoutMin * 1000 * 60
       this.show = false
       this.manualTimerModal = false
       this.$nextTick(() => this.$emit('change', { time: timeout, isChapterTime: false }))
     },
     async cancelSleepTimer() {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       this.$emit('cancel')
       this.show = false
     },
     async increaseSleepTime() {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       this.$emit('increase')
     },
     async decreaseSleepTime() {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       this.$emit('decrease')
     },
     async increaseManualTimeout() {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       this.manualTimeoutMin++
     },
     async decreaseManualTimeout() {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       if (this.manualTimeoutMin > 1) this.manualTimeoutMin--
     }
   },
