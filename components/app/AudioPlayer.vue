@@ -132,6 +132,7 @@ export default {
   data() {
     return {
       windowHeight: 0,
+      windowWidth: 0,
       playbackSession: null,
       showChapterModal: false,
       showFullscreen: false,
@@ -213,11 +214,19 @@ export default {
       return 46 / this.bookCoverAspectRatio
     },
     fullscreenBookCoverWidth() {
-      var heightScale = (this.windowHeight - 200) / 651
-      if (this.bookCoverAspectRatio === 1) {
-        return 260 * heightScale
+      if (this.windowWidth < this.windowHeight) {
+        // Portrait
+        let sideSpace = 20
+        if (this.bookCoverAspectRatio === 1.6) sideSpace += (this.windowWidth - sideSpace) * 0.375
+        return this.windowWidth - sideSpace
+      } else {
+        // Landscape
+        const heightScale = (this.windowHeight - 200) / 651
+        if (this.bookCoverAspectRatio === 1) {
+          return 260 * heightScale
+        }
+        return 190 * heightScale
       }
-      return 200 * heightScale
     },
     showCastBtn() {
       return this.$store.state.isCastAvailable
@@ -775,6 +784,7 @@ export default {
     },
     updateScreenSize() {
       this.windowHeight = window.innerHeight
+      this.windowWidth = window.innerWidth
       const coverHeight = this.fullscreenBookCoverWidth * this.bookCoverAspectRatio
       document.documentElement.style.setProperty('--cover-image-width', this.fullscreenBookCoverWidth + 'px')
       document.documentElement.style.setProperty('--cover-image-height', coverHeight + 'px')
