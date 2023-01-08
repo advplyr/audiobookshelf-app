@@ -35,33 +35,32 @@
     <p v-if="isLocal && serverLibraryItemId" style="font-size: 10px" class="text-success py-1 uppercase tracking-widest">connected</p>
     <p v-else-if="isLocal && libraryItem.serverAddress" style="font-size: 10px" class="text-gray-400 py-1">{{ libraryItem.serverAddress }}</p>
 
-    <div v-if="narrators && narrators.length" class="flex py-0.5 mt-4">
-      <div class="w-24">
-        <span class="text-white text-opacity-60 uppercase text-xs">Narrators</span>
+    <!-- metadata -->
+    <div class="grid gap-2 my-4" style="grid-template-columns: max-content auto;">
+      <div v-if="narrators.length" class="text-white text-opacity-60 uppercase text-sm">
+        Narrators
       </div>
-      <div class="max-w-[calc(100vw-10rem)] overflow-hidden overflow-ellipsis text-sm">
+      <div v-if="narrators.length" class="truncate text-sm">
         <template v-for="(narrator, index) in narrators">
           <nuxt-link :key="narrator" :to="`/bookshelf/library?filter=narrators.${$encode(narrator)}`">{{ narrator }}</nuxt-link
-          ><span :key="index" v-if="index < narrators.length - 1">,&nbsp;</span>
+          ><span :key="index" v-if="index < narrators.length - 1">, </span>
         </template>
       </div>
-    </div>
-    <div v-if="publishedYear" class="flex py-0.5">
-      <div class="w-24">
-        <span class="text-white text-opacity-60 uppercase text-xs">Publish Year</span>
+
+      <div v-if="publishedYear" class="text-white text-opacity-60 uppercase text-sm">
+        Published
       </div>
-      <div class="text-sm">
+      <div v-if="publishedYear" class="text-sm">
         {{ publishedYear }}
       </div>
-    </div>
-    <div class="flex py-0.5" v-if="genres.length">
-      <div class="w-24">
-        <span class="text-white text-opacity-60 uppercase text-xs">Genres</span>
+
+      <div v-if="genres.length" class="text-white text-opacity-60 uppercase text-sm">
+        Genres
       </div>
-      <div class="max-w-[calc(100vw-10rem)] overflow-hidden overflow-ellipsis text-sm">
+      <div v-if="genres.length" class="truncate text-sm">
         <template v-for="(genre, index) in genres">
           <nuxt-link :key="genre" :to="`/bookshelf/library?filter=genres.${$encode(genre)}`" class="hover:underline">{{ genre }}</nuxt-link
-          ><span :key="index" v-if="index < genres.length - 1">,&nbsp;</span>
+          ><span :key="index" v-if="index < genres.length - 1">, </span>
         </template>
       </div>
     </div>
