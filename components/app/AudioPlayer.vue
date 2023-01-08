@@ -29,7 +29,7 @@
     </div>
 
     <div class="cover-wrapper absolute z-30 pointer-events-auto" @click="clickContainer">
-      <div class="cover-container bookCoverWrapper bg-black bg-opacity-75 w-full h-full">
+      <div class="cover-container bookCoverWrapper w-full h-full flex justify-center">
         <covers-book-cover v-if="libraryItem || localLibraryItemCoverSrc" :library-item="libraryItem" :download-cover="localLibraryItemCoverSrc" :width="bookCoverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" />
       </div>
 
@@ -170,6 +170,9 @@ export default {
     showFullscreen(val) {
       this.updateScreenSize()
       this.$store.commit('setPlayerFullscreen', !!val)
+    },
+    bookCoverAspectRatio() {
+      this.updateScreenSize()
     }
   },
   computed: {
@@ -786,8 +789,12 @@ export default {
       this.windowHeight = window.innerHeight
       this.windowWidth = window.innerWidth
       const coverHeight = this.fullscreenBookCoverWidth * this.bookCoverAspectRatio
+      const coverImageWidthCollapsed = 46 / this.bookCoverAspectRatio
       document.documentElement.style.setProperty('--cover-image-width', this.fullscreenBookCoverWidth + 'px')
       document.documentElement.style.setProperty('--cover-image-height', coverHeight + 'px')
+      document.documentElement.style.setProperty('--cover-image-width-collapsed', coverImageWidthCollapsed + 'px')
+      document.documentElement.style.setProperty('--cover-image-height-collapsed', 46 + 'px')
+      document.documentElement.style.setProperty('--title-author-left-offset-collapsed', 24 + coverImageWidthCollapsed + 'px')
     },
     minimizePlayerEvt() {
       this.showFullscreen = false
@@ -853,6 +860,7 @@ export default {
   --cover-image-height: 0px;
   --cover-image-width-collapsed: 46px;
   --cover-image-height-collapsed: 46px;
+  --title-author-left-offset-collapsed: 70px;
 }
 .bookCoverWrapper {
   box-shadow: 3px -2px 5px #00000066;
@@ -904,7 +912,7 @@ export default {
 
   width: 40%;
   bottom: 56px;
-  left: 70px;
+  left: var(--title-author-left-offset-collapsed);
   text-align: left;
 }
 .title-author-texts .title-text {
