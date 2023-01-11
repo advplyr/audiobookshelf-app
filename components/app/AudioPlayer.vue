@@ -1,14 +1,16 @@
 <template>
-  <div v-if="playbackSession" id="streamContainer" class="playerContainer fixed top-0 left-0 layout-wrapper right-0 z-50 pointer-events-none" :class="{ fullscreen: showFullscreen, 'ios-player': $platform === 'ios', 'web-player': $platform === 'web' }">
-    <div v-if="showFullscreen" class="w-full h-full z-10 bg-bg absolute top-0 left-0 pointer-events-auto">
+  <div v-if="playbackSession" id="streamContainer" class="fixed top-0 left-0 layout-wrapper right-0 z-50 pointer-events-none" :class="{ fullscreen: showFullscreen, 'ios-player': $platform === 'ios', 'web-player': $platform === 'web' }">
+    <div v-if="showFullscreen" class="w-full h-full z-10 absolute top-0 left-0 pointer-events-auto" :style="{ backgroundColor: coverRgb }">
+      <div class="w-full h-full absolute top-0 left-0 pointer-events-none" style="background: linear-gradient(169deg, rgba(0, 0, 0, 0) 0%, rgba(38, 38, 38, 1) 80%)" />
+
       <div class="top-4 left-4 absolute cursor-pointer">
-        <span class="material-icons text-5xl" @click="collapseFullscreen">expand_more</span>
+        <span class="material-icons text-5xl" :class="{ 'text-black text-opacity-75': coverBgIsLight }" @click="collapseFullscreen">expand_more</span>
       </div>
       <div v-show="showCastBtn" class="top-6 right-16 absolute cursor-pointer">
-        <span class="material-icons text-3xl" :class="isCasting ? 'text-success' : ''" @click="castClick">cast</span>
+        <span class="material-icons text-3xl" :class="isCasting ? (coverBgIsLight ? 'text-successDark' : 'text-success') : coverBgIsLight ? 'text-black' : ''" @click="castClick">cast</span>
       </div>
       <div class="top-6 right-4 absolute cursor-pointer">
-        <span class="material-icons text-3xl" @click="showMoreMenuDialog = true">more_vert</span>
+        <span class="material-icons text-3xl" :class="{ 'text-black text-opacity-75': coverBgIsLight }" @click="showMoreMenuDialog = true">more_vert</span>
       </div>
       <p class="top-4 absolute left-0 right-0 mx-auto text-center uppercase tracking-widest text-opacity-75" style="font-size: 10px" :class="{ 'text-success': isLocalPlayMethod, 'text-accent': !isLocalPlayMethod }">{{ isDirectPlayMethod ? 'Direct' : isLocalPlayMethod ? 'Local' : 'Transcode' }}</p>
     </div>
@@ -29,8 +31,8 @@
     </div>
 
     <div class="cover-wrapper absolute z-30 pointer-events-auto" @click="clickContainer">
-      <div class="cover-container bookCoverWrapper w-full h-full flex justify-center">
-        <covers-book-cover v-if="libraryItem || localLibraryItemCoverSrc" :library-item="libraryItem" :download-cover="localLibraryItemCoverSrc" :width="bookCoverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" />
+      <div class="w-full h-full flex justify-center">
+        <covers-book-cover v-if="libraryItem || localLibraryItemCoverSrc" ref="cover" :library-item="libraryItem" :download-cover="localLibraryItemCoverSrc" :width="bookCoverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" @imageLoaded="coverImageLoaded" />
       </div>
 
       <div v-if="syncStatus === $constants.SyncStatus.FAILED" class="absolute top-0 left-0 w-full h-full flex items-center justify-center z-30">
@@ -43,7 +45,7 @@
       <p class="author-text text-white text-opacity-75 truncate">by {{ authorName }}</p>
     </div>
 
-    <div id="playerContent" class="playerContainer w-full z-20 bg-primary absolute bottom-0 left-0 right-0 p-2 pointer-events-auto transition-all" @click="clickContainer">
+    <div id="playerContent" class="playerContainer w-full z-20 absolute bottom-0 left-0 right-0 p-2 pointer-events-auto transition-all" :style="{ backgroundColor: showFullscreen ? '' : coverRgb }" @click="clickContainer">
       <div v-if="showFullscreen" class="absolute bottom-4 left-0 right-0 w-full py-3 mx-auto px-3" style="max-width: 380px">
         <div class="flex items-center justify-between pointer-events-auto">
           <span v-if="!isPodcast && isServerItem && networkConnected" class="material-icons text-3xl text-white text-opacity-75 cursor-pointer" @click="$emit('showBookmarks')">{{ bookmarks.length ? 'bookmark' : 'bookmark_border' }}</span>
@@ -61,6 +63,7 @@
           <span class="material-icons text-3xl text-white cursor-pointer" :class="chapters.length ? 'text-opacity-75' : 'text-opacity-10'" @click="showChapterModal = true">format_list_bulleted</span>
         </div>
       </div>
+      <div v-else class="w-full h-full absolute top-0 left-0 pointer-events-none" style="background: linear-gradient(145deg, rgba(38, 38, 38, 0.5) 0%, rgba(38, 38, 38, 0.9) 20%, rgb(38, 38, 38) 60%)" />
 
       <div id="playerControls" class="absolute right-0 bottom-0 py-2">
         <div class="flex items-center justify-center">
@@ -118,6 +121,7 @@
 <script>
 import { Capacitor } from '@capacitor/core'
 import { AbsAudioPlayer } from '@/plugins/capacitor'
+import { FastAverageColor } from 'fast-average-color'
 
 export default {
   props: {
@@ -163,7 +167,9 @@ export default {
       touchTrackStart: false,
       dragPercent: 0,
       syncStatus: 0,
-      showMoreMenuDialog: false
+      showMoreMenuDialog: false,
+      coverRgb: 'rgb(55, 56, 56)',
+      coverBgIsLight: false
     }
   },
   watch: {
@@ -176,6 +182,10 @@ export default {
     }
   },
   computed: {
+    bgColor() {
+      if (!this.coverRgb) return 'rgb(55, 56, 56)'
+      return `rgb(${this.coverRgb.r},${this.coverRgb.g},${this.coverRgb.b})`
+    },
     menuItems() {
       var items = [
         {
@@ -343,6 +353,20 @@ export default {
     }
   },
   methods: {
+    async coverImageLoaded(fullCoverUrl) {
+      if (!fullCoverUrl) return
+
+      const fac = new FastAverageColor()
+      fac
+        .getColorAsync(fullCoverUrl)
+        .then((color) => {
+          this.coverRgb = color.rgba
+          this.coverBgIsLight = color.isLight
+        })
+        .catch((e) => {
+          console.log(e)
+        })
+    },
     clickTitleAndAuthor() {
       if (!this.showFullscreen) return
       const llid = this.libraryItem ? this.libraryItem.id : this.localLibraryItem ? this.localLibraryItem.id : null
@@ -862,9 +886,7 @@ export default {
   --cover-image-height-collapsed: 46px;
   --title-author-left-offset-collapsed: 70px;
 }
-.bookCoverWrapper {
-  box-shadow: 3px -2px 5px #00000066;
-}
+
 .playerContainer {
   height: 100px;
 }
@@ -873,6 +895,9 @@ export default {
 }
 #playerContent {
   box-shadow: 0px -8px 8px #11111155;
+}
+.fullscreen #playerContent {
+  box-shadow: none;
 }
 
 #playerTrack {
