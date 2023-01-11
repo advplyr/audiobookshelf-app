@@ -36,27 +36,21 @@
     <p v-else-if="isLocal && libraryItem.serverAddress" style="font-size: 10px" class="text-gray-400 py-1">{{ libraryItem.serverAddress }}</p>
 
     <!-- metadata -->
-    <div class="grid gap-2 my-4" style="grid-template-columns: max-content auto;">
-      <div v-if="narrators.length" class="text-white text-opacity-60 uppercase text-sm">
-        Narrators
-      </div>
-      <div v-if="narrators.length" class="truncate text-sm">
+    <div class="grid gap-2 my-4" style="grid-template-columns: max-content auto">
+      <div v-if="narrators && narrators.length" class="text-white text-opacity-60 uppercase text-sm">Narrators</div>
+      <div v-if="narrators && narrators.length" class="truncate text-sm">
         <template v-for="(narrator, index) in narrators">
           <nuxt-link :key="narrator" :to="`/bookshelf/library?filter=narrators.${$encode(narrator)}`">{{ narrator }}</nuxt-link
           ><span :key="index" v-if="index < narrators.length - 1">, </span>
         </template>
       </div>
 
-      <div v-if="publishedYear" class="text-white text-opacity-60 uppercase text-sm">
-        Published
-      </div>
+      <div v-if="publishedYear" class="text-white text-opacity-60 uppercase text-sm">Published</div>
       <div v-if="publishedYear" class="text-sm">
         {{ publishedYear }}
       </div>
 
-      <div v-if="genres.length" class="text-white text-opacity-60 uppercase text-sm">
-        Genres
-      </div>
+      <div v-if="genres.length" class="text-white text-opacity-60 uppercase text-sm">Genres</div>
       <div v-if="genres.length" class="truncate text-sm">
         <template v-for="(genre, index) in genres">
           <nuxt-link :key="genre" :to="`/bookshelf/library?filter=genres.${$encode(genre)}`" class="hover:underline">{{ genre }}</nuxt-link
