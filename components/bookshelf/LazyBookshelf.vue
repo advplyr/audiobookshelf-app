@@ -395,6 +395,11 @@ export default {
       }
     },
     libraryChanged() {
+      if (this.currentLibraryMediaType !== 'book' && (this.page === 'series' || this.page === 'collections' || this.page === 'series-books')) {
+        this.$router.replace('/bookshelf')
+        return
+      }
+
       if (this.hasFilter) {
         this.clearFilter()
       } else {

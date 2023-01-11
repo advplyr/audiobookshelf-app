@@ -131,9 +131,20 @@ export default {
       this.selectedPodcast = podcast
       this.showSelectedFeed = true
       console.log('Got podcast feed', payload.podcast)
+    },
+    libraryChanged() {
+      const libraryMediaType = this.$store.getters['libraries/getCurrentLibraryMediaType']
+      if (libraryMediaType !== 'podcast') {
+        this.$router.replace('/bookshelf')
+      }
     }
   },
-  mounted() {}
+  mounted() {
+    this.$eventBus.$on('library-changed', this.libraryChanged)
+  },
+  beforeDestroy() {
+    this.$eventBus.$off('library-changed', this.libraryChanged)
+  }
 }
 </script>
 
