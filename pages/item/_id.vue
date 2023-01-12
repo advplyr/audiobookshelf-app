@@ -7,11 +7,11 @@
     <div class="z-10 relative">
       <div class="w-full flex justify-center relative mb-2">
         <div class="relative" @click="showFullscreenCover = true">
-          <covers-book-cover :library-item="libraryItem" :width="175" :book-cover-aspect-ratio="bookCoverAspectRatio" @imageLoaded="coverImageLoaded" />
-          <div v-if="!isPodcast" class="absolute bottom-0 left-0 h-1 shadow-sm z-10" :class="userIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: 175 * progressPercent + 'px' }"></div>
+          <covers-book-cover :library-item="libraryItem" :width="coverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" @imageLoaded="coverImageLoaded" />
+          <div v-if="!isPodcast" class="absolute bottom-0 left-0 h-1 shadow-sm z-10" :class="userIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: coverWidth * progressPercent + 'px' }"></div>
         </div>
 
-        <button class="absolute top-0 right-0 px-1 outline-none" @click="moreButtonPress">
+        <button class="absolute top-0 right-0 px-1 outline-none z-20" @click="moreButtonPress">
           <span class="material-icons text-xl">more_vert</span>
         </button>
       </div>
@@ -183,7 +183,8 @@ export default {
       showDetailsModal: false,
       showFullscreenCover: false,
       coverRgb: 'rgb(55, 56, 56)',
-      coverBgIsLight: false
+      coverBgIsLight: false,
+      windowWidth: 0
     }
   },
   computed: {
@@ -382,6 +383,14 @@ export default {
       }
 
       return items
+    },
+    coverWidth() {
+      let width = this.windowWidth - 94
+      if (width > 325) return 325
+      else if (width < 0) return 175
+
+      if (width * this.bookCoverAspectRatio > 325) width = 325 / this.bookCoverAspectRatio
+      return width
     }
   },
   methods: {
@@ -641,14 +650,20 @@ export default {
       if (this.libraryItem.libraryId !== libraryId) {
         this.$router.replace('/bookshelf')
       }
+    },
+    windowResized() {
+      this.windowWidth = window.innerWidth
     }
   },
   mounted() {
+    this.windowWidth = window.innerWidth
+    window.addEventListener('resize', this.windowResized)
     this.$eventBus.$on('library-changed', this.libraryChanged)
     this.$eventBus.$on('new-local-library-item', this.newLocalLibraryItem)
     this.$socket.$on('item_updated', this.itemUpdated)
   },
   beforeDestroy() {
+    window.removeEventListener('resize', this.windowResized)
     this.$eventBus.$off('library-changed', this.libraryChanged)
     this.$eventBus.$off('new-local-library-item', this.newLocalLibraryItem)
     this.$socket.$off('item_updated', this.itemUpdated)
