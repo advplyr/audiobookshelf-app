@@ -1,140 +1,147 @@
 <template>
-  <div class="w-full h-full px-3 py-4 overflow-y-auto">
-    <div class="w-full flex justify-center relative mb-2">
-      <div class="relative" @click="showFullscreenCover = true">
-        <covers-book-cover :library-item="libraryItem" :width="175" :book-cover-aspect-ratio="bookCoverAspectRatio" />
-        <div v-if="!isPodcast" class="absolute bottom-0 left-0 h-1 shadow-sm z-10" :class="userIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: 175 * progressPercent + 'px' }"></div>
-      </div>
-
-      <button class="absolute top-0 right-0 px-1 outline-none" @click="moreButtonPress">
-        <span class="material-icons text-xl">more_vert</span>
-      </button>
+  <div class="w-full h-full px-3 py-4 overflow-y-auto relative bg-bg">
+    <div class="absolute top-0 left-0 w-full h-full pointer-events-none z-0" :style="{ backgroundColor: coverRgb }">
+      <div class="w-full h-full absolute top-0 left-0" style="background: linear-gradient(169deg, rgba(0, 0, 0, 0.4) 0%, rgba(55, 56, 56, 1) 80%)" />
     </div>
 
-    <h1 class="text-lg font-semibold">{{ title }}</h1>
+    <div class="z-10 relative">
+      <div class="w-full flex justify-center relative mb-2">
+        <div class="relative" @click="showFullscreenCover = true">
+          <covers-book-cover :library-item="libraryItem" :width="175" :book-cover-aspect-ratio="bookCoverAspectRatio" @imageLoaded="coverImageLoaded" />
+          <div v-if="!isPodcast" class="absolute bottom-0 left-0 h-1 shadow-sm z-10" :class="userIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: 175 * progressPercent + 'px' }"></div>
+        </div>
 
-    <p v-if="subtitle" class="text-gray-100 text-sm py-0.5 mb-0.5">{{ subtitle }}</p>
-
-    <p v-if="seriesList && seriesList.length" class="text-sm text-gray-300 py-0.5">
-      <template v-for="(series, index) in seriesList"
-        ><nuxt-link :key="series.id" :to="`/bookshelf/series/${series.id}`">{{ series.text }}</nuxt-link
-        ><span :key="`${series.id}-comma`" v-if="index < seriesList.length - 1">,&nbsp;</span></template
-      >
-    </p>
-
-    <p v-if="podcastAuthor" class="text-sm text-gray-300 py-0.5">by {{ podcastAuthor }}</p>
-    <p v-else-if="bookAuthors && bookAuthors.length" class="text-sm text-gray-300 py-0.5">
-      by
-      <template v-for="(author, index) in bookAuthors"
-        ><nuxt-link :key="author.id" :to="`/bookshelf/library?filter=authors.${$encode(author.id)}`">{{ author.name }}</nuxt-link
-        ><span :key="`${author.id}-comma`" v-if="index < bookAuthors.length - 1">,&nbsp;</span></template
-      >
-    </p>
-
-    <!-- Show an indicator for local library items whether they are linked to a server item and if that server item is connected -->
-    <p v-if="isLocal && serverLibraryItemId" style="font-size: 10px" class="text-success py-1 uppercase tracking-widest">connected</p>
-    <p v-else-if="isLocal && libraryItem.serverAddress" style="font-size: 10px" class="text-gray-400 py-1">{{ libraryItem.serverAddress }}</p>
-
-    <!-- metadata -->
-    <div class="grid gap-2 my-4" style="grid-template-columns: max-content auto">
-      <div v-if="narrators && narrators.length" class="text-white text-opacity-60 uppercase text-sm">Narrators</div>
-      <div v-if="narrators && narrators.length" class="truncate text-sm">
-        <template v-for="(narrator, index) in narrators">
-          <nuxt-link :key="narrator" :to="`/bookshelf/library?filter=narrators.${$encode(narrator)}`">{{ narrator }}</nuxt-link
-          ><span :key="index" v-if="index < narrators.length - 1">, </span>
-        </template>
+        <button class="absolute top-0 right-0 px-1 outline-none" @click="moreButtonPress">
+          <span class="material-icons text-xl">more_vert</span>
+        </button>
       </div>
 
-      <div v-if="publishedYear" class="text-white text-opacity-60 uppercase text-sm">Published</div>
-      <div v-if="publishedYear" class="text-sm">
-        {{ publishedYear }}
-      </div>
+      <h1 class="text-lg font-semibold">{{ title }}</h1>
 
-      <div v-if="genres.length" class="text-white text-opacity-60 uppercase text-sm">Genres</div>
-      <div v-if="genres.length" class="truncate text-sm">
-        <template v-for="(genre, index) in genres">
-          <nuxt-link :key="genre" :to="`/bookshelf/library?filter=genres.${$encode(genre)}`" class="hover:underline">{{ genre }}</nuxt-link
-          ><span :key="index" v-if="index < genres.length - 1">, </span>
-        </template>
-      </div>
-    </div>
+      <p v-if="subtitle" class="text-gray-100 text-sm py-0.5 mb-0.5">{{ subtitle }}</p>
 
-    <div v-if="numTracks" class="flex text-gray-100 text-xs my-2 -mx-0.5">
-      <div class="bg-primary bg-opacity-80 px-3 py-0.5 rounded-full mx-0.5">
-        <p>{{ $elapsedPretty(duration) }}</p>
-      </div>
-      <!-- TODO: Local books dont save the size -->
-      <div v-if="size" class="bg-primary bg-opacity-80 px-3 py-0.5 rounded-full mx-0.5">
-        <p>{{ $bytesPretty(size) }}</p>
-      </div>
-      <div class="bg-primary bg-opacity-80 px-3 py-0.5 rounded-full mx-0.5">
-        <p>{{ numTracks }} Track{{ numTracks > 1 ? 's' : '' }}</p>
-      </div>
-      <div v-if="numChapters" class="bg-primary bg-opacity-80 px-3 py-0.5 rounded-full mx-0.5">
-        <p>{{ numChapters }} Chapter{{ numChapters > 1 ? 's' : '' }}</p>
-      </div>
-    </div>
+      <p v-if="seriesList && seriesList.length" class="text-sm text-gray-300 py-0.5">
+        <template v-for="(series, index) in seriesList"
+          ><nuxt-link :key="series.id" :to="`/bookshelf/series/${series.id}`">{{ series.text }}</nuxt-link
+          ><span :key="`${series.id}-comma`" v-if="index < seriesList.length - 1">,&nbsp;</span></template
+        >
+      </p>
 
-    <div>
-      <div v-if="!isPodcast && progressPercent > 0" class="px-4 py-2 bg-primary text-sm font-semibold rounded-md text-gray-200 mt-4 relative" :class="resettingProgress ? 'opacity-25' : ''">
-        <p class="leading-6">Your Progress: {{ Math.round(progressPercent * 100) }}%</p>
-        <p v-if="progressPercent < 1" class="text-gray-400 text-xs">{{ $elapsedPretty(userTimeRemaining) }} remaining</p>
-        <p v-else class="text-gray-400 text-xs">Finished {{ $formatDate(userProgressFinishedAt) }}</p>
-        <div v-if="!resettingProgress" class="absolute -top-1.5 -right-1.5 p-1 w-5 h-5 rounded-full bg-bg hover:bg-error border border-primary flex items-center justify-center cursor-pointer" @click.stop="clearProgressClick">
-          <span class="material-icons text-sm">close</span>
+      <p v-if="podcastAuthor" class="text-sm text-gray-300 py-0.5">by {{ podcastAuthor }}</p>
+      <p v-else-if="bookAuthors && bookAuthors.length" class="text-sm text-gray-300 py-0.5">
+        by
+        <template v-for="(author, index) in bookAuthors"
+          ><nuxt-link :key="author.id" :to="`/bookshelf/library?filter=authors.${$encode(author.id)}`">{{ author.name }}</nuxt-link
+          ><span :key="`${author.id}-comma`" v-if="index < bookAuthors.length - 1">,&nbsp;</span></template
+        >
+      </p>
+
+      <!-- Show an indicator for local library items whether they are linked to a server item and if that server item is connected -->
+      <p v-if="isLocal && serverLibraryItemId" style="font-size: 10px" class="text-success py-1 uppercase tracking-widest">connected</p>
+      <p v-else-if="isLocal && libraryItem.serverAddress" style="font-size: 10px" class="text-gray-400 py-1">{{ libraryItem.serverAddress }}</p>
+
+      <!-- metadata -->
+      <div class="grid gap-2 my-4" style="grid-template-columns: max-content auto">
+        <div v-if="narrators && narrators.length" class="text-white text-opacity-60 uppercase text-sm">Narrators</div>
+        <div v-if="narrators && narrators.length" class="truncate text-sm">
+          <template v-for="(narrator, index) in narrators">
+            <nuxt-link :key="narrator" :to="`/bookshelf/library?filter=narrators.${$encode(narrator)}`">{{ narrator }}</nuxt-link
+            ><span :key="index" v-if="index < narrators.length - 1">, </span>
+          </template>
+        </div>
+
+        <div v-if="publishedYear" class="text-white text-opacity-60 uppercase text-sm">Published</div>
+        <div v-if="publishedYear" class="text-sm">
+          {{ publishedYear }}
+        </div>
+
+        <div v-if="genres.length" class="text-white text-opacity-60 uppercase text-sm">Genres</div>
+        <div v-if="genres.length" class="truncate text-sm">
+          <template v-for="(genre, index) in genres">
+            <nuxt-link :key="genre" :to="`/bookshelf/library?filter=genres.${$encode(genre)}`" class="hover:underline">{{ genre }}</nuxt-link
+            ><span :key="index" v-if="index < genres.length - 1">, </span>
+          </template>
         </div>
       </div>
 
-      <div v-if="isLocal" class="flex mt-4">
-        <ui-btn v-if="showPlay" color="success" :disabled="isPlaying" class="flex items-center justify-center flex-grow mr-2" :padding-x="4" @click="playClick">
-          <span v-show="!isPlaying" class="material-icons">play_arrow</span>
-          <span class="px-1 text-sm">{{ isPlaying ? 'Playing' : 'Play' }}</span>
-        </ui-btn>
-        <ui-btn v-if="showRead" color="info" class="flex items-center justify-center mr-2" :class="showPlay ? '' : 'flex-grow'" :padding-x="2" @click="readBook">
-          <span class="material-icons">auto_stories</span>
-          <span v-if="!showPlay" class="px-2 text-base">Read {{ ebookFormat }}</span>
-        </ui-btn>
-        <ui-read-icon-btn v-if="!isPodcast" :disabled="isProcessingReadUpdate" :is-read="userIsFinished" class="flex items-center justify-center" @click="toggleFinished" />
+      <div v-if="numTracks" class="flex text-gray-100 text-xs my-2 -mx-0.5">
+        <div class="bg-primary bg-opacity-80 px-3 py-0.5 rounded-full mx-0.5">
+          <p>{{ $elapsedPretty(duration) }}</p>
+        </div>
+        <!-- TODO: Local books dont save the size -->
+        <div v-if="size" class="bg-primary bg-opacity-80 px-3 py-0.5 rounded-full mx-0.5">
+          <p>{{ $bytesPretty(size) }}</p>
+        </div>
+        <div class="bg-primary bg-opacity-80 px-3 py-0.5 rounded-full mx-0.5">
+          <p>{{ numTracks }} Track{{ numTracks > 1 ? 's' : '' }}</p>
+        </div>
+        <div v-if="numChapters" class="bg-primary bg-opacity-80 px-3 py-0.5 rounded-full mx-0.5">
+          <p>{{ numChapters }} Chapter{{ numChapters > 1 ? 's' : '' }}</p>
+        </div>
       </div>
-      <div v-else-if="(user && (showPlay || showRead)) || hasLocal" class="flex mt-4">
-        <ui-btn v-if="showPlay" color="success" :disabled="isPlaying" class="flex items-center justify-center flex-grow mr-2" :padding-x="4" @click="playClick">
-          <span v-show="!isPlaying" class="material-icons">play_arrow</span>
-          <span class="px-1 text-sm">{{ isPlaying ? (isStreaming ? 'Streaming' : 'Playing') : isPodcast ? 'Next Episode' : hasLocal ? 'Play' : 'Stream' }}</span>
-        </ui-btn>
-        <ui-btn v-if="showRead && user" color="info" class="flex items-center justify-center mr-2" :class="showPlay ? '' : 'flex-grow'" :padding-x="2" @click="readBook">
-          <span class="material-icons">auto_stories</span>
-          <span v-if="!showPlay" class="px-2 text-base">Read {{ ebookFormat }}</span>
-        </ui-btn>
-        <ui-btn v-if="showDownload" :color="downloadItem ? 'warning' : 'primary'" class="flex items-center justify-center mr-2" :padding-x="2" @click="downloadClick">
-          <span class="material-icons" :class="downloadItem ? 'animate-pulse' : ''">{{ downloadItem ? 'downloading' : 'download' }}</span>
-        </ui-btn>
-        <ui-read-icon-btn v-if="!isPodcast" :disabled="isProcessingReadUpdate" :is-read="userIsFinished" class="flex items-center justify-center" @click="toggleFinished" />
+
+      <div>
+        <div v-if="!isPodcast && progressPercent > 0" class="px-4 py-2 bg-primary text-sm font-semibold rounded-md text-gray-200 mt-4 relative" :class="resettingProgress ? 'opacity-25' : ''">
+          <p class="leading-6">Your Progress: {{ Math.round(progressPercent * 100) }}%</p>
+          <p v-if="progressPercent < 1" class="text-gray-400 text-xs">{{ $elapsedPretty(userTimeRemaining) }} remaining</p>
+          <p v-else class="text-gray-400 text-xs">Finished {{ $formatDate(userProgressFinishedAt) }}</p>
+          <div v-if="!resettingProgress" class="absolute -top-1.5 -right-1.5 p-1 w-5 h-5 rounded-full bg-bg hover:bg-error border border-primary flex items-center justify-center cursor-pointer" @click.stop="clearProgressClick">
+            <span class="material-icons text-sm">close</span>
+          </div>
+        </div>
+
+        <div v-if="isLocal" class="flex mt-4">
+          <ui-btn v-if="showPlay" color="success" :disabled="isPlaying" class="flex items-center justify-center flex-grow mr-2" :padding-x="4" @click="playClick">
+            <span v-show="!isPlaying" class="material-icons">play_arrow</span>
+            <span class="px-1 text-sm">{{ isPlaying ? 'Playing' : 'Play' }}</span>
+          </ui-btn>
+          <ui-btn v-if="showRead" color="info" class="flex items-center justify-center mr-2" :class="showPlay ? '' : 'flex-grow'" :padding-x="2" @click="readBook">
+            <span class="material-icons">auto_stories</span>
+            <span v-if="!showPlay" class="px-2 text-base">Read {{ ebookFormat }}</span>
+          </ui-btn>
+          <ui-read-icon-btn v-if="!isPodcast" :disabled="isProcessingReadUpdate" :is-read="userIsFinished" class="flex items-center justify-center" @click="toggleFinished" />
+        </div>
+        <div v-else-if="(user && (showPlay || showRead)) || hasLocal" class="flex mt-4">
+          <ui-btn v-if="showPlay" color="success" :disabled="isPlaying" class="flex items-center justify-center flex-grow mr-2" :padding-x="4" @click="playClick">
+            <span v-show="!isPlaying" class="material-icons">play_arrow</span>
+            <span class="px-1 text-sm">{{ isPlaying ? (isStreaming ? 'Streaming' : 'Playing') : isPodcast ? 'Next Episode' : hasLocal ? 'Play' : 'Stream' }}</span>
+          </ui-btn>
+          <ui-btn v-if="showRead && user" color="info" class="flex items-center justify-center mr-2" :class="showPlay ? '' : 'flex-grow'" :padding-x="2" @click="readBook">
+            <span class="material-icons">auto_stories</span>
+            <span v-if="!showPlay" class="px-2 text-base">Read {{ ebookFormat }}</span>
+          </ui-btn>
+          <ui-btn v-if="showDownload" :color="downloadItem ? 'warning' : 'primary'" class="flex items-center justify-center mr-2" :padding-x="2" @click="downloadClick">
+            <span class="material-icons" :class="downloadItem ? 'animate-pulse' : ''">{{ downloadItem ? 'downloading' : 'download' }}</span>
+          </ui-btn>
+          <ui-read-icon-btn v-if="!isPodcast" :disabled="isProcessingReadUpdate" :is-read="userIsFinished" class="flex items-center justify-center" @click="toggleFinished" />
+        </div>
       </div>
+
+      <div v-if="downloadItem" class="py-3">
+        <p class="text-center text-lg">Downloading! ({{ Math.round(downloadItem.itemProgress * 100) }}%)</p>
+      </div>
+
+      <div class="w-full py-4">
+        <p class="text-sm">{{ description }}</p>
+      </div>
+
+      <tables-podcast-episodes-table v-if="isPodcast" :library-item="libraryItem" :local-library-item-id="localLibraryItemId" :episodes="episodes" :local-episodes="localLibraryItemEpisodes" :is-local="isLocal" />
+
+      <modals-select-local-folder-modal v-model="showSelectLocalFolder" :media-type="mediaType" @select="selectedLocalFolder" />
+
+      <modals-dialog v-model="showMoreMenu" title="" :items="moreMenuItems" @action="moreMenuAction" />
+
+      <modals-item-details-modal v-model="showDetailsModal" :library-item="libraryItem" />
+
+      <modals-fullscreen-cover v-model="showFullscreenCover" :library-item="libraryItem" />
     </div>
-
-    <div v-if="downloadItem" class="py-3">
-      <p class="text-center text-lg">Downloading! ({{ Math.round(downloadItem.itemProgress * 100) }}%)</p>
-    </div>
-
-    <div class="w-full py-4">
-      <p class="text-sm">{{ description }}</p>
-    </div>
-
-    <tables-podcast-episodes-table v-if="isPodcast" :library-item="libraryItem" :local-library-item-id="localLibraryItemId" :episodes="episodes" :local-episodes="localLibraryItemEpisodes" :is-local="isLocal" />
-
-    <modals-select-local-folder-modal v-model="showSelectLocalFolder" :media-type="mediaType" @select="selectedLocalFolder" />
-
-    <modals-dialog v-model="showMoreMenu" title="" :items="moreMenuItems" @action="moreMenuAction" />
-
-    <modals-item-details-modal v-model="showDetailsModal" :library-item="libraryItem" />
-
-    <modals-fullscreen-cover v-model="showFullscreenCover" :library-item="libraryItem" />
   </div>
 </template>
 
 <script>
 import { Dialog } from '@capacitor/dialog'
 import { AbsFileSystem, AbsDownloader } from '@/plugins/capacitor'
+import { FastAverageColor } from 'fast-average-color'
 
 export default {
   async asyncData({ store, params, redirect, app }) {
@@ -174,7 +181,9 @@ export default {
       showSelectLocalFolder: false,
       showMoreMenu: false,
       showDetailsModal: false,
-      showFullscreenCover: false
+      showFullscreenCover: false,
+      coverRgb: 'rgb(55, 56, 56)',
+      coverBgIsLight: false
     }
   },
   computed: {
@@ -376,6 +385,20 @@ export default {
     }
   },
   methods: {
+    async coverImageLoaded(fullCoverUrl) {
+      if (!fullCoverUrl) return
+
+      const fac = new FastAverageColor()
+      fac
+        .getColorAsync(fullCoverUrl)
+        .then((color) => {
+          this.coverRgb = color.rgba
+          this.coverBgIsLight = color.isLight
+        })
+        .catch((e) => {
+          console.log(e)
+        })
+    },
     moreMenuAction(action) {
       this.showMoreMenu = false
       if (action === 'manageLocal') {

@@ -182,10 +182,6 @@ export default {
     }
   },
   computed: {
-    bgColor() {
-      if (!this.coverRgb) return 'rgb(55, 56, 56)'
-      return `rgb(${this.coverRgb.r},${this.coverRgb.g},${this.coverRgb.b})`
-    },
     menuItems() {
       var items = [
         {
