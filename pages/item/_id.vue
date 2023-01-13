@@ -6,20 +6,16 @@
     </div>
 
     <div class="z-10 relative">
-      <div class="w-full flex justify-center relative mb-2">
+      <div class="w-full flex justify-center relative mb-4">
         <div class="relative" @click="showFullscreenCover = true">
           <covers-book-cover :library-item="libraryItem" :width="coverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" @imageLoaded="coverImageLoaded" />
           <div v-if="!isPodcast" class="absolute bottom-0 left-0 h-1 shadow-sm z-10" :class="userIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: coverWidth * progressPercent + 'px' }"></div>
         </div>
-
-        <button class="absolute top-0 right-0 px-1 outline-none z-20" @click="moreButtonPress">
-          <span class="material-icons text-xl">more_vert</span>
-        </button>
       </div>
 
-      <h1 class="text-lg font-semibold">{{ title }}</h1>
+      <h1 class="text-xl font-semibold">{{ title }}</h1>
 
-      <p v-if="subtitle" class="text-gray-100 text-sm py-0.5 mb-0.5">{{ subtitle }}</p>
+      <p v-if="subtitle" class="text-gray-100 text-base py-0.5 mb-0.5">{{ subtitle }}</p>
 
       <p v-if="seriesList && seriesList.length" class="text-sm text-gray-300 py-0.5">
         <template v-for="(series, index) in seriesList"
@@ -40,6 +36,48 @@
       <!-- Show an indicator for local library items whether they are linked to a server item and if that server item is connected -->
       <p v-if="isLocal && serverLibraryItemId" style="font-size: 10px" class="text-success py-1 uppercase tracking-widest">connected</p>
       <p v-else-if="isLocal && libraryItem.serverAddress" style="font-size: 10px" class="text-gray-400 py-1">{{ libraryItem.serverAddress }}</p>
+
+      <!-- action buttons -->
+      <div>
+        <div v-if="!isPodcast && progressPercent > 0" class="px-4 py-2 bg-primary text-sm font-semibold rounded-md text-gray-200 mt-4 relative" :class="resettingProgress ? 'opacity-25' : ''">
+          <p class="leading-6">Your Progress: {{ Math.round(progressPercent * 100) }}%</p>
+          <p v-if="progressPercent < 1" class="text-gray-400 text-xs">{{ $elapsedPretty(userTimeRemaining) }} remaining</p>
+          <p v-else class="text-gray-400 text-xs">Finished {{ $formatDate(userProgressFinishedAt) }}</p>
+          <div v-if="!resettingProgress" class="absolute -top-1.5 -right-1.5 p-1 w-5 h-5 rounded-full bg-bg hover:bg-error border border-primary flex items-center justify-center cursor-pointer" @click.stop="clearProgressClick">
+            <span class="material-icons text-sm">close</span>
+          </div>
+        </div>
+
+        <div v-if="isLocal" class="flex mt-4 -mx-1">
+          <ui-btn v-if="showPlay" color="success" :disabled="isPlaying" class="flex items-center justify-center flex-grow mx-1" :padding-x="4" @click="playClick">
+            <span v-show="!isPlaying" class="material-icons">play_arrow</span>
+            <span class="px-1 text-sm">{{ isPlaying ? 'Playing' : 'Play' }}</span>
+          </ui-btn>
+          <ui-btn v-if="showRead" color="info" class="flex items-center justify-center mx-1" :class="showPlay ? '' : 'flex-grow'" :padding-x="2" @click="readBook">
+            <span class="material-icons">auto_stories</span>
+            <span v-if="!showPlay" class="px-2 text-base">Read {{ ebookFormat }}</span>
+          </ui-btn>
+          <ui-btn color="primary" class="flex items-center justify-center mx-1" :padding-x="2" @click="moreButtonPress">
+            <span class="material-icons">more_vert</span>
+          </ui-btn>
+        </div>
+        <div v-else-if="(user && (showPlay || showRead)) || hasLocal" class="flex mt-4 -mx-1">
+          <ui-btn v-if="showPlay" color="success" :disabled="isPlaying" class="flex items-center justify-center flex-grow mx-1" :padding-x="4" @click="playClick">
+            <span v-show="!isPlaying" class="material-icons">play_arrow</span>
+            <span class="px-1 text-sm">{{ isPlaying ? (isStreaming ? 'Streaming' : 'Playing') : isPodcast ? 'Next Episode' : hasLocal ? 'Play' : 'Stream' }}</span>
+          </ui-btn>
+          <ui-btn v-if="showRead && user" color="info" class="flex items-center justify-center mx-1" :class="showPlay ? '' : 'flex-grow'" :padding-x="2" @click="readBook">
+            <span class="material-icons">auto_stories</span>
+            <span v-if="!showPlay" class="px-2 text-base">Read {{ ebookFormat }}</span>
+          </ui-btn>
+          <ui-btn v-if="showDownload" :color="downloadItem ? 'warning' : 'primary'" class="flex items-center justify-center mx-1" :padding-x="2" @click="downloadClick">
+            <span class="material-icons" :class="downloadItem ? 'animate-pulse' : ''">{{ downloadItem ? 'downloading' : 'download' }}</span>
+          </ui-btn>
+          <ui-btn color="primary" class="flex items-center justify-center mx-1" :padding-x="2" @click="moreButtonPress">
+            <span class="material-icons">more_vert</span>
+          </ui-btn>
+        </div>
+      </div>
 
       <!-- metadata -->
       <div class="grid gap-2 my-4" style="grid-template-columns: max-content auto">
@@ -78,43 +116,6 @@
         </div>
         <div v-if="numChapters" class="bg-primary bg-opacity-80 px-3 py-0.5 rounded-full mx-0.5">
           <p>{{ numChapters }} Chapter{{ numChapters > 1 ? 's' : '' }}</p>
-        </div>
-      </div>
-
-      <div>
-        <div v-if="!isPodcast && progressPercent > 0" class="px-4 py-2 bg-primary text-sm font-semibold rounded-md text-gray-200 mt-4 relative" :class="resettingProgress ? 'opacity-25' : ''">
-          <p class="leading-6">Your Progress: {{ Math.round(progressPercent * 100) }}%</p>
-          <p v-if="progressPercent < 1" class="text-gray-400 text-xs">{{ $elapsedPretty(userTimeRemaining) }} remaining</p>
-          <p v-else class="text-gray-400 text-xs">Finished {{ $formatDate(userProgressFinishedAt) }}</p>
-          <div v-if="!resettingProgress" class="absolute -top-1.5 -right-1.5 p-1 w-5 h-5 rounded-full bg-bg hover:bg-error border border-primary flex items-center justify-center cursor-pointer" @click.stop="clearProgressClick">
-            <span class="material-icons text-sm">close</span>
-          </div>
-        </div>
-
-        <div v-if="isLocal" class="flex mt-4">
-          <ui-btn v-if="showPlay" color="success" :disabled="isPlaying" class="flex items-center justify-center flex-grow mr-2" :padding-x="4" @click="playClick">
-            <span v-show="!isPlaying" class="material-icons">play_arrow</span>
-            <span class="px-1 text-sm">{{ isPlaying ? 'Playing' : 'Play' }}</span>
-          </ui-btn>
-          <ui-btn v-if="showRead" color="info" class="flex items-center justify-center mr-2" :class="showPlay ? '' : 'flex-grow'" :padding-x="2" @click="readBook">
-            <span class="material-icons">auto_stories</span>
-            <span v-if="!showPlay" class="px-2 text-base">Read {{ ebookFormat }}</span>
-          </ui-btn>
-          <ui-read-icon-btn v-if="!isPodcast" :disabled="isProcessingReadUpdate" :is-read="userIsFinished" class="flex items-center justify-center" @click="toggleFinished" />
-        </div>
-        <div v-else-if="(user && (showPlay || showRead)) || hasLocal" class="flex mt-4">
-          <ui-btn v-if="showPlay" color="success" :disabled="isPlaying" class="flex items-center justify-center flex-grow mr-2" :padding-x="4" @click="playClick">
-            <span v-show="!isPlaying" class="material-icons">play_arrow</span>
-            <span class="px-1 text-sm">{{ isPlaying ? (isStreaming ? 'Streaming' : 'Playing') : isPodcast ? 'Next Episode' : hasLocal ? 'Play' : 'Stream' }}</span>
-          </ui-btn>
-          <ui-btn v-if="showRead && user" color="info" class="flex items-center justify-center mr-2" :class="showPlay ? '' : 'flex-grow'" :padding-x="2" @click="readBook">
-            <span class="material-icons">auto_stories</span>
-            <span v-if="!showPlay" class="px-2 text-base">Read {{ ebookFormat }}</span>
-          </ui-btn>
-          <ui-btn v-if="showDownload" :color="downloadItem ? 'warning' : 'primary'" class="flex items-center justify-center mr-2" :padding-x="2" @click="downloadClick">
-            <span class="material-icons" :class="downloadItem ? 'animate-pulse' : ''">{{ downloadItem ? 'downloading' : 'download' }}</span>
-          </ui-btn>
-          <ui-read-icon-btn v-if="!isPodcast" :disabled="isProcessingReadUpdate" :is-read="userIsFinished" class="flex items-center justify-center" @click="toggleFinished" />
         </div>
       </div>
 
@@ -364,6 +365,14 @@ export default {
     },
     moreMenuItems() {
       const items = []
+
+      if (!this.isPodcast) {
+        items.push({
+          text: this.userIsFinished ? 'Mark as Not Finished' : 'Mark as Finished',
+          value: 'markFinished'
+        })
+      }
+
       if (this.localLibraryItemId) {
         items.push({
           text: 'Manage Local Files',
@@ -371,17 +380,17 @@ export default {
         })
       }
 
-      items.push({
-        text: 'View Details',
-        value: 'details'
-      })
-
       if (!this.isPodcast && this.serverLibraryItemId) {
         items.push({
           text: 'Add to Playlist',
           value: 'playlist'
         })
       }
+
+      items.push({
+        text: 'More Info',
+        value: 'details'
+      })
 
       return items
     },
@@ -418,6 +427,9 @@ export default {
       } else if (action === 'playlist') {
         this.$store.commit('globals/setSelectedPlaylistItems', [{ libraryItem: this.libraryItem, episode: null }])
         this.$store.commit('globals/setShowPlaylistsAddCreateModal', true)
+      } else if (action === 'markFinished') {
+        if (this.isProcessingReadUpdate) return
+        this.toggleFinished()
       }
     },
     moreButtonPress() {
@@ -483,6 +495,7 @@ export default {
     },
     async clearProgressClick() {
       await this.$hapticsImpact()
+
       const { value } = await Dialog.confirm({
         title: 'Confirm',
         message: 'Are you sure you want to reset your progress?'
@@ -604,6 +617,16 @@ export default {
     },
     async toggleFinished() {
       await this.$hapticsImpact()
+
+      // Show confirm if item has progress since it will reset
+      if (this.userItemProgress && this.userItemProgress.progress > 0 && !this.userIsFinished) {
+        const { value } = await Dialog.confirm({
+          title: 'Confirm',
+          message: 'Are you sure you want to mark this item as Finished?'
+        })
+        if (!value) return
+      }
+
       this.isProcessingReadUpdate = true
       if (this.isLocal) {
         var isFinished = !this.userIsFinished
