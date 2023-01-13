@@ -1,6 +1,7 @@
 <template>
   <div class="w-full h-full px-3 py-4 overflow-y-auto relative bg-bg">
-    <div class="absolute top-0 left-0 w-full h-full pointer-events-none z-0" :style="{ backgroundColor: coverRgb }">
+    <div class="absolute top-0 left-0 w-full h-full pointer-events-none p-px">
+      <div class="w-full h-full" :style="{ backgroundColor: coverRgb }" />
       <div class="w-full h-full absolute top-0 left-0" style="background: linear-gradient(169deg, rgba(0, 0, 0, 0.4) 0%, rgba(55, 56, 56, 1) 80%)" />
     </div>
 
