@@ -10,16 +10,16 @@
       <p class="my-2 text-gray-400 font-semibold">{{ name }}</p>
       <div v-for="(evt, index) in events" :key="index" class="py-3 flex items-center">
         <p class="text-sm text-gray-400 w-12">{{ $formatDate(evt.timestamp, 'HH:mm') }}</p>
-        <span class="material-icons px-2" :class="`text-${getEventColor(evt.name)}`">{{ getEventIcon(evt.name) }}</span>
-        <p class="text-sm text-white">{{ evt.name }}</p>
+        <span class="material-icons px-1" :class="`text-${getEventColor(evt.name)}`">{{ getEventIcon(evt.name) }}</span>
+        <p class="text-sm text-white px-1">{{ evt.name }}</p>
 
-        <span v-if="evt.serverSyncAttempted && evt.serverSyncSuccess" class="material-icons-outlined px-2 text-base text-success">cloud_done</span>
-        <span v-if="evt.serverSyncAttempted && !evt.serverSyncSuccess" class="material-icons px-2 text-base text-error">error_outline</span>
+        <span v-if="evt.serverSyncAttempted && evt.serverSyncSuccess" class="material-icons-outlined px-1 text-base text-success">cloud_done</span>
+        <span v-if="evt.serverSyncAttempted && !evt.serverSyncSuccess" class="material-icons px-1 text-base text-error">error_outline</span>
 
-        <p v-if="evt.num" class="text-sm text-gray-400 italic">+{{ evt.num }}</p>
+        <p v-if="evt.num" class="text-sm text-gray-400 italic px-1">+{{ evt.num }}</p>
 
         <div class="flex-grow" />
-        <p class="text-base text-white">{{ $secondsToTimestampFull(evt.currentTime) }}</p>
+        <p class="text-base text-white" @click="clickPlaybackTime(evt.currentTime)">{{ $secondsToTimestampFull(evt.currentTime) }}</p>
       </div>
     </div>
   </div>
@@ -43,7 +43,8 @@ export default {
   },
   data() {
     return {
-      onMediaItemHistoryUpdatedListener: null
+      onMediaItemHistoryUpdatedListener: null,
+      startingPlayback: false
     }
   },
   computed: {
@@ -55,6 +56,17 @@ export default {
       if (!this.mediaItemHistory) return []
       return (this.mediaItemHistory.events || []).sort((a, b) => b.timestamp - a.timestamp)
     },
+    mediaItemIsLocal() {
+      return this.mediaItemHistory && this.mediaItemHistory.isLocal
+    },
+    mediaItemLibraryItemId() {
+      if (!this.mediaItemHistory) return null
+      return this.mediaItemHistory.libraryItemId
+    },
+    mediaItemEpisodeId() {
+      if (!this.mediaItemHistory) return null
+      return this.mediaItemHistory.episodeId
+    },
     groupedMediaEvents() {
       const groups = {}
 
@@ -63,11 +75,12 @@ export default {
 
       let lastKey = null
       let numSaves = 0
-      let index = 0
+      let numSyncs = 0
 
       this.mediaEvents.forEach((evt) => {
         const date = this.$formatDate(evt.timestamp, 'MMM dd, yyyy')
         let include = true
+        let keyUpdated = false
 
         let key = date
         if (date === today) key = 'Today'
@@ -75,25 +88,41 @@ export default {
 
         if (!groups[key]) groups[key] = []
 
-        if (!lastKey) lastKey = key
+        if (!lastKey || lastKey !== key) {
+          lastKey = key
+          keyUpdated = true
+        }
 
         // Collapse saves
         if (evt.name === 'Save') {
-          if (numSaves > 0 && lastKey === key) {
+          if (numSaves > 0 && !keyUpdated) {
             include = false
-            groups[key][index - 1].num = numSaves
+            const totalInGroup = groups[key].length
+            groups[key][totalInGroup - 1].num = numSaves
             numSaves++
           } else {
-            lastKey = key
             numSaves = 1
           }
         } else {
           numSaves = 0
         }
 
+        // Collapse syncs
+        if (evt.name === 'Sync') {
+          if (numSyncs > 0 && !keyUpdated) {
+            include = false
+            const totalInGroup = groups[key].length
+            groups[key][totalInGroup - 1].num = numSyncs
+            numSyncs++
+          } else {
+            numSyncs = 1
+          }
+        } else {
+          numSyncs = 0
+        }
+
         if (include) {
           groups[key].push(evt)
-          index++
         }
       })
 
@@ -101,6 +130,33 @@ export default {
     }
   },
   methods: {
+    async clickPlaybackTime(time) {
+      if (this.startingPlayback) return
+      this.startingPlayback = true
+      await this.$hapticsImpact()
+      console.log('Click playback time', time)
+      this.playAtTime(time)
+
+      setTimeout(() => {
+        this.startingPlayback = false
+      }, 1000)
+    },
+    playAtTime(startTime) {
+      if (this.mediaItemIsLocal) {
+        // Local only
+        this.$eventBus.$emit('play-item', { libraryItemId: this.mediaItemLibraryItemId, episodeId: this.mediaItemEpisodeId, startTime })
+      } else {
+        // Server may have local
+        const localProg = this.$store.getters['globals/getLocalMediaProgressByServerItemId'](this.mediaItemLibraryItemId, this.mediaItemEpisodeId)
+        if (localProg) {
+          // Has local copy so prefer
+          this.$eventBus.$emit('play-item', { libraryItemId: localProg.localLibraryItemId, episodeId: localProg.localEpisodeId, serverLibraryItemId: this.mediaItemLibraryItemId, serverEpisodeId: this.mediaItemEpisodeId, startTime })
+        } else {
+          // Only on server
+          this.$eventBus.$emit('play-item', { libraryItemId: this.mediaItemLibraryItemId, episodeId: this.mediaItemEpisodeId, startTime })
+        }
+      }
+    },
     getEventIcon(name) {
       switch (name) {
         case 'Play':
@@ -113,6 +169,8 @@ export default {
           return 'sync'
         case 'Seek':
           return 'commit'
+        case 'Sync':
+          return 'cloud_download'
         default:
           return 'info'
       }
@@ -129,6 +187,8 @@ export default {
           return 'info'
         case 'Seek':
           return 'gray-200'
+        case 'Sync':
+          return 'accent'
         default:
           return 'info'
       }

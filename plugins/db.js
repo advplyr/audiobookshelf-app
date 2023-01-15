@@ -62,6 +62,10 @@ class DbService {
     return AbsDatabase.getAllLocalMediaProgress().then((data) => data.value)
   }
 
+  getLocalMediaProgressForServerItem(payload) {
+    return AbsDatabase.getLocalMediaProgressForServerItem(payload)
+  }
+
   removeLocalMediaProgress(localMediaProgressId) {
     return AbsDatabase.removeLocalMediaProgress({ localMediaProgressId })
   }

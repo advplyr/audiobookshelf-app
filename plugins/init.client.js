@@ -104,7 +104,7 @@ Vue.prototype.$secondsToTimestamp = (seconds) => {
 }
 
 Vue.prototype.$secondsToTimestampFull = (seconds) => {
-  let _seconds = seconds
+  let _seconds = Math.round(seconds)
   let _minutes = Math.floor(seconds / 60)
   _seconds -= _minutes * 60
   let _hours = Math.floor(_minutes / 60)

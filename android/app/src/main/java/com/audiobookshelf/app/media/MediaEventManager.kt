@@ -1,9 +1,7 @@
 package com.audiobookshelf.app.media
 
 import android.util.Log
-import com.audiobookshelf.app.data.MediaItemEvent
-import com.audiobookshelf.app.data.MediaItemHistory
-import com.audiobookshelf.app.data.PlaybackSession
+import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.player.PlayerNotificationService
 import com.audiobookshelf.app.player.SyncResult
@@ -43,8 +41,36 @@ object MediaEventManager {
     addPlaybackEvent("Seek", playbackSession, syncResult)
   }
 
+  fun syncEvent(mediaProgress: MediaProgressWrapper, description: String) {
+    Log.i(tag, "Sync Event for media item id \"${mediaProgress.mediaItemId}\", currentTime=${mediaProgress.currentTime}")
+    addSyncEvent("Sync", mediaProgress, description)
+  }
+
+  private fun addSyncEvent(eventName:String, mediaProgress:MediaProgressWrapper, description: String) {
+    val mediaItemHistory = getMediaItemHistoryMediaItem(mediaProgress.mediaItemId)
+    if (mediaItemHistory == null) {
+      Log.w(tag, "addSyncEvent: Media Item History not created yet for media item id ${mediaProgress.mediaItemId}")
+      return
+    }
+
+    val mediaItemEvent = MediaItemEvent(
+      name = eventName,
+      type = "Sync",
+      description = description,
+      currentTime = mediaProgress.currentTime,
+      serverSyncAttempted = false,
+      serverSyncSuccess = null,
+      serverSyncMessage = null,
+      timestamp = System.currentTimeMillis()
+    )
+    mediaItemHistory.events.add(mediaItemEvent)
+    DeviceManager.dbManager.saveMediaItemHistory(mediaItemHistory)
+
+    clientEventEmitter?.onMediaItemHistoryUpdated(mediaItemHistory)
+  }
+
   private fun addPlaybackEvent(eventName:String, playbackSession:PlaybackSession, syncResult:SyncResult?) {
-    val mediaItemHistory = getMediaItemHistoryForSession(playbackSession) ?: createMediaItemHistoryForSession(playbackSession)
+    val mediaItemHistory = getMediaItemHistoryMediaItem(playbackSession.mediaItemId) ?: createMediaItemHistoryForSession(playbackSession)
 
     val mediaItemEvent = MediaItemEvent(
       name = eventName,
@@ -62,8 +88,8 @@ object MediaEventManager {
     clientEventEmitter?.onMediaItemHistoryUpdated(mediaItemHistory)
   }
 
-  private fun getMediaItemHistoryForSession(playbackSession: PlaybackSession) : MediaItemHistory? {
-    return DeviceManager.dbManager.getMediaItemHistory(playbackSession.mediaItemId)
+  private fun getMediaItemHistoryMediaItem(mediaItemId: String) : MediaItemHistory? {
+    return DeviceManager.dbManager.getMediaItemHistory(mediaItemId)
   }
 
   private fun createMediaItemHistoryForSession(playbackSession: PlaybackSession):MediaItemHistory {

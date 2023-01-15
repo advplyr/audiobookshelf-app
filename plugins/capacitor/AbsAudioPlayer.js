@@ -43,7 +43,7 @@ class AbsAudioPlayerWeb extends WebPlugin {
   }
 
   // PluginMethod
-  async prepareLibraryItem({ libraryItemId, episodeId, playWhenReady }) {
+  async prepareLibraryItem({ libraryItemId, episodeId, playWhenReady, startTime }) {
     console.log('[AbsAudioPlayer] Prepare library item', libraryItemId)
 
     if (libraryItemId.startsWith('local_')) {
@@ -52,6 +52,7 @@ class AbsAudioPlayerWeb extends WebPlugin {
       var route = !episodeId ? `/api/items/${libraryItemId}/play` : `/api/items/${libraryItemId}/play/${episodeId}`
       var playbackSession = await $axios.$post(route, { mediaPlayer: 'html5-mobile', forceDirectPlay: true })
       if (playbackSession) {
+        if (startTime !== undefined && startTime !== null) playbackSession.currentTime = startTime
         this.setAudioPlayer(playbackSession, true)
       }
     }

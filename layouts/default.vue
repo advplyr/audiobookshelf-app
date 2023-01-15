@@ -208,11 +208,19 @@ export default {
       console.log(`[default] userMediaProgressUpdate checking for local media progress ${prog.id}`)
 
       // Update local media progress if exists
-      var localProg = this.$store.getters['globals/getLocalMediaProgressByServerItemId'](prog.libraryItemId, prog.episodeId)
+      const localProg = await this.$db.getLocalMediaProgressForServerItem({ libraryItemId: prog.libraryItemId, episodeId: prog.episodeId })
+
       var newLocalMediaProgress = null
       if (localProg && localProg.lastUpdate < prog.lastUpdate) {
+        if (localProg.currentTime == prog.currentTime && localProg.isFinished == prog.isFinished) {
+          console.log('[default] syncing progress server lastUpdate > local lastUpdate but currentTime and isFinished is equal')
+          return
+        } else {
+          console.log(`[default] syncing progress server lastUpdate > local lastUpdate. server currentTime=${prog.currentTime} local currentTime=${localProg.currentTime} | server/local isFinished=${prog.isFinished}/${localProg.isFinished}`)
+        }
+
         // Server progress is more up-to-date
-        console.log(`[default] syncing progress from server with local item for "${prog.libraryItemId}" ${prog.episodeId ? `episode ${prog.episodeId}` : ''}`)
+        console.log(`[default] syncing progress from server with local item for "${prog.libraryItemId}" ${prog.episodeId ? `episode ${prog.episodeId}` : ''} | server lastUpdate=${prog.lastUpdate} > local lastUpdate=${localProg.lastUpdate}`)
         const payload = {
           localMediaProgressId: localProg.id,
           mediaProgress: prog

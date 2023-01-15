@@ -6,6 +6,7 @@ import android.util.Log
 import com.audiobookshelf.app.data.LocalMediaProgress
 import com.audiobookshelf.app.data.MediaProgress
 import com.audiobookshelf.app.data.PlaybackSession
+import com.audiobookshelf.app.data.Podcast
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.media.MediaEventManager
 import com.audiobookshelf.app.server.ApiHandler
@@ -190,6 +191,9 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
     currentPlaybackSession?.let {
       it.updatedAt = mediaProgress.lastUpdate
       it.currentTime = mediaProgress.currentTime
+
+      MediaEventManager.syncEvent(mediaProgress, "Received from server get media progress request while playback session open")
+
       DeviceManager.dbManager.saveLocalPlaybackSession(it)
       saveLocalProgress(it)
     }
@@ -279,17 +283,18 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
         currentLocalMediaProgress = playbackSession.getNewLocalMediaProgress()
       } else {
         currentLocalMediaProgress = mediaProgress
+        currentLocalMediaProgress?.updateFromPlaybackSession(playbackSession)
       }
     } else {
       currentLocalMediaProgress?.updateFromPlaybackSession(playbackSession)
     }
+
     currentLocalMediaProgress?.let {
       if (it.progress.isNaN()) {
         Log.e(tag, "Invalid progress on local media progress")
       } else {
         DeviceManager.dbManager.saveLocalMediaProgress(it)
         playerNotificationService.clientEventEmitter?.onLocalMediaProgressUpdate(it)
-
         Log.d(tag, "Saved Local Progress Current Time: ID ${it.id} | ${it.currentTime} | Duration ${it.duration} | Progress ${it.progressPercent}%")
       }
     }

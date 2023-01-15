@@ -6,6 +6,7 @@ import android.net.NetworkCapabilities
 import android.util.Log
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
+import com.audiobookshelf.app.media.MediaEventManager
 import com.audiobookshelf.app.player.MediaProgressSyncData
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.core.json.JsonReadFeature
@@ -283,6 +284,8 @@ class ApiHandler(var ctx:Context) {
           if (progressSyncResponsePayload.localProgressUpdates.isNotEmpty()) {
             // Update all local media progress
             progressSyncResponsePayload.localProgressUpdates.forEach { localMediaProgress ->
+              MediaEventManager.syncEvent(localMediaProgress, "Received from server sync local API request")
+
               DeviceManager.dbManager.saveLocalMediaProgress(localMediaProgress)
             }
           }

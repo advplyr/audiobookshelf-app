@@ -823,6 +823,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     }
 
     currentPlaybackSession = null
+    mediaProgressSyncer.reset()
     clientEventEmitter?.onPlaybackClosed()
     PlayerListener.lastPauseTime = 0
     isClosed = true

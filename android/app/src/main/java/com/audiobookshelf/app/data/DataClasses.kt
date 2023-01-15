@@ -370,26 +370,14 @@ data class BookChapter(
   val endMs get() = (end * 1000L).toLong()
 }
 
-@JsonIgnoreProperties(ignoreUnknown = true)
-class MediaProgress(
-  var id:String,
-  var libraryItemId:String,
-  var episodeId:String?,
-  var duration:Double, // seconds
-  progress:Double, // 0 to 1
-  var currentTime:Double,
-  isFinished:Boolean,
-  var lastUpdate:Long,
-  var startedAt:Long,
-  var finishedAt:Long?
-) : MediaProgressWrapper(isFinished, progress)
-
 @JsonTypeInfo(use= JsonTypeInfo.Id.DEDUCTION, defaultImpl = MediaProgress::class)
 @JsonSubTypes(
   JsonSubTypes.Type(MediaProgress::class),
   JsonSubTypes.Type(LocalMediaProgress::class)
 )
-open class MediaProgressWrapper(var isFinished:Boolean, var progress:Double)
+open class MediaProgressWrapper(var isFinished:Boolean, var currentTime:Double, var progress:Double) {
+  open val mediaItemId get() = ""
+}
 
 // Helper class
 data class LibraryItemWithEpisode(

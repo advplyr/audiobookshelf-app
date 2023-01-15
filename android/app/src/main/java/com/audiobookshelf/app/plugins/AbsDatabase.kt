@@ -3,6 +3,7 @@ package com.audiobookshelf.app.data
 import android.util.Log
 import com.audiobookshelf.app.MainActivity
 import com.audiobookshelf.app.device.DeviceManager
+import com.audiobookshelf.app.media.MediaEventManager
 import com.audiobookshelf.app.server.ApiHandler
 import com.fasterxml.jackson.core.json.JsonReadFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -189,6 +190,24 @@ class AbsDatabase : Plugin() {
   }
 
   @PluginMethod
+  fun getLocalMediaProgressForServerItem(call:PluginCall) {
+    val libraryItemId = call.getString("libraryItemId", "").toString()
+    var episodeId:String? = call.getString("episodeId", "").toString()
+    if (episodeId == "") episodeId = null
+
+    GlobalScope.launch(Dispatchers.IO) {
+      val allLocalMediaProgress = DeviceManager.dbManager.getAllLocalMediaProgress()
+      val localMediaProgress = allLocalMediaProgress.find { libraryItemId == it.libraryItemId && (episodeId == null || it.episodeId == episodeId) }
+
+      if (localMediaProgress == null) {
+        call.resolve()
+      } else {
+        call.resolve(JSObject(jacksonMapper.writeValueAsString(localMediaProgress)))
+      }
+    }
+  }
+
+  @PluginMethod
   fun removeLocalMediaProgress(call:PluginCall) {
     val localMediaProgressId = call.getString("localMediaProgressId", "").toString()
     DeviceManager.dbManager.removeLocalMediaProgress(localMediaProgressId)
@@ -256,6 +275,8 @@ class AbsDatabase : Plugin() {
         Log.w(tag, "syncServerMediaProgressWithLocalMediaProgress Local media progress not found $localMediaProgressId")
         call.resolve()
       } else {
+        MediaEventManager.syncEvent(mediaProgress, "Received from webhook event")
+
         localMediaProgress.updateFromServerMediaProgress(mediaProgress)
         DeviceManager.dbManager.saveLocalMediaProgress(localMediaProgress)
         call.resolve(JSObject(jacksonMapper.writeValueAsString(localMediaProgress)))

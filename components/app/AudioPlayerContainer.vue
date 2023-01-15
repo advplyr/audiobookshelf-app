@@ -184,6 +184,7 @@ export default {
     async playLibraryItem(payload) {
       const libraryItemId = payload.libraryItemId
       const episodeId = payload.episodeId
+      const startTime = payload.startTime
 
       // When playing local library item and can also play this item from the server
       //   then store the server library item id so it can be used if a cast is made
@@ -200,6 +201,16 @@ export default {
         }
       }
 
+      // if already playing this item then jump to start time
+      if (this.$store.getters['getIsMediaStreaming'](libraryItemId, episodeId)) {
+        console.log('Already streaming item', startTime)
+        if (startTime !== undefined && startTime !== null) {
+          // seek to start time
+          AbsAudioPlayer.seek({ value: Math.floor(startTime) })
+        }
+        return
+      }
+
       this.serverLibraryItemId = null
       this.serverEpisodeId = null
 
@@ -209,7 +220,9 @@ export default {
       }
 
       console.log('Called playLibraryItem', libraryItemId)
-      AbsAudioPlayer.prepareLibraryItem({ libraryItemId, episodeId, playWhenReady: true, playbackRate })
+      const preparePayload = { libraryItemId, episodeId, playWhenReady: true, playbackRate }
+      if (startTime !== undefined && startTime !== null) preparePayload.startTime = startTime
+      AbsAudioPlayer.prepareLibraryItem(preparePayload)
         .then((data) => {
           if (data.error) {
             const errorMsg = data.error || 'Failed to play'
