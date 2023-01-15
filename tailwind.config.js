@@ -5,7 +5,8 @@ module.exports = {
     options: {
       safelist: [
         'bg-success',
-        'bg-info'
+        'bg-info',
+        'text-info'
       ]
     }
   },

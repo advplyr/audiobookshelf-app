@@ -74,6 +74,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     fun onProgressSyncFailing()
     fun onProgressSyncSuccess()
     fun onNetworkMeteredChanged(isUnmetered:Boolean)
+    fun onMediaItemHistoryUpdated(mediaItemHistory:MediaItemHistory)
   }
 
   private val tag = "PlayerService"
@@ -101,7 +102,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   private var channelId = "audiobookshelf_channel"
   private var channelName = "Audiobookshelf Channel"
 
-  private var currentPlaybackSession:PlaybackSession? = null
+  var currentPlaybackSession:PlaybackSession? = null
   private var initialPlaybackRate:Float? = null
 
   private var isAndroidAuto = false
@@ -682,7 +683,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
               seekPlayer(playbackSession.currentTimeMs)
               // Should already be playing
               currentPlayer.volume = 1F // Volume on sleep timer might have decreased this
-              mediaProgressSyncer.start()
+              currentPlaybackSession?.let { mediaProgressSyncer.play(it) }
               clientEventEmitter?.onPlayingUpdate(true)
             }
           } else {
@@ -690,9 +691,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
               if (seekBackTime > 0L) {
                 seekBackward(seekBackTime)
               }
+
               // Should already be playing
               currentPlayer.volume = 1F // Volume on sleep timer might have decreased this
-              mediaProgressSyncer.start()
+              currentPlaybackSession?.let { mediaProgressSyncer.play(it) }
               clientEventEmitter?.onPlayingUpdate(true)
             }
           }
@@ -722,7 +724,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
                 }
 
                 currentPlayer.volume = 1F // Volume on sleep timer might have decreased this
-                mediaProgressSyncer.start()
+                mediaProgressSyncer.play(it)
                 clientEventEmitter?.onPlayingUpdate(true)
               }
           }

@@ -1,8 +1,10 @@
 package com.audiobookshelf.app.player
 
 import android.util.Log
+import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.data.PlayerState
 import com.audiobookshelf.app.device.DeviceManager
+import com.audiobookshelf.app.media.MediaEventManager
 import com.google.android.exoplayer2.PlaybackException
 import com.google.android.exoplayer2.Player
 
@@ -16,11 +18,98 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
   }
 
   private var onSeekBack: Boolean = false
+  private var isSeeking: Boolean = false
 
   override fun onPlayerError(error: PlaybackException) {
     val errorMessage = error.message ?: "Unknown Error"
     Log.e(tag, "onPlayerError $errorMessage")
     playerNotificationService.handlePlayerPlaybackError(errorMessage) // If was direct playing session, fallback to transcode
+  }
+
+  override fun onPositionDiscontinuity(
+    oldPosition: Player.PositionInfo,
+    newPosition: Player.PositionInfo,
+    reason: Int
+  ) {
+    if (reason == Player.DISCONTINUITY_REASON_SEEK) {
+      // If playing set seeking flag
+      isSeeking = playerNotificationService.currentPlayer.isPlaying
+
+      Log.d(tag, "onPositionDiscontinuity: oldPosition=${oldPosition.positionMs}/${oldPosition.mediaItemIndex}, newPosition=${newPosition.positionMs}/${newPosition.mediaItemIndex}, isPlaying=${playerNotificationService.currentPlayer.isPlaying} reason=SEEK")
+      playerNotificationService.mediaProgressSyncer.seek()
+    } else {
+      Log.d(tag, "onPositionDiscontinuity: oldPosition=${oldPosition.positionMs}/${oldPosition.mediaItemIndex}, newPosition=${newPosition.positionMs}/${newPosition.mediaItemIndex}, isPlaying=${playerNotificationService.currentPlayer.isPlaying}, reason=$reason")
+    }
+  }
+
+  override fun onIsPlayingChanged(isPlaying: Boolean) {
+    Log.d(tag, "onIsPlayingChanged to $isPlaying | ${playerNotificationService.getMediaPlayer()}")
+
+    if (isSeeking) {
+      if (isPlaying) {
+        isSeeking = false
+        Log.d(tag, "onIsPlayingChanged isSeeking seek complete")
+      } else {
+        Log.d(tag, "onIsPlayingChanged isSeeking skipping pause")
+      }
+      return
+    }
+
+    val player = playerNotificationService.currentPlayer
+
+    if (player.isPlaying) {
+      Log.d(tag, "SeekBackTime: Player is playing")
+      if (lastPauseTime > 0 && DeviceManager.deviceData.deviceSettings?.disableAutoRewind != true) {
+        var seekBackTime = 0L
+        if (onSeekBack) onSeekBack = false
+        else {
+          Log.d(tag, "SeekBackTime: playing started now set seek back time $lastPauseTime")
+          seekBackTime = calcPauseSeekBackTime()
+          if (seekBackTime > 0) {
+            // Current chapter is used so that seek back does not go back to the previous chapter
+            val currentChapter = playerNotificationService.getCurrentBookChapter()
+            val minSeekBackTime = currentChapter?.startMs ?: 0
+
+            val currentTime = playerNotificationService.getCurrentTime()
+            val newTime = currentTime - seekBackTime
+            if (newTime < minSeekBackTime) {
+              seekBackTime = currentTime - minSeekBackTime
+            }
+            Log.d(tag, "SeekBackTime $seekBackTime")
+            onSeekBack = true
+          }
+        }
+
+        // Check if playback session still exists or sync media progress if updated
+        val pauseLength: Long = System.currentTimeMillis() - lastPauseTime
+        if (pauseLength > PAUSE_LEN_BEFORE_RECHECK) {
+          val shouldCarryOn = playerNotificationService.checkCurrentSessionProgress(seekBackTime)
+          if (!shouldCarryOn) return
+        }
+
+        if (seekBackTime > 0L) {
+          playerNotificationService.seekBackward(seekBackTime)
+        }
+      }
+    } else {
+      Log.d(tag, "SeekBackTime: Player not playing set last pause time")
+      lastPauseTime = System.currentTimeMillis()
+    }
+
+    // Start/stop progress sync interval
+    if (player.isPlaying) {
+      player.volume = 1F // Volume on sleep timer might have decreased this
+      val playbackSession: PlaybackSession? = playerNotificationService.mediaProgressSyncer.currentPlaybackSession ?: playerNotificationService.currentPlaybackSession
+      playbackSession?.let { playerNotificationService.mediaProgressSyncer.play(it) }
+    } else {
+      playerNotificationService.mediaProgressSyncer.pause {
+        Log.d(tag, "Media Progress Syncer paused and synced")
+      }
+    }
+
+    playerNotificationService.clientEventEmitter?.onPlayingUpdate(player.isPlaying)
+
+    DeviceManager.widgetUpdater?.onPlayerChanged(playerNotificationService)
   }
 
   override fun onEvents(player: Player, events: Player.Events) {
@@ -66,62 +155,6 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
     }
     if (events.contains(Player.EVENT_PLAYLIST_METADATA_CHANGED)) {
       Log.d(tag, "EVENT_PLAYLIST_METADATA_CHANGED ${playerNotificationService.getMediaPlayer()}")
-    }
-    if (events.contains(Player.EVENT_IS_PLAYING_CHANGED)) {
-      Log.d(tag, "EVENT IS PLAYING CHANGED ${playerNotificationService.getMediaPlayer()}")
-
-      if (player.isPlaying) {
-        Log.d(tag, "SeekBackTime: Player is playing")
-        if (lastPauseTime > 0 && DeviceManager.deviceData.deviceSettings?.disableAutoRewind != true) {
-          var seekBackTime = 0L
-          if (onSeekBack) onSeekBack = false
-          else {
-            Log.d(tag, "SeekBackTime: playing started now set seek back time $lastPauseTime")
-            seekBackTime = calcPauseSeekBackTime()
-            if (seekBackTime > 0) {
-              // Current chapter is used so that seek back does not go back to the previous chapter
-              val currentChapter = playerNotificationService.getCurrentBookChapter()
-              val minSeekBackTime = currentChapter?.startMs ?: 0
-
-              val currentTime = playerNotificationService.getCurrentTime()
-              val newTime = currentTime - seekBackTime
-              if (newTime < minSeekBackTime) {
-                seekBackTime = currentTime - minSeekBackTime
-              }
-              Log.d(tag, "SeekBackTime $seekBackTime")
-              onSeekBack = true
-            }
-          }
-
-          // Check if playback session still exists or sync media progress if updated
-          val pauseLength: Long = System.currentTimeMillis() - lastPauseTime
-          if (pauseLength > PAUSE_LEN_BEFORE_RECHECK) {
-            val shouldCarryOn = playerNotificationService.checkCurrentSessionProgress(seekBackTime)
-            if (!shouldCarryOn) return
-          }
-
-          if (seekBackTime > 0L) {
-            playerNotificationService.seekBackward(seekBackTime)
-          }
-        }
-      } else {
-        Log.d(tag, "SeekBackTime: Player not playing set last pause time")
-        lastPauseTime = System.currentTimeMillis()
-      }
-
-      // Start/stop progress sync interval
-      if (player.isPlaying) {
-        player.volume = 1F // Volume on sleep timer might have decreased this
-        playerNotificationService.mediaProgressSyncer.start()
-      } else {
-        playerNotificationService.mediaProgressSyncer.pause {
-          Log.d(tag, "Media Progress Syncer paused and synced")
-        }
-      }
-
-      playerNotificationService.clientEventEmitter?.onPlayingUpdate(player.isPlaying)
-
-      DeviceManager.widgetUpdater?.onPlayerChanged(playerNotificationService)
     }
   }
 

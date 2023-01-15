@@ -406,4 +406,19 @@ class AbsDatabase : Plugin() {
       call.resolve(JSObject(jacksonMapper.writeValueAsString(DeviceManager.deviceData)))
     }
   }
+
+  @PluginMethod
+  fun getMediaItemHistory(call:PluginCall) { // Returns device data
+    Log.d(tag, "getMediaItemHistory ${call.data}")
+    val mediaId = call.getString("mediaId") ?: ""
+
+    GlobalScope.launch(Dispatchers.IO) {
+      val mediaItemHistory = DeviceManager.dbManager.getMediaItemHistory(mediaId)
+      if (mediaItemHistory == null) {
+        call.resolve()
+      } else {
+        call.resolve(JSObject(jacksonMapper.writeValueAsString(mediaItemHistory)))
+      }
+    }
+  }
 }

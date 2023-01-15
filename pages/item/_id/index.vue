@@ -367,6 +367,14 @@ export default {
       const items = []
 
       if (!this.isPodcast) {
+        // TODO: Implement on iOS
+        if (!this.isIos) {
+          items.push({
+            text: 'History',
+            value: 'history'
+          })
+        }
+
         items.push({
           text: this.userIsFinished ? 'Mark as Not Finished' : 'Mark as Finished',
           value: 'markFinished'
@@ -401,6 +409,10 @@ export default {
 
       if (width * this.bookCoverAspectRatio > 325) width = 325 / this.bookCoverAspectRatio
       return width
+    },
+    mediaId() {
+      if (this.isPodcast) return null
+      return this.serverLibraryItemId || this.localLibraryItemId
     }
   },
   methods: {
@@ -430,6 +442,8 @@ export default {
       } else if (action === 'markFinished') {
         if (this.isProcessingReadUpdate) return
         this.toggleFinished()
+      } else if (action === 'history') {
+        this.$router.push(`/media/${this.mediaId}/history?title=${this.title}`)
       }
     },
     moreButtonPress() {

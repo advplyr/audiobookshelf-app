@@ -217,6 +217,132 @@ class AbsDatabaseWeb extends WebPlugin {
     localStorage.setItem('device', JSON.stringify(deviceData))
     return deviceData
   }
+
+  async getMediaItemHistory({ mediaId }) {
+    console.log('Get media item history', mediaId)
+    return {
+      id: mediaId,
+      mediaDisplayTitle: 'Test Book',
+      libraryItemId: mediaId,
+      episodeId: null,
+      isLocal: false,
+      serverConnectionConfigId: null,
+      serverAddress: null,
+      createdAt: Date.now(),
+      events: [
+        {
+          name: 'Pause',
+          type: 'Playback',
+          description: null,
+          currentTime: 81,
+          serverSyncAttempted: true,
+          serverSyncSuccess: true,
+          serverSyncMessage: null,
+          timestamp: Date.now() - (1000 * 60 * 22) + 13000 // 22 mins ago + 13s
+        },
+        {
+          name: 'Play',
+          type: 'Playback',
+          description: null,
+          currentTime: 68,
+          serverSyncAttempted: false,
+          serverSyncSuccess: null,
+          serverSyncMessage: null,
+          timestamp: Date.now() - (1000 * 60 * 22) // 22 mins ago
+        },
+        {
+          name: 'Pause',
+          type: 'Playback',
+          description: null,
+          currentTime: 68,
+          serverSyncAttempted: true,
+          serverSyncSuccess: false,
+          serverSyncMessage: null,
+          timestamp: Date.now() - (1000 * 60 * 60) + (58000) // 1 hour ago + 58s
+        },
+        {
+          name: 'Save',
+          type: 'Playback',
+          description: null,
+          currentTime: 55,
+          serverSyncAttempted: true,
+          serverSyncSuccess: true,
+          serverSyncMessage: null,
+          timestamp: Date.now() - (1000 * 60 * 60) + (45000) // 1 hour ago + 45s
+        },
+        {
+          name: 'Save',
+          type: 'Playback',
+          description: null,
+          currentTime: 40,
+          serverSyncAttempted: true,
+          serverSyncSuccess: true,
+          serverSyncMessage: null,
+          timestamp: Date.now() - (1000 * 60 * 60) + (30000) // 1 hour ago + 30s
+        },
+        {
+          name: 'Save',
+          type: 'Playback',
+          description: null,
+          currentTime: 25,
+          serverSyncAttempted: true,
+          serverSyncSuccess: true,
+          serverSyncMessage: null,
+          timestamp: Date.now() - (1000 * 60 * 60) + (15000) // 1 hour ago + 15s
+        },
+        {
+          name: 'Play',
+          type: 'Playback',
+          description: null,
+          currentTime: 10,
+          serverSyncAttempted: false,
+          serverSyncSuccess: null,
+          serverSyncMessage: null,
+          timestamp: Date.now() - (1000 * 60 * 60) // 1 hour ago
+        },
+        {
+          name: 'Stop',
+          type: 'Playback',
+          description: null,
+          currentTime: 10,
+          serverSyncAttempted: true,
+          serverSyncSuccess: true,
+          serverSyncMessage: null,
+          timestamp: Date.now() - (1000 * 60 * 60 * 25) + 10000 // 25 hours ago + 10s
+        },
+        {
+          name: 'Seek',
+          type: 'Playback',
+          description: null,
+          currentTime: 6,
+          serverSyncAttempted: true,
+          serverSyncSuccess: true,
+          serverSyncMessage: null,
+          timestamp: Date.now() - (1000 * 60 * 60 * 25) + 2000 // 25 hours ago + 2s
+        },
+        {
+          name: 'Play',
+          type: 'Playback',
+          description: null,
+          currentTime: 0,
+          serverSyncAttempted: false,
+          serverSyncSuccess: null,
+          serverSyncMessage: null,
+          timestamp: Date.now() - (1000 * 60 * 60 * 25) // 25 hours ago
+        },
+        {
+          name: 'Play',
+          type: 'Playback',
+          description: null,
+          currentTime: 0,
+          serverSyncAttempted: false,
+          serverSyncSuccess: null,
+          serverSyncMessage: null,
+          timestamp: Date.now() - (1000 * 60 * 60 * 50) // 50 hours ago
+        }
+      ]
+    }
+  }
 }
 
 const AbsDatabase = registerPlugin('AbsDatabase', {

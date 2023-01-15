@@ -86,6 +86,10 @@ class DbService {
   updateDeviceSettings(payload) {
     return AbsDatabase.updateDeviceSettings(payload)
   }
+
+  getMediaItemHistory(mediaId) {
+    return AbsDatabase.getMediaItemHistory({ mediaId })
+  }
 }
 
 export default ({ app, store }, inject) => {

@@ -6,7 +6,9 @@ import android.util.Log
 import com.audiobookshelf.app.MainActivity
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
+import com.audiobookshelf.app.media.MediaEventManager
 import com.audiobookshelf.app.player.CastManager
+import com.audiobookshelf.app.player.MediaProgressSyncer
 import com.audiobookshelf.app.player.PlayerNotificationService
 import com.audiobookshelf.app.server.ApiHandler
 import com.fasterxml.jackson.core.json.JsonReadFeature
@@ -88,7 +90,13 @@ class AbsAudioPlayer : Plugin() {
         override fun onNetworkMeteredChanged(isUnmetered:Boolean) {
           emit("onNetworkMeteredChanged", isUnmetered)
         }
+
+        override fun onMediaItemHistoryUpdated(mediaItemHistory:MediaItemHistory) {
+          notifyListeners("onMediaItemHistoryUpdated", JSObject(jacksonMapper.writeValueAsString(mediaItemHistory)))
+        }
       })
+
+      MediaEventManager.clientEventEmitter = playerNotificationService.clientEventEmitter
     }
     mainActivity.pluginCallback = foregroundServiceReady
   }
@@ -267,6 +275,7 @@ class AbsAudioPlayer : Plugin() {
   @PluginMethod
   fun seek(call: PluginCall) {
     val time:Int = call.getInt("value", 0) ?: 0 // Value in seconds
+    Log.d(tag, "seek action to $time")
     Handler(Looper.getMainLooper()).post {
       playerNotificationService.seekPlayer(time * 1000L) // convert to ms
       call.resolve()

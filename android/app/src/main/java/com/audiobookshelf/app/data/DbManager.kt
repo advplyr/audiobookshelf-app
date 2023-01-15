@@ -242,4 +242,12 @@ class DbManager {
   fun getLocalPlaybackSession(playbackSessionId:String):PlaybackSession? {
     return Paper.book("localPlaybackSession").read(playbackSessionId)
   }
+
+
+  fun saveMediaItemHistory(mediaItemHistory:MediaItemHistory) {
+    Paper.book("mediaItemHistory").write(mediaItemHistory.id,mediaItemHistory)
+  }
+  fun getMediaItemHistory(id:String):MediaItemHistory? {
+    return Paper.book("mediaItemHistory").read(id)
+  }
 }

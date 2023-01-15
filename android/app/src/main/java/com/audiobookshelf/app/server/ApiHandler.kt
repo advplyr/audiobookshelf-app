@@ -226,26 +226,26 @@ class ApiHandler(var ctx:Context) {
     }
   }
 
-  fun sendProgressSync(sessionId:String, syncData: MediaProgressSyncData, cb: (Boolean) -> Unit) {
+  fun sendProgressSync(sessionId:String, syncData: MediaProgressSyncData, cb: (Boolean, String?) -> Unit) {
     val payload = JSObject(jacksonMapper.writeValueAsString(syncData))
 
     postRequest("/api/session/$sessionId/sync", payload, null) {
       if (!it.getString("error").isNullOrEmpty()) {
-        cb(false)
+        cb(false, it.getString("error"))
       } else {
-        cb(true)
+        cb(true, null)
       }
     }
   }
 
-  fun sendLocalProgressSync(playbackSession:PlaybackSession, cb: (Boolean) -> Unit) {
+  fun sendLocalProgressSync(playbackSession:PlaybackSession, cb: (Boolean, String?) -> Unit) {
     val payload = JSObject(jacksonMapper.writeValueAsString(playbackSession))
 
     postRequest("/api/session/local", payload, null) {
       if (!it.getString("error").isNullOrEmpty()) {
-        cb(false)
+        cb(false, it.getString("error"))
       } else {
-        cb(true)
+        cb(true, null)
       }
     }
   }

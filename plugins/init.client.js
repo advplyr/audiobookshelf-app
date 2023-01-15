@@ -91,16 +91,26 @@ Vue.prototype.$elapsedPrettyExtended = (seconds, useDays = true) => {
 }
 
 Vue.prototype.$secondsToTimestamp = (seconds) => {
-  var _seconds = seconds
-  var _minutes = Math.floor(seconds / 60)
+  let _seconds = seconds
+  let _minutes = Math.floor(seconds / 60)
   _seconds -= _minutes * 60
-  var _hours = Math.floor(_minutes / 60)
+  let _hours = Math.floor(_minutes / 60)
   _minutes -= _hours * 60
   _seconds = Math.floor(_seconds)
   if (!_hours) {
     return `${_minutes}:${_seconds.toString().padStart(2, '0')}`
   }
   return `${_hours}:${_minutes.toString().padStart(2, '0')}:${_seconds.toString().padStart(2, '0')}`
+}
+
+Vue.prototype.$secondsToTimestampFull = (seconds) => {
+  let _seconds = seconds
+  let _minutes = Math.floor(seconds / 60)
+  _seconds -= _minutes * 60
+  let _hours = Math.floor(_minutes / 60)
+  _minutes -= _hours * 60
+  _seconds = Math.floor(_seconds)
+  return `${_hours.toString().padStart(2, '0')}:${_minutes.toString().padStart(2, '0')}:${_seconds.toString().padStart(2, '0')}`
 }
 
 Vue.prototype.$sanitizeFilename = (input, colonReplacement = ' - ') => {
