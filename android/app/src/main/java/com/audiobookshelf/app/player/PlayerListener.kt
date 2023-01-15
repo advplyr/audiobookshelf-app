@@ -14,9 +14,8 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
 
   companion object {
     var lastPauseTime: Long = 0   //ms
+    var lazyIsPlaying: Boolean = false
   }
-
-  private var lazyIsPlaying: Boolean = false
 
   override fun onPlayerError(error: PlaybackException) {
     val errorMessage = error.message ?: "Unknown Error"

@@ -185,23 +185,34 @@ export default {
   },
   computed: {
     menuItems() {
-      var items = [
-        {
-          text: 'Chapter Track',
-          value: 'chapter_track',
-          icon: this.useChapterTrack ? 'check_box' : 'check_box_outline_blank'
-        },
-        {
-          text: this.lockUi ? 'Unlock Player' : 'Lock Player',
-          value: 'lock',
-          icon: this.lockUi ? 'lock' : 'lock_open'
-        },
-        {
-          text: 'Close Player',
-          value: 'close',
-          icon: 'close'
-        }
-      ]
+      const items = []
+      // TODO: Implement on iOS
+      if (this.$platform !== 'ios' && !this.isPodcast && this.mediaId) {
+        items.push({
+          text: 'History',
+          value: 'history'
+        })
+      }
+
+      items.push(
+        ...[
+          {
+            text: 'Chapter Track',
+            value: 'chapter_track',
+            icon: this.useChapterTrack ? 'check_box' : 'check_box_outline_blank'
+          },
+          {
+            text: this.lockUi ? 'Unlock Player' : 'Lock Player',
+            value: 'lock',
+            icon: this.lockUi ? 'lock' : 'lock_open'
+          },
+          {
+            text: 'Close Player',
+            value: 'close',
+            icon: 'close'
+          }
+        ]
+      )
 
       return items
     },
@@ -348,6 +359,16 @@ export default {
     },
     networkConnected() {
       return this.$store.state.networkConnected
+    },
+    mediaId() {
+      if (this.isPodcast || !this.playbackSession) return null
+      if (this.playbackSession.libraryItemId) {
+        return this.playbackSession.episodeId ? `${this.playbackSession.libraryItemId}-${this.playbackSession.episodeId}` : this.playbackSession.libraryItemId
+      }
+      const localLibraryItem = this.playbackSession.localLibraryItem
+      if (!localLibraryItem) return null
+
+      return this.playbackSession.localEpisodeId ? `${localLibraryItem.id}-${this.playbackSession.localEpisodeId}` : localLibraryItem.id
     }
   },
   methods: {
@@ -692,7 +713,10 @@ export default {
       await this.$hapticsImpact()
       this.showMoreMenuDialog = false
       this.$nextTick(() => {
-        if (action === 'lock') {
+        if (action === 'history') {
+          this.$router.push(`/media/${this.mediaId}/history?title=${this.title}`)
+          this.showFullscreen = false
+        } else if (action === 'lock') {
           this.lockUi = !this.lockUi
           this.$localStore.setPlayerLock(this.lockUi)
         } else if (action === 'chapter_track') {

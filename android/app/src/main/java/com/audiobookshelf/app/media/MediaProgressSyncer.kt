@@ -94,7 +94,10 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
   }
 
   fun stop(shouldSync:Boolean? = true, cb: () -> Unit) {
-    if (!listeningTimerRunning) return
+    if (!listeningTimerRunning) {
+      reset()
+      return cb()
+    }
 
     listeningTimerTask?.cancel()
     listeningTimerTask = null
@@ -255,6 +258,7 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
         }
       }
     } else if (shouldSyncServer) {
+      Log.d(tag, "sync: currentSessionId=$currentSessionId")
       apiHandler.sendProgressSync(currentSessionId, syncData) { syncSuccess, errorMsg ->
         if (syncSuccess) {
           Log.d(tag, "Progress sync data sent to server $currentDisplayTitle for time $currentTime")

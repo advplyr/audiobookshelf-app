@@ -198,6 +198,9 @@ export default {
         console.error('Invalid media item history', mediaItemHistory)
         return
       }
+      if (mediaItemHistory.id !== this.mediaItemHistory.id) {
+        return
+      }
       console.log('Media Item History updated')
 
       this.mediaItemHistory = mediaItemHistory

@@ -9,6 +9,7 @@ import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.media.MediaEventManager
 import com.audiobookshelf.app.player.CastManager
 import com.audiobookshelf.app.player.MediaProgressSyncer
+import com.audiobookshelf.app.player.PlayerListener
 import com.audiobookshelf.app.player.PlayerNotificationService
 import com.audiobookshelf.app.server.ApiHandler
 import com.fasterxml.jackson.core.json.JsonReadFeature
@@ -168,6 +169,8 @@ class AbsAudioPlayer : Plugin() {
     val episodeId = call.getString("episodeId", "").toString()
     val playWhenReady = call.getBoolean("playWhenReady") == true
     val playbackRate = call.getFloat("playbackRate",1f) ?: 1f
+    val startTimeOverride = call.getDouble("startTime")
+    Log.d(tag, "prepareLibraryItem lid=$libraryItemId, startTimeOverride=$startTimeOverride")
 
     if (libraryItemId.isEmpty()) {
       Log.e(tag, "Invalid call to play library item no library item id")
@@ -189,10 +192,16 @@ class AbsAudioPlayer : Plugin() {
         Handler(Looper.getMainLooper()).post {
           Log.d(tag, "prepareLibraryItem: Preparing Local Media item ${jacksonMapper.writeValueAsString(it)}")
           val playbackSession = it.getPlaybackSession(episode)
+          if (startTimeOverride != null) {
+            Log.d(tag, "prepareLibraryItem: Using start time override $startTimeOverride")
+            playbackSession.currentTime = startTimeOverride
+          }
 
           if (playerNotificationService.mediaProgressSyncer.listeningTimerRunning) { // If progress syncing then first stop before preparing next
             playerNotificationService.mediaProgressSyncer.stop {
               Log.d(tag, "Media progress syncer was already syncing - stopped")
+              PlayerListener.lazyIsPlaying = false
+
               Handler(Looper.getMainLooper()).post { // TODO: This was needed again which is probably a design a flaw
                 playerNotificationService.preparePlayer(
                   playbackSession,
@@ -202,6 +211,7 @@ class AbsAudioPlayer : Plugin() {
               }
             }
           } else {
+            playerNotificationService.mediaProgressSyncer.reset()
             playerNotificationService.preparePlayer(playbackSession, playWhenReady, playbackRate)
           }
         }
@@ -209,28 +219,25 @@ class AbsAudioPlayer : Plugin() {
       }
     } else { // Play library item from server
       val playItemRequestPayload = playerNotificationService.getPlayItemRequestPayload(false)
-
-      apiHandler.playLibraryItem(libraryItemId, episodeId, playItemRequestPayload) {
-        if (it == null) {
-          call.resolve(JSObject("{\"error\":\"Server play request failed\"}"))
-        } else {
-
-          Handler(Looper.getMainLooper()).post {
-            Log.d(tag, "Preparing Player playback session ${jacksonMapper.writeValueAsString(it)}")
-
-            if (playerNotificationService.mediaProgressSyncer.listeningTimerRunning) { // If progress syncing then first stop before preparing next
-              playerNotificationService.mediaProgressSyncer.stop {
-                Log.d(tag, "Media progress syncer was already syncing - stopped")
-                Handler(Looper.getMainLooper()).post { // TODO: This was needed again which is probably a design a flaw
-                  playerNotificationService.preparePlayer(it, playWhenReady, playbackRate)
-                }
-              }
+      Handler(Looper.getMainLooper()).post {
+        playerNotificationService.mediaProgressSyncer.stop {
+          apiHandler.playLibraryItem(libraryItemId, episodeId, playItemRequestPayload) {
+            if (it == null) {
+              call.resolve(JSObject("{\"error\":\"Server play request failed\"}"))
             } else {
-              playerNotificationService.preparePlayer(it, playWhenReady, playbackRate)
+              if (startTimeOverride != null) {
+                Log.d(tag, "prepareLibraryItem: Using start time override $startTimeOverride")
+                it.currentTime = startTimeOverride
+              }
+
+              Handler(Looper.getMainLooper()).post {
+                Log.d(tag, "Preparing Player playback session ${jacksonMapper.writeValueAsString(it)}")
+                PlayerListener.lazyIsPlaying = false
+                playerNotificationService.preparePlayer(it, playWhenReady, playbackRate)
+              }
+              call.resolve(JSObject(jacksonMapper.writeValueAsString(it)))
             }
           }
-
-          call.resolve(JSObject(jacksonMapper.writeValueAsString(it)))
         }
       }
     }
