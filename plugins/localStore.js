@@ -60,6 +60,24 @@ class LocalStorage {
     }
   }
 
+  async setUseTotalTrack(useTotalTrack) {
+    try {
+      await Storage.set({ key: 'useTotalTrack', value: useTotalTrack ? '1' : '0' })
+    } catch (error) {
+      console.error('[LocalStorage] Failed to set use total track', error)
+    }
+  }
+
+  async getUseTotalTrack() {
+    try {
+      var obj = await Storage.get({ key: 'useTotalTrack' }) || {}
+      return obj.value === '1'
+    } catch (error) {
+      console.error('[LocalStorage] Failed to get use total track', error)
+      return false
+    }
+  }
+
   async setPlayerLock(lock) {
     try {
       await Storage.set({ key: 'playerLock', value: lock ? '1' : '0' })
