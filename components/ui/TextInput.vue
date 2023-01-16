@@ -4,6 +4,9 @@
     <div v-if="prependIcon" class="absolute top-0 left-0 h-full px-2 flex items-center justify-center">
       <span class="material-icons text-lg">{{ prependIcon }}</span>
     </div>
+    <div v-if="clearable && input" class="absolute top-0 right-0 h-full px-2 flex items-center justify-center" @click.stop="clear">
+      <span class="material-icons text-lg">close</span>
+    </div>
   </div>
 </template>
 
@@ -26,7 +29,8 @@ export default {
     prependIcon: {
       type: String,
       default: null
-    }
+    },
+    clearable: Boolean
   },
   data() {
     return {}
@@ -53,6 +57,9 @@ export default {
     }
   },
   methods: {
+    clear() {
+      this.input = ''
+    },
     focus() {
       if (this.$refs.input) {
         this.$refs.input.focus()
