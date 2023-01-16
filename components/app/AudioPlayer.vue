@@ -99,24 +99,7 @@
     </div>
 
     <modals-chapters-modal v-model="showChapterModal" :current-chapter="currentChapter" :chapters="chapters" @select="selectChapter" />
-    <modals-dialog v-model="showMoreMenuDialog" :items="menuItems" @action="clickMenuAction">
-      <template v-slot:chapter_track="{ item }">
-        <li class="text-gray-50 select-none relative py-4 cursor-pointer hover:bg-black-400" role="option" @click="clickMenuAction(item.value)">
-          <div class="flex items-center px-3">
-            <span v-if="item.icon" class="material-icons-outlined text-xl mr-2 text-white text-opacity-80">{{ item.icon }}</span>
-            <span class="font-normal block truncate text-base text-white text-opacity-80">{{ item.text }}</span>
-          </div>
-        </li>
-      </template>
-      <template v-slot:lock="{ item }">
-        <li class="text-gray-50 select-none relative py-4 cursor-pointer hover:bg-black-400" role="option" @click="clickMenuAction(item.value)">
-          <div class="flex items-center px-3">
-            <span v-if="item.icon" class="material-icons-outlined text-xl mr-2 text-opacity-80" :class="{ 'text-red-500': lockUi, 'text-white': !lockUi }">{{ item.icon }}</span>
-            <span class="font-normal block truncate text-base text-white text-opacity-80">{{ item.text }}</span>
-          </div>
-        </li>
-      </template>
-    </modals-dialog>
+    <modals-dialog v-model="showMoreMenuDialog" :items="menuItems" @action="clickMenuAction" />
   </div>
 </template>
 
@@ -190,7 +173,8 @@ export default {
       if (this.$platform !== 'ios' && !this.isPodcast && this.mediaId) {
         items.push({
           text: 'History',
-          value: 'history'
+          value: 'history',
+          icon: 'history'
         })
       }
 
