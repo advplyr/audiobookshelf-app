@@ -15,7 +15,7 @@
       <p class="top-4 absolute left-0 right-0 mx-auto text-center uppercase tracking-widest text-opacity-75" style="font-size: 10px" :class="{ 'text-success': isLocalPlayMethod, 'text-accent': !isLocalPlayMethod }">{{ isDirectPlayMethod ? 'Direct' : isLocalPlayMethod ? 'Local' : 'Transcode' }}</p>
     </div>
 
-    <div v-if="useChapterTrack && showFullscreen" class="absolute total-track w-full px-3 z-30">
+    <div v-if="useChapterTrack && useTotalTrack && showFullscreen" class="absolute total-track w-full px-3 z-30">
       <div class="flex">
         <p class="font-mono text-white text-opacity-90" style="font-size: 0.8rem">{{ currentTimePretty }}</p>
         <div class="flex-grow" />
@@ -147,6 +147,7 @@ export default {
       touchStartTime: 0,
       touchEndY: 0,
       useChapterTrack: false,
+      useTotalTrack: true,
       lockUi: false,
       isLoading: false,
       touchTrackStart: false,
@@ -180,6 +181,11 @@ export default {
 
       items.push(
         ...[
+          {
+            text: 'Total Track',
+            value: 'total_track',
+            icon: this.useTotalTrack ? 'check_box' : 'check_box_outline_blank'
+          },
           {
             text: 'Chapter Track',
             value: 'chapter_track',
@@ -705,11 +711,20 @@ export default {
           this.$localStore.setPlayerLock(this.lockUi)
         } else if (action === 'chapter_track') {
           this.useChapterTrack = !this.useChapterTrack
+          this.useTotalTrack = !this.useChapterTrack || this.useTotalTrack
 
           this.updateTimestamp()
           this.updateTrack()
           this.updateReadyTrack()
           this.$localStore.setUseChapterTrack(this.useChapterTrack)
+        } else if (action === 'total_track') {
+          this.useTotalTrack = !this.useTotalTrack
+          this.useChapterTrack = !this.useTotalTrack || this.useChapterTrack
+
+          this.updateTimestamp()
+          this.updateTrack()
+          this.updateReadyTrack()
+          this.$localStore.setUseTotalTrack(this.useTotalTrack)
         } else if (action === 'close') {
           this.closePlayback()
         }
