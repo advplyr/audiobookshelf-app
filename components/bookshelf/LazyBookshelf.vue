@@ -371,15 +371,16 @@ export default {
       return searchParams.toString()
     },
     checkUpdateSearchParams() {
-      var newSearchParams = this.buildSearchParams()
-      var currentQueryString = window.location.search
+      const newSearchParams = this.buildSearchParams()
+      let currentQueryString = window.location.search
       if (currentQueryString && currentQueryString.startsWith('?')) currentQueryString = currentQueryString.slice(1)
 
-      if (newSearchParams === '') {
+      if (newSearchParams === '' && !currentQueryString) {
         return false
       }
       if (newSearchParams !== this.currentSFQueryString || newSearchParams !== currentQueryString) {
-        let newurl = window.location.protocol + '//' + window.location.host + window.location.pathname + '?' + newSearchParams
+        const queryString = newSearchParams ? `?${newSearchParams}` : ''
+        let newurl = window.location.protocol + '//' + window.location.host + window.location.pathname + queryString
         window.history.replaceState({ path: newurl }, '', newurl)
 
         this.routeFullPath = window.location.pathname + (window.location.search || '') // Update for saving scroll position
@@ -389,7 +390,7 @@ export default {
       return false
     },
     settingsUpdated(settings) {
-      var wasUpdated = this.checkUpdateSearchParams()
+      const wasUpdated = this.checkUpdateSearchParams()
       if (wasUpdated) {
         this.resetEntities()
       }
