@@ -95,7 +95,7 @@ class AbsDownloader : Plugin() {
       val dlRequest = DownloadManager.Request(uri)
       dlRequest.setTitle(filename)
       dlRequest.setDescription("Downloading to $localFolderName for book $itemTitle")
-      dlRequest.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+      dlRequest.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
       dlRequest.setDestinationUri(destinationUri)
       return dlRequest
     }
