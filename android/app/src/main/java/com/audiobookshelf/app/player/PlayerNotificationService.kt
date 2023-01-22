@@ -31,6 +31,7 @@ import com.audiobookshelf.app.R
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.data.DeviceInfo
 import com.audiobookshelf.app.device.DeviceManager
+import com.audiobookshelf.app.managers.DbManager
 import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.server.ApiHandler
 import com.fasterxml.jackson.annotation.JsonIgnore
@@ -49,8 +50,8 @@ import kotlin.concurrent.schedule
 
 
 const val SLEEP_TIMER_WAKE_UP_EXPIRATION = 120000L // 2m
-const val PLAYER_CAST = "cast-player";
-const val PLAYER_EXO = "exo-player";
+const val PLAYER_CAST = "cast-player"
+const val PLAYER_EXO = "exo-player"
 
 class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
@@ -60,6 +61,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     var isUnmeteredNetwork = false
     var isSwitchingPlayer = false // Used when switching between cast player and exoplayer
   }
+
+  private val tag = "PlayerNotificationService"
 
   interface ClientEventEmitter {
     fun onPlaybackSession(playbackSession:PlaybackSession)
@@ -76,8 +79,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     fun onNetworkMeteredChanged(isUnmetered:Boolean)
     fun onMediaItemHistoryUpdated(mediaItemHistory:MediaItemHistory)
   }
-
-  private val tag = "PlayerService"
   private val binder = LocalBinder()
 
   var clientEventEmitter:ClientEventEmitter? = null

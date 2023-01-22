@@ -2,6 +2,7 @@ package com.audiobookshelf.app.device
 
 import android.util.Log
 import com.audiobookshelf.app.data.*
+import com.audiobookshelf.app.managers.DbManager
 import com.audiobookshelf.app.player.PlayerNotificationService
 
 interface WidgetEventEmitter {
@@ -11,7 +12,7 @@ interface WidgetEventEmitter {
 object DeviceManager {
   const val tag = "DeviceManager"
 
-  val dbManager:DbManager = DbManager()
+  val dbManager: DbManager = DbManager()
   var deviceData:DeviceData = dbManager.getDeviceData()
   var serverConnectionConfig: ServerConnectionConfig? = null
 

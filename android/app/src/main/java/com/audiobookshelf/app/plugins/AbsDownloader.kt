@@ -10,12 +10,15 @@ import androidx.documentfile.provider.DocumentFile
 import com.anggrayudi.storage.callback.FileCallback
 import com.anggrayudi.storage.file.*
 import com.anggrayudi.storage.media.FileDescription
+import com.anggrayudi.storage.media.MediaStoreCompat
 import com.audiobookshelf.app.MainActivity
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.device.FolderScanner
+import com.audiobookshelf.app.models.DownloadItem
+import com.audiobookshelf.app.models.DownloadItemPart
 import com.audiobookshelf.app.server.ApiHandler
-import com.fasterxml.jackson.annotation.JsonIgnore
+import com.audiobookshelf.app.managers.DownloadItemManager
 import com.fasterxml.jackson.core.json.JsonReadFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.getcapacitor.JSObject
@@ -32,99 +35,34 @@ import java.io.File
 @CapacitorPlugin(name = "AbsDownloader")
 class AbsDownloader : Plugin() {
   private val tag = "AbsDownloader"
-  var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
+  private var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
 
   lateinit var mainActivity: MainActivity
   lateinit var downloadManager: DownloadManager
   lateinit var apiHandler: ApiHandler
   lateinit var folderScanner: FolderScanner
+  lateinit var downloadItemManager: DownloadItemManager
 
-  data class DownloadItemPart(
-    val id: String,
-    val filename: String,
-    val finalDestinationPath:String,
-    val itemTitle: String,
-    val serverPath: String,
-    val localFolderName: String,
-    val localFolderUrl: String,
-    val localFolderId: String,
-    val audioTrack: AudioTrack?,
-    val episode:PodcastEpisode?,
-    var completed:Boolean,
-    var moved:Boolean,
-    var failed:Boolean,
-    @JsonIgnore val uri: Uri,
-    @JsonIgnore val destinationUri: Uri,
-    @JsonIgnore val finalDestinationUri: Uri,
-    var downloadId: Long?,
-    var progress: Long
-  ) {
-    companion object {
-      fun make(filename:String, destinationFile:File, finalDestinationFile:File, itemTitle:String, serverPath:String, localFolder:LocalFolder, audioTrack:AudioTrack?, episode:PodcastEpisode?) :DownloadItemPart {
-        val destinationUri = Uri.fromFile(destinationFile)
-        val finalDestinationUri = Uri.fromFile(finalDestinationFile)
+  private var downloadQueue: MutableList<DownloadItem> = mutableListOf()
 
-        var downloadUrl = "${DeviceManager.serverAddress}${serverPath}?token=${DeviceManager.token}"
-        if (serverPath.endsWith("/cover")) downloadUrl += "&format=jpeg" // For cover images force to jpeg
-        val downloadUri = Uri.parse(downloadUrl)
-        Log.d("DownloadItemPart", "Audio File Destination Uri: $destinationUri | Final Destination Uri: $finalDestinationUri | Download URI $downloadUri")
-        return DownloadItemPart(
-          id = DeviceManager.getBase64Id(finalDestinationFile.absolutePath),
-          filename = filename, finalDestinationFile.absolutePath,
-          itemTitle = itemTitle,
-          serverPath = serverPath,
-          localFolderName = localFolder.name,
-          localFolderUrl = localFolder.contentUrl,
-          localFolderId = localFolder.id,
-          audioTrack = audioTrack,
-          episode = episode,
-          completed = false,
-          moved = false,
-          failed = false,
-          uri = downloadUri,
-          destinationUri = destinationUri,
-          finalDestinationUri = finalDestinationUri,
-          downloadId = null,
-          progress = 0
-        )
-      }
+  val clientEventEmitter = (object : DownloadItemManager.DownloadEventEmitter {
+    override fun onDownloadItem(downloadItem:DownloadItem) {
+      notifyListeners("onDownloadItem", JSObject(jacksonMapper.writeValueAsString(downloadItem)))
     }
-
-    @JsonIgnore
-    fun getDownloadRequest(): DownloadManager.Request {
-      val dlRequest = DownloadManager.Request(uri)
-      dlRequest.setTitle(filename)
-      dlRequest.setDescription("Downloading to $localFolderName for book $itemTitle")
-      dlRequest.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
-      dlRequest.setDestinationUri(destinationUri)
-      return dlRequest
+    override fun onDownloadItemPartUpdate(downloadItemPart:DownloadItemPart) {
+      notifyListeners("onDownloadItemPartUpdate", JSObject(jacksonMapper.writeValueAsString(downloadItemPart)))
     }
-  }
-
-  data class DownloadItem(
-    val id: String,
-    val libraryItemId:String,
-    val episodeId:String?,
-    val userMediaProgress:MediaProgress?,
-    val serverConnectionConfigId:String,
-    val serverAddress:String,
-    val serverUserId:String,
-    val mediaType: String,
-    val itemFolderPath:String,
-    val localFolder: LocalFolder,
-    val itemTitle: String,
-    val media:MediaType,
-    val downloadItemParts: MutableList<DownloadItemPart>
-  )
-
-  var downloadQueue: MutableList<DownloadItem> = mutableListOf()
+    override fun onDownloadItemComplete(jsobj:JSObject) {
+      notifyListeners("onItemDownloadComplete", jsobj)
+    }
+  })
 
   override fun load() {
     mainActivity = (activity as MainActivity)
     downloadManager = activity.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
     folderScanner = FolderScanner(mainActivity)
     apiHandler = ApiHandler(mainActivity)
-
+    downloadItemManager = DownloadItemManager(downloadManager, folderScanner, mainActivity, clientEventEmitter)
     Log.d(tag, "Build SDK ${Build.VERSION.SDK_INT}")
   }
 
@@ -204,13 +142,16 @@ class AbsDownloader : Plugin() {
 
   private fun startLibraryItemDownload(libraryItem: LibraryItem, localFolder: LocalFolder, episode:PodcastEpisode?) {
     val tempFolderPath = mainActivity.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+//    val tempFolderPath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+
+    Log.d(tag, "downloadCacheDirectory=$tempFolderPath")
 
     if (libraryItem.mediaType == "book") {
       val bookTitle = cleanStringForFileSystem(libraryItem.media.metadata.title)
 
       val tracks = libraryItem.media.getAudioTracks()
       Log.d(tag, "Starting library item download with ${tracks.size} tracks")
-      val itemFolderPath = localFolder.absolutePath + "/" + bookTitle
+      val itemFolderPath = "${localFolder.absolutePath}/$bookTitle"
       val downloadItem = DownloadItem(libraryItem.id, libraryItem.id, null, libraryItem.userMediaProgress,DeviceManager.serverConnectionConfig?.id ?: "", DeviceManager.serverAddress, DeviceManager.serverUserId, libraryItem.mediaType, itemFolderPath, localFolder, bookTitle, libraryItem.media, mutableListOf())
 
       // Create download item part for each audio track
@@ -222,43 +163,54 @@ class AbsDownloader : Plugin() {
         val finalDestinationFile = File("$itemFolderPath/$destinationFilename")
         val destinationFile = File("$tempFolderPath/$destinationFilename")
 
+        if (destinationFile.exists()) {
+          Log.d(tag, "TEMP Audio file already exists, removing it from ${destinationFile.absolutePath}")
+          destinationFile.delete()
+        }
+
         if (finalDestinationFile.exists()) {
           Log.d(tag, "Audio file already exists, removing it from ${finalDestinationFile.absolutePath}")
           finalDestinationFile.delete()
         }
 
-        val downloadItemPart = DownloadItemPart.make(destinationFilename,destinationFile,finalDestinationFile,bookTitle,serverPath,localFolder,audioTrack,null)
+        val downloadItemPart = DownloadItemPart.make(downloadItem.id, destinationFilename,destinationFile,finalDestinationFile,bookTitle,serverPath,localFolder,audioTrack,null)
         downloadItem.downloadItemParts.add(downloadItemPart)
 
-        val dlRequest = downloadItemPart.getDownloadRequest()
-        val downloadId = downloadManager.enqueue(dlRequest)
-        downloadItemPart.downloadId = downloadId
+//        val dlRequest = downloadItemPart.getDownloadRequest()
+//        val downloadId = downloadManager.enqueue(dlRequest)
+//        downloadItemPart.downloadId = downloadId
       }
 
       if (downloadItem.downloadItemParts.isNotEmpty()) {
         // Add cover download item
         if (libraryItem.media.coverPath != null && libraryItem.media.coverPath?.isNotEmpty() == true) {
           val serverPath = "/api/items/${libraryItem.id}/cover"
-          val destinationFilename = "cover.jpg"
+          val destinationFilename = "cover-${libraryItem.id}.jpg"
           val destinationFile = File("$tempFolderPath/$destinationFilename")
           val finalDestinationFile = File("$itemFolderPath/$destinationFilename")
+
+          if (destinationFile.exists()) {
+            Log.d(tag, "TEMP Audio file already exists, removing it from ${destinationFile.absolutePath}")
+            destinationFile.delete()
+          }
 
           if (finalDestinationFile.exists()) {
             Log.d(tag, "Cover already exists, removing it from ${finalDestinationFile.absolutePath}")
             finalDestinationFile.delete()
           }
 
-          val downloadItemPart = DownloadItemPart.make(destinationFilename,destinationFile,finalDestinationFile,bookTitle,serverPath,localFolder,null,null)
+          val downloadItemPart = DownloadItemPart.make(downloadItem.id, destinationFilename,destinationFile,finalDestinationFile,bookTitle,serverPath,localFolder,null,null)
           downloadItem.downloadItemParts.add(downloadItemPart)
 
-          val dlRequest = downloadItemPart.getDownloadRequest()
-          val downloadId = downloadManager.enqueue(dlRequest)
-          downloadItemPart.downloadId = downloadId
+//          val dlRequest = downloadItemPart.getDownloadRequest()
+//          val downloadId = downloadManager.enqueue(dlRequest)
+//          downloadItemPart.downloadId = downloadId
         }
 
-        downloadQueue.add(downloadItem)
-        startWatchingDownloads(downloadItem)
-        DeviceManager.dbManager.saveDownloadItem(downloadItem)
+//        downloadQueue.add(downloadItem)
+//        startWatchingDownloads(downloadItem)
+//        DeviceManager.dbManager.saveDownloadItem(downloadItem)
+        downloadItemManager.addDownloadItem(downloadItem)
       }
     } else {
       // Podcast episode download
@@ -281,7 +233,7 @@ class AbsDownloader : Plugin() {
         finalDestinationFile.delete()
       }
 
-      var downloadItemPart = DownloadItemPart.make(destinationFilename,destinationFile,finalDestinationFile,podcastTitle,serverPath,localFolder,audioTrack,episode)
+      var downloadItemPart = DownloadItemPart.make(downloadItem.id, destinationFilename,destinationFile,finalDestinationFile,podcastTitle,serverPath,localFolder,audioTrack,episode)
       downloadItem.downloadItemParts.add(downloadItemPart)
 
       var dlRequest = downloadItemPart.getDownloadRequest()
@@ -298,7 +250,7 @@ class AbsDownloader : Plugin() {
         if (finalDestinationFile.exists()) {
           Log.d(tag, "Podcast cover already exists - not downloading cover again")
         } else {
-          downloadItemPart = DownloadItemPart.make(destinationFilename,destinationFile,finalDestinationFile,podcastTitle,serverPath,localFolder,null,null)
+          downloadItemPart = DownloadItemPart.make(downloadItem.id, destinationFilename,destinationFile,finalDestinationFile,podcastTitle,serverPath,localFolder,null,null)
           downloadItem.downloadItemParts.add(downloadItemPart)
 
           dlRequest = downloadItemPart.getDownloadRequest()

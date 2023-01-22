@@ -12,16 +12,15 @@
     "ionic:serve": "npm run start"
   },
   "dependencies": {
-    "@capacitor/android": "^3.4.3",
-    "@capacitor/app": "^1.1.1",
-    "@capacitor/cli": "^3.4.3",
-    "@capacitor/core": "^3.4.3",
-    "@capacitor/dialog": "^1.0.7",
-    "@capacitor/haptics": "^1.1.4",
-    "@capacitor/ios": "^3.2.2",
-    "@capacitor/network": "^1.0.7",
-    "@capacitor/status-bar": "^1.0.8",
-    "@capacitor/storage": "^1.2.5",
+    "@capacitor/android": "^4.0.0",
+    "@capacitor/app": "^4.0.0",
+    "@capacitor/core": "^4.0.0",
+    "@capacitor/dialog": "^4.0.0",
+    "@capacitor/haptics": "^4.0.0",
+    "@capacitor/ios": "^4.0.0",
+    "@capacitor/network": "^4.0.0",
+    "@capacitor/preferences": "^4.0.2",
+    "@capacitor/status-bar": "^4.0.0",
     "@nuxtjs/axios": "^5.13.6",
     "cordova-plugin-screen-orientation": "^3.0.2",
     "core-js": "^3.15.1",
@@ -38,6 +37,7 @@
   "devDependencies": {
     "@babel/core": "7.13.15",
     "@babel/preset-env": "7.13.15",
+    "@capacitor/cli": "^4.0.0",
     "@nuxtjs/tailwindcss": "^4.2.0",
     "postcss": "^8.3.5"
   }

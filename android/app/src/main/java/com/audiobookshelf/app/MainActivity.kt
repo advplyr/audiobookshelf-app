@@ -13,7 +13,7 @@ import androidx.core.app.ActivityCompat
 import com.anggrayudi.storage.SimpleStorage
 import com.anggrayudi.storage.SimpleStorageHelper
 import com.audiobookshelf.app.data.AbsDatabase
-import com.audiobookshelf.app.data.DbManager
+import com.audiobookshelf.app.managers.DbManager
 import com.audiobookshelf.app.player.PlayerNotificationService
 import com.audiobookshelf.app.plugins.AbsAudioPlayer
 import com.audiobookshelf.app.plugins.AbsDownloader
@@ -51,11 +51,17 @@ class MainActivity : BridgeActivity() {
 //      .detectLeakedClosableObjects()
 //      .penaltyLog()
 //      .build())
+    DbManager.initialize(applicationContext)
+
+    registerPlugin(AbsAudioPlayer::class.java)
+    registerPlugin(AbsDownloader::class.java)
+    registerPlugin(AbsFileSystem::class.java)
+    registerPlugin(AbsDatabase::class.java)
 
     super.onCreate(savedInstanceState)
     Log.d(tag, "onCreate")
 
-    DbManager.initialize(applicationContext)
+
 
     val permission = ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
     if (permission != PackageManager.PERMISSION_GRANTED) {
@@ -63,11 +69,6 @@ class MainActivity : BridgeActivity() {
         PERMISSIONS_ALL,
         REQUEST_PERMISSIONS)
     }
-
-    registerPlugin(AbsAudioPlayer::class.java)
-    registerPlugin(AbsDownloader::class.java)
-    registerPlugin(AbsFileSystem::class.java)
-    registerPlugin(AbsDatabase::class.java)
   }
 
   override fun onDestroy() {

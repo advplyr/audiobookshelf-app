@@ -1,8 +1,9 @@
-package com.audiobookshelf.app.data
+package com.audiobookshelf.app.managers
 
 import android.content.Context
 import android.util.Log
-import com.audiobookshelf.app.plugins.AbsDownloader
+import com.audiobookshelf.app.data.*
+import com.audiobookshelf.app.models.DownloadItem
 import io.paperdb.Paper
 import java.io.File
 
@@ -23,14 +24,14 @@ class DbManager {
   fun getDeviceData(): DeviceData {
     return Paper.book("device").read("data") ?: DeviceData(mutableListOf(), null, null, DeviceSettings.default())
   }
-  fun saveDeviceData(deviceData:DeviceData) {
+  fun saveDeviceData(deviceData: DeviceData) {
     Paper.book("device").write("data", deviceData)
   }
 
   fun getLocalLibraryItems(mediaType:String? = null):MutableList<LocalLibraryItem> {
     val localLibraryItems:MutableList<LocalLibraryItem> = mutableListOf()
     Paper.book("localLibraryItems").allKeys.forEach {
-      val localLibraryItem:LocalLibraryItem? = Paper.book("localLibraryItems").read(it)
+      val localLibraryItem: LocalLibraryItem? = Paper.book("localLibraryItems").read(it)
       if (localLibraryItem != null && (mediaType.isNullOrEmpty() || mediaType == localLibraryItem.mediaType)) {
         localLibraryItems.add(localLibraryItem)
       }
@@ -45,16 +46,16 @@ class DbManager {
     }
   }
 
-  fun getLocalLibraryItemByLId(libraryItemId:String):LocalLibraryItem? {
+  fun getLocalLibraryItemByLId(libraryItemId:String): LocalLibraryItem? {
     return getLocalLibraryItems().find { it.libraryItemId == libraryItemId }
   }
 
-  fun getLocalLibraryItem(localLibraryItemId:String):LocalLibraryItem? {
+  fun getLocalLibraryItem(localLibraryItemId:String): LocalLibraryItem? {
     return Paper.book("localLibraryItems").read(localLibraryItemId)
   }
 
-  fun getLocalLibraryItemWithEpisode(podcastEpisodeId:String):LibraryItemWithEpisode? {
-    var podcastEpisode:PodcastEpisode? = null
+  fun getLocalLibraryItemWithEpisode(podcastEpisodeId:String): LibraryItemWithEpisode? {
+    var podcastEpisode: PodcastEpisode? = null
     val localLibraryItem = getLocalLibraryItems("podcast").find { localLibraryItem ->
       val podcast = localLibraryItem.media as Podcast
       podcastEpisode = podcast.episodes?.find { it.id == podcastEpisodeId }
@@ -77,15 +78,15 @@ class DbManager {
       }
   }
 
-  fun saveLocalLibraryItem(localLibraryItem:LocalLibraryItem) {
+  fun saveLocalLibraryItem(localLibraryItem: LocalLibraryItem) {
     Paper.book("localLibraryItems").write(localLibraryItem.id, localLibraryItem)
   }
 
-  fun saveLocalFolder(localFolder:LocalFolder) {
+  fun saveLocalFolder(localFolder: LocalFolder) {
     Paper.book("localFolders").write(localFolder.id,localFolder)
   }
 
-  fun getLocalFolder(folderId:String):LocalFolder? {
+  fun getLocalFolder(folderId:String): LocalFolder? {
     return Paper.book("localFolders").read(folderId)
   }
 
@@ -107,7 +108,7 @@ class DbManager {
     Paper.book("localFolders").delete(folderId)
   }
 
-  fun saveDownloadItem(downloadItem: AbsDownloader.DownloadItem) {
+  fun saveDownloadItem(downloadItem: DownloadItem) {
     Paper.book("downloadItems").write(downloadItem.id, downloadItem)
   }
 
@@ -115,21 +116,21 @@ class DbManager {
     Paper.book("downloadItems").delete(downloadItemId)
   }
 
-  fun getDownloadItems():List<AbsDownloader.DownloadItem> {
-    val downloadItems:MutableList<AbsDownloader.DownloadItem> = mutableListOf()
+  fun getDownloadItems():List<DownloadItem> {
+    val downloadItems:MutableList<DownloadItem> = mutableListOf()
     Paper.book("downloadItems").allKeys.forEach { downloadItemId ->
-      Paper.book("downloadItems").read<AbsDownloader.DownloadItem>(downloadItemId)?.let {
+      Paper.book("downloadItems").read<DownloadItem>(downloadItemId)?.let {
         downloadItems.add(it)
       }
     }
     return downloadItems
   }
 
-  fun saveLocalMediaProgress(mediaProgress:LocalMediaProgress) {
+  fun saveLocalMediaProgress(mediaProgress: LocalMediaProgress) {
     Paper.book("localMediaProgress").write(mediaProgress.id,mediaProgress)
   }
   // For books this will just be the localLibraryItemId for podcast episodes this will be "{localLibraryItemId}-{episodeId}"
-  fun getLocalMediaProgress(localMediaProgressId:String):LocalMediaProgress? {
+  fun getLocalMediaProgress(localMediaProgressId:String): LocalMediaProgress? {
     return Paper.book("localMediaProgress").read(localMediaProgressId)
   }
   fun getAllLocalMediaProgress():List<LocalMediaProgress> {
@@ -236,18 +237,18 @@ class DbManager {
     }
   }
 
-  fun saveLocalPlaybackSession(playbackSession:PlaybackSession) {
+  fun saveLocalPlaybackSession(playbackSession: PlaybackSession) {
     Paper.book("localPlaybackSession").write(playbackSession.id,playbackSession)
   }
-  fun getLocalPlaybackSession(playbackSessionId:String):PlaybackSession? {
+  fun getLocalPlaybackSession(playbackSessionId:String): PlaybackSession? {
     return Paper.book("localPlaybackSession").read(playbackSessionId)
   }
 
 
-  fun saveMediaItemHistory(mediaItemHistory:MediaItemHistory) {
+  fun saveMediaItemHistory(mediaItemHistory: MediaItemHistory) {
     Paper.book("mediaItemHistory").write(mediaItemHistory.id,mediaItemHistory)
   }
-  fun getMediaItemHistory(id:String):MediaItemHistory? {
+  fun getMediaItemHistory(id:String): MediaItemHistory? {
     return Paper.book("mediaItemHistory").read(id)
   }
 }

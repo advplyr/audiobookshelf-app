@@ -85,21 +85,28 @@ class AbsFileSystem : Plugin() {
         call.resolve(JSObject(jacksonMapper.writeValueAsString(localFolder)))
       }
 
-      override fun onStorageAccessDenied(requestCode: Int, folder: DocumentFile?, storageType: StorageType) {
+      override fun onStorageAccessDenied(
+        requestCode: Int,
+        folder: DocumentFile?,
+        storageType: StorageType,
+        storageId: String
+      ) {
+        Log.e(tag, "Storage Access Denied ${folder?.getAbsolutePath(mainActivity)}")
+
         val jsobj = JSObject()
         if (requestCode == REQUEST_CODE_SELECT_FOLDER) {
 
           val builder: AlertDialog.Builder = AlertDialog.Builder(mainActivity)
           builder.setMessage(
             "You have no write access to this storage, thus selecting this folder is useless." +
-            "\nWould you like to grant access to this folder?")
+              "\nWould you like to grant access to this folder?")
           builder.setNegativeButton("Dont Allow") { _, _ ->
             run {
               jsobj.put("error", "User Canceled, Access Denied")
               call.resolve(jsobj)
             }
           }
-          builder.setPositiveButton("Allow.") { _, _ -> mainActivity.storageHelper.requestStorageAccess(REQUEST_CODE_SDCARD_ACCESS, storageType) }
+          builder.setPositiveButton("Allow.") { _, _ -> mainActivity.storageHelper.requestStorageAccess(REQUEST_CODE_SDCARD_ACCESS, initialPath = FileFullPath(mainActivity, storageId, "")) }
           builder.show()
         } else {
           Log.d(TAG, "STORAGE ACCESS DENIED $requestCode")

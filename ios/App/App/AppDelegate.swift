@@ -94,15 +94,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         backgroundCompletionHandler = completionHandler
     }
 
-    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        super.touchesBegan(touches, with: event)
-
-        let statusBarRect = self.window?.windowScene?.statusBarManager?.statusBarFrame
-        guard let touchPoint = event?.allTouches?.first?.location(in: self.window) else { return }
-
-        if statusBarRect?.contains(touchPoint) ?? false {
-            NotificationCenter.default.post(name: .capacitorStatusBarTapped, object: nil)
-        }
-    }
 
 }
+

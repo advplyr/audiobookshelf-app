@@ -22,6 +22,8 @@ kotlin {
 
 android {
 
+
+  namespace 'com.audiobookshelf.app'
   buildFeatures {
     viewBinding true
   }
@@ -78,6 +80,7 @@ configurations.all {
 }
 
 dependencies {
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
   implementation fileTree(include: ['*.jar'], dir: 'libs')
   implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
   implementation project(':capacitor-android')
@@ -121,7 +124,7 @@ dependencies {
   implementation 'io.github.pilgr:paperdb:2.7.2'
 
   // Simple Storage
-  implementation "com.anggrayudi:storage:0.14.0"
+  implementation "com.anggrayudi:storage:1.5.4"
 
   // OK HTTP
   implementation 'com.squareup.okhttp3:okhttp:4.9.2'
