@@ -37,6 +37,7 @@ class AudioPlayer: NSObject {
     private var sessionId: String
 
     private var timeObserverToken: Any?
+    private var sleepTimerObserverToken: Any?
     private var queueObserver:NSKeyValueObservation?
     private var queueItemStatusObserver:NSKeyValueObservation?
     
@@ -96,7 +97,7 @@ class AudioPlayer: NSObject {
             self.audioPlayer.insert(item, after:self.audioPlayer.items().last)
         }
 
-        setupTimeObserver()
+        setupTimeObservers()
         setupQueueObserver()
         setupQueueItemStatusObserver()
 
@@ -130,7 +131,7 @@ class AudioPlayer: NSObject {
         // Remove observers
         self.audioPlayer.removeObserver(self, forKeyPath: #keyPath(AVPlayer.rate), context: &playerContext)
         self.audioPlayer.removeObserver(self, forKeyPath: #keyPath(AVPlayer.currentItem), context: &playerContext)
-        self.removeTimeObserver()
+        self.removeTimeObservers()
         
         NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.closed.rawValue), object: nil)
         
@@ -170,15 +171,15 @@ class AudioPlayer: NSObject {
         NotificationCenter.default.removeObserver(self, name: AVAudioSession.routeChangeNotification, object: AVAudioSession.sharedInstance())
     }
     
-    private func setupTimeObserver() {
+    private func setupTimeObservers() {
         // Time observer should be configured on the main queue
         DispatchQueue.runOnMainQueue {
-            self.removeTimeObserver()
+            self.removeTimeObservers()
             
             let timeScale = CMTimeScale(NSEC_PER_SEC)
-            // Rate will be different depending on playback speed, aim for 2 observations/sec
-            let seconds = 0.5 * (self.rate > 0 ? self.rate : 1.0)
-            let time = CMTime(seconds: Double(seconds), preferredTimescale: timeScale)
+            // Save the current time every 15 seconds
+            var seconds = 15.0
+            var time = CMTime(seconds: Double(seconds), preferredTimescale: timeScale)
             self.timeObserverToken = self.audioPlayer.addPeriodicTimeObserver(forInterval: time, queue: self.queue) { [weak self] time in
                 guard let self = self else { return }
                 guard self.isInitialized() else { return }
@@ -190,7 +191,12 @@ class AudioPlayer: NSObject {
                     // Let the player update the current playback positions
                     await PlayerProgress.shared.syncFromPlayer(currentTime: currentTime, includesPlayProgress: isPlaying, isStopping: false)
                 }
-                
+            }
+            // Update the sleep timer every second
+            seconds = 1.0
+            time = CMTime(seconds: Double(seconds), preferredTimescale: timeScale)
+            self.sleepTimerObserverToken = self.audioPlayer.addPeriodicTimeObserver(forInterval: time, queue: self.queue) { [weak self] time in
+                guard let self = self else { return }
                 if self.isSleepTimerSet() {
                     // Update the UI
                     NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.sleepSet.rawValue), object: nil)
@@ -199,10 +205,14 @@ class AudioPlayer: NSObject {
         }
     }
     
-    private func removeTimeObserver() {
+    private func removeTimeObservers() {
         if let timeObserverToken = timeObserverToken {
             self.audioPlayer.removeTimeObserver(timeObserverToken)
             self.timeObserverToken = nil
+        }
+        if let sleepTimerObserverToken = sleepTimerObserverToken {
+            self.audioPlayer.removeTimeObserver(sleepTimerObserverToken)
+            self.sleepTimerObserverToken = nil
         }
     }
     
@@ -426,7 +436,7 @@ class AudioPlayer: NSObject {
             self.tmpRate = rate
             
             // Setup the time observer again at the new rate
-            self.setupTimeObserver()
+            self.setupTimeObservers()
         }
     }
     
