@@ -230,7 +230,14 @@ export default {
         // Portrait
         let sideSpace = 20
         if (this.bookCoverAspectRatio === 1.6) sideSpace += (this.windowWidth - sideSpace) * 0.375
-        return this.windowWidth - sideSpace
+
+        const availableHeight = this.windowHeight - 400
+        let width = this.windowWidth - sideSpace
+        const totalHeight = width * this.bookCoverAspectRatio
+        if (totalHeight > availableHeight) {
+          width = availableHeight / this.bookCoverAspectRatio
+        }
+        return width
       } else {
         // Landscape
         const heightScale = (this.windowHeight - 200) / 651
