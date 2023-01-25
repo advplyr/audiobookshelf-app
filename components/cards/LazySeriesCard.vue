@@ -61,10 +61,6 @@ export default {
     },
     seriesId() {
       return this.series ? this.series.id : null
-    },
-    hasValidCovers() {
-      var validCovers = this.books.map((bookItem) => bookItem.book.cover)
-      return !!validCovers.length
     }
   },
   methods: {

@@ -173,6 +173,7 @@ export default {
         if (!this.initialized) {
           this.initialized = true
           this.totalEntities = payload.total
+          console.log('Entities per shelf', this.entitiesPerShelf)
           this.totalShelves = Math.ceil(this.totalEntities / this.entitiesPerShelf)
           this.entities = new Array(this.totalEntities)
           this.$eventBus.$emit('bookshelf-total-entities', this.totalEntities)
@@ -309,7 +310,7 @@ export default {
       var { clientHeight, clientWidth } = bookshelf
       this.bookshelfHeight = clientHeight
       this.bookshelfWidth = clientWidth
-      this.entitiesPerShelf = this.showBookshelfListView ? 1 : Math.floor((this.bookshelfWidth - 16) / this.totalEntityCardWidth)
+      this.entitiesPerShelf = Math.max(1, this.showBookshelfListView ? 1 : Math.floor((this.bookshelfWidth - 16) / this.totalEntityCardWidth))
       this.shelvesPerPage = Math.ceil(this.bookshelfHeight / this.shelfHeight) + 2
       this.bookshelfMarginLeft = (this.bookshelfWidth - this.entitiesPerShelf * this.totalEntityCardWidth) / 2
 
