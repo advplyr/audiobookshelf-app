@@ -173,7 +173,6 @@ export default {
         if (!this.initialized) {
           this.initialized = true
           this.totalEntities = payload.total
-          console.log('Entities per shelf', this.entitiesPerShelf)
           this.totalShelves = Math.ceil(this.totalEntities / this.entitiesPerShelf)
           this.entities = new Array(this.totalEntities)
           this.$eventBus.$emit('bookshelf-total-entities', this.totalEntities)
