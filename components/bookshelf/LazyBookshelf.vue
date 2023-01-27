@@ -309,7 +309,7 @@ export default {
       var { clientHeight, clientWidth } = bookshelf
       this.bookshelfHeight = clientHeight
       this.bookshelfWidth = clientWidth
-      this.entitiesPerShelf = this.showBookshelfListView ? 1 : Math.floor((this.bookshelfWidth - 16) / this.totalEntityCardWidth)
+      this.entitiesPerShelf = Math.max(1, this.showBookshelfListView ? 1 : Math.floor((this.bookshelfWidth - 16) / this.totalEntityCardWidth))
       this.shelvesPerPage = Math.ceil(this.bookshelfHeight / this.shelfHeight) + 2
       this.bookshelfMarginLeft = (this.bookshelfWidth - this.entitiesPerShelf * this.totalEntityCardWidth) / 2
 

@@ -1,6 +1,6 @@
 <template>
-  <div class="w-full h-16 bg-primary relative">
-    <div id="appbar" class="absolute top-0 left-0 w-full h-full z-10 flex items-center px-2">
+  <div class="w-full h-16 bg-primary relative z-20">
+    <div id="appbar" class="absolute top-0 left-0 w-full h-full flex items-center px-2">
       <nuxt-link v-show="!showBack" to="/" class="mr-3">
         <img src="/Logo.png" class="h-10 w-10" />
       </nuxt-link>
