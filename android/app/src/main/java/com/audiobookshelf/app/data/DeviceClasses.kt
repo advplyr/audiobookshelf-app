@@ -2,6 +2,7 @@ package com.audiobookshelf.app.data
 
 import android.content.Context
 import android.support.v4.media.MediaDescriptionCompat
+import android.util.Log
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonSubTypes
@@ -15,6 +16,10 @@ enum class HapticFeedbackSetting {
   OFF, LIGHT, MEDIUM, HEAVY
 }
 
+enum class ShakeSensitivitySetting {
+  VERY_LOW, LOW, MEDIUM, HIGH, VERY_HIGH
+}
+
 data class ServerConnectionConfig(
   var id:String,
   var index:Int,
@@ -25,50 +30,6 @@ data class ServerConnectionConfig(
   var token:String,
   var customHeaders:Map<String, String>?
 )
-
-data class DeviceSettings(
-  var disableAutoRewind:Boolean,
-  var enableAltView:Boolean,
-  var jumpBackwardsTime:Int,
-  var jumpForwardTime:Int,
-  var disableShakeToResetSleepTimer:Boolean,
-  var lockOrientation:LockOrientationSetting,
-  var hapticFeedback: HapticFeedbackSetting
-) {
-  companion object {
-    // Static method to get default device settings
-    fun default():DeviceSettings {
-      return DeviceSettings(
-        disableAutoRewind = false,
-        enableAltView = false,
-        jumpBackwardsTime = 10,
-        jumpForwardTime = 10,
-        disableShakeToResetSleepTimer = false,
-        lockOrientation = LockOrientationSetting.NONE,
-        hapticFeedback = HapticFeedbackSetting.LIGHT
-      )
-    }
-  }
-
-  @get:JsonIgnore
-  val jumpBackwardsTimeMs get() = (jumpBackwardsTime ?: default().jumpBackwardsTime) * 1000L
-  @get:JsonIgnore
-  val jumpForwardTimeMs get() = (jumpForwardTime ?: default().jumpForwardTime) * 1000L
-}
-
-data class DeviceData(
-  var serverConnectionConfigs:MutableList<ServerConnectionConfig>,
-  var lastServerConnectionConfigId:String?,
-  var currentLocalPlaybackSession:PlaybackSession?, // Stored to open up where left off for local media
-  var deviceSettings:DeviceSettings?
-) {
-  @JsonIgnore
-  fun getLastServerConnectionConfig():ServerConnectionConfig? {
-    return lastServerConnectionConfigId?.let { lsccid ->
-      return serverConnectionConfigs.find { it.id == lsccid }
-    }
-  }
-}
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class LocalFile(
@@ -127,3 +88,64 @@ data class PlayItemRequestPayload(
   var forceTranscode:Boolean,
   var deviceInfo:DeviceInfo
 )
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class DeviceSettings(
+  var disableAutoRewind:Boolean,
+  var enableAltView:Boolean,
+  var jumpBackwardsTime:Int,
+  var jumpForwardTime:Int,
+  var disableShakeToResetSleepTimer:Boolean,
+  var shakeSensitivity: ShakeSensitivitySetting,
+  var lockOrientation: LockOrientationSetting,
+  var hapticFeedback: HapticFeedbackSetting
+) {
+  companion object {
+    // Static method to get default device settings
+    fun default():DeviceSettings {
+      return DeviceSettings(
+        disableAutoRewind = false,
+        enableAltView = false,
+        jumpBackwardsTime = 10,
+        jumpForwardTime = 10,
+        disableShakeToResetSleepTimer = false,
+        shakeSensitivity = ShakeSensitivitySetting.MEDIUM,
+        lockOrientation = LockOrientationSetting.NONE,
+        hapticFeedback = HapticFeedbackSetting.LIGHT
+      )
+    }
+  }
+
+  @get:JsonIgnore
+  val jumpBackwardsTimeMs get() = jumpBackwardsTime * 1000L
+  @get:JsonIgnore
+  val jumpForwardTimeMs get() = jumpForwardTime * 1000L
+
+  @JsonIgnore
+  fun getShakeThresholdGravity() : Float { // Used in ShakeDetector
+    return if (shakeSensitivity == ShakeSensitivitySetting.VERY_HIGH) 1.2f
+    else if (shakeSensitivity == ShakeSensitivitySetting.HIGH) 1.4f
+    else if (shakeSensitivity == ShakeSensitivitySetting.MEDIUM) 1.6f
+    else if (shakeSensitivity == ShakeSensitivitySetting.LOW) 2f
+    else if (shakeSensitivity == ShakeSensitivitySetting.VERY_LOW) 2.7f
+    else {
+      Log.e("DeviceSetting", "Invalid ShakeSensitivitySetting $shakeSensitivity")
+      1.6f
+    }
+  }
+}
+
+data class DeviceData(
+  var serverConnectionConfigs:MutableList<ServerConnectionConfig>,
+  var lastServerConnectionConfigId:String?,
+  var currentLocalPlaybackSession: PlaybackSession?, // Stored to open up where left off for local media
+  var deviceSettings: DeviceSettings?
+) {
+  @JsonIgnore
+  fun getLastServerConnectionConfig(): ServerConnectionConfig? {
+    return lastServerConnectionConfigId?.let { lsccid ->
+      return serverConnectionConfigs.find { it.id == lsccid }
+    }
+  }
+}
+

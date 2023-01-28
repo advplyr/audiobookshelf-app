@@ -35,7 +35,6 @@ import com.audiobookshelf.app.managers.DbManager
 import com.audiobookshelf.app.managers.SleepTimerManager
 import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.server.ApiHandler
-import com.fasterxml.jackson.annotation.JsonIgnore
 import com.google.android.exoplayer2.*
 import com.google.android.exoplayer2.audio.AudioAttributes
 import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector
@@ -849,8 +848,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     return DeviceInfo(Build.MANUFACTURER, Build.MODEL, Build.BRAND, Build.VERSION.SDK_INT, BuildConfig.VERSION_NAME)
   }
 
-  @get:JsonIgnore
-  val deviceSettings get() = DeviceManager.deviceData.deviceSettings ?: DeviceSettings.default()
+  private val deviceSettings get() = DeviceManager.deviceData.deviceSettings ?: DeviceSettings.default()
 
   fun getPlayItemRequestPayload(forceTranscode:Boolean):PlayItemRequestPayload {
     return PlayItemRequestPayload(getMediaPlayer(), !forceTranscode, forceTranscode, getDeviceInfo())
@@ -1046,7 +1044,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   // Shake sensor used for sleep timer
   fun registerSensor() {
     if (isShakeSensorRegistered) {
-      Log.w(tag, "Shake sensor already registered")
+      Log.i(tag, "Shake sensor already registered")
       return
     }
     shakeSensorUnregisterTask?.cancel()

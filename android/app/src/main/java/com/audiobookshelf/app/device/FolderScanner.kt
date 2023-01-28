@@ -10,7 +10,6 @@ import com.arthenica.ffmpegkit.FFprobeKit
 import com.arthenica.ffmpegkit.Level
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.models.DownloadItem
-import com.audiobookshelf.app.plugins.AbsDownloader
 import com.fasterxml.jackson.core.json.JsonReadFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue

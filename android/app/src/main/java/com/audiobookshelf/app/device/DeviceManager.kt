@@ -13,7 +13,7 @@ object DeviceManager {
   const val tag = "DeviceManager"
 
   val dbManager: DbManager = DbManager()
-  var deviceData:DeviceData = dbManager.getDeviceData()
+  var deviceData: DeviceData = dbManager.getDeviceData()
   var serverConnectionConfig: ServerConnectionConfig? = null
 
   val serverConnectionConfigId get() = serverConnectionConfig?.id ?: ""

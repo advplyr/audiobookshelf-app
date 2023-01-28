@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full h-full p-8">
+  <div class="w-full h-full px-8 pt-8 pb-48 overflow-y-auto">
     <!-- Display settings -->
     <p class="uppercase text-xs font-semibold text-gray-300 mb-2">User Interface Settings</p>
     <div class="flex items-center py-3" @click="toggleEnableAltView">
@@ -49,6 +49,10 @@
       <p class="pl-4">Disable shake to reset</p>
       <span class="material-icons-outlined ml-2" @click.stop="showInfo('disableShakeToResetSleepTimer')">info</span>
     </div>
+    <div v-if="!isiOS && !settings.disableShakeToResetSleepTimer" class="py-3 flex items-center">
+      <p class="pr-4">Shake Sensitivity</p>
+      <ui-dropdown v-model="settings.shakeSensitivity" :items="shakeSensitivityItems" style="max-width: 125px" @input="sensitivityUpdated" />
+    </div>
   </div>
 </template>
 
@@ -65,6 +69,7 @@ export default {
         jumpForwardTime: 10,
         jumpBackwardsTime: 10,
         disableShakeToResetSleepTimer: false,
+        shakeSensitivity: 'MEDIUM',
         lockOrientation: 0,
         hapticFeedback: 'LIGHT'
       },
@@ -91,6 +96,28 @@ export default {
         {
           text: 'Heavy',
           value: 'HEAVY'
+        }
+      ],
+      shakeSensitivityItems: [
+        {
+          text: 'Very Low',
+          value: 'VERY_LOW'
+        },
+        {
+          text: 'Low',
+          value: 'LOW'
+        },
+        {
+          text: 'Medium',
+          value: 'MEDIUM'
+        },
+        {
+          text: 'High',
+          value: 'HIGH'
+        },
+        {
+          text: 'Very High',
+          value: 'VERY_HIGH'
         }
       ]
     }
@@ -121,6 +148,9 @@ export default {
     }
   },
   methods: {
+    sensitivityUpdated(val) {
+      this.saveSettings()
+    },
     hapticFeedbackUpdated(val) {
       this.$store.commit('globals/setHapticFeedback', val)
       this.saveSettings()
@@ -176,7 +206,6 @@ export default {
     async saveSettings() {
       await this.$hapticsImpact()
       const updatedDeviceData = await this.$db.updateDeviceSettings({ ...this.settings })
-      console.log('Saved device data', updatedDeviceData)
       if (updatedDeviceData) {
         this.$store.commit('setDeviceData', updatedDeviceData)
         this.init()
@@ -192,6 +221,7 @@ export default {
       this.settings.jumpForwardTime = deviceSettings.jumpForwardTime || 10
       this.settings.jumpBackwardsTime = deviceSettings.jumpBackwardsTime || 10
       this.settings.disableShakeToResetSleepTimer = !!deviceSettings.disableShakeToResetSleepTimer
+      this.settings.shakeSensitivity = deviceSettings.shakeSensitivity || 'MEDIUM'
       this.settings.lockOrientation = deviceSettings.lockOrientation || 'NONE'
       this.lockCurrentOrientation = this.settings.lockOrientation !== 'NONE'
       this.settings.hapticFeedback = deviceSettings.hapticFeedback || 'LIGHT'

@@ -4,6 +4,7 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import com.audiobookshelf.app.device.DeviceManager
 import kotlin.math.sqrt
 
 class ShakeDetector : SensorEventListener {
@@ -34,7 +35,8 @@ class ShakeDetector : SensorEventListener {
       val gZ = z / SensorManager.GRAVITY_EARTH
       // gForce will be close to 1 when there is no movement.
       val gForce: Float = sqrt(gX * gX + gY * gY + gZ * gZ)
-      if (gForce > SHAKE_THRESHOLD_GRAVITY) {
+      val shakeThreshold = DeviceManager.deviceData.deviceSettings?.getShakeThresholdGravity() ?: 1.6f
+      if (gForce > shakeThreshold) {
         val now = System.currentTimeMillis()
         // ignore shake events too close to each other (500ms)
         if (mShakeTimestamp + SHAKE_SLOP_TIME_MS > now) {
@@ -59,7 +61,7 @@ class ShakeDetector : SensorEventListener {
  * from the Google Play Store and run it to see how
  *  many G's it takes to register a shake
  */
-    var SHAKE_THRESHOLD_GRAVITY = 1.5f // orig 2.7f
+//    var SHAKE_THRESHOLD_GRAVITY = 1.5f // orig 2.7f
     private const val SHAKE_SLOP_TIME_MS = 500
     private const val SHAKE_COUNT_RESET_TIME_MS = 3000
   }

@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
 @CapacitorPlugin(name = "AbsDatabase")
 class AbsDatabase : Plugin() {
   val tag = "AbsDatabase"
-  var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
+  private var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
 
   lateinit var mainActivity: MainActivity
   lateinit var apiHandler: ApiHandler

@@ -12,16 +12,6 @@ import kotlin.math.roundToInt
 
 const val SLEEP_EXTENSION_TIME = 900000L // 15m
 
-class ShakeSensitivity {
-  companion object {
-    val veryHigh = 1f
-    val high = 1.3f
-    val medium = 1.6f
-    val low = 2f
-    val veryLow = 2.7f
-  }
-}
-
 class SleepTimerManager constructor(val playerNotificationService: PlayerNotificationService) {
   private val tag = "SleepTimerManager"
 
@@ -194,8 +184,8 @@ class SleepTimerManager constructor(val playerNotificationService: PlayerNotific
       return
     }
 
-    // Does not apply to chapter sleep timers
-    if (sleepTimerEndTime == 0L) {
+    // Does not apply to chapter sleep timers and timer must be running for at least 3 seconds
+    if (sleepTimerEndTime == 0L && sleepTimerElapsed > 3000L) {
       vibrate()
       setSleepTimer(sleepTimerExtensionTime, false)
     }

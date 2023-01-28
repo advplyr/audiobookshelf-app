@@ -38,6 +38,7 @@ export default {
     return {
       shelves: [],
       loading: false,
+      lastServerFetch: 0,
       localLibraryItems: []
     }
   },
@@ -47,9 +48,11 @@ export default {
       console.log(`Network changed to ${newVal} - fetch categories`)
 
       if (newVal) {
-        setTimeout(() => {
-          this.fetchCategories()
-        }, 4000)
+        if (!this.lastServerFetch || Date.now() - this.lastServerFetch < 4000) {
+          setTimeout(() => {
+            this.fetchCategories()
+          }, 4000)
+        }
       } else {
         this.fetchCategories()
       }
@@ -131,6 +134,7 @@ export default {
       const localCategories = await this.getLocalMediaItemCategories()
 
       if (this.user && this.currentLibraryId && this.networkConnected) {
+        this.lastServerFetch = Date.now()
         const categories = await this.$axios.$get(`/api/libraries/${this.currentLibraryId}/personalized?minified=1`).catch((error) => {
           console.error('Failed to fetch categories', error)
           return []
