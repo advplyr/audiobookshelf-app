@@ -124,7 +124,7 @@ export const mutations = {
   },
   updateUserMediaProgress(state, data) {
     if (!data || !state.user) return
-    var mediaProgressIndex = state.user.mediaProgress.findIndex(mp => mp.id === data.id)
+    const mediaProgressIndex = state.user.mediaProgress.findIndex(mp => mp.id === data.id)
     if (mediaProgressIndex >= 0) {
       state.user.mediaProgress.splice(mediaProgressIndex, 1, data)
     } else {

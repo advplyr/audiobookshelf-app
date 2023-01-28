@@ -183,11 +183,18 @@ export default {
         this.$store.commit('setLastLocalMediaSyncResults', null)
         return
       }
-      const { numLocalMediaProgressForServer, numServerProgressUpdates, numLocalProgressUpdates } = response
+      const { numLocalMediaProgressForServer, numServerProgressUpdates, numLocalProgressUpdates, serverProgressUpdates } = response
       if (numLocalMediaProgressForServer > 0) {
         response.syncedAt = Date.now()
         response.serverConfigName = this.$store.getters['user/getServerConfigName']
         this.$store.commit('setLastLocalMediaSyncResults', response)
+
+        if (serverProgressUpdates && serverProgressUpdates.length) {
+          serverProgressUpdates.forEach((progress) => {
+            console.log(`[default] Server progress was updated ${progress.id}`)
+            this.$store.commit('user/updateUserMediaProgress', progress)
+          })
+        }
 
         if (numServerProgressUpdates > 0 || numLocalProgressUpdates > 0) {
           console.log(`[default] ${numServerProgressUpdates} Server progress updates | ${numLocalProgressUpdates} Local progress updates`)
@@ -199,7 +206,8 @@ export default {
         this.$store.commit('setLastLocalMediaSyncResults', null)
       }
     },
-    async userUpdated(user) {
+    userUpdated(user) {
+      console.log('[default] userUpdated:', JSON.stringify(user))
       if (this.user && this.user.id == user.id) {
         this.$store.commit('user/setUser', user)
       }
@@ -210,7 +218,7 @@ export default {
       // Update local media progress if exists
       const localProg = await this.$db.getLocalMediaProgressForServerItem({ libraryItemId: prog.libraryItemId, episodeId: prog.episodeId })
 
-      var newLocalMediaProgress = null
+      let newLocalMediaProgress = null
       if (localProg && localProg.lastUpdate < prog.lastUpdate) {
         if (localProg.currentTime == prog.currentTime && localProg.isFinished == prog.isFinished) {
           console.log('[default] syncing progress server lastUpdate > local lastUpdate but currentTime and isFinished is equal')
@@ -229,12 +237,12 @@ export default {
       } else if (!localProg) {
         // Check if local library item exists
         //   local media progress may not exist yet if it hasn't been played
-        var localLibraryItem = await this.$db.getLocalLibraryItemByLId(prog.libraryItemId)
+        const localLibraryItem = await this.$db.getLocalLibraryItemByLId(prog.libraryItemId)
         if (localLibraryItem) {
           if (prog.episodeId) {
             // If episode check if local episode exists
-            var lliEpisodes = localLibraryItem.media.episodes || []
-            var localEpisode = lliEpisodes.find((ep) => ep.serverEpisodeId === prog.episodeId)
+            const lliEpisodes = localLibraryItem.media.episodes || []
+            const localEpisode = lliEpisodes.find((ep) => ep.serverEpisodeId === prog.episodeId)
             if (localEpisode) {
               // Add new local media progress
               const payload = {

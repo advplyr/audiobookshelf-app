@@ -32,8 +32,8 @@ class ApiHandler(var ctx:Context) {
 
   data class LocalMediaProgressSyncPayload(val localMediaProgress:List<LocalMediaProgress>)
   @JsonIgnoreProperties(ignoreUnknown = true)
-  data class MediaProgressSyncResponsePayload(val numServerProgressUpdates:Int, val localProgressUpdates:List<LocalMediaProgress>)
-  data class LocalMediaProgressSyncResultsPayload(var numLocalMediaProgressForServer:Int, var numServerProgressUpdates:Int, var numLocalProgressUpdates:Int)
+  data class MediaProgressSyncResponsePayload(val numServerProgressUpdates:Int, val localProgressUpdates:List<LocalMediaProgress>, val serverProgressUpdates:List<MediaProgress>)
+  data class LocalMediaProgressSyncResultsPayload(var numLocalMediaProgressForServer:Int, var numServerProgressUpdates:Int, var numLocalProgressUpdates:Int, var serverProgressUpdates:List<MediaProgress>)
 
   fun getRequest(endpoint:String, httpClient:OkHttpClient?, config:ServerConnectionConfig?, cb: (JSObject) -> Unit) {
     val address = config?.address ?: DeviceManager.serverAddress
@@ -254,7 +254,7 @@ class ApiHandler(var ctx:Context) {
   fun syncMediaProgress(cb: (LocalMediaProgressSyncResultsPayload) -> Unit) {
     if (!isOnline()) {
       Log.d(tag, "Error not online")
-      cb(LocalMediaProgressSyncResultsPayload(0,0,0))
+      cb(LocalMediaProgressSyncResultsPayload(0,0,0, mutableListOf()))
       return
     }
 
@@ -263,7 +263,7 @@ class ApiHandler(var ctx:Context) {
       it.serverConnectionConfigId == DeviceManager.serverConnectionConfig?.id
     }
 
-    val localSyncResultsPayload = LocalMediaProgressSyncResultsPayload(localMediaProgress.size,0, 0)
+    val localSyncResultsPayload = LocalMediaProgressSyncResultsPayload(localMediaProgress.size,0, 0, mutableListOf())
 
     if (localMediaProgress.isNotEmpty()) {
       Log.d(tag, "Sending sync local progress request with ${localMediaProgress.size} progress items")
@@ -279,15 +279,20 @@ class ApiHandler(var ctx:Context) {
           val progressSyncResponsePayload = jacksonMapper.readValue<MediaProgressSyncResponsePayload>(it.toString())
 
           localSyncResultsPayload.numLocalProgressUpdates = progressSyncResponsePayload.localProgressUpdates.size
+          localSyncResultsPayload.serverProgressUpdates = progressSyncResponsePayload.serverProgressUpdates
           localSyncResultsPayload.numServerProgressUpdates = progressSyncResponsePayload.numServerProgressUpdates
           Log.d(tag, "Media Progress Sync | Local Updates: $localSyncResultsPayload")
           if (progressSyncResponsePayload.localProgressUpdates.isNotEmpty()) {
             // Update all local media progress
             progressSyncResponsePayload.localProgressUpdates.forEach { localMediaProgress ->
-              MediaEventManager.syncEvent(localMediaProgress, "Received from server sync local API request")
+              MediaEventManager.syncEvent(localMediaProgress, "Local progress updated. Received from server sync local API request")
 
               DeviceManager.dbManager.saveLocalMediaProgress(localMediaProgress)
             }
+          }
+
+          progressSyncResponsePayload.serverProgressUpdates.forEach { localMediaProgress ->
+            MediaEventManager.syncEvent(localMediaProgress, "Server progress updated. Received from server sync local API request")
           }
         }
 

@@ -45,7 +45,14 @@ export default {
     networkConnected(newVal) {
       // Update shelves when network connect status changes
       console.log(`Network changed to ${newVal} - fetch categories`)
-      this.fetchCategories()
+
+      if (newVal) {
+        setTimeout(() => {
+          this.fetchCategories()
+        }, 4000)
+      } else {
+        this.fetchCategories()
+      }
     }
   },
   computed: {
@@ -123,7 +130,7 @@ export default {
       this.localLibraryItems = await this.$db.getLocalLibraryItems()
       const localCategories = await this.getLocalMediaItemCategories()
 
-      if (this.user && this.currentLibraryId) {
+      if (this.user && this.currentLibraryId && this.networkConnected) {
         const categories = await this.$axios.$get(`/api/libraries/${this.currentLibraryId}/personalized?minified=1`).catch((error) => {
           console.error('Failed to fetch categories', error)
           return []
