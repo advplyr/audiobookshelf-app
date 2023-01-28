@@ -111,9 +111,9 @@ class SleepTimerManager constructor(val playerNotificationService: PlayerNotific
             playerNotificationService.clientEventEmitter?.onSleepTimerEnded(getCurrentTime())
             clearSleepTimer()
             sleepTimerFinishedAt = System.currentTimeMillis()
-          } else if (sleepTimeSecondsRemaining <= 30) {
+          } else if (sleepTimeSecondsRemaining <= 60) {
             // Start fading out audio
-            val volume = sleepTimeSecondsRemaining / 30F
+            val volume = sleepTimeSecondsRemaining / 60F
             Log.d(tag, "SLEEP VOLUME FADE $volume | ${sleepTimeSecondsRemaining}s remaining")
             setVolume(volume)
           }
