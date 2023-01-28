@@ -71,7 +71,7 @@ export default {
       settingInfo: {
         disableShakeToResetSleepTimer: {
           name: 'Disable shake to reset sleep timer',
-          message: 'The sleep timer will start fading out when 30s is remaining. Shaking your device will reset the timer if it is within 30s OR has finished less than 2 mintues ago. Enable this setting to disable that feature.'
+          message: 'Shaking your device while the timer is running OR within 2 minutes of the timer expiring will reset the sleep timer. Enable this setting to disable shake to reset.'
         }
       },
       lockCurrentOrientation: false,

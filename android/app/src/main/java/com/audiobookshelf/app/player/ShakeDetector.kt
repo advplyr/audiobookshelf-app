@@ -59,7 +59,7 @@ class ShakeDetector : SensorEventListener {
  * from the Google Play Store and run it to see how
  *  many G's it takes to register a shake
  */
-    private const val SHAKE_THRESHOLD_GRAVITY = 1.5f // orig 2.7f
+    var SHAKE_THRESHOLD_GRAVITY = 1.5f // orig 2.7f
     private const val SHAKE_SLOP_TIME_MS = 500
     private const val SHAKE_COUNT_RESET_TIME_MS = 3000
   }

@@ -1,16 +1,28 @@
-package com.audiobookshelf.app.player
+package com.audiobookshelf.app.managers
 
 import android.content.Context
 import android.os.*
 import android.util.Log
 import com.audiobookshelf.app.device.DeviceManager
+import com.audiobookshelf.app.player.PlayerNotificationService
+import com.audiobookshelf.app.player.SLEEP_TIMER_WAKE_UP_EXPIRATION
 import java.util.*
 import kotlin.concurrent.schedule
 import kotlin.math.roundToInt
 
 const val SLEEP_EXTENSION_TIME = 900000L // 15m
 
-class SleepTimerManager constructor(val playerNotificationService:PlayerNotificationService) {
+class ShakeSensitivity {
+  companion object {
+    val veryHigh = 1f
+    val high = 1.3f
+    val medium = 1.6f
+    val low = 2f
+    val veryLow = 2.7f
+  }
+}
+
+class SleepTimerManager constructor(val playerNotificationService: PlayerNotificationService) {
   private val tag = "SleepTimerManager"
 
   private var sleepTimerTask:TimerTask? = null
@@ -121,7 +133,7 @@ class SleepTimerManager constructor(val playerNotificationService:PlayerNotifica
     return true
   }
 
-  fun clearSleepTimer() {
+  private fun clearSleepTimer() {
     sleepTimerTask?.cancel()
     sleepTimerTask = null
     sleepTimerEndTime = 0
@@ -163,20 +175,6 @@ class SleepTimerManager constructor(val playerNotificationService:PlayerNotifica
     }
   }
 
-  private fun extendSleepTime() {
-    if (!sleepTimerRunning) return
-    setVolume(1F)
-    if (sleepTimerEndTime == 0L) {
-      sleepTimerLength += sleepTimerExtensionTime
-      if (sleepTimerLength + getCurrentTime() > getDuration()) sleepTimerLength = getDuration() - getCurrentTime()
-    } else {
-      sleepTimerEndTime += sleepTimerExtensionTime
-      if (sleepTimerEndTime > getDuration()) sleepTimerEndTime = getDuration()
-    }
-
-    playerNotificationService.clientEventEmitter?.onSleepTimerSet(getSleepTimerTimeRemainingSeconds())
-  }
-
   fun checkShouldExtendSleepTimer() {
     if (!sleepTimerRunning) {
       if (sleepTimerFinishedAt <= 0L) return
@@ -195,11 +193,11 @@ class SleepTimerManager constructor(val playerNotificationService:PlayerNotifica
       play()
       return
     }
-    // Only extend if within 30 seconds of finishing
-    val sleepTimeRemaining = getSleepTimerTimeRemainingSeconds()
-    if (sleepTimeRemaining <= 30) {
+
+    // Does not apply to chapter sleep timers
+    if (sleepTimerEndTime == 0L) {
       vibrate()
-      extendSleepTime()
+      setSleepTimer(sleepTimerExtensionTime, false)
     }
   }
 

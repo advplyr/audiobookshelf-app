@@ -32,6 +32,7 @@ import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.data.DeviceInfo
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.managers.DbManager
+import com.audiobookshelf.app.managers.SleepTimerManager
 import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.server.ApiHandler
 import com.fasterxml.jackson.annotation.JsonIgnore
@@ -394,7 +395,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         SkipForwardCustomActionProvider(),
       ))
     }
-    mediaSessionConnector.setCustomActionProviders(*customActionProviders.toTypedArray());
+    mediaSessionConnector.setCustomActionProviders(*customActionProviders.toTypedArray())
 
     playbackSession.mediaPlayer = getMediaPlayer()
 
@@ -640,10 +641,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     return currentPlaybackSession?.clone()
   }
 
-  fun getCurrentPlaybackSessionId() :String? {
-    return currentPlaybackSession?.id
-  }
-
   fun getCurrentBookChapter():BookChapter? {
     return currentPlaybackSession?.getChapterForTime(this.getCurrentTime())
   }
@@ -828,7 +825,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     clientEventEmitter?.onPlaybackClosed()
     PlayerListener.lastPauseTime = 0
     isClosed = true
-    stopForeground(true)
+    stopForeground(Service.STOP_FOREGROUND_REMOVE)
     stopSelf()
   }
 
