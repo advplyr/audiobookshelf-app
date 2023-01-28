@@ -20,7 +20,6 @@ class SleepTimerManager constructor(val playerNotificationService: PlayerNotific
   private var sleepTimerEndTime:Long = 0L
   private var sleepTimerLength:Long = 0L
   private var sleepTimerElapsed:Long = 0L
-  private var sleepTimerExtensionTime:Long = 0L
   private var sleepTimerFinishedAt:Long = 0L
 
   private fun getCurrentTime():Long {
@@ -74,7 +73,6 @@ class SleepTimerManager constructor(val playerNotificationService: PlayerNotific
       }
       sleepTimerEndTime = time
       sleepTimerLength = 0
-      sleepTimerExtensionTime = SLEEP_EXTENSION_TIME
 
       if (sleepTimerEndTime > getDuration()) {
         sleepTimerEndTime = getDuration()
@@ -82,7 +80,6 @@ class SleepTimerManager constructor(val playerNotificationService: PlayerNotific
     } else {
       sleepTimerLength = time
       sleepTimerEndTime = 0L
-      sleepTimerExtensionTime = time
 
       if (sleepTimerLength + getCurrentTime() > getDuration()) {
         sleepTimerLength = getDuration() - getCurrentTime()
@@ -121,6 +118,12 @@ class SleepTimerManager constructor(val playerNotificationService: PlayerNotific
       }
     }
     return true
+  }
+
+  // Called when playing audio and only applies to regular timer
+  fun resetSleepTimer() {
+    if (!sleepTimerRunning || sleepTimerLength <= 0L) return
+    setSleepTimer(sleepTimerLength, false)
   }
 
   private fun clearSleepTimer() {
@@ -177,7 +180,7 @@ class SleepTimerManager constructor(val playerNotificationService: PlayerNotific
         return
       }
 
-      val newSleepTime = if (sleepTimerExtensionTime >= 0) sleepTimerExtensionTime else SLEEP_EXTENSION_TIME
+      val newSleepTime = if (sleepTimerLength >= 0) sleepTimerLength else SLEEP_EXTENSION_TIME
       vibrate()
       setSleepTimer(newSleepTime, false)
       play()
@@ -187,7 +190,7 @@ class SleepTimerManager constructor(val playerNotificationService: PlayerNotific
     // Does not apply to chapter sleep timers and timer must be running for at least 3 seconds
     if (sleepTimerEndTime == 0L && sleepTimerElapsed > 3000L) {
       vibrate()
-      setSleepTimer(sleepTimerExtensionTime, false)
+      setSleepTimer(sleepTimerLength, false)
     }
   }
 
