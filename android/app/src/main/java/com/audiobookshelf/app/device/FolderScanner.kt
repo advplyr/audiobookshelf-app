@@ -222,14 +222,16 @@ class FolderScanner(var ctx: Context) {
   // Scan item after download and create local library item
   fun scanDownloadItem(downloadItem: DownloadItem):DownloadItemScanResult? {
     val folderDf = DocumentFileCompat.fromUri(ctx, Uri.parse(downloadItem.localFolder.contentUrl))
-    val foldersFound =  folderDf?.search(false, DocumentFileType.FOLDER) ?: mutableListOf()
+    val foldersFound =  folderDf?.search(true, DocumentFileType.FOLDER) ?: mutableListOf()
 
     var itemFolderId = ""
     var itemFolderUrl = ""
     var itemFolderBasePath = ""
     var itemFolderAbsolutePath = ""
     foldersFound.forEach {
-      if (it.name == downloadItem.itemTitle) {
+      // e.g. absolute path is "storage/emulated/0/Audiobooks/Orson Scott Card/Enders Game"
+      //        and itemSubfolder is "Orson Scott Card/Enders Game"
+      if (it.getAbsolutePath(ctx).endsWith(downloadItem.itemSubfolder)) {
         itemFolderId = it.id
         itemFolderUrl = it.uri.toString()
         itemFolderBasePath = it.getBasePath(ctx)

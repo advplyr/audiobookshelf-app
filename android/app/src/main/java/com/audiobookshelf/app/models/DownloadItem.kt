@@ -17,6 +17,7 @@ data class DownloadItem(
   val itemFolderPath:String,
   val localFolder: LocalFolder,
   val itemTitle: String,
+  val itemSubfolder: String,
   val media: MediaType,
   val downloadItemParts: MutableList<DownloadItemPart>
 ) {

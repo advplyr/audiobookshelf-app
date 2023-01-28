@@ -16,7 +16,6 @@ data class DownloadItemPart(
   val downloadItemId: String,
   val filename: String,
   val finalDestinationPath:String,
-  val itemTitle: String,
   val serverPath: String,
   val localFolderName: String,
   val localFolderUrl: String,
@@ -30,11 +29,12 @@ data class DownloadItemPart(
   @JsonIgnore val uri: Uri,
   @JsonIgnore val destinationUri: Uri,
   @JsonIgnore val finalDestinationUri: Uri,
+  val finalDestinationSubfolder: String,
   var downloadId: Long?,
   var progress: Long
 ) {
   companion object {
-    fun make(downloadItemId:String, filename:String, destinationFile: File, finalDestinationFile: File, itemTitle:String, serverPath:String, localFolder: LocalFolder, audioTrack: AudioTrack?, episode: PodcastEpisode?) :DownloadItemPart {
+    fun make(downloadItemId:String, filename:String, destinationFile: File, finalDestinationFile: File, subfolder:String, serverPath:String, localFolder: LocalFolder, audioTrack: AudioTrack?, episode: PodcastEpisode?) :DownloadItemPart {
       val destinationUri = Uri.fromFile(destinationFile)
       val finalDestinationUri = Uri.fromFile(finalDestinationFile)
 
@@ -47,7 +47,6 @@ data class DownloadItemPart(
         downloadItemId,
         filename = filename,
         finalDestinationPath = finalDestinationFile.absolutePath,
-        itemTitle = itemTitle,
         serverPath = serverPath,
         localFolderName = localFolder.name,
         localFolderUrl = localFolder.contentUrl,
@@ -61,6 +60,7 @@ data class DownloadItemPart(
         uri = downloadUri,
         destinationUri = destinationUri,
         finalDestinationUri = finalDestinationUri,
+        finalDestinationSubfolder = subfolder,
         downloadId = null,
         progress = 0
       )
@@ -74,7 +74,7 @@ data class DownloadItemPart(
   fun getDownloadRequest(): DownloadManager.Request {
     val dlRequest = DownloadManager.Request(uri)
     dlRequest.setTitle(filename)
-    dlRequest.setDescription("Downloading to $localFolderName for book $itemTitle")
+    dlRequest.setDescription("Downloading to $localFolderName with filename $filename")
     dlRequest.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
     dlRequest.setDestinationUri(destinationUri)
     return dlRequest

@@ -34,8 +34,8 @@ class DownloadItemManager(var downloadManager:DownloadManager, var folderScanner
     Failed
   }
 
-  var downloadItemQueue: MutableList<DownloadItem> = mutableListOf()
-  var currentDownloadItemParts: MutableList<DownloadItemPart> = mutableListOf()
+  var downloadItemQueue: MutableList<DownloadItem> = mutableListOf() // All pending and downloading items
+  var currentDownloadItemParts: MutableList<DownloadItemPart> = mutableListOf() // Item parts currently being downloaded
 
   interface DownloadEventEmitter {
     fun onDownloadItem(downloadItem:DownloadItem)
@@ -175,11 +175,13 @@ class DownloadItemManager(var downloadManager:DownloadManager, var folderScanner
         override fun onCompleted(result:Any) {
           Log.d(tag, "DOWNLOAD: FILE MOVE COMPLETED")
           val resultDocFile = result as DocumentFile
-          Log.d(tag, "DOWNLOAD: COMPLETED FILE INFO ${resultDocFile.getAbsolutePath(mainActivity)}")
+          Log.d(tag, "DOWNLOAD: COMPLETED FILE INFO (name=${resultDocFile.name}) ${resultDocFile.getAbsolutePath(mainActivity)}")
 
-          // Rename to fix appended .mp4 on m4b files
+          // Rename to fix appended .mp3 on m4b/m4a files
           //  REF: https://github.com/anggrayudi/SimpleStorage/issues/94
-          resultDocFile.renameTo(downloadItemPart.filename)
+          if (resultDocFile.name?.endsWith(".m4b.mp3") == true || resultDocFile.name?.endsWith(".m4a.mp3") == true) {
+            resultDocFile.renameTo(downloadItemPart.filename)
+          }
 
           downloadItemPart.moved = true
           downloadItemPart.isMoving = false
@@ -198,7 +200,7 @@ class DownloadItemManager(var downloadManager:DownloadManager, var folderScanner
       } else {
         downloadItemPart.isMoving = true
         val mimetype = if (downloadItemPart.audioTrack != null) MimeType.AUDIO else MimeType.IMAGE
-        val fileDescription = FileDescription(downloadItemPart.filename, downloadItemPart.itemTitle, mimetype)
+        val fileDescription = FileDescription(downloadItemPart.filename, downloadItemPart.finalDestinationSubfolder, mimetype)
         file?.moveFileTo(mainActivity, localFolderFile, fileDescription, fcb)
       }
 

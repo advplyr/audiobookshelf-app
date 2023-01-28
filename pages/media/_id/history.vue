@@ -32,10 +32,6 @@ export default {
   async asyncData({ params, store, redirect, app, query }) {
     const mediaItemHistory = await app.$db.getMediaItemHistory(params.id)
 
-    if (!mediaItemHistory) {
-      return redirect('/?error=Media Item Not Found')
-    }
-
     return {
       title: query.title || 'Unknown',
       mediaItemHistory
