@@ -25,7 +25,7 @@ import kotlinx.coroutines.launch
 
 class DownloadItemManager(var downloadManager:DownloadManager, var folderScanner: FolderScanner, var mainActivity: MainActivity, var clientEventEmitter:DownloadEventEmitter) {
   val tag = "DownloadItemManager"
-  private val maxSimultaneousDownloads = 5
+  private val maxSimultaneousDownloads = 1
   private var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
 
   enum class DownloadCheckStatus {
@@ -98,11 +98,11 @@ class DownloadItemManager(var downloadManager:DownloadManager, var folderScanner
           handleDownloadItemPartCheck(downloadCheckStatus, downloadItemPart)
         }
 
+        delay(500)
+
         if (currentDownloadItemParts.size < maxSimultaneousDownloads) {
           checkUpdateDownloadQueue()
         }
-
-        delay(500)
       }
 
       Log.d(tag, "Finished watching downloads")
@@ -122,12 +122,14 @@ class DownloadItemManager(var downloadManager:DownloadManager, var folderScanner
 
         val totalBytes = if (bytesColumnIndex >= 0) it.getInt(bytesColumnIndex) else 0
         val downloadStatus = if (statusColumnIndex >= 0) it.getInt(statusColumnIndex) else 0
-        val bytesDownloadedSoFar = if (bytesDownloadedColumnIndex >= 0) it.getInt(bytesDownloadedColumnIndex) else 0
+        val bytesDownloadedSoFar = if (bytesDownloadedColumnIndex >= 0) it.getLong(bytesDownloadedColumnIndex) else 0
         Log.d(tag, "checkDownloads Download ${downloadItemPart.filename} bytes $totalBytes | bytes dled $bytesDownloadedSoFar | downloadStatus $downloadStatus")
 
         if (downloadStatus == DownloadManager.STATUS_SUCCESSFUL) {
           Log.d(tag, "checkDownloads Download ${downloadItemPart.filename} Successful")
           downloadItemPart.completed = true
+          downloadItemPart.progress = 1
+          downloadItemPart.bytesDownloaded = bytesDownloadedSoFar
           return DownloadCheckStatus.Successful
         } else if (downloadStatus == DownloadManager.STATUS_FAILED) {
           Log.d(tag, "checkDownloads Download ${downloadItemPart.filename} Failed")
@@ -139,6 +141,7 @@ class DownloadItemManager(var downloadManager:DownloadManager, var folderScanner
           val percentProgress = if (totalBytes > 0) ((bytesDownloadedSoFar * 100L) / totalBytes) else 0
           Log.d(tag, "checkDownloads Download ${downloadItemPart.filename} Progress = $percentProgress%")
           downloadItemPart.progress = percentProgress
+          downloadItemPart.bytesDownloaded = bytesDownloadedSoFar
           return DownloadCheckStatus.InProgress
         }
       } else {
@@ -214,23 +217,24 @@ class DownloadItemManager(var downloadManager:DownloadManager, var folderScanner
     if (downloadItem.isDownloadFinished) {
       Log.i(tag, "Download Item finished ${downloadItem.media.metadata.title}")
 
-      val downloadItemScanResult = folderScanner.scanDownloadItem(downloadItem)
-      Log.d(tag, "Item download complete ${downloadItem.itemTitle} | local library item id: ${downloadItemScanResult?.localLibraryItem?.id}")
+      folderScanner.scanDownloadItem(downloadItem) { downloadItemScanResult ->
+        Log.d(tag, "Item download complete ${downloadItem.itemTitle} | local library item id: ${downloadItemScanResult?.localLibraryItem?.id}")
 
-      val jsobj = JSObject()
-      jsobj.put("libraryItemId", downloadItem.id)
-      jsobj.put("localFolderId", downloadItem.localFolder.id)
+        val jsobj = JSObject()
+        jsobj.put("libraryItemId", downloadItem.id)
+        jsobj.put("localFolderId", downloadItem.localFolder.id)
 
-      downloadItemScanResult?.localLibraryItem?.let { localLibraryItem ->
-        jsobj.put("localLibraryItem", JSObject(jacksonMapper.writeValueAsString(localLibraryItem)))
+        downloadItemScanResult?.localLibraryItem?.let { localLibraryItem ->
+          jsobj.put("localLibraryItem", JSObject(jacksonMapper.writeValueAsString(localLibraryItem)))
+        }
+        downloadItemScanResult?.localMediaProgress?.let { localMediaProgress ->
+          jsobj.put("localMediaProgress", JSObject(jacksonMapper.writeValueAsString(localMediaProgress)))
+        }
+
+        clientEventEmitter.onDownloadItemComplete(jsobj)
+        downloadItemQueue.remove(downloadItem)
+        DeviceManager.dbManager.removeDownloadItem(downloadItem.id)
       }
-      downloadItemScanResult?.localMediaProgress?.let { localMediaProgress ->
-        jsobj.put("localMediaProgress", JSObject(jacksonMapper.writeValueAsString(localMediaProgress)))
-      }
-
-      clientEventEmitter.onDownloadItemComplete(jsobj)
-      downloadItemQueue.remove(downloadItem)
-      DeviceManager.dbManager.removeDownloadItem(downloadItem.id)
     }
   }
 }

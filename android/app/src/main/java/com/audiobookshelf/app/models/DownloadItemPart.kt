@@ -15,6 +15,7 @@ data class DownloadItemPart(
   val id: String,
   val downloadItemId: String,
   val filename: String,
+  val fileSize: Long,
   val finalDestinationPath:String,
   val serverPath: String,
   val localFolderName: String,
@@ -31,10 +32,11 @@ data class DownloadItemPart(
   @JsonIgnore val finalDestinationUri: Uri,
   val finalDestinationSubfolder: String,
   var downloadId: Long?,
-  var progress: Long
+  var progress: Long,
+  var bytesDownloaded: Long
 ) {
   companion object {
-    fun make(downloadItemId:String, filename:String, destinationFile: File, finalDestinationFile: File, subfolder:String, serverPath:String, localFolder: LocalFolder, audioTrack: AudioTrack?, episode: PodcastEpisode?) :DownloadItemPart {
+    fun make(downloadItemId:String, filename:String, fileSize: Long, destinationFile: File, finalDestinationFile: File, subfolder:String, serverPath:String, localFolder: LocalFolder, audioTrack: AudioTrack?, episode: PodcastEpisode?) :DownloadItemPart {
       val destinationUri = Uri.fromFile(destinationFile)
       val finalDestinationUri = Uri.fromFile(finalDestinationFile)
 
@@ -46,6 +48,7 @@ data class DownloadItemPart(
         id = DeviceManager.getBase64Id(finalDestinationFile.absolutePath),
         downloadItemId,
         filename = filename,
+        fileSize = fileSize,
         finalDestinationPath = finalDestinationFile.absolutePath,
         serverPath = serverPath,
         localFolderName = localFolder.name,
@@ -62,13 +65,11 @@ data class DownloadItemPart(
         finalDestinationUri = finalDestinationUri,
         finalDestinationSubfolder = subfolder,
         downloadId = null,
-        progress = 0
+        progress = 0,
+        bytesDownloaded = 0
       )
     }
   }
-
-  @get:JsonIgnore
-  val fileSize get() = audioTrack?.metadata?.size ?: 0
 
   @JsonIgnore
   fun getDownloadRequest(): DownloadManager.Request {

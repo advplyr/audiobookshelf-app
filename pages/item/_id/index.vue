@@ -79,6 +79,10 @@
         </div>
       </div>
 
+      <div v-if="downloadItem" class="py-3">
+        <p class="text-center text-lg">Downloading! ({{ Math.round(downloadItem.itemProgress * 100) }}%)</p>
+      </div>
+
       <!-- metadata -->
       <div class="grid gap-2 my-4" style="grid-template-columns: max-content auto">
         <div v-if="narrators && narrators.length" class="text-white text-opacity-60 uppercase text-sm">Narrators</div>
@@ -117,10 +121,6 @@
         <div v-if="numChapters" class="bg-primary bg-opacity-80 px-3 py-0.5 rounded-full mx-0.5">
           <p>{{ numChapters }} Chapter{{ numChapters > 1 ? 's' : '' }}</p>
         </div>
-      </div>
-
-      <div v-if="downloadItem" class="py-3">
-        <p class="text-center text-lg">Downloading! ({{ Math.round(downloadItem.itemProgress * 100) }}%)</p>
       </div>
 
       <div class="w-full py-4">

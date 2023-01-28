@@ -108,6 +108,31 @@ export const mutations = {
       state.itemDownloads.push(downloadItem)
     }
   },
+  updateDownloadItemPart(state, downloadItemPart) {
+    const downloadItem = state.itemDownloads.find(i => i.id == downloadItemPart.downloadItemId)
+    if (!downloadItem) {
+      console.error('updateDownloadItemPart: Download item not found for itemPart', JSON.stringify(downloadItemPart))
+      return
+    }
+
+    let totalBytes = 0
+    let totalBytesDownloaded = 0
+    downloadItem.downloadItemParts = downloadItem.downloadItemParts.map(dip => {
+      let newDip = dip.id == downloadItemPart.id ? downloadItemPart : dip
+
+      totalBytes += newDip.fileSize
+      totalBytesDownloaded += newDip.bytesDownloaded
+
+      return newDip
+    })
+
+    if (totalBytes > 0) {
+      downloadItem.itemProgress = Math.min(1, totalBytesDownloaded / totalBytes)
+      console.log(`updateDownloadItemPart: filename=${downloadItemPart.filename}, totalBytes=${totalBytes}, downloaded=${totalBytesDownloaded}, itemProgress=${downloadItem.itemProgress}`)
+    } else {
+      downloadItem.itemProgress = 0
+    }
+  },
   removeItemDownload(state, id) {
     state.itemDownloads = state.itemDownloads.filter(i => i.id != id)
   },

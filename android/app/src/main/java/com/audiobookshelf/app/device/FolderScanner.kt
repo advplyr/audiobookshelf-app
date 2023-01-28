@@ -220,7 +220,7 @@ class FolderScanner(var ctx: Context) {
   }
 
   // Scan item after download and create local library item
-  fun scanDownloadItem(downloadItem: DownloadItem):DownloadItemScanResult? {
+  fun scanDownloadItem(downloadItem: DownloadItem, cb: (DownloadItemScanResult?) -> Unit) {
     val folderDf = DocumentFileCompat.fromUri(ctx, Uri.parse(downloadItem.localFolder.contentUrl))
     val foldersFound =  folderDf?.search(true, DocumentFileType.FOLDER) ?: mutableListOf()
 
@@ -241,13 +241,13 @@ class FolderScanner(var ctx: Context) {
 
     if (itemFolderUrl == "") {
       Log.d(tag, "scanDownloadItem failed to find media folder")
-      return null
+      return cb(null)
     }
     val df: DocumentFile? = DocumentFileCompat.fromUri(ctx, Uri.parse(itemFolderUrl))
 
     if (df == null) {
       Log.e(tag, "Folder Doc File Invalid ${downloadItem.itemFolderPath}")
-      return null
+      return cb(null)
     }
 
     val localLibraryItemId = getLocalLibraryItemId(itemFolderId)
@@ -283,7 +283,7 @@ class FolderScanner(var ctx: Context) {
         }
       } else if (itemPart.audioTrack != null) { // Is audio track
         val audioTrackFromServer = itemPart.audioTrack
-        Log.d(tag, "scanDownloadItem: Audio Track from Server index = ${audioTrackFromServer?.index}")
+        Log.d(tag, "scanDownloadItem: Audio Track from Server index = ${audioTrackFromServer.index}")
 
         val localFileId = DeviceManager.getBase64Id(docFile.id)
         val localFile = LocalFile(localFileId,docFile.name,docFile.uri.toString(),docFile.getBasePath(ctx),docFile.getAbsolutePath(ctx),docFile.getSimplePath(ctx),docFile.mimeType,docFile.length())
@@ -314,7 +314,7 @@ class FolderScanner(var ctx: Context) {
 
     if (audioTracks.isEmpty()) {
       Log.d(tag, "scanDownloadItem did not find any audio tracks in folder for ${downloadItem.itemFolderPath}")
-      return null
+      return cb(null)
     }
 
     // For books sort audio tracks then set
@@ -364,7 +364,7 @@ class FolderScanner(var ctx: Context) {
 
     DeviceManager.dbManager.saveLocalLibraryItem(localLibraryItem)
 
-    return downloadItemScanResult
+    cb(downloadItemScanResult)
   }
 
   fun scanLocalLibraryItem(localLibraryItem:LocalLibraryItem, forceAudioProbe:Boolean):LocalLibraryItemScanResult? {
