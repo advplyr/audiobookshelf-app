@@ -453,7 +453,7 @@ export default {
       })
     },
     initListeners() {
-      var bookshelf = document.getElementById('bookshelf-wrapper')
+      const bookshelf = document.getElementById('bookshelf-wrapper')
       if (bookshelf) {
         bookshelf.addEventListener('scroll', this.scroll)
       }
@@ -468,7 +468,7 @@ export default {
       this.$socket.$on('items_added', this.libraryItemsAdded)
     },
     removeListeners() {
-      var bookshelf = document.getElementById('bookshelf-wrapper')
+      const bookshelf = document.getElementById('bookshelf-wrapper')
       if (bookshelf) {
         bookshelf.removeEventListener('scroll', this.scroll)
       }

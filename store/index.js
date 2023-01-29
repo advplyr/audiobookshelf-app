@@ -65,7 +65,7 @@ export const actions = {
     if (state.isNetworkListenerInit) return
     commit('setNetworkListenerInit', true)
 
-    var status = await Network.getStatus()
+    const status = await Network.getStatus()
     console.log('Network status', status)
     commit('setNetworkStatus', status)
 

@@ -91,7 +91,7 @@ export const getters = {
 
 export const actions = {
   async loadLocalMediaProgress({ state, commit }) {
-    var mediaProgress = await this.$db.getAllLocalMediaProgress()
+    const mediaProgress = await this.$db.getAllLocalMediaProgress()
     commit('setLocalMediaProgress', mediaProgress)
   }
 }
