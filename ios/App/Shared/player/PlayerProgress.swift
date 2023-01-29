@@ -12,7 +12,7 @@ import RealmSwift
 class PlayerProgress {
     public static let shared = PlayerProgress()
     
-    private static let TIME_BETWEEN_SESSION_SYNC_IN_SECONDS = 10.0
+    private static var TIME_BETWEEN_SESSION_SYNC_IN_SECONDS = 15.0
     
     private let logger = AppLogger(category: "PlayerProgress")
     
@@ -117,6 +117,11 @@ class PlayerProgress {
     }
     
     private func updateServerSessionFromLocalSession(_ session: PlaybackSession, rateLimitSync: Bool = false) async throws {
+        if ProcessInfo.processInfo.isLowPowerModeEnabled == true {
+            PlayerProgress.TIME_BETWEEN_SESSION_SYNC_IN_SECONDS = 60.0
+        } else {
+            PlayerProgress.TIME_BETWEEN_SESSION_SYNC_IN_SECONDS = 15.0
+        }
         var safeToSync = true
         
         guard var session = session.thaw() else { return }

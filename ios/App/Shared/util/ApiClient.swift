@@ -243,10 +243,26 @@ class ApiClient {
                 callback(obj)
         }
     }
+    public static func pingServer() async -> Bool {
+        var status = true
+        AF.request("\(Store.serverConfig!.address)/ping", method: .get).responseDecodable(of: PingResponsePayload.self) { response in
+            switch response.result {
+                case .success:
+                    status = true
+                case .failure:
+                    status = false
+            }
+        }
+        return status
+    }
 }
 
 struct LocalMediaProgressSyncPayload: Codable {
     var localMediaProgress: [LocalMediaProgress]
+}
+
+struct PingResponsePayload: Codable {
+    var success: Bool
 }
 
 struct MediaProgressSyncResponsePayload: Decodable {
