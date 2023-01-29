@@ -4,9 +4,9 @@
     <p class="uppercase text-xs font-semibold text-gray-300 mb-2">User Interface Settings</p>
     <div class="flex items-center py-3" @click="toggleEnableAltView">
       <div class="w-10 flex justify-center">
-        <ui-toggle-switch v-model="settings.enableAltView" @input="saveSettings" />
+        <ui-toggle-switch v-model="enableBookshelfView" @input="saveSettings" />
       </div>
-      <p class="pl-4">Alternative bookshelf view</p>
+      <p class="pl-4">Use bookshelf view</p>
     </div>
     <div class="flex items-center py-3" @click.stop="toggleLockOrientation">
       <div class="w-10 flex justify-center pointer-events-none">
@@ -165,6 +165,15 @@ export default {
     }
   },
   computed: {
+    // This is flipped because alt view was the default until v0.9.61-beta
+    enableBookshelfView: {
+      get() {
+        return !this.settings.enableAltView
+      },
+      set(val) {
+        this.settings.enableAltView = !val
+      }
+    },
     isiOS() {
       return this.$platform === 'ios'
     },

@@ -109,7 +109,7 @@ data class DeviceSettings(
     fun default():DeviceSettings {
       return DeviceSettings(
         disableAutoRewind = false,
-        enableAltView = false,
+        enableAltView = true,
         jumpBackwardsTime = 10,
         jumpForwardTime = 10,
         disableShakeToResetSleepTimer = false,
