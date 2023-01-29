@@ -25,7 +25,7 @@
           </div>
           <ui-btn @click="clickedOption(manualTimeoutMin)" class="w-full">Set Timer</ui-btn>
         </div>
-        <ul v-else-if="!sleepTimerRunning" class="h-full w-full" role="listbox" aria-labelledby="listbox-label">
+        <ul v-else class="h-full w-full" role="listbox" aria-labelledby="listbox-label">
           <template v-for="timeout in timeouts">
             <li :key="timeout" class="text-gray-50 select-none relative py-4 cursor-pointer hover:bg-black-400" role="option" @click="clickedOption(timeout)">
               <div class="flex items-center justify-center">
@@ -33,7 +33,7 @@
               </div>
             </li>
           </template>
-          <li v-if="currentEndOfChapterTime" class="text-gray-50 select-none relative py-4 cursor-pointer hover:bg-black-400" role="option" @click="clickedChapterOption(timeout)">
+          <li class="text-gray-50 select-none relative py-4 cursor-pointer hover:bg-black-400" role="option" @click="clickedChapterOption">
             <div class="flex items-center justify-center">
               <span class="font-normal block truncate text-lg text-center">End of Chapter</span>
             </div>
@@ -44,15 +44,6 @@
             </div>
           </li>
         </ul>
-        <div v-else class="p-4">
-          <div class="flex my-2 justify-between">
-            <ui-btn @click="decreaseSleepTime" class="w-9 h-9" :padding-x="0" small style="max-width: 36px"><span class="material-icons">remove</span></ui-btn>
-            <p class="text-2xl font-mono text-center">{{ timeRemainingPretty }}</p>
-            <ui-btn @click="increaseSleepTime" class="w-9 h-9" :padding-x="0" small style="max-width: 36px"><span class="material-icons">add</span></ui-btn>
-          </div>
-
-          <ui-btn @click="cancelSleepTimer" class="w-full">Cancel Timer</ui-btn>
-        </div>
       </div>
     </div>
   </modals-modal>
@@ -61,10 +52,7 @@
 <script>
 export default {
   props: {
-    value: Boolean,
-    currentTime: Number,
-    sleepTimerRunning: Boolean,
-    currentEndOfChapterTime: Number
+    value: Boolean
   },
   data() {
     return {
@@ -83,36 +71,20 @@ export default {
     },
     timeouts() {
       return [5, 10, 15, 30, 45, 60, 90]
-    },
-    timeRemainingPretty() {
-      return this.$secondsToTimestamp(this.currentTime)
     }
   },
   methods: {
     async clickedChapterOption() {
       await this.$hapticsImpact()
       this.show = false
-      this.$nextTick(() => this.$emit('change', { time: this.currentEndOfChapterTime * 1000, isChapterTime: true }))
+      this.$nextTick(() => this.$emit('change', 0))
     },
     async clickedOption(timeoutMin) {
       await this.$hapticsImpact()
       const timeout = timeoutMin * 1000 * 60
       this.show = false
       this.manualTimerModal = false
-      this.$nextTick(() => this.$emit('change', { time: timeout, isChapterTime: false }))
-    },
-    async cancelSleepTimer() {
-      await this.$hapticsImpact()
-      this.$emit('cancel')
-      this.show = false
-    },
-    async increaseSleepTime() {
-      await this.$hapticsImpact()
-      this.$emit('increase')
-    },
-    async decreaseSleepTime() {
-      await this.$hapticsImpact()
-      this.$emit('decrease')
+      this.$nextTick(() => this.$emit('change', timeout))
     },
     async increaseManualTimeout() {
       await this.$hapticsImpact()

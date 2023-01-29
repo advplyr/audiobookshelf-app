@@ -169,7 +169,6 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
             Log.d(tag, "handleCallMediaButton: Media Play")
             if (0 == mediaButtonClickCount) {
               playerNotificationService.play()
-              playerNotificationService.sleepTimerManager.checkShouldExtendSleepTimer()
             }
             handleMediaButtonClickCount()
           }
@@ -201,7 +200,6 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
             } else {
               if (0 == mediaButtonClickCount) {
                 playerNotificationService.play()
-                playerNotificationService.sleepTimerManager.checkShouldExtendSleepTimer()
               }
               handleMediaButtonClickCount()
             }

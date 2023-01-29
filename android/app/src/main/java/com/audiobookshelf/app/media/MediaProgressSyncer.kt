@@ -68,6 +68,9 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
     listeningTimerTask = Timer("ListeningTimer", false).schedule(15000L, 15000L) {
       Handler(Looper.getMainLooper()).post() {
         if (playerNotificationService.currentPlayer.isPlaying) {
+          // Set auto sleep timer if enabled and within start/end time
+          playerNotificationService.sleepTimerManager.checkAutoSleepTimer()
+
           // Only sync with server on unmetered connection every 15s OR sync with server if last sync time is >= 60s
           val shouldSyncServer = PlayerNotificationService.isUnmeteredNetwork || System.currentTimeMillis() - lastSyncTime >= METERED_CONNECTION_SYNC_INTERVAL
 

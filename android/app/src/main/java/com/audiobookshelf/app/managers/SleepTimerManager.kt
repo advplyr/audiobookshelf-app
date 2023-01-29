@@ -6,11 +6,10 @@ import android.util.Log
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.player.PlayerNotificationService
 import com.audiobookshelf.app.player.SLEEP_TIMER_WAKE_UP_EXPIRATION
+import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.concurrent.schedule
 import kotlin.math.roundToInt
-
-const val SLEEP_EXTENSION_TIME = 900000L // 15m
 
 class SleepTimerManager constructor(private val playerNotificationService: PlayerNotificationService) {
   private val tag = "SleepTimerManager"
@@ -58,7 +57,7 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
   fun setSleepTimer(time: Long, isChapterTime: Boolean) : Boolean {
     Log.d(tag, "Setting Sleep Timer for $time is chapter time $isChapterTime")
     sleepTimerTask?.cancel()
-    sleepTimerRunning = false
+    sleepTimerRunning = true
     sleepTimerFinishedAt = 0L
     sleepTimerElapsed = 0L
 
@@ -88,7 +87,6 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
 
     playerNotificationService.clientEventEmitter?.onSleepTimerSet(getSleepTimerTimeRemainingSeconds())
 
-    sleepTimerRunning = true
     sleepTimerTask = Timer("SleepTimer", false).schedule(0L, 1000L) {
       Handler(Looper.getMainLooper()).post {
         if (getIsPlaying()) {
@@ -118,12 +116,6 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
       }
     }
     return true
-  }
-
-  // Called when playing audio and only applies to regular timer
-  fun resetSleepTimer() {
-    if (!sleepTimerRunning || sleepTimerLength <= 0L) return
-    setSleepTimer(sleepTimerLength, false)
   }
 
   private fun clearSleepTimer() {
@@ -168,7 +160,7 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
     }
   }
 
-  fun checkShouldExtendSleepTimer() {
+  fun checkShouldResetSleepTimer() {
     if (!sleepTimerRunning) {
       if (sleepTimerFinishedAt <= 0L) return
 
@@ -180,15 +172,27 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
         return
       }
 
-      val newSleepTime = if (sleepTimerLength >= 0) sleepTimerLength else SLEEP_EXTENSION_TIME
-      vibrate()
-      setSleepTimer(newSleepTime, false)
-      play()
+      // Set sleep timer
+      //   When sleepTimerLength is 0 then use end of chapter/track time
+      if (sleepTimerLength == 0L) {
+        val currentChapterEndTimeMs = playerNotificationService.getEndTimeOfChapterOrTrack()
+        if (currentChapterEndTimeMs == null) {
+          Log.e(tag, "Checking reset sleep timer to end of chapter/track but there is no current session")
+        } else {
+          vibrate()
+          setSleepTimer(currentChapterEndTimeMs, true)
+          play()
+        }
+      } else {
+        vibrate()
+        setSleepTimer(sleepTimerLength, false)
+        play()
+      }
       return
     }
 
     // Does not apply to chapter sleep timers and timer must be running for at least 3 seconds
-    if (sleepTimerEndTime == 0L && sleepTimerElapsed > 3000L) {
+    if (sleepTimerLength > 0L && sleepTimerElapsed > 3000L) {
       vibrate()
       setSleepTimer(sleepTimerLength, false)
     }
@@ -200,7 +204,7 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
         Log.d(tag, "Shake to reset sleep timer is disabled")
         return
       }
-      checkShouldExtendSleepTimer()
+      checkShouldResetSleepTimer()
     }
   }
 
@@ -244,5 +248,54 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
 
     setVolume(1F)
     playerNotificationService.clientEventEmitter?.onSleepTimerSet(getSleepTimerTimeRemainingSeconds())
+  }
+
+  fun checkAutoSleepTimer() {
+    if (sleepTimerRunning) { // Sleep timer already running
+      return
+    }
+    DeviceManager.deviceData.deviceSettings?.let { deviceSettings ->
+      if (!deviceSettings.autoSleepTimer) return // Check auto sleep timer is enabled
+
+      val startCalendar = Calendar.getInstance()
+      startCalendar.set(Calendar.HOUR_OF_DAY, deviceSettings.autoSleepTimerStartHour)
+      startCalendar.set(Calendar.MINUTE, deviceSettings.autoSleepTimerStartMinute)
+      val endCalendar = Calendar.getInstance()
+      endCalendar.set(Calendar.HOUR_OF_DAY, deviceSettings.autoSleepTimerEndHour)
+      endCalendar.set(Calendar.MINUTE, deviceSettings.autoSleepTimerEndMinute)
+
+      // In cases where end time is earlier then start time then we add a day to end time
+      //   e.g. start time 22:00 and end time 06:00. End time will be treated as 6am the next day.
+      //   e.g. start time 08:00 and end time 22:00. Start and end time will be the same day.
+      if (endCalendar.before(startCalendar)) {
+        endCalendar.add(Calendar.DAY_OF_MONTH, 1)
+      }
+
+      val currentCalendar = Calendar.getInstance()
+      val currentHour = SimpleDateFormat("HH:mm", Locale.getDefault()).format(currentCalendar.time)
+      if (currentCalendar.after(startCalendar) && currentCalendar.before(endCalendar)) {
+        Log.i(tag, "Current hour $currentHour is between ${deviceSettings.autoSleepTimerStartTime} and ${deviceSettings.autoSleepTimerEndTime} - starting sleep timer")
+
+        // Set sleep timer
+        //   When sleepTimerLength is 0 then use end of chapter/track time
+        if (deviceSettings.sleepTimerLength == 0L) {
+          val currentChapterEndTimeMs = playerNotificationService.getEndTimeOfChapterOrTrack()
+          if (currentChapterEndTimeMs == null) {
+            Log.e(tag, "Setting auto sleep timer to end of chapter/track but there is no current session")
+          } else {
+            setSleepTimer(currentChapterEndTimeMs, true)
+          }
+        } else {
+          setSleepTimer(deviceSettings.sleepTimerLength, false)
+        }
+      } else {
+        Log.d(tag, "Current hour $currentHour is NOT between ${deviceSettings.autoSleepTimerStartTime} and ${deviceSettings.autoSleepTimerEndTime}")
+      }
+    }
+  }
+
+  fun handleMediaPlayEvent() {
+    checkShouldResetSleepTimer()
+    checkAutoSleepTimer()
   }
 }

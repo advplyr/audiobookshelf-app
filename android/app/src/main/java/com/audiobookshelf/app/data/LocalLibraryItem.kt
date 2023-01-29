@@ -14,6 +14,7 @@ import com.audiobookshelf.app.R
 import com.audiobookshelf.app.device.DeviceManager
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.audiobookshelf.app.player.PLAYMETHOD_LOCAL
 import java.util.*
 
 @JsonIgnoreProperties(ignoreUnknown = true)

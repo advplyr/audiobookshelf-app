@@ -98,7 +98,11 @@ data class DeviceSettings(
   var disableShakeToResetSleepTimer:Boolean,
   var shakeSensitivity: ShakeSensitivitySetting,
   var lockOrientation: LockOrientationSetting,
-  var hapticFeedback: HapticFeedbackSetting
+  var hapticFeedback: HapticFeedbackSetting,
+  var autoSleepTimer: Boolean,
+  var autoSleepTimerStartTime: String,
+  var autoSleepTimerEndTime: String,
+  var sleepTimerLength: Long // Time in milliseconds
 ) {
   companion object {
     // Static method to get default device settings
@@ -111,7 +115,11 @@ data class DeviceSettings(
         disableShakeToResetSleepTimer = false,
         shakeSensitivity = ShakeSensitivitySetting.MEDIUM,
         lockOrientation = LockOrientationSetting.NONE,
-        hapticFeedback = HapticFeedbackSetting.LIGHT
+        hapticFeedback = HapticFeedbackSetting.LIGHT,
+        autoSleepTimer = false,
+        autoSleepTimerStartTime = "22:00",
+        autoSleepTimerEndTime = "06:00",
+        sleepTimerLength = 900000L // 15 minutes
       )
     }
   }
@@ -120,6 +128,14 @@ data class DeviceSettings(
   val jumpBackwardsTimeMs get() = jumpBackwardsTime * 1000L
   @get:JsonIgnore
   val jumpForwardTimeMs get() = jumpForwardTime * 1000L
+  @get:JsonIgnore
+  val autoSleepTimerStartHour get() = autoSleepTimerStartTime.split(":")[0].toInt()
+  @get:JsonIgnore
+  val autoSleepTimerStartMinute get() = autoSleepTimerStartTime.split(":")[1].toInt()
+  @get:JsonIgnore
+  val autoSleepTimerEndHour get() = autoSleepTimerEndTime.split(":")[0].toInt()
+  @get:JsonIgnore
+  val autoSleepTimerEndMinute get() = autoSleepTimerEndTime.split(":")[1].toInt()
 
   @JsonIgnore
   fun getShakeThresholdGravity() : Float { // Used in ShakeDetector

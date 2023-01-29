@@ -26,6 +26,16 @@ object DeviceManager {
 
   init {
     Log.d(tag, "Device Manager Singleton invoked")
+
+    // Initialize new sleep timer settings and shake sensitivity added in v0.9.61
+    if (deviceData.deviceSettings?.autoSleepTimerStartTime == null || deviceData.deviceSettings?.autoSleepTimerEndTime == null) {
+      deviceData.deviceSettings?.autoSleepTimerStartTime = "22:00"
+      deviceData.deviceSettings?.autoSleepTimerStartTime = "06:00"
+      deviceData.deviceSettings?.sleepTimerLength = 900000L
+    }
+    if (deviceData.deviceSettings?.shakeSensitivity == null) {
+      deviceData.deviceSettings?.shakeSensitivity = ShakeSensitivitySetting.MEDIUM
+    }
   }
 
   fun getBase64Id(id:String):String {

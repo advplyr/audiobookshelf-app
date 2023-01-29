@@ -85,6 +85,12 @@ class PlaybackSession(
   }
 
   @JsonIgnore
+  fun getCurrentTrackEndTime():Long? {
+    val currentTrack = audioTracks[this.getCurrentTrackIndex()]
+    return currentTrack.startOffsetMs + currentTrack.durationMs
+  }
+
+  @JsonIgnore
   fun getCurrentTrackTimeMs():Long {
     val currentTrack = audioTracks[this.getCurrentTrackIndex()]
     val time = currentTime - currentTrack.startOffset
