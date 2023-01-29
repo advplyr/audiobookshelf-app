@@ -81,7 +81,7 @@
       </div>
 
       <div id="playerTrack" class="absolute left-0 w-full px-3">
-        <div id="timestamp-row" class="flex pb-0.5">
+        <div class="flex pb-0.5">
           <p class="font-mono text-white text-opacity-90" style="font-size: 0.8rem" ref="currentTimestamp">0:00</p>
           <div class="flex-grow" />
           <p v-show="showFullscreen" class="text-sm truncate text-white text-opacity-75" style="max-width: 65%">{{ currentChapterTitle }}</p>
@@ -936,11 +936,6 @@ export default {
 .fullscreen #playerTrack {
   top: 20px;
   bottom: unset;
-}
-
-.ios-player #timestamp-row {
-  padding-left: 16px;
-  padding-right: 16px;
 }
 
 .cover-wrapper {
