@@ -11,7 +11,7 @@ class DbManager {
   val tag = "DbManager"
 
   companion object {
-    var isDbInitialized = false
+    private var isDbInitialized = false
 
     fun initialize(ctx: Context) {
       if (isDbInitialized) return
@@ -155,7 +155,7 @@ class DbManager {
     val localLibraryItems = getLocalLibraryItems()
 
     localLibraryItems.forEach { lli ->
-      var hasUpates = false
+      var hasUpdates = false
 
       // Check local files
       lli.localFiles = lli.localFiles.filter { localFile ->
@@ -163,7 +163,7 @@ class DbManager {
         val file = File(localFile.absolutePath)
         if (!file.exists()) {
           Log.d(tag, "cleanLocalLibraryItems: Local file ${localFile.absolutePath} was removed from library item ${lli.media.metadata.title}")
-          hasUpates = true
+          hasUpdates = true
         }
         file.exists()
       } as MutableList<LocalFile>
@@ -174,7 +174,7 @@ class DbManager {
         podcast.episodes = podcast.episodes?.filter { ep ->
           if (lli.localFiles.find { lf -> lf.id == ep.audioTrack?.localFileId } == null) {
             Log.d(tag, "cleanLocalLibraryItems: Podcast episode ${ep.title} was removed from library item ${lli.media.metadata.title}")
-            hasUpates = true
+            hasUpdates = true
           }
           ep.audioTrack != null && lli.localFiles.find { lf -> lf.id == ep.audioTrack?.localFileId } != null
         } as MutableList<PodcastEpisode>
@@ -183,7 +183,7 @@ class DbManager {
         book.tracks = book.tracks?.filter { track ->
           if (lli.localFiles.find { lf -> lf.id == track.localFileId } == null) {
             Log.d(tag, "cleanLocalLibraryItems: Audio track ${track.title} was removed from library item ${lli.media.metadata.title}")
-            hasUpates = true
+            hasUpdates = true
           }
           lli.localFiles.find { lf -> lf.id == track.localFileId } != null
         } as MutableList<AudioTrack>
@@ -197,11 +197,11 @@ class DbManager {
           Log.d(tag, "cleanLocalLibraryItems: Cover $it was removed from library item ${lli.media.metadata.title}")
           lli.coverAbsolutePath = null
           lli.coverContentUrl = null
-          hasUpates = true
+          hasUpdates = true
         }
       }
 
-      if (hasUpates) {
+      if (hasUpdates) {
         Log.d(tag, "cleanLocalLibraryItems: Saving local library item ${lli.id}")
         Paper.book("localLibraryItems").write(lli.id, lli)
       }

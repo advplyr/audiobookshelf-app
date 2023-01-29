@@ -1,7 +1,8 @@
-package com.audiobookshelf.app.data
+package com.audiobookshelf.app.plugins
 
 import android.util.Log
 import com.audiobookshelf.app.MainActivity
+import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.media.MediaEventManager
 import com.audiobookshelf.app.server.ApiHandler
@@ -307,8 +308,8 @@ class AbsDatabase : Plugin() {
         return call.resolve(JSObject("{\"error\":\"Invalid library item not a podcast\"}"))
       }
 
-      var duration = 0.0
-      var podcastEpisode:PodcastEpisode? = null
+      val duration: Double
+      var podcastEpisode: PodcastEpisode? = null
       if (!localEpisodeId.isNullOrEmpty()) {
           val podcast = localLibraryItem.media as Podcast
         podcastEpisode = podcast.episodes?.find { episode ->

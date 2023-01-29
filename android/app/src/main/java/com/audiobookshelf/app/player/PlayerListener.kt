@@ -125,7 +125,7 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
         Log.d(tag, "STATE_READY : " + playerNotificationService.currentPlayer.duration)
 
         if (lastPauseTime == 0L) {
-          lastPauseTime = -1;
+          lastPauseTime = -1
         }
         playerNotificationService.sendClientMetadata(PlayerState.READY)
       }

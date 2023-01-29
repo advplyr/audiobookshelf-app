@@ -141,6 +141,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     return START_STICKY
   }
 
+  @Deprecated("Deprecated in Java")
   override fun onStart(intent: Intent?, startId: Int) {
     Log.d(tag, "onStart $startId")
   }
@@ -229,7 +230,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       .apply {
         setSessionActivity(sessionActivityPendingIntent)
         isActive = true
-        setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS)
       }
 
     val mediaController = MediaControllerCompat(ctx, mediaSession.sessionToken)
@@ -758,10 +758,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     var timeToSeek = time
     Log.d(tag, "seekPlayer mediaCount = ${currentPlayer.mediaItemCount} | $timeToSeek")
     if (timeToSeek < 0) {
-      Log.w(tag, "seekPlayer invalid time ${timeToSeek} - setting to 0")
+      Log.w(tag, "seekPlayer invalid time $timeToSeek - setting to 0")
       timeToSeek = 0L
     } else if (timeToSeek > getDuration()) {
-      Log.w(tag, "seekPlayer invalid time ${timeToSeek} - setting to MAX - 2000")
+      Log.w(tag, "seekPlayer invalid time $timeToSeek - setting to MAX - 2000")
       timeToSeek = getDuration() - 2000L
     }
 
@@ -869,11 +869,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   //
   // MEDIA BROWSER STUFF (ANDROID AUTO)
   //
-  private val ANDROID_AUTO_PKG_NAME = "com.google.android.projection.gearhead"
-  private val ANDROID_AUTO_SIMULATOR_PKG_NAME = "com.google.android.autosimulator"
-  private val ANDROID_WEARABLE_PKG_NAME = "com.google.android.wearable.app"
-  private val ANDROID_GSEARCH_PKG_NAME = "com.google.android.googlequicksearchbox"
-  private val ANDROID_AUTOMOTIVE_PKG_NAME = "com.google.android.carassistant"
   private val VALID_MEDIA_BROWSERS = mutableListOf("com.audiobookshelf.app", ANDROID_AUTO_PKG_NAME, ANDROID_AUTO_SIMULATOR_PKG_NAME, ANDROID_WEARABLE_PKG_NAME, ANDROID_GSEARCH_PKG_NAME, ANDROID_AUTOMOTIVE_PKG_NAME)
 
   private val AUTO_MEDIA_ROOT = "/"
@@ -1064,7 +1059,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     // Unregister shake sensor after wake up expiration
     shakeSensorUnregisterTask?.cancel()
     shakeSensorUnregisterTask = Timer("ShakeUnregisterTimer", false).schedule(SLEEP_TIMER_WAKE_UP_EXPIRATION) {
-      Handler(Looper.getMainLooper()).post() {
+      Handler(Looper.getMainLooper()).post {
         Log.d(tag, "wake time expired: Unregistering shake sensor")
         mSensorManager!!.unregisterListener(mShakeDetector)
         isShakeSensorRegistered = false

@@ -23,7 +23,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-class DownloadItemManager(var downloadManager:DownloadManager, var folderScanner: FolderScanner, var mainActivity: MainActivity, var clientEventEmitter:DownloadEventEmitter) {
+class DownloadItemManager(var downloadManager:DownloadManager, private var folderScanner: FolderScanner, var mainActivity: MainActivity, private var clientEventEmitter:DownloadEventEmitter) {
   val tag = "DownloadItemManager"
   private val maxSimultaneousDownloads = 1
   private var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
@@ -125,24 +125,30 @@ class DownloadItemManager(var downloadManager:DownloadManager, var folderScanner
         val bytesDownloadedSoFar = if (bytesDownloadedColumnIndex >= 0) it.getLong(bytesDownloadedColumnIndex) else 0
         Log.d(tag, "checkDownloads Download ${downloadItemPart.filename} bytes $totalBytes | bytes dled $bytesDownloadedSoFar | downloadStatus $downloadStatus")
 
-        if (downloadStatus == DownloadManager.STATUS_SUCCESSFUL) {
-          Log.d(tag, "checkDownloads Download ${downloadItemPart.filename} Successful")
-          downloadItemPart.completed = true
-          downloadItemPart.progress = 1
-          downloadItemPart.bytesDownloaded = bytesDownloadedSoFar
-          return DownloadCheckStatus.Successful
-        } else if (downloadStatus == DownloadManager.STATUS_FAILED) {
-          Log.d(tag, "checkDownloads Download ${downloadItemPart.filename} Failed")
-          downloadItemPart.completed = true
-          downloadItemPart.failed = true
-          return DownloadCheckStatus.Failed
-        } else {
-          //update progress
-          val percentProgress = if (totalBytes > 0) ((bytesDownloadedSoFar * 100L) / totalBytes) else 0
-          Log.d(tag, "checkDownloads Download ${downloadItemPart.filename} Progress = $percentProgress%")
-          downloadItemPart.progress = percentProgress
-          downloadItemPart.bytesDownloaded = bytesDownloadedSoFar
-          return DownloadCheckStatus.InProgress
+        return when (downloadStatus) {
+          DownloadManager.STATUS_SUCCESSFUL -> {
+            Log.d(tag, "checkDownloads Download ${downloadItemPart.filename} Successful")
+            downloadItemPart.completed = true
+            downloadItemPart.progress = 1
+            downloadItemPart.bytesDownloaded = bytesDownloadedSoFar
+
+            DownloadCheckStatus.Successful
+          }
+          DownloadManager.STATUS_FAILED -> {
+            Log.d(tag, "checkDownloads Download ${downloadItemPart.filename} Failed")
+            downloadItemPart.completed = true
+            downloadItemPart.failed = true
+
+            DownloadCheckStatus.Failed
+          }
+          else -> {
+            val percentProgress = if (totalBytes > 0) ((bytesDownloadedSoFar * 100L) / totalBytes) else 0
+            Log.d(tag, "checkDownloads Download ${downloadItemPart.filename} Progress = $percentProgress%")
+            downloadItemPart.progress = percentProgress
+            downloadItemPart.bytesDownloaded = bytesDownloadedSoFar
+
+            DownloadCheckStatus.InProgress
+          }
         }
       } else {
         Log.d(tag, "Download ${downloadItemPart.filename} not found in dlmanager")

@@ -15,13 +15,7 @@ import com.google.android.exoplayer2.MediaMetadata
 import com.google.android.gms.cast.MediaInfo
 import com.google.android.gms.cast.MediaQueueItem
 import com.google.android.gms.common.images.WebImage
-
-
-// TODO: enum or something in kotlin?
-val PLAYMETHOD_DIRECTPLAY = 0
-val PLAYMETHOD_DIRECTSTREAM = 1
-val PLAYMETHOD_TRANSCODE = 2
-val PLAYMETHOD_LOCAL = 3
+import com.audiobookshelf.app.player.*
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 class PlaybackSession(

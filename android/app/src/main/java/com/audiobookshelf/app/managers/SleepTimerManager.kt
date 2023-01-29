@@ -12,7 +12,7 @@ import kotlin.math.roundToInt
 
 const val SLEEP_EXTENSION_TIME = 900000L // 15m
 
-class SleepTimerManager constructor(val playerNotificationService: PlayerNotificationService) {
+class SleepTimerManager constructor(private val playerNotificationService: PlayerNotificationService) {
   private val tag = "SleepTimerManager"
 
   private var sleepTimerTask:TimerTask? = null
@@ -90,7 +90,7 @@ class SleepTimerManager constructor(val playerNotificationService: PlayerNotific
 
     sleepTimerRunning = true
     sleepTimerTask = Timer("SleepTimer", false).schedule(0L, 1000L) {
-      Handler(Looper.getMainLooper()).post() {
+      Handler(Looper.getMainLooper()).post {
         if (getIsPlaying()) {
           sleepTimerElapsed += 1000L
 

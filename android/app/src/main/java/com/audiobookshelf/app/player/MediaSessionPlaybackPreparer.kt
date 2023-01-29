@@ -35,7 +35,7 @@ class MediaSessionPlaybackPreparer(var playerNotificationService:PlayerNotificat
           Log.e(tag, "Failed to play library item")
         } else {
           val playbackRate = playerNotificationService.mediaManager.getSavedPlaybackRate()
-          Handler(Looper.getMainLooper()).post() {
+          Handler(Looper.getMainLooper()).post {
             playerNotificationService.preparePlayer(it, playWhenReady, playbackRate)
           }
         }
@@ -46,7 +46,7 @@ class MediaSessionPlaybackPreparer(var playerNotificationService:PlayerNotificat
   override fun onPrepareFromMediaId(mediaId: String, playWhenReady: Boolean, extras: Bundle?) {
     Log.d(tag, "ON PREPARE FROM MEDIA ID $mediaId $playWhenReady")
 
-    var libraryItemWrapper: LibraryItemWrapper? = null
+    val libraryItemWrapper: LibraryItemWrapper?
     var podcastEpisode: PodcastEpisode? = null
 
     if (mediaId.startsWith("ep_") || mediaId.startsWith("local_ep_")) { // Playing podcast episode
@@ -63,7 +63,7 @@ class MediaSessionPlaybackPreparer(var playerNotificationService:PlayerNotificat
          Log.e(tag, "Failed to play library item")
         } else {
           val playbackRate = playerNotificationService.mediaManager.getSavedPlaybackRate()
-          Handler(Looper.getMainLooper()).post() {
+          Handler(Looper.getMainLooper()).post {
             playerNotificationService.preparePlayer(it, playWhenReady, playbackRate)
           }
         }
@@ -79,7 +79,7 @@ class MediaSessionPlaybackPreparer(var playerNotificationService:PlayerNotificat
          Log.e(tag, "Failed to play library item")
         } else {
           val playbackRate = playerNotificationService.mediaManager.getSavedPlaybackRate()
-          Handler(Looper.getMainLooper()).post() {
+          Handler(Looper.getMainLooper()).post {
             playerNotificationService.preparePlayer(it, playWhenReady, playbackRate)
           }
         }

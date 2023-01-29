@@ -72,12 +72,12 @@ class FolderScanner(var ctx: Context) {
        Log.d(tag, "Iterating over Folder Found ${itemFolder.name} | ${itemFolder.getSimplePath(ctx)} | URI: ${itemFolder.uri}")
        val existingItem = existingLocalLibraryItems.find { emi -> emi.id == getLocalLibraryItemId(itemFolder.id) }
 
-       val result = scanLibraryItemFolder(itemFolder, localFolder, existingItem, forceAudioProbe)
-
-       if (result == ItemScanResult.REMOVED) mediaItemsRemoved++
-       else if (result == ItemScanResult.UPDATED) mediaItemsUpdated++
-       else if (result == ItemScanResult.ADDED) mediaItemsAdded++
-       else mediaItemsUpToDate++
+       when (scanLibraryItemFolder(itemFolder, localFolder, existingItem, forceAudioProbe)) {
+         ItemScanResult.REMOVED -> mediaItemsRemoved++
+         ItemScanResult.UPDATED -> mediaItemsUpdated++
+         ItemScanResult.ADDED -> mediaItemsAdded++
+         else -> mediaItemsUpToDate++
+       }
      }
 
      Log.d(tag, "Folder $${localFolder.name} scan Results: $mediaItemsAdded Added | $mediaItemsUpdated Updated | $mediaItemsRemoved Removed | $mediaItemsUpToDate Up-to-date")
@@ -130,7 +130,7 @@ class FolderScanner(var ctx: Context) {
       Log.d(tag, "File attributes Id:${localFileId}|ContentUrl:${localFile.contentUrl}|isDownloadsDocument:${file.isDownloadsDocument}")
 
       if (isAudio) {
-        var audioTrackToAdd:AudioTrack? = null
+        val audioTrackToAdd:AudioTrack?
 
         val existingAudioTrack = existingAudioTracks.find { eat -> eat.localFileId == localFileId }
         if (existingAudioTrack != null) { // Update existing audio track
@@ -258,7 +258,7 @@ class FolderScanner(var ctx: Context) {
     Log.d(tag, "scanDownloadItem ${filesFound.size} files found in ${downloadItem.itemFolderPath}")
 
     var localEpisodeId:String? = null
-    var localLibraryItem:LocalLibraryItem? = null
+    var localLibraryItem:LocalLibraryItem?
     if (downloadItem.mediaType == "book") {
       localLibraryItem = LocalLibraryItem(localLibraryItemId, downloadItem.localFolder.id, itemFolderBasePath, itemFolderAbsolutePath, itemFolderUrl, false, downloadItem.mediaType, downloadItem.media.getLocalCopy(), mutableListOf(), null, null, true, downloadItem.serverConnectionConfigId, downloadItem.serverAddress, downloadItem.serverUserId, downloadItem.libraryItemId)
     } else {
@@ -400,7 +400,7 @@ class FolderScanner(var ctx: Context) {
         localLibraryItem.localFiles.removeIf { it.id == localFileId }
 
         if (existingAudioTracks.find { it.localFileId == localFileId } != null) {
-          Log.d(tag, "scanLocalLibraryItem audio track file ${localFileId} was removed from ${localLibraryItem.absolutePath}")
+          Log.d(tag, "scanLocalLibraryItem audio track file $localFileId was removed from ${localLibraryItem.absolutePath}")
           localLibraryItem.media.removeAudioTrack(localFileId)
         }
         wasUpdated = true
@@ -463,7 +463,7 @@ class FolderScanner(var ctx: Context) {
     return LocalLibraryItemScanResult(wasUpdated, localLibraryItem)
   }
 
-  fun probeAudioFile(absolutePath:String):AudioProbeResult? {
+  private fun probeAudioFile(absolutePath:String):AudioProbeResult? {
     val session = FFprobeKit.execute("-i \"${absolutePath}\" -print_format json -show_format -show_streams -select_streams a -show_chapters -loglevel quiet")
 
     var probeObject:JSObject? = null
@@ -474,13 +474,13 @@ class FolderScanner(var ctx: Context) {
     }
 
     Log.d(tag, "FFprobe output $probeObject")
-    if (probeObject == null || !probeObject.has("streams")) { // Check if output is empty
+    return if (probeObject == null || !probeObject.has("streams")) { // Check if output is empty
       Log.d(tag, "probeAudioFile Probe audio file $absolutePath failed or invalid")
-      return null
+      null
     } else {
       val audioProbeResult = jacksonMapper.readValue<AudioProbeResult>(session.output)
       Log.d(tag, "Probe Result DATA ${audioProbeResult.duration} | ${audioProbeResult.size} | ${audioProbeResult.title} | ${audioProbeResult.artist}")
-      return audioProbeResult
+      audioProbeResult
     }
   }
 }

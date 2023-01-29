@@ -2,7 +2,6 @@ package com.audiobookshelf.app.models
 
 import android.app.DownloadManager
 import android.net.Uri
-import android.os.Environment
 import android.util.Log
 import com.audiobookshelf.app.data.AudioTrack
 import com.audiobookshelf.app.data.LocalFolder

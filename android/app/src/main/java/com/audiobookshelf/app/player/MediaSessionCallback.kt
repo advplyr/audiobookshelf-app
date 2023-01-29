@@ -2,10 +2,7 @@ package com.audiobookshelf.app.player
 
 import android.annotation.SuppressLint
 import android.content.Intent
-import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.os.Message
+import android.os.*
 import android.support.v4.media.session.MediaSessionCompat
 import android.util.Log
 import android.view.KeyEvent
@@ -18,7 +15,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
   var tag = "MediaSessionCallback"
 
   private var mediaButtonClickCount: Int = 0
-  var mediaButtonClickTimeout: Long = 1000  //ms
+  private var mediaButtonClickTimeout: Long = 1000  //ms
 
   override fun onPrepare() {
     Log.d(tag, "ON PREPARE MEDIA SESSION COMPAT")
@@ -28,7 +25,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
           Log.e(tag, "Failed to play library item")
         } else {
           val playbackRate = playerNotificationService.mediaManager.getSavedPlaybackRate()
-          Handler(Looper.getMainLooper()).post() {
+          Handler(Looper.getMainLooper()).post {
             playerNotificationService.preparePlayer(it,true, playbackRate)
           }
         }
@@ -54,7 +51,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
            Log.e(tag, "Failed to play library item")
         } else {
           val playbackRate = playerNotificationService.mediaManager.getSavedPlaybackRate()
-          Handler(Looper.getMainLooper()).post() {
+          Handler(Looper.getMainLooper()).post {
             playerNotificationService.preparePlayer(it, true, playbackRate)
           }
         }
@@ -93,7 +90,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
 
   override fun onPlayFromMediaId(mediaId: String?, extras: Bundle?) {
     Log.d(tag, "ON PLAY FROM MEDIA ID $mediaId")
-    var libraryItemWrapper: LibraryItemWrapper? = null
+    val libraryItemWrapper: LibraryItemWrapper?
     var podcastEpisode: PodcastEpisode? = null
 
     if (mediaId.isNullOrEmpty()) {
@@ -116,7 +113,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
          Log.e(tag, "Failed to play library item")
         } else {
           val playbackRate = playerNotificationService.mediaManager.getSavedPlaybackRate()
-          Handler(Looper.getMainLooper()).post() {
+          Handler(Looper.getMainLooper()).post {
             playerNotificationService.preparePlayer(it, true, playbackRate)
           }
         }
@@ -128,11 +125,17 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
     return handleCallMediaButton(mediaButtonEvent)
   }
 
-  fun handleCallMediaButton(intent: Intent): Boolean {
+  private fun handleCallMediaButton(intent: Intent): Boolean {
     Log.w(tag, "handleCallMediaButton $intent | ${intent.action}")
 
     if(Intent.ACTION_MEDIA_BUTTON == intent.action) {
-      val keyEvent = intent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
+      val keyEvent = if (Build.VERSION.SDK_INT >= 33) {
+        intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT, KeyEvent::class.java)
+      } else {
+        @Suppress("DEPRECATION")
+        intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT)
+      }
+
       Log.d(tag, "handleCallMediaButton keyEvent = $keyEvent | action ${keyEvent?.action}")
 
       if (keyEvent?.action == KeyEvent.ACTION_DOWN) {

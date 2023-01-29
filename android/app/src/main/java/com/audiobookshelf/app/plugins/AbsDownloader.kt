@@ -148,7 +148,7 @@ class AbsDownloader : Plugin() {
         val fileSize = audioTrack.metadata?.size ?: 0
         val serverPath = "/s/item/${libraryItem.id}/${cleanRelPath(audioTrack.relPath)}"
         val destinationFilename = getFilenameFromRelPath(audioTrack.relPath)
-        Log.d(tag, "Audio File Server Path $serverPath | AF RelPath ${audioTrack.relPath} | LocalFolder Path ${localFolder.absolutePath} | DestName ${destinationFilename}")
+        Log.d(tag, "Audio File Server Path $serverPath | AF RelPath ${audioTrack.relPath} | LocalFolder Path ${localFolder.absolutePath} | DestName $destinationFilename")
 
         val finalDestinationFile = File("$itemFolderPath/$destinationFilename")
         val destinationFile = File("$tempFolderPath/$destinationFilename")
@@ -208,7 +208,7 @@ class AbsDownloader : Plugin() {
 
       var serverPath = "/s/item/${libraryItem.id}/${cleanRelPath(audioTrack?.relPath ?: "")}"
       var destinationFilename = getFilenameFromRelPath(audioTrack?.relPath ?: "")
-      Log.d(tag, "Audio File Server Path $serverPath | AF RelPath ${audioTrack?.relPath} | LocalFolder Path ${localFolder.absolutePath} | DestName ${destinationFilename}")
+      Log.d(tag, "Audio File Server Path $serverPath | AF RelPath ${audioTrack?.relPath} | LocalFolder Path ${localFolder.absolutePath} | DestName $destinationFilename")
 
       var destinationFile = File("$tempFolderPath/$destinationFilename")
       var finalDestinationFile = File("$itemFolderPath/$destinationFilename")

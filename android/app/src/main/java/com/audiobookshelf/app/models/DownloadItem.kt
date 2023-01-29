@@ -25,13 +25,6 @@ data class DownloadItem(
   val isDownloadFinished get() = !downloadItemParts.any { !it.completed || it.isMoving }
 
   @JsonIgnore
-  fun getTotalFileSize(): Long {
-    var totalSize = 0L
-    downloadItemParts.forEach { totalSize += it.fileSize }
-    return totalSize
-  }
-
-  @JsonIgnore
   fun getNextDownloadItemParts(limit:Int): MutableList<DownloadItemPart> {
     val itemParts = mutableListOf<DownloadItemPart>()
     if (limit == 0) return itemParts

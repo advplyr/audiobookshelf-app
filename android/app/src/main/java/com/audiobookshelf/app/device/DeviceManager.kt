@@ -21,7 +21,6 @@ object DeviceManager {
   val serverUserId get() = serverConnectionConfig?.userId ?: ""
   val token get() = serverConnectionConfig?.token ?: ""
   val isConnectedToServer get() = serverConnectionConfig != null
-  val hasLastServerConnectionConfig get() = deviceData.getLastServerConnectionConfig() != null
 
   var widgetUpdater:WidgetEventEmitter? = null
 
