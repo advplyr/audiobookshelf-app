@@ -648,6 +648,14 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     return getCurrentBookChapter()?.endMs ?: currentPlaybackSession?.getCurrentTrackEndTime()
   }
 
+  private fun getNextBookChapter():BookChapter? {
+    return currentPlaybackSession?.getNextChapterForTime(this.getCurrentTime())
+  }
+
+  fun getEndTimeOfNextChapterOrTrack():Long? {
+    return getNextBookChapter()?.endMs ?: currentPlaybackSession?.getNextTrackEndTime()
+  }
+
   // Called from PlayerListener play event
   // check with server if progress has updated since last play and sync progress update
   fun checkCurrentSessionProgress(seekBackTime:Long):Boolean {

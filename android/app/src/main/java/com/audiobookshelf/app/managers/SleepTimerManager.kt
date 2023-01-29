@@ -160,7 +160,40 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
     }
   }
 
-  fun checkShouldResetSleepTimer() {
+  // Get the chapter end time for use in End of Chapter timers
+  //   if less than 2s remain in chapter then use the next chapter
+  private fun getChapterEndTime():Long? {
+    val currentChapterEndTimeMs = playerNotificationService.getEndTimeOfChapterOrTrack()
+    if (currentChapterEndTimeMs == null) {
+      Log.e(tag, "Getting chapter sleep timer end of chapter/track but there is no current session")
+      return null
+    }
+
+    val timeLeftInChapter = currentChapterEndTimeMs - getCurrentTime()
+    return if (timeLeftInChapter < 2000L) {
+      Log.i(tag, "Getting chapter sleep timer time and current chapter has less than 2s remaining")
+      val nextChapterEndTimeMs = playerNotificationService.getEndTimeOfNextChapterOrTrack()
+      if (nextChapterEndTimeMs == null || currentChapterEndTimeMs == nextChapterEndTimeMs) {
+        Log.e(tag, "Invalid next chapter time. No current session or equal to current chapter. $nextChapterEndTimeMs")
+        null
+      } else {
+        nextChapterEndTimeMs
+      }
+    } else {
+      currentChapterEndTimeMs
+    }
+  }
+
+  private fun resetChapterTimer() {
+    this.getChapterEndTime()?.let { chapterEndTime ->
+      Log.d(tag, "Resetting stopped sleep timer to end of chapter $chapterEndTime")
+      vibrate()
+      setSleepTimer(chapterEndTime, true)
+      play()
+    }
+  }
+
+  private fun checkShouldResetSleepTimer() {
     if (!sleepTimerRunning) {
       if (sleepTimerFinishedAt <= 0L) return
 
@@ -175,15 +208,10 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
       // Set sleep timer
       //   When sleepTimerLength is 0 then use end of chapter/track time
       if (sleepTimerLength == 0L) {
-        val currentChapterEndTimeMs = playerNotificationService.getEndTimeOfChapterOrTrack()
-        if (currentChapterEndTimeMs == null) {
-          Log.e(tag, "Checking reset sleep timer to end of chapter/track but there is no current session")
-        } else {
-          vibrate()
-          setSleepTimer(currentChapterEndTimeMs, true)
-          play()
-        }
+        Log.d(tag, "Resetting stopped chapter sleep timer")
+        resetChapterTimer()
       } else {
+        Log.d(tag, "Resetting stopped sleep timer to length $sleepTimerLength")
         vibrate()
         setSleepTimer(sleepTimerLength, false)
         play()
@@ -193,8 +221,19 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
 
     // Does not apply to chapter sleep timers and timer must be running for at least 3 seconds
     if (sleepTimerLength > 0L && sleepTimerElapsed > 3000L) {
+      Log.d(tag, "Resetting running sleep timer to length $sleepTimerLength")
       vibrate()
       setSleepTimer(sleepTimerLength, false)
+    } else if (sleepTimerLength == 0L) {
+      // When navigating to previous chapters make sure this is still the end of the current chapter
+      this.getChapterEndTime()?.let { chapterEndTime ->
+        if (chapterEndTime != sleepTimerEndTime) {
+          Log.d(tag, "Resetting chapter sleep timer to end of chapter $chapterEndTime from $sleepTimerEndTime")
+          vibrate()
+          setSleepTimer(chapterEndTime, true)
+          play()
+        }
+      }
     }
   }
 
@@ -279,11 +318,11 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
         // Set sleep timer
         //   When sleepTimerLength is 0 then use end of chapter/track time
         if (deviceSettings.sleepTimerLength == 0L) {
-          val currentChapterEndTimeMs = playerNotificationService.getEndTimeOfChapterOrTrack()
-          if (currentChapterEndTimeMs == null) {
+          val chapterEndTimeMs = this.getChapterEndTime()
+          if (chapterEndTimeMs == null) {
             Log.e(tag, "Setting auto sleep timer to end of chapter/track but there is no current session")
           } else {
-            setSleepTimer(currentChapterEndTimeMs, true)
+            setSleepTimer(chapterEndTimeMs, true)
           }
         } else {
           setSleepTimer(deviceSettings.sleepTimerLength, false)
