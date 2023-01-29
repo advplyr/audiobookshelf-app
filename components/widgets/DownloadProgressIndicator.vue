@@ -37,10 +37,14 @@ export default {
 
       if (!totalBytes) return 0
       return Math.min(1, totalBytesDownloaded / totalBytes)
+    },
+    isIos() {
+      return this.$platform === 'ios'
     }
   },
   methods: {
     clickedIt() {
+      if (this.isIos) return // TODO: Implement on iOS
       this.$router.push('/downloading')
     },
     onItemDownloadComplete(data) {
