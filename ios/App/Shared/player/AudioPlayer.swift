@@ -472,18 +472,18 @@ class AudioPlayer: NSObject {
         
         if (playbackSession.playMethod == PlayMethod.directplay.rawValue) {
             // The only reason this is separate is because the filename needs to be encoded
-            let filename = track.metadata?.filename ?? ""
-            let filenameEncoded = filename.addingPercentEncoding(withAllowedCharacters: NSCharacterSet.urlQueryAllowed)
-            let urlstr = "\(Store.serverConfig!.address)/s/item/\(itemId)/\(filenameEncoded ?? "")?token=\(Store.serverConfig!.token)"
+            let relPath = track.metadata?.relPath ?? ""
+            let filepathEncoded = relPath.addingPercentEncoding(withAllowedCharacters: NSCharacterSet.urlQueryAllowed)
+            let urlstr = "\(Store.serverConfig!.address)/s/item/\(itemId)/\(filepathEncoded ?? "")?token=\(Store.serverConfig!.token)"
             let url = URL(string: urlstr)!
             return AVURLAsset(url: url)
         } else if (playbackSession.playMethod == PlayMethod.local.rawValue) {
             guard let localFile = track.getLocalFile() else {
                 // Worst case we can stream the file
                 logger.log("Unable to play local file. Resulting to streaming \(track.localFileId ?? "Unknown")")
-                let filename = track.metadata?.filename ?? ""
-                let filenameEncoded = filename.addingPercentEncoding(withAllowedCharacters: NSCharacterSet.urlQueryAllowed)
-                let urlstr = "\(Store.serverConfig!.address)/s/item/\(itemId)/\(filenameEncoded ?? "")?token=\(Store.serverConfig!.token)"
+                let relPath = track.metadata?.relPath ?? ""
+                let filepathEncoded = relPath.addingPercentEncoding(withAllowedCharacters: NSCharacterSet.urlQueryAllowed)
+                let urlstr = "\(Store.serverConfig!.address)/s/item/\(itemId)/\(filepathEncoded ?? "")?token=\(Store.serverConfig!.token)"
                 let url = URL(string: urlstr)!
                 return AVURLAsset(url: url)
             }
