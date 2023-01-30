@@ -571,6 +571,8 @@ class AudioPlayer: NSObject {
         }
         let commandCenter = MPRemoteCommandCenter.shared()
         let deviceSettings = Database.shared.getDeviceSettings()
+        let jumpForwardTime = deviceSettings.jumpForwardTime
+        let jumpBackwardsTime = deviceSettings.jumpBackwardsTime
         
         commandCenter.playCommand.isEnabled = true
         commandCenter.playCommand.addTarget { [weak self] event in
@@ -584,7 +586,7 @@ class AudioPlayer: NSObject {
         }
         
         commandCenter.skipForwardCommand.isEnabled = true
-        commandCenter.skipForwardCommand.preferredIntervals = [NSNumber(value: deviceSettings.jumpForwardTime)]
+        commandCenter.skipForwardCommand.preferredIntervals = [NSNumber(value: jumpForwardTime)]
         commandCenter.skipForwardCommand.addTarget { [weak self] event in
             guard let command = event.command as? MPSkipIntervalCommand else {
                 return .noSuchContent
@@ -596,7 +598,7 @@ class AudioPlayer: NSObject {
             return .success
         }
         commandCenter.skipBackwardCommand.isEnabled = true
-        commandCenter.skipBackwardCommand.preferredIntervals = [NSNumber(value: deviceSettings.jumpBackwardsTime)]
+        commandCenter.skipBackwardCommand.preferredIntervals = [NSNumber(value: jumpBackwardsTime)]
         commandCenter.skipBackwardCommand.addTarget { [weak self] event in
             guard let command = event.command as? MPSkipIntervalCommand else {
                 return .noSuchContent
@@ -613,7 +615,7 @@ class AudioPlayer: NSObject {
             guard let currentTime = self?.getCurrentTime() else {
                 return .commandFailed
             }
-            self?.seek(currentTime + Double(deviceSettings.jumpForwardTime), from: "remote")
+            self?.seek(currentTime + Double(jumpForwardTime), from: "remote")
             return .success
         }
         commandCenter.previousTrackCommand.isEnabled = true
@@ -621,7 +623,7 @@ class AudioPlayer: NSObject {
             guard let currentTime = self?.getCurrentTime() else {
                 return .commandFailed
             }
-            self?.seek(currentTime - Double(deviceSettings.jumpBackwardsTime), from: "remote")
+            self?.seek(currentTime - Double(jumpBackwardsTime), from: "remote")
             return .success
         }
 
