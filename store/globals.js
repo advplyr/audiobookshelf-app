@@ -67,6 +67,16 @@ export const getters = {
     const url = new URL(`/api/items/${libraryItem.id}/cover`, serverAddress)
     return `${url}?token=${userToken}&ts=${lastUpdate}${raw ? '&raw=1' : ''}`
   },
+  getLibraryItemCoverSrcById: (state, getters, rootState, rootGetters) => (libraryItemId, placeholder = null) => {
+    if (!placeholder) placeholder = `${rootState.routerBasePath}/book_placeholder.jpg`
+    if (!libraryItemId) return placeholder
+    const userToken = rootGetters['user/getToken']
+    const serverAddress = rootGetters['user/getServerAddress']
+    if (!userToken || !serverAddress) return placeholder
+
+    const url = new URL(`/api/items/${libraryItemId}/cover`, serverAddress)
+    return `${url}?token=${userToken}`
+  },
   getLocalMediaProgressById: (state) => (localLibraryItemId, episodeId = null) => {
     return state.localMediaProgress.find(lmp => {
       if (episodeId != null && lmp.localEpisodeId != episodeId) return false
