@@ -18,19 +18,17 @@
       <p v-if="subtitle" class="text-gray-100 text-base py-0.5 mb-0.5">{{ subtitle }}</p>
 
       <p v-if="seriesList && seriesList.length" class="text-sm text-gray-300 py-0.5">
-        <template v-for="(series, index) in seriesList"
-          ><nuxt-link :key="series.id" :to="`/bookshelf/series/${series.id}`" class="underline">{{ series.text }}</nuxt-link
-          ><span :key="`${series.id}-comma`" v-if="index < seriesList.length - 1">,&nbsp;</span></template
-        >
+        <template v-for="(series, index) in seriesList">
+          <nuxt-link :key="series.id" :to="`/bookshelf/series/${series.id}`" class="underline">{{ series.text }}</nuxt-link><span :key="`${series.id}-comma`" v-if="index < seriesList.length - 1">,&nbsp;</span>
+        </template>
       </p>
 
       <p v-if="podcastAuthor" class="text-sm text-gray-300 py-0.5">by {{ podcastAuthor }}</p>
       <p v-else-if="bookAuthors && bookAuthors.length" class="text-sm text-gray-300 py-0.5">
         by
-        <template v-for="(author, index) in bookAuthors"
-          ><nuxt-link :key="author.id" :to="`/bookshelf/library?filter=authors.${$encode(author.id)}`" class="underline">{{ author.name }}</nuxt-link
-          ><span :key="`${author.id}-comma`" v-if="index < bookAuthors.length - 1">,&nbsp;</span></template
-        >
+        <template v-for="(author, index) in bookAuthors">
+          <nuxt-link :key="author.id" :to="`/bookshelf/library?filter=authors.${$encode(author.id)}`" class="underline">{{ author.name }}</nuxt-link><span :key="`${author.id}-comma`" v-if="index < bookAuthors.length - 1">,&nbsp;</span>
+        </template>
       </p>
 
       <!-- Show an indicator for local library items whether they are linked to a server item and if that server item is connected -->
@@ -88,21 +86,17 @@
         <div v-if="narrators && narrators.length" class="text-white text-opacity-60 uppercase text-sm">Narrators</div>
         <div v-if="narrators && narrators.length" class="truncate text-sm">
           <template v-for="(narrator, index) in narrators">
-            <nuxt-link :key="narrator" :to="`/bookshelf/library?filter=narrators.${$encode(narrator)}`" class="underline">{{ narrator }}</nuxt-link
-            ><span :key="index" v-if="index < narrators.length - 1">, </span>
+            <nuxt-link :key="narrator" :to="`/bookshelf/library?filter=narrators.${$encode(narrator)}`" class="underline">{{ narrator }}</nuxt-link><span :key="index" v-if="index < narrators.length - 1">,</span>
           </template>
         </div>
 
         <div v-if="publishedYear" class="text-white text-opacity-60 uppercase text-sm">Published</div>
-        <div v-if="publishedYear" class="text-sm">
-          {{ publishedYear }}
-        </div>
+        <div v-if="publishedYear" class="text-sm">{{ publishedYear }}</div>
 
         <div v-if="genres.length" class="text-white text-opacity-60 uppercase text-sm">Genres</div>
         <div v-if="genres.length" class="truncate text-sm">
           <template v-for="(genre, index) in genres">
-            <nuxt-link :key="genre" :to="`/bookshelf/library?filter=genres.${$encode(genre)}`" class="underline">{{ genre }}</nuxt-link
-            ><span :key="index" v-if="index < genres.length - 1">, </span>
+            <nuxt-link :key="genre" :to="`/bookshelf/library?filter=genres.${$encode(genre)}`" class="underline">{{ genre }}</nuxt-link><span :key="index" v-if="index < genres.length - 1">,</span>
           </template>
         </div>
       </div>
@@ -131,7 +125,7 @@
 
       <modals-select-local-folder-modal v-model="showSelectLocalFolder" :media-type="mediaType" @select="selectedLocalFolder" />
 
-      <modals-dialog v-model="showMoreMenu" title="" :items="moreMenuItems" @action="moreMenuAction" />
+      <modals-dialog v-model="showMoreMenu" :items="moreMenuItems" @action="moreMenuAction" />
 
       <modals-item-details-modal v-model="showDetailsModal" :library-item="libraryItem" />
 
@@ -433,7 +427,9 @@ export default {
     moreMenuAction(action) {
       this.showMoreMenu = false
       if (action === 'manageLocal') {
-        this.$router.push(`/localMedia/item/${this.localLibraryItemId}`)
+        this.$nextTick(() => {
+          this.$router.push(`/localMedia/item/${this.localLibraryItemId}`)
+        })
       } else if (action === 'details') {
         this.showDetailsModal = true
       } else if (action === 'playlist') {
