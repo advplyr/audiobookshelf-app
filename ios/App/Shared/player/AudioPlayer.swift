@@ -608,6 +608,23 @@ class AudioPlayer: NSObject {
             return .success
         }
         
+        commandCenter.nextTrackCommand.isEnabled = true
+        commandCenter.nextTrackCommand.addTarget { [weak self] _ in
+            guard let currentTime = self?.getCurrentTime() else {
+                return .commandFailed
+            }
+            self?.seek(currentTime + Double(deviceSettings.jumpForwardTime), from: "remote")
+            return .success
+        }
+        commandCenter.previousTrackCommand.isEnabled = true
+        commandCenter.previousTrackCommand.addTarget { [weak self] _ in
+            guard let currentTime = self?.getCurrentTime() else {
+                return .commandFailed
+            }
+            self?.seek(currentTime - Double(deviceSettings.jumpBackwardsTime), from: "remote")
+            return .success
+        }
+
         commandCenter.changePlaybackPositionCommand.isEnabled = true
         commandCenter.changePlaybackPositionCommand.addTarget { [weak self] event in
             guard let event = event as? MPChangePlaybackPositionCommandEvent else {
