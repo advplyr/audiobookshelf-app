@@ -38,23 +38,34 @@ export default {
     return {
       shelves: [],
       loading: false,
+      isFirstNetworkConnection: true,
       lastServerFetch: 0,
+      lastServerFetchLibraryId: null,
+      lastLocalFetch: 0,
       localLibraryItems: []
     }
   },
   watch: {
     networkConnected(newVal) {
       // Update shelves when network connect status changes
-      console.log(`[categories] Network changed to ${newVal} - fetch categories`)
+      console.log(`[categories] Network changed to ${newVal} - fetch categories. ${this.lastServerFetch}/${this.lastLocalFetch}`)
 
       if (newVal) {
+        // Fetch right away the first time network connects
+        if (this.isFirstNetworkConnection) {
+          this.isFirstNetworkConnection = false
+          console.log(`[categories] networkConnected true first network connection. lastServerFetch=${this.lastServerFetch}`)
+          this.fetchCategories()
+          return
+        }
+
         setTimeout(() => {
           // Using timeout because making this fetch as soon as network gets connected will often fail on Android
-          if (!this.lastServerFetch || Date.now() - this.lastServerFetch < 4000) {
-            this.fetchCategories()
-          }
+          console.log(`[categories] networkConnected true so fetching categories. lastServerFetch=${this.lastServerFetch}`)
+          this.fetchCategories()
         }, 4000)
       } else {
+        console.log(`[categories] networkConnected false so fetching categories`)
         this.fetchCategories()
       }
     }
@@ -174,25 +185,53 @@ export default {
       return categories
     },
     async fetchCategories() {
-      if (this.loading) {
-        console.log('[categories] Already loading categories')
-        return
+      console.log(`[categories] fetchCategories networkConnected=${this.networkConnected}, lastServerFetch=${this.lastServerFetch}, lastLocalFetch=${this.lastLocalFetch}`)
+
+      // TODO: Find a better way to keep the shelf up-to-date with local vs server library because this is a disaster
+      if (this.user && this.currentLibraryId && this.networkConnected) {
+        if (this.lastServerFetch && Date.now() - this.lastServerFetch < 5000 && this.lastServerFetchLibraryId == this.currentLibraryId) {
+          console.log(`[categories] fetchCategories server fetch was ${Date.now() - this.lastServerFetch}ms ago so not doing it.`)
+          return
+        } else {
+          console.log(`[categories] fetchCategories fetching from server. Last was ${this.lastServerFetch ? Date.now() - this.lastServerFetch + 'ms' : 'Never'} ago. lastServerFetchLibraryId=${this.lastServerFetchLibraryId} and currentLibraryId=${this.currentLibraryId}`)
+          this.lastServerFetchLibraryId = this.currentLibraryId
+          this.lastServerFetch = Date.now()
+          this.lastLocalFetch = 0
+        }
+      } else {
+        if (this.lastLocalFetch && Date.now() - this.lastLocalFetch < 5000) {
+          console.log(`[categories] fetchCategories local fetch was ${Date.now() - this.lastLocalFetch}ms ago so not doing it.`)
+          return
+        } else {
+          console.log(`[categories] fetchCategories fetching from local. Last was ${this.lastLocalFetch ? Date.now() - this.lastLocalFetch + 'ms' : 'Never'} ago`)
+          this.lastServerFetchLibraryId = null
+          this.lastServerFetch = 0
+          this.lastLocalFetch = Date.now()
+        }
       }
-      console.log(`[categories] fetchCategories networkConnected=${this.networkConnected}`)
+
       this.loading = true
       this.shelves = []
 
-      this.localLibraryItems = await this.$db.getLocalLibraryItems()
-      const localCategories = await this.getLocalMediaItemCategories()
-
       if (this.user && this.currentLibraryId && this.networkConnected) {
-        this.lastServerFetch = Date.now()
+        this.localLibraryItems = await this.$db.getLocalLibraryItems()
+        const localCategories = await this.getLocalMediaItemCategories()
         const categories = await this.$axios.$get(`/api/libraries/${this.currentLibraryId}/personalized?minified=1`).catch((error) => {
-          console.error('Failed to fetch categories', error)
+          console.error('[categories] Failed to fetch categories', error)
           return []
         })
+        if (!categories.length) {
+          // Failed to load categories so use local shelves
+          console.warn(`[categories] Failed to get server categories so using local categories`)
+          this.shelves = localCategories
+          this.lastServerFetch = 0
+          this.lastLocalFetch = Date.now()
+          this.loading = false
+          console.log('[categories] Local shelves set from failure', this.shelves.length, this.lastLocalFetch)
+          return
+        }
+
         this.shelves = categories.map((cat) => {
-          console.log('[categories] Personalized category from server', cat.type)
           if (cat.type == 'book' || cat.type == 'podcast' || cat.type == 'episode') {
             // Map localLibraryItem to entities
             cat.entities = cat.entities.map((entity) => {
@@ -211,17 +250,21 @@ export default {
         // Only add the local shelf with the same media type
         const localShelves = localCategories.filter((cat) => cat.type === this.currentLibraryMediaType && !cat.localOnly)
         this.shelves.push(...localShelves)
+        console.log('[categories] Server shelves set', this.shelves.length, this.lastServerFetch)
       } else {
         // Offline only local
+        this.localLibraryItems = await this.$db.getLocalLibraryItems()
+        const localCategories = await this.getLocalMediaItemCategories()
         this.shelves = localCategories
-        this.lastServerFetch = 0
+        console.log('[categories] Local shelves set', this.shelves.length, this.lastLocalFetch)
       }
 
       this.loading = false
     },
-    async libraryChanged() {
+    libraryChanged() {
       if (this.currentLibraryId) {
-        await this.fetchCategories()
+        console.log(`[categories] libraryChanged so fetching categories`)
+        this.fetchCategories()
       }
     },
     audiobookAdded(audiobook) {
@@ -273,6 +316,7 @@ export default {
   },
   mounted() {
     this.initListeners()
+    console.log(`[categories] mounted so fetching categories`)
     this.fetchCategories()
   },
   beforeDestroy() {
