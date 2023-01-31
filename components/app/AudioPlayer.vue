@@ -934,7 +934,6 @@ export default {
   bottom: 20px;
 }
 .fullscreen #playerTrack {
-  top: 20px;
   bottom: unset;
 }
 
