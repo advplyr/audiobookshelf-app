@@ -849,7 +849,7 @@ export default {
       document.documentElement.style.setProperty('--title-author-left-offset-collapsed', 24 + coverImageWidthCollapsed + 'px')
     },
     minimizePlayerEvt() {
-      this.showFullscreen = false
+      this.collapseFullscreen()
     },
     showProgressSyncIsFailing() {
       this.syncStatus = this.$constants.SyncStatus.FAILED

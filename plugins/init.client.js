@@ -215,17 +215,18 @@ Vue.prototype.$setOrientationLock = (orientationLockSetting) => {
 }
 
 export default ({ store, app }, inject) => {
-  inject('eventBus', new Vue())
+  const eventBus = new Vue()
+  inject('eventBus', eventBus)
 
   // iOS Only
   //  backButton event does not work with iOS swipe navigation so use this workaround
   if (app.router && Capacitor.getPlatform() === 'ios') {
     app.router.beforeEach((to, from, next) => {
       if (store.state.globals.isModalOpen) {
-        Vue.prototype.$eventBus.$emit('close-modal')
+        eventBus.$emit('close-modal')
       }
       if (store.state.playerIsFullscreen) {
-        Vue.prototype.$eventBus.$emit('minimize-player')
+        eventBus.$emit('minimize-player')
       }
       next()
     })
@@ -234,11 +235,11 @@ export default ({ store, app }, inject) => {
   // Android only
   App.addListener('backButton', async ({ canGoBack }) => {
     if (store.state.globals.isModalOpen) {
-      Vue.prototype.$eventBus.$emit('close-modal')
+      eventBus.$emit('close-modal')
       return
     }
     if (store.state.playerIsFullscreen) {
-      Vue.prototype.$eventBus.$emit('minimize-player')
+      eventBus.$emit('minimize-player')
       return
     }
     if (!canGoBack) {
