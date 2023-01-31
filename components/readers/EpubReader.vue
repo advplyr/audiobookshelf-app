@@ -1,7 +1,7 @@
 <template>
   <div id="epub-frame" class="w-full">
     <div id="viewer" class="border border-gray-100 bg-white shadow-md h-full w-full"></div>
-    <div class="fixed left-0 h-8 w-full bg-bg px-2 flex items-center" :style="{ bottom: playerLibraryItemId ? '100px' : '0px' }">
+    <div class="fixed left-0 h-8 w-full bg-bg px-2 flex items-center" :style="{ bottom: playerLibraryItemId ? '120px' : '0px' }">
       <p class="text-xs">epub</p>
       <div class="flex-grow" />
 

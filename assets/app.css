@@ -20,9 +20,9 @@ body {
 }
 
 #content.playerOpen {
-  height: calc(100% - 164px);
-  min-height: calc(100% - 164px);
-  max-height: calc(100% - 164px);
+  height: calc(100% - 184px);
+  min-height: calc(100% - 184px);
+  max-height: calc(100% - 184px);
 }
 
 #bookshelf {
