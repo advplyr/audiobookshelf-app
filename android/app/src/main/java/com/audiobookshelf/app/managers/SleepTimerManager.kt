@@ -108,10 +108,16 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
             clearSleepTimer()
             sleepTimerFinishedAt = System.currentTimeMillis()
           } else if (sleepTimeSecondsRemaining <= 60) {
-            // Start fading out audio
-            val volume = sleepTimeSecondsRemaining / 60F
-            Log.d(tag, "SLEEP VOLUME FADE $volume | ${sleepTimeSecondsRemaining}s remaining")
-            setVolume(volume)
+            if (DeviceManager.deviceData.deviceSettings?.disableSleepTimerFadeOut == true) {
+              // Set volume to 1 in case setting was enabled while fading
+              setVolume(1f)
+            } else {
+              // Start fading out audio down to 10% volume
+              val percentToReduce = 1 - (sleepTimeSecondsRemaining / 60F)
+              val volume =  1f - (percentToReduce * 0.9f)
+              Log.d(tag, "SLEEP VOLUME FADE $volume | ${sleepTimeSecondsRemaining}s remaining")
+              setVolume(volume)
+            }
           }
         }
       }

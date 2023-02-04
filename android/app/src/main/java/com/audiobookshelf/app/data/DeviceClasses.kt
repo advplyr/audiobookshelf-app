@@ -102,7 +102,8 @@ data class DeviceSettings(
   var autoSleepTimer: Boolean,
   var autoSleepTimerStartTime: String,
   var autoSleepTimerEndTime: String,
-  var sleepTimerLength: Long // Time in milliseconds
+  var sleepTimerLength: Long, // Time in milliseconds
+  var disableSleepTimerFadeOut: Boolean
 ) {
   companion object {
     // Static method to get default device settings
@@ -119,7 +120,8 @@ data class DeviceSettings(
         autoSleepTimer = false,
         autoSleepTimerStartTime = "22:00",
         autoSleepTimerEndTime = "06:00",
-        sleepTimerLength = 900000L // 15 minutes
+        sleepTimerLength = 900000L, // 15 minutes
+        disableSleepTimerFadeOut = false
       )
     }
   }

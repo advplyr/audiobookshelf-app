@@ -58,6 +58,13 @@
           <ui-text-input :value="shakeSensitivityOption" readonly append-icon="expand_more" style="width: 145px; max-width: 145px" />
         </div>
       </div>
+      <div class="flex items-center py-3" @click="toggleDisableSleepTimerFadeOut">
+        <div class="w-10 flex justify-center">
+          <ui-toggle-switch v-model="settings.disableSleepTimerFadeOut" @input="saveSettings" />
+        </div>
+        <p class="pl-4">Disable audio fade out</p>
+        <span class="material-icons-outlined ml-2" @click.stop="showInfo('disableSleepTimerFadeOut')">info</span>
+      </div>
       <div class="flex items-center py-3" @click="toggleAutoSleepTimer">
         <div class="w-10 flex justify-center">
           <ui-toggle-switch v-model="settings.autoSleepTimer" @input="saveSettings" />
@@ -109,7 +116,8 @@ export default {
         autoSleepTimer: false,
         autoSleepTimerStartTime: '22:00',
         autoSleepTimerEndTime: '06:00',
-        sleepTimerLength: 900000 // 15 minutes
+        sleepTimerLength: 900000, // 15 minutes
+        disableSleepTimerFadeOut: false
       },
       lockCurrentOrientation: false,
       settingInfo: {
@@ -120,6 +128,10 @@ export default {
         autoSleepTimer: {
           name: 'Auto Sleep Timer',
           message: 'When playing media between the specified start and end times a sleep timer will automatically start.'
+        },
+        disableSleepTimerFadeOut: {
+          name: 'Disable audio fade out',
+          message: 'Audio volume will start decreasing when there is less than 1 minute remaining on the sleep timer. Enable this setting to not fade out.'
         }
       },
       hapticFeedbackItems: [
@@ -263,6 +275,10 @@ export default {
       this.settings.autoSleepTimer = !this.settings.autoSleepTimer
       this.saveSettings()
     },
+    toggleDisableSleepTimerFadeOut() {
+      this.settings.disableSleepTimerFadeOut = !this.settings.disableSleepTimerFadeOut
+      this.saveSettings()
+    },
     toggleDisableShakeToResetSleepTimer() {
       this.settings.disableShakeToResetSleepTimer = !this.settings.disableShakeToResetSleepTimer
       this.saveSettings()
@@ -330,6 +346,7 @@ export default {
       this.settings.autoSleepTimerStartTime = deviceSettings.autoSleepTimerStartTime || '22:00'
       this.settings.autoSleepTimerEndTime = deviceSettings.autoSleepTimerEndTime || '06:00'
       this.settings.sleepTimerLength = !isNaN(deviceSettings.sleepTimerLength) ? deviceSettings.sleepTimerLength : 900000 // 15 minutes
+      this.settings.disableSleepTimerFadeOut = !!deviceSettings.disableSleepTimerFadeOut
     }
   },
   mounted() {
