@@ -138,19 +138,21 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
 
       Log.d(tag, "handleCallMediaButton keyEvent = $keyEvent | action ${keyEvent?.action}")
 
-      if (keyEvent?.action == KeyEvent.ACTION_DOWN) {
-        Log.d(tag, "handleCallMediaButton: key action_down for ${keyEvent.keyCode}")
-        when (keyEvent.keyCode) {
-          KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
-            Log.d(tag, "handleCallMediaButton: Media Play/Pause")
-            if (playerNotificationService.mPlayer.isPlaying) {
-              playerNotificationService.pause()
-            } else {
-              playerNotificationService.play()
-            }
-          }
-        }
-      }
+      // TODO: Widget was only sending this event on key down
+      //   but this cannot be defined in both key down and key up
+//      if (keyEvent?.action == KeyEvent.ACTION_DOWN) {
+//        Log.d(tag, "handleCallMediaButton: key action_down for ${keyEvent.keyCode}")
+//        when (keyEvent.keyCode) {
+//          KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
+//            Log.d(tag, "handleCallMediaButton: Media Play/Pause")
+//            if (playerNotificationService.mPlayer.isPlaying) {
+//              playerNotificationService.pause()
+//            } else {
+//              playerNotificationService.play()
+//            }
+//          }
+//        }
+//      }
 
       if (keyEvent?.action == KeyEvent.ACTION_UP) {
         Log.d(tag, "handleCallMediaButton: key action_up for ${keyEvent.keyCode}")
