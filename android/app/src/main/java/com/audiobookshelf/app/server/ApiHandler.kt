@@ -45,13 +45,15 @@ class ApiHandler(var ctx:Context) {
     makeRequest(request, httpClient, cb)
   }
 
-  fun postRequest(endpoint:String, payload: JSObject, config:ServerConnectionConfig?, cb: (JSObject) -> Unit) {
+  private fun postRequest(endpoint:String, payload: JSObject, config:ServerConnectionConfig?, cb: (JSObject) -> Unit) {
     val address = config?.address ?: DeviceManager.serverAddress
     val token = config?.token ?: DeviceManager.token
     val mediaType = "application/json; charset=utf-8".toMediaType()
     val requestBody = payload.toString().toRequestBody(mediaType)
+    val requestUrl = "${address}$endpoint"
+    Log.d(tag, "postRequest to $requestUrl")
     val request = Request.Builder().post(requestBody)
-      .url("${address}$endpoint").addHeader("Authorization", "Bearer ${token}")
+      .url(requestUrl).addHeader("Authorization", "Bearer ${token}")
       .build()
     makeRequest(request, null, cb)
   }

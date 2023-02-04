@@ -481,16 +481,19 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
         val libraryItemId = playbackSession.libraryItemId ?: "" // Must be true since direct play
         val episodeId = playbackSession.episodeId
-        apiHandler.playLibraryItem(libraryItemId, episodeId, playItemRequestPayload) {
-          if (it == null) { // Play request failed
-            clientEventEmitter?.onPlaybackFailed(errorMessage)
-            closePlayback(true)
-          } else {
-            Handler(Looper.getMainLooper()).post {
-              preparePlayer(it, true, null)
+        mediaProgressSyncer.stop(false) {
+          apiHandler.playLibraryItem(libraryItemId, episodeId, playItemRequestPayload) {
+            if (it == null) { // Play request failed
+              clientEventEmitter?.onPlaybackFailed(errorMessage)
+              closePlayback(true)
+            } else {
+              Handler(Looper.getMainLooper()).post {
+                preparePlayer(it, true, null)
+              }
             }
           }
         }
+
       } else {
         clientEventEmitter?.onPlaybackFailed(errorMessage)
         closePlayback(true)
@@ -528,19 +531,22 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     }
   }
 
-  fun startNewPlaybackSession() {
+  private fun startNewPlaybackSession() {
     currentPlaybackSession?.let { playbackSession ->
       val forceTranscode = playbackSession.isHLS // If already HLS then force
       val playItemRequestPayload = getPlayItemRequestPayload(forceTranscode)
 
       val libraryItemId = playbackSession.libraryItemId ?: "" // Must be true since direct play
       val episodeId = playbackSession.episodeId
-      apiHandler.playLibraryItem(libraryItemId, episodeId, playItemRequestPayload) {
-        if (it == null) {
-          Log.e(tag, "Failed to start new playback session")
-        } else {
-          Handler(Looper.getMainLooper()).post {
-            preparePlayer(it, true, null)
+      mediaProgressSyncer.stop(false) {
+        apiHandler.playLibraryItem(libraryItemId, episodeId, playItemRequestPayload) {
+          if (it == null) {
+            Log.e(tag, "Failed to start new playback session")
+          } else {
+            Log.d(tag, "New playback session response from server with session id ${it.id} for \"${it.displayTitle}\"")
+            Handler(Looper.getMainLooper()).post {
+              preparePlayer(it, true, null)
+            }
           }
         }
       }
@@ -781,6 +787,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       currentPlaybackSession?.currentTime = timeToSeek / 1000.0
       val newWindowIndex = currentPlaybackSession?.getCurrentTrackIndex() ?: 0
       val newTimeOffset = currentPlaybackSession?.getCurrentTrackTimeMs() ?: 0
+      Log.d(tag, "seekPlayer seekTo $newWindowIndex | $newTimeOffset")
       currentPlayer.seekTo(newWindowIndex, newTimeOffset)
     } else {
       currentPlayer.seekTo(timeToSeek)
@@ -849,7 +856,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     return if(currentPlayer == castPlayer) PLAYER_CAST else PLAYER_EXO
   }
 
-  fun getDeviceInfo(): DeviceInfo {
+  private fun getDeviceInfo(): DeviceInfo {
     /* EXAMPLE
       manufacturer: Google
       model: Pixel 6

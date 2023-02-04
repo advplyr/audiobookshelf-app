@@ -40,7 +40,7 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
 
   private val currentDisplayTitle get() = currentPlaybackSession?.displayTitle ?: "Unset"
   private val currentIsLocal get() = currentPlaybackSession?.isLocal == true
-  val currentSessionId get() = currentPlaybackSession?.id ?: ""
+  private val currentSessionId get() = currentPlaybackSession?.id ?: ""
   private val currentPlaybackDuration get() = currentPlaybackSession?.duration ?: 0.0
 
   fun start(playbackSession:PlaybackSession) {
@@ -62,8 +62,8 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
 
     listeningTimerRunning = true
     lastSyncTime = System.currentTimeMillis()
-    Log.d(tag, "start: init last sync time $lastSyncTime")
     currentPlaybackSession = playbackSession.clone()
+    Log.d(tag, "start: init last sync time $lastSyncTime with playback session id=${currentPlaybackSession?.id}")
 
     listeningTimerTask = Timer("ListeningTimer", false).schedule(15000L, 15000L) {
       Handler(Looper.getMainLooper()).post() {
@@ -251,7 +251,7 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
                 playerNotificationService.alertSyncFailing() // Show alert in client
                 failedSyncs = 0
               }
-              Log.e(tag, "Local Progress sync failed ($failedSyncs) to send to server $currentDisplayTitle for time $currentTime")
+              Log.e(tag, "Local Progress sync failed ($failedSyncs) to send to server $currentDisplayTitle for time $currentTime with session id=${it.id}")
             }
 
             cb(SyncResult(true, syncSuccess, errorMsg))
@@ -274,7 +274,7 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
             playerNotificationService.alertSyncFailing() // Show alert in client
             failedSyncs = 0
           }
-          Log.e(tag, "Progress sync failed ($failedSyncs) to send to server $currentDisplayTitle for time $currentTime")
+          Log.e(tag, "Progress sync failed ($failedSyncs) to send to server $currentDisplayTitle for time $currentTime with session id=${currentSessionId}")
         }
         cb(SyncResult(true, syncSuccess, errorMsg))
       }
