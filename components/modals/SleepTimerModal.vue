@@ -51,7 +51,7 @@
             <ui-btn @click="increaseSleepTime" class="w-9 h-9" :padding-x="0" small style="max-width: 36px"><span class="material-icons">add</span></ui-btn>
           </div>
 
-          <ui-btn @click="cancelSleepTimer" class="w-full">Cancel Timer</ui-btn>
+          <ui-btn @click="cancelSleepTimer" class="w-full">{{ isAuto ? 'Disable Auto Timer' : 'Cancel Timer' }}</ui-btn>
         </div>
       </div>
     </div>
@@ -59,12 +59,15 @@
 </template>
 
 <script>
+import { Dialog } from '@capacitor/dialog'
+
 export default {
   props: {
     value: Boolean,
     currentTime: Number,
     sleepTimerRunning: Boolean,
-    currentEndOfChapterTime: Number
+    currentEndOfChapterTime: Number,
+    isAuto: Boolean
   },
   data() {
     return {
@@ -102,6 +105,14 @@ export default {
       this.$nextTick(() => this.$emit('change', { time: timeout, isChapterTime: false }))
     },
     async cancelSleepTimer() {
+      if (this.isAuto) {
+        const { value } = await Dialog.confirm({
+          title: 'Confirm',
+          message: 'Are you sure you want to disable the auto sleep timer? You will need to enable this again in settings.'
+        })
+        if (!value) return
+      }
+
       await this.$hapticsImpact()
       this.$emit('cancel')
       this.show = false

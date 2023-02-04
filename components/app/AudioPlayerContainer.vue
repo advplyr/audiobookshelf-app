@@ -3,7 +3,7 @@
     <app-audio-player ref="audioPlayer" :bookmarks="bookmarks" :sleep-timer-running="isSleepTimerRunning" :sleep-time-remaining="sleepTimeRemaining" :is-server-item="!!serverLibraryItemId" @selectPlaybackSpeed="showPlaybackSpeedModal = true" @updateTime="(t) => (currentTime = t)" @showSleepTimer="showSleepTimer" @showBookmarks="showBookmarks" />
 
     <modals-playback-speed-modal v-model="showPlaybackSpeedModal" :playback-rate.sync="playbackSpeed" @update:playbackRate="updatePlaybackSpeed" @change="changePlaybackSpeed" />
-    <modals-sleep-timer-modal v-model="showSleepTimerModal" :current-time="sleepTimeRemaining" :sleep-timer-running="isSleepTimerRunning" :current-end-of-chapter-time="currentEndOfChapterTime" @change="selectSleepTimeout" @cancel="cancelSleepTimer" @increase="increaseSleepTimer" @decrease="decreaseSleepTimer" />
+    <modals-sleep-timer-modal v-model="showSleepTimerModal" :current-time="sleepTimeRemaining" :sleep-timer-running="isSleepTimerRunning" :current-end-of-chapter-time="currentEndOfChapterTime" :is-auto="isAutoSleepTimer" @change="selectSleepTimeout" @cancel="cancelSleepTimer" @increase="increaseSleepTimer" @decrease="decreaseSleepTimer" />
     <modals-bookmarks-modal v-model="showBookmarksModal" :bookmarks="bookmarks" :current-time="currentTime" :library-item-id="serverLibraryItemId" @select="selectBookmark" />
   </div>
 </template>
@@ -28,6 +28,7 @@ export default {
       isSleepTimerRunning: false,
       sleepTimerEndTime: 0,
       sleepTimeRemaining: 0,
+      isAutoSleepTimer: false,
       onLocalMediaProgressUpdateListener: null,
       onSleepTimerEndedListener: null,
       onSleepTimerSetListener: null,
@@ -62,8 +63,9 @@ export default {
         console.log('Sleep Timer Ended Current Position: ' + currentPosition)
       }
     },
-    onSleepTimerSet({ value: sleepTimeRemaining }) {
-      console.log('SLEEP TIMER SET', sleepTimeRemaining)
+    onSleepTimerSet(payload) {
+      const { value: sleepTimeRemaining, isAuto } = payload
+      console.log('SLEEP TIMER SET', JSON.stringify(payload))
       if (sleepTimeRemaining === 0) {
         console.log('Sleep timer canceled')
         this.isSleepTimerRunning = false
@@ -71,6 +73,7 @@ export default {
         this.isSleepTimerRunning = true
       }
 
+      this.isAutoSleepTimer = !!isAuto
       this.sleepTimeRemaining = sleepTimeRemaining
     },
     showSleepTimer() {

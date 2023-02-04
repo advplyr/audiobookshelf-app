@@ -63,8 +63,11 @@ class AbsAudioPlayer : Plugin() {
           emit("onSleepTimerEnded", currentPosition)
         }
 
-        override fun onSleepTimerSet(sleepTimeRemaining: Int) {
-          emit("onSleepTimerSet", sleepTimeRemaining)
+        override fun onSleepTimerSet(sleepTimeRemaining: Int, isAutoSleepTimer:Boolean) {
+          val ret = JSObject()
+          ret.put("value", sleepTimeRemaining)
+          ret.put("isAuto", isAutoSleepTimer)
+          notifyListeners("onSleepTimerSet", ret)
         }
 
         override fun onLocalMediaProgressUpdate(localMediaProgress: LocalMediaProgress) {
@@ -330,7 +333,7 @@ class AbsAudioPlayer : Plugin() {
     val isChapterTime:Boolean = call.getBoolean("isChapterTime", false) == true
 
     Handler(Looper.getMainLooper()).post {
-        val success:Boolean = playerNotificationService.sleepTimerManager.setSleepTimer(time, isChapterTime)
+        val success:Boolean = playerNotificationService.sleepTimerManager.setManualSleepTimer(time, isChapterTime)
         val ret = JSObject()
         ret.put("success", success)
         call.resolve(ret)

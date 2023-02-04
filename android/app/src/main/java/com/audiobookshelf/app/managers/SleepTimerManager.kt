@@ -20,6 +20,7 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
   private var sleepTimerLength:Long = 0L
   private var sleepTimerElapsed:Long = 0L
   private var sleepTimerFinishedAt:Long = 0L
+  private var isAutoSleepTimer:Boolean = false // When timer was auto-set
 
   private fun getCurrentTime():Long {
     return playerNotificationService.getCurrentTime()
@@ -54,7 +55,7 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
     return (((sleepTimerEndTime - getCurrentTime()) / 1000).toDouble()).roundToInt()
   }
 
-  fun setSleepTimer(time: Long, isChapterTime: Boolean) : Boolean {
+  private fun setSleepTimer(time: Long, isChapterTime: Boolean) : Boolean {
     Log.d(tag, "Setting Sleep Timer for $time is chapter time $isChapterTime")
     sleepTimerTask?.cancel()
     sleepTimerRunning = true
@@ -85,7 +86,7 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
       }
     }
 
-    playerNotificationService.clientEventEmitter?.onSleepTimerSet(getSleepTimerTimeRemainingSeconds())
+    playerNotificationService.clientEventEmitter?.onSleepTimerSet(getSleepTimerTimeRemainingSeconds(), isAutoSleepTimer)
 
     sleepTimerTask = Timer("SleepTimer", false).schedule(0L, 1000L) {
       Handler(Looper.getMainLooper()).post {
@@ -96,7 +97,7 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
           Log.d(tag, "Timer Elapsed $sleepTimerElapsed | Sleep TIMER time remaining $sleepTimeSecondsRemaining s")
 
           if (sleepTimeSecondsRemaining > 0) {
-            playerNotificationService.clientEventEmitter?.onSleepTimerSet(sleepTimeSecondsRemaining)
+            playerNotificationService.clientEventEmitter?.onSleepTimerSet(sleepTimeSecondsRemaining, isAutoSleepTimer)
           }
 
           if (sleepTimeSecondsRemaining <= 0) {
@@ -118,11 +119,17 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
     return true
   }
 
+  fun setManualSleepTimer(time: Long, isChapterTime:Boolean):Boolean {
+    isAutoSleepTimer = false
+    return setSleepTimer(time, isChapterTime)
+  }
+
   private fun clearSleepTimer() {
     sleepTimerTask?.cancel()
     sleepTimerTask = null
     sleepTimerEndTime = 0
     sleepTimerRunning = false
+    isAutoSleepTimer = false
     playerNotificationService.unregisterSensor()
   }
 
@@ -132,8 +139,15 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
 
   fun cancelSleepTimer() {
     Log.d(tag, "Canceling Sleep Timer")
+
+    if (isAutoSleepTimer) {
+      Log.i(tag, "Disabling auto sleep timer")
+      DeviceManager.deviceData.deviceSettings?.autoSleepTimer = false
+      DeviceManager.dbManager.saveDeviceData(DeviceManager.deviceData)
+    }
+
     clearSleepTimer()
-    playerNotificationService.clientEventEmitter?.onSleepTimerSet(0)
+    playerNotificationService.clientEventEmitter?.onSleepTimerSet(0, false)
   }
 
   // Vibrate when extending sleep timer by shaking
@@ -264,7 +278,7 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
     }
 
     setVolume(1F)
-    playerNotificationService.clientEventEmitter?.onSleepTimerSet(getSleepTimerTimeRemainingSeconds())
+    playerNotificationService.clientEventEmitter?.onSleepTimerSet(getSleepTimerTimeRemainingSeconds(), isAutoSleepTimer)
   }
 
   fun decreaseSleepTime(time: Long) {
@@ -286,7 +300,7 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
     }
 
     setVolume(1F)
-    playerNotificationService.clientEventEmitter?.onSleepTimerSet(getSleepTimerTimeRemainingSeconds())
+    playerNotificationService.clientEventEmitter?.onSleepTimerSet(getSleepTimerTimeRemainingSeconds(), isAutoSleepTimer)
   }
 
   fun checkAutoSleepTimer() {
@@ -322,9 +336,11 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
           if (chapterEndTimeMs == null) {
             Log.e(tag, "Setting auto sleep timer to end of chapter/track but there is no current session")
           } else {
+            isAutoSleepTimer = true
             setSleepTimer(chapterEndTimeMs, true)
           }
         } else {
+          isAutoSleepTimer = true
           setSleepTimer(deviceSettings.sleepTimerLength, false)
         }
       } else {
