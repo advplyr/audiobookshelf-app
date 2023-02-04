@@ -50,7 +50,7 @@ export default {
     onItemDownloadComplete(data) {
       console.log('DownloadProgressIndicator onItemDownloadComplete', JSON.stringify(data))
       if (!data || !data.libraryItemId) {
-        console.error('Invalid item downlaod complete payload')
+        console.error('Invalid item download complete payload')
         return
       }
 

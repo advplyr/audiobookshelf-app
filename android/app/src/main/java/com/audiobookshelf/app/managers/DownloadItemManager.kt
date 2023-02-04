@@ -223,23 +223,27 @@ class DownloadItemManager(var downloadManager:DownloadManager, private var folde
     if (downloadItem.isDownloadFinished) {
       Log.i(tag, "Download Item finished ${downloadItem.media.metadata.title}")
 
-      folderScanner.scanDownloadItem(downloadItem) { downloadItemScanResult ->
-        Log.d(tag, "Item download complete ${downloadItem.itemTitle} | local library item id: ${downloadItemScanResult?.localLibraryItem?.id}")
+      GlobalScope.launch(Dispatchers.IO) {
+        folderScanner.scanDownloadItem(downloadItem) { downloadItemScanResult ->
+          Log.d(tag, "Item download complete ${downloadItem.itemTitle} | local library item id: ${downloadItemScanResult?.localLibraryItem?.id}")
 
-        val jsobj = JSObject()
-        jsobj.put("libraryItemId", downloadItem.id)
-        jsobj.put("localFolderId", downloadItem.localFolder.id)
+          val jsobj = JSObject()
+          jsobj.put("libraryItemId", downloadItem.id)
+          jsobj.put("localFolderId", downloadItem.localFolder.id)
 
-        downloadItemScanResult?.localLibraryItem?.let { localLibraryItem ->
-          jsobj.put("localLibraryItem", JSObject(jacksonMapper.writeValueAsString(localLibraryItem)))
+          downloadItemScanResult?.localLibraryItem?.let { localLibraryItem ->
+            jsobj.put("localLibraryItem", JSObject(jacksonMapper.writeValueAsString(localLibraryItem)))
+          }
+          downloadItemScanResult?.localMediaProgress?.let { localMediaProgress ->
+            jsobj.put("localMediaProgress", JSObject(jacksonMapper.writeValueAsString(localMediaProgress)))
+          }
+
+          launch(Dispatchers.Main) {
+            clientEventEmitter.onDownloadItemComplete(jsobj)
+            downloadItemQueue.remove(downloadItem)
+            DeviceManager.dbManager.removeDownloadItem(downloadItem.id)
+          }
         }
-        downloadItemScanResult?.localMediaProgress?.let { localMediaProgress ->
-          jsobj.put("localMediaProgress", JSObject(jacksonMapper.writeValueAsString(localMediaProgress)))
-        }
-
-        clientEventEmitter.onDownloadItemComplete(jsobj)
-        downloadItemQueue.remove(downloadItem)
-        DeviceManager.dbManager.removeDownloadItem(downloadItem.id)
       }
     }
   }

@@ -19,7 +19,8 @@
 
       <p v-if="seriesList && seriesList.length" class="text-sm text-gray-300 py-0.5">
         <template v-for="(series, index) in seriesList">
-          <nuxt-link :key="series.id" :to="`/bookshelf/series/${series.id}`" class="underline">{{ series.text }}</nuxt-link><span :key="`${series.id}-comma`" v-if="index < seriesList.length - 1">,&nbsp;</span>
+          <nuxt-link :key="series.id" :to="`/bookshelf/series/${series.id}`" class="underline">{{ series.text }}</nuxt-link
+          ><span :key="`${series.id}-comma`" v-if="index < seriesList.length - 1">,&nbsp;</span>
         </template>
       </p>
 
@@ -27,7 +28,8 @@
       <p v-else-if="bookAuthors && bookAuthors.length" class="text-sm text-gray-300 py-0.5">
         by
         <template v-for="(author, index) in bookAuthors">
-          <nuxt-link :key="author.id" :to="`/bookshelf/library?filter=authors.${$encode(author.id)}`" class="underline">{{ author.name }}</nuxt-link><span :key="`${author.id}-comma`" v-if="index < bookAuthors.length - 1">,&nbsp;</span>
+          <nuxt-link :key="author.id" :to="`/bookshelf/library?filter=authors.${$encode(author.id)}`" class="underline">{{ author.name }}</nuxt-link
+          ><span :key="`${author.id}-comma`" v-if="index < bookAuthors.length - 1">,&nbsp;</span>
         </template>
       </p>
 
@@ -78,7 +80,8 @@
       </div>
 
       <div v-if="downloadItem" class="py-3">
-        <p class="text-center text-lg">Downloading! ({{ Math.round(downloadItem.itemProgress * 100) }}%)</p>
+        <p v-if="downloadItem.itemProgress == 1" class="text-center text-lg">Download complete. Processing...</p>
+        <p v-else class="text-center text-lg">Downloading! ({{ Math.round(downloadItem.itemProgress * 100) }}%)</p>
       </div>
 
       <!-- metadata -->
@@ -86,7 +89,8 @@
         <div v-if="narrators && narrators.length" class="text-white text-opacity-60 uppercase text-sm">Narrators</div>
         <div v-if="narrators && narrators.length" class="truncate text-sm">
           <template v-for="(narrator, index) in narrators">
-            <nuxt-link :key="narrator" :to="`/bookshelf/library?filter=narrators.${$encode(narrator)}`" class="underline">{{ narrator }}</nuxt-link><span :key="index" v-if="index < narrators.length - 1">, </span>
+            <nuxt-link :key="narrator" :to="`/bookshelf/library?filter=narrators.${$encode(narrator)}`" class="underline">{{ narrator }}</nuxt-link
+            ><span :key="index" v-if="index < narrators.length - 1">, </span>
           </template>
         </div>
 
@@ -96,7 +100,8 @@
         <div v-if="genres.length" class="text-white text-opacity-60 uppercase text-sm">Genres</div>
         <div v-if="genres.length" class="truncate text-sm">
           <template v-for="(genre, index) in genres">
-            <nuxt-link :key="genre" :to="`/bookshelf/library?filter=genres.${$encode(genre)}`" class="underline">{{ genre }}</nuxt-link><span :key="index" v-if="index < genres.length - 1">, </span>
+            <nuxt-link :key="genre" :to="`/bookshelf/library?filter=genres.${$encode(genre)}`" class="underline">{{ genre }}</nuxt-link
+            ><span :key="index" v-if="index < genres.length - 1">, </span>
           </template>
         </div>
       </div>
