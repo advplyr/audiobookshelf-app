@@ -709,7 +709,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
               // Should already be playing
               currentPlayer.volume = 1F // Volume on sleep timer might have decreased this
-              currentPlaybackSession?.let { mediaProgressSyncer.play(it) }
+              mediaProgressSyncer.currentPlaybackSession?.let { playbackSession ->
+                mediaProgressSyncer.play(playbackSession)
+              }
               clientEventEmitter?.onPlayingUpdate(true)
             }
           }
@@ -739,7 +741,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
                 }
 
                 currentPlayer.volume = 1F // Volume on sleep timer might have decreased this
-                mediaProgressSyncer.play(it)
+                mediaProgressSyncer.currentPlaybackSession?.let { playbackSession ->
+                  mediaProgressSyncer.play(playbackSession)
+                }
+
                 clientEventEmitter?.onPlayingUpdate(true)
               }
           }
