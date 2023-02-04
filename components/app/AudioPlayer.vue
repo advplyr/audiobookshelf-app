@@ -317,7 +317,7 @@ export default {
       return this.$secondsToTimestamp(this.totalDuration)
     },
     currentTimePretty() {
-      return this.$secondsToTimestamp(this.currentTime)
+      return this.$secondsToTimestamp(this.currentTime / this.currentPlaybackRate)
     },
     timeRemaining() {
       if (this.useChapterTrack && this.currentChapter) {
@@ -452,6 +452,7 @@ export default {
       await this.$hapticsImpact()
       console.log(`[AudioPlayer] Set Playback Rate: ${speed}`)
       this.currentPlaybackRate = speed
+      this.updateTimestamp()
       AbsAudioPlayer.setPlaybackSpeed({ value: speed })
     },
     restart() {
@@ -502,19 +503,17 @@ export default {
       }
     },
     updateTimestamp() {
-      var ts = this.$refs.currentTimestamp
+      const ts = this.$refs.currentTimestamp
       if (!ts) {
         console.error('No timestamp el')
         return
       }
-      var currTimeStr = ''
+      let currentTime = this.currentTime / this.currentPlaybackRate
       if (this.useChapterTrack && this.currentChapter) {
-        var currChapTime = Math.max(0, this.currentTime - this.currentChapter.start)
-        currTimeStr = this.$secondsToTimestamp(currChapTime)
-      } else {
-        currTimeStr = this.$secondsToTimestamp(this.currentTime)
+        const currChapTime = Math.max(0, this.currentTime - this.currentChapter.start)
+        currentTime = currChapTime / this.currentPlaybackRate
       }
-      ts.innerText = currTimeStr
+      ts.innerText = this.$secondsToTimestamp(currentTime)
     },
     timeupdate() {
       if (!this.$refs.playedTrack) {
