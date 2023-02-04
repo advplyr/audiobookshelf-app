@@ -65,6 +65,13 @@
         <p class="pl-4">Disable audio fade out</p>
         <span class="material-icons-outlined ml-2" @click.stop="showInfo('disableSleepTimerFadeOut')">info</span>
       </div>
+      <div class="flex items-center py-3" @click="toggleDisableSleepTimerResetFeedback">
+        <div class="w-10 flex justify-center">
+          <ui-toggle-switch v-model="settings.disableSleepTimerResetFeedback" @input="saveSettings" />
+        </div>
+        <p class="pl-4">Disable vibrate on reset</p>
+        <span class="material-icons-outlined ml-2" @click.stop="showInfo('disableSleepTimerResetFeedback')">info</span>
+      </div>
       <div class="flex items-center py-3" @click="toggleAutoSleepTimer">
         <div class="w-10 flex justify-center">
           <ui-toggle-switch v-model="settings.autoSleepTimer" @input="saveSettings" />
@@ -117,7 +124,8 @@ export default {
         autoSleepTimerStartTime: '22:00',
         autoSleepTimerEndTime: '06:00',
         sleepTimerLength: 900000, // 15 minutes
-        disableSleepTimerFadeOut: false
+        disableSleepTimerFadeOut: false,
+        disableSleepTimerResetFeedback: false
       },
       lockCurrentOrientation: false,
       settingInfo: {
@@ -132,6 +140,10 @@ export default {
         disableSleepTimerFadeOut: {
           name: 'Disable audio fade out',
           message: 'Audio volume will start decreasing when there is less than 1 minute remaining on the sleep timer. Enable this setting to not fade out.'
+        },
+        disableSleepTimerResetFeedback: {
+          name: 'Disable vibrate on reset',
+          message: 'When the sleep timer gets reset your device will vibrate. Enable this setting to not vibrate when the sleep timer resets.'
         }
       },
       hapticFeedbackItems: [
@@ -283,6 +295,10 @@ export default {
       this.settings.disableShakeToResetSleepTimer = !this.settings.disableShakeToResetSleepTimer
       this.saveSettings()
     },
+    toggleDisableSleepTimerResetFeedback() {
+      this.settings.disableSleepTimerResetFeedback = !this.settings.disableSleepTimerResetFeedback
+      this.saveSettings()
+    },
     toggleDisableAutoRewind() {
       this.settings.disableAutoRewind = !this.settings.disableAutoRewind
       this.saveSettings()
@@ -347,6 +363,7 @@ export default {
       this.settings.autoSleepTimerEndTime = deviceSettings.autoSleepTimerEndTime || '06:00'
       this.settings.sleepTimerLength = !isNaN(deviceSettings.sleepTimerLength) ? deviceSettings.sleepTimerLength : 900000 // 15 minutes
       this.settings.disableSleepTimerFadeOut = !!deviceSettings.disableSleepTimerFadeOut
+      this.settings.disableSleepTimerResetFeedback = !!deviceSettings.disableSleepTimerResetFeedback
     }
   },
   mounted() {

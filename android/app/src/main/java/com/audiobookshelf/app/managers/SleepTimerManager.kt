@@ -156,8 +156,10 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
     playerNotificationService.clientEventEmitter?.onSleepTimerSet(0, false)
   }
 
-  // Vibrate when extending sleep timer by shaking
-  private fun vibrate() {
+  // Vibrate when resetting sleep timer
+  private fun vibrateFeedback() {
+    if (DeviceManager.deviceData.deviceSettings?.disableSleepTimerResetFeedback == true) return
+
     val context = playerNotificationService.getContext()
     val vibrator:Vibrator
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -207,7 +209,7 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
   private fun resetChapterTimer() {
     this.getChapterEndTime()?.let { chapterEndTime ->
       Log.d(tag, "Resetting stopped sleep timer to end of chapter $chapterEndTime")
-      vibrate()
+      vibrateFeedback()
       setSleepTimer(chapterEndTime, true)
       play()
     }
@@ -232,7 +234,7 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
         resetChapterTimer()
       } else {
         Log.d(tag, "Resetting stopped sleep timer to length $sleepTimerLength")
-        vibrate()
+        vibrateFeedback()
         setSleepTimer(sleepTimerLength, false)
         play()
       }
@@ -242,14 +244,14 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
     // Does not apply to chapter sleep timers and timer must be running for at least 3 seconds
     if (sleepTimerLength > 0L && sleepTimerElapsed > 3000L) {
       Log.d(tag, "Resetting running sleep timer to length $sleepTimerLength")
-      vibrate()
+      vibrateFeedback()
       setSleepTimer(sleepTimerLength, false)
     } else if (sleepTimerLength == 0L) {
       // When navigating to previous chapters make sure this is still the end of the current chapter
       this.getChapterEndTime()?.let { chapterEndTime ->
         if (chapterEndTime != sleepTimerEndTime) {
           Log.d(tag, "Resetting chapter sleep timer to end of chapter $chapterEndTime from $sleepTimerEndTime")
-          vibrate()
+          vibrateFeedback()
           setSleepTimer(chapterEndTime, true)
           play()
         }
