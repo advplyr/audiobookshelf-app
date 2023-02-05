@@ -1,13 +1,13 @@
 package com.audiobookshelf.app.server
 
 import android.content.Context
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
 import android.util.Log
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.media.MediaEventManager
-import com.audiobookshelf.app.player.MediaProgressSyncData
+import com.audiobookshelf.app.media.MediaProgressSyncData
+import com.audiobookshelf.app.media.SyncResult
+import com.audiobookshelf.app.models.User
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.core.json.JsonReadFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -28,14 +28,14 @@ class ApiHandler(var ctx:Context) {
 
   private var defaultClient = OkHttpClient()
   private var pingClient = OkHttpClient.Builder().callTimeout(3, TimeUnit.SECONDS).build()
-  var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
+  private var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
 
-  data class LocalMediaProgressSyncPayload(val localMediaProgress:List<LocalMediaProgress>)
+  data class LocalSessionsSyncRequestPayload(val sessions:List<PlaybackSession>)
   @JsonIgnoreProperties(ignoreUnknown = true)
-  data class MediaProgressSyncResponsePayload(val numServerProgressUpdates:Int, val localProgressUpdates:List<LocalMediaProgress>, val serverProgressUpdates:List<MediaProgress>)
-  data class LocalMediaProgressSyncResultsPayload(var numLocalMediaProgressForServer:Int, var numServerProgressUpdates:Int, var numLocalProgressUpdates:Int, var serverProgressUpdates:List<MediaProgress>)
+  data class LocalSessionSyncResult(val id:String, val success:Boolean, val progressSynced:Boolean?, val error:String?)
+  data class LocalSessionsSyncResponsePayload(val results:List<LocalSessionSyncResult>)
 
-  fun getRequest(endpoint:String, httpClient:OkHttpClient?, config:ServerConnectionConfig?, cb: (JSObject) -> Unit) {
+  private fun getRequest(endpoint:String, httpClient:OkHttpClient?, config:ServerConnectionConfig?, cb: (JSObject) -> Unit) {
     val address = config?.address ?: DeviceManager.serverAddress
     val token = config?.token ?: DeviceManager.token
 
@@ -58,7 +58,7 @@ class ApiHandler(var ctx:Context) {
     makeRequest(request, null, cb)
   }
 
-  fun patchRequest(endpoint:String, payload: JSObject, cb: (JSObject) -> Unit) {
+  private fun patchRequest(endpoint:String, payload: JSObject, cb: (JSObject) -> Unit) {
     val mediaType = "application/json; charset=utf-8".toMediaType()
     val requestBody = payload.toString().toRequestBody(mediaType)
     val request = Request.Builder().patch(requestBody)
@@ -67,31 +67,7 @@ class ApiHandler(var ctx:Context) {
     makeRequest(request, null, cb)
   }
 
-  fun isOnline(): Boolean {
-    val connectivityManager = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-    val capabilities = connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
-    if (capabilities != null) {
-      if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
-        Log.i("Internet", "NetworkCapabilities.TRANSPORT_CELLULAR")
-        return true
-      } else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
-        Log.i("Internet", "NetworkCapabilities.TRANSPORT_WIFI")
-        return true
-      } else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) {
-        Log.i("Internet", "NetworkCapabilities.TRANSPORT_ETHERNET")
-        return true
-      }
-    }
-    return false
-  }
-
-  fun isUsingCellularData(): Boolean {
-    val connectivityManager = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-    val capabilities = connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
-    return capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true
-  }
-
-  fun makeRequest(request:Request, httpClient:OkHttpClient?, cb: (JSObject) -> Unit) {
+  private fun makeRequest(request:Request, httpClient:OkHttpClient?, cb: (JSObject) -> Unit) {
     val client = httpClient ?: defaultClient
     client.newCall(request).enqueue(object : Callback {
       override fun onFailure(call: Call, e: IOException) {
@@ -135,6 +111,18 @@ class ApiHandler(var ctx:Context) {
         }
       }
     })
+  }
+
+  fun getCurrentUser(cb: (User?) -> Unit) {
+    getRequest("/api/me", null, null) {
+      if (it.has("error")) {
+        Log.e(tag, it.getString("error") ?: "getCurrentUser Failed")
+        cb(null)
+      } else {
+        val user = jacksonMapper.readValue<User>(it.toString())
+        cb(user)
+      }
+    }
   }
 
   fun getLibraries(cb: (List<Library>) -> Unit) {
@@ -253,59 +241,6 @@ class ApiHandler(var ctx:Context) {
     }
   }
 
-  fun syncMediaProgress(cb: (LocalMediaProgressSyncResultsPayload) -> Unit) {
-    if (!isOnline()) {
-      Log.d(tag, "Error not online")
-      cb(LocalMediaProgressSyncResultsPayload(0,0,0, mutableListOf()))
-      return
-    }
-
-    // Get all local media progress connected to items on the current connected server
-    val localMediaProgress = DeviceManager.dbManager.getAllLocalMediaProgress().filter {
-      it.serverConnectionConfigId == DeviceManager.serverConnectionConfig?.id
-    }
-
-    val localSyncResultsPayload = LocalMediaProgressSyncResultsPayload(localMediaProgress.size,0, 0, mutableListOf())
-
-    if (localMediaProgress.isNotEmpty()) {
-      Log.d(tag, "Sending sync local progress request with ${localMediaProgress.size} progress items")
-      val payload = JSObject(jacksonMapper.writeValueAsString(LocalMediaProgressSyncPayload(localMediaProgress)))
-      postRequest("/api/me/sync-local-progress", payload, null) {
-        Log.d(tag, "Media Progress Sync payload $payload - response ${it}")
-
-        if (it.toString() == "{}") {
-          Log.e(tag, "Progress sync received empty object")
-        } else if (it.has("error")) {
-          Log.e(tag, it.getString("error") ?: "Progress sync error")
-        } else {
-          val progressSyncResponsePayload = jacksonMapper.readValue<MediaProgressSyncResponsePayload>(it.toString())
-
-          localSyncResultsPayload.numLocalProgressUpdates = progressSyncResponsePayload.localProgressUpdates.size
-          localSyncResultsPayload.serverProgressUpdates = progressSyncResponsePayload.serverProgressUpdates
-          localSyncResultsPayload.numServerProgressUpdates = progressSyncResponsePayload.numServerProgressUpdates
-          Log.d(tag, "Media Progress Sync | Local Updates: $localSyncResultsPayload")
-          if (progressSyncResponsePayload.localProgressUpdates.isNotEmpty()) {
-            // Update all local media progress
-            progressSyncResponsePayload.localProgressUpdates.forEach { localMediaProgress ->
-              MediaEventManager.syncEvent(localMediaProgress, "Local progress updated. Received from server sync local API request")
-
-              DeviceManager.dbManager.saveLocalMediaProgress(localMediaProgress)
-            }
-          }
-
-          progressSyncResponsePayload.serverProgressUpdates.forEach { localMediaProgress ->
-            MediaEventManager.syncEvent(localMediaProgress, "Server progress updated. Received from server sync local API request")
-          }
-        }
-
-        cb(localSyncResultsPayload)
-      }
-    } else {
-      Log.d(tag, "No local media progress to sync")
-      cb(localSyncResultsPayload)
-    }
-  }
-
   fun updateMediaProgress(libraryItemId:String,episodeId:String?,updatePayload:JSObject, cb: () -> Unit) {
     Log.d(tag, "updateMediaProgress $libraryItemId $episodeId $updatePayload")
     val endpoint = if(episodeId.isNullOrEmpty()) "/api/me/progress/$libraryItemId" else "/api/me/progress/$libraryItemId/$episodeId"
@@ -375,6 +310,57 @@ class ApiHandler(var ctx:Context) {
         Log.d(tag, "authorize: Authorize ${config.address} Successful")
         cb(mediaProgressList)
       }
+    }
+  }
+
+  fun sendSyncLocalSessions(playbackSessions:List<PlaybackSession>, cb: (Boolean, String?) -> Unit) {
+    val payload = JSObject(jacksonMapper.writeValueAsString(LocalSessionsSyncRequestPayload(playbackSessions)))
+
+    postRequest("/api/session/local-all", payload, null) {
+      if (!it.getString("error").isNullOrEmpty()) {
+        cb(false, it.getString("error"))
+      } else {
+        val response = jacksonMapper.readValue<LocalSessionsSyncResponsePayload>(it.toString())
+        response.results.forEach { localSessionSyncResult ->
+          playbackSessions.find { ps -> ps.id == localSessionSyncResult.id }?.let { session ->
+            if (localSessionSyncResult.progressSynced == true) {
+              val syncResult = SyncResult(true, true, "Progress synced on server")
+              MediaEventManager.saveEvent(session, syncResult)
+              DeviceManager.dbManager.removePlaybackSession(session.id)
+              Log.i(tag, "Successfully synced session ${session.displayTitle} with server")
+            } else if (!localSessionSyncResult.success) {
+              Log.e(tag, "Failed to sync session ${session.displayTitle} with server. Error: ${localSessionSyncResult.error}")
+            }
+          }
+        }
+        cb(true, null)
+      }
+    }
+  }
+
+  fun syncLocalMediaProgressForUser(cb: () -> Unit) {
+    // Get all local media progress for this server
+    val allLocalMediaProgress = DeviceManager.dbManager.getAllLocalMediaProgress().filter { it.serverConnectionConfigId == DeviceManager.serverConnectionConfigId }
+    if (allLocalMediaProgress.isEmpty()) {
+      Log.d(tag, "No local media progress to sync")
+      return cb()
+    }
+
+    getCurrentUser { _user ->
+      _user?.let { user->
+        // Compare server user progress with local progress
+        user.mediaProgress.forEach { mediaProgress ->
+          // Get matching local media progress
+          allLocalMediaProgress.find { it.isMatch(mediaProgress) }?.let { localMediaProgress ->
+            if (mediaProgress.lastUpdate > localMediaProgress.lastUpdate) {
+              Log.d(tag, "Server progress for media item id=\"${mediaProgress.mediaItemId}\" is more recent then local. Updating local current time ${localMediaProgress.currentTime} to ${mediaProgress.currentTime}")
+              localMediaProgress.updateFromServerMediaProgress(mediaProgress)
+              MediaEventManager.syncEvent(mediaProgress, "Sync on server connection")
+            }
+          }
+        }
+      }
+      cb()
     }
   }
 }

@@ -169,10 +169,23 @@ export default {
       this.$eventBus.$emit('library-changed')
       this.inittingLibraries = false
     },
+    async syncLocalSessions() {
+      if (!this.user) {
+        console.log('[default] No need to sync local sessions - not connected to server')
+        return
+      }
+
+      console.log('[default] Calling syncLocalSessions')
+      const response = await this.$db.syncLocalSessionsWithServer()
+      if (response && response.error) {
+        console.error('[default] Failed to sync local sessions', response.error)
+      } else {
+        console.log('[default] Successfully synced local sessions')
+      }
+    },
     async syncLocalMediaProgress() {
       if (!this.user) {
         console.log('[default] No need to sync local media progress - not connected to server')
-        this.$store.commit('setLastLocalMediaSyncResults', null)
         return
       }
 
@@ -180,15 +193,10 @@ export default {
       const response = await this.$db.syncLocalMediaProgressWithServer()
       if (!response) {
         if (this.$platform != 'web') this.$toast.error('Failed to sync local media with server')
-        this.$store.commit('setLastLocalMediaSyncResults', null)
         return
       }
       const { numLocalMediaProgressForServer, numServerProgressUpdates, numLocalProgressUpdates, serverProgressUpdates } = response
       if (numLocalMediaProgressForServer > 0) {
-        response.syncedAt = Date.now()
-        response.serverConfigName = this.$store.getters['user/getServerConfigName']
-        this.$store.commit('setLastLocalMediaSyncResults', response)
-
         if (serverProgressUpdates && serverProgressUpdates.length) {
           serverProgressUpdates.forEach((progress) => {
             console.log(`[default] Server progress was updated ${progress.id}`)
@@ -203,7 +211,6 @@ export default {
         }
       } else {
         console.log('[default] syncLocalMediaProgress No local media progress to sync')
-        this.$store.commit('setLastLocalMediaSyncResults', null)
       }
     },
     userUpdated(user) {
@@ -295,7 +302,12 @@ export default {
       }
 
       console.log(`[default] finished connection attempt or already connected ${!!this.user}`)
-      await this.syncLocalMediaProgress()
+      if (this.$platform === 'ios') {
+        // TODO: Update ios to not use this
+        await this.syncLocalMediaProgress()
+      } else {
+        await this.syncLocalSessions()
+      }
 
       this.loadSavedSettings()
       this.hasMounted = true

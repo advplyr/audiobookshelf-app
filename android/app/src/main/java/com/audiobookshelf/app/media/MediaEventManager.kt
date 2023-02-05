@@ -4,7 +4,6 @@ import android.util.Log
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.player.PlayerNotificationService
-import com.audiobookshelf.app.player.SyncResult
 
 object MediaEventManager {
   const val tag = "MediaEventManager"
@@ -69,7 +68,7 @@ object MediaEventManager {
     clientEventEmitter?.onMediaItemHistoryUpdated(mediaItemHistory)
   }
 
-  private fun addPlaybackEvent(eventName:String, playbackSession:PlaybackSession, syncResult:SyncResult?) {
+  private fun addPlaybackEvent(eventName:String, playbackSession:PlaybackSession, syncResult: SyncResult?) {
     val mediaItemHistory = getMediaItemHistoryMediaItem(playbackSession.mediaItemId) ?: createMediaItemHistoryForSession(playbackSession)
 
     val mediaItemEvent = MediaItemEvent(
@@ -103,8 +102,7 @@ object MediaEventManager {
       libraryItemId,
       episodeId,
       isLocalOnly,
-      playbackSession.
-      serverConnectionConfigId,
+      playbackSession.serverConnectionConfigId,
       playbackSession.serverAddress,
       playbackSession.userId,
       createdAt = System.currentTimeMillis(),

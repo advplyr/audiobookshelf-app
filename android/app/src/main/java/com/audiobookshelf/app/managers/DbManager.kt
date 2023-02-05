@@ -237,18 +237,26 @@ class DbManager {
     }
   }
 
-  fun saveLocalPlaybackSession(playbackSession: PlaybackSession) {
-    Paper.book("localPlaybackSession").write(playbackSession.id,playbackSession)
-  }
-  fun getLocalPlaybackSession(playbackSessionId:String): PlaybackSession? {
-    return Paper.book("localPlaybackSession").read(playbackSessionId)
-  }
-
-
   fun saveMediaItemHistory(mediaItemHistory: MediaItemHistory) {
     Paper.book("mediaItemHistory").write(mediaItemHistory.id,mediaItemHistory)
   }
   fun getMediaItemHistory(id:String): MediaItemHistory? {
     return Paper.book("mediaItemHistory").read(id)
+  }
+
+  fun savePlaybackSession(playbackSession: PlaybackSession) {
+    Paper.book("playbackSession").write(playbackSession.id,playbackSession)
+  }
+  fun removePlaybackSession(playbackSessionId:String) {
+    Paper.book("playbackSession").delete(playbackSessionId)
+  }
+  fun getPlaybackSessions():List<PlaybackSession> {
+    val sessions:MutableList<PlaybackSession> = mutableListOf()
+    Paper.book("playbackSession").allKeys.forEach { playbackSessionId ->
+      Paper.book("playbackSession").read<PlaybackSession>(playbackSessionId)?.let {
+        sessions.add(it)
+      }
+    }
+    return sessions
   }
 }

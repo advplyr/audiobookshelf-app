@@ -74,6 +74,10 @@ class DbService {
     return AbsDatabase.syncLocalMediaProgressWithServer()
   }
 
+  syncLocalSessionsWithServer() {
+    return AbsDatabase.syncLocalSessionsWithServer()
+  }
+
   syncServerMediaProgressWithLocalMediaProgress(payload) {
     return AbsDatabase.syncServerMediaProgressWithLocalMediaProgress(payload)
   }

@@ -66,7 +66,7 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
     //   and reset any server data already set
     val serverConnConfig = if (DeviceManager.isConnectedToServer) DeviceManager.serverConnectionConfig else DeviceManager.deviceData.getLastServerConnectionConfig()
 
-    if (!DeviceManager.isConnectedToServer || !apiHandler.isOnline() || serverConnConfig == null || serverConnConfig.id !== serverConfigIdUsed) {
+    if (!DeviceManager.isConnectedToServer || !DeviceManager.checkConnectivity(ctx) || serverConnConfig == null || serverConnConfig.id !== serverConfigIdUsed) {
       podcastEpisodeLibraryItemMap = mutableMapOf()
       serverLibraryCategories = listOf()
       serverLibraries = listOf()
@@ -217,7 +217,7 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
     Log.d(tag, "checkSetValidServerConnectionConfig | $serverConfigIdUsed")
 
     coroutineScope {
-      if (!apiHandler.isOnline()) {
+      if (!DeviceManager.checkConnectivity(ctx)) {
         serverUserMediaProgress = mutableListOf()
         cb(false)
       } else {

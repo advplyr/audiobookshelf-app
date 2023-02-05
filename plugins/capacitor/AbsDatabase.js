@@ -198,6 +198,10 @@ class AbsDatabaseWeb extends WebPlugin {
     return null
   }
 
+  async syncLocalSessionsWithServer() {
+    return null
+  }
+
   async syncServerMediaProgressWithLocalMediaProgress(payload) {
     return null
   }

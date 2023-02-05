@@ -1,4 +1,4 @@
-package com.audiobookshelf.app.player
+package com.audiobookshelf.app.media
 
 import android.os.Handler
 import android.os.Looper
@@ -6,9 +6,8 @@ import android.util.Log
 import com.audiobookshelf.app.data.LocalMediaProgress
 import com.audiobookshelf.app.data.MediaProgress
 import com.audiobookshelf.app.data.PlaybackSession
-import com.audiobookshelf.app.data.Podcast
 import com.audiobookshelf.app.device.DeviceManager
-import com.audiobookshelf.app.media.MediaEventManager
+import com.audiobookshelf.app.player.PlayerNotificationService
 import com.audiobookshelf.app.server.ApiHandler
 import java.util.*
 import kotlin.concurrent.schedule
@@ -25,7 +24,7 @@ data class SyncResult(
   var serverSyncMessage:String?
 )
 
-class MediaProgressSyncer(val playerNotificationService:PlayerNotificationService, private val apiHandler: ApiHandler) {
+class MediaProgressSyncer(val playerNotificationService: PlayerNotificationService, private val apiHandler: ApiHandler) {
   private val tag = "MediaProgressSync"
   private val METERED_CONNECTION_SYNC_INTERVAL = 60000
 
@@ -199,8 +198,6 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
       it.currentTime = mediaProgress.currentTime
 
       MediaEventManager.syncEvent(mediaProgress, "Received from server get media progress request while playback session open")
-
-      DeviceManager.dbManager.saveLocalPlaybackSession(it)
       saveLocalProgress(it)
     }
   }
@@ -226,16 +223,25 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
       return cb(null)
     }
 
+    val hasNetworkConnection = DeviceManager.checkConnectivity(playerNotificationService)
+
+    // Save playback session to db (server linked sessions only)
+    //   Sessions are removed once successfully synced with the server
+    currentPlaybackSession?.let {
+      if (!it.isLocalLibraryItemOnly) {
+        DeviceManager.dbManager.savePlaybackSession(it)
+      }
+    }
+
     if (currentIsLocal) {
       // Save local progress sync
       currentPlaybackSession?.let {
-        DeviceManager.dbManager.saveLocalPlaybackSession(it)
         saveLocalProgress(it)
         lastSyncTime = System.currentTimeMillis()
 
         // Local library item is linked to a server library item
         // Send sync to server also if connected to this server and local item belongs to this server
-        if (shouldSyncServer && !it.libraryItemId.isNullOrEmpty() && it.serverConnectionConfigId != null && DeviceManager.serverConnectionConfig?.id == it.serverConnectionConfigId) {
+        if (hasNetworkConnection && shouldSyncServer && !it.libraryItemId.isNullOrEmpty() && it.serverConnectionConfigId != null && DeviceManager.serverConnectionConfig?.id == it.serverConnectionConfigId) {
           apiHandler.sendLocalProgressSync(it) { syncSuccess, errorMsg ->
             Log.d(
               tag,
@@ -245,6 +251,7 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
             if (syncSuccess) {
               failedSyncs = 0
               playerNotificationService.alertSyncSuccess()
+              DeviceManager.dbManager.removePlaybackSession(it.id) // Remove session from db
             } else {
               failedSyncs++
               if (failedSyncs == 2) {
@@ -260,7 +267,7 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
           cb(SyncResult(false, null, null))
         }
       }
-    } else if (shouldSyncServer) {
+    } else if (hasNetworkConnection && shouldSyncServer) {
       Log.d(tag, "sync: currentSessionId=$currentSessionId")
       apiHandler.sendProgressSync(currentSessionId, syncData) { syncSuccess, errorMsg ->
         if (syncSuccess) {
@@ -268,6 +275,7 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
           failedSyncs = 0
           playerNotificationService.alertSyncSuccess()
           lastSyncTime = System.currentTimeMillis()
+          DeviceManager.dbManager.removePlaybackSession(currentSessionId) // Remove session from db
         } else {
           failedSyncs++
           if (failedSyncs == 2) {
@@ -306,6 +314,7 @@ class MediaProgressSyncer(val playerNotificationService:PlayerNotificationServic
       }
     }
   }
+
 
   fun reset() {
     currentPlaybackSession = null

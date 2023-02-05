@@ -34,6 +34,7 @@ import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.managers.DbManager
 import com.audiobookshelf.app.managers.SleepTimerManager
 import com.audiobookshelf.app.media.MediaManager
+import com.audiobookshelf.app.media.MediaProgressSyncer
 import com.audiobookshelf.app.server.ApiHandler
 import com.google.android.exoplayer2.*
 import com.google.android.exoplayer2.audio.AudioAttributes
@@ -59,6 +60,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     var isStarted = false
     var isClosed = false
     var isUnmeteredNetwork = false
+    var hasNetworkConnectivity = false // Not 100% reliable has internet
     var isSwitchingPlayer = false // Used when switching between cast player and exoplayer
   }
 
@@ -97,7 +99,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   var castPlayer:CastPlayer? = null
 
   lateinit var sleepTimerManager:SleepTimerManager
-  lateinit var mediaProgressSyncer:MediaProgressSyncer
+  lateinit var mediaProgressSyncer: MediaProgressSyncer
 
   private var notificationId = 10
   private var channelId = "audiobookshelf_channel"
@@ -193,8 +195,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     // To listen for network change from metered to unmetered
     val networkRequest = NetworkRequest.Builder()
       .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-      .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
-      .addTransportType(NetworkCapabilities.TRANSPORT_CELLULAR)
+      .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+      .addCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
       .build()
     val connectivityManager = getSystemService(ConnectivityManager::class.java) as ConnectivityManager
     connectivityManager.registerNetworkCallback(networkRequest, networkCallback)
@@ -668,7 +670,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     if (currentPlaybackSession == null) return true
 
     mediaProgressSyncer.currentPlaybackSession?.let { playbackSession ->
-      if (!apiHandler.isOnline() || playbackSession.isLocalLibraryItemOnly) {
+      if (!DeviceManager.checkConnectivity(ctx) || playbackSession.isLocalLibraryItemOnly) {
         return true // carry on
       }
 
@@ -1098,10 +1100,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       networkCapabilities: NetworkCapabilities
     ) {
       super.onCapabilitiesChanged(network, networkCapabilities)
-      val unmetered = networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
-      Log.i(tag, "Network capabilities changed is unmetered = $unmetered")
-      isUnmeteredNetwork = unmetered
-      clientEventEmitter?.onNetworkMeteredChanged(unmetered)
+
+      isUnmeteredNetwork = networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+      hasNetworkConnectivity = networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) && networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+      Log.i(tag, "Network capabilities changed. hasNetworkConnectivity=$hasNetworkConnectivity | isUnmeteredNetwork=$isUnmeteredNetwork")
+      clientEventEmitter?.onNetworkMeteredChanged(isUnmeteredNetwork)
     }
   }
 

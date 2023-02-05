@@ -1,6 +1,5 @@
 package com.audiobookshelf.app.data
 
-import android.util.Log
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import kotlin.math.roundToInt
@@ -33,6 +32,11 @@ class LocalMediaProgress(
         if (localEpisodeId.isNullOrEmpty()) localLibraryItemId else "$localLibraryItemId-$localEpisodeId"
     }
 
+  @JsonIgnore
+  fun isMatch(mediaProgress:MediaProgress):Boolean {
+    if (episodeId != null) return libraryItemId == mediaProgress.libraryItemId && episodeId == mediaProgress.episodeId
+    return libraryItemId == mediaProgress.libraryItemId
+  }
 
   @JsonIgnore
   fun updateIsFinished(finished:Boolean) {

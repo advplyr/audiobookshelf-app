@@ -216,13 +216,25 @@ class AbsDatabase : Plugin() {
   }
 
   @PluginMethod
-  fun syncLocalMediaProgressWithServer(call:PluginCall) {
+  fun syncLocalSessionsWithServer(call:PluginCall) {
     if (DeviceManager.serverConnectionConfig == null) {
-      Log.e(tag, "syncLocalMediaProgressWithServer not connected to server")
+      Log.e(tag, "syncLocalSessionsWithServer not connected to server")
       return call.resolve()
     }
-    apiHandler.syncMediaProgress {
-      call.resolve(JSObject(jacksonMapper.writeValueAsString(it)))
+
+    apiHandler.syncLocalMediaProgressForUser {
+      Log.d(tag, "Finished syncing local media progress for user")
+      val savedSessions = DeviceManager.dbManager.getPlaybackSessions().filter { it.serverConnectionConfigId == DeviceManager.serverConnectionConfigId }
+
+      if (savedSessions.isNotEmpty()) {
+        apiHandler.sendSyncLocalSessions(savedSessions) { success, errorMsg ->
+          if (!success) {
+            call.resolve(JSObject("{\"error\":\"$errorMsg\"}"))
+          } else {
+            call.resolve()
+          }
+        }
+      }
     }
   }
 

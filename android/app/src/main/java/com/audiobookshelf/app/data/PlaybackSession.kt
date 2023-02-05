@@ -7,7 +7,7 @@ import android.os.Build
 import android.provider.MediaStore
 import android.support.v4.media.MediaMetadataCompat
 import com.audiobookshelf.app.device.DeviceManager
-import com.audiobookshelf.app.player.MediaProgressSyncData
+import com.audiobookshelf.app.media.MediaProgressSyncData
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.google.android.exoplayer2.MediaItem
@@ -254,7 +254,7 @@ class PlaybackSession(
   }
 
   @JsonIgnore
-  fun syncData(syncData:MediaProgressSyncData) {
+  fun syncData(syncData: MediaProgressSyncData) {
     timeListening += syncData.timeListened
     updatedAt = System.currentTimeMillis()
     currentTime = syncData.currentTime
