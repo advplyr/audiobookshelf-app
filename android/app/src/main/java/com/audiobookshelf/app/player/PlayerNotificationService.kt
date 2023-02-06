@@ -1201,7 +1201,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       customActionExtras.putFloat("speed", playbackRate)
       return PlaybackStateCompat.CustomAction.Builder(
         CUSTOM_ACTION_CHANGE_SPEED,
-        getContext().getString(R.string.action_skip_backward),
+        getContext().getString(R.string.action_change_speed),
         drawable
       )
         .setExtras(customActionExtras)
