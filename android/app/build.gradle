@@ -23,8 +23,13 @@ kotlin {
 android {
 
 
+<<<<<<< HEAD
     namespace 'com.bookshelf.app'
     buildFeatures {
+=======
+  namespace 'com.audiobookshelf.app'
+  buildFeatures {
+>>>>>>> f215efdcd0b16e111a55c0537d0e9af4025653c7
     viewBinding true
   }
   kotlinOptions {
@@ -35,8 +40,8 @@ android {
         applicationId "com.bookshelf.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 91
-        versionName "0.9.60-beta"
+        versionCode 92
+        versionName "0.9.61-beta"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -80,6 +85,7 @@ configurations.all {
 }
 
 dependencies {
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
   implementation fileTree(include: ['*.jar'], dir: 'libs')
   implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
   implementation project(':capacitor-android')
@@ -123,7 +129,7 @@ dependencies {
   implementation 'io.github.pilgr:paperdb:2.7.2'
 
   // Simple Storage
-  implementation "com.anggrayudi:storage:0.14.0"
+  implementation "com.anggrayudi:storage:1.5.4"
 
   // OK HTTP
   implementation 'com.squareup.okhttp3:okhttp:4.9.2'

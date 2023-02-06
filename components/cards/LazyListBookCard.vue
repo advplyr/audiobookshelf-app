@@ -1,18 +1,18 @@
 <template>
   <div ref="card" :id="`book-card-${index}`" :style="{ minWidth: width + 'px', maxWidth: width + 'px', height: height + 'px' }" class="rounded-sm z-10 cursor-pointer py-1" @click="clickCard">
     <div class="h-full flex relative">
-      <div class="w-20 h-20 relative" style="min-width: 80px; max-width: 80px">
+      <div class="list-card-cover relative">
         <!-- When cover image does not fill -->
         <div v-show="showCoverBg" class="absolute top-0 left-0 w-full h-full overflow-hidden rounded-sm bg-primary">
           <div class="absolute cover-bg" ref="coverBg" />
         </div>
 
-        <div class="w-full h-full absolute top-0 left-0 bg-primary">
+        <div class="w-full h-full absolute top-0 left-0">
           <img v-show="libraryItem" ref="cover" :src="bookCoverSrc" class="w-full h-full transition-opacity duration-300" :class="showCoverBg ? 'object-contain' : 'object-fill'" @load="imageLoaded" :style="{ opacity: imageReady ? 1 : 0 }" />
         </div>
 
         <!-- No progress shown for collapsed series or podcasts in library -->
-        <div v-if="!isPodcast && !collapsedSeries" class="absolute bottom-0 left-0 h-1 shadow-sm max-w-full z-10 rounded-b" :class="itemIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: 80 * userProgressPercent + 'px' }"></div>
+        <div v-if="!isPodcast && !collapsedSeries" class="absolute bottom-0 left-0 h-1 shadow-sm max-w-full z-10 rounded-b" :class="itemIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: coverWidth * userProgressPercent + 'px' }"></div>
       </div>
       <div class="flex-grow px-2">
         <p class="whitespace-normal" :style="{ fontSize: 0.8 * sizeMultiplier + 'rem' }">
@@ -76,6 +76,9 @@ export default {
           this.libraryItem = newVal
         }
       }
+    },
+    bookCoverAspectRatio() {
+      this.setCSSProperties()
     }
   },
   computed: {
@@ -313,6 +316,9 @@ export default {
       if (!this.isAlternativeBookshelfView) return 0
       else if (!this.displaySortLine) return 3 * this.sizeMultiplier
       return 4.25 * this.sizeMultiplier
+    },
+    coverWidth() {
+      return 80 / this.bookCoverAspectRatio
     }
   },
   methods: {
@@ -433,9 +439,9 @@ export default {
       this.imageReady = true
 
       if (this.$refs.cover && this.bookCoverSrc !== this.placeholderUrl) {
-        var { naturalWidth, naturalHeight } = this.$refs.cover
-        var aspectRatio = naturalHeight / naturalWidth
-        var arDiff = Math.abs(aspectRatio - this.bookCoverAspectRatio)
+        const { naturalWidth, naturalHeight } = this.$refs.cover
+        const aspectRatio = naturalHeight / naturalWidth
+        const arDiff = Math.abs(aspectRatio - this.bookCoverAspectRatio)
 
         // If image aspect ratio is <= 1.45 or >= 1.75 then use cover bg, otherwise stretch to fit
         if (arDiff > 0.15) {
@@ -445,9 +451,13 @@ export default {
           this.showCoverBg = false
         }
       }
+    },
+    setCSSProperties() {
+      document.documentElement.style.setProperty('--list-card-cover-width', this.coverWidth + 'px')
     }
   },
   mounted() {
+    this.setCSSProperties()
     if (this.bookMount) {
       this.setEntity(this.bookMount)
 
@@ -458,3 +468,17 @@ export default {
   }
 }
 </script>
+
+<style>
+:root {
+  --list-card-cover-width: 80px;
+}
+
+.list-card-cover {
+  height: 80px;
+  max-height: 80px;
+  width: var(--list-card-cover-width);
+  min-width: var(--list-card-cover-width);
+  max-width: var(--list-card-cover-width);
+}
+</style>

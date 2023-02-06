@@ -309,7 +309,7 @@ export default {
       var { clientHeight, clientWidth } = bookshelf
       this.bookshelfHeight = clientHeight
       this.bookshelfWidth = clientWidth
-      this.entitiesPerShelf = this.showBookshelfListView ? 1 : Math.floor((this.bookshelfWidth - 16) / this.totalEntityCardWidth)
+      this.entitiesPerShelf = Math.max(1, this.showBookshelfListView ? 1 : Math.floor((this.bookshelfWidth - 16) / this.totalEntityCardWidth))
       this.shelvesPerPage = Math.ceil(this.bookshelfHeight / this.shelfHeight) + 2
       this.bookshelfMarginLeft = (this.bookshelfWidth - this.entitiesPerShelf * this.totalEntityCardWidth) / 2
 
@@ -371,15 +371,16 @@ export default {
       return searchParams.toString()
     },
     checkUpdateSearchParams() {
-      var newSearchParams = this.buildSearchParams()
-      var currentQueryString = window.location.search
+      const newSearchParams = this.buildSearchParams()
+      let currentQueryString = window.location.search
       if (currentQueryString && currentQueryString.startsWith('?')) currentQueryString = currentQueryString.slice(1)
 
-      if (newSearchParams === '') {
+      if (newSearchParams === '' && !currentQueryString) {
         return false
       }
       if (newSearchParams !== this.currentSFQueryString || newSearchParams !== currentQueryString) {
-        let newurl = window.location.protocol + '//' + window.location.host + window.location.pathname + '?' + newSearchParams
+        const queryString = newSearchParams ? `?${newSearchParams}` : ''
+        let newurl = window.location.protocol + '//' + window.location.host + window.location.pathname + queryString
         window.history.replaceState({ path: newurl }, '', newurl)
 
         this.routeFullPath = window.location.pathname + (window.location.search || '') // Update for saving scroll position
@@ -389,12 +390,17 @@ export default {
       return false
     },
     settingsUpdated(settings) {
-      var wasUpdated = this.checkUpdateSearchParams()
+      const wasUpdated = this.checkUpdateSearchParams()
       if (wasUpdated) {
         this.resetEntities()
       }
     },
     libraryChanged() {
+      if (this.currentLibraryMediaType !== 'book' && (this.page === 'series' || this.page === 'collections' || this.page === 'series-books')) {
+        this.$router.replace('/bookshelf')
+        return
+      }
+
       if (this.hasFilter) {
         this.clearFilter()
       } else {
@@ -447,7 +453,7 @@ export default {
       })
     },
     initListeners() {
-      var bookshelf = document.getElementById('bookshelf-wrapper')
+      const bookshelf = document.getElementById('bookshelf-wrapper')
       if (bookshelf) {
         bookshelf.addEventListener('scroll', this.scroll)
       }
@@ -462,7 +468,7 @@ export default {
       this.$socket.$on('items_added', this.libraryItemsAdded)
     },
     removeListeners() {
-      var bookshelf = document.getElementById('bookshelf-wrapper')
+      const bookshelf = document.getElementById('bookshelf-wrapper')
       if (bookshelf) {
         bookshelf.removeEventListener('scroll', this.scroll)
       }

@@ -187,7 +187,7 @@ export default {
     },
     async downloadClick() {
       if (this.downloadItem) return
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       if (this.isIos) {
         // no local folders on iOS
         this.startDownload()
@@ -248,7 +248,7 @@ export default {
       }
     },
     async playClick() {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       if (this.streamIsPlaying) {
         this.$eventBus.$emit('pause-item')
       } else {
@@ -270,7 +270,7 @@ export default {
       }
     },
     async toggleFinished() {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       this.isProcessingReadUpdate = true
       if (this.isLocal || this.localEpisode) {
         var isFinished = !this.userIsFinished

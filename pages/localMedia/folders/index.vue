@@ -1,33 +1,5 @@
 <template>
   <div class="w-full h-full py-6">
-    <div v-if="localLibraryItemsOnCurrentServer.length" class="flex items-center justify-between mb-4 pb-2 px-2 border-b border-white border-opacity-10">
-      <p class="text-sm text-gray-100">{{ localLibraryItemsOnCurrentServer.length }} local items on this server</p>
-      <ui-btn small :loading="syncing" @click="syncLocalMedia">Sync</ui-btn>
-    </div>
-
-    <div v-if="lastLocalMediaSyncResults" class="px-2 mb-4">
-      <div class="w-full pl-2 pr-2 py-2 bg-black bg-opacity-25 rounded-lg relative">
-        <div class="flex items-center mb-1">
-          <span class="material-icons text-success text-xl">sync</span>
-          <p class="text-sm text-gray-300 pl-2">Local media progress synced with server</p>
-        </div>
-        <div class="flex justify-between mb-1.5">
-          <p class="text-xs text-gray-400 font-semibold">{{ syncedServerConfigName }}</p>
-          <p class="text-xs text-gray-400 italic">{{ $dateDistanceFromNow(syncedAt) }}</p>
-        </div>
-
-        <div v-if="!numLocalProgressUpdates && !numServerProgressUpdates">
-          <p class="text-sm text-gray-300">Local media progress was up-to-date with server ({{ numLocalMediaSynced }} item{{ numLocalMediaSynced == 1 ? '' : 's' }})</p>
-        </div>
-        <div v-else>
-          <p v-if="numServerProgressUpdates" class="text-sm text-gray-300">- {{ numServerProgressUpdates }} local media item{{ numServerProgressUpdates === 1 ? '' : 's' }} progress was updated on the server (local more recent).</p>
-          <p v-else class="text-sm text-gray-300">- No local media progress had to be synced on the server.</p>
-          <p v-if="numLocalProgressUpdates" class="text-sm text-gray-300">- {{ numLocalProgressUpdates }} local media item{{ numLocalProgressUpdates === 1 ? '' : 's' }} progress was updated to match the server (server more recent).</p>
-          <p v-else class="text-sm text-gray-300">- No server progress had to be synced with local media progress.</p>
-        </div>
-      </div>
-    </div>
-
     <h1 class="text-base font-semibold px-2 mb-2">Local Folders</h1>
 
     <div v-if="!isIos" class="w-full max-w-full px-2 py-2">
@@ -78,67 +50,9 @@ export default {
   computed: {
     isIos() {
       return this.$platform === 'ios'
-    },
-    lastLocalMediaSyncResults() {
-      return this.$store.state.lastLocalMediaSyncResults
-    },
-    serverConnectionConfigId() {
-      return this.$store.getters['user/getServerConnectionConfigId']
-    },
-    localLibraryItemsOnCurrentServer() {
-      return this.localLibraryItems.filter((lli) => {
-        return lli.serverConnectionConfigId === this.serverConnectionConfigId
-      })
-    },
-    numLocalMediaSynced() {
-      if (!this.lastLocalMediaSyncResults) return 0
-      return this.lastLocalMediaSyncResults.numLocalMediaProgressForServer || 0
-    },
-    syncedAt() {
-      if (!this.lastLocalMediaSyncResults) return 0
-      return this.lastLocalMediaSyncResults.syncedAt || 0
-    },
-    syncedServerConfigName() {
-      if (!this.lastLocalMediaSyncResults) return ''
-      return this.lastLocalMediaSyncResults.serverConfigName
-    },
-    numLocalProgressUpdates() {
-      if (!this.lastLocalMediaSyncResults) return 0
-      return this.lastLocalMediaSyncResults.numLocalProgressUpdates || 0
-    },
-    numServerProgressUpdates() {
-      if (!this.lastLocalMediaSyncResults) return 0
-      return this.lastLocalMediaSyncResults.numServerProgressUpdates || 0
     }
   },
   methods: {
-    async syncLocalMedia() {
-      console.log('[localMedia] Calling syncLocalMediaProgress')
-      this.syncing = true
-      const response = await this.$db.syncLocalMediaProgressWithServer()
-      if (!response) {
-        if (this.$platform != 'web') this.$toast.error('Failed to sync local media with server')
-        this.$store.commit('setLastLocalMediaSyncResults', null)
-        this.syncing = false
-        return
-      }
-      const { numLocalMediaProgressForServer, numServerProgressUpdates, numLocalProgressUpdates } = response
-      if (numLocalMediaProgressForServer > 0) {
-        response.syncedAt = Date.now()
-        response.serverConfigName = this.$store.getters['user/getServerConfigName']
-        this.$store.commit('setLastLocalMediaSyncResults', response)
-
-        if (numServerProgressUpdates > 0 || numLocalProgressUpdates > 0) {
-          console.log(`[localMedia] ${numServerProgressUpdates} Server progress updates | ${numLocalProgressUpdates} Local progress updates`)
-        } else {
-          console.log('[localMedia] syncLocalMediaProgress No updates were necessary')
-        }
-      } else {
-        console.log('[localMedia] syncLocalMediaProgress No local media progress to sync')
-        this.$store.commit('setLastLocalMediaSyncResults', null)
-      }
-      this.syncing = false
-    },
     async selectFolder() {
       if (!this.newFolderMediaType) {
         return this.$toast.error('Must select a media type')

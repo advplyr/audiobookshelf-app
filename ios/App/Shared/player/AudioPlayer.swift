@@ -37,6 +37,7 @@ class AudioPlayer: NSObject {
     private var sessionId: String
 
     private var timeObserverToken: Any?
+    private var sleepTimerObserverToken: Any?
     private var queueObserver:NSKeyValueObservation?
     private var queueItemStatusObserver:NSKeyValueObservation?
     
@@ -96,7 +97,7 @@ class AudioPlayer: NSObject {
             self.audioPlayer.insert(item, after:self.audioPlayer.items().last)
         }
 
-        setupTimeObserver()
+        setupTimeObservers()
         setupQueueObserver()
         setupQueueItemStatusObserver()
 
@@ -130,7 +131,7 @@ class AudioPlayer: NSObject {
         // Remove observers
         self.audioPlayer.removeObserver(self, forKeyPath: #keyPath(AVPlayer.rate), context: &playerContext)
         self.audioPlayer.removeObserver(self, forKeyPath: #keyPath(AVPlayer.currentItem), context: &playerContext)
-        self.removeTimeObserver()
+        self.removeTimeObservers()
         
         NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.closed.rawValue), object: nil)
         
@@ -170,15 +171,15 @@ class AudioPlayer: NSObject {
         NotificationCenter.default.removeObserver(self, name: AVAudioSession.routeChangeNotification, object: AVAudioSession.sharedInstance())
     }
     
-    private func setupTimeObserver() {
+    private func setupTimeObservers() {
         // Time observer should be configured on the main queue
         DispatchQueue.runOnMainQueue {
-            self.removeTimeObserver()
+            self.removeTimeObservers()
             
             let timeScale = CMTimeScale(NSEC_PER_SEC)
-            // Rate will be different depending on playback speed, aim for 2 observations/sec
-            let seconds = 0.5 * (self.rate > 0 ? self.rate : 1.0)
-            let time = CMTime(seconds: Double(seconds), preferredTimescale: timeScale)
+            // Save the current time every 15 seconds
+            var seconds = 15.0
+            var time = CMTime(seconds: Double(seconds), preferredTimescale: timeScale)
             self.timeObserverToken = self.audioPlayer.addPeriodicTimeObserver(forInterval: time, queue: self.queue) { [weak self] time in
                 guard let self = self else { return }
                 guard self.isInitialized() else { return }
@@ -190,7 +191,12 @@ class AudioPlayer: NSObject {
                     // Let the player update the current playback positions
                     await PlayerProgress.shared.syncFromPlayer(currentTime: currentTime, includesPlayProgress: isPlaying, isStopping: false)
                 }
-                
+            }
+            // Update the sleep timer every second
+            seconds = 1.0
+            time = CMTime(seconds: Double(seconds), preferredTimescale: timeScale)
+            self.sleepTimerObserverToken = self.audioPlayer.addPeriodicTimeObserver(forInterval: time, queue: self.queue) { [weak self] time in
+                guard let self = self else { return }
                 if self.isSleepTimerSet() {
                     // Update the UI
                     NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.sleepSet.rawValue), object: nil)
@@ -199,10 +205,14 @@ class AudioPlayer: NSObject {
         }
     }
     
-    private func removeTimeObserver() {
+    private func removeTimeObservers() {
         if let timeObserverToken = timeObserverToken {
             self.audioPlayer.removeTimeObserver(timeObserverToken)
             self.timeObserverToken = nil
+        }
+        if let sleepTimerObserverToken = sleepTimerObserverToken {
+            self.audioPlayer.removeTimeObserver(sleepTimerObserverToken)
+            self.sleepTimerObserverToken = nil
         }
     }
     
@@ -426,7 +436,7 @@ class AudioPlayer: NSObject {
             self.tmpRate = rate
             
             // Setup the time observer again at the new rate
-            self.setupTimeObserver()
+            self.setupTimeObservers()
         }
     }
     
@@ -462,18 +472,18 @@ class AudioPlayer: NSObject {
         
         if (playbackSession.playMethod == PlayMethod.directplay.rawValue) {
             // The only reason this is separate is because the filename needs to be encoded
-            let filename = track.metadata?.filename ?? ""
-            let filenameEncoded = filename.addingPercentEncoding(withAllowedCharacters: NSCharacterSet.urlQueryAllowed)
-            let urlstr = "\(Store.serverConfig!.address)/s/item/\(itemId)/\(filenameEncoded ?? "")?token=\(Store.serverConfig!.token)"
+            let relPath = track.metadata?.relPath ?? ""
+            let filepathEncoded = relPath.addingPercentEncoding(withAllowedCharacters: NSCharacterSet.urlQueryAllowed)
+            let urlstr = "\(Store.serverConfig!.address)/s/item/\(itemId)/\(filepathEncoded ?? "")?token=\(Store.serverConfig!.token)"
             let url = URL(string: urlstr)!
             return AVURLAsset(url: url)
         } else if (playbackSession.playMethod == PlayMethod.local.rawValue) {
             guard let localFile = track.getLocalFile() else {
                 // Worst case we can stream the file
                 logger.log("Unable to play local file. Resulting to streaming \(track.localFileId ?? "Unknown")")
-                let filename = track.metadata?.filename ?? ""
-                let filenameEncoded = filename.addingPercentEncoding(withAllowedCharacters: NSCharacterSet.urlQueryAllowed)
-                let urlstr = "\(Store.serverConfig!.address)/s/item/\(itemId)/\(filenameEncoded ?? "")?token=\(Store.serverConfig!.token)"
+                let relPath = track.metadata?.relPath ?? ""
+                let filepathEncoded = relPath.addingPercentEncoding(withAllowedCharacters: NSCharacterSet.urlQueryAllowed)
+                let urlstr = "\(Store.serverConfig!.address)/s/item/\(itemId)/\(filepathEncoded ?? "")?token=\(Store.serverConfig!.token)"
                 let url = URL(string: urlstr)!
                 return AVURLAsset(url: url)
             }
@@ -561,6 +571,8 @@ class AudioPlayer: NSObject {
         }
         let commandCenter = MPRemoteCommandCenter.shared()
         let deviceSettings = Database.shared.getDeviceSettings()
+        let jumpForwardTime = deviceSettings.jumpForwardTime
+        let jumpBackwardsTime = deviceSettings.jumpBackwardsTime
         
         commandCenter.playCommand.isEnabled = true
         commandCenter.playCommand.addTarget { [weak self] event in
@@ -574,7 +586,7 @@ class AudioPlayer: NSObject {
         }
         
         commandCenter.skipForwardCommand.isEnabled = true
-        commandCenter.skipForwardCommand.preferredIntervals = [NSNumber(value: deviceSettings.jumpForwardTime)]
+        commandCenter.skipForwardCommand.preferredIntervals = [NSNumber(value: jumpForwardTime)]
         commandCenter.skipForwardCommand.addTarget { [weak self] event in
             guard let command = event.command as? MPSkipIntervalCommand else {
                 return .noSuchContent
@@ -586,7 +598,7 @@ class AudioPlayer: NSObject {
             return .success
         }
         commandCenter.skipBackwardCommand.isEnabled = true
-        commandCenter.skipBackwardCommand.preferredIntervals = [NSNumber(value: deviceSettings.jumpBackwardsTime)]
+        commandCenter.skipBackwardCommand.preferredIntervals = [NSNumber(value: jumpBackwardsTime)]
         commandCenter.skipBackwardCommand.addTarget { [weak self] event in
             guard let command = event.command as? MPSkipIntervalCommand else {
                 return .noSuchContent
@@ -598,6 +610,23 @@ class AudioPlayer: NSObject {
             return .success
         }
         
+        commandCenter.nextTrackCommand.isEnabled = true
+        commandCenter.nextTrackCommand.addTarget { [weak self] _ in
+            guard let currentTime = self?.getCurrentTime() else {
+                return .commandFailed
+            }
+            self?.seek(currentTime + Double(jumpForwardTime), from: "remote")
+            return .success
+        }
+        commandCenter.previousTrackCommand.isEnabled = true
+        commandCenter.previousTrackCommand.addTarget { [weak self] _ in
+            guard let currentTime = self?.getCurrentTime() else {
+                return .commandFailed
+            }
+            self?.seek(currentTime - Double(jumpBackwardsTime), from: "remote")
+            return .success
+        }
+
         commandCenter.changePlaybackPositionCommand.isEnabled = true
         commandCenter.changePlaybackPositionCommand.addTarget { [weak self] event in
             guard let event = event as? MPChangePlaybackPositionCommandEvent else {

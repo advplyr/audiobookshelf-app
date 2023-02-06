@@ -3,7 +3,7 @@
     <app-audio-player ref="audioPlayer" :bookmarks="bookmarks" :sleep-timer-running="isSleepTimerRunning" :sleep-time-remaining="sleepTimeRemaining" :is-server-item="!!serverLibraryItemId" @selectPlaybackSpeed="showPlaybackSpeedModal = true" @updateTime="(t) => (currentTime = t)" @showSleepTimer="showSleepTimer" @showBookmarks="showBookmarks" />
 
     <modals-playback-speed-modal v-model="showPlaybackSpeedModal" :playback-rate.sync="playbackSpeed" @update:playbackRate="updatePlaybackSpeed" @change="changePlaybackSpeed" />
-    <modals-sleep-timer-modal v-model="showSleepTimerModal" :current-time="sleepTimeRemaining" :sleep-timer-running="isSleepTimerRunning" :current-end-of-chapter-time="currentEndOfChapterTime" @change="selectSleepTimeout" @cancel="cancelSleepTimer" @increase="increaseSleepTimer" @decrease="decreaseSleepTimer" />
+    <modals-sleep-timer-modal v-model="showSleepTimerModal" :current-time="sleepTimeRemaining" :sleep-timer-running="isSleepTimerRunning" :current-end-of-chapter-time="currentEndOfChapterTime" :is-auto="isAutoSleepTimer" @change="selectSleepTimeout" @cancel="cancelSleepTimer" @increase="increaseSleepTimer" @decrease="decreaseSleepTimer" />
     <modals-bookmarks-modal v-model="showBookmarksModal" :bookmarks="bookmarks" :current-time="currentTime" :library-item-id="serverLibraryItemId" @select="selectBookmark" />
   </div>
 </template>
@@ -28,6 +28,7 @@ export default {
       isSleepTimerRunning: false,
       sleepTimerEndTime: 0,
       sleepTimeRemaining: 0,
+      isAutoSleepTimer: false,
       onLocalMediaProgressUpdateListener: null,
       onSleepTimerEndedListener: null,
       onSleepTimerSetListener: null,
@@ -62,8 +63,9 @@ export default {
         console.log('Sleep Timer Ended Current Position: ' + currentPosition)
       }
     },
-    onSleepTimerSet({ value: sleepTimeRemaining }) {
-      console.log('SLEEP TIMER SET', sleepTimeRemaining)
+    onSleepTimerSet(payload) {
+      const { value: sleepTimeRemaining, isAuto } = payload
+      console.log('SLEEP TIMER SET', JSON.stringify(payload))
       if (sleepTimeRemaining === 0) {
         console.log('Sleep timer canceled')
         this.isSleepTimerRunning = false
@@ -71,6 +73,7 @@ export default {
         this.isSleepTimerRunning = true
       }
 
+      this.isAutoSleepTimer = !!isAuto
       this.sleepTimeRemaining = sleepTimeRemaining
     },
     showSleepTimer() {
@@ -184,6 +187,7 @@ export default {
     async playLibraryItem(payload) {
       const libraryItemId = payload.libraryItemId
       const episodeId = payload.episodeId
+      const startTime = payload.startTime
 
       // When playing local library item and can also play this item from the server
       //   then store the server library item id so it can be used if a cast is made
@@ -200,6 +204,16 @@ export default {
         }
       }
 
+      // if already playing this item then jump to start time
+      if (this.$store.getters['getIsMediaStreaming'](libraryItemId, episodeId)) {
+        console.log('Already streaming item', startTime)
+        if (startTime !== undefined && startTime !== null) {
+          // seek to start time
+          AbsAudioPlayer.seek({ value: Math.floor(startTime) })
+        }
+        return
+      }
+
       this.serverLibraryItemId = null
       this.serverEpisodeId = null
 
@@ -209,7 +223,9 @@ export default {
       }
 
       console.log('Called playLibraryItem', libraryItemId)
-      AbsAudioPlayer.prepareLibraryItem({ libraryItemId, episodeId, playWhenReady: true, playbackRate })
+      const preparePayload = { libraryItemId, episodeId, playWhenReady: true, playbackRate }
+      if (startTime !== undefined && startTime !== null) preparePayload.startTime = startTime
+      AbsAudioPlayer.prepareLibraryItem(preparePayload)
         .then((data) => {
           if (data.error) {
             const errorMsg = data.error || 'Failed to play'

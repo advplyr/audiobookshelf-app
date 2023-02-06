@@ -127,7 +127,7 @@ export default {
   },
   methods: {
     async clickedOption(val) {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       if (this.selected === val) {
         this.selectedDesc = !this.selectedDesc
       } else {

@@ -62,12 +62,20 @@ class DbService {
     return AbsDatabase.getAllLocalMediaProgress().then((data) => data.value)
   }
 
+  getLocalMediaProgressForServerItem(payload) {
+    return AbsDatabase.getLocalMediaProgressForServerItem(payload)
+  }
+
   removeLocalMediaProgress(localMediaProgressId) {
     return AbsDatabase.removeLocalMediaProgress({ localMediaProgressId })
   }
 
   syncLocalMediaProgressWithServer() {
     return AbsDatabase.syncLocalMediaProgressWithServer()
+  }
+
+  syncLocalSessionsWithServer() {
+    return AbsDatabase.syncLocalSessionsWithServer()
   }
 
   syncServerMediaProgressWithLocalMediaProgress(payload) {
@@ -85,6 +93,10 @@ class DbService {
 
   updateDeviceSettings(payload) {
     return AbsDatabase.updateDeviceSettings(payload)
+  }
+
+  getMediaItemHistory(mediaId) {
+    return AbsDatabase.getMediaItemHistory({ mediaId })
   }
 }
 

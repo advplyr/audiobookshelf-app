@@ -12,9 +12,8 @@ import com.bookshelf.app.R
 import com.bookshelf.app.device.DeviceManager
 import com.bookshelf.app.player.MediaProgressSyncData
 =======
-import com.audiobookshelf.app.device.DeviceManager
-import com.audiobookshelf.app.player.MediaProgressSyncData
->>>>>>> 4fd4cc5604f498b126c0a3125577451835d8979f:android/app/src/main/java/com/audiobookshelf/app/data/PlaybackSession.kt
+import com.bookshelf.app.device.DeviceManager
+import com.bookshelf.app.media.MediaProgressSyncData
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.google.android.exoplayer2.MediaItem
@@ -22,13 +21,7 @@ import com.google.android.exoplayer2.MediaMetadata
 import com.google.android.gms.cast.MediaInfo
 import com.google.android.gms.cast.MediaQueueItem
 import com.google.android.gms.common.images.WebImage
-
-
-// TODO: enum or something in kotlin?
-val PLAYMETHOD_DIRECTPLAY = 0
-val PLAYMETHOD_DIRECTSTREAM = 1
-val PLAYMETHOD_TRANSCODE = 2
-val PLAYMETHOD_LOCAL = 3
+import com.bookshelf.app.player.*
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 class PlaybackSession(
@@ -72,11 +65,13 @@ class PlaybackSession(
   @get:JsonIgnore
   val localLibraryItemId get() = localLibraryItem?.id ?: ""
   @get:JsonIgnore
-  val localMediaProgressId get() = if (episodeId.isNullOrEmpty()) localLibraryItemId else "$localLibraryItemId-$localEpisodeId"
+  val localMediaProgressId get() = if (localEpisodeId.isNullOrEmpty()) localLibraryItemId else "$localLibraryItemId-$localEpisodeId"
   @get:JsonIgnore
   val progress get() = currentTime / getTotalDuration()
   @get:JsonIgnore
   val isLocalLibraryItemOnly get() = localLibraryItemId != "" && libraryItemId == null
+  @get:JsonIgnore
+  val mediaItemId get() = if (isLocalLibraryItemOnly) localMediaProgressId else if (episodeId.isNullOrEmpty()) libraryItemId ?: "" else "$libraryItemId-$episodeId"
 
   @JsonIgnore
   fun getCurrentTrackIndex():Int {
@@ -90,9 +85,38 @@ class PlaybackSession(
   }
 
   @JsonIgnore
+  fun getNextTrackIndex():Int {
+    for (i in 0 until audioTracks.size) {
+      val track = audioTracks[i]
+      if (currentTimeMs < track.startOffsetMs) {
+        return i
+      }
+    }
+    return audioTracks.size - 1
+  }
+
+  @JsonIgnore
   fun getChapterForTime(time:Long):BookChapter? {
     if (chapters.isEmpty()) return null
     return chapters.find { time >= it.startMs && it.endMs > time}
+  }
+
+  @JsonIgnore
+  fun getCurrentTrackEndTime():Long {
+    val currentTrack = audioTracks[this.getCurrentTrackIndex()]
+    return currentTrack.startOffsetMs + currentTrack.durationMs
+  }
+
+  @JsonIgnore
+  fun getNextChapterForTime(time:Long):BookChapter? {
+    if (chapters.isEmpty()) return null
+    return chapters.find { time < it.startMs } // First chapter where start time is > then time
+  }
+
+  @JsonIgnore
+  fun getNextTrackEndTime():Long {
+    val currentTrack = audioTracks[this.getNextTrackIndex()]
+    return currentTrack.startOffsetMs + currentTrack.durationMs
   }
 
   @JsonIgnore
@@ -123,9 +147,9 @@ class PlaybackSession(
 
     if (coverPath == null) return Uri.parse("android.resource://com.bookshelf.app/" + R.drawable.icon)
 =======
-    if (localLibraryItem?.coverContentUrl != null) return Uri.parse(localLibraryItem?.coverContentUrl) ?: Uri.parse("android.resource://com.audiobookshelf.app/" + com.audiobookshelf.app.R.drawable.icon)
+    if (localLibraryItem?.coverContentUrl != null) return Uri.parse(localLibraryItem?.coverContentUrl) ?: Uri.parse("android.resource://com.audiobookshelf.app/" + com.bookshelf.app.R.drawable.icon)
 
-    if (coverPath == null) return Uri.parse("android.resource://com.audiobookshelf.app/" + com.audiobookshelf.app.R.drawable.icon)
+    if (coverPath == null) return Uri.parse("android.resource://com.audiobookshelf.app/" + com.bookshelf.app.R.drawable.icon)
 >>>>>>> 4fd4cc5604f498b126c0a3125577451835d8979f:android/app/src/main/java/com/audiobookshelf/app/data/PlaybackSession.kt
     return Uri.parse("$serverAddress/api/items/$libraryItemId/cover?token=${DeviceManager.token}")
   }
@@ -242,7 +266,7 @@ class PlaybackSession(
   }
 
   @JsonIgnore
-  fun syncData(syncData:MediaProgressSyncData) {
+  fun syncData(syncData: MediaProgressSyncData) {
     timeListening += syncData.timeListened
     updatedAt = System.currentTimeMillis()
     currentTime = syncData.currentTime

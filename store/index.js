@@ -21,8 +21,7 @@ export const state = () => ({
   showSideDrawer: false,
   isNetworkListenerInit: false,
   serverSettings: null,
-  lastBookshelfScrollData: {},
-  lastLocalMediaSyncResults: null
+  lastBookshelfScrollData: {}
 })
 
 export const getters = {
@@ -65,7 +64,7 @@ export const actions = {
     if (state.isNetworkListenerInit) return
     commit('setNetworkListenerInit', true)
 
-    var status = await Network.getStatus()
+    const status = await Network.getStatus()
     console.log('Network status', status)
     commit('setNetworkStatus', status)
 
@@ -147,8 +146,5 @@ export const mutations = {
   setServerSettings(state, val) {
     state.serverSettings = val
     this.$localStore.setServerSettings(state.serverSettings)
-  },
-  setLastLocalMediaSyncResults(state, val) {
-    state.lastLocalMediaSyncResults = val
   }
 }

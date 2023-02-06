@@ -17,11 +17,10 @@ class BrowseTree(
 
   /**
    * get uri to drawable or any other resource type if u wish
-   * @param context - context
    * @param drawableId - drawable res id
    * @return - uri
    */
-  fun getUriToDrawable(@AnyRes drawableId: Int): Uri {
+  private fun getUriToDrawable(@AnyRes drawableId: Int): Uri {
     return Uri.parse(ContentResolver.SCHEME_ANDROID_RESOURCE
       + "://" + context.resources.getResourcePackageName(drawableId)
       + '/' + context.resources.getResourceTypeName(drawableId)
@@ -49,7 +48,7 @@ class BrowseTree(
       putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getUriToDrawable(R.drawable.icon_library_folder).toString())
     }.build()
 
-    if (!itemsInProgress.isEmpty()) {
+    if (itemsInProgress.isNotEmpty()) {
       rootList += continueListeningMetadata
     }
 

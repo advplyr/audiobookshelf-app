@@ -13,6 +13,7 @@
             <slot :name="item.value" :item="item" :selected="item.value === selected">
               <li :key="item.value" class="text-gray-50 select-none relative py-4 cursor-pointer hover:bg-black-400" :class="selected === item.value ? 'bg-success bg-opacity-10' : ''" role="option" @click="clickedOption(item.value)">
                 <div class="relative flex items-center px-3">
+                  <span v-if="item.icon" class="material-icons-outlined text-xl mr-2 text-white text-opacity-80">{{ item.icon }}</span>
                   <p class="font-normal block truncate text-base text-white text-opacity-80">{{ item.text }}</p>
                 </div>
               </li>

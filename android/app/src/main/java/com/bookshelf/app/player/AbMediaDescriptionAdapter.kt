@@ -10,19 +10,17 @@ import android.support.v4.media.session.MediaControllerCompat
 import android.util.Log
 import com.bookshelf.app.R
 import com.bumptech.glide.Glide
-import com.bumptech.glide.load.engine.DiskCacheStrategy
-import com.bumptech.glide.request.RequestOptions
 import com.google.android.exoplayer2.Player
 import com.google.android.exoplayer2.ui.PlayerNotificationManager
 import kotlinx.coroutines.*
 
 const val NOTIFICATION_LARGE_ICON_SIZE = 144 // px
 
-class AbMediaDescriptionAdapter constructor(private val controller: MediaControllerCompat, val playerNotificationService: PlayerNotificationService) : PlayerNotificationManager.MediaDescriptionAdapter {
+class AbMediaDescriptionAdapter constructor(private val controller: MediaControllerCompat, private val playerNotificationService: PlayerNotificationService) : PlayerNotificationManager.MediaDescriptionAdapter {
   private val tag = "MediaDescriptionAdapter"
 
-  var currentIconUri: Uri? = null
-  var currentBitmap: Bitmap? = null
+  private var currentIconUri: Uri? = null
+  private var currentBitmap: Bitmap? = null
 
   private val serviceJob = SupervisorJob()
   private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
@@ -48,6 +46,7 @@ class AbMediaDescriptionAdapter constructor(private val controller: MediaControl
 
       if (currentIconUri.toString().startsWith("content://")) {
         currentBitmap = if (Build.VERSION.SDK_INT < 28) {
+          @Suppress("DEPRECATION")
           MediaStore.Images.Media.getBitmap(playerNotificationService.contentResolver, currentIconUri)
         } else {
           val source: ImageDecoder.Source = ImageDecoder.createSource(playerNotificationService.contentResolver, currentIconUri!!)

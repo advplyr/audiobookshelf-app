@@ -104,7 +104,7 @@ export default {
     },
     async changeView() {
       this.bookshelfListView = !this.bookshelfListView
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
     }
   },
   mounted() {

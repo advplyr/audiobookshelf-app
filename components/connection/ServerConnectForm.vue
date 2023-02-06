@@ -132,7 +132,7 @@ export default {
       }
     },
     async connectToServer(config) {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       console.log('[ServerConnectForm] connectToServer', config.address)
       this.processing = true
       this.serverConfig = {
@@ -160,7 +160,7 @@ export default {
     },
     async removeServerConfigClick() {
       if (!this.serverConfig.id) return
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
 
       const { value } = await Dialog.confirm({
         title: 'Confirm',
@@ -192,7 +192,7 @@ export default {
       this.showAuth = true
     },
     async newServerConfigClick() {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       this.serverConfig = {
         address: '',
         userId: '',

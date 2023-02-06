@@ -14,7 +14,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Override point for customization after application launch.
         
         let configuration = Realm.Configuration(
-            schemaVersion: 5,
+            schemaVersion: 6,
             migrationBlock: { [weak self] migration, oldSchemaVersion in
                 if (oldSchemaVersion < 1) {
                     self?.logger.log("Realm schema version was \(oldSchemaVersion)")
@@ -34,6 +34,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                     self?.logger.log("Realm schema version was \(oldSchemaVersion)... Adding lockOrientation setting")
                     migration.enumerateObjects(ofType: DeviceSettings.className()) { oldObject, newObject in
                         newObject?["lockOrientation"] = "NONE"
+                    }
+                }
+                if (oldSchemaVersion < 6) {
+                    self?.logger.log("Realm schema version was \(oldSchemaVersion)... Adding hapticFeedback setting")
+                    migration.enumerateObjects(ofType: DeviceSettings.className()) { oldObject, newObject in
+                        newObject?["hapticFeedback"] = "LIGHT"
                     }
                 }
             }
@@ -88,15 +94,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         backgroundCompletionHandler = completionHandler
     }
 
-    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        super.touchesBegan(touches, with: event)
-
-        let statusBarRect = self.window?.windowScene?.statusBarManager?.statusBarFrame
-        guard let touchPoint = event?.allTouches?.first?.location(in: self.window) else { return }
-
-        if statusBarRect?.contains(touchPoint) ?? false {
-            NotificationCenter.default.post(name: .capacitorStatusBarTapped, object: nil)
-        }
-    }
 
 }
+

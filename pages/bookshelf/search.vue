@@ -4,7 +4,6 @@
       <div class="w-full mx-auto py-5 px-2">
         <form @submit.prevent="submit">
           <ui-text-input v-model="searchInput" :disabled="processing || !networkConnected" placeholder="Enter search term or RSS feed URL" text-size="sm" />
-          <!-- <ui-btn type="submit" :disabled="processing" small>Submit</ui-btn> -->
         </form>
       </div>
 
@@ -132,14 +131,28 @@ export default {
       this.selectedPodcast = podcast
       this.showSelectedFeed = true
       console.log('Got podcast feed', payload.podcast)
+    },
+    libraryChanged() {
+      const libraryMediaType = this.$store.getters['libraries/getCurrentLibraryMediaType']
+      if (libraryMediaType !== 'podcast') {
+        this.$router.replace('/bookshelf')
+      }
     }
   },
-  mounted() {}
+  mounted() {
+    this.$eventBus.$on('library-changed', this.libraryChanged)
+  },
+  beforeDestroy() {
+    this.$eventBus.$off('library-changed', this.libraryChanged)
+  }
 }
 </script>
 
 <style scoped>
 .search-results-container {
-  max-height: calc(100vh - 180px);
+  max-height: calc(100vh - 182px);
+}
+.playerOpen .search-results-container {
+  max-height: calc(100vh - 282px);
 }
 </style>

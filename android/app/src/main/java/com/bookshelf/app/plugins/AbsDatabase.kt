@@ -1,8 +1,10 @@
-package com.bookshelf.app.data
+package com.bookshelf.app.plugins
 
 import android.util.Log
 import com.bookshelf.app.MainActivity
+import com.bookshelf.app.data.*
 import com.bookshelf.app.device.DeviceManager
+import com.bookshelf.app.media.MediaEventManager
 import com.bookshelf.app.server.ApiHandler
 import com.fasterxml.jackson.core.json.JsonReadFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -16,7 +18,7 @@ import kotlinx.coroutines.launch
 @CapacitorPlugin(name = "AbsDatabase")
 class AbsDatabase : Plugin() {
   val tag = "AbsDatabase"
-  var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
+  private var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
 
   lateinit var mainActivity: MainActivity
   lateinit var apiHandler: ApiHandler
@@ -189,6 +191,24 @@ class AbsDatabase : Plugin() {
   }
 
   @PluginMethod
+  fun getLocalMediaProgressForServerItem(call:PluginCall) {
+    val libraryItemId = call.getString("libraryItemId", "").toString()
+    var episodeId:String? = call.getString("episodeId", "").toString()
+    if (episodeId == "") episodeId = null
+
+    GlobalScope.launch(Dispatchers.IO) {
+      val allLocalMediaProgress = DeviceManager.dbManager.getAllLocalMediaProgress()
+      val localMediaProgress = allLocalMediaProgress.find { libraryItemId == it.libraryItemId && (episodeId == null || it.episodeId == episodeId) }
+
+      if (localMediaProgress == null) {
+        call.resolve()
+      } else {
+        call.resolve(JSObject(jacksonMapper.writeValueAsString(localMediaProgress)))
+      }
+    }
+  }
+
+  @PluginMethod
   fun removeLocalMediaProgress(call:PluginCall) {
     val localMediaProgressId = call.getString("localMediaProgressId", "").toString()
     DeviceManager.dbManager.removeLocalMediaProgress(localMediaProgressId)
@@ -196,13 +216,25 @@ class AbsDatabase : Plugin() {
   }
 
   @PluginMethod
-  fun syncLocalMediaProgressWithServer(call:PluginCall) {
+  fun syncLocalSessionsWithServer(call:PluginCall) {
     if (DeviceManager.serverConnectionConfig == null) {
-      Log.e(tag, "syncLocalMediaProgressWithServer not connected to server")
+      Log.e(tag, "syncLocalSessionsWithServer not connected to server")
       return call.resolve()
     }
-    apiHandler.syncMediaProgress {
-      call.resolve(JSObject(jacksonMapper.writeValueAsString(it)))
+
+    apiHandler.syncLocalMediaProgressForUser {
+      Log.d(tag, "Finished syncing local media progress for user")
+      val savedSessions = DeviceManager.dbManager.getPlaybackSessions().filter { it.serverConnectionConfigId == DeviceManager.serverConnectionConfigId }
+
+      if (savedSessions.isNotEmpty()) {
+        apiHandler.sendSyncLocalSessions(savedSessions) { success, errorMsg ->
+          if (!success) {
+            call.resolve(JSObject("{\"error\":\"$errorMsg\"}"))
+          } else {
+            call.resolve()
+          }
+        }
+      }
     }
   }
 
@@ -256,6 +288,8 @@ class AbsDatabase : Plugin() {
         Log.w(tag, "syncServerMediaProgressWithLocalMediaProgress Local media progress not found $localMediaProgressId")
         call.resolve()
       } else {
+        MediaEventManager.syncEvent(mediaProgress, "Received from webhook event")
+
         localMediaProgress.updateFromServerMediaProgress(mediaProgress)
         DeviceManager.dbManager.saveLocalMediaProgress(localMediaProgress)
         call.resolve(JSObject(jacksonMapper.writeValueAsString(localMediaProgress)))
@@ -286,8 +320,8 @@ class AbsDatabase : Plugin() {
         return call.resolve(JSObject("{\"error\":\"Invalid library item not a podcast\"}"))
       }
 
-      var duration = 0.0
-      var podcastEpisode:PodcastEpisode? = null
+      val duration: Double
+      var podcastEpisode: PodcastEpisode? = null
       if (!localEpisodeId.isNullOrEmpty()) {
           val podcast = localLibraryItem.media as Podcast
         podcastEpisode = podcast.episodes?.find { episode ->
@@ -404,6 +438,21 @@ class AbsDatabase : Plugin() {
       DeviceManager.deviceData.deviceSettings = newDeviceSettings
       DeviceManager.dbManager.saveDeviceData(DeviceManager.deviceData)
       call.resolve(JSObject(jacksonMapper.writeValueAsString(DeviceManager.deviceData)))
+    }
+  }
+
+  @PluginMethod
+  fun getMediaItemHistory(call:PluginCall) { // Returns device data
+    Log.d(tag, "getMediaItemHistory ${call.data}")
+    val mediaId = call.getString("mediaId") ?: ""
+
+    GlobalScope.launch(Dispatchers.IO) {
+      val mediaItemHistory = DeviceManager.dbManager.getMediaItemHistory(mediaId)
+      if (mediaItemHistory == null) {
+        call.resolve()
+      } else {
+        call.resolve(JSObject(jacksonMapper.writeValueAsString(mediaItemHistory)))
+      }
     }
   }
 }

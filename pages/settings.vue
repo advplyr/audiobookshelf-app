@@ -1,19 +1,27 @@
 <template>
-  <div class="w-full h-full p-8">
-    <p class="uppercase text-xs font-semibold text-gray-300 mb-2">Display Settings</p>
+  <div class="w-full h-full px-8 py-8 overflow-y-auto">
+    <!-- Display settings -->
+    <p class="uppercase text-xs font-semibold text-gray-300 mb-2">User Interface Settings</p>
     <div class="flex items-center py-3" @click="toggleEnableAltView">
       <div class="w-10 flex justify-center">
-        <ui-toggle-switch v-model="settings.enableAltView" @input="saveSettings" />
+        <ui-toggle-switch v-model="enableBookshelfView" @input="saveSettings" />
       </div>
-      <p class="pl-4">Alternative bookshelf view</p>
+      <p class="pl-4">Use bookshelf view</p>
     </div>
     <div class="flex items-center py-3" @click.stop="toggleLockOrientation">
-      <div class="w-10 flex justify-center">
-        <ui-toggle-switch v-model="lockCurrentOrientation" @input="saveSettings" />
+      <div class="w-10 flex justify-center pointer-events-none">
+        <ui-toggle-switch v-model="lockCurrentOrientation" />
       </div>
       <p class="pl-4">Lock orientation</p>
     </div>
+    <div class="py-3 flex items-center">
+      <p class="pr-4 w-36">Haptic feedback</p>
+      <div @click.stop="showHapticFeedbackOptions">
+        <ui-text-input :value="hapticFeedbackOption" readonly append-icon="expand_more" style="max-width: 145px" />
+      </div>
+    </div>
 
+    <!-- Playback settings -->
     <p class="uppercase text-xs font-semibold text-gray-300 mb-2 mt-6">Playback Settings</p>
     <div v-if="!isiOS" class="flex items-center py-3" @click="toggleDisableAutoRewind">
       <div class="w-10 flex justify-center">
@@ -34,14 +42,62 @@
       <p class="pl-4">Jump forwards time</p>
     </div>
 
-    <p v-if="!isiOS" class="uppercase text-xs font-semibold text-gray-300 mb-2 mt-6">Sleep Timer Settings</p>
-    <div v-if="!isiOS" class="flex items-center py-3" @click="toggleDisableShakeToResetSleepTimer">
-      <div class="w-10 flex justify-center">
-        <ui-toggle-switch v-model="settings.disableShakeToResetSleepTimer" @input="saveSettings" />
+    <!-- Sleep timer settings -->
+    <template v-if="!isiOS">
+      <p class="uppercase text-xs font-semibold text-gray-300 mb-2 mt-6">Sleep Timer Settings</p>
+      <div class="flex items-center py-3" @click="toggleDisableShakeToResetSleepTimer">
+        <div class="w-10 flex justify-center">
+          <ui-toggle-switch v-model="settings.disableShakeToResetSleepTimer" @input="saveSettings" />
+        </div>
+        <p class="pl-4">Disable shake to reset</p>
+        <span class="material-icons-outlined ml-2" @click.stop="showInfo('disableShakeToResetSleepTimer')">info</span>
       </div>
-      <p class="pl-4">Disable shake to reset</p>
-      <span class="material-icons-outlined ml-2" @click.stop="showInfo('disableShakeToResetSleepTimer')">info</span>
+      <div v-if="!settings.disableShakeToResetSleepTimer" class="py-3 flex items-center">
+        <p class="pr-4 w-36">Shake Sensitivity</p>
+        <div @click.stop="showShakeSensitivityOptions">
+          <ui-text-input :value="shakeSensitivityOption" readonly append-icon="expand_more" style="width: 145px; max-width: 145px" />
+        </div>
+      </div>
+      <div class="flex items-center py-3" @click="toggleDisableSleepTimerFadeOut">
+        <div class="w-10 flex justify-center">
+          <ui-toggle-switch v-model="settings.disableSleepTimerFadeOut" @input="saveSettings" />
+        </div>
+        <p class="pl-4">Disable audio fade out</p>
+        <span class="material-icons-outlined ml-2" @click.stop="showInfo('disableSleepTimerFadeOut')">info</span>
+      </div>
+      <div class="flex items-center py-3" @click="toggleDisableSleepTimerResetFeedback">
+        <div class="w-10 flex justify-center">
+          <ui-toggle-switch v-model="settings.disableSleepTimerResetFeedback" @input="saveSettings" />
+        </div>
+        <p class="pl-4">Disable vibrate on reset</p>
+        <span class="material-icons-outlined ml-2" @click.stop="showInfo('disableSleepTimerResetFeedback')">info</span>
+      </div>
+      <div class="flex items-center py-3" @click="toggleAutoSleepTimer">
+        <div class="w-10 flex justify-center">
+          <ui-toggle-switch v-model="settings.autoSleepTimer" @input="saveSettings" />
+        </div>
+        <p class="pl-4">Auto Sleep Timer</p>
+        <span class="material-icons-outlined ml-2" @click.stop="showInfo('autoSleepTimer')">info</span>
+      </div>
+    </template>
+    <!-- Auto Sleep timer settings -->
+    <div v-if="settings.autoSleepTimer" class="py-3 flex items-center">
+      <p class="pr-4 w-36">Start Time</p>
+      <ui-text-input type="time" v-model="settings.autoSleepTimerStartTime" style="width: 145px; max-width: 145px" @input="autoSleepTimerTimeUpdated" />
     </div>
+    <div v-if="settings.autoSleepTimer" class="py-3 flex items-center">
+      <p class="pr-4 w-36">End Time</p>
+      <ui-text-input type="time" v-model="settings.autoSleepTimerEndTime" style="width: 145px; max-width: 145px" @input="autoSleepTimerTimeUpdated" />
+    </div>
+    <div v-if="settings.autoSleepTimer" class="py-3 flex items-center">
+      <p class="pr-4 w-36">Sleep Timer</p>
+      <div @click.stop="showSleepTimerOptions">
+        <ui-text-input :value="sleepTimerLengthOption" readonly append-icon="expand_more" style="width: 145px; max-width: 145px" />
+      </div>
+    </div>
+
+    <modals-dialog v-model="showMoreMenuDialog" :items="moreMenuItems" @action="clickMenuAction" />
+    <modals-sleep-timer-length-modal v-model="showSleepTimerLengthModal" @change="sleepTimerLengthModalSelection" />
   </div>
 </template>
 
@@ -52,24 +108,96 @@ export default {
   data() {
     return {
       deviceData: null,
+      showMoreMenuDialog: false,
+      showSleepTimerLengthModal: false,
+      moreMenuSetting: '',
       settings: {
         disableAutoRewind: false,
         enableAltView: false,
         jumpForwardTime: 10,
         jumpBackwardsTime: 10,
         disableShakeToResetSleepTimer: false,
-        lockOrientation: 0
+        shakeSensitivity: 'MEDIUM',
+        lockOrientation: 0,
+        hapticFeedback: 'LIGHT',
+        autoSleepTimer: false,
+        autoSleepTimerStartTime: '22:00',
+        autoSleepTimerEndTime: '06:00',
+        sleepTimerLength: 900000, // 15 minutes
+        disableSleepTimerFadeOut: false,
+        disableSleepTimerResetFeedback: false
       },
+      lockCurrentOrientation: false,
       settingInfo: {
         disableShakeToResetSleepTimer: {
           name: 'Disable shake to reset sleep timer',
-          message: 'The sleep timer will start fading out when 30s is remaining. Shaking your device will reset the timer if it is within 30s OR has finished less than 2 mintues ago. Enable this setting to disable that feature.'
+          message: 'Shaking your device while the timer is running OR within 2 minutes of the timer expiring will reset the sleep timer. Enable this setting to disable shake to reset.'
+        },
+        autoSleepTimer: {
+          name: 'Auto Sleep Timer',
+          message: 'When playing media between the specified start and end times a sleep timer will automatically start.'
+        },
+        disableSleepTimerFadeOut: {
+          name: 'Disable audio fade out',
+          message: 'Audio volume will start decreasing when there is less than 1 minute remaining on the sleep timer. Enable this setting to not fade out.'
+        },
+        disableSleepTimerResetFeedback: {
+          name: 'Disable vibrate on reset',
+          message: 'When the sleep timer gets reset your device will vibrate. Enable this setting to not vibrate when the sleep timer resets.'
         }
       },
-      lockCurrentOrientation: false
+      hapticFeedbackItems: [
+        {
+          text: 'Off',
+          value: 'OFF'
+        },
+        {
+          text: 'Light',
+          value: 'LIGHT'
+        },
+        {
+          text: 'Medium',
+          value: 'MEDIUM'
+        },
+        {
+          text: 'Heavy',
+          value: 'HEAVY'
+        }
+      ],
+      shakeSensitivityItems: [
+        {
+          text: 'Very Low',
+          value: 'VERY_LOW'
+        },
+        {
+          text: 'Low',
+          value: 'LOW'
+        },
+        {
+          text: 'Medium',
+          value: 'MEDIUM'
+        },
+        {
+          text: 'High',
+          value: 'HIGH'
+        },
+        {
+          text: 'Very High',
+          value: 'VERY_HIGH'
+        }
+      ]
     }
   },
   computed: {
+    // This is flipped because alt view was the default until v0.9.61-beta
+    enableBookshelfView: {
+      get() {
+        return !this.settings.enableAltView
+      },
+      set(val) {
+        this.settings.enableAltView = !val
+      }
+    },
     isiOS() {
       return this.$platform === 'ios'
     },
@@ -92,9 +220,61 @@ export default {
     currentJumpBackwardsTimeIndex() {
       var index = this.jumpBackwardsItems.findIndex((jfi) => jfi.value === this.settings.jumpBackwardsTime)
       return index >= 0 ? index : 1
+    },
+    shakeSensitivityOption() {
+      const item = this.shakeSensitivityItems.find((i) => i.value === this.settings.shakeSensitivity)
+      return item ? item.text : 'Error'
+    },
+    hapticFeedbackOption() {
+      const item = this.hapticFeedbackItems.find((i) => i.value === this.settings.hapticFeedback)
+      return item ? item.text : 'Error'
+    },
+    sleepTimerLengthOption() {
+      if (!this.settings.sleepTimerLength) return 'End of Chapter'
+      const minutes = Number(this.settings.sleepTimerLength) / 1000 / 60
+      return `${minutes} min`
+    },
+    moreMenuItems() {
+      if (this.moreMenuSetting === 'shakeSensitivity') return this.shakeSensitivityItems
+      else if (this.moreMenuSetting === 'hapticFeedback') return this.hapticFeedbackItems
+      return []
     }
   },
   methods: {
+    sleepTimerLengthModalSelection(value) {
+      this.settings.sleepTimerLength = value
+      this.saveSettings()
+    },
+    showSleepTimerOptions() {
+      this.showSleepTimerLengthModal = true
+    },
+    showHapticFeedbackOptions() {
+      this.moreMenuSetting = 'hapticFeedback'
+      this.showMoreMenuDialog = true
+    },
+    showShakeSensitivityOptions() {
+      this.moreMenuSetting = 'shakeSensitivity'
+      this.showMoreMenuDialog = true
+    },
+    clickMenuAction(action) {
+      this.showMoreMenuDialog = false
+      if (this.moreMenuSetting === 'shakeSensitivity') {
+        this.settings.shakeSensitivity = action
+        this.saveSettings()
+      } else if (this.moreMenuSetting === 'hapticFeedback') {
+        this.settings.hapticFeedback = action
+        this.hapticFeedbackUpdated(action)
+      }
+    },
+    autoSleepTimerTimeUpdated(val) {
+      console.log('[settings] Auto sleep timer time=', val)
+      if (!val) return // invalid times return falsy
+      this.saveSettings()
+    },
+    hapticFeedbackUpdated(val) {
+      this.$store.commit('globals/setHapticFeedback', val)
+      this.saveSettings()
+    },
     showInfo(setting) {
       if (this.settingInfo[setting]) {
         Dialog.alert({
@@ -103,8 +283,20 @@ export default {
         })
       }
     },
+    toggleAutoSleepTimer() {
+      this.settings.autoSleepTimer = !this.settings.autoSleepTimer
+      this.saveSettings()
+    },
+    toggleDisableSleepTimerFadeOut() {
+      this.settings.disableSleepTimerFadeOut = !this.settings.disableSleepTimerFadeOut
+      this.saveSettings()
+    },
     toggleDisableShakeToResetSleepTimer() {
       this.settings.disableShakeToResetSleepTimer = !this.settings.disableShakeToResetSleepTimer
+      this.saveSettings()
+    },
+    toggleDisableSleepTimerResetFeedback() {
+      this.settings.disableSleepTimerResetFeedback = !this.settings.disableSleepTimerResetFeedback
       this.saveSettings()
     },
     toggleDisableAutoRewind() {
@@ -118,23 +310,18 @@ export default {
     getCurrentOrientation() {
       const orientation = window.screen ? window.screen.orientation || {} : {}
       const type = orientation.type || ''
-      console.log('getCurrentOrientation=' + type)
 
       if (type.includes('landscape')) return 'LANDSCAPE'
       return 'PORTRAIT' // default
     },
     toggleLockOrientation() {
-      console.log('TOGGLE LOCK ORIENTATION', this.lockCurrentOrientation)
       this.lockCurrentOrientation = !this.lockCurrentOrientation
       if (this.lockCurrentOrientation) {
-        console.log('CURRENT ORIENTATION=', this.getCurrentOrientation())
         this.settings.lockOrientation = this.getCurrentOrientation()
       } else {
-        console.log('SETTING CURRENT ORIENTATION TO NONE')
         this.settings.lockOrientation = 'NONE'
       }
       this.$setOrientationLock(this.settings.lockOrientation)
-      console.log('NOW SAVING SETTINGS', this.settings.lockOrientation)
       this.saveSettings()
     },
     toggleJumpForward() {
@@ -149,9 +336,8 @@ export default {
       this.saveSettings()
     },
     async saveSettings() {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       const updatedDeviceData = await this.$db.updateDeviceSettings({ ...this.settings })
-      console.log('Saved device data', updatedDeviceData)
       if (updatedDeviceData) {
         this.$store.commit('setDeviceData', updatedDeviceData)
         this.init()
@@ -166,11 +352,18 @@ export default {
       this.settings.enableAltView = !!deviceSettings.enableAltView
       this.settings.jumpForwardTime = deviceSettings.jumpForwardTime || 10
       this.settings.jumpBackwardsTime = deviceSettings.jumpBackwardsTime || 10
-      this.settings.disableShakeToResetSleepTimer = !!deviceSettings.disableShakeToResetSleepTimer
       this.settings.lockOrientation = deviceSettings.lockOrientation || 'NONE'
-
-      console.log('INIT SETTINGS LOCK ORIENTATION=', this.settings.lockOrientation)
       this.lockCurrentOrientation = this.settings.lockOrientation !== 'NONE'
+      this.settings.hapticFeedback = deviceSettings.hapticFeedback || 'LIGHT'
+
+      this.settings.disableShakeToResetSleepTimer = !!deviceSettings.disableShakeToResetSleepTimer
+      this.settings.shakeSensitivity = deviceSettings.shakeSensitivity || 'MEDIUM'
+      this.settings.autoSleepTimer = !!deviceSettings.autoSleepTimer
+      this.settings.autoSleepTimerStartTime = deviceSettings.autoSleepTimerStartTime || '22:00'
+      this.settings.autoSleepTimerEndTime = deviceSettings.autoSleepTimerEndTime || '06:00'
+      this.settings.sleepTimerLength = !isNaN(deviceSettings.sleepTimerLength) ? deviceSettings.sleepTimerLength : 900000 // 15 minutes
+      this.settings.disableSleepTimerFadeOut = !!deviceSettings.disableSleepTimerFadeOut
+      this.settings.disableSleepTimerResetFeedback = !!deviceSettings.disableSleepTimerResetFeedback
     }
   },
   mounted() {

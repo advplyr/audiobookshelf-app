@@ -15,11 +15,11 @@ export const getters = {
     return state.libraries.find(lib => lib.id === state.currentLibraryId)
   },
   getCurrentLibraryName: (state, getters) => {
-    var currLib = getters.getCurrentLibrary
+    const currLib = getters.getCurrentLibrary
     return currLib ? currLib.name : null
   },
   getCurrentLibraryMediaType: (state, getters) => {
-    var currLib = getters.getCurrentLibrary
+    const currLib = getters.getCurrentLibrary
     return currLib ? currLib.mediaType : null
   },
   getCurrentLibrarySettings: (state, getters) => {

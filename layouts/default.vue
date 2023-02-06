@@ -94,11 +94,16 @@ export default {
       }
       this.attemptingConnection = true
 
-      var deviceData = await this.$db.getDeviceData()
-      var serverConfig = null
-      if (deviceData && deviceData.lastServerConnectionConfigId && deviceData.serverConnectionConfigs.length) {
-        serverConfig = deviceData.serverConnectionConfigs.find((scc) => scc.id == deviceData.lastServerConnectionConfigId)
+      const deviceData = await this.$db.getDeviceData()
+      let serverConfig = null
+      if (deviceData) {
+        this.$store.commit('globals/setHapticFeedback', deviceData.hapticFeedback)
+
+        if (deviceData.lastServerConnectionConfigId && deviceData.serverConnectionConfigs.length) {
+          serverConfig = deviceData.serverConnectionConfigs.find((scc) => scc.id == deviceData.lastServerConnectionConfigId)
+        }
       }
+
       if (!serverConfig) {
         // No last server config set
         this.attemptingConnection = false
@@ -107,9 +112,9 @@ export default {
 
       console.log(`[default] Got server config, attempt authorize ${serverConfig.address}`)
 
-      var authRes = await this.$axios.$post(`${serverConfig.address}/api/authorize`, null, { headers: { Authorization: `Bearer ${serverConfig.token}` }, timeout: 3000 }).catch((error) => {
+      const authRes = await this.$axios.$post(`${serverConfig.address}/api/authorize`, null, { headers: { Authorization: `Bearer ${serverConfig.token}` }, timeout: 3000 }).catch((error) => {
         console.error('[Server] Server auth failed', error)
-        var errorMsg = error.response ? error.response.data || 'Unknown Error' : 'Unknown Error'
+        const errorMsg = error.response ? error.response.data || 'Unknown Error' : 'Unknown Error'
         this.error = errorMsg
         return false
       })
@@ -122,13 +127,13 @@ export default {
       this.$store.commit('setServerSettings', serverSettings)
 
       // Set library - Use last library if set and available fallback to default user library
-      var lastLibraryId = await this.$localStore.getLastLibraryId()
+      const lastLibraryId = await this.$localStore.getLastLibraryId()
       if (lastLibraryId && (!user.librariesAccessible.length || user.librariesAccessible.includes(lastLibraryId))) {
         this.$store.commit('libraries/setCurrentLibrary', lastLibraryId)
       } else if (userDefaultLibraryId) {
         this.$store.commit('libraries/setCurrentLibrary', userDefaultLibraryId)
       }
-      var serverConnectionConfig = await this.$db.setServerConnectionConfig(serverConfig)
+      const serverConnectionConfig = await this.$db.setServerConnectionConfig(serverConfig)
 
       this.$store.commit('user/setUser', user)
       this.$store.commit('user/setServerConnectionConfig', serverConnectionConfig)
@@ -164,10 +169,23 @@ export default {
       this.$eventBus.$emit('library-changed')
       this.inittingLibraries = false
     },
+    async syncLocalSessions() {
+      if (!this.user) {
+        console.log('[default] No need to sync local sessions - not connected to server')
+        return
+      }
+
+      console.log('[default] Calling syncLocalSessions')
+      const response = await this.$db.syncLocalSessionsWithServer()
+      if (response && response.error) {
+        console.error('[default] Failed to sync local sessions', response.error)
+      } else {
+        console.log('[default] Successfully synced local sessions')
+      }
+    },
     async syncLocalMediaProgress() {
       if (!this.user) {
         console.log('[default] No need to sync local media progress - not connected to server')
-        this.$store.commit('setLastLocalMediaSyncResults', null)
         return
       }
 
@@ -175,14 +193,16 @@ export default {
       const response = await this.$db.syncLocalMediaProgressWithServer()
       if (!response) {
         if (this.$platform != 'web') this.$toast.error('Failed to sync local media with server')
-        this.$store.commit('setLastLocalMediaSyncResults', null)
         return
       }
-      const { numLocalMediaProgressForServer, numServerProgressUpdates, numLocalProgressUpdates } = response
+      const { numLocalMediaProgressForServer, numServerProgressUpdates, numLocalProgressUpdates, serverProgressUpdates } = response
       if (numLocalMediaProgressForServer > 0) {
-        response.syncedAt = Date.now()
-        response.serverConfigName = this.$store.getters['user/getServerConfigName']
-        this.$store.commit('setLastLocalMediaSyncResults', response)
+        if (serverProgressUpdates && serverProgressUpdates.length) {
+          serverProgressUpdates.forEach((progress) => {
+            console.log(`[default] Server progress was updated ${progress.id}`)
+            this.$store.commit('user/updateUserMediaProgress', progress)
+          })
+        }
 
         if (numServerProgressUpdates > 0 || numLocalProgressUpdates > 0) {
           console.log(`[default] ${numServerProgressUpdates} Server progress updates | ${numLocalProgressUpdates} Local progress updates`)
@@ -191,10 +211,10 @@ export default {
         }
       } else {
         console.log('[default] syncLocalMediaProgress No local media progress to sync')
-        this.$store.commit('setLastLocalMediaSyncResults', null)
       }
     },
-    async userUpdated(user) {
+    userUpdated(user) {
+      console.log('[default] userUpdated:', JSON.stringify(user))
       if (this.user && this.user.id == user.id) {
         this.$store.commit('user/setUser', user)
       }
@@ -203,11 +223,19 @@ export default {
       console.log(`[default] userMediaProgressUpdate checking for local media progress ${prog.id}`)
 
       // Update local media progress if exists
-      var localProg = this.$store.getters['globals/getLocalMediaProgressByServerItemId'](prog.libraryItemId, prog.episodeId)
-      var newLocalMediaProgress = null
+      const localProg = await this.$db.getLocalMediaProgressForServerItem({ libraryItemId: prog.libraryItemId, episodeId: prog.episodeId })
+
+      let newLocalMediaProgress = null
       if (localProg && localProg.lastUpdate < prog.lastUpdate) {
+        if (localProg.currentTime == prog.currentTime && localProg.isFinished == prog.isFinished) {
+          console.log('[default] syncing progress server lastUpdate > local lastUpdate but currentTime and isFinished is equal')
+          return
+        } else {
+          console.log(`[default] syncing progress server lastUpdate > local lastUpdate. server currentTime=${prog.currentTime} local currentTime=${localProg.currentTime} | server/local isFinished=${prog.isFinished}/${localProg.isFinished}`)
+        }
+
         // Server progress is more up-to-date
-        console.log(`[default] syncing progress from server with local item for "${prog.libraryItemId}" ${prog.episodeId ? `episode ${prog.episodeId}` : ''}`)
+        console.log(`[default] syncing progress from server with local item for "${prog.libraryItemId}" ${prog.episodeId ? `episode ${prog.episodeId}` : ''} | server lastUpdate=${prog.lastUpdate} > local lastUpdate=${localProg.lastUpdate}`)
         const payload = {
           localMediaProgressId: localProg.id,
           mediaProgress: prog
@@ -216,12 +244,12 @@ export default {
       } else if (!localProg) {
         // Check if local library item exists
         //   local media progress may not exist yet if it hasn't been played
-        var localLibraryItem = await this.$db.getLocalLibraryItemByLId(prog.libraryItemId)
+        const localLibraryItem = await this.$db.getLocalLibraryItemByLId(prog.libraryItemId)
         if (localLibraryItem) {
           if (prog.episodeId) {
             // If episode check if local episode exists
-            var lliEpisodes = localLibraryItem.media.episodes || []
-            var localEpisode = lliEpisodes.find((ep) => ep.serverEpisodeId === prog.episodeId)
+            const lliEpisodes = localLibraryItem.media.episodes || []
+            const localEpisode = lliEpisodes.find((ep) => ep.serverEpisodeId === prog.episodeId)
             if (localEpisode) {
               // Add new local media progress
               const payload = {
@@ -274,7 +302,12 @@ export default {
       }
 
       console.log(`[default] finished connection attempt or already connected ${!!this.user}`)
-      await this.syncLocalMediaProgress()
+      if (this.$platform === 'ios') {
+        // TODO: Update ios to not use this
+        await this.syncLocalMediaProgress()
+      } else {
+        await this.syncLocalSessions()
+      }
 
       this.loadSavedSettings()
       this.hasMounted = true

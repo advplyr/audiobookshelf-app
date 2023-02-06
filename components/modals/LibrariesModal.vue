@@ -49,7 +49,7 @@ export default {
   },
   methods: {
     async clickedOption(lib) {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       this.show = false
       if (lib.id === this.currentLibraryId) return
       await this.$store.dispatch('libraries/fetch', lib.id)

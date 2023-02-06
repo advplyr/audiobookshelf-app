@@ -14,6 +14,7 @@ import com.bookshelf.app.R
 import com.bookshelf.app.device.DeviceManager
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.bookshelf.app.player.PLAYMETHOD_LOCAL
 import java.util.*
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -117,6 +118,10 @@ class LocalLibraryItem(
     }
 
     val extras = Bundle()
+    extras.putLong(
+      MediaDescriptionCompat.EXTRA_DOWNLOAD_STATUS,
+      MediaDescriptionCompat.STATUS_DOWNLOADED
+    )
     if (progress != null) {
       if (progress.isFinished) {
         extras.putInt(

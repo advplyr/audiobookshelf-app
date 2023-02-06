@@ -3,7 +3,7 @@
     <h1 class="text-xl mb-2 font-semibold">Latest Episodes</h1>
 
     <template v-for="episode in recentEpisodes">
-      <tables-podcast-episode-row :episode="episode" :local-episode="localEpisodeMap[episode.id]" :library-item-id="episode.libraryItemId" :local-library-item-id="null" :is-local="isLocal" :key="episode.id" @addToPlaylist="addEpisodeToPlaylist" />
+      <tables-podcast-latest-episode-row :episode="episode" :local-episode="localEpisodeMap[episode.id]" :library-item-id="episode.libraryItemId" :local-library-item-id="null" :is-local="isLocal" :key="episode.id" @addToPlaylist="addEpisodeToPlaylist" />
     </template>
   </div>
 </template>

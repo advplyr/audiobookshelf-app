@@ -34,12 +34,12 @@ export default {
   computed: {},
   methods: {
     updateProgress() {
-      var progbar = this.$refs.progressbar
-      var circle = this.$refs.circle
+      const progbar = this.$refs.progressbar
+      const circle = this.$refs.circle
       if (!progbar || !circle) return
 
       clearTimeout(this.updateTimeout)
-      var progress = Math.min(this.value || 0, 1)
+      const progress = Math.min(this.value || 0, 1)
 
       progbar.style.setProperty('--progress-percent-before', this.lastProgress)
       progbar.style.setProperty('--progress-percent', progress)

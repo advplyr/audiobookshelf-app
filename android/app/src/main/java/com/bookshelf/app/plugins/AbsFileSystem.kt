@@ -28,7 +28,7 @@ import kotlinx.coroutines.launch
 class AbsFileSystem : Plugin() {
   private val TAG = "AbsFileSystem"
   private val tag = "AbsFileSystem"
-  var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
+  private var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
 
   lateinit var mainActivity: MainActivity
 
@@ -85,21 +85,28 @@ class AbsFileSystem : Plugin() {
         call.resolve(JSObject(jacksonMapper.writeValueAsString(localFolder)))
       }
 
-      override fun onStorageAccessDenied(requestCode: Int, folder: DocumentFile?, storageType: StorageType) {
+      override fun onStorageAccessDenied(
+        requestCode: Int,
+        folder: DocumentFile?,
+        storageType: StorageType,
+        storageId: String
+      ) {
+        Log.e(tag, "Storage Access Denied ${folder?.getAbsolutePath(mainActivity)}")
+
         val jsobj = JSObject()
         if (requestCode == REQUEST_CODE_SELECT_FOLDER) {
 
           val builder: AlertDialog.Builder = AlertDialog.Builder(mainActivity)
           builder.setMessage(
             "You have no write access to this storage, thus selecting this folder is useless." +
-            "\nWould you like to grant access to this folder?")
+              "\nWould you like to grant access to this folder?")
           builder.setNegativeButton("Dont Allow") { _, _ ->
             run {
               jsobj.put("error", "User Canceled, Access Denied")
               call.resolve(jsobj)
             }
           }
-          builder.setPositiveButton("Allow.") { _, _ -> mainActivity.storageHelper.requestStorageAccess(REQUEST_CODE_SDCARD_ACCESS, storageType) }
+          builder.setPositiveButton("Allow.") { _, _ -> mainActivity.storageHelper.requestStorageAccess(REQUEST_CODE_SDCARD_ACCESS, initialPath = FileFullPath(mainActivity, storageId, "")) }
           builder.show()
         } else {
           Log.d(TAG, "STORAGE ACCESS DENIED $requestCode")
@@ -131,7 +138,7 @@ class AbsFileSystem : Plugin() {
 
   @PluginMethod
   fun checkStoragePermission(call: PluginCall) {
-    var res: Boolean
+    val res: Boolean
     if (Build.VERSION.SDK_INT <= android.os.Build.VERSION_CODES.P) {
       res = SimpleStorage.hasStoragePermission(context)
       Log.d(TAG, "checkStoragePermission: Check Storage Access $res")
@@ -140,33 +147,33 @@ class AbsFileSystem : Plugin() {
       res = true
     }
 
-    var jsobj = JSObject()
+    val jsobj = JSObject()
     jsobj.put("value", res)
     call.resolve(jsobj)
   }
 
   @PluginMethod
   fun checkFolderPermissions(call: PluginCall) {
-    var folderUrl = call.data.getString("folderUrl", "").toString()
-      Log.d(TAG, "Check Folder Permissions for $folderUrl")
+    val folderUrl = call.data.getString("folderUrl", "").toString()
+    Log.d(TAG, "Check Folder Permissions for $folderUrl")
 
-    var hasAccess = SimpleStorage.hasStorageAccess(context,folderUrl,true)
+    val hasAccess = SimpleStorage.hasStorageAccess(context,folderUrl,true)
 
-    var jsobj = JSObject()
+    val jsobj = JSObject()
     jsobj.put("value", hasAccess)
     call.resolve(jsobj)
   }
 
   @PluginMethod
   fun scanFolder(call: PluginCall) {
-    var folderId =  call.data.getString("folderId", "").toString()
-    var forceAudioProbe = call.data.getBoolean("forceAudioProbe")
+    val folderId =  call.data.getString("folderId", "").toString()
+    val forceAudioProbe = call.data.getBoolean("forceAudioProbe")
     Log.d(TAG, "Scan Folder $folderId | Force Audio Probe $forceAudioProbe")
 
-    var folder: LocalFolder? = DeviceManager.dbManager.getLocalFolder(folderId)
+    val folder: LocalFolder? = DeviceManager.dbManager.getLocalFolder(folderId)
     folder?.let {
-      var folderScanner = FolderScanner(context)
-      var folderScanResult = folderScanner.scanForMediaItems(it, forceAudioProbe)
+      val folderScanner = FolderScanner(context)
+      val folderScanResult = folderScanner.scanForMediaItems(it, forceAudioProbe)
       if (folderScanResult == null) {
         Log.d(TAG, "NO Scan DATA")
         return call.resolve(JSObject())
@@ -179,28 +186,28 @@ class AbsFileSystem : Plugin() {
 
   @PluginMethod
   fun removeFolder(call: PluginCall) {
-    var folderId = call.data.getString("folderId", "").toString()
+    val folderId = call.data.getString("folderId", "").toString()
     DeviceManager.dbManager.removeLocalFolder(folderId)
     call.resolve()
   }
 
   @PluginMethod
   fun removeLocalLibraryItem(call: PluginCall) {
-    var localLibraryItemId = call.data.getString("localLibraryItemId", "").toString()
+    val localLibraryItemId = call.data.getString("localLibraryItemId", "").toString()
     DeviceManager.dbManager.removeLocalLibraryItem(localLibraryItemId)
     call.resolve()
   }
 
   @PluginMethod
   fun scanLocalLibraryItem(call: PluginCall) {
-    var localLibraryItemId = call.data.getString("localLibraryItemId", "").toString()
-    var forceAudioProbe = call.data.getBoolean("forceAudioProbe")
+    val localLibraryItemId = call.data.getString("localLibraryItemId", "").toString()
+    val forceAudioProbe = call.data.getBoolean("forceAudioProbe")
     Log.d(TAG, "Scan Local library item $localLibraryItemId | Force Audio Probe $forceAudioProbe")
     GlobalScope.launch(Dispatchers.IO) {
-      var localLibraryItem: LocalLibraryItem? = DeviceManager.dbManager.getLocalLibraryItem(localLibraryItemId)
+      val localLibraryItem: LocalLibraryItem? = DeviceManager.dbManager.getLocalLibraryItem(localLibraryItemId)
       localLibraryItem?.let {
-        var folderScanner = FolderScanner(context)
-        var scanResult = folderScanner.scanLocalLibraryItem(it, forceAudioProbe)
+        val folderScanner = FolderScanner(context)
+        val scanResult = folderScanner.scanLocalLibraryItem(it, forceAudioProbe)
         if (scanResult == null) {
           Log.d(TAG, "NO Scan DATA")
           call.resolve(JSObject())
@@ -214,13 +221,13 @@ class AbsFileSystem : Plugin() {
 
   @PluginMethod
   fun deleteItem(call: PluginCall) {
-    var localLibraryItemId = call.data.getString("id", "").toString()
-    var absolutePath = call.data.getString("absolutePath", "").toString()
-    var contentUrl = call.data.getString("contentUrl", "").toString()
+    val localLibraryItemId = call.data.getString("id", "").toString()
+    val absolutePath = call.data.getString("absolutePath", "").toString()
+    val contentUrl = call.data.getString("contentUrl", "").toString()
     Log.d(tag, "deleteItem $absolutePath | $contentUrl")
 
-    var docfile = DocumentFileCompat.fromUri(mainActivity, Uri.parse(contentUrl))
-    var success = docfile?.delete() == true
+    val docfile = DocumentFileCompat.fromUri(mainActivity, Uri.parse(contentUrl))
+    val success = docfile?.delete() == true
     if (success) {
       DeviceManager.dbManager.removeLocalLibraryItem(localLibraryItemId)
     }
@@ -229,19 +236,19 @@ class AbsFileSystem : Plugin() {
 
   @PluginMethod
   fun deleteTrackFromItem(call: PluginCall) {
-    var localLibraryItemId = call.data.getString("id", "").toString()
-    var trackLocalFileId = call.data.getString("trackLocalFileId", "").toString()
-    var contentUrl = call.data.getString("trackContentUrl", "").toString()
+    val localLibraryItemId = call.data.getString("id", "").toString()
+    val trackLocalFileId = call.data.getString("trackLocalFileId", "").toString()
+    val contentUrl = call.data.getString("trackContentUrl", "").toString()
     Log.d(tag, "deleteTrackFromItem $contentUrl")
 
-    var localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(localLibraryItemId)
+    val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(localLibraryItemId)
     if (localLibraryItem == null) {
       Log.e(tag, "deleteTrackFromItem: LLI does not exist $localLibraryItemId")
       return call.resolve(JSObject("{\"success\":false}"))
     }
 
-    var docfile = DocumentFileCompat.fromUri(mainActivity, Uri.parse(contentUrl))
-    var success = docfile?.delete() == true
+    val docfile = DocumentFileCompat.fromUri(mainActivity, Uri.parse(contentUrl))
+    val success = docfile?.delete() == true
     if (success) {
       localLibraryItem.media.removeAudioTrack(trackLocalFileId)
       localLibraryItem.removeLocalFile(trackLocalFileId)

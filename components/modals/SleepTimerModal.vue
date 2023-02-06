@@ -40,7 +40,7 @@
           </li>
           <li class="text-gray-50 select-none relative py-4 cursor-pointer hover:bg-black-400" role="option" @click="manualTimerModal = true">
             <div class="flex items-center justify-center">
-              <span class="font-normal block truncate text-lg text-center">Manual sleep timer</span>
+              <span class="font-normal block truncate text-lg text-center">Custom time</span>
             </div>
           </li>
         </ul>
@@ -51,7 +51,7 @@
             <ui-btn @click="increaseSleepTime" class="w-9 h-9" :padding-x="0" small style="max-width: 36px"><span class="material-icons">add</span></ui-btn>
           </div>
 
-          <ui-btn @click="cancelSleepTimer" class="w-full">Cancel Timer</ui-btn>
+          <ui-btn @click="cancelSleepTimer" class="w-full">{{ isAuto ? 'Disable Auto Timer' : 'Cancel Timer' }}</ui-btn>
         </div>
       </div>
     </div>
@@ -59,12 +59,15 @@
 </template>
 
 <script>
+import { Dialog } from '@capacitor/dialog'
+
 export default {
   props: {
     value: Boolean,
     currentTime: Number,
     sleepTimerRunning: Boolean,
-    currentEndOfChapterTime: Number
+    currentEndOfChapterTime: Number,
+    isAuto: Boolean
   },
   data() {
     return {
@@ -90,36 +93,44 @@ export default {
   },
   methods: {
     async clickedChapterOption() {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       this.show = false
       this.$nextTick(() => this.$emit('change', { time: this.currentEndOfChapterTime * 1000, isChapterTime: true }))
     },
     async clickedOption(timeoutMin) {
-      await this.$hapticsImpactMedium()
-      var timeout = timeoutMin * 1000 * 60
+      await this.$hapticsImpact()
+      const timeout = timeoutMin * 1000 * 60
       this.show = false
       this.manualTimerModal = false
       this.$nextTick(() => this.$emit('change', { time: timeout, isChapterTime: false }))
     },
     async cancelSleepTimer() {
-      await this.$hapticsImpactMedium()
+      if (this.isAuto) {
+        const { value } = await Dialog.confirm({
+          title: 'Confirm',
+          message: 'Are you sure you want to disable the auto sleep timer? You will need to enable this again in settings.'
+        })
+        if (!value) return
+      }
+
+      await this.$hapticsImpact()
       this.$emit('cancel')
       this.show = false
     },
     async increaseSleepTime() {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       this.$emit('increase')
     },
     async decreaseSleepTime() {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       this.$emit('decrease')
     },
     async increaseManualTimeout() {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       this.manualTimeoutMin++
     },
     async decreaseManualTimeout() {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       if (this.manualTimeoutMin > 1) this.manualTimeoutMin--
     }
   },

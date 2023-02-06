@@ -91,16 +91,26 @@ Vue.prototype.$elapsedPrettyExtended = (seconds, useDays = true) => {
 }
 
 Vue.prototype.$secondsToTimestamp = (seconds) => {
-  var _seconds = seconds
-  var _minutes = Math.floor(seconds / 60)
+  let _seconds = seconds
+  let _minutes = Math.floor(seconds / 60)
   _seconds -= _minutes * 60
-  var _hours = Math.floor(_minutes / 60)
+  let _hours = Math.floor(_minutes / 60)
   _minutes -= _hours * 60
   _seconds = Math.floor(_seconds)
   if (!_hours) {
     return `${_minutes}:${_seconds.toString().padStart(2, '0')}`
   }
   return `${_hours}:${_minutes.toString().padStart(2, '0')}:${_seconds.toString().padStart(2, '0')}`
+}
+
+Vue.prototype.$secondsToTimestampFull = (seconds) => {
+  let _seconds = Math.round(seconds)
+  let _minutes = Math.floor(seconds / 60)
+  _seconds -= _minutes * 60
+  let _hours = Math.floor(_minutes / 60)
+  _minutes -= _hours * 60
+  _seconds = Math.floor(_seconds)
+  return `${_hours.toString().padStart(2, '0')}:${_minutes.toString().padStart(2, '0')}:${_seconds.toString().padStart(2, '0')}`
 }
 
 Vue.prototype.$sanitizeFilename = (input, colonReplacement = ' - ') => {
@@ -205,17 +215,18 @@ Vue.prototype.$setOrientationLock = (orientationLockSetting) => {
 }
 
 export default ({ store, app }, inject) => {
-  inject('eventBus', new Vue())
+  const eventBus = new Vue()
+  inject('eventBus', eventBus)
 
   // iOS Only
   //  backButton event does not work with iOS swipe navigation so use this workaround
   if (app.router && Capacitor.getPlatform() === 'ios') {
     app.router.beforeEach((to, from, next) => {
       if (store.state.globals.isModalOpen) {
-        Vue.prototype.$eventBus.$emit('close-modal')
+        eventBus.$emit('close-modal')
       }
       if (store.state.playerIsFullscreen) {
-        Vue.prototype.$eventBus.$emit('minimize-player')
+        eventBus.$emit('minimize-player')
       }
       next()
     })
@@ -224,11 +235,11 @@ export default ({ store, app }, inject) => {
   // Android only
   App.addListener('backButton', async ({ canGoBack }) => {
     if (store.state.globals.isModalOpen) {
-      Vue.prototype.$eventBus.$emit('close-modal')
+      eventBus.$emit('close-modal')
       return
     }
     if (store.state.playerIsFullscreen) {
-      Vue.prototype.$eventBus.$emit('minimize-player')
+      eventBus.$emit('minimize-player')
       return
     }
     if (!canGoBack) {

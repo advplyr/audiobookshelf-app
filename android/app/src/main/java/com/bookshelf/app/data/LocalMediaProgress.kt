@@ -11,7 +11,7 @@ class LocalMediaProgress(
   var localEpisodeId:String?,
   var duration:Double,
   progress:Double, // 0 to 1
-  var currentTime:Double,
+  currentTime:Double,
   isFinished:Boolean,
   var lastUpdate:Long,
   var startedAt:Long,
@@ -22,9 +22,21 @@ class LocalMediaProgress(
   var serverUserId:String?,
   var libraryItemId:String?,
   var episodeId:String?
-) : MediaProgressWrapper(isFinished, progress) {
+) : MediaProgressWrapper(isFinished, currentTime, progress) {
   @get:JsonIgnore
   val progressPercent get() = if (progress.isNaN()) 0 else (progress * 100).roundToInt()
+  @get:JsonIgnore
+  override val mediaItemId get() = if (libraryItemId != null) {
+        if (episodeId.isNullOrEmpty()) libraryItemId ?: "" else "$libraryItemId-$episodeId"
+    } else {
+        if (localEpisodeId.isNullOrEmpty()) localLibraryItemId else "$localLibraryItemId-$localEpisodeId"
+    }
+
+  @JsonIgnore
+  fun isMatch(mediaProgress:MediaProgress):Boolean {
+    if (episodeId != null) return libraryItemId == mediaProgress.libraryItemId && episodeId == mediaProgress.episodeId
+    return libraryItemId == mediaProgress.libraryItemId
+  }
 
   @JsonIgnore
   fun updateIsFinished(finished:Boolean) {
@@ -41,8 +53,7 @@ class LocalMediaProgress(
   fun updateFromPlaybackSession(playbackSession:PlaybackSession) {
     currentTime = playbackSession.currentTime
     progress = playbackSession.progress
-    lastUpdate = System.currentTimeMillis()
-
+    lastUpdate = playbackSession.updatedAt
     isFinished = playbackSession.progress >= 0.99
     finishedAt = if (isFinished) lastUpdate else null
   }

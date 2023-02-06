@@ -407,7 +407,7 @@ export default {
         e.preventDefault()
         this.selectBtnClick()
       } else if (this.recentEpisode) {
-        await this.$hapticsImpactMedium()
+        await this.$hapticsImpact()
         var eventBus = this.$eventBus || this.$nuxt.$eventBus
         if (this.streamIsPlaying) {
           eventBus.$emit('pause-item')
@@ -526,9 +526,9 @@ export default {
       this.imageReady = true
 
       if (this.$refs.cover && this.bookCoverSrc !== this.placeholderUrl) {
-        var { naturalWidth, naturalHeight } = this.$refs.cover
-        var aspectRatio = naturalHeight / naturalWidth
-        var arDiff = Math.abs(aspectRatio - this.bookCoverAspectRatio)
+        const { naturalWidth, naturalHeight } = this.$refs.cover
+        const aspectRatio = naturalHeight / naturalWidth
+        const arDiff = Math.abs(aspectRatio - this.bookCoverAspectRatio)
 
         // If image aspect ratio is <= 1.45 or >= 1.75 then use cover bg, otherwise stretch to fit
         if (arDiff > 0.15) {

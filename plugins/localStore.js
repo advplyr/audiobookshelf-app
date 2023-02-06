@@ -1,4 +1,4 @@
-import { Storage } from '@capacitor/storage'
+import { Preferences } from '@capacitor/preferences'
 
 class LocalStorage {
   constructor(vuexStore) {
@@ -7,7 +7,7 @@ class LocalStorage {
 
   async setUserSettings(settings) {
     try {
-      await Storage.set({ key: 'userSettings', value: JSON.stringify(settings) })
+      await Preferences.set({ key: 'userSettings', value: JSON.stringify(settings) })
     } catch (error) {
       console.error('[LocalStorage] Failed to update user settings', error)
     }
@@ -15,7 +15,7 @@ class LocalStorage {
 
   async getUserSettings() {
     try {
-      const settingsObj = await Storage.get({ key: 'userSettings' }) || {}
+      const settingsObj = await Preferences.get({ key: 'userSettings' }) || {}
       return settingsObj.value ? JSON.parse(settingsObj.value) : null
     } catch (error) {
       console.error('[LocalStorage] Failed to get user settings', error)
@@ -25,7 +25,7 @@ class LocalStorage {
 
   async setServerSettings(settings) {
     try {
-      await Storage.set({ key: 'serverSettings', value: JSON.stringify(settings) })
+      await Preferences.set({ key: 'serverSettings', value: JSON.stringify(settings) })
       console.log('Saved server settings', JSON.stringify(settings))
     } catch (error) {
       console.error('[LocalStorage] Failed to update server settings', error)
@@ -34,7 +34,7 @@ class LocalStorage {
 
   async getServerSettings() {
     try {
-      var settingsObj = await Storage.get({ key: 'serverSettings' }) || {}
+      var settingsObj = await Preferences.get({ key: 'serverSettings' }) || {}
       return settingsObj.value ? JSON.parse(settingsObj.value) : null
     } catch (error) {
       console.error('[LocalStorage] Failed to get server settings', error)
@@ -44,7 +44,7 @@ class LocalStorage {
 
   async setUseChapterTrack(useChapterTrack) {
     try {
-      await Storage.set({ key: 'useChapterTrack', value: useChapterTrack ? '1' : '0' })
+      await Preferences.set({ key: 'useChapterTrack', value: useChapterTrack ? '1' : '0' })
     } catch (error) {
       console.error('[LocalStorage] Failed to set use chapter track', error)
     }
@@ -52,7 +52,7 @@ class LocalStorage {
 
   async getUseChapterTrack() {
     try {
-      var obj = await Storage.get({ key: 'useChapterTrack' }) || {}
+      var obj = await Preferences.get({ key: 'useChapterTrack' }) || {}
       return obj.value === '1'
     } catch (error) {
       console.error('[LocalStorage] Failed to get use chapter track', error)
@@ -60,9 +60,27 @@ class LocalStorage {
     }
   }
 
+  async setUseTotalTrack(useTotalTrack) {
+    try {
+      await Preferences.set({ key: 'useTotalTrack', value: useTotalTrack ? '1' : '0' })
+    } catch (error) {
+      console.error('[LocalStorage] Failed to set use total track', error)
+    }
+  }
+
+  async getUseTotalTrack() {
+    try {
+      var obj = await Preferences.get({ key: 'useTotalTrack' }) || {}
+      return obj.value === '1'
+    } catch (error) {
+      console.error('[LocalStorage] Failed to get use total track', error)
+      return false
+    }
+  }
+
   async setPlayerLock(lock) {
     try {
-      await Storage.set({ key: 'playerLock', value: lock ? '1' : '0' })
+      await Preferences.set({ key: 'playerLock', value: lock ? '1' : '0' })
     } catch (error) {
       console.error('[LocalStorage] Failed to set player lock', error)
     }
@@ -70,7 +88,7 @@ class LocalStorage {
 
   async getPlayerLock() {
     try {
-      var obj = await Storage.get({ key: 'playerLock' }) || {}
+      var obj = await Preferences.get({ key: 'playerLock' }) || {}
       return obj.value === '1'
     } catch (error) {
       console.error('[LocalStorage] Failed to get player lock', error)
@@ -80,7 +98,7 @@ class LocalStorage {
 
   async setBookshelfListView(useIt) {
     try {
-      await Storage.set({ key: 'bookshelfListView', value: useIt ? '1' : '0' })
+      await Preferences.set({ key: 'bookshelfListView', value: useIt ? '1' : '0' })
     } catch (error) {
       console.error('[LocalStorage] Failed to set bookshelf list view', error)
     }
@@ -88,7 +106,7 @@ class LocalStorage {
 
   async getBookshelfListView() {
     try {
-      var obj = await Storage.get({ key: 'bookshelfListView' }) || {}
+      var obj = await Preferences.get({ key: 'bookshelfListView' }) || {}
       return obj.value === '1'
     } catch (error) {
       console.error('[LocalStorage] Failed to get bookshelf list view', error)
@@ -98,7 +116,7 @@ class LocalStorage {
 
   async setLastLibraryId(libraryId) {
     try {
-      await Storage.set({ key: 'lastLibraryId', value: libraryId })
+      await Preferences.set({ key: 'lastLibraryId', value: libraryId })
       console.log('[LocalStorage] Set Last Library Id', libraryId)
     } catch (error) {
       console.error('[LocalStorage] Failed to set last library id', error)
@@ -107,7 +125,7 @@ class LocalStorage {
 
   async removeLastLibraryId() {
     try {
-      await Storage.remove({ key: 'lastLibraryId' })
+      await Preferences.remove({ key: 'lastLibraryId' })
       console.log('[LocalStorage] Remove Last Library Id')
     } catch (error) {
       console.error('[LocalStorage] Failed to remove last library id', error)
@@ -116,7 +134,7 @@ class LocalStorage {
 
   async getLastLibraryId() {
     try {
-      var obj = await Storage.get({ key: 'lastLibraryId' }) || {}
+      var obj = await Preferences.get({ key: 'lastLibraryId' }) || {}
       return obj.value || null
     } catch (error) {
       console.error('[LocalStorage] Failed to get last library id', error)

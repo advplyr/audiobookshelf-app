@@ -35,7 +35,8 @@ export const state = () => ({
   ],
   libraryIcons: ['database', 'audiobookshelf', 'books-1', 'books-2', 'book-1', 'microphone-1', 'microphone-3', 'radio', 'podcast', 'rss', 'headphones', 'music', 'file-picture', 'rocket', 'power', 'star', 'heart'],
   selectedPlaylistItems: [],
-  showPlaylistsAddCreateModal: false
+  showPlaylistsAddCreateModal: false,
+  hapticFeedback: 'LIGHT'
 })
 
 export const getters = {
@@ -66,6 +67,16 @@ export const getters = {
     const url = new URL(`/api/items/${libraryItem.id}/cover`, serverAddress)
     return `${url}?token=${userToken}&ts=${lastUpdate}${raw ? '&raw=1' : ''}`
   },
+  getLibraryItemCoverSrcById: (state, getters, rootState, rootGetters) => (libraryItemId, placeholder = null) => {
+    if (!placeholder) placeholder = `${rootState.routerBasePath}/book_placeholder.jpg`
+    if (!libraryItemId) return placeholder
+    const userToken = rootGetters['user/getToken']
+    const serverAddress = rootGetters['user/getServerAddress']
+    if (!userToken || !serverAddress) return placeholder
+
+    const url = new URL(`/api/items/${libraryItemId}/cover`, serverAddress)
+    return `${url}?token=${userToken}`
+  },
   getLocalMediaProgressById: (state) => (localLibraryItemId, episodeId = null) => {
     return state.localMediaProgress.find(lmp => {
       if (episodeId != null && lmp.localEpisodeId != episodeId) return false
@@ -90,7 +101,7 @@ export const getters = {
 
 export const actions = {
   async loadLocalMediaProgress({ state, commit }) {
-    var mediaProgress = await this.$db.getAllLocalMediaProgress()
+    const mediaProgress = await this.$db.getAllLocalMediaProgress()
     commit('setLocalMediaProgress', mediaProgress)
   }
 }
@@ -105,6 +116,31 @@ export const mutations = {
       state.itemDownloads.splice(index, 1, downloadItem)
     } else {
       state.itemDownloads.push(downloadItem)
+    }
+  },
+  updateDownloadItemPart(state, downloadItemPart) {
+    const downloadItem = state.itemDownloads.find(i => i.id == downloadItemPart.downloadItemId)
+    if (!downloadItem) {
+      console.error('updateDownloadItemPart: Download item not found for itemPart', JSON.stringify(downloadItemPart))
+      return
+    }
+
+    let totalBytes = 0
+    let totalBytesDownloaded = 0
+    downloadItem.downloadItemParts = downloadItem.downloadItemParts.map(dip => {
+      let newDip = dip.id == downloadItemPart.id ? downloadItemPart : dip
+
+      totalBytes += newDip.fileSize
+      totalBytesDownloaded += newDip.bytesDownloaded
+
+      return newDip
+    })
+
+    if (totalBytes > 0) {
+      downloadItem.itemProgress = Math.min(1, totalBytesDownloaded / totalBytes)
+      console.log(`updateDownloadItemPart: filename=${downloadItemPart.filename}, totalBytes=${totalBytes}, downloaded=${totalBytesDownloaded}, itemProgress=${downloadItem.itemProgress}`)
+    } else {
+      downloadItem.itemProgress = 0
     }
   },
   removeItemDownload(state, id) {
@@ -144,5 +180,8 @@ export const mutations = {
   },
   setShowPlaylistsAddCreateModal(state, val) {
     state.showPlaylistsAddCreateModal = val
+  },
+  setHapticFeedback(state, val) {
+    state.hapticFeedback = val || 'LIGHT'
   }
 }

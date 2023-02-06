@@ -43,7 +43,7 @@ export default {
     return {
       currentPlaybackRate: 0,
       MIN_SPEED: 0.5,
-      MAX_SPEED: 3
+      MAX_SPEED: 10
     }
   },
   watch: {
@@ -71,7 +71,7 @@ export default {
       }
     },
     rates() {
-      return [0.5, 1, 1.2, 1.5, 2]
+      return [0.5, 1, 1.2, 1.5, 2, 3]
     },
     canIncrement() {
       return this.playbackRate + 0.1 <= this.MAX_SPEED

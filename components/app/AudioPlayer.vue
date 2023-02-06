@@ -1,19 +1,21 @@
 <template>
-  <div v-if="playbackSession" id="streamContainer" class="playerContainer fixed top-0 left-0 layout-wrapper right-0 z-50 pointer-events-none" :class="{ fullscreen: showFullscreen, 'ios-player': $platform === 'ios', 'web-player': $platform === 'web' }">
-    <div v-if="showFullscreen" class="w-full h-full z-10 bg-bg absolute top-0 left-0 pointer-events-auto">
+  <div v-if="playbackSession" id="streamContainer" class="fixed top-0 left-0 layout-wrapper right-0 z-50 pointer-events-none" :class="{ fullscreen: showFullscreen, 'ios-player': $platform === 'ios', 'web-player': $platform === 'web' }">
+    <div v-if="showFullscreen" class="w-full h-full z-10 absolute top-0 left-0 pointer-events-auto" :style="{ backgroundColor: coverRgb }">
+      <div class="w-full h-full absolute top-0 left-0 pointer-events-none" style="background: linear-gradient(169deg, rgba(0, 0, 0, 0) 0%, rgba(38, 38, 38, 1) 80%)" />
+
       <div class="top-4 left-4 absolute cursor-pointer">
-        <span class="material-icons text-5xl" @click="collapseFullscreen">expand_more</span>
+        <span class="material-icons text-5xl" :class="{ 'text-black text-opacity-75': coverBgIsLight }" @click="collapseFullscreen">expand_more</span>
       </div>
       <div v-show="showCastBtn" class="top-6 right-16 absolute cursor-pointer">
-        <span class="material-icons text-3xl" :class="isCasting ? 'text-success' : ''" @click="castClick">cast</span>
+        <span class="material-icons text-3xl" :class="isCasting ? (coverBgIsLight ? 'text-successDark' : 'text-success') : coverBgIsLight ? 'text-black' : ''" @click="castClick">cast</span>
       </div>
       <div class="top-6 right-4 absolute cursor-pointer">
-        <span class="material-icons text-3xl" @click="showMoreMenuDialog = true">more_vert</span>
+        <span class="material-icons text-3xl" :class="{ 'text-black text-opacity-75': coverBgIsLight }" @click="showMoreMenuDialog = true">more_vert</span>
       </div>
       <p class="top-4 absolute left-0 right-0 mx-auto text-center uppercase tracking-widest text-opacity-75" style="font-size: 10px" :class="{ 'text-success': isLocalPlayMethod, 'text-accent': !isLocalPlayMethod }">{{ isDirectPlayMethod ? 'Direct' : isLocalPlayMethod ? 'Local' : 'Transcode' }}</p>
     </div>
 
-    <div v-if="useChapterTrack && showFullscreen" class="absolute total-track w-full px-3 z-30">
+    <div v-if="useChapterTrack && useTotalTrack && showFullscreen" class="absolute total-track w-full px-3 z-30">
       <div class="flex">
         <p class="font-mono text-white text-opacity-90" style="font-size: 0.8rem">{{ currentTimePretty }}</p>
         <div class="flex-grow" />
@@ -29,8 +31,8 @@
     </div>
 
     <div class="cover-wrapper absolute z-30 pointer-events-auto" @click="clickContainer">
-      <div class="cover-container bookCoverWrapper bg-black bg-opacity-75 w-full h-full">
-        <covers-book-cover v-if="libraryItem || localLibraryItemCoverSrc" :library-item="libraryItem" :download-cover="localLibraryItemCoverSrc" :width="bookCoverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" />
+      <div class="w-full h-full flex justify-center">
+        <covers-book-cover v-if="libraryItem || localLibraryItemCoverSrc" ref="cover" :library-item="libraryItem" :download-cover="localLibraryItemCoverSrc" :width="bookCoverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" @imageLoaded="coverImageLoaded" />
       </div>
 
       <div v-if="syncStatus === $constants.SyncStatus.FAILED" class="absolute top-0 left-0 w-full h-full flex items-center justify-center z-30">
@@ -39,12 +41,12 @@
     </div>
 
     <div class="title-author-texts absolute z-30 left-0 right-0 overflow-hidden" @click="clickTitleAndAuthor">
-      <p class="title-text font-book truncate">{{ title }}</p>
-      <p class="author-text text-white text-opacity-75 truncate">by {{ authorName }}</p>
+      <p class="title-text truncate">{{ title }}</p>
+      <p class="author-text text-white text-opacity-75 truncate">{{ authorName }}</p>
     </div>
 
-    <div id="playerContent" class="playerContainer w-full z-20 bg-primary absolute bottom-0 left-0 right-0 p-2 pointer-events-auto transition-all" @click="clickContainer">
-      <div v-if="showFullscreen" class="absolute top-0 left-0 right-0 w-full py-3 mx-auto px-3" style="max-width: 380px">
+    <div id="playerContent" class="playerContainer w-full z-20 absolute bottom-0 left-0 right-0 p-2 pointer-events-auto transition-all" :style="{ backgroundColor: showFullscreen ? '' : coverRgb }" @click="clickContainer">
+      <div v-if="showFullscreen" class="absolute bottom-4 left-0 right-0 w-full py-3 mx-auto px-3" style="max-width: 380px">
         <div class="flex items-center justify-between pointer-events-auto">
           <span v-if="!isPodcast && isServerItem && networkConnected" class="material-icons text-3xl text-white text-opacity-75 cursor-pointer" @click="$emit('showBookmarks')">{{ bookmarks.length ? 'bookmark' : 'bookmark_border' }}</span>
           <!-- hidden for podcasts but still using this as a placeholder -->
@@ -61,13 +63,16 @@
           <span class="material-icons text-3xl text-white cursor-pointer" :class="chapters.length ? 'text-opacity-75' : 'text-opacity-10'" @click="showChapterModal = true">format_list_bulleted</span>
         </div>
       </div>
+      <div v-else class="w-full h-full absolute top-0 left-0 pointer-events-none" style="background: linear-gradient(145deg, rgba(38, 38, 38, 0.5) 0%, rgba(38, 38, 38, 0.9) 20%, rgb(38, 38, 38) 60%)" />
 
       <div id="playerControls" class="absolute right-0 bottom-0 py-2">
         <div class="flex items-center justify-center">
           <span v-show="showFullscreen && !lockUi" class="material-icons next-icon text-white text-opacity-75 cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpChapterStart">first_page</span>
           <span v-show="!lockUi" class="material-icons jump-icon text-white cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpBackwards">{{ jumpBackwardsIcon }}</span>
-          <div class="play-btn cursor-pointer shadow-sm flex items-center justify-center rounded-full text-primary mx-4" :class="{ 'animate-spin': seekLoading, 'bg-accent': !isLocalPlayMethod, 'bg-success': isLocalPlayMethod }" @mousedown.prevent @mouseup.prevent @click.stop="playPauseClick">
-            <span v-if="!isLoading" class="material-icons">{{ seekLoading ? 'autorenew' : !isPlaying ? 'play_arrow' : 'pause' }}</span>
+          <div class="play-btn cursor-pointer shadow-sm flex items-center justify-center rounded-full text-primary mx-4 relative overflow-hidden" :style="{ backgroundColor: coverRgb }" :class="{ 'animate-spin': seekLoading }" @mousedown.prevent @mouseup.prevent @click.stop="playPauseClick">
+            <div v-if="!coverBgIsLight" class="absolute top-0 left-0 w-full h-full bg-white bg-opacity-20 pointer-events-none" />
+
+            <span v-if="!isLoading" class="material-icons" :class="{ 'text-white': coverRgb && !coverBgIsLight }">{{ seekLoading ? 'autorenew' : !isPlaying ? 'play_arrow' : 'pause' }}</span>
             <widgets-spinner-icon v-else class="h-8 w-8" />
           </div>
           <span v-show="!lockUi" class="material-icons jump-icon text-white cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpForward">{{ jumpForwardIcon }}</span>
@@ -76,6 +81,13 @@
       </div>
 
       <div id="playerTrack" class="absolute left-0 w-full px-3">
+        <div class="flex pb-0.5">
+          <p class="font-mono text-white text-opacity-90" style="font-size: 0.8rem" ref="currentTimestamp">0:00</p>
+          <div class="flex-grow" />
+          <p v-show="showFullscreen" class="text-sm truncate text-white text-opacity-75" style="max-width: 65%">{{ currentChapterTitle }}</p>
+          <div class="flex-grow" />
+          <p class="font-mono text-white text-opacity-90" style="font-size: 0.8rem">{{ timeRemainingPretty }}</p>
+        </div>
         <div ref="track" class="h-1.5 w-full bg-gray-500 bg-opacity-50 relative" :class="{ 'animate-pulse': isLoading }" @touchstart="touchstartTrack" @click="clickTrack">
           <div ref="readyTrack" class="h-full bg-gray-600 absolute top-0 left-0 pointer-events-none" />
           <div ref="bufferedTrack" class="h-full bg-gray-500 absolute top-0 left-0 pointer-events-none" />
@@ -83,41 +95,18 @@
           <div ref="draggingTrack" class="h-full bg-warning bg-opacity-25 absolute top-0 left-0 pointer-events-none" />
           <div ref="trackCursor" class="h-3.5 w-3.5 rounded-full bg-gray-200 absolute -top-1 pointer-events-none" :class="{ 'opacity-0': lockUi || !showFullscreen }" />
         </div>
-        <div id="timestamp-row" class="flex pt-0.5">
-          <p class="font-mono text-white text-opacity-90" style="font-size: 0.8rem" ref="currentTimestamp">0:00</p>
-          <div class="flex-grow" />
-          <p v-show="showFullscreen" class="text-sm truncate text-white text-opacity-75" style="max-width: 65%">{{ currentChapterTitle }}</p>
-          <div class="flex-grow" />
-          <p class="font-mono text-white text-opacity-90" style="font-size: 0.8rem">{{ timeRemainingPretty }}</p>
-        </div>
       </div>
     </div>
 
     <modals-chapters-modal v-model="showChapterModal" :current-chapter="currentChapter" :chapters="chapters" @select="selectChapter" />
-    <modals-dialog v-model="showMoreMenuDialog" :items="menuItems" @action="clickMenuAction">
-      <template v-slot:chapter_track="{ item }">
-        <li class="text-gray-50 select-none relative py-4 cursor-pointer hover:bg-black-400" role="option" @click="clickMenuAction(item.value)">
-          <div class="flex items-center px-3">
-            <span v-if="item.icon" class="material-icons-outlined text-xl mr-2 text-white text-opacity-80">{{ item.icon }}</span>
-            <span class="font-normal block truncate text-base text-white text-opacity-80">{{ item.text }}</span>
-          </div>
-        </li>
-      </template>
-      <template v-slot:lock="{ item }">
-        <li class="text-gray-50 select-none relative py-4 cursor-pointer hover:bg-black-400" role="option" @click="clickMenuAction(item.value)">
-          <div class="flex items-center px-3">
-            <span v-if="item.icon" class="material-icons-outlined text-xl mr-2 text-opacity-80" :class="{ 'text-red-500': lockUi, 'text-white': !lockUi }">{{ item.icon }}</span>
-            <span class="font-normal block truncate text-base text-white text-opacity-80">{{ item.text }}</span>
-          </div>
-        </li>
-      </template>
-    </modals-dialog>
+    <modals-dialog v-model="showMoreMenuDialog" :items="menuItems" @action="clickMenuAction" />
   </div>
 </template>
 
 <script>
 import { Capacitor } from '@capacitor/core'
 import { AbsAudioPlayer } from '@/plugins/capacitor'
+import { FastAverageColor } from 'fast-average-color'
 
 export default {
   props: {
@@ -132,6 +121,7 @@ export default {
   data() {
     return {
       windowHeight: 0,
+      windowWidth: 0,
       playbackSession: null,
       showChapterModal: false,
       showFullscreen: false,
@@ -157,39 +147,62 @@ export default {
       touchStartTime: 0,
       touchEndY: 0,
       useChapterTrack: false,
+      useTotalTrack: true,
       lockUi: false,
       isLoading: false,
       touchTrackStart: false,
       dragPercent: 0,
       syncStatus: 0,
-      showMoreMenuDialog: false
+      showMoreMenuDialog: false,
+      coverRgb: 'rgb(55, 56, 56)',
+      coverBgIsLight: false
     }
   },
   watch: {
     showFullscreen(val) {
       this.updateScreenSize()
       this.$store.commit('setPlayerFullscreen', !!val)
+    },
+    bookCoverAspectRatio() {
+      this.updateScreenSize()
     }
   },
   computed: {
     menuItems() {
-      var items = [
-        {
-          text: 'Chapter Track',
-          value: 'chapter_track',
-          icon: this.useChapterTrack ? 'check_box' : 'check_box_outline_blank'
-        },
-        {
-          text: this.lockUi ? 'Unlock Player' : 'Lock Player',
-          value: 'lock',
-          icon: this.lockUi ? 'lock' : 'lock_open'
-        },
-        {
-          text: 'Close Player',
-          value: 'close',
-          icon: 'close'
-        }
-      ]
+      const items = []
+      // TODO: Implement on iOS
+      if (this.$platform !== 'ios' && !this.isPodcast && this.mediaId) {
+        items.push({
+          text: 'History',
+          value: 'history',
+          icon: 'history'
+        })
+      }
+
+      items.push(
+        ...[
+          {
+            text: 'Total Track',
+            value: 'total_track',
+            icon: this.useTotalTrack ? 'check_box' : 'check_box_outline_blank'
+          },
+          {
+            text: 'Chapter Track',
+            value: 'chapter_track',
+            icon: this.useChapterTrack ? 'check_box' : 'check_box_outline_blank'
+          },
+          {
+            text: this.lockUi ? 'Unlock Player' : 'Lock Player',
+            value: 'lock',
+            icon: this.lockUi ? 'lock' : 'lock_open'
+          },
+          {
+            text: 'Close Player',
+            value: 'close',
+            icon: 'close'
+          }
+        ]
+      )
 
       return items
     },
@@ -213,11 +226,26 @@ export default {
       return 46 / this.bookCoverAspectRatio
     },
     fullscreenBookCoverWidth() {
-      var heightScale = (this.windowHeight - 200) / 651
-      if (this.bookCoverAspectRatio === 1) {
-        return 260 * heightScale
+      if (this.windowWidth < this.windowHeight) {
+        // Portrait
+        let sideSpace = 20
+        if (this.bookCoverAspectRatio === 1.6) sideSpace += (this.windowWidth - sideSpace) * 0.375
+
+        const availableHeight = this.windowHeight - 400
+        let width = this.windowWidth - sideSpace
+        const totalHeight = width * this.bookCoverAspectRatio
+        if (totalHeight > availableHeight) {
+          width = availableHeight / this.bookCoverAspectRatio
+        }
+        return width
+      } else {
+        // Landscape
+        const heightScale = (this.windowHeight - 200) / 651
+        if (this.bookCoverAspectRatio === 1) {
+          return 260 * heightScale
+        }
+        return 190 * heightScale
       }
-      return 200 * heightScale
     },
     showCastBtn() {
       return this.$store.state.isCastAvailable
@@ -289,7 +317,7 @@ export default {
       return this.$secondsToTimestamp(this.totalDuration)
     },
     currentTimePretty() {
-      return this.$secondsToTimestamp(this.currentTime)
+      return this.$secondsToTimestamp(this.currentTime / this.currentPlaybackRate)
     },
     timeRemaining() {
       if (this.useChapterTrack && this.currentChapter) {
@@ -328,9 +356,33 @@ export default {
     },
     networkConnected() {
       return this.$store.state.networkConnected
+    },
+    mediaId() {
+      if (this.isPodcast || !this.playbackSession) return null
+      if (this.playbackSession.libraryItemId) {
+        return this.playbackSession.episodeId ? `${this.playbackSession.libraryItemId}-${this.playbackSession.episodeId}` : this.playbackSession.libraryItemId
+      }
+      const localLibraryItem = this.playbackSession.localLibraryItem
+      if (!localLibraryItem) return null
+
+      return this.playbackSession.localEpisodeId ? `${localLibraryItem.id}-${this.playbackSession.localEpisodeId}` : localLibraryItem.id
     }
   },
   methods: {
+    async coverImageLoaded(fullCoverUrl) {
+      if (!fullCoverUrl) return
+
+      const fac = new FastAverageColor()
+      fac
+        .getColorAsync(fullCoverUrl)
+        .then((color) => {
+          this.coverRgb = color.rgba
+          this.coverBgIsLight = color.isLight
+        })
+        .catch((e) => {
+          console.log(e)
+        })
+    },
     clickTitleAndAuthor() {
       if (!this.showFullscreen) return
       const llid = this.libraryItem ? this.libraryItem.id : this.localLibraryItem ? this.localLibraryItem.id : null
@@ -340,17 +392,17 @@ export default {
       }
     },
     async touchstartTrack(e) {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       if (!e || !e.touches || !this.$refs.track || !this.showFullscreen || this.lockUi) return
       this.touchTrackStart = true
     },
     async selectChapter(chapter) {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       this.seek(chapter.start)
       this.showChapterModal = false
     },
     async castClick() {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       if (this.isLocalPlayMethod) {
         this.$eventBus.$emit('cast-local-item')
         return
@@ -370,13 +422,13 @@ export default {
       this.forceCloseDropdownMenu()
     },
     async jumpNextChapter() {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       if (this.isLoading) return
       if (!this.nextChapter) return
       this.seek(this.nextChapter.start)
     },
     async jumpChapterStart() {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       if (this.isLoading) return
       if (!this.currentChapter) {
         return this.restart()
@@ -397,21 +449,22 @@ export default {
       this.$emit('showSleepTimer')
     },
     async setPlaybackSpeed(speed) {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       console.log(`[AudioPlayer] Set Playback Rate: ${speed}`)
       this.currentPlaybackRate = speed
+      this.updateTimestamp()
       AbsAudioPlayer.setPlaybackSpeed({ value: speed })
     },
     restart() {
       this.seek(0)
     },
     async jumpBackwards() {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       if (this.isLoading) return
       AbsAudioPlayer.seekBackward({ value: this.jumpBackwardsTime })
     },
     async jumpForward() {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       if (this.isLoading) return
       AbsAudioPlayer.seekForward({ value: this.jumpForwardTime })
     },
@@ -450,19 +503,17 @@ export default {
       }
     },
     updateTimestamp() {
-      var ts = this.$refs.currentTimestamp
+      const ts = this.$refs.currentTimestamp
       if (!ts) {
         console.error('No timestamp el')
         return
       }
-      var currTimeStr = ''
+      let currentTime = this.currentTime / this.currentPlaybackRate
       if (this.useChapterTrack && this.currentChapter) {
-        var currChapTime = Math.max(0, this.currentTime - this.currentChapter.start)
-        currTimeStr = this.$secondsToTimestamp(currChapTime)
-      } else {
-        currTimeStr = this.$secondsToTimestamp(this.currentTime)
+        const currChapTime = Math.max(0, this.currentTime - this.currentChapter.start)
+        currentTime = currChapTime / this.currentPlaybackRate
       }
-      ts.innerText = currTimeStr
+      ts.innerText = this.$secondsToTimestamp(currentTime)
     },
     timeupdate() {
       if (!this.$refs.playedTrack) {
@@ -551,7 +602,7 @@ export default {
       this.seek(time)
     },
     async playPauseClick() {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       if (this.isLoading) return
 
       this.isPlaying = !!((await AbsAudioPlayer.playPause()) || {}).playing
@@ -655,19 +706,31 @@ export default {
       }
     },
     async clickMenuAction(action) {
-      await this.$hapticsImpactMedium()
+      await this.$hapticsImpact()
       this.showMoreMenuDialog = false
       this.$nextTick(() => {
-        if (action === 'lock') {
+        if (action === 'history') {
+          this.$router.push(`/media/${this.mediaId}/history?title=${this.title}`)
+          this.showFullscreen = false
+        } else if (action === 'lock') {
           this.lockUi = !this.lockUi
           this.$localStore.setPlayerLock(this.lockUi)
         } else if (action === 'chapter_track') {
           this.useChapterTrack = !this.useChapterTrack
+          this.useTotalTrack = !this.useChapterTrack || this.useTotalTrack
 
           this.updateTimestamp()
           this.updateTrack()
           this.updateReadyTrack()
           this.$localStore.setUseChapterTrack(this.useChapterTrack)
+        } else if (action === 'total_track') {
+          this.useTotalTrack = !this.useTotalTrack
+          this.useChapterTrack = !this.useTotalTrack || this.useChapterTrack
+
+          this.updateTimestamp()
+          this.updateTrack()
+          this.updateReadyTrack()
+          this.$localStore.setUseTotalTrack(this.useTotalTrack)
         } else if (action === 'close') {
           this.closePlayback()
         }
@@ -775,12 +838,17 @@ export default {
     },
     updateScreenSize() {
       this.windowHeight = window.innerHeight
+      this.windowWidth = window.innerWidth
       const coverHeight = this.fullscreenBookCoverWidth * this.bookCoverAspectRatio
+      const coverImageWidthCollapsed = 46 / this.bookCoverAspectRatio
       document.documentElement.style.setProperty('--cover-image-width', this.fullscreenBookCoverWidth + 'px')
       document.documentElement.style.setProperty('--cover-image-height', coverHeight + 'px')
+      document.documentElement.style.setProperty('--cover-image-width-collapsed', coverImageWidthCollapsed + 'px')
+      document.documentElement.style.setProperty('--cover-image-height-collapsed', 46 + 'px')
+      document.documentElement.style.setProperty('--title-author-left-offset-collapsed', 24 + coverImageWidthCollapsed + 'px')
     },
     minimizePlayerEvt() {
-      this.showFullscreen = false
+      this.collapseFullscreen()
     },
     showProgressSyncIsFailing() {
       this.syncStatus = this.$constants.SyncStatus.FAILED
@@ -843,12 +911,11 @@ export default {
   --cover-image-height: 0px;
   --cover-image-width-collapsed: 46px;
   --cover-image-height-collapsed: 46px;
+  --title-author-left-offset-collapsed: 70px;
 }
-.bookCoverWrapper {
-  box-shadow: 3px -2px 5px #00000066;
-}
+
 .playerContainer {
-  height: 100px;
+  height: 120px;
 }
 .fullscreen .playerContainer {
   height: 200px;
@@ -856,23 +923,21 @@ export default {
 #playerContent {
   box-shadow: 0px -8px 8px #11111155;
 }
+.fullscreen #playerContent {
+  box-shadow: none;
+}
 
 #playerTrack {
   transition: all 0.15s cubic-bezier(0.39, 0.575, 0.565, 1);
   transition-property: margin;
-  bottom: 10px;
+  bottom: 35px;
 }
 .fullscreen #playerTrack {
-  bottom: 32px;
-}
-
-.ios-player #timestamp-row {
-  padding-left: 16px;
-  padding-right: 16px;
+  bottom: unset;
 }
 
 .cover-wrapper {
-  bottom: 48px;
+  bottom: 68px;
   left: 12px;
   height: var(--cover-image-height-collapsed);
   width: var(--cover-image-width-collapsed);
@@ -893,8 +958,8 @@ export default {
   transform-origin: left bottom;
 
   width: 40%;
-  bottom: 56px;
-  left: 70px;
+  bottom: 76px;
+  left: var(--title-author-left-offset-collapsed);
   text-align: left;
 }
 .title-author-texts .title-text {
@@ -919,10 +984,10 @@ export default {
   pointer-events: auto;
 }
 .fullscreen .title-author-texts .title-text {
-  font-size: clamp(0.8rem, calc(var(--cover-image-height) / 260 * 20), 1.2rem);
+  font-size: clamp(0.8rem, calc(var(--cover-image-height) / 260 * 20), 1.5rem);
 }
 .fullscreen .title-author-texts .author-text {
-  font-size: clamp(0.6rem, calc(var(--cover-image-height) / 260 * 16), 1rem);
+  font-size: clamp(0.6rem, calc(var(--cover-image-height) / 260 * 16), 1.1rem);
 }
 
 #playerControls {
@@ -932,7 +997,7 @@ export default {
   width: 140px;
   padding-left: 12px;
   padding-right: 12px;
-  bottom: 50px;
+  bottom: 70px;
 }
 #playerControls .jump-icon {
   transition: all 0.15s cubic-bezier(0.39, 0.575, 0.565, 1);
@@ -950,7 +1015,6 @@ export default {
   min-width: 40px;
   min-height: 40px;
   margin: 0px 14px;
-  /* padding: 8px; */
 }
 #playerControls .play-btn .material-icons {
   transition: all 0.15s cubic-bezier(0.39, 0.575, 0.565, 1);
@@ -969,7 +1033,7 @@ export default {
 
 .fullscreen #playerControls {
   width: 100%;
-  bottom: 105px;
+  bottom: 94px;
 }
 .fullscreen #playerControls .jump-icon {
   margin: 0px 18px;
@@ -980,7 +1044,6 @@ export default {
   font-size: 2rem;
 }
 .fullscreen #playerControls .play-btn {
-  /* padding: 16px; */
   height: 65px;
   width: 65px;
   min-width: 65px;

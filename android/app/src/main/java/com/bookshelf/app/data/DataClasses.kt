@@ -5,7 +5,7 @@ import android.os.Bundle
 import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.MediaMetadataCompat
 import androidx.media.utils.MediaConstants
-import com.audiobookshelf.app.media.MediaManager
+import com.bookshelf.app.media.MediaManager
 import com.fasterxml.jackson.annotation.*
 
 // This auto-detects whether it is a Book or Podcast
@@ -52,7 +52,8 @@ class Podcast(
     // Add new episodes
     audioTracks.forEach { at ->
       if (episodes?.find{ it.audioTrack?.localFileId == at.localFileId } == null) {
-        val newEpisode = PodcastEpisode("local_ep_" + at.localFileId,(episodes?.size ?: 0) + 1,null,null,at.title,null,null,null, null, null, at,at.duration,0, null)
+        val localEpisodeId = "local_ep_" + at.localFileId
+        val newEpisode = PodcastEpisode(localEpisodeId,(episodes?.size ?: 0) + 1,null,null,at.title,null,null,null, null, null, at,at.duration,0, null, localEpisodeId)
         episodes?.add(newEpisode)
       }
     }
@@ -65,7 +66,8 @@ class Podcast(
   }
   @JsonIgnore
   override fun addAudioTrack(audioTrack:AudioTrack) {
-    val newEpisode = PodcastEpisode("local_ep_" + audioTrack.localFileId,(episodes?.size ?: 0) + 1,null,null,audioTrack.title,null,null,null, null, null,audioTrack,audioTrack.duration,0, null)
+    val localEpisodeId = "local_ep_" + audioTrack.localFileId
+    val newEpisode = PodcastEpisode(localEpisodeId,(episodes?.size ?: 0) + 1,null,null,audioTrack.title,null,null,null, null, null,audioTrack,audioTrack.duration,0, null, localEpisodeId)
     episodes?.add(newEpisode)
 
     var index = 1
@@ -93,7 +95,8 @@ class Podcast(
 
   @JsonIgnore
   fun addEpisode(audioTrack:AudioTrack, episode:PodcastEpisode):PodcastEpisode {
-    val newEpisode = PodcastEpisode("local_ep_" + episode.id,(episodes?.size ?: 0) + 1,episode.episode,episode.episodeType,episode.title,episode.subtitle,episode.description,null,null,null,audioTrack,audioTrack.duration,0, episode.id)
+    val localEpisodeId = "local_ep_" + episode.id
+    val newEpisode = PodcastEpisode(localEpisodeId,(episodes?.size ?: 0) + 1,episode.episode,episode.episodeType,episode.title,episode.subtitle,episode.description,null,null,null,audioTrack,audioTrack.duration,0, episode.id, localEpisodeId)
     episodes?.add(newEpisode)
 
     var index = 1
@@ -249,7 +252,8 @@ data class PodcastEpisode(
   var audioTrack:AudioTrack?,
   var duration:Double?,
   var size:Long?,
-  var serverEpisodeId:String? // For local podcasts to match with server podcasts
+  var serverEpisodeId:String?, // For local podcasts to match with server podcasts
+  var localEpisodeId:String? // For Android Auto server episodes with local copy
 ) {
   @JsonIgnore
   fun getMediaDescription(libraryItem:LibraryItemWrapper, progress:MediaProgressWrapper?, ctx: Context?): MediaDescriptionCompat {
@@ -260,6 +264,14 @@ data class PodcastEpisode(
     }
 
     val extras = Bundle()
+
+    if (localEpisodeId != null) {
+      extras.putLong(
+        MediaDescriptionCompat.EXTRA_DOWNLOAD_STATUS,
+        MediaDescriptionCompat.STATUS_DOWNLOADED
+      )
+    }
+
     if (progress != null) {
       if (progress.isFinished) {
         extras.putInt(
@@ -283,8 +295,9 @@ data class PodcastEpisode(
     }
 
     val libraryItemDescription = libraryItem.getMediaDescription(null, ctx)
+    val mediaId = localEpisodeId ?: id
     val mediaDescriptionBuilder = MediaDescriptionCompat.Builder()
-      .setMediaId(id)
+      .setMediaId(mediaId)
       .setTitle(title)
       .setIconUri(coverUri)
       .setSubtitle(libraryItemDescription.title)
@@ -357,26 +370,14 @@ data class BookChapter(
   val endMs get() = (end * 1000L).toLong()
 }
 
-@JsonIgnoreProperties(ignoreUnknown = true)
-class MediaProgress(
-  var id:String,
-  var libraryItemId:String,
-  var episodeId:String?,
-  var duration:Double, // seconds
-  progress:Double, // 0 to 1
-  var currentTime:Double,
-  isFinished:Boolean,
-  var lastUpdate:Long,
-  var startedAt:Long,
-  var finishedAt:Long?
-) : MediaProgressWrapper(isFinished, progress)
-
 @JsonTypeInfo(use= JsonTypeInfo.Id.DEDUCTION, defaultImpl = MediaProgress::class)
 @JsonSubTypes(
   JsonSubTypes.Type(MediaProgress::class),
   JsonSubTypes.Type(LocalMediaProgress::class)
 )
-open class MediaProgressWrapper(var isFinished:Boolean, var progress:Double)
+open class MediaProgressWrapper(var isFinished:Boolean, var currentTime:Double, var progress:Double) {
+  open val mediaItemId get() = ""
+}
 
 // Helper class
 data class LibraryItemWithEpisode(

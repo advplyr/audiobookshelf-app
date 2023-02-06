@@ -169,6 +169,8 @@ export default {
           this.showCoverBg = false
         }
       }
+
+      this.$emit('imageLoaded', this.fullCoverUrl)
     },
     imageError(err) {
       this.loading = false
