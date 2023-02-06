@@ -383,6 +383,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     val customActionProviders = mutableListOf(
       JumpBackwardCustomActionProvider(),
       JumpForwardCustomActionProvider(),
+      ChangePlaybackSpeedCustomActionProvider() // Will be pushed to far left
     )
     val metadata = playbackSession.getMediaMetadataCompat(ctx)
     mediaSession.setMetadata(metadata)
@@ -1173,6 +1174,38 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         getContext().getString(R.string.action_skip_backward),
         R.drawable.skip_previous_24
       ).build()
+    }
+  }
+
+  inner class ChangePlaybackSpeedCustomActionProvider : CustomActionProvider {
+    override fun onCustomAction(player: Player, action: String, extras: Bundle?) {
+      /*
+      This does not appear to ever get called. Instead, MediaSessionCallback.onCustomAction() is
+      responsible to reacting to a custom action.
+       */
+    }
+
+    override fun getCustomAction(player: Player): PlaybackStateCompat.CustomAction? {
+      val playbackRate = mediaManager.getSavedPlaybackRate()
+      val drawable: Int = when (playbackRate) {
+        0.5f -> R.drawable.ic_play_speed_0_5x
+        1.0f -> R.drawable.ic_play_speed_1_0x
+        1.2f -> R.drawable.ic_play_speed_1_2x
+        1.5f -> R.drawable.ic_play_speed_1_5x
+        2.0f -> R.drawable.ic_play_speed_2_0x
+        3.0f -> R.drawable.ic_play_speed_3_0x
+        // anything set above 3 will be show the 3x to save from creating 100 icons
+        else -> R.drawable.ic_play_speed_3_0x
+      }
+      val customActionExtras = Bundle()
+      customActionExtras.putFloat("speed", playbackRate)
+      return PlaybackStateCompat.CustomAction.Builder(
+        CUSTOM_ACTION_CHANGE_SPEED,
+        getContext().getString(R.string.action_skip_backward),
+        drawable
+      )
+        .setExtras(customActionExtras)
+        .build()
     }
   }
 }
