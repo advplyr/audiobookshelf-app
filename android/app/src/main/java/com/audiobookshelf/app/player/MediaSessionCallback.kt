@@ -90,9 +90,9 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
 
   private fun onChangeSpeed() {
     // cycle to next speed, only contains preset android app options, as each increment needs it's own icon
-    var mediaManager = playerNotificationService.mediaManager
-    var currentSpeed = mediaManager.getSavedPlaybackRate()
-    var newSpeed = when (currentSpeed) {
+    val mediaManager = playerNotificationService.mediaManager
+    val currentSpeed = mediaManager.getSavedPlaybackRate()
+    val newSpeed = when (currentSpeed) {
       0.5f -> 1.0f
       1.0f -> 1.2f
       1.2f -> 1.5f
@@ -104,6 +104,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
     }
     mediaManager.setSavedPlaybackRate(newSpeed)
     playerNotificationService.setPlaybackSpeed(newSpeed)
+    playerNotificationService.clientEventEmitter?.onPlaybackSpeedChanged(newSpeed)
   }
 
   override fun onPlayFromMediaId(mediaId: String?, extras: Bundle?) {

@@ -80,6 +80,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     fun onProgressSyncSuccess()
     fun onNetworkMeteredChanged(isUnmetered:Boolean)
     fun onMediaItemHistoryUpdated(mediaItemHistory:MediaItemHistory)
+    fun onPlaybackSpeedChanged(playbackSpeed:Float)
   }
   private val binder = LocalBinder()
 
@@ -1187,6 +1188,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
     override fun getCustomAction(player: Player): PlaybackStateCompat.CustomAction? {
       val playbackRate = mediaManager.getSavedPlaybackRate()
+
+      // TODO: Handle custom playback rates like 0.7, 1.3, 1.4, etc
       val drawable: Int = when (playbackRate) {
         0.5f -> R.drawable.ic_play_speed_0_5x
         1.0f -> R.drawable.ic_play_speed_1_0x
