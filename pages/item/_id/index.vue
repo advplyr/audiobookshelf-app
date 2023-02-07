@@ -292,6 +292,7 @@ export default {
       return this.$store.getters['user/getToken']
     },
     userItemProgress() {
+      if (this.isPodcast) return null
       if (this.isLocal) return this.$store.getters['globals/getLocalMediaProgressById'](this.libraryItemId)
       return this.$store.getters['user/getUserMediaProgress'](this.libraryItemId)
     },
