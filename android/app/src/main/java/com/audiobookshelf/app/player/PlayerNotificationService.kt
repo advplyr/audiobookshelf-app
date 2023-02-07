@@ -1189,14 +1189,14 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     override fun getCustomAction(player: Player): PlaybackStateCompat.CustomAction? {
       val playbackRate = mediaManager.getSavedPlaybackRate()
 
-      // TODO: Handle custom playback rates like 0.7, 1.3, 1.4, etc
+      // Rounding values in the event a non preset value (.5, 1, 1.2, 1.5, 2, 3) is selected in the phone app
       val drawable: Int = when (playbackRate) {
-        0.5f -> R.drawable.ic_play_speed_0_5x
-        1.0f -> R.drawable.ic_play_speed_1_0x
-        1.2f -> R.drawable.ic_play_speed_1_2x
-        1.5f -> R.drawable.ic_play_speed_1_5x
-        2.0f -> R.drawable.ic_play_speed_2_0x
-        3.0f -> R.drawable.ic_play_speed_3_0x
+        in 0.5f..0.7f -> R.drawable.ic_play_speed_0_5x
+        in 0.8f..1.0f -> R.drawable.ic_play_speed_1_0x
+        in 1.1f..1.2f -> R.drawable.ic_play_speed_1_2x
+        in 1.3f..1.5f -> R.drawable.ic_play_speed_1_5x
+        in 1.6f..2.0f -> R.drawable.ic_play_speed_2_0x
+        in 2.1f..3.0f -> R.drawable.ic_play_speed_3_0x
         // anything set above 3 will be show the 3x to save from creating 100 icons
         else -> R.drawable.ic_play_speed_3_0x
       }

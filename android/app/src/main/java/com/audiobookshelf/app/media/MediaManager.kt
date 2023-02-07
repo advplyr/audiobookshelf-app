@@ -70,7 +70,8 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
       if (userSettingsPref != null) {
         try {
           val userSettings = JSObject(userSettingsPref)
-          userSettings.put("playbackRate", newRate.toDouble()) // TODO: Handle storing exact values? This actually comes out to something like 2.00000004432
+          // toString().toDouble() to prevent float conversion issues (ex 1.2f becomes 1.2000000476837158d)
+          userSettings.put("playbackRate", newRate.toString().toDouble())
           sharedPrefEditor.putString("userSettings", userSettings.toString())
           sharedPrefEditor.apply()
           userSettingsPlaybackRate = newRate
@@ -82,7 +83,7 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
         // Not sure if this is the best place for this, but if a user has not changed any user settings in the app
         // the object will not exist yet, could be moved to a centralized place or created on first app load
         val userSettings = JSONObject()
-        userSettings.put("playbackRate", newRate.toDouble())
+        userSettings.put("playbackRate", newRate.toString().toDouble())
         sharedPrefEditor.putString("userSettings", userSettings.toString())
         userSettingsPlaybackRate = newRate
         Log.d(tag, "Created and saved userSettings JSON from Android Auto with playbackRate=$newRate")
