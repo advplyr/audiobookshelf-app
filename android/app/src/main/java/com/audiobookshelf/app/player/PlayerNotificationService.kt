@@ -381,24 +381,15 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     }
 
     isClosed = false
-    val customActionProviders = mutableListOf(
-      JumpBackwardCustomActionProvider(),
-      JumpForwardCustomActionProvider(),
-      ChangePlaybackSpeedCustomActionProvider() // Will be pushed to far left
-    )
+
     val metadata = playbackSession.getMediaMetadataCompat(ctx)
     mediaSession.setMetadata(metadata)
     val mediaItems = playbackSession.getMediaItems()
     val playbackRateToUse = playbackRate ?: initialPlaybackRate ?: 1f
     initialPlaybackRate = playbackRate
 
-    if (playbackSession.mediaPlayer != PLAYER_CAST && mediaItems.size > 1) {
-      customActionProviders.addAll(listOf(
-        SkipBackwardCustomActionProvider(),
-        SkipForwardCustomActionProvider(),
-      ))
-    }
-    mediaSessionConnector.setCustomActionProviders(*customActionProviders.toTypedArray())
+    // Set actions on Android Auto like jump forward/backward
+    setMediaSessionConnectorCustomActions(playbackSession)
 
     playbackSession.mediaPlayer = getMediaPlayer()
 
@@ -474,6 +465,22 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
       castPlayer?.load(mediaItems, currentTrackIndex, currentTrackTime, playWhenReady, playbackRateToUse, mediaType)
     }
+  }
+
+  private fun setMediaSessionConnectorCustomActions(playbackSession:PlaybackSession) {
+    val mediaItems = playbackSession.getMediaItems()
+    val customActionProviders = mutableListOf(
+      JumpBackwardCustomActionProvider(),
+      JumpForwardCustomActionProvider(),
+      ChangePlaybackSpeedCustomActionProvider() // Will be pushed to far left
+    )
+    if (playbackSession.mediaPlayer != PLAYER_CAST && mediaItems.size > 1) {
+      customActionProviders.addAll(listOf(
+        SkipBackwardCustomActionProvider(),
+        SkipForwardCustomActionProvider(),
+      ))
+    }
+    mediaSessionConnector.setCustomActionProviders(*customActionProviders.toTypedArray())
   }
 
   fun handlePlayerPlaybackError(errorMessage:String) {
@@ -828,7 +835,13 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   }
 
   fun setPlaybackSpeed(speed: Float) {
+    mediaManager.userSettingsPlaybackRate = speed
     currentPlayer.setPlaybackSpeed(speed)
+
+    // Refresh Android Auto actions
+    mediaProgressSyncer.currentPlaybackSession?.let {
+      setMediaSessionConnectorCustomActions(it)
+    }
   }
 
   fun closePlayback(calledOnError:Boolean? = false) {
@@ -1193,10 +1206,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       val drawable: Int = when (playbackRate) {
         in 0.5f..0.7f -> R.drawable.ic_play_speed_0_5x
         in 0.8f..1.0f -> R.drawable.ic_play_speed_1_0x
-        in 1.1f..1.2f -> R.drawable.ic_play_speed_1_2x
-        in 1.3f..1.5f -> R.drawable.ic_play_speed_1_5x
-        in 1.6f..2.0f -> R.drawable.ic_play_speed_2_0x
-        in 2.1f..3.0f -> R.drawable.ic_play_speed_3_0x
+        in 1.1f..1.3f -> R.drawable.ic_play_speed_1_2x
+        in 1.4f..1.7f -> R.drawable.ic_play_speed_1_5x
+        in 1.8f..2.4f -> R.drawable.ic_play_speed_2_0x
+        in 2.5f..3.0f -> R.drawable.ic_play_speed_3_0x
         // anything set above 3 will be show the 3x to save from creating 100 icons
         else -> R.drawable.ic_play_speed_3_0x
       }

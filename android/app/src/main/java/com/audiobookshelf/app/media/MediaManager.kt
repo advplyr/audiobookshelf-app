@@ -33,7 +33,7 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
   var serverItemsInProgress = listOf<ItemInProgress>()
   var serverLibraries = listOf<Library>()
 
-  private var userSettingsPlaybackRate:Float? = null
+  var userSettingsPlaybackRate:Float? = null
 
   fun getIsLibrary(id:String) : Boolean {
     return serverLibraries.find { it.id == id } != null
