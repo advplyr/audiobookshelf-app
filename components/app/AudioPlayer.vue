@@ -143,6 +143,7 @@ export default {
       onMetadataListener: null,
       onProgressSyncFailing: null,
       onProgressSyncSuccess: null,
+      onPlaybackSpeedChangedListener: null,
       touchStartY: 0,
       touchStartTime: 0,
       touchEndY: 0,
@@ -814,6 +815,11 @@ export default {
       this.$toast.error(`Playback Failed: ${errorMessage}`)
       this.endPlayback()
     },
+    onPlaybackSpeedChanged(data) {
+      if (!data.value || isNaN(data.value)) return
+      this.currentPlaybackRate = Number(data.value)
+      this.updateTimestamp()
+    },
     async init() {
       this.useChapterTrack = await this.$localStore.getUseChapterTrack()
       this.lockUi = await this.$localStore.getPlayerLock()
@@ -825,6 +831,7 @@ export default {
       this.onMetadataListener = AbsAudioPlayer.addListener('onMetadata', this.onMetadata)
       this.onProgressSyncFailing = AbsAudioPlayer.addListener('onProgressSyncFailing', this.showProgressSyncIsFailing)
       this.onProgressSyncSuccess = AbsAudioPlayer.addListener('onProgressSyncSuccess', this.showProgressSyncSuccess)
+      this.onPlaybackSpeedChangedListener = AbsAudioPlayer.addListener('onPlaybackSpeedChanged', this.onPlaybackSpeedChanged)
     },
     screenOrientationChange() {
       setTimeout(() => {
@@ -900,6 +907,7 @@ export default {
     if (this.onPlaybackFailedListener) this.onPlaybackFailedListener.remove()
     if (this.onProgressSyncFailing) this.onProgressSyncFailing.remove()
     if (this.onProgressSyncSuccess) this.onProgressSyncSuccess.remove()
+    if (this.onPlaybackSpeedChangedListener) this.onPlaybackSpeedChangedListener.remove()
     clearInterval(this.playInterval)
   }
 }
