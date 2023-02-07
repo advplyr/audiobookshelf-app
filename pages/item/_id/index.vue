@@ -43,9 +43,6 @@
           <p class="leading-6">Your Progress: {{ Math.round(progressPercent * 100) }}%</p>
           <p v-if="progressPercent < 1" class="text-gray-400 text-xs">{{ $elapsedPretty(userTimeRemaining) }} remaining</p>
           <p v-else class="text-gray-400 text-xs">Finished {{ $formatDate(userProgressFinishedAt) }}</p>
-          <div v-if="!resettingProgress" class="absolute -top-1.5 -right-1.5 p-1 w-5 h-5 rounded-full bg-bg hover:bg-error border border-primary flex items-center justify-center cursor-pointer" @click.stop="clearProgressClick">
-            <span class="material-icons text-sm">close</span>
-          </div>
         </div>
 
         <div v-if="isLocal" class="flex mt-4 -mx-1">
@@ -295,6 +292,7 @@ export default {
       return this.$store.getters['user/getToken']
     },
     userItemProgress() {
+      if (this.isPodcast) return null
       if (this.isLocal) return this.$store.getters['globals/getLocalMediaProgressById'](this.libraryItemId)
       return this.$store.getters['user/getUserMediaProgress'](this.libraryItemId)
     },
@@ -378,6 +376,13 @@ export default {
           text: this.userIsFinished ? 'Mark as Not Finished' : 'Mark as Finished',
           value: 'markFinished'
         })
+
+        if (this.progressPercent > 0 && !this.userIsFinished) {
+          items.push({
+            text: 'Discard Progress',
+            value: 'discardProgress'
+          })
+        }
       }
 
       if (this.localLibraryItemId) {
@@ -445,6 +450,8 @@ export default {
         this.toggleFinished()
       } else if (action === 'history') {
         this.$router.push(`/media/${this.mediaId}/history?title=${this.title}`)
+      } else if (action === 'discardProgress') {
+        this.clearProgressClick()
       }
     },
     moreButtonPress() {
