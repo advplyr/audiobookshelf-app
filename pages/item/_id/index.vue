@@ -368,21 +368,24 @@ export default {
         if (!this.isIos) {
           items.push({
             text: 'History',
-            value: 'history'
+            value: 'history',
+            icon: 'history'
           })
         }
 
         if (!this.userIsFinished) {
           items.push({
             text: 'Mark as Finished',
-            value: 'markFinished'
+            value: 'markFinished',
+            icon: 'beenhere'
           })
         }
 
         if (this.progressPercent > 0) {
           items.push({
             text: 'Discard Progress',
-            value: 'discardProgress'
+            value: 'discardProgress',
+            icon: 'backspace'
           })
         }
       }
@@ -390,20 +393,23 @@ export default {
       if (this.localLibraryItemId) {
         items.push({
           text: 'Manage Local Files',
-          value: 'manageLocal'
+          value: 'manageLocal',
+          icon: 'folder'
         })
       }
 
       if (!this.isPodcast && this.serverLibraryItemId) {
         items.push({
           text: 'Add to Playlist',
-          value: 'playlist'
+          value: 'playlist',
+          icon: 'playlist_add'
         })
       }
 
       items.push({
         text: 'More Info',
-        value: 'details'
+        value: 'details',
+        icon: 'info'
       })
 
       return items
