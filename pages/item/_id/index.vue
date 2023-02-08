@@ -372,12 +372,14 @@ export default {
           })
         }
 
-        items.push({
-          text: this.userIsFinished ? 'Mark as Not Finished' : 'Mark as Finished',
-          value: 'markFinished'
-        })
+        if (!this.userIsFinished) {
+          items.push({
+            text: 'Mark as Finished',
+            value: 'markFinished'
+          })
+        }
 
-        if (this.progressPercent > 0 && !this.userIsFinished) {
+        if (this.progressPercent > 0) {
           items.push({
             text: 'Discard Progress',
             value: 'discardProgress'
