@@ -211,19 +211,19 @@ public class AbsAudioPlayer: CAPPlugin {
     
     @objc func getSleepTimerTime(_ call: CAPPluginCall) {
         call.resolve([
-            "value": PlayerHandler.getSleepTimeRemaining()
+            "value": PlayerHandler.getSleepTimeRemaining() ?? 0
         ])
     }
     
     @objc func sendSleepTimerEnded() {
         self.notifyListeners("onSleepTimerEnded", data: [
-            "value": PlayerHandler.getCurrentTime()
+            "value": PlayerHandler.getCurrentTime() ?? 0
         ])
     }
     
     @objc func sendSleepTimerSet() {
         self.notifyListeners("onSleepTimerSet", data: [
-            "value": PlayerHandler.getSleepTimeRemaining()
+            "value": PlayerHandler.getSleepTimeRemaining() ?? 0
         ])
     }
     
