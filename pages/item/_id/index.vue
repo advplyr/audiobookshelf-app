@@ -127,7 +127,7 @@
       </div>
 
       <div class="w-full py-4">
-        <p class="text-sm">{{ description }}</p>
+        <p class="text-sm text-justify" style="hyphens: auto;">{{ description }}</p>
       </div>
 
       <tables-podcast-episodes-table v-if="isPodcast" :library-item="libraryItem" :local-library-item-id="localLibraryItemId" :episodes="episodes" :local-episodes="localLibraryItemEpisodes" :is-local="isLocal" />
