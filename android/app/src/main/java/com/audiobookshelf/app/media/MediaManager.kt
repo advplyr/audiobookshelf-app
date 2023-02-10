@@ -12,6 +12,7 @@ import java.util.*
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import org.json.JSONException
+import org.json.JSONObject
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -32,7 +33,7 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
   var serverItemsInProgress = listOf<ItemInProgress>()
   var serverLibraries = listOf<Library>()
 
-  private var userSettingsPlaybackRate:Float? = null
+  var userSettingsPlaybackRate:Float? = null
 
   fun getIsLibrary(id:String) : Boolean {
     return serverLibraries.find { it.id == id } != null
@@ -59,6 +60,35 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
       }
     }
     return 1f
+  }
+
+  fun setSavedPlaybackRate(newRate: Float) {
+    val sharedPrefs = ctx.getSharedPreferences("CapacitorStorage", Activity.MODE_PRIVATE)
+    val sharedPrefEditor = sharedPrefs.edit()
+    if (sharedPrefs != null) {
+      val userSettingsPref = sharedPrefs.getString("userSettings", null)
+      if (userSettingsPref != null) {
+        try {
+          val userSettings = JSObject(userSettingsPref)
+          // toString().toDouble() to prevent float conversion issues (ex 1.2f becomes 1.2000000476837158d)
+          userSettings.put("playbackRate", newRate.toString().toDouble())
+          sharedPrefEditor.putString("userSettings", userSettings.toString())
+          sharedPrefEditor.apply()
+          userSettingsPlaybackRate = newRate
+          Log.d(tag, "Saved userSettings JSON from Android Auto with playbackRate=$newRate")
+        } catch(je:JSONException) {
+          Log.e(tag, "Failed to save userSettings JSON ${je.localizedMessage}")
+        }
+      } else {
+        // Not sure if this is the best place for this, but if a user has not changed any user settings in the app
+        // the object will not exist yet, could be moved to a centralized place or created on first app load
+        val userSettings = JSONObject()
+        userSettings.put("playbackRate", newRate.toString().toDouble())
+        sharedPrefEditor.putString("userSettings", userSettings.toString())
+        userSettingsPlaybackRate = newRate
+        Log.d(tag, "Created and saved userSettings JSON from Android Auto with playbackRate=$newRate")
+      }
+    }
   }
 
   fun checkResetServerItems() {

@@ -97,6 +97,10 @@ class AbsAudioPlayer : Plugin() {
         override fun onMediaItemHistoryUpdated(mediaItemHistory:MediaItemHistory) {
           notifyListeners("onMediaItemHistoryUpdated", JSObject(jacksonMapper.writeValueAsString(mediaItemHistory)))
         }
+
+        override fun onPlaybackSpeedChanged(playbackSpeed:Float) {
+          emit("onPlaybackSpeedChanged", playbackSpeed)
+        }
       })
 
       MediaEventManager.clientEventEmitter = playerNotificationService.clientEventEmitter

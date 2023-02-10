@@ -7,7 +7,7 @@
     </template>
 
     <div class="w-full h-full overflow-hidden absolute top-0 left-0 flex items-center justify-center" @click="show = false">
-      <div ref="container" class="w-full overflow-x-hidden overflow-y-auto bg-primary rounded-lg border border-white border-opacity-20" style="max-height: 75%" @click.stop>
+      <div ref="container" class="w-full overflow-x-hidden overflow-y-auto bg-primary rounded-lg border border-white border-opacity-20 p-2" style="max-height: 75%" @click.stop>
         <ul class="h-full w-full" role="listbox" aria-labelledby="listbox-label">
           <template v-for="item in items">
             <slot :name="item.value" :item="item" :selected="item.value === selected">

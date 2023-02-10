@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full h-full px-3 py-4 overflow-y-auto relative bg-bg">
+  <div class="w-full h-full px-3 py-4 overflow-y-auto overflow-x-hidden relative bg-bg">
     <div class="fixed top-0 left-0 w-full h-full pointer-events-none p-px z-10">
       <div class="w-full h-full" :style="{ backgroundColor: coverRgb }" />
       <div class="w-full h-full absolute top-0 left-0" style="background: linear-gradient(169deg, rgba(0, 0, 0, 0.4) 0%, rgba(55, 56, 56, 1) 80%)" />
@@ -7,8 +7,15 @@
 
     <div class="z-10 relative">
       <div class="w-full flex justify-center relative mb-4">
+        <div style="width: 0; transform: translateX(-50vw); overflow: visible">
+          <div style="width: 150vw; overflow: hidden">
+            <div id="coverBg" style="filter: blur(5vw)">
+              <covers-book-cover :library-item="libraryItem" :width="coverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" @imageLoaded="coverImageLoaded" />
+            </div>
+          </div>
+        </div>
         <div class="relative" @click="showFullscreenCover = true">
-          <covers-book-cover :library-item="libraryItem" :width="coverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" @imageLoaded="coverImageLoaded" />
+          <covers-book-cover :library-item="libraryItem" :width="coverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" no-bg @imageLoaded="coverImageLoaded" />
           <div v-if="!isPodcast" class="absolute bottom-0 left-0 h-1 shadow-sm z-10" :class="userIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: coverWidth * progressPercent + 'px' }"></div>
         </div>
       </div>
@@ -43,9 +50,6 @@
           <p class="leading-6">Your Progress: {{ Math.round(progressPercent * 100) }}%</p>
           <p v-if="progressPercent < 1" class="text-gray-400 text-xs">{{ $elapsedPretty(userTimeRemaining) }} remaining</p>
           <p v-else class="text-gray-400 text-xs">Finished {{ $formatDate(userProgressFinishedAt) }}</p>
-          <div v-if="!resettingProgress" class="absolute -top-1.5 -right-1.5 p-1 w-5 h-5 rounded-full bg-bg hover:bg-error border border-primary flex items-center justify-center cursor-pointer" @click.stop="clearProgressClick">
-            <span class="material-icons text-sm">close</span>
-          </div>
         </div>
 
         <div v-if="isLocal" class="flex mt-4 -mx-1">
@@ -295,6 +299,7 @@ export default {
       return this.$store.getters['user/getToken']
     },
     userItemProgress() {
+      if (this.isPodcast) return null
       if (this.isLocal) return this.$store.getters['globals/getLocalMediaProgressById'](this.libraryItemId)
       return this.$store.getters['user/getUserMediaProgress'](this.libraryItemId)
     },
@@ -370,33 +375,48 @@ export default {
         if (!this.isIos) {
           items.push({
             text: 'History',
-            value: 'history'
+            value: 'history',
+            icon: 'history'
           })
         }
 
-        items.push({
-          text: this.userIsFinished ? 'Mark as Not Finished' : 'Mark as Finished',
-          value: 'markFinished'
-        })
+        if (!this.userIsFinished) {
+          items.push({
+            text: 'Mark as Finished',
+            value: 'markFinished',
+            icon: 'beenhere'
+          })
+        }
+
+        if (this.progressPercent > 0) {
+          items.push({
+            text: 'Discard Progress',
+            value: 'discardProgress',
+            icon: 'backspace'
+          })
+        }
       }
 
       if (this.localLibraryItemId) {
         items.push({
           text: 'Manage Local Files',
-          value: 'manageLocal'
+          value: 'manageLocal',
+          icon: 'folder'
         })
       }
 
       if (!this.isPodcast && this.serverLibraryItemId) {
         items.push({
           text: 'Add to Playlist',
-          value: 'playlist'
+          value: 'playlist',
+          icon: 'playlist_add'
         })
       }
 
       items.push({
         text: 'More Info',
-        value: 'details'
+        value: 'details',
+        icon: 'info'
       })
 
       return items
@@ -445,6 +465,8 @@ export default {
         this.toggleFinished()
       } else if (action === 'history') {
         this.$router.push(`/media/${this.mediaId}/history?title=${this.title}`)
+      } else if (action === 'discardProgress') {
+        this.clearProgressClick()
       }
     },
     moreButtonPress() {
@@ -714,5 +736,9 @@ export default {
 .title-container {
   width: calc(100% - 64px);
   max-width: calc(100% - 64px);
+}
+#coverBg > div {
+  width: 150vw !important;
+  max-width: 150vw !important;
 }
 </style>
