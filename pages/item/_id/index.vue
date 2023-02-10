@@ -9,13 +9,13 @@
       <div class="w-full flex justify-center relative mb-4">
         <div style="width: 0; transform: translateX(-50vw); overflow: visible">
           <div style="width: 150vw; overflow: hidden">
-            <div id="coverBg" style="filter: blur(5vw);">
+            <div id="coverBg" style="filter: blur(5vw)">
               <covers-book-cover :library-item="libraryItem" :width="coverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" @imageLoaded="coverImageLoaded" />
             </div>
           </div>
         </div>
         <div class="relative" @click="showFullscreenCover = true">
-          <covers-book-cover :library-item="libraryItem" :width="coverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" @imageLoaded="coverImageLoaded" />
+          <covers-book-cover :library-item="libraryItem" :width="coverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" no-bg @imageLoaded="coverImageLoaded" />
           <div v-if="!isPodcast" class="absolute bottom-0 left-0 h-1 shadow-sm z-10" :class="userIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: coverWidth * progressPercent + 'px' }"></div>
         </div>
       </div>

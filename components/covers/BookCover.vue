@@ -1,11 +1,11 @@
 <template>
   <div class="relative rounded-sm overflow-hidden" :style="{ height: height + 'px', width: width + 'px', maxWidth: width + 'px', minWidth: width + 'px' }">
-    <div class="w-full h-full relative bg-bg">
+    <div class="w-full h-full relative" :class="{ 'bg-bg': !noBg }">
       <div v-show="showCoverBg" class="absolute top-0 left-0 w-full h-full overflow-hidden rounded-sm bg-primary">
         <div class="absolute cover-bg" ref="coverBg" />
       </div>
 
-      <img v-if="fullCoverUrl" ref="cover" :src="fullCoverUrl" loading="lazy" @error="imageError" @load="imageLoaded" class="w-full h-full absolute top-0 left-0 z-10 duration-300 transition-opacity" :style="{ opacity: imageReady ? 1 : 0 }" :class="showCoverBg && hasCover ? 'object-contain' : 'object-fill'" />
+      <img v-if="fullCoverUrl" ref="cover" :src="fullCoverUrl" loading="lazy" @error="imageError" @load="imageLoaded" class="w-full h-full absolute top-0 left-0 z-10 duration-300 transition-opacity" :style="{ opacity: imageReady ? 1 : 0 }" :class="(showCoverBg && hasCover) || noBg ? 'object-contain' : 'object-fill'" />
 
       <div v-show="loading && libraryItem" class="absolute top-0 left-0 h-full w-full flex items-center justify-center">
         <p class="font-book text-center" :style="{ fontSize: 0.75 * sizeMultiplier + 'rem' }">{{ title }}</p>
@@ -48,7 +48,8 @@ export default {
     },
     bookCoverAspectRatio: Number,
     downloadCover: String,
-    raw: Boolean
+    raw: Boolean,
+    noBg: Boolean
   },
   data() {
     return {
@@ -156,7 +157,7 @@ export default {
       this.$nextTick(() => {
         this.imageReady = true
       })
-      if (this.$refs.cover && this.cover !== this.placeholderUrl) {
+      if (!this.noBg && this.$refs.cover && this.cover !== this.placeholderUrl) {
         var { naturalWidth, naturalHeight } = this.$refs.cover
         var aspectRatio = naturalHeight / naturalWidth
         var arDiff = Math.abs(aspectRatio - this.bookCoverAspectRatio)
