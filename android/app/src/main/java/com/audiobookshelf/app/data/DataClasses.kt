@@ -199,8 +199,9 @@ class BookMetadata(
   title:String,
   var subtitle:String?,
   var authors:MutableList<Author>?,
+  var series:MutableList<Series>?,
   var narrators:MutableList<String>?,
-  var genres:MutableList<String>,
+  var genres:MutableList<String>?,
   var publishedYear:String?,
   var publishedDate:String?,
   var publisher:String?,
@@ -217,6 +218,54 @@ class BookMetadata(
 ) : MediaTypeMetadata(title) {
   @JsonIgnore
   override fun getAuthorDisplayName():String { return authorName ?: "Unknown" }
+  @JsonIgnore
+  fun getSubtitleDisplay():String { return subtitle ?: "Unknown" }
+  @JsonIgnore
+  fun validateSeries(index: Int):Int {
+    return if(series.isNullOrEmpty() || index > series!!.size - 1 || index < 0) {
+      -1
+    }
+    else{
+      index
+    }
+  }
+  @JsonIgnore
+  open fun getSeriesNameDisplay():String { return getSeriesNameDisplay(0)}
+  @JsonIgnore
+  open fun getSeriesNameDisplay(index: Int):String { if(validateSeries(index) >=0 ) {return series!![index].name } else {return "Unknown"} }
+  @JsonIgnore
+  open fun getSeriesSequenceDisplay():String { return getSeriesSequenceDisplay(0)}
+  @JsonIgnore
+  open fun getSeriesSequenceDisplay(index: Int):String {
+    if(validateSeries(index) >=0 ) {
+      return series!![index].sequence ?: "X"
+    } else {return "X"}
+  }
+  @JsonIgnore
+  open fun getNarratorDisplayName():String { return narratorName ?: "Unknown" }
+  @JsonIgnore
+  open fun getGenresDisplayName():String {
+    if(genres.isNullOrEmpty() || genres!!.size == 0) return "Unknown"
+    return genres!!.joinToString(", ")
+  }
+  @JsonIgnore
+  open fun getPublishedYearDisplay():String { return publishedYear ?: "Unknown" }
+  @JsonIgnore
+  open fun getPublishedDateDisplay():String { return publishedDate ?: "Unknown" }
+  @JsonIgnore
+  open fun getPublisherDisplay():String { return publisher ?: "Unknown" }
+  @JsonIgnore
+  open fun getISBNDisplay():String { return isbn ?: "Unknown" }
+  @JsonIgnore
+  open fun getASINDisplay():String { return asin ?: "Unknown" }
+  @JsonIgnore
+  open fun getLanguageDisplay():String { return language ?: "Unknown" }
+  @JsonIgnore
+  open fun getExplicitDisplay():String { return if(explicit) "Explicit" else "Not Explicit" }
+  @JsonIgnore
+  open fun getNarratorNameDisplay():String { return narratorName ?: "Unknown" }
+  @JsonIgnore
+  open fun getSeriesSummary():String { return seriesName ?: "Unknown" }
 }
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -235,6 +284,13 @@ data class Author(
   var id:String,
   var name:String,
   var coverPath:String?
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class Series(
+  var id:String,
+  var name:String,
+  var sequence:String?
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)

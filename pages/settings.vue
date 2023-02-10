@@ -96,6 +96,23 @@
       </div>
     </div>
 
+    <!-- Advanced Settings -->
+    
+    <template v-if="!isiOS">
+      <p class="uppercase text-xs font-semibold text-gray-300 mb-2 mt-6">Advanced Settings</p>
+      <div class="flex items-center py-3" @click="toggleAdvancedSettings">
+          <div class="w-10 flex justify-center">
+            <ui-toggle-switch v-model="settings.showAdvancedSettings" @input="saveSettings" />
+          </div>
+          <p class="pl-4">Show Advanced Settings</p>
+          <span class="material-icons-outlined ml-2" @click.stop="showInfo('showAdvancedSettings')">info</span>
+      </div>
+      <div v-if="settings.showAdvancedSettings"  class="py-3 flex items-center">
+        <ui-text-input-with-label type="text" @input="saveSettingsWithoutInit" v-model="settings.localPathFormat" label="Local Path Format" class="my-2" />
+        <span class="material-icons-outlined ml-2" @click.stop="showInfo('localPathFormat')">info</span>
+      </div>
+    </template>
+
     <modals-dialog v-model="showMoreMenuDialog" :items="moreMenuItems" @action="clickMenuAction" />
     <modals-sleep-timer-length-modal v-model="showSleepTimerLengthModal" @change="sleepTimerLengthModalSelection" />
   </div>
@@ -125,7 +142,9 @@ export default {
         autoSleepTimerEndTime: '06:00',
         sleepTimerLength: 900000, // 15 minutes
         disableSleepTimerFadeOut: false,
-        disableSleepTimerResetFeedback: false
+        disableSleepTimerResetFeedback: false,
+        showAdvancedSettings: false,
+        localPathFormat: '$bookAuthor/$bookTitle'
       },
       lockCurrentOrientation: false,
       settingInfo: {
@@ -144,6 +163,30 @@ export default {
         disableSleepTimerResetFeedback: {
           name: 'Disable vibrate on reset',
           message: 'When the sleep timer gets reset your device will vibrate. Enable this setting to not vibrate when the sleep timer resets.'
+        },
+        showAdvancedSettings: {
+          name: 'Show Advanced Settings',
+          message: 'Warning: changing these settings could damage your phone.  Do so carefully and only if you have knowledge to do so.'
+        },
+        localPathFormat: {
+          name: 'Customize subfolder for download',
+          message:  'the "/" character is a folder break\n\n'+
+                    '$bookAuthor = Susan Dennard\n'+
+                    '$bookTitle = Witchshadow\n'+
+                    '$explicit = Not Explicit\n'+
+                    '$subtitle = Witchlands Novel\n'+
+                    '$narrator = Cassandra Campbell\n'+
+                    '$genres = Young Adult, Fantasy\n'+
+                    '$publishedYear = 2021\n'+
+                    '$publishedDate = Unknown\n'+
+                    '$publisher = Listening Library\n'+
+                    '$isbn = 9781466867352\n'+
+                    '$asin = 0147523885\n'+
+                    '$language = English\n'+
+                    '$explicit = Not Explicit\n'+
+                    '$seriesSummary = The Witchlands #4\n'+
+                    '$seriesName[0] = The Witchlands\n'+
+                    '$seriesSequence[0] = 4\n'
         }
       },
       hapticFeedbackItems: [
@@ -303,6 +346,10 @@ export default {
       this.settings.disableAutoRewind = !this.settings.disableAutoRewind
       this.saveSettings()
     },
+    toggleAdvancedSettings() {
+      this.settings.showAdvancedSettings = !this.settings.showAdvancedSettings
+      this.saveSettings()
+    },
     toggleEnableAltView() {
       this.settings.enableAltView = !this.settings.enableAltView
       this.saveSettings()
@@ -335,6 +382,13 @@ export default {
       this.settings.jumpBackwardsTime = this.jumpBackwardsItems[next].value
       this.saveSettings()
     },
+    async saveSettingsWithoutInit(){
+      const updatedDeviceData = await this.$db.updateDeviceSettings({ ...this.settings })
+      if (updatedDeviceData) {
+        this.$store.commit('setDeviceData', updatedDeviceData)
+      }
+      
+    },
     async saveSettings() {
       await this.$hapticsImpact()
       const updatedDeviceData = await this.$db.updateDeviceSettings({ ...this.settings })
@@ -364,6 +418,10 @@ export default {
       this.settings.sleepTimerLength = !isNaN(deviceSettings.sleepTimerLength) ? deviceSettings.sleepTimerLength : 900000 // 15 minutes
       this.settings.disableSleepTimerFadeOut = !!deviceSettings.disableSleepTimerFadeOut
       this.settings.disableSleepTimerResetFeedback = !!deviceSettings.disableSleepTimerResetFeedback
+      
+      this.settings.showAdvancedSettings = !!deviceSettings.showAdvancedSettings
+
+      this.settings.localPathFormat = deviceSettings.localPathFormat.replace("../","") || '$bookAuthor/$bookTitle'
     }
   },
   mounted() {
