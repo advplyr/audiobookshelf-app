@@ -20,19 +20,19 @@
         </div>
       </div>
 
-      <h1 class="text-xl font-semibold">{{ title }}</h1>
+      <h1 class="text-xl text-center font-semibold">{{ title }}</h1>
 
-      <p v-if="subtitle" class="text-gray-100 text-base py-0.5 mb-0.5">{{ subtitle }}</p>
+      <p v-if="subtitle" class="text-gray-100 text-base text-center py-0.5 mb-0.5">{{ subtitle }}</p>
 
-      <p v-if="seriesList && seriesList.length" class="text-sm text-gray-300 py-0.5">
+      <p v-if="seriesList && seriesList.length" class="text-sm text-center text-gray-300 py-0.5">
         <template v-for="(series, index) in seriesList">
           <nuxt-link :key="series.id" :to="`/bookshelf/series/${series.id}`" class="underline">{{ series.text }}</nuxt-link
           ><span :key="`${series.id}-comma`" v-if="index < seriesList.length - 1">,&nbsp;</span>
         </template>
       </p>
 
-      <p v-if="podcastAuthor" class="text-sm text-gray-300 py-0.5">by {{ podcastAuthor }}</p>
-      <p v-else-if="bookAuthors && bookAuthors.length" class="text-sm text-gray-300 py-0.5">
+      <p v-if="podcastAuthor" class="text-sm text-center text-gray-300 py-0.5">by {{ podcastAuthor }}</p>
+      <p v-else-if="bookAuthors && bookAuthors.length" class="text-sm text-center text-gray-300 py-0.5">
         by
         <template v-for="(author, index) in bookAuthors">
           <nuxt-link :key="author.id" :to="`/bookshelf/library?filter=authors.${$encode(author.id)}`" class="underline">{{ author.name }}</nuxt-link
@@ -41,8 +41,8 @@
       </p>
 
       <!-- Show an indicator for local library items whether they are linked to a server item and if that server item is connected -->
-      <p v-if="isLocal && serverLibraryItemId" style="font-size: 10px" class="text-success py-1 uppercase tracking-widest">connected</p>
-      <p v-else-if="isLocal && libraryItem.serverAddress" style="font-size: 10px" class="text-gray-400 py-1">{{ libraryItem.serverAddress }}</p>
+      <p v-if="isLocal && serverLibraryItemId" style="font-size: 10px" class="text-success text-center py-1 uppercase tracking-widest">connected</p>
+      <p v-else-if="isLocal && libraryItem.serverAddress" style="font-size: 10px" class="text-gray-400 text-center py-1">{{ libraryItem.serverAddress }}</p>
 
       <!-- action buttons -->
       <div>
