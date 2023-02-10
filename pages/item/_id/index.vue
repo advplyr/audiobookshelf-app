@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full h-full px-3 py-4 overflow-y-auto relative bg-bg">
+  <div class="w-full h-full px-3 py-4 overflow-y-auto overflow-x-hidden relative bg-bg">
     <div class="fixed top-0 left-0 w-full h-full pointer-events-none p-px z-10">
       <div class="w-full h-full" :style="{ backgroundColor: coverRgb }" />
       <div class="w-full h-full absolute top-0 left-0" style="background: linear-gradient(169deg, rgba(0, 0, 0, 0.4) 0%, rgba(55, 56, 56, 1) 80%)" />
@@ -7,8 +7,15 @@
 
     <div class="z-10 relative">
       <div class="w-full flex justify-center relative mb-4">
+        <div style="width: 0; transform: translateX(-50vw); overflow: visible">
+          <div style="width: 150vw; overflow: hidden">
+            <div id="coverBg" style="filter: blur(5vw)">
+              <covers-book-cover :library-item="libraryItem" :width="coverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" @imageLoaded="coverImageLoaded" />
+            </div>
+          </div>
+        </div>
         <div class="relative" @click="showFullscreenCover = true">
-          <covers-book-cover :library-item="libraryItem" :width="coverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" @imageLoaded="coverImageLoaded" />
+          <covers-book-cover :library-item="libraryItem" :width="coverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" no-bg @imageLoaded="coverImageLoaded" />
           <div v-if="!isPodcast" class="absolute bottom-0 left-0 h-1 shadow-sm z-10" :class="userIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: coverWidth * progressPercent + 'px' }"></div>
         </div>
       </div>
@@ -729,5 +736,9 @@ export default {
 .title-container {
   width: calc(100% - 64px);
   max-width: calc(100% - 64px);
+}
+#coverBg > div {
+  width: 150vw !important;
+  max-width: 150vw !important;
 }
 </style>
