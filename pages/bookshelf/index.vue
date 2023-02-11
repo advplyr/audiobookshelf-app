@@ -247,6 +247,15 @@ export default {
           return cat
         })
 
+        // If we don't already have a player open
+        // Try opening the first book from continue-listening without playing it
+        if (!this.$store.state.playerLibraryItemId) {
+          const lastListening = categories.filter((cat) => cat.id === 'continue-listening')[0]?.entities?.[0]?.id
+          if (lastListening) {
+            this.$eventBus.$emit('play-item', { libraryItemId: lastListening, paused: true })
+          }
+        }
+
         // Only add the local shelf with the same media type
         const localShelves = localCategories.filter((cat) => cat.type === this.currentLibraryMediaType && !cat.localOnly)
         this.shelves.push(...localShelves)
