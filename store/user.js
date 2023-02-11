@@ -35,7 +35,7 @@ export const getters = {
     })
   },
   getUserBookmarksForItem: (state) => (libraryItemId) => {
-    if (!state.user.bookmarks) return []
+    if (!state?.user?.bookmarks) return []
     return state.user.bookmarks.filter(bm => bm.libraryItemId === libraryItemId)
   },
   getUserSetting: (state) => (key) => {
