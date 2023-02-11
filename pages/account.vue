@@ -1,6 +1,6 @@
 <template>
   <div class="w-full h-full p-4">
-    <ui-text-input-with-label :value="serverConnConfigName" label="Connection Config Name" disabled class="my-2" />
+    <ui-text-input-with-label :value="serverAddress" label="Host" disabled class="my-2" />
 
     <ui-text-input-with-label :value="username" label="Username" disabled class="my-2" />
 
@@ -40,9 +40,6 @@ export default {
     },
     serverConnectionConfig() {
       return this.$store.state.user.serverConnectionConfig || {}
-    },
-    serverConnConfigName() {
-      return this.serverConnectionConfig.name
     },
     serverAddress() {
       return this.serverConnectionConfig.address
