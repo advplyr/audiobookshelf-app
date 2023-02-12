@@ -7,7 +7,7 @@
     <ui-btn color="primary flex items-center justify-between gap-2 ml-auto text-base mt-8" @click="logout">Logout<span class="material-icons" style="font-size: 1.1rem">logout</span></ui-btn>
 
     <div class="flex justify-end items-center m-4 gap-3 right-0 bottom-0 absolute">
-      <p class="text-sm font-book text-yellow-400 text-right">Report bugs, request features, provide feedback, and contribute on <a class="underline" href="https://github.com/advplyr/audiobookshelf-app" target="_blank">GitHub</a></p>
+      <p class="text-smtext-yellow-400 text-right">Report bugs, request features, provide feedback, and contribute on <a class="underline" href="https://github.com/advplyr/audiobookshelf-app" target="_blank">GitHub</a></p>
       <a href="https://github.com/advplyr/audiobookshelf-app" target="_blank" class="text-white hover:text-gray-200 hover:scale-150 hover:rotate-6 transform duration-500">
         <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" width="24" height="24" viewBox="0 0 24 24">
           <path

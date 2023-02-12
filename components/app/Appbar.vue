@@ -10,7 +10,7 @@
       <div v-if="user && currentLibrary">
         <div class="pl-1.5 pr-2.5 py-2 bg-bg bg-opacity-30 rounded-md flex items-center" @click="clickShowLibraryModal">
           <ui-library-icon :icon="currentLibraryIcon" :size="4" font-size="base" />
-          <p class="text-sm font-book leading-4 ml-2 mt-0.5 max-w-24 truncate">{{ currentLibraryName }}</p>
+          <p class="text-smleading-4 ml-2 mt-0.5 max-w-24 truncate">{{ currentLibraryName }}</p>
         </div>
       </div>
 

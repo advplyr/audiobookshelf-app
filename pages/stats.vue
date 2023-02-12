@@ -8,21 +8,21 @@
       <div class="flex p-2">
         <div class="px-3">
           <p class="text-4xl md:text-5xl font-bold">{{ userItemsFinished.length }}</p>
-          <p class="font-book text-xs md:text-sm text-white text-opacity-80">Items Finished</p>
+          <p class="text-xs md:text-sm text-white text-opacity-80">Items Finished</p>
         </div>
       </div>
 
       <div class="flex p-2">
         <div class="px-1">
           <p class="text-4xl md:text-5xl font-bold">{{ totalDaysListened }}</p>
-          <p class="font-book text-xs md:text-sm text-white text-opacity-80">Days Listened</p>
+          <p class="text-xs md:text-sm text-white text-opacity-80">Days Listened</p>
         </div>
       </div>
 
       <div class="flex p-2">
         <div class="px-1">
           <p class="text-4xl md:text-5xl font-bold">{{ totalMinutesListening }}</p>
-          <p class="font-book text-xs md:text-sm text-white text-opacity-80">Minutes Listening</p>
+          <p class="text-xs md:text-sm text-white text-opacity-80">Minutes Listening</p>
         </div>
       </div>
     </div>
@@ -30,16 +30,16 @@
       <stats-daily-listening-chart :listening-stats="listeningStats" class="lg:scale-100 transform scale-90 px-0" />
       <div class="w-80 my-6 mx-auto">
         <div class="flex mb-4 items-center">
-          <h1 class="text-2xl font-book">Recent Sessions</h1>
+          <h1 class="text-2xl">Recent Sessions</h1>
           <div class="flex-grow" />
         </div>
         <p v-if="!mostRecentListeningSessions.length">No Listening Sessions</p>
         <template v-for="(item, index) in mostRecentListeningSessions">
           <div :key="item.id" class="w-full py-0.5">
             <div class="flex items-center mb-1">
-              <p class="text-sm font-book text-white text-opacity-70 w-8">{{ index + 1 }}.&nbsp;</p>
+              <p class="text-smtext-white text-opacity-70 w-8">{{ index + 1 }}.&nbsp;</p>
               <div class="w-56">
-                <p class="text-sm font-book text-white text-opacity-80 truncate">{{ item.mediaMetadata ? item.mediaMetadata.title : '' }}</p>
+                <p class="text-smtext-white text-opacity-80 truncate">{{ item.mediaMetadata ? item.mediaMetadata.title : '' }}</p>
                 <p class="text-xs text-white text-opacity-50">{{ $dateDistanceFromNow(item.updatedAt) }}</p>
               </div>
               <div class="flex-grow" />
