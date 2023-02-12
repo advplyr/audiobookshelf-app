@@ -1,0 +1,42 @@
+name: Build APK
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  main:
+    runs-on: ubuntu-latest
+    steps:
+    - name: checkout sources
+      uses: actions/checkout@v3
+
+    - name: use Node.js 16.x
+      uses: actions/setup-node@v3
+      with:
+        node-version: 16
+
+    - name: install dependencies
+      run: npm ci
+
+    - name: build Nuxt project
+      run: npm run generate
+
+    - name: copy to Android project
+      run: npx cap sync
+
+    - name: build Android app
+      run: ./android/gradlew assembleDebug -p android --no-daemon
+
+    - name: rename apk
+      working-directory: android/app/build/outputs/apk/debug/
+      run: |
+        build="$(date +%Y%m%d-%H%M%S)-$(git rev-parse --short HEAD)"
+        name="audiobookshelf-${build}.apk"
+        mv -v app-debug.apk "${name}"
+
+    - name: upload app
+      uses: actions/upload-artifact@v3
+      with:
+        name: audiobookshelf-apk
+        path: android/app/build/outputs/apk/debug/*.apk
