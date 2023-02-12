@@ -188,6 +188,7 @@ export default {
       const libraryItemId = payload.libraryItemId
       const episodeId = payload.episodeId
       const startTime = payload.startTime
+      const startWhenReady = !payload.paused
 
       // When playing local library item and can also play this item from the server
       //   then store the server library item id so it can be used if a cast is made
@@ -223,7 +224,7 @@ export default {
       }
 
       console.log('Called playLibraryItem', libraryItemId)
-      const preparePayload = { libraryItemId, episodeId, playWhenReady: true, playbackRate }
+      const preparePayload = { libraryItemId, episodeId, playWhenReady: startWhenReady, playbackRate }
       if (startTime !== undefined && startTime !== null) preparePayload.startTime = startTime
       AbsAudioPlayer.prepareLibraryItem(preparePayload)
         .then((data) => {
