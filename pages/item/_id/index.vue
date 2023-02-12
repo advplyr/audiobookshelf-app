@@ -24,13 +24,6 @@
 
       <p v-if="subtitle" class="text-gray-100 text-base text-center py-0.5 mb-0.5">{{ subtitle }}</p>
 
-      <p v-if="seriesList && seriesList.length" class="text-sm text-center text-gray-300 py-0.5">
-        <template v-for="(series, index) in seriesList">
-          <nuxt-link :key="series.id" :to="`/bookshelf/series/${series.id}`" class="underline">{{ series.text }}</nuxt-link
-          ><span :key="`${series.id}-comma`" v-if="index < seriesList.length - 1">,&nbsp;</span>
-        </template>
-      </p>
-
       <p v-if="podcastAuthor" class="text-sm text-center text-gray-300 py-0.5">by {{ podcastAuthor }}</p>
       <p v-else-if="bookAuthors && bookAuthors.length" class="text-sm text-center text-gray-300 py-0.5">
         by
@@ -90,6 +83,15 @@
 
       <!-- metadata -->
       <div class="grid gap-2 my-4" style="grid-template-columns: max-content auto">
+
+        <div v-if="series && series.length" class="text-white text-opacity-60 uppercase text-sm">Series</div>
+        <div v-if="series && series.length" class="truncate text-sm">
+          <template v-for="(series, index) in seriesList">
+            <nuxt-link :key="series.id" :to="`/bookshelf/series/${series.id}`" class="underline">{{ series.text }}</nuxt-link
+            ><span :key="`${series.id}-comma`" v-if="index < seriesList.length - 1">,&nbsp;</span>
+          </template>
+        </div>
+
         <div v-if="narrators && narrators.length" class="text-white text-opacity-60 uppercase text-sm">Narrators</div>
         <div v-if="narrators && narrators.length" class="truncate text-sm">
           <template v-for="(narrator, index) in narrators">
