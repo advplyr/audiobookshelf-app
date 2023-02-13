@@ -20,10 +20,6 @@
         </div>
       </div>
 
-      <h1 class="text-xl text-center font-semibold">{{ title }}</h1>
-
-      <p v-if="subtitle" class="text-gray-100 text-base text-center py-0.5 mb-0.5">{{ subtitle }}</p>
-
       <!--
       <p v-if="podcastAuthor" class="text-sm text-center text-gray-300 py-0.5">by {{ podcastAuthor }}</p>
       <p v-else-if="bookAuthors && bookAuthors.length" class="text-sm text-center text-gray-300 py-0.5">
@@ -84,6 +80,10 @@
         <p v-if="downloadItem.itemProgress == 1" class="text-center text-lg">Download complete. Processing...</p>
         <p v-else class="text-center text-lg">Downloading! ({{ Math.round(downloadItem.itemProgress * 100) }}%)</p>
       </div>
+
+      <h1 class="text-xl text-center mt-4 font-semibold">{{ title }}</h1>
+
+      <p v-if="subtitle" class="text-gray-100 text-base text-center py-0.5 mb-0.5">{{ subtitle }}</p>
 
       <!-- metadata -->
       <div class="grid gap-2 my-4" style="grid-template-columns: max-content auto">
