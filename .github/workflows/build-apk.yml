@@ -4,12 +4,10 @@ on:
   push:
     paths-ignore:
       - 'ios/**'
-      - '.github/**'
       - 'readme.md'
   pull_request:
     paths-ignore:
       - 'ios/**'
-      - '.github/**'
       - 'readme.md'
 jobs:
   main:
