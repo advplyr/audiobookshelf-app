@@ -6,7 +6,6 @@ on:
       - master
     paths-ignore:
       - 'ios/**'
-      - '.github/**'
       - 'readme.md'
 
 jobs:
