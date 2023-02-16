@@ -462,11 +462,10 @@ class AudioPlayer: NSObject {
     }
     
     public func getPlayerState() -> PlayerState {
-        // Other PlayerStates doesn't translate to player status
         switch status {
         case .uninitialized:
             return PlayerState.buffering
-        default:
+        case .paused, .playing:
             return PlayerState.ready
         }
     }
