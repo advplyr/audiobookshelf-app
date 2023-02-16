@@ -39,6 +39,7 @@ export default {
       shelves: [],
       loading: false,
       isFirstNetworkConnection: true,
+      isFirstAutoOpenPlayer: true,
       lastServerFetch: 0,
       lastServerFetchLibraryId: null,
       lastLocalFetch: 0,
@@ -247,6 +248,8 @@ export default {
           return cat
         })
 
+        this.openMediaPlayerWithMostRecentListening()
+
         // Only add the local shelf with the same media type
         const localShelves = localCategories.filter((cat) => cat.type === this.currentLibraryMediaType && !cat.localOnly)
         this.shelves.push(...localShelves)
@@ -260,6 +263,40 @@ export default {
       }
 
       this.loading = false
+    },
+    openMediaPlayerWithMostRecentListening() {
+      // If we don't already have a player open
+      // Try opening the first book from continue-listening without playing it
+      if (this.$store.state.playerLibraryItemId || !this.isFirstAutoOpenPlayer) return
+      this.isFirstAutoOpenPlayer = false // Only run this once, not on every library change
+
+      const continueListeningShelf = this.shelves.find((cat) => cat.id === 'continue-listening')
+      const mostRecentEntity = continueListeningShelf?.entities?.[0]
+      if (mostRecentEntity) {
+        const playObject = {
+          libraryItemId: mostRecentEntity.id,
+          episodeId: mostRecentEntity.recentEpisode?.id || null,
+          paused: true
+        }
+
+        // Check if there is a local copy
+        if (mostRecentEntity.localLibraryItem) {
+          if (mostRecentEntity.recentEpisode) {
+            // Check if the podcast episode has a local copy
+            const localEpisode = mostRecentEntity.localLibraryItem.media.episodes.find((ep) => ep.serverEpisodeId === mostRecentEntity.recentEpisode.id)
+            if (localEpisode) {
+              playObject.libraryItemId = mostRecentEntity.localLibraryItem.id
+              playObject.episodeId = localEpisode.id
+              playObject.serverLibraryItemId = mostRecentEntity.id
+              playObject.serverEpisodeId = mostRecentEntity.recentEpisode.id
+            }
+          } else {
+            playObject.libraryItemId = mostRecentEntity.localLibraryItem.id
+            playObject.serverLibraryItemId = mostRecentEntity.id
+          }
+        }
+        this.$eventBus.$emit('play-item', playObject)
+      }
     },
     libraryChanged() {
       if (this.currentLibraryId) {

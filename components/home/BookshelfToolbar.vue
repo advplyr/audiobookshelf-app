@@ -5,8 +5,8 @@
         <nuxt-link to="/bookshelf/series" v-if="selectedSeriesName" class="pt-1">
           <span class="material-icons">arrow_back</span>
         </nuxt-link>
-        <p v-show="!selectedSeriesName" class="font-book pt-1">{{ totalEntities }} {{ entityTitle }}</p>
-        <p v-show="selectedSeriesName" class="ml-2 font-book pt-1">{{ selectedSeriesName }} ({{ totalEntities }})</p>
+        <p v-show="!selectedSeriesName" class="pt-1">{{ totalEntities }} {{ entityTitle }}</p>
+        <p v-show="selectedSeriesName" class="ml-2pt-1">{{ selectedSeriesName }} ({{ totalEntities }})</p>
         <div class="flex-grow" />
         <span v-if="page == 'library' || seriesBookPage" class="material-icons px-2" @click="changeView">{{ !bookshelfListView ? 'view_list' : 'grid_view' }}</span>
         <template v-if="page === 'library'">
