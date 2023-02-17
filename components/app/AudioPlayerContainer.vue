@@ -43,6 +43,9 @@ export default {
     bookmarks() {
       if (!this.serverLibraryItemId) return []
       return this.$store.getters['user/getUserBookmarksForItem'](this.serverLibraryItemId)
+    },
+    isIos() {
+      return this.$platform === 'ios'
     }
   },
   methods: {
@@ -266,12 +269,17 @@ export default {
     onReady() {
       // The UI is reporting elsewhere we are ready
       this.isReady = true
-      this.notifyOnReady()
+
+      // TODO: iOS opens last active playback session on app launch. Should be consistent with Android
+      if (this.isIos) {
+        this.notifyOnReady()
+      }
     },
     notifyOnReady() {
       // If settings aren't loaded yet, native player will receive incorrect settings
       console.log('Notify on ready... settingsLoaded:', this.settingsLoaded, 'isReady:', this.isReady)
-      if (this.settingsLoaded && this.isReady) {
+      if (this.settingsLoaded && this.isReady && this.$store.state.isFirstAudioLoad) {
+        this.$store.commit('setIsFirstAudioLoad', false) // Only run this once on app launch
         AbsAudioPlayer.onReady()
       }
     }

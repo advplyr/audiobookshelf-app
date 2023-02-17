@@ -39,7 +39,6 @@ export default {
       shelves: [],
       loading: false,
       isFirstNetworkConnection: true,
-      isFirstAutoOpenPlayer: true,
       lastServerFetch: 0,
       lastServerFetchLibraryId: null,
       lastLocalFetch: 0,
@@ -77,6 +76,9 @@ export default {
     },
     networkConnected() {
       return this.$store.state.networkConnected
+    },
+    isIos() {
+      return this.$platform === 'ios'
     },
     currentLibraryName() {
       return this.$store.getters['libraries/getCurrentLibraryName']
@@ -248,7 +250,10 @@ export default {
           return cat
         })
 
-        this.openMediaPlayerWithMostRecentListening()
+        // TODO: iOS has its own implementation of this. Android & iOS should be consistent here.
+        if (!this.isIos) {
+          this.openMediaPlayerWithMostRecentListening()
+        }
 
         // Only add the local shelf with the same media type
         const localShelves = localCategories.filter((cat) => cat.type === this.currentLibraryMediaType && !cat.localOnly)
@@ -267,8 +272,8 @@ export default {
     openMediaPlayerWithMostRecentListening() {
       // If we don't already have a player open
       // Try opening the first book from continue-listening without playing it
-      if (this.$store.state.playerLibraryItemId || !this.isFirstAutoOpenPlayer) return
-      this.isFirstAutoOpenPlayer = false // Only run this once, not on every library change
+      if (this.$store.state.playerLibraryItemId || !this.$store.state.isFirstAudioLoad) return
+      this.$store.commit('setIsFirstAudioLoad', false) // Only run this once on app launch
 
       const continueListeningShelf = this.shelves.find((cat) => cat.id === 'continue-listening')
       const mostRecentEntity = continueListeningShelf?.entities?.[0]
