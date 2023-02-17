@@ -130,7 +130,7 @@ export const mutations = {
     downloadItem.downloadItemParts = downloadItem.downloadItemParts.map(dip => {
       let newDip = dip.id == downloadItemPart.id ? downloadItemPart : dip
 
-      totalBytes += Number(newDip.fileSize)
+      totalBytes += newDip.completed ? Number(newDip.bytesDownloaded) : Number(newDip.fileSize)
       totalBytesDownloaded += Number(newDip.bytesDownloaded)
 
       return newDip
