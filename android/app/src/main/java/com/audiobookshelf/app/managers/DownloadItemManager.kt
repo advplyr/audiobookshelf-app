@@ -25,7 +25,7 @@ import kotlinx.coroutines.launch
 
 class DownloadItemManager(var downloadManager:DownloadManager, private var folderScanner: FolderScanner, var mainActivity: MainActivity, private var clientEventEmitter:DownloadEventEmitter) {
   val tag = "DownloadItemManager"
-  private val maxSimultaneousDownloads = 1
+  private val maxSimultaneousDownloads = 3
   private var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
 
   enum class DownloadCheckStatus {
