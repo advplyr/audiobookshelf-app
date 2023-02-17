@@ -37,14 +37,13 @@
         <template v-for="(item, index) in mostRecentListeningSessions">
           <div :key="item.id" class="w-full py-0.5">
             <div class="flex items-center mb-1">
-              <p class="text-smtext-white text-opacity-70 w-8">{{ index + 1 }}.&nbsp;</p>
+              <p class="text-sm text-white text-opacity-70 w-8 min-w-8">{{ index + 1 }}.&nbsp;</p>
               <div class="w-56">
-                <p class="text-smtext-white text-opacity-80 truncate">{{ item.mediaMetadata ? item.mediaMetadata.title : '' }}</p>
+                <p class="text-sm text-white text-opacity-80 truncate">{{ item.mediaMetadata ? item.mediaMetadata.title : '' }}</p>
                 <p class="text-xs text-white text-opacity-50">{{ $dateDistanceFromNow(item.updatedAt) }}</p>
               </div>
-              <div class="flex-grow" />
-              <div class="w-18 text-right">
-                <p class="text-sm font-bold">{{ $elapsedPretty(item.timeListening) }}</p>
+              <div class="w-16 min-w-16 text-right">
+                <p class="text-xs font-bold">{{ $elapsedPretty(item.timeListening) }}</p>
               </div>
             </div>
           </div>
