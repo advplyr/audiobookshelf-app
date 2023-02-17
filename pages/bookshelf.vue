@@ -3,7 +3,10 @@
     <home-bookshelf-nav-bar />
     <home-bookshelf-toolbar v-show="!hideToolbar" />
     <div id="bookshelf-wrapper" class="main-content overflow-y-auto overflow-x-hidden relative" :class="hideToolbar ? 'no-toolbar' : ''">
-      <nuxt-child />
+      <nuxt-child :loading.sync="loading" />
+    </div>
+    <div v-if="loading" class="absolute top-0 left-0 z-50 w-full h-full flex items-center justify-center">
+      <ui-loading-indicator text="Loading..." />
     </div>
   </div>
 </template>
@@ -11,7 +14,9 @@
 <script>
 export default {
   data() {
-    return {}
+    return {
+      loading: false
+    }
   },
   computed: {
     hideToolbar() {

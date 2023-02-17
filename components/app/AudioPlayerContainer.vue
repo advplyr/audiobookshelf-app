@@ -269,13 +269,12 @@ export default {
     onReady() {
       // The UI is reporting elsewhere we are ready
       this.isReady = true
-
-      // TODO: iOS opens last active playback session on app launch. Should be consistent with Android
-      if (this.isIos) {
-        this.notifyOnReady()
-      }
+      this.notifyOnReady()
     },
     notifyOnReady() {
+      // TODO: iOS opens last active playback session on app launch. Should be consistent with Android
+      if (!this.isIos) return
+
       // If settings aren't loaded yet, native player will receive incorrect settings
       console.log('Notify on ready... settingsLoaded:', this.settingsLoaded, 'isReady:', this.isReady)
       if (this.settingsLoaded && this.isReady && this.$store.state.isFirstAudioLoad) {

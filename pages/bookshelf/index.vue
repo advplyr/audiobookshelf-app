@@ -26,18 +26,17 @@
         </div>
       </div>
     </div>
-    <div v-if="loading" class="absolute top-0 left-0 w-full h-full flex items-center justify-center">
-      <ui-loading-indicator text="Loading Library..." />
-    </div>
   </div>
 </template>
 
 <script>
 export default {
+  props: {
+    loading: Boolean
+  },
   data() {
     return {
       shelves: [],
-      loading: false,
       isFirstNetworkConnection: true,
       lastServerFetch: 0,
       lastServerFetchLibraryId: null,
@@ -97,6 +96,14 @@ export default {
     },
     localMediaProgress() {
       return this.$store.state.globals.localMediaProgress
+    },
+    isLoading: {
+      get() {
+        return this.loading
+      },
+      set(val) {
+        this.$emit('update:loading', val)
+      }
     }
   },
   methods: {
@@ -213,7 +220,7 @@ export default {
         }
       }
 
-      this.loading = true
+      this.isLoading = true
       this.shelves = []
 
       if (this.user && this.currentLibraryId && this.networkConnected) {
@@ -229,7 +236,7 @@ export default {
           this.shelves = localCategories
           this.lastServerFetch = 0
           this.lastLocalFetch = Date.now()
-          this.loading = false
+          this.isLoading = false
           console.log('[categories] Local shelves set from failure', this.shelves.length, this.lastLocalFetch)
           return
         }
@@ -267,7 +274,7 @@ export default {
         console.log('[categories] Local shelves set', this.shelves.length, this.lastLocalFetch)
       }
 
-      this.loading = false
+      this.isLoading = false
     },
     openMediaPlayerWithMostRecentListening() {
       // If we don't already have a player open
