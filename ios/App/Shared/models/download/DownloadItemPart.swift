@@ -10,7 +10,9 @@ import RealmSwift
 
 class DownloadItemPart: Object, Codable {
     @Persisted(primaryKey: true) var id = ""
+    @Persisted var downloadItemId: String?
     @Persisted var filename: String?
+    @Persisted var fileSize: Double = 0
     @Persisted var itemTitle: String?
     @Persisted var serverPath: String?
     @Persisted var audioTrack: AudioTrack?
@@ -21,9 +23,10 @@ class DownloadItemPart: Object, Codable {
     @Persisted var uri: String?
     @Persisted var destinationUri: String?
     @Persisted var progress: Double = 0
+    @Persisted var bytesDownloaded: Double = 0
     
     private enum CodingKeys : String, CodingKey {
-        case id, filename, itemTitle, completed, moved, failed, progress
+        case id, downloadItemId, filename, fileSize, itemTitle, completed, moved, failed, progress, bytesDownloaded
     }
     
     override init() {
@@ -33,32 +36,40 @@ class DownloadItemPart: Object, Codable {
     required init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         id = try values.decode(String.self, forKey: .id)
+        downloadItemId = try? values.decode(String.self, forKey: .downloadItemId)
         filename = try? values.decode(String.self, forKey: .filename)
+        fileSize = try values.decode(Double.self, forKey: .fileSize)
         itemTitle = try? values.decode(String.self, forKey: .itemTitle)
         completed = try values.decode(Bool.self, forKey: .completed)
         moved = try values.decode(Bool.self, forKey: .moved)
         failed = try values.decode(Bool.self, forKey: .failed)
         progress = try values.decode(Double.self, forKey: .progress)
+        bytesDownloaded = try values.decode(Double.self, forKey: .bytesDownloaded)
     }
     
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
+        try container.encode(downloadItemId, forKey: .downloadItemId)
         try container.encode(filename, forKey: .filename)
+        try container.encode(fileSize, forKey: .fileSize)
         try container.encode(itemTitle, forKey: .itemTitle)
         try container.encode(completed, forKey: .completed)
         try container.encode(moved, forKey: .moved)
         try container.encode(failed, forKey: .failed)
         try container.encode(progress, forKey: .progress)
+        try container.encode(bytesDownloaded, forKey: .bytesDownloaded)
     }
 }
 
 extension DownloadItemPart {
-    convenience init(filename: String, destination: String, itemTitle: String, serverPath: String, audioTrack: AudioTrack?, episode: PodcastEpisode?) {
+    convenience init(downloadItemId: String, filename: String, destination: String, itemTitle: String, serverPath: String, audioTrack: AudioTrack?, episode: PodcastEpisode?, size: Double) {
         self.init()
         
         self.id = destination.toBase64()
+        self.downloadItemId = downloadItemId
         self.filename = filename
+        self.fileSize = size
         self.itemTitle = itemTitle
         self.serverPath = serverPath
         self.audioTrack = AudioTrack.detachCopy(of: audioTrack)
