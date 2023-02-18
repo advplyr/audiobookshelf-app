@@ -33,6 +33,7 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
         handleDownloadTaskUpdate(downloadTask: downloadTask) { downloadItem, downloadItemPart in
             let realm = try Realm()
             try realm.write {
+                downloadItemPart.bytesDownloaded = downloadItemPart.fileSize
                 downloadItemPart.progress = 100
                 downloadItemPart.completed = true
             }
@@ -72,9 +73,11 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
         handleDownloadTaskUpdate(downloadTask: downloadTask) { downloadItem, downloadItemPart in
             // Calculate the download percentage
             let percentDownloaded = (Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)) * 100
+
             // Only update the progress if we received accurate progress data
             if percentDownloaded >= 0.0 && percentDownloaded <= 100.0 {
                 try Realm().write {
+                    downloadItemPart.bytesDownloaded = Double(totalBytesWritten)
                     downloadItemPart.progress = percentDownloaded
                 }
             }
@@ -109,6 +112,7 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
             // Call the progress handler
             do {
                 try progressHandler(downloadItem, part)
+                try? self.notifyListeners("onDownloadItemPartUpdate", data: part.asDictionary())
             } catch {
                 logger.error("Error while processing progress")
                 debugPrint(error)
@@ -158,10 +162,9 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
                         }
                     }
                     
-                    // Emit status for active downloads
+                    // Check for items done downloading
                     if let activeDownloads = fetchActiveDownloads() {
                         for item in activeDownloads.values {
-                            try? self.notifyListeners("onItemDownloadUpdate", data: item.asDictionary())
                             if item.isDoneDownloading() { handleDoneDownloadItem(item) }
                         }
                     }
@@ -277,18 +280,21 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
         let downloadItem = DownloadItem(libraryItem: item, episodeId: episodeId, server: Store.serverConfig!)
         var tasks = [DownloadItemPartTask]()
         for (i, track) in tracks.enumerated() {
-            let task = try startLibraryItemTrackDownload(item: item, position: i, track: track, episode: episode)
+            let task = try startLibraryItemTrackDownload(downloadItemId: downloadItem.id!, item: item, position: i, track: track, episode: episode)
             downloadItem.downloadItemParts.append(task.part)
             tasks.append(task)
         }
         
         // Also download the cover
         if item.media?.coverPath != nil && !(item.media?.coverPath!.isEmpty ?? true) {
-            if let task = try? startLibraryItemCoverDownload(item: item) {
+            if let task = try? startLibraryItemCoverDownload(downloadItemId: downloadItem.id!, item: item) {
                 downloadItem.downloadItemParts.append(task.part)
                 tasks.append(task)
             }
         }
+        
+        // Notify client of download item
+        try? self.notifyListeners("onDownloadItem", data: downloadItem.asDictionary())
         
         // Persist in the database before status start coming in
         try Database.shared.saveDownloadItem(downloadItem)
@@ -299,7 +305,7 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
         }
     }
     
-    private func startLibraryItemTrackDownload(item: LibraryItem, position: Int, track: AudioTrack, episode: PodcastEpisode?) throws -> DownloadItemPartTask {
+    private func startLibraryItemTrackDownload(downloadItemId: String, item: LibraryItem, position: Int, track: AudioTrack, episode: PodcastEpisode?) throws -> DownloadItemPartTask {
         logger.log("TRACK \(track.contentUrl!)")
         
         // If we don't name metadata, then we can't proceed
@@ -312,7 +318,7 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
         let localUrl = "\(itemDirectory)/\(filename)"
         
         let task = session.downloadTask(with: serverUrl)
-        let part = DownloadItemPart(filename: filename, destination: localUrl, itemTitle: track.title ?? "Unknown", serverPath: Store.serverConfig!.address, audioTrack: track, episode: episode)
+        let part = DownloadItemPart(downloadItemId: downloadItemId, filename: filename, destination: localUrl, itemTitle: track.title ?? "Unknown", serverPath: Store.serverConfig!.address, audioTrack: track, episode: episode, size: track.metadata?.size ?? 0)
         
         // Store the id on the task so the download item can be pulled from the database later
         task.taskDescription = part.id
@@ -320,13 +326,18 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
         return DownloadItemPartTask(part: part, task: task)
     }
     
-    private func startLibraryItemCoverDownload(item: LibraryItem) throws -> DownloadItemPartTask {
+    private func startLibraryItemCoverDownload(downloadItemId: String, item: LibraryItem) throws -> DownloadItemPartTask {
         let filename = "cover.jpg"
         let serverPath = "/api/items/\(item.id)/cover"
         let itemDirectory = try createLibraryItemFileDirectory(item: item)
         let localUrl = "\(itemDirectory)/\(filename)"
         
-        let part = DownloadItemPart(filename: filename, destination: localUrl, itemTitle: "cover", serverPath: serverPath, audioTrack: nil, episode: nil)
+        // Find library file to get cover size
+        let coverLibraryFile = item.libraryFiles.first(where: {
+            $0.metadata?.path == item.media?.coverPath
+        })
+        
+        let part = DownloadItemPart(downloadItemId: downloadItemId, filename: filename, destination: localUrl, itemTitle: "cover", serverPath: serverPath, audioTrack: nil, episode: nil, size: coverLibraryFile?.metadata?.size ?? 0)
         let task = session.downloadTask(with: part.downloadURL!)
         
         // Store the id on the task so the download item can be pulled from the database later

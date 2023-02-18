@@ -134,7 +134,7 @@ export default {
 
       var innerP = document.createElement('p')
       innerP.textContent = this.name
-      innerP.className = 'text-sm font-book text-white'
+      innerP.className = 'text-smtext-white'
       imgdiv.appendChild(innerP)
 
       return imgdiv

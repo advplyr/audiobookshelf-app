@@ -33,8 +33,7 @@ module.exports = {
       },
       fontFamily: {
         sans: ['Source Sans Pro', ...defaultTheme.fontFamily.sans],
-        mono: ['Ubuntu Mono', ...defaultTheme.fontFamily.mono],
-        book: ['Gentium Book Basic', 'serif']
+        mono: ['Ubuntu Mono', ...defaultTheme.fontFamily.mono]
       },
       fontSize: {
         xxs: '0.625rem'
@@ -46,7 +45,8 @@ module.exports = {
         '4': '1rem',
         '8': '2rem',
         '10': '2.5rem',
-        '12': '3rem'
+        '12': '3rem',
+        '16': '4rem'
       },
       minHeight: {
         '12': '3rem'

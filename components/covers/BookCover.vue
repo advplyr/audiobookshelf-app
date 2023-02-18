@@ -1,14 +1,14 @@
 <template>
   <div class="relative rounded-sm overflow-hidden" :style="{ height: height + 'px', width: width + 'px', maxWidth: width + 'px', minWidth: width + 'px' }">
-    <div class="w-full h-full relative bg-bg">
+    <div class="w-full h-full relative" :class="{ 'bg-bg': !noBg }">
       <div v-show="showCoverBg" class="absolute top-0 left-0 w-full h-full overflow-hidden rounded-sm bg-primary">
         <div class="absolute cover-bg" ref="coverBg" />
       </div>
 
-      <img v-if="fullCoverUrl" ref="cover" :src="fullCoverUrl" loading="lazy" @error="imageError" @load="imageLoaded" class="w-full h-full absolute top-0 left-0 z-10 duration-300 transition-opacity" :style="{ opacity: imageReady ? 1 : 0 }" :class="showCoverBg && hasCover ? 'object-contain' : 'object-fill'" />
+      <img v-if="fullCoverUrl" ref="cover" :src="fullCoverUrl" loading="lazy" @error="imageError" @load="imageLoaded" class="w-full h-full absolute top-0 left-0 z-10 duration-300 transition-opacity" :style="{ opacity: imageReady ? 1 : 0 }" :class="(showCoverBg && hasCover) || noBg ? 'object-contain' : 'object-fill'" />
 
       <div v-show="loading && libraryItem" class="absolute top-0 left-0 h-full w-full flex items-center justify-center">
-        <p class="font-book text-center" :style="{ fontSize: 0.75 * sizeMultiplier + 'rem' }">{{ title }}</p>
+        <p class="text-center" :style="{ fontSize: 0.75 * sizeMultiplier + 'rem' }">{{ title }}</p>
         <div class="absolute top-2 right-2">
           <widgets-loading-spinner />
         </div>
@@ -18,17 +18,17 @@
     <div v-if="imageFailed" class="absolute top-0 left-0 right-0 bottom-0 w-full h-full bg-red-100" :style="{ padding: placeholderCoverPadding + 'rem' }">
       <div class="w-full h-full border-2 border-error flex flex-col items-center justify-center">
         <img src="/Logo.png" loading="lazy" class="mb-2" :style="{ height: 64 * sizeMultiplier + 'px' }" />
-        <p class="text-center font-book text-error" :style="{ fontSize: titleFontSize + 'rem' }">Invalid Cover</p>
+        <p class="text-centertext-error" :style="{ fontSize: titleFontSize + 'rem' }">Invalid Cover</p>
       </div>
     </div>
 
     <div v-if="!hasCover" class="absolute top-0 left-0 right-0 bottom-0 w-full h-full flex items-center justify-center z-10" :style="{ padding: placeholderCoverPadding + 'rem' }">
       <div>
-        <p class="text-center font-book truncate leading-none origin-center" style="color: rgb(247 223 187); font-size: 0.8rem" :style="{ transform: `scale(${sizeMultiplier})` }">{{ titleCleaned }}</p>
+        <p class="text-centertruncate leading-none origin-center" style="color: rgb(247 223 187); font-size: 0.8rem" :style="{ transform: `scale(${sizeMultiplier})` }">{{ titleCleaned }}</p>
       </div>
     </div>
     <div v-if="!hasCover" class="absolute left-0 right-0 w-full flex items-center justify-center z-10" :style="{ padding: placeholderCoverPadding + 'rem', bottom: authorBottom + 'rem' }">
-      <p class="text-center font-book truncate leading-none origin-center" style="color: rgb(247 223 187); opacity: 0.75; font-size: 0.6rem" :style="{ transform: `scale(${sizeMultiplier})` }">{{ authorCleaned }}</p>
+      <p class="text-centertruncate leading-none origin-center" style="color: rgb(247 223 187); opacity: 0.75; font-size: 0.6rem" :style="{ transform: `scale(${sizeMultiplier})` }">{{ authorCleaned }}</p>
     </div>
   </div>
 </template>
@@ -48,7 +48,8 @@ export default {
     },
     bookCoverAspectRatio: Number,
     downloadCover: String,
-    raw: Boolean
+    raw: Boolean,
+    noBg: Boolean
   },
   data() {
     return {
@@ -156,7 +157,7 @@ export default {
       this.$nextTick(() => {
         this.imageReady = true
       })
-      if (this.$refs.cover && this.cover !== this.placeholderUrl) {
+      if (!this.noBg && this.$refs.cover && this.cover !== this.placeholderUrl) {
         var { naturalWidth, naturalHeight } = this.$refs.cover
         var aspectRatio = naturalHeight / naturalWidth
         var arDiff = Math.abs(aspectRatio - this.bookCoverAspectRatio)

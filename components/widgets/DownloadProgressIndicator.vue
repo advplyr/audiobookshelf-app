@@ -44,7 +44,6 @@ export default {
   },
   methods: {
     clickedIt() {
-      if (this.isIos) return // TODO: Implement on iOS
       this.$router.push('/downloading')
     },
     onItemDownloadComplete(data) {

@@ -43,6 +43,9 @@ export default {
     bookmarks() {
       if (!this.serverLibraryItemId) return []
       return this.$store.getters['user/getUserBookmarksForItem'](this.serverLibraryItemId)
+    },
+    isIos() {
+      return this.$platform === 'ios'
     }
   },
   methods: {
@@ -188,6 +191,7 @@ export default {
       const libraryItemId = payload.libraryItemId
       const episodeId = payload.episodeId
       const startTime = payload.startTime
+      const startWhenReady = !payload.paused
 
       // When playing local library item and can also play this item from the server
       //   then store the server library item id so it can be used if a cast is made
@@ -223,7 +227,7 @@ export default {
       }
 
       console.log('Called playLibraryItem', libraryItemId)
-      const preparePayload = { libraryItemId, episodeId, playWhenReady: true, playbackRate }
+      const preparePayload = { libraryItemId, episodeId, playWhenReady: startWhenReady, playbackRate }
       if (startTime !== undefined && startTime !== null) preparePayload.startTime = startTime
       AbsAudioPlayer.prepareLibraryItem(preparePayload)
         .then((data) => {
@@ -268,9 +272,13 @@ export default {
       this.notifyOnReady()
     },
     notifyOnReady() {
+      // TODO: iOS opens last active playback session on app launch. Should be consistent with Android
+      if (!this.isIos) return
+
       // If settings aren't loaded yet, native player will receive incorrect settings
       console.log('Notify on ready... settingsLoaded:', this.settingsLoaded, 'isReady:', this.isReady)
-      if (this.settingsLoaded && this.isReady) {
+      if (this.settingsLoaded && this.isReady && this.$store.state.isFirstAudioLoad) {
+        this.$store.commit('setIsFirstAudioLoad', false) // Only run this once on app launch
         AbsAudioPlayer.onReady()
       }
     }

@@ -51,7 +51,7 @@ class FolderScanner(var ctx: Context) {
      var mediaItemsUpToDate = 0
 
       // Search for files in media item folder
-     val foldersFound = df.search(false, DocumentFileType.FOLDER)
+     val foldersFound = df.search(true, DocumentFileType.FOLDER)
 
       // Match folders found with local library items already saved in db
      var existingLocalLibraryItems = DeviceManager.dbManager.getLocalLibraryItemsInFolder(localFolder.id)
@@ -72,11 +72,16 @@ class FolderScanner(var ctx: Context) {
        Log.d(tag, "Iterating over Folder Found ${itemFolder.name} | ${itemFolder.getSimplePath(ctx)} | URI: ${itemFolder.uri}")
        val existingItem = existingLocalLibraryItems.find { emi -> emi.id == getLocalLibraryItemId(itemFolder.id) }
 
-       when (scanLibraryItemFolder(itemFolder, localFolder, existingItem, forceAudioProbe)) {
-         ItemScanResult.REMOVED -> mediaItemsRemoved++
-         ItemScanResult.UPDATED -> mediaItemsUpdated++
-         ItemScanResult.ADDED -> mediaItemsAdded++
-         else -> mediaItemsUpToDate++
+       val filesInFolder = itemFolder.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*", "video/mp4", "application/octet-stream"))
+
+       // Do not scan folders that have no media items and not an existing item already
+       if (existingItem != null || filesInFolder.isNotEmpty()) {
+         when (scanLibraryItemFolder(itemFolder, filesInFolder, localFolder, existingItem, forceAudioProbe)) {
+           ItemScanResult.REMOVED -> mediaItemsRemoved++
+           ItemScanResult.UPDATED -> mediaItemsUpdated++
+           ItemScanResult.ADDED -> mediaItemsAdded++
+           else -> mediaItemsUpToDate++
+         }
        }
      }
 
@@ -91,7 +96,7 @@ class FolderScanner(var ctx: Context) {
      }
    }
 
-  private fun scanLibraryItemFolder(itemFolder:DocumentFile, localFolder:LocalFolder, existingItem:LocalLibraryItem?, forceAudioProbe:Boolean):ItemScanResult {
+  private fun scanLibraryItemFolder(itemFolder:DocumentFile, filesInFolder:List<DocumentFile>, localFolder:LocalFolder, existingItem:LocalLibraryItem?, forceAudioProbe:Boolean):ItemScanResult {
     val itemFolderName = itemFolder.name ?: ""
     val itemId = getLocalLibraryItemId(itemFolder.id)
 
@@ -105,8 +110,6 @@ class FolderScanner(var ctx: Context) {
     var startOffset = 0.0
     var coverContentUrl:String? = null
     var coverAbsolutePath:String? = null
-
-    val filesInFolder = itemFolder.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*", "video/mp4", "application/octet-stream"))
 
     val existingLocalFilesRemoved = existingLocalFiles.filter { elf ->
       filesInFolder.find { fif -> DeviceManager.getBase64Id(fif.id) == elf.id } == null // File was not found in media item folder

@@ -4,7 +4,7 @@
     <div class="w-full h-full bg-primary relative rounded overflow-hidden">
       <covers-playlist-cover ref="cover" :items="items" :width="width" :height="height" />
     </div>
-    <div class="categoryPlacard absolute z-30 left-0 right-0 mx-auto -bottom-6 h-6 rounded-md font-book text-center" :style="{ width: Math.min(160, width) + 'px' }">
+    <div class="categoryPlacard absolute z-30 left-0 right-0 mx-auto -bottom-6 h-6 rounded-mdtext-center" :style="{ width: Math.min(160, width) + 'px' }">
       <div class="w-full h-full flex items-center justify-center rounded-sm border" :class="isAltViewEnabled ? 'altBookshelfLabel' : 'shinyBlack'" :style="{ padding: `0rem ${0.5 * sizeMultiplier}rem` }">
         <p class="truncate" :style="{ fontSize: labelFontSize + 'rem' }">{{ title }}</p>
       </div>

@@ -9,7 +9,7 @@ import Foundation
 import RealmSwift
 
 class DownloadItem: Object, Codable {
-    @Persisted(primaryKey: true) var id: String?
+    @Persisted(primaryKey: true) var id:String?
     @Persisted(indexed: true) var libraryItemId: String?
     @Persisted var episodeId: String?
     @Persisted var userMediaProgress: MediaProgress?

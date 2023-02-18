@@ -13,7 +13,7 @@
       </template>
     </div>
 
-    <div v-if="!altViewEnabled" class="absolute text-center categoryPlacard font-book transform z-30 bottom-0.5 left-4 md:left-8 w-36 rounded-md" style="height: 18px">
+    <div v-if="!altViewEnabled" class="absolute text-center categoryPlacardtransform z-30 bottom-0.5 left-4 md:left-8 w-36 rounded-md" style="height: 18px">
       <div class="w-full h-full flex items-center justify-center rounded-sm border shinyBlack">
         <p class="transform text-xs">{{ label }}</p>
       </div>

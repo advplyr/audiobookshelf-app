@@ -26,18 +26,17 @@
         </div>
       </div>
     </div>
-    <div v-if="loading" class="absolute top-0 left-0 w-full h-full flex items-center justify-center">
-      <ui-loading-indicator text="Loading Library..." />
-    </div>
   </div>
 </template>
 
 <script>
 export default {
+  props: {
+    loading: Boolean
+  },
   data() {
     return {
       shelves: [],
-      loading: false,
       isFirstNetworkConnection: true,
       lastServerFetch: 0,
       lastServerFetchLibraryId: null,
@@ -77,6 +76,9 @@ export default {
     networkConnected() {
       return this.$store.state.networkConnected
     },
+    isIos() {
+      return this.$platform === 'ios'
+    },
     currentLibraryName() {
       return this.$store.getters['libraries/getCurrentLibraryName']
     },
@@ -94,6 +96,14 @@ export default {
     },
     localMediaProgress() {
       return this.$store.state.globals.localMediaProgress
+    },
+    isLoading: {
+      get() {
+        return this.loading
+      },
+      set(val) {
+        this.$emit('update:loading', val)
+      }
     }
   },
   methods: {
@@ -210,7 +220,7 @@ export default {
         }
       }
 
-      this.loading = true
+      this.isLoading = true
       this.shelves = []
 
       if (this.user && this.currentLibraryId && this.networkConnected) {
@@ -226,7 +236,7 @@ export default {
           this.shelves = localCategories
           this.lastServerFetch = 0
           this.lastLocalFetch = Date.now()
-          this.loading = false
+          this.isLoading = false
           console.log('[categories] Local shelves set from failure', this.shelves.length, this.lastLocalFetch)
           return
         }
@@ -247,6 +257,11 @@ export default {
           return cat
         })
 
+        // TODO: iOS has its own implementation of this. Android & iOS should be consistent here.
+        if (!this.isIos) {
+          this.openMediaPlayerWithMostRecentListening()
+        }
+
         // Only add the local shelf with the same media type
         const localShelves = localCategories.filter((cat) => cat.type === this.currentLibraryMediaType && !cat.localOnly)
         this.shelves.push(...localShelves)
@@ -259,7 +274,41 @@ export default {
         console.log('[categories] Local shelves set', this.shelves.length, this.lastLocalFetch)
       }
 
-      this.loading = false
+      this.isLoading = false
+    },
+    openMediaPlayerWithMostRecentListening() {
+      // If we don't already have a player open
+      // Try opening the first book from continue-listening without playing it
+      if (this.$store.state.playerLibraryItemId || !this.$store.state.isFirstAudioLoad) return
+      this.$store.commit('setIsFirstAudioLoad', false) // Only run this once on app launch
+
+      const continueListeningShelf = this.shelves.find((cat) => cat.id === 'continue-listening')
+      const mostRecentEntity = continueListeningShelf?.entities?.[0]
+      if (mostRecentEntity) {
+        const playObject = {
+          libraryItemId: mostRecentEntity.id,
+          episodeId: mostRecentEntity.recentEpisode?.id || null,
+          paused: true
+        }
+
+        // Check if there is a local copy
+        if (mostRecentEntity.localLibraryItem) {
+          if (mostRecentEntity.recentEpisode) {
+            // Check if the podcast episode has a local copy
+            const localEpisode = mostRecentEntity.localLibraryItem.media.episodes.find((ep) => ep.serverEpisodeId === mostRecentEntity.recentEpisode.id)
+            if (localEpisode) {
+              playObject.libraryItemId = mostRecentEntity.localLibraryItem.id
+              playObject.episodeId = localEpisode.id
+              playObject.serverLibraryItemId = mostRecentEntity.id
+              playObject.serverEpisodeId = mostRecentEntity.recentEpisode.id
+            }
+          } else {
+            playObject.libraryItemId = mostRecentEntity.localLibraryItem.id
+            playObject.serverLibraryItemId = mostRecentEntity.id
+          }
+        }
+        this.$eventBus.$emit('play-item', playObject)
+      }
     },
     libraryChanged() {
       if (this.currentLibraryId) {
