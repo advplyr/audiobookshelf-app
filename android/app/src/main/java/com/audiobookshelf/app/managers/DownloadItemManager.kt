@@ -22,6 +22,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.*
 
 class DownloadItemManager(var downloadManager:DownloadManager, private var folderScanner: FolderScanner, var mainActivity: MainActivity, private var clientEventEmitter:DownloadEventEmitter) {
   val tag = "DownloadItemManager"
@@ -188,7 +189,8 @@ class DownloadItemManager(var downloadManager:DownloadManager, private var folde
 
           // Rename to fix appended .mp3 on m4b/m4a files
           //  REF: https://github.com/anggrayudi/SimpleStorage/issues/94
-          if (resultDocFile.name?.endsWith(".m4b.mp3") == true || resultDocFile.name?.endsWith(".m4a.mp3") == true) {
+          val docNameLowerCase = resultDocFile.name?.lowercase(Locale.getDefault()) ?: ""
+          if (docNameLowerCase.endsWith(".m4b.mp3")|| docNameLowerCase.endsWith(".m4a.mp3")) {
             resultDocFile.renameTo(downloadItemPart.filename)
           }
 
