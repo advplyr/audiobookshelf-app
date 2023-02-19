@@ -175,7 +175,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     castPlayer?.release()
     mediaSession.release()
     mediaProgressSyncer.reset()
-    Log.d(tag, "onDestroy")
     isStarted = false
 
     super.onDestroy()

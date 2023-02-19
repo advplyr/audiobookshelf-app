@@ -1,21 +1,37 @@
 package com.audiobookshelf.app.player
 
 import android.app.Notification
+import android.content.pm.ServiceInfo
+import android.os.Build
 import android.util.Log
 import com.google.android.exoplayer2.ui.PlayerNotificationManager
 
 class PlayerNotificationListener(var playerNotificationService:PlayerNotificationService) : PlayerNotificationManager.NotificationListener {
   var tag = "PlayerNotificationListener"
 
+  companion object {
+    var isForegroundService = false
+  }
+
   override fun onNotificationPosted(
     notificationId: Int,
     notification: Notification,
     onGoing: Boolean) {
 
-    // Start foreground service
-    Log.d(tag, "Notification Posted $notificationId - Start Foreground | $notification")
-    PlayerNotificationService.isClosed = false
-    playerNotificationService.startForeground(notificationId, notification)
+    if (onGoing && !isForegroundService) {
+      // Start foreground service
+      Log.d(tag, "Notification Posted $notificationId - Start Foreground | $notification")
+      PlayerNotificationService.isClosed = false
+
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        playerNotificationService.startForeground(notificationId, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+      } else {
+        playerNotificationService.startForeground(notificationId, notification)
+      }
+      isForegroundService = true
+    } else {
+      Log.d(tag, "Notification posted $notificationId, not starting foreground - onGoing=$onGoing | isForegroundService=$isForegroundService")
+    }
   }
 
   override fun onNotificationCancelled(
@@ -39,5 +55,6 @@ class PlayerNotificationListener(var playerNotificationService:PlayerNotificatio
         PlayerNotificationService.isSwitchingPlayer = false
       }
     }
+    isForegroundService = false
   }
 }
