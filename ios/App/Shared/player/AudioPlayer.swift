@@ -30,7 +30,7 @@ class AudioPlayer: NSObject {
     private var playerContext = 0
     private var playerItemContext = 0
     
-    private var playWhenReady: Bool
+    internal var playWhenReady: Bool
     private var initialPlaybackRate: Float
     
     internal var audioPlayer: AVQueuePlayer
