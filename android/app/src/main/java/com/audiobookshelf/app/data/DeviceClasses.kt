@@ -158,8 +158,8 @@ data class DeviceSettings(
 data class DeviceData(
   var serverConnectionConfigs:MutableList<ServerConnectionConfig>,
   var lastServerConnectionConfigId:String?,
-  var currentLocalPlaybackSession: PlaybackSession?, // Stored to open up where left off for local media. TODO: Old
-  var deviceSettings: DeviceSettings?
+  var deviceSettings: DeviceSettings?,
+  var lastPlaybackSession: PlaybackSession?
 ) {
   @JsonIgnore
   fun getLastServerConnectionConfig(): ServerConnectionConfig? {

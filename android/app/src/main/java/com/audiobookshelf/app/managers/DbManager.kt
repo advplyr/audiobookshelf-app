@@ -22,7 +22,7 @@ class DbManager {
   }
 
   fun getDeviceData(): DeviceData {
-    return Paper.book("device").read("data") ?: DeviceData(mutableListOf(), null, null, DeviceSettings.default())
+    return Paper.book("device").read("data") ?: DeviceData(mutableListOf(), null, DeviceSettings.default(), null)
   }
   fun saveDeviceData(deviceData: DeviceData) {
     Paper.book("device").write("data", deviceData)

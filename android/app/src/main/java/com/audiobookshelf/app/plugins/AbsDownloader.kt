@@ -51,7 +51,6 @@ class AbsDownloader : Plugin() {
     folderScanner = FolderScanner(mainActivity)
     apiHandler = ApiHandler(mainActivity)
     downloadItemManager = DownloadItemManager(downloadManager, folderScanner, mainActivity, clientEventEmitter)
-    Log.d(tag, "Build SDK ${Build.VERSION.SDK_INT}")
   }
 
   @PluginMethod
