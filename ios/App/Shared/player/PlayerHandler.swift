@@ -54,6 +54,10 @@ class PlayerHandler {
         self.player?.getCurrentTime()
     }
     
+    public static func getPlayWhenReady() -> Bool {
+        self.player?.playWhenReady ?? false
+    }
+    
     public static func setPlaybackSpeed(speed: Float) {
         self.player?.setPlaybackRate(speed)
     }
@@ -88,9 +92,8 @@ class PlayerHandler {
     
     public static func getPlaybackSession() -> PlaybackSession? {
         guard let player = player else { return nil }
-        guard player.isInitialized() else { return nil }
-        
-        return Database.shared.getPlaybackSession(id: player.getPlaybackSessionId())
+
+        return player.getPlaybackSession()
     }
     
     public static func seekForward(amount: Double) {

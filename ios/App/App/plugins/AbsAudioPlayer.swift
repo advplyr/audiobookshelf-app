@@ -238,6 +238,7 @@ public class AbsAudioPlayer: CAPPlugin {
     @objc func onPlaybackFailed() {
         if (PlayerHandler.getPlayMethod() == PlayMethod.directplay.rawValue) {
             let session = PlayerHandler.getPlaybackSession()
+            let playWhenReady = PlayerHandler.getPlayWhenReady()
             let libraryItemId = session?.libraryItemId ?? ""
             let episodeId = session?.episodeId ?? nil
             logger.log("Forcing Transcode")
@@ -247,7 +248,7 @@ public class AbsAudioPlayer: CAPPlugin {
                 do {
                     guard let self = self else { return }
                     try session.save()
-                    PlayerHandler.startPlayback(sessionId: session.id, playWhenReady: self.initialPlayWhenReady, playbackRate: PlayerSettings.main().playbackRate)
+                    PlayerHandler.startPlayback(sessionId: session.id, playWhenReady: playWhenReady, playbackRate: PlayerSettings.main().playbackRate)
                     self.sendPlaybackSession(session: try session.asDictionary())
                     self.sendMetadata()
                 } catch(let exception) {
