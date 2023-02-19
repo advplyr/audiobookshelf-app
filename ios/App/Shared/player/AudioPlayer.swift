@@ -161,6 +161,9 @@ class AudioPlayer: NSObject {
             let trackEnd = startOffset + duration
             if (time < trackEnd.rounded(.down)) {
                 return index
+            } else if (index == self.allPlayerItems.count - 1)  {
+                // Seeking past end of last item
+                return index
             }
         }
         return 0
@@ -367,12 +370,7 @@ class AudioPlayer: NSObject {
         logger.log("SEEK: Seek to \(to) from \(from)")
 
         guard let playbackSession = self.getPlaybackSession() else { return }
-        
-        let currentTrack = playbackSession.audioTracks[self.currentTrackIndex]
-        let ctso = currentTrack.startOffset ?? 0.0
-        let trackEnd = ctso + currentTrack.duration
-        logger.log("SEEK: Seek current track END = \(trackEnd)")
-        
+
         let indexOfSeek = getItemIndexForTime(time: to)
         logger.log("SEEK: Seek to index \(indexOfSeek) | Current index \(self.currentTrackIndex)")
         
@@ -392,13 +390,24 @@ class AudioPlayer: NSObject {
                     self.audioPlayer.insert(item, after:self.audioPlayer.items().last)
                 }
             }
-            
+
+            seekInCurrentTrack(to: to, playbackSession: playbackSession)
+
             setupQueueItemStatusObserver()
         } else {
-            logger.log("SEEK: Seeking in current item \(to)")
-            let currentTrackStartOffset = playbackSession.audioTracks[self.currentTrackIndex].startOffset ?? 0.0
-            let seekTime = to - currentTrackStartOffset
-            
+            seekInCurrentTrack(to: to, playbackSession: playbackSession)
+        }
+
+        // Only for use in here where we handle track selection
+        func seekInCurrentTrack(to: Double, playbackSession: PlaybackSession) {
+            let currentTrack = playbackSession.audioTracks[self.currentTrackIndex]
+            let ctso = currentTrack.startOffset ?? 0.0
+            let trackEnd = ctso + currentTrack.duration
+            logger.log("SEEK: Seeking in current item \(to) (track START = \(ctso) END = \(trackEnd))")
+
+            let boundedTime = min(max(to, ctso), trackEnd)
+            let seekTime = boundedTime - ctso
+
             DispatchQueue.runOnMainQueue {
                 self.audioPlayer.seek(to: CMTime(seconds: seekTime, preferredTimescale: 1000)) { [weak self] completed in
                     self?.logger.log("SEEK: Completion handler called")
