@@ -3,6 +3,10 @@
     <app-appbar />
     <div id="content" class="overflow-hidden relative" :class="playerIsOpen ? 'playerOpen' : ''">
       <Nuxt />
+
+      <div v-if="attemptingConnection" class="absolute top-0 left-0 z-50 w-full h-full flex items-center justify-center">
+        <ui-loading-indicator text="Connecting to server..." />
+      </div>
     </div>
     <app-audio-player-container ref="streamContainer" />
     <modals-libraries-modal />

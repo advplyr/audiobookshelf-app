@@ -15,6 +15,7 @@ export const state = () => ({
   networkConnectionType: null,
   isNetworkUnmetered: true,
   isFirstLoad: true,
+  isFirstAudioLoad: true,
   hasStoragePermission: false,
   selectedLibraryItem: null,
   showReader: false,
@@ -119,6 +120,9 @@ export const mutations = {
   },
   setIsFirstLoad(state, val) {
     state.isFirstLoad = val
+  },
+  setIsFirstAudioLoad(state, val) {
+    state.isFirstAudioLoad = val
   },
   setSocketConnected(state, val) {
     state.socketConnected = val

@@ -13,9 +13,10 @@ class FileMetadata: EmbeddedObject, Codable {
     @Persisted var ext: String = ""
     @Persisted var path: String = ""
     @Persisted var relPath: String = ""
+    @Persisted var size:Double = 0
     
     private enum CodingKeys : String, CodingKey {
-        case filename, ext, path, relPath
+        case filename, ext, path, relPath, size
     }
     
     override init() {
@@ -29,6 +30,7 @@ class FileMetadata: EmbeddedObject, Codable {
         ext = try values.decode(String.self, forKey: .ext)
         path = try values.decode(String.self, forKey: .path)
         relPath = try values.decode(String.self, forKey: .relPath)
+        size = try values.decode(Double.self, forKey: .size)
     }
     
     func encode(to encoder: Encoder) throws {
@@ -37,5 +39,6 @@ class FileMetadata: EmbeddedObject, Codable {
         try container.encode(ext, forKey: .ext)
         try container.encode(path, forKey: .path)
         try container.encode(relPath, forKey: .relPath)
+        try container.encode(size, forKey: .size)
     }
 }
