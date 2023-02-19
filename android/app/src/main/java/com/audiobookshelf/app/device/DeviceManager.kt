@@ -67,4 +67,9 @@ object DeviceManager {
     }
     return false
   }
+
+  fun setLastPlaybackSession(playbackSession:PlaybackSession) {
+    deviceData.lastPlaybackSession = playbackSession
+    dbManager.saveDeviceData(deviceData)
+  }
 }

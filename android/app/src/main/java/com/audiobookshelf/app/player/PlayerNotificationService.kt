@@ -407,6 +407,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     }
 
     currentPlaybackSession = playbackSession
+    DeviceManager.setLastPlaybackSession(playbackSession) // Save playback session to use when app is closed
+
     Log.d(tag, "Set CurrentPlaybackSession MediaPlayer ${currentPlaybackSession?.mediaPlayer}")
 
     clientEventEmitter?.onPlaybackSession(playbackSession)
@@ -542,8 +544,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     }
   }
 
-  private fun startNewPlaybackSession() {
+  fun startNewPlaybackSession() {
     currentPlaybackSession?.let { playbackSession ->
+      Log.i(tag, "Starting new playback session for ${playbackSession.displayTitle}")
+
       val forceTranscode = playbackSession.isHLS // If already HLS then force
       val playItemRequestPayload = getPlayItemRequestPayload(forceTranscode)
 
@@ -910,7 +914,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   //
   // MEDIA BROWSER STUFF (ANDROID AUTO)
   //
-  private val VALID_MEDIA_BROWSERS = mutableListOf("com.audiobookshelf.app", ANDROID_AUTO_PKG_NAME, ANDROID_AUTO_SIMULATOR_PKG_NAME, ANDROID_WEARABLE_PKG_NAME, ANDROID_GSEARCH_PKG_NAME, ANDROID_AUTOMOTIVE_PKG_NAME)
+  private val VALID_MEDIA_BROWSERS = mutableListOf("com.audiobookshelf.app", "com.audiobookshelf.app.debug", "com.android.systemui", ANDROID_AUTO_PKG_NAME, ANDROID_AUTO_SIMULATOR_PKG_NAME, ANDROID_WEARABLE_PKG_NAME, ANDROID_GSEARCH_PKG_NAME, ANDROID_AUTOMOTIVE_PKG_NAME)
 
   private val AUTO_MEDIA_ROOT = "/"
   private val LIBRARIES_ROOT = "__LIBRARIES__"

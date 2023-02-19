@@ -22,6 +22,8 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="true" >
+
+<!-- TODO: Incomplete desktop widget -->
 <!--        <receiver-->
 <!--            android:name=".NewAppWidget"-->
 <!--            android:exported="true" >-->
@@ -74,7 +76,7 @@
             </intent-filter>
         </activity>
 
-        <receiver android:name="androidx.media.session.MediaButtonReceiver" android:exported="false">
+        <receiver android:name="androidx.media.session.MediaButtonReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MEDIA_BUTTON" />
             </intent-filter>
@@ -83,7 +85,8 @@
         <service
             android:name=".player.PlayerNotificationService"
             android:enabled="true"
-            android:exported="true" >
+            android:exported="true"
+            android:foregroundServiceType="mediaPlayback">
             <intent-filter>
                 <action android:name="android.media.browse.MediaBrowserService" />
             </intent-filter>

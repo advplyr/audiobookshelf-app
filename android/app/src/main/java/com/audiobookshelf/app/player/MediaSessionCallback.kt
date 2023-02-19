@@ -8,6 +8,7 @@ import android.util.Log
 import android.view.KeyEvent
 import com.audiobookshelf.app.data.LibraryItemWrapper
 import com.audiobookshelf.app.data.PodcastEpisode
+import com.audiobookshelf.app.device.DeviceManager
 import java.util.*
 import kotlin.concurrent.schedule
 
@@ -157,21 +158,40 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
 
       Log.d(tag, "handleCallMediaButton keyEvent = $keyEvent | action ${keyEvent?.action}")
 
-      // TODO: Widget was only sending this event on key down
-      //   but this cannot be defined in both key down and key up
-//      if (keyEvent?.action == KeyEvent.ACTION_DOWN) {
-//        Log.d(tag, "handleCallMediaButton: key action_down for ${keyEvent.keyCode}")
-//        when (keyEvent.keyCode) {
-//          KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
-//            Log.d(tag, "handleCallMediaButton: Media Play/Pause")
-//            if (playerNotificationService.mPlayer.isPlaying) {
-//              playerNotificationService.pause()
-//            } else {
-//              playerNotificationService.play()
+      // Widget button intent is only sending the action down event
+      if (keyEvent?.action == KeyEvent.ACTION_DOWN) {
+        Log.d(tag, "handleCallMediaButton: key action_down for ${keyEvent.keyCode}")
+        when (keyEvent.keyCode) {
+          KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
+            Log.d(tag, "handleCallMediaButton: Media Play/Pause")
+
+            // TODO: Play/pause event sent from widget when app is closed. Currently the service gets destroyed before anything can happen
+//            if (playerNotificationService.currentPlaybackSession == null && DeviceManager.deviceData.lastPlaybackSession != null) {
+//              Log.i(tag, "No playback session but had one in the db")
+//
+//              val connectionConfig = DeviceManager.deviceData.serverConnectionConfigs.find { it.id == DeviceManager.deviceData.lastPlaybackSession?.serverConnectionConfigId }
+//              connectionConfig?.let {
+//                Log.i(tag, "Setting playback session from db $it")
+//                DeviceManager.serverConnectionConfig = it
+//
+//                playerNotificationService.currentPlaybackSession = DeviceManager.deviceData.lastPlaybackSession
+//                playerNotificationService.startNewPlaybackSession()
+//                return true
+//              }
 //            }
-//          }
-//        }
-//      }
+
+            if (playerNotificationService.mPlayer.isPlaying) {
+              if (0 == mediaButtonClickCount) playerNotificationService.pause()
+              handleMediaButtonClickCount()
+            } else {
+              if (0 == mediaButtonClickCount) {
+                playerNotificationService.play()
+              }
+              handleMediaButtonClickCount()
+            }
+          }
+        }
+      }
 
       if (keyEvent?.action == KeyEvent.ACTION_UP) {
         Log.d(tag, "handleCallMediaButton: key action_up for ${keyEvent.keyCode}")
@@ -212,18 +232,6 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
           }
           KeyEvent.KEYCODE_MEDIA_STOP -> {
             playerNotificationService.closePlayback()
-          }
-          KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
-            Log.d(tag, "handleCallMediaButton: Media Play/Pause")
-            if (playerNotificationService.mPlayer.isPlaying) {
-              if (0 == mediaButtonClickCount) playerNotificationService.pause()
-              handleMediaButtonClickCount()
-            } else {
-              if (0 == mediaButtonClickCount) {
-                playerNotificationService.play()
-              }
-              handleMediaButtonClickCount()
-            }
           }
           else -> {
             Log.d(tag, "KeyCode:${keyEvent.keyCode}")
