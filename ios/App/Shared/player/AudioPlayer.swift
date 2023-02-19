@@ -10,21 +10,26 @@ import AVFoundation
 import UIKit
 import MediaPlayer
 
-enum PlayMethod:Int {
+enum PlayMethod: Int {
     case directplay = 0
     case directstream = 1
     case transcode = 2
     case local = 3
 }
 
+enum PlayerStatus: Int {
+    case uninitialized = -1
+    case paused = 0
+    case playing = 1
+}
+
 class AudioPlayer: NSObject {
     internal let queue = DispatchQueue(label: "ABSAudioPlayerQueue")
     internal let logger = AppLogger(category: "AudioPlayer")
-    
-    // enums and @objc are not compatible
-    @objc dynamic var status: Int
-    @objc dynamic var rate: Float
-    
+
+    private var status: PlayerStatus
+    internal var rate: Float
+
     private var tmpRate: Float = 1.0
     
     private var playerContext = 0
@@ -57,9 +62,9 @@ class AudioPlayer: NSObject {
         self.playWhenReady = playWhenReady
         self.initialPlaybackRate = playbackRate
         self.audioPlayer = AVQueuePlayer()
-        self.audioPlayer.automaticallyWaitsToMinimizeStalling = false
+        self.audioPlayer.automaticallyWaitsToMinimizeStalling = true
         self.sessionId = sessionId
-        self.status = -1
+        self.status = .uninitialized
         self.rate = 0.0
         self.tmpRate = playbackRate
         
@@ -141,7 +146,7 @@ class AudioPlayer: NSObject {
     }
     
     public func isInitialized() -> Bool {
-        return self.status != -1
+        return self.status != .uninitialized
     }
     
     public func getPlaybackSession() -> PlaybackSession? {
@@ -155,6 +160,9 @@ class AudioPlayer: NSObject {
             let duration = playbackSession.audioTracks[index].duration
             let trackEnd = startOffset + duration
             if (time < trackEnd.rounded(.down)) {
+                return index
+            } else if (index == self.allPlayerItems.count - 1)  {
+                // Seeking past end of last item
                 return index
             }
         }
@@ -254,7 +262,7 @@ class AudioPlayer: NSObject {
             logger.log("queueStatusObserver: Current Item Ready to play. PlayWhenReady: \(self.playWhenReady)")
             
             // Seek the player before initializing, so a currentTime of 0 does not appear in MediaProgress / session
-            let firstReady = self.status < 0
+            let firstReady = self.status == .uninitialized
             if firstReady && !self.playWhenReady {
                 // Seek is async, and if we call this when also pressing play, we will get weird jumps in the scrub bar depending on timing
                 // Seeking to the correct position happens during play()
@@ -267,7 +275,7 @@ class AudioPlayer: NSObject {
                 self.play(allowSeekBack: false, isInitializing: true)
             } else {
                 // Mark the player as ready
-                self.status = 0
+                self.status = .paused
             }
         } else if (playerItem.status == .failed) {
             logger.error("queueStatusObserver: FAILED \(playerItem.error?.localizedDescription ?? "")")
@@ -327,8 +335,8 @@ class AudioPlayer: NSObject {
             self.audioPlayer.play()
             self.audioPlayer.rate = self.tmpRate
         }
-        self.status = 1
-        
+        self.status = .playing
+
         // Update the progress
         self.updateNowPlaying()
         
@@ -351,27 +359,18 @@ class AudioPlayer: NSObject {
             }
         }
         
-        self.status = 0
         
+        self.status = .paused
         updateNowPlaying()
         
         self.startPausedTimer()
     }
     
     public func seek(_ to: Double, from: String) {
-        let continuePlaying = rate > 0.0
-        
-        self.pause()
-        
-        logger.log("SEEK: Seek to \(to) from \(from) and continuePlaying(\(continuePlaying)")
-        
+        logger.log("SEEK: Seek to \(to) from \(from)")
+
         guard let playbackSession = self.getPlaybackSession() else { return }
-        
-        let currentTrack = playbackSession.audioTracks[self.currentTrackIndex]
-        let ctso = currentTrack.startOffset ?? 0.0
-        let trackEnd = ctso + currentTrack.duration
-        logger.log("SEEK: Seek current track END = \(trackEnd)")
-        
+
         let indexOfSeek = getItemIndexForTime(time: to)
         logger.log("SEEK: Seek to index \(indexOfSeek) | Current index \(self.currentTrackIndex)")
         
@@ -383,8 +382,6 @@ class AudioPlayer: NSObject {
                 playbackSession.currentTime = to
             }
             
-            self.playWhenReady = continuePlaying // Only playWhenReady if already playing
-            self.status = -1
             let playerItems = self.allPlayerItems[indexOfSeek..<self.allPlayerItems.count]
             
             DispatchQueue.runOnMainQueue {
@@ -393,25 +390,32 @@ class AudioPlayer: NSObject {
                     self.audioPlayer.insert(item, after:self.audioPlayer.items().last)
                 }
             }
-            
+
+            seekInCurrentTrack(to: to, playbackSession: playbackSession)
+
             setupQueueItemStatusObserver()
         } else {
-            logger.log("SEEK: Seeking in current item \(to)")
-            let currentTrackStartOffset = playbackSession.audioTracks[self.currentTrackIndex].startOffset ?? 0.0
-            let seekTime = to - currentTrackStartOffset
-            
+            seekInCurrentTrack(to: to, playbackSession: playbackSession)
+        }
+
+        // Only for use in here where we handle track selection
+        func seekInCurrentTrack(to: Double, playbackSession: PlaybackSession) {
+            let currentTrack = playbackSession.audioTracks[self.currentTrackIndex]
+            let ctso = currentTrack.startOffset ?? 0.0
+            let trackEnd = ctso + currentTrack.duration
+            logger.log("SEEK: Seeking in current item \(to) (track START = \(ctso) END = \(trackEnd))")
+
+            let boundedTime = min(max(to, ctso), trackEnd)
+            let seekTime = boundedTime - ctso
+
             DispatchQueue.runOnMainQueue {
                 self.audioPlayer.seek(to: CMTime(seconds: seekTime, preferredTimescale: 1000)) { [weak self] completed in
-                    self?.logger.log("SEEK: Completion handler called and continuePlaying(\(continuePlaying)")
+                    self?.logger.log("SEEK: Completion handler called")
                     guard completed else {
                         self?.logger.log("SEEK: WARNING: seeking not completed (to \(seekTime)")
                         return
                     }
                     guard let self = self else { return }
-                    
-                    if continuePlaying {
-                        self.resumePlayback()
-                    }
                     
                     self.updateNowPlaying()
                 }
@@ -463,9 +467,18 @@ class AudioPlayer: NSObject {
     }
     
     public func isPlaying() -> Bool {
-        return self.status > 0
+        return self.status == .playing
     }
     
+    public func getPlayerState() -> PlayerState {
+        switch status {
+        case .uninitialized:
+            return PlayerState.buffering
+        case .paused, .playing:
+            return PlayerState.ready
+        }
+    }
+
     // MARK: - Private
     private func createAsset(itemId:String, track:AudioTrack) -> AVAsset? {
         guard let playbackSession = self.getPlaybackSession() else { return nil }

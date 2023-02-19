@@ -7,8 +7,8 @@
 
 import Foundation
 
-class PlaybackMetadata: Codable {
-    var duration: Double = 0
-    var currentTime: Double = 0
-    var playerState: PlayerState = PlayerState.IDLE
+struct PlaybackMetadata: Codable {
+    let duration: Double
+    let currentTime: Double
+    let playerState: PlayerState
 }

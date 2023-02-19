@@ -121,16 +121,15 @@ class PlayerHandler {
         player.seek(amount, from: "handler")
     }
     
-    public static func getMetdata() -> [String: Any]? {
+    public static func getMetdata() -> PlaybackMetadata? {
         guard let player = player else { return nil }
         guard player.isInitialized() else { return nil }
-        
-        return [
-            "duration": player.getDuration(),
-            "currentTime": player.getCurrentTime(),
-            "playerState": !paused,
-            "currentRate": player.rate,
-        ]
+
+        return PlaybackMetadata(
+            duration: player.getDuration() ?? 0,
+            currentTime: player.getCurrentTime() ?? 0,
+            playerState: player.getPlayerState()
+        )
     }
     
     // MARK: - Helper logic

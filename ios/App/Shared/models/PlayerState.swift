@@ -7,9 +7,9 @@
 
 import Foundation
 
-enum PlayerState: Codable {
-    case IDLE
-    case BUFFERING
-    case READY
-    case ENDED
+enum PlayerState: String, Codable {
+    case idle = "IDLE"
+    case buffering = "BUFFERING"
+    case ready = "READY"
+    case ended = "ENDED"
 }

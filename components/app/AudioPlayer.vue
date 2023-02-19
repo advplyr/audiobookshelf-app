@@ -783,8 +783,6 @@ export default {
 
       console.log('received metadata update', data)
 
-      if (data.currentRate && data.currentRate > 0) this.playbackSpeed = data.currentRate
-
       this.timeupdate()
     },
     // When a playback session is started the native android/ios will send the session

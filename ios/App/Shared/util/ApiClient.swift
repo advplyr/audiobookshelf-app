@@ -171,7 +171,7 @@ class ApiClient {
             ]
         ]
         ApiClient.postResource(endpoint: endpoint, parameters: parameters, decodable: PlaybackSession.self) { obj in
-            var session = obj
+            let session = obj
             
             session.serverConnectionConfigId = Store.serverConfig!.id
             session.serverAddress = Store.serverConfig!.address
