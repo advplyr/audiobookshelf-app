@@ -190,6 +190,16 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
               handleMediaButtonClickCount()
             }
           }
+          KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
+            Log.d(tag, "handleCallMediaButton: Media Fast Forward")
+            if (0 == mediaButtonClickCount) playerNotificationService.jumpForward()
+            handleMediaButtonClickCount()
+          }
+          KeyEvent.KEYCODE_MEDIA_REWIND -> {
+            Log.d(tag, "handleCallMediaButton: Media Rewind")
+            if (0 == mediaButtonClickCount) playerNotificationService.jumpBackward()
+            handleMediaButtonClickCount()
+          }
         }
       }
 

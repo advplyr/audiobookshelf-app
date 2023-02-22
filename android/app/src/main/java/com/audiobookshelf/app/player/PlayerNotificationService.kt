@@ -258,7 +258,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     playerNotificationManager.setPriority(NotificationCompat.PRIORITY_MAX)
     playerNotificationManager.setUseFastForwardActionInCompactView(true)
     playerNotificationManager.setUseRewindActionInCompactView(true)
-    playerNotificationManager.setSmallIcon(R.drawable.exo_icon_localaudio)
+    playerNotificationManager.setSmallIcon(R.drawable.icon_monochrome)
 
     // Unknown action
     playerNotificationManager.setBadgeIconType(NotificationCompat.BADGE_ICON_LARGE)

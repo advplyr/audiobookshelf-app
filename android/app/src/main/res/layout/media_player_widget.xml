@@ -1,0 +1,102 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:app="http://schemas.android.com/apk/res-auto"
+  android:id="@+id/widgetBackground"
+  android:layout_width="fill_parent"
+  android:layout_height="fill_parent"
+  android:orientation="vertical"
+  android:theme="@style/AppTheme.AppWidgetContainer"
+  style="@style/Widget.Android.AppWidget.Container">
+
+  <LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="0dp"
+    android:layout_weight="3"
+    android:background="?android:attr/colorAccent"
+    android:theme="@style/MediaPlayerWidgetTheme"
+    android:orientation="horizontal">
+
+    <ImageView
+      android:id="@+id/widgetAlbumArt"
+      android:layout_width="0dp"
+      android:layout_height="match_parent"
+      android:layout_weight="1"
+      android:layout_margin="8dp"
+      android:src="@drawable/icon" />
+
+    <LinearLayout
+      android:layout_width="0dp"
+      android:layout_height="match_parent"
+      android:layout_weight="3"
+      android:orientation="vertical"
+      android:gravity="center_vertical">
+
+      <TextView
+        android:id="@+id/widgetArtistText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="8dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:text="Artist"/>
+
+      <TextView
+        android:id="@+id/widgetMediaTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="8dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:text="Title"/>
+
+    </LinearLayout>
+
+    <LinearLayout
+      android:layout_width="36dp"
+      android:layout_height="match_parent"
+      android:orientation="vertical">
+
+      <ImageView
+        android:id="@+id/tinyCornerIcon"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:layout_margin="6dp"
+        android:adjustViewBounds ="true"
+        android:src="@drawable/icon_monochrome" />
+    </LinearLayout>
+
+  </LinearLayout>
+
+  <LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="0dp"
+    android:layout_weight="2"
+    android:orientation="horizontal"
+    android:background="?android:attr/colorBackground"
+    android:theme="@style/MediaPlayerWidgetTheme">
+
+    <ImageView
+      android:id="@+id/widgetRewindButton"
+      android:layout_width="0dp"
+      android:layout_height="match_parent"
+      android:layout_weight="1"
+      android:layout_margin="8dp"
+      android:src="@drawable/exo_icon_rewind"
+      style="@style/Widget.Android.AppWidget.InnerView"/>
+
+    <ImageView
+      android:id="@+id/widgetPlayPauseButton"
+      android:layout_width="0dp"
+      android:layout_height="match_parent"
+      android:layout_weight="1"
+      android:layout_margin="8dp"
+      android:src="@android:drawable/ic_media_play" />
+
+    <ImageView
+      android:id="@+id/widgetFastForwardButton"
+      android:layout_width="0dp"
+      android:layout_height="match_parent"
+      android:layout_weight="1"
+      android:layout_margin="8dp"
+      android:src="@drawable/exo_icon_fastforward" />
+  </LinearLayout>
+</LinearLayout>
