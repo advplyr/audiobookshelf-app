@@ -82,18 +82,21 @@ class LocalLibraryItem(
     val mediaProgress = DeviceManager.dbManager.getLocalMediaProgress(mediaProgressId)
     val currentTime = mediaProgress?.currentTime ?: 0.0
 
-    // TODO: Clean up add mediaType methods for displayTitle and displayAuthor
+
     val mediaMetadata = media.metadata
     val chapters = if (mediaType == "book") (media as Book).chapters else mutableListOf()
     var audioTracks = media.getAudioTracks() as MutableList<AudioTrack>
     val authorName = mediaMetadata.getAuthorDisplayName()
+    val displayTitle = episode?.title ?: mediaMetadata.title
+    var duration = getDuration()
     if (episode != null) { // Get podcast episode audio track
       episode.audioTrack?.let { at -> mutableListOf(at) }?.let { tracks -> audioTracks = tracks }
+      duration = episode.audioTrack?.duration ?: 0.0
       Log.d("LocalLibraryItem", "getPlaybackSession: Got podcast episode audio track ${audioTracks.size}")
     }
 
     val dateNow = System.currentTimeMillis()
-    return PlaybackSession(sessionId,serverUserId,libraryItemId,episode?.serverEpisodeId, mediaType, mediaMetadata, chapters ?: mutableListOf(), mediaMetadata.title, authorName,null,getDuration(),PLAYMETHOD_LOCAL,dateNow,0L,0L, audioTracks,currentTime,null,this,localEpisodeId,serverConnectionConfigId, serverAddress, "exo-player")
+    return PlaybackSession(sessionId,serverUserId,libraryItemId,episode?.serverEpisodeId, mediaType, mediaMetadata, chapters ?: mutableListOf(), displayTitle, authorName,null,duration,PLAYMETHOD_LOCAL,dateNow,0L,0L, audioTracks,currentTime,null,this,localEpisodeId,serverConnectionConfigId, serverAddress, "exo-player")
   }
 
   @JsonIgnore
