@@ -28,7 +28,7 @@ export default {
         e.preventDefault()
         return
       }
-      this.$emit('click')
+      this.$emit('click', e)
       e.stopPropagation()
     }
   },

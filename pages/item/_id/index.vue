@@ -127,7 +127,7 @@
       </div>
 
       <div class="w-full py-4">
-        <p class="text-sm text-justify" style="hyphens: auto;">{{ description }}</p>
+        <p class="text-sm text-justify" style="hyphens: auto">{{ description }}</p>
       </div>
 
       <tables-podcast-episodes-table v-if="isPodcast" :library-item="libraryItem" :local-library-item-id="localLibraryItemId" :episodes="episodes" :local-episodes="localLibraryItemEpisodes" :is-local="isLocal" />
@@ -150,9 +150,8 @@ import { FastAverageColor } from 'fast-average-color'
 
 export default {
   async asyncData({ store, params, redirect, app }) {
-    var libraryItemId = params.id
-    var libraryItem = null
-    console.log(libraryItemId)
+    const libraryItemId = params.id
+    let libraryItem = null
     if (libraryItemId.startsWith('local')) {
       libraryItem = await app.$db.getLocalLibraryItem(libraryItemId)
       console.log('Got lli', libraryItemId)
@@ -161,9 +160,9 @@ export default {
         console.error('Failed', error)
         return false
       })
-      // Check if
+
       if (libraryItem) {
-        var localLibraryItem = await app.$db.getLocalLibraryItemByLId(libraryItemId)
+        const localLibraryItem = await app.$db.getLocalLibraryItemByLId(libraryItemId)
         if (localLibraryItem) {
           console.log('Library item has local library item also', localLibraryItem.id)
           libraryItem.localLibraryItem = localLibraryItem
@@ -313,9 +312,6 @@ export default {
     },
     progressPercent() {
       return this.userItemProgress ? Math.max(Math.min(1, this.userItemProgress.progress), 0) : 0
-    },
-    userProgressStartedAt() {
-      return this.userItemProgress ? this.userItemProgress.startedAt : 0
     },
     userProgressFinishedAt() {
       return this.userItemProgress ? this.userItemProgress.finishedAt : 0

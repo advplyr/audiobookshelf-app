@@ -103,3 +103,10 @@ Bookshelf Label
   opacity: 1;
   filter: blur(20px);
 }
+
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}

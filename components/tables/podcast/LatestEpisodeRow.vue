@@ -1,12 +1,12 @@
 <template>
-  <div class="w-full py-4 overflow-hidden relative border-b border-white border-opacity-10">
+  <div class="w-full py-4 overflow-hidden relative border-b border-white border-opacity-10" @click.stop="goToEpisodePage">
     <div v-if="episode" class="w-full px-1">
       <div class="flex mb-2">
         <div class="w-10 min-w-10">
           <covers-preview-cover :src="$store.getters['globals/getLibraryItemCoverSrcById'](libraryItemId)" :width="40" :book-cover-aspect-ratio="bookCoverAspectRatio" :show-resolution="false" class="md:hidden" />
         </div>
         <div class="flex-grow px-2">
-          <div class="-mt-0.5 mb-0.5">
+          <div class="-mt-0.5 mb-0.5" @click.stop>
             <nuxt-link :to="`/item/${libraryItemId}`" class="text-sm text-gray-200 underline">{{ podcast.metadata.title }}</nuxt-link>
           </div>
           <p v-if="publishedAt" class="text-xs text-gray-300">{{ $dateDistanceFromNow(publishedAt) }}</p>
@@ -16,31 +16,27 @@
       <p class="text-sm font-semibold">
         {{ title }}
       </p>
-      <p class="text-sm text-gray-200 episode-subtitle mt-1.5 mb-0.5 default-style" v-html="description" />
+      <p class="text-sm text-gray-200 line-clamp-2 mt-1.5 mb-0.5">{{ subtitle }}</p>
 
       <div class="flex items-center pt-2">
-        <div class="h-8 px-4 border border-white border-opacity-20 hover:bg-white hover:bg-opacity-10 rounded-full flex items-center justify-center cursor-pointer" :class="userIsFinished ? 'text-white text-opacity-40' : ''" @click="playClick">
+        <div class="h-8 px-4 border border-white border-opacity-20 hover:bg-white hover:bg-opacity-10 rounded-full flex items-center justify-center cursor-pointer" :class="userIsFinished ? 'text-white text-opacity-40' : ''" @click.stop="playClick">
           <span class="material-icons" :class="streamIsPlaying ? '' : 'text-success'">{{ streamIsPlaying ? 'pause' : 'play_arrow' }}</span>
           <p class="pl-2 pr-1 text-sm font-semibold">{{ timeRemaining }}</p>
         </div>
 
         <ui-read-icon-btn :disabled="isProcessingReadUpdate" :is-read="userIsFinished" borderless class="mx-1 mt-0.5" @click="toggleFinished" />
 
-        <button v-if="!isLocal" class="mx-1.5 mt-1.5" @click="addToPlaylist">
+        <button v-if="!isLocal" class="mx-1.5 mt-1.5" @click.stop="addToPlaylist">
           <span class="material-icons text-2xl">playlist_add</span>
         </button>
 
         <div v-if="userCanDownload">
           <span v-if="isLocal" class="material-icons-outlined px-2 text-success text-lg">audio_file</span>
-          <span v-else-if="!localEpisode" class="material-icons mx-1.5 mt-2 text-xl" :class="downloadItem ? 'animate-bounce text-warning text-opacity-75' : ''" @click="downloadClick">{{ downloadItem ? 'downloading' : 'download' }}</span>
+          <span v-else-if="!localEpisode" class="material-icons mx-1.5 mt-2 text-xl" :class="downloadItem ? 'animate-bounce text-warning text-opacity-75' : ''" @click.stop="downloadClick">{{ downloadItem ? 'downloading' : 'download' }}</span>
           <span v-else class="material-icons px-2 text-success text-xl">download_done</span>
         </div>
 
         <div class="flex-grow" />
-
-        <button v-if="!isLocal && isAdminOrUp" class="mx-1.5 mt-1.5" @click="deleteEpisodeFromServerClick">
-          <span class="material-icons text-xl">delete_forever</span>
-        </button>
       </div>
     </div>
 
@@ -80,9 +76,6 @@ export default {
     bookCoverAspectRatio() {
       return this.$store.getters['libraries/getBookCoverAspectRatio']
     },
-    isAdminOrUp() {
-      return this.$store.getters['user/getIsAdminOrUp']
-    },
     isIos() {
       return this.$platform === 'ios'
     },
@@ -98,10 +91,8 @@ export default {
     title() {
       return this.episode.title || ''
     },
-    description() {
-      if (this.episode.subtitle) return this.episode.subtitle
-      var desc = this.episode.description || ''
-      return desc
+    subtitle() {
+      return this.episode.subtitle || ''
     },
     duration() {
       return this.$secondsToTimestamp(this.episode.duration)
@@ -158,28 +149,8 @@ export default {
     }
   },
   methods: {
-    async deleteEpisodeFromServerClick() {
-      const { value } = await Dialog.confirm({
-        title: 'Confirm',
-        message: `Are you sure you want to delete episode "${this.title}" from the server?\nWarning: This will delete the audio file.`
-      })
-
-      if (value) {
-        this.processing = true
-        this.$axios
-          .$delete(`/api/podcasts/${this.libraryItemId}/episode/${this.episode.id}?hard=1`)
-          .then(() => {
-            this.$toast.success('Episode deleted from server')
-          })
-          .catch((error) => {
-            const errorMsg = error.response && error.response.data ? error.response.data : 'Failed to delete episode'
-            console.error('Failed to delete episode', error)
-            this.$toast.error(errorMsg)
-          })
-          .finally(() => {
-            this.processing = false
-          })
-      }
+    goToEpisodePage() {
+      this.$router.push(`/item/${this.libraryItemId}/${this.episode.id}`)
     },
     addToPlaylist() {
       this.$emit('addToPlaylist', this.episode)

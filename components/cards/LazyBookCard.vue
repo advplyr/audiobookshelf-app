@@ -35,7 +35,7 @@
     </div>
 
     <!-- Play/pause button for podcast episode -->
-    <div v-if="recentEpisode" class="absolute z-10 top-0 left-0 bottom-0 right-0 m-auto flex items-center justify-center w-12 h-12 rounded-full bg-white bg-opacity-70">
+    <div v-if="recentEpisode" class="absolute z-10 top-0 left-0 bottom-0 right-0 m-auto flex items-center justify-center w-12 h-12 rounded-full bg-white bg-opacity-70" @click.stop="playEpisode">
       <span class="material-icons text-6xl text-black text-opacity-80">{{ streamIsPlaying ? 'pause_circle' : 'play_circle_filled' }}</span>
     </div>
 
@@ -401,38 +401,40 @@ export default {
       // Server books may have a local library item
       this.localLibraryItem = localLibraryItem
     },
+    async playEpisode() {
+      await this.$hapticsImpact()
+      const eventBus = this.$eventBus || this.$nuxt.$eventBus
+      if (this.streamIsPlaying) {
+        eventBus.$emit('pause-item')
+        return
+      }
+
+      if (this.localLibraryItem) {
+        const localEpisode = this.localLibraryItem.media.episodes.find((ep) => ep.serverEpisodeId === this.recentEpisode.id)
+        if (localEpisode) {
+          // Play episode locally
+          eventBus.$emit('play-item', {
+            libraryItemId: this.localLibraryItemId,
+            episodeId: localEpisode.id,
+            serverLibraryItemId: this.libraryItemId,
+            serverEpisodeId: this.recentEpisode.id
+          })
+          return
+        }
+      }
+
+      eventBus.$emit('play-item', { libraryItemId: this.libraryItemId, episodeId: this.recentEpisode.id })
+    },
     async clickCard(e) {
       if (this.isSelectionMode) {
         e.stopPropagation()
         e.preventDefault()
         this.selectBtnClick()
-      } else if (this.recentEpisode) {
-        await this.$hapticsImpact()
-        var eventBus = this.$eventBus || this.$nuxt.$eventBus
-        if (this.streamIsPlaying) {
-          eventBus.$emit('pause-item')
-          return
-        }
-
-        if (this.localLibraryItem) {
-          const localEpisode = this.localLibraryItem.media.episodes.find((ep) => ep.serverEpisodeId === this.recentEpisode.id)
-          if (localEpisode) {
-            // Play episode locally
-            eventBus.$emit('play-item', {
-              libraryItemId: this.localLibraryItemId,
-              episodeId: localEpisode.id,
-              serverLibraryItemId: this.libraryItemId,
-              serverEpisodeId: this.recentEpisode.id
-            })
-            return
-          }
-        }
-
-        eventBus.$emit('play-item', { libraryItemId: this.libraryItemId, episodeId: this.recentEpisode.id })
       } else {
-        var router = this.$router || this.$nuxt.$router
+        const router = this.$router || this.$nuxt.$router
         if (router) {
-          if (this.collapsedSeries) router.push(`/library/${this.libraryId}/series/${this.collapsedSeries.id}`)
+          if (this.recentEpisode) router.push(`/item/${this.libraryItemId}/${this.recentEpisode.id}`)
+          else if (this.collapsedSeries) router.push(`/library/${this.libraryId}/series/${this.collapsedSeries.id}`)
           else router.push(`/item/${this.libraryItemId}`)
         }
       }
