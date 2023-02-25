@@ -452,6 +452,12 @@ export default {
         this.libraryItemUpdated(ab)
       })
     },
+    screenOrientationChange() {
+      setTimeout(() => {
+        console.log('LazyBookshelf Screen orientation change')
+        this.resetEntities()
+      }, 50)
+    },
     initListeners() {
       const bookshelf = document.getElementById('bookshelf-wrapper')
       if (bookshelf) {
@@ -466,6 +472,13 @@ export default {
       this.$socket.$on('item_removed', this.libraryItemRemoved)
       this.$socket.$on('items_updated', this.libraryItemsUpdated)
       this.$socket.$on('items_added', this.libraryItemsAdded)
+
+      if (screen.orientation) {
+        // Not available on ios
+        screen.orientation.addEventListener('change', this.screenOrientationChange)
+      } else {
+        document.addEventListener('orientationchange', this.screenOrientationChange)
+      }
     },
     removeListeners() {
       const bookshelf = document.getElementById('bookshelf-wrapper')
@@ -481,6 +494,13 @@ export default {
       this.$socket.$off('item_removed', this.libraryItemRemoved)
       this.$socket.$off('items_updated', this.libraryItemsUpdated)
       this.$socket.$off('items_added', this.libraryItemsAdded)
+
+      if (screen.orientation) {
+        // Not available on ios
+        screen.orientation.removeEventListener('change', this.screenOrientationChange)
+      } else {
+        document.removeEventListener('orientationchange', this.screenOrientationChange)
+      }
     }
   },
   updated() {
