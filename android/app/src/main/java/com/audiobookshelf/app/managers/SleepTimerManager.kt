@@ -137,6 +137,8 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
     sleepTimerRunning = false
     isAutoSleepTimer = false
     playerNotificationService.unregisterSensor()
+
+    setVolume(1f)
   }
 
   fun getSleepTimerTime():Long {

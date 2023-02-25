@@ -378,7 +378,9 @@ class AbsAudioPlayer : Plugin() {
 
   @PluginMethod
   fun cancelSleepTimer(call: PluginCall) {
-    playerNotificationService.sleepTimerManager.cancelSleepTimer()
+    Handler(Looper.getMainLooper()).post {
+      playerNotificationService.sleepTimerManager.cancelSleepTimer()
+    }
     call.resolve()
   }
 
