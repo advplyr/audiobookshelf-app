@@ -6,6 +6,8 @@
     </div>
 
     <div class="z-10 relative">
+
+      <!-- cover -->
       <div class="w-full flex justify-center relative mb-4">
         <div style="width: 0; transform: translateX(-50vw); overflow: visible">
           <div style="width: 150vw; overflow: hidden">
@@ -20,31 +22,18 @@
         </div>
       </div>
 
-      <!--
-      <p v-if="podcastAuthor" class="text-sm text-center text-gray-300 py-0.5">by {{ podcastAuthor }}</p>
-      <p v-else-if="bookAuthors && bookAuthors.length" class="text-sm text-center text-gray-300 py-0.5">
-        by
-        <template v-for="(author, index) in bookAuthors">
-          <nuxt-link :key="author.id" :to="`/bookshelf/library?filter=authors.${$encode(author.id)}`" class="underline">{{ author.name }}</nuxt-link
-          ><span :key="`${author.id}-comma`" v-if="index < bookAuthors.length - 1">,&nbsp;</span>
-        </template>
-      </p>
-      -->
+      <!-- title -->
+      <div class="text-center mb-2">
+        <h1 class="text-xl font-semibold">{{ title }}</h1>
+        <p v-if="subtitle" class="text-gray-100 text-base">{{ subtitle }}</p>
+      </div>
 
       <!-- Show an indicator for local library items whether they are linked to a server item and if that server item is connected -->
       <p v-if="isLocal && serverLibraryItemId" style="font-size: 10px" class="text-success text-center py-1 uppercase tracking-widest">connected</p>
       <p v-else-if="isLocal && libraryItem.serverAddress" style="font-size: 10px" class="text-gray-400 text-center py-1">{{ libraryItem.serverAddress }}</p>
 
       <!-- action buttons -->
-      <div>
-        <!--
-        <div v-if="!isPodcast && progressPercent > 0" class="px-4 py-2 bg-primary text-sm font-semibold rounded-md text-gray-200 mt-4 relative" :class="resettingProgress ? 'opacity-25' : ''">
-          <p class="leading-6">Your Progress: {{ Math.round(progressPercent * 100) }}%</p>
-          <p v-if="progressPercent < 1" class="text-gray-400 text-xs">{{ $elapsedPretty(userTimeRemaining) }} remaining</p>
-          <p v-else class="text-gray-400 text-xs">Finished {{ $formatDate(userProgressFinishedAt) }}</p>
-        </div>
-        -->
-
+      <div class="col-span-full">
         <div v-if="isLocal" class="flex mt-4 -mx-1">
           <ui-btn v-if="showPlay" color="success" :disabled="isPlaying" class="flex items-center justify-center flex-grow mx-1" :padding-x="4" @click="playClick">
             <span v-show="!isPlaying" class="material-icons">play_arrow</span>
@@ -74,6 +63,12 @@
             <span class="material-icons">more_vert</span>
           </ui-btn>
         </div>
+
+        <div v-if="!isPodcast && progressPercent > 0" class="px-4 py-2 bg-primary text-sm font-semibold rounded-md text-gray-200 mt-4 text-center" :class="resettingProgress ? 'opacity-25' : ''">
+          <p>Your Progress: {{ Math.round(progressPercent * 100) }}%</p>
+          <p v-if="progressPercent < 1" class="text-gray-400 text-xs">{{ $elapsedPretty(userTimeRemaining) }} remaining</p>
+          <p v-else class="text-gray-400 text-xs">Finished {{ $formatDate(userProgressFinishedAt) }}</p>
+        </div>
       </div>
 
       <div v-if="downloadItem" class="py-3">
@@ -81,14 +76,10 @@
         <p v-else class="text-center text-lg">Downloading! ({{ Math.round(downloadItem.itemProgress * 100) }}%)</p>
       </div>
 
-      <h1 class="text-xl text-center mt-4 font-semibold">{{ title }}</h1>
-
-      <p v-if="subtitle" class="text-gray-100 text-base text-center py-0.5 mb-0.5">{{ subtitle }}</p>
-
       <!-- metadata -->
-      <div class="grid gap-2 my-4" style="grid-template-columns: max-content auto">
+      <div class="grid gap-2 my-2 px-4" style="grid-template-columns: auto minmax(max-content, 120px) minmax(200px, max-content) auto">
 
-        <div v-if="podcastAuthor || (bookAuthors && bookAuthors.length)" class="text-white text-opacity-60 uppercase text-sm">Author</div>
+        <div v-if="podcastAuthor || (bookAuthors && bookAuthors.length)" class="col-start-2 text-white text-opacity-60 uppercase text-sm">Author</div>
         <div v-if="podcastAuthor" class="text-sm">{{ podcastAuthor }}</div>
         <div v-else-if="bookAuthors && bookAuthors.length" class="text-sm">
           <template v-for="(author, index) in bookAuthors">
@@ -97,7 +88,7 @@
           </template>
         </div>
 
-        <div v-if="series && series.length" class="text-white text-opacity-60 uppercase text-sm">Series</div>
+        <div v-if="series && series.length" class="col-start-2 text-white text-opacity-60 uppercase text-sm">Series</div>
         <div v-if="series && series.length" class="truncate text-sm">
           <template v-for="(series, index) in seriesList">
             <nuxt-link :key="series.id" :to="`/bookshelf/series/${series.id}`" class="underline">{{ series.text }}</nuxt-link
@@ -105,49 +96,47 @@
           </template>
         </div>
 
-        <div v-if="narrators && narrators.length" class="text-white text-opacity-60 uppercase text-sm">Narrators</div>
-        <div v-if="narrators && narrators.length" class="truncate text-sm">
+        <div v-if="numTracks" class="col-start-2 text-white text-opacity-60 uppercase text-sm">Duration</div>
+        <div v-if="numTracks" class="text-sm">{{ $elapsedPretty(duration) }}</div>
+
+        <!-- hidden by default -->
+
+        <div v-if="allMetadata && narrators && narrators.length" class="col-start-2 text-white text-opacity-60 uppercase text-sm">Narrators</div>
+        <div v-if="allMetadata && narrators && narrators.length" class="truncate text-sm">
           <template v-for="(narrator, index) in narrators">
             <nuxt-link :key="narrator" :to="`/bookshelf/library?filter=narrators.${$encode(narrator)}`" class="underline">{{ narrator }}</nuxt-link
             ><span :key="index" v-if="index < narrators.length - 1">, </span>
           </template>
         </div>
 
-        <div v-if="publishedYear" class="text-white text-opacity-60 uppercase text-sm">Published</div>
-        <div v-if="publishedYear" class="text-sm">{{ publishedYear }}</div>
-
-        <div v-if="genres.length" class="text-white text-opacity-60 uppercase text-sm">Genres</div>
-        <div v-if="genres.length" class="truncate text-sm">
+        <div v-if="allMetadata && genres.length" class="col-start-2 text-white text-opacity-60 uppercase text-sm">Genres</div>
+        <div v-if="allMetadata && genres.length" class="truncate text-sm">
           <template v-for="(genre, index) in genres">
             <nuxt-link :key="genre" :to="`/bookshelf/library?filter=genres.${$encode(genre)}`" class="underline">{{ genre }}</nuxt-link
             ><span :key="index" v-if="index < genres.length - 1">, </span>
           </template>
         </div>
 
-        <div v-if="numTracks" class="text-white text-opacity-60 uppercase text-sm">Duration</div>
-        <div v-if="numTracks" class="text-sm">{{ $elapsedPretty(duration) }}</div>
+        <div v-if="allMetadata && publishedYear" class="col-start-2 text-white text-opacity-60 uppercase text-sm">Published</div>
+        <div v-if="allMetadata && publishedYear" class="text-sm">{{ publishedYear }}</div>
 
-        <div v-if="!isPodcast && progressPercent > 0" class="text-white text-opacity-60 uppercase text-sm">Progress</div>
-        <div v-if="!isPodcast && progressPercent > 0" class="text-sm">
-          <span v-if="progressPercent < 1">{{ $elapsedPretty(userTimeRemaining) }} left</span>
-          <span v-else>Finished {{ $formatDate(userProgressFinishedAt) }}</span>
+        <div v-if="allMetadata && numTracks && size" class="col-start-2 text-white text-opacity-60 uppercase text-sm">Size</div>
+        <div v-if="allMetadata && numTracks && size" class="text-sm">{{ $bytesPretty(size) }}</div>
+
+        <div v-if="allMetadata && numTracks" class="col-start-2 text-white text-opacity-60 uppercase text-sm">Tracks</div>
+        <div v-if="allMetadata && numTracks" class="text-sm">{{ numTracks }} tracks</div>
+
+        <div v-if="allMetadata && numTracks && numChapters" class="col-start-2 text-white text-opacity-60 uppercase text-sm">Chapters</div>
+        <div v-if="allMetadata && numTracks && numChapters" class="text-sm">{{ numChapters }} chapters</div>
+
+        <div class="col-start-3 text-white text-opacity-60 text-sm" @click="toggleMetadata()">
+          {{ allMetadata ? 'less' : 'more' }}
+          <span class="material-icons align-middle">{{ allMetadata ? 'expand_less' : 'expand_more' }}</span>
         </div>
-
-
-        <div v-if="numTracks && size" class="text-white text-opacity-60 uppercase text-sm">Size</div>
-        <div v-if="numTracks && size" class="text-sm">{{ $bytesPretty(size) }}</div>
-
-        <!--
-        <div v-if="numTracks" class="text-white text-opacity-60 uppercase text-sm">Tracks</div>
-        <div v-if="numTracks" class="text-sm">{{ numTracks }}</div>
-
-        <div v-if="numTracks && numChapters" class="text-white text-opacity-60 uppercase text-sm">Chapters</div>
-        <div v-if="numTracks && numChapters" class="text-sm">{{ numChapters }}</div>
-        -->
       </div>
 
-      <div class="w-full py-4">
-        <p class="text-sm text-justify" style="hyphens: auto">{{ description }}</p>
+      <div class="w-full py-2">
+        <p class="text-sm text-justify" style="hyphens: auto;">{{ description }}</p>
       </div>
 
       <tables-podcast-episodes-table v-if="isPodcast" :library-item="libraryItem" :local-library-item-id="localLibraryItemId" :episodes="episodes" :local-episodes="localLibraryItemEpisodes" :is-local="isLocal" />
@@ -200,6 +189,7 @@ export default {
   },
   data() {
     return {
+      allMetadata: false,
       resettingProgress: false,
       isProcessingReadUpdate: false,
       showSelectLocalFolder: false,
@@ -730,6 +720,9 @@ export default {
     },
     windowResized() {
       this.windowWidth = window.innerWidth
+    },
+    toggleMetadata() {
+      this.allMetadata = !this.allMetadata
     }
   },
   mounted() {
