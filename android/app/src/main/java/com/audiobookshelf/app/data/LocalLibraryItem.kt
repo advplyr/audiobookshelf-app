@@ -10,6 +10,7 @@ import android.provider.MediaStore
 import android.support.v4.media.MediaDescriptionCompat
 import android.util.Log
 import androidx.media.utils.MediaConstants
+import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.R
 import com.audiobookshelf.app.device.DeviceManager
 import com.fasterxml.jackson.annotation.JsonIgnore
@@ -46,7 +47,7 @@ class LocalLibraryItem(
 
   @JsonIgnore
   fun getCoverUri(): Uri {
-    return if (coverContentUrl != null) Uri.parse(coverContentUrl) else Uri.parse("android.resource://com.audiobookshelf.app/" + R.drawable.icon)
+    return if (coverContentUrl != null) Uri.parse(coverContentUrl) else Uri.parse("android.resource://${BuildConfig.APPLICATION_ID}/" + R.drawable.icon)
   }
 
   @JsonIgnore

@@ -96,8 +96,8 @@ internal fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManage
   views.setViewVisibility(R.id.widgetButtonContainer, if (isAppClosed) View.GONE else View.VISIBLE)
 
   views.setOnClickPendingIntent(R.id.widgetBackground, wholeWidgetClickPI)
-
-  val imageUri = playbackSession?.getCoverUri() ?: Uri.parse("android.resource://com.audiobookshelf.app/" + R.drawable.icon)
+  
+  val imageUri = playbackSession?.getCoverUri() ?: Uri.parse("android.resource://${BuildConfig.APPLICATION_ID}/" + R.drawable.icon)
   val awt: AppWidgetTarget = object : AppWidgetTarget(context.applicationContext, R.id.widgetAlbumArt, views, appWidgetId) {
     override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
       super.onResourceReady(resource, transition)
