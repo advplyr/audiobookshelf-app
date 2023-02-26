@@ -77,9 +77,9 @@
       </div>
 
       <!-- metadata -->
-      <div class="grid gap-2 my-2" style="grid-template-columns: auto max-content minmax(100px, max-content) auto">
+      <div id="metadata" class="grid gap-2 my-2" style="">
 
-        <div v-if="podcastAuthor || (bookAuthors && bookAuthors.length)" class="col-start-2 text-white text-opacity-60 uppercase text-sm">Author</div>
+        <div v-if="podcastAuthor || (bookAuthors && bookAuthors.length)" class="text-white text-opacity-60 uppercase text-sm">Author</div>
         <div v-if="podcastAuthor" class="text-sm">{{ podcastAuthor }}</div>
         <div v-else-if="bookAuthors && bookAuthors.length" class="text-sm">
           <template v-for="(author, index) in bookAuthors">
@@ -88,7 +88,7 @@
           </template>
         </div>
 
-        <div v-if="series && series.length" class="col-start-2 text-white text-opacity-60 uppercase text-sm">Series</div>
+        <div v-if="series && series.length" class="text-white text-opacity-60 uppercase text-sm">Series</div>
         <div v-if="series && series.length" class="truncate text-sm">
           <template v-for="(series, index) in seriesList">
             <nuxt-link :key="series.id" :to="`/bookshelf/series/${series.id}`" class="underline">{{ series.text }}</nuxt-link
@@ -96,12 +96,12 @@
           </template>
         </div>
 
-        <div v-if="numTracks" class="col-start-2 text-white text-opacity-60 uppercase text-sm">Duration</div>
+        <div v-if="numTracks" class="text-white text-opacity-60 uppercase text-sm">Duration</div>
         <div v-if="numTracks" class="text-sm">{{ $elapsedPretty(duration) }}</div>
 
         <!-- hidden by default -->
 
-        <div v-if="allMetadata && narrators && narrators.length" class="col-start-2 text-white text-opacity-60 uppercase text-sm">Narrators</div>
+        <div v-if="allMetadata && narrators && narrators.length" class="text-white text-opacity-60 uppercase text-sm">Narrators</div>
         <div v-if="allMetadata && narrators && narrators.length" class="truncate text-sm">
           <template v-for="(narrator, index) in narrators">
             <nuxt-link :key="narrator" :to="`/bookshelf/library?filter=narrators.${$encode(narrator)}`" class="underline">{{ narrator }}</nuxt-link
@@ -109,7 +109,7 @@
           </template>
         </div>
 
-        <div v-if="allMetadata && genres.length" class="col-start-2 text-white text-opacity-60 uppercase text-sm">Genres</div>
+        <div v-if="allMetadata && genres.length" class="text-white text-opacity-60 uppercase text-sm">Genres</div>
         <div v-if="allMetadata && genres.length" class="truncate text-sm">
           <template v-for="(genre, index) in genres">
             <nuxt-link :key="genre" :to="`/bookshelf/library?filter=genres.${$encode(genre)}`" class="underline">{{ genre }}</nuxt-link
@@ -117,19 +117,19 @@
           </template>
         </div>
 
-        <div v-if="allMetadata && publishedYear" class="col-start-2 text-white text-opacity-60 uppercase text-sm">Published</div>
+        <div v-if="allMetadata && publishedYear" class="text-white text-opacity-60 uppercase text-sm">Published</div>
         <div v-if="allMetadata && publishedYear" class="text-sm">{{ publishedYear }}</div>
 
-        <div v-if="allMetadata && numTracks && size" class="col-start-2 text-white text-opacity-60 uppercase text-sm">Size</div>
+        <div v-if="allMetadata && numTracks && size" class="text-white text-opacity-60 uppercase text-sm">Size</div>
         <div v-if="allMetadata && numTracks && size" class="text-sm">{{ $bytesPretty(size) }}</div>
 
-        <div v-if="allMetadata && numTracks" class="col-start-2 text-white text-opacity-60 uppercase text-sm">Tracks</div>
+        <div v-if="allMetadata && numTracks" class="text-white text-opacity-60 uppercase text-sm">Tracks</div>
         <div v-if="allMetadata && numTracks" class="text-sm">{{ numTracks }} tracks</div>
 
-        <div v-if="allMetadata && numTracks && numChapters" class="col-start-2 text-white text-opacity-60 uppercase text-sm">Chapters</div>
+        <div v-if="allMetadata && numTracks && numChapters" class="text-white text-opacity-60 uppercase text-sm">Chapters</div>
         <div v-if="allMetadata && numTracks && numChapters" class="text-sm">{{ numChapters }} chapters</div>
 
-        <div v-if="!isPodcast" class="col-start-3 text-white text-opacity-60 text-sm" @click="toggleMetadata()">
+        <div v-if="!isPodcast && windowWidth < 500" class="col-span-full text-center text-white text-opacity-60 text-sm" @click="toggleMetadata()">
           {{ allMetadata ? 'less' : 'more' }}
           <span class="material-icons align-middle">{{ allMetadata ? 'expand_less' : 'expand_more' }}</span>
         </div>
@@ -203,7 +203,7 @@ export default {
   },
   computed: {
     allMetadata() {
-      return this.isPodcast || !this.hideMetadata
+      return this.isPodcast || this.windowWidth >= 500 || !this.hideMetadata
     },
     isIos() {
       return this.$platform === 'ios'
@@ -752,5 +752,16 @@ export default {
 #coverBg > div {
   width: 150vw !important;
   max-width: 150vw !important;
+}
+
+@media only screen and (max-width: 500px) {
+  #metadata {
+    grid-template-columns: auto 1fr;
+  }
+}
+@media only screen and (min-width: 500px) {
+  #metadata {
+    grid-template-columns: auto 1fr auto 1fr;
+  }
 }
 </style>
