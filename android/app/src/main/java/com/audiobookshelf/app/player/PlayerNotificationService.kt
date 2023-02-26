@@ -1,6 +1,8 @@
 package com.audiobookshelf.app.player
 
 import android.app.*
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -21,12 +23,15 @@ import android.support.v4.media.session.MediaControllerCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
+import android.view.View
+import android.widget.RemoteViews
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.media.MediaBrowserServiceCompat
 import androidx.media.utils.MediaConstants
 import com.audiobookshelf.app.BuildConfig
+import com.audiobookshelf.app.MediaPlayerWidget
 import com.audiobookshelf.app.R
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.data.DeviceInfo
@@ -184,6 +189,13 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   override fun onTaskRemoved(rootIntent: Intent?) {
     super.onTaskRemoved(rootIntent)
     Log.d(tag, "onTaskRemoved")
+    // Updates widget to hide buttons when app is force closed
+    val appWidgetManager = AppWidgetManager.getInstance(this)
+    val remoteViews = RemoteViews(this.packageName, R.layout.media_player_widget)
+    val thisWidget = ComponentName(this, MediaPlayerWidget::class.java)
+    remoteViews.setViewVisibility(R.id.widgetButtonContainer, View.GONE)
+    appWidgetManager.updateAppWidget(thisWidget, remoteViews)
+
     stopSelf()
   }
 
@@ -334,6 +346,13 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
     initializeMPlayer()
     currentPlayer = mPlayer
+
+    // Updates widget to show buttons when app is opened
+    val appWidgetManager = AppWidgetManager.getInstance(this)
+    val remoteViews = RemoteViews(this.packageName, R.layout.media_player_widget)
+    val thisWidget = ComponentName(this, MediaPlayerWidget::class.java)
+    remoteViews.setViewVisibility(R.id.widgetButtonContainer, View.VISIBLE)
+    appWidgetManager.updateAppWidget(thisWidget, remoteViews)
   }
 
   private fun initializeMPlayer() {
