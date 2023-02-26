@@ -37,6 +37,16 @@ class MediaPlayerWidget : AppWidgetProvider() {
   override fun onEnabled(context: Context) {
     Log.i(tag, "onEnabled check context ${context.packageName}")
 
+    DeviceManager.deviceData.lastPlaybackSession?.let {
+      val appWidgetManager = AppWidgetManager.getInstance(context)
+      val componentName = ComponentName(context, MediaPlayerWidget::class.java)
+      val ids = appWidgetManager.getAppWidgetIds(componentName)
+      Log.d(tag, "Setting initial widget state with last playback session ${it.displayTitle}")
+      for (widgetId in ids) {
+        updateAppWidget(context, appWidgetManager, widgetId, it, false, true)
+      }
+    }
+
     // Enter relevant functionality for when the first widget is created
     DeviceManager.widgetUpdater = (object : WidgetEventEmitter {
       override fun onPlayerChanged(pns: PlayerNotificationService) {
@@ -73,12 +83,6 @@ internal fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManage
     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
   )
 
-  // todo: show grayed out icons?
-  val viewVisibility = if (isAppClosed) View.INVISIBLE else View.VISIBLE
-  views.setViewVisibility(R.id.widgetPlayPauseButton, viewVisibility)
-  views.setViewVisibility(R.id.widgetFastForwardButton, viewVisibility)
-  views.setViewVisibility(R.id.widgetRewindButton, viewVisibility)
-
   val playPausePI = MediaButtonReceiver.buildMediaButtonPendingIntent(context, PlaybackStateCompat.ACTION_PLAY_PAUSE)
   views.setOnClickPendingIntent(R.id.widgetPlayPauseButton, playPausePI)
 
@@ -88,6 +92,8 @@ internal fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManage
   val rewindPI = MediaButtonReceiver.buildMediaButtonPendingIntent(context, PlaybackStateCompat.ACTION_REWIND)
   views.setOnClickPendingIntent(R.id.widgetRewindButton, rewindPI)
 
+  // Show/Hide button container
+  views.setViewVisibility(R.id.widgetButtonContainer, if (isAppClosed) View.GONE else View.VISIBLE)
 
   views.setOnClickPendingIntent(R.id.widgetBackground, wholeWidgetClickPI)
 
