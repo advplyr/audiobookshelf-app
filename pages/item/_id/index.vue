@@ -77,7 +77,7 @@
       </div>
 
       <!-- metadata -->
-      <div class="grid gap-2 my-2 px-4" style="grid-template-columns: auto minmax(max-content, 120px) minmax(200px, max-content) auto">
+      <div class="grid gap-2 my-2" style="grid-template-columns: auto max-content minmax(100px, max-content) auto">
 
         <div v-if="podcastAuthor || (bookAuthors && bookAuthors.length)" class="col-start-2 text-white text-opacity-60 uppercase text-sm">Author</div>
         <div v-if="podcastAuthor" class="text-sm">{{ podcastAuthor }}</div>
@@ -129,14 +129,14 @@
         <div v-if="allMetadata && numTracks && numChapters" class="col-start-2 text-white text-opacity-60 uppercase text-sm">Chapters</div>
         <div v-if="allMetadata && numTracks && numChapters" class="text-sm">{{ numChapters }} chapters</div>
 
-        <div class="col-start-3 text-white text-opacity-60 text-sm" @click="toggleMetadata()">
+        <div v-if="!isPodcast" class="col-start-3 text-white text-opacity-60 text-sm" @click="toggleMetadata()">
           {{ allMetadata ? 'less' : 'more' }}
           <span class="material-icons align-middle">{{ allMetadata ? 'expand_less' : 'expand_more' }}</span>
         </div>
       </div>
 
       <div class="w-full py-2">
-        <p class="text-sm text-justify" style="hyphens: auto;">{{ description }}</p>
+        <p class="text-sm text-justify whitespace-pre-line" style="hyphens: auto;">{{ description }}</p>
       </div>
 
       <tables-podcast-episodes-table v-if="isPodcast" :library-item="libraryItem" :local-library-item-id="localLibraryItemId" :episodes="episodes" :local-episodes="localLibraryItemEpisodes" :is-local="isLocal" />
@@ -189,7 +189,6 @@ export default {
   },
   data() {
     return {
-      allMetadata: false,
       resettingProgress: false,
       isProcessingReadUpdate: false,
       showSelectLocalFolder: false,
@@ -198,10 +197,14 @@ export default {
       showFullscreenCover: false,
       coverRgb: 'rgb(55, 56, 56)',
       coverBgIsLight: false,
-      windowWidth: 0
+      windowWidth: 0,
+      hideMetadata: true
     }
   },
   computed: {
+    allMetadata() {
+      return this.isPodcast || !this.hideMetadata
+    },
     isIos() {
       return this.$platform === 'ios'
     },
@@ -722,7 +725,7 @@ export default {
       this.windowWidth = window.innerWidth
     },
     toggleMetadata() {
-      this.allMetadata = !this.allMetadata
+      this.hideMetadata = !this.hideMetadata
     }
   },
   mounted() {
