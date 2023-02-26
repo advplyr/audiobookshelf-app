@@ -1,7 +1,7 @@
 <template>
   <modals-modal v-model="show" :width="360" height="100%" :processing="processing">
     <template #outer>
-      <div class="absolute top-5 left-4 z-40">
+      <div class="absolute top-8 left-4 z-40">
         <p class="text-white text-2xl truncate">Add to Playlist</p>
       </div>
     </template>

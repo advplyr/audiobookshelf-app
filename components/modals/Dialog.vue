@@ -1,8 +1,8 @@
 <template>
   <modals-modal v-model="show" :width="300" height="100%">
     <template #outer>
-      <div v-if="title" class="absolute top-7 left-4 z-40" style="max-width: 80%">
-        <p class="text-white text-lg truncate">{{ title }}</p>
+      <div v-if="title" class="absolute top-8 left-4 z-40" style="max-width: 80%">
+        <p class="text-white text-xl truncate">{{ title }}</p>
       </div>
     </template>
 

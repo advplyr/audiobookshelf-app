@@ -53,7 +53,7 @@ class AbsAudioPlayerWeb extends WebPlugin {
       var playbackSession = await $axios.$post(route, { mediaPlayer: 'html5-mobile', forceDirectPlay: true })
       if (playbackSession) {
         if (startTime !== undefined && startTime !== null) playbackSession.currentTime = startTime
-        this.setAudioPlayer(playbackSession, true)
+        this.setAudioPlayer(playbackSession, playWhenReady)
       }
     }
     return false
