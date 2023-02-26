@@ -93,10 +93,11 @@
 
     <ImageView
       android:id="@+id/widgetFastForwardButton"
+      style="@style/Widget.Android.AppWidget.InnerView"
       android:layout_width="0dp"
       android:layout_height="match_parent"
-      android:layout_weight="1"
       android:layout_margin="8dp"
+      android:layout_weight="1"
       android:src="@drawable/exo_icon_fastforward" />
   </LinearLayout>
 </LinearLayout>

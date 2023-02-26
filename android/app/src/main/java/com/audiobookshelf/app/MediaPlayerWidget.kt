@@ -10,6 +10,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
+import android.view.View
 import android.widget.RemoteViews
 import androidx.media.session.MediaButtonReceiver
 import com.audiobookshelf.app.data.PlaybackSession
@@ -29,18 +30,17 @@ class MediaPlayerWidget : AppWidgetProvider() {
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
       // There may be multiple widgets active, so update all of them
       for (appWidgetId in appWidgetIds) {
-        updateAppWidget(context, appWidgetManager, appWidgetId, null, false)
+        updateAppWidget(context, appWidgetManager, appWidgetId, null, false, PlayerNotificationService.isClosed)
       }
     }
 
   override fun onEnabled(context: Context) {
-    Log.w(tag, "onEnabled check context ${context.packageName}")
+    Log.i(tag, "onEnabled check context ${context.packageName}")
 
     // Enter relevant functionality for when the first widget is created
     DeviceManager.widgetUpdater = (object : WidgetEventEmitter {
       override fun onPlayerChanged(pns: PlayerNotificationService) {
         val isPlaying = pns.currentPlayer.isPlaying
-        Log.i(tag, "onPlayerChanged | Is Playing? $isPlaying")
 
         val appWidgetManager = AppWidgetManager.getInstance(context)
         val componentName = ComponentName(context, MediaPlayerWidget::class.java)
@@ -49,7 +49,7 @@ class MediaPlayerWidget : AppWidgetProvider() {
         val playbackSession = pns.getCurrentPlaybackSessionCopy()
 
         for (widgetId in ids) {
-          updateAppWidget(context, appWidgetManager, widgetId, playbackSession, isPlaying)
+          updateAppWidget(context, appWidgetManager, widgetId, playbackSession, isPlaying, PlayerNotificationService.isClosed)
         }
       }
     })
@@ -60,9 +60,24 @@ class MediaPlayerWidget : AppWidgetProvider() {
     }
 }
 
-internal fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int, playbackSession: PlaybackSession?, isPlaying:Boolean) {
+internal fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int, playbackSession: PlaybackSession?, isPlaying:Boolean, isAppClosed:Boolean) {
   val tag = "MediaPlayerWidget"
   val views = RemoteViews(context.packageName, R.layout.media_player_widget)
+
+  val wholeWidgetClickI = Intent(context, MainActivity::class.java)
+  wholeWidgetClickI.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+  val wholeWidgetClickPI = PendingIntent.getActivity(
+    context,
+    System.currentTimeMillis().toInt(),
+    wholeWidgetClickI,
+    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+  )
+
+  // todo: show grayed out icons?
+  val viewVisibility = if (isAppClosed) View.INVISIBLE else View.VISIBLE
+  views.setViewVisibility(R.id.widgetPlayPauseButton, viewVisibility)
+  views.setViewVisibility(R.id.widgetFastForwardButton, viewVisibility)
+  views.setViewVisibility(R.id.widgetRewindButton, viewVisibility)
 
   val playPausePI = MediaButtonReceiver.buildMediaButtonPendingIntent(context, PlaybackStateCompat.ACTION_PLAY_PAUSE)
   views.setOnClickPendingIntent(R.id.widgetPlayPauseButton, playPausePI)
@@ -73,14 +88,7 @@ internal fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManage
   val rewindPI = MediaButtonReceiver.buildMediaButtonPendingIntent(context, PlaybackStateCompat.ACTION_REWIND)
   views.setOnClickPendingIntent(R.id.widgetRewindButton, rewindPI)
 
-  val wholeWidgetClickI = Intent(context, MainActivity::class.java)
-  wholeWidgetClickI.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
-  val wholeWidgetClickPI = PendingIntent.getActivity(
-    context,
-    System.currentTimeMillis().toInt(),
-    wholeWidgetClickI,
-    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-  )
+
   views.setOnClickPendingIntent(R.id.widgetBackground, wholeWidgetClickPI)
 
   val imageUri = playbackSession?.getCoverUri() ?: Uri.parse("android.resource://com.audiobookshelf.app/" + R.drawable.icon)
@@ -99,7 +107,8 @@ internal fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManage
   val options = RequestOptions().override(300, 300).placeholder(R.drawable.icon).error(R.drawable.icon)
   Glide.with(context.applicationContext).asBitmap().load(imageUri).apply(options).into(awt)
 
-  Log.e(tag, "Update App Widget | Is Playing? $isPlaying")
+  Log.i(tag, "Update App Widget | Is Playing=$isPlaying | isAppClosed=$isAppClosed")
+
   val playPauseResource = if (isPlaying) R.drawable.ic_media_pause_dark else R.drawable.ic_media_play_dark
   views.setImageViewResource(R.id.widgetPlayPauseButton, playPauseResource)
 

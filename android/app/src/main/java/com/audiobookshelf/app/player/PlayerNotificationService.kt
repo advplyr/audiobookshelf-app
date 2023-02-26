@@ -170,12 +170,16 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     }
 
     Log.d(tag, "onDestroy")
+    isStarted = false
+    isClosed = true
+    DeviceManager.widgetUpdater?.onPlayerChanged(this)
+
     playerNotificationManager.setPlayer(null)
     mPlayer.release()
     castPlayer?.release()
     mediaSession.release()
     mediaProgressSyncer.reset()
-    isStarted = false
+
 
     super.onDestroy()
   }
@@ -409,8 +413,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     DeviceManager.setLastPlaybackSession(playbackSession) // Save playback session to use when app is closed
 
     Log.d(tag, "Set CurrentPlaybackSession MediaPlayer ${currentPlaybackSession?.mediaPlayer}")
-
+    // Notify client
     clientEventEmitter?.onPlaybackSession(playbackSession)
+
+    // Update widget
+    DeviceManager.widgetUpdater?.onPlayerChanged(this)
 
     if (mediaItems.isEmpty()) {
       Log.e(tag, "Invalid playback session no media items to play")
