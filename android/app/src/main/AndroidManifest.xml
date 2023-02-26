@@ -23,18 +23,18 @@
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="true" >
 
-<!-- TODO: Incomplete desktop widget -->
-<!--        <receiver-->
-<!--            android:name=".NewAppWidget"-->
-<!--            android:exported="true" >-->
-<!--            <intent-filter>-->
-<!--                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />-->
-<!--            </intent-filter>-->
+        <!-- Android app widget -->
+        <receiver
+          android:name="MediaPlayerWidget"
+          android:exported="false">
+          <intent-filter>
+            <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+          </intent-filter>
 
-<!--            <meta-data-->
-<!--                android:name="android.appwidget.provider"-->
-<!--                android:resource="@xml/new_app_widget_info" />-->
-<!--        </receiver>-->
+          <meta-data
+            android:name="android.appwidget.provider"
+            android:resource="@xml/media_player_widget_info" />
+        </receiver>
 
         <!-- Used by Android Auto -->
         <meta-data

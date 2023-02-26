@@ -1,6 +1,8 @@
 package com.audiobookshelf.app.player
 
 import android.app.*
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -21,12 +23,15 @@ import android.support.v4.media.session.MediaControllerCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
+import android.view.View
+import android.widget.RemoteViews
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.media.MediaBrowserServiceCompat
 import androidx.media.utils.MediaConstants
 import com.audiobookshelf.app.BuildConfig
+import com.audiobookshelf.app.MediaPlayerWidget
 import com.audiobookshelf.app.R
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.data.DeviceInfo
@@ -170,12 +175,16 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     }
 
     Log.d(tag, "onDestroy")
+    isStarted = false
+    isClosed = true
+    DeviceManager.widgetUpdater?.onPlayerChanged(this)
+
     playerNotificationManager.setPlayer(null)
     mPlayer.release()
     castPlayer?.release()
     mediaSession.release()
     mediaProgressSyncer.reset()
-    isStarted = false
+
 
     super.onDestroy()
   }
@@ -184,6 +193,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   override fun onTaskRemoved(rootIntent: Intent?) {
     super.onTaskRemoved(rootIntent)
     Log.d(tag, "onTaskRemoved")
+
     stopSelf()
   }
 
@@ -258,7 +268,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     playerNotificationManager.setPriority(NotificationCompat.PRIORITY_MAX)
     playerNotificationManager.setUseFastForwardActionInCompactView(true)
     playerNotificationManager.setUseRewindActionInCompactView(true)
-    playerNotificationManager.setSmallIcon(R.drawable.exo_icon_localaudio)
+    playerNotificationManager.setSmallIcon(R.drawable.icon_monochrome)
 
     // Unknown action
     playerNotificationManager.setBadgeIconType(NotificationCompat.BADGE_ICON_LARGE)
@@ -409,8 +419,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     DeviceManager.setLastPlaybackSession(playbackSession) // Save playback session to use when app is closed
 
     Log.d(tag, "Set CurrentPlaybackSession MediaPlayer ${currentPlaybackSession?.mediaPlayer}")
-
+    // Notify client
     clientEventEmitter?.onPlaybackSession(playbackSession)
+
+    // Update widget
+    DeviceManager.widgetUpdater?.onPlayerChanged(this)
 
     if (mediaItems.isEmpty()) {
       Log.e(tag, "Invalid playback session no media items to play")
