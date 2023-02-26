@@ -89,8 +89,8 @@ export const actions = {
       }
     }
     if (hasChanges) {
-      await this.$localStore.setUserSettings(existingSettings)
       commit('setSettings', existingSettings)
+      await this.$localStore.setUserSettings(existingSettings)
       this.$eventBus.$emit('user-settings', state.settings)
     }
   },
