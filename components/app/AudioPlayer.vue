@@ -450,7 +450,6 @@ export default {
       this.$emit('showSleepTimer')
     },
     async setPlaybackSpeed(speed) {
-      await this.$hapticsImpact()
       console.log(`[AudioPlayer] Set Playback Rate: ${speed}`)
       this.currentPlaybackRate = speed
       this.updateTimestamp()
