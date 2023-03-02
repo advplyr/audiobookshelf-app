@@ -227,6 +227,7 @@ export default {
       return this.collapsedSeries ? this.collapsedSeries.numBooks : 0
     },
     displayTitle() {
+      if (this.recentEpisode) return this.recentEpisode.title
       if (this.orderBy === 'media.metadata.title' && this.sortingIgnorePrefix && this.title.toLowerCase().startsWith('the ')) {
         return this.title.substr(4) + ', The'
       }
