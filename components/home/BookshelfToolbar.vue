@@ -66,6 +66,8 @@ export default {
         return 'Collections'
       } else if (this.page === 'playlists') {
         return 'Playlists'
+      } else if (this.page === 'authors') {
+        return 'Authors'
       }
       return ''
     },

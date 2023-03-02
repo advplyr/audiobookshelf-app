@@ -101,15 +101,15 @@ export default {
             icon: 'collections_bookmark',
             iconClass: 'text-xl',
             text: 'Collections'
+          },
+          {
+            to: '/bookshelf/authors',
+            routeName: 'bookshelf-authors',
+            iconPack: 'abs-icons',
+            icon: 'authors',
+            iconClass: 'text-2xl',
+            text: 'Authors'
           }
-          // {
-          //   to: '/bookshelf/authors',
-          //   routeName: 'bookshelf-authors',
-          //   iconPack: 'abs-icons',
-          //   icon: 'authors',
-          //   iconClass: 'text-2xl pb-px',
-          //   text: 'Authors'
-          // }
         ]
       }
 
