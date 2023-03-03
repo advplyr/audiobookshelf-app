@@ -85,6 +85,12 @@ export default {
     filterBy() {
       return this.$store.getters['user/getUserSetting']('mobileFilterBy')
     },
+    collapseSeries() {
+      return this.$store.getters['user/getUserSetting']('collapseSeries')
+    },
+    collapseBookSeries() {
+      return this.$store.getters['user/getUserSetting']('collapseBookSeries')
+    },
     isCoverSquareAspectRatio() {
       return this.bookCoverAspectRatio === 1
     },
@@ -356,6 +362,9 @@ export default {
       let searchParams = new URLSearchParams()
       if (this.page === 'series-books') {
         searchParams.set('filter', `series.${this.$encode(this.seriesId)}`)
+        if (this.collapseBookSeries) {
+          searchParams.set('collapseseries', 1)
+        }
       } else {
         if (this.filterBy && this.filterBy !== 'all') {
           searchParams.set('filter', this.filterBy)

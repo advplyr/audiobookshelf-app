@@ -5,7 +5,9 @@ export const state = () => ({
     mobileOrderBy: 'addedAt',
     mobileOrderDesc: true,
     mobileFilterBy: 'all',
-    playbackRate: 1
+    playbackRate: 1,
+    collapseSeries: false,
+    collapseBookSeries: false
   }
 })
 
