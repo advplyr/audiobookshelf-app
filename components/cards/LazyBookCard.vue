@@ -240,10 +240,10 @@ export default {
     },
     displayTitle() {
       if (this.recentEpisode) return this.recentEpisode.title
-      if (this.orderBy === 'media.metadata.title' && this.sortingIgnorePrefix && this.title.toLowerCase().startsWith('the ')) {
-        return this.title.substr(4) + ', The'
-      }
-      return this.title
+
+      const ignorePrefix = this.orderBy === 'media.metadata.title' && this.sortingIgnorePrefix
+      if (this.collapsedSeries) return ignorePrefix ? this.collapsedSeries.nameIgnorePrefix : this.collapsedSeries.name
+      return ignorePrefix ? this.mediaMetadata.titleIgnorePrefix : this.title
     },
     displayLineTwo() {
       if (this.recentEpisode) return this.title
