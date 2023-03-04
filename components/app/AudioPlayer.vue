@@ -22,10 +22,10 @@
         <p class="font-mono text-white text-opacity-90" style="font-size: 0.8rem">{{ totalTimeRemainingPretty }}</p>
       </div>
       <div class="w-full">
-        <div class="h-1 w-full bg-gray-500 bg-opacity-50 relative">
-          <div ref="totalReadyTrack" class="h-full bg-gray-600 absolute top-0 left-0 pointer-events-none" />
-          <div ref="totalBufferedTrack" class="h-full bg-gray-500 absolute top-0 left-0 pointer-events-none" />
-          <div ref="totalPlayedTrack" class="h-full bg-gray-200 absolute top-0 left-0 pointer-events-none" />
+        <div class="h-1 w-full bg-gray-500 bg-opacity-50 relative rounded-full">
+          <div ref="totalReadyTrack" class="h-full bg-gray-600 absolute top-0 left-0 pointer-events-none rounded-full" />
+          <div ref="totalBufferedTrack" class="h-full bg-gray-500 absolute top-0 left-0 pointer-events-none rounded-full" />
+          <div ref="totalPlayedTrack" class="h-full bg-gray-200 absolute top-0 left-0 pointer-events-none rounded-full" />
         </div>
       </div>
     </div>
@@ -86,11 +86,11 @@
           <div class="flex-grow" />
           <p class="font-mono text-white text-opacity-90" style="font-size: 0.8rem">{{ timeRemainingPretty }}</p>
         </div>
-        <div ref="track" class="h-1.5 w-full bg-gray-500 bg-opacity-50 relative" :class="{ 'animate-pulse': isLoading }" @touchstart="touchstartTrack" @click="clickTrack">
-          <div ref="readyTrack" class="h-full bg-gray-600 absolute top-0 left-0 pointer-events-none" />
-          <div ref="bufferedTrack" class="h-full bg-gray-500 absolute top-0 left-0 pointer-events-none" />
-          <div ref="playedTrack" class="h-full bg-gray-200 absolute top-0 left-0 pointer-events-none" />
-          <div ref="draggingTrack" class="h-full bg-warning bg-opacity-25 absolute top-0 left-0 pointer-events-none" />
+        <div ref="track" class="h-1.5 w-full bg-gray-500 bg-opacity-50 relative rounded-full" :class="{ 'animate-pulse': isLoading }" @touchstart="touchstartTrack" @click="clickTrack">
+          <div ref="readyTrack" class="h-full bg-gray-600 absolute top-0 left-0 pointer-events-none rounded-full" />
+          <div ref="bufferedTrack" class="h-full bg-gray-500 absolute top-0 left-0 pointer-events-none rounded-full" />
+          <div ref="playedTrack" class="h-full bg-gray-200 absolute top-0 left-0 pointer-events-none rounded-full" />
+          <div ref="draggingTrack" class="h-full bg-warning bg-opacity-25 absolute top-0 left-0 pointer-events-none rounded-full" />
           <div ref="trackCursor" class="h-3.5 w-3.5 rounded-full bg-gray-200 absolute -top-1 pointer-events-none" :class="{ 'opacity-0': lockUi || !showFullscreen }" />
         </div>
       </div>
@@ -948,6 +948,8 @@ export default {
   transition: all 0.25s cubic-bezier(0.39, 0.575, 0.565, 1);
   transition-property: left, bottom, width, height;
   transform-origin: left bottom;
+  border-radius: 3px;
+  overflow: hidden;
 }
 
 .total-track {
@@ -1032,6 +1034,8 @@ export default {
   width: var(--cover-image-width);
   left: calc(50% - (calc(var(--cover-image-width)) / 2));
   bottom: calc(50% + 120px - (calc(var(--cover-image-height)) / 2));
+  border-radius: 16px;
+  overflow: hidden;
 }
 
 .fullscreen #playerControls {
