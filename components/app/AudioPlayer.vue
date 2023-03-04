@@ -15,7 +15,7 @@
       <p class="top-4 absolute left-0 right-0 mx-auto text-center uppercase tracking-widest text-opacity-75" style="font-size: 10px" :class="{ 'text-success': isLocalPlayMethod, 'text-accent': !isLocalPlayMethod }">{{ isDirectPlayMethod ? 'Direct' : isLocalPlayMethod ? 'Local' : 'Transcode' }}</p>
     </div>
 
-    <div v-if="useChapterTrack && useTotalTrack && showFullscreen" class="absolute total-track w-full z-30" :class="showFullscreen ? 'px-6' : 'px-3'">
+    <div v-if="useChapterTrack && useTotalTrack && showFullscreen" class="absolute total-track w-full z-30 px-6">
       <div class="flex">
         <p class="font-mono text-white text-opacity-90" style="font-size: 0.8rem">{{ currentTimePretty }}</p>
         <div class="flex-grow" />
@@ -80,18 +80,17 @@
         </div>
       </div>
 
-      <div id="playerTrack" class="absolute left-0 w-full" :class="showFullscreen ? 'px-6' : 'px-3'">
-        <div class="flex pb-0.5">
+      <div id="playerTrack" class="absolute left-0 w-full px-6">
+        <div class="flex">
           <p class="font-mono text-white text-opacity-90" style="font-size: 0.8rem" ref="currentTimestamp">0:00</p>
           <div class="flex-grow" />
           <p class="font-mono text-white text-opacity-90" style="font-size: 0.8rem">{{ timeRemainingPretty }}</p>
         </div>
-        <div ref="track" class="h-1.5 w-full bg-gray-500 bg-opacity-50 relative rounded-full" :class="{ 'animate-pulse': isLoading }" @touchstart="touchstartTrack" @click="clickTrack">
-          <div ref="readyTrack" class="h-full bg-gray-600 absolute top-0 left-0 pointer-events-none rounded-full" />
-          <div ref="bufferedTrack" class="h-full bg-gray-500 absolute top-0 left-0 pointer-events-none rounded-full" />
-          <div ref="playedTrack" class="h-full bg-gray-200 absolute top-0 left-0 pointer-events-none rounded-full" />
-          <div ref="draggingTrack" class="h-full bg-warning bg-opacity-25 absolute top-0 left-0 pointer-events-none rounded-full" />
-          <div ref="trackCursor" class="h-3.5 w-3.5 rounded-full bg-gray-200 absolute -top-1 pointer-events-none" :class="{ 'opacity-0': lockUi || !showFullscreen }" />
+        <div ref="track" class="h-1.5 w-full bg-gray-500 bg-opacity-50 relative rounded-full" :class="{ 'animate-pulse': isLoading }" @click.stop>
+          <div ref="readyTrack" class="h-full bg-gray-600 absolute top-0 left-0 rounded-full pointer-events-none" />
+          <div ref="bufferedTrack" class="h-full bg-gray-500 absolute top-0 left-0 rounded-full pointer-events-none" />
+          <div ref="playedTrack" class="h-full bg-gray-200 absolute top-0 left-0 rounded-full pointer-events-none" />
+          <div ref="trackCursor" class="rounded-full bg-gray-200 absolute pointer-events-auto" :class="{ 'opacity-0': lockUi || !showFullscreen, 'h-3.5 w-3.5 -top-1': isDraggingCursor, 'h-3 w-3 -top-0.75': !isDraggingCursor }" @touchstart="touchstartCursor" />
         </div>
       </div>
     </div>
@@ -149,8 +148,10 @@ export default {
       useTotalTrack: true,
       lockUi: false,
       isLoading: false,
-      touchTrackStart: false,
-      dragPercent: 0,
+      isDraggingCursor: false,
+      draggingTouchStartX: 0,
+      draggingTouchStartTime: 0,
+      draggingCurrentTime: 0,
       syncStatus: 0,
       showMoreMenuDialog: false,
       coverRgb: 'rgb(55, 56, 56)',
@@ -317,17 +318,20 @@ export default {
       return this.$secondsToTimestamp(this.totalDuration)
     },
     currentTimePretty() {
-      return this.$secondsToTimestamp(this.currentTime / this.currentPlaybackRate)
+      let currentTimeToUse = this.isDraggingCursor ? this.draggingCurrentTime : this.currentTime
+      return this.$secondsToTimestamp(currentTimeToUse / this.currentPlaybackRate)
     },
     timeRemaining() {
+      let currentTimeToUse = this.isDraggingCursor ? this.draggingCurrentTime : this.currentTime
       if (this.useChapterTrack && this.currentChapter) {
-        var currChapTime = this.currentTime - this.currentChapter.start
+        var currChapTime = currentTimeToUse - this.currentChapter.start
         return (this.currentChapterDuration - currChapTime) / this.currentPlaybackRate
       }
       return this.totalTimeRemaining
     },
     totalTimeRemaining() {
-      return (this.totalDuration - this.currentTime) / this.currentPlaybackRate
+      let currentTimeToUse = this.isDraggingCursor ? this.draggingCurrentTime : this.currentTime
+      return (this.totalDuration - currentTimeToUse) / this.currentPlaybackRate
     },
     totalTimeRemainingPretty() {
       if (this.totalTimeRemaining < 0) {
@@ -340,10 +344,6 @@ export default {
         return this.$secondsToTimestamp(this.timeRemaining * -1)
       }
       return '-' + this.$secondsToTimestamp(this.timeRemaining)
-    },
-    timeLeftInChapter() {
-      if (!this.currentChapter) return 0
-      return this.currentChapter.end - this.currentTime
     },
     sleepTimeRemainingPretty() {
       if (!this.sleepTimeRemaining) return '0s'
@@ -390,11 +390,6 @@ export default {
         this.$router.push(`/item/${llid}`)
         this.showFullscreen = false
       }
-    },
-    async touchstartTrack(e) {
-      await this.$hapticsImpact()
-      if (!e || !e.touches || !this.$refs.track || !this.showFullscreen || this.lockUi) return
-      this.touchTrackStart = true
     },
     async selectChapter(chapter) {
       await this.$hapticsImpact()
@@ -507,12 +502,13 @@ export default {
         console.error('No timestamp el')
         return
       }
-      let currentTime = this.currentTime / this.currentPlaybackRate
+
+      let currentTime = this.isDraggingCursor ? this.draggingCurrentTime : this.currentTime
       if (this.useChapterTrack && this.currentChapter) {
-        const currChapTime = Math.max(0, this.currentTime - this.currentChapter.start)
-        currentTime = currChapTime / this.currentPlaybackRate
+        currentTime = Math.max(0, currentTime - this.currentChapter.start)
       }
-      ts.innerText = this.$secondsToTimestamp(currentTime)
+
+      ts.innerText = this.$secondsToTimestamp(currentTime / this.currentPlaybackRate)
     },
     timeupdate() {
       if (!this.$refs.playedTrack) {
@@ -534,22 +530,25 @@ export default {
     },
     updateTrack() {
       // Update progress track UI
-      let percentDone = this.currentTime / this.totalDuration
+      let currentTimeToUse = this.isDraggingCursor ? this.draggingCurrentTime : this.currentTime
+      let percentDone = currentTimeToUse / this.totalDuration
       const totalPercentDone = percentDone
       let bufferedPercent = this.bufferedTime / this.totalDuration
       const totalBufferedPercent = bufferedPercent
 
       if (this.useChapterTrack && this.currentChapter) {
-        const currChapTime = this.currentTime - this.currentChapter.start
+        const currChapTime = currentTimeToUse - this.currentChapter.start
         percentDone = currChapTime / this.currentChapterDuration
         bufferedPercent = Math.max(0, Math.min(1, (this.bufferedTime - this.currentChapter.start) / this.currentChapterDuration))
       }
+
       const ptWidth = Math.round(percentDone * this.trackWidth)
       this.$refs.playedTrack.style.width = ptWidth + 'px'
       this.$refs.bufferedTrack.style.width = Math.round(bufferedPercent * this.trackWidth) + 'px'
 
       if (this.$refs.trackCursor) {
-        this.$refs.trackCursor.style.left = ptWidth - 8 + 'px'
+        const cursorShift = this.isDraggingCursor ? 7 : 6
+        this.$refs.trackCursor.style.left = ptWidth - cursorShift + 'px'
       }
 
       if (this.useChapterTrack) {
@@ -578,27 +577,14 @@ export default {
         this.$refs.playedTrack.classList.add('bg-yellow-300')
       }
     },
-    clickTrack(e) {
-      if (this.isLoading || this.lockUi) return
-      if (!this.showFullscreen) {
-        // Track not clickable on mini-player
-        return
-      }
-      if (e) e.stopPropagation()
-
-      var offsetX = e.offsetX
-      var perc = offsetX / this.trackWidth
-      var time = 0
-      if (this.useChapterTrack && this.currentChapter) {
-        time = perc * this.currentChapterDuration + this.currentChapter.start
-      } else {
-        time = perc * this.totalDuration
-      }
-      if (isNaN(time) || time === null) {
-        console.error('Invalid time', perc, time)
-        return
-      }
-      this.seek(time)
+    async touchstartCursor(e) {
+      if (!e || !e.touches || !this.$refs.track || !this.showFullscreen || this.lockUi) return
+      await this.$hapticsImpact()
+      this.isDraggingCursor = true
+      this.draggingTouchStartX = e.touches[0].pageX
+      this.draggingTouchStartTime = this.currentTime
+      this.draggingCurrentTime = this.currentTime
+      this.updateTrack()
     },
     async playPauseClick() {
       await this.$hapticsImpact()
@@ -651,24 +637,11 @@ export default {
     touchend(e) {
       if (!e.changedTouches) return
 
-      if (this.touchTrackStart) {
-        var touch = e.changedTouches[0]
-        const touchOnTrackPos = touch.pageX - 12
-        const dragPercent = Math.max(0, Math.min(1, touchOnTrackPos / this.trackWidth))
-
-        var seekToTime = 0
-        if (this.useChapterTrack && this.currentChapter) {
-          const currChapTime = dragPercent * this.currentChapterDuration
-          seekToTime = this.currentChapter.start + currChapTime
-        } else {
-          seekToTime = dragPercent * this.totalDuration
+      if (this.isDraggingCursor) {
+        if (this.draggingCurrentTime !== this.currentTime) {
+          this.seek(this.draggingCurrentTime)
         }
-        this.seek(seekToTime)
-
-        if (this.$refs.draggingTrack) {
-          this.$refs.draggingTrack.style.width = '0px'
-        }
-        this.touchTrackStart = false
+        this.isDraggingCursor = false
       } else if (this.showFullscreen) {
         this.touchEndY = e.changedTouches[0].screenY
         var touchDuration = Date.now() - this.touchStartTime
@@ -680,29 +653,24 @@ export default {
       }
     },
     touchmove(e) {
-      if (!this.touchTrackStart) return
+      if (!this.isDraggingCursor || !e.touches) return
 
-      var touch = e.touches[0]
-      const touchOnTrackPos = touch.pageX - 12
-      const dragPercent = Math.max(0, Math.min(1, touchOnTrackPos / this.trackWidth))
-      this.dragPercent = dragPercent
-
-      if (this.$refs.draggingTrack) {
-        this.$refs.draggingTrack.style.width = this.dragPercent * this.trackWidth + 'px'
+      const distanceMoved = e.touches[0].pageX - this.draggingTouchStartX
+      let duration = this.totalDuration
+      let minTime = 0
+      let maxTime = duration
+      if (this.useChapterTrack && this.currentChapter) {
+        duration = this.currentChapterDuration
+        minTime = this.currentChapter.start
+        maxTime = minTime + duration
       }
 
-      var ts = this.$refs.currentTimestamp
-      if (ts) {
-        var currTimeStr = ''
-        if (this.useChapterTrack && this.currentChapter) {
-          const currChapTime = dragPercent * this.currentChapterDuration
-          currTimeStr = this.$secondsToTimestamp(currChapTime)
-        } else {
-          const dragTime = dragPercent * this.totalDuration
-          currTimeStr = this.$secondsToTimestamp(dragTime)
-        }
-        ts.innerText = currTimeStr
-      }
+      const timePerPixel = duration / this.trackWidth
+      const newTime = this.draggingTouchStartTime + timePerPixel * distanceMoved
+      this.draggingCurrentTime = Math.min(maxTime, Math.max(minTime, newTime))
+
+      this.updateTimestamp()
+      this.updateTrack()
     },
     async clickMenuAction(action) {
       await this.$hapticsImpact()
@@ -848,7 +816,7 @@ export default {
       document.documentElement.style.setProperty('--cover-image-height', coverHeight + 'px')
       document.documentElement.style.setProperty('--cover-image-width-collapsed', coverImageWidthCollapsed + 'px')
       document.documentElement.style.setProperty('--cover-image-height-collapsed', 46 + 'px')
-      document.documentElement.style.setProperty('--title-author-left-offset-collapsed', 24 + coverImageWidthCollapsed + 'px')
+      document.documentElement.style.setProperty('--title-author-left-offset-collapsed', 30 + coverImageWidthCollapsed + 'px')
     },
     minimizePlayerEvt() {
       this.collapseFullscreen()
@@ -915,7 +883,7 @@ export default {
   --cover-image-height: 0px;
   --cover-image-width-collapsed: 46px;
   --cover-image-height-collapsed: 46px;
-  --title-author-left-offset-collapsed: 70px;
+  --title-author-left-offset-collapsed: 80px;
 }
 
 .playerContainer {
@@ -942,7 +910,7 @@ export default {
 
 .cover-wrapper {
   bottom: 68px;
-  left: 12px;
+  left: 24px;
   height: var(--cover-image-height-collapsed);
   width: var(--cover-image-width-collapsed);
   transition: all 0.25s cubic-bezier(0.39, 0.575, 0.565, 1);
@@ -999,9 +967,8 @@ export default {
 #playerControls {
   transition: all 0.15s cubic-bezier(0.39, 0.575, 0.565, 1);
   transition-property: width, bottom;
-  width: 140px;
-  padding-left: 12px;
-  padding-right: 12px;
+  width: 128px;
+  padding-right: 24px;
   bottom: 70px;
 }
 #playerControls .jump-icon {
@@ -1019,7 +986,7 @@ export default {
   width: 40px;
   min-width: 40px;
   min-height: 40px;
-  margin: 0px 14px;
+  margin: 0px 7px;
 }
 #playerControls .play-btn .material-icons {
   transition: all 0.15s cubic-bezier(0.39, 0.575, 0.565, 1);
