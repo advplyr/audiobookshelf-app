@@ -15,7 +15,7 @@
       <p class="top-4 absolute left-0 right-0 mx-auto text-center uppercase tracking-widest text-opacity-75" style="font-size: 10px" :class="{ 'text-success': isLocalPlayMethod, 'text-accent': !isLocalPlayMethod }">{{ isDirectPlayMethod ? 'Direct' : isLocalPlayMethod ? 'Local' : 'Transcode' }}</p>
     </div>
 
-    <div v-if="useChapterTrack && useTotalTrack && showFullscreen" class="absolute total-track w-full px-3 z-30">
+    <div v-if="useChapterTrack && useTotalTrack && showFullscreen" class="absolute total-track w-full z-30" :class="showFullscreen ? 'px-6' : 'px-3'">
       <div class="flex">
         <p class="font-mono text-white text-opacity-90" style="font-size: 0.8rem">{{ currentTimePretty }}</p>
         <div class="flex-grow" />
@@ -46,7 +46,7 @@
     </div>
 
     <div id="playerContent" class="playerContainer w-full z-20 absolute bottom-0 left-0 right-0 p-2 pointer-events-auto transition-all" :style="{ backgroundColor: showFullscreen ? '' : coverRgb }" @click="clickContainer">
-      <div v-if="showFullscreen" class="absolute bottom-4 left-0 right-0 w-full py-3 mx-auto px-3" style="max-width: 380px">
+      <div v-if="showFullscreen" class="absolute bottom-4 left-0 right-0 w-full pb-4 pt-2 mx-auto px-6" style="max-width: 380px">
         <div class="flex items-center justify-between pointer-events-auto">
           <span v-if="!isPodcast && isServerItem && networkConnected" class="material-icons text-3xl text-white text-opacity-75 cursor-pointer" @click="$emit('showBookmarks')">{{ bookmarks.length ? 'bookmark' : 'bookmark_border' }}</span>
           <!-- hidden for podcasts but still using this as a placeholder -->
@@ -65,8 +65,8 @@
       </div>
       <div v-else class="w-full h-full absolute top-0 left-0 pointer-events-none" style="background: linear-gradient(145deg, rgba(38, 38, 38, 0.5) 0%, rgba(38, 38, 38, 0.9) 20%, rgb(38, 38, 38) 60%)" />
 
-      <div id="playerControls" class="absolute right-0 bottom-0 py-2">
-        <div class="flex items-center justify-center">
+      <div id="playerControls" class="absolute right-0 bottom-0">
+        <div class="flex items-center justify-between max-w-full">
           <span v-show="showFullscreen && !lockUi" class="material-icons next-icon text-white text-opacity-75 cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpChapterStart">first_page</span>
           <span v-show="!lockUi" class="material-icons jump-icon text-white cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpBackwards">{{ jumpBackwardsIcon }}</span>
           <div class="play-btn cursor-pointer shadow-sm flex items-center justify-center rounded-full text-primary mx-4 relative overflow-hidden" :style="{ backgroundColor: coverRgb }" :class="{ 'animate-spin': seekLoading }" @mousedown.prevent @mouseup.prevent @click.stop="playPauseClick">
@@ -80,11 +80,9 @@
         </div>
       </div>
 
-      <div id="playerTrack" class="absolute left-0 w-full px-3">
+      <div id="playerTrack" class="absolute left-0 w-full" :class="showFullscreen ? 'px-6' : 'px-3'">
         <div class="flex pb-0.5">
           <p class="font-mono text-white text-opacity-90" style="font-size: 0.8rem" ref="currentTimestamp">0:00</p>
-          <div class="flex-grow" />
-          <p v-show="showFullscreen" class="text-sm truncate text-white text-opacity-75" style="max-width: 65%">{{ currentChapterTitle }}</p>
           <div class="flex-grow" />
           <p class="font-mono text-white text-opacity-90" style="font-size: 0.8rem">{{ timeRemainingPretty }}</p>
         </div>
@@ -287,6 +285,7 @@ export default {
       return this.playMethod == this.$constants.PlayMethod.DIRECTPLAY
     },
     title() {
+      if (this.currentChapterTitle && this.showFullscreen) return this.currentChapterTitle
       if (this.playbackSession) return this.playbackSession.displayTitle
       return this.mediaMetadata ? this.mediaMetadata.title : 'Title'
     },
@@ -989,16 +988,15 @@ export default {
   pointer-events: auto;
 }
 .fullscreen .title-author-texts .title-text {
-  font-size: clamp(0.8rem, calc(var(--cover-image-height) / 260 * 20), 1.5rem);
+  font-size: clamp(0.8rem, calc(var(--cover-image-height) / 260 * 20), 1.3rem);
 }
 .fullscreen .title-author-texts .author-text {
-  font-size: clamp(0.6rem, calc(var(--cover-image-height) / 260 * 16), 1.1rem);
+  font-size: clamp(0.6rem, calc(var(--cover-image-height) / 260 * 16), 1rem);
 }
 
 #playerControls {
   transition: all 0.15s cubic-bezier(0.39, 0.575, 0.565, 1);
   transition-property: width, bottom;
-  height: 48px;
   width: 140px;
   padding-left: 12px;
   padding-right: 12px;
@@ -1038,14 +1036,14 @@ export default {
 
 .fullscreen #playerControls {
   width: 100%;
-  bottom: 94px;
+  padding-left: 24px;
+  padding-right: 24px;
+  bottom: 78px;
 }
 .fullscreen #playerControls .jump-icon {
-  margin: 0px 18px;
   font-size: 2.4rem;
 }
 .fullscreen #playerControls .next-icon {
-  margin: 0px 20px;
   font-size: 2rem;
 }
 .fullscreen #playerControls .play-btn {
@@ -1053,7 +1051,6 @@ export default {
   width: 65px;
   min-width: 65px;
   min-height: 65px;
-  margin: 0px 26px;
 }
 .fullscreen #playerControls .play-btn .material-icons {
   font-size: 2.1rem;
