@@ -50,9 +50,6 @@ module.exports = {
       },
       minHeight: {
         '12': '3rem'
-      },
-      spacing: {
-        '0.75': '0.1875rem'
       }
     }
   },

@@ -1,5 +1,5 @@
 <template>
-  <div class="select-none w-full layout-wrapper bg-bg text-white">
+  <div class="w-full layout-wrapper bg-bg text-white">
     <app-appbar />
     <div id="content" class="overflow-hidden relative" :class="playerIsOpen ? 'playerOpen' : ''">
       <Nuxt />

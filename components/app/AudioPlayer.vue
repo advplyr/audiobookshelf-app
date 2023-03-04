@@ -81,7 +81,7 @@
       </div>
 
       <div id="playerTrack" class="absolute left-0 w-full px-6">
-        <div class="flex">
+        <div class="flex pointer-events-none">
           <p class="font-mono text-white text-opacity-90" style="font-size: 0.8rem" ref="currentTimestamp">0:00</p>
           <div class="flex-grow" />
           <p class="font-mono text-white text-opacity-90" style="font-size: 0.8rem">{{ timeRemainingPretty }}</p>
@@ -90,7 +90,7 @@
           <div ref="readyTrack" class="h-full bg-gray-600 absolute top-0 left-0 rounded-full pointer-events-none" />
           <div ref="bufferedTrack" class="h-full bg-gray-500 absolute top-0 left-0 rounded-full pointer-events-none" />
           <div ref="playedTrack" class="h-full bg-gray-200 absolute top-0 left-0 rounded-full pointer-events-none" />
-          <div ref="trackCursor" class="rounded-full bg-gray-200 absolute pointer-events-auto" :class="{ 'opacity-0': lockUi || !showFullscreen, 'h-3.5 w-3.5 -top-1': isDraggingCursor, 'h-3 w-3 -top-0.75': !isDraggingCursor }" @touchstart="touchstartCursor" />
+          <div ref="trackCursor" class="h-3.5 w-3.5 -top-1 rounded-full bg-gray-200 absolute pointer-events-auto" :class="{ 'opacity-0': lockUi || !showFullscreen }" @touchstart="touchstartCursor" />
         </div>
       </div>
     </div>
@@ -547,8 +547,7 @@ export default {
       this.$refs.bufferedTrack.style.width = Math.round(bufferedPercent * this.trackWidth) + 'px'
 
       if (this.$refs.trackCursor) {
-        const cursorShift = this.isDraggingCursor ? 7 : 6
-        this.$refs.trackCursor.style.left = ptWidth - cursorShift + 'px'
+        this.$refs.trackCursor.style.left = ptWidth - 7 + 'px'
       }
 
       if (this.useChapterTrack) {
@@ -579,6 +578,7 @@ export default {
     },
     async touchstartCursor(e) {
       if (!e || !e.touches || !this.$refs.track || !this.showFullscreen || this.lockUi) return
+
       await this.$hapticsImpact()
       this.isDraggingCursor = true
       this.draggingTouchStartX = e.touches[0].pageX
