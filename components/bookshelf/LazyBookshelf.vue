@@ -50,6 +50,9 @@ export default {
   watch: {
     showBookshelfListView(newVal) {
       this.resetEntities()
+    },
+    seriesId() {
+      this.resetEntities()
     }
   },
   computed: {
