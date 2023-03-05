@@ -15,7 +15,8 @@ export default {
   data() {
     return {
       loading: true,
-      authors: []
+      authors: [],
+      loadedLibraryId: null
     }
   },
   computed: {
@@ -25,6 +26,7 @@ export default {
   },
   methods: {
     async init() {
+      this.loadedLibraryId = this.currentLibraryId
       this.authors = await this.$axios
         .$get(`/api/libraries/${this.currentLibraryId}/authors`)
         .then((response) => response.authors)
@@ -53,6 +55,15 @@ export default {
     authorRemoved(author) {
       this.authors = this.authors.filter((au) => au.id !== author.id)
       this.$eventBus.$emit('bookshelf-total-entities', this.authors.length)
+    },
+    libraryChanged(libraryId) {
+      if (libraryId !== this.loadedLibraryId) {
+        if (this.$store.getters['libraries/getCurrentLibraryMediaType'] === 'book') {
+          this.init()
+        } else {
+          this.$router.replace('/bookshelf')
+        }
+      }
     }
   },
   mounted() {
@@ -60,11 +71,13 @@ export default {
     this.$socket.$on('author_added', this.authorAdded)
     this.$socket.$on('author_updated', this.authorUpdated)
     this.$socket.$on('author_removed', this.authorRemoved)
+    this.$eventBus.$on('library-changed', this.libraryChanged)
   },
   beforeDestroy() {
     this.$socket.$off('author_added', this.authorAdded)
     this.$socket.$off('author_updated', this.authorUpdated)
     this.$socket.$off('author_removed', this.authorRemoved)
+    this.$eventBus.$off('library-changed', this.libraryChanged)
   }
 }
 </script>

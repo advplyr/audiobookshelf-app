@@ -17,7 +17,8 @@ export default {
       totalEpisodes: 0,
       currentPage: 0,
       localEpisodeMap: {},
-      isLocal: false
+      isLocal: false,
+      loadedLibraryId: null
     }
   },
   watch: {},
@@ -39,6 +40,7 @@ export default {
       this.$store.commit('globals/setShowPlaylistsAddCreateModal', true)
     },
     async loadRecentEpisodes(page = 0) {
+      this.loadedLibraryId = this.currentLibraryId
       this.processing = true
       const episodePayload = await this.$axios.$get(`/api/libraries/${this.currentLibraryId}/recent-episodes?limit=25&page=${page}`).catch((error) => {
         console.error('Failed to get recent episodes', error)
@@ -50,10 +52,23 @@ export default {
       this.recentEpisodes = episodePayload.episodes || []
       this.totalEpisodes = episodePayload.total
       this.currentPage = page
+    },
+    libraryChanged(libraryId) {
+      if (libraryId !== this.loadedLibraryId) {
+        if (this.$store.getters['libraries/getCurrentLibraryMediaType'] === 'podcast') {
+          this.loadRecentEpisodes()
+        } else {
+          this.$router.replace('/bookshelf')
+        }
+      }
     }
   },
   mounted() {
     this.loadRecentEpisodes()
+    this.$eventBus.$on('library-changed', this.libraryChanged)
+  },
+  beforeDestroy() {
+    this.$eventBus.$off('library-changed', this.libraryChanged)
   }
 }
 </script>
