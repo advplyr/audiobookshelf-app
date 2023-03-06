@@ -190,6 +190,14 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
               handleMediaButtonClickCount()
             }
           }
+          KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
+            Log.d(tag, "handleCallMediaButton: Media Fast Forward")
+            playerNotificationService.jumpForward()
+          }
+          KeyEvent.KEYCODE_MEDIA_REWIND -> {
+            Log.d(tag, "handleCallMediaButton: Media Rewind")
+            playerNotificationService.jumpBackward()
+          }
         }
       }
 
@@ -222,12 +230,6 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
             playerNotificationService.jumpForward()
           }
           KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
-            playerNotificationService.jumpBackward()
-          }
-          KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
-            playerNotificationService.jumpForward()
-          }
-          KeyEvent.KEYCODE_MEDIA_REWIND -> {
             playerNotificationService.jumpBackward()
           }
           KeyEvent.KEYCODE_MEDIA_STOP -> {

@@ -39,7 +39,7 @@ export default {
       return this.$store.state.playerLibraryItemId
     },
     readerHeightOffset() {
-      return this.playerLibraryItemId ? 164 : 64
+      return this.playerLibraryItemId ? 196 : 96
     }
   },
   methods: {
@@ -56,13 +56,6 @@ export default {
     next() {
       if (this.rendition) {
         this.rendition.next()
-      }
-    },
-    keyUp() {
-      if ((e.keyCode || e.which) == 37) {
-        this.prev()
-      } else if ((e.keyCode || e.which) == 39) {
-        this.next()
       }
     },
     initEpub() {
@@ -93,7 +86,7 @@ export default {
               console.error('No Start', currentLocation)
             } else {
               var currentPage = book.locations.percentageFromCfi(currentLocation.start.cfi)
-              // console.log('current page', currentPage)
+              console.log('current page', currentPage)
             }
           })
         })
@@ -105,10 +98,10 @@ export default {
         })
         this.chapters = _chapters
       })
-      book.loaded.metadata.then((metadata) => {
-        // this.author = metadata.creator
-        // this.title = metadata.title
-      })
+      // book.loaded.metadata.then((metadata) => {
+      // this.author = metadata.creator
+      // this.title = metadata.title
+      // })
 
       // const spine_get = book.spine.get.bind(book.spine)
       // book.spine.get = function (target) {
@@ -120,8 +113,6 @@ export default {
       //   // }
       //   return t
       // }
-
-      this.rendition.on('keyup', this.keyUp)
 
       this.rendition.on('relocated', (location) => {
         var percent = book.locations.percentageFromCfi(location.start.cfi)

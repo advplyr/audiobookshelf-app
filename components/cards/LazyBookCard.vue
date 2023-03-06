@@ -10,11 +10,16 @@
       <p class="truncate" :style="{ fontSize: 0.9 * sizeMultiplier + 'rem' }">
         {{ displayTitle }}
       </p>
-      <p class="truncate text-gray-400" :style="{ fontSize: 0.8 * sizeMultiplier + 'rem' }">{{ displayAuthor || '&nbsp;' }}</p>
+      <p class="truncate text-gray-400" :style="{ fontSize: 0.8 * sizeMultiplier + 'rem' }">{{ displayLineTwo || '&nbsp;' }}</p>
       <p v-if="displaySortLine" class="truncate text-gray-400" :style="{ fontSize: 0.8 * sizeMultiplier + 'rem' }">{{ displaySortLine }}</p>
     </div>
 
-    <div v-if="booksInSeries" class="absolute z-20 top-1.5 right-1.5 rounded-md leading-3 text-sm p-1 font-semibold text-white flex items-center justify-center" style="background-color: #cd9d49dd">{{ booksInSeries }}</div>
+    <div v-if="seriesSequenceList" class="absolute rounded-lg bg-black bg-opacity-90 box-shadow-md z-20 text-right" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }" style="background-color: #78350f">
+      <p :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }">#{{ seriesSequenceList }}</p>
+    </div>
+    <div v-else-if="booksInSeries" class="absolute rounded-lg bg-black bg-opacity-90 box-shadow-md z-20" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }" style="background-color: #cd9d49dd">
+      <p :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }">{{ booksInSeries }}</p>
+    </div>
 
     <div class="w-full h-full absolute top-0 left-0 rounded overflow-hidden z-10">
       <div v-show="libraryItem && !imageReady" class="absolute top-0 left-0 w-full h-full flex items-center justify-center" :style="{ padding: sizeMultiplier * 0.5 + 'rem' }">
@@ -226,22 +231,36 @@ export default {
       // Only added to item object when collapseSeries is enabled
       return this.collapsedSeries ? this.collapsedSeries.numBooks : 0
     },
-    displayTitle() {
-      if (this.orderBy === 'media.metadata.title' && this.sortingIgnorePrefix && this.title.toLowerCase().startsWith('the ')) {
-        return this.title.substr(4) + ', The'
-      }
-      return this.title
+    seriesSequenceList() {
+      return this.collapsedSeries ? this.collapsedSeries.seriesSequenceList : null
     },
-    displayAuthor() {
+    libraryItemIdsInSeries() {
+      // Only added to item object when collapseSeries is enabled
+      return this.collapsedSeries ? this.collapsedSeries.libraryItemIds || [] : []
+    },
+    displayTitle() {
+      if (this.recentEpisode) return this.recentEpisode.title
+
+      const ignorePrefix = this.orderBy === 'media.metadata.title' && this.sortingIgnorePrefix
+      if (this.collapsedSeries) return ignorePrefix ? this.collapsedSeries.nameIgnorePrefix : this.collapsedSeries.name
+      return ignorePrefix ? this.mediaMetadata.titleIgnorePrefix : this.title
+    },
+    displayLineTwo() {
+      if (this.recentEpisode) return this.title
+      if (this.collapsedSeries) return ''
+      if (this.isPodcast) return this.author
+
       if (this.orderBy === 'media.metadata.authorNameLF') return this.authorLF
       return this.author
     },
     displaySortLine() {
+      if (this.collapsedSeries) return null
       if (this.orderBy === 'mtimeMs') return 'Modified ' + this.$formatDate(this._libraryItem.mtimeMs)
       if (this.orderBy === 'birthtimeMs') return 'Born ' + this.$formatDate(this._libraryItem.birthtimeMs)
       if (this.orderBy === 'addedAt') return 'Added ' + this.$formatDate(this._libraryItem.addedAt)
       if (this.orderBy === 'media.duration') return 'Duration: ' + this.$elapsedPrettyExtended(this.media.duration, false)
       if (this.orderBy === 'size') return 'Size: ' + this.$bytesPretty(this._libraryItem.size)
+      if (this.orderBy === 'media.numTracks') return `${this.numEpisodes} Episodes`
       return null
     },
     episodeProgress() {
@@ -434,7 +453,7 @@ export default {
         const router = this.$router || this.$nuxt.$router
         if (router) {
           if (this.recentEpisode) router.push(`/item/${this.libraryItemId}/${this.recentEpisode.id}`)
-          else if (this.collapsedSeries) router.push(`/library/${this.libraryId}/series/${this.collapsedSeries.id}`)
+          else if (this.collapsedSeries) router.push(`/bookshelf/series/${this.collapsedSeries.id}`)
           else router.push(`/item/${this.libraryItemId}`)
         }
       }

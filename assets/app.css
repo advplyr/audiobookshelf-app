@@ -2,6 +2,19 @@
 @import './defaultStyles.css';
 @import './absicons.css';
 
+* {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+input,
+textarea {
+  -webkit-touch-callout: auto;
+  -webkit-user-select: auto;
+  user-select: auto;
+}
+
 body {
   background-color: #262626;
 }

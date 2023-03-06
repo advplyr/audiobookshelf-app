@@ -8,6 +8,7 @@ import android.os.Build
 import android.provider.MediaStore
 import android.support.v4.media.session.MediaControllerCompat
 import android.util.Log
+import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.R
 import com.bumptech.glide.Glide
 import com.google.android.exoplayer2.Player
@@ -83,7 +84,7 @@ class AbMediaDescriptionAdapter constructor(private val controller: MediaControl
 
         Glide.with(playerNotificationService)
           .asBitmap()
-          .load(Uri.parse("android.resource://com.audiobookshelf.app/" + R.drawable.icon))
+          .load(Uri.parse("android.resource://${BuildConfig.APPLICATION_ID}/" + R.drawable.icon))
           .submit(NOTIFICATION_LARGE_ICON_SIZE, NOTIFICATION_LARGE_ICON_SIZE)
           .get()
       }

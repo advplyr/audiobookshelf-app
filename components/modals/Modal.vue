@@ -2,7 +2,7 @@
   <div ref="wrapper" class="modal modal-bg w-full h-full max-h-screen fixed top-0 left-0 bg-primary bg-opacity-75 flex items-center justify-center z-50 opacity-0">
     <div class="absolute top-0 left-0 w-full h-40 bg-gradient-to-b from-black to-transparent opacity-90 pointer-events-none" />
 
-    <div class="absolute z-40 top-4 right-4 h-12 w-12 flex items-center justify-center cursor-pointer text-white hover:text-gray-300" @click="show = false">
+    <div class="absolute z-40 top-6 right-4 h-12 w-12 flex items-center justify-center cursor-pointer text-white hover:text-gray-300" @click="show = false">
       <span class="material-icons text-4xl">close</span>
     </div>
     <slot name="outer" />
@@ -70,9 +70,9 @@ export default {
     }
   },
   methods: {
-    clickBg(vm, ev) {
+    clickBg(ev) {
       if (this.processing && this.persistent) return
-      if (vm.srcElement.classList.contains('modal-bg')) {
+      if (ev && ev.srcElement && ev.srcElement.classList && ev.srcElement.classList.contains('modal-bg')) {
         this.show = false
       }
     },

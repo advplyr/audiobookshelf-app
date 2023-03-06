@@ -1,7 +1,7 @@
 <template>
   <modals-modal v-model="show" width="100%" height="100%" max-width="100%">
     <template #outer>
-      <div class="absolute top-6 left-4 z-40">
+      <div class="absolute top-8 left-4 z-40">
         <p class="text-white text-2xl truncate">Feed Episodes</p>
       </div>
     </template>
@@ -22,7 +22,7 @@
           </div>
         </template>
       </div>
-      <div class="absolute bottom-0 left-0 w-full flex items-center" style="height: 50px">
+      <div class="absolute bottom-6 left-0 w-full flex items-center" style="height: 50px">
         <ui-btn class="w-full" :disabled="!episodesSelected.length" color="success" @click.stop="downloadEpisodes">{{ episodesSelected.length ? `Add ${episodesSelected.length} Episode(s) to Server` : 'No Episodes Selected' }}</ui-btn>
       </div>
     </div>
@@ -130,8 +130,8 @@ export default {
 
 <style>
 .feed-content {
-  height: calc(100vh - 125px);
-  max-height: calc(100vh - 125px);
-  margin-top: 20px;
+  height: calc(100vh - 150px);
+  max-height: calc(100vh - 150px);
+  margin-top: 5px;
 }
 </style>

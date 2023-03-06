@@ -15,24 +15,24 @@
       <p class="top-4 absolute left-0 right-0 mx-auto text-center uppercase tracking-widest text-opacity-75" style="font-size: 10px" :class="{ 'text-success': isLocalPlayMethod, 'text-accent': !isLocalPlayMethod }">{{ isDirectPlayMethod ? 'Direct' : isLocalPlayMethod ? 'Local' : 'Transcode' }}</p>
     </div>
 
-    <div v-if="useChapterTrack && useTotalTrack && showFullscreen" class="absolute total-track w-full px-3 z-30">
+    <div v-if="useChapterTrack && useTotalTrack && showFullscreen" class="absolute total-track w-full z-30 px-6">
       <div class="flex">
         <p class="font-mono text-white text-opacity-90" style="font-size: 0.8rem">{{ currentTimePretty }}</p>
         <div class="flex-grow" />
         <p class="font-mono text-white text-opacity-90" style="font-size: 0.8rem">{{ totalTimeRemainingPretty }}</p>
       </div>
       <div class="w-full">
-        <div class="h-1 w-full bg-gray-500 bg-opacity-50 relative">
-          <div ref="totalReadyTrack" class="h-full bg-gray-600 absolute top-0 left-0 pointer-events-none" />
-          <div ref="totalBufferedTrack" class="h-full bg-gray-500 absolute top-0 left-0 pointer-events-none" />
-          <div ref="totalPlayedTrack" class="h-full bg-gray-200 absolute top-0 left-0 pointer-events-none" />
+        <div class="h-1 w-full bg-gray-500 bg-opacity-50 relative rounded-full">
+          <div ref="totalReadyTrack" class="h-full bg-gray-600 absolute top-0 left-0 pointer-events-none rounded-full" />
+          <div ref="totalBufferedTrack" class="h-full bg-gray-500 absolute top-0 left-0 pointer-events-none rounded-full" />
+          <div ref="totalPlayedTrack" class="h-full bg-gray-200 absolute top-0 left-0 pointer-events-none rounded-full" />
         </div>
       </div>
     </div>
 
     <div class="cover-wrapper absolute z-30 pointer-events-auto" @click="clickContainer">
       <div class="w-full h-full flex justify-center">
-        <covers-book-cover v-if="libraryItem || localLibraryItemCoverSrc" ref="cover" :library-item="libraryItem" :download-cover="localLibraryItemCoverSrc" :width="bookCoverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" @imageLoaded="coverImageLoaded" />
+        <covers-book-cover v-if="libraryItem || localLibraryItemCoverSrc" ref="cover" :library-item="libraryItem" :download-cover="localLibraryItemCoverSrc" :width="bookCoverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" raw @imageLoaded="coverImageLoaded" />
       </div>
 
       <div v-if="syncStatus === $constants.SyncStatus.FAILED" class="absolute top-0 left-0 w-full h-full flex items-center justify-center z-30">
@@ -46,7 +46,7 @@
     </div>
 
     <div id="playerContent" class="playerContainer w-full z-20 absolute bottom-0 left-0 right-0 p-2 pointer-events-auto transition-all" :style="{ backgroundColor: showFullscreen ? '' : coverRgb }" @click="clickContainer">
-      <div v-if="showFullscreen" class="absolute bottom-4 left-0 right-0 w-full py-3 mx-auto px-3" style="max-width: 380px">
+      <div v-if="showFullscreen" class="absolute bottom-4 left-0 right-0 w-full pb-4 pt-2 mx-auto px-6" style="max-width: 414px">
         <div class="flex items-center justify-between pointer-events-auto">
           <span v-if="!isPodcast && isServerItem && networkConnected" class="material-icons text-3xl text-white text-opacity-75 cursor-pointer" @click="$emit('showBookmarks')">{{ bookmarks.length ? 'bookmark' : 'bookmark_border' }}</span>
           <!-- hidden for podcasts but still using this as a placeholder -->
@@ -65,8 +65,8 @@
       </div>
       <div v-else class="w-full h-full absolute top-0 left-0 pointer-events-none" style="background: linear-gradient(145deg, rgba(38, 38, 38, 0.5) 0%, rgba(38, 38, 38, 0.9) 20%, rgb(38, 38, 38) 60%)" />
 
-      <div id="playerControls" class="absolute right-0 bottom-0 py-2">
-        <div class="flex items-center justify-center">
+      <div id="playerControls" class="absolute right-0 bottom-0 mx-auto" style="max-width: 414px">
+        <div class="flex items-center justify-between max-w-full">
           <span v-show="showFullscreen && !lockUi" class="material-icons next-icon text-white text-opacity-75 cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpChapterStart">first_page</span>
           <span v-show="!lockUi" class="material-icons jump-icon text-white cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpBackwards">{{ jumpBackwardsIcon }}</span>
           <div class="play-btn cursor-pointer shadow-sm flex items-center justify-center rounded-full text-primary mx-4 relative overflow-hidden" :style="{ backgroundColor: coverRgb }" :class="{ 'animate-spin': seekLoading }" @mousedown.prevent @mouseup.prevent @click.stop="playPauseClick">
@@ -80,20 +80,17 @@
         </div>
       </div>
 
-      <div id="playerTrack" class="absolute left-0 w-full px-3">
-        <div class="flex pb-0.5">
+      <div id="playerTrack" class="absolute left-0 w-full px-6">
+        <div class="flex pointer-events-none">
           <p class="font-mono text-white text-opacity-90" style="font-size: 0.8rem" ref="currentTimestamp">0:00</p>
-          <div class="flex-grow" />
-          <p v-show="showFullscreen" class="text-sm truncate text-white text-opacity-75" style="max-width: 65%">{{ currentChapterTitle }}</p>
           <div class="flex-grow" />
           <p class="font-mono text-white text-opacity-90" style="font-size: 0.8rem">{{ timeRemainingPretty }}</p>
         </div>
-        <div ref="track" class="h-1.5 w-full bg-gray-500 bg-opacity-50 relative" :class="{ 'animate-pulse': isLoading }" @touchstart="touchstartTrack" @click="clickTrack">
-          <div ref="readyTrack" class="h-full bg-gray-600 absolute top-0 left-0 pointer-events-none" />
-          <div ref="bufferedTrack" class="h-full bg-gray-500 absolute top-0 left-0 pointer-events-none" />
-          <div ref="playedTrack" class="h-full bg-gray-200 absolute top-0 left-0 pointer-events-none" />
-          <div ref="draggingTrack" class="h-full bg-warning bg-opacity-25 absolute top-0 left-0 pointer-events-none" />
-          <div ref="trackCursor" class="h-3.5 w-3.5 rounded-full bg-gray-200 absolute -top-1 pointer-events-none" :class="{ 'opacity-0': lockUi || !showFullscreen }" />
+        <div ref="track" class="h-1.5 w-full bg-gray-500 bg-opacity-50 relative rounded-full" :class="{ 'animate-pulse': isLoading }" @click.stop>
+          <div ref="readyTrack" class="h-full bg-gray-600 absolute top-0 left-0 rounded-full pointer-events-none" />
+          <div ref="bufferedTrack" class="h-full bg-gray-500 absolute top-0 left-0 rounded-full pointer-events-none" />
+          <div ref="playedTrack" class="h-full bg-gray-200 absolute top-0 left-0 rounded-full pointer-events-none" />
+          <div ref="trackCursor" class="h-3.5 w-3.5 -top-1 rounded-full bg-gray-200 absolute pointer-events-auto" :class="{ 'opacity-0': lockUi || !showFullscreen }" @touchstart="touchstartCursor" />
         </div>
       </div>
     </div>
@@ -151,8 +148,10 @@ export default {
       useTotalTrack: true,
       lockUi: false,
       isLoading: false,
-      touchTrackStart: false,
-      dragPercent: 0,
+      isDraggingCursor: false,
+      draggingTouchStartX: 0,
+      draggingTouchStartTime: 0,
+      draggingCurrentTime: 0,
       syncStatus: 0,
       showMoreMenuDialog: false,
       coverRgb: 'rgb(55, 56, 56)',
@@ -287,6 +286,7 @@ export default {
       return this.playMethod == this.$constants.PlayMethod.DIRECTPLAY
     },
     title() {
+      if (this.currentChapterTitle && this.showFullscreen) return this.currentChapterTitle
       if (this.playbackSession) return this.playbackSession.displayTitle
       return this.mediaMetadata ? this.mediaMetadata.title : 'Title'
     },
@@ -318,17 +318,20 @@ export default {
       return this.$secondsToTimestamp(this.totalDuration)
     },
     currentTimePretty() {
-      return this.$secondsToTimestamp(this.currentTime / this.currentPlaybackRate)
+      let currentTimeToUse = this.isDraggingCursor ? this.draggingCurrentTime : this.currentTime
+      return this.$secondsToTimestamp(currentTimeToUse / this.currentPlaybackRate)
     },
     timeRemaining() {
+      let currentTimeToUse = this.isDraggingCursor ? this.draggingCurrentTime : this.currentTime
       if (this.useChapterTrack && this.currentChapter) {
-        var currChapTime = this.currentTime - this.currentChapter.start
+        var currChapTime = currentTimeToUse - this.currentChapter.start
         return (this.currentChapterDuration - currChapTime) / this.currentPlaybackRate
       }
       return this.totalTimeRemaining
     },
     totalTimeRemaining() {
-      return (this.totalDuration - this.currentTime) / this.currentPlaybackRate
+      let currentTimeToUse = this.isDraggingCursor ? this.draggingCurrentTime : this.currentTime
+      return (this.totalDuration - currentTimeToUse) / this.currentPlaybackRate
     },
     totalTimeRemainingPretty() {
       if (this.totalTimeRemaining < 0) {
@@ -341,10 +344,6 @@ export default {
         return this.$secondsToTimestamp(this.timeRemaining * -1)
       }
       return '-' + this.$secondsToTimestamp(this.timeRemaining)
-    },
-    timeLeftInChapter() {
-      if (!this.currentChapter) return 0
-      return this.currentChapter.end - this.currentTime
     },
     sleepTimeRemainingPretty() {
       if (!this.sleepTimeRemaining) return '0s'
@@ -391,11 +390,6 @@ export default {
         this.$router.push(`/item/${llid}`)
         this.showFullscreen = false
       }
-    },
-    async touchstartTrack(e) {
-      await this.$hapticsImpact()
-      if (!e || !e.touches || !this.$refs.track || !this.showFullscreen || this.lockUi) return
-      this.touchTrackStart = true
     },
     async selectChapter(chapter) {
       await this.$hapticsImpact()
@@ -450,7 +444,6 @@ export default {
       this.$emit('showSleepTimer')
     },
     async setPlaybackSpeed(speed) {
-      await this.$hapticsImpact()
       console.log(`[AudioPlayer] Set Playback Rate: ${speed}`)
       this.currentPlaybackRate = speed
       this.updateTimestamp()
@@ -509,12 +502,13 @@ export default {
         console.error('No timestamp el')
         return
       }
-      let currentTime = this.currentTime / this.currentPlaybackRate
+
+      let currentTime = this.isDraggingCursor ? this.draggingCurrentTime : this.currentTime
       if (this.useChapterTrack && this.currentChapter) {
-        const currChapTime = Math.max(0, this.currentTime - this.currentChapter.start)
-        currentTime = currChapTime / this.currentPlaybackRate
+        currentTime = Math.max(0, currentTime - this.currentChapter.start)
       }
-      ts.innerText = this.$secondsToTimestamp(currentTime)
+
+      ts.innerText = this.$secondsToTimestamp(currentTime / this.currentPlaybackRate)
     },
     timeupdate() {
       if (!this.$refs.playedTrack) {
@@ -536,22 +530,24 @@ export default {
     },
     updateTrack() {
       // Update progress track UI
-      let percentDone = this.currentTime / this.totalDuration
+      let currentTimeToUse = this.isDraggingCursor ? this.draggingCurrentTime : this.currentTime
+      let percentDone = currentTimeToUse / this.totalDuration
       const totalPercentDone = percentDone
       let bufferedPercent = this.bufferedTime / this.totalDuration
       const totalBufferedPercent = bufferedPercent
 
       if (this.useChapterTrack && this.currentChapter) {
-        const currChapTime = this.currentTime - this.currentChapter.start
+        const currChapTime = currentTimeToUse - this.currentChapter.start
         percentDone = currChapTime / this.currentChapterDuration
         bufferedPercent = Math.max(0, Math.min(1, (this.bufferedTime - this.currentChapter.start) / this.currentChapterDuration))
       }
+
       const ptWidth = Math.round(percentDone * this.trackWidth)
       this.$refs.playedTrack.style.width = ptWidth + 'px'
       this.$refs.bufferedTrack.style.width = Math.round(bufferedPercent * this.trackWidth) + 'px'
 
       if (this.$refs.trackCursor) {
-        this.$refs.trackCursor.style.left = ptWidth - 8 + 'px'
+        this.$refs.trackCursor.style.left = ptWidth - 7 + 'px'
       }
 
       if (this.useChapterTrack) {
@@ -580,27 +576,15 @@ export default {
         this.$refs.playedTrack.classList.add('bg-yellow-300')
       }
     },
-    clickTrack(e) {
-      if (this.isLoading || this.lockUi) return
-      if (!this.showFullscreen) {
-        // Track not clickable on mini-player
-        return
-      }
-      if (e) e.stopPropagation()
+    async touchstartCursor(e) {
+      if (!e || !e.touches || !this.$refs.track || !this.showFullscreen || this.lockUi) return
 
-      var offsetX = e.offsetX
-      var perc = offsetX / this.trackWidth
-      var time = 0
-      if (this.useChapterTrack && this.currentChapter) {
-        time = perc * this.currentChapterDuration + this.currentChapter.start
-      } else {
-        time = perc * this.totalDuration
-      }
-      if (isNaN(time) || time === null) {
-        console.error('Invalid time', perc, time)
-        return
-      }
-      this.seek(time)
+      await this.$hapticsImpact()
+      this.isDraggingCursor = true
+      this.draggingTouchStartX = e.touches[0].pageX
+      this.draggingTouchStartTime = this.currentTime
+      this.draggingCurrentTime = this.currentTime
+      this.updateTrack()
     },
     async playPauseClick() {
       await this.$hapticsImpact()
@@ -653,24 +637,11 @@ export default {
     touchend(e) {
       if (!e.changedTouches) return
 
-      if (this.touchTrackStart) {
-        var touch = e.changedTouches[0]
-        const touchOnTrackPos = touch.pageX - 12
-        const dragPercent = Math.max(0, Math.min(1, touchOnTrackPos / this.trackWidth))
-
-        var seekToTime = 0
-        if (this.useChapterTrack && this.currentChapter) {
-          const currChapTime = dragPercent * this.currentChapterDuration
-          seekToTime = this.currentChapter.start + currChapTime
-        } else {
-          seekToTime = dragPercent * this.totalDuration
+      if (this.isDraggingCursor) {
+        if (this.draggingCurrentTime !== this.currentTime) {
+          this.seek(this.draggingCurrentTime)
         }
-        this.seek(seekToTime)
-
-        if (this.$refs.draggingTrack) {
-          this.$refs.draggingTrack.style.width = '0px'
-        }
-        this.touchTrackStart = false
+        this.isDraggingCursor = false
       } else if (this.showFullscreen) {
         this.touchEndY = e.changedTouches[0].screenY
         var touchDuration = Date.now() - this.touchStartTime
@@ -682,29 +653,24 @@ export default {
       }
     },
     touchmove(e) {
-      if (!this.touchTrackStart) return
+      if (!this.isDraggingCursor || !e.touches) return
 
-      var touch = e.touches[0]
-      const touchOnTrackPos = touch.pageX - 12
-      const dragPercent = Math.max(0, Math.min(1, touchOnTrackPos / this.trackWidth))
-      this.dragPercent = dragPercent
-
-      if (this.$refs.draggingTrack) {
-        this.$refs.draggingTrack.style.width = this.dragPercent * this.trackWidth + 'px'
+      const distanceMoved = e.touches[0].pageX - this.draggingTouchStartX
+      let duration = this.totalDuration
+      let minTime = 0
+      let maxTime = duration
+      if (this.useChapterTrack && this.currentChapter) {
+        duration = this.currentChapterDuration
+        minTime = this.currentChapter.start
+        maxTime = minTime + duration
       }
 
-      var ts = this.$refs.currentTimestamp
-      if (ts) {
-        var currTimeStr = ''
-        if (this.useChapterTrack && this.currentChapter) {
-          const currChapTime = dragPercent * this.currentChapterDuration
-          currTimeStr = this.$secondsToTimestamp(currChapTime)
-        } else {
-          const dragTime = dragPercent * this.totalDuration
-          currTimeStr = this.$secondsToTimestamp(dragTime)
-        }
-        ts.innerText = currTimeStr
-      }
+      const timePerPixel = duration / this.trackWidth
+      const newTime = this.draggingTouchStartTime + timePerPixel * distanceMoved
+      this.draggingCurrentTime = Math.min(maxTime, Math.max(minTime, newTime))
+
+      this.updateTimestamp()
+      this.updateTrack()
     },
     async clickMenuAction(action) {
       await this.$hapticsImpact()
@@ -850,7 +816,7 @@ export default {
       document.documentElement.style.setProperty('--cover-image-height', coverHeight + 'px')
       document.documentElement.style.setProperty('--cover-image-width-collapsed', coverImageWidthCollapsed + 'px')
       document.documentElement.style.setProperty('--cover-image-height-collapsed', 46 + 'px')
-      document.documentElement.style.setProperty('--title-author-left-offset-collapsed', 24 + coverImageWidthCollapsed + 'px')
+      document.documentElement.style.setProperty('--title-author-left-offset-collapsed', 30 + coverImageWidthCollapsed + 'px')
     },
     minimizePlayerEvt() {
       this.collapseFullscreen()
@@ -917,7 +883,7 @@ export default {
   --cover-image-height: 0px;
   --cover-image-width-collapsed: 46px;
   --cover-image-height-collapsed: 46px;
-  --title-author-left-offset-collapsed: 70px;
+  --title-author-left-offset-collapsed: 80px;
 }
 
 .playerContainer {
@@ -944,12 +910,14 @@ export default {
 
 .cover-wrapper {
   bottom: 68px;
-  left: 12px;
+  left: 24px;
   height: var(--cover-image-height-collapsed);
   width: var(--cover-image-width-collapsed);
   transition: all 0.25s cubic-bezier(0.39, 0.575, 0.565, 1);
   transition-property: left, bottom, width, height;
   transform-origin: left bottom;
+  border-radius: 3px;
+  overflow: hidden;
 }
 
 .total-track {
@@ -990,19 +958,17 @@ export default {
   pointer-events: auto;
 }
 .fullscreen .title-author-texts .title-text {
-  font-size: clamp(0.8rem, calc(var(--cover-image-height) / 260 * 20), 1.5rem);
+  font-size: clamp(0.8rem, calc(var(--cover-image-height) / 260 * 20), 1.3rem);
 }
 .fullscreen .title-author-texts .author-text {
-  font-size: clamp(0.6rem, calc(var(--cover-image-height) / 260 * 16), 1.1rem);
+  font-size: clamp(0.6rem, calc(var(--cover-image-height) / 260 * 16), 1rem);
 }
 
 #playerControls {
   transition: all 0.15s cubic-bezier(0.39, 0.575, 0.565, 1);
   transition-property: width, bottom;
-  height: 48px;
-  width: 140px;
-  padding-left: 12px;
-  padding-right: 12px;
+  width: 128px;
+  padding-right: 24px;
   bottom: 70px;
 }
 #playerControls .jump-icon {
@@ -1020,7 +986,7 @@ export default {
   width: 40px;
   min-width: 40px;
   min-height: 40px;
-  margin: 0px 14px;
+  margin: 0px 7px;
 }
 #playerControls .play-btn .material-icons {
   transition: all 0.15s cubic-bezier(0.39, 0.575, 0.565, 1);
@@ -1035,18 +1001,21 @@ export default {
   width: var(--cover-image-width);
   left: calc(50% - (calc(var(--cover-image-width)) / 2));
   bottom: calc(50% + 120px - (calc(var(--cover-image-height)) / 2));
+  border-radius: 16px;
+  overflow: hidden;
 }
 
 .fullscreen #playerControls {
   width: 100%;
-  bottom: 94px;
+  padding-left: 24px;
+  padding-right: 24px;
+  bottom: 78px;
+  left: 0;
 }
 .fullscreen #playerControls .jump-icon {
-  margin: 0px 18px;
   font-size: 2.4rem;
 }
 .fullscreen #playerControls .next-icon {
-  margin: 0px 20px;
   font-size: 2rem;
 }
 .fullscreen #playerControls .play-btn {
@@ -1054,7 +1023,6 @@ export default {
   width: 65px;
   min-width: 65px;
   min-height: 65px;
-  margin: 0px 26px;
 }
 .fullscreen #playerControls .play-btn .material-icons {
   font-size: 2.1rem;

@@ -5,7 +5,9 @@ export const state = () => ({
     mobileOrderBy: 'addedAt',
     mobileOrderDesc: true,
     mobileFilterBy: 'all',
-    playbackRate: 1
+    playbackRate: 1,
+    collapseSeries: false,
+    collapseBookSeries: false
   }
 })
 
@@ -89,8 +91,8 @@ export const actions = {
       }
     }
     if (hasChanges) {
-      await this.$localStore.setUserSettings(existingSettings)
       commit('setSettings', existingSettings)
+      await this.$localStore.setUserSettings(existingSettings)
       this.$eventBus.$emit('user-settings', state.settings)
     }
   },

@@ -390,7 +390,7 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 .media-item-container {
   height: calc(100vh - 200px);
   max-height: calc(100vh - 200px);

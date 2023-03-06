@@ -1,7 +1,7 @@
 <template>
   <modals-modal v-model="show" :width="350" height="100%">
     <template #outer>
-      <div v-if="currentChapter" class="absolute top-7 left-4 z-40" style="max-width: 80%">
+      <div v-if="currentChapter" class="absolute top-8 left-4 z-40 pt-0.5" style="max-width: 80%">
         <p class="text-white text-lg truncate">Current: {{ currentChapterTitle }}</p>
       </div>
     </template>

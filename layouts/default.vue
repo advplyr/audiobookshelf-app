@@ -1,5 +1,5 @@
 <template>
-  <div class="select-none w-full layout-wrapper bg-bg text-white">
+  <div class="w-full layout-wrapper bg-bg text-white">
     <app-appbar />
     <div id="content" class="overflow-hidden relative" :class="playerIsOpen ? 'playerOpen' : ''">
       <Nuxt />
@@ -101,7 +101,7 @@ export default {
       const deviceData = await this.$db.getDeviceData()
       let serverConfig = null
       if (deviceData) {
-        this.$store.commit('globals/setHapticFeedback', deviceData.hapticFeedback)
+        this.$store.commit('globals/setHapticFeedback', deviceData.deviceSettings?.hapticFeedback)
 
         if (deviceData.lastServerConnectionConfigId && deviceData.serverConnectionConfigs.length) {
           serverConfig = deviceData.serverConnectionConfigs.find((scc) => scc.id == deviceData.lastServerConnectionConfigId)

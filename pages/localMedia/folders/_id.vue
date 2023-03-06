@@ -189,7 +189,11 @@ export default {
 
 <style scoped>
 .media-item-container {
-  height: calc(100vh - 200px);
-  max-height: calc(100vh - 200px);
+  height: calc(100vh - 210px);
+  max-height: calc(100vh - 210px);
+}
+.playerOpen .media-item-container {
+  height: calc(100vh - 310px);
+  max-height: calc(100vh - 310px);
 }
 </style>

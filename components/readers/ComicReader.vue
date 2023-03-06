@@ -1,11 +1,11 @@
 <template>
-  <div id="comic-reader" class="w-full h-full">
-    <div v-show="showPageMenu" v-click-outside="clickOutside" class="pagemenu absolute right-20 rounded-md overflow-y-auto bg-bg shadow-lg z-20 border border-gray-400 w-52" style="top: 72px">
-      <div v-for="(file, index) in pages" :key="file" class="w-full cursor-pointer hover:bg-black-200 px-2 py-1" :class="page === index ? 'bg-black-200' : ''" @click="setPage(index)">
+  <div id="comic-reader" class="w-full h-full relative">
+    <div v-show="showPageMenu" v-click-outside="clickOutsideObj" class="pagemenu absolute top-12 right-16 rounded-md overflow-y-auto bg-bg shadow-lg z-20 border border-gray-400 w-52">
+      <div v-for="(file, index) in pages" :key="file" class="w-full cursor-pointer hover:bg-black-200 px-2 py-1" :class="page === index ? 'bg-black-200' : ''" @click.stop="setPage(index)">
         <p class="text-sm truncate">{{ file }}</p>
       </div>
     </div>
-    <div v-show="showInfoMenu" v-click-outside="clickOutside" class="pagemenu absolute top-20 right-0 rounded-md overflow-y-auto bg-bg shadow-lg z-20 border border-gray-400 w-full" style="top: 72px">
+    <div v-show="showInfoMenu" v-click-outside="clickedOutsideInfoMenu" class="pagemenu absolute top-12 right-0 rounded-md overflow-y-auto bg-bg shadow-lg z-20 border border-gray-400 w-full" @click.stop.prevent>
       <div v-for="key in comicMetadataKeys" :key="key" class="w-full px-2 py-1">
         <p class="text-xs">
           <strong>{{ key }}</strong>
@@ -14,13 +14,13 @@
       </div>
     </div>
 
-    <div v-if="comicMetadata" class="absolute top-8 right-36 bg-bg text-gray-100 border-b border-l border-r border-gray-400 hover:bg-black-200 cursor-pointer rounded-b-md w-10 h-9 flex items-center justify-center text-center z-20" @mousedown.prevent @click.stop.prevent="showInfoMenu = !showInfoMenu">
+    <div v-if="comicMetadata" class="absolute top-0 right-3 bg-bg text-gray-100 border-b border-l border-r border-gray-400 hover:bg-black-200 cursor-pointer rounded-b-md w-10 h-9 flex items-center justify-center text-center z-20" @mousedown.prevent @click.stop.prevent="clickShowInfoMenu">
       <span class="material-icons text-lg">more</span>
     </div>
-    <div class="absolute top-8 bg-bg text-gray-100 border-b border-l border-r border-gray-400 hover:bg-black-200 cursor-pointer rounded-b-md w-10 h-9 flex items-center justify-center text-center z-20" style="right: 92px" @mousedown.prevent @click.stop.prevent="showPageMenu = !showPageMenu">
+    <div class="absolute top-0 right-16 bg-bg text-gray-100 border-b border-l border-r border-gray-400 hover:bg-black-200 cursor-pointer rounded-b-md w-10 h-9 flex items-center justify-center text-center z-20" @mousedown.prevent @mouseup.prevent @click.stop.prevent="clickShowPageMenu">
       <span class="material-icons text-lg">menu</span>
     </div>
-    <div class="absolute top-8 right-4 bg-bg text-gray-100 border-b border-l border-r border-gray-400 rounded-b-md px-2 h-9 flex items-center text-center z-20">
+    <div class="absolute top-0 left-3 bg-bg text-gray-100 border-b border-l border-r border-gray-400 rounded-b-md px-2 h-9 flex items-center text-center z-20" @click.stop>
       <p class="font-mono">{{ page + 1 }} / {{ numPages }}</p>
     </div>
 
@@ -61,7 +61,12 @@ export default {
       showInfoMenu: false,
       loadTimeout: null,
       loadedFirstPage: false,
-      comicMetadata: null
+      comicMetadata: null,
+      clickOutsideObj: {
+        handler: this.clickedOutside,
+        events: ['mousedown'],
+        isActive: true
+      }
     }
   },
   watch: {
@@ -84,9 +89,19 @@ export default {
     }
   },
   methods: {
-    clickOutside() {
-      if (this.showPageMenu) this.showPageMenu = false
-      if (this.showInfoMenu) this.showInfoMenu = false
+    clickShowInfoMenu() {
+      this.showInfoMenu = !this.showInfoMenu
+      this.showPageMenu = false
+    },
+    clickShowPageMenu() {
+      this.showPageMenu = !this.showPageMenu
+      this.showInfoMenu = false
+    },
+    clickedOutside() {
+      this.showPageMenu = false
+    },
+    clickedOutsideInfoMenu() {
+      this.showInfoMenu = false
     },
     next() {
       if (!this.canGoNext) return
@@ -100,7 +115,8 @@ export default {
       if (index < 0 || index > this.numPages - 1) {
         return
       }
-      var filename = this.pages[index]
+      this.showPageMenu = false
+      const filename = this.pages[index]
       this.page = index
       return this.extractFile(filename)
     },
@@ -235,8 +251,16 @@ export default {
 
 <style scoped>
 #comic-reader {
-  height: calc(100% - 32px);
+  height: calc(100% - 36px);
+  max-height: calc(100% - 36px);
+  padding-top: 36px;
 }
+.reader-player-open #comic-reader {
+  height: calc(100% - 156px);
+  max-height: calc(100% - 156px);
+  padding-top: 36px;
+}
+
 .pagemenu {
   max-height: calc(100% - 80px);
 }
