@@ -70,9 +70,9 @@ export default {
     }
   },
   methods: {
-    clickBg(vm, ev) {
+    clickBg(ev) {
       if (this.processing && this.persistent) return
-      if (vm.srcElement.classList.contains('modal-bg')) {
+      if (ev && ev.srcElement && ev.srcElement.classList.contains('modal-bg')) {
         this.show = false
       }
     },

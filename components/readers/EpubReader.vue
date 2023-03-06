@@ -39,7 +39,7 @@ export default {
       return this.$store.state.playerLibraryItemId
     },
     readerHeightOffset() {
-      return this.playerLibraryItemId ? 164 : 64
+      return this.playerLibraryItemId ? 196 : 96
     }
   },
   methods: {
@@ -140,13 +140,13 @@ export default {
 
 <style>
 #epub-frame {
-  height: calc(100% - 52px);
-  max-height: calc(100% - 52px);
+  height: calc(100% - 32px);
+  max-height: calc(100% - 32px);
   overflow: hidden;
 }
 .reader-player-open #epub-frame {
-  height: calc(100% - 152px);
-  max-height: calc(100% - 152px);
+  height: calc(100% - 132px);
+  max-height: calc(100% - 132px);
   overflow: hidden;
 }
 </style>

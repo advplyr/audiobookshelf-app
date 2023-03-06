@@ -1,6 +1,6 @@
 <template>
-  <div v-if="show" class="absolute top-0 left-0 w-full h-full bg-bg z-40 pt-14" :class="{ 'reader-player-open': !!playerLibraryItemId }">
-    <div class="h-14 pt-6 w-full bg-primary flex items-center px-2 fixed top-0 left-0 z-30 box-shadow-sm">
+  <div v-if="show" class="absolute top-0 left-0 w-full h-full bg-bg z-40 pt-16" :class="{ 'reader-player-open': !!playerLibraryItemId }">
+    <div class="h-16 pt-6 w-full bg-primary flex items-center px-2 fixed top-0 left-0 z-30 box-shadow-sm">
       <p class="w-5/6 truncate">{{ title }}</p>
       <div class="flex-grow" />
       <span class="material-icons text-xl text-white" @click.stop="show = false">close</span>
