@@ -72,7 +72,7 @@ export default {
   methods: {
     clickBg(ev) {
       if (this.processing && this.persistent) return
-      if (ev && ev.srcElement && ev.srcElement.classList.contains('modal-bg')) {
+      if (ev && ev.srcElement && ev.srcElement.classList && ev.srcElement.classList.contains('modal-bg')) {
         this.show = false
       }
     },
