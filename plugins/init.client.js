@@ -1,9 +1,12 @@
 import Vue from 'vue'
+import vClickOutside from 'v-click-outside'
 import { App } from '@capacitor/app'
 import { Dialog } from '@capacitor/dialog'
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { formatDistance, format, addDays, isDate } from 'date-fns'
-import { Capacitor } from '@capacitor/core';
+import { Capacitor } from '@capacitor/core'
+
+Vue.directive('click-outside', vClickOutside.directive)
 
 if (Capacitor.getPlatform() != 'web') {
   const setStatusBarStyleDark = async () => {
@@ -149,43 +152,6 @@ Vue.prototype.$sanitizeFilename = (input, colonReplacement = ' - ') => {
 
   return sanitized
 }
-
-function isClickedOutsideEl(clickEvent, elToCheckOutside, ignoreSelectors = [], ignoreElems = []) {
-  const isDOMElement = (element) => {
-    return element instanceof Element || element instanceof HTMLDocument
-  }
-
-  const clickedEl = clickEvent.srcElement
-  const didClickOnIgnoredEl = ignoreElems.filter((el) => el).some((element) => element.contains(clickedEl) || element.isEqualNode(clickedEl))
-  const didClickOnIgnoredSelector = ignoreSelectors.length ? ignoreSelectors.map((selector) => clickedEl.closest(selector)).reduce((curr, accumulator) => curr && accumulator, true) : false
-
-  if (isDOMElement(elToCheckOutside) && !elToCheckOutside.contains(clickedEl) && !didClickOnIgnoredEl && !didClickOnIgnoredSelector) {
-    return true
-  }
-
-  return false
-}
-
-Vue.directive('click-outside', {
-  bind: function (el, binding, vnode) {
-    let vm = vnode.context;
-    let callback = binding.value;
-    if (typeof callback !== 'function') {
-      console.error('Invalid callback', binding)
-      return
-    }
-    el['__click_outside__'] = (ev) => {
-      if (isClickedOutsideEl(ev, el)) {
-        callback.call(vm, ev)
-      }
-    }
-    document.addEventListener('click', el['__click_outside__'], false)
-  },
-  unbind: function (el, binding, vnode) {
-    document.removeEventListener('click', el['__click_outside__'], false)
-    delete el['__click_outside__']
-  }
-})
 
 function xmlToJson(xml) {
   const json = {};

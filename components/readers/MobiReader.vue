@@ -1,9 +1,9 @@
 <template>
-  <div class="mobi-ebook-viewer w-full">
+  <div class="mobi-ebook-viewer w-full relative">
     <div class="absolute overflow-hidden left-0 right-0 w-full max-w-full m-auto z-10 border border-black border-opacity-20 shadow-md bg-white">
       <iframe title="html-viewer" class="w-full overflow-hidden"> Loading </iframe>
     </div>
-    <div class="fixed bottom-0 left-0 h-8 w-full bg-bg px-2 flex items-center z-20" :style="{ bottom: playerLibraryItemId ? '100px' : '0px' }">
+    <div class="fixed bottom-0 left-0 h-8 w-full bg-bg px-2 flex items-center z-20" :style="{ bottom: playerLibraryItemId ? '120px' : '0px' }">
       <p class="text-xs">mobi</p>
       <div class="flex-grow" />
     </div>
@@ -25,9 +25,6 @@ export default {
   computed: {
     playerLibraryItemId() {
       return this.$store.state.playerLibraryItemId
-    },
-    readerHeightOffset() {
-      return this.playerLibraryItemId ? 164 : 64
     }
   },
   methods: {
@@ -122,13 +119,15 @@ export default {
 
 <style>
 .mobi-ebook-viewer {
-  height: calc(100% - 32px);
-  max-height: calc(100% - 32px);
-  overflow: hidden;
+  height: calc(100% - 52px);
+  max-height: calc(100% - 52px);
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 .reader-player-open .mobi-ebook-viewer {
-  height: calc(100% - 132px);
-  max-height: calc(100% - 132px);
-  overflow: hidden;
+  height: calc(100% - 152px);
+  max-height: calc(100% - 152px);
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 </style>

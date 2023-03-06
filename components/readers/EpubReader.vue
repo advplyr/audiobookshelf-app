@@ -140,13 +140,13 @@ export default {
 
 <style>
 #epub-frame {
-  height: calc(100% - 32px);
-  max-height: calc(100% - 32px);
+  height: calc(100% - 52px);
+  max-height: calc(100% - 52px);
   overflow: hidden;
 }
 .reader-player-open #epub-frame {
-  height: calc(100% - 132px);
-  max-height: calc(100% - 132px);
+  height: calc(100% - 152px);
+  max-height: calc(100% - 152px);
   overflow: hidden;
 }
 </style>

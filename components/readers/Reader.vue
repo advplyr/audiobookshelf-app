@@ -1,6 +1,6 @@
 <template>
-  <div v-if="show" class="absolute top-0 left-0 w-full h-full bg-bg z-40 pt-8" :class="{ 'reader-player-open': !!playerLibraryItemId }">
-    <div class="h-8 w-full bg-primary flex items-center px-2 fixed top-0 left-0 z-30 box-shadow-sm">
+  <div v-if="show" class="absolute top-0 left-0 w-full h-full bg-bg z-40 pt-14" :class="{ 'reader-player-open': !!playerLibraryItemId }">
+    <div class="h-14 pt-6 w-full bg-primary flex items-center px-2 fixed top-0 left-0 z-30 box-shadow-sm">
       <p class="w-5/6 truncate">{{ title }}</p>
       <div class="flex-grow" />
       <span class="material-icons text-xl text-white" @click.stop="show = false">close</span>
@@ -132,7 +132,9 @@ export default {
 
       const touchDistanceX = Math.abs(this.touchendX - this.touchstartX)
       const touchDistanceY = Math.abs(this.touchendY - this.touchstartY)
-      if (touchDistanceX < 100 || touchDistanceY > touchDistanceX) return
+      if (touchDistanceX < 60 || touchDistanceY > touchDistanceX) {
+        return
+      }
 
       if (this.touchendX < this.touchstartX) {
         console.log('swiped left')
@@ -144,8 +146,8 @@ export default {
       }
     },
     touchstart(e) {
-      this.touchstartX = e.changedTouches[0].screenX
-      this.touchstartY = e.changedTouches[0].screenY
+      this.touchstartX = e.touches[0].screenX
+      this.touchstartY = e.touches[0].screenY
       this.touchstartTime = Date.now()
     },
     touchend(e) {

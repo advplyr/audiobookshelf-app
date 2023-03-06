@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full h-full pt-20 relative">
+  <div class="w-full h-full pt-6 relative">
     <div v-show="canGoPrev" class="absolute top-0 left-0 h-full w-1/2 hover:opacity-100 opacity-0 z-10 cursor-pointer" @click.stop.prevent="prev" @mousedown.prevent>
       <div class="flex items-center justify-center h-full w-1/2">
         <span class="material-icons text-5xl text-white cursor-pointer text-opacity-30 hover:text-opacity-90">arrow_back_ios</span>
