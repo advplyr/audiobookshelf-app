@@ -117,10 +117,10 @@
         <div v-if="publishedYear" class="text-sm">{{ publishedYear }}</div>
       </div>
 
-      <div class="w-full py-2">
+      <div v-if="description" class="w-full py-2">
         <p ref="description" class="text-sm text-justify whitespace-pre-line font-light" :class="{ 'line-clamp-4': !showFullDescription }" style="hyphens: auto">{{ description }}</p>
 
-        <div class="text-white text-sm py-2" @click="showFullDescription = !showFullDescription">
+        <div v-if="descriptionClamped" class="text-white text-sm py-2" @click="showFullDescription = !showFullDescription">
           {{ showFullDescription ? 'Read less' : 'Read more' }}
           <span class="material-icons align-middle text-base -mt-px">{{ showFullDescription ? 'expand_less' : 'expand_more' }}</span>
         </div>
@@ -722,8 +722,12 @@ export default {
       }
     },
     checkDescriptionClamped() {
-      if (!this.$refs.description || this.showFullDescription) return
-      this.descriptionClamped = this.$refs.description.scrollHeight > this.$refs.description.clientHeight
+      if (this.showFullDescription) return
+      if (!this.$refs.description) {
+        this.descriptionClamped = false
+      } else {
+        this.descriptionClamped = this.$refs.description.scrollHeight > this.$refs.description.clientHeight
+      }
     },
     windowResized() {
       this.windowWidth = window.innerWidth
