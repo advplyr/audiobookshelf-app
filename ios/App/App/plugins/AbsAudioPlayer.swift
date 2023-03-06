@@ -66,6 +66,7 @@ public class AbsAudioPlayer: CAPPlugin {
         let episodeId = call.getString("episodeId")
         let playWhenReady = call.getBool("playWhenReady", true)
         let playbackRate = call.getFloat("playbackRate", 1)
+        let startTimeOverride = call.getDouble("startTime")
         
         if libraryItemId == nil {
             logger.error("provide library item id")
@@ -84,6 +85,9 @@ public class AbsAudioPlayer: CAPPlugin {
             }
             
             do {
+                if (startTimeOverride != nil) {
+                    playbackSession.currentTime = startTimeOverride!
+                }
                 try playbackSession.save()
                 try self.startPlaybackSession(playbackSession, playWhenReady: playWhenReady, playbackRate: playbackRate)
                 call.resolve(try playbackSession.asDictionary())
@@ -95,6 +99,9 @@ public class AbsAudioPlayer: CAPPlugin {
         } else { // Playing from the server
             ApiClient.startPlaybackSession(libraryItemId: libraryItemId!, episodeId: episodeId, forceTranscode: false) { [weak self] session in
                 do {
+                    if (startTimeOverride != nil) {
+                        session.currentTime = startTimeOverride!
+                    }
                     try session.save()
                     try self?.startPlaybackSession(session, playWhenReady: playWhenReady, playbackRate: playbackRate)
                     call.resolve(try session.asDictionary())
