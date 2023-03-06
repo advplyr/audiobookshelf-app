@@ -35,8 +35,8 @@ android {
         applicationId "com.audiobookshelf.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 93
-        versionName "0.9.62-beta"
+        versionCode 94
+        versionName "0.9.63-beta"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -74,8 +74,6 @@ configurations.all {
     force("androidx.media:media:$androidx_media_version")
     force("org.jetbrains.kotlinx:kotlinx-coroutines-core:$kotlin_coroutines_version")
     force("org.jetbrains.kotlinx:kotlinx-coroutines-android:$kotlin_coroutines_version")
-
-//    failOnVersionConflict()
   }
 }
 
