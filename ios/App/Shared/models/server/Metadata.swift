@@ -12,6 +12,7 @@ class Metadata: EmbeddedObject, Codable {
     @Persisted var title: String = "Unknown"
     @Persisted var subtitle: String?
     @Persisted var authors = List<Author>()
+    @Persisted var author: String? // Podcast author
     @Persisted var narrators = List<String>()
     @Persisted var genres = List<String>()
     @Persisted var publishedYear: String?
@@ -28,12 +29,13 @@ class Metadata: EmbeddedObject, Codable {
     @Persisted var seriesName: String?
     @Persisted var feedUrl: String?
     
-    var authorDisplayName: String { self.authorName ?? "Unknown" }
+    var authorDisplayName: String { self.authorName ?? self.author ?? "Unknown" }
     
     private enum CodingKeys : String, CodingKey {
         case title,
              subtitle,
              authors,
+             author, // Podcast author
              narrators,
              genres,
              publishedYear,
@@ -60,6 +62,7 @@ class Metadata: EmbeddedObject, Codable {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         title = try values.decode(String.self, forKey: .title)
         subtitle = try? values.decode(String.self, forKey: .subtitle)
+        author = try? values.decode(String.self, forKey: .author) // Podcast author
         if let authorList = try? values.decode([Author].self, forKey: .authors) {
             authors.append(objectsIn: authorList)
         }
@@ -88,6 +91,7 @@ class Metadata: EmbeddedObject, Codable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(title, forKey: .title)
         try container.encode(subtitle, forKey: .subtitle)
+        try container.encode(author, forKey: .author) // Podcast author
         try container.encode(Array(authors), forKey: .authors)
         try container.encode(Array(narrators), forKey: .narrators)
         try container.encode(Array(genres), forKey: .genres)
