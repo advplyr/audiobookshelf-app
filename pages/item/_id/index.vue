@@ -6,7 +6,6 @@
     </div>
 
     <div class="z-10 relative">
-
       <!-- cover -->
       <div class="w-full flex justify-center relative mb-4">
         <div style="width: 0; transform: translateX(-50vw); overflow: visible">
@@ -78,8 +77,7 @@
 
       <!-- metadata -->
       <div id="metadata" class="grid gap-2 my-2" style="">
-
-        <div v-if="podcastAuthor || (bookAuthors && bookAuthors.length)" class="text-white text-opacity-60 uppercase text-sm">{{ bookAuthors.length === 1 ? 'Author' : 'Authors' }}</div>
+        <div v-if="podcastAuthor || (bookAuthors && bookAuthors.length)" class="text-white text-opacity-60 uppercase text-sm">Author</div>
         <div v-if="podcastAuthor" class="text-sm">{{ podcastAuthor }}</div>
         <div v-else-if="bookAuthors && bookAuthors.length" class="text-sm">
           <template v-for="(author, index) in bookAuthors">
@@ -99,48 +97,43 @@
         <div v-if="numTracks" class="text-white text-opacity-60 uppercase text-sm">Duration</div>
         <div v-if="numTracks" class="text-sm">{{ $elapsedPretty(duration) }}</div>
 
-        <!-- hidden by default -->
-
-        <div v-if="allMetadata && narrators && narrators.length" class="text-white text-opacity-60 uppercase text-sm">{{ narrators.length === 1 ? 'Narrator' : 'Narrators' }}</div>
-        <div v-if="allMetadata && narrators && narrators.length" class="truncate text-sm">
+        <div v-if="narrators && narrators.length" class="text-white text-opacity-60 uppercase text-sm">{{ narrators.length === 1 ? 'Narrator' : 'Narrators' }}</div>
+        <div v-if="narrators && narrators.length" class="truncate text-sm">
           <template v-for="(narrator, index) in narrators">
             <nuxt-link :key="narrator" :to="`/bookshelf/library?filter=narrators.${$encode(narrator)}`" class="underline">{{ narrator }}</nuxt-link
             ><span :key="index" v-if="index < narrators.length - 1">, </span>
           </template>
         </div>
 
-        <div v-if="allMetadata && genres.length" class="text-white text-opacity-60 uppercase text-sm">{{ genres.length === 1 ? 'Genre' : 'Genres' }}</div>
-        <div v-if="allMetadata && genres.length" class="truncate text-sm">
+        <div v-if="genres.length" class="text-white text-opacity-60 uppercase text-sm">{{ genres.length === 1 ? 'Genre' : 'Genres' }}</div>
+        <div v-if="genres.length" class="truncate text-sm">
           <template v-for="(genre, index) in genres">
             <nuxt-link :key="genre" :to="`/bookshelf/library?filter=genres.${$encode(genre)}`" class="underline">{{ genre }}</nuxt-link
             ><span :key="index" v-if="index < genres.length - 1">, </span>
           </template>
         </div>
 
-        <div v-if="allMetadata && publishedYear" class="text-white text-opacity-60 uppercase text-sm">Published</div>
-        <div v-if="allMetadata && publishedYear" class="text-sm">{{ publishedYear }}</div>
-
-        <div v-if="allMetadata && numTracks && size" class="text-white text-opacity-60 uppercase text-sm">Size</div>
-        <div v-if="allMetadata && numTracks && size" class="text-sm">{{ $bytesPretty(size) }}</div>
-
-        <div v-if="allMetadata && numTracks" class="text-white text-opacity-60 uppercase text-sm">Tracks</div>
-        <div v-if="allMetadata && numTracks" class="text-sm">{{ numTracks }} {{ numTracks == 1 ? 'track' : 'tracks' }}</div>
-
-        <div v-if="allMetadata && numTracks && numChapters" class="text-white text-opacity-60 uppercase text-sm">Chapters</div>
-        <div v-if="allMetadata && numTracks && numChapters" class="text-sm">{{ numChapters }} {{ numChapters == 1 ? 'chapter' : 'chapters' }}</div>
-
-        <div v-if="!isPodcast && windowWidth < 500" class="col-span-full text-center text-white text-opacity-60 text-sm" @click="toggleMetadata()">
-          {{ allMetadata ? 'less' : 'more' }}
-          <span class="material-icons align-middle">{{ allMetadata ? 'expand_less' : 'expand_more' }}</span>
-        </div>
+        <div v-if="publishedYear" class="text-white text-opacity-60 uppercase text-sm">Published</div>
+        <div v-if="publishedYear" class="text-sm">{{ publishedYear }}</div>
       </div>
 
       <div class="w-full py-2">
-        <p class="text-sm text-justify whitespace-pre-line" style="hyphens: auto;">{{ description }}</p>
+        <p ref="description" class="text-sm text-justify whitespace-pre-line font-light" :class="{ 'line-clamp-4': !showFullDescription }" style="hyphens: auto">{{ description }}</p>
+
+        <div class="text-white text-sm py-2" @click="showFullDescription = !showFullDescription">
+          {{ showFullDescription ? 'Read less' : 'Read more' }}
+          <span class="material-icons align-middle text-base -mt-px">{{ showFullDescription ? 'expand_less' : 'expand_more' }}</span>
+        </div>
       </div>
 
+      <!-- tables -->
       <tables-podcast-episodes-table v-if="isPodcast" :library-item="libraryItem" :local-library-item-id="localLibraryItemId" :episodes="episodes" :local-episodes="localLibraryItemEpisodes" :is-local="isLocal" />
 
+      <tables-chapters-table v-if="numChapters" :library-item="libraryItem" @playAtTimestamp="playAtTimestamp" />
+
+      <tables-tracks-table v-if="numTracks" :tracks="tracks" :library-item-id="libraryItemId" />
+
+      <!-- modals -->
       <modals-select-local-folder-modal v-model="showSelectLocalFolder" :media-type="mediaType" @select="selectedLocalFolder" />
 
       <modals-dialog v-model="showMoreMenu" :items="moreMenuItems" @action="moreMenuAction" />
@@ -198,13 +191,11 @@ export default {
       coverRgb: 'rgb(55, 56, 56)',
       coverBgIsLight: false,
       windowWidth: 0,
-      hideMetadata: true
+      descriptionClamped: false,
+      showFullDescription: false
     }
   },
   computed: {
-    allMetadata() {
-      return this.isPodcast || this.windowWidth >= 500 || !this.hideMetadata
-    },
     isIos() {
       return this.$platform === 'ios'
     },
@@ -301,9 +292,6 @@ export default {
     duration() {
       return this.media.duration
     },
-    size() {
-      return this.media.size
-    },
     user() {
       return this.$store.state.user.user
     },
@@ -336,9 +324,11 @@ export default {
       if (this.localLibraryItemId && this.$store.getters['getIsItemStreaming'](this.localLibraryItemId)) return true
       return this.$store.getters['getIsItemStreaming'](this.libraryItemId)
     },
+    tracks() {
+      return this.media.tracks || []
+    },
     numTracks() {
-      if (!this.media.tracks) return 0
-      return this.media.tracks.length || 0
+      return this.tracks.length || 0
     },
     numChapters() {
       if (!this.media.chapters) return 0
@@ -484,8 +474,10 @@ export default {
     readBook() {
       this.$store.commit('openReader', this.libraryItem)
     },
-    async playClick() {
-      let episodeId = null
+    playAtTimestamp(seconds) {
+      this.playClick(seconds)
+    },
+    async playClick(startTime = null) {
       await this.$hapticsImpact()
 
       if (this.isPodcast) {
@@ -505,7 +497,7 @@ export default {
 
         if (!episode) episode = this.episodes[0]
 
-        episodeId = episode.id
+        const episodeId = episode.id
 
         let localEpisode = null
         if (this.hasLocal && !this.isLocal) {
@@ -518,26 +510,33 @@ export default {
         if (serverEpisodeId && this.serverLibraryItemId && this.isCasting) {
           // If casting and connected to server for local library item then send server library item id
           this.$eventBus.$emit('play-item', { libraryItemId: this.serverLibraryItemId, episodeId: serverEpisodeId })
-          return
-        }
-        if (localEpisode) {
+        } else if (localEpisode) {
           this.$eventBus.$emit('play-item', { libraryItemId: this.localLibraryItem.id, episodeId: localEpisode.id, serverLibraryItemId: this.serverLibraryItemId, serverEpisodeId })
-          return
+        } else {
+          this.$eventBus.$emit('play-item', { libraryItemId: this.libraryItemId, episodeId })
         }
       } else {
         // Audiobook
-        if (this.hasLocal && this.serverLibraryItemId && this.isCasting) {
-          // If casting and connected to server for local library item then send server library item id
-          this.$eventBus.$emit('play-item', { libraryItemId: this.serverLibraryItemId })
-          return
-        }
-        if (this.hasLocal) {
-          this.$eventBus.$emit('play-item', { libraryItemId: this.localLibraryItem.id, serverLibraryItemId: this.serverLibraryItemId })
-          return
-        }
-      }
+        let libraryItemId = this.libraryItemId
 
-      this.$eventBus.$emit('play-item', { libraryItemId: this.libraryItemId, episodeId })
+        // When casting use server library item
+        if (this.hasLocal && this.serverLibraryItemId && this.isCasting) {
+          libraryItemId = this.serverLibraryItemId
+        } else if (this.hasLocal) {
+          libraryItemId = this.localLibraryItem.id
+        }
+
+        // If start time and is not already streaming then ask for confirmation
+        if (startTime !== null && startTime !== undefined && !this.$store.getters['getIsMediaStreaming'](libraryItemId, null)) {
+          const { value } = await Dialog.confirm({
+            title: 'Confirm',
+            message: `Start playback for "${this.title}" at ${this.$secondsToTimestamp(startTime)}?`
+          })
+          if (!value) return
+        }
+
+        this.$eventBus.$emit('play-item', { libraryItemId, serverLibraryItemId: this.serverLibraryItemId, startTime })
+      }
     },
     async clearProgressClick() {
       await this.$hapticsImpact()
@@ -573,6 +572,7 @@ export default {
       if (libraryItem.id === this.libraryItemId) {
         console.log('Item Updated')
         this.libraryItem = libraryItem
+        this.checkDescriptionClamped()
       }
     },
     async selectFolder() {
@@ -721,11 +721,13 @@ export default {
         this.$router.replace('/bookshelf')
       }
     },
+    checkDescriptionClamped() {
+      if (!this.$refs.description || this.showFullDescription) return
+      this.descriptionClamped = this.$refs.description.scrollHeight > this.$refs.description.clientHeight
+    },
     windowResized() {
       this.windowWidth = window.innerWidth
-    },
-    toggleMetadata() {
-      this.hideMetadata = !this.hideMetadata
+      this.checkDescriptionClamped()
     }
   },
   mounted() {
@@ -734,6 +736,7 @@ export default {
     this.$eventBus.$on('library-changed', this.libraryChanged)
     this.$eventBus.$on('new-local-library-item', this.newLocalLibraryItem)
     this.$socket.$on('item_updated', this.itemUpdated)
+    this.checkDescriptionClamped()
   },
   beforeDestroy() {
     window.removeEventListener('resize', this.windowResized)

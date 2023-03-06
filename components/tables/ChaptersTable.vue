@@ -1,0 +1,97 @@
+<template>
+  <div class="w-full my-4">
+    <div class="w-full bg-primary px-4 py-2 flex items-center" :class="expanded ? 'rounded-t-md' : 'rounded-md'" @click.stop="clickBar">
+      <p class="pr-2">Chapters</p>
+      <div class="h-6 w-6 rounded-full bg-white bg-opacity-10 flex items-center justify-center">
+        <span class="text-xs font-mono">{{ chapters.length }}</span>
+      </div>
+      <div class="flex-grow" />
+      <div class="h-10 w-10 rounded-full flex justify-center items-center duration-500" :class="expanded ? 'transform rotate-180' : ''">
+        <span class="material-icons text-3xl">expand_more</span>
+      </div>
+    </div>
+    <transition name="slide">
+      <table class="text-xs tracksTable" v-show="expanded">
+        <tr>
+          <th class="text-left">Title</th>
+          <th class="text-center w-16">Start</th>
+        </tr>
+        <tr v-for="chapter in chapters" :key="chapter.id">
+          <td>
+            {{ chapter.title }}
+          </td>
+          <td class="font-mono text-center underline w-16" @click.stop="goToTimestamp(chapter.start)">
+            {{ $secondsToTimestamp(chapter.start) }}
+          </td>
+        </tr>
+      </table>
+    </transition>
+  </div>
+</template>
+
+<script>
+export default {
+  props: {
+    libraryItem: {
+      type: Object,
+      default: () => {}
+    }
+  },
+  data() {
+    return {
+      expanded: false
+    }
+  },
+  computed: {
+    libraryItemId() {
+      return this.libraryItem.id
+    },
+    media() {
+      return this.libraryItem ? this.libraryItem.media || {} : {}
+    },
+    metadata() {
+      return this.media.metadata || {}
+    },
+    chapters() {
+      return this.media.chapters || []
+    },
+    userCanUpdate() {
+      return this.$store.getters['user/getUserCanUpdate']
+    }
+  },
+  methods: {
+    clickBar() {
+      this.expanded = !this.expanded
+    },
+    goToTimestamp(time) {
+      this.$emit('playAtTimestamp', time)
+    }
+  },
+  mounted() {}
+}
+</script>
+
+<style scoped>
+.tracksTable {
+  border-collapse: collapse;
+  width: 100%;
+  border: 1px solid #474747;
+}
+
+.tracksTable tr:nth-child(even) {
+  background-color: #2e2e2e;
+}
+
+.tracksTable tr {
+  background-color: #373838;
+}
+
+.tracksTable td {
+  padding: 8px 8px;
+}
+
+.tracksTable th {
+  padding: 4px 8px;
+  font-size: 0.75rem;
+}
+</style>
