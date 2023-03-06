@@ -6,6 +6,7 @@
     </div>
 
     <div class="z-10 relative">
+      <!-- cover -->
       <div class="w-full flex justify-center relative mb-4">
         <div style="width: 0; transform: translateX(-50vw); overflow: visible">
           <div style="width: 150vw; overflow: hidden">
@@ -20,38 +21,18 @@
         </div>
       </div>
 
-      <h1 class="text-xl font-semibold">{{ title }}</h1>
-
-      <p v-if="subtitle" class="text-gray-100 text-base py-0.5 mb-0.5">{{ subtitle }}</p>
-
-      <p v-if="seriesList && seriesList.length" class="text-sm text-gray-300 py-0.5">
-        <template v-for="(series, index) in seriesList">
-          <nuxt-link :key="series.id" :to="`/bookshelf/series/${series.id}`" class="underline">{{ series.text }}</nuxt-link
-          ><span :key="`${series.id}-comma`" v-if="index < seriesList.length - 1">,&nbsp;</span>
-        </template>
-      </p>
-
-      <p v-if="podcastAuthor" class="text-sm text-gray-300 py-0.5">by {{ podcastAuthor }}</p>
-      <p v-else-if="bookAuthors && bookAuthors.length" class="text-sm text-gray-300 py-0.5">
-        by
-        <template v-for="(author, index) in bookAuthors">
-          <nuxt-link :key="author.id" :to="`/bookshelf/library?filter=authors.${$encode(author.id)}`" class="underline">{{ author.name }}</nuxt-link
-          ><span :key="`${author.id}-comma`" v-if="index < bookAuthors.length - 1">,&nbsp;</span>
-        </template>
-      </p>
+      <!-- title -->
+      <div class="text-center mb-2">
+        <h1 class="text-xl font-semibold">{{ title }}</h1>
+        <p v-if="subtitle" class="text-gray-100 text-base">{{ subtitle }}</p>
+      </div>
 
       <!-- Show an indicator for local library items whether they are linked to a server item and if that server item is connected -->
-      <p v-if="isLocal && serverLibraryItemId" style="font-size: 10px" class="text-success py-1 uppercase tracking-widest">connected</p>
-      <p v-else-if="isLocal && libraryItem.serverAddress" style="font-size: 10px" class="text-gray-400 py-1">{{ libraryItem.serverAddress }}</p>
+      <p v-if="isLocal && serverLibraryItemId" style="font-size: 10px" class="text-success text-center py-1 uppercase tracking-widest">connected</p>
+      <p v-else-if="isLocal && libraryItem.serverAddress" style="font-size: 10px" class="text-gray-400 text-center py-1">{{ libraryItem.serverAddress }}</p>
 
       <!-- action buttons -->
-      <div>
-        <div v-if="!isPodcast && progressPercent > 0" class="px-4 py-2 bg-primary text-sm font-semibold rounded-md text-gray-200 mt-4 relative" :class="resettingProgress ? 'opacity-25' : ''">
-          <p class="leading-6">Your Progress: {{ Math.round(progressPercent * 100) }}%</p>
-          <p v-if="progressPercent < 1" class="text-gray-400 text-xs">{{ $elapsedPretty(userTimeRemaining) }} remaining</p>
-          <p v-else class="text-gray-400 text-xs">Finished {{ $formatDate(userProgressFinishedAt) }}</p>
-        </div>
-
+      <div class="col-span-full">
         <div v-if="isLocal" class="flex mt-4 -mx-1">
           <ui-btn v-if="showPlay" color="success" :disabled="isPlaying" class="flex items-center justify-center flex-grow mx-1" :padding-x="4" @click="playClick">
             <span v-show="!isPlaying" class="material-icons">play_arrow</span>
@@ -81,6 +62,12 @@
             <span class="material-icons">more_vert</span>
           </ui-btn>
         </div>
+
+        <div v-if="!isPodcast && progressPercent > 0" class="px-4 py-2 bg-primary text-sm font-semibold rounded-md text-gray-200 mt-4 text-center" :class="resettingProgress ? 'opacity-25' : ''">
+          <p>Your Progress: {{ Math.round(progressPercent * 100) }}%</p>
+          <p v-if="progressPercent < 1" class="text-gray-400 text-xs">{{ $elapsedPretty(userTimeRemaining) }} remaining</p>
+          <p v-else class="text-gray-400 text-xs">Finished {{ $formatDate(userProgressFinishedAt) }}</p>
+        </div>
       </div>
 
       <div v-if="downloadItem" class="py-3">
@@ -89,8 +76,28 @@
       </div>
 
       <!-- metadata -->
-      <div class="grid gap-2 my-4" style="grid-template-columns: max-content auto">
-        <div v-if="narrators && narrators.length" class="text-white text-opacity-60 uppercase text-sm">Narrators</div>
+      <div id="metadata" class="grid gap-2 my-2" style="">
+        <div v-if="podcastAuthor || (bookAuthors && bookAuthors.length)" class="text-white text-opacity-60 uppercase text-sm">Author</div>
+        <div v-if="podcastAuthor" class="text-sm">{{ podcastAuthor }}</div>
+        <div v-else-if="bookAuthors && bookAuthors.length" class="text-sm">
+          <template v-for="(author, index) in bookAuthors">
+            <nuxt-link :key="author.id" :to="`/bookshelf/library?filter=authors.${$encode(author.id)}`" class="underline">{{ author.name }}</nuxt-link
+            ><span :key="`${author.id}-comma`" v-if="index < bookAuthors.length - 1">, </span>
+          </template>
+        </div>
+
+        <div v-if="series && series.length" class="text-white text-opacity-60 uppercase text-sm">Series</div>
+        <div v-if="series && series.length" class="truncate text-sm">
+          <template v-for="(series, index) in seriesList">
+            <nuxt-link :key="series.id" :to="`/bookshelf/series/${series.id}`" class="underline">{{ series.text }}</nuxt-link
+            ><span :key="`${series.id}-comma`" v-if="index < seriesList.length - 1">,&nbsp;</span>
+          </template>
+        </div>
+
+        <div v-if="numTracks" class="text-white text-opacity-60 uppercase text-sm">Duration</div>
+        <div v-if="numTracks" class="text-sm">{{ $elapsedPretty(duration) }}</div>
+
+        <div v-if="narrators && narrators.length" class="text-white text-opacity-60 uppercase text-sm">{{ narrators.length === 1 ? 'Narrator' : 'Narrators' }}</div>
         <div v-if="narrators && narrators.length" class="truncate text-sm">
           <template v-for="(narrator, index) in narrators">
             <nuxt-link :key="narrator" :to="`/bookshelf/library?filter=narrators.${$encode(narrator)}`" class="underline">{{ narrator }}</nuxt-link
@@ -98,40 +105,35 @@
           </template>
         </div>
 
-        <div v-if="publishedYear" class="text-white text-opacity-60 uppercase text-sm">Published</div>
-        <div v-if="publishedYear" class="text-sm">{{ publishedYear }}</div>
-
-        <div v-if="genres.length" class="text-white text-opacity-60 uppercase text-sm">Genres</div>
+        <div v-if="genres.length" class="text-white text-opacity-60 uppercase text-sm">{{ genres.length === 1 ? 'Genre' : 'Genres' }}</div>
         <div v-if="genres.length" class="truncate text-sm">
           <template v-for="(genre, index) in genres">
             <nuxt-link :key="genre" :to="`/bookshelf/library?filter=genres.${$encode(genre)}`" class="underline">{{ genre }}</nuxt-link
             ><span :key="index" v-if="index < genres.length - 1">, </span>
           </template>
         </div>
+
+        <div v-if="publishedYear" class="text-white text-opacity-60 uppercase text-sm">Published</div>
+        <div v-if="publishedYear" class="text-sm">{{ publishedYear }}</div>
       </div>
 
-      <div v-if="numTracks" class="flex text-gray-100 text-xs my-2 -mx-0.5">
-        <div class="bg-primary bg-opacity-80 px-3 py-0.5 rounded-full mx-0.5">
-          <p>{{ $elapsedPretty(duration) }}</p>
-        </div>
-        <!-- TODO: Local books dont save the size -->
-        <div v-if="size" class="bg-primary bg-opacity-80 px-3 py-0.5 rounded-full mx-0.5">
-          <p>{{ $bytesPretty(size) }}</p>
-        </div>
-        <div class="bg-primary bg-opacity-80 px-3 py-0.5 rounded-full mx-0.5">
-          <p>{{ numTracks }} Track{{ numTracks > 1 ? 's' : '' }}</p>
-        </div>
-        <div v-if="numChapters" class="bg-primary bg-opacity-80 px-3 py-0.5 rounded-full mx-0.5">
-          <p>{{ numChapters }} Chapter{{ numChapters > 1 ? 's' : '' }}</p>
+      <div class="w-full py-2">
+        <p ref="description" class="text-sm text-justify whitespace-pre-line font-light" :class="{ 'line-clamp-4': !showFullDescription }" style="hyphens: auto">{{ description }}</p>
+
+        <div class="text-white text-sm py-2" @click="showFullDescription = !showFullDescription">
+          {{ showFullDescription ? 'Read less' : 'Read more' }}
+          <span class="material-icons align-middle text-base -mt-px">{{ showFullDescription ? 'expand_less' : 'expand_more' }}</span>
         </div>
       </div>
 
-      <div class="w-full py-4">
-        <p class="text-sm text-justify" style="hyphens: auto">{{ description }}</p>
-      </div>
-
+      <!-- tables -->
       <tables-podcast-episodes-table v-if="isPodcast" :library-item="libraryItem" :local-library-item-id="localLibraryItemId" :episodes="episodes" :local-episodes="localLibraryItemEpisodes" :is-local="isLocal" />
 
+      <tables-chapters-table v-if="numChapters" :library-item="libraryItem" @playAtTimestamp="playAtTimestamp" />
+
+      <tables-tracks-table v-if="numTracks" :tracks="tracks" :library-item-id="libraryItemId" />
+
+      <!-- modals -->
       <modals-select-local-folder-modal v-model="showSelectLocalFolder" :media-type="mediaType" @select="selectedLocalFolder" />
 
       <modals-dialog v-model="showMoreMenu" :items="moreMenuItems" @action="moreMenuAction" />
@@ -188,7 +190,9 @@ export default {
       showFullscreenCover: false,
       coverRgb: 'rgb(55, 56, 56)',
       coverBgIsLight: false,
-      windowWidth: 0
+      windowWidth: 0,
+      descriptionClamped: false,
+      showFullDescription: false
     }
   },
   computed: {
@@ -288,9 +292,6 @@ export default {
     duration() {
       return this.media.duration
     },
-    size() {
-      return this.media.size
-    },
     user() {
       return this.$store.state.user.user
     },
@@ -323,9 +324,11 @@ export default {
       if (this.localLibraryItemId && this.$store.getters['getIsItemStreaming'](this.localLibraryItemId)) return true
       return this.$store.getters['getIsItemStreaming'](this.libraryItemId)
     },
+    tracks() {
+      return this.media.tracks || []
+    },
     numTracks() {
-      if (!this.media.tracks) return 0
-      return this.media.tracks.length || 0
+      return this.tracks.length || 0
     },
     numChapters() {
       if (!this.media.chapters) return 0
@@ -471,8 +474,10 @@ export default {
     readBook() {
       this.$store.commit('openReader', this.libraryItem)
     },
-    async playClick() {
-      let episodeId = null
+    playAtTimestamp(seconds) {
+      this.playClick(seconds)
+    },
+    async playClick(startTime = null) {
       await this.$hapticsImpact()
 
       if (this.isPodcast) {
@@ -492,7 +497,7 @@ export default {
 
         if (!episode) episode = this.episodes[0]
 
-        episodeId = episode.id
+        const episodeId = episode.id
 
         let localEpisode = null
         if (this.hasLocal && !this.isLocal) {
@@ -505,26 +510,33 @@ export default {
         if (serverEpisodeId && this.serverLibraryItemId && this.isCasting) {
           // If casting and connected to server for local library item then send server library item id
           this.$eventBus.$emit('play-item', { libraryItemId: this.serverLibraryItemId, episodeId: serverEpisodeId })
-          return
-        }
-        if (localEpisode) {
+        } else if (localEpisode) {
           this.$eventBus.$emit('play-item', { libraryItemId: this.localLibraryItem.id, episodeId: localEpisode.id, serverLibraryItemId: this.serverLibraryItemId, serverEpisodeId })
-          return
+        } else {
+          this.$eventBus.$emit('play-item', { libraryItemId: this.libraryItemId, episodeId })
         }
       } else {
         // Audiobook
-        if (this.hasLocal && this.serverLibraryItemId && this.isCasting) {
-          // If casting and connected to server for local library item then send server library item id
-          this.$eventBus.$emit('play-item', { libraryItemId: this.serverLibraryItemId })
-          return
-        }
-        if (this.hasLocal) {
-          this.$eventBus.$emit('play-item', { libraryItemId: this.localLibraryItem.id, serverLibraryItemId: this.serverLibraryItemId })
-          return
-        }
-      }
+        let libraryItemId = this.libraryItemId
 
-      this.$eventBus.$emit('play-item', { libraryItemId: this.libraryItemId, episodeId })
+        // When casting use server library item
+        if (this.hasLocal && this.serverLibraryItemId && this.isCasting) {
+          libraryItemId = this.serverLibraryItemId
+        } else if (this.hasLocal) {
+          libraryItemId = this.localLibraryItem.id
+        }
+
+        // If start time and is not already streaming then ask for confirmation
+        if (startTime !== null && startTime !== undefined && !this.$store.getters['getIsMediaStreaming'](libraryItemId, null)) {
+          const { value } = await Dialog.confirm({
+            title: 'Confirm',
+            message: `Start playback for "${this.title}" at ${this.$secondsToTimestamp(startTime)}?`
+          })
+          if (!value) return
+        }
+
+        this.$eventBus.$emit('play-item', { libraryItemId, serverLibraryItemId: this.serverLibraryItemId, startTime })
+      }
     },
     async clearProgressClick() {
       await this.$hapticsImpact()
@@ -560,6 +572,7 @@ export default {
       if (libraryItem.id === this.libraryItemId) {
         console.log('Item Updated')
         this.libraryItem = libraryItem
+        this.checkDescriptionClamped()
       }
     },
     async selectFolder() {
@@ -708,8 +721,13 @@ export default {
         this.$router.replace('/bookshelf')
       }
     },
+    checkDescriptionClamped() {
+      if (!this.$refs.description || this.showFullDescription) return
+      this.descriptionClamped = this.$refs.description.scrollHeight > this.$refs.description.clientHeight
+    },
     windowResized() {
       this.windowWidth = window.innerWidth
+      this.checkDescriptionClamped()
     }
   },
   mounted() {
@@ -718,6 +736,7 @@ export default {
     this.$eventBus.$on('library-changed', this.libraryChanged)
     this.$eventBus.$on('new-local-library-item', this.newLocalLibraryItem)
     this.$socket.$on('item_updated', this.itemUpdated)
+    this.checkDescriptionClamped()
   },
   beforeDestroy() {
     window.removeEventListener('resize', this.windowResized)
@@ -736,5 +755,16 @@ export default {
 #coverBg > div {
   width: 150vw !important;
   max-width: 150vw !important;
+}
+
+@media only screen and (max-width: 500px) {
+  #metadata {
+    grid-template-columns: auto 1fr;
+  }
+}
+@media only screen and (min-width: 500px) {
+  #metadata {
+    grid-template-columns: auto 1fr auto 1fr;
+  }
 }
 </style>

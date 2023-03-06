@@ -8,7 +8,10 @@
 
     <div class="w-full h-full overflow-hidden absolute top-0 left-0 flex items-center justify-center" @click="show = false">
       <div class="w-full overflow-x-hidden overflow-y-auto bg-primary rounded-lg border border-white border-opacity-20 p-2" style="max-height: 75%" @click.stop>
-        <p class="mb-1">{{ mediaMetadata.title }}</p>
+        <p class="mb-2">{{ mediaMetadata.title }}</p>
+
+        <div v-if="size" class="text-sm mb-2">Size: {{ $bytesPretty(size) }}</div>
+
         <p class="mb-1 text-xs text-gray-200">ID: {{ _libraryItem.id }}</p>
       </div>
     </div>
@@ -44,6 +47,9 @@ export default {
     },
     mediaMetadata() {
       return this.media.metadata || {}
+    },
+    size() {
+      return this.media.size
     }
   },
   methods: {},
