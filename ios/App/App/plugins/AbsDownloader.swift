@@ -348,8 +348,9 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
     
     private func urlForTrack(item: LibraryItem, track: AudioTrack) -> URL {
         // filename needs to be encoded otherwise would just use contentUrl
-        let filenameEncoded = track.metadata?.filename.addingPercentEncoding(withAllowedCharacters: NSCharacterSet.urlQueryAllowed)
-        let urlstr = "\(Store.serverConfig!.address)/s/item/\(item.id)/\(filenameEncoded ?? "")?token=\(Store.serverConfig!.token)"
+        let relPath = track.metadata?.relPath ?? ""
+        let filepathEncoded = relPath.addingPercentEncoding(withAllowedCharacters: NSCharacterSet.urlQueryAllowed)
+        let urlstr = "\(Store.serverConfig!.address)/s/item/\(item.id)/\(filepathEncoded ?? "")?token=\(Store.serverConfig!.token)"
         return URL(string: urlstr)!
     }
     
