@@ -475,9 +475,12 @@ export default {
       this.$store.commit('openReader', this.libraryItem)
     },
     playAtTimestamp(seconds) {
-      this.playClick(seconds)
+      this.play(seconds)
     },
-    async playClick(startTime = null) {
+    playClick() {
+      this.play()
+    },
+    async play(startTime = null) {
       await this.$hapticsImpact()
 
       if (this.isPodcast) {
