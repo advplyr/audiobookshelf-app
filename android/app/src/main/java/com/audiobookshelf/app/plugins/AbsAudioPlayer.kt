@@ -37,7 +37,11 @@ class AbsAudioPlayer : Plugin() {
     mainActivity = (activity as MainActivity)
     apiHandler = ApiHandler(mainActivity)
 
-    initCastManager()
+    try {
+      initCastManager()
+    } catch(e:Exception) {
+      Log.e(tag, "initCastManager exception ${e.printStackTrace()}")
+    }
 
     val foregroundServiceReady : () -> Unit = {
       playerNotificationService = mainActivity.foregroundService
