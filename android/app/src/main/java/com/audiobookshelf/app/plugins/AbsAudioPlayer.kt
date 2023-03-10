@@ -176,7 +176,7 @@ class AbsAudioPlayer : Plugin() {
     val playWhenReady = call.getBoolean("playWhenReady") == true
     val playbackRate = call.getFloat("playbackRate",1f) ?: 1f
     val startTimeOverride = call.getDouble("startTime")
-    Log.d(tag, "prepareLibraryItem lid=$libraryItemId, startTimeOverride=$startTimeOverride")
+    Log.d(tag, "prepareLibraryItem lid=$libraryItemId, startTimeOverride=$startTimeOverride, playbackRate=$playbackRate")
 
     if (libraryItemId.isEmpty()) {
       Log.e(tag, "Invalid call to play library item no library item id")
