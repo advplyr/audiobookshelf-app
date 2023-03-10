@@ -22,7 +22,7 @@ Join us on [discord](https://discord.gg/pJsjuNCKRq)
 
 **Requires an Audiobookshelf server to connect with**
 
-<img alt="Screenshot1" src="https://github.com/advplyr/audiobookshelf-app/raw/master/screenshots/BookshelfViews.png" />
+<img alt="Screenshot" src="https://github.com/advplyr/audiobookshelf-app/raw/master/screenshots/DeviceDemoScreens.png" />
 
 
 ## Contributing
