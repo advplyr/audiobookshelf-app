@@ -40,7 +40,7 @@ data class DownloadItemPart(
       val finalDestinationUri = Uri.fromFile(finalDestinationFile)
 
       var downloadUrl = "${DeviceManager.serverAddress}${serverPath}?token=${DeviceManager.token}"
-      if (serverPath.endsWith("/cover")) downloadUrl += "&format=jpeg" // For cover images force to jpeg
+      if (serverPath.endsWith("/cover")) downloadUrl += "&format=jpeg&raw=1" // For cover images force to jpeg
       val downloadUri = Uri.parse(downloadUrl)
       Log.d("DownloadItemPart", "Audio File Destination Uri: $destinationUri | Final Destination Uri: $finalDestinationUri | Download URI $downloadUri")
       return DownloadItemPart(
