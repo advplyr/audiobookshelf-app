@@ -297,7 +297,7 @@ export default {
       }
 
       const continueListeningShelf = this.shelves.find((cat) => cat.id === 'continue-listening')
-      const mostRecentEntity = continueListeningShelf?.entities?.[0]
+      const mostRecentEntity = continueListeningShelf?.entities?.find((li) => li.media?.audioTracks?.length || li.media?.numTracks)
       if (mostRecentEntity) {
         const playObject = {
           libraryItemId: mostRecentEntity.id,

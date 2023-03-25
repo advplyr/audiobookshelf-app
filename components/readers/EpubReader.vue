@@ -1,6 +1,7 @@
 <template>
   <div id="epub-frame" class="w-full">
-    <div id="viewer" class="border border-gray-100 bg-white shadow-md h-full w-full"></div>
+    <div id="viewer" class="h-full w-full"></div>
+
     <div class="fixed left-0 h-8 w-full bg-bg px-2 flex items-center" :style="{ bottom: playerLibraryItemId ? '120px' : '0px' }">
       <p class="text-xs">epub</p>
       <div class="flex-grow" />
@@ -15,18 +16,19 @@ import ePub from 'epubjs'
 
 export default {
   props: {
-    url: String
+    url: String,
+    libraryItem: {
+      type: Object,
+      default: () => {}
+    }
   },
   data() {
     return {
+      /** @type {ePub.Book} */
       book: null,
+      /** @type {ePub.Rendition} */
       rendition: null,
-      chapters: [],
-      title: '',
-      author: '',
-      progress: 0,
-      hasNext: true,
-      hasPrev: false
+      progress: 0
     }
   },
   watch: {
@@ -35,11 +37,26 @@ export default {
     }
   },
   computed: {
+    /** @returns {string} */
+    libraryItemId() {
+      return this.libraryItem?.id
+    },
     playerLibraryItemId() {
       return this.$store.state.playerLibraryItemId
     },
     readerHeightOffset() {
       return this.playerLibraryItemId ? 196 : 96
+    },
+    /** @returns {Array<ePub.NavItem>} */
+    chapters() {
+      return this.book ? this.book.navigation.toc : []
+    },
+    userMediaProgress() {
+      if (!this.libraryItemId) return
+      return this.$store.getters['user/getUserMediaProgress'](this.libraryItemId)
+    },
+    localStorageLocationsKey() {
+      return `ebookLocations-${this.libraryItemId}`
     }
   },
   methods: {
@@ -58,70 +75,160 @@ export default {
         this.rendition.next()
       }
     },
-    initEpub() {
-      var book = ePub(this.url)
-      this.book = book
+    /**
+     * @param {object} payload
+     * @param {string} payload.ebookLocation - CFI of the current location
+     * @param {string} payload.ebookProgress - eBook Progress Percentage
+     */
+    updateProgress(payload) {
+      this.$axios.$patch(`/api/me/progress/${this.libraryItemId}`, payload).catch((error) => {
+        console.error('EpubReader.updateProgress failed:', error)
+      })
+    },
+    getAllEbookLocationData() {
+      const locations = []
+      let totalSize = 0 // Total in bytes
 
-      this.rendition = book.renderTo('viewer', {
+      for (const key in localStorage) {
+        if (!localStorage.hasOwnProperty(key) || !key.startsWith('ebookLocations-')) {
+          continue
+        }
+
+        try {
+          const ebookLocations = JSON.parse(localStorage[key])
+          if (!ebookLocations.locations) throw new Error('Invalid locations object')
+
+          ebookLocations.key = key
+          ebookLocations.size = (localStorage[key].length + key.length) * 2
+          locations.push(ebookLocations)
+          totalSize += ebookLocations.size
+        } catch (error) {
+          console.error('Failed to parse ebook locations', key, error)
+          localStorage.removeItem(key)
+        }
+      }
+
+      // Sort by oldest lastAccessed first
+      locations.sort((a, b) => a.lastAccessed - b.lastAccessed)
+
+      return {
+        locations,
+        totalSize
+      }
+    },
+    /** @param {string} locationString */
+    checkSaveLocations(locationString) {
+      const maxSizeInBytes = 3000000 // Allow epub locations to take up to 3MB of space
+      const newLocationsSize = JSON.stringify({ lastAccessed: Date.now(), locations: locationString }).length * 2
+
+      // Too large overall
+      if (newLocationsSize > maxSizeInBytes) {
+        console.error('Epub locations are too large to store. Size =', newLocationsSize)
+        return
+      }
+
+      const ebookLocationsData = this.getAllEbookLocationData()
+
+      let availableSpace = maxSizeInBytes - ebookLocationsData.totalSize
+
+      // Remove epub locations until there is room for locations
+      while (availableSpace < newLocationsSize && ebookLocationsData.locations.length) {
+        const oldestLocation = ebookLocationsData.locations.shift()
+        console.log(`Removing cached locations for epub "${oldestLocation.key}" taking up ${oldestLocation.size} bytes`)
+        availableSpace += oldestLocation.size
+        localStorage.removeItem(oldestLocation.key)
+      }
+
+      console.log(`Cacheing epub locations with key "${this.localStorageLocationsKey}" taking up ${newLocationsSize} bytes`)
+      this.saveLocations(locationString)
+    },
+    /** @param {string} locationString */
+    saveLocations(locationString) {
+      localStorage.setItem(
+        this.localStorageLocationsKey,
+        JSON.stringify({
+          lastAccessed: Date.now(),
+          locations: locationString
+        })
+      )
+    },
+    loadLocations() {
+      const locationsObjString = localStorage.getItem(this.localStorageLocationsKey)
+      if (!locationsObjString) return null
+
+      const locationsObject = JSON.parse(locationsObjString)
+
+      // Remove invalid location objects
+      if (!locationsObject.locations) {
+        console.error('Invalid epub locations stored', this.localStorageLocationsKey)
+        localStorage.removeItem(this.localStorageLocationsKey)
+        return null
+      }
+
+      // Update lastAccessed
+      this.saveLocations(locationsObject.locations)
+
+      return locationsObject.locations
+    },
+    /** @param {string} location - CFI of the new location */
+    relocated(location) {
+      if (location.end.percentage) {
+        this.updateProgress({
+          ebookLocation: location.start.cfi,
+          ebookProgress: location.end.percentage
+        })
+        this.progress = Math.round(location.end.percentage * 100)
+      } else {
+        this.updateProgress({
+          ebookLocation: location.start.cfi
+        })
+      }
+    },
+    initEpub() {
+      this.progress = Math.round((this.userMediaProgress?.ebookProgress || 0) * 100)
+
+      /** @type {EpubReader} */
+      const reader = this
+
+      /** @type {ePub.Book} */
+      reader.book = new ePub(reader.url, {
+        width: window.innerWidth,
+        height: window.innerHeight - this.readerHeightOffset
+      })
+
+      /** @type {ePub.Rendition} */
+      reader.rendition = reader.book.renderTo('viewer', {
         width: window.innerWidth,
         height: window.innerHeight - this.readerHeightOffset,
         snap: true,
         manager: 'continuous',
         flow: 'paginated'
       })
-      const displayed = this.rendition.display()
 
-      book.ready
-        .then(() => {
-          console.log('Book ready')
-          return book.locations.generate(1600)
-        })
-        .then((locations) => {
-          // console.log('Loaded locations', locations)
-          // Wait for book to be rendered to get current page
-          displayed.then(() => {
-            // Get the current CFI
-            var currentLocation = this.rendition.currentLocation()
-            if (!currentLocation.start) {
-              console.error('No Start', currentLocation)
-            } else {
-              var currentPage = book.locations.percentageFromCfi(currentLocation.start.cfi)
-              console.log('current page', currentPage)
-            }
+      // load saved progress
+      reader.rendition.display(this.userMediaProgress?.ebookLocation || reader.book.locations.start)
+
+      // load style
+      reader.rendition.themes.default({ '*': { color: '#fff!important' } })
+
+      reader.book.ready.then(() => {
+        // set up event listeners
+        reader.rendition.on('relocated', reader.relocated)
+
+        // load ebook cfi locations
+        const savedLocations = this.loadLocations()
+        if (savedLocations) {
+          reader.book.locations.load(savedLocations)
+        } else {
+          reader.book.locations.generate().then(() => {
+            this.checkSaveLocations(reader.book.locations.save())
           })
-        })
-
-      book.loaded.navigation.then((toc) => {
-        var _chapters = []
-        toc.forEach((chapter) => {
-          _chapters.push(chapter)
-        })
-        this.chapters = _chapters
-      })
-      // book.loaded.metadata.then((metadata) => {
-      // this.author = metadata.creator
-      // this.title = metadata.title
-      // })
-
-      // const spine_get = book.spine.get.bind(book.spine)
-      // book.spine.get = function (target) {
-      //   var t = spine_get(target)
-      //   console.log(t, target)
-      //   // while (t == null && target.includes('#')) {
-      //   //   target = target.split('#')[0]
-      //   //   t = spine_get(target)
-      //   // }
-      //   return t
-      // }
-
-      this.rendition.on('relocated', (location) => {
-        var percent = book.locations.percentageFromCfi(location.start.cfi)
-        this.progress = Math.floor(percent * 100)
-
-        this.hasNext = !location.atEnd
-        this.hasPrev = !location.atStart
+        }
       })
     }
+  },
+  beforeDestroy() {
+    this.book?.destroy()
   },
   mounted() {
     this.initEpub()

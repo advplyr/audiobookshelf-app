@@ -65,8 +65,8 @@
 
         <div v-if="!isPodcast && progressPercent > 0" class="px-4 py-2 bg-primary text-sm font-semibold rounded-md text-gray-200 mt-4 text-center" :class="resettingProgress ? 'opacity-25' : ''">
           <p>Your Progress: {{ Math.round(progressPercent * 100) }}%</p>
-          <p v-if="progressPercent < 1" class="text-gray-400 text-xs">{{ $elapsedPretty(userTimeRemaining) }} remaining</p>
-          <p v-else class="text-gray-400 text-xs">Finished {{ $formatDate(userProgressFinishedAt) }}</p>
+          <p v-if="!useEBookProgress && !userIsFinished" class="text-gray-400 text-xs">{{ $elapsedPretty(userTimeRemaining) }} remaining</p>
+          <p v-else-if="userIsFinished" class="text-gray-400 text-xs">Finished {{ $formatDate(userProgressFinishedAt) }}</p>
         </div>
       </div>
 
@@ -311,7 +311,12 @@ export default {
       const duration = this.userItemProgress.duration || this.duration
       return duration - this.userItemProgress.currentTime
     },
+    useEBookProgress() {
+      if (!this.userItemProgress || this.userItemProgress.progress) return false
+      return this.userItemProgress.ebookProgress > 0
+    },
     progressPercent() {
+      if (this.useEBookProgress) return Math.max(Math.min(1, this.userItemProgress.ebookProgress), 0)
       return this.userItemProgress ? Math.max(Math.min(1, this.userItemProgress.progress), 0) : 0
     },
     userProgressFinishedAt() {

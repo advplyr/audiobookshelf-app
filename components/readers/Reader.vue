@@ -5,7 +5,7 @@
       <div class="flex-grow" />
       <span class="material-icons text-xl text-white" @click.stop="show = false">close</span>
     </div>
-    <component v-if="readerComponentName" ref="readerComponent" :is="readerComponentName" :url="ebookUrl" />
+    <component v-if="readerComponentName" ref="readerComponent" :is="readerComponentName" :url="ebookUrl" :library-item="selectedLibraryItem" />
   </div>
 </template>
 
