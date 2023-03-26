@@ -172,6 +172,10 @@ export default {
     },
     /** @param {string} location - CFI of the new location */
     relocated(location) {
+      if (this.userMediaProgress?.ebookLocation === location.start.cfi) {
+        return
+      }
+
       if (location.end.percentage) {
         this.updateProgress({
           ebookLocation: location.start.cfi,
