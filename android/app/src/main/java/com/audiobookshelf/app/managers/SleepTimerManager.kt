@@ -325,14 +325,20 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
       endCalendar.set(Calendar.HOUR_OF_DAY, deviceSettings.autoSleepTimerEndHour)
       endCalendar.set(Calendar.MINUTE, deviceSettings.autoSleepTimerEndMinute)
 
-      // In cases where end time is earlier then start time then we add a day to end time
-      //   e.g. start time 22:00 and end time 06:00. End time will be treated as 6am the next day.
-      //   e.g. start time 08:00 and end time 22:00. Start and end time will be the same day.
+      val currentCalendar = Calendar.getInstance()
+
+      // In cases where end time is before start time then we shift the time window forward or backward based on the current time.
+      //   e.g. start time 22:00 and end time 06:00.
+      //          If current time is less than start time (e.g. 00:30) then start time will be the previous day.
+      //          If current time is greater than start time (e.g. 23:00) then end time will be the next day.
       if (endCalendar.before(startCalendar)) {
-        endCalendar.add(Calendar.DAY_OF_MONTH, 1)
+        if (currentCalendar.before(startCalendar)) { // Shift start back a day
+          startCalendar.add(Calendar.DAY_OF_MONTH, -1)
+        } else { // Shift end forward a day
+          endCalendar.add(Calendar.DAY_OF_MONTH, 1)
+        }
       }
 
-      val currentCalendar = Calendar.getInstance()
       val currentHour = SimpleDateFormat("HH:mm", Locale.getDefault()).format(currentCalendar.time)
       if (currentCalendar.after(startCalendar) && currentCalendar.before(endCalendar)) {
         Log.i(tag, "Current hour $currentHour is between ${deviceSettings.autoSleepTimerStartTime} and ${deviceSettings.autoSleepTimerEndTime} - starting sleep timer")
