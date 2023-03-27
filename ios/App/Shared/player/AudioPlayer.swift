@@ -88,6 +88,9 @@ class AudioPlayer: NSObject {
         for track in playbackSession.audioTracks {
             if let playerAsset = createAsset(itemId: playbackSession.libraryItemId!, track: track) {
                 let playerItem = AVPlayerItem(asset: playerAsset)
+                if (playbackSession.playMethod == PlayMethod.transcode.rawValue) {
+                    playerItem.preferredForwardBufferDuration = 50
+                }
                 self.allPlayerItems.append(playerItem)
             }
         }
