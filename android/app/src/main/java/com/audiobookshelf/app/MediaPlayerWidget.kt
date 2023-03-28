@@ -16,6 +16,7 @@ import androidx.media.session.MediaButtonReceiver
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.device.WidgetEventEmitter
+import com.audiobookshelf.app.managers.DbManager
 import com.audiobookshelf.app.player.PlayerNotificationService
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
@@ -36,6 +37,8 @@ class MediaPlayerWidget : AppWidgetProvider() {
 
   override fun onEnabled(context: Context) {
     Log.i(tag, "onEnabled check context ${context.packageName}")
+
+    DbManager.initialize(context)
 
     DeviceManager.deviceData.lastPlaybackSession?.let {
       val appWidgetManager = AppWidgetManager.getInstance(context)
@@ -96,7 +99,7 @@ internal fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManage
   views.setViewVisibility(R.id.widgetButtonContainer, if (isAppClosed) View.GONE else View.VISIBLE)
 
   views.setOnClickPendingIntent(R.id.widgetBackground, wholeWidgetClickPI)
-  
+
   val imageUri = playbackSession?.getCoverUri() ?: Uri.parse("android.resource://${BuildConfig.APPLICATION_ID}/" + R.drawable.icon)
   val awt: AppWidgetTarget = object : AppWidgetTarget(context.applicationContext, R.id.widgetAlbumArt, views, appWidgetId) {
     override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
