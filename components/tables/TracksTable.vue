@@ -19,7 +19,7 @@
           </tr>
           <template v-for="track in tracks">
             <tr :key="track.index">
-              <td>{{ track.metadata.filename }}</td>
+              <td>{{ (track.metadata && track.metadata.filename) || track.title || 'Unknown' }}</td>
               <td class="font-mono text-center w-16">
                 {{ $secondsToTimestamp(track.duration) }}
               </td>
