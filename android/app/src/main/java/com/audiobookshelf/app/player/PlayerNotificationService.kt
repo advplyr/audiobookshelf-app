@@ -1,5 +1,6 @@
 package com.audiobookshelf.app.player
 
+import android.annotation.SuppressLint
 import android.app.*
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
@@ -16,6 +17,7 @@ import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.os.*
 import android.provider.MediaStore
+import android.provider.Settings
 import android.support.v4.media.MediaBrowserCompat
 import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.MediaMetadataCompat
@@ -31,7 +33,6 @@ import androidx.core.content.ContextCompat
 import androidx.media.MediaBrowserServiceCompat
 import androidx.media.utils.MediaConstants
 import com.audiobookshelf.app.BuildConfig
-import com.audiobookshelf.app.MediaPlayerWidget
 import com.audiobookshelf.app.R
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.data.DeviceInfo
@@ -894,6 +895,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     return if(currentPlayer == castPlayer) PLAYER_CAST else PLAYER_EXO
   }
 
+  @SuppressLint("HardwareIds")
   private fun getDeviceInfo(): DeviceInfo {
     /* EXAMPLE
       manufacturer: Google
@@ -902,7 +904,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       sdkVersion: 32
       appVersion: 0.9.46-beta
      */
-    return DeviceInfo(Build.MANUFACTURER, Build.MODEL, Build.BRAND, Build.VERSION.SDK_INT, BuildConfig.VERSION_NAME)
+    val deviceId = Settings.Secure.getString(ctx.contentResolver, Settings.Secure.ANDROID_ID)
+    return DeviceInfo(deviceId, Build.MANUFACTURER, Build.MODEL, Build.BRAND, Build.VERSION.SDK_INT, BuildConfig.VERSION_NAME)
   }
 
   private val deviceSettings get() = DeviceManager.deviceData.deviceSettings ?: DeviceSettings.default()

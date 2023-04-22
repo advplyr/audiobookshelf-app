@@ -74,6 +74,7 @@ open class LibraryItemWrapper(var id:String) {
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class DeviceInfo(
+  var deviceId:String,
   var manufacturer:String,
   var model:String,
   var brand:String,

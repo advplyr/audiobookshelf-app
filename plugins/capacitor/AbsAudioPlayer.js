@@ -1,4 +1,5 @@
-import { registerPlugin, WebPlugin } from '@capacitor/core';
+import { registerPlugin, WebPlugin } from '@capacitor/core'
+import { nanoid } from 'nanoid'
 const { PlayerState } = require('../constants')
 
 var $axios = null
@@ -42,6 +43,15 @@ class AbsAudioPlayerWeb extends WebPlugin {
     return this.player && !this.player.paused
   }
 
+  getDeviceId() {
+    let deviceId = localStorage.getItem('absDeviceId')
+    if (!deviceId) {
+      deviceId = nanoid()
+      localStorage.setItem('absDeviceId', deviceId)
+    }
+    return deviceId
+  }
+
   // PluginMethod
   async prepareLibraryItem({ libraryItemId, episodeId, playWhenReady, startTime }) {
     console.log('[AbsAudioPlayer] Prepare library item', libraryItemId)
@@ -49,8 +59,11 @@ class AbsAudioPlayerWeb extends WebPlugin {
     if (libraryItemId.startsWith('local_')) {
       // Fetch Local - local not implemented on web
     } else {
-      var route = !episodeId ? `/api/items/${libraryItemId}/play` : `/api/items/${libraryItemId}/play/${episodeId}`
-      var playbackSession = await $axios.$post(route, { mediaPlayer: 'html5-mobile', forceDirectPlay: true })
+      const route = !episodeId ? `/api/items/${libraryItemId}/play` : `/api/items/${libraryItemId}/play/${episodeId}`
+      const deviceInfo = {
+        deviceId: this.getDeviceId()
+      }
+      const playbackSession = await $axios.$post(route, { deviceInfo, mediaPlayer: 'html5-mobile', forceDirectPlay: true })
       if (playbackSession) {
         if (startTime !== undefined && startTime !== null) playbackSession.currentTime = startTime
         this.setAudioPlayer(playbackSession, playWhenReady)
