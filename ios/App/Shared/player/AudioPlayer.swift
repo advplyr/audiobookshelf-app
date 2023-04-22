@@ -642,16 +642,6 @@ class AudioPlayer: NSObject {
             self?.seek(currentTime - Double(jumpBackwardsTime), from: "remote")
             return .success
         }
-
-        commandCenter.changePlaybackPositionCommand.isEnabled = true
-        commandCenter.changePlaybackPositionCommand.addTarget { [weak self] event in
-            guard let event = event as? MPChangePlaybackPositionCommandEvent else {
-                return .noSuchContent
-            }
-            
-            self?.seek(event.positionTime, from: "remote")
-            return .success
-        }
         
         commandCenter.changePlaybackRateCommand.isEnabled = true
         commandCenter.changePlaybackRateCommand.supportedPlaybackRates = [0.5, 0.75, 1.0, 1.25, 1.5, 2]
