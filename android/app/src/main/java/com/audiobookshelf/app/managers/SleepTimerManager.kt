@@ -22,6 +22,7 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
   private var sleepTimerElapsed:Long = 0L
   private var sleepTimerFinishedAt:Long = 0L
   private var isAutoSleepTimer:Boolean = false // When timer was auto-set
+  private var isFirstAutoSleepTimer: Boolean = true
 
   private fun getCurrentTime():Long {
     return playerNotificationService.getCurrentTime()
@@ -345,8 +346,10 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
         Log.i(tag, "Current hour $currentHour is between ${deviceSettings.autoSleepTimerStartTime} and ${deviceSettings.autoSleepTimerEndTime} - starting sleep timer")
 
         // Automatically Rewind in the book if settings is enabled
-        if (deviceSettings.autoSleepTimerAutoRewind) {
+        if (deviceSettings.autoSleepTimerAutoRewind and !isFirstAutoSleepTimer) {
           playerNotificationService.seekBackward(deviceSettings.autoSleepTimerAutoRewindTime)
+        } else {
+          isFirstAutoSleepTimer = false
         }
         // Set sleep timer
         //   When sleepTimerLength is 0 then use end of chapter/track time
@@ -363,6 +366,7 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
           setSleepTimer(deviceSettings.sleepTimerLength, false)
         }
       } else {
+        isFirstAutoSleepTimer = true
         Log.d(tag, "Current hour $currentHour is NOT between ${deviceSettings.autoSleepTimerStartTime} and ${deviceSettings.autoSleepTimerEndTime}")
       }
     }
