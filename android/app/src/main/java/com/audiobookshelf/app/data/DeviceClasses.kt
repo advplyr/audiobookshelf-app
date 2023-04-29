@@ -103,6 +103,8 @@ data class DeviceSettings(
   var autoSleepTimer: Boolean,
   var autoSleepTimerStartTime: String,
   var autoSleepTimerEndTime: String,
+  var autoSleepTimerAutoRewind: Boolean,
+  var autoSleepTimerAutoRewindTime: Long, //Time in milliseconds
   var sleepTimerLength: Long, // Time in milliseconds
   var disableSleepTimerFadeOut: Boolean,
   var disableSleepTimerResetFeedback: Boolean
@@ -123,6 +125,8 @@ data class DeviceSettings(
         autoSleepTimerStartTime = "22:00",
         autoSleepTimerEndTime = "06:00",
         sleepTimerLength = 900000L, // 15 minutes
+        autoSleepTimerAutoRewind = false,
+        autoSleepTimerAutoRewindTime = 300000L,
         disableSleepTimerFadeOut = false,
         disableSleepTimerResetFeedback = false
       )
@@ -141,6 +145,7 @@ data class DeviceSettings(
   val autoSleepTimerEndHour get() = autoSleepTimerEndTime.split(":")[0].toInt()
   @get:JsonIgnore
   val autoSleepTimerEndMinute get() = autoSleepTimerEndTime.split(":")[1].toInt()
+
 
   @JsonIgnore
   fun getShakeThresholdGravity() : Float { // Used in ShakeDetector

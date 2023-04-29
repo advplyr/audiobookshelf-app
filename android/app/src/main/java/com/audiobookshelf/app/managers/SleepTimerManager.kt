@@ -1,6 +1,7 @@
 package com.audiobookshelf.app.managers
 
 import android.content.Context
+import android.media.metrics.PlaybackSession
 import android.os.*
 import android.util.Log
 import com.audiobookshelf.app.device.DeviceManager
@@ -343,6 +344,10 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
       if (currentCalendar.after(startCalendar) && currentCalendar.before(endCalendar)) {
         Log.i(tag, "Current hour $currentHour is between ${deviceSettings.autoSleepTimerStartTime} and ${deviceSettings.autoSleepTimerEndTime} - starting sleep timer")
 
+        // Automatically Rewind in the book if settings is enabled
+        if (deviceSettings.autoSleepTimerAutoRewind) {
+          playerNotificationService.seekBackward(deviceSettings.autoSleepTimerAutoRewindTime)
+        }
         // Set sleep timer
         //   When sleepTimerLength is 0 then use end of chapter/track time
         if (deviceSettings.sleepTimerLength == 0L) {
