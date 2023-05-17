@@ -126,20 +126,104 @@ class AbsDownloader : Plugin() {
     }
     return newTitle
   }
+  private fun parseTemplateString(userTemplate: String?, libraryItem: LibraryItem):String{
+    val template = userTemplate ?: "\$bookAuthor/\$bookTitle"
+    val bookTitle = cleanStringForFileSystem(libraryItem.media.metadata.title)
+    val bookAuthor = cleanStringForFileSystem(libraryItem.media.metadata.getAuthorDisplayName())
+    val subtitle = cleanStringForFileSystem((libraryItem.media.metadata as BookMetadata).getSubtitleDisplay())
+    //series
+    val narrator = cleanStringForFileSystem((libraryItem.media.metadata as BookMetadata).getNarratorDisplayName())
+    val genres = cleanStringForFileSystem((libraryItem.media.metadata as BookMetadata).getGenresDisplayName())
+    val publishedYear = cleanStringForFileSystem((libraryItem.media.metadata as BookMetadata).getPublishedYearDisplay())
+    val publishedDate = cleanStringForFileSystem((libraryItem.media.metadata as BookMetadata).getPublishedDateDisplay())
+    val publisher = cleanStringForFileSystem((libraryItem.media.metadata as BookMetadata).getPublisherDisplay())
+    val isbn = cleanStringForFileSystem((libraryItem.media.metadata as BookMetadata).getISBNDisplay())
+    val asin = cleanStringForFileSystem((libraryItem.media.metadata as BookMetadata).getASINDisplay())
+    val language = cleanStringForFileSystem((libraryItem.media.metadata as BookMetadata).getLanguageDisplay())
+    val explicit = cleanStringForFileSystem((libraryItem.media.metadata as BookMetadata).getExplicitDisplay())
+    val seriesSummary = cleanStringForFileSystem((libraryItem.media.metadata as BookMetadata).getSeriesSummary())
+    var output = template
+    while(output.contains("\$bookTitle")) output = output.replace("\$bookTitle", bookTitle)
+    while(output.contains("\$bookAuthor")) output = output.replace("\$bookAuthor", bookAuthor)
+    while(output.contains("\$subtitle")) output = output.replace("\$subtitle", subtitle)
+    while(output.contains("\$narrator")) output = output.replace("\$narrator", narrator)
+    while(output.contains("\$genres")) output = output.replace("\$genres", genres)
+    while(output.contains("\$publishedYear")) output = output.replace("\$publishedYear", publishedYear)
+    while(output.contains("\$publishedDate")) output = output.replace("\$publishedDate", publishedDate)
+    while(output.contains("\$publisher")) output = output.replace("\$publisher", publisher)
+    while(output.contains("\$isbn")) output = output.replace("\$isbn", isbn)
+    while(output.contains("\$asin")) output = output.replace("\$asin", asin)
+    while(output.contains("\$language")) output = output.replace("\$language", language)
+    while(output.contains("\$explicit")) output = output.replace("\$explicit", explicit)
+    while(output.contains("\$seriesSummary")) output = output.replace("\$seriesSummary", seriesSummary)
 
+    val seriesNameRegex = "\\\$seriesName\\[\\d+\\]".toRegex()
+    while(seriesNameRegex.find(output) != null) {
+      val subString = seriesNameRegex.find(output)!!.value
+      if(subString != null){
+        val digitStr = subString.replace("\$seriesName[","").replace("]","")
+        val digit = digitStr.toInt()
+        val replacementText = (libraryItem.media.metadata as BookMetadata).getSeriesNameDisplay(digit)
+        output = output.replace(subString, replacementText)
+      }
+    }
+    while(output.contains("\$seriesName")) output = output.replace("\$seriesName", (libraryItem.media.metadata as BookMetadata).getSeriesNameDisplay(0))
+
+    val seriesSeqRegex = "\\\$seriesSequence\\[\\d+\\]".toRegex()
+    while(seriesSeqRegex.find(output) != null) {
+      val subString = seriesSeqRegex.find(output)!!.value
+      if(subString != null){
+        val digitStr = subString.replace("\$seriesSequence[","").replace("]","")
+        val digit = digitStr.toInt()
+        val replacementText = (libraryItem.media.metadata as BookMetadata).getSeriesSequenceDisplay(digit)
+        output = output.replace(subString, replacementText)
+      }
+    }
+    while(output.contains("\$seriesSequence")) output = output.replace("\$seriesSequence", (libraryItem.media.metadata as BookMetadata).getSeriesSequenceDisplay(0))
+
+    return output
+  }
   private fun startLibraryItemDownload(libraryItem: LibraryItem, localFolder: LocalFolder, episode:PodcastEpisode?) {
     val tempFolderPath = mainActivity.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
 
     Log.d(tag, "downloadCacheDirectory=$tempFolderPath")
-
     if (libraryItem.mediaType == "book") {
-      val bookTitle = cleanStringForFileSystem(libraryItem.media.metadata.title)
-      val bookAuthor = cleanStringForFileSystem(libraryItem.media.metadata.getAuthorDisplayName())
-
+      val itemSubfolder = if(DeviceManager.deviceData.deviceSettings != null) {
+        parseTemplateString(DeviceManager.deviceData.deviceSettings!!.localPathFormat, libraryItem)
+      } else{
+        parseTemplateString(null, libraryItem)
+      }
+      /*
+      val testTemplate = "bookAuthor = \$bookAuthor\n" +
+        "bookTitle = \$bookTitle\n" +
+        "explicit = \$explicit\n" +
+        "subtitle = \$subtitle\n" +
+        "narrator = \$narrator\n" +
+        "genres = \$genres\n" +
+        "publishedYear = \$publishedYear\n" +
+        "publishedDate = \$publishedDate\n" +
+        "publisher = \$publisher\n" +
+        "isbn = \$isbn\n" +
+        "asin = \$asin\n" +
+        "language = \$language\n" +
+        "seriesSummary = \$seriesSummary\n" +
+        "seriesName = \$seriesName\n" +
+        "seriesName[0] = \$seriesName[0]\n" +
+        "seriesName[100] = \$seriesName[100]\n" +
+        "seriesSequence = \$seriesSequence\n" +
+        "seriesSequence[0] = \$seriesSequence[0]\n" +
+        "seriesSequence[-1] = \$seriesSequence[-1]\n" +
+        "seriesSequence[10] = \$seriesSequence[10]\n" +
+        "seriesSequence[100] = \$seriesSequence[100]\n" +
+        "seriesSequence[1000] = \$seriesSequence[1000]\n" +
+        "output = \$output"
+      val parsedTemplate = parseTemplateString(testTemplate, libraryItem)
+*/
       val tracks = libraryItem.media.getAudioTracks()
       Log.d(tag, "Starting library item download with ${tracks.size} tracks")
-      val itemSubfolder = "$bookAuthor/$bookTitle"
       val itemFolderPath = "${localFolder.absolutePath}/$itemSubfolder"
+
+      val bookTitle = cleanStringForFileSystem(libraryItem.media.metadata.title)
       val downloadItem = DownloadItem(libraryItem.id, libraryItem.id, null, libraryItem.userMediaProgress,DeviceManager.serverConnectionConfig?.id ?: "", DeviceManager.serverAddress, DeviceManager.serverUserId, libraryItem.mediaType, itemFolderPath, localFolder, bookTitle, itemSubfolder, libraryItem.media, mutableListOf())
 
       // Create download item part for each audio track

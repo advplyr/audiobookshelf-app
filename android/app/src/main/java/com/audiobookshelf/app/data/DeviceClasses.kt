@@ -105,7 +105,9 @@ data class DeviceSettings(
   var autoSleepTimerEndTime: String,
   var sleepTimerLength: Long, // Time in milliseconds
   var disableSleepTimerFadeOut: Boolean,
-  var disableSleepTimerResetFeedback: Boolean
+  var disableSleepTimerResetFeedback: Boolean,
+  var showAdvancedSettings: Boolean,
+  var localPathFormat: String
 ) {
   companion object {
     // Static method to get default device settings
@@ -124,7 +126,9 @@ data class DeviceSettings(
         autoSleepTimerEndTime = "06:00",
         sleepTimerLength = 900000L, // 15 minutes
         disableSleepTimerFadeOut = false,
-        disableSleepTimerResetFeedback = false
+        disableSleepTimerResetFeedback = false,
+        showAdvancedSettings = false,
+        localPathFormat = "\$bookAuthor/\$bookTitle"
       )
     }
   }
