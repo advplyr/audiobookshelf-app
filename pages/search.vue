@@ -41,7 +41,16 @@
       <template v-for="authorResult in authorResults">
         <div :key="authorResult.id" class="w-full h-14 py-1">
           <nuxt-link :to="`/bookshelf/library?filter=authors.${$encode(authorResult.id)}`">
-            <cards-author-search-card :key="authorResult.id" :author="authorResult" />
+            <cards-author-search-card :author="authorResult" />
+          </nuxt-link>
+        </div>
+      </template>
+
+      <p v-if="narratorResults.length" class="font-semibold text-sm mb-1 mt-2">Narrators</p>
+      <template v-for="narrator in narratorResults">
+        <div :key="narrator.name" class="w-full h-14 py-1">
+          <nuxt-link :to="`/bookshelf/library?filter=narrators.${$encode(narrator.name)}`">
+            <cards-narrator-search-card :narrator="narrator.name" />
           </nuxt-link>
         </div>
       </template>
@@ -60,7 +69,8 @@ export default {
       bookResults: [],
       podcastResults: [],
       seriesResults: [],
-      authorResults: []
+      authorResults: [],
+      narratorResults: []
     }
   },
   computed: {
@@ -71,7 +81,7 @@ export default {
       return this.$store.getters['libraries/getBookCoverAspectRatio']
     },
     totalResults() {
-      return this.bookResults.length + this.seriesResults.length + this.authorResults.length + this.podcastResults.length
+      return this.bookResults.length + this.seriesResults.length + this.authorResults.length + this.podcastResults.length + this.narratorResults.length
     }
   },
   methods: {
@@ -86,6 +96,7 @@ export default {
         this.podcastResults = []
         this.seriesResults = []
         this.authorResults = []
+        this.narratorResults = []
         return
       }
       this.isFetching = true
@@ -101,10 +112,11 @@ export default {
 
       this.isFetching = false
 
-      this.bookResults = results ? results.book || [] : []
-      this.podcastResults = results ? results.podcast || [] : []
-      this.seriesResults = results ? results.series || [] : []
-      this.authorResults = results ? results.authors || [] : []
+      this.bookResults = results?.book || []
+      this.podcastResults = results?.podcast || []
+      this.seriesResults = results?.series || []
+      this.authorResults = results?.authors || []
+      this.narratorResults = results?.narrators || []
     },
     updateSearch(val) {
       clearTimeout(this.searchTimeout)
