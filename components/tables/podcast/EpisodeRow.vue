@@ -17,7 +17,15 @@
         {{ title }}
       </p>
 
-      <p class="text-sm text-gray-200 line-clamp-2 mt-1.5 mb-0.5">{{ subtitle }}</p>
+      <p class="text-sm text-gray-200 episode-subtitle mt-1.5 mb-0.5" v-html="subtitle" />
+
+      <div v-if="episodeNumber || season || episodeType" class="flex py-2 items-center -mx-0.5">
+        <div v-if="episodeNumber" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-50 rounded-full text-xs font-light text-gray-200">Episode #{{ episodeNumber }}</div>
+        <div v-if="season" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-50 rounded-full text-xs font-light text-gray-200">Season #{{ season }}</div>
+        <div v-if="episodeType" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-50 rounded-full text-xs font-light text-gray-200 capitalize">
+          {{ episodeType }}
+        </div>
+      </div>
 
       <div class="flex items-center pt-2">
         <div class="h-8 px-4 border border-white border-opacity-20 hover:bg-white hover:bg-opacity-10 rounded-full flex items-center justify-center cursor-pointer" :class="userIsFinished ? 'text-white text-opacity-40' : ''" @click.stop="playClick">
@@ -90,7 +98,17 @@ export default {
       return this.episode.title || ''
     },
     subtitle() {
-      return this.episode.subtitle || ''
+      return this.episode.subtitle || this.episode.description || ''
+    },
+    episodeNumber() {
+      return this.episode.episode
+    },
+    season() {
+      return this.episode.season
+    },
+    episodeType() {
+      if (this.episode.episodeType === 'full') return null // only show Trailer/Bonus
+      return this.episode.episodeType
     },
     duration() {
       return this.$secondsToTimestamp(this.episode.duration)
