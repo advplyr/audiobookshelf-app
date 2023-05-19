@@ -37,7 +37,6 @@ export default {
   data() {
     return {
       shelves: [],
-      isSettingsLoaded: false,
       isFirstNetworkConnection: true,
       lastServerFetch: 0,
       lastServerFetchLibraryId: null,
@@ -318,16 +317,11 @@ export default {
         }
       })
     },
-    settingsUpdated() {
-      this.isSettingsLoaded = true
-    },
     initListeners() {
       this.$eventBus.$on('library-changed', this.libraryChanged)
-      this.$eventBus.$on('user-settings', this.settingsUpdated)
     },
     removeListeners() {
       this.$eventBus.$off('library-changed', this.libraryChanged)
-      this.$eventBus.$off('user-settings', this.settingsUpdated)
     }
   },
   mounted() {
