@@ -258,11 +258,6 @@ export default {
           return cat
         })
 
-        // TODO: iOS has its own implementation of this. Android & iOS should be consistent here.
-        if (!this.isIos) {
-          this.openMediaPlayerWithMostRecentListening()
-        }
-
         // Only add the local shelf with the same media type
         const localShelves = localCategories.filter((cat) => cat.type === this.currentLibraryMediaType && !cat.localOnly)
         this.shelves.push(...localShelves)
@@ -276,53 +271,6 @@ export default {
       }
 
       this.isLoading = false
-    },
-    async waitForSettings() {
-      // Wait up to 3 seconds
-      for (let i = 0; i < 6; i++) {
-        if (this.isSettingsLoaded) return true
-        await new Promise((resolve) => setTimeout(resolve, 500))
-      }
-      return false
-    },
-    async openMediaPlayerWithMostRecentListening() {
-      // If we don't already have a player open
-      // Try opening the first book from continue-listening without playing it
-      if (this.$store.state.playerLibraryItemId || !this.$store.state.isFirstAudioLoad) return
-      this.$store.commit('setIsFirstAudioLoad', false) // Only run this once on app launch
-
-      // Wait for settings to load to prevent race condition when setting playback speed.
-      if (!this.isSettingsLoaded) {
-        await this.waitForSettings()
-      }
-
-      const continueListeningShelf = this.shelves.find((cat) => cat.id === 'continue-listening')
-      const mostRecentEntity = continueListeningShelf?.entities?.find((li) => li.media?.audioTracks?.length || li.media?.numTracks)
-      if (mostRecentEntity) {
-        const playObject = {
-          libraryItemId: mostRecentEntity.id,
-          episodeId: mostRecentEntity.recentEpisode?.id || null,
-          paused: true
-        }
-
-        // Check if there is a local copy
-        if (mostRecentEntity.localLibraryItem) {
-          if (mostRecentEntity.recentEpisode) {
-            // Check if the podcast episode has a local copy
-            const localEpisode = mostRecentEntity.localLibraryItem.media.episodes.find((ep) => ep.serverEpisodeId === mostRecentEntity.recentEpisode.id)
-            if (localEpisode) {
-              playObject.libraryItemId = mostRecentEntity.localLibraryItem.id
-              playObject.episodeId = localEpisode.id
-              playObject.serverLibraryItemId = mostRecentEntity.id
-              playObject.serverEpisodeId = mostRecentEntity.recentEpisode.id
-            }
-          } else {
-            playObject.libraryItemId = mostRecentEntity.localLibraryItem.id
-            playObject.serverLibraryItemId = mostRecentEntity.id
-          }
-        }
-        this.$eventBus.$emit('play-item', playObject)
-      }
     },
     libraryChanged() {
       if (this.currentLibraryId) {
