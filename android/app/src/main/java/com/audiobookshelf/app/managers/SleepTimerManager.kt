@@ -84,10 +84,6 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
     } else {
       sleepTimerLength = time
       sleepTimerEndTime = 0L
-
-      if (sleepTimerLength + getCurrentTime() > getDuration()) {
-        sleepTimerLength = getDuration() - getCurrentTime()
-      }
     }
 
     playerNotificationService.clientEventEmitter?.onSleepTimerSet(getSleepTimerTimeRemainingSeconds(), isAutoSleepTimer)
