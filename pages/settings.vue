@@ -321,7 +321,7 @@ export default {
     },
     toggleAutoSleepTimerAutoRewind() {
       this.settings.autoSleepTimerAutoRewind = !this.settings.autoSleepTimerAutoRewind
-      this.saveSettings
+      this.saveSettings()
     },
     toggleDisableSleepTimerFadeOut() {
       this.settings.disableSleepTimerFadeOut = !this.settings.disableSleepTimerFadeOut
