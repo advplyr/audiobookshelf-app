@@ -214,6 +214,8 @@ export default {
         if (startTime !== undefined && startTime !== null) {
           // seek to start time
           AbsAudioPlayer.seek({ value: Math.floor(startTime) })
+        } else if (this.$refs.audioPlayer) {
+          this.$refs.audioPlayer.play()
         }
         return
       }

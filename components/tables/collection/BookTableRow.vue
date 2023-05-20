@@ -1,15 +1,20 @@
 <template>
   <div class="w-full px-2 py-2 overflow-hidden relative">
-    <nuxt-link v-if="book" :to="`/item/${book.id}`" class="flex w-full">
+    <nuxt-link v-if="book" :to="`/item/${book.id}`" class="flex items-center w-full">
       <div class="h-full relative" :style="{ width: bookWidth + 'px' }">
         <covers-book-cover :library-item="book" :width="bookWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" />
       </div>
-      <div class="flex-grow book-table-content h-full px-2 flex items-center">
+      <div class="book-table-content h-full px-2 flex items-center">
         <div class="max-w-full">
           <p class="truncate block text-sm">{{ bookTitle }}</p>
           <p class="truncate block text-gray-400 text-xs">{{ bookAuthor }}</p>
           <p class="text-xxs text-gray-500">{{ bookDuration }}</p>
         </div>
+      </div>
+      <div class="w-8 min-w-8 flex justify-center">
+        <button v-if="showPlayBtn" class="w-8 h-8 rounded-full border border-white border-opacity-20 flex items-center justify-center" @click.stop.prevent="playClick">
+          <span class="material-icons" :class="streamIsPlaying ? '' : 'text-success'">{{ streamIsPlaying ? 'pause' : 'play_arrow' }}</span>
+        </button>
       </div>
     </nuxt-link>
   </div>
@@ -31,6 +36,9 @@ export default {
     }
   },
   computed: {
+    libraryItemId() {
+      return this.book.id
+    },
     media() {
       return this.book.media || {}
     },
@@ -59,22 +67,29 @@ export default {
     isMissing() {
       return this.book.isMissing
     },
-    isIncomplete() {
-      return this.book.isIncomplete
-    },
-    numTracks() {
-      return this.book.numTracks
-    },
-    isStreaming() {
-      return this.$store.getters['getIsItemStreaming'](this.book.id)
+    isInvalid() {
+      return this.book.isInvalid
     },
     showPlayBtn() {
-      return !this.isMissing && !this.isIncomplete && !this.isStreaming && this.numTracks
+      return !this.isMissing && !this.isInvalid && this.tracks.length
+    },
+    isStreaming() {
+      return this.$store.getters['getIsEpisodeStreaming'](this.libraryItemId)
+    },
+    streamIsPlaying() {
+      return this.$store.state.playerIsPlaying && this.isStreaming
     }
   },
   methods: {
-    clickEdit() {
-      this.$emit('edit', this.book)
+    async playClick() {
+      await this.$hapticsImpact()
+      if (this.streamIsPlaying) {
+        this.$eventBus.$emit('pause-item')
+      } else {
+        this.$eventBus.$emit('play-item', {
+          libraryItemId: this.libraryItemId
+        })
+      }
     }
   },
   mounted() {}
@@ -83,7 +98,7 @@ export default {
 
 <style>
 .book-table-content {
-  width: calc(100% - 50px);
-  max-width: calc(100% - 50px);
+  width: calc(100% - 82px);
+  max-width: calc(100% - 82px);
 }
 </style>
