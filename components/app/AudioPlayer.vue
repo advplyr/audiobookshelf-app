@@ -60,7 +60,7 @@
             <p class="text-xl font-mono text-success">{{ sleepTimeRemainingPretty }}</p>
           </div>
 
-          <span class="material-icons text-3xl text-white cursor-pointer" :class="chapters.length ? 'text-opacity-75' : 'text-opacity-10'" @click="showChapterModal = true">format_list_bulleted</span>
+          <span class="material-icons text-3xl text-white cursor-pointer" :class="chapters.length ? 'text-opacity-75' : 'text-opacity-10'" @click="clickChaptersBtn">format_list_bulleted</span>
         </div>
       </div>
       <div v-else class="w-full h-full absolute top-0 left-0 pointer-events-none" style="background: linear-gradient(145deg, rgba(38, 38, 38, 0.5) 0%, rgba(38, 38, 38, 0.9) 20%, rgb(38, 38, 38) 60%)" />
@@ -369,6 +369,10 @@ export default {
     }
   },
   methods: {
+    clickChaptersBtn() {
+      if (!this.chapters.length) return
+      this.showChapterModal = true
+    },
     async coverImageLoaded(fullCoverUrl) {
       if (!fullCoverUrl) return
 
