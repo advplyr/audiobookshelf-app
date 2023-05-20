@@ -49,6 +49,8 @@
     <modals-dialog v-model="showFiltersModal" title="Episode Filter" :items="filterItems" :selected="filterKey" @action="setFilter" />
 
     <modals-podcast-episodes-feed-modal v-model="showPodcastEpisodeFeed" :library-item="libraryItem" :episodes="podcastFeedEpisodes" />
+
+    <modals-order-modal v-model="showSortModal" :order-by.sync="sortKey" :descending.sync="sortDesc" episodes />
   </div>
 </template>
 
@@ -76,6 +78,7 @@ export default {
     return {
       episodesCopy: [],
       showFiltersModal: false,
+      showSortModal: false,
       sortKey: 'publishedAt',
       sortDesc: true,
       filterKey: 'incomplete',
@@ -167,10 +170,19 @@ export default {
     },
     episodesSorted() {
       return this.episodesFiltered.sort((a, b) => {
-        if (this.sortDesc) {
-          return String(b[this.sortKey]).localeCompare(String(a[this.sortKey]), undefined, { numeric: true, sensitivity: 'base' })
+        let aValue = a[this.sortKey]
+        let bValue = b[this.sortKey]
+
+        // Sort episodes with no pub date as the oldest
+        if (this.sortKey === 'publishedAt') {
+          if (!aValue) aValue = Number.MAX_VALUE
+          if (!bValue) bValue = Number.MAX_VALUE
         }
-        return String(a[this.sortKey]).localeCompare(String(b[this.sortKey]), undefined, { numeric: true, sensitivity: 'base' })
+
+        if (this.sortDesc) {
+          return String(bValue).localeCompare(String(aValue), undefined, { numeric: true, sensitivity: 'base' })
+        }
+        return String(aValue).localeCompare(String(bValue), undefined, { numeric: true, sensitivity: 'base' })
       })
     },
     // Map of local episodes where server episode id is key
@@ -185,9 +197,8 @@ export default {
     },
     sortText() {
       if (!this.sortKey) return ''
-      var _sel = this.episodeSortItems.find((i) => i.value === this.sortKey)
-      if (!_sel) return ''
-      return _sel.text
+      const _sel = this.episodeSortItems.find((i) => i.value === this.sortKey)
+      return _sel?.text || ''
     }
   },
   methods: {
@@ -249,7 +260,7 @@ export default {
       this.showFiltersModal = true
     },
     clickSort() {
-      this.sortDesc = !this.sortDesc
+      this.showSortModal = true
     },
     getEpisodeProgress(episode) {
       if (this.isLocal) return this.$store.getters['globals/getLocalMediaProgressById'](this.libraryItemId, episode.id)

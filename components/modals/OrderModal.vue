@@ -22,7 +22,8 @@ export default {
   props: {
     value: Boolean,
     orderBy: String,
-    descending: Boolean
+    descending: Boolean,
+    episodes: Boolean
   },
   data() {
     return {
@@ -89,6 +90,24 @@ export default {
           text: 'File Modified',
           value: 'mtimeMs'
         }
+      ],
+      episodeItems: [
+        {
+          text: 'Pub Date',
+          value: 'publishedAt'
+        },
+        {
+          text: 'Title',
+          value: 'title'
+        },
+        {
+          text: 'Season',
+          value: 'season'
+        },
+        {
+          text: 'Episode',
+          value: 'episode'
+        }
       ]
     }
   },
@@ -121,6 +140,7 @@ export default {
       return this.$store.getters['libraries/getCurrentLibraryMediaType'] === 'podcast'
     },
     items() {
+      if (this.episodes) return this.episodeItems
       if (this.isPodcast) return this.podcastItems
       return this.bookItems
     }
