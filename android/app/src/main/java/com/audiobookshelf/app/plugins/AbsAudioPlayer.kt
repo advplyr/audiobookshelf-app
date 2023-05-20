@@ -341,7 +341,8 @@ class AbsAudioPlayer : Plugin() {
     val isChapterTime:Boolean = call.getBoolean("isChapterTime", false) == true
 
     Handler(Looper.getMainLooper()).post {
-        val success:Boolean = playerNotificationService.sleepTimerManager.setManualSleepTimer(time, isChapterTime)
+        val playbackSession: PlaybackSession? = playerNotificationService.mediaProgressSyncer.currentPlaybackSession ?: playerNotificationService.currentPlaybackSession
+        val success:Boolean = playerNotificationService.sleepTimerManager.setManualSleepTimer(playbackSession?.id ?: "", time, isChapterTime)
         val ret = JSObject()
         ret.put("success", success)
         call.resolve(ret)
