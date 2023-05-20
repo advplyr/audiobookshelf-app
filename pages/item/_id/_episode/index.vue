@@ -33,9 +33,9 @@
 
     <!-- action buttons -->
     <div class="flex mt-4 -mx-1">
-      <ui-btn color="success" :disabled="isPlaying" class="flex items-center justify-center flex-grow mx-1" :padding-x="4" @click="playClick">
-        <span v-show="!isPlaying" class="material-icons">play_arrow</span>
-        <span class="px-1 text-sm">{{ isPlaying ? (playerIsLocal ? 'Playing' : 'Streaming') : localEpisodeId ? 'Play' : 'Stream' }}</span>
+      <ui-btn color="success" class="flex items-center justify-center flex-grow mx-1" :padding-x="4" @click="playClick">
+        <span class="material-icons">{{ playerIsPlaying ? 'pause' : 'play_arrow' }}</span>
+        <span class="px-1 text-sm">{{ playerIsPlaying ? 'Pause' : localEpisodeId ? 'Play' : 'Stream' }}</span>
       </ui-btn>
       <ui-btn v-if="showDownload" :color="downloadItem ? 'warning' : 'primary'" class="flex items-center justify-center mx-1" :padding-x="2" @click="downloadClick">
         <span class="material-icons" :class="downloadItem ? 'animate-pulse' : ''">{{ downloadItem ? 'downloading' : 'download' }}</span>

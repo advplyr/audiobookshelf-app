@@ -33,25 +33,12 @@
 
       <!-- action buttons -->
       <div class="col-span-full">
-        <div v-if="isLocal" class="flex mt-4 -mx-1">
-          <ui-btn v-if="showPlay" color="success" :disabled="isPlaying" class="flex items-center justify-center flex-grow mx-1" :padding-x="4" @click="playClick">
-            <span v-show="!isPlaying" class="material-icons">play_arrow</span>
-            <span class="px-1 text-sm">{{ isPlaying ? 'Playing' : 'Play' }}</span>
+        <div v-if="showPlay || showRead" class="flex mt-4 -mx-1">
+          <ui-btn v-if="showPlay" color="success" class="flex items-center justify-center flex-grow mx-1" :padding-x="4" @click="playClick">
+            <span class="material-icons">{{ playerIsPlaying ? 'pause' : 'play_arrow' }}</span>
+            <span class="px-1 text-sm">{{ playerIsPlaying ? 'Pause' : isPodcast ? 'Next Episode' : hasLocal ? 'Play' : 'Stream' }}</span>
           </ui-btn>
           <ui-btn v-if="showRead" color="info" class="flex items-center justify-center mx-1" :class="showPlay ? '' : 'flex-grow'" :padding-x="2" @click="readBook">
-            <span class="material-icons">auto_stories</span>
-            <span v-if="!showPlay" class="px-2 text-base">Read {{ ebookFormat }}</span>
-          </ui-btn>
-          <ui-btn color="primary" class="flex items-center justify-center mx-1" :padding-x="2" @click="moreButtonPress">
-            <span class="material-icons">more_vert</span>
-          </ui-btn>
-        </div>
-        <div v-else-if="(user && (showPlay || showRead)) || hasLocal" class="flex mt-4 -mx-1">
-          <ui-btn v-if="showPlay" color="success" :disabled="isPlaying" class="flex items-center justify-center flex-grow mx-1" :padding-x="4" @click="playClick">
-            <span v-show="!isPlaying" class="material-icons">play_arrow</span>
-            <span class="px-1 text-sm">{{ isPlaying ? (isStreaming ? 'Streaming' : 'Playing') : isPodcast ? 'Next Episode' : hasLocal ? 'Play' : 'Stream' }}</span>
-          </ui-btn>
-          <ui-btn v-if="showRead && user" color="info" class="flex items-center justify-center mx-1" :class="showPlay ? '' : 'flex-grow'" :padding-x="2" @click="readBook">
             <span class="material-icons">auto_stories</span>
             <span v-if="!showPlay" class="px-2 text-base">Read {{ ebookFormat }}</span>
           </ui-btn>
@@ -335,6 +322,9 @@ export default {
       if (this.localLibraryItemId && this.$store.getters['getIsItemStreaming'](this.localLibraryItemId)) return true
       return this.$store.getters['getIsItemStreaming'](this.libraryItemId)
     },
+    playerIsPlaying() {
+      return this.$store.state.playerIsPlaying && (this.isStreaming || this.isPlaying)
+    },
     tracks() {
       return this.media.tracks || []
     },
@@ -348,18 +338,18 @@ export default {
     isMissing() {
       return this.libraryItem.isMissing
     },
-    isIncomplete() {
-      return this.libraryItem.isIncomplete
+    isInvalid() {
+      return this.libraryItem.isInvalid
     },
     showPlay() {
-      return !this.isMissing && !this.isIncomplete && (this.numTracks || this.episodes.length)
+      return !this.isMissing && !this.isInvalid && (this.numTracks || this.episodes.length)
     },
     showRead() {
       return this.ebookFile
     },
     showDownload() {
-      if (this.isPodcast) return false
-      return this.user && this.userCanDownload && this.showPlay && !this.hasLocal
+      if (this.isPodcast || this.hasLocal) return false
+      return this.user && this.userCanDownload && this.showPlay
     },
     ebookFile() {
       return this.media.ebookFile
@@ -488,12 +478,15 @@ export default {
     playAtTimestamp(seconds) {
       this.play(seconds)
     },
-    playClick() {
-      this.play()
+    async playClick() {
+      await this.$hapticsImpact()
+      if (this.playerIsPlaying) {
+        this.$eventBus.$emit('pause-item')
+      } else {
+        this.play()
+      }
     },
     async play(startTime = null) {
-      await this.$hapticsImpact()
-
       if (this.isPodcast) {
         this.episodes.sort((a, b) => {
           return String(b.publishedAt).localeCompare(String(a.publishedAt), undefined, { numeric: true, sensitivity: 'base' })
