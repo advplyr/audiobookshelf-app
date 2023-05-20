@@ -204,12 +204,12 @@ export default {
       return this.libraryItem.localLibraryItem || null
     },
     localLibraryItemId() {
-      return this.localLibraryItem ? this.localLibraryItem.id : null
+      return this.localLibraryItem?.id || null
     },
     localLibraryItemEpisodes() {
       if (!this.isPodcast || !this.localLibraryItem) return []
       var podcastMedia = this.localLibraryItem.media
-      return podcastMedia ? podcastMedia.episodes || [] : []
+      return podcastMedia?.episodes || []
     },
     serverLibraryItemId() {
       if (!this.isLocal) return this.libraryItem.id
@@ -293,8 +293,16 @@ export default {
     },
     userItemProgress() {
       if (this.isPodcast) return null
-      if (this.isLocal) return this.$store.getters['globals/getLocalMediaProgressById'](this.libraryItemId)
-      return this.$store.getters['user/getUserMediaProgress'](this.libraryItemId)
+      if (this.isLocal) return this.localItemProgress
+      return this.serverItemProgress
+    },
+    localItemProgress() {
+      if (this.isPodcast) return null
+      return this.$store.getters['globals/getLocalMediaProgressById'](this.localLibraryItemId)
+    },
+    serverItemProgress() {
+      if (this.isPodcast) return null
+      return this.$store.getters['user/getUserMediaProgress'](this.serverLibraryItemId)
     },
     userIsFinished() {
       return this.userItemProgress ? !!this.userItemProgress.isFinished : false
@@ -554,18 +562,19 @@ export default {
       })
       if (value) {
         this.resettingProgress = true
-        if (this.isLocal) {
-          // TODO: If connected to server also sync with server
-          await this.$db.removeLocalMediaProgress(this.libraryItemId)
-          this.$store.commit('globals/removeLocalMediaProgressForItem', this.libraryItemId)
-        } else {
-          var progressId = this.userItemProgress.id
+        const serverMediaProgressId = this.serverItemProgress?.id
+        if (this.localLibraryItemId) {
+          await this.$db.removeLocalMediaProgress(this.localLibraryItemId)
+          this.$store.commit('globals/removeLocalMediaProgressForItem', this.localLibraryItemId)
+        }
+
+        if (this.serverLibraryItemId && serverMediaProgressId) {
           await this.$axios
-            .$delete(`/api/me/progress/${this.libraryItemId}`)
+            .$delete(`/api/me/progress/${serverMediaProgressId}`)
             .then(() => {
               console.log('Progress reset complete')
               this.$toast.success(`Your progress was reset`)
-              this.$store.commit('user/removeMediaProgress', progressId)
+              this.$store.commit('user/removeMediaProgress', serverMediaProgressId)
             })
             .catch((error) => {
               console.error('Progress reset failed', error)
