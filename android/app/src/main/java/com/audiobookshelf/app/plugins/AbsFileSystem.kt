@@ -23,6 +23,7 @@ import com.getcapacitor.annotation.CapacitorPlugin
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import java.io.File
 
 @CapacitorPlugin(name = "AbsFileSystem")
 class AbsFileSystem : Plugin() {
@@ -226,8 +227,37 @@ class AbsFileSystem : Plugin() {
     val contentUrl = call.data.getString("contentUrl", "").toString()
     Log.d(tag, "deleteItem $absolutePath | $contentUrl")
 
+    var subfolderPathToDelete = ""
+
+    // Check if should delete subfolder
+    val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(localLibraryItemId)
+    localLibraryItem?.folderId?.let { folderId ->
+      val folder = DeviceManager.dbManager.getLocalFolder(folderId)
+      folder?.absolutePath?.let { folderPath ->
+        val splitAbsolutePath = absolutePath.split("/")
+        val fullSubDir = splitAbsolutePath.subList(0, splitAbsolutePath.size - 1).joinToString("/")
+        if (fullSubDir != folderPath) {
+          val subdirHasAnItem = DeviceManager.dbManager.getLocalLibraryItems().any { _localLibraryItem ->
+            if (_localLibraryItem.id == localLibraryItemId) {
+              false
+            } else {
+              _localLibraryItem.absolutePath.startsWith(fullSubDir)
+            }
+          }
+          subfolderPathToDelete = if (subdirHasAnItem) "" else fullSubDir
+        }
+      }
+    }
+
     val docfile = DocumentFileCompat.fromUri(mainActivity, Uri.parse(contentUrl))
     val success = docfile?.delete() == true
+
+    if (subfolderPathToDelete != "") {
+      Log.d(tag, "Deleting empty subfolder at $subfolderPathToDelete")
+      val docfilesub = DocumentFileCompat.fromFullPath(mainActivity, subfolderPathToDelete)
+      docfilesub?.delete()
+    }
+
     if (success) {
       DeviceManager.dbManager.removeLocalLibraryItem(localLibraryItemId)
     }
