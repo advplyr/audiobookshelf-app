@@ -86,6 +86,9 @@
           </template>
         </div>
 
+        <div v-if="podcastType" class="text-white text-opacity-60 uppercase text-sm">Type</div>
+        <div v-if="podcastType" class="text-sm capitalize">{{ podcastType }}</div>
+
         <div v-if="series && series.length" class="text-white text-opacity-60 uppercase text-sm">Series</div>
         <div v-if="series && series.length" class="truncate text-sm">
           <template v-for="(series, index) in seriesList">
@@ -259,6 +262,9 @@ export default {
     },
     publishedYear() {
       return this.mediaMetadata.publishedYear
+    },
+    podcastType() {
+      return this.mediaMetadata.type
     },
     podcastAuthor() {
       if (!this.isPodcast) return null

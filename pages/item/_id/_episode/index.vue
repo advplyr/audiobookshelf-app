@@ -16,6 +16,14 @@
       {{ title }}
     </p>
 
+    <div v-if="episodeNumber || season || episodeType" class="flex py-2 items-center -mx-0.5">
+      <div v-if="episodeNumber" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-60 rounded-full text-xs font-light text-gray-200">Episode #{{ episodeNumber }}</div>
+      <div v-if="season" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-60 rounded-full text-xs font-light text-gray-200">Season #{{ season }}</div>
+      <div v-if="episodeType" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-60 rounded-full text-xs font-light text-gray-200 capitalize">
+        {{ episodeType }}
+      </div>
+    </div>
+
     <!-- user progress card -->
     <div v-if="progressPercent > 0" class="px-4 py-2 bg-primary text-sm font-semibold rounded-md text-gray-200 mt-4 relative" :class="resettingProgress ? 'opacity-25' : ''">
       <p class="leading-6">Your Progress: {{ Math.round(progressPercent * 100) }}%</p>
@@ -159,6 +167,16 @@ export default {
     },
     description() {
       return this.episode.description || ''
+    },
+    episodeNumber() {
+      return this.episode.episode
+    },
+    season() {
+      return this.episode.season
+    },
+    episodeType() {
+      if (this.episode.episodeType === 'full') return null // only show Trailer/Bonus
+      return this.episode.episodeType
     },
     duration() {
       return this.$secondsToTimestamp(this.episode.duration)
