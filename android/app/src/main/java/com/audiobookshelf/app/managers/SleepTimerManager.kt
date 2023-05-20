@@ -393,8 +393,8 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
       checkShouldResetSleepTimer()
     } else {
       isFirstAutoSleepTimer = true
-      sleepTimerSessionId = playbackSessionId
     }
+    sleepTimerSessionId = playbackSessionId
 
     checkAutoSleepTimer()
   }
