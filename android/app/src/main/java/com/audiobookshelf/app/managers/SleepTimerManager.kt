@@ -379,7 +379,6 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
           setSleepTimer(deviceSettings.sleepTimerLength, false)
         }
       } else {
-        Log.d(tag, "[TEST] sleep timer window not in $isFirstAutoSleepTimer")
         isFirstAutoSleepTimer = true
         Log.d(tag, "Current hour $currentHour is NOT between ${deviceSettings.autoSleepTimerStartTime} and ${deviceSettings.autoSleepTimerEndTime}")
       }
