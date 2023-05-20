@@ -92,12 +92,15 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
 
     // Start/stop progress sync interval
     if (isPlaying) {
-      // Handles auto-starting sleep timer and resetting sleep timer
-      playerNotificationService.sleepTimerManager.handleMediaPlayEvent()
-
-      player.volume = 1F // Volume on sleep timer might have decreased this
       val playbackSession: PlaybackSession? = playerNotificationService.mediaProgressSyncer.currentPlaybackSession ?: playerNotificationService.currentPlaybackSession
-      playbackSession?.let { playerNotificationService.mediaProgressSyncer.play(it) }
+      playbackSession?.let {
+        // Handles auto-starting sleep timer and resetting sleep timer
+        playerNotificationService.sleepTimerManager.handleMediaPlayEvent(it.id)
+
+        player.volume = 1F // Volume on sleep timer might have decreased this
+
+        playerNotificationService.mediaProgressSyncer.play(it)
+      }
     } else {
       playerNotificationService.mediaProgressSyncer.pause {
         Log.d(tag, "Media Progress Syncer paused and synced")

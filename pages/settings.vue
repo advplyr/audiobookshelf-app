@@ -95,9 +95,23 @@
         <ui-text-input :value="sleepTimerLengthOption" readonly append-icon="expand_more" style="width: 145px; max-width: 145px" />
       </div>
     </div>
+    <div v-if="settings.autoSleepTimer" class="flex items-center py-3" @click="toggleAutoSleepTimerAutoRewind">
+      <div class="w-10 flex justify-center">
+        <ui-toggle-switch v-model="settings.autoSleepTimerAutoRewind" @input="saveSettings" />
+      </div>
+      <p class="pl-4">Auto Sleep Timer Auto Rewind</p>
+      <span class="material-icons-outlined ml-2" @click.stop="showInfo('autoSleepTimerAutoRewind')">info</span>
+    </div>
+    <div v-if="settings.autoSleepTimerAutoRewind" class="py-3 flex items-center">
+      <p class="pr-4 w-36">Auto Rewind Time</p>
+      <div @click.stop="showAutoSleepTimerRewindOptions">
+        <ui-text-input :value="autoSleepTimerRewindLengthOption" readonly append-icon="expand_more" style="width: 145px; max-width: 145px" />
+      </div>
+    </div>
 
     <modals-dialog v-model="showMoreMenuDialog" :items="moreMenuItems" @action="clickMenuAction" />
     <modals-sleep-timer-length-modal v-model="showSleepTimerLengthModal" @change="sleepTimerLengthModalSelection" />
+    <modals-auto-sleep-timer-rewind-length-modal v-model="showAutoSleepTimerRewindLengthModal" @change="showAutoSleepTimerRewindLengthModalSelection" />
   </div>
 </template>
 
@@ -110,6 +124,7 @@ export default {
       deviceData: null,
       showMoreMenuDialog: false,
       showSleepTimerLengthModal: false,
+      showAutoSleepTimerRewindLengthModal: false,
       moreMenuSetting: '',
       settings: {
         disableAutoRewind: false,
@@ -125,7 +140,9 @@ export default {
         autoSleepTimerEndTime: '06:00',
         sleepTimerLength: 900000, // 15 minutes
         disableSleepTimerFadeOut: false,
-        disableSleepTimerResetFeedback: false
+        disableSleepTimerResetFeedback: false,
+        autoSleepTimerAutoRewind: false,
+        autoSleepTimerAutoRewindTime: 300000 // 5 minutes
       },
       lockCurrentOrientation: false,
       settingInfo: {
@@ -144,6 +161,10 @@ export default {
         disableSleepTimerResetFeedback: {
           name: 'Disable vibrate on reset',
           message: 'When the sleep timer gets reset your device will vibrate. Enable this setting to not vibrate when the sleep timer resets.'
+        },
+        autoSleepTimerAutoRewind: {
+          name: 'Enable sleep timer auto rewind',
+          message: 'When the auto sleep timer finishes, playing the item again will automatically rewind your position.'
         }
       },
       hapticFeedbackItems: [
@@ -234,6 +255,10 @@ export default {
       const minutes = Number(this.settings.sleepTimerLength) / 1000 / 60
       return `${minutes} min`
     },
+    autoSleepTimerRewindLengthOption() {
+      const minutes = Number(this.settings.autoSleepTimerAutoRewindTime) / 1000 / 60
+      return `${minutes} min`
+    },
     moreMenuItems() {
       if (this.moreMenuSetting === 'shakeSensitivity') return this.shakeSensitivityItems
       else if (this.moreMenuSetting === 'hapticFeedback') return this.hapticFeedbackItems
@@ -245,8 +270,15 @@ export default {
       this.settings.sleepTimerLength = value
       this.saveSettings()
     },
+    showAutoSleepTimerRewindLengthModalSelection(value) {
+      this.settings.autoSleepTimerAutoRewindTime = value
+      this.saveSettings()
+    },
     showSleepTimerOptions() {
       this.showSleepTimerLengthModal = true
+    },
+    showAutoSleepTimerRewindOptions() {
+      this.showAutoSleepTimerRewindLengthModal = true
     },
     showHapticFeedbackOptions() {
       this.moreMenuSetting = 'hapticFeedback'
@@ -285,6 +317,10 @@ export default {
     },
     toggleAutoSleepTimer() {
       this.settings.autoSleepTimer = !this.settings.autoSleepTimer
+      this.saveSettings()
+    },
+    toggleAutoSleepTimerAutoRewind() {
+      this.settings.autoSleepTimerAutoRewind = !this.settings.autoSleepTimerAutoRewind
       this.saveSettings()
     },
     toggleDisableSleepTimerFadeOut() {
@@ -364,6 +400,9 @@ export default {
       this.settings.sleepTimerLength = !isNaN(deviceSettings.sleepTimerLength) ? deviceSettings.sleepTimerLength : 900000 // 15 minutes
       this.settings.disableSleepTimerFadeOut = !!deviceSettings.disableSleepTimerFadeOut
       this.settings.disableSleepTimerResetFeedback = !!deviceSettings.disableSleepTimerResetFeedback
+
+      this.settings.autoSleepTimerAutoRewind = !!deviceSettings.autoSleepTimerAutoRewind
+      this.settings.autoSleepTimerAutoRewindTime = !isNaN(deviceSettings.autoSleepTimerAutoRewindTime) ? deviceSettings.autoSleepTimerAutoRewindTime : 300000 // 5 minutes
     }
   },
   mounted() {

@@ -1,6 +1,7 @@
 package com.audiobookshelf.app.managers
 
 import android.content.Context
+import android.media.metrics.PlaybackSession
 import android.os.*
 import android.util.Log
 import com.audiobookshelf.app.device.DeviceManager
@@ -21,6 +22,8 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
   private var sleepTimerElapsed:Long = 0L
   private var sleepTimerFinishedAt:Long = 0L
   private var isAutoSleepTimer:Boolean = false // When timer was auto-set
+  private var isFirstAutoSleepTimer: Boolean = true
+  private var sleepTimerSessionId:String = ""
 
   private fun getCurrentTime():Long {
     return playerNotificationService.getCurrentTime()
@@ -123,7 +126,8 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
     return true
   }
 
-  fun setManualSleepTimer(time: Long, isChapterTime:Boolean):Boolean {
+  fun setManualSleepTimer(playbackSessionId:String, time: Long, isChapterTime:Boolean):Boolean {
+    sleepTimerSessionId = playbackSessionId
     isAutoSleepTimer = false
     return setSleepTimer(time, isChapterTime)
   }
@@ -133,7 +137,6 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
     sleepTimerTask = null
     sleepTimerEndTime = 0
     sleepTimerRunning = false
-    isAutoSleepTimer = false
     playerNotificationService.unregisterSensor()
 
     setVolume(1f)
@@ -225,6 +228,17 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
         Log.d(tag, "Sleep timer finished over 2 mins ago, clearing it")
         sleepTimerFinishedAt = 0L
         return
+      }
+
+      // Automatically Rewind in the book if settings is enabled
+      if (isAutoSleepTimer) {
+        DeviceManager.deviceData.deviceSettings?.let { deviceSettings ->
+          if (deviceSettings.autoSleepTimerAutoRewind && !isFirstAutoSleepTimer) {
+            Log.i(tag, "Auto sleep timer auto rewind seeking back ${deviceSettings.autoSleepTimerAutoRewindTime}ms")
+            playerNotificationService.seekBackward(deviceSettings.autoSleepTimerAutoRewindTime)
+          }
+          isFirstAutoSleepTimer = false
+        }
       }
 
       // Set sleep timer
@@ -343,6 +357,13 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
       if (currentCalendar.after(startCalendar) && currentCalendar.before(endCalendar)) {
         Log.i(tag, "Current hour $currentHour is between ${deviceSettings.autoSleepTimerStartTime} and ${deviceSettings.autoSleepTimerEndTime} - starting sleep timer")
 
+        // Automatically Rewind in the book if settings is enabled
+        if (deviceSettings.autoSleepTimerAutoRewind && !isFirstAutoSleepTimer) {
+          Log.i(tag, "Auto sleep timer auto rewind seeking back ${deviceSettings.autoSleepTimerAutoRewindTime}ms")
+          playerNotificationService.seekBackward(deviceSettings.autoSleepTimerAutoRewindTime)
+        }
+        isFirstAutoSleepTimer = false
+
         // Set sleep timer
         //   When sleepTimerLength is 0 then use end of chapter/track time
         if (deviceSettings.sleepTimerLength == 0L) {
@@ -358,13 +379,23 @@ class SleepTimerManager constructor(private val playerNotificationService: Playe
           setSleepTimer(deviceSettings.sleepTimerLength, false)
         }
       } else {
+        isFirstAutoSleepTimer = true
         Log.d(tag, "Current hour $currentHour is NOT between ${deviceSettings.autoSleepTimerStartTime} and ${deviceSettings.autoSleepTimerEndTime}")
       }
     }
   }
 
-  fun handleMediaPlayEvent() {
-    checkShouldResetSleepTimer()
+  fun handleMediaPlayEvent(playbackSessionId:String) {
+    // Check if the playback session has changed
+    // If it hasn't changed OR the sleep timer is running then check reset the timer
+    //   e.g. You set a manual sleep timer for 10 mins, then decide to change books, the sleep timer will stay on and reset to 10 mins
+    if (sleepTimerSessionId == playbackSessionId || sleepTimerRunning) {
+      checkShouldResetSleepTimer()
+    } else {
+      isFirstAutoSleepTimer = true
+    }
+    sleepTimerSessionId = playbackSessionId
+
     checkAutoSleepTimer()
   }
 }
