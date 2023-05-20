@@ -126,7 +126,7 @@ data class DeviceSettings(
         autoSleepTimerEndTime = "06:00",
         sleepTimerLength = 900000L, // 15 minutes
         autoSleepTimerAutoRewind = false,
-        autoSleepTimerAutoRewindTime = 300000L,
+        autoSleepTimerAutoRewindTime = 300000L, // 5 minutes
         disableSleepTimerFadeOut = false,
         disableSleepTimerResetFeedback = false
       )

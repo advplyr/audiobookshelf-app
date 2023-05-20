@@ -39,6 +39,10 @@ object DeviceManager {
     if (deviceData.deviceSettings?.shakeSensitivity == null) {
       deviceData.deviceSettings?.shakeSensitivity = ShakeSensitivitySetting.MEDIUM
     }
+    // Initialize auto sleep timer auto rewind added in v0.9.64
+    if (deviceData.deviceSettings?.autoSleepTimerAutoRewindTime == null) {
+      deviceData.deviceSettings?.autoSleepTimerAutoRewindTime = 300000L // 5 minutes
+    }
   }
 
   fun getBase64Id(id:String):String {
