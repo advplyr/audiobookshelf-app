@@ -5,6 +5,8 @@
       <covers-group-cover v-if="series" ref="cover" :id="seriesId" :name="title" :book-items="books" :width="width" :height="height" :book-cover-aspect-ratio="bookCoverAspectRatio" />
     </div>
 
+    <div v-if="seriesPercentInProgress > 0" class="absolute bottom-0 left-0 h-1 shadow-sm max-w-full z-10 rounded-b w-full" :class="isSeriesFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: seriesPercentInProgress * 100 + '%' }" />
+
     <div v-if="isAltViewEnabled && isCategorized" class="absolute z-30 left-0 right-0 mx-auto -bottom-8 h-8 py-1 rounded-md text-center">
       <p class="truncate" :style="{ fontSize: labelFontSize + 'rem' }">{{ title }}</p>
     </div>
@@ -52,6 +54,27 @@ export default {
     },
     books() {
       return this.series ? this.series.books || [] : []
+    },
+    seriesBookProgress() {
+      return this.books
+        .map((libraryItem) => {
+          return this.store.getters['user/getUserMediaProgress'](libraryItem.id)
+        })
+        .filter((p) => !!p)
+    },
+    seriesBooksFinished() {
+      return this.seriesBookProgress.filter((p) => p.isFinished)
+    },
+    hasSeriesBookInProgress() {
+      return this.seriesBookProgress.some((p) => !p.isFinished && p.progress > 0)
+    },
+    seriesPercentInProgress() {
+      let totalFinishedAndInProgress = this.seriesBooksFinished.length
+      if (this.hasSeriesBookInProgress) totalFinishedAndInProgress += 1
+      return Math.min(1, Math.max(0, totalFinishedAndInProgress / this.books.length))
+    },
+    isSeriesFinished() {
+      return this.books.length === this.seriesBooksFinished.length
     },
     store() {
       return this.$store || this.$nuxt.$store
