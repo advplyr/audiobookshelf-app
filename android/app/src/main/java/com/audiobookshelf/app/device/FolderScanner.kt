@@ -72,7 +72,7 @@ class FolderScanner(var ctx: Context) {
        Log.d(tag, "Iterating over Folder Found ${itemFolder.name} | ${itemFolder.getSimplePath(ctx)} | URI: ${itemFolder.uri}")
        val existingItem = existingLocalLibraryItems.find { emi -> emi.id == getLocalLibraryItemId(itemFolder.id) }
 
-       val filesInFolder = itemFolder.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*", "video/mp4", "application/octet-stream"))
+       val filesInFolder = itemFolder.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*", "video/mp4", "application/*"))
 
        // Do not scan folders that have no media items and not an existing item already
        if (existingItem != null || filesInFolder.isNotEmpty()) {
@@ -110,6 +110,8 @@ class FolderScanner(var ctx: Context) {
     var startOffset = 0.0
     var coverContentUrl:String? = null
     var coverAbsolutePath:String? = null
+    var hasEBookFile = false
+    var newEBookFile:EBookFile? = null
 
     val existingLocalFilesRemoved = existingLocalFiles.filter { elf ->
       filesInFolder.find { fif -> DeviceManager.getBase64Id(fif.id) == elf.id } == null // File was not found in media item folder
@@ -122,7 +124,6 @@ class FolderScanner(var ctx: Context) {
     filesInFolder.forEach { file ->
       val mimeType = file.mimeType ?: ""
       val filename = file.name ?: ""
-      val isAudio = mimeType.startsWith("audio") || mimeType == "video/mp4"
       Log.d(tag, "Found $mimeType file $filename in folder $itemFolderName")
 
       val localFileId = DeviceManager.getBase64Id(file.id)
@@ -132,7 +133,7 @@ class FolderScanner(var ctx: Context) {
 
       Log.d(tag, "File attributes Id:${localFileId}|ContentUrl:${localFile.contentUrl}|isDownloadsDocument:${file.isDownloadsDocument}")
 
-      if (isAudio) {
+      if (localFile.isAudioFile()) {
         val audioTrackToAdd:AudioTrack?
 
         val existingAudioTrack = existingAudioTracks.find { eat -> eat.localFileId == localFileId }
@@ -174,6 +175,15 @@ class FolderScanner(var ctx: Context) {
         startOffset += audioTrackToAdd.duration
         index++
         audioTracks.add(audioTrackToAdd)
+      } else if (localFile.isEBookFile()) {
+        val existingLocalFile = existingLocalFiles.find { elf -> elf.id == localFileId }
+
+        if (localFolder.mediaType == "book") {
+          hasEBookFile = true
+          if (existingLocalFile == null) {
+            newEBookFile = EBookFile(localFileId, null, localFile.getEBookFormat() ?: "", true, localFileId, localFile.contentUrl)
+          }
+        }
       } else {
         val existingLocalFile = existingLocalFiles.find { elf -> elf.id == localFileId }
 
@@ -198,7 +208,7 @@ class FolderScanner(var ctx: Context) {
       }
     }
 
-    if (existingItem != null && audioTracks.isEmpty()) {
+    if (existingItem != null && audioTracks.isEmpty() && !hasEBookFile) {
       Log.d(tag, "Local library item ${existingItem.media.metadata.title} no longer has audio tracks - removing item")
       DeviceManager.dbManager.removeLocalLibraryItem(existingItem.id)
       return ItemScanResult.REMOVED
@@ -210,9 +220,9 @@ class FolderScanner(var ctx: Context) {
       existingItem.updateFromScan(audioTracks,localFiles)
       DeviceManager.dbManager.saveLocalLibraryItem(existingItem)
       return ItemScanResult.UPDATED
-    } else if (audioTracks.isNotEmpty()) {
+    } else if (audioTracks.isNotEmpty() || newEBookFile != null) {
       Log.d(tag, "Found local media item named $itemFolderName with ${audioTracks.size} tracks and ${localFiles.size} local files")
-      val localMediaItem = LocalMediaItem(itemId, itemFolderName, localFolder.mediaType, localFolder.id, itemFolder.uri.toString(), itemFolder.getSimplePath(ctx), itemFolder.getBasePath(ctx), itemFolder.getAbsolutePath(ctx),audioTracks,localFiles,coverContentUrl,coverAbsolutePath)
+      val localMediaItem = LocalMediaItem(itemId, itemFolderName, localFolder.mediaType, localFolder.id, itemFolder.uri.toString(), itemFolder.getSimplePath(ctx), itemFolder.getBasePath(ctx), itemFolder.getAbsolutePath(ctx),audioTracks,newEBookFile,localFiles,coverContentUrl,coverAbsolutePath)
       val localLibraryItem = localMediaItem.getLocalLibraryItem()
       DeviceManager.dbManager.saveLocalLibraryItem(localLibraryItem)
       return ItemScanResult.ADDED
@@ -257,7 +267,7 @@ class FolderScanner(var ctx: Context) {
 
     // Search for files in media item folder
     // m4b files showing as mimeType application/octet-stream on Android 10 and earlier see #154
-    val filesFound = df.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*", "video/mp4", "application/octet-stream"))
+    val filesFound = df.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*", "video/mp4", "application/*"))
     Log.d(tag, "scanDownloadItem ${filesFound.size} files found in ${downloadItem.itemFolderPath}")
 
     var localEpisodeId:String? = null
@@ -274,6 +284,7 @@ class FolderScanner(var ctx: Context) {
     }
 
     val audioTracks:MutableList<AudioTrack> = mutableListOf()
+    var foundEBookFile = false
 
     filesFound.forEach { docFile ->
       val itemPart = downloadItem.downloadItemParts.find { itemPart ->
@@ -304,6 +315,16 @@ class FolderScanner(var ctx: Context) {
           localEpisodeId = newEpisode.id
           Log.d(tag, "scanDownloadItem: Added episode to podcast ${podcastEpisode.title} ${track.title} | Track index: ${podcastEpisode.audioTrack?.index}")
         }
+      } else if (itemPart.ebookFile != null) { // Ebook
+        foundEBookFile = true
+        Log.d(tag, "scanDownloadItem: Ebook file found with mimetype=${docFile.mimeType}")
+        val localFileId = DeviceManager.getBase64Id(docFile.id)
+        val localFile = LocalFile(localFileId,docFile.name,docFile.uri.toString(),docFile.getBasePath(ctx),docFile.getAbsolutePath(ctx),docFile.getSimplePath(ctx),docFile.mimeType,docFile.length())
+        localLibraryItem.localFiles.add(localFile)
+
+        val ebookFile = EBookFile(itemPart.ebookFile.ino, itemPart.ebookFile.metadata, itemPart.ebookFile.ebookFormat, true, localFileId, localFile.contentUrl)
+        (localLibraryItem.media as Book).ebookFile = ebookFile
+        Log.d(tag, "scanDownloadItem: Ebook file added to lli ${localFile.contentUrl}")
       } else { // Cover image
         val localFileId = DeviceManager.getBase64Id(docFile.id)
         val localFile = LocalFile(localFileId,docFile.name,docFile.uri.toString(),docFile.getBasePath(ctx),docFile.getAbsolutePath(ctx),docFile.getSimplePath(ctx),docFile.mimeType,docFile.length())
@@ -314,8 +335,8 @@ class FolderScanner(var ctx: Context) {
       }
     }
 
-    if (audioTracks.isEmpty()) {
-      Log.d(tag, "scanDownloadItem did not find any audio tracks in folder for ${downloadItem.itemFolderPath}")
+    if (audioTracks.isEmpty() && !foundEBookFile) {
+      Log.d(tag, "scanDownloadItem did not find any audio tracks or ebook file in folder for ${downloadItem.itemFolderPath}")
       return cb(null)
     }
 
@@ -350,6 +371,8 @@ class FolderScanner(var ctx: Context) {
         progress = mediaProgress.progress,
         currentTime = mediaProgress.currentTime,
         isFinished = false,
+        ebookLocation = mediaProgress.ebookLocation,
+        ebookProgress = mediaProgress.ebookProgress,
         lastUpdate = mediaProgress.lastUpdate,
         startedAt = mediaProgress.startedAt,
         finishedAt = mediaProgress.finishedAt,
@@ -381,7 +404,7 @@ class FolderScanner(var ctx: Context) {
     var wasUpdated = false
 
     // Search for files in media item folder
-    val filesFound = df.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*", "video/mp4", "application/octet-stream"))
+    val filesFound = df.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*", "video/mp4", "application/*"))
     Log.d(tag, "scanLocalLibraryItem ${filesFound.size} files found in ${localLibraryItem.absolutePath}")
 
     filesFound.forEach {
@@ -427,7 +450,7 @@ class FolderScanner(var ctx: Context) {
           val audioProbeResult = probeAudioFile(localFile.absolutePath)
 
           val existingTrack = existingAudioTracks.find { audioTrack ->
-            audioTrack.localFileId == localFile.id
+            audioTrack.localFileId == localFileId
           }
 
           if (existingTrack == null) {
@@ -445,6 +468,16 @@ class FolderScanner(var ctx: Context) {
             Log.d(tag, "Updated Audio Track Probe Data ${existingTrack.title}")
 
             wasUpdated = true
+          }
+        } else if (localFile.isEBookFile()) {
+          if (localLibraryItem.mediaType == "book") {
+            val existingEbookFile = (localLibraryItem.media as Book).ebookFile
+            if (existingEbookFile == null || existingEbookFile.localFileId != localFileId) {
+              val ebookFile = EBookFile(localFileId, null, localFile.getEBookFormat() ?: "", true, localFileId, localFile.contentUrl)
+              (localLibraryItem.media as Book).ebookFile = ebookFile
+              Log.d(tag, "scanLocalLibraryItem: Ebook file added to lli ${localFile.contentUrl}")
+              wasUpdated = true
+            }
           }
         } else { // Check if cover is empty
           if (localLibraryItem.coverContentUrl == null) {

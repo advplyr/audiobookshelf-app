@@ -2,7 +2,6 @@ package com.audiobookshelf.app.plugins
 
 import android.app.DownloadManager
 import android.content.Context
-import android.os.Build
 import android.os.Environment
 import android.util.Log
 import com.audiobookshelf.app.MainActivity
@@ -142,6 +141,28 @@ class AbsDownloader : Plugin() {
       val itemFolderPath = "${localFolder.absolutePath}/$itemSubfolder"
       val downloadItem = DownloadItem(libraryItem.id, libraryItem.id, null, libraryItem.userMediaProgress,DeviceManager.serverConnectionConfig?.id ?: "", DeviceManager.serverAddress, DeviceManager.serverUserId, libraryItem.mediaType, itemFolderPath, localFolder, bookTitle, itemSubfolder, libraryItem.media, mutableListOf())
 
+      val book = libraryItem.media as Book
+      book.ebookFile?.let { ebookFile ->
+        val fileSize = ebookFile.metadata?.size ?: 0
+        val serverPath = "/s/item/${libraryItem.id}/${cleanRelPath(ebookFile.metadata?.relPath ?: "")}"
+        val destinationFilename = getFilenameFromRelPath(ebookFile.metadata?.relPath ?: "")
+        val finalDestinationFile = File("$itemFolderPath/$destinationFilename")
+        val destinationFile = File("$tempFolderPath/$destinationFilename")
+
+        if (destinationFile.exists()) {
+          Log.d(tag, "TEMP ebook file already exists, removing it from ${destinationFile.absolutePath}")
+          destinationFile.delete()
+        }
+
+        if (finalDestinationFile.exists()) {
+          Log.d(tag, "ebook file already exists, removing it from ${finalDestinationFile.absolutePath}")
+          finalDestinationFile.delete()
+        }
+
+        val downloadItemPart = DownloadItemPart.make(downloadItem.id, destinationFilename, fileSize, destinationFile,finalDestinationFile,itemSubfolder,serverPath,localFolder,ebookFile,null,null)
+        downloadItem.downloadItemParts.add(downloadItemPart)
+      }
+
       // Create download item part for each audio track
       tracks.forEach { audioTrack ->
         val fileSize = audioTrack.metadata?.size ?: 0
@@ -162,7 +183,7 @@ class AbsDownloader : Plugin() {
           finalDestinationFile.delete()
         }
 
-        val downloadItemPart = DownloadItemPart.make(downloadItem.id, destinationFilename, fileSize, destinationFile,finalDestinationFile,itemSubfolder,serverPath,localFolder,audioTrack,null)
+        val downloadItemPart = DownloadItemPart.make(downloadItem.id, destinationFilename, fileSize, destinationFile,finalDestinationFile,itemSubfolder,serverPath,localFolder,null,audioTrack,null)
         downloadItem.downloadItemParts.add(downloadItemPart)
       }
 
@@ -187,7 +208,7 @@ class AbsDownloader : Plugin() {
             finalDestinationFile.delete()
           }
 
-          val downloadItemPart = DownloadItemPart.make(downloadItem.id, destinationFilename, coverFileSize,  destinationFile,finalDestinationFile,itemSubfolder,serverPath,localFolder,null,null)
+          val downloadItemPart = DownloadItemPart.make(downloadItem.id, destinationFilename, coverFileSize,  destinationFile,finalDestinationFile,itemSubfolder,serverPath,localFolder,null,null,null)
           downloadItem.downloadItemParts.add(downloadItemPart)
         }
 
@@ -216,7 +237,7 @@ class AbsDownloader : Plugin() {
         finalDestinationFile.delete()
       }
 
-      var downloadItemPart = DownloadItemPart.make(downloadItem.id, destinationFilename,fileSize, destinationFile,finalDestinationFile,podcastTitle,serverPath,localFolder,audioTrack,episode)
+      var downloadItemPart = DownloadItemPart.make(downloadItem.id, destinationFilename,fileSize, destinationFile,finalDestinationFile,podcastTitle,serverPath,localFolder,null,audioTrack,episode)
       downloadItem.downloadItemParts.add(downloadItemPart)
 
       if (libraryItem.media.coverPath != null && libraryItem.media.coverPath?.isNotEmpty() == true) {
@@ -232,7 +253,7 @@ class AbsDownloader : Plugin() {
         if (finalDestinationFile.exists()) {
           Log.d(tag, "Podcast cover already exists - not downloading cover again")
         } else {
-          downloadItemPart = DownloadItemPart.make(downloadItem.id, destinationFilename,coverFileSize,destinationFile,finalDestinationFile,podcastTitle,serverPath,localFolder,null,null)
+          downloadItemPart = DownloadItemPart.make(downloadItem.id, destinationFilename,coverFileSize,destinationFile,finalDestinationFile,podcastTitle,serverPath,localFolder,null,null,null)
           downloadItem.downloadItemParts.add(downloadItemPart)
         }
       }

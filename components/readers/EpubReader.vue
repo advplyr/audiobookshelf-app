@@ -20,7 +20,8 @@ export default {
     libraryItem: {
       type: Object,
       default: () => {}
-    }
+    },
+    isLocal: Boolean
   },
   data() {
     return {
@@ -41,6 +42,22 @@ export default {
     libraryItemId() {
       return this.libraryItem?.id
     },
+    localLibraryItem() {
+      if (this.isLocal) return this.libraryItem
+      return this.libraryItem.localLibraryItem || null
+    },
+    localLibraryItemId() {
+      return this.localLibraryItem?.id
+    },
+    serverLibraryItemId() {
+      if (!this.isLocal) return this.libraryItem.id
+      // Check if local library item is connected to the current server
+      if (!this.libraryItem.serverAddress || !this.libraryItem.libraryItemId) return null
+      if (this.$store.getters['user/getServerAddress'] === this.libraryItem.serverAddress) {
+        return this.libraryItem.libraryItemId
+      }
+      return null
+    },
     playerLibraryItemId() {
       return this.$store.state.playerLibraryItemId
     },
@@ -51,9 +68,15 @@ export default {
     chapters() {
       return this.book ? this.book.navigation.toc : []
     },
-    userMediaProgress() {
-      if (!this.libraryItemId) return
-      return this.$store.getters['user/getUserMediaProgress'](this.libraryItemId)
+    userItemProgress() {
+      if (this.isLocal) return this.localItemProgress
+      return this.serverItemProgress
+    },
+    localItemProgress() {
+      return this.$store.getters['globals/getLocalMediaProgressById'](this.localLibraryItemId)
+    },
+    serverItemProgress() {
+      return this.$store.getters['user/getUserMediaProgress'](this.serverLibraryItemId)
     },
     localStorageLocationsKey() {
       return `ebookLocations-${this.libraryItemId}`
@@ -80,10 +103,25 @@ export default {
      * @param {string} payload.ebookLocation - CFI of the current location
      * @param {string} payload.ebookProgress - eBook Progress Percentage
      */
-    updateProgress(payload) {
-      this.$axios.$patch(`/api/me/progress/${this.libraryItemId}`, payload).catch((error) => {
-        console.error('EpubReader.updateProgress failed:', error)
-      })
+    async updateProgress(payload) {
+      // Update local item
+      if (this.localLibraryItemId) {
+        const localPayload = {
+          localLibraryItemId: this.localLibraryItemId,
+          ...payload
+        }
+        const localResponse = await this.$db.updateLocalEbookProgress(localPayload)
+        if (localResponse.localMediaProgress) {
+          this.$store.commit('globals/updateLocalMediaProgress', localResponse.localMediaProgress)
+        }
+      }
+
+      // Update server item
+      if (this.serverLibraryItemId) {
+        this.$axios.$patch(`/api/me/progress/${this.serverLibraryItemId}`, payload).catch((error) => {
+          console.error('EpubReader.updateProgress failed:', error)
+        })
+      }
     },
     getAllEbookLocationData() {
       const locations = []
@@ -172,7 +210,7 @@ export default {
     },
     /** @param {string} location - CFI of the new location */
     relocated(location) {
-      if (this.userMediaProgress?.ebookLocation === location.start.cfi) {
+      if (this.userItemProgress?.ebookLocation === location.start.cfi) {
         return
       }
 
@@ -189,7 +227,7 @@ export default {
       }
     },
     initEpub() {
-      this.progress = Math.round((this.userMediaProgress?.ebookProgress || 0) * 100)
+      this.progress = Math.round((this.userItemProgress?.ebookProgress || 0) * 100)
 
       /** @type {EpubReader} */
       const reader = this
@@ -210,7 +248,7 @@ export default {
       })
 
       // load saved progress
-      reader.rendition.display(this.userMediaProgress?.ebookLocation || reader.book.locations.start)
+      reader.rendition.display(this.userItemProgress?.ebookLocation || reader.book.locations.start)
 
       // load style
       reader.rendition.themes.default({ '*': { color: '#fff!important' } })

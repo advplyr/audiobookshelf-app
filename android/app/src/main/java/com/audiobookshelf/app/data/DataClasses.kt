@@ -126,6 +126,7 @@ class Book(
   var audioFiles:List<AudioFile>?,
   var chapters:List<BookChapter>?,
   var tracks:MutableList<AudioTrack>?,
+  var ebookFile: EBookFile?,
   var size:Long?,
   var duration:Double?,
   var numTracks:Int?
@@ -179,7 +180,7 @@ class Book(
   }
   @JsonIgnore
   override fun getLocalCopy(): Book {
-    return Book(metadata as BookMetadata,coverPath,tags, mutableListOf(),chapters,mutableListOf(),null,null, 0)
+    return Book(metadata as BookMetadata,coverPath,tags, mutableListOf(),chapters,mutableListOf(), ebookFile, null,null, 0)
   }
 }
 

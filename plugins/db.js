@@ -86,9 +86,14 @@ class DbService {
     return AbsDatabase.updateLocalTrackOrder(payload)
   }
 
-  // input: { localMediaProgressId:String, isFinished:Boolean }
+  // input: { localLibraryItemId:String, localEpisodeId:String, isFinished:Boolean }
   updateLocalMediaProgressFinished(payload) {
     return AbsDatabase.updateLocalMediaProgressFinished(payload)
+  }
+
+  // input: { localLibraryItemId:String, ebookLocation:String, ebookProgress:Double }
+  updateLocalEbookProgress(payload) {
+    return AbsDatabase.updateLocalEbookProgress(payload)
   }
 
   updateDeviceSettings(payload) {

@@ -12,6 +12,8 @@ class MediaProgress(
   progress:Double, // 0 to 1
   currentTime:Double,
   isFinished:Boolean,
+  var ebookLocation:String?, // cfi tag
+  var ebookProgress:Double?, // 0 to 1
   var lastUpdate:Long,
   var startedAt:Long,
   var finishedAt:Long?

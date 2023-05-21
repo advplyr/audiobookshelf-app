@@ -5,11 +5,13 @@
       <div class="flex-grow" />
       <span class="material-icons text-xl text-white" @click.stop="show = false">close</span>
     </div>
-    <component v-if="readerComponentName" ref="readerComponent" :is="readerComponentName" :url="ebookUrl" :library-item="selectedLibraryItem" />
+    <component v-if="readerComponentName" ref="readerComponent" :is="readerComponentName" :url="ebookUrl" :library-item="selectedLibraryItem" :is-local="isLocal" />
   </div>
 </template>
 
 <script>
+import { Capacitor } from '@capacitor/core'
+
 export default {
   data() {
     return {
@@ -66,11 +68,10 @@ export default {
       return this.selectedLibraryItem ? this.selectedLibraryItem.libraryId : null
     },
     ebookFile() {
-      return this.media ? this.media.ebookFile : null
+      return this.media?.ebookFile || null
     },
     ebookFormat() {
-      if (!this.ebookFile) return null
-      return this.ebookFile.ebookFormat
+      return this.ebookFile?.ebookFormat || null
     },
     ebookType() {
       if (this.isMobi) return 'mobi'
@@ -91,8 +92,17 @@ export default {
     isComic() {
       return this.ebookFormat == 'cbz' || this.ebookFormat == 'cbr'
     },
+    isLocal() {
+      return !!this.ebookFile?.isLocal
+    },
+    localContentUrl() {
+      return this.ebookFile?.contentUrl
+    },
     ebookUrl() {
       if (!this.ebookFile) return null
+      if (this.localContentUrl) {
+        return Capacitor.convertFileSrc(this.localContentUrl)
+      }
       let filepath = ''
       if (this.selectedLibraryItem.isFile) {
         filepath = this.$encodeUriPath(this.ebookFile.metadata.filename)

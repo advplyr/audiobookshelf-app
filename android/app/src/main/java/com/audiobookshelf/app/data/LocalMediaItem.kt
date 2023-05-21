@@ -18,6 +18,7 @@ data class LocalMediaItem(
   var basePath:String,
   var absolutePath:String,
   var audioTracks:MutableList<AudioTrack>,
+  var ebookFile:EBookFile?,
   var localFiles:MutableList<LocalFile>,
   var coverContentUrl:String?,
   var coverAbsolutePath:String?
@@ -61,7 +62,7 @@ data class LocalMediaItem(
     val mediaMetadata = getMediaMetadata()
     if (mediaType == "book") {
       val chapters = getAudiobookChapters()
-      val book = Book(mediaMetadata as BookMetadata, coverAbsolutePath, mutableListOf(), mutableListOf(), chapters,audioTracks,getTotalSize(),getDuration(),audioTracks.size)
+      val book = Book(mediaMetadata as BookMetadata, coverAbsolutePath, mutableListOf(), mutableListOf(), chapters,audioTracks,ebookFile,getTotalSize(),getDuration(),audioTracks.size)
       return LocalLibraryItem(id, folderId, basePath,absolutePath, contentUrl,  false,mediaType, book, localFiles, coverContentUrl, coverAbsolutePath,true,null,null,null,null)
     } else {
       val podcast = Podcast(mediaMetadata as PodcastMetadata, coverAbsolutePath, mutableListOf(), mutableListOf(), false, 0)

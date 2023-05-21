@@ -13,6 +13,8 @@ class LocalMediaProgress(
   progress:Double, // 0 to 1
   currentTime:Double,
   isFinished:Boolean,
+  var ebookLocation:String?, // cfi tag
+  var ebookProgress:Double?, // 0 to 1
   var lastUpdate:Long,
   var startedAt:Long,
   var finishedAt:Long?,
@@ -59,10 +61,19 @@ class LocalMediaProgress(
   }
 
   @JsonIgnore
+  fun updateEbookProgress(ebookLocation:String, ebookProgress:Double) {
+    lastUpdate = System.currentTimeMillis()
+    this.ebookProgress = ebookProgress
+    this.ebookLocation = ebookLocation
+  }
+
+  @JsonIgnore
   fun updateFromServerMediaProgress(serverMediaProgress:MediaProgress) {
     isFinished = serverMediaProgress.isFinished
     progress = serverMediaProgress.progress
     currentTime = serverMediaProgress.currentTime
+    ebookProgress = serverMediaProgress.ebookProgress
+    ebookLocation = serverMediaProgress.ebookLocation
     duration = serverMediaProgress.duration
     lastUpdate = serverMediaProgress.lastUpdate
     finishedAt = serverMediaProgress.finishedAt

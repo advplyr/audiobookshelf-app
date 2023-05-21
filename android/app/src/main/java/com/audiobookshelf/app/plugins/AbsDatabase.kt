@@ -265,6 +265,8 @@ class AbsDatabase : Plugin() {
           progress = mediaProgress.progress,
           currentTime = mediaProgress.currentTime,
           isFinished = mediaProgress.isFinished,
+          ebookLocation = mediaProgress.ebookLocation,
+          ebookProgress = mediaProgress.ebookProgress,
           lastUpdate = mediaProgress.lastUpdate,
           startedAt = mediaProgress.startedAt,
           finishedAt = mediaProgress.finishedAt,
@@ -345,6 +347,8 @@ class AbsDatabase : Plugin() {
         progress = if (isFinished) 1.0 else 0.0,
         currentTime = 0.0,
         isFinished = isFinished,
+        ebookLocation = null,
+        ebookProgress = null,
         lastUpdate = currentTime,
         startedAt = if (isFinished) currentTime else 0L,
         finishedAt = if (isFinished) currentTime else null,
@@ -387,6 +391,55 @@ class AbsDatabase : Plugin() {
       jsobj.put("localMediaProgress", JSObject(lmpstring))
       call.resolve(jsobj)
     }
+  }
+
+  @PluginMethod
+  fun updateLocalEbookProgress(call:PluginCall) {
+    val localLibraryItemId = call.getString("localLibraryItemId", "").toString()
+    val ebookLocation = call.getString("ebookLocation", "").toString()
+    val ebookProgress = call.getDouble("ebookProgress") ?: 0.0
+
+    val localMediaProgressId = localLibraryItemId
+    var localMediaProgress = DeviceManager.dbManager.getLocalMediaProgress(localMediaProgressId)
+
+    if (localMediaProgress == null) {
+      Log.d(tag, "updateLocalEbookProgress Local Media Progress not found $localMediaProgressId - Creating new")
+      val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(localLibraryItemId)
+        ?: return call.resolve(JSObject("{\"error\":\"Library Item not found\"}"))
+
+      val book = localLibraryItem.media as Book
+
+      localMediaProgress = LocalMediaProgress(
+        id = localMediaProgressId,
+        localLibraryItemId = localLibraryItemId,
+        localEpisodeId = null,
+        duration = book.duration ?: 0.0,
+        progress = 0.0,
+        currentTime = 0.0,
+        isFinished = false,
+        ebookLocation = ebookLocation,
+        ebookProgress = ebookProgress,
+        lastUpdate = System.currentTimeMillis(),
+        startedAt = 0L,
+        finishedAt = null,
+        serverConnectionConfigId = localLibraryItem.serverConnectionConfigId,
+        serverAddress = localLibraryItem.serverAddress,
+        serverUserId = localLibraryItem.serverUserId,
+        libraryItemId = localLibraryItem.libraryItemId,
+        episodeId = null)
+    } else {
+      localMediaProgress.updateEbookProgress(ebookLocation, ebookProgress)
+    }
+
+    // Save local media progress locally
+    DeviceManager.dbManager.saveLocalMediaProgress(localMediaProgress)
+
+    val lmpstring = jacksonMapper.writeValueAsString(localMediaProgress)
+    Log.d(tag, "updateLocalEbookProgress: Local Media Progress String $lmpstring")
+
+    val jsobj = JSObject()
+    jsobj.put("localMediaProgress", JSObject(lmpstring))
+    call.resolve(jsobj)
   }
 
   @PluginMethod

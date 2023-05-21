@@ -357,7 +357,7 @@ export default {
     },
     showDownload() {
       if (this.isPodcast || this.hasLocal) return false
-      return this.user && this.userCanDownload && this.showPlay
+      return this.user && this.userCanDownload && (this.showPlay || (this.showRead && !this.isIos))
     },
     ebookFile() {
       return this.media.ebookFile
@@ -481,7 +481,12 @@ export default {
       this.showMoreMenu = true
     },
     readBook() {
-      this.$store.commit('openReader', this.libraryItem)
+      if (this.localLibraryItem?.media?.ebookFile) {
+        // Has local ebook file
+        this.$store.commit('openReader', this.localLibraryItem)
+      } else {
+        this.$store.commit('openReader', this.libraryItem)
+      }
     },
     playAtTimestamp(seconds) {
       this.play(seconds)
@@ -607,9 +612,6 @@ export default {
       if (this.downloadItem) {
         return
       }
-      if (!this.numTracks) {
-        return
-      }
       await this.$hapticsImpact()
       if (this.isIos) {
         // no local folders on iOS
@@ -647,7 +649,14 @@ export default {
 
       console.log('Local folder', JSON.stringify(localFolder))
 
-      var startDownloadMessage = `Start download for "${this.title}" with ${this.numTracks} audio track${this.numTracks == 1 ? '' : 's'} to folder ${localFolder.name}?`
+      let startDownloadMessage = `Start download for "${this.title}" with ${this.numTracks} audio track${this.numTracks == 1 ? '' : 's'} to folder ${localFolder.name}?`
+      if (!this.isIos && this.showRead) {
+        if (this.numTracks > 0) {
+          startDownloadMessage = `Start download for "${this.title}" with ${this.numTracks} audio track${this.numTracks == 1 ? '' : 's'} and ebook file to folder ${localFolder.name}?`
+        } else {
+          startDownloadMessage = `Start download for "${this.title}" with ebook file to folder ${localFolder.name}?`
+        }
+      }
       const { value } = await Dialog.confirm({
         title: 'Confirm',
         message: startDownloadMessage
@@ -704,11 +713,7 @@ export default {
             this.$store.commit('globals/updateLocalMediaProgress', localMediaProgress)
           }
 
-          var lmp = this.$store.getters['globals/getLocalMediaProgressById'](this.libraryItemId)
-          console.log('toggleFinished Check LMP', this.libraryItemId, JSON.stringify(lmp))
-
-          var serverUpdated = payload.server
-          if (serverUpdated) {
+          if (payload.server) {
             this.$toast.success(`Local & Server Item marked as ${isFinished ? 'Finished' : 'Not Finished'}`)
           } else {
             this.$toast.success(`Local Item marked as ${isFinished ? 'Finished' : 'Not Finished'}`)

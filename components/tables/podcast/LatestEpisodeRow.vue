@@ -284,11 +284,7 @@ export default {
             this.$store.commit('globals/updateLocalMediaProgress', localMediaProgress)
           }
 
-          var lmp = this.$store.getters['globals/getLocalMediaProgressById'](this.libraryItemId, this.episode.id)
-          console.log('toggleFinished Check LMP', this.libraryItemId, this.episode.id, JSON.stringify(lmp))
-
-          var serverUpdated = payload.server
-          if (serverUpdated) {
+          if (payload.server) {
             this.$toast.success(`Local & Server Item marked as ${isFinished ? 'Finished' : 'Not Finished'}`)
           } else {
             this.$toast.success(`Local Item marked as ${isFinished ? 'Finished' : 'Not Finished'}`)

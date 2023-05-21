@@ -264,6 +264,6 @@ class PlaybackSession(
 
   @JsonIgnore
   fun getNewLocalMediaProgress():LocalMediaProgress {
-    return LocalMediaProgress(localMediaProgressId,localLibraryItemId,localEpisodeId,getTotalDuration(),progress,currentTime,false,updatedAt,startedAt,null,serverConnectionConfigId,serverAddress,userId,libraryItemId,episodeId)
+    return LocalMediaProgress(localMediaProgressId,localLibraryItemId,localEpisodeId,getTotalDuration(),progress,currentTime,false,null,null,updatedAt,startedAt,null,serverConnectionConfigId,serverAddress,userId,libraryItemId,episodeId)
   }
 }
