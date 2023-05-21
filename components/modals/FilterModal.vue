@@ -1,7 +1,7 @@
 <template>
   <modals-modal v-model="show" width="90%" height="100%">
     <template #outer>
-      <div v-show="selected !== 'all'" class="absolute top-6 left-4 z-40">
+      <div v-show="selected !== 'all'" class="absolute top-10 left-4 z-40">
         <ui-btn class="text-xl border-yellow-400 border-opacity-40" @click="clearSelected">Clear</ui-btn>
       </div>
     </template>

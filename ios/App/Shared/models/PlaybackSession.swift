@@ -44,6 +44,7 @@ class PlaybackSession: Object, Codable, Deletable {
             }
         }
         return [
+            "deviceId": UIDevice.current.identifierForVendor?.uuidString,
             "manufacturer": "Apple",
             "model": modelCode,
             "clientVersion": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String

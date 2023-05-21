@@ -165,6 +165,7 @@ class ApiClient {
             "forceTranscode": forceTranscode ? "1" : "",
             "mediaPlayer": "AVPlayer",
             "deviceInfo": [
+                "deviceId": UIDevice.current.identifierForVendor?.uuidString,
                 "manufacturer": "Apple",
                 "model": modelCode,
                 "clientVersion": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
