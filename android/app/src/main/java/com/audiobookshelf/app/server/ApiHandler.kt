@@ -326,11 +326,11 @@ class ApiHandler(var ctx:Context) {
             if (localSessionSyncResult.progressSynced == true) {
               val syncResult = SyncResult(true, true, "Progress synced on server")
               MediaEventManager.saveEvent(session, syncResult)
-              DeviceManager.dbManager.removePlaybackSession(session.id)
               Log.i(tag, "Successfully synced session ${session.displayTitle} with server")
             } else if (!localSessionSyncResult.success) {
               Log.e(tag, "Failed to sync session ${session.displayTitle} with server. Error: ${localSessionSyncResult.error}")
             }
+            DeviceManager.dbManager.removePlaybackSession(session.id)
           }
         }
         cb(true, null)
