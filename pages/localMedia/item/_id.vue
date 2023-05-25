@@ -18,8 +18,8 @@
       <div v-if="isScanning" class="w-full text-center p-4">
         <p>Scanning...</p>
       </div>
-      <div v-else class="w-full max-w-full media-item-container overflow-y-auto overflow-x-hidden relative" :class="{ 'media-order-changed': orderChanged }">
-        <div v-if="!isPodcast" class="w-full">
+      <div v-else class="w-full max-w-full media-item-container overflow-y-auto overflow-x-hidden relative pb-4" :class="{ 'media-order-changed': orderChanged }">
+        <div v-if="!isPodcast && audioTracksCopy.length" class="w-full py-2">
           <p class="text-base mb-2">Audio Tracks ({{ audioTracks.length }})</p>
 
           <draggable v-model="audioTracksCopy" v-bind="dragOptions" handle=".drag-handle" draggable=".item" tag="div" @start="drag = true" @end="drag = false" @update="draggableUpdate" :disabled="isIos">
@@ -47,7 +47,8 @@
             </transition-group>
           </draggable>
         </div>
-        <div v-else class="w-full">
+
+        <div v-if="isPodcast" class="w-full py-2">
           <p class="text-base mb-2">Episodes ({{ episodes.length }})</p>
           <template v-for="episode in episodes">
             <div :key="episode.id" class="flex items-center my-1">
@@ -68,7 +69,24 @@
           </template>
         </div>
 
-        <p v-if="otherFiles.length" class="text-lg mb-2 pt-8">Other Files</p>
+        <div v-if="localFileForEbook" class="w-full py-2">
+          <p class="text-base mb-2">EBook File</p>
+
+          <div class="flex items-center my-1">
+            <div class="w-10 h-12 flex items-center justify-center" style="min-width: 40px">
+              <p class="font-mono font-bold text-sm">{{ ebookFile.ebookFormat }}</p>
+            </div>
+            <div class="flex-grow px-2">
+              <p class="text-xs">{{ localFileForEbook.filename }}</p>
+            </div>
+            <div class="w-24 text-center text-gray-300" style="min-width: 96px">
+              <p class="text-xs">{{ localFileForEbook.mimeType }}</p>
+              <p class="text-sm">{{ $bytesPretty(localFileForEbook.size) }}</p>
+            </div>
+          </div>
+        </div>
+
+        <p v-if="otherFiles.length" class="text-lg py-2">Other Files</p>
         <template v-for="file in otherFiles">
           <div :key="file.id" class="flex items-center my-1">
             <div class="w-12 h-12 flex items-center justify-center">
@@ -78,7 +96,7 @@
             <div class="flex-grow px-2">
               <p class="text-sm">{{ file.filename }}</p>
             </div>
-            <div class="w-20 text-center text-gray-300">
+            <div class="w-24 text-center text-gray-300" style="min-width: 96px">
               <p class="text-xs">{{ file.mimeType }}</p>
               <p class="text-sm">{{ $bytesPretty(file.size) }}</p>
             </div>
@@ -145,10 +163,10 @@ export default {
       return this.$platform === 'ios'
     },
     basePath() {
-      return this.localLibraryItem ? this.localLibraryItem.basePath : null
+      return this.localLibraryItem?.basePath
     },
     localFiles() {
-      return this.localLibraryItem ? this.localLibraryItem.localFiles : []
+      return this.localLibraryItem?.localFiles || []
     },
     otherFiles() {
       if (!this.localFiles.filter) {
@@ -156,29 +174,37 @@ export default {
         return []
       }
       return this.localFiles.filter((lf) => {
+        if (this.localFileForEbook?.id === lf.id) return false
         return !this.audioTracks.find((at) => at.localFileId == lf.id)
       })
     },
     folderName() {
-      return this.folder ? this.folder.name : null
+      return this.folder?.name
     },
     mediaType() {
-      return this.localLibraryItem ? this.localLibraryItem.mediaType : null
+      return this.localLibraryItem?.mediaType
     },
     isPodcast() {
       return this.mediaType == 'podcast'
     },
     libraryItemId() {
-      return this.localLibraryItem ? this.localLibraryItem.libraryItemId : null
+      return this.localLibraryItem?.libraryItemId
     },
     liServerAddress() {
-      return this.localLibraryItem ? this.localLibraryItem.serverAddress : null
+      return this.localLibraryItem?.serverAddress
     },
     media() {
-      return this.localLibraryItem ? this.localLibraryItem.media : null
+      return this.localLibraryItem?.media
     },
     mediaMetadata() {
-      return this.media ? this.media.metadata || {} : {}
+      return this.media?.metadata || {}
+    },
+    ebookFile() {
+      return this.media?.ebookFile
+    },
+    localFileForEbook() {
+      if (!this.ebookFile) return null
+      return this.localFiles.find((lf) => lf.id == this.ebookFile.localFileId)
     },
     episodes() {
       return this.media.episodes || []

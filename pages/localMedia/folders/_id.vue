@@ -15,15 +15,14 @@
       <p>Scanning...</p>
     </div>
     <div v-else class="w-full media-item-container overflow-y-auto">
-      <template v-for="mediaItem in localLibraryItems">
-        <nuxt-link :to="`/localMedia/item/${mediaItem.id}`" :key="mediaItem.id" class="flex my-1">
+      <template v-for="localLibraryItem in localLibraryItems">
+        <nuxt-link :to="`/localMedia/item/${localLibraryItem.id}`" :key="localLibraryItem.id" class="flex my-1">
           <div class="w-12 h-12 min-w-12 min-h-12 bg-primary">
-            <img v-if="mediaItem.coverPathSrc" :src="mediaItem.coverPathSrc" class="w-full h-full object-contain" />
+            <img v-if="localLibraryItem.coverPathSrc" :src="localLibraryItem.coverPathSrc" class="w-full h-full object-contain" />
           </div>
           <div class="flex-grow px-2">
-            <p class="text-sm">{{ mediaItem.media.metadata.title }}</p>
-            <p v-if="mediaItem.mediaType == 'book'" class="text-xs text-gray-300">{{ mediaItem.media.tracks.length }} Track{{ mediaItem.media.tracks.length == 1 ? '' : 's' }}</p>
-            <p v-else-if="mediaItem.mediaType == 'podcast'" class="text-xs text-gray-300">{{ mediaItem.media.episodes.length }} Episode{{ mediaItem.media.episodes.length == 1 ? '' : 's' }}</p>
+            <p class="text-sm">{{ localLibraryItem.media.metadata.title }}</p>
+            <p class="text-xs text-gray-300">{{ getLocalLibraryItemSubText(localLibraryItem) }}</p>
           </div>
           <div class="w-12 h-12 flex items-center justify-center">
             <span class="material-icons text-xl text-gray-300">arrow_right</span>
@@ -82,6 +81,21 @@ export default {
     }
   },
   methods: {
+    getLocalLibraryItemSubText(localLibraryItem) {
+      if (!localLibraryItem) return ''
+      if (localLibraryItem.mediaType == 'book') {
+        const txts = []
+        if (localLibraryItem.media.ebookFile) {
+          txts.push(`${localLibraryItem.media.ebookFile.ebookFormat} EBook`)
+        }
+        if (localLibraryItem.media.tracks?.length) {
+          txts.push(`${localLibraryItem.media.tracks.length} Tracks`)
+        }
+        return txts.join(' • ')
+      } else {
+        return `${localLibraryItem.media.episodes?.length || 0} Episodes`
+      }
+    },
     dialogAction(action) {
       console.log('Dialog action', action)
       if (action == 'scan') {
