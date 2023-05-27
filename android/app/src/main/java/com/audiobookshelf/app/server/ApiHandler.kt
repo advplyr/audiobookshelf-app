@@ -17,6 +17,7 @@ import com.getcapacitor.JSObject
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.internal.EMPTY_REQUEST
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -45,11 +46,11 @@ class ApiHandler(var ctx:Context) {
     makeRequest(request, httpClient, cb)
   }
 
-  private fun postRequest(endpoint:String, payload: JSObject, config:ServerConnectionConfig?, cb: (JSObject) -> Unit) {
+  private fun postRequest(endpoint:String, payload: JSObject?, config:ServerConnectionConfig?, cb: (JSObject) -> Unit) {
     val address = config?.address ?: DeviceManager.serverAddress
     val token = config?.token ?: DeviceManager.token
     val mediaType = "application/json; charset=utf-8".toMediaType()
-    val requestBody = payload.toString().toRequestBody(mediaType)
+    val requestBody = payload?.toString()?.toRequestBody(mediaType) ?: EMPTY_REQUEST
     val requestUrl = "${address}$endpoint"
     Log.d(tag, "postRequest to $requestUrl")
     val request = Request.Builder().post(requestBody)
@@ -289,6 +290,13 @@ class ApiHandler(var ctx:Context) {
         Log.d(tag, "pingServer: Ping ${config.address} Successful")
         cb(true)
       }
+    }
+  }
+
+  fun closePlaybackSession(playbackSessionId:String, cb: (Boolean) -> Unit) {
+    Log.d(tag, "closePlaybackSession: playbackSessionId=$playbackSessionId")
+    postRequest("/api/session/$playbackSessionId/close", null, null) {
+      cb(true)
     }
   }
 

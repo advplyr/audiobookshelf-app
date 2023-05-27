@@ -38,8 +38,8 @@ class MediaProgressSyncer(val playerNotificationService: PlayerNotificationServi
   var currentLocalMediaProgress: LocalMediaProgress? = null
 
   private val currentDisplayTitle get() = currentPlaybackSession?.displayTitle ?: "Unset"
-  private val currentIsLocal get() = currentPlaybackSession?.isLocal == true
-  private val currentSessionId get() = currentPlaybackSession?.id ?: ""
+  val currentIsLocal get() = currentPlaybackSession?.isLocal == true
+  val currentSessionId get() = currentPlaybackSession?.id ?: ""
   private val currentPlaybackDuration get() = currentPlaybackSession?.duration ?: 0.0
 
   fun start(playbackSession:PlaybackSession) {

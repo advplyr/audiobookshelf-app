@@ -863,10 +863,26 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   fun closePlayback(calledOnError:Boolean? = false) {
     Log.d(tag, "closePlayback")
+    val isLocal = mediaProgressSyncer.currentIsLocal
+    val currentSessionId = mediaProgressSyncer.currentSessionId
     if (mediaProgressSyncer.listeningTimerRunning) {
       Log.i(tag, "About to close playback so stopping media progress syncer first")
       mediaProgressSyncer.stop(calledOnError == false) { // If closing on error then do not sync progress (causes exception)
         Log.d(tag, "Media Progress syncer stopped")
+
+        // If not local session then close on server
+        if (!isLocal && currentSessionId != "") {
+          apiHandler.closePlaybackSession(currentSessionId) {
+            Log.d(tag, "Closed playback session $currentSessionId")
+          }
+        }
+      }
+    } else {
+      // If not local session then close on server
+      if (!isLocal && currentSessionId != "") {
+        apiHandler.closePlaybackSession(currentSessionId) {
+          Log.d(tag, "Closed playback session $currentSessionId")
+        }
       }
     }
 
