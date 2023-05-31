@@ -264,7 +264,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     playerNotificationManager.setUseNextAction(false)
     playerNotificationManager.setUsePreviousAction(false)
     playerNotificationManager.setUseChronometer(false)
-    playerNotificationManager.setUseStopAction(true)
+    playerNotificationManager.setUseStopAction(false)
     playerNotificationManager.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
     playerNotificationManager.setPriority(NotificationCompat.PRIORITY_MAX)
     playerNotificationManager.setUseFastForwardActionInCompactView(true)

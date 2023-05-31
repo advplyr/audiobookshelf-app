@@ -182,7 +182,7 @@ class PlaybackSession(
   }
 
   @JsonIgnore
-  fun getExoMediaMetadata(audioTrack:AudioTrack): MediaMetadata {
+  fun getExoMediaMetadata(): MediaMetadata {
     val metadataBuilder = MediaMetadata.Builder()
       .setTitle(displayTitle)
       .setDisplayTitle(displayTitle)
@@ -192,9 +192,7 @@ class PlaybackSession(
       .setAlbumTitle(displayAuthor)
       .setDescription(displayAuthor)
       .setArtworkUri(getCoverUri())
-
-    val contentUri = this.getContentUri(audioTrack)
-    metadataBuilder.setMediaUri(contentUri)
+      .setMediaType(MediaMetadata.MEDIA_TYPE_AUDIO_BOOK)
 
     return metadataBuilder.build()
   }
@@ -204,7 +202,7 @@ class PlaybackSession(
     val mediaItems:MutableList<MediaItem> = mutableListOf()
 
     for (audioTrack in audioTracks) {
-      val mediaMetadata = this.getExoMediaMetadata(audioTrack)
+      val mediaMetadata = this.getExoMediaMetadata()
       val mediaUri = this.getContentUri(audioTrack)
       val mimeType = audioTrack.mimeType
 

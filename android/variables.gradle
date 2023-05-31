@@ -1,7 +1,7 @@
 ext {
     minSdkVersion = 24
     compileSdkVersion = 33
-    targetSdkVersion = 32
+    targetSdkVersion = 33
     androidxActivityVersion = '1.4.0'
     androidxAppCompatVersion = '1.4.2'
     androidxCoordinatorLayoutVersion = '1.2.0'
@@ -20,7 +20,7 @@ ext {
     arch_lifecycle_version = '2.2.0'
     constraint_layout_version = '2.0.1'
     espresso_version = '3.3.0'
-    exoplayer_version = '2.17.0'
+    exoplayer_version = '2.18.7'
     fragment_version = '1.2.5'
     glide_version = '4.11.0'
     gms_strict_version_matcher_version = '1.0.3'

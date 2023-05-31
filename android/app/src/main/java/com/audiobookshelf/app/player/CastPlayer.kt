@@ -11,12 +11,12 @@ import com.google.android.exoplayer2.*
 import com.google.android.exoplayer2.C.TrackType
 import com.google.android.exoplayer2.MediaMetadata
 import com.google.android.exoplayer2.Player.*
-import com.google.android.exoplayer2.TracksInfo.TrackGroupInfo
+import com.google.android.exoplayer2.Tracks.Group
 import com.google.android.exoplayer2.audio.AudioAttributes
 import com.google.android.exoplayer2.ext.cast.SessionAvailabilityListener
 import com.google.android.exoplayer2.source.TrackGroup
 import com.google.android.exoplayer2.source.TrackGroupArray
-import com.google.android.exoplayer2.text.Cue
+import com.google.android.exoplayer2.text.CueGroup
 import com.google.android.exoplayer2.trackselection.TrackSelection
 import com.google.android.exoplayer2.trackselection.TrackSelectionArray
 import com.google.android.exoplayer2.trackselection.TrackSelectionParameters
@@ -49,7 +49,7 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
   private var myPlayWhenReady:Boolean = false
   private var playbackParameters:PlaybackParameters = PlaybackParameters.DEFAULT
   private var myAvailableCommands: Commands
-  private var myCurrentTracksInfo: TracksInfo
+  private var myCurrentTracksInfo: Tracks
   private var myCurrentTrackGroups: TrackGroupArray
   private var myCurrentTrackSelections: TrackSelectionArray
 
@@ -76,7 +76,7 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
       COMMAND_GET_MEDIA_ITEMS_METADATA,
       COMMAND_SET_MEDIA_ITEMS_METADATA,
       COMMAND_CHANGE_MEDIA_ITEMS,
-      COMMAND_GET_TRACK_INFOS)
+      COMMAND_GET_TRACKS)
     .build()
 
   var currentPlaybackState = Player.STATE_IDLE
@@ -95,7 +95,7 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
     Log.d(tag, "Init CastPlayer")
     myCurrentTrackGroups = TrackGroupArray.EMPTY
     myCurrentTrackSelections = EMPTY_TRACK_SELECTION_ARRAY
-    myCurrentTracksInfo = TracksInfo.EMPTY
+    myCurrentTracksInfo = Tracks.EMPTY
     statusListener = StatusListener()
     timelineTracker = CastTimelineTracker()
     myCurrentTimeline = CastTimeline.EMPTY_CAST_TIMELINE
@@ -385,7 +385,7 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
     }
     if (updateTracksAndSelectionsAndNotifyIfChanged()) {
       listeners.queueEvent(
-        EVENT_TRACKS_CHANGED) { listener: Listener -> listener.onTracksInfoChanged(currentTracksInfo) }
+        EVENT_TRACKS_CHANGED) { listener: Listener -> listener.onTracksChanged(currentTracks) }
     }
     updateAvailableCommandsAndNotifyIfChanged()
     listeners.flushEvents()
@@ -405,7 +405,7 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
       val hasChanged = !myCurrentTrackGroups.isEmpty
       myCurrentTrackGroups = TrackGroupArray.EMPTY
       myCurrentTrackSelections = EMPTY_TRACK_SELECTION_ARRAY
-      myCurrentTracksInfo = TracksInfo.EMPTY
+      myCurrentTracksInfo = Tracks.EMPTY
       return hasChanged
     }
     var activeTrackIds = mediaStatus.activeTrackIds
@@ -414,7 +414,7 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
     }
     val trackGroups = arrayOfNulls<TrackGroup>(castMediaTracks.size)
     val trackSelections = arrayOfNulls<TrackSelection>(RENDERER_COUNT)
-    val trackGroupInfos = arrayOfNulls<TrackGroupInfo>(castMediaTracks.size)
+    val trackGroupInfos = arrayOfNulls<Group>(castMediaTracks.size)
     for (i in castMediaTracks.indices) {
       val mediaTrack = castMediaTracks[i]
       trackGroups[i] = TrackGroup( /* id= */i.toString(), mediaTrackToFormat(mediaTrack))
@@ -428,18 +428,16 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
       }
       val trackSupport = intArrayOf(if (supported) C.FORMAT_HANDLED else C.FORMAT_UNSUPPORTED_TYPE)
       val trackSelected = booleanArrayOf(selected)
-      trackGroupInfos[i] = TrackGroupInfo(trackGroups[i]!!, trackSupport, trackType, trackSelected)
+      trackGroupInfos[i] = Group(trackGroups[i]!!, false, trackSupport, trackSelected)
     }
 
     val tg = trackGroups.filterNotNull().toTypedArray()
-    var ts = trackSelections.filterNotNull().toTypedArray()
-    var tgi = trackGroupInfos.filterNotNull().toMutableList()
+    val ts = trackSelections.filterNotNull().toTypedArray()
+    val tgi = trackGroupInfos.filterNotNull().toMutableList()
     val newTrackGroups = TrackGroupArray(*tg)
     val newTrackSelections = TrackSelectionArray(*ts)
-    val newTracksInfo = TracksInfo(tgi)
-    if (newTrackGroups != currentTrackGroups
-      || newTrackSelections != currentTrackSelections
-      || newTracksInfo != currentTracksInfo) {
+    val newTracksInfo = Tracks(tgi)
+    if (newTracksInfo != currentTracks) {
       myCurrentTrackSelections = newTrackSelections
       myCurrentTrackGroups = newTrackGroups
       myCurrentTracksInfo = newTracksInfo
@@ -593,7 +591,7 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
     listeners.flushEvents()
     val pendingResult: PendingResult<RemoteMediaClient.MediaChannelResult> = if (playWhenReady) remoteMediaClient!!.play() else remoteMediaClient!!.pause()
 
-    var resultCb = ResultCallback<RemoteMediaClient.MediaChannelResult?> {
+    val resultCb = ResultCallback<RemoteMediaClient.MediaChannelResult?> {
       updatePlayerStateAndNotifyIfChanged()
     }
 
@@ -622,10 +620,10 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
     return false
   }
 
-  override fun seekTo(mediaItemIndex: Int, positionMs: Long) {
+  override fun seekTo(mediaItemIndex: Int, positionMs: Long, seekCommand: Int, isRepeatingCurrentItem: Boolean) {
     Log.d(tag, "seekTo $mediaItemIndex position $positionMs")
 
-    var resultCb = ResultCallback<RemoteMediaClient.MediaChannelResult?> {
+    val resultCb = ResultCallback<RemoteMediaClient.MediaChannelResult?> {
       val statusCode: Int = it.status.statusCode
       if (statusCode != CastStatusCodes.SUCCESS && statusCode != CastStatusCodes.REPLACED) {
         Log.e(tag, "Seek failed. Error code $statusCode")
@@ -645,14 +643,14 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
 
     // We assume the default position is 0. There is no support for seeking to the default position
     // in RemoteMediaClient.
-    var positionMsFinal = if (positionMs != C.TIME_UNSET) positionMs else 0
+    val positionMsFinal = if (positionMs != C.TIME_UNSET) positionMs else 0
     if (mediaStatus != null) {
       if (currentMediaItemIndex != mediaItemIndex) {
         Log.d(tag, "seekTo: Changing media item index from $currentMediaItemIndex to $mediaItemIndex")
         remoteMediaClient?.queueJumpToItem(myCurrentTimeline.getPeriod(mediaItemIndex, period).uid as Int, positionMsFinal, JSONObject())?.setResultCallback(resultCb)
       } else {
         Log.d(tag, "seekTo: Same media index seek to position $positionMsFinal")
-        var mediaSeekOptions = MediaSeekOptions.Builder().setPosition(positionMsFinal).build()
+        val mediaSeekOptions = MediaSeekOptions.Builder().setPosition(positionMsFinal).build()
         remoteMediaClient?.seek(mediaSeekOptions)?.setResultCallback(resultCb)
       }
       val oldPosition = getCurrentPositionInfo()
@@ -709,7 +707,7 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
 
     val pendingResult: PendingResult<RemoteMediaClient.MediaChannelResult>? = remoteMediaClient?.setPlaybackRate(actualPlaybackParameters.speed.toDouble(),  /* customData= */null)
 
-    var resultCb = ResultCallback<RemoteMediaClient.MediaChannelResult?> {
+    val resultCb = ResultCallback<RemoteMediaClient.MediaChannelResult?> {
       updatePlaybackRateAndNotifyIfChanged()
       listeners.flushEvents()
     }
@@ -736,15 +734,7 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
     sessionManager.endCurrentSession(false)
   }
 
-  override fun getCurrentTrackGroups(): TrackGroupArray {
-    return this.myCurrentTrackGroups
-  }
-
-  override fun getCurrentTrackSelections(): TrackSelectionArray {
-    return this.myCurrentTrackSelections
-  }
-
-  override fun getCurrentTracksInfo(): TracksInfo {
+  override fun getCurrentTracks(): Tracks {
     return this.myCurrentTracksInfo
   }
 
@@ -858,8 +848,12 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
    return VideoSize.UNKNOWN
   }
 
-  override fun getCurrentCues(): MutableList<Cue> {
-    return mutableListOf()
+  override fun getSurfaceSize(): Size {
+    return Size.UNKNOWN
+  }
+
+  override fun getCurrentCues(): CueGroup {
+    return CueGroup.EMPTY_TIME_ZERO
   }
 
   override fun getDeviceInfo(): DeviceInfo {

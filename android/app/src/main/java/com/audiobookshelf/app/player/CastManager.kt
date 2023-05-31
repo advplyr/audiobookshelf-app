@@ -123,7 +123,7 @@ class CastManager constructor(val mainActivity:Activity) {
   }
 
   fun startRouteScan(connListener:ChromecastListener) {
-    var callback = object : ScanCallback() {
+    val callback = object : ScanCallback() {
       override fun onRouteUpdate(routes: List<MediaRouter.RouteInfo>?) {
         Log.d(tag, "CAST On ROUTE UPDATED ${routes?.size} | ${getContext().castState}")
         // if the routes have changed, we may have an available device
@@ -136,7 +136,7 @@ class CastManager constructor(val mainActivity:Activity) {
           // Let the client know a receiver is available
           connListener.onReceiverAvailableUpdate(true)
           // Since we have a receiver we may also have an active session
-          var session = getSessionManager()?.currentCastSession
+          val session = getSessionManager()?.currentCastSession
           // If we do have a session
           if (session != null) {
             // Let the client know
@@ -246,15 +246,15 @@ class CastManager constructor(val mainActivity:Activity) {
       onRouteUpdate(outRoutes)
     }
 
-    override fun onRouteAdded(router: MediaRouter?, route: MediaRouter.RouteInfo?) {
+    override fun onRouteAdded(router: MediaRouter, route: MediaRouter.RouteInfo) {
       onFilteredRouteUpdate()
     }
 
-    override fun onRouteChanged(router: MediaRouter?, route: MediaRouter.RouteInfo?) {
+    override fun onRouteChanged(router: MediaRouter, route: MediaRouter.RouteInfo) {
       onFilteredRouteUpdate()
     }
 
-    override fun onRouteRemoved(router: MediaRouter?, route: MediaRouter.RouteInfo?) {
+    override fun onRouteRemoved(router: MediaRouter, route: MediaRouter.RouteInfo) {
       onFilteredRouteUpdate()
     }
   }
