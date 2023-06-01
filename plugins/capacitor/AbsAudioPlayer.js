@@ -13,6 +13,7 @@ class AbsAudioPlayerWeb extends WebPlugin {
     this.playWhenReady = false
     this.playableMimeTypes = {}
     this.playbackSession = null
+    this.playbackRate = 1
     this.audioTracks = []
     this.startTime = 0
     this.trackStartTime = 0
@@ -53,8 +54,10 @@ class AbsAudioPlayerWeb extends WebPlugin {
   }
 
   // PluginMethod
-  async prepareLibraryItem({ libraryItemId, episodeId, playWhenReady, startTime }) {
+  async prepareLibraryItem({ libraryItemId, episodeId, playWhenReady, startTime, playbackRate }) {
     console.log('[AbsAudioPlayer] Prepare library item', libraryItemId)
+
+    if (!isNaN(playbackRate) && playbackRate) this.playbackRate = playbackRate
 
     if (libraryItemId.startsWith('local_')) {
       // Fetch Local - local not implemented on web
@@ -134,6 +137,7 @@ class AbsAudioPlayerWeb extends WebPlugin {
 
   // PluginMethod
   setPlaybackSpeed({ value }) {
+    this.playbackRate = value
     if (this.player) this.player.playbackRate = value
   }
 
@@ -229,6 +233,7 @@ class AbsAudioPlayerWeb extends WebPlugin {
     this.player.src = `${vuexStore.getters['user/getServerAddress']}${this.currentTrack.contentUrl}?token=${vuexStore.getters['user/getToken']}`
     console.log(`[AbsAudioPlayer] Loading track src ${this.player.src}`)
     this.player.load()
+    this.player.playbackRate = this.playbackRate
   }
 
   setAudioPlayer(playbackSession, playWhenReady = false) {
