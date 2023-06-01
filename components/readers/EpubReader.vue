@@ -2,7 +2,7 @@
   <div id="epub-frame" class="w-full">
     <div id="viewer" class="h-full w-full"></div>
 
-    <div class="fixed left-0 h-8 w-full bg-bg px-2 flex items-center" :style="{ bottom: playerLibraryItemId ? '120px' : '0px' }">
+    <div class="fixed left-0 h-8 w-full bg-primary px-2 flex items-center" :style="{ bottom: playerLibraryItemId ? '120px' : '0px' }">
       <p class="text-xs">epub</p>
       <div class="flex-grow" />
 
@@ -251,7 +251,7 @@ export default {
       reader.rendition.display(this.userItemProgress?.ebookLocation || reader.book.locations.start)
 
       // load style
-      reader.rendition.themes.default({ '*': { color: '#fff!important' } })
+      reader.rendition.themes.default({ '*': { color: '#fff!important', 'background-color': 'rgb(35 35 35)!important' } })
 
       reader.book.ready.then(() => {
         // set up event listeners

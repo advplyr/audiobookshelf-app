@@ -20,7 +20,7 @@ module.exports = {
         bg: '#373838',
         secondary: '#2F3030',
         yellowgreen: 'yellowgreen',
-        primary: '#262626',
+        primary: '#232323',
         accent: '#1ad691',
         error: '#FF5252',
         info: '#2196F3',
@@ -37,6 +37,12 @@ module.exports = {
       },
       fontSize: {
         xxs: '0.625rem'
+      },
+      spacing: {
+        '18': '4.5rem'
+      },
+      height: {
+        '18': '4.5rem'
       },
       maxWidth: {
         '24': '6rem'
