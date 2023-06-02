@@ -234,6 +234,8 @@ class AbsDatabase : Plugin() {
             call.resolve()
           }
         }
+      } else {
+        call.resolve()
       }
     }
   }
