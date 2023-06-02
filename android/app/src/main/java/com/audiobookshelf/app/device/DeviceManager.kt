@@ -1,15 +1,20 @@
 package com.audiobookshelf.app.device
 
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.util.Log
+import com.audiobookshelf.app.MediaPlayerWidget
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.managers.DbManager
 import com.audiobookshelf.app.player.PlayerNotificationService
+import com.audiobookshelf.app.updateAppWidget
 
 interface WidgetEventEmitter {
   fun onPlayerChanged(pns:PlayerNotificationService)
+  fun onPlayerClosed()
 }
 
 object DeviceManager {
@@ -75,5 +80,32 @@ object DeviceManager {
   fun setLastPlaybackSession(playbackSession:PlaybackSession) {
     deviceData.lastPlaybackSession = playbackSession
     dbManager.saveDeviceData(deviceData)
+  }
+
+  fun initializeWidgetUpdater(context:Context) {
+    Log.d(tag, "Initializing widget updater")
+    widgetUpdater = (object : WidgetEventEmitter {
+      override fun onPlayerChanged(pns: PlayerNotificationService) {
+
+        val isPlaying = pns.currentPlayer.isPlaying
+
+        val appWidgetManager = AppWidgetManager.getInstance(context)
+        val componentName = ComponentName(context, MediaPlayerWidget::class.java)
+        val ids = appWidgetManager.getAppWidgetIds(componentName)
+        val playbackSession = pns.getCurrentPlaybackSessionCopy()
+
+        for (widgetId in ids) {
+          updateAppWidget(context, appWidgetManager, widgetId, playbackSession, isPlaying, PlayerNotificationService.isClosed)
+        }
+      }
+      override fun onPlayerClosed() {
+        val appWidgetManager = AppWidgetManager.getInstance(context)
+        val componentName = ComponentName(context, MediaPlayerWidget::class.java)
+        val ids = appWidgetManager.getAppWidgetIds(componentName)
+        for (widgetId in ids) {
+          updateAppWidget(context, appWidgetManager, widgetId, deviceData.lastPlaybackSession, false, PlayerNotificationService.isClosed)
+        }
+      }
+    })
   }
 }

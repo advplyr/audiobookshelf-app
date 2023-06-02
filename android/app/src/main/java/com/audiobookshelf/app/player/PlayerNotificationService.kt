@@ -2,8 +2,6 @@ package com.audiobookshelf.app.player
 
 import android.annotation.SuppressLint
 import android.app.*
-import android.appwidget.AppWidgetManager
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -25,8 +23,6 @@ import android.support.v4.media.session.MediaControllerCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
-import android.view.View
-import android.widget.RemoteViews
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -203,6 +199,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     super.onCreate()
     ctx = this
 
+    // Initialize widget
+    DeviceManager.initializeWidgetUpdater(ctx)
+
     // To listen for network change from metered to unmetered
     val networkRequest = NetworkRequest.Builder()
       .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
@@ -362,7 +361,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       .build()
     mPlayer.setHandleAudioBecomingNoisy(true)
     mPlayer.addListener(PlayerListener(this))
-    val audioAttributes:AudioAttributes = AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.CONTENT_TYPE_SPEECH).build()
+    val audioAttributes:AudioAttributes = AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_SPEECH).build()
     mPlayer.setAudioAttributes(audioAttributes, true)
 
     //attach player to playerNotificationManager
@@ -896,8 +895,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     currentPlaybackSession = null
     mediaProgressSyncer.reset()
     clientEventEmitter?.onPlaybackClosed()
+
     PlayerListener.lastPauseTime = 0
     isClosed = true
+    DeviceManager.widgetUpdater?.onPlayerClosed()
     stopForeground(Service.STOP_FOREGROUND_REMOVE)
     stopSelf()
   }

@@ -56,6 +56,9 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
 
     lazyIsPlaying = isPlaying
 
+    // Update widget
+    DeviceManager.widgetUpdater?.onPlayerChanged(playerNotificationService)
+
     if (isPlaying) {
       Log.d(tag, "SeekBackTime: Player is playing")
       if (lastPauseTime > 0 && DeviceManager.deviceData.deviceSettings?.disableAutoRewind != true) {
@@ -109,8 +112,6 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
     }
 
     playerNotificationService.clientEventEmitter?.onPlayingUpdate(isPlaying)
-
-    DeviceManager.widgetUpdater?.onPlayerChanged(playerNotificationService)
   }
 
   override fun onEvents(player: Player, events: Player.Events) {
