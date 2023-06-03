@@ -272,7 +272,7 @@ export default {
       return this.playbackSession ? this.playbackSession.localLibraryItem || null : null
     },
     localLibraryItemCoverSrc() {
-      var localItemCover = this.localLibraryItem ? this.localLibraryItem.coverContentUrl : null
+      var localItemCover = this.localLibraryItem?.coverContentUrl || null
       if (localItemCover) return Capacitor.convertFileSrc(localItemCover)
       return null
     },

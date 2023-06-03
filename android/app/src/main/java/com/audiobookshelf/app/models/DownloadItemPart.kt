@@ -73,6 +73,12 @@ data class DownloadItemPart(
     }
   }
 
+  @get:JsonIgnore
+  val isInternalStorage get() = localFolderId.startsWith("internal-")
+
+  @get:JsonIgnore
+  val serverUrl get() = "${DeviceManager.serverAddress}${serverPath}?token=${DeviceManager.token}"
+
   @JsonIgnore
   fun getDownloadRequest(): DownloadManager.Request {
     val dlRequest = DownloadManager.Request(uri)

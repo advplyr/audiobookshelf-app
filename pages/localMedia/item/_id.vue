@@ -181,6 +181,9 @@ export default {
     folderName() {
       return this.folder?.name
     },
+    isInternalStorage() {
+      return this.folderId?.startsWith('internal-')
+    },
     mediaType() {
       return this.localLibraryItem?.mediaType
     },
@@ -227,7 +230,7 @@ export default {
         ]
       } else {
         var options = []
-        if (!this.isIos) {
+        if (!this.isIos && !this.isInternalStorage) {
           options.push({ text: 'Scan', value: 'scan' })
           options.push({ text: 'Force Re-Scan', value: 'rescan' })
           options.push({ text: 'Remove', value: 'remove' })

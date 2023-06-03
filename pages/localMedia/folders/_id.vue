@@ -4,7 +4,7 @@
       <p class="text-base font-semibold">Folder: {{ folderName }}</p>
       <div class="flex-grow" />
 
-      <span class="material-icons" @click="showDialog = true">more_vert</span>
+      <span v-if="dialogItems.length" class="material-icons" @click="showDialog = true">more_vert</span>
     </div>
 
     <p class="text-sm mb-4 text-white text-opacity-60">Media Type: {{ mediaType }}</p>
@@ -58,26 +58,35 @@ export default {
   },
   computed: {
     folderName() {
-      return this.folder ? this.folder.name : null
+      return this.folder?.name || null
     },
     mediaType() {
-      return this.folder ? this.folder.mediaType : null
+      return this.folder?.mediaType
+    },
+    isInternalStorage() {
+      return this.folder?.id.startsWith('internal-')
     },
     dialogItems() {
-      return [
+      if (this.isInternalStorage) return []
+      const items = [
         {
           text: 'Scan',
           value: 'scan'
-        },
-        {
+        }
+      ]
+
+      if (this.localLibraryItems.length) {
+        items.push({
           text: 'Force Re-Scan',
           value: 'rescan'
-        },
-        {
-          text: 'Remove',
-          value: 'remove'
-        }
-      ].filter((i) => i.value != 'rescan' || this.localLibraryItems.length) // Filter out rescan if there are no local library items
+        })
+      }
+
+      items.push({
+        text: 'Remove',
+        value: 'remove'
+      })
+      return items
     }
   },
   methods: {

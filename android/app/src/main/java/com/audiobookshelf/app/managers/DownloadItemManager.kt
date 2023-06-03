@@ -22,6 +22,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileOutputStream
 import java.util.*
 
 class DownloadItemManager(var downloadManager:DownloadManager, private var folderScanner: FolderScanner, var mainActivity: MainActivity, private var clientEventEmitter:DownloadEventEmitter) {
@@ -42,6 +44,11 @@ class DownloadItemManager(var downloadManager:DownloadManager, private var folde
     fun onDownloadItem(downloadItem:DownloadItem)
     fun onDownloadItemPartUpdate(downloadItemPart:DownloadItemPart)
     fun onDownloadItemComplete(jsobj:JSObject)
+  }
+
+  interface InternalProgressCallback {
+    fun onProgress(totalBytesWritten:Long, progress: Long)
+    fun onComplete(failed: Boolean)
   }
 
   companion object {
@@ -65,11 +72,32 @@ class DownloadItemManager(var downloadManager:DownloadManager, private var folde
 
       if (nextDownloadItemParts.size > 0) {
         nextDownloadItemParts.forEach {
-          val dlRequest = it.getDownloadRequest()
-          val downloadId = downloadManager.enqueue(dlRequest)
-          it.downloadId = downloadId
-          Log.d(tag, "checkUpdateDownloadQueue: Starting download item part, downloadId=$downloadId")
-          currentDownloadItemParts.add(it)
+          if (it.isInternalStorage) {
+            val file = File(it.finalDestinationPath)
+            file.parentFile?.mkdirs()
+
+            val fileOutputStream = FileOutputStream(it.finalDestinationPath)
+            val internalProgressCallback = (object : InternalProgressCallback {
+              override fun onProgress(totalBytesWritten:Long, progress: Long) {
+                it.bytesDownloaded = totalBytesWritten
+                it.progress = progress
+              }
+              override fun onComplete(failed:Boolean) {
+                it.failed = failed
+                it.completed = true
+              }
+            })
+
+            Log.d(tag, "Start internal download to destination path ${it.finalDestinationPath} from ${it.serverUrl}")
+            InternalDownloadManager(fileOutputStream, internalProgressCallback).download(it.serverUrl)
+            currentDownloadItemParts.add(it)
+          } else {
+            val dlRequest = it.getDownloadRequest()
+            val downloadId = downloadManager.enqueue(dlRequest)
+            it.downloadId = downloadId
+            Log.d(tag, "checkUpdateDownloadQueue: Starting download item part, downloadId=$downloadId")
+            currentDownloadItemParts.add(it)
+          }
         }
       }
 
@@ -89,14 +117,25 @@ class DownloadItemManager(var downloadManager:DownloadManager, private var folde
       isDownloading = true
 
       while (currentDownloadItemParts.size > 0) {
-
         val itemParts = currentDownloadItemParts.filter { !it.isMoving }.map { it }
         for (downloadItemPart in itemParts) {
-          val downloadCheckStatus = checkDownloadItemPart(downloadItemPart)
-          clientEventEmitter.onDownloadItemPartUpdate(downloadItemPart)
+          if (downloadItemPart.isInternalStorage) {
+            clientEventEmitter.onDownloadItemPartUpdate(downloadItemPart)
 
-          // Will move to final destination, remove current item parts, and check if download item is finished
-          handleDownloadItemPartCheck(downloadCheckStatus, downloadItemPart)
+            if (downloadItemPart.completed) {
+              val downloadItem = downloadItemQueue.find { it.id == downloadItemPart.downloadItemId }
+              downloadItem?.let {
+                checkDownloadItemFinished(it)
+              }
+              currentDownloadItemParts.remove(downloadItemPart)
+            }
+          } else {
+            val downloadCheckStatus = checkDownloadItemPart(downloadItemPart)
+            clientEventEmitter.onDownloadItemPartUpdate(downloadItemPart)
+
+            // Will move to final destination, remove current item parts, and check if download item is finished
+            handleDownloadItemPartCheck(downloadCheckStatus, downloadItemPart)
+          }
         }
 
         delay(500)
@@ -166,7 +205,6 @@ class DownloadItemManager(var downloadManager:DownloadManager, private var folde
       Log.e(tag, "Download item part finished but download item not found ${downloadItemPart.filename}")
       currentDownloadItemParts.remove(downloadItemPart)
     } else if (downloadCheckStatus == DownloadCheckStatus.Successful) {
-
       val file = DocumentFileCompat.fromUri(mainActivity, downloadItemPart.destinationUri)
       Log.d(tag, "DOWNLOAD: DESTINATION URI ${downloadItemPart.destinationUri}")
 

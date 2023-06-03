@@ -57,7 +57,7 @@ class AbsDownloader : Plugin() {
     val libraryItemId = call.data.getString("libraryItemId").toString()
     var episodeId = call.data.getString("episodeId").toString()
     if (episodeId == "null") episodeId = ""
-    val localFolderId = call.data.getString("localFolderId").toString()
+    var localFolderId = call.data.getString("localFolderId", "").toString()
     Log.d(tag, "Download library item $libraryItemId to folder $localFolderId / episode: $episodeId")
 
     val downloadId = if (episodeId.isEmpty()) libraryItemId else "$libraryItemId-$episodeId"
@@ -72,9 +72,18 @@ class AbsDownloader : Plugin() {
       } else {
         Log.d(tag, "Got library item from server ${libraryItem.id}")
 
-        val localFolder = DeviceManager.dbManager.getLocalFolder(localFolderId)
-        if (localFolder != null) {
+        if (localFolderId == "") {
+          localFolderId = "internal-${libraryItem.mediaType}"
+        }
+        var localFolder = DeviceManager.dbManager.getLocalFolder(localFolderId)
 
+        if (localFolder == null && localFolderId.startsWith("internal-")) {
+          Log.d(tag, "Creating new App Storage internal LocalFolder $localFolderId")
+          localFolder = LocalFolder(localFolderId, "Internal App Storage", "", "", "", "", "internal", libraryItem.mediaType)
+          DeviceManager.dbManager.saveLocalFolder(localFolder)
+        }
+
+        if (localFolder != null) {
           if (episodeId.isNotEmpty() && libraryItem.mediaType != "podcast") {
             Log.e(tag, "Library item is not a podcast but episode was requested")
             call.resolve(JSObject("{\"error\":\"Invalid library item not a podcast\"}"))
@@ -127,7 +136,9 @@ class AbsDownloader : Plugin() {
   }
 
   private fun startLibraryItemDownload(libraryItem: LibraryItem, localFolder: LocalFolder, episode:PodcastEpisode?) {
-    val tempFolderPath = mainActivity.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+    val isInternal = localFolder.id.startsWith("internal-")
+
+    val tempFolderPath = if (isInternal) "${mainActivity.filesDir}/downloads/${libraryItem.id}" else mainActivity.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
 
     Log.d(tag, "downloadCacheDirectory=$tempFolderPath")
 
@@ -138,7 +149,7 @@ class AbsDownloader : Plugin() {
       val tracks = libraryItem.media.getAudioTracks()
       Log.d(tag, "Starting library item download with ${tracks.size} tracks")
       val itemSubfolder = "$bookAuthor/$bookTitle"
-      val itemFolderPath = "${localFolder.absolutePath}/$itemSubfolder"
+      val itemFolderPath = if (isInternal) "$tempFolderPath" else "${localFolder.absolutePath}/$itemSubfolder"
       val downloadItem = DownloadItem(libraryItem.id, libraryItem.id, null, libraryItem.userMediaProgress,DeviceManager.serverConnectionConfig?.id ?: "", DeviceManager.serverAddress, DeviceManager.serverUserId, libraryItem.mediaType, itemFolderPath, localFolder, bookTitle, itemSubfolder, libraryItem.media, mutableListOf())
 
       val book = libraryItem.media as Book

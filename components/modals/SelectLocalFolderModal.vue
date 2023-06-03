@@ -10,8 +10,9 @@
       <div ref="container" class="w-full overflow-x-hidden overflow-y-auto bg-primary rounded-lg border border-white border-opacity-20" style="max-height: 75%" @click.stop>
         <ul class="h-full w-full" role="listbox" aria-labelledby="listbox-label">
           <template v-for="folder in localFolders">
-            <li :key="folder.id" :id="`folder-${folder.id}`" class="text-gray-50 select-none relative py-4" role="option" @click="clickedOption(folder)">
+            <li :key="folder.id" :id="`folder-${folder.id}`" class="text-gray-50 select-none relative py-5" role="option" @click="clickedOption(folder)">
               <div class="relative flex items-center pl-3" style="padding-right: 4.5rem">
+                <span class="material-icons-outlined text-xl mr-2 text-white text-opacity-80">folder</span>
                 <p class="font-normal block truncate text-sm text-white text-opacity-80">{{ folder.name }}</p>
               </div>
             </li>
@@ -54,6 +55,14 @@ export default {
     },
     async init() {
       var localFolders = (await this.$db.getLocalFolders()) || []
+
+      if (!localFolders.some((lf) => lf.id === `internal-${this.mediaType}`)) {
+        localFolders.push({
+          id: `internal-${this.mediaType}`,
+          name: 'Internal App Storage',
+          mediaType: this.mediaType
+        })
+      }
       this.localFolders = localFolders.filter((lf) => lf.mediaType == this.mediaType)
     }
   },

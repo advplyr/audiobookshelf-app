@@ -632,16 +632,26 @@ export default {
         })
         console.log('Folders with media type', this.mediaType, foldersWithMediaType.length)
         if (!foldersWithMediaType.length) {
-          // No local folders or no local folders with this media type
-          localFolder = await this.selectFolder()
-        } else if (foldersWithMediaType.length == 1) {
-          console.log('Only 1 local folder with this media type - auto select it')
-          localFolder = foldersWithMediaType[0]
+          localFolder = {
+            id: `internal-${this.mediaType}`,
+            name: 'App Storage',
+            mediaType: this.mediaType
+          }
         } else {
-          console.log('Multiple folders with media type')
           this.showSelectLocalFolder = true
           return
         }
+        // if (!foldersWithMediaType.length) {
+        //   // No local folders or no local folders with this media type
+        //   localFolder = await this.selectFolder()
+        // } else if (foldersWithMediaType.length == 1) {
+        //   console.log('Only 1 local folder with this media type - auto select it')
+        //   localFolder = foldersWithMediaType[0]
+        // } else {
+        //   console.log('Multiple folders with media type')
+        //   this.showSelectLocalFolder = true
+        //   return
+        // }
         if (!localFolder) {
           return this.$toast.error('Invalid download folder')
         }
