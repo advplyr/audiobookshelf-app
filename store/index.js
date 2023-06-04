@@ -10,6 +10,7 @@ export const state = () => ({
   playerIsFullscreen: false,
   isCasting: false,
   isCastAvailable: false,
+  attemptingConnection: false,
   socketConnected: false,
   networkConnected: false,
   networkConnectionType: null,
@@ -112,6 +113,9 @@ export const mutations = {
   },
   setCastAvailable(state, available) {
     state.isCastAvailable = available
+  },
+  setAttemptingConnection(state, val) {
+    state.attemptingConnection = val
   },
   setPlayerPlaying(state, val) {
     state.playerIsPlaying = val

@@ -1,12 +1,17 @@
 <template>
   <div class="w-full h-full min-h-full relative">
-    <div v-if="!loading" class="w-full" :class="{ 'py-6': altViewEnabled }">
+    <div v-if="shelves.length && isLoading" class="w-full pt-4 flex items-center justify-center">
+      <widgets-loading-spinner />
+      <p class="pl-4">Loading server data...</p>
+    </div>
+
+    <div class="w-full" :class="{ 'py-6': altViewEnabled }">
       <template v-for="(shelf, index) in shelves">
         <bookshelf-shelf :key="shelf.id" :label="shelf.label" :entities="shelf.entities" :type="shelf.type" :style="{ zIndex: shelves.length - index }" />
       </template>
     </div>
 
-    <div v-if="!shelves.length && !loading" class="absolute top-0 left-0 w-full h-full flex items-center justify-center">
+    <div v-if="!shelves.length && !isLoading" class="absolute top-0 left-0 w-full h-full flex items-center justify-center">
       <div>
         <p class="mb-4 text-center text-xl">
           Bookshelf empty
@@ -26,14 +31,15 @@
         </div>
       </div>
     </div>
+    <div v-else-if="!shelves.length && isLoading && !attemptingConnection" class="absolute top-0 left-0 z-50 w-full h-full flex items-center justify-center">
+      <ui-loading-indicator text="Loading..." />
+    </div>
   </div>
 </template>
 
 <script>
 export default {
-  props: {
-    loading: Boolean
-  },
+  props: {},
   data() {
     return {
       shelves: [],
@@ -41,7 +47,8 @@ export default {
       lastServerFetch: 0,
       lastServerFetchLibraryId: null,
       lastLocalFetch: 0,
-      localLibraryItems: []
+      localLibraryItems: [],
+      isLoading: false
     }
   },
   watch: {
@@ -97,19 +104,14 @@ export default {
     localMediaProgress() {
       return this.$store.state.globals.localMediaProgress
     },
-    isLoading: {
-      get() {
-        return this.loading
-      },
-      set(val) {
-        this.$emit('update:loading', val)
-      }
+    attemptingConnection() {
+      return this.$store.state.attemptingConnection
     }
   },
   methods: {
-    async getLocalMediaItemCategories() {
-      const localMedia = await this.$db.getLocalLibraryItems()
-      if (!localMedia || !localMedia.length) return []
+    getLocalMediaItemCategories() {
+      const localMedia = this.localLibraryItems
+      if (!localMedia?.length) return []
 
       const categories = []
       const books = []
@@ -198,7 +200,8 @@ export default {
       console.log(`[categories] fetchCategories networkConnected=${this.networkConnected}, lastServerFetch=${this.lastServerFetch}, lastLocalFetch=${this.lastLocalFetch}`)
 
       // TODO: Find a better way to keep the shelf up-to-date with local vs server library because this is a disaster
-      if (this.user && this.currentLibraryId && this.networkConnected) {
+      const isConnectedToServerWithInternet = this.user && this.currentLibraryId && this.networkConnected
+      if (isConnectedToServerWithInternet) {
         if (this.lastServerFetch && Date.now() - this.lastServerFetch < 5000 && this.lastServerFetchLibraryId == this.currentLibraryId) {
           console.log(`[categories] fetchCategories server fetch was ${Date.now() - this.lastServerFetch}ms ago so not doing it.`)
           return
@@ -221,11 +224,14 @@ export default {
       }
 
       this.isLoading = true
-      this.shelves = []
 
-      if (this.user && this.currentLibraryId && this.networkConnected) {
-        this.localLibraryItems = await this.$db.getLocalLibraryItems()
-        const localCategories = await this.getLocalMediaItemCategories()
+      // Set local library items first
+      this.localLibraryItems = await this.$db.getLocalLibraryItems()
+      const localCategories = this.getLocalMediaItemCategories()
+      this.shelves = localCategories
+      console.log('[categories] Local shelves set', this.shelves.length, this.lastLocalFetch)
+
+      if (isConnectedToServerWithInternet) {
         const categories = await this.$axios.$get(`/api/libraries/${this.currentLibraryId}/personalized?minified=1`).catch((error) => {
           console.error('[categories] Failed to fetch categories', error)
           return []
@@ -233,7 +239,6 @@ export default {
         if (!categories.length) {
           // Failed to load categories so use local shelves
           console.warn(`[categories] Failed to get server categories so using local categories`)
-          this.shelves = localCategories
           this.lastServerFetch = 0
           this.lastLocalFetch = Date.now()
           this.isLoading = false
@@ -261,12 +266,6 @@ export default {
         const localShelves = localCategories.filter((cat) => cat.type === this.currentLibraryMediaType && !cat.localOnly)
         this.shelves.push(...localShelves)
         console.log('[categories] Server shelves set', this.shelves.length, this.lastServerFetch)
-      } else {
-        // Offline only local
-        this.localLibraryItems = await this.$db.getLocalLibraryItems()
-        const localCategories = await this.getLocalMediaItemCategories()
-        this.shelves = localCategories
-        console.log('[categories] Local shelves set', this.shelves.length, this.lastLocalFetch)
       }
 
       this.isLoading = false

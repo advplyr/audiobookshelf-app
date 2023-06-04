@@ -30,10 +30,15 @@ export default {
     isCellular() {
       return this.networkConnectionType === 'cellular'
     },
+    attemptingConnection() {
+      return this.$store.state.attemptingConnection
+    },
     icon() {
       if (!this.user) return null // hide when not connected to server
 
-      if (!this.networkConnected) {
+      if (this.attemptingConnection) {
+        return 'cloud_sync'
+      } else if (!this.networkConnected) {
         return 'wifi_off'
       } else if (!this.socketConnected) {
         return 'cloud_off'
@@ -55,7 +60,9 @@ export default {
     showAlertDialog() {
       var msg = ''
       var meteredString = this.isNetworkUnmetered ? 'unmetered' : 'metered'
-      if (!this.networkConnected) {
+      if (this.attemptingConnection) {
+        msg = 'Attempting server connection'
+      } else if (!this.networkConnected) {
         msg = 'No internet'
       } else if (!this.socketConnected) {
         msg = 'Socket not connected'
