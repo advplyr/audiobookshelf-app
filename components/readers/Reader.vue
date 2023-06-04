@@ -49,10 +49,10 @@ export default {
       return this.$store.state.selectedLibraryItem
     },
     media() {
-      return this.selectedLibraryItem ? this.selectedLibraryItem.media : null
+      return this.selectedLibraryItem?.media || null
     },
     mediaMetadata() {
-      return this.media ? this.media.metadata || {} : {}
+      return this.media?.metadata || {}
     },
     readerComponentName() {
       if (this.ebookType === 'epub') return 'readers-epub-reader'
@@ -60,12 +60,6 @@ export default {
       else if (this.ebookType === 'comic') return 'readers-comic-reader'
       else if (this.ebookType === 'pdf') return 'readers-pdf-reader'
       return null
-    },
-    folderId() {
-      return this.selectedLibraryItem ? this.selectedLibraryItem.folderId : null
-    },
-    libraryId() {
-      return this.selectedLibraryItem ? this.selectedLibraryItem.libraryId : null
     },
     ebookFile() {
       return this.media?.ebookFile || null
@@ -103,19 +97,8 @@ export default {
       if (this.localContentUrl) {
         return Capacitor.convertFileSrc(this.localContentUrl)
       }
-      let filepath = ''
-      if (this.selectedLibraryItem.isFile) {
-        filepath = this.$encodeUriPath(this.ebookFile.metadata.filename)
-      } else {
-        const itemRelPath = this.selectedLibraryItem.relPath
-        if (itemRelPath.startsWith('/')) itemRelPath = itemRelPath.slice(1)
-        const relPath = this.ebookFile.metadata.relPath
-        if (relPath.startsWith('/')) relPath = relPath.slice(1)
-
-        filepath = this.$encodeUriPath(`${itemRelPath}/${relPath}`)
-      }
       const serverAddress = this.$store.getters['user/getServerAddress']
-      return `${serverAddress}/ebook/${this.libraryId}/${this.folderId}/${filepath}`
+      return `${serverAddress}/api/items/${this.selectedLibraryItem.id}/ebook`
     },
     playerLibraryItemId() {
       return this.$store.state.playerLibraryItemId

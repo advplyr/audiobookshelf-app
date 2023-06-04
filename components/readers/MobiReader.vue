@@ -1,6 +1,6 @@
 <template>
   <div class="mobi-ebook-viewer w-full relative">
-    <div class="absolute overflow-hidden left-0 right-0 w-full max-w-full m-auto z-10 border border-black border-opacity-20 shadow-md bg-white">
+    <div class="absolute overflow-hidden left-0 top-0 w-screen max-w-screen m-auto z-10 border border-black border-opacity-20 shadow-md bg-white">
       <iframe title="html-viewer" class="w-full overflow-hidden"> Loading </iframe>
     </div>
     <div class="fixed bottom-0 left-0 h-8 w-full bg-primary px-2 flex items-center z-20" :style="{ bottom: playerLibraryItemId ? '120px' : '0px' }">
@@ -17,7 +17,11 @@ import defaultCss from '@/assets/ebooks/basic.js'
 
 export default {
   props: {
-    url: String
+    url: String,
+    libraryItem: {
+      type: Object,
+      default: () => {}
+    }
   },
   data() {
     return {}
@@ -25,6 +29,9 @@ export default {
   computed: {
     playerLibraryItemId() {
       return this.$store.state.playerLibraryItemId
+    },
+    userToken() {
+      return this.$store.getters['user/getToken']
     }
   },
   methods: {
@@ -85,7 +92,10 @@ export default {
     async initMobi() {
       // Fetch mobi file as blob
       var buff = await this.$axios.$get(this.url, {
-        responseType: 'blob'
+        responseType: 'blob',
+        headers: {
+          Authorization: `Bearer ${this.userToken}`
+        }
       })
       var reader = new FileReader()
       reader.onload = async (event) => {

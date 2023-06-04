@@ -38,6 +38,9 @@ export default {
     }
   },
   computed: {
+    userToken() {
+      return this.$store.getters['user/getToken']
+    },
     /** @returns {string} */
     libraryItemId() {
       return this.libraryItem?.id
@@ -235,7 +238,11 @@ export default {
       /** @type {ePub.Book} */
       reader.book = new ePub(reader.url, {
         width: window.innerWidth,
-        height: window.innerHeight - this.readerHeightOffset
+        height: window.innerHeight - this.readerHeightOffset,
+        openAs: 'epub',
+        requestHeaders: {
+          Authorization: `Bearer ${this.userToken}`
+        }
       })
 
       /** @type {ePub.Rendition} */

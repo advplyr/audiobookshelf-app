@@ -47,7 +47,11 @@ Archive.init({
 
 export default {
   props: {
-    url: String
+    url: String,
+    libraryItem: {
+      type: Object,
+      default: () => {}
+    }
   },
   data() {
     return {
@@ -78,6 +82,9 @@ export default {
     }
   },
   computed: {
+    userToken() {
+      return this.$store.getters['user/getToken']
+    },
     comicMetadataKeys() {
       return this.comicMetadata ? Object.keys(this.comicMetadata) : []
     },
@@ -150,7 +157,10 @@ export default {
       console.log('Extracting', this.url)
 
       var buff = await this.$axios.$get(this.url, {
-        responseType: 'blob'
+        responseType: 'blob',
+        headers: {
+          Authorization: `Bearer ${this.userToken}`
+        }
       })
       const archive = await Archive.open(buff)
       const originalFilesObject = await archive.getFilesObject()

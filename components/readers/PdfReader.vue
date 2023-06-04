@@ -19,7 +19,7 @@
       <div class="flex items-center justify-center">
         <div :style="{ width: pdfWidth + 'px', height: pdfHeight + 'px' }" class="w-full h-full overflow-auto">
           <div v-if="loadedRatio > 0 && loadedRatio < 1" style="background-color: green; color: white; text-align: center" :style="{ width: loadedRatio * 100 + '%' }">{{ Math.floor(loadedRatio * 100) }}%</div>
-          <pdf ref="pdf" class="m-auto z-10 border border-black border-opacity-20 shadow-md bg-white" :src="url" :page="page" :rotate="rotate" @progress="loadedRatio = $event" @error="error" @num-pages="numPagesLoaded" @link-clicked="page = $event" @loaded="loadedEvt"></pdf>
+          <pdf ref="pdf" class="m-auto z-10 border border-black border-opacity-20 shadow-md bg-white" :src="pdfDocInitParams" :page="page" :rotate="rotate" @progress="loadedRatio = $event" @error="error" @num-pages="numPagesLoaded" @link-clicked="page = $event" @loaded="loadedEvt"></pdf>
         </div>
       </div>
     </div>
@@ -50,8 +50,8 @@ export default {
     }
   },
   computed: {
-    libraryItemId() {
-      return this.libraryItem?.id
+    userToken() {
+      return this.$store.getters['user/getToken']
     },
     localLibraryItem() {
       if (this.isLocal) return this.libraryItem
@@ -93,6 +93,14 @@ export default {
     },
     savedPage() {
       return Number(this.userItemProgress?.ebookLocation || 0)
+    },
+    pdfDocInitParams() {
+      return {
+        url: this.url,
+        httpHeaders: {
+          Authorization: `Bearer ${this.userToken}`
+        }
+      }
     }
   },
   methods: {
