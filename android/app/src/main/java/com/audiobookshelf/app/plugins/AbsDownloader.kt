@@ -109,12 +109,6 @@ class AbsDownloader : Plugin() {
     }
   }
 
-  // Clean folder path so it can be used in URL
-  private fun cleanRelPath(relPath: String): String {
-    val cleanedRelPath = relPath.replace("\\", "/").replace("%", "%25").replace("#", "%23")
-    return if (cleanedRelPath.startsWith("/")) cleanedRelPath.substring(1) else cleanedRelPath
-  }
-
   // Item filenames could be the same if they are in sub-folders, this will make them unique
   private fun getFilenameFromRelPath(relPath: String): String {
     var cleanedRelPath = relPath.replace("\\", "_").replace("/", "_")
@@ -155,7 +149,7 @@ class AbsDownloader : Plugin() {
       val book = libraryItem.media as Book
       book.ebookFile?.let { ebookFile ->
         val fileSize = ebookFile.metadata?.size ?: 0
-        val serverPath = "/s/item/${libraryItem.id}/${cleanRelPath(ebookFile.metadata?.relPath ?: "")}"
+        val serverPath = "/api/items/${libraryItem.id}/file/${ebookFile.ino}/download"
         val destinationFilename = getFilenameFromRelPath(ebookFile.metadata?.relPath ?: "")
         val finalDestinationFile = File("$itemFolderPath/$destinationFilename")
         val destinationFile = File("$tempFolderPath/$destinationFilename")
@@ -175,9 +169,14 @@ class AbsDownloader : Plugin() {
       }
 
       // Create download item part for each audio track
+      val audioFiles = (libraryItem.media as Book).audioFiles ?: mutableListOf()
       tracks.forEach { audioTrack ->
         val fileSize = audioTrack.metadata?.size ?: 0
-        val serverPath = "/s/item/${libraryItem.id}/${cleanRelPath(audioTrack.relPath)}"
+
+        // TODO: Currently file ino is only stored on AudioFile. This should be updated server side to be in FileMetadata or on the AudioTrack
+        val audioFileIno = audioFiles.find { it.metadata.path == audioTrack.metadata?.path }?.ino
+
+        val serverPath = "/api/items/${libraryItem.id}/file/${audioFileIno}/download"
         val destinationFilename = getFilenameFromRelPath(audioTrack.relPath)
         Log.d(tag, "Audio File Server Path $serverPath | AF RelPath ${audioTrack.relPath} | LocalFolder Path ${localFolder.absolutePath} | DestName $destinationFilename")
 
@@ -230,6 +229,7 @@ class AbsDownloader : Plugin() {
       val podcastTitle = cleanStringForFileSystem(libraryItem.media.metadata.title)
 
       val audioTrack = episode?.audioTrack
+      val audioFileIno = episode?.audioFile?.ino
       val fileSize = audioTrack?.metadata?.size ?: 0
 
       Log.d(tag, "Starting podcast episode download")
@@ -237,7 +237,7 @@ class AbsDownloader : Plugin() {
       val downloadItemId = "${libraryItem.id}-${episode?.id}"
       val downloadItem = DownloadItem(downloadItemId, libraryItem.id, episode?.id, libraryItem.userMediaProgress, DeviceManager.serverConnectionConfig?.id ?: "", DeviceManager.serverAddress, DeviceManager.serverUserId, libraryItem.mediaType, itemFolderPath, localFolder, podcastTitle, podcastTitle, libraryItem.media, mutableListOf())
 
-      var serverPath = "/s/item/${libraryItem.id}/${cleanRelPath(audioTrack?.relPath ?: "")}"
+      var serverPath = "/api/items/${libraryItem.id}/file/${audioFileIno}/download"
       var destinationFilename = getFilenameFromRelPath(audioTrack?.relPath ?: "")
       Log.d(tag, "Audio File Server Path $serverPath | AF RelPath ${audioTrack?.relPath} | LocalFolder Path ${localFolder.absolutePath} | DestName $destinationFilename")
 
