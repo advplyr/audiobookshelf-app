@@ -9,6 +9,7 @@ import Foundation
 import AVFoundation
 import UIKit
 import MediaPlayer
+import RealmSwift
 
 enum PlayMethod: Int {
     case directplay = 0
@@ -86,7 +87,21 @@ class AudioPlayer: NSObject {
         self.audioPlayer.addObserver(self, forKeyPath: #keyPath(AVPlayer.currentItem), options: .new, context: &playerContext)
         
         for track in playbackSession.audioTracks {
-            if let playerAsset = createAsset(itemId: playbackSession.libraryItemId!, track: track) {
+            
+            // TODO: All of this to get the ino of the file on the server. Future server release will include the ino with the session tracks
+            var audioFileIno = ""
+            let trackPath = track.metadata?.path ?? ""
+            if (!playbackSession.isLocal && playbackSession.episodeId != nil) {
+                let episodes = playbackSession.libraryItem?.media?.episodes ?? List<PodcastEpisode>()
+                let matchingEpisode:PodcastEpisode? = episodes.first(where: { $0.audioFile?.metadata?.path == trackPath })
+                audioFileIno = matchingEpisode?.audioFile?.ino ?? ""
+            } else if (!playbackSession.isLocal) {
+                let audioFiles = playbackSession.libraryItem?.media?.audioFiles ?? List<AudioFile>()
+                let matchingAudioFile = audioFiles.first(where: { $0.metadata?.path == trackPath })
+                audioFileIno = matchingAudioFile?.ino ?? ""
+            }
+            
+            if let playerAsset = createAsset(itemId: playbackSession.libraryItemId!, track: track, ino: audioFileIno) {
                 let playerItem = AVPlayerItem(asset: playerAsset)
                 if (playbackSession.playMethod == PlayMethod.transcode.rawValue) {
                     playerItem.preferredForwardBufferDuration = 50
@@ -483,23 +498,18 @@ class AudioPlayer: NSObject {
     }
 
     // MARK: - Private
-    private func createAsset(itemId:String, track:AudioTrack) -> AVAsset? {
+    private func createAsset(itemId:String, track:AudioTrack, ino:String) -> AVAsset? {
         guard let playbackSession = self.getPlaybackSession() else { return nil }
         
         if (playbackSession.playMethod == PlayMethod.directplay.rawValue) {
-            // The only reason this is separate is because the filename needs to be encoded
-            let relPath = track.metadata?.relPath ?? ""
-            let filepathEncoded = relPath.addingPercentEncoding(withAllowedCharacters: NSCharacterSet.urlQueryAllowed)
-            let urlstr = "\(Store.serverConfig!.address)/s/item/\(itemId)/\(filepathEncoded ?? "")?token=\(Store.serverConfig!.token)"
+            let urlstr = "\(Store.serverConfig!.address)/api/items/\(itemId)/file/\(ino)?token=\(Store.serverConfig!.token)"
             let url = URL(string: urlstr)!
             return AVURLAsset(url: url)
         } else if (playbackSession.playMethod == PlayMethod.local.rawValue) {
             guard let localFile = track.getLocalFile() else {
                 // Worst case we can stream the file
                 logger.log("Unable to play local file. Resulting to streaming \(track.localFileId ?? "Unknown")")
-                let relPath = track.metadata?.relPath ?? ""
-                let filepathEncoded = relPath.addingPercentEncoding(withAllowedCharacters: NSCharacterSet.urlQueryAllowed)
-                let urlstr = "\(Store.serverConfig!.address)/s/item/\(itemId)/\(filepathEncoded ?? "")?token=\(Store.serverConfig!.token)"
+                let urlstr = "\(Store.serverConfig!.address)/api/items/\(itemId)/file/\(ino)?token=\(Store.serverConfig!.token)"
                 let url = URL(string: urlstr)!
                 return AVURLAsset(url: url)
             }
