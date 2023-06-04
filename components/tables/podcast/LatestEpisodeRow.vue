@@ -192,28 +192,32 @@ export default {
       }
     },
     async download(selectedLocalFolder = null) {
-      var localFolder = selectedLocalFolder
+      let localFolder = selectedLocalFolder
       if (!localFolder) {
-        var localFolders = (await this.$db.getLocalFolders()) || []
+        const localFolders = (await this.$db.getLocalFolders()) || []
         console.log('Local folders loaded', localFolders.length)
-        var foldersWithMediaType = localFolders.filter((lf) => {
+        const foldersWithMediaType = localFolders.filter((lf) => {
           console.log('Checking local folder', lf.mediaType)
           return lf.mediaType == this.mediaType
         })
         console.log('Folders with media type', this.mediaType, foldersWithMediaType.length)
+        const internalStorageFolder = foldersWithMediaType.find((f) => f.id === `internal-${this.mediaType}`)
         if (!foldersWithMediaType.length) {
-          // No local folders or no local folders with this media type
-          localFolder = await this.selectFolder()
-        } else if (foldersWithMediaType.length == 1) {
-          console.log('Only 1 local folder with this media type - auto select it')
-          localFolder = foldersWithMediaType[0]
+          localFolder = {
+            id: `internal-${this.mediaType}`,
+            name: 'Internal App Storage',
+            mediaType: this.mediaType
+          }
+        } else if (foldersWithMediaType.length === 1 && internalStorageFolder) {
+          localFolder = internalStorageFolder
         } else {
-          console.log('Multiple folders with media type')
-          // this.showSelectLocalFolder = true
+          this.$store.commit('globals/showSelectLocalFolderModal', {
+            mediaType: this.mediaType,
+            callback: (folder) => {
+              this.download(folder)
+            }
+          })
           return
-        }
-        if (!localFolder) {
-          return this.$toast.error('Invalid download folder')
         }
       }
 

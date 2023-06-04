@@ -1,7 +1,6 @@
 package com.audiobookshelf.app.plugins
 
 import android.app.AlertDialog
-import android.database.Cursor
 import android.net.Uri
 import android.os.Build
 import android.util.Log
@@ -163,6 +162,13 @@ class AbsFileSystem : Plugin() {
     val jsobj = JSObject()
     jsobj.put("value", hasAccess)
     call.resolve(jsobj)
+  }
+
+  @PluginMethod
+  fun getSDKVersion(call: PluginCall) {
+    val jsObject = JSObject()
+    jsObject.put("version", Build.VERSION.SDK_INT)
+    call.resolve(jsObject)
   }
 
   @PluginMethod

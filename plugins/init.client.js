@@ -2,6 +2,7 @@ import Vue from 'vue'
 import vClickOutside from 'v-click-outside'
 import { App } from '@capacitor/app'
 import { Dialog } from '@capacitor/dialog'
+import { AbsFileSystem } from '@/plugins/capacitor'
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { formatDistance, format, addDays, isDate } from 'date-fns'
 import { Capacitor } from '@capacitor/core'
@@ -16,6 +17,13 @@ if (Capacitor.getPlatform() != 'web') {
 }
 
 Vue.prototype.$isDev = process.env.NODE_ENV !== 'production'
+
+Vue.prototype.$getAndroidSDKVersion = async () => {
+  if (Capacitor.getPlatform() !== 'android') return null
+  const data = await AbsFileSystem.getSDKVersion()
+  if (isNaN(data?.version)) return null
+  return Number(data.version)
+}
 
 Vue.prototype.$encodeUriPath = (path) => {
   return path.replace(/\\/g, '/').replace(/%/g, '%25').replace(/#/g, '%23')

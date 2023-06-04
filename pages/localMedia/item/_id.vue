@@ -272,6 +272,7 @@ export default {
     },
     showItemDialog() {
       this.selectedAudioTrack = null
+      this.selectedEpisode = null
       this.showDialog = true
     },
     showTrackDialog(track) {

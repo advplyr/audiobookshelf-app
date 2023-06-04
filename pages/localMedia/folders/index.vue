@@ -15,11 +15,17 @@
       <div v-if="!localFolders.length" class="flex justify-center">
         <p class="text-center">No Media Folders</p>
       </div>
-      <div class="flex border-t border-white border-opacity-10 my-4 py-4">
+      <div v-if="!isAndroid10OrBelow || overrideFolderRestriction" class="flex border-t border-white border-opacity-10 my-4 py-4">
         <div class="flex-grow pr-1">
           <ui-dropdown v-model="newFolderMediaType" placeholder="Select media type" :items="mediaTypeItems" />
         </div>
         <ui-btn small class="w-28" color="success" @click="selectFolder">New Folder</ui-btn>
+      </div>
+      <div v-else class="flex border-t border-white border-opacity-10 my-4 py-4">
+        <div class="flex-grow pr-1">
+          <p class="text-sm">Android 10 and below will use internal app storage for downloads.</p>
+        </div>
+        <ui-btn small class="w-28" color="primary" @click="overrideFolderRestriction = true">Override</ui-btn>
       </div>
     </div>
   </div>
@@ -44,7 +50,9 @@ export default {
           text: 'Podcasts'
         }
       ],
-      syncing: false
+      syncing: false,
+      isAndroid10OrBelow: false,
+      overrideFolderRestriction: false
     }
   },
   computed: {
@@ -82,6 +90,10 @@ export default {
       this.$router.push(`/localMedia/folders/${folderObj.id}?scan=1`)
     },
     async init() {
+      const androidSdkVersion = await this.$getAndroidSDKVersion()
+      this.isAndroid10OrBelow = !!androidSdkVersion && androidSdkVersion <= 29
+      console.log(`androidSdkVersion=${androidSdkVersion}, isAndroid10OrBelow=${this.isAndroid10OrBelow}`)
+
       this.localFolders = (await this.$db.getLocalFolders()) || []
       this.localLibraryItems = await this.$db.getLocalLibraryItems()
     }

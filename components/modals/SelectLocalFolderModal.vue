@@ -1,8 +1,8 @@
 <template>
   <modals-modal v-model="show" :width="300" height="100%">
     <template #outer>
-      <div class="absolute top-8 left-4 z-40" style="max-width: 80%">
-        <p class="text-white text-lg truncate">Select Local Folder</p>
+      <div class="absolute top-10 left-4 z-40" style="max-width: 80%">
+        <p class="text-white text-lg truncate">Select Download Location</p>
       </div>
     </template>
 
@@ -25,36 +25,48 @@
 
 <script>
 export default {
-  props: {
-    value: Boolean,
-    mediaType: String
-  },
   data() {
     return {
       localFolders: []
     }
   },
   watch: {
-    value(newVal) {
-      this.$nextTick(this.init)
+    show(newVal) {
+      if (newVal) {
+        this.$nextTick(this.init)
+      }
     }
   },
   computed: {
     show: {
       get() {
-        return this.value
+        return this.$store.state.globals.showSelectLocalFolderModal
       },
       set(val) {
-        this.$emit('input', val)
+        this.$store.commit('globals/setShowSelectLocalFolderModal', val)
       }
+    },
+    modalData() {
+      return this.$store.state.globals.localFolderSelectData || {}
+    },
+    callback() {
+      return this.modalData.callback
+    },
+    mediaType() {
+      return this.modalData.mediaType
     }
   },
   methods: {
     clickedOption(folder) {
-      this.$emit('select', folder)
+      this.show = false
+      if (!this.callback) {
+        console.error('Callback not set')
+        return
+      }
+      this.callback(folder)
     },
     async init() {
-      var localFolders = (await this.$db.getLocalFolders()) || []
+      const localFolders = (await this.$db.getLocalFolders()) || []
 
       if (!localFolders.some((lf) => lf.id === `internal-${this.mediaType}`)) {
         localFolders.push({

@@ -233,7 +233,7 @@ class AbsDownloader : Plugin() {
       val fileSize = audioTrack?.metadata?.size ?: 0
 
       Log.d(tag, "Starting podcast episode download")
-      val itemFolderPath = localFolder.absolutePath + "/" + podcastTitle
+      val itemFolderPath = if (isInternal) "$tempFolderPath" else "${localFolder.absolutePath}/$podcastTitle"
       val downloadItemId = "${libraryItem.id}-${episode?.id}"
       val downloadItem = DownloadItem(downloadItemId, libraryItem.id, episode?.id, libraryItem.userMediaProgress, DeviceManager.serverConnectionConfig?.id ?: "", DeviceManager.serverAddress, DeviceManager.serverUserId, libraryItem.mediaType, itemFolderPath, localFolder, podcastTitle, podcastTitle, libraryItem.media, mutableListOf())
 
