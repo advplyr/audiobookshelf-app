@@ -111,7 +111,10 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
       cb(serverItemsInProgress)
     } else {
       apiHandler.getAllItemsInProgress { itemsInProgress ->
-        serverItemsInProgress = itemsInProgress
+        serverItemsInProgress = itemsInProgress.filter {
+          val libraryItem = it.libraryItemWrapper as LibraryItem
+          libraryItem.checkHasTracks()
+        }
         cb(serverItemsInProgress)
       }
     }
