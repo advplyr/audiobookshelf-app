@@ -148,11 +148,16 @@ export default {
       this.touchendY = e.changedTouches[0].screenY
       this.handleGesture()
     },
+    closeEvt() {
+      this.show = false
+    },
     registerListeners() {
+      this.$eventBus.$on('close-ebook', this.closeEvt)
       document.body.addEventListener('touchstart', this.touchstart)
       document.body.addEventListener('touchend', this.touchend)
     },
     unregisterListeners() {
+      this.$eventBus.$on('close-ebook', this.closeEvt)
       document.body.removeEventListener('touchstart', this.touchstart)
       document.body.removeEventListener('touchend', this.touchend)
     }

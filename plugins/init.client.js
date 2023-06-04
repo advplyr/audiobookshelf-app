@@ -202,6 +202,9 @@ export default ({ store, app }, inject) => {
       if (store.state.playerIsFullscreen) {
         eventBus.$emit('minimize-player')
       }
+      if (store.state.showReader) {
+        eventBus.$emit('close-ebook')
+      }
       next()
     })
   }
@@ -210,6 +213,10 @@ export default ({ store, app }, inject) => {
   App.addListener('backButton', async ({ canGoBack }) => {
     if (store.state.globals.isModalOpen) {
       eventBus.$emit('close-modal')
+      return
+    }
+    if (store.state.showReader) {
+      eventBus.$emit('close-ebook')
       return
     }
     if (store.state.playerIsFullscreen) {
