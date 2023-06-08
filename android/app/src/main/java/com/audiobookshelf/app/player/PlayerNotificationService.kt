@@ -913,7 +913,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   }
 
   @SuppressLint("HardwareIds")
-  private fun getDeviceInfo(): DeviceInfo {
+  fun getDeviceInfo(): DeviceInfo {
     /* EXAMPLE
       manufacturer: Google
       model: Pixel 6

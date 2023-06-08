@@ -27,6 +27,7 @@ class PlaybackSession(
   var episodeId:String?,
   var mediaType:String,
   var mediaMetadata:MediaTypeMetadata,
+  var deviceInfo:DeviceInfo,
   var chapters:List<BookChapter>,
   var displayTitle: String?,
   var displayAuthor: String?,
@@ -250,7 +251,7 @@ class PlaybackSession(
 
   @JsonIgnore
   fun clone():PlaybackSession {
-    return PlaybackSession(id,userId,libraryItemId,episodeId,mediaType,mediaMetadata,chapters,displayTitle,displayAuthor,coverPath,duration,playMethod,startedAt,updatedAt,timeListening,audioTracks,currentTime,libraryItem,localLibraryItem,localEpisodeId,serverConnectionConfigId,serverAddress, mediaPlayer)
+    return PlaybackSession(id,userId,libraryItemId,episodeId,mediaType,mediaMetadata,deviceInfo,chapters,displayTitle,displayAuthor,coverPath,duration,playMethod,startedAt,updatedAt,timeListening,audioTracks,currentTime,libraryItem,localLibraryItem,localEpisodeId,serverConnectionConfigId,serverAddress, mediaPlayer)
   }
 
   @JsonIgnore

@@ -74,7 +74,7 @@ class LocalLibraryItem(
   }
 
   @JsonIgnore
-  fun getPlaybackSession(episode:PodcastEpisode?):PlaybackSession {
+  fun getPlaybackSession(episode:PodcastEpisode?, deviceInfo:DeviceInfo):PlaybackSession {
     val localEpisodeId = episode?.id
     val sessionId = "play_local_${UUID.randomUUID()}"
 
@@ -97,7 +97,7 @@ class LocalLibraryItem(
     }
 
     val dateNow = System.currentTimeMillis()
-    return PlaybackSession(sessionId,serverUserId,libraryItemId,episode?.serverEpisodeId, mediaType, mediaMetadata, chapters ?: mutableListOf(), displayTitle, authorName,null,duration,PLAYMETHOD_LOCAL,dateNow,0L,0L, audioTracks,currentTime,null,this,localEpisodeId,serverConnectionConfigId, serverAddress, "exo-player")
+    return PlaybackSession(sessionId,serverUserId,libraryItemId,episode?.serverEpisodeId, mediaType, mediaMetadata, deviceInfo,chapters ?: mutableListOf(), displayTitle, authorName,null,duration,PLAYMETHOD_LOCAL,dateNow,0L,0L, audioTracks,currentTime,null,this,localEpisodeId,serverConnectionConfigId, serverAddress, "exo-player")
   }
 
   @JsonIgnore
