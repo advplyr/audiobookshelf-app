@@ -44,6 +44,26 @@ export default {
       return redirect('/bookshelf/playlists')
     }
 
+    // Lookup matching local items & episodes and attach to playlist items
+    if (playlist.items.length) {
+      const localLibraryItems = (await app.$db.getLocalLibraryItems(playlist.items[0].libraryItem.mediaType)) || []
+      if (localLibraryItems.length) {
+        playlist.items.forEach((playlistItem) => {
+          const matchingLocalLibraryItem = localLibraryItems.find((lli) => lli.libraryItemId === playlistItem.libraryItemId)
+          if (!matchingLocalLibraryItem) return
+          if (playlistItem.episode) {
+            const matchingLocalEpisode = matchingLocalLibraryItem.media.episodes?.find((lep) => lep.serverEpisodeId === playlistItem.episodeId)
+            if (matchingLocalEpisode) {
+              playlistItem.localLibraryItem = matchingLocalLibraryItem
+              playlistItem.localEpisode = matchingLocalEpisode
+            }
+          } else {
+            playlistItem.localLibraryItem = matchingLocalLibraryItem
+          }
+        })
+      }
+    }
+
     return {
       playlist
     }
@@ -73,7 +93,10 @@ export default {
       })
     },
     streaming() {
-      return !!this.playableItems.find((i) => this.$store.getters['getIsMediaStreaming'](i.libraryItemId, i.episodeId))
+      return !!this.playableItems.find((i) => {
+        if (i.localLibraryItem && this.$store.getters['getIsMediaStreaming'](i.localLibraryItem.id, i.localEpisode?.id)) return true
+        return this.$store.getters['getIsMediaStreaming'](i.libraryItemId, i.episodeId)
+      })
     },
     showPlayButton() {
       return this.playableItems.length
@@ -82,11 +105,15 @@ export default {
   methods: {
     clickPlay() {
       const nextItem = this.playableItems.find((i) => {
-        var prog = this.$store.getters['user/getUserMediaProgress'](i.libraryItemId, i.episodeId)
-        return !prog || !prog.isFinished
+        const prog = this.$store.getters['user/getUserMediaProgress'](i.libraryItemId, i.episodeId)
+        return !prog?.isFinished
       })
       if (nextItem) {
-        this.$eventBus.$emit('play-item', { libraryItemId: nextItem.libraryItemId, episodeId: nextItem.episodeId })
+        if (nextItem.localLibraryItem) {
+          this.$eventBus.$emit('play-item', { libraryItemId: nextItem.localLibraryItem.id, episodeId: nextItem.localEpisode?.id, serverLibraryItemId: nextItem.libraryItemId, serverEpisodeId: nextItem.episodeId })
+        } else {
+          this.$eventBus.$emit('play-item', { libraryItemId: nextItem.libraryItemId, episodeId: nextItem.episodeId })
+        }
       }
     }
   },

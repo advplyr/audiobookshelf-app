@@ -6,9 +6,9 @@
       </div>
       <div class="item-table-content h-full px-2 flex items-center">
         <div class="max-w-full">
-          <p class="truncate block text-sm">{{ itemTitle }}</p>
-          <p class="truncate block text-gray-400 text-xs">{{ bookAuthorName }}</p>
-          <p class="text-xxs text-gray-500">{{ itemDuration }}</p>
+          <p class="truncate block text-sm">{{ itemTitle }} <span v-if="localLibraryItem" class="material-icons text-success text-base align-text-bottom">download_done</span></p>
+          <p v-if="authorName" class="truncate block text-gray-300 text-xs">{{ authorName }}</p>
+          <p class="text-xxs text-gray-400">{{ itemDuration }}</p>
         </div>
       </div>
       <div class="w-8 min-w-8 flex justify-center">
@@ -39,11 +39,17 @@ export default {
     libraryItem() {
       return this.item.libraryItem || {}
     },
+    localLibraryItem() {
+      return this.item.localLibraryItem
+    },
     episode() {
       return this.item.episode
     },
     episodeId() {
-      return this.episode ? this.episode.id : null
+      return this.episode?.id || null
+    },
+    localEpisode() {
+      return this.item.localEpisode
     },
     media() {
       return this.libraryItem.media || {}
@@ -65,6 +71,10 @@ export default {
     },
     bookAuthorName() {
       return this.bookAuthors.map((au) => au.name).join(', ')
+    },
+    authorName() {
+      if (this.episode) return this.mediaMetadata.author
+      return this.bookAuthorName
     },
     itemDuration() {
       if (this.episode) return this.$elapsedPretty(this.episode.duration)
@@ -92,6 +102,7 @@ export default {
       return !this.isMissing && !this.isInvalid && (this.tracks.length || this.episode)
     },
     isStreaming() {
+      if (this.localLibraryItem && this.$store.getters['getIsEpisodeStreaming'](this.localLibraryItem.id, this.localEpisode?.id)) return true
       return this.$store.getters['getIsEpisodeStreaming'](this.libraryItem.id, this.episodeId)
     },
     streamIsPlaying() {
@@ -103,6 +114,13 @@ export default {
       await this.$hapticsImpact()
       if (this.streamIsPlaying) {
         this.$eventBus.$emit('pause-item')
+      } else if (this.localLibraryItem) {
+        this.$eventBus.$emit('play-item', {
+          libraryItemId: this.localLibraryItem.id,
+          episodeId: this.localEpisode?.id,
+          serverLibraryItemId: this.libraryItem.id,
+          serverEpisodeId: this.episodeId
+        })
       } else {
         this.$eventBus.$emit('play-item', {
           libraryItemId: this.libraryItem.id,

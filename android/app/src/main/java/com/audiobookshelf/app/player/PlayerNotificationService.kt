@@ -922,7 +922,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       appVersion: 0.9.46-beta
      */
     val deviceId = Settings.Secure.getString(ctx.contentResolver, Settings.Secure.ANDROID_ID)
-    return DeviceInfo(deviceId, Build.MANUFACTURER, Build.MODEL, Build.BRAND, Build.VERSION.SDK_INT, BuildConfig.VERSION_NAME)
+    return DeviceInfo(deviceId, Build.MANUFACTURER, Build.MODEL, Build.VERSION.SDK_INT, BuildConfig.VERSION_NAME)
   }
 
   private val deviceSettings get() = DeviceManager.deviceData.deviceSettings ?: DeviceSettings.default()

@@ -91,7 +91,6 @@ data class DeviceInfo(
   var deviceId:String,
   var manufacturer:String,
   var model:String,
-  var brand:String,
   var sdkVersion:Int,
   var clientVersion: String
 )
