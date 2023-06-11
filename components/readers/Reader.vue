@@ -5,7 +5,7 @@
       <div class="flex-grow" />
       <span class="material-icons text-xl text-white" @click.stop="show = false">close</span>
     </div>
-    <component v-if="readerComponentName" ref="readerComponent" :is="readerComponentName" :url="ebookUrl" :library-item="selectedLibraryItem" :is-local="isLocal" />
+    <component v-if="readerComponentName" ref="readerComponent" :is="readerComponentName" :url="ebookUrl" :library-item="selectedLibraryItem" :is-local="isLocal" :keep-progress="keepProgress" />
   </div>
 </template>
 
@@ -62,10 +62,19 @@ export default {
       return null
     },
     ebookFile() {
-      return this.media?.ebookFile || null
+      // ebook file id is passed when reading a supplementary ebook
+      if (this.ebookFileId) {
+        return this.selectedLibraryItem.libraryFiles.find((lf) => lf.ino === this.ebookFileId)
+      }
+      return this.media.ebookFile
     },
     ebookFormat() {
-      return this.ebookFile?.ebookFormat || null
+      if (!this.ebookFile) return null
+      // Use file extension for supplementary ebook
+      if (!this.ebookFile.ebookFormat) {
+        return this.ebookFile.metadata.ext.toLowerCase().slice(1)
+      }
+      return this.ebookFile.ebookFormat
     },
     ebookType() {
       if (this.isMobi) return 'mobi'
@@ -98,10 +107,20 @@ export default {
         return Capacitor.convertFileSrc(this.localContentUrl)
       }
       const serverAddress = this.$store.getters['user/getServerAddress']
+
+      if (this.ebookFileId) {
+        return `${serverAddress}/api/items/${this.selectedLibraryItem.id}/ebook/${this.ebookFileId}`
+      }
       return `${serverAddress}/api/items/${this.selectedLibraryItem.id}/ebook`
     },
     playerLibraryItemId() {
       return this.$store.state.playerLibraryItemId
+    },
+    keepProgress() {
+      return this.$store.state.ereaderKeepProgress
+    },
+    ebookFileId() {
+      return this.$store.state.ereaderFileId
     }
   },
   methods: {
@@ -130,11 +149,9 @@ export default {
       }
 
       if (this.touchendX < this.touchstartX) {
-        console.log('swiped left')
         this.next()
       }
       if (this.touchendX > this.touchstartX) {
-        console.log('swiped right')
         this.prev()
       }
     },

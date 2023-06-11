@@ -20,6 +20,8 @@ export const state = () => ({
   hasStoragePermission: false,
   selectedLibraryItem: null,
   showReader: false,
+  ereaderKeepProgress: false,
+  ereaderFileId: null,
   showSideDrawer: false,
   isNetworkListenerInit: false,
   serverSettings: null,
@@ -145,8 +147,11 @@ export const mutations = {
   setIsNetworkUnmetered(state, val) {
     state.isNetworkUnmetered = val
   },
-  openReader(state, libraryItem) {
+  showReader(state, { libraryItem, keepProgress, fileId }) {
     state.selectedLibraryItem = libraryItem
+    state.ereaderKeepProgress = keepProgress
+    state.ereaderFileId = fileId
+
     state.showReader = true
   },
   setShowReader(state, val) {

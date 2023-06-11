@@ -21,7 +21,8 @@ export default {
       type: Object,
       default: () => {}
     },
-    isLocal: Boolean
+    isLocal: Boolean,
+    keepProgress: Boolean
   },
   data() {
     return {
@@ -83,6 +84,13 @@ export default {
     },
     localStorageLocationsKey() {
       return `ebookLocations-${this.libraryItemId}`
+    },
+    savedEbookLocation() {
+      if (!this.keepProgress) return null
+      if (!this.userItemProgress?.ebookLocation) return null
+      // Validate ebookLocation is an epubcfi
+      if (!String(this.userItemProgress.ebookLocation).startsWith('epubcfi')) return null
+      return this.userItemProgress.ebookLocation
     }
   },
   methods: {
@@ -107,6 +115,8 @@ export default {
      * @param {string} payload.ebookProgress - eBook Progress Percentage
      */
     async updateProgress(payload) {
+      if (!this.keepProgress) return
+
       // Update local item
       if (this.localLibraryItemId) {
         const localPayload = {
@@ -213,7 +223,7 @@ export default {
     },
     /** @param {string} location - CFI of the new location */
     relocated(location) {
-      if (this.userItemProgress?.ebookLocation === location.start.cfi) {
+      if (this.savedEbookLocation === location.start.cfi) {
         return
       }
 
@@ -255,10 +265,10 @@ export default {
       })
 
       // load saved progress
-      reader.rendition.display(this.userItemProgress?.ebookLocation || reader.book.locations.start)
+      reader.rendition.display(this.savedEbookLocation || reader.book.locations.start)
 
       // load style
-      reader.rendition.themes.default({ '*': { color: '#fff!important', 'background-color': 'rgb(35 35 35)!important' } })
+      reader.rendition.themes.default({ '*': { color: '#fff!important', 'background-color': 'rgb(35 35 35)!important' }, a: { color: '#fff!important' } })
 
       reader.book.ready.then(() => {
         // set up event listeners

@@ -39,7 +39,8 @@ export default {
       type: Object,
       default: () => {}
     },
-    isLocal: Boolean
+    isLocal: Boolean,
+    keepProgress: Boolean
   },
   data() {
     return {
@@ -92,7 +93,11 @@ export default {
       return this.$store.getters['user/getUserMediaProgress'](this.serverLibraryItemId)
     },
     savedPage() {
-      return Number(this.userItemProgress?.ebookLocation || 0)
+      if (!this.keepProgress) return 0
+
+      // Validate ebookLocation is a number
+      if (!this.userItemProgress?.ebookLocation || isNaN(this.userItemProgress.ebookLocation)) return 0
+      return Number(this.userItemProgress.ebookLocation)
     },
     pdfDocInitParams() {
       return {
@@ -105,10 +110,13 @@ export default {
   },
   methods: {
     async updateProgress() {
+      if (!this.keepProgress) return
+
       if (!this.numPages) {
         console.error('Num pages not loaded')
         return
       }
+
       const payload = {
         ebookLocation: String(this.page),
         ebookProgress: Math.max(0, Math.min(1, (Number(this.page) - 1) / Number(this.numPages)))

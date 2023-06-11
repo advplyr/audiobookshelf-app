@@ -483,9 +483,9 @@ export default {
     readBook() {
       if (this.localLibraryItem?.media?.ebookFile) {
         // Has local ebook file
-        this.$store.commit('openReader', this.localLibraryItem)
+        this.$store.commit('showReader', { libraryItem: this.localLibraryItem, keepProgress: true })
       } else {
-        this.$store.commit('openReader', this.libraryItem)
+        this.$store.commit('showReader', { libraryItem: this.libraryItem, keepProgress: true })
       }
     },
     playAtTimestamp(seconds) {
