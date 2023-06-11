@@ -90,7 +90,9 @@
           <div ref="readyTrack" class="h-full bg-gray-600 absolute top-0 left-0 rounded-full pointer-events-none" />
           <div ref="bufferedTrack" class="h-full bg-gray-500 absolute top-0 left-0 rounded-full pointer-events-none" />
           <div ref="playedTrack" class="h-full bg-gray-200 absolute top-0 left-0 rounded-full pointer-events-none" />
-          <div ref="trackCursor" class="h-3.5 w-3.5 -top-1 rounded-full bg-gray-200 absolute pointer-events-auto" :class="{ 'opacity-0': lockUi || !showFullscreen }" @touchstart="touchstartCursor" />
+          <div ref="trackCursor" class="h-7 w-7 rounded-full absolute pointer-events-auto flex items-center justify-center" :style="{ top: '-11px' }" :class="{ 'opacity-0': lockUi || !showFullscreen }" @touchstart="touchstartCursor">
+            <div class="bg-gray-200 rounded-full w-3.5 h-3.5 pointer-events-none" />
+          </div>
         </div>
       </div>
     </div>
@@ -551,7 +553,7 @@ export default {
       this.$refs.bufferedTrack.style.width = Math.round(bufferedPercent * this.trackWidth) + 'px'
 
       if (this.$refs.trackCursor) {
-        this.$refs.trackCursor.style.left = ptWidth - 7 + 'px'
+        this.$refs.trackCursor.style.left = ptWidth - 14 + 'px'
       }
 
       if (this.useChapterTrack) {
