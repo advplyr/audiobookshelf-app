@@ -264,15 +264,24 @@ export default {
         flow: 'paginated'
       })
 
-      // load saved progress
-      reader.rendition.display(this.savedEbookLocation || reader.book.locations.start)
-
       // load style
       reader.rendition.themes.default({ '*': { color: '#fff!important', 'background-color': 'rgb(35 35 35)!important' }, a: { color: '#fff!important' } })
 
       reader.book.ready.then(() => {
+        // load saved progress
+        // when not checking spine first uncaught exception is thrown
+        if (this.savedEbookLocation && reader.book.spine.get(this.savedEbookLocation)) {
+          reader.rendition.display(this.savedEbookLocation)
+        } else {
+          reader.rendition.display(reader.book.locations.start)
+        }
+
         // set up event listeners
         reader.rendition.on('relocated', reader.relocated)
+
+        reader.rendition.on('displayError', (err) => {
+          console.log('Display error', err)
+        })
 
         // load ebook cfi locations
         const savedLocations = this.loadLocations()

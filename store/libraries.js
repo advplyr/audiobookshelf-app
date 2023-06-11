@@ -15,20 +15,20 @@ export const getters = {
     return state.libraries.find(lib => lib.id === state.currentLibraryId)
   },
   getCurrentLibraryName: (state, getters) => {
-    const currLib = getters.getCurrentLibrary
-    return currLib ? currLib.name : null
+    return getters.getCurrentLibrary?.name || null
   },
   getCurrentLibraryMediaType: (state, getters) => {
-    const currLib = getters.getCurrentLibrary
-    return currLib ? currLib.mediaType : null
+    return getters.getCurrentLibrary?.mediaType || null
   },
   getCurrentLibrarySettings: (state, getters) => {
-    if (!getters.getCurrentLibrary) return null
-    return getters.getCurrentLibrary.settings
+    return getters.getCurrentLibrary?.settings || null
   },
   getBookCoverAspectRatio: (state, getters) => {
-    if (!getters.getCurrentLibrarySettings || isNaN(getters.getCurrentLibrarySettings.coverAspectRatio)) return 1
+    if (isNaN(getters.getCurrentLibrarySettings?.coverAspectRatio)) return 1
     return getters.getCurrentLibrarySettings.coverAspectRatio === BookCoverAspectRatio.STANDARD ? 1.6 : 1
+  },
+  getLibraryIsAudiobooksOnly: (state, getters) => {
+    return !!getters.getCurrentLibrarySettings?.audiobooksOnly
   }
 }
 

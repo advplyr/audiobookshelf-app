@@ -15,22 +15,22 @@ export const getters = {
   getIsRoot: (state) => state.user && state.user.type === 'root',
   getIsAdminOrUp: (state) => state.user && (state.user.type === 'admin' || state.user.type === 'root'),
   getToken: (state) => {
-    return state.user ? state.user.token : null
+    return state.user?.token || null
   },
   getServerConnectionConfigId: (state) => {
-    return state.serverConnectionConfig ? state.serverConnectionConfig.id : null
+    return state.serverConnectionConfig?.id || null
   },
   getServerAddress: (state) => {
-    return state.serverConnectionConfig ? state.serverConnectionConfig.address : null
+    return state.serverConnectionConfig?.address || null
   },
   getServerConfigName: (state) => {
-    return state.serverConnectionConfig ? state.serverConnectionConfig.name : null
+    return state.serverConnectionConfig?.name || null
   },
   getCustomHeaders: (state) => {
-    return state.serverConnectionConfig ? state.serverConnectionConfig.customHeaders : null
+    return state.serverConnectionConfig?.customHeaders || null
   },
   getUserMediaProgress: (state) => (libraryItemId, episodeId = null) => {
-    if (!state.user || !state.user.mediaProgress) return null
+    if (!state.user?.mediaProgress) return null
     return state.user.mediaProgress.find(li => {
       if (episodeId && li.episodeId !== episodeId) return false
       return li.libraryItemId == libraryItemId
@@ -41,10 +41,16 @@ export const getters = {
     return state.user.bookmarks.filter(bm => bm.libraryItemId === libraryItemId)
   },
   getUserSetting: (state) => (key) => {
-    return state.settings ? state.settings[key] || null : null
+    return state.settings?.[key] || null
+  },
+  getUserCanUpdate: (state) => {
+    return !!state.user?.permissions?.update
+  },
+  getUserCanDelete: (state) => {
+    return !!state.user?.permissions?.delete
   },
   getUserCanDownload: (state) => {
-    return state.user && state.user.permissions ? !!state.user.permissions.download : false
+    return !!state.user?.permissions?.download
   }
 }
 

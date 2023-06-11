@@ -70,28 +70,3 @@ export default {
   mounted() {}
 }
 </script>
-
-<style scoped>
-.tracksTable {
-  border-collapse: collapse;
-  width: 100%;
-  border: 1px solid #474747;
-}
-
-.tracksTable tr:nth-child(even) {
-  background-color: #2e2e2e;
-}
-
-.tracksTable tr {
-  background-color: #373838;
-}
-
-.tracksTable td {
-  padding: 8px 8px;
-}
-
-.tracksTable th {
-  padding: 4px 8px;
-  font-size: 0.75rem;
-}
-</style>

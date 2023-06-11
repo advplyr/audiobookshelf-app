@@ -2,13 +2,11 @@ const defaultTheme = require('tailwindcss/defaultTheme')
 
 module.exports = {
   purge: {
-    options: {
-      safelist: [
-        'bg-success',
-        'bg-info',
-        'text-info'
-      ]
-    }
+    safelist: [
+      'bg-success',
+      'bg-info',
+      'text-info'
+    ]
   },
   darkMode: false,
   theme: {

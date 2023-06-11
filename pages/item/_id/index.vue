@@ -123,6 +123,8 @@
 
       <tables-tracks-table v-if="numTracks" :tracks="tracks" :library-item-id="libraryItemId" />
 
+      <tables-ebook-files-table v-if="ebookFiles.length" :library-item="libraryItem" />
+
       <!-- modals -->
       <modals-select-local-folder-modal v-model="showSelectLocalFolder" :media-type="mediaType" @select="selectedLocalFolder" />
 
@@ -358,6 +360,12 @@ export default {
     showDownload() {
       if (this.isPodcast || this.hasLocal) return false
       return this.user && this.userCanDownload && (this.showPlay || (this.showRead && !this.isIos))
+    },
+    libraryFiles() {
+      return this.libraryItem.libraryFiles || []
+    },
+    ebookFiles() {
+      return this.libraryFiles.filter((lf) => lf.fileType === 'ebook')
     },
     ebookFile() {
       return this.media.ebookFile
