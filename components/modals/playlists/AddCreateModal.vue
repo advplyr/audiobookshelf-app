@@ -1,41 +1,49 @@
 <template>
-  <modals-modal v-model="show" :width="360" height="100%" :processing="processing">
-    <template #outer>
-      <div class="absolute top-8 left-4 z-40">
-        <p class="text-white text-2xl truncate">Add to Playlist</p>
-      </div>
-    </template>
-    <div class="w-full h-full overflow-hidden absolute top-0 left-0 flex items-center justify-center" @click="show = false">
-      <div ref="container" class="w-full rounded-lg bg-primary border border-white border-opacity-20 overflow-y-auto overflow-x-hidden" style="max-height: 80vh" @click.stop.prevent>
-        <div class="w-full h-full p-4" v-show="showPlaylistNameInput">
-          <div class="flex mb-4 items-center">
-            <div class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-white hover:bg-opacity-10 cursor-pointer" @click.stop="showPlaylistNameInput = false">
-              <span class="material-icons text-3xl">arrow_back</span>
-            </div>
-            <p class="text-xl pl-2">New Playlist</p>
-            <div class="flex-grow" />
-          </div>
+  <modals-fullscreen-modal v-model="show" :processing="processing">
+    <div class="flex items-end justify-between h-16 px-4 pb-2">
+      <h1 class="text-lg">Add to Playlist</h1>
+      <button class="flex" @click="show = false">
+        <span class="material-icons">close</span>
+      </button>
+    </div>
 
-          <ui-text-input-with-label v-model="newPlaylistName" label="Name" />
-          <div class="flex justify-end mt-6">
-            <ui-btn color="success" :loading="processing" class="w-full" @click.stop="submitCreatePlaylist">Create</ui-btn>
+    <!-- create new playlist form -->
+    <div v-if="showPlaylistNameInput" class="w-full h-full max-h-[calc(100vh-128px)] flex items-center">
+      <div class="w-full px-4">
+        <div class="flex mb-4 items-center">
+          <div class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-white hover:bg-opacity-10 cursor-pointer" @click.stop="showPlaylistNameInput = false">
+            <span class="material-icons text-3xl">arrow_back</span>
           </div>
+          <p class="text-xl pl-2">New Playlist</p>
+          <div class="flex-grow" />
         </div>
-        <div class="w-full h-full" v-show="!showPlaylistNameInput">
-          <template v-for="playlist in sortedPlaylists">
-            <modals-playlists-playlist-row :key="playlist.id" :in-playlist="playlist.isItemIncluded" :playlist="playlist" @click="clickPlaylist" />
-          </template>
-          <div v-if="!playlists.length" class="flex h-32 items-center justify-center">
-            <p class="text-xl">{{ loading ? 'Loading..' : 'No Playlists' }}</p>
-          </div>
-          <ui-btn :loading="processing" color="success" class="w-full flex items-center justify-center" @click.stop="createPlaylist">
-            <span class="material-icons text-xl">add</span>
-            <p class="text-base pl-2">New Playlist</p>
-          </ui-btn>
+
+        <ui-text-input-with-label v-model="newPlaylistName" label="Name" />
+        <div class="flex justify-end mt-6">
+          <ui-btn color="success" :loading="processing" class="w-full" @click.stop="submitCreatePlaylist">Create</ui-btn>
         </div>
       </div>
     </div>
-  </modals-modal>
+
+    <!-- playlists list -->
+    <div v-if="!showPlaylistNameInput" class="w-full overflow-y-auto overflow-x-hidden h-full max-h-[calc(100vh-128px)]">
+      <div class="w-full h-full" v-show="!showPlaylistNameInput">
+        <template v-for="playlist in sortedPlaylists">
+          <modals-playlists-playlist-row :key="playlist.id" :in-playlist="playlist.isItemIncluded" :playlist="playlist" @click="clickPlaylist" @close="show = false" />
+        </template>
+        <div v-if="!playlists.length" class="flex h-full items-center justify-center">
+          <p class="text-xl">{{ loading ? 'Loading..' : 'No Playlists' }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- create playlist btn -->
+    <div v-if="!showPlaylistNameInput" class="flex items-start justify-between h-16 pt-2 absolute bottom-0 left-0 w-full">
+      <ui-btn :loading="processing" color="success" class="w-full h-full flex items-center justify-center" @click.stop="createPlaylist">
+        <p class="text-base">Create New Playlist</p>
+      </ui-btn>
+    </div>
+  </modals-fullscreen-modal>
 </template>
 
 <script>
@@ -131,7 +139,6 @@ export default {
         .$post(`/api/playlists/${playlist.id}/batch/remove`, { items: itemObjects })
         .then((updatedPlaylist) => {
           console.log(`Items removed from playlist`, updatedPlaylist)
-          this.$toast.success('Playlist item(s) removed')
         })
         .catch((error) => {
           console.error('Failed to remove items from playlist', error)
@@ -150,7 +157,6 @@ export default {
         .$post(`/api/playlists/${playlist.id}/batch/add`, { items: itemObjects })
         .then((updatedPlaylist) => {
           console.log(`Items added to playlist`, updatedPlaylist)
-          this.$toast.success('Items added to playlist')
         })
         .catch((error) => {
           console.error('Failed to add items to playlist', error)
@@ -182,7 +188,6 @@ export default {
         .$post('/api/playlists', newPlaylist)
         .then((data) => {
           console.log('New playlist created', data)
-          this.$toast.success(`Playlist "${data.name}" created`)
           this.newPlaylistName = ''
           this.showPlaylistNameInput = false
         })

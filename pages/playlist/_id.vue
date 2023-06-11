@@ -1,10 +1,8 @@
 <template>
   <div class="w-full h-full">
     <div class="w-full h-full overflow-y-auto px-2 py-6 md:p-8">
-      <div class="w-full flex justify-center md:block sm:w-32 md:w-52" style="min-width: 240px">
-        <div class="relative" style="height: fit-content">
-          <covers-playlist-cover :items="playlistItems" :width="240" :height="120 * bookCoverAspectRatio" :book-cover-aspect-ratio="bookCoverAspectRatio" />
-        </div>
+      <div class="w-full flex justify-center">
+        <covers-playlist-cover :items="playlistItems" :width="180" :height="180" />
       </div>
       <div class="flex-grow py-6">
         <div class="flex items-center px-2">
