@@ -1,8 +1,8 @@
 <template>
-  <modals-modal v-model="show" :width="350" height="100%">
+  <modals-modal v-model="show" :width="400" height="100%">
     <template #outer>
-      <div v-if="currentChapter" class="absolute top-8 left-4 z-40 pt-0.5" style="max-width: 80%">
-        <p class="text-white text-lg truncate">Current: {{ currentChapterTitle }}</p>
+      <div v-if="currentChapter" class="absolute top-10 left-4 z-40 pt-1" style="max-width: 80%">
+        <p class="text-white text-lg truncate">{{ chapters.length }} Chapters</p>
       </div>
     </template>
 
@@ -46,7 +46,9 @@ export default {
   },
   watch: {
     value(newVal) {
-      this.$nextTick(this.scrollToChapter)
+      if (newVal) {
+        this.$nextTick(this.scrollToChapter)
+      }
     }
   },
   computed: {
@@ -63,7 +65,7 @@ export default {
       return this.playbackRate
     },
     currentChapterId() {
-      return this.currentChapter?.id || null
+      return this.currentChapter?.id
     },
     currentChapterTitle() {
       return this.currentChapter?.title || null
@@ -76,12 +78,12 @@ export default {
     scrollToChapter() {
       if (!this.currentChapterId) return
 
-      var container = this.$refs.container
+      const container = this.$refs.container
       if (container) {
-        var currChapterEl = document.getElementById(`chapter-row-${this.currentChapterId}`)
+        const currChapterEl = document.getElementById(`chapter-row-${this.currentChapterId}`)
         if (currChapterEl) {
-          var offsetTop = currChapterEl.offsetTop
-          var containerHeight = container.clientHeight
+          const offsetTop = currChapterEl.offsetTop
+          const containerHeight = container.clientHeight
           container.scrollTo({ top: offsetTop - containerHeight / 2 })
         }
       }
