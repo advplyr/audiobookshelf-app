@@ -224,18 +224,17 @@ export default {
       if (this.selectedAudioTrack || this.selectedEpisode) {
         return [
           {
-            text: 'Remove & Delete Files',
+            text: 'Delete local file',
             value: 'track-delete'
           }
         ]
       } else {
         var options = []
-        if (!this.isIos && !this.isInternalStorage) {
+        if (!this.isIos && !this.isInternalStorage && !this.libraryItemId) {
           options.push({ text: 'Scan', value: 'scan' })
           options.push({ text: 'Force Re-Scan', value: 'rescan' })
-          options.push({ text: 'Remove', value: 'remove' })
         }
-        options.push({ text: 'Remove & Delete Files', value: 'delete' })
+        options.push({ text: 'Delete local item', value: 'delete' })
         return options
       }
     }
@@ -295,12 +294,11 @@ export default {
     async dialogAction(action) {
       console.log('Dialog action', action)
       await this.$hapticsImpact()
+
       if (action == 'scan') {
         this.scanItem()
       } else if (action == 'rescan') {
         this.scanItem(true)
-      } else if (action == 'remove') {
-        this.removeItem()
       } else if (action == 'delete') {
         this.deleteItem()
       } else if (action == 'track-delete') {
@@ -319,10 +317,14 @@ export default {
         this.$toast.error('Audio track does not have matching local file..')
         return
       }
-      var trackPath = localFile ? localFile.basePath : this.selectedEpisode.title
+
+      let confirmMessage = `Remove local audio file "${localFile.basePath}" from your device?`
+      if (this.libraryItemId) {
+        confirmMessage += ' The file on the server will be unaffected.'
+      }
       const { value } = await Dialog.confirm({
         title: 'Confirm',
-        message: `Warning! This will delete the audio file "${trackPath}" from your file system. Are you sure?`
+        message: confirmMessage
       })
       if (value) {
         var res = await AbsFileSystem.deleteTrackFromItem({ id: this.localLibraryItem.id, trackLocalFileId: localFile.id, trackContentUrl: this.selectedEpisode.audioTrack.contentUrl })
@@ -341,10 +343,14 @@ export default {
         this.$toast.error('Audio track does not have matching local file..')
         return
       }
-      var trackPath = localFile ? localFile.basePath : this.selectedAudioTrack.title
+
+      let confirmMessage = `Remove local audio file "${localFile.basePath}" from your device?`
+      if (this.libraryItemId) {
+        confirmMessage += ' The file on the server will be unaffected.'
+      }
       const { value } = await Dialog.confirm({
         title: 'Confirm',
-        message: `Warning! This will delete the audio file "${trackPath}" from your file system. Are you sure?`
+        message: confirmMessage
       })
       if (value) {
         var res = await AbsFileSystem.deleteTrackFromItem({ id: this.localLibraryItem.id, trackLocalFileId: this.selectedAudioTrack.localFileId, trackContentUrl: this.selectedAudioTrack.contentUrl })
@@ -355,9 +361,13 @@ export default {
       }
     },
     async deleteItem() {
+      let confirmMessage = 'Remove local files of this item from your device?'
+      if (this.libraryItemId) {
+        confirmMessage += ' The files on the server and your progress will be unaffected.'
+      }
       const { value } = await Dialog.confirm({
         title: 'Confirm',
-        message: `Warning! This will delete "${this.media.metadata.title}" and all associated local files. Are you sure?`
+        message: confirmMessage
       })
       if (value) {
         var res = await AbsFileSystem.deleteItem(this.localLibraryItem)
@@ -365,19 +375,6 @@ export default {
           this.$toast.success('Deleted Successfully')
           this.$router.replace(this.isIos ? '/bookshelf' : `/localMedia/folders/${this.folderId}`)
         } else this.$toast.error('Failed to delete')
-      }
-    },
-    async removeItem() {
-      var deleteMessage = 'Are you sure you want to remove this local library item? (does not delete anything in your file system)'
-      const { value } = await Dialog.confirm({
-        title: 'Confirm',
-        message: deleteMessage
-      })
-      if (value) {
-        this.removingItem = true
-        await AbsFileSystem.removeLocalLibraryItem({ localLibraryItemId: this.localLibraryItemId })
-        this.removingItem = false
-        this.$router.replace(`/localMedia/folders/${this.folderId}`)
       }
     },
     async scanItem(forceAudioProbe = false) {

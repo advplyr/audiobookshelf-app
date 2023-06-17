@@ -288,20 +288,65 @@ export default {
           value: 'playlist',
           icon: 'playlist_add'
         })
+      }
 
-        if (this.isAdminOrUp) {
-          items.push({
-            text: 'Remove from Server',
-            value: 'remove_from_server',
-            icon: 'delete_forever'
-          })
-        }
+      if (this.localEpisodeId) {
+        items.push({
+          text: 'Delete Local Episode',
+          value: 'deleteLocal',
+          icon: 'delete'
+        })
+      }
+
+      if (this.isAdminOrUp && this.serverEpisodeId) {
+        items.push({
+          text: 'Remove from Server',
+          value: 'remove_from_server',
+          icon: 'delete_forever'
+        })
       }
 
       return items
     }
   },
   methods: {
+    async deleteLocalEpisode() {
+      await this.$hapticsImpact()
+
+      const localEpisodeAudioTrack = this.localEpisode.audioTrack
+      const localFile = this.localLibraryItem.localFiles.find((lf) => lf.id === localEpisodeAudioTrack.localFileId)
+      if (!localFile) {
+        this.$toast.error('Audio track does not have matching local file..')
+        return
+      }
+
+      let confirmMessage = `Remove local episode "${localFile.basePath}" from your device?`
+      if (this.serverLibraryItemId) {
+        confirmMessage += ' The file on the server will be unaffected.'
+      }
+      const { value } = await Dialog.confirm({
+        title: 'Confirm',
+        message: confirmMessage
+      })
+      if (value) {
+        const res = await AbsFileSystem.deleteTrackFromItem({ id: this.localLibraryItemId, trackLocalFileId: localFile.id, trackContentUrl: localEpisodeAudioTrack.contentUrl })
+        if (res?.id) {
+          this.$toast.success('Deleted episode successfully')
+          if (this.isLocal) {
+            // If this is local episode then redirect to server episode when available
+            if (this.serverEpisodeId) {
+              this.$router.replace(`/item/${this.serverLibraryItemId}/${this.serverEpisodeId}`)
+            } else {
+              this.$router.replace(`/item/${this.localLibraryItemId}`)
+            }
+          } else {
+            // Update local library item and local episode
+            this.libraryItem.localLibraryItem = res
+            this.$delete(this.episode, 'localEpisode')
+          }
+        } else this.$toast.error('Failed to delete')
+      }
+    },
     async playClick() {
       await this.$hapticsImpact()
       if (this.playerIsPlaying) {
@@ -408,8 +453,10 @@ export default {
       } else if (action === 'playlist' && !this.isLocal) {
         this.$store.commit('globals/setSelectedPlaylistItems', [{ libraryItem: this.libraryItem, episode: this.episode }])
         this.$store.commit('globals/setShowPlaylistsAddCreateModal', true)
-      } else if (action === 'remove_from_server' && !this.isLocal && this.isAdminOrUp) {
+      } else if (action === 'remove_from_server' && this.serverEpisodeId && this.isAdminOrUp) {
         this.deleteEpisodeFromServerClick()
+      } else if (action === 'deleteLocal') {
+        this.deleteLocalEpisode()
       }
     },
     async discardProgress() {
@@ -496,13 +543,13 @@ export default {
       if (value) {
         this.processing = true
         this.$axios
-          .$delete(`/api/podcasts/${this.libraryItemId}/episode/${this.episode.id}?hard=1`)
+          .$delete(`/api/podcasts/${this.serverLibraryItemId}/episode/${this.serverEpisodeId}?hard=1`)
           .then(() => {
             this.$toast.success('Episode deleted from server')
-            this.$router.replace(`/item/${this.libraryItemId}`)
+            this.$router.replace(`/item/${this.serverLibraryItemId}`)
           })
           .catch((error) => {
-            const errorMsg = error.response && error.response.data ? error.response.data : 'Failed to delete episode'
+            const errorMsg = error.response?.data || 'Failed to delete episode'
             console.error('Failed to delete episode', error)
             this.$toast.error(errorMsg)
           })

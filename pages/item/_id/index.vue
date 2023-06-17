@@ -413,20 +413,28 @@ export default {
         }
       }
 
-      if (this.localLibraryItemId) {
-        items.push({
-          text: 'Manage Local Files',
-          value: 'manageLocal',
-          icon: 'folder'
-        })
-      }
-
       if (!this.isPodcast && this.serverLibraryItemId) {
         items.push({
           text: 'Add to Playlist',
           value: 'playlist',
           icon: 'playlist_add'
         })
+      }
+
+      if (this.localLibraryItemId) {
+        items.push({
+          text: 'Manage Local Files',
+          value: 'manageLocal',
+          icon: 'folder'
+        })
+
+        if (!this.isPodcast) {
+          items.push({
+            text: 'Delete Local Item',
+            value: 'deleteLocal',
+            icon: 'delete'
+          })
+        }
       }
 
       items.push({
@@ -451,6 +459,35 @@ export default {
     }
   },
   methods: {
+    async deleteLocalItem() {
+      await this.$hapticsImpact()
+
+      let confirmMessage = 'Remove local files of this item from your device?'
+      if (this.serverLibraryItemId) {
+        confirmMessage += ' The files on the server and your progress will be unaffected.'
+      }
+      const { value } = await Dialog.confirm({
+        title: 'Confirm',
+        message: confirmMessage
+      })
+      if (value) {
+        const res = await AbsFileSystem.deleteItem(this.localLibraryItem)
+        if (res?.success) {
+          this.$toast.success('Deleted successfully')
+          if (this.isLocal) {
+            // If local then redirect to server version when available
+            if (this.serverLibraryItemId) {
+              this.$router.replace(`/item/${this.serverLibraryItemId}`)
+            } else {
+              this.$router.replace('/bookshelf')
+            }
+          } else {
+            // Remove localLibraryItem
+            this.$delete(this.libraryItem, 'localLibraryItem')
+          }
+        } else this.$toast.error('Failed to delete')
+      }
+    },
     async coverImageLoaded(fullCoverUrl) {
       if (!fullCoverUrl) return
 
@@ -483,6 +520,8 @@ export default {
         this.$router.push(`/media/${this.mediaId}/history?title=${this.title}`)
       } else if (action === 'discardProgress') {
         this.clearProgressClick()
+      } else if (action === 'deleteLocal') {
+        this.deleteLocalItem()
       }
     },
     moreButtonPress() {
