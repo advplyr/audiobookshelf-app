@@ -16,6 +16,14 @@ if (Capacitor.getPlatform() != 'web') {
   setStatusBarStyleDark()
 }
 
+Vue.prototype.$showHideStatusBar = async (show) => {
+  if (show) {
+    StatusBar.show()
+  } else {
+    StatusBar.hide()
+  }
+}
+
 Vue.prototype.$isDev = process.env.NODE_ENV !== 'production'
 
 Vue.prototype.$getAndroidSDKVersion = async () => {

@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full h-full pt-6 relative">
+  <div class="w-full h-full relative">
     <div v-show="canGoPrev" class="absolute top-0 left-0 h-full w-1/2 hover:opacity-100 opacity-0 z-10 cursor-pointer" @click.stop.prevent="prev" @mousedown.prevent>
       <div class="flex items-center justify-center h-full w-1/2">
         <span class="material-icons text-5xl text-white cursor-pointer text-opacity-30 hover:text-opacity-90">arrow_back_ios</span>
@@ -11,17 +11,16 @@
       </div>
     </div>
 
-    <div class="absolute top-0 right-1 bg-bg text-gray-100 border-b border-l border-r border-gray-400 rounded-b-md px-2 h-6 flex items-center text-center">
-      <p class="font-mono text-xs">{{ page }} / {{ numPages }}</p>
+    <div class="h-full flex items-center justify-center">
+      <div :style="{ width: pdfWidth + 'px', height: pdfHeight + 'px' }" class="w-full h-full overflow-auto">
+        <div v-if="loadedRatio > 0 && loadedRatio < 1" style="background-color: green; color: white; text-align: center" :style="{ width: loadedRatio * 100 + '%' }">{{ Math.floor(loadedRatio * 100) }}%</div>
+        <pdf ref="pdf" class="m-auto z-10 border border-black border-opacity-20 shadow-md bg-white" :src="pdfDocInitParams" :page="page" :rotate="rotate" @progress="loadedRatio = $event" @error="error" @num-pages="numPagesLoaded" @link-clicked="page = $event" @loaded="loadedEvt"></pdf>
+      </div>
     </div>
 
-    <div :style="{ height: pdfHeight + 'px' }" class="overflow-hidden m-auto">
-      <div class="flex items-center justify-center">
-        <div :style="{ width: pdfWidth + 'px', height: pdfHeight + 'px' }" class="w-full h-full overflow-auto">
-          <div v-if="loadedRatio > 0 && loadedRatio < 1" style="background-color: green; color: white; text-align: center" :style="{ width: loadedRatio * 100 + '%' }">{{ Math.floor(loadedRatio * 100) }}%</div>
-          <pdf ref="pdf" class="m-auto z-10 border border-black border-opacity-20 shadow-md bg-white" :src="pdfDocInitParams" :page="page" :rotate="rotate" @progress="loadedRatio = $event" @error="error" @num-pages="numPagesLoaded" @link-clicked="page = $event" @loaded="loadedEvt"></pdf>
-        </div>
-      </div>
+    <div class="fixed left-0 h-8 w-full bg-primary px-4 flex items-center text-white/80" :style="{ bottom: playerLibraryItemId ? '120px' : '0px' }">
+      <div class="flex-grow" />
+      <p class="text-xs">{{ page }} / {{ numPages }}</p>
     </div>
   </div>
 </template>
@@ -47,7 +46,9 @@ export default {
       rotate: 0,
       loadedRatio: 0,
       page: 1,
-      numPages: 0
+      numPages: 0,
+      windowWidth: 0,
+      windowHeight: 0
     }
   },
   computed: {
@@ -71,10 +72,16 @@ export default {
       return null
     },
     pdfWidth() {
-      return this.pdfHeight * 0.6667
+      if (this.windowWidth > this.windowHeight) {
+        // Landscape
+        return this.windowHeight * 0.6
+      } else {
+        // Portrait
+        return this.windowWidth
+      }
     },
     pdfHeight() {
-      return window.innerHeight - 120
+      return this.pdfWidth * 1.667
     },
     canGoNext() {
       return this.page < this.numPages
@@ -106,6 +113,9 @@ export default {
           Authorization: `Bearer ${this.userToken}`
         }
       }
+    },
+    playerLibraryItemId() {
+      return this.$store.state.playerLibraryItemId
     }
   },
   methods: {
@@ -161,8 +171,32 @@ export default {
     },
     error(err) {
       console.error(err)
+    },
+    screenOrientationChange() {
+      this.windowWidth = window.innerWidth
+      this.windowHeight = window.innerHeight
     }
   },
-  mounted() {}
+  mounted() {
+    this.windowWidth = window.innerWidth
+    this.windowHeight = window.innerHeight
+
+    if (screen.orientation) {
+      // Not available on ios
+      screen.orientation.addEventListener('change', this.screenOrientationChange)
+    } else {
+      document.addEventListener('orientationchange', this.screenOrientationChange)
+    }
+    window.addEventListener('resize', this.screenOrientationChange)
+  },
+  beforeDestroy() {
+    if (screen.orientation) {
+      // Not available on ios
+      screen.orientation.removeEventListener('change', this.screenOrientationChange)
+    } else {
+      document.removeEventListener('orientationchange', this.screenOrientationChange)
+    }
+    window.removeEventListener('resize', this.screenOrientationChange)
+  }
 }
 </script>

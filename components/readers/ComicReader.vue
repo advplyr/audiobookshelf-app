@@ -1,23 +1,17 @@
 <template>
   <div id="comic-reader" class="w-full h-full relative">
-    <div v-show="showInfoMenu" v-click-outside="clickedOutside" class="pagemenu absolute top-8 left-0 rounded-md overflow-y-auto bg-bg shadow-lg z-20 border border-gray-400 w-full" @click.stop.prevent>
-      <div v-for="key in comicMetadataKeys" :key="key" class="w-full px-2 py-1">
-        <p class="text-xs">
-          <strong>{{ key }}</strong>
-          : {{ comicMetadata[key] }}
-        </p>
+    <modals-modal v-model="showInfoMenu" height="90%">
+      <div class="w-full h-full overflow-hidden absolute top-0 left-0 flex items-center justify-center" @click.stop="showInfoMenu = false">
+        <div class="w-full overflow-x-hidden overflow-y-auto bg-secondary rounded-lg border border-white border-opacity-20" style="max-height: 75%" @click.stop>
+          <div v-for="key in comicMetadataKeys" :key="key" class="w-full px-2 py-1">
+            <p class="text-xs">
+              <strong>{{ key }}</strong>
+              : {{ comicMetadata[key] }}
+            </p>
+          </div>
+        </div>
       </div>
-    </div>
-
-    <div v-if="comicMetadata" id="btn-metadata" class="absolute top-0 left-14 bg-bg text-gray-100 border-b border-l border-r border-gray-400 hover:bg-black-200 cursor-pointer rounded-b-md w-8 h-7 flex items-center justify-center text-center z-20" @mousedown.prevent @click.stop.prevent="clickShowInfoMenu">
-      <span class="material-icons text-base pointer-events-none">more</span>
-    </div>
-    <div v-if="numPages" id="btn-pages" class="absolute top-0 left-3 bg-bg text-gray-100 border-b border-l border-r border-gray-400 hover:bg-black-200 cursor-pointer rounded-b-md w-8 h-7 flex items-center justify-center text-center z-20" @mousedown.prevent @mouseup.prevent @click.stop.prevent="clickShowPageMenu">
-      <span class="material-icons text-base pointer-events-none">menu</span>
-    </div>
-    <div v-if="numPages" class="absolute top-0 right-3 bg-bg text-gray-100 border-b border-l border-r border-gray-400 rounded-b-md px-2 h-7 flex items-center text-center z-20" @click.stop>
-      <p class="text-sm">{{ page }} / {{ numPages }}</p>
-    </div>
+    </modals-modal>
 
     <div class="overflow-hidden m-auto comicwrapper relative">
       <div class="h-full flex justify-center">
@@ -27,6 +21,11 @@
       <div v-show="loading" class="w-full h-full absolute top-0 left-0 flex items-center justify-center z-10">
         <ui-loading-indicator />
       </div>
+    </div>
+
+    <div class="fixed left-0 h-8 w-full bg-primary px-4 flex items-center text-white/80" :style="{ bottom: playerLibraryItemId ? '120px' : '0px' }">
+      <div class="flex-grow" />
+      <p class="text-xs">{{ page }} / {{ numPages }}</p>
     </div>
 
     <modals-dialog v-model="showPageMenu" :items="pageItems" :selected="page" :width="360" item-padding-y="8px" @action="setPage" />
@@ -148,6 +147,9 @@ export default {
           value: index++
         }
       })
+    },
+    playerLibraryItemId() {
+      return this.$store.state.playerLibraryItemId
     }
   },
   methods: {
@@ -191,13 +193,9 @@ export default {
       this.showPageMenu = false
     },
     clickShowPageMenu() {
+      if (!this.numPages) return
       this.showPageMenu = !this.showPageMenu
       this.showInfoMenu = false
-    },
-    clickedOutside(e) {
-      if (e.target?.id == 'btn-metadata') return
-
-      if (this.showInfoMenu) this.showInfoMenu = false
     },
     next() {
       if (!this.canGoNext) return
@@ -289,6 +287,10 @@ export default {
         const startPage = this.savedPage > 0 && this.savedPage <= this.numPages ? this.savedPage : 1
         await this.setPage(startPage)
         this.loadedFirstPage = true
+
+        this.$emit('loaded', {
+          hasMetadata: this.comicMetadata
+        })
       } else {
         this.$toast.error('Unable to extract pages')
         this.loading = false
@@ -379,9 +381,6 @@ export default {
   padding-top: 36px;
 }
 
-.pagemenu {
-  max-height: calc(100% - 20px);
-}
 .comicimg {
   height: 100%;
   margin: auto;

@@ -2,11 +2,9 @@
   <div id="epub-frame" class="w-full">
     <div id="viewer" class="h-full w-full"></div>
 
-    <div class="fixed left-0 h-8 w-full bg-primary px-2 flex items-center" :style="{ bottom: playerLibraryItemId ? '120px' : '0px' }">
-      <p class="text-xs">epub</p>
+    <div class="fixed left-0 h-8 w-full bg-primary px-4 flex items-center text-white/80" :style="{ bottom: playerLibraryItemId ? '120px' : '0px' }">
       <div class="flex-grow" />
-
-      <p class="text-sm">{{ progress }}%</p>
+      <p class="text-xs">{{ progress }}%</p>
     </div>
   </div>
 </template>
@@ -66,11 +64,11 @@ export default {
       return this.$store.state.playerLibraryItemId
     },
     readerHeightOffset() {
-      return this.playerLibraryItemId ? 196 : 96
+      return this.playerLibraryItemId ? 156 : 56
     },
     /** @returns {Array<ePub.NavItem>} */
     chapters() {
-      return this.book ? this.book.navigation.toc : []
+      return this.book?.navigation?.toc || []
     },
     userItemProgress() {
       if (this.isLocal) return this.localItemProgress
@@ -281,6 +279,13 @@ export default {
 
         reader.rendition.on('displayError', (err) => {
           console.log('Display error', err)
+        })
+
+        reader.rendition.on('touchstart', (event) => {
+          this.$emit('touchstart', event)
+        })
+        reader.rendition.on('touchend', (event) => {
+          this.$emit('touchend', event)
         })
 
         // load ebook cfi locations

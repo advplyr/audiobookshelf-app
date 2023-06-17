@@ -60,6 +60,9 @@ export default {
     playerIsOpen() {
       return this.$store.state.playerLibraryItemId
     },
+    readerIsOpen() {
+      return this.$store.state.showReader
+    },
     routeName() {
       return this.$route.name
     },

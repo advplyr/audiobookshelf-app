@@ -3,10 +3,6 @@
     <div class="absolute overflow-hidden left-0 top-0 w-screen max-w-screen m-auto z-10 border border-black border-opacity-20 shadow-md bg-white">
       <iframe title="html-viewer" class="w-full overflow-hidden"> Loading </iframe>
     </div>
-    <div class="fixed bottom-0 left-0 h-8 w-full bg-primary px-2 flex items-center z-20" :style="{ bottom: playerLibraryItemId ? '120px' : '0px' }">
-      <p class="text-xs">mobi</p>
-      <div class="flex-grow" />
-    </div>
   </div>
 </template>
 
