@@ -43,6 +43,8 @@ import com.google.android.exoplayer2.audio.AudioAttributes
 import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector
 import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector.CustomActionProvider
 import com.google.android.exoplayer2.ext.mediasession.TimelineQueueNavigator
+import com.google.android.exoplayer2.extractor.DefaultExtractorsFactory
+import com.google.android.exoplayer2.extractor.mp3.Mp3Extractor
 import com.google.android.exoplayer2.source.MediaSource
 import com.google.android.exoplayer2.source.ProgressiveMediaSource
 import com.google.android.exoplayer2.source.hls.HlsMediaSource
@@ -437,12 +439,26 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       if (playbackSession.isLocal) {
         Log.d(tag, "Playing Local Item")
         val dataSourceFactory = DefaultDataSource.Factory(ctx)
-        mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItems[0])
+
+        val extractorsFactory = DefaultExtractorsFactory()
+        if (DeviceManager.deviceData.deviceSettings?.enableMp3IndexSeeking == true) {
+          // @see https://exoplayer.dev/troubleshooting.html#why-is-seeking-inaccurate-in-some-mp3-files
+          extractorsFactory.setMp3ExtractorFlags(Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING)
+        }
+
+        mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory, extractorsFactory).createMediaSource(mediaItems[0])
       } else if (!playbackSession.isHLS) {
         Log.d(tag, "Direct Playing Item")
         val dataSourceFactory = DefaultHttpDataSource.Factory()
+
+        val extractorsFactory = DefaultExtractorsFactory()
+        if (DeviceManager.deviceData.deviceSettings?.enableMp3IndexSeeking == true) {
+          // @see https://exoplayer.dev/troubleshooting.html#why-is-seeking-inaccurate-in-some-mp3-files
+          extractorsFactory.setMp3ExtractorFlags(Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING)
+        }
+
         dataSourceFactory.setUserAgent(channelId)
-        mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItems[0])
+        mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory, extractorsFactory).createMediaSource(mediaItems[0])
       } else {
         Log.d(tag, "Playing HLS Item")
         val dataSourceFactory = DefaultHttpDataSource.Factory()

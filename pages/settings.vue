@@ -22,7 +22,7 @@
     </div>
 
     <!-- Playback settings -->
-    <p class="uppercase text-xs font-semibold text-gray-300 mb-2 mt-6">Playback Settings</p>
+    <p class="uppercase text-xs font-semibold text-gray-300 mb-2 mt-10">Playback Settings</p>
     <div v-if="!isiOS" class="flex items-center py-3" @click="toggleDisableAutoRewind">
       <div class="w-10 flex justify-center">
         <ui-toggle-switch v-model="settings.disableAutoRewind" @input="saveSettings" />
@@ -41,10 +41,17 @@
       </div>
       <p class="pl-4">Jump forwards time</p>
     </div>
+    <div v-if="!isiOS" class="flex items-center py-3" @click="toggleEnableMp3IndexSeeking">
+      <div class="w-10 flex justify-center">
+        <ui-toggle-switch v-model="settings.enableMp3IndexSeeking" @input="saveSettings" />
+      </div>
+      <p class="pl-4">Enable mp3 index seeking</p>
+      <span class="material-icons-outlined ml-2" @click.stop="showConfirmMp3IndexSeeking">info</span>
+    </div>
 
     <!-- Sleep timer settings -->
     <template v-if="!isiOS">
-      <p class="uppercase text-xs font-semibold text-gray-300 mb-2 mt-6">Sleep Timer Settings</p>
+      <p class="uppercase text-xs font-semibold text-gray-300 mb-2 mt-10">Sleep Timer Settings</p>
       <div class="flex items-center py-3" @click="toggleDisableShakeToResetSleepTimer">
         <div class="w-10 flex justify-center">
           <ui-toggle-switch v-model="settings.disableShakeToResetSleepTimer" @input="saveSettings" />
@@ -131,6 +138,7 @@ export default {
         enableAltView: false,
         jumpForwardTime: 10,
         jumpBackwardsTime: 10,
+        enableMp3IndexSeeking: false,
         disableShakeToResetSleepTimer: false,
         shakeSensitivity: 'MEDIUM',
         lockOrientation: 0,
@@ -165,6 +173,10 @@ export default {
         autoSleepTimerAutoRewind: {
           name: 'Enable sleep timer auto rewind',
           message: 'When the auto sleep timer finishes, playing the item again will automatically rewind your position.'
+        },
+        enableMp3IndexSeeking: {
+          name: 'Enable mp3 index seeking',
+          message: 'This setting should only be enabled if you have mp3 files that are not seeking correctly. Inaccurate seeking is most likely due to Variable birate (VBR) MP3 files. This setting will force index seeking, in which a time-to-byte mapping is built as the file is read. In some cases with large MP3 files there will be a delay when seeking towards the end of the file.'
         }
       },
       hapticFeedbackItems: [
@@ -315,6 +327,20 @@ export default {
         })
       }
     },
+    async showConfirmMp3IndexSeeking() {
+      const confirmResult = await Dialog.confirm({
+        title: this.settingInfo.enableMp3IndexSeeking.name,
+        message: this.settingInfo.enableMp3IndexSeeking.message,
+        cancelButtonTitle: 'View More'
+      })
+      if (!confirmResult.value) {
+        window.open('https://exoplayer.dev/troubleshooting.html#why-is-seeking-inaccurate-in-some-mp3-files', '_blank')
+      }
+    },
+    toggleEnableMp3IndexSeeking() {
+      this.settings.enableMp3IndexSeeking = !this.settings.enableMp3IndexSeeking
+      this.saveSettings()
+    },
     toggleAutoSleepTimer() {
       this.settings.autoSleepTimer = !this.settings.autoSleepTimer
       this.saveSettings()
@@ -388,6 +414,8 @@ export default {
       this.settings.enableAltView = !!deviceSettings.enableAltView
       this.settings.jumpForwardTime = deviceSettings.jumpForwardTime || 10
       this.settings.jumpBackwardsTime = deviceSettings.jumpBackwardsTime || 10
+      this.settings.toggleEnableMp3IndexSeeking = !!deviceSettings.toggleEnableMp3IndexSeeking
+
       this.settings.lockOrientation = deviceSettings.lockOrientation || 'NONE'
       this.lockCurrentOrientation = this.settings.lockOrientation !== 'NONE'
       this.settings.hapticFeedback = deviceSettings.hapticFeedback || 'LIGHT'
