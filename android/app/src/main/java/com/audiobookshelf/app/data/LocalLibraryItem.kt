@@ -85,13 +85,14 @@ class LocalLibraryItem(
 
 
     val mediaMetadata = media.metadata
-    val chapters = if (mediaType == "book") (media as Book).chapters else mutableListOf()
+    var chapters = if (mediaType == "book") (media as Book).chapters else mutableListOf()
     var audioTracks = media.getAudioTracks() as MutableList<AudioTrack>
     val authorName = mediaMetadata.getAuthorDisplayName()
     val displayTitle = episode?.title ?: mediaMetadata.title
     var duration = getDuration()
     if (episode != null) { // Get podcast episode audio track
       episode.audioTrack?.let { at -> mutableListOf(at) }?.let { tracks -> audioTracks = tracks }
+      chapters = episode.chapters
       duration = episode.audioTrack?.duration ?: 0.0
       Log.d("LocalLibraryItem", "getPlaybackSession: Got podcast episode audio track ${audioTracks.size}")
     }

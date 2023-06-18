@@ -53,7 +53,7 @@ class Podcast(
     audioTracks.forEach { at ->
       if (episodes?.find{ it.audioTrack?.localFileId == at.localFileId } == null) {
         val localEpisodeId = "local_ep_" + at.localFileId
-        val newEpisode = PodcastEpisode(localEpisodeId,(episodes?.size ?: 0) + 1,null,null,at.title,null,null,null, null, null, at,at.duration,0, null, localEpisodeId)
+        val newEpisode = PodcastEpisode(localEpisodeId,(episodes?.size ?: 0) + 1,null,null,at.title,null,null,null, null, null, at,null,at.duration,0, null, localEpisodeId)
         episodes?.add(newEpisode)
       }
     }
@@ -67,7 +67,7 @@ class Podcast(
   @JsonIgnore
   override fun addAudioTrack(audioTrack:AudioTrack) {
     val localEpisodeId = "local_ep_" + audioTrack.localFileId
-    val newEpisode = PodcastEpisode(localEpisodeId,(episodes?.size ?: 0) + 1,null,null,audioTrack.title,null,null,null, null, null,audioTrack,audioTrack.duration,0, null, localEpisodeId)
+    val newEpisode = PodcastEpisode(localEpisodeId,(episodes?.size ?: 0) + 1,null,null,audioTrack.title,null,null,null, null, null,audioTrack,null,audioTrack.duration,0, null, localEpisodeId)
     episodes?.add(newEpisode)
 
     var index = 1
@@ -96,7 +96,7 @@ class Podcast(
   @JsonIgnore
   fun addEpisode(audioTrack:AudioTrack, episode:PodcastEpisode):PodcastEpisode {
     val localEpisodeId = "local_ep_" + episode.id
-    val newEpisode = PodcastEpisode(localEpisodeId,(episodes?.size ?: 0) + 1,episode.episode,episode.episodeType,episode.title,episode.subtitle,episode.description,null,null,null,audioTrack,audioTrack.duration,0, episode.id, localEpisodeId)
+    val newEpisode = PodcastEpisode(localEpisodeId,(episodes?.size ?: 0) + 1,episode.episode,episode.episodeType,episode.title,episode.subtitle,episode.description,null,null,null,audioTrack,episode.chapters,audioTrack.duration,0, episode.id, localEpisodeId)
     episodes?.add(newEpisode)
 
     var index = 1
@@ -251,6 +251,7 @@ data class PodcastEpisode(
   var publishedAt:Long?,
   var audioFile:AudioFile?,
   var audioTrack:AudioTrack?,
+  var chapters:List<BookChapter>?,
   var duration:Double?,
   var size:Long?,
   var serverEpisodeId:String?, // For local podcasts to match with server podcasts
