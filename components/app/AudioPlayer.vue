@@ -695,6 +695,7 @@ export default {
           this.updateTimestamp()
           this.updateTrack()
           this.updateReadyTrack()
+          this.$localStore.setUseTotalTrack(this.useTotalTrack)
           this.$localStore.setUseChapterTrack(this.useChapterTrack)
         } else if (action === 'total_track') {
           this.useTotalTrack = !this.useTotalTrack
@@ -704,6 +705,7 @@ export default {
           this.updateTrack()
           this.updateReadyTrack()
           this.$localStore.setUseTotalTrack(this.useTotalTrack)
+          this.$localStore.setUseChapterTrack(this.useChapterTrack)
         } else if (action === 'close') {
           this.closePlayback()
         }
@@ -792,6 +794,7 @@ export default {
     },
     async init() {
       this.useChapterTrack = await this.$localStore.getUseChapterTrack()
+      this.useTotalTrack = await this.$localStore.getUseTotalTrack()
       this.lockUi = await this.$localStore.getPlayerLock()
 
       this.onPlaybackSessionListener = AbsAudioPlayer.addListener('onPlaybackSession', this.onPlaybackSession)
