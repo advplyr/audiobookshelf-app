@@ -69,7 +69,7 @@ export default {
       return this.$store.state.playerLibraryItemId
     },
     readerHeightOffset() {
-      return this.playerLibraryItemId ? 156 : 56
+      return this.playerLibraryItemId ? 204 : 84
     },
     /** @returns {Array<ePub.NavItem>} */
     chapters() {
