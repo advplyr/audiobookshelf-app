@@ -201,6 +201,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     super.onCreate()
     ctx = this
 
+    // Initialize Paper
+    DbManager.initialize(ctx)
+
     // Initialize widget
     DeviceManager.initializeWidgetUpdater(ctx)
 

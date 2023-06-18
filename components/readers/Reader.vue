@@ -39,10 +39,9 @@ export default {
     show: {
       handler(newVal) {
         if (newVal) {
-          this.showingToolbar = false
           this.comicHasMetadata = false
           this.registerListeners()
-          this.$showHideStatusBar(false)
+          this.hideToolbar()
         } else {
           this.unregisterListeners()
           this.$showHideStatusBar(true)
@@ -199,9 +198,11 @@ export default {
     },
     showToolbar() {
       this.showingToolbar = true
+      this.$showHideStatusBar(true)
     },
     hideToolbar() {
       this.showingToolbar = false
+      this.$showHideStatusBar(false)
     },
     toggleToolbar() {
       if (this.showingToolbar) this.hideToolbar()
