@@ -2,7 +2,7 @@
   <div id="epub-frame" class="w-full">
     <div id="viewer" class="h-full w-full"></div>
 
-    <div class="fixed left-0 h-8 w-full bg-primary px-4 flex items-center text-white/80" :style="{ bottom: playerLibraryItemId ? '120px' : '0px' }">
+    <div class="fixed left-0 h-8 w-full px-4 flex items-center" :class="isLightTheme ? 'bg-white text-black' : 'bg-primary text-white/80'" :style="{ bottom: playerLibraryItemId ? '120px' : '0px' }">
       <div class="flex-grow" />
       <p class="text-xs">{{ progress }}%</p>
     </div>
@@ -28,7 +28,12 @@ export default {
       book: null,
       /** @type {ePub.Rendition} */
       rendition: null,
-      progress: 0
+      progress: 0,
+      ereaderSettings: {
+        theme: 'dark',
+        fontScale: 100,
+        lineSpacing: 115
+      }
     }
   },
   watch: {
@@ -89,9 +94,46 @@ export default {
       // Validate ebookLocation is an epubcfi
       if (!String(this.userItemProgress.ebookLocation).startsWith('epubcfi')) return null
       return this.userItemProgress.ebookLocation
+    },
+    isLightTheme() {
+      return this.ereaderSettings.theme === 'light'
+    },
+    themeRules() {
+      const isDark = this.ereaderSettings.theme === 'dark'
+      const fontColor = isDark ? '#fff' : '#000'
+      const backgroundColor = isDark ? 'rgb(35 35 35)' : 'rgb(255, 255, 255)'
+
+      const lineSpacing = this.ereaderSettings.lineSpacing / 100
+
+      const fontScale = this.ereaderSettings.fontScale / 100
+
+      return {
+        '*': {
+          color: `${fontColor}!important`,
+          'background-color': `${backgroundColor}!important`,
+          'line-height': lineSpacing * fontScale + 'rem!important'
+        },
+        a: {
+          color: `${fontColor}!important`
+        }
+      }
     }
   },
   methods: {
+    updateSettings(settings) {
+      this.ereaderSettings = settings
+
+      if (!this.rendition) return
+
+      this.applyTheme()
+
+      const fontScale = settings.fontScale || 100
+      this.rendition.themes.fontSize(`${fontScale}%`)
+      this.rendition.spread(settings.spread || 'auto')
+    },
+    goToChapter(href) {
+      return this.rendition?.display(href)
+    },
     updateHeight() {
       if (this.rendition && this.rendition.resize) {
         this.rendition.resize(window.innerWidth, window.innerHeight - this.readerHeightOffset)
@@ -262,9 +304,6 @@ export default {
         flow: 'paginated'
       })
 
-      // load style
-      reader.rendition.themes.default({ '*': { color: '#fff!important', 'background-color': 'rgb(35 35 35)!important' }, a: { color: '#fff!important' } })
-
       reader.book.ready.then(() => {
         // load saved progress
         // when not checking spine first uncaught exception is thrown
@@ -273,6 +312,10 @@ export default {
         } else {
           reader.rendition.display(reader.book.locations.start)
         }
+
+        reader.rendition.on('rendered', () => {
+          this.applyTheme()
+        })
 
         // set up event listeners
         reader.rendition.on('relocated', reader.relocated)
@@ -297,6 +340,12 @@ export default {
             this.checkSaveLocations(reader.book.locations.save())
           })
         }
+      })
+    },
+    applyTheme() {
+      if (!this.rendition) return
+      this.rendition.getContents().forEach((c) => {
+        c.addStylesheetRules(this.themeRules)
       })
     }
   },

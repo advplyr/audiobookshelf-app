@@ -1,18 +1,81 @@
 <template>
-  <div v-if="show" class="fixed top-0 left-0 right-0 layout-wrapper w-full bg-primary z-40 pt-8" :class="{ 'reader-player-open': !!playerLibraryItemId }">
-    <div class="h-28 pt-8 w-full bg-bg px-2 fixed top-0 left-0 z-30 transition-transform" :class="showingToolbar ? 'translate-y-0' : '-translate-y-28'" @touchstart.stop @mousedown.stop @touchend.stop @mouseup.stop>
+  <div v-if="show" :data-theme="ereaderTheme" class="group fixed top-0 left-0 right-0 layout-wrapper w-full z-40 pt-8 data-[theme=dark]:bg-primary data-[theme=dark]:text-white data-[theme=light]:bg-white data-[theme=light]:text-black" :class="{ 'reader-player-open': !!playerLibraryItemId }">
+    <!-- toolbar -->
+    <div class="h-32 pt-10 w-full px-2 fixed top-0 left-0 z-30 transition-transform bg-bg text-white" :class="showingToolbar ? 'translate-y-0' : '-translate-y-32'" @touchstart.stop @mousedown.stop @touchend.stop @mouseup.stop>
       <div class="flex items-center mb-2">
         <button type="button" class="inline-flex mx-2" @click.stop="show = false"><span class="material-icons-outlined text-3xl text-white">chevron_left</span></button>
         <div class="flex-grow" />
-        <button v-if="isComic" type="button" class="inline-flex mx-2" @click.stop="clickTOCBtn"><span class="material-icons-outlined text-2xl text-white">format_list_bulleted</span></button>
-        <!-- <button v-if="isEpub" type="button" class="inline-flex mx-2" @click.stop="clickSettingsBtn"><span class="material-icons text-2xl text-white">settings</span></button> -->
+        <button v-if="isComic || isEpub" type="button" class="inline-flex mx-2" @click.stop="clickTOCBtn"><span class="material-icons-outlined text-2xl text-white">format_list_bulleted</span></button>
+        <button v-if="isEpub" type="button" class="inline-flex mx-2" @click.stop="clickSettingsBtn"><span class="material-icons text-2xl text-white">settings</span></button>
         <button v-if="comicHasMetadata" type="button" class="inline-flex mx-2" @click.stop="clickMetadataBtn"><span class="material-icons text-2xl text-white">more</span></button>
       </div>
 
       <p class="text-center truncate">{{ title }}</p>
     </div>
 
-    <component v-if="readerComponentName" ref="readerComponent" :is="readerComponentName" :url="ebookUrl" :library-item="selectedLibraryItem" :is-local="isLocal" :keep-progress="keepProgress" @touchstart="touchstart" @touchend="touchend" @loaded="readerLoaded" />
+    <!-- ereader -->
+    <component v-if="readerComponentName" ref="readerComponent" :is="readerComponentName" :url="ebookUrl" :library-item="selectedLibraryItem" :is-local="isLocal" :keep-progress="keepProgress" @touchstart="touchstart" @touchend="touchend" @loaded="readerLoaded" @hook:mounted="readerMounted" />
+
+    <!-- table of contents modal -->
+    <modals-fullscreen-modal v-model="showTOCModal" :theme="ereaderTheme">
+      <div class="flex items-end justify-between h-20 px-4 pb-2">
+        <h1 class="text-lg">Table of Contents</h1>
+        <button class="flex" @click.stop="showTOCModal = false">
+          <span class="material-icons">close</span>
+        </button>
+      </div>
+
+      <!-- chapters list -->
+      <div class="w-full overflow-y-auto overflow-x-hidden h-full max-h-[calc(100vh-85px)]">
+        <div class="w-full h-full px-4">
+          <ul>
+            <li v-for="chapter in chapters" :key="chapter.id" class="py-1">
+              <a :href="chapter.href" class="opacity-80 hover:opacity-100" @click.prevent="goToChapter(chapter.href)">{{ chapter.label }}</a>
+              <ul v-if="chapter.subitems.length">
+                <li v-for="subchapter in chapter.subitems" :key="subchapter.id" class="py-1 pl-4">
+                  <a :href="subchapter.href" class="opacity-80 hover:opacity-100" @click.prevent="goToChapter(subchapter.href)">{{ subchapter.label }}</a>
+                </li>
+              </ul>
+            </li>
+          </ul>
+          <div v-if="!chapters.length" class="flex h-full items-center justify-center">
+            <p class="text-xl">{{ 'No Chapters' }}</p>
+          </div>
+        </div>
+      </div>
+    </modals-fullscreen-modal>
+
+    <!-- ereader settings modal -->
+    <modals-fullscreen-modal v-model="showSettingsModal" :theme="ereaderTheme" half-screen>
+      <div class="flex items-end justify-between h-20 px-4 pb-2 mb-8">
+        <h1 class="text-lg">Ereader Settings</h1>
+        <button class="flex" @click="showSettingsModal = false">
+          <span class="material-icons">close</span>
+        </button>
+      </div>
+      <div class="w-full overflow-y-auto overflow-x-hidden h-full max-h-[calc(100vh-85px)]">
+        <div class="w-full h-full px-4">
+          <div class="flex items-center mb-8">
+            <div class="w-32">
+              <p class="text-base">Theme:</p>
+            </div>
+            <ui-toggle-btns v-model="ereaderSettings.theme" :items="themeItems" @input="settingsUpdated" />
+          </div>
+          <div class="flex items-center mb-8">
+            <div class="w-32">
+              <p class="text-base">Font scale:</p>
+            </div>
+            <ui-range-input v-model="ereaderSettings.fontScale" :min="5" :max="300" :step="5" input-width="180px" @input="settingsUpdated" />
+          </div>
+          <div class="flex items-center mb-8">
+            <div class="w-32">
+              <p class="text-base">Line spacing:</p>
+            </div>
+            <ui-range-input v-model="ereaderSettings.lineSpacing" :min="100" :max="300" :step="5" input-width="180px" @input="settingsUpdated" />
+          </div>
+        </div>
+      </div>
+    </modals-fullscreen-modal>
   </div>
 </template>
 
@@ -32,7 +95,12 @@ export default {
       showTOCModal: false,
       showSettingsModal: false,
       comicHasMetadata: false,
-      chapters: []
+      chapters: [],
+      ereaderSettings: {
+        theme: 'dark',
+        fontScale: 100,
+        lineSpacing: 115
+      }
     }
   },
   watch: {
@@ -69,6 +137,22 @@ export default {
     },
     mediaMetadata() {
       return this.media?.metadata || {}
+    },
+    ereaderTheme() {
+      if (this.isEpub) return this.ereaderSettings.theme
+      return 'dark'
+    },
+    themeItems() {
+      return [
+        {
+          text: 'Dark',
+          value: 'dark'
+        },
+        {
+          text: 'Light',
+          value: 'light'
+        }
+      ]
     },
     readerComponentName() {
       if (this.ebookType === 'epub') return 'readers-epub-reader'
@@ -140,6 +224,19 @@ export default {
     }
   },
   methods: {
+    settingsUpdated() {
+      this.$refs.readerComponent?.updateSettings?.(this.ereaderSettings)
+      localStorage.setItem('ereaderSettings', JSON.stringify(this.ereaderSettings))
+    },
+    goToChapter(href) {
+      this.showTOCModal = false
+      this.$refs.readerComponent?.goToChapter(href)
+    },
+    readerMounted() {
+      if (this.isEpub) {
+        this.loadEreaderSettings()
+      }
+    },
     readerLoaded(data) {
       if (this.isComic) {
         this.comicHasMetadata = data.hasMetadata
@@ -149,6 +246,7 @@ export default {
       this.$refs.readerComponent?.clickShowInfoMenu()
     },
     clickTOCBtn() {
+      this.hideToolbar()
       if (this.isComic) {
         this.$refs.readerComponent?.clickShowPageMenu?.()
       } else {
@@ -157,6 +255,7 @@ export default {
       }
     },
     clickSettingsBtn() {
+      this.hideToolbar()
       this.showSettingsModal = true
     },
     next() {
@@ -181,7 +280,11 @@ export default {
       const touchDistanceY = Math.abs(this.touchendY - this.touchstartY)
       const touchDistance = Math.sqrt(Math.pow(this.touchstartX - this.touchendX, 2) + Math.pow(this.touchstartY - this.touchendY, 2))
       if (touchDistance < 60) {
-        this.toggleToolbar()
+        if (this.showSettingsModal) {
+          this.showSettingsModal = false
+        } else {
+          this.toggleToolbar()
+        }
         return
       }
 
@@ -213,7 +316,7 @@ export default {
       if (this.touchstartTime && Date.now() - this.touchstartTime < 250) {
         return
       }
-
+      console.log('touchstart', e)
       this.touchstartX = e.touches[0].screenX
       this.touchstartY = e.touches[0].screenY
       this.touchstartTime = Date.now()
@@ -223,12 +326,24 @@ export default {
       if (this.touchIdentifier !== e.changedTouches[0].identifier) {
         return
       }
+      console.log('touchend', e)
       this.touchendX = e.changedTouches[0].screenX
       this.touchendY = e.changedTouches[0].screenY
       this.handleGesture()
     },
     closeEvt() {
       this.show = false
+    },
+    loadEreaderSettings() {
+      try {
+        const settings = localStorage.getItem('ereaderSettings')
+        if (settings) {
+          this.ereaderSettings = JSON.parse(settings)
+          this.settingsUpdated()
+        }
+      } catch (error) {
+        console.error('Failed to load ereader settings', error)
+      }
     },
     registerListeners() {
       this.$eventBus.$on('close-ebook', this.closeEvt)

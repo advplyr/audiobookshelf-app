@@ -17,6 +17,7 @@ if (Capacitor.getPlatform() != 'web') {
 }
 
 Vue.prototype.$showHideStatusBar = async (show) => {
+  if (Capacitor.getPlatform() === 'web') return
   if (show) {
     StatusBar.show()
   } else {

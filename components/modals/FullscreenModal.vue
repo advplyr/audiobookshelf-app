@@ -1,6 +1,6 @@
 <template>
-  <div ref="wrapper" class="modal modal-bg w-screen h-screen fixed top-0 left-0 flex items-center justify-center z-50">
-    <div ref="content" class="relative text-white bg-bg h-full w-full">
+  <div ref="wrapper" class="modal modal-bg w-screen fixed bottom-0 left-0 flex items-center justify-center z-50" :class="halfScreen ? 'h-[50vh]' : 'h-screen'" @click.stop @touchstart.stop @touchend.stop>
+    <div ref="content" class="relative text-white h-full w-full bg-bg">
       <slot />
     </div>
   </div>
@@ -10,7 +10,8 @@
 export default {
   props: {
     value: Boolean,
-    processing: Boolean
+    processing: Boolean,
+    halfScreen: Boolean
   },
   data() {
     return {
