@@ -501,35 +501,23 @@ export default {
         const payload = await this.$db.updateLocalMediaProgressFinished({ localLibraryItemId, localEpisodeId, isFinished })
         console.log('toggleFinished payload', JSON.stringify(payload))
 
-        if (!payload || payload.error) {
-          var errorMsg = payload ? payload.error : 'Unknown error'
-          this.$toast.error(errorMsg)
+        if (payload?.error) {
+          this.$toast.error(payload?.error || 'Unknown error')
         } else {
           const localMediaProgress = payload.localMediaProgress
           console.log('toggleFinished localMediaProgress', JSON.stringify(localMediaProgress))
           if (localMediaProgress) {
             this.$store.commit('globals/updateLocalMediaProgress', localMediaProgress)
           }
-
-          if (payload.server) {
-            this.$toast.success(`Local & Server Item marked as ${isFinished ? 'Finished' : 'Not Finished'}`)
-          } else {
-            this.$toast.success(`Local Item marked as ${isFinished ? 'Finished' : 'Not Finished'}`)
-          }
         }
       } else {
         const updatePayload = {
           isFinished: !this.userIsFinished
         }
-        this.$axios
-          .$patch(`/api/me/progress/${this.libraryItemId}/${this.episode.id}`, updatePayload)
-          .then(() => {
-            this.$toast.success(`Item marked as ${updatePayload.isFinished ? 'Finished' : 'Not Finished'}`)
-          })
-          .catch((error) => {
-            console.error('Failed', error)
-            this.$toast.error(`Failed to mark as ${updatePayload.isFinished ? 'Finished' : 'Not Finished'}`)
-          })
+        this.$axios.$patch(`/api/me/progress/${this.libraryItemId}/${this.episode.id}`, updatePayload).catch((error) => {
+          console.error('Failed', error)
+          this.$toast.error(`Failed to mark as ${updatePayload.isFinished ? 'Finished' : 'Not Finished'}`)
+        })
       }
     },
     async deleteEpisodeFromServerClick() {

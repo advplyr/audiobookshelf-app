@@ -469,25 +469,6 @@ export default {
     editClick() {
       this.$emit('edit', this.libraryItem)
     },
-    toggleFinished() {
-      var updatePayload = {
-        isFinished: !this.itemIsFinished
-      }
-      this.isProcessingReadUpdate = true
-      var toast = this.$toast || this.$nuxt.$toast
-      var axios = this.$axios || this.$nuxt.$axios
-      axios
-        .$patch(`/api/me/progress/${this.libraryItemId}`, updatePayload)
-        .then(() => {
-          this.isProcessingReadUpdate = false
-          toast.success(`Item marked as ${updatePayload.isFinished ? 'Finished' : 'Not Finished'}`)
-        })
-        .catch((error) => {
-          console.error('Failed', error)
-          this.isProcessingReadUpdate = false
-          toast.error(`Failed to mark as ${updatePayload.isFinished ? 'Finished' : 'Not Finished'}`)
-        })
-    },
     rescan() {
       this.rescanning = true
       this.$axios

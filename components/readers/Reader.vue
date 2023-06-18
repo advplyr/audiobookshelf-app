@@ -316,7 +316,7 @@ export default {
       if (this.touchstartTime && Date.now() - this.touchstartTime < 250) {
         return
       }
-      console.log('touchstart', e)
+
       this.touchstartX = e.touches[0].screenX
       this.touchstartY = e.touches[0].screenY
       this.touchstartTime = Date.now()
@@ -326,7 +326,7 @@ export default {
       if (this.touchIdentifier !== e.changedTouches[0].identifier) {
         return
       }
-      console.log('touchend', e)
+
       this.touchendX = e.changedTouches[0].screenX
       this.touchendY = e.changedTouches[0].screenY
       this.handleGesture()

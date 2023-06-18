@@ -751,40 +751,31 @@ export default {
 
       this.isProcessingReadUpdate = true
       if (this.isLocal) {
-        var isFinished = !this.userIsFinished
-        var payload = await this.$db.updateLocalMediaProgressFinished({ localLibraryItemId: this.localLibraryItemId, isFinished })
+        const isFinished = !this.userIsFinished
+        const payload = await this.$db.updateLocalMediaProgressFinished({ localLibraryItemId: this.localLibraryItemId, isFinished })
         console.log('toggleFinished payload', JSON.stringify(payload))
-        if (!payload || payload.error) {
-          var errorMsg = payload ? payload.error : 'Unknown error'
-          this.$toast.error(errorMsg)
+        if (payload?.error) {
+          this.$toast.error(payload?.error || 'Unknown error')
         } else {
-          var localMediaProgress = payload.localMediaProgress
+          const localMediaProgress = payload.localMediaProgress
           console.log('toggleFinished localMediaProgress', JSON.stringify(localMediaProgress))
           if (localMediaProgress) {
             this.$store.commit('globals/updateLocalMediaProgress', localMediaProgress)
           }
-
-          if (payload.server) {
-            this.$toast.success(`Local & Server Item marked as ${isFinished ? 'Finished' : 'Not Finished'}`)
-          } else {
-            this.$toast.success(`Local Item marked as ${isFinished ? 'Finished' : 'Not Finished'}`)
-          }
         }
         this.isProcessingReadUpdate = false
       } else {
-        var updatePayload = {
+        const updatePayload = {
           isFinished: !this.userIsFinished
         }
         this.$axios
           .$patch(`/api/me/progress/${this.libraryItemId}`, updatePayload)
-          .then(() => {
-            this.isProcessingReadUpdate = false
-            this.$toast.success(`Item marked as ${updatePayload.isFinished ? 'Finished' : 'Not Finished'}`)
-          })
           .catch((error) => {
             console.error('Failed', error)
-            this.isProcessingReadUpdate = false
             this.$toast.error(`Failed to mark as ${updatePayload.isFinished ? 'Finished' : 'Not Finished'}`)
+          })
+          .finally(() => {
+            this.isProcessingReadUpdate = false
           })
       }
     },
