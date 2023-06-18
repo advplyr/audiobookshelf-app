@@ -18,6 +18,7 @@ class PodcastEpisode: EmbeddedObject, Codable {
     @Persisted var desc: String?
     @Persisted var audioFile: AudioFile?
     @Persisted var audioTrack: AudioTrack?
+    @Persisted var chapters = List<Chapter>()
     @Persisted var duration: Double?
     @Persisted var size: Int?
     var serverEpisodeId: String { self.id }
@@ -32,6 +33,7 @@ class PodcastEpisode: EmbeddedObject, Codable {
              desc = "description", // Fixes a collision with the base Swift object's field "description"
              audioFile,
              audioTrack,
+             chapters,
              duration,
              size,
              serverEpisodeId
@@ -40,6 +42,7 @@ class PodcastEpisode: EmbeddedObject, Codable {
     override init() {}
     
     required init(from decoder: Decoder) throws {
+        super.init()
         let values = try decoder.container(keyedBy: CodingKeys.self)
         id = try values.decode(String.self, forKey: .id)
         index = try? values.decode(Int.self, forKey: .index)
@@ -50,6 +53,9 @@ class PodcastEpisode: EmbeddedObject, Codable {
         desc = try? values.decode(String.self, forKey: .desc)
         audioFile = try? values.decode(AudioFile.self, forKey: .audioFile)
         audioTrack = try? values.decode(AudioTrack.self, forKey: .audioTrack)
+        if let chapterList = try? values.decode([Chapter].self, forKey: .chapters) {
+            chapters.append(objectsIn: chapterList)
+        }
         duration = try? values.decode(Double.self, forKey: .duration)
         size = try? values.decode(Int.self, forKey: .size)
     }
@@ -65,6 +71,7 @@ class PodcastEpisode: EmbeddedObject, Codable {
         try container.encode(desc, forKey: .desc)
         try container.encode(audioFile, forKey: .audioFile)
         try container.encode(audioTrack, forKey: .audioTrack)
+        try container.encode(Array(chapters), forKey: .chapters)
         try container.encode(duration, forKey: .duration)
         try container.encode(size, forKey: .size)
         try container.encode(serverEpisodeId, forKey: .serverEpisodeId)

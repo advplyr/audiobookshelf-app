@@ -177,6 +177,7 @@ extension LocalLibraryItem {
             audioTracks.append(AudioTrack.detachCopy(of: track)!)
             duration = track.duration
             displayTitle = episode.title
+            episode.chapters.forEach { chapter in chapters.append(Chapter.detachCopy(of: chapter)!) }
         } else if let tracks = self.media?.tracks {
             tracks.forEach { t in audioTracks.append(AudioTrack.detachCopy(of: t)!) }
         }

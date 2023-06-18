@@ -18,6 +18,7 @@ class LocalPodcastEpisode: Object, Codable {
     @Persisted var desc: String?
     @Persisted var audioFile: AudioFile?
     @Persisted var audioTrack: AudioTrack?
+    @Persisted var chapters = List<Chapter>()
     @Persisted var duration: Double = 0
     @Persisted var size: Int = 0
     @Persisted(indexed: true) var serverEpisodeId: String?

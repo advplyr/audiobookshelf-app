@@ -50,6 +50,12 @@ extension KeyedDecodingContainer {
             return Int(stringValue) ?? 0
         }
     }
+    
+    // This will be called when any @Persisted List<> is decoded
+    func decode<T: Decodable>(_ type: Persisted<List<T>>.Type, forKey key: Key) throws -> Persisted<List<T>> {
+        // Use decode if present, falling back to an empty list
+        try decodeIfPresent(type, forKey: key) ?? Persisted<List<T>>(wrappedValue: List<T>())
+    }
 }
 
 extension CAPPluginCall {
