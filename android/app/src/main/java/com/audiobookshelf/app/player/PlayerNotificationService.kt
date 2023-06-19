@@ -9,10 +9,7 @@ import android.graphics.Color
 import android.graphics.ImageDecoder
 import android.hardware.Sensor
 import android.hardware.SensorManager
-import android.net.ConnectivityManager
-import android.net.Network
-import android.net.NetworkCapabilities
-import android.net.NetworkRequest
+import android.net.*
 import android.os.*
 import android.provider.MediaStore
 import android.provider.Settings
@@ -292,7 +289,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
           return MediaDescriptionCompat.Builder().build()
         }
 
-        val coverUri = currentPlaybackSession!!.getCoverUri()
+        val coverUri = currentPlaybackSession!!.getCoverUri(ctx)
 
         var bitmap: Bitmap? = null
 //         Local covers get bitmap
@@ -398,7 +395,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
     val metadata = playbackSession.getMediaMetadataCompat(ctx)
     mediaSession.setMetadata(metadata)
-    val mediaItems = playbackSession.getMediaItems()
+    val mediaItems = playbackSession.getMediaItems(ctx)
     val playbackRateToUse = playbackRate ?: initialPlaybackRate ?: 1f
     initialPlaybackRate = playbackRate
 
@@ -501,7 +498,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   }
 
   private fun setMediaSessionConnectorCustomActions(playbackSession:PlaybackSession) {
-    val mediaItems = playbackSession.getMediaItems()
+    val mediaItems = playbackSession.getMediaItems(ctx)
     val customActionProviders = mutableListOf(
       JumpBackwardCustomActionProvider(),
       JumpForwardCustomActionProvider(),

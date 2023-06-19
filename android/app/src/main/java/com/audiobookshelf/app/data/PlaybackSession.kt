@@ -6,6 +6,8 @@ import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import android.support.v4.media.MediaMetadataCompat
+import androidx.core.content.FileProvider
+import androidx.core.net.toFile
 import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.R
 import com.audiobookshelf.app.device.DeviceManager
@@ -138,8 +140,15 @@ class PlaybackSession(
   }
 
   @JsonIgnore
-  fun getCoverUri(): Uri {
-    if (localLibraryItem?.coverContentUrl != null) return Uri.parse(localLibraryItem?.coverContentUrl) ?: Uri.parse("android.resource://${BuildConfig.APPLICATION_ID}/" + R.drawable.icon)
+  fun getCoverUri(ctx:Context): Uri {
+    if (localLibraryItem?.coverContentUrl != null) {
+      var coverUri = Uri.parse(localLibraryItem?.coverContentUrl.toString())
+      if (coverUri.toString().startsWith("file:")) {
+        coverUri = FileProvider.getUriForFile(ctx, "com.audiobookshelf.app.fileprovider", coverUri.toFile())
+      }
+
+      return coverUri ?: Uri.parse("android.resource://${BuildConfig.APPLICATION_ID}/" + R.drawable.icon)
+    }
 
     if (coverPath == null) return Uri.parse("android.resource://${BuildConfig.APPLICATION_ID}/" + R.drawable.icon)
     return Uri.parse("$serverAddress/api/items/$libraryItemId/cover?token=${DeviceManager.token}")
@@ -153,6 +162,8 @@ class PlaybackSession(
 
   @JsonIgnore
   fun getMediaMetadataCompat(ctx: Context): MediaMetadataCompat {
+    val coverUri = getCoverUri(ctx)
+
     val metadataBuilder = MediaMetadataCompat.Builder()
       .putString(MediaMetadataCompat.METADATA_KEY_TITLE, displayTitle)
       .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, displayTitle)
@@ -163,16 +174,16 @@ class PlaybackSession(
       .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ARTIST, displayAuthor)
       .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION, displayAuthor)
       .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, id)
-      .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getCoverUri().toString())
-      .putString(MediaMetadataCompat.METADATA_KEY_ART_URI, getCoverUri().toString())
-      .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, getCoverUri().toString())
+      .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, coverUri.toString())
+      .putString(MediaMetadataCompat.METADATA_KEY_ART_URI, coverUri.toString())
+      .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, coverUri.toString())
 
     // Local covers get bitmap
     if (localLibraryItem?.coverContentUrl != null) {
       val bitmap = if (Build.VERSION.SDK_INT < 28) {
-        MediaStore.Images.Media.getBitmap(ctx.contentResolver, getCoverUri())
+        MediaStore.Images.Media.getBitmap(ctx.contentResolver, coverUri)
       } else {
-        val source: ImageDecoder.Source = ImageDecoder.createSource(ctx.contentResolver, getCoverUri())
+        val source: ImageDecoder.Source = ImageDecoder.createSource(ctx.contentResolver, coverUri)
         ImageDecoder.decodeBitmap(source)
       }
       metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
@@ -183,7 +194,9 @@ class PlaybackSession(
   }
 
   @JsonIgnore
-  fun getExoMediaMetadata(): MediaMetadata {
+  fun getExoMediaMetadata(ctx:Context): MediaMetadata {
+    val coverUri = getCoverUri(ctx)
+
     val metadataBuilder = MediaMetadata.Builder()
       .setTitle(displayTitle)
       .setDisplayTitle(displayTitle)
@@ -192,18 +205,18 @@ class PlaybackSession(
       .setSubtitle(displayAuthor)
       .setAlbumTitle(displayAuthor)
       .setDescription(displayAuthor)
-      .setArtworkUri(getCoverUri())
+      .setArtworkUri(coverUri)
       .setMediaType(MediaMetadata.MEDIA_TYPE_AUDIO_BOOK)
 
     return metadataBuilder.build()
   }
 
   @JsonIgnore
-  fun getMediaItems():List<MediaItem> {
+  fun getMediaItems(ctx:Context):List<MediaItem> {
     val mediaItems:MutableList<MediaItem> = mutableListOf()
 
     for (audioTrack in audioTracks) {
-      val mediaMetadata = this.getExoMediaMetadata()
+      val mediaMetadata = this.getExoMediaMetadata(ctx)
       val mediaUri = this.getContentUri(audioTrack)
       val mimeType = audioTrack.mimeType
 

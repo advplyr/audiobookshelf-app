@@ -258,9 +258,9 @@ data class PodcastEpisode(
   var localEpisodeId:String? // For Android Auto server episodes with local copy
 ) {
   @JsonIgnore
-  fun getMediaDescription(libraryItem:LibraryItemWrapper, progress:MediaProgressWrapper?, ctx: Context?): MediaDescriptionCompat {
+  fun getMediaDescription(libraryItem:LibraryItemWrapper, progress:MediaProgressWrapper?, ctx: Context): MediaDescriptionCompat {
     val coverUri = if (libraryItem is LocalLibraryItem) {
-      libraryItem.getCoverUri()
+      libraryItem.getCoverUri(ctx)
     } else {
       (libraryItem as LibraryItem).getCoverUri()
     }

@@ -83,7 +83,7 @@ data class LocalFolder(
 )
 open class LibraryItemWrapper(var id:String) {
   @JsonIgnore
-  open fun getMediaDescription(progress:MediaProgressWrapper?, ctx: Context?): MediaDescriptionCompat { return MediaDescriptionCompat.Builder().build() }
+  open fun getMediaDescription(progress:MediaProgressWrapper?, ctx: Context): MediaDescriptionCompat { return MediaDescriptionCompat.Builder().build() }
 }
 
 @JsonIgnoreProperties(ignoreUnknown = true)

@@ -58,7 +58,7 @@ class LibraryItem(
   }
 
   @JsonIgnore
-  override fun getMediaDescription(progress:MediaProgressWrapper?, ctx: Context?): MediaDescriptionCompat {
+  override fun getMediaDescription(progress:MediaProgressWrapper?, ctx: Context): MediaDescriptionCompat {
     val extras = Bundle()
 
     if (localLibraryItemId != null) {

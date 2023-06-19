@@ -9,6 +9,8 @@ import android.os.Bundle
 import android.provider.MediaStore
 import android.support.v4.media.MediaDescriptionCompat
 import android.util.Log
+import androidx.core.content.FileProvider
+import androidx.core.net.toFile
 import androidx.media.utils.MediaConstants
 import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.R
@@ -46,7 +48,10 @@ class LocalLibraryItem(
   val isPodcast get() = mediaType == "podcast"
 
   @JsonIgnore
-  fun getCoverUri(): Uri {
+  fun getCoverUri(ctx:Context): Uri {
+    if (coverContentUrl?.startsWith("file:") == true) {
+      return FileProvider.getUriForFile(ctx, "com.audiobookshelf.app.fileprovider", Uri.parse(coverContentUrl).toFile())
+    }
     return if (coverContentUrl != null) Uri.parse(coverContentUrl) else Uri.parse("android.resource://${BuildConfig.APPLICATION_ID}/" + R.drawable.icon)
   }
 
@@ -107,18 +112,16 @@ class LocalLibraryItem(
   }
 
   @JsonIgnore
-  override fun getMediaDescription(progress:MediaProgressWrapper?, ctx:Context?): MediaDescriptionCompat {
-    val coverUri = getCoverUri()
+  override fun getMediaDescription(progress:MediaProgressWrapper?, ctx:Context): MediaDescriptionCompat {
+    val coverUri = getCoverUri(ctx)
 
     var bitmap:Bitmap? = null
     if (coverContentUrl != null) {
-      ctx?.let {
-        bitmap = if (Build.VERSION.SDK_INT < 28) {
-          MediaStore.Images.Media.getBitmap(it.contentResolver, coverUri)
-        } else {
-          val source: ImageDecoder.Source = ImageDecoder.createSource(it.contentResolver, coverUri)
-          ImageDecoder.decodeBitmap(source)
-        }
+      bitmap = if (Build.VERSION.SDK_INT < 28) {
+        MediaStore.Images.Media.getBitmap(ctx.contentResolver, coverUri)
+      } else {
+        val source: ImageDecoder.Source = ImageDecoder.createSource(ctx.contentResolver, coverUri)
+        ImageDecoder.decodeBitmap(source)
       }
     }
 
