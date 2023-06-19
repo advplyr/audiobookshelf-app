@@ -79,7 +79,7 @@ export default {
   },
   methods: {
     castClick() {
-      if (this.$store.state.playerIsLocal) {
+      if (this.$store.getters['getIsCurrentSessionLocal']) {
         this.$eventBus.$emit('cast-local-item')
         return
       }

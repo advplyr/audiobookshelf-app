@@ -326,11 +326,11 @@ export default {
       return this.userItemProgress ? this.userItemProgress.finishedAt : 0
     },
     isStreaming() {
-      return this.isPlaying && !this.$store.state.playerIsLocal
+      return this.isPlaying && !this.$store.getters['getIsCurrentSessionLocal']
     },
     isPlaying() {
-      if (this.localLibraryItemId && this.$store.getters['getIsItemStreaming'](this.localLibraryItemId)) return true
-      return this.$store.getters['getIsItemStreaming'](this.libraryItemId)
+      if (this.localLibraryItemId && this.$store.getters['getIsMediaStreaming'](this.localLibraryItemId)) return true
+      return this.$store.getters['getIsMediaStreaming'](this.libraryItemId)
     },
     playerIsPlaying() {
       return this.$store.state.playerIsPlaying && (this.isStreaming || this.isPlaying)

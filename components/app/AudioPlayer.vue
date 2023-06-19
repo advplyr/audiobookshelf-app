@@ -574,8 +574,8 @@ export default {
       AbsAudioPlayer.seek({ value: Math.floor(time) })
 
       if (this.$refs.playedTrack) {
-        var perc = time / this.totalDuration
-        var ptWidth = Math.round(perc * this.trackWidth)
+        const perc = time / this.totalDuration
+        const ptWidth = Math.round(perc * this.trackWidth)
         this.$refs.playedTrack.style.width = ptWidth + 'px'
 
         this.$refs.playedTrack.classList.remove('bg-gray-200')
@@ -721,7 +721,7 @@ export default {
       AbsAudioPlayer.closePlayback()
     },
     endPlayback() {
-      this.$store.commit('setPlayerItem', null)
+      this.$store.commit('setPlaybackSession', null)
       this.showFullscreen = false
       this.isEnded = false
       this.isLoading = false
@@ -767,7 +767,7 @@ export default {
       this.isEnded = false
       this.isLoading = true
       this.syncStatus = 0
-      this.$store.commit('setPlayerItem', this.playbackSession)
+      this.$store.commit('setPlaybackSession', this.playbackSession)
 
       // Set track width
       this.$nextTick(() => {

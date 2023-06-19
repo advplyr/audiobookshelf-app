@@ -1,10 +1,7 @@
 package com.audiobookshelf.app.data
 
 import android.content.Context
-import android.graphics.ImageDecoder
 import android.net.Uri
-import android.os.Build
-import android.provider.MediaStore
 import android.support.v4.media.MediaMetadataCompat
 import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.R
@@ -168,16 +165,16 @@ class PlaybackSession(
       .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, getCoverUri().toString())
 
     // Local covers get bitmap
-    if (localLibraryItem?.coverContentUrl != null) {
-      val bitmap = if (Build.VERSION.SDK_INT < 28) {
-        MediaStore.Images.Media.getBitmap(ctx.contentResolver, getCoverUri())
-      } else {
-        val source: ImageDecoder.Source = ImageDecoder.createSource(ctx.contentResolver, getCoverUri())
-        ImageDecoder.decodeBitmap(source)
-      }
-      metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
-      metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, bitmap)
-    }
+//    if (localLibraryItem?.coverContentUrl != null) {
+//      val bitmap = if (Build.VERSION.SDK_INT < 28) {
+//        MediaStore.Images.Media.getBitmap(ctx.contentResolver, getCoverUri())
+//      } else {
+//        val source: ImageDecoder.Source = ImageDecoder.createSource(ctx.contentResolver, getCoverUri())
+//        ImageDecoder.decodeBitmap(source)
+//      }
+//      metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
+//      metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, bitmap)
+//    }
 
     return metadataBuilder.build()
   }

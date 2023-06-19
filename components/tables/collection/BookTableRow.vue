@@ -74,7 +74,7 @@ export default {
       return !this.isMissing && !this.isInvalid && this.tracks.length
     },
     isStreaming() {
-      return this.$store.getters['getIsEpisodeStreaming'](this.libraryItemId)
+      return this.$store.getters['getIsMediaStreaming'](this.libraryItemId)
     },
     streamIsPlaying() {
       return this.$store.state.playerIsPlaying && this.isStreaming

@@ -75,7 +75,7 @@ export default {
       })
     },
     streaming() {
-      return !!this.playableBooks.find((b) => this.$store.getters['getIsItemStreaming'](b.id))
+      return !!this.playableBooks.find((b) => this.$store.getters['getIsMediaStreaming'](b.id))
     },
     showPlayButton() {
       return this.playableBooks.length

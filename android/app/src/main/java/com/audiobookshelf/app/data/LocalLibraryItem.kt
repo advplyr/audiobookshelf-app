@@ -110,17 +110,17 @@ class LocalLibraryItem(
   override fun getMediaDescription(progress:MediaProgressWrapper?, ctx:Context?): MediaDescriptionCompat {
     val coverUri = getCoverUri()
 
-    var bitmap:Bitmap? = null
-    if (coverContentUrl != null) {
-      ctx?.let {
-        bitmap = if (Build.VERSION.SDK_INT < 28) {
-          MediaStore.Images.Media.getBitmap(it.contentResolver, coverUri)
-        } else {
-          val source: ImageDecoder.Source = ImageDecoder.createSource(it.contentResolver, coverUri)
-          ImageDecoder.decodeBitmap(source)
-        }
-      }
-    }
+//    var bitmap:Bitmap? = null
+//    if (coverContentUrl != null) {
+//      ctx?.let {
+//        bitmap = if (Build.VERSION.SDK_INT < 28) {
+//          MediaStore.Images.Media.getBitmap(it.contentResolver, coverUri)
+//        } else {
+//          val source: ImageDecoder.Source = ImageDecoder.createSource(it.contentResolver, coverUri)
+//          ImageDecoder.decodeBitmap(source)
+//        }
+//      }
+//    }
 
     val extras = Bundle()
     extras.putLong(
@@ -156,9 +156,9 @@ class LocalLibraryItem(
       .setSubtitle(authorName)
       .setExtras(extras)
 
-    bitmap?.let {
-      mediaDescriptionBuilder.setIconBitmap(bitmap)
-    }
+//    bitmap?.let {
+//      mediaDescriptionBuilder.setIconBitmap(bitmap)
+//    }
 
     return mediaDescriptionBuilder.build()
   }

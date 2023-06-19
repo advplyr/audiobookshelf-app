@@ -1,7 +1,7 @@
 <template>
   <div class="w-full layout-wrapper bg-bg text-white">
     <app-appbar />
-    <div id="content" class="overflow-hidden relative" :class="playerIsOpen ? 'playerOpen' : ''">
+    <div id="content" class="overflow-hidden relative" :class="isPlayerOpen ? 'playerOpen' : ''">
       <Nuxt />
 
       <div v-if="attemptingConnection" class="absolute top-0 left-0 z-50 w-full h-full flex items-center justify-center">
@@ -57,11 +57,8 @@ export default {
     }
   },
   computed: {
-    playerIsOpen() {
-      return this.$store.state.playerLibraryItemId
-    },
-    readerIsOpen() {
-      return this.$store.state.showReader
+    isPlayerOpen() {
+      return this.$store.getters['getIsPlayerOpen']
     },
     routeName() {
       return this.$route.name
@@ -86,7 +83,7 @@ export default {
   },
   methods: {
     initialStream(stream) {
-      if (this.$refs.streamContainer && this.$refs.streamContainer.audioPlayerReady) {
+      if (this.$refs.streamContainer?.audioPlayerReady) {
         this.$refs.streamContainer.streamOpen(stream)
       }
     },
@@ -234,8 +231,16 @@ export default {
         this.$store.commit('user/setUser', user)
       }
     },
-    async userMediaProgressUpdated(prog) {
-      console.log(`[default] userMediaProgressUpdate checking for local media progress ${prog.id}`)
+    async userMediaProgressUpdated(payload) {
+      const prog = payload.data // MediaProgress
+      console.log(`[default] userMediaProgressUpdate checking for local media progress ${payload.id}`)
+
+      // Check if this media item is currently open in the player, paused, and this progress update is coming from a different session
+      const isMediaOpenInPlayer = this.$store.getters['getIsMediaStreaming'](prog.libraryItemId, prog.episodeId)
+      if (isMediaOpenInPlayer && this.$store.getters['getCurrentPlaybackSessionId'] !== payload.sessionId && !this.$store.state.playerIsPlaying) {
+        console.log('[default] userMediaProgressUpdated for current open media item', payload.data.currentTime)
+        this.$eventBus.$emit('playback-time-update', payload.data.currentTime)
+      }
 
       // Update local media progress if exists
       const localProg = await this.$db.getLocalMediaProgressForServerItem({ libraryItemId: prog.libraryItemId, episodeId: prog.episodeId })
@@ -287,7 +292,7 @@ export default {
         }
       }
 
-      if (newLocalMediaProgress && newLocalMediaProgress.id) {
+      if (newLocalMediaProgress?.id) {
         console.log(`[default] local media progress updated for ${newLocalMediaProgress.id}`)
         this.$store.commit('globals/updateLocalMediaProgress', newLocalMediaProgress)
       }

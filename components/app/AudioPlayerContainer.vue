@@ -110,7 +110,7 @@ export default {
     },
     streamProgress(data) {
       if (!data.numSegments) return
-      var chunks = data.chunks
+      const chunks = data.chunks
       if (this.$refs.audioPlayer) {
         this.$refs.audioPlayer.setChunksReady(chunks, data.numSegments)
       }
@@ -265,8 +265,7 @@ export default {
       this.$store.commit('globals/updateLocalMediaProgress', localMediaProgress)
     },
     onMediaPlayerChanged(data) {
-      var mediaPlayer = data.value
-      this.$store.commit('setMediaPlayer', mediaPlayer)
+      this.$store.commit('setMediaPlayer', data.value)
     },
     onReady() {
       // The UI is reporting elsewhere we are ready
@@ -283,6 +282,9 @@ export default {
         this.$store.commit('setIsFirstAudioLoad', false) // Only run this once on app launch
         AbsAudioPlayer.onReady()
       }
+    },
+    playbackTimeUpdate(currentTime) {
+      this.$refs.audioPlayer?.seek(currentTime)
     }
   },
   mounted() {
@@ -300,6 +302,7 @@ export default {
     this.$eventBus.$on('close-stream', this.closeStreamOnly)
     this.$eventBus.$on('cast-local-item', this.castLocalItem)
     this.$eventBus.$on('user-settings', this.settingsUpdated)
+    this.$eventBus.$on('playback-time-update', this.playbackTimeUpdate)
   },
   beforeDestroy() {
     if (this.onLocalMediaProgressUpdateListener) this.onLocalMediaProgressUpdateListener.remove()
@@ -313,6 +316,7 @@ export default {
     this.$eventBus.$off('close-stream', this.closeStreamOnly)
     this.$eventBus.$off('cast-local-item', this.castLocalItem)
     this.$eventBus.$off('user-settings', this.settingsUpdated)
+    this.$eventBus.$off('playback-time-update', this.playbackTimeUpdate)
   }
 }
 </script>

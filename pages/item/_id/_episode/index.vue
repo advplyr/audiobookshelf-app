@@ -209,14 +209,7 @@ export default {
       return this.$store.getters['globals/getLibraryItemCoverSrcById'](this.libraryItemId)
     },
     isPlaying() {
-      if (this.playerIsLocal && this.localLibraryItemId && this.localEpisodeId) {
-        // Check is streaming local version of this episode
-        return this.$store.getters['getIsEpisodeStreaming'](this.localLibraryItemId, this.localEpisodeId)
-      }
-      return this.$store.getters['getIsEpisodeStreaming'](this.libraryItemId, this.episode.id)
-    },
-    playerIsLocal() {
-      return !!this.$store.state.playerIsLocal
+      return this.$store.getters['getIsMediaStreaming'](this.libraryItemId, this.episode.id)
     },
     playerIsPlaying() {
       return this.$store.state.playerIsPlaying && this.isPlaying

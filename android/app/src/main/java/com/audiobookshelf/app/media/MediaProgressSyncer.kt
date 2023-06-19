@@ -215,7 +215,6 @@ class MediaProgressSyncer(val playerNotificationService: PlayerNotificationServi
     val listeningTimeToAdd = diffSinceLastSync / 1000L
 
     val syncData = MediaProgressSyncData(listeningTimeToAdd,currentPlaybackDuration,currentTime)
-
     currentPlaybackSession?.syncData(syncData)
 
     if (currentPlaybackSession?.progress?.isNaN() == true) {
@@ -243,11 +242,6 @@ class MediaProgressSyncer(val playerNotificationService: PlayerNotificationServi
         // Send sync to server also if connected to this server and local item belongs to this server
         if (hasNetworkConnection && shouldSyncServer && !it.libraryItemId.isNullOrEmpty() && it.serverConnectionConfigId != null && DeviceManager.serverConnectionConfig?.id == it.serverConnectionConfigId) {
           apiHandler.sendLocalProgressSync(it) { syncSuccess, errorMsg ->
-            Log.d(
-              tag,
-              "Local progress sync data sent to server $currentDisplayTitle for time $currentTime"
-            )
-
             if (syncSuccess) {
               failedSyncs = 0
               playerNotificationService.alertSyncSuccess()

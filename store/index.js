@@ -3,9 +3,7 @@ import { AbsAudioPlayer } from '@/plugins/capacitor'
 
 export const state = () => ({
   deviceData: null,
-  playerLibraryItemId: null,
-  playerEpisodeId: null,
-  playerIsLocal: false,
+  currentPlaybackSession: null,
   playerIsPlaying: false,
   playerIsFullscreen: false,
   isCasting: false,
@@ -30,16 +28,33 @@ export const state = () => ({
 })
 
 export const getters = {
+  getCurrentPlaybackSessionId: state => {
+    return state.currentPlaybackSession?.id || null
+  },
+  getIsPlayerOpen: state => {
+    return !!state.currentPlaybackSession
+  },
+  getIsCurrentSessionLocal: state => {
+    return state.currentPlaybackSession?.playMethod == this.$constants.PlayMethod.LOCAL
+  },
   getIsMediaStreaming: state => (libraryItemId, episodeId) => {
-    if (!state.playerLibraryItemId) return null
-    if (!episodeId) return state.playerLibraryItemId == libraryItemId
-    return state.playerLibraryItemId == libraryItemId && state.playerEpisodeId == episodeId
-  },
-  getIsItemStreaming: state => libraryItemId => {
-    return state.playerLibraryItemId == libraryItemId
-  },
-  getIsEpisodeStreaming: state => (libraryItemId, episodeId) => {
-    return state.playerLibraryItemId == libraryItemId && state.playerEpisodeId == episodeId
+    if (!state.currentPlaybackSession || !libraryItemId) return false
+
+    // Check using local library item id and local episode id
+    const isLocalLibraryItemId = libraryItemId.startsWith('local_')
+    if (isLocalLibraryItemId) {
+      if (state.currentPlaybackSession.localLibraryItem?.id !== libraryItemId) {
+        return false
+      }
+      if (!episodeId) return true
+      return state.currentPlaybackSession.localEpisodeId === episodeId
+    }
+
+    if (state.currentPlaybackSession.libraryItemId !== libraryItemId) {
+      return false
+    }
+    if (!episodeId) return true
+    return state.currentPlaybackSession.episodeId === episodeId
   },
   getServerSetting: state => key => {
     if (!state.serverSettings) return null
@@ -96,19 +111,10 @@ export const mutations = {
   setLastItemScrollData(state, data) {
     state.lastItemScrollData = data
   },
-  setPlayerItem(state, playbackSession) {
-    state.playerIsLocal = playbackSession ? playbackSession.playMethod == this.$constants.PlayMethod.LOCAL : false
+  setPlaybackSession(state, playbackSession) {
+    state.currentPlaybackSession = playbackSession
 
-    if (state.playerIsLocal) {
-      state.playerLibraryItemId = playbackSession ? playbackSession.localLibraryItem.id || null : null
-      state.playerEpisodeId = playbackSession ? playbackSession.localEpisodeId || null : null
-    } else {
-      state.playerLibraryItemId = playbackSession ? playbackSession.libraryItemId || null : null
-      state.playerEpisodeId = playbackSession ? playbackSession.episodeId || null : null
-    }
-
-    var mediaPlayer = playbackSession ? playbackSession.mediaPlayer : null
-    state.isCasting = mediaPlayer === "cast-player"
+    state.isCasting = playbackSession?.mediaPlayer === "cast-player"
   },
   setMediaPlayer(state, mediaPlayer) {
     state.isCasting = mediaPlayer === 'cast-player'

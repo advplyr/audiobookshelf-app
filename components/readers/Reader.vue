@@ -1,5 +1,5 @@
 <template>
-  <div v-if="show" :data-theme="ereaderTheme" class="group fixed top-0 left-0 right-0 layout-wrapper w-full z-40 pt-8 data-[theme=dark]:bg-primary data-[theme=dark]:text-white data-[theme=light]:bg-white data-[theme=light]:text-black" :class="{ 'reader-player-open': !!playerLibraryItemId }">
+  <div v-if="show" :data-theme="ereaderTheme" class="group fixed top-0 left-0 right-0 layout-wrapper w-full z-40 pt-8 data-[theme=dark]:bg-primary data-[theme=dark]:text-white data-[theme=light]:bg-white data-[theme=light]:text-black" :class="{ 'reader-player-open': isPlayerOpen }">
     <!-- toolbar -->
     <div class="h-32 pt-10 w-full px-2 fixed top-0 left-0 z-30 transition-transform bg-bg text-white" :class="showingToolbar ? 'translate-y-0' : '-translate-y-32'" @touchstart.stop @mousedown.stop @touchend.stop @mouseup.stop>
       <div class="flex items-center mb-2">
@@ -213,8 +213,8 @@ export default {
       }
       return `${serverAddress}/api/items/${this.selectedLibraryItem.id}/ebook`
     },
-    playerLibraryItemId() {
-      return this.$store.state.playerLibraryItemId
+    isPlayerOpen() {
+      return this.$store.getters['getIsPlayerOpen']
     },
     keepProgress() {
       return this.$store.state.ereaderKeepProgress

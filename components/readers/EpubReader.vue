@@ -2,7 +2,7 @@
   <div id="epub-frame" class="w-full">
     <div id="viewer" class="h-full w-full"></div>
 
-    <div class="fixed left-0 h-8 w-full px-4 flex items-center" :class="isLightTheme ? 'bg-white text-black' : 'bg-primary text-white/80'" :style="{ bottom: playerLibraryItemId ? '120px' : '0px' }">
+    <div class="fixed left-0 h-8 w-full px-4 flex items-center" :class="isLightTheme ? 'bg-white text-black' : 'bg-primary text-white/80'" :style="{ bottom: isPlayerOpen ? '120px' : '0px' }">
       <div class="flex-grow" />
       <p class="text-xs">{{ progress }}%</p>
     </div>
@@ -37,7 +37,7 @@ export default {
     }
   },
   watch: {
-    playerLibraryItemId() {
+    isPlayerOpen() {
       this.updateHeight()
     }
   },
@@ -65,11 +65,11 @@ export default {
       }
       return null
     },
-    playerLibraryItemId() {
-      return this.$store.state.playerLibraryItemId
+    isPlayerOpen() {
+      return this.$store.getters['getIsPlayerOpen']
     },
     readerHeightOffset() {
-      return this.playerLibraryItemId ? 204 : 84
+      return this.isPlayerOpen ? 204 : 104
     },
     /** @returns {Array<ePub.NavItem>} */
     chapters() {

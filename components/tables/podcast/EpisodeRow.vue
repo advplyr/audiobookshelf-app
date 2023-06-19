@@ -114,14 +114,7 @@ export default {
       return this.$secondsToTimestamp(this.episode.duration)
     },
     isStreaming() {
-      if (this.playerIsLocal && this.localLibraryItemId && this.localEpisode) {
-        // Check is streaming local version of this episode
-        return this.$store.getters['getIsEpisodeStreaming'](this.localLibraryItemId, this.localEpisode.id)
-      }
-      return this.$store.getters['getIsEpisodeStreaming'](this.libraryItemId, this.episode.id)
-    },
-    playerIsLocal() {
-      return !!this.$store.state.playerIsLocal
+      return this.$store.getters['getIsMediaStreaming'](this.libraryItemId, this.episode.id)
     },
     streamIsPlaying() {
       return this.$store.state.playerIsPlaying && this.isStreaming

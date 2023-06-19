@@ -18,7 +18,7 @@
       </div>
     </div>
 
-    <div class="fixed left-0 h-8 w-full bg-primary px-4 flex items-center text-white/80" :style="{ bottom: playerLibraryItemId ? '120px' : '0px' }">
+    <div class="fixed left-0 h-8 w-full bg-primary px-4 flex items-center text-white/80" :style="{ bottom: isPlayerOpen ? '120px' : '0px' }">
       <div class="flex-grow" />
       <p class="text-xs">{{ page }} / {{ numPages }}</p>
     </div>
@@ -114,8 +114,8 @@ export default {
         }
       }
     },
-    playerLibraryItemId() {
-      return this.$store.state.playerLibraryItemId
+    isPlayerOpen() {
+      return this.$store.getters['getIsPlayerOpen']
     }
   },
   methods: {

@@ -213,7 +213,7 @@ export default {
       return this.mediaMetadata.series
     },
     seriesSequence() {
-      return this.series ? this.series.sequence : null
+      return this.series?.sequence || null
     },
     recentEpisode() {
       // Only added to item when getting currently listening podcasts
@@ -232,14 +232,14 @@ export default {
     },
     booksInSeries() {
       // Only added to item object when collapseSeries is enabled
-      return this.collapsedSeries ? this.collapsedSeries.numBooks : 0
+      return this.collapsedSeries?.numBooks || 0
     },
     seriesSequenceList() {
-      return this.collapsedSeries ? this.collapsedSeries.seriesSequenceList : null
+      return this.collapsedSeries?.seriesSequenceList || null
     },
     libraryItemIdsInSeries() {
       // Only added to item object when collapseSeries is enabled
-      return this.collapsedSeries ? this.collapsedSeries.libraryItemIds || [] : []
+      return this.collapsedSeries?.libraryItemIds || []
     },
     displayTitle() {
       if (this.recentEpisode) return this.recentEpisode.title
@@ -291,20 +291,18 @@ export default {
     showError() {
       return this.numMissingParts || this.isMissing || this.isInvalid
     },
-    playerIsLocal() {
-      return !!this.$store.state.playerIsLocal
-    },
     localLibraryItemId() {
       if (this.isLocal) return this.libraryItemId
-      return this.localLibraryItem ? this.localLibraryItem.id : null
+      return this.localLibraryItem?.id || null
+    },
+    localEpisode() {
+      if (!this.recentEpisode || !this.localLibraryItem) return null
+      // Current recentEpisode is only implemented server side so this will always be the serverEpisodeId
+      return this.localLibraryItem.media.episodes.find((ep) => ep.serverEpisodeId === this.recentEpisode.id)
     },
     isStreaming() {
       if (this.isPodcast) {
-        if (this.playerIsLocal) {
-          // Check is streaming local version of this episode
-          return false // episode cards not implemented for local yet
-        }
-        return this.$store.getters['getIsEpisodeStreaming'](this.libraryItemId, this.recentEpisode.id)
+        return this.$store.getters['getIsMediaStreaming'](this.libraryItemId, this.recentEpisode.id)
       } else {
         return false // not yet necessary for books
       }
@@ -380,8 +378,7 @@ export default {
     showHasLocalDownload() {
       if (this.localLibraryItem || this.isLocal) {
         if (this.recentEpisode && !this.isLocal) {
-          const localEpisode = this.localLibraryItem.media.episodes.find((ep) => ep.serverEpisodeId === this.recentEpisode.id)
-          return !!localEpisode
+          return !!this.localEpisode
         } else {
           return true
         }
@@ -436,18 +433,15 @@ export default {
         return
       }
 
-      if (this.localLibraryItem) {
-        const localEpisode = this.localLibraryItem.media.episodes.find((ep) => ep.serverEpisodeId === this.recentEpisode.id)
-        if (localEpisode) {
-          // Play episode locally
-          eventBus.$emit('play-item', {
-            libraryItemId: this.localLibraryItemId,
-            episodeId: localEpisode.id,
-            serverLibraryItemId: this.libraryItemId,
-            serverEpisodeId: this.recentEpisode.id
-          })
-          return
-        }
+      if (this.localEpisode) {
+        // Play episode locally
+        eventBus.$emit('play-item', {
+          libraryItemId: this.localLibraryItemId,
+          episodeId: this.localEpisode.id,
+          serverLibraryItemId: this.libraryItemId,
+          serverEpisodeId: this.recentEpisode.id
+        })
+        return
       }
 
       eventBus.$emit('play-item', { libraryItemId: this.libraryItemId, episodeId: this.recentEpisode.id })

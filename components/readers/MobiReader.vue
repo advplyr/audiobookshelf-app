@@ -23,9 +23,6 @@ export default {
     return {}
   },
   computed: {
-    playerLibraryItemId() {
-      return this.$store.state.playerLibraryItemId
-    },
     userToken() {
       return this.$store.getters['user/getToken']
     }
