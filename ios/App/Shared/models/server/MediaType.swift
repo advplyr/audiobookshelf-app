@@ -14,6 +14,7 @@ class MediaType: EmbeddedObject, Codable {
     @Persisted var coverPath: String?
     @Persisted var tags = List<String>()
     @Persisted var audioFiles = List<AudioFile>()
+    @Persisted var ebookFile: EBookFile?
     @Persisted var chapters = List<Chapter>()
     @Persisted var tracks = List<AudioTrack>()
     @Persisted var size: Int?
@@ -22,7 +23,7 @@ class MediaType: EmbeddedObject, Codable {
     @Persisted var autoDownloadEpisodes: Bool?
     
     private enum CodingKeys : String, CodingKey {
-        case libraryItemId, metadata, coverPath, tags, audioFiles, chapters, tracks, size, duration, episodes, autoDownloadEpisodes
+        case libraryItemId, metadata, coverPath, tags, audioFiles, ebookFile, chapters, tracks, size, duration, episodes, autoDownloadEpisodes
     }
     
     override init() {
@@ -41,6 +42,7 @@ class MediaType: EmbeddedObject, Codable {
         if let fileList = try? values.decode([AudioFile].self, forKey: .audioFiles) {
             audioFiles.append(objectsIn: fileList)
         }
+        ebookFile = try? values.decode(EBookFile.self, forKey: .ebookFile)
         if let chapterList = try? values.decode([Chapter].self, forKey: .chapters) {
             chapters.append(objectsIn: chapterList)
         }
@@ -62,6 +64,7 @@ class MediaType: EmbeddedObject, Codable {
         try container.encode(coverPath, forKey: .coverPath)
         try container.encode(Array(tags), forKey: .tags)
         try container.encode(Array(audioFiles), forKey: .audioFiles)
+        try container.encode(ebookFile, forKey: .ebookFile)
         try container.encode(Array(chapters), forKey: .chapters)
         try container.encode(Array(tracks), forKey: .tracks)
         try container.encode(size, forKey: .size)

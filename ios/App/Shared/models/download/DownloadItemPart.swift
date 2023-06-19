@@ -17,6 +17,7 @@ class DownloadItemPart: Object, Codable {
     @Persisted var serverPath: String?
     @Persisted var audioTrack: AudioTrack?
     @Persisted var episode: PodcastEpisode?
+    @Persisted var ebookFile: EBookFile?
     @Persisted var completed: Bool = false
     @Persisted var moved: Bool = false
     @Persisted var failed: Bool = false
@@ -63,7 +64,7 @@ class DownloadItemPart: Object, Codable {
 }
 
 extension DownloadItemPart {
-    convenience init(downloadItemId: String, filename: String, destination: String, itemTitle: String, serverPath: String, audioTrack: AudioTrack?, episode: PodcastEpisode?, size: Double) {
+    convenience init(downloadItemId: String, filename: String, destination: String, itemTitle: String, serverPath: String, audioTrack: AudioTrack?, episode: PodcastEpisode?, ebookFile: EBookFile?, size: Double) {
         self.init()
         
         self.id = destination.toBase64()
@@ -74,6 +75,7 @@ extension DownloadItemPart {
         self.serverPath = serverPath
         self.audioTrack = AudioTrack.detachCopy(of: audioTrack)
         self.episode = PodcastEpisode.detachCopy(of: episode)
+        self.ebookFile = EBookFile.detachCopy(of: ebookFile)
         
         let config = Store.serverConfig!
         var downloadUrl = "\(config.address)\(serverPath)?token=\(config.token)"
@@ -101,6 +103,6 @@ extension DownloadItemPart {
     }
     
     func mimeType() -> String? {
-        audioTrack?.mimeType ?? episode?.audioTrack?.mimeType
+        audioTrack?.mimeType ?? episode?.audioTrack?.mimeType ?? ebookFile?.mimeType()
     }
 }

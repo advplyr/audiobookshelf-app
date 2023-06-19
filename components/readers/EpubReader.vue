@@ -284,7 +284,7 @@ export default {
 
       /** @type {EpubReader} */
       const reader = this
-
+      console.log('initEpub', reader.url)
       /** @type {ePub.Book} */
       reader.book = new ePub(reader.url, {
         width: window.innerWidth,

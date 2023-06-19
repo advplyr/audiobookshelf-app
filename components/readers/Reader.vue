@@ -3,11 +3,19 @@
     <!-- toolbar -->
     <div class="h-32 pt-10 w-full px-2 fixed top-0 left-0 z-30 transition-transform bg-bg text-white" :class="showingToolbar ? 'translate-y-0' : '-translate-y-32'" @touchstart.stop @mousedown.stop @touchend.stop @mouseup.stop>
       <div class="flex items-center mb-2">
-        <button type="button" class="inline-flex mx-2" @click.stop="show = false"><span class="material-icons-outlined text-3xl text-white">chevron_left</span></button>
+        <button type="button" class="inline-flex mx-2" @click.stop="show = false">
+          <span class="material-icons-outlined text-3xl text-white">chevron_left</span>
+        </button>
         <div class="flex-grow" />
-        <button v-if="isComic || isEpub" type="button" class="inline-flex mx-2" @click.stop="clickTOCBtn"><span class="material-icons-outlined text-2xl text-white">format_list_bulleted</span></button>
-        <button v-if="isEpub" type="button" class="inline-flex mx-2" @click.stop="clickSettingsBtn"><span class="material-icons text-2xl text-white">settings</span></button>
-        <button v-if="comicHasMetadata" type="button" class="inline-flex mx-2" @click.stop="clickMetadataBtn"><span class="material-icons text-2xl text-white">more</span></button>
+        <button v-if="isComic || isEpub" type="button" class="inline-flex mx-2" @click.stop="clickTOCBtn">
+          <span class="material-icons-outlined text-2xl text-white">format_list_bulleted</span>
+        </button>
+        <button v-if="isEpub" type="button" class="inline-flex mx-2" @click.stop="clickSettingsBtn">
+          <span class="material-icons text-2xl text-white">settings</span>
+        </button>
+        <button v-if="comicHasMetadata" type="button" class="inline-flex mx-2" @click.stop="clickMetadataBtn">
+          <span class="material-icons text-2xl text-white">more</span>
+        </button>
       </div>
 
       <p class="text-center truncate">{{ title }}</p>
@@ -110,6 +118,8 @@ export default {
           this.comicHasMetadata = false
           this.registerListeners()
           this.hideToolbar()
+
+          console.log('showReader for ebookFile', JSON.stringify(this.ebookFile))
         } else {
           this.unregisterListeners()
           this.$showHideStatusBar(true)
@@ -196,7 +206,7 @@ export default {
       return this.ebookFormat == 'cbz' || this.ebookFormat == 'cbr'
     },
     isLocal() {
-      return !!this.ebookFile?.isLocal
+      return !!this.ebookFile?.isLocal || !!this.ebookFile?.localFileId
     },
     localContentUrl() {
       return this.ebookFile?.contentUrl

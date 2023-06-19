@@ -16,12 +16,14 @@ class MediaProgress: EmbeddedObject, Codable {
     @Persisted var progress: Double = 0
     @Persisted var currentTime: Double = 0
     @Persisted var isFinished: Bool = false
+    @Persisted var ebookLocation: String?
+    @Persisted var ebookProgress: Double?
     @Persisted var lastUpdate: Double = 0
     @Persisted var startedAt: Double = 0
     @Persisted var finishedAt: Double?
     
     private enum CodingKeys : String, CodingKey {
-        case id, libraryItemId, episodeId, duration, progress, currentTime, isFinished, lastUpdate, startedAt, finishedAt
+        case id, libraryItemId, episodeId, duration, progress, currentTime, isFinished, ebookLocation, ebookProgress, lastUpdate, startedAt, finishedAt
     }
     
     override init() {
@@ -37,6 +39,8 @@ class MediaProgress: EmbeddedObject, Codable {
         progress = try values.doubleOrStringDecoder(key: .progress)
         currentTime = try values.doubleOrStringDecoder(key: .currentTime)
         isFinished = try values.decode(Bool.self, forKey: .isFinished)
+        ebookLocation = try values.decodeIfPresent(String.self, forKey: .ebookLocation)
+        ebookProgress = try values.doubleOrStringDecoder(key: .ebookProgress)
         lastUpdate = try values.doubleOrStringDecoder(key: .lastUpdate)
         startedAt = try values.doubleOrStringDecoder(key: .startedAt)
         finishedAt = try? values.doubleOrStringDecoder(key: .finishedAt)
@@ -51,6 +55,8 @@ class MediaProgress: EmbeddedObject, Codable {
         try container.encode(progress, forKey: .progress)
         try container.encode(currentTime, forKey: .currentTime)
         try container.encode(isFinished, forKey: .isFinished)
+        try container.encode(ebookLocation, forKey: .ebookLocation)
+        try container.encode(ebookProgress, forKey: .ebookProgress)
         try container.encode(lastUpdate, forKey: .lastUpdate)
         try container.encode(startedAt, forKey: .startedAt)
         try container.encode(finishedAt, forKey: .finishedAt)

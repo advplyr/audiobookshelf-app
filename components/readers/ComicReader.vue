@@ -244,12 +244,13 @@ export default {
     async extract() {
       this.loading = true
 
-      var buff = await this.$axios.$get(this.url, {
+      const buff = await this.$axios.$get(this.url, {
         responseType: 'blob',
         headers: {
           Authorization: `Bearer ${this.userToken}`
         }
       })
+
       const archive = await Archive.open(buff)
       const originalFilesObject = await archive.getFilesObject()
       // to support images in subfolders we need to flatten the object

@@ -265,7 +265,7 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
         // Handle the different media type downloads
         switch item.mediaType {
         case "book":
-            guard item.media?.tracks.count ?? 0 > 0 else { throw LibraryItemDownloadError.noTracks }
+            guard item.media?.tracks.count ?? 0 > 0 || item.media?.ebookFile != nil else { throw LibraryItemDownloadError.noTracks }
             item.media?.tracks.forEach { t in tracks.append(AudioTrack.detachCopy(of: t)!) }
         case "podcast":
             guard let episode = episode else { throw LibraryItemDownloadError.podcastEpisodeNotFound }
@@ -281,6 +281,12 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
         var tasks = [DownloadItemPartTask]()
         for (i, track) in tracks.enumerated() {
             let task = try startLibraryItemTrackDownload(downloadItemId: downloadItem.id!, item: item, position: i, track: track, episode: episode)
+            downloadItem.downloadItemParts.append(task.part)
+            tasks.append(task)
+        }
+        
+        if (item.media?.ebookFile != nil) {
+            let task = try startLibraryItemEbookDownload(downloadItemId: downloadItem.id!, item: item, ebookFile: item.media!.ebookFile!)
             downloadItem.downloadItemParts.append(task.part)
             tasks.append(task)
         }
@@ -318,7 +324,22 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
         let localUrl = "\(itemDirectory)/\(filename)"
         
         let task = session.downloadTask(with: serverUrl)
-        let part = DownloadItemPart(downloadItemId: downloadItemId, filename: filename, destination: localUrl, itemTitle: track.title ?? "Unknown", serverPath: Store.serverConfig!.address, audioTrack: track, episode: episode, size: track.metadata?.size ?? 0)
+        let part = DownloadItemPart(downloadItemId: downloadItemId, filename: filename, destination: localUrl, itemTitle: track.title ?? "Unknown", serverPath: Store.serverConfig!.address, audioTrack: track, episode: episode, ebookFile: nil, size: track.metadata?.size ?? 0)
+        
+        // Store the id on the task so the download item can be pulled from the database later
+        task.taskDescription = part.id
+        
+        return DownloadItemPartTask(part: part, task: task)
+    }
+    
+    private func startLibraryItemEbookDownload(downloadItemId: String, item: LibraryItem, ebookFile: EBookFile) throws -> DownloadItemPartTask {
+        let filename = ebookFile.metadata?.filename ?? "ebook.\(ebookFile.ebookFormat)"
+        let serverPath = "/api/items/\(item.id)/file/\(ebookFile.ino)/download"
+        let itemDirectory = try createLibraryItemFileDirectory(item: item)
+        let localUrl = "\(itemDirectory)/\(filename)"
+        
+        let part = DownloadItemPart(downloadItemId: downloadItemId, filename: filename, destination: localUrl, itemTitle: filename, serverPath: serverPath, audioTrack: nil, episode: nil, ebookFile: ebookFile, size: ebookFile.metadata?.size ?? 0)
+        let task = session.downloadTask(with: part.downloadURL!)
         
         // Store the id on the task so the download item can be pulled from the database later
         task.taskDescription = part.id
@@ -337,7 +358,7 @@ public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
             $0.metadata?.path == item.media?.coverPath
         })
         
-        let part = DownloadItemPart(downloadItemId: downloadItemId, filename: filename, destination: localUrl, itemTitle: "cover", serverPath: serverPath, audioTrack: nil, episode: nil, size: coverLibraryFile?.metadata?.size ?? 0)
+        let part = DownloadItemPart(downloadItemId: downloadItemId, filename: filename, destination: localUrl, itemTitle: "cover", serverPath: serverPath, audioTrack: nil, episode: nil, ebookFile: nil, size: coverLibraryFile?.metadata?.size ?? 0)
         let task = session.downloadTask(with: part.downloadURL!)
         
         // Store the id on the task so the download item can be pulled from the database later

@@ -130,6 +130,12 @@ extension LocalLibraryItem {
             for i in fromMedia.tracks.indices {
                 _ = fromMedia.tracks[i].setLocalInfo(filenameIdMap: fileIdByFilename, serverIndex: i)
             }
+            if fromMedia.ebookFile != nil {
+                let ebookLocalFile = files.first(where: { $0.filename == fromMedia.ebookFile?.metadata?.filename ?? "" })
+                if ebookLocalFile != nil {
+                    _ = fromMedia.ebookFile?.setLocalInfo(localFile: ebookLocalFile!)
+                }
+            }
         } else if ( self.isPodcast ) {
             let episodes = List<PodcastEpisode>()
             for episode in fromMedia.episodes {

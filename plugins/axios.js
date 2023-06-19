@@ -1,7 +1,7 @@
 export default function ({ $axios, store }) {
   $axios.onRequest(config => {
     console.log('[Axios] Making request to ' + config.url)
-    if (config.url.startsWith('http:') || config.url.startsWith('https:')) {
+    if (config.url.startsWith('http:') || config.url.startsWith('https:') || config.url.startsWith('capacitor:')) {
       return
     }
 
