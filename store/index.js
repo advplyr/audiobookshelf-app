@@ -1,5 +1,6 @@
 import { Network } from '@capacitor/network'
 import { AbsAudioPlayer } from '@/plugins/capacitor'
+import { PlayMethod } from '@/plugins/constants'
 
 export const state = () => ({
   deviceData: null,
@@ -35,7 +36,7 @@ export const getters = {
     return !!state.currentPlaybackSession
   },
   getIsCurrentSessionLocal: state => {
-    return state.currentPlaybackSession?.playMethod == this.$constants.PlayMethod.LOCAL
+    return state.currentPlaybackSession?.playMethod == PlayMethod.LOCAL
   },
   getIsMediaStreaming: state => (libraryItemId, episodeId) => {
     if (!state.currentPlaybackSession || !libraryItemId) return false

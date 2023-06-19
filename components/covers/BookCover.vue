@@ -70,7 +70,7 @@ export default {
       return this.libraryItem.isLocal
     },
     localCover() {
-      return this.libraryItem ? this.libraryItem.coverContentUrl : null
+      return this.libraryItem?.coverContentUrl || null
     },
     squareAspectRatio() {
       return this.bookCoverAspectRatio === 1

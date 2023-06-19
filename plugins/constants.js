@@ -45,6 +45,7 @@ const Constants = {
 }
 
 export {
+  PlayMethod,
   PlayerState,
   BookCoverAspectRatio
 }

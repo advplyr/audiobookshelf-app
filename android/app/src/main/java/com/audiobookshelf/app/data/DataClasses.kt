@@ -305,9 +305,9 @@ data class PodcastEpisode(
       .setSubtitle(libraryItemDescription.title)
       .setExtras(extras)
 
-//    libraryItemDescription.iconBitmap?.let {
-//      mediaDescriptionBuilder.setIconBitmap(it)
-//    }
+    libraryItemDescription.iconBitmap?.let {
+      mediaDescriptionBuilder.setIconBitmap(it)
+    }
 
     return mediaDescriptionBuilder.build()
   }

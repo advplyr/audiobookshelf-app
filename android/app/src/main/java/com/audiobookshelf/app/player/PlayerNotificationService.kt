@@ -4,7 +4,9 @@ import android.annotation.SuppressLint
 import android.app.*
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.ImageDecoder
 import android.hardware.Sensor
 import android.hardware.SensorManager
 import android.net.ConnectivityManager
@@ -12,6 +14,7 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.os.*
+import android.provider.MediaStore
 import android.provider.Settings
 import android.support.v4.media.MediaBrowserCompat
 import android.support.v4.media.MediaDescriptionCompat
@@ -289,18 +292,18 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
           return MediaDescriptionCompat.Builder().build()
         }
 
-        var coverUri = currentPlaybackSession!!.getCoverUri()
+        val coverUri = currentPlaybackSession!!.getCoverUri()
 
-//        var bitmap:Bitmap? = null
-        // Local covers get bitmap
-//        if (currentPlaybackSession!!.localLibraryItem?.coverContentUrl != null) {
-//          bitmap = if (Build.VERSION.SDK_INT < 28) {
-//            MediaStore.Images.Media.getBitmap(ctx.contentResolver, coverUri)
-//          } else {
-//            val source: ImageDecoder.Source = ImageDecoder.createSource(ctx.contentResolver, coverUri)
-//            ImageDecoder.decodeBitmap(source)
-//          }
-//        }
+        var bitmap: Bitmap? = null
+//         Local covers get bitmap
+        if (currentPlaybackSession!!.localLibraryItem?.coverContentUrl != null) {
+          bitmap = if (Build.VERSION.SDK_INT < 28) {
+            MediaStore.Images.Media.getBitmap(ctx.contentResolver, coverUri)
+          } else {
+            val source: ImageDecoder.Source = ImageDecoder.createSource(ctx.contentResolver, coverUri)
+            ImageDecoder.decodeBitmap(source)
+          }
+        }
 
         // Fix for local images crashing on Android 11 for specific devices
         // https://stackoverflow.com/questions/64186578/android-11-mediastyle-notification-crash/64232958#64232958
@@ -322,9 +325,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
           .setTitle(currentPlaybackSession!!.displayTitle)
           .setIconUri(coverUri)
 
-//        bitmap?.let {
-//          mediaDescriptionBuilder.setIconBitmap(it)
-//        }
+        bitmap?.let {
+          mediaDescriptionBuilder.setIconBitmap(it)
+        }
 
         return mediaDescriptionBuilder.build()
       }
@@ -1041,10 +1044,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       val localBrowseItems:MutableList<MediaBrowserCompat.MediaItem> = mutableListOf()
 
       localBooks.forEach { localLibraryItem ->
-        val progress = DeviceManager.dbManager.getLocalMediaProgress(localLibraryItem.id)
-        val description = localLibraryItem.getMediaDescription(progress, ctx)
+        if (localLibraryItem.media.getAudioTracks().isNotEmpty()) {
+          val progress = DeviceManager.dbManager.getLocalMediaProgress(localLibraryItem.id)
+          val description = localLibraryItem.getMediaDescription(progress, ctx)
 
-        localBrowseItems += MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
+          localBrowseItems += MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
+        }
       }
 
       localPodcasts.forEach { localLibraryItem ->
