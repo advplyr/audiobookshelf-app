@@ -373,7 +373,7 @@ export default {
         var res = await AbsFileSystem.deleteItem(this.localLibraryItem)
         if (res && res.success) {
           this.$toast.success('Deleted Successfully')
-          this.$router.replace(this.isIos ? '/bookshelf' : `/localMedia/folders/${this.folderId}`)
+          this.$router.replace(this.isIos ? '/downloads' : `/localMedia/folders/${this.folderId}`)
         } else this.$toast.error('Failed to delete')
       }
     },
