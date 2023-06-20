@@ -74,8 +74,7 @@ export const getters = {
     return state.deviceData.deviceSettings.enableAltView
   },
   getOrientationLockSetting: state => {
-    if (!state.deviceData || !state.deviceData.deviceSettings) return false
-    return state.deviceData.deviceSettings.lockOrientation
+    return state.deviceData?.deviceSettings?.lockOrientation
   }
 }
 

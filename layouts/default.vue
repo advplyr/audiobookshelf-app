@@ -307,6 +307,7 @@ export default {
 
       const deviceData = await this.$db.getDeviceData()
       this.$store.commit('setDeviceData', deviceData)
+
       this.$setOrientationLock(this.$store.getters['getOrientationLockSetting'])
 
       await this.$store.dispatch('setupNetworkListener')
@@ -314,10 +315,8 @@ export default {
       await this.$store.dispatch('globals/loadLocalMediaProgress')
 
       if (this.$store.state.user.serverConnectionConfig) {
-        console.log(`[default] server connection config set - call init libraries`)
         await this.initLibraries()
       } else {
-        console.log(`[default] no server connection config - call attempt connection`)
         await this.attemptConnection()
       }
 

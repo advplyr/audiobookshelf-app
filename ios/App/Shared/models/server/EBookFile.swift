@@ -12,8 +12,16 @@ class EBookFile: EmbeddedObject, Codable {
     @Persisted var ino: String = ""
     @Persisted var metadata: FileMetadata?
     @Persisted var ebookFormat: String
-    @Persisted var contentUrl: String?
+    @Persisted var _contentUrl: String?
     @Persisted var localFileId: String?
+    
+    var contentUrl: String? {
+        if let path = _contentUrl {
+            return AbsDownloader.itemDownloadFolder(path: path)!.absoluteString
+        } else {
+            return nil
+        }
+    }
     
     private enum CodingKeys : String, CodingKey {
         case ino, metadata, ebookFormat, contentUrl, localFileId
@@ -29,7 +37,6 @@ class EBookFile: EmbeddedObject, Codable {
         ino = try values.decode(String.self, forKey: .ino)
         metadata = try values.decode(FileMetadata.self, forKey: .metadata)
         ebookFormat = try values.decode(String.self, forKey: .ebookFormat)
-        contentUrl = try? values.decode(String.self, forKey: .contentUrl)
         localFileId = try? values.decodeIfPresent(String.self, forKey: .localFileId)
     }
     
@@ -46,7 +53,7 @@ class EBookFile: EmbeddedObject, Codable {
 extension EBookFile {
     func setLocalInfo(localFile: LocalFile) -> Bool {
         self.localFileId = localFile.id
-        self.contentUrl = localFile.contentUrl
+        self._contentUrl = localFile._contentUrl
         return false
     }
     

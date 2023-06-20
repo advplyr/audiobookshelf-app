@@ -188,12 +188,14 @@ const decode = (text) => Buffer.from(decodeURIComponent(text), 'base64').toStrin
 Vue.prototype.$decode = decode
 
 Vue.prototype.$setOrientationLock = (orientationLockSetting) => {
+  if (!window.screen?.orientation) return
+
   if (orientationLockSetting == 'PORTRAIT') {
-    window.screen.orientation.lock('portrait')
+    window.screen.orientation.lock?.('portrait')
   } else if (orientationLockSetting == 'LANDSCAPE') {
-    window.screen.orientation.lock('landscape')
+    window.screen.orientation.lock?.('landscape')
   } else {
-    window.screen.orientation.unlock()
+    window.screen.orientation.unlock?.()
   }
 }
 

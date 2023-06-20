@@ -370,7 +370,7 @@ export default {
       this.saveSettings()
     },
     getCurrentOrientation() {
-      const orientation = window.screen ? window.screen.orientation || {} : {}
+      const orientation = window.screen?.orientation || {}
       const type = orientation.type || ''
 
       if (type.includes('landscape')) return 'LANDSCAPE'
