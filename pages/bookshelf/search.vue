@@ -1,8 +1,8 @@
 <template>
   <div class="w-full h-full relative overflow-hidden">
     <template v-if="!showSelectedFeed">
-      <div class="w-full mx-auto py-5 px-2">
-        <form @submit.prevent="submit">
+      <div class="w-full mx-auto h-20 flex items-center px-2">
+        <form class="w-full" @submit.prevent="submit">
           <ui-text-input v-model="searchInput" :disabled="processing || !networkConnected" placeholder="Enter search term or RSS feed URL" text-size="sm" />
         </form>
       </div>
@@ -10,7 +10,7 @@
       <div v-if="!networkConnected" class="w-full text-center py-6">
         <p class="text-lg text-error">No network connection</p>
       </div>
-      <div v-else class="w-full mx-auto pb-2 search-results-container overflow-y-auto overflow-x-hidden">
+      <div v-else class="w-full mx-auto pb-2 overflow-y-auto overflow-x-hidden h-[calc(100%-85px)]">
         <p v-if="termSearched && !results.length && !processing" class="text-center text-xl">No Podcasts Found</p>
         <template v-for="podcast in results">
           <div :key="podcast.id" class="p-2 border-b border-white border-opacity-10" @click="selectPodcast(podcast)">
@@ -33,14 +33,14 @@
       </div>
     </template>
     <template v-else>
-      <div class="flex items-center py-4 px-2">
+      <div class="flex items-center px-2 h-16">
         <div class="flex items-center" @click="clearSelected">
           <span class="material-icons text-2xl text-gray-300">arrow_back</span>
           <p class="pl-2 uppercase text-sm font-semibold text-gray-300 leading-4 pb-px">Back</p>
         </div>
       </div>
 
-      <div class="w-full py-2 search-results-container overflow-y-auto overflow-x-hidden">
+      <div class="w-full py-2 overflow-y-auto overflow-x-hidden h-[calc(100%-69px)]">
         <forms-new-podcast-form :podcast-data="selectedPodcast" :podcast-feed-data="selectedPodcastFeed" :processing.sync="processing" />
       </div>
     </template>
@@ -147,12 +147,3 @@ export default {
   }
 }
 </script>
-
-<style scoped>
-.search-results-container {
-  max-height: calc(100vh - 182px);
-}
-.playerOpen .search-results-container {
-  max-height: calc(100vh - 282px);
-}
-</style>
