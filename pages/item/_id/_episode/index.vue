@@ -12,16 +12,12 @@
       </div>
     </div>
 
-    <p class="text-lg font-semibold">
-      {{ title }}
-    </p>
+    <p class="text-lg font-semibold">{{ title }}</p>
 
     <div v-if="episodeNumber || season || episodeType" class="flex py-2 items-center -mx-0.5">
       <div v-if="episodeNumber" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-60 rounded-full text-xs font-light text-gray-200">Episode #{{ episodeNumber }}</div>
       <div v-if="season" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-60 rounded-full text-xs font-light text-gray-200">Season #{{ season }}</div>
-      <div v-if="episodeType" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-60 rounded-full text-xs font-light text-gray-200 capitalize">
-        {{ episodeType }}
-      </div>
+      <div v-if="episodeType" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-60 rounded-full text-xs font-light text-gray-200 capitalize">{{ episodeType }}</div>
     </div>
 
     <!-- user progress card -->
@@ -227,13 +223,13 @@ export default {
       return this.$store.getters['user/getUserMediaProgress'](this.serverLibraryItemId, this.serverEpisodeId)
     },
     progressPercent() {
-      return this.userItemProgress ? this.userItemProgress.progress : 0
+      return this.userItemProgress?.progress || 0
     },
     userIsFinished() {
-      return this.userItemProgress ? !!this.userItemProgress.isFinished : false
+      return !!this.userItemProgress?.isFinished
     },
     userProgressFinishedAt() {
-      return this.userItemProgress ? this.userItemProgress.finishedAt : 0
+      return this.userItemProgress?.finishedAt || 0
     },
     userTimeRemaining() {
       if (!this.userItemProgress) return 0

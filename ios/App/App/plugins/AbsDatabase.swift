@@ -193,10 +193,14 @@ public class AbsDatabase: CAPPlugin {
     @objc func updateLocalMediaProgressFinished(_ call: CAPPluginCall) {
         let localLibraryItemId = call.getString("localLibraryItemId")
         let localEpisodeId = call.getString("localEpisodeId")
-        let localMediaProgressId = call.getString("localMediaProgressId")
         let isFinished = call.getBool("isFinished", false)
         
-        logger.log("updateLocalMediaProgressFinished \(localMediaProgressId ?? "Unknown") | Is Finished: \(isFinished)")
+        var localMediaProgressId = localLibraryItemId ?? ""
+        if localEpisodeId != nil {
+            localMediaProgressId += "-\(localEpisodeId ?? "")"
+        }
+        
+        logger.log("updateLocalMediaProgressFinished \(localMediaProgressId) | Is Finished: \(isFinished)")
         
         do {
             let localMediaProgress = try LocalMediaProgress.fetchOrCreateLocalMediaProgress(localMediaProgressId: localMediaProgressId, localLibraryItemId: localLibraryItemId, localEpisodeId: localEpisodeId)

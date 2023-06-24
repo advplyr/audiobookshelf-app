@@ -111,6 +111,7 @@ extension LocalMediaProgress {
         if let episode = episode {
             self.id += "-\(episode.id)"
             self.episodeId = episode.id
+            self.localEpisodeId = episode.id
             self.duration = episode.duration ?? 0.0
         }
     }
@@ -133,6 +134,10 @@ extension LocalMediaProgress {
             if self.isFinished != finished {
                 self.progress = finished ? 1.0 : 0.0
             }
+            
+            if finished {
+                self.currentTime = 0.0
+            }
 
             if self.startedAt == 0 && finished {
                 self.startedAt = Date().timeIntervalSince1970 * 1000
@@ -149,7 +154,7 @@ extension LocalMediaProgress {
             self.currentTime = playbackSession.currentTime
             self.progress = playbackSession.progress
             self.lastUpdate = Date().timeIntervalSince1970 * 1000
-            self.isFinished = playbackSession.progress >= 100.0
+            self.isFinished = playbackSession.progress >= 0.99
             self.finishedAt = self.isFinished ? self.lastUpdate : nil
         }
     }
