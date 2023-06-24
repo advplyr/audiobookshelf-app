@@ -25,7 +25,7 @@
           <p class="text-xs">{{ $config.version }}</p>
           <div class="flex-grow" />
           <div v-if="user" class="flex items-center" @click="logout">
-            <p class="text-xs pr-2">Logout</p>
+            <p class="text-xs pr-2">Switch account</p>
             <span class="material-icons text-sm">logout</span>
           </div>
         </div>
