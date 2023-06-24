@@ -150,7 +150,7 @@ export default {
       libraryItem = await app.$db.getLocalLibraryItem(libraryItemId)
       console.log('Got lli', libraryItemId)
     } else if (store.state.user.serverConnectionConfig) {
-      libraryItem = await app.$axios.$get(`/api/items/${libraryItemId}?expanded=1`).catch((error) => {
+      libraryItem = await app.$axios.$get(`/api/items/${libraryItemId}?expanded=1&include=rssfeed`).catch((error) => {
         console.error('Failed', error)
         return false
       })
@@ -169,7 +169,8 @@ export default {
       return redirect('/')
     }
     return {
-      libraryItem
+      libraryItem,
+      rssFeed: libraryItem.rssFeed || null
     }
   },
   data() {
@@ -193,6 +194,9 @@ export default {
     },
     userCanDownload() {
       return this.$store.getters['user/getUserCanDownload']
+    },
+    userIsAdminOrUp() {
+      return this.$store.getters['user/getIsAdminOrUp']
     },
     isLocal() {
       return this.libraryItem.isLocal
@@ -383,6 +387,13 @@ export default {
     isCasting() {
       return this.$store.state.isCasting
     },
+    showRSSFeedOption() {
+      if (!this.serverLibraryItemId) return false
+      if (!this.rssFeed && !this.episodes.length && !this.tracks.length) return false // Cannot open RSS feed with no episodes/tracks
+
+      // If rss feed is open then show feed url to users otherwise just show to admins
+      return this.userIsAdminOrUp || this.rssFeed
+    },
     moreMenuItems() {
       const items = []
 
@@ -418,6 +429,14 @@ export default {
           text: 'Add to Playlist',
           value: 'playlist',
           icon: 'playlist_add'
+        })
+      }
+
+      if (this.showRSSFeedOption) {
+        items.push({
+          text: this.rssFeed ? 'RSS Feed' : 'Open RSS Feed',
+          value: 'rssFeed',
+          icon: 'rss_feed'
         })
       }
 
@@ -522,7 +541,18 @@ export default {
         this.clearProgressClick()
       } else if (action === 'deleteLocal') {
         this.deleteLocalItem()
+      } else if (action === 'rssFeed') {
+        this.clickRSSFeed()
       }
+    },
+    clickRSSFeed() {
+      this.$store.commit('globals/setRSSFeedOpenCloseModal', {
+        id: this.serverLibraryItemId,
+        name: this.title,
+        type: 'item',
+        feed: this.rssFeed,
+        hasEpisodesWithoutPubDate: this.episodes.some((ep) => !ep.pubDate)
+      })
     },
     moreButtonPress() {
       this.showMoreMenu = true
@@ -637,7 +667,7 @@ export default {
       }
     },
     itemUpdated(libraryItem) {
-      if (libraryItem.id === this.libraryItemId) {
+      if (libraryItem.id === this.serverLibraryItemId) {
         console.log('Item Updated')
         this.libraryItem = libraryItem
         this.checkDescriptionClamped()
@@ -795,6 +825,18 @@ export default {
     windowResized() {
       this.windowWidth = window.innerWidth
       this.checkDescriptionClamped()
+    },
+    rssFeedOpen(data) {
+      if (data.entityId === this.serverLibraryItemId) {
+        console.log('RSS Feed Opened', data)
+        this.rssFeed = data
+      }
+    },
+    rssFeedClosed(data) {
+      if (data.entityId === this.serverLibraryItemId) {
+        console.log('RSS Feed Closed', data)
+        this.rssFeed = null
+      }
     }
   },
   mounted() {
@@ -803,6 +845,8 @@ export default {
     this.$eventBus.$on('library-changed', this.libraryChanged)
     this.$eventBus.$on('new-local-library-item', this.newLocalLibraryItem)
     this.$socket.$on('item_updated', this.itemUpdated)
+    this.$socket.$on('rss_feed_open', this.rssFeedOpen)
+    this.$socket.$on('rss_feed_closed', this.rssFeedClosed)
     this.checkDescriptionClamped()
 
     // Set last scroll position if was set for this item
@@ -815,6 +859,8 @@ export default {
     this.$eventBus.$off('library-changed', this.libraryChanged)
     this.$eventBus.$off('new-local-library-item', this.newLocalLibraryItem)
     this.$socket.$off('item_updated', this.itemUpdated)
+    this.$socket.$off('rss_feed_open', this.rssFeedOpen)
+    this.$socket.$off('rss_feed_closed', this.rssFeedClosed)
 
     // Set scroll position
     if (window['item-page']) {

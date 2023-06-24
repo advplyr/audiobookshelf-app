@@ -57,6 +57,11 @@
       <span class="material-icons text-red-100 pr-1" :style="{ fontSize: 0.875 * sizeMultiplier + 'rem' }">priority_high</span>
     </div>
 
+    <!-- rss feed icon -->
+    <div v-if="rssFeed" class="absolute text-success top-0 left-0 z-10" :style="{ padding: 0.375 * sizeMultiplier + 'rem' }">
+      <span class="material-icons" :style="{ fontSize: sizeMultiplier * 1.5 + 'rem' }">rss_feed</span>
+    </div>
+
     <!-- Series sequence -->
     <div v-if="seriesSequence && showSequence && !isSelectionMode" class="absolute rounded-lg bg-black bg-opacity-90 box-shadow-md z-10" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }">
       <p :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }">#{{ seriesSequence }}</p>
@@ -283,10 +288,10 @@ export default {
     },
     userProgressPercent() {
       if (this.useEBookProgress) return Math.max(Math.min(1, this.userProgress.ebookProgress), 0)
-      return this.userProgress ? Math.max(Math.min(1, this.userProgress.progress), 0) || 0 : 0
+      return Math.max(Math.min(1, this.userProgress?.progress || 0), 0) || 0
     },
     itemIsFinished() {
-      return this.userProgress ? !!this.userProgress.isFinished : false
+      return !!this.userProgress?.isFinished
     },
     showError() {
       return this.numMissingParts || this.isMissing || this.isInvalid
@@ -384,6 +389,10 @@ export default {
         }
       }
       return false
+    },
+    rssFeed() {
+      if (this.booksInSeries) return null
+      return this._libraryItem.rssFeed || null
     }
   },
   methods: {

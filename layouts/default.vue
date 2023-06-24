@@ -12,6 +12,7 @@
     <modals-libraries-modal />
     <modals-playlists-add-create-modal />
     <modals-select-local-folder-modal />
+    <modals-rssfeeds-rss-feed-modal />
     <app-side-drawer />
     <readers-reader />
   </div>

@@ -38,7 +38,9 @@ export const state = () => ({
   showPlaylistsAddCreateModal: false,
   showSelectLocalFolderModal: false,
   localFolderSelectData: null,
-  hapticFeedback: 'LIGHT'
+  hapticFeedback: 'LIGHT',
+  showRSSFeedOpenCloseModal: false,
+  rssFeedEntity: null
 })
 
 export const getters = {
@@ -192,5 +194,12 @@ export const mutations = {
   },
   setHapticFeedback(state, val) {
     state.hapticFeedback = val || 'LIGHT'
+  },
+  setShowRSSFeedOpenCloseModal(state, val) {
+    state.showRSSFeedOpenCloseModal = val
+  },
+  setRSSFeedOpenCloseModal(state, entity) {
+    state.rssFeedEntity = entity
+    state.showRSSFeedOpenCloseModal = true
   }
 }

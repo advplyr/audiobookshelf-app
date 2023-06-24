@@ -48,7 +48,8 @@ export default {
     '@/plugins/capacitor/AbsAudioPlayer.js',
     '@/plugins/toast.js',
     '@/plugins/constants.js',
-    '@/plugins/haptics.js'
+    '@/plugins/haptics.js',
+    '@/plugins/i18n.js'
   ],
 
   components: true,

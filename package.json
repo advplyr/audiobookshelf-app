@@ -15,6 +15,7 @@
   "dependencies": {
     "@capacitor/android": "^4.0.0",
     "@capacitor/app": "^4.0.0",
+    "@capacitor/clipboard": "^4.1.0",
     "@capacitor/core": "^4.0.0",
     "@capacitor/dialog": "^4.0.0",
     "@capacitor/haptics": "^4.0.0",

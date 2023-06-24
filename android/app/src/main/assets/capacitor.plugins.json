@@ -4,6 +4,10 @@
 		"classpath": "com.capacitorjs.plugins.app.AppPlugin"
 	},
 	{
+		"pkg": "@capacitor/clipboard",
+		"classpath": "com.capacitorjs.plugins.clipboard.ClipboardPlugin"
+	},
+	{
 		"pkg": "@capacitor/dialog",
 		"classpath": "com.capacitorjs.plugins.dialog.DialogPlugin"
 	},
