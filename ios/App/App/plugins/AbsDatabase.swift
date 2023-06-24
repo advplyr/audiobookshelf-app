@@ -251,4 +251,32 @@ public class AbsDatabase: CAPPlugin {
 //        call.resolve([ "value": [] ])
         getDeviceData(call)
     }
+    
+    @objc func updateLocalEbookProgress(_ call: CAPPluginCall) {
+        let localLibraryItemId = call.getString("localLibraryItemId")
+        let ebookLocation = call.getString("ebookLocation", "")
+        let ebookProgress = call.getDouble("ebookProgress", 0.0)
+        
+        logger.log("updateLocalEbookProgress \(localLibraryItemId ?? "Unknown") | ebookLocation: \(ebookLocation) | ebookProgress: \(ebookProgress)")
+        
+        do {
+            let localMediaProgress = try LocalMediaProgress.fetchOrCreateLocalMediaProgress(localMediaProgressId: localLibraryItemId, localLibraryItemId: localLibraryItemId, localEpisodeId: nil)
+            guard let localMediaProgress = localMediaProgress else {
+                call.resolve(["error": "Library Item not found"])
+                return
+            }
+
+            // Update finished status
+            try localMediaProgress.updateEbookProgress(ebookLocation: ebookLocation, ebookProgress: ebookProgress)
+            
+            // Build API response
+            let progressDictionary = try? localMediaProgress.asDictionary()
+            let response: [String: Any] = ["localMediaProgress": progressDictionary ?? ""]
+            call.resolve(response)
+        } catch {
+            debugPrint(error)
+            call.resolve(["error": "Failed to update ebook progress"])
+            return
+        }
+    }
 }

@@ -25,4 +25,5 @@ CAP_PLUGIN(AbsDatabase, "AbsDatabase",
            CAP_PLUGIN_METHOD(syncServerMediaProgressWithLocalMediaProgress, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(updateLocalMediaProgressFinished, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(updateDeviceSettings, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(updateLocalEbookProgress, CAPPluginReturnPromise);
            )

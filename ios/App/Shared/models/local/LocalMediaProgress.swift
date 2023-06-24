@@ -16,6 +16,8 @@ class LocalMediaProgress: Object, Codable {
     @Persisted var progress: Double = 0
     @Persisted var currentTime: Double = 0
     @Persisted var isFinished: Bool = false
+    @Persisted var ebookLocation: String?
+    @Persisted var ebookProgress: Double?
     @Persisted var lastUpdate: Double = 0
     @Persisted var startedAt: Double = 0
     @Persisted var finishedAt: Double?
@@ -29,7 +31,7 @@ class LocalMediaProgress: Object, Codable {
     var progressPercent: Int { Int(self.progress * 100) }
     
     private enum CodingKeys : String, CodingKey {
-        case id, localLibraryItemId, localEpisodeId, duration, progress, currentTime, isFinished, lastUpdate, startedAt, finishedAt, serverConnectionConfigId, serverAddress, serverUserId, libraryItemId, episodeId
+        case id, localLibraryItemId, localEpisodeId, duration, progress, currentTime, isFinished, ebookLocation, ebookProgress, lastUpdate, startedAt, finishedAt, serverConnectionConfigId, serverAddress, serverUserId, libraryItemId, episodeId
     }
     
     override init() {
@@ -47,6 +49,8 @@ class LocalMediaProgress: Object, Codable {
         progress = try values.decode(Double.self, forKey: .progress)
         currentTime = try values.decode(Double.self, forKey: .currentTime)
         isFinished = try values.decode(Bool.self, forKey: .isFinished)
+        ebookLocation = try values.decodeIfPresent(String.self, forKey: .ebookLocation)
+        ebookProgress = try values.doubleOrStringDecoder(key: .ebookProgress)
         lastUpdate = try values.decode(Double.self, forKey: .lastUpdate)
         startedAt = try values.decode(Double.self, forKey: .startedAt)
         finishedAt = try values.decodeIfPresent(Double.self, forKey: .finishedAt)
@@ -70,6 +74,8 @@ class LocalMediaProgress: Object, Codable {
             try container.encode(currentTime, forKey: .currentTime)
         }
         try container.encode(isFinished, forKey: .isFinished)
+        try container.encode(ebookLocation, forKey: .ebookLocation)
+        try container.encode(ebookProgress, forKey: .ebookProgress)
         try container.encode(lastUpdate, forKey: .lastUpdate)
         try container.encode(startedAt, forKey: .startedAt)
         try container.encode(finishedAt, forKey: .finishedAt)
@@ -97,6 +103,7 @@ extension LocalMediaProgress {
         self.progress = 0.0
         self.currentTime = 0.0
         self.isFinished = false
+        self.ebookProgress = 0.0
         self.lastUpdate = Date().timeIntervalSince1970 * 1000
         self.startedAt = 0
         self.finishedAt = nil
@@ -114,6 +121,8 @@ extension LocalMediaProgress {
         self.progress = progress.progress
         self.currentTime = progress.currentTime
         self.isFinished = progress.isFinished
+        self.ebookLocation = progress.ebookLocation
+        self.ebookProgress = progress.ebookProgress
         self.lastUpdate = progress.lastUpdate
         self.startedAt = progress.startedAt
         self.finishedAt = progress.finishedAt
@@ -148,12 +157,22 @@ extension LocalMediaProgress {
     func updateFromServerMediaProgress(_ serverMediaProgress: MediaProgress) throws {
         try self.realm?.write {
             self.isFinished = serverMediaProgress.isFinished
+            self.ebookLocation = serverMediaProgress.ebookLocation
+            self.ebookProgress = serverMediaProgress.ebookProgress
             self.progress = serverMediaProgress.progress
             self.currentTime = serverMediaProgress.currentTime
             self.duration = serverMediaProgress.duration
             self.lastUpdate = serverMediaProgress.lastUpdate
             self.finishedAt = serverMediaProgress.finishedAt
             self.startedAt = serverMediaProgress.startedAt
+        }
+    }
+    
+    func updateEbookProgress(ebookLocation:String, ebookProgress:Double) throws {
+        try self.realm?.write {
+            self.ebookLocation = ebookLocation
+            self.ebookProgress = ebookProgress
+            self.lastUpdate = Date().timeIntervalSince1970 * 1000
         }
     }
     
