@@ -50,7 +50,7 @@ class LocalLibraryItem(
   @JsonIgnore
   fun getCoverUri(ctx:Context): Uri {
     if (coverContentUrl?.startsWith("file:") == true) {
-      return FileProvider.getUriForFile(ctx, "com.audiobookshelf.app.fileprovider", Uri.parse(coverContentUrl).toFile())
+      return FileProvider.getUriForFile(ctx, "${BuildConfig.APPLICATION_ID}.fileprovider", Uri.parse(coverContentUrl).toFile())
     }
     return if (coverContentUrl != null) Uri.parse(coverContentUrl) else Uri.parse("android.resource://${BuildConfig.APPLICATION_ID}/" + R.drawable.icon)
   }

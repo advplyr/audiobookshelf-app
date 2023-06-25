@@ -144,7 +144,7 @@ class PlaybackSession(
     if (localLibraryItem?.coverContentUrl != null) {
       var coverUri = Uri.parse(localLibraryItem?.coverContentUrl.toString())
       if (coverUri.toString().startsWith("file:")) {
-        coverUri = FileProvider.getUriForFile(ctx, "com.audiobookshelf.app.fileprovider", coverUri.toFile())
+        coverUri = FileProvider.getUriForFile(ctx, "${BuildConfig.APPLICATION_ID}.fileprovider", coverUri.toFile())
       }
 
       return coverUri ?: Uri.parse("android.resource://${BuildConfig.APPLICATION_ID}/" + R.drawable.icon)
