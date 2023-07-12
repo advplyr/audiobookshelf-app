@@ -2,5 +2,10 @@
   "appId": "com.audiobookshelf.app",
   "appName": "audiobookshelf-app",
   "webDir": "dist",
-  "bundledWebRuntime": false
+  "bundledWebRuntime": false,
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
 }
