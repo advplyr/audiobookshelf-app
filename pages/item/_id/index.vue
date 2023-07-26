@@ -91,7 +91,7 @@
         <div v-if="narrators && narrators.length" class="truncate text-sm">
           <template v-for="(narrator, index) in narrators">
             <nuxt-link :key="narrator" :to="`/bookshelf/library?filter=narrators.${$encode(narrator)}`" class="underline">{{ narrator }}</nuxt-link
-            ><span :key="${narrator.id}-comma" v-if="index < narrators.length - 1">,&nbsp;</span>
+            ><span :key="index" v-if="index < narrators.length - 1">,&nbsp;</span>
           </template>
         </div>
 
@@ -99,7 +99,7 @@
         <div v-if="genres.length" class="truncate text-sm">
           <template v-for="(genre, index) in genres">
             <nuxt-link :key="genre" :to="`/bookshelf/library?filter=genres.${$encode(genre)}`" class="underline">{{ genre }}</nuxt-link
-            ><span :key="${genre.id}-comma" v-if="index < genres.length - 1">,&nbsp;</span>
+            ><span :key="index" v-if="index < genres.length - 1">,&nbsp;</span>
           </template>
         </div>
 
