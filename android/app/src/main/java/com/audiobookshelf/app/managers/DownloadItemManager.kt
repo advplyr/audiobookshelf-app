@@ -90,6 +90,7 @@ class DownloadItemManager(var downloadManager:DownloadManager, private var folde
 
             Log.d(tag, "Start internal download to destination path ${it.finalDestinationPath} from ${it.serverUrl}")
             InternalDownloadManager(fileOutputStream, internalProgressCallback).download(it.serverUrl)
+            it.downloadId = 1
             currentDownloadItemParts.add(it)
           } else {
             val dlRequest = it.getDownloadRequest()
