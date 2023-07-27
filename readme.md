@@ -11,14 +11,11 @@ Available to beta testers through Test Flight
 
 Join the beta testers and install the iOS app: https://testflight.apple.com/join/wiic7QIW
 
-
-Join the discussion: https://github.com/advplyr/audiobookshelf-app/discussions/60
-
 ---
 
 [Go to the main project repo github.com/advplyr/audiobookshelf](https://github.com/advplyr/audiobookshelf) or the project site [audiobookshelf.org](https://audiobookshelf.org)
 
-Join us on [discord](https://discord.gg/pJsjuNCKRq)
+Join us on [discord](https://discord.gg/pJsjuNCKRq) or [Matrix](https://matrix.to/#/#audiobookshelf:matrix.org)
 
 **Requires an Audiobookshelf server to connect with**
 
