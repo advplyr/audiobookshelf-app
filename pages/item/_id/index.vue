@@ -68,8 +68,8 @@
         <div v-if="podcastAuthor" class="text-sm">{{ podcastAuthor }}</div>
         <div v-else-if="bookAuthors && bookAuthors.length" class="text-sm">
           <template v-for="(author, index) in bookAuthors">
-            <nuxt-link :key="author.id" :to="`/bookshelf/library?filter=authors.${$encode(author.id)}`" class="underline">{{ author.name }}</nuxt-link>
-            <span :key="`${author.id}-comma`" v-if="index < bookAuthors.length - 1">,&nbsp;</span>
+            <nuxt-link :key="author.id" :to="`/bookshelf/library?filter=authors.${$encode(author.id)}`" class="underline">{{ author.name }}</nuxt-link
+            ><span :key="`${author.id}-comma`" v-if="index < bookAuthors.length - 1">,&nbsp;</span>
           </template>
         </div>
 
