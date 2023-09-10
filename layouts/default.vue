@@ -41,8 +41,12 @@ export default {
             if (timeSinceDisconnect > 5000) {
               console.log('Time since disconnect was', timeSinceDisconnect, 'sync with server')
               setTimeout(() => {
-                // TODO: Some issue here
-                this.syncLocalMediaProgress()
+                if (this.$platform === 'ios') {
+                  // TODO: Update ios to not use this
+                  this.syncLocalMediaProgress()
+                } else {
+                  this.syncLocalSessions()
+                }
               }, 4000)
             }
           }
