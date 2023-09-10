@@ -256,7 +256,7 @@ export default {
         })
     },
     pauseItem() {
-      if (this.$refs.audioPlayer && !this.$refs.audioPlayer.isPaused) {
+      if (this.$refs.audioPlayer && this.$refs.audioPlayer.isPlaying) {
         this.$refs.audioPlayer.pause()
       }
     },
@@ -285,6 +285,51 @@ export default {
     },
     playbackTimeUpdate(currentTime) {
       this.$refs.audioPlayer?.seek(currentTime)
+    },
+    /**
+     * When device gains focus then refresh the timestamps in the audio player
+     */
+    deviceFocused(hasFocus) {
+      if (hasFocus) {
+        if (!this.$refs.audioPlayer?.isPlaying) {
+          const playbackSession = this.$store.state.currentPlaybackSession
+          if (this.$refs.audioPlayer.isLocalPlayMethod) {
+            const localLibraryItemId = playbackSession.localLibraryItem?.id
+            const localEpisodeId = playbackSession.localEpisodeId
+            if (!localLibraryItemId) {
+              console.error('[AudioPlayerContainer] device visibility: no local library item for session', JSON.stringify(playbackSession))
+              return
+            }
+            const localMediaProgress = this.$store.state.globals.localMediaProgress.find((mp) => {
+              if (localEpisodeId) return mp.localEpisodeId === localEpisodeId
+              return mp.localLibraryItemId === localLibraryItemId
+            })
+            if (localMediaProgress) {
+              console.log('[AudioPlayerContainer] device visibility: found local media progress', localMediaProgress.currentTime, 'last time in player is', this.currentTime)
+              this.$refs.audioPlayer.currentTime = localMediaProgress.currentTime
+              this.$refs.audioPlayer.timeupdate()
+            } else {
+              console.error('[AudioPlayerContainer] device visibility: Local media progress not found')
+            }
+          } else {
+            const libraryItemId = playbackSession.libraryItemId
+            const episodeId = playbackSession.episodeId
+            const url = episodeId ? `/api/me/progress/${libraryItemId}/${episodeId}` : `/api/me/progress/${libraryItemId}`
+            this.$axios
+              .$get(url)
+              .then((data) => {
+                if (!this.$refs.audioPlayer?.isPlaying && data.libraryItemId === libraryItemId) {
+                  console.log('[AudioPlayerContainer] device visibility: got server media progress', data.currentTime, 'last time in player is', this.currentTime)
+                  this.$refs.audioPlayer.currentTime = data.currentTime
+                  this.$refs.audioPlayer.timeupdate()
+                }
+              })
+              .catch((error) => {
+                console.error('[AudioPlayerContainer] device visibility: Failed to get progress', error)
+              })
+          }
+        }
+      }
     }
   },
   mounted() {
@@ -303,6 +348,7 @@ export default {
     this.$eventBus.$on('cast-local-item', this.castLocalItem)
     this.$eventBus.$on('user-settings', this.settingsUpdated)
     this.$eventBus.$on('playback-time-update', this.playbackTimeUpdate)
+    this.$eventBus.$on('device-focus-update', this.deviceFocused)
   },
   beforeDestroy() {
     if (this.onLocalMediaProgressUpdateListener) this.onLocalMediaProgressUpdateListener.remove()
@@ -317,6 +363,7 @@ export default {
     this.$eventBus.$off('cast-local-item', this.castLocalItem)
     this.$eventBus.$off('user-settings', this.settingsUpdated)
     this.$eventBus.$off('playback-time-update', this.playbackTimeUpdate)
+    this.$eventBus.$off('device-focus-update', this.deviceFocused)
   }
 }
 </script>

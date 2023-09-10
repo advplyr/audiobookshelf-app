@@ -20,7 +20,8 @@ export default {
     return {
       inittingLibraries: false,
       hasMounted: false,
-      disconnectTime: 0
+      disconnectTime: 0,
+      timeLostFocus: 0
     }
   },
   watch: {
@@ -299,9 +300,30 @@ export default {
         console.log(`[default] local media progress updated for ${newLocalMediaProgress.id}`)
         this.$store.commit('globals/updateLocalMediaProgress', newLocalMediaProgress)
       }
+    },
+    async visibilityChanged() {
+      if (document.visibilityState === 'visible') {
+        const elapsedTimeOutOfFocus = Date.now() - this.timeLostFocus
+        console.log(`✅ [default] device visibility: has focus (${elapsedTimeOutOfFocus}ms out of focus)`)
+        // If device out of focus for more than 30s then reload local media progress
+        if (elapsedTimeOutOfFocus > 30000) {
+          console.log(`✅ [default] device visibility: reloading local media progress`)
+          // Reload local media progresses
+          await this.$store.dispatch('globals/loadLocalMediaProgress')
+        }
+        if (document.visibilityState === 'visible') {
+          this.$eventBus.$emit('device-focus-update', true)
+        }
+      } else {
+        console.log('⛔️ [default] device visibility: does NOT have focus')
+        this.timeLostFocus = Date.now()
+        this.$eventBus.$emit('device-focus-update', false)
+      }
     }
   },
   async mounted() {
+    document.addEventListener('visibilitychange', this.visibilityChanged)
+
     this.$socket.on('user_updated', this.userUpdated)
     this.$socket.on('user_media_progress_updated', this.userMediaProgressUpdated)
 
@@ -339,6 +361,7 @@ export default {
     }
   },
   beforeDestroy() {
+    document.removeEventListener('visibilitychange', this.visibilityChanged)
     this.$socket.off('user_updated', this.userUpdated)
     this.$socket.off('user_media_progress_updated', this.userMediaProgressUpdated)
   }

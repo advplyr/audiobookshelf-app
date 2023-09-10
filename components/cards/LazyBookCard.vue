@@ -37,6 +37,12 @@
       <div v-if="!hasCover" class="absolute left-0 right-0 w-full flex items-center justify-center" :style="{ padding: placeholderCoverPadding + 'rem', bottom: authorBottom + 'rem' }">
         <p class="text-center" style="color: rgb(247 223 187); opacity: 0.75" :style="{ fontSize: authorFontSize + 'rem' }">{{ authorCleaned }}</p>
       </div>
+
+      <div v-if="showPlayButton" class="absolute -bottom-16 -right-16 rotate-45 w-32 h-32 p-2 bg-gradient-to-r from-transparent to-black to-40% inline-flex justify-start items-center">
+        <div class="hover:text-white text-gray-200 hover:scale-110 transform duration-200 pointer-events-auto -rotate-45" @click.stop.prevent="play">
+          <span class="material-icons" :style="{ fontSize: playIconFontSize + 'rem' }">{{ streamIsPlaying ? 'pause_circle' : 'play_circle_filled' }}</span>
+        </div>
+      </div>
     </div>
 
     <!-- Play/pause button for podcast episode -->
@@ -306,14 +312,10 @@ export default {
       return this.localLibraryItem.media.episodes.find((ep) => ep.serverEpisodeId === this.recentEpisode.id)
     },
     isStreaming() {
-      if (this.isPodcast) {
-        return this.$store.getters['getIsMediaStreaming'](this.libraryItemId, this.recentEpisode.id)
-      } else {
-        return false // not yet necessary for books
-      }
+      return this.store.getters['getIsMediaStreaming'](this.libraryItemId, this.recentEpisode?.id)
     },
     streamIsPlaying() {
-      return this.$store.state.playerIsPlaying && this.isStreaming
+      return this.store.state.playerIsPlaying && this.isStreaming
     },
     isMissing() {
       return this._libraryItem.isMissing
@@ -393,6 +395,10 @@ export default {
     rssFeed() {
       if (this.booksInSeries) return null
       return this._libraryItem.rssFeed || null
+    },
+    showPlayButton() {
+      return false
+      // return !this.isMissing && !this.isInvalid && !this.isStreaming && (this.numTracks || this.recentEpisode)
     }
   },
   methods: {
@@ -434,6 +440,7 @@ export default {
       // Server books may have a local library item
       this.localLibraryItem = localLibraryItem
     },
+    async play() {},
     async playEpisode() {
       await this.$hapticsImpact()
       const eventBus = this.$eventBus || this.$nuxt.$eventBus

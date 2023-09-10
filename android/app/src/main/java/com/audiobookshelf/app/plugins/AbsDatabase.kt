@@ -231,6 +231,10 @@ class AbsDatabase : Plugin() {
           if (!success) {
             call.resolve(JSObject("{\"error\":\"$errorMsg\"}"))
           } else {
+            // Remove all local sessions
+            savedSessions.forEach {
+              DeviceManager.dbManager.removePlaybackSession(it.id)
+            }
             call.resolve()
           }
         }

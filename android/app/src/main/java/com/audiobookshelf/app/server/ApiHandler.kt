@@ -323,13 +323,15 @@ class ApiHandler(var ctx:Context) {
 
   fun sendSyncLocalSessions(playbackSessions:List<PlaybackSession>, cb: (Boolean, String?) -> Unit) {
     val payload = JSObject(jacksonMapper.writeValueAsString(LocalSessionsSyncRequestPayload(playbackSessions)))
-
+    Log.d(tag, "Sending ${playbackSessions.size} saved local playback sessions to server")
     postRequest("/api/session/local-all", payload, null) {
       if (!it.getString("error").isNullOrEmpty()) {
+        Log.e(tag, "Failed to sync local sessions")
         cb(false, it.getString("error"))
       } else {
         val response = jacksonMapper.readValue<LocalSessionsSyncResponsePayload>(it.toString())
         response.results.forEach { localSessionSyncResult ->
+          Log.d(tag, "Synced session result ${localSessionSyncResult.id}|${localSessionSyncResult.progressSynced}|${localSessionSyncResult.success}")
           playbackSessions.find { ps -> ps.id == localSessionSyncResult.id }?.let { session ->
             if (localSessionSyncResult.progressSynced == true) {
               val syncResult = SyncResult(true, true, "Progress synced on server")
@@ -338,7 +340,6 @@ class ApiHandler(var ctx:Context) {
             } else if (!localSessionSyncResult.success) {
               Log.e(tag, "Failed to sync session ${session.displayTitle} with server. Error: ${localSessionSyncResult.error}")
             }
-            DeviceManager.dbManager.removePlaybackSession(session.id)
           }
         }
         cb(true, null)
