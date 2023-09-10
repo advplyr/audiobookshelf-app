@@ -34,7 +34,7 @@ export default {
       return this.$store.state.attemptingConnection
     },
     icon() {
-      if (!this.user) return null // hide when not connected to server
+      if (!this.user && !this.attemptingConnection) return null // hide when not connected to server
 
       if (this.attemptingConnection) {
         return 'cloud_sync'
