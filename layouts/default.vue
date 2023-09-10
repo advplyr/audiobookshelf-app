@@ -238,13 +238,6 @@ export default {
       const prog = payload.data // MediaProgress
       console.log(`[default] userMediaProgressUpdate checking for local media progress ${payload.id}`)
 
-      // Check if this media item is currently open in the player, paused, and this progress update is coming from a different session
-      const isMediaOpenInPlayer = this.$store.getters['getIsMediaStreaming'](prog.libraryItemId, prog.episodeId)
-      if (isMediaOpenInPlayer && this.$store.getters['getCurrentPlaybackSessionId'] !== payload.sessionId && !this.$store.state.playerIsPlaying) {
-        console.log('[default] userMediaProgressUpdated for current open media item', payload.data.currentTime)
-        this.$eventBus.$emit('playback-time-update', payload.data.currentTime)
-      }
-
       // Update local media progress if exists
       const localProg = await this.$db.getLocalMediaProgressForServerItem({ libraryItemId: prog.libraryItemId, episodeId: prog.episodeId })
 
@@ -255,6 +248,13 @@ export default {
           return
         } else {
           console.log(`[default] syncing progress server lastUpdate > local lastUpdate. server currentTime=${prog.currentTime} local currentTime=${localProg.currentTime} | server/local isFinished=${prog.isFinished}/${localProg.isFinished}`)
+        }
+
+        // Check if this media item is currently open in the player, paused, and this progress update is coming from a different session
+        const isMediaOpenInPlayer = this.$store.getters['getIsMediaStreaming'](prog.libraryItemId, prog.episodeId)
+        if (isMediaOpenInPlayer && this.$store.getters['getCurrentPlaybackSessionId'] !== payload.sessionId && !this.$store.state.playerIsPlaying) {
+          console.log('[default] userMediaProgressUpdated for current open media item', payload.data.currentTime)
+          this.$eventBus.$emit('playback-time-update', payload.data.currentTime)
         }
 
         // Server progress is more up-to-date
