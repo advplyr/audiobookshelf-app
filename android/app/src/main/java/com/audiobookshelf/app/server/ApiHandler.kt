@@ -364,6 +364,7 @@ class ApiHandler(var ctx:Context) {
               Log.d(tag, "Server progress for media item id=\"${mediaProgress.mediaItemId}\" is more recent then local. Updating local current time ${localMediaProgress.currentTime} to ${mediaProgress.currentTime}")
               localMediaProgress.updateFromServerMediaProgress(mediaProgress)
               MediaEventManager.syncEvent(mediaProgress, "Sync on server connection")
+              DeviceManager.dbManager.saveLocalMediaProgress(localMediaProgress)
             } else if (localMediaProgress.lastUpdate > mediaProgress.lastUpdate && localMediaProgress.ebookLocation != null && localMediaProgress.ebookLocation != mediaProgress.ebookLocation) {
               // Patch ebook progress to server
               val endpoint = "/api/me/progress/${localMediaProgress.libraryItemId}"

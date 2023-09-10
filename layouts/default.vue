@@ -190,10 +190,12 @@ export default {
 
       console.log('[default] Calling syncLocalSessions')
       const response = await this.$db.syncLocalSessionsWithServer()
-      if (response && response.error) {
+      if (response?.error) {
         console.error('[default] Failed to sync local sessions', response.error)
       } else {
         console.log('[default] Successfully synced local sessions')
+        // Reload local media progresses
+        await this.$store.dispatch('globals/loadLocalMediaProgress')
       }
     },
     async syncLocalMediaProgress() {
