@@ -290,6 +290,8 @@ export default {
      * When device gains focus then refresh the timestamps in the audio player
      */
     deviceFocused(hasFocus) {
+      if (!this.$store.state.currentPlaybackSession) return
+
       if (hasFocus) {
         if (!this.$refs.audioPlayer?.isPlaying) {
           const playbackSession = this.$store.state.currentPlaybackSession
