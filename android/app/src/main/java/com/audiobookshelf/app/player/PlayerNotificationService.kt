@@ -1012,29 +1012,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
     result.detach()
 
-    if (parentMediaId.startsWith("li_") || parentMediaId.startsWith("local_")) { // Show podcast episodes
-      Log.d(tag, "Loading podcast episodes")
-      mediaManager.loadPodcastEpisodeMediaBrowserItems(parentMediaId, ctx) {
-        result.sendResult(it)
-      }
-    } else if (::browseTree.isInitialized && browseTree[parentMediaId] == null && mediaManager.getIsLibrary(parentMediaId)) { // Load library items for library
-
-      mediaManager.loadLibraryItemsWithAudio(parentMediaId) { libraryItems ->
-        val children = libraryItems.map { libraryItem ->
-          if (libraryItem.mediaType == "podcast") { // Podcasts are browseable
-            val mediaDescription = libraryItem.getMediaDescription(null, ctx)
-            MediaBrowserCompat.MediaItem(mediaDescription, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE)
-          } else {
-            val progress = mediaManager.serverUserMediaProgress.find { it.libraryItemId == libraryItem.id }
-            val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItemByLId(libraryItem.id)
-            libraryItem.localLibraryItemId = localLibraryItem?.id
-            val description = libraryItem.getMediaDescription(progress, ctx)
-            MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
-          }
-        }
-        result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
-      }
-    } else if (parentMediaId == DOWNLOADS_ROOT) { // Load downloads
+    if (parentMediaId == DOWNLOADS_ROOT) { // Load downloads
 
       val localBooks = DeviceManager.dbManager.getLocalLibraryItems("book")
       val localPodcasts = DeviceManager.dbManager.getLocalLibraryItems("podcast")
@@ -1062,19 +1040,19 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         val progress: MediaProgressWrapper?
         val mediaDescription:MediaDescriptionCompat
         if (itemInProgress.episode != null) {
-           if (itemInProgress.isLocal) {
-             progress = DeviceManager.dbManager.getLocalMediaProgress("${itemInProgress.libraryItemWrapper.id}-${itemInProgress.episode.id}")
-           } else {
-             progress = mediaManager.serverUserMediaProgress.find { it.libraryItemId == itemInProgress.libraryItemWrapper.id && it.episodeId == itemInProgress.episode.id }
+          if (itemInProgress.isLocal) {
+            progress = DeviceManager.dbManager.getLocalMediaProgress("${itemInProgress.libraryItemWrapper.id}-${itemInProgress.episode.id}")
+          } else {
+            progress = mediaManager.serverUserMediaProgress.find { it.libraryItemId == itemInProgress.libraryItemWrapper.id && it.episodeId == itemInProgress.episode.id }
 
-             // to show download icon
-             val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItemByLId(itemInProgress.libraryItemWrapper.id)
-             localLibraryItem?.let { lli ->
-               val localEpisode = (lli.media as Podcast).episodes?.find { it.serverEpisodeId == itemInProgress.episode.id }
-               itemInProgress.episode.localEpisodeId = localEpisode?.id
-             }
+            // to show download icon
+            val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItemByLId(itemInProgress.libraryItemWrapper.id)
+            localLibraryItem?.let { lli ->
+              val localEpisode = (lli.media as Podcast).episodes?.find { it.serverEpisodeId == itemInProgress.episode.id }
+              itemInProgress.episode.localEpisodeId = localEpisode?.id
+            }
 
-           }
+          }
           mediaDescription = itemInProgress.episode.getMediaDescription(itemInProgress.libraryItemWrapper, progress, ctx)
         } else {
           if (itemInProgress.isLocal) {
@@ -1090,15 +1068,37 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         localBrowseItems += MediaBrowserCompat.MediaItem(mediaDescription, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
       }
       result.sendResult(localBrowseItems)
-    } else {
+    } else if (parentMediaId == LIBRARIES_ROOT || parentMediaId == AUTO_MEDIA_ROOT) {
       mediaManager.loadAndroidAutoItems {
         browseTree = BrowseTree(this, mediaManager.serverItemsInProgress, mediaManager.serverLibraries)
 
         val children = browseTree[parentMediaId]?.map { item ->
           Log.d(tag, "Loading Browser Media Item ${item.description.title}")
-            MediaBrowserCompat.MediaItem(item.description, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE)
+          MediaBrowserCompat.MediaItem(item.description, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE)
         }
         result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
+      }
+    } else if (mediaManager.getIsLibrary(parentMediaId)) { // Load library items for library
+      Log.d(tag, "Loading items for library $parentMediaId")
+      mediaManager.loadLibraryItemsWithAudio(parentMediaId) { libraryItems ->
+        val children = libraryItems.map { libraryItem ->
+          if (libraryItem.mediaType == "podcast") { // Podcasts are browseable
+            val mediaDescription = libraryItem.getMediaDescription(null, ctx)
+            MediaBrowserCompat.MediaItem(mediaDescription, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE)
+          } else {
+            val progress = mediaManager.serverUserMediaProgress.find { it.libraryItemId == libraryItem.id }
+            val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItemByLId(libraryItem.id)
+            libraryItem.localLibraryItemId = localLibraryItem?.id
+            val description = libraryItem.getMediaDescription(progress, ctx)
+            MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
+          }
+        }
+        result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
+      }
+    } else {
+      Log.d(tag, "Loading podcast episodes for podcast $parentMediaId")
+      mediaManager.loadPodcastEpisodeMediaBrowserItems(parentMediaId, ctx) {
+        result.sendResult(it)
       }
     }
   }
