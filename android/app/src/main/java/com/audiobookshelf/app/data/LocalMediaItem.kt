@@ -43,7 +43,7 @@ data class LocalMediaItem(
     return if (mediaType == "book") {
       BookMetadata(name,null, mutableListOf(), mutableListOf(), mutableListOf(),null,null,null,null,null,null,null,false,null,null,null,null)
     } else {
-      PodcastMetadata(name,null,null, mutableListOf())
+      PodcastMetadata(name,null,null, mutableListOf(), false)
     }
   }
 

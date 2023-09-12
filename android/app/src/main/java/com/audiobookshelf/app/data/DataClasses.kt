@@ -24,7 +24,7 @@ open class MediaType(var metadata:MediaTypeMetadata, var coverPath:String?) {
   @JsonIgnore
   open fun removeAudioTrack(localFileId:String) { }
   @JsonIgnore
-  open fun getLocalCopy():MediaType { return MediaType(MediaTypeMetadata(""),null) }
+  open fun getLocalCopy():MediaType { return MediaType(MediaTypeMetadata("", false),null) }
 
 }
 
@@ -190,7 +190,7 @@ class Book(
   JsonSubTypes.Type(BookMetadata::class),
   JsonSubTypes.Type(PodcastMetadata::class)
 )
-open class MediaTypeMetadata(var title:String) {
+open class MediaTypeMetadata(var title:String, var explicit:Boolean) {
   @JsonIgnore
   open fun getAuthorDisplayName():String { return "Unknown" }
 }
@@ -209,13 +209,13 @@ class BookMetadata(
   var isbn:String?,
   var asin:String?,
   var language:String?,
-  var explicit:Boolean,
+  explicit:Boolean,
   // In toJSONExpanded
   var authorName:String?,
   var authorNameLF:String?,
   var narratorName:String?,
   var seriesName:String?
-) : MediaTypeMetadata(title) {
+) : MediaTypeMetadata(title, explicit) {
   @JsonIgnore
   override fun getAuthorDisplayName():String { return authorName ?: "Unknown" }
 }
@@ -225,8 +225,9 @@ class PodcastMetadata(
   title:String,
   var author:String?,
   var feedUrl:String?,
-  var genres:MutableList<String>
-) : MediaTypeMetadata(title) {
+  var genres:MutableList<String>,
+  explicit:Boolean
+) : MediaTypeMetadata(title, explicit) {
   @JsonIgnore
   override fun getAuthorDisplayName():String { return author ?: "Unknown" }
 }

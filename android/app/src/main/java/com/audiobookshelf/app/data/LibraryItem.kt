@@ -90,6 +90,10 @@ class LibraryItem(
       )
     }
 
+    if (media.metadata.explicit) {
+      extras.putLong(MediaConstants.METADATA_KEY_IS_EXPLICIT, MediaConstants.METADATA_VALUE_ATTRIBUTE_PRESENT)
+    }
+
     val mediaId = localLibraryItemId ?: id
     return MediaDescriptionCompat.Builder()
       .setMediaId(mediaId)
