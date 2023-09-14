@@ -63,12 +63,11 @@ repositories {
   mavenCentral()
 }
 
-configurations.all {
+configurations.configureEach {
   resolutionStrategy {
     force("com.google.android.gms:play-services-base:18.0.1")
     force("androidx.appcompat:appcompat:$androidxAppCompatVersion")
     force("androidx.core:core-ktx:$androidx_core_ktx_version")
-    force("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version")
     force("androidx.media:media:$androidx_media_version")
     force("org.jetbrains.kotlinx:kotlinx-coroutines-core:$kotlin_coroutines_version")
     force("org.jetbrains.kotlinx:kotlinx-coroutines-android:$kotlin_coroutines_version")
@@ -81,7 +80,7 @@ dependencies {
   implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
   implementation project(':capacitor-android')
 
-  implementation 'androidx.constraintlayout:constraintlayout:2.1.3'
+  implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
   implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
 
   implementation project(':capacitor-cordova-android-plugins')
@@ -111,7 +110,6 @@ dependencies {
 
   // Glide for images
   implementation "com.github.bumptech.glide:glide:$glide_version"
-  kapt "com.github.bumptech.glide:compiler:$glide_version"
 
   // Paper NoSQL Db
   implementation 'io.github.pilgr:paperdb:2.7.2'

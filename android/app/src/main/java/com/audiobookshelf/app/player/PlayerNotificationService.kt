@@ -25,7 +25,6 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.media.MediaBrowserServiceCompat
 import androidx.media.utils.MediaConstants
-import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.R
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.data.DeviceInfo
@@ -65,7 +64,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     var isSwitchingPlayer = false // Used when switching between cast player and exoplayer
   }
 
-  private val tag = "PlayerNotificationService"
+  private val tag = "PlayerNotificationServ"
 
   interface ClientEventEmitter {
     fun onPlaybackSession(playbackSession:PlaybackSession)
@@ -938,7 +937,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       appVersion: 0.9.46-beta
      */
     val deviceId = Settings.Secure.getString(ctx.contentResolver, Settings.Secure.ANDROID_ID)
-    return DeviceInfo(deviceId, Build.MANUFACTURER, Build.MODEL, Build.VERSION.SDK_INT, BuildConfig.VERSION_NAME)
+    return DeviceInfo(deviceId, Build.MANUFACTURER, Build.MODEL, Build.VERSION.SDK_INT, Build.VERSION.RELEASE)
   }
 
   private val deviceSettings get() = DeviceManager.deviceData.deviceSettings ?: DeviceSettings.default()
@@ -995,13 +994,16 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
       val extras = Bundle()
       extras.putBoolean(
-        MediaConstants.BROWSER_SERVICE_EXTRAS_KEY_SEARCH_SUPPORTED, true)
+        MediaConstants.BROWSER_SERVICE_EXTRAS_KEY_SEARCH_SUPPORTED, true
+      )
       extras.putInt(
         MediaConstants.DESCRIPTION_EXTRAS_KEY_CONTENT_STYLE_BROWSABLE,
-        MediaConstants.DESCRIPTION_EXTRAS_VALUE_CONTENT_STYLE_LIST_ITEM)
+        MediaConstants.DESCRIPTION_EXTRAS_VALUE_CONTENT_STYLE_LIST_ITEM
+      )
       extras.putInt(
         MediaConstants.DESCRIPTION_EXTRAS_KEY_CONTENT_STYLE_PLAYABLE,
-        MediaConstants.DESCRIPTION_EXTRAS_VALUE_CONTENT_STYLE_LIST_ITEM)
+        MediaConstants.DESCRIPTION_EXTRAS_VALUE_CONTENT_STYLE_LIST_ITEM
+      )
 
       BrowserRoot(AUTO_MEDIA_ROOT, extras)
     }

@@ -95,7 +95,7 @@ internal fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManage
 
   Log.i(tag, "Update App Widget | Is Playing=$isPlaying | isAppClosed=$isAppClosed")
 
-  val playPauseResource = if (isPlaying) R.drawable.ic_media_pause_dark else R.drawable.ic_media_play_dark
+  val playPauseResource = if (isPlaying) androidx.mediarouter.R.drawable.ic_media_pause_dark else androidx.mediarouter.R.drawable.ic_media_play_dark
   views.setImageViewResource(R.id.widgetPlayPauseButton, playPauseResource)
 
   // Instruct the widget manager to update the widget
