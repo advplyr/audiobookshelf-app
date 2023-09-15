@@ -99,7 +99,7 @@ export default {
   },
   methods: {
     async init() {
-      this.listeningStats = await this.$axios.$get(`/api/me/listening-stats`).catch((err) => {
+      this.listeningStats = await this.$nativeHttp.get(`/api/me/listening-stats`).catch((err) => {
         console.error('Failed to load listening sesions', err)
         return []
       })

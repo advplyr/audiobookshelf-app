@@ -236,7 +236,7 @@ export default {
       console.log('[categories] Local shelves set', this.shelves.length, this.lastLocalFetch)
 
       if (isConnectedToServerWithInternet) {
-        const categories = await this.$axios.$get(`/api/libraries/${this.currentLibraryId}/personalized?minified=1&include=rssfeed,numEpisodesIncomplete`).catch((error) => {
+        const categories = await this.$nativeHttp.get(`/api/libraries/${this.currentLibraryId}/personalized?minified=1&include=rssfeed,numEpisodesIncomplete`).catch((error) => {
           console.error('[categories] Failed to fetch categories', error)
           return []
         })

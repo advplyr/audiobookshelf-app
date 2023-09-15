@@ -77,6 +77,7 @@
 
 <script>
 import { Dialog } from '@capacitor/dialog'
+import { CapacitorHttp } from '@capacitor/core'
 
 export default {
   data() {
@@ -217,27 +218,57 @@ export default {
         return null
       }
     },
-    pingServerAddress(address, customHeaders) {
-      const options = { timeout: 3000 }
-      if (customHeaders) {
-        options.headers = customHeaders
+    async getRequest(url, headers, connectTimeout = 6000) {
+      const options = {
+        url,
+        headers,
+        connectTimeout
       }
-      return this.$axios
-        .$get(`${address}/ping`, options)
-        .then((data) => data.success)
+      const response = await CapacitorHttp.get(options)
+      console.log('[ServerConnectForm] GET request response', response)
+      if (response.status >= 400) {
+        throw new Error(response.data)
+      } else {
+        return response.data
+      }
+    },
+    async postRequest(url, data, headers, connectTimeout = 6000) {
+      if (!headers) headers = {}
+      if (!headers['Content-Type'] && data) {
+        headers['Content-Type'] = 'application/json'
+      }
+      const options = {
+        url,
+        headers,
+        data,
+        connectTimeout
+      }
+      const response = await CapacitorHttp.post(options)
+      console.log('[ServerConnectForm] POST request response', response)
+      if (response.status >= 400) {
+        throw new Error(response.data)
+      } else {
+        return response.data
+      }
+    },
+    pingServerAddress(address, customHeaders) {
+      return this.getRequest(`${address}/ping`, customHeaders)
+        .then((data) => {
+          return data.success
+        })
         .catch((error) => {
-          console.error('Server check failed', error)
+          console.error('Server ping failed', error)
+          const errorMsg = error.message || error
           this.error = 'Failed to ping server'
+          if (typeof errorMsg === 'string') {
+            this.error += ` (${errorMsg})`
+          }
+
           return false
         })
     },
     requestServerLogin() {
-      const options = {}
-      if (this.serverConfig.customHeaders) {
-        options.headers = this.serverConfig.customHeaders
-      }
-      return this.$axios
-        .$post(`${this.serverConfig.address}/login`, { username: this.serverConfig.username, password: this.password }, options)
+      return this.postRequest(`${this.serverConfig.address}/login`, { username: this.serverConfig.username, password: this.password }, this.serverConfig.customHeaders, 20000)
         .then((data) => {
           if (!data.user) {
             console.error(data.error)
@@ -248,8 +279,11 @@ export default {
         })
         .catch((error) => {
           console.error('Server auth failed', error)
-          var errorMsg = error.response ? error.response.data || 'Unknown Error' : 'Unknown Error'
-          this.error = errorMsg
+          const errorMsg = error.message || error
+          this.error = 'Failed to login'
+          if (typeof errorMsg === 'string') {
+            this.error += ` (${errorMsg})`
+          }
           return false
         })
     },
@@ -330,12 +364,19 @@ export default {
 
       this.error = null
       this.processing = true
-      var authRes = await this.$axios.$post(`${this.serverConfig.address}/api/authorize`, null, { headers: { Authorization: `Bearer ${this.serverConfig.token}` } }).catch((error) => {
-        console.error('[Server] Server auth failed', error)
-        var errorMsg = error.response ? error.response.data || 'Unknown Error' : 'Unknown Error'
-        this.error = errorMsg
+
+      const authRes = await this.postRequest(`${this.serverConfig.address}/api/authorize`, null, { Authorization: `Bearer ${this.serverConfig.token}` }).catch((error) => {
+        console.error('[ServerConnectForm] Server auth failed', error)
+        const errorMsg = error.message || error
+        this.error = 'Failed to authorize'
+        if (typeof errorMsg === 'string') {
+          this.error += ` (${errorMsg})`
+        }
         return false
       })
+
+      console.log('[ServerConnectForm] authRes=', authRes)
+
       this.processing = false
       return authRes
     },

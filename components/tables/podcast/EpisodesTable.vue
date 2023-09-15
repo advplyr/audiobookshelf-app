@@ -230,7 +230,7 @@ export default {
         return this.$toast.error('Podcast does not have an RSS Feed')
       }
       this.fetchingRSSFeed = true
-      const payload = await this.$axios.$post(`/api/podcasts/feed`, { rssFeed: this.mediaMetadata.feedUrl }).catch((error) => {
+      const payload = await this.$nativeHttp.post(`/api/podcasts/feed`, { rssFeed: this.mediaMetadata.feedUrl }).catch((error) => {
         console.error('Failed to get feed', error)
         this.$toast.error('Failed to get podcast feed')
         return null

@@ -29,7 +29,7 @@ export default {
   },
   methods: {
     async addEpisodeToPlaylist(episode) {
-      const libraryItem = await this.$axios.$get(`/api/items/${episode.libraryItemId}`).catch((error) => {
+      const libraryItem = await this.$nativeHttp.get(`/api/items/${episode.libraryItemId}`).catch((error) => {
         console.error('Failed to get library item', error)
         this.$toast.error('Failed to get library item')
         return null
@@ -42,7 +42,7 @@ export default {
     async loadRecentEpisodes(page = 0) {
       this.loadedLibraryId = this.currentLibraryId
       this.processing = true
-      const episodePayload = await this.$axios.$get(`/api/libraries/${this.currentLibraryId}/recent-episodes?limit=25&page=${page}`).catch((error) => {
+      const episodePayload = await this.$nativeHttp.get(`/api/libraries/${this.currentLibraryId}/recent-episodes?limit=25&page=${page}`).catch((error) => {
         console.error('Failed to get recent episodes', error)
         this.$toast.error('Failed to get recent episodes')
         return null

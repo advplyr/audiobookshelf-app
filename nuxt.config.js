@@ -44,6 +44,7 @@ export default {
     '@/plugins/localStore.js',
     '@/plugins/init.client.js',
     '@/plugins/axios.js',
+    '@/plugins/nativeHttp.js',
     '@/plugins/capacitor/index.js',
     '@/plugins/capacitor/AbsAudioPlayer.js',
     '@/plugins/toast.js',

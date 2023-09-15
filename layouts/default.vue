@@ -15,6 +15,8 @@
 </template>
 
 <script>
+import { CapacitorHttp } from '@capacitor/core'
+
 export default {
   data() {
     return {
@@ -97,6 +99,21 @@ export default {
 
       await this.$store.dispatch('user/loadUserSettings')
     },
+    async postRequest(url, data, headers, connectTimeout = 30000) {
+      const options = {
+        url,
+        headers,
+        data,
+        connectTimeout
+      }
+      const response = await CapacitorHttp.post(options)
+      console.log('[default] POST request response', response)
+      if (response.status >= 400) {
+        throw new Error(response.data)
+      } else {
+        return response.data
+      }
+    },
     async attemptConnection() {
       console.warn('[default] attemptConnection')
       if (!this.networkConnected) {
@@ -126,10 +143,8 @@ export default {
 
       console.log(`[default] Got server config, attempt authorize ${serverConfig.address}`)
 
-      const authRes = await this.$axios.$post(`${serverConfig.address}/api/authorize`, null, { headers: { Authorization: `Bearer ${serverConfig.token}` }, timeout: 3000 }).catch((error) => {
-        console.error('[Server] Server auth failed', error)
-        const errorMsg = error.response ? error.response.data || 'Unknown Error' : 'Unknown Error'
-        this.error = errorMsg
+      const authRes = await this.postRequest(`${serverConfig.address}/api/authorize`, null, { Authorization: `Bearer ${serverConfig.token}` }, 10000).catch((error) => {
+        console.error('[default] Server auth failed', error)
         return false
       })
       if (!authRes) {

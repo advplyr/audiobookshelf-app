@@ -183,7 +183,7 @@ export default {
 
       // Update server item
       if (this.serverLibraryItemId) {
-        this.$axios.$patch(`/api/me/progress/${this.serverLibraryItemId}`, payload).catch((error) => {
+        this.$nativeHttp.patch(`/api/me/progress/${this.serverLibraryItemId}`, payload).catch((error) => {
           console.error('ComicReader.updateProgress failed:', error)
         })
       }

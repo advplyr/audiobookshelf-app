@@ -58,24 +58,7 @@ export default {
       return this._author.numBooks || 0
     }
   },
-  methods: {
-    async searchAuthor() {
-      this.searching = true
-      var response = await this.$axios.$post(`/api/authors/${this.authorId}/match`, { q: this.name }).catch((error) => {
-        console.error('Failed', error)
-        return null
-      })
-      if (!response) {
-        this.$toast.error('Author not found')
-      } else if (response.updated) {
-        if (response.author.imagePath) this.$toast.success('Author was updated')
-        else this.$toast.success('Author was updated (no image found)')
-      } else {
-        this.$toast.info('No updates were made for Author')
-      }
-      this.searching = false
-    }
-  },
+  methods: {},
   mounted() {}
 }
 </script>

@@ -88,7 +88,7 @@ export default {
     },
     async checkRSSFeed(rssFeed) {
       this.processing = true
-      var payload = await this.$axios.$post(`/api/podcasts/feed`, { rssFeed }).catch((error) => {
+      var payload = await this.$nativeHttp.post(`/api/podcasts/feed`, { rssFeed }).catch((error) => {
         console.error('Failed to get feed', error)
         this.$toast.error('Failed to get podcast feed')
         return null
@@ -103,7 +103,7 @@ export default {
     async submitSearch(term) {
       this.processing = true
       this.termSearched = ''
-      const results = await this.$axios.$get(`/api/search/podcast?term=${encodeURIComponent(term)}`).catch((error) => {
+      const results = await this.$nativeHttp.get(`/api/search/podcast?term=${encodeURIComponent(term)}`).catch((error) => {
         console.error('Search request failed', error)
         return []
       })
@@ -119,7 +119,7 @@ export default {
         return
       }
       this.processing = true
-      const payload = await this.$axios.$post(`/api/podcasts/feed`, { rssFeed: podcast.feedUrl }).catch((error) => {
+      const payload = await this.$nativeHttp.post(`/api/podcasts/feed`, { rssFeed: podcast.feedUrl }).catch((error) => {
         console.error('Failed to get feed', error)
         this.$toast.error('Failed to get podcast feed')
         return null
