@@ -3,6 +3,7 @@
     <div id="viewer" class="h-full w-full"></div>
 
     <div class="fixed left-0 h-8 w-full px-4 flex items-center" :class="isLightTheme ? 'bg-white text-black' : 'bg-primary text-white/80'" :style="{ bottom: isPlayerOpen ? '120px' : '0px' }">
+      <p v-if="totalLocations" class="text-xs text-slate-600">Location {{ currentLocationNum }} of {{ totalLocations }}</p>
       <div class="flex-grow" />
       <p class="text-xs">{{ progress }}%</p>
     </div>
@@ -29,6 +30,10 @@ export default {
       /** @type {ePub.Rendition} */
       rendition: null,
       progress: 0,
+      totalLocations: 0,
+      currentLocationNum: 0,
+      currentLocationCfi: null,
+      inittingDisplay: true,
       ereaderSettings: {
         theme: 'dark',
         fontScale: 100,
@@ -259,9 +264,20 @@ export default {
     },
     /** @param {string} location - CFI of the new location */
     relocated(location) {
-      if (this.savedEbookLocation === location.start.cfi) {
+      console.log(`[EpubReader] relocated ${location.start.cfi}`)
+      if (this.inittingDisplay) {
+        console.log(`[EpubReader] relocated but initting display ${location.start.cfi}`)
         return
       }
+      this.currentLocationNum = location.start.location
+
+      if (this.currentLocationCfi === location.start.cfi) {
+        console.log(`[EpubReader] location already saved`, location.start.cfi)
+        return
+      }
+
+      console.log(`[EpubReader] Saving new location ${location.start.cfi}`)
+      this.currentLocationCfi = location.start.cfi
 
       if (location.end.percentage) {
         this.updateProgress({
@@ -280,7 +296,7 @@ export default {
 
       /** @type {EpubReader} */
       const reader = this
-      console.log('initEpub', reader.url)
+      console.log('[EpubReader] initEpub', reader.url)
       /** @type {ePub.Book} */
       reader.book = new ePub(reader.url, {
         width: window.innerWidth,
@@ -301,23 +317,34 @@ export default {
       })
 
       reader.book.ready.then(() => {
-        // load saved progress
-        // when not checking spine first uncaught exception is thrown
+        console.log('%c [EpubReader] Book ready', 'color:cyan;')
+
+        let displayCfi = reader.book.locations.start
         if (this.savedEbookLocation && reader.book.spine.get(this.savedEbookLocation)) {
-          reader.rendition.display(this.savedEbookLocation)
-        } else {
-          reader.rendition.display(reader.book.locations.start)
+          displayCfi = this.savedEbookLocation
         }
 
-        reader.rendition.on('rendered', () => {
+        reader.rendition.on('displayed', async () => {
+          console.log('%c [EpubReader] Rendition displayed', 'color:blue;')
+
+          // Overriding the needsSnap function in epubjs `snap.js` to fix a bug with scrollLeft being a decimal
+          reader.rendition.manager.snapper.needsSnap = function () {
+            let left = Math.round(this.scrollLeft)
+            let snapWidth = this.layout.pageWidth * this.layout.divisor
+            return left % snapWidth !== 0
+          }
+        })
+
+        reader.rendition.on('rendered', (section, view) => {
           this.applyTheme()
+          console.log('%c [EpubReader] Rendition rendered', 'color:red;', section, view)
         })
 
         // set up event listeners
         reader.rendition.on('relocated', reader.relocated)
 
         reader.rendition.on('displayError', (err) => {
-          console.log('Display error', err)
+          console.log('[EpubReader] Display error', err)
         })
 
         reader.rendition.on('touchstart', (event) => {
@@ -331,11 +358,23 @@ export default {
         const savedLocations = this.loadLocations()
         if (savedLocations) {
           reader.book.locations.load(savedLocations)
+          this.totalLocations = reader.book.locations.length()
         } else {
-          reader.book.locations.generate().then(() => {
+          reader.book.locations.generate(100).then(() => {
+            this.totalLocations = reader.book.locations.length()
+            this.currentLocationNum = reader.rendition.currentLocation()?.start.location || 0
             this.checkSaveLocations(reader.book.locations.save())
           })
         }
+
+        // TODO: To get the correct page need to render twice. On book ready and after first display. Figure out why
+        console.log(`[EpubReader] Displaying cfi ${displayCfi}`)
+        this.currentLocationCfi = displayCfi
+        reader.rendition.display(displayCfi).then(() => {
+          reader.rendition.display(displayCfi).then(() => {
+            this.inittingDisplay = false
+          })
+        })
       })
     },
     applyTheme() {

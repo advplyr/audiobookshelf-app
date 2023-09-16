@@ -282,7 +282,6 @@ export default {
       // Touch must be less than 1s. Must be > 60px drag and X distance > Y distance
       const touchTimeMs = Date.now() - this.touchstartTime
       if (touchTimeMs >= 1000) {
-        console.log('Touch too long', touchTimeMs)
         return
       }
 
@@ -302,6 +301,14 @@ export default {
         return
       }
       this.hideToolbar()
+      if (!this.isEpub) {
+        if (this.touchendX < this.touchstartX) {
+          this.next()
+        }
+        if (this.touchendX > this.touchstartX) {
+          this.prev()
+        }
+      }
     },
     showToolbar() {
       this.showingToolbar = true

@@ -17,6 +17,9 @@ export default function ({ store }, inject) {
           url = `${serverUrl}${url}`
         }
       }
+      if (data) {
+        headers['Content-Type'] = 'application/json'
+      }
       console.log(`[nativeHttp] Making ${method} request to ${url}`)
       return CapacitorHttp.request({
         method,
