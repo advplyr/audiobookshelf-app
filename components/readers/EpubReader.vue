@@ -103,15 +103,11 @@ export default {
       const fontColor = isDark ? '#fff' : '#000'
       const backgroundColor = isDark ? 'rgb(35 35 35)' : 'rgb(255, 255, 255)'
 
-      const lineSpacing = this.ereaderSettings.lineSpacing / 100
-
-      const fontScale = this.ereaderSettings.fontScale / 100
-
       return {
         '*': {
           color: `${fontColor}!important`,
           'background-color': `${backgroundColor}!important`,
-          'line-height': lineSpacing * fontScale + 'rem!important'
+          'line-height': this.ereaderSettings.lineSpacing + '%!important'
         },
         a: {
           color: `${fontColor}!important`
