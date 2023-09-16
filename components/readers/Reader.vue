@@ -289,7 +289,6 @@ export default {
       const touchDistanceX = Math.abs(this.touchendX - this.touchstartX)
       const touchDistanceY = Math.abs(this.touchendY - this.touchstartY)
       const touchDistance = Math.sqrt(Math.pow(this.touchstartX - this.touchendX, 2) + Math.pow(this.touchstartY - this.touchendY, 2))
-      console.log('[Reader] Touch distance=', touchDistance)
       if (touchDistance < 30) {
         if (this.showSettingsModal) {
           this.showSettingsModal = false
@@ -303,14 +302,6 @@ export default {
         return
       }
       this.hideToolbar()
-      if (this.touchendX < this.touchstartX) {
-        console.log('[Reader] Gesture next page')
-        this.next()
-      }
-      if (this.touchendX > this.touchstartX) {
-        console.log('[Reader] Gesture prev page')
-        this.prev()
-      }
     },
     showToolbar() {
       this.showingToolbar = true
@@ -325,7 +316,6 @@ export default {
       else this.showToolbar()
     },
     touchstart(e) {
-      console.log('[Reader] Touch start')
       // Ignore rapid touch
       if (this.touchstartTime && Date.now() - this.touchstartTime < 250) {
         return
@@ -337,7 +327,6 @@ export default {
       this.touchIdentifier = e.touches[0].identifier
     },
     touchend(e) {
-      console.log('[Reader] Touch end')
       if (this.touchIdentifier !== e.changedTouches[0].identifier) {
         return
       }
