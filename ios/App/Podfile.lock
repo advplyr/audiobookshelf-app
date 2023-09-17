@@ -1,0 +1,87 @@
+PODS:
+  - Alamofire (5.6.4)
+  - Capacitor (4.8.0):
+    - CapacitorCordova
+  - CapacitorApp (4.1.1):
+    - Capacitor
+  - CapacitorClipboard (4.1.0):
+    - Capacitor
+  - CapacitorCordova (4.8.0)
+  - CapacitorDialog (4.1.0):
+    - Capacitor
+  - CapacitorHaptics (4.1.0):
+    - Capacitor
+  - CapacitorNetwork (4.1.0):
+    - Capacitor
+  - CapacitorPreferences (4.0.2):
+    - Capacitor
+  - CapacitorStatusBar (4.1.1):
+    - Capacitor
+  - CordovaPlugins (4.8.0):
+    - CapacitorCordova
+  - Realm (10.36.0):
+    - Realm/Headers (= 10.36.0)
+  - Realm/Headers (10.36.0)
+  - RealmSwift (10.36.0):
+    - Realm (= 10.36.0)
+
+DEPENDENCIES:
+  - Alamofire (~> 5.5)
+  - "Capacitor (from `../../node_modules/@capacitor/ios`)"
+  - "CapacitorApp (from `../../node_modules/@capacitor/app`)"
+  - "CapacitorClipboard (from `../../node_modules/@capacitor/clipboard`)"
+  - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
+  - "CapacitorDialog (from `../../node_modules/@capacitor/dialog`)"
+  - "CapacitorHaptics (from `../../node_modules/@capacitor/haptics`)"
+  - "CapacitorNetwork (from `../../node_modules/@capacitor/network`)"
+  - "CapacitorPreferences (from `../../node_modules/@capacitor/preferences`)"
+  - "CapacitorStatusBar (from `../../node_modules/@capacitor/status-bar`)"
+  - CordovaPlugins (from `../capacitor-cordova-ios-plugins`)
+  - RealmSwift (~> 10)
+
+SPEC REPOS:
+  trunk:
+    - Alamofire
+    - Realm
+    - RealmSwift
+
+EXTERNAL SOURCES:
+  Capacitor:
+    :path: "../../node_modules/@capacitor/ios"
+  CapacitorApp:
+    :path: "../../node_modules/@capacitor/app"
+  CapacitorClipboard:
+    :path: "../../node_modules/@capacitor/clipboard"
+  CapacitorCordova:
+    :path: "../../node_modules/@capacitor/ios"
+  CapacitorDialog:
+    :path: "../../node_modules/@capacitor/dialog"
+  CapacitorHaptics:
+    :path: "../../node_modules/@capacitor/haptics"
+  CapacitorNetwork:
+    :path: "../../node_modules/@capacitor/network"
+  CapacitorPreferences:
+    :path: "../../node_modules/@capacitor/preferences"
+  CapacitorStatusBar:
+    :path: "../../node_modules/@capacitor/status-bar"
+  CordovaPlugins:
+    :path: "../capacitor-cordova-ios-plugins"
+
+SPEC CHECKSUMS:
+  Alamofire: 4e95d97098eacb88856099c4fc79b526a299e48c
+  Capacitor: 6002aadd64492438e5242325025045235dcb7e84
+  CapacitorApp: acd42fe8561fe751ad5b5f459aa85e6acd7bee24
+  CapacitorClipboard: 4c092a2608520afb799429e63820256c3a59f1e5
+  CapacitorCordova: c6249dcb2cf04dd835c0e99df1df4b9c8ad997e2
+  CapacitorDialog: c8a6558d29767e76a32a056bb5e0fc9104b985b0
+  CapacitorHaptics: 213b3a1f3efd6dbf6e6b76a1b2bb0399cf43b213
+  CapacitorNetwork: 7126b3d2d23ca60d5ac0d8d2ecccfab0b1f305c6
+  CapacitorPreferences: 1d66dc32299f55ed632c5611f312878979275ea5
+  CapacitorStatusBar: 65933e554bb5d65b361deaa936a93616086a2608
+  CordovaPlugins: b7ac282a1681fad663e14dcbe719249f738b88ce
+  Realm: 3fd136cb4c83a927482a7f1612496d37beed3cf5
+  RealmSwift: 513d4dcbf5bfc4d573454088b592685fc48dd716
+
+PODFILE CHECKSUM: 05c80969578f3260e71d903c6ddb969847bcceb2
+
+COCOAPODS: 1.12.1
