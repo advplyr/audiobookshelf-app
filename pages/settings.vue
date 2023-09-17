@@ -135,7 +135,7 @@ export default {
       moreMenuSetting: '',
       settings: {
         disableAutoRewind: false,
-        enableAltView: false,
+        enableAltView: true,
         jumpForwardTime: 10,
         jumpBackwardsTime: 10,
         enableMp3IndexSeeking: false,
@@ -414,7 +414,7 @@ export default {
       this.settings.enableAltView = !!deviceSettings.enableAltView
       this.settings.jumpForwardTime = deviceSettings.jumpForwardTime || 10
       this.settings.jumpBackwardsTime = deviceSettings.jumpBackwardsTime || 10
-      this.settings.toggleEnableMp3IndexSeeking = !!deviceSettings.toggleEnableMp3IndexSeeking
+      this.settings.enableMp3IndexSeeking = !!deviceSettings.enableMp3IndexSeeking
 
       this.settings.lockOrientation = deviceSettings.lockOrientation || 'NONE'
       this.lockCurrentOrientation = this.settings.lockOrientation !== 'NONE'
