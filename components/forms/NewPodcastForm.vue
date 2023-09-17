@@ -140,8 +140,8 @@ export default {
       console.log('Podcast payload', podcastPayload)
 
       this._processing = true
-      this.$axios
-        .$post('/api/podcasts', podcastPayload)
+      this.$nativeHttp
+        .post('/api/podcasts', podcastPayload)
         .then((libraryItem) => {
           this._processing = false
           this.$toast.success('Podcast added')

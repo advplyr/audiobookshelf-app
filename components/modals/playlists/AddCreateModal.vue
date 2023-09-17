@@ -109,8 +109,8 @@ export default {
     },
     loadPlaylists() {
       this.loading = true
-      this.$axios
-        .$get(`/api/libraries/${this.currentLibraryId}/playlists`)
+      this.$nativeHttp
+        .get(`/api/libraries/${this.currentLibraryId}/playlists`)
         .then((data) => {
           this.playlists = data.results || []
         })
@@ -135,8 +135,8 @@ export default {
       this.processing = true
 
       const itemObjects = this.selectedPlaylistItems.map((pi) => ({ libraryItemId: pi.libraryItem.id, episodeId: pi.episode ? pi.episode.id : null }))
-      this.$axios
-        .$post(`/api/playlists/${playlist.id}/batch/remove`, { items: itemObjects })
+      this.$nativeHttp
+        .post(`/api/playlists/${playlist.id}/batch/remove`, { items: itemObjects })
         .then((updatedPlaylist) => {
           console.log(`Items removed from playlist`, updatedPlaylist)
         })
@@ -153,8 +153,8 @@ export default {
       this.processing = true
 
       const itemObjects = this.selectedPlaylistItems.map((pi) => ({ libraryItemId: pi.libraryItem.id, episodeId: pi.episode ? pi.episode.id : null }))
-      this.$axios
-        .$post(`/api/playlists/${playlist.id}/batch/add`, { items: itemObjects })
+      this.$nativeHttp
+        .post(`/api/playlists/${playlist.id}/batch/add`, { items: itemObjects })
         .then((updatedPlaylist) => {
           console.log(`Items added to playlist`, updatedPlaylist)
         })
@@ -184,8 +184,8 @@ export default {
         name: this.newPlaylistName
       }
 
-      this.$axios
-        .$post('/api/playlists', newPlaylist)
+      this.$nativeHttp
+        .post('/api/playlists', newPlaylist)
         .then((data) => {
           console.log('New playlist created', data)
           this.newPlaylistName = ''

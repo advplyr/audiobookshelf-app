@@ -145,8 +145,8 @@ export default {
       }
 
       console.log('Payload', payload)
-      this.$axios
-        .$post(`/api/feeds/${this.entityType}/${this.entityId}/open`, payload)
+      this.$nativeHttp
+        .post(`/api/feeds/${this.entityType}/${this.entityId}/open`, payload)
         .then((data) => {
           console.log('Opened RSS Feed', data)
           this.currentFeed = data.feed
@@ -163,8 +163,8 @@ export default {
     },
     closeFeed() {
       this.processing = true
-      this.$axios
-        .$post(`/api/feeds/${this.currentFeed.id}/close`)
+      this.$nativeHttp
+        .post(`/api/feeds/${this.currentFeed.id}/close`)
         .then(() => {
           this.$toast.success(this.$strings.ToastRSSFeedCloseSuccess)
           this.show = false

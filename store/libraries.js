@@ -39,8 +39,8 @@ export const actions = {
       return false
     }
 
-    return this.$axios
-      .$get(`/api/libraries/${libraryId}?include=filterdata`)
+    return this.$nativeHttp
+      .get(`/api/libraries/${libraryId}?include=filterdata`)
       .then((data) => {
         const library = data.library
         const filterData = data.filterdata
@@ -75,8 +75,8 @@ export const actions = {
       return false
     }
 
-    return this.$axios
-      .$get(`/api/libraries`)
+    return this.$nativeHttp
+      .get(`/api/libraries`)
       .then((data) => {
         // TODO: Server release 2.2.9 changed response to an object. Remove after a few releases
         const libraries = data.libraries || data

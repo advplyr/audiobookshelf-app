@@ -209,8 +209,8 @@ export default {
       })
 
       if (value) {
-        this.$axios
-          .$get(`/api/podcasts/${this.libraryItemId}/clear-queue`)
+        this.$nativeHttp
+          .get(`/api/podcasts/${this.libraryItemId}/clear-queue`)
           .then(() => {
             this.$toast.success('Episode download queue cleared')
             this.episodeDownloadQueued = []

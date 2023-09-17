@@ -123,7 +123,6 @@ export default {
       isProcessingReadUpdate: false,
       libraryItem: null,
       imageReady: false,
-      rescanning: false,
       selected: false,
       isSelectionMode: false,
       showCoverBg: false,
@@ -487,29 +486,6 @@ export default {
     },
     editClick() {
       this.$emit('edit', this.libraryItem)
-    },
-    rescan() {
-      this.rescanning = true
-      this.$axios
-        .$get(`/api/items/${this.libraryItemId}/scan`)
-        .then((data) => {
-          this.rescanning = false
-          var result = data.result
-          if (!result) {
-            this.$toast.error(`Re-Scan Failed for "${this.title}"`)
-          } else if (result === 'UPDATED') {
-            this.$toast.success(`Re-Scan complete item was updated`)
-          } else if (result === 'UPTODATE') {
-            this.$toast.success(`Re-Scan complete item was up to date`)
-          } else if (result === 'REMOVED') {
-            this.$toast.error(`Re-Scan complete item was removed`)
-          }
-        })
-        .catch((error) => {
-          console.error('Failed to scan library item', error)
-          this.$toast.error('Failed to scan library item')
-          this.rescanning = false
-        })
     },
     showEditModalTracks() {
       // More menu func

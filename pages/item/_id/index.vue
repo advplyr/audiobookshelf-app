@@ -651,8 +651,8 @@ export default {
         }
 
         if (this.serverLibraryItemId && serverMediaProgressId) {
-          await this.$axios
-            .$delete(`/api/me/progress/${serverMediaProgressId}`)
+          await this.$nativeHttp
+            .delete(`/api/me/progress/${serverMediaProgressId}`)
             .then(() => {
               console.log('Progress reset complete')
               this.$toast.success(`Your progress was reset`)
@@ -798,8 +798,8 @@ export default {
         const updatePayload = {
           isFinished: !this.userIsFinished
         }
-        this.$axios
-          .$patch(`/api/me/progress/${this.libraryItemId}`, updatePayload)
+        this.$nativeHttp
+          .patch(`/api/me/progress/${this.libraryItemId}`, updatePayload)
           .catch((error) => {
             console.error('Failed', error)
             this.$toast.error(`Failed to mark as ${updatePayload.isFinished ? 'Finished' : 'Not Finished'}`)

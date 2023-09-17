@@ -317,8 +317,8 @@ export default {
             const libraryItemId = playbackSession.libraryItemId
             const episodeId = playbackSession.episodeId
             const url = episodeId ? `/api/me/progress/${libraryItemId}/${episodeId}` : `/api/me/progress/${libraryItemId}`
-            this.$axios
-              .$get(url)
+            this.$nativeHttp
+              .get(url)
               .then((data) => {
                 if (!this.$refs.audioPlayer?.isPlaying && data.libraryItemId === libraryItemId) {
                   console.log('[AudioPlayerContainer] device visibility: got server media progress', data.currentTime, 'last time in player is', this.currentTime)

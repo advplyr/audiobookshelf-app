@@ -280,8 +280,8 @@ export default {
         const updatePayload = {
           isFinished: !this.userIsFinished
         }
-        this.$axios
-          .$patch(`/api/me/progress/${this.libraryItemId}/${this.episode.id}`, updatePayload)
+        this.$nativeHttp
+          .patch(`/api/me/progress/${this.libraryItemId}/${this.episode.id}`, updatePayload)
           .catch((error) => {
             console.error('Failed', error)
             this.$toast.error(`Failed to mark as ${updatePayload.isFinished ? 'Finished' : 'Not Finished'}`)

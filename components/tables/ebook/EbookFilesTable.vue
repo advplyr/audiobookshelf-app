@@ -83,8 +83,8 @@ export default {
     },
     updateEbookStatus() {
       this.processing = true
-      this.$axios
-        .$patch(`/api/items/${this.libraryItemId}/ebook/${this.selectedFile.ino}/status`)
+      this.$nativeHttp
+        .patch(`/api/items/${this.libraryItemId}/ebook/${this.selectedFile.ino}/status`)
         .then(() => {
           this.$toast.success('Ebook updated')
         })

@@ -96,8 +96,8 @@ export default {
       }
 
       this.processing = true
-      this.$axios
-        .$post(`/api/podcasts/${this.libraryItem.id}/download-episodes`, episodesToDownload)
+      this.$nativeHttp
+        .post(`/api/podcasts/${this.libraryItem.id}/download-episodes`, episodesToDownload)
         .then(() => {
           this.processing = false
           this.$toast.success('Started downloading episodes on server')

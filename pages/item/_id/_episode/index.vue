@@ -465,8 +465,8 @@ export default {
         }
 
         if (serverItemProgressId) {
-          await this.$axios
-            .$delete(`/api/me/progress/${serverItemProgressId}`)
+          await this.$nativeHttp
+            .delete(`/api/me/progress/${serverItemProgressId}`)
             .then(() => {
               console.log('Progress reset complete')
               this.$toast.success(`Your progress was reset`)
@@ -519,8 +519,8 @@ export default {
 
       if (value) {
         this.processing = true
-        this.$axios
-          .$delete(`/api/podcasts/${this.serverLibraryItemId}/episode/${this.serverEpisodeId}?hard=1`)
+        this.$nativeHttp
+          .delete(`/api/podcasts/${this.serverLibraryItemId}/episode/${this.serverEpisodeId}?hard=1`)
           .then(() => {
             this.$toast.success('Episode deleted from server')
             this.$router.replace(`/item/${this.serverLibraryItemId}`)
