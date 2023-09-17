@@ -37,6 +37,9 @@ export default function ({ store }, inject) {
     },
     patch(url, data, options = {}) {
       return this.request('PATCH', url, data, options)
+    },
+    delete(url, options = {}) {
+      return this.request('DELETE', url, undefined, options)
     }
   }
   inject('nativeHttp', nativeHttp)

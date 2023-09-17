@@ -1,5 +1,5 @@
 <template>
-  <modals-modal v-model="show" :width="300" height="100%">
+  <modals-modal v-model="show" :width="400" height="100%">
     <template #outer>
       <div class="absolute top-8 left-4 z-40">
         <p class="text-white text-2xl truncate">Bookmarks</p>
@@ -102,8 +102,8 @@ export default {
       })
       if (!value) return
 
-      this.$axios
-        .$delete(`/api/me/item/${this.libraryItemId}/bookmark/${bm.time}`)
+      this.$nativeHttp
+        .delete(`/api/me/item/${this.libraryItemId}/bookmark/${bm.time}`)
         .then(() => {
           this.$toast.success('Bookmark removed')
         })
@@ -119,8 +119,8 @@ export default {
     },
     submitUpdateBookmark(updatedBookmark) {
       var bookmark = { ...updatedBookmark }
-      this.$axios
-        .$patch(`/api/me/item/${this.libraryItemId}/bookmark`, bookmark)
+      this.$nativeHttp
+        .patch(`/api/me/item/${this.libraryItemId}/bookmark`, bookmark)
         .then(() => {
           this.$toast.success('Bookmark updated')
         })
@@ -134,12 +134,12 @@ export default {
       if (!this.newBookmarkTitle) {
         this.newBookmarkTitle = this.$formatDate(Date.now(), 'MMM dd, yyyy HH:mm')
       }
-      var bookmark = {
+      const bookmark = {
         title: this.newBookmarkTitle,
         time: Math.floor(this.currentTime)
       }
-      this.$axios
-        .$post(`/api/me/item/${this.libraryItemId}/bookmark`, bookmark)
+      this.$nativeHttp
+        .post(`/api/me/item/${this.libraryItemId}/bookmark`, bookmark)
         .then(() => {
           this.$toast.success('Bookmark added')
         })
