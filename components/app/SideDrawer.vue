@@ -11,7 +11,11 @@
 
       <div class="w-full overflow-y-auto">
         <template v-for="item in navItems">
-          <nuxt-link :to="item.to" :key="item.text" class="w-full hover:bg-bg hover:bg-opacity-60 flex items-center py-3 px-6 text-gray-300" :class="currentRoutePath.startsWith(item.to) ? 'bg-bg bg-opacity-60' : ''">
+          <button v-if="item.action" :key="item.text" class="w-full hover:bg-bg hover:bg-opacity-60 flex items-center py-3 px-6 text-gray-300" @click="clickAction(item.action)">
+            <span class="text-lg" :class="item.iconOutlined ? 'material-icons-outlined' : 'material-icons'">{{ item.icon }}</span>
+            <p class="pl-4">{{ item.text }}</p>
+          </button>
+          <nuxt-link v-else :to="item.to" :key="item.text" class="w-full hover:bg-bg hover:bg-opacity-60 flex items-center py-3 px-6 text-gray-300" :class="currentRoutePath.startsWith(item.to) ? 'bg-bg bg-opacity-60' : ''">
             <span class="text-lg" :class="item.iconOutlined ? 'material-icons-outlined' : 'material-icons'">{{ item.icon }}</span>
             <p class="pl-4">{{ item.text }}</p>
           </nuxt-link>
@@ -24,9 +28,9 @@
         <div class="flex items-center">
           <p class="text-xs">{{ $config.version }}</p>
           <div class="flex-grow" />
-          <div v-if="user" class="flex items-center" @click="logout">
-            <p class="text-xs pr-2">Logout</p>
-            <span class="material-icons text-sm">logout</span>
+          <div v-if="user" class="flex items-center" @click="disconnect">
+            <p class="text-xs pr-2">Disconnect</p>
+            <i class="material-icons text-sm -mb-0.5">cloud_off</i>
           </div>
         </div>
       </div>
@@ -126,6 +130,15 @@ export default {
         text: 'Settings',
         to: '/settings'
       })
+
+      if (this.serverConnectionConfig) {
+        items.push({
+          icon: 'login',
+          text: 'Switch Server/User',
+          action: 'logout'
+        })
+      }
+
       return items
     },
     currentRoutePath() {
@@ -133,11 +146,17 @@ export default {
     }
   },
   methods: {
+    async clickAction(action) {
+      await this.$hapticsImpact()
+      if (action === 'logout') {
+        await this.logout()
+        this.$router.push('/connect')
+      }
+    },
     clickBackground() {
       this.show = false
     },
     async logout() {
-      await this.$hapticsImpact()
       if (this.user) {
         await this.$nativeHttp.post('/logout').catch((error) => {
           console.error('Failed to logout', error)
@@ -148,7 +167,17 @@ export default {
       await this.$db.logout()
       this.$localStore.removeLastLibraryId()
       this.$store.commit('user/logout')
-      this.$router.push('/connect')
+      this.$store.commit('libraries/setCurrentLibrary', null)
+    },
+    async disconnect() {
+      await this.$hapticsImpact()
+      await this.logout()
+
+      if (this.$route.name !== 'bookshelf') {
+        this.$router.replace('/bookshelf')
+      } else {
+        location.reload()
+      }
     },
     touchstart(e) {
       this.touchEvent = new TouchEvent(e)

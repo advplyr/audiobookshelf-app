@@ -332,6 +332,12 @@ export default {
     },
     async init() {
       if (this.isFirstInit) return
+      if (!this.user) {
+        // Offline support not available
+        await this.resetEntities()
+        this.$eventBus.$emit('bookshelf-total-entities', 0)
+        return
+      }
 
       this.localLibraryItems = await this.$db.getLocalLibraryItems(this.currentLibraryMediaType)
       console.log('Local library items loaded for lazy bookshelf', this.localLibraryItems.length)

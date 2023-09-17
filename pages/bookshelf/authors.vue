@@ -26,6 +26,9 @@ export default {
   },
   methods: {
     async init() {
+      if (!this.currentLibraryId) {
+        return
+      }
       this.loadedLibraryId = this.currentLibraryId
       this.authors = await this.$axios
         .$get(`/api/libraries/${this.currentLibraryId}/authors`)
