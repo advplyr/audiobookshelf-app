@@ -8,7 +8,8 @@
       </div>
       <p class="pl-4">Use bookshelf view</p>
     </div>
-    <div class="flex items-center py-3" @click.stop="toggleLockOrientation">
+    <!-- screen.orientation.lock not supported on iOS webview -->
+    <div v-if="!isiOS" class="flex items-center py-3" @click.stop="toggleLockOrientation">
       <div class="w-10 flex justify-center pointer-events-none">
         <ui-toggle-switch v-model="lockCurrentOrientation" />
       </div>
