@@ -36,11 +36,11 @@
         <div v-if="showPlay || showRead" class="flex mt-4 -mx-1">
           <ui-btn v-if="showPlay" color="success" class="flex items-center justify-center flex-grow mx-1" :padding-x="4" @click="playClick">
             <span class="material-icons">{{ playerIsPlaying ? 'pause' : 'play_arrow' }}</span>
-            <span class="px-1 text-sm">{{ playerIsPlaying ? 'Pause' : isPodcast ? 'Next Episode' : hasLocal ? 'Play' : 'Stream' }}</span>
+            <span class="px-1 text-sm">{{ playerIsPlaying ? $strings.ButtonPause : isPodcast ? $strings.ButtonNextEpisode : hasLocal ? $strings.ButtonPlay : $strings.ButtonStream }}</span>
           </ui-btn>
           <ui-btn v-if="showRead" color="info" class="flex items-center justify-center mx-1" :class="showPlay ? '' : 'flex-grow'" :padding-x="2" @click="readBook">
             <span class="material-icons">auto_stories</span>
-            <span v-if="!showPlay" class="px-2 text-base">Read {{ ebookFormat }}</span>
+            <span v-if="!showPlay" class="px-2 text-base">{{ this.$strings.LabelRead }} {{ ebookFormat }}</span>
           </ui-btn>
           <ui-btn v-if="showDownload" :color="downloadItem ? 'warning' : 'primary'" class="flex items-center justify-center mx-1" :padding-x="2" @click="downloadClick">
             <span class="material-icons" :class="downloadItem ? 'animate-pulse' : ''">{{ downloadItem ? 'downloading' : 'download' }}</span>
@@ -51,43 +51,43 @@
         </div>
 
         <div v-if="!isPodcast && progressPercent > 0" class="px-4 py-2 bg-primary text-sm font-semibold rounded-md text-gray-200 mt-4 text-center" :class="resettingProgress ? 'opacity-25' : ''">
-          <p>Your Progress: {{ Math.round(progressPercent * 100) }}%</p>
-          <p v-if="!useEBookProgress && !userIsFinished" class="text-gray-400 text-xs">{{ $elapsedPretty(userTimeRemaining) }} remaining</p>
-          <p v-else-if="userIsFinished" class="text-gray-400 text-xs">Finished {{ $formatDate(userProgressFinishedAt) }}</p>
+          <p>{{ $strings.LabelYourProgress }} {{ Math.round(progressPercent * 100) }}%</p>
+          <p v-if="!useEBookProgress && !userIsFinished" class="text-gray-400 text-xs">{{ $getString('LabelTimeRemaining', [$elapsedPretty(userTimeRemaining)]) }}</p>
+          <p v-else-if="userIsFinished" class="text-gray-400 text-xs">{{ $strings.LabelFinished }} {{ $formatDate(userProgressFinishedAt) }}</p>
         </div>
       </div>
 
       <div v-if="downloadItem" class="py-3">
-        <p v-if="downloadItem.itemProgress == 1" class="text-center text-lg">Download complete. Processing...</p>
-        <p v-else class="text-center text-lg">Downloading! ({{ Math.round(downloadItem.itemProgress * 100) }}%)</p>
+        <p v-if="downloadItem.itemProgress == 1" class="text-center text-lg">{{ $strings.LabelDownloadCompleteAndProcessing }}</p>
+        <p v-else class="text-center text-lg">{{ $getString('LabelDownloadingWithProgress', [Math.round(downloadItem.itemProgress * 100)]) }}</p>
       </div>
 
       <!-- metadata -->
       <div id="metadata" class="grid gap-2 my-2" style>
-        <div v-if="podcastAuthor || (bookAuthors && bookAuthors.length)" class="text-white text-opacity-60 uppercase text-sm">Author</div>
+        <div v-if="podcastAuthor || (bookAuthors && bookAuthors.length)" class="text-white text-opacity-60 uppercase text-sm">{{ $strings.LabelAuthor }}</div>
         <div v-if="podcastAuthor" class="text-sm">{{ podcastAuthor }}</div>
         <div v-else-if="bookAuthors && bookAuthors.length" class="text-sm">
           <template v-for="(author, index) in bookAuthors">
             <nuxt-link :key="author.id" :to="`/bookshelf/library?filter=authors.${$encode(author.id)}`" class="underline">{{ author.name }}</nuxt-link
-            ><span :key="`${author.id}-comma`" v-if="index < bookAuthors.length - 1">, </span>
+            ><span :key="`${author.id}-comma`" v-if="index < bookAuthors.length - 1">,&nbsp;</span>
           </template>
         </div>
 
-        <div v-if="podcastType" class="text-white text-opacity-60 uppercase text-sm">Type</div>
+        <div v-if="podcastType" class="text-white text-opacity-60 uppercase text-sm">{{ $strings.LabelType }}</div>
         <div v-if="podcastType" class="text-sm capitalize">{{ podcastType }}</div>
 
-        <div v-if="series && series.length" class="text-white text-opacity-60 uppercase text-sm">Series</div>
+        <div v-if="series && series.length" class="text-white text-opacity-60 uppercase text-sm">{{ $strings.LabelSeries }}</div>
         <div v-if="series && series.length" class="truncate text-sm">
           <template v-for="(series, index) in seriesList">
             <nuxt-link :key="series.id" :to="`/bookshelf/series/${series.id}`" class="underline">{{ series.text }}</nuxt-link
-            ><span :key="`${series.id}-comma`" v-if="index < seriesList.length - 1">, </span>
+            ><span :key="`${series.id}-comma`" v-if="index < seriesList.length - 1">,&nbsp;</span>
           </template>
         </div>
 
-        <div v-if="numTracks" class="text-white text-opacity-60 uppercase text-sm">Duration</div>
+        <div v-if="numTracks" class="text-white text-opacity-60 uppercase text-sm">{{ $strings.LabelDuration }}</div>
         <div v-if="numTracks" class="text-sm">{{ $elapsedPretty(duration) }}</div>
 
-        <div v-if="narrators && narrators.length" class="text-white text-opacity-60 uppercase text-sm">{{ narrators.length === 1 ? 'Narrator' : 'Narrators' }}</div>
+        <div v-if="narrators && narrators.length" class="text-white text-opacity-60 uppercase text-sm">{{ narrators.length === 1 ? $strings.LabelNarrator : $strings.LabelNarrators }}</div>
         <div v-if="narrators && narrators.length" class="truncate text-sm">
           <template v-for="(narrator, index) in narrators">
             <nuxt-link :key="narrator" :to="`/bookshelf/library?filter=narrators.${$encode(narrator)}`" class="underline">{{ narrator }}</nuxt-link
@@ -95,7 +95,7 @@
           </template>
         </div>
 
-        <div v-if="genres.length" class="text-white text-opacity-60 uppercase text-sm">{{ genres.length === 1 ? 'Genre' : 'Genres' }}</div>
+        <div v-if="genres.length" class="text-white text-opacity-60 uppercase text-sm">{{ genres.length === 1 ? $strings.LabelGenre : $strings.LabelGenres }}</div>
         <div v-if="genres.length" class="truncate text-sm">
           <template v-for="(genre, index) in genres">
             <nuxt-link :key="genre" :to="`/bookshelf/library?filter=genres.${$encode(genre)}`" class="underline">{{ genre }}</nuxt-link
@@ -103,7 +103,7 @@
           </template>
         </div>
 
-        <div v-if="publishedYear" class="text-white text-opacity-60 uppercase text-sm">Published</div>
+        <div v-if="publishedYear" class="text-white text-opacity-60 uppercase text-sm">{{ $strings.LabelPublishYear }}</div>
         <div v-if="publishedYear" class="text-sm">{{ publishedYear }}</div>
       </div>
 
@@ -111,7 +111,7 @@
         <p ref="description" class="text-sm text-justify whitespace-pre-line font-light" :class="{ 'line-clamp-4': !showFullDescription }" style="hyphens: auto">{{ description }}</p>
 
         <div v-if="descriptionClamped" class="text-white text-sm py-2" @click="showFullDescription = !showFullDescription">
-          {{ showFullDescription ? 'Read less' : 'Read more' }}
+          {{ showFullDescription ? $strings.LabelReadLess : $strings.LabelReadMore }}
           <span class="material-icons align-middle text-base -mt-px">{{ showFullDescription ? 'expand_less' : 'expand_more' }}</span>
         </div>
       </div>
@@ -401,7 +401,7 @@ export default {
         // TODO: Implement on iOS
         if (!this.isIos) {
           items.push({
-            text: 'History',
+            text: this.$strings.MenuHistory,
             value: 'history',
             icon: 'history'
           })
@@ -409,7 +409,7 @@ export default {
 
         if (!this.userIsFinished) {
           items.push({
-            text: 'Mark as Finished',
+            text: this.$strings.MenuMarkAsFinished,
             value: 'markFinished',
             icon: 'beenhere'
           })
@@ -417,7 +417,7 @@ export default {
 
         if (this.progressPercent > 0) {
           items.push({
-            text: 'Discard Progress',
+            text: this.$strings.MenuDiscardProgress,
             value: 'discardProgress',
             icon: 'backspace'
           })
@@ -426,7 +426,7 @@ export default {
 
       if (!this.isPodcast && this.serverLibraryItemId) {
         items.push({
-          text: 'Add to Playlist',
+          text: this.$strings.MenuAddToPlaylist,
           value: 'playlist',
           icon: 'playlist_add'
         })
@@ -434,7 +434,7 @@ export default {
 
       if (this.showRSSFeedOption) {
         items.push({
-          text: this.rssFeed ? 'RSS Feed' : 'Open RSS Feed',
+          text: this.rssFeed ? this.$strings.MenuRSSFeed : this.$strings.MenuOpenRSSFeed,
           value: 'rssFeed',
           icon: 'rss_feed'
         })
@@ -442,14 +442,14 @@ export default {
 
       if (this.localLibraryItemId) {
         items.push({
-          text: 'Manage Local Files',
+          text: this.$strings.MenuManageLocalFiles,
           value: 'manageLocal',
           icon: 'folder'
         })
 
         if (!this.isPodcast) {
           items.push({
-            text: 'Delete Local Item',
+            text: this.$strings.MenuDeleteLocalItem,
             value: 'deleteLocal',
             icon: 'delete'
           })
@@ -457,7 +457,7 @@ export default {
       }
 
       items.push({
-        text: 'More Info',
+        text: this.$strings.MenuMoreInfo,
         value: 'details',
         icon: 'info'
       })
@@ -481,18 +481,18 @@ export default {
     async deleteLocalItem() {
       await this.$hapticsImpact()
 
-      let confirmMessage = 'Remove local files of this item from your device?'
+      let confirmMessage = this.$strings.MessageRemoveLocalFilesOfThisItemFromDevice
       if (this.serverLibraryItemId) {
-        confirmMessage += ' The files on the server and your progress will be unaffected.'
+        confirmMessage += this.$strings.MessageTheFilesOnTheServerAndYourProgressWillBeUnaffected
       }
       const { value } = await Dialog.confirm({
-        title: 'Confirm',
+        title: this.$strings.LabelConfirm,
         message: confirmMessage
       })
       if (value) {
         const res = await AbsFileSystem.deleteItem(this.localLibraryItem)
         if (res?.success) {
-          this.$toast.success('Deleted successfully')
+          this.$toast.success(this.$strings.ToastDeletedSuccessfully)
           if (this.isLocal) {
             // If local then redirect to server version when available
             if (this.serverLibraryItemId) {
@@ -504,7 +504,7 @@ export default {
             // Remove localLibraryItem
             this.$delete(this.libraryItem, 'localLibraryItem')
           }
-        } else this.$toast.error('Failed to delete')
+        } else this.$toast.error(this.$strings.ToastFailedToDelete)
       }
     },
     async coverImageLoaded(fullCoverUrl) {
@@ -626,8 +626,8 @@ export default {
         // If start time and is not already streaming then ask for confirmation
         if (startTime !== null && startTime !== undefined && !this.$store.getters['getIsMediaStreaming'](libraryItemId, null)) {
           const { value } = await Dialog.confirm({
-            title: 'Confirm',
-            message: `Start playback for "${this.title}" at ${this.$secondsToTimestamp(startTime)}?`
+            title: this.$strings.LabelConfirm,
+            message: this.$getString('MessageStartPlaybackFor', [this.title, this.$secondsToTimestamp(startTime)])
           })
           if (!value) return
         }
@@ -639,8 +639,8 @@ export default {
       await this.$hapticsImpact()
 
       const { value } = await Dialog.confirm({
-        title: 'Confirm',
-        message: 'Are you sure you want to reset your progress?'
+        title: this.$strings.LabelConfirm,
+        message: this.$strings.MessageAreYouSureYouWantToResetYourProgress
       })
       if (value) {
         this.resettingProgress = true
@@ -655,7 +655,7 @@ export default {
             .delete(`/api/me/progress/${serverMediaProgressId}`)
             .then(() => {
               console.log('Progress reset complete')
-              this.$toast.success(`Your progress was reset`)
+              this.$toast.success(this.$strings.ToastYourProgressWasReset)
               this.$store.commit('user/removeMediaProgress', serverMediaProgressId)
             })
             .catch((error) => {
@@ -739,7 +739,7 @@ export default {
         }
       }
       const { value } = await Dialog.confirm({
-        title: 'Confirm',
+        title: this.$strings.LabelConfirm,
         message: startDownloadMessage
       })
       if (value) {
@@ -773,8 +773,8 @@ export default {
       // Show confirm if item has progress since it will reset
       if (this.userItemProgress && this.userItemProgress.progress > 0 && !this.userIsFinished) {
         const { value } = await Dialog.confirm({
-          title: 'Confirm',
-          message: 'Are you sure you want to mark this item as Finished?'
+          title: this.$strings.LabelConfirm,
+          message: this.$strings.MessageAreYouSureYouWantToMarkThisItemAsFinished
         })
         if (!value) return
       }
@@ -802,7 +802,7 @@ export default {
           .patch(`/api/me/progress/${this.libraryItemId}`, updatePayload)
           .catch((error) => {
             console.error('Failed', error)
-            this.$toast.error(`Failed to mark as ${updatePayload.isFinished ? 'Finished' : 'Not Finished'}`)
+            this.$toast.error(this.$getString('ToastFailedToMarkAs', [ updatePayload.isFinished ? 'Finished' : 'Not Finished' ]))
           })
           .finally(() => {
             this.isProcessingReadUpdate = false

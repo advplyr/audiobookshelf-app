@@ -8,10 +8,10 @@
       </div>
 
       <div v-if="!networkConnected" class="w-full text-center py-6">
-        <p class="text-lg text-error">No network connection</p>
+        <p class="text-lg text-error">{{ $strings.MessageNoNetworkConnection }}</p>
       </div>
       <div v-else class="w-full mx-auto pb-2 overflow-y-auto overflow-x-hidden h-[calc(100%-85px)]">
-        <p v-if="termSearched && !results.length && !processing" class="text-center text-xl">No Podcasts Found</p>
+        <p v-if="termSearched && !results.length && !processing" class="text-center text-xl">{{ $strings.MessageNoPodcastsFound }}</p>
         <template v-for="podcast in results">
           <div :key="podcast.id" class="p-2 border-b border-white border-opacity-10" @click="selectPodcast(podcast)">
             <div class="flex">
@@ -22,7 +22,7 @@
               </div>
               <div class="flex-grow pl-2">
                 <p class="text-xs text-gray-100 whitespace-nowrap truncate">{{ podcast.artistName }}</p>
-                <p class="text-xxs text-gray-300 leading-5">{{ podcast.trackCount }} Episodes</p>
+                <p class="text-xxs text-gray-300 leading-5">{{ podcast.trackCount + ' ' + $strings.LabelEpisodes }}</p>
               </div>
             </div>
 
@@ -36,7 +36,7 @@
       <div class="flex items-center px-2 h-16">
         <div class="flex items-center" @click="clearSelected">
           <span class="material-icons text-2xl text-gray-300">arrow_back</span>
-          <p class="pl-2 uppercase text-sm font-semibold text-gray-300 leading-4 pb-px">Back</p>
+          <p class="pl-2 uppercase text-sm font-semibold text-gray-300 leading-4 pb-px">{{ $strings.ButtonBack }}</p>
         </div>
       </div>
 
@@ -90,7 +90,7 @@ export default {
       this.processing = true
       var payload = await this.$nativeHttp.post(`/api/podcasts/feed`, { rssFeed }).catch((error) => {
         console.error('Failed to get feed', error)
-        this.$toast.error('Failed to get podcast feed')
+        this.$toast.error(this.$strings.ToastFailedToGetPodcastFeed)
         return null
       })
       this.processing = false
@@ -115,13 +115,13 @@ export default {
     async selectPodcast(podcast) {
       console.log('Selected podcast', podcast)
       if (!podcast.feedUrl) {
-        this.$toast.error('Invalid podcast - no feed')
+        this.$toast.error(this.$strings.ToastInvalidPodcastNoFeed)
         return
       }
       this.processing = true
       const payload = await this.$nativeHttp.post(`/api/podcasts/feed`, { rssFeed: podcast.feedUrl }).catch((error) => {
         console.error('Failed to get feed', error)
-        this.$toast.error('Failed to get podcast feed')
+        this.$toast.error(this.$strings.ToastFailedToGetPodcastFeed)
         return null
       })
       this.processing = false

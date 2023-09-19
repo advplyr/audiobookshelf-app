@@ -11,7 +11,7 @@
         <p v-else>No Local Media Progress</p>
       </template> -->
 
-      <p v-if="publishedAt" class="text-xs text-gray-400 mb-1">Published {{ $formatDate(publishedAt, 'MMM do, yyyy') }}</p>
+      <p v-if="publishedAt" class="text-xs text-gray-400 mb-1">{{ $strings.LabelPublishYear }} {{ $formatDate(publishedAt, 'MMM do, yyyy') }}</p>
 
       <p class="text-sm font-semibold">
         {{ title }}
@@ -20,8 +20,8 @@
       <p class="text-sm text-gray-200 episode-subtitle mt-1.5 mb-0.5" v-html="subtitle" />
 
       <div v-if="episodeNumber || season || episodeType" class="flex py-2 items-center -mx-0.5">
-        <div v-if="episodeNumber" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-50 rounded-full text-xs font-light text-gray-200">Episode #{{ episodeNumber }}</div>
-        <div v-if="season" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-50 rounded-full text-xs font-light text-gray-200">Season #{{ season }}</div>
+        <div v-if="episodeNumber" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-50 rounded-full text-xs font-light text-gray-200">{{ $strings.LabelEpisode }} #{{ episodeNumber }}</div>
+        <div v-if="season" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-50 rounded-full text-xs font-light text-gray-200">{{ $strings.LabelSeason }} #{{ season }}</div>
         <div v-if="episodeType" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-50 rounded-full text-xs font-light text-gray-200 capitalize">
           {{ episodeType }}
         </div>

@@ -38,7 +38,7 @@ export default {
             iconPack: 'abs-icons',
             icon: 'home',
             iconClass: 'text-xl',
-            text: 'Home'
+            text: this.$strings.TabHome
           },
           {
             to: '/bookshelf/latest',
@@ -46,7 +46,7 @@ export default {
             iconPack: 'abs-icons',
             icon: 'list',
             iconClass: 'text-xl',
-            text: 'Latest'
+            text: this.$strings.TabLatest
           },
           {
             to: '/bookshelf/library',
@@ -54,7 +54,7 @@ export default {
             iconPack: 'abs-icons',
             icon: this.currentLibraryIcon,
             iconClass: 'text-lg',
-            text: 'Library'
+            text: this.$strings.TabLibrary
           }
         ]
 
@@ -65,7 +65,7 @@ export default {
             iconPack: 'material-icons',
             icon: 'podcasts',
             iconClass: 'text-xl',
-            text: 'Search'
+            text: this.$strings.TabSearch
           })
         }
       } else {
@@ -76,7 +76,7 @@ export default {
             iconPack: 'abs-icons',
             icon: 'home',
             iconClass: 'text-xl',
-            text: 'Home'
+            text: this.$strings.TabHome
           },
           {
             to: '/bookshelf/library',
@@ -84,7 +84,7 @@ export default {
             iconPack: 'abs-icons',
             icon: this.currentLibraryIcon,
             iconClass: 'text-lg',
-            text: 'Library'
+            text: this.$strings.TabLibrary
           },
           {
             to: '/bookshelf/series',
@@ -92,7 +92,7 @@ export default {
             iconPack: 'abs-icons',
             icon: 'columns',
             iconClass: 'text-lg pt-px',
-            text: 'Series'
+            text: this.$strings.TabSeries
           },
           {
             to: '/bookshelf/collections',
@@ -100,7 +100,7 @@ export default {
             iconPack: 'material-icons-outlined',
             icon: 'collections_bookmark',
             iconClass: 'text-xl',
-            text: 'Collections'
+            text: this.$strings.TabCollections
           },
           {
             to: '/bookshelf/authors',
@@ -108,7 +108,7 @@ export default {
             iconPack: 'abs-icons',
             icon: 'authors',
             iconClass: 'text-2xl',
-            text: 'Authors'
+            text: this.$strings.TabAuthors
           }
         ]
       }
@@ -119,7 +119,7 @@ export default {
           routeName: 'bookshelf-playlists',
           iconPack: 'material-icons',
           icon: 'queue_music',
-          text: 'Playlists'
+          text: this.$strings.TabPlaylists
         })
       }
 

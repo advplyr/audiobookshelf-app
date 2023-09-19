@@ -2,14 +2,14 @@
   <div class="w-full layout-wrapper bg-bg text-white">
     <app-appbar />
     <div id="content" class="overflow-hidden relative" :class="isPlayerOpen ? 'playerOpen' : ''">
-      <Nuxt />
+      <Nuxt :key="currentLang" />
     </div>
     <app-audio-player-container ref="streamContainer" />
     <modals-libraries-modal />
     <modals-playlists-add-create-modal />
     <modals-select-local-folder-modal />
     <modals-rssfeeds-rss-feed-modal />
-    <app-side-drawer />
+    <app-side-drawer :key="currentLang" />
     <readers-reader />
   </div>
 </template>
@@ -23,7 +23,8 @@ export default {
       inittingLibraries: false,
       hasMounted: false,
       disconnectTime: 0,
-      timeLostFocus: 0
+      timeLostFocus: 0,
+      currentLang: null
     }
   },
   watch: {
@@ -334,10 +335,16 @@ export default {
         this.timeLostFocus = Date.now()
         this.$eventBus.$emit('device-focus-update', false)
       }
+    },
+    changeLanguage(code) {
+      console.log('Changed lang', code)
+      this.currentLang = code
+      document.documentElement.lang = code
     }
   },
   async mounted() {
     document.addEventListener('visibilitychange', this.visibilityChanged)
+    this.$eventBus.$on('change-lang', this.changeLanguage)
 
     this.$socket.on('user_updated', this.userUpdated)
     this.$socket.on('user_media_progress_updated', this.userMediaProgressUpdated)
@@ -376,6 +383,7 @@ export default {
     }
   },
   beforeDestroy() {
+    this.$eventBus.$off('change-lang', this.changeLanguage)
     document.removeEventListener('visibilitychange', this.visibilityChanged)
     this.$socket.off('user_updated', this.userUpdated)
     this.$socket.off('user_media_progress_updated', this.userMediaProgressUpdated)

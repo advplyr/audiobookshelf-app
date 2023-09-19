@@ -1,12 +1,13 @@
-import Vue from 'vue'
-import vClickOutside from 'v-click-outside'
-import { App } from '@capacitor/app'
-import { Dialog } from '@capacitor/dialog'
 import { AbsFileSystem } from '@/plugins/capacitor'
-import { StatusBar, Style } from '@capacitor/status-bar'
+import { App } from '@capacitor/app'
 import { Clipboard } from '@capacitor/clipboard'
-import { formatDistance, format, addDays, isDate } from 'date-fns'
 import { Capacitor } from '@capacitor/core'
+import { Dialog } from '@capacitor/dialog'
+import { StatusBar, Style } from '@capacitor/status-bar'
+import { addDays, format, formatDistance, isDate, setDefaultOptions } from 'date-fns'
+import * as locale from 'date-fns/locale'
+import vClickOutside from 'v-click-outside'
+import Vue from 'vue'
 
 Vue.directive('click-outside', vClickOutside.directive)
 
@@ -15,6 +16,11 @@ if (Capacitor.getPlatform() != 'web') {
     await StatusBar.setStyle({ style: Style.Dark })
   }
   setStatusBarStyleDark()
+}
+
+Vue.prototype.$setDateFnsLocale = (localeString) => {
+  if (!locale[localeString]) return 0
+  return setDefaultOptions({ locale: locale[localeString] })
 }
 
 Vue.prototype.$showHideStatusBar = async (show) => {
@@ -74,18 +80,18 @@ Vue.prototype.$bytesPretty = (bytes, decimals = 2) => {
 
 Vue.prototype.$elapsedPretty = (seconds, useFullNames = false) => {
   if (seconds < 60) {
-    return `${Math.floor(seconds)} sec${useFullNames ? 'onds' : ''}`
+    return `${Math.floor(seconds)} ${useFullNames ? Vue.prototype.$strings.LabelSeconds : Vue.prototype.$strings.LabelSec}`
   }
   var minutes = Math.floor(seconds / 60)
   if (minutes < 70) {
-    return `${minutes} min${useFullNames ? `ute${minutes === 1 ? '' : 's'}` : ''}`
+    return `${minutes} ${useFullNames ? `${minutes === 1 ? Vue.prototype.$strings.LabelMinute : Vue.prototype.$strings.LabelMinutes}` : Vue.prototype.$strings.LabelMin}`
   }
   var hours = Math.floor(minutes / 60)
   minutes -= hours * 60
   if (!minutes) {
-    return `${hours} ${useFullNames ? 'hours' : 'hr'}`
+    return `${hours} ${useFullNames ? Vue.prototype.$strings.LabelHours : Vue.prototype.$strings.LabelHr }`
   }
-  return `${hours} ${useFullNames ? `hour${hours === 1 ? '' : 's'}` : 'hr'} ${minutes} ${useFullNames ? `minute${minutes === 1 ? '' : 's'}` : 'min'}`
+  return `${hours} ${useFullNames ? `${hours === 1 ? Vue.prototype.$strings.LabelHour : Vue.prototype.$strings.LabelHours}` : Vue.prototype.$strings.LabelHr} ${minutes} ${useFullNames ? minutes === 1 ? Vue.prototype.$strings.LabelMinute : Vue.prototype.$strings.LabelMinutes : Vue.prototype.$strings.LabelMin}`
 }
 
 Vue.prototype.$elapsedPrettyExtended = (seconds, useDays = true) => {
@@ -285,6 +291,6 @@ export default ({ store, app }, inject) => {
 }
 
 export {
-  encode,
-  decode
+  decode, encode
 }
+

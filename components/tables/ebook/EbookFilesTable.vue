@@ -1,7 +1,7 @@
 <template>
   <div class="w-full my-2">
     <div class="w-full bg-primary px-4 py-2 flex items-center" :class="showFiles ? 'rounded-t-md' : 'rounded-md'" @click.stop="clickBar">
-      <p class="pr-2">Ebook Files</p>
+      <p class="pr-2">{{ $strings.HeaderEbookFiles }}</p>
       <div class="h-6 w-6 rounded-full bg-white bg-opacity-10 flex items-center justify-center">
         <span class="text-xs font-mono">{{ ebookFiles.length }}</span>
       </div>
@@ -14,8 +14,8 @@
       <div class="w-full" v-show="showFiles">
         <table class="text-sm tracksTable">
           <tr>
-            <th class="text-left px-4">Filename</th>
-            <th class="text-left px-4 w-16">Read</th>
+            <th class="text-left px-4">{{ $strings.HeaderFilename }}</th>
+            <th class="text-left px-4 w-16">{{ $strings.HeaderRead }}</th>
             <th v-if="userCanUpdate && !libraryIsAudiobooksOnly" class="text-center w-16"></th>
           </tr>
           <template v-for="file in ebookFiles">

@@ -1,6 +1,6 @@
 <template>
   <div class="w-full h-full py-6">
-    <h1 class="text-base font-semibold px-2 mb-2">Local Folders</h1>
+    <h1 class="text-base font-semibold px-2 mb-2">{{ $strings.HeaderLocalFolders }}</h1>
 
     <div v-if="!isIos" class="w-full max-w-full px-2 py-2">
       <template v-for="folder in localFolders">
@@ -8,24 +8,24 @@
           <span class="material-icons text-xl text-yellow-400">folder</span>
           <p class="ml-2">{{ folder.name }}</p>
           <div class="flex-grow" />
-          <p class="text-sm italic text-gray-300 px-3 capitalize">{{ folder.mediaType }}s</p>
+          <p class="text-sm italic text-gray-300 px-3 capitalize">{{ folderType(folder.mediaType) }}</p>
           <span class="material-icons text-xl text-gray-300">arrow_right</span>
         </nuxt-link>
       </template>
       <div v-if="!localFolders.length" class="flex justify-center">
-        <p class="text-center">No Media Folders</p>
+        <p class="text-center">{{ $strings.MessageNoMediaFolders }}</p>
       </div>
       <div v-if="!isAndroid10OrBelow || overrideFolderRestriction" class="flex border-t border-white border-opacity-10 my-4 py-4">
         <div class="flex-grow pr-1">
-          <ui-dropdown v-model="newFolderMediaType" placeholder="Select media type" :items="mediaTypeItems" />
+          <ui-dropdown v-model="newFolderMediaType" :placeholder="$strings.PlaceholderSelectMediaType" :items="mediaTypeItems" />
         </div>
-        <ui-btn small class="w-28" color="success" @click="selectFolder">New Folder</ui-btn>
+        <ui-btn small class="w-28" color="success" @click="selectFolder">{{ $strings.ButtonNewFolder }}</ui-btn>
       </div>
       <div v-else class="flex border-t border-white border-opacity-10 my-4 py-4">
         <div class="flex-grow pr-1">
-          <p class="text-sm">Android 10 and below will use internal app storage for downloads.</p>
+          <p class="text-sm">{{ $strings.MessageAndroid10Storage }}</p>
         </div>
-        <ui-btn small class="w-28" color="primary" @click="overrideFolderRestriction = true">Override</ui-btn>
+        <ui-btn small class="w-28" color="primary" @click="overrideFolderRestriction = true">{{ $strings.ButtonOverride }}</ui-btn>
       </div>
     </div>
   </div>
@@ -43,11 +43,11 @@ export default {
       mediaTypeItems: [
         {
           value: 'book',
-          text: 'Books'
+          text: this.$strings.LabelBooks
         },
         {
           value: 'podcast',
-          text: 'Podcasts'
+          text: this.$strings.LabelPodcasts
         }
       ],
       syncing: false,
@@ -63,7 +63,7 @@ export default {
   methods: {
     async selectFolder() {
       if (!this.newFolderMediaType) {
-        return this.$toast.error('Must select a media type')
+        return this.$toast.error(this.$strings.ToastMustSelectaMediaType)
       }
       var folderObj = await AbsFileSystem.selectFolder({ mediaType: this.newFolderMediaType })
       if (!folderObj) return
@@ -81,10 +81,10 @@ export default {
       const permissionsGood = await AbsFileSystem.checkFolderPermissions({ folderUrl: folderObj.contentUrl })
 
       if (!permissionsGood) {
-        this.$toast.error('Folder permissions failed')
+        this.$toast.error(this.$strings.ToastFolderPermissionsFailed)
         return
       } else {
-        this.$toast.success('Folder permission success')
+        this.$toast.success(this.$strings.ToastFolderPermissionSuccess)
       }
 
       this.$router.push(`/localMedia/folders/${folderObj.id}?scan=1`)
@@ -96,6 +96,13 @@ export default {
 
       this.localFolders = (await this.$db.getLocalFolders()) || []
       this.localLibraryItems = await this.$db.getLocalLibraryItems()
+    },
+    folderType(type) {
+      const mediaType = this.mediaTypeItems.filter(item => item.value === type)
+      if(mediaType || mediaType[0]) {
+        return mediaType[0].text
+      }
+      return ''
     }
   },
   mounted() {

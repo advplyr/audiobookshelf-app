@@ -1,17 +1,17 @@
 <template>
   <div class="w-full h-full px-3 py-4 overflow-y-auto relative bg-bg">
-    <p class="mb-4 text-lg font-semibold">History for {{ displayTitle }}</p>
+    <p class="mb-4 text-lg font-semibold">{{ $getString('HeaderHistoryFor', [displayTitle]) }}</p>
 
     <div v-if="!mediaEvents.length" class="text-center py-8">
-      <p class="text-gray-200">No History</p>
+      <p class="text-gray-200">{{ $strings.MessageNoHistory }}</p>
     </div>
 
     <div v-for="(events, name) in groupedMediaEvents" :key="name" class="py-2">
-      <p class="my-2 text-gray-400 font-semibold">{{ name }}</p>
+      <p class="my-2 text-gray-400 font-semibold">{{ $strings['Header' + name] }}</p>
       <div v-for="(evt, index) in events" :key="index" class="py-3 flex items-center">
         <p class="text-sm text-gray-400 w-12">{{ $formatDate(evt.timestamp, 'HH:mm') }}</p>
         <span class="material-icons px-1" :class="`text-${getEventColor(evt.name)}`">{{ getEventIcon(evt.name) }}</span>
-        <p class="text-sm text-white px-1">{{ evt.name }}</p>
+        <p class="text-sm text-white px-1">{{ $strings['Label' + evt.name] }}</p>
 
         <span v-if="evt.serverSyncAttempted && evt.serverSyncSuccess" class="material-icons-outlined px-1 text-base text-success">cloud_done</span>
         <span v-if="evt.serverSyncAttempted && !evt.serverSyncSuccess" class="material-icons px-1 text-base text-error">error_outline</span>

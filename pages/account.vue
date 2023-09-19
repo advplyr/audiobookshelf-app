@@ -1,10 +1,10 @@
 <template>
   <div class="w-full h-full p-4">
-    <ui-text-input-with-label :value="serverAddress" label="Host" disabled class="my-2" />
+    <ui-text-input-with-label :value="serverAddress" :label="$strings.LabelHost" disabled class="my-2" />
 
-    <ui-text-input-with-label :value="username" label="Username" disabled class="my-2" />
+    <ui-text-input-with-label :value="username" :label="$strings.LabelUsername" disabled class="my-2" />
 
-    <ui-btn color="primary flex items-center justify-between gap-2 ml-auto text-base mt-8" @click="logout">Switch Server/User<span class="material-icons" style="font-size: 1.1rem">logout</span></ui-btn>
+    <ui-btn color="primary flex items-center justify-between gap-2 ml-auto text-base mt-8" @click="logout">{{ $strings.ButtonLogout }}<span class="material-icons" style="font-size: 1.1rem">logout</span></ui-btn>
 
     <div class="flex justify-end items-center m-4 gap-3 right-0 bottom-0 absolute">
       <p class="text-smtext-yellow-400 text-right">Report bugs, request features, provide feedback, and contribute on <a class="underline" href="https://github.com/advplyr/audiobookshelf-app" target="_blank">GitHub</a></p>

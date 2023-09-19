@@ -81,6 +81,7 @@ async function loadi18n(code) {
   translations[code] = strings
   Vue.prototype.$languageCodes.current = code
   localStorage.setItem('lang', code)
+  Vue.prototype.$languageCodes.local = code
 
   for (const key in Vue.prototype.$strings) {
     Vue.prototype.$strings[key] = strings[key] || translations[defaultCode][key]

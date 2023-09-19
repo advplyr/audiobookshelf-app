@@ -1,28 +1,28 @@
 <template>
   <div class="w-full h-full px-0 py-4 overflow-y-auto">
     <h1 class="text-xl px-4">
-      Stats for <b>{{ username }}</b>
+      {{ $getString('HeaderStatsFor', [username]) }}
     </h1>
 
     <div class="flex text-center justify-center">
       <div class="flex p-2">
         <div class="px-3">
           <p class="text-4xl md:text-5xl font-bold">{{ userItemsFinished.length }}</p>
-          <p class="text-xs md:text-sm text-white text-opacity-80">Items Finished</p>
+          <p class="text-xs md:text-sm text-white text-opacity-80">{{ $strings.LabelStatsItemsFinished }}</p>
         </div>
       </div>
 
       <div class="flex p-2">
         <div class="px-1">
           <p class="text-4xl md:text-5xl font-bold">{{ totalDaysListened }}</p>
-          <p class="text-xs md:text-sm text-white text-opacity-80">Days Listened</p>
+          <p class="text-xs md:text-sm text-white text-opacity-80">{{ $strings.LabelStatsDaysListened }}</p>
         </div>
       </div>
 
       <div class="flex p-2">
         <div class="px-1">
           <p class="text-4xl md:text-5xl font-bold">{{ totalMinutesListening }}</p>
-          <p class="text-xs md:text-sm text-white text-opacity-80">Minutes Listening</p>
+          <p class="text-xs md:text-sm text-white text-opacity-80">{{ $strings.LabelMinutesListening }}</p>
         </div>
       </div>
     </div>
@@ -30,10 +30,10 @@
       <stats-daily-listening-chart :listening-stats="listeningStats" class="lg:scale-100 transform scale-90 px-0" />
       <div class="w-80 my-6 mx-auto">
         <div class="flex mb-4 items-center">
-          <h1 class="text-2xl">Recent Sessions</h1>
+          <h1 class="text-2xl">{{ $strings.HeaderRecentSessions }}</h1>
           <div class="flex-grow" />
         </div>
-        <p v-if="!mostRecentListeningSessions.length">No Listening Sessions</p>
+        <p v-if="!mostRecentListeningSessions.length">{{ $strings.MessageNoListeningSessions }}</p>
         <template v-for="(item, index) in mostRecentListeningSessions">
           <div :key="item.id" class="w-full py-0.5">
             <div class="flex items-center mb-1">

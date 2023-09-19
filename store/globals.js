@@ -39,6 +39,7 @@ export const state = () => ({
   showSelectLocalFolderModal: false,
   localFolderSelectData: null,
   hapticFeedback: 'LIGHT',
+  language: 'en-us',
   showRSSFeedOpenCloseModal: false,
   rssFeedEntity: null
 })
@@ -194,6 +195,9 @@ export const mutations = {
   },
   setHapticFeedback(state, val) {
     state.hapticFeedback = val || 'LIGHT'
+  },
+  setLanguage(state, val) {
+    state.language = val || 'en-us'
   },
   setShowRSSFeedOpenCloseModal(state, val) {
     state.showRSSFeedOpenCloseModal = val

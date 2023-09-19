@@ -15,23 +15,23 @@
     <p class="text-lg font-semibold">{{ title }}</p>
 
     <div v-if="episodeNumber || season || episodeType" class="flex py-2 items-center -mx-0.5">
-      <div v-if="episodeNumber" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-60 rounded-full text-xs font-light text-gray-200">Episode #{{ episodeNumber }}</div>
-      <div v-if="season" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-60 rounded-full text-xs font-light text-gray-200">Season #{{ season }}</div>
+      <div v-if="episodeNumber" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-60 rounded-full text-xs font-light text-gray-200">{{ $strings.LabelEpisode }} #{{ episodeNumber }}</div>
+      <div v-if="season" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-60 rounded-full text-xs font-light text-gray-200">{{ $strings.LabelSeason }} #{{ season }}</div>
       <div v-if="episodeType" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-60 rounded-full text-xs font-light text-gray-200 capitalize">{{ episodeType }}</div>
     </div>
 
     <!-- user progress card -->
     <div v-if="progressPercent > 0" class="px-4 py-2 bg-primary text-sm font-semibold rounded-md text-gray-200 mt-4 relative" :class="resettingProgress ? 'opacity-25' : ''">
-      <p class="leading-6">Your Progress: {{ Math.round(progressPercent * 100) }}%</p>
-      <p v-if="progressPercent < 1" class="text-gray-400 text-xs">{{ $elapsedPretty(userTimeRemaining) }} remaining</p>
-      <p v-else class="text-gray-400 text-xs">Finished {{ $formatDate(userProgressFinishedAt) }}</p>
+      <p class="leading-6">{{ $strings.LabelYourProgress }} {{ Math.round(progressPercent * 100) }}%</p>
+      <p v-if="progressPercent < 1" class="text-gray-400 text-xs">{{ $getString('LabelTimeRemaining', [$elapsedPretty(userTimeRemaining)]) }}</p>
+      <p v-else class="text-gray-400 text-xs">{{ $strings.LabelFinished }} {{ $formatDate(userProgressFinishedAt) }}</p>
     </div>
 
     <!-- action buttons -->
     <div class="flex mt-4 -mx-1">
       <ui-btn color="success" class="flex items-center justify-center flex-grow mx-1" :padding-x="4" @click="playClick">
         <span class="material-icons">{{ playerIsPlaying ? 'pause' : 'play_arrow' }}</span>
-        <span class="px-1 text-sm">{{ playerIsPlaying ? 'Pause' : localEpisodeId ? 'Play' : 'Stream' }}</span>
+        <span class="px-1 text-sm">{{ playerIsPlaying ? $strings.ButtonPause : localEpisodeId ? $strings.ButtonPlay : $strings.ButtonStream }}</span>
       </ui-btn>
       <ui-btn v-if="showDownload" :color="downloadItem ? 'warning' : 'primary'" class="flex items-center justify-center mx-1" :padding-x="2" @click="downloadClick">
         <span class="material-icons" :class="downloadItem ? 'animate-pulse' : ''">{{ downloadItem ? 'downloading' : 'download' }}</span>
@@ -257,7 +257,7 @@ export default {
 
       if (!this.userIsFinished) {
         items.push({
-          text: 'Mark as Finished',
+          text: this.$strings.MenuMarkAsFinished,
           value: 'markFinished',
           icon: 'beenhere'
         })
@@ -265,7 +265,7 @@ export default {
 
       if (this.progressPercent > 0) {
         items.push({
-          text: 'Discard Progress',
+          text: this.$strings.MenuDiscardProgress,
           value: 'discardProgress',
           icon: 'backspace'
         })
@@ -273,7 +273,7 @@ export default {
 
       if (!this.isLocal) {
         items.push({
-          text: 'Add to Playlist',
+          text: this.$strings.MenuAddToPlaylist,
           value: 'playlist',
           icon: 'playlist_add'
         })
@@ -281,7 +281,7 @@ export default {
 
       if (this.localEpisodeId) {
         items.push({
-          text: 'Delete Local Episode',
+          text: this.$strings.MenuDeleteLocalEpisode,
           value: 'deleteLocal',
           icon: 'delete'
         })
@@ -289,7 +289,7 @@ export default {
 
       if (this.isAdminOrUp && this.serverEpisodeId) {
         items.push({
-          text: 'Remove from Server',
+          text: this.$strings.MenuRemoveFromServer,
           value: 'remove_from_server',
           icon: 'delete_forever'
         })
@@ -305,7 +305,7 @@ export default {
       const localEpisodeAudioTrack = this.localEpisode.audioTrack
       const localFile = this.localLibraryItem.localFiles.find((lf) => lf.id === localEpisodeAudioTrack.localFileId)
       if (!localFile) {
-        this.$toast.error('Audio track does not have matching local file..')
+        this.$toast.error(this.$strings.ToastAudioTrackDoesNotHaveMatchingLocalFile)
         return
       }
 

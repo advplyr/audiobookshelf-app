@@ -4,7 +4,7 @@
     <div class="absolute top-0 right-0 w-64 h-full bg-primary transform transition-transform py-6 pointer-events-auto" :class="show ? '' : 'translate-x-64'" @click.stop>
       <div class="px-6 mb-4">
         <p v-if="user" class="text-base">
-          Welcome,
+          {{ $strings.MessageWelcome }}
           <strong>{{ username }}</strong>
         </p>
       </div>
@@ -29,7 +29,7 @@
           <p class="text-xs">{{ $config.version }}</p>
           <div class="flex-grow" />
           <div v-if="user" class="flex items-center" @click="disconnect">
-            <p class="text-xs pr-2">Disconnect</p>
+            <p class="text-xs pr-2">{{ $strings.ButtonDisconnect }}</p>
             <i class="material-icons text-sm -mb-0.5">cloud_off</i>
           </div>
         </div>
@@ -85,7 +85,7 @@ export default {
       var items = [
         {
           icon: 'home',
-          text: 'Home',
+          text: this.$strings.MenuHome,
           to: '/bookshelf'
         }
       ]
@@ -93,19 +93,19 @@ export default {
         items = [
           {
             icon: 'cloud_off',
-            text: 'Connect to Server',
+            text: this.$strings.MenuConnectToServer,
             to: '/connect'
           }
         ].concat(items)
       } else {
         items.push({
           icon: 'person',
-          text: 'Account',
+          text: this.$strings.MenuAccount,
           to: '/account'
         })
         items.push({
           icon: 'equalizer',
-          text: 'User Stats',
+          text: this.$strings.MenuUserStats,
           to: '/stats'
         })
       }
@@ -114,27 +114,27 @@ export default {
         items.push({
           icon: 'folder',
           iconOutlined: true,
-          text: 'Local Media',
+          text: this.$strings.MenuLocalMedia,
           to: '/localMedia/folders'
         })
       } else {
         items.push({
           icon: 'download',
           iconOutlined: false,
-          text: 'Downloads',
+          text: this.$strings.MenuDownloads,
           to: '/downloads'
         })
       }
       items.push({
         icon: 'settings',
-        text: 'Settings',
+        text: this.$strings.MenuSettings,
         to: '/settings'
       })
 
       if (this.serverConnectionConfig) {
         items.push({
           icon: 'login',
-          text: 'Switch Server/User',
+          text: this.$strings.MenuSwitchServerUser,
           action: 'logout'
         })
       }

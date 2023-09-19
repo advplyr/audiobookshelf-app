@@ -11,16 +11,16 @@
         <span class="material-icons" @click="showItemDialog">more_vert</span>
       </div>
 
-      <p v-if="!isIos" class="px-2 text-sm mb-0.5 text-white text-opacity-75">Folder: {{ folderName }}</p>
+      <p v-if="!isIos" class="px-2 text-sm mb-0.5 text-white text-opacity-75">{{ $strings.LabelFolder }}: {{ folderName }}</p>
 
-      <p class="px-2 mb-4 text-xs text-gray-400">{{ libraryItemId ? 'Linked to item on server ' + liServerAddress : 'Not linked to server item' }}</p>
+      <p class="px-2 mb-4 text-xs text-gray-400">{{ libraryItemId ? $getString('LabelLinkedToItemOnServer', [liServerAddress]) : $strings.LabelNotLinkedToServerItem }}</p>
 
       <div v-if="isScanning" class="w-full text-center p-4">
-        <p>Scanning...</p>
+        <p>{{ $strings.MessageScanning }}</p>
       </div>
       <div v-else class="w-full max-w-full media-item-container overflow-y-auto overflow-x-hidden relative pb-4" :class="{ 'media-order-changed': orderChanged }">
         <div v-if="!isPodcast && audioTracksCopy.length" class="w-full py-2">
-          <p class="text-base mb-2">Audio Tracks ({{ audioTracks.length }})</p>
+          <p class="text-base mb-2">{{ $getString('LabelAudioTracks', [audioTracks.length]) }}</p>
 
           <draggable v-model="audioTracksCopy" v-bind="dragOptions" handle=".drag-handle" draggable=".item" tag="div" @start="drag = true" @end="drag = false" @update="draggableUpdate" :disabled="isIos">
             <transition-group type="transition" :name="!drag ? 'dragtrack' : null">
@@ -49,7 +49,7 @@
         </div>
 
         <div v-if="isPodcast" class="w-full py-2">
-          <p class="text-base mb-2">Episodes ({{ episodes.length }})</p>
+          <p class="text-base mb-2">{{ $strings.LabelEpisodes }} ({{ episodes.length }})</p>
           <template v-for="episode in episodes">
             <div :key="episode.id" class="flex items-center my-1">
               <div class="w-10 h-12 flex items-center justify-center" style="min-width: 48px">
@@ -70,7 +70,7 @@
         </div>
 
         <div v-if="localFileForEbook" class="w-full py-2">
-          <p class="text-base mb-2">EBook File</p>
+          <p class="text-base mb-2">{{ $strings.LabelEBookFile }}</p>
 
           <div class="flex items-center my-1">
             <div class="w-10 h-12 flex items-center justify-center" style="min-width: 40px">
@@ -86,7 +86,7 @@
           </div>
         </div>
 
-        <p v-if="otherFiles.length" class="text-lg py-2">Other Files</p>
+        <p v-if="otherFiles.length" class="text-lg py-2">{{ $strings.LabelOtherFiles }}</p>
         <template v-for="file in otherFiles">
           <div :key="file.id" class="flex items-center my-1">
             <div class="w-12 h-12 flex items-center justify-center">
@@ -105,12 +105,12 @@
       </div>
     </div>
     <div v-else class="px-2 w-full h-full">
-      <p class="text-lg text-center px-8">{{ failed ? 'Failed to get local library item ' + localLibraryItemId : 'Loading..' }}</p>
+      <p class="text-lg text-center px-8">{{ failed ? $getString('MessageFailedToGetLocalLibraryItem', [localLibraryItemId]) : $strings.Loading }}</p>
     </div>
 
     <div v-if="orderChanged" class="fixed left-0 w-full py-4 px-4 bg-bg box-shadow-book flex items-center" :style="{ bottom: isPlayerOpen ? '120px' : '0px' }">
       <div class="flex-grow" />
-      <ui-btn small color="success" @click="saveTrackOrder">Save Order</ui-btn>
+      <ui-btn small color="success" @click="saveTrackOrder">{{ $strings.LabelSaveOrder }}</ui-btn>
     </div>
 
     <modals-dialog v-model="showDialog" :items="dialogItems" @action="dialogAction" />
@@ -224,17 +224,17 @@ export default {
       if (this.selectedAudioTrack || this.selectedEpisode) {
         return [
           {
-            text: 'Delete local file',
+            text: this.$strings.LabelDeleteLocalFile,
             value: 'track-delete'
           }
         ]
       } else {
         var options = []
         if (!this.isIos && !this.isInternalStorage && !this.libraryItemId) {
-          options.push({ text: 'Scan', value: 'scan' })
-          options.push({ text: 'Force Re-Scan', value: 'rescan' })
+          options.push({ text: this.$strings.LabelScan, value: 'scan' })
+          options.push({ text: this.$strings.LabelForceReScan, value: 'rescan' })
         }
-        options.push({ text: 'Delete local item', value: 'delete' })
+        options.push({ text: this.$strings.LabelDeleteLocalItem, value: 'delete' })
         return options
       }
     }
@@ -260,12 +260,12 @@ export default {
       }
       var response = await this.$db.updateLocalTrackOrder(payload)
       if (response) {
-        this.$toast.success('Library item updated')
+        this.$toast.success(this.$strings.ToastLibraryItemUpdated)
         console.log('updateLocal track order response', JSON.stringify(response))
         this.localLibraryItem = response
         this.audioTracksCopy = this.audioTracks.map((at) => ({ ...at }))
       } else {
-        this.$toast.info(`No updates necessary`)
+        this.$toast.info(this.$strings.ToastNoUpdatesNecessary)
       }
       this.orderChanged = false
     },
@@ -314,16 +314,16 @@ export default {
       if (!this.selectedEpisode) return
       var localFile = this.getLocalFileForTrack(this.selectedEpisode.audioTrack.localFileId)
       if (!localFile) {
-        this.$toast.error('Audio track does not have matching local file..')
+        this.$toast.error(this.$strings.ToastAudioTrackDoesNotHaveMatchingLocalFile)
         return
       }
 
-      let confirmMessage = `Remove local audio file "${localFile.basePath}" from your device?`
+      let confirmMessage = this.$getString('MessageRemoveLocalAudioFileFromDevice', [localFile.basePath])
       if (this.libraryItemId) {
-        confirmMessage += ' The file on the server will be unaffected.'
+        confirmMessage += this.$strings.MessageTheFileOnTheServerWillBeUnaffected
       }
       const { value } = await Dialog.confirm({
-        title: 'Confirm',
+        title: this.$strings.LabelConfirm,
         message: confirmMessage
       })
       if (value) {
@@ -331,7 +331,7 @@ export default {
         if (res && res.id) {
           this.$toast.success('Deleted track successfully')
           this.localLibraryItem = res
-        } else this.$toast.error('Failed to delete')
+        } else this.$toast.error(this.Strings.ToastFailedToDelete)
       }
     },
     async deleteTrack() {
@@ -340,41 +340,41 @@ export default {
       }
       var localFile = this.getLocalFileForTrack(this.selectedAudioTrack.localFileId)
       if (!localFile) {
-        this.$toast.error('Audio track does not have matching local file..')
+        this.$toast.error(this.$strings.ToastAudioTrackDoesNotHaveMatchingLocalFile)
         return
       }
 
-      let confirmMessage = `Remove local audio file "${localFile.basePath}" from your device?`
+      let confirmMessage = this.$getString('MessageRemoveLocalAudioFileFromDevice', [localFile.basePath])
       if (this.libraryItemId) {
-        confirmMessage += ' The file on the server will be unaffected.'
+        confirmMessage += this.$strings.MessageTheFileOnTheServerWillBeUnaffected
       }
       const { value } = await Dialog.confirm({
-        title: 'Confirm',
+        title: this.$strings.LabelConfirm,
         message: confirmMessage
       })
       if (value) {
         var res = await AbsFileSystem.deleteTrackFromItem({ id: this.localLibraryItem.id, trackLocalFileId: this.selectedAudioTrack.localFileId, trackContentUrl: this.selectedAudioTrack.contentUrl })
         if (res && res.id) {
-          this.$toast.success('Deleted track successfully')
+          this.$toast.success(this.$strings.ToastDeletedTrackSuccessfully)
           this.localLibraryItem = res
-        } else this.$toast.error('Failed to delete')
+        } else this.$toast.error(this.Strings.ToastFailedToDelete)
       }
     },
     async deleteItem() {
-      let confirmMessage = 'Remove local files of this item from your device?'
+      let confirmMessage = this.$strings.MessageRemoveLocalFilesOfThisItemFromDevice
       if (this.libraryItemId) {
-        confirmMessage += ' The files on the server and your progress will be unaffected.'
+        confirmMessage += this.$strings.MessageTheFilesOnTheServerAndYourProgressWillBeUnaffected
       }
       const { value } = await Dialog.confirm({
-        title: 'Confirm',
+        title: this.$strings.LabelConfirm,
         message: confirmMessage
       })
       if (value) {
         var res = await AbsFileSystem.deleteItem(this.localLibraryItem)
         if (res && res.success) {
-          this.$toast.success('Deleted Successfully')
+          this.$toast.success(this.$strings.ToastDeletedSuccessfully)
           this.$router.replace(this.isIos ? '/downloads' : `/localMedia/folders/${this.folderId}`)
-        } else this.$toast.error('Failed to delete')
+        } else this.$toast.error(this.Strings.ToastFailedToDelete)
       }
     },
     async scanItem(forceAudioProbe = false) {
@@ -385,14 +385,14 @@ export default {
 
       if (response && response.localLibraryItem) {
         if (response.updated) {
-          this.$toast.success('Local item was updated')
+          this.$toast.success(this.$strings.ToastLocaItemWasUpdated)
           this.localLibraryItem = response.localLibraryItem
         } else {
-          this.$toast.info('Local item was up to date')
+          this.$toast.info(this.$strings.ToastLocalItemWasUpToDate)
         }
       } else {
         console.log('Failed')
-        this.$toast.error('Something went wrong..')
+        this.$toast.error(this.$strings.ToastSomethingWentWrong)
       }
       this.isScanning = false
     },

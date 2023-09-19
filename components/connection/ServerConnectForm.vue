@@ -11,7 +11,7 @@
           </div>
         </div>
         <div class="my-1 py-4 w-full">
-          <ui-btn class="w-full" @click="newServerConfigClick">Add New Server</ui-btn>
+          <ui-btn class="w-full" @click="newServerConfigClick">{{ $strings.ButtonAddNewServer }}</ui-btn>
         </div>
       </template>
       <div v-else class="w-full">
@@ -19,7 +19,7 @@
           <div v-if="serverConnectionConfigs.length" class="flex items-center mb-4" @click="showServerList">
             <span class="material-icons text-gray-300">arrow_back</span>
           </div>
-          <h2 class="text-lg leading-7 mb-2">Server address</h2>
+          <h2 class="text-lg leading-7 mb-2">{{ $strings.LabelServeraddress }}</h2>
           <ui-text-input v-model="serverConfig.address" :disabled="processing || !networkConnected || !!serverConfig.id" placeholder="http://55.55.55.55:13378" type="url" class="w-full h-10" />
           <div class="flex justify-end items-center mt-6">
             <!-- <div class="relative flex">
@@ -27,7 +27,7 @@
               <div v-if="numCustomHeaders" class="rounded-full h-5 w-5 flex items-center justify-center text-xs bg-success bg-opacity-40 leading-3 font-semibold font-mono ml-1">{{ numCustomHeaders }}</div>
             </div> -->
 
-            <ui-btn :disabled="processing || !networkConnected" type="submit" :padding-x="3" class="h-10">{{ networkConnected ? 'Submit' : 'No Internet' }}</ui-btn>
+            <ui-btn :disabled="processing || !networkConnected" type="submit" :padding-x="3" class="h-10">{{ networkConnected ? $strings.ButtonSubmit : $strings.ButtonNoInternet }}</ui-btn>
           </div>
         </form>
         <template v-if="showAuth">
@@ -42,13 +42,13 @@
           </div>
           <div class="w-full h-px bg-white bg-opacity-10 my-2" />
           <form @submit.prevent="submitAuth" class="pt-3">
-            <ui-text-input v-model="serverConfig.username" :disabled="processing" placeholder="username" class="w-full mb-2 text-lg" />
-            <ui-text-input v-model="password" type="password" :disabled="processing" placeholder="password" class="w-full mb-2 text-lg" />
+            <ui-text-input v-model="serverConfig.username" :disabled="processing" :placeholder="$strings.PlaceholderUsername" class="w-full mb-2 text-lg" />
+            <ui-text-input v-model="password" type="password" :disabled="processing" :placeholder="$strings.PlaceholderPassword" class="w-full mb-2 text-lg" />
 
             <div class="flex items-center pt-2">
               <ui-icon-btn v-if="serverConfig.id" small bg-color="error" icon="delete" @click="removeServerConfigClick" />
               <div class="flex-grow" />
-              <ui-btn :disabled="processing || !networkConnected" type="submit" class="mt-1 h-10">{{ networkConnected ? 'Submit' : 'No Internet' }}</ui-btn>
+              <ui-btn :disabled="processing || !networkConnected" type="submit" class="mt-1 h-10">{{ networkConnected ? $strings.ButtonSubmit : $strings.ButtonNoInternet }}</ui-btn>
             </div>
           </form>
         </template>
@@ -76,8 +76,8 @@
 </template>
 
 <script>
-import { Dialog } from '@capacitor/dialog'
 import { CapacitorHttp } from '@capacitor/core'
+import { Dialog } from '@capacitor/dialog'
 
 export default {
   data() {
@@ -164,8 +164,8 @@ export default {
       await this.$hapticsImpact()
 
       const { value } = await Dialog.confirm({
-        title: 'Confirm',
-        message: `Remove this server config?`
+        title: this.$strings.LabelConfirm,
+        message: this.$strings.MessageRemoveThisServerConfig
       })
       if (value) {
         this.processing = true

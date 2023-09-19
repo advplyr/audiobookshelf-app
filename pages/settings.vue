@@ -1,67 +1,73 @@
 <template>
   <div class="w-full h-full px-8 py-8 overflow-y-auto">
     <!-- Display settings -->
-    <p class="uppercase text-xs font-semibold text-gray-300 mb-2">User Interface Settings</p>
+    <p class="uppercase text-xs font-semibold text-gray-300 mb-2">{{ $strings.HeaderUserInterfaceSettings }}</p>
     <div class="flex items-center py-3" @click="toggleEnableAltView">
       <div class="w-10 flex justify-center">
         <ui-toggle-switch v-model="enableBookshelfView" @input="saveSettings" />
       </div>
-      <p class="pl-4">Use bookshelf view</p>
+      <p class="pl-4">{{ $strings.HeaderUserInterfaceSettingsUseBookshelfView }}</p>
     </div>
     <!-- screen.orientation.lock not supported on iOS webview -->
     <div v-if="!isiOS" class="flex items-center py-3" @click.stop="toggleLockOrientation">
       <div class="w-10 flex justify-center pointer-events-none">
         <ui-toggle-switch v-model="lockCurrentOrientation" />
       </div>
-      <p class="pl-4">Lock orientation</p>
+      <p class="pl-4">{{ $strings.HeaderUserInterfaceSettingsLockOrientation }}</p>
     </div>
     <div class="py-3 flex items-center">
-      <p class="pr-4 w-36">Haptic feedback</p>
+      <p class="pr-4 w-36">{{ $strings.HeaderUserInterfaceSettingsHapticFeedback }}</p>
       <div @click.stop="showHapticFeedbackOptions">
         <ui-text-input :value="hapticFeedbackOption" readonly append-icon="expand_more" style="max-width: 145px" />
       </div>
     </div>
+    <div class="py-3 flex items-center">
+      <p class="pr-4 w-36">{{ $strings.HeaderUserInterfaceSettingsLanguage }}</p>
+      <div @click.stop="showLanguageOptions">
+        <ui-text-input :value="languageOption" readonly append-icon="expand_more" style="max-width: 145px" />
+      </div>
+    </div>
 
     <!-- Playback settings -->
-    <p class="uppercase text-xs font-semibold text-gray-300 mb-2 mt-10">Playback Settings</p>
+    <p class="uppercase text-xs font-semibold text-gray-300 mb-2 mt-10">{{ $strings.HeaderPlaybackSettings }}</p>
     <div v-if="!isiOS" class="flex items-center py-3" @click="toggleDisableAutoRewind">
       <div class="w-10 flex justify-center">
         <ui-toggle-switch v-model="settings.disableAutoRewind" @input="saveSettings" />
       </div>
-      <p class="pl-4">Disable auto rewind</p>
+      <p class="pl-4">{{ $strings.HeaderPlaybackSettingsDisableAutoRewind }}</p>
     </div>
     <div class="flex items-center py-3" @click="toggleJumpBackwards">
       <div class="w-10 flex justify-center">
         <span class="material-icons text-4xl">{{ currentJumpBackwardsTimeIcon }}</span>
       </div>
-      <p class="pl-4">Jump backwards time</p>
+      <p class="pl-4">{{ $strings.HeaderPlaybackSettingsJumpBackwardsTime }}</p>
     </div>
     <div class="flex items-center py-3" @click="toggleJumpForward">
       <div class="w-10 flex justify-center">
         <span class="material-icons text-4xl">{{ currentJumpForwardTimeIcon }}</span>
       </div>
-      <p class="pl-4">Jump forwards time</p>
+      <p class="pl-4">{{ $strings.HeaderPlaybackSettingsJumpForwardsTime }}</p>
     </div>
     <div v-if="!isiOS" class="flex items-center py-3" @click="toggleEnableMp3IndexSeeking">
       <div class="w-10 flex justify-center">
         <ui-toggle-switch v-model="settings.enableMp3IndexSeeking" @input="saveSettings" />
       </div>
-      <p class="pl-4">Enable mp3 index seeking</p>
+      <p class="pl-4">{{ $strings.HeaderPlaybackSettingsEnableMp3IndexSeeking }}</p>
       <span class="material-icons-outlined ml-2" @click.stop="showConfirmMp3IndexSeeking">info</span>
     </div>
 
     <!-- Sleep timer settings -->
     <template v-if="!isiOS">
-      <p class="uppercase text-xs font-semibold text-gray-300 mb-2 mt-10">Sleep Timer Settings</p>
+      <p class="uppercase text-xs font-semibold text-gray-300 mb-2 mt-10">{{ $strings.HeaderSleepTimerSettings }}</p>
       <div class="flex items-center py-3" @click="toggleDisableShakeToResetSleepTimer">
         <div class="w-10 flex justify-center">
           <ui-toggle-switch v-model="settings.disableShakeToResetSleepTimer" @input="saveSettings" />
         </div>
-        <p class="pl-4">Disable shake to reset</p>
+        <p class="pl-4">{{ $strings.HeaderSleepTimerSettingsDisableShakeToReset }}</p>
         <span class="material-icons-outlined ml-2" @click.stop="showInfo('disableShakeToResetSleepTimer')">info</span>
       </div>
       <div v-if="!settings.disableShakeToResetSleepTimer" class="py-3 flex items-center">
-        <p class="pr-4 w-36">Shake Sensitivity</p>
+        <p class="pr-4 w-36">{{ $strings.HeaderSleepTimerSettingsShakeSensitivity }}</p>
         <div @click.stop="showShakeSensitivityOptions">
           <ui-text-input :value="shakeSensitivityOption" readonly append-icon="expand_more" style="width: 145px; max-width: 145px" />
         </div>
@@ -70,21 +76,21 @@
         <div class="w-10 flex justify-center">
           <ui-toggle-switch v-model="settings.disableSleepTimerFadeOut" @input="saveSettings" />
         </div>
-        <p class="pl-4">Disable audio fade out</p>
+        <p class="pl-4">{{ $strings.HeaderSleepTimerSettingsDisableAudioFadeOut }}</p>
         <span class="material-icons-outlined ml-2" @click.stop="showInfo('disableSleepTimerFadeOut')">info</span>
       </div>
       <div class="flex items-center py-3" @click="toggleDisableSleepTimerResetFeedback">
         <div class="w-10 flex justify-center">
           <ui-toggle-switch v-model="settings.disableSleepTimerResetFeedback" @input="saveSettings" />
         </div>
-        <p class="pl-4">Disable vibrate on reset</p>
+        <p class="pl-4">{{ $strings.HeaderSleepTimerSettingsDisableVibrateOnReset }}</p>
         <span class="material-icons-outlined ml-2" @click.stop="showInfo('disableSleepTimerResetFeedback')">info</span>
       </div>
       <div class="flex items-center py-3" @click="toggleAutoSleepTimer">
         <div class="w-10 flex justify-center">
           <ui-toggle-switch v-model="settings.autoSleepTimer" @input="saveSettings" />
         </div>
-        <p class="pl-4">Auto Sleep Timer</p>
+        <p class="pl-4">{{ $strings.HeaderSleepTimerSettingsAutoSleepTimer }}</p>
         <span class="material-icons-outlined ml-2" @click.stop="showInfo('autoSleepTimer')">info</span>
       </div>
     </template>
@@ -144,6 +150,7 @@ export default {
         shakeSensitivity: 'MEDIUM',
         lockOrientation: 0,
         hapticFeedback: 'LIGHT',
+        language: this.$languageCodes.default,
         autoSleepTimer: false,
         autoSleepTimerStartTime: '22:00',
         autoSleepTimerEndTime: '06:00',
@@ -182,41 +189,41 @@ export default {
       },
       hapticFeedbackItems: [
         {
-          text: 'Off',
+          text: this.$strings.OptionHapticFeedbackOff,
           value: 'OFF'
         },
         {
-          text: 'Light',
+          text: this.$strings.OptionHapticFeedbackLight,
           value: 'LIGHT'
         },
         {
-          text: 'Medium',
+          text: this.$strings.OptionHapticFeedbackMedium,
           value: 'MEDIUM'
         },
         {
-          text: 'Heavy',
+          text: this.$strings.OptionHapticFeedbackHeavy,
           value: 'HEAVY'
         }
       ],
       shakeSensitivityItems: [
         {
-          text: 'Very Low',
+          text: this.$strings.OptionShakeSensitivityVeryLow,
           value: 'VERY_LOW'
         },
         {
-          text: 'Low',
+          text: this.$strings.OptionShakeSensitivityLow,
           value: 'LOW'
         },
         {
-          text: 'Medium',
+          text: this.$strings.OptionShakeSensitivityMedium,
           value: 'MEDIUM'
         },
         {
-          text: 'High',
+          text: this.$strings.OptionShakeSensitivityHigh,
           value: 'HIGH'
         },
         {
-          text: 'Very High',
+          text: this.$strings.OptionShakeSensitivityVeryHigh,
           value: 'VERY_HIGH'
         }
       ]
@@ -263,6 +270,10 @@ export default {
       const item = this.hapticFeedbackItems.find((i) => i.value === this.settings.hapticFeedback)
       return item ? item.text : 'Error'
     },
+    languageOption() {
+      const item = this.$languageCodeOptions.find((i) => i.value === this.settings.language)
+      return item ? item.text : 'Error'
+    },
     sleepTimerLengthOption() {
       if (!this.settings.sleepTimerLength) return 'End of Chapter'
       const minutes = Number(this.settings.sleepTimerLength) / 1000 / 60
@@ -275,6 +286,7 @@ export default {
     moreMenuItems() {
       if (this.moreMenuSetting === 'shakeSensitivity') return this.shakeSensitivityItems
       else if (this.moreMenuSetting === 'hapticFeedback') return this.hapticFeedbackItems
+      else if (this.moreMenuSetting === 'language') return this.$languageCodeOptions
       return []
     }
   },
@@ -297,6 +309,10 @@ export default {
       this.moreMenuSetting = 'hapticFeedback'
       this.showMoreMenuDialog = true
     },
+    showLanguageOptions() {
+      this.moreMenuSetting = 'language'
+      this.showMoreMenuDialog = true
+    },
     showShakeSensitivityOptions() {
       this.moreMenuSetting = 'shakeSensitivity'
       this.showMoreMenuDialog = true
@@ -309,6 +325,9 @@ export default {
       } else if (this.moreMenuSetting === 'hapticFeedback') {
         this.settings.hapticFeedback = action
         this.hapticFeedbackUpdated(action)
+      } else if (this.moreMenuSetting === 'language') {
+        this.settings.language = action
+        this.languageUpdated(action)
       }
     },
     autoSleepTimerTimeUpdated(val) {
@@ -319,6 +338,11 @@ export default {
     hapticFeedbackUpdated(val) {
       this.$store.commit('globals/setHapticFeedback', val)
       this.saveSettings()
+    },
+    async languageUpdated(val) {
+      this.$store.commit('globals/setLanguage', val)
+      await this.saveSettings()
+      this.$setLanguageCode(val)
     },
     showInfo(setting) {
       if (this.settingInfo[setting]) {
@@ -420,6 +444,7 @@ export default {
       this.settings.lockOrientation = deviceSettings.lockOrientation || 'NONE'
       this.lockCurrentOrientation = this.settings.lockOrientation !== 'NONE'
       this.settings.hapticFeedback = deviceSettings.hapticFeedback || 'LIGHT'
+      this.settings.language = deviceSettings.language || this.$languageCodes.current || this.$languageCodes.default
 
       this.settings.disableShakeToResetSleepTimer = !!deviceSettings.disableShakeToResetSleepTimer
       this.settings.shakeSensitivity = deviceSettings.shakeSensitivity || 'MEDIUM'

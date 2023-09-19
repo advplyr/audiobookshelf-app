@@ -1,6 +1,6 @@
 <template>
   <div class="w-full p-4">
-    <h1 class="text-xl mb-2 font-semibold">Latest Episodes</h1>
+    <h1 class="text-xl mb-2 font-semibold">{{ $strings.LabelLatestEpisodes }}</h1>
 
     <template v-for="episode in recentEpisodes">
       <tables-podcast-latest-episode-row :episode="episode" :local-episode="localEpisodeMap[episode.id]" :library-item-id="episode.libraryItemId" :local-library-item-id="null" :is-local="isLocal" :key="episode.id" @addToPlaylist="addEpisodeToPlaylist" />
@@ -31,7 +31,7 @@ export default {
     async addEpisodeToPlaylist(episode) {
       const libraryItem = await this.$nativeHttp.get(`/api/items/${episode.libraryItemId}`).catch((error) => {
         console.error('Failed to get library item', error)
-        this.$toast.error('Failed to get library item')
+        this.$toast.error(this.$strings.ToastFailedToGetLibraryItem)
         return null
       })
       if (!libraryItem) return
@@ -44,7 +44,7 @@ export default {
       this.processing = true
       const episodePayload = await this.$nativeHttp.get(`/api/libraries/${this.currentLibraryId}/recent-episodes?limit=25&page=${page}`).catch((error) => {
         console.error('Failed to get recent episodes', error)
-        this.$toast.error('Failed to get recent episodes')
+        this.$toast.error(this.$strings.ToastFailedToGetRecentEpisodes)
         return null
       })
       this.processing = false

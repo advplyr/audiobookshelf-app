@@ -91,3 +91,6 @@ sw.*
 
 /resources/
 /android/app/release/
+
+.history
+.vscode

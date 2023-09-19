@@ -1,18 +1,18 @@
 <template>
   <div class="w-full h-full py-6 px-4">
     <div class="flex items-center mb-2">
-      <p class="text-base font-semibold">Folder: {{ folderName }}</p>
+      <p class="text-base font-semibold">{{ $strings.LabelFolder }}: {{ folderName }}</p>
       <div class="flex-grow" />
 
       <span v-if="dialogItems.length" class="material-icons" @click="showDialog = true">more_vert</span>
     </div>
 
-    <p class="text-sm mb-4 text-white text-opacity-60">Media Type: {{ mediaType }}</p>
+    <p class="text-sm mb-4 text-white text-opacity-60">{{ $strings.LabelMediaType }}: {{ mediaType }}</p>
 
-    <p class="mb-2 text-base text-white">Local Library Items ({{ localLibraryItems.length }})</p>
+    <p class="mb-2 text-base text-white">{{ $getString('HeaderLocalLibraryItems', [localLibraryItems.length]) }}</p>
 
     <div v-if="isScanning" class="w-full text-center p-4">
-      <p>Scanning...</p>
+      <p>{{ $strings.MessageScanning }}</p>
     </div>
     <div v-else class="w-full media-item-container overflow-y-auto">
       <template v-for="localLibraryItem in localLibraryItems">
@@ -61,7 +61,13 @@ export default {
       return this.folder?.name || null
     },
     mediaType() {
-      return this.folder?.mediaType
+      var mediaType = ''
+      if('book' === this.folder?.mediaType) {
+        mediaType = this.$strings.LabelBooks
+      } else if('podcast' === this.folder?.mediaType) {
+        mediaType = this.$strings.LabelPodcasts
+      }
+      return mediaType
     },
     isInternalStorage() {
       return this.folder?.id.startsWith('internal-')
@@ -70,20 +76,20 @@ export default {
       if (this.isInternalStorage) return []
       const items = [
         {
-          text: 'Scan',
+          text: this.$strings.LabelScan,
           value: 'scan'
         }
       ]
 
       if (this.localLibraryItems.length) {
         items.push({
-          text: 'Force Re-Scan',
+          text: this.$strings.LabelForceReScan,
           value: 'rescan'
         })
       }
 
       items.push({
-        text: 'Remove',
+        text: this.$strings.LabelRemove,
         value: 'remove'
       })
       return items
@@ -95,14 +101,14 @@ export default {
       if (localLibraryItem.mediaType == 'book') {
         const txts = []
         if (localLibraryItem.media.ebookFile) {
-          txts.push(`${localLibraryItem.media.ebookFile.ebookFormat} EBook`)
+          txts.push(`${localLibraryItem.media.ebookFile.ebookFormat} ${this.$strings.LabelEBook}`)
         }
         if (localLibraryItem.media.tracks?.length) {
-          txts.push(`${localLibraryItem.media.tracks.length} Tracks`)
+          txts.push(`${localLibraryItem.media.tracks.length} ${this.$strings.LabelTracks}`)
         }
         return txts.join(' • ')
       } else {
-        return `${localLibraryItem.media.episodes?.length || 0} Episodes`
+        return `${localLibraryItem.media.episodes?.length || 0} ${this.$strings.LabelEpisodes}`
       }
     },
     dialogAction(action) {
@@ -117,12 +123,12 @@ export default {
       this.showDialog = false
     },
     async removeFolder() {
-      var deleteMessage = 'Are you sure you want to remove this folder? (does not delete anything in your file system)'
+      var deleteMessage = this.$strings.MessageRemoveFolder
       if (this.localLibraryItems.length) {
-        deleteMessage = `Are you sure you want to remove this folder and ${this.localLibraryItems.length} items? (does not delete anything in your file system)`
+        deleteMessage = this.$getString('MessageRemoveFolderAndItem', [this.localLibraryItems.length])
       }
       const { value } = await Dialog.confirm({
-        title: 'Confirm',
+        title: this.$strings.LabelConfirm,
         message: deleteMessage
       })
       if (value) {
@@ -145,11 +151,11 @@ export default {
         var itemsRemoved = response.itemsRemoved
         var itemsUpToDate = response.itemsUpToDate
         var toastMessages = []
-        if (itemsAdded) toastMessages.push(`${itemsAdded} Added`)
-        if (itemsUpdated) toastMessages.push(`${itemsUpdated} Updated`)
-        if (itemsRemoved) toastMessages.push(`${itemsRemoved} Removed`)
-        if (itemsUpToDate) toastMessages.push(`${itemsUpToDate} Up-to-date`)
-        this.$toast.info(`Folder scan complete:\n${toastMessages.join(' | ')}`)
+        if (itemsAdded) toastMessages.push(this.$getString('', [itemsAdded]))
+        if (itemsUpdated) toastMessages.push(this.$getString('', [itemsUpdated]))
+        if (itemsRemoved) toastMessages.push(this.$getString('', [itemsRemoved]))
+        if (itemsUpToDate) toastMessages.push(this.$getString('', [itemsUpToDate]))
+        this.$toast.info(this.$getString('ToastFolderScanComplete', [toastMessages.join(' | ')]))
 
         // When all items are up-to-date then local media items are not returned
         if (response.localLibraryItems.length) {
