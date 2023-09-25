@@ -5,7 +5,7 @@
 <script>
 export default {
   async asyncData({ params, app, store, redirect }) {
-    var series = await app.$axios.$get(`/api/series/${params.id}`).catch((error) => {
+    var series = await app.$nativeHttp.get(`/api/series/${params.id}`).catch((error) => {
       console.error('Failed', error)
       return false
     })

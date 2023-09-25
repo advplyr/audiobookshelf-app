@@ -150,7 +150,7 @@ export default {
       libraryItem = await app.$db.getLocalLibraryItem(libraryItemId)
       console.log('Got lli', libraryItemId)
     } else if (store.state.user.serverConnectionConfig) {
-      libraryItem = await app.$axios.$get(`/api/items/${libraryItemId}?expanded=1&include=rssfeed`).catch((error) => {
+      libraryItem = await app.$nativeHttp.get(`/api/items/${libraryItemId}?expanded=1&include=rssfeed`).catch((error) => {
         console.error('Failed', error)
         return false
       })

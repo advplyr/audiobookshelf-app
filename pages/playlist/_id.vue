@@ -33,7 +33,7 @@ export default {
       return redirect(`/connect?redirect=${route.path}`)
     }
 
-    const playlist = await app.$axios.$get(`/api/playlists/${params.id}`).catch((error) => {
+    const playlist = await app.$nativeHttp.get(`/api/playlists/${params.id}`).catch((error) => {
       console.error('Failed', error)
       return false
     })
