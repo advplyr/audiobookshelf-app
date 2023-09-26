@@ -41,7 +41,7 @@
             <span v-if="!serverConfig.id" class="material-icons" style="font-size: 1.1rem" @click="editServerAddress">edit</span>
           </div>
           <div class="w-full h-px bg-white bg-opacity-10 my-2" />
-          <form @submit.prevent="submitAuth" class="pt-3">
+          <form v-if="isLocalAuthEnabled" @submit.prevent="submitAuth" class="pt-3">
             <ui-text-input v-model="serverConfig.username" :disabled="processing" :placeholder="$strings.PlaceholderUsername" class="w-full mb-2 text-lg" />
             <ui-text-input v-model="password" type="password" :disabled="processing" :placeholder="$strings.PlaceholderPassword" class="w-full mb-2 text-lg" />
 
@@ -51,6 +51,8 @@
               <ui-btn :disabled="processing || !networkConnected" type="submit" class="mt-1 h-10">{{ networkConnected ? $strings.ButtonSubmit : $strings.ButtonNoInternet }}</ui-btn>
             </div>
           </form>
+          <div v-if="isLocalAuthEnabled && isOpenIDAuthEnabled" class="w-full h-px bg-white bg-opacity-10 my-2" />
+          <ui-btn v-if="isOpenIDAuthEnabled" :disabled="processing" class="mt-1 h-10" @click="clickLoginWithOpenId">Login with OpenId</ui-btn>
         </template>
       </div>
 
@@ -76,6 +78,7 @@
 </template>
 
 <script>
+import { OAuth2Client } from '@byteowls/capacitor-oauth2'
 import { CapacitorHttp } from '@capacitor/core'
 import { Dialog } from '@capacitor/dialog'
 
@@ -93,7 +96,8 @@ export default {
       password: null,
       error: null,
       showForm: false,
-      showAddCustomHeaders: false
+      showAddCustomHeaders: false,
+      authMethods: []
     }
   },
   computed: {
@@ -116,9 +120,51 @@ export default {
     numCustomHeaders() {
       if (!this.serverConfig.customHeaders) return 0
       return Object.keys(this.serverConfig.customHeaders).length
+    },
+    isLocalAuthEnabled() {
+      return this.authMethods.includes('local') || !this.authMethods.length
+    },
+    isOpenIDAuthEnabled() {
+      return this.authMethods.includes('openid')
     }
   },
   methods: {
+    async clickLoginWithOpenId() {
+      this.error = ''
+      const options = {
+        authorizationBaseUrl: `${this.serverConfig.address}/auth/openid`,
+        logsEnabled: true,
+        web: {
+          appId: 'com.audiobookshelf.web',
+          responseType: 'token',
+          redirectUrl: location.origin
+        },
+        android: {
+          appId: 'com.audiobookshelf.app',
+          responseType: 'code',
+          redirectUrl: 'com.audiobookshelf.app:/'
+        }
+      }
+      OAuth2Client.authenticate(options)
+        .then(async (response) => {
+          const token = response.authorization_response?.additional_parameters?.setToken || response.authorization_response?.setToken
+          if (token) {
+            this.serverConfig.token = token
+            const payload = await this.authenticateToken()
+            if (payload) {
+              this.setUserAndConnection(payload)
+            } else {
+              this.showAuth = true
+            }
+          } else {
+            this.error = 'Invalid response: No token'
+          }
+        })
+        .catch((error) => {
+          console.error('OAuth rejected', error)
+          this.error = error.toString?.() || error.message
+        })
+    },
     addCustomHeaders() {
       this.showAddCustomHeaders = true
     },
@@ -251,6 +297,23 @@ export default {
         return response.data
       }
     },
+    /**
+     * Get request to server /status api endpoint
+     *
+     * @param {string} address
+     * @returns {Promise<{isInit:boolean, language:string, authMethods:string[]}>}
+     */
+    getServerAddressStatus(address) {
+      return this.getRequest(`${address}/status`).catch((error) => {
+        console.error('Failed to get server status', error)
+        const errorMsg = error.message || error
+        this.error = 'Failed to ping server'
+        if (typeof errorMsg === 'string') {
+          this.error += ` (${errorMsg})`
+        }
+        return null
+      })
+    },
     pingServerAddress(address, customHeaders) {
       return this.getRequest(`${address}/ping`, customHeaders)
         .then((data) => {
@@ -302,10 +365,18 @@ export default {
       this.serverConfig.address = validServerAddress
       this.processing = true
       this.error = null
+      this.authMethods = []
 
-      var success = await this.pingServerAddress(this.serverConfig.address, this.serverConfig.customHeaders)
+      const statusData = await this.getServerAddressStatus(this.serverConfig.address)
       this.processing = false
-      if (success) this.showAuth = true
+      if (statusData) {
+        if (!statusData.isInit) {
+          this.error = 'Server is not initialized'
+        } else {
+          this.showAuth = true
+          this.authMethods = statusData.authMethods || []
+        }
+      }
     },
     async submitAuth() {
       if (!this.networkConnected) return
@@ -346,6 +417,7 @@ export default {
 
       this.serverConfig.userId = user.id
       this.serverConfig.token = user.token
+      this.serverConfig.username = user.username
 
       var serverConnectionConfig = await this.$db.setServerConnectionConfig(this.serverConfig)
 
