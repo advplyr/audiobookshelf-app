@@ -278,8 +278,8 @@ export default ({ store, app }, inject) => {
     }
     if (!canGoBack) {
       const { value } = await Dialog.confirm({
-        title: 'Confirm',
-        message: `Did you want to exit the app?`,
+        title: Vue.prototype.$strings.LabelConfirm,
+        message: Vue.prototype.$strings.MessageExit,
       })
       if (value) {
         App.exitApp()

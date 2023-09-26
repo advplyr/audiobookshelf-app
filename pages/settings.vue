@@ -163,28 +163,28 @@ export default {
       lockCurrentOrientation: false,
       settingInfo: {
         disableShakeToResetSleepTimer: {
-          name: 'Disable shake to reset sleep timer',
-          message: 'Shaking your device while the timer is running OR within 2 minutes of the timer expiring will reset the sleep timer. Enable this setting to disable shake to reset.'
+          name: this.$strings.LabelDisableShakeToResetSleepTimer,
+          message: this.$strings.MessageDisableShakeToResetSleepTimer
         },
         autoSleepTimer: {
-          name: 'Auto Sleep Timer',
-          message: 'When playing media between the specified start and end times a sleep timer will automatically start.'
+          name: this.$strings.LabelAutoSleepTimer,
+          message: this.$strings.MessageAutoSleepTimer
         },
         disableSleepTimerFadeOut: {
-          name: 'Disable audio fade out',
-          message: 'Audio volume will start decreasing when there is less than 1 minute remaining on the sleep timer. Enable this setting to not fade out.'
+          name: this.$strings.LabelDisableSleepTimerFadeOut,
+          message: this.$strings.MessageDisableSleepTimerFadeOut
         },
         disableSleepTimerResetFeedback: {
-          name: 'Disable vibrate on reset',
-          message: 'When the sleep timer gets reset your device will vibrate. Enable this setting to not vibrate when the sleep timer resets.'
+          name: this.$strings.LabelDisableSleepTimerResetFeedback,
+          message: this.$strings.MessageDisableSleepTimerResetFeedback
         },
         autoSleepTimerAutoRewind: {
-          name: 'Enable sleep timer auto rewind',
-          message: 'When the auto sleep timer finishes, playing the item again will automatically rewind your position.'
+          name: this.$strings.LabelAutoSleepTimerAutoRewind,
+          message: this.$strings.MessageAutoSleepTimerAutoRewind
         },
         enableMp3IndexSeeking: {
-          name: 'Enable mp3 index seeking',
-          message: 'This setting should only be enabled if you have mp3 files that are not seeking correctly. Inaccurate seeking is most likely due to Variable birate (VBR) MP3 files. This setting will force index seeking, in which a time-to-byte mapping is built as the file is read. In some cases with large MP3 files there will be a delay when seeking towards the end of the file.'
+          name: this.$strings.LabelEnableMp3IndexSeeking,
+          message: this.$strings.MessageEnableMp3IndexSeeking
         }
       },
       hapticFeedbackItems: [
