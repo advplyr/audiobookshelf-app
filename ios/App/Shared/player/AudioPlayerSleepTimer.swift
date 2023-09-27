@@ -116,8 +116,9 @@ extension AudioPlayer {
     // MARK: - Internal helpers
     
     internal func handleTrackChangeForChapterSleepTimer() {
-        // If no sleep timer is set, this does nothing
-        self.setChapterSleepTimer(stopAt: self.sleepTimeChapterStopAt)
+        if self.isChapterSleepTimerSet() {
+            self.setChapterSleepTimer(stopAt: self.sleepTimeChapterStopAt)
+        }
     }
     
     private func decrementSleepTimerIfRunning() {
