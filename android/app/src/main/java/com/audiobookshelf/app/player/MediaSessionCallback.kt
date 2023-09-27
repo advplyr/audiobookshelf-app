@@ -86,7 +86,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
   }
 
   override fun onSeekTo(pos: Long) {
-    playerNotificationService.seekPlayer(pos)
+    playerNotificationService.seekPlayer(playerNotificationService.getStartTimeOfChapterOrTrack() + pos)
   }
 
   private fun onChangeSpeed() {

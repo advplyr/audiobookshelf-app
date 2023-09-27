@@ -696,6 +696,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     return getCurrentBookChapter()?.endMs ?: currentPlaybackSession?.getCurrentTrackEndTime()
   }
 
+  fun getStartTimeOfChapterOrTrack():Long {
+    val windowIndex = currentPlayer.currentMediaItemIndex
+    return getCurrentBookChapter()?.startMs ?: currentPlaybackSession?.getTrackStartOffsetMs(windowIndex)?: 0L
+  }
+
   private fun getNextBookChapter():BookChapter? {
     return currentPlaybackSession?.getNextChapterForTime(this.getCurrentTime())
   }
