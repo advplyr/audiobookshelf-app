@@ -157,7 +157,8 @@ export default {
       syncStatus: 0,
       showMoreMenuDialog: false,
       coverRgb: 'rgb(55, 56, 56)',
-      coverBgIsLight: false
+      coverBgIsLight: false,
+      currentLang: ""
     }
   },
   watch: {
@@ -173,7 +174,7 @@ export default {
     menuItems() {
       const items = []
       // TODO: Implement on iOS
-      if (this.$platform !== 'ios' && !this.isPodcast && this.mediaId) {
+      if (this.$platform !== 'ios' && !this.isPodcast && this.mediaId && this.currentLang) {
         items.push({
           text: this.$strings.MenuHistory,
           value: 'history',
@@ -835,9 +836,13 @@ export default {
     },
     showProgressSyncSuccess() {
       this.syncStatus = this.$constants.SyncStatus.SUCCESS
+    },
+    changeLanguage(code) {
+      this.currentLang = code
     }
   },
   mounted() {
+    this.$eventBus.$on('change-lang', this.changeLanguage)
     this.updateScreenSize()
     if (screen.orientation) {
       // Not available on ios
@@ -854,6 +859,7 @@ export default {
     this.$nextTick(this.init)
   },
   beforeDestroy() {
+    this.$eventBus.$off('change-lang', this.changeLanguage)
     if (screen.orientation) {
       // Not available on ios
       screen.orientation.removeEventListener('change', this.screenOrientationChange)

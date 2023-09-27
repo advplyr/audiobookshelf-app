@@ -4,7 +4,7 @@
 
     <modals-playback-speed-modal v-model="showPlaybackSpeedModal" :playback-rate.sync="playbackSpeed" @update:playbackRate="updatePlaybackSpeed" @change="changePlaybackSpeed" />
     <modals-sleep-timer-modal v-model="showSleepTimerModal" :current-time="sleepTimeRemaining" :sleep-timer-running="isSleepTimerRunning" :current-end-of-chapter-time="currentEndOfChapterTime" :is-auto="isAutoSleepTimer" @change="selectSleepTimeout" @cancel="cancelSleepTimer" @increase="increaseSleepTimer" @decrease="decreaseSleepTimer" />
-    <modals-bookmarks-modal v-model="showBookmarksModal" :bookmarks="bookmarks" :current-time="currentTime" :library-item-id="serverLibraryItemId" @select="selectBookmark" />
+    <modals-bookmarks-modal :key="currentLang" v-model="showBookmarksModal" :bookmarks="bookmarks" :current-time="currentTime" :library-item-id="serverLibraryItemId" @select="selectBookmark" />
   </div>
 </template>
 
@@ -36,7 +36,8 @@ export default {
       sleepInterval: null,
       currentEndOfChapterTime: 0,
       serverLibraryItemId: null,
-      serverEpisodeId: null
+      serverEpisodeId: null,
+      currentLang: null
     }
   },
   computed: {
@@ -332,9 +333,13 @@ export default {
           }
         }
       }
+    },
+    changeLanguage(code) {
+      this.currentLang = code
     }
   },
   mounted() {
+    this.$eventBus.$on('change-lang', this.changeLanguage)
     this.onLocalMediaProgressUpdateListener = AbsAudioPlayer.addListener('onLocalMediaProgressUpdate', this.onLocalMediaProgressUpdate)
     this.onSleepTimerEndedListener = AbsAudioPlayer.addListener('onSleepTimerEnded', this.onSleepTimerEnded)
     this.onSleepTimerSetListener = AbsAudioPlayer.addListener('onSleepTimerSet', this.onSleepTimerSet)
@@ -353,6 +358,7 @@ export default {
     this.$eventBus.$on('device-focus-update', this.deviceFocused)
   },
   beforeDestroy() {
+    this.$eventBus.$off('change-lang', this.changeLanguage)
     if (this.onLocalMediaProgressUpdateListener) this.onLocalMediaProgressUpdateListener.remove()
     if (this.onSleepTimerEndedListener) this.onSleepTimerEndedListener.remove()
     if (this.onSleepTimerSetListener) this.onSleepTimerSetListener.remove()

@@ -2,7 +2,7 @@
   <modals-modal v-model="show" :width="400" height="100%">
     <template #outer>
       <div class="absolute top-8 left-4 z-40">
-        <p class="text-white text-2xl truncate">Bookmarks</p>
+        <p class="text-white text-2xl truncate">{{ $strings.LabelBookmarks }}</p>
       </div>
     </template>
     <div class="w-full h-full overflow-hidden absolute top-0 left-0 flex items-center justify-center" @click="show = false">
@@ -12,16 +12,16 @@
             <div class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-white hover:bg-opacity-10 cursor-pointer" @click.stop="showBookmarkTitleInput = false">
               <span class="material-icons text-3xl">arrow_back</span>
             </div>
-            <p class="text-xl pl-2">{{ selectedBookmark ? 'Edit Bookmark' : 'New Bookmark' }}</p>
+            <p class="text-xl pl-2">{{ selectedBookmark ? $strings.LabelEditBookmark : $strings.LabelNewBookmark }}</p>
             <div class="flex-grow" />
             <p class="text-xl font-mono">
               {{ this.$secondsToTimestamp(currentTime) }}
             </p>
           </div>
 
-          <ui-text-input-with-label v-model="newBookmarkTitle" label="Note" />
+          <ui-text-input-with-label v-model="newBookmarkTitle" :label="$strings.LabelNote" />
           <div class="flex justify-end mt-6">
-            <ui-btn color="success" class="w-full" @click.stop="submitBookmark">{{ selectedBookmark ? 'Update' : 'Create' }}</ui-btn>
+            <ui-btn color="success" class="w-full" @click.stop="submitBookmark">{{ selectedBookmark ? $strings.ButtonUpdate : $strings.ButtonCreate }}</ui-btn>
           </div>
         </div>
         <div class="w-full h-full" v-show="!showBookmarkTitleInput">
@@ -29,11 +29,11 @@
             <modals-bookmarks-bookmark-item :key="bookmark.id" :highlight="currentTime === bookmark.time" :bookmark="bookmark" @click="clickBookmark" @edit="editBookmark" @delete="deleteBookmark" />
           </template>
           <div v-if="!bookmarks.length" class="flex h-32 items-center justify-center">
-            <p class="text-xl">No Bookmarks</p>
+            <p class="text-xl">{{ $strings.LabelNoBookmarks }}</p>
           </div>
           <div v-show="canCreateBookmark" class="flex px-4 py-2 items-center text-center justify-between border-b border-white border-opacity-10 bg-blue-500 bg-opacity-20 cursor-pointer text-white text-opacity-80 hover:bg-opacity-40 hover:text-opacity-100" @click.stop="createBookmark">
             <span class="material-icons">add</span>
-            <p class="text-base pl-2">Create Bookmark</p>
+            <p class="text-base pl-2">{{ $strings.ButtonCreateBookmark }}</p>
             <p class="text-sm font-mono">
               {{ this.$secondsToTimestamp(currentTime) }}
             </p>
@@ -64,7 +64,8 @@ export default {
     return {
       selectedBookmark: null,
       showBookmarkTitleInput: false,
-      newBookmarkTitle: ''
+      newBookmarkTitle: '',
+      currentLang: null
     }
   },
   watch: {
@@ -97,18 +98,18 @@ export default {
     async deleteBookmark(bm) {
       await this.$hapticsImpact()
       const { value } = await Dialog.confirm({
-        title: 'Remove Bookmark',
-        message: `Are you sure you want to remove bookmark?`
+        title: this.$strings.LabelRemoveBookmark,
+        message: this.$strings.MessageRemoveBookmark
       })
       if (!value) return
 
       this.$nativeHttp
         .delete(`/api/me/item/${this.libraryItemId}/bookmark/${bm.time}`)
         .then(() => {
-          this.$toast.success('Bookmark removed')
+          this.$toast.success(this.$strings.ToastBookmarkRemoved)
         })
         .catch((error) => {
-          this.$toast.error(`Failed to remove bookmark`)
+          this.$toast.error(this.$strings.ToastFailedToRemoveBookmark)
           console.error(error)
         })
       this.show = false
@@ -122,10 +123,10 @@ export default {
       this.$nativeHttp
         .patch(`/api/me/item/${this.libraryItemId}/bookmark`, bookmark)
         .then(() => {
-          this.$toast.success('Bookmark updated')
+          this.$toast.success(this.$strings.ToastBookmarkUpdated)
         })
         .catch((error) => {
-          this.$toast.error(`Failed to update bookmark`)
+          this.$toast.error(this.$strings.ToastFailedToUpdateBookmark)
           console.error(error)
         })
       this.show = false
@@ -141,10 +142,10 @@ export default {
       this.$nativeHttp
         .post(`/api/me/item/${this.libraryItemId}/bookmark`, bookmark)
         .then(() => {
-          this.$toast.success('Bookmark added')
+          this.$toast.success(this.$strings.ToastBookmarkAdded)
         })
         .catch((error) => {
-          this.$toast.error(`Failed to create bookmark`)
+          this.$toast.error(this.$strings.ToastFailedToCreateBookmark)
           console.error(error)
         })
 
@@ -169,8 +170,16 @@ export default {
       } else {
         this.submitCreateBookmark()
       }
+    },
+    changeLanguage(code) {
+      this.currentLang = code
     }
   },
-  mounted() {}
+  mounted() {
+    this.$eventBus.$on('change-lang', this.changeLanguage)
+  },
+  beforeDestroy() {
+    this.$eventBus.$off('change-lang', this.changeLanguage)
+  }
 }
 </script>

@@ -1,8 +1,8 @@
 <template>
-  <modals-modal v-model="show" :width="200" height="100%">
+  <modals-modal :key="currentLang" v-model="show" :width="200" height="100%">
     <template #outer>
       <div class="absolute top-8 left-4 z-40">
-        <p class="text-white text-2xl truncate">Sleep Timer</p>
+        <p class="text-white text-2xl truncate">{{ $strings.LabelSleepTimer }}</p>
       </div>
     </template>
 
@@ -20,27 +20,27 @@
           </div>
           <div class="flex my-2 justify-between">
             <ui-btn @click="decreaseManualTimeout" class="w-9 h-9" :padding-x="0" small style="max-width: 36px"><span class="material-icons">remove</span></ui-btn>
-            <p class="text-2xl font-mono text-center">{{ manualTimeoutMin }} min</p>
+            <p class="text-2xl font-mono text-center">{{ manualTimeoutMin + ' ' + $strings.LabelMin }} </p>
             <ui-btn @click="increaseManualTimeout" class="w-9 h-9" :padding-x="0" small style="max-width: 36px"><span class="material-icons">add</span></ui-btn>
           </div>
-          <ui-btn @click="clickedOption(manualTimeoutMin)" class="w-full">Set Timer</ui-btn>
+          <ui-btn @click="clickedOption(manualTimeoutMin)" class="w-full">{{ $strings.ButtonSetTimer }}</ui-btn>
         </div>
         <ul v-else-if="!sleepTimerRunning" class="h-full w-full" role="listbox" aria-labelledby="listbox-label">
           <template v-for="timeout in timeouts">
             <li :key="timeout" class="text-gray-50 select-none relative py-4 cursor-pointer hover:bg-black-400" role="option" @click="clickedOption(timeout)">
               <div class="flex items-center justify-center">
-                <span class="font-normal block truncate text-lg">{{ timeout }} min</span>
+                <span class="font-normal block truncate text-lg">{{ timeout + ' ' + $strings.LabelMin }}</span>
               </div>
             </li>
           </template>
           <li v-if="currentEndOfChapterTime" class="text-gray-50 select-none relative py-4 cursor-pointer hover:bg-black-400" role="option" @click="clickedChapterOption(timeout)">
             <div class="flex items-center justify-center">
-              <span class="font-normal block truncate text-lg text-center">End of Chapter</span>
+              <span class="font-normal block truncate text-lg text-center">{{ $strings.MenuEndOfChapter }}</span>
             </div>
           </li>
           <li class="text-gray-50 select-none relative py-4 cursor-pointer hover:bg-black-400" role="option" @click="manualTimerModal = true">
             <div class="flex items-center justify-center">
-              <span class="font-normal block truncate text-lg text-center">Custom time</span>
+              <span class="font-normal block truncate text-lg text-center">{{ $strings.MenuCustomTime }}</span>
             </div>
           </li>
         </ul>
@@ -51,7 +51,7 @@
             <ui-btn @click="increaseSleepTime" class="w-9 h-9" :padding-x="0" small style="max-width: 36px"><span class="material-icons">add</span></ui-btn>
           </div>
 
-          <ui-btn @click="cancelSleepTimer" class="w-full">{{ isAuto ? 'Disable Auto Timer' : 'Cancel Timer' }}</ui-btn>
+          <ui-btn @click="cancelSleepTimer" class="w-full">{{ isAuto ? $strings.ButtonDisableAutoTimer : $strings.ButtonCancelTimer }}</ui-btn>
         </div>
       </div>
     </div>
@@ -67,7 +67,11 @@ export default {
     currentTime: Number,
     sleepTimerRunning: Boolean,
     currentEndOfChapterTime: Number,
-    isAuto: Boolean
+    isAuto: Boolean,
+    currentLang: {
+      type: String,
+      required: false
+    },
   },
   data() {
     return {
@@ -107,8 +111,8 @@ export default {
     async cancelSleepTimer() {
       if (this.isAuto) {
         const { value } = await Dialog.confirm({
-          title: 'Confirm',
-          message: 'Are you sure you want to disable the auto sleep timer? You will need to enable this again in settings.'
+          title: this.$strings.LabelConfirm,
+          message: this.$strings.MessageDisableSleepTimer
         })
         if (!value) return
       }
