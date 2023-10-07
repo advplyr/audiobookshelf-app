@@ -217,7 +217,6 @@ export default {
         return Capacitor.convertFileSrc(this.localContentUrl)
       }
       const serverAddress = this.$store.getters['user/getServerAddress']
-
       if (this.ebookFileId) {
         return `${serverAddress}/api/items/${this.selectedLibraryItem.id}/ebook/${this.ebookFileId}`
       }

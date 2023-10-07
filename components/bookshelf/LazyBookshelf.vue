@@ -72,6 +72,9 @@ export default {
     showBookshelfListView() {
       return this.isBookEntity && this.bookshelfListView
     },
+    sortingIgnorePrefix() {
+      return this.$store.getters['getServerSetting']('sortingIgnorePrefix')
+    },
     entityName() {
       return this.page
     },
