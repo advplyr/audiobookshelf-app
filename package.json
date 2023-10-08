@@ -13,9 +13,9 @@
     "ionic:serve": "npm run start"
   },
   "dependencies": {
-    "@byteowls/capacitor-oauth2": "^5.0.0",
     "@capacitor/android": "^5.0.0",
-    "@capacitor/app": "^5.0.0",
+    "@capacitor/app": "^5.0.6",
+    "@capacitor/browser": "^5.1.0",
     "@capacitor/clipboard": "^5.0.0",
     "@capacitor/core": "^5.0.0",
     "@capacitor/dialog": "^5.0.0",
