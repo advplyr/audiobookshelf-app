@@ -139,9 +139,6 @@ export default {
     }
   },
   computed: {
-    showExperimentalFeatures() {
-      return this.store.state.showExperimentalFeatures
-    },
     _libraryItem() {
       return this.libraryItem || {}
     },

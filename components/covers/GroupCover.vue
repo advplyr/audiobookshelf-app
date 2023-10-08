@@ -51,9 +51,6 @@ export default {
       if (this.bookCoverAspectRatio === 1) return this.width / (120 * 1.6 * 2)
       return this.width / 240
     },
-    showExperimentalFeatures() {
-      return this.store.state.showExperimentalFeatures
-    },
     store() {
       return this.$store || this.$nuxt.$store
     },
