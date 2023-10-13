@@ -79,9 +79,10 @@
 
 <script>
 import { App } from '@capacitor/app';
-import { Dialog } from '@capacitor/dialog'
-import { CapacitorHttp } from '@capacitor/core'
 import { Browser } from '@capacitor/browser';
+import { Capacitor } from '@capacitor/core';
+import { CapacitorHttp } from '@capacitor/core'
+import { Dialog } from '@capacitor/dialog'
 
 // Variable which is set to an instance of ServerConnectForm.vue used below of the listener
 let serverConnectForm = null;
@@ -91,7 +92,8 @@ App.addListener('appUrlOpen', async (data) => {
   const url = new URL(data.url)
 
   // audiobookshelf://oauth?code...
-  if (url.host === 'oauth') {
+  // url.hostname for iOS and url.pathname for android
+  if (data.url.startsWith('audiobookshelf://oauth')) {
     // Extract oauth2 code to be exchanged for a token
     const authCode = url.searchParams.get('code')
     // Extract the state variable
@@ -101,7 +103,7 @@ App.addListener('appUrlOpen', async (data) => {
       await serverConnectForm.oauthExchangeCodeForToken(authCode, state)
     }
   } else {
-    console.warn(`[appUrlOpen] Unknown url: ${data.url}`)
+    console.warn(`[appUrlOpen] Unknown url: ${data.url} - host: ${url.hostname} - path: ${url.pathname}`)
   }
 });
 
@@ -205,7 +207,8 @@ export default {
           },
         })
 
-        const locationHeader = response.headers["Location"]
+        // Depending on iOS or Android, it can be location or Location...
+        const locationHeader = response.headers[Object.keys(response.headers).find(key => key.toLowerCase() === 'location')];
         if (locationHeader) {
           const url = new URL(locationHeader)
           return url
@@ -226,8 +229,10 @@ export default {
       const backendEndpoint = `${this.serverConfig.address}/auth/openid/callback?state=${encodeURIComponent(state)}&code=${encodeURIComponent(code)}`;
 
       try {
-        // We can close the browser at this point
-        await Browser.close()
+        // We can close the browser at this point (does not work on Android)
+        if (Capacitor.getPlatform() === 'ios' || Capacitor.getPlatform() === 'web') {
+          await Browser.close()
+        }
 
         const response = await CapacitorHttp.get({
           url: backendEndpoint
