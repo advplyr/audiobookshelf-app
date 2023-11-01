@@ -78,34 +78,9 @@
 </template>
 
 <script>
-import { App } from '@capacitor/app'
 import { Browser } from '@capacitor/browser'
-import { Capacitor } from '@capacitor/core'
 import { CapacitorHttp } from '@capacitor/core'
 import { Dialog } from '@capacitor/dialog'
-
-// Variable which is set to an instance of ServerConnectForm.vue used below of the listener
-let serverConnectForm = null
-
-App.addListener('appUrlOpen', async (data) => {
-  // Handle the OAuth callback
-  const url = new URL(data.url)
-
-  // audiobookshelf://oauth?code...
-  // url.hostname for iOS and url.pathname for android
-  if (data.url.startsWith('audiobookshelf://oauth')) {
-    // Extract oauth2 code to be exchanged for a token
-    const authCode = url.searchParams.get('code')
-    // Extract the state variable
-    const state = url.searchParams.get('state')
-
-    if (authCode) {
-      await serverConnectForm.oauthExchangeCodeForToken(authCode, state)
-    }
-  } else {
-    console.warn(`[appUrlOpen] Unknown url: ${data.url} - host: ${url.hostname} - path: ${url.pathname}`)
-  }
-})
 
 export default {
   data() {
@@ -154,9 +129,28 @@ export default {
     }
   },
   methods: {
-    async clickLoginWithOpenId() {
-      serverConnectForm = this
+    async appUrlOpen(url) {
+      if (!url) return
 
+      // Handle the OAuth callback
+      const urlObj = new URL(url)
+
+      // audiobookshelf://oauth?code...
+      // urlObj.hostname for iOS and urlObj.pathname for android
+      if (url.startsWith('audiobookshelf://oauth')) {
+        // Extract oauth2 code to be exchanged for a token
+        const authCode = urlObj.searchParams.get('code')
+        // Extract the state variable
+        const state = urlObj.searchParams.get('state')
+
+        if (authCode) {
+          await this.oauthExchangeCodeForToken(authCode, state)
+        }
+      } else {
+        console.warn(`[ServerConnectForm] appUrlOpen: Unknown url: ${url} - host: ${urlObj.hostname} - path: ${urlObj.pathname}`)
+      }
+    },
+    async clickLoginWithOpenId() {
       // First request that we want to do oauth/openid and get the URL which a browser window should open
       const redirectUrl = await this.oauthRequest(this.serverConfig.address)
 
@@ -227,7 +221,7 @@ export default {
 
       try {
         // We can close the browser at this point (does not work on Android)
-        if (Capacitor.getPlatform() === 'ios' || Capacitor.getPlatform() === 'web') {
+        if (this.$platform === 'ios' || this.$platform === 'web') {
           await Browser.close()
         }
 
@@ -235,8 +229,8 @@ export default {
           url: backendEndpoint
         })
 
-        serverConnectForm.serverConfig.token = response.data.user.token
-        const payload = await serverConnectForm.authenticateToken()
+        this.serverConfig.token = response.data.user.token
+        const payload = await this.authenticateToken()
 
         if (!payload) {
           console.log('[SSO] Failed getting token: ' + this.error)
@@ -245,7 +239,7 @@ export default {
           return
         }
 
-        serverConnectForm.setUserAndConnection(payload)
+        this.setUserAndConnection(payload)
       } catch (error) {
         console.log('[SSO] Error in exchangeCodeForToken: ' + error)
         this.$toast.error(`SSO error: ${error}`)
@@ -539,7 +533,7 @@ export default {
       this.processing = false
       return authRes
     },
-    async init() {
+    init() {
       if (this.lastServerConnectionConfig) {
         this.connectToServer(this.lastServerConnectionConfig)
       } else {
@@ -548,7 +542,11 @@ export default {
     }
   },
   mounted() {
+    this.$eventBus.$on('url-open', this.appUrlOpen)
     this.init()
+  },
+  beforeDestroy() {
+    this.$eventBus.$off('url-open', this.appUrlOpen)
   }
 }
 </script>
