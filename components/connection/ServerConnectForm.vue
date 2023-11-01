@@ -78,14 +78,14 @@
 </template>
 
 <script>
-import { App } from '@capacitor/app';
-import { Browser } from '@capacitor/browser';
-import { Capacitor } from '@capacitor/core';
+import { App } from '@capacitor/app'
+import { Browser } from '@capacitor/browser'
+import { Capacitor } from '@capacitor/core'
 import { CapacitorHttp } from '@capacitor/core'
 import { Dialog } from '@capacitor/dialog'
 
 // Variable which is set to an instance of ServerConnectForm.vue used below of the listener
-let serverConnectForm = null;
+let serverConnectForm = null
 
 App.addListener('appUrlOpen', async (data) => {
   // Handle the OAuth callback
@@ -105,7 +105,7 @@ App.addListener('appUrlOpen', async (data) => {
   } else {
     console.warn(`[appUrlOpen] Unknown url: ${data.url} - host: ${url.hostname} - path: ${url.pathname}`)
   }
-});
+})
 
 export default {
   data() {
@@ -178,19 +178,17 @@ export default {
         return
       }
 
-      const host = `${redirectUrl.protocol}//${redirectUrl.host}${redirectUrl.port ? ':'       + redirectUrl.port : ''}`
-      const buildUrl = `${host}${redirectUrl.pathname}?response_type=code` +
-        `&client_id=${encodeURIComponent(client_id)}&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(state)}` +
-        `&redirect_uri=${encodeURIComponent('audiobookshelf://oauth')}`
+      const host = `${redirectUrl.protocol}//${redirectUrl.host}`
+      const buildUrl = `${host}${redirectUrl.pathname}?response_type=code` + `&client_id=${encodeURIComponent(client_id)}&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(state)}` + `&redirect_uri=${encodeURIComponent('audiobookshelf://oauth')}`
 
       // example url for authentik
-      // const authURL = "https://authentik/application/o/authorize/?response_type=code&client_id=41cd96f...&redirect_uri=audiobookshelf%3A%2F%2Foauth&scope=openid%20openid%20email%20profile&state=asdds...";
+      // const authURL = "https://authentik/application/o/authorize/?response_type=code&client_id=41cd96f...&redirect_uri=audiobookshelf%3A%2F%2Foauth&scope=openid%20openid%20email%20profile&state=asdds..."
 
       // Open the browser. The browser/identity provider in turn will redirect to an in-app link supplementing a code
       try {
-        await Browser.open({ url: buildUrl });
+        await Browser.open({ url: buildUrl })
       } catch (error) {
-        console.error("Error opening browser", error);
+        console.error('Error opening browser', error)
       }
     },
     async oauthRequest(url) {
@@ -203,12 +201,12 @@ export default {
           url: backendEndpoint,
           disableRedirects: true,
           webFetchExtra: {
-            redirect: "manual"
-          },
+            redirect: 'manual'
+          }
         })
 
         // Depending on iOS or Android, it can be location or Location...
-        const locationHeader = response.headers[Object.keys(response.headers).find(key => key.toLowerCase() === 'location')];
+        const locationHeader = response.headers[Object.keys(response.headers).find((key) => key.toLowerCase() === 'location')]
         if (locationHeader) {
           const url = new URL(locationHeader)
           return url
@@ -217,7 +215,6 @@ export default {
           this.$toast.error(`SSO: Invalid answer`)
           return null
         }
-
       } catch (error) {
         console.log('[SSO] Error in oauthRequest: ' + error)
         this.$toast.error(`SSO error: ${error}`)
@@ -226,7 +223,7 @@ export default {
     },
     async oauthExchangeCodeForToken(code, state) {
       // We need to read the url directly from this.serverConfig.address as the callback which is called via the external browser does not pass us that info
-      const backendEndpoint = `${this.serverConfig.address}/auth/openid/callback?state=${encodeURIComponent(state)}&code=${encodeURIComponent(code)}`;
+      const backendEndpoint = `${this.serverConfig.address}/auth/openid/callback?state=${encodeURIComponent(state)}&code=${encodeURIComponent(code)}`
 
       try {
         // We can close the browser at this point (does not work on Android)
@@ -236,24 +233,23 @@ export default {
 
         const response = await CapacitorHttp.get({
           url: backendEndpoint
-        });
+        })
 
         serverConnectForm.serverConfig.token = response.data.user.token
         const payload = await serverConnectForm.authenticateToken()
 
         if (!payload) {
-          console.log('[SSO] Failed getting token: ' + this.error);
+          console.log('[SSO] Failed getting token: ' + this.error)
           this.$toast.error(`SSO error: ${this.error}`)
 
           return
         }
 
         serverConnectForm.setUserAndConnection(payload)
-
       } catch (error) {
-        console.log('[SSO] Error in exchangeCodeForToken: ' + error);
+        console.log('[SSO] Error in exchangeCodeForToken: ' + error)
         this.$toast.error(`SSO error: ${error}`)
-        return null;
+        return null
       }
     },
     addCustomHeaders() {
