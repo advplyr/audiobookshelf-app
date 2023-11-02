@@ -152,8 +152,9 @@ export default {
         return
       }
 
-      const { user, userDefaultLibraryId, serverSettings } = authRes
+      const { user, userDefaultLibraryId, serverSettings, ereaderDevices } = authRes
       this.$store.commit('setServerSettings', serverSettings)
+      this.$store.commit('libraries/setEReaderDevices', ereaderDevices)
 
       // Set library - Use last library if set and available fallback to default user library
       const lastLibraryId = await this.$localStore.getLastLibraryId()

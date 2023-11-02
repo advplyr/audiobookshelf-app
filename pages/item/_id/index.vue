@@ -129,10 +129,15 @@
       <modals-select-local-folder-modal v-model="showSelectLocalFolder" :media-type="mediaType" @select="selectedLocalFolder" />
 
       <modals-dialog v-model="showMoreMenu" :items="moreMenuItems" @action="moreMenuAction" />
+      <modals-dialog v-model="showSendEbookDevicesModal" title="Select a device" :items="ereaderDeviceItems" @action="sendEbookToDeviceAction" />
 
       <modals-item-details-modal v-model="showDetailsModal" :library-item="libraryItem" />
 
       <modals-fullscreen-cover v-model="showFullscreenCover" :library-item="libraryItem" />
+    </div>
+
+    <div v-show="processing" class="fixed top-0 left-0 w-screen h-screen flex items-center justify-center bg-black/50 z-50">
+      <ui-loading-indicator />
     </div>
   </div>
 </template>
@@ -175,11 +180,13 @@ export default {
   },
   data() {
     return {
+      processing: false,
       resettingProgress: false,
       isProcessingReadUpdate: false,
       showSelectLocalFolder: false,
       showMoreMenu: false,
       showDetailsModal: false,
+      showSendEbookDevicesModal: false,
       showFullscreenCover: false,
       coverRgb: 'rgb(55, 56, 56)',
       coverBgIsLight: false,
@@ -430,6 +437,14 @@ export default {
           value: 'playlist',
           icon: 'playlist_add'
         })
+
+        if (this.ebookFile && this.$store.state.libraries.ereaderDevices?.length) {
+          items.push({
+            text: 'Send ebook to device',
+            value: 'sendEbook',
+            icon: 'send'
+          })
+        }
       }
 
       if (this.showRSSFeedOption) {
@@ -463,6 +478,15 @@ export default {
       })
 
       return items
+    },
+    ereaderDeviceItems() {
+      if (!this.ebookFile || !this.$store.state.libraries.ereaderDevices?.length) return []
+      return this.$store.state.libraries.ereaderDevices.map((d) => {
+        return {
+          text: d.name,
+          value: d.name
+        }
+      })
     },
     coverWidth() {
       let width = this.windowWidth - 94
@@ -543,7 +567,30 @@ export default {
         this.deleteLocalItem()
       } else if (action === 'rssFeed') {
         this.clickRSSFeed()
+      } else if (action === 'sendEbook') {
+        this.showSendEbookDevicesModal = true
       }
+    },
+    sendEbookToDeviceAction(deviceName) {
+      this.showSendEbookDevicesModal = false
+
+      const payload = {
+        libraryItemId: this.serverLibraryItemId,
+        deviceName
+      }
+      this.processing = true
+      this.$nativeHttp
+        .post(`/api/emails/send-ebook-to-device`, payload)
+        .then(() => {
+          this.$toast.success('Ebook sent successfully')
+        })
+        .catch((error) => {
+          console.error('Failed to send ebook to device', error)
+          this.$toast.error('Failed to send ebook to device')
+        })
+        .finally(() => {
+          this.processing = false
+        })
     },
     clickRSSFeed() {
       this.$store.commit('globals/setRSSFeedOpenCloseModal', {
@@ -555,6 +602,7 @@ export default {
       })
     },
     moreButtonPress() {
+      this.showSendEbookDevicesModal = false
       this.showMoreMenu = true
     },
     readBook() {

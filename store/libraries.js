@@ -7,7 +7,8 @@ export const state = () => ({
   showModal: false,
   issues: 0,
   filterData: null,
-  numUserPlaylists: 0
+  numUserPlaylists: 0,
+  ereaderDevices: []
 })
 
 export const getters = {
@@ -177,5 +178,8 @@ export const mutations = {
         if (genre && !state.filterData.genres.includes(genre)) state.filterData.genres.push(genre)
       })
     }
+  },
+  setEReaderDevices(state, ereaderDevices) {
+    state.ereaderDevices = ereaderDevices
   }
 }
