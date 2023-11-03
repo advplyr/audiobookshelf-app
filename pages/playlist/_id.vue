@@ -1,11 +1,11 @@
 <template>
   <div class="w-full h-full">
-    <div class="w-full h-full overflow-y-auto px-2 py-6 md:p-8">
+    <div class="w-full h-full overflow-y-auto py-6 md:p-8">
       <div class="w-full flex justify-center">
         <covers-playlist-cover :items="playlistItems" :width="180" :height="180" />
       </div>
-      <div class="flex-grow py-6">
-        <div class="flex items-center px-2">
+      <div class="flex-grow px-1 py-6">
+        <div class="flex items-center px-3">
           <h1 class="text-xl font-sans">
             {{ playlistName }}
           </h1>
@@ -16,7 +16,7 @@
           </ui-btn>
         </div>
 
-        <div class="my-8 max-w-2xl px-2">
+        <div class="my-8 max-w-2xl px-3">
           <p class="text-base text-gray-100">{{ description }}</p>
         </div>
 
