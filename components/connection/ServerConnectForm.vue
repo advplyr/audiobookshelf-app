@@ -97,7 +97,10 @@ export default {
       error: null,
       showForm: false,
       showAddCustomHeaders: false,
-      authMethods: []
+      authMethods: [],
+      oauth: {
+        state: null
+      }
     }
   },
   computed: {
@@ -138,10 +141,27 @@ export default {
       // audiobookshelf://oauth?code...
       // urlObj.hostname for iOS and urlObj.pathname for android
       if (url.startsWith('audiobookshelf://oauth')) {
+        // Extract possible errors thrown by the SSO provider
+        const authError = urlObj.searchParams.get('error')
+        if (authError) {
+          console.warn(`[SSO] Received the following error: ${authError}`)
+          this.$toast.error(`SSO: Received the following error: ${authError}`)
+          return
+        }
+
         // Extract oauth2 code to be exchanged for a token
         const authCode = urlObj.searchParams.get('code')
         // Extract the state variable
         const state = urlObj.searchParams.get('state')
+
+        if (this.oauth.state !== state) {
+          console.warn(`[SSO] Wrong state returned by SSO Provider`)
+          this.$toast.error(`SSO: The response from the SSO Provider was invalid (wrong state)`)
+          return
+        }
+
+        // Clear the state variable from the component config
+        this.oauth.state = null
 
         if (authCode) {
           await this.oauthExchangeCodeForToken(authCode, state)
@@ -151,8 +171,19 @@ export default {
       }
     },
     async clickLoginWithOpenId() {
+      // oauth standard requires https explicitly
+      if (!this.serverConfig.address.startsWith('https')) {
+        console.warn(`[SSO] Oauth2 requires HTTPS`)
+        this.$toast.error(`SSO: The URL to the server must be https:// secured`)
+        return
+      }
+
       // First request that we want to do oauth/openid and get the URL which a browser window should open
       const redirectUrl = await this.oauthRequest(this.serverConfig.address)
+      if (!redirectUrl) {
+        // error message handled by oauthRequest
+        return
+      }
 
       // Actually we should be able to use the redirectUrl directly for Browser.open below
       // However it seems that when directly using it there is a malformation and leads to the error
@@ -172,7 +203,16 @@ export default {
         return
       }
 
-      const host = `${redirectUrl.protocol}//${redirectUrl.host}`
+      if (redirectUrl.protocol !== 'https:') {
+        console.warn(`[SSO] Insecure Redirection by SSO provider: ${redirectUrl.protocol} is not allowed. Use HTTPS`)
+        this.$toast.error(`SSO: The SSO provider must return a HTTPS secured URL`)
+        return
+      }
+
+      // We need to verify if the state is the same later
+      this.oauth.state = state
+
+      const host = `https://${redirectUrl.host}`
       const buildUrl = `${host}${redirectUrl.pathname}?response_type=code` + `&client_id=${encodeURIComponent(client_id)}&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(state)}` + `&redirect_uri=${encodeURIComponent('audiobookshelf://oauth')}`
 
       // example url for authentik
@@ -199,20 +239,22 @@ export default {
           }
         })
 
+        // Every kind of redirection is allowed [RFC6749 - 1.7]
+        if (!(response.status >= 300 && response.status < 400)) {
+          throw new Error(`Unexpected response from server: ${response.status}`)
+        }
+
         // Depending on iOS or Android, it can be location or Location...
         const locationHeader = response.headers[Object.keys(response.headers).find((key) => key.toLowerCase() === 'location')]
-        if (locationHeader) {
-          const url = new URL(locationHeader)
-          return url
-        } else {
-          console.log('[SSO] No location header in oauthRequest')
-          this.$toast.error(`SSO: Invalid answer`)
-          return null
+        if (!locationHeader) {
+          throw new Error(`No location header in SSO answer`)
         }
+
+        const url = new URL(locationHeader)
+        return url
       } catch (error) {
-        console.log('[SSO] Error in oauthRequest: ' + error)
-        this.$toast.error(`SSO error: ${error}`)
-        return null
+        console.error(`[SSO] ${error.message}`)
+        this.$toast.error(`SSO Error: ${error.message}`)
       }
     },
     async oauthExchangeCodeForToken(code, state) {
@@ -224,26 +266,28 @@ export default {
         if (this.$platform === 'ios' || this.$platform === 'web') {
           await Browser.close()
         }
+      } catch(error) {} // No Error handling needed
 
+      try {
         const response = await CapacitorHttp.get({
           url: backendEndpoint
         })
+
+        if (!response.data || !response.data.user || !response.data.user.token) {
+          throw new Error('Token data is missing in the response.')
+        }
 
         this.serverConfig.token = response.data.user.token
         const payload = await this.authenticateToken()
 
         if (!payload) {
-          console.log('[SSO] Failed getting token: ' + this.error)
-          this.$toast.error(`SSO error: ${this.error}`)
-
-          return
+          throw new Error('Authentication failed with the provided token.')
         }
 
         this.setUserAndConnection(payload)
       } catch (error) {
-        console.log('[SSO] Error in exchangeCodeForToken: ' + error)
-        this.$toast.error(`SSO error: ${error}`)
-        return null
+        console.error('[SSO] Error in exchangeCodeForToken: ', error)
+        this.$toast.error(`SSO error: ${error.message || error}`)
       }
     },
     addCustomHeaders() {
