@@ -11,7 +11,7 @@
       <p v-if="totalDuration" class="text-sm text-gray-200">{{ totalDurationPretty }}</p>
     </div>
     <template v-for="item in items">
-      <tables-playlist-item-table-row :key="item.id" :item="item" :playlist-id="playlistId" />
+      <tables-playlist-item-table-row :key="item.id" :item="item" :playlist-id="playlistId" @showMore="showMore" />
     </template>
   </div>
 </template>
@@ -41,7 +41,11 @@ export default {
       return this.$elapsedPrettyExtended(this.totalDuration)
     }
   },
-  methods: {},
+  methods: {
+    showMore(playlistItem) {
+      this.$emit('showMore', playlistItem)
+    }
+  },
   mounted() {}
 }
 </script>

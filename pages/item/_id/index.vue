@@ -50,7 +50,7 @@
           </ui-btn>
         </div>
 
-        <div v-if="!isPodcast && progressPercent > 0" class="px-4 py-2 bg-primary text-sm font-semibold rounded-md text-gray-200 mt-4 text-center" :class="resettingProgress ? 'opacity-25' : ''">
+        <div v-if="!isPodcast && progressPercent > 0" class="px-4 py-2 bg-primary text-sm font-semibold rounded-md text-gray-200 mt-4 text-center">
           <p>Your Progress: {{ Math.round(progressPercent * 100) }}%</p>
           <p v-if="!useEBookProgress && !userIsFinished" class="text-gray-400 text-xs">{{ $elapsedPretty(userTimeRemaining) }} remaining</p>
           <p v-else-if="userIsFinished" class="text-gray-400 text-xs">Finished {{ $formatDate(userProgressFinishedAt) }}</p>
@@ -126,12 +126,9 @@
       <tables-ebook-files-table v-if="ebookFiles.length" :library-item="libraryItem" />
 
       <!-- modals -->
+      <modals-item-more-menu-modal v-model="showMoreMenu" :library-item="libraryItem" :rss-feed="rssFeed" :processing.sync="processing" />
+
       <modals-select-local-folder-modal v-model="showSelectLocalFolder" :media-type="mediaType" @select="selectedLocalFolder" />
-
-      <modals-dialog v-model="showMoreMenu" :items="moreMenuItems" @action="moreMenuAction" />
-      <modals-dialog v-model="showSendEbookDevicesModal" title="Select a device" :items="ereaderDeviceItems" @action="sendEbookToDeviceAction" />
-
-      <modals-item-details-modal v-model="showDetailsModal" :library-item="libraryItem" />
 
       <modals-fullscreen-cover v-model="showFullscreenCover" :library-item="libraryItem" />
     </div>
@@ -181,12 +178,8 @@ export default {
   data() {
     return {
       processing: false,
-      resettingProgress: false,
-      isProcessingReadUpdate: false,
       showSelectLocalFolder: false,
       showMoreMenu: false,
-      showDetailsModal: false,
-      showSendEbookDevicesModal: false,
       showFullscreenCover: false,
       coverRgb: 'rgb(55, 56, 56)',
       coverBgIsLight: false,
@@ -318,7 +311,7 @@ export default {
       return this.$store.getters['user/getUserMediaProgress'](this.serverLibraryItemId)
     },
     userIsFinished() {
-      return this.userItemProgress ? !!this.userItemProgress.isFinished : false
+      return !!this.userItemProgress?.isFinished
     },
     userTimeRemaining() {
       if (!this.userItemProgress) return 0
@@ -331,10 +324,10 @@ export default {
     },
     progressPercent() {
       if (this.useEBookProgress) return Math.max(Math.min(1, this.userItemProgress.ebookProgress), 0)
-      return this.userItemProgress ? Math.max(Math.min(1, this.userItemProgress.progress), 0) : 0
+      return Math.max(Math.min(1, this.userItemProgress?.progress || 0), 0)
     },
     userProgressFinishedAt() {
-      return this.userItemProgress ? this.userItemProgress.finishedAt : 0
+      return this.userItemProgress?.finishedAt || 0
     },
     isStreaming() {
       return this.isPlaying && !this.$store.getters['getIsCurrentSessionLocal']
@@ -394,100 +387,6 @@ export default {
     isCasting() {
       return this.$store.state.isCasting
     },
-    showRSSFeedOption() {
-      if (!this.serverLibraryItemId) return false
-      if (!this.rssFeed && !this.episodes.length && !this.tracks.length) return false // Cannot open RSS feed with no episodes/tracks
-
-      // If rss feed is open then show feed url to users otherwise just show to admins
-      return this.userIsAdminOrUp || this.rssFeed
-    },
-    moreMenuItems() {
-      const items = []
-
-      if (!this.isPodcast) {
-        // TODO: Implement on iOS
-        if (!this.isIos) {
-          items.push({
-            text: 'History',
-            value: 'history',
-            icon: 'history'
-          })
-        }
-
-        if (!this.userIsFinished) {
-          items.push({
-            text: 'Mark as Finished',
-            value: 'markFinished',
-            icon: 'beenhere'
-          })
-        }
-
-        if (this.progressPercent > 0) {
-          items.push({
-            text: 'Discard Progress',
-            value: 'discardProgress',
-            icon: 'backspace'
-          })
-        }
-      }
-
-      if (!this.isPodcast && this.serverLibraryItemId) {
-        items.push({
-          text: 'Add to Playlist',
-          value: 'playlist',
-          icon: 'playlist_add'
-        })
-
-        if (this.ebookFile && this.$store.state.libraries.ereaderDevices?.length) {
-          items.push({
-            text: 'Send ebook to device',
-            value: 'sendEbook',
-            icon: 'send'
-          })
-        }
-      }
-
-      if (this.showRSSFeedOption) {
-        items.push({
-          text: this.rssFeed ? 'RSS Feed' : 'Open RSS Feed',
-          value: 'rssFeed',
-          icon: 'rss_feed'
-        })
-      }
-
-      if (this.localLibraryItemId) {
-        items.push({
-          text: 'Manage Local Files',
-          value: 'manageLocal',
-          icon: 'folder'
-        })
-
-        if (!this.isPodcast) {
-          items.push({
-            text: 'Delete Local Item',
-            value: 'deleteLocal',
-            icon: 'delete'
-          })
-        }
-      }
-
-      items.push({
-        text: 'More Info',
-        value: 'details',
-        icon: 'info'
-      })
-
-      return items
-    },
-    ereaderDeviceItems() {
-      if (!this.ebookFile || !this.$store.state.libraries.ereaderDevices?.length) return []
-      return this.$store.state.libraries.ereaderDevices.map((d) => {
-        return {
-          text: d.name,
-          value: d.name
-        }
-      })
-    },
     coverWidth() {
       let width = this.windowWidth - 94
       if (width > 325) return 325
@@ -495,42 +394,9 @@ export default {
 
       if (width * this.bookCoverAspectRatio > 325) width = 325 / this.bookCoverAspectRatio
       return width
-    },
-    mediaId() {
-      if (this.isPodcast) return null
-      return this.serverLibraryItemId || this.localLibraryItemId
     }
   },
   methods: {
-    async deleteLocalItem() {
-      await this.$hapticsImpact()
-
-      let confirmMessage = 'Remove local files of this item from your device?'
-      if (this.serverLibraryItemId) {
-        confirmMessage += ' The files on the server and your progress will be unaffected.'
-      }
-      const { value } = await Dialog.confirm({
-        title: 'Confirm',
-        message: confirmMessage
-      })
-      if (value) {
-        const res = await AbsFileSystem.deleteItem(this.localLibraryItem)
-        if (res?.success) {
-          this.$toast.success('Deleted successfully')
-          if (this.isLocal) {
-            // If local then redirect to server version when available
-            if (this.serverLibraryItemId) {
-              this.$router.replace(`/item/${this.serverLibraryItemId}`)
-            } else {
-              this.$router.replace('/bookshelf')
-            }
-          } else {
-            // Remove localLibraryItem
-            this.$delete(this.libraryItem, 'localLibraryItem')
-          }
-        } else this.$toast.error('Failed to delete')
-      }
-    },
     async coverImageLoaded(fullCoverUrl) {
       if (!fullCoverUrl) return
 
@@ -545,64 +411,7 @@ export default {
           console.log(e)
         })
     },
-    moreMenuAction(action) {
-      this.showMoreMenu = false
-      if (action === 'manageLocal') {
-        this.$nextTick(() => {
-          this.$router.push(`/localMedia/item/${this.localLibraryItemId}`)
-        })
-      } else if (action === 'details') {
-        this.showDetailsModal = true
-      } else if (action === 'playlist') {
-        this.$store.commit('globals/setSelectedPlaylistItems', [{ libraryItem: this.libraryItem, episode: null }])
-        this.$store.commit('globals/setShowPlaylistsAddCreateModal', true)
-      } else if (action === 'markFinished') {
-        if (this.isProcessingReadUpdate) return
-        this.toggleFinished()
-      } else if (action === 'history') {
-        this.$router.push(`/media/${this.mediaId}/history?title=${this.title}`)
-      } else if (action === 'discardProgress') {
-        this.clearProgressClick()
-      } else if (action === 'deleteLocal') {
-        this.deleteLocalItem()
-      } else if (action === 'rssFeed') {
-        this.clickRSSFeed()
-      } else if (action === 'sendEbook') {
-        this.showSendEbookDevicesModal = true
-      }
-    },
-    sendEbookToDeviceAction(deviceName) {
-      this.showSendEbookDevicesModal = false
-
-      const payload = {
-        libraryItemId: this.serverLibraryItemId,
-        deviceName
-      }
-      this.processing = true
-      this.$nativeHttp
-        .post(`/api/emails/send-ebook-to-device`, payload)
-        .then(() => {
-          this.$toast.success('Ebook sent successfully')
-        })
-        .catch((error) => {
-          console.error('Failed to send ebook to device', error)
-          this.$toast.error('Failed to send ebook to device')
-        })
-        .finally(() => {
-          this.processing = false
-        })
-    },
-    clickRSSFeed() {
-      this.$store.commit('globals/setRSSFeedOpenCloseModal', {
-        id: this.serverLibraryItemId,
-        name: this.title,
-        type: 'item',
-        feed: this.rssFeed,
-        hasEpisodesWithoutPubDate: this.episodes.some((ep) => !ep.pubDate)
-      })
-    },
     moreButtonPress() {
-      this.showSendEbookDevicesModal = false
       this.showMoreMenu = true
     },
     readBook() {
@@ -681,37 +490,6 @@ export default {
         }
 
         this.$eventBus.$emit('play-item', { libraryItemId, serverLibraryItemId: this.serverLibraryItemId, startTime })
-      }
-    },
-    async clearProgressClick() {
-      await this.$hapticsImpact()
-
-      const { value } = await Dialog.confirm({
-        title: 'Confirm',
-        message: 'Are you sure you want to reset your progress?'
-      })
-      if (value) {
-        this.resettingProgress = true
-        const serverMediaProgressId = this.serverItemProgress?.id
-        if (this.localLibraryItemId) {
-          await this.$db.removeLocalMediaProgress(this.localLibraryItemId)
-          this.$store.commit('globals/removeLocalMediaProgressForItem', this.localLibraryItemId)
-        }
-
-        if (this.serverLibraryItemId && serverMediaProgressId) {
-          await this.$nativeHttp
-            .delete(`/api/me/progress/${serverMediaProgressId}`)
-            .then(() => {
-              console.log('Progress reset complete')
-              this.$toast.success(`Your progress was reset`)
-              this.$store.commit('user/removeMediaProgress', serverMediaProgressId)
-            })
-            .catch((error) => {
-              console.error('Progress reset failed', error)
-            })
-        }
-
-        this.resettingProgress = false
       }
     },
     itemUpdated(libraryItem) {
@@ -813,48 +591,6 @@ export default {
       if (item.libraryItemId == this.libraryItemId) {
         console.log('New local library item', item.id)
         this.$set(this.libraryItem, 'localLibraryItem', item)
-      }
-    },
-    async toggleFinished() {
-      await this.$hapticsImpact()
-
-      // Show confirm if item has progress since it will reset
-      if (this.userItemProgress && this.userItemProgress.progress > 0 && !this.userIsFinished) {
-        const { value } = await Dialog.confirm({
-          title: 'Confirm',
-          message: 'Are you sure you want to mark this item as Finished?'
-        })
-        if (!value) return
-      }
-
-      this.isProcessingReadUpdate = true
-      if (this.isLocal) {
-        const isFinished = !this.userIsFinished
-        const payload = await this.$db.updateLocalMediaProgressFinished({ localLibraryItemId: this.localLibraryItemId, isFinished })
-        console.log('toggleFinished payload', JSON.stringify(payload))
-        if (payload?.error) {
-          this.$toast.error(payload?.error || 'Unknown error')
-        } else {
-          const localMediaProgress = payload.localMediaProgress
-          console.log('toggleFinished localMediaProgress', JSON.stringify(localMediaProgress))
-          if (localMediaProgress) {
-            this.$store.commit('globals/updateLocalMediaProgress', localMediaProgress)
-          }
-        }
-        this.isProcessingReadUpdate = false
-      } else {
-        const updatePayload = {
-          isFinished: !this.userIsFinished
-        }
-        this.$nativeHttp
-          .patch(`/api/me/progress/${this.libraryItemId}`, updatePayload)
-          .catch((error) => {
-            console.error('Failed', error)
-            this.$toast.error(`Failed to mark as ${updatePayload.isFinished ? 'Finished' : 'Not Finished'}`)
-          })
-          .finally(() => {
-            this.isProcessingReadUpdate = false
-          })
       }
     },
     libraryChanged(libraryId) {
