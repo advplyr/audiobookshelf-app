@@ -105,30 +105,28 @@ export default {
       this.$nativeHttp
         .delete(`/api/me/item/${this.libraryItemId}/bookmark/${bm.time}`)
         .then(() => {
-          this.$toast.success('Bookmark removed')
+          this.$store.commit('user/deleteBookmark', { libraryItemId: this.libraryItemId, time: bm.time })
         })
         .catch((error) => {
           this.$toast.error(`Failed to remove bookmark`)
           console.error(error)
         })
-      this.show = false
     },
     async clickBookmark(bm) {
       await this.$hapticsImpact()
       this.$emit('select', bm)
     },
     submitUpdateBookmark(updatedBookmark) {
-      var bookmark = { ...updatedBookmark }
       this.$nativeHttp
-        .patch(`/api/me/item/${this.libraryItemId}/bookmark`, bookmark)
-        .then(() => {
-          this.$toast.success('Bookmark updated')
+        .patch(`/api/me/item/${this.libraryItemId}/bookmark`, updatedBookmark)
+        .then((bookmark) => {
+          this.$store.commit('user/updateBookmark', bookmark)
+          this.showBookmarkTitleInput = false
         })
         .catch((error) => {
           this.$toast.error(`Failed to update bookmark`)
           console.error(error)
         })
-      this.show = false
     },
     submitCreateBookmark() {
       if (!this.newBookmarkTitle) {

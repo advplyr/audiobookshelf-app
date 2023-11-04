@@ -145,5 +145,21 @@ export const mutations = {
   setSettings(state, settings) {
     if (!settings) return
     state.settings = settings
+  },
+  updateBookmark(state, bookmark) {
+    if (!state.user?.bookmarks) return
+    state.user.bookmarks = state.user.bookmarks.map((bm) => {
+      if (bm.libraryItemId === bookmark.libraryItemId && bm.time === bookmark.time) {
+        return bookmark
+      }
+      return bm
+    })
+  },
+  deleteBookmark(state, { libraryItemId, time }) {
+    if (!state.user?.bookmarks) return
+    state.user.bookmarks = state.user.bookmarks.filter(bm => {
+      if (bm.libraryItemId === libraryItemId && bm.time === time) return false
+      return true
+    })
   }
 }
