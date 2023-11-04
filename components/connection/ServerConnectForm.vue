@@ -378,10 +378,18 @@ export default {
       this.error = null
       this.showAuth = false
     },
-    validateServerUrl(url) {
+    /**
+     * Validates a URL and reconstructs it with an optional protocol override.
+     * If the URL is invalid, null is returned.
+     *
+     * @param {string} url - The URL to validate.
+     * @param {string|null} [protocolOverride=null] - (Optional) Protocol to override the URL's original protocol.
+     * @returns {string|null} The validated URL with the original or overridden protocol, or null if invalid.
+     */
+    validateServerUrl(url, protocolOverride = null) {
       try {
         var urlObject = new URL(url)
-        var address = `${urlObject.protocol}//${urlObject.hostname}`
+        var address = `${protocolOverride ? protocolOverride : urlObject.protocol}//${urlObject.hostname}`
         if (urlObject.port) address += ':' + urlObject.port
         return address
       } catch (error) {
@@ -389,18 +397,45 @@ export default {
         return null
       }
     },
+    /**
+     * Sends a GET request to the specified URL with the provided headers and timeout.
+     * If the response is successful (HTTP 200), the response object is returned.
+     * Otherwise, throws an error object containing code.
+     * code can be either a number, which is then a HTTP status code or
+     *  a string, which is then a keyword like NSURLErrorBadURL when the TCP connection could not be established.
+     * When code is a string, error.message contains the human readable error by the OS or
+     *  the http body of the non-200 answer.
+     *
+     * @async
+     * @param {string} url - The URL to which the GET request will be sent.
+     * @param {Object} headers - HTTP headers to be included in the request.
+     * @param {number} [connectTimeout=6000] - Timeout for the request in milliseconds.
+     * @returns {Promise<HttpResponse>} The HTTP response object if the request is successful.
+     * @throws {Error} An error with 'code' property set to the HTTP status code if the response is not successful.
+     * @throws {Error} An error with 'code' property set to the error code if the request fails.
+     */
     async getRequest(url, headers, connectTimeout = 6000) {
       const options = {
         url,
         headers,
         connectTimeout
       }
-      const response = await CapacitorHttp.get(options)
-      console.log('[ServerConnectForm] GET request response', response)
-      if (response.status >= 400) {
-        throw new Error(response.data)
-      } else {
-        return response.data
+      try {
+        const response = await CapacitorHttp.get(options)
+        console.log('[ServerConnectForm] GET request response', response)
+        if (response.status == 200) {
+          return response
+        } else {
+          // Put the HTTP error code inside the cause
+          let errorObj = new Error(response.data)
+          errorObj.code = response.status
+          throw errorObj
+        }
+      } catch (error) {
+        // Put the error name inside the cause (a string)
+        let errorObj = new Error(error.message)
+        errorObj.code = error.code
+        throw errorObj
       }
     },
     async postRequest(url, data, headers, connectTimeout = 6000) {
@@ -426,23 +461,16 @@ export default {
      * Get request to server /status api endpoint
      *
      * @param {string} address
-     * @returns {Promise<{isInit:boolean, language:string, authMethods:string[]}>}
+     * @returns {Promise<HttpResponse>}
+     *    HttpResponse.data is {isInit:boolean, language:string, authMethods:string[]}>
      */
-    getServerAddressStatus(address) {
-      return this.getRequest(`${address}/status`).catch((error) => {
-        console.error('Failed to get server status', error)
-        const errorMsg = error.message || error
-        this.error = 'Failed to ping server'
-        if (typeof errorMsg === 'string') {
-          this.error += ` (${errorMsg})`
-        }
-        return null
-      })
+    async getServerAddressStatus(address) {
+      return this.getRequest(`${address}/status`)
     },
     pingServerAddress(address, customHeaders) {
       return this.getRequest(`${address}/ping`, customHeaders)
-        .then((data) => {
-          return data.success
+        .then((response) => {
+          return response.data.success
         })
         .catch((error) => {
           console.error('Server ping failed', error)
@@ -478,30 +506,141 @@ export default {
     async submit() {
       if (!this.networkConnected) return
       if (!this.serverConfig.address) return
-      if (!this.serverConfig.address.startsWith('http')) {
-        this.serverConfig.address = 'http://' + this.serverConfig.address
-      }
-      var validServerAddress = this.validateServerUrl(this.serverConfig.address)
-      if (!validServerAddress) {
-        this.error = 'Invalid server address'
-        return
-      }
 
-      this.serverConfig.address = validServerAddress
+      const initialAddress = this.serverConfig.address
+      // Did the user specify a protocol?
+      const protocolProvided = initialAddress.startsWith('http://') || initialAddress.startsWith('https://')
+      // Add https:// if not provided
+      this.serverConfig.address = this.prependProtocolIfNeeded(initialAddress)
+
       this.processing = true
       this.error = null
       this.authMethods = []
 
-      const statusData = await this.getServerAddressStatus(this.serverConfig.address)
-      this.processing = false
-      if (statusData) {
-        if (!statusData.isInit) {
-          this.error = 'Server is not initialized'
-        } else {
+      try {
+        // Try the server URL. If it fails and the protocol was not provided, try with http instead of https
+        const statusData = await this.tryServerUrl(this.serverConfig.address, !protocolProvided)
+        if (this.validateLoginFormResponse(statusData, this.serverConfig.address, protocolProvided)) {
           this.showAuth = true
-          this.authMethods = statusData.authMethods || []
+          this.authMethods = statusData.data.authMethods || []
         }
+      } catch (error) {
+        this.handleLoginFormError(error)
+      } finally {
+        this.processing = false
       }
+    },
+    /** Validates the login form response from the server.
+     *
+     * Ensure the request has not been redirected to an unexpected hostname and check if it is Audiobookshelf
+     *
+     * @param {object} statusData - The data received from the server's response, including data and url.
+     * @param {string} initialAddressWithProtocol - The initial server address including the protocol used for the request.
+     * @param {boolean} protocolProvided - Indicates whether the protocol was explicitly provided in the initial address.
+     *
+     * @returns {boolean} - Returns `true` if the response is valid, otherwise `false` and sets this.error.
+     */
+    validateLoginFormResponse(statusData, initialAddressWithProtocol, protocolProvided) {
+      // We have a 200 status code at this point
+
+      // Check if we got redirected to a different hostname, we don't allow this
+      const initialAddressUrl = new URL(initialAddressWithProtocol)
+      const currentAddressUrl = new URL(statusData.url)
+      if (initialAddressUrl.hostname !== currentAddressUrl.hostname) {
+        this.error = `Server redirected somewhere else (to ${currentAddressUrl.hostname})`
+        console.error(`[ServerConnectForm] Server redirected somewhere else (to ${currentAddressUrl.hostname})`)
+        return false
+      } // We don't allow a redirection back from https to http if the user used https:// explicitly
+      else if (protocolProvided &&
+       initialAddressWithProtocol.startsWith('https://') && currentAddressUrl.protocol === 'http') {
+        this.error = `You specified https:// but the Server redirected back to plain http`
+        console.error(`[ServerConnectForm] User specified https:// but server redirected to http`)
+        return false
+      }
+
+      // Check content of response now
+      if (!statusData || !statusData.data || Object.keys(statusData).length === 0) {
+        this.error = 'Response from server was empty' // Usually some kind of config error on server side
+        console.error('[ServerConnectForm] Received empty response')
+        return false
+      } else if (!('isInit' in statusData.data) || !('language' in statusData.data)) { // TODO
+        this.error = 'This does not seem to be a Audiobookshelf server'
+        console.error('[ServerConnectForm] Received as response from Server:\n', statusData)
+        return false
+      } else if (!statusData.data.isInit) {
+        this.error = 'Server is not initialized'
+        return false
+      }
+
+      // If we got redirected from http to https, we allow this
+      // Also there is the possibility that https was tried (with protocolProvided false) but only http was successfull
+      // So set the correct protocol for the config
+      const configUrl = new URL(this.serverConfig.address)
+      configUrl.protocol = currentAddressUrl.protocol
+      this.serverConfig.address = configUrl.toString()
+
+      return true
+    },
+    /**
+     * Handles errors received during the login form process, providing user-friendly error messages.
+     *
+     * @param {Object} error - The error object received from a failed login attempt.
+     */
+    handleLoginFormError(error) {
+      console.error('[ServerConnectForm] Received invalid status', error)
+
+      if (error.code === 404) {
+        this.error = `This does not seem to be an Audiobookshelf server. (Error: 404)`
+      } else if (typeof error.code === "number") { // Error with HTTP Code
+        this.error = `Failed to retrieve status of server: ${error.code}`
+      } else { // error is usually a meaningful error like "Server timed out"
+        this.error = `Failed to contact server. (${error})`
+      }
+    },
+    /**
+     * Attempts to retrieve the server address status for the given URL.
+     * If the initial attempt fails, it retries with HTTP if allowed.
+     *
+     * @param {string} address - The URL address to validate and check.
+     * @param {boolean} shouldRetryWithHttp - Flag to indicate if the function should retry with HTTP on failure.
+     * @returns {Promise<HttpResponse>}
+     *    HttpResponse.data is {isInit:boolean, language:string, authMethods:string[]}>
+     * @throws Will throw an error if the URL has a wrong format or if both HTTPS and HTTP (if retried) requests fail.
+     */
+    async tryServerUrl(address, shouldRetryWithHttp) {
+      const validatedUrl = this.validateServerUrl(address)
+      if (!validatedUrl) {
+        throw new Error('URL has wrong format')
+      }
+
+      try {
+        return await this.getServerAddressStatus(validatedUrl)
+      } catch (error) {
+        // We only retry when the user did not specify a protocol
+        // Also for security reasons, we only retry when the https request did not
+        //      return a http status code (so only retry when the TCP connection could not be established)
+        if (shouldRetryWithHttp && (typeof error.code !== "number")) {
+          console.log("[ServerConnectForm] https failed, trying to connect with http...")
+          const validatedHttpUrl = this.validateServerUrl(address, 'http:')
+          if (validatedHttpUrl) {
+            return await this.getServerAddressStatus(validatedHttpUrl)
+          }
+          // else if validatedHttpUrl is false return the original error below
+        }
+        // rethrow original error
+        throw error
+      }
+    },
+    /**
+     * Ensures that a protocol is prepended to the given address if it does not already start with http:// or https://.
+     *
+     * @param {string} address - The server address that may or may not have a protocol.
+     * @returns {string} The address with a protocol prepended if it was missing.
+     */
+    prependProtocolIfNeeded(address) {
+      return address.startsWith('http://') || address.startsWith('https://')
+        ? address
+        : `https://${address}`
     },
     async submitAuth() {
       if (!this.networkConnected) return
