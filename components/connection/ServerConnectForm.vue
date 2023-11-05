@@ -135,44 +135,23 @@ export default {
     }
   },
   methods: {
-    async appUrlOpen(url) {
-      if (!url) return
-
-      // Handle the OAuth callback
-      const urlObj = new URL(url)
-
-      // audiobookshelf://oauth?code...
-      // urlObj.hostname for iOS and urlObj.pathname for android
-      if (url.startsWith('audiobookshelf://oauth')) {
-        // Extract possible errors thrown by the SSO provider
-        const authError = urlObj.searchParams.get('error')
-        if (authError) {
-          console.warn(`[SSO] Received the following error: ${authError}`)
-          this.$toast.error(`SSO: Received the following error: ${authError}`)
-          return
-        }
-
-        // Extract oauth2 code to be exchanged for a token
-        const authCode = urlObj.searchParams.get('code')
-        // Extract the state variable
-        const state = urlObj.searchParams.get('state')
-
-        if (this.oauth.state !== state) {
-          console.warn(`[SSO] Wrong state returned by SSO Provider`)
-          this.$toast.error(`SSO: The response from the SSO Provider was invalid (wrong state)`)
-          return
-        }
-
-        // Clear the state variable from the component config
-        this.oauth.state = null
-
-        if (authCode) {
-          await this.oauthExchangeCodeForToken(authCode, state)
-        }
-      } else {
-        console.warn(`[ServerConnectForm] appUrlOpen: Unknown url: ${url} - host: ${urlObj.hostname} - path: ${urlObj.pathname}`)
-      }
-    },
+    /**
+     * Initiates the login process using OpenID via OAuth2.0.
+     * 1. Verifying the server's address
+     * 2. Calling oauthRequest() to obtain the special OpenID redirect URL
+     *      including a challenge and specying audiobookshelf://oauth as redirect URL
+     * 3. Open this redirect URL in browser (which is a website of the SSO provider)
+     *
+     * When the browser is open, the following flow is expected:
+     * a. The user authenticates and the provider redirects back to custom URL audiobookshelf://oauth
+     * b. The app calls appUrlOpen() when `audiobookshelf://oauth` is called
+     * b. appUrlOpen() handles the incoming URL and extracts the authorization code from GET parameter
+     * c. oauthExchangeCodeForToken() exchanges the authorization code for an access token
+     *
+     *
+     * @async
+     * @throws Will log a console error if the browser fails to open the URL and display errors via this.error to the user.
+     */
     async clickLoginWithOpenId() {
       // oauth standard requires https explicitly
       if (!this.serverConfig.address.startsWith('https')) {
@@ -228,6 +207,14 @@ export default {
         console.error('Error opening browser', error)
       }
     },
+    /**
+     * Requests the OAuth/OpenID URL from the backend server to open in browser
+     *
+     * @async
+     * @param {string} url - The base URL of the server to append the OAuth request parameters to.
+     * @return {Promise<URL|null>} OAuth URL which should be opened in a browser
+     * @throws Logs an error and displays a toast notification if the token exchange fails.
+     */
     async oauthRequest(url) {
       // Generate oauth2 PKCE challenge
       //  In accordance to RFC 7636 Section 4
@@ -283,6 +270,62 @@ export default {
         this.$toast.error(`SSO Error: ${error.message}`)
       }
     },
+    /**
+     * Handles the callback received from the OAuth/OpenID provider.
+     *
+     * @async
+     * @function appUrlOpen
+     * @param {string} url - The callback URL received from the OAuth/OpenID provider.
+     * @throws Logs a warning and displays a toast notification if the URL is invalid or the state doesn't match.
+     */
+    async appUrlOpen(url) {
+      if (!url) return
+
+      // Handle the OAuth callback
+      const urlObj = new URL(url)
+
+      // audiobookshelf://oauth?code...
+      // urlObj.hostname for iOS and urlObj.pathname for android
+      if (url.startsWith('audiobookshelf://oauth')) {
+        // Extract possible errors thrown by the SSO provider
+        const authError = urlObj.searchParams.get('error')
+        if (authError) {
+          console.warn(`[SSO] Received the following error: ${authError}`)
+          this.$toast.error(`SSO: Received the following error: ${authError}`)
+          return
+        }
+
+        // Extract oauth2 code to be exchanged for a token
+        const authCode = urlObj.searchParams.get('code')
+        // Extract the state variable
+        const state = urlObj.searchParams.get('state')
+
+        if (this.oauth.state !== state) {
+          console.warn(`[SSO] Wrong state returned by SSO Provider`)
+          this.$toast.error(`SSO: The response from the SSO Provider was invalid (wrong state)`)
+          return
+        }
+
+        // Clear the state variable from the component config
+        this.oauth.state = null
+
+        if (authCode) {
+          await this.oauthExchangeCodeForToken(authCode, state)
+        }
+      } else {
+        console.warn(`[ServerConnectForm] appUrlOpen: Unknown url: ${url} - host: ${urlObj.hostname} - path: ${urlObj.pathname}`)
+      }
+    },
+    /**
+     * Exchanges an oauth2 authorization code for a JWT token.
+     * And uses that token to finalise the log in process using authenticateToken()
+     *
+     * @async
+     * @function oauthExchangeCodeForToken
+     * @param {string} code - The authorization code provided by the OpenID provider.
+     * @param {string} state - The state value used to associate a client session with an ID token.
+     * @throws Logs an error and displays a toast notification if the token exchange fails.
+     */
     async oauthExchangeCodeForToken(code, state) {
       // We need to read the url directly from this.serverConfig.address as the callback which is called via the external browser does not pass us that info
       const backendEndpoint = `${this.serverConfig.address}auth/openid/callback?state=${encodeURIComponent(state)}&code=${encodeURIComponent(code)}&code_verifier=${encodeURIComponent(this.oauth.verifier)}`
@@ -314,6 +357,9 @@ export default {
       } catch (error) {
         console.error('[SSO] Error in exchangeCodeForToken: ', error)
         this.$toast.error(`SSO error: ${error.message || error}`)
+      } finally {
+        // We don't need the oauth verifier any more
+        this.oauth.verifier = null
       }
     },
     addCustomHeaders() {
