@@ -82,6 +82,8 @@ import { Browser } from '@capacitor/browser'
 import { CapacitorHttp } from '@capacitor/core'
 import { Dialog } from '@capacitor/dialog'
 
+const requiredServerVersion = '2.5.0'
+
 export default {
   data() {
     return {
@@ -587,10 +589,14 @@ export default {
         this.error = 'Response from server was empty' // Usually some kind of config error on server side
         console.error('[ServerConnectForm] Received empty response')
         return false
-      } else if (!('isInit' in statusData.data) || !('language' in statusData.data)) { // TODO
+      } else if (!('app' in statusData.data) || statusData.data.app.toLowerCase() !== 'audiobookshelf') {
         this.error = 'This does not seem to be a Audiobookshelf server'
         console.error('[ServerConnectForm] Received as response from Server:\n', statusData)
         return false
+      } else if (!this.isValidVersion(statusData.data.serverVersion, requiredServerVersion)) {
+        this.error = `Server version is below minimum required version of ${requiredServerVersion} (${statusData.data.serverVersion})`;
+        console.error('[ServerConnectForm] Server version is too low: ', statusData.data.serverVersion);
+        return false;
       } else if (!statusData.data.isInit) {
         this.error = 'Server is not initialized'
         return false
@@ -665,6 +671,26 @@ export default {
       return address.startsWith('http://') || address.startsWith('https://')
         ? address
         : `https://${address}`
+    },
+    /**
+     * Compares two semantic versioning strings to determine if the current version meets
+     * or exceeds the minimum version requirement.
+     *
+     * @param {string} currentVersion - The current version string to compare, e.g., "1.2.3".
+     * @param {string} minVersion - The minimum version string required, e.g., "1.0.0".
+     * @returns {boolean} - Returns true if the current version is greater than or equal
+     *                      to the minimum version, false otherwise.
+     */
+    isValidVersion(currentVersion, minVersion) {
+      const currentParts = currentVersion.split('.').map(Number);
+      const minParts = minVersion.split('.').map(Number);
+
+      for (let i = 0; i < minParts.length; i++) {
+        if (currentParts[i] > minParts[i]) return true;
+        if (currentParts[i] < minParts[i]) return false;
+      }
+
+      return true;
     },
     async submitAuth() {
       if (!this.networkConnected) return
