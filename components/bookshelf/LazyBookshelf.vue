@@ -367,8 +367,14 @@ export default {
       this.handleScroll(scrollTop)
     },
     buildSearchParams() {
-      if (this.page === 'search' || this.page === 'series' || this.page === 'collections') {
+      if (this.page === 'search' || this.page === 'collections') {
         return ''
+      } else if (this.page === 'series') {
+        // Sort by name ascending
+        let searchParams = new URLSearchParams()
+        searchParams.set('sort', 'name')
+        searchParams.set('desc', 0)
+        return searchParams.toString()
       }
 
       let searchParams = new URLSearchParams()
