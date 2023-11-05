@@ -52,7 +52,7 @@
             </div>
           </form>
           <div v-if="isLocalAuthEnabled && isOpenIDAuthEnabled" class="w-full h-px bg-white bg-opacity-10 my-2" />
-          <ui-btn v-if="isOpenIDAuthEnabled" :disabled="processing" class="mt-1 h-10" @click="clickLoginWithOpenId">Login with OpenId</ui-btn>
+          <ui-btn v-if="isOpenIDAuthEnabled" :disabled="processing" class="mt-1 h-10" @click="clickLoginWithOpenId">{{ oauth.buttonText }}</ui-btn>
         </template>
       </div>
 
@@ -102,7 +102,8 @@ export default {
       authMethods: [],
       oauth: {
         state: null,
-        verifier: null
+        verifier: null,
+        buttonText: 'Login with OpenID'
       }
     }
   },
@@ -595,6 +596,11 @@ export default {
         if (this.validateLoginFormResponse(statusData, this.serverConfig.address, protocolProvided)) {
           this.showAuth = true
           this.authMethods = statusData.data.authMethods || []
+          this.oauth.buttonText = statusData.data.authFormData?.authOpenIDButtonText || 'Login with OpenID'
+
+          if (statusData.data.authFormData?.authOpenIDAutoLaunch) {
+            this.clickLoginWithOpenId()
+          }
         }
       } catch (error) {
         this.handleLoginFormError(error)
