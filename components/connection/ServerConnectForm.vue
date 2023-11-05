@@ -99,7 +99,8 @@ export default {
       showAddCustomHeaders: false,
       authMethods: [],
       oauth: {
-        state: null
+        state: null,
+        verifier: null
       }
     }
   },
@@ -226,9 +227,32 @@ export default {
       }
     },
     async oauthRequest(url) {
+      // Generate oauth2 PKCE challenge
+      //  In accordance to RFC 7636 Section 4
+      function base64URLEncode(arrayBuffer) {
+        let base64String = btoa(String.fromCharCode.apply(null, new Uint8Array(arrayBuffer)))
+        return base64String
+          .replace(/\+/g, '-')
+          .replace(/\//g, '_')
+          .replace(/=/g, '')
+      }
+      async function sha256(buffer) {
+        const hashBuffer = await crypto.subtle.digest('SHA-256', buffer)
+        return new Uint8Array(hashBuffer)
+      }
+
+      const randomBuffer = new Uint8Array(64)
+      window.crypto.getRandomValues(randomBuffer)
+      const verifier = base64URLEncode(randomBuffer)
+
+      const challengeBuffer = await sha256(randomBuffer)
+      const challenge = base64URLEncode(challengeBuffer)
+
+      this.oauth.verifier = verifier
+
+
       // set parameter isRest to true, so the backend wont attempt a redirect after we call backend:/callback in exchangeCodeForToken
-      // We dont need the callback parameter strictly speaking, but we must provide something or passport will error out as it seems to always expect it
-      const backendEndpoint = `${url}/auth/openid?callback=${encodeURIComponent('/login')}&isRest=true`
+      const backendEndpoint = `${url}auth/openid?code_challenge=${challenge}&code_challenge_method=S256&isRest=true`
 
       try {
         const response = await CapacitorHttp.get({
@@ -259,7 +283,7 @@ export default {
     },
     async oauthExchangeCodeForToken(code, state) {
       // We need to read the url directly from this.serverConfig.address as the callback which is called via the external browser does not pass us that info
-      const backendEndpoint = `${this.serverConfig.address}/auth/openid/callback?state=${encodeURIComponent(state)}&code=${encodeURIComponent(code)}`
+      const backendEndpoint = `${this.serverConfig.address}auth/openid/callback?state=${encodeURIComponent(state)}&code=${encodeURIComponent(code)}&code_verifier=${encodeURIComponent(this.oauth.verifier)}`
 
       try {
         // We can close the browser at this point (does not work on Android)
@@ -701,7 +725,7 @@ export default {
       this.error = null
       this.processing = true
 
-      const authRes = await this.postRequest(`${this.serverConfig.address}/api/authorize`, null, { Authorization: `Bearer ${this.serverConfig.token}` }).catch((error) => {
+      const authRes = await this.postRequest(`${this.serverConfig.address}api/authorize`, null, { Authorization: `Bearer ${this.serverConfig.token}` }).catch((error) => {
         console.error('[ServerConnectForm] Server auth failed', error)
         const errorMsg = error.message || error
         this.error = 'Failed to authorize'
