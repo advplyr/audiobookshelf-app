@@ -400,12 +400,13 @@ export default {
         this.setUserAndConnection(payload)
       }
     },
-    async setUserAndConnection({ user, userDefaultLibraryId, serverSettings }) {
+    async setUserAndConnection({ user, userDefaultLibraryId, serverSettings, ereaderDevices }) {
       if (!user) return
 
       console.log('Successfully logged in', JSON.stringify(user))
 
       this.$store.commit('setServerSettings', serverSettings)
+      this.$store.commit('libraries/setEReaderDevices', ereaderDevices)
 
       // Set library - Use last library if set and available fallback to default user library
       var lastLibraryId = await this.$localStore.getLastLibraryId()

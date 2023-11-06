@@ -1,11 +1,11 @@
 <template>
   <div class="w-full h-full">
-    <div class="w-full h-full overflow-y-auto px-2 py-6 md:p-8">
+    <div class="w-full h-full overflow-y-auto py-6 md:p-8">
       <div class="w-full flex justify-center">
         <covers-playlist-cover :items="playlistItems" :width="180" :height="180" />
       </div>
-      <div class="flex-grow py-6">
-        <div class="flex items-center px-2">
+      <div class="flex-grow px-1 py-6">
+        <div class="flex items-center px-3">
           <h1 class="text-xl font-sans">
             {{ playlistName }}
           </h1>
@@ -16,12 +16,17 @@
           </ui-btn>
         </div>
 
-        <div class="my-8 max-w-2xl px-2">
+        <div class="my-8 max-w-2xl px-3">
           <p class="text-base text-gray-100">{{ description }}</p>
         </div>
 
-        <tables-playlist-items-table :items="playlistItems" :playlist-id="playlist.id" />
+        <tables-playlist-items-table :items="playlistItems" :playlist-id="playlist.id" @showMore="showMore" />
       </div>
+    </div>
+
+    <modals-item-more-menu-modal v-model="showMoreMenu" :library-item="selectedLibraryItem" :episode="selectedEpisode" hide-rss-feed-option :processing.sync="processing" />
+    <div v-show="processing" class="fixed top-0 left-0 w-screen h-screen flex items-center justify-center bg-black/50 z-50">
+      <ui-loading-indicator />
     </div>
   </div>
 </template>
@@ -67,7 +72,12 @@ export default {
     }
   },
   data() {
-    return {}
+    return {
+      showMoreMenu: false,
+      processing: false,
+      selectedLibraryItem: null,
+      selectedEpisode: null
+    }
   },
   computed: {
     bookCoverAspectRatio() {
@@ -101,6 +111,11 @@ export default {
     }
   },
   methods: {
+    showMore(playlistItem) {
+      this.selectedLibraryItem = playlistItem.libraryItem
+      this.selectedEpisode = playlistItem.episode
+      this.showMoreMenu = true
+    },
     clickPlay() {
       const nextItem = this.playableItems.find((i) => {
         const prog = this.$store.getters['user/getUserMediaProgress'](i.libraryItemId, i.episodeId)

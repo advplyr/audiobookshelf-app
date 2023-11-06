@@ -652,14 +652,18 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     }
   }
 
-  fun getCurrentTime() : Long {
+  fun getCurrentTrackStartOffsetMs() : Long {
     return if (currentPlayer.mediaItemCount > 1) {
       val windowIndex = currentPlayer.currentMediaItemIndex
       val currentTrackStartOffset = currentPlaybackSession?.getTrackStartOffsetMs(windowIndex) ?: 0L
-      currentPlayer.currentPosition + currentTrackStartOffset
+      currentTrackStartOffset
     } else {
-      currentPlayer.currentPosition
+      0
     }
+  }
+
+  fun getCurrentTime() : Long {
+    return currentPlayer.currentPosition + getCurrentTrackStartOffsetMs()
   }
 
   fun getCurrentTimeSeconds() : Double {
