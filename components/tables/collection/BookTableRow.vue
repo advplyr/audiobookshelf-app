@@ -8,7 +8,7 @@
         <div class="max-w-full">
           <p class="truncate block text-sm">{{ bookTitle }}</p>
           <p class="truncate block text-gray-400 text-xs">{{ bookAuthor }}</p>
-          <p class="text-xxs text-gray-500">{{ bookDuration }}</p>
+          <p v-if="media.duration" class="text-xxs text-gray-500">{{ bookDuration }}</p>
         </div>
       </div>
       <div class="w-8 min-w-8 flex justify-center">
