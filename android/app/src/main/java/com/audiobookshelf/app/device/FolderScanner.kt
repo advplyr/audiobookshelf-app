@@ -385,7 +385,7 @@ class FolderScanner(var ctx: Context) {
         duration = mediaProgress.duration,
         progress = mediaProgress.progress,
         currentTime = mediaProgress.currentTime,
-        isFinished = false,
+        isFinished = mediaProgress.isFinished,
         ebookLocation = mediaProgress.ebookLocation,
         ebookProgress = mediaProgress.ebookProgress,
         lastUpdate = mediaProgress.lastUpdate,
@@ -552,7 +552,7 @@ class FolderScanner(var ctx: Context) {
         duration = mediaProgress.duration,
         progress = mediaProgress.progress,
         currentTime = mediaProgress.currentTime,
-        isFinished = false,
+        isFinished = mediaProgress.isFinished,
         ebookLocation = mediaProgress.ebookLocation,
         ebookProgress = mediaProgress.ebookProgress,
         lastUpdate = mediaProgress.lastUpdate,
@@ -564,6 +564,7 @@ class FolderScanner(var ctx: Context) {
         libraryItemId = downloadItem.libraryItemId,
         episodeId = downloadItem.episodeId)
       Log.d(tag, "scanLibraryItemFolder: Saving local media progress ${newLocalMediaProgress.id} at progress ${newLocalMediaProgress.progress}")
+
       DeviceManager.dbManager.saveLocalMediaProgress(newLocalMediaProgress)
 
       downloadItemScanResult.localMediaProgress = newLocalMediaProgress
