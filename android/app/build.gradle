@@ -127,7 +127,7 @@ dependencies {
   implementation 'com.fasterxml.jackson.module:jackson-module-kotlin:2.12.2'
 
   // FFMPEG-Kit
-  implementation 'com.arthenica:ffmpeg-kit-min:4.5.1'
+  implementation 'com.arthenica:ffmpeg-kit-min:4.5.1-1.LTS'
 }
 
 apply from: 'capacitor.build.gradle'
