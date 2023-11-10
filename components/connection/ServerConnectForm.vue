@@ -103,6 +103,7 @@ export default {
       oauth: {
         state: null,
         verifier: null,
+        challenge: null,
         buttonText: 'Login with OpenID'
       }
     }
@@ -196,7 +197,10 @@ export default {
       this.oauth.state = state
 
       const host = `https://${redirectUrl.host}`
-      const buildUrl = `${host}${redirectUrl.pathname}?response_type=code` + `&client_id=${encodeURIComponent(client_id)}&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(state)}` + `&redirect_uri=${encodeURIComponent('audiobookshelf://oauth')}`
+      const buildUrl = `${host}${redirectUrl.pathname}?response_type=code` +
+       `&client_id=${encodeURIComponent(client_id)}&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(state)}` +
+       `&redirect_uri=${encodeURIComponent('audiobookshelf://oauth')}` +
+       `&code_challenge=${encodeURIComponent(this.oauth.challenge)}&code_challenge_method=S256`
 
       // example url for authentik
       // const authURL = "https://authentik/application/o/authorize/?response_type=code&client_id=41cd96f...&redirect_uri=audiobookshelf%3A%2F%2Foauth&scope=openid%20openid%20email%20profile&state=asdds..."
@@ -224,21 +228,27 @@ export default {
         return base64String
           .replace(/\+/g, '-')
           .replace(/\//g, '_')
-          .replace(/=/g, '')
-      }
-      async function sha256(buffer) {
-        const hashBuffer = await crypto.subtle.digest('SHA-256', buffer)
-        return new Uint8Array(hashBuffer)
+          .replace(/=+$/g, '')
       }
 
-      const randomBuffer = new Uint8Array(64)
-      window.crypto.getRandomValues(randomBuffer)
-      const verifier = base64URLEncode(randomBuffer)
+      async function sha256(plain) {
+        const encoder = new TextEncoder()
+        const data = encoder.encode(plain)
+        return await window.crypto.subtle.digest('SHA-256', data)
+      }
 
-      const challengeBuffer = await sha256(randomBuffer)
-      const challenge = base64URLEncode(challengeBuffer)
+      function generateRandomString() {
+        var array = new Uint32Array(42)
+        window.crypto.getRandomValues(array)
+        return Array.from(array, dec => ('0' + dec.toString(16)).slice(-2)).join('') // hex
+      }
+
+      const verifier = generateRandomString()
+
+      const challenge = base64URLEncode(await sha256(verifier))
 
       this.oauth.verifier = verifier
+      this.oauth.challenge = challenge
 
 
       // set parameter isRest to true, so the backend wont attempt a redirect after we call backend:/callback in exchangeCodeForToken
@@ -361,6 +371,7 @@ export default {
       } finally {
         // We don't need the oauth verifier any more
         this.oauth.verifier = null
+        this.oauth.challenge = null
       }
     },
     addCustomHeaders() {
@@ -646,9 +657,9 @@ export default {
         console.error('[ServerConnectForm] Received as response from Server:\n', statusData)
         return false
       } else if (!this.isValidVersion(statusData.data.serverVersion, requiredServerVersion)) {
-        this.error = `Server version is below minimum required version of ${requiredServerVersion} (${statusData.data.serverVersion})`;
-        console.error('[ServerConnectForm] Server version is too low: ', statusData.data.serverVersion);
-        return false;
+        this.error = `Server version is below minimum required version of ${requiredServerVersion} (${statusData.data.serverVersion})`
+        console.error('[ServerConnectForm] Server version is too low: ', statusData.data.serverVersion)
+        return false
       } else if (!statusData.data.isInit) {
         this.error = 'Server is not initialized'
         return false
@@ -734,15 +745,15 @@ export default {
      *                      to the minimum version, false otherwise.
      */
     isValidVersion(currentVersion, minVersion) {
-      const currentParts = currentVersion.split('.').map(Number);
-      const minParts = minVersion.split('.').map(Number);
+      const currentParts = currentVersion.split('.').map(Number)
+      const minParts = minVersion.split('.').map(Number)
 
       for (let i = 0; i < minParts.length; i++) {
-        if (currentParts[i] > minParts[i]) return true;
-        if (currentParts[i] < minParts[i]) return false;
+        if (currentParts[i] > minParts[i]) return true
+        if (currentParts[i] < minParts[i]) return false
       }
 
-      return true;
+      return true
     },
     async submitAuth() {
       if (!this.networkConnected) return
