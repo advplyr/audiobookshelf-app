@@ -65,7 +65,7 @@ export default {
             iconPack: 'material-icons',
             icon: 'podcasts',
             iconClass: 'text-xl',
-            text: 'Search'
+            text: 'Add'
           })
         }
       } else {
