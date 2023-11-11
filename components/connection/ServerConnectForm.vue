@@ -51,8 +51,8 @@
               <ui-btn :disabled="processing || !networkConnected" type="submit" class="mt-1 h-10">{{ networkConnected ? 'Submit' : 'No Internet' }}</ui-btn>
             </div>
           </form>
-          <div v-if="isLocalAuthEnabled && isOpenIDAuthEnabled" class="w-full h-px bg-white bg-opacity-10 my-2" />
-          <ui-btn v-if="isOpenIDAuthEnabled" :disabled="processing" class="mt-1 h-10" @click="clickLoginWithOpenId">{{ oauth.buttonText }}</ui-btn>
+          <div v-if="isLocalAuthEnabled && isOpenIDAuthEnabled" class="w-full h-px bg-white bg-opacity-10 my-4" />
+          <ui-btn v-if="isOpenIDAuthEnabled" :disabled="processing" class="h-10 w-full" @click="clickLoginWithOpenId">{{ oauth.buttonText }}</ui-btn>
         </template>
       </div>
 
