@@ -82,7 +82,8 @@ import { Browser } from '@capacitor/browser'
 import { CapacitorHttp } from '@capacitor/core'
 import { Dialog } from '@capacitor/dialog'
 
-const requiredServerVersion = '2.5.0'
+// TODO: when backend ready. See validateLoginFormResponse()
+//const requiredServerVersion = '2.5.0'
 
 export default {
   data() {
@@ -315,6 +316,9 @@ export default {
 
         if (authCode) {
           await this.oauthExchangeCodeForToken(authCode, state)
+        } else {
+          console.warn(`[SSO] No code received`)
+          this.$toast.error(`SSO: The response from the SSO Provider did not include a code (authentication error?)`)
         }
       } else {
         console.warn(`[ServerConnectForm] appUrlOpen: Unknown url: ${url} - host: ${urlObj.hostname} - path: ${urlObj.pathname}`)
@@ -649,14 +653,19 @@ export default {
         this.error = 'Response from server was empty' // Usually some kind of config error on server side
         console.error('[ServerConnectForm] Received empty response')
         return false
-      } else if (!('app' in statusData.data) || statusData.data.app.toLowerCase() !== 'audiobookshelf') {
+      } else if (!('isInit' in statusData.data) || !('language' in statusData.data)) {
         this.error = 'This does not seem to be a Audiobookshelf server'
         console.error('[ServerConnectForm] Received as response from Server:\n', statusData)
         return false
-      } else if (!this.isValidVersion(statusData.data.serverVersion, requiredServerVersion)) {
-        this.error = `Server version is below minimum required version of ${requiredServerVersion} (${statusData.data.serverVersion})`
-        console.error('[ServerConnectForm] Server version is too low: ', statusData.data.serverVersion)
-        return false
+//    TODO: delete the if above and comment the ones below out, as soon as the backend is ready to introduce a version check
+//    } else if (!('app' in statusData.data) || statusData.data.app.toLowerCase() !== 'audiobookshelf') {
+//      this.error = 'This does not seem to be a Audiobookshelf server'
+//      console.error('[ServerConnectForm] Received as response from Server:\n', statusData)
+//      return false
+//    } else if (!this.isValidVersion(statusData.data.serverVersion, requiredServerVersion)) {
+//      this.error = `Server version is below minimum required version of ${requiredServerVersion} (${statusData.data.serverVersion})`
+//      console.error('[ServerConnectForm] Server version is too low: ', statusData.data.serverVersion)
+//      return false
       } else if (!statusData.data.isInit) {
         this.error = 'Server is not initialized'
         return false
@@ -680,7 +689,7 @@ export default {
       console.error('[ServerConnectForm] Received invalid status', error)
 
       if (error.code === 404) {
-        this.error = `This does not seem to be an Audiobookshelf server. (Error: 404)`
+        this.error = `This does not seem to be an Audiobookshelf server. (Error: 404 querying /status)`
       } else if (typeof error.code === 'number') {
         // Error with HTTP Code
         this.error = `Failed to retrieve status of server: ${error.code}`
