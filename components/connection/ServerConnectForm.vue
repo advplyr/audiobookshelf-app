@@ -197,10 +197,7 @@ export default {
       this.oauth.state = state
 
       const host = `https://${redirectUrl.host}`
-      const buildUrl = `${host}${redirectUrl.pathname}?response_type=code` +
-       `&client_id=${encodeURIComponent(client_id)}&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(state)}` +
-       `&redirect_uri=${encodeURIComponent('audiobookshelf://oauth')}` +
-       `&code_challenge=${encodeURIComponent(this.oauth.challenge)}&code_challenge_method=S256`
+      const buildUrl = `${host}${redirectUrl.pathname}?response_type=code` + `&client_id=${encodeURIComponent(client_id)}&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(state)}` + `&redirect_uri=${encodeURIComponent('audiobookshelf://oauth')}` + `&code_challenge=${encodeURIComponent(this.oauth.challenge)}&code_challenge_method=S256`
 
       // example url for authentik
       // const authURL = "https://authentik/application/o/authorize/?response_type=code&client_id=41cd96f...&redirect_uri=audiobookshelf%3A%2F%2Foauth&scope=openid%20openid%20email%20profile&state=asdds..."
@@ -225,10 +222,7 @@ export default {
       //  In accordance to RFC 7636 Section 4
       function base64URLEncode(arrayBuffer) {
         let base64String = btoa(String.fromCharCode.apply(null, new Uint8Array(arrayBuffer)))
-        return base64String
-          .replace(/\+/g, '-')
-          .replace(/\//g, '_')
-          .replace(/=+$/g, '')
+        return base64String.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
       }
 
       async function sha256(plain) {
@@ -240,7 +234,7 @@ export default {
       function generateRandomString() {
         var array = new Uint32Array(42)
         window.crypto.getRandomValues(array)
-        return Array.from(array, dec => ('0' + dec.toString(16)).slice(-2)).join('') // hex
+        return Array.from(array, (dec) => ('0' + dec.toString(16)).slice(-2)).join('') // hex
       }
 
       const verifier = generateRandomString()
@@ -249,7 +243,6 @@ export default {
 
       this.oauth.verifier = verifier
       this.oauth.challenge = challenge
-
 
       // set parameter isRest to true, so the backend wont attempt a redirect after we call backend:/callback in exchangeCodeForToken
       const backendEndpoint = `${url}auth/openid?code_challenge=${challenge}&code_challenge_method=S256&isRest=true`
@@ -346,7 +339,7 @@ export default {
         if (this.$platform === 'ios' || this.$platform === 'web') {
           await Browser.close()
         }
-      } catch(error) {} // No Error handling needed
+      } catch (error) {} // No Error handling needed
 
       try {
         const response = await CapacitorHttp.get({
@@ -362,6 +355,11 @@ export default {
 
         if (!payload) {
           throw new Error('Authentication failed with the provided token.')
+        }
+
+        const duplicateConfig = this.serverConnectionConfigs.find((scc) => scc.address === this.serverConfig.address && scc.username === payload.user.username)
+        if (duplicateConfig) {
+          throw new Error('Config already exists for this address and username.')
         }
 
         this.setUserAndConnection(payload)
@@ -640,8 +638,7 @@ export default {
         console.error(`[ServerConnectForm] Server redirected somewhere else (to ${currentAddressUrl.hostname})`)
         return false
       } // We don't allow a redirection back from https to http if the user used https:// explicitly
-      else if (protocolProvided &&
-       initialAddressWithProtocol.startsWith('https://') && currentAddressUrl.protocol === 'http') {
+      else if (protocolProvided && initialAddressWithProtocol.startsWith('https://') && currentAddressUrl.protocol === 'http') {
         this.error = `You specified https:// but the Server redirected back to plain http`
         console.error(`[ServerConnectForm] User specified https:// but server redirected to http`)
         return false
@@ -684,9 +681,11 @@ export default {
 
       if (error.code === 404) {
         this.error = `This does not seem to be an Audiobookshelf server. (Error: 404)`
-      } else if (typeof error.code === "number") { // Error with HTTP Code
+      } else if (typeof error.code === 'number') {
+        // Error with HTTP Code
         this.error = `Failed to retrieve status of server: ${error.code}`
-      } else { // error is usually a meaningful error like "Server timed out"
+      } else {
+        // error is usually a meaningful error like "Server timed out"
         this.error = `Failed to contact server. (${error})`
       }
     },
@@ -712,8 +711,8 @@ export default {
         // We only retry when the user did not specify a protocol
         // Also for security reasons, we only retry when the https request did not
         //      return a http status code (so only retry when the TCP connection could not be established)
-        if (shouldRetryWithHttp && (typeof error.code !== "number")) {
-          console.log("[ServerConnectForm] https failed, trying to connect with http...")
+        if (shouldRetryWithHttp && typeof error.code !== 'number') {
+          console.log('[ServerConnectForm] https failed, trying to connect with http...')
           const validatedHttpUrl = this.validateServerUrl(address, 'http:')
           if (validatedHttpUrl) {
             return await this.getServerAddressStatus(validatedHttpUrl)
@@ -731,9 +730,7 @@ export default {
      * @returns {string} The address with a protocol prepended if it was missing.
      */
     prependProtocolIfNeeded(address) {
-      return address.startsWith('http://') || address.startsWith('https://')
-        ? address
-        : `https://${address}`
+      return address.startsWith('http://') || address.startsWith('https://') ? address : `https://${address}`
     },
     /**
      * Compares two semantic versioning strings to determine if the current version meets
