@@ -51,8 +51,8 @@
               <ui-btn :disabled="processing || !networkConnected" type="submit" class="mt-1 h-10">{{ networkConnected ? 'Submit' : 'No Internet' }}</ui-btn>
             </div>
           </form>
-          <div v-if="isLocalAuthEnabled && isOpenIDAuthEnabled" class="w-full h-px bg-white bg-opacity-10 my-2" />
-          <ui-btn v-if="isOpenIDAuthEnabled" :disabled="processing" class="mt-1 h-10" @click="clickLoginWithOpenId">Login with OpenId</ui-btn>
+          <div v-if="isLocalAuthEnabled && isOpenIDAuthEnabled" class="w-full h-px bg-white bg-opacity-10 my-4" />
+          <ui-btn v-if="isOpenIDAuthEnabled" :disabled="processing" class="h-10 w-full" @click="clickLoginWithOpenId">{{ oauth.buttonText }}</ui-btn>
         </template>
       </div>
 
@@ -78,9 +78,12 @@
 </template>
 
 <script>
-import { Dialog } from '@capacitor/dialog'
+import { Browser } from '@capacitor/browser'
 import { CapacitorHttp } from '@capacitor/core'
-import { OAuth2Client } from '@byteowls/capacitor-oauth2'
+import { Dialog } from '@capacitor/dialog'
+
+// TODO: when backend ready. See validateLoginFormResponse()
+//const requiredServerVersion = '2.5.0'
 
 export default {
   data() {
@@ -97,7 +100,13 @@ export default {
       error: null,
       showForm: false,
       showAddCustomHeaders: false,
-      authMethods: []
+      authMethods: [],
+      oauth: {
+        state: null,
+        verifier: null,
+        challenge: null,
+        buttonText: 'Login with OpenID'
+      }
     }
   },
   computed: {
@@ -129,41 +138,243 @@ export default {
     }
   },
   methods: {
+    /**
+     * Initiates the login process using OpenID via OAuth2.0.
+     * 1. Verifying the server's address
+     * 2. Calling oauthRequest() to obtain the special OpenID redirect URL
+     *      including a challenge and specying audiobookshelf://oauth as redirect URL
+     * 3. Open this redirect URL in browser (which is a website of the SSO provider)
+     *
+     * When the browser is open, the following flow is expected:
+     * a. The user authenticates and the provider redirects back to custom URL audiobookshelf://oauth
+     * b. The app calls appUrlOpen() when `audiobookshelf://oauth` is called
+     * b. appUrlOpen() handles the incoming URL and extracts the authorization code from GET parameter
+     * c. oauthExchangeCodeForToken() exchanges the authorization code for an access token
+     *
+     *
+     * @async
+     * @throws Will log a console error if the browser fails to open the URL and display errors via this.error to the user.
+     */
     async clickLoginWithOpenId() {
-      this.error = ''
-      const options = {
-        authorizationBaseUrl: `${this.serverConfig.address}/auth/openid`,
-        logsEnabled: true,
-        web: {
-          appId: 'com.audiobookshelf.web',
-          responseType: 'token',
-          redirectUrl: location.origin
-        },
-        android: {
-          appId: 'com.audiobookshelf.app',
-          responseType: 'code',
-          redirectUrl: 'com.audiobookshelf.app:/'
-        }
+      // oauth standard requires https explicitly
+      if (!this.serverConfig.address.startsWith('https')) {
+        console.warn(`[SSO] Oauth2 requires HTTPS`)
+        this.$toast.error(`SSO: The URL to the server must be https:// secured`)
+        return
       }
-      OAuth2Client.authenticate(options)
-        .then(async (response) => {
-          const token = response.authorization_response?.additional_parameters?.setToken || response.authorization_response?.setToken
-          if (token) {
-            this.serverConfig.token = token
-            const payload = await this.authenticateToken()
-            if (payload) {
-              this.setUserAndConnection(payload)
-            } else {
-              this.showAuth = true
-            }
-          } else {
-            this.error = 'Invalid response: No token'
+
+      // First request that we want to do oauth/openid and get the URL which a browser window should open
+      const redirectUrl = await this.oauthRequest(this.serverConfig.address)
+      if (!redirectUrl) {
+        // error message handled by oauthRequest
+        return
+      }
+
+      // Actually we should be able to use the redirectUrl directly for Browser.open below
+      // However it seems that when directly using it there is a malformation and leads to the error
+      //    Unhandled Promise Rejection: DataCloneError: The object can not be cloned.
+      //    (On calling Browser.open)
+      // Which is hard to debug
+      // So we simply extract the important elements and build the required URL ourselves
+      //  which also has the advantage that we can replace the callbackurl with the app url
+
+      const client_id = redirectUrl.searchParams.get('client_id')
+      const scope = redirectUrl.searchParams.get('scope')
+      const state = redirectUrl.searchParams.get('state')
+
+      if (!client_id || !scope || !state) {
+        console.warn(`[SSO] Invalid OpenID URL - client_id scope or state missing: ${redirectUrl}`)
+        this.$toast.error(`SSO: Invalid answer`)
+        return
+      }
+
+      if (redirectUrl.protocol !== 'https:') {
+        console.warn(`[SSO] Insecure Redirection by SSO provider: ${redirectUrl.protocol} is not allowed. Use HTTPS`)
+        this.$toast.error(`SSO: The SSO provider must return a HTTPS secured URL`)
+        return
+      }
+
+      // We need to verify if the state is the same later
+      this.oauth.state = state
+
+      const host = `https://${redirectUrl.host}`
+      const buildUrl = `${host}${redirectUrl.pathname}?response_type=code` + `&client_id=${encodeURIComponent(client_id)}&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(state)}` + `&redirect_uri=${encodeURIComponent('audiobookshelf://oauth')}` + `&code_challenge=${encodeURIComponent(this.oauth.challenge)}&code_challenge_method=S256`
+
+      // example url for authentik
+      // const authURL = "https://authentik/application/o/authorize/?response_type=code&client_id=41cd96f...&redirect_uri=audiobookshelf%3A%2F%2Foauth&scope=openid%20openid%20email%20profile&state=asdds..."
+
+      // Open the browser. The browser/identity provider in turn will redirect to an in-app link supplementing a code
+      try {
+        await Browser.open({ url: buildUrl })
+      } catch (error) {
+        console.error('Error opening browser', error)
+      }
+    },
+    /**
+     * Requests the OAuth/OpenID URL from the backend server to open in browser
+     *
+     * @async
+     * @param {string} url - The base URL of the server to append the OAuth request parameters to.
+     * @return {Promise<URL|null>} OAuth URL which should be opened in a browser
+     * @throws Logs an error and displays a toast notification if the token exchange fails.
+     */
+    async oauthRequest(url) {
+      // Generate oauth2 PKCE challenge
+      //  In accordance to RFC 7636 Section 4
+      function base64URLEncode(arrayBuffer) {
+        let base64String = btoa(String.fromCharCode.apply(null, new Uint8Array(arrayBuffer)))
+        return base64String.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+      }
+
+      async function sha256(plain) {
+        const encoder = new TextEncoder()
+        const data = encoder.encode(plain)
+        return await window.crypto.subtle.digest('SHA-256', data)
+      }
+
+      function generateRandomString() {
+        var array = new Uint32Array(42)
+        window.crypto.getRandomValues(array)
+        return Array.from(array, (dec) => ('0' + dec.toString(16)).slice(-2)).join('') // hex
+      }
+
+      const verifier = generateRandomString()
+
+      const challenge = base64URLEncode(await sha256(verifier))
+
+      this.oauth.verifier = verifier
+      this.oauth.challenge = challenge
+
+      // set parameter isRest to true, so the backend wont attempt a redirect after we call backend:/callback in exchangeCodeForToken
+      const backendEndpoint = `${url}auth/openid?code_challenge=${challenge}&code_challenge_method=S256&isRest=true`
+
+      try {
+        const response = await CapacitorHttp.get({
+          url: backendEndpoint,
+          disableRedirects: true,
+          webFetchExtra: {
+            redirect: 'manual'
           }
         })
-        .catch((error) => {
-          console.error('OAuth rejected', error)
-          this.error = error.toString?.() || error.message
+
+        // Every kind of redirection is allowed [RFC6749 - 1.7]
+        if (!(response.status >= 300 && response.status < 400)) {
+          throw new Error(`Unexpected response from server: ${response.status}`)
+        }
+
+        // Depending on iOS or Android, it can be location or Location...
+        const locationHeader = response.headers[Object.keys(response.headers).find((key) => key.toLowerCase() === 'location')]
+        if (!locationHeader) {
+          throw new Error(`No location header in SSO answer`)
+        }
+
+        const url = new URL(locationHeader)
+        return url
+      } catch (error) {
+        console.error(`[SSO] ${error.message}`)
+        this.$toast.error(`SSO Error: ${error.message}`)
+      }
+    },
+    /**
+     * Handles the callback received from the OAuth/OpenID provider.
+     *
+     * @async
+     * @function appUrlOpen
+     * @param {string} url - The callback URL received from the OAuth/OpenID provider.
+     * @throws Logs a warning and displays a toast notification if the URL is invalid or the state doesn't match.
+     */
+    async appUrlOpen(url) {
+      if (!url) return
+
+      // Handle the OAuth callback
+      const urlObj = new URL(url)
+
+      // audiobookshelf://oauth?code...
+      // urlObj.hostname for iOS and urlObj.pathname for android
+      if (url.startsWith('audiobookshelf://oauth')) {
+        // Extract possible errors thrown by the SSO provider
+        const authError = urlObj.searchParams.get('error')
+        if (authError) {
+          console.warn(`[SSO] Received the following error: ${authError}`)
+          this.$toast.error(`SSO: Received the following error: ${authError}`)
+          return
+        }
+
+        // Extract oauth2 code to be exchanged for a token
+        const authCode = urlObj.searchParams.get('code')
+        // Extract the state variable
+        const state = urlObj.searchParams.get('state')
+
+        if (this.oauth.state !== state) {
+          console.warn(`[SSO] Wrong state returned by SSO Provider`)
+          this.$toast.error(`SSO: The response from the SSO Provider was invalid (wrong state)`)
+          return
+        }
+
+        // Clear the state variable from the component config
+        this.oauth.state = null
+
+        if (authCode) {
+          await this.oauthExchangeCodeForToken(authCode, state)
+        } else {
+          console.warn(`[SSO] No code received`)
+          this.$toast.error(`SSO: The response from the SSO Provider did not include a code (authentication error?)`)
+        }
+      } else {
+        console.warn(`[ServerConnectForm] appUrlOpen: Unknown url: ${url} - host: ${urlObj.hostname} - path: ${urlObj.pathname}`)
+      }
+    },
+    /**
+     * Exchanges an oauth2 authorization code for a JWT token.
+     * And uses that token to finalise the log in process using authenticateToken()
+     *
+     * @async
+     * @function oauthExchangeCodeForToken
+     * @param {string} code - The authorization code provided by the OpenID provider.
+     * @param {string} state - The state value used to associate a client session with an ID token.
+     * @throws Logs an error and displays a toast notification if the token exchange fails.
+     */
+    async oauthExchangeCodeForToken(code, state) {
+      // We need to read the url directly from this.serverConfig.address as the callback which is called via the external browser does not pass us that info
+      const backendEndpoint = `${this.serverConfig.address}auth/openid/callback?state=${encodeURIComponent(state)}&code=${encodeURIComponent(code)}&code_verifier=${encodeURIComponent(this.oauth.verifier)}`
+
+      try {
+        // We can close the browser at this point (does not work on Android)
+        if (this.$platform === 'ios' || this.$platform === 'web') {
+          await Browser.close()
+        }
+      } catch (error) {} // No Error handling needed
+
+      try {
+        const response = await CapacitorHttp.get({
+          url: backendEndpoint
         })
+
+        if (!response.data || !response.data.user || !response.data.user.token) {
+          throw new Error('Token data is missing in the response.')
+        }
+
+        this.serverConfig.token = response.data.user.token
+        const payload = await this.authenticateToken()
+
+        if (!payload) {
+          throw new Error('Authentication failed with the provided token.')
+        }
+
+        const duplicateConfig = this.serverConnectionConfigs.find((scc) => scc.address === this.serverConfig.address && scc.username === payload.user.username)
+        if (duplicateConfig) {
+          throw new Error('Config already exists for this address and username.')
+        }
+
+        this.setUserAndConnection(payload)
+      } catch (error) {
+        console.error('[SSO] Error in exchangeCodeForToken: ', error)
+        this.$toast.error(`SSO error: ${error.message || error}`)
+      } finally {
+        // We don't need the oauth verifier any more
+        this.oauth.verifier = null
+        this.oauth.challenge = null
+      }
     },
     addCustomHeaders() {
       this.showAddCustomHeaders = true
@@ -253,10 +464,18 @@ export default {
       this.error = null
       this.showAuth = false
     },
-    validateServerUrl(url) {
+    /**
+     * Validates a URL and reconstructs it with an optional protocol override.
+     * If the URL is invalid, null is returned.
+     *
+     * @param {string} url - The URL to validate.
+     * @param {string|null} [protocolOverride=null] - (Optional) Protocol to override the URL's original protocol.
+     * @returns {string|null} The validated URL with the original or overridden protocol, or null if invalid.
+     */
+    validateServerUrl(url, protocolOverride = null) {
       try {
         var urlObject = new URL(url)
-        var address = `${urlObject.protocol}//${urlObject.hostname}`
+        var address = `${protocolOverride ? protocolOverride : urlObject.protocol}//${urlObject.hostname}`
         if (urlObject.port) address += ':' + urlObject.port
         return address
       } catch (error) {
@@ -264,18 +483,45 @@ export default {
         return null
       }
     },
+    /**
+     * Sends a GET request to the specified URL with the provided headers and timeout.
+     * If the response is successful (HTTP 200), the response object is returned.
+     * Otherwise, throws an error object containing code.
+     * code can be either a number, which is then a HTTP status code or
+     *  a string, which is then a keyword like NSURLErrorBadURL when the TCP connection could not be established.
+     * When code is a string, error.message contains the human readable error by the OS or
+     *  the http body of the non-200 answer.
+     *
+     * @async
+     * @param {string} url - The URL to which the GET request will be sent.
+     * @param {Object} headers - HTTP headers to be included in the request.
+     * @param {number} [connectTimeout=6000] - Timeout for the request in milliseconds.
+     * @returns {Promise<HttpResponse>} The HTTP response object if the request is successful.
+     * @throws {Error} An error with 'code' property set to the HTTP status code if the response is not successful.
+     * @throws {Error} An error with 'code' property set to the error code if the request fails.
+     */
     async getRequest(url, headers, connectTimeout = 6000) {
       const options = {
         url,
         headers,
         connectTimeout
       }
-      const response = await CapacitorHttp.get(options)
-      console.log('[ServerConnectForm] GET request response', response)
-      if (response.status >= 400) {
-        throw new Error(response.data)
-      } else {
-        return response.data
+      try {
+        const response = await CapacitorHttp.get(options)
+        console.log('[ServerConnectForm] GET request response', response)
+        if (response.status == 200) {
+          return response
+        } else {
+          // Put the HTTP error code inside the cause
+          let errorObj = new Error(response.data)
+          errorObj.code = response.status
+          throw errorObj
+        }
+      } catch (error) {
+        // Put the error name inside the cause (a string)
+        let errorObj = new Error(error.message)
+        errorObj.code = error.code
+        throw errorObj
       }
     },
     async postRequest(url, data, headers, connectTimeout = 6000) {
@@ -301,23 +547,16 @@ export default {
      * Get request to server /status api endpoint
      *
      * @param {string} address
-     * @returns {Promise<{isInit:boolean, language:string, authMethods:string[]}>}
+     * @returns {Promise<HttpResponse>}
+     *    HttpResponse.data is {isInit:boolean, language:string, authMethods:string[]}>
      */
-    getServerAddressStatus(address) {
-      return this.getRequest(`${address}/status`).catch((error) => {
-        console.error('Failed to get server status', error)
-        const errorMsg = error.message || error
-        this.error = 'Failed to ping server'
-        if (typeof errorMsg === 'string') {
-          this.error += ` (${errorMsg})`
-        }
-        return null
-      })
+    async getServerAddressStatus(address) {
+      return this.getRequest(`${address}/status`)
     },
     pingServerAddress(address, customHeaders) {
       return this.getRequest(`${address}/ping`, customHeaders)
-        .then((data) => {
-          return data.success
+        .then((response) => {
+          return response.data.success
         })
         .catch((error) => {
           console.error('Server ping failed', error)
@@ -353,30 +592,174 @@ export default {
     async submit() {
       if (!this.networkConnected) return
       if (!this.serverConfig.address) return
-      if (!this.serverConfig.address.startsWith('http')) {
-        this.serverConfig.address = 'http://' + this.serverConfig.address
-      }
-      var validServerAddress = this.validateServerUrl(this.serverConfig.address)
-      if (!validServerAddress) {
-        this.error = 'Invalid server address'
-        return
-      }
 
-      this.serverConfig.address = validServerAddress
+      const initialAddress = this.serverConfig.address
+      // Did the user specify a protocol?
+      const protocolProvided = initialAddress.startsWith('http://') || initialAddress.startsWith('https://')
+      // Add https:// if not provided
+      this.serverConfig.address = this.prependProtocolIfNeeded(initialAddress)
+
       this.processing = true
       this.error = null
       this.authMethods = []
 
-      const statusData = await this.getServerAddressStatus(this.serverConfig.address)
-      this.processing = false
-      if (statusData) {
-        if (!statusData.isInit) {
-          this.error = 'Server is not initialized'
-        } else {
+      try {
+        // Try the server URL. If it fails and the protocol was not provided, try with http instead of https
+        const statusData = await this.tryServerUrl(this.serverConfig.address, !protocolProvided)
+        if (this.validateLoginFormResponse(statusData, this.serverConfig.address, protocolProvided)) {
           this.showAuth = true
-          this.authMethods = statusData.authMethods || []
+          this.authMethods = statusData.data.authMethods || []
+          this.oauth.buttonText = statusData.data.authFormData?.authOpenIDButtonText || 'Login with OpenID'
+
+          if (statusData.data.authFormData?.authOpenIDAutoLaunch) {
+            this.clickLoginWithOpenId()
+          }
         }
+      } catch (error) {
+        this.handleLoginFormError(error)
+      } finally {
+        this.processing = false
       }
+    },
+    /** Validates the login form response from the server.
+     *
+     * Ensure the request has not been redirected to an unexpected hostname and check if it is Audiobookshelf
+     *
+     * @param {object} statusData - The data received from the server's response, including data and url.
+     * @param {string} initialAddressWithProtocol - The initial server address including the protocol used for the request.
+     * @param {boolean} protocolProvided - Indicates whether the protocol was explicitly provided in the initial address.
+     *
+     * @returns {boolean} - Returns `true` if the response is valid, otherwise `false` and sets this.error.
+     */
+    validateLoginFormResponse(statusData, initialAddressWithProtocol, protocolProvided) {
+      // We have a 200 status code at this point
+
+      // Check if we got redirected to a different hostname, we don't allow this
+      const initialAddressUrl = new URL(initialAddressWithProtocol)
+      const currentAddressUrl = new URL(statusData.url)
+      if (initialAddressUrl.hostname !== currentAddressUrl.hostname) {
+        this.error = `Server redirected somewhere else (to ${currentAddressUrl.hostname})`
+        console.error(`[ServerConnectForm] Server redirected somewhere else (to ${currentAddressUrl.hostname})`)
+        return false
+      } // We don't allow a redirection back from https to http if the user used https:// explicitly
+      else if (protocolProvided && initialAddressWithProtocol.startsWith('https://') && currentAddressUrl.protocol === 'http') {
+        this.error = `You specified https:// but the Server redirected back to plain http`
+        console.error(`[ServerConnectForm] User specified https:// but server redirected to http`)
+        return false
+      }
+
+      // Check content of response now
+      if (!statusData || !statusData.data || Object.keys(statusData).length === 0) {
+        this.error = 'Response from server was empty' // Usually some kind of config error on server side
+        console.error('[ServerConnectForm] Received empty response')
+        return false
+      } else if (!('isInit' in statusData.data) || !('language' in statusData.data)) {
+        this.error = 'This does not seem to be a Audiobookshelf server'
+        console.error('[ServerConnectForm] Received as response from Server:\n', statusData)
+        return false
+//    TODO: delete the if above and comment the ones below out, as soon as the backend is ready to introduce a version check
+//    } else if (!('app' in statusData.data) || statusData.data.app.toLowerCase() !== 'audiobookshelf') {
+//      this.error = 'This does not seem to be a Audiobookshelf server'
+//      console.error('[ServerConnectForm] Received as response from Server:\n', statusData)
+//      return false
+//    } else if (!this.isValidVersion(statusData.data.serverVersion, requiredServerVersion)) {
+//      this.error = `Server version is below minimum required version of ${requiredServerVersion} (${statusData.data.serverVersion})`
+//      console.error('[ServerConnectForm] Server version is too low: ', statusData.data.serverVersion)
+//      return false
+      } else if (!statusData.data.isInit) {
+        this.error = 'Server is not initialized'
+        return false
+      }
+
+      // If we got redirected from http to https, we allow this
+      // Also there is the possibility that https was tried (with protocolProvided false) but only http was successfull
+      // So set the correct protocol for the config
+      const configUrl = new URL(this.serverConfig.address)
+      configUrl.protocol = currentAddressUrl.protocol
+      this.serverConfig.address = configUrl.toString()
+
+      return true
+    },
+    /**
+     * Handles errors received during the login form process, providing user-friendly error messages.
+     *
+     * @param {Object} error - The error object received from a failed login attempt.
+     */
+    handleLoginFormError(error) {
+      console.error('[ServerConnectForm] Received invalid status', error)
+
+      if (error.code === 404) {
+        this.error = `This does not seem to be an Audiobookshelf server. (Error: 404 querying /status)`
+      } else if (typeof error.code === 'number') {
+        // Error with HTTP Code
+        this.error = `Failed to retrieve status of server: ${error.code}`
+      } else {
+        // error is usually a meaningful error like "Server timed out"
+        this.error = `Failed to contact server. (${error})`
+      }
+    },
+    /**
+     * Attempts to retrieve the server address status for the given URL.
+     * If the initial attempt fails, it retries with HTTP if allowed.
+     *
+     * @param {string} address - The URL address to validate and check.
+     * @param {boolean} shouldRetryWithHttp - Flag to indicate if the function should retry with HTTP on failure.
+     * @returns {Promise<HttpResponse>}
+     *    HttpResponse.data is {isInit:boolean, language:string, authMethods:string[]}>
+     * @throws Will throw an error if the URL has a wrong format or if both HTTPS and HTTP (if retried) requests fail.
+     */
+    async tryServerUrl(address, shouldRetryWithHttp) {
+      const validatedUrl = this.validateServerUrl(address)
+      if (!validatedUrl) {
+        throw new Error('URL has wrong format')
+      }
+
+      try {
+        return await this.getServerAddressStatus(validatedUrl)
+      } catch (error) {
+        // We only retry when the user did not specify a protocol
+        // Also for security reasons, we only retry when the https request did not
+        //      return a http status code (so only retry when the TCP connection could not be established)
+        if (shouldRetryWithHttp && typeof error.code !== 'number') {
+          console.log('[ServerConnectForm] https failed, trying to connect with http...')
+          const validatedHttpUrl = this.validateServerUrl(address, 'http:')
+          if (validatedHttpUrl) {
+            return await this.getServerAddressStatus(validatedHttpUrl)
+          }
+          // else if validatedHttpUrl is false return the original error below
+        }
+        // rethrow original error
+        throw error
+      }
+    },
+    /**
+     * Ensures that a protocol is prepended to the given address if it does not already start with http:// or https://.
+     *
+     * @param {string} address - The server address that may or may not have a protocol.
+     * @returns {string} The address with a protocol prepended if it was missing.
+     */
+    prependProtocolIfNeeded(address) {
+      return address.startsWith('http://') || address.startsWith('https://') ? address : `https://${address}`
+    },
+    /**
+     * Compares two semantic versioning strings to determine if the current version meets
+     * or exceeds the minimum version requirement.
+     *
+     * @param {string} currentVersion - The current version string to compare, e.g., "1.2.3".
+     * @param {string} minVersion - The minimum version string required, e.g., "1.0.0".
+     * @returns {boolean} - Returns true if the current version is greater than or equal
+     *                      to the minimum version, false otherwise.
+     */
+    isValidVersion(currentVersion, minVersion) {
+      const currentParts = currentVersion.split('.').map(Number)
+      const minParts = minVersion.split('.').map(Number)
+
+      for (let i = 0; i < minParts.length; i++) {
+        if (currentParts[i] > minParts[i]) return true
+        if (currentParts[i] < minParts[i]) return false
+      }
+
+      return true
     },
     async submitAuth() {
       if (!this.networkConnected) return
@@ -438,7 +821,7 @@ export default {
       this.error = null
       this.processing = true
 
-      const authRes = await this.postRequest(`${this.serverConfig.address}/api/authorize`, null, { Authorization: `Bearer ${this.serverConfig.token}` }).catch((error) => {
+      const authRes = await this.postRequest(`${this.serverConfig.address}api/authorize`, null, { Authorization: `Bearer ${this.serverConfig.token}` }).catch((error) => {
         console.error('[ServerConnectForm] Server auth failed', error)
         const errorMsg = error.message || error
         this.error = 'Failed to authorize'
@@ -453,7 +836,7 @@ export default {
       this.processing = false
       return authRes
     },
-    async init() {
+    init() {
       if (this.lastServerConnectionConfig) {
         this.connectToServer(this.lastServerConnectionConfig)
       } else {
@@ -462,7 +845,11 @@ export default {
     }
   },
   mounted() {
+    this.$eventBus.$on('url-open', this.appUrlOpen)
     this.init()
+  },
+  beforeDestroy() {
+    this.$eventBus.$off('url-open', this.appUrlOpen)
   }
 }
 </script>

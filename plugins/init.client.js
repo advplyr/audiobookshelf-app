@@ -282,6 +282,14 @@ export default ({ store, app }, inject) => {
       window.history.back()
     }
   })
+
+  /**
+   * @see https://capacitorjs.com/docs/apis/app#addlistenerappurlopen-
+   * Listen for url open events for the app. This handles both custom URL scheme links as well as URLs your app handles
+   */
+  App.addListener('appUrlOpen', (data) => {
+    eventBus.$emit('url-open', data.url)
+  })
 }
 
 export {
