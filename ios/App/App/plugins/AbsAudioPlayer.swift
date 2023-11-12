@@ -31,25 +31,8 @@ public class AbsAudioPlayer: CAPPlugin {
     }
     
     @objc func onReady(_ call: CAPPluginCall) {
-        Task { await self.restorePlaybackSession() }
-    }
-    
-    func restorePlaybackSession() async {
-        do {
-            // Fetch the most recent active session
-            let activeSession = try Realm(queue: nil).objects(PlaybackSession.self).where({
-                $0.isActiveSession == true && $0.serverConnectionConfigId == Store.serverConfig?.id
-            }).last?.freeze()
-            
-            if let activeSession = activeSession {
-                PlayerHandler.stopPlayback(currentSessionId: activeSession.id)
-                await PlayerProgress.shared.syncFromServer()
-                try self.startPlaybackSession(activeSession, playWhenReady: false, playbackRate: PlayerSettings.main().playbackRate)
-            }
-        } catch {
-            logger.error("Failed to restore playback session")
-            debugPrint(error)
-        }
+        // TODO: Was used to notify when Abs UI was ready so that last played media could be opened - this was buggy and removed
+        call.resolve()
     }
     
     @objc func startPlaybackSession(_ session: PlaybackSession, playWhenReady: Bool, playbackRate: Float) throws {

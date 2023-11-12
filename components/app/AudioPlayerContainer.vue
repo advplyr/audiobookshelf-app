@@ -273,7 +273,7 @@ export default {
       this.notifyOnReady()
     },
     notifyOnReady() {
-      // TODO: iOS opens last active playback session on app launch. Should be consistent with Android
+      // TODO: was used on iOS to open last played media. May be removed
       if (!this.isIos) return
 
       // If settings aren't loaded yet, native player will receive incorrect settings
