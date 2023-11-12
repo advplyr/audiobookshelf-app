@@ -10,8 +10,6 @@
       </div>
       <p class="hidden absolute short:block top-1.5 left-12 p-2text-xl">audiobookshelf</p>
 
-      <!-- <p class="absolute bottom-16 left-0 right-0 px-2 text-center text-error"><strong>Important!</strong> This app requires that you are running <u>your own server</u> and does not provide any content.</p> -->
-
       <connection-server-connect-form v-if="deviceData" />
     </div>
 

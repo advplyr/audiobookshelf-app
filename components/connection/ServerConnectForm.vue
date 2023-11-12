@@ -1,6 +1,7 @@
 <template>
   <div class="w-full max-w-md mx-auto px-2 sm:px-4 lg:px-8 z-10">
     <div v-show="!loggedIn" class="mt-8 bg-primary overflow-hidden shadow rounded-lg px-4 py-6 w-full">
+      <!-- list of server connection configs -->
       <template v-if="!showForm">
         <div v-for="config in serverConnectionConfigs" :key="config.id" class="flex items-center py-4 my-1 border-b border-white border-opacity-10 relative" @click="connectToServer(config)">
           <span class="material-icons-outlined text-xl text-gray-300">dns</span>
@@ -14,23 +15,21 @@
           <ui-btn class="w-full" @click="newServerConfigClick">Add New Server</ui-btn>
         </div>
       </template>
+      <!-- form to add a new server connection config -->
       <div v-else class="w-full">
-        <form v-show="!showAuth" @submit.prevent="submit" novalidate class="w-full">
+        <!-- server address input -->
+        <form v-if="!showAuth" @submit.prevent="submit" novalidate class="w-full">
           <div v-if="serverConnectionConfigs.length" class="flex items-center mb-4" @click="showServerList">
             <span class="material-icons text-gray-300">arrow_back</span>
           </div>
           <h2 class="text-lg leading-7 mb-2">Server address</h2>
           <ui-text-input v-model="serverConfig.address" :disabled="processing || !networkConnected || !!serverConfig.id" placeholder="http://55.55.55.55:13378" type="url" class="w-full h-10" />
           <div class="flex justify-end items-center mt-6">
-            <!-- <div class="relative flex">
-              <button class="outline-none uppercase tracking-wide font-semibold text-xs text-gray-300" type="button" @click="addCustomHeaders">Add Custom Headers</button>
-              <div v-if="numCustomHeaders" class="rounded-full h-5 w-5 flex items-center justify-center text-xs bg-success bg-opacity-40 leading-3 font-semibold font-mono ml-1">{{ numCustomHeaders }}</div>
-            </div> -->
-
             <ui-btn :disabled="processing || !networkConnected" type="submit" :padding-x="3" class="h-10">{{ networkConnected ? 'Submit' : 'No Internet' }}</ui-btn>
           </div>
         </form>
-        <template v-if="showAuth">
+        <!-- username/password and auth methods -->
+        <template v-else>
           <div v-if="serverConfig.id" class="flex items-center mb-4" @click="showServerList">
             <span class="material-icons text-gray-300">arrow_back</span>
           </div>
@@ -56,6 +55,7 @@
         </template>
       </div>
 
+      <!-- auth error message -->
       <div v-show="error" class="w-full rounded-lg bg-red-600 bg-opacity-10 border border-error border-opacity-50 py-3 px-2 flex items-center mt-4">
         <span class="material-icons mr-2 text-error" style="font-size: 1.1rem">warning</span>
         <p class="text-error">{{ error }}</p>
@@ -72,6 +72,8 @@
         </svg>
       </div>
     </div>
+
+    <p v-if="!serverConnectionConfigs.length" class="mt-2 text-center text-error"><strong>Important!</strong> This app is designed to work with an Audiobookshelf server that you or someone you know is hosting. This app does not provide any content.</p>
 
     <modals-custom-headers-modal v-model="showAddCustomHeaders" :custom-headers.sync="serverConfig.customHeaders" />
   </div>
@@ -117,18 +119,14 @@ export default {
       return this.$store.state.networkConnected
     },
     serverConnectionConfigs() {
-      return this.deviceData ? this.deviceData.serverConnectionConfigs || [] : []
+      return this.deviceData?.serverConnectionConfigs || []
     },
     lastServerConnectionConfigId() {
-      return this.deviceData ? this.deviceData.lastServerConnectionConfigId : null
+      return this.deviceData?.lastServerConnectionConfigId || null
     },
     lastServerConnectionConfig() {
       if (!this.lastServerConnectionConfigId || !this.serverConnectionConfigs.length) return null
       return this.serverConnectionConfigs.find((s) => s.id == this.lastServerConnectionConfigId)
-    },
-    numCustomHeaders() {
-      if (!this.serverConfig.customHeaders) return 0
-      return Object.keys(this.serverConfig.customHeaders).length
     },
     isLocalAuthEnabled() {
       return this.authMethods.includes('local') || !this.authMethods.length
@@ -657,15 +655,15 @@ export default {
         this.error = 'This does not seem to be a Audiobookshelf server'
         console.error('[ServerConnectForm] Received as response from Server:\n', statusData)
         return false
-//    TODO: delete the if above and comment the ones below out, as soon as the backend is ready to introduce a version check
-//    } else if (!('app' in statusData.data) || statusData.data.app.toLowerCase() !== 'audiobookshelf') {
-//      this.error = 'This does not seem to be a Audiobookshelf server'
-//      console.error('[ServerConnectForm] Received as response from Server:\n', statusData)
-//      return false
-//    } else if (!this.isValidVersion(statusData.data.serverVersion, requiredServerVersion)) {
-//      this.error = `Server version is below minimum required version of ${requiredServerVersion} (${statusData.data.serverVersion})`
-//      console.error('[ServerConnectForm] Server version is too low: ', statusData.data.serverVersion)
-//      return false
+        //    TODO: delete the if above and comment the ones below out, as soon as the backend is ready to introduce a version check
+        //    } else if (!('app' in statusData.data) || statusData.data.app.toLowerCase() !== 'audiobookshelf') {
+        //      this.error = 'This does not seem to be a Audiobookshelf server'
+        //      console.error('[ServerConnectForm] Received as response from Server:\n', statusData)
+        //      return false
+        //    } else if (!this.isValidVersion(statusData.data.serverVersion, requiredServerVersion)) {
+        //      this.error = `Server version is below minimum required version of ${requiredServerVersion} (${statusData.data.serverVersion})`
+        //      console.error('[ServerConnectForm] Server version is too low: ', statusData.data.serverVersion)
+        //      return false
       } else if (!statusData.data.isInit) {
         this.error = 'Server is not initialized'
         return false
