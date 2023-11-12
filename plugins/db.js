@@ -70,10 +70,6 @@ class DbService {
     return AbsDatabase.removeLocalMediaProgress({ localMediaProgressId })
   }
 
-  syncLocalMediaProgressWithServer() {
-    return AbsDatabase.syncLocalMediaProgressWithServer()
-  }
-
   syncLocalSessionsWithServer() {
     return AbsDatabase.syncLocalSessionsWithServer()
   }

@@ -36,17 +36,6 @@ class PlayerProgress {
         await UIApplication.shared.endBackgroundTask(backgroundToken)
     }
     
-    public func syncToServer() async {
-        let backgroundToken = await UIApplication.shared.beginBackgroundTask(withName: "ABS:syncToServer")
-        do {
-            try await updateAllServerSessionFromLocalSession()
-        } catch {
-            logger.error("Failed to syncToServer")
-            logger.error(error)
-        }
-        await UIApplication.shared.endBackgroundTask(backgroundToken)
-    }
-    
     public func syncFromServer() async {
         let backgroundToken = await UIApplication.shared.beginBackgroundTask(withName: "ABS:syncFromServer")
         do {

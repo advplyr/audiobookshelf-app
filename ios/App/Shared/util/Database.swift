@@ -241,6 +241,16 @@ class Database {
         }
     }
     
+    public func getAllPlaybackSessions() -> [PlaybackSession] {
+        do {
+            let realm = try Realm()
+            return Array(realm.objects(PlaybackSession.self))
+        } catch {
+            debugPrint(error)
+            return []
+        }
+    }
+    
     public func getPlaybackSession(id: String) -> PlaybackSession? {
         do {
             let realm = try Realm()

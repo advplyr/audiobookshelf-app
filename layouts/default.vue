@@ -44,12 +44,7 @@ export default {
             if (timeSinceDisconnect > 5000) {
               console.log('Time since disconnect was', timeSinceDisconnect, 'sync with server')
               setTimeout(() => {
-                if (this.$platform === 'ios') {
-                  // TODO: Update ios to not use this
-                  this.syncLocalMediaProgress()
-                } else {
-                  this.syncLocalSessions()
-                }
+                this.syncLocalSessions()
               }, 4000)
             }
           }
@@ -215,36 +210,6 @@ export default {
         await this.$store.dispatch('globals/loadLocalMediaProgress')
       }
     },
-    async syncLocalMediaProgress() {
-      if (!this.user) {
-        console.log('[default] No need to sync local media progress - not connected to server')
-        return
-      }
-
-      console.log('[default] Calling syncLocalMediaProgress')
-      const response = await this.$db.syncLocalMediaProgressWithServer()
-      if (!response) {
-        if (this.$platform != 'web') this.$toast.error('Failed to sync local media with server')
-        return
-      }
-      const { numLocalMediaProgressForServer, numServerProgressUpdates, numLocalProgressUpdates, serverProgressUpdates } = response
-      if (numLocalMediaProgressForServer > 0) {
-        if (serverProgressUpdates && serverProgressUpdates.length) {
-          serverProgressUpdates.forEach((progress) => {
-            console.log(`[default] Server progress was updated ${progress.id}`)
-            this.$store.commit('user/updateUserMediaProgress', progress)
-          })
-        }
-
-        if (numServerProgressUpdates > 0 || numLocalProgressUpdates > 0) {
-          console.log(`[default] ${numServerProgressUpdates} Server progress updates | ${numLocalProgressUpdates} Local progress updates`)
-        } else {
-          console.log('[default] syncLocalMediaProgress No updates were necessary')
-        }
-      } else {
-        console.log('[default] syncLocalMediaProgress No local media progress to sync')
-      }
-    },
     userUpdated(user) {
       // console.log('[default] userUpdated:', JSON.stringify(user))
       if (this.user && this.user.id == user.id) {
@@ -362,12 +327,7 @@ export default {
       }
 
       console.log(`[default] finished connection attempt or already connected ${!!this.user}`)
-      if (this.$platform === 'ios') {
-        // TODO: Update ios to not use this
-        await this.syncLocalMediaProgress()
-      } else {
-        await this.syncLocalSessions()
-      }
+      await this.syncLocalSessions()
 
       this.loadSavedSettings()
       this.hasMounted = true

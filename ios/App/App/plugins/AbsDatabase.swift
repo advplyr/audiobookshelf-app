@@ -146,17 +146,16 @@ public class AbsDatabase: CAPPlugin {
         call.resolve()
     }
     
-    @objc func syncLocalMediaProgressWithServer(_ call: CAPPluginCall) {
+    @objc func syncLocalSessionsWithServer(_ call: CAPPluginCall) {
+        logger.log("syncLocalSessionsWithServer: Starting")
         guard Store.serverConfig != nil else {
-            call.reject("syncLocalMediaProgressWithServer not connected to server")
-            return
+            call.reject("syncLocalSessionsWithServer not connected to server")
+            return call.resolve()
         }
-        ApiClient.syncMediaProgress { results in
-            do {
-                call.resolve(try results.asDictionary())
-            } catch {
-                call.reject("Failed to report synced media progress")
-            }
+        
+        Task {
+            await ApiClient.syncLocalSessionsWithServer()
+            call.resolve()
         }
     }
     
