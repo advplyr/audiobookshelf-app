@@ -36,17 +36,6 @@ class PlayerProgress {
         await UIApplication.shared.endBackgroundTask(backgroundToken)
     }
     
-    public func syncFromServer() async {
-        let backgroundToken = await UIApplication.shared.beginBackgroundTask(withName: "ABS:syncFromServer")
-        do {
-            try await updateLocalSessionFromServerMediaProgress()
-        } catch {
-            logger.error("Failed to syncFromServer")
-            logger.error(error)
-        }
-        await UIApplication.shared.endBackgroundTask(backgroundToken)
-    }
-    
     
     // MARK: - SYNC LOGIC
     
@@ -164,6 +153,7 @@ class PlayerProgress {
         }
     }
     
+    // TODO: Unused for now
     private func updateLocalSessionFromServerMediaProgress() async throws {
         logger.log("updateLocalSessionFromServerMediaProgress: Checking if local media progress was updated on server")
         guard let session = try Realm(queue: nil).objects(PlaybackSession.self).last(where: {

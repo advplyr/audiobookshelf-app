@@ -56,8 +56,6 @@ class AudioPlayer: NSObject {
     internal var currentTrackIndex = 0
     private var allPlayerItems:[AVPlayerItem] = []
     
-    private var pausedTimer: Timer?
-    
     // MARK: - Constructor
     init(sessionId: String, playWhenReady: Bool = false, playbackRate: Float = 1) {
         self.playWhenReady = playWhenReady
@@ -159,7 +157,6 @@ class AudioPlayer: NSObject {
         NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.closed.rawValue), object: nil)
         
         // Remove timers
-        self.stopPausedTimer()
         self.removeSleepTimer()
     }
     
@@ -301,21 +298,6 @@ class AudioPlayer: NSObject {
         }
     }
     
-    private func startPausedTimer() {
-        guard self.pausedTimer == nil else { return }
-        self.queue.async {
-            self.pausedTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] timer in
-                self?.logger.log("PAUSE TIMER: Syncing from server")
-                Task { await PlayerProgress.shared.syncFromServer() }
-            }
-        }
-    }
-    
-    private func stopPausedTimer() {
-        self.pausedTimer?.invalidate()
-        self.pausedTimer = nil
-    }
-    
     // MARK: - Methods
     public func play(allowSeekBack: Bool = false, isInitializing: Bool = false) {
         guard self.isInitialized() || isInitializing else { return }
@@ -344,9 +326,6 @@ class AudioPlayer: NSObject {
     
     private func resumePlayback() {
         logger.log("PLAY: Resuming playback")
-        
-        // Stop the paused timer
-        self.stopPausedTimer()
         
         self.markAudioSessionAs(active: true)
         DispatchQueue.runOnMainQueue {
@@ -380,8 +359,6 @@ class AudioPlayer: NSObject {
         
         self.status = .paused
         updateNowPlaying()
-        
-        self.startPausedTimer()
     }
     
     public func seek(_ to: Double, from: String) {

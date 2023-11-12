@@ -236,8 +236,10 @@ class ApiClient {
                 if (success) {
                     // Remove sessions from db
                     try playbackSessions.forEach { session in
-                        if let session = session.thaw() {
-                            try session.delete()
+                        if (!session.isActiveSession) {
+                            if let session = session.thaw() {
+                                try session.delete()
+                            }
                         }
                     }
                 }
