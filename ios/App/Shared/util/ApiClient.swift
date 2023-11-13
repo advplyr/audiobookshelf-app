@@ -219,7 +219,9 @@ class ApiClient {
                     }
                     if (localMediaProgress != nil && mediaProgress.lastUpdate > localMediaProgress!.lastUpdate) {
                         logger.log("syncLocalSessionsWithServer: Updating local media progress \(localMediaProgress!.id) with server media progress")
-                        try localMediaProgress?.updateFromServerMediaProgress(mediaProgress)
+                        if let localMediaProgress = localMediaProgress?.thaw() {
+                            try localMediaProgress.updateFromServerMediaProgress(mediaProgress)
+                        }
                     } else if (localMediaProgress != nil) {
                         logger.log("syncLocalSessionsWithServer: Local progress for \(localMediaProgress!.id) is more recent then server progress")
                     }
@@ -276,9 +278,10 @@ class ApiClient {
         }
         
         ApiClient.getResource(endpoint: endpoint, decodable: LibraryItem.self) { obj in
-                callback(obj)
+            callback(obj)
         }
     }
+    
     public static func pingServer() async -> Bool {
         var status = true
         AF.request("\(Store.serverConfig!.address)/ping", method: .get).responseDecodable(of: PingResponsePayload.self) { response in

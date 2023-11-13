@@ -10,6 +10,7 @@ import RealmSwift
 
 class MediaProgress: EmbeddedObject, Codable {
     @Persisted var id: String = ""
+    @Persisted var userId: String = ""
     @Persisted var libraryItemId: String = ""
     @Persisted var episodeId: String?
     @Persisted var duration: Double = 0
@@ -23,7 +24,7 @@ class MediaProgress: EmbeddedObject, Codable {
     @Persisted var finishedAt: Double?
     
     private enum CodingKeys : String, CodingKey {
-        case id, libraryItemId, episodeId, duration, progress, currentTime, isFinished, ebookLocation, ebookProgress, lastUpdate, startedAt, finishedAt
+        case id, userId, libraryItemId, episodeId, duration, progress, currentTime, isFinished, ebookLocation, ebookProgress, lastUpdate, startedAt, finishedAt
     }
     
     override init() {
@@ -33,6 +34,7 @@ class MediaProgress: EmbeddedObject, Codable {
     required init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         id = try values.decode(String.self, forKey: .id)
+        userId = try values.decode(String.self, forKey: .userId)
         libraryItemId = try values.decode(String.self, forKey: .libraryItemId)
         episodeId = try? values.decode(String.self, forKey: .episodeId)
         duration = try values.doubleOrStringDecoder(key: .duration)
@@ -40,7 +42,7 @@ class MediaProgress: EmbeddedObject, Codable {
         currentTime = try values.doubleOrStringDecoder(key: .currentTime)
         isFinished = try values.decode(Bool.self, forKey: .isFinished)
         ebookLocation = try values.decodeIfPresent(String.self, forKey: .ebookLocation)
-        ebookProgress = try values.doubleOrStringDecoder(key: .ebookProgress)
+        ebookProgress = try? values.doubleOrStringDecoder(key: .ebookProgress)
         lastUpdate = try values.doubleOrStringDecoder(key: .lastUpdate)
         startedAt = try values.doubleOrStringDecoder(key: .startedAt)
         finishedAt = try? values.doubleOrStringDecoder(key: .finishedAt)
@@ -49,6 +51,7 @@ class MediaProgress: EmbeddedObject, Codable {
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
+        try container.encode(userId, forKey: .userId)
         try container.encode(libraryItemId, forKey: .libraryItemId)
         try container.encode(episodeId, forKey: .episodeId)
         try container.encode(duration, forKey: .duration)
