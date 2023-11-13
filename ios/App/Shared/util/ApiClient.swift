@@ -189,34 +189,64 @@ class ApiClient {
         return await postResource(endpoint: "api/session/local", parameters: session)
     }
     
-    public static func syncMediaProgress(callback: @escaping (_ results: LocalMediaProgressSyncResultsPayload) -> Void) {
-        let localMediaProgressList = Database.shared.getAllLocalMediaProgress().filter {
-            $0.serverConnectionConfigId == Store.serverConfig?.id
-        }.map { $0.freeze() }
-        
-        if ( !localMediaProgressList.isEmpty ) {
-            let payload = LocalMediaProgressSyncPayload(localMediaProgress: localMediaProgressList)
-            logger.log("Sending sync local progress request with \(localMediaProgressList.count) progress items")
-            postResource(endpoint: "api/me/sync-local-progress", parameters: payload, decodable: MediaProgressSyncResponsePayload.self) { response in
-                let resultsPayload = LocalMediaProgressSyncResultsPayload(numLocalMediaProgressForServer: localMediaProgressList.count, numServerProgressUpdates: response.numServerProgressUpdates, numLocalProgressUpdates: response.localProgressUpdates?.count)
-                logger.log("Media Progress Sync | \(String(describing: try? resultsPayload.asDictionary()))")
-                
-                if let updates = response.localProgressUpdates {
-                    for update in updates {
-                        do {
-                            try update.save()
-                        } catch {
-                            debugPrint("Failed to update local media progress")
-                            debugPrint(error)
+    public static func reportAllLocalPlaybackSessions(_ sessions: [PlaybackSession]) async -> Bool {
+        return await postResource(endpoint: "api/session/local-all", parameters: LocalPlaybackSessionSyncAllPayload(sessions: sessions))
+    }
+    
+    public static func syncLocalSessionsWithServer() async {
+        do {
+            // Sync server progress with local media progress
+            let localMediaProgressList = Database.shared.getAllLocalMediaProgress().filter {
+                $0.serverConnectionConfigId == Store.serverConfig?.id
+            }.map { $0.freeze() }
+            logger.log("syncLocalSessionsWithServer: Found \(localMediaProgressList.count) local media progress for server")
+            
+            if (localMediaProgressList.isEmpty) {
+                logger.log("syncLocalSessionsWithServer: No local progress to sync")
+            } else {
+                let currentUser = await ApiClient.getCurrentUser()
+                guard let currentUser = currentUser else {
+                    logger.log("syncLocalSessionsWithServer: No User")
+                    return
+                }
+                try currentUser.mediaProgress.forEach { mediaProgress in
+                    let localMediaProgress = localMediaProgressList.first { lmp in
+                        if (lmp.episodeId != nil) {
+                            return lmp.episodeId == mediaProgress.episodeId
+                        } else {
+                            return lmp.libraryItemId == mediaProgress.libraryItemId
+                        }
+                    }
+                    if (localMediaProgress != nil && mediaProgress.lastUpdate > localMediaProgress!.lastUpdate) {
+                        logger.log("syncLocalSessionsWithServer: Updating local media progress \(localMediaProgress!.id) with server media progress")
+                        try localMediaProgress?.updateFromServerMediaProgress(mediaProgress)
+                    } else if (localMediaProgress != nil) {
+                        logger.log("syncLocalSessionsWithServer: Local progress for \(localMediaProgress!.id) is more recent then server progress")
+                    }
+                }
+            }
+            
+            // Send saved playback sessions to server and remove them from db
+            let playbackSessions = Database.shared.getAllPlaybackSessions().filter {
+                $0.serverConnectionConfigId == Store.serverConfig?.id
+            }.map { $0.freeze() }
+            logger.log("syncLocalSessionsWithServer: Found \(playbackSessions.count) playback sessions for server")
+            if (!playbackSessions.isEmpty) {
+                let success = await ApiClient.reportAllLocalPlaybackSessions(playbackSessions)
+                if (success) {
+                    // Remove sessions from db
+                    try playbackSessions.forEach { session in
+                        if (!session.isActiveSession) {
+                            if let session = session.thaw() {
+                                try session.delete()
+                            }
                         }
                     }
                 }
-                
-                callback(resultsPayload)
             }
-        } else {
-            logger.log("No local media progress to sync")
-            callback(LocalMediaProgressSyncResultsPayload(numLocalMediaProgressForServer: 0, numServerProgressUpdates: 0, numLocalProgressUpdates: 0))
+        } catch {
+            debugPrint(error)
+            return
         }
     }
     
@@ -232,6 +262,11 @@ class ApiClient {
         logger.log("getMediaProgress \(libraryItemId) \(episodeId ?? "NIL")")
         let endpoint = episodeId?.isEmpty ?? true ? "api/me/progress/\(libraryItemId)" : "api/me/progress/\(libraryItemId)/\(episodeId ?? "")"
         return await getResource(endpoint: endpoint, decodable: MediaProgress.self)
+    }
+    
+    public static func getCurrentUser() async -> User? {
+        logger.log("getCurrentUser")
+        return await getResource(endpoint: "api/me", decodable: User.self)
     }
     
     public static func getLibraryItemWithProgress(libraryItemId:String, episodeId:String?, callback: @escaping (_ param: LibraryItem?) -> Void) {
@@ -285,6 +320,10 @@ struct LocalMediaProgressSyncResultsPayload: Codable {
     var numLocalMediaProgressForServer: Int?
     var numServerProgressUpdates: Int?
     var numLocalProgressUpdates: Int?
+}
+
+struct LocalPlaybackSessionSyncAllPayload: Codable {
+    var sessions: [PlaybackSession]
 }
 
 struct Connectivity {

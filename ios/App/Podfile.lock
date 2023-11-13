@@ -1,23 +1,25 @@
 PODS:
   - Alamofire (5.6.4)
-  - Capacitor (4.8.0):
+  - Capacitor (5.4.0):
     - CapacitorCordova
-  - CapacitorApp (4.1.1):
+  - CapacitorApp (5.0.6):
     - Capacitor
-  - CapacitorClipboard (4.1.0):
+  - CapacitorBrowser (5.1.0):
     - Capacitor
-  - CapacitorCordova (4.8.0)
-  - CapacitorDialog (4.1.0):
+  - CapacitorClipboard (5.0.6):
     - Capacitor
-  - CapacitorHaptics (4.1.0):
+  - CapacitorCordova (5.4.0)
+  - CapacitorDialog (5.0.6):
     - Capacitor
-  - CapacitorNetwork (4.1.0):
+  - CapacitorHaptics (5.0.6):
     - Capacitor
-  - CapacitorPreferences (4.0.2):
+  - CapacitorNetwork (5.0.6):
     - Capacitor
-  - CapacitorStatusBar (4.1.1):
+  - CapacitorPreferences (5.0.6):
     - Capacitor
-  - CordovaPlugins (4.8.0):
+  - CapacitorStatusBar (5.0.6):
+    - Capacitor
+  - CordovaPlugins (5.4.0):
     - CapacitorCordova
   - Realm (10.36.0):
     - Realm/Headers (= 10.36.0)
@@ -29,6 +31,7 @@ DEPENDENCIES:
   - Alamofire (~> 5.5)
   - "Capacitor (from `../../node_modules/@capacitor/ios`)"
   - "CapacitorApp (from `../../node_modules/@capacitor/app`)"
+  - "CapacitorBrowser (from `../../node_modules/@capacitor/browser`)"
   - "CapacitorClipboard (from `../../node_modules/@capacitor/clipboard`)"
   - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
   - "CapacitorDialog (from `../../node_modules/@capacitor/dialog`)"
@@ -50,6 +53,8 @@ EXTERNAL SOURCES:
     :path: "../../node_modules/@capacitor/ios"
   CapacitorApp:
     :path: "../../node_modules/@capacitor/app"
+  CapacitorBrowser:
+    :path: "../../node_modules/@capacitor/browser"
   CapacitorClipboard:
     :path: "../../node_modules/@capacitor/clipboard"
   CapacitorCordova:
@@ -69,19 +74,20 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   Alamofire: 4e95d97098eacb88856099c4fc79b526a299e48c
-  Capacitor: 6002aadd64492438e5242325025045235dcb7e84
-  CapacitorApp: acd42fe8561fe751ad5b5f459aa85e6acd7bee24
-  CapacitorClipboard: 4c092a2608520afb799429e63820256c3a59f1e5
-  CapacitorCordova: c6249dcb2cf04dd835c0e99df1df4b9c8ad997e2
-  CapacitorDialog: c8a6558d29767e76a32a056bb5e0fc9104b985b0
-  CapacitorHaptics: 213b3a1f3efd6dbf6e6b76a1b2bb0399cf43b213
-  CapacitorNetwork: 7126b3d2d23ca60d5ac0d8d2ecccfab0b1f305c6
-  CapacitorPreferences: 1d66dc32299f55ed632c5611f312878979275ea5
-  CapacitorStatusBar: 65933e554bb5d65b361deaa936a93616086a2608
-  CordovaPlugins: b7ac282a1681fad663e14dcbe719249f738b88ce
+  Capacitor: a5cd803e02b471591c81165f400ace01f40b11d3
+  CapacitorApp: 024e1b1bea5f883d79f6330d309bc441c88ad04a
+  CapacitorBrowser: 7a0fb6a1011abfaaf2dfedfd8248f942a8eda3d6
+  CapacitorClipboard: 77edf49827ea21da2a9c05c690a4a6a4d07199c4
+  CapacitorCordova: 66ce22f9976de30fd816f746e9e92e07d6befafd
+  CapacitorDialog: 0f3c15dfe9414b83bc64aef4078f1b92bcfead26
+  CapacitorHaptics: 1fffc1217c7e64a472d7845be50fb0c2f7d4204c
+  CapacitorNetwork: d80b3e79bef6ec37640ee2806c19771f07ff2d0c
+  CapacitorPreferences: f03954bcb0ff09c792909e46bff88e3183c16b10
+  CapacitorStatusBar: 565c0a1ebd79bb40d797606a8992b4a105885309
+  CordovaPlugins: a5db67e5ac1061b9869a0efd754f2c2f776aeccc
   Realm: 3fd136cb4c83a927482a7f1612496d37beed3cf5
   RealmSwift: 513d4dcbf5bfc4d573454088b592685fc48dd716
 
-PODFILE CHECKSUM: 05c80969578f3260e71d903c6ddb969847bcceb2
+PODFILE CHECKSUM: 7a8fc177ef0646dd60a1ee8aa387964975fcc1e3
 
 COCOAPODS: 1.12.1

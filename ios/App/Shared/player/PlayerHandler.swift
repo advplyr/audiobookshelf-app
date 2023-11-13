@@ -19,7 +19,6 @@ class PlayerHandler {
         
         // Cleanup and sync old sessions
         cleanupOldSessions(currentSessionId: sessionId)
-        Task { await PlayerProgress.shared.syncToServer() }
         
         // Set now playing info
         NowPlayingInfo.shared.setSessionMetadata(metadata: NowPlayingMetadata(id: session.id, itemId: session.libraryItemId!, title: session.displayTitle ?? "Unknown title", author: session.displayAuthor, series: nil))

@@ -3,7 +3,7 @@
     <string name="app_name">audiobookshelf</string>
     <string name="title_activity_main">audiobookshelf</string>
     <string name="package_name">com.audiobookshelf.app</string>
-    <string name="custom_url_scheme">com.audiobookshelf.app.debug</string>
+    <string name="custom_url_scheme">audiobookshelf</string>
     <string name="add_widget">Add widget</string>
     <string name="app_widget_description">Simple widget for audiobookshelf playback</string>
     <string name="action_jump_forward">Jump Forward</string>

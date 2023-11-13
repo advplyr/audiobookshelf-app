@@ -28,6 +28,7 @@
 		4D66B956282EE951008272D4 /* AbsFileSystem.m in Sources */ = {isa = PBXBuildFile; fileRef = 4D66B955282EE951008272D4 /* AbsFileSystem.m */; };
 		4D66B958282EEA14008272D4 /* AbsFileSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D66B957282EEA14008272D4 /* AbsFileSystem.swift */; };
 		4D91EEC62A40F28D004807ED /* EBookFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D91EEC52A40F28D004807ED /* EBookFile.swift */; };
+		4DABC04F2B0139CA000F6264 /* User.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DABC04E2B0139CA000F6264 /* User.swift */; };
 		4DF74912287105C600AC7814 /* DeviceSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DF74911287105C600AC7814 /* DeviceSettings.swift */; };
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
 		504EC3081FED79650016851F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504EC3071FED79650016851F /* AppDelegate.swift */; };
@@ -99,6 +100,7 @@
 		4D66B957282EEA14008272D4 /* AbsFileSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AbsFileSystem.swift; sourceTree = "<group>"; };
 		4D8D412C26E187E400BA5F0D /* App-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "App-Bridging-Header.h"; sourceTree = "<group>"; };
 		4D91EEC52A40F28D004807ED /* EBookFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EBookFile.swift; sourceTree = "<group>"; };
+		4DABC04E2B0139CA000F6264 /* User.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = User.swift; sourceTree = "<group>"; };
 		4DF74911287105C600AC7814 /* DeviceSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceSettings.swift; sourceTree = "<group>"; };
 		50379B222058CBB4000EE86E /* capacitor.config.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = capacitor.config.json; sourceTree = "<group>"; };
 		504EC3041FED79650016851F /* Audiobookshelf.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Audiobookshelf.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -302,6 +304,7 @@
 				E9D5505B28AC1C6200C746DD /* LibraryFile.swift */,
 				E9D5505D28AC1C8500C746DD /* MediaProgress.swift */,
 				4D91EEC52A40F28D004807ED /* EBookFile.swift */,
+				4DABC04E2B0139CA000F6264 /* User.swift */,
 			);
 			path = server;
 			sourceTree = "<group>";
@@ -542,6 +545,7 @@
 				E9D5505828AC1C1A00C746DD /* Library.swift in Sources */,
 				3AD4FCEB280443DD006DB301 /* Database.swift in Sources */,
 				3AD4FCE528043E50006DB301 /* AbsDatabase.swift in Sources */,
+				4DABC04F2B0139CA000F6264 /* User.swift in Sources */,
 				4D66B952282EE822008272D4 /* AbsDownloader.m in Sources */,
 				E9D5506828AC1DC300C746DD /* LocalPodcastEpisode.swift in Sources */,
 				E9D5505228AC1B5D00C746DD /* Chapter.swift in Sources */,
