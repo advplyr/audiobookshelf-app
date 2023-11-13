@@ -334,7 +334,7 @@ export default {
      */
     async oauthExchangeCodeForToken(code, state) {
       // We need to read the url directly from this.serverConfig.address as the callback which is called via the external browser does not pass us that info
-      const backendEndpoint = `${this.serverConfig.address}auth/openid/callback?state=${encodeURIComponent(state)}&code=${encodeURIComponent(code)}&code_verifier=${encodeURIComponent(this.oauth.verifier)}`
+      const backendEndpoint = `${this.serverConfig.address}/auth/openid/callback?state=${encodeURIComponent(state)}&code=${encodeURIComponent(code)}&code_verifier=${encodeURIComponent(this.oauth.verifier)}`
 
       try {
         // We can close the browser at this point (does not work on Android)
@@ -674,7 +674,8 @@ export default {
       // So set the correct protocol for the config
       const configUrl = new URL(this.serverConfig.address)
       configUrl.protocol = currentAddressUrl.protocol
-      this.serverConfig.address = configUrl.toString()
+      // Remove trailing slash
+      this.serverConfig.address = configUrl.toString().replace(/\/$/, '')
 
       return true
     },
@@ -819,7 +820,7 @@ export default {
       this.error = null
       this.processing = true
 
-      const authRes = await this.postRequest(`${this.serverConfig.address}api/authorize`, null, { Authorization: `Bearer ${this.serverConfig.token}` }).catch((error) => {
+      const authRes = await this.postRequest(`${this.serverConfig.address}/api/authorize`, null, { Authorization: `Bearer ${this.serverConfig.token}` }).catch((error) => {
         console.error('[ServerConnectForm] Server auth failed', error)
         const errorMsg = error.message || error
         this.error = 'Failed to authorize'
