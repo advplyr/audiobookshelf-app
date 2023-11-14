@@ -88,6 +88,8 @@ class AbsDatabaseWeb extends WebPlugin {
       value: [{
         id: 'local_test',
         libraryItemId: 'test34',
+        serverAddress: 'https://abs.test.com',
+        serverUserId: 'test56',
         folderId: 'test1',
         absolutePath: 'a',
         contentUrl: 'c',

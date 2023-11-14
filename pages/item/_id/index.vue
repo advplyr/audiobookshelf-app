@@ -27,9 +27,23 @@
         <p v-if="subtitle" class="text-gray-100 text-base">{{ subtitle }}</p>
       </div>
 
-      <!-- Show an indicator for local library items whether they are linked to a server item and if that server item is connected -->
-      <p v-if="isLocal && serverLibraryItemId" style="font-size: 10px" class="text-success text-center py-1 uppercase tracking-widest">connected</p>
-      <p v-else-if="isLocal && libraryItem.serverAddress" style="font-size: 10px" class="text-gray-400 text-center py-1">{{ libraryItem.serverAddress }}</p>
+      <div v-if="hasLocal" class="mx-1">
+        <div v-if="isLocalOnly" class="w-full rounded-md bg-warning/10 border border-warning p-4">
+          <p class="text-sm">Media is not linked to an Audiobookshelf server. No progress will be synced.</p>
+        </div>
+        <div v-else-if="currentServerConnectionConfigId && !isLocalMatchingServerAddress" class="w-full rounded-md bg-warning/10 border border-warning p-4">
+          <p class="text-sm">Media is linked to an Audiobookshelf server on a different address ({{ localLibraryItem.serverAddress }}). No progress will be synced until you connect to this server.</p>
+        </div>
+        <div v-else-if="currentServerConnectionConfigId && !isLocalMatchingConnectionConfig" class="w-full rounded-md bg-warning/10 border border-warning p-4">
+          <p class="text-sm">Media is linked to a different server connection config. This might mean a different user downloaded this media (User Id: {{ localLibraryItem.serverUserId }}). Currently connected user id: {{ user.id }}. Progress will only sync to the user that downloaded the media.</p>
+        </div>
+        <div v-else-if="isLocalMatchingConnectionConfig" class="w-full rounded-md bg-success/10 border border-success p-4">
+          <p class="text-sm">Downloaded media is linked to this server</p>
+        </div>
+        <div v-else-if="isLocal && libraryItem.serverAddress" class="w-full rounded-md bg-slate-300/10 border border-slate-300 p-4">
+          <p class="text-sm">Linked to server {{ libraryItem.serverAddress }}</p>
+        </div>
+      </div>
 
       <!-- action buttons -->
       <div class="col-span-full">
@@ -151,6 +165,10 @@ export default {
     if (libraryItemId.startsWith('local')) {
       libraryItem = await app.$db.getLocalLibraryItem(libraryItemId)
       console.log('Got lli', libraryItemId)
+      // If library item is linked to the currently connected server then redirect to the page using the server library item id
+      if (libraryItem?.libraryItemId && libraryItem?.serverAddress === store.getters['user/getServerAddress']) {
+        return redirect(`/item/${libraryItem.libraryItemId}`)
+      }
     } else if (store.state.user.serverConnectionConfig) {
       libraryItem = await app.$nativeHttp.get(`/api/items/${libraryItemId}?expanded=1&include=rssfeed`).catch((error) => {
         console.error('Failed', error)
@@ -201,6 +219,10 @@ export default {
     isLocal() {
       return this.libraryItem.isLocal
     },
+    isLocalOnly() {
+      // TODO: Remove the possibility to have local only on android
+      return this.isLocal && !this.libraryItem.libraryItemId
+    },
     hasLocal() {
       // Server library item has matching local library item
       return this.isLocal || this.libraryItem.localLibraryItem
@@ -221,10 +243,33 @@ export default {
       if (!this.isLocal) return this.libraryItem.id
       // Check if local library item is connected to the current server
       if (!this.libraryItem.serverAddress || !this.libraryItem.libraryItemId) return null
-      if (this.$store.getters['user/getServerAddress'] === this.libraryItem.serverAddress) {
+      if (this.currentServerAddress === this.libraryItem.serverAddress) {
         return this.libraryItem.libraryItemId
       }
       return null
+    },
+    localLibraryItemServerConnectionConfigId() {
+      return this.localLibraryItem?.serverConnectionConfigId
+    },
+    currentServerAddress() {
+      return this.$store.getters['user/getServerAddress']
+    },
+    currentServerConnectionConfigId() {
+      return this.$store.getters['user/getServerConnectionConfigId']
+    },
+    /**
+     * User is currently connected to a server and this local library item has the same server address
+     */
+    isLocalMatchingServerAddress() {
+      if (this.isLocalOnly || !this.localLibraryItem || !this.currentServerAddress) return false
+      return this.localLibraryItem.serverAddress === this.currentServerAddress
+    },
+    /**
+     * User is currently connected to a server and this local library item has the same connection config id
+     */
+    isLocalMatchingConnectionConfig() {
+      if (this.isLocalOnly || !this.localLibraryItemServerConnectionConfigId || !this.currentServerConnectionConfigId) return false
+      return this.localLibraryItemServerConnectionConfigId === this.currentServerConnectionConfigId
     },
     bookCoverAspectRatio() {
       return this.$store.getters['libraries/getBookCoverAspectRatio']
