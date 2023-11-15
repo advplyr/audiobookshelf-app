@@ -54,6 +54,15 @@
           </nuxt-link>
         </div>
       </template>
+
+      <p v-if="tagResults.length" class="font-semibold text-sm mb-1 mt-2">Tags</p>
+      <template v-for="tag in tagResults">
+        <div :key="tag.name" class="w-full h-14 py-1">
+          <nuxt-link :to="`/bookshelf/library?filter=tags.${$encode(tag.name)}`">
+            <cards-tag-search-card :tag="tag.name" />
+          </nuxt-link>
+        </div>
+      </template>
     </div>
   </div>
 </template>
@@ -70,7 +79,8 @@ export default {
       podcastResults: [],
       seriesResults: [],
       authorResults: [],
-      narratorResults: []
+      narratorResults: [],
+      tagResults: []
     }
   },
   computed: {
@@ -81,7 +91,7 @@ export default {
       return this.$store.getters['libraries/getBookCoverAspectRatio']
     },
     totalResults() {
-      return this.bookResults.length + this.seriesResults.length + this.authorResults.length + this.podcastResults.length + this.narratorResults.length
+      return this.bookResults.length + this.seriesResults.length + this.authorResults.length + this.podcastResults.length + this.narratorResults.length + this.tagResults.length
     }
   },
   methods: {
@@ -97,6 +107,7 @@ export default {
         this.seriesResults = []
         this.authorResults = []
         this.narratorResults = []
+        this.tagResults = []
         return
       }
       this.isFetching = true
@@ -117,6 +128,7 @@ export default {
       this.seriesResults = results?.series || []
       this.authorResults = results?.authors || []
       this.narratorResults = results?.narrators || []
+      this.tagResults = results?.tags || []
     },
     updateSearch(val) {
       clearTimeout(this.searchTimeout)
