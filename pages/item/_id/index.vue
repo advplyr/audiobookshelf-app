@@ -32,10 +32,13 @@
           <p class="text-sm">Media is not linked to an Audiobookshelf server. No progress will be synced.</p>
         </div>
         <div v-else-if="currentServerConnectionConfigId && !isLocalMatchingServerAddress" class="w-full rounded-md bg-warning/10 border border-warning p-4">
-          <p class="text-sm">Media is linked to an Audiobookshelf server on a different address ({{ localLibraryItem.serverAddress }}). No progress will be synced until you connect to this server.</p>
+          <p class="text-sm">Media is linked to an Audiobookshelf server on a different address ({{ localLibraryItem.serverAddress }}). Progress will be synced when connected to this server address.</p>
+        </div>
+        <div v-else-if="currentServerConnectionConfigId && !isLocalMatchingUser" class="w-full rounded-md bg-warning/10 border border-warning p-4">
+          <p class="text-sm">Media is linked to this server but was downloaded by a different user. Progress will only be synced to the user that downloaded it.</p>
         </div>
         <div v-else-if="currentServerConnectionConfigId && !isLocalMatchingConnectionConfig" class="w-full rounded-md bg-warning/10 border border-warning p-4">
-          <p class="text-sm">Media is linked to a different server connection config. This might mean a different user downloaded this media (User Id: {{ localLibraryItem.serverUserId }}). Currently connected user id: {{ user.id }}. Progress will only sync to the user that downloaded the media.</p>
+          <p class="text-sm">Media is linked to a different server connection config. Downloaded User Id: {{ localLibraryItem.serverUserId }}. Downloaded Server Address: {{ localLibraryItem.serverAddress }}. Currently connected User Id: {{ user.id }}. Currently connected server address: {{ currentServerAddress }}.</p>
         </div>
         <div v-else-if="isLocalMatchingConnectionConfig" class="w-full rounded-md bg-success/10 border border-success p-4">
           <p class="text-sm">Downloaded media is linked to this server</p>
@@ -263,6 +266,13 @@ export default {
     isLocalMatchingServerAddress() {
       if (this.isLocalOnly || !this.localLibraryItem || !this.currentServerAddress) return false
       return this.localLibraryItem.serverAddress === this.currentServerAddress
+    },
+    /**
+     * User is currently connected to a server and this local library item has the same user id
+     */
+    isLocalMatchingUser() {
+      if (this.isLocalOnly || !this.localLibraryItem || !this.user) return false
+      return this.localLibraryItem.serverUserId === this.user.id
     },
     /**
      * User is currently connected to a server and this local library item has the same connection config id
