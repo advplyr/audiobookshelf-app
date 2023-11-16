@@ -12,16 +12,11 @@ import com.anggrayudi.storage.callback.StorageAccessCallback
 import com.anggrayudi.storage.file.*
 import com.audiobookshelf.app.MainActivity
 import com.audiobookshelf.app.data.LocalFolder
-import com.audiobookshelf.app.data.LocalLibraryItem
 import com.audiobookshelf.app.device.DeviceManager
-import com.audiobookshelf.app.device.FolderScanner
 import com.fasterxml.jackson.core.json.JsonReadFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.getcapacitor.*
 import com.getcapacitor.annotation.CapacitorPlugin
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 import java.io.File
 
 @CapacitorPlugin(name = "AbsFileSystem")
@@ -172,26 +167,6 @@ class AbsFileSystem : Plugin() {
   }
 
   @PluginMethod
-  fun scanFolder(call: PluginCall) {
-    val folderId =  call.data.getString("folderId", "").toString()
-    val forceAudioProbe = call.data.getBoolean("forceAudioProbe")
-    Log.d(TAG, "Scan Folder $folderId | Force Audio Probe $forceAudioProbe")
-
-    val folder: LocalFolder? = DeviceManager.dbManager.getLocalFolder(folderId)
-    folder?.let {
-      val folderScanner = FolderScanner(context)
-      val folderScanResult = folderScanner.scanForMediaItems(it, forceAudioProbe)
-      if (folderScanResult == null) {
-        Log.d(TAG, "NO Scan DATA")
-        return call.resolve(JSObject())
-      } else {
-        Log.d(TAG, "Scan DATA ${jacksonMapper.writeValueAsString(folderScanResult)}")
-        return call.resolve(JSObject(jacksonMapper.writeValueAsString(folderScanResult)))
-      }
-    } ?: call.resolve(JSObject())
-  }
-
-  @PluginMethod
   fun removeFolder(call: PluginCall) {
     val folderId = call.data.getString("folderId", "").toString()
     DeviceManager.dbManager.removeLocalFolder(folderId)
@@ -203,27 +178,6 @@ class AbsFileSystem : Plugin() {
     val localLibraryItemId = call.data.getString("localLibraryItemId", "").toString()
     DeviceManager.dbManager.removeLocalLibraryItem(localLibraryItemId)
     call.resolve()
-  }
-
-  @PluginMethod
-  fun scanLocalLibraryItem(call: PluginCall) {
-    val localLibraryItemId = call.data.getString("localLibraryItemId", "").toString()
-    val forceAudioProbe = call.data.getBoolean("forceAudioProbe")
-    Log.d(TAG, "Scan Local library item $localLibraryItemId | Force Audio Probe $forceAudioProbe")
-    GlobalScope.launch(Dispatchers.IO) {
-      val localLibraryItem: LocalLibraryItem? = DeviceManager.dbManager.getLocalLibraryItem(localLibraryItemId)
-      localLibraryItem?.let {
-        val folderScanner = FolderScanner(context)
-        val scanResult = folderScanner.scanLocalLibraryItem(it, forceAudioProbe)
-        if (scanResult == null) {
-          Log.d(TAG, "NO Scan DATA")
-          call.resolve(JSObject())
-        } else {
-          Log.d(TAG, "Scan DATA ${jacksonMapper.writeValueAsString(scanResult)}")
-          call.resolve(JSObject(jacksonMapper.writeValueAsString(scanResult)))
-        }
-      } ?: call.resolve(JSObject())
-    }
   }
 
   @PluginMethod

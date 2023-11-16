@@ -86,8 +86,6 @@ export default {
       } else {
         this.$toast.success('Folder permission success')
       }
-
-      this.$router.push(`/localMedia/folders/${folderObj.id}?scan=1`)
     },
     async init() {
       const androidSdkVersion = await this.$getAndroidSDKVersion()

@@ -15,10 +15,7 @@
 
       <p class="px-2 mb-4 text-xs text-gray-400">{{ libraryItemId ? 'Linked to item on server ' + liServerAddress : 'Not linked to server item' }}</p>
 
-      <div v-if="isScanning" class="w-full text-center p-4">
-        <p>Scanning...</p>
-      </div>
-      <div v-else class="w-full max-w-full media-item-container overflow-y-auto overflow-x-hidden relative pb-4" :class="{ 'media-order-changed': orderChanged }">
+      <div class="w-full max-w-full media-item-container overflow-y-auto overflow-x-hidden relative pb-4" :class="{ 'media-order-changed': orderChanged }">
         <div v-if="!isPodcast && audioTracksCopy.length" class="w-full py-2">
           <p class="text-base mb-2">Audio Tracks ({{ audioTracks.length }})</p>
 
@@ -148,7 +145,6 @@ export default {
       removingItem: false,
       folderId: null,
       folder: null,
-      isScanning: false,
       showDialog: false,
       selectedAudioTrack: null,
       selectedEpisode: null,
@@ -229,19 +225,17 @@ export default {
           }
         ]
       } else {
-        var options = []
-        if (!this.isIos && !this.isInternalStorage && !this.libraryItemId) {
-          options.push({ text: 'Scan', value: 'scan' })
-          options.push({ text: 'Force Re-Scan', value: 'rescan' })
-        }
-        options.push({ text: 'Delete local item', value: 'delete' })
-        return options
+        return [
+          {
+            text: 'Delete local item',
+            value: 'delete'
+          }
+        ]
       }
     }
   },
   methods: {
     draggableUpdate() {
-      console.log('Draggable Update')
       for (let i = 0; i < this.audioTracksCopy.length; i++) {
         var trackCopy = this.audioTracksCopy[i]
         var track = this.audioTracks[i]
@@ -295,11 +289,7 @@ export default {
       console.log('Dialog action', action)
       await this.$hapticsImpact()
 
-      if (action == 'scan') {
-        this.scanItem()
-      } else if (action == 'rescan') {
-        this.scanItem(true)
-      } else if (action == 'delete') {
+      if (action == 'delete') {
         this.deleteItem()
       } else if (action == 'track-delete') {
         if (this.isPodcast) this.deleteEpisode()
@@ -376,25 +366,6 @@ export default {
           this.$router.replace(this.isIos ? '/downloads' : `/localMedia/folders/${this.folderId}`)
         } else this.$toast.error('Failed to delete')
       }
-    },
-    async scanItem(forceAudioProbe = false) {
-      if (this.isScanning) return
-
-      this.isScanning = true
-      var response = await AbsFileSystem.scanLocalLibraryItem({ localLibraryItemId: this.localLibraryItemId, forceAudioProbe })
-
-      if (response && response.localLibraryItem) {
-        if (response.updated) {
-          this.$toast.success('Local item was updated')
-          this.localLibraryItem = response.localLibraryItem
-        } else {
-          this.$toast.info('Local item was up to date')
-        }
-      } else {
-        console.log('Failed')
-        this.$toast.error('Something went wrong..')
-      }
-      this.isScanning = false
     },
     async init() {
       this.localLibraryItem = await this.$db.getLocalLibraryItem(this.localLibraryItemId)

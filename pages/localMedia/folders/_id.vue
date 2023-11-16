@@ -11,10 +11,7 @@
 
     <p class="mb-2 text-base text-white">Local Library Items ({{ localLibraryItems.length }})</p>
 
-    <div v-if="isScanning" class="w-full text-center p-4">
-      <p>Scanning...</p>
-    </div>
-    <div v-else class="w-full media-item-container overflow-y-auto">
+    <div class="w-full media-item-container overflow-y-auto">
       <template v-for="localLibraryItem in localLibraryItems">
         <nuxt-link :to="`/localMedia/item/${localLibraryItem.id}`" :key="localLibraryItem.id" class="flex my-1">
           <div class="w-12 h-12 min-w-12 min-h-12 bg-primary">
@@ -43,15 +40,13 @@ import { AbsFileSystem } from '@/plugins/capacitor'
 export default {
   asyncData({ params, query }) {
     return {
-      folderId: params.id,
-      shouldScan: !!query.scan
+      folderId: params.id
     }
   },
   data() {
     return {
       localLibraryItems: [],
       folder: null,
-      isScanning: false,
       removingFolder: false,
       showDialog: false
     }
@@ -68,20 +63,7 @@ export default {
     },
     dialogItems() {
       if (this.isInternalStorage) return []
-      const items = [
-        {
-          text: 'Scan',
-          value: 'scan'
-        }
-      ]
-
-      if (this.localLibraryItems.length) {
-        items.push({
-          text: 'Force Re-Scan',
-          value: 'rescan'
-        })
-      }
-
+      const items = []
       items.push({
         text: 'Remove',
         value: 'remove'
@@ -107,11 +89,7 @@ export default {
     },
     dialogAction(action) {
       console.log('Dialog action', action)
-      if (action == 'scan') {
-        this.scanFolder()
-      } else if (action == 'rescan') {
-        this.scanFolder(true)
-      } else if (action == 'remove') {
+      if (action == 'remove') {
         this.removeFolder()
       }
       this.showDialog = false
@@ -135,37 +113,6 @@ export default {
     play(mediaItem) {
       this.$eventBus.$emit('play-item', { libraryItemId: mediaItem.id })
     },
-    async scanFolder(forceAudioProbe = false) {
-      this.isScanning = true
-      var response = await AbsFileSystem.scanFolder({ folderId: this.folderId, forceAudioProbe })
-
-      if (response && response.localLibraryItems) {
-        var itemsAdded = response.itemsAdded
-        var itemsUpdated = response.itemsUpdated
-        var itemsRemoved = response.itemsRemoved
-        var itemsUpToDate = response.itemsUpToDate
-        var toastMessages = []
-        if (itemsAdded) toastMessages.push(`${itemsAdded} Added`)
-        if (itemsUpdated) toastMessages.push(`${itemsUpdated} Updated`)
-        if (itemsRemoved) toastMessages.push(`${itemsRemoved} Removed`)
-        if (itemsUpToDate) toastMessages.push(`${itemsUpToDate} Up-to-date`)
-        this.$toast.info(`Folder scan complete:\n${toastMessages.join(' | ')}`)
-
-        // When all items are up-to-date then local media items are not returned
-        if (response.localLibraryItems.length) {
-          this.localLibraryItems = response.localLibraryItems.map((mi) => {
-            if (mi.coverContentUrl) {
-              mi.coverPathSrc = Capacitor.convertFileSrc(mi.coverContentUrl)
-            }
-            return mi
-          })
-          console.log('Set Local Media Items', this.localLibraryItems.length)
-        }
-      } else {
-        console.log('No Local media items found')
-      }
-      this.isScanning = false
-    },
     async init() {
       var folder = await this.$db.getLocalFolder(this.folderId)
       this.folder = folder
@@ -179,10 +126,6 @@ export default {
           coverPathSrc: lmi.coverContentUrl ? Capacitor.convertFileSrc(lmi.coverContentUrl) : null
         }
       })
-
-      if (this.shouldScan) {
-        this.scanFolder()
-      }
     },
     newLocalLibraryItem(item) {
       if (item.folderId == this.folderId) {
