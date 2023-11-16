@@ -918,7 +918,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     PlayerListener.lastPauseTime = 0
     isClosed = true
     DeviceManager.widgetUpdater?.onPlayerClosed()
-    stopForeground(Service.STOP_FOREGROUND_REMOVE)
+
+    if (Build.VERSION.SDK_INT > 23) {
+      stopForeground(Service.STOP_FOREGROUND_REMOVE)
+    }
+
     stopSelf()
   }
 

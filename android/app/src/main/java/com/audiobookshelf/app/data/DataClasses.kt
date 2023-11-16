@@ -7,6 +7,7 @@ import android.support.v4.media.MediaMetadataCompat
 import androidx.media.utils.MediaConstants
 import com.audiobookshelf.app.media.MediaManager
 import com.fasterxml.jackson.annotation.*
+import com.google.common.collect.Iterables.removeIf
 
 // This auto-detects whether it is a Book or Podcast
 @JsonTypeInfo(use=JsonTypeInfo.Id.DEDUCTION)
@@ -78,7 +79,7 @@ class Podcast(
   }
   @JsonIgnore
   override fun removeAudioTrack(localFileId:String) {
-    episodes?.removeIf { it.audioTrack?.localFileId == localFileId }
+    episodes?.let { removeIf(it) { episode -> episode.audioTrack?.localFileId == localFileId } }
 
     var index = 1
     episodes?.forEach {
@@ -161,7 +162,7 @@ class Book(
   }
   @JsonIgnore
   override fun removeAudioTrack(localFileId:String) {
-    tracks?.removeIf { it.localFileId == localFileId }
+    tracks?.let { removeIf(it) { track -> track.localFileId == localFileId } }
 
     tracks?.sortBy { it.index }
 

@@ -18,6 +18,7 @@ import com.audiobookshelf.app.device.DeviceManager
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.audiobookshelf.app.player.PLAYMETHOD_LOCAL
+import com.google.common.collect.Iterables.removeIf
 import java.util.*
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -108,7 +109,7 @@ class LocalLibraryItem(
 
   @JsonIgnore
   fun removeLocalFile(localFileId:String) {
-    localFiles.removeIf { it.id == localFileId }
+    removeIf(localFiles) { it.id == localFileId }
   }
 
   @JsonIgnore

@@ -14,6 +14,7 @@ import com.fasterxml.jackson.core.json.JsonReadFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.getcapacitor.JSObject
+import com.google.common.collect.Iterables.removeIf
 import org.json.JSONException
 import java.io.File
 
@@ -606,7 +607,7 @@ class FolderScanner(var ctx: Context) {
       Log.d(tag, "Checking local file id is there $localFileId")
       if (filesFound.find { DeviceManager.getBase64Id(it.id) == localFileId } == null) {
         Log.d(tag, "scanLocalLibraryItem file $localFileId was removed from ${localLibraryItem.absolutePath}")
-        localLibraryItem.localFiles.removeIf { it.id == localFileId }
+        removeIf(localLibraryItem.localFiles) { it.id == localFileId }
 
         if (existingAudioTracks.find { it.localFileId == localFileId } != null) {
           Log.d(tag, "scanLocalLibraryItem audio track file $localFileId was removed from ${localLibraryItem.absolutePath}")
