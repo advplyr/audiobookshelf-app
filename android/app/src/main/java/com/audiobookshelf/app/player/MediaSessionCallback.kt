@@ -116,15 +116,16 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
 
     if (mediaId.isNullOrEmpty()) {
       libraryItemWrapper = playerNotificationService.mediaManager.getFirstItem()
-    } else if (mediaId.startsWith("ep_") || mediaId.startsWith("local_ep_")) { // Playing podcast episode
-      val libraryItemWithEpisode = playerNotificationService.mediaManager.getPodcastWithEpisodeByEpisodeId(mediaId)
-      libraryItemWrapper = libraryItemWithEpisode?.libraryItemWrapper
-      podcastEpisode = libraryItemWithEpisode?.episode
     } else {
-      libraryItemWrapper = playerNotificationService.mediaManager.getById(mediaId)
-
-      if (libraryItemWrapper == null) {
-        Log.e(tag, "onPlayFromMediaId: Media item not found $mediaId")
+      val libraryItemWithEpisode = playerNotificationService.mediaManager.getPodcastWithEpisodeByEpisodeId(mediaId)
+      if (libraryItemWithEpisode != null) {
+        libraryItemWrapper = libraryItemWithEpisode.libraryItemWrapper
+        podcastEpisode = libraryItemWithEpisode.episode
+      } else {
+        libraryItemWrapper = playerNotificationService.mediaManager.getById(mediaId)
+        if (libraryItemWrapper == null) {
+          Log.e(tag, "onPlayFromMediaId: Media item not found $mediaId")
+        }
       }
     }
 
