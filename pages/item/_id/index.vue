@@ -272,7 +272,7 @@ export default {
      */
     isLocalMatchingUser() {
       if (this.isLocalOnly || !this.localLibraryItem || !this.user) return false
-      return this.localLibraryItem.serverUserId === this.user.id
+      return this.localLibraryItem.serverUserId === this.user.id || this.localLibraryItem.serverUserId === this.user.oldUserId
     },
     /**
      * User is currently connected to a server and this local library item has the same connection config id
