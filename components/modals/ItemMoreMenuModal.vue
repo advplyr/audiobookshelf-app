@@ -165,7 +165,7 @@ export default {
     },
     localEpisode() {
       if (this.isLocal) return this.episode
-      return this.episode.localEpisode
+      return this.episode?.localEpisode
     },
     localEpisodeId() {
       return this.localEpisode?.id || null

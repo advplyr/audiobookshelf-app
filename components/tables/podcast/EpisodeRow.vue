@@ -132,10 +132,10 @@ export default {
       }
     },
     itemProgressPercent() {
-      return this.itemProgress ? this.itemProgress.progress : 0
+      return this.itemProgress?.progress || 0
     },
     userIsFinished() {
-      return this.itemProgress ? !!this.itemProgress.isFinished : false
+      return !!this.itemProgress?.isFinished
     },
     timeRemaining() {
       if (this.streamIsPlaying) return 'Playing'
@@ -151,7 +151,7 @@ export default {
       return this.$store.getters['globals/getDownloadItem'](this.libraryItemId, this.episode.id)
     },
     localEpisodeId() {
-      return this.localEpisode ? this.localEpisode.id : null
+      return this.localEpisode?.id || null
     }
   },
   methods: {
