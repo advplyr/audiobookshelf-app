@@ -162,7 +162,7 @@ import { AbsFileSystem, AbsDownloader } from '@/plugins/capacitor'
 import { FastAverageColor } from 'fast-average-color'
 
 export default {
-  async asyncData({ store, params, redirect, app }) {
+  async asyncData({ store, params, redirect, app, query }) {
     const libraryItemId = params.id
     let libraryItem = null
     if (libraryItemId.startsWith('local')) {
@@ -170,7 +170,9 @@ export default {
       console.log('Got lli', libraryItemId)
       // If library item is linked to the currently connected server then redirect to the page using the server library item id
       if (libraryItem?.libraryItemId && libraryItem?.serverAddress === store.getters['user/getServerAddress'] && store.state.networkConnected) {
-        return redirect(`/item/${libraryItem.libraryItemId}`)
+        let query = ''
+        if (libraryItem.mediaType === 'podcast') query = '?episodefilter=downloaded' // Filter by downloaded when redirecting from the local copy
+        return redirect(`/item/${libraryItem.libraryItemId}${query}`)
       }
     } else if (store.state.user.serverConnectionConfig) {
       libraryItem = await app.$nativeHttp.get(`/api/items/${libraryItemId}?expanded=1&include=rssfeed`).catch((error) => {

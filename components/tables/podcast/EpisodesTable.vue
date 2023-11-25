@@ -297,6 +297,9 @@ export default {
     }
   },
   mounted() {
+    if (this.$route.query['episodefilter'] === 'downloaded') {
+      this.filterKey = 'downloaded'
+    }
     this.$socket.$on('episode_download_queued', this.episodeDownloadQueued)
     this.$socket.$on('episode_download_started', this.episodeDownloadStarted)
     this.$socket.$on('episode_download_finished', this.episodeDownloadFinished)
