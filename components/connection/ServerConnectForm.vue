@@ -568,7 +568,7 @@ export default {
         })
     },
     requestServerLogin() {
-      return this.postRequest(`${this.serverConfig.address}/login`, { username: this.serverConfig.username, password: this.password }, this.serverConfig.customHeaders, 20000)
+      return this.postRequest(`${this.serverConfig.address}/login`, { username: this.serverConfig.username, password: this.password || '' }, this.serverConfig.customHeaders, 20000)
         .then((data) => {
           if (!data.user) {
             console.error(data.error)
