@@ -27,7 +27,13 @@ export default function ({ store }, inject) {
         data,
         headers,
         ...options
-      }).then(res => res.data)
+      }).then(res => {
+        if (res.status >= 400) {
+          console.error(`[nativeHttp] ${res.status} status for url "${url}"`)
+          throw new Error(res.data)
+        }
+        return res.data
+      })
     },
     get(url, options = {}) {
       return this.request('GET', url, undefined, options)

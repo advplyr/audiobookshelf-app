@@ -169,7 +169,10 @@ export default {
       libraryItem = await app.$db.getLocalLibraryItem(libraryItemId)
       console.log('Got lli', libraryItemId)
       // If library item is linked to the currently connected server then redirect to the page using the server library item id
-      if (libraryItem?.libraryItemId && libraryItem?.serverAddress === store.getters['user/getServerAddress'] && store.state.networkConnected) {
+      if (libraryItem?.libraryItemId?.startsWith('li_')) {
+        // Detect old library item id
+        console.error('Local library item has old server library item id', libraryItem.libraryItemId)
+      } else if (libraryItem?.libraryItemId && libraryItem?.serverAddress === store.getters['user/getServerAddress'] && store.state.networkConnected) {
         let query = ''
         if (libraryItem.mediaType === 'podcast') query = '?episodefilter=downloaded' // Filter by downloaded when redirecting from the local copy
         return redirect(`/item/${libraryItem.libraryItemId}${query}`)
