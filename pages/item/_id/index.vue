@@ -169,7 +169,7 @@ export default {
       libraryItem = await app.$db.getLocalLibraryItem(libraryItemId)
       console.log('Got lli', libraryItemId)
       // If library item is linked to the currently connected server then redirect to the page using the server library item id
-      if (libraryItem?.libraryItemId && libraryItem?.serverAddress === store.getters['user/getServerAddress']) {
+      if (libraryItem?.libraryItemId && libraryItem?.serverAddress === store.getters['user/getServerAddress'] && store.state.networkConnected) {
         return redirect(`/item/${libraryItem.libraryItemId}`)
       }
     } else if (store.state.user.serverConnectionConfig) {
