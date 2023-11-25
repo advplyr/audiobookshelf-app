@@ -162,7 +162,7 @@ import { AbsFileSystem, AbsDownloader } from '@/plugins/capacitor'
 import { FastAverageColor } from 'fast-average-color'
 
 export default {
-  async asyncData({ store, params, redirect, app, query }) {
+  async asyncData({ store, params, redirect, app }) {
     const libraryItemId = params.id
     let libraryItem = null
     if (libraryItemId.startsWith('local')) {
