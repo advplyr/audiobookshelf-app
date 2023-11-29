@@ -371,6 +371,10 @@ class AudioPlayer: NSObject {
         
         // Reconstruct queue if seeking to a different track
         if (self.currentTrackIndex != indexOfSeek) {
+            // When we seek to a different track, we need to make sure to seek the old track to 0
+            // or we will get jumps to the old position when fading over into a new track
+            self.audioPlayer.seek(to: CMTime(seconds: 0, preferredTimescale: 1000))
+
             self.currentTrackIndex = indexOfSeek
             
             try? playbackSession.update {
