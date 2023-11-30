@@ -618,21 +618,24 @@ export default {
       }
 
       console.log('Local folder', JSON.stringify(localFolder))
-
-      let startDownloadMessage = `Start download for "${this.title}" with ${this.numTracks} audio track${this.numTracks == 1 ? '' : 's'} to folder ${localFolder.name}?`
-      if (!this.isIos && this.showRead) {
-        if (this.numTracks > 0) {
-          startDownloadMessage = `Start download for "${this.title}" with ${this.numTracks} audio track${this.numTracks == 1 ? '' : 's'} and ebook file to folder ${localFolder.name}?`
-        } else {
-          startDownloadMessage = `Start download for "${this.title}" with ebook file to folder ${localFolder.name}?`
-        }
-      }
-      const { value } = await Dialog.confirm({
-        title: 'Confirm',
-        message: startDownloadMessage
-      })
-      if (value) {
+      if (this.isLowFeedback) {
         this.startDownload(localFolder)
+      } else {
+        let startDownloadMessage = `Start download for "${this.title}" with ${this.numTracks} audio track${this.numTracks == 1 ? '' : 's'} to folder ${localFolder.name}?`
+        if (!this.isIos && this.showRead) {
+          if (this.numTracks > 0) {
+            startDownloadMessage = `Start download for "${this.title}" with ${this.numTracks} audio track${this.numTracks == 1 ? '' : 's'} and ebook file to folder ${localFolder.name}?`
+          } else {
+            startDownloadMessage = `Start download for "${this.title}" with ebook file to folder ${localFolder.name}?`
+          }
+        }
+        const { value } = await Dialog.confirm({
+          title: 'Confirm',
+          message: startDownloadMessage
+        })
+        if (value) {
+          this.startDownload(localFolder)
+        }
       }
     },
     async startDownload(localFolder = null) {

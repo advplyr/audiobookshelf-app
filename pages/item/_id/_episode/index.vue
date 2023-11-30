@@ -398,13 +398,17 @@ export default {
 
       console.log('Local folder', JSON.stringify(localFolder))
 
-      const startDownloadMessage = `Start download for "${this.title}" to folder ${localFolder.name}?`
-      const { value } = await Dialog.confirm({
-        title: 'Confirm',
-        message: startDownloadMessage
-      })
-      if (value) {
+      if (this.isLowFeedback) {
         this.startDownload(localFolder)
+      } else {
+        const startDownloadMessage = `Start download for "${this.title}" to folder ${localFolder.name}?`
+        const { value } = await Dialog.confirm({
+          title: 'Confirm',
+          message: startDownloadMessage
+        })
+        if (value) {
+          this.startDownload(localFolder)
+        }
       }
     },
     async selectFolder() {
