@@ -152,6 +152,9 @@ export default {
     },
     localEpisodeId() {
       return this.localEpisode?.id || null
+    },
+    isLowFeedback() {
+      return this.$store.state.deviceData.deviceSettings.enableLowFeedbackMode
     }
   },
   methods: {
@@ -210,14 +213,19 @@ export default {
 
       console.log('Local folder', JSON.stringify(localFolder))
 
-      var startDownloadMessage = `Start download for "${this.title}" to folder ${localFolder.name}?`
-      const { value } = await Dialog.confirm({
-        title: 'Confirm',
-        message: startDownloadMessage
-      })
-      if (value) {
+      if (this.isLowFeedback) {
         this.startDownload(localFolder)
+      } else {
+        var startDownloadMessage = `Start download for "${this.title}" to folder ${localFolder.name}?`
+        const { value } = await Dialog.confirm({
+          title: 'Confirm',
+          message: startDownloadMessage
+        })
+        if (value) {
+          this.startDownload(localFolder)
+        }
       }
+
     },
     async startDownload(localFolder) {
       var payload = {

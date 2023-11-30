@@ -40,6 +40,10 @@ export default {
     },
     isIos() {
       return this.$platform === 'ios'
+    },
+    isLowFeedback() {
+      console.log('isLowFeedback', this.$store.state.deviceData.deviceSettings.enableLowFeedbackMode)
+      return this.$store.state.deviceData.deviceSettings.enableLowFeedbackMode
     }
   },
   methods: {
@@ -56,7 +60,9 @@ export default {
       if (!data.localLibraryItem) {
         this.$toast.error(this.$strings.MessageItemDownloadCompleteFailedToCreate)
       } else {
-        if (!isLowFeedback) this.$toast.success(`Item "${data.localLibraryItem.media.metadata.title}" download finished`)
+        if (!this.isLowFeedback) {
+          this.$toast.success(`Item "${data.localLibraryItem.media.metadata.title}" download finished`)
+        }
         this.$eventBus.$emit('new-local-library-item', data.localLibraryItem)
       }
 

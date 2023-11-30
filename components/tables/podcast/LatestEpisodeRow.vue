@@ -219,7 +219,7 @@ export default {
 
       console.log('Local folder', JSON.stringify(localFolder))
       
-      if (isLowFeedback) {
+      if (this.isLowFeedback) {
         this.startDownload(localFolder)
       } else {
         var startDownloadMessage = `Start download for "${this.title}" to folder ${localFolder.name}?`
@@ -245,6 +245,8 @@ export default {
         var errorMsg = downloadRes.error || 'Unknown error'
         console.error('Download error', errorMsg)
         this.$toast.error(errorMsg)
+      } else {
+        console.log('Download completed', JSON.stringify(downloadRes))
       }
     },
     async playClick() {
