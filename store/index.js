@@ -75,6 +75,9 @@ export const getters = {
   },
   getOrientationLockSetting: state => {
     return state.deviceData?.deviceSettings?.lockOrientation
+  },
+  getLowFeedbackModeSetting: state => {
+    return state.deviceData?.deviceSettings?.enableLowFeebackMode
   }
 }
 
