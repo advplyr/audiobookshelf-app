@@ -48,6 +48,11 @@ object DeviceManager {
     if (deviceData.deviceSettings?.autoSleepTimerAutoRewindTime == null) {
       deviceData.deviceSettings?.autoSleepTimerAutoRewindTime = 300000L // 5 minutes
     }
+
+    // Language added in v0.9.69
+    if (deviceData.deviceSettings?.languageCode == null) {
+      deviceData.deviceSettings?.languageCode = "en-us"
+    }
   }
 
   fun getBase64Id(id:String):String {

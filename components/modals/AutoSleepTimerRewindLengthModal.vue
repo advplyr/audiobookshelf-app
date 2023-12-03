@@ -2,7 +2,7 @@
   <modals-modal v-model="show" :width="200" height="100%">
     <template #outer>
       <div class="absolute top-8 left-4 z-40">
-        <p class="text-white text-2xl truncate">Auto Rewind Time</p>
+        <p class="text-white text-2xl truncate capitalize">{{ $strings.LabelAutoRewindTime }}</p>
       </div>
     </template>
 
@@ -23,7 +23,7 @@
             <p class="text-2xl font-mono text-center">{{ manualTimeoutMin }} min</p>
             <ui-btn @click="increaseManualTimeout" class="w-9 h-9" :padding-x="0" small style="max-width: 36px"><span class="material-icons">add</span></ui-btn>
           </div>
-          <ui-btn @click="clickedOption(manualTimeoutMin)" class="w-full">Set Timer</ui-btn>
+          <ui-btn @click="clickedOption(manualTimeoutMin)" class="w-full">{{ $strings.ButtonSetTimer }}</ui-btn>
         </div>
         <ul v-else class="h-full w-full" role="listbox" aria-labelledby="listbox-label">
           <template v-for="timeout in timeouts">
@@ -35,7 +35,7 @@
           </template>
           <li class="text-gray-50 select-none relative py-4 cursor-pointer hover:bg-black-400" role="option" @click="manualTimerModal = true">
             <div class="flex items-center justify-center">
-              <span class="font-normal block truncate text-lg text-center">Custom time</span>
+              <span class="font-normal block truncate text-lg text-center">{{ $strings.LabelCustomTime }}</span>
             </div>
           </li>
         </ul>

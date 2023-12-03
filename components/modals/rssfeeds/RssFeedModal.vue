@@ -10,7 +10,7 @@
     <div class="w-full px-2 h-[calc(100%-138px)] overflow-y-auto">
       <div v-if="currentFeed" class="w-full">
         <div class="w-full relative">
-          <h1 class="text-lg mb-4">RSS feed is open</h1>
+          <h1 class="text-lg mb-4">{{ $strings.HeaderRSSFeedIsOpen }}</h1>
 
           <ui-text-input v-model="currentFeed.feedUrl" class="text-sm" readonly />
 
@@ -22,7 +22,7 @@
             <div class="w-48">
               <span class="text-white text-opacity-60 uppercase text-sm">{{ $strings.LabelRSSFeedPreventIndexing }}</span>
             </div>
-            <div>{{ currentFeed.meta.preventIndexing ? 'Yes' : 'No' }}</div>
+            <div>{{ currentFeed.meta.preventIndexing ? $strings.ButtonYes : $strings.LabelNo }}</div>
           </div>
           <div v-if="currentFeed.meta.ownerName" class="flex py-0.5">
             <div class="w-48">

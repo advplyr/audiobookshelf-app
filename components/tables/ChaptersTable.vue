@@ -1,7 +1,7 @@
 <template>
   <div class="w-full my-4">
     <div class="w-full bg-primary px-4 py-2 flex items-center" :class="expanded ? 'rounded-t-md' : 'rounded-md'" @click.stop="clickBar">
-      <p class="pr-2">Chapters</p>
+      <p class="pr-2">{{ $strings.HeaderChapters }}</p>
       <div class="h-6 w-6 rounded-full bg-white bg-opacity-10 flex items-center justify-center">
         <span class="text-xs font-mono">{{ chapters.length }}</span>
       </div>
@@ -13,8 +13,8 @@
     <transition name="slide">
       <table class="text-xs tracksTable" v-show="expanded">
         <tr>
-          <th class="text-left">Title</th>
-          <th class="text-center w-16">Start</th>
+          <th class="text-left">{{ $strings.LabelTitle }}</th>
+          <th class="text-center w-16">{{ $strings.LabelStart }}</th>
         </tr>
         <tr v-for="chapter in chapters" :key="chapter.id">
           <td>

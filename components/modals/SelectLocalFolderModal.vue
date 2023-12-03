@@ -2,7 +2,7 @@
   <modals-modal v-model="show" :width="300" height="100%">
     <template #outer>
       <div class="absolute top-10 left-4 z-40" style="max-width: 80%">
-        <p class="text-white text-lg truncate">Select Download Location</p>
+        <p class="text-white text-lg truncate">{{ $strings.HeaderSelectDownloadLocation }}</p>
       </div>
     </template>
 
@@ -71,7 +71,7 @@ export default {
       if (!localFolders.some((lf) => lf.id === `internal-${this.mediaType}`)) {
         localFolders.push({
           id: `internal-${this.mediaType}`,
-          name: 'Internal App Storage',
+          name: this.$strings.LabelInternalAppStorage,
           mediaType: this.mediaType
         })
       }

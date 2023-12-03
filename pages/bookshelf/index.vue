@@ -2,41 +2,37 @@
   <div class="w-full h-full min-h-full relative">
     <div v-if="attemptingConnection" class="w-full pt-4 flex items-center justify-center">
       <widgets-loading-spinner />
-      <p class="pl-4">Attempting server connection...</p>
+      <p class="pl-4">{{ $strings.MessageAttemptingServerConnection }}</p>
     </div>
     <div v-if="shelves.length && isLoading" class="w-full pt-4 flex items-center justify-center">
       <widgets-loading-spinner />
-      <p class="pl-4">Loading server data...</p>
+      <p class="pl-4">{{ $strings.MessageLoadingServerData }}</p>
     </div>
 
     <div class="w-full" :class="{ 'py-6': altViewEnabled }">
       <template v-for="(shelf, index) in shelves">
-        <bookshelf-shelf :key="shelf.id" :label="shelf.label" :entities="shelf.entities" :type="shelf.type" :style="{ zIndex: shelves.length - index }" />
+        <bookshelf-shelf :key="shelf.id" :label="getShelfLabel(shelf)" :entities="shelf.entities" :type="shelf.type" :style="{ zIndex: shelves.length - index }" />
       </template>
     </div>
 
     <div v-if="!shelves.length && !isLoading" class="absolute top-0 left-0 w-full h-full flex items-center justify-center">
       <div>
         <p class="mb-4 text-center text-xl">
-          Bookshelf empty
-          <span v-show="user">
-            for library
-            <strong>{{ currentLibraryName }}</strong>
-          </span>
+          {{ $strings.MessageBookshelfEmpty }}
         </p>
         <div class="w-full" v-if="!user">
           <div class="flex justify-center items-center mb-3">
             <span class="material-icons text-error text-lg">cloud_off</span>
-            <p class="pl-2 text-error text-sm">Audiobookshelf server not connected.</p>
+            <p class="pl-2 text-error text-sm">{{ $strings.MessageAudiobookshelfServerNotConnected }}</p>
           </div>
         </div>
         <div class="flex justify-center">
-          <ui-btn v-if="!user" small @click="$router.push('/connect')" class="w-32">Connect</ui-btn>
+          <ui-btn v-if="!user" small @click="$router.push('/connect')" class="w-32">{{ $strings.ButtonConnect }}</ui-btn>
         </div>
       </div>
     </div>
     <div v-else-if="!shelves.length && isLoading && !attemptingConnection" class="absolute top-0 left-0 z-50 w-full h-full flex items-center justify-center">
-      <ui-loading-indicator text="Loading..." />
+      <ui-loading-indicator :text="$strings.MessageLoading" />
     </div>
   </div>
 </template>
@@ -113,6 +109,10 @@ export default {
     }
   },
   methods: {
+    getShelfLabel(shelf) {
+      if (shelf.labelStringKey && this.$strings[shelf.labelStringKey]) return this.$strings[shelf.labelStringKey]
+      return shelf.label
+    },
     getLocalMediaItemCategories() {
       const localMedia = this.localLibraryItems
       if (!localMedia?.length) return []
@@ -147,7 +147,7 @@ export default {
       if (booksContinueListening.length) {
         categories.push({
           id: 'local-books-continue',
-          label: 'Continue Books',
+          label: this.$strings.LabelContinueBooks,
           type: 'book',
           localOnly: true,
           entities: booksContinueListening.sort((a, b) => {
@@ -161,7 +161,7 @@ export default {
       if (podcastEpisodesContinueListening.length) {
         categories.push({
           id: 'local-episodes-continue',
-          label: 'Continue Episodes',
+          label: this.$strings.LabelContinueEpisodes,
           type: 'episode',
           localOnly: true,
           entities: podcastEpisodesContinueListening.sort((a, b) => {
@@ -177,7 +177,7 @@ export default {
       if (books.length) {
         categories.push({
           id: 'local-books',
-          label: 'Local Books',
+          label: this.$strings.LabelLocalBooks,
           type: 'book',
           entities: books.sort((a, b) => {
             if (a.progress && a.progress.isFinished) return 1
@@ -192,7 +192,7 @@ export default {
       if (podcasts.length) {
         categories.push({
           id: 'local-podcasts',
-          label: 'Local Podcasts',
+          label: this.$strings.LabelLocalPodcasts,
           type: 'podcast',
           entities: podcasts
         })

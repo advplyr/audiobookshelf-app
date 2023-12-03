@@ -2,7 +2,7 @@
   <modals-modal v-model="show" :width="400" height="100%">
     <template #outer>
       <div class="absolute top-8 left-4 z-40">
-        <p class="text-white text-2xl truncate">Bookmarks</p>
+        <p class="text-white text-2xl truncate">{{ $strings.LabelYourBookmarks }}</p>
       </div>
     </template>
     <div class="w-full h-full overflow-hidden absolute top-0 left-0 flex items-center justify-center" @click="show = false">
@@ -29,11 +29,11 @@
             <modals-bookmarks-bookmark-item :key="bookmark.id" :highlight="currentTime === bookmark.time" :bookmark="bookmark" @click="clickBookmark" @edit="editBookmark" @delete="deleteBookmark" />
           </template>
           <div v-if="!bookmarks.length" class="flex h-32 items-center justify-center">
-            <p class="text-xl">No Bookmarks</p>
+            <p class="text-xl">{{ $strings.MessageNoBookmarks }}</p>
           </div>
           <div v-show="canCreateBookmark" class="flex px-4 py-2 items-center text-center justify-between border-b border-white border-opacity-10 bg-blue-500 bg-opacity-20 cursor-pointer text-white text-opacity-80 hover:bg-opacity-40 hover:text-opacity-100" @click.stop="createBookmark">
             <span class="material-icons">add</span>
-            <p class="text-base pl-2">Create Bookmark</p>
+            <p class="text-base pl-2">{{ $strings.ButtonCreateBookmark }}</p>
             <p class="text-sm font-mono">
               {{ this.$secondsToTimestamp(currentTime) }}
             </p>
@@ -98,7 +98,7 @@ export default {
       await this.$hapticsImpact()
       const { value } = await Dialog.confirm({
         title: 'Remove Bookmark',
-        message: `Are you sure you want to remove bookmark?`
+        message: this.$strings.MessageConfirmRemoveBookmark
       })
       if (!value) return
 
@@ -108,7 +108,7 @@ export default {
           this.$store.commit('user/deleteBookmark', { libraryItemId: this.libraryItemId, time: bm.time })
         })
         .catch((error) => {
-          this.$toast.error(`Failed to remove bookmark`)
+          this.$toast.error(this.$strings.ToastBookmarkRemoveFailed)
           console.error(error)
         })
     },
@@ -124,7 +124,7 @@ export default {
           this.showBookmarkTitleInput = false
         })
         .catch((error) => {
-          this.$toast.error(`Failed to update bookmark`)
+          this.$toast.error(this.$strings.ToastBookmarkUpdateFailed)
           console.error(error)
         })
     },
@@ -142,7 +142,7 @@ export default {
           this.$toast.success('Bookmark added')
         })
         .catch((error) => {
-          this.$toast.error(`Failed to create bookmark`)
+          this.$toast.error(this.$strings.ToastBookmarkCreateFailed)
           console.error(error)
         })
 

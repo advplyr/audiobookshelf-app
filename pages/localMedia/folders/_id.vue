@@ -1,15 +1,15 @@
 <template>
   <div class="w-full h-full py-6 px-4">
     <div class="flex items-center mb-2">
-      <p class="text-base font-semibold">Folder: {{ folderName }}</p>
+      <p class="text-base font-semibold">{{ $strings.LabelFolder }}: {{ folderName }}</p>
       <div class="flex-grow" />
 
       <span v-if="dialogItems.length" class="material-icons" @click="showDialog = true">more_vert</span>
     </div>
 
-    <p class="text-sm mb-4 text-white text-opacity-60">Media Type: {{ mediaType }}</p>
+    <p class="text-sm mb-4 text-white text-opacity-60">{{ $strings.LabelMediaType }}: {{ mediaType }}</p>
 
-    <p class="mb-2 text-base text-white">Local Library Items ({{ localLibraryItems.length }})</p>
+    <p class="mb-2 text-base text-white">{{ $strings.HeaderLocalLibraryItems }} ({{ localLibraryItems.length }})</p>
 
     <div class="w-full media-item-container overflow-y-auto">
       <template v-for="localLibraryItem in localLibraryItems">
@@ -65,7 +65,7 @@ export default {
       if (this.isInternalStorage) return []
       const items = []
       items.push({
-        text: 'Remove',
+        text: this.$strings.ButtonRemove,
         value: 'remove'
       })
       return items
@@ -77,14 +77,14 @@ export default {
       if (localLibraryItem.mediaType == 'book') {
         const txts = []
         if (localLibraryItem.media.ebookFile) {
-          txts.push(`${localLibraryItem.media.ebookFile.ebookFormat} EBook`)
+          txts.push(`${localLibraryItem.media.ebookFile.ebookFormat} ${this.$strings.LabelEbook}`)
         }
         if (localLibraryItem.media.tracks?.length) {
-          txts.push(`${localLibraryItem.media.tracks.length} Tracks`)
+          txts.push(`${localLibraryItem.media.tracks.length} ${this.$strings.LabelTracks}`)
         }
         return txts.join(' • ')
       } else {
-        return `${localLibraryItem.media.episodes?.length || 0} Episodes`
+        return `${localLibraryItem.media.episodes?.length || 0} ${this.$strings.HeaderEpisodes}`
       }
     },
     dialogAction(action) {

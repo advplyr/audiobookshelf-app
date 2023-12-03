@@ -11,7 +11,7 @@
         <span class="material-icons" @click="showItemDialog">more_vert</span>
       </div>
 
-      <p v-if="!isIos" class="px-2 text-sm mb-0.5 text-white text-opacity-75">Folder: {{ folderName }}</p>
+      <p v-if="!isIos" class="px-2 text-sm mb-0.5 text-white text-opacity-75">{{ $strings.LabelFolder }}: {{ folderName }}</p>
 
       <p class="px-2 mb-4 text-xs text-gray-400">{{ libraryItemId ? 'Linked to item on server ' + liServerAddress : 'Not linked to server item' }}</p>
 
@@ -107,7 +107,7 @@
 
     <div v-if="orderChanged" class="fixed left-0 w-full py-4 px-4 bg-bg box-shadow-book flex items-center" :style="{ bottom: isPlayerOpen ? '120px' : '0px' }">
       <div class="flex-grow" />
-      <ui-btn small color="success" @click="saveTrackOrder">Save Order</ui-btn>
+      <ui-btn small color="success" @click="saveTrackOrder">{{ $strings.ButtonSaveOrder }}</ui-btn>
     </div>
 
     <modals-dialog v-model="showDialog" :items="dialogItems" @action="dialogAction" />
@@ -220,14 +220,14 @@ export default {
       if (this.selectedAudioTrack || this.selectedEpisode) {
         return [
           {
-            text: 'Delete local file',
+            text: this.$strings.ButtonDeleteLocalFile,
             value: 'track-delete'
           }
         ]
       } else {
         return [
           {
-            text: 'Delete local item',
+            text: this.$strings.ButtonDeleteLocalItem,
             value: 'delete'
           }
         ]
@@ -259,7 +259,7 @@ export default {
         this.localLibraryItem = response
         this.audioTracksCopy = this.audioTracks.map((at) => ({ ...at }))
       } else {
-        this.$toast.info(`No updates necessary`)
+        this.$toast.info(this.$strings.MessageNoUpdatesWereNecessary)
       }
       this.orderChanged = false
     },

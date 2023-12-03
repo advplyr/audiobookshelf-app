@@ -2,7 +2,7 @@
   <modals-modal v-model="show" :width="400" height="100%">
     <template #outer>
       <div class="absolute top-8 left-4 z-40">
-        <p class="text-white text-2xl truncate">Details</p>
+        <p class="text-white text-2xl truncate">{{ $strings.HeaderDetails }}</p>
       </div>
     </template>
 

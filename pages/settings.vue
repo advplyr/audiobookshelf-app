@@ -1,67 +1,73 @@
 <template>
-  <div class="w-full h-full px-8 py-8 overflow-y-auto">
+  <div class="w-full h-full px-4 py-8 overflow-y-auto">
     <!-- Display settings -->
-    <p class="uppercase text-xs font-semibold text-gray-300 mb-2">User Interface Settings</p>
+    <p class="uppercase text-xs font-semibold text-gray-300 mb-2">{{ $strings.HeaderUserInterfaceSettings }}</p>
     <div class="flex items-center py-3" @click="toggleEnableAltView">
       <div class="w-10 flex justify-center">
         <ui-toggle-switch v-model="enableBookshelfView" @input="saveSettings" />
       </div>
-      <p class="pl-4">Use bookshelf view</p>
+      <p class="pl-4">{{ $strings.LabelUseBookshelfView }}</p>
     </div>
     <!-- screen.orientation.lock not supported on iOS webview -->
     <div v-if="!isiOS" class="flex items-center py-3" @click.stop="toggleLockOrientation">
       <div class="w-10 flex justify-center pointer-events-none">
         <ui-toggle-switch v-model="lockCurrentOrientation" />
       </div>
-      <p class="pl-4">Lock orientation</p>
+      <p class="pl-4">{{ $strings.LabelLockOrientation }}</p>
     </div>
     <div class="py-3 flex items-center">
-      <p class="pr-4 w-36">Haptic feedback</p>
+      <p class="pr-4 w-36">{{ $strings.LabelHapticFeedback }}</p>
       <div @click.stop="showHapticFeedbackOptions">
         <ui-text-input :value="hapticFeedbackOption" readonly append-icon="expand_more" style="max-width: 145px" />
       </div>
     </div>
+    <div class="py-3 flex items-center">
+      <p class="pr-4 w-36">{{ $strings.LabelLanguage }}</p>
+      <div @click.stop="showLanguageOptions">
+        <ui-text-input :value="languageOption" readonly append-icon="expand_more" style="max-width: 225px" />
+      </div>
+    </div>
 
     <!-- Playback settings -->
-    <p class="uppercase text-xs font-semibold text-gray-300 mb-2 mt-10">Playback Settings</p>
+    <p class="uppercase text-xs font-semibold text-gray-300 mb-2 mt-10">{{ $strings.HeaderPlaybackSettings }}</p>
     <div v-if="!isiOS" class="flex items-center py-3" @click="toggleDisableAutoRewind">
       <div class="w-10 flex justify-center">
         <ui-toggle-switch v-model="settings.disableAutoRewind" @input="saveSettings" />
       </div>
-      <p class="pl-4">Disable auto rewind</p>
+      <p class="pl-4">{{ $strings.LabelDisableAutoRewind }}</p>
     </div>
     <div class="flex items-center py-3" @click="toggleJumpBackwards">
       <div class="w-10 flex justify-center">
         <span class="material-icons text-4xl">{{ currentJumpBackwardsTimeIcon }}</span>
       </div>
-      <p class="pl-4">Jump backwards time</p>
+      <p class="pl-4">{{ $strings.LabelJumpBackwardsTime }}</p>
     </div>
     <div class="flex items-center py-3" @click="toggleJumpForward">
       <div class="w-10 flex justify-center">
         <span class="material-icons text-4xl">{{ currentJumpForwardTimeIcon }}</span>
       </div>
-      <p class="pl-4">Jump forwards time</p>
+      <p class="pl-4">{{ $strings.LabelJumpForwardsTime }}</p>
     </div>
     <div v-if="!isiOS" class="flex items-center py-3" @click="toggleEnableMp3IndexSeeking">
       <div class="w-10 flex justify-center">
         <ui-toggle-switch v-model="settings.enableMp3IndexSeeking" @input="saveSettings" />
       </div>
-      <p class="pl-4">Enable mp3 index seeking</p>
+      <p class="pl-4">{{ $strings.LabelEnableMp3IndexSeeking }}</p>
       <span class="material-icons-outlined ml-2" @click.stop="showConfirmMp3IndexSeeking">info</span>
     </div>
 
     <!-- Sleep timer settings -->
     <template v-if="!isiOS">
-      <p class="uppercase text-xs font-semibold text-gray-300 mb-2 mt-10">Sleep Timer Settings</p>
+      <p class="uppercase text-xs font-semibold text-gray-300 mb-2 mt-10">{{ $strings.HeaderSleepTimerSettings }}</p>
       <div class="flex items-center py-3" @click="toggleDisableShakeToResetSleepTimer">
         <div class="w-10 flex justify-center">
           <ui-toggle-switch v-model="settings.disableShakeToResetSleepTimer" @input="saveSettings" />
         </div>
-        <p class="pl-4">Disable shake to reset</p>
+        <p class="pl-4">{{ $strings.LabelDisableShakeToReset }}</p>
         <span class="material-icons-outlined ml-2" @click.stop="showInfo('disableShakeToResetSleepTimer')">info</span>
       </div>
       <div v-if="!settings.disableShakeToResetSleepTimer" class="py-3 flex items-center">
-        <p class="pr-4 w-36">Shake Sensitivity</p>
+        <p class="pr-4 w-36">{{ $strings.LabelShakeSensitivity }}</p>
         <div @click.stop="showShakeSensitivityOptions">
           <ui-text-input :value="shakeSensitivityOption" readonly append-icon="expand_more" style="width: 145px; max-width: 145px" />
         </div>
@@ -70,35 +76,35 @@
         <div class="w-10 flex justify-center">
           <ui-toggle-switch v-model="settings.disableSleepTimerFadeOut" @input="saveSettings" />
         </div>
-        <p class="pl-4">Disable audio fade out</p>
+        <p class="pl-4">{{ $strings.LabelDisableAudioFadeOut }}</p>
         <span class="material-icons-outlined ml-2" @click.stop="showInfo('disableSleepTimerFadeOut')">info</span>
       </div>
       <div class="flex items-center py-3" @click="toggleDisableSleepTimerResetFeedback">
         <div class="w-10 flex justify-center">
           <ui-toggle-switch v-model="settings.disableSleepTimerResetFeedback" @input="saveSettings" />
         </div>
-        <p class="pl-4">Disable vibrate on reset</p>
+        <p class="pl-4">{{ $strings.LabelDisableVibrateOnReset }}</p>
         <span class="material-icons-outlined ml-2" @click.stop="showInfo('disableSleepTimerResetFeedback')">info</span>
       </div>
       <div class="flex items-center py-3" @click="toggleAutoSleepTimer">
         <div class="w-10 flex justify-center">
           <ui-toggle-switch v-model="settings.autoSleepTimer" @input="saveSettings" />
         </div>
-        <p class="pl-4">Auto Sleep Timer</p>
+        <p class="pl-4">{{ $strings.LabelAutoSleepTimer }}</p>
         <span class="material-icons-outlined ml-2" @click.stop="showInfo('autoSleepTimer')">info</span>
       </div>
     </template>
     <!-- Auto Sleep timer settings -->
     <div v-if="settings.autoSleepTimer" class="py-3 flex items-center">
-      <p class="pr-4 w-36">Start Time</p>
+      <p class="pr-4 w-36">{{ $strings.LabelStartTime }}</p>
       <ui-text-input type="time" v-model="settings.autoSleepTimerStartTime" style="width: 145px; max-width: 145px" @input="autoSleepTimerTimeUpdated" />
     </div>
     <div v-if="settings.autoSleepTimer" class="py-3 flex items-center">
-      <p class="pr-4 w-36">End Time</p>
+      <p class="pr-4 w-36">{{ $strings.LabelEndTime }}</p>
       <ui-text-input type="time" v-model="settings.autoSleepTimerEndTime" style="width: 145px; max-width: 145px" @input="autoSleepTimerTimeUpdated" />
     </div>
     <div v-if="settings.autoSleepTimer" class="py-3 flex items-center">
-      <p class="pr-4 w-36">Sleep Timer</p>
+      <p class="pr-4 w-36">{{ $strings.LabelSleepTimer }}</p>
       <div @click.stop="showSleepTimerOptions">
         <ui-text-input :value="sleepTimerLengthOption" readonly append-icon="expand_more" style="width: 145px; max-width: 145px" />
       </div>
@@ -107,11 +113,11 @@
       <div class="w-10 flex justify-center">
         <ui-toggle-switch v-model="settings.autoSleepTimerAutoRewind" @input="saveSettings" />
       </div>
-      <p class="pl-4">Auto Sleep Timer Auto Rewind</p>
+      <p class="pl-4">{{ $strings.LabelAutoSleepTimerAutoRewind }}</p>
       <span class="material-icons-outlined ml-2" @click.stop="showInfo('autoSleepTimerAutoRewind')">info</span>
     </div>
     <div v-if="settings.autoSleepTimerAutoRewind" class="py-3 flex items-center">
-      <p class="pr-4 w-36">Auto Rewind Time</p>
+      <p class="pr-4 w-36">{{ $strings.LabelAutoRewindTime }}</p>
       <div @click.stop="showAutoSleepTimerRewindOptions">
         <ui-text-input :value="autoSleepTimerRewindLengthOption" readonly append-icon="expand_more" style="width: 145px; max-width: 145px" />
       </div>
@@ -151,72 +157,73 @@ export default {
         disableSleepTimerFadeOut: false,
         disableSleepTimerResetFeedback: false,
         autoSleepTimerAutoRewind: false,
-        autoSleepTimerAutoRewindTime: 300000 // 5 minutes
+        autoSleepTimerAutoRewindTime: 300000, // 5 minutes
+        languageCode: 'en-us'
       },
       lockCurrentOrientation: false,
       settingInfo: {
         disableShakeToResetSleepTimer: {
-          name: 'Disable shake to reset sleep timer',
-          message: 'Shaking your device while the timer is running OR within 2 minutes of the timer expiring will reset the sleep timer. Enable this setting to disable shake to reset.'
+          name: this.$strings.LabelDisableShakeToReset,
+          message: this.$strings.LabelDisableShakeToResetHelp
         },
         autoSleepTimer: {
-          name: 'Auto Sleep Timer',
-          message: 'When playing media between the specified start and end times a sleep timer will automatically start.'
+          name: this.$strings.LabelAutoSleepTimer,
+          message: this.$strings.LabelAutoSleepTimerHelp
         },
         disableSleepTimerFadeOut: {
-          name: 'Disable audio fade out',
-          message: 'Audio volume will start decreasing when there is less than 1 minute remaining on the sleep timer. Enable this setting to not fade out.'
+          name: this.$strings.LabelDisableAudioFadeOut,
+          message: this.$strings.LabelDisableAudioFadeOutHelp
         },
         disableSleepTimerResetFeedback: {
-          name: 'Disable vibrate on reset',
-          message: 'When the sleep timer gets reset your device will vibrate. Enable this setting to not vibrate when the sleep timer resets.'
+          name: this.$strings.LabelDisableVibrateOnReset,
+          message: this.$strings.LabelDisableVibrateOnResetHelp
         },
         autoSleepTimerAutoRewind: {
-          name: 'Enable sleep timer auto rewind',
-          message: 'When the auto sleep timer finishes, playing the item again will automatically rewind your position.'
+          name: this.$strings.LabelAutoSleepTimerAutoRewind,
+          message: this.$strings.LabelAutoSleepTimerAutoRewindHelp
         },
         enableMp3IndexSeeking: {
-          name: 'Enable mp3 index seeking',
-          message: 'This setting should only be enabled if you have mp3 files that are not seeking correctly. Inaccurate seeking is most likely due to Variable birate (VBR) MP3 files. This setting will force index seeking, in which a time-to-byte mapping is built as the file is read. In some cases with large MP3 files there will be a delay when seeking towards the end of the file.'
+          name: this.$strings.LabelEnableMp3IndexSeeking,
+          message: this.$strings.LabelEnableMp3IndexSeekingHelp
         }
       },
       hapticFeedbackItems: [
         {
-          text: 'Off',
+          text: this.$strings.LabelOff,
           value: 'OFF'
         },
         {
-          text: 'Light',
+          text: this.$strings.LabelLight,
           value: 'LIGHT'
         },
         {
-          text: 'Medium',
+          text: this.$strings.LabelMedium,
           value: 'MEDIUM'
         },
         {
-          text: 'Heavy',
+          text: this.$strings.LabelHeavy,
           value: 'HEAVY'
         }
       ],
       shakeSensitivityItems: [
         {
-          text: 'Very Low',
+          text: this.$strings.LabelVeryLow,
           value: 'VERY_LOW'
         },
         {
-          text: 'Low',
+          text: this.$strings.LabelLow,
           value: 'LOW'
         },
         {
-          text: 'Medium',
+          text: this.$strings.LabelMedium,
           value: 'MEDIUM'
         },
         {
-          text: 'High',
+          text: this.$strings.LabelHigh,
           value: 'HIGH'
         },
         {
-          text: 'Very High',
+          text: this.$strings.LabelVeryHigh,
           value: 'VERY_HIGH'
         }
       ]
@@ -241,6 +248,9 @@ export default {
     jumpBackwardsItems() {
       return this.$store.state.globals.jumpBackwardsItems || []
     },
+    languageOptionItems() {
+      return this.$languageCodeOptions || []
+    },
     currentJumpForwardTimeIcon() {
       return this.jumpForwardItems[this.currentJumpForwardTimeIndex].icon
     },
@@ -257,14 +267,17 @@ export default {
     },
     shakeSensitivityOption() {
       const item = this.shakeSensitivityItems.find((i) => i.value === this.settings.shakeSensitivity)
-      return item ? item.text : 'Error'
+      return item?.text || 'Error'
     },
     hapticFeedbackOption() {
       const item = this.hapticFeedbackItems.find((i) => i.value === this.settings.hapticFeedback)
-      return item ? item.text : 'Error'
+      return item?.text || 'Error'
+    },
+    languageOption() {
+      return this.languageOptionItems.find((i) => i.value === this.settings.languageCode)?.text || 'English'
     },
     sleepTimerLengthOption() {
-      if (!this.settings.sleepTimerLength) return 'End of Chapter'
+      if (!this.settings.sleepTimerLength) return this.$strings.LabelEndOfChapter
       const minutes = Number(this.settings.sleepTimerLength) / 1000 / 60
       return `${minutes} min`
     },
@@ -275,6 +288,7 @@ export default {
     moreMenuItems() {
       if (this.moreMenuSetting === 'shakeSensitivity') return this.shakeSensitivityItems
       else if (this.moreMenuSetting === 'hapticFeedback') return this.hapticFeedbackItems
+      else if (this.moreMenuSetting === 'language') return this.languageOptionItems
       return []
     }
   },
@@ -301,6 +315,10 @@ export default {
       this.moreMenuSetting = 'shakeSensitivity'
       this.showMoreMenuDialog = true
     },
+    showLanguageOptions() {
+      this.moreMenuSetting = 'language'
+      this.showMoreMenuDialog = true
+    },
     clickMenuAction(action) {
       this.showMoreMenuDialog = false
       if (this.moreMenuSetting === 'shakeSensitivity') {
@@ -309,6 +327,9 @@ export default {
       } else if (this.moreMenuSetting === 'hapticFeedback') {
         this.settings.hapticFeedback = action
         this.hapticFeedbackUpdated(action)
+      } else if (this.moreMenuSetting === 'language') {
+        this.settings.languageCode = action
+        this.languageOptionUpdated(action)
       }
     },
     autoSleepTimerTimeUpdated(val) {
@@ -318,6 +339,10 @@ export default {
     },
     hapticFeedbackUpdated(val) {
       this.$store.commit('globals/setHapticFeedback', val)
+      this.saveSettings()
+    },
+    languageOptionUpdated(val) {
+      this.$setLanguageCode(val)
       this.saveSettings()
     },
     showInfo(setting) {
@@ -432,6 +457,8 @@ export default {
 
       this.settings.autoSleepTimerAutoRewind = !!deviceSettings.autoSleepTimerAutoRewind
       this.settings.autoSleepTimerAutoRewindTime = !isNaN(deviceSettings.autoSleepTimerAutoRewindTime) ? deviceSettings.autoSleepTimerAutoRewindTime : 300000 // 5 minutes
+
+      this.settings.languageCode = deviceSettings.languageCode || 'en-us'
     }
   },
   mounted() {

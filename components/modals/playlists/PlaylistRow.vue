@@ -8,8 +8,8 @@
       <p class="px-2 truncate text-sm">{{ playlist.name }}</p>
     </div>
     <div class="w-24 min-w-[96px] px-1">
-      <ui-btn v-if="inPlaylist" small class="w-full" @click.stop="click">Remove</ui-btn>
-      <ui-btn v-else small class="w-full" @click.stop="click">Add</ui-btn>
+      <ui-btn v-if="inPlaylist" small class="w-full" @click.stop="click">{{ $strings.ButtonRemove }}</ui-btn>
+      <ui-btn v-else small class="w-full" @click.stop="click">{{ $strings.ButtonAdd }}</ui-btn>
     </div>
   </div>
 </template>

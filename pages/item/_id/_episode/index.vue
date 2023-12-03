@@ -22,16 +22,16 @@
 
     <!-- user progress card -->
     <div v-if="progressPercent > 0" class="px-4 py-2 bg-primary text-sm font-semibold rounded-md text-gray-200 mt-4 relative" :class="resettingProgress ? 'opacity-25' : ''">
-      <p class="leading-6">Your Progress: {{ Math.round(progressPercent * 100) }}%</p>
-      <p v-if="progressPercent < 1" class="text-gray-400 text-xs">{{ $elapsedPretty(userTimeRemaining) }} remaining</p>
-      <p v-else class="text-gray-400 text-xs">Finished {{ $formatDate(userProgressFinishedAt) }}</p>
+      <p class="leading-6">{{ $strings.LabelYourProgress }}: {{ Math.round(progressPercent * 100) }}%</p>
+      <p v-if="progressPercent < 1" class="text-gray-400 text-xs">{{ $getString('LabelTimeRemaining', [$elapsedPretty(userTimeRemaining)]) }}</p>
+      <p v-else class="text-gray-400 text-xs">{{ $strings.LabelFinished }} {{ $formatDate(userProgressFinishedAt) }}</p>
     </div>
 
     <!-- action buttons -->
     <div class="flex mt-4 -mx-1">
       <ui-btn color="success" class="flex items-center justify-center flex-grow mx-1" :padding-x="4" @click="playClick">
         <span class="material-icons">{{ playerIsPlaying ? 'pause' : 'play_arrow' }}</span>
-        <span class="px-1 text-sm">{{ playerIsPlaying ? 'Pause' : localEpisodeId ? 'Play' : 'Stream' }}</span>
+        <span class="px-1 text-sm">{{ playerIsPlaying ? $strings.ButtonPause : localEpisodeId ? $strings.ButtonPlay : $strings.ButtonStream }}</span>
       </ui-btn>
       <ui-btn v-if="showDownload" :color="downloadItem ? 'warning' : 'primary'" class="flex items-center justify-center mx-1" :padding-x="2" @click="downloadClick">
         <span class="material-icons" :class="downloadItem ? 'animate-pulse' : ''">{{ downloadItem ? 'downloading' : 'download' }}</span>
@@ -257,7 +257,7 @@ export default {
 
       if (!this.userIsFinished) {
         items.push({
-          text: 'Mark as Finished',
+          text: this.$strings.MessageMarkAsFinished,
           value: 'markFinished',
           icon: 'beenhere'
         })
@@ -265,7 +265,7 @@ export default {
 
       if (this.progressPercent > 0) {
         items.push({
-          text: 'Discard Progress',
+          text: this.$strings.MessageDiscardProgress,
           value: 'discardProgress',
           icon: 'backspace'
         })
@@ -273,7 +273,7 @@ export default {
 
       if (!this.isLocal) {
         items.push({
-          text: 'Add to Playlist',
+          text: this.$strings.LabelAddToPlaylist,
           value: 'playlist',
           icon: 'playlist_add'
         })
@@ -281,7 +281,7 @@ export default {
 
       if (this.localEpisodeId) {
         items.push({
-          text: 'Delete Local Episode',
+          text: this.$strings.ButtonDeleteLocalEpisode,
           value: 'deleteLocal',
           icon: 'delete'
         })
@@ -289,7 +289,7 @@ export default {
 
       if (this.isAdminOrUp && this.serverEpisodeId) {
         items.push({
-          text: 'Remove from Server',
+          text: this.$strings.ButtonRemoveFromServer,
           value: 'remove_from_server',
           icon: 'delete_forever'
         })
@@ -453,7 +453,7 @@ export default {
 
       const { value } = await Dialog.confirm({
         title: 'Confirm',
-        message: 'Are you sure you want to reset your progress?'
+        message: this.$strings.MessageConfirmDiscardProgress
       })
       if (value) {
         this.resettingProgress = true
@@ -505,7 +505,7 @@ export default {
         }
         this.$nativeHttp.patch(`/api/me/progress/${this.libraryItemId}/${this.episode.id}`, updatePayload).catch((error) => {
           console.error('Failed', error)
-          this.$toast.error(`Failed to mark as ${updatePayload.isFinished ? 'Finished' : 'Not Finished'}`)
+          this.$toast.error(updatePayload.isFinished ? this.$strings.ToastItemMarkedAsFinishedFailed : this.$strings.ToastItemMarkedAsNotFinishedFailed)
         })
       }
     },

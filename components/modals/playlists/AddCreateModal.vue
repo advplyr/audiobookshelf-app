@@ -1,7 +1,7 @@
 <template>
   <modals-fullscreen-modal v-model="show" :processing="processing">
     <div class="flex items-end justify-between h-16 px-4 pb-2">
-      <h1 class="text-lg">Add to Playlist</h1>
+      <h1 class="text-lg">{{ $strings.LabelAddToPlaylist }}</h1>
       <button class="flex" @click="show = false">
         <span class="material-icons">close</span>
       </button>
@@ -14,13 +14,13 @@
           <div class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-white hover:bg-opacity-10 cursor-pointer" @click.stop="showPlaylistNameInput = false">
             <span class="material-icons text-3xl">arrow_back</span>
           </div>
-          <p class="text-xl pl-2">New Playlist</p>
+          <p class="text-xl pl-2">{{ $strings.HeaderNewPlaylist }}</p>
           <div class="flex-grow" />
         </div>
 
-        <ui-text-input-with-label v-model="newPlaylistName" label="Name" />
+        <ui-text-input-with-label v-model="newPlaylistName" :label="$strings.LabelName" />
         <div class="flex justify-end mt-6">
-          <ui-btn color="success" :loading="processing" class="w-full" @click.stop="submitCreatePlaylist">Create</ui-btn>
+          <ui-btn color="success" :loading="processing" class="w-full" @click.stop="submitCreatePlaylist">{{ $strings.ButtonCreate }}</ui-btn>
         </div>
       </div>
     </div>
@@ -32,7 +32,7 @@
           <modals-playlists-playlist-row :key="playlist.id" :in-playlist="playlist.isItemIncluded" :playlist="playlist" @click="clickPlaylist" @close="show = false" />
         </template>
         <div v-if="!playlists.length" class="flex h-full items-center justify-center">
-          <p class="text-xl">{{ loading ? 'Loading..' : 'No Playlists' }}</p>
+          <p class="text-xl">{{ loading ? $strings.MessageLoading : $strings.MessageNoUserPlaylists }}</p>
         </div>
       </div>
     </div>
@@ -40,7 +40,7 @@
     <!-- create playlist btn -->
     <div v-if="!showPlaylistNameInput" class="flex items-start justify-between h-16 pt-2 absolute bottom-0 left-0 w-full">
       <ui-btn :loading="processing" color="success" class="w-full h-full flex items-center justify-center" @click.stop="createPlaylist">
-        <p class="text-base">Create New Playlist</p>
+        <p class="text-base">{{ $strings.ButtonCreateNewPlaylist }}</p>
       </ui-btn>
     </div>
   </modals-fullscreen-modal>
@@ -193,8 +193,7 @@ export default {
         })
         .catch((error) => {
           console.error('Failed to create playlist', error)
-          var errMsg = error.response ? error.response.data || '' : ''
-          this.$toast.error(`Failed to create playlist: ${errMsg}`)
+          this.$toast.error(this.$strings.ToastPlaylistCreateFailed)
         })
         .finally(() => {
           this.processing = false

@@ -2,24 +2,24 @@
   <div class="w-full px-2">
     <img v-if="podcast.imageUrl" :src="podcast.imageUrl" class="h-36 w-36 object-contain mx-auto mb-2" />
 
-    <ui-text-input-with-label v-model="podcast.title" :label="'Title'" class="mb-2 text-sm" @input="titleUpdated" />
+    <ui-text-input-with-label v-model="podcast.title" :label="$strings.LabelTitle" class="mb-2 text-sm" @input="titleUpdated" />
 
-    <ui-text-input-with-label v-model="podcast.author" :label="'Author'" class="mb-2 text-sm" />
+    <ui-text-input-with-label v-model="podcast.author" :label="$strings.LabelAuthor" class="mb-2 text-sm" />
 
-    <ui-text-input-with-label v-model="podcast.feedUrl" :label="'Feed URL'" readonly class="mb-2 text-sm" />
+    <ui-text-input-with-label v-model="podcast.feedUrl" :label="$strings.LabelFeedURL" readonly class="mb-2 text-sm" />
 
-    <ui-multi-select v-model="podcast.genres" :items="podcast.genres" :label="'Genres'" class="mb-2 text-sm" />
+    <ui-multi-select v-model="podcast.genres" :items="podcast.genres" :label="$strings.LabelGenres" class="mb-2 text-sm" />
 
-    <ui-textarea-with-label v-model="podcast.description" :label="'Description'" :rows="3" class="mb-2 text-sm" />
+    <ui-textarea-with-label v-model="podcast.description" :label="$strings.LabelDescription" :rows="3" class="mb-2 text-sm" />
 
-    <ui-dropdown v-model="selectedFolderId" :items="folderItems" :disabled="processing" :label="'Folder'" class="mb-2 text-sm" @input="folderUpdated" />
+    <ui-dropdown v-model="selectedFolderId" :items="folderItems" :disabled="processing" :label="$strings.LabelFolder" class="mb-2 text-sm" @input="folderUpdated" />
 
-    <ui-text-input-with-label v-model="fullPath" :label="'Podcast Path'" input-class="h-10" readonly class="mb-2 text-sm" />
+    <ui-text-input-with-label v-model="fullPath" :label="$strings.LabelPath" input-class="h-10" readonly class="mb-2 text-sm" />
 
     <div class="flex items-center py-4 px-2">
-      <ui-checkbox v-model="podcast.autoDownloadEpisodes" :label="'Auto Download Episodes'" checkbox-bg="primary" border-color="gray-600" label-class="pl-2 text-sm font-semibold" />
+      <ui-checkbox v-model="podcast.autoDownloadEpisodes" :label="$strings.LabelAutoDownloadEpisodes" checkbox-bg="primary" border-color="gray-600" label-class="pl-2 text-sm font-semibold" />
       <div class="flex-grow" />
-      <ui-btn color="success" @click="submit">Submit</ui-btn>
+      <ui-btn color="success" @click="submit">{{ $strings.ButtonSubmit }}</ui-btn>
     </div>
   </div>
 </template>
@@ -144,11 +144,11 @@ export default {
         .post('/api/podcasts', podcastPayload)
         .then((libraryItem) => {
           this._processing = false
-          this.$toast.success('Podcast added')
+          this.$toast.success(this.$strings.ToastPodcastCreateSuccess)
           this.$router.push(`/item/${libraryItem.id}`)
         })
         .catch((error) => {
-          var errorMsg = error.response && error.response.data ? error.response.data : 'Failed to add podcast'
+          var errorMsg = error.response && error.response.data ? error.response.data : this.$strings.ToastPodcastCreateFailed
           console.error('Failed to create podcast', error)
           this._processing = false
           this.$toast.error(errorMsg)

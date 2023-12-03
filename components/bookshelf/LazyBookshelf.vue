@@ -9,7 +9,7 @@
 
     <div v-show="!entities.length && initialized" class="w-full py-16 text-center text-xl">
       <div class="py-4 capitalize">No {{ entityName }}</div>
-      <ui-btn v-if="hasFilter" @click="clearFilter">Clear Filter</ui-btn>
+      <ui-btn v-if="hasFilter" @click="clearFilter">{{ $strings.ButtonClearFilter }}</ui-btn>
     </div>
   </div>
 </template>

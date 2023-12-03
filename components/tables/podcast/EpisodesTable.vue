@@ -3,7 +3,7 @@
     <!-- Podcast episode downloads queue -->
     <div v-if="episodeDownloadsQueued.length" class="px-4 py-2 my-2 bg-info bg-opacity-40 text-sm font-semibold rounded-md text-gray-100 relative w-full">
       <div class="flex items-center">
-        <p class="text-sm py-1">{{ episodeDownloadsQueued.length }} Episode(s) queued for download</p>
+        <p class="text-sm py-1">{{ $getString('MessageEpisodesQueuedForDownload', [episodeDownloadsQueued.length]) }}</p>
         <div class="flex-grow" />
         <span v-if="isAdminOrUp" class="material-icons text-xl ml-3 cursor-pointer" @click="clearDownloadQueue">close</span>
       </div>
@@ -13,12 +13,12 @@
     <div v-if="episodesDownloading.length" class="px-4 py-2 my-2 bg-success bg-opacity-20 text-sm font-semibold rounded-md text-gray-100 relative w-full">
       <div v-for="episode in episodesDownloading" :key="episode.id" class="flex items-center">
         <widgets-loading-spinner />
-        <p class="text-sm py-1 pl-4">Downloading episode "{{ episode.episodeDisplayTitle }}"</p>
+        <p class="text-sm py-1 pl-4">{{ $strings.MessageDownloadingEpisode }} "{{ episode.episodeDisplayTitle }}"</p>
       </div>
     </div>
 
     <div class="flex items-center">
-      <p class="text-lg mb-1 font-semibold">Episodes ({{ episodesFiltered.length }})</p>
+      <p class="text-lg mb-1 font-semibold">{{ $strings.HeaderEpisodes }} ({{ episodesFiltered.length }})</p>
 
       <div class="flex-grow" />
 

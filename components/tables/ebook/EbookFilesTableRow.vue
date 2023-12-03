@@ -40,7 +40,7 @@ export default {
       const items = []
       if (this.userCanUpdate && !this.libraryIsAudiobooksOnly) {
         items.push({
-          text: this.isPrimary ? 'Set as supplementary' : 'Set as primary',
+          text: this.isPrimary ? this.$strings.LabelSetEbookAsSupplementary : this.$strings.LabelSetEbookAsPrimary,
           value: 'updateStatus'
         })
       }

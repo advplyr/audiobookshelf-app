@@ -2,7 +2,7 @@
   <modals-modal v-model="show" width="90%" height="100%">
     <template #outer>
       <div v-show="selected !== 'all'" class="absolute top-10 left-4 z-40">
-        <ui-btn class="text-xl border-yellow-400 border-opacity-40" @click="clearSelected">Clear</ui-btn>
+        <ui-btn class="text-lg border-yellow-400 border-opacity-40" @click="clearSelected">{{ $strings.ButtonClearFilter }}</ui-btn>
       </div>
     </template>
     <div class="w-full h-full overflow-hidden absolute top-0 left-0 flex items-center justify-center" @click="show = false">
@@ -25,7 +25,7 @@
               <span class="material-icons text-2xl">arrow_left</span>
             </div>
             <div class="flex items-center justify-between">
-              <span class="font-normal ml-3 block truncate text-lg">Back</span>
+              <span class="font-normal ml-3 block truncate text-lg">{{ $strings.ButtonBack }}</span>
             </div>
           </li>
           <li v-if="!sublistItems.length" class="text-gray-400 select-none relative px-2" role="option">
@@ -57,62 +57,62 @@ export default {
       sublist: null,
       bookItems: [
         {
-          text: 'All',
+          text: this.$strings.LabelAll,
           value: 'all'
         },
         {
-          text: 'Genre',
+          text: this.$strings.LabelGenre,
           value: 'genres',
           sublist: true
         },
         {
-          text: 'Tag',
+          text: this.$strings.LabelTag,
           value: 'tags',
           sublist: true
         },
         {
-          text: 'Series',
+          text: this.$strings.LabelSeries,
           value: 'series',
           sublist: true
         },
         {
-          text: 'Authors',
+          text: this.$strings.LabelAuthor,
           value: 'authors',
           sublist: true
         },
         {
-          text: 'Narrator',
+          text: this.$strings.LabelNarrator,
           value: 'narrators',
           sublist: true
         },
         {
-          text: 'Language',
+          text: this.$strings.LabelLanguage,
           value: 'languages',
           sublist: true
         },
         {
-          text: 'Progress',
+          text: this.$strings.LabelProgress,
           value: 'progress',
           sublist: true
         },
         {
-          text: 'Issues',
+          text: this.$strings.ButtonIssues,
           value: 'issues',
           sublist: false
         }
       ],
       podcastItems: [
         {
-          text: 'All',
+          text: this.$strings.LabelAll,
           value: 'all'
         },
         {
-          text: 'Genre',
+          text: this.$strings.LabelGenre,
           value: 'genres',
           sublist: true
         },
         {
-          text: 'Tag',
+          text: this.$strings.LabelTag,
           value: 'tags',
           sublist: true
         }
@@ -176,19 +176,19 @@ export default {
       return [
         {
           id: 'finished',
-          name: 'Finished'
+          name: this.$strings.LabelFinished
         },
         {
           id: 'in-progress',
-          name: 'In Progress'
+          name: this.$strings.LabelInProgress
         },
         {
           id: 'not-started',
-          name: 'Not Started'
+          name: this.$strings.LabelNotStarted
         },
         {
           id: 'not-finished',
-          name: 'Not Finished'
+          name: this.$strings.LabelNotFinished
         }
       ]
     },

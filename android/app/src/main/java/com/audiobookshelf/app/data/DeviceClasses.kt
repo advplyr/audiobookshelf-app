@@ -121,7 +121,8 @@ data class DeviceSettings(
   var autoSleepTimerAutoRewindTime: Long, //Time in milliseconds
   var sleepTimerLength: Long, // Time in milliseconds
   var disableSleepTimerFadeOut: Boolean,
-  var disableSleepTimerResetFeedback: Boolean
+  var disableSleepTimerResetFeedback: Boolean,
+  var languageCode: String
 ) {
   companion object {
     // Static method to get default device settings
@@ -143,7 +144,8 @@ data class DeviceSettings(
         autoSleepTimerAutoRewind = false,
         autoSleepTimerAutoRewindTime = 300000L, // 5 minutes
         disableSleepTimerFadeOut = false,
-        disableSleepTimerResetFeedback = false
+        disableSleepTimerResetFeedback = false,
+        languageCode = "en-us"
       )
     }
   }

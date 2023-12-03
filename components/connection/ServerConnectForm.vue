@@ -12,7 +12,7 @@
           </div>
         </div>
         <div class="my-1 py-4 w-full">
-          <ui-btn class="w-full" @click="newServerConfigClick">Add New Server</ui-btn>
+          <ui-btn class="w-full" @click="newServerConfigClick">{{ $strings.ButtonAddNewServer }}</ui-btn>
         </div>
       </template>
       <!-- form to add a new server connection config -->
@@ -22,10 +22,10 @@
           <div v-if="serverConnectionConfigs.length" class="flex items-center mb-4" @click="showServerList">
             <span class="material-icons text-gray-300">arrow_back</span>
           </div>
-          <h2 class="text-lg leading-7 mb-2">Server address</h2>
+          <h2 class="text-lg leading-7 mb-2">{{ $strings.LabelServerAddress }}</h2>
           <ui-text-input v-model="serverConfig.address" :disabled="processing || !networkConnected || !!serverConfig.id" placeholder="http://55.55.55.55:13378" type="url" class="w-full h-10" />
           <div class="flex justify-end items-center mt-6">
-            <ui-btn :disabled="processing || !networkConnected" type="submit" :padding-x="3" class="h-10">{{ networkConnected ? 'Submit' : 'No Internet' }}</ui-btn>
+            <ui-btn :disabled="processing || !networkConnected" type="submit" :padding-x="3" class="h-10">{{ networkConnected ? $strings.ButtonSubmit : $strings.MessageNoNetworkConnection }}</ui-btn>
           </div>
         </form>
         <!-- username/password and auth methods -->
@@ -41,13 +41,13 @@
           </div>
           <div class="w-full h-px bg-white bg-opacity-10 my-2" />
           <form v-if="isLocalAuthEnabled" @submit.prevent="submitAuth" class="pt-3">
-            <ui-text-input v-model="serverConfig.username" :disabled="processing" placeholder="username" class="w-full mb-2 text-lg" />
-            <ui-text-input v-model="password" type="password" :disabled="processing" placeholder="password" class="w-full mb-2 text-lg" />
+            <ui-text-input v-model="serverConfig.username" :disabled="processing" :placeholder="$strings.LabelUsername" class="w-full mb-2 text-lg" />
+            <ui-text-input v-model="password" type="password" :disabled="processing" :placeholder="$strings.LabelPassword" class="w-full mb-2 text-lg" />
 
             <div class="flex items-center pt-2">
               <ui-icon-btn v-if="serverConfig.id" small bg-color="error" icon="delete" @click="removeServerConfigClick" />
               <div class="flex-grow" />
-              <ui-btn :disabled="processing || !networkConnected" type="submit" class="mt-1 h-10">{{ networkConnected ? 'Submit' : 'No Internet' }}</ui-btn>
+              <ui-btn :disabled="processing || !networkConnected" type="submit" class="mt-1 h-10">{{ networkConnected ? $strings.ButtonSubmit : $strings.MessageNoNetworkConnection }}</ui-btn>
             </div>
           </form>
           <div v-if="isLocalAuthEnabled && isOpenIDAuthEnabled" class="w-full h-px bg-white bg-opacity-10 my-4" />
@@ -73,7 +73,7 @@
       </div>
     </div>
 
-    <p v-if="!serverConnectionConfigs.length" class="mt-2 text-center text-error"><strong>Important!</strong> This app is designed to work with an Audiobookshelf server that you or someone you know is hosting. This app does not provide any content.</p>
+    <p v-if="!serverConnectionConfigs.length" class="mt-2 text-center text-error" v-html="$strings.MessageAudiobookshelfServerRequired" />
 
     <modals-custom-headers-modal v-model="showAddCustomHeaders" :custom-headers.sync="serverConfig.customHeaders" />
   </div>

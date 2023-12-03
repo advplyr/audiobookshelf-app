@@ -2,7 +2,7 @@
   <div>
     <modals-dialog v-model="show" :items="moreMenuItems" @action="moreMenuAction" />
     <modals-item-details-modal v-model="showDetailsModal" :library-item="libraryItem" />
-    <modals-dialog v-model="showSendEbookDevicesModal" title="Select a device" :items="ereaderDeviceItems" @action="sendEbookToDeviceAction" />
+    <modals-dialog v-model="showSendEbookDevicesModal" :title="$strings.LabelSelectADevice" :items="ereaderDeviceItems" @action="sendEbookToDeviceAction" />
   </div>
 </template>
 
@@ -52,7 +52,7 @@ export default {
       // TODO: Implement on iOS
       if (this.$platform !== 'ios' && !this.isPodcast) {
         items.push({
-          text: 'History',
+          text: this.$strings.ButtonHistory,
           value: 'history',
           icon: 'history'
         })
@@ -61,7 +61,7 @@ export default {
       if (!this.isPodcast || this.episode) {
         if (!this.userIsFinished) {
           items.push({
-            text: 'Mark as Finished',
+            text: this.$strings.MessageMarkAsFinished,
             value: 'markFinished',
             icon: 'beenhere'
           })
@@ -69,7 +69,7 @@ export default {
 
         if (this.progressPercent > 0) {
           items.push({
-            text: 'Discard Progress',
+            text: this.$strings.MessageDiscardProgress,
             value: 'discardProgress',
             icon: 'backspace'
           })
@@ -78,14 +78,14 @@ export default {
 
       if ((!this.isPodcast && this.serverLibraryItemId) || (this.episode && this.serverEpisodeId)) {
         items.push({
-          text: 'Add to Playlist',
+          text: this.$strings.LabelAddToPlaylist,
           value: 'playlist',
           icon: 'playlist_add'
         })
 
         if (this.ereaderDeviceItems.length) {
           items.push({
-            text: 'Send ebook to device',
+            text: this.$strings.ButtonSendEbookToDevice,
             value: 'sendEbook',
             icon: 'send'
           })
@@ -94,7 +94,7 @@ export default {
 
       if (this.showRSSFeedOption) {
         items.push({
-          text: this.rssFeed ? 'RSS Feed' : 'Open RSS Feed',
+          text: this.rssFeed ? this.$strings.HeaderRSSFeed : this.$strings.HeaderOpenRSSFeed,
           value: 'rssFeed',
           icon: 'rss_feed'
         })
@@ -102,20 +102,20 @@ export default {
 
       if (this.localLibraryItemId) {
         items.push({
-          text: 'Manage Local Files',
+          text: this.$strings.ButtonManageLocalFiles,
           value: 'manageLocal',
           icon: 'folder'
         })
 
         if (!this.isPodcast) {
           items.push({
-            text: 'Delete Local Item',
+            text: this.$strings.ButtonDeleteLocalItem,
             value: 'deleteLocal',
             icon: 'delete'
           })
         } else if (this.localEpisodeId) {
           items.push({
-            text: 'Delete Local Episode',
+            text: this.$strings.ButtonDeleteLocalEpisode,
             value: 'deleteLocalEpisode',
             icon: 'delete'
           })
@@ -124,7 +124,7 @@ export default {
 
       if (!this.episode) {
         items.push({
-          text: 'More Info',
+          text: this.$strings.LabelMoreInfo,
           value: 'details',
           icon: 'info'
         })
@@ -279,7 +279,7 @@ export default {
       if (this.userItemProgress && this.userItemProgress.progress > 0 && !this.userIsFinished) {
         const { value } = await Dialog.confirm({
           title: 'Confirm',
-          message: 'Are you sure you want to mark this item as Finished?'
+          message: this.$strings.MessageConfirmMarkAsFinished
         })
         if (!value) return
       }
@@ -304,7 +304,7 @@ export default {
         }
         await this.$nativeHttp.patch(`/api/me/progress/${this.serverLibraryItemId}`, updatePayload).catch((error) => {
           console.error('Failed', error)
-          this.$toast.error(`Failed to mark as ${updatePayload.isFinished ? 'Finished' : 'Not Finished'}`)
+          this.$toast.error(updatePayload.isFinished ? this.$strings.ToastItemMarkedAsFinishedFailed : this.$strings.ToastItemMarkedAsNotFinishedFailed)
         })
       }
       this.$emit('update:processing', false)
@@ -335,7 +335,7 @@ export default {
         }
         await this.$nativeHttp.patch(`/api/me/progress/${this.serverLibraryItemId}/${this.serverEpisodeId}`, updatePayload).catch((error) => {
           console.error('Failed', error)
-          this.$toast.error(`Failed to mark as ${updatePayload.isFinished ? 'Finished' : 'Not Finished'}`)
+          this.$toast.error(updatePayload.isFinished ? this.$strings.ToastItemMarkedAsFinishedFailed : this.$strings.ToastItemMarkedAsNotFinishedFailed)
         })
       }
       this.$emit('update:processing', false)
@@ -345,7 +345,7 @@ export default {
 
       const { value } = await Dialog.confirm({
         title: 'Confirm',
-        message: 'Are you sure you want to reset your progress?'
+        message: this.$strings.MessageConfirmDiscardProgress
       })
       if (value) {
         this.$emit('update:processing', true)
