@@ -107,7 +107,8 @@ export default {
         state: null,
         verifier: null,
         challenge: null,
-        buttonText: 'Login with OpenID'
+        buttonText: 'Login with OpenID',
+        enforceHTTPs: true // RFC 6749, Section 10.9 requires https
       }
     }
   },
@@ -155,7 +156,7 @@ export default {
      */
     async clickLoginWithOpenId() {
       // oauth standard requires https explicitly
-      if (!this.serverConfig.address.startsWith('https')) {
+      if (!this.serverConfig.address.startsWith('https') && this.oauth.enforceHTTPs) {
         console.warn(`[SSO] Oauth2 requires HTTPS`)
         this.$toast.error(`SSO: The URL to the server must be https:// secured`)
         return
@@ -179,14 +180,15 @@ export default {
       const client_id = redirectUrl.searchParams.get('client_id')
       const scope = redirectUrl.searchParams.get('scope')
       const state = redirectUrl.searchParams.get('state')
+      const redirect_uri_param = redirectUrl.searchParams.get('redirect_uri')
 
-      if (!client_id || !scope || !state) {
-        console.warn(`[SSO] Invalid OpenID URL - client_id scope or state missing: ${redirectUrl}`)
+      if (!client_id || !scope || !state || !redirect_uri_param) {
+        console.warn(`[SSO] Invalid OpenID URL - client_id scope state or redirect_uri missing: ${redirectUrl}`)
         this.$toast.error(`SSO: Invalid answer`)
         return
       }
 
-      if (redirectUrl.protocol !== 'https:') {
+      if (redirectUrl.protocol !== 'https:' && this.oauth.enforceHTTPs) {
         console.warn(`[SSO] Insecure Redirection by SSO provider: ${redirectUrl.protocol} is not allowed. Use HTTPS`)
         this.$toast.error(`SSO: The SSO provider must return a HTTPS secured URL`)
         return
@@ -195,8 +197,8 @@ export default {
       // We need to verify if the state is the same later
       this.oauth.state = state
 
-      const host = `https://${redirectUrl.host}`
-      const buildUrl = `${host}${redirectUrl.pathname}?response_type=code` + `&client_id=${encodeURIComponent(client_id)}&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(state)}` + `&redirect_uri=${encodeURIComponent('audiobookshelf://oauth')}` + `&code_challenge=${encodeURIComponent(this.oauth.challenge)}&code_challenge_method=S256`
+      const host = `${redirectUrl.protocol}//${redirectUrl.host}`
+      const buildUrl = `${host}${redirectUrl.pathname}?response_type=code` + `&client_id=${encodeURIComponent(client_id)}&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(state)}` + `&redirect_uri=${encodeURIComponent(redirect_uri_param)}` + `&code_challenge=${encodeURIComponent(this.oauth.challenge)}&code_challenge_method=S256`
 
       // example url for authentik
       // const authURL = "https://authentik/application/o/authorize/?response_type=code&client_id=41cd96f...&redirect_uri=audiobookshelf%3A%2F%2Foauth&scope=openid%20openid%20email%20profile&state=asdds..."
@@ -244,7 +246,7 @@ export default {
       this.oauth.challenge = challenge
 
       // set parameter isRest to true, so the backend wont attempt a redirect after we call backend:/callback in exchangeCodeForToken
-      const backendEndpoint = `${url}/auth/openid?code_challenge=${challenge}&code_challenge_method=S256&isRest=true`
+      const backendEndpoint = `${url}/auth/openid?code_challenge=${challenge}&code_challenge_method=S256&redirect_uri=${encodeURIComponent('audiobookshelf://oauth')}&client_id=${encodeURIComponent('Audiobookshelf-App')}&response_type=code&isRest=true`
 
       try {
         const response = await CapacitorHttp.get({
