@@ -381,13 +381,9 @@ export default {
         return
       }
 
-      let confirmMessage = `Remove local episode "${localFile.basePath}" from your device?`
-      if (this.serverLibraryItemId) {
-        confirmMessage += ' The file on the server will be unaffected.'
-      }
       const { value } = await Dialog.confirm({
         title: 'Confirm',
-        message: confirmMessage
+        message: this.$getString('MessageConfirmDeleteLocalEpisode', [localFile.basePath])
       })
       if (value) {
         const res = await AbsFileSystem.deleteTrackFromItem({ id: this.localLibraryItemId, trackLocalFileId: localFile.id, trackContentUrl: localEpisodeAudioTrack.contentUrl })
@@ -411,13 +407,9 @@ export default {
     async deleteLocalItem() {
       await this.$hapticsImpact()
 
-      let confirmMessage = 'Remove local files of this item from your device?'
-      if (this.serverLibraryItemId) {
-        confirmMessage += ' The files on the server and your progress will be unaffected.'
-      }
       const { value } = await Dialog.confirm({
         title: 'Confirm',
-        message: confirmMessage
+        message: this.$strings.MessageConfirmDeleteLocalFiles
       })
       if (value) {
         const res = await AbsFileSystem.deleteItem(this.localLibraryItem)

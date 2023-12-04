@@ -82,46 +82,6 @@ export default {
       sortKey: 'publishedAt',
       sortDesc: true,
       filterKey: 'incomplete',
-      episodeSortItems: [
-        {
-          text: 'Pub Date',
-          value: 'publishedAt'
-        },
-        {
-          text: 'Title',
-          value: 'title'
-        },
-        {
-          text: 'Season',
-          value: 'season'
-        },
-        {
-          text: 'Episode',
-          value: 'episode'
-        }
-      ],
-      filterItems: [
-        {
-          text: 'Show All',
-          value: 'all'
-        },
-        {
-          text: 'Incomplete',
-          value: 'incomplete'
-        },
-        {
-          text: 'In Progress',
-          value: 'inProgress'
-        },
-        {
-          text: 'Complete',
-          value: 'complete'
-        },
-        {
-          text: 'Downloaded',
-          value: 'downloaded'
-        }
-      ],
       fetchingRSSFeed: false,
       podcastFeedEpisodes: [],
       showPodcastEpisodeFeed: false,
@@ -155,6 +115,50 @@ export default {
     },
     episodesAreFiltered() {
       return this.episodesFiltered.length !== this.episodesCopy.length
+    },
+    episodeSortItems() {
+      return [
+        {
+          text: this.$strings.LabelPubDate,
+          value: 'publishedAt'
+        },
+        {
+          text: this.$strings.LabelTitle,
+          value: 'title'
+        },
+        {
+          text: this.$strings.LabelSeason,
+          value: 'season'
+        },
+        {
+          text: this.$strings.LabelEpisode,
+          value: 'episode'
+        }
+      ]
+    },
+    filterItems() {
+      return [
+        {
+          text: this.$strings.LabelShowAll,
+          value: 'all'
+        },
+        {
+          text: this.$strings.LabelIncomplete,
+          value: 'incomplete'
+        },
+        {
+          text: this.$strings.LabelInProgress,
+          value: 'inProgress'
+        },
+        {
+          text: this.$strings.LabelComplete,
+          value: 'complete'
+        },
+        {
+          text: this.$strings.LabelDownloaded,
+          value: 'downloaded'
+        }
+      ]
     },
     episodesFiltered() {
       return this.episodesCopy.filter((ep) => {
@@ -230,7 +234,7 @@ export default {
     },
     async searchEpisodes() {
       if (!this.networkConnected) {
-        return this.$toast.error('No network connection')
+        return this.$toast.error(this.$strings.MessageNoNetworkConnection)
       }
 
       if (!this.mediaMetadata.feedUrl) {

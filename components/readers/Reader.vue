@@ -27,7 +27,7 @@
     <!-- table of contents modal -->
     <modals-fullscreen-modal v-model="showTOCModal" :theme="ereaderTheme">
       <div class="flex items-end justify-between h-20 px-4 pb-2">
-        <h1 class="text-lg">Table of Contents</h1>
+        <h1 class="text-lg">{{ $strings.HeaderTableOfContents }}</h1>
         <button class="flex" @click.stop="showTOCModal = false">
           <span class="material-icons">close</span>
         </button>
@@ -47,7 +47,7 @@
             </li>
           </ul>
           <div v-if="!chapters.length" class="flex h-full items-center justify-center">
-            <p class="text-xl">{{ 'No Chapters' }}</p>
+            <p class="text-xl">{{ $strings.MessageNoChapters }}</p>
           </div>
         </div>
       </div>
@@ -56,7 +56,7 @@
     <!-- ereader settings modal -->
     <modals-fullscreen-modal v-model="showSettingsModal" :theme="ereaderTheme" half-screen>
       <div class="flex items-end justify-between h-20 px-4 pb-2 mb-8">
-        <h1 class="text-lg">Ereader Settings</h1>
+        <h1 class="text-lg">{{ $strings.HeaderEreaderSettings }}</h1>
         <button class="flex" @click="showSettingsModal = false">
           <span class="material-icons">close</span>
         </button>
@@ -65,19 +65,19 @@
         <div class="w-full h-full px-4">
           <div class="flex items-center mb-8">
             <div class="w-32">
-              <p class="text-base">Theme:</p>
+              <p class="text-base">{{ $strings.LabelTheme }}:</p>
             </div>
             <ui-toggle-btns v-model="ereaderSettings.theme" :items="themeItems" @input="settingsUpdated" />
           </div>
           <div class="flex items-center mb-8">
             <div class="w-32">
-              <p class="text-base">Font scale:</p>
+              <p class="text-base">{{ $strings.LabelFontScale }}:</p>
             </div>
             <ui-range-input v-model="ereaderSettings.fontScale" :min="5" :max="300" :step="5" input-width="180px" @input="settingsUpdated" />
           </div>
           <div class="flex items-center mb-8">
             <div class="w-32">
-              <p class="text-base">Line spacing:</p>
+              <p class="text-base">{{ $strings.LabelLineSpacing }}:</p>
             </div>
             <ui-range-input v-model="ereaderSettings.lineSpacing" :min="100" :max="300" :step="5" input-width="180px" @input="settingsUpdated" />
           </div>
@@ -155,11 +155,11 @@ export default {
     themeItems() {
       return [
         {
-          text: 'Dark',
+          text: this.$strings.LabelThemeDark,
           value: 'dark'
         },
         {
-          text: 'Light',
+          text: this.$strings.LabelThemeLight,
           value: 'light'
         }
       ]

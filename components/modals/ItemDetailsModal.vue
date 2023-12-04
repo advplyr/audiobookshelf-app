@@ -10,7 +10,7 @@
       <div class="w-full overflow-x-hidden overflow-y-auto bg-primary rounded-lg border border-white border-opacity-20 p-2" style="max-height: 75%" @click.stop>
         <p class="mb-2">{{ mediaMetadata.title }}</p>
 
-        <div v-if="size" class="text-sm mb-2">Size: {{ $bytesPretty(size) }}</div>
+        <div v-if="size" class="text-sm mb-2">{{ $strings.LabelSize }}: {{ $bytesPretty(size) }}</div>
 
         <p class="mb-1 text-xs text-gray-200">ID: {{ _libraryItem.id }}</p>
       </div>

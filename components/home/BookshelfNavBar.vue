@@ -20,7 +20,7 @@ export default {
       return this.$store.getters['libraries/getCurrentLibrary']
     },
     currentLibraryIcon() {
-      return this.currentLibrary ? this.currentLibrary.icon : 'database'
+      return this.currentLibrary?.icon || 'database'
     },
     userHasPlaylists() {
       return this.$store.state.libraries.numUserPlaylists

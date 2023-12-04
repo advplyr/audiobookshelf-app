@@ -15,8 +15,8 @@
     <p class="text-lg font-semibold">{{ title }}</p>
 
     <div v-if="episodeNumber || season || episodeType" class="flex py-2 items-center -mx-0.5">
-      <div v-if="episodeNumber" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-60 rounded-full text-xs font-light text-gray-200">Episode #{{ episodeNumber }}</div>
-      <div v-if="season" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-60 rounded-full text-xs font-light text-gray-200">Season #{{ season }}</div>
+      <div v-if="episodeNumber" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-60 rounded-full text-xs font-light text-gray-200">{{ $strings.LabelEpisode }} #{{ episodeNumber }}</div>
+      <div v-if="season" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-60 rounded-full text-xs font-light text-gray-200">{{ $strings.LabelSeason }} #{{ season }}</div>
       <div v-if="episodeType" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-60 rounded-full text-xs font-light text-gray-200 capitalize">{{ episodeType }}</div>
     </div>
 
@@ -309,13 +309,9 @@ export default {
         return
       }
 
-      let confirmMessage = `Remove local episode "${localFile.basePath}" from your device?`
-      if (this.serverLibraryItemId) {
-        confirmMessage += ' The file on the server will be unaffected.'
-      }
       const { value } = await Dialog.confirm({
         title: 'Confirm',
-        message: confirmMessage
+        message: this.$getString('MessageConfirmDeleteLocalEpisode', [localFile.basePath])
       })
       if (value) {
         const res = await AbsFileSystem.deleteTrackFromItem({ id: this.localLibraryItemId, trackLocalFileId: localFile.id, trackContentUrl: localEpisodeAudioTrack.contentUrl })
@@ -384,7 +380,7 @@ export default {
         if (!foldersWithMediaType.length) {
           localFolder = {
             id: `internal-${this.mediaType}`,
-            name: 'Internal App Storage',
+            name: this.$strings.LabelInternalAppStorage,
             mediaType: this.mediaType
           }
         } else if (foldersWithMediaType.length === 1 && internalStorageFolder) {

@@ -12,7 +12,7 @@
       <div class="top-6 right-4 absolute cursor-pointer">
         <span class="material-icons text-3xl" :class="{ 'text-black text-opacity-75': coverBgIsLight }" @click="showMoreMenuDialog = true">more_vert</span>
       </div>
-      <p class="top-4 absolute left-0 right-0 mx-auto text-center uppercase tracking-widest text-opacity-75" :class="{ 'text-black text-opacity-75': coverBgIsLight }" style="font-size: 10px">{{ isDirectPlayMethod ? 'Direct' : isLocalPlayMethod ? 'Local' : 'Transcode' }}</p>
+      <p class="top-4 absolute left-0 right-0 mx-auto text-center uppercase tracking-widest text-opacity-75" :class="{ 'text-black text-opacity-75': coverBgIsLight }" style="font-size: 10px">{{ isDirectPlayMethod ? $strings.LabelPlaybackDirect : isLocalPlayMethod ? $strings.LabelPlaybackLocal : $strings.LabelPlaybackTranscode }}</p>
     </div>
 
     <div v-if="useChapterTrack && useTotalTrack && showFullscreen" class="absolute total-track w-full z-30 px-6">
@@ -175,7 +175,7 @@ export default {
       // TODO: Implement on iOS
       if (this.$platform !== 'ios' && !this.isPodcast && this.mediaId) {
         items.push({
-          text: 'History',
+          text: this.$strings.ButtonHistory,
           value: 'history',
           icon: 'history'
         })
@@ -184,22 +184,22 @@ export default {
       items.push(
         ...[
           {
-            text: 'Total Track',
+            text: this.$strings.LabelTotalTrack,
             value: 'total_track',
             icon: this.useTotalTrack ? 'check_box' : 'check_box_outline_blank'
           },
           {
-            text: 'Chapter Track',
+            text: this.$strings.LabelChapterTrack,
             value: 'chapter_track',
             icon: this.useChapterTrack ? 'check_box' : 'check_box_outline_blank'
           },
           {
-            text: this.lockUi ? 'Unlock Player' : 'Lock Player',
+            text: this.lockUi ? this.$strings.LabelUnlockPlayer : this.$strings.LabelLockPlayer,
             value: 'lock',
             icon: this.lockUi ? 'lock' : 'lock_open'
           },
           {
-            text: 'Close Player',
+            text: this.$strings.LabelClosePlayer,
             value: 'close',
             icon: 'close'
           }

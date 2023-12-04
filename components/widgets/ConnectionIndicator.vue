@@ -59,20 +59,19 @@ export default {
   methods: {
     showAlertDialog() {
       var msg = ''
-      var meteredString = this.isNetworkUnmetered ? 'unmetered' : 'metered'
       if (this.attemptingConnection) {
-        msg = 'Attempting server connection'
+        msg = this.$strings.MessageAttemptingServerConnection
       } else if (!this.networkConnected) {
-        msg = 'No internet'
+        msg = this.$strings.MessageNoNetworkConnection
       } else if (!this.socketConnected) {
-        msg = 'Socket not connected'
+        msg = this.$strings.MessageSocketNotConnected
       } else if (this.isCellular) {
-        msg = `Socket connected over ${meteredString} cellular`
+        msg = this.isNetworkUnmetered ? this.$strings.MessageSocketConnectedOverUnmeteredCellular : this.$strings.MessageSocketConnectedOverMeteredCellular
       } else {
-        msg = `Socket connected over ${meteredString} wifi`
+        msg = this.isNetworkUnmetered ? this.$strings.MessageSocketConnectedOverUnmeteredWifi : this.$strings.MessageSocketConnectedOverMeteredWifi
       }
       Dialog.alert({
-        title: 'Connection Status',
+        title: this.$strings.HeaderConnectionStatus,
         message: msg
       })
     }

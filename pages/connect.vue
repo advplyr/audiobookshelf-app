@@ -14,7 +14,7 @@
     </div>
 
     <div class="flex items-center justify-center pt-4 fixed bottom-4 left-0 right-0">
-      <a href="https://github.com/advplyr/audiobookshelf-app" target="_blank" class="text-sm pr-2">Follow the project on Github</a>
+      <a href="https://github.com/advplyr/audiobookshelf-app" target="_blank" class="text-sm pr-2">{{ $strings.MessageFollowTheProjectOnGithub }}</a>
       <a href="https://github.com/advplyr/audiobookshelf-app" target="_blank"
         ><svg class="w-8 h-8 text-gray-100" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" width="32" height="32" preserveAspectRatio="xMidYMid meet" viewBox="0 0 24 24">
           <path

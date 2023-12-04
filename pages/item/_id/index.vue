@@ -29,22 +29,22 @@
 
       <div v-if="hasLocal" class="mx-1">
         <div v-if="isLocalOnly" class="w-full rounded-md bg-warning/10 border border-warning p-4">
-          <p class="text-sm">Media is not linked to an Audiobookshelf server. No progress will be synced.</p>
+          <p class="text-sm">{{ $strings.MessageMediaNotLinkedToServer }}</p>
         </div>
         <div v-else-if="currentServerConnectionConfigId && !isLocalMatchingServerAddress" class="w-full rounded-md bg-warning/10 border border-warning p-4">
-          <p class="text-sm">Media is linked to an Audiobookshelf server on a different address ({{ localLibraryItem.serverAddress }}). Progress will be synced when connected to this server address.</p>
+          <p class="text-sm">{{ $getString('MessageMediaLinkedToADifferentServer', [localLibraryItem.serverAddress]) }}</p>
         </div>
         <div v-else-if="currentServerConnectionConfigId && !isLocalMatchingUser" class="w-full rounded-md bg-warning/10 border border-warning p-4">
-          <p class="text-sm">Media is linked to this server but was downloaded by a different user. Progress will only be synced to the user that downloaded it.</p>
+          <p class="text-sm">{{ $strings.MessageMediaLinkedToADifferentUser }}</p>
         </div>
         <div v-else-if="currentServerConnectionConfigId && !isLocalMatchingConnectionConfig" class="w-full rounded-md bg-warning/10 border border-warning p-4">
           <p class="text-sm">Media is linked to a different server connection config. Downloaded User Id: {{ localLibraryItem.serverUserId }}. Downloaded Server Address: {{ localLibraryItem.serverAddress }}. Currently connected User Id: {{ user.id }}. Currently connected server address: {{ currentServerAddress }}.</p>
         </div>
         <div v-else-if="isLocalMatchingConnectionConfig" class="w-full rounded-md bg-success/10 border border-success p-4">
-          <p class="text-sm">Downloaded media is linked to this server</p>
+          <p class="text-sm">{{ $strings.MessageMediaLinkedToThisServer }}</p>
         </div>
         <div v-else-if="isLocal && libraryItem.serverAddress" class="w-full rounded-md bg-slate-300/10 border border-slate-300 p-4">
-          <p class="text-sm">Linked to server {{ libraryItem.serverAddress }}</p>
+          <p class="text-sm">{{ $getString('MessageMediaLinkedToServer', [libraryItem.serverAddress]) }}</p>
         </div>
       </div>
 
@@ -598,7 +598,7 @@ export default {
         if (!foldersWithMediaType.length) {
           localFolder = {
             id: `internal-${this.mediaType}`,
-            name: 'Internal App Storage',
+            name: this.$strings.LabelInternalAppStorage,
             mediaType: this.mediaType
           }
         } else if (foldersWithMediaType.length === 1 && internalStorageFolder) {

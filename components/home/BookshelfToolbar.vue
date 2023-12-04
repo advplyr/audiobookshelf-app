@@ -64,16 +64,16 @@ export default {
       return this.$route.query || {}
     },
     entityTitle() {
-      if (this.isPodcast) return 'Podcasts'
-      if (this.page === 'library') return 'Books'
+      if (this.isPodcast) return this.$strings.LabelPodcasts
+      if (this.page === 'library') return this.$strings.LabelBooks
       else if (this.page === 'series') {
-        return 'Series'
+        return this.$strings.LabelSeries
       } else if (this.page === 'collections') {
-        return 'Collections'
+        return this.$strings.ButtonCollections
       } else if (this.page === 'playlists') {
-        return 'Playlists'
+        return this.$strings.ButtonPlaylists
       } else if (this.page === 'authors') {
-        return 'Authors'
+        return this.$strings.LabelAuthors
       }
       return ''
     },
@@ -92,7 +92,7 @@ export default {
       if (this.seriesBookPage) {
         return [
           {
-            text: 'Collapse Sub-Series',
+            text: this.$strings.LabelCollapseSeries,
             value: 'collapse_subseries',
             icon: this.settings.collapseBookSeries ? 'check_box' : 'check_box_outline_blank'
           }
@@ -100,7 +100,7 @@ export default {
       } else {
         return [
           {
-            text: 'Collapse Series',
+            text: this.$strings.LabelCollapseSeries,
             value: 'collapse_series',
             icon: this.settings.collapseSeries ? 'check_box' : 'check_box_outline_blank'
           }
