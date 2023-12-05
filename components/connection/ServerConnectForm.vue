@@ -245,8 +245,7 @@ export default {
       this.oauth.verifier = verifier
       this.oauth.challenge = challenge
 
-      // set parameter isRest to true, so the backend wont attempt a redirect after we call backend:/callback in exchangeCodeForToken
-      const backendEndpoint = `${url}/auth/openid?code_challenge=${challenge}&code_challenge_method=S256&redirect_uri=${encodeURIComponent('audiobookshelf://oauth')}&client_id=${encodeURIComponent('Audiobookshelf-App')}&response_type=code&isRest=true`
+      const backendEndpoint = `${url}/auth/openid?code_challenge=${challenge}&code_challenge_method=S256&redirect_uri=${encodeURIComponent('audiobookshelf://oauth')}&client_id=${encodeURIComponent('Audiobookshelf-App')}&response_type=code`
 
       try {
         const response = await CapacitorHttp.get({
