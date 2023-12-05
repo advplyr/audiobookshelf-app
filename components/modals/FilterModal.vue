@@ -96,6 +96,11 @@ export default {
           sublist: true
         },
         {
+          text: this.$strings.LabelEbooks,
+          value: 'ebooks',
+          sublist: true
+        },
+        {
           text: this.$strings.ButtonIssues,
           value: 'issues',
           sublist: false
@@ -189,6 +194,18 @@ export default {
         {
           id: 'not-finished',
           name: this.$strings.LabelNotFinished
+        }
+      ]
+    },
+    ebooks() {
+      return [
+        {
+          id: 'ebook',
+          name: this.$strings.LabelHasEbook
+        },
+        {
+          id: 'supplementary',
+          name: this.$strings.LabelHasSupplementaryEbook
         }
       ]
     },
