@@ -95,6 +95,7 @@ export default {
       processing: false,
       serverConfig: {
         address: null,
+        version: null,
         username: null,
         customHeaders: null
       },
@@ -180,7 +181,11 @@ export default {
       const client_id = redirectUrl.searchParams.get('client_id')
       const scope = redirectUrl.searchParams.get('scope')
       const state = redirectUrl.searchParams.get('state')
-      const redirect_uri_param = redirectUrl.searchParams.get('redirect_uri')
+      let redirect_uri_param = redirectUrl.searchParams.get('redirect_uri')
+      // Backwards compatability with 2.6.0
+      if (this.serverConfig.version === '2.6.0') {
+        redirect_uri_param = 'audiobookshelf://oauth'
+      }
 
       if (!client_id || !scope || !state || !redirect_uri_param) {
         console.warn(`[SSO] Invalid OpenID URL - client_id scope state or redirect_uri missing: ${redirectUrl}`)
@@ -245,7 +250,11 @@ export default {
       this.oauth.verifier = verifier
       this.oauth.challenge = challenge
 
-      const backendEndpoint = `${url}/auth/openid?code_challenge=${challenge}&code_challenge_method=S256&redirect_uri=${encodeURIComponent('audiobookshelf://oauth')}&client_id=${encodeURIComponent('Audiobookshelf-App')}&response_type=code`
+      let backendEndpoint = `${url}/auth/openid?code_challenge=${challenge}&code_challenge_method=S256&redirect_uri=${encodeURIComponent('audiobookshelf://oauth')}&client_id=${encodeURIComponent('Audiobookshelf-App')}&response_type=code`
+      // Backwards compatability with 2.6.0
+      if (this.serverConfig.version === '2.6.0') {
+        backendEndpoint += '&isRest=true'
+      }
 
       try {
         const response = await CapacitorHttp.get({
@@ -609,6 +618,7 @@ export default {
           this.showAuth = true
           this.authMethods = statusData.data.authMethods || []
           this.oauth.buttonText = statusData.data.authFormData?.authOpenIDButtonText || 'Login with OpenID'
+          this.serverConfig.version = statusData.data.serverVersion
 
           if (statusData.data.authFormData?.authOpenIDAutoLaunch) {
             this.clickLoginWithOpenId()
