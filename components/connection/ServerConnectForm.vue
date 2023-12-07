@@ -812,6 +812,7 @@ export default {
       this.serverConfig.userId = user.id
       this.serverConfig.token = user.token
       this.serverConfig.username = user.username
+      delete this.serverConfig.version
 
       var serverConnectionConfig = await this.$db.setServerConnectionConfig(this.serverConfig)
 
