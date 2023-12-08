@@ -40,12 +40,6 @@
         <div v-else-if="currentServerConnectionConfigId && !isLocalMatchingConnectionConfig" class="w-full rounded-md bg-warning/10 border border-warning p-4">
           <p class="text-sm">Media is linked to a different server connection config. Downloaded User Id: {{ localLibraryItem.serverUserId }}. Downloaded Server Address: {{ localLibraryItem.serverAddress }}. Currently connected User Id: {{ user.id }}. Currently connected server address: {{ currentServerAddress }}.</p>
         </div>
-        <div v-else-if="isLocalMatchingConnectionConfig" class="w-full rounded-md bg-success/10 border border-success p-4">
-          <p class="text-sm">{{ $strings.MessageMediaLinkedToThisServer }}</p>
-        </div>
-        <div v-else-if="isLocal && libraryItem.serverAddress" class="w-full rounded-md bg-slate-300/10 border border-slate-300 p-4">
-          <p class="text-sm">{{ $getString('MessageMediaLinkedToServer', [libraryItem.serverAddress]) }}</p>
-        </div>
       </div>
 
       <!-- action buttons -->
