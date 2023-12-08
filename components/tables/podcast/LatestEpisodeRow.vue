@@ -58,7 +58,6 @@
 </template>
 
 <script>
-import { Dialog } from '@capacitor/dialog'
 import { AbsFileSystem, AbsDownloader } from '@/plugins/capacitor'
 
 export default {
@@ -215,7 +214,7 @@ export default {
       }
 
       console.log('Local folder', JSON.stringify(localFolder))
-      
+
       this.startDownload(localFolder)
     },
     async startDownload(localFolder) {

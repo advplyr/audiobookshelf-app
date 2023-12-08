@@ -388,9 +388,6 @@ export default {
       if (value) {
         const res = await AbsFileSystem.deleteTrackFromItem({ id: this.localLibraryItemId, trackLocalFileId: localFile.id, trackContentUrl: localEpisodeAudioTrack.contentUrl })
         if (res?.id) {
-
-          //this.$toast.success('Deleted episode successfully')
-
           if (this.isLocal) {
             // If this is local episode then redirect to server episode when available
             if (this.serverEpisodeId) {
@@ -416,9 +413,6 @@ export default {
       if (value) {
         const res = await AbsFileSystem.deleteItem(this.localLibraryItem)
         if (res?.success) {
-
-          //this.$toast.success('Deleted successfully')
-
           if (this.isLocal) {
             // If local then redirect to server version when available
             if (this.serverLibraryItemId) {
