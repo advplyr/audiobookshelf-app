@@ -184,7 +184,7 @@ export default {
         },
         enableMp3IndexSeeking: {
           name: this.$strings.LabelEnableMp3IndexSeeking,
-          message: this.$strings.LabelEnableMp3IndexSeekingHelp
+          message: this.$strings.LabelEnableMp3IndexSeekingHelp,
           name: 'Enable mp3 index seeking',
           message: 'This setting should only be enabled if you have mp3 files that are not seeking correctly. Inaccurate seeking is most likely due to Variable birate (VBR) MP3 files. This setting will force index seeking, in which a time-to-byte mapping is built as the file is read. In some cases with large MP3 files there will be a delay when seeking towards the end of the file.'
         }

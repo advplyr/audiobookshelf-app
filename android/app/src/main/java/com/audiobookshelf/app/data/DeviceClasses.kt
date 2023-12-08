@@ -144,7 +144,8 @@ data class DeviceSettings(
         autoSleepTimerAutoRewind = false,
         autoSleepTimerAutoRewindTime = 300000L, // 5 minutes
         disableSleepTimerFadeOut = false,
-        disableSleepTimerResetFeedback = false
+        disableSleepTimerResetFeedback = false,
+        languageCode = "en-us"
       )
     }
   }
