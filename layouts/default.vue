@@ -318,6 +318,8 @@ export default {
     if (this.$store.state.isFirstLoad) {
       this.$store.commit('setIsFirstLoad', false)
 
+      this.loadSavedSettings()
+
       const deviceData = await this.$db.getDeviceData()
       this.$store.commit('setDeviceData', deviceData)
 
@@ -336,7 +338,6 @@ export default {
       console.log(`[default] finished connection attempt or already connected ${!!this.user}`)
       await this.syncLocalSessions()
 
-      this.loadSavedSettings()
       this.hasMounted = true
 
       console.log('[default] fully initialized')
