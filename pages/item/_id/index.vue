@@ -27,7 +27,7 @@
         <p v-if="subtitle" class="text-gray-100 text-base">{{ subtitle }}</p>
       </div>
 
-      <div v-if="hasLocal && this.socketConnected" class="mx-1">
+      <div v-if="hasLocal" class="mx-1">
         <div v-if="isLocalOnly" class="w-full rounded-md bg-warning/10 border border-warning p-4">
           <p class="text-sm">{{ $strings.MessageMediaNotLinkedToServer }}</p>
         </div>
@@ -448,9 +448,6 @@ export default {
 
       if (width * this.bookCoverAspectRatio > 325) width = 325 / this.bookCoverAspectRatio
       return width
-    },
-    socketConnected () {
-      return this.$store.state.socketConnected
     }
   },
   methods: {
