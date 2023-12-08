@@ -27,7 +27,7 @@
         <p v-if="subtitle" class="text-gray-100 text-base">{{ subtitle }}</p>
       </div>
 
-      <div v-if="hasLocal && !isLowFeedback" class="mx-1">
+      <div v-if="hasLocal" class="mx-1">
         <div v-if="isLocalOnly" class="w-full rounded-md bg-warning/10 border border-warning p-4">
           <p class="text-sm">{{ $strings.MessageMediaNotLinkedToServer }}</p>
         </div>
@@ -454,9 +454,6 @@ export default {
 
       if (width * this.bookCoverAspectRatio > 325) width = 325 / this.bookCoverAspectRatio
       return width
-    },
-    isLowFeedback() {
-      return this.$store.state.deviceData.deviceSettings.enableLowFeedbackMode
     }
   },
   methods: {
@@ -618,24 +615,20 @@ export default {
       }
 
       console.log('Local folder', JSON.stringify(localFolder))
-      if (this.isLowFeedback) {
+      let startDownloadMessage = `Start download for "${this.title}" with ${this.numTracks} audio track${this.numTracks == 1 ? '' : 's'} to folder ${localFolder.name}?`
+      if (!this.isIos && this.showRead) {
+        if (this.numTracks > 0) {
+          startDownloadMessage = `Start download for "${this.title}" with ${this.numTracks} audio track${this.numTracks == 1 ? '' : 's'} and ebook file to folder ${localFolder.name}?`
+        } else {
+          startDownloadMessage = `Start download for "${this.title}" with ebook file to folder ${localFolder.name}?`
+        }
+      }
+      const { value } = await Dialog.confirm({
+        title: 'Confirm',
+        message: startDownloadMessage
+      })
+      if (value) {
         this.startDownload(localFolder)
-      } else {
-        let startDownloadMessage = `Start download for "${this.title}" with ${this.numTracks} audio track${this.numTracks == 1 ? '' : 's'} to folder ${localFolder.name}?`
-        if (!this.isIos && this.showRead) {
-          if (this.numTracks > 0) {
-            startDownloadMessage = `Start download for "${this.title}" with ${this.numTracks} audio track${this.numTracks == 1 ? '' : 's'} and ebook file to folder ${localFolder.name}?`
-          } else {
-            startDownloadMessage = `Start download for "${this.title}" with ebook file to folder ${localFolder.name}?`
-          }
-        }
-        const { value } = await Dialog.confirm({
-          title: 'Confirm',
-          message: startDownloadMessage
-        })
-        if (value) {
-          this.startDownload(localFolder)
-        }
       }
     },
     async startDownload(localFolder = null) {

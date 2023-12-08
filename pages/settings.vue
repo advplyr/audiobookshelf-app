@@ -15,12 +15,6 @@
       </div>
       <p class="pl-4">{{ $strings.LabelLockOrientation }}</p>
     </div>
-    <div class="flex items-center py-3" @click="toggleLowFeedbackMode">
-      <div class="w-10 flex justify-center">
-        <ui-toggle-switch v-model="settings.enableLowFeedbackMode" @input="saveSettings" />
-      </div>
-      <p class="pl-4">Low Feedback Mode</p>
-    </div>
     <div class="py-3 flex items-center">
       <p class="pr-4 w-36">{{ $strings.LabelHapticFeedback }}</p>
       <div @click.stop="showHapticFeedbackOptions">
@@ -164,8 +158,7 @@ export default {
         disableSleepTimerResetFeedback: false,
         autoSleepTimerAutoRewind: false,
         autoSleepTimerAutoRewindTime: 300000, // 5 minutes
-        languageCode: 'en-us', // 5 minutes
-        enableLowFeedbackMode: false
+        languageCode: 'en-us' // 5 minutes
       },
       lockCurrentOrientation: false,
       settingInfo: {
@@ -194,10 +187,6 @@ export default {
           message: this.$strings.LabelEnableMp3IndexSeekingHelp
           name: 'Enable mp3 index seeking',
           message: 'This setting should only be enabled if you have mp3 files that are not seeking correctly. Inaccurate seeking is most likely due to Variable birate (VBR) MP3 files. This setting will force index seeking, in which a time-to-byte mapping is built as the file is read. In some cases with large MP3 files there will be a delay when seeking towards the end of the file.'
-        },
-        enableLowFeedbackMode: {
-          name: 'Low feedback mode',
-          message: 'Danger. This setting will hide confirmation messages, error messages, notifications and feedback within the apps interface. With low feedback enabled, you WILL miss important messages. You WILL experience unexpected behavior. Proceed with caution.'
         }
       },
       hapticFeedbackItems: [
@@ -436,10 +425,6 @@ export default {
       this.settings.jumpBackwardsTime = this.jumpBackwardsItems[next].value
       this.saveSettings()
     },
-    toggleLowFeedbackMode() {
-      this.settings.enableLowFeedbackMode = !this.settings.enableLowFeedbackMode
-      this.saveSettings()
-    },
     async saveSettings() {
       await this.$hapticsImpact()
       const updatedDeviceData = await this.$db.updateDeviceSettings({ ...this.settings })
@@ -476,8 +461,6 @@ export default {
       this.settings.autoSleepTimerAutoRewindTime = !isNaN(deviceSettings.autoSleepTimerAutoRewindTime) ? deviceSettings.autoSleepTimerAutoRewindTime : 300000 // 5 minutes
 
       this.settings.languageCode = deviceSettings.languageCode || 'en-us'
-
-      this.settings.enableLowFeedbackMode = !!deviceSettings.enableLowFeedbackMode
     }
   },
   mounted() {
