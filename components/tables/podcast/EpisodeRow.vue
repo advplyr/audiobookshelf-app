@@ -58,7 +58,6 @@
 </template>
 
 <script>
-import { Dialog } from '@capacitor/dialog'
 import { AbsFileSystem, AbsDownloader } from '@/plugins/capacitor'
 
 export default {
@@ -210,14 +209,7 @@ export default {
 
       console.log('Local folder', JSON.stringify(localFolder))
 
-      var startDownloadMessage = `Start download for "${this.title}" to folder ${localFolder.name}?`
-      const { value } = await Dialog.confirm({
-        title: 'Confirm',
-        message: startDownloadMessage
-      })
-      if (value) {
-        this.startDownload(localFolder)
-      }
+      this.startDownload(localFolder)
     },
     async startDownload(localFolder) {
       var payload = {

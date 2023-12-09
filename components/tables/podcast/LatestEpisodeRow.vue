@@ -41,7 +41,7 @@
 
         <div v-if="userCanDownload">
           <span v-if="isLocal" class="material-icons-outlined px-2 text-success text-lg">audio_file</span>
-          <span v-else-if="!localEpisode" class="material-icons mx-1.5 mt-2 text-xl" :class="downloadItem ? 'animate-bounce text-warning text-opacity-75' : ''" @click.stop="downloadClick">{{ downloadItem ? 'downloading' : 'download' }}</span>
+          <span v-else-if="!localEpisode" class="material-icons mx-1.5 mt-2 text-xl" :class="downloadItem || pendingDownload ? 'animate-bounce text-warning text-opacity-75' : ''" @click.stop="downloadClick">{{ downloadItem || pendingDownload ? 'downloading' : 'download' }}</span>
           <span v-else class="material-icons px-2 text-success text-xl">download_done</span>
         </div>
 
@@ -58,7 +58,6 @@
 </template>
 
 <script>
-import { Dialog } from '@capacitor/dialog'
 import { AbsFileSystem, AbsDownloader } from '@/plugins/capacitor'
 
 export default {
@@ -78,6 +77,7 @@ export default {
   data() {
     return {
       isProcessingReadUpdate: false,
+      pendingDownload: false,
       processing: false
     }
   },
@@ -175,14 +175,16 @@ export default {
       return folderObj
     },
     async downloadClick() {
-      if (this.downloadItem) return
+      if (this.downloadItem || this.pendingDownload) return
+      this.pendingDownload = true
       await this.$hapticsImpact()
       if (this.isIos) {
         // no local folders on iOS
-        this.startDownload()
+        await this.startDownload()
       } else {
-        this.download()
+        await this.download()
       }
+      this.pendingDownload = false
     },
     async download(selectedLocalFolder = null) {
       let localFolder = selectedLocalFolder
@@ -216,14 +218,7 @@ export default {
 
       console.log('Local folder', JSON.stringify(localFolder))
 
-      var startDownloadMessage = `Start download for "${this.title}" to folder ${localFolder.name}?`
-      const { value } = await Dialog.confirm({
-        title: 'Confirm',
-        message: startDownloadMessage
-      })
-      if (value) {
-        this.startDownload(localFolder)
-      }
+      return this.startDownload(localFolder)
     },
     async startDownload(localFolder) {
       var payload = {
@@ -238,6 +233,8 @@ export default {
         var errorMsg = downloadRes.error || 'Unknown error'
         console.error('Download error', errorMsg)
         this.$toast.error(errorMsg)
+      } else {
+        console.log('Download completed', JSON.stringify(downloadRes))
       }
     },
     async playClick() {

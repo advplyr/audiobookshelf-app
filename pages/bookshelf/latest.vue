@@ -16,7 +16,7 @@ export default {
       recentEpisodes: [],
       totalEpisodes: 0,
       currentPage: 0,
-      localEpisodeMap: {},
+      localLibraryItems: [],
       isLocal: false,
       loadedLibraryId: null
     }
@@ -25,6 +25,24 @@ export default {
   computed: {
     currentLibraryId() {
       return this.$store.state.libraries.currentLibraryId
+    },
+    localEpisodes() {
+      const episodes = []
+      this.localLibraryItems.forEach((li) => {
+        if (li.media.episodes?.length) {
+          episodes.push(...li.media.episodes)
+        }
+      })
+      return episodes
+    },
+    localEpisodeMap() {
+      var epmap = {}
+      this.localEpisodes.forEach((localEp) => {
+        if (localEp.serverEpisodeId) {
+          epmap[localEp.serverEpisodeId] = localEp
+        }
+      })
+      return epmap
     }
   },
   methods: {
@@ -61,14 +79,31 @@ export default {
           this.$router.replace('/bookshelf')
         }
       }
+    },
+    async loadLocalPodcastLibraryItems() {
+      this.localLibraryItems = await this.$db.getLocalLibraryItems('podcast')
+    },
+    newLocalLibraryItem(item) {
+      if (item.mediaType !== 'podcast') {
+        return
+      }
+      const matchingLocalLibraryItem = this.localLibraryItems.find((lli) => lli.id === item.id)
+      if (matchingLocalLibraryItem) {
+        matchingLocalLibraryItem.media.episodes = item.media.episodes
+      } else {
+        this.localLibraryItems.push(item)
+      }
     }
   },
   mounted() {
     this.loadRecentEpisodes()
+    this.loadLocalPodcastLibraryItems()
     this.$eventBus.$on('library-changed', this.libraryChanged)
+    this.$eventBus.$on('new-local-library-item', this.newLocalLibraryItem)
   },
   beforeDestroy() {
     this.$eventBus.$off('library-changed', this.libraryChanged)
+    this.$eventBus.$off('new-local-library-item', this.newLocalLibraryItem)
   }
 }
 </script>

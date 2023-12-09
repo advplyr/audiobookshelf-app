@@ -56,7 +56,6 @@ export default {
       if (!data.localLibraryItem) {
         this.$toast.error(this.$strings.MessageItemDownloadCompleteFailedToCreate)
       } else {
-        this.$toast.success(`Item "${data.localLibraryItem.media.metadata.title}" download finished`)
         this.$eventBus.$emit('new-local-library-item', data.localLibraryItem)
       }
 

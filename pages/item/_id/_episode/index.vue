@@ -316,7 +316,6 @@ export default {
       if (value) {
         const res = await AbsFileSystem.deleteTrackFromItem({ id: this.localLibraryItemId, trackLocalFileId: localFile.id, trackContentUrl: localEpisodeAudioTrack.contentUrl })
         if (res?.id) {
-          this.$toast.success('Deleted episode successfully')
           if (this.isLocal) {
             // If this is local episode then redirect to server episode when available
             if (this.serverEpisodeId) {
@@ -398,14 +397,7 @@ export default {
 
       console.log('Local folder', JSON.stringify(localFolder))
 
-      const startDownloadMessage = `Start download for "${this.title}" to folder ${localFolder.name}?`
-      const { value } = await Dialog.confirm({
-        title: 'Confirm',
-        message: startDownloadMessage
-      })
-      if (value) {
-        this.startDownload(localFolder)
-      }
+      this.startDownload(localFolder)
     },
     async selectFolder() {
       const folderObj = await AbsFileSystem.selectFolder({ mediaType: this.mediaType })
@@ -518,7 +510,6 @@ export default {
         this.$nativeHttp
           .delete(`/api/podcasts/${this.serverLibraryItemId}/episode/${this.serverEpisodeId}?hard=1`)
           .then(() => {
-            this.$toast.success('Episode deleted from server')
             this.$router.replace(`/item/${this.serverLibraryItemId}`)
           })
           .catch((error) => {
