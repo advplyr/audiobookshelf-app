@@ -3,12 +3,12 @@
     <div v-show="!loggedIn" class="mt-8 bg-primary overflow-hidden shadow rounded-lg px-4 py-6 w-full">
       <!-- list of server connection configs -->
       <template v-if="!showForm">
-        <div v-for="config in serverConnectionConfigs" :key="config.id" class="flex items-center py-4 my-1 border-b border-white border-opacity-10 relative" @click="connectToServer(config)">
-          <span class="material-icons-outlined text-xl text-gray-300">dns</span>
-          <p class="pl-3 pr-6 text-base text-gray-200">{{ config.name }}</p>
+        <div v-for="config in serverConnectionConfigs" :key="config.id" class="flex items-center py-4 my-1 border-b border-fg/10 relative" @click="connectToServer(config)">
+          <span class="material-icons-outlined text-xl text-fg-muted">dns</span>
+          <p class="pl-3 pr-6 text-base text-fg">{{ config.name }}</p>
 
           <div class="absolute top-0 right-0 h-full px-4 flex items-center" @click.stop="editServerConfig(config)">
-            <span class="material-icons text-lg text-gray-300">more_vert</span>
+            <span class="material-icons text-lg text-fg-muted">more_vert</span>
           </div>
         </div>
         <div class="my-1 py-4 w-full">
@@ -20,7 +20,7 @@
         <!-- server address input -->
         <form v-if="!showAuth" @submit.prevent="submit" novalidate class="w-full">
           <div v-if="serverConnectionConfigs.length" class="flex items-center mb-4" @click="showServerList">
-            <span class="material-icons text-gray-300">arrow_back</span>
+            <span class="material-icons text-fg-muted">arrow_back</span>
           </div>
           <h2 class="text-lg leading-7 mb-2">{{ $strings.LabelServerAddress }}</h2>
           <ui-text-input v-model="serverConfig.address" :disabled="processing || !networkConnected || !!serverConfig.id" placeholder="http://55.55.55.55:13378" type="url" class="w-full h-10" />
@@ -31,15 +31,15 @@
         <!-- username/password and auth methods -->
         <template v-else>
           <div v-if="serverConfig.id" class="flex items-center mb-4" @click="showServerList">
-            <span class="material-icons text-gray-300">arrow_back</span>
+            <span class="material-icons text-fg-muted">arrow_back</span>
           </div>
 
           <div class="flex items-center">
-            <p class="text-gray-300">{{ serverConfig.address }}</p>
+            <p class="text-fg-muted">{{ serverConfig.address }}</p>
             <div class="flex-grow" />
             <span v-if="!serverConfig.id" class="material-icons" style="font-size: 1.1rem" @click="editServerAddress">edit</span>
           </div>
-          <div class="w-full h-px bg-white bg-opacity-10 my-2" />
+          <div class="w-full h-px bg-fg/10 my-2" />
           <form v-if="isLocalAuthEnabled" @submit.prevent="submitAuth" class="pt-3">
             <ui-text-input v-model="serverConfig.username" :disabled="processing" :placeholder="$strings.LabelUsername" class="w-full mb-2 text-lg" />
             <ui-text-input v-model="password" type="password" :disabled="processing" :placeholder="$strings.LabelPassword" class="w-full mb-2 text-lg" />
@@ -50,7 +50,7 @@
               <ui-btn :disabled="processing || !networkConnected" type="submit" class="mt-1 h-10">{{ networkConnected ? $strings.ButtonSubmit : $strings.MessageNoNetworkConnection }}</ui-btn>
             </div>
           </form>
-          <div v-if="isLocalAuthEnabled && isOpenIDAuthEnabled" class="w-full h-px bg-white bg-opacity-10 my-4" />
+          <div v-if="isLocalAuthEnabled && isOpenIDAuthEnabled" class="w-full h-px bg-fg/10 my-4" />
           <ui-btn v-if="isOpenIDAuthEnabled" :disabled="processing" class="h-10 w-full" @click="clickLoginWithOpenId">{{ oauth.buttonText }}</ui-btn>
         </template>
       </div>
@@ -62,7 +62,7 @@
       </div>
     </div>
 
-    <div :class="processing ? 'opacity-100' : 'opacity-0 pointer-events-none'" class="fixed w-full h-full top-0 left-0 bg-black bg-opacity-75 flex items-center justify-center z-30 transition-opacity duration-500">
+    <div :class="processing ? 'opacity-100' : 'opacity-0 pointer-events-none'" class="fixed w-full h-full top-0 left-0 bg-black/75 flex items-center justify-center z-30 transition-opacity duration-500">
       <div>
         <div class="absolute top-0 left-0 w-full p-6 flex items-center flex-col justify-center z-0 short:hidden">
           <img src="/Logo.png" class="h-20 w-20 mb-2" />

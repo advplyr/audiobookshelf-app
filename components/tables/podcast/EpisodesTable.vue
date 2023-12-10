@@ -1,7 +1,7 @@
 <template>
   <div class="w-full">
     <!-- Podcast episode downloads queue -->
-    <div v-if="episodeDownloadsQueued.length" class="px-4 py-2 my-2 bg-info bg-opacity-40 text-sm font-semibold rounded-md text-gray-100 relative w-full">
+    <div v-if="episodeDownloadsQueued.length" class="px-4 py-2 my-2 bg-info bg-opacity-40 text-sm font-semibold rounded-md text-fg relative w-full">
       <div class="flex items-center">
         <p class="text-sm py-1">{{ $getString('MessageEpisodesQueuedForDownload', [episodeDownloadsQueued.length]) }}</p>
         <div class="flex-grow" />
@@ -10,7 +10,7 @@
     </div>
 
     <!-- Podcast episodes currently downloading -->
-    <div v-if="episodesDownloading.length" class="px-4 py-2 my-2 bg-success bg-opacity-20 text-sm font-semibold rounded-md text-gray-100 relative w-full">
+    <div v-if="episodesDownloading.length" class="px-4 py-2 my-2 bg-success bg-opacity-20 text-sm font-semibold rounded-md text-fg relative w-full">
       <div v-for="episode in episodesDownloading" :key="episode.id" class="flex items-center">
         <widgets-loading-spinner />
         <p class="text-sm py-1 pl-4">{{ $strings.MessageDownloadingEpisode }} "{{ episode.episodeDisplayTitle }}"</p>
@@ -23,18 +23,18 @@
       <div class="flex-grow" />
 
       <button v-if="isAdminOrUp && !fetchingRSSFeed" class="outline:none mx-1 pt-0.5 relative" @click="searchEpisodes">
-        <span class="material-icons text-xl text-gray-200">search</span>
+        <span class="material-icons text-xl text-fg">search</span>
       </button>
       <widgets-loading-spinner v-else-if="fetchingRSSFeed" class="mx-1" />
 
       <button class="outline:none mx-3 pt-0.5 relative" @click="showFilters">
-        <span class="material-icons text-xl text-gray-200">filter_alt</span>
+        <span class="material-icons text-xl text-fg">filter_alt</span>
         <div v-show="filterKey !== 'all' && episodesAreFiltered" class="absolute top-0 right-0 w-1.5 h-1.5 rounded-full bg-success border border-green-300 shadow-sm z-10 pointer-events-none" />
       </button>
 
       <div class="flex items-center border border-white border-opacity-25 rounded px-2" @click="clickSort">
-        <p class="text-sm text-gray-200">{{ sortText }}</p>
-        <span class="material-icons ml-1 text-gray-200">{{ sortDesc ? 'arrow_drop_down' : 'arrow_drop_up' }}</span>
+        <p class="text-sm text-fg">{{ sortText }}</p>
+        <span class="material-icons ml-1 text-fg">{{ sortDesc ? 'arrow_drop_down' : 'arrow_drop_up' }}</span>
       </div>
     </div>
 

@@ -4,17 +4,17 @@
       <slot />
     </div>
     <transition name="menu">
-      <ul ref="menu" v-show="showMenu" class="absolute z-50 -mt-px bg-primary border border-gray-600 shadow-lg max-h-56 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm" role="listbox" style="width: 160px">
+      <ul ref="menu" v-show="showMenu" class="absolute z-50 -mt-px bg-primary border border-border shadow-lg max-h-56 rounded-md py-1 text-base ring-1 ring-bg ring-opacity-5 overflow-auto focus:outline-none sm:text-sm" role="listbox" style="width: 160px">
         <template v-for="item in items">
           <nuxt-link :key="item.value" v-if="item.to" :to="item.to">
-            <li :key="item.value" class="text-gray-100 select-none relative py-2 cursor-pointer hover:bg-black-400" id="listbox-option-0" role="option" @click="clickedOption(item.value)">
+            <li :key="item.value" class="text-fg select-none relative py-2" id="listbox-option-0" role="option" @click="clickedOption(item.value)">
               <div class="flex items-center px-2">
                 <span v-if="item.icon" class="material-icons-outlined text-lg mr-2" :class="item.iconClass ? item.iconClass : ''">{{ item.icon }}</span>
                 <span class="font-normal block truncate font-sans text-center">{{ item.text }}</span>
               </div>
             </li>
           </nuxt-link>
-          <li v-else :key="item.value" class="text-gray-100 select-none relative py-2 cursor-pointer hover:bg-black-400" id="listbox-option-0" role="option" @click="clickedOption(item.value)">
+          <li v-else :key="item.value" class="text-fg select-none relative py-2" id="listbox-option-0" role="option" @click="clickedOption(item.value)">
             <div class="flex items-center px-2">
               <span v-if="item.icon" class="material-icons-outlined text-lg mr-2" :class="item.iconClass ? item.iconClass : ''">{{ item.icon }}</span>
               <span class="font-normal block truncate font-sans text-center">{{ item.text }}</span>

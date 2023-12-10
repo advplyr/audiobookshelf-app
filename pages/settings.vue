@@ -1,7 +1,7 @@
 <template>
   <div class="w-full h-full px-4 py-8 overflow-y-auto">
     <!-- Display settings -->
-    <p class="uppercase text-xs font-semibold text-gray-300 mb-2">{{ $strings.HeaderUserInterfaceSettings }}</p>
+    <p class="uppercase text-xs font-semibold text-fg-muted mb-2">{{ $strings.HeaderUserInterfaceSettings }}</p>
     <div class="flex items-center py-3" @click="toggleEnableAltView">
       <div class="w-10 flex justify-center">
         <ui-toggle-switch v-model="enableBookshelfView" @input="saveSettings" />
@@ -29,7 +29,7 @@
     </div>
 
     <!-- Playback settings -->
-    <p class="uppercase text-xs font-semibold text-gray-300 mb-2 mt-10">{{ $strings.HeaderPlaybackSettings }}</p>
+    <p class="uppercase text-xs font-semibold text-fg-muted mb-2 mt-10">{{ $strings.HeaderPlaybackSettings }}</p>
     <div v-if="!isiOS" class="flex items-center py-3" @click="toggleDisableAutoRewind">
       <div class="w-10 flex justify-center">
         <ui-toggle-switch v-model="settings.disableAutoRewind" @input="saveSettings" />
@@ -58,7 +58,7 @@
 
     <!-- Sleep timer settings -->
     <template v-if="!isiOS">
-      <p class="uppercase text-xs font-semibold text-gray-300 mb-2 mt-10">{{ $strings.HeaderSleepTimerSettings }}</p>
+      <p class="uppercase text-xs font-semibold text-fg-muted mb-2 mt-10">{{ $strings.HeaderSleepTimerSettings }}</p>
       <div class="flex items-center py-3" @click="toggleDisableShakeToResetSleepTimer">
         <div class="w-10 flex justify-center">
           <ui-toggle-switch v-model="settings.disableShakeToResetSleepTimer" @input="saveSettings" />

@@ -6,10 +6,10 @@
       </div>
     </template>
     <div class="w-full h-full overflow-hidden absolute top-0 left-0 flex items-center justify-center" @click="show = false">
-      <div class="w-full overflow-x-hidden overflow-y-auto bg-primary rounded-lg border border-white border-opacity-20" style="max-height: 75%" @click.stop>
+      <div class="w-full overflow-x-hidden overflow-y-auto bg-primary rounded-lg border border-fg/20" style="max-height: 75%" @click.stop>
         <ul v-show="!sublist" class="h-full w-full" role="listbox" aria-labelledby="listbox-label">
           <template v-for="item in items">
-            <li :key="item.value" class="text-gray-50 select-none relative py-4 pr-9 cursor-pointer hover:bg-black-400" :class="item.value === selected ? 'bg-bg bg-opacity-50' : ''" role="option" @click="clickedOption(item)">
+            <li :key="item.value" class="text-fg select-none relative py-4 pr-9 cursor-pointer" :class="item.value === selected ? 'bg-bg bg-opacity-50' : ''" role="option" @click="clickedOption(item)">
               <div class="flex items-center justify-between">
                 <span class="font-normal ml-3 block truncate text-lg">{{ item.text }}</span>
               </div>
@@ -20,7 +20,7 @@
           </template>
         </ul>
         <ul v-show="sublist" class="h-full w-full rounded-lg" role="listbox" aria-labelledby="listbox-label">
-          <li class="text-gray-50 select-none relative py-3 pl-9 cursor-pointer hover:bg-black-400" role="option" @click="sublist = null">
+          <li class="text-fg select-none relative py-3 pl-9 cursor-pointer" role="option" @click="sublist = null">
             <div class="absolute left-1 top-0 bottom-0 h-full flex items-center">
               <span class="material-icons text-2xl">arrow_left</span>
             </div>
@@ -34,7 +34,7 @@
             </div>
           </li>
           <template v-for="item in sublistItems">
-            <li :key="item.value" class="text-gray-50 select-none relative px-4 cursor-pointer hover:bg-black-400" :class="`${sublist}.${item.value}` === selected ? 'bg-bg bg-opacity-50' : ''" role="option" @click="clickedSublistOption(item.value)">
+            <li :key="item.value" class="text-fg select-none relative px-4 cursor-pointer" :class="`${sublist}.${item.value}` === selected ? 'bg-bg bg-opacity-50' : ''" role="option" @click="clickedSublistOption(item.value)">
               <div class="flex items-center">
                 <span class="font-normal truncate py-3 text-base">{{ item.text }}</span>
               </div>

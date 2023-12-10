@@ -15,10 +15,13 @@ module.exports = {
         'short': { 'raw': '(max-height: 500px)' }
       },
       colors: {
-        bg: '#373838',
-        secondary: '#2F3030',
-        yellowgreen: 'yellowgreen',
-        primary: '#232323',
+        bg: 'rgb(var(--color-bg) / <alpha-value>)',
+        'bg-hover': 'rgb(var(--color-bg-hover) / <alpha-value>)',
+        fg: 'rgb(var(--color-fg) / <alpha-value>)',
+        'fg-muted': 'rgb(var(--color-fg-muted) / <alpha-value>)',
+        secondary: 'rgb(var(--color-secondary) / <alpha-value>)',
+        primary: 'rgb(var(--color-primary) / <alpha-value>)',
+        border: 'rgb(var(--color-border) / <alpha-value>)',
         accent: '#1ad691',
         error: '#FF5252',
         info: '#2196F3',

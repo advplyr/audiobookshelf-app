@@ -11,7 +11,7 @@
     <div v-if="showPlaylistNameInput" class="w-full h-full max-h-[calc(100vh-128px)] flex items-center">
       <div class="w-full px-4">
         <div class="flex mb-4 items-center">
-          <div class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-white hover:bg-opacity-10 cursor-pointer" @click.stop="showPlaylistNameInput = false">
+          <div class="w-9 h-9 flex items-center justify-center rounded-full cursor-pointer" @click.stop="showPlaylistNameInput = false">
             <span class="material-icons text-3xl">arrow_back</span>
           </div>
           <p class="text-xl pl-2">{{ $strings.HeaderNewPlaylist }}</p>

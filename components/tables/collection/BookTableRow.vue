@@ -7,8 +7,8 @@
       <div class="book-table-content h-full px-2 flex items-center">
         <div class="max-w-full">
           <p class="truncate block text-sm">{{ bookTitle }}</p>
-          <p class="truncate block text-gray-400 text-xs">{{ bookAuthor }}</p>
-          <p v-if="media.duration" class="text-xxs text-gray-500">{{ bookDuration }}</p>
+          <p class="truncate block text-fg-muted text-xs">{{ bookAuthor }}</p>
+          <p v-if="media.duration" class="text-xxs text-fg-muted">{{ bookDuration }}</p>
         </div>
       </div>
       <div class="w-8 min-w-8 flex justify-center">

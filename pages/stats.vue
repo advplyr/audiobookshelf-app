@@ -8,21 +8,21 @@
       <div class="flex p-2">
         <div class="px-3">
           <p class="text-4xl md:text-5xl font-bold">{{ userItemsFinished.length }}</p>
-          <p class="text-xs md:text-sm text-white text-opacity-80">{{ $strings.LabelStatsItemsFinished }}</p>
+          <p class="text-xs md:text-sm text-fg-muted">{{ $strings.LabelStatsItemsFinished }}</p>
         </div>
       </div>
 
       <div class="flex p-2">
         <div class="px-1">
           <p class="text-4xl md:text-5xl font-bold">{{ totalDaysListened }}</p>
-          <p class="text-xs md:text-sm text-white text-opacity-80">{{ $strings.LabelStatsDaysListened }}</p>
+          <p class="text-xs md:text-sm text-fg-muted">{{ $strings.LabelStatsDaysListened }}</p>
         </div>
       </div>
 
       <div class="flex p-2">
         <div class="px-1">
           <p class="text-4xl md:text-5xl font-bold">{{ totalMinutesListening }}</p>
-          <p class="text-xs md:text-sm text-white text-opacity-80">{{ $strings.LabelStatsMinutesListening }}</p>
+          <p class="text-xs md:text-sm text-fg-muted">{{ $strings.LabelStatsMinutesListening }}</p>
         </div>
       </div>
     </div>
@@ -37,10 +37,10 @@
         <template v-for="(item, index) in mostRecentListeningSessions">
           <div :key="item.id" class="w-full py-0.5">
             <div class="flex items-center mb-1">
-              <p class="text-sm text-white text-opacity-70 w-8 min-w-8">{{ index + 1 }}.&nbsp;</p>
+              <p class="text-sm text-fg-muted w-8 min-w-8">{{ index + 1 }}.&nbsp;</p>
               <div class="w-56">
-                <p class="text-sm text-white text-opacity-80 truncate">{{ item.mediaMetadata ? item.mediaMetadata.title : '' }}</p>
-                <p class="text-xs text-white text-opacity-50">{{ $dateDistanceFromNow(item.updatedAt) }}</p>
+                <p class="text-sm text-fg truncate">{{ item.mediaMetadata ? item.mediaMetadata.title : '' }}</p>
+                <p class="text-xs text-fg-muted">{{ $dateDistanceFromNow(item.updatedAt) }}</p>
               </div>
               <div class="w-16 min-w-16 text-right">
                 <p class="text-xs font-bold">{{ $elapsedPretty(item.timeListening) }}</p>

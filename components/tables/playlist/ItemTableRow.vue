@@ -8,8 +8,8 @@
         <div class="item-table-content h-full px-2 flex items-center">
           <div class="max-w-full">
             <p class="truncate block text-sm">{{ itemTitle }} <span v-if="localLibraryItem" class="material-icons text-success text-base align-text-bottom">download_done</span></p>
-            <p v-if="authorName" class="truncate block text-gray-300 text-xs">{{ authorName }}</p>
-            <p class="text-xxs text-gray-400">{{ itemDuration }}</p>
+            <p v-if="authorName" class="truncate block text-fg-muted text-xs">{{ authorName }}</p>
+            <p class="text-xxs text-fg-muted">{{ itemDuration }}</p>
           </div>
         </div>
         <div class="w-8 min-w-8 flex justify-center">

@@ -4,13 +4,13 @@
       <nuxt-link v-show="!showBack" to="/" class="mr-3">
         <img src="/Logo.png" class="h-10 w-10" />
       </nuxt-link>
-      <a v-if="showBack" @click="back" class="rounded-full h-10 w-10 flex items-center justify-center hover:bg-white hover:bg-opacity-10 mr-2 cursor-pointer">
-        <span class="material-icons text-3xl text-white">arrow_back</span>
+      <a v-if="showBack" @click="back" class="rounded-full h-10 w-10 flex items-center justify-center mr-2 cursor-pointer">
+        <span class="material-icons text-3xl text-fg">arrow_back</span>
       </a>
       <div v-if="user && currentLibrary">
         <div class="pl-1.5 pr-2.5 py-2 bg-bg bg-opacity-30 rounded-md flex items-center" @click="clickShowLibraryModal">
           <ui-library-icon :icon="currentLibraryIcon" :size="4" font-size="base" />
-          <p class="text-smleading-4 ml-2 mt-0.5 max-w-24 truncate">{{ currentLibraryName }}</p>
+          <p class="text-sm leading-4 ml-2 mt-0.5 max-w-24 truncate">{{ currentLibraryName }}</p>
         </div>
       </div>
 

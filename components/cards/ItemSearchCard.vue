@@ -5,10 +5,10 @@
       <p v-if="matchKey !== 'title'" class="truncate text-sm">{{ title }}</p>
       <p v-else class="truncate text-sm" v-html="matchHtml" />
 
-      <p v-if="matchKey === 'subtitle'" class="truncate text-xs text-gray-300">{{ matchHtml }}</p>
+      <p v-if="matchKey === 'subtitle'" class="truncate text-xs text-fg-muted">{{ matchHtml }}</p>
 
-      <p v-if="matchKey !== 'authors'" class="text-xs text-gray-200 truncate">by {{ authorName }}</p>
-      <p v-else class="truncate text-xs text-gray-200" v-html="matchHtml" />
+      <p v-if="matchKey !== 'authors'" class="text-xs text-fg truncate">by {{ authorName }}</p>
+      <p v-else class="truncate text-xs text-fg" v-html="matchHtml" />
 
       <div v-if="matchKey === 'series' || matchKey === 'tags' || matchKey === 'isbn' || matchKey === 'asin' || matchKey === 'episode' || matchKey === 'narrators'" class="m-0 p-0 truncate text-xs" v-html="matchHtml" />
     </div>

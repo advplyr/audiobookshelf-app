@@ -6,7 +6,7 @@
       <span class="material-icons text-4xl">close</span>
     </div>
     <slot name="outer" />
-    <div ref="content" style="min-height: 200px" class="relative text-white max-h-screen" :style="{ height: modalHeight, width: modalWidth, maxWidth: maxWidth }" v-click-outside="clickBg">
+    <div ref="content" style="min-height: 200px" class="relative text-fg max-h-screen" :style="{ height: modalHeight, width: modalWidth, maxWidth: maxWidth }" v-click-outside="clickBg">
       <slot />
     </div>
   </div>

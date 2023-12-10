@@ -7,9 +7,9 @@
       <span v-if="dialogItems.length" class="material-icons" @click="showDialog = true">more_vert</span>
     </div>
 
-    <p class="text-sm mb-4 text-white text-opacity-60">{{ $strings.LabelMediaType }}: {{ mediaType }}</p>
+    <p class="text-sm mb-4 text-fg-muted">{{ $strings.LabelMediaType }}: {{ mediaType }}</p>
 
-    <p class="mb-2 text-base text-white">{{ $strings.HeaderLocalLibraryItems }} ({{ localLibraryItems.length }})</p>
+    <p class="mb-2 text-base text-fg">{{ $strings.HeaderLocalLibraryItems }} ({{ localLibraryItems.length }})</p>
 
     <div class="w-full media-item-container overflow-y-auto">
       <template v-for="localLibraryItem in localLibraryItems">
@@ -19,10 +19,10 @@
           </div>
           <div class="flex-grow px-2">
             <p class="text-sm">{{ localLibraryItem.media.metadata.title }}</p>
-            <p class="text-xs text-gray-300">{{ getLocalLibraryItemSubText(localLibraryItem) }}</p>
+            <p class="text-xs text-fg-muted">{{ getLocalLibraryItemSubText(localLibraryItem) }}</p>
           </div>
           <div class="w-12 h-12 flex items-center justify-center">
-            <span class="material-icons text-xl text-gray-300">arrow_right</span>
+            <span class="material-icons text-xl text-fg-muted">arrow_right</span>
           </div>
         </nuxt-link>
       </template>

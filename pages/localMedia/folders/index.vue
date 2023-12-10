@@ -8,20 +8,20 @@
           <span class="material-icons text-xl text-yellow-400">folder</span>
           <p class="ml-2">{{ folder.name }}</p>
           <div class="flex-grow" />
-          <p class="text-sm italic text-gray-300 px-3 capitalize">{{ folder.mediaType }}s</p>
-          <span class="material-icons text-xl text-gray-300">arrow_right</span>
+          <p class="text-sm italic text-fg-muted px-3 capitalize">{{ folder.mediaType }}s</p>
+          <span class="material-icons text-xl text-fg-muted">arrow_right</span>
         </nuxt-link>
       </template>
       <div v-if="!localFolders.length" class="flex justify-center">
         <p class="text-center">{{ $strings.MessageNoMediaFolders }}</p>
       </div>
-      <div v-if="!isAndroid10OrBelow || overrideFolderRestriction" class="flex border-t border-white border-opacity-10 my-4 py-4">
+      <div v-if="!isAndroid10OrBelow || overrideFolderRestriction" class="flex border-t border-fg/10 my-4 py-4">
         <div class="flex-grow pr-1">
           <ui-dropdown v-model="newFolderMediaType" placeholder="Select media type" :items="mediaTypeItems" />
         </div>
         <ui-btn small class="w-28" color="success" @click="selectFolder">{{ $strings.ButtonNewFolder }}</ui-btn>
       </div>
-      <div v-else class="flex border-t border-white border-opacity-10 my-4 py-4">
+      <div v-else class="flex border-t border-fg/10 my-4 py-4">
         <div class="flex-grow pr-1">
           <p class="text-sm">{{ $strings.MessageAndroid10Downloads }}</p>
         </div>

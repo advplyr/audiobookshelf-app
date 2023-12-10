@@ -54,13 +54,13 @@ export default {
     },
     inputClass() {
       var classes = [`bg-${this.bg}`, `rounded-${this.rounded}`]
-      if (this.disabled) classes.push('text-gray-300')
-      else classes.push('text-white')
+      if (this.disabled) classes.push('text-fg-muted')
+      else classes.push('text-fg')
 
       if (this.prependIcon) classes.push('pl-10 pr-2')
       else classes.push('px-2')
 
-      if (!this.borderless) classes.push('border border-gray-600')
+      if (!this.borderless) classes.push('border border-border')
       return classes.join(' ')
     }
   },

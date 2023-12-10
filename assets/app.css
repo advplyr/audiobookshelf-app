@@ -1,3 +1,4 @@
+@import "./tailwind.css";
 @import "./fonts.css";
 @import './defaultStyles.css';
 @import './absicons.css';
@@ -148,15 +149,15 @@ Bookshelf Label
 .tracksTable {
   border-collapse: collapse;
   width: 100%;
-  border: 1px solid #474747;
+  border: 1px solid rgb(var(--color-secondary));
 }
 
 .tracksTable tr:nth-child(even) {
-  background-color: #2e2e2e;
+  background-color: rgb(var(--color-secondary));
 }
 
 .tracksTable tr {
-  background-color: #373838;
+  background-color: rgb(var(--color-bg));
 }
 
 .tracksTable td {

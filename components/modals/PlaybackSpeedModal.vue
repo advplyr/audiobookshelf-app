@@ -7,24 +7,24 @@
     </template>
 
     <div class="w-full h-full overflow-hidden absolute top-0 left-0 flex items-center justify-center">
-      <div class="w-full overflow-x-hidden overflow-y-auto bg-primary rounded-lg border border-white border-opacity-20" style="max-height: 75%" @click.stop>
+      <div class="w-full overflow-x-hidden overflow-y-auto bg-primary rounded-lg border border-border" style="max-height: 75%" @click.stop>
         <ul class="w-full" role="listbox" aria-labelledby="listbox-label">
           <template v-for="rate in rates">
-            <li :key="rate" class="text-gray-50 select-none relative py-4 cursor-pointer hover:bg-black-400" :class="rate === selected ? 'bg-bg bg-opacity-80' : ''" role="option" @click="clickedOption(rate)">
+            <li :key="rate" class="text-fg select-none relative py-4" :class="rate === selected ? 'bg-bg-hover/50' : ''" role="option" @click="clickedOption(rate)">
               <div class="flex items-center justify-center">
                 <span class="font-normal block truncate text-lg">{{ rate }}x</span>
               </div>
             </li>
           </template>
         </ul>
-        <div class="flex items-center justify-center py-3 border-t border-white border-opacity-10">
-          <button :disabled="!canDecrement" @click="decrement" class="icon-num-btn w-8 h-8 text-white text-opacity-75 rounded border border-white border-opacity-20 flex items-center justify-center">
+        <div class="flex items-center justify-center py-3 border-t border-fg/10">
+          <button :disabled="!canDecrement" @click="decrement" class="icon-num-btn w-8 h-8 text-fg-muted rounded border border-border flex items-center justify-center">
             <span class="material-icons">remove</span>
           </button>
           <div class="w-24 text-center">
             <p class="text-xl">{{ playbackRate }}<span class="text-lg">⨯</span></p>
           </div>
-          <button :disabled="!canIncrement" @click="increment" class="icon-num-btn w-8 h-8 text-white text-opacity-75 rounded border border-white border-opacity-20 flex items-center justify-center">
+          <button :disabled="!canIncrement" @click="increment" class="icon-num-btn w-8 h-8 text-fg-muted rounded border border-border flex items-center justify-center">
             <span class="material-icons">add</span>
           </button>
         </div>

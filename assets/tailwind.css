@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color: white;
+    --color-bg: 56 56 56;
+    --color-bg-hover: 102 104 107;
+    --color-fg: 230 237 243;
+    --color-fg-muted: 142 147 153;
+    --color-primary: 35 35 35;
+    --color-secondary: 47 48 48;
+    --color-border: 75 85 89;
+    --gradient-item-page: linear-gradient(169deg, rgba(0, 0, 0, 0.4) 0%, rgba(55, 56, 56, 1) 80%);
+    --gradient-audio-player: linear-gradient(169deg, rgba(0, 0, 0, 0) 0%, rgba(38, 38, 38, 1) 80%);
+    --gradient-minimized-audio-player: linear-gradient(145deg, rgba(38, 38, 38, 0.5) 0%, rgba(38, 38, 38, 0.9) 20%, rgb(38, 38, 38) 60%);
+  }
+
+  html[data-theme='light'] {
+    color: black;
+    --color-bg: 255 255 255;
+    --color-bg-hover: 208 210 212;
+    --color-fg: 37 37 37;
+    --color-fg-muted: 101 109 118;
+    --color-primary: 222 222 222;
+    --color-secondary: 246 248 250;
+    --color-border: 189 191 191;
+    --gradient-item-page: linear-gradient(169deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 1) 80%);
+    --gradient-audio-player: linear-gradient(169deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 1) 80%);
+    --gradient-minimized-audio-player: linear-gradient(145deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.9) 20%, rgb(255, 255, 255) 60%);
+  }
+}

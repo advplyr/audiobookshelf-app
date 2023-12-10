@@ -2,18 +2,18 @@
   <div class="w-full h-full py-6 px-2">
     <div v-if="localLibraryItem" class="w-full h-full">
       <div class="px-2 flex items-center mb-2">
-        <p class="text-basefont-semibold">{{ mediaMetadata.title }}</p>
+        <p class="text-base font-semibold">{{ mediaMetadata.title }}</p>
         <div class="flex-grow" />
 
-        <button v-if="audioTracks.length && !isPodcast" class="shadow-sm text-accent flex items-center justify-center rounded-full mx-2" @click.stop="play">
+        <button v-if="audioTracks.length && !isPodcast" class="shadow-sm text-success flex items-center justify-center rounded-full mx-2" @click.stop="play">
           <span class="material-icons" style="font-size: 2rem">play_arrow</span>
         </button>
         <span class="material-icons" @click="showItemDialog">more_vert</span>
       </div>
 
-      <p v-if="!isIos" class="px-2 text-sm mb-0.5 text-white text-opacity-75">{{ $strings.LabelFolder }}: {{ folderName }}</p>
+      <p v-if="!isIos" class="px-2 text-sm mb-0.5 text-fg-muted">{{ $strings.LabelFolder }}: {{ folderName }}</p>
 
-      <p class="px-2 mb-4 text-xs text-gray-400">{{ libraryItemId ? 'Linked to item on server ' + liServerAddress : 'Not linked to server item' }}</p>
+      <p class="px-2 mb-4 text-xs text-fg-muted">{{ libraryItemId ? 'Linked to item on server ' + liServerAddress : 'Not linked to server item' }}</p>
 
       <div class="w-full max-w-full media-item-container overflow-y-auto overflow-x-hidden relative pb-4" :class="{ 'media-order-changed': orderChanged }">
         <div v-if="!isPodcast && audioTracksCopy.length" class="w-full py-2">
@@ -24,7 +24,7 @@
               <template v-for="track in audioTracksCopy">
                 <div :key="track.localFileId" class="flex items-center my-1 item">
                   <div v-if="!isIos" class="w-8 h-12 flex items-center justify-center" style="min-width: 32px">
-                    <span class="material-icons drag-handle text-lg text-white text-opacity-50 hover:text-opacity-100">menu</span>
+                    <span class="material-icons drag-handle text-lg text-fg-muted">menu</span>
                   </div>
                   <div class="w-8 h-12 flex items-center justify-center" style="min-width: 32px">
                     <p class="font-mono font-bold text-xl">{{ track.index }}</p>
@@ -32,7 +32,7 @@
                   <div class="flex-grow px-2">
                     <p class="text-xs">{{ track.title }}</p>
                   </div>
-                  <div class="w-20 text-center text-gray-300" style="min-width: 80px">
+                  <div class="w-20 text-center text-fg-muted" style="min-width: 80px">
                     <p class="text-xs">{{ track.mimeType }}</p>
                     <p class="text-sm">{{ $elapsedPretty(track.duration) }}</p>
                   </div>

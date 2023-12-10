@@ -5,10 +5,10 @@
     </div>
     <div class="w-full overflow-x-hidden overflow-y-auto search-content px-4" @click.stop>
       <div v-show="isFetching" class="w-full py-8 flex justify-center">
-        <p class="text-lg text-gray-400">{{ $strings.MessageFetching }}</p>
+        <p class="text-lg text-fg-muted">{{ $strings.MessageFetching }}</p>
       </div>
       <div v-if="!isFetching && lastSearch && !totalResults" class="w-full py-8 flex justify-center">
-        <p class="text-lg text-gray-400">{{ $strings.MessageNoItemsFound }}</p>
+        <p class="text-lg text-fg-muted">{{ $strings.MessageNoItemsFound }}</p>
       </div>
       <p v-if="bookResults.length" class="font-semibold text-sm mb-1">{{ $strings.LabelBooks }}</p>
       <template v-for="item in bookResults">
@@ -19,9 +19,9 @@
         </div>
       </template>
 
-      <p v-if="podcastResults.length" class="uppercase text-xs text-gray-400 my-1 px-1 font-semibold">{{ $strings.LabelPodcasts }}</p>
+      <p v-if="podcastResults.length" class="uppercase text-xs text-fg-muted my-1 px-1 font-semibold">{{ $strings.LabelPodcasts }}</p>
       <template v-for="item in podcastResults">
-        <div :key="item.libraryItem.id" class="text-gray-50 select-none relative cursor-pointer hover:bg-black-400 py-1">
+        <div :key="item.libraryItem.id" class="text-fg select-none relative py-1">
           <nuxt-link :to="`/item/${item.libraryItem.id}`">
             <cards-item-search-card :library-item="item.libraryItem" :match-key="item.matchKey" :match-text="item.matchText" :search="lastSearch" />
           </nuxt-link>

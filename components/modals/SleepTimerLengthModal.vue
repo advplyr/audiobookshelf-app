@@ -27,18 +27,18 @@
         </div>
         <ul v-else class="h-full w-full" role="listbox" aria-labelledby="listbox-label">
           <template v-for="timeout in timeouts">
-            <li :key="timeout" class="text-gray-50 select-none relative py-4 cursor-pointer hover:bg-black-400" role="option" @click="clickedOption(timeout)">
+            <li :key="timeout" class="text-fg select-none relative py-4" role="option" @click="clickedOption(timeout)">
               <div class="flex items-center justify-center">
                 <span class="font-normal block truncate text-lg">{{ timeout }} min</span>
               </div>
             </li>
           </template>
-          <li class="text-gray-50 select-none relative py-4 cursor-pointer hover:bg-black-400" role="option" @click="clickedChapterOption">
+          <li class="text-fg select-none relative py-4" role="option" @click="clickedChapterOption">
             <div class="flex items-center justify-center">
               <span class="font-normal block truncate text-lg text-center">{{ $strings.LabelEndOfChapter }}</span>
             </div>
           </li>
-          <li class="text-gray-50 select-none relative py-4 cursor-pointer hover:bg-black-400" role="option" @click="manualTimerModal = true">
+          <li class="text-fg select-none relative py-4" role="option" @click="manualTimerModal = true">
             <div class="flex items-center justify-center">
               <span class="font-normal block truncate text-lg text-center">{{ $strings.LabelCustomTime }}</span>
             </div>

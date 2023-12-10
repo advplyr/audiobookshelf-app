@@ -1,7 +1,7 @@
 <template>
   <div class="w-full h-9 bg-bg relative">
-    <div id="bookshelf-navbar" class="absolute z-10 top-0 left-0 w-full h-full flex bg-secondary text-gray-200">
-      <nuxt-link v-for="item in items" :key="item.to" :to="item.to" class="h-full flex-grow flex items-center justify-center" :class="routeName === item.routeName ? 'bg-primary' : 'text-gray-400'">
+    <div id="bookshelf-navbar" class="absolute z-10 top-0 left-0 w-full h-full flex bg-secondary">
+      <nuxt-link v-for="item in items" :key="item.to" :to="item.to" class="h-full flex-grow flex items-center justify-center" :class="routeName === item.routeName ? 'bg-primary' : 'text-fg-muted'">
         <p v-if="routeName === item.routeName" class="text-sm font-semibold">{{ item.text }}</p>
         <span v-else-if="item.iconPack === 'abs-icons'" class="abs-icons" :class="`icon-${item.icon} ${item.iconClass || ''}`"></span>
         <span v-else :class="`${item.iconPack} ${item.iconClass || ''}`">{{ item.icon }}</span>

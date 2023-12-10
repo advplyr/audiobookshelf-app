@@ -7,12 +7,12 @@
     </template>
 
     <div class="w-full h-full overflow-hidden absolute top-0 left-0 flex items-center justify-center" @click="show = false">
-      <div class="w-full overflow-x-hidden overflow-y-auto bg-primary rounded-lg border border-white border-opacity-20 p-2" style="max-height: 75%" @click.stop>
+      <div class="w-full overflow-x-hidden overflow-y-auto bg-primary rounded-lg border border-border p-2" style="max-height: 75%" @click.stop>
         <p class="mb-2">{{ mediaMetadata.title }}</p>
 
         <div v-if="size" class="text-sm mb-2">{{ $strings.LabelSize }}: {{ $bytesPretty(size) }}</div>
 
-        <p class="mb-1 text-xs text-gray-200">ID: {{ _libraryItem.id }}</p>
+        <p class="mb-1 text-xs text-fg">ID: {{ _libraryItem.id }}</p>
       </div>
     </div>
   </modals-modal>
