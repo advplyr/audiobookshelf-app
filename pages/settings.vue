@@ -279,7 +279,7 @@ export default {
       return item?.text || 'Error'
     },
     languageOption() {
-      return this.languageOptionItems.find((i) => i.value === this.settings.languageCode)?.text || 'English'
+      return this.languageOptionItems.find((i) => i.value === this.settings.languageCode)?.text || ''
     },
     sleepTimerLengthOption() {
       if (!this.settings.sleepTimerLength) return this.$strings.LabelEndOfChapter
