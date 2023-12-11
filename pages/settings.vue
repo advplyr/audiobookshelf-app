@@ -123,6 +123,10 @@
       </div>
     </div>
 
+    <div v-show="loading" class="w-full h-full absolute top-0 left-0 flex items-center justify-center z-10">
+      <ui-loading-indicator />
+    </div>
+
     <modals-dialog v-model="showMoreMenuDialog" :items="moreMenuItems" @action="clickMenuAction" />
     <modals-sleep-timer-length-modal v-model="showSleepTimerLengthModal" @change="sleepTimerLengthModalSelection" />
     <modals-auto-sleep-timer-rewind-length-modal v-model="showAutoSleepTimerRewindLengthModal" @change="showAutoSleepTimerRewindLengthModalSelection" />
@@ -135,6 +139,7 @@ import { Dialog } from '@capacitor/dialog'
 export default {
   data() {
     return {
+      loading: false,
       deviceData: null,
       showMoreMenuDialog: false,
       showSleepTimerLengthModal: false,
@@ -329,20 +334,15 @@ export default {
         this.hapticFeedbackUpdated(action)
       } else if (this.moreMenuSetting === 'language') {
         this.settings.languageCode = action
-        this.languageOptionUpdated(action)
+        this.saveSettings()
       }
     },
     autoSleepTimerTimeUpdated(val) {
-      console.log('[settings] Auto sleep timer time=', val)
       if (!val) return // invalid times return falsy
       this.saveSettings()
     },
     hapticFeedbackUpdated(val) {
       this.$store.commit('globals/setHapticFeedback', val)
-      this.saveSettings()
-    },
-    languageOptionUpdated(val) {
-      this.$setLanguageCode(val)
       this.saveSettings()
     },
     showInfo(setting) {
@@ -428,13 +428,12 @@ export default {
       const updatedDeviceData = await this.$db.updateDeviceSettings({ ...this.settings })
       if (updatedDeviceData) {
         this.$store.commit('setDeviceData', updatedDeviceData)
-        this.init()
+        this.deviceData = updatedDeviceData
+        this.$setLanguageCode(updatedDeviceData.deviceSettings?.languageCode || 'en-us')
+        this.setDeviceSettings()
       }
     },
-    async init() {
-      this.deviceData = await this.$db.getDeviceData()
-      this.$store.commit('setDeviceData', this.deviceData)
-
+    setDeviceSettings() {
       const deviceSettings = this.deviceData.deviceSettings || {}
       this.settings.disableAutoRewind = !!deviceSettings.disableAutoRewind
       this.settings.enableAltView = !!deviceSettings.enableAltView
@@ -459,6 +458,13 @@ export default {
       this.settings.autoSleepTimerAutoRewindTime = !isNaN(deviceSettings.autoSleepTimerAutoRewindTime) ? deviceSettings.autoSleepTimerAutoRewindTime : 300000 // 5 minutes
 
       this.settings.languageCode = deviceSettings.languageCode || 'en-us'
+    },
+    async init() {
+      this.loading = true
+      this.deviceData = await this.$db.getDeviceData()
+      this.$store.commit('setDeviceData', this.deviceData)
+      this.setDeviceSettings()
+      this.loading = false
     }
   },
   mounted() {

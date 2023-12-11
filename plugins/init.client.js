@@ -5,8 +5,9 @@ import { Dialog } from '@capacitor/dialog'
 import { AbsFileSystem } from '@/plugins/capacitor'
 import { StatusBar, Style } from '@capacitor/status-bar'
 import { Clipboard } from '@capacitor/clipboard'
-import { formatDistance, format, addDays, isDate } from 'date-fns'
 import { Capacitor } from '@capacitor/core'
+import { formatDistance, format, addDays, isDate, setDefaultOptions } from 'date-fns'
+import * as locale from 'date-fns/locale'
 
 Vue.directive('click-outside', vClickOutside.directive)
 
@@ -37,6 +38,11 @@ Vue.prototype.$getAndroidSDKVersion = async () => {
 
 Vue.prototype.$encodeUriPath = (path) => {
   return path.replace(/\\/g, '/').replace(/%/g, '%25').replace(/#/g, '%23')
+}
+
+Vue.prototype.$setDateFnsLocale = (localeString) => {
+  if (!locale[localeString]) return 0
+  return setDefaultOptions({ locale: locale[localeString] })
 }
 Vue.prototype.$dateDistanceFromNow = (unixms) => {
   if (!unixms) return ''
