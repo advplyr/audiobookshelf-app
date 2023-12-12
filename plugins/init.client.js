@@ -245,6 +245,13 @@ export default ({ store, app }, inject) => {
   const eventBus = new Vue()
   inject('eventBus', eventBus)
 
+  // Set theme
+  app.$localStore?.getTheme()?.then((theme) => {
+    if (theme) {
+      document.documentElement.dataset.theme = theme
+    }
+  })
+
   // iOS Only
   //  backButton event does not work with iOS swipe navigation so use this workaround
   if (app.router && Capacitor.getPlatform() === 'ios') {

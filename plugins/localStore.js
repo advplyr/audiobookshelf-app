@@ -141,6 +141,25 @@ class LocalStorage {
       return false
     }
   }
+
+  async setTheme(theme) {
+    try {
+      await Preferences.set({ key: 'theme', value: theme })
+      console.log('[LocalStorage] Set theme', theme)
+    } catch (error) {
+      console.error('[LocalStorage] Failed to set theme', error)
+    }
+  }
+
+  async getTheme() {
+    try {
+      var obj = await Preferences.get({ key: 'theme' }) || {}
+      return obj.value || null
+    } catch (error) {
+      console.error('[LocalStorage] Failed to get theme', error)
+      return false
+    }
+  }
 }
 
 

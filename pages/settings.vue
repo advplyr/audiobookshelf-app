@@ -27,6 +27,12 @@
         <ui-text-input :value="languageOption" readonly append-icon="expand_more" style="max-width: 225px" />
       </div>
     </div>
+    <div class="py-3 flex items-center">
+      <p class="pr-4 w-36">{{ $strings.LabelTheme }}</p>
+      <div @click.stop="showThemeOptions">
+        <ui-text-input :value="themeOption" readonly append-icon="expand_more" style="max-width: 225px" />
+      </div>
+    </div>
 
     <!-- Playback settings -->
     <p class="uppercase text-xs font-semibold text-fg-muted mb-2 mt-10">{{ $strings.HeaderPlaybackSettings }}</p>
@@ -165,6 +171,7 @@ export default {
         autoSleepTimerAutoRewindTime: 300000, // 5 minutes
         languageCode: 'en-us'
       },
+      theme: 'dark',
       lockCurrentOrientation: false,
       settingInfo: {
         disableShakeToResetSleepTimer: {
@@ -256,6 +263,18 @@ export default {
     languageOptionItems() {
       return this.$languageCodeOptions || []
     },
+    themeOptionItems() {
+      return [
+        {
+          text: this.$strings.LabelThemeDark,
+          value: 'dark'
+        },
+        {
+          text: this.$strings.LabelThemeLight,
+          value: 'light'
+        }
+      ]
+    },
     currentJumpForwardTimeIcon() {
       return this.jumpForwardItems[this.currentJumpForwardTimeIndex].icon
     },
@@ -281,6 +300,9 @@ export default {
     languageOption() {
       return this.languageOptionItems.find((i) => i.value === this.settings.languageCode)?.text || ''
     },
+    themeOption() {
+      return this.themeOptionItems.find((i) => i.value === this.theme)?.text || ''
+    },
     sleepTimerLengthOption() {
       if (!this.settings.sleepTimerLength) return this.$strings.LabelEndOfChapter
       const minutes = Number(this.settings.sleepTimerLength) / 1000 / 60
@@ -294,6 +316,7 @@ export default {
       if (this.moreMenuSetting === 'shakeSensitivity') return this.shakeSensitivityItems
       else if (this.moreMenuSetting === 'hapticFeedback') return this.hapticFeedbackItems
       else if (this.moreMenuSetting === 'language') return this.languageOptionItems
+      else if (this.moreMenuSetting === 'theme') return this.themeOptionItems
       return []
     }
   },
@@ -324,6 +347,10 @@ export default {
       this.moreMenuSetting = 'language'
       this.showMoreMenuDialog = true
     },
+    showThemeOptions() {
+      this.moreMenuSetting = 'theme'
+      this.showMoreMenuDialog = true
+    },
     clickMenuAction(action) {
       this.showMoreMenuDialog = false
       if (this.moreMenuSetting === 'shakeSensitivity') {
@@ -335,7 +362,14 @@ export default {
       } else if (this.moreMenuSetting === 'language') {
         this.settings.languageCode = action
         this.saveSettings()
+      } else if (this.moreMenuSetting === 'theme') {
+        this.theme = action
+        this.saveTheme(action)
       }
+    },
+    saveTheme(theme) {
+      document.documentElement.dataset.theme = theme
+      this.$localStore.setTheme(theme)
     },
     autoSleepTimerTimeUpdated(val) {
       if (!val) return // invalid times return falsy
@@ -461,6 +495,7 @@ export default {
     },
     async init() {
       this.loading = true
+      this.theme = (await this.$localStore.getTheme()) || 'dark'
       this.deviceData = await this.$db.getDeviceData()
       this.$store.commit('setDeviceData', this.deviceData)
       this.setDeviceSettings()
