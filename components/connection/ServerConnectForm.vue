@@ -117,6 +117,9 @@ export default {
     deviceData() {
       return this.$store.state.deviceData || {}
     },
+    deviceSettings() {
+      return this.deviceData.deviceSettings || {}
+    },
     networkConnected() {
       return this.$store.state.networkConnected
     },
@@ -800,6 +803,7 @@ export default {
 
       this.$store.commit('setServerSettings', serverSettings)
       this.$store.commit('libraries/setEReaderDevices', ereaderDevices)
+      this.$setServerLanguageCode(serverSettings.language)
 
       // Set library - Use last library if set and available fallback to default user library
       var lastLibraryId = await this.$localStore.getLastLibraryId()
@@ -815,6 +819,19 @@ export default {
       delete this.serverConfig.version
 
       var serverConnectionConfig = await this.$db.setServerConnectionConfig(this.serverConfig)
+
+      // Set the device language to match the servers if this is the first server connection
+      if (!this.serverConnectionConfigs.length && serverSettings.language !== 'en-us') {
+        const deviceSettings = {
+          ...this.deviceSettings,
+          languageCode: serverSettings.language
+        }
+        const updatedDeviceData = await this.$db.updateDeviceSettings(deviceSettings)
+        if (updatedDeviceData) {
+          this.$store.commit('setDeviceData', updatedDeviceData)
+          this.$setLanguageCode(updatedDeviceData.deviceSettings?.languageCode || 'en-us')
+        }
+      }
 
       this.$store.commit('user/setUser', user)
       this.$store.commit('user/setServerConnectionConfig', serverConnectionConfig)

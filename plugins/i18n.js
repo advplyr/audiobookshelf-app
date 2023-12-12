@@ -2,6 +2,7 @@ import Vue from "vue"
 import enUsStrings from '../strings/en-us.json'
 
 const defaultCode = 'en-us'
+let $localStore = null
 
 const languageCodeMap = {
   'cs': { label: 'Čeština', dateFnsLocale: 'cs' },
@@ -85,7 +86,7 @@ async function loadi18n(code) {
 
   translations[code] = strings
   Vue.prototype.$languageCodes.current = code
-  localStorage.setItem('lang', code)
+  $localStore.setLanguage(code)
 
   for (const key in Vue.prototype.$strings) {
     Vue.prototype.$strings[key] = strings[key] || translations[defaultCode][key]
@@ -115,16 +116,19 @@ Vue.prototype.$setServerLanguageCode = (code) => {
 
 // Initialize with language code in localStorage if valid
 async function initialize() {
-  const localLanguage = localStorage.getItem('lang')
+  const localLanguage = await $localStore.getLanguage()
   if (!localLanguage) return
 
   if (!languageCodeMap[localLanguage]) {
     console.warn('Invalid local language code', localLanguage)
-    localStorage.setItem('lang', defaultCode)
+    $localStore.setLanguage(defaultCode)
   } else {
     Vue.prototype.$languageCodes.local = localLanguage
     loadi18n(localLanguage)
   }
 }
-initialize()
 
+export default ({ app, store }, inject) => {
+  $localStore = app.$localStore
+  initialize()
+}

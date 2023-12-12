@@ -160,6 +160,25 @@ class LocalStorage {
       return false
     }
   }
+
+  async setLanguage(lang) {
+    try {
+      await Preferences.set({ key: 'lang', value: lang })
+      console.log('[LocalStorage] Set lang', lang)
+    } catch (error) {
+      console.error('[LocalStorage] Failed to set lang', error)
+    }
+  }
+
+  async getLanguage() {
+    try {
+      var obj = await Preferences.get({ key: 'lang' }) || {}
+      return obj.value || null
+    } catch (error) {
+      console.error('[LocalStorage] Failed to get lang', error)
+      return false
+    }
+  }
 }
 
 
