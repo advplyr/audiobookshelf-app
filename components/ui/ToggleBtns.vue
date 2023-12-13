@@ -1,6 +1,6 @@
 <template>
   <div class="inline-flex toggle-btn-wrapper shadow-md">
-    <button v-for="item in items" :key="item.value" type="button" class="toggle-btn outline-none relative border border-gray-600 px-4 py-1" :class="{ selected: item.value === value }" @click.stop="clickBtn(item.value)">
+    <button v-for="item in items" :key="item.value" type="button" class="toggle-btn outline-none relative border border-border px-4 py-1" :class="{ selected: item.value === value }" @click.stop="clickBtn(item.value)">
       {{ item.text }}
     </button>
   </div>
@@ -10,9 +10,6 @@
 export default {
   props: {
     value: String,
-    /**
-     * [{ "text", "", "value": "" }]
-     */
     items: {
       type: Array,
       default: Object
@@ -52,34 +49,12 @@ export default {
 .toggle-btn-wrapper .toggle-btn:not(:first-child) {
   margin-left: -1px;
 }
-
-.toggle-btn::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(255, 255, 255, 0);
-  transition: all 0.1s ease-in-out;
-}
-.toggle-btn:hover:not(:disabled)::before {
-  background-color: rgba(255, 255, 255, 0.1);
-}
-.toggle-btn:hover:not(:disabled) {
-  color: white;
-}
-
 .toggle-btn {
-  color: rgba(255, 255, 255, 0.75);
+  background-color: rgb(var(--color-bg-toggle));
+  color: rgb(var(--color-fg) / 0.5);
 }
 .toggle-btn.selected {
-  color: white;
-}
-.toggle-btn.selected::before {
-  background-color: rgba(255, 255, 255, 0.1);
-}
-button.toggle-btn:disabled::before {
-  background-color: rgba(0, 0, 0, 0.2);
+  background-color: rgb(var(--color-bg-toggle-selected));
+  color: rgb(var(--color-fg));
 }
 </style>

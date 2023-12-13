@@ -1,20 +1,20 @@
 <template>
-  <div v-if="show" :data-theme="ereaderTheme" class="group fixed top-0 left-0 right-0 layout-wrapper w-full z-40 pt-8 data-[theme=dark]:bg-primary data-[theme=dark]:text-white data-[theme=light]:bg-white data-[theme=light]:text-black" :class="{ 'reader-player-open': isPlayerOpen }">
+  <div v-if="show" :data-theme="ereaderTheme" class="group fixed top-0 left-0 right-0 layout-wrapper w-full z-40 pt-8 data-[theme=dark]:bg-[#232323] data-[theme=dark]:text-white data-[theme=light]:bg-white data-[theme=light]:text-black" :class="{ 'reader-player-open': isPlayerOpen }">
     <!-- toolbar -->
-    <div class="h-32 pt-10 w-full px-2 fixed top-0 left-0 z-30 transition-transform bg-bg text-white" :class="showingToolbar ? 'translate-y-0' : '-translate-y-32'" @touchstart.stop @mousedown.stop @touchend.stop @mouseup.stop>
+    <div class="h-32 pt-10 w-full px-2 fixed top-0 left-0 z-30 transition-transform bg-bg text-fg" :class="showingToolbar ? 'translate-y-0' : '-translate-y-32'" :style="{ boxShadow: showingToolbar ? '0px 8px 8px #11111155' : '' }" @touchstart.stop @mousedown.stop @touchend.stop @mouseup.stop>
       <div class="flex items-center mb-2">
         <button type="button" class="inline-flex mx-2" @click.stop="show = false">
-          <span class="material-icons-outlined text-3xl text-white">chevron_left</span>
+          <span class="material-icons-outlined text-3xl text-fg">chevron_left</span>
         </button>
         <div class="flex-grow" />
         <button v-if="isComic || isEpub" type="button" class="inline-flex mx-2" @click.stop="clickTOCBtn">
-          <span class="material-icons-outlined text-2xl text-white">format_list_bulleted</span>
+          <span class="material-icons-outlined text-2xl text-fg">format_list_bulleted</span>
         </button>
         <button v-if="isEpub" type="button" class="inline-flex mx-2" @click.stop="clickSettingsBtn">
-          <span class="material-icons text-2xl text-white">settings</span>
+          <span class="material-icons text-2xl text-fg">settings</span>
         </button>
         <button v-if="comicHasMetadata" type="button" class="inline-flex mx-2" @click.stop="clickMetadataBtn">
-          <span class="material-icons text-2xl text-white">more</span>
+          <span class="material-icons text-2xl text-fg">more</span>
         </button>
       </div>
 
@@ -55,31 +55,33 @@
 
     <!-- ereader settings modal -->
     <modals-fullscreen-modal v-model="showSettingsModal" :theme="ereaderTheme" half-screen>
-      <div class="flex items-end justify-between h-20 px-4 pb-2 mb-8">
-        <h1 class="text-lg">{{ $strings.HeaderEreaderSettings }}</h1>
-        <button class="flex" @click="showSettingsModal = false">
-          <span class="material-icons">close</span>
-        </button>
-      </div>
-      <div class="w-full overflow-y-auto overflow-x-hidden h-full max-h-[calc(100vh-85px)]">
-        <div class="w-full h-full px-4">
-          <div class="flex items-center mb-8">
-            <div class="w-32">
-              <p class="text-base">{{ $strings.LabelTheme }}:</p>
+      <div style="box-shadow: 0px -8px 8px #11111155">
+        <div class="flex items-end justify-between h-20 px-4 pb-2 mb-8">
+          <h1 class="text-lg">{{ $strings.HeaderEreaderSettings }}</h1>
+          <button class="flex" @click="showSettingsModal = false">
+            <span class="material-icons">close</span>
+          </button>
+        </div>
+        <div class="w-full overflow-y-auto overflow-x-hidden h-full max-h-[calc(100vh-85px)]">
+          <div class="w-full h-full px-4">
+            <div class="flex items-center mb-8">
+              <div class="w-32">
+                <p class="text-base">{{ $strings.LabelTheme }}:</p>
+              </div>
+              <ui-toggle-btns v-model="ereaderSettings.theme" :items="themeItems" @input="settingsUpdated" />
             </div>
-            <ui-toggle-btns v-model="ereaderSettings.theme" :items="themeItems" @input="settingsUpdated" />
-          </div>
-          <div class="flex items-center mb-8">
-            <div class="w-32">
-              <p class="text-base">{{ $strings.LabelFontScale }}:</p>
+            <div class="flex items-center mb-8">
+              <div class="w-32">
+                <p class="text-base">{{ $strings.LabelFontScale }}:</p>
+              </div>
+              <ui-range-input v-model="ereaderSettings.fontScale" :min="5" :max="300" :step="5" input-width="180px" @input="settingsUpdated" />
             </div>
-            <ui-range-input v-model="ereaderSettings.fontScale" :min="5" :max="300" :step="5" input-width="180px" @input="settingsUpdated" />
-          </div>
-          <div class="flex items-center mb-8">
-            <div class="w-32">
-              <p class="text-base">{{ $strings.LabelLineSpacing }}:</p>
+            <div class="flex items-center mb-8">
+              <div class="w-32">
+                <p class="text-base">{{ $strings.LabelLineSpacing }}:</p>
+              </div>
+              <ui-range-input v-model="ereaderSettings.lineSpacing" :min="100" :max="300" :step="5" input-width="180px" @input="settingsUpdated" />
             </div>
-            <ui-range-input v-model="ereaderSettings.lineSpacing" :min="100" :max="300" :step="5" input-width="180px" @input="settingsUpdated" />
           </div>
         </div>
       </div>
@@ -150,7 +152,7 @@ export default {
     },
     ereaderTheme() {
       if (this.isEpub) return this.ereaderSettings.theme
-      return 'dark'
+      return document.documentElement.dataset.theme || 'dark'
     },
     themeItems() {
       return [

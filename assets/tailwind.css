@@ -12,6 +12,11 @@
     --color-primary: 35 35 35;
     --color-secondary: 47 48 48;
     --color-border: 75 85 89;
+    --color-bg-toggle: 56 56 56;
+    --color-bg-toggle-selected: 81 82 84;
+    --color-track-cursor: 229 231 235;
+    --color-track: 107 114 128;
+    --color-track-buffered: 75 85 99;
     --gradient-item-page: linear-gradient(169deg, rgba(0, 0, 0, 0.4) 0%, rgba(55, 56, 56, 1) 80%);
     --gradient-audio-player: linear-gradient(169deg, rgba(0, 0, 0, 0) 0%, rgba(38, 38, 38, 1) 80%);
     --gradient-minimized-audio-player: linear-gradient(145deg, rgba(38, 38, 38, 0.5) 0%, rgba(38, 38, 38, 0.9) 20%, rgb(38, 38, 38) 60%);
@@ -26,6 +31,11 @@
     --color-primary: 222 222 222;
     --color-secondary: 246 248 250;
     --color-border: 189 191 191;
+    --color-bg-toggle: 222 222 222;
+    --color-bg-toggle-selected: 255 255 255;
+    --color-track-cursor: 101 109 118;
+    --color-track: 189 191 191;
+    --color-track-buffered: 129 131 131;
     --gradient-item-page: linear-gradient(169deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 1) 80%);
     --gradient-audio-player: linear-gradient(169deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 1) 80%);
     --gradient-minimized-audio-player: linear-gradient(145deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.9) 20%, rgb(255, 255, 255) 60%);
