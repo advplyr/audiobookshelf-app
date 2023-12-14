@@ -13,7 +13,7 @@
       <div v-else class="w-full mx-auto pb-2 overflow-y-auto overflow-x-hidden h-[calc(100%-85px)]">
         <p v-if="termSearched && !results.length && !processing" class="text-center text-xl">{{ $strings.MessageNoPodcastsFound }}</p>
         <template v-for="podcast in results">
-          <div :key="podcast.id" class="p-2 border-b border-white border-opacity-10" @click="selectPodcast(podcast)">
+          <div :key="podcast.id" class="p-2 border-b border-fg border-opacity-10" @click="selectPodcast(podcast)">
             <div class="flex">
               <div class="w-8 min-w-8 py-1">
                 <div class="h-8 w-full bg-primary">
@@ -21,13 +21,13 @@
                 </div>
               </div>
               <div class="flex-grow pl-2">
-                <p class="text-xs text-gray-100 whitespace-nowrap truncate">{{ podcast.artistName }}</p>
-                <p class="text-xxs text-gray-300 leading-5">{{ podcast.trackCount }} {{ $strings.HeaderEpisodes }}</p>
+                <p class="text-xs text-fg whitespace-nowrap truncate">{{ podcast.artistName }}</p>
+                <p class="text-xxs text-fg leading-5">{{ podcast.trackCount }} {{ $strings.HeaderEpisodes }}</p>
               </div>
             </div>
 
-            <p class="text-sm text-gray-200 mb-1">{{ podcast.title }}</p>
-            <p class="text-xs text-gray-400 leading-5">{{ podcast.genres.join(', ') }}</p>
+            <p class="text-sm text-fg mb-1">{{ podcast.title }}</p>
+            <p class="text-xs text-fg-muted leading-5">{{ podcast.genres.join(', ') }}</p>
           </div>
         </template>
       </div>
