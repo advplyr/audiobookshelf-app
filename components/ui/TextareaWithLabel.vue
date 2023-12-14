@@ -1,6 +1,6 @@
 <template>
   <div class="w-full">
-    <p class="px-1 text-sm font-semibold" :class="disabled ? 'text-gray-400' : ''">{{ label }}</p>
+    <p class="px-1 text-sm font-semibold" :class="disabled ? 'text-fg-muted' : ''">{{ label }}</p>
     <ui-textarea-input ref="input" v-model="inputValue" :disabled="disabled" :rows="rows" class="w-full" />
   </div>
 </template>
