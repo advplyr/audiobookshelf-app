@@ -24,7 +24,7 @@ export default {
       return this.$route.name === 'bookshelf-latest'
     },
     isPodcastSearch() {
-      return this.$route.name === 'bookshelf-search'
+      return this.$route.name === 'bookshelf-add-podcast'
     }
   }
 }

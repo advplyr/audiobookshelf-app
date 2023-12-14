@@ -60,8 +60,8 @@ export default {
 
         if (this.userIsAdminOrUp) {
           items.push({
-            to: '/bookshelf/search',
-            routeName: 'bookshelf-search',
+            to: '/bookshelf/add-podcast',
+            routeName: 'bookshelf-add-podcast',
             iconPack: 'material-icons',
             icon: 'podcasts',
             iconClass: 'text-xl',
