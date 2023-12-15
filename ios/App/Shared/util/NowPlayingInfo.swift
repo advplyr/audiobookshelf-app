@@ -14,6 +14,7 @@ struct NowPlayingMetadata {
     var title: String
     var author: String?
     var series: String?
+    var isLocal: Bool
     
     var coverUrl: URL? {
         if self.isLocal {
@@ -25,8 +26,6 @@ struct NowPlayingMetadata {
             return url
         }
     }
-    
-    var isLocal: Bool { id.starts(with: "play_local_") }
 }
 
 class NowPlayingInfo {

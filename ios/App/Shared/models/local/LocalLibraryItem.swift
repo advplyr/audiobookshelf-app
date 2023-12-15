@@ -164,7 +164,7 @@ extension LocalLibraryItem {
     
     func getPlaybackSession(episode: PodcastEpisode?) -> PlaybackSession {
         let localEpisodeId = episode?.id
-        let sessionId = "play_local_\(UUID().uuidString)"
+        let sessionId = UUID().uuidString
         
         // Get current progress from local media
         let mediaProgressId = (localEpisodeId != nil) ? "\(self.id)-\(localEpisodeId!)" : self.id

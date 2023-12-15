@@ -81,7 +81,7 @@ class LocalLibraryItem(
   @JsonIgnore
   fun getPlaybackSession(episode:PodcastEpisode?, deviceInfo:DeviceInfo):PlaybackSession {
     val localEpisodeId = episode?.id
-    val sessionId = "play_local_${UUID.randomUUID()}"
+    val sessionId = "${UUID.randomUUID()}"
 
     // Get current progress for local media
     val mediaProgressId = if (localEpisodeId.isNullOrEmpty()) id else "$id-$localEpisodeId"
