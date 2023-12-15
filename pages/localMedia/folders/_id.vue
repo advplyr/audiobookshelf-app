@@ -110,9 +110,6 @@ export default {
         this.$router.replace('/localMedia/folders')
       }
     },
-    play(mediaItem) {
-      this.$eventBus.$emit('play-item', { libraryItemId: mediaItem.id })
-    },
     async init() {
       var folder = await this.$db.getLocalFolder(this.folderId)
       this.folder = folder

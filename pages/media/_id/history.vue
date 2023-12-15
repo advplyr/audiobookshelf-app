@@ -39,8 +39,7 @@ export default {
   },
   data() {
     return {
-      onMediaItemHistoryUpdatedListener: null,
-      startingPlayback: false
+      onMediaItemHistoryUpdatedListener: null
     }
   },
   computed: {
@@ -123,21 +122,21 @@ export default {
       })
 
       return groups
+    },
+    playerIsStartingPlayback() {
+      // Play has been pressed and waiting for native play response
+      return this.$store.state.playerIsStartingPlayback
     }
   },
   methods: {
     async clickPlaybackTime(time) {
-      if (this.startingPlayback) return
-      this.startingPlayback = true
-      await this.$hapticsImpact()
-      console.log('Click playback time', time)
-      this.playAtTime(time)
+      if (this.playerIsStartingPlayback) return
 
-      setTimeout(() => {
-        this.startingPlayback = false
-      }, 1000)
+      await this.$hapticsImpact()
+      this.playAtTime(time)
     },
     playAtTime(startTime) {
+      this.$store.commit('setPlayerIsStartingPlayback', this.mediaItemEpisodeId || this.mediaItemLibraryItemId)
       if (this.mediaItemIsLocal) {
         // Local only
         this.$eventBus.$emit('play-item', { libraryItemId: this.mediaItemLibraryItemId, episodeId: this.mediaItemEpisodeId, startTime })

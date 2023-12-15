@@ -7,6 +7,8 @@ export const state = () => ({
   currentPlaybackSession: null,
   playerIsPlaying: false,
   playerIsFullscreen: false,
+  playerIsStartingPlayback: false, // When pressing play before native play response
+  playerStartingPlaybackMediaId: null,
   isCasting: false,
   isCastAvailable: false,
   attemptingConnection: false,
@@ -130,6 +132,14 @@ export const mutations = {
   },
   setPlayerFullscreen(state, val) {
     state.playerIsFullscreen = val
+  },
+  setPlayerIsStartingPlayback(state, mediaId) {
+    state.playerStartingPlaybackMediaId = mediaId
+    state.playerIsStartingPlayback = true
+  },
+  setPlayerDoneStartingPlayback(state) {
+    state.playerStartingPlaybackMediaId = null
+    state.playerIsStartingPlayback = false
   },
   setHasStoragePermission(state, val) {
     state.hasStoragePermission = val

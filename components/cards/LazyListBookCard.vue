@@ -176,7 +176,7 @@ export default {
       return this.mediaMetadata.series
     },
     seriesSequence() {
-      return this.series ? this.series.sequence : null
+      return this.series?.sequence || null
     },
     collapsedSeries() {
       // Only added to item object when collapseSeries is enabled
@@ -209,10 +209,10 @@ export default {
       return this.store.getters['user/getUserMediaProgress'](this.libraryItemId)
     },
     userProgressPercent() {
-      return this.userProgress ? this.userProgress.progress || 0 : 0
+      return this.userProgress?.progress || 0
     },
     itemIsFinished() {
-      return this.userProgress ? !!this.userProgress.isFinished : false
+      return !!this.userProgress?.isFinished
     },
     showError() {
       return this.numMissingParts || this.isMissing || this.isInvalid

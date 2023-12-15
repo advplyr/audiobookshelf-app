@@ -232,6 +232,10 @@ export default {
           }
         ]
       }
+    },
+    playerIsStartingPlayback() {
+      // Play has been pressed and waiting for native play response
+      return this.$store.state.playerIsStartingPlayback
     }
   },
   methods: {
@@ -279,7 +283,9 @@ export default {
       this.showDialog = true
     },
     async play() {
+      if (this.playerIsStartingPlayback) return
       await this.$hapticsImpact()
+      this.$store.commit('setPlayerIsStartingPlayback', this.localLibraryItemId)
       this.$eventBus.$emit('play-item', { libraryItemId: this.localLibraryItemId })
     },
     getCapImageSrc(contentUrl) {

@@ -46,8 +46,13 @@
     </div>
 
     <!-- Play/pause button for podcast episode -->
-    <div v-if="recentEpisode" class="absolute z-10 top-0 left-0 bottom-0 right-0 m-auto flex items-center justify-center w-12 h-12 rounded-full bg-white bg-opacity-70" @click.stop="playEpisode">
-      <span class="material-icons text-6xl text-black text-opacity-80">{{ streamIsPlaying ? 'pause_circle' : 'play_circle_filled' }}</span>
+    <div v-if="recentEpisode" class="absolute z-10 top-0 left-0 bottom-0 right-0 m-auto flex items-center justify-center w-12 h-12 rounded-full" :class="{ 'bg-white/70': !playerIsStartingForThisMedia }" @click.stop="playEpisode">
+      <span v-if="!playerIsStartingForThisMedia" class="material-icons text-6xl text-black/80">{{ streamIsPlaying ? 'pause_circle' : 'play_circle_filled' }}</span>
+      <div v-else class="text-fg absolute top-0 left-0 w-full h-full flex items-center justify-center bg-black/80 rounded-full overflow-hidden">
+        <svg class="animate-spin" style="width: 24px; height: 24px" viewBox="0 0 24 24">
+          <path fill="currentColor" d="M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z" />
+        </svg>
+      </div>
     </div>
 
     <!-- No progress shown for collapsed series in library -->
@@ -322,6 +327,14 @@ export default {
     streamIsPlaying() {
       return this.store.state.playerIsPlaying && this.isStreaming
     },
+    playerIsStartingPlayback() {
+      // Play has been pressed and waiting for native play response
+      return this.store.state.playerIsStartingPlayback
+    },
+    playerIsStartingForThisMedia() {
+      const mediaId = this.store.state.playerStartingPlaybackMediaId
+      return mediaId === this.recentEpisode?.id
+    },
     isMissing() {
       return this._libraryItem.isMissing
     },
@@ -447,6 +460,8 @@ export default {
     },
     async play() {},
     async playEpisode() {
+      if (this.playerIsStartingPlayback) return
+
       await this.$hapticsImpact()
       const eventBus = this.$eventBus || this.$nuxt.$eventBus
       if (this.streamIsPlaying) {
@@ -454,6 +469,7 @@ export default {
         return
       }
 
+      this.store.commit('setPlayerIsStartingPlayback', this.recentEpisode.id)
       if (this.localEpisode) {
         // Play episode locally
         eventBus.$emit('play-item', {

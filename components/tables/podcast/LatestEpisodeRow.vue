@@ -29,7 +29,10 @@
 
       <div class="flex items-center pt-2">
         <div class="h-8 px-4 border border-border hover:bg-white hover:bg-opacity-10 rounded-full flex items-center justify-center cursor-pointer" :class="userIsFinished ? 'text-fg text-opacity-40' : ''" @click.stop="playClick">
-          <span class="material-icons" :class="streamIsPlaying ? '' : 'text-success'">{{ streamIsPlaying ? 'pause' : 'play_arrow' }}</span>
+          <span v-if="!playerIsStartingForThisMedia" class="material-icons" :class="streamIsPlaying ? '' : 'text-success'">{{ streamIsPlaying ? 'pause' : 'play_arrow' }}</span>
+          <svg v-else class="animate-spin" style="width: 24px; height: 24px" viewBox="0 0 24 24">
+            <path fill="currentColor" d="M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z" />
+          </svg>
           <p class="pl-2 pr-1 text-sm font-semibold">{{ timeRemaining }}</p>
         </div>
 
@@ -122,6 +125,15 @@ export default {
     streamIsPlaying() {
       return this.$store.state.playerIsPlaying && this.isStreaming
     },
+    playerIsStartingPlayback() {
+      // Play has been pressed and waiting for native play response
+      return this.$store.state.playerIsStartingPlayback
+    },
+    playerIsStartingForThisMedia() {
+      if (!this.episode?.id) return false
+      const mediaId = this.$store.state.playerStartingPlaybackMediaId
+      return mediaId === this.episode.id
+    },
     itemProgress() {
       if (this.isLocal) return this.$store.getters['globals/getLocalMediaProgressById'](this.libraryItemId, this.episode.id)
       return this.$store.getters['user/getUserMediaProgress'](this.libraryItemId, this.episode.id)
@@ -135,10 +147,10 @@ export default {
       }
     },
     itemProgressPercent() {
-      return this.itemProgress ? this.itemProgress.progress : 0
+      return this.itemProgress?.progress || 0
     },
     userIsFinished() {
-      return this.itemProgress ? !!this.itemProgress.isFinished : false
+      return !!this.itemProgress?.isFinished
     },
     timeRemaining() {
       if (this.streamIsPlaying) return 'Playing'
@@ -154,7 +166,7 @@ export default {
       return this.$store.getters['globals/getDownloadItem'](this.libraryItemId, this.episode.id)
     },
     localEpisodeId() {
-      return this.localEpisode ? this.localEpisode.id : null
+      return this.localEpisode?.id || null
     },
     podcast() {
       return this.episode.podcast || {}
@@ -238,10 +250,14 @@ export default {
       }
     },
     async playClick() {
+      if (this.playerIsStartingPlayback) return
+
       await this.$hapticsImpact()
       if (this.streamIsPlaying) {
         this.$eventBus.$emit('pause-item')
       } else {
+        this.$store.commit('setPlayerIsStartingPlayback', this.episode.id)
+
         if (this.localEpisode && this.localLibraryItemId) {
           console.log('Play local episode', this.localEpisode.id, this.localLibraryItemId)
 

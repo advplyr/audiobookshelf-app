@@ -29,7 +29,7 @@
 
     <!-- action buttons -->
     <div class="flex mt-4 -mx-1">
-      <ui-btn color="success" class="flex items-center justify-center flex-grow mx-1" :padding-x="4" @click="playClick">
+      <ui-btn color="success" class="flex items-center justify-center flex-grow mx-1" :loading="playerIsStartingForThisMedia" :padding-x="4" @click="playClick">
         <span class="material-icons">{{ playerIsPlaying ? 'pause' : 'play_arrow' }}</span>
         <span class="px-1 text-sm">{{ playerIsPlaying ? $strings.ButtonPause : localEpisodeId ? $strings.ButtonPlay : $strings.ButtonStream }}</span>
       </ui-btn>
@@ -210,6 +210,15 @@ export default {
     playerIsPlaying() {
       return this.$store.state.playerIsPlaying && this.isPlaying
     },
+    playerIsStartingPlayback() {
+      // Play has been pressed and waiting for native play response
+      return this.$store.state.playerIsStartingPlayback
+    },
+    playerIsStartingForThisMedia() {
+      if (!this.serverEpisodeId) return false
+      const mediaId = this.$store.state.playerStartingPlaybackMediaId
+      return mediaId === this.serverEpisodeId
+    },
     userItemProgress() {
       if (this.isLocal) return this.localItemProgress
       return this.serverItemProgress
@@ -332,10 +341,14 @@ export default {
       }
     },
     async playClick() {
+      if (this.playerIsStartingPlayback) return
+
       await this.$hapticsImpact()
       if (this.playerIsPlaying) {
         this.$eventBus.$emit('pause-item')
       } else {
+        this.$store.commit('setPlayerIsStartingPlayback', this.serverEpisodeId)
+
         if (this.localEpisodeId && this.localLibraryItemId && !this.isLocal) {
           console.log('Play local episode', this.localEpisodeId, this.localLibraryItemId)
 

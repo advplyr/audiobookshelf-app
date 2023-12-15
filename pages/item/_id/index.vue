@@ -45,7 +45,7 @@
       <!-- action buttons -->
       <div class="col-span-full">
         <div v-if="showPlay || showRead" class="flex mt-4 -mx-1">
-          <ui-btn v-if="showPlay" color="success" class="flex items-center justify-center flex-grow mx-1" :padding-x="4" @click="playClick">
+          <ui-btn v-if="showPlay" color="success" class="flex items-center justify-center flex-grow mx-1" :loading="playerIsStartingForThisMedia" :padding-x="4" @click="playClick">
             <span class="material-icons">{{ playerIsPlaying ? 'pause' : 'play_arrow' }}</span>
             <span class="px-1 text-sm">{{ playerIsPlaying ? $strings.ButtonPause : isPodcast ? $strings.ButtonNextEpisode : hasLocal ? $strings.ButtonPlay : $strings.ButtonStream }}</span>
           </ui-btn>
@@ -205,7 +205,8 @@ export default {
       coverBgIsLight: false,
       windowWidth: 0,
       descriptionClamped: false,
-      showFullDescription: false
+      showFullDescription: false,
+      episodeStartingPlayback: null
     }
   },
   computed: {
@@ -393,6 +394,19 @@ export default {
     playerIsPlaying() {
       return this.$store.state.playerIsPlaying && (this.isStreaming || this.isPlaying)
     },
+    playerIsStartingPlayback() {
+      // Play has been pressed and waiting for native play response
+      return this.$store.state.playerIsStartingPlayback
+    },
+    playerIsStartingForThisMedia() {
+      const mediaId = this.$store.state.playerStartingPlaybackMediaId
+      if (this.isPodcast) {
+        if (!this.episodeStartingPlayback) return false
+        return mediaId === this.episodeStartingPlayback
+      } else {
+        return mediaId === this.serverLibraryItemId
+      }
+    },
     tracks() {
       return this.media.tracks || []
     },
@@ -488,6 +502,8 @@ export default {
       }
     },
     async play(startTime = null) {
+      if (this.playerIsStartingPlayback) return
+
       if (this.isPodcast) {
         this.episodes.sort((a, b) => {
           return String(b.publishedAt).localeCompare(String(a.publishedAt), undefined, { numeric: true, sensitivity: 'base' })
@@ -500,7 +516,7 @@ export default {
           } else {
             podcastProgress = this.$store.getters['globals/getLocalMediaProgressById'](this.libraryItemId, ep.id)
           }
-          return !podcastProgress || !podcastProgress.isFinished
+          return !podcastProgress?.isFinished
         })
 
         if (!episode) episode = this.episodes[0]
@@ -515,6 +531,8 @@ export default {
         }
         const serverEpisodeId = !this.isLocal ? episodeId : localEpisode?.serverEpisodeId || null
 
+        this.episodeStartingPlayback = serverEpisodeId
+        this.$store.commit('setPlayerIsStartingPlayback', serverEpisodeId)
         if (serverEpisodeId && this.serverLibraryItemId && this.isCasting) {
           // If casting and connected to server for local library item then send server library item id
           this.$eventBus.$emit('play-item', { libraryItemId: this.serverLibraryItemId, episodeId: serverEpisodeId })
@@ -543,6 +561,7 @@ export default {
           if (!value) return
         }
 
+        this.$store.commit('setPlayerIsStartingPlayback', this.serverLibraryItemId)
         this.$eventBus.$emit('play-item', { libraryItemId, serverLibraryItemId: this.serverLibraryItemId, startTime })
       }
     },

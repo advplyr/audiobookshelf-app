@@ -204,6 +204,7 @@ export default {
           message: `Cannot cast downloaded media items. Confirm to close cast and play on your device.`
         })
         if (!value) {
+          this.$store.commit('setPlayerDoneStartingPlayback')
           return
         }
       }
@@ -217,6 +218,7 @@ export default {
         } else if (this.$refs.audioPlayer) {
           this.$refs.audioPlayer.play()
         }
+        this.$store.commit('setPlayerDoneStartingPlayback')
         return
       }
 
@@ -253,6 +255,9 @@ export default {
         .catch((error) => {
           console.error('Failed', error)
           this.$toast.error('Failed to play')
+        })
+        .finally(() => {
+          this.$store.commit('setPlayerDoneStartingPlayback')
         })
     },
     pauseItem() {

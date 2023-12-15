@@ -12,7 +12,7 @@
             {{ collectionName }}
           </h1>
           <div class="flex-grow" />
-          <ui-btn v-if="showPlayButton" :disabled="streaming" color="success" :padding-x="4" small class="flex items-center justify-center h-9 mr-2 w-24" @click="clickPlay">
+          <ui-btn v-if="showPlayButton" :disabled="streaming" color="success" :padding-x="4" small :loading="playerIsStartingForThisMedia" class="flex items-center justify-center h-9 mr-2 w-24" @click="clickPlay">
             <span v-show="!streaming" class="material-icons -ml-2 pr-1 text-white">play_arrow</span>
             {{ streaming ? $strings.ButtonPlaying : $strings.ButtonPlay }}
           </ui-btn>
@@ -53,6 +53,7 @@ export default {
   },
   data() {
     return {
+      mediaIdStartingPlayback: null,
       processingRemove: false
     }
   },
@@ -77,17 +78,30 @@ export default {
     streaming() {
       return !!this.playableBooks.find((b) => this.$store.getters['getIsMediaStreaming'](b.id))
     },
+    playerIsStartingPlayback() {
+      // Play has been pressed and waiting for native play response
+      return this.$store.state.playerIsStartingPlayback
+    },
+    playerIsStartingForThisMedia() {
+      if (!this.mediaIdStartingPlayback) return false
+      const mediaId = this.$store.state.playerStartingPlaybackMediaId
+      return mediaId === this.mediaIdStartingPlayback
+    },
     showPlayButton() {
       return this.playableBooks.length
     }
   },
   methods: {
     clickPlay() {
+      if (this.playerIsStartingPlayback) return
+
       var nextBookNotRead = this.playableBooks.find((pb) => {
         var prog = this.$store.getters['user/getUserMediaProgress'](pb.id)
-        return !prog || !prog.isFinished
+        return !prog?.isFinished
       })
       if (nextBookNotRead) {
+        this.mediaIdStartingPlayback = nextBookNotRead.id
+        this.$store.commit('setPlayerIsStartingPlayback', nextBookNotRead.id)
         this.$eventBus.$emit('play-item', { libraryItemId: nextBookNotRead.id })
       }
     }
