@@ -55,7 +55,7 @@
               <div class="flex-grow px-2">
                 <p class="text-xs">{{ episode.title }}</p>
               </div>
-              <div class="w-20 text-center text-gray-300" style="min-width: 80px">
+              <div class="w-20 text-center text-fg-muted" style="min-width: 80px">
                 <p class="text-xs">{{ episode.audioTrack.mimeType }}</p>
                 <p class="text-sm">{{ $elapsedPretty(episode.audioTrack.duration) }}</p>
               </div>
@@ -76,7 +76,7 @@
             <div class="flex-grow px-2">
               <p class="text-xs">{{ localFileForEbook.filename }}</p>
             </div>
-            <div class="w-24 text-center text-gray-300" style="min-width: 96px">
+            <div class="w-24 text-center text-fg-muted" style="min-width: 96px">
               <p class="text-xs">{{ localFileForEbook.mimeType }}</p>
               <p class="text-sm">{{ $bytesPretty(localFileForEbook.size) }}</p>
             </div>
@@ -93,7 +93,7 @@
             <div class="flex-grow px-2">
               <p class="text-sm">{{ file.filename }}</p>
             </div>
-            <div class="w-24 text-center text-gray-300" style="min-width: 96px">
+            <div class="w-24 text-center text-fg-muted" style="min-width: 96px">
               <p class="text-xs">{{ file.mimeType }}</p>
               <p class="text-sm">{{ $bytesPretty(file.size) }}</p>
             </div>

@@ -18,19 +18,19 @@
     <div class="py-3 flex items-center">
       <p class="pr-4 w-36">{{ $strings.LabelHapticFeedback }}</p>
       <div @click.stop="showHapticFeedbackOptions">
-        <ui-text-input :value="hapticFeedbackOption" readonly append-icon="expand_more" style="max-width: 145px" />
+        <ui-text-input :value="hapticFeedbackOption" readonly append-icon="expand_more" style="max-width: 200px" />
       </div>
     </div>
     <div class="py-3 flex items-center">
       <p class="pr-4 w-36">{{ $strings.LabelLanguage }}</p>
       <div @click.stop="showLanguageOptions">
-        <ui-text-input :value="languageOption" readonly append-icon="expand_more" style="max-width: 225px" />
+        <ui-text-input :value="languageOption" readonly append-icon="expand_more" style="max-width: 200px" />
       </div>
     </div>
     <div class="py-3 flex items-center">
       <p class="pr-4 w-36">{{ $strings.LabelTheme }}</p>
       <div @click.stop="showThemeOptions">
-        <ui-text-input :value="themeOption" readonly append-icon="expand_more" style="max-width: 225px" />
+        <ui-text-input :value="themeOption" readonly append-icon="expand_more" style="max-width: 200px" />
       </div>
     </div>
 

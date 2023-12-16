@@ -88,4 +88,7 @@ export default {
 input[type='time']::-webkit-calendar-picker-indicator {
   filter: invert(100%);
 }
+html[data-theme='light'] input[type='time']::-webkit-calendar-picker-indicator {
+  filter: unset;
+}
 </style>
