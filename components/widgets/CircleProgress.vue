@@ -5,10 +5,6 @@
       <circle cx="20" cy="20" r="17.5" class="progressbar__svg-circlebg"></circle>
     </svg>
     <p class="progressbar__text text-sm text-warning">{{ count }}</p>
-    <!-- <span class="material-icons progressbar__text text-xl">arrow_downward</span> -->
-    <!-- <div class="w-4 h-4 rounded-full bg-red-600 absolute bottom-1 right-1 flex items-center justify-center transform rotate-90">
-      <p class="text-xs text-white">4</p>
-    </div> -->
   </div>
 </template>
 
