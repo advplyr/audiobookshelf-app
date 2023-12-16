@@ -1,13 +1,13 @@
 <template>
   <modals-fullscreen-modal v-model="show" :processing="processing">
-    <div class="flex items-end justify-end h-16 pr-4 pb-2 mb-2">
+    <div class="flex items-end justify-end h-24 pr-4 pb-2">
       <!-- <h1 class="text-lg">RSS Feed</h1> -->
       <button class="flex" @click="show = false">
         <span class="material-icons">close</span>
       </button>
     </div>
 
-    <div class="w-full px-2 h-[calc(100%-138px)] overflow-y-auto">
+    <div class="w-full px-2 h-[calc(100%-176px)] overflow-y-auto">
       <div v-if="currentFeed" class="w-full">
         <div class="w-full relative">
           <h1 class="text-lg mb-4">{{ $strings.HeaderRSSFeedIsOpen }}</h1>
@@ -50,10 +50,9 @@
       </div>
     </div>
 
-    <div v-show="userIsAdminOrUp" class="flex items-center px-2 h-16">
-      <div class="flex-grow" />
-      <ui-btn v-if="currentFeed" color="error" class="w-full" @click="closeFeed">{{ $strings.ButtonCloseFeed }}</ui-btn>
-      <ui-btn v-else color="success" class="w-full" @click="openFeed">{{ $strings.ButtonOpenFeed }}</ui-btn>
+    <div v-show="userIsAdminOrUp" class="flex items-start pt-2 h-20">
+      <ui-btn v-if="currentFeed" color="error" class="w-full h-14" @click="closeFeed">{{ $strings.ButtonCloseFeed }}</ui-btn>
+      <ui-btn v-else color="success" class="w-full h-14" @click="openFeed">{{ $strings.ButtonOpenFeed }}</ui-btn>
     </div>
   </modals-fullscreen-modal>
 </template>

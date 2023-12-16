@@ -1,6 +1,6 @@
 <template>
   <modals-fullscreen-modal v-model="show" :processing="processing">
-    <div class="flex items-end justify-between h-16 px-4 pb-2">
+    <div class="flex items-end justify-between h-24 px-4 pb-2">
       <h1 class="text-lg">{{ $strings.LabelAddToPlaylist }}</h1>
       <button class="flex" @click="show = false">
         <span class="material-icons">close</span>
@@ -8,13 +8,13 @@
     </div>
 
     <!-- create new playlist form -->
-    <div v-if="showPlaylistNameInput" class="w-full h-full max-h-[calc(100vh-128px)] flex items-center">
+    <div v-if="showPlaylistNameInput" class="w-full h-full max-h-[calc(100vh-176px)] flex items-center">
       <div class="w-full px-4">
         <div class="flex mb-4 items-center">
           <div class="w-9 h-9 flex items-center justify-center rounded-full cursor-pointer" @click.stop="showPlaylistNameInput = false">
             <span class="material-icons text-3xl">arrow_back</span>
           </div>
-          <p class="text-xl pl-2">{{ $strings.HeaderNewPlaylist }}</p>
+          <p class="text-xl pl-2 leading-none">{{ $strings.HeaderNewPlaylist }}</p>
           <div class="flex-grow" />
         </div>
 
@@ -26,7 +26,7 @@
     </div>
 
     <!-- playlists list -->
-    <div v-if="!showPlaylistNameInput" class="w-full overflow-y-auto overflow-x-hidden h-full max-h-[calc(100vh-128px)]">
+    <div v-if="!showPlaylistNameInput" class="w-full overflow-y-auto overflow-x-hidden h-full max-h-[calc(100vh-176px)]">
       <div class="w-full h-full" v-show="!showPlaylistNameInput">
         <template v-for="playlist in sortedPlaylists">
           <modals-playlists-playlist-row :key="playlist.id" :in-playlist="playlist.isItemIncluded" :playlist="playlist" @click="clickPlaylist" @close="show = false" />
@@ -38,8 +38,8 @@
     </div>
 
     <!-- create playlist btn -->
-    <div v-if="!showPlaylistNameInput" class="flex items-start justify-between h-16 pt-2 absolute bottom-0 left-0 w-full">
-      <ui-btn :loading="processing" color="success" class="w-full h-full flex items-center justify-center" @click.stop="createPlaylist">
+    <div v-if="!showPlaylistNameInput" class="flex items-start justify-between h-20 pt-2 absolute bottom-0 left-0 w-full">
+      <ui-btn :loading="processing" color="success" class="w-full h-14 flex items-center justify-center" @click.stop="createPlaylist">
         <p class="text-base">{{ $strings.ButtonCreateNewPlaylist }}</p>
       </ui-btn>
     </div>
