@@ -34,7 +34,7 @@
         <span class="px-1 text-sm">{{ playerIsPlaying ? $strings.ButtonPause : localEpisodeId ? $strings.ButtonPlay : $strings.ButtonStream }}</span>
       </ui-btn>
       <ui-btn v-if="showDownload" :color="downloadItem ? 'warning' : 'primary'" class="flex items-center justify-center mx-1" :padding-x="2" @click="downloadClick">
-        <span class="material-icons" :class="downloadItem ? 'animate-pulse' : ''">{{ downloadItem ? 'downloading' : 'download' }}</span>
+        <span class="material-icons" :class="(downloadItem || startingDownload) ? 'animate-pulse' : ''">{{ (downloadItem || startingDownload) ? 'downloading' : 'download' }}</span>
       </ui-btn>
       <ui-btn color="primary" class="flex items-center justify-center mx-1" :padding-x="2" @click="showMoreMenu = true">
         <span class="material-icons">more_vert</span>
@@ -111,7 +111,8 @@ export default {
     return {
       showMoreMenu: false,
       processing: false,
-      resettingProgress: false
+      resettingProgress: false,
+      startingDownload: false
     }
   },
   computed: {
@@ -369,7 +370,13 @@ export default {
       }
     },
     async downloadClick() {
-      if (this.downloadItem) return
+      if (this.downloadItem || this.startingDownload) return
+
+      this.startingDownload = true
+      setTimeout(() => {
+        this.startingDownload = false
+      }, 1000)
+
       await this.$hapticsImpact()
       if (this.isIos) {
         // no local folders on iOS

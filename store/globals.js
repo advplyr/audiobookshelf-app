@@ -46,7 +46,8 @@ export const state = () => ({
 export const getters = {
   getDownloadItem: state => (libraryItemId, episodeId = null) => {
     return state.itemDownloads.find(i => {
-      if (episodeId && !i.episodes.some(e => e.id == episodeId)) return false
+      // if (episodeId && !i.episodes.some(e => e.id == episodeId)) return false
+      if (episodeId && i.episodeId !== episodeId) return false
       return i.libraryItemId == libraryItemId
     })
   },

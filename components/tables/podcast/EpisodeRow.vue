@@ -9,22 +9,18 @@
         <p v-else>No Server Media Progress</p>
         <p v-if="localMediaProgress">Local Media Progress {{ Math.round(localMediaProgress.progress * 100) }}</p>
         <p v-else>No Local Media Progress</p>
-      </template> -->
+      </template>-->
 
       <p v-if="publishedAt" class="text-xs text-fg-muted mb-1">Published {{ $formatDate(publishedAt, 'MMM do, yyyy') }}</p>
 
-      <p class="text-sm font-semibold">
-        {{ title }}
-      </p>
+      <p class="text-sm font-semibold">{{ title }}</p>
 
       <p class="text-sm text-fg episode-subtitle mt-1.5 mb-0.5" v-html="subtitle" />
 
       <div v-if="episodeNumber || season || episodeType" class="flex py-2 items-center -mx-0.5">
         <div v-if="episodeNumber" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-50 rounded-full text-xs font-light text-fg">Episode #{{ episodeNumber }}</div>
         <div v-if="season" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-50 rounded-full text-xs font-light text-fg">Season #{{ season }}</div>
-        <div v-if="episodeType" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-50 rounded-full text-xs font-light text-fg capitalize">
-          {{ episodeType }}
-        </div>
+        <div v-if="episodeType" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-50 rounded-full text-xs font-light text-fg capitalize">{{ episodeType }}</div>
       </div>
 
       <div class="flex items-center pt-2">
@@ -44,7 +40,7 @@
 
         <div v-if="userCanDownload">
           <span v-if="isLocal" class="material-icons-outlined px-2 text-success text-lg">audio_file</span>
-          <span v-else-if="!localEpisode" class="material-icons mx-1.5 mt-2 text-xl" :class="downloadItem ? 'animate-bounce text-warning text-opacity-75' : ''" @click.stop="downloadClick">{{ downloadItem ? 'downloading' : 'download' }}</span>
+          <span v-else-if="!localEpisode" class="material-icons mx-1.5 mt-2 text-xl" :class="(downloadItem || startingDownload) ? 'animate-bounce text-warning text-opacity-75' : ''" @click.stop="downloadClick">{{ (downloadItem || startingDownload) ? 'downloading' : 'download' }}</span>
           <span v-else class="material-icons px-2 text-success text-xl">download_done</span>
         </div>
 
@@ -80,7 +76,8 @@ export default {
   data() {
     return {
       isProcessingReadUpdate: false,
-      processing: false
+      processing: false,
+      startingDownload: false
     }
   },
   computed: {
@@ -179,7 +176,13 @@ export default {
       return folderObj
     },
     async downloadClick() {
-      if (this.downloadItem) return
+      if (this.downloadItem || this.startingDownload) return
+
+      this.startingDownload = true
+      setTimeout(() => {
+        this.startingDownload = false
+      }, 1000)
+
       await this.$hapticsImpact()
       if (this.isIos) {
         // no local folders on iOS
