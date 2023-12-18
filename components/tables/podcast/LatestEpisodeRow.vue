@@ -13,18 +13,14 @@
         </div>
       </div>
 
-      <p class="text-sm font-semibold">
-        {{ title }}
-      </p>
+      <p class="text-sm font-semibold">{{ title }}</p>
 
       <p class="text-sm text-fg episode-subtitle mt-1.5 mb-0.5" v-html="subtitle" />
 
       <div v-if="episodeNumber || season || episodeType" class="flex pt-2 items-center -mx-0.5">
         <div v-if="episodeNumber" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-50 rounded-full text-xs font-light text-fg">{{ $strings.LabelEpisode }} #{{ episodeNumber }}</div>
         <div v-if="season" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-50 rounded-full text-xs font-light text-fg">{{ $strings.LabelSeason }} #{{ season }}</div>
-        <div v-if="episodeType" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-50 rounded-full text-xs font-light text-fg capitalize">
-          {{ episodeType }}
-        </div>
+        <div v-if="episodeType" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-50 rounded-full text-xs font-light text-fg capitalize">{{ episodeType }}</div>
       </div>
 
       <div class="flex items-center pt-2">
@@ -196,7 +192,10 @@ export default {
       } else {
         await this.download()
       }
-      this.pendingDownload = false
+
+      setTimeout(() => {
+        this.pendingDownload = false
+      }, 1000)
     },
     async download(selectedLocalFolder = null) {
       let localFolder = selectedLocalFolder
