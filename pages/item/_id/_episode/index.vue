@@ -215,9 +215,10 @@ export default {
       return this.$store.state.playerIsStartingPlayback
     },
     playerIsStartingForThisMedia() {
-      if (!this.serverEpisodeId) return false
       const mediaId = this.$store.state.playerStartingPlaybackMediaId
-      return mediaId === this.serverEpisodeId
+      if (!mediaId) return false
+
+      return mediaId === this.localEpisodeId || mediaId === this.serverEpisodeId
     },
     userItemProgress() {
       if (this.isLocal) return this.localItemProgress
@@ -347,7 +348,7 @@ export default {
       if (this.playerIsPlaying) {
         this.$eventBus.$emit('pause-item')
       } else {
-        this.$store.commit('setPlayerIsStartingPlayback', this.serverEpisodeId)
+        this.$store.commit('setPlayerIsStartingPlayback', this.episode.id)
 
         if (this.localEpisodeId && this.localLibraryItemId && !this.isLocal) {
           console.log('Play local episode', this.localEpisodeId, this.localLibraryItemId)

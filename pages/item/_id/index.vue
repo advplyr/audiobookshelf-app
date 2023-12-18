@@ -400,11 +400,12 @@ export default {
     },
     playerIsStartingForThisMedia() {
       const mediaId = this.$store.state.playerStartingPlaybackMediaId
+      if (!mediaId) return false
+
       if (this.isPodcast) {
-        if (!this.episodeStartingPlayback) return false
         return mediaId === this.episodeStartingPlayback
       } else {
-        return mediaId === this.serverLibraryItemId
+        return mediaId === this.serverLibraryItemId || mediaId === this.localLibraryItemId
       }
     },
     tracks() {
@@ -561,7 +562,7 @@ export default {
           if (!value) return
         }
 
-        this.$store.commit('setPlayerIsStartingPlayback', this.serverLibraryItemId)
+        this.$store.commit('setPlayerIsStartingPlayback', libraryItemId)
         this.$eventBus.$emit('play-item', { libraryItemId, serverLibraryItemId: this.serverLibraryItemId, startTime })
       }
     },

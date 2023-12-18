@@ -126,6 +126,8 @@ export default {
     },
     playerIsStartingForThisMedia() {
       const mediaId = this.$store.state.playerStartingPlaybackMediaId
+      if (!mediaId) return false
+
       let thisMediaId = this.episodeId || this.libraryItem.id
       return mediaId === thisMediaId
     },
