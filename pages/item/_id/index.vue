@@ -1,7 +1,7 @@
 <template>
   <div id="item-page" class="w-full h-full px-3 pb-4 overflow-y-auto overflow-x-hidden relative bg-bg">
     <div class="fixed top-0 left-0 w-full h-full pointer-events-none p-px z-10">
-      <div class="w-full h-full" :style="{ backgroundColor: coverRgb }" />
+      <div class="w-full h-full" />
       <div class="w-full h-full absolute top-0 left-0" style="background: var(--gradient-item-page)" />
     </div>
 
