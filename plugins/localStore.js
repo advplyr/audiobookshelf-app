@@ -47,9 +47,9 @@ class LocalStorage {
   async setUseChapterTrack(useChapterTrack) {
     try {
       await Preferences.set({ key: 'useChapterTrack', value: useChapterTrack ? '1' : '0' })
-      console.log("ooooooo")
-      console.log(useChapterTrack)
-      AbsAudioPlayer.setChapterTrack({ enabled: useChapterTrack })
+      if (this.$platform === 'ios') {
+        AbsAudioPlayer.setChapterTrack({ enabled: useChapterTrack })
+      }
     } catch (error) {
       console.error('[LocalStorage] Failed to set use chapter track', error)
     }
