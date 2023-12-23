@@ -1,4 +1,6 @@
 import { Preferences } from '@capacitor/preferences'
+import { AbsAudioPlayer } from '@/plugins/capacitor'
+
 
 class LocalStorage {
   constructor(vuexStore) {
@@ -45,6 +47,9 @@ class LocalStorage {
   async setUseChapterTrack(useChapterTrack) {
     try {
       await Preferences.set({ key: 'useChapterTrack', value: useChapterTrack ? '1' : '0' })
+      console.log("ooooooo")
+      console.log(useChapterTrack)
+      AbsAudioPlayer.setChapterTrack({ enabled: useChapterTrack })
     } catch (error) {
       console.error('[LocalStorage] Failed to set use chapter track', error)
     }

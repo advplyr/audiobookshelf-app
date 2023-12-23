@@ -53,7 +53,7 @@ class NowPlayingInfo {
             self.setMetadata(artwork: artwork, metadata: metadata)
         }
     }
-    public func update(duration: Double, currentTime: Double, rate: Float) {
+    public func update(duration: Double, currentTime: Double, rate: Float, chapterName: String? = nil, chapterNumber: Int? = nil, chapterCount: Int? = nil) {
         // Update on the main to prevent access collisions
         DispatchQueue.main.async { [weak self] in
             if let self = self {
@@ -62,6 +62,18 @@ class NowPlayingInfo {
                 self.nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = rate
                 self.nowPlayingInfo[MPNowPlayingInfoPropertyDefaultPlaybackRate] = 1.0
                     
+                
+                if let chapterName = chapterName, let chapterNumber = chapterNumber, let chapterCount = chapterCount {
+                    self.nowPlayingInfo[MPMediaItemPropertyTitle] = chapterName
+                    self.nowPlayingInfo[MPNowPlayingInfoPropertyChapterNumber] = chapterNumber
+                    self.nowPlayingInfo[MPNowPlayingInfoPropertyChapterCount] = chapterCount
+                } else {
+                    // Set the title back to the book title
+                    self.nowPlayingInfo[MPMediaItemPropertyTitle] = self.nowPlayingInfo[MPMediaItemPropertyAlbumTitle]
+                    self.nowPlayingInfo[MPNowPlayingInfoPropertyChapterNumber] = nil
+                    self.nowPlayingInfo[MPNowPlayingInfoPropertyChapterCount] = nil
+                }
+                
                 MPNowPlayingInfoCenter.default().nowPlayingInfo = self.nowPlayingInfo
             }
         }
@@ -89,7 +101,7 @@ class NowPlayingInfo {
         
         nowPlayingInfo[MPMediaItemPropertyTitle] = metadata!.title
         nowPlayingInfo[MPMediaItemPropertyArtist] = metadata!.author ?? "unknown"
-        nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = metadata!.series
+        nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = metadata!.title
     }
     
     private func shouldFetchCover(id: String) -> Bool {

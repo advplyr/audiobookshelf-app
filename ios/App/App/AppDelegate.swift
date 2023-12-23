@@ -4,17 +4,17 @@ import RealmSwift
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
-    
+
     private let logger = AppLogger(category: "AppDelegate")
 
     lazy var window: UIWindow? = UIWindow(frame: UIScreen.main.bounds)
     var backgroundCompletionHandler: (() -> Void)?
-    
+
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
-        
+
         let configuration = Realm.Configuration(
-            schemaVersion: 15,
+            schemaVersion: 16,
             migrationBlock: { [weak self] migration, oldSchemaVersion in
                 if (oldSchemaVersion < 1) {
                     self?.logger.log("Realm schema version was \(oldSchemaVersion)")
@@ -48,10 +48,17 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                         newObject?["languageCode"] = "en-us"
                     }
                 }
+                if (oldSchemaVersion < 16) {
+                    self?.logger.log("Realm schema version was \(oldSchemaVersion)... Adding chapterTrack setting")
+                    migration.enumerateObjects(ofType: PlayerSettings.className()) { oldObject, newObject in
+                        newObject?["chapterTrack"] = false
+                    }
+                }
+
             }
         )
         Realm.Configuration.defaultConfiguration = configuration
-        
+
         return true
     }
 
@@ -93,7 +100,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // tracking app url opens, make sure to keep this call
         return ApplicationDelegateProxy.shared.application(application, continue: userActivity, restorationHandler: restorationHandler)
     }
-    
+
     func application(_ application: UIApplication, handleEventsForBackgroundURLSession identifier: String, completionHandler: @escaping () -> Void) {
         // Stores the completion handler for background downloads
         // The identifier of this method can be ignored at this time as we only have one background url session

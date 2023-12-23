@@ -39,3 +39,13 @@ class Chapter: EmbeddedObject, Codable {
         try container.encode(title, forKey: .title)
     }
 }
+
+extension Chapter {
+    func getRelativeChapterCurrentTime(sessionCurrentTime: Double) -> Double {
+        return sessionCurrentTime - self.start
+    }
+
+    func getRelativeChapterEndTime() -> Double {
+        return self.end - self.start
+    }
+}
