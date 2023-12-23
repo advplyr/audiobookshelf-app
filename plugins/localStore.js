@@ -1,5 +1,6 @@
 import { Preferences } from '@capacitor/preferences'
 import { AbsAudioPlayer } from '@/plugins/capacitor'
+import { Capacitor } from '@capacitor/core'
 
 
 class LocalStorage {
@@ -47,7 +48,7 @@ class LocalStorage {
   async setUseChapterTrack(useChapterTrack) {
     try {
       await Preferences.set({ key: 'useChapterTrack', value: useChapterTrack ? '1' : '0' })
-      if (this.$platform === 'ios') {
+      if (Capacitor.getPlatform() === 'ios') {
         AbsAudioPlayer.setChapterTrack({ enabled: useChapterTrack })
       }
     } catch (error) {
