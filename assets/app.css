@@ -16,10 +16,6 @@ textarea {
   user-select: auto;
 }
 
-body {
-  background-color: #262626;
-}
-
 .layout-wrapper {
   height: calc(100vh - env(safe-area-inset-top));
   min-height: calc(100vh - env(safe-area-inset-top));

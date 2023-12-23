@@ -1,14 +1,13 @@
 const defaultTheme = require('tailwindcss/defaultTheme')
 
 module.exports = {
-  purge: {
+  content: {
     safelist: [
       'bg-success',
       'bg-info',
       'text-info'
     ]
   },
-  darkMode: false,
   theme: {
     extend: {
       screens: {
