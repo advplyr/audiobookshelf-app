@@ -116,6 +116,7 @@ class MainActivity : BridgeActivity() {
   override fun onSaveInstanceState(outState: Bundle) {
     storageHelper.onSaveInstanceState(outState)
     super.onSaveInstanceState(outState)
+    outState.clear()
   }
 
   override fun onRestoreInstanceState(savedInstanceState: Bundle) {
