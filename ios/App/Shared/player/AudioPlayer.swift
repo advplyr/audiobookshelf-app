@@ -583,30 +583,33 @@ class AudioPlayer: NSObject {
         
         commandCenter.playCommand.isEnabled = true
         commandCenter.playCommand.addTarget { [weak self] event in
-            if (self!.isPlaying()) {
-                self?.pause()
+            guard let strongSelf = self else { return .commandFailed }
+            if strongSelf.isPlaying() {
+                strongSelf.pause()
             } else {
-                self?.play(allowSeekBack: true)
+                strongSelf.play(allowSeekBack: true)
             }
             return .success
         }
 
         commandCenter.pauseCommand.isEnabled = true
         commandCenter.pauseCommand.addTarget { [weak self] event in
-            if (self!.isPlaying()) {
-                self?.pause()
+            guard let strongSelf = self else { return .commandFailed }
+            if strongSelf.isPlaying() {
+                strongSelf.pause()
             } else {
-                self?.play(allowSeekBack: true)
+                strongSelf.play(allowSeekBack: true)
             }
             return .success
         }
 
         commandCenter.togglePlayPauseCommand.isEnabled = true
         commandCenter.togglePlayPauseCommand.addTarget { [weak self] event in
-            if (self!.isPlaying()) {
-                self?.pause()
+            guard let strongSelf = self else { return .commandFailed }
+            if strongSelf.isPlaying() {
+                strongSelf.pause()
             } else {
-                self?.play(allowSeekBack: true)
+                strongSelf.play(allowSeekBack: true)
             }
             return .success
         }
