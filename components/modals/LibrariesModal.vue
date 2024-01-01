@@ -1,7 +1,7 @@
 <template>
   <modals-modal v-model="show" :width="300" :processing="processing" height="100%">
     <template #outer>
-      <div class="absolute top-8 left-4 z-40" style="max-width: 80%">
+      <div class="absolute top-11 left-4 z-40" style="max-width: 80%">
         <p class="text-white text-2xl truncate">{{ $strings.HeaderLibraries }}</p>
       </div>
     </template>

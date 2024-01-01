@@ -1,7 +1,7 @@
 <template>
   <modals-modal v-model="show" :width="400" height="100%">
     <template #outer>
-      <div class="absolute top-8 left-4 z-40">
+      <div class="absolute top-11 left-4 z-40">
         <p class="text-white text-2xl truncate">{{ $strings.LabelYourBookmarks }}</p>
       </div>
     </template>
@@ -14,9 +14,7 @@
             </div>
             <p class="text-xl pl-2">{{ selectedBookmark ? 'Edit Bookmark' : 'New Bookmark' }}</p>
             <div class="flex-grow" />
-            <p class="text-xl font-mono">
-              {{ this.$secondsToTimestamp(currentTime) }}
-            </p>
+            <p class="text-xl font-mono">{{ this.$secondsToTimestamp(currentTime) }}</p>
           </div>
 
           <ui-text-input-with-label v-model="newBookmarkTitle" label="Note" />
@@ -34,9 +32,7 @@
           <div v-show="canCreateBookmark" class="flex px-4 py-2 items-center text-center justify-between border-b border-fg/10 bg-success cursor-pointer text-white text-opacity-80" @click.stop="createBookmark">
             <span class="material-icons">add</span>
             <p class="text-base pl-2">{{ $strings.ButtonCreateBookmark }}</p>
-            <p class="text-sm font-mono">
-              {{ this.$secondsToTimestamp(currentTime) }}
-            </p>
+            <p class="text-sm font-mono">{{ this.$secondsToTimestamp(currentTime) }}</p>
           </div>
         </div>
       </div>
