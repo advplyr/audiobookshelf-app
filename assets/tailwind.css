@@ -18,7 +18,7 @@
     --color-track: 107 114 128;
     --color-track-buffered: 75 85 99;
     --gradient-item-page: linear-gradient(169deg, rgba(0, 0, 0, 0.4) 0%, rgba(55, 56, 56, 1) 80%);
-    --gradient-audio-player: linear-gradient(169deg, rgba(0, 0, 0, 0) 0%, rgba(38, 38, 38, 1) 80%);
+    --gradient-audio-player: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(38, 38, 38, 1) 80%);
     --gradient-minimized-audio-player: linear-gradient(145deg, rgba(38, 38, 38, 0.5) 0%, rgba(38, 38, 38, 0.9) 20%, rgb(38, 38, 38) 60%);
   }
 
@@ -37,7 +37,11 @@
     --color-track: 189 191 191;
     --color-track-buffered: 129 131 131;
     --gradient-item-page: linear-gradient(169deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 1) 80%);
-    --gradient-audio-player: linear-gradient(169deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 1) 80%);
+    --gradient-audio-player: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 1) 80%);
     --gradient-minimized-audio-player: linear-gradient(145deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.9) 20%, rgb(255, 255, 255) 60%);
+  }
+
+  body {
+    @apply bg-primary
   }
 }

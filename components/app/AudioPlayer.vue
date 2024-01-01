@@ -164,6 +164,7 @@ export default {
     showFullscreen(val) {
       this.updateScreenSize()
       this.$store.commit('setPlayerFullscreen', !!val)
+      document.querySelector('body').style.backgroundColor = this.showFullscreen ? this.coverRgb : ""
     },
     bookCoverAspectRatio() {
       this.updateScreenSize()
@@ -699,8 +700,8 @@ export default {
           this.updateTimestamp()
           this.updateTrack()
           this.updateReadyTrack()
+          this.updateUseChapterTrack()
           this.$localStore.setUseTotalTrack(this.useTotalTrack)
-          this.$localStore.setUseChapterTrack(this.useChapterTrack)
         } else if (action === 'total_track') {
           this.useTotalTrack = !this.useTotalTrack
           this.useChapterTrack = !this.useTotalTrack || this.useChapterTrack
@@ -708,12 +709,19 @@ export default {
           this.updateTimestamp()
           this.updateTrack()
           this.updateReadyTrack()
+          this.updateUseChapterTrack()
           this.$localStore.setUseTotalTrack(this.useTotalTrack)
-          this.$localStore.setUseChapterTrack(this.useChapterTrack)
         } else if (action === 'close') {
           this.closePlayback()
         }
       })
+    },
+    updateUseChapterTrack() {
+      this.$localStore.setUseChapterTrack(this.useChapterTrack)
+      // Chapter track in NowPlaying only supported on iOS for now
+      if (this.$platform === 'ios') {
+        AbsAudioPlayer.setChapterTrack({ enabled: this.useChapterTrack })
+      }
     },
     forceCloseDropdownMenu() {
       if (this.$refs.dropdownMenu && this.$refs.dropdownMenu.closeMenu) {

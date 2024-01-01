@@ -142,6 +142,11 @@ class AbsAudioPlayerWeb extends WebPlugin {
   }
 
   // PluginMethod
+  setChapterTrack({ enabled }) {
+    this.useChapterTrack = enabled
+  }
+
+  // PluginMethod
   async getCurrentTime() {
     return {
       value: this.overallCurrentTime,

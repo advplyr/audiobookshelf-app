@@ -2,6 +2,7 @@ const pkg = require('./package.json')
 
 export default {
   ssr: false,
+  target: 'static',
 
   env: {
     PROD: '1',

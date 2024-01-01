@@ -1,14 +1,13 @@
 const defaultTheme = require('tailwindcss/defaultTheme')
 
 module.exports = {
-  purge: {
-    safelist: [
-      'bg-success',
-      'bg-info',
-      'text-info'
-    ]
-  },
-  darkMode: false,
+  content: [
+    'components/**/*.vue',
+    'layouts/**/*.vue',
+    'pages/**/*.vue',
+    'mixins/**/*.js',
+    'plugins/**/*.js'
+  ],
   theme: {
     extend: {
       screens: {
@@ -64,9 +63,6 @@ module.exports = {
         '12': '3rem'
       }
     }
-  },
-  variants: {
-    extend: {},
   },
   plugins: [],
 }

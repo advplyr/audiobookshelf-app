@@ -13,6 +13,7 @@
     "ionic:serve": "npm run start"
   },
   "dependencies": {
+    "@byteowls/capacitor-filesharer": "^5.0.0",
     "@capacitor/android": "^5.0.0",
     "@capacitor/app": "^5.0.6",
     "@capacitor/browser": "^5.1.0",
@@ -43,8 +44,7 @@
     "@babel/core": "7.13.15",
     "@babel/preset-env": "7.13.15",
     "@capacitor/cli": "^5.0.0",
-    "@nuxtjs/tailwindcss": "^4.2.1",
-    "postcss": "^8.3.5",
-    "tailwindcss": "^3.3.2"
+    "@nuxtjs/tailwindcss": "^6.10.3",
+    "postcss": "^8.3.5"
   }
 }

@@ -119,6 +119,17 @@ public class AbsAudioPlayer: CAPPlugin {
         PlayerHandler.setPlaybackSpeed(speed: settings.playbackRate)
         call.resolve()
     }
+
+    @objc func setChapterTrack(_ call: CAPPluginCall) {
+        let chapterTrack = call.getBool("enabled", true)
+        logger.log(String(chapterTrack))
+        let settings = PlayerSettings.main()
+        try? settings.update {
+            settings.chapterTrack = chapterTrack
+        }
+        PlayerHandler.setChapterTrack()
+        call.resolve()
+    }
     
     @objc func playPlayer(_ call: CAPPluginCall) {
         PlayerHandler.paused = false
