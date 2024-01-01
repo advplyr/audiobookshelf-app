@@ -668,7 +668,14 @@ class AudioPlayer: NSObject {
                 return .noSuchContent
             }
             
-            self?.seek(event.positionTime, from: "remote")
+            // Adjust seek time if chapter track is being used
+            var seekTime = event.positionTime
+            if PlayerSettings.main().chapterTrack {
+                if let session = self?.getPlaybackSession(), let currentChapter = session.getCurrentChapter() {
+                    seekTime += currentChapter.start
+                }
+            }
+            self?.seek(seekTime, from: "remote")
             return .success
         }
         
@@ -686,15 +693,15 @@ class AudioPlayer: NSObject {
     private func updateNowPlaying() {
         NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.update.rawValue), object: nil)
         if let session = self.getPlaybackSession(), let currentChapter = session.getCurrentChapter(), PlayerSettings.main().chapterTrack {
-                    NowPlayingInfo.shared.update(
-                        duration: currentChapter.getRelativeChapterEndTime(),
-                        currentTime: currentChapter.getRelativeChapterCurrentTime(sessionCurrentTime: session.currentTime),
-                        rate: rate,
-                        chapterName: currentChapter.title,
-                        chapterNumber: (session.chapters.firstIndex(of: currentChapter) ?? 0) + 1,
-                        chapterCount: session.chapters.count
-                    )
-            } else if let duration = self.getDuration(), let currentTime = self.getCurrentTime() {
+            NowPlayingInfo.shared.update(
+                duration: currentChapter.getRelativeChapterEndTime(),
+                currentTime: currentChapter.getRelativeChapterCurrentTime(sessionCurrentTime: session.currentTime),
+                rate: rate,
+                chapterName: currentChapter.title,
+                chapterNumber: (session.chapters.firstIndex(of: currentChapter) ?? 0) + 1,
+                chapterCount: session.chapters.count
+            )
+        } else if let duration = self.getDuration(), let currentTime = self.getCurrentTime() {
             NowPlayingInfo.shared.update(duration: duration, currentTime: currentTime, rate: rate)
         }
     }
