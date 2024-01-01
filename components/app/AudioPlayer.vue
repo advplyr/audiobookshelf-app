@@ -164,6 +164,7 @@ export default {
     showFullscreen(val) {
       this.updateScreenSize()
       this.$store.commit('setPlayerFullscreen', !!val)
+      document.querySelector('body').style.backgroundColor = this.showFullscreen ? this.coverRgb : ""
     },
     bookCoverAspectRatio() {
       this.updateScreenSize()
