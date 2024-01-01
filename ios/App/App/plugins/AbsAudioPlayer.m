@@ -15,6 +15,7 @@ CAP_PLUGIN(AbsAudioPlayer, "AbsAudioPlayer",
            CAP_PLUGIN_METHOD(closePlayback, CAPPluginReturnPromise);
            
            CAP_PLUGIN_METHOD(setPlaybackSpeed, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(setChapterTrack, CAPPluginReturnPromise);
            
            CAP_PLUGIN_METHOD(playPlayer, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(pausePlayer, CAPPluginReturnPromise);

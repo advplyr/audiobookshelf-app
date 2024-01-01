@@ -12,6 +12,8 @@ class PlayerSettings: Object {
     // The webapp has a persisted setting for playback speed, but it's not always available to the native code
     // Lets track it natively as well, so we never have a situation where the UI and native player are out of sync
     @Persisted var playbackRate: Float = 1.0
+    @Persisted var chapterTrack: Bool = true
+
     
     // Singleton pattern for Realm objects
     static func main() -> PlayerSettings {

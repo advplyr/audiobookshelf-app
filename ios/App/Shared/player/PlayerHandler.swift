@@ -61,6 +61,10 @@ class PlayerHandler {
         self.player?.setPlaybackRate(speed)
     }
     
+    public static func setChapterTrack() {
+        self.player?.setChapterTrack()
+    }
+
     public static func getSleepTimeRemaining() -> Double? {
         return self.player?.getSleepTimeRemaining()
     }
