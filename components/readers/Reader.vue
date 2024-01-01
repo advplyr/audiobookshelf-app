@@ -56,7 +56,7 @@
     <!-- ereader settings modal -->
     <modals-fullscreen-modal v-model="showSettingsModal" :theme="ereaderTheme" half-screen>
       <div style="box-shadow: 0px -8px 8px #11111155">
-        <div class="flex items-end justify-between h-20 px-4 pb-2 mb-8">
+        <div class="flex items-end justify-between h-20 px-4 pb-2 mb-6">
           <h1 class="text-lg">{{ $strings.HeaderEreaderSettings }}</h1>
           <button class="flex" @click="showSettingsModal = false">
             <span class="material-icons">close</span>
@@ -64,23 +64,29 @@
         </div>
         <div class="w-full overflow-y-auto overflow-x-hidden h-full max-h-[calc(100vh-85px)]">
           <div class="w-full h-full px-4">
-            <div class="flex items-center mb-8">
+            <div class="flex items-center mb-6">
               <div class="w-32">
                 <p class="text-base">{{ $strings.LabelTheme }}:</p>
               </div>
               <ui-toggle-btns v-model="ereaderSettings.theme" :items="themeItems" @input="settingsUpdated" />
             </div>
-            <div class="flex items-center mb-8">
+            <div class="flex items-center mb-6">
               <div class="w-32">
                 <p class="text-base">{{ $strings.LabelFontScale }}:</p>
               </div>
               <ui-range-input v-model="ereaderSettings.fontScale" :min="5" :max="300" :step="5" input-width="180px" @input="settingsUpdated" />
             </div>
-            <div class="flex items-center mb-8">
+            <div class="flex items-center mb-6">
               <div class="w-32">
                 <p class="text-base">{{ $strings.LabelLineSpacing }}:</p>
               </div>
               <ui-range-input v-model="ereaderSettings.lineSpacing" :min="100" :max="300" :step="5" input-width="180px" @input="settingsUpdated" />
+            </div>
+            <div class="flex items-center">
+              <div class="w-32">
+                <p class="text-base">{{ $strings.LabelLayout }}:</p>
+              </div>
+              <ui-toggle-btns v-model="ereaderSettings.spread" :items="spreadItems" @input="settingsUpdated" />
             </div>
           </div>
         </div>
@@ -109,7 +115,8 @@ export default {
       ereaderSettings: {
         theme: 'dark',
         fontScale: 100,
-        lineSpacing: 115
+        lineSpacing: 115,
+        spread: 'auto'
       }
     }
   },
@@ -153,6 +160,18 @@ export default {
     ereaderTheme() {
       if (this.isEpub) return this.ereaderSettings.theme
       return document.documentElement.dataset.theme || 'dark'
+    },
+    spreadItems() {
+      return [
+        {
+          text: this.$strings.LabelLayoutSinglePage,
+          value: 'none'
+        },
+        {
+          text: this.$strings.LabelLayoutAuto,
+          value: 'auto'
+        }
+      ]
     },
     themeItems() {
       return [
@@ -350,7 +369,12 @@ export default {
       try {
         const settings = localStorage.getItem('ereaderSettings')
         if (settings) {
-          this.ereaderSettings = JSON.parse(settings)
+          const ereaderSettings = JSON.parse(settings)
+          if (!ereaderSettings.spread) {
+            // Added in 0.9.71
+            ereaderSettings.spread = 'auto'
+          }
+          this.ereaderSettings = ereaderSettings
           this.settingsUpdated()
         }
       } catch (error) {
