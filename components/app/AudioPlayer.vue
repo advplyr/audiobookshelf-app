@@ -860,7 +860,7 @@ export default {
     window.addEventListener('resize', this.screenOrientationChange)
 
     this.$eventBus.$on('minimize-player', this.minimizePlayerEvt)
-    document.body.addEventListener('touchstart', this.touchstart, {passive: false})
+    document.body.addEventListener('touchstart', this.touchstart, { passive: false })
     document.body.addEventListener('touchend', this.touchend)
     document.body.addEventListener('touchmove', this.touchmove)
     this.$nextTick(this.init)
