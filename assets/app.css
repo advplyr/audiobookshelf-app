@@ -2,6 +2,7 @@
 @import "./fonts.css";
 @import './defaultStyles.css';
 @import './absicons.css';
+@import './transitions.css';
 
 * {
   -webkit-touch-callout: none;
