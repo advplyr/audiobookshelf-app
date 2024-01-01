@@ -64,15 +64,15 @@ export const getters = {
     return state.serverSettings[key]
   },
   getJumpForwardTime: state => {
-    if (!state.deviceData || !state.deviceData.deviceSettings) return 10
+    if (!state.deviceData?.deviceSettings) return 10
     return state.deviceData.deviceSettings.jumpForwardTime || 10
   },
   getJumpBackwardsTime: state => {
-    if (!state.deviceData || !state.deviceData.deviceSettings) return 10
+    if (!state.deviceData?.deviceSettings) return 10
     return state.deviceData.deviceSettings.jumpBackwardsTime || 10
   },
   getAltViewEnabled: state => {
-    if (!state.deviceData || !state.deviceData.deviceSettings) return false
+    if (!state.deviceData?.deviceSettings) return true
     return state.deviceData.deviceSettings.enableAltView
   },
   getOrientationLockSetting: state => {
