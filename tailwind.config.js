@@ -1,13 +1,13 @@
 const defaultTheme = require('tailwindcss/defaultTheme')
 
 module.exports = {
-  content: {
-    safelist: [
-      'bg-success',
-      'bg-info',
-      'text-info'
-    ]
-  },
+  content: [
+    'components/**/*.vue',
+    'layouts/**/*.vue',
+    'pages/**/*.vue',
+    'mixins/**/*.js',
+    'plugins/**/*.js'
+  ],
   theme: {
     extend: {
       screens: {
