@@ -1,5 +1,8 @@
 <template>
   <div class="w-full h-full px-0 py-4 overflow-y-auto">
+    <!-- Year in review banner shown at the top in December and January -->
+    <stats-year-in-review-banner v-if="showYearInReviewBanner" />
+
     <h1 class="text-xl px-4">
       {{ $strings.HeaderYourStats }}
     </h1>
@@ -50,6 +53,9 @@
         </template>
       </div>
     </div>
+
+    <!-- Year in review banner shown at the bottom Feb - Nov -->
+    <stats-year-in-review-banner v-if="!showYearInReviewBanner" />
   </div>
 </template>
 
@@ -58,7 +64,8 @@ export default {
   data() {
     return {
       listeningStats: null,
-      windowWidth: 0
+      windowWidth: 0,
+      showYearInReviewBanner: false
     }
   },
   watch: {
@@ -103,7 +110,12 @@ export default {
         console.error('Failed to load listening sesions', err)
         return []
       })
-      console.log('Loaded user listening data', this.listeningStats)
+
+      let month = new Date().getMonth()
+      // January and December show year in review banner
+      if (month === 11 || month === 0) {
+        this.showYearInReviewBanner = true
+      }
     }
   },
   mounted() {

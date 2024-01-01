@@ -2,6 +2,9 @@
 include ':capacitor-android'
 project(':capacitor-android').projectDir = new File('../node_modules/@capacitor/android/capacitor')
 
+include ':byteowls-capacitor-filesharer'
+project(':byteowls-capacitor-filesharer').projectDir = new File('../node_modules/@byteowls/capacitor-filesharer/android')
+
 include ':capacitor-app'
 project(':capacitor-app').projectDir = new File('../node_modules/@capacitor/app/android')
 

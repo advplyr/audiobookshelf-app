@@ -15,7 +15,7 @@
         <div v-if="!isPodcast && !collapsedSeries" class="absolute bottom-0 left-0 h-1 shadow-sm max-w-full z-10 rounded-b" :class="itemIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: coverWidth * userProgressPercent + 'px' }"></div>
       </div>
       <div class="flex-grow px-2">
-        <p class="whitespace-normal" :style="{ fontSize: 0.8 * sizeMultiplier + 'rem' }">
+        <p class="whitespace-normal line-clamp-2" :style="{ fontSize: 0.8 * sizeMultiplier + 'rem' }">
           <span v-if="seriesSequence">#{{ seriesSequence }}&nbsp;</span>{{ displayTitle }}
         </p>
         <p class="truncate text-fg-muted" :style="{ fontSize: 0.7 * sizeMultiplier + 'rem' }">{{ displayAuthor }}</p>

@@ -1,5 +1,7 @@
 PODS:
   - Alamofire (5.6.4)
+  - ByteowlsCapacitorFilesharer (5.0.0):
+    - Capacitor
   - Capacitor (5.4.0):
     - CapacitorCordova
   - CapacitorApp (5.0.6):
@@ -29,6 +31,7 @@ PODS:
 
 DEPENDENCIES:
   - Alamofire (~> 5.5)
+  - "ByteowlsCapacitorFilesharer (from `../../node_modules/@byteowls/capacitor-filesharer`)"
   - "Capacitor (from `../../node_modules/@capacitor/ios`)"
   - "CapacitorApp (from `../../node_modules/@capacitor/app`)"
   - "CapacitorBrowser (from `../../node_modules/@capacitor/browser`)"
@@ -49,6 +52,8 @@ SPEC REPOS:
     - RealmSwift
 
 EXTERNAL SOURCES:
+  ByteowlsCapacitorFilesharer:
+    :path: "../../node_modules/@byteowls/capacitor-filesharer"
   Capacitor:
     :path: "../../node_modules/@capacitor/ios"
   CapacitorApp:
@@ -74,6 +79,7 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   Alamofire: 4e95d97098eacb88856099c4fc79b526a299e48c
+  ByteowlsCapacitorFilesharer: f6a773825632d65d5404a34764c4a3fd857bb176
   Capacitor: a5cd803e02b471591c81165f400ace01f40b11d3
   CapacitorApp: 024e1b1bea5f883d79f6330d309bc441c88ad04a
   CapacitorBrowser: 7a0fb6a1011abfaaf2dfedfd8248f942a8eda3d6
@@ -88,6 +94,6 @@ SPEC CHECKSUMS:
   Realm: 3fd136cb4c83a927482a7f1612496d37beed3cf5
   RealmSwift: 513d4dcbf5bfc4d573454088b592685fc48dd716
 
-PODFILE CHECKSUM: 7a8fc177ef0646dd60a1ee8aa387964975fcc1e3
+PODFILE CHECKSUM: 02e6ffe2f51a453ce222ee9af0e55e9448d8514c
 
 COCOAPODS: 1.12.1
