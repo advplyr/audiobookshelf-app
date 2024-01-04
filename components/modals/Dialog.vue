@@ -40,7 +40,7 @@ export default {
       default: '16px'
     },
     width: {
-      type: Number,
+      type: [String, Number],
       default: 300
     }
   },

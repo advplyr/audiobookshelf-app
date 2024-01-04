@@ -194,6 +194,7 @@
   "LabelRSSFeedCustomOwnerName": "Nom propriétaire personnalisé",
   "LabelRSSFeedPreventIndexing": "Empêcher l’indexation",
   "LabelRSSFeedSlug": "Identificateur d’adresse du Flux RSS ",
+  "LabelScaleElapsedTimeBySpeed": "Scale Elapsed Time by Speed",
   "LabelSeason": "Saison",
   "LabelSelectADevice": "Select a device",
   "LabelSeries": "Séries",

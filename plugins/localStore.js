@@ -42,56 +42,20 @@ class LocalStorage {
     }
   }
 
-  async setUseChapterTrack(useChapterTrack) {
+  async setPlayerSettings(playerSettings) {
     try {
-      await Preferences.set({ key: 'useChapterTrack', value: useChapterTrack ? '1' : '0' })
+      await Preferences.set({ key: 'playerSettings', value: JSON.stringify(playerSettings) })
     } catch (error) {
-      console.error('[LocalStorage] Failed to set use chapter track', error)
+      console.error('[LocalStorage] Failed to set player settings', error)
     }
   }
 
-  async getUseChapterTrack() {
+  async getPlayerSettings() {
     try {
-      var obj = await Preferences.get({ key: 'useChapterTrack' }) || {}
-      return obj.value === '1'
+      const playerSettingsObj = await Preferences.get({ key: 'playerSettings' }) || {}
+      return playerSettingsObj.value ? JSON.parse(playerSettingsObj.value) : null
     } catch (error) {
-      console.error('[LocalStorage] Failed to get use chapter track', error)
-      return false
-    }
-  }
-
-  async setUseTotalTrack(useTotalTrack) {
-    try {
-      await Preferences.set({ key: 'useTotalTrack', value: useTotalTrack ? '1' : '0' })
-    } catch (error) {
-      console.error('[LocalStorage] Failed to set use total track', error)
-    }
-  }
-
-  async getUseTotalTrack() {
-    try {
-      var obj = await Preferences.get({ key: 'useTotalTrack' }) || {}
-      return obj.value === '1'
-    } catch (error) {
-      console.error('[LocalStorage] Failed to get use total track', error)
-      return false
-    }
-  }
-
-  async setPlayerLock(lock) {
-    try {
-      await Preferences.set({ key: 'playerLock', value: lock ? '1' : '0' })
-    } catch (error) {
-      console.error('[LocalStorage] Failed to set player lock', error)
-    }
-  }
-
-  async getPlayerLock() {
-    try {
-      var obj = await Preferences.get({ key: 'playerLock' }) || {}
-      return obj.value === '1'
-    } catch (error) {
-      console.error('[LocalStorage] Failed to get player lock', error)
+      console.error('[LocalStorage] Failed to get player settings', error)
       return false
     }
   }
@@ -177,6 +141,22 @@ class LocalStorage {
     } catch (error) {
       console.error('[LocalStorage] Failed to get lang', error)
       return false
+    }
+  }
+
+  /**
+   * Get preference value by key
+   * 
+   * @param {string} key 
+   * @returns {Promise<string>}
+   */
+  async getPreferenceByKey(key) {
+    try {
+      const obj = await Preferences.get({ key }) || {}
+      return obj.value || null
+    } catch (error) {
+      console.error(`[LocalStorage] Failed to get preference "${key}"`, error)
+      return null
     }
   }
 }

@@ -15,7 +15,7 @@
       <p class="top-4 absolute left-0 right-0 mx-auto text-center uppercase tracking-widest text-opacity-75" :class="{ 'text-black text-opacity-75': coverBgIsLight }" style="font-size: 10px">{{ isDirectPlayMethod ? $strings.LabelPlaybackDirect : isLocalPlayMethod ? $strings.LabelPlaybackLocal : $strings.LabelPlaybackTranscode }}</p>
     </div>
 
-    <div v-if="useChapterTrack && useTotalTrack && showFullscreen" class="absolute total-track w-full z-30 px-6">
+    <div v-if="playerSettings.useChapterTrack && playerSettings.useTotalTrack && showFullscreen" class="absolute total-track w-full z-30 px-6">
       <div class="flex">
         <p class="font-mono text-fg" style="font-size: 0.8rem">{{ currentTimePretty }}</p>
         <div class="flex-grow" />
@@ -66,17 +66,17 @@
       <div v-else class="w-full h-full absolute top-0 left-0 pointer-events-none" style="background: var(--gradient-minimized-audio-player)" />
 
       <div id="playerControls" class="absolute right-0 bottom-0 mx-auto" style="max-width: 414px">
-        <div class="flex items-center max-w-full" :class="lockUi ? 'justify-center' : 'justify-between'">
-          <span v-show="showFullscreen && !lockUi" class="material-icons next-icon text-fg cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpChapterStart">first_page</span>
-          <span v-show="!lockUi" class="material-icons jump-icon text-fg cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpBackwards">{{ jumpBackwardsIcon }}</span>
+        <div class="flex items-center max-w-full" :class="playerSettings.lockUi ? 'justify-center' : 'justify-between'">
+          <span v-show="showFullscreen && !playerSettings.lockUi" class="material-icons next-icon text-fg cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpChapterStart">first_page</span>
+          <span v-show="!playerSettings.lockUi" class="material-icons jump-icon text-fg cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpBackwards">{{ jumpBackwardsIcon }}</span>
           <div class="play-btn cursor-pointer shadow-sm flex items-center justify-center rounded-full text-primary mx-4 relative overflow-hidden" :style="{ backgroundColor: coverRgb }" :class="{ 'animate-spin': seekLoading }" @mousedown.prevent @mouseup.prevent @click.stop="playPauseClick">
             <div v-if="!coverBgIsLight" class="absolute top-0 left-0 w-full h-full bg-white bg-opacity-20 pointer-events-none" />
 
             <span v-if="!isLoading" class="material-icons" :class="{ 'text-white': coverRgb && !coverBgIsLight }">{{ seekLoading ? 'autorenew' : !isPlaying ? 'play_arrow' : 'pause' }}</span>
             <widgets-spinner-icon v-else class="h-8 w-8" />
           </div>
-          <span v-show="!lockUi" class="material-icons jump-icon text-fg cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpForward">{{ jumpForwardIcon }}</span>
-          <span v-show="showFullscreen && !lockUi" class="material-icons next-icon text-fg cursor-pointer" :class="nextChapter && !isLoading ? 'text-opacity-75' : 'text-opacity-10'" @click.stop="jumpNextChapter">last_page</span>
+          <span v-show="!playerSettings.lockUi" class="material-icons jump-icon text-fg cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpForward">{{ jumpForwardIcon }}</span>
+          <span v-show="showFullscreen && !playerSettings.lockUi" class="material-icons next-icon text-fg cursor-pointer" :class="nextChapter && !isLoading ? 'text-opacity-75' : 'text-opacity-10'" @click.stop="jumpNextChapter">last_page</span>
         </div>
       </div>
 
@@ -90,7 +90,7 @@
           <div ref="readyTrack" class="h-full bg-track-buffered absolute top-0 left-0 rounded-full pointer-events-none" />
           <div ref="bufferedTrack" class="h-full bg-track absolute top-0 left-0 rounded-full pointer-events-none" />
           <div ref="playedTrack" class="h-full bg-track-cursor absolute top-0 left-0 rounded-full pointer-events-none" />
-          <div ref="trackCursor" class="h-7 w-7 rounded-full absolute pointer-events-auto flex items-center justify-center" :style="{ top: '-11px' }" :class="{ 'opacity-0': lockUi || !showFullscreen }" @touchstart="touchstartCursor">
+          <div ref="trackCursor" class="h-7 w-7 rounded-full absolute pointer-events-auto flex items-center justify-center" :style="{ top: '-11px' }" :class="{ 'opacity-0': playerSettings.lockUi || !showFullscreen }" @touchstart="touchstartCursor">
             <div class="bg-track-cursor rounded-full w-3.5 h-3.5 pointer-events-none" />
           </div>
         </div>
@@ -98,7 +98,7 @@
     </div>
 
     <modals-chapters-modal v-model="showChapterModal" :current-chapter="currentChapter" :chapters="chapters" :playback-rate="currentPlaybackRate" @select="selectChapter" />
-    <modals-dialog v-model="showMoreMenuDialog" :items="menuItems" @action="clickMenuAction" />
+    <modals-dialog v-model="showMoreMenuDialog" :items="menuItems" width="80vw" @action="clickMenuAction" />
   </div>
 </template>
 
@@ -146,9 +146,12 @@ export default {
       touchStartY: 0,
       touchStartTime: 0,
       touchEndY: 0,
-      useChapterTrack: false,
-      useTotalTrack: true,
-      lockUi: false,
+      playerSettings: {
+        useChapterTrack: false,
+        useTotalTrack: true,
+        scaleElapsedTimeBySpeed: true,
+        lockUi: false
+      },
       isLoading: false,
       isDraggingCursor: false,
       draggingTouchStartX: 0,
@@ -164,7 +167,7 @@ export default {
     showFullscreen(val) {
       this.updateScreenSize()
       this.$store.commit('setPlayerFullscreen', !!val)
-      document.querySelector('body').style.backgroundColor = this.showFullscreen ? this.coverRgb : ""
+      document.querySelector('body').style.backgroundColor = this.showFullscreen ? this.coverRgb : ''
     },
     bookCoverAspectRatio() {
       this.updateScreenSize()
@@ -187,17 +190,22 @@ export default {
           {
             text: this.$strings.LabelTotalTrack,
             value: 'total_track',
-            icon: this.useTotalTrack ? 'check_box' : 'check_box_outline_blank'
+            icon: this.playerSettings.useTotalTrack ? 'check_box' : 'check_box_outline_blank'
           },
           {
             text: this.$strings.LabelChapterTrack,
             value: 'chapter_track',
-            icon: this.useChapterTrack ? 'check_box' : 'check_box_outline_blank'
+            icon: this.playerSettings.useChapterTrack ? 'check_box' : 'check_box_outline_blank'
           },
           {
-            text: this.lockUi ? this.$strings.LabelUnlockPlayer : this.$strings.LabelLockPlayer,
+            text: this.$strings.LabelScaleElapsedTimeBySpeed,
+            value: 'scale_elapsed_time',
+            icon: this.playerSettings.scaleElapsedTimeBySpeed ? 'check_box' : 'check_box_outline_blank'
+          },
+          {
+            text: this.playerSettings.lockUi ? this.$strings.LabelUnlockPlayer : this.$strings.LabelLockPlayer,
             value: 'lock',
-            icon: this.lockUi ? 'lock' : 'lock_open'
+            icon: this.playerSettings.lockUi ? 'lock' : 'lock_open'
           },
           {
             text: this.$strings.LabelClosePlayer,
@@ -322,11 +330,14 @@ export default {
     },
     currentTimePretty() {
       let currentTimeToUse = this.isDraggingCursor ? this.draggingCurrentTime : this.currentTime
-      return this.$secondsToTimestamp(currentTimeToUse / this.currentPlaybackRate)
+      if (this.playerSettings.scaleElapsedTimeBySpeed) {
+        currentTimeToUse = currentTimeToUse / this.currentPlaybackRate
+      }
+      return this.$secondsToTimestamp(currentTimeToUse)
     },
     timeRemaining() {
       let currentTimeToUse = this.isDraggingCursor ? this.draggingCurrentTime : this.currentTime
-      if (this.useChapterTrack && this.currentChapter) {
+      if (this.playerSettings.useChapterTrack && this.currentChapter) {
         var currChapTime = currentTimeToUse - this.currentChapter.start
         return (this.currentChapterDuration - currChapTime) / this.currentPlaybackRate
       }
@@ -494,7 +505,7 @@ export default {
       this.updateReadyTrack()
     },
     updateReadyTrack() {
-      if (this.useChapterTrack) {
+      if (this.playerSettings.useChapterTrack) {
         if (this.$refs.totalReadyTrack) {
           this.$refs.totalReadyTrack.style.width = this.readyTrackWidth + 'px'
         }
@@ -511,11 +522,14 @@ export default {
       }
 
       let currentTime = this.isDraggingCursor ? this.draggingCurrentTime : this.currentTime
-      if (this.useChapterTrack && this.currentChapter) {
+      if (this.playerSettings.useChapterTrack && this.currentChapter) {
         currentTime = Math.max(0, currentTime - this.currentChapter.start)
       }
+      if (this.playerSettings.scaleElapsedTimeBySpeed) {
+        currentTime = currentTime / this.currentPlaybackRate
+      }
 
-      ts.innerText = this.$secondsToTimestamp(currentTime / this.currentPlaybackRate)
+      ts.innerText = this.$secondsToTimestamp(currentTime)
     },
     timeupdate() {
       if (!this.$refs.playedTrack) {
@@ -543,7 +557,7 @@ export default {
       let bufferedPercent = this.bufferedTime / this.totalDuration
       const totalBufferedPercent = bufferedPercent
 
-      if (this.useChapterTrack && this.currentChapter) {
+      if (this.playerSettings.useChapterTrack && this.currentChapter) {
         const currChapTime = currentTimeToUse - this.currentChapter.start
         percentDone = currChapTime / this.currentChapterDuration
         bufferedPercent = Math.max(0, Math.min(1, (this.bufferedTime - this.currentChapter.start) / this.currentChapterDuration))
@@ -557,7 +571,7 @@ export default {
         this.$refs.trackCursor.style.left = ptWidth - 14 + 'px'
       }
 
-      if (this.useChapterTrack) {
+      if (this.playerSettings.useChapterTrack) {
         if (this.$refs.totalPlayedTrack) this.$refs.totalPlayedTrack.style.width = Math.round(totalPercentDone * this.trackWidth) + 'px'
         if (this.$refs.totalBufferedTrack) this.$refs.totalBufferedTrack.style.width = Math.round(totalBufferedPercent * this.trackWidth) + 'px'
       }
@@ -584,7 +598,7 @@ export default {
       }
     },
     async touchstartCursor(e) {
-      if (!e || !e.touches || !this.$refs.track || !this.showFullscreen || this.lockUi) return
+      if (!e || !e.touches || !this.$refs.track || !this.showFullscreen || this.playerSettings.lockUi) return
 
       await this.$hapticsImpact()
       this.isDraggingCursor = true
@@ -670,7 +684,7 @@ export default {
       let duration = this.totalDuration
       let minTime = 0
       let maxTime = duration
-      if (this.useChapterTrack && this.currentChapter) {
+      if (this.playerSettings.useChapterTrack && this.currentChapter) {
         duration = this.currentChapterDuration
         minTime = this.currentChapter.start
         maxTime = minTime + duration
@@ -690,37 +704,40 @@ export default {
         if (action === 'history') {
           this.$router.push(`/media/${this.mediaId}/history?title=${this.title}`)
           this.showFullscreen = false
+        } else if (action === 'scale_elapsed_time') {
+          this.playerSettings.scaleElapsedTimeBySpeed = !this.playerSettings.scaleElapsedTimeBySpeed
+          this.updateTimestamp()
+          this.savePlayerSettings()
         } else if (action === 'lock') {
-          this.lockUi = !this.lockUi
-          this.$localStore.setPlayerLock(this.lockUi)
+          this.playerSettings.lockUi = !this.playerSettings.lockUi
+          this.savePlayerSettings()
         } else if (action === 'chapter_track') {
-          this.useChapterTrack = !this.useChapterTrack
-          this.useTotalTrack = !this.useChapterTrack || this.useTotalTrack
+          this.playerSettings.useChapterTrack = !this.playerSettings.useChapterTrack
+          this.playerSettings.useTotalTrack = !this.playerSettings.useChapterTrack || this.playerSettings.useTotalTrack
 
           this.updateTimestamp()
           this.updateTrack()
           this.updateReadyTrack()
           this.updateUseChapterTrack()
-          this.$localStore.setUseTotalTrack(this.useTotalTrack)
+          this.savePlayerSettings()
         } else if (action === 'total_track') {
-          this.useTotalTrack = !this.useTotalTrack
-          this.useChapterTrack = !this.useTotalTrack || this.useChapterTrack
+          this.playerSettings.useTotalTrack = !this.playerSettings.useTotalTrack
+          this.playerSettings.useChapterTrack = !this.playerSettings.useTotalTrack || this.playerSettings.useChapterTrack
 
           this.updateTimestamp()
           this.updateTrack()
           this.updateReadyTrack()
           this.updateUseChapterTrack()
-          this.$localStore.setUseTotalTrack(this.useTotalTrack)
+          this.savePlayerSettings()
         } else if (action === 'close') {
           this.closePlayback()
         }
       })
     },
     updateUseChapterTrack() {
-      this.$localStore.setUseChapterTrack(this.useChapterTrack)
       // Chapter track in NowPlaying only supported on iOS for now
       if (this.$platform === 'ios') {
-        AbsAudioPlayer.setChapterTrack({ enabled: this.useChapterTrack })
+        AbsAudioPlayer.setChapterTrack({ enabled: this.playerSettings.useChapterTrack })
       }
     },
     forceCloseDropdownMenu() {
@@ -738,6 +755,30 @@ export default {
       this.isEnded = false
       this.isLoading = false
       this.playbackSession = null
+    },
+    async loadPlayerSettings() {
+      const savedPlayerSettings = await this.$localStore.getPlayerSettings()
+      if (!savedPlayerSettings) {
+        // In 0.9.72-beta 'useChapterTrack', 'useTotalTrack' and 'playerLock' was replaced with 'playerSettings' JSON object
+        // Check if this old key was set and if so migrate them over to 'playerSettings'
+        const chapterTrackPref = await this.$localStore.getPreferenceByKey('useChapterTrack')
+        if (chapterTrackPref) {
+          this.playerSettings.useChapterTrack = chapterTrackPref === '1'
+          const totalTrackPref = await this.$localStore.getPreferenceByKey('useTotalTrack')
+          this.playerSettings.useTotalTrack = totalTrackPref === '1'
+          const playerLockPref = await this.$localStore.getPreferenceByKey('playerLock')
+          this.playerSettings.lockUi = playerLockPref === '1'
+        }
+        this.savePlayerSettings()
+      } else {
+        this.playerSettings.useChapterTrack = !!savedPlayerSettings.useChapterTrack
+        this.playerSettings.useTotalTrack = !!savedPlayerSettings.useTotalTrack
+        this.playerSettings.lockUi = !!savedPlayerSettings.lockUi
+        this.playerSettings.scaleElapsedTimeBySpeed = !!savedPlayerSettings.scaleElapsedTimeBySpeed
+      }
+    },
+    savePlayerSettings() {
+      return this.$localStore.setPlayerSettings({ ...this.playerSettings })
     },
     //
     // Listeners from audio AbsAudioPlayer
@@ -805,9 +846,7 @@ export default {
       this.updateTimestamp()
     },
     async init() {
-      this.useChapterTrack = await this.$localStore.getUseChapterTrack()
-      this.useTotalTrack = await this.$localStore.getUseTotalTrack()
-      this.lockUi = await this.$localStore.getPlayerLock()
+      await this.loadPlayerSettings()
 
       this.onPlaybackSessionListener = AbsAudioPlayer.addListener('onPlaybackSession', this.onPlaybackSession)
       this.onPlaybackClosedListener = AbsAudioPlayer.addListener('onPlaybackClosed', this.onPlaybackClosed)
