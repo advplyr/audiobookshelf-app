@@ -6,10 +6,9 @@ Audiobookshelf is a self-hosted audiobook and podcast server.
 Get the Android app on the [Google Play Store](https://play.google.com/store/apps/details?id=com.audiobookshelf.app)
 
 ### iOS (early beta)
+**Beta is currently full. Apple has a hard limit of 10k beta testers. Updates will be posted in Discord/Matrix.**
 
-Available to beta testers through Test Flight
-
-Join the beta testers and install the iOS app: https://testflight.apple.com/join/wiic7QIW
+Using Test Flight: https://testflight.apple.com/join/wiic7QIW ***(beta is full)***
 
 ---
 
