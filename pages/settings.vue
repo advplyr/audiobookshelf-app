@@ -2,16 +2,16 @@
   <div class="w-full h-full px-4 py-8 overflow-y-auto">
     <!-- Display settings -->
     <p class="uppercase text-xs font-semibold text-fg-muted mb-2">{{ $strings.HeaderUserInterfaceSettings }}</p>
-    <div class="flex items-center py-3" @click="toggleEnableAltView">
-      <div class="w-10 flex justify-center">
+    <div class="flex items-center py-3">
+      <div class="w-10 flex justify-center" @click="toggleEnableAltView">
         <ui-toggle-switch v-model="enableBookshelfView" @input="saveSettings" />
       </div>
       <p class="pl-4">{{ $strings.LabelUseBookshelfView }}</p>
     </div>
     <!-- screen.orientation.lock not supported on iOS webview -->
-    <div v-if="!isiOS" class="flex items-center py-3" @click.stop="toggleLockOrientation">
-      <div class="w-10 flex justify-center pointer-events-none">
-        <ui-toggle-switch v-model="lockCurrentOrientation" />
+    <div v-if="!isiOS" class="flex items-center py-3">
+      <div class="w-10 flex justify-center" @click.stop="toggleLockOrientation">
+        <ui-toggle-switch v-model="lockCurrentOrientation" class="pointer-events-none" />
       </div>
       <p class="pl-4">{{ $strings.LabelLockOrientation }}</p>
     </div>
@@ -36,26 +36,26 @@
 
     <!-- Playback settings -->
     <p class="uppercase text-xs font-semibold text-fg-muted mb-2 mt-10">{{ $strings.HeaderPlaybackSettings }}</p>
-    <div v-if="!isiOS" class="flex items-center py-3" @click="toggleDisableAutoRewind">
-      <div class="w-10 flex justify-center">
+    <div v-if="!isiOS" class="flex items-center py-3">
+      <div class="w-10 flex justify-center" @click="toggleDisableAutoRewind">
         <ui-toggle-switch v-model="settings.disableAutoRewind" @input="saveSettings" />
       </div>
       <p class="pl-4">{{ $strings.LabelDisableAutoRewind }}</p>
     </div>
-    <div class="flex items-center py-3" @click="toggleJumpBackwards">
-      <div class="w-10 flex justify-center">
+    <div class="flex items-center py-3">
+      <div class="w-10 flex justify-center" @click="toggleJumpBackwards">
         <span class="material-icons text-4xl">{{ currentJumpBackwardsTimeIcon }}</span>
       </div>
       <p class="pl-4">{{ $strings.LabelJumpBackwardsTime }}</p>
     </div>
-    <div class="flex items-center py-3" @click="toggleJumpForward">
-      <div class="w-10 flex justify-center">
+    <div class="flex items-center py-3">
+      <div class="w-10 flex justify-center" @click="toggleJumpForward">
         <span class="material-icons text-4xl">{{ currentJumpForwardTimeIcon }}</span>
       </div>
       <p class="pl-4">{{ $strings.LabelJumpForwardsTime }}</p>
     </div>
-    <div v-if="!isiOS" class="flex items-center py-3" @click="toggleEnableMp3IndexSeeking">
-      <div class="w-10 flex justify-center">
+    <div v-if="!isiOS" class="flex items-center py-3">
+      <div class="w-10 flex justify-center" @click="toggleEnableMp3IndexSeeking">
         <ui-toggle-switch v-model="settings.enableMp3IndexSeeking" @input="saveSettings" />
       </div>
       <p class="pl-4">{{ $strings.LabelEnableMp3IndexSeeking }}</p>
@@ -65,8 +65,8 @@
     <!-- Sleep timer settings -->
     <template v-if="!isiOS">
       <p class="uppercase text-xs font-semibold text-fg-muted mb-2 mt-10">{{ $strings.HeaderSleepTimerSettings }}</p>
-      <div class="flex items-center py-3" @click="toggleDisableShakeToResetSleepTimer">
-        <div class="w-10 flex justify-center">
+      <div class="flex items-center py-3">
+        <div class="w-10 flex justify-center" @click="toggleDisableShakeToResetSleepTimer">
           <ui-toggle-switch v-model="settings.disableShakeToResetSleepTimer" @input="saveSettings" />
         </div>
         <p class="pl-4">{{ $strings.LabelDisableShakeToReset }}</p>
@@ -78,22 +78,22 @@
           <ui-text-input :value="shakeSensitivityOption" readonly append-icon="expand_more" style="width: 145px; max-width: 145px" />
         </div>
       </div>
-      <div class="flex items-center py-3" @click="toggleDisableSleepTimerFadeOut">
-        <div class="w-10 flex justify-center">
+      <div class="flex items-center py-3">
+        <div class="w-10 flex justify-center" @click="toggleDisableSleepTimerFadeOut">
           <ui-toggle-switch v-model="settings.disableSleepTimerFadeOut" @input="saveSettings" />
         </div>
         <p class="pl-4">{{ $strings.LabelDisableAudioFadeOut }}</p>
         <span class="material-icons-outlined ml-2" @click.stop="showInfo('disableSleepTimerFadeOut')">info</span>
       </div>
-      <div class="flex items-center py-3" @click="toggleDisableSleepTimerResetFeedback">
-        <div class="w-10 flex justify-center">
+      <div class="flex items-center py-3">
+        <div class="w-10 flex justify-center" @click="toggleDisableSleepTimerResetFeedback">
           <ui-toggle-switch v-model="settings.disableSleepTimerResetFeedback" @input="saveSettings" />
         </div>
         <p class="pl-4">{{ $strings.LabelDisableVibrateOnReset }}</p>
         <span class="material-icons-outlined ml-2" @click.stop="showInfo('disableSleepTimerResetFeedback')">info</span>
       </div>
-      <div class="flex items-center py-3" @click="toggleAutoSleepTimer">
-        <div class="w-10 flex justify-center">
+      <div class="flex items-center py-3">
+        <div class="w-10 flex justify-center" @click="toggleAutoSleepTimer">
           <ui-toggle-switch v-model="settings.autoSleepTimer" @input="saveSettings" />
         </div>
         <p class="pl-4">{{ $strings.LabelAutoSleepTimer }}</p>
@@ -115,8 +115,8 @@
         <ui-text-input :value="sleepTimerLengthOption" readonly append-icon="expand_more" style="width: 145px; max-width: 145px" />
       </div>
     </div>
-    <div v-if="settings.autoSleepTimer" class="flex items-center py-3" @click="toggleAutoSleepTimerAutoRewind">
-      <div class="w-10 flex justify-center">
+    <div v-if="settings.autoSleepTimer" class="flex items-center py-3">
+      <div class="w-10 flex justify-center" @click="toggleAutoSleepTimerAutoRewind">
         <ui-toggle-switch v-model="settings.autoSleepTimerAutoRewind" @input="saveSettings" />
       </div>
       <p class="pl-4">{{ $strings.LabelAutoSleepTimerAutoRewind }}</p>
