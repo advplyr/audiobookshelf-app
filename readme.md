@@ -30,7 +30,7 @@ This application is built using [NuxtJS](https://nuxtjs.org/) and [Capacitor](ht
 Required Software:
 
 * [Git](https://git-scm.com/downloads)
-* [Node.js](https://nodejs.org/en/)
+* [Node.js](https://nodejs.org/en/) (version 20)
 * Code editor of choice([VSCode](https://code.visualstudio.com/download), etc)
 * [Android Studio](https://developer.android.com/studio)
 * [Android SDK](https://developer.android.com/studio)
@@ -45,7 +45,7 @@ Note: This requires a PowerShell prompt with winget installed.  You should be ab
 winget install -e --id Git.Git; `
 winget install -e --id Microsoft.VisualStudioCode; `
 winget install -e --id  Google.AndroidStudio; `
-winget install -e --id OpenJS.NodeJS --version 16.12.0; #v17 has issues with openssl
+winget install -e --id OpenJS.NodeJS --version 20.11.0;
 ```
 
 ![](/screenshots/dev_setup_windows_winget.png)
@@ -61,7 +61,7 @@ Your Windows environment should now be set up and ready to proceed!
 Required Software:
 
 * [Android Studio](https://developer.android.com/studio)
-* [Node.js](https://nodejs.org/en/)
+* [Node.js](https://nodejs.org/en/) (version 20)
 * [Cocoapods](https://guides.cocoapods.org/using/getting-started.html#installation)
 * [Android SDK](https://developer.android.com/studio)
 
