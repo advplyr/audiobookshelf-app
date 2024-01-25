@@ -3,7 +3,7 @@ const pkg = require('./package.json')
 export default {
   ssr: false,
   target: 'static',
-
+  telemetry: false,
   env: {
     PROD: '1',
     ANDROID_APP_URL: 'https://play.google.com/store/apps/details?id=com.audiobookshelf.app',
@@ -36,6 +36,7 @@ export default {
   },
 
   css: [
+    '@/assets/tailwind.css',
     '@/assets/app.css'
   ],
 
@@ -56,10 +57,6 @@ export default {
 
   components: true,
 
-  buildModules: [
-    '@nuxtjs/tailwindcss',
-  ],
-
   modules: [
     '@nuxtjs/axios'
   ],
@@ -67,6 +64,12 @@ export default {
   axios: {},
 
   build: {
+    postcss: {
+      plugins: {
+        tailwindcss: {},
+        autoprefixer: {},
+      },
+    },
     babel: {
       plugins: [['@babel/plugin-proposal-private-property-in-object', { loose: true }]],
     },
