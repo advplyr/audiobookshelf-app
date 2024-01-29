@@ -64,6 +64,8 @@ repositories {
         dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
     }
   mavenCentral()
+  // TODO: Temporarily using SNAPSHOT version of Simple Storage that resolves https://github.com/anggrayudi/SimpleStorage/issues/133
+  maven { url "https://oss.sonatype.org/content/repositories/snapshots" }
 }
 
 configurations.configureEach {
@@ -118,7 +120,7 @@ dependencies {
   implementation 'io.github.pilgr:paperdb:2.7.2'
 
   // Simple Storage
-  implementation "com.anggrayudi:storage:1.5.4"
+  implementation "com.anggrayudi:storage:1.5.5-SNAPSHOT"
 
   // OK HTTP
   implementation 'com.squareup.okhttp3:okhttp:4.9.2'
