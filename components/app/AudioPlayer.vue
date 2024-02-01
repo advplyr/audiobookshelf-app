@@ -653,10 +653,6 @@ export default {
       }
 
       this.touchStartY = e.changedTouches[0].screenY
-      if (this.touchStartY > window.innerHeight / 3) {
-        // console.log('touch too low')
-        return
-      }
       this.touchStartTime = Date.now()
     },
     touchend(e) {
