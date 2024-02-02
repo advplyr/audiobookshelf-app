@@ -145,7 +145,6 @@ export default {
       onPlaybackSpeedChangedListener: null,
       touchStartY: 0,
       touchStartTime: 0,
-      touchEndY: 0,
       playerSettings: {
         useChapterTrack: false,
         useTotalTrack: true,
@@ -423,6 +422,9 @@ export default {
       AbsAudioPlayer.requestSession()
     },
     clickContainer() {
+      this.expandToFullscreen()
+    },
+    expandToFullscreen() {
       this.showFullscreen = true
 
       // Update track for total time bar if useChapterTrack is set
@@ -639,38 +641,49 @@ export default {
     resetStream(startTime) {
       this.closePlayback()
     },
-    handleGesture() {
-      var touchDistance = this.touchEndY - this.touchStartY
-      if (touchDistance > 100) {
-        this.collapseFullscreen()
-      }
-    },
     touchstart(e) {
-      if (!this.showFullscreen || !e.changedTouches) return
-      if (e.pageX < 20) {
+      if (!e.changedTouches) return
+      const touchPosY = e.changedTouches[0].pageY
+      // when minimized only listen to touchstart on the player
+      if (!this.showFullscreen && touchPosY < window.innerHeight - 120) return
+
+      // for ios
+      if (!this.showFullscreen && e.pageX < 20) {
         e.preventDefault()
         e.stopImmediatePropagation()
       }
 
-      this.touchStartY = e.changedTouches[0].screenY
+      this.touchStartY = touchPosY
       this.touchStartTime = Date.now()
     },
     touchend(e) {
       if (!e.changedTouches) return
+      const touchDuration = Date.now() - this.touchStartTime
+      const touchEndY = e.changedTouches[0].pageY
+      const touchDistanceY = touchEndY - this.touchStartY
+
+      // reset touch start data
+      this.touchStartTime = 0
+      this.touchStartY = 0
 
       if (this.isDraggingCursor) {
         if (this.draggingCurrentTime !== this.currentTime) {
           this.seek(this.draggingCurrentTime)
         }
         this.isDraggingCursor = false
-      } else if (this.showFullscreen) {
-        this.touchEndY = e.changedTouches[0].screenY
-        var touchDuration = Date.now() - this.touchStartTime
+      } else {
         if (touchDuration > 1200) {
           // console.log('touch too long', touchDuration)
           return
         }
-        this.handleGesture()
+        if (this.showFullscreen) {
+          // Touch start higher than touchend
+          if (touchDistanceY > 100) {
+            this.collapseFullscreen()
+          }
+        } else if (touchDistanceY < -100) {
+          this.expandToFullscreen()
+        }
       }
     },
     touchmove(e) {
