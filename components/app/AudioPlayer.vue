@@ -41,7 +41,9 @@
     </div>
 
     <div class="title-author-texts absolute z-30 left-0 right-0 overflow-hidden" @click="clickTitleAndAuthor">
-      <p class="title-text truncate">{{ title }}</p>
+      <div ref="titlewrapper" class="overflow-hidden relative">
+        <p class="title-text whitespace-nowrap"></p>
+      </div>
       <p class="author-text text-fg text-opacity-75 truncate">{{ authorName }}</p>
     </div>
 
@@ -106,6 +108,7 @@
 import { Capacitor } from '@capacitor/core'
 import { AbsAudioPlayer } from '@/plugins/capacitor'
 import { FastAverageColor } from 'fast-average-color'
+import WrappingMarquee from '@/assets/WrappingMarquee.js'
 
 export default {
   props: {
@@ -159,7 +162,8 @@ export default {
       syncStatus: 0,
       showMoreMenuDialog: false,
       coverRgb: 'rgb(55, 56, 56)',
-      coverBgIsLight: false
+      coverBgIsLight: false,
+      titleMarquee: null
     }
   },
   watch: {
@@ -170,6 +174,9 @@ export default {
     },
     bookCoverAspectRatio() {
       this.updateScreenSize()
+    },
+    title(val) {
+      if (this.titleMarquee) this.titleMarquee.init(val)
     }
   },
   computed: {
@@ -264,22 +271,22 @@ export default {
       return this.mediaPlayer === 'cast-player'
     },
     mediaPlayer() {
-      return this.playbackSession ? this.playbackSession.mediaPlayer : null
+      return this.playbackSession?.mediaPlayer || null
     },
     mediaType() {
-      return this.playbackSession ? this.playbackSession.mediaType : null
+      return this.playbackSession?.mediaType || null
     },
     isPodcast() {
       return this.mediaType === 'podcast'
     },
     mediaMetadata() {
-      return this.playbackSession ? this.playbackSession.mediaMetadata : null
+      return this.playbackSession?.mediaMetadata || null
     },
     libraryItem() {
-      return this.playbackSession ? this.playbackSession.libraryItem || null : null
+      return this.playbackSession?.libraryItem || null
     },
     localLibraryItem() {
-      return this.playbackSession ? this.playbackSession.localLibraryItem || null : null
+      return this.playbackSession?.localLibraryItem || null
     },
     localLibraryItemCoverSrc() {
       var localItemCover = this.localLibraryItem?.coverContentUrl || null
@@ -287,7 +294,7 @@ export default {
       return null
     },
     playMethod() {
-      return this.playbackSession ? this.playbackSession.playMethod : null
+      return this.playbackSession?.playMethod || null
     },
     isLocalPlayMethod() {
       return this.playMethod == this.$constants.PlayMethod.LOCAL
@@ -296,19 +303,19 @@ export default {
       return this.playMethod == this.$constants.PlayMethod.DIRECTPLAY
     },
     title() {
-      if (this.currentChapterTitle && this.showFullscreen) return this.currentChapterTitle
-      if (this.playbackSession) return this.playbackSession.displayTitle
-      return this.mediaMetadata ? this.mediaMetadata.title : 'Title'
+      const mediaItemTitle = this.playbackSession?.displayTitle || this.mediaMetadata?.title || 'Title'
+      if (this.currentChapterTitle) {
+        if (this.showFullscreen) return this.currentChapterTitle
+        return `${mediaItemTitle} | ${this.currentChapterTitle}`
+      }
+      return mediaItemTitle
     },
     authorName() {
       if (this.playbackSession) return this.playbackSession.displayAuthor
-      return this.mediaMetadata ? this.mediaMetadata.authorName : 'Author'
+      return this.mediaMetadata?.authorName || 'Author'
     },
     chapters() {
-      if (this.playbackSession && this.playbackSession.chapters) {
-        return this.playbackSession.chapters
-      }
-      return []
+      return this.playbackSession?.chapters || []
     },
     currentChapter() {
       if (!this.chapters.length) return null
@@ -319,7 +326,7 @@ export default {
       return this.chapters.find((c) => Number(Number(c.start).toFixed(2)) > this.currentTime)
     },
     currentChapterTitle() {
-      return this.currentChapter ? this.currentChapter.title : ''
+      return this.currentChapter?.title || ''
     },
     currentChapterDuration() {
       return this.currentChapter ? this.currentChapter.end - this.currentChapter.start : this.totalDuration
@@ -426,6 +433,7 @@ export default {
     },
     expandToFullscreen() {
       this.showFullscreen = true
+      if (this.titleMarquee) this.titleMarquee.reset()
 
       // Update track for total time bar if useChapterTrack is set
       this.$nextTick(() => {
@@ -434,6 +442,8 @@ export default {
     },
     collapseFullscreen() {
       this.showFullscreen = false
+      if (this.titleMarquee) this.titleMarquee.reset()
+
       this.forceCloseDropdownMenu()
     },
     async jumpNextChapter() {
@@ -833,6 +843,10 @@ export default {
 
       // Set track width
       this.$nextTick(() => {
+        if (this.titleMarquee) this.titleMarquee.reset()
+        this.titleMarquee = new WrappingMarquee(this.$refs.titlewrapper)
+        this.titleMarquee.init(this.title)
+
         if (this.$refs.track) {
           this.trackWidth = this.$refs.track.clientWidth
         } else {
@@ -877,15 +891,23 @@ export default {
       }, 50)
     },
     updateScreenSize() {
+      setTimeout(() => {
+        if (this.titleMarquee) this.titleMarquee.init(this.title)
+      }, 500)
+
       this.windowHeight = window.innerHeight
       this.windowWidth = window.innerWidth
       const coverHeight = this.fullscreenBookCoverWidth * this.bookCoverAspectRatio
       const coverImageWidthCollapsed = 46 / this.bookCoverAspectRatio
+      const titleAuthorLeftOffsetCollapsed = 30 + coverImageWidthCollapsed
+      const titleAuthorWidthCollapsed = this.windowWidth - 128 - titleAuthorLeftOffsetCollapsed - 10
+
       document.documentElement.style.setProperty('--cover-image-width', this.fullscreenBookCoverWidth + 'px')
       document.documentElement.style.setProperty('--cover-image-height', coverHeight + 'px')
       document.documentElement.style.setProperty('--cover-image-width-collapsed', coverImageWidthCollapsed + 'px')
       document.documentElement.style.setProperty('--cover-image-height-collapsed', 46 + 'px')
-      document.documentElement.style.setProperty('--title-author-left-offset-collapsed', 30 + coverImageWidthCollapsed + 'px')
+      document.documentElement.style.setProperty('--title-author-left-offset-collapsed', titleAuthorLeftOffsetCollapsed + 'px')
+      document.documentElement.style.setProperty('--title-author-width-collapsed', titleAuthorWidthCollapsed + 'px')
     },
     minimizePlayerEvt() {
       this.collapseFullscreen()
@@ -953,6 +975,7 @@ export default {
   --cover-image-width-collapsed: 46px;
   --cover-image-height-collapsed: 46px;
   --title-author-left-offset-collapsed: 80px;
+  --title-author-width-collapsed: 40%;
 }
 
 .playerContainer {
@@ -1000,7 +1023,7 @@ export default {
   transition-property: left, bottom, width, height;
   transform-origin: left bottom;
 
-  width: 40%;
+  width: var(--title-author-width-collapsed);
   bottom: 76px;
   left: var(--title-author-left-offset-collapsed);
   text-align: left;
