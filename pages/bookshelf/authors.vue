@@ -3,7 +3,7 @@
     <div id="bookshelf" class="w-full h-full p-4 overflow-y-auto">
       <div class="flex flex-wrap justify-center">
         <template v-for="author in authors">
-          <cards-author-card :key="author.id" :author="author" :width="96" :height="120" class="p-2" />
+          <cards-author-card :key="author.id" :author="author" :width="cardWidth" :height="cardHeight" class="p-2" />
         </template>
       </div>
     </div>
@@ -16,16 +16,21 @@ export default {
     return {
       loading: true,
       authors: [],
-      loadedLibraryId: null
+      loadedLibraryId: null,
+      cardWidth: 200
     }
   },
   computed: {
     currentLibraryId() {
       return this.$store.state.libraries.currentLibraryId
+    },
+    cardHeight() {
+      return this.cardWidth * 1.25
     }
   },
   methods: {
     async init() {
+      this.cardWidth = (window.innerWidth - 64) / 2
       if (!this.currentLibraryId) {
         return
       }
