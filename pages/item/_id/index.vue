@@ -191,7 +191,6 @@ export default {
           // Filter by downloaded when redirecting from the local copy
           queryParams.set('episodefilter', 'downloaded')
         }
-        console.log('Redirecting to server library item page with queryparams', queryParams.toString())
         return redirect(`/item/${libraryItem.libraryItemId}?${queryParams.toString()}`)
       }
     } else if (!store.state.user.serverConnectionConfig) {

@@ -1,6 +1,9 @@
 package com.audiobookshelf.app.server
 
+import android.annotation.SuppressLint
 import android.content.Context
+import android.os.Build
+import android.provider.Settings
 import android.util.Log
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
@@ -31,7 +34,7 @@ class ApiHandler(var ctx:Context) {
   private var pingClient = OkHttpClient.Builder().callTimeout(3, TimeUnit.SECONDS).build()
   private var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
 
-  data class LocalSessionsSyncRequestPayload(val sessions:List<PlaybackSession>)
+  data class LocalSessionsSyncRequestPayload(val sessions:List<PlaybackSession>, val deviceInfo:DeviceInfo)
   @JsonIgnoreProperties(ignoreUnknown = true)
   data class LocalSessionSyncResult(val id:String, val success:Boolean, val progressSynced:Boolean?, val error:String?)
   data class LocalSessionsSyncResponsePayload(val results:List<LocalSessionSyncResult>)
@@ -322,7 +325,11 @@ class ApiHandler(var ctx:Context) {
   }
 
   fun sendSyncLocalSessions(playbackSessions:List<PlaybackSession>, cb: (Boolean, String?) -> Unit) {
-    val payload = JSObject(jacksonMapper.writeValueAsString(LocalSessionsSyncRequestPayload(playbackSessions)))
+    @SuppressLint("HardwareIds")
+    val deviceId = Settings.Secure.getString(ctx.contentResolver, Settings.Secure.ANDROID_ID)
+    val deviceInfo = DeviceInfo(deviceId, Build.MANUFACTURER, Build.MODEL, Build.VERSION.SDK_INT, Build.VERSION.RELEASE)
+
+    val payload = JSObject(jacksonMapper.writeValueAsString(LocalSessionsSyncRequestPayload(playbackSessions, deviceInfo)))
     Log.d(tag, "Sending ${playbackSessions.size} saved local playback sessions to server")
     postRequest("/api/session/local-all", payload, null) {
       if (!it.getString("error").isNullOrEmpty()) {

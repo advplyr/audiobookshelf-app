@@ -238,6 +238,8 @@ class MediaProgressSyncer(val playerNotificationService: PlayerNotificationServi
         saveLocalProgress(it)
         lastSyncTime = System.currentTimeMillis()
 
+        Log.d(tag, "Sync local device current serverConnectionConfigId=${DeviceManager.serverConnectionConfig?.id}")
+
         // Local library item is linked to a server library item
         // Send sync to server also if connected to this server and local item belongs to this server
         if (hasNetworkConnection && shouldSyncServer && !it.libraryItemId.isNullOrEmpty() && it.serverConnectionConfigId != null && DeviceManager.serverConnectionConfig?.id == it.serverConnectionConfigId) {
