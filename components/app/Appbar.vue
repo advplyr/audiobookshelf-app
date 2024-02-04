@@ -7,7 +7,7 @@
       <a v-if="showBack" @click="back" class="rounded-full h-10 w-10 flex items-center justify-center mr-2 cursor-pointer">
         <span class="material-icons text-3xl text-fg">arrow_back</span>
       </a>
-      <div v-if="user && currentLibrary">
+      <div v-if="user && currentLibrary && networkConnected">
         <div class="pl-1.5 pr-2.5 py-2 bg-bg bg-opacity-30 rounded-md flex items-center" @click="clickShowLibraryModal">
           <ui-library-icon :icon="currentLibraryIcon" :size="4" font-size="base" />
           <p class="text-sm leading-4 ml-2 mt-0.5 max-w-24 truncate">{{ currentLibraryName }}</p>
@@ -54,14 +54,17 @@ export default {
         this.$store.commit('setCastAvailable', val)
       }
     },
+    networkConnected() {
+      return this.$store.state.networkConnected
+    },
     currentLibrary() {
       return this.$store.getters['libraries/getCurrentLibrary']
     },
     currentLibraryName() {
-      return this.currentLibrary ? this.currentLibrary.name : ''
+      return this.currentLibrary?.name || ''
     },
     currentLibraryIcon() {
-      return this.currentLibrary ? this.currentLibrary.icon : 'database'
+      return this.currentLibrary?.icon || 'database'
     },
     showBack() {
       if (!this.$route.name) return true
@@ -71,7 +74,7 @@ export default {
       return this.$store.state.user.user
     },
     username() {
-      return this.user ? this.user.username : 'err'
+      return this.user?.username || 'err'
     },
     isCasting() {
       return this.$store.state.isCasting
