@@ -1,5 +1,8 @@
 <template>
-  <div id="item-page" class="w-full h-full overflow-y-auto overflow-x-hidden relative bg-bg">
+  <div v-if="!libraryItem" class="w-full h-full relative flex items-center justify-center bg-bg">
+    <ui-loading-indicator />
+  </div>
+  <div v-else id="item-page" class="w-full h-full overflow-y-auto overflow-x-hidden relative bg-bg">
     <!-- cover -->
     <div class="w-full flex justify-center relative">
       <div style="width: 0; transform: translateX(-50vw); overflow: visible">
@@ -167,43 +170,38 @@ import { AbsFileSystem, AbsDownloader } from '@/plugins/capacitor'
 import { FastAverageColor } from 'fast-average-color'
 
 export default {
-  async asyncData({ store, params, redirect, app }) {
+  async asyncData({ store, params, redirect, app, query }) {
     const libraryItemId = params.id
     let libraryItem = null
+
     if (libraryItemId.startsWith('local')) {
       libraryItem = await app.$db.getLocalLibraryItem(libraryItemId)
-      console.log('Got lli', libraryItemId)
+      if (!libraryItem) {
+        return redirect('/?error=Failed to get downloaded library item')
+      }
+
       // If library item is linked to the currently connected server then redirect to the page using the server library item id
       if (libraryItem?.libraryItemId?.startsWith('li_')) {
         // Detect old library item id
         console.error('Local library item has old server library item id', libraryItem.libraryItemId)
-      } else if (libraryItem?.libraryItemId && libraryItem?.serverAddress === store.getters['user/getServerAddress'] && store.state.networkConnected) {
-        let query = ''
-        if (libraryItem.mediaType === 'podcast') query = '?episodefilter=downloaded' // Filter by downloaded when redirecting from the local copy
-        return redirect(`/item/${libraryItem.libraryItemId}${query}`)
-      }
-    } else if (store.state.user.serverConnectionConfig) {
-      libraryItem = await app.$nativeHttp.get(`/api/items/${libraryItemId}?expanded=1&include=rssfeed`).catch((error) => {
-        console.error('Failed', error)
-        return false
-      })
-
-      if (libraryItem) {
-        const localLibraryItem = await app.$db.getLocalLibraryItemByLId(libraryItemId)
-        if (localLibraryItem) {
-          console.log('Library item has local library item also', localLibraryItem.id)
-          libraryItem.localLibraryItem = localLibraryItem
+      } else if (query.noredirect !== '1' && libraryItem?.libraryItemId && libraryItem?.serverAddress === store.getters['user/getServerAddress'] && store.state.networkConnected) {
+        const queryParams = new URLSearchParams()
+        queryParams.set('localLibraryItemId', libraryItemId)
+        if (libraryItem.mediaType === 'podcast') {
+          // Filter by downloaded when redirecting from the local copy
+          queryParams.set('episodefilter', 'downloaded')
         }
+        console.log('Redirecting to server library item page with queryparams', queryParams.toString())
+        return redirect(`/item/${libraryItem.libraryItemId}?${queryParams.toString()}`)
       }
+    } else if (!store.state.user.serverConnectionConfig) {
+      // Not connected to server
+      return redirect('/?error=No server connection to get library item')
     }
 
-    if (!libraryItem) {
-      console.error('No item...', params.id)
-      return redirect('/')
-    }
     return {
       libraryItem,
-      rssFeed: libraryItem.rssFeed || null
+      libraryItemId
     }
   },
   data() {
@@ -296,8 +294,8 @@ export default {
     bookCoverAspectRatio() {
       return this.$store.getters['libraries/getBookCoverAspectRatio']
     },
-    libraryItemId() {
-      return this.libraryItem.id
+    rssFeed() {
+      return this.libraryItem?.rssFeed
     },
     mediaType() {
       return this.libraryItem.mediaType
@@ -722,31 +720,59 @@ export default {
       if (!this.libraryItem.libraryId) return
       await this.$store.dispatch('libraries/fetch', this.libraryItem.libraryId)
       this.$localStore.setLastLibraryId(this.libraryItem.libraryId)
+    },
+    init() {
+      // If library of this item is different from current library then switch libraries
+      if (this.$store.state.libraries.currentLibraryId !== this.libraryItem.libraryId) {
+        this.setLibrary()
+      }
+
+      this.windowWidth = window.innerWidth
+      window.addEventListener('resize', this.windowResized)
+      this.$eventBus.$on('library-changed', this.libraryChanged)
+      this.$eventBus.$on('new-local-library-item', this.newLocalLibraryItem)
+      this.$socket.$on('item_updated', this.itemUpdated)
+      this.$socket.$on('rss_feed_open', this.rssFeedOpen)
+      this.$socket.$on('rss_feed_closed', this.rssFeedClosed)
+      this.checkDescriptionClamped()
+
+      // Set height of page below cover image
+      const itemPageBgGradientHeight = window.outerHeight - 64 - this.coverHeight
+      document.documentElement.style.setProperty('--item-page-bg-gradient-height', itemPageBgGradientHeight + 'px')
+
+      // Set last scroll position if was set for this item
+      if (this.$store.state.lastItemScrollData.id === this.libraryItemId && window['item-page']) {
+        window['item-page'].scrollTop = this.$store.state.lastItemScrollData.scrollTop || 0
+      }
+    },
+    async loadServerLibraryItem() {
+      console.log(`Fetching library item "${this.libraryItemId}" from server`)
+      const libraryItem = await this.$nativeHttp.get(`/api/items/${this.libraryItemId}?expanded=1&include=rssfeed`, { connectTimeout: 5000 }).catch((error) => {
+        console.error('Failed', error)
+        return null
+      })
+
+      if (libraryItem) {
+        const localLibraryItem = await this.$db.getLocalLibraryItemByLId(this.libraryItemId)
+        if (localLibraryItem) {
+          console.log('Library item has local library item also', localLibraryItem.id)
+          libraryItem.localLibraryItem = localLibraryItem
+        }
+        this.libraryItem = libraryItem
+      } else if (this.$route.query.localLibraryItemId) {
+        // Failed to get server library item but is local library item so redirect
+        return this.$router.replace(`/item/${this.$route.query.localLibraryItemId}?noredirect=1`)
+      } else {
+        this.$toast.error('Failed to get library item from server')
+        return this.$router.replace('/bookshelf')
+      }
     }
   },
-  mounted() {
-    // If library of this item is different from current library then switch libraries
-    if (this.$store.state.libraries.currentLibraryId !== this.libraryItem.libraryId) {
-      this.setLibrary()
+  async mounted() {
+    if (!this.libraryItem) {
+      await this.loadServerLibraryItem()
     }
-
-    this.windowWidth = window.innerWidth
-    window.addEventListener('resize', this.windowResized)
-    this.$eventBus.$on('library-changed', this.libraryChanged)
-    this.$eventBus.$on('new-local-library-item', this.newLocalLibraryItem)
-    this.$socket.$on('item_updated', this.itemUpdated)
-    this.$socket.$on('rss_feed_open', this.rssFeedOpen)
-    this.$socket.$on('rss_feed_closed', this.rssFeedClosed)
-    this.checkDescriptionClamped()
-
-    // Set height of page below cover image
-    const itemPageBgGradientHeight = window.outerHeight - 64 - this.coverHeight
-    document.documentElement.style.setProperty('--item-page-bg-gradient-height', itemPageBgGradientHeight + 'px')
-
-    // Set last scroll position if was set for this item
-    if (this.$store.state.lastItemScrollData.id === this.libraryItemId && window['item-page']) {
-      window['item-page'].scrollTop = this.$store.state.lastItemScrollData.scrollTop || 0
-    }
+    this.init()
   },
   beforeDestroy() {
     window.removeEventListener('resize', this.windowResized)

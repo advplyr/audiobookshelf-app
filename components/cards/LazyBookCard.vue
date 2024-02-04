@@ -493,7 +493,12 @@ export default {
         if (router) {
           if (this.recentEpisode) router.push(`/item/${this.libraryItemId}/${this.recentEpisode.id}`)
           else if (this.collapsedSeries) router.push(`/bookshelf/series/${this.collapsedSeries.id}`)
-          else router.push(`/item/${this.libraryItemId}`)
+          else if (this.localLibraryItem) {
+            // Pass local library item id to server page to allow falling back to offline page
+            router.push(`/item/${this.libraryItemId}?localLibraryItemId=${this.localLibraryItemId}`)
+          } else {
+            router.push(`/item/${this.libraryItemId}`)
+          }
         }
       }
     },

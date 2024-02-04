@@ -331,6 +331,10 @@ export default {
     this.initListeners()
     console.log(`[categories] mounted so fetching categories`)
     this.fetchCategories()
+
+    if (this.$route.query.error) {
+      this.$toast.error(this.$route.query.error)
+    }
   },
   beforeDestroy() {
     this.removeListeners()
