@@ -253,8 +253,10 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
       if (!DeviceManager.checkConnectivity(ctx)) {
         serverUserMediaProgress = mutableListOf()
         cb(false)
+      } else if (DeviceManager.serverConnectionConfigId == "") { // If in offline mode server connection config is unset
+        serverUserMediaProgress = mutableListOf()
+        cb(false)
       } else {
-
         var hasValidConn = false
         var lookupMediaProgress = true
 
