@@ -294,7 +294,7 @@ export default {
       return null
     },
     playMethod() {
-      return this.playbackSession?.playMethod || null
+      return this.playbackSession?.playMethod || 0
     },
     isLocalPlayMethod() {
       return this.playMethod == this.$constants.PlayMethod.LOCAL
