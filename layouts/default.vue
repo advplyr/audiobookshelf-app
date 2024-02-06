@@ -45,7 +45,7 @@ export default {
             if (timeSinceDisconnect > 5000) {
               console.log('Time since disconnect was', timeSinceDisconnect, 'sync with server')
               setTimeout(() => {
-                this.syncLocalSessions()
+                this.syncLocalSessions(false)
               }, 4000)
             }
           }
@@ -195,14 +195,14 @@ export default {
       this.$eventBus.$emit('library-changed')
       this.inittingLibraries = false
     },
-    async syncLocalSessions() {
+    async syncLocalSessions(isFirstSync) {
       if (!this.user) {
         console.log('[default] No need to sync local sessions - not connected to server')
         return
       }
 
       console.log('[default] Calling syncLocalSessions')
-      const response = await this.$db.syncLocalSessionsWithServer()
+      const response = await this.$db.syncLocalSessionsWithServer(isFirstSync)
       if (response?.error) {
         console.error('[default] Failed to sync local sessions', response.error)
       } else {
@@ -335,7 +335,7 @@ export default {
       }
 
       console.log(`[default] finished connection attempt or already connected ${!!this.user}`)
-      await this.syncLocalSessions()
+      await this.syncLocalSessions(true)
 
       this.hasMounted = true
 

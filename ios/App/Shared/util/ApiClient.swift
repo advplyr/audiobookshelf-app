@@ -190,10 +190,10 @@ class ApiClient {
     }
     
     public static func reportAllLocalPlaybackSessions(_ sessions: [PlaybackSession]) async -> Bool {
-        return await postResource(endpoint: "api/session/local-all", parameters: LocalPlaybackSessionSyncAllPayload(sessions: sessions))
+        return await postResource(endpoint: "api/session/local-all", parameters: LocalPlaybackSessionSyncAllPayload(sessions: sessions, deviceInfo: sessions.first?.deviceInfo))
     }
     
-    public static func syncLocalSessionsWithServer() async {
+    public static func syncLocalSessionsWithServer(isFirstSync: Bool) async {
         do {
             // Sync server progress with local media progress
             let localMediaProgressList = Database.shared.getAllLocalMediaProgress().filter {
@@ -232,13 +232,15 @@ class ApiClient {
             let playbackSessions = Database.shared.getAllPlaybackSessions().filter {
                 $0.serverConnectionConfigId == Store.serverConfig?.id
             }.map { $0.freeze() }
-            logger.log("syncLocalSessionsWithServer: Found \(playbackSessions.count) playback sessions for server")
+            logger.log("syncLocalSessionsWithServer: Found \(playbackSessions.count) playback sessions for server (first sync: \(isFirstSync))")
             if (!playbackSessions.isEmpty) {
                 let success = await ApiClient.reportAllLocalPlaybackSessions(playbackSessions)
                 if (success) {
                     // Remove sessions from db
                     try playbackSessions.forEach { session in
-                        if (!session.isActiveSession) {
+                        logger.log("syncLocalSessionsWithServer: Handling \(session.displayTitle ?? "") (\(session.id)) \(session.isActiveSession)")
+                        // On first sync then remove all sessions
+                        if (!session.isActiveSession || isFirstSync) {
                             if let session = session.thaw() {
                                 try session.delete()
                             }
@@ -327,6 +329,7 @@ struct LocalMediaProgressSyncResultsPayload: Codable {
 
 struct LocalPlaybackSessionSyncAllPayload: Codable {
     var sessions: [PlaybackSession]
+    var deviceInfo: [String: String?]?
 }
 
 struct Connectivity {

@@ -147,14 +147,15 @@ public class AbsDatabase: CAPPlugin {
     }
     
     @objc func syncLocalSessionsWithServer(_ call: CAPPluginCall) {
-        logger.log("syncLocalSessionsWithServer: Starting")
+        let isFirstSync = call.getBool("isFirstSync", false)
+        logger.log("syncLocalSessionsWithServer: Starting (First sync: \(isFirstSync))")
         guard Store.serverConfig != nil else {
             call.reject("syncLocalSessionsWithServer not connected to server")
             return call.resolve()
         }
         
         Task {
-            await ApiClient.syncLocalSessionsWithServer()
+            await ApiClient.syncLocalSessionsWithServer(isFirstSync: isFirstSync)
             call.resolve()
         }
     }

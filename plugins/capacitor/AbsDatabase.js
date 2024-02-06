@@ -196,7 +196,7 @@ class AbsDatabaseWeb extends WebPlugin {
     return null
   }
 
-  async syncLocalSessionsWithServer() {
+  async syncLocalSessionsWithServer({ isFirstSync }) {
     return null
   }
 
