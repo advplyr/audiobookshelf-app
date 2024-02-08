@@ -534,14 +534,24 @@ class AudioPlayer: NSObject {
                 return
         }
         
-        switch type {
-        case .ended:
-            guard let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt else { return }
-            let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
-            if options.contains(.shouldResume) {
-                self.play(allowSeekBack: true)
+        // When interruption is from the app suspending then don't resume playback
+        if #available(iOS 14.5, *) {
+            let reasonValue = userInfo[AVAudioSessionInterruptionReasonKey] as? UInt ?? 0
+            let reason = AVAudioSession.InterruptionReason(rawValue: reasonValue)
+            if (reason == .appWasSuspended) {
+                logger.log("AVAudioSession was suspended")
+                return
             }
-        default: ()
+        }
+        
+        switch type {
+            case .ended:
+                guard let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt else { return }
+                let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+                if options.contains(.shouldResume) {
+                    self.play(allowSeekBack: true)
+                }
+            default: ()
         }
     }
     
