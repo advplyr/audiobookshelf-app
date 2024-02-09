@@ -327,14 +327,15 @@ export default {
       this.$eventBus.$off('library-changed', this.libraryChanged)
     }
   },
-  mounted() {
-    this.initListeners()
-    console.log(`[categories] mounted so fetching categories`)
-    this.fetchCategories()
-
+  async mounted() {
     if (this.$route.query.error) {
       this.$toast.error(this.$route.query.error)
     }
+
+    this.initListeners()
+    await this.$store.dispatch('globals/loadLocalMediaProgress')
+    console.log(`[categories] mounted so fetching categories`)
+    this.fetchCategories()
   },
   beforeDestroy() {
     this.removeListeners()

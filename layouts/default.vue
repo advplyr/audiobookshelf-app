@@ -326,8 +326,6 @@ export default {
 
       await this.$store.dispatch('setupNetworkListener')
 
-      await this.$store.dispatch('globals/loadLocalMediaProgress')
-
       if (this.$store.state.user.serverConnectionConfig) {
         await this.initLibraries()
       } else {
