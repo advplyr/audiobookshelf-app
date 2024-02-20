@@ -11,7 +11,7 @@ import RealmSwift
 class DeviceSettings: Object {
     @Persisted var disableAutoRewind: Bool = false
     @Persisted var enableAltView: Bool = true
-    @Persisted var allowSeekingOnWidget: Bool = true
+    @Persisted var allowSeekingOnWidget: Bool = false
     @Persisted var jumpBackwardsTime: Int = 10
     @Persisted var jumpForwardTime: Int = 10
     @Persisted var lockOrientation: String = "NONE"
