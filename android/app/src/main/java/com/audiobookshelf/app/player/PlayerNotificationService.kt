@@ -329,15 +329,18 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       }
     }
 
-    mediaSessionConnector.setEnabledPlaybackActions(
-      PlaybackStateCompat.ACTION_PLAY_PAUSE
-        or PlaybackStateCompat.ACTION_PLAY
-        or PlaybackStateCompat.ACTION_PAUSE
-        or PlaybackStateCompat.ACTION_SEEK_TO
-        or PlaybackStateCompat.ACTION_FAST_FORWARD
-        or PlaybackStateCompat.ACTION_REWIND
-        or PlaybackStateCompat.ACTION_STOP
-    )
+    val playbackActions = PlaybackStateCompat.ACTION_PLAY_PAUSE or
+      PlaybackStateCompat.ACTION_PLAY or
+      PlaybackStateCompat.ACTION_PAUSE or
+      PlaybackStateCompat.ACTION_FAST_FORWARD or
+      PlaybackStateCompat.ACTION_REWIND or
+      PlaybackStateCompat.ACTION_STOP
+
+    if (deviceSettings.allowSeekingOnWidget) {
+      playbackActions = playbackActions or PlaybackStateCompat.ACTION_SEEK_TO
+    }
+
+    mediaSessionConnector.setEnabledPlaybackActions(playbackActions)
     mediaSessionConnector.setQueueNavigator(queueNavigator)
     mediaSessionConnector.setPlaybackPreparer(MediaSessionPlaybackPreparer(this))
 

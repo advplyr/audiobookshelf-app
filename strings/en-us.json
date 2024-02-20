@@ -228,6 +228,7 @@
   "LabelType": "Type",
   "LabelUnlockPlayer": "Unlock Player",
   "LabelUseBookshelfView": "Use bookshelf view",
+  "LabelAllowSeekingOnWidget": "Allow position seeking on the 'Now Playing' widget",
   "LabelUser": "User",
   "LabelUsername": "Username",
   "LabelVeryHigh": "Very High",

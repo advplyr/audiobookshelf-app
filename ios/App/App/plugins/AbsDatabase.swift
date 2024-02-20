@@ -238,6 +238,7 @@ public class AbsDatabase: CAPPlugin {
     @objc func updateDeviceSettings(_ call: CAPPluginCall) {
         let disableAutoRewind = call.getBool("disableAutoRewind") ?? false
         let enableAltView = call.getBool("enableAltView") ?? false
+        let allowSeekingOnWidget = call.getBool("allowSeekingOnWidget") ?? false
         let jumpBackwardsTime = call.getInt("jumpBackwardsTime") ?? 10
         let jumpForwardTime = call.getInt("jumpForwardTime") ?? 10
         let lockOrientation = call.getString("lockOrientation") ?? "NONE"
@@ -246,6 +247,7 @@ public class AbsDatabase: CAPPlugin {
         let settings = DeviceSettings()
         settings.disableAutoRewind = disableAutoRewind
         settings.enableAltView = enableAltView
+        settings.allowSeekingOnWidget = allowSeekingOnWidget
         settings.jumpBackwardsTime = jumpBackwardsTime
         settings.jumpForwardTime = jumpForwardTime
         settings.lockOrientation = lockOrientation
