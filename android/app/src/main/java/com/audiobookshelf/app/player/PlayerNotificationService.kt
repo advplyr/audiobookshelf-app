@@ -329,7 +329,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       }
     }
 
-    val playbackActions = PlaybackStateCompat.ACTION_PLAY_PAUSE or
+    var playbackActions = PlaybackStateCompat.ACTION_PLAY_PAUSE or
       PlaybackStateCompat.ACTION_PLAY or
       PlaybackStateCompat.ACTION_PAUSE or
       PlaybackStateCompat.ACTION_FAST_FORWARD or
