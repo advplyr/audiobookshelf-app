@@ -8,12 +8,6 @@
       </div>
       <p class="pl-4">{{ $strings.LabelUseBookshelfView }}</p>
     </div>
-    <div class="flex items-center py-3">
-      <div class="w-10 flex justify-center" @click="toggleAllowSeekingOnWidget">
-        <ui-toggle-switch v-model="settings.allowSeekingOnWidget" @input="saveSettings" />
-      </div>
-      <p class="pl-4">{{ $strings.LabelAllowSeekingOnWidget }}</p>
-    </div>
     <!-- screen.orientation.lock not supported on iOS webview -->
     <div v-if="!isiOS" class="flex items-center py-3">
       <div class="w-10 flex justify-center" @click.stop="toggleLockOrientation">
@@ -66,6 +60,13 @@
       </div>
       <p class="pl-4">{{ $strings.LabelEnableMp3IndexSeeking }}</p>
       <span class="material-icons-outlined ml-2" @click.stop="showConfirmMp3IndexSeeking">info</span>
+    </div>
+    <div class="flex items-center py-3">
+      <div class="w-10 flex justify-center" @click="toggleAllowSeekingOnWidget">
+        <ui-toggle-switch v-model="settings.allowSeekingOnWidget" @input="saveSettings" />
+      </div>
+      <p class="pl-4">{{ $strings.LabelAllowSeekingOnWidget }}</p>
+      <span class="material-icons-outlined ml-2" @click.stop="showInfo('allowSeekingOnWidget')">info</span>
     </div>
 
     <!-- Sleep timer settings -->
@@ -184,6 +185,10 @@ export default {
         disableShakeToResetSleepTimer: {
           name: this.$strings.LabelDisableShakeToReset,
           message: this.$strings.LabelDisableShakeToResetHelp
+        },
+        allowSeekingOnWidget: {
+          name: this.$strings.LabelAllowSeekingOnWidget,
+          message: this.$strings.LabelAllowSeekingOnWidgetHelp
         },
         autoSleepTimer: {
           name: this.$strings.LabelAutoSleepTimer,

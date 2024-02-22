@@ -229,6 +229,7 @@
   "LabelUnlockPlayer": "Mediaplayer entsperren",
   "LabelUseBookshelfView": "Benutze Bücherregalansicht",
   "LabelAllowSeekingOnWidget": "Erlaube Vor- oder Zurückspulen auf dem 'Jetzt Läuft' Widget",
+  "LabelAllowSeekingOnWidgetHelp": "Erst nach einem Neustart der App wird diese Einstellung wirksam.",
   "LabelUser": "Benutzer",
   "LabelUsername": "Benutzername",
   "LabelVeryHigh": "Sehr hoch",
