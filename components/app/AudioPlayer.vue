@@ -652,7 +652,7 @@ export default {
       this.closePlayback()
     },
     touchstart(e) {
-      if (!e.changedTouches) return
+      if (!e.changedTouches || this.$store.state.globals.isModalOpen) return
       const touchPosY = e.changedTouches[0].pageY
       // when minimized only listen to touchstart on the player
       if (!this.showFullscreen && touchPosY < window.innerHeight - 120) return
