@@ -247,14 +247,16 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
   }
 
   private fun checkSetValidServerConnectionConfig(cb: (Boolean) -> Unit) = runBlocking {
-    Log.d(tag, "checkSetValidServerConnectionConfig | $serverConfigIdUsed")
+    Log.d(tag, "checkSetValidServerConnectionConfig | serverConfigIdUsed=$serverConfigIdUsed | lastServerConnectionConfigId=${DeviceManager.deviceData.lastServerConnectionConfigId}")
 
     coroutineScope {
       if (!DeviceManager.checkConnectivity(ctx)) {
         serverUserMediaProgress = mutableListOf()
+        Log.d(tag, "checkSetValidServerConnectionConfig: No connectivity")
         cb(false)
-      } else if (DeviceManager.serverConnectionConfigId == "") { // If in offline mode server connection config is unset
+      } else if (DeviceManager.deviceData.lastServerConnectionConfigId.isNullOrBlank()) { // If in offline mode last server connection config is unset
         serverUserMediaProgress = mutableListOf()
+        Log.d(tag, "checkSetValidServerConnectionConfig: No last server connection config")
         cb(false)
       } else {
         var hasValidConn = false
@@ -334,6 +336,7 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
     checkSetValidServerConnectionConfig { isConnected ->
       if (isConnected) {
         serverConfigIdUsed = DeviceManager.serverConnectionConfigId
+        Log.d(tag, "loadAndroidAutoItems: Connected to server config id=$serverConfigIdUsed")
 
         loadLibraries { libraries ->
           if (libraries.isEmpty()) {
@@ -360,6 +363,7 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
           }
         }
       } else { // Not connected to server
+        Log.d(tag, "loadAndroidAutoItems: Not connected to server")
         cb()
       }
     }
