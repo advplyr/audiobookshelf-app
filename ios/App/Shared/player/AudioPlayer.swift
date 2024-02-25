@@ -588,7 +588,7 @@ class AudioPlayer: NSObject {
     }
     
     // MARK: - Now playing
-    private func setupRemoteTransportControls() {
+    func setupRemoteTransportControls() {
         DispatchQueue.runOnMainQueue {
             UIApplication.shared.beginReceivingRemoteControlEvents()
         }

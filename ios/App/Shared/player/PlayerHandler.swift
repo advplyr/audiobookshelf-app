@@ -135,6 +135,10 @@ class PlayerHandler {
         )
     }
     
+    public static func updateRemoteTransportControls() {
+        self.player?.setupRemoteTransportControls()
+    }
+    
     // MARK: - Helper logic
     
     private static func cleanupOldSessions(currentSessionId: String?) {

@@ -256,7 +256,9 @@ public class AbsDatabase: CAPPlugin {
         
         Database.shared.setDeviceSettings(deviceSettings: settings)
         
-//        call.resolve([ "value": [] ])
+        // Updates the media notification controls (for allowSeekingOnMediaControls setting)
+        PlayerHandler.updateRemoteTransportControls()
+        
         getDeviceData(call)
     }
     
