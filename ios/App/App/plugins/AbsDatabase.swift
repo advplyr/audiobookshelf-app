@@ -238,6 +238,7 @@ public class AbsDatabase: CAPPlugin {
     @objc func updateDeviceSettings(_ call: CAPPluginCall) {
         let disableAutoRewind = call.getBool("disableAutoRewind") ?? false
         let enableAltView = call.getBool("enableAltView") ?? false
+        let allowSeekingOnMediaControls = call.getBool("allowSeekingOnMediaControls") ?? false
         let jumpBackwardsTime = call.getInt("jumpBackwardsTime") ?? 10
         let jumpForwardTime = call.getInt("jumpForwardTime") ?? 10
         let lockOrientation = call.getString("lockOrientation") ?? "NONE"
@@ -246,6 +247,7 @@ public class AbsDatabase: CAPPlugin {
         let settings = DeviceSettings()
         settings.disableAutoRewind = disableAutoRewind
         settings.enableAltView = enableAltView
+        settings.allowSeekingOnMediaControls = allowSeekingOnMediaControls
         settings.jumpBackwardsTime = jumpBackwardsTime
         settings.jumpForwardTime = jumpForwardTime
         settings.lockOrientation = lockOrientation
@@ -254,7 +256,9 @@ public class AbsDatabase: CAPPlugin {
         
         Database.shared.setDeviceSettings(deviceSettings: settings)
         
-//        call.resolve([ "value": [] ])
+        // Updates the media notification controls (for allowSeekingOnMediaControls setting)
+        PlayerHandler.updateRemoteTransportControls()
+        
         getDeviceData(call)
     }
     

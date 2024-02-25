@@ -103,6 +103,9 @@ class MainActivity : BridgeActivity() {
     }
   }
 
+  fun isPlayerNotificationServiceInitialized():Boolean {
+    return ::foregroundService.isInitialized
+  }
 
   fun stopMyService() {
     if (mBounded) {

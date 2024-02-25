@@ -85,6 +85,7 @@
   "LabelAddedAt": "Tilføjet Kl.",
   "LabelAddToPlaylist": "Tilføj til Afspilningsliste",
   "LabelAll": "Alle",
+  "LabelAllowSeekingOnMediaControls": "Allow position seeking on media notification controls",
   "LabelAuthor": "Forfatter",
   "LabelAuthorFirstLast": "Forfatter (Fornavn Efternavn)",
   "LabelAuthorLastFirst": "Forfatter (Efternavn, Fornavn)",

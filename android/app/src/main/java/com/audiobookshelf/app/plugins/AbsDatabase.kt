@@ -1,5 +1,7 @@
 package com.audiobookshelf.app.plugins
 
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import com.audiobookshelf.app.MainActivity
 import com.audiobookshelf.app.data.*
@@ -493,9 +495,16 @@ class AbsDatabase : Plugin() {
   fun updateDeviceSettings(call:PluginCall) { // Returns device data
     Log.d(tag, "updateDeviceSettings ${call.data}")
     val newDeviceSettings = jacksonMapper.readValue<DeviceSettings>(call.data.toString())
-    GlobalScope.launch(Dispatchers.IO) {
+
+    Handler(Looper.getMainLooper()).post {
       DeviceManager.deviceData.deviceSettings = newDeviceSettings
       DeviceManager.dbManager.saveDeviceData(DeviceManager.deviceData)
+
+      // Updates playback actions for media notification (handles media control seek locking setting)
+      if (mainActivity.isPlayerNotificationServiceInitialized()) {
+        mainActivity.foregroundService.setMediaSessionConnectorPlaybackActions()
+      }
+
       call.resolve(JSObject(jacksonMapper.writeValueAsString(DeviceManager.deviceData)))
     }
   }

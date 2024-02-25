@@ -61,6 +61,12 @@
       <p class="pl-4">{{ $strings.LabelEnableMp3IndexSeeking }}</p>
       <span class="material-icons-outlined ml-2" @click.stop="showConfirmMp3IndexSeeking">info</span>
     </div>
+    <div class="flex items-center py-3">
+      <div class="w-10 flex justify-center" @click="toggleAllowSeekingOnMediaControls">
+        <ui-toggle-switch v-model="settings.allowSeekingOnMediaControls" @input="saveSettings" />
+      </div>
+      <p class="pl-4">{{ $strings.LabelAllowSeekingOnMediaControls }}</p>
+    </div>
 
     <!-- Sleep timer settings -->
     <template v-if="!isiOS">
@@ -154,6 +160,7 @@ export default {
       settings: {
         disableAutoRewind: false,
         enableAltView: true,
+        allowSeekingOnMediaControls: false,
         jumpForwardTime: 10,
         jumpBackwardsTime: 10,
         enableMp3IndexSeeking: false,
@@ -429,6 +436,10 @@ export default {
       this.settings.enableAltView = !this.settings.enableAltView
       this.saveSettings()
     },
+    toggleAllowSeekingOnMediaControls() {
+      this.settings.allowSeekingOnMediaControls = !this.settings.allowSeekingOnMediaControls
+      this.saveSettings()
+    },
     getCurrentOrientation() {
       const orientation = window.screen?.orientation || {}
       const type = orientation.type || ''
@@ -471,6 +482,7 @@ export default {
       const deviceSettings = this.deviceData.deviceSettings || {}
       this.settings.disableAutoRewind = !!deviceSettings.disableAutoRewind
       this.settings.enableAltView = !!deviceSettings.enableAltView
+      this.settings.allowSeekingOnMediaControls = !!deviceSettings.allowSeekingOnMediaControls
       this.settings.jumpForwardTime = deviceSettings.jumpForwardTime || 10
       this.settings.jumpBackwardsTime = deviceSettings.jumpBackwardsTime || 10
       this.settings.enableMp3IndexSeeking = !!deviceSettings.enableMp3IndexSeeking

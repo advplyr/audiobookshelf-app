@@ -588,7 +588,7 @@ class AudioPlayer: NSObject {
     }
     
     // MARK: - Now playing
-    private func setupRemoteTransportControls() {
+    func setupRemoteTransportControls() {
         DispatchQueue.runOnMainQueue {
             UIApplication.shared.beginReceivingRemoteControlEvents()
         }
@@ -672,7 +672,7 @@ class AudioPlayer: NSObject {
             return .success
         }
 
-        commandCenter.changePlaybackPositionCommand.isEnabled = true
+        commandCenter.changePlaybackPositionCommand.isEnabled = deviceSettings.allowSeekingOnMediaControls
         commandCenter.changePlaybackPositionCommand.addTarget { [weak self] event in
             guard let event = event as? MPChangePlaybackPositionCommandEvent else {
                 return .noSuchContent

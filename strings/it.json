@@ -85,6 +85,7 @@
   "LabelAddedAt": "Aggiunto il",
   "LabelAddToPlaylist": "aggiungi alla Playlist",
   "LabelAll": "Tutti",
+  "LabelAllowSeekingOnMediaControls": "Allow position seeking on media notification controls",
   "LabelAuthor": "Autore",
   "LabelAuthorFirstLast": "Autore (Per Nome)",
   "LabelAuthorLastFirst": "Autori (Per Cognome)",

@@ -329,15 +329,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       }
     }
 
-    mediaSessionConnector.setEnabledPlaybackActions(
-      PlaybackStateCompat.ACTION_PLAY_PAUSE
-        or PlaybackStateCompat.ACTION_PLAY
-        or PlaybackStateCompat.ACTION_PAUSE
-        or PlaybackStateCompat.ACTION_SEEK_TO
-        or PlaybackStateCompat.ACTION_FAST_FORWARD
-        or PlaybackStateCompat.ACTION_REWIND
-        or PlaybackStateCompat.ACTION_STOP
-    )
+    setMediaSessionConnectorPlaybackActions()
     mediaSessionConnector.setQueueNavigator(queueNavigator)
     mediaSessionConnector.setPlaybackPreparer(MediaSessionPlaybackPreparer(this))
 
@@ -510,6 +502,20 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       ))
     }
     mediaSessionConnector.setCustomActionProviders(*customActionProviders.toTypedArray())
+  }
+
+  fun setMediaSessionConnectorPlaybackActions() {
+    var playbackActions = PlaybackStateCompat.ACTION_PLAY_PAUSE or
+      PlaybackStateCompat.ACTION_PLAY or
+      PlaybackStateCompat.ACTION_PAUSE or
+      PlaybackStateCompat.ACTION_FAST_FORWARD or
+      PlaybackStateCompat.ACTION_REWIND or
+      PlaybackStateCompat.ACTION_STOP
+
+    if (deviceSettings.allowSeekingOnMediaControls) {
+      playbackActions = playbackActions or PlaybackStateCompat.ACTION_SEEK_TO
+    }
+    mediaSessionConnector.setEnabledPlaybackActions(playbackActions)
   }
 
   fun handlePlayerPlaybackError(errorMessage:String) {
