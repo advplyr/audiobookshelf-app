@@ -2,7 +2,7 @@
   <div class="w-full h-full py-6 px-2">
     <div v-if="localLibraryItem" class="w-full h-full">
       <div class="px-2 flex items-center mb-2">
-        <p class="text-base font-semibold">{{ mediaMetadata.title }}</p>
+        <p class="text-base font-semibold truncate">{{ mediaMetadata.title }}</p>
         <div class="flex-grow" />
 
         <button v-if="audioTracks.length && !isPodcast" class="shadow-sm text-success flex items-center justify-center rounded-full mx-2" @click.stop="play">
