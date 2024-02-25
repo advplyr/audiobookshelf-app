@@ -672,7 +672,7 @@ class AudioPlayer: NSObject {
             return .success
         }
 
-        commandCenter.changePlaybackPositionCommand.isEnabled = deviceSettings.allowSeekingOnWidget
+        commandCenter.changePlaybackPositionCommand.isEnabled = deviceSettings.allowSeekingOnMediaControls
         commandCenter.changePlaybackPositionCommand.addTarget { [weak self] event in
             guard let event = event as? MPChangePlaybackPositionCommandEvent else {
                 return .noSuchContent

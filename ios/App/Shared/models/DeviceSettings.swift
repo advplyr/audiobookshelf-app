@@ -11,7 +11,7 @@ import RealmSwift
 class DeviceSettings: Object {
     @Persisted var disableAutoRewind: Bool = false
     @Persisted var enableAltView: Bool = true
-    @Persisted var allowSeekingOnWidget: Bool = false
+    @Persisted var allowSeekingOnMediaControls: Bool = false
     @Persisted var jumpBackwardsTime: Int = 10
     @Persisted var jumpForwardTime: Int = 10
     @Persisted var lockOrientation: String = "NONE"
@@ -27,7 +27,7 @@ func deviceSettingsToJSON(settings: DeviceSettings) -> Dictionary<String, Any> {
     return [
         "disableAutoRewind": settings.disableAutoRewind,
         "enableAltView": settings.enableAltView,
-        "allowSeekingOnWidget": settings.allowSeekingOnWidget,
+        "allowSeekingOnMediaControls": settings.allowSeekingOnMediaControls,
         "jumpBackwardsTime": settings.jumpBackwardsTime,
         "jumpForwardTime": settings.jumpForwardTime,
         "lockOrientation": settings.lockOrientation,

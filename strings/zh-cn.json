@@ -85,6 +85,7 @@
   "LabelAddedAt": "添加于",
   "LabelAddToPlaylist": "添加到播放列表",
   "LabelAll": "全部",
+  "LabelAllowSeekingOnMediaControls": "Allow position seeking on media notification controls",
   "LabelAuthor": "作者",
   "LabelAuthorFirstLast": "作者 (姓  名)",
   "LabelAuthorLastFirst": "作者 (名, 姓)",

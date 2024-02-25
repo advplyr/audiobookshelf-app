@@ -512,7 +512,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       PlaybackStateCompat.ACTION_REWIND or
       PlaybackStateCompat.ACTION_STOP
 
-    if (deviceSettings.allowSeekingOnWidget) {
+    if (deviceSettings.allowSeekingOnMediaControls) {
       playbackActions = playbackActions or PlaybackStateCompat.ACTION_SEEK_TO
     }
     mediaSessionConnector.setEnabledPlaybackActions(playbackActions)

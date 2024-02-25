@@ -85,6 +85,7 @@
   "LabelAddedAt": "Toegevoegd op",
   "LabelAddToPlaylist": "Toevoegen aan afspeellijst",
   "LabelAll": "Alle",
+  "LabelAllowSeekingOnMediaControls": "Allow position seeking on media notification controls",
   "LabelAuthor": "Auteur",
   "LabelAuthorFirstLast": "Auteur (Voornaam Achternaam)",
   "LabelAuthorLastFirst": "Auteur (Achternaam, Voornaam)",

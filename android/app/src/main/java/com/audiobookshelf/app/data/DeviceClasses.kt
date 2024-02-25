@@ -107,7 +107,7 @@ data class PlayItemRequestPayload(
 data class DeviceSettings(
   var disableAutoRewind:Boolean,
   var enableAltView:Boolean,
-  var allowSeekingOnWidget:Boolean,
+  var allowSeekingOnMediaControls:Boolean,
   var jumpBackwardsTime:Int,
   var jumpForwardTime:Int,
   var enableMp3IndexSeeking:Boolean,
@@ -131,7 +131,7 @@ data class DeviceSettings(
       return DeviceSettings(
         disableAutoRewind = false,
         enableAltView = true,
-        allowSeekingOnWidget = false,
+        allowSeekingOnMediaControls = false,
         jumpBackwardsTime = 10,
         jumpForwardTime = 10,
         enableMp3IndexSeeking = false,

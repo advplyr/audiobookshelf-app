@@ -62,11 +62,10 @@
       <span class="material-icons-outlined ml-2" @click.stop="showConfirmMp3IndexSeeking">info</span>
     </div>
     <div class="flex items-center py-3">
-      <div class="w-10 flex justify-center" @click="toggleAllowSeekingOnWidget">
-        <ui-toggle-switch v-model="settings.allowSeekingOnWidget" @input="saveSettings" />
+      <div class="w-10 flex justify-center" @click="toggleAllowSeekingOnMediaControls">
+        <ui-toggle-switch v-model="settings.allowSeekingOnMediaControls" @input="saveSettings" />
       </div>
-      <p class="pl-4">{{ $strings.LabelAllowSeekingOnWidget }}</p>
-      <span class="material-icons-outlined ml-2" @click.stop="showInfo('allowSeekingOnWidget')">info</span>
+      <p class="pl-4">{{ $strings.LabelAllowSeekingOnMediaControls }}</p>
     </div>
 
     <!-- Sleep timer settings -->
@@ -161,7 +160,7 @@ export default {
       settings: {
         disableAutoRewind: false,
         enableAltView: true,
-        allowSeekingOnWidget: false,
+        allowSeekingOnMediaControls: false,
         jumpForwardTime: 10,
         jumpBackwardsTime: 10,
         enableMp3IndexSeeking: false,
@@ -185,10 +184,6 @@ export default {
         disableShakeToResetSleepTimer: {
           name: this.$strings.LabelDisableShakeToReset,
           message: this.$strings.LabelDisableShakeToResetHelp
-        },
-        allowSeekingOnWidget: {
-          name: this.$strings.LabelAllowSeekingOnWidget,
-          message: this.$strings.LabelAllowSeekingOnWidgetHelp
         },
         autoSleepTimer: {
           name: this.$strings.LabelAutoSleepTimer,
@@ -441,8 +436,8 @@ export default {
       this.settings.enableAltView = !this.settings.enableAltView
       this.saveSettings()
     },
-    toggleAllowSeekingOnWidget() {
-      this.settings.allowSeekingOnWidget = !this.settings.allowSeekingOnWidget
+    toggleAllowSeekingOnMediaControls() {
+      this.settings.allowSeekingOnMediaControls = !this.settings.allowSeekingOnMediaControls
       this.saveSettings()
     },
     getCurrentOrientation() {
@@ -487,7 +482,7 @@ export default {
       const deviceSettings = this.deviceData.deviceSettings || {}
       this.settings.disableAutoRewind = !!deviceSettings.disableAutoRewind
       this.settings.enableAltView = !!deviceSettings.enableAltView
-      this.settings.allowSeekingOnWidget = !!deviceSettings.allowSeekingOnWidget
+      this.settings.allowSeekingOnMediaControls = !!deviceSettings.allowSeekingOnMediaControls
       this.settings.jumpForwardTime = deviceSettings.jumpForwardTime || 10
       this.settings.jumpBackwardsTime = deviceSettings.jumpBackwardsTime || 10
       this.settings.enableMp3IndexSeeking = !!deviceSettings.enableMp3IndexSeeking

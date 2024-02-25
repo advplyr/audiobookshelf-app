@@ -85,6 +85,7 @@
   "LabelAddedAt": "Дата добавления",
   "LabelAddToPlaylist": "Добавить в плейлист",
   "LabelAll": "Все",
+  "LabelAllowSeekingOnMediaControls": "Allow position seeking on media notification controls",
   "LabelAuthor": "Автор",
   "LabelAuthorFirstLast": "Автор (Имя Фамилия)",
   "LabelAuthorLastFirst": "Автор (Фамилия, Имя)",
