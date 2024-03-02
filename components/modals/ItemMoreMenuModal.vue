@@ -26,6 +26,10 @@ export default {
       type: Object,
       default: () => null
     },
+    playlist: {
+      type: Object,
+      default: () => null
+    },
     hideRssFeedOption: Boolean
   },
   data() {
@@ -90,6 +94,15 @@ export default {
             icon: 'send'
           })
         }
+      }
+
+      // If on playlist page show remove from playlist option
+      if (this.playlist) {
+        items.push({
+          text: this.$strings.LabelRemoveFromPlaylist,
+          value: 'removeFromPlaylist',
+          icon: 'playlist_remove'
+        })
       }
 
       if (this.showRSSFeedOption) {
@@ -255,6 +268,8 @@ export default {
       } else if (action === 'playlist') {
         this.$store.commit('globals/setSelectedPlaylistItems', [{ libraryItem: this.libraryItem, episode: this.episode }])
         this.$store.commit('globals/setShowPlaylistsAddCreateModal', true)
+      } else if (action === 'removeFromPlaylist') {
+        this.removeFromPlaylistClick()
       } else if (action === 'markFinished') {
         if (this.episode) this.toggleEpisodeFinished()
         else this.toggleFinished()
@@ -452,6 +467,29 @@ export default {
         .catch((error) => {
           console.error('Failed to send ebook to device', error)
           this.$toast.error('Failed to send ebook to device')
+        })
+        .finally(() => {
+          this.$emit('update:processing', false)
+        })
+    },
+    removeFromPlaylistClick() {
+      if (!this.playlist) {
+        this.$toast.error('Invalid: No Playlist')
+        return
+      }
+
+      this.$emit('update:processing', true)
+      let url = `/api/playlists/${this.playlist.id}/item/${this.serverLibraryItemId}`
+      if (this.serverEpisodeId) url += `/${this.serverEpisodeId}`
+      this.$axios
+        .$delete(url)
+        .then(() => {
+          this.$toast.success('Item removed from playlist')
+        })
+        .catch((error) => {
+          const errorMsg = error.response?.data || 'Unknown error'
+          console.error('Failed to remove item from playlist', error)
+          this.$toast.error('Failed to remove from playlist: ' + errorMsg)
         })
         .finally(() => {
           this.$emit('update:processing', false)

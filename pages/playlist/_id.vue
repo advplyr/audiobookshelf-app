@@ -24,7 +24,7 @@
       </div>
     </div>
 
-    <modals-item-more-menu-modal v-model="showMoreMenu" :library-item="selectedLibraryItem" :episode="selectedEpisode" hide-rss-feed-option :processing.sync="processing" />
+    <modals-item-more-menu-modal v-model="showMoreMenu" :library-item="selectedLibraryItem" :episode="selectedEpisode" :playlist="playlist" hide-rss-feed-option :processing.sync="processing" />
     <div v-show="processing" class="fixed top-0 left-0 w-screen h-screen flex items-center justify-center bg-black/50 z-50">
       <ui-loading-indicator />
     </div>
@@ -140,8 +140,24 @@ export default {
           this.$eventBus.$emit('play-item', { libraryItemId: nextItem.libraryItemId, episodeId: nextItem.episodeId })
         }
       }
+    },
+    playlistUpdated(playlist) {
+      if (this.playlist.id !== playlist.id) return
+      this.playlist = playlist
+    },
+    playlistRemoved(playlist) {
+      if (this.playlist.id === playlist.id) {
+        this.$router.replace('/bookshelf/playlists')
+      }
     }
   },
-  mounted() {}
+  mounted() {
+    this.$socket.$on('playlist_updated', this.playlistUpdated)
+    this.$socket.$on('playlist_removed', this.playlistRemoved)
+  },
+  beforeDestroy() {
+    this.$socket.$off('playlist_updated', this.playlistUpdated)
+    this.$socket.$off('playlist_removed', this.playlistRemoved)
+  }
 }
 </script>
