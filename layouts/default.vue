@@ -212,8 +212,7 @@ export default {
       }
     },
     userUpdated(user) {
-      // console.log('[default] userUpdated:', JSON.stringify(user))
-      if (this.user && this.user.id == user.id) {
+      if (this.user?.id == user.id) {
         this.$store.commit('user/setUser', user)
       }
     },

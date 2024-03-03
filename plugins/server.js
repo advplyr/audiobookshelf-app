@@ -48,11 +48,7 @@ class ServerSocket extends EventEmitter {
     this.socket.on('init', this.onInit.bind(this))
     this.socket.on('user_updated', this.onUserUpdated.bind(this))
     this.socket.on('user_item_progress_updated', this.onUserItemProgressUpdated.bind(this))
-
-    // Good for testing socket requests
-    // this.socket.onAny((evt, args) => {
-    //   console.log(`[SOCKET] onAny: ${this.socket.id}: ${evt} ${JSON.stringify(args)}`)
-    // })
+    this.socket.on('playlist_added', this.onPlaylistAdded.bind(this))
   }
 
   removeListeners() {
@@ -92,6 +88,13 @@ class ServerSocket extends EventEmitter {
     console.log('[SOCKET] User Item Progress Updated', JSON.stringify(payload))
     this.$store.commit('user/updateUserMediaProgress', payload.data)
     this.emit('user_media_progress_updated', payload)
+  }
+
+  onPlaylistAdded() {
+    // Currently numUserPlaylists is only used for showing the playlist tab or not. Precise number is not necessary
+    if (!this.$store.state.libraries.numUserPlaylists) {
+      this.$store.commit('libraries/setNumUserPlaylists', 1)
+    }
   }
 }
 

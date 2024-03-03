@@ -79,7 +79,7 @@ export default {
       return this.page
     },
     hasFilter() {
-      if (this.page === 'series' || this.page === 'collections') return false
+      if (this.page === 'series' || this.page === 'collections' || this.page === 'playlists') return false
       return this.filterBy !== 'all'
     },
     orderBy() {
