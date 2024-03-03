@@ -163,7 +163,8 @@ export default {
       showMoreMenuDialog: false,
       coverRgb: 'rgb(55, 56, 56)',
       coverBgIsLight: false,
-      titleMarquee: null
+      titleMarquee: null,
+      isRefreshingUI: false
     }
   },
   watch: {
@@ -880,15 +881,32 @@ export default {
       this.onProgressSyncSuccess = AbsAudioPlayer.addListener('onProgressSyncSuccess', this.showProgressSyncSuccess)
       this.onPlaybackSpeedChangedListener = AbsAudioPlayer.addListener('onPlaybackSpeedChanged', this.onPlaybackSpeedChanged)
     },
-    screenOrientationChange() {
-      setTimeout(() => {
-        this.updateScreenSize()
-        if (this.$refs.track) {
-          this.trackWidth = this.$refs.track.clientWidth
-          this.updateTrack()
-          this.updateReadyTrack()
+    async screenOrientationChange() {
+      if (this.isRefreshingUI) return
+      this.isRefreshingUI = true
+      const windowWidth = window.innerWidth
+      this.refreshUI()
+
+      // Window width does not always change right away. Wait up to 250ms for a change.
+      // iPhone 10 on iOS 16 took between 100 - 200ms to update when going from portrait to landscape
+      //   but landscape to portrait was immediate
+      for (let i = 0; i < 5; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 50))
+        if (window.innerWidth !== windowWidth) {
+          this.refreshUI()
+          break
         }
-      }, 50)
+      }
+
+      this.isRefreshingUI = false
+    },
+    refreshUI() {
+      this.updateScreenSize()
+      if (this.$refs.track) {
+        this.trackWidth = this.$refs.track.clientWidth
+        this.updateTrack()
+        this.updateReadyTrack()
+      }
     },
     updateScreenSize() {
       setTimeout(() => {
