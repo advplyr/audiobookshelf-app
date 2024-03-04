@@ -481,8 +481,8 @@ export default {
       this.$emit('update:processing', true)
       let url = `/api/playlists/${this.playlist.id}/item/${this.serverLibraryItemId}`
       if (this.serverEpisodeId) url += `/${this.serverEpisodeId}`
-      this.$axios
-        .$delete(url)
+      this.$nativeHttp
+        .delete(url)
         .then(() => {
           this.$toast.success('Item removed from playlist')
         })
