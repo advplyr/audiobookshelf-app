@@ -21,6 +21,7 @@ const languageCodeMap = {
   'pt-br': { label: 'Português (Brasil)', dateFnsLocale: 'ptBR' },
   'ru': { label: 'Русский', dateFnsLocale: 'ru' },
   'sv': { label: 'Svenska', dateFnsLocale: 'sv' },
+  'uk': { label: 'Українська', dateFnsLocale: 'uk' },
   'zh-cn': { label: '简体中文 (Simplified Chinese)', dateFnsLocale: 'zhCN' },
 }
 
