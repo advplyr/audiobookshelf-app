@@ -64,14 +64,14 @@ export default {
       return this.$route.query || {}
     },
     entityTitle() {
-      if (this.isPodcast) return this.$strings.LabelPodcasts
-      if (this.page === 'library') return this.$strings.LabelBooks
-      else if (this.page === 'series') {
+      if (this.page === 'library') {
+        return this.isPodcast ? this.$strings.LabelPodcasts : this.$strings.LabelBooks
+      } else if (this.page === 'playlists') {
+        return this.$strings.ButtonPlaylists
+      } else if (this.page === 'series') {
         return this.$strings.LabelSeries
       } else if (this.page === 'collections') {
         return this.$strings.ButtonCollections
-      } else if (this.page === 'playlists') {
-        return this.$strings.ButtonPlaylists
       } else if (this.page === 'authors') {
         return this.$strings.LabelAuthors
       }
