@@ -1,3 +1,5 @@
+import { Browser } from '@capacitor/browser'
+
 export const state = () => ({
   user: null,
   serverConnectionConfig: null,
@@ -114,6 +116,21 @@ export const actions = {
       }
       commit('setSettings', userSettings)
       this.$eventBus.$emit('user-settings', state.settings)
+    }
+  },
+  async openWebClient({ getters }, path = null) {
+    const serverAddress = getters.getServerAddress
+    if (!serverAddress) {
+      console.error('openWebClient: No server address')
+      return
+    }
+    try {
+      let url = serverAddress.replace(/\/$/, '') // Remove trailing slash
+      if (path?.startsWith('/')) url += path
+
+      await Browser.open({ url })
+    } catch (error) {
+      console.error('Error opening browser', error)
     }
   }
 }
