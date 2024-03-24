@@ -25,6 +25,8 @@ Join us on [discord](https://discord.gg/pJsjuNCKRq) or [Matrix](https://matrix.t
 
 This application is built using [NuxtJS](https://nuxtjs.org/) and [Capacitor](https://capacitorjs.com/) in order to run on both iOS and Android on the same code base.
 
+Information on helping with translations of the apps [here](https://www.audiobookshelf.org/faq#how-do-i-help-with-translations).
+
 ### Windows Environment Setup for Android
 
 Required Software:
