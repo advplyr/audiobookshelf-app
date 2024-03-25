@@ -135,13 +135,12 @@ export default {
       })
 
       if (this.serverConnectionConfig) {
-        if (this.userIsAdminOrUp) {
-          items.push({
-            icon: 'language',
-            text: this.$strings.ButtonGoToWebClient,
-            action: 'openWebClient'
-          })
-        }
+        items.push({
+          icon: 'language',
+          text: this.$strings.ButtonGoToWebClient,
+          action: 'openWebClient'
+        })
+
         items.push({
           icon: 'login',
           text: this.$strings.ButtonSwitchServerUser,

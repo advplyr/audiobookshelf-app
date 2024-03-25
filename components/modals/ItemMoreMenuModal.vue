@@ -135,7 +135,7 @@ export default {
         }
       }
 
-      if (this.isConnectedToServer && this.userIsAdminOrUp) {
+      if (this.isConnectedToServer) {
         items.push({
           text: this.$strings.ButtonGoToWebClient,
           value: 'openWebClient',
