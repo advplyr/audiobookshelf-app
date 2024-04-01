@@ -6,13 +6,7 @@
       </div>
     </template>
 
-    <div
-      class="w-full h-full overflow-hidden absolute top-0 left-0 flex items-center justify-center"
-      @click="
-        show = false
-        manualTimerModal = false
-      "
-    >
+    <div class="w-full h-full overflow-hidden absolute top-0 left-0 flex items-center justify-center" @click="show = false">
       <div class="w-full overflow-x-hidden overflow-y-auto bg-primary rounded-lg border border-border" style="max-height: 75%" @click.stop>
         <div v-if="manualTimerModal" class="p-4">
           <div class="flex mb-4" @click="manualTimerModal = false">
@@ -71,7 +65,7 @@ export default {
   },
   data() {
     return {
-      manualTimerModal: null,
+      manualTimerModal: true,
       manualTimeoutMin: 1
     }
   },
@@ -81,6 +75,9 @@ export default {
         return this.value
       },
       set(val) {
+        if (!val) {
+          this.manualTimerModal = false
+        }
         this.$emit('input', val)
       }
     },
