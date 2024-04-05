@@ -11,6 +11,7 @@ import com.audiobookshelf.app.media.MediaEventManager
 import com.audiobookshelf.app.media.MediaProgressSyncData
 import com.audiobookshelf.app.media.SyncResult
 import com.audiobookshelf.app.models.User
+import com.audiobookshelf.app.BuildConfig
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.core.json.JsonReadFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -327,7 +328,7 @@ class ApiHandler(var ctx:Context) {
   fun sendSyncLocalSessions(playbackSessions:List<PlaybackSession>, cb: (Boolean, String?) -> Unit) {
     @SuppressLint("HardwareIds")
     val deviceId = Settings.Secure.getString(ctx.contentResolver, Settings.Secure.ANDROID_ID)
-    val deviceInfo = DeviceInfo(deviceId, Build.MANUFACTURER, Build.MODEL, Build.VERSION.SDK_INT, Build.VERSION.RELEASE)
+    val deviceInfo = DeviceInfo(deviceId, Build.MANUFACTURER, Build.MODEL, Build.VERSION.SDK_INT, BuildConfig.VERSION_NAME)
 
     val payload = JSObject(jacksonMapper.writeValueAsString(LocalSessionsSyncRequestPayload(playbackSessions, deviceInfo)))
     Log.d(tag, "Sending ${playbackSessions.size} saved local playback sessions to server")
