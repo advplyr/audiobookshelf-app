@@ -707,12 +707,13 @@ class AudioPlayer: NSObject {
                 duration: currentChapter.getRelativeChapterEndTime(),
                 currentTime: currentChapter.getRelativeChapterCurrentTime(sessionCurrentTime: session.currentTime),
                 rate: rate,
+                defaultRate: tmpRate,
                 chapterName: currentChapter.title,
                 chapterNumber: (session.chapters.firstIndex(of: currentChapter) ?? 0) + 1,
                 chapterCount: session.chapters.count
             )
         } else if let duration = self.getDuration(), let currentTime = self.getCurrentTime() {
-            NowPlayingInfo.shared.update(duration: duration, currentTime: currentTime, rate: rate)
+            NowPlayingInfo.shared.update(duration: duration, currentTime: currentTime, rate: rate, defaultRate: tmpRate)
         }
     }
     
