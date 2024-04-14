@@ -62,7 +62,12 @@ class AudioPlayer: NSObject {
         self.audioPlayer.automaticallyWaitsToMinimizeStalling = true
         self.sessionId = sessionId
         self.status = .uninitialized
-        self.rateManager = LegacyAudioPlayerRateManager(audioPlayer: self.audioPlayer, defaultRate: playbackRate)
+        
+        if #available(iOS 16.0, *) {
+            self.rateManager = DefaultedAudioPlayerRateManager(audioPlayer: self.audioPlayer, defaultRate: playbackRate)
+        } else {
+            self.rateManager = LegacyAudioPlayerRateManager(audioPlayer: self.audioPlayer, defaultRate: playbackRate)
+        }
         
         super.init()
         
