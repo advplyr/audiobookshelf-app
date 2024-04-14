@@ -65,6 +65,9 @@
 		E9E8814D28DA6B9000D750C1 /* PlayerTimeUtilsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9E8814C28DA6B9000D750C1 /* PlayerTimeUtilsTests.swift */; };
 		E9E985F828B02D9400957F23 /* PlayerProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9E985F728B02D9400957F23 /* PlayerProgress.swift */; };
 		E9FA07E328C82848005520B0 /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9FA07E228C82848005520B0 /* Logger.swift */; };
+		EACB38122BCCA1330060DA4A /* AudioPlayerRateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = EACB38112BCCA1330060DA4A /* AudioPlayerRateManager.swift */; };
+		EACB38142BCCA1410060DA4A /* LegacyAudioPlayerRateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = EACB38132BCCA1410060DA4A /* LegacyAudioPlayerRateManager.swift */; };
+		EACB38162BCCA1500060DA4A /* DefaultedAudioPlayerRateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = EACB38152BCCA1500060DA4A /* DefaultedAudioPlayerRateManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -142,6 +145,9 @@
 		E9E8814C28DA6B9000D750C1 /* PlayerTimeUtilsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerTimeUtilsTests.swift; sourceTree = "<group>"; };
 		E9E985F728B02D9400957F23 /* PlayerProgress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerProgress.swift; sourceTree = "<group>"; };
 		E9FA07E228C82848005520B0 /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
+		EACB38112BCCA1330060DA4A /* AudioPlayerRateManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AudioPlayerRateManager.swift; sourceTree = "<group>"; };
+		EACB38132BCCA1410060DA4A /* LegacyAudioPlayerRateManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LegacyAudioPlayerRateManager.swift; sourceTree = "<group>"; };
+		EACB38152BCCA1500060DA4A /* DefaultedAudioPlayerRateManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DefaultedAudioPlayerRateManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -183,6 +189,9 @@
 		3ABF6190280432610070250E /* player */ = {
 			isa = PBXGroup;
 			children = (
+				EACB38152BCCA1500060DA4A /* DefaultedAudioPlayerRateManager.swift */,
+				EACB38132BCCA1410060DA4A /* LegacyAudioPlayerRateManager.swift */,
+				EACB38112BCCA1330060DA4A /* AudioPlayerRateManager.swift */,
 				E9E8814828DA641B00D750C1 /* util */,
 				3A200C1427D64D7E00CBF02E /* AudioPlayer.swift */,
 				E9DFCBFA28C28F4A00B36356 /* AudioPlayerSleepTimer.swift */,
@@ -521,6 +530,7 @@
 				E9D5506228AC1CC900C746DD /* PlayerState.swift in Sources */,
 				3AD4FCE728043E72006DB301 /* AbsDatabase.m in Sources */,
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
+				EACB38122BCCA1330060DA4A /* AudioPlayerRateManager.swift in Sources */,
 				E9FA07E328C82848005520B0 /* Logger.swift in Sources */,
 				3A90295F280968E700E1D427 /* PlaybackReport.swift in Sources */,
 				E9D5505A28AC1C4500C746DD /* Folder.swift in Sources */,
@@ -540,6 +550,7 @@
 				3A200C1527D64D7E00CBF02E /* AudioPlayer.swift in Sources */,
 				E9D5507128AC1EC700C746DD /* DownloadItemPart.swift in Sources */,
 				4D66B956282EE951008272D4 /* AbsFileSystem.m in Sources */,
+				EACB38142BCCA1410060DA4A /* LegacyAudioPlayerRateManager.swift in Sources */,
 				3AFCB5E827EA240D00ECCC05 /* NowPlayingInfo.swift in Sources */,
 				3AB34053280829BF0039308B /* Extensions.swift in Sources */,
 				E9D5505828AC1C1A00C746DD /* Library.swift in Sources */,
@@ -548,6 +559,7 @@
 				4DABC04F2B0139CA000F6264 /* User.swift in Sources */,
 				4D66B952282EE822008272D4 /* AbsDownloader.m in Sources */,
 				E9D5506828AC1DC300C746DD /* LocalPodcastEpisode.swift in Sources */,
+				EACB38162BCCA1500060DA4A /* DefaultedAudioPlayerRateManager.swift in Sources */,
 				E9D5505228AC1B5D00C746DD /* Chapter.swift in Sources */,
 				E9D5506028AC1CA900C746DD /* PlaybackMetadata.swift in Sources */,
 				E9D5504828AC1A7A00C746DD /* MediaType.swift in Sources */,
