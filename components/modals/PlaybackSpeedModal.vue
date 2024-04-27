@@ -71,7 +71,7 @@ export default {
       }
     },
     rates() {
-      return [0.5, 1, 1.2, 1.5, 2, 3]
+      return [0.5, 1, 1.2, 1.5, 1.7, 2, 3]
     },
     canIncrement() {
       return this.playbackRate + 0.1 <= this.MAX_SPEED

@@ -15,8 +15,6 @@ import com.google.android.exoplayer2.Player
 import com.google.android.exoplayer2.ui.PlayerNotificationManager
 import kotlinx.coroutines.*
 
-const val NOTIFICATION_LARGE_ICON_SIZE = 144 // px
-
 class AbMediaDescriptionAdapter constructor(private val controller: MediaControllerCompat, private val playerNotificationService: PlayerNotificationService) : PlayerNotificationManager.MediaDescriptionAdapter {
   private val tag = "MediaDescriptionAdapter"
 
@@ -77,7 +75,7 @@ class AbMediaDescriptionAdapter constructor(private val controller: MediaControl
           .load(uri)
           .placeholder(R.drawable.icon)
           .error(R.drawable.icon)
-          .submit(NOTIFICATION_LARGE_ICON_SIZE, NOTIFICATION_LARGE_ICON_SIZE)
+          .submit()
           .get()
       } catch (e: Exception) {
         e.printStackTrace()
@@ -85,7 +83,7 @@ class AbMediaDescriptionAdapter constructor(private val controller: MediaControl
         Glide.with(playerNotificationService)
           .asBitmap()
           .load(Uri.parse("android.resource://${BuildConfig.APPLICATION_ID}/" + R.drawable.icon))
-          .submit(NOTIFICATION_LARGE_ICON_SIZE, NOTIFICATION_LARGE_ICON_SIZE)
+          .submit()
           .get()
       }
     }
