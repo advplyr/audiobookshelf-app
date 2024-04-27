@@ -29,9 +29,7 @@ class AudioPlayer: NSObject {
     internal let logger = AppLogger(category: "AudioPlayer")
 
     private var status: PlayerStatus
-    internal var rate: Float
-
-    private var tmpRate: Float = 1.0
+    internal var rateManager: AudioPlayerRateManager
     
     private var playerContext = 0
     private var playerItemContext = 0
@@ -64,10 +62,17 @@ class AudioPlayer: NSObject {
         self.audioPlayer.automaticallyWaitsToMinimizeStalling = true
         self.sessionId = sessionId
         self.status = .uninitialized
-        self.rate = 0.0
-        self.tmpRate = playbackRate
+        
+        if #available(iOS 16.0, *) {
+            self.rateManager = DefaultedAudioPlayerRateManager(audioPlayer: self.audioPlayer, defaultRate: playbackRate)
+        } else {
+            self.rateManager = LegacyAudioPlayerRateManager(audioPlayer: self.audioPlayer, defaultRate: playbackRate)
+        }
         
         super.init()
+        
+        self.rateManager.rateChangedCompletion = self.updateNowPlaying
+        self.rateManager.defaultRateChangedCompletion = self.setupTimeObservers
         
         initAudioSession()
         setupRemoteTransportControls()
@@ -81,7 +86,6 @@ class AudioPlayer: NSObject {
         
         // Listen to player events
         self.setupAudioSessionNotifications()
-        self.audioPlayer.addObserver(self, forKeyPath: #keyPath(AVPlayer.rate), options: .new, context: &playerContext)
         self.audioPlayer.addObserver(self, forKeyPath: #keyPath(AVPlayer.currentItem), options: .new, context: &playerContext)
         
         for track in playbackSession.audioTracks {
@@ -150,7 +154,6 @@ class AudioPlayer: NSObject {
         }
         
         // Remove observers
-        self.audioPlayer.removeObserver(self, forKeyPath: #keyPath(AVPlayer.rate), context: &playerContext)
         self.audioPlayer.removeObserver(self, forKeyPath: #keyPath(AVPlayer.currentItem), context: &playerContext)
         self.removeTimeObservers()
         
@@ -332,7 +335,7 @@ class AudioPlayer: NSObject {
         self.markAudioSessionAs(active: true)
         DispatchQueue.runOnMainQueue {
             self.audioPlayer.play()
-            self.audioPlayer.rate = self.tmpRate
+            self.rateManager.handlePlayEvent()
         }
         self.status = .playing
 
@@ -424,25 +427,8 @@ class AudioPlayer: NSObject {
         }
     }
     
-    public func setPlaybackRate(_ rate: Float, observed: Bool = false) {
-        let playbackSpeedChanged = rate > 0.0 && rate != self.tmpRate && !(observed && rate == 1)
-        
-        if self.audioPlayer.rate != rate {
-            logger.log("setPlaybakRate rate changed from \(self.audioPlayer.rate) to \(rate)")
-            DispatchQueue.runOnMainQueue {
-                self.audioPlayer.rate = rate
-            }
-        }
-        
-        self.rate = rate
-        self.updateNowPlaying()
-        
-        if playbackSpeedChanged {
-            self.tmpRate = rate
-            
-            // Setup the time observer again at the new rate
-            self.setupTimeObservers()
-        }
+    public func setPlaybackRate(_ rate: Float) {
+        self.rateManager.setPlaybackRate(rate)
     }
     
     public func setChapterTrack() {
@@ -706,24 +692,21 @@ class AudioPlayer: NSObject {
             NowPlayingInfo.shared.update(
                 duration: currentChapter.getRelativeChapterEndTime(),
                 currentTime: currentChapter.getRelativeChapterCurrentTime(sessionCurrentTime: session.currentTime),
-                rate: rate,
-                defaultRate: tmpRate,
+                rate: self.rateManager.rate,
+                defaultRate: self.rateManager.defaultRate,
                 chapterName: currentChapter.title,
                 chapterNumber: (session.chapters.firstIndex(of: currentChapter) ?? 0) + 1,
                 chapterCount: session.chapters.count
             )
         } else if let duration = self.getDuration(), let currentTime = self.getCurrentTime() {
-            NowPlayingInfo.shared.update(duration: duration, currentTime: currentTime, rate: rate, defaultRate: tmpRate)
+            NowPlayingInfo.shared.update(duration: duration, currentTime: currentTime, rate: self.rateManager.rate, defaultRate: self.rateManager.defaultRate)
         }
     }
     
     // MARK: - Observer
     public override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
         if context == &playerContext {
-            if keyPath == #keyPath(AVPlayer.rate) {
-                logger.log("playerContext observer player rate")
-                self.setPlaybackRate(change?[.newKey] as? Float ?? 1.0, observed: true)
-            } else if keyPath == #keyPath(AVPlayer.currentItem) {
+            if keyPath == #keyPath(AVPlayer.currentItem) {
                 NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.update.rawValue), object: nil)
                 logger.log("WARNING: Item ended")
             }
