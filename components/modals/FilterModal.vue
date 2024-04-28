@@ -210,7 +210,7 @@ export default {
       ]
     },
     sublistItems() {
-      return (this[this.sublist] || []).map((item) => {
+      const sublistItems = (this[this.sublist] || []).map((item) => {
         if (typeof item === 'string') {
           return {
             text: item,
@@ -223,6 +223,13 @@ export default {
           }
         }
       })
+      if (this.sublist === 'series') {
+        sublistItems.unshift({
+          text: this.$strings.MessageNoSeries,
+          value: this.$encode('no-series')
+        })
+      }
+      return sublistItems
     },
     filterData() {
       return this.$store.state.libraries.filterData || {}
