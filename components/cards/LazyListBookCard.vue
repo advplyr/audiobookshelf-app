@@ -215,7 +215,7 @@ export default {
       return !!this.userProgress?.isFinished
     },
     showError() {
-      return this.numMissingParts || this.isMissing || this.isInvalid
+      return this.isMissing || this.isInvalid
     },
     isStreaming() {
       return this.store.getters['getlibraryItemIdStreaming'] === this.libraryItemId
@@ -234,10 +234,6 @@ export default {
     },
     isInvalid() {
       return this._libraryItem.isInvalid
-    },
-    numMissingParts() {
-      if (this.isPodcast) return 0
-      return this.media.numMissingParts
     },
     store() {
       return this.$store || this.$nuxt.$store

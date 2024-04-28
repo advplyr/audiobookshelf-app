@@ -313,7 +313,7 @@ export default {
       return !!this.userProgress?.isFinished
     },
     showError() {
-      return this.numMissingParts || this.isMissing || this.isInvalid
+      return this.isMissing || this.isInvalid
     },
     localLibraryItemId() {
       if (this.isLocal) return this.libraryItemId
@@ -347,10 +347,6 @@ export default {
     isExplicit() {
       return !!this.mediaMetadata.explicit
     },
-    numMissingParts() {
-      if (this.isPodcast) return 0
-      return this.media.numMissingParts
-    },
     overlayWrapperClasslist() {
       var classes = []
       if (this.isSelectionMode) classes.push('bg-opacity-60')
@@ -371,9 +367,6 @@ export default {
     },
     userCanDownload() {
       return this.store.getters['user/getUserCanDownload']
-    },
-    userIsRoot() {
-      return this.store.getters['user/getIsRoot']
     },
     titleFontSize() {
       return 0.75 * this.sizeMultiplier
