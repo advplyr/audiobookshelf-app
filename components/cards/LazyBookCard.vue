@@ -7,9 +7,12 @@
 
     <!-- Alternative bookshelf title/author/sort -->
     <div v-if="isAltViewEnabled" class="absolute left-0 z-50 w-full" :style="{ bottom: `-${titleDisplayBottomOffset}rem` }">
-      <p class="truncate" :style="{ fontSize: 0.9 * sizeMultiplier + 'rem' }">
-        {{ displayTitle }}
-      </p>
+      <div :style="{ fontSize: 0.9 * sizeMultiplier + 'rem' }" class="flex items-center">
+        <p class="truncate" :style="{ fontSize: 0.9 * sizeMultiplier + 'rem' }">
+          {{ displayTitle }}
+        </p>
+        <widgets-explicit-indicator v-if="isExplicit" />
+      </div>
       <p class="truncate text-fg-muted" :style="{ fontSize: 0.8 * sizeMultiplier + 'rem' }">{{ displayLineTwo || '&nbsp;' }}</p>
       <p v-if="displaySortLine" class="truncate text-fg-muted" :style="{ fontSize: 0.8 * sizeMultiplier + 'rem' }">{{ displaySortLine }}</p>
     </div>
@@ -340,6 +343,9 @@ export default {
     },
     isInvalid() {
       return this._libraryItem.isInvalid
+    },
+    isExplicit() {
+      return !!this.mediaMetadata.explicit
     },
     numMissingParts() {
       if (this.isPodcast) return 0

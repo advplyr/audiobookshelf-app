@@ -6,8 +6,11 @@
           <covers-preview-cover :src="$store.getters['globals/getLibraryItemCoverSrcById'](libraryItemId)" :width="40" :book-cover-aspect-ratio="bookCoverAspectRatio" :show-resolution="false" class="md:hidden" />
         </div>
         <div class="flex-grow px-2">
-          <div class="-mt-0.5 mb-0.5" @click.stop>
-            <nuxt-link :to="`/item/${libraryItemId}`" class="text-sm text-fg underline">{{ podcast.metadata.title }}</nuxt-link>
+          <div class="flex items-center">
+            <div class="-mt-0.5 mb-0.5" @click.stop>
+              <nuxt-link :to="`/item/${libraryItemId}`" class="text-sm text-fg underline">{{ podcast.metadata.title }}</nuxt-link>
+            </div>
+            <widgets-explicit-indicator v-if="podcast.metadata.explicit" />
           </div>
           <p v-if="publishedAt" class="text-xs text-fg-muted">{{ $dateDistanceFromNow(publishedAt) }}</p>
         </div>

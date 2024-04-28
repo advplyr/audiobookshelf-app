@@ -28,7 +28,10 @@
       <div class="relative z-10 px-3 py-4">
         <!-- title -->
         <div class="text-center mb-2">
-          <h1 class="text-xl font-semibold">{{ title }}</h1>
+          <div class="flex items-center justify-center">
+            <h1 class="text-xl font-semibold">{{ title }}</h1>
+            <widgets-explicit-indicator v-if="isExplicit" />
+          </div>
           <p v-if="subtitle" class="text-fg text-base">{{ subtitle }}</p>
         </div>
 
@@ -435,6 +438,9 @@ export default {
     },
     isInvalid() {
       return this.libraryItem.isInvalid
+    },
+    isExplicit() {
+      return !!this.mediaMetadata.explicit
     },
     showPlay() {
       return !this.isMissing && !this.isInvalid && (this.numTracks || this.episodes.length)
