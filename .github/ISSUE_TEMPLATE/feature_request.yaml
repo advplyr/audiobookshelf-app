@@ -30,7 +30,7 @@ body:
     attributes:
       label: Future Implementation (Screenshot)
       description: Please help us visualize by including a doodle or screenshot.
-      placeholder: How could this look?
+      placeholder: How could this look or where could it go?
     validations:
       required: true
   - type: markdown
