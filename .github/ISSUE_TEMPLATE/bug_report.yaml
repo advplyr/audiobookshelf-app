@@ -1,0 +1,86 @@
+name: 🐞 ABS App Bug Report
+description: File a bug/issue and help us improve the Audiobookshelf mobile apps.
+title: '[Bug]: '
+labels: ['bug', 'triage']
+body:
+  - type: markdown
+    attributes:
+      value: '## App Bug Description'
+  - type: markdown
+    attributes:
+      value: 'Thank you for filing a bug report! 🐛'
+  - type: markdown
+    attributes:
+      value: 'Join the [discord server](https://discord.gg/HQgCbd6E75) for questions or if you are not sure about a bug.'
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What was the Problem?
+      description: Please help us understand the problem.
+      placeholder: Describe the problem you saw or experienced in detail! Include a screenshot or video, if applicable.
+    validations:
+      required: true
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps to Reproduce the Issue
+      description: Please help us understand how we can reliably reproduce the issue.
+      placeholder: '1. Go to the library page of a Podcast library and...'
+    validations:
+      required: true
+  - type: textarea
+    id: what-was-expected
+    attributes:
+      label: What was Expected?
+      description: Please help us understand what should have happened.
+      placeholder: Please help us visualize by including a doodle or screenshot.
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: '## Mobile Environment'
+  - type: input
+    id: phone-model
+    attributes:
+      label: Phone Model
+      description: What kind of phone are you using?
+      placeholder: e.g. Pixel 6, iPhone 14, Samusung Galaxy s23, etc
+    validations:
+      required: true
+  - type: input
+    id: phone-os
+    attributes:
+      label: Phone OS
+      description: What operating system? If Android, is it stock or a custom system?
+      placeholder: e.g. Android 14, iOS 17.4, etc
+    validations:
+      required: true
+  - type: dropdown
+    id: app-version
+    attributes:
+      label: Audiobookshelf App Version
+      description: Please ensure your app is up to date. *If you are using a 3rd-party app, please reach out to them directly.*
+      multiple: true
+      options:
+        - Android App - 0.9.63
+        - iOS App - 0.9.63
+    validations:
+      required: true
+  - type: dropdown
+    id: install-source
+    attributes:
+      label: Installation Source
+      multiple: true
+      options:
+        - Google Play Store
+        - Testflight
+        - SideStore
+        - Other (List in "Additional Notes")
+    validations:
+      required: true
+  - type: textarea
+    id: additional-notes
+    attributes:
+      label: Additional Notes
+      description: Anything else you want to add?
+      placeholder: 'e.g. I have tried X, Y, and Z.'
