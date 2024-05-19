@@ -329,41 +329,8 @@ export default {
           seekTimeInSeconds = hours * 3600 + minutes * 60 + seconds
         }
 
-        return `<a href="#" class="time-marker" data-time="${seekTimeInSeconds}">${match}</a>`
+        return `<span class="time-marker cursor-pointer text-blue-400 hover:text-blue-300" data-time="${seekTimeInSeconds}">${match}</span>`
       })
-    },
-    clickPlaybackTime(event) {
-      const startTime = event.target.getAttribute('data-time')
-      if (this.playerIsStartingPlayback) return
-
-      this.$hapticsImpact()
-
-      this.$store.commit('setPlayerIsStartingPlayback', this.episode.id)
-
-      const playbackData = {
-        libraryItemId: this.libraryItemId,
-        episodeId: this.episode.id,
-        serverLibraryItemId: this.serverLibraryItemId,
-        serverEpisodeId: this.serverEpisodeId,
-        startTime
-      }
-
-      if (this.localEpisodeId && this.localLibraryItemId && !this.isLocal) {
-        playbackData.libraryItemId = this.localLibraryItemId
-        playbackData.episodeId = this.localEpisodeId
-      }
-
-      this.$eventBus.$emit('play-item', playbackData)
-    },
-    bindTimeMarkerEvents() {
-      const container = document.querySelector('.description-container')
-      if (container) {
-        container.addEventListener('click', (event) => {
-          if (event.target.classList.contains('time-marker')) {
-            this.clickPlaybackTime(event)
-          }
-        })
-      }
     },
     async deleteLocalEpisode() {
       await this.$hapticsImpact()
@@ -406,23 +373,48 @@ export default {
       } else {
         this.$store.commit('setPlayerIsStartingPlayback', this.episode.id)
 
-        if (this.localEpisodeId && this.localLibraryItemId && !this.isLocal) {
-          console.log('Play local episode', this.localEpisodeId, this.localLibraryItemId)
+        const playbackData = this.generatePlaybackData()
+        this.emitPlayItemEvent(playbackData)
+      }
+    },
+    async clickPlaybackTime(event) {
+      const startTime = event.target.getAttribute('data-time')
+      if (this.playerIsStartingPlayback) return
 
-          this.$eventBus.$emit('play-item', {
-            libraryItemId: this.localLibraryItemId,
-            episodeId: this.localEpisodeId,
-            serverLibraryItemId: this.serverLibraryItemId,
-            serverEpisodeId: this.serverEpisodeId
-          })
-        } else {
-          this.$eventBus.$emit('play-item', {
-            libraryItemId: this.libraryItemId,
-            episodeId: this.episode.id,
-            serverLibraryItemId: this.serverLibraryItemId,
-            serverEpisodeId: this.serverEpisodeId
-          })
-        }
+      await this.$hapticsImpact()
+
+      this.$store.commit('setPlayerIsStartingPlayback', this.episode.id)
+
+      const playbackData = this.generatePlaybackData(startTime)
+      this.emitPlayItemEvent(playbackData)
+    },
+    generatePlaybackData(startTime) {
+      const playbackData = {
+        libraryItemId: this.libraryItemId,
+        episodeId: this.episode.id,
+        serverLibraryItemId: this.serverLibraryItemId,
+        serverEpisodeId: this.serverEpisodeId,
+        startTime
+      }
+
+      if (this.localEpisodeId && this.localLibraryItemId && !this.isLocal) {
+        playbackData.libraryItemId = this.localLibraryItemId
+        playbackData.episodeId = this.localEpisodeId
+      }
+
+      return playbackData
+    },
+    emitPlayItemEvent(playbackData) {
+      this.$eventBus.$emit('play-item', playbackData)
+    },
+    bindTimeMarkerEvents() {
+      const container = document.querySelector('.description-container')
+      if (container) {
+        container.addEventListener('click', (event) => {
+          if (event.target.classList.contains('time-marker')) {
+            this.clickPlaybackTime(event)
+          }
+        })
       }
     },
     async downloadClick() {
