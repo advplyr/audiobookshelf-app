@@ -314,21 +314,20 @@ export default {
   },
   methods: {
     parseDescription(description) {
-      const timeMarkerRegex = /\d{1,2}:\d{1,2}(:\d{1,2})?/g
+      const timeMarkerLinkRegex = /<a href="#([^"]*?\b\d{1,2}:\d{1,2}(?::\d{1,2})?)">(.*?)<\/a>/g
+      const timeMarkerRegex = /\b\d{1,2}:\d{1,2}(?::\d{1,2})?\b/g
 
-      return description.replace(timeMarkerRegex, (match) => {
-        const time = match.replace(/[()]/g, '')
+      function convertToSeconds(time) {
         const timeParts = time.split(':').map(Number)
-        let seekTimeInSeconds
+        return timeParts.reduce((acc, part, index) => acc * 60 + part, 0)
+      }
 
-        if (timeParts.length === 2) {
-          const [minutes, seconds] = timeParts
-          seekTimeInSeconds = minutes * 60 + seconds
-        } else {
-          const [hours, minutes, seconds] = timeParts
-          seekTimeInSeconds = hours * 3600 + minutes * 60 + seconds
-        }
-
+      return description.replace(timeMarkerLinkRegex, (match, href, displayTime) => {
+        const time = displayTime.match(timeMarkerRegex)[0]
+        const seekTimeInSeconds = convertToSeconds(time)
+        return `<span class="time-marker cursor-pointer text-blue-400 hover:text-blue-300" data-time="${seekTimeInSeconds}">${displayTime}</span>`
+      }).replace(timeMarkerRegex, (match) => {
+        const seekTimeInSeconds = convertToSeconds(match)
         return `<span class="time-marker cursor-pointer text-blue-400 hover:text-blue-300" data-time="${seekTimeInSeconds}">${match}</span>`
       })
     },
