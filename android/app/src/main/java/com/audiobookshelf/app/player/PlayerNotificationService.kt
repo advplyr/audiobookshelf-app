@@ -20,6 +20,7 @@ import android.support.v4.media.session.MediaControllerCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
+import android.view.KeyEvent
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -47,6 +48,8 @@ import com.google.android.exoplayer2.source.ProgressiveMediaSource
 import com.google.android.exoplayer2.source.hls.HlsMediaSource
 import com.google.android.exoplayer2.ui.PlayerNotificationManager
 import com.google.android.exoplayer2.upstream.*
+import kotlinx.coroutines.android.HandlerDispatcher
+import kotlinx.coroutines.android.asCoroutineDispatcher
 import java.util.*
 import kotlin.concurrent.schedule
 
@@ -98,6 +101,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   lateinit var mPlayer: ExoPlayer
   lateinit var currentPlayer:Player
+  lateinit var currentPlayerDispatcher: HandlerDispatcher
+
   var castPlayer:CastPlayer? = null
 
   lateinit var sleepTimerManager:SleepTimerManager
@@ -338,6 +343,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
     initializeMPlayer()
     currentPlayer = mPlayer
+    currentPlayerDispatcher = Handler(currentPlayer.applicationLooper).asCoroutineDispatcher()
   }
 
   private fun initializeMPlayer() {
@@ -883,6 +889,63 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     // Refresh Android Auto actions
     mediaProgressSyncer.currentPlaybackSession?.let {
       setMediaSessionConnectorCustomActions(it)
+    }
+  }
+
+  private var lastStatePlaying:Boolean = false
+
+  fun handleClicks(clicks: Int, clickPressed: Boolean ) {
+    // the handlers should be configurable, defaults:
+    // hold -> jumpBackward
+    // click -> play / pause
+    // click, hold -> fast forward
+    // click, click -> next (chapter or track)
+    // click, click, hold -> rewind
+    // click, click, click -> previous (chapter or track)
+
+    Log.d(tag, "handleClicks: count=$clicks,hold=$clickPressed")
+
+    if(clickPressed) {
+      lastStatePlaying = currentPlayer.isPlaying
+      when (clicks) {
+        1 -> {
+          jumpBackward()
+        }
+        2 -> {
+          // fastForward()
+          // not yet implemented
+        }
+        3 -> {
+          // rewind()
+          // not yet implemented
+        }
+      }
+    } else {
+      when (clicks) {
+        0 -> {
+          // switch from fastForward / rewind back to last playing state
+          if(lastStatePlaying) {
+            play()
+          } else {
+            pause()
+          }
+        }
+        1 -> {
+          if(currentPlayer.isPlaying) {
+            pause()
+          } else {
+            play()
+          }
+        }
+        2 -> {
+          // skipToNext()
+          jumpForward()
+        }
+        3 -> {
+          // skipToPrevious()
+          jumpBackward()
+        }
+      }
     }
   }
 

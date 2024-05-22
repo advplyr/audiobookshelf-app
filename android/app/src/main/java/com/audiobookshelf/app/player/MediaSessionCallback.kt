@@ -8,7 +8,10 @@ import android.util.Log
 import android.view.KeyEvent
 import com.audiobookshelf.app.data.LibraryItemWrapper
 import com.audiobookshelf.app.data.PodcastEpisode
-import com.audiobookshelf.app.device.DeviceManager
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.android.HandlerDispatcher
+import kotlinx.coroutines.android.asCoroutineDispatcher
+import kotlinx.coroutines.launch
 import java.util.*
 import kotlin.concurrent.schedule
 
@@ -20,6 +23,8 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
 
   override fun onPrepare() {
     Log.d(tag, "ON PREPARE MEDIA SESSION COMPAT")
+
+
     playerNotificationService.mediaManager.getFirstItem()?.let { li ->
       playerNotificationService.mediaManager.play(li, null, playerNotificationService.getPlayItemRequestPayload(false)) {
         if (it == null) {
@@ -147,6 +152,8 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
     return handleCallMediaButton(mediaButtonEvent)
   }
 
+
+
   private fun handleCallMediaButton(intent: Intent): Boolean {
     Log.w(tag, "handleCallMediaButton $intent | ${intent.action}")
 
@@ -158,6 +165,9 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
         intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT)
       }
 
+      return debounceKeyEvent(keyEvent);
+
+      /*
       Log.d(tag, "handleCallMediaButton keyEvent = $keyEvent | action ${keyEvent?.action}")
 
       // Widget button intent is only sending the action down event
@@ -203,6 +213,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
         }
       }
 
+
       if (keyEvent?.action == KeyEvent.ACTION_UP) {
         Log.d(tag, "handleCallMediaButton: key action_up for ${keyEvent.keyCode}")
         when (keyEvent.keyCode) {
@@ -243,8 +254,89 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
           }
         }
       }
+      */
     }
     return true
+  }
+
+  private var clickTimer: Timer = Timer()
+  private var clickCount: Int = 0
+  private var clickPressed: Boolean = false
+  private var clickTimerScheduled: Boolean = false
+  private fun debounceKeyEvent(keyEvent: KeyEvent?): Boolean {
+    // how does this work:
+    // - every keyDown and keyUp triggers a scheduled handler
+    // - another keyDown or keyUp cancels the scheduled handler and re-triggers it with new values
+    // - the handler takes clickCount:int and clickPressed:bool (if held down)
+    // - keyCodes increase the number of clicks (PlayPause+=1, Next+=2, Prev+=3)
+    // - depending on the number of clicks, the playerNotificationService handles the configured action
+    // problems:
+    // - the logs show pretty accurate click / hold detection, but it does not really translate well in the player
+    // - since the trigger is scheduled, it does run in a different thread
+    // - this leads to strange behaviour - probably easy to fix, but I'm no kotlin native (Coroutines)
+    // - probably after some actions the thread of the player is no longer accessible...
+    if (keyEvent?.action == KeyEvent.ACTION_UP) {
+      clickPressed = false;
+      // Log.d(tag, "=== KeyEvent.ACTION_UP")
+
+    } else if (keyEvent?.action == KeyEvent.ACTION_DOWN) {
+      // Log.d(tag, "=== KeyEvent.ACTION_DOWN")
+
+      if(clickPressed) {
+        return false
+      }
+      clickPressed = true;
+
+      when (keyEvent.keyCode) {
+        KeyEvent.KEYCODE_HEADSETHOOK,
+        KeyEvent.KEYCODE_MEDIA_PLAY,
+        KeyEvent.KEYCODE_MEDIA_PAUSE,
+        KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
+          Log.d(tag, "=== handleCallMediaButton: Headset Hook / Play / Pause")
+          clickCount++
+        }
+
+        KeyEvent.KEYCODE_MEDIA_NEXT -> {
+          Log.d(tag, "=== handleCallMediaButton: Media Next")
+          this.clickCount += 2
+        }
+
+        KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
+          Log.d(tag, "=== handleCallMediaButton: Media Previous")
+          this.clickCount += 3
+        }
+
+        KeyEvent.KEYCODE_MEDIA_STOP -> {
+          Log.d(tag, "=== handleCallMediaButton: Media Stop")
+          playerNotificationService.closePlayback()
+          clickTimer.cancel()
+          return true
+        } else -> {
+          Log.d(tag, "=== KeyCode:${keyEvent.keyCode}")
+          return false
+        }
+      }
+    }
+
+    if(clickTimerScheduled) {
+      clickTimer.cancel()
+      clickTimer = Timer();
+    }
+
+
+    clickTimer.schedule(500) {
+      Log.d(tag, "=== clickTimer executed: clicks=$clickCount, hold=$clickPressed =========")
+
+      /*val job = */ GlobalScope.launch(playerNotificationService.currentPlayerDispatcher) {
+        playerNotificationService.handleClicks(clickCount, clickPressed);
+      }
+      clickCount = 0;
+      clickTimerScheduled = false;
+    }
+    clickTimerScheduled = true;
+    Log.d(tag, "=== clickTimer scheduled: clicks=$clickCount, hold=$clickPressed =========")
+
+    return true;
   }
 
   private fun handleMediaButtonClickCount() {
