@@ -77,6 +77,14 @@ export const getters = {
   },
   getOrientationLockSetting: state => {
     return state.deviceData?.deviceSettings?.lockOrientation
+  },
+  getCanDownloadUsingCellular: state => {
+    if (!state.deviceData?.deviceSettings?.downloadUsingCellular) return 'ALWAYS'
+    return state.deviceData.deviceSettings.downloadUsingCellular || 'ALWAYS'
+  },
+  getCanStreamingUsingCellular: state => {
+    if (!state.deviceData?.deviceSettings?.streamingUsingCellular) return 'ALWAYS'
+    return state.deviceData.deviceSettings.streamingUsingCellular || 'ALWAYS'
   }
 }
 

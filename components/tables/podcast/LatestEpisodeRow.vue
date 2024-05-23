@@ -60,6 +60,7 @@
 </template>
 
 <script>
+import { Dialog } from '@capacitor/dialog'
 import { AbsFileSystem, AbsDownloader } from '@/plugins/capacitor'
 
 export default {
@@ -95,6 +96,15 @@ export default {
     },
     userCanDownload() {
       return this.$store.getters['user/getUserCanDownload']
+    },
+    canDownloadUsingCellular() {
+      return this.$store.getters['getCanDownloadUsingCellular']
+    },
+    canStreamUsingCellular() {
+      return this.$store.getters['getCanStreamingUsingCellular']
+    },
+    isCellular() {
+      return this.$store.state.networkConnectionType === 'cellular'
     },
     audioFile() {
       return this.episode.audioFile
@@ -185,8 +195,45 @@ export default {
       }
       return folderObj
     },
+    async confirmAction(action) {
+      const { value } = await Dialog.confirm({
+        title: 'Confirm',
+        message: `You are about to ${action} using cellular data. Do you want to proceed?`
+      });
+      return value
+    },
+    async checkDownloadPermission() {
+      if (this.isCellular) {
+        const permission = this.canDownloadUsingCellular
+        if (permission === 'NEVER') {
+          this.$toast.error('Downloading is not allowed on cellular data.')
+          return false
+        } else if (permission === 'ASK') {
+          const confirmed = await this.confirmAction('download')
+          return confirmed
+        }
+      }
+      return true
+    },
+    async checkStreamPermission() {
+      if (this.isCellular) {
+        const permission = this.canStreamUsingCellular
+        if (permission === 'NEVER') {
+          this.$toast.error('Streaming is not allowed on cellular data.')
+          return false
+        } else if (permission === 'ASK') {
+          const confirmed = await this.confirmAction('stream')
+          return confirmed
+        }
+      }
+      return true
+    },
     async downloadClick() {
       if (this.downloadItem || this.pendingDownload) return
+
+      const hasPermission = await this.checkDownloadPermission()
+      if (!hasPermission) return
+
       this.pendingDownload = true
       await this.$hapticsImpact()
       if (this.isIos) {
@@ -258,9 +305,8 @@ export default {
       if (this.streamIsPlaying) {
         this.$eventBus.$emit('pause-item')
       } else {
-        this.$store.commit('setPlayerIsStartingPlayback', this.episode.id)
-
         if (this.localEpisode && this.localLibraryItemId) {
+          this.$store.commit('setPlayerIsStartingPlayback', this.episode.id)
           console.log('Play local episode', this.localEpisode.id, this.localLibraryItemId)
 
           this.$eventBus.$emit('play-item', {
@@ -270,6 +316,10 @@ export default {
             serverEpisodeId: this.episode.id
           })
         } else {
+          const hasPermission = await this.checkStreamPermission()
+          if (!hasPermission) return
+
+          this.$store.commit('setPlayerIsStartingPlayback', this.episode.id)
           this.$eventBus.$emit('play-item', {
             libraryItemId: this.libraryItemId,
             episodeId: this.episode.id
