@@ -41,7 +41,7 @@
       </ui-btn>
     </div>
 
-    <p class="text-sm text-fg mt-1.5 mb-0.5 default-style" v-html="description" />
+    <p class="text-sm text-fg mt-1.5 mb-0.5 default-style description-container" v-html="transformedDescription"></p>
 
     <!-- loading overlay -->
     <div v-if="processing" class="absolute top-0 left-0 w-full h-full bg-black bg-opacity-30 flex items-center justify-center">
@@ -116,6 +116,9 @@ export default {
     }
   },
   computed: {
+    transformedDescription() {
+      return this.parseDescription(this.description)
+    },
     bookCoverAspectRatio() {
       return this.$store.getters['libraries/getBookCoverAspectRatio']
     },
@@ -310,6 +313,24 @@ export default {
     }
   },
   methods: {
+    parseDescription(description) {
+      const timeMarkerLinkRegex = /<a href="#([^"]*?\b\d{1,2}:\d{1,2}(?::\d{1,2})?)">(.*?)<\/a>/g
+      const timeMarkerRegex = /\b\d{1,2}:\d{1,2}(?::\d{1,2})?\b/g
+
+      function convertToSeconds(time) {
+        const timeParts = time.split(':').map(Number)
+        return timeParts.reduce((acc, part, index) => acc * 60 + part, 0)
+      }
+
+      return description.replace(timeMarkerLinkRegex, (match, href, displayTime) => {
+        const time = displayTime.match(timeMarkerRegex)[0]
+        const seekTimeInSeconds = convertToSeconds(time)
+        return `<span class="time-marker cursor-pointer text-blue-400 hover:text-blue-300" data-time="${seekTimeInSeconds}">${displayTime}</span>`
+      }).replace(timeMarkerRegex, (match) => {
+        const seekTimeInSeconds = convertToSeconds(match)
+        return `<span class="time-marker cursor-pointer text-blue-400 hover:text-blue-300" data-time="${seekTimeInSeconds}">${match}</span>`
+      })
+    },
     async deleteLocalEpisode() {
       await this.$hapticsImpact()
 
@@ -351,23 +372,48 @@ export default {
       } else {
         this.$store.commit('setPlayerIsStartingPlayback', this.episode.id)
 
-        if (this.localEpisodeId && this.localLibraryItemId && !this.isLocal) {
-          console.log('Play local episode', this.localEpisodeId, this.localLibraryItemId)
+        const playbackData = this.generatePlaybackData()
+        this.emitPlayItemEvent(playbackData)
+      }
+    },
+    async clickPlaybackTime(event) {
+      const startTime = event.target.getAttribute('data-time')
+      if (this.playerIsStartingPlayback) return
 
-          this.$eventBus.$emit('play-item', {
-            libraryItemId: this.localLibraryItemId,
-            episodeId: this.localEpisodeId,
-            serverLibraryItemId: this.serverLibraryItemId,
-            serverEpisodeId: this.serverEpisodeId
-          })
-        } else {
-          this.$eventBus.$emit('play-item', {
-            libraryItemId: this.libraryItemId,
-            episodeId: this.episode.id,
-            serverLibraryItemId: this.serverLibraryItemId,
-            serverEpisodeId: this.serverEpisodeId
-          })
-        }
+      await this.$hapticsImpact()
+
+      this.$store.commit('setPlayerIsStartingPlayback', this.episode.id)
+
+      const playbackData = this.generatePlaybackData(startTime)
+      this.emitPlayItemEvent(playbackData)
+    },
+    generatePlaybackData(startTime) {
+      const playbackData = {
+        libraryItemId: this.libraryItemId,
+        episodeId: this.episode.id,
+        serverLibraryItemId: this.serverLibraryItemId,
+        serverEpisodeId: this.serverEpisodeId,
+        startTime
+      }
+
+      if (this.localEpisodeId && this.localLibraryItemId && !this.isLocal) {
+        playbackData.libraryItemId = this.localLibraryItemId
+        playbackData.episodeId = this.localEpisodeId
+      }
+
+      return playbackData
+    },
+    emitPlayItemEvent(playbackData) {
+      this.$eventBus.$emit('play-item', playbackData)
+    },
+    bindTimeMarkerEvents() {
+      const container = document.querySelector('.description-container')
+      if (container) {
+        container.addEventListener('click', (event) => {
+          if (event.target.classList.contains('time-marker')) {
+            this.clickPlaybackTime(event)
+          }
+        })
       }
     },
     async downloadClick() {
@@ -557,9 +603,13 @@ export default {
   },
   mounted() {
     this.$eventBus.$on('new-local-library-item', this.newLocalLibraryItem)
+    this.bindTimeMarkerEvents()
   },
   beforeDestroy() {
     this.$eventBus.$off('new-local-library-item', this.newLocalLibraryItem)
+    document.querySelectorAll('.time-marker').forEach(marker => {
+      marker.removeEventListener('click', this.clickPlaybackTime)
+    })
   }
 }
 </script>
