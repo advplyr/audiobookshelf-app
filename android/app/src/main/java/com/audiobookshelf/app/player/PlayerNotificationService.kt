@@ -136,7 +136,6 @@ class PlayerNotificationService : CoroutineScope, MediaBrowserServiceCompat()  {
 
   lateinit var mPlayer: ExoPlayer
   lateinit var currentPlayer:Player
-  lateinit var currentPlayerDispatcher: HandlerDispatcher
 
   var castPlayer:CastPlayer? = null
 
@@ -379,7 +378,6 @@ class PlayerNotificationService : CoroutineScope, MediaBrowserServiceCompat()  {
 
     initializeMPlayer()
     currentPlayer = mPlayer
-    currentPlayerDispatcher = Handler(currentPlayer.applicationLooper).asCoroutineDispatcher()
   }
 
   private fun initializeMPlayer() {
