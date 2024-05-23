@@ -2,24 +2,21 @@ package com.audiobookshelf.app.player
 
 import android.annotation.SuppressLint
 import android.content.Intent
-import android.os.*
+import android.os.Build
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.Message
 import android.support.v4.media.session.MediaSessionCompat
 import android.util.Log
 import android.view.KeyEvent
 import com.audiobookshelf.app.data.LibraryItemWrapper
 import com.audiobookshelf.app.data.PodcastEpisode
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.android.HandlerDispatcher
-import kotlinx.coroutines.android.asCoroutineDispatcher
-import kotlinx.coroutines.launch
-import java.util.*
+import java.util.Timer
 import kotlin.concurrent.schedule
 
 class MediaSessionCallback(var playerNotificationService:PlayerNotificationService) : MediaSessionCompat.Callback() {
   var tag = "MediaSessionCallback"
-
-  private var mediaButtonClickCount: Int = 0
-  private var mediaButtonClickTimeout: Long = 1000  //ms
 
   override fun onPrepare() {
     Log.d(tag, "ON PREPARE MEDIA SESSION COMPAT")
@@ -165,7 +162,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
         intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT)
       }
 
-      return debounceKeyEvent(keyEvent);
+      return debounceKeyEvent(keyEvent)
 
       /*
       Log.d(tag, "handleCallMediaButton keyEvent = $keyEvent | action ${keyEvent?.action}")
@@ -276,7 +273,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
     // - this leads to strange behaviour - probably easy to fix, but I'm no kotlin native (Coroutines)
     // - probably after some actions the thread of the player is no longer accessible...
     if (keyEvent?.action == KeyEvent.ACTION_UP) {
-      clickPressed = false;
+      clickPressed = false
       // Log.d(tag, "=== KeyEvent.ACTION_UP")
 
     } else if (keyEvent?.action == KeyEvent.ACTION_DOWN) {
@@ -285,7 +282,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
       if(clickPressed) {
         return false
       }
-      clickPressed = true;
+      clickPressed = true
 
       when (keyEvent.keyCode) {
         KeyEvent.KEYCODE_HEADSETHOOK,
@@ -320,36 +317,21 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
 
     if(clickTimerScheduled) {
       clickTimer.cancel()
-      clickTimer = Timer();
+      clickTimer = Timer()
     }
 
 
-    clickTimer.schedule(500) {
-      Log.d(tag, "=== clickTimer executed: clicks=$clickCount, hold=$clickPressed =========")
-
-      /*val job = */ GlobalScope.launch(playerNotificationService.currentPlayerDispatcher) {
-        playerNotificationService.handleClicks(clickCount, clickPressed);
-      }
-      clickCount = 0;
-      clickTimerScheduled = false;
+    clickTimer.schedule(600) {
+      playerNotificationService.handleClicks(clickCount, clickPressed)
+      clickCount = 0
+      clickTimerScheduled = false
     }
-    clickTimerScheduled = true;
+    clickTimerScheduled = true
     Log.d(tag, "=== clickTimer scheduled: clicks=$clickCount, hold=$clickPressed =========")
-
-    return true;
+    return true
   }
 
-  private fun handleMediaButtonClickCount() {
-    mediaButtonClickCount++
-    if (1 == mediaButtonClickCount) {
-      Timer().schedule(mediaButtonClickTimeout) {
-        mediaBtnHandler.sendEmptyMessage(mediaButtonClickCount)
-        mediaButtonClickCount = 0
-      }
-    }
-  }
-
-
+  @Suppress("DEPRECATION")
   private val mediaBtnHandler : Handler = @SuppressLint("HandlerLeak")
   object : Handler(){
     override fun handleMessage(msg: Message) {
