@@ -159,7 +159,7 @@ data class DeviceSettings(
         disableSleepTimerResetFeedback = false,
         languageCode = "en-us",
         downloadUsingCellular = DownloadUsingCellularSetting.ALWAYS,
-        streamingUsingCellular = StreamingUsingCellularItems.ALWAYS
+        streamingUsingCellular = StreamingUsingCellularSetting.ALWAYS
       )
     }
   }
