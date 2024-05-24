@@ -257,6 +257,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
   }
 
   private var clickTimer: Timer = Timer()
+  private var clickTimerId: Long = System.currentTimeMillis()
   private var clickCount: Int = 0
   private var clickPressed: Boolean = false
   private var clickTimerScheduled: Boolean = false
@@ -289,45 +290,46 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
         KeyEvent.KEYCODE_MEDIA_PLAY,
         KeyEvent.KEYCODE_MEDIA_PAUSE,
         KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
-          Log.d(tag, "=== handleCallMediaButton: Headset Hook / Play / Pause")
           clickCount++
+          Log.d(tag, "=== handleCallMediaButton: Headset Hook/Play/ Pause, clickCount=$clickCount")
         }
 
         KeyEvent.KEYCODE_MEDIA_NEXT -> {
-          Log.d(tag, "=== handleCallMediaButton: Media Next")
-          this.clickCount += 2
+          clickCount += 2
+          Log.d(tag, "=== handleCallMediaButton: Media Next, clickCount=$clickCount")
         }
 
         KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
-          Log.d(tag, "=== handleCallMediaButton: Media Previous")
-          this.clickCount += 3
+          clickCount += 3
+          Log.d(tag, "=== handleCallMediaButton: Media Previous, clickCount=$clickCount")
         }
 
         KeyEvent.KEYCODE_MEDIA_STOP -> {
-          Log.d(tag, "=== handleCallMediaButton: Media Stop")
+          Log.d(tag, "=== handleCallMediaButton: Media Stop, clickCount=$clickCount")
           playerNotificationService.closePlayback()
           clickTimer.cancel()
           return true
         } else -> {
-          Log.d(tag, "=== KeyCode:${keyEvent.keyCode}")
+          Log.d(tag, "=== KeyCode:${keyEvent.keyCode}, clickCount=$clickCount")
           return false
         }
       }
     }
 
     if(clickTimerScheduled) {
+      Log.d(tag, "=== clickTimer cancelled ($clickTimerId): clicks=$clickCount, hold=$clickPressed =========")
       clickTimer.cancel()
       clickTimer = Timer()
     }
 
-
-    clickTimer.schedule(600) {
+    clickTimer.schedule(650) {
+      Log.d(tag, "=== clickTimer executed ($clickTimerId): clicks=$clickCount, hold=$clickPressed =========")
       playerNotificationService.handleClicks(clickCount, clickPressed)
       clickCount = 0
       clickTimerScheduled = false
     }
     clickTimerScheduled = true
-    Log.d(tag, "=== clickTimer scheduled: clicks=$clickCount, hold=$clickPressed =========")
+    Log.d(tag, "=== clickTimer scheduled ($clickTimerId): clicks=$clickCount, hold=$clickPressed =========")
     return true
   }
 
