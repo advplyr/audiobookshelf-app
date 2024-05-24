@@ -10,18 +10,29 @@ import android.os.Message
 import android.support.v4.media.session.MediaSessionCompat
 import android.util.Log
 import android.view.KeyEvent
+import com.audiobookshelf.app.data.DeviceSettings
 import com.audiobookshelf.app.data.LibraryItemWrapper
 import com.audiobookshelf.app.data.PodcastEpisode
+import com.audiobookshelf.app.device.DeviceManager
 import java.util.Timer
 import kotlin.concurrent.schedule
 
 class MediaSessionCallback(var playerNotificationService:PlayerNotificationService) : MediaSessionCompat.Callback() {
   var tag = "MediaSessionCallback"
+  private val deviceSettings
+    get() = DeviceManager.deviceData.deviceSettings ?: DeviceSettings.default()
+
+  private var mediaButtonClickCount: Int = 0
+  private var mediaButtonClickTimeout: Long = 1000  //ms
+
+  private var clickTimer: Timer = Timer()
+  private var clickTimerId: Long = System.currentTimeMillis()
+  private var clickCount: Int = 0
+  private var clickPressed: Boolean = false
+  private var clickTimerScheduled: Boolean = false
 
   override fun onPrepare() {
     Log.d(tag, "ON PREPARE MEDIA SESSION COMPAT")
-
-
     playerNotificationService.mediaManager.getFirstItem()?.let { li ->
       playerNotificationService.mediaManager.play(li, null, playerNotificationService.getPlayItemRequestPayload(false)) {
         if (it == null) {
@@ -149,8 +160,6 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
     return handleCallMediaButton(mediaButtonEvent)
   }
 
-
-
   private fun handleCallMediaButton(intent: Intent): Boolean {
     Log.w(tag, "handleCallMediaButton $intent | ${intent.action}")
 
@@ -161,10 +170,10 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
         @Suppress("DEPRECATION")
         intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT)
       }
+      if(deviceSettings.enableExperimentalHeadsetControl) {
+        return debounceKeyEvent(keyEvent)
+      }
 
-      return debounceKeyEvent(keyEvent)
-
-      /*
       Log.d(tag, "handleCallMediaButton keyEvent = $keyEvent | action ${keyEvent?.action}")
 
       // Widget button intent is only sending the action down event
@@ -210,7 +219,6 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
         }
       }
 
-
       if (keyEvent?.action == KeyEvent.ACTION_UP) {
         Log.d(tag, "handleCallMediaButton: key action_up for ${keyEvent.keyCode}")
         when (keyEvent.keyCode) {
@@ -251,16 +259,22 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
           }
         }
       }
-      */
     }
     return true
   }
 
-  private var clickTimer: Timer = Timer()
-  private var clickTimerId: Long = System.currentTimeMillis()
-  private var clickCount: Int = 0
-  private var clickPressed: Boolean = false
-  private var clickTimerScheduled: Boolean = false
+  private fun handleMediaButtonClickCount() {
+    mediaButtonClickCount++
+    if (1 == mediaButtonClickCount) {
+      Timer().schedule(mediaButtonClickTimeout) {
+        mediaBtnHandler.sendEmptyMessage(mediaButtonClickCount)
+        mediaButtonClickCount = 0
+      }
+    }
+  }
+
+
+
   private fun debounceKeyEvent(keyEvent: KeyEvent?): Boolean {
     // how does this work:
     // - every keyDown and keyUp triggers a scheduled handler
