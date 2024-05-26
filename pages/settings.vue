@@ -67,7 +67,12 @@
       </div>
       <p class="pl-4">{{ $strings.LabelAllowSeekingOnMediaControls }}</p>
     </div>
-
+    <div class="flex items-center py-3">
+      <div class="w-10 flex justify-center" @click="toggleEnableExperimentalHeadsetControl">
+        <ui-toggle-switch v-model="enableExperimentalHeadsetControl" @input="saveSettings" />
+      </div>
+      <p class="pl-4">{{ $strings.LabelUseExperimentalHeadsetControl }}</p>
+    </div>
     <!-- Sleep timer settings -->
     <template v-if="!isiOS">
       <p class="uppercase text-xs font-semibold text-fg-muted mb-2 mt-10">{{ $strings.HeaderSleepTimerSettings }}</p>
@@ -176,7 +181,8 @@ export default {
         disableSleepTimerResetFeedback: false,
         autoSleepTimerAutoRewind: false,
         autoSleepTimerAutoRewindTime: 300000, // 5 minutes
-        languageCode: 'en-us'
+        languageCode: 'en-us',
+        enableExperimentalHeadsetControl: false
       },
       theme: 'dark',
       lockCurrentOrientation: false,
@@ -325,7 +331,15 @@ export default {
       else if (this.moreMenuSetting === 'language') return this.languageOptionItems
       else if (this.moreMenuSetting === 'theme') return this.themeOptionItems
       return []
-    }
+    },
+    enableExperimentalHeadsetControl: {
+      get() {
+        return this.settings.enableExperimentalHeadsetControl
+      },
+      set(val) {
+        this.settings.enableExperimentalHeadsetControl = val
+      }
+    },
   },
   methods: {
     sleepTimerLengthModalSelection(value) {
@@ -466,6 +480,10 @@ export default {
       var next = (this.currentJumpBackwardsTimeIndex + 4) % 3
       if (next > 2) return
       this.settings.jumpBackwardsTime = this.jumpBackwardsItems[next].value
+      this.saveSettings()
+    },
+    toggleEnableExperimentalHeadsetControl() {
+      this.settings.enableExperimentalHeadsetControl = this.settings.enableExperimentalHeadsetControl
       this.saveSettings()
     },
     async saveSettings() {

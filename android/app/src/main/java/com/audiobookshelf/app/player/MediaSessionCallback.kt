@@ -171,7 +171,10 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
         intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT)
       }
       if(deviceSettings.enableExperimentalHeadsetControl) {
+        Log.d(tag, "experimental headset control: enabled")
         return debounceKeyEvent(keyEvent)
+      } else {
+        Log.d(tag, "experimental headset control: disabled")
       }
 
       Log.d(tag, "handleCallMediaButton keyEvent = $keyEvent | action ${keyEvent?.action}")

@@ -149,7 +149,6 @@ data class DeviceSettings(
         disableSleepTimerFadeOut = false,
         disableSleepTimerResetFeedback = false,
         languageCode = "en-us",
-
         enableExperimentalHeadsetControl = false,
       )
     }
