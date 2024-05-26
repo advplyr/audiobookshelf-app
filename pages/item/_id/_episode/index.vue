@@ -56,6 +56,7 @@
 import { Capacitor } from '@capacitor/core'
 import { Dialog } from '@capacitor/dialog'
 import { AbsFileSystem, AbsDownloader } from '@/plugins/capacitor'
+import cellularPermissionHelpers from '@/mixins/cellularPermissionHelpers'
 
 export default {
   async asyncData({ store, params, redirect, app }) {
@@ -115,6 +116,7 @@ export default {
       startingDownload: false
     }
   },
+  mixins: [cellularPermissionHelpers],
   computed: {
     transformedDescription() {
       return this.parseDescription(this.description)
@@ -418,6 +420,9 @@ export default {
     },
     async downloadClick() {
       if (this.downloadItem || this.startingDownload) return
+
+      const hasPermission = await this.checkCellularPermission('download')
+      if (!hasPermission) return
 
       this.startingDownload = true
       setTimeout(() => {

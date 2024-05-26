@@ -171,6 +171,7 @@
 import { Dialog } from '@capacitor/dialog'
 import { AbsFileSystem, AbsDownloader } from '@/plugins/capacitor'
 import { FastAverageColor } from 'fast-average-color'
+import cellularPermissionHelpers from '@/mixins/cellularPermissionHelpers'
 
 export default {
   async asyncData({ store, params, redirect, app, query }) {
@@ -221,6 +222,7 @@ export default {
       startingDownload: false
     }
   },
+  mixins: [cellularPermissionHelpers],
   computed: {
     isIos() {
       return this.$platform === 'ios'
@@ -607,9 +609,11 @@ export default {
       this.download(localFolder)
     },
     async downloadClick() {
-      if (this.downloadItem || this.startingDownload) {
-        return
-      }
+      if (this.downloadItem || this.startingDownload)  return
+
+      const hasPermission = await this.checkCellularPermission('download')
+      if (!hasPermission) return
+
       this.startingDownload = true
       setTimeout(() => {
         this.startingDownload = false

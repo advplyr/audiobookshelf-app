@@ -245,7 +245,7 @@ public class AbsDatabase: CAPPlugin {
         let hapticFeedback = call.getString("hapticFeedback") ?? "LIGHT"
         let languageCode = call.getString("languageCode") ?? "en-us"
         let downloadUsingCellular = call.getString("downloadUsingCellular") ?? "ALWAYS"
-        let streamingUsingCellular = call.getString("downloadUsingCellular") ?? "ALWAYS"
+        let streamingUsingCellular = call.getString("streamingUsingCellular") ?? "ALWAYS"
         let settings = DeviceSettings()
         settings.disableAutoRewind = disableAutoRewind
         settings.enableAltView = enableAltView

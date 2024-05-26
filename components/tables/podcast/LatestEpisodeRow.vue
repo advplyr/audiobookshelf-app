@@ -60,8 +60,8 @@
 </template>
 
 <script>
-import { Dialog } from '@capacitor/dialog'
 import { AbsFileSystem, AbsDownloader } from '@/plugins/capacitor'
+import CellularPermissionHelpers from '@/mixins/cellularPermissionHelpers'
 
 export default {
   props: {
@@ -84,6 +84,7 @@ export default {
       processing: false
     }
   },
+  mixins: [CellularPermissionHelpers],
   computed: {
     bookCoverAspectRatio() {
       return this.$store.getters['libraries/getBookCoverAspectRatio']
@@ -96,15 +97,6 @@ export default {
     },
     userCanDownload() {
       return this.$store.getters['user/getUserCanDownload']
-    },
-    canDownloadUsingCellular() {
-      return this.$store.getters['getCanDownloadUsingCellular']
-    },
-    canStreamUsingCellular() {
-      return this.$store.getters['getCanStreamingUsingCellular']
-    },
-    isCellular() {
-      return this.$store.state.networkConnectionType === 'cellular'
     },
     audioFile() {
       return this.episode.audioFile
@@ -195,43 +187,10 @@ export default {
       }
       return folderObj
     },
-    async confirmAction(action) {
-      const { value } = await Dialog.confirm({
-        title: 'Confirm',
-        message: `You are about to ${action} using cellular data. Do you want to proceed?`
-      });
-      return value
-    },
-    async checkDownloadPermission() {
-      if (this.isCellular) {
-        const permission = this.canDownloadUsingCellular
-        if (permission === 'NEVER') {
-          this.$toast.error('Downloading is not allowed on cellular data.')
-          return false
-        } else if (permission === 'ASK') {
-          const confirmed = await this.confirmAction('download')
-          return confirmed
-        }
-      }
-      return true
-    },
-    async checkStreamPermission() {
-      if (this.isCellular) {
-        const permission = this.canStreamUsingCellular
-        if (permission === 'NEVER') {
-          this.$toast.error('Streaming is not allowed on cellular data.')
-          return false
-        } else if (permission === 'ASK') {
-          const confirmed = await this.confirmAction('stream')
-          return confirmed
-        }
-      }
-      return true
-    },
     async downloadClick() {
       if (this.downloadItem || this.pendingDownload) return
 
-      const hasPermission = await this.checkDownloadPermission()
+      const hasPermission = await this.checkCellularPermission('download')
       if (!hasPermission) return
 
       this.pendingDownload = true
@@ -305,26 +264,13 @@ export default {
       if (this.streamIsPlaying) {
         this.$eventBus.$emit('pause-item')
       } else {
-        if (this.localEpisode && this.localLibraryItemId) {
-          this.$store.commit('setPlayerIsStartingPlayback', this.episode.id)
-          console.log('Play local episode', this.localEpisode.id, this.localLibraryItemId)
-
-          this.$eventBus.$emit('play-item', {
-            libraryItemId: this.localLibraryItemId,
-            episodeId: this.localEpisode.id,
-            serverLibraryItemId: this.libraryItemId,
-            serverEpisodeId: this.episode.id
-          })
-        } else {
-          const hasPermission = await this.checkStreamPermission()
-          if (!hasPermission) return
-
-          this.$store.commit('setPlayerIsStartingPlayback', this.episode.id)
-          this.$eventBus.$emit('play-item', {
-            libraryItemId: this.libraryItemId,
-            episodeId: this.episode.id
-          })
-        }
+        this.$store.commit('setPlayerIsStartingPlayback', this.episode.id)
+        this.$eventBus.$emit('play-item', {
+          libraryItemId: this.libraryItemId,
+          episodeId: this.episode.id,
+          serverLibraryItemId: this.libraryItemId,
+          serverEpisodeId: this.episode.id
+        })
       }
     },
     async toggleFinished() {
@@ -335,7 +281,11 @@ export default {
         const isFinished = !this.userIsFinished
         const localLibraryItemId = this.isLocal ? this.libraryItemId : this.localLibraryItemId
         const localEpisodeId = this.isLocal ? this.episode.id : this.localEpisode.id
-        const payload = await this.$db.updateLocalMediaProgressFinished({ localLibraryItemId, localEpisodeId, isFinished })
+        const payload = await this.$db.updateLocalMediaProgressFinished({
+          localLibraryItemId,
+          localEpisodeId,
+          isFinished
+        })
         console.log('toggleFinished payload', JSON.stringify(payload))
         if (payload?.error) {
           this.$toast.error(payload?.error || 'Unknown error')

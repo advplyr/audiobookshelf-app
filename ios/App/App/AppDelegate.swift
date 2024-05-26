@@ -60,6 +60,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                         newObject?["downloadUsingCellular"] = "ALWAYS"
                         newObject?["streamingUsingCellular"] = "ALWAYS"
                     }
+                }
 
             }
         )
