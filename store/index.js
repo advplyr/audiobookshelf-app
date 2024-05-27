@@ -78,9 +78,9 @@ export const getters = {
   getOrientationLockSetting: state => {
     return state.deviceData?.deviceSettings?.lockOrientation
   },
-  getExperimentalHeadsetControlEnabled: state => {
+  getExtendedHeadsetControlsEnabled: state => {
     if (!state.deviceData?.deviceSettings) return false
-    return state.deviceData.deviceSettings.enableExperimentalHeadsetControl
+    return state.deviceData.deviceSettings.enableExtendedHeadsetControls
   },
 }
 

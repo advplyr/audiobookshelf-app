@@ -124,7 +124,7 @@ data class DeviceSettings(
   var disableSleepTimerFadeOut: Boolean,
   var disableSleepTimerResetFeedback: Boolean,
   var languageCode: String,
-  val enableExperimentalHeadsetControl: Boolean
+  val enableExtendedHeadsetControls: Boolean
 ) {
   companion object {
     // Static method to get default device settings
@@ -149,7 +149,7 @@ data class DeviceSettings(
         disableSleepTimerFadeOut = false,
         disableSleepTimerResetFeedback = false,
         languageCode = "en-us",
-        enableExperimentalHeadsetControl = false,
+        enableExtendedHeadsetControls = false,
       )
     }
   }

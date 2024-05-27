@@ -68,10 +68,10 @@
       <p class="pl-4">{{ $strings.LabelAllowSeekingOnMediaControls }}</p>
     </div>
     <div class="flex items-center py-3">
-      <div class="w-10 flex justify-center" @click="toggleEnableExperimentalHeadsetControl">
-        <ui-toggle-switch v-model="enableExperimentalHeadsetControl" @input="saveSettings" />
+      <div class="w-10 flex justify-center" @click="toggleEnableExtendedHeadsetControls">
+        <ui-toggle-switch v-model="enableExtendedHeadsetControls" @input="saveSettings" />
       </div>
-      <p class="pl-4">{{ $strings.LabelUseExperimentalHeadsetControl }}</p>
+      <p class="pl-4">{{ $strings.LabelUseExtendedHeadsetControls }}</p>
     </div>
     <!-- Sleep timer settings -->
     <template v-if="!isiOS">
@@ -182,7 +182,7 @@ export default {
         autoSleepTimerAutoRewind: false,
         autoSleepTimerAutoRewindTime: 300000, // 5 minutes
         languageCode: 'en-us',
-        enableExperimentalHeadsetControl: false
+        enableExtendedHeadsetControls: false
       },
       theme: 'dark',
       lockCurrentOrientation: false,
@@ -332,12 +332,12 @@ export default {
       else if (this.moreMenuSetting === 'theme') return this.themeOptionItems
       return []
     },
-    enableExperimentalHeadsetControl: {
+    enableExtendedHeadsetControls: {
       get() {
-        return this.settings.enableExperimentalHeadsetControl
+        return this.settings.enableExtendedHeadsetControls
       },
       set(val) {
-        this.settings.enableExperimentalHeadsetControl = val
+        this.settings.enableExtendedHeadsetControls = val
       }
     },
   },
@@ -482,8 +482,8 @@ export default {
       this.settings.jumpBackwardsTime = this.jumpBackwardsItems[next].value
       this.saveSettings()
     },
-    toggleEnableExperimentalHeadsetControl() {
-      this.settings.enableExperimentalHeadsetControl = this.settings.enableExperimentalHeadsetControl
+    toggleEnableExtendedHeadsetControls() {
+      this.settings.enableExtendedHeadsetControls = !this.settings.enableExtendedHeadsetControls
       this.saveSettings()
     },
     async saveSettings() {
@@ -504,6 +504,7 @@ export default {
       this.settings.jumpForwardTime = deviceSettings.jumpForwardTime || 10
       this.settings.jumpBackwardsTime = deviceSettings.jumpBackwardsTime || 10
       this.settings.enableMp3IndexSeeking = !!deviceSettings.enableMp3IndexSeeking
+      this.settings.enableExtendedHeadsetControls = !!deviceSettings.enableExtendedHeadsetControls
 
       this.settings.lockOrientation = deviceSettings.lockOrientation || 'NONE'
       this.lockCurrentOrientation = this.settings.lockOrientation !== 'NONE'

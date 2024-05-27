@@ -244,7 +244,7 @@ public class AbsDatabase: CAPPlugin {
         let lockOrientation = call.getString("lockOrientation") ?? "NONE"
         let hapticFeedback = call.getString("hapticFeedback") ?? "LIGHT"
         let languageCode = call.getString("languageCode") ?? "en-us"
-        let enableExperimentalHeadsetControl = call.getBool("enableExperimentalHeadsetControl") ?? false
+        let enableExtendedHeadsetControls = call.getBool("enableExtendedHeadsetControls") ?? false
 
         let settings = DeviceSettings()
         settings.disableAutoRewind = disableAutoRewind
@@ -255,7 +255,7 @@ public class AbsDatabase: CAPPlugin {
         settings.lockOrientation = lockOrientation
         settings.hapticFeedback = hapticFeedback
         settings.languageCode = languageCode
-        settings.enableExperimentalHeadsetControl = enableExperimentalHeadsetControl
+        settings.enableExtendedHeadsetControls = enableExtendedHeadsetControls
 
         Database.shared.setDeviceSettings(deviceSettings: settings)
 

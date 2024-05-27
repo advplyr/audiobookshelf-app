@@ -17,7 +17,7 @@ class DeviceSettings: Object {
     @Persisted var lockOrientation: String = "NONE"
     @Persisted var hapticFeedback: String = "LIGHT"
     @Persisted var languageCode: String = "en-us"
-    @Persisted var enableExperimentalHeadsetControl: Bool = false
+    @Persisted var enableExtendedHeadsetControls: Bool = false
 
 }
 
@@ -35,7 +35,7 @@ func deviceSettingsToJSON(settings: DeviceSettings) -> Dictionary<String, Any> {
         "lockOrientation": settings.lockOrientation,
         "hapticFeedback": settings.hapticFeedback,
         "languageCode": settings.languageCode,
-        "enableExperimentalHeadsetControl": settings.enableExperimentalHeadsetControl,
+        "enableExtendedHeadsetControls": settings.enableExtendedHeadsetControls,
 
     ]
 }
