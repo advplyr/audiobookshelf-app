@@ -924,7 +924,7 @@ class PlayerNotificationService : CoroutineScope, MediaBrowserServiceCompat() {
 
   private var lastStatePlaying: Boolean = false
 
-  private var seekPlayBufferTime: Long = 650
+  private var seekPlayBufferTime: Long = 450
   /*
   fun fastForward() {
     val lock = Object()
