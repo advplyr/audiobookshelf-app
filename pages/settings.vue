@@ -67,12 +67,7 @@
       </div>
       <p class="pl-4">{{ $strings.LabelAllowSeekingOnMediaControls }}</p>
     </div>
-    <div class="flex items-center py-3">
-      <div class="w-10 flex justify-center" @click="toggleEnableExtendedHeadsetControls">
-        <ui-toggle-switch v-model="enableExtendedHeadsetControls" @input="saveSettings" />
-      </div>
-      <p class="pl-4">{{ $strings.LabelUseExtendedHeadsetControls }}</p>
-    </div>
+
     <!-- Sleep timer settings -->
     <template v-if="!isiOS">
       <p class="uppercase text-xs font-semibold text-fg-muted mb-2 mt-10">{{ $strings.HeaderSleepTimerSettings }}</p>
@@ -138,6 +133,14 @@
       <div @click.stop="showAutoSleepTimerRewindOptions">
         <ui-text-input :value="autoSleepTimerRewindLengthOption" readonly append-icon="expand_more" style="width: 145px; max-width: 145px" />
       </div>
+    </div>
+
+    <p class="uppercase text-xs font-semibold text-fg-muted mb-2 mt-10">{{ $strings.HeaderHeadsetSettings }}</p>
+    <div class="flex items-center py-3">
+      <div class="w-10 flex justify-center" @click="toggleEnableExtendedHeadsetControls">
+        <ui-toggle-switch v-model="enableExtendedHeadsetControls" @input="saveSettings" />
+      </div>
+      <p class="pl-4">{{ $strings.LabelUseExtendedHeadsetControls }}</p>
     </div>
 
     <div v-show="loading" class="w-full h-full absolute top-0 left-0 flex items-center justify-center z-10">
