@@ -77,7 +77,11 @@ export const getters = {
   },
   getOrientationLockSetting: state => {
     return state.deviceData?.deviceSettings?.lockOrientation
-  }
+  },
+  getExtendedHeadsetControlsEnabled: state => {
+    if (!state.deviceData?.deviceSettings) return false
+    return state.deviceData.deviceSettings.enableExtendedHeadsetControls
+  },
 }
 
 export const actions = {
