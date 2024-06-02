@@ -34,6 +34,7 @@ export default {
       currentLocationNum: 0,
       currentLocationCfi: null,
       inittingDisplay: true,
+      isRefreshingUI: false,
       ereaderSettings: {
         theme: 'dark',
         fontScale: 100,
@@ -43,7 +44,7 @@ export default {
   },
   watch: {
     isPlayerOpen() {
-      this.updateHeight()
+      this.refreshUI()
     }
   },
   computed: {
@@ -134,11 +135,6 @@ export default {
     },
     goToChapter(href) {
       return this.rendition?.display(href)
-    },
-    updateHeight() {
-      if (this.rendition && this.rendition.resize) {
-        this.rendition.resize(window.innerWidth, window.innerHeight - this.readerHeightOffset)
-      }
     },
     prev() {
       if (this.rendition) {
@@ -382,14 +378,54 @@ export default {
       this.rendition.getContents().forEach((c) => {
         c.addStylesheetRules(this.themeRules)
       })
+    },
+    async screenOrientationChange() {
+      if (this.isRefreshingUI) return
+      this.isRefreshingUI = true
+      const windowWidth = window.innerWidth
+      this.refreshUI()
+
+      // Window width does not always change right away. Wait up to 250ms for a change.
+      // iPhone 10 on iOS 16 took between 100 - 200ms to update when going from portrait to landscape
+      //   but landscape to portrait was immediate
+      for (let i = 0; i < 5; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 50))
+        if (window.innerWidth !== windowWidth) {
+          this.refreshUI()
+          break
+        }
+      }
+
+      this.isRefreshingUI = false
+    },
+    refreshUI() {
+      if (this.rendition?.resize) {
+        this.rendition.resize(window.innerWidth, window.innerHeight - this.readerHeightOffset)
+      }
     }
-  },
-  beforeDestroy() {
-    this.book?.destroy()
   },
   mounted() {
     this.initEpub()
-  }
+
+    if (screen.orientation) {
+      // Not available on ios
+      screen.orientation.addEventListener('change', this.screenOrientationChange)
+    } else {
+      document.addEventListener('orientationchange', this.screenOrientationChange)
+    }
+    window.addEventListener('resize', this.screenOrientationChange)
+  },
+  beforeDestroy() {
+    this.book?.destroy()
+
+    if (screen.orientation) {
+      // Not available on ios
+      screen.orientation.removeEventListener('change', this.screenOrientationChange)
+    } else {
+      document.removeEventListener('orientationchange', this.screenOrientationChange)
+    }
+    window.removeEventListener('resize', this.screenOrientationChange)
+  },
 }
 </script>
 
