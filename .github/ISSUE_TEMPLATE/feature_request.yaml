@@ -1,14 +1,14 @@
 name: 🚀 App Feature Request
 description: Request a feature/enhancement
-title: '[Enhancement]: '
-labels: ['enhancement']
+title: "[Enhancement]: "
+labels: ["enhancement"]
 body:
   - type: markdown
     attributes:
-      value: '## App Feature Request Description'
+      value: "## App Feature Request Description"
   - type: markdown
     attributes:
-      value: 'Please first search in both issues & discussions for your enhancement and make sure your app is up to date.'
+      value: "Please first search in both issues & discussions for your enhancement and make sure your app is up to date."
   - type: textarea
     id: describe
     attributes:
@@ -35,7 +35,7 @@ body:
       required: true
   - type: markdown
     attributes:
-      value: '## App Current Implementation'
+      value: "## App Current Implementation"
   - type: dropdown
     id: version
     attributes:
@@ -43,6 +43,8 @@ body:
       description: Please ensure your app is up to date. *If you are using a 3rd-party app, please reach out to them directly.*
       multiple: true
       options:
+        - Android App - 0.9.64
+        - iOS App - 0.9.64
         - Android App - 0.9.63
         - iOS App - 0.9.63
     validations:
