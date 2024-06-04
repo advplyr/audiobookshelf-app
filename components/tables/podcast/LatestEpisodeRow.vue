@@ -265,12 +265,21 @@ export default {
         this.$eventBus.$emit('pause-item')
       } else {
         this.$store.commit('setPlayerIsStartingPlayback', this.episode.id)
-        this.$eventBus.$emit('play-item', {
-          libraryItemId: this.libraryItemId,
-          episodeId: this.episode.id,
-          serverLibraryItemId: this.libraryItemId,
-          serverEpisodeId: this.episode.id
-        })
+
+        if (this.localEpisode && this.localLibraryItemId) {
+          console.log('Play local episode', this.localEpisode.id, this.localLibraryItemId)
+          this.$eventBus.$emit('play-item', {
+            libraryItemId: this.localLibraryItemId,
+            episodeId: this.localEpisode.id,
+            serverLibraryItemId: this.libraryItemId,
+            serverEpisodeId: this.episode.id
+          })
+        } else {
+          this.$eventBus.$emit('play-item', {
+            libraryItemId: this.libraryItemId,
+            episodeId: this.episode.id
+          })
+        }
       }
     },
     async toggleFinished() {
