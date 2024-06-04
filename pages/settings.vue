@@ -135,6 +135,21 @@
       </div>
     </div>
 
+    <!-- Data settings -->
+    <p class="uppercase text-xs font-semibold text-fg-muted mb-2 mt-10">{{ $strings.HeaderDataSettings }}</p>
+    <div class="py-3 flex items-center">
+      <p class="pr-4 w-36">{{ $strings.LabelDownloadUsingCellular }}</p>
+      <div @click.stop="showDownloadUsingCellularOptions">
+        <ui-text-input :value="downloadUsingCellularOption" readonly append-icon="expand_more" style="max-width: 200px" />
+      </div>
+    </div>
+    <div class="py-3 flex items-center">
+      <p class="pr-4 w-36">{{ $strings.LabelStreamingUsingCellular }}</p>
+      <div @click.stop="showStreamingUsingCellularOptions">
+        <ui-text-input :value="streamingUsingCellularOption" readonly append-icon="expand_more" style="max-width: 200px" />
+      </div>
+    </div>
+
     <div v-show="loading" class="w-full h-full absolute top-0 left-0 flex items-center justify-center z-10">
       <ui-loading-indicator />
     </div>
@@ -176,7 +191,9 @@ export default {
         disableSleepTimerResetFeedback: false,
         autoSleepTimerAutoRewind: false,
         autoSleepTimerAutoRewindTime: 300000, // 5 minutes
-        languageCode: 'en-us'
+        languageCode: 'en-us',
+        downloadUsingCellular: 'ALWAYS',
+        streamingUsingCellular: 'ALWAYS'
       },
       theme: 'dark',
       lockCurrentOrientation: false,
@@ -244,6 +261,34 @@ export default {
         {
           text: this.$strings.LabelVeryHigh,
           value: 'VERY_HIGH'
+        }
+      ],
+      downloadUsingCellularItems: [
+        {
+          text: this.$strings.LabelAskConfirmation,
+          value: 'ASK'
+        },
+        {
+          text: this.$strings.LabelAlways,
+          value: 'ALWAYS'
+        },
+        {
+          text: this.$strings.LabelNever,
+          value: 'NEVER'
+        }
+      ],
+      streamingUsingCellularItems: [
+        {
+          text: this.$strings.LabelAskConfirmation,
+          value: 'ASK'
+        },
+        {
+          text: this.$strings.LabelAlways,
+          value: 'ALWAYS'
+        },
+        {
+          text: this.$strings.LabelNever,
+          value: 'NEVER'
         }
       ]
     }
@@ -319,11 +364,21 @@ export default {
       const minutes = Number(this.settings.autoSleepTimerAutoRewindTime) / 1000 / 60
       return `${minutes} min`
     },
+    downloadUsingCellularOption() {
+      const item = this.downloadUsingCellularItems.find((i) => i.value === this.settings.downloadUsingCellular)
+      return item?.text || 'Error'
+    },
+    streamingUsingCellularOption() {
+      const item = this.streamingUsingCellularItems.find((i) => i.value === this.settings.streamingUsingCellular)
+      return item?.text || 'Error'
+    },
     moreMenuItems() {
       if (this.moreMenuSetting === 'shakeSensitivity') return this.shakeSensitivityItems
       else if (this.moreMenuSetting === 'hapticFeedback') return this.hapticFeedbackItems
       else if (this.moreMenuSetting === 'language') return this.languageOptionItems
       else if (this.moreMenuSetting === 'theme') return this.themeOptionItems
+      else if (this.moreMenuSetting === 'downloadUsingCellular') return this.downloadUsingCellularItems
+      else if (this.moreMenuSetting === 'streamingUsingCellular') return this.streamingUsingCellularItems
       return []
     }
   },
@@ -358,6 +413,14 @@ export default {
       this.moreMenuSetting = 'theme'
       this.showMoreMenuDialog = true
     },
+    showDownloadUsingCellularOptions() {
+      this.moreMenuSetting = 'downloadUsingCellular'
+      this.showMoreMenuDialog = true
+    },
+    showStreamingUsingCellularOptions() {
+      this.moreMenuSetting = 'streamingUsingCellular'
+      this.showMoreMenuDialog = true
+    },
     clickMenuAction(action) {
       this.showMoreMenuDialog = false
       if (this.moreMenuSetting === 'shakeSensitivity') {
@@ -372,6 +435,12 @@ export default {
       } else if (this.moreMenuSetting === 'theme') {
         this.theme = action
         this.saveTheme(action)
+      } else if (this.moreMenuSetting === 'downloadUsingCellular') {
+        this.settings.downloadUsingCellular = action
+        this.saveSettings()
+      } else if (this.moreMenuSetting === 'streamingUsingCellular') {
+        this.settings.streamingUsingCellular = action
+        this.saveSettings()
       }
     },
     saveTheme(theme) {
@@ -504,6 +573,9 @@ export default {
       this.settings.autoSleepTimerAutoRewindTime = !isNaN(deviceSettings.autoSleepTimerAutoRewindTime) ? deviceSettings.autoSleepTimerAutoRewindTime : 300000 // 5 minutes
 
       this.settings.languageCode = deviceSettings.languageCode || 'en-us'
+
+      this.settings.downloadUsingCellular = deviceSettings.downloadUsingCellular || 'ALWAYS'
+      this.settings.streamingUsingCellular = deviceSettings.streamingUsingCellular || 'ALWAYS'
     },
     async init() {
       this.loading = true

@@ -53,6 +53,14 @@ object DeviceManager {
     if (deviceData.deviceSettings?.languageCode == null) {
       deviceData.deviceSettings?.languageCode = "en-us"
     }
+
+    if (deviceData.deviceSettings?.downloadUsingCellular == null) {
+      deviceData.deviceSettings?.downloadUsingCellular = DownloadUsingCellularSetting.ALWAYS
+    }
+
+    if (deviceData.deviceSettings?.streamingUsingCellular == null) {
+      deviceData.deviceSettings?.streamingUsingCellular = StreamingUsingCellularSetting.ALWAYS
+    }
   }
 
   fun getBase64Id(id:String):String {

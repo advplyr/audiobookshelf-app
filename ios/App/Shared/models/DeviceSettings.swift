@@ -17,6 +17,8 @@ class DeviceSettings: Object {
     @Persisted var lockOrientation: String = "NONE"
     @Persisted var hapticFeedback: String = "LIGHT"
     @Persisted var languageCode: String = "en-us"
+    @Persisted var downloadUsingCellular: String = "ALWAYS"
+    @Persisted var streamingUsingCellular: String = "ALWAYS"
 }
 
 func getDefaultDeviceSettings() -> DeviceSettings {
@@ -32,6 +34,8 @@ func deviceSettingsToJSON(settings: DeviceSettings) -> Dictionary<String, Any> {
         "jumpForwardTime": settings.jumpForwardTime,
         "lockOrientation": settings.lockOrientation,
         "hapticFeedback": settings.hapticFeedback,
-        "languageCode": settings.languageCode
+        "languageCode": settings.languageCode,
+        "downloadUsingCellular": settings.downloadUsingCellular,
+        "streamingUsingCellular": settings.streamingUsingCellular
     ]
 }

@@ -20,6 +20,14 @@ enum class ShakeSensitivitySetting {
   VERY_LOW, LOW, MEDIUM, HIGH, VERY_HIGH
 }
 
+enum class DownloadUsingCellularSetting {
+  ASK, ALWAYS, NEVER
+}
+
+enum class StreamingUsingCellularSetting {
+  ASK, ALWAYS, NEVER
+}
+
 data class ServerConnectionConfig(
   var id:String,
   var index:Int,
@@ -123,7 +131,9 @@ data class DeviceSettings(
   var sleepTimerLength: Long, // Time in milliseconds
   var disableSleepTimerFadeOut: Boolean,
   var disableSleepTimerResetFeedback: Boolean,
-  var languageCode: String
+  var languageCode: String,
+  var downloadUsingCellular: DownloadUsingCellularSetting,
+  var streamingUsingCellular: StreamingUsingCellularSetting
 ) {
   companion object {
     // Static method to get default device settings
@@ -147,7 +157,9 @@ data class DeviceSettings(
         autoSleepTimerAutoRewindTime = 300000L, // 5 minutes
         disableSleepTimerFadeOut = false,
         disableSleepTimerResetFeedback = false,
-        languageCode = "en-us"
+        languageCode = "en-us",
+        downloadUsingCellular = DownloadUsingCellularSetting.ALWAYS,
+        streamingUsingCellular = StreamingUsingCellularSetting.ALWAYS
       )
     }
   }

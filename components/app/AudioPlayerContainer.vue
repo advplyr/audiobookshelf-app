@@ -11,6 +11,7 @@
 <script>
 import { AbsAudioPlayer } from '@/plugins/capacitor'
 import { Dialog } from '@capacitor/dialog'
+import CellularPermissionHelpers from '@/mixins/cellularPermissionHelpers'
 
 export default {
   data() {
@@ -39,6 +40,7 @@ export default {
       serverEpisodeId: null
     }
   },
+  mixins: [CellularPermissionHelpers],
   computed: {
     bookmarks() {
       if (!this.serverLibraryItemId) return []
@@ -193,12 +195,21 @@ export default {
       const startTime = payload.startTime
       const startWhenReady = !payload.paused
 
+      const isLocal = libraryItemId.startsWith('local')
+      if (!isLocal) {
+        const hasPermission = await this.checkCellularPermission('streaming')
+        if (!hasPermission) {
+          this.$store.commit('setPlayerDoneStartingPlayback')
+          return
+        }
+      }
+
       // When playing local library item and can also play this item from the server
       //   then store the server library item id so it can be used if a cast is made
       const serverLibraryItemId = payload.serverLibraryItemId || null
       const serverEpisodeId = payload.serverEpisodeId || null
 
-      if (libraryItemId.startsWith('local') && this.$store.state.isCasting) {
+      if (isLocal && this.$store.state.isCasting) {
         const { value } = await Dialog.confirm({
           title: 'Warning',
           message: `Cannot cast downloaded media items. Confirm to close cast and play on your device.`
