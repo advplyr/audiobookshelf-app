@@ -3,7 +3,7 @@
     <h1 class="text-xl mb-2 font-semibold">{{ $strings.HeaderLatestEpisodes }}</h1>
 
     <template v-for="episode in recentEpisodes">
-      <tables-podcast-latest-episode-row :episode="episode" :local-episode="localEpisodeMap[episode.id]" :library-item-id="episode.libraryItemId" :local-library-item-id="null" :is-local="isLocal" :key="episode.id" @addToPlaylist="addEpisodeToPlaylist" />
+      <tables-podcast-latest-episode-row :episode="episode" :local-episode="localEpisodeMap[episode.id]" :library-item-id="episode.libraryItemId" :local-library-item-id="localEpisodeMap[episode.id]?.localLibraryItemId" :key="episode.id" @addToPlaylist="addEpisodeToPlaylist" />
     </template>
   </div>
 </template>
@@ -17,7 +17,6 @@ export default {
       totalEpisodes: 0,
       currentPage: 0,
       localLibraryItems: [],
-      isLocal: false,
       loadedLibraryId: null
     }
   },
@@ -30,7 +29,10 @@ export default {
       const episodes = []
       this.localLibraryItems.forEach((li) => {
         if (li.media.episodes?.length) {
-          episodes.push(...li.media.episodes)
+          li.media.episodes.map((ep) => {
+            ep.localLibraryItemId = li.id
+            episodes.push(ep)
+          })
         }
       })
       return episodes
