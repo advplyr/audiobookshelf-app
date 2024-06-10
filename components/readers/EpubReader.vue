@@ -38,7 +38,8 @@ export default {
       ereaderSettings: {
         theme: 'dark',
         fontScale: 100,
-        lineSpacing: 115
+        lineSpacing: 115,
+        textStroke: 0
       }
     }
   },
@@ -113,7 +114,8 @@ export default {
         '*': {
           color: `${fontColor}!important`,
           'background-color': `${backgroundColor}!important`,
-          'line-height': this.ereaderSettings.lineSpacing + '%!important'
+          'line-height': this.ereaderSettings.lineSpacing + '%!important',
+          '-webkit-text-stroke': this.ereaderSettings.textStroke/100 + 'px ' + fontColor + '!important'
         },
         a: {
           color: `${fontColor}!important`
