@@ -6,18 +6,22 @@ import okhttp3.*
 import java.io.*
 import java.util.*
 
-class InternalDownloadManager(outputStream:FileOutputStream, private val progressCallback: DownloadItemManager.InternalProgressCallback) : AutoCloseable {
+class InternalDownloadManager(private val file:File, private val progressCallback: DownloadItemManager.InternalProgressCallback) : AutoCloseable {
   private val tag = "InternalDownloadManager"
-
   private val client: OkHttpClient = OkHttpClient()
-  private val writer = BinaryFileWriter(outputStream, progressCallback)
+  private val maxRetries: Int = 10  //Not sure what number this should be.  But at least 5
 
   @Throws(IOException::class)
-  fun download(url:String) {
-    val request: Request = Request.Builder().url(url).build()
+  fun download(url:String, retryCount: Int=0, initialBytesWritten: Long = 0) {
+    val existingFileSize: Long = if(file.exists())  file.length() else 0;
+    val request: Request = Request.Builder()
+      .url(url)
+      .addHeader("Range","bytes=$existingFileSize-")
+      .build()
+
     client.newCall(request).enqueue(object : Callback {
       override fun onFailure(call: Call, e: IOException) {
-        Log.e(tag, "download URL $url FAILED")
+        Log.e(tag, "download URL $url FAILED: ${e.message}")
         progressCallback.onComplete(true)
       }
 
@@ -26,18 +30,31 @@ class InternalDownloadManager(outputStream:FileOutputStream, private val progres
           ?: throw IllegalStateException("Response doesn't contain a file")
 
         val length: Long = (response.header(CONTENT_LENGTH, "1") ?: "0").toLong()
-        writer.write(responseBody.byteStream(), length)
+
+        try{
+          FileOutputStream(file,true).use {fos ->
+            BinaryFileWriter(fos, progressCallback).use {writer ->
+              writer.write(responseBody.byteStream(), length, initialBytesWritten)
+            }
+          }
+
+        } catch(e:IOException){
+          Log.e(tag,"Error Writing, Trying again... $retryCount: ${e.message}")
+          if(retryCount<maxRetries) download(url, retryCount+1)
+          else progressCallback.onComplete(true)
+        }
+
       }
     })
   }
 
   @Throws(Exception::class)
   override fun close() {
-    writer.close()
   }
 }
 
-class BinaryFileWriter(outputStream: OutputStream, progressCallback: DownloadItemManager.InternalProgressCallback) :
+class BinaryFileWriter(outputStream: OutputStream,
+                       progressCallback: DownloadItemManager.InternalProgressCallback ) :
   AutoCloseable {
   private val outputStream: OutputStream
   private val progressCallback: DownloadItemManager.InternalProgressCallback
@@ -48,17 +65,22 @@ class BinaryFileWriter(outputStream: OutputStream, progressCallback: DownloadIte
   }
 
   @Throws(IOException::class)
-  fun write(inputStream: InputStream?, length: Long): Long {
+  fun write(inputStream: InputStream?, length: Long, initialBytesWritten: Long): Long {
     BufferedInputStream(inputStream).use { input ->
       val dataBuffer = ByteArray(CHUNK_SIZE)
       var readBytes: Int
-      var totalBytes: Long = 0
-      while (input.read(dataBuffer).also { readBytes = it } != -1) {
-        totalBytes += readBytes.toLong()
-        outputStream.write(dataBuffer, 0, readBytes)
-        progressCallback.onProgress(totalBytes, (totalBytes * 100L) / length)
+      var totalBytes: Long = initialBytesWritten
+      try {
+        while (input.read(dataBuffer).also { readBytes = it } != -1) {
+          totalBytes += readBytes.toLong()
+          outputStream.write(dataBuffer, 0, readBytes)
+          progressCallback.onProgress(totalBytes, (totalBytes * 100L) / length)
+        }
+        progressCallback.onComplete(false)
+      } catch (e:IOException) {
+        Log.e("BinaryFileWriter","IOException while writing: ${e.message}")
+        throw e
       }
-      progressCallback.onComplete(false)
       return totalBytes
     }
   }
