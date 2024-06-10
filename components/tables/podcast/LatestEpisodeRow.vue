@@ -61,6 +61,7 @@
 
 <script>
 import { AbsFileSystem, AbsDownloader } from '@/plugins/capacitor'
+import CellularPermissionHelpers from '@/mixins/cellularPermissionHelpers'
 
 export default {
   props: {
@@ -83,6 +84,7 @@ export default {
       processing: false
     }
   },
+  mixins: [CellularPermissionHelpers],
   computed: {
     bookCoverAspectRatio() {
       return this.$store.getters['libraries/getBookCoverAspectRatio']
@@ -187,6 +189,10 @@ export default {
     },
     async downloadClick() {
       if (this.downloadItem || this.pendingDownload) return
+
+      const hasPermission = await this.checkCellularPermission('download')
+      if (!hasPermission) return
+
       this.pendingDownload = true
       await this.$hapticsImpact()
       if (this.isIos) {
@@ -262,7 +268,6 @@ export default {
 
         if (this.localEpisode && this.localLibraryItemId) {
           console.log('Play local episode', this.localEpisode.id, this.localLibraryItemId)
-
           this.$eventBus.$emit('play-item', {
             libraryItemId: this.localLibraryItemId,
             episodeId: this.localEpisode.id,
@@ -285,7 +290,11 @@ export default {
         const isFinished = !this.userIsFinished
         const localLibraryItemId = this.isLocal ? this.libraryItemId : this.localLibraryItemId
         const localEpisodeId = this.isLocal ? this.episode.id : this.localEpisode.id
-        const payload = await this.$db.updateLocalMediaProgressFinished({ localLibraryItemId, localEpisodeId, isFinished })
+        const payload = await this.$db.updateLocalMediaProgressFinished({
+          localLibraryItemId,
+          localEpisodeId,
+          isFinished
+        })
         console.log('toggleFinished payload', JSON.stringify(payload))
         if (payload?.error) {
           this.$toast.error(payload?.error || 'Unknown error')
