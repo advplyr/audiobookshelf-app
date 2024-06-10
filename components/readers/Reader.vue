@@ -376,12 +376,12 @@ export default {
       try {
         const settings = localStorage.getItem('ereaderSettings')
         if (settings) {
-          const ereaderSettings = JSON.parse(settings)
-          if (!ereaderSettings.spread) {
-            // Added in 0.9.71
-            ereaderSettings.spread = 'auto'
+          const _ereaderSettings = JSON.parse(settings)
+          for (const key in this.ereaderSettings) {
+            if (_ereaderSettings[key] !== undefined) {
+              this.ereaderSettings[key] = _ereaderSettings[key]
+            }
           }
-          this.ereaderSettings = ereaderSettings
           this.settingsUpdated()
         }
       } catch (error) {
