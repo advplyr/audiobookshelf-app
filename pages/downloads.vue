@@ -23,6 +23,9 @@
         </div>
       </template>
     </div>
+    <div v-if="localLibraryItems.length" class="mt-4 text-sm text-fg-muted">
+      {{ $strings.LabelTotalSize }}: {{ $bytesPretty(localLibraryItems.reduce((acc, item) => acc + item.size, 0)) }}
+    </div>
   </div>
 </template>
 
