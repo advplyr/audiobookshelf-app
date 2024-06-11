@@ -19,10 +19,10 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '20'
-    
+
     # The only argument is the `directory`, which is where the i18n files are
     # stored.
     - name: Run Update JSON Files action
-      uses: audiobookshelf/audiobookshelf-i18n-updater@v1.2.0
+      uses: audiobookshelf/audiobookshelf-i18n-updater@v1.3.0
       with:
         directory: 'strings/'  # Adjust the directory path as needed
