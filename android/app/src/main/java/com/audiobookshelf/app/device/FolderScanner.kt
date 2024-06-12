@@ -70,6 +70,7 @@ class FolderScanner(var ctx: Context) {
           )
           localLibraryItem.localFiles.add(localFile)
 
+          val trackFileMetadata = FileMetadata(file.name, file.extension, file.absolutePath, file.getBasePath(ctx), file.length())
           // Create new audio track
           val track = AudioTrack(
             audioTrackFromServer.index,
@@ -78,7 +79,7 @@ class FolderScanner(var ctx: Context) {
             localFile.filename ?: "",
             localFile.contentUrl,
             localFile.mimeType ?: "",
-            null,
+            trackFileMetadata,
             true,
             localFileId,
             null,
@@ -274,7 +275,8 @@ class FolderScanner(var ctx: Context) {
         localLibraryItem.localFiles.add(localFile)
 
         // Create new audio track
-        val track = AudioTrack(audioTrackFromServer.index, audioTrackFromServer.startOffset, audioTrackFromServer.duration, localFile.filename ?: "", localFile.contentUrl, localFile.mimeType ?: "", null, true, localFileId, null, audioTrackFromServer.index)
+        val trackFileMetadata = FileMetadata(docFile.name ?: "", docFile.extension ?: "", docFile.getAbsolutePath(ctx), docFile.getBasePath(ctx), docFile.length())
+        val track = AudioTrack(audioTrackFromServer.index, audioTrackFromServer.startOffset, audioTrackFromServer.duration, localFile.filename ?: "", localFile.contentUrl, localFile.mimeType ?: "", trackFileMetadata, true, localFileId, null, audioTrackFromServer.index)
         audioTracks.add(track)
 
         Log.d(tag, "scanDownloadItem: Created Audio Track with index ${track.index} from local file ${localFile.absolutePath}")
