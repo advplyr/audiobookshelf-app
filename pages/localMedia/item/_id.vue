@@ -332,16 +332,13 @@ export default {
       if (!this.selectedEpisode) return
       if (this.playerIsStartingPlayback) return
       await this.$hapticsImpact()
-      this.$store.commit('setPlayerIsStartingPlayback', this.selectedEpisode.id)
-      this.$eventBus.$emit('play-item', {
-        libraryItemId: this.localLibraryItemId,
-        episodeId: this.selectedEpisode.id
-      })
+      this.$store.commit('setPlayerIsStartingPlayback', this.selectedEpisode.serverEpisodeId)
+
       this.$eventBus.$emit('play-item', {
         libraryItemId: this.localLibraryItemId,
         episodeId: this.selectedEpisode.id,
         serverLibraryItemId: this.libraryItemId,
-        serverEpisodeId: this.selectedEpisode.id
+        serverEpisodeId: this.selectedEpisode.serverEpisodeId
       })
     },
     async dialogAction(action) {
