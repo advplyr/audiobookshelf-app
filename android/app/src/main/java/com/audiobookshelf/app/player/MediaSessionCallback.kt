@@ -341,7 +341,9 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
 
     clickTimer.schedule(650) {
       Log.d(tag, "=== clickTimer executed ($clickTimerId): clicks=$clickCount, hold=$clickPressed =========")
+    Handler(Looper.getMainLooper()).post {
       playerNotificationService.handleClicks(clickCount, clickPressed)
+    }
       clickCount = 0
       clickTimerScheduled = false
     }
