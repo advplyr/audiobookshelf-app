@@ -10,6 +10,7 @@ const languageCodeMap = {
   'de': { label: 'Deutsch', dateFnsLocale: 'de' },
   'en-us': { label: 'English', dateFnsLocale: 'enUS' },
   'es': { label: 'Español', dateFnsLocale: 'es' },
+  'fi': { label: 'Suomi', dateFnsLocale: 'fi' },
   'fr': { label: 'Français', dateFnsLocale: 'fr' },
   'hr': { label: 'Hrvatski', dateFnsLocale: 'hr' },
   'it': { label: 'Italiano', dateFnsLocale: 'it' },
