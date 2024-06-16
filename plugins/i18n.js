@@ -1,43 +1,41 @@
-import Vue from "vue"
+import Vue from 'vue'
 import enUsStrings from '../strings/en-us.json'
 
 const defaultCode = 'en-us'
 let $localStore = null
 
 const languageCodeMap = {
-  'cs': { label: 'Čeština', dateFnsLocale: 'cs' },
-  'da': { label: 'Dansk', dateFnsLocale: 'da' },
-  'de': { label: 'Deutsch', dateFnsLocale: 'de' },
+  cs: { label: 'Čeština', dateFnsLocale: 'cs' },
+  da: { label: 'Dansk', dateFnsLocale: 'da' },
+  de: { label: 'Deutsch', dateFnsLocale: 'de' },
   'en-us': { label: 'English', dateFnsLocale: 'enUS' },
-  'es': { label: 'Español', dateFnsLocale: 'es' },
-  'fi': { label: 'Suomi', dateFnsLocale: 'fi' },
-  'fr': { label: 'Français', dateFnsLocale: 'fr' },
-  'hr': { label: 'Hrvatski', dateFnsLocale: 'hr' },
-  'it': { label: 'Italiano', dateFnsLocale: 'it' },
-  'lt': { label: 'Lietuvių', dateFnsLocale: 'lt' },
-  'hu': { label: 'Magyar', dateFnsLocale: 'hu' },
-  'nl': { label: 'Nederlands', dateFnsLocale: 'nl' },
-  'no': { label: 'Norsk', dateFnsLocale: 'no' },
-  'pl': { label: 'Polski', dateFnsLocale: 'pl' },
+  es: { label: 'Español', dateFnsLocale: 'es' },
+  fi: { label: 'Suomi', dateFnsLocale: 'fi' },
+  fr: { label: 'Français', dateFnsLocale: 'fr' },
+  hr: { label: 'Hrvatski', dateFnsLocale: 'hr' },
+  it: { label: 'Italiano', dateFnsLocale: 'it' },
+  lt: { label: 'Lietuvių', dateFnsLocale: 'lt' },
+  hu: { label: 'Magyar', dateFnsLocale: 'hu' },
+  nl: { label: 'Nederlands', dateFnsLocale: 'nl' },
+  no: { label: 'Norsk', dateFnsLocale: 'no' },
+  pl: { label: 'Polski', dateFnsLocale: 'pl' },
   'pt-br': { label: 'Português (Brasil)', dateFnsLocale: 'ptBR' },
-  'ru': { label: 'Русский', dateFnsLocale: 'ru' },
-  'sv': { label: 'Svenska', dateFnsLocale: 'sv' },
-  'uk': { label: 'Українська', dateFnsLocale: 'uk' },
+  ru: { label: 'Русский', dateFnsLocale: 'ru' },
+  sv: { label: 'Svenska', dateFnsLocale: 'sv' },
+  uk: { label: 'Українська', dateFnsLocale: 'uk' },
   'vi-vn': { label: 'Tiếng Việt', dateFnsLocale: 'vi' },
-  'zh-cn': { label: '简体中文 (Simplified Chinese)', dateFnsLocale: 'zhCN' },
+  'zh-cn': { label: '简体中文 (Simplified Chinese)', dateFnsLocale: 'zhCN' }
 }
 
 function supplant(str, subs) {
   // source: http://crockford.com/javascript/remedial.html
-  return str.replace(/{([^{}]*)}/g,
-    function (a, b) {
-      var r = subs[b]
-      return typeof r === 'string' || typeof r === 'number' ? r : a
-    }
-  )
+  return str.replace(/{([^{}]*)}/g, function (a, b) {
+    var r = subs[b]
+    return typeof r === 'string' || typeof r === 'number' ? r : a
+  })
 }
 
-Vue.prototype.$languageCodeOptions = Object.keys(languageCodeMap).map(code => {
+Vue.prototype.$languageCodeOptions = Object.keys(languageCodeMap).map((code) => {
   return {
     text: languageCodeMap[code].label,
     value: code
@@ -67,12 +65,14 @@ var translations = {
 
 function loadTranslationStrings(code) {
   return new Promise((resolve) => {
-    import(`../strings/${code}`).then((fileContents) => {
-      resolve(fileContents.default)
-    }).catch((error) => {
-      console.error('Failed to load i18n strings', code, error)
-      resolve(null)
-    })
+    import(`../strings/${code}`)
+      .then((fileContents) => {
+        resolve(fileContents.default)
+      })
+      .catch((error) => {
+        console.error('Failed to load i18n strings', code, error)
+        resolve(null)
+      })
   })
 }
 
@@ -83,7 +83,7 @@ async function loadi18n(code) {
     return false
   }
 
-  const strings = translations[code] || await loadTranslationStrings(code)
+  const strings = translations[code] || (await loadTranslationStrings(code))
   if (!strings) {
     console.warn(`Invalid lang code ${code}`)
     return false
