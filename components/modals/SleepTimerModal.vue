@@ -65,7 +65,7 @@ export default {
   },
   data() {
     return {
-      manualTimerModal: true,
+      manualTimerModal: false,
       manualTimeoutMin: 1
     }
   },
