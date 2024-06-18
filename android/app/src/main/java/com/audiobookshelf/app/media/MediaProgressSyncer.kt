@@ -90,7 +90,8 @@ class MediaProgressSyncer(val playerNotificationService: PlayerNotificationServi
           Log.d(tag, "ListeningTimer pausedFor : " + pausedFor)
           // TODO: 60000 needs to come from a app setting
           if (pausedAtTime > 0 && pausedFor > 60000) {
-            System.exit(0)
+            Log.d(tag, "ListeningTimer closePlayback called")
+            playerNotificationService.closePlayback()
           }
         }
       }
@@ -100,7 +101,7 @@ class MediaProgressSyncer(val playerNotificationService: PlayerNotificationServi
   fun play(playbackSession:PlaybackSession) {
     Log.d(tag, "play ${playbackSession.displayTitle}")
     MediaEventManager.playEvent(playbackSession)
-
+    pausedAtTime = 0
     start(playbackSession)
   }
 
@@ -110,6 +111,7 @@ class MediaProgressSyncer(val playerNotificationService: PlayerNotificationServi
       return cb()
     }
 
+    pausedAtTime = 0
     listeningTimerTask?.cancel()
     listeningTimerTask = null
     listeningTimerRunning = false
