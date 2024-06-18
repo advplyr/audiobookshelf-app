@@ -33,6 +33,7 @@ class MediaProgressSyncer(val playerNotificationService: PlayerNotificationServi
 
   private var lastSyncTime:Long = 0
   private var failedSyncs:Int = 0
+  private var pausedAtTime:Long = 0
 
   var currentPlaybackSession: PlaybackSession? = null // copy of pb session currently syncing
   var currentLocalMediaProgress: LocalMediaProgress? = null
@@ -84,6 +85,14 @@ class MediaProgressSyncer(val playerNotificationService: PlayerNotificationServi
             }
           }
         }
+        else if (playerNotificationService.currentPlayer.playbackState == 3) {
+          val pausedFor = System.currentTimeMillis() - pausedAtTime
+          Log.d(tag, "ListeningTimer pausedFor : " + pausedFor)
+          // TODO: 60000 needs to come from a app setting
+          if (pausedAtTime > 0 && pausedFor > 60000) {
+            System.exit(0)
+          }
+        }
       }
     }
   }
@@ -129,9 +138,17 @@ class MediaProgressSyncer(val playerNotificationService: PlayerNotificationServi
   fun pause(cb: () -> Unit) {
     if (!listeningTimerRunning) return
 
-    listeningTimerTask?.cancel()
-    listeningTimerTask = null
-    listeningTimerRunning = false
+    // TODO: closeOnExtendedPause This needs to come from a app setting
+    val closeOnExtendedPause:Boolean = true
+    if(closeOnExtendedPause) {
+      pausedAtTime = System.currentTimeMillis()
+    }
+    else {
+      listeningTimerTask?.cancel()
+      listeningTimerTask = null
+      listeningTimerRunning = false
+    }
+
     Log.d(tag, "pause: Pausing progress syncer for $currentDisplayTitle")
     Log.d(tag, "pause: Last sync time $lastSyncTime")
 
