@@ -265,7 +265,7 @@
   "MessageEpisodesQueuedForDownload": "Епізодів у черзі завантаження: {0}",
   "MessageFeedURLWillBe": "URL-адреса каналу буде {0}",
   "MessageFetching": "Отримання...",
-  "MessageFollowTheProjectOnGithub": "Слідкуйте за проєктом на Github",
+  "MessageFollowTheProjectOnGithub": "Слідкуйте за проєктом на GitHub",
   "MessageItemDownloadCompleteFailedToCreate": "Завантаження завершено, але не вдалося створити елемент бібліотеки",
   "MessageLoading": "Завантаження...",
   "MessageLoadingServerData": "Завантаження даних сервера...",
