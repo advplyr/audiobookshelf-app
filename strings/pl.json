@@ -262,7 +262,7 @@
   "MessageEpisodesQueuedForDownload": "{0} odcinki w kolejce do pobrania",
   "MessageFeedURLWillBe": "URL kanału: {0}",
   "MessageFetching": "Pobieranie...",
-  "MessageFollowTheProjectOnGithub": "Śledź projekt na Githubie",
+  "MessageFollowTheProjectOnGithub": "Śledź projekt na GitHubie",
   "MessageItemDownloadCompleteFailedToCreate": "Pobieranie elementu zostało zakończone, ale nie udało się utworzyć elementu biblioteki",
   "MessageLoading": "Ładowanie...",
   "MessageLoadingServerData": "Ładowanie danych serwera...",
