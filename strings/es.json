@@ -265,7 +265,7 @@
   "MessageEpisodesQueuedForDownload": "{0} Episodio(s) en cola para descargar",
   "MessageFeedURLWillBe": "URL de la fuente será {0}",
   "MessageFetching": "Buscando...",
-  "MessageFollowTheProjectOnGithub": "Sigue el proyecto en Github",
+  "MessageFollowTheProjectOnGithub": "Sigue el proyecto en GitHub",
   "MessageItemDownloadCompleteFailedToCreate": "Se ha completado la descarga del elemento, pero no se ha podido crear el elemento de la biblioteca",
   "MessageLoading": "Cargando...",
   "MessageLoadingServerData": "Cargando datos del servidor...",
