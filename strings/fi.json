@@ -113,5 +113,13 @@
   "LabelDisableAudioFadeOut": "Poista äänen häivytys käytöstä",
   "LabelDisableAudioFadeOutHelp": "Äänenvoimakkuus alkaa laskea kun uniajastimessa on jäljellä alle 1 minuutti. Laita tämä asetus pois päältä estääksesi sen.",
   "LabelDisableAutoRewind": "Poista käytöstä automaattinen takaisinkelaus",
-  "LabelDisableShakeToReset": "Poista käytöstä nollaus ravistamalla"
+  "LabelDisableShakeToReset": "Poista käytöstä nollaus ravistamalla",
+  "LabelDuration": "Kesto",
+  "LabelEbook": "E-kirja",
+  "LabelEbooks": "E-kirjat",
+  "LabelEndOfChapter": "Luvun loppu",
+  "LabelFile": "Tiedosto",
+  "LabelFileBirthtime": "Tiedoston syntymäaika",
+  "LabelFileModified": "Muutettu tiedosto",
+  "LabelFilename": "Tiedostonimi"
 }
