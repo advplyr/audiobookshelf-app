@@ -262,7 +262,7 @@
   "MessageEpisodesQueuedForDownload": "{0} epizód letöltésre vár",
   "MessageFeedURLWillBe": "A hírcsatorna URL-je lesz: {0}",
   "MessageFetching": "Lekérdezés...",
-  "MessageFollowTheProjectOnGithub": "Kövesse a projektet a Githubon",
+  "MessageFollowTheProjectOnGithub": "Kövesse a projektet a GitHubon",
   "MessageItemDownloadCompleteFailedToCreate": "A könyv letöltése befejeződött, de nem sikerült létrehozni a könyvtári elemet",
   "MessageLoading": "Betöltés...",
   "MessageLoadingServerData": "Szerveradatok betöltése...",
