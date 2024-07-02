@@ -12,7 +12,7 @@ class InternalDownloadManager(private val file:File, private val progressCallbac
   private val maxRetries: Int = 10  //Not sure what number this should be.  But at least 5
 
   @Throws(IOException::class)
-  fun download(url:String, retryCount: Int=0, initialBytesWritten: Long = 0) {
+  fun download(url:String, retryCount: Int=0) {
     val existingFileSize: Long = if(file.exists())  file.length() else 0;
     val request: Request = Request.Builder()
       .url(url)
@@ -40,7 +40,7 @@ class InternalDownloadManager(private val file:File, private val progressCallbac
 
         } catch(e:IOException){
           Log.e(tag,"Error Writing, Trying again... $retryCount: ${e.message}")
-          if(retryCount<maxRetries) download(url, retryCount+1, existingFileSize)
+          if(retryCount<maxRetries) download(url, retryCount+1)
           else progressCallback.onComplete(true)
         }
 
