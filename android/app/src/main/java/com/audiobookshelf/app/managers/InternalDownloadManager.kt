@@ -70,13 +70,10 @@ class BinaryFileWriter(outputStream: OutputStream,
       val dataBuffer = ByteArray(CHUNK_SIZE)
       var readBytes: Int
       var totalBytes: Long = initialBytesWritten
-      var i: Int = 0;
       try {
         while (input.read(dataBuffer).also { readBytes = it } != -1) {
           totalBytes += readBytes.toLong()
           outputStream.write(dataBuffer, 0, readBytes)
-          i++;
-          if(i%1000==0) Log.d("Writer","Progress Info: $totalBytes")
           progressCallback.onProgress(totalBytes, (totalBytes * 100L) / length)
         }
         progressCallback.onComplete(false)
