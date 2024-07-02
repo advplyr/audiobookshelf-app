@@ -29,18 +29,18 @@ class InternalDownloadManager(private val file:File, private val progressCallbac
         val responseBody: ResponseBody = response.body
           ?: throw IllegalStateException("Response doesn't contain a file")
 
-        val length: Long = (response.header(CONTENT_LENGTH, "1") ?: "0").toLong()
+        val length: Long = (response.header(CONTENT_LENGTH, "1") ?: "0").toLong() + existingFileSize
 
         try{
           FileOutputStream(file,true).use {fos ->
             BinaryFileWriter(fos, progressCallback).use {writer ->
-              writer.write(responseBody.byteStream(), length, initialBytesWritten)
+              writer.write(responseBody.byteStream(), length, existingFileSize)
             }
           }
 
         } catch(e:IOException){
           Log.e(tag,"Error Writing, Trying again... $retryCount: ${e.message}")
-          if(retryCount<maxRetries) download(url, retryCount+1)
+          if(retryCount<maxRetries) download(url, retryCount+1, existingFileSize)
           else progressCallback.onComplete(true)
         }
 
@@ -70,10 +70,13 @@ class BinaryFileWriter(outputStream: OutputStream,
       val dataBuffer = ByteArray(CHUNK_SIZE)
       var readBytes: Int
       var totalBytes: Long = initialBytesWritten
+      var i: Int = 0;
       try {
         while (input.read(dataBuffer).also { readBytes = it } != -1) {
           totalBytes += readBytes.toLong()
           outputStream.write(dataBuffer, 0, readBytes)
+          i++;
+          if(i%1000==0) Log.d("Writer","Progress Info: $totalBytes")
           progressCallback.onProgress(totalBytes, (totalBytes * 100L) / length)
         }
         progressCallback.onComplete(false)
