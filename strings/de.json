@@ -295,7 +295,7 @@
   "NoteRSSFeedPodcastAppsHttps": "Warnung: Die meisten Podcast-Apps verlangen, dass die URL des RSS-Feeds HTTPS verwendet",
   "NoteRSSFeedPodcastAppsPubDate": "Warnung: 1 oder mehrere deiner Episoden haben kein Veröffentlichungsdatum. Einige Podcast-Apps verlangen dies.",
   "ToastBookmarkCreateFailed": "Lesezeichen konnte nicht erstellt werden",
-  "ToastBookmarkRemoveFailed": "Lesezeichen konnte nicht gelöscht werden",
+  "ToastBookmarkRemoveFailed": "Lesezeichen konnte nicht entfernt werden",
   "ToastBookmarkUpdateFailed": "Lesezeichenaktualisierung fehlgeschlagen",
   "ToastDownloadNotAllowedOnCellular": "Das Herunterladen über mobile Daten ist nicht erlaubt",
   "ToastItemMarkedAsFinishedFailed": "Fehler bei der Markierung des Mediums als \"Beendet\"",
