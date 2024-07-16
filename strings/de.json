@@ -132,7 +132,7 @@
   "LabelEnableMp3IndexSeeking": "MP3-Indexsuche",
   "LabelEnableMp3IndexSeekingHelp": "Diese Einstellung sollte nur aktiviert werden, wenn du MP3-Dateien hast, bei denen das Navigieren (Seeking) nicht korrekt funktioniert. Ungenaues Navigieren ist höchstwahrscheinlich auf MP3-Dateien mit variabler Bitrate (VBR) zurückzuführen. Diese Einstellung erzwingt das Index-Navigieren (Index Seeking), bei dem eine Zeit-zu-Byte-Zuordnung erstellt wird, während die Datei gelesen wird. In einigen Fällen kann es bei großen MP3-Dateien zu einer Verzögerung kommen, wenn gegen Ende der Datei navigiert wird.",
   "LabelEnd": "Ende",
-  "LabelEndOfChapter": "Kapitelende",
+  "LabelEndOfChapter": "Ende des Kapitels",
   "LabelEndTime": "Endzeit",
   "LabelEpisode": "Episode",
   "LabelFeedURL": "Feed URL",
