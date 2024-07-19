@@ -1,9 +1,5 @@
 <template>
   <div class="w-full h-full min-h-full relative">
-    <div v-if="attemptingConnection" class="w-full pt-4 flex items-center justify-center">
-      <widgets-loading-spinner />
-      <p class="pl-4">{{ $strings.MessageAttemptingServerConnection }}</p>
-    </div>
     <div v-if="shelves.length && isLoading" class="w-full pt-4 flex items-center justify-center">
       <widgets-loading-spinner />
       <p class="pl-4">{{ $strings.MessageLoadingServerData }}</p>
@@ -73,6 +69,13 @@ export default {
       } else {
         console.log(`[categories] networkConnected false so fetching categories`)
         this.fetchCategories()
+      }
+    },
+    attemptingConnection(newVal) {
+      if (newVal) {
+        this.$toast.info(this.$strings.MessageAttemptingServerConnection, { timeout: 0, id: 1, position: 'bottom-center'})
+      } else {
+        this.$toast.dismiss(1)
       }
     }
   },
