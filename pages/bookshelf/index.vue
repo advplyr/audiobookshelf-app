@@ -1,10 +1,5 @@
 <template>
   <div class="w-full h-full min-h-full relative">
-    <div v-if="shelves.length && isLoading" class="w-full pt-4 flex items-center justify-center">
-      <widgets-loading-spinner />
-      <p class="pl-4">{{ $strings.MessageLoadingServerData }}</p>
-    </div>
-
     <div class="w-full" :class="{ 'py-6': altViewEnabled }">
       <template v-for="(shelf, index) in shelves">
         <bookshelf-shelf :key="shelf.id" :label="getShelfLabel(shelf)" :entities="shelf.entities" :type="shelf.type" :style="{ zIndex: shelves.length - index }" />
@@ -73,9 +68,16 @@ export default {
     },
     attemptingConnection(newVal) {
       if (newVal) {
-        this.$toast.info(this.$strings.MessageAttemptingServerConnection, { timeout: 0, id: 1, position: 'bottom-center'})
+        this.$toast.info(this.$strings.MessageAttemptingServerConnection, { timeout: 0, id: 1 })
       } else {
         this.$toast.dismiss(1)
+      }
+    },
+    isLoading(newVal) {
+      if (newVal && this.shelves.length) {
+        this.$toast.success(this.$strings.MessageLoadingServerData, { timeout: 0, id: 2 })
+      } else {
+        this.$toast.dismiss(2)
       }
     }
   },
