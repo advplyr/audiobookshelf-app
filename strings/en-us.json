@@ -123,6 +123,7 @@
   "LabelDisableVibrateOnResetHelp": "When the sleep timer gets reset your device will vibrate. Enable this setting to not vibrate when the sleep timer resets.",
   "LabelDiscover": "Discover",
   "LabelDownload": "Download",
+  "LabelDownloadSerie": "Download serie",
   "LabelDownloadUsingCellular": "Download using Cellular",
   "LabelDownloaded": "Downloaded",
   "LabelDuration": "Duration",
