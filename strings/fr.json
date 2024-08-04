@@ -293,7 +293,7 @@
   "MessageSocketConnectedOverUnmeteredWifi": "Socket connecté via Wi-Fi",
   "MessageSocketNotConnected": "Socket non connecté",
   "NoteRSSFeedPodcastAppsHttps": "Attention : la majorité des application de podcast nécessite une adresse de flux HTTPS",
-  "NoteRSSFeedPodcastAppsPubDate": "Attention : un ou plusieurs de vos épisodes ne possèdent pas de date de publication. Certaines applications de podcast le requièrent.",
+  "NoteRSSFeedPodcastAppsPubDate": "Attention : un ou plusieurs de vos épisodes ne possèdent pas de date de publication. Certaines applications de podcast le requièrent.",
   "ToastBookmarkCreateFailed": "Échec de la création de marque-page",
   "ToastBookmarkRemoveFailed": "Échec de la suppression de marque-page",
   "ToastBookmarkUpdateFailed": "Échec de la mise à jour de marsue-page",
