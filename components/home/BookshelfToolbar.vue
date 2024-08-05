@@ -95,6 +95,11 @@ export default {
             text: this.$strings.LabelCollapseSeries,
             value: 'collapse_subseries',
             icon: this.settings.collapseBookSeries ? 'check_box' : 'check_box_outline_blank'
+          },
+          {
+            text: this.$strings.LabelDownloadSerie,
+            value: 'download_serie',
+            icon: 'download'
           }
         ]
       } else {
@@ -117,6 +122,9 @@ export default {
       } else if (action === 'collapse_subseries') {
         this.settings.collapseBookSeries = !this.settings.collapseBookSeries
         this.saveSettings()
+      } else if (action === 'download_serie') {
+        console.log('Download Serie click')
+        this.$eventBus.$emit('download-serie-click')
       }
     },
     updateOrder() {
