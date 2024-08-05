@@ -132,7 +132,7 @@
   "LabelEnableMp3IndexSeeking": "Activer la recherche par index pour mp3",
   "LabelEnableMp3IndexSeekingHelp": "Ce paramètres ne devrai être activer que si vous avez des problèmes avec des fichiers mp3 que vous ne pouvez pas chercher. La mauvaise indexation est probablement du au Bitrate Variable (VBR) du fichier MP3. Ce paramètre va forcer l'indexation. Une correspondance Temps-Octet est construit durant la lecture. Dans certains cas, avec de gros fichier MP3, il y aura du délais lors de la recherche vers la fin du fichier.",
   "LabelEnd": "Fin",
-  "LabelEndOfChapter": "Fin du Chapitre",
+  "LabelEndOfChapter": "Fin du chapitre",
   "LabelEndTime": "Heure de Fin",
   "LabelEpisode": "Épisode",
   "LabelFeedURL": "URL du flux",
