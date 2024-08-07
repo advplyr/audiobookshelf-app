@@ -132,7 +132,7 @@
   "LabelEnableMp3IndexSeeking": "启用 mp3 索引搜索",
   "LabelEnableMp3IndexSeekingHelp": "只有当你的 mp3 文件未正确查找时, 才应启用此设置. 不准确的搜索很可能是由于可变二进制 (VBR) MP3 文件. 此设置将强制进行索引查找, 即在读取文件时构建时间到字节的映射. 在某些情况下, 对于大型MP3文件, 在查找文件末尾时会有延迟.",
   "LabelEnd": "结束",
-  "LabelEndOfChapter": "章节结尾",
+  "LabelEndOfChapter": "章节结束",
   "LabelEndTime": "结束时间",
   "LabelEpisode": "剧集",
   "LabelFeedURL": "源 URL",
