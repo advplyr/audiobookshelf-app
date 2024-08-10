@@ -306,13 +306,15 @@ export default {
     title() {
       const mediaItemTitle = this.playbackSession?.displayTitle || this.mediaMetadata?.title || 'Title'
       if (this.currentChapterTitle) {
-        if (this.showFullscreen) return this.currentChapterTitle
-        return `${mediaItemTitle} | ${this.currentChapterTitle}`
+        // if (this.showFullscreen) return this.currentChapterTitle
+        // return `${mediaItemTitle} | ${this.currentChapterTitle}`
+        return `${this.currentChapterTitle}`
       }
       return mediaItemTitle
     },
     authorName() {
-      if (this.playbackSession) return this.playbackSession.displayAuthor
+      // if (this.playbackSession) return this.playbackSession.displayAuthor
+      if (this.playbackSession) return `${this.playbackSession.displayAuthor} | ${this.playbackSession.displayTitle}`
       return this.mediaMetadata?.authorName || 'Author'
     },
     chapters() {
