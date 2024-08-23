@@ -132,7 +132,7 @@
   "LabelEnableMp3IndexSeeking": "Skru på MP3-indeksblafring",
   "LabelEnableMp3IndexSeekingHelp": "Skru på dette hvis du har MP3-filer som ikke kan blafres på rett vis. Det skyldes som oftest variabel bitrate (VBR). Innstillingen påtvinger indeksblafring, som er en tid-til-byte -tilknytning som bygges når filen leses. I noen fall vil man med store MP3-filer få litt forsinkelse når man blafrer mot slutten av filen.",
   "LabelEnd": "Slutt",
-  "LabelEndOfChapter": "Kapittelslutt",
+  "LabelEndOfChapter": "Slutt på kapittel",
   "LabelEndTime": "Slutt-tid",
   "LabelEpisode": "Episode",
   "LabelFeedURL": "Feed Adresse",
