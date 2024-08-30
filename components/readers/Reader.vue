@@ -94,6 +94,12 @@
               </div>
               <ui-toggle-btns v-model="ereaderSettings.spread" :items="spreadItems" @input="settingsUpdated" />
             </div>
+            <div class="flex items-center">
+              <div class="w-32">
+                <p class="text-base">{{ $strings.LabelNavigateWithVolume }}:</p>
+              </div>
+              <ui-toggle-btns v-model="ereaderSettings.navigateWithVolume" :items="navigateWithVolumeItems" @input="settingsUpdated" />
+            </div>
           </div>
         </div>
       </div>
@@ -103,6 +109,8 @@
 
 <script>
 import { Capacitor } from '@capacitor/core'
+import { VolumeButtons } from '@capacitor-community/volume-buttons';
+
 
 export default {
   data() {
@@ -123,7 +131,8 @@ export default {
         fontScale: 100,
         lineSpacing: 115,
         spread: 'auto',
-        textStroke: 0
+        textStroke: 0,
+        navigateWithVolume: 'enabled'
       }
     }
   },
@@ -177,6 +186,22 @@ export default {
         {
           text: this.$strings.LabelLayoutAuto,
           value: 'auto'
+        }
+      ]
+    },
+    navigateWithVolumeItems() {
+      return [
+        {
+          text: this.$strings.LabelNavigateWithVolumeEnabled,
+          value: 'enabled'
+        },
+        {
+          text: this.$strings.LabelNavigateWithVolumeMirrored,
+          value: 'mirrored'
+        },
+        {
+          text: this.$strings.LabelNavigateWithVolumeDisabled,
+          value: 'none'
         }
       ]
     },
@@ -392,11 +417,38 @@ export default {
       this.$eventBus.$on('close-ebook', this.closeEvt)
       document.body.addEventListener('touchstart', this.touchstart)
       document.body.addEventListener('touchend', this.touchend)
+
+      if (!this.isMobi && this.ereaderSettings.navigateWithVolume != 'none'){
+        const options = {
+          disableSystemVolumeHandler: true,
+          suppressVolumeIndicator: true
+        }
+        VolumeButtons.watchVolume(options, this.volumePressed);
+      }
+
     },
     unregisterListeners() {
       this.$eventBus.$on('close-ebook', this.closeEvt)
       document.body.removeEventListener('touchstart', this.touchstart)
       document.body.removeEventListener('touchend', this.touchend)
+      if (VolumeButtons.isWatching()) {
+        VolumeButtons.clearWatch();
+      }
+    },
+    volumePressed(e) {
+      if (this.ereaderSettings.navigateWithVolume == 'enabled'){
+        if (e.direction == "up") {
+          this.prev()
+        } else {
+          this.next()
+        }
+      } else if (this.ereaderSettings.navigateWithVolume == 'mirrored') {
+        if (e.direction == "down") {
+          this.prev()
+        } else {
+          this.next()
+        }
+      }
     }
   },
   beforeDestroy() {
