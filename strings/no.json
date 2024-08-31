@@ -249,7 +249,7 @@
   "MessageMediaLinkedToADifferentServer": "Media er lenket til en Audiobookshelf-tjener på en annen adresse ({0}). Framdriften vil bli synkronisert når tilkoblet denne tjeneradressen.",
   "MessageMediaLinkedToADifferentUser": "Media er lenket til denne tjeneren, men ble lastet ned av en annen bruker. Framdriften vil kun synkroniseres til brukeren som lastet den ned.",
   "MessageMediaLinkedToServer": "Lenket til tjener {0}",
-  "MessageMediaLinkedToThisServer": "Nedlastet media er lenket til denne tjeneren.",
+  "MessageMediaLinkedToThisServer": "Nedlastet media er lenket til denne tjeneren",
   "MessageMediaNotLinkedToServer": "Media er ikke lenket til en Audiobookshelf-tjener. Ingen fremdrift vil bli synkronisert.",
   "MessageNoBookmarks": "Ingen bokmerker",
   "MessageNoChapters": "Ingen kapitler",
