@@ -320,7 +320,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         val mediaDescriptionBuilder = MediaDescriptionCompat.Builder()
           .setExtras(extra)
           .setTitle(currentPlaybackSession!!.displayTitle)
-//          .setIconUri(coverUri)
 
         bitmap?.let {
           mediaDescriptionBuilder.setIconBitmap(it)
