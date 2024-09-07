@@ -126,6 +126,8 @@ export default {
       // Fetch series data from server
       let page = 0
       let fetchFinished = false
+      this.missingFiles = 0
+      this.missingFilesSize = 0
       while (fetchFinished === false) {
         fetchFinished = await this.fetchSeriesEntities(page)
         page += 1
@@ -133,6 +135,9 @@ export default {
       if (fetchFinished !== true) {
         console.error('failed to fetch series books data')
         return null
+      }
+      if (this.missingFiles == 0) {
+        alert(this.$getString('MessageSeriesAlreadyDownloaded'))
       }
 
       // Format message for dialog
