@@ -28,8 +28,8 @@ export default {
       mediaType: 'book',
       booksPerFetch: 20,
       books: 0,
-      numFiles: 0,
-      numAudioFiles: 0,
+      missingFiles: 0,
+      missingFilesSize: 0,
       libraryIds: []
     }
   },
@@ -40,7 +40,7 @@ export default {
     }
   },
   methods: {
-    async downloadSerieClick() {
+    async downloadSeriesClick() {
       console.log('Download Series clicked')
       if (this.startingDownload) return
 
@@ -60,7 +60,7 @@ export default {
       searchParams.set('filter', `series.${this.$encode(this.seriesId)}`)
       return searchParams.toString()
     },
-    async fetchSerieEntities(page) {
+    async fetchSeriesEntities(page) {
       const startIndex = page * this.booksPerFetch
 
       this.currentSFQueryString = this.buildSearchParams()
@@ -79,10 +79,9 @@ export default {
         this.books = payload.total
 
         for (let i = 0; i < payload.results.length; i++) {
-          console.log(payload.results[i].numFiles)
           if (!(await this.$db.getLocalLibraryItem(`local_${payload.results[i].id}`))) {
-            this.numFiles += payload.results[i].numFiles
-            this.numAudioFiles += payload.results[i].media.numAudioFiles
+            this.missingFiles += payload.results[i].numFiles
+            this.missingFilesSize += payload.results[i].size
             this.libraryIds.push(payload.results[i].id)
           }
         }
@@ -124,32 +123,23 @@ export default {
         }
       }
 
-      // Fetch serie data from server
+      // Fetch series data from server
       let page = 0
       let fetchFinished = false
       while (fetchFinished === false) {
-        fetchFinished = await this.fetchSerieEntities(page)
+        fetchFinished = await this.fetchSeriesEntities(page)
         page += 1
       }
       if (fetchFinished !== true) {
-        console.error('failed to fetch serie books data')
+        console.error('failed to fetch series books data')
         return null
       }
 
       // Format message for dialog
-      let startDownloadMessage = `Serie "${this.series.name}" has ${this.books} book${this.books == 1 ? '' : 's'}. Download missing ${this.libraryIds.length} book${this.libraryIds.length == 1 ? '' : 's'} with ${this.numFiles} file${this.numFiles == 1 ? '' : 's'}`
-      let numEbookFiles = this.numFiles - this.numAudioFiles
-      if (!this.isIos && numEbookFiles > 0) {
-        if (this.numAudioFiles > 0) {
-          startDownloadMessage = `Serie "${this.series.name}" has ${this.books} book${this.books == 1 ? '' : 's'}. Download missing ${this.libraryIds.length} book${this.libraryIds.length == 1 ? '' : 's'} with ${this.numAudioFiles} audio file${this.numAudioFiles == 1 ? '' : 's'} and ${numEbookFiles} ebook file${this.numEbookFiles == 1 ? '' : 's'}`
-        } else {
-          startDownloadMessage = `Serie "${this.series.name}" has ${this.books} book${this.books == 1 ? '' : 's'}. Download missing ${this.libraryIds.length} book${this.libraryIds.length == 1 ? '' : 's'} with ${this.numFiles} ebook file${this.numFiles == 1 ? '' : 's'}`
-        }
-      }
+      let startDownloadMessage = this.$getString('MessageSeriesDownloadConfirmIos', [this.libraryIds.length, this.missingFiles, this.$bytesPretty(this.missingFilesSize)])
       if (!this.isIos) {
-        startDownloadMessage += ` to folder ${localFolder.name}`
+        startDownloadMessage = this.$getString('MessageSeriesDownloadConfirm', [this.libraryIds.length, this.missingFiles, this.$bytesPretty(this.missingFilesSize), localFolder.name])
       }
-      startDownloadMessage += `?`
 
       // Show confirmation dialog and start downloading if user chooses so
       const { value } = await Dialog.confirm({
@@ -180,10 +170,10 @@ export default {
     }
   },
   mounted() {
-    this.$eventBus.$on('download-serie-click', this.downloadSerieClick)
+    this.$eventBus.$on('download-series-click', this.downloadSeriesClick)
   },
   beforeDestroy() {
-    this.$eventBus.$off('download-serie-click', this.downloadSerieClick)
+    this.$eventBus.$off('download-series-click', this.downloadSeriesClick)
   }
 }
 </script>

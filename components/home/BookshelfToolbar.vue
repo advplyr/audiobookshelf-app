@@ -13,6 +13,7 @@
           </div>
           <span class="material-icons px-2" @click="showSortModal = true">sort</span>
         </template>
+        <span v-if="seriesBookPage" class="material-icons px-2" @click="downloadSeries">download</span>
         <span v-if="(page == 'library' && isBookLibrary) || seriesBookPage" class="material-icons px-2" @click="showMoreMenuDialog = true">more_vert</span>
       </div>
     </div>
@@ -95,11 +96,6 @@ export default {
             text: this.$strings.LabelCollapseSeries,
             value: 'collapse_subseries',
             icon: this.settings.collapseBookSeries ? 'check_box' : 'check_box_outline_blank'
-          },
-          {
-            text: this.$strings.LabelDownloadSerie,
-            value: 'download_serie',
-            icon: 'download'
           }
         ]
       } else {
@@ -122,9 +118,6 @@ export default {
       } else if (action === 'collapse_subseries') {
         this.settings.collapseBookSeries = !this.settings.collapseBookSeries
         this.saveSettings()
-      } else if (action === 'download_serie') {
-        console.log('Download Serie click')
-        this.$eventBus.$emit('download-serie-click')
       }
     },
     updateOrder() {
@@ -152,6 +145,10 @@ export default {
     async changeView() {
       this.bookshelfListView = !this.bookshelfListView
       await this.$hapticsImpact()
+    },
+    downloadSeries() {
+      console.log('Download Series click')
+      this.$eventBus.$emit('download-series-click')
     }
   },
   mounted() {
