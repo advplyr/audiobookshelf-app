@@ -23,9 +23,9 @@
             <span class="material-icons text-fg-muted">arrow_back</span>
           </div>
           <h2 class="text-lg leading-7 mb-2">{{ $strings.LabelServerAddress }}</h2>
-          <ui-text-input v-model="serverConfig.address" :disabled="processing || !networkConnected || !!serverConfig.id" placeholder="http://55.55.55.55:13378" type="url" class="w-full h-10" />
-          <div class="flex justify-end items-center mt-6">
-            <ui-btn :disabled="processing || !networkConnected" type="submit" :padding-x="3" class="h-10">{{ networkConnected ? $strings.ButtonSubmit : $strings.MessageNoNetworkConnection }}</ui-btn>
+          <ui-text-input v-model="serverConfig.address" :disabled="processing || !!serverConfig.id" placeholder="http://55.55.55.55:13378" type="url" class="w-full h-10" />          
+          <div class="flex justify-end items-center mt-6">           
+            <ui-btn :disabled="processing" type="submit" :padding-x="3" class="h-10">{{ networkConnected ? $strings.ButtonSubmit : $strings.MessageNoNetworkConnection }}</ui-btn>
           </div>
         </form>
         <!-- username/password and auth methods -->
