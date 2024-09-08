@@ -56,7 +56,7 @@
     <!-- ereader settings modal -->
     <modals-fullscreen-modal v-model="showSettingsModal" :theme="ereaderTheme" half-screen>
       <div style="box-shadow: 0px -8px 8px #11111155">
-        <div class="flex items-end justify-between h-20 px-4 pb-2 mb-6">
+        <div class="flex items-end justify-between h-14 px-4 pb-2 mb-6">
           <h1 class="text-lg">{{ $strings.HeaderEreaderSettings }}</h1>
           <button class="flex" @click="showSettingsModal = false">
             <span class="material-icons">close</span>
@@ -88,11 +88,17 @@
               </div>
               <ui-range-input v-model="ereaderSettings.textStroke" :min="0" :max="300" :step="5" input-width="180px" @input="settingsUpdated" />
             </div>
-            <div class="flex items-center">
+            <div class="flex items-center mb-6">
               <div class="w-32">
                 <p class="text-base">{{ $strings.LabelLayout }}:</p>
               </div>
               <ui-toggle-btns v-model="ereaderSettings.spread" :items="spreadItems" @input="settingsUpdated" />
+            </div>
+            <div class="flex items-center">
+              <div class="w-32">
+                <p class="text-base">{{ $strings.LabelNavigateWithVolume }}:</p>
+              </div>
+              <ui-toggle-btns v-model="ereaderSettings.navigateWithVolume" :items="navigateWithVolumeItems" @input="settingsUpdated" />
             </div>
           </div>
         </div>
@@ -103,6 +109,7 @@
 
 <script>
 import { Capacitor } from '@capacitor/core'
+import { VolumeButtons } from '@capacitor-community/volume-buttons'
 
 export default {
   data() {
@@ -118,12 +125,14 @@ export default {
       showSettingsModal: false,
       comicHasMetadata: false,
       chapters: [],
+      isInittingWatchVolume: false,
       ereaderSettings: {
         theme: 'dark',
         fontScale: 100,
         lineSpacing: 115,
         spread: 'auto',
-        textStroke: 0
+        textStroke: 0,
+        navigateWithVolume: 'enabled'
       }
     }
   },
@@ -140,6 +149,12 @@ export default {
           this.unregisterListeners()
           this.$showHideStatusBar(true)
         }
+      }
+    },
+    isPlayerOpen(newVal, oldVal) {
+      // Closed player
+      if (!newVal && oldVal) {
+        this.initWatchVolume()
       }
     }
   },
@@ -177,6 +192,22 @@ export default {
         {
           text: this.$strings.LabelLayoutAuto,
           value: 'auto'
+        }
+      ]
+    },
+    navigateWithVolumeItems() {
+      return [
+        {
+          text: this.$strings.LabelNavigateWithVolumeEnabled,
+          value: 'enabled'
+        },
+        {
+          text: this.$strings.LabelNavigateWithVolumeMirrored,
+          value: 'mirrored'
+        },
+        {
+          text: this.$strings.LabelNavigateWithVolumeDisabled,
+          value: 'none'
         }
       ]
     },
@@ -264,6 +295,8 @@ export default {
     settingsUpdated() {
       this.$refs.readerComponent?.updateSettings?.(this.ereaderSettings)
       localStorage.setItem('ereaderSettings', JSON.stringify(this.ereaderSettings))
+
+      this.initWatchVolume()
     },
     goToChapter(href) {
       this.showTOCModal = false
@@ -388,15 +421,51 @@ export default {
         console.error('Failed to load ereader settings', error)
       }
     },
+    async initWatchVolume() {
+      if (this.isInittingWatchVolume || !this.isEpub) return
+      this.isInittingWatchVolume = true
+      const isWatching = await VolumeButtons.isWatching()
+
+      if (this.ereaderSettings.navigateWithVolume !== 'none' && !this.isPlayerOpen) {
+        if (!isWatching.value) {
+          const options = {
+            disableSystemVolumeHandler: true,
+            suppressVolumeIndicator: true
+          }
+          await VolumeButtons.watchVolume(options, this.volumePressed)
+        }
+      } else if (isWatching.value) {
+        await VolumeButtons.clearWatch()
+      }
+
+      this.isInittingWatchVolume = false
+    },
     registerListeners() {
       this.$eventBus.$on('close-ebook', this.closeEvt)
       document.body.addEventListener('touchstart', this.touchstart)
       document.body.addEventListener('touchend', this.touchend)
+      this.initWatchVolume()
     },
     unregisterListeners() {
       this.$eventBus.$on('close-ebook', this.closeEvt)
       document.body.removeEventListener('touchstart', this.touchstart)
       document.body.removeEventListener('touchend', this.touchend)
+      VolumeButtons.clearWatch()
+    },
+    volumePressed(e) {
+      if (this.ereaderSettings.navigateWithVolume == 'enabled') {
+        if (e.direction == 'up') {
+          this.prev()
+        } else {
+          this.next()
+        }
+      } else if (this.ereaderSettings.navigateWithVolume == 'mirrored') {
+        if (e.direction == 'down') {
+          this.prev()
+        } else {
+          this.next()
+        }
+      }
     }
   },
   beforeDestroy() {
