@@ -1029,29 +1029,35 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
       val localBooks = DeviceManager.dbManager.getLocalLibraryItems("book")
       val localPodcasts = DeviceManager.dbManager.getLocalLibraryItems("podcast")
-      val localBrowseItems:MutableList<MediaBrowserCompat.MediaItem> = mutableListOf()
+      val localBrowseItems: MutableList<MediaBrowserCompat.MediaItem> = mutableListOf()
 
       localBooks.forEach { localLibraryItem ->
         if (localLibraryItem.media.getAudioTracks().isNotEmpty()) {
           val progress = DeviceManager.dbManager.getLocalMediaProgress(localLibraryItem.id)
           val description = localLibraryItem.getMediaDescription(progress, ctx)
 
-          localBrowseItems += MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
+          localBrowseItems += MediaBrowserCompat.MediaItem(
+            description,
+            MediaBrowserCompat.MediaItem.FLAG_PLAYABLE
+          )
         }
       }
 
       localPodcasts.forEach { localLibraryItem ->
         val mediaDescription = localLibraryItem.getMediaDescription(null, ctx)
-        localBrowseItems += MediaBrowserCompat.MediaItem(mediaDescription, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE)
+        localBrowseItems += MediaBrowserCompat.MediaItem(
+          mediaDescription,
+          MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
+        )
       }
 
       result.sendResult(localBrowseItems)
 
     } else if (parentMediaId == CONTINUE_ROOT) {
-      val localBrowseItems:MutableList<MediaBrowserCompat.MediaItem> = mutableListOf()
+      val localBrowseItems: MutableList<MediaBrowserCompat.MediaItem> = mutableListOf()
       mediaManager.serverItemsInProgress.forEach { itemInProgress ->
         val progress: MediaProgressWrapper?
-        val mediaDescription:MediaDescriptionCompat
+        val mediaDescription: MediaDescriptionCompat
         if (itemInProgress.episode != null) {
           if (itemInProgress.isLocal) {
             progress = DeviceManager.dbManager.getLocalMediaProgress("${itemInProgress.libraryItemWrapper.id}-${itemInProgress.episode.id}")
@@ -1093,20 +1099,224 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       }
     } else if (mediaManager.getIsLibrary(parentMediaId)) { // Load library items for library
       Log.d(tag, "Loading items for library $parentMediaId")
-      mediaManager.loadLibraryItemsWithAudio(parentMediaId) { libraryItems ->
-        val children = libraryItems.map { libraryItem ->
-          if (libraryItem.mediaType == "podcast") { // Podcasts are browseable
-            val mediaDescription = libraryItem.getMediaDescription(null, ctx)
-            MediaBrowserCompat.MediaItem(mediaDescription, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE)
+      val children = mutableListOf(
+        MediaBrowserCompat.MediaItem(
+          MediaDescriptionCompat.Builder()
+            .setTitle("Library")
+            .setMediaId("__LIBRARY__${parentMediaId}__AUTHORS")
+            .build(),
+          MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
+        ),
+        MediaBrowserCompat.MediaItem(
+          MediaDescriptionCompat.Builder()
+            .setTitle("Series")
+            .setMediaId("__LIBRARY__${parentMediaId}__SERIES_LIST")
+            .build(),
+          MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
+        ),
+        MediaBrowserCompat.MediaItem(
+          MediaDescriptionCompat.Builder()
+            .setTitle("Collections")
+            .setMediaId("__LIBRARY__${parentMediaId}__COLLECTIONS")
+            .build(),
+          MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
+        )
+      )
+      result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
+    } else if (parentMediaId.startsWith("__LIBRARY__")) {
+      Log.d(tag, "Browsing library $parentMediaId")
+      val mediaIdParts = parentMediaId.split("__")
+      /*
+        MediaIdParts for Library
+        1: LIBRARY
+        2: mediaId for library
+        3: Browsing style (AUTHORS, AUTHOR, AUTHOR_SERIES, SERIES_LIST, SERIES, COLLECTION, COLLECTIONS)
+        4:
+          - Paging: SERIES_LIST, AUTHORS
+          - SeriesId: SERIES
+          - AuthorId: AUTHOR, AUTHOR_SERIES
+          - CollectionId: COLLECTIONS
+        5: SeriesId: AUTHOR_SERIES
+       */
+      if (!mediaManager.getIsLibrary(mediaIdParts[2])) {
+        Log.d(tag, "${mediaIdParts[2]} is not library")
+        result.sendResult(null)
+        return
+      }
+      Log.d(tag, "$mediaIdParts")
+      if (mediaIdParts[3] == "SERIES_LIST" && mediaIdParts.size == 5) {
+        Log.d(tag, "Loading series from library ${mediaIdParts[2]} with paging ${mediaIdParts[4]}")
+        mediaManager.loadLibrarySeriesWithAudio(mediaIdParts[2], mediaIdParts[4]) { seriesItems ->
+          Log.d(tag, "Received ${seriesItems.size} series")
+          if (seriesItems.size > 500) {
+            val seriesLetters = seriesItems.groupingBy { iwb -> iwb.title.substring(0, mediaIdParts[4].length + 1).uppercase() }.eachCount()
+            val children = seriesLetters.map { (seriesLetter, seriesCount) ->
+              MediaBrowserCompat.MediaItem(
+                MediaDescriptionCompat.Builder()
+                  .setTitle(seriesLetter)
+                  .setMediaId("${parentMediaId}${seriesLetter.last()}")
+                  .setSubtitle("$seriesCount series")
+                  .build(),
+                MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
+              )
+            }
+            result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
           } else {
+            val children = seriesItems.map { seriesItem ->
+              val description = seriesItem.getMediaDescription(null, ctx)
+              MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE)
+            }
+            result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
+          }
+        }
+      }else if (mediaIdParts[3] == "SERIES_LIST") {
+        Log.d(tag, "Loading series from library ${mediaIdParts[2]}")
+        mediaManager.loadLibrarySeriesWithAudio(mediaIdParts[2]) { seriesItems ->
+          Log.d(tag, "Received ${seriesItems.size} series")
+          if (seriesItems.size > 1000) {
+            val seriesLetters = seriesItems.groupingBy { iwb -> iwb.title.first().uppercaseChar() }.eachCount()
+            val children = seriesLetters.map { (seriesLetter, seriesCount) ->
+              MediaBrowserCompat.MediaItem(
+                MediaDescriptionCompat.Builder()
+                  .setTitle(seriesLetter.toString())
+                  .setSubtitle("$seriesCount series")
+                  .setMediaId("${parentMediaId}__${seriesLetter}")
+                  .build(),
+                MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
+              )
+            }
+            result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
+          } else {
+            val children = seriesItems.map { seriesItem ->
+              val description = seriesItem.getMediaDescription(null, ctx)
+              MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE)
+            }
+            result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
+          }
+        }
+      } else if (mediaIdParts[3] == "SERIES") {
+        Log.d(tag, "Loading items for serie ${mediaIdParts[4]} from library ${mediaIdParts[2]}")
+        mediaManager.loadLibrarySeriesItemsWithAudio(
+          mediaIdParts[2],
+          mediaIdParts[4]
+        ) { libraryItems ->
+          Log.d(tag, "Received ${libraryItems.size} library items")
+          val children = libraryItems.map { libraryItem ->
+            val progress =
+              mediaManager.serverUserMediaProgress.find { it.libraryItemId == libraryItem.id }
+            val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItemByLId(libraryItem.id)
+            libraryItem.localLibraryItemId = localLibraryItem?.id
+            val description = libraryItem.getMediaDescription(progress, ctx)
+            MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
+          }
+          result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
+        }
+      } else if (mediaIdParts[3] == "AUTHORS" && mediaIdParts.size == 5) {
+        Log.d(tag, "Loading authors from library ${mediaIdParts[2]} with paging ${mediaIdParts[4]}")
+        mediaManager.loadAuthorsWithBooks(mediaIdParts[2], mediaIdParts[4]) { authorItems ->
+          Log.d(tag, "Received ${authorItems.size} authors")
+          if (authorItems.size > 100) {
+            val authorLetters = authorItems.groupingBy { iwb -> iwb.name.substring(0, mediaIdParts[4].length + 1).uppercase() }.eachCount()
+            val children = authorLetters.map { (authorLetter, authorCount) ->
+              MediaBrowserCompat.MediaItem(
+                MediaDescriptionCompat.Builder()
+                  .setTitle(authorLetter)
+                  .setMediaId("${parentMediaId}${authorLetter.last()}")
+                  .setSubtitle("$authorCount authors")
+                  .build(),
+                MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
+              )
+            }
+            result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
+          } else {
+            val children = authorItems.map { authorItem ->
+              val description = authorItem.getMediaDescription(null, ctx)
+              MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE)
+            }
+            result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
+          }
+        }
+      } else if (mediaIdParts[3] == "AUTHORS") {
+        Log.d(tag, "Loading authors from library ${mediaIdParts[2]}")
+        mediaManager.loadAuthorsWithBooks(mediaIdParts[2]) { authorItems ->
+          Log.d(tag, "Received ${authorItems.size} authors")
+          if (authorItems.size > 1000) {
+            val authorLetters = authorItems.groupingBy { iwb -> iwb.name.first().uppercaseChar() }.eachCount()
+            val children = authorLetters.map { (authorLetter, authorCount) ->
+              MediaBrowserCompat.MediaItem(
+                MediaDescriptionCompat.Builder()
+                  .setTitle(authorLetter.toString())
+                  .setSubtitle("$authorCount authors")
+                  .setMediaId("${parentMediaId}__${authorLetter}")
+                  .build(),
+                MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
+              )
+            }
+            result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
+          } else {
+            val children = authorItems.map { authorItem ->
+              val description = authorItem.getMediaDescription(null, ctx)
+              MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE)
+            }
+            result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
+          }
+        }
+      } else if (mediaIdParts[3] == "AUTHOR") {
+        mediaManager.loadAuthorBooksWithAudio(mediaIdParts[2], mediaIdParts[4]) { libraryItems ->
+          val children = libraryItems.map { libraryItem ->
+            val progress = mediaManager.serverUserMediaProgress.find { it.libraryItemId == libraryItem.id }
+            val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItemByLId(libraryItem.id)
+            libraryItem.localLibraryItemId = localLibraryItem?.id
+            if (libraryItem.collapsedSeries != null) {
+              val description = libraryItem.getMediaDescription(progress, ctx, mediaIdParts[4])
+              MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE)
+            } else {
+              val description = libraryItem.getMediaDescription(progress, ctx)
+              MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
+            }
+          }
+          result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
+        }
+      } else if (mediaIdParts[3] == "AUTHOR_SERIES") {
+        mediaManager.loadAuthorSeriesBooksWithAudio(mediaIdParts[2], mediaIdParts[4], mediaIdParts[5]) { libraryItems ->
+          val children = libraryItems.map { libraryItem ->
+            val progress = mediaManager.serverUserMediaProgress.find { it.libraryItemId == libraryItem.id }
+            val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItemByLId(libraryItem.id)
+            libraryItem.localLibraryItemId = localLibraryItem?.id
+            val description = libraryItem.getMediaDescription(progress, ctx)
+            if (libraryItem.collapsedSeries != null) {
+              MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE)
+            } else {
+              MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
+            }
+          }
+          result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
+        }
+      } else if (mediaIdParts[3] == "COLLECTIONS") {
+        Log.d(tag, "Loading collections from library ${mediaIdParts[2]}")
+        mediaManager.loadLibraryCollectionsWithAudio(mediaIdParts[2]) { collectionItems ->
+          Log.d(tag, "Received ${collectionItems.size} collections")
+          val children = collectionItems.map { collectionItem ->
+            val description = collectionItem.getMediaDescription(null, ctx)
+            MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE)
+          }
+          result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
+        }
+      } else if (mediaIdParts[3] == "COLLECTION") {
+        Log.d(tag, "Loading collection ${mediaIdParts[4]} books from library ${mediaIdParts[2]}")
+        mediaManager.loadLibraryCollectionBooksWithAudio(mediaIdParts[2], mediaIdParts[4]) { libraryItems ->
+          Log.d(tag, "Received ${libraryItems.size} collections")
+          val children = libraryItems.map { libraryItem ->
             val progress = mediaManager.serverUserMediaProgress.find { it.libraryItemId == libraryItem.id }
             val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItemByLId(libraryItem.id)
             libraryItem.localLibraryItemId = localLibraryItem?.id
             val description = libraryItem.getMediaDescription(progress, ctx)
             MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
           }
+          result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
         }
-        result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
+      } else {
+        result.sendResult(null)
       }
     } else {
       Log.d(tag, "Loading podcast episodes for podcast $parentMediaId")

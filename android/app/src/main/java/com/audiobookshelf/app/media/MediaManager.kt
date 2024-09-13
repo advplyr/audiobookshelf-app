@@ -23,6 +23,13 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
   private var selectedLibraryItems = mutableListOf<LibraryItem>()
   private var selectedLibraryId = ""
 
+  private var cachedLibraryAuthors : MutableMap<String, MutableMap<String, LibraryAuthorItem>> = hashMapOf()
+  private var cachedLibraryAuthorItems : MutableMap<String, MutableMap<String, List<LibraryItem>>> = hashMapOf()
+  private var cachedLibraryAuthorSeriesItems : MutableMap<String, MutableMap<String, List<LibraryItem>>> = hashMapOf()
+  private var cachedLibrarySeries : MutableMap<String, List<LibrarySeriesItem>> = hashMapOf()
+  private var cachedLibrarySeriesItem : MutableMap<String, MutableMap<String, List<LibraryItem>>> = hashMapOf()
+  private var cachedLibraryCollections : MutableMap<String, MutableMap<String, LibraryCollection>> = hashMapOf()
+
   private var selectedPodcast:Podcast? = null
   private var selectedLibraryItemId:String? = null
   private var podcastEpisodeLibraryItemMap = mutableMapOf<String, LibraryItemWithEpisode>()
@@ -139,6 +146,229 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
         }
         cb(libraryItemsWithAudio)
       }
+    }
+  }
+
+  /**
+   *  Returns series with audio books from selected library.
+   *  If data is not found from local cache then it will be fetched from server
+   */
+  fun loadLibrarySeriesWithAudio(libraryId:String, cb: (List<LibrarySeriesItem>) -> Unit) {
+    // Check "cache" first
+    if (cachedLibrarySeries.containsKey(libraryId)) {
+      Log.d(tag, "Series with audio found from cache | Library $libraryId ")
+      cb(cachedLibrarySeries[libraryId] as List<LibrarySeriesItem>)
+    } else {
+      apiHandler.getLibrarySeries(libraryId) { seriesItems ->
+        Log.d(tag, "Series with audio loaded from server | Library $libraryId")
+        val seriesItemsWithAudio = seriesItems.filter { si -> si.audiobookCount > 0 }
+
+        cachedLibrarySeries[libraryId] = seriesItemsWithAudio
+
+        cb(seriesItemsWithAudio)
+      }
+    }
+  }
+
+  /**
+   * Returns series with audiobooks from selected library using filter for paging.
+   * If data is not found from local cache then it will be fetched from server
+   */
+  fun loadLibrarySeriesWithAudio(libraryId:String, seriesFilter:String, cb: (List<LibrarySeriesItem>) -> Unit) {
+    // Check "cache" first
+    if (!cachedLibrarySeries.containsKey(libraryId)) {
+      loadLibrarySeriesWithAudio(libraryId) {}
+    } else {
+      Log.d(tag, "Series with audio found from cache | Library $libraryId ")
+    }
+    val seriesWithBooks = cachedLibrarySeries[libraryId]!!.filter { ls -> ls.title.uppercase().startsWith(seriesFilter) }.toList()
+    cb(seriesWithBooks)
+  }
+
+  /**
+   * Returns books for series from library.
+   * If data is not found from local cache then it will be fetched from server
+   */
+  fun loadLibrarySeriesItemsWithAudio(libraryId:String, seriesId:String, cb: (List<LibraryItem>) -> Unit) {
+    // Check "cache" first
+    if (!cachedLibrarySeriesItem.containsKey(libraryId)) {
+      cachedLibrarySeriesItem[libraryId] = hashMapOf()
+    }
+    if (cachedLibrarySeriesItem[libraryId]!!.containsKey(seriesId)) {
+      Log.d(tag, "Items for series $seriesId found from cache | Library $libraryId")
+      cachedLibrarySeriesItem[libraryId]!![seriesId]?.let { cb(it) }
+    } else {
+      apiHandler.getLibrarySeriesItems(libraryId, seriesId) { libraryItems ->
+        Log.d(tag, "Items for series $seriesId loaded from server | Library $libraryId")
+        val libraryItemsWithAudio = libraryItems.filter { li -> li.checkHasTracks() }
+
+        cachedLibrarySeriesItem[libraryId]!![seriesId] = libraryItemsWithAudio
+
+        libraryItemsWithAudio.forEach { libraryItem ->
+          if (serverLibraryItems.find { li -> li.id == libraryItem.id } == null) {
+            serverLibraryItems.add(libraryItem)
+          }
+        }
+        cb(libraryItemsWithAudio)
+      }
+    }
+  }
+
+  /**
+   * Returns authors with books from library.
+   * If data is not found from local cache then it will be fetched from server
+   */
+  fun loadAuthorsWithBooks(libraryId:String, cb: (List<LibraryAuthorItem>) -> Unit) {
+    // Check "cache" first
+    if (cachedLibraryAuthors.containsKey(libraryId)) {
+      Log.d(tag, "Authors with books found from cache | Library $libraryId ")
+      cb(cachedLibraryAuthors[libraryId]!!.values.toList())
+    } else {
+      // Fetch data from server and add it to local "cache"
+      apiHandler.getLibraryAuthors(libraryId) { authorItems ->
+        Log.d(tag, "Authors with books loaded from server | Library $libraryId ")
+        // TO-DO: This check won't ensure that there is audiobooks. Current API won't offer ability to do so
+        val authorItemsWithBooks = authorItems.filter { li -> li.bookCount != null && li.bookCount!! > 0 }
+
+        // Ensure that there is map for library
+        cachedLibraryAuthors[libraryId] = mutableMapOf()
+        // Cache authors
+        authorItemsWithBooks.forEach {
+          if (!cachedLibraryAuthors[libraryId]!!.containsKey(it.id)) {
+            cachedLibraryAuthors[libraryId]!![it.id] = it
+          }
+        }
+        cb(authorItemsWithBooks)
+      }
+    }
+  }
+
+  /**
+   * Returns authors with books from selected library using filter for paging.
+   * If data is not found from local cache then it will be fetched from server
+   */
+  fun loadAuthorsWithBooks(libraryId:String, authorFilter: String, cb: (List<LibraryAuthorItem>) -> Unit) {
+    // Check "cache" first
+    if (cachedLibraryAuthors.containsKey(libraryId)) {
+      Log.d(tag, "Authors with books found from cache | Library $libraryId ")
+    } else {
+      loadAuthorsWithBooks(libraryId) {}
+    }
+    val authorsWithBooks = cachedLibraryAuthors[libraryId]!!.values.filter { lai -> lai.name.uppercase().startsWith(authorFilter) }.toList()
+    cb(authorsWithBooks)
+  }
+
+  /**
+   * Returns audiobooks for author from library
+   * If data is not found from local cache then it will be fetched from server
+   */
+  fun loadAuthorBooksWithAudio(libraryId:String, authorId:String, cb: (List<LibraryItem>) -> Unit) {
+    // Ensure that there is map for library
+    if (!cachedLibraryAuthorItems.containsKey(libraryId)) {
+        cachedLibraryAuthorItems[libraryId] = mutableMapOf()
+    }
+    // Check "cache" first
+    if (cachedLibraryAuthorItems[libraryId]!!.containsKey(authorId)) {
+      Log.d(tag, "Items for author $authorId found from cache | Library $libraryId")
+      cachedLibraryAuthorItems[libraryId]!![authorId]?.let { cb(it) }
+    } else {
+      apiHandler.getLibraryItemsFromAuthor(libraryId, authorId) { libraryItems ->
+        Log.d(tag, "Items for author $authorId loaded from server | Library $libraryId")
+        val libraryItemsWithAudio = libraryItems.filter { li -> li.checkHasTracks() }
+
+        cachedLibraryAuthorItems[libraryId]!![authorId]  = libraryItemsWithAudio
+
+        libraryItemsWithAudio.forEach { libraryItem ->
+          if (serverLibraryItems.find { li -> li.id == libraryItem.id } == null) {
+            serverLibraryItems.add(libraryItem)
+          }
+        }
+
+        cb(libraryItemsWithAudio)
+      }
+    }
+  }
+
+  /**
+   * Returns audiobooks for author from specified series within library
+   * If data is not found from local cache then it will be fetched from server
+   */
+  fun loadAuthorSeriesBooksWithAudio(libraryId:String, authorId:String, seriesId: String, cb: (List<LibraryItem>) -> Unit) {
+    val authorSeriesKey = "$authorId|$seriesId"
+    // Ensure that there is map for library
+    if (!cachedLibraryAuthorSeriesItems.containsKey(libraryId)) {
+      cachedLibraryAuthorSeriesItems[libraryId] = mutableMapOf()
+    }
+    // Check "cache" first
+    if (cachedLibraryAuthorSeriesItems[libraryId]!!.containsKey(authorSeriesKey)) {
+      Log.d(tag, "Items for series $seriesId with author $authorId found from cache | Library $libraryId")
+      cachedLibraryAuthorSeriesItems[libraryId]!![authorSeriesKey]?.let { cb(it) }
+    } else {
+      apiHandler.getLibrarySeriesItems(libraryId, seriesId) { libraryItems ->
+        Log.d(tag, "Items for series $seriesId with author $authorId loaded from server | Library $libraryId")
+        val libraryItemsWithAudio = libraryItems.filter { li -> li.checkHasTracks() }
+        if (!cachedLibraryAuthors[libraryId]!!.containsKey(authorId)) {
+          Log.d(tag, "Author data is missing")
+        }
+        val authorName = cachedLibraryAuthors[libraryId]!![authorId]?.name ?: ""
+        Log.d(tag, "Using author name: $authorName")
+        val libraryItemsFromAuthorWithAudio = libraryItemsWithAudio.filter { li -> li.authorName.indexOf(authorName, ignoreCase = true) >= 0 }
+
+        cachedLibraryAuthorSeriesItems[libraryId]!![authorId] = libraryItemsFromAuthorWithAudio
+
+        libraryItemsFromAuthorWithAudio.forEach { libraryItem ->
+          if (serverLibraryItems.find { li -> li.id == libraryItem.id } == null) {
+            serverLibraryItems.add(libraryItem)
+          }
+        }
+
+        cb(libraryItemsFromAuthorWithAudio)
+      }
+    }
+  }
+
+  /**
+   * Returns collections with audiobooks from library
+   * If data is not found from local cache then it will be fetched from server
+   */
+  fun loadLibraryCollectionsWithAudio(libraryId:String, cb: (List<LibraryCollection>) -> Unit) {
+    if (cachedLibraryCollections.containsKey(libraryId)) {
+      Log.d(tag, "Collections with books found from cache | Library $libraryId ")
+      cb(cachedLibraryCollections[libraryId]!!.values.toList())
+    } else {
+      apiHandler.getLibraryCollections(libraryId) { libraryCollections ->
+        Log.d(tag, "Collections with books loaded from server | Library $libraryId ")
+        val libraryCollectionsWithAudio = libraryCollections.filter { lc -> lc.audiobookCount > 0 }
+
+        // Cache collections
+        cachedLibraryCollections[libraryId] = hashMapOf()
+        libraryCollectionsWithAudio.forEach {
+          if (!cachedLibraryCollections[libraryId]!!.containsKey(it.id)) {
+            cachedLibraryCollections[libraryId]!![it.id] = it
+          }
+        }
+        cb(libraryCollectionsWithAudio)
+      }
+    }
+  }
+
+  /**
+   * Returns audiobooks for collection from library
+   * If data is not found from local cache then it will be fetched from server
+   */
+  fun loadLibraryCollectionBooksWithAudio(libraryId: String, collectionId: String, cb: (List<LibraryItem>) -> Unit) {
+    if (!cachedLibraryCollections.containsKey(libraryId)) {
+      loadLibraryCollectionsWithAudio(libraryId) {}
+    }
+    Log.d(tag, "Trying to find collection $collectionId items from from cache | Library $libraryId ")
+    if ( cachedLibraryCollections[libraryId]!!.containsKey(collectionId)) {
+      val libraryCollectionBookswithAudio = cachedLibraryCollections[libraryId]!![collectionId]?.books
+      libraryCollectionBookswithAudio?.forEach { libraryItem ->
+        if (serverLibraryItems.find { li -> li.id == libraryItem.id } == null) {
+          serverLibraryItems.add(libraryItem)
+        }
+      }
+      cb(libraryCollectionBookswithAudio as List<LibraryItem>)
     }
   }
 
