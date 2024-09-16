@@ -133,7 +133,10 @@ data class DeviceSettings(
   var disableSleepTimerResetFeedback: Boolean,
   var languageCode: String,
   var downloadUsingCellular: DownloadUsingCellularSetting,
-  var streamingUsingCellular: StreamingUsingCellularSetting
+  var streamingUsingCellular: StreamingUsingCellularSetting,
+  var androidAutoBrowseForceGrouping: Boolean,
+  var androidAutoBrowseTopLevelLimitForGrouping: Int,
+  var androidAutoBrowseLimitForGrouping: Int
 ) {
   companion object {
     // Static method to get default device settings
@@ -159,7 +162,10 @@ data class DeviceSettings(
         disableSleepTimerResetFeedback = false,
         languageCode = "en-us",
         downloadUsingCellular = DownloadUsingCellularSetting.ALWAYS,
-        streamingUsingCellular = StreamingUsingCellularSetting.ALWAYS
+        streamingUsingCellular = StreamingUsingCellularSetting.ALWAYS,
+        androidAutoBrowseForceGrouping = false,
+        androidAutoBrowseTopLevelLimitForGrouping = 100,
+        androidAutoBrowseLimitForGrouping = 50
       )
     }
   }
