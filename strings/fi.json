@@ -119,6 +119,7 @@
   "LabelDisableAutoRewind": "Poista käytöstä automaattinen takaisinkelaus",
   "LabelDisableShakeToReset": "Poista uniajastimnen nollaus ravistamalla käytöstä",
   "LabelDisableShakeToResetHelp": "Ravistamalla laitettasi uniajastimen kuluessa tai enintään kaksi minuuttia sen loppumisen jälkeen uudistaa ajastimen.",
+  "LabelDisableVibrateOnReset": "Poista värinä käytöstä nollattaessa",
   "LabelDownload": "Lataa",
   "LabelDownloadUsingCellular": "Lataa käyttäen mobiilidataa",
   "LabelDownloaded": "Ladatut",
