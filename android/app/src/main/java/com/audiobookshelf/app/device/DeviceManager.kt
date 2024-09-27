@@ -61,6 +61,16 @@ object DeviceManager {
     if (deviceData.deviceSettings?.streamingUsingCellular == null) {
       deviceData.deviceSettings?.streamingUsingCellular = StreamingUsingCellularSetting.ALWAYS
     }
+
+    if (deviceData.deviceSettings?.androidAutoBrowseForceGrouping == null) {
+      deviceData.deviceSettings?.androidAutoBrowseForceGrouping = false
+    }
+    if (deviceData.deviceSettings?.androidAutoBrowseTopLevelLimitForGrouping == null) {
+      deviceData.deviceSettings?.androidAutoBrowseTopLevelLimitForGrouping = 100
+    }
+    if (deviceData.deviceSettings?.androidAutoBrowseLimitForGrouping == null) {
+      deviceData.deviceSettings?.androidAutoBrowseLimitForGrouping = 50
+    }
   }
 
   fun getBase64Id(id:String):String {

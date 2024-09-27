@@ -32,10 +32,17 @@ class LibraryItem(
   var media:MediaType,
   var libraryFiles:MutableList<LibraryFile>?,
   var userMediaProgress:MediaProgress?, // Only included when requesting library item with progress (for downloads)
+  var collapsedSeries: CollapsedSeries?,
   var localLibraryItemId:String? // For Android Auto
 ) : LibraryItemWrapper(id) {
   @get:JsonIgnore
-  val title get() = media.metadata.title
+  val title: String
+    get() {
+      if (collapsedSeries != null) {
+        return collapsedSeries!!.title
+      }
+      return media.metadata.title
+    }
   @get:JsonIgnore
   val authorName get() = media.metadata.getAuthorDisplayName()
 
@@ -58,49 +65,76 @@ class LibraryItem(
   }
 
   @JsonIgnore
-  override fun getMediaDescription(progress:MediaProgressWrapper?, ctx: Context): MediaDescriptionCompat {
+  fun getMediaDescription(progress:MediaProgressWrapper?, ctx: Context, authorId: String?): MediaDescriptionCompat {
     val extras = Bundle()
 
-    if (localLibraryItemId != null) {
-      extras.putLong(
-        MediaDescriptionCompat.EXTRA_DOWNLOAD_STATUS,
-        MediaDescriptionCompat.STATUS_DOWNLOADED
-      )
-    }
-
-    if (progress != null) {
-      if (progress.isFinished) {
-        extras.putInt(
-          MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
-          MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_FULLY_PLAYED
-        )
-      } else {
-        extras.putInt(
-          MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
-          MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_PARTIALLY_PLAYED
-        )
-        extras.putDouble(
-          MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_PERCENTAGE, progress.progress
+    if (collapsedSeries == null) {
+      if (localLibraryItemId != null) {
+        extras.putLong(
+          MediaDescriptionCompat.EXTRA_DOWNLOAD_STATUS,
+          MediaDescriptionCompat.STATUS_DOWNLOADED
         )
       }
-    } else if (mediaType != "podcast") {
-      extras.putInt(
-        MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
-        MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_NOT_PLAYED
-      )
+
+      if (progress != null) {
+        if (progress.isFinished) {
+          extras.putInt(
+            MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
+            MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_FULLY_PLAYED
+          )
+        } else {
+          extras.putInt(
+            MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
+            MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_PARTIALLY_PLAYED
+          )
+          extras.putDouble(
+            MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_PERCENTAGE, progress.progress
+          )
+        }
+      } else if (mediaType != "podcast") {
+        extras.putInt(
+          MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
+          MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_NOT_PLAYED
+        )
+      }
+
+      if (media.metadata.explicit) {
+        extras.putLong(
+          MediaConstants.METADATA_KEY_IS_EXPLICIT,
+          MediaConstants.METADATA_VALUE_ATTRIBUTE_PRESENT
+        )
+      }
     }
 
-    if (media.metadata.explicit) {
-      extras.putLong(MediaConstants.METADATA_KEY_IS_EXPLICIT, MediaConstants.METADATA_VALUE_ATTRIBUTE_PRESENT)
+    val mediaId = if (localLibraryItemId != null) {
+      localLibraryItemId
+    } else if (collapsedSeries != null) {
+      if (authorId != null) {
+        "__LIBRARY__${libraryId}__AUTHOR_SERIES__${authorId}__${collapsedSeries!!.id}"
+      } else {
+        "__LIBRARY__${libraryId}__SERIES__${collapsedSeries!!.id}"
+      }
+    } else {
+      id
     }
-
-    val mediaId = localLibraryItemId ?: id
+    var subtitle = authorName
+    if (collapsedSeries != null) {
+      subtitle = "${collapsedSeries!!.numBooks} books"
+    }
     return MediaDescriptionCompat.Builder()
       .setMediaId(mediaId)
       .setTitle(title)
       .setIconUri(getCoverUri())
-      .setSubtitle(authorName)
+      .setSubtitle(subtitle)
       .setExtras(extras)
       .build()
+  }
+
+  @JsonIgnore
+  override fun getMediaDescription(progress:MediaProgressWrapper?, ctx: Context): MediaDescriptionCompat {
+    /*
+    This is needed so Android auto library hierarchy for author series can be implemented
+     */
+    return getMediaDescription(progress, ctx, null)
   }
 }
