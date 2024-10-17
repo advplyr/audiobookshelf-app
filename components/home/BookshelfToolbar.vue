@@ -13,6 +13,7 @@
           </div>
           <span class="material-icons px-2" @click="showSortModal = true">sort</span>
         </template>
+        <span v-if="seriesBookPage" class="material-icons px-2" @click="downloadSeries">download</span>
         <span v-if="(page == 'library' && isBookLibrary) || seriesBookPage" class="material-icons px-2" @click="showMoreMenuDialog = true">more_vert</span>
       </div>
     </div>
@@ -144,6 +145,10 @@ export default {
     async changeView() {
       this.bookshelfListView = !this.bookshelfListView
       await this.$hapticsImpact()
+    },
+    downloadSeries() {
+      console.log('Download Series click')
+      this.$eventBus.$emit('download-series-click')
     }
   },
   mounted() {
