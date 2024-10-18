@@ -150,6 +150,28 @@
       </div>
     </div>
 
+    <!-- Android Auto settings -->
+    <template v-if="!isiOS">
+      <p class="uppercase text-xs font-semibold text-fg-muted mb-2 mt-10">{{ $strings.HeaderAndroidAutoSettings }}</p>
+      <div class="flex items-center py-3">
+        <div class="w-10 flex justify-center" @click="toggleAndroidAutoBrowseForceGrouping">
+          <ui-toggle-switch v-model="settings.androidAutoBrowseForceGrouping" @input="saveSettings" />
+        </div>
+        <p class="pl-4">{{ $strings.LabelAndroidAutoBrowseForceGrouping }}</p>
+        <span class="material-icons-outlined ml-2" @click.stop="showInfo('androidAutoBrowseForceGrouping')">info</span>
+      </div>
+      <div v-if="!settings.androidAutoBrowseForceGrouping" class="py-3 flex items-center">
+        <p class="pr-4 w-36">{{ $strings.LabelAndroidAutoBrowseTopLevelLimitForGrouping }}</p>
+        <ui-text-input type="number" v-model="settings.androidAutoBrowseTopLevelLimitForGrouping" style="width: 145px; max-width: 145px" @input="androidAutoBrowseTopLevelLimitForGroupingUpdated" />
+        <span class="material-icons-outlined ml-2" @click.stop="showInfo('androidAutoBrowseTopLevelLimitForGrouping')">info</span>
+      </div>
+      <div class="py-3 flex items-center">
+        <p class="pr-4 w-36">{{ $strings.LabelAndroidAutoBrowseLimitForGrouping }}</p>
+        <ui-text-input type="number" v-model="settings.androidAutoBrowseLimitForGrouping" style="width: 145px; max-width: 145px" @input="androidAutoBrowseLimitForGroupingUpdated" />
+        <span class="material-icons-outlined ml-2" @click.stop="showInfo('androidAutoBrowseLimitForGrouping')">info</span>
+      </div>
+    </template>
+
     <div v-show="loading" class="w-full h-full absolute top-0 left-0 flex items-center justify-center z-10">
       <ui-loading-indicator />
     </div>
@@ -193,7 +215,10 @@ export default {
         autoSleepTimerAutoRewindTime: 300000, // 5 minutes
         languageCode: 'en-us',
         downloadUsingCellular: 'ALWAYS',
-        streamingUsingCellular: 'ALWAYS'
+        streamingUsingCellular: 'ALWAYS',
+        androidAutoBrowseForceGrouping: false,
+        androidAutoBrowseTopLevelLimitForGrouping: 100,
+        androidAutoBrowseLimitForGrouping: 50
       },
       theme: 'dark',
       lockCurrentOrientation: false,
@@ -221,6 +246,14 @@ export default {
         enableMp3IndexSeeking: {
           name: this.$strings.LabelEnableMp3IndexSeeking,
           message: this.$strings.LabelEnableMp3IndexSeekingHelp
+        },
+        androidAutoBrowseForceGrouping: {
+          name: this.$strings.LabelAndroidAutoBrowseForceGrouping,
+          message: this.$strings.LabelAndroidAutoBrowseForceGroupingHelp
+        },
+        androidAutoBrowseTopLevelLimitForGrouping: {
+          name: this.$strings.LabelAndroidAutoBrowseTopLevelLimitForGrouping,
+          message: this.$strings.LabelAndroidAutoBrowseTopLevelLimitForGroupingHelp
         }
       },
       hapticFeedbackItems: [
@@ -451,6 +484,18 @@ export default {
       if (!val) return // invalid times return falsy
       this.saveSettings()
     },
+    androidAutoBrowseTopLevelLimitForGroupingUpdated(val) {
+      if (!val) return // invalid times return falsy
+      if (val > 1000) val = 1000
+      if (val < 20) val = 20
+      this.saveSettings()
+    },
+    androidAutoBrowseLimitForGroupingUpdated(val) {
+      if (!val) return // invalid times return falsy
+      if (val > 1000) val = 1000
+      if (val < 20) val = 20
+      this.saveSettings()
+    },
     hapticFeedbackUpdated(val) {
       this.$store.commit('globals/setHapticFeedback', val)
       this.saveSettings()
@@ -491,6 +536,10 @@ export default {
     },
     toggleDisableShakeToResetSleepTimer() {
       this.settings.disableShakeToResetSleepTimer = !this.settings.disableShakeToResetSleepTimer
+      this.saveSettings()
+    },
+    toggleAndroidAutoBrowseForceGrouping() {
+      this.settings.androidAutoBrowseForceGrouping = !this.settings.androidAutoBrowseForceGrouping
       this.saveSettings()
     },
     toggleDisableSleepTimerResetFeedback() {
@@ -576,6 +625,10 @@ export default {
 
       this.settings.downloadUsingCellular = deviceSettings.downloadUsingCellular || 'ALWAYS'
       this.settings.streamingUsingCellular = deviceSettings.streamingUsingCellular || 'ALWAYS'
+
+      this.settings.androidAutoBrowseForceGrouping = deviceSettings.androidAutoBrowseForceGrouping
+      this.settings.androidAutoBrowseTopLevelLimitForGrouping = deviceSettings.androidAutoBrowseTopLevelLimitForGrouping
+      this.settings.androidAutoBrowseLimitForGrouping = deviceSettings.androidAutoBrowseLimitForGrouping
     },
     async init() {
       this.loading = true

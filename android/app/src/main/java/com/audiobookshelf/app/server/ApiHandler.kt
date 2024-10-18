@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Build
 import android.provider.Settings
+import android.util.Base64
 import android.util.Log
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
@@ -182,6 +183,90 @@ class ApiHandler(var ctx:Context) {
         val array = it.getJSONArray("results")
         for (i in 0 until array.length()) {
           val item = jacksonMapper.readValue<LibraryItem>(array.get(i).toString())
+          items.add(item)
+        }
+      }
+      cb(items)
+    }
+  }
+
+  fun getLibrarySeries(libraryId:String, cb: (List<LibrarySeriesItem>) -> Unit) {
+    Log.d(tag, "Getting series")
+    getRequest("/api/libraries/$libraryId/series?minified=1&sort=name&limit=10000", null, null) {
+      val items = mutableListOf<LibrarySeriesItem>()
+      if (it.has("results")) {
+        val array = it.getJSONArray("results")
+        for (i in 0 until array.length()) {
+          val item = jacksonMapper.readValue<LibrarySeriesItem>(array.get(i).toString())
+          items.add(item)
+        }
+      }
+      cb(items)
+    }
+  }
+
+  fun getLibrarySeriesItems(libraryId:String, seriesId:String, cb: (List<LibraryItem>) -> Unit) {
+    Log.d(tag, "Getting items for series")
+    val seriesIdBase64 = Base64.encodeToString(seriesId.toByteArray(), Base64.DEFAULT)
+    getRequest("/api/libraries/$libraryId/items?minified=1&sort=media.metadata.title&filter=series.${seriesIdBase64}&limit=1000", null, null) {
+      val items = mutableListOf<LibraryItem>()
+      if (it.has("results")) {
+        val array = it.getJSONArray("results")
+        for (i in 0 until array.length()) {
+          val item = jacksonMapper.readValue<LibraryItem>(array.get(i).toString())
+          items.add(item)
+        }
+      }
+      cb(items)
+    }
+  }
+
+  fun getLibraryAuthors(libraryId:String, cb: (List<LibraryAuthorItem>) -> Unit) {
+    Log.d(tag, "Getting series")
+    getRequest("/api/libraries/$libraryId/authors", null, null) {
+      val items = mutableListOf<LibraryAuthorItem>()
+      if (it.has("authors")) {
+        val array = it.getJSONArray("authors")
+        for (i in 0 until array.length()) {
+          val item = jacksonMapper.readValue<LibraryAuthorItem>(array.get(i).toString())
+          items.add(item)
+        }
+      }else{
+        Log.e(tag, "No results")
+      }
+      cb(items)
+    }
+  }
+
+  fun getLibraryItemsFromAuthor(libraryId:String, authorId:String, cb: (List<LibraryItem>) -> Unit) {
+    Log.d(tag, "Getting author items")
+    val authorIdBase64 = Base64.encodeToString(authorId.toByteArray(), Base64.DEFAULT)
+    getRequest("/api/libraries/$libraryId/items?limit=1000&minified=1&filter=authors.${authorIdBase64}&sort=media.metadata.title&collapseseries=1", null, null) {
+      val items = mutableListOf<LibraryItem>()
+      if (it.has("results")) {
+        val array = it.getJSONArray("results")
+        for (i in 0 until array.length()) {
+          val item = jacksonMapper.readValue<LibraryItem>(array.get(i).toString())
+          if (item.collapsedSeries != null) {
+            item.collapsedSeries?.libraryId = libraryId
+          }
+          items.add(item)
+        }
+      }else{
+        Log.e(tag, "No results")
+      }
+      cb(items)
+    }
+  }
+
+  fun getLibraryCollections(libraryId:String, cb: (List<LibraryCollection>) -> Unit) {
+    Log.d(tag, "Getting collections")
+    getRequest("/api/libraries/$libraryId/collections?minified=1&sort=name&limit=1000", null, null) {
+      val items = mutableListOf<LibraryCollection>()
+      if (it.has("results")) {
+        val array = it.getJSONArray("results")
+        for (i in 0 until array.length()) {
+          val item = jacksonMapper.readValue<LibraryCollection>(array.get(i).toString())
           items.add(item)
         }
       }
