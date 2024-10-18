@@ -23,7 +23,6 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
-import java.io.FileOutputStream
 import java.util.*
 
 class DownloadItemManager(var downloadManager:DownloadManager, private var folderScanner: FolderScanner, var mainActivity: MainActivity, private var clientEventEmitter:DownloadEventEmitter) {
@@ -76,7 +75,6 @@ class DownloadItemManager(var downloadManager:DownloadManager, private var folde
             val file = File(it.finalDestinationPath)
             file.parentFile?.mkdirs()
 
-            val fileOutputStream = FileOutputStream(it.finalDestinationPath)
             val internalProgressCallback = (object : InternalProgressCallback {
               override fun onProgress(totalBytesWritten:Long, progress: Long) {
                 it.bytesDownloaded = totalBytesWritten
@@ -89,7 +87,7 @@ class DownloadItemManager(var downloadManager:DownloadManager, private var folde
             })
 
             Log.d(tag, "Start internal download to destination path ${it.finalDestinationPath} from ${it.serverUrl}")
-            InternalDownloadManager(fileOutputStream, internalProgressCallback).download(it.serverUrl)
+            InternalDownloadManager(file, internalProgressCallback).download(it.serverUrl)
             it.downloadId = 1
             currentDownloadItemParts.add(it)
           } else {
