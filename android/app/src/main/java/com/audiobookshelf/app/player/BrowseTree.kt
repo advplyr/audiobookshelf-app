@@ -56,6 +56,7 @@ class BrowseTree(
       rootList += librariesMetadata
 
       libraries.forEach { library ->
+        if (library.stats?.numAudioTracks == 0) return@forEach
         val libraryMediaMetadata = library.getMediaMetadata()
         val children = mediaIdToChildren[LIBRARIES_ROOT] ?: mutableListOf()
         children += libraryMediaMetadata

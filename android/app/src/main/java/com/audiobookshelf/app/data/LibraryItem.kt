@@ -64,8 +64,27 @@ class LibraryItem(
     }
   }
 
+  @get:JsonIgnore
+  val seriesSequence: String
+    get() {
+      if (mediaType != "podcast") {
+        return ((media as Book).metadata as BookMetadata).series?.get(0)?.sequence.orEmpty()
+      } else {
+        return ""
+      }
+    }
+
+  @get:JsonIgnore
+  val seriesSequenceParts: List<String>
+    get() {
+      if (seriesSequence.isEmpty()) {
+        return listOf("")
+      }
+      return seriesSequence.split(".", limit = 2)
+    }
+
   @JsonIgnore
-  fun getMediaDescription(progress:MediaProgressWrapper?, ctx: Context, authorId: String?): MediaDescriptionCompat {
+  fun getMediaDescription(progress:MediaProgressWrapper?, ctx: Context, authorId: String?, showSeriesNumber: Boolean?): MediaDescriptionCompat {
     val extras = Bundle()
 
     if (collapsedSeries == null) {
@@ -121,9 +140,13 @@ class LibraryItem(
     if (collapsedSeries != null) {
       subtitle = "${collapsedSeries!!.numBooks} books"
     }
+    var itemTitle = title
+    if (showSeriesNumber == true && seriesSequence != "") {
+      itemTitle = "$seriesSequence. $itemTitle"
+    }
     return MediaDescriptionCompat.Builder()
       .setMediaId(mediaId)
-      .setTitle(title)
+      .setTitle(itemTitle)
       .setIconUri(getCoverUri())
       .setSubtitle(subtitle)
       .setExtras(extras)
@@ -131,10 +154,15 @@ class LibraryItem(
   }
 
   @JsonIgnore
+  fun getMediaDescription(progress:MediaProgressWrapper?, ctx: Context, authorId: String?): MediaDescriptionCompat {
+    return getMediaDescription(progress, ctx, authorId, null)
+  }
+
+  @JsonIgnore
   override fun getMediaDescription(progress:MediaProgressWrapper?, ctx: Context): MediaDescriptionCompat {
     /*
     This is needed so Android auto library hierarchy for author series can be implemented
      */
-    return getMediaDescription(progress, ctx, null)
+    return getMediaDescription(progress, ctx, null, null)
   }
 }

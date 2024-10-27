@@ -46,6 +46,10 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
     return serverLibraries.find { it.id == id } != null
   }
 
+  fun getLibrary(id:String) : Library? {
+    return serverLibraries.find { it.id == id }
+  }
+
   fun getSavedPlaybackRate():Float {
     if (userSettingsPlaybackRate != null) {
       return userSettingsPlaybackRate ?: 1f
@@ -185,6 +189,14 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
     cb(seriesWithBooks)
   }
 
+  fun sortSeriesBooks(seriesBooks: List<LibraryItem>) : List<LibraryItem> {
+    val sortingLogic = compareBy<LibraryItem> { it.seriesSequenceParts[0].length }
+      .thenBy { it.seriesSequenceParts[0].ifEmpty { "" } }
+      .thenBy { it.seriesSequenceParts.getOrElse(1) { "" }.length }
+      .thenBy { it.seriesSequenceParts.getOrElse(1) { "" } }
+    return seriesBooks.sortedWith(sortingLogic)
+  }
+
   /**
    * Returns books for series from library.
    * If data is not found from local cache then it will be fetched from server
@@ -202,14 +214,15 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
         Log.d(tag, "Items for series $seriesId loaded from server | Library $libraryId")
         val libraryItemsWithAudio = libraryItems.filter { li -> li.checkHasTracks() }
 
-        cachedLibrarySeriesItem[libraryId]!![seriesId] = libraryItemsWithAudio
+        val sortedLibraryItemsWithAudio = sortSeriesBooks(libraryItemsWithAudio)
+        cachedLibrarySeriesItem[libraryId]!![seriesId] = sortedLibraryItemsWithAudio
 
-        libraryItemsWithAudio.forEach { libraryItem ->
+        sortedLibraryItemsWithAudio.forEach { libraryItem ->
           if (serverLibraryItems.find { li -> li.id == libraryItem.id } == null) {
             serverLibraryItems.add(libraryItem)
           }
         }
-        cb(libraryItemsWithAudio)
+        cb(sortedLibraryItemsWithAudio)
       }
     }
   }
@@ -228,8 +241,8 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
       apiHandler.getLibraryAuthors(libraryId) { authorItems ->
         Log.d(tag, "Authors with books loaded from server | Library $libraryId ")
         // TO-DO: This check won't ensure that there is audiobooks. Current API won't offer ability to do so
-        val authorItemsWithBooks = authorItems.filter { li -> li.bookCount != null && li.bookCount!! > 0 }
-
+        var authorItemsWithBooks = authorItems.filter { li -> li.bookCount != null && li.bookCount!! > 0 }
+        authorItemsWithBooks = authorItemsWithBooks.sortedBy { it.name }
         // Ensure that there is map for library
         cachedLibraryAuthors[libraryId] = mutableMapOf()
         // Cache authors
@@ -314,15 +327,16 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
         Log.d(tag, "Using author name: $authorName")
         val libraryItemsFromAuthorWithAudio = libraryItemsWithAudio.filter { li -> li.authorName.indexOf(authorName, ignoreCase = true) >= 0 }
 
-        cachedLibraryAuthorSeriesItems[libraryId]!![authorId] = libraryItemsFromAuthorWithAudio
+        val sortedLibraryItemsWithAudio = sortSeriesBooks(libraryItemsFromAuthorWithAudio)
+        cachedLibraryAuthorSeriesItems[libraryId]!![authorId] = sortedLibraryItemsWithAudio
 
-        libraryItemsFromAuthorWithAudio.forEach { libraryItem ->
+        sortedLibraryItemsWithAudio.forEach { libraryItem ->
           if (serverLibraryItems.find { li -> li.id == libraryItem.id } == null) {
             serverLibraryItems.add(libraryItem)
           }
         }
 
-        cb(libraryItemsFromAuthorWithAudio)
+        cb(sortedLibraryItemsWithAudio)
       }
     }
   }
@@ -443,9 +457,15 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
     if (serverLibraries.isNotEmpty()) {
       cb(serverLibraries)
     } else {
-      apiHandler.getLibraries {
-        serverLibraries = it
-        cb(it)
+      apiHandler.getLibraries { loadedLibraries ->
+        serverLibraries = loadedLibraries.map { library ->
+          apiHandler.getLibraryStats(library.id) { libraryStats ->
+            Log.d(tag, "Library stats for library ${library.id} | $libraryStats")
+            library.stats = libraryStats
+          }
+          library
+        }
+        cb(serverLibraries)
       }
     }
   }

@@ -150,6 +150,18 @@ class ApiHandler(var ctx:Context) {
     }
   }
 
+  fun getLibraryStats(libraryItemId:String, cb: (LibraryStats?) -> Unit) {
+    getRequest("/api/libraries/$libraryItemId/stats", null, null) {
+      if (it.has("error")) {
+        Log.e(tag, it.getString("error") ?: "getLibraryStats Failed")
+        cb(null)
+      } else {
+        val libraryStats = jacksonMapper.readValue<LibraryStats>(it.toString())
+        cb(libraryStats)
+      }
+    }
+  }
+
   fun getLibraryItem(libraryItemId:String, cb: (LibraryItem?) -> Unit) {
     getRequest("/api/items/$libraryItemId?expanded=1", null, null) {
       if (it.has("error")) {

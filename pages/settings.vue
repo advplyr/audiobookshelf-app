@@ -170,6 +170,12 @@
         <ui-text-input type="number" v-model="settings.androidAutoBrowseLimitForGrouping" style="width: 145px; max-width: 145px" @input="androidAutoBrowseLimitForGroupingUpdated" />
         <span class="material-icons-outlined ml-2" @click.stop="showInfo('androidAutoBrowseLimitForGrouping')">info</span>
       </div>
+      <div class="py-3 flex items-center">
+        <p class="pr-4 w-36">{{ $strings.LabelAndroidAutoBrowseSeriesSequenceOrder }}</p>
+        <div @click.stop="showAndroidAutoBrowseSeriesSequenceOrderOptions">
+          <ui-text-input :value="androidAutoBrowseSeriesSequenceOrderOption" readonly append-icon="expand_more" style="max-width: 200px" />
+        </div>
+      </div>
     </template>
 
     <div v-show="loading" class="w-full h-full absolute top-0 left-0 flex items-center justify-center z-10">
@@ -218,7 +224,8 @@ export default {
         streamingUsingCellular: 'ALWAYS',
         androidAutoBrowseForceGrouping: false,
         androidAutoBrowseTopLevelLimitForGrouping: 100,
-        androidAutoBrowseLimitForGrouping: 50
+        androidAutoBrowseLimitForGrouping: 50,
+        androidAutoBrowseSeriesSequenceOrder: 'ASC'
       },
       theme: 'dark',
       lockCurrentOrientation: false,
@@ -323,6 +330,16 @@ export default {
           text: this.$strings.LabelNever,
           value: 'NEVER'
         }
+      ],
+      androidAutoBrowseSeriesSequenceOrderItems: [
+        {
+          text: this.$strings.LabelAscending,
+          value: 'ASC'
+        },
+        {
+          text: this.$strings.LabelDescending,
+          value: 'DESC'
+        }
       ]
     }
   },
@@ -405,6 +422,10 @@ export default {
       const item = this.streamingUsingCellularItems.find((i) => i.value === this.settings.streamingUsingCellular)
       return item?.text || 'Error'
     },
+    androidAutoBrowseSeriesSequenceOrderOption() {
+      const item = this.androidAutoBrowseSeriesSequenceOrderItems.find((i) => i.value === this.settings.androidAutoBrowseSeriesSequenceOrder)
+      return item?.text || 'Error'
+    },
     moreMenuItems() {
       if (this.moreMenuSetting === 'shakeSensitivity') return this.shakeSensitivityItems
       else if (this.moreMenuSetting === 'hapticFeedback') return this.hapticFeedbackItems
@@ -412,6 +433,7 @@ export default {
       else if (this.moreMenuSetting === 'theme') return this.themeOptionItems
       else if (this.moreMenuSetting === 'downloadUsingCellular') return this.downloadUsingCellularItems
       else if (this.moreMenuSetting === 'streamingUsingCellular') return this.streamingUsingCellularItems
+      else if (this.moreMenuSetting === 'androidAutoBrowseSeriesSequenceOrder') return this.androidAutoBrowseSeriesSequenceOrderItems
       return []
     }
   },
@@ -454,6 +476,10 @@ export default {
       this.moreMenuSetting = 'streamingUsingCellular'
       this.showMoreMenuDialog = true
     },
+    showAndroidAutoBrowseSeriesSequenceOrderOptions() {
+      this.moreMenuSetting = 'androidAutoBrowseSeriesSequenceOrder'
+      this.showMoreMenuDialog = true
+    },
     clickMenuAction(action) {
       this.showMoreMenuDialog = false
       if (this.moreMenuSetting === 'shakeSensitivity') {
@@ -473,6 +499,9 @@ export default {
         this.saveSettings()
       } else if (this.moreMenuSetting === 'streamingUsingCellular') {
         this.settings.streamingUsingCellular = action
+        this.saveSettings()
+      } else if (this.moreMenuSetting === 'androidAutoBrowseSeriesSequenceOrder') {
+        this.settings.androidAutoBrowseSeriesSequenceOrder = action
         this.saveSettings()
       }
     },
@@ -629,6 +658,7 @@ export default {
       this.settings.androidAutoBrowseForceGrouping = deviceSettings.androidAutoBrowseForceGrouping
       this.settings.androidAutoBrowseTopLevelLimitForGrouping = deviceSettings.androidAutoBrowseTopLevelLimitForGrouping
       this.settings.androidAutoBrowseLimitForGrouping = deviceSettings.androidAutoBrowseLimitForGrouping
+      this.settings.androidAutoBrowseSeriesSequenceOrder = deviceSettings.androidAutoBrowseSeriesSequenceOrder || 'ASC'
     },
     async init() {
       this.loading = true

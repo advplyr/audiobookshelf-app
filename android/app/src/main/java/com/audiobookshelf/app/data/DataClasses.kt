@@ -214,7 +214,9 @@ class BookMetadata(
   var authorName:String?,
   var authorNameLF:String?,
   var narratorName:String?,
-  var seriesName:String?
+  var seriesName:String?,
+  @JsonFormat(with=[JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY])
+  var series:List<SeriesType>?
 ) : MediaTypeMetadata(title, explicit) {
   @JsonIgnore
   override fun getAuthorDisplayName():String { return authorName ?: "Unknown" }
@@ -342,7 +344,8 @@ data class Library(
   var name:String,
   var folders:MutableList<Folder>,
   var icon:String,
-  var mediaType:String
+  var mediaType:String,
+  var stats: LibraryStats?
 ) {
   @JsonIgnore
   fun getMediaMetadata(): MediaMetadataCompat {
@@ -353,6 +356,20 @@ data class Library(
     }.build()
   }
 }
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class LibraryStats(
+  var totalItems: Int,
+  var totalAuthors: Int,
+  var numAudioTracks: Int
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class SeriesType(
+  var id: String,
+  var name: String,
+  var sequence: String?
+)
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class Folder(

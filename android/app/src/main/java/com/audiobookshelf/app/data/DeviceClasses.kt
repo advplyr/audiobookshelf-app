@@ -28,6 +28,10 @@ enum class StreamingUsingCellularSetting {
   ASK, ALWAYS, NEVER
 }
 
+enum class AndroidAutoBrowseSeriesSequenceOrderSetting {
+  ASC, DESC
+}
+
 data class ServerConnectionConfig(
   var id:String,
   var index:Int,
@@ -136,7 +140,8 @@ data class DeviceSettings(
   var streamingUsingCellular: StreamingUsingCellularSetting,
   var androidAutoBrowseForceGrouping: Boolean,
   var androidAutoBrowseTopLevelLimitForGrouping: Int,
-  var androidAutoBrowseLimitForGrouping: Int
+  var androidAutoBrowseLimitForGrouping: Int,
+  var androidAutoBrowseSeriesSequenceOrder: AndroidAutoBrowseSeriesSequenceOrderSetting
 ) {
   companion object {
     // Static method to get default device settings
@@ -165,7 +170,8 @@ data class DeviceSettings(
         streamingUsingCellular = StreamingUsingCellularSetting.ALWAYS,
         androidAutoBrowseForceGrouping = false,
         androidAutoBrowseTopLevelLimitForGrouping = 100,
-        androidAutoBrowseLimitForGrouping = 50
+        androidAutoBrowseLimitForGrouping = 50,
+        androidAutoBrowseSeriesSequenceOrder = AndroidAutoBrowseSeriesSequenceOrderSetting.ASC
       )
     }
   }

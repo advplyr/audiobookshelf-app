@@ -71,6 +71,9 @@ object DeviceManager {
     if (deviceData.deviceSettings?.androidAutoBrowseLimitForGrouping == null) {
       deviceData.deviceSettings?.androidAutoBrowseLimitForGrouping = 50
     }
+    if (deviceData.deviceSettings?.androidAutoBrowseSeriesSequenceOrder == null) {
+      deviceData.deviceSettings?.androidAutoBrowseSeriesSequenceOrder = AndroidAutoBrowseSeriesSequenceOrderSetting.ASC
+    }
   }
 
   fun getBase64Id(id:String):String {
