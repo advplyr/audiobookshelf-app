@@ -79,6 +79,16 @@ class LocalLibraryItem(
   }
 
   @JsonIgnore
+  fun hasTracks(episode:PodcastEpisode?): Boolean {
+    var audioTracks = media.getAudioTracks() as MutableList<AudioTrack>
+    if (episode != null) { // Get podcast episode audio track
+      episode.audioTrack?.let { at -> mutableListOf(at) }?.let { tracks -> audioTracks = tracks }
+    }
+    if (audioTracks.size == 0) return false
+    return true
+  }
+
+  @JsonIgnore
   fun getPlaybackSession(episode:PodcastEpisode?, deviceInfo:DeviceInfo):PlaybackSession {
     val localEpisodeId = episode?.id
     val sessionId = "${UUID.randomUUID()}"
