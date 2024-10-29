@@ -171,6 +171,10 @@ export default {
     },
     async logout() {
       if (this.user) {
+        if (this.$store.state.playerIsPlaying) {
+          this.$eventBus.$emit('pause-item')
+          this.$eventBus.$emit('close-stream')
+        }
         await this.$nativeHttp.post('/logout').catch((error) => {
           console.error('Failed to logout', error)
         })
