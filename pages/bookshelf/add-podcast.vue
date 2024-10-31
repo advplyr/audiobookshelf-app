@@ -3,11 +3,11 @@
     <template v-if="!showSelectedFeed">
       <div class="w-full mx-auto h-20 flex items-center px-2">
         <form class="w-full" @submit.prevent="submit">
-          <ui-text-input v-model="searchInput" :disabled="processing || !networkConnected" placeholder="Enter search term or RSS feed URL" text-size="sm" />
+          <ui-text-input v-model="searchInput" :disabled="processing || !socketConnected" placeholder="Enter search term or RSS feed URL" text-size="sm" />
         </form>
       </div>
 
-      <div v-if="!networkConnected" class="w-full text-center py-6">
+      <div v-if="!socketConnected" class="w-full text-center py-6">
         <p class="text-lg text-error">{{ $strings.MessageNoNetworkConnection }}</p>
       </div>
       <div v-else class="w-full mx-auto pb-2 overflow-y-auto overflow-x-hidden h-[calc(100%-85px)]">
@@ -65,8 +65,8 @@ export default {
     }
   },
   computed: {
-    networkConnected() {
-      return this.$store.state.networkConnected
+    socketConnected() {
+      return this.$store.state.socketConnected
     }
   },
   methods: {

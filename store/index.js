@@ -31,16 +31,16 @@ export const state = () => ({
 })
 
 export const getters = {
-  getCurrentPlaybackSessionId: state => {
+  getCurrentPlaybackSessionId: (state) => {
     return state.currentPlaybackSession?.id || null
   },
-  getIsPlayerOpen: state => {
+  getIsPlayerOpen: (state) => {
     return !!state.currentPlaybackSession
   },
-  getIsCurrentSessionLocal: state => {
+  getIsCurrentSessionLocal: (state) => {
     return state.currentPlaybackSession?.playMethod == PlayMethod.LOCAL
   },
-  getIsMediaStreaming: state => (libraryItemId, episodeId) => {
+  getIsMediaStreaming: (state) => (libraryItemId, episodeId) => {
     if (!state.currentPlaybackSession || !libraryItemId) return false
 
     // Check using local library item id and local episode id
@@ -59,30 +59,30 @@ export const getters = {
     if (!episodeId) return true
     return state.currentPlaybackSession.episodeId === episodeId
   },
-  getServerSetting: state => key => {
+  getServerSetting: (state) => (key) => {
     if (!state.serverSettings) return null
     return state.serverSettings[key]
   },
-  getJumpForwardTime: state => {
+  getJumpForwardTime: (state) => {
     if (!state.deviceData?.deviceSettings) return 10
     return state.deviceData.deviceSettings.jumpForwardTime || 10
   },
-  getJumpBackwardsTime: state => {
+  getJumpBackwardsTime: (state) => {
     if (!state.deviceData?.deviceSettings) return 10
     return state.deviceData.deviceSettings.jumpBackwardsTime || 10
   },
-  getAltViewEnabled: state => {
+  getAltViewEnabled: (state) => {
     if (!state.deviceData?.deviceSettings) return true
     return state.deviceData.deviceSettings.enableAltView
   },
-  getOrientationLockSetting: state => {
+  getOrientationLockSetting: (state) => {
     return state.deviceData?.deviceSettings?.lockOrientation
   },
-  getCanDownloadUsingCellular: state => {
+  getCanDownloadUsingCellular: (state) => {
     if (!state.deviceData?.deviceSettings?.downloadUsingCellular) return 'ALWAYS'
     return state.deviceData.deviceSettings.downloadUsingCellular || 'ALWAYS'
   },
-  getCanStreamingUsingCellular: state => {
+  getCanStreamingUsingCellular: (state) => {
     if (!state.deviceData?.deviceSettings?.streamingUsingCellular) return 'ALWAYS'
     return state.deviceData.deviceSettings.streamingUsingCellular || 'ALWAYS'
   }
@@ -124,7 +124,7 @@ export const mutations = {
   setPlaybackSession(state, playbackSession) {
     state.currentPlaybackSession = playbackSession
 
-    state.isCasting = playbackSession?.mediaPlayer === "cast-player"
+    state.isCasting = playbackSession?.mediaPlayer === 'cast-player'
   },
   setMediaPlayer(state, mediaPlayer) {
     state.isCasting = mediaPlayer === 'cast-player'
@@ -165,7 +165,11 @@ export const mutations = {
     state.isNetworkListenerInit = val
   },
   setNetworkStatus(state, val) {
-    state.networkConnected = val.connected
+    if (val.connectionType !== 'none') {
+      state.networkConnected = true
+    } else {
+      state.networkConnected = false
+    }
     state.networkConnectionType = val.connectionType
   },
   setIsNetworkUnmetered(state, val) {
