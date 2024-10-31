@@ -33,8 +33,8 @@ android {
         applicationId "com.audiobookshelf.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 105
-        versionName "0.9.74-beta"
+        versionCode 107
+        versionName "0.9.76-beta"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders = [
           "appAuthRedirectScheme": "com.audiobookshelf.app"
@@ -120,7 +120,7 @@ dependencies {
   implementation 'io.github.pilgr:paperdb:2.7.2'
 
   // Simple Storage
-  implementation "com.anggrayudi:storage:1.5.5-SNAPSHOT"
+  implementation "com.anggrayudi:storage:1.5.6"
 
   // OK HTTP
   implementation 'com.squareup.okhttp3:okhttp:4.9.2'

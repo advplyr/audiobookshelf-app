@@ -71,6 +71,7 @@ export default {
       let lastKey = null
       let numSaves = 0
       let numSyncs = 0
+      let lastSaveName = null
 
       this.mediaEvents.forEach((evt) => {
         const date = this.$formatDate(evt.timestamp, 'MMM dd, yyyy')
@@ -90,7 +91,8 @@ export default {
 
         // Collapse saves
         if (evt.name === 'Save') {
-          if (numSaves > 0 && !keyUpdated) {
+          let saveName = evt.name + "-" + evt.serverSyncAttempted + "-" + evt.serverSyncSuccess
+          if (lastSaveName === saveName && numSaves > 0 && !keyUpdated) {
             include = false
             const totalInGroup = groups[key].length
             groups[key][totalInGroup - 1].num = numSaves
@@ -98,6 +100,7 @@ export default {
           } else {
             numSaves = 1
           }
+          lastSaveName = saveName
         } else {
           numSaves = 0
         }

@@ -4,6 +4,10 @@
 		"classpath": "com.byteowls.capacitor.filesharer.FileSharerPlugin"
 	},
 	{
+		"pkg": "@capacitor-community/volume-buttons",
+		"classpath": "com.ryltsov.alex.plugins.volume.buttons.VolumeButtonsPlugin"
+	},
+	{
 		"pkg": "@capacitor/app",
 		"classpath": "com.capacitorjs.plugins.app.AppPlugin"
 	},

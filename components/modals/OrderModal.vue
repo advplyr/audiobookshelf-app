@@ -63,6 +63,10 @@ export default {
         {
           text: this.$strings.LabelFileModified,
           value: 'mtimeMs'
+        },
+        {
+          text: this.$strings.LabelRandomly,
+          value: 'random'
         }
       ],
       podcastItems: [
@@ -89,6 +93,10 @@ export default {
         {
           text: this.$strings.LabelFileModified,
           value: 'mtimeMs'
+        },
+        {
+          text: this.$strings.LabelRandomly,
+          value: 'random'
         }
       ],
       episodeItems: [
