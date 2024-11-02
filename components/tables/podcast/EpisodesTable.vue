@@ -101,8 +101,8 @@ export default {
     isAdminOrUp() {
       return this.$store.getters['user/getIsAdminOrUp']
     },
-    networkConnected() {
-      return this.$store.state.networkConnected
+    socketConnected() {
+      return this.$store.state.socketConnected
     },
     libraryItemId() {
       return this.libraryItem?.id || null
@@ -233,7 +233,7 @@ export default {
       }
     },
     async searchEpisodes() {
-      if (!this.networkConnected) {
+      if (!this.socketConnected) {
         return this.$toast.error(this.$strings.MessageNoNetworkConnection)
       }
 
