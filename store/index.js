@@ -170,6 +170,11 @@ export const mutations = {
     } else {
       state.networkConnected = false
     }
+    if (this.$platform === 'ios') {
+      // Capacitor Network plugin only shows ios device connected if internet access is available.
+      // This fix allows iOS users to use local servers without internet access.
+      state.networkConnected = true
+    }
     state.networkConnectionType = val.connectionType
   },
   setIsNetworkUnmetered(state, val) {

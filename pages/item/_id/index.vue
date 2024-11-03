@@ -188,7 +188,7 @@ export default {
       if (libraryItem?.libraryItemId?.startsWith('li_')) {
         // Detect old library item id
         console.error('Local library item has old server library item id', libraryItem.libraryItemId)
-      } else if (query.noredirect !== '1' && libraryItem?.libraryItemId && libraryItem?.serverAddress === store.getters['user/getServerAddress'] && store.state.networkConnected) {
+      } else if (query.noredirect !== '1' && libraryItem?.libraryItemId && libraryItem?.serverAddress === store.getters['user/getServerAddress'] && store.state.socketConnected) {
         const queryParams = new URLSearchParams()
         queryParams.set('localLibraryItemId', libraryItemId)
         if (libraryItem.mediaType === 'podcast') {
