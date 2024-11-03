@@ -143,8 +143,6 @@ export default {
           this.comicHasMetadata = false
           this.registerListeners()
           this.hideToolbar()
-
-          console.log('showReader for ebookFile', JSON.stringify(this.ebookFile))
         } else {
           this.unregisterListeners()
           this.$showHideStatusBar(true)
@@ -435,7 +433,9 @@ export default {
           await VolumeButtons.watchVolume(options, this.volumePressed)
         }
       } else if (isWatching.value) {
-        await VolumeButtons.clearWatch()
+        await VolumeButtons.clearWatch().catch((error) => {
+          console.error('Failed to clear volume watch', error)
+        })
       }
 
       this.isInittingWatchVolume = false
@@ -450,7 +450,9 @@ export default {
       this.$eventBus.$on('close-ebook', this.closeEvt)
       document.body.removeEventListener('touchstart', this.touchstart)
       document.body.removeEventListener('touchend', this.touchend)
-      VolumeButtons.clearWatch()
+      VolumeButtons.clearWatch().catch((error) => {
+        console.error('Failed to clear volume watch', error)
+      })
     },
     volumePressed(e) {
       if (this.ereaderSettings.navigateWithVolume == 'enabled') {
