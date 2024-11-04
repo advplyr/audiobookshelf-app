@@ -18,6 +18,7 @@ import com.audiobookshelf.app.device.DeviceManager
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.audiobookshelf.app.player.PLAYMETHOD_LOCAL
+import java.io.File
 import java.util.*
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -76,6 +77,27 @@ class LocalLibraryItem(
         media.coverPath = null
       }
     }
+  }
+
+  @JsonIgnore
+  fun hasTracks(episode:PodcastEpisode?): Boolean {
+    var audioTracks = media.getAudioTracks() as MutableList<AudioTrack>
+    if (episode != null) { // Get podcast episode audio track
+      episode.audioTrack?.let { at -> mutableListOf(at) }?.let { tracks -> audioTracks = tracks }
+    }
+    if (audioTracks.size == 0) return false
+    audioTracks.forEach {
+      // Check that metadata is not null
+      if (it.metadata === null) {
+        return false
+      }
+      // Check that file exists
+      val file = File(it.metadata!!.path)
+      if (!file.exists()) {
+        return false
+      }
+    }
+    return true
   }
 
   @JsonIgnore

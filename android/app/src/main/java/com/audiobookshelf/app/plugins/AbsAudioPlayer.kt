@@ -198,6 +198,9 @@ class AbsAudioPlayer : Plugin() {
             return call.resolve(JSObject("{\"error\":\"Podcast episode not found\"}"))
           }
         }
+        if (!it.hasTracks(episode)) {
+          return call.resolve(JSObject("{\"error\":\"No audio files found on device. Download book again to fix.\"}"))
+        }
 
         Handler(Looper.getMainLooper()).post {
           Log.d(tag, "prepareLibraryItem: Preparing Local Media item ${jacksonMapper.writeValueAsString(it)}")
