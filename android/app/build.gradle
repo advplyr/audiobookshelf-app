@@ -28,13 +28,13 @@ android {
   kotlinOptions {
       freeCompilerArgs = ['-Xjvm-default=all']
     }
-    compileSdkVersion rootProject.ext.compileSdkVersion
-    defaultConfig {
+  compileSdkVersion rootProject.ext.compileSdkVersion
+  defaultConfig {
         applicationId "com.audiobookshelf.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 107
-        versionName "0.9.76-beta"
+        versionCode 108
+        versionName "0.9.77-beta"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders = [
           "appAuthRedirectScheme": "com.audiobookshelf.app"
@@ -64,8 +64,6 @@ repositories {
         dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
     }
   mavenCentral()
-  // TODO: Temporarily using SNAPSHOT version of Simple Storage that resolves https://github.com/anggrayudi/SimpleStorage/issues/133
-  maven { url "https://oss.sonatype.org/content/repositories/snapshots" }
 }
 
 configurations.configureEach {
