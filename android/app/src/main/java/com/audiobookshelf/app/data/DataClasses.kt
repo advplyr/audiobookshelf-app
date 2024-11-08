@@ -404,3 +404,22 @@ data class LibraryItemWithEpisode(
   var libraryItemWrapper:LibraryItemWrapper,
   var episode:PodcastEpisode
 )
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class LibraryItemSearchResultSeriesItemType(
+  var series: LibrarySeriesItem,
+  var books: List<LibraryItem>?
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class LibraryItemSearchResultLibraryItemType(
+  val libraryItem: LibraryItem
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class LibraryItemSearchResultType(
+  var book:List<LibraryItemSearchResultLibraryItemType>?,
+  var podcast:List<LibraryItemSearchResultLibraryItemType>?,
+  var series:List<LibraryItemSearchResultSeriesItemType>?,
+  var authors:List<LibraryAuthorItem>?
+)

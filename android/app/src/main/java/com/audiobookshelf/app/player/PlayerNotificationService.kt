@@ -47,6 +47,7 @@ import com.google.android.exoplayer2.source.ProgressiveMediaSource
 import com.google.android.exoplayer2.source.hls.HlsMediaSource
 import com.google.android.exoplayer2.ui.PlayerNotificationManager
 import com.google.android.exoplayer2.upstream.*
+import kotlinx.coroutines.runBlocking
 import java.util.*
 import kotlin.concurrent.schedule
 
@@ -1350,13 +1351,55 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
   override fun onSearch(query: String, extras: Bundle?, result: Result<MutableList<MediaBrowserCompat.MediaItem>>) {
     result.detach()
-    mediaManager.loadAndroidAutoItems {
-      browseTree = BrowseTree(this, mediaManager.serverItemsInProgress, mediaManager.serverLibraries)
-      val children = browseTree[LIBRARIES_ROOT]?.map { item ->
-        MediaBrowserCompat.MediaItem(item.description, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE)
+    Log.d(tag, "Search bundle: $extras")
+    var foundBooks: MutableList<MediaBrowserCompat.MediaItem> = mutableListOf()
+    var foundPodcasts: MutableList<MediaBrowserCompat.MediaItem> = mutableListOf()
+    var foundSeries: MutableList<MediaBrowserCompat.MediaItem> = mutableListOf()
+    var foundAuthors: MutableList<MediaBrowserCompat.MediaItem> = mutableListOf()
+
+    mediaManager.serverLibraries.forEach { serverLibrary ->
+      runBlocking{
+        val searchResult = mediaManager.searchLocalCache(serverLibrary.id, query)
+        Log.d(tag, "onSearch: SearchResult: $searchResult")
+        if (searchResult === null) return@runBlocking
+        if (searchResult.book !== null && searchResult.book!!.isNotEmpty()) {
+          Log.d(tag, "onSearch: found ${searchResult.book!!.size} books")
+          val children = searchResult.book!!.map { bookResult ->
+            val libraryItem = bookResult.libraryItem
+            val progress = mediaManager.serverUserMediaProgress.find { it.libraryItemId == libraryItem.id }
+            val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItemByLId(libraryItem.id)
+            libraryItem.localLibraryItemId = localLibraryItem?.id
+            val description = libraryItem.getMediaDescription(progress, ctx, null, null, "Books (${serverLibrary.name})")
+            MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
+          }
+          foundBooks.addAll(children)
+        }
+        if (searchResult.series !== null && searchResult.series!!.isNotEmpty()) {
+          Log.d(tag, "onSearch: found ${searchResult.series!!.size} series")
+          val children = searchResult.series!!.map { seriesResult ->
+            val seriesItem = seriesResult.series
+            seriesItem.books = seriesResult.books as MutableList<LibraryItem>
+            val description = seriesItem.getMediaDescription(null, ctx, "Series (${serverLibrary.name})")
+            MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE)
+          }
+          foundSeries.addAll(children)
+        }
+        if (searchResult.authors !== null && searchResult.authors!!.isNotEmpty()) {
+          Log.d(tag, "onSearch: found ${searchResult.authors!!.size} authors")
+          val children = searchResult.authors!!.map { authorItem ->
+            val description = authorItem.getMediaDescription(null, ctx, "Authors (${serverLibrary.name})")
+            MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE)
+          }
+          foundAuthors.addAll(children)
+        }
+        Log.d(tag, "onSearch: Library ${serverLibrary.id} processed")
       }
-      result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
+      Log.d(tag, "onSearch: Library ${serverLibrary.id} scanned")
     }
+    foundBooks.addAll(foundSeries)
+    foundBooks.addAll(foundAuthors)
+    result.sendResult(foundBooks as MutableList<MediaBrowserCompat.MediaItem>?)
+    Log.d(tag, "onSearch: Done")
   }
 
   //

@@ -619,6 +619,14 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
     }
   }
 
+  suspend fun searchLocalCache(libraryId: String, queryString: String) : LibraryItemSearchResultType? {
+    return suspendCoroutine {
+      apiHandler.getSearchResults(libraryId, queryString) { results ->
+        it.resume(results)
+      }
+    }
+  }
+
   fun getFirstItem() : LibraryItemWrapper? {
     if (serverLibraryItems.isNotEmpty()) {
       return serverLibraryItems[0]

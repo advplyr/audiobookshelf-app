@@ -84,7 +84,7 @@ class LibraryItem(
     }
 
   @JsonIgnore
-  fun getMediaDescription(progress:MediaProgressWrapper?, ctx: Context, authorId: String?, showSeriesNumber: Boolean?): MediaDescriptionCompat {
+  fun getMediaDescription(progress:MediaProgressWrapper?, ctx: Context, authorId: String?, showSeriesNumber: Boolean?, groupTitle: String?): MediaDescriptionCompat {
     val extras = Bundle()
 
     if (collapsedSeries == null) {
@@ -124,6 +124,9 @@ class LibraryItem(
         )
       }
     }
+    if (groupTitle !== null) {
+      extras.putString(MediaConstants.DESCRIPTION_EXTRAS_KEY_CONTENT_STYLE_GROUP_TITLE, groupTitle)
+    }
 
     val mediaId = if (localLibraryItemId != null) {
       localLibraryItemId
@@ -154,8 +157,13 @@ class LibraryItem(
   }
 
   @JsonIgnore
+  fun getMediaDescription(progress:MediaProgressWrapper?, ctx: Context, authorId: String?, showSeriesNumber: Boolean?): MediaDescriptionCompat {
+    return getMediaDescription(progress, ctx, authorId, showSeriesNumber, null)
+  }
+
+  @JsonIgnore
   fun getMediaDescription(progress:MediaProgressWrapper?, ctx: Context, authorId: String?): MediaDescriptionCompat {
-    return getMediaDescription(progress, ctx, authorId, null)
+    return getMediaDescription(progress, ctx, authorId, null, null)
   }
 
   @JsonIgnore
@@ -163,6 +171,6 @@ class LibraryItem(
     /*
     This is needed so Android auto library hierarchy for author series can be implemented
      */
-    return getMediaDescription(progress, ctx, null, null)
+    return getMediaDescription(progress, ctx, null, null, null)
   }
 }

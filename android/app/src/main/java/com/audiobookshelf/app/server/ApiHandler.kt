@@ -286,6 +286,19 @@ class ApiHandler(var ctx:Context) {
     }
   }
 
+  fun getSearchResults(libraryId:String, queryString:String, cb: (LibraryItemSearchResultType?) -> Unit) {
+    Log.d(tag, "Doing search for library $libraryId")
+    getRequest("/api/libraries/$libraryId/search?q=$queryString", null, null) {
+      if (it.has("error")) {
+        Log.e(tag, it.getString("error") ?: "getSearchResults Failed")
+        cb(null)
+      } else {
+        val librarySearchResults = jacksonMapper.readValue<LibraryItemSearchResultType>(it.toString())
+        cb(librarySearchResults)
+      }
+    }
+  }
+
   fun getAllItemsInProgress(cb: (List<ItemInProgress>) -> Unit) {
     getRequest("/api/me/items-in-progress", null, null) {
       val items = mutableListOf<ItemInProgress>()

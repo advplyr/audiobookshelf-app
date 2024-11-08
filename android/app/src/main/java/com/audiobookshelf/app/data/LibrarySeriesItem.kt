@@ -3,6 +3,7 @@ package com.audiobookshelf.app.data
 import android.content.Context
 import android.os.Bundle
 import android.support.v4.media.MediaDescriptionCompat
+import androidx.media.utils.MediaConstants
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 
@@ -29,7 +30,7 @@ class LibrarySeriesItem(
     }
 
   @JsonIgnore
-  override fun getMediaDescription(progress:MediaProgressWrapper?, ctx: Context): MediaDescriptionCompat {
+  fun getMediaDescription(progress:MediaProgressWrapper?, ctx: Context, groupTitle: String?): MediaDescriptionCompat {
     val extras = Bundle()
 
     if (localLibraryItemId != null) {
@@ -37,6 +38,9 @@ class LibrarySeriesItem(
         MediaDescriptionCompat.EXTRA_DOWNLOAD_STATUS,
         MediaDescriptionCompat.STATUS_DOWNLOADED
       )
+    }
+    if (groupTitle !== null) {
+      extras.putString(MediaConstants.DESCRIPTION_EXTRAS_KEY_CONTENT_STYLE_GROUP_TITLE, groupTitle)
     }
 
     val mediaId = "__LIBRARY__${libraryId}__SERIES__${id}"
@@ -47,5 +51,10 @@ class LibrarySeriesItem(
       .setSubtitle("$audiobookCount books")
       .setExtras(extras)
       .build()
+  }
+
+  @JsonIgnore
+  override fun getMediaDescription(progress:MediaProgressWrapper?, ctx: Context): MediaDescriptionCompat {
+    return getMediaDescription(progress, ctx, null)
   }
 }

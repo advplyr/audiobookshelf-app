@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Bundle
 import android.support.v4.media.MediaDescriptionCompat
+import androidx.media.utils.MediaConstants
 import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.R
 import com.audiobookshelf.app.device.DeviceManager
@@ -15,7 +16,6 @@ class LibraryAuthorItem(
   id:String,
   var libraryId:String,
   var name:String,
-  var lastFirst:String,
   var description:String?,
   var imagePath:String?,
   var addedAt:Long,
@@ -40,8 +40,11 @@ class LibraryAuthorItem(
   }
 
   @JsonIgnore
-  override fun getMediaDescription(progress:MediaProgressWrapper?, ctx: Context): MediaDescriptionCompat {
+  fun getMediaDescription(progress:MediaProgressWrapper?, ctx: Context, groupTitle: String?): MediaDescriptionCompat {
     val extras = Bundle()
+    if (groupTitle !== null) {
+      extras.putString(MediaConstants.DESCRIPTION_EXTRAS_KEY_CONTENT_STYLE_GROUP_TITLE, groupTitle)
+    }
 
     val mediaId = "__LIBRARY__${libraryId}__AUTHOR__${id}"
     return MediaDescriptionCompat.Builder()
@@ -51,5 +54,10 @@ class LibraryAuthorItem(
       .setSubtitle("${bookCount} books")
       .setExtras(extras)
       .build()
+  }
+
+  @JsonIgnore
+  override fun getMediaDescription(progress:MediaProgressWrapper?, ctx: Context): MediaDescriptionCompat {
+    return getMediaDescription(progress, ctx, null)
   }
 }
