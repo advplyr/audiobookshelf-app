@@ -62,10 +62,10 @@ body:
       description: Please ensure your app is up to date. *If you are using a 3rd-party app, please reach out to them directly.*
       multiple: true
       options:
+        - Android App - 0.9.77
+        - iOS App - 0.9.77
         - Android App - 0.9.76
         - iOS App - 0.9.76
-        - Android App - 0.9.75
-        - iOS App - 0.9.75
     validations:
       required: true
   - type: dropdown
