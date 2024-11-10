@@ -292,6 +292,7 @@
   "MessageNoUpdatesWereNecessary": "Nebyly nutné žádné aktualizace",
   "MessageNoUserPlaylists": "Nemáte žádné seznamy skladeb",
   "MessageReportBugsAndContribute": "Nahlašte chyby, vyžádejte si funkce a přispěte na",
+  "MessageSeriesAlreadyDownloaded": "Všechny knihy v této sérii jste již stáhli.",
   "MessageSocketConnectedOverMeteredCellular": "Socket připojen přes měřenou mobilní síť",
   "MessageSocketConnectedOverMeteredWifi": "Socket připojen přes měřenou Wi-Fi",
   "MessageSocketConnectedOverUnmeteredCellular": "Socket připojen přes neměřenou mobilní síť",
