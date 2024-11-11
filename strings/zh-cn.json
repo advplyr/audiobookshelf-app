@@ -254,7 +254,7 @@
   "MessageAndroid10Downloads": "Android 10 及以下版本将使用内部应用程序存储进行下载.",
   "MessageAttemptingServerConnection": "正在尝试连接服务器...",
   "MessageAudiobookshelfServerNotConnected": "Audiobookshelf 服务器未连接",
-  "MessageAudiobookshelfServerRequired": "<strong>重要!</strong> 此应用程序设计用于与你或你认识的人托管的 Audiobookshelf 服务器配合使用. 此应用程序不提供任何内容.",
+  "MessageAudiobookshelfServerRequired": "<strong>重要！</strong>此應用程式設計為與您或您認識的人所主機的 Audiobookshelf 伺服器配合使用。此應用程式不提供任何內容。",
   "MessageBookshelfEmpty": "书架是空的",
   "MessageConfirmDeleteLocalEpisode": "要从设备中删除本地剧集 \"{0}\" 吗? 服务器上的文件将不受影响.",
   "MessageConfirmDeleteLocalFiles": "要从设备中删除此项目的本地文件吗? 服务器上的文件和你的进度将不受影响.",
