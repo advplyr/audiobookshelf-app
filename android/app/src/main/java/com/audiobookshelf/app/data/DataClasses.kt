@@ -348,9 +348,13 @@ data class Library(
   var stats: LibraryStats?
 ) {
   @JsonIgnore
-  fun getMediaMetadata(): MediaMetadataCompat {
+  fun getMediaMetadata(targetType: String? = null): MediaMetadataCompat {
+    var mediaId = id
+    if (targetType !== null) {
+      mediaId = "__RECENTLY__$id"
+    }
     return MediaMetadataCompat.Builder().apply {
-      putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, id)
+      putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, mediaId)
       putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, name)
       putString(MediaMetadataCompat.METADATA_KEY_TITLE, name)
     }.build()
@@ -423,3 +427,64 @@ data class LibraryItemSearchResultType(
   var series:List<LibraryItemSearchResultSeriesItemType>?,
   var authors:List<LibraryAuthorItem>?
 )
+
+@JsonTypeInfo(
+  use=JsonTypeInfo.Id.NAME,
+  property = "type",
+  include = JsonTypeInfo.As.PROPERTY,
+  visible = true
+)
+@JsonSubTypes(
+  JsonSubTypes.Type(LibraryShelfBookEntity::class, name = "book"),
+  JsonSubTypes.Type(LibraryShelfSeriesEntity::class, name = "series"),
+  JsonSubTypes.Type(LibraryShelfAuthorEntity::class, name = "authors"),
+  JsonSubTypes.Type(LibraryShelfEpisodeEntity::class, name = "episode"),
+  JsonSubTypes.Type(LibraryShelfPodcastEntity::class, name = "podcast")
+)
+@JsonIgnoreProperties(ignoreUnknown = true)
+sealed class LibraryShelfType(
+  open val id: String,
+  open val label: String,
+  open val total: Int,
+  open val type: String,
+)
+
+data class LibraryShelfBookEntity(
+  override val id: String,
+  override val label: String,
+  override val total: Int,
+  override val type: String,
+  val entities: List<LibraryItem>?
+) : LibraryShelfType(id, label, total, type)
+
+data class LibraryShelfSeriesEntity(
+  override val id: String,
+  override val label: String,
+  override val total: Int,
+  override val type: String,
+  val entities: List<LibrarySeriesItem>?
+) :  LibraryShelfType(id, label, total, type)
+
+data class LibraryShelfAuthorEntity(
+  override val id: String,
+  override val label: String,
+  override val total: Int,
+  override val type: String,
+  val entities: List<LibraryAuthorItem>?
+) :  LibraryShelfType(id, label, total, type)
+
+data class LibraryShelfEpisodeEntity(
+  override val id: String,
+  override val label: String,
+  override val total: Int,
+  override val type: String,
+  val entities: List<LibraryItem>?
+) :  LibraryShelfType(id, label, total, type)
+
+data class LibraryShelfPodcastEntity(
+  override val id: String,
+  override val label: String,
+  override val total: Int,
+  override val type: String,
+  val entities: List<LibraryItem>?
+) :  LibraryShelfType(id, label, total, type)

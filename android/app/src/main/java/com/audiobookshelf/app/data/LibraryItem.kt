@@ -33,7 +33,8 @@ class LibraryItem(
   var libraryFiles:MutableList<LibraryFile>?,
   var userMediaProgress:MediaProgress?, // Only included when requesting library item with progress (for downloads)
   var collapsedSeries: CollapsedSeries?,
-  var localLibraryItemId:String? // For Android Auto
+  var localLibraryItemId:String?, // For Android Auto
+  val recentEpisode: PodcastEpisode?  // Podcast episode shelf uses this
 ) : LibraryItemWrapper(id) {
   @get:JsonIgnore
   val title: String

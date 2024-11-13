@@ -32,8 +32,14 @@ class BrowseTree(
 
     val continueListeningMetadata = MediaMetadataCompat.Builder().apply {
       putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, CONTINUE_ROOT)
-      putString(MediaMetadataCompat.METADATA_KEY_TITLE, "Listening")
+      putString(MediaMetadataCompat.METADATA_KEY_TITLE, "Continue")
       putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getUriToDrawable(R.drawable.exo_icon_localaudio).toString())
+    }.build()
+
+    val recentMetadata = MediaMetadataCompat.Builder().apply {
+      putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, RECENTLY_ROOT)
+      putString(MediaMetadataCompat.METADATA_KEY_TITLE, "Recent")
+      putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getUriToDrawable(R.drawable.md_clock_outline).toString())
     }.build()
 
     val downloadsMetadata = MediaMetadataCompat.Builder().apply {
@@ -53,14 +59,24 @@ class BrowseTree(
     }
 
     if (libraries.isNotEmpty()) {
+      rootList += recentMetadata
       rootList += librariesMetadata
 
       libraries.forEach { library ->
+        // Skip libraries without audio content
         if (library.stats?.numAudioTracks == 0) return@forEach
+
+        // Generate library list items for Libraries menu
         val libraryMediaMetadata = library.getMediaMetadata()
         val children = mediaIdToChildren[LIBRARIES_ROOT] ?: mutableListOf()
         children += libraryMediaMetadata
         mediaIdToChildren[LIBRARIES_ROOT] = children
+
+        // Generate library list items for Recent menu
+        val recentlyMediaMetadata = library.getMediaMetadata("recently")
+        val childrenRecently = mediaIdToChildren[RECENTLY_ROOT] ?: mutableListOf()
+        childrenRecently += recentlyMediaMetadata
+        mediaIdToChildren[RECENTLY_ROOT] = childrenRecently
       }
     }
 
@@ -76,3 +92,4 @@ const val AUTO_BROWSE_ROOT = "/"
 const val CONTINUE_ROOT = "__CONTINUE__"
 const val DOWNLOADS_ROOT = "__DOWNLOADS__"
 const val LIBRARIES_ROOT = "__LIBRARIES__"
+const val RECENTLY_ROOT = "__RECENTLY__"

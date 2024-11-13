@@ -162,6 +162,23 @@ class ApiHandler(var ctx:Context) {
     }
   }
 
+  fun getLibraryPersonalized(libraryItemId:String, cb: (List<LibraryShelfType>?) -> Unit) {
+    getRequest("/api/libraries/$libraryItemId/personalized", null, null) {
+      if (it.has("error")) {
+        Log.e(tag, it.getString("error") ?: "getLibraryStats Failed")
+        cb(null)
+      } else {
+        val items = mutableListOf<LibraryShelfType>()
+        val array = it.getJSONArray("value")
+        for (i in 0 until array.length()) {
+          val item = jacksonMapper.readValue<LibraryShelfType>(array.get(i).toString())
+          items.add(item)
+        }
+        cb(items)
+      }
+    }
+  }
+
   fun getLibraryItem(libraryItemId:String, cb: (LibraryItem?) -> Unit) {
     getRequest("/api/items/$libraryItemId?expanded=1", null, null) {
       if (it.has("error")) {
