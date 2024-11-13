@@ -3,7 +3,7 @@
     <template v-if="!showSelectedFeed">
       <div class="w-full mx-auto h-20 flex items-center px-2">
         <form class="w-full" @submit.prevent="submit">
-          <ui-text-input v-model="searchInput" :disabled="processing || !socketConnected" placeholder="Enter search term or RSS feed URL" text-size="sm" />
+          <ui-text-input v-model="searchInput" :disabled="processing || !socketConnected" :placeholder="$strings.MessagePodcastSearchField" text-size="sm" />
         </form>
       </div>
 

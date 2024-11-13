@@ -108,11 +108,7 @@ export default {
     },
     episodes() {
       if (this.isPodcast) {
-        if (this.media.numEpisodes == 1) {
-          return '1 episode'
-        } else {
-          return this.media.numEpisodes + ' episodes'
-        }
+        return this.$getString('LabelNumEpisodes', [this.media.numEpisodes])
       } else {
         return null
       }
@@ -201,7 +197,7 @@ export default {
       if (this.collapsedSeries) return null
       if (this.orderBy === 'mtimeMs') return 'Modified ' + this.$formatDate(this._libraryItem.mtimeMs)
       if (this.orderBy === 'birthtimeMs') return 'Born ' + this.$formatDate(this._libraryItem.birthtimeMs)
-      if (this.orderBy === 'addedAt') return 'Added ' + this.$formatDate(this._libraryItem.addedAt)
+      if (this.orderBy === 'addedAt') return this.$getString('LabelAddedDate', [this.$formatDate(this._libraryItem.addedAt)])
       if (this.orderBy === 'size') return 'Size: ' + this.$bytesPretty(this._libraryItem.size)
       return null
     },

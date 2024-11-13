@@ -11,7 +11,7 @@
         <p v-else>No Local Media Progress</p>
       </template>-->
 
-      <p v-if="publishedAt" class="text-xs text-fg-muted mb-1">Published {{ $formatDate(publishedAt, 'MMM do, yyyy') }}</p>
+      <p v-if="publishedAt" class="text-xs text-fg-muted mb-1">{{ $getString('LabelPublishedDate', [$formatDate(publishedAt, 'MMM do, yyyy')]) }}</p>
 
       <p class="text-sm font-semibold">{{ title }}</p>
 
@@ -40,7 +40,7 @@
 
         <div v-if="userCanDownload">
           <span v-if="isLocal" class="material-icons-outlined px-2 text-success text-lg">audio_file</span>
-          <span v-else-if="!localEpisode" class="material-icons mx-1.5 mt-2 text-xl" :class="(downloadItem || startingDownload) ? 'animate-bounce text-warning text-opacity-75' : ''" @click.stop="downloadClick">{{ (downloadItem || startingDownload) ? 'downloading' : 'download' }}</span>
+          <span v-else-if="!localEpisode" class="material-icons mx-1.5 mt-2 text-xl" :class="downloadItem || startingDownload ? 'animate-bounce text-warning text-opacity-75' : ''" @click.stop="downloadClick">{{ downloadItem || startingDownload ? 'downloading' : 'download' }}</span>
           <span v-else class="material-icons px-2 text-success text-xl">download_done</span>
         </div>
 
