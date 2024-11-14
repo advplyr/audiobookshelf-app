@@ -138,7 +138,7 @@
           <p ref="description" class="text-sm text-justify whitespace-pre-line font-light" :class="{ 'line-clamp-4': !showFullDescription }" style="hyphens: auto">{{ description }}</p>
 
           <div v-if="descriptionClamped" class="text-fg text-sm py-2" @click="showFullDescription = !showFullDescription">
-            {{ showFullDescription ? 'Read less' : 'Read more' }}
+            {{ showFullDescription ? $strings.ButtonReadLess : $strings.ButtonReadMore }}
             <span class="material-icons align-middle text-base -mt-px">{{ showFullDescription ? 'expand_less' : 'expand_more' }}</span>
           </div>
         </div>
@@ -609,7 +609,7 @@ export default {
       this.download(localFolder)
     },
     async downloadClick() {
-      if (this.downloadItem || this.startingDownload)  return
+      if (this.downloadItem || this.startingDownload) return
 
       const hasPermission = await this.checkCellularPermission('download')
       if (!hasPermission) return
