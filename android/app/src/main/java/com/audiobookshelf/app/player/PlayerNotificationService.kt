@@ -35,6 +35,8 @@ import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.media.MediaProgressSyncer
 import com.audiobookshelf.app.server.ApiHandler
 import com.audiobookshelf.app.BuildConfig
+import com.audiobookshelf.app.media.getUriToAbsIconDrawable
+import com.audiobookshelf.app.media.getUriToDrawable
 import com.google.android.exoplayer2.*
 import com.google.android.exoplayer2.audio.AudioAttributes
 import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector
@@ -120,8 +122,13 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   private var mShakeDetector: ShakeDetector? = null
   private var shakeSensorUnregisterTask:TimerTask? = null
 
-  // These are used to prevent things running multiple times or simultaneously
-  private var isLoadingAndroidAutoItems:Boolean = false
+  // These are used to trigger reloading if
+  private var forceReloadingAndroidAuto:Boolean = false
+  private var firstLoadDone:Boolean = false
+
+  fun isBrowsetreeInitialized() : Boolean {
+    return this::browseTree.isInitialized
+  }
 
   // Cache latest search so it wont trigger again when returning from series for example
   private var cachedSearch : String = ""
@@ -1098,21 +1105,39 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       result.sendResult(localBrowseItems)
     } else if (parentMediaId == AUTO_MEDIA_ROOT) {
       Log.d(tag, "Trying to initialize browseTree.")
-      if (!this::browseTree.isInitialized) {
-        isLoadingAndroidAutoItems = true
+      if (!this::browseTree.isInitialized || forceReloadingAndroidAuto) {
+        forceReloadingAndroidAuto = false
         mediaManager.loadAndroidAutoItems {
-          browseTree = BrowseTree(this, mediaManager.serverItemsInProgress, mediaManager.serverLibraries)
-
+          Log.d(tag, "android auto loaded. Starting browseTree initialize")
+          browseTree = BrowseTree(this, mediaManager.serverItemsInProgress, mediaManager.serverLibraries, mediaManager.allLibraryPersonalizationsDone)
           val children = browseTree[parentMediaId]?.map { item ->
             Log.d(tag, "Found top menu item: ${item.description.title}")
             MediaBrowserCompat.MediaItem(item.description, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE)
           }
           Log.d(tag, "browseTree initialize and android auto loaded")
           result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
-          isLoadingAndroidAutoItems = false
-          Log.d(tag, "Starting personalization fetch")
-          mediaManager.populatePersonalizedDataForAllLibraries {}
+          firstLoadDone = true
+          if (mediaManager.serverLibraries.isNotEmpty()) {
+            Log.d(tag, "Starting personalization fetch")
+            mediaManager.populatePersonalizedDataForAllLibraries {
+              notifyChildrenChanged("/")
+            }
+
+            Log.d(tag, "Initialize inprogress items")
+            mediaManager.initializeInProgressItems {
+              notifyChildrenChanged("/")
+            }
+          }
         }
+      } else {
+        Log.d(tag, "Starting browseTree refresh")
+        browseTree = BrowseTree(this, mediaManager.serverItemsInProgress, mediaManager.serverLibraries, mediaManager.allLibraryPersonalizationsDone)
+        val children = browseTree[parentMediaId]?.map { item ->
+          Log.d(tag, "Found top menu item: ${item.description.title}")
+          MediaBrowserCompat.MediaItem(item.description, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE)
+        }
+        Log.d(tag, "browseTree initialize and android auto loaded")
+        result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
       }
     } else if (parentMediaId == LIBRARIES_ROOT || parentMediaId == RECENTLY_ROOT) {
       while (!this::browseTree.isInitialized) {}
@@ -1141,6 +1166,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
             MediaDescriptionCompat.Builder()
               .setTitle("Authors")
               .setMediaId("__LIBRARY__${parentMediaId}__AUTHORS")
+              .setIconUri(getUriToAbsIconDrawable(ctx, "authors"))
               .build(),
             MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
           ),
@@ -1148,6 +1174,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
             MediaDescriptionCompat.Builder()
               .setTitle("Series")
               .setMediaId("__LIBRARY__${parentMediaId}__SERIES_LIST")
+              .setIconUri(getUriToAbsIconDrawable(ctx, "columns"))
               .build(),
             MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
           ),
@@ -1155,6 +1182,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
             MediaDescriptionCompat.Builder()
               .setTitle("Collections")
               .setMediaId("__LIBRARY__${parentMediaId}__COLLECTIONS")
+              .setIconUri(getUriToDrawable(ctx, R.drawable.md_book_multiple_outline))
               .build(),
             MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
           )
@@ -1165,6 +1193,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
               MediaDescriptionCompat.Builder()
                 .setTitle("Discovery")
                 .setMediaId("__LIBRARY__${parentMediaId}__DISCOVERY")
+                .setIconUri(getUriToDrawable(ctx, R.drawable.md_telescope))
                 .build(),
               MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
             )
@@ -1192,6 +1221,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
                   MediaDescriptionCompat.Builder()
                     .setTitle("Books")
                     .setMediaId("${parentMediaId}__BOOK")
+                    .setIconUri(getUriToDrawable(ctx, R.drawable.md_book_open_blank_variant_outline))
                     .build(),
                   MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
                 )
@@ -1202,6 +1232,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
                   MediaDescriptionCompat.Builder()
                     .setTitle("Series")
                     .setMediaId("${parentMediaId}__SERIES")
+                    .setIconUri(getUriToAbsIconDrawable(ctx, "columns"))
                     .build(),
                   MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
                 )
@@ -1212,6 +1243,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
                   MediaDescriptionCompat.Builder()
                     .setTitle("Episodes")
                     .setMediaId("${parentMediaId}__EPISODE")
+                    .setIconUri(getUriToAbsIconDrawable(ctx, "microphone_2"))
                     .build(),
                   MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
                 )
@@ -1222,6 +1254,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
                   MediaDescriptionCompat.Builder()
                     .setTitle("Podcast")
                     .setMediaId("${parentMediaId}__PODCAST")
+                    .setIconUri(getUriToAbsIconDrawable(ctx, "podcast"))
                     .build(),
                   MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
                 )
@@ -1232,6 +1265,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
                   MediaDescriptionCompat.Builder()
                     .setTitle("Authors")
                     .setMediaId("${parentMediaId}__AUTHORS")
+                    .setIconUri(getUriToAbsIconDrawable(ctx, "authors"))
                     .build(),
                   MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
                 )
@@ -1620,7 +1654,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       Log.i(tag, "Network capabilities changed. hasNetworkConnectivity=$hasNetworkConnectivity | isUnmeteredNetwork=$isUnmeteredNetwork")
       clientEventEmitter?.onNetworkMeteredChanged(isUnmeteredNetwork)
       if (hasNetworkConnectivity) {
-        // TODO: Trigger android auto loading if it is not loaded previously
+        // Force android auto loading if libraries are empty.
+        // Lack of network connectivity is most likely reason for libraries being empty
+        if (isBrowsetreeInitialized() && firstLoadDone && mediaManager.serverLibraries.isEmpty()) {
+          forceReloadingAndroidAuto = true
+          notifyChildrenChanged("/")
+        }
       }
     }
   }

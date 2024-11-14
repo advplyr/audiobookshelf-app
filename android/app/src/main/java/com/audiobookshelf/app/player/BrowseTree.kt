@@ -1,31 +1,19 @@
 package com.audiobookshelf.app.player
 
-import android.content.ContentResolver
 import android.content.Context
-import android.net.Uri
 import android.support.v4.media.MediaMetadataCompat
-import androidx.annotation.AnyRes
+import android.util.Log
 import com.audiobookshelf.app.R
 import com.audiobookshelf.app.data.*
+import com.audiobookshelf.app.media.getUriToDrawable
 
 class BrowseTree(
   val context: Context,
   itemsInProgress: List<ItemInProgress>,
-  libraries: List<Library>
+  libraries: List<Library>,
+  recentsLoaded: Boolean
 ) {
   private val mediaIdToChildren = mutableMapOf<String, MutableList<MediaMetadataCompat>>()
-
-  /**
-   * get uri to drawable or any other resource type if u wish
-   * @param drawableId - drawable res id
-   * @return - uri
-   */
-  private fun getUriToDrawable(@AnyRes drawableId: Int): Uri {
-    return Uri.parse(ContentResolver.SCHEME_ANDROID_RESOURCE
-      + "://" + context.resources.getResourcePackageName(drawableId)
-      + '/' + context.resources.getResourceTypeName(drawableId)
-      + '/' + context.resources.getResourceEntryName(drawableId))
-  }
 
   init {
     val rootList = mediaIdToChildren[AUTO_BROWSE_ROOT] ?: mutableListOf()
@@ -33,25 +21,25 @@ class BrowseTree(
     val continueListeningMetadata = MediaMetadataCompat.Builder().apply {
       putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, CONTINUE_ROOT)
       putString(MediaMetadataCompat.METADATA_KEY_TITLE, "Continue")
-      putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getUriToDrawable(R.drawable.exo_icon_localaudio).toString())
+      putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getUriToDrawable(context, R.drawable.exo_icon_localaudio).toString())
     }.build()
 
     val recentMetadata = MediaMetadataCompat.Builder().apply {
       putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, RECENTLY_ROOT)
       putString(MediaMetadataCompat.METADATA_KEY_TITLE, "Recent")
-      putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getUriToDrawable(R.drawable.md_clock_outline).toString())
+      putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getUriToDrawable(context, R.drawable.md_clock_outline).toString())
     }.build()
 
     val downloadsMetadata = MediaMetadataCompat.Builder().apply {
       putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, DOWNLOADS_ROOT)
       putString(MediaMetadataCompat.METADATA_KEY_TITLE, "Downloads")
-      putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getUriToDrawable(R.drawable.exo_icon_downloaddone).toString())
+      putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getUriToDrawable(context, R.drawable.exo_icon_downloaddone).toString())
     }.build()
 
     val librariesMetadata = MediaMetadataCompat.Builder().apply {
       putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, LIBRARIES_ROOT)
       putString(MediaMetadataCompat.METADATA_KEY_TITLE, "Libraries")
-      putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getUriToDrawable(R.drawable.icon_library_folder).toString())
+      putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getUriToDrawable(context, R.drawable.icon_library_folder).toString())
     }.build()
 
     if (itemsInProgress.isNotEmpty()) {
@@ -59,24 +47,28 @@ class BrowseTree(
     }
 
     if (libraries.isNotEmpty()) {
-      rootList += recentMetadata
+      if (recentsLoaded) {
+        rootList += recentMetadata
+      }
       rootList += librariesMetadata
 
       libraries.forEach { library ->
         // Skip libraries without audio content
         if (library.stats?.numAudioTracks == 0) return@forEach
-
+        Log.d("BrowseTree", "Library $library | ${library.icon}")
         // Generate library list items for Libraries menu
-        val libraryMediaMetadata = library.getMediaMetadata()
+        val libraryMediaMetadata = library.getMediaMetadata(context)
         val children = mediaIdToChildren[LIBRARIES_ROOT] ?: mutableListOf()
         children += libraryMediaMetadata
         mediaIdToChildren[LIBRARIES_ROOT] = children
 
-        // Generate library list items for Recent menu
-        val recentlyMediaMetadata = library.getMediaMetadata("recently")
-        val childrenRecently = mediaIdToChildren[RECENTLY_ROOT] ?: mutableListOf()
-        childrenRecently += recentlyMediaMetadata
-        mediaIdToChildren[RECENTLY_ROOT] = childrenRecently
+        if (recentsLoaded) {
+          // Generate library list items for Recent menu
+          val recentlyMediaMetadata = library.getMediaMetadata(context,"recently")
+          val childrenRecently = mediaIdToChildren[RECENTLY_ROOT] ?: mutableListOf()
+          childrenRecently += recentlyMediaMetadata
+          mediaIdToChildren[RECENTLY_ROOT] = childrenRecently
+        }
       }
     }
 

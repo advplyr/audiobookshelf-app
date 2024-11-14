@@ -7,6 +7,7 @@ import android.support.v4.media.MediaMetadataCompat
 import androidx.media.utils.MediaConstants
 import com.audiobookshelf.app.media.MediaManager
 import com.fasterxml.jackson.annotation.*
+import com.audiobookshelf.app.media.getUriToAbsIconDrawable
 
 // This auto-detects whether it is a Book or Podcast
 @JsonTypeInfo(use=JsonTypeInfo.Id.DEDUCTION)
@@ -348,7 +349,7 @@ data class Library(
   var stats: LibraryStats?
 ) {
   @JsonIgnore
-  fun getMediaMetadata(targetType: String? = null): MediaMetadataCompat {
+  fun getMediaMetadata(context: Context, targetType: String? = null): MediaMetadataCompat {
     var mediaId = id
     if (targetType !== null) {
       mediaId = "__RECENTLY__$id"
@@ -357,6 +358,7 @@ data class Library(
       putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, mediaId)
       putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, name)
       putString(MediaMetadataCompat.METADATA_KEY_TITLE, name)
+      putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getUriToAbsIconDrawable(context, icon).toString())
     }.build()
   }
 }
