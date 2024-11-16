@@ -1,1 +1,9 @@
-{}
+{
+  "ButtonAdd": "הוסף",
+  "ButtonAddNewServer": "הוסף שרת חדש",
+  "ButtonAuthors": "סופרים",
+  "ButtonBack": "חזור",
+  "ButtonCancel": "ביטול",
+  "ButtonCancelTimer": "בטל טיימר",
+  "ButtonClearFilter": "נקה סינון"
+}
