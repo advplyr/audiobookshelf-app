@@ -1,1 +1,15 @@
-{}
+{
+  "ButtonAdd": "إضافة",
+  "ButtonAuthors": "المؤلفون",
+  "ButtonBack": "الرجوع",
+  "ButtonCancel": "إلغاء",
+  "ButtonClearFilter": "تصفية الفرز",
+  "ButtonCloseFeed": "إغلاق",
+  "ButtonCollections": "المجموعات",
+  "ButtonCreate": "إنشاء",
+  "ButtonDelete": "حذف",
+  "ButtonHome": "الرئيسية",
+  "ButtonIssues": "مشاكل",
+  "ButtonLatest": "أحدث",
+  "ButtonLibrary": "المكتبة"
+}
