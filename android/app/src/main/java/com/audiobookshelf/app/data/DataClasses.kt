@@ -1,6 +1,7 @@
 package com.audiobookshelf.app.data
 
 import android.content.Context
+import android.icu.text.DateFormat
 import android.os.Bundle
 import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.MediaMetadataCompat
@@ -8,6 +9,7 @@ import androidx.media.utils.MediaConstants
 import com.audiobookshelf.app.media.MediaManager
 import com.fasterxml.jackson.annotation.*
 import com.audiobookshelf.app.media.getUriToAbsIconDrawable
+import java.util.Date
 
 // This auto-detects whether it is a Book or Podcast
 @JsonTypeInfo(use=JsonTypeInfo.Id.DEDUCTION)
@@ -302,11 +304,18 @@ data class PodcastEpisode(
 
     val libraryItemDescription = libraryItem.getMediaDescription(null, ctx)
     val mediaId = localEpisodeId ?: id
+    var subtitle = libraryItemDescription.title
+    if (publishedAt !== null) {
+      val sdf = DateFormat.getDateInstance()
+      val publishedAtDT = Date(publishedAt!!)
+      subtitle = "${sdf.format(publishedAtDT)} / $subtitle"
+    }
+
     val mediaDescriptionBuilder = MediaDescriptionCompat.Builder()
       .setMediaId(mediaId)
       .setTitle(title)
       .setIconUri(coverUri)
-      .setSubtitle(libraryItemDescription.title)
+      .setSubtitle(subtitle)
       .setExtras(extras)
 
     libraryItemDescription.iconBitmap?.let {
