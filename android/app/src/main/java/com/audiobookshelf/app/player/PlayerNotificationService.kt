@@ -1014,6 +1014,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       // No further calls will be made to other media browsing methods.
       null
     } else {
+      Log.d(tag, "Android Auto starting")
       isStarted = true
       mediaManager.checkResetServerItems() // Reset any server items if no longer connected to server
 
@@ -1140,6 +1141,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
       }
     } else if (parentMediaId == LIBRARIES_ROOT || parentMediaId == RECENTLY_ROOT) {
+      Log.d(tag, "First load done: $firstLoadDone")
+      if (!firstLoadDone) {
+        result.sendResult(null)
+        return
+      }
       while (!this::browseTree.isInitialized) {}
       val children = browseTree[parentMediaId]?.map { item ->
         Log.d(tag, "[MENU: $parentMediaId] Showing list item ${item.description.title}")
@@ -1386,7 +1392,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         Log.d(tag, "Loading series from library ${mediaIdParts[2]}")
         mediaManager.loadLibrarySeriesWithAudio(mediaIdParts[2]) { seriesItems ->
           Log.d(tag, "Received ${seriesItems.size} series")
-          if (DeviceManager.deviceData.deviceSettings!!.androidAutoBrowseForceGrouping || seriesItems.size > DeviceManager.deviceData.deviceSettings!!.androidAutoBrowseTopLevelLimitForGrouping) {
+          if (seriesItems.size > DeviceManager.deviceData.deviceSettings!!.androidAutoBrowseLimitForGrouping) {
             val seriesLetters = seriesItems.groupingBy { iwb -> iwb.title.first().uppercaseChar() }.eachCount()
             val children = seriesLetters.map { (seriesLetter, seriesCount) ->
               MediaBrowserCompat.MediaItem(
@@ -1457,7 +1463,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         Log.d(tag, "Loading authors from library ${mediaIdParts[2]}")
         mediaManager.loadAuthorsWithBooks(mediaIdParts[2]) { authorItems ->
           Log.d(tag, "Received ${authorItems.size} authors")
-          if (DeviceManager.deviceData.deviceSettings!!.androidAutoBrowseForceGrouping || authorItems.size > DeviceManager.deviceData.deviceSettings!!.androidAutoBrowseTopLevelLimitForGrouping) {
+          if (authorItems.size > DeviceManager.deviceData.deviceSettings!!.androidAutoBrowseLimitForGrouping) {
             val authorLetters = authorItems.groupingBy { iwb -> iwb.name.first().uppercaseChar() }.eachCount()
             val children = authorLetters.map { (authorLetter, authorCount) ->
               MediaBrowserCompat.MediaItem(

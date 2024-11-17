@@ -138,8 +138,6 @@ data class DeviceSettings(
   var languageCode: String,
   var downloadUsingCellular: DownloadUsingCellularSetting,
   var streamingUsingCellular: StreamingUsingCellularSetting,
-  var androidAutoBrowseForceGrouping: Boolean,
-  var androidAutoBrowseTopLevelLimitForGrouping: Int,
   var androidAutoBrowseLimitForGrouping: Int,
   var androidAutoBrowseSeriesSequenceOrder: AndroidAutoBrowseSeriesSequenceOrderSetting
 ) {
@@ -168,8 +166,6 @@ data class DeviceSettings(
         languageCode = "en-us",
         downloadUsingCellular = DownloadUsingCellularSetting.ALWAYS,
         streamingUsingCellular = StreamingUsingCellularSetting.ALWAYS,
-        androidAutoBrowseForceGrouping = false,
-        androidAutoBrowseTopLevelLimitForGrouping = 100,
         androidAutoBrowseLimitForGrouping = 50,
         androidAutoBrowseSeriesSequenceOrder = AndroidAutoBrowseSeriesSequenceOrderSetting.ASC
       )

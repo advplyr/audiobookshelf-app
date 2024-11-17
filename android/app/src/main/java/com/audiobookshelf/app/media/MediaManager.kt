@@ -128,6 +128,7 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
     val serverConnConfig = if (DeviceManager.isConnectedToServer) DeviceManager.serverConnectionConfig else DeviceManager.deviceData.getLastServerConnectionConfig()
 
     if (!DeviceManager.isConnectedToServer || !DeviceManager.checkConnectivity(ctx) || serverConnConfig == null || serverConnConfig.id !== serverConfigIdUsed) {
+      Log.d(tag, "Reset caches")
       podcastEpisodeLibraryItemMap = mutableMapOf()
       serverLibraries = listOf()
       serverLibraryItems = mutableListOf()
@@ -141,6 +142,8 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
       cachedLibraryDiscovery = hashMapOf()
       cachedLibraryPodcasts = hashMapOf()
       isLibraryPodcastsCached = hashMapOf()
+      allLibraryPersonalizationsDone = false
+      libraryPersonalizationsDone = 0
     }
   }
 
