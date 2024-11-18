@@ -1042,6 +1042,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
 
     result.detach()
 
+    // Prevent crashing if app is restarted while browsing
+    if ((parentMediaId != DOWNLOADS_ROOT && parentMediaId != AUTO_MEDIA_ROOT) && !firstLoadDone){
+      result.sendResult(null)
+      return
+    }
+
     if (parentMediaId == DOWNLOADS_ROOT) { // Load downloads
 
       val localBooks = DeviceManager.dbManager.getLocalLibraryItems("book")
