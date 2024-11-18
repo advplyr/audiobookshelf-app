@@ -439,6 +439,7 @@ data class LibraryItemSearchResultType(
   var authors:List<LibraryAuthorItem>?
 )
 
+// For personalized shelves
 @JsonTypeInfo(
   use=JsonTypeInfo.Id.NAME,
   property = "type",

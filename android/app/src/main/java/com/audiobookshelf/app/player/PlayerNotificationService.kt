@@ -126,7 +126,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   private var forceReloadingAndroidAuto:Boolean = false
   private var firstLoadDone:Boolean = false
 
-  fun isBrowsetreeInitialized() : Boolean {
+  fun isBrowseTreeInitialized() : Boolean {
     return this::browseTree.isInitialized
   }
 
@@ -1152,6 +1152,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         result.sendResult(null)
         return
       }
+      // Wait until top-menu is initialized
       while (!this::browseTree.isInitialized) {}
       val children = browseTree[parentMediaId]?.map { item ->
         Log.d(tag, "[MENU: $parentMediaId] Showing list item ${item.description.title}")
@@ -1668,7 +1669,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       if (hasNetworkConnectivity) {
         // Force android auto loading if libraries are empty.
         // Lack of network connectivity is most likely reason for libraries being empty
-        if (isBrowsetreeInitialized() && firstLoadDone && mediaManager.serverLibraries.isEmpty()) {
+        if (isBrowseTreeInitialized() && firstLoadDone && mediaManager.serverLibraries.isEmpty()) {
           forceReloadingAndroidAuto = true
           notifyChildrenChanged("/")
         }
