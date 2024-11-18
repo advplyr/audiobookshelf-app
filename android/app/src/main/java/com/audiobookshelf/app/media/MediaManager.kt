@@ -621,8 +621,8 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
               }
               selectedLibraryItemId = libraryItemWrapper.id
               selectedPodcast = podcast
-
-              val children = podcast.episodes?.map { podcastEpisode ->
+              val episodes = podcast.episodes?.sortedByDescending { it.publishedAt }
+              val children = episodes?.map { podcastEpisode ->
 
                 val progress = serverUserMediaProgress.find { it.libraryItemId == libraryItemWrapper.id && it.episodeId == podcastEpisode.id }
 
