@@ -31,5 +31,11 @@
   "HeaderAudioTracks": "المسارات الصوتية",
   "HeaderChapters": "الفصول",
   "HeaderCollection": "مجموعة",
-  "HeaderCollectionItems": "عناصر المجموعة"
+  "HeaderCollectionItems": "عناصر المجموعة",
+  "HeaderDetails": "التفاصيل",
+  "HeaderEbookFiles": "ملفات الكتب الإلكترونية",
+  "HeaderEpisodes": "الحلقات",
+  "HeaderEreaderSettings": "إعدادات القارئ الإلكتروني",
+  "HeaderLatestEpisodes": "أحدث الحلقات",
+  "HeaderLibraries": "المكتبات"
 }
