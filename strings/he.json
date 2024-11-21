@@ -19,5 +19,8 @@
   "ButtonDeleteLocalItem": "מחק פריט מקומי",
   "ButtonDisableAutoTimer": "השבת טיימר אוטומטי",
   "ButtonDisconnect": "התנתק",
-  "ButtonGoToWebClient": "עבור לדפדפן"
+  "ButtonGoToWebClient": "עבור לדפדפן",
+  "ButtonHistory": "היסטוריה",
+  "HeaderOpenRSSFeed": "פתח ערוץ RSS",
+  "LabelAddedDate": "נוסף ב-{0}"
 }
