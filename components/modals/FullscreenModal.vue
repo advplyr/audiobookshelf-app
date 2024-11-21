@@ -1,5 +1,5 @@
 <template>
-  <div ref="wrapper" class="modal modal-bg w-screen fixed bottom-0 left-0 flex items-center justify-center z-50" :class="halfScreen ? 'h-[50vh] min-h-[400px]' : 'h-screen'" @click.stop @touchstart.stop @touchend.stop>
+  <div ref="wrapper" class="modal modal-bg w-screen fixed bottom-0 left-0 flex items-center justify-center z-50" :class="modalSize" @click.stop @touchstart.stop @touchend.stop>
     <div ref="content" class="relative text-fg h-full w-full bg-bg">
       <slot />
     </div>
@@ -11,7 +11,8 @@ export default {
   props: {
     value: Boolean,
     processing: Boolean,
-    halfScreen: Boolean
+    halfScreen: Boolean,
+    twoThirdsScreen: Boolean
   },
   data() {
     return {
@@ -35,6 +36,11 @@ export default {
       },
       set(val) {
         this.$emit('input', val)
+},
+      modalSize() {
+        if (this.halfScreen) return 'h-[50vh] min-h-[400px]'
+        if (this.twoThirdsScreen) return 'h-[33vh] min-h-[400px]'
+        return h - screen
       }
     }
   },

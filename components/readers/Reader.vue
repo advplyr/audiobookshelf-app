@@ -54,7 +54,7 @@
     </modals-fullscreen-modal>
 
     <!-- ereader settings modal -->
-    <modals-fullscreen-modal v-model="showSettingsModal" :theme="ereaderTheme" half-screen>
+    <modals-fullscreen-modal v-model="showSettingsModal" :theme="ereaderTheme" twoThirdsScreen>
       <div style="box-shadow: 0px -8px 8px #11111155">
         <div class="flex items-end justify-between h-14 px-4 pb-2 mb-6">
           <h1 class="text-lg">{{ $strings.HeaderEreaderSettings }}</h1>
@@ -94,11 +94,18 @@
               </div>
               <ui-toggle-btns v-model="ereaderSettings.spread" :items="spreadItems" @input="settingsUpdated" />
             </div>
-            <div class="flex items-center">
+            <div class="flex items-center mb-6">
               <div class="w-32">
                 <p class="text-base">{{ $strings.LabelNavigateWithVolume }}:</p>
               </div>
               <ui-toggle-btns v-model="ereaderSettings.navigateWithVolume" :items="navigateWithVolumeItems" @input="settingsUpdated" />
+            </div>
+            <div class="flex items-center mb-2">
+              <div class="w-32">
+                <p class="text-base">{{ $strings.LabelKeepScreenAwake }}:</p>
+              </div>
+              <ui-toggle-btns v-if="isKeepScreenAwakeSupported" v-model="ereaderSettings.keepScreenAwake" :items="keepScreenAwakeItems" @input="settingsUpdated" />
+              <p v-if="!isKeepScreenAwakeSupported" class="text-base">{{ $strings.LabelKeepScreenAwakeNotSupported }}</p>
             </div>
           </div>
         </div>
@@ -110,6 +117,7 @@
 <script>
 import { Capacitor } from '@capacitor/core'
 import { VolumeButtons } from '@capacitor-community/volume-buttons'
+import { KeepAwake } from '@capacitor-community/keep-awake'
 
 export default {
   data() {
@@ -126,13 +134,15 @@ export default {
       comicHasMetadata: false,
       chapters: [],
       isInittingWatchVolume: false,
+      isKeepScreenAwakeSupported: null,
       ereaderSettings: {
         theme: 'dark',
         fontScale: 100,
         lineSpacing: 115,
         spread: 'auto',
         textStroke: 0,
-        navigateWithVolume: 'enabled'
+        navigateWithVolume: 'enabled',
+        keepScreenAwake: 'disabled'
       }
     }
   },
@@ -206,6 +216,18 @@ export default {
         {
           text: this.$strings.LabelNavigateWithVolumeDisabled,
           value: 'none'
+        }
+      ]
+    },
+    keepScreenAwakeItems() {
+      return [
+        {
+          text: this.$strings.LabelKeepScreenAwakeEnabled,
+          value: 'enabled'
+        },
+        {
+          text: this.$strings.LabelKeepScreenAwakeDisabled,
+          value: 'disabled'
         }
       ]
     },
@@ -295,6 +317,7 @@ export default {
       localStorage.setItem('ereaderSettings', JSON.stringify(this.ereaderSettings))
 
       this.initWatchVolume()
+      this.initKeepScreenAwake()
     },
     goToChapter(href) {
       this.showTOCModal = false
@@ -440,11 +463,28 @@ export default {
 
       this.isInittingWatchVolume = false
     },
+    async initKeepScreenAwake() {
+      if (this.isKeepScreenAwakeSupported === null) {
+        const result = await KeepAwake.isSupported()
+        this.isKeepScreenAwakeSupported = result.isSupported
+      }
+      if (!this.isKeepScreenAwakeSupported) return
+      if (this.ereaderSettings.keepScreenAwake === 'enabled') {
+        await KeepAwake.keepAwake()
+      } else {
+        await this.disableKeepScreenAwake()
+      }
+    },
+    async disableKeepScreenAwake() {
+      if (!this.isKeepScreenAwakeSupported) return
+      await KeepAwake.allowSleep()
+    },
     registerListeners() {
       this.$eventBus.$on('close-ebook', this.closeEvt)
       document.body.addEventListener('touchstart', this.touchstart)
       document.body.addEventListener('touchend', this.touchend)
       this.initWatchVolume()
+      this.initKeepScreenAwake()
     },
     unregisterListeners() {
       this.$eventBus.$on('close-ebook', this.closeEvt)
@@ -453,6 +493,7 @@ export default {
       VolumeButtons.clearWatch().catch((error) => {
         console.error('Failed to clear volume watch', error)
       })
+      this.disableKeepScreenAwake()
     },
     volumePressed(e) {
       if (this.ereaderSettings.navigateWithVolume == 'enabled') {
