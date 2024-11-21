@@ -15,6 +15,7 @@
   "dependencies": {
     "@byteowls/capacitor-filesharer": "^5.0.0",
     "@capacitor-community/volume-buttons": "^1.0.2",
+    "@capacitor-community/keep-awake": "^4.0.0",
     "@capacitor/android": "^5.0.0",
     "@capacitor/app": "^5.0.6",
     "@capacitor/browser": "^5.1.0",
