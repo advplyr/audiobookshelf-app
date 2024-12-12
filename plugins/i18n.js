@@ -6,6 +6,7 @@ let $localStore = null
 
 const languageCodeMap = {
   bn: { label: 'বাংলা', dateFnsLocale: 'bn' },
+  ca: { label: 'Català', dateFnsLocale: 'ca' },
   cs: { label: 'Čeština', dateFnsLocale: 'cs' },
   da: { label: 'Dansk', dateFnsLocale: 'da' },
   de: { label: 'Deutsch', dateFnsLocale: 'de' },
