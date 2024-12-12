@@ -94,7 +94,7 @@
               </div>
               <ui-toggle-btns v-model="ereaderSettings.spread" :items="spreadItems" @input="settingsUpdated" />
             </div>
-            <div class="flex items-center">
+            <div class="flex items-center mb-6">
               <div class="w-32">
                 <p class="text-base">{{ $strings.LabelNavigateWithVolume }}:</p>
               </div>
@@ -102,7 +102,7 @@
             </div>
             <div class="flex items-center">
               <div class="w-32">
-                <p class="text-base">{{ $strings.LabelNavigateWithVolumeWhilePlaying}}:</p>
+                <p class="text-base">{{ $strings.LabelNavigateWithVolumeWhilePlaying }}:</p>
               </div>
               <ui-toggle-btns v-model="ereaderSettings.navigateWithVolumeWhilePlaying" :items="navigateWithVolumeWhilePlayingItems" @input="settingsUpdated" />
             </div>
@@ -203,7 +203,7 @@ export default {
     navigateWithVolumeItems() {
       return [
         {
-          text: this.$strings.LabelNavigateWithVolumeEnabled,
+          text: this.$strings.LabelOn,
           value: 'enabled'
         },
         {
@@ -211,22 +211,22 @@ export default {
           value: 'mirrored'
         },
         {
-          text: this.$strings.LabelNavigateWithVolumeDisabled,
+          text: this.$strings.LabelOff,
           value: 'none'
         }
       ]
     },
     navigateWithVolumeWhilePlayingItems() {
-    return [
-      {
-        text: this.$strings.LabelNavigateWithVolumeWhilePlayingEnabled,
-        value: true
-      },
-      {
-        text: this.$strings.LabelNavigateWithVolumeWhilePlayingDisabled,
-        value: false
-      }
-    ]
+      return [
+        {
+          text: this.$strings.LabelOn,
+          value: true
+        },
+        {
+          text: this.$strings.LabelOff,
+          value: false
+        }
+      ]
     },
     themeItems() {
       return [
