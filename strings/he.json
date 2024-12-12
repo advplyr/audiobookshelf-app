@@ -1,1 +1,26 @@
-{}
+{
+  "ButtonAdd": "הוסף",
+  "ButtonAddNewServer": "הוסף שרת חדש",
+  "ButtonAuthors": "סופרים",
+  "ButtonBack": "חזור",
+  "ButtonCancel": "ביטול",
+  "ButtonCancelTimer": "בטל טיימר",
+  "ButtonClearFilter": "נקה סינון",
+  "ButtonCloseFeed": "סגור ערוץ",
+  "ButtonCollections": "אוספים",
+  "ButtonConnect": "התחבר",
+  "ButtonConnectToServer": "התחבר לשרת",
+  "ButtonCreate": "צור",
+  "ButtonCreateBookmark": "צור סימנייה",
+  "ButtonCreateNewPlaylist": "צור רשימת השמעה חדשה",
+  "ButtonDelete": "מחק",
+  "ButtonDeleteLocalEpisode": "מחק פרק מקומי",
+  "ButtonDeleteLocalFile": "מחק קובץ מקומי",
+  "ButtonDeleteLocalItem": "מחק פריט מקומי",
+  "ButtonDisableAutoTimer": "השבת טיימר אוטומטי",
+  "ButtonDisconnect": "התנתק",
+  "ButtonGoToWebClient": "עבור לדפדפן",
+  "ButtonHistory": "היסטוריה",
+  "HeaderOpenRSSFeed": "פתח ערוץ RSS",
+  "LabelAddedDate": "נוסף ב-{0}"
+}
