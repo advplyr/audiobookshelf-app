@@ -54,7 +54,7 @@
     </modals-fullscreen-modal>
 
     <!-- ereader settings modal -->
-    <modals-fullscreen-modal v-model="showSettingsModal" :theme="ereaderTheme" half-screen>
+    <modals-fullscreen-modal v-model="showSettingsModal" :theme="ereaderTheme">
       <div style="box-shadow: 0px -8px 8px #11111155">
         <div class="flex items-end justify-between h-14 px-4 pb-2 mb-6">
           <h1 class="text-lg">{{ $strings.HeaderEreaderSettings }}</h1>
@@ -94,11 +94,17 @@
               </div>
               <ui-toggle-btns v-model="ereaderSettings.spread" :items="spreadItems" @input="settingsUpdated" />
             </div>
-            <div class="flex items-center">
+            <div class="flex items-center mb-6">
               <div class="w-32">
                 <p class="text-base">{{ $strings.LabelNavigateWithVolume }}:</p>
               </div>
               <ui-toggle-btns v-model="ereaderSettings.navigateWithVolume" :items="navigateWithVolumeItems" @input="settingsUpdated" />
+            </div>
+            <div class="flex items-center">
+              <div class="w-32">
+                <p class="text-base">{{ $strings.LabelNavigateWithVolumeWhilePlaying }}:</p>
+              </div>
+              <ui-toggle-btns v-model="ereaderSettings.navigateWithVolumeWhilePlaying" :items="navigateWithVolumeWhilePlayingItems" @input="settingsUpdated" />
             </div>
           </div>
         </div>
@@ -132,7 +138,8 @@ export default {
         lineSpacing: 115,
         spread: 'auto',
         textStroke: 0,
-        navigateWithVolume: 'enabled'
+        navigateWithVolume: 'enabled',
+        navigateWithVolumeWhilePlaying: false
       }
     }
   },
@@ -196,7 +203,7 @@ export default {
     navigateWithVolumeItems() {
       return [
         {
-          text: this.$strings.LabelNavigateWithVolumeEnabled,
+          text: this.$strings.LabelOn,
           value: 'enabled'
         },
         {
@@ -204,8 +211,20 @@ export default {
           value: 'mirrored'
         },
         {
-          text: this.$strings.LabelNavigateWithVolumeDisabled,
+          text: this.$strings.LabelOff,
           value: 'none'
+        }
+      ]
+    },
+    navigateWithVolumeWhilePlayingItems() {
+      return [
+        {
+          text: this.$strings.LabelOn,
+          value: true
+        },
+        {
+          text: this.$strings.LabelOff,
+          value: false
         }
       ]
     },
@@ -424,7 +443,7 @@ export default {
       this.isInittingWatchVolume = true
       const isWatching = await VolumeButtons.isWatching()
 
-      if (this.ereaderSettings.navigateWithVolume !== 'none' && !this.isPlayerOpen) {
+      if (this.ereaderSettings.navigateWithVolume !== 'none' && (this.ereaderSettings.navigateWithVolumeWhilePlaying || !this.isPlayerOpen)) {
         if (!isWatching.value) {
           const options = {
             disableSystemVolumeHandler: true,
