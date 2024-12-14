@@ -1,0 +1,1 @@
+capacitor.config.json
