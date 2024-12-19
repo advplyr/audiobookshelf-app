@@ -181,6 +181,8 @@
   "LabelNavigateWithVolume": "Mit Lautstärke blättern",
   "LabelNavigateWithVolumeMirrored": "Umgekehrt",
   "LabelNavigateWithVolumeWhilePlaying": "Auch bei Wiedergabe mit Lautstärketasten blättern",
+  "LabelNavigateWithVolumeWhilePlayingDisabled": "Aus",
+  "LabelNavigateWithVolumeWhilePlayingEnabled": "An",
   "LabelNever": "Nie",
   "LabelNewestAuthors": "Neueste Autoren",
   "LabelNewestEpisodes": "Neueste Episoden",
