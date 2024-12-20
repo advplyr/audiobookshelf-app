@@ -84,22 +84,22 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   Alamofire: 3ca42e259043ee0dc5c0cdd76c4bc568b8e42af7
-  ByteowlsCapacitorFilesharer: ea14537059851aed44df8c52f0984f61cd34f53b
-  Capacitor: 1f3c7b9802d958cd8c4eb63895fff85dff2e1eea
-  CapacitorApp: 2a8c3a0b0814322e5e6e15fe595f02c3808f0f8b
-  CapacitorBrowser: ef0529d16cd8839281050c350e7bbee4f5c6d65f
-  CapacitorClipboard: 55e0a514f1e97b1409d533266c119dcbff3e78c3
-  CapacitorCommunityVolumeButtons: a7612c5996f1c66320ef7a567522346d84a57e22
+  ByteowlsCapacitorFilesharer: 9695137d2fd2e79a2679e9bc06b0e9f25b9762d4
+  Capacitor: 05d35014f4425b0740fc8776481f6a369ad071bf
+  CapacitorApp: e1e6b7d05e444d593ca16fd6d76f2b7c48b5aea7
+  CapacitorBrowser: 3413e46a583b6edc3f20448732a531078d6924c6
+  CapacitorClipboard: 4443c3cdb7c77b1533dfe3ff0f9f7756aa8579df
+  CapacitorCommunityVolumeButtons: dd892a2c3d7c49a4536fcd97f6d6037fe96e0646
   CapacitorCordova: b33e7f4aa4ed105dd43283acdd940964374a87d9
-  CapacitorDialog: e966e2261e1c74a8a502e610dd66b4f97ec6fcca
-  CapacitorHaptics: b53409aaca1203f79c6d0eb3ed5de40556339518
-  CapacitorNetwork: da96b5fff8d05b67f4658503aabb22f65bda2c0f
-  CapacitorPreferences: 9f9935bce493977183511362131a93f7b260191a
-  CapacitorStatusBar: 3b9ac7d0684770522c532d1158a1434512ab1477
-  CordovaPlugins: 08731213c63ccf137c576da2926bf4b3a8c40f17
+  CapacitorDialog: 25878ac91f5ffaca62ce78884b6e1473e75596e1
+  CapacitorHaptics: 4fc15afe22b123d093e6ace24d95e8e3b1f261b9
+  CapacitorNetwork: ef75d8208f0974a2de3f98136bf9684524798f5c
+  CapacitorPreferences: f3eadae2369ac3ab8e21743a2959145b0d1286a3
+  CapacitorStatusBar: b16799a26320ffa52f6c8b01737d5a95bbb8f3eb
+  CordovaPlugins: 086b0aba49af3593b83c9bd4b22d1421013294c4
   Realm: 7c70fc7ae6ebfb635b29bc05ac1a6c5eeeb3c572
   RealmSwift: 12797d5849c90f37eafad8f44b4dadb8e558a806
 
 PODFILE CHECKSUM: d0bbe98fb520752929ffc76e7c901d54b2eed7f0
 
-COCOAPODS: 1.12.0
+COCOAPODS: 1.16.2
