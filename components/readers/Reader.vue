@@ -22,7 +22,14 @@
     </div>
 
     <!-- ereader -->
-    <component v-if="readerComponentName" ref="readerComponent" :is="readerComponentName" :url="ebookUrl" :library-item="selectedLibraryItem" :is-local="isLocal" :keep-progress="keepProgress" @touchstart="touchstart" @touchend="touchend" @loaded="readerLoaded" @hook:mounted="readerMounted" />
+    <div
+      class="zoom-container"
+      @touchstart="touchstart"
+      @touchmove="touchmove"
+      @touchend="touchend"
+      :style="contentStyle">
+      <component v-if="readerComponentName" ref="readerComponent" :is="readerComponentName" :url="ebookUrl" :library-item="selectedLibraryItem" :is-local="isLocal" :keep-progress="keepProgress" @loaded="readerLoaded" @hook:mounted="readerMounted" />
+    </div>
 
     <!-- table of contents modal -->
     <modals-fullscreen-modal v-model="showTOCModal" :theme="ereaderTheme">
@@ -120,6 +127,20 @@ import { VolumeButtons } from '@capacitor-community/volume-buttons'
 export default {
   data() {
     return {
+      zoomLevel: 1,
+      panX: 0,
+      panY: 0,
+      lastPanX: 0,
+      lastPanY: 0,
+      initialScale: 1,
+      lastDistance: 0,
+      isPinching: false,
+      lastTouchX: 0,  // Per tracciare l'ultima posizione X
+      lastTouchY: 0,  // Per tracciare l'ultima posizione Y
+      transformOriginX: 0,
+      transformOriginY: 0,
+      touchActive: false,  // Flag per tracciare se il touch è attivo
+
       touchstartX: 0,
       touchstartY: 0,
       touchendX: 0,
@@ -164,6 +185,19 @@ export default {
     }
   },
   computed: {
+
+    contentStyle() {
+      return {
+        transform: `translate3d(${this.panX}px, ${this.panY}px, 0) scale(${this.zoomLevel})`,
+        transformOrigin: '0 0',
+        willChange: 'transform',
+        touchAction: 'none',
+        userSelect: 'none',
+        '-webkit-user-drag': 'none',
+        '-webkit-touch-callout': 'none'
+      }
+    },
+
     show: {
       get() {
         return this.$store.state.showReader
@@ -399,26 +433,111 @@ export default {
       if (this.showingToolbar) this.hideToolbar()
       else this.showToolbar()
     },
+
     touchstart(e) {
-      // Ignore rapid touch
-      if (this.touchstartTime && Date.now() - this.touchstartTime < 250) {
-        return
-      }
+      e.preventDefault()
+      e.stopPropagation()
 
-      this.touchstartX = e.touches[0].screenX
-      this.touchstartY = e.touches[0].screenY
-      this.touchstartTime = Date.now()
-      this.touchIdentifier = e.touches[0].identifier
+      this.touchActive = true
+
+      if (e.touches.length === 2) {
+        const touch1 = e.touches[0]
+        const touch2 = e.touches[1]
+
+        // Salviamo le posizioni iniziali
+        this.lastTouchX = (touch1.clientX + touch2.clientX) / 2
+        this.lastTouchY = (touch1.clientY + touch2.clientY) / 2
+
+        this.lastDistance = this.getDistance(touch1, touch2)
+        this.initialScale = this.zoomLevel
+        this.isPinching = true
+      } else if (e.touches.length === 1) {
+        this.lastTouchX = e.touches[0].clientX
+        this.lastTouchY = e.touches[0].clientY
+        this.isPinching = false
+      }
     },
+
+    touchmove(e) {
+      if (!this.touchActive) return
+      e.preventDefault()
+      e.stopPropagation()
+
+      if (e.touches.length === 2 && this.isPinching) {
+        const touch1 = e.touches[0]
+        const touch2 = e.touches[1]
+
+        // Calcolo del centro attuale del pinch
+        const currentCenterX = (touch1.clientX + touch2.clientX) / 2
+        const currentCenterY = (touch1.clientY + touch2.clientY) / 2
+
+        // Calcolo della differenza dal ultimo movimento
+        const deltaX = currentCenterX - this.lastTouchX
+        const deltaY = currentCenterY - this.lastTouchY
+
+        // Aggiorniamo la posizione
+        this.panX += deltaX
+        this.panY += deltaY
+
+        // Aggiorniamo lo zoom
+        const currentDistance = this.getDistance(touch1, touch2)
+        const scale = currentDistance / this.lastDistance
+        this.zoomLevel *= scale
+
+        // Aggiorniamo le ultime posizioni
+        this.lastTouchX = currentCenterX
+        this.lastTouchY = currentCenterY
+        this.lastDistance = currentDistance
+      } else if (e.touches.length === 1) {
+        const touch = e.touches[0]
+
+        // Calcolo della differenza dal ultimo movimento
+        const deltaX = touch.clientX - this.lastTouchX
+        const deltaY = touch.clientY - this.lastTouchY
+
+        // Aggiorniamo la posizione
+        this.panX += deltaX
+        this.panY += deltaY
+
+        // Aggiorniamo le ultime posizioni
+        this.lastTouchX = touch.clientX
+        this.lastTouchY = touch.clientY
+      }
+    },
+
     touchend(e) {
-      if (this.touchIdentifier !== e.changedTouches[0].identifier) {
-        return
-      }
+      e.preventDefault()
+      e.stopPropagation()
 
-      this.touchendX = e.changedTouches[0].screenX
-      this.touchendY = e.changedTouches[0].screenY
-      this.handleGesture()
+      if (e.touches.length === 0) {
+        this.touchActive = false
+        this.isPinching = false
+      } else if (e.touches.length === 1) {
+        // Aggiorniamo per il movimento singolo
+        this.lastTouchX = e.touches[0].clientX
+        this.lastTouchY = e.touches[0].clientY
+        this.isPinching = false
+      }
     },
+
+    getDistance(touch1, touch2) {
+      const dx = touch2.clientX - touch1.clientX
+      const dy = touch2.clientY - touch1.clientY
+      return Math.sqrt(dx * dx + dy * dy)
+    },
+
+    reset() {
+      this.zoomLevel = 1
+      this.panX = 0
+      this.panY = 0
+      this.touchActive = false
+      this.isPinching = false
+    },
+
+
+
+
+
     closeEvt() {
       this.show = false
     },
@@ -494,3 +613,13 @@ export default {
   }
 }
 </script>
+
+
+<style scoped>
+.zoom-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+</style>
