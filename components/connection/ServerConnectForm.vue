@@ -486,9 +486,8 @@ export default {
     validateServerUrl(url, protocolOverride = null) {
       try {
         var urlObject = new URL(url)
-        var address = `${protocolOverride ? protocolOverride : urlObject.protocol}//${urlObject.hostname}`
-        if (urlObject.port) address += ':' + urlObject.port
-        return address
+        if (protocolOverride) urlObject.protocol = protocolOverride
+        return urlObject.href
       } catch (error) {
         console.error('Invalid URL', error)
         return null

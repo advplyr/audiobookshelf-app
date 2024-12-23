@@ -69,7 +69,7 @@ export const getters = {
       // return `http://localhost:3333/api/items/${libraryItem.id}/cover?token=${userToken}&ts=${lastUpdate}`
     }
 
-    const url = new URL(`/api/items/${libraryItem.id}/cover`, serverAddress)
+    const url = new URL(`${serverAddress}/api/items/${libraryItem.id}/cover`)
     return `${url}?token=${userToken}&ts=${lastUpdate}${raw ? '&raw=1' : ''}`
   },
   getLibraryItemCoverSrcById: (state, getters, rootState, rootGetters) => (libraryItemId, placeholder = null) => {
@@ -79,7 +79,7 @@ export const getters = {
     const serverAddress = rootGetters['user/getServerAddress']
     if (!userToken || !serverAddress) return placeholder
 
-    const url = new URL(`/api/items/${libraryItemId}/cover`, serverAddress)
+    const url = new URL(`${serverAddress}/api/items/${libraryItemId}/cover`)
     return `${url}?token=${userToken}`
   },
   getLocalMediaProgressById: (state) => (localLibraryItemId, episodeId = null) => {
