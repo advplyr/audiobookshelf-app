@@ -21,6 +21,14 @@
   "ButtonDisconnect": "התנתק",
   "ButtonGoToWebClient": "עבור לדפדפן",
   "ButtonHistory": "היסטוריה",
+  "ButtonHome": "בית",
+  "ButtonIssues": "בעיות",
+  "ButtonLatest": "אחרון",
+  "ButtonLibrary": "ספרייה",
+  "ButtonPlay": "נגן",
+  "ButtonPlayEpisode": "נגן פרק",
+  "ButtonPlaying": "מנגן",
+  "ButtonPlaylists": "רשימת השמעה",
   "HeaderOpenRSSFeed": "פתח ערוץ RSS",
   "LabelAddedDate": "נוסף ב-{0}"
 }
