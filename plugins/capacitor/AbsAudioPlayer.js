@@ -21,7 +21,10 @@ class AbsAudioPlayerWeb extends WebPlugin {
 
   // Use startTime to find current track index
   get currentTrackIndex() {
-    return Math.max(0, this.audioTracks.findIndex(t => Math.floor(t.startOffset) <= this.startTime && Math.floor(t.startOffset + t.duration) > this.startTime))
+    return Math.max(
+      0,
+      this.audioTracks.findIndex((t) => Math.floor(t.startOffset) <= this.startTime && Math.floor(t.startOffset + t.duration) > this.startTime)
+    )
   }
   get currentTrack() {
     return this.audioTracks[this.currentTrackIndex]
@@ -37,7 +40,7 @@ class AbsAudioPlayerWeb extends WebPlugin {
   }
   get totalDuration() {
     var total = 0
-    this.audioTracks.forEach(at => total += at.duration)
+    this.audioTracks.forEach((at) => (total += at.duration))
     return total
   }
   get playerPlaying() {
@@ -194,7 +197,8 @@ class AbsAudioPlayerWeb extends WebPlugin {
     // var lastBufferTime = this.getLastBufferedTime()
   }
   evtEnded() {
-    if (this.currentTrackIndex < this.audioTracks.length - 1) { // Has next track
+    if (this.currentTrackIndex < this.audioTracks.length - 1) {
+      // Has next track
       console.log(`[AbsAudioPlayer] Track ended - loading next track ${this.currentTrackIndex + 1}`)
       var nextTrack = this.audioTracks[this.currentTrackIndex + 1]
       this.playWhenReady = true
@@ -221,7 +225,7 @@ class AbsAudioPlayerWeb extends WebPlugin {
       this.player.play()
     }
   }
-  evtTimeupdate() { }
+  evtTimeupdate() {}
 
   sendPlaybackMetadata(playerState) {
     this.notifyListeners('onMetadata', {
@@ -235,7 +239,9 @@ class AbsAudioPlayerWeb extends WebPlugin {
     if (!this.currentTrack) return
     // When direct play track is loaded current time needs to be set
     this.trackStartTime = Math.max(0, this.startTime - (this.currentTrack.startOffset || 0))
-    this.player.src = `${vuexStore.getters['user/getServerAddress']}${this.currentTrack.contentUrl}?token=${vuexStore.getters['user/getToken']}`
+    const serverAddressUrl = new URL(vuexStore.getters['user/getServerAddress'])
+    const serverHost = `${serverAddressUrl.protocol}//${serverAddressUrl.host}`
+    this.player.src = `${serverHost}${this.currentTrack.contentUrl}?token=${vuexStore.getters['user/getToken']}`
     console.log(`[AbsAudioPlayer] Loading track src ${this.player.src}`)
     this.player.load()
     this.player.playbackRate = this.playbackRate

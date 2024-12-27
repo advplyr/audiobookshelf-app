@@ -26,14 +26,19 @@ class ServerSocket extends EventEmitter {
     this.serverAddress = serverAddress
     this.token = token
 
-    console.log('[SOCKET] Connect Socket', this.serverAddress)
+    const serverUrl = new URL(serverAddress)
+    const serverHost = `${serverUrl.protocol}//${serverUrl.host}`
+    const serverPath = serverUrl.pathname === '/' ? '' : serverUrl.pathname
+
+    console.log(`[SOCKET] Connecting to ${serverHost} with path ${serverPath}/socket.io`)
 
     const socketOptions = {
       transports: ['websocket'],
       upgrade: false,
+      path: `${serverPath}/socket.io`
       // reconnectionAttempts: 3
     }
-    this.socket = io(this.serverAddress, socketOptions)
+    this.socket = io(serverHost, socketOptions)
     this.setSocketListeners()
   }
 
