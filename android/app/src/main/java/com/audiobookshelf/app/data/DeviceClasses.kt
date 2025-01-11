@@ -166,7 +166,7 @@ data class DeviceSettings(
         languageCode = "en-us",
         downloadUsingCellular = DownloadUsingCellularSetting.ALWAYS,
         streamingUsingCellular = StreamingUsingCellularSetting.ALWAYS,
-        androidAutoBrowseLimitForGrouping = 50,
+        androidAutoBrowseLimitForGrouping = 100,
         androidAutoBrowseSeriesSequenceOrder = AndroidAutoBrowseSeriesSequenceOrderSetting.ASC
       )
     }

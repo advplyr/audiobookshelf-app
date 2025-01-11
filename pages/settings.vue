@@ -210,7 +210,7 @@ export default {
         languageCode: 'en-us',
         downloadUsingCellular: 'ALWAYS',
         streamingUsingCellular: 'ALWAYS',
-        androidAutoBrowseLimitForGrouping: 50,
+        androidAutoBrowseLimitForGrouping: 100,
         androidAutoBrowseSeriesSequenceOrder: 'ASC'
       },
       theme: 'dark',
@@ -315,11 +315,11 @@ export default {
       ],
       androidAutoBrowseSeriesSequenceOrderItems: [
         {
-          text: this.$strings.LabelAscending,
+          text: this.$strings.LabelSequenceAscending,
           value: 'ASC'
         },
         {
-          text: this.$strings.LabelDescending,
+          text: this.$strings.LabelSequenceDescending,
           value: 'DESC'
         }
       ]

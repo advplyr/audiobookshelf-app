@@ -1372,8 +1372,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         Log.d(tag, "Loading series from library ${mediaIdParts[2]} with paging ${mediaIdParts[4]}")
         mediaManager.loadLibrarySeriesWithAudio(mediaIdParts[2], mediaIdParts[4]) { seriesItems ->
           Log.d(tag, "Received ${seriesItems.size} series")
-          if (seriesItems.size > DeviceManager.deviceData.deviceSettings!!.androidAutoBrowseLimitForGrouping) {
-            val seriesLetters = seriesItems.groupingBy { iwb -> iwb.title.substring(0, mediaIdParts[4].length + 1).uppercase() }.eachCount()
+
+          val seriesLetters = seriesItems.groupingBy { iwb -> iwb.title.substring(0, mediaIdParts[4].length + 1).uppercase() }.eachCount()
+          if (seriesItems.size > DeviceManager.deviceData.deviceSettings!!.androidAutoBrowseLimitForGrouping && seriesItems.size > 1 && seriesLetters.size > 1) {
             val children = seriesLetters.map { (seriesLetter, seriesCount) ->
               MediaBrowserCompat.MediaItem(
                 MediaDescriptionCompat.Builder()
@@ -1397,7 +1398,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         Log.d(tag, "Loading series from library ${mediaIdParts[2]}")
         mediaManager.loadLibrarySeriesWithAudio(mediaIdParts[2]) { seriesItems ->
           Log.d(tag, "Received ${seriesItems.size} series")
-          if (seriesItems.size > DeviceManager.deviceData.deviceSettings!!.androidAutoBrowseLimitForGrouping) {
+          if (seriesItems.size > DeviceManager.deviceData.deviceSettings!!.androidAutoBrowseLimitForGrouping && seriesItems.size > 1) {
             val seriesLetters = seriesItems.groupingBy { iwb -> iwb.title.first().uppercaseChar() }.eachCount()
             val children = seriesLetters.map { (seriesLetter, seriesCount) ->
               MediaBrowserCompat.MediaItem(
@@ -1443,8 +1444,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         Log.d(tag, "Loading authors from library ${mediaIdParts[2]} with paging ${mediaIdParts[4]}")
         mediaManager.loadAuthorsWithBooks(mediaIdParts[2], mediaIdParts[4]) { authorItems ->
           Log.d(tag, "Received ${authorItems.size} authors")
-          if (authorItems.size > DeviceManager.deviceData.deviceSettings!!.androidAutoBrowseLimitForGrouping) {
-            val authorLetters = authorItems.groupingBy { iwb -> iwb.name.substring(0, mediaIdParts[4].length + 1).uppercase() }.eachCount()
+
+          val authorLetters = authorItems.groupingBy { iwb -> iwb.name.substring(0, mediaIdParts[4].length + 1).uppercase() }.eachCount()
+          if (authorItems.size > DeviceManager.deviceData.deviceSettings!!.androidAutoBrowseLimitForGrouping && authorItems.size > 1 && authorLetters.size > 1) {
             val children = authorLetters.map { (authorLetter, authorCount) ->
               MediaBrowserCompat.MediaItem(
                 MediaDescriptionCompat.Builder()
@@ -1468,7 +1470,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         Log.d(tag, "Loading authors from library ${mediaIdParts[2]}")
         mediaManager.loadAuthorsWithBooks(mediaIdParts[2]) { authorItems ->
           Log.d(tag, "Received ${authorItems.size} authors")
-          if (authorItems.size > DeviceManager.deviceData.deviceSettings!!.androidAutoBrowseLimitForGrouping) {
+          if (authorItems.size > DeviceManager.deviceData.deviceSettings!!.androidAutoBrowseLimitForGrouping && authorItems.size > 1) {
             val authorLetters = authorItems.groupingBy { iwb -> iwb.name.first().uppercaseChar() }.eachCount()
             val children = authorLetters.map { (authorLetter, authorCount) ->
               MediaBrowserCompat.MediaItem(
