@@ -130,7 +130,7 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
     }
   }
 
-  fun checkResetServerItems() {
+  fun checkResetServerItems():Boolean {
     // When opening android auto need to check if still connected to server
     //   and reset any server data already set
     val serverConnConfig = if (DeviceManager.isConnectedToServer) DeviceManager.serverConnectionConfig else DeviceManager.deviceData.getLastServerConnectionConfig()
@@ -152,7 +152,9 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
       isLibraryPodcastsCached = hashMapOf()
       allLibraryPersonalizationsDone = false
       libraryPersonalizationsDone = 0
+      return true
     }
+    return false
   }
 
   private fun loadItemsInProgressForAllLibraries(cb: (List<ItemInProgress>) -> Unit) {

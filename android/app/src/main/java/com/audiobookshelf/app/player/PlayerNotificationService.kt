@@ -1017,7 +1017,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
     } else {
       Log.d(tag, "Android Auto starting")
       isStarted = true
-      mediaManager.checkResetServerItems() // Reset any server items if no longer connected to server
+
+      // Reset cache if no longer connected to server or server changed
+      if (mediaManager.checkResetServerItems()) {
+        forceReloadingAndroidAuto = true
+      }
 
       isAndroidAuto = true
 
