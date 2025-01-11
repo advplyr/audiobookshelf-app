@@ -177,10 +177,6 @@ export default {
         }
       }
     },
-    userLoggedOut() {
-      // Only cancels stream if streamining not playing downloaded
-      this.$eventBus.$emit('close-stream')
-    },
     socketConnectionFailed(err) {
       this.$toast.error('Socket connection error: ' + err.message)
     },

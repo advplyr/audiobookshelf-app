@@ -196,7 +196,11 @@ class AbsFileSystem : Plugin() {
     if (localLibraryItem?.folderId?.startsWith("internal-") == true) {
       Log.d(tag, "Deleting internal library item at absolutePath $absolutePath")
       val file = File(absolutePath)
-      success = file.deleteRecursively()
+      success = if (file.exists()) {
+        file.deleteRecursively()
+      } else {
+        true
+      }
     } else {
       var subfolderPathToDelete = ""
       localLibraryItem?.folderId?.let { folderId ->
@@ -218,7 +222,12 @@ class AbsFileSystem : Plugin() {
       }
 
       val docfile = DocumentFileCompat.fromUri(mainActivity, Uri.parse(contentUrl))
-      success = docfile?.delete() == true
+      if (docfile?.exists() == true) {
+        success = docfile.delete() == true
+      } else {
+        Log.d(tag, "Folder $contentUrl doesn't exist")
+        success = true
+      }
 
       if (subfolderPathToDelete != "") {
         Log.d(tag, "Deleting empty subfolder at $subfolderPathToDelete")

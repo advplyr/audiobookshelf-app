@@ -34,11 +34,7 @@ export default {
       deviceData: null
     }
   },
-  computed: {
-    networkConnected() {
-      return this.$store.state.networkConnected
-    }
-  },
+  computed: {},
   methods: {
     async init() {
       this.deviceData = await this.$db.getDeviceData()

@@ -50,7 +50,7 @@
     <div id="playerContent" class="playerContainer w-full z-20 absolute bottom-0 left-0 right-0 p-2 pointer-events-auto transition-all" :style="{ backgroundColor: showFullscreen ? '' : coverRgb }" @click="clickContainer">
       <div v-if="showFullscreen" class="absolute bottom-4 left-0 right-0 w-full pb-4 pt-2 mx-auto px-6" style="max-width: 414px">
         <div class="flex items-center justify-between pointer-events-auto">
-          <span v-if="!isPodcast && serverLibraryItemId && networkConnected" class="material-icons text-3xl text-fg-muted cursor-pointer" @click="$emit('showBookmarks')">{{ bookmarks.length ? 'bookmark' : 'bookmark_border' }}</span>
+          <span v-if="!isPodcast && serverLibraryItemId && socketConnected" class="material-icons text-3xl text-fg-muted cursor-pointer" @click="$emit('showBookmarks')">{{ bookmarks.length ? 'bookmark' : 'bookmark_border' }}</span>
           <!-- hidden for podcasts but still using this as a placeholder -->
           <span v-else class="material-icons text-3xl text-white text-opacity-0">bookmark</span>
 
@@ -375,8 +375,8 @@ export default {
         return secondsRemaining + 's'
       }
     },
-    networkConnected() {
-      return this.$store.state.networkConnected
+    socketConnected() {
+      return this.$store.state.socketConnected
     },
     mediaId() {
       if (this.isPodcast || !this.playbackSession) return null

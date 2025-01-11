@@ -1,6 +1,6 @@
 {
   "name": "audiobookshelf-app",
-  "version": "0.9.74-beta",
+  "version": "0.9.77-beta",
   "author": "advplyr",
   "scripts": {
     "dev": "nuxt --hostname 0.0.0.0 --port 1337",
@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@byteowls/capacitor-filesharer": "^5.0.0",
+    "@capacitor-community/volume-buttons": "^1.0.2",
     "@capacitor/android": "^5.0.0",
     "@capacitor/app": "^5.0.6",
     "@capacitor/browser": "^5.1.0",

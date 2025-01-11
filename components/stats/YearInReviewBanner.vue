@@ -9,7 +9,7 @@
     <div class="flex items-center">
       <p class="hidden md:block text-xl font-semibold">{{ yearInReviewYear }} Year in Review</p>
       <div class="hidden md:block flex-grow" />
-      <ui-btn class="w-full md:w-auto" @click.stop="clickShowYearInReview">{{ showYearInReview ? 'Hide Year in Review' : `See ${yearInReviewYear} Year in Review` }}</ui-btn>
+      <ui-btn class="w-full md:w-auto" @click.stop="clickShowYearInReview">{{ showYearInReview ? $strings.LabelYearReviewHide : $strings.LabelYearReviewShow }}</ui-btn>
     </div>
 
     <!-- your year in review -->

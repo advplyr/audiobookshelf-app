@@ -1,17 +1,17 @@
 name: 🐞 ABS App Bug Report
 description: File a bug/issue and help us improve the Audiobookshelf mobile apps.
-title: "[Bug]: "
-labels: ["bug", "triage"]
+title: '[Bug]: '
+labels: ['bug', 'triage']
 body:
   - type: markdown
     attributes:
-      value: "## App Bug Description"
+      value: '## App Bug Description'
   - type: markdown
     attributes:
-      value: "Thank you for filing a bug report! 🐛"
+      value: 'Thank you for filing a bug report! 🐛'
   - type: markdown
     attributes:
-      value: "Join the [discord server](https://discord.gg/HQgCbd6E75) for questions or if you are not sure about a bug."
+      value: 'Join the [discord server](https://discord.gg/HQgCbd6E75) for questions or if you are not sure about a bug.'
   - type: textarea
     id: what-happened
     attributes:
@@ -25,7 +25,7 @@ body:
     attributes:
       label: Steps to Reproduce the Issue
       description: Please help us understand how we can reliably reproduce the issue.
-      placeholder: "1. Go to the library page of a Podcast library and..."
+      placeholder: '1. Go to the library page of a Podcast library and...'
     validations:
       required: true
   - type: textarea
@@ -38,7 +38,7 @@ body:
       required: true
   - type: markdown
     attributes:
-      value: "## Mobile Environment"
+      value: '## Mobile Environment'
   - type: input
     id: phone-model
     attributes:
@@ -62,10 +62,10 @@ body:
       description: Please ensure your app is up to date. *If you are using a 3rd-party app, please reach out to them directly.*
       multiple: true
       options:
-        - Android App - 0.9.74
-        - iOS App - 0.9.74
-        - Android App - 0.9.73
-        - iOS App - 0.9.73
+        - Android App - 0.9.77
+        - iOS App - 0.9.77
+        - Android App - 0.9.76
+        - iOS App - 0.9.76
     validations:
       required: true
   - type: dropdown
@@ -85,4 +85,4 @@ body:
     attributes:
       label: Additional Notes
       description: Anything else you want to add?
-      placeholder: "e.g. I have tried X, Y, and Z."
+      placeholder: 'e.g. I have tried X, Y, and Z.'

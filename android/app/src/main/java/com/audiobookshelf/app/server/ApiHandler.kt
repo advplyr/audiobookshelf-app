@@ -45,10 +45,17 @@ class ApiHandler(var ctx:Context) {
     val address = config?.address ?: DeviceManager.serverAddress
     val token = config?.token ?: DeviceManager.token
 
-    val request = Request.Builder()
-      .url("${address}$endpoint").addHeader("Authorization", "Bearer $token")
-      .build()
-    makeRequest(request, httpClient, cb)
+    try {
+      val request = Request.Builder()
+        .url("${address}$endpoint").addHeader("Authorization", "Bearer $token")
+        .build()
+      makeRequest(request, httpClient, cb)
+    } catch(e: Exception) {
+      e.printStackTrace()
+      val jsobj = JSObject()
+      jsobj.put("error", "Request failed: ${e.message}")
+      cb(jsobj)
+    }
   }
 
   private fun postRequest(endpoint:String, payload: JSObject?, config:ServerConnectionConfig?, cb: (JSObject) -> Unit) {
@@ -58,23 +65,38 @@ class ApiHandler(var ctx:Context) {
     val requestBody = payload?.toString()?.toRequestBody(mediaType) ?: EMPTY_REQUEST
     val requestUrl = "${address}$endpoint"
     Log.d(tag, "postRequest to $requestUrl")
-    val request = Request.Builder().post(requestBody)
-      .url(requestUrl).addHeader("Authorization", "Bearer ${token}")
-      .build()
-    makeRequest(request, null, cb)
+    try {
+      val request = Request.Builder().post(requestBody)
+        .url(requestUrl).addHeader("Authorization", "Bearer ${token}")
+        .build()
+      makeRequest(request, null, cb)
+    } catch(e: Exception) {
+      e.printStackTrace()
+      val jsobj = JSObject()
+      jsobj.put("error", "Request failed: ${e.message}")
+      cb(jsobj)
+    }
   }
 
   private fun patchRequest(endpoint:String, payload: JSObject, cb: (JSObject) -> Unit) {
     val mediaType = "application/json; charset=utf-8".toMediaType()
     val requestBody = payload.toString().toRequestBody(mediaType)
-    val request = Request.Builder().patch(requestBody)
-      .url("${DeviceManager.serverAddress}$endpoint").addHeader("Authorization", "Bearer ${DeviceManager.token}")
-      .build()
-    makeRequest(request, null, cb)
+    try {
+      val request = Request.Builder().patch(requestBody)
+        .url("${DeviceManager.serverAddress}$endpoint").addHeader("Authorization", "Bearer ${DeviceManager.token}")
+        .build()
+      makeRequest(request, null, cb)
+    } catch(e: Exception) {
+      e.printStackTrace()
+      val jsobj = JSObject()
+      jsobj.put("error", "Request failed: ${e.message}")
+      cb(jsobj)
+    }
   }
 
   private fun makeRequest(request:Request, httpClient:OkHttpClient?, cb: (JSObject) -> Unit) {
     val client = httpClient ?: defaultClient
+
     client.newCall(request).enqueue(object : Callback {
       override fun onFailure(call: Call, e: IOException) {
         Log.d(tag, "FAILURE TO CONNECT")
@@ -424,9 +446,9 @@ class ApiHandler(var ctx:Context) {
     }
   }
 
-  fun closePlaybackSession(playbackSessionId:String, cb: (Boolean) -> Unit) {
+  fun closePlaybackSession(playbackSessionId:String, config:ServerConnectionConfig?, cb: (Boolean) -> Unit) {
     Log.d(tag, "closePlaybackSession: playbackSessionId=$playbackSessionId")
-    postRequest("/api/session/$playbackSessionId/close", null, null) {
+    postRequest("/api/session/$playbackSessionId/close", null, config) {
       cb(true)
     }
   }

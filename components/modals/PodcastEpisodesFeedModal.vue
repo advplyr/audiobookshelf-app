@@ -17,7 +17,7 @@
               <p v-if="episode.episode" class="font-semibold text-gray-200 text-xs">#{{ episode.episode }}</p>
               <p class="break-words mb-1 text-sm">{{ episode.title }}</p>
               <p v-if="episode.subtitle" class="break-words mb-1 text-xs text-gray-300 episode-subtitle">{{ episode.subtitle }}</p>
-              <p class="text-xxs text-gray-300">Published {{ episode.publishedAt ? $dateDistanceFromNow(episode.publishedAt) : 'Unknown' }}</p>
+              <p class="text-xxs text-gray-300">{{ $getString('LabelPublishedDate', [episode.publishedAt ? $dateDistanceFromNow(episode.publishedAt) : $strings.LabelUnknown]) }}</p>
             </div>
           </div>
         </template>
