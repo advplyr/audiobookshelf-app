@@ -150,6 +150,22 @@
       </div>
     </div>
 
+    <!-- Android Auto settings -->
+    <template v-if="!isiOS">
+      <p class="uppercase text-xs font-semibold text-fg-muted mb-2 mt-10">{{ $strings.HeaderAndroidAutoSettings }}</p>
+      <div class="py-3 flex items-center">
+        <p class="pr-4 w-36">{{ $strings.LabelAndroidAutoBrowseLimitForGrouping }}</p>
+        <ui-text-input type="number" v-model="settings.androidAutoBrowseLimitForGrouping" style="width: 145px; max-width: 145px" @input="androidAutoBrowseLimitForGroupingUpdated" />
+        <span class="material-icons-outlined ml-2" @click.stop="showInfo('androidAutoBrowseLimitForGrouping')">info</span>
+      </div>
+      <div class="py-3 flex items-center">
+        <p class="pr-4 w-36">{{ $strings.LabelAndroidAutoBrowseSeriesSequenceOrder }}</p>
+        <div @click.stop="showAndroidAutoBrowseSeriesSequenceOrderOptions">
+          <ui-text-input :value="androidAutoBrowseSeriesSequenceOrderOption" readonly append-icon="expand_more" style="max-width: 200px" />
+        </div>
+      </div>
+    </template>
+
     <div v-show="loading" class="w-full h-full absolute top-0 left-0 flex items-center justify-center z-10">
       <ui-loading-indicator />
     </div>
@@ -193,7 +209,9 @@ export default {
         autoSleepTimerAutoRewindTime: 300000, // 5 minutes
         languageCode: 'en-us',
         downloadUsingCellular: 'ALWAYS',
-        streamingUsingCellular: 'ALWAYS'
+        streamingUsingCellular: 'ALWAYS',
+        androidAutoBrowseLimitForGrouping: 100,
+        androidAutoBrowseSeriesSequenceOrder: 'ASC'
       },
       theme: 'dark',
       lockCurrentOrientation: false,
@@ -221,6 +239,10 @@ export default {
         enableMp3IndexSeeking: {
           name: this.$strings.LabelEnableMp3IndexSeeking,
           message: this.$strings.LabelEnableMp3IndexSeekingHelp
+        },
+        androidAutoBrowseLimitForGrouping: {
+          name: this.$strings.LabelAndroidAutoBrowseLimitForGrouping,
+          message: this.$strings.LabelAndroidAutoBrowseLimitForGroupingHelp
         }
       },
       hapticFeedbackItems: [
@@ -289,6 +311,16 @@ export default {
         {
           text: this.$strings.LabelNever,
           value: 'NEVER'
+        }
+      ],
+      androidAutoBrowseSeriesSequenceOrderItems: [
+        {
+          text: this.$strings.LabelSequenceAscending,
+          value: 'ASC'
+        },
+        {
+          text: this.$strings.LabelSequenceDescending,
+          value: 'DESC'
         }
       ]
     }
@@ -372,6 +404,10 @@ export default {
       const item = this.streamingUsingCellularItems.find((i) => i.value === this.settings.streamingUsingCellular)
       return item?.text || 'Error'
     },
+    androidAutoBrowseSeriesSequenceOrderOption() {
+      const item = this.androidAutoBrowseSeriesSequenceOrderItems.find((i) => i.value === this.settings.androidAutoBrowseSeriesSequenceOrder)
+      return item?.text || 'Error'
+    },
     moreMenuItems() {
       if (this.moreMenuSetting === 'shakeSensitivity') return this.shakeSensitivityItems
       else if (this.moreMenuSetting === 'hapticFeedback') return this.hapticFeedbackItems
@@ -379,6 +415,7 @@ export default {
       else if (this.moreMenuSetting === 'theme') return this.themeOptionItems
       else if (this.moreMenuSetting === 'downloadUsingCellular') return this.downloadUsingCellularItems
       else if (this.moreMenuSetting === 'streamingUsingCellular') return this.streamingUsingCellularItems
+      else if (this.moreMenuSetting === 'androidAutoBrowseSeriesSequenceOrder') return this.androidAutoBrowseSeriesSequenceOrderItems
       return []
     }
   },
@@ -421,6 +458,10 @@ export default {
       this.moreMenuSetting = 'streamingUsingCellular'
       this.showMoreMenuDialog = true
     },
+    showAndroidAutoBrowseSeriesSequenceOrderOptions() {
+      this.moreMenuSetting = 'androidAutoBrowseSeriesSequenceOrder'
+      this.showMoreMenuDialog = true
+    },
     clickMenuAction(action) {
       this.showMoreMenuDialog = false
       if (this.moreMenuSetting === 'shakeSensitivity') {
@@ -441,6 +482,9 @@ export default {
       } else if (this.moreMenuSetting === 'streamingUsingCellular') {
         this.settings.streamingUsingCellular = action
         this.saveSettings()
+      } else if (this.moreMenuSetting === 'androidAutoBrowseSeriesSequenceOrder') {
+        this.settings.androidAutoBrowseSeriesSequenceOrder = action
+        this.saveSettings()
       }
     },
     saveTheme(theme) {
@@ -449,6 +493,12 @@ export default {
     },
     autoSleepTimerTimeUpdated(val) {
       if (!val) return // invalid times return falsy
+      this.saveSettings()
+    },
+    androidAutoBrowseLimitForGroupingUpdated(val) {
+      if (!val) return // invalid times return falsy
+      if (val > 1000) val = 1000
+      if (val < 30) val = 30
       this.saveSettings()
     },
     hapticFeedbackUpdated(val) {
@@ -576,6 +626,9 @@ export default {
 
       this.settings.downloadUsingCellular = deviceSettings.downloadUsingCellular || 'ALWAYS'
       this.settings.streamingUsingCellular = deviceSettings.streamingUsingCellular || 'ALWAYS'
+
+      this.settings.androidAutoBrowseLimitForGrouping = deviceSettings.androidAutoBrowseLimitForGrouping
+      this.settings.androidAutoBrowseSeriesSequenceOrder = deviceSettings.androidAutoBrowseSeriesSequenceOrder || 'ASC'
     },
     async init() {
       this.loading = true

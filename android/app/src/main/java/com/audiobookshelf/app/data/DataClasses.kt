@@ -1,12 +1,15 @@
 package com.audiobookshelf.app.data
 
 import android.content.Context
+import android.icu.text.DateFormat
 import android.os.Bundle
 import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.MediaMetadataCompat
 import androidx.media.utils.MediaConstants
 import com.audiobookshelf.app.media.MediaManager
 import com.fasterxml.jackson.annotation.*
+import com.audiobookshelf.app.media.getUriToAbsIconDrawable
+import java.util.Date
 
 // This auto-detects whether it is a Book or Podcast
 @JsonTypeInfo(use=JsonTypeInfo.Id.DEDUCTION)
@@ -25,7 +28,8 @@ open class MediaType(var metadata:MediaTypeMetadata, var coverPath:String?) {
   open fun removeAudioTrack(localFileId:String) { }
   @JsonIgnore
   open fun getLocalCopy():MediaType { return MediaType(MediaTypeMetadata("", false),null) }
-
+  @JsonIgnore
+  open fun checkHasTracks():Boolean { return false }
 }
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -91,6 +95,11 @@ class Podcast(
   @JsonIgnore
   override fun getLocalCopy(): Podcast {
     return Podcast(metadata as PodcastMetadata,coverPath,tags, mutableListOf(),autoDownloadEpisodes, 0)
+  }
+
+  @JsonIgnore
+  override fun checkHasTracks():Boolean {
+    return (episodes?.size ?: numEpisodes ?: 0) > 0
   }
 
   @JsonIgnore
@@ -182,6 +191,11 @@ class Book(
   override fun getLocalCopy(): Book {
     return Book(metadata as BookMetadata,coverPath,tags, mutableListOf(),chapters,mutableListOf(), ebookFile, null,null, 0)
   }
+
+  @JsonIgnore
+  override fun checkHasTracks():Boolean {
+    return (tracks?.size ?: numTracks ?: 0) > 0
+  }
 }
 
 // This auto-detects whether it is a BookMetadata or PodcastMetadata
@@ -214,7 +228,9 @@ class BookMetadata(
   var authorName:String?,
   var authorNameLF:String?,
   var narratorName:String?,
-  var seriesName:String?
+  var seriesName:String?,
+  @JsonFormat(with=[JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY])
+  var series:List<SeriesType>?
 ) : MediaTypeMetadata(title, explicit) {
   @JsonIgnore
   override fun getAuthorDisplayName():String { return authorName ?: "Unknown" }
@@ -299,11 +315,18 @@ data class PodcastEpisode(
 
     val libraryItemDescription = libraryItem.getMediaDescription(null, ctx)
     val mediaId = localEpisodeId ?: id
+    var subtitle = libraryItemDescription.title
+    if (publishedAt !== null) {
+      val sdf = DateFormat.getDateInstance()
+      val publishedAtDT = Date(publishedAt!!)
+      subtitle = "${sdf.format(publishedAtDT)} / $subtitle"
+    }
+
     val mediaDescriptionBuilder = MediaDescriptionCompat.Builder()
       .setMediaId(mediaId)
       .setTitle(title)
       .setIconUri(coverUri)
-      .setSubtitle(libraryItemDescription.title)
+      .setSubtitle(subtitle)
       .setExtras(extras)
 
     libraryItemDescription.iconBitmap?.let {
@@ -342,17 +365,38 @@ data class Library(
   var name:String,
   var folders:MutableList<Folder>,
   var icon:String,
-  var mediaType:String
+  var mediaType:String,
+  var stats: LibraryStats?
 ) {
   @JsonIgnore
-  fun getMediaMetadata(): MediaMetadataCompat {
+  fun getMediaMetadata(context: Context, targetType: String? = null): MediaMetadataCompat {
+    var mediaId = id
+    if (targetType !== null) {
+      mediaId = "__RECENTLY__$id"
+    }
     return MediaMetadataCompat.Builder().apply {
-      putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, id)
+      putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, mediaId)
       putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, name)
       putString(MediaMetadataCompat.METADATA_KEY_TITLE, name)
+      putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getUriToAbsIconDrawable(context, icon).toString())
     }.build()
   }
 }
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class LibraryStats(
+  var totalItems: Int,
+  var totalSize: Long,
+  var totalDuration: Double,
+  var numAudioFiles: Int
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class SeriesType(
+  var id: String,
+  var name: String,
+  var sequence: String?
+)
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class Folder(
@@ -387,3 +431,84 @@ data class LibraryItemWithEpisode(
   var libraryItemWrapper:LibraryItemWrapper,
   var episode:PodcastEpisode
 )
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class LibraryItemSearchResultSeriesItemType(
+  var series: LibrarySeriesItem,
+  var books: List<LibraryItem>?
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class LibraryItemSearchResultLibraryItemType(
+  val libraryItem: LibraryItem
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class LibraryItemSearchResultType(
+  var book:List<LibraryItemSearchResultLibraryItemType>?,
+  var podcast:List<LibraryItemSearchResultLibraryItemType>?,
+  var series:List<LibraryItemSearchResultSeriesItemType>?,
+  var authors:List<LibraryAuthorItem>?
+)
+
+// For personalized shelves
+@JsonTypeInfo(
+  use=JsonTypeInfo.Id.NAME,
+  property = "type",
+  include = JsonTypeInfo.As.PROPERTY,
+  visible = true
+)
+@JsonSubTypes(
+  JsonSubTypes.Type(LibraryShelfBookEntity::class, name = "book"),
+  JsonSubTypes.Type(LibraryShelfSeriesEntity::class, name = "series"),
+  JsonSubTypes.Type(LibraryShelfAuthorEntity::class, name = "authors"),
+  JsonSubTypes.Type(LibraryShelfEpisodeEntity::class, name = "episode"),
+  JsonSubTypes.Type(LibraryShelfPodcastEntity::class, name = "podcast")
+)
+@JsonIgnoreProperties(ignoreUnknown = true)
+sealed class LibraryShelfType(
+  open val id: String,
+  open val label: String,
+  open val total: Int,
+  open val type: String,
+)
+
+data class LibraryShelfBookEntity(
+  override val id: String,
+  override val label: String,
+  override val total: Int,
+  override val type: String,
+  val entities: List<LibraryItem>?
+) : LibraryShelfType(id, label, total, type)
+
+data class LibraryShelfSeriesEntity(
+  override val id: String,
+  override val label: String,
+  override val total: Int,
+  override val type: String,
+  val entities: List<LibrarySeriesItem>?
+) :  LibraryShelfType(id, label, total, type)
+
+data class LibraryShelfAuthorEntity(
+  override val id: String,
+  override val label: String,
+  override val total: Int,
+  override val type: String,
+  val entities: List<LibraryAuthorItem>?
+) :  LibraryShelfType(id, label, total, type)
+
+data class LibraryShelfEpisodeEntity(
+  override val id: String,
+  override val label: String,
+  override val total: Int,
+  override val type: String,
+  val entities: List<LibraryItem>?
+) :  LibraryShelfType(id, label, total, type)
+
+data class LibraryShelfPodcastEntity(
+  override val id: String,
+  override val label: String,
+  override val total: Int,
+  override val type: String,
+  val entities: List<LibraryItem>?
+) :  LibraryShelfType(id, label, total, type)
