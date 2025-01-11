@@ -150,6 +150,7 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
       cachedLibraryDiscovery = hashMapOf()
       cachedLibraryPodcasts = hashMapOf()
       isLibraryPodcastsCached = hashMapOf()
+      serverItemsInProgress = listOf()
       allLibraryPersonalizationsDone = false
       libraryPersonalizationsDone = 0
       return true
