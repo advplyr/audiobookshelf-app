@@ -28,7 +28,8 @@ open class MediaType(var metadata:MediaTypeMetadata, var coverPath:String?) {
   open fun removeAudioTrack(localFileId:String) { }
   @JsonIgnore
   open fun getLocalCopy():MediaType { return MediaType(MediaTypeMetadata("", false),null) }
-
+  @JsonIgnore
+  open fun checkHasTracks():Boolean { return false }
 }
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -94,6 +95,11 @@ class Podcast(
   @JsonIgnore
   override fun getLocalCopy(): Podcast {
     return Podcast(metadata as PodcastMetadata,coverPath,tags, mutableListOf(),autoDownloadEpisodes, 0)
+  }
+
+  @JsonIgnore
+  override fun checkHasTracks():Boolean {
+    return (episodes?.size ?: numEpisodes ?: 0) > 0
   }
 
   @JsonIgnore
@@ -184,6 +190,11 @@ class Book(
   @JsonIgnore
   override fun getLocalCopy(): Book {
     return Book(metadata as BookMetadata,coverPath,tags, mutableListOf(),chapters,mutableListOf(), ebookFile, null,null, 0)
+  }
+
+  @JsonIgnore
+  override fun checkHasTracks():Boolean {
+    return (tracks?.size ?: numTracks ?: 0) > 0
   }
 }
 
@@ -375,8 +386,9 @@ data class Library(
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class LibraryStats(
   var totalItems: Int,
-  var totalAuthors: Int,
-  var numAudioTracks: Int
+  var totalSize: Long,
+  var totalDuration: Double,
+  var numAudioFiles: Int
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)

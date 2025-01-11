@@ -1224,7 +1224,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
         return
       }
       Log.d(tag, "Mediaparts: ${mediaIdParts.size} | $mediaIdParts")
-      if(mediaIdParts.size == 3) {
+      if (mediaIdParts.size == 3) {
         mediaManager.getLibraryRecentShelfs(mediaIdParts[2]) { availableShelfs ->
           Log.d(tag, "Found ${availableShelfs.size} shelfs")
           val children : MutableList<MediaBrowserCompat.MediaItem> = mutableListOf()
@@ -1302,7 +1302,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
                 MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
               }
               result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
-            }else if (shelf.type == "episode") {
+            } else if (shelf.type == "episode") {
               val episodesWithRecentEpisode = (shelf as LibraryShelfEpisodeEntity).entities?.filter { libraryItem -> libraryItem.recentEpisode !== null }
               val children = episodesWithRecentEpisode?.map { libraryItem ->
                 val podcast = libraryItem.media as Podcast
@@ -1319,7 +1319,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
                 MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
               }
               result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
-            }else if (shelf.type == "podcast") {
+            } else if (shelf.type == "podcast") {
               val children = (shelf as LibraryShelfPodcastEntity).entities?.map { libraryItem ->
                 val mediaDescription = libraryItem.getMediaDescription(null, ctx)
                 MediaBrowserCompat.MediaItem(
@@ -1328,22 +1328,19 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
                 )
               }
               result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
-            }
-            else if (shelf.type == "series") {
+            } else if (shelf.type == "series") {
               val children = (shelf as LibraryShelfSeriesEntity).entities?.map { librarySeriesItem ->
                 val description = librarySeriesItem.getMediaDescription(null, ctx)
                 MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE)
               }
               result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
-            }
-            else if (shelf.type == "authors") {
+            } else if (shelf.type == "authors") {
               val children = (shelf as LibraryShelfAuthorEntity).entities?.map { authorItem ->
                 val description = authorItem.getMediaDescription(null, ctx)
                 MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE)
               }
               result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
-            }
-            else {
+            } else {
               result.sendResult(mutableListOf())
             }
 
@@ -1396,7 +1393,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
             result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
           }
         }
-      }else if (mediaIdParts[3] == "SERIES_LIST") {
+      } else if (mediaIdParts[3] == "SERIES_LIST") {
         Log.d(tag, "Loading series from library ${mediaIdParts[2]}")
         mediaManager.loadLibrarySeriesWithAudio(mediaIdParts[2]) { seriesItems ->
           Log.d(tag, "Received ${seriesItems.size} series")
@@ -1563,7 +1560,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
           }
           result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
         }
-      }else {
+      } else {
         result.sendResult(null)
       }
     } else {
@@ -1586,7 +1583,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       mediaManager.serverLibraries.forEach { serverLibrary ->
         runBlocking {
           // Skip searching library if it doesn't have any audio files
-          if (serverLibrary.stats?.numAudioTracks == 0) return@runBlocking
+          if (serverLibrary.stats?.numAudioFiles == 0) return@runBlocking
           val searchResult = mediaManager.doSearch(serverLibrary.id, query)
           for (resultData in searchResult.entries.iterator()) {
             when (resultData.key) {

@@ -155,7 +155,7 @@ class ApiHandler(var ctx:Context) {
 
   fun getLibraries(cb: (List<Library>) -> Unit) {
     val mapper = jacksonMapper
-    getRequest("/api/libraries", null,null) {
+    getRequest("/api/libraries?include=stats", null,null) {
       val libraries = mutableListOf<Library>()
 
       var array = JSONArray()
@@ -169,18 +169,6 @@ class ApiHandler(var ctx:Context) {
         libraries.add(mapper.readValue(array.get(i).toString()))
       }
       cb(libraries)
-    }
-  }
-
-  fun getLibraryStats(libraryItemId:String, cb: (LibraryStats?) -> Unit) {
-    getRequest("/api/libraries/$libraryItemId/stats", null, null) {
-      if (it.has("error")) {
-        Log.e(tag, it.getString("error") ?: "getLibraryStats Failed")
-        cb(null)
-      } else {
-        val libraryStats = jacksonMapper.readValue<LibraryStats>(it.toString())
-        cb(libraryStats)
-      }
     }
   }
 

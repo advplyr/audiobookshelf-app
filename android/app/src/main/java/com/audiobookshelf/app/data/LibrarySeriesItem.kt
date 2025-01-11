@@ -25,7 +25,7 @@ class LibrarySeriesItem(
   val audiobookCount: Int
     get() {
       if (books == null) return 0
-      val booksWithAudio = books?.filter { b -> (b.media as Book).numTracks != 0 }
+      val booksWithAudio = books?.filter { b -> b.media.checkHasTracks() }
       return booksWithAudio?.size ?: 0
     }
 

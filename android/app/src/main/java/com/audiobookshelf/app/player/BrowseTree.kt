@@ -54,7 +54,7 @@ class BrowseTree(
 
       libraries.forEach { library ->
         // Skip libraries without audio content
-        if (library.stats?.numAudioTracks == 0) return@forEach
+        if (library.stats?.numAudioFiles == 0) return@forEach
         Log.d("BrowseTree", "Library $library | ${library.icon}")
         // Generate library list items for Libraries menu
         val libraryMediaMetadata = library.getMediaMetadata(context)

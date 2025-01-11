@@ -58,11 +58,7 @@ class LibraryItem(
 
   @JsonIgnore
   fun checkHasTracks():Boolean {
-    return if (mediaType == "podcast") {
-      ((media as Podcast).numEpisodes ?: 0) > 0
-    } else {
-      ((media as Book).numTracks ?: 0) > 0
-    }
+    return media.checkHasTracks()
   }
 
   @get:JsonIgnore
