@@ -30,6 +30,7 @@
 		4D91EEC62A40F28D004807ED /* EBookFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D91EEC52A40F28D004807ED /* EBookFile.swift */; };
 		4DABC04F2B0139CA000F6264 /* User.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DABC04E2B0139CA000F6264 /* User.swift */; };
 		4DF74912287105C600AC7814 /* DeviceSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DF74911287105C600AC7814 /* DeviceSettings.swift */; };
+		4DFE2DA32D345C390000B204 /* MyViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DFE2DA22D345C390000B204 /* MyViewController.swift */; };
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
 		504EC3081FED79650016851F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504EC3071FED79650016851F /* AppDelegate.swift */; };
 		504EC30D1FED79650016851F /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30B1FED79650016851F /* Main.storyboard */; };
@@ -105,6 +106,7 @@
 		4D91EEC52A40F28D004807ED /* EBookFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EBookFile.swift; sourceTree = "<group>"; };
 		4DABC04E2B0139CA000F6264 /* User.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = User.swift; sourceTree = "<group>"; };
 		4DF74911287105C600AC7814 /* DeviceSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceSettings.swift; sourceTree = "<group>"; };
+		4DFE2DA22D345C390000B204 /* MyViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyViewController.swift; sourceTree = "<group>"; };
 		50379B222058CBB4000EE86E /* capacitor.config.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = capacitor.config.json; sourceTree = "<group>"; };
 		504EC3041FED79650016851F /* Audiobookshelf.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Audiobookshelf.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		504EC3071FED79650016851F /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -292,6 +294,7 @@
 				2FAD9762203C412B000D30F8 /* config.xml */,
 				50B271D01FEDC1A000F3C39B /* public */,
 				4D8D412C26E187E400BA5F0D /* App-Bridging-Header.h */,
+				4DFE2DA22D345C390000B204 /* MyViewController.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -548,6 +551,7 @@
 				E9E985F828B02D9400957F23 /* PlayerProgress.swift in Sources */,
 				E9D5505E28AC1C8500C746DD /* MediaProgress.swift in Sources */,
 				3A200C1527D64D7E00CBF02E /* AudioPlayer.swift in Sources */,
+				4DFE2DA32D345C390000B204 /* MyViewController.swift in Sources */,
 				E9D5507128AC1EC700C746DD /* DownloadItemPart.swift in Sources */,
 				4D66B956282EE951008272D4 /* AbsFileSystem.m in Sources */,
 				EACB38142BCCA1410060DA4A /* LegacyAudioPlayerRateManager.swift in Sources */,
