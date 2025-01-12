@@ -10,5 +10,18 @@
 	},
 	"server": {
 		"androidScheme": "http"
-	}
+	},
+	"packageClassList": [
+		"FileSharerPlugin",
+		"VolumeButtonsPlugin",
+		"AppPlugin",
+		"CAPBrowserPlugin",
+		"ClipboardPlugin",
+		"DialogPlugin",
+		"HapticsPlugin",
+		"CAPNetworkPlugin",
+		"PreferencesPlugin",
+		"StatusBarPlugin",
+		"CDVPlugin"
+	]
 }

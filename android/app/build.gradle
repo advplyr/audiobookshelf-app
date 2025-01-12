@@ -26,11 +26,12 @@ android {
   namespace 'com.audiobookshelf.app'
   buildFeatures {
     viewBinding true
+    buildConfig true
   }
   kotlinOptions {
     freeCompilerArgs = ['-Xjvm-default=all']
   }
-  compileSdkVersion rootProject.ext.compileSdkVersion
+  compileSdk rootProject.ext.compileSdkVersion
   defaultConfig {
     applicationId "com.audiobookshelf.app"
     minSdkVersion rootProject.ext.minSdkVersion
