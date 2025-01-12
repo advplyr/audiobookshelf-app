@@ -18,6 +18,8 @@ kotlin {
     "--add-opens=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
     "--add-opens=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED"
   ]
+
+  jvmToolchain(17)
 }
 
 android {
@@ -26,43 +28,43 @@ android {
     viewBinding true
   }
   kotlinOptions {
-      freeCompilerArgs = ['-Xjvm-default=all']
-    }
+    freeCompilerArgs = ['-Xjvm-default=all']
+  }
   compileSdkVersion rootProject.ext.compileSdkVersion
   defaultConfig {
-        applicationId "com.audiobookshelf.app"
-        minSdkVersion rootProject.ext.minSdkVersion
-        targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 108
-        versionName "0.9.77-beta"
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        manifestPlaceholders = [
-          "appAuthRedirectScheme": "com.audiobookshelf.app"
-        ]
-        aaptOptions {
-             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
-             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
-            ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
-        }
+    applicationId "com.audiobookshelf.app"
+    minSdkVersion rootProject.ext.minSdkVersion
+    targetSdkVersion rootProject.ext.targetSdkVersion
+    versionCode 108
+    versionName "0.9.77-beta"
+    testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    manifestPlaceholders = [
+      "appAuthRedirectScheme": "com.audiobookshelf.app"
+    ]
+    aaptOptions {
+      // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+      // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+      ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
     }
-    buildTypes {
-        debug {
-          applicationIdSuffix ".debug"
-          versionNameSuffix "-debug"
-          minifyEnabled false
-          proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-        }
-        release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-        }
+  }
+  buildTypes {
+    debug {
+      applicationIdSuffix ".debug"
+      versionNameSuffix "-debug"
+      minifyEnabled false
+      proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
     }
+    release {
+      minifyEnabled false
+      proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+    }
+  }
 }
 
 repositories {
-    flatDir{
-        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
-    }
+  flatDir {
+    dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+  }
   mavenCentral()
 }
 
@@ -78,12 +80,12 @@ configurations.configureEach {
 }
 
 dependencies {
-    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+  implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
   implementation fileTree(include: ['*.jar'], dir: 'libs')
   implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
   implementation project(':capacitor-android')
 
-  implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+  implementation 'androidx.constraintlayout:constraintlayout:2.2.0'
   implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
 
   implementation project(':capacitor-cordova-android-plugins')
