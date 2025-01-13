@@ -42,8 +42,6 @@
     "vuedraggable": "^2.24.3"
   },
   "devDependencies": {
-    "@babel/core": "7.13.15",
-    "@babel/preset-env": "7.13.15",
     "@capacitor/cli": "^6.0.0",
     "autoprefixer": "^10.4.17",
     "postcss": "^8.4.33",
