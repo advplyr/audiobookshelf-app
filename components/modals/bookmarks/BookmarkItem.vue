@@ -7,7 +7,7 @@
           {{ bookmark.title }}
         </p>
       </div>
-      <p class="text-sm font-mono text-fg-muted flex items-center"><span class="material-icons text-base pl-px pr-1">schedule</span>{{ $secondsToTimestamp(bookmark.time) }}</p>
+      <p class="text-sm font-mono text-fg-muted flex items-center"><span class="material-icons text-base pl-px pr-1">schedule</span>{{ $secondsToTimestamp(bookmark.time / playbackRate) }}</p>
     </div>
     <div class="h-full flex items-center justify-end transform w-16 pr-2" @click.stop>
       <span class="material-icons text-2xl mr-2 text-fg hover:text-yellow-400" @click.stop="editClick">edit</span>
@@ -23,7 +23,8 @@ export default {
       type: Object,
       default: () => {}
     },
-    highlight: Boolean
+    highlight: Boolean,
+    playbackRate: Number
   },
   data() {
     return {}
@@ -39,7 +40,6 @@ export default {
     editClick() {
       this.$emit('edit', this.bookmark)
     }
-  },
-  mounted() {}
+  }
 }
 </script>
