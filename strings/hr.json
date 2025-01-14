@@ -93,6 +93,8 @@
   "LabelAll": "Sve",
   "LabelAllowSeekingOnMediaControls": "Dopusti pretraživanje položaja na obavijesti s upravljanjem medijima",
   "LabelAlways": "Uvijek",
+  "LabelAndroidAutoBrowseLimitForGrouping": "Ograničenje za abecednu kliznu traku",
+  "LabelAndroidAutoBrowseLimitForGroupingHelp": "Nemoj koristiti abecednu kliznu traku kada popis ima manje od ovoliko stavki",
   "LabelAndroidAutoBrowseSeriesSequenceOrder": "Redoslijed knjiga serija",
   "LabelAskConfirmation": "Zatraži potvrdu",
   "LabelAuthor": "Autor",
