@@ -1,5 +1,5 @@
 <template>
-  <div :key="bookmark.id" :id="`bookmark-row-${bookmark.id}`" class="flex items-center px-1 py-4 justify-start relative" :class="highlight ? 'bg-bg bg-opacity-60' : ' bg-opacity-20'" @click="click">
+  <div :key="bookmark.time" :id="`bookmark-row-${bookmark.time}`" class="flex items-center px-1 py-4 justify-start relative" :class="highlight ? 'bg-bg bg-opacity-60' : ' bg-opacity-20'" @click="click">
     <div class="flex-grow overflow-hidden px-2">
       <div class="flex items-center mb-0.5">
         <i class="material-icons text-lg pr-1 -mb-1" :class="highlight ? 'text-success' : 'text-fg-muted'">{{ highlight ? 'bookmark' : 'bookmark_border' }}</i>
