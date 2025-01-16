@@ -56,7 +56,7 @@
     <!-- ereader settings modal -->
     <modals-fullscreen-modal v-model="showSettingsModal" :theme="ereaderTheme">
       <div style="box-shadow: 0px -8px 8px #11111155">
-        <div class="flex items-end justify-between h-14 px-4 pb-2 mb-6">
+        <div class="flex items-end justify-between h-20 px-4 pb-2 mb-6">
           <h1 class="text-lg">{{ $strings.HeaderEreaderSettings }}</h1>
           <button class="flex" @click="showSettingsModal = false">
             <span class="material-icons">close</span>
