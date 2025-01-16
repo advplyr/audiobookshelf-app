@@ -6,7 +6,7 @@
       </div>
     </template>
     <div class="w-full h-full overflow-hidden absolute top-0 left-0 flex items-center justify-center" @click="show = false">
-      <div ref="container" class="w-full rounded-lg bg-primary border border-border overflow-y-auto overflow-x-hidden" style="max-height: 80vh" @click.stop.prevent>
+      <div class="w-full rounded-lg bg-primary border border-border overflow-y-auto overflow-x-hidden relative mt-16" style="max-height: 80vh" @click.stop.prevent>
         <div class="w-full h-full p-4" v-if="showBookmarkTitleInput">
           <div class="flex mb-4 items-center">
             <div class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-white hover:bg-opacity-10 cursor-pointer" @click.stop="showBookmarkTitleInput = false">
@@ -29,11 +29,11 @@
           <div v-if="!bookmarks.length" class="flex h-32 items-center justify-center">
             <p class="text-xl">{{ $strings.MessageNoBookmarks }}</p>
           </div>
-          <div v-show="canCreateBookmark" class="flex px-4 py-2 items-center text-center justify-between border-b border-fg/10 bg-success cursor-pointer text-white text-opacity-80" @click.stop="createBookmark">
-            <span class="material-icons">add</span>
-            <p class="text-base pl-2">{{ $strings.ButtonCreateBookmark }}</p>
-            <p class="text-sm font-mono">{{ this.$secondsToTimestamp(currentTime / _playbackRate) }}</p>
-          </div>
+        </div>
+        <div v-if="canCreateBookmark && !showBookmarkTitleInput" class="flex px-4 py-2 items-center text-center justify-between border-b border-fg/10 bg-success cursor-pointer text-white text-opacity-80 sticky bottom-0 left-0 w-full" @click.stop="createBookmark">
+          <span class="material-icons">add</span>
+          <p class="text-base pl-2">{{ $strings.ButtonCreateBookmark }}</p>
+          <p class="text-sm font-mono">{{ this.$secondsToTimestamp(currentTime / _playbackRate) }}</p>
         </div>
       </div>
     </div>
