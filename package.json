@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "nuxt --hostname 0.0.0.0 --port 1337",
     "build": "nuxt build",
-    "start": "nuxt start",
+    "start": "nuxt --hostname 0.0.0.0 --port 1337",
     "generate": "nuxt generate",
     "sync": "nuxt generate && npx cap sync",
     "icons-android": "cordova-res android --skip-config --copy",
@@ -29,7 +29,7 @@
     "@nuxtjs/axios": "^5.13.6",
     "@teckel/vue-pdf": "^4.3.5",
     "buffer": "^6.0.3",
-    "cordova-plugin-screen-orientation": "^3.0.2",
+    "cordova-plugin-screen-orientation": "^3.0.4",
     "core-js": "^3.15.1",
     "date-fns": "^2.25.0",
     "epubjs": "0.3.88",
