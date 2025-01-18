@@ -195,6 +195,7 @@
   "LabelProgress": "Edistyminen",
   "LabelPubDate": "Julkaisupäivä",
   "LabelPublishYear": "Julkaisuvuosi",
+  "LabelPublishedDate": "Julkaistu {0}",
   "LabelRSSFeedPreventIndexing": "Estä indeksointi",
   "LabelRandomly": "Satunnaisesti",
   "LabelRead": "Lue",
