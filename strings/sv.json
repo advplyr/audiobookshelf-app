@@ -298,7 +298,7 @@
   "ToastBookmarkRemoveFailed": "Det gick inte att ta bort bokmärket",
   "ToastBookmarkUpdateFailed": "Det gick inte att uppdatera bokmärket",
   "ToastDownloadNotAllowedOnCellular": "Nedladdning tillåts inte över mobildata",
-  "ToastItemMarkedAsFinishedFailed": "Misslyckades med att markera som färdig",
+  "ToastItemMarkedAsFinishedFailed": "Misslyckades med att markera den som avslutad",
   "ToastItemMarkedAsNotFinishedFailed": "Misslyckades med att markera som ej färdig",
   "ToastPlaylistCreateFailed": "Det gick inte att skapa spellistan",
   "ToastPodcastCreateFailed": "Misslyckades med att skapa podcasten",
