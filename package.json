@@ -10,10 +10,12 @@
     "sync": "nuxt generate && npx cap sync",
     "icons-android": "cordova-res android --skip-config --copy",
     "ionic:build": "npm run build",
-    "ionic:serve": "npm run start"
+    "ionic:serve": "npm run dev",
+    "devlive": "ionic cap run -l --external --port=1337"
   },
   "dependencies": {
     "@byteowls/capacitor-filesharer": "^6.0.0",
+    "@capacitor-community/keep-awake": "^5.0.1",
     "@capacitor-community/volume-buttons": "^6.0.1",
     "@capacitor/android": "^6.0.0",
     "@capacitor/app": "^6.0.0",
