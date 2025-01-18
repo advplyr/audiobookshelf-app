@@ -12,6 +12,7 @@
 	},
 	"packageClassList": [
 		"FileSharerPlugin",
+		"KeepAwakePlugin",
 		"VolumeButtonsPlugin",
 		"AppPlugin",
 		"CAPBrowserPlugin",
