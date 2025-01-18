@@ -21,7 +21,13 @@
         <p class="truncate text-fg-muted" :style="{ fontSize: 0.7 * sizeMultiplier + 'rem' }">{{ displayAuthor }}</p>
         <p v-if="displaySortLine" class="truncate text-fg-muted" :style="{ fontSize: 0.7 * sizeMultiplier + 'rem' }">{{ displaySortLine }}</p>
         <p v-if="duration" class="truncate text-fg-muted" :style="{ fontSize: 0.7 * sizeMultiplier + 'rem' }">{{ $elapsedPretty(duration) }}</p>
-        <p v-if="episodes" class="truncate text-fg-muted" :style="{ fontSize: 0.7 * sizeMultiplier + 'rem' }">{{ episodes }}</p>
+
+        <p v-if="numEpisodesIncomplete" class="truncate text-fg-muted" :style="{ fontSize: 0.7 * sizeMultiplier + 'rem' }">
+          {{ $getString('LabelNumEpisodesIncomplete', [numEpisodes, numEpisodesIncomplete]) }}
+        </p>
+        <p v-else-if="numEpisodes" class="truncate text-fg-muted" :style="{ fontSize: 0.7 * sizeMultiplier + 'rem' }">
+          {{ $getString('LabelNumEpisodes', [numEpisodes]) }}
+        </p>
       </div>
 
       <div v-if="localLibraryItem || isLocal" class="absolute top-0 right-0 z-20" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }">
@@ -106,12 +112,13 @@ export default {
     isPodcast() {
       return this.mediaType === 'podcast'
     },
-    episodes() {
-      if (this.isPodcast) {
-        return this.$getString('LabelNumEpisodes', [this.media.numEpisodes])
-      } else {
-        return null
-      }
+    numEpisodes() {
+      if (this.isLocal && this.isPodcast && this.media.episodes) return this.media.episodes.length
+      return this.media.numEpisodes
+    },
+    numEpisodesIncomplete() {
+      if (this.isLocal) return 0
+      return this._libraryItem.numEpisodesIncomplete || 0
     },
     placeholderUrl() {
       return '/book_placeholder.jpg'

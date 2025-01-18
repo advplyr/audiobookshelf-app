@@ -195,6 +195,7 @@
   "LabelNotFinished": "Not Finished",
   "LabelNotStarted": "Not Started",
   "LabelNumEpisodes": "{0} episodes",
+  "LabelNumEpisodesIncomplete": "{0} episodes, {1} incomplete",
   "LabelOff": "Off",
   "LabelOn": "On",
   "LabelPassword": "Password",
