@@ -35,7 +35,7 @@
         <covers-book-cover v-if="libraryItem || localLibraryItemCoverSrc" ref="cover" :library-item="libraryItem" :download-cover="localLibraryItemCoverSrc" :width="bookCoverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" raw @imageLoaded="coverImageLoaded" />
       </div>
 
-      <div v-if="syncStatus === $constants.SyncStatus.FAILED" class="absolute top-0 left-0 w-full h-full flex items-center justify-center z-30">
+      <div v-if="syncStatus === $constants.SyncStatus.FAILED" class="absolute top-0 left-0 w-full h-full flex items-center justify-center z-30" @click.stop="showSyncsFailedDialog">
         <span class="material-icons text-error text-3xl">error</span>
       </div>
     </div>
@@ -107,6 +107,7 @@
 <script>
 import { Capacitor } from '@capacitor/core'
 import { AbsAudioPlayer } from '@/plugins/capacitor'
+import { Dialog } from '@capacitor/dialog'
 import { FastAverageColor } from 'fast-average-color'
 import WrappingMarquee from '@/assets/WrappingMarquee.js'
 
@@ -390,6 +391,13 @@ export default {
     }
   },
   methods: {
+    showSyncsFailedDialog() {
+      Dialog.alert({
+        title: this.$strings.HeaderProgressSyncFailed,
+        message: this.$strings.MessageProgressSyncFailed,
+        cancelText: this.$strings.ButtonOk
+      })
+    },
     clickChaptersBtn() {
       if (!this.chapters.length) return
       this.showChapterModal = true

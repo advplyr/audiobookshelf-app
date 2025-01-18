@@ -152,7 +152,7 @@ export default {
       Dialog.alert({
         title: 'Old Server Connection Warning',
         message: this.$strings.MessageOldServerConnectionWarningHelp,
-        cancelText: 'OK'
+        cancelText: this.$strings.ButtonOk
       })
     },
     checkIdUuid(userId) {
