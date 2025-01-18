@@ -39,9 +39,6 @@ export default {
     }
   },
   computed: {
-    userToken() {
-      return this.$store.getters['user/getToken']
-    },
     _author() {
       return this.author || {}
     },
@@ -61,9 +58,9 @@ export default {
       if (!this.imagePath || !this.serverAddress) return null
       if (process.env.NODE_ENV !== 'production' && this.serverAddress.startsWith('http://192.168')) {
         // Testing
-        return `http://localhost:3333/api/authors/${this.authorId}/image?token=${this.userToken}&ts=${this.updatedAt}`
+        return `http://localhost:3333/api/authors/${this.authorId}/image?ts=${this.updatedAt}`
       }
-      return `${this.serverAddress}/api/authors/${this.authorId}/image?token=${this.userToken}&ts=${this.updatedAt}`
+      return `${this.serverAddress}/api/authors/${this.authorId}/image?ts=${this.updatedAt}`
     }
   },
   methods: {

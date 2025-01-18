@@ -50,9 +50,6 @@ export default {
     libraryItemId() {
       return this.libraryItem.id
     },
-    userToken() {
-      return this.$store.getters['user/getToken']
-    },
     ebookFiles() {
       return (this.libraryItem.libraryFiles || []).filter((lf) => lf.fileType === 'ebook')
     },

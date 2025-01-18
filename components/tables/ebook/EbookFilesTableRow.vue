@@ -24,9 +24,6 @@ export default {
     return {}
   },
   computed: {
-    userToken() {
-      return this.$store.getters['user/getToken']
-    },
     userCanUpdate() {
       return this.$store.getters['user/getUserCanUpdate']
     },

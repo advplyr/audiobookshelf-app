@@ -366,9 +366,6 @@ export default {
     user() {
       return this.$store.state.user.user
     },
-    userToken() {
-      return this.$store.getters['user/getToken']
-    },
     userItemProgress() {
       if (this.isPodcast) return null
       if (this.isLocal) return this.localItemProgress

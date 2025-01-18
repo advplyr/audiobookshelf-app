@@ -141,9 +141,6 @@ export default {
     },
     authorBottom() {
       return 0.75 * this.sizeMultiplier
-    },
-    userToken() {
-      return this.$store.getters['user/getToken']
     }
   },
   methods: {

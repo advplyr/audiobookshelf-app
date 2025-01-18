@@ -42,9 +42,6 @@ export default {
     }
   },
   computed: {
-    userToken() {
-      return this.$store.getters['user/getToken']
-    },
     _author() {
       return this.author || {}
     },
