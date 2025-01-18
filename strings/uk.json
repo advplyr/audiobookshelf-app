@@ -163,6 +163,7 @@
   "LabelInternalAppStorage": "Внутрішня пам'ять додатку",
   "LabelJumpBackwardsTime": "Час відмотування назад",
   "LabelJumpForwardsTime": "Час перемотування вперед",
+  "LabelKeepScreenAwake": "Тримайте екран активним",
   "LabelLanguage": "Мова",
   "LabelLayout": "Вигляд",
   "LabelLayoutAuto": "Авто",
