@@ -308,6 +308,8 @@
   "MessageNoSeries": "No series",
   "MessageNoUpdatesWereNecessary": "No updates were necessary",
   "MessageNoUserPlaylists": "You have no playlists",
+  "MessageOldServerConnectionWarning": "Server connection config is using an old user ID. Please delete and re-add this server connection.",
+  "MessageOldServerConnectionWarningHelp": "You originally set up the connection to this server prior to the database migration in 2.3.0, released June 2023. A future server update will remove the ability to sign in with this old connection. Please delete the existing server connection and connect again (using the same server address and credentials). If you have any downloaded media on this device, the media will need to be downloaded again to sync with the server.",
   "MessagePodcastSearchField": "Enter search term or RSS feed URL",
   "MessageReportBugsAndContribute": "Report bugs, request features, and contribute on",
   "MessageSeriesAlreadyDownloaded": "You have already downloaded all books in this series.",
