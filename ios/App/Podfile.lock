@@ -10,6 +10,8 @@ PODS:
     - Capacitor
   - CapacitorClipboard (6.0.2):
     - Capacitor
+  - CapacitorCommunityKeepAwake (5.0.1):
+    - Capacitor
   - CapacitorCommunityVolumeButtons (6.0.1):
     - Capacitor
   - CapacitorCordova (6.2.0)
@@ -38,6 +40,7 @@ DEPENDENCIES:
   - "CapacitorApp (from `../../node_modules/@capacitor/app`)"
   - "CapacitorBrowser (from `../../node_modules/@capacitor/browser`)"
   - "CapacitorClipboard (from `../../node_modules/@capacitor/clipboard`)"
+  - "CapacitorCommunityKeepAwake (from `../../node_modules/@capacitor-community/keep-awake`)"
   - "CapacitorCommunityVolumeButtons (from `../../node_modules/@capacitor-community/volume-buttons`)"
   - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
   - "CapacitorDialog (from `../../node_modules/@capacitor/dialog`)"
@@ -65,6 +68,8 @@ EXTERNAL SOURCES:
     :path: "../../node_modules/@capacitor/browser"
   CapacitorClipboard:
     :path: "../../node_modules/@capacitor/clipboard"
+  CapacitorCommunityKeepAwake:
+    :path: "../../node_modules/@capacitor-community/keep-awake"
   CapacitorCommunityVolumeButtons:
     :path: "../../node_modules/@capacitor-community/volume-buttons"
   CapacitorCordova:
@@ -89,6 +94,7 @@ SPEC CHECKSUMS:
   CapacitorApp: 2a8c3a0b0814322e5e6e15fe595f02c3808f0f8b
   CapacitorBrowser: ef0529d16cd8839281050c350e7bbee4f5c6d65f
   CapacitorClipboard: 55e0a514f1e97b1409d533266c119dcbff3e78c3
+  CapacitorCommunityKeepAwake: e2ddd50812e3407f8dc3a2c28e97d66e9b59b2f5
   CapacitorCommunityVolumeButtons: a7612c5996f1c66320ef7a567522346d84a57e22
   CapacitorCordova: b33e7f4aa4ed105dd43283acdd940964374a87d9
   CapacitorDialog: e966e2261e1c74a8a502e610dd66b4f97ec6fcca
@@ -100,6 +106,6 @@ SPEC CHECKSUMS:
   Realm: e43fb540ae947497e3ea8a662443256920602060
   RealmSwift: 8b06ed06b5d16749ae0c4d91c0cba414a9e28189
 
-PODFILE CHECKSUM: d0bbe98fb520752929ffc76e7c901d54b2eed7f0
+PODFILE CHECKSUM: 96d7bd74a37a613766883c65fc082490b5dbd7e9
 
 COCOAPODS: 1.12.1

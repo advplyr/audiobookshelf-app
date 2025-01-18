@@ -66,45 +66,51 @@
           <div class="w-full h-full px-4">
             <div class="flex items-center mb-6">
               <div class="w-32">
-                <p class="text-base">{{ $strings.LabelTheme }}:</p>
+                <p class="text-sm">{{ $strings.LabelTheme }}</p>
               </div>
-              <ui-toggle-btns v-model="ereaderSettings.theme" :items="themeItems" @input="settingsUpdated" />
+              <ui-toggle-btns v-model="ereaderSettings.theme" name="theme" :items="themeItems" @input="settingsUpdated" />
             </div>
             <div class="flex items-center mb-6">
               <div class="w-32">
-                <p class="text-base">{{ $strings.LabelFontScale }}:</p>
+                <p class="text-sm">{{ $strings.LabelFontScale }}</p>
               </div>
               <ui-range-input v-model="ereaderSettings.fontScale" :min="5" :max="300" :step="5" input-width="180px" @input="settingsUpdated" />
             </div>
             <div class="flex items-center mb-6">
               <div class="w-32">
-                <p class="text-base">{{ $strings.LabelLineSpacing }}:</p>
+                <p class="text-sm">{{ $strings.LabelLineSpacing }}</p>
               </div>
               <ui-range-input v-model="ereaderSettings.lineSpacing" :min="100" :max="300" :step="5" input-width="180px" @input="settingsUpdated" />
             </div>
             <div class="flex items-center mb-6">
               <div class="w-32">
-                <p class="text-base">{{ $strings.LabelFontBoldness }}:</p>
+                <p class="text-sm">{{ $strings.LabelFontBoldness }}</p>
               </div>
               <ui-range-input v-model="ereaderSettings.textStroke" :min="0" :max="300" :step="5" input-width="180px" @input="settingsUpdated" />
             </div>
             <div class="flex items-center mb-6">
               <div class="w-32">
-                <p class="text-base">{{ $strings.LabelLayout }}:</p>
+                <p class="text-sm">{{ $strings.LabelLayout }}</p>
               </div>
-              <ui-toggle-btns v-model="ereaderSettings.spread" :items="spreadItems" @input="settingsUpdated" />
+              <ui-toggle-btns v-model="ereaderSettings.spread" name="spread" :items="spreadItems" @input="settingsUpdated" />
             </div>
             <div class="flex items-center mb-6">
               <div class="w-32">
-                <p class="text-base">{{ $strings.LabelNavigateWithVolume }}:</p>
+                <p class="text-sm">{{ $strings.LabelNavigateWithVolume }}</p>
               </div>
-              <ui-toggle-btns v-model="ereaderSettings.navigateWithVolume" :items="navigateWithVolumeItems" @input="settingsUpdated" />
+              <ui-toggle-btns v-model="ereaderSettings.navigateWithVolume" name="navigate-volume" :items="navigateWithVolumeItems" @input="settingsUpdated" />
+            </div>
+            <div class="flex items-center mb-6">
+              <div class="w-32">
+                <p class="text-sm">{{ $strings.LabelNavigateWithVolumeWhilePlaying }}</p>
+              </div>
+              <ui-toggle-btns v-model="ereaderSettings.navigateWithVolumeWhilePlaying" name="navigate-volume-playing" :items="onOffToggleButtonItems" @input="settingsUpdated" />
             </div>
             <div class="flex items-center">
               <div class="w-32">
-                <p class="text-base">{{ $strings.LabelNavigateWithVolumeWhilePlaying }}:</p>
+                <p class="text-sm">{{ $strings.LabelKeepScreenAwake }}</p>
               </div>
-              <ui-toggle-btns v-model="ereaderSettings.navigateWithVolumeWhilePlaying" :items="navigateWithVolumeWhilePlayingItems" @input="settingsUpdated" />
+              <ui-toggle-btns v-model="ereaderSettings.keepScreenAwake" name="keep-awake" :items="onOffToggleButtonItems" @input="settingsUpdated" />
             </div>
           </div>
         </div>
@@ -116,6 +122,7 @@
 <script>
 import { Capacitor } from '@capacitor/core'
 import { VolumeButtons } from '@capacitor-community/volume-buttons'
+import { KeepAwake } from '@capacitor-community/keep-awake'
 
 export default {
   data() {
@@ -139,7 +146,8 @@ export default {
         spread: 'auto',
         textStroke: 0,
         navigateWithVolume: 'enabled',
-        navigateWithVolumeWhilePlaying: false
+        navigateWithVolumeWhilePlaying: false,
+        keepScreenAwake: false
       }
     }
   },
@@ -216,7 +224,7 @@ export default {
         }
       ]
     },
-    navigateWithVolumeWhilePlayingItems() {
+    onOffToggleButtonItems() {
       return [
         {
           text: this.$strings.LabelOn,
@@ -314,6 +322,7 @@ export default {
       localStorage.setItem('ereaderSettings', JSON.stringify(this.ereaderSettings))
 
       this.initWatchVolume()
+      this.initKeepScreenAwake()
     },
     goToChapter(href) {
       this.showTOCModal = false
@@ -459,11 +468,25 @@ export default {
 
       this.isInittingWatchVolume = false
     },
+    async initKeepScreenAwake() {
+      try {
+        if (this.ereaderSettings.keepScreenAwake) {
+          await KeepAwake.keepAwake()
+          console.log('Reader keep screen awake enabled')
+        } else {
+          await KeepAwake.allowSleep()
+          console.log('Reader keep screen awake disabled')
+        }
+      } catch (error) {
+        console.error('Failed to init keep screen awake', error)
+      }
+    },
     registerListeners() {
       this.$eventBus.$on('close-ebook', this.closeEvt)
       document.body.addEventListener('touchstart', this.touchstart)
       document.body.addEventListener('touchend', this.touchend)
       this.initWatchVolume()
+      this.initKeepScreenAwake()
     },
     unregisterListeners() {
       this.$eventBus.$on('close-ebook', this.closeEvt)
@@ -471,6 +494,9 @@ export default {
       document.body.removeEventListener('touchend', this.touchend)
       VolumeButtons.clearWatch().catch((error) => {
         console.error('Failed to clear volume watch', error)
+      })
+      KeepAwake.allowSleep().catch((error) => {
+        console.error('Failed to allow sleep', error)
       })
     },
     volumePressed(e) {

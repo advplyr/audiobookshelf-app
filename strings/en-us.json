@@ -163,6 +163,7 @@
   "LabelInternalAppStorage": "Internal App Storage",
   "LabelJumpBackwardsTime": "Jump backwards time",
   "LabelJumpForwardsTime": "Jump forwards time",
+  "LabelKeepScreenAwake": "Keep screen awake",
   "LabelLanguage": "Language",
   "LabelLayout": "Layout",
   "LabelLayoutAuto": "Auto",
