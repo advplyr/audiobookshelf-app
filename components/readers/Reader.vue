@@ -56,13 +56,13 @@
     <!-- ereader settings modal -->
     <modals-fullscreen-modal v-model="showSettingsModal" :theme="ereaderTheme" threeQuartersScreen>
       <div style="box-shadow: 0px -8px 8px #11111155">
-        <div class="flex items-end justify-between h-20 px-4 pb-2 mb-6">
+        <div class="flex items-end justify-between h-14 px-4 pb-2 mb-6">
           <h1 class="text-lg">{{ $strings.HeaderEreaderSettings }}</h1>
           <button class="flex" @click="showSettingsModal = false">
             <span class="material-icons">close</span>
           </button>
         </div>
-        <div class="w-full overflow-y-auto overflow-x-hidden h-full max-h-[calc(100vh-85px)]">
+        <div class="w-full overflow-y-auto overflow-x-hidden h-full max-h-[calc(75vh-85px)]">
           <div class="w-full h-full px-4">
             <div class="flex items-center mb-6">
               <div class="w-32">
@@ -106,7 +106,7 @@
               </div>
               <ui-toggle-btns v-model="ereaderSettings.navigateWithVolumeWhilePlaying" name="navigate-volume-playing" :items="onOffToggleButtonItems" @input="settingsUpdated" />
             </div>
-            <div class="flex items-center">
+            <div class="flex items-center mb-6">
               <div class="w-32">
                 <p class="text-sm">{{ $strings.LabelKeepScreenAwake }}</p>
               </div>
