@@ -10,21 +10,21 @@
     <div class="flex text-center justify-center">
       <div class="flex p-2">
         <div class="px-3">
-          <p class="text-4xl md:text-5xl font-bold">{{ userItemsFinished.length }}</p>
+          <p class="text-4xl md:text-5xl font-bold">{{ $formatNumber(userItemsFinished.length) }}</p>
           <p class="text-xs md:text-sm text-fg-muted">{{ $strings.LabelStatsItemsFinished }}</p>
         </div>
       </div>
 
       <div class="flex p-2">
         <div class="px-1">
-          <p class="text-4xl md:text-5xl font-bold">{{ totalDaysListened }}</p>
+          <p class="text-4xl md:text-5xl font-bold">{{ $formatNumber(totalDaysListened) }}</p>
           <p class="text-xs md:text-sm text-fg-muted">{{ $strings.LabelStatsDaysListened }}</p>
         </div>
       </div>
 
       <div class="flex p-2">
         <div class="px-1">
-          <p class="text-4xl md:text-5xl font-bold">{{ totalMinutesListening }}</p>
+          <p class="text-4xl md:text-5xl font-bold">{{ $formatNumber(totalMinutesListening) }}</p>
           <p class="text-xs md:text-sm text-fg-muted">{{ $strings.LabelStatsMinutesListening }}</p>
         </div>
       </div>
