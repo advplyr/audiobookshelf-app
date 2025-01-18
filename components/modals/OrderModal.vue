@@ -87,6 +87,10 @@ export default {
           value: 'size'
         },
         {
+          text: this.$strings.LabelNumberOfEpisodes,
+          value: 'media.numTracks'
+        },
+        {
           text: this.$strings.LabelFileBirthtime,
           value: 'birthtimeMs'
         },
