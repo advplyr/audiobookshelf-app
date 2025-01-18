@@ -195,6 +195,7 @@
   "LabelNotFinished": "Незавершені",
   "LabelNotStarted": "Непочаті",
   "LabelNumEpisodes": "{0} епізодів",
+  "LabelNumEpisodesIncomplete": "{0} серій, {1} не завершено",
   "LabelOff": "Вимкнути",
   "LabelOn": "Увімкнено",
   "LabelPassword": "Пароль",
