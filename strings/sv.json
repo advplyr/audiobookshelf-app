@@ -126,7 +126,7 @@
   "LabelDownloaded": "Nedladdat",
   "LabelDuration": "Varaktighet",
   "LabelEbook": "E-bok",
-  "LabelEbooks": "Eböcker",
+  "LabelEbooks": "E-böcker",
   "LabelEnable": "Aktivera",
   "LabelEnableMp3IndexSeeking": "Aktivera mp3 index sökning",
   "LabelEnableMp3IndexSeekingHelp": "Den här inställningen bör endast aktiveras om du har mp3-filer som inte söker korrekt. Felaktig sökning beror med största sannolikhet på MP3-filer med variabel birate (VBR). Den här inställningen tvingar fram indexsökning, där en tid-till-byte-mappning byggs upp när filen läses. I vissa fall med stora MP3-filer blir det en fördröjning vid sökning mot slutet av filen.",
