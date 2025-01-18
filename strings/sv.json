@@ -136,7 +136,7 @@
   "LabelEpisode": "Avsnitt",
   "LabelFeedURL": "Flödes-URL",
   "LabelFile": "Fil",
-  "LabelFileBirthtime": "Födelse-tidpunkt för fil",
+  "LabelFileBirthtime": "Tidpunkt, filen skapades",
   "LabelFileModified": "Fil ändrad",
   "LabelFilename": "Filnamn",
   "LabelFinished": "Avslutad",
