@@ -86,6 +86,7 @@
   "HeaderYourStats": "Dina statistik",
   "LabelAddToPlaylist": "Lägg till i Spellista",
   "LabelAddedAt": "Tillagd vid",
+  "LabelAddedDate": "Adderad {0}",
   "LabelAll": "Alla",
   "LabelAllowSeekingOnMediaControls": "Tillåt positionssökning på medieaviseringskontroller",
   "LabelAlways": "Alltid",
