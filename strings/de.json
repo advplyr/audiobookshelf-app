@@ -95,6 +95,8 @@
   "LabelAll": "Alle",
   "LabelAllowSeekingOnMediaControls": "Erlaube Vor- und Zurückspulen auf dem Medienkontrollelement bei den Benachrichtigungen",
   "LabelAlways": "Immer",
+  "LabelAndroidAutoBrowseLimitForGrouping": "Alphabetisches Drawdown-Limit",
+  "LabelAndroidAutoBrowseSeriesSequenceOrder": "Reihenfolge der Bücher der Serie",
   "LabelAskConfirmation": "Bestätigung anfordern",
   "LabelAuthor": "Autor",
   "LabelAuthorFirstLast": "Autor (Vorname Nachname)",
