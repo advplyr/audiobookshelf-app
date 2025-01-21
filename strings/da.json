@@ -314,7 +314,7 @@
   "MessageNoUserPlaylists": "Du har ingen afspilningslister",
   "MessageOldServerConnectionWarning": "Server forbindelseskonfiguration anvender et gammelt bruger ID. Fjern venligst og gentilføj denne server forbindelse.",
   "MessageOldServerConnectionWarningHelp": "Du har oprindeligt sat forbindelsen til denne server op før databasemigreringen i 2.3.0, udgivet i juni 2023. En senere serveropdatering vil fjerne muligheden for at logge ind med genne gamle metode. Sørg venligst for at slette den eksisterende serverforbindelse og opret forbindelse igen (ved anvendelse af den samme server adresse og login oplysninger). Hvis du har downloaded noget medie på denne enhed vil dette være nødsaget til at bive downloaded igen efter serversynkronisering.",
-  "MessagePodcastSearchField": "Indtast søgeterm eller RSS-feed URL",
+  "MessagePodcastSearchField": "Indtast søgeterm eller RSS URL",
   "MessageProgressSyncFailed": "Det seneste forsøg på indrapportering af dit lyttefremskridt til serveren er fejlet. Fremskridtssynkroniseringsforespørgsler vil forsøges mellem hvert 15 sekund og 1 minut mens medie afspilles.",
   "MessageReportBugsAndContribute": "Rapporter fejl, anmod om funktioner og bidrag på",
   "MessageSeriesAlreadyDownloaded": "Du har allerede downloadet alle bøgerne i denne serie.",
