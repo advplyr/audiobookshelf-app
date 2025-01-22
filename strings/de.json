@@ -226,6 +226,8 @@
   "LabelScaleElapsedTimeBySpeed": "Vergangene Zeit anhand der Geschwindigkeit skalieren",
   "LabelSeason": "Staffel",
   "LabelSelectADevice": "Wähle ein Gerät",
+  "LabelSequenceAscending": "Reihenfolge aufsteigend",
+  "LabelSequenceDescending": "Reihenfolge absteigend",
   "LabelSeries": "Serien",
   "LabelServerAddress": "Serveradresse",
   "LabelSetEbookAsPrimary": "Als Hauptbuch setzen",
