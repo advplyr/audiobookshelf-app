@@ -988,7 +988,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
   //
   // MEDIA BROWSER STUFF (ANDROID AUTO)
   //
-  private val VALID_MEDIA_BROWSERS = mutableListOf("com.audiobookshelf.app", "com.audiobookshelf.app.debug", "com.android.systemui", ANDROID_AUTO_PKG_NAME, ANDROID_AUTO_SIMULATOR_PKG_NAME, ANDROID_WEARABLE_PKG_NAME, ANDROID_GSEARCH_PKG_NAME, ANDROID_AUTOMOTIVE_PKG_NAME)
+  private val VALID_MEDIA_BROWSERS = mutableListOf("com.audiobookshelf.app", "com.audiobookshelf.app.debug", ANDROID_AUTO_PKG_NAME, ANDROID_AUTO_SIMULATOR_PKG_NAME, ANDROID_WEARABLE_PKG_NAME, ANDROID_GSEARCH_PKG_NAME, ANDROID_AUTOMOTIVE_PKG_NAME)
 
   private val AUTO_MEDIA_ROOT = "/"
   private val LIBRARIES_ROOT = "__LIBRARIES__"
@@ -1015,7 +1015,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat()  {
       // No further calls will be made to other media browsing methods.
       null
     } else {
-      Log.d(tag, "Android Auto starting")
+      Log.d(tag, "Android Auto starting $clientPackageName $clientUid")
       isStarted = true
 
       // Reset cache if no longer connected to server or server changed
