@@ -361,18 +361,13 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
     Log.d(tag, "Increase Sleep time $time")
     if (!sleepTimerRunning) return
 
+    // Increase the sleep timer time (if using fixed length) or end time (if using chapter end time)
+    // and ensure it doesn't go over the duration of the current playback item
     if (sleepTimerEndTime == 0L) {
       sleepTimerLength += time
-      if (sleepTimerLength + getCurrentTime() > getDuration())
-              sleepTimerLength = getDuration() - getCurrentTime()
+      sleepTimerLength = minOf(sleepTimerLength, getDuration() - getCurrentTime())
     } else {
-      val newSleepEndTime = sleepTimerEndTime + time
-      sleepTimerEndTime =
-              if (newSleepEndTime >= getDuration()) {
-                getDuration()
-              } else {
-                newSleepEndTime
-              }
+      sleepTimerEndTime = minOf(sleepTimerEndTime + time, getDuration())
     }
 
     setVolume(1F)
@@ -390,18 +385,12 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
     Log.d(tag, "Decrease Sleep time $time")
     if (!sleepTimerRunning) return
 
+    // Decrease the sleep timer time (if using fixed length) or end time (if using chapter end time)
+    // and ensure it doesn't go below 1 second
     if (sleepTimerEndTime == 0L) {
-      sleepTimerLength -= time
-      if (sleepTimerLength <= 0) sleepTimerLength = 1000L
+      sleepTimerLength = maxOf(sleepTimerLength - time, 1000L)
     } else {
-      val newSleepEndTime = sleepTimerEndTime - time
-      sleepTimerEndTime =
-              if (newSleepEndTime <= 1000) {
-                // End sleep timer in 1 second
-                getCurrentTime() + 1000
-              } else {
-                newSleepEndTime
-              }
+      sleepTimerEndTime = maxOf(sleepTimerEndTime - time, getCurrentTime() + 1000)
     }
 
     setVolume(1F)
