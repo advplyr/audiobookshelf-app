@@ -50,6 +50,14 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
   }
 
   /**
+   * Gets the playback speed of the player.
+   * @return Float - the playback speed.
+   */
+  private fun getPlaybackSpeed(): Float {
+    return playerNotificationService.currentPlayer.playbackParameters.speed
+  }
+
+  /**
    * Sets the volume of the player.
    * @param volume Float - the volume level to set.
    */
@@ -69,15 +77,16 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
 
   /**
    * Gets the remaining time of the sleep timer in seconds.
+   * @param speed Float - the playback speed of the player, default value is 1.
    * @return Int - the remaining time in seconds.
    */
-  private fun getSleepTimerTimeRemainingSeconds(): Int {
+  private fun getSleepTimerTimeRemainingSeconds(speed: Float = 1f): Int {
     if (sleepTimerEndTime == 0L && sleepTimerLength > 0) { // For regular timer
       return ((sleepTimerLength - sleepTimerElapsed) / 1000).toDouble().roundToInt()
     }
     // For chapter end timer
     if (sleepTimerEndTime <= 0) return 0
-    return (((sleepTimerEndTime - getCurrentTime()) / 1000).toDouble()).roundToInt()
+    return (((sleepTimerEndTime - getCurrentTime()) / 1000).toDouble() / speed).roundToInt()
   }
 
   /**
@@ -115,7 +124,7 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
     }
 
     playerNotificationService.clientEventEmitter?.onSleepTimerSet(
-            getSleepTimerTimeRemainingSeconds(),
+            getSleepTimerTimeRemainingSeconds(getPlaybackSpeed()),
             isAutoSleepTimer
     )
 
@@ -125,7 +134,8 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
                 if (getIsPlaying()) {
                   sleepTimerElapsed += 1000L
 
-                  val sleepTimeSecondsRemaining = getSleepTimerTimeRemainingSeconds()
+                  val sleepTimeSecondsRemaining =
+                          getSleepTimerTimeRemainingSeconds(getPlaybackSpeed())
                   Log.d(
                           tag,
                           "Timer Elapsed $sleepTimerElapsed | Sleep TIMER time remaining $sleepTimeSecondsRemaining s"
@@ -364,15 +374,18 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
     // Increase the sleep timer time (if using fixed length) or end time (if using chapter end time)
     // and ensure it doesn't go over the duration of the current playback item
     if (sleepTimerEndTime == 0L) {
+      // Fixed length
       sleepTimerLength += time
       sleepTimerLength = minOf(sleepTimerLength, getDuration() - getCurrentTime())
     } else {
-      sleepTimerEndTime = minOf(sleepTimerEndTime + time, getDuration())
+      // Chapter end time
+      sleepTimerEndTime =
+              minOf(sleepTimerEndTime + (time * getPlaybackSpeed()).roundToInt(), getDuration())
     }
 
     setVolume(1F)
     playerNotificationService.clientEventEmitter?.onSleepTimerSet(
-            getSleepTimerTimeRemainingSeconds(),
+            getSleepTimerTimeRemainingSeconds(getPlaybackSpeed()),
             isAutoSleepTimer
     )
   }
@@ -388,14 +401,20 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
     // Decrease the sleep timer time (if using fixed length) or end time (if using chapter end time)
     // and ensure it doesn't go below 1 second
     if (sleepTimerEndTime == 0L) {
+      // Fixed length
       sleepTimerLength = maxOf(sleepTimerLength - time, 1000L)
     } else {
-      sleepTimerEndTime = maxOf(sleepTimerEndTime - time, getCurrentTime() + 1000)
+      // Chapter end time
+      sleepTimerEndTime =
+              maxOf(
+                      sleepTimerEndTime - (time * getPlaybackSpeed()).roundToInt(),
+                      getCurrentTime() + 1000
+              )
     }
 
     setVolume(1F)
     playerNotificationService.clientEventEmitter?.onSleepTimerSet(
-            getSleepTimerTimeRemainingSeconds(),
+            getSleepTimerTimeRemainingSeconds(getPlaybackSpeed()),
             isAutoSleepTimer
     )
   }
