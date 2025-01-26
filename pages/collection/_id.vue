@@ -12,9 +12,9 @@
             {{ collectionName }}
           </h1>
           <div class="flex-grow" />
-          <ui-btn v-if="showPlayButton" :disabled="streaming" color="success" :padding-x="4" small :loading="playerIsStartingForThisMedia" class="flex items-center justify-center h-9 mr-2 w-24" @click="clickPlay">
-            <span v-show="!streaming" class="material-icons -ml-2 pr-1 text-white">play_arrow</span>
-            {{ streaming ? $strings.ButtonPlaying : $strings.ButtonPlay }}
+          <ui-btn v-if="showPlayButton" color="success" :padding-x="4" :loading="playerIsStartingForThisMedia" small class="flex items-center justify-center mx-1 w-24" @click="playClick">
+            <span class="material-icons">{{ playerIsPlaying ? 'pause' : 'play_arrow' }}</span>
+            <span class="px-1 text-sm">{{ playerIsPlaying ? $strings.ButtonPause : $strings.ButtonPlay }}</span>
           </ui-btn>
         </div>
 
@@ -47,6 +47,18 @@ export default {
       return redirect('/bookshelf')
     }
 
+    // Lookup matching local items and attach to collection items
+    if (collection.books.length) {
+      const localLibraryItems = (await app.$db.getLocalLibraryItems('book')) || []
+      if (localLibraryItems.length) {
+        collection.books.forEach((collectionItem) => {
+          const matchingLocalLibraryItem = localLibraryItems.find((lli) => lli.libraryItemId === collectionItem.id)
+          if (!matchingLocalLibraryItem) return
+          collectionItem.localLibraryItem = matchingLocalLibraryItem
+        })
+      }
+    }
+
     return {
       collection
     }
@@ -70,13 +82,19 @@ export default {
     description() {
       return this.collection.description || ''
     },
-    playableBooks() {
+    playableItems() {
       return this.bookItems.filter((book) => {
         return !book.isMissing && !book.isInvalid && book.media.tracks.length
       })
     },
-    streaming() {
-      return !!this.playableBooks.find((b) => this.$store.getters['getIsMediaStreaming'](b.id))
+    playerIsPlaying() {
+      return this.$store.state.playerIsPlaying && this.isOpenInPlayer
+    },
+    isOpenInPlayer() {
+      return !!this.playableItems.find((i) => {
+        if (i.localLibraryItem && this.$store.getters['getIsMediaStreaming'](i.localLibraryItem.id)) return true
+        return this.$store.getters['getIsMediaStreaming'](i.id)
+      })
     },
     playerIsStartingPlayback() {
       // Play has been pressed and waiting for native play response
@@ -88,21 +106,34 @@ export default {
       return mediaId === this.mediaIdStartingPlayback
     },
     showPlayButton() {
-      return this.playableBooks.length
+      return this.playableItems.length
     }
   },
   methods: {
-    clickPlay() {
+    async playClick() {
       if (this.playerIsStartingPlayback) return
+      await this.$hapticsImpact()
 
-      var nextBookNotRead = this.playableBooks.find((pb) => {
-        var prog = this.$store.getters['user/getUserMediaProgress'](pb.id)
+      if (this.playerIsPlaying) {
+        this.$eventBus.$emit('pause-item')
+      } else {
+        this.playNextItem()
+      }
+    },
+    playNextItem() {
+      const nextBookNotRead = this.playableItems.find((pb) => {
+        const prog = this.$store.getters['user/getUserMediaProgress'](pb.id)
         return !prog?.isFinished
       })
       if (nextBookNotRead) {
         this.mediaIdStartingPlayback = nextBookNotRead.id
         this.$store.commit('setPlayerIsStartingPlayback', nextBookNotRead.id)
-        this.$eventBus.$emit('play-item', { libraryItemId: nextBookNotRead.id })
+
+        if (nextBookNotRead.localLibraryItem) {
+          this.$eventBus.$emit('play-item', { libraryItemId: nextBookNotRead.localLibraryItem.id, serverLibraryItemId: nextBookNotRead.id })
+        } else {
+          this.$eventBus.$emit('play-item', { libraryItemId: nextBookNotRead.id })
+        }
       }
     }
   },

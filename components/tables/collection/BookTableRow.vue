@@ -6,7 +6,7 @@
       </div>
       <div class="book-table-content h-full px-2 flex items-center">
         <div class="max-w-full">
-          <p class="truncate block text-sm">{{ bookTitle }}</p>
+          <p class="truncate block text-sm">{{ bookTitle }} <span v-if="localLibraryItem" class="material-icons text-success text-base align-text-bottom">download_done</span></p>
           <p class="truncate block text-fg-muted text-xs">{{ bookAuthor }}</p>
           <p v-if="media.duration" class="text-xxs text-fg-muted">{{ bookDuration }}</p>
         </div>
@@ -38,6 +38,9 @@ export default {
   computed: {
     libraryItemId() {
       return this.book.id
+    },
+    localLibraryItem() {
+      return this.book.localLibraryItem
     },
     media() {
       return this.book.media || {}
@@ -73,18 +76,34 @@ export default {
     showPlayBtn() {
       return !this.isMissing && !this.isInvalid && this.tracks.length
     },
-    isStreaming() {
+    playerIsStartingPlayback() {
+      // Play has been pressed and waiting for native play response
+      return this.$store.state.playerIsStartingPlayback
+    },
+    isOpenInPlayer() {
+      if (this.localLibraryItem && this.$store.getters['getIsMediaStreaming'](this.localLibraryItem.id)) return true
       return this.$store.getters['getIsMediaStreaming'](this.libraryItemId)
     },
     streamIsPlaying() {
-      return this.$store.state.playerIsPlaying && this.isStreaming
+      return this.$store.state.playerIsPlaying && this.isOpenInPlayer
     }
   },
   methods: {
     async playClick() {
+      if (this.playerIsStartingPlayback) return
       await this.$hapticsImpact()
+
       if (this.streamIsPlaying) {
         this.$eventBus.$emit('pause-item')
+        return
+      }
+
+      this.$store.commit('setPlayerIsStartingPlayback', this.libraryItemId)
+      if (this.localLibraryItem) {
+        this.$eventBus.$emit('play-item', {
+          libraryItemId: this.localLibraryItem.id,
+          serverLibraryItemId: this.libraryItemId
+        })
       } else {
         this.$eventBus.$emit('play-item', {
           libraryItemId: this.libraryItemId

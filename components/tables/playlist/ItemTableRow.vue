@@ -113,12 +113,12 @@ export default {
     showPlayBtn() {
       return !this.isMissing && !this.isInvalid && (this.tracks.length || this.episode)
     },
-    isStreaming() {
+    isOpenInPlayer() {
       if (this.localLibraryItem && this.localEpisode && this.$store.getters['getIsMediaStreaming'](this.localLibraryItem.id, this.localEpisode.id)) return true
       return this.$store.getters['getIsMediaStreaming'](this.libraryItem.id, this.episodeId)
     },
     streamIsPlaying() {
-      return this.$store.state.playerIsPlaying && this.isStreaming
+      return this.$store.state.playerIsPlaying && this.isOpenInPlayer
     },
     playerIsStartingPlayback() {
       // Play has been pressed and waiting for native play response

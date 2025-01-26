@@ -10,9 +10,9 @@
             {{ playlistName }}
           </h1>
           <div class="flex-grow" />
-          <ui-btn v-if="showPlayButton" :disabled="streaming" color="success" :padding-x="4" :loading="playerIsStartingForThisMedia" small class="flex items-center justify-center text-center h-9 mr-2 w-24" @click="clickPlay">
-            <span v-show="!streaming" class="material-icons -ml-2 pr-1 text-white">play_arrow</span>
-            {{ streaming ? $strings.ButtonPlaying : $strings.ButtonPlay }}
+          <ui-btn v-if="showPlayButton" color="success" :padding-x="4" :loading="playerIsStartingForThisMedia" small class="flex items-center justify-center mx-1 w-24" @click="playClick">
+            <span class="material-icons">{{ playerIsPlaying ? 'pause' : 'play_arrow' }}</span>
+            <span class="px-1 text-sm">{{ playerIsPlaying ? $strings.ButtonPause : $strings.ButtonPlay }}</span>
           </ui-btn>
         </div>
 
@@ -101,7 +101,10 @@ export default {
         return libraryItem.media.tracks.length
       })
     },
-    streaming() {
+    playerIsPlaying() {
+      return this.$store.state.playerIsPlaying && this.isOpenInPlayer
+    },
+    isOpenInPlayer() {
       return !!this.playableItems.find((i) => {
         if (i.localLibraryItem && this.$store.getters['getIsMediaStreaming'](i.localLibraryItem.id, i.localEpisode?.id)) return true
         return this.$store.getters['getIsMediaStreaming'](i.libraryItemId, i.episodeId)
@@ -126,7 +129,17 @@ export default {
       this.selectedEpisode = playlistItem.episode
       this.showMoreMenu = true
     },
-    clickPlay() {
+    async playClick() {
+      if (this.playerIsStartingPlayback) return
+      await this.$hapticsImpact()
+
+      if (this.playerIsPlaying) {
+        this.$eventBus.$emit('pause-item')
+      } else {
+        this.playNextItem()
+      }
+    },
+    playNextItem() {
       const nextItem = this.playableItems.find((i) => {
         const prog = this.$store.getters['user/getUserMediaProgress'](i.libraryItemId, i.episodeId)
         return !prog?.isFinished
