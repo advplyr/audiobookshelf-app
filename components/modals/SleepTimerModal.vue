@@ -85,7 +85,11 @@ export default {
       return [5, 10, 15, 30, 45, 60, 90]
     },
     timeRemainingPretty() {
+      if (this.currentTime <= 0) return '0:00'
       return this.$secondsToTimestamp(this.currentTime)
+    },
+    isIos() {
+      return this.$platform === 'ios'
     }
   },
   methods: {
@@ -105,7 +109,7 @@ export default {
       if (this.isAuto) {
         const { value } = await Dialog.confirm({
           title: 'Confirm',
-          message: 'Are you sure you want to disable the auto sleep timer? You will need to enable this again in settings.'
+          message: this.$strings.MessageConfirmDisableAutoTimer
         })
         if (!value) return
       }
