@@ -68,6 +68,10 @@
               <span class="material-icons">more_vert</span>
             </ui-btn>
           </div>
+          <ui-btn v-else-if="isMissing" color="error" :padding-x="4" small class="mt-4 flex items-center justify-center w-full" @click="clickMissingButton">
+            <span class="material-icons">error</span>
+            <span class="px-1 text-base">{{ $strings.LabelMissing }}</span>
+          </ui-btn>
 
           <div v-if="!isPodcast && progressPercent > 0" class="px-4 py-2 bg-primary text-sm font-semibold rounded-md text-fg mt-4 text-center">
             <p>{{ $strings.LabelYourProgress }}: {{ Math.round(progressPercent * 100) }}%</p>
@@ -486,6 +490,13 @@ export default {
     }
   },
   methods: {
+    clickMissingButton() {
+      Dialog.alert({
+        title: this.$strings.LabelMissing,
+        message: this.$strings.MessageItemMissing,
+        cancelText: this.$strings.ButtonOk
+      })
+    },
     async coverImageLoaded(fullCoverUrl) {
       if (!fullCoverUrl) return
 
