@@ -107,19 +107,11 @@ export default {
     },
     async cancelSleepTimer() {
       if (this.isAuto) {
-        if (this.$platform === 'ios') {
-          const { value } = await Dialog.confirm({
-            title: 'Confirm',
-            message: this.$strings.MessageConfirmDisableAutoTimerIos
-          })
-          if (!value) return
-        } else {
-          const { value } = await Dialog.confirm({
-            title: 'Confirm',
-            message: this.$strings.MessageConfirmDisableAutoTimerAndroid
-          })
-          if (!value) return
-        }
+        const { value } = await Dialog.confirm({
+          title: 'Confirm',
+          message: this.$strings.MessageConfirmDisableAutoTimer
+        })
+        if (!value) return
       }
 
       await this.$hapticsImpact()
