@@ -278,6 +278,8 @@
   "MessageBookshelfEmpty": "Bookshelf empty",
   "MessageConfirmDeleteLocalEpisode": "Remove local episode \"{0}\" from your device? The file on the server will be unaffected.",
   "MessageConfirmDeleteLocalFiles": "Remove local files of this item from your device? The files on the server and your progress will be unaffected.",
+  "MessageConfirmDisableAutoTimerAndroid": "Are you sure you want to disable the auto timer for the rest of today? The timer will be re-enabled at the end of this auto-sleep timer period, or if you restart the app.",
+  "MessageConfirmDisableAutoTimerIos": "Are you sure you want to disable the auto sleep timer? You will need to enable this again in settings.",
   "MessageConfirmDiscardProgress": "Are you sure you want to reset your progress?",
   "MessageConfirmDownloadUsingCellular": "You are about to download using cellular data. This may include carrier data charges. Do you wish to continue?",
   "MessageConfirmMarkAsFinished": "Are you sure you want to mark this item as finished?",

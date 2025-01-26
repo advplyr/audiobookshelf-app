@@ -86,6 +86,9 @@ export default {
     },
     timeRemainingPretty() {
       return this.$secondsToTimestamp(this.currentTime)
+    },
+    isIos() {
+      return this.$platform === 'ios'
     }
   },
   methods: {
@@ -103,11 +106,19 @@ export default {
     },
     async cancelSleepTimer() {
       if (this.isAuto) {
-        const { value } = await Dialog.confirm({
-          title: 'Confirm',
-          message: 'Are you sure you want to disable the auto sleep timer? You will need to enable this again in settings.'
-        })
-        if (!value) return
+        if (this.$platform === 'ios') {
+          const { value } = await Dialog.confirm({
+            title: 'Confirm',
+            message: this.$strings.MessageConfirmDisableAutoTimerIos
+          })
+          if (!value) return
+        } else {
+          const { value } = await Dialog.confirm({
+            title: 'Confirm',
+            message: this.$strings.MessageConfirmDisableAutoTimerAndroid
+          })
+          if (!value) return
+        }
       }
 
       await this.$hapticsImpact()
