@@ -278,6 +278,7 @@ export default {
       return this.$store.getters['user/getUserMediaProgress'](this.libraryItemId, episode.id)
     },
     init() {
+      this.sortDesc = this.mediaMetadata.type === 'episodic'
       this.episodesCopy = this.episodes.map((ep) => {
         return { ...ep }
       })
