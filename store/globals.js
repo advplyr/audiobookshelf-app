@@ -74,7 +74,13 @@ export const getters = {
       }
 
       const url = new URL(`${serverAddress}/api/items/${libraryItem.id}/cover`)
-      return `${url}?ts=${lastUpdate}${raw ? '&raw=1' : ''}`
+      const urlQuery = new URLSearchParams()
+      urlQuery.append('ts', lastUpdate)
+      if (raw) urlQuery.append('raw', '1')
+      if (rootGetters.getDoesServerImagesRequireToken) {
+        urlQuery.append('token', rootGetters['user/getToken'])
+      }
+      return `${url}?${urlQuery}`
     },
   getLibraryItemCoverSrcById:
     (state, getters, rootState, rootGetters) =>
@@ -85,6 +91,9 @@ export const getters = {
       if (!serverAddress) return placeholder
 
       const url = new URL(`${serverAddress}/api/items/${libraryItemId}/cover`)
+      if (rootGetters.getDoesServerImagesRequireToken) {
+        return `${url}?token=${rootGetters['user/getToken']}`
+      }
       return url.toString()
     },
   getLocalMediaProgressById:

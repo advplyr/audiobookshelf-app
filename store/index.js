@@ -85,6 +85,20 @@ export const getters = {
   getCanStreamingUsingCellular: (state) => {
     if (!state.deviceData?.deviceSettings?.streamingUsingCellular) return 'ALWAYS'
     return state.deviceData.deviceSettings.streamingUsingCellular || 'ALWAYS'
+  },
+  /**
+   * Old server versions require a token for images
+   *
+   * @param {*} state
+   * @returns {boolean} True if server version is less than 2.17
+   */
+  getDoesServerImagesRequireToken: (state) => {
+    const serverVersion = state.serverSettings?.version
+    if (!serverVersion) return false
+    const versionParts = serverVersion.split('.')
+    const majorVersion = parseInt(versionParts[0])
+    const minorVersion = parseInt(versionParts[1])
+    return majorVersion < 2 || (majorVersion == 2 && minorVersion < 17)
   }
 }
 

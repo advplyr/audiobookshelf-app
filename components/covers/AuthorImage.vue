@@ -56,11 +56,15 @@ export default {
     },
     imgSrc() {
       if (!this.imagePath || !this.serverAddress) return null
+      const urlQuery = new URLSearchParams({ ts: this.updatedAt })
+      if (this.$store.getters.getDoesServerImagesRequireToken) {
+        urlQuery.append('token', this.$store.getters['user/getToken'])
+      }
       if (process.env.NODE_ENV !== 'production' && this.serverAddress.startsWith('http://192.168')) {
         // Testing
-        return `http://localhost:3333/api/authors/${this.authorId}/image?ts=${this.updatedAt}`
+        return `http://localhost:3333/api/authors/${this.authorId}/image?${urlQuery.toString()}`
       }
-      return `${this.serverAddress}/api/authors/${this.authorId}/image?ts=${this.updatedAt}`
+      return `${this.serverAddress}/api/authors/${this.authorId}/image?${urlQuery.toString()}`
     }
   },
   methods: {
