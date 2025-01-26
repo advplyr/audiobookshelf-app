@@ -85,6 +85,7 @@ export default {
       return [5, 10, 15, 30, 45, 60, 90]
     },
     timeRemainingPretty() {
+      if (this.currentTime <= 0) return '0:00'
       return this.$secondsToTimestamp(this.currentTime)
     },
     isIos() {
