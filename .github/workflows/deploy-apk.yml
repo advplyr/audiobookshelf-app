@@ -12,57 +12,57 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - name: checkout sources
-      uses: actions/checkout@v3
+      - name: checkout sources
+        uses: actions/checkout@v3
 
-    - name: use Node.js 20.x
-      uses: actions/setup-node@v3
-      with:
-        node-version: 20
+      - name: use Node.js 20.x
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
 
-    - name: Set up Java
-      uses: actions/setup-java@v2
-      with:
-        distribution: "temurin"
-        java-version: 17
+      - name: Set up Java
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'temurin'
+          java-version: 17
 
-    - name: install dependencies
-      run: npm ci
+      - name: install dependencies
+        run: npm ci
 
-    - name: build Nuxt project
-      run: npm run generate
+      - name: build Nuxt project
+        run: npm run generate
 
-    - name: copy to Android project
-      run: npx cap sync
+      - name: copy to Android project
+        run: npx cap sync
 
-    - name: build Android app
-      run: ./android/gradlew assembleDebug -p android --no-daemon
+      - name: build Android app
+        run: ./android/gradlew assembleDebug -p android --no-daemon
 
-    - name: rename apk
-      working-directory: android/app/build/outputs/apk/debug/
-      run: |
-        build="$(date +%Y%m%d-%H%M%S)-$(git rev-parse --short HEAD)"
-        name="audiobookshelf-${build}.apk"
-        mv -v app-debug.apk "${name}"
+      - name: rename apk
+        working-directory: android/app/build/outputs/apk/debug/
+        run: |
+          build="$(date +%Y%m%d-%H%M%S)-$(git rev-parse --short HEAD)"
+          name="audiobookshelf-${build}.apk"
+          mv -v app-debug.apk "${name}"
 
-    - name: prepare test page ressources
-      run: |
-        mkdir ghpages
-        cp android/app/build/outputs/apk/debug/*apk ghpages/
-        cp static/Logo.png ghpages/logo.png
-        cp .github/testing-page-template.html ghpages/index.html
+      - name: prepare test page ressources
+        run: |
+          mkdir ghpages
+          cp android/app/build/outputs/apk/debug/*apk ghpages/
+          cp static/Logo.png ghpages/logo.png
+          cp .github/testing-page-template.html ghpages/index.html
 
-    - name: build test page
-      working-directory: ghpages
-      run: |
-        sed -i "s/__DATE__/$(date)/g" index.html
-        sed -i "s/__COMMIT__/$(git rev-parse --short HEAD)/g" index.html
-        sed -i "s/__APK__/$(ls *apk)/g" index.html
+      - name: build test page
+        working-directory: ghpages
+        run: |
+          sed -i "s/__DATE__/$(date)/g" index.html
+          sed -i "s/__COMMIT__/$(git rev-parse --short HEAD)/g" index.html
+          sed -i "s/__APK__/$(ls *apk)/g" index.html
 
-    - name: upload test page artifact
-      uses: actions/upload-pages-artifact@v1
-      with:
-        path: ./ghpages
+      - name: upload test page artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./ghpages
 
   deploy:
     needs: build
@@ -79,4 +79,4 @@ jobs:
     steps:
       - name: deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v1
+        uses: actions/deploy-pages@v4
