@@ -87,8 +87,7 @@ object DeviceManager {
    * @return The ServerConnectionConfig instance or null if not found.
    */
   fun getServerConnectionConfig(id: String?): ServerConnectionConfig? {
-    if (id == null) return null
-    return deviceData.serverConnectionConfigs.find { it.id == id }
+    return id?.let { deviceData.serverConnectionConfigs.find { it.id == id } }
   }
 
   /**
