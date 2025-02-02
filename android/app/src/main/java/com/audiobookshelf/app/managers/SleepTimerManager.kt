@@ -264,7 +264,7 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
   }
 
   /**
-   * Gets the chapter end time for use in End of Chapter timers. If less than 2 seconds remain in
+   * Gets the chapter end time for use in End of Chapter timers. If less than 10 seconds remain in
    * the chapter, then use the next chapter.
    * @return Long? - the chapter end time in milliseconds, or null if there is no current session.
    */
@@ -276,8 +276,11 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
     }
 
     val timeLeftInChapter = currentChapterEndTimeMs - getCurrentTime()
-    return if (timeLeftInChapter < 2000L) {
-      Log.i(tag, "Getting chapter sleep timer time and current chapter has less than 2s remaining")
+    // If less than 10 seconds remain in the chapter, set the timer to the next chapter or track
+    // This handles the auto-rewind from not playing media for a little bit to select the next
+    // chapter
+    return if (timeLeftInChapter < 10000L) {
+      Log.i(tag, "Getting chapter sleep timer time and current chapter has less than 10s remaining")
       val nextChapterEndTimeMs = playerNotificationService.getEndTimeOfNextChapterOrTrack()
       if (nextChapterEndTimeMs == null || currentChapterEndTimeMs == nextChapterEndTimeMs) {
         Log.e(
@@ -332,6 +335,14 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
         return
       }
 
+      // If timer was cleared by going negative on time, clear the sleep timer length so pressing
+      // play allows playback to continue without the sleep timer continuously setting for 1 second.
+      if (sleepTimerLength == 1000L) {
+        Log.d(tag, "Sleep timer cleared by manually subtracting time, clearing sleep timer")
+        sleepTimerFinishedAt = 0L
+        return
+      }
+
       // Automatically rewind in the book if settings are enabled
       tryRewindAutoSleepTimer()
 
@@ -343,9 +354,12 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
     }
   }
 
-  /** Handles the shake event to reset the sleep timer. */
+  /**
+   * Handles the shake event to reset the sleep timer. Shaking to reset only works during the 2
+   * minute grace period after the timer ends or while media is playing.
+   */
   fun handleShake() {
-    if (sleepTimerRunning || sleepTimerFinishedAt > 0L) {
+    if ((sleepTimerRunning && getIsPlaying()) || sleepTimerFinishedAt > 0L) {
       if (DeviceManager.deviceData.deviceSettings?.disableShakeToResetSleepTimer == true) {
         Log.d(tag, "Shake to reset sleep timer is disabled")
         return
@@ -460,7 +474,7 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
           // Start an auto sleep timer
           val currentHour = currentCalendar.get(Calendar.HOUR_OF_DAY)
           val currentMin = currentCalendar.get(Calendar.MINUTE)
-          Log.i(tag, "Starting sleep timer at $currentHour:$currentMin")
+          Log.i(tag, "Starting auto sleep timer at $currentHour:$currentMin")
 
           // Automatically rewind in the book if settings is enabled
           tryRewindAutoSleepTimer()
