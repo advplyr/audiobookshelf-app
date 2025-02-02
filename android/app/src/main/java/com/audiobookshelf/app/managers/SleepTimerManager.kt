@@ -343,9 +343,12 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
     }
   }
 
-  /** Handles the shake event to reset the sleep timer. */
+  /**
+   * Handles the shake event to reset the sleep timer. Shaking to reset only works during the 2
+   * minute grace period after the timer ends or while media is playing.
+   */
   fun handleShake() {
-    if (sleepTimerRunning || sleepTimerFinishedAt > 0L) {
+    if ((sleepTimerRunning && getIsPlaying()) || sleepTimerFinishedAt > 0L) {
       if (DeviceManager.deviceData.deviceSettings?.disableShakeToResetSleepTimer == true) {
         Log.d(tag, "Shake to reset sleep timer is disabled")
         return
