@@ -264,7 +264,7 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
   }
 
   /**
-   * Gets the chapter end time for use in End of Chapter timers. If less than 2 seconds remain in
+   * Gets the chapter end time for use in End of Chapter timers. If less than 10 seconds remain in
    * the chapter, then use the next chapter.
    * @return Long? - the chapter end time in milliseconds, or null if there is no current session.
    */
@@ -331,6 +331,14 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
       if (finishedAtDistance > SLEEP_TIMER_WAKE_UP_EXPIRATION) // 2 minutes
       {
         Log.d(tag, "Sleep timer finished over 2 mins ago, clearing it")
+        sleepTimerFinishedAt = 0L
+        return
+      }
+
+      // If timer was cleared by going negative on time, clear the sleep timer length so pressing
+      // play allows playback to continue without the sleep timer continuously setting for 1 second.
+      if (sleepTimerLength == 1000L) {
+        Log.d(tag, "Sleep timer cleared by manually subtracting time, clearing sleep timer")
         sleepTimerFinishedAt = 0L
         return
       }
@@ -466,7 +474,7 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
           // Start an auto sleep timer
           val currentHour = currentCalendar.get(Calendar.HOUR_OF_DAY)
           val currentMin = currentCalendar.get(Calendar.MINUTE)
-          Log.i(tag, "Starting sleep timer at $currentHour:$currentMin")
+          Log.i(tag, "Starting auto sleep timer at $currentHour:$currentMin")
 
           // Automatically rewind in the book if settings is enabled
           tryRewindAutoSleepTimer()
