@@ -276,8 +276,11 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
     }
 
     val timeLeftInChapter = currentChapterEndTimeMs - getCurrentTime()
-    return if (timeLeftInChapter < 2000L) {
-      Log.i(tag, "Getting chapter sleep timer time and current chapter has less than 2s remaining")
+    // If less than 10 seconds remain in the chapter, set the timer to the next chapter or track
+    // This handles the auto-rewind from not playing media for a little bit to select the next
+    // chapter
+    return if (timeLeftInChapter < 10000L) {
+      Log.i(tag, "Getting chapter sleep timer time and current chapter has less than 10s remaining")
       val nextChapterEndTimeMs = playerNotificationService.getEndTimeOfNextChapterOrTrack()
       if (nextChapterEndTimeMs == null || currentChapterEndTimeMs == nextChapterEndTimeMs) {
         Log.e(
