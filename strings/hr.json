@@ -254,7 +254,7 @@
   "LabelTheme": "Tema",
   "LabelThemeDark": "Tamna",
   "LabelThemeLight": "Svijetla",
-  "LabelTimeRemaining": "{0} preostalo",
+  "LabelTimeRemaining": "preostalo {0}",
   "LabelTitle": "Naslov",
   "LabelTotalSize": "Ukupna veličina",
   "LabelTotalTrack": "Ukupno zapisa",
