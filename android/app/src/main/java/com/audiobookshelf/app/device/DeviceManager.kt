@@ -48,24 +48,40 @@ object DeviceManager {
   init {
     Log.d(tag, "Device Manager Singleton invoked")
 
-    // Default settings if they have not been set yet. Removes Elvis operator for null safety due to
-    // variables being non-nullable.
-    deviceData.deviceSettings?.apply {
-      // Sleep timer settings, added v0.9.61
-      autoSleepTimerStartTime = "22:00"
-      autoSleepTimerEndTime = "06:00"
-      sleepTimerLength = 900000L
-      shakeSensitivity = ShakeSensitivitySetting.MEDIUM
-      // Auto sleep timer auto rewind, added v0.9.64
-      autoSleepTimerAutoRewindTime = 300000L // 5 minutes
-      // Langugage code, added v0.9.69
-      languageCode = "en-us"
-      // Download and streaming using cellular, added v0.9.75
-      downloadUsingCellular = DownloadUsingCellularSetting.ALWAYS
-      streamingUsingCellular = StreamingUsingCellularSetting.ALWAYS
-      // Android Auto settings, added v0.9.78
-      androidAutoBrowseLimitForGrouping = 100
-      androidAutoBrowseSeriesSequenceOrder = AndroidAutoBrowseSeriesSequenceOrderSetting.ASC
+    // Initialize new sleep timer settings and shake sensitivity added in v0.9.61
+    if (deviceData.deviceSettings?.autoSleepTimerStartTime == null ||
+                    deviceData.deviceSettings?.autoSleepTimerEndTime == null
+    ) {
+      deviceData.deviceSettings?.autoSleepTimerStartTime = "22:00"
+      deviceData.deviceSettings?.autoSleepTimerStartTime = "06:00"
+      deviceData.deviceSettings?.sleepTimerLength = 900000L
+    }
+    if (deviceData.deviceSettings?.shakeSensitivity == null) {
+      deviceData.deviceSettings?.shakeSensitivity = ShakeSensitivitySetting.MEDIUM
+    }
+    // Initialize auto sleep timer auto rewind added in v0.9.64
+    if (deviceData.deviceSettings?.autoSleepTimerAutoRewindTime == null) {
+      deviceData.deviceSettings?.autoSleepTimerAutoRewindTime = 300000L // 5 minutes
+    }
+
+    // Language added in v0.9.69
+    if (deviceData.deviceSettings?.languageCode == null) {
+      deviceData.deviceSettings?.languageCode = "en-us"
+    }
+
+    if (deviceData.deviceSettings?.downloadUsingCellular == null) {
+      deviceData.deviceSettings?.downloadUsingCellular = DownloadUsingCellularSetting.ALWAYS
+    }
+
+    if (deviceData.deviceSettings?.streamingUsingCellular == null) {
+      deviceData.deviceSettings?.streamingUsingCellular = StreamingUsingCellularSetting.ALWAYS
+    }
+    if (deviceData.deviceSettings?.androidAutoBrowseLimitForGrouping == null) {
+      deviceData.deviceSettings?.androidAutoBrowseLimitForGrouping = 100
+    }
+    if (deviceData.deviceSettings?.androidAutoBrowseSeriesSequenceOrder == null) {
+      deviceData.deviceSettings?.androidAutoBrowseSeriesSequenceOrder =
+              AndroidAutoBrowseSeriesSequenceOrderSetting.ASC
     }
   }
 
