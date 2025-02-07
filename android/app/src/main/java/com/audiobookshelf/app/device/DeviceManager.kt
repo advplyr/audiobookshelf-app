@@ -53,7 +53,7 @@ object DeviceManager {
                     deviceData.deviceSettings?.autoSleepTimerEndTime == null
     ) {
       deviceData.deviceSettings?.autoSleepTimerStartTime = "22:00"
-      deviceData.deviceSettings?.autoSleepTimerStartTime = "06:00"
+      deviceData.deviceSettings?.autoSleepTimerEndTime = "06:00"
       deviceData.deviceSettings?.sleepTimerLength = 900000L
     }
     if (deviceData.deviceSettings?.shakeSensitivity == null) {
