@@ -144,7 +144,6 @@ class FolderScanner(var ctx: Context) {
                           trackFileMetadata,
                           true,
                           localFileId,
-                          null,
                           audioTrackFromServer.index
                   )
           audioTracks.add(track)
@@ -440,7 +439,6 @@ class FolderScanner(var ctx: Context) {
                         trackFileMetadata,
                         true,
                         localFileId,
-                        null,
                         audioTrackFromServer.index
                 )
         audioTracks.add(track)
