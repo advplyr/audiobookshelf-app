@@ -13,83 +13,145 @@ import java.io.File
 
 class FolderScanner(var ctx: Context) {
   private val tag = "FolderScanner"
-  private var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
+  private var jacksonMapper =
+          jacksonObjectMapper()
+                  .enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
 
-  data class DownloadItemScanResult(val localLibraryItem:LocalLibraryItem, var localMediaProgress:LocalMediaProgress?)
+  data class DownloadItemScanResult(
+          val localLibraryItem: LocalLibraryItem,
+          var localMediaProgress: LocalMediaProgress?
+  )
 
-  private fun getLocalLibraryItemId(mediaItemId:String):String {
+  private fun getLocalLibraryItemId(mediaItemId: String): String {
     return "local_" + DeviceManager.getBase64Id(mediaItemId)
   }
 
-  private fun scanInternalDownloadItem(downloadItem:DownloadItem, cb: (DownloadItemScanResult?) -> Unit) {
+  private fun scanInternalDownloadItem(
+          downloadItem: DownloadItem,
+          cb: (DownloadItemScanResult?) -> Unit
+  ) {
     val localLibraryItemId = "local_${downloadItem.libraryItemId}"
 
-    var localEpisodeId:String? = null
-    var localLibraryItem:LocalLibraryItem?
+    var localEpisodeId: String? = null
+    var localLibraryItem: LocalLibraryItem?
     if (downloadItem.mediaType == "book") {
-      localLibraryItem = LocalLibraryItem(localLibraryItemId, downloadItem.localFolder.id, downloadItem.itemFolderPath, downloadItem.itemFolderPath, "", false, downloadItem.mediaType, downloadItem.media.getLocalCopy(), mutableListOf(), null, null, true, downloadItem.serverConnectionConfigId, downloadItem.serverAddress, downloadItem.serverUserId, downloadItem.libraryItemId)
+      localLibraryItem =
+              LocalLibraryItem(
+                      localLibraryItemId,
+                      downloadItem.localFolder.id,
+                      downloadItem.itemFolderPath,
+                      downloadItem.itemFolderPath,
+                      "",
+                      false,
+                      downloadItem.mediaType,
+                      downloadItem.media.getLocalCopy(),
+                      mutableListOf(),
+                      null,
+                      null,
+                      true,
+                      downloadItem.serverConnectionConfigId,
+                      downloadItem.serverAddress,
+                      downloadItem.serverUserId,
+                      downloadItem.libraryItemId
+              )
     } else {
       // Lookup or create podcast local library item
       localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(localLibraryItemId)
       if (localLibraryItem == null) {
-        Log.d(tag, "[FolderScanner] Podcast local library item not created yet for ${downloadItem.media.metadata.title}")
-        localLibraryItem = LocalLibraryItem(localLibraryItemId, downloadItem.localFolder.id, downloadItem.itemFolderPath, downloadItem.itemFolderPath, "", false, downloadItem.mediaType, downloadItem.media.getLocalCopy(), mutableListOf(), null, null, true,downloadItem.serverConnectionConfigId,downloadItem.serverAddress,downloadItem.serverUserId,downloadItem.libraryItemId)
+        Log.d(
+                tag,
+                "[FolderScanner] Podcast local library item not created yet for ${downloadItem.media.metadata.title}"
+        )
+        localLibraryItem =
+                LocalLibraryItem(
+                        localLibraryItemId,
+                        downloadItem.localFolder.id,
+                        downloadItem.itemFolderPath,
+                        downloadItem.itemFolderPath,
+                        "",
+                        false,
+                        downloadItem.mediaType,
+                        downloadItem.media.getLocalCopy(),
+                        mutableListOf(),
+                        null,
+                        null,
+                        true,
+                        downloadItem.serverConnectionConfigId,
+                        downloadItem.serverAddress,
+                        downloadItem.serverUserId,
+                        downloadItem.libraryItemId
+                )
       }
     }
 
-    val audioTracks:MutableList<AudioTrack> = mutableListOf()
+    val audioTracks: MutableList<AudioTrack> = mutableListOf()
     var foundEBookFile = false
 
     downloadItem.downloadItemParts.forEach { downloadItemPart ->
-      Log.d(tag, "Scan internal storage item with finalDestinationUri=${downloadItemPart.finalDestinationUri}")
+      Log.d(
+              tag,
+              "Scan internal storage item with finalDestinationUri=${downloadItemPart.finalDestinationUri}"
+      )
 
       val file = File(downloadItemPart.finalDestinationPath)
       Log.d(tag, "Scan internal storage item created file ${file.name}")
 
       if (file == null) {
-        Log.e(tag, "scanInternalDownloadItem: Null docFile for path ${downloadItemPart.finalDestinationPath}")
+        Log.e(
+                tag,
+                "scanInternalDownloadItem: Null docFile for path ${downloadItemPart.finalDestinationPath}"
+        )
       } else {
         if (downloadItemPart.audioTrack != null) {
           val audioTrackFromServer = downloadItemPart.audioTrack
           Log.d(
-            tag,
-            "scanInternalDownloadItem: Audio Track from Server index = ${audioTrackFromServer.index}"
+                  tag,
+                  "scanInternalDownloadItem: Audio Track from Server index = ${audioTrackFromServer.index}"
           )
 
           val localFileId = DeviceManager.getBase64Id(file.name)
           Log.d(tag, "Scan internal file localFileId=$localFileId")
-          val localFile = LocalFile(
-            localFileId,
-            file.name,
-            downloadItemPart.finalDestinationUri.toString(),
-            file.getBasePath(ctx),
-            file.absolutePath,
-            file.getSimplePath(ctx),
-            file.mimeType,
-            file.length()
-          )
+          val localFile =
+                  LocalFile(
+                          localFileId,
+                          file.name,
+                          downloadItemPart.finalDestinationUri.toString(),
+                          file.getBasePath(ctx),
+                          file.absolutePath,
+                          file.getSimplePath(ctx),
+                          file.mimeType,
+                          file.length()
+                  )
           localLibraryItem.localFiles.add(localFile)
 
-          val trackFileMetadata = FileMetadata(file.name, file.extension, file.absolutePath, file.getBasePath(ctx), file.length())
+          val trackFileMetadata =
+                  FileMetadata(
+                          file.name,
+                          file.extension,
+                          file.absolutePath,
+                          file.getBasePath(ctx),
+                          file.length()
+                  )
           // Create new audio track
-          val track = AudioTrack(
-            audioTrackFromServer.index,
-            audioTrackFromServer.startOffset,
-            audioTrackFromServer.duration,
-            localFile.filename ?: "",
-            localFile.contentUrl,
-            localFile.mimeType ?: "",
-            trackFileMetadata,
-            true,
-            localFileId,
-            null,
-            audioTrackFromServer.index
-          )
+          val track =
+                  AudioTrack(
+                          audioTrackFromServer.index,
+                          audioTrackFromServer.startOffset,
+                          audioTrackFromServer.duration,
+                          localFile.filename ?: "",
+                          localFile.contentUrl,
+                          localFile.mimeType ?: "",
+                          trackFileMetadata,
+                          true,
+                          localFileId,
+                          null,
+                          audioTrackFromServer.index
+                  )
           audioTracks.add(track)
 
           Log.d(
-            tag,
-            "scanInternalDownloadItem: Created Audio Track with index ${track.index} from local file ${localFile.absolutePath}"
+                  tag,
+                  "scanInternalDownloadItem: Created Audio Track with index ${track.index} from local file ${localFile.absolutePath}"
           )
 
           // Add podcast episodes to library
@@ -98,40 +160,51 @@ class FolderScanner(var ctx: Context) {
             val newEpisode = podcast.addEpisode(track, podcastEpisode)
             localEpisodeId = newEpisode.id
             Log.d(
-              tag,
-              "scanInternalDownloadItem: Added episode to podcast ${podcastEpisode.title} ${track.title} | Track index: ${podcastEpisode.audioTrack?.index}"
+                    tag,
+                    "scanInternalDownloadItem: Added episode to podcast ${podcastEpisode.title} ${track.title} | Track index: ${podcastEpisode.audioTrack?.index}"
             )
           }
-
         } else if (downloadItemPart.ebookFile != null) {
           foundEBookFile = true
           Log.d(tag, "scanInternalDownloadItem: Ebook file found with mimetype=${file.mimeType}")
           val localFileId = DeviceManager.getBase64Id(file.name)
-          val localFile = LocalFile(
-            localFileId,
-            file.name,
-            Uri.fromFile(file).toString(),
-            file.getBasePath(ctx),
-            file.absolutePath,
-            file.getSimplePath(ctx),
-            file.mimeType,
-            file.length()
-          )
+          val localFile =
+                  LocalFile(
+                          localFileId,
+                          file.name,
+                          Uri.fromFile(file).toString(),
+                          file.getBasePath(ctx),
+                          file.absolutePath,
+                          file.getSimplePath(ctx),
+                          file.mimeType,
+                          file.length()
+                  )
           localLibraryItem.localFiles.add(localFile)
 
-          val ebookFile = EBookFile(
-            downloadItemPart.ebookFile.ino,
-            downloadItemPart.ebookFile.metadata,
-            downloadItemPart.ebookFile.ebookFormat,
-            true,
-            localFileId,
-            localFile.contentUrl
-          )
+          val ebookFile =
+                  EBookFile(
+                          downloadItemPart.ebookFile.ino,
+                          downloadItemPart.ebookFile.metadata,
+                          downloadItemPart.ebookFile.ebookFormat,
+                          true,
+                          localFileId,
+                          localFile.contentUrl
+                  )
           (localLibraryItem.media as Book).ebookFile = ebookFile
           Log.d(tag, "scanInternalDownloadItem: Ebook file added to lli ${localFile.contentUrl}")
         } else {
           val localFileId = DeviceManager.getBase64Id(file.name)
-          val localFile = LocalFile(localFileId,file.name,Uri.fromFile(file).toString(),file.getBasePath(ctx),file.absolutePath,file.getSimplePath(ctx),file.mimeType,file.length())
+          val localFile =
+                  LocalFile(
+                          localFileId,
+                          file.name,
+                          Uri.fromFile(file).toString(),
+                          file.getBasePath(ctx),
+                          file.absolutePath,
+                          file.getSimplePath(ctx),
+                          file.mimeType,
+                          file.length()
+                  )
 
           localLibraryItem.coverAbsolutePath = localFile.absolutePath
           localLibraryItem.coverContentUrl = localFile.contentUrl
@@ -141,7 +214,10 @@ class FolderScanner(var ctx: Context) {
     }
 
     if (audioTracks.isEmpty() && !foundEBookFile) {
-      Log.d(tag, "scanDownloadItem did not find any audio tracks or ebook file in folder for ${downloadItem.itemFolderPath}")
+      Log.d(
+              tag,
+              "scanDownloadItem did not find any audio tracks or ebook file in folder for ${downloadItem.itemFolderPath}"
+      )
       return cb(null)
     }
 
@@ -163,30 +239,37 @@ class FolderScanner(var ctx: Context) {
       localLibraryItem.media.setAudioTracks(audioTracks)
     }
 
-    val downloadItemScanResult = DownloadItemScanResult(localLibraryItem,null)
+    val downloadItemScanResult = DownloadItemScanResult(localLibraryItem, null)
 
     // If library item had media progress then make local media progress and save
     downloadItem.userMediaProgress?.let { mediaProgress ->
-      val localMediaProgressId = if (downloadItem.episodeId.isNullOrEmpty()) localLibraryItemId else "$localLibraryItemId-$localEpisodeId"
-      val newLocalMediaProgress = LocalMediaProgress(
-        id = localMediaProgressId,
-        localLibraryItemId = localLibraryItemId,
-        localEpisodeId = localEpisodeId,
-        duration = mediaProgress.duration,
-        progress = mediaProgress.progress,
-        currentTime = mediaProgress.currentTime,
-        isFinished = mediaProgress.isFinished,
-        ebookLocation = mediaProgress.ebookLocation,
-        ebookProgress = mediaProgress.ebookProgress,
-        lastUpdate = mediaProgress.lastUpdate,
-        startedAt = mediaProgress.startedAt,
-        finishedAt = mediaProgress.finishedAt,
-        serverConnectionConfigId = downloadItem.serverConnectionConfigId,
-        serverAddress = downloadItem.serverAddress,
-        serverUserId = downloadItem.serverUserId,
-        libraryItemId = downloadItem.libraryItemId,
-        episodeId = downloadItem.episodeId)
-      Log.d(tag, "scanLibraryItemFolder: Saving local media progress ${newLocalMediaProgress.id} at progress ${newLocalMediaProgress.progress}")
+      val localMediaProgressId =
+              if (downloadItem.episodeId.isNullOrEmpty()) localLibraryItemId
+              else "$localLibraryItemId-$localEpisodeId"
+      val newLocalMediaProgress =
+              LocalMediaProgress(
+                      id = localMediaProgressId,
+                      localLibraryItemId = localLibraryItemId,
+                      localEpisodeId = localEpisodeId,
+                      duration = mediaProgress.duration,
+                      progress = mediaProgress.progress,
+                      currentTime = mediaProgress.currentTime,
+                      isFinished = mediaProgress.isFinished,
+                      ebookLocation = mediaProgress.ebookLocation,
+                      ebookProgress = mediaProgress.ebookProgress,
+                      lastUpdate = mediaProgress.lastUpdate,
+                      startedAt = mediaProgress.startedAt,
+                      finishedAt = mediaProgress.finishedAt,
+                      serverConnectionConfigId = downloadItem.serverConnectionConfigId,
+                      serverAddress = downloadItem.serverAddress,
+                      serverUserId = downloadItem.serverUserId,
+                      libraryItemId = downloadItem.libraryItemId,
+                      episodeId = downloadItem.episodeId
+              )
+      Log.d(
+              tag,
+              "scanLibraryItemFolder: Saving local media progress ${newLocalMediaProgress.id} at progress ${newLocalMediaProgress.progress}"
+      )
       DeviceManager.dbManager.saveLocalMediaProgress(newLocalMediaProgress)
 
       downloadItemScanResult.localMediaProgress = newLocalMediaProgress
@@ -206,7 +289,7 @@ class FolderScanner(var ctx: Context) {
     }
 
     val folderDf = DocumentFileCompat.fromUri(ctx, Uri.parse(downloadItem.localFolder.contentUrl))
-    val foldersFound =  folderDf?.search(true, DocumentFileType.FOLDER) ?: mutableListOf()
+    val foldersFound = folderDf?.search(true, DocumentFileType.FOLDER) ?: mutableListOf()
 
     var itemFolderId = ""
     var itemFolderUrl = ""
@@ -235,72 +318,189 @@ class FolderScanner(var ctx: Context) {
     }
 
     val localLibraryItemId = getLocalLibraryItemId(itemFolderId)
-    Log.d(tag, "scanDownloadItem starting for ${downloadItem.itemFolderPath} | ${df.uri} | Item Folder Id:$itemFolderId | LLI Id:$localLibraryItemId")
+    Log.d(
+            tag,
+            "scanDownloadItem starting for ${downloadItem.itemFolderPath} | ${df.uri} | Item Folder Id:$itemFolderId | LLI Id:$localLibraryItemId"
+    )
 
     // Search for files in media item folder
     // m4b files showing as mimeType application/octet-stream on Android 10 and earlier see #154
-    val filesFound = df.search(false, DocumentFileType.FILE, arrayOf("audio/*", "image/*", "video/mp4", "application/*"))
+    val filesFound =
+            df.search(
+                    false,
+                    DocumentFileType.FILE,
+                    arrayOf("audio/*", "image/*", "video/mp4", "application/*")
+            )
     Log.d(tag, "scanDownloadItem ${filesFound.size} files found in ${downloadItem.itemFolderPath}")
 
-    var localEpisodeId:String? = null
-    var localLibraryItem:LocalLibraryItem?
+    var localEpisodeId: String? = null
+    var localLibraryItem: LocalLibraryItem?
     if (downloadItem.mediaType == "book") {
-      localLibraryItem = LocalLibraryItem(localLibraryItemId, downloadItem.localFolder.id, itemFolderBasePath, itemFolderAbsolutePath, itemFolderUrl, false, downloadItem.mediaType, downloadItem.media.getLocalCopy(), mutableListOf(), null, null, true, downloadItem.serverConnectionConfigId, downloadItem.serverAddress, downloadItem.serverUserId, downloadItem.libraryItemId)
+      localLibraryItem =
+              LocalLibraryItem(
+                      localLibraryItemId,
+                      downloadItem.localFolder.id,
+                      itemFolderBasePath,
+                      itemFolderAbsolutePath,
+                      itemFolderUrl,
+                      false,
+                      downloadItem.mediaType,
+                      downloadItem.media.getLocalCopy(),
+                      mutableListOf(),
+                      null,
+                      null,
+                      true,
+                      downloadItem.serverConnectionConfigId,
+                      downloadItem.serverAddress,
+                      downloadItem.serverUserId,
+                      downloadItem.libraryItemId
+              )
     } else {
       // Lookup or create podcast local library item
       localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(localLibraryItemId)
       if (localLibraryItem == null) {
-        Log.d(tag, "[FolderScanner] Podcast local library item not created yet for ${downloadItem.media.metadata.title}")
-        localLibraryItem = LocalLibraryItem(localLibraryItemId, downloadItem.localFolder.id, itemFolderBasePath, itemFolderAbsolutePath, itemFolderUrl, false, downloadItem.mediaType, downloadItem.media.getLocalCopy(), mutableListOf(), null, null, true,downloadItem.serverConnectionConfigId,downloadItem.serverAddress,downloadItem.serverUserId,downloadItem.libraryItemId)
+        Log.d(
+                tag,
+                "[FolderScanner] Podcast local library item not created yet for ${downloadItem.media.metadata.title}"
+        )
+        localLibraryItem =
+                LocalLibraryItem(
+                        localLibraryItemId,
+                        downloadItem.localFolder.id,
+                        itemFolderBasePath,
+                        itemFolderAbsolutePath,
+                        itemFolderUrl,
+                        false,
+                        downloadItem.mediaType,
+                        downloadItem.media.getLocalCopy(),
+                        mutableListOf(),
+                        null,
+                        null,
+                        true,
+                        downloadItem.serverConnectionConfigId,
+                        downloadItem.serverAddress,
+                        downloadItem.serverUserId,
+                        downloadItem.libraryItemId
+                )
       }
     }
 
-    val audioTracks:MutableList<AudioTrack> = mutableListOf()
+    val audioTracks: MutableList<AudioTrack> = mutableListOf()
     var foundEBookFile = false
 
     filesFound.forEach { docFile ->
-      val itemPart = downloadItem.downloadItemParts.find { itemPart ->
-        itemPart.filename == docFile.name
-      }
+      val itemPart =
+              downloadItem.downloadItemParts.find { itemPart -> itemPart.filename == docFile.name }
       if (itemPart == null) {
-        if (downloadItem.mediaType == "book") { // for books every download item should be a file found
-          Log.e(tag, "scanDownloadItem: Item part not found for doc file ${docFile.name} | ${docFile.getAbsolutePath(ctx)} | ${docFile.uri}")
+        if (downloadItem.mediaType == "book"
+        ) { // for books every download item should be a file found
+          Log.e(
+                  tag,
+                  "scanDownloadItem: Item part not found for doc file ${docFile.name} | ${docFile.getAbsolutePath(ctx)} | ${docFile.uri}"
+          )
         }
       } else if (itemPart.audioTrack != null) { // Is audio track
         val audioTrackFromServer = itemPart.audioTrack
-        Log.d(tag, "scanDownloadItem: Audio Track from Server index = ${audioTrackFromServer.index}")
+        Log.d(
+                tag,
+                "scanDownloadItem: Audio Track from Server index = ${audioTrackFromServer.index}"
+        )
 
         val localFileId = DeviceManager.getBase64Id(docFile.id)
-        val localFile = LocalFile(localFileId,docFile.name,docFile.uri.toString(),docFile.getBasePath(ctx),docFile.getAbsolutePath(ctx),docFile.getSimplePath(ctx),docFile.mimeType,docFile.length())
+        val localFile =
+                LocalFile(
+                        localFileId,
+                        docFile.name,
+                        docFile.uri.toString(),
+                        docFile.getBasePath(ctx),
+                        docFile.getAbsolutePath(ctx),
+                        docFile.getSimplePath(ctx),
+                        docFile.mimeType,
+                        docFile.length()
+                )
         localLibraryItem.localFiles.add(localFile)
 
         // Create new audio track
-        val trackFileMetadata = FileMetadata(docFile.name ?: "", docFile.extension ?: "", docFile.getAbsolutePath(ctx), docFile.getBasePath(ctx), docFile.length())
-        val track = AudioTrack(audioTrackFromServer.index, audioTrackFromServer.startOffset, audioTrackFromServer.duration, localFile.filename ?: "", localFile.contentUrl, localFile.mimeType ?: "", trackFileMetadata, true, localFileId, null, audioTrackFromServer.index)
+        val trackFileMetadata =
+                FileMetadata(
+                        docFile.name ?: "",
+                        docFile.extension ?: "",
+                        docFile.getAbsolutePath(ctx),
+                        docFile.getBasePath(ctx),
+                        docFile.length()
+                )
+        val track =
+                AudioTrack(
+                        audioTrackFromServer.index,
+                        audioTrackFromServer.startOffset,
+                        audioTrackFromServer.duration,
+                        localFile.filename ?: "",
+                        localFile.contentUrl,
+                        localFile.mimeType ?: "",
+                        trackFileMetadata,
+                        true,
+                        localFileId,
+                        null,
+                        audioTrackFromServer.index
+                )
         audioTracks.add(track)
 
-        Log.d(tag, "scanDownloadItem: Created Audio Track with index ${track.index} from local file ${localFile.absolutePath}")
+        Log.d(
+                tag,
+                "scanDownloadItem: Created Audio Track with index ${track.index} from local file ${localFile.absolutePath}"
+        )
 
         // Add podcast episodes to library
         itemPart.episode?.let { podcastEpisode ->
           val podcast = localLibraryItem.media as Podcast
           val newEpisode = podcast.addEpisode(track, podcastEpisode)
           localEpisodeId = newEpisode.id
-          Log.d(tag, "scanDownloadItem: Added episode to podcast ${podcastEpisode.title} ${track.title} | Track index: ${podcastEpisode.audioTrack?.index}")
+          Log.d(
+                  tag,
+                  "scanDownloadItem: Added episode to podcast ${podcastEpisode.title} ${track.title} | Track index: ${podcastEpisode.audioTrack?.index}"
+          )
         }
       } else if (itemPart.ebookFile != null) { // Ebook
         foundEBookFile = true
         Log.d(tag, "scanDownloadItem: Ebook file found with mimetype=${docFile.mimeType}")
         val localFileId = DeviceManager.getBase64Id(docFile.id)
-        val localFile = LocalFile(localFileId,docFile.name,docFile.uri.toString(),docFile.getBasePath(ctx),docFile.getAbsolutePath(ctx),docFile.getSimplePath(ctx),docFile.mimeType,docFile.length())
+        val localFile =
+                LocalFile(
+                        localFileId,
+                        docFile.name,
+                        docFile.uri.toString(),
+                        docFile.getBasePath(ctx),
+                        docFile.getAbsolutePath(ctx),
+                        docFile.getSimplePath(ctx),
+                        docFile.mimeType,
+                        docFile.length()
+                )
         localLibraryItem.localFiles.add(localFile)
 
-        val ebookFile = EBookFile(itemPart.ebookFile.ino, itemPart.ebookFile.metadata, itemPart.ebookFile.ebookFormat, true, localFileId, localFile.contentUrl)
+        val ebookFile =
+                EBookFile(
+                        itemPart.ebookFile.ino,
+                        itemPart.ebookFile.metadata,
+                        itemPart.ebookFile.ebookFormat,
+                        true,
+                        localFileId,
+                        localFile.contentUrl
+                )
         (localLibraryItem.media as Book).ebookFile = ebookFile
         Log.d(tag, "scanDownloadItem: Ebook file added to lli ${localFile.contentUrl}")
       } else { // Cover image
         val localFileId = DeviceManager.getBase64Id(docFile.id)
-        val localFile = LocalFile(localFileId,docFile.name,docFile.uri.toString(),docFile.getBasePath(ctx),docFile.getAbsolutePath(ctx),docFile.getSimplePath(ctx),docFile.mimeType,docFile.length())
+        val localFile =
+                LocalFile(
+                        localFileId,
+                        docFile.name,
+                        docFile.uri.toString(),
+                        docFile.getBasePath(ctx),
+                        docFile.getAbsolutePath(ctx),
+                        docFile.getSimplePath(ctx),
+                        docFile.mimeType,
+                        docFile.length()
+                )
 
         localLibraryItem.coverAbsolutePath = localFile.absolutePath
         localLibraryItem.coverContentUrl = localFile.contentUrl
@@ -309,7 +509,10 @@ class FolderScanner(var ctx: Context) {
     }
 
     if (audioTracks.isEmpty() && !foundEBookFile) {
-      Log.d(tag, "scanDownloadItem did not find any audio tracks or ebook file in folder for ${downloadItem.itemFolderPath}")
+      Log.d(
+              tag,
+              "scanDownloadItem did not find any audio tracks or ebook file in folder for ${downloadItem.itemFolderPath}"
+      )
       return cb(null)
     }
 
@@ -331,30 +534,37 @@ class FolderScanner(var ctx: Context) {
       localLibraryItem.media.setAudioTracks(audioTracks)
     }
 
-    val downloadItemScanResult = DownloadItemScanResult(localLibraryItem,null)
+    val downloadItemScanResult = DownloadItemScanResult(localLibraryItem, null)
 
     // If library item had media progress then make local media progress and save
     downloadItem.userMediaProgress?.let { mediaProgress ->
-      val localMediaProgressId = if (downloadItem.episodeId.isNullOrEmpty()) localLibraryItemId else "$localLibraryItemId-$localEpisodeId"
-      val newLocalMediaProgress = LocalMediaProgress(
-        id = localMediaProgressId,
-        localLibraryItemId = localLibraryItemId,
-        localEpisodeId = localEpisodeId,
-        duration = mediaProgress.duration,
-        progress = mediaProgress.progress,
-        currentTime = mediaProgress.currentTime,
-        isFinished = mediaProgress.isFinished,
-        ebookLocation = mediaProgress.ebookLocation,
-        ebookProgress = mediaProgress.ebookProgress,
-        lastUpdate = mediaProgress.lastUpdate,
-        startedAt = mediaProgress.startedAt,
-        finishedAt = mediaProgress.finishedAt,
-        serverConnectionConfigId = downloadItem.serverConnectionConfigId,
-        serverAddress = downloadItem.serverAddress,
-        serverUserId = downloadItem.serverUserId,
-        libraryItemId = downloadItem.libraryItemId,
-        episodeId = downloadItem.episodeId)
-      Log.d(tag, "scanLibraryItemFolder: Saving local media progress ${newLocalMediaProgress.id} at progress ${newLocalMediaProgress.progress}")
+      val localMediaProgressId =
+              if (downloadItem.episodeId.isNullOrEmpty()) localLibraryItemId
+              else "$localLibraryItemId-$localEpisodeId"
+      val newLocalMediaProgress =
+              LocalMediaProgress(
+                      id = localMediaProgressId,
+                      localLibraryItemId = localLibraryItemId,
+                      localEpisodeId = localEpisodeId,
+                      duration = mediaProgress.duration,
+                      progress = mediaProgress.progress,
+                      currentTime = mediaProgress.currentTime,
+                      isFinished = mediaProgress.isFinished,
+                      ebookLocation = mediaProgress.ebookLocation,
+                      ebookProgress = mediaProgress.ebookProgress,
+                      lastUpdate = mediaProgress.lastUpdate,
+                      startedAt = mediaProgress.startedAt,
+                      finishedAt = mediaProgress.finishedAt,
+                      serverConnectionConfigId = downloadItem.serverConnectionConfigId,
+                      serverAddress = downloadItem.serverAddress,
+                      serverUserId = downloadItem.serverUserId,
+                      libraryItemId = downloadItem.libraryItemId,
+                      episodeId = downloadItem.episodeId
+              )
+      Log.d(
+              tag,
+              "scanLibraryItemFolder: Saving local media progress ${newLocalMediaProgress.id} at progress ${newLocalMediaProgress.progress}"
+      )
 
       DeviceManager.dbManager.saveLocalMediaProgress(newLocalMediaProgress)
 
