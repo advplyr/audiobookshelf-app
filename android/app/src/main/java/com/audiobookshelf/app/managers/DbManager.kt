@@ -214,7 +214,12 @@ class DbManager {
         }
       }
 
-      if (hasUpdates) {
+      if (lli.serverConnectionConfigId == null) {
+        // Local-only item support was removed in app version 0.9.67, remove any remaining local
+        // only items beginning in 0.9.80
+        Log.d(tag, "cleanLocalLibraryItems: Local only item ${lli.id} - removing from ABS")
+        Paper.book("localLibraryItems").delete(lli.id)
+      } else if (hasUpdates) {
         Log.d(tag, "cleanLocalLibraryItems: Saving local library item ${lli.id}")
         Paper.book("localLibraryItems").write(lli.id, lli)
       }
