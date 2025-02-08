@@ -36,10 +36,7 @@
         </div>
 
         <div v-if="hasLocal" class="mx-1">
-          <div v-if="isLocalOnly" class="w-full rounded-md bg-warning/10 border border-warning p-4">
-            <p class="text-sm">{{ $strings.MessageMediaNotLinkedToServer }}</p>
-          </div>
-          <div v-else-if="currentServerConnectionConfigId && !isLocalMatchingServerAddress" class="w-full rounded-md bg-warning/10 border border-warning p-4">
+          <div v-if="currentServerConnectionConfigId && !isLocalMatchingServerAddress" class="w-full rounded-md bg-warning/10 border border-warning p-4">
             <p class="text-sm">{{ $getString('MessageMediaLinkedToADifferentServer', [localLibraryItem.serverAddress]) }}</p>
           </div>
           <div v-else-if="currentServerConnectionConfigId && !isLocalMatchingUser" class="w-full rounded-md bg-warning/10 border border-warning p-4">
@@ -240,10 +237,6 @@ export default {
     isLocal() {
       return this.libraryItem.isLocal
     },
-    isLocalOnly() {
-      // TODO: Remove the possibility to have local only on android
-      return this.isLocal && !this.libraryItem.libraryItemId
-    },
     hasLocal() {
       // Server library item has matching local library item
       return this.isLocal || this.libraryItem.localLibraryItem
@@ -282,21 +275,21 @@ export default {
      * User is currently connected to a server and this local library item has the same server address
      */
     isLocalMatchingServerAddress() {
-      if (this.isLocalOnly || !this.localLibraryItem || !this.currentServerAddress) return false
+      if (!this.localLibraryItem || !this.currentServerAddress) return false
       return this.localLibraryItem.serverAddress === this.currentServerAddress
     },
     /**
      * User is currently connected to a server and this local library item has the same user id
      */
     isLocalMatchingUser() {
-      if (this.isLocalOnly || !this.localLibraryItem || !this.user) return false
+      if (!this.localLibraryItem || !this.user) return false
       return this.localLibraryItem.serverUserId === this.user.id || this.localLibraryItem.serverUserId === this.user.oldUserId
     },
     /**
      * User is currently connected to a server and this local library item has the same connection config id
      */
     isLocalMatchingConnectionConfig() {
-      if (this.isLocalOnly || !this.localLibraryItemServerConnectionConfigId || !this.currentServerConnectionConfigId) return false
+      if (!this.localLibraryItemServerConnectionConfigId || !this.currentServerConnectionConfigId) return false
       return this.localLibraryItemServerConnectionConfigId === this.currentServerConnectionConfigId
     },
     bookCoverAspectRatio() {
