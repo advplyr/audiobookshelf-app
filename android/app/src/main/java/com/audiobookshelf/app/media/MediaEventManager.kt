@@ -114,20 +114,14 @@ object MediaEventManager {
 
   private fun createMediaItemHistoryForSession(playbackSession: PlaybackSession): MediaItemHistory {
     Log.i(tag, "Creating new media item history for media \"${playbackSession.displayTitle}\"")
-    val isLocalOnly = playbackSession.isLocalLibraryItemOnly
-    val libraryItemId =
-            if (isLocalOnly) playbackSession.localLibraryItemId
-            else playbackSession.libraryItemId ?: ""
-    val episodeId: String? =
-            if (isLocalOnly && playbackSession.localEpisodeId != null)
-                    playbackSession.localEpisodeId
-            else playbackSession.episodeId
+    val libraryItemId = playbackSession.libraryItemId ?: ""
+    val episodeId: String? = playbackSession.episodeId
     return MediaItemHistory(
             id = playbackSession.mediaItemId,
             mediaDisplayTitle = playbackSession.displayTitle ?: "Unset",
             libraryItemId,
             episodeId,
-            isLocalOnly,
+            false, // local-only items are not supported
             playbackSession.serverConnectionConfigId,
             playbackSession.serverAddress,
             playbackSession.userId,

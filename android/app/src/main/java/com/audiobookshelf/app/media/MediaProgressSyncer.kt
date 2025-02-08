@@ -248,11 +248,7 @@ class MediaProgressSyncer(
 
     // Save playback session to db (server linked sessions only)
     //   Sessions are removed once successfully synced with the server
-    currentPlaybackSession?.let {
-      if (!it.isLocalLibraryItemOnly) {
-        DeviceManager.dbManager.savePlaybackSession(it)
-      }
-    }
+    currentPlaybackSession?.let { DeviceManager.dbManager.savePlaybackSession(it) }
 
     if (currentIsLocal) {
       // Save local progress sync

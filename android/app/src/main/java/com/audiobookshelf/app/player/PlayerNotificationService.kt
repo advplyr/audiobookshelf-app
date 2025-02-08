@@ -784,7 +784,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     if (currentPlaybackSession == null) return true
 
     mediaProgressSyncer.currentPlaybackSession?.let { playbackSession ->
-      if (!DeviceManager.checkConnectivity(ctx) || playbackSession.isLocalLibraryItemOnly) {
+      if (!DeviceManager.checkConnectivity(ctx)) {
         return true // carry on
       }
 
