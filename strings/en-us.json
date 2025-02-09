@@ -296,7 +296,7 @@
   "MessageItemMissing": "Item is missing and must be fixed on the server. Typically an item is marked as missing because the file paths are not accessible.",
   "MessageLoading": "Loading...",
   "MessageLoadingServerData": "Loading server data...",
-  "MessageLocalFolderDescription": "Internal App Storage is only accessible by this app. Other local folders can be used to allow other apps to access media downloaded through this app. This app does not support files added by other apps or manually through the file system.",
+  "MessageLocalFolderDescription": "'Internal App Storage' is only accessible by this app. This app only supports media downloaded directly through the app. Shared storage folders can be used to allow other apps to access media downloaded by this app.",
   "MessageMarkAsFinished": "Mark as Finished",
   "MessageMediaLinkedToADifferentServer": "Media is linked to an Audiobookshelf server on a different address ({0}). Progress will be synced when connected to this server address.",
   "MessageMediaLinkedToADifferentUser": "Media is linked to this server but was downloaded by a different user. Progress will only be synced to the user that downloaded it.",
