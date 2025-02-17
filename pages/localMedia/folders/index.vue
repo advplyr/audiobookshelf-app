@@ -1,9 +1,11 @@
 <template>
   <div class="w-full h-full py-6">
-    <h1 class="text-base font-semibold px-2 mb-2">
-      {{ $strings.HeaderLocalFolders }}
-      <span class="material-icons-outlined ml-2" @click.stop="showLocalFolderMoreInfo">info</span>
-    </h1>
+    <div class="flex items-center mb-2">
+      <h1 class="text-base font-semibold px-2">
+        {{ $strings.HeaderLocalFolders }}
+      </h1>
+      <button type="button" class="material-icons-outlined" @click.stop="showLocalFolderMoreInfo">info</button>
+    </div>
 
     <div v-if="!isIos" class="w-full max-w-full px-2 py-2">
       <template v-for="folder in localFolders">
