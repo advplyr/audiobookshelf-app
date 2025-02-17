@@ -1,6 +1,11 @@
 <template>
   <div class="w-full h-full py-6">
-    <h1 class="text-base font-semibold px-2 mb-2">{{ $strings.HeaderLocalFolders }}</h1>
+    <div class="flex items-center mb-2">
+      <h1 class="text-base font-semibold px-2">
+        {{ $strings.HeaderLocalFolders }}
+      </h1>
+      <button type="button" class="material-icons-outlined" @click.stop="showLocalFolderMoreInfo">info</button>
+    </div>
 
     <div v-if="!isIos" class="w-full max-w-full px-2 py-2">
       <template v-for="folder in localFolders">
@@ -33,6 +38,7 @@
 
 <script>
 import { AbsFileSystem } from '@/plugins/capacitor'
+import { Dialog } from '@capacitor/dialog'
 
 export default {
   data() {
@@ -85,6 +91,16 @@ export default {
         return
       } else {
         this.$toast.success('Folder permission success')
+      }
+    },
+    async showLocalFolderMoreInfo() {
+      const confirmResult = await Dialog.confirm({
+        title: this.$strings.HeaderLocalFolders,
+        message: this.$strings.MessageLocalFolderDescription,
+        cancelButtonTitle: 'View More'
+      })
+      if (!confirmResult.value) {
+        window.open('https://www.audiobookshelf.org/guides/android_app_shared_storage', '_blank')
       }
     },
     async init() {
