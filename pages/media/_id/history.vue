@@ -51,9 +51,6 @@ export default {
       if (!this.mediaItemHistory) return []
       return (this.mediaItemHistory.events || []).sort((a, b) => b.timestamp - a.timestamp)
     },
-    mediaItemIsLocal() {
-      return this.mediaItemHistory && this.mediaItemHistory.isLocal
-    },
     mediaItemLibraryItemId() {
       if (!this.mediaItemHistory) return null
       return this.mediaItemHistory.libraryItemId
@@ -91,7 +88,7 @@ export default {
 
         // Collapse saves
         if (evt.name === 'Save') {
-          let saveName = evt.name + "-" + evt.serverSyncAttempted + "-" + evt.serverSyncSuccess
+          let saveName = evt.name + '-' + evt.serverSyncAttempted + '-' + evt.serverSyncSuccess
           if (lastSaveName === saveName && numSaves > 0 && !keyUpdated) {
             include = false
             const totalInGroup = groups[key].length
@@ -140,19 +137,14 @@ export default {
     },
     playAtTime(startTime) {
       this.$store.commit('setPlayerIsStartingPlayback', this.mediaItemEpisodeId || this.mediaItemLibraryItemId)
-      if (this.mediaItemIsLocal) {
-        // Local only
-        this.$eventBus.$emit('play-item', { libraryItemId: this.mediaItemLibraryItemId, episodeId: this.mediaItemEpisodeId, startTime })
+      // Server may have local
+      const localProg = this.$store.getters['globals/getLocalMediaProgressByServerItemId'](this.mediaItemLibraryItemId, this.mediaItemEpisodeId)
+      if (localProg) {
+        // Has local copy so prefer
+        this.$eventBus.$emit('play-item', { libraryItemId: localProg.localLibraryItemId, episodeId: localProg.localEpisodeId, serverLibraryItemId: this.mediaItemLibraryItemId, serverEpisodeId: this.mediaItemEpisodeId, startTime })
       } else {
-        // Server may have local
-        const localProg = this.$store.getters['globals/getLocalMediaProgressByServerItemId'](this.mediaItemLibraryItemId, this.mediaItemEpisodeId)
-        if (localProg) {
-          // Has local copy so prefer
-          this.$eventBus.$emit('play-item', { libraryItemId: localProg.localLibraryItemId, episodeId: localProg.localEpisodeId, serverLibraryItemId: this.mediaItemLibraryItemId, serverEpisodeId: this.mediaItemEpisodeId, startTime })
-        } else {
-          // Only on server
-          this.$eventBus.$emit('play-item', { libraryItemId: this.mediaItemLibraryItemId, episodeId: this.mediaItemEpisodeId, startTime })
-        }
+        // Only on server
+        this.$eventBus.$emit('play-item', { libraryItemId: this.mediaItemLibraryItemId, episodeId: this.mediaItemEpisodeId, startTime })
       }
     },
     getEventIcon(name) {

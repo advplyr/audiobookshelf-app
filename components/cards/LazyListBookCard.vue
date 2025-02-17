@@ -31,7 +31,7 @@
       </div>
 
       <div v-if="localLibraryItem || isLocal" class="absolute top-0 right-0 z-20" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }">
-        <span class="material-icons text-2xl text-success">{{ isLocalOnly ? 'task' : 'download_done' }}</span>
+        <span class="material-icons text-2xl text-success">{{ 'download_done' }}</span>
       </div>
     </div>
   </div>
@@ -92,10 +92,6 @@ export default {
     },
     isLocal() {
       return !!this._libraryItem.isLocal
-    },
-    isLocalOnly() {
-      // Local item with no server match
-      return this.isLocal && !this._libraryItem.libraryItemId
     },
     media() {
       return this._libraryItem.media || {}
