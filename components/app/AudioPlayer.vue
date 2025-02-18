@@ -7,7 +7,7 @@
         <span class="material-icons text-5xl" :class="{ 'text-black text-opacity-75': coverBgIsLight }" @click="collapseFullscreen">expand_more</span>
       </div>
       <div v-show="showCastBtn" class="top-6 right-16 absolute cursor-pointer">
-        <span class="material-icons text-3xl" :class="isCasting ? (coverBgIsLight ? 'text-successDark' : 'text-success') : coverBgIsLight ? 'text-black' : ''" @click="castClick">cast</span>
+        <span class="material-icons text-3xl" :class="coverBgIsLight ? 'text-black' : ''" @click="castClick">{{ isCasting ? 'cast_connected' : 'cast' }}</span>
       </div>
       <div class="top-6 right-4 absolute cursor-pointer">
         <span class="material-icons text-3xl" :class="{ 'text-black text-opacity-75': coverBgIsLight }" @click="showMoreMenuDialog = true">more_vert</span>

@@ -22,7 +22,7 @@
 
       <!-- Must be connected to a server to cast, only supports media items on server -->
       <div v-show="isCastAvailable && user" class="mx-2 cursor-pointer flex items-center pt-0.5" @click="castClick">
-        <span class="material-icons" :class="isCasting ? 'text-success' : ''">cast</span>
+        <span class="material-icons">{{ isCasting ? 'cast_connected' : 'cast' }}</span>
       </div>
 
       <nuxt-link v-if="user" class="h-7 mx-1.5" style="padding-top: 3px" to="/search">
