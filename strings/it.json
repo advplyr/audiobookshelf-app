@@ -296,6 +296,7 @@
   "MessageItemMissing": "L'elemento è mancante e deve essere riparato sul server. In genere un elemento è contrassegnato come mancante perché i percorsi dei file non sono accessibili.",
   "MessageLoading": "Caricamento…",
   "MessageLoadingServerData": "Caricamento dati dal server…",
+  "MessageLocalFolderDescription": "'Archiviazione app interna ' è accessibile solo da questa app. Questa app supporta solo i media scaricati direttamente tramite l'app. Le cartelle di archiviazione condivise possono essere utilizzate per consentire ad altre app di accedere ai media scaricati da questa app.",
   "MessageMarkAsFinished": "Segna come finito",
   "MessageMediaLinkedToADifferentServer": "L’elemento è collegato a un server Audiobookshelf su un indirizzo diverso ({0}). I progressi verranno sincronizzati quando ci si connette a questo indirizzo del server.",
   "MessageMediaLinkedToADifferentUser": "Il contenuto multimediale è collegato a questo server ma è stato scaricato da un utente diverso. I progressi verranno sincronizzati solo con l'utente che lo ha scaricato.",
