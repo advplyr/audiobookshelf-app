@@ -296,6 +296,7 @@
   "MessageItemMissing": "项目丢失, 必须在服务器上修复. 项目被标记为丢失通常是因为文件路径无法访问.",
   "MessageLoading": "正在加载...",
   "MessageLoadingServerData": "正在加载服务器数据...",
+  "MessageLocalFolderDescription": "'内部应用存储' 仅可由此应用程序访问. 此应用程序仅支持直接通过此应用程序下载的媒体. 共享存储文件夹可用于允许其他应用程序访问此应用程序下载的媒体.",
   "MessageMarkAsFinished": "标记为已听完",
   "MessageMediaLinkedToADifferentServer": "媒体链接到了一个地址不同 ({0}) 的 Audiobookshelf 服务器上. 连接到此服务器地址时将同步进度.",
   "MessageMediaLinkedToADifferentUser": "媒体链接到此服务器, 但是由其他用户下载. 进度将只同步到下载的用户.",
