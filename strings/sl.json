@@ -296,6 +296,7 @@
   "MessageItemMissing": "Element manjka in ga je treba popraviti na strežniku. Običajno je element označen kot manjkajoči, ker poti datoteke niso dostopne.",
   "MessageLoading": "Nalagam...",
   "MessageLoadingServerData": "Nalaganje podatkov strežnika...",
+  "MessageLocalFolderDescription": "»Notranja shramba aplikacije« je dostopna samo s to aplikacijo. Ta aplikacija podpira samo medije, prenesene neposredno prek aplikacije. Mape za shranjevanje v skupni rabi lahko uporabite, da drugim aplikacijam omogočite dostop do medijev, ki jih je prenesla ta aplikacija.",
   "MessageMarkAsFinished": "Označi kot dokončano",
   "MessageMediaLinkedToADifferentServer": "Predstavnost je povezana s strežnikom Audiobookshelf na drugem naslovu ({0}). Napredek bo sinhroniziran, ko bo vzpostavljena povezava s tem naslovom strežnika.",
   "MessageMediaLinkedToADifferentUser": "Predstavnost je povezana s tem strežnikom, vendar jo je prenesel drug uporabnik. Napredek bo sinhroniziran samo z uporabnikom, ki ga je prenesel.",
