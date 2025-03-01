@@ -7,15 +7,10 @@ import androidx.documentfile.provider.DocumentFile
 import com.anggrayudi.storage.file.*
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.models.DownloadItem
-import com.fasterxml.jackson.core.json.JsonReadFeature
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import java.io.File
 
 class FolderScanner(var ctx: Context) {
   private val tag = "FolderScanner"
-  private var jacksonMapper =
-          jacksonObjectMapper()
-                  .enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
 
   data class DownloadItemScanResult(
           val localLibraryItem: LocalLibraryItem,
