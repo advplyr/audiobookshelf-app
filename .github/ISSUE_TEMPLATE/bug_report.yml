@@ -12,6 +12,14 @@ body:
   - type: markdown
     attributes:
       value: 'Join the [discord server](https://discord.gg/HQgCbd6E75) for questions or if you are not sure about a bug.'
+  - type: dropdown
+    id: confirm-check
+    required: true
+    attributes:
+      label: I have verified that the [bug is not already awaiting release](https://github.com/advplyr/audiobookshelf-app/issues?q=is%3Aissue%20label%3A%22awaiting%20release%22)
+      options:
+        - Yes
+        - No
   - type: textarea
     id: what-happened
     attributes:
