@@ -137,7 +137,7 @@
   "LabelEbooks": "E-knjige",
   "LabelEnable": "Omogoči",
   "LabelEnableMp3IndexSeeking": "Omogoči iskanje po indeksu mp3",
-  "LabelEnableMp3IndexSeekingHelp": "To nastavitev naj bo omogočena le, če imate datoteke mp3, ki ne iščejo pravilno. Netočno iskanje je najverjetneje posledica datotek MP3 s spremenljivo hitrostjo (VBR). Ta nastavitev bo vsilila iskanje po indeksu, pri katerem se med branjem datoteke gradi preslikava časa v podatke. V nekaterih primerih bo pri velikih datotekah MP3 prišlo do zakasnitve pri iskanju proti koncu datoteke.",
+  "LabelEnableMp3IndexSeekingHelp": "Ta nastavitev naj bo omogočena le, če imate datoteke mp3, ki ne iščejo pravilno. Netočno iskanje je najverjetneje posledica datotek MP3 s spremenljivo hitrostjo (VBR). Ta nastavitev bo vsilila iskanje po indeksu, pri katerem se med branjem datoteke gradi preslikava časa v podatke. V nekaterih primerih bo pri velikih datotekah MP3 prišlo do zakasnitve pri iskanju proti koncu datoteke.",
   "LabelEnd": "Konec",
   "LabelEndOfChapter": "Konec poglavja",
   "LabelEndTime": "Končni čas",
