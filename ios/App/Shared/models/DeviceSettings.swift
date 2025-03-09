@@ -19,6 +19,7 @@ class DeviceSettings: Object {
     @Persisted var languageCode: String = "en-us"
     @Persisted var downloadUsingCellular: String = "ALWAYS"
     @Persisted var streamingUsingCellular: String = "ALWAYS"
+    @Persisted var disableSleepTimerFadeOut: Bool = false
 }
 
 func getDefaultDeviceSettings() -> DeviceSettings {
@@ -36,6 +37,7 @@ func deviceSettingsToJSON(settings: DeviceSettings) -> Dictionary<String, Any> {
         "hapticFeedback": settings.hapticFeedback,
         "languageCode": settings.languageCode,
         "downloadUsingCellular": settings.downloadUsingCellular,
-        "streamingUsingCellular": settings.streamingUsingCellular
+        "streamingUsingCellular": settings.streamingUsingCellular,
+        "disableSleepTimerFadeOut": settings.disableSleepTimerFadeOut
     ]
 }
