@@ -252,6 +252,7 @@
   "LabelTag": "Tag",
   "LabelTags": "Tags",
   "LabelTheme": "Theme",
+  "LabelThemeBlack": "Black",
   "LabelThemeDark": "Dark",
   "LabelThemeLight": "Light",
   "LabelTimeRemaining": "{0} remaining",
