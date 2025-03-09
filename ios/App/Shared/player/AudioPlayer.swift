@@ -365,7 +365,57 @@ class AudioPlayer: NSObject {
         self.status = .paused
         updateNowPlaying()
     }
-    
+
+    public func startFadeOut() {
+        guard self.isInitialized() else { return }
+        guard let currentTime = self.getCurrentTime() else { return }
+        logger.log("fadeOut: Fading out playback")
+        
+        // Define fade parameters.
+        let fadeDuration: Float = 60.0  // total fade duration in seconds
+        let interval: Float = 1.0      // timer interval in seconds
+
+        // Get the current volume.
+        let initialVolume = self.audioPlayer.volume
+        let targetVolume: Float = 0.0
+        
+        // If the current volume is already at or below zero, just pause.
+        if initialVolume <= targetVolume {
+            self.pause()
+            return
+        }
+        
+        // Calculate the volume change per timer tick.
+        // (targetVolume - initialVolume) is negative since target < initial.
+        let step = (targetVolume - initialVolume) * interval / fadeDuration
+        
+        // Schedule a timer on the main queue to adjust the volume.
+        DispatchQueue.runOnMainQueue { [weak self] in
+            var timer = Timer.scheduledTimer(withTimeInterval: TimeInterval(interval), repeats: true) { t in
+                guard let self = self else {
+                    t.invalidate()
+                    return
+                }
+                
+                // Calculate the new volume.
+                let newVolume = self.audioPlayer.volume + step
+                
+                // Check if the next step would go below zero.
+                if newVolume > targetVolume {
+                    self.audioPlayer.volume = newVolume
+                } else {
+                    // Ensure volume is exactly zero and end fade.
+                    self.audioPlayer.volume = targetVolume
+                    t.invalidate()
+                    self.logger.log("Fadeout: Fade complete, pausing playback")
+                    self.pause()
+                    self.audioPlayer.volume = initialVolume
+                    self.seek(currentTime, from: "fadeOut")
+                }
+            }
+        }
+    }
+
     public func seek(_ to: Double, from: String) {
         logger.log("SEEK: Seek to \(to) from \(from)")
 

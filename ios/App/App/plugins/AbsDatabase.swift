@@ -246,6 +246,7 @@ public class AbsDatabase: CAPPlugin {
         let languageCode = call.getString("languageCode") ?? "en-us"
         let downloadUsingCellular = call.getString("downloadUsingCellular") ?? "ALWAYS"
         let streamingUsingCellular = call.getString("streamingUsingCellular") ?? "ALWAYS"
+        let disableSleepTimerFadeOut = call.getBool("disableSleepTimerFadeOut") ?? false
         let settings = DeviceSettings()
         settings.disableAutoRewind = disableAutoRewind
         settings.enableAltView = enableAltView
@@ -257,6 +258,7 @@ public class AbsDatabase: CAPPlugin {
         settings.languageCode = languageCode
         settings.downloadUsingCellular = downloadUsingCellular
         settings.streamingUsingCellular = streamingUsingCellular
+        settings.disableSleepTimerFadeOut = disableSleepTimerFadeOut
 
         Database.shared.setDeviceSettings(deviceSettings: settings)
 
