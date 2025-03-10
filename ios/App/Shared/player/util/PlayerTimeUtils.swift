@@ -21,10 +21,13 @@ class PlayerTimeUtils {
     static internal func timeSinceLastPlayed(_ lastPlayedMs: Double?) -> TimeInterval? {
         guard let lastPlayedMs = lastPlayedMs else { return nil }
         let lastPlayed = Date(timeIntervalSince1970: lastPlayedMs / 1000)
-        return lastPlayed.timeIntervalSinceNow
+        return Date().timeIntervalSince(lastPlayed)
     }
     
     static internal func timeToSeekBackForSinceLastPlayed(_ sinceLastPlayed: TimeInterval?) -> TimeInterval {
+        if isAutoRewindDisabled(){
+          return 0
+        }
         if let sinceLastPlayed = sinceLastPlayed {
             if sinceLastPlayed < 6 {
                 return 2
@@ -42,6 +45,11 @@ class PlayerTimeUtils {
         } else {
             return 5
         }
+    }
+    
+    static internal func isAutoRewindDisabled() -> Bool {
+      let deviceSettings = Database.shared.getDeviceSettings()
+      return deviceSettings.disableAutoRewind
     }
     
 }
