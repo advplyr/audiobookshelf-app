@@ -84,6 +84,7 @@
           <ui-text-input :value="shakeSensitivityOption" readonly append-icon="expand_more" style="width: 145px; max-width: 145px" />
         </div>
       </div>
+    </template>
       <div class="flex items-center py-3">
         <div class="w-10 flex justify-center" @click="toggleDisableSleepTimerFadeOut">
           <ui-toggle-switch v-model="settings.disableSleepTimerFadeOut" @input="saveSettings" />
@@ -91,6 +92,7 @@
         <p class="pl-4">{{ $strings.LabelDisableAudioFadeOut }}</p>
         <span class="material-icons-outlined ml-2" @click.stop="showInfo('disableSleepTimerFadeOut')">info</span>
       </div>
+    <template v-if="!isiOS">
       <div class="flex items-center py-3">
         <div class="w-10 flex justify-center" @click="toggleDisableSleepTimerResetFeedback">
           <ui-toggle-switch v-model="settings.disableSleepTimerResetFeedback" @input="saveSettings" />

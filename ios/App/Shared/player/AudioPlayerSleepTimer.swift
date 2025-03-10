@@ -125,7 +125,11 @@ extension AudioPlayer {
         if var sleepTimeRemaining = self.sleepTimeRemaining {
             sleepTimeRemaining -= 1
             self.sleepTimeRemaining = sleepTimeRemaining
-            
+          
+            if sleepTimeRemaining == 60 && self.isSleepTimerFadeOutEnabled() {
+                self.startFadeOut()
+            }
+          
             // Handle the sleep if the timer has expired
             if sleepTimeRemaining <= 0 {
                 self.handleSleepEnd()
@@ -154,5 +158,9 @@ extension AudioPlayer {
     private func isChapterSleepTimerSet() -> Bool {
         return self.sleepTimeChapterStopAt != nil
     }
-    
+  
+    private func isSleepTimerFadeOutEnabled() -> Bool {
+      let deviceSettings = Database.shared.getDeviceSettings()
+      return !deviceSettings.disableSleepTimerFadeOut
+    }
 }
