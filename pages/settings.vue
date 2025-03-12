@@ -36,7 +36,7 @@
 
     <!-- Playback settings -->
     <p class="uppercase text-xs font-semibold text-fg-muted mb-2 mt-10">{{ $strings.HeaderPlaybackSettings }}</p>
-    <div v-if="!isiOS" class="flex items-center py-3">
+    <div class="flex items-center py-3">
       <div class="w-10 flex justify-center" @click="toggleDisableAutoRewind">
         <ui-toggle-switch v-model="settings.disableAutoRewind" @input="saveSettings" />
       </div>
