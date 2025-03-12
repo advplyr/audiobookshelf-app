@@ -29,7 +29,15 @@ class FolderScanner(var ctx: Context) {
 
     var localEpisodeId: String? = null
     var localLibraryItem: LocalLibraryItem?
-    if (downloadItem.mediaType == "book") {
+    localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(localLibraryItemId)
+
+    // Create the local library item if it does not already exist. The local library item will
+    // already exist if downloading new podast episodes
+    if (localLibraryItem == null) {
+      Log.d(
+              tag,
+              "[InternalFolderScanner] Create local library item for ${downloadItem.media.metadata.title}"
+      )
       localLibraryItem =
               LocalLibraryItem(
                       localLibraryItemId,
@@ -49,34 +57,6 @@ class FolderScanner(var ctx: Context) {
                       downloadItem.serverUserId,
                       downloadItem.libraryItemId
               )
-    } else {
-      // Lookup or create podcast local library item
-      localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(localLibraryItemId)
-      if (localLibraryItem == null) {
-        Log.d(
-                tag,
-                "[FolderScanner] Podcast local library item not created yet for ${downloadItem.media.metadata.title}"
-        )
-        localLibraryItem =
-                LocalLibraryItem(
-                        localLibraryItemId,
-                        downloadItem.localFolder.id,
-                        downloadItem.itemFolderPath,
-                        downloadItem.itemFolderPath,
-                        "",
-                        false,
-                        downloadItem.mediaType,
-                        downloadItem.media.getLocalCopy(),
-                        mutableListOf(),
-                        null,
-                        null,
-                        true,
-                        downloadItem.serverConnectionConfigId,
-                        downloadItem.serverAddress,
-                        downloadItem.serverUserId,
-                        downloadItem.libraryItemId
-                )
-      }
     }
 
     val audioTracks: MutableList<AudioTrack> = mutableListOf()
@@ -89,6 +69,19 @@ class FolderScanner(var ctx: Context) {
       )
 
       val file = File(downloadItemPart.finalDestinationPath)
+
+      val localFileId = DeviceManager.getBase64Id(file.name)
+      val localFile =
+              LocalFile(
+                      localFileId,
+                      file.name,
+                      Uri.fromFile(file).toString(),
+                      file.getBasePath(ctx),
+                      file.absolutePath,
+                      file.getSimplePath(ctx),
+                      file.mimeType,
+                      file.length()
+              )
       Log.d(tag, "Scan internal storage item created file ${file.name}")
 
       if (file == null) {
@@ -104,19 +97,7 @@ class FolderScanner(var ctx: Context) {
                   "scanInternalDownloadItem: Audio Track from Server index = ${audioTrackFromServer.index}"
           )
 
-          val localFileId = DeviceManager.getBase64Id(file.name)
           Log.d(tag, "Scan internal file localFileId=$localFileId")
-          val localFile =
-                  LocalFile(
-                          localFileId,
-                          file.name,
-                          downloadItemPart.finalDestinationUri.toString(),
-                          file.getBasePath(ctx),
-                          file.absolutePath,
-                          file.getSimplePath(ctx),
-                          file.mimeType,
-                          file.length()
-                  )
           localLibraryItem.localFiles.add(localFile)
 
           val trackFileMetadata =
@@ -161,18 +142,6 @@ class FolderScanner(var ctx: Context) {
         } else if (downloadItemPart.ebookFile != null) {
           foundEBookFile = true
           Log.d(tag, "scanInternalDownloadItem: Ebook file found with mimetype=${file.mimeType}")
-          val localFileId = DeviceManager.getBase64Id(file.name)
-          val localFile =
-                  LocalFile(
-                          localFileId,
-                          file.name,
-                          Uri.fromFile(file).toString(),
-                          file.getBasePath(ctx),
-                          file.absolutePath,
-                          file.getSimplePath(ctx),
-                          file.mimeType,
-                          file.length()
-                  )
           localLibraryItem.localFiles.add(localFile)
 
           val ebookFile =
@@ -187,18 +156,6 @@ class FolderScanner(var ctx: Context) {
           (localLibraryItem.media as Book).ebookFile = ebookFile
           Log.d(tag, "scanInternalDownloadItem: Ebook file added to lli ${localFile.contentUrl}")
         } else {
-          val localFileId = DeviceManager.getBase64Id(file.name)
-          val localFile =
-                  LocalFile(
-                          localFileId,
-                          file.name,
-                          Uri.fromFile(file).toString(),
-                          file.getBasePath(ctx),
-                          file.absolutePath,
-                          file.getSimplePath(ctx),
-                          file.mimeType,
-                          file.length()
-                  )
 
           localLibraryItem.coverAbsolutePath = localFile.absolutePath
           localLibraryItem.coverContentUrl = localFile.contentUrl
@@ -329,7 +286,15 @@ class FolderScanner(var ctx: Context) {
 
     var localEpisodeId: String? = null
     var localLibraryItem: LocalLibraryItem?
-    if (downloadItem.mediaType == "book") {
+
+    // Create the local library item if it does not already exist. The local library item will
+    // already exist if downloading new podast episodes
+    localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(localLibraryItemId)
+    if (localLibraryItem == null) {
+      Log.d(
+              tag,
+              "[FolderScanner] Create local library item for ${downloadItem.media.metadata.title}"
+      )
       localLibraryItem =
               LocalLibraryItem(
                       localLibraryItemId,
@@ -349,34 +314,6 @@ class FolderScanner(var ctx: Context) {
                       downloadItem.serverUserId,
                       downloadItem.libraryItemId
               )
-    } else {
-      // Lookup or create podcast local library item
-      localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(localLibraryItemId)
-      if (localLibraryItem == null) {
-        Log.d(
-                tag,
-                "[FolderScanner] Podcast local library item not created yet for ${downloadItem.media.metadata.title}"
-        )
-        localLibraryItem =
-                LocalLibraryItem(
-                        localLibraryItemId,
-                        downloadItem.localFolder.id,
-                        itemFolderBasePath,
-                        itemFolderAbsolutePath,
-                        itemFolderUrl,
-                        false,
-                        downloadItem.mediaType,
-                        downloadItem.media.getLocalCopy(),
-                        mutableListOf(),
-                        null,
-                        null,
-                        true,
-                        downloadItem.serverConnectionConfigId,
-                        downloadItem.serverAddress,
-                        downloadItem.serverUserId,
-                        downloadItem.libraryItemId
-                )
-      }
     }
 
     val audioTracks: MutableList<AudioTrack> = mutableListOf()
@@ -385,6 +322,21 @@ class FolderScanner(var ctx: Context) {
     filesFound.forEach { docFile ->
       val itemPart =
               downloadItem.downloadItemParts.find { itemPart -> itemPart.filename == docFile.name }
+
+      // Build local file object
+      val localFileId = DeviceManager.getBase64Id(docFile.id)
+      val localFile =
+              LocalFile(
+                      localFileId,
+                      docFile.name,
+                      docFile.uri.toString(),
+                      docFile.getBasePath(ctx),
+                      docFile.getAbsolutePath(ctx),
+                      docFile.getSimplePath(ctx),
+                      docFile.mimeType,
+                      docFile.length()
+              )
+
       if (itemPart == null) {
         if (downloadItem.mediaType == "book"
         ) { // for books every download item should be a file found
@@ -400,18 +352,6 @@ class FolderScanner(var ctx: Context) {
                 "scanDownloadItem: Audio Track from Server index = ${audioTrackFromServer.index}"
         )
 
-        val localFileId = DeviceManager.getBase64Id(docFile.id)
-        val localFile =
-                LocalFile(
-                        localFileId,
-                        docFile.name,
-                        docFile.uri.toString(),
-                        docFile.getBasePath(ctx),
-                        docFile.getAbsolutePath(ctx),
-                        docFile.getSimplePath(ctx),
-                        docFile.mimeType,
-                        docFile.length()
-                )
         localLibraryItem.localFiles.add(localFile)
 
         // Create new audio track
@@ -456,20 +396,8 @@ class FolderScanner(var ctx: Context) {
       } else if (itemPart.ebookFile != null) { // Ebook
         foundEBookFile = true
         Log.d(tag, "scanDownloadItem: Ebook file found with mimetype=${docFile.mimeType}")
-        val localFileId = DeviceManager.getBase64Id(docFile.id)
-        val localFile =
-                LocalFile(
-                        localFileId,
-                        docFile.name,
-                        docFile.uri.toString(),
-                        docFile.getBasePath(ctx),
-                        docFile.getAbsolutePath(ctx),
-                        docFile.getSimplePath(ctx),
-                        docFile.mimeType,
-                        docFile.length()
-                )
-        localLibraryItem.localFiles.add(localFile)
 
+        localLibraryItem.localFiles.add(localFile)
         val ebookFile =
                 EBookFile(
                         itemPart.ebookFile.ino,
@@ -482,18 +410,6 @@ class FolderScanner(var ctx: Context) {
         (localLibraryItem.media as Book).ebookFile = ebookFile
         Log.d(tag, "scanDownloadItem: Ebook file added to lli ${localFile.contentUrl}")
       } else { // Cover image
-        val localFileId = DeviceManager.getBase64Id(docFile.id)
-        val localFile =
-                LocalFile(
-                        localFileId,
-                        docFile.name,
-                        docFile.uri.toString(),
-                        docFile.getBasePath(ctx),
-                        docFile.getAbsolutePath(ctx),
-                        docFile.getSimplePath(ctx),
-                        docFile.mimeType,
-                        docFile.length()
-                )
 
         localLibraryItem.coverAbsolutePath = localFile.absolutePath
         localLibraryItem.coverContentUrl = localFile.contentUrl
