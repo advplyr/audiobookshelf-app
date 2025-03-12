@@ -1,5 +1,14 @@
 {
   "ButtonAdd": "追加",
   "ButtonCancel": "キャンセル",
-  "ButtonCancelTimer": "キャンセルタイマー"
+  "ButtonCancelTimer": "キャンセルタイマー",
+  "ButtonOk": "はい",
+  "ButtonPlay": "プレイ",
+  "ButtonRead": "野村",
+  "ButtonYes": "はい",
+  "LabelBooks": "ほん",
+  "LabelLanguage": "言語",
+  "LabelName": "名",
+  "LabelPassword": "パスワード",
+  "LabelPodcast": "ポッドキャスト"
 }
