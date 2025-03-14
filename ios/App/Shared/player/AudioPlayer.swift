@@ -424,6 +424,27 @@ class AudioPlayer: NSObject {
         let indexOfSeek = getItemIndexForTime(time: to)
         logger.log("SEEK: Seek to index \(indexOfSeek) | Current index \(self.currentTrackIndex)")
         
+        if self.audioPlayer.currentItem == nil {
+          self.currentTrackIndex = indexOfSeek
+          
+          try? playbackSession.update {
+              playbackSession.currentTime = to
+          }
+          
+          let playerItems = self.allPlayerItems[indexOfSeek..<self.allPlayerItems.count]
+          
+          DispatchQueue.runOnMainQueue {
+              self.audioPlayer.removeAllItems()
+              for item in Array(playerItems) {
+                  self.audioPlayer.insert(item, after:self.audioPlayer.items().last)
+              }
+          }
+
+          seekInCurrentTrack(to: to, playbackSession: playbackSession)
+          setupQueueItemStatusObserver()
+          return
+        }
+        
         // Reconstruct queue if seeking to a different track
         if (self.currentTrackIndex != indexOfSeek) {
             // When we seek to a different track, we need to make sure to seek the old track to 0
