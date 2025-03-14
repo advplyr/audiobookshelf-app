@@ -768,6 +768,11 @@ class AudioPlayer: NSObject {
             if keyPath == #keyPath(AVPlayer.currentItem) {
                 NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.update.rawValue), object: nil)
                 logger.log("WARNING: Item ended")
+
+                if audioPlayer.currentItem == nil {
+                   logger.log("Player ended or next item is nil, marking ended")
+                   self.markAudioSessionAs(active: false)
+                }
             }
         } else {
             super.observeValue(forKeyPath: keyPath, of: object, change: change, context: context)
