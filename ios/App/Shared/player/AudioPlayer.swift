@@ -487,9 +487,17 @@ class AudioPlayer: NSObject {
 
     public func getCurrentTime() -> Double? {
         guard let playbackSession = self.getPlaybackSession() else { return nil }
-        let currentTrackTime = self.audioPlayer.currentTime().seconds
         let audioTrack = playbackSession.audioTracks[currentTrackIndex]
         let startOffset = audioTrack.startOffset ?? 0.0
+      
+        // if the currentTrackTime is not a number, then track isn't loaded
+        // fall back on session.
+        var currentTrackTime = self.audioPlayer.currentTime().seconds
+        if currentTrackTime.isNaN {
+          if let currentChapter = playbackSession.getCurrentChapter() {
+            currentTrackTime = currentChapter.getRelativeChapterCurrentTime(sessionCurrentTime:playbackSession.currentTime)
+          }
+        }
         return startOffset + currentTrackTime
     }
 
