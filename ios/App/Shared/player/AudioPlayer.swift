@@ -424,6 +424,27 @@ class AudioPlayer: NSObject {
         let indexOfSeek = getItemIndexForTime(time: to)
         logger.log("SEEK: Seek to index \(indexOfSeek) | Current index \(self.currentTrackIndex)")
         
+        if self.audioPlayer.currentItem == nil {
+          self.currentTrackIndex = indexOfSeek
+          
+          try? playbackSession.update {
+              playbackSession.currentTime = to
+          }
+          
+          let playerItems = self.allPlayerItems[indexOfSeek..<self.allPlayerItems.count]
+          
+          DispatchQueue.runOnMainQueue {
+              self.audioPlayer.removeAllItems()
+              for item in Array(playerItems) {
+                  self.audioPlayer.insert(item, after:self.audioPlayer.items().last)
+              }
+          }
+
+          seekInCurrentTrack(to: to, playbackSession: playbackSession)
+          setupQueueItemStatusObserver()
+          return
+        }
+        
         // Reconstruct queue if seeking to a different track
         if (self.currentTrackIndex != indexOfSeek) {
             // When we seek to a different track, we need to make sure to seek the old track to 0
@@ -487,9 +508,14 @@ class AudioPlayer: NSObject {
 
     public func getCurrentTime() -> Double? {
         guard let playbackSession = self.getPlaybackSession() else { return nil }
-        let currentTrackTime = self.audioPlayer.currentTime().seconds
         let audioTrack = playbackSession.audioTracks[currentTrackIndex]
         let startOffset = audioTrack.startOffset ?? 0.0
+      
+        // if the currentTrackTime isNan, then fall back on session.
+        let currentTrackTime = self.audioPlayer.currentTime().seconds
+        if currentTrackTime.isNaN {
+          return playbackSession.currentTime
+        }
         return startOffset + currentTrackTime
     }
 
@@ -768,6 +794,11 @@ class AudioPlayer: NSObject {
             if keyPath == #keyPath(AVPlayer.currentItem) {
                 NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.update.rawValue), object: nil)
                 logger.log("WARNING: Item ended")
+
+                if audioPlayer.currentItem == nil {
+                   logger.log("Player ended or next item is nil, marking ended")
+                   self.markAudioSessionAs(active: false)
+                }
             }
         } else {
             super.observeValue(forKeyPath: keyPath, of: object, change: change, context: context)
