@@ -160,53 +160,66 @@ class AbsDownloader : Plugin() {
 
     val tempFolderPath =
             if (isInternal) "${mainActivity.filesDir}/downloads/${libraryItem.id}"
-            else "${mainActivity.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)}"
+            else mainActivity.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
 
     Log.d(tag, "downloadCacheDirectory=$tempFolderPath")
 
-    val itemFolderPath =
-            if (isInternal) "$tempFolderPath"
-            else
-                    "${localFolder.absolutePath}/${cleanStringForFileSystem(libraryItem.media.metadata.title)}"
-
-    val downloadItemId = if (episode != null) "${libraryItem.id}-${episode.id}" else libraryItem.id
-    val titleCleaned = cleanStringForFileSystem(libraryItem.media.metadata.title)
-    val author =
-            if (episode == null)
-                    cleanStringForFileSystem(libraryItem.media.metadata.getAuthorDisplayName())
-            else titleCleaned
-    val itemSubfolder = if (episode == null) "$author/$titleCleaned" else "$titleCleaned"
-    val downloadItem =
-            DownloadItem(
-                    downloadItemId,
-                    libraryItem.id,
-                    episode?.id,
-                    libraryItem.userMediaProgress,
-                    DeviceManager.serverConnectionConfig?.id ?: "",
-                    DeviceManager.serverAddress,
-                    DeviceManager.serverUserId,
-                    libraryItem.mediaType,
-                    itemFolderPath,
-                    localFolder,
-                    titleCleaned,
-                    itemSubfolder,
-                    libraryItem.media,
-                    mutableListOf()
-            )
-
     if (libraryItem.mediaType == "book") {
+      val bookTitle = cleanStringForFileSystem(libraryItem.media.metadata.title)
+      val bookAuthor = cleanStringForFileSystem(libraryItem.media.metadata.getAuthorDisplayName())
+
+      val tracks = libraryItem.media.getAudioTracks()
+      Log.d(tag, "Starting library item download with ${tracks.size} tracks")
+      val itemSubfolder = "$bookAuthor/$bookTitle"
+      val itemFolderPath =
+              if (isInternal) "$tempFolderPath" else "${localFolder.absolutePath}/$itemSubfolder"
+      val downloadItem =
+              DownloadItem(
+                      libraryItem.id,
+                      libraryItem.id,
+                      null,
+                      libraryItem.userMediaProgress,
+                      DeviceManager.serverConnectionConfig?.id ?: "",
+                      DeviceManager.serverAddress,
+                      DeviceManager.serverUserId,
+                      libraryItem.mediaType,
+                      itemFolderPath,
+                      localFolder,
+                      bookTitle,
+                      itemSubfolder,
+                      libraryItem.media,
+                      mutableListOf()
+              )
+
       val book = libraryItem.media as Book
       book.ebookFile?.let { ebookFile ->
+        val fileSize = ebookFile.metadata?.size ?: 0
         val serverPath = "/api/items/${libraryItem.id}/file/${ebookFile.ino}/download"
         val destinationFilename = getFilenameFromRelPath(ebookFile.metadata?.relPath ?: "")
-        val destinationFile = File("$tempFolderPath/$destinationFilename")
         val finalDestinationFile = File("$itemFolderPath/$destinationFilename")
-        checkAndDeleteFile(destinationFile, finalDestinationFile)
+        val destinationFile = File("$tempFolderPath/$destinationFilename")
+
+        if (destinationFile.exists()) {
+          Log.d(
+                  tag,
+                  "TEMP ebook file already exists, removing it from ${destinationFile.absolutePath}"
+          )
+          destinationFile.delete()
+        }
+
+        if (finalDestinationFile.exists()) {
+          Log.d(
+                  tag,
+                  "ebook file already exists, removing it from ${finalDestinationFile.absolutePath}"
+          )
+          finalDestinationFile.delete()
+        }
+
         val downloadItemPart =
                 DownloadItemPart.make(
                         downloadItem.id,
                         destinationFilename,
-                        ebookFile.metadata?.size ?: 0,
+                        fileSize,
                         destinationFile,
                         finalDestinationFile,
                         itemSubfolder,
@@ -219,20 +232,46 @@ class AbsDownloader : Plugin() {
         downloadItem.downloadItemParts.add(downloadItemPart)
       }
 
-      val audioFiles = book.audioFiles ?: mutableListOf()
-      libraryItem.media.getAudioTracks().forEach { audioTrack ->
+      // Create download item part for each audio track
+      val audioFiles = (libraryItem.media as Book).audioFiles ?: mutableListOf()
+      tracks.forEach { audioTrack ->
+        val fileSize = audioTrack.metadata?.size ?: 0
+
+        // TODO: Currently file ino is only stored on AudioFile. This should be updated server side
+        // to be in FileMetadata or on the AudioTrack
         val audioFileIno = audioFiles.find { it.metadata.path == audioTrack.metadata?.path }?.ino
 
         val serverPath = "/api/items/${libraryItem.id}/file/${audioFileIno}/download"
         val destinationFilename = getFilenameFromRelPath(audioTrack.relPath)
-        val destinationFile = File("$tempFolderPath/$destinationFilename")
+        Log.d(
+                tag,
+                "Audio File Server Path $serverPath | AF RelPath ${audioTrack.relPath} | LocalFolder Path ${localFolder.absolutePath} | DestName $destinationFilename"
+        )
+
         val finalDestinationFile = File("$itemFolderPath/$destinationFilename")
-        checkAndDeleteFile(destinationFile, finalDestinationFile)
+        val destinationFile = File("$tempFolderPath/$destinationFilename")
+
+        if (destinationFile.exists()) {
+          Log.d(
+                  tag,
+                  "TEMP Audio file already exists, removing it from ${destinationFile.absolutePath}"
+          )
+          destinationFile.delete()
+        }
+
+        if (finalDestinationFile.exists()) {
+          Log.d(
+                  tag,
+                  "Audio file already exists, removing it from ${finalDestinationFile.absolutePath}"
+          )
+          finalDestinationFile.delete()
+        }
+
         val downloadItemPart =
                 DownloadItemPart.make(
                         downloadItem.id,
                         destinationFilename,
-                        audioTrack.metadata?.size ?: 0,
+                        fileSize,
                         destinationFile,
                         finalDestinationFile,
                         itemSubfolder,
@@ -244,22 +283,110 @@ class AbsDownloader : Plugin() {
                 )
         downloadItem.downloadItemParts.add(downloadItemPart)
       }
+
+      if (downloadItem.downloadItemParts.isNotEmpty()) {
+        // Add cover download item
+        if (libraryItem.media.coverPath != null && libraryItem.media.coverPath?.isNotEmpty() == true
+        ) {
+          val coverLibraryFile =
+                  libraryItem.libraryFiles?.find { it.metadata.path == libraryItem.media.coverPath }
+          val coverFileSize = coverLibraryFile?.metadata?.size ?: 0
+
+          val serverPath = "/api/items/${libraryItem.id}/cover"
+          val destinationFilename = "cover-${libraryItem.id}.jpg"
+          val destinationFile = File("$tempFolderPath/$destinationFilename")
+          val finalDestinationFile = File("$itemFolderPath/$destinationFilename")
+
+          if (destinationFile.exists()) {
+            Log.d(
+                    tag,
+                    "TEMP Audio file already exists, removing it from ${destinationFile.absolutePath}"
+            )
+            destinationFile.delete()
+          }
+
+          if (finalDestinationFile.exists()) {
+            Log.d(
+                    tag,
+                    "Cover already exists, removing it from ${finalDestinationFile.absolutePath}"
+            )
+            finalDestinationFile.delete()
+          }
+
+          val downloadItemPart =
+                  DownloadItemPart.make(
+                          downloadItem.id,
+                          destinationFilename,
+                          coverFileSize,
+                          destinationFile,
+                          finalDestinationFile,
+                          itemSubfolder,
+                          serverPath,
+                          localFolder,
+                          null,
+                          null,
+                          null
+                  )
+          downloadItem.downloadItemParts.add(downloadItemPart)
+        }
+
+        downloadItemManager.addDownloadItem(downloadItem)
+      }
     } else {
+      // Podcast episode download
+      val podcastTitle = cleanStringForFileSystem(libraryItem.media.metadata.title)
+
       val audioTrack = episode?.audioTrack
       val audioFileIno = episode?.audioFile?.ino
-      val serverPath = "/api/items/${libraryItem.id}/file/${audioFileIno}/download"
-      val destinationFilename = getFilenameFromRelPath(audioTrack?.relPath ?: "")
-      val destinationFile = File("$tempFolderPath/$destinationFilename")
-      val finalDestinationFile = File("$itemFolderPath/$destinationFilename")
-      checkAndDeleteFile(destinationFile, finalDestinationFile)
-      val downloadItemPart =
+      val fileSize = audioTrack?.metadata?.size ?: 0
+
+      Log.d(tag, "Starting podcast episode download")
+      val itemFolderPath =
+              if (isInternal) "$tempFolderPath" else "${localFolder.absolutePath}/$podcastTitle"
+      val downloadItemId = "${libraryItem.id}-${episode?.id}"
+      val downloadItem =
+              DownloadItem(
+                      downloadItemId,
+                      libraryItem.id,
+                      episode?.id,
+                      libraryItem.userMediaProgress,
+                      DeviceManager.serverConnectionConfig?.id ?: "",
+                      DeviceManager.serverAddress,
+                      DeviceManager.serverUserId,
+                      libraryItem.mediaType,
+                      itemFolderPath,
+                      localFolder,
+                      podcastTitle,
+                      podcastTitle,
+                      libraryItem.media,
+                      mutableListOf()
+              )
+
+      var serverPath = "/api/items/${libraryItem.id}/file/${audioFileIno}/download"
+      var destinationFilename = getFilenameFromRelPath(audioTrack?.relPath ?: "")
+      Log.d(
+              tag,
+              "Audio File Server Path $serverPath | AF RelPath ${audioTrack?.relPath} | LocalFolder Path ${localFolder.absolutePath} | DestName $destinationFilename"
+      )
+
+      var destinationFile = File("$tempFolderPath/$destinationFilename")
+      var finalDestinationFile = File("$itemFolderPath/$destinationFilename")
+      if (finalDestinationFile.exists()) {
+        Log.d(
+                tag,
+                "Audio file already exists, removing it from ${finalDestinationFile.absolutePath}"
+        )
+        finalDestinationFile.delete()
+      }
+
+      var downloadItemPart =
               DownloadItemPart.make(
                       downloadItem.id,
                       destinationFilename,
-                      audioTrack?.metadata?.size ?: 0,
+                      fileSize,
                       destinationFile,
                       finalDestinationFile,
-                      titleCleaned,
+                      podcastTitle,
                       serverPath,
                       localFolder,
                       null,
@@ -267,49 +394,41 @@ class AbsDownloader : Plugin() {
                       episode
               )
       downloadItem.downloadItemParts.add(downloadItemPart)
-    }
 
-    if (libraryItem.media.coverPath != null && libraryItem.media.coverPath?.isNotEmpty() == true) {
-      val coverLibraryFile =
-              libraryItem.libraryFiles?.find { it.metadata.path == libraryItem.media.coverPath }
-      val serverPath = "/api/items/${libraryItem.id}/cover"
-      val destinationFilename = if (episode == null) "cover-${libraryItem.id}.jpg" else "cover.jpg"
-      val destinationFile = File("$tempFolderPath/$destinationFilename")
-      val finalDestinationFile = File("$itemFolderPath/$destinationFilename")
-      checkAndDeleteFile(destinationFile, finalDestinationFile)
-      val downloadItemPart =
-              DownloadItemPart.make(
-                      downloadItem.id,
-                      destinationFilename,
-                      coverLibraryFile?.metadata?.size ?: 0,
-                      destinationFile,
-                      finalDestinationFile,
-                      titleCleaned,
-                      serverPath,
-                      localFolder,
-                      null,
-                      null,
-                      null
-              )
-      downloadItem.downloadItemParts.add(downloadItemPart)
-    }
+      if (libraryItem.media.coverPath != null && libraryItem.media.coverPath?.isNotEmpty() == true
+      ) {
+        val coverLibraryFile =
+                libraryItem.libraryFiles?.find { it.metadata.path == libraryItem.media.coverPath }
+        val coverFileSize = coverLibraryFile?.metadata?.size ?: 0
 
-    if (downloadItem.downloadItemParts.isNotEmpty()) {
+        serverPath = "/api/items/${libraryItem.id}/cover"
+        destinationFilename = "cover.jpg"
+
+        destinationFile = File("$tempFolderPath/$destinationFilename")
+        finalDestinationFile = File("$itemFolderPath/$destinationFilename")
+
+        if (finalDestinationFile.exists()) {
+          Log.d(tag, "Podcast cover already exists - not downloading cover again")
+        } else {
+          downloadItemPart =
+                  DownloadItemPart.make(
+                          downloadItem.id,
+                          destinationFilename,
+                          coverFileSize,
+                          destinationFile,
+                          finalDestinationFile,
+                          podcastTitle,
+                          serverPath,
+                          localFolder,
+                          null,
+                          null,
+                          null
+                  )
+          downloadItem.downloadItemParts.add(downloadItemPart)
+        }
+      }
+
       downloadItemManager.addDownloadItem(downloadItem)
-    }
-  }
-
-  /* Delete files if they already exist */
-  private fun checkAndDeleteFile(destinationFile: File, finalDestinationFile: File) {
-
-    if (destinationFile.exists()) {
-      Log.d(tag, "TEMP file already exists, removing it from ${destinationFile.absolutePath}")
-      destinationFile.delete()
-    }
-
-    if (finalDestinationFile.exists()) {
-      Log.d(tag, "File already exists, removing it from ${finalDestinationFile.absolutePath}")
-      finalDestinationFile.delete()
     }
   }
 }
