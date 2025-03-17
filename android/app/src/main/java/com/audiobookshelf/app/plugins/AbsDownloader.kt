@@ -164,32 +164,47 @@ class AbsDownloader : Plugin() {
 
     Log.d(tag, "downloadCacheDirectory=$tempFolderPath")
 
+    val title = cleanStringForFileSystem(libraryItem.media.metadata.title)
+    var itemSubfolder =
+            if (libraryItem.mediaType == "book") {
+              val bookAuthor =
+                      cleanStringForFileSystem(libraryItem.media.metadata.getAuthorDisplayName())
+              "$bookAuthor/$title"
+            } else {
+              title
+            }
+    val itemFolderPath =
+            if (isInternal) "$tempFolderPath" else "${localFolder.absolutePath}/$itemSubfolder"
+
+    var downloadItemId =
+            if (libraryItem.mediaType == "book") {
+              "${libraryItem.id}"
+            } else {
+              "${libraryItem.id}-${episode?.id}"
+            }
+
+    val downloadItem =
+            DownloadItem(
+                    downloadItemId,
+                    libraryItem.id,
+                    episode?.id,
+                    libraryItem.userMediaProgress,
+                    DeviceManager.serverConnectionConfig?.id ?: "",
+                    DeviceManager.serverAddress,
+                    DeviceManager.serverUserId,
+                    libraryItem.mediaType,
+                    itemFolderPath,
+                    localFolder,
+                    title,
+                    title,
+                    libraryItem.media,
+                    mutableListOf()
+            )
+
     if (libraryItem.mediaType == "book") {
-      val bookTitle = cleanStringForFileSystem(libraryItem.media.metadata.title)
-      val bookAuthor = cleanStringForFileSystem(libraryItem.media.metadata.getAuthorDisplayName())
 
       val tracks = libraryItem.media.getAudioTracks()
       Log.d(tag, "Starting library item download with ${tracks.size} tracks")
-      val itemSubfolder = "$bookAuthor/$bookTitle"
-      val itemFolderPath =
-              if (isInternal) "$tempFolderPath" else "${localFolder.absolutePath}/$itemSubfolder"
-      val downloadItem =
-              DownloadItem(
-                      libraryItem.id,
-                      libraryItem.id,
-                      null,
-                      libraryItem.userMediaProgress,
-                      DeviceManager.serverConnectionConfig?.id ?: "",
-                      DeviceManager.serverAddress,
-                      DeviceManager.serverUserId,
-                      libraryItem.mediaType,
-                      itemFolderPath,
-                      localFolder,
-                      bookTitle,
-                      itemSubfolder,
-                      libraryItem.media,
-                      mutableListOf()
-              )
 
       val book = libraryItem.media as Book
       book.ebookFile?.let { ebookFile ->
@@ -334,33 +349,11 @@ class AbsDownloader : Plugin() {
       }
     } else {
       // Podcast episode download
-      val podcastTitle = cleanStringForFileSystem(libraryItem.media.metadata.title)
-
       val audioTrack = episode?.audioTrack
       val audioFileIno = episode?.audioFile?.ino
       val fileSize = audioTrack?.metadata?.size ?: 0
 
       Log.d(tag, "Starting podcast episode download")
-      val itemFolderPath =
-              if (isInternal) "$tempFolderPath" else "${localFolder.absolutePath}/$podcastTitle"
-      val downloadItemId = "${libraryItem.id}-${episode?.id}"
-      val downloadItem =
-              DownloadItem(
-                      downloadItemId,
-                      libraryItem.id,
-                      episode?.id,
-                      libraryItem.userMediaProgress,
-                      DeviceManager.serverConnectionConfig?.id ?: "",
-                      DeviceManager.serverAddress,
-                      DeviceManager.serverUserId,
-                      libraryItem.mediaType,
-                      itemFolderPath,
-                      localFolder,
-                      podcastTitle,
-                      podcastTitle,
-                      libraryItem.media,
-                      mutableListOf()
-              )
 
       var serverPath = "/api/items/${libraryItem.id}/file/${audioFileIno}/download"
       var destinationFilename = getFilenameFromRelPath(audioTrack?.relPath ?: "")
@@ -386,7 +379,7 @@ class AbsDownloader : Plugin() {
                       fileSize,
                       destinationFile,
                       finalDestinationFile,
-                      podcastTitle,
+                      title,
                       serverPath,
                       localFolder,
                       null,
@@ -417,7 +410,7 @@ class AbsDownloader : Plugin() {
                           coverFileSize,
                           destinationFile,
                           finalDestinationFile,
-                          podcastTitle,
+                          title,
                           serverPath,
                           localFolder,
                           null,
