@@ -298,55 +298,6 @@ class AbsDownloader : Plugin() {
                 )
         downloadItem.downloadItemParts.add(downloadItemPart)
       }
-
-      if (downloadItem.downloadItemParts.isNotEmpty()) {
-        // Add cover download item
-        if (libraryItem.media.coverPath != null && libraryItem.media.coverPath?.isNotEmpty() == true
-        ) {
-          val coverLibraryFile =
-                  libraryItem.libraryFiles?.find { it.metadata.path == libraryItem.media.coverPath }
-          val coverFileSize = coverLibraryFile?.metadata?.size ?: 0
-
-          val serverPath = "/api/items/${libraryItem.id}/cover"
-          val destinationFilename = "cover-${libraryItem.id}.jpg"
-          val destinationFile = File("$tempFolderPath/$destinationFilename")
-          val finalDestinationFile = File("$itemFolderPath/$destinationFilename")
-
-          if (destinationFile.exists()) {
-            Log.d(
-                    tag,
-                    "TEMP Audio file already exists, removing it from ${destinationFile.absolutePath}"
-            )
-            destinationFile.delete()
-          }
-
-          if (finalDestinationFile.exists()) {
-            Log.d(
-                    tag,
-                    "Cover already exists, removing it from ${finalDestinationFile.absolutePath}"
-            )
-            finalDestinationFile.delete()
-          }
-
-          val downloadItemPart =
-                  DownloadItemPart.make(
-                          downloadItem.id,
-                          destinationFilename,
-                          coverFileSize,
-                          destinationFile,
-                          finalDestinationFile,
-                          itemSubfolder,
-                          serverPath,
-                          localFolder,
-                          null,
-                          null,
-                          null
-                  )
-          downloadItem.downloadItemParts.add(downloadItemPart)
-        }
-
-        downloadItemManager.addDownloadItem(downloadItem)
-      }
     } else {
       // Podcast episode download
       val audioTrack = episode?.audioTrack
@@ -387,40 +338,53 @@ class AbsDownloader : Plugin() {
                       episode
               )
       downloadItem.downloadItemParts.add(downloadItemPart)
+    }
 
-      if (libraryItem.media.coverPath != null && libraryItem.media.coverPath?.isNotEmpty() == true
-      ) {
-        val coverLibraryFile =
-                libraryItem.libraryFiles?.find { it.metadata.path == libraryItem.media.coverPath }
-        val coverFileSize = coverLibraryFile?.metadata?.size ?: 0
+    // Download cover image if it is not already downloaded
+    if (libraryItem.media.coverPath != null && libraryItem.media.coverPath?.isNotEmpty() == true) {
+      val coverLibraryFile =
+              libraryItem.libraryFiles?.find { it.metadata.path == libraryItem.media.coverPath }
+      val coverFileSize = coverLibraryFile?.metadata?.size ?: 0
 
-        serverPath = "/api/items/${libraryItem.id}/cover"
-        destinationFilename = "cover.jpg"
+      var serverPath = "/api/items/${libraryItem.id}/cover"
+      var destinationFilename = "cover-${libraryItem.id}.jpg"
+      var destinationFile = File("$tempFolderPath/$destinationFilename")
+      var finalDestinationFile = File("$itemFolderPath/$destinationFilename")
 
-        destinationFile = File("$tempFolderPath/$destinationFilename")
-        finalDestinationFile = File("$itemFolderPath/$destinationFilename")
-
+      // If a book, replace the cover image if it already exists
+      if (libraryItem.mediaType == "book") {
+        if (destinationFile.exists()) {
+          Log.d(tag, "TEMP cover already exists, removing it from ${destinationFile.absolutePath}")
+          destinationFile.delete()
+        }
         if (finalDestinationFile.exists()) {
-          Log.d(tag, "Podcast cover already exists - not downloading cover again")
-        } else {
-          downloadItemPart =
-                  DownloadItemPart.make(
-                          downloadItem.id,
-                          destinationFilename,
-                          coverFileSize,
-                          destinationFile,
-                          finalDestinationFile,
-                          title,
-                          serverPath,
-                          localFolder,
-                          null,
-                          null,
-                          null
-                  )
-          downloadItem.downloadItemParts.add(downloadItemPart)
+          Log.d(tag, "Cover already exists, removing it from ${finalDestinationFile.absolutePath}")
+          finalDestinationFile.delete()
         }
       }
 
+      if (finalDestinationFile.exists()) {
+        Log.d(tag, "Podcast cover already exists - not downloading cover again")
+      } else {
+        val downloadItemPart =
+                DownloadItemPart.make(
+                        downloadItem.id,
+                        destinationFilename,
+                        coverFileSize,
+                        destinationFile,
+                        finalDestinationFile,
+                        itemSubfolder,
+                        serverPath,
+                        localFolder,
+                        null,
+                        null,
+                        null
+                )
+        downloadItem.downloadItemParts.add(downloadItemPart)
+      }
+    }
+    // Add to download manager if there are files to download
+    if (downloadItem.downloadItemParts.isNotEmpty()) {
       downloadItemManager.addDownloadItem(downloadItem)
     }
   }
