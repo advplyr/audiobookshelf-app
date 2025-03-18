@@ -363,7 +363,7 @@ class AbsDownloader : Plugin() {
         }
       }
 
-      if (finalDestinationFile.exists()) {
+      if (finalDestinationFile.exists() && libraryItem.mediaType == "podcast") {
         Log.d(tag, "Podcast cover already exists - not downloading cover again")
       } else {
         val downloadItemPart =
