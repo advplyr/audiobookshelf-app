@@ -194,5 +194,6 @@
   "MessageDownloadCompleteProcessing": "Descarrega completada. Processant...",
   "MessageMarkAsFinished": "Marcar com acabat",
   "MessageMediaLinkedToServer": "Enllaçat al servidor {0}",
-  "MessageNoItemsFound": "Cap element trobat"
+  "MessageNoItemsFound": "Cap element trobat",
+  "MessageNoUserPlaylists": "No teniu cap llista de reproducció"
 }
