@@ -119,6 +119,10 @@ export default {
         {
           text: this.$strings.LabelEpisode,
           value: 'episode'
+        },
+        {
+          text: this.$strings.LabelFilename,
+          value: 'audioFile.metadata.filename'
         }
       ]
     }
