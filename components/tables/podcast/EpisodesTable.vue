@@ -39,7 +39,7 @@
     </div>
 
     <template v-for="episode in episodesSorted">
-      <tables-podcast-episode-row :episode="episode" :local-episode="localEpisodeMap[episode.id]" :library-item-id="libraryItemId" :local-library-item-id="localLibraryItemId" :is-local="isLocal" :key="episode.id" @addToPlaylist="addEpisodeToPlaylist" />
+      <tables-podcast-episode-row :episode="episode" :local-episode="localEpisodeMap[episode.id]" :library-item-id="libraryItemId" :local-library-item-id="localLibraryItemId" :is-local="isLocal" :sort-key="sortKey" :key="episode.id" @addToPlaylist="addEpisodeToPlaylist" />
     </template>
 
     <!-- Huhhh?
@@ -133,6 +133,10 @@ export default {
         {
           text: this.$strings.LabelEpisode,
           value: 'episode'
+        },
+        {
+          text: this.$strings.LabelFilename,
+          value: 'audioFile.metadata.filename'
         }
       ]
     },
@@ -181,8 +185,17 @@ export default {
     },
     episodesSorted() {
       return this.episodesFiltered.sort((a, b) => {
-        let aValue = a[this.sortKey]
-        let bValue = b[this.sortKey]
+        let aValue
+        let bValue
+
+        if (this.sortKey.includes('.')) {
+          const getNestedValue = (ob, s) => s.split('.').reduce((o, k) => o?.[k], ob)
+          aValue = getNestedValue(a, this.sortKey)
+          bValue = getNestedValue(b, this.sortKey)
+        } else {
+          aValue = a[this.sortKey]
+          bValue = b[this.sortKey]
+        }
 
         // Sort episodes with no pub date as the oldest
         if (this.sortKey === 'publishedAt') {

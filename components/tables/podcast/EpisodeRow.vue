@@ -17,6 +17,10 @@
 
       <p class="text-sm text-fg episode-subtitle mt-1.5 mb-0.5" v-html="subtitle" />
 
+      <p v-if="sortKey === 'audioFile.metadata.filename'" class="text-xs text-fg-muted truncate mt-1 mb-0.5">
+        <span class="uppercase">{{ $getString('LabelFilename') }}</span>: <span class="font-mono">{{ episode.audioFile.metadata.filename }}</span>
+      </p>
+
       <div v-if="episodeNumber || season || episodeType" class="flex py-2 items-center -mx-0.5">
         <div v-if="episodeNumber" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-50 rounded-full text-xs font-light text-fg">Episode #{{ episodeNumber }}</div>
         <div v-if="season" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-50 rounded-full text-xs font-light text-fg">Season #{{ season }}</div>
@@ -72,7 +76,8 @@ export default {
       type: Object,
       default: () => {}
     },
-    isLocal: Boolean
+    isLocal: Boolean,
+    sortKey: String
   },
   mixins: [cellularPermissionHelpers],
   data() {
