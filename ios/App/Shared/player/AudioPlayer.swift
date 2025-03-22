@@ -45,6 +45,8 @@ class AudioPlayer: NSObject {
     private var queueObserver:NSKeyValueObservation?
     private var queueItemStatusObserver:NSKeyValueObservation?
     
+    private var isRebuildingQueue = false
+    
     // Sleep timer values
     internal var sleepTimeChapterStopAt: Double?
     internal var sleepTimeChapterToken: Any?
@@ -434,10 +436,14 @@ class AudioPlayer: NSObject {
           let playerItems = self.allPlayerItems[indexOfSeek..<self.allPlayerItems.count]
           
           DispatchQueue.runOnMainQueue {
+              // Let observers know we're rebuilding the queue
+              // prevents race conditions on stopping sessions if queue is empty.
+              self.isRebuildingQueue = true
               self.audioPlayer.removeAllItems()
               for item in Array(playerItems) {
                   self.audioPlayer.insert(item, after:self.audioPlayer.items().last)
               }
+              self.isRebuildingQueue = false
           }
 
           seekInCurrentTrack(to: to, playbackSession: playbackSession)
@@ -460,10 +466,14 @@ class AudioPlayer: NSObject {
             let playerItems = self.allPlayerItems[indexOfSeek..<self.allPlayerItems.count]
             
             DispatchQueue.runOnMainQueue {
+                // Let observers know we're rebuilding the queue
+                // prevents race conditions on stopping sessions if queue is empty.
+                self.isRebuildingQueue = true
                 self.audioPlayer.removeAllItems()
                 for item in Array(playerItems) {
                     self.audioPlayer.insert(item, after:self.audioPlayer.items().last)
                 }
+                self.isRebuildingQueue = false
             }
 
             seekInCurrentTrack(to: to, playbackSession: playbackSession)
@@ -796,6 +806,10 @@ class AudioPlayer: NSObject {
                 logger.log("WARNING: Item ended")
 
                 if audioPlayer.currentItem == nil {
+                   // if the queue is rebuilding, we expect the current item may be nil
+                   if self.isRebuildingQueue {
+                     return
+                   }
                    logger.log("Player ended or next item is nil, marking ended")
                    self.markAudioSessionAs(active: false)
                 }
