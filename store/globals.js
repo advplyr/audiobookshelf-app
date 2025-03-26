@@ -15,6 +15,14 @@ export const state = () => ({
       value: 10
     },
     {
+      icon: 'forward_15',
+      value: 15
+    },
+    {
+      icon: 'forward_20',
+      value: 20
+    },
+    {
       icon: 'forward_30',
       value: 30
     }
@@ -27,6 +35,14 @@ export const state = () => ({
     {
       icon: 'replay_10',
       value: 10
+    },
+    {
+      icon: 'replay_15',
+      value: 15
+    },
+    {
+      icon: 'replay_20',
+      value: 20
     },
     {
       icon: 'replay_30',
