@@ -15,11 +15,11 @@ export const state = () => ({
       value: 10
     },
     {
-      icon: 'forward_10',
+      icon: 'forward_media',
       value: 15
     },
     {
-      icon: 'forward_10',
+      icon: 'forward_media',
       value: 20
     },
     {
@@ -37,11 +37,11 @@ export const state = () => ({
       value: 10
     },
     {
-      icon: 'replay_10',
+      icon: 'replay',
       value: 15
     },
     {
-      icon: 'replay_10',
+      icon: 'replay',
       value: 20
     },
     {

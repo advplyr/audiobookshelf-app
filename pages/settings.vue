@@ -46,13 +46,13 @@
       <div class="w-10 flex justify-center" @click="toggleJumpBackwards">
         <span class="material-icons text-4xl">{{ currentJumpBackwardsTimeIcon }}</span>
       </div>
-      <p class="pl-4">{{ $strings.LabelJumpBackwardsTime }}</p>
+      <p class="pl-4">{{ $strings.LabelJumpBackwardsTime }}: {{ settings.jumpBackwardsTime }}</p>
     </div>
     <div class="flex items-center py-3">
       <div class="w-10 flex justify-center" @click="toggleJumpForward">
         <span class="material-icons text-4xl">{{ currentJumpForwardTimeIcon }}</span>
       </div>
-      <p class="pl-4">{{ $strings.LabelJumpForwardsTime }}</p>
+      <p class="pl-4">{{ $strings.LabelJumpForwardsTime }}: {{ settings.jumpForwardTime }}</p>
     </div>
     <div v-if="!isiOS" class="flex items-center py-3">
       <div class="w-10 flex justify-center" @click="toggleEnableMp3IndexSeeking">
@@ -584,8 +584,7 @@ export default {
       this.saveSettings()
     },
     toggleJumpBackwards() {
-      var next = (this.currentJumpBackwardsTimeIndex + 4) % 5
-      if (next > 2) return
+      var next = (this.currentJumpBackwardsTimeIndex + 1) % this.jumpBackwardsItems.length
       this.settings.jumpBackwardsTime = this.jumpBackwardsItems[next].value
       this.saveSettings()
     },
