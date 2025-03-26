@@ -579,12 +579,12 @@ export default {
       this.saveSettings()
     },
     toggleJumpForward() {
-      var next = (this.currentJumpForwardTimeIndex + 1) % 3
+      var next = (this.currentJumpForwardTimeIndex + 1) % 5
       this.settings.jumpForwardTime = this.jumpForwardItems[next].value
       this.saveSettings()
     },
     toggleJumpBackwards() {
-      var next = (this.currentJumpBackwardsTimeIndex + 4) % 3
+      var next = (this.currentJumpBackwardsTimeIndex + 4) % 5
       if (next > 2) return
       this.settings.jumpBackwardsTime = this.jumpBackwardsItems[next].value
       this.saveSettings()
