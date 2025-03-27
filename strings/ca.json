@@ -233,6 +233,7 @@
   "MessageDiscardProgress": "Descarta el progrés",
   "MessageDownloadCompleteProcessing": "S'ha completat la baixada. S'està processant...",
   "MessageDownloading": "S'està baixant...",
+  "MessageDownloadingEpisode": "S'està baixant l'episodi",
   "MessageFetching": "S'està recuperant...",
   "MessageFollowTheProjectOnGithub": "Seguiu el projecte al GitHub",
   "MessageLoading": "S'està carregant...",
