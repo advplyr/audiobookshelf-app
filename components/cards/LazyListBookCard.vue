@@ -31,7 +31,7 @@
       </div>
 
       <div v-if="localLibraryItem || isLocal" class="absolute top-0 right-0 z-20" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }">
-        <span class="material-symbol text-2xl text-success">download_done</span>
+        <span class="material-symbols text-2xl text-success">download_done</span>
       </div>
     </div>
   </div>

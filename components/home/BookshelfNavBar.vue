@@ -119,6 +119,7 @@ export default {
           routeName: 'bookshelf-playlists',
           iconPack: 'material-symbols',
           icon: 'queue_music',
+          iconClass: 'text-2xl',
           text: this.$strings.ButtonPlaylists
         })
       }

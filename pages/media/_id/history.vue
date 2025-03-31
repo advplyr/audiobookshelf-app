@@ -10,7 +10,7 @@
       <p class="my-2 text-fg-muted font-semibold">{{ name }}</p>
       <div v-for="(evt, index) in events" :key="index" class="py-3 flex items-center">
         <p class="text-sm text-fg-muted w-12">{{ $formatDate(evt.timestamp, 'HH:mm') }}</p>
-        <span class="material-symbols px-1" :class="`text-${getEventColor(evt.name)}`">{{ getEventIcon(evt.name) }}</span>
+        <span class="material-symbols fill px-2" :class="`text-${getEventColor(evt.name)}`">{{ getEventIcon(evt.name) }}</span>
         <p class="text-sm text-fg px-1">{{ evt.name }}</p>
 
         <span v-if="evt.serverSyncAttempted && evt.serverSyncSuccess" class="material-symbols px-1 text-base text-success">cloud_done</span>
@@ -150,9 +150,9 @@ export default {
     getEventIcon(name) {
       switch (name) {
         case 'Play':
-          return 'play_circle_filled'
+          return 'play_circle'
         case 'Pause':
-          return 'pause_circle_filled'
+          return 'pause_circle'
         case 'Stop':
           return 'stop_circle'
         case 'Save':
