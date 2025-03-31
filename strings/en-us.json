@@ -331,6 +331,7 @@
   "MessageSocketNotConnected": "Socket not connected",
   "NoteRSSFeedPodcastAppsHttps": "Warning: Most podcast apps will require the RSS feed URL is using HTTPS",
   "NoteRSSFeedPodcastAppsPubDate": "Warning: 1 or more of your episodes do not have a Pub Date. Some podcast apps require this.",
+  "Sec": "sec",
   "ToastBookmarkCreateFailed": "Failed to create bookmark",
   "ToastBookmarkRemoveFailed": "Failed to remove bookmark",
   "ToastBookmarkUpdateFailed": "Failed to update bookmark",
