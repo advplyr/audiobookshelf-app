@@ -21,12 +21,14 @@
       <widgets-download-progress-indicator />
 
       <!-- Must be connected to a server to cast, only supports media items on server -->
-      <div v-show="isCastAvailable && user" class="mx-2 cursor-pointer flex items-center pt-0.5" @click="castClick">
-        <span class="material-symbols">{{ isCasting ? 'cast_connected' : 'cast' }}</span>
+      <div v-show="isCastAvailable && user" class="mx-2 cursor-pointer flex items-center" @click="castClick">
+        <span class="material-symbols text-2xl leading-none">
+          {{ isCasting ? 'cast_connected' : 'cast' }}
+        </span>
       </div>
 
-      <nuxt-link v-if="user" class="h-7 mx-1.5" style="padding-top: 3px" to="/search">
-        <span class="material-symbols">search</span>
+      <nuxt-link v-if="user" class="mx-1.5 flex items-center h-10" to="/search">
+        <span class="material-symbols text-2xl leading-none">search</span>
       </nuxt-link>
 
       <div class="h-7 mx-1.5">
