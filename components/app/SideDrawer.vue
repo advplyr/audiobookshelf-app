@@ -12,11 +12,11 @@
       <div class="w-full overflow-y-auto">
         <template v-for="item in navItems">
           <button v-if="item.action" :key="item.text" class="w-full hover:bg-bg/60 flex items-center py-3 px-6 text-fg-muted" @click="clickAction(item.action)">
-            <span class="text-lg" :class="item.iconOutlined ? 'material-icons-outlined' : 'material-icons'">{{ item.icon }}</span>
+            <span class="material-symbols text-lg">{{ item.icon }}</span>
             <p class="pl-4">{{ item.text }}</p>
           </button>
           <nuxt-link v-else :to="item.to" :key="item.text" class="w-full hover:bg-bg/60 flex items-center py-3 px-6 text-fg" :class="currentRoutePath.startsWith(item.to) ? 'bg-bg-hover/50' : 'text-fg-muted'">
-            <span class="text-lg" :class="item.iconOutlined ? 'material-icons-outlined' : 'material-icons'">{{ item.icon }}</span>
+            <span class="material-symbols text-lg">{{ item.icon }}</span>
             <p class="pl-4">{{ item.text }}</p>
           </nuxt-link>
         </template>
@@ -30,7 +30,7 @@
           <div class="flex-grow" />
           <div v-if="user" class="flex items-center" @click="disconnect">
             <p class="text-xs pr-2">{{ $strings.ButtonDisconnect }}</p>
-            <i class="material-icons text-sm -mb-0.5">cloud_off</i>
+            <i class="material-symbols text-sm -mb-0.5">cloud_off</i>
           </div>
         </div>
       </div>

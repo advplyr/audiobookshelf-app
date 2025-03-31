@@ -6,14 +6,14 @@
       </div>
       <div class="book-table-content h-full px-2 flex items-center">
         <div class="max-w-full">
-          <p class="truncate block text-sm">{{ bookTitle }} <span v-if="localLibraryItem" class="material-icons text-success text-base align-text-bottom">download_done</span></p>
+          <p class="truncate block text-sm">{{ bookTitle }} <span v-if="localLibraryItem" class="material-symbols text-success text-base align-text-bottom">download_done</span></p>
           <p class="truncate block text-fg-muted text-xs">{{ bookAuthor }}</p>
           <p v-if="media.duration" class="text-xxs text-fg-muted">{{ bookDuration }}</p>
         </div>
       </div>
       <div class="w-8 min-w-8 flex justify-center">
         <button v-if="showPlayBtn" class="w-8 h-8 rounded-full border border-white border-opacity-20 flex items-center justify-center" @click.stop.prevent="playClick">
-          <span class="material-icons" :class="streamIsPlaying ? '' : 'text-success'">{{ streamIsPlaying ? 'pause' : 'play_arrow' }}</span>
+          <span class="material-symbols fill" :class="streamIsPlaying ? '' : 'text-success'">{{ streamIsPlaying ? 'pause' : 'play_arrow' }}</span>
         </button>
       </div>
     </nuxt-link>

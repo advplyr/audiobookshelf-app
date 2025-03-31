@@ -3,7 +3,7 @@
     <div class="absolute top-0 left-0 w-full h-40 bg-gradient-to-b from-black to-transparent opacity-90 pointer-events-none" />
 
     <div class="absolute z-40 top-11 right-4 h-10 w-10 flex items-center justify-center cursor-pointer text-white hover:text-gray-300" @click="show = false">
-      <span class="material-icons text-4xl">close</span>
+      <span class="material-symbols text-4xl">close</span>
     </div>
     <slot name="outer" />
     <div ref="content" style="min-height: 200px" class="relative text-fg max-h-screen" :style="{ height: modalHeight, width: modalWidth, maxWidth: maxWidth }" v-click-outside="clickBg">

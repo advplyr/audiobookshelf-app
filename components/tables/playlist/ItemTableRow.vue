@@ -7,14 +7,14 @@
         </div>
         <div class="item-table-content h-full px-2 flex items-center">
           <div class="max-w-full">
-            <p class="truncate block text-sm">{{ itemTitle }} <span v-if="localLibraryItem" class="material-icons text-success text-base align-text-bottom">download_done</span></p>
+            <p class="truncate block text-sm">{{ itemTitle }} <span v-if="localLibraryItem" class="material-symbols text-success text-base align-text-bottom">download_done</span></p>
             <p v-if="authorName" class="truncate block text-fg-muted text-xs">{{ authorName }}</p>
             <p class="text-xxs text-fg-muted">{{ itemDuration }}</p>
           </div>
         </div>
         <div class="w-8 min-w-8 flex justify-center">
           <button v-if="showPlayBtn" class="w-8 h-8 rounded-full border border-white/20 flex items-center justify-center" @click.stop.prevent="playClick">
-            <span v-if="!playerIsStartingForThisMedia" class="material-icons" :class="streamIsPlaying ? '' : 'text-success'">{{ streamIsPlaying ? 'pause' : 'play_arrow' }}</span>
+            <span v-if="!playerIsStartingForThisMedia" class="material-symbols fill" :class="streamIsPlaying ? '' : 'text-success'">{{ streamIsPlaying ? 'pause' : 'play_arrow' }}</span>
             <svg v-else class="animate-spin" style="width: 18px; height: 18px" viewBox="0 0 24 24">
               <path fill="currentColor" d="M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z" />
             </svg>
@@ -22,7 +22,7 @@
         </div>
         <div class="w-8 min-w-8 flex justify-center">
           <button class="w-8 h-8 rounded-full flex items-center justify-center" @click.stop.prevent="showMore">
-            <span class="material-icons">more_vert</span>
+            <span class="material-symbols">more_vert</span>
           </button>
         </div>
       </nuxt-link>

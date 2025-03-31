@@ -11,7 +11,7 @@ export const state = () => ({
       value: 5
     },
     {
-      icon: 'forward_10',
+      icon: 'forward_media',
       value: 10
     },
     {

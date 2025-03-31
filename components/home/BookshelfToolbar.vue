@@ -5,16 +5,16 @@
         <p v-show="!selectedSeriesName" class="pt-1">{{ $formatNumber(totalEntities) }} {{ entityTitle }}</p>
         <p v-show="selectedSeriesName" class="ml-2 pt-1">{{ selectedSeriesName }} ({{ $formatNumber(totalEntities) }})</p>
         <div class="flex-grow" />
-        <span v-if="page == 'library' || seriesBookPage" class="material-icons px-2" @click="changeView">{{ !bookshelfListView ? 'view_list' : 'grid_view' }}</span>
+        <span v-if="page == 'library' || seriesBookPage" class="material-symbols px-2" @click="changeView">{{ !bookshelfListView ? 'view_list' : 'grid_view' }}</span>
         <template v-if="page === 'library'">
           <div class="relative flex items-center px-2">
-            <span class="material-icons" @click="showFilterModal = true">filter_alt</span>
+            <span class="material-symbols" @click="showFilterModal = true">filter_alt</span>
             <div v-show="hasFilters" class="absolute top-0 right-2 w-2 h-2 rounded-full bg-success border border-green-300 shadow-sm z-10 pointer-events-none" />
           </div>
-          <span class="material-icons px-2" @click="showSortModal = true">sort</span>
+          <span class="material-symbols px-2" @click="showSortModal = true">sort</span>
         </template>
-        <span v-if="seriesBookPage" class="material-icons px-2" @click="downloadSeries">download</span>
-        <span v-if="(page == 'library' && isBookLibrary) || seriesBookPage" class="material-icons px-2" @click="showMoreMenuDialog = true">more_vert</span>
+        <span v-if="seriesBookPage" class="material-symbols px-2" @click="downloadSeries">download</span>
+        <span v-if="(page == 'library' && isBookLibrary) || seriesBookPage" class="material-symbols px-2" @click="showMoreMenuDialog = true">more_vert</span>
       </div>
     </div>
 

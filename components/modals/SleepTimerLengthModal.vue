@@ -16,12 +16,12 @@
       <div class="w-full overflow-x-hidden overflow-y-auto bg-primary rounded-lg border border-white border-opacity-20" style="max-height: 75%" @click.stop>
         <div v-if="manualTimerModal" class="p-4">
           <div class="flex mb-4" @click="manualTimerModal = false">
-            <span class="material-icons text-3xl">arrow_back</span>
+            <span class="material-symbols text-3xl">arrow_back</span>
           </div>
           <div class="flex my-2 justify-between">
-            <ui-btn @click="decreaseManualTimeout" class="w-9 h-9" :padding-x="0" small style="max-width: 36px"><span class="material-icons">remove</span></ui-btn>
+            <ui-btn @click="decreaseManualTimeout" class="w-9 h-9" :padding-x="0" small style="max-width: 36px"><span class="material-symbols">remove</span></ui-btn>
             <p class="text-2xl font-mono text-center">{{ manualTimeoutMin }} min</p>
-            <ui-btn @click="increaseManualTimeout" class="w-9 h-9" :padding-x="0" small style="max-width: 36px"><span class="material-icons">add</span></ui-btn>
+            <ui-btn @click="increaseManualTimeout" class="w-9 h-9" :padding-x="0" small style="max-width: 36px"><span class="material-symbols">add</span></ui-btn>
           </div>
           <ui-btn @click="clickedOption(manualTimeoutMin)" class="w-full">{{ $strings.ButtonSetTimer }}</ui-btn>
         </div>

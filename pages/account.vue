@@ -4,7 +4,7 @@
 
     <ui-text-input-with-label :value="username" :label="$strings.LabelUsername" disabled class="my-2" />
 
-    <ui-btn color="primary flex items-center justify-between gap-2 ml-auto text-base mt-8" @click="logout">{{ $strings.ButtonSwitchServerUser }}<span class="material-icons" style="font-size: 1.1rem">logout</span></ui-btn>
+    <ui-btn color="primary flex items-center justify-between gap-2 ml-auto text-base mt-8" @click="logout">{{ $strings.ButtonSwitchServerUser }}<span class="material-symbols" style="font-size: 1.1rem">logout</span></ui-btn>
 
     <div class="flex justify-center items-center my-4 left-0 right-0 bottom-0 absolute">
       <p class="text-sm text-fg">{{ $strings.MessageReportBugsAndContribute }} <a class="underline" href="https://github.com/advplyr/audiobookshelf-app" target="_blank">GitHub</a></p>

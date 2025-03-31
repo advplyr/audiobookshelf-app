@@ -9,14 +9,14 @@
           <nuxt-link :key="item.value" v-if="item.to" :to="item.to">
             <li :key="item.value" class="text-fg select-none relative py-2" id="listbox-option-0" role="option" @click="clickedOption(item.value)">
               <div class="flex items-center px-2">
-                <span v-if="item.icon" class="material-icons-outlined text-lg mr-2" :class="item.iconClass ? item.iconClass : ''">{{ item.icon }}</span>
+                <span v-if="item.icon" class="material-symbols text-lg mr-2" :class="item.iconClass ? item.iconClass : ''">{{ item.icon }}</span>
                 <span class="font-normal block truncate font-sans text-center">{{ item.text }}</span>
               </div>
             </li>
           </nuxt-link>
           <li v-else :key="item.value" class="text-fg select-none relative py-2" id="listbox-option-0" role="option" @click="clickedOption(item.value)">
             <div class="flex items-center px-2">
-              <span v-if="item.icon" class="material-icons-outlined text-lg mr-2" :class="item.iconClass ? item.iconClass : ''">{{ item.icon }}</span>
+              <span v-if="item.icon" class="material-symbols text-lg mr-2" :class="item.iconClass ? item.iconClass : ''">{{ item.icon }}</span>
               <span class="font-normal block truncate font-sans text-center">{{ item.text }}</span>
             </div>
           </li>

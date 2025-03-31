@@ -12,7 +12,7 @@
           <template v-for="folder in localFolders">
             <li :key="folder.id" :id="`folder-${folder.id}`" class="text-fg select-none relative py-5" role="option" @click="clickedOption(folder)">
               <div class="relative flex items-center pl-3" style="padding-right: 4.5rem">
-                <span class="material-icons-outlined text-xl mr-2 text-fg text-opacity-80">folder</span>
+                <span class="material-symbols text-xl mr-2 text-fg text-opacity-80">folder</span>
                 <p class="font-normal block truncate text-sm text-fg text-opacity-80">{{ folder.name }}</p>
               </div>
             </li>

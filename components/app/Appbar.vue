@@ -5,7 +5,7 @@
         <img src="/Logo.png" class="h-10 w-10" />
       </nuxt-link>
       <a v-if="showBack" @click="back" class="rounded-full h-10 w-10 flex items-center justify-center mr-2 cursor-pointer">
-        <span class="material-icons text-3xl text-fg">arrow_back</span>
+        <span class="material-symbols text-3xl text-fg">arrow_back</span>
       </a>
       <div v-if="user && currentLibrary && socketConnected">
         <div class="pl-1.5 pr-2.5 py-2 bg-bg bg-opacity-30 rounded-md flex items-center" @click="clickShowLibraryModal">
@@ -22,15 +22,15 @@
 
       <!-- Must be connected to a server to cast, only supports media items on server -->
       <div v-show="isCastAvailable && user" class="mx-2 cursor-pointer flex items-center pt-0.5" @click="castClick">
-        <span class="material-icons">{{ isCasting ? 'cast_connected' : 'cast' }}</span>
+        <span class="material-symbols">{{ isCasting ? 'cast_connected' : 'cast' }}</span>
       </div>
 
       <nuxt-link v-if="user" class="h-7 mx-1.5" style="padding-top: 3px" to="/search">
-        <span class="material-icons">search</span>
+        <span class="material-symbols">search</span>
       </nuxt-link>
 
       <div class="h-7 mx-1.5">
-        <span class="material-icons" style="font-size: 1.75rem" @click="clickShowSideDrawer">menu</span>
+        <span class="material-symbols" style="font-size: 1.75rem" @click="clickShowSideDrawer">menu</span>
       </div>
     </div>
   </div>

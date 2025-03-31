@@ -62,7 +62,7 @@ export default {
           items.push({
             to: '/bookshelf/add-podcast',
             routeName: 'bookshelf-add-podcast',
-            iconPack: 'material-icons',
+            iconPack: 'material-symbols',
             icon: 'podcasts',
             iconClass: 'text-xl',
             text: this.$strings.ButtonAdd
@@ -97,7 +97,7 @@ export default {
           {
             to: '/bookshelf/collections',
             routeName: 'bookshelf-collections',
-            iconPack: 'material-icons-outlined',
+            iconPack: 'material-symbols',
             icon: 'collections_bookmark',
             iconClass: 'text-xl',
             text: this.$strings.ButtonCollections
@@ -117,7 +117,7 @@ export default {
         items.push({
           to: '/bookshelf/playlists',
           routeName: 'bookshelf-playlists',
-          iconPack: 'material-icons',
+          iconPack: 'material-symbols',
           icon: 'queue_music',
           text: this.$strings.ButtonPlaylists
         })

@@ -10,11 +10,11 @@
       <p class="my-2 text-fg-muted font-semibold">{{ name }}</p>
       <div v-for="(evt, index) in events" :key="index" class="py-3 flex items-center">
         <p class="text-sm text-fg-muted w-12">{{ $formatDate(evt.timestamp, 'HH:mm') }}</p>
-        <span class="material-icons px-1" :class="`text-${getEventColor(evt.name)}`">{{ getEventIcon(evt.name) }}</span>
+        <span class="material-symbols px-1" :class="`text-${getEventColor(evt.name)}`">{{ getEventIcon(evt.name) }}</span>
         <p class="text-sm text-fg px-1">{{ evt.name }}</p>
 
-        <span v-if="evt.serverSyncAttempted && evt.serverSyncSuccess" class="material-icons-outlined px-1 text-base text-success">cloud_done</span>
-        <span v-if="evt.serverSyncAttempted && !evt.serverSyncSuccess" class="material-icons px-1 text-base text-error">error_outline</span>
+        <span v-if="evt.serverSyncAttempted && evt.serverSyncSuccess" class="material-symbols px-1 text-base text-success">cloud_done</span>
+        <span v-if="evt.serverSyncAttempted && !evt.serverSyncSuccess" class="material-symbols px-1 text-base text-error">error_outline</span>
 
         <p v-if="evt.num" class="text-sm text-fg-muted italic px-1">+{{ evt.num }}</p>
 

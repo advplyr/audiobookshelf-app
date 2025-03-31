@@ -6,9 +6,9 @@
         <div class="flex-grow" />
 
         <button v-if="audioTracks.length && !isPodcast" class="shadow-sm text-success flex items-center justify-center rounded-full mx-2" @click.stop="play">
-          <span class="material-icons" style="font-size: 2rem">play_arrow</span>
+          <span class="material-symbols fill" style="font-size: 2rem">play_arrow</span>
         </button>
-        <span class="material-icons" @click="showItemDialog">more_vert</span>
+        <span class="material-symbols" @click="showItemDialog">more_vert</span>
       </div>
 
       <p v-if="!isIos" class="px-2 text-sm mb-0.5 text-fg-muted">{{ $strings.LabelFolder }}: {{ folderName }}</p>
@@ -27,7 +27,7 @@
               <template v-for="track in audioTracksCopy">
                 <div :key="track.localFileId" class="flex items-center my-1 item">
                   <div v-if="!isIos" class="w-8 h-12 flex items-center justify-center" style="min-width: 32px">
-                    <span class="material-icons drag-handle text-lg text-fg-muted">menu</span>
+                    <span class="material-symbols drag-handle text-lg text-fg-muted">menu</span>
                   </div>
                   <div class="w-8 h-12 flex items-center justify-center" style="min-width: 32px">
                     <p class="font-mono font-bold text-xl">{{ track.index }}</p>
@@ -40,7 +40,7 @@
                     <p class="text-sm">{{ $elapsedPretty(track.duration) }}</p>
                   </div>
                   <div v-if="!isIos" class="w-12 h-12 flex items-center justify-center" style="min-width: 48px">
-                    <span class="material-icons" @click="showTrackDialog(track)">more_vert</span>
+                    <span class="material-symbols" @click="showTrackDialog(track)">more_vert</span>
                   </div>
                 </div>
               </template>
@@ -66,7 +66,7 @@
                 <p class="text-sm">{{ $elapsedPretty(episode.audioTrack.duration) }}</p>
               </div>
               <div class="w-12 h-12 flex items-center justify-center" style="min-width: 48px">
-                <span class="material-icons" @click="showTrackDialog(episode)">more_vert</span>
+                <span class="material-symbols" @click="showTrackDialog(episode)">more_vert</span>
               </div>
             </div>
           </template>
@@ -98,7 +98,7 @@
             <div :key="file.id" class="flex items-center my-1">
               <div class="w-12 h-12 flex items-center justify-center">
                 <img v-if="(file.mimeType || '').startsWith('image')" :src="getCapImageSrc(file.contentUrl)" class="w-full h-full object-contain" />
-                <span v-else class="material-icons">music_note</span>
+                <span v-else class="material-symbols">music_note</span>
               </div>
               <div class="flex-grow px-2">
                 <p class="text-sm">{{ file.filename }}</p>
@@ -111,9 +111,7 @@
           </template>
         </div>
 
-        <div class="mt-4 text-sm text-fg-muted">
-          {{ $strings.LabelTotalSize }}: {{ $bytesPretty(totalLibraryItemSize) }}
-        </div>
+        <div class="mt-4 text-sm text-fg-muted">{{ $strings.LabelTotalSize }}: {{ $bytesPretty(totalLibraryItemSize) }}</div>
       </div>
     </div>
     <div v-else class="px-2 w-full h-full">
@@ -263,7 +261,7 @@ export default {
       return this.$store.state.playerIsStartingPlayback
     },
     totalAudioSize() {
-      return this.audioTracks.reduce((acc, item) => item.metadata ? acc + item.metadata.size : acc, 0)
+      return this.audioTracks.reduce((acc, item) => (item.metadata ? acc + item.metadata.size : acc), 0)
     },
     totalEpisodesSize() {
       return this.episodes.reduce((acc, item) => acc + item.size, 0)
@@ -353,7 +351,7 @@ export default {
       } else if (action == 'play-episode') {
         this.playEpisode()
       }
-      this.showDialog = false;
+      this.showDialog = false
     },
     getLocalFileForTrack(localFileId) {
       return this.localFiles.find((lf) => lf.id == localFileId)

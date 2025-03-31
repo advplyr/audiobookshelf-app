@@ -28,7 +28,7 @@
 
       <div class="flex items-center pt-2">
         <div class="h-8 px-4 border border-border hover:bg-white hover:bg-opacity-10 rounded-full flex items-center justify-center cursor-pointer" :class="userIsFinished ? 'text-fg text-opacity-40' : ''" @click.stop="playClick">
-          <span v-if="!playerIsStartingForThisMedia" class="material-icons" :class="streamIsPlaying ? '' : 'text-success'">{{ streamIsPlaying ? 'pause' : 'play_arrow' }}</span>
+          <span v-if="!playerIsStartingForThisMedia" class="material-symbols fill" :class="streamIsPlaying ? '' : 'text-success'">{{ streamIsPlaying ? 'pause' : 'play_arrow' }}</span>
           <svg v-else class="animate-spin" style="width: 24px; height: 24px" viewBox="0 0 24 24">
             <path fill="currentColor" d="M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z" />
           </svg>
@@ -38,13 +38,13 @@
         <ui-read-icon-btn :disabled="isProcessingReadUpdate" :is-read="userIsFinished" borderless class="mx-1 mt-0.5" @click="toggleFinished" />
 
         <button v-if="!isLocal" class="mx-1.5 mt-1.5" @click.stop="addToPlaylist">
-          <span class="material-icons text-2xl">playlist_add</span>
+          <span class="material-symbols text-2xl">playlist_add</span>
         </button>
 
         <div v-if="userCanDownload">
-          <span v-if="isLocal" class="material-icons-outlined px-2 text-success text-lg">audio_file</span>
-          <span v-else-if="!localEpisode" class="material-icons mx-1.5 mt-2 text-xl" :class="downloadItem || pendingDownload ? 'animate-bounce text-warning text-opacity-75' : ''" @click.stop="downloadClick">{{ downloadItem || pendingDownload ? 'downloading' : 'download' }}</span>
-          <span v-else class="material-icons px-2 text-success text-xl">download_done</span>
+          <span v-if="isLocal" class="material-symbols px-2 text-success text-lg">audio_file</span>
+          <span v-else-if="!localEpisode" class="material-symbols mx-1.5 mt-2 text-xl" :class="downloadItem || pendingDownload ? 'animate-bounce text-warning text-opacity-75' : ''" @click.stop="downloadClick">{{ downloadItem || pendingDownload ? 'downloading' : 'download' }}</span>
+          <span v-else class="material-symbols px-2 text-success text-xl">download_done</span>
         </div>
 
         <div class="flex-grow" />
