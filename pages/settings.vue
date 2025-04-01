@@ -46,13 +46,13 @@
       <div class="w-10 flex justify-center" @click="toggleJumpBackwards">
         <span class="material-icons text-4xl">{{ currentJumpBackwardsTimeIcon }}</span>
       </div>
-      <p class="pl-4">{{ $strings.LabelJumpBackwardsTime }}: {{ settings.jumpBackwardsTime }} {{ $strings.Sec }}</p>
+      <p class="pl-4">{{ $getString('LabelJumpBackwardsTime', [settings.jumpBackwardsTime]) }}</p>
     </div>
     <div class="flex items-center py-3">
       <div class="w-10 flex justify-center" @click="toggleJumpForward">
         <span class="material-icons text-4xl">{{ currentJumpForwardTimeIcon }}</span>
       </div>
-      <p class="pl-4">{{ $strings.LabelJumpForwardsTime }}: {{ settings.jumpForwardTime }} {{ $strings.Sec }}</p>
+      <p class="pl-4">{{ $getString('LabelJumpForwardsTime', [settings.jumpForwardTime]) }}</p>
     </div>
     <div v-if="!isiOS" class="flex items-center py-3">
       <div class="w-10 flex justify-center" @click="toggleEnableMp3IndexSeeking">
