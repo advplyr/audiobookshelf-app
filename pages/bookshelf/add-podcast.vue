@@ -35,7 +35,7 @@
     <template v-else>
       <div class="flex items-center px-2 h-16">
         <div class="flex items-center" @click="clearSelected">
-          <span class="material-icons text-2xl text-fg-muted">arrow_back</span>
+          <span class="material-symbols text-2xl text-fg-muted">arrow_back</span>
           <p class="pl-2 uppercase text-sm font-semibold text-fg-muted leading-4 pb-px">{{ $strings.ButtonBack }}</p>
         </div>
       </div>

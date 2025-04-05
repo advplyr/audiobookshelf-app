@@ -5,11 +5,11 @@
       <template v-if="!showForm">
         <div v-for="config in serverConnectionConfigs" :key="config.id" class="border-b border-fg/10 py-4">
           <div class="flex items-center my-1 relative" @click="connectToServer(config)">
-            <span class="material-icons-outlined text-xl text-fg-muted">dns</span>
+            <span class="material-symbols text-xl text-fg-muted">dns</span>
             <p class="pl-3 pr-6 text-base text-fg">{{ config.name }}</p>
 
             <div class="absolute top-0 right-0 h-full px-4 flex items-center" @click.stop="editServerConfig(config)">
-              <span class="material-icons text-lg text-fg-muted">more_vert</span>
+              <span class="material-symbols text-2xl text-fg-muted">more_vert</span>
             </div>
           </div>
           <!-- warning message if server connection config is using an old user id -->
@@ -27,7 +27,7 @@
         <!-- server address input -->
         <form v-if="!showAuth" @submit.prevent="submit" novalidate class="w-full">
           <div v-if="serverConnectionConfigs.length" class="flex items-center mb-4" @click="showServerList">
-            <span class="material-icons text-fg-muted">arrow_back</span>
+            <span class="material-symbols text-fg-muted">arrow_back</span>
           </div>
           <h2 class="text-lg leading-7 mb-2">{{ $strings.LabelServerAddress }}</h2>
           <ui-text-input v-model="serverConfig.address" :disabled="processing || !networkConnected || !!serverConfig.id" placeholder="http://55.55.55.55:13378" type="url" class="w-full h-10" />
@@ -38,13 +38,13 @@
         <!-- username/password and auth methods -->
         <template v-else>
           <div v-if="serverConfig.id" class="flex items-center mb-4" @click="showServerList">
-            <span class="material-icons text-fg-muted">arrow_back</span>
+            <span class="material-symbols text-fg-muted">arrow_back</span>
           </div>
 
           <div class="flex items-center">
             <p class="text-fg-muted">{{ serverConfig.address }}</p>
             <div class="flex-grow" />
-            <span v-if="!serverConfig.id" class="material-icons" style="font-size: 1.1rem" @click="editServerAddress">edit</span>
+            <span v-if="!serverConfig.id" class="material-symbols" style="font-size: 1.1rem" @click="editServerAddress">edit</span>
           </div>
           <div class="w-full h-px bg-fg/10 my-2" />
           <form v-if="isLocalAuthEnabled" @submit.prevent="submitAuth" class="pt-3">
@@ -64,7 +64,7 @@
 
       <!-- auth error message -->
       <div v-show="error" class="w-full rounded-lg bg-red-600 bg-opacity-10 border border-error border-opacity-50 py-3 px-2 flex items-center mt-4">
-        <span class="material-icons mr-2 text-error" style="font-size: 1.1rem">warning</span>
+        <span class="material-symbols mr-2 text-error" style="font-size: 1.1rem">warning</span>
         <p class="text-error">{{ error }}</p>
       </div>
     </div>

@@ -9,13 +9,13 @@
     </div>
     <div class="flex-grow" />
     <div v-if="download.isIncomplete || download.isMissing" class="shadow-sm text-warning flex items-center justify-center rounded-full mr-4">
-      <span class="material-icons">error_outline</span>
+      <span class="material-symbols">error_outline</span>
     </div>
     <button v-if="!isMissing" class="shadow-sm text-accent flex items-center justify-center rounded-full" @click.stop="playDownload">
-      <span class="material-icons" style="font-size: 2rem">play_arrow</span>
+      <span class="material-symbols fill" style="font-size: 2rem">play_arrow</span>
     </button>
     <div class="shadow-sm text-error flex items-center justify-center rounded-ful ml-4" @click.stop="clickDelete">
-      <span class="material-icons" style="font-size: 1.2rem">delete</span>
+      <span class="material-symbols" style="font-size: 1.2rem">delete</span>
     </div>
   </div>
 </template>

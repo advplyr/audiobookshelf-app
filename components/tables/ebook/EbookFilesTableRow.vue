@@ -1,6 +1,6 @@
 <template>
   <tr>
-    <td class="px-4">{{ file.metadata.filename }} <span v-if="isPrimary" class="material-icons-outlined text-success align-text-bottom text-base">check_circle</span></td>
+    <td class="px-4">{{ file.metadata.filename }} <span v-if="isPrimary" class="material-symbols text-success align-text-bottom text-base">check_circle</span></td>
     <td class="text-xs w-16">
       <ui-icon-btn icon="auto_stories" outlined borderless icon-font-size="1.125rem" :size="8" @click="readEbook" />
     </td>

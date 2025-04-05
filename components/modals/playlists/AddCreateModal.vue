@@ -3,7 +3,7 @@
     <div class="flex items-end justify-between h-24 px-4 pb-2">
       <h1 class="text-lg">{{ $strings.LabelAddToPlaylist }}</h1>
       <button class="flex" @click="show = false">
-        <span class="material-icons">close</span>
+        <span class="material-symbols">close</span>
       </button>
     </div>
 
@@ -12,7 +12,7 @@
       <div class="w-full px-4">
         <div class="flex mb-4 items-center">
           <div class="w-9 h-9 flex items-center justify-center rounded-full cursor-pointer" @click.stop="showPlaylistNameInput = false">
-            <span class="material-icons text-3xl">arrow_back</span>
+            <span class="material-symbols text-3xl">arrow_back</span>
           </div>
           <p class="text-xl pl-2 leading-none">{{ $strings.HeaderNewPlaylist }}</p>
           <div class="flex-grow" />

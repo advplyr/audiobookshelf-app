@@ -3,7 +3,7 @@
     <div class="flex items-end justify-end h-24 pr-4 pb-2">
       <!-- <h1 class="text-lg">RSS Feed</h1> -->
       <button class="flex" @click="show = false">
-        <span class="material-icons">close</span>
+        <span class="material-symbols">close</span>
       </button>
     </div>
 
@@ -14,7 +14,7 @@
 
           <ui-text-input v-model="currentFeed.feedUrl" class="text-sm" readonly />
 
-          <span class="material-icons absolute right-2 bottom-2 p-0.5 text-base" :class="linkCopied ? 'text-success' : 'text-fg-muted'" @click="copyToClipboard(currentFeed.feedUrl)">{{ linkCopied ? 'done' : 'content_copy' }}</span>
+          <span class="material-symbols absolute right-2 bottom-2 p-0.5 text-base" :class="linkCopied ? 'text-success' : 'text-fg-muted'" @click="copyToClipboard(currentFeed.feedUrl)">{{ linkCopied ? 'check' : 'content_copy' }}</span>
         </div>
 
         <div v-if="currentFeed.meta" class="mt-5">

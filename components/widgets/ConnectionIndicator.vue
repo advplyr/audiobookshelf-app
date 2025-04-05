@@ -1,6 +1,6 @@
 <template>
   <div v-if="icon" class="flex h-full items-center px-2">
-    <span class="material-icons-outlined text-lg" :class="iconClass" @click="showAlertDialog">{{ icon }}</span>
+    <span class="material-symbols text-lg" :class="iconClass" @click="showAlertDialog">{{ icon }}</span>
   </div>
 </template>
 
