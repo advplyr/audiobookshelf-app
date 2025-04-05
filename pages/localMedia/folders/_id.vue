@@ -4,7 +4,7 @@
       <p class="text-base font-semibold">{{ $strings.LabelFolder }}: {{ folderName }}</p>
       <div class="flex-grow" />
 
-      <span v-if="dialogItems.length" class="material-symbols" @click="showDialog = true">more_vert</span>
+      <span v-if="dialogItems.length" class="material-symbols text-2xl" @click="showDialog = true">more_vert</span>
     </div>
 
     <p class="text-sm mb-4 text-fg-muted">{{ $strings.LabelMediaType }}: {{ mediaType }}</p>

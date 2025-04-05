@@ -8,7 +8,7 @@
         <button v-if="audioTracks.length && !isPodcast" class="shadow-sm text-success flex items-center justify-center rounded-full mx-2" @click.stop="play">
           <span class="material-symbols fill" style="font-size: 2rem">play_arrow</span>
         </button>
-        <span class="material-symbols" @click="showItemDialog">more_vert</span>
+        <span class="material-symbols text-2xl" @click="showItemDialog">more_vert</span>
       </div>
 
       <p v-if="!isIos" class="px-2 text-sm mb-0.5 text-fg-muted">{{ $strings.LabelFolder }}: {{ folderName }}</p>
@@ -40,7 +40,7 @@
                     <p class="text-sm">{{ $elapsedPretty(track.duration) }}</p>
                   </div>
                   <div v-if="!isIos" class="w-12 h-12 flex items-center justify-center" style="min-width: 48px">
-                    <span class="material-symbols" @click="showTrackDialog(track)">more_vert</span>
+                    <span class="material-symbols text-2xl" @click="showTrackDialog(track)">more_vert</span>
                   </div>
                 </div>
               </template>
@@ -66,7 +66,7 @@
                 <p class="text-sm">{{ $elapsedPretty(episode.audioTrack.duration) }}</p>
               </div>
               <div class="w-12 h-12 flex items-center justify-center" style="min-width: 48px">
-                <span class="material-symbols" @click="showTrackDialog(episode)">more_vert</span>
+                <span class="material-symbols text-2xl" @click="showTrackDialog(episode)">more_vert</span>
               </div>
             </div>
           </template>

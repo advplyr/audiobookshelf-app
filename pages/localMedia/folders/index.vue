@@ -4,7 +4,7 @@
       <h1 class="text-base font-semibold px-2">
         {{ $strings.HeaderLocalFolders }}
       </h1>
-      <button type="button" class="material-symbols" @click.stop="showLocalFolderMoreInfo">info</button>
+      <button type="button" class="material-symbols text-xl" @click.stop="showLocalFolderMoreInfo">info</button>
     </div>
 
     <div v-if="!isIos" class="w-full max-w-full px-2 py-2">

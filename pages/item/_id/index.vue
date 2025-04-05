@@ -140,7 +140,7 @@
 
           <div v-if="descriptionClamped" class="text-fg text-sm py-2" @click="showFullDescription = !showFullDescription">
             {{ showFullDescription ? $strings.ButtonReadLess : $strings.ButtonReadMore }}
-            <span class="material-symbols align-middle text-base -mt-px">{{ showFullDescription ? 'arrow_drop_down' : 'arrow_drop_up' }}</span>
+            <span class="material-symbols !align-middle text-base -mt-px">{{ showFullDescription ? 'arrow_drop_up' : 'arrow_drop_down' }}</span>
           </div>
         </div>
 

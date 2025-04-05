@@ -22,7 +22,7 @@
         </div>
         <div class="w-8 min-w-8 flex justify-center">
           <button class="w-8 h-8 rounded-full flex items-center justify-center" @click.stop.prevent="showMore">
-            <span class="material-symbols">more_vert</span>
+            <span class="material-symbols text-2xl">more_vert</span>
           </button>
         </div>
       </nuxt-link>

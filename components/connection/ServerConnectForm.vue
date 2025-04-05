@@ -9,7 +9,7 @@
             <p class="pl-3 pr-6 text-base text-fg">{{ config.name }}</p>
 
             <div class="absolute top-0 right-0 h-full px-4 flex items-center" @click.stop="editServerConfig(config)">
-              <span class="material-symbols text-lg text-fg-muted">more_vert</span>
+              <span class="material-symbols text-2xl text-fg-muted">more_vert</span>
             </div>
           </div>
           <!-- warning message if server connection config is using an old user id -->
