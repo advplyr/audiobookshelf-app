@@ -19,7 +19,6 @@ import com.fasterxml.jackson.core.json.JsonReadFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.getcapacitor.JSObject
 import java.io.File
-import java.io.FileOutputStream
 import java.util.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -113,7 +112,6 @@ class DownloadItemManager(
     val file = File(downloadItemPart.finalDestinationPath)
     file.parentFile?.mkdirs()
 
-    val fileOutputStream = FileOutputStream(downloadItemPart.finalDestinationPath)
     val internalProgressCallback =
             object : InternalProgressCallback {
               override fun onProgress(totalBytesWritten: Long, progress: Long) {
@@ -131,7 +129,11 @@ class DownloadItemManager(
             tag,
             "Start internal download to destination path ${downloadItemPart.finalDestinationPath} from ${downloadItemPart.serverUrl}"
     )
-    InternalDownloadManager(fileOutputStream, internalProgressCallback)
+    InternalDownloadManager(
+                    mainActivity,
+                    downloadItemPart.finalDestinationUri,
+                    internalProgressCallback
+            )
             .download(downloadItemPart.serverUrl)
     downloadItemPart.downloadId = 1
     currentDownloadItemParts.add(downloadItemPart)
