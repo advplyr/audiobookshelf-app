@@ -2,7 +2,6 @@ package com.audiobookshelf.app.plugins
 
 import android.app.DownloadManager
 import android.content.Context
-import android.os.Environment
 import android.util.Log
 import com.audiobookshelf.app.MainActivity
 import com.audiobookshelf.app.data.*
@@ -108,6 +107,8 @@ class AbsDownloader : Plugin() {
           DeviceManager.dbManager.saveLocalFolder(localFolder)
         }
 
+        val isInternal = localFolderId.startsWith("internal-")
+
         if (localFolder != null) {
           if (episodeId.isNotEmpty() && libraryItem.mediaType != "podcast") {
             Log.e(tag, "Library item is not a podcast but episode was requested")
@@ -119,11 +120,11 @@ class AbsDownloader : Plugin() {
             if (episode == null) {
               call.resolve(JSObject("{\"error\":\"Invalid podcast episode not found\"}"))
             } else {
-              startLibraryItemDownload(libraryItem, localFolder, episode)
+              startLibraryItemDownload(libraryItem, isInternal, localFolder, episode)
               call.resolve()
             }
           } else {
-            startLibraryItemDownload(libraryItem, localFolder, null)
+            startLibraryItemDownload(libraryItem, isInternal, localFolder, null)
             call.resolve()
           }
         } else {
@@ -153,14 +154,12 @@ class AbsDownloader : Plugin() {
 
   private fun startLibraryItemDownload(
           libraryItem: LibraryItem,
+          isInternal: Boolean,
           localFolder: LocalFolder,
           episode: PodcastEpisode?
   ) {
-    val isInternal = localFolder.id.startsWith("internal-")
 
-    val tempFolderPath =
-            if (isInternal) "${mainActivity.filesDir}/downloads/${libraryItem.id}"
-            else mainActivity.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+    val tempFolderPath = "${mainActivity.filesDir}/downloads/${libraryItem.id}"
 
     Log.d(tag, "downloadCacheDirectory=$tempFolderPath")
 

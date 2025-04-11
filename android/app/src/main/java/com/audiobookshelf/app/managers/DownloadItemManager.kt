@@ -99,17 +99,19 @@ class DownloadItemManager(
   /** Processes the download item parts. */
   private fun processDownloadItemParts(nextDownloadItemParts: List<DownloadItemPart>) {
     nextDownloadItemParts.forEach {
-      if (it.isInternalStorage) {
-        startInternalDownload(it)
-      } else {
-        startExternalDownload(it)
-      }
+      // if (it.isInternalStorage) {
+      startInternalDownload(it)
+      // } else {
+      // startExternalDownload(it)
+      // }
     }
   }
 
   /** Starts an internal download. */
   private fun startInternalDownload(downloadItemPart: DownloadItemPart) {
-    val file = File(downloadItemPart.finalDestinationPath)
+    // Create internal download location at temp directory location
+    Log.d(tag, "Creating internal download location at ${downloadItemPart.destinationUri.path}")
+    val file = File(downloadItemPart.destinationUri.path ?: "")
     file.parentFile?.mkdirs()
 
     val internalProgressCallback =
@@ -129,11 +131,7 @@ class DownloadItemManager(
             tag,
             "Start internal download to destination path ${downloadItemPart.finalDestinationPath} from ${downloadItemPart.serverUrl}"
     )
-    InternalDownloadManager(
-                    mainActivity,
-                    downloadItemPart.finalDestinationUri,
-                    internalProgressCallback
-            )
+    InternalDownloadManager(mainActivity, downloadItemPart.destinationUri, internalProgressCallback)
             .download(downloadItemPart.serverUrl)
     downloadItemPart.downloadId = 1
     currentDownloadItemParts.add(downloadItemPart)
@@ -159,11 +157,11 @@ class DownloadItemManager(
       while (currentDownloadItemParts.isNotEmpty()) {
         val itemParts = currentDownloadItemParts.filter { !it.isMoving }
         for (downloadItemPart in itemParts) {
-          if (downloadItemPart.isInternalStorage) {
-            handleInternalDownloadPart(downloadItemPart)
-          } else {
-            handleExternalDownloadPart(downloadItemPart)
-          }
+          // if (downloadItemPart.isInternalStorage) {
+          handleInternalDownloadPart(downloadItemPart)
+          // } else {
+          // handleExternalDownloadPart(downloadItemPart)
+          // }
         }
 
         delay(500)
