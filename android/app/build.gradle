@@ -86,7 +86,7 @@ dependencies {
   implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
   implementation project(':capacitor-android')
 
-  implementation 'androidx.constraintlayout:constraintlayout:2.2.0'
+  implementation 'androidx.constraintlayout:constraintlayout:2.2.1'
   implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
 
   implementation project(':capacitor-cordova-android-plugins')
