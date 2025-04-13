@@ -231,6 +231,13 @@ class FolderScanner(var ctx: Context) {
     cb(downloadItemScanResult)
   }
 
+  // Find a folder by path in the DocumentFile tree
+  private fun findFolderByPath(root: DocumentFile, subPath: String): DocumentFile? {
+    var current = root
+    subPath.split("/").forEach { name -> current = current.findFile(name) ?: return null }
+    return current
+  }
+
   // Scan item after download and create local library item
   fun scanDownloadItem(downloadItem: DownloadItem, cb: (DownloadItemScanResult?) -> Unit) {
     // If downloading to internal storage handle separately
@@ -239,28 +246,33 @@ class FolderScanner(var ctx: Context) {
       return
     }
 
-    val folderDf = DocumentFileCompat.fromUri(ctx, Uri.parse(downloadItem.localFolder.contentUrl))
-    val foldersFound = folderDf?.search(true, DocumentFileType.FOLDER) ?: mutableListOf()
-
-    var itemFolderId = ""
-    var itemFolderUrl = ""
-    var itemFolderBasePath = ""
-    var itemFolderAbsolutePath = ""
-    foldersFound.forEach {
-      // e.g. absolute path is "storage/emulated/0/Audiobooks/Orson Scott Card/Enders Game"
-      //        and itemSubfolder is "Orson Scott Card/Enders Game"
-      if (it.getAbsolutePath(ctx).endsWith(downloadItem.itemSubfolder)) {
-        itemFolderId = it.id
-        itemFolderUrl = it.uri.toString()
-        itemFolderBasePath = it.getBasePath(ctx)
-        itemFolderAbsolutePath = it.getAbsolutePath(ctx)
-      }
-    }
-
-    if (itemFolderUrl == "") {
-      Log.d(tag, "scanDownloadItem failed to find media folder")
+    Log.d(tag, "starting my custom scanner")
+    // Get the root by stripping off the localfolder content url from the itemfolderPath
+    val rootPathUri = Uri.parse(downloadItem.localFolder.contentUrl)
+    Log.d(tag, "root path URI after concat: ${rootPathUri}")
+    val root = DocumentFileCompat.fromUri(ctx, rootPathUri)
+    Log.d(tag, "Root Doc File ${root?.uri} | ${root?.name} | ${root?.length()}")
+    if (root == null) {
+      Log.e(tag, "Root Doc File Invalid ${rootPathUri}")
       return cb(null)
     }
+
+    Log.d(tag, "item folder path: ${downloadItem.itemSubfolder}")
+    val baseFolder = findFolderByPath(root, downloadItem.itemSubfolder)
+    if (baseFolder == null) {
+      Log.e(tag, "Base folder not found ${downloadItem.itemSubfolder}")
+      return cb(null)
+    }
+    Log.d(tag, "baseFolder: ${baseFolder.uri} | ${baseFolder.name} | ${baseFolder.length()}")
+
+    // Build references to files in this library item folder
+    // e.g. absolute path is "storage/emulated/0/Audiobooks/Orson Scott Card/Enders Game"
+    //        and itemSubfolder is "Orson Scott Card/Enders Game"
+    val itemFolderId = baseFolder.id
+    val itemFolderUrl = baseFolder.uri.toString()
+    val itemFolderBasePath = baseFolder.getBasePath(ctx)
+    val itemFolderAbsolutePath = baseFolder.getAbsolutePath(ctx)
+
     val df: DocumentFile? = DocumentFileCompat.fromUri(ctx, Uri.parse(itemFolderUrl))
 
     if (df == null) {
@@ -271,18 +283,12 @@ class FolderScanner(var ctx: Context) {
     val localLibraryItemId = getLocalLibraryItemId(itemFolderId)
     Log.d(
             tag,
-            "scanDownloadItem starting for ${downloadItem.itemFolderPath} | ${df.uri} | Item Folder Id:$itemFolderId | LLI Id:$localLibraryItemId"
+            "scanDownloadItem starting for ${downloadItem.itemFolderPath} | ${baseFolder.uri} | Item Folder Id:$itemFolderId | LLI Id:$localLibraryItemId"
     )
 
     // Search for files in media item folder
     // m4b files showing as mimeType application/octet-stream on Android 10 and earlier see #154
-    val filesFound =
-            df.search(
-                    false,
-                    DocumentFileType.FILE,
-                    arrayOf("audio/*", "image/*", "video/mp4", "application/*")
-            )
-    Log.d(tag, "scanDownloadItem ${filesFound.size} files found in ${downloadItem.itemFolderPath}")
+    val filesFound = baseFolder.listFiles()
 
     var localEpisodeId: String? = null
     var localLibraryItem: LocalLibraryItem?

@@ -195,7 +195,7 @@ class AbsDownloader : Plugin() {
                     itemFolderPath,
                     localFolder,
                     title,
-                    title,
+                    itemSubfolder,
                     libraryItem.media,
                     mutableListOf()
             )
