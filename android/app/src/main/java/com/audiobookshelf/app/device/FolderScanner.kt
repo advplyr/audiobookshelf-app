@@ -78,7 +78,6 @@ class FolderScanner(var ctx: Context) {
                       Uri.fromFile(file).toString(),
                       file.getBasePath(ctx),
                       file.absolutePath,
-                      // file.getSimplePath(ctx),
                       file.mimeType,
                       file.length()
               )
@@ -332,7 +331,6 @@ class FolderScanner(var ctx: Context) {
       // val fileUri = docFile.uri.toString()
       // val fileBasePath = docFile.getBasePath(ctx)
       // val fileAbsolutePath = docFile.getAbsolutePath(ctx)
-      // val fileSimplePath = docFile.getSimplePath(ctx)
       // val fileMimeType = docFile.mimeType
       // val fileLength = docFile.length()
       // val fileName = docFile.name
@@ -347,7 +345,6 @@ class FolderScanner(var ctx: Context) {
                       docFile.uri.toString(),
                       docFile.getBasePath(ctx),
                       docFile.getAbsolutePath(ctx),
-                      // docFile.getSimplePath(ctx),
                       docFile.mimeType,
                       docFile.length()
               )

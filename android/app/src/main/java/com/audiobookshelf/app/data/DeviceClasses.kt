@@ -64,7 +64,6 @@ data class LocalFile(
         var contentUrl: String,
         var basePath: String,
         var absolutePath: String,
-        var simplePath: String,
         var mimeType: String?,
         var size: Long
 ) {
