@@ -328,14 +328,6 @@ class FolderScanner(var ctx: Context) {
       val itemPart =
               downloadItem.downloadItemParts.find { itemPart -> itemPart.filename == docFile.name }
 
-      // val fileUri = docFile.uri.toString()
-      // val fileBasePath = docFile.getBasePath(ctx)
-      // val fileAbsolutePath = docFile.getAbsolutePath(ctx)
-      // val fileMimeType = docFile.mimeType
-      // val fileLength = docFile.length()
-      // val fileName = docFile.name
-      // val fileExtension = docFile.extension
-
       // Build local file object
       val localFileId = DeviceManager.getBase64Id(docFile.id)
       val localFile =
@@ -354,7 +346,7 @@ class FolderScanner(var ctx: Context) {
         ) { // for books every download item should be a file found
           Log.e(
                   tag,
-                  "scanDownloadItem: Item part not found for doc file ${docFile.name} | ${docFile.getAbsolutePath(ctx)} | ${docFile.uri}"
+                  "scanDownloadItem: Item part not found for doc file ${localFile.filename} | ${localFile.absolutePath} | ${localFile.contentUrl}"
           )
         }
       } else if (itemPart.audioTrack != null) { // Is audio track
@@ -369,11 +361,11 @@ class FolderScanner(var ctx: Context) {
         // Create new audio track
         val trackFileMetadata =
                 FileMetadata(
-                        docFile.name ?: "",
+                        localFile.filename ?: "",
                         docFile.extension ?: "",
-                        docFile.getAbsolutePath(ctx),
-                        docFile.getBasePath(ctx),
-                        docFile.length()
+                        localFile.absolutePath,
+                        localFile.basePath,
+                        localFile.size
                 )
         val track =
                 AudioTrack(
@@ -407,7 +399,7 @@ class FolderScanner(var ctx: Context) {
         }
       } else if (itemPart.ebookFile != null) { // Ebook
         foundEBookFile = true
-        Log.d(tag, "scanDownloadItem: Ebook file found with mimetype=${docFile.mimeType}")
+        Log.d(tag, "scanDownloadItem: Ebook file found with mimetype=${localFile.mimeType}")
 
         localLibraryItem.localFiles.add(localFile)
         val ebookFile =
