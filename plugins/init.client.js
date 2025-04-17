@@ -16,6 +16,12 @@ if (Capacitor.getPlatform() != 'web') {
     await StatusBar.setStyle({ style: Style.Dark })
   }
   setStatusBarStyleDark()
+
+  const setStatusBarOverlays = async () => {
+    // Defaults to true in capacitor v7
+    await StatusBar.setOverlaysWebView({ overlay: false })
+  }
+  setStatusBarOverlays()
 }
 
 Vue.prototype.$showHideStatusBar = async (show) => {
@@ -170,7 +176,6 @@ Vue.prototype.$sanitizeFilename = (input, colonReplacement = ' - ') => {
     .replace(windowsReservedRe, replacement)
     .replace(windowsTrailingRe, replacement)
 
-
   if (sanitized.length > MAX_FILENAME_LEN) {
     var lenToRemove = sanitized.length - MAX_FILENAME_LEN
     var ext = Path.extname(sanitized)
@@ -187,8 +192,7 @@ function xmlToJson(xml) {
   for (const res of xml.matchAll(/(?:<(\w*)(?:\s[^>]*)*>)((?:(?!<\1).)*)(?:<\/\1>)|<(\w*)(?:\s*)*\/>/gm)) {
     const key = res[1] || res[3]
     const value = res[2] && xmlToJson(res[2])
-    json[key] = ((value && Object.keys(value).length) ? value : res[2]) || null
-
+    json[key] = (value && Object.keys(value).length ? value : res[2]) || null
   }
   return json
 }
@@ -230,14 +234,15 @@ Vue.prototype.$sanitizeSlug = (str) => {
   str = str.toLowerCase()
 
   // remove accents, swap ñ for n, etc
-  var from = "àáäâèéëêìíïîòóöôùúüûñçěščřžýúůďťň·/,:;"
-  var to = "aaaaeeeeiiiioooouuuuncescrzyuudtn-----"
+  var from = 'àáäâèéëêìíïîòóöôùúüûñçěščřžýúůďťň·/,:;'
+  var to = 'aaaaeeeeiiiioooouuuuncescrzyuudtn-----'
 
   for (var i = 0, l = from.length; i < l; i++) {
     str = str.replace(new RegExp(from.charAt(i), 'g'), to.charAt(i))
   }
 
-  str = str.replace('.', '-') // replace a dot by a dash
+  str = str
+    .replace('.', '-') // replace a dot by a dash
     .replace(/[^a-z0-9 -_]/g, '') // remove invalid chars
     .replace(/\s+/g, '-') // collapse whitespace and replace by a dash
     .replace(/-+/g, '-') // collapse dashes
@@ -291,7 +296,7 @@ export default ({ store, app }, inject) => {
     if (!canGoBack) {
       const { value } = await Dialog.confirm({
         title: 'Confirm',
-        message: `Did you want to exit the app?`,
+        message: `Did you want to exit the app?`
       })
       if (value) {
         App.exitApp()
@@ -310,7 +315,4 @@ export default ({ store, app }, inject) => {
   })
 }
 
-export {
-  encode,
-  decode
-}
+export { encode, decode }

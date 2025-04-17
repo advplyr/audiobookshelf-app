@@ -8,7 +8,7 @@
 </template>
 
 <script>
-import { FileSharer } from '@byteowls/capacitor-filesharer'
+import { FileSharer } from '@webnativellc/capacitor-filesharer'
 
 export default {
   props: {
