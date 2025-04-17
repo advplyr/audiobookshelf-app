@@ -25,7 +25,7 @@ jobs:
         uses: actions/setup-java@v2
         with:
           distribution: 'temurin'
-          java-version: 17
+          java-version: 21
 
       - name: install dependencies
         run: npm ci
