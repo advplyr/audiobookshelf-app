@@ -16,6 +16,7 @@
 
 <script>
 import { CapacitorHttp } from '@capacitor/core'
+import { AbsLogger } from '@/plugins/capacitor'
 
 export default {
   data() {
@@ -72,6 +73,9 @@ export default {
     currentLibraryId() {
       return this.$store.state.libraries.currentLibraryId
     },
+    currentLibraryName() {
+      return this.$store.getters['libraries/getCurrentLibraryName']
+    },
     attemptingConnection: {
       get() {
         return this.$store.state.attemptingConnection
@@ -114,6 +118,7 @@ export default {
       console.warn('[default] attemptConnection')
       if (!this.networkConnected) {
         console.warn('[default] No network connection')
+        AbsLogger.info({ message: '[default] attemptConnection: No network connection' })
         return
       }
       if (this.attemptingConnection) {
@@ -134,13 +139,14 @@ export default {
       if (!serverConfig) {
         // No last server config set
         this.attemptingConnection = false
+        AbsLogger.info({ message: `[default] attemptConnection: No last server config set` })
         return
       }
 
-      console.log(`[default] Got server config, attempt authorize ${serverConfig.address}`)
+      AbsLogger.info({ message: `[default] attemptConnection: Got server config, attempt authorize (${serverConfig.name})` })
 
       const authRes = await this.postRequest(`${serverConfig.address}/api/authorize`, null, { Authorization: `Bearer ${serverConfig.token}` }, 6000).catch((error) => {
-        console.error('[default] Server auth failed', error)
+        AbsLogger.error({ message: `[default] attemptConnection: Server auth failed (${serverConfig.name})` })
         return false
       })
       if (!authRes) {
@@ -166,7 +172,7 @@ export default {
 
       this.$socket.connect(serverConnectionConfig.address, serverConnectionConfig.token)
 
-      console.log('[default] Successful connection on last saved connection config', JSON.stringify(serverConnectionConfig))
+      AbsLogger.info({ message: `[default] attemptConnection: Successful connection to last saved server config (${serverConnectionConfig.name})` })
       await this.initLibraries()
       this.attemptingConnection = false
     },
@@ -186,7 +192,8 @@ export default {
       }
       this.inittingLibraries = true
       await this.$store.dispatch('libraries/load')
-      console.log(`[default] initLibraries loaded ${this.currentLibraryId}`)
+
+      AbsLogger.info({ message: `[default] initLibraries loading library ${this.currentLibraryName}` })
       await this.$store.dispatch('libraries/fetch', this.currentLibraryId)
       this.$eventBus.$emit('library-changed')
       this.inittingLibraries = false
@@ -197,7 +204,7 @@ export default {
         return
       }
 
-      console.log('[default] Calling syncLocalSessions')
+      AbsLogger.info({ message: '[default] Calling syncLocalSessions' })
       const response = await this.$db.syncLocalSessionsWithServer(isFirstSync)
       if (response?.error) {
         console.error('[default] Failed to sync local sessions', response.error)
@@ -310,6 +317,7 @@ export default {
     this.$socket.on('user_media_progress_updated', this.userMediaProgressUpdated)
 
     if (this.$store.state.isFirstLoad) {
+      AbsLogger.info({ message: `[default] mounted: first load` })
       this.$store.commit('setIsFirstLoad', false)
 
       this.loadSavedSettings()
@@ -322,8 +330,10 @@ export default {
       await this.$store.dispatch('setupNetworkListener')
 
       if (this.$store.state.user.serverConnectionConfig) {
+        AbsLogger.info({ message: `[default] Server connected, init libraries (ServerConfigName: ${this.$store.getters['user/getServerConfigName']})` })
         await this.initLibraries()
       } else {
+        AbsLogger.info({ message: `[default] Server not connected, attempt connection` })
         await this.attemptConnection()
       }
 

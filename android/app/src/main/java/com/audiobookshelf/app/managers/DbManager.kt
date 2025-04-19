@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.models.DownloadItem
+import com.audiobookshelf.app.plugins.AbsLog
 import io.paperdb.Paper
 import java.io.File
 
@@ -286,5 +287,18 @@ class DbManager {
       }
     }
     return sessions
+  }
+
+  fun saveLog(log:AbsLog) {
+    Paper.book("log").write(log.id, log)
+  }
+  fun getAllLogs() : List<AbsLog> {
+    val logs:MutableList<AbsLog> = mutableListOf()
+    Paper.book("log").allKeys.forEach { logId ->
+      Paper.book("log").read<AbsLog>(logId)?.let {
+        logs.add(it)
+      }
+    }
+    return logs
   }
 }

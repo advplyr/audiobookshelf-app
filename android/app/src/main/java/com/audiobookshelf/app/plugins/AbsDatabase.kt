@@ -219,6 +219,7 @@ class AbsDatabase : Plugin() {
 
   @PluginMethod
   fun syncLocalSessionsWithServer(call:PluginCall) {
+    AbsLogger.info("[AbsDatabase] syncLocalSessionsWithServer")
     if (DeviceManager.serverConnectionConfig == null) {
       Log.e(tag, "syncLocalSessionsWithServer not connected to server")
       return call.resolve()
@@ -226,6 +227,7 @@ class AbsDatabase : Plugin() {
 
     apiHandler.syncLocalMediaProgressForUser {
       Log.d(tag, "Finished syncing local media progress for user")
+      AbsLogger.info("[AbsDatabase] Finished syncing local media progress for user")
       val savedSessions = DeviceManager.dbManager.getPlaybackSessions().filter { it.serverConnectionConfigId == DeviceManager.serverConnectionConfigId }
 
       if (savedSessions.isNotEmpty()) {
