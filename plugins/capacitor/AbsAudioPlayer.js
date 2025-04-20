@@ -1,4 +1,5 @@
 import { registerPlugin, WebPlugin } from '@capacitor/core'
+import { AbsLogger } from '@/plugins/capacitor'
 import { nanoid } from 'nanoid'
 const { PlayerState } = require('../constants')
 
@@ -87,6 +88,9 @@ class AbsAudioPlayerWeb extends WebPlugin {
       this.loadCurrentTrack()
       return
     }
+
+    // For testing onLog events in web while on the logs page
+    AbsLogger.info({ tag: 'AbsAudioPlayer', message: 'playPause' })
 
     if (this.player.paused) this.player.play()
     else this.player.pause()

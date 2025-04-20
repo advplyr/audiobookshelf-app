@@ -11,7 +11,29 @@ import RealmSwift
 import Network
 
 @objc(AbsAudioPlayer)
-public class AbsAudioPlayer: CAPPlugin {
+public class AbsAudioPlayer: CAPPlugin, CAPBridgedPlugin {
+    public var identifier = "AbsAudioPlayerPlugin"
+    public var jsName = "AbsAudioPlayer"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "onReady", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "prepareLibraryItem", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "closePlayback", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setPlaybackSpeed", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setChapterTrack", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "playPlayer", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "pausePlayer", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "playPause", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "seek", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "seekForward", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "seekBackward", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getCurrentTime", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "cancelSleepTimer", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "decreaseSleepTime", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "increaseSleepTime", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getSleepTimerTime", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setSleepTimer", returnType: CAPPluginReturnPromise)
+    ]
+    
     private let logger = AppLogger(category: "AbsAudioPlayer")
 
     private var initialPlayWhenReady = false

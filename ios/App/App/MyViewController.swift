@@ -21,6 +21,7 @@ class MyViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(AbsAudioPlayer())
         bridge?.registerPluginInstance(AbsDownloader())
         bridge?.registerPluginInstance(AbsFileSystem())
+        bridge?.registerPluginInstance(AbsLogger())
     }
     
 

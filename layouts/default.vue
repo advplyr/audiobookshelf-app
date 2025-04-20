@@ -118,7 +118,7 @@ export default {
       console.warn('[default] attemptConnection')
       if (!this.networkConnected) {
         console.warn('[default] No network connection')
-        AbsLogger.info({ message: '[default] attemptConnection: No network connection' })
+        AbsLogger.info({ tag: 'default', message: 'attemptConnection: No network connection' })
         return
       }
       if (this.attemptingConnection) {
@@ -139,14 +139,14 @@ export default {
       if (!serverConfig) {
         // No last server config set
         this.attemptingConnection = false
-        AbsLogger.info({ message: `[default] attemptConnection: No last server config set` })
+        AbsLogger.info({ tag: 'default', message: 'attemptConnection: No last server config set' })
         return
       }
 
-      AbsLogger.info({ message: `[default] attemptConnection: Got server config, attempt authorize (${serverConfig.name})` })
+      AbsLogger.info({ tag: 'default', message: `attemptConnection: Got server config, attempt authorize (${serverConfig.name})` })
 
       const authRes = await this.postRequest(`${serverConfig.address}/api/authorize`, null, { Authorization: `Bearer ${serverConfig.token}` }, 6000).catch((error) => {
-        AbsLogger.error({ message: `[default] attemptConnection: Server auth failed (${serverConfig.name})` })
+        AbsLogger.error({ tag: 'default', message: `attemptConnection: Server auth failed (${serverConfig.name})` })
         return false
       })
       if (!authRes) {
@@ -172,7 +172,7 @@ export default {
 
       this.$socket.connect(serverConnectionConfig.address, serverConnectionConfig.token)
 
-      AbsLogger.info({ message: `[default] attemptConnection: Successful connection to last saved server config (${serverConnectionConfig.name})` })
+      AbsLogger.info({ tag: 'default', message: `attemptConnection: Successful connection to last saved server config (${serverConnectionConfig.name})` })
       await this.initLibraries()
       this.attemptingConnection = false
     },
@@ -193,7 +193,7 @@ export default {
       this.inittingLibraries = true
       await this.$store.dispatch('libraries/load')
 
-      AbsLogger.info({ message: `[default] initLibraries loading library ${this.currentLibraryName}` })
+      AbsLogger.info({ tag: 'default', message: `initLibraries loading library ${this.currentLibraryName}` })
       await this.$store.dispatch('libraries/fetch', this.currentLibraryId)
       this.$eventBus.$emit('library-changed')
       this.inittingLibraries = false
@@ -204,7 +204,7 @@ export default {
         return
       }
 
-      AbsLogger.info({ message: '[default] Calling syncLocalSessions' })
+      AbsLogger.info({ tag: 'default', message: 'Calling syncLocalSessions' })
       const response = await this.$db.syncLocalSessionsWithServer(isFirstSync)
       if (response?.error) {
         console.error('[default] Failed to sync local sessions', response.error)
@@ -221,12 +221,12 @@ export default {
     },
     async userMediaProgressUpdated(payload) {
       const prog = payload.data // MediaProgress
-      console.log(`[default] userMediaProgressUpdate checking for local media progress ${payload.id}`)
+      await AbsLogger.info({ tag: 'default', message: `userMediaProgressUpdate: Received updated media progress for current user from socket event. Media item id ${payload.id}` })
 
       // Check if this media item is currently open in the player, paused, and this progress update is coming from a different session
       const isMediaOpenInPlayer = this.$store.getters['getIsMediaStreaming'](prog.libraryItemId, prog.episodeId)
       if (isMediaOpenInPlayer && this.$store.getters['getCurrentPlaybackSessionId'] !== payload.sessionId && !this.$store.state.playerIsPlaying) {
-        console.log('[default] userMediaProgressUpdated for current open media item', payload.data.currentTime)
+        await AbsLogger.info({ tag: 'default', message: `userMediaProgressUpdate: Item is currently open in player, paused and this progress update is coming from a different session. Updating playback time to ${payload.data.currentTime}` })
         this.$eventBus.$emit('playback-time-update', payload.data.currentTime)
       }
 
@@ -237,12 +237,12 @@ export default {
       // Progress update is more recent then local progress
       if (localProg && localProg.lastUpdate < prog.lastUpdate) {
         if (localProg.currentTime == prog.currentTime && localProg.isFinished == prog.isFinished) {
-          console.log('[default] syncing progress server lastUpdate > local lastUpdate but currentTime and isFinished is equal')
+          await AbsLogger.info({ tag: 'default', message: `userMediaProgressUpdate: server lastUpdate is more recent but progress is up-to-date (libraryItemId: ${prog.libraryItemId}${prog.episodeId ? ` episodeId: ${prog.episodeId}` : ''})` })
           return
         }
 
         // Server progress is more up-to-date
-        console.log(`[default] syncing progress from server with local item for "${prog.libraryItemId}" ${prog.episodeId ? `episode ${prog.episodeId}` : ''} | server lastUpdate=${prog.lastUpdate} > local lastUpdate=${localProg.lastUpdate}`)
+        await AbsLogger.info({ tag: 'default', message: `userMediaProgressUpdate: syncing progress from server with local item for "${prog.libraryItemId}" ${prog.episodeId ? `episode ${prog.episodeId}` : ''} | server lastUpdate=${prog.lastUpdate} > local lastUpdate=${localProg.lastUpdate}` })
         const payload = {
           localMediaProgressId: localProg.id,
           mediaProgress: prog
@@ -280,7 +280,7 @@ export default {
       }
 
       if (newLocalMediaProgress?.id) {
-        console.log(`[default] local media progress updated for ${newLocalMediaProgress.id}`)
+        await AbsLogger.info({ tag: 'default', message: `userMediaProgressUpdate: local media progress updated for ${newLocalMediaProgress.id}` })
         this.$store.commit('globals/updateLocalMediaProgress', newLocalMediaProgress)
       }
     },
@@ -317,7 +317,7 @@ export default {
     this.$socket.on('user_media_progress_updated', this.userMediaProgressUpdated)
 
     if (this.$store.state.isFirstLoad) {
-      AbsLogger.info({ message: `[default] mounted: first load` })
+      AbsLogger.info({ tag: 'default', message: `mounted: initializing first load (${this.$platform} v${this.$config.version})` })
       this.$store.commit('setIsFirstLoad', false)
 
       this.loadSavedSettings()
@@ -330,19 +330,18 @@ export default {
       await this.$store.dispatch('setupNetworkListener')
 
       if (this.$store.state.user.serverConnectionConfig) {
-        AbsLogger.info({ message: `[default] Server connected, init libraries (ServerConfigName: ${this.$store.getters['user/getServerConfigName']})` })
+        AbsLogger.info({ tag: 'default', message: `mounted: Server connected, init libraries (${this.$store.getters['user/getServerConfigName']})` })
         await this.initLibraries()
       } else {
-        AbsLogger.info({ message: `[default] Server not connected, attempt connection` })
+        AbsLogger.info({ tag: 'default', message: `mounted: Server not connected, attempt connection` })
         await this.attemptConnection()
       }
 
-      console.log(`[default] finished connection attempt or already connected ${!!this.user}`)
       await this.syncLocalSessions(true)
 
       this.hasMounted = true
 
-      console.log('[default] fully initialized')
+      AbsLogger.info({ tag: 'default', message: 'mounted: fully initialized' })
       this.$eventBus.$emit('abs-ui-ready')
     }
   },

@@ -10,7 +10,12 @@ import Capacitor
 import RealmSwift
 
 @objc(AbsDownloader)
-public class AbsDownloader: CAPPlugin, URLSessionDownloadDelegate {
+public class AbsDownloader: CAPPlugin, CAPBridgedPlugin, URLSessionDownloadDelegate {
+    public var identifier = "AbsDownloaderPlugin"
+    public var jsName = "AbsDownloader"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "downloadLibraryItem", returnType: CAPPluginReturnPromise)
+    ]
     
     static private let downloadsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     

@@ -27,7 +27,27 @@ extension String {
 }
 
 @objc(AbsDatabase)
-public class AbsDatabase: CAPPlugin {
+public class AbsDatabase: CAPPlugin, CAPBridgedPlugin {
+    public var identifier = "AbsDatabasePlugin"
+    public var jsName = "AbsDatabase"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "setCurrentServerConnectionConfig", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "removeServerConnectionConfig", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "logout", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getDeviceData", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getLocalLibraryItems", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getLocalLibraryItem", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getLocalLibraryItemByLId", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getLocalLibraryItemsInFolder", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getAllLocalMediaProgress", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "removeLocalMediaProgress", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "syncServerMediaProgressWithLocalMediaProgress", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "syncLocalSessionsWithServer", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "updateLocalMediaProgressFinished", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "updateDeviceSettings", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "updateLocalEbookProgress", returnType: CAPPluginReturnPromise)
+    ]
+    
     private let logger = AppLogger(category: "AbsDatabase")
 
     @objc func setCurrentServerConnectionConfig(_ call: CAPPluginCall) {

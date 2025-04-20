@@ -13,6 +13,7 @@ import java.util.UUID
 
 data class AbsLog(
   var id:String,
+  var tag:String,
   var level:String,
   var message:String,
   var timestamp:Long
@@ -25,31 +26,43 @@ class AbsLogger : Plugin() {
   private var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
 
   override fun load() {
+    onLogEmitter = { log:AbsLog ->
+      notifyListeners("onLog", JSObject(jacksonMapper.writeValueAsString(log)))
+    }
     Log.i("AbsLogger", "Initialize AbsLogger plugin")
   }
 
   companion object {
-    fun info(message:String) {
-      Log.i("AbsLogger", message)
-      DeviceManager.dbManager.saveLog(AbsLog(id = UUID.randomUUID().toString(), level = "info", message, timestamp = System.currentTimeMillis()))
+    lateinit var onLogEmitter:(log:AbsLog) -> Unit
+
+    fun log(level:String, tag:String, message:String) {
+      val absLog = AbsLog(id = UUID.randomUUID().toString(), tag, level, message, timestamp = System.currentTimeMillis())
+      DeviceManager.dbManager.saveLog(absLog)
+      onLogEmitter(absLog)
     }
-    fun error(message:String) {
+    fun info(tag:String, message:String) {
+      Log.i("AbsLogger", message)
+      log("info", tag, message)
+    }
+    fun error(tag:String, message:String) {
       Log.e("AbsLogger", message)
-      DeviceManager.dbManager.saveLog(AbsLog(id = UUID.randomUUID().toString(), level = "error", message, timestamp = System.currentTimeMillis()))
+      log("error", tag, message)
     }
   }
 
   @PluginMethod
   fun info(call: PluginCall) {
     val msg = call.getString("message") ?: return call.reject("No message")
-    info(msg)
+    val tag = call.getString("tag") ?: ""
+    info(tag, msg)
     call.resolve()
   }
 
   @PluginMethod
   fun error(call: PluginCall) {
     val msg = call.getString("message") ?: return call.reject("No message")
-    error(msg)
+    val tag = call.getString("tag") ?: ""
+    error(tag, msg)
     call.resolve()
   }
 
@@ -57,5 +70,11 @@ class AbsLogger : Plugin() {
   fun getAllLogs(call: PluginCall) {
     val absLogs = DeviceManager.dbManager.getAllLogs()
     call.resolve(JSObject(jacksonMapper.writeValueAsString(AbsLogList(absLogs))))
+  }
+
+  @PluginMethod
+  fun clearLogs(call: PluginCall) {
+    DeviceManager.dbManager.removeAllLogs()
+    call.resolve()
   }
 }
