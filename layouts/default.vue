@@ -317,7 +317,7 @@ export default {
     this.$socket.on('user_media_progress_updated', this.userMediaProgressUpdated)
 
     if (this.$store.state.isFirstLoad) {
-      AbsLogger.info({ tag: 'default', message: 'mounted: initializing first load' })
+      AbsLogger.info({ tag: 'default', message: `mounted: initializing first load (${this.$platform} v${this.$config.version})` })
       this.$store.commit('setIsFirstLoad', false)
 
       this.loadSavedSettings()
@@ -330,7 +330,7 @@ export default {
       await this.$store.dispatch('setupNetworkListener')
 
       if (this.$store.state.user.serverConnectionConfig) {
-        AbsLogger.info({ tag: 'default', message: `mounted: Server connected, init libraries (ServerConfigName: ${this.$store.getters['user/getServerConfigName']})` })
+        AbsLogger.info({ tag: 'default', message: `mounted: Server connected, init libraries (${this.$store.getters['user/getServerConfigName']})` })
         await this.initLibraries()
       } else {
         AbsLogger.info({ tag: 'default', message: `mounted: Server not connected, attempt connection` })

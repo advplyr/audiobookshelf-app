@@ -26,17 +26,27 @@ class AbsLogger : Plugin() {
   private var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
 
   override fun load() {
+    onLogEmitter = { log:AbsLog ->
+      notifyListeners("onLog", JSObject(jacksonMapper.writeValueAsString(log)))
+    }
     Log.i("AbsLogger", "Initialize AbsLogger plugin")
   }
 
   companion object {
+    lateinit var onLogEmitter:(log:AbsLog) -> Unit
+
+    fun log(level:String, tag:String, message:String) {
+      val absLog = AbsLog(id = UUID.randomUUID().toString(), tag, level, message, timestamp = System.currentTimeMillis())
+      DeviceManager.dbManager.saveLog(absLog)
+      onLogEmitter(absLog)
+    }
     fun info(tag:String, message:String) {
       Log.i("AbsLogger", message)
-      DeviceManager.dbManager.saveLog(AbsLog(id = UUID.randomUUID().toString(), tag, level = "info", message, timestamp = System.currentTimeMillis()))
+      log("info", tag, message)
     }
     fun error(tag:String, message:String) {
       Log.e("AbsLogger", message)
-      DeviceManager.dbManager.saveLog(AbsLog(id = UUID.randomUUID().toString(), tag, level = "error", message, timestamp = System.currentTimeMillis()))
+      log("error", tag, message)
     }
   }
 

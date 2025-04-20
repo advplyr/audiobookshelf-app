@@ -522,9 +522,29 @@ class ApiHandler(var ctx:Context) {
           // Get matching local media progress
           allLocalMediaProgress.find { it.isMatch(mediaProgress) }?.let { localMediaProgress ->
             if (mediaProgress.lastUpdate > localMediaProgress.lastUpdate) {
-              AbsLogger.info("ApiHandler", "[ApiHandler] syncLocalMediaProgressForUser: Server progress for item \"${mediaProgress.mediaItemId}\" is more recent than local. Local progress last updated ${localMediaProgress.lastUpdate}, server progress last updated ${mediaProgress.lastUpdate}. Updating local current time ${localMediaProgress.currentTime} to ${mediaProgress.currentTime}")
+              val updateLogs = mutableListOf<String>()
+              if (mediaProgress.progress != localMediaProgress.progress) {
+                updateLogs.add("Updated progress from ${localMediaProgress.progress} to ${mediaProgress.progress}")
+              }
+              if (mediaProgress.currentTime != localMediaProgress.currentTime) {
+                updateLogs.add("Updated currentTime from ${localMediaProgress.currentTime} to ${mediaProgress.currentTime}")
+              }
+              if (mediaProgress.isFinished != localMediaProgress.isFinished) {
+                updateLogs.add("Updated isFinished from ${localMediaProgress.isFinished} to ${mediaProgress.isFinished}")
+              }
+              if (mediaProgress.ebookProgress != localMediaProgress.ebookProgress) {
+                updateLogs.add("Updated ebookProgress from ${localMediaProgress.isFinished} to ${mediaProgress.isFinished}")
+              }
+              if (updateLogs.isNotEmpty()) {
+                AbsLogger.info("ApiHandler", "syncLocalMediaProgressForUser: Server progress for item \"${mediaProgress.mediaItemId}\" is more recent than local (server lastUpdate=${mediaProgress.lastUpdate}, local lastUpdate=${localMediaProgress.lastUpdate}). ${updateLogs.joinToString()}")
+              }
+
               localMediaProgress.updateFromServerMediaProgress(mediaProgress)
-              MediaEventManager.syncEvent(mediaProgress, "Sync on server connection")
+
+              // Only report sync if progress changed
+              if (updateLogs.isNotEmpty()) {
+                MediaEventManager.syncEvent(mediaProgress, "Sync on server connection")
+              }
               DeviceManager.dbManager.saveLocalMediaProgress(localMediaProgress)
               numLocalMediaProgressUpdated++
             } else if (localMediaProgress.lastUpdate > mediaProgress.lastUpdate && localMediaProgress.ebookLocation != null && localMediaProgress.ebookLocation != mediaProgress.ebookLocation) {

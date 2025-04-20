@@ -8,15 +8,18 @@ class AbsLoggerWeb extends WebPlugin {
   }
 
   saveLog(level, tag, message) {
-    this.logs.push({
+    const log = {
       id: Math.random().toString(36).substring(2, 15),
       tag: tag,
       timestamp: Date.now(),
       level: level,
       message: message
-    })
+    }
+    this.logs.push(log)
+    this.notifyListeners('onLog', log)
   }
 
+  // PluginMethod
   async info(data) {
     if (data?.message) {
       this.saveLog('info', data.tag || '', data.message)
@@ -24,6 +27,7 @@ class AbsLoggerWeb extends WebPlugin {
     }
   }
 
+  // PluginMethod
   async error(data) {
     if (data?.message) {
       this.saveLog('error', data.tag || '', data.message)
@@ -31,12 +35,14 @@ class AbsLoggerWeb extends WebPlugin {
     }
   }
 
+  // PluginMethod
   async getAllLogs() {
     return {
       value: this.logs
     }
   }
 
+  // PluginMethod
   async clearLogs() {
     this.logs = []
   }

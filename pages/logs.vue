@@ -117,7 +117,7 @@ export default {
       const base64Data = Buffer.from(this.getLogsString()).toString('base64')
 
       FileSharer.share({
-        filename: `audiobookshelf_logs.txt`,
+        filename: `abs_logs_${this.$platform}_${this.$config.version}.txt`,
         contentType: 'text/plain',
         base64Data
       }).catch((error) => {
@@ -156,7 +156,19 @@ export default {
     }
   },
   mounted() {
+    AbsLogger.addListener('onLog', (log) => {
+      log.maskedMessage = this.maskLogMessage(log.message)
+      this.logs.push(log)
+      this.logs.sort((a, b) => a.timestamp - b.timestamp)
+
+      this.$nextTick(() => {
+        this.scrollToBottom()
+      })
+    })
     this.loadLogs()
+  },
+  beforeDestroy() {
+    AbsLogger.removeAllListeners()
   }
 }
 </script>
