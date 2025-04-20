@@ -58,4 +58,10 @@ class AbsLogger : Plugin() {
     val absLogs = DeviceManager.dbManager.getAllLogs()
     call.resolve(JSObject(jacksonMapper.writeValueAsString(AbsLogList(absLogs))))
   }
+
+  @PluginMethod
+  fun clearLogs(call: PluginCall) {
+    DeviceManager.dbManager.removeAllLogs()
+    call.resolve()
+  }
 }

@@ -5,11 +5,12 @@
       <ui-icon-btn outlined borderless :icon="isCopied ? 'check' : 'content_copy'" @click="copyToClipboard" />
       <ui-icon-btn outlined borderless icon="share" @click="shareLogs" />
       <div class="flex-grow"></div>
-      <ui-btn class="h-9" :padding-y="1" :padding-x="4" @click="toggleMaskServerAddress">
-        {{ maskServerAddress ? $strings.ButtonUnmaskServerAddress : $strings.ButtonMaskServerAddress }}
-      </ui-btn>
+      <ui-icon-btn outlined borderless icon="more_vert" @click="showDialog = true" />
     </div>
     <div class="w-full h-[calc(100%-40px)] overflow-y-auto relative" ref="logContainer">
+      <div v-if="!logs.length && !isLoading" class="flex items-center justify-center h-32">
+        <p class="text-gray-400">{{ $strings.MessageNoLogs }}</p>
+      </div>
       <div v-if="hasScrolled" class="sticky top-0 left-0 w-full h-10 bg-gradient-to-t from-transparent to-bg z-10 pointer-events-none"></div>
 
       <div v-for="log in logs" :key="log.id" class="py-1">
@@ -20,6 +21,8 @@
         <div class="text-xs">{{ maskServerAddress ? log.maskedMessage : log.message }}</div>
       </div>
     </div>
+
+    <modals-dialog v-model="showDialog" :items="dialogItems" @action="dialogAction" />
   </div>
 </template>
 <script>
@@ -30,17 +33,46 @@ export default {
   data() {
     return {
       logs: [],
+      isLoading: true,
       isCopied: false,
       hasScrolled: false,
-      maskServerAddress: true
+      maskServerAddress: true,
+      showDialog: false
     }
   },
-  computed: {},
+  computed: {
+    dialogItems() {
+      return [
+        {
+          text: this.maskServerAddress ? this.$strings.ButtonUnmaskServerAddress : this.$strings.ButtonMaskServerAddress,
+          value: 'toggle-mask-server-address',
+          icon: this.maskServerAddress ? 'remove_moderator' : 'shield'
+        },
+        {
+          text: this.$strings.ButtonClearLogs,
+          value: 'clear-logs',
+          icon: 'delete'
+        }
+      ]
+    }
+  },
   methods: {
+    async dialogAction(action) {
+      await this.$hapticsImpact()
+
+      if (action === 'clear-logs') {
+        await AbsLogger.clearLogs()
+        this.logs = []
+      } else if (action === 'toggle-mask-server-address') {
+        this.maskServerAddress = !this.maskServerAddress
+      }
+      this.showDialog = false
+    },
     toggleMaskServerAddress() {
       this.maskServerAddress = !this.maskServerAddress
     },
-    copyToClipboard() {
+    async copyToClipboard() {
+      await this.$hapticsImpact()
       this.$copyToClipboard(this.getLogsString()).then(() => {
         this.isCopied = true
         setTimeout(() => {
@@ -76,7 +108,8 @@ export default {
         })
         .join('\n')
     },
-    shareLogs() {
+    async shareLogs() {
+      await this.$hapticsImpact()
       // Share .txt file with logs
       const base64Data = Buffer.from(this.getLogsString()).toString('base64')
 
@@ -99,16 +132,24 @@ export default {
       return message.replace(/(https?:\/\/)\S+/g, '$1[SERVER_ADDRESS]')
     },
     loadLogs() {
-      AbsLogger.getAllLogs().then((logData) => {
-        const logs = logData.value || []
-        this.logs = logs.map((log) => {
-          log.maskedMessage = this.maskLogMessage(log.message)
-          return log
+      this.isLoading = true
+      AbsLogger.getAllLogs()
+        .then((logData) => {
+          const logs = logData.value || []
+          this.logs = logs.map((log) => {
+            log.maskedMessage = this.maskLogMessage(log.message)
+            return log
+          })
+          this.$nextTick(() => {
+            this.scrollToBottom()
+          })
+          this.isLoading = false
         })
-        this.$nextTick(() => {
-          this.scrollToBottom()
+        .catch((error) => {
+          this.isLoading = false
+          console.error('Failed to load logs', error)
+          this.$toast.error('Failed to load logs: ' + error.message)
         })
-      })
     }
   },
   mounted() {

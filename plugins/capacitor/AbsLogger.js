@@ -35,6 +35,10 @@ class AbsLoggerWeb extends WebPlugin {
       value: this.logs
     }
   }
+
+  async clearLogs() {
+    this.logs = []
+  }
 }
 
 const AbsLogger = registerPlugin('AbsLogger', {

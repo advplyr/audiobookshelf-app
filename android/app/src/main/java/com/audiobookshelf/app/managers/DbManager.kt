@@ -301,4 +301,7 @@ class DbManager {
     }
     return logs
   }
+  fun removeAllLogs() {
+    Paper.book("log").destroy()
+  }
 }
