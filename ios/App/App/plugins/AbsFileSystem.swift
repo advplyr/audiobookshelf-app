@@ -9,7 +9,20 @@ import Foundation
 import Capacitor
 
 @objc(AbsFileSystem)
-public class AbsFileSystem: CAPPlugin {
+public class AbsFileSystem: CAPPlugin, CAPBridgedPlugin {
+    public var identifier = "AbsFileSystemPlugin"
+    public var jsName = "AbsFileSystem"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "selectFolder", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "checkFolderPermission", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "scanFolder", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "removeFolder", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "removeLocalLibraryItem", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "scanLocalLibraryItem", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "deleteItem", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "deleteTrackFromItem", returnType: CAPPluginReturnPromise)
+    ]
+    
     private let logger = AppLogger(category: "AbsFileSystem")
     
     @objc func selectFolder(_ call: CAPPluginCall) {
