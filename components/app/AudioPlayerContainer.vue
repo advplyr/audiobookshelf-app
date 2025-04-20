@@ -9,7 +9,7 @@
 </template>
 
 <script>
-import { AbsAudioPlayer } from '@/plugins/capacitor'
+import { AbsAudioPlayer, AbsLogger } from '@/plugins/capacitor'
 import { Dialog } from '@capacitor/dialog'
 import CellularPermissionHelpers from '@/mixins/cellularPermissionHelpers'
 
@@ -190,6 +190,7 @@ export default {
         })
     },
     async playLibraryItem(payload) {
+      await AbsLogger.info({ message: `[AudioPlayerContainer] playLibraryItem: Received play request for library item ${payload.libraryItemId} ${payload.episodeId ? `episode ${payload.episodeId}` : ''}` })
       const libraryItemId = payload.libraryItemId
       const episodeId = payload.episodeId
       const startTime = payload.startTime

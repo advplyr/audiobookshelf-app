@@ -32,8 +32,8 @@ object DeviceManager {
   var deviceData: DeviceData = dbManager.getDeviceData()
   var serverConnectionConfig: ServerConnectionConfig? = null
 
-  val serverConnectionConfigId
-    get() = serverConnectionConfig?.id ?: ""
+  val serverConnectionConfigId get() = serverConnectionConfig?.id ?: ""
+  val serverConnectionConfigName get() = serverConnectionConfig?.name ?: ""
   val serverAddress
     get() = serverConnectionConfig?.address ?: ""
   val serverUserId

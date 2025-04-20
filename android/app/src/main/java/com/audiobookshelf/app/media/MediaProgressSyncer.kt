@@ -8,6 +8,7 @@ import com.audiobookshelf.app.data.MediaProgress
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.player.PlayerNotificationService
+import com.audiobookshelf.app.plugins.AbsLogger
 import com.audiobookshelf.app.server.ApiHandler
 import java.util.*
 import kotlin.concurrent.schedule
@@ -208,6 +209,7 @@ class MediaProgressSyncer(
     MediaEventManager.seekEvent(currentPlaybackSession!!, null)
   }
 
+  // Currently unused
   fun syncFromServerProgress(mediaProgress: MediaProgress) {
     currentPlaybackSession?.let {
       it.updatedAt = mediaProgress.lastUpdate
@@ -260,44 +262,46 @@ class MediaProgressSyncer(
                 tag,
                 "Sync local device current serverConnectionConfigId=${DeviceManager.serverConnectionConfig?.id}"
         )
+        AbsLogger.info("[MediaProgressSyncer] sync: Saved local progress (title: \"$currentDisplayTitle\") (currentTime: $currentTime) (session id: ${it.id})")
 
         // Local library item is linked to a server library item
         // Send sync to server also if connected to this server and local item belongs to this
         // server
+        val isConnectedToSameServer = it.serverConnectionConfigId != null && DeviceManager.serverConnectionConfig?.id == it.serverConnectionConfigId
         if (hasNetworkConnection &&
                         shouldSyncServer &&
                         !it.libraryItemId.isNullOrEmpty() &&
-                        it.serverConnectionConfigId != null &&
-                        DeviceManager.serverConnectionConfig?.id == it.serverConnectionConfigId
+                        isConnectedToSameServer
         ) {
           apiHandler.sendLocalProgressSync(it) { syncSuccess, errorMsg ->
             if (syncSuccess) {
               failedSyncs = 0
               playerNotificationService.alertSyncSuccess()
               DeviceManager.dbManager.removePlaybackSession(it.id) // Remove session from db
+              AbsLogger.info("[MediaProgressSyncer] sync: Successfully synced local progress (title: \"$currentDisplayTitle\") (currentTime: $currentTime) (session id: ${it.id})")
             } else {
               failedSyncs++
               if (failedSyncs == 2) {
                 playerNotificationService.alertSyncFailing() // Show alert in client
                 failedSyncs = 0
               }
-              Log.e(
-                      tag,
-                      "Local Progress sync failed ($failedSyncs) to send to server $currentDisplayTitle for time $currentTime with session id=${it.id}"
-              )
+              AbsLogger.error("[MediaProgressSyncer] sync: Local progress sync failed (count: $failedSyncs) (title: \"$currentDisplayTitle\") (currentTime: $currentTime) (session id: ${it.id}) (${DeviceManager.serverConnectionConfigName})")
             }
 
             cb(SyncResult(true, syncSuccess, errorMsg))
           }
         } else {
+          AbsLogger.info("[MediaProgressSyncer] sync: Not sending local progress to server (title: \"$currentDisplayTitle\") (currentTime: $currentTime) (session id: ${it.id}) (hasNetworkConnection: $hasNetworkConnection) (isConnectedToSameServer: $isConnectedToSameServer)")
           cb(SyncResult(false, null, null))
         }
       }
     } else if (hasNetworkConnection && shouldSyncServer) {
-      Log.d(tag, "sync: currentSessionId=$currentSessionId")
+      AbsLogger.info("[MediaProgressSyncer] sync: Sending progress sync to server (title: \"$currentDisplayTitle\") (currentTime: $currentTime) (session id: ${currentSessionId}) (${DeviceManager.serverConnectionConfigName})")
+
       apiHandler.sendProgressSync(currentSessionId, syncData) { syncSuccess, errorMsg ->
         if (syncSuccess) {
-          Log.d(tag, "Progress sync data sent to server $currentDisplayTitle for time $currentTime")
+          AbsLogger.info("[MediaProgressSyncer] sync: Successfully synced progress (title: \"$currentDisplayTitle\") (currentTime: $currentTime) (session id: ${currentSessionId}) (${DeviceManager.serverConnectionConfigName})")
+
           failedSyncs = 0
           playerNotificationService.alertSyncSuccess()
           lastSyncTime = System.currentTimeMillis()
@@ -308,14 +312,12 @@ class MediaProgressSyncer(
             playerNotificationService.alertSyncFailing() // Show alert in client
             failedSyncs = 0
           }
-          Log.e(
-                  tag,
-                  "Progress sync failed ($failedSyncs) to send to server $currentDisplayTitle for time $currentTime with session id=${currentSessionId}"
-          )
+          AbsLogger.error("[MediaProgressSyncer] sync: Progress sync failed (count: $failedSyncs) (title: \"$currentDisplayTitle\") (currentTime: $currentTime) (session id: $currentSessionId) (${DeviceManager.serverConnectionConfigName})")
         }
         cb(SyncResult(true, syncSuccess, errorMsg))
       }
     } else {
+      AbsLogger.info("[MediaProgressSyncer] sync: Not sending progress to server (title: \"$currentDisplayTitle\") (currentTime: $currentTime) (session id: $currentSessionId) (${DeviceManager.serverConnectionConfigName}) (hasNetworkConnection: $hasNetworkConnection)")
       cb(SyncResult(false, null, null))
     }
   }
