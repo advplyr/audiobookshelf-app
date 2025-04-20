@@ -317,7 +317,7 @@ class DbManager {
       }
     }
     if (logsRemoved > 0) {
-      AbsLogger.info("[DbManager] cleanLogs: Removed $logsRemoved logs older than $numberOfHoursToKeep hours")
+      AbsLogger.info("DbManager", "cleanLogs: Removed $logsRemoved logs older than $numberOfHoursToKeep hours")
     }
   }
 }

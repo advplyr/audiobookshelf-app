@@ -190,7 +190,7 @@ export default {
         })
     },
     async playLibraryItem(payload) {
-      await AbsLogger.info({ message: `[AudioPlayerContainer] playLibraryItem: Received play request for library item ${payload.libraryItemId} ${payload.episodeId ? `episode ${payload.episodeId}` : ''}` })
+      await AbsLogger.info({ tag: 'AudioPlayerContainer', message: `playLibraryItem: Received play request for library item ${payload.libraryItemId} ${payload.episodeId ? `episode ${payload.episodeId}` : ''}` })
       const libraryItemId = payload.libraryItemId
       const episodeId = payload.episodeId
       const startTime = payload.startTime

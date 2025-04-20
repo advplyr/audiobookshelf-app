@@ -469,11 +469,11 @@ class ApiHandler(var ctx:Context) {
     val deviceInfo = DeviceInfo(deviceId, Build.MANUFACTURER, Build.MODEL, Build.VERSION.SDK_INT, BuildConfig.VERSION_NAME)
 
     val payload = JSObject(jacksonMapper.writeValueAsString(LocalSessionsSyncRequestPayload(playbackSessions, deviceInfo)))
-    AbsLogger.info("[ApiHandler] sendSyncLocalSessions: Sending ${playbackSessions.size} saved local playback sessions to server (${DeviceManager.serverConnectionConfigName})")
+    AbsLogger.info("ApiHandler", "sendSyncLocalSessions: Sending ${playbackSessions.size} saved local playback sessions to server (${DeviceManager.serverConnectionConfigName})")
 
     postRequest("/api/session/local-all", payload, null) {
       if (!it.getString("error").isNullOrEmpty()) {
-        AbsLogger.error("[ApiHandler] sendSyncLocalSessions: Failed to sync local sessions. (${it.getString("error")})")
+        AbsLogger.error("ApiHandler", "sendSyncLocalSessions: Failed to sync local sessions. (${it.getString("error")})")
         cb(false, it.getString("error"))
       } else {
         val response = jacksonMapper.readValue<LocalSessionsSyncResponsePayload>(it.toString())
@@ -485,11 +485,11 @@ class ApiHandler(var ctx:Context) {
               val syncResult = SyncResult(true, true, "Progress synced on server")
               MediaEventManager.saveEvent(session, syncResult)
 
-              AbsLogger.info("[ApiHandler] sendSyncLocalSessions: Synced session \"${session.displayTitle}\" with server, server progress was updated for item ${session.mediaItemId}")
+              AbsLogger.info("ApiHandler", "sendSyncLocalSessions: Synced session \"${session.displayTitle}\" with server, server progress was updated for item ${session.mediaItemId}")
             } else if (!localSessionSyncResult.success) {
-              AbsLogger.error("[ApiHandler] sendSyncLocalSessions: Failed to sync session \"${session.displayTitle}\" with server. Error: ${localSessionSyncResult.error}")
+              AbsLogger.error("ApiHandler", "sendSyncLocalSessions: Failed to sync session \"${session.displayTitle}\" with server. Error: ${localSessionSyncResult.error}")
             } else {
-              AbsLogger.info("[ApiHandler] sendSyncLocalSessions: Synced session \"${session.displayTitle}\" with server. Server progress was up-to-date for item ${session.mediaItemId}")
+              AbsLogger.info("ApiHandler", "sendSyncLocalSessions: Synced session \"${session.displayTitle}\" with server. Server progress was up-to-date for item ${session.mediaItemId}")
             }
           }
         }
@@ -499,20 +499,20 @@ class ApiHandler(var ctx:Context) {
   }
 
   fun syncLocalMediaProgressForUser(cb: () -> Unit) {
-    AbsLogger.info("[ApiHandler] syncLocalMediaProgressForUser: Server connection ${DeviceManager.serverConnectionConfigName}")
+    AbsLogger.info("ApiHandler", "[ApiHandler] syncLocalMediaProgressForUser: Server connection ${DeviceManager.serverConnectionConfigName}")
 
     // Get all local media progress for this server
     val allLocalMediaProgress = DeviceManager.dbManager.getAllLocalMediaProgress().filter { it.serverConnectionConfigId == DeviceManager.serverConnectionConfigId }
     if (allLocalMediaProgress.isEmpty()) {
-      AbsLogger.info("[ApiHandler] syncLocalMediaProgressForUser: No local media progress to sync")
+      AbsLogger.info("ApiHandler", "[ApiHandler] syncLocalMediaProgressForUser: No local media progress to sync")
       return cb()
     }
 
-    AbsLogger.info("[ApiHandler] syncLocalMediaProgressForUser: Found ${allLocalMediaProgress.size} local media progress")
+    AbsLogger.info("ApiHandler", "syncLocalMediaProgressForUser: Found ${allLocalMediaProgress.size} local media progress")
 
     getCurrentUser { user ->
       if (user == null) {
-        AbsLogger.error("[ApiHandler] syncLocalMediaProgressForUser: Failed to load user from server (${DeviceManager.serverConnectionConfigName})")
+        AbsLogger.error("ApiHandler", "syncLocalMediaProgressForUser: Failed to load user from server (${DeviceManager.serverConnectionConfigName})")
       } else {
         var numLocalMediaProgressUptToDate = 0
         var numLocalMediaProgressUpdated = 0
@@ -522,21 +522,21 @@ class ApiHandler(var ctx:Context) {
           // Get matching local media progress
           allLocalMediaProgress.find { it.isMatch(mediaProgress) }?.let { localMediaProgress ->
             if (mediaProgress.lastUpdate > localMediaProgress.lastUpdate) {
-              AbsLogger.info("[ApiHandler] syncLocalMediaProgressForUser: Server progress for item \"${mediaProgress.mediaItemId}\" is more recent than local. Local progress last updated ${localMediaProgress.lastUpdate}, server progress last updated ${mediaProgress.lastUpdate}. Updating local current time ${localMediaProgress.currentTime} to ${mediaProgress.currentTime}")
+              AbsLogger.info("ApiHandler", "[ApiHandler] syncLocalMediaProgressForUser: Server progress for item \"${mediaProgress.mediaItemId}\" is more recent than local. Local progress last updated ${localMediaProgress.lastUpdate}, server progress last updated ${mediaProgress.lastUpdate}. Updating local current time ${localMediaProgress.currentTime} to ${mediaProgress.currentTime}")
               localMediaProgress.updateFromServerMediaProgress(mediaProgress)
               MediaEventManager.syncEvent(mediaProgress, "Sync on server connection")
               DeviceManager.dbManager.saveLocalMediaProgress(localMediaProgress)
               numLocalMediaProgressUpdated++
             } else if (localMediaProgress.lastUpdate > mediaProgress.lastUpdate && localMediaProgress.ebookLocation != null && localMediaProgress.ebookLocation != mediaProgress.ebookLocation) {
               // Patch ebook progress to server
-              AbsLogger.info("[ApiHandler] syncLocalMediaProgressForUser: Local progress for ebook item \"${mediaProgress.mediaItemId}\" is more recent than server progress. Local progress last updated ${localMediaProgress.lastUpdate}, server progress last updated ${mediaProgress.lastUpdate}. Sending server request to update ebook progress from ${mediaProgress.ebookProgress} to ${localMediaProgress.ebookProgress}")
+              AbsLogger.info("ApiHandler", "syncLocalMediaProgressForUser: Local progress for ebook item \"${mediaProgress.mediaItemId}\" is more recent than server progress. Local progress last updated ${localMediaProgress.lastUpdate}, server progress last updated ${mediaProgress.lastUpdate}. Sending server request to update ebook progress from ${mediaProgress.ebookProgress} to ${localMediaProgress.ebookProgress}")
               val endpoint = "/api/me/progress/${localMediaProgress.libraryItemId}"
               val updatePayload = JSObject()
               updatePayload.put("ebookLocation", localMediaProgress.ebookLocation)
               updatePayload.put("ebookProgress", localMediaProgress.ebookProgress)
               updatePayload.put("lastUpdate", localMediaProgress.lastUpdate)
               patchRequest(endpoint,updatePayload) {
-                AbsLogger.info("[ApiHandler] syncLocalMediaProgressForUser: Successfully updated server ebook progress for item item \"${mediaProgress.mediaItemId}\"")
+                AbsLogger.info("ApiHandler", "syncLocalMediaProgressForUser: Successfully updated server ebook progress for item item \"${mediaProgress.mediaItemId}\"")
               }
             } else {
               numLocalMediaProgressUptToDate++
@@ -544,7 +544,7 @@ class ApiHandler(var ctx:Context) {
           }
         }
 
-        AbsLogger.info("[ApiHandler] syncLocalMediaProgressForUser: Finishing syncing local media progress with server. $numLocalMediaProgressUptToDate up-to-date, $numLocalMediaProgressUpdated updated")
+        AbsLogger.info("ApiHandler", "syncLocalMediaProgressForUser: Finishing syncing local media progress with server. $numLocalMediaProgressUptToDate up-to-date, $numLocalMediaProgressUpdated updated")
       }
       cb()
     }

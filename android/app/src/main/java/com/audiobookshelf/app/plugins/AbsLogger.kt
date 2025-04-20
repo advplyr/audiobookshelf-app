@@ -13,6 +13,7 @@ import java.util.UUID
 
 data class AbsLog(
   var id:String,
+  var tag:String,
   var level:String,
   var message:String,
   var timestamp:Long
@@ -29,27 +30,29 @@ class AbsLogger : Plugin() {
   }
 
   companion object {
-    fun info(message:String) {
+    fun info(tag:String, message:String) {
       Log.i("AbsLogger", message)
-      DeviceManager.dbManager.saveLog(AbsLog(id = UUID.randomUUID().toString(), level = "info", message, timestamp = System.currentTimeMillis()))
+      DeviceManager.dbManager.saveLog(AbsLog(id = UUID.randomUUID().toString(), tag, level = "info", message, timestamp = System.currentTimeMillis()))
     }
-    fun error(message:String) {
+    fun error(tag:String, message:String) {
       Log.e("AbsLogger", message)
-      DeviceManager.dbManager.saveLog(AbsLog(id = UUID.randomUUID().toString(), level = "error", message, timestamp = System.currentTimeMillis()))
+      DeviceManager.dbManager.saveLog(AbsLog(id = UUID.randomUUID().toString(), tag, level = "error", message, timestamp = System.currentTimeMillis()))
     }
   }
 
   @PluginMethod
   fun info(call: PluginCall) {
     val msg = call.getString("message") ?: return call.reject("No message")
-    info(msg)
+    val tag = call.getString("tag") ?: ""
+    info(tag, msg)
     call.resolve()
   }
 
   @PluginMethod
   fun error(call: PluginCall) {
     val msg = call.getString("message") ?: return call.reject("No message")
-    error(msg)
+    val tag = call.getString("tag") ?: ""
+    error(tag, msg)
     call.resolve()
   }
 

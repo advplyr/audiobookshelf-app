@@ -453,7 +453,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
             playbackSession
     ) // Save playback session to use when app is closed
 
-    AbsLogger.info("[PlayerNotificationService] preparePlayer: Started playback session for item ${currentPlaybackSession?.mediaItemId}. MediaPlayer ${currentPlaybackSession?.mediaPlayer}")
+    AbsLogger.info("PlayerNotificationService", "preparePlayer: Started playback session for item ${currentPlaybackSession?.mediaItemId}. MediaPlayer ${currentPlaybackSession?.mediaPlayer}")
     // Notify client
     clientEventEmitter?.onPlaybackSession(playbackSession)
 
@@ -470,7 +470,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       val mediaSource: MediaSource
 
       if (playbackSession.isLocal) {
-        AbsLogger.info("[PlayerNotificationService] preparePlayer: Playing local item ${currentPlaybackSession?.mediaItemId}.")
+        AbsLogger.info("PlayerNotificationService", "preparePlayer: Playing local item ${currentPlaybackSession?.mediaItemId}.")
         val dataSourceFactory = DefaultDataSource.Factory(ctx)
 
         val extractorsFactory = DefaultExtractorsFactory()
@@ -484,7 +484,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                 ProgressiveMediaSource.Factory(dataSourceFactory, extractorsFactory)
                         .createMediaSource(mediaItems[0])
       } else if (!playbackSession.isHLS) {
-        AbsLogger.info("[PlayerNotificationService] preparePlayer: Direct playing item ${currentPlaybackSession?.mediaItemId}.")
+        AbsLogger.info("PlayerNotificationService", "preparePlayer: Direct playing item ${currentPlaybackSession?.mediaItemId}.")
         val dataSourceFactory = DefaultHttpDataSource.Factory()
 
         val extractorsFactory = DefaultExtractorsFactory()
@@ -499,7 +499,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                 ProgressiveMediaSource.Factory(dataSourceFactory, extractorsFactory)
                         .createMediaSource(mediaItems[0])
       } else {
-        AbsLogger.info("[PlayerNotificationService] preparePlayer: Playing HLS stream of item ${currentPlaybackSession?.mediaItemId}.")
+        AbsLogger.info("PlayerNotificationService", "preparePlayer: Playing HLS stream of item ${currentPlaybackSession?.mediaItemId}.")
         val dataSourceFactory = DefaultHttpDataSource.Factory()
         dataSourceFactory.setUserAgent(channelId)
         dataSourceFactory.setDefaultRequestProperties(
