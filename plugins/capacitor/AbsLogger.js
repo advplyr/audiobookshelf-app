@@ -31,7 +31,9 @@ class AbsLoggerWeb extends WebPlugin {
   }
 
   async getAllLogs() {
-    return this.logs
+    return {
+      value: this.logs
+    }
   }
 }
 
