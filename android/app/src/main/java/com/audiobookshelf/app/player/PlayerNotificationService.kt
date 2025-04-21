@@ -2,6 +2,7 @@ package com.audiobookshelf.app.player
 
 import android.annotation.SuppressLint
 import android.app.*
+import android.bluetooth.BluetoothClass.Device
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -1106,11 +1107,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       // No further calls will be made to other media browsing methods.
       null
     } else {
-      Log.d(tag, "Android Auto starting $clientPackageName $clientUid")
+      AbsLogger.info(tag, "onGetRoot: clientPackageName: $clientPackageName, clientUid: $clientUid")
       isStarted = true
 
       // Reset cache if no longer connected to server or server changed
       if (mediaManager.checkResetServerItems()) {
+        AbsLogger.info(tag, "onGetRoot: Reset Android Auto server items cache (${DeviceManager.serverConnectionConfigString})")
         forceReloadingAndroidAuto = true
       }
 
@@ -1135,7 +1137,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
           parentMediaId: String,
           result: Result<MutableList<MediaBrowserCompat.MediaItem>>
   ) {
-    Log.d(tag, "ON LOAD CHILDREN $parentMediaId")
+    AbsLogger.info(tag, "onLoadChildren: parentMediaId: $parentMediaId (${DeviceManager.serverConnectionConfigString})")
 
     result.detach()
 
@@ -1146,7 +1148,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     }
 
     if (parentMediaId == DOWNLOADS_ROOT) { // Load downloads
-
       val localBooks = DeviceManager.dbManager.getLocalLibraryItems("book")
       val localPodcasts = DeviceManager.dbManager.getLocalLibraryItems("podcast")
       val localBrowseItems: MutableList<MediaBrowserCompat.MediaItem> = mutableListOf()
@@ -1243,8 +1244,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       Log.d(tag, "Trying to initialize browseTree.")
       if (!this::browseTree.isInitialized || forceReloadingAndroidAuto) {
         forceReloadingAndroidAuto = false
+        AbsLogger.info(tag, "onLoadChildren: Loading Android Auto items")
         mediaManager.loadAndroidAutoItems {
-          Log.d(tag, "android auto loaded. Starting browseTree initialize")
+          AbsLogger.info(tag, "onLoadChildren: Loaded Android Auto data, initializing browseTree")
+
           browseTree =
                   BrowseTree(
                           this,
@@ -1260,15 +1263,21 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                             MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
                     )
                   }
-          Log.d(tag, "browseTree initialize and android auto loaded")
+
           result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
           firstLoadDone = true
           if (mediaManager.serverLibraries.isNotEmpty()) {
-            Log.d(tag, "Starting personalization fetch")
-            mediaManager.populatePersonalizedDataForAllLibraries { notifyChildrenChanged("/") }
+            AbsLogger.info(tag, "onLoadChildren: Android Auto fetching personalized data for all libraries")
+            mediaManager.populatePersonalizedDataForAllLibraries {
+              AbsLogger.info(tag, "onLoadChildren: Android Auto loaded personalized data for all libraries")
+              notifyChildrenChanged("/")
+            }
 
-            Log.d(tag, "Initialize inprogress items")
-            mediaManager.initializeInProgressItems { notifyChildrenChanged("/") }
+            AbsLogger.info(tag, "onLoadChildren: Android Auto fetching in progress items")
+            mediaManager.initializeInProgressItems {
+              AbsLogger.info(tag, "onLoadChildren: Android Auto loaded in progress items")
+              notifyChildrenChanged("/")
+            }
           }
         }
       } else {
@@ -1288,7 +1297,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                           MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
                   )
                 }
-        Log.d(tag, "browseTree initialize and android auto loaded")
+
+        AbsLogger.info(tag, "onLoadChildren: Android auto data loaded")
         result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
       }
     } else if (parentMediaId == LIBRARIES_ROOT || parentMediaId == RECENTLY_ROOT) {

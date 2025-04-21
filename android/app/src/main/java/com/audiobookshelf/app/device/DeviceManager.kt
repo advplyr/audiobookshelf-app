@@ -34,6 +34,7 @@ object DeviceManager {
 
   val serverConnectionConfigId get() = serverConnectionConfig?.id ?: ""
   val serverConnectionConfigName get() = serverConnectionConfig?.name ?: ""
+  val serverConnectionConfigString get() = serverConnectionConfig?.name ?: "No server connection"
   val serverAddress
     get() = serverConnectionConfig?.address ?: ""
   val serverUserId
