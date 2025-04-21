@@ -29,16 +29,16 @@ class AbsLogger : Plugin() {
     onLogEmitter = { log:AbsLog ->
       notifyListeners("onLog", JSObject(jacksonMapper.writeValueAsString(log)))
     }
-    Log.i("AbsLogger", "Initialize AbsLogger plugin")
+    info("AbsLogger", "load: AbsLogger plugin initialized")
   }
 
   companion object {
-    lateinit var onLogEmitter:(log:AbsLog) -> Unit
+    var onLogEmitter:((log:AbsLog) -> Unit)? = null
 
     fun log(level:String, tag:String, message:String) {
       val absLog = AbsLog(id = UUID.randomUUID().toString(), tag, level, message, timestamp = System.currentTimeMillis())
       DeviceManager.dbManager.saveLog(absLog)
-      onLogEmitter(absLog)
+      onLogEmitter?.let { it(absLog) }
     }
     fun info(tag:String, message:String) {
       Log.i("AbsLogger", message)
