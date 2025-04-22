@@ -77,12 +77,12 @@
     </div>
 
     <!-- Series sequence -->
-    <div v-if="seriesSequence && showSequence && !isSelectionMode" class="absolute rounded-lg bg-black bg-opacity-90 box-shadow-md z-10" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }">
+    <div v-if="seriesSequence && showSequence && !isSelectionMode" class="absolute rounded-lg bg-black/90 text-white box-shadow-md z-10" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }">
       <p :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }">#{{ seriesSequence }}</p>
     </div>
 
     <!-- Podcast Episode # -->
-    <div v-if="recentEpisodeNumber !== null && !isSelectionMode" class="absolute rounded-lg bg-black bg-opacity-90 box-shadow-md z-10" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }">
+    <div v-if="recentEpisodeNumber !== null && !isSelectionMode" class="absolute rounded-lg bg-black/90 box-shadow-md z-10" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }">
       <p class="text-white" :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }">
         Episode<span v-if="recentEpisodeNumber"> #{{ recentEpisodeNumber }}</span>
       </p>
