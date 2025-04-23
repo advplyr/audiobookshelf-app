@@ -7,7 +7,6 @@ import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import android.support.v4.media.session.MediaControllerCompat
-import android.util.Log
 import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.R
 import com.bumptech.glide.Glide
@@ -41,7 +40,6 @@ class AbMediaDescriptionAdapter constructor(private val controller: MediaControl
       // Cache the bitmap for the current audiobook so that successive calls to
       // `getCurrentLargeIcon` don't cause the bitmap to be recreated.
       currentIconUri = albumArtUri
-      Log.d(tag, "ART $currentIconUri")
 
       if (currentIconUri.toString().startsWith("content://")) {
         currentBitmap = if (Build.VERSION.SDK_INT < 28) {
