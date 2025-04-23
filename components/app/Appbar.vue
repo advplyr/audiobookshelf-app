@@ -7,7 +7,7 @@
       <a v-if="showBack" @click="back" class="rounded-full h-10 w-10 flex items-center justify-center mr-2 cursor-pointer">
         <span class="material-symbols text-3xl text-fg">arrow_back</span>
       </a>
-      <div v-if="user && currentLibrary && socketConnected">
+      <div v-if="user && currentLibrary">
         <div class="pl-1.5 pr-2.5 py-2 bg-bg bg-opacity-30 rounded-md flex items-center" @click="clickShowLibraryModal">
           <ui-library-icon :icon="currentLibraryIcon" :size="4" font-size="base" />
           <p class="text-sm leading-4 ml-2 mt-0.5 max-w-24 truncate">{{ currentLibraryName }}</p>
@@ -55,9 +55,6 @@ export default {
       set(val) {
         this.$store.commit('setCastAvailable', val)
       }
-    },
-    socketConnected() {
-      return this.$store.state.socketConnected
     },
     currentLibrary() {
       return this.$store.getters['libraries/getCurrentLibrary']
