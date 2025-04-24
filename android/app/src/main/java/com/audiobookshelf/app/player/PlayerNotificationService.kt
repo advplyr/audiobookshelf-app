@@ -2,17 +2,13 @@ package com.audiobookshelf.app.player
 
 import android.annotation.SuppressLint
 import android.app.*
-import android.bluetooth.BluetoothClass.Device
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
 import android.graphics.Color
-import android.graphics.ImageDecoder
 import android.hardware.Sensor
 import android.hardware.SensorManager
 import android.net.*
 import android.os.*
-import android.provider.MediaStore
 import android.provider.Settings
 import android.support.v4.media.MediaBrowserCompat
 import android.support.v4.media.MediaDescriptionCompat

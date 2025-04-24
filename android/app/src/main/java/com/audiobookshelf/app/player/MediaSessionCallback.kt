@@ -8,7 +8,6 @@ import android.util.Log
 import android.view.KeyEvent
 import com.audiobookshelf.app.data.LibraryItemWrapper
 import com.audiobookshelf.app.data.PodcastEpisode
-import com.audiobookshelf.app.device.DeviceManager
 import java.util.*
 import kotlin.concurrent.schedule
 

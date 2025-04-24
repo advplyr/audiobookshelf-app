@@ -280,7 +280,6 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
     mediaPlayer.setVolume(SLEEP_TIMER_CHIME_SOUND_VOLUME, SLEEP_TIMER_CHIME_SOUND_VOLUME)
     mediaPlayer.start()
     mediaPlayer.setOnCompletionListener {
-      AbsLogger.info(tag, "playChimeSound: Releasing mediaPlayer after chime sound")
       mediaPlayer.release()
     }
   }
