@@ -64,6 +64,10 @@ object DeviceManager {
     if (deviceData.deviceSettings?.autoSleepTimerAutoRewindTime == null) {
       deviceData.deviceSettings?.autoSleepTimerAutoRewindTime = 300000L // 5 minutes
     }
+    // Initialize sleep timer almost done chime added in v0.9.81
+    if (deviceData.deviceSettings?.enableSleepTimerAlmostDoneChime == null) {
+      deviceData.deviceSettings?.enableSleepTimerAlmostDoneChime = false
+    }
 
     // Language added in v0.9.69
     if (deviceData.deviceSettings?.languageCode == null) {
