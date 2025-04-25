@@ -2,7 +2,7 @@
   <div class="w-full h-full">
     <div class="relative flex items-center justify-center min-h-screen sm:pt-0">
       <nuxt-link to="/" class="absolute top-2 left-2 z-20">
-        <span class="material-icons text-4xl">arrow_back</span>
+        <span class="material-symbols text-4xl">arrow_back</span>
       </nuxt-link>
       <div class="absolute top-0 left-0 w-full p-6 flex items-center flex-col justify-center z-0 short:hidden">
         <img src="/Logo.png" class="h-20 w-20 mb-2" />

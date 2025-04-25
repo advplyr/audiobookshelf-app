@@ -4,14 +4,11 @@ import android.annotation.SuppressLint
 import android.app.*
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
 import android.graphics.Color
-import android.graphics.ImageDecoder
 import android.hardware.Sensor
 import android.hardware.SensorManager
 import android.net.*
 import android.os.*
-import android.provider.MediaStore
 import android.provider.Settings
 import android.support.v4.media.MediaBrowserCompat
 import android.support.v4.media.MediaDescriptionCompat
@@ -36,6 +33,7 @@ import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.media.MediaProgressSyncer
 import com.audiobookshelf.app.media.getUriToAbsIconDrawable
 import com.audiobookshelf.app.media.getUriToDrawable
+import com.audiobookshelf.app.plugins.AbsLogger
 import com.audiobookshelf.app.server.ApiHandler
 import com.google.android.exoplayer2.*
 import com.google.android.exoplayer2.audio.AudioAttributes
@@ -310,19 +308,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
                 val coverUri = currentPlaybackSession!!.getCoverUri(ctx)
 
-                var bitmap: Bitmap? = null
-                //         Local covers get bitmap
-                if (currentPlaybackSession!!.localLibraryItem?.coverContentUrl != null) {
-                  bitmap =
-                          if (Build.VERSION.SDK_INT < 28) {
-                            MediaStore.Images.Media.getBitmap(ctx.contentResolver, coverUri)
-                          } else {
-                            val source: ImageDecoder.Source =
-                                    ImageDecoder.createSource(ctx.contentResolver, coverUri)
-                            ImageDecoder.decodeBitmap(source)
-                          }
-                }
-
                 // Fix for local images crashing on Android 11 for specific devices
                 // https://stackoverflow.com/questions/64186578/android-11-mediastyle-notification-crash/64232958#64232958
                 try {
@@ -346,8 +331,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                                 .setExtras(extra)
                                 .setTitle(currentPlaybackSession!!.displayTitle)
 
-                bitmap?.let { mediaDescriptionBuilder.setIconBitmap(it) }
-                        ?: mediaDescriptionBuilder.setIconUri(coverUri)
+                mediaDescriptionBuilder.setIconUri(coverUri)
 
                 return mediaDescriptionBuilder.build()
               }
@@ -452,7 +436,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
             playbackSession
     ) // Save playback session to use when app is closed
 
-    Log.d(tag, "Set CurrentPlaybackSession MediaPlayer ${currentPlaybackSession?.mediaPlayer}")
+    AbsLogger.info("PlayerNotificationService", "preparePlayer: Started playback session for item ${currentPlaybackSession?.mediaItemId}. MediaPlayer ${currentPlaybackSession?.mediaPlayer}")
     // Notify client
     clientEventEmitter?.onPlaybackSession(playbackSession)
 
@@ -469,7 +453,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       val mediaSource: MediaSource
 
       if (playbackSession.isLocal) {
-        Log.d(tag, "Playing Local Item")
+        AbsLogger.info("PlayerNotificationService", "preparePlayer: Playing local item ${currentPlaybackSession?.mediaItemId}.")
         val dataSourceFactory = DefaultDataSource.Factory(ctx)
 
         val extractorsFactory = DefaultExtractorsFactory()
@@ -483,7 +467,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                 ProgressiveMediaSource.Factory(dataSourceFactory, extractorsFactory)
                         .createMediaSource(mediaItems[0])
       } else if (!playbackSession.isHLS) {
-        Log.d(tag, "Direct Playing Item")
+        AbsLogger.info("PlayerNotificationService", "preparePlayer: Direct playing item ${currentPlaybackSession?.mediaItemId}.")
         val dataSourceFactory = DefaultHttpDataSource.Factory()
 
         val extractorsFactory = DefaultExtractorsFactory()
@@ -498,7 +482,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                 ProgressiveMediaSource.Factory(dataSourceFactory, extractorsFactory)
                         .createMediaSource(mediaItems[0])
       } else {
-        Log.d(tag, "Playing HLS Item")
+        AbsLogger.info("PlayerNotificationService", "preparePlayer: Playing HLS stream of item ${currentPlaybackSession?.mediaItemId}.")
         val dataSourceFactory = DefaultHttpDataSource.Factory()
         dataSourceFactory.setUserAgent(channelId)
         dataSourceFactory.setDefaultRequestProperties(
@@ -1105,11 +1089,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       // No further calls will be made to other media browsing methods.
       null
     } else {
-      Log.d(tag, "Android Auto starting $clientPackageName $clientUid")
+      AbsLogger.info(tag, "onGetRoot: clientPackageName: $clientPackageName, clientUid: $clientUid")
       isStarted = true
 
       // Reset cache if no longer connected to server or server changed
       if (mediaManager.checkResetServerItems()) {
+        AbsLogger.info(tag, "onGetRoot: Reset Android Auto server items cache (${DeviceManager.serverConnectionConfigString})")
         forceReloadingAndroidAuto = true
       }
 
@@ -1134,7 +1119,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
           parentMediaId: String,
           result: Result<MutableList<MediaBrowserCompat.MediaItem>>
   ) {
-    Log.d(tag, "ON LOAD CHILDREN $parentMediaId")
+    AbsLogger.info(tag, "onLoadChildren: parentMediaId: $parentMediaId (${DeviceManager.serverConnectionConfigString})")
 
     result.detach()
 
@@ -1145,7 +1130,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     }
 
     if (parentMediaId == DOWNLOADS_ROOT) { // Load downloads
-
       val localBooks = DeviceManager.dbManager.getLocalLibraryItems("book")
       val localPodcasts = DeviceManager.dbManager.getLocalLibraryItems("podcast")
       val localBrowseItems: MutableList<MediaBrowserCompat.MediaItem> = mutableListOf()
@@ -1242,8 +1226,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       Log.d(tag, "Trying to initialize browseTree.")
       if (!this::browseTree.isInitialized || forceReloadingAndroidAuto) {
         forceReloadingAndroidAuto = false
+        AbsLogger.info(tag, "onLoadChildren: Loading Android Auto items")
         mediaManager.loadAndroidAutoItems {
-          Log.d(tag, "android auto loaded. Starting browseTree initialize")
+          AbsLogger.info(tag, "onLoadChildren: Loaded Android Auto data, initializing browseTree")
+
           browseTree =
                   BrowseTree(
                           this,
@@ -1259,15 +1245,21 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                             MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
                     )
                   }
-          Log.d(tag, "browseTree initialize and android auto loaded")
+
           result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
           firstLoadDone = true
           if (mediaManager.serverLibraries.isNotEmpty()) {
-            Log.d(tag, "Starting personalization fetch")
-            mediaManager.populatePersonalizedDataForAllLibraries { notifyChildrenChanged("/") }
+            AbsLogger.info(tag, "onLoadChildren: Android Auto fetching personalized data for all libraries")
+            mediaManager.populatePersonalizedDataForAllLibraries {
+              AbsLogger.info(tag, "onLoadChildren: Android Auto loaded personalized data for all libraries")
+              notifyChildrenChanged("/")
+            }
 
-            Log.d(tag, "Initialize inprogress items")
-            mediaManager.initializeInProgressItems { notifyChildrenChanged("/") }
+            AbsLogger.info(tag, "onLoadChildren: Android Auto fetching in progress items")
+            mediaManager.initializeInProgressItems {
+              AbsLogger.info(tag, "onLoadChildren: Android Auto loaded in progress items")
+              notifyChildrenChanged("/")
+            }
           }
         }
       } else {
@@ -1287,7 +1279,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                           MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
                   )
                 }
-        Log.d(tag, "browseTree initialize and android auto loaded")
+
+        AbsLogger.info(tag, "onLoadChildren: Android auto data loaded")
         result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
       }
     } else if (parentMediaId == LIBRARIES_ROOT || parentMediaId == RECENTLY_ROOT) {

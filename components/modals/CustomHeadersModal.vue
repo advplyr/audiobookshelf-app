@@ -25,7 +25,7 @@
               <p class="text-sm text-gray-400">{{ value }}</p>
 
               <div class="absolute top-0 bottom-0 right-0 h-full p-4 flex items-center justify-center text-error">
-                <button @click="removeHeader(key)"><span class="material-icons text-lg">delete</span></button>
+                <button @click="removeHeader(key)"><span class="material-symbols text-lg">delete</span></button>
               </div>
             </div>
           </template>

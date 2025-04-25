@@ -4,6 +4,8 @@ import android.content.Context
 import android.util.Log
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.models.DownloadItem
+import com.audiobookshelf.app.plugins.AbsLog
+import com.audiobookshelf.app.plugins.AbsLogger
 import io.paperdb.Paper
 import java.io.File
 
@@ -286,5 +288,36 @@ class DbManager {
       }
     }
     return sessions
+  }
+
+  fun saveLog(log:AbsLog) {
+    Paper.book("log").write(log.id, log)
+  }
+  fun getAllLogs() : List<AbsLog> {
+    val logs:MutableList<AbsLog> = mutableListOf()
+    Paper.book("log").allKeys.forEach { logId ->
+      Paper.book("log").read<AbsLog>(logId)?.let {
+        logs.add(it)
+      }
+    }
+    return logs.sortedBy { it.timestamp }
+  }
+  fun removeAllLogs() {
+    Paper.book("log").destroy()
+  }
+  fun cleanLogs() {
+    val numberOfHoursToKeep = 48
+    val keepLogCutoff = System.currentTimeMillis() - (3600000 * numberOfHoursToKeep)
+    val allLogs = getAllLogs()
+    var logsRemoved = 0
+    allLogs.forEach {
+      if (it.timestamp < keepLogCutoff) {
+        Paper.book("log").delete(it.id)
+        logsRemoved++
+      }
+    }
+    if (logsRemoved > 0) {
+      AbsLogger.info("DbManager", "cleanLogs: Removed $logsRemoved logs older than $numberOfHoursToKeep hours")
+    }
   }
 }

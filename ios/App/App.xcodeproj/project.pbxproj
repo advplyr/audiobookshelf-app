@@ -15,20 +15,17 @@
 		3ABF580928059BAE005DFBE5 /* PlaybackSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3ABF580828059BAE005DFBE5 /* PlaybackSession.swift */; };
 		3ABF618F2804325C0070250E /* PlayerHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3ABF618E2804325C0070250E /* PlayerHandler.swift */; };
 		3AD4FCE528043E50006DB301 /* AbsDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AD4FCE428043E50006DB301 /* AbsDatabase.swift */; };
-		3AD4FCE728043E72006DB301 /* AbsDatabase.m in Sources */ = {isa = PBXBuildFile; fileRef = 3AD4FCE628043E72006DB301 /* AbsDatabase.m */; };
 		3AD4FCE928043FD7006DB301 /* ServerConnectionConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AD4FCE828043FD7006DB301 /* ServerConnectionConfig.swift */; };
 		3AD4FCEB280443DD006DB301 /* Database.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AD4FCEA280443DD006DB301 /* Database.swift */; };
 		3AD4FCED28044E6C006DB301 /* Store.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AD4FCEC28044E6C006DB301 /* Store.swift */; };
 		3AF1970C2806E2590096F747 /* ApiClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AF1970B2806E2590096F747 /* ApiClient.swift */; };
 		3AF1970E2806E3CA0096F747 /* AbsAudioPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AF1970D2806E3CA0096F747 /* AbsAudioPlayer.swift */; };
-		3AF197102806E3DC0096F747 /* AbsAudioPlayer.m in Sources */ = {isa = PBXBuildFile; fileRef = 3AF1970F2806E3DC0096F747 /* AbsAudioPlayer.m */; };
 		3AFCB5E827EA240D00ECCC05 /* NowPlayingInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AFCB5E727EA240D00ECCC05 /* NowPlayingInfo.swift */; };
-		4D66B952282EE822008272D4 /* AbsDownloader.m in Sources */ = {isa = PBXBuildFile; fileRef = 4D66B951282EE822008272D4 /* AbsDownloader.m */; };
 		4D66B954282EE87C008272D4 /* AbsDownloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D66B953282EE87C008272D4 /* AbsDownloader.swift */; };
-		4D66B956282EE951008272D4 /* AbsFileSystem.m in Sources */ = {isa = PBXBuildFile; fileRef = 4D66B955282EE951008272D4 /* AbsFileSystem.m */; };
 		4D66B958282EEA14008272D4 /* AbsFileSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D66B957282EEA14008272D4 /* AbsFileSystem.swift */; };
 		4D91EEC62A40F28D004807ED /* EBookFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D91EEC52A40F28D004807ED /* EBookFile.swift */; };
 		4DABC04F2B0139CA000F6264 /* User.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DABC04E2B0139CA000F6264 /* User.swift */; };
+		4DF6C7172DB58ABF004059F1 /* AbsLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DF6C7162DB58ABF004059F1 /* AbsLogger.swift */; };
 		4DF74912287105C600AC7814 /* DeviceSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DF74911287105C600AC7814 /* DeviceSettings.swift */; };
 		4DFE2DA32D345C390000B204 /* MyViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DFE2DA22D345C390000B204 /* MyViewController.swift */; };
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
@@ -90,21 +87,18 @@
 		3ABF580828059BAE005DFBE5 /* PlaybackSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackSession.swift; sourceTree = "<group>"; };
 		3ABF618E2804325C0070250E /* PlayerHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerHandler.swift; sourceTree = "<group>"; };
 		3AD4FCE428043E50006DB301 /* AbsDatabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AbsDatabase.swift; sourceTree = "<group>"; };
-		3AD4FCE628043E72006DB301 /* AbsDatabase.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AbsDatabase.m; sourceTree = "<group>"; };
 		3AD4FCE828043FD7006DB301 /* ServerConnectionConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerConnectionConfig.swift; sourceTree = "<group>"; };
 		3AD4FCEA280443DD006DB301 /* Database.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Database.swift; sourceTree = "<group>"; };
 		3AD4FCEC28044E6C006DB301 /* Store.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Store.swift; sourceTree = "<group>"; };
 		3AF1970B2806E2590096F747 /* ApiClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApiClient.swift; sourceTree = "<group>"; };
 		3AF1970D2806E3CA0096F747 /* AbsAudioPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AbsAudioPlayer.swift; sourceTree = "<group>"; };
-		3AF1970F2806E3DC0096F747 /* AbsAudioPlayer.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AbsAudioPlayer.m; sourceTree = "<group>"; };
 		3AFCB5E727EA240D00ECCC05 /* NowPlayingInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingInfo.swift; sourceTree = "<group>"; };
-		4D66B951282EE822008272D4 /* AbsDownloader.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AbsDownloader.m; sourceTree = "<group>"; };
 		4D66B953282EE87C008272D4 /* AbsDownloader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AbsDownloader.swift; sourceTree = "<group>"; };
-		4D66B955282EE951008272D4 /* AbsFileSystem.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AbsFileSystem.m; sourceTree = "<group>"; };
 		4D66B957282EEA14008272D4 /* AbsFileSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AbsFileSystem.swift; sourceTree = "<group>"; };
 		4D8D412C26E187E400BA5F0D /* App-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "App-Bridging-Header.h"; sourceTree = "<group>"; };
 		4D91EEC52A40F28D004807ED /* EBookFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EBookFile.swift; sourceTree = "<group>"; };
 		4DABC04E2B0139CA000F6264 /* User.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = User.swift; sourceTree = "<group>"; };
+		4DF6C7162DB58ABF004059F1 /* AbsLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AbsLogger.swift; sourceTree = "<group>"; };
 		4DF74911287105C600AC7814 /* DeviceSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceSettings.swift; sourceTree = "<group>"; };
 		4DFE2DA22D345C390000B204 /* MyViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyViewController.swift; sourceTree = "<group>"; };
 		50379B222058CBB4000EE86E /* capacitor.config.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = capacitor.config.json; sourceTree = "<group>"; };
@@ -217,13 +211,10 @@
 			isa = PBXGroup;
 			children = (
 				3AD4FCE428043E50006DB301 /* AbsDatabase.swift */,
-				3AD4FCE628043E72006DB301 /* AbsDatabase.m */,
 				3AF1970D2806E3CA0096F747 /* AbsAudioPlayer.swift */,
-				3AF1970F2806E3DC0096F747 /* AbsAudioPlayer.m */,
-				4D66B951282EE822008272D4 /* AbsDownloader.m */,
 				4D66B953282EE87C008272D4 /* AbsDownloader.swift */,
-				4D66B955282EE951008272D4 /* AbsFileSystem.m */,
 				4D66B957282EEA14008272D4 /* AbsFileSystem.swift */,
+				4DF6C7162DB58ABF004059F1 /* AbsLogger.swift */,
 			);
 			path = plugins;
 			sourceTree = "<group>";
@@ -531,7 +522,6 @@
 			files = (
 				E9D5507328AC218300C746DD /* DaoExtensions.swift in Sources */,
 				E9D5506228AC1CC900C746DD /* PlayerState.swift in Sources */,
-				3AD4FCE728043E72006DB301 /* AbsDatabase.m in Sources */,
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				EACB38122BCCA1330060DA4A /* AudioPlayerRateManager.swift in Sources */,
 				E9FA07E328C82848005520B0 /* Logger.swift in Sources */,
@@ -545,6 +535,7 @@
 				4D66B958282EEA14008272D4 /* AbsFileSystem.swift in Sources */,
 				E9D5504C28AC1AE000C746DD /* PodcastEpisode.swift in Sources */,
 				E9D5506A28AC1DF100C746DD /* LocalFile.swift in Sources */,
+				4DF6C7172DB58ABF004059F1 /* AbsLogger.swift in Sources */,
 				3AF1970E2806E3CA0096F747 /* AbsAudioPlayer.swift in Sources */,
 				E9D5506F28AC1E8E00C746DD /* DownloadItem.swift in Sources */,
 				3AD4FCE928043FD7006DB301 /* ServerConnectionConfig.swift in Sources */,
@@ -553,7 +544,6 @@
 				3A200C1527D64D7E00CBF02E /* AudioPlayer.swift in Sources */,
 				4DFE2DA32D345C390000B204 /* MyViewController.swift in Sources */,
 				E9D5507128AC1EC700C746DD /* DownloadItemPart.swift in Sources */,
-				4D66B956282EE951008272D4 /* AbsFileSystem.m in Sources */,
 				EACB38142BCCA1410060DA4A /* LegacyAudioPlayerRateManager.swift in Sources */,
 				3AFCB5E827EA240D00ECCC05 /* NowPlayingInfo.swift in Sources */,
 				3AB34053280829BF0039308B /* Extensions.swift in Sources */,
@@ -561,7 +551,6 @@
 				3AD4FCEB280443DD006DB301 /* Database.swift in Sources */,
 				3AD4FCE528043E50006DB301 /* AbsDatabase.swift in Sources */,
 				4DABC04F2B0139CA000F6264 /* User.swift in Sources */,
-				4D66B952282EE822008272D4 /* AbsDownloader.m in Sources */,
 				E9D5506828AC1DC300C746DD /* LocalPodcastEpisode.swift in Sources */,
 				EACB38162BCCA1500060DA4A /* DefaultedAudioPlayerRateManager.swift in Sources */,
 				E9D5505228AC1B5D00C746DD /* Chapter.swift in Sources */,
@@ -574,7 +563,6 @@
 				E9D5505C28AC1C6200C746DD /* LibraryFile.swift in Sources */,
 				4DF74912287105C600AC7814 /* DeviceSettings.swift in Sources */,
 				E9D5504A28AC1AA600C746DD /* Metadata.swift in Sources */,
-				3AF197102806E3DC0096F747 /* AbsAudioPlayer.m in Sources */,
 				E9D5507528AEF93100C746DD /* PlayerSettings.swift in Sources */,
 				E9D5505028AC1B3E00C746DD /* Author.swift in Sources */,
 				3AF1970C2806E2590096F747 /* ApiClient.swift in Sources */,
@@ -744,12 +732,12 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = Icons;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 36;
+				CURRENT_PROJECT_VERSION = 37;
 				DEVELOPMENT_TEAM = 7UFJ7D8V6A;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				MARKETING_VERSION = 0.9.79;
+				MARKETING_VERSION = 0.9.80;
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" \"-DDEBUG\"";
 				PRODUCT_BUNDLE_IDENTIFIER = com.audiobookshelf.app.dev;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -768,12 +756,12 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = Icons;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 36;
+				CURRENT_PROJECT_VERSION = 37;
 				DEVELOPMENT_TEAM = 7UFJ7D8V6A;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				MARKETING_VERSION = 0.9.79;
+				MARKETING_VERSION = 0.9.80;
 				PRODUCT_BUNDLE_IDENTIFIER = com.audiobookshelf.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";

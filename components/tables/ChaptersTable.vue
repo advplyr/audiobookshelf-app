@@ -7,7 +7,7 @@
       </div>
       <div class="flex-grow" />
       <div class="h-10 w-10 rounded-full flex justify-center items-center duration-500" :class="expanded ? 'transform rotate-180' : ''">
-        <span class="material-icons text-3xl">expand_more</span>
+        <span class="material-symbols text-3xl">arrow_drop_down</span>
       </div>
     </div>
     <transition name="slide">

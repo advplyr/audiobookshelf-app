@@ -32,8 +32,9 @@ object DeviceManager {
   var deviceData: DeviceData = dbManager.getDeviceData()
   var serverConnectionConfig: ServerConnectionConfig? = null
 
-  val serverConnectionConfigId
-    get() = serverConnectionConfig?.id ?: ""
+  val serverConnectionConfigId get() = serverConnectionConfig?.id ?: ""
+  val serverConnectionConfigName get() = serverConnectionConfig?.name ?: ""
+  val serverConnectionConfigString get() = serverConnectionConfig?.name ?: "No server connection"
   val serverAddress
     get() = serverConnectionConfig?.address ?: ""
   val serverUserId
@@ -62,6 +63,10 @@ object DeviceManager {
     // Initialize auto sleep timer auto rewind added in v0.9.64
     if (deviceData.deviceSettings?.autoSleepTimerAutoRewindTime == null) {
       deviceData.deviceSettings?.autoSleepTimerAutoRewindTime = 300000L // 5 minutes
+    }
+    // Initialize sleep timer almost done chime added in v0.9.81
+    if (deviceData.deviceSettings?.enableSleepTimerAlmostDoneChime == null) {
+      deviceData.deviceSettings?.enableSleepTimerAlmostDoneChime = false
     }
 
     // Language added in v0.9.69

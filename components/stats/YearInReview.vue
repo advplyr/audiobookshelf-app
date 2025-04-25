@@ -8,7 +8,7 @@
 </template>
 
 <script>
-import { FileSharer } from '@byteowls/capacitor-filesharer'
+import { FileSharer } from '@webnativellc/capacitor-filesharer'
 
 export default {
   props: {
@@ -75,7 +75,7 @@ export default {
 
       const addIcon = (icon, color, fontSize, x, y) => {
         ctx.fillStyle = color
-        ctx.font = `${fontSize} Material Icons Outlined`
+        ctx.font = `${fontSize} Material Symbols Rounded`
         ctx.fillText(icon, x, y)
       }
 

@@ -30,14 +30,14 @@
     <!-- action buttons -->
     <div class="flex mt-4 -mx-1">
       <ui-btn color="success" class="flex items-center justify-center flex-grow mx-1" :loading="playerIsStartingForThisMedia" :padding-x="4" @click="playClick">
-        <span class="material-icons">{{ playerIsPlaying ? 'pause' : 'play_arrow' }}</span>
+        <span class="material-symbols text-2xl fill">{{ playerIsPlaying ? 'pause' : 'play_arrow' }}</span>
         <span class="px-1 text-sm">{{ playerIsPlaying ? $strings.ButtonPause : localEpisodeId ? $strings.ButtonPlay : $strings.ButtonStream }}</span>
       </ui-btn>
       <ui-btn v-if="showDownload" :color="downloadItem ? 'warning' : 'primary'" class="flex items-center justify-center mx-1" :padding-x="2" @click="downloadClick">
-        <span class="material-icons" :class="(downloadItem || startingDownload) ? 'animate-pulse' : ''">{{ (downloadItem || startingDownload) ? 'downloading' : 'download' }}</span>
+        <span class="material-symbols text-2xl" :class="downloadItem || startingDownload ? 'animate-pulse' : ''">{{ downloadItem || startingDownload ? 'downloading' : 'download' }}</span>
       </ui-btn>
       <ui-btn color="primary" class="flex items-center justify-center mx-1" :padding-x="2" @click="showMoreMenu = true">
-        <span class="material-icons">more_vert</span>
+        <span class="material-symbols text-2xl">more_vert</span>
       </ui-btn>
     </div>
 
@@ -324,14 +324,16 @@ export default {
         return timeParts.reduce((acc, part, index) => acc * 60 + part, 0)
       }
 
-      return description.replace(timeMarkerLinkRegex, (match, href, displayTime) => {
-        const time = displayTime.match(timeMarkerRegex)[0]
-        const seekTimeInSeconds = convertToSeconds(time)
-        return `<span class="time-marker cursor-pointer text-blue-400 hover:text-blue-300" data-time="${seekTimeInSeconds}">${displayTime}</span>`
-      }).replace(timeMarkerRegex, (match) => {
-        const seekTimeInSeconds = convertToSeconds(match)
-        return `<span class="time-marker cursor-pointer text-blue-400 hover:text-blue-300" data-time="${seekTimeInSeconds}">${match}</span>`
-      })
+      return description
+        .replace(timeMarkerLinkRegex, (match, href, displayTime) => {
+          const time = displayTime.match(timeMarkerRegex)[0]
+          const seekTimeInSeconds = convertToSeconds(time)
+          return `<span class="time-marker cursor-pointer text-blue-400 hover:text-blue-300" data-time="${seekTimeInSeconds}">${displayTime}</span>`
+        })
+        .replace(timeMarkerRegex, (match) => {
+          const seekTimeInSeconds = convertToSeconds(match)
+          return `<span class="time-marker cursor-pointer text-blue-400 hover:text-blue-300" data-time="${seekTimeInSeconds}">${match}</span>`
+        })
     },
     async deleteLocalEpisode() {
       await this.$hapticsImpact()
@@ -612,7 +614,7 @@ export default {
   },
   beforeDestroy() {
     this.$eventBus.$off('new-local-library-item', this.newLocalLibraryItem)
-    document.querySelectorAll('.time-marker').forEach(marker => {
+    document.querySelectorAll('.time-marker').forEach((marker) => {
       marker.removeEventListener('click', this.clickPlaybackTime)
     })
   }

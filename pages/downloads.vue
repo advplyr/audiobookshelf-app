@@ -16,16 +16,14 @@
               <p v-if="mediaItem.size" class="text-xs text-fg-muted">{{ $bytesPretty(mediaItem.size) }}</p>
             </div>
             <div class="w-12 h-12 flex items-center justify-center">
-              <span class="material-icons text-2xl text-fg-muted">chevron_right</span>
+              <span class="material-symbols text-2xl text-fg-muted">chevron_right</span>
             </div>
           </nuxt-link>
           <div v-if="num + 1 < localLibraryItems.length" class="flex border-t border-fg/10 my-3" />
         </div>
       </template>
     </div>
-    <div v-if="localLibraryItems.length" class="mt-4 text-sm text-fg-muted">
-      {{ $strings.LabelTotalSize }}: {{ $bytesPretty(localLibraryItems.reduce((acc, item) => acc + item.size, 0)) }}
-    </div>
+    <div v-if="localLibraryItems.length" class="mt-4 text-sm text-fg-muted">{{ $strings.LabelTotalSize }}: {{ $bytesPretty(localLibraryItems.reduce((acc, item) => acc + item.size, 0)) }}</div>
   </div>
 </template>
 

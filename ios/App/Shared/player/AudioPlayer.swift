@@ -45,6 +45,8 @@ class AudioPlayer: NSObject {
     private var queueObserver:NSKeyValueObservation?
     private var queueItemStatusObserver:NSKeyValueObservation?
     
+    private var isRebuildingQueue = false
+    
     // Sleep timer values
     internal var sleepTimeChapterStopAt: Double?
     internal var sleepTimeChapterToken: Any?
@@ -365,7 +367,57 @@ class AudioPlayer: NSObject {
         self.status = .paused
         updateNowPlaying()
     }
-    
+
+    public func startFadeOut() {
+        guard self.isInitialized() else { return }
+        guard let currentTime = self.getCurrentTime() else { return }
+        logger.log("fadeOut: Fading out playback")
+        
+        // Define fade parameters.
+        let fadeDuration: Float = 60.0  // total fade duration in seconds
+        let interval: Float = 1.0      // timer interval in seconds
+
+        // Get the current volume.
+        let initialVolume = self.audioPlayer.volume
+        let targetVolume: Float = 0.0
+        
+        // If the current volume is already at or below zero, just pause.
+        if initialVolume <= targetVolume {
+            self.pause()
+            return
+        }
+        
+        // Calculate the volume change per timer tick.
+        // (targetVolume - initialVolume) is negative since target < initial.
+        let step = (targetVolume - initialVolume) * interval / fadeDuration
+        
+        // Schedule a timer on the main queue to adjust the volume.
+        DispatchQueue.runOnMainQueue { [weak self] in
+            var timer = Timer.scheduledTimer(withTimeInterval: TimeInterval(interval), repeats: true) { t in
+                guard let self = self else {
+                    t.invalidate()
+                    return
+                }
+                
+                // Calculate the new volume.
+                let newVolume = self.audioPlayer.volume + step
+                
+                // Check if the next step would go below zero.
+                if newVolume > targetVolume {
+                    self.audioPlayer.volume = newVolume
+                } else {
+                    // Ensure volume is exactly zero and end fade.
+                    self.audioPlayer.volume = targetVolume
+                    t.invalidate()
+                    self.logger.log("Fadeout: Fade complete, pausing playback")
+                    self.pause()
+                    self.audioPlayer.volume = initialVolume
+                    self.seek(currentTime, from: "fadeOut")
+                }
+            }
+        }
+    }
+
     public func seek(_ to: Double, from: String) {
         logger.log("SEEK: Seek to \(to) from \(from)")
 
@@ -373,6 +425,31 @@ class AudioPlayer: NSObject {
 
         let indexOfSeek = getItemIndexForTime(time: to)
         logger.log("SEEK: Seek to index \(indexOfSeek) | Current index \(self.currentTrackIndex)")
+        
+        if self.audioPlayer.currentItem == nil {
+          self.currentTrackIndex = indexOfSeek
+          
+          try? playbackSession.update {
+              playbackSession.currentTime = to
+          }
+          
+          let playerItems = self.allPlayerItems[indexOfSeek..<self.allPlayerItems.count]
+          
+          DispatchQueue.runOnMainQueue {
+              // Let observers know we're rebuilding the queue
+              // prevents race conditions on stopping sessions if queue is empty.
+              self.isRebuildingQueue = true
+              self.audioPlayer.removeAllItems()
+              for item in Array(playerItems) {
+                  self.audioPlayer.insert(item, after:self.audioPlayer.items().last)
+              }
+              self.isRebuildingQueue = false
+          }
+
+          seekInCurrentTrack(to: to, playbackSession: playbackSession)
+          setupQueueItemStatusObserver()
+          return
+        }
         
         // Reconstruct queue if seeking to a different track
         if (self.currentTrackIndex != indexOfSeek) {
@@ -389,10 +466,14 @@ class AudioPlayer: NSObject {
             let playerItems = self.allPlayerItems[indexOfSeek..<self.allPlayerItems.count]
             
             DispatchQueue.runOnMainQueue {
+                // Let observers know we're rebuilding the queue
+                // prevents race conditions on stopping sessions if queue is empty.
+                self.isRebuildingQueue = true
                 self.audioPlayer.removeAllItems()
                 for item in Array(playerItems) {
                     self.audioPlayer.insert(item, after:self.audioPlayer.items().last)
                 }
+                self.isRebuildingQueue = false
             }
 
             seekInCurrentTrack(to: to, playbackSession: playbackSession)
@@ -437,9 +518,14 @@ class AudioPlayer: NSObject {
 
     public func getCurrentTime() -> Double? {
         guard let playbackSession = self.getPlaybackSession() else { return nil }
-        let currentTrackTime = self.audioPlayer.currentTime().seconds
         let audioTrack = playbackSession.audioTracks[currentTrackIndex]
         let startOffset = audioTrack.startOffset ?? 0.0
+      
+        // if the currentTrackTime isNan, then fall back on session.
+        let currentTrackTime = self.audioPlayer.currentTime().seconds
+        if currentTrackTime.isNaN {
+          return playbackSession.currentTime
+        }
         return startOffset + currentTrackTime
     }
 
@@ -718,6 +804,15 @@ class AudioPlayer: NSObject {
             if keyPath == #keyPath(AVPlayer.currentItem) {
                 NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.update.rawValue), object: nil)
                 logger.log("WARNING: Item ended")
+
+                if audioPlayer.currentItem == nil {
+                   // if the queue is rebuilding, we expect the current item may be nil
+                   if self.isRebuildingQueue {
+                     return
+                   }
+                   logger.log("Player ended or next item is nil, marking ended")
+                   self.markAudioSessionAs(active: false)
+                }
             }
         } else {
             super.observeValue(forKeyPath: keyPath, of: object, change: change, context: context)

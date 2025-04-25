@@ -1,6 +1,6 @@
 [
 	{
-		"pkg": "@byteowls/capacitor-filesharer",
+		"pkg": "@webnativellc/capacitor-filesharer",
 		"classpath": "com.byteowls.capacitor.filesharer.FileSharerPlugin"
 	},
 	{

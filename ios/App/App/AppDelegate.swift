@@ -14,7 +14,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Override point for customization after application launch.
 
         let configuration = Realm.Configuration(
-            schemaVersion: 18,
+            schemaVersion: 19,
             migrationBlock: { [weak self] migration, oldSchemaVersion in
                 if (oldSchemaVersion < 1) {
                     self?.logger.log("Realm schema version was \(oldSchemaVersion)")
@@ -61,6 +61,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                         newObject?["streamingUsingCellular"] = "ALWAYS"
                     }
                 }
+                if (oldSchemaVersion < 18) {
+                    self?.logger.log("Realm schema version was \(oldSchemaVersion)... Adding disableSleepTimerFadeOut settings")
+                    migration.enumerateObjects(ofType: PlayerSettings.className()) { oldObject, newObject in
+                        newObject?["disableSleepTimerFadeOut"] = false
+                  }
+              }
 
             }
         )

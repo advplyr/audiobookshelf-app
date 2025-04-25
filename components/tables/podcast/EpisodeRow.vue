@@ -17,6 +17,11 @@
 
       <p class="text-sm text-fg episode-subtitle mt-1.5 mb-0.5" v-html="subtitle" />
 
+      <p v-if="sortKey === 'audioFile.metadata.filename'" class="text-xs text-fg-muted truncate mt-2 mb-0.5">
+        <span class="font-semibold">{{ $getString('LabelFilename') }}</span
+        >: <span class="font-light">{{ episode.audioFile.metadata.filename }}</span>
+      </p>
+
       <div v-if="episodeNumber || season || episodeType" class="flex py-2 items-center -mx-0.5">
         <div v-if="episodeNumber" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-50 rounded-full text-xs font-light text-fg">Episode #{{ episodeNumber }}</div>
         <div v-if="season" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-50 rounded-full text-xs font-light text-fg">Season #{{ season }}</div>
@@ -24,26 +29,35 @@
       </div>
 
       <div class="flex items-center pt-2">
-        <div class="h-8 px-4 border border-border rounded-full flex items-center justify-center cursor-pointer" :class="userIsFinished ? 'text-white text-opacity-40' : ''" @click.stop="playClick">
-          <span v-if="!playerIsStartingForThisMedia" class="material-icons" :class="streamIsPlaying ? '' : 'text-success'">{{ streamIsPlaying ? 'pause' : 'play_arrow' }}</span>
-          <svg v-else class="animate-spin" style="width: 24px; height: 24px" viewBox="0 0 24 24">
+        <!-- Play/Pause Button -->
+        <div class="h-10 px-4 border border-border rounded-full flex items-center justify-center cursor-pointer" :class="userIsFinished ? 'text-white text-opacity-40' : ''" @click.stop="playClick">
+          <span v-if="!playerIsStartingForThisMedia" class="material-symbols text-2xl fill leading-none" :class="streamIsPlaying ? '' : 'text-success'">
+            {{ streamIsPlaying ? 'pause' : 'play_arrow' }}
+          </span>
+          <svg v-else class="animate-spin" style="width: 28px; height: 28px" viewBox="0 0 24 24">
             <path fill="currentColor" d="M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z" />
           </svg>
           <p class="pl-2 pr-1 text-sm font-semibold">{{ timeRemaining }}</p>
         </div>
 
-        <ui-read-icon-btn :disabled="isProcessingReadUpdate" :is-read="userIsFinished" borderless class="mx-1 mt-0.5" @click="toggleFinished" />
+        <!-- Read Status Button -->
+        <ui-read-icon-btn :disabled="isProcessingReadUpdate" :is-read="userIsFinished" borderless class="mx-1" @click="toggleFinished" />
 
-        <button v-if="!isLocal" class="mx-1.5 mt-1.5" @click.stop="addToPlaylist">
-          <span class="material-icons text-2xl">playlist_add</span>
+        <!-- Add to Playlist Button -->
+        <button v-if="!isLocal" class="mx-1.5" @click.stop="addToPlaylist">
+          <span class="material-symbols text-2xl leading-none">playlist_add</span>
         </button>
 
-        <div v-if="userCanDownload">
-          <span v-if="isLocal" class="material-icons-outlined px-2 text-success text-lg">audio_file</span>
-          <span v-else-if="!localEpisode" class="material-icons mx-1.5 mt-2 text-xl" :class="downloadItem || startingDownload ? 'animate-bounce text-warning text-opacity-75' : ''" @click.stop="downloadClick">{{ downloadItem || startingDownload ? 'downloading' : 'download' }}</span>
-          <span v-else class="material-icons px-2 text-success text-xl">download_done</span>
+        <!-- Download Section -->
+        <div v-if="userCanDownload" class="flex items-center">
+          <span v-if="isLocal" class="material-symbols px-2 text-success text-2xl leading-none">audio_file</span>
+          <span v-else-if="!localEpisode" class="material-symbols mx-1.5 text-2xl leading-none" :class="downloadItem || startingDownload ? 'animate-bounce text-warning text-opacity-75' : ''" @click.stop="downloadClick">
+            {{ downloadItem || startingDownload ? 'downloading' : 'download' }}
+          </span>
+          <span v-else class="material-symbols px-2 text-success text-2xl leading-none">download_done</span>
         </div>
 
+        <!-- Spacer to push elements left -->
         <div class="flex-grow" />
       </div>
     </div>
@@ -72,7 +86,8 @@ export default {
       type: Object,
       default: () => {}
     },
-    isLocal: Boolean
+    isLocal: Boolean,
+    sortKey: String
   },
   mixins: [cellularPermissionHelpers],
   data() {
