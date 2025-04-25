@@ -94,6 +94,7 @@
   "LabelAll": "Alla",
   "LabelAllowSeekingOnMediaControls": "Tillåt positionssökning på medieaviseringskontroller",
   "LabelAlways": "Alltid",
+  "LabelAndroidAutoBrowseLimitForGrouping": "Alfabetisk neddragningsgräns",
   "LabelAndroidAutoBrowseLimitForGroupingHelp": "Använd inte alfabetisk neddragning när det finns mindre än denna mängd objekt att visa",
   "LabelAskConfirmation": "Fråga efter bekräftelse",
   "LabelAuthor": "Författare",
