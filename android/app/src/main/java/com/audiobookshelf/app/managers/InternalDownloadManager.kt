@@ -17,16 +17,8 @@ class InternalDownloadManager(
 ) : AutoCloseable {
 
   private val tag = "InternalDownloadManager"
-  private val client: OkHttpClient = OkHttpClient.Builder()
-      .connectTimeout(30, TimeUnit.SECONDS)
-      .addInterceptor { chain ->
-          val originalRequest = chain.request()
-          val newRequest = originalRequest.newBuilder()
-              .header("Accept-Encoding", "identity")
-              .build()
-          chain.proceed(newRequest)
-      }
-      .build()
+  private val client: OkHttpClient =
+          OkHttpClient.Builder().connectTimeout(30, TimeUnit.SECONDS).build()
   private val writer = BinaryFileWriter(outputStream, progressCallback)
 
   /**
@@ -37,7 +29,7 @@ class InternalDownloadManager(
    */
   @Throws(IOException::class)
   fun download(url: String) {
-    val request: Request = Request.Builder().url(url).build()
+    val request: Request = Request.Builder().url(url).addHeader("Accept-Encoding", "identity").build()
     client.newCall(request)
             .enqueue(
                     object : Callback {
