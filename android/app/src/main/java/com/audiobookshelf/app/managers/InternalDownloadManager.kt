@@ -29,7 +29,7 @@ class InternalDownloadManager(
    */
   @Throws(IOException::class)
   fun download(url: String) {
-    val request: Request = Request.Builder().url(url).build()
+    val request: Request = Request.Builder().url(url).addHeader("Accept-Encoding", "identity").build()
     client.newCall(request)
             .enqueue(
                     object : Callback {
