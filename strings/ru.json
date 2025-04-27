@@ -241,6 +241,8 @@
   "LabelShowAll": "Показать все",
   "LabelSize": "Размер",
   "LabelSleepTimer": "Таймер сна",
+  "LabelSleepTimerAlmostDoneChime": "Звуковое предупреждение перед истечением срока",
+  "LabelSleepTimerAlmostDoneChimeHelp": "Воспроизвести звуковой сигнал за 30 секунд до истечения таймера сна",
   "LabelStart": "Начало",
   "LabelStartTime": "Время начала",
   "LabelStatsBestDay": "Лучший День",
