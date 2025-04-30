@@ -281,21 +281,17 @@ class FolderScanner(var ctx: Context) {
     Log.d(tag, "starting my custom scanner")
     // Get the root by stripping off the localfolder content url from the itemfolderPath
     val rootPathUri = Uri.parse(downloadItem.localFolder.contentUrl)
-    Log.d(tag, "root path URI after concat: ${rootPathUri}")
     val root = DocumentFileCompat.fromUri(ctx, rootPathUri)
-    Log.d(tag, "Root Doc File ${root?.uri} | ${root?.name} | ${root?.length()}")
     if (root == null) {
       Log.e(tag, "Root Doc File Invalid ${rootPathUri}")
       return cb(null)
     }
 
-    Log.d(tag, "item folder path: ${downloadItem.itemSubfolder}")
     val baseFolder = findFolderByPath(root, downloadItem.itemSubfolder)
     if (baseFolder == null) {
       Log.e(tag, "Base folder not found ${downloadItem.itemSubfolder}")
       return cb(null)
     }
-    Log.d(tag, "baseFolder: ${baseFolder.uri} | ${baseFolder.name} | ${baseFolder.length()}")
 
     // Build references to files in this library item folder
     // e.g. absolute path is "storage/emulated/0/Audiobooks/Orson Scott Card/Enders Game"
@@ -318,15 +314,11 @@ class FolderScanner(var ctx: Context) {
             "scanDownloadItem starting for ${downloadItem.itemFolderPath} | ${baseFolder.uri} | Item Folder Id:$itemFolderId | LLI Id:$localLibraryItemId"
     )
 
-    // Search for files in media item folder
-    // m4b files showing as mimeType application/octet-stream on Android 10 and earlier see #154
-    // val filesFound = baseFolder.listFiles()
-
     var localLibraryItem: LocalLibraryItem?
+    localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(localLibraryItemId)
 
     // Create the local library item if it does not already exist. The local library item will
     // already exist if downloading new podast episodes
-    localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(localLibraryItemId)
     if (localLibraryItem == null) {
       Log.d(
               tag,
