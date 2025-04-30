@@ -292,7 +292,7 @@
   "MessageConfirmRemoveBookmark": "Are you sure you want to remove bookmark?",
   "MessageConfirmStreamingUsingCellular": "You are about to stream using cellular data. This may include carrier data charges. Do you wish to continue?",
   "MessageDiscardProgress": "Discard Progress",
-  "MessageDownloadCompleteProcessing": "Download complete. Processing...",
+  "MessageDownloadCompleteProcessing": "Download complete. Moving and processing files...",
   "MessageDownloading": "Downloading...",
   "MessageDownloadingEpisode": "Downloading episode",
   "MessageEpisodesQueuedForDownload": "{0} Episode(s) queued for download",
