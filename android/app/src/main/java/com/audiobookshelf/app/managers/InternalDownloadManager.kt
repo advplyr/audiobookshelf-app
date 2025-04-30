@@ -43,6 +43,7 @@ class InternalDownloadManager(
                           addHeader("Range", "bytes=$existingSize-") // Resume download
                         }
                       }
+                      .addHeader("Accept-Encoding", "identity")
                       .build()
 
       client.newCall(request)
