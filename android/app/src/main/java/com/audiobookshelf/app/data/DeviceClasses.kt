@@ -61,6 +61,7 @@ data class ServerConnectionConfig(
 data class LocalFile(
         var id: String,
         var filename: String?,
+        var extension: String?,
         var contentUrl: String,
         var basePath: String,
         var absolutePath: String,

@@ -7,6 +7,7 @@ import androidx.documentfile.provider.DocumentFile
 import com.anggrayudi.storage.file.*
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.models.DownloadItem
+import com.audiobookshelf.app.models.DownloadItemPart
 import java.io.File
 
 class FolderScanner(var ctx: Context) {
@@ -19,6 +20,46 @@ class FolderScanner(var ctx: Context) {
 
   private fun getLocalLibraryItemId(mediaItemId: String): String {
     return "local_" + DeviceManager.getBase64Id(mediaItemId)
+  }
+
+  /** Create LocalFile from downloadItemPart */
+  private fun createLocalFile(downloadItemPart: DownloadItemPart): LocalFile? {
+    if (downloadItemPart.isInternalStorage) {
+      val file = File(downloadItemPart.finalDestinationPath)
+      val localFileId = DeviceManager.getBase64Id(file.name)
+      val localFile =
+              LocalFile(
+                      localFileId,
+                      file.name,
+                      file.extension,
+                      Uri.fromFile(file).toString(),
+                      file.getBasePath(ctx),
+                      file.absolutePath,
+                      file.mimeType,
+                      file.length()
+              )
+      return localFile
+    } else {
+      // Convert the file path to a Uri using SAF
+      val docFile = DocumentFileCompat.fromFullPath(ctx, downloadItemPart.finalDestinationPath)
+      if (docFile == null) {
+        Log.e(tag, "Doc File Invalid ${downloadItemPart.finalDestinationPath}")
+        return null
+      }
+      val localFileId = DeviceManager.getBase64Id(docFile.id)
+      val localFile =
+              LocalFile(
+                      localFileId,
+                      docFile.name,
+                      docFile.extension,
+                      docFile.uri.toString(),
+                      docFile.getBasePath(ctx),
+                      docFile.getAbsolutePath(ctx),
+                      docFile.mimeType,
+                      docFile.length()
+              )
+      return localFile
+    }
   }
 
   private fun scanInternalDownloadItem(
@@ -71,16 +112,15 @@ class FolderScanner(var ctx: Context) {
       val file = File(downloadItemPart.finalDestinationPath)
 
       val localFileId = DeviceManager.getBase64Id(file.name)
-      val localFile =
-              LocalFile(
-                      localFileId,
-                      file.name,
-                      Uri.fromFile(file).toString(),
-                      file.getBasePath(ctx),
-                      file.absolutePath,
-                      file.mimeType,
-                      file.length()
-              )
+      val localFile = createLocalFile(downloadItemPart)
+      if (localFile == null) {
+        Log.e(
+                tag,
+                "scanInternalDownloadItem: Null localFile for path ${downloadItemPart.finalDestinationPath}"
+        )
+        return cb(null)
+      }
+
       Log.d(tag, "Scan internal storage item created file ${file.name}")
 
       if (file == null) {
@@ -101,11 +141,11 @@ class FolderScanner(var ctx: Context) {
 
           val trackFileMetadata =
                   FileMetadata(
-                          file.name,
-                          file.extension,
-                          file.absolutePath,
-                          file.getBasePath(ctx),
-                          file.length()
+                          localFile.filename ?: "",
+                          localFile.extension ?: "",
+                          localFile.absolutePath,
+                          localFile.basePath,
+                          localFile.size
                   )
           // Create new audio track
           val track =
@@ -140,7 +180,10 @@ class FolderScanner(var ctx: Context) {
           }
         } else if (downloadItemPart.ebookFile != null) {
           foundEBookFile = true
-          Log.d(tag, "scanInternalDownloadItem: Ebook file found with mimetype=${file.mimeType}")
+          Log.d(
+                  tag,
+                  "scanInternalDownloadItem: Ebook file found with mimetype=${localFile.mimeType}"
+          )
           localLibraryItem.localFiles.add(localFile)
 
           val ebookFile =
@@ -328,27 +371,24 @@ class FolderScanner(var ctx: Context) {
       val itemPart =
               downloadItem.downloadItemParts.find { itemPart -> itemPart.filename == docFile.name }
 
-      // Build local file object
-      val localFileId = DeviceManager.getBase64Id(docFile.id)
-      val localFile =
-              LocalFile(
-                      localFileId,
-                      docFile.name,
-                      docFile.uri.toString(),
-                      docFile.getBasePath(ctx),
-                      docFile.getAbsolutePath(ctx),
-                      docFile.mimeType,
-                      docFile.length()
-              )
+      var localFile: LocalFile? = null
+
+      if (itemPart != null) {
+
+        // Build local file object
+        localFile = createLocalFile(itemPart)
+      }
 
       if (itemPart == null) {
         if (downloadItem.mediaType == "book"
         ) { // for books every download item should be a file found
           Log.e(
                   tag,
-                  "scanDownloadItem: Item part not found for doc file ${localFile.filename} | ${localFile.absolutePath} | ${localFile.contentUrl}"
+                  "scanDownloadItem: Item part not found for doc file ${localFile?.filename} | ${localFile?.absolutePath} | ${localFile?.contentUrl}"
           )
         }
+      } else if (localFile == null) {
+        Log.e(tag, "scanDownloadItem: Local file is null for item part: ${itemPart.filename}")
       } else if (itemPart.audioTrack != null) { // Is audio track
         val audioTrackFromServer = itemPart.audioTrack
         Log.d(
@@ -362,7 +402,7 @@ class FolderScanner(var ctx: Context) {
         val trackFileMetadata =
                 FileMetadata(
                         localFile.filename ?: "",
-                        docFile.extension ?: "",
+                        localFile.extension ?: "",
                         localFile.absolutePath,
                         localFile.basePath,
                         localFile.size
@@ -377,7 +417,7 @@ class FolderScanner(var ctx: Context) {
                         localFile.mimeType ?: "",
                         trackFileMetadata,
                         true,
-                        localFileId,
+                        localFile.id,
                         audioTrackFromServer.index
                 )
         audioTracks.add(track)
@@ -408,7 +448,7 @@ class FolderScanner(var ctx: Context) {
                         itemPart.ebookFile.metadata,
                         itemPart.ebookFile.ebookFormat,
                         true,
-                        localFileId,
+                        localFile.id,
                         localFile.contentUrl
                 )
         (localLibraryItem.media as Book).ebookFile = ebookFile
