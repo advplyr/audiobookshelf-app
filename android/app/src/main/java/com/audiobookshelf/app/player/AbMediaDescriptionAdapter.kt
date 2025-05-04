@@ -14,7 +14,7 @@ import com.google.android.exoplayer2.Player
 import com.google.android.exoplayer2.ui.PlayerNotificationManager
 import kotlinx.coroutines.*
 
-class AbMediaDescriptionAdapter constructor(private val controller: MediaControllerCompat, private val playerNotificationService: PlayerNotificationService) : PlayerNotificationManager.MediaDescriptionAdapter {
+class AbMediaDescriptionAdapter (private val controller: MediaControllerCompat, private val playerNotificationService: PlayerNotificationService) : PlayerNotificationManager.MediaDescriptionAdapter {
   private val tag = "MediaDescriptionAdapter"
 
   private var currentIconUri: Uri? = null
@@ -35,6 +35,12 @@ class AbMediaDescriptionAdapter constructor(private val controller: MediaControl
     callback: PlayerNotificationManager.BitmapCallback
   ): Bitmap? {
     val albumArtUri = controller.metadata.description.iconUri
+    val albumBitmap = controller.metadata.description.iconBitmap
+
+    // For local cover images, bitmap is set in PlayerNotificationService TimelineQueueNavigator.getMediaDescription
+    if (albumBitmap != null) {
+      return albumBitmap
+    }
 
     return if (currentIconUri != albumArtUri || currentBitmap == null) {
       // Cache the bitmap for the current audiobook so that successive calls to
@@ -59,7 +65,6 @@ class AbMediaDescriptionAdapter constructor(private val controller: MediaControl
         }
         null
       }
-
     } else {
       currentBitmap
     }
