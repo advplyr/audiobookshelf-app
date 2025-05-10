@@ -241,6 +241,8 @@
   "LabelShowAll": "Összes megjelenítése",
   "LabelSize": "Méret",
   "LabelSleepTimer": "Alvásidőzítő",
+  "LabelSleepTimerAlmostDoneChime": "Jelezze hanggal, ha majdnem lejárt",
+  "LabelSleepTimerAlmostDoneChimeHelp": "Jelezze hanggal, ha az elalvásidőzítőből 30 másodperc maradt",
   "LabelStart": "Kezdés",
   "LabelStartTime": "Kezdési idő",
   "LabelStatsBestDay": "Legjobb nap",

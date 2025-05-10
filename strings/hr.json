@@ -240,6 +240,8 @@
   "LabelShowAll": "Prikaži sve",
   "LabelSize": "Veličina",
   "LabelSleepTimer": "Timer za spavanje",
+  "LabelSleepTimerAlmostDoneChime": "Zvučno upozorenje prije isteka",
+  "LabelSleepTimerAlmostDoneChimeHelp": "Reproduciraj zvučno upozorenje 30 sekundi prije isteka timera za spavanje",
   "LabelStart": "Početak",
   "LabelStartTime": "Vrijeme pokretanja",
   "LabelStatsBestDay": "Najbolji dan",

@@ -241,6 +241,8 @@
   "LabelShowAll": "Alles anzeigen",
   "LabelSize": "Größe",
   "LabelSleepTimer": "Schlummerfunktion",
+  "LabelSleepTimerAlmostDoneChime": "Spiel ein Ton kurz vor dem Ende",
+  "LabelSleepTimerAlmostDoneChimeHelp": "Spiel ein Ton wenn 30 Sekunden auf dem Timer verbleiben",
   "LabelStart": "Start",
   "LabelStartTime": "Startzeit",
   "LabelStatsBestDay": "Bester Tag",

@@ -241,6 +241,8 @@
   "LabelShowAll": "全部显示",
   "LabelSize": "文件大小",
   "LabelSleepTimer": "睡眠定时",
+  "LabelSleepTimerAlmostDoneChime": "快结束时播放铃声",
+  "LabelSleepTimerAlmostDoneChimeHelp": "当睡眠定时器还剩30秒时播放铃声",
   "LabelStart": "开始",
   "LabelStartTime": "开始时间",
   "LabelStatsBestDay": "最好的一天",
