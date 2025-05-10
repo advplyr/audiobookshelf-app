@@ -241,6 +241,8 @@
   "LabelShowAll": "Показати все",
   "LabelSize": "Розмір",
   "LabelSleepTimer": "Таймер вимкнення",
+  "LabelSleepTimerAlmostDoneChime": "Увімкніть дзвінок, коли майже закінчите",
+  "LabelSleepTimerAlmostDoneChimeHelp": "Увімкніть дзвінок, коли на таймері вимкнення залишиться 30 секунд",
   "LabelStart": "Початок",
   "LabelStartTime": "Час Початку",
   "LabelStatsBestDay": "Найкращий день",
