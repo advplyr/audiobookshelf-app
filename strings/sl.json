@@ -241,6 +241,8 @@
   "LabelShowAll": "Prikaži vse",
   "LabelSize": "Velikost",
   "LabelSleepTimer": "Časovnik za spanje",
+  "LabelSleepTimerAlmostDoneChime": "Predvajaj zvonec tik pred koncem",
+  "LabelSleepTimerAlmostDoneChimeHelp": "Predvajaj zvonec, ko časovnik za spanje preostane še 30 sekund",
   "LabelStart": "Začetek",
   "LabelStartTime": "Začetni čas",
   "LabelStatsBestDay": "Najboljši dan",
