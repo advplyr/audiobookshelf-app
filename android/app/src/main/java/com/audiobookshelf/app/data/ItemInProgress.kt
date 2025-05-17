@@ -6,6 +6,7 @@ package com.audiobookshelf.app.data
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.core.json.JsonReadFeature
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import org.json.JSONObject
@@ -18,8 +19,7 @@ data class ItemInProgress(
   val isLocal: Boolean
 ) {
   companion object {
-    fun makeFromServerObject(serverItem: JSONObject):ItemInProgress {
-      val jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
+    fun makeFromServerObject(serverItem: JSONObject, jacksonMapper: ObjectMapper):ItemInProgress {
       val libraryItem = jacksonMapper.readValue<LibraryItem>(serverItem.toString())
 
       var episode:PodcastEpisode? = null
