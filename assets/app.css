@@ -1,5 +1,5 @@
-@import "./tailwind.css";
-@import "./fonts.css";
+@import './tailwind.css';
+@import './fonts.css';
 @import './defaultStyles.css';
 @import './absicons.css';
 @import './transitions.css';
@@ -59,6 +59,10 @@ textarea {
 
 .box-shadow-book {
   box-shadow: 4px 1px 8px #11111166, -4px 1px 8px #11111166, 1px -4px 8px #11111166;
+}
+
+.box-shadow-progressbar {
+  box-shadow: 0px -1px 4px rgb(62, 50, 2, 0.5);
 }
 
 .shadow-height {
