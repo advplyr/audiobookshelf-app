@@ -334,8 +334,7 @@ class ApiHandler(var ctx:Context) {
         val array = it.getJSONArray("libraryItems")
         for (i in 0 until array.length()) {
           val jsobj = array.get(i) as JSONObject
-
-          val itemInProgress = ItemInProgress.makeFromServerObject(jsobj)
+          val itemInProgress = ItemInProgress.makeFromServerObject(jsobj, jacksonMapper)
           items.add(itemInProgress)
         }
       }
