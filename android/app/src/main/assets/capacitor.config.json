@@ -5,6 +5,10 @@
 	"plugins": {
 		"CapacitorHttp": {
 			"enabled": false
+		},
+		"StatusBar": {
+			"backgroundColor": "#232323",
+			"style": "DARK"
 		}
 	},
 	"server": {
