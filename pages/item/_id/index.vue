@@ -31,6 +31,7 @@
           <div class="flex items-center justify-center">
             <h1 class="text-xl font-semibold">{{ title }}</h1>
             <widgets-explicit-indicator v-if="isExplicit" />
+            <widgets-abridged-indicator v-if="isAbridged" />
           </div>
           <p v-if="subtitle" class="text-fg text-base">{{ subtitle }}</p>
         </div>
@@ -437,6 +438,9 @@ export default {
     },
     isExplicit() {
       return !!this.mediaMetadata.explicit
+    },
+    isAbridged() {
+      return !!this.mediaMetadata.abridged
     },
     showPlay() {
       return !this.isMissing && !this.isInvalid && (this.numTracks || this.episodes.length)
