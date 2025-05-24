@@ -269,6 +269,8 @@
   "MessageNoUpdatesWereNecessary": "No calia cap actualització",
   "MessageNoUserPlaylists": "No teniu cap llista de reproducció",
   "MessagePodcastSearchField": "Introduïu el terme de cerca o l'URL del canal RSS",
+  "NoteRSSFeedPodcastAppsHttps": "Avís: la majoria d'aplicacions de pòdcast requereixen que l'URL del canal RSS utilitzi HTTPS",
+  "NoteRSSFeedPodcastAppsPubDate": "Avís: un o més dels vostres episodis no tenen data de publicació. Algunes aplicacions de pòdcast ho requereixen.",
   "ToastItemMarkedAsFinishedFailed": "No s'ha pogut marcar com a finalitzat",
   "ToastItemMarkedAsNotFinishedFailed": "No s'ha pogut marcar com a no finalitzat",
   "ToastPlaylistCreateFailed": "No s'ha pogut crear la llista de reproducció",
