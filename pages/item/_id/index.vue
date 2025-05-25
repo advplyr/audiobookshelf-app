@@ -14,7 +14,7 @@
       </div>
       <div class="relative" @click="showFullscreenCover = true">
         <covers-book-cover :library-item="libraryItem" :width="coverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" no-bg raw @imageLoaded="coverImageLoaded" />
-        <div v-if="!isPodcast" class="absolute bottom-0 left-0 h-1 shadow-sm z-10" :class="userIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: coverWidth * progressPercent + 'px' }"></div>
+        <div v-if="!isPodcast" class="absolute bottom-0 left-0 h-1 z-10 box-shadow-progressbar" :class="userIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: coverWidth * progressPercent + 'px' }"></div>
       </div>
     </div>
 
@@ -31,6 +31,7 @@
           <div class="flex items-center justify-center">
             <h1 class="text-xl font-semibold">{{ title }}</h1>
             <widgets-explicit-indicator v-if="isExplicit" />
+            <widgets-abridged-indicator v-if="isAbridged" />
           </div>
           <p v-if="subtitle" class="text-fg text-base">{{ subtitle }}</p>
         </div>
@@ -437,6 +438,9 @@ export default {
     },
     isExplicit() {
       return !!this.mediaMetadata.explicit
+    },
+    isAbridged() {
+      return !!this.mediaMetadata.abridged
     },
     showPlay() {
       return !this.isMissing && !this.isInvalid && (this.numTracks || this.episodes.length)
