@@ -22,8 +22,7 @@
     </div>
 
     <!-- ereader -->
-    <component v-if="readerComponentName" ref="readerComponent" :is="readerComponentName" :url="ebookUrl" :library-item="selectedLibraryItem" :is-local="isLocal" :keep-progress="keepProgress" :showing-toolbar="showingToolbar" @touchstart="touchstart" @touchend="touchend" @loaded="readerLoaded" @hook:mounted="readerMounted" />
-
+    <component v-if="readerComponentName" ref="readerComponent" :is="readerComponentName" :url="ebookUrl" :library-item="selectedLibraryItem" :is-local="isLocal" :keep-progress="keepProgress" :showing-toolbar="showingToolbar" @loaded="readerLoaded" @hook:mounted="readerMounted" @pdf-zoom-ready="configureReaderBehavior" @toggle-toolbar="toggleToolbar" />
     <!-- table of contents modal -->
     <modals-fullscreen-modal v-model="showTOCModal" :theme="ereaderTheme">
       <div class="flex items-end justify-between h-20 px-4 pb-2">
@@ -368,38 +367,6 @@ export default {
         this.$refs.readerComponent.prev()
       }
     },
-    handleGesture() {
-      // Touch must be less than 1s. Must be > 60px drag and X distance > Y distance
-      const touchTimeMs = Date.now() - this.touchstartTime
-      if (touchTimeMs >= 1000) {
-        return
-      }
-
-      const touchDistanceX = Math.abs(this.touchendX - this.touchstartX)
-      const touchDistanceY = Math.abs(this.touchendY - this.touchstartY)
-      const touchDistance = Math.sqrt(Math.pow(this.touchstartX - this.touchendX, 2) + Math.pow(this.touchstartY - this.touchendY, 2))
-      if (touchDistance < 30) {
-        if (this.showSettingsModal) {
-          this.showSettingsModal = false
-        } else {
-          this.toggleToolbar()
-        }
-        return
-      }
-
-      if (touchDistanceX < 60 || touchDistanceY > touchDistanceX) {
-        return
-      }
-      this.hideToolbar()
-      if (!this.isEpub) {
-        if (this.touchendX < this.touchstartX) {
-          this.next()
-        }
-        if (this.touchendX > this.touchstartX) {
-          this.prev()
-        }
-      }
-    },
     showToolbar() {
       this.showingToolbar = true
       this.$showHideStatusBar(true)
@@ -412,7 +379,11 @@ export default {
       if (this.showingToolbar) this.hideToolbar()
       else this.showToolbar()
     },
+
     touchstart(e) {
+      // Skip gesture per PDF per permettere zoom nativo
+      if (this.isPdf) return
+
       // Ignore rapid touch
       if (this.touchstartTime && Date.now() - this.touchstartTime < 250) {
         return
@@ -423,7 +394,10 @@ export default {
       this.touchstartTime = Date.now()
       this.touchIdentifier = e.touches[0].identifier
     },
-    touchend(e) {
+    ouchend(e) {
+      // Skip gesture per PDF per permettere zoom nativo
+      if (this.isPdf) return
+
       if (this.touchIdentifier !== e.changedTouches[0].identifier) {
         return
       }
@@ -432,6 +406,109 @@ export default {
       this.touchendY = e.changedTouches[0].screenY
       this.handleGesture()
     },
+    handleGesture() {
+      // Skip gesture per PDF per permettere zoom nativo
+      if (this.isPdf) return
+
+      // Touch must be less than 1s. Must be > 60px drag and X distance > Y distance
+      const touchTimeMs = Date.now() - this.touchstartTime
+      if (touchTimeMs >= 1000) {
+        return
+      }
+
+      const touchDistanceX = Math.abs(this.touchendX - this.touchstartX)
+      const touchDistanceY = Math.abs(this.touchendY - this.touchstartY)
+      const touchDistance = Math.sqrt(Math.pow(this.touchstartX - this.touchendX, 2) + Math.pow(this.touchstartY - this.touchendY, 2))
+
+      if (touchDistance < 30) {
+        if (this.showSettingsModal) {
+          this.showSettingsModal = false
+        } else {
+          this.toggleToolbar()
+        }
+        return
+      }
+
+      if (touchDistanceX < 60 || touchDistanceY > touchDistanceX) {
+        return
+      }
+
+      this.hideToolbar()
+
+      // Gesture di navigazione solo per formati non-PDF
+      if (!this.isEpub && !this.isPdf) {
+        if (this.touchendX < this.touchstartX) {
+          this.next()
+        }
+        if (this.touchendX > this.touchstartX) {
+          this.prev()
+        }
+      }
+    },
+    registerListeners() {
+      this.$eventBus.$on('close-ebook', this.closeEvt)
+
+      // Registra i gesture listener sempre, ma li gestiamo condizionalmente
+      document.body.addEventListener('touchstart', this.touchstart, { passive: true })
+      document.body.addEventListener('touchend', this.touchend, { passive: true })
+
+      this.initWatchVolume()
+      this.initKeepScreenAwake()
+    },
+    unregisterListeners() {
+      this.$eventBus.$off('close-ebook', this.closeEvt)
+
+      // Rimuovi sempre i listener
+      document.body.removeEventListener('touchstart', this.touchstart)
+      document.body.removeEventListener('touchend', this.touchend)
+
+      VolumeButtons.clearWatch().catch((error) => {
+        console.error('Failed to clear volume watch', error)
+      })
+      KeepAwake.allowSleep().catch((error) => {
+        console.error('Failed to allow sleep', error)
+      })
+    },
+    // Metodo per configurare il comportamento specifico per formato
+    configureReaderBehavior() {
+      this.$nextTick(() => {
+        const readerElement = this.$refs.readerComponent?.$el
+
+        if (this.isPdf && readerElement) {
+          // Configura PDF per zoom nativo
+          readerElement.style.touchAction = 'manipulation'
+          readerElement.style.userSelect = 'auto'
+          readerElement.style.webkitUserSelect = 'auto'
+
+          // Trova tutti gli elementi PDF e configura il zoom
+          const pdfElements = readerElement.querySelectorAll('canvas, .pdf-page, .pdf-container')
+          pdfElements.forEach((el) => {
+            el.style.touchAction = 'manipulation'
+            el.style.userSelect = 'auto'
+          })
+        } else if (readerElement) {
+          // Per altri formati, mantieni il comportamento standard
+          readerElement.style.touchAction = 'auto'
+          readerElement.style.userSelect = 'none'
+        }
+      })
+    },
+
+    readerMounted() {
+      if (this.isEpub) {
+        this.loadEreaderSettings()
+      }
+      // Configura il comportamento in base al formato
+      this.configureReaderBehavior()
+    },
+    readerLoaded(data) {
+      if (this.isComic) {
+        this.comicHasMetadata = data.hasMetadata
+      }
+      // Riconfigura dopo il caricamento
+      this.configureReaderBehavior()
+    },
+
     closeEvt() {
       this.show = false
     },
