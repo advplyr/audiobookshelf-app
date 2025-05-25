@@ -10,7 +10,7 @@
       "name": "Android debug",
       "appSrcRoot": "${workspaceRoot}/android/app/src/main",
       "apkFile": "${workspaceRoot}/android/app/build/outputs/apk/debug/app-debug.apk",
-      "preLaunchTask": "npm: build ",
+      "preLaunchTask": "npm: build",
       "gradleTask": ":app:assembleDebug",
       "adbPort": 5037
     }
