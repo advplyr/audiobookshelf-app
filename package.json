@@ -12,7 +12,7 @@
     "ionic:build": "npm run build",
     "ionic:serve": "npm run dev",
     "devlive": "ionic cap run -l --external --port=1337",
-    "devlive-no-pass-ip": "ionic cap run android --verbose"
+    "devlive-no-pass-ip": "ionic cap run --external --port=1337"
   },
   "dependencies": {
     "@webnativellc/capacitor-filesharer": "7.0.4",

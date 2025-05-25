@@ -4,7 +4,7 @@
     {
       "label": "Run Android App (with IP connection)",
       "type": "npm",
-      "script": "devlive-ip", // Invoca lo script che usa l'IP
+      "script": "devlive", // Invoca lo script che usa l'IP
       "isBackground": true,
       "problemMatcher": [],
       "group": {
@@ -16,7 +16,7 @@
     {
       "label": "Run Android App (no IP connection)",
       "type": "npm",
-      "script": "devlive-no-ip", // Invoca lo script che NON usa l'IP
+      "script": "devlive-no-pass-ip", // Invoca lo script che NON usa l'IP
       "isBackground": true,
       "problemMatcher": [],
       "group": {
