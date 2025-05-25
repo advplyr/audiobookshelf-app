@@ -11,7 +11,8 @@
     "icons-android": "cordova-res android --skip-config --copy",
     "ionic:build": "npm run build",
     "ionic:serve": "npm run dev",
-    "devlive": "ionic cap run -l --external --port=1337"
+    "devlive": "ionic cap run -l --external --port=1337",
+    "devlive-no-pass-ip": "ionic cap run android --verbose"
   },
   "dependencies": {
     "@webnativellc/capacitor-filesharer": "7.0.4",

@@ -4,10 +4,23 @@
     {
       "type": "android",
       "request": "launch",
-      "name": "Android debug (Native)",
+      "name": "Debug localhost", // Nome chiaro per la configurazione
       "appSrcRoot": "${workspaceFolder}/android/app/src/main",
       "apkFile": "${workspaceFolder}/android/app/build/outputs/apk/debug/app-debug.apk",
-      "preLaunchTask": "Run Android App (Live Reload)",
+      "preLaunchTask": "Run Android App (with IP connection)", // Usa la task con IP
+      "gradleTask": ":app:assembleDebug",
+      "adbPort": 5037
+      // Se necessario, puoi aggiungere una "postDebugTask" qui per terminare il server Nuxt
+      // se non viene terminato automaticamente quando chiudi il debug.
+      // Esempio: "postDebugTask": "terminateNuxtServer"
+    },
+    {
+      "type": "android",
+      "request": "launch",
+      "name": "Debug no pass ip", // Nome chiaro per la configurazione
+      "appSrcRoot": "${workspaceFolder}/android/app/src/main",
+      "apkFile": "${workspaceFolder}/android/app/build/outputs/apk/debug/app-debug.apk",
+      "preLaunchTask": "Run Android App (no IP connection)", // Usa la task senza IP
       "gradleTask": ":app:assembleDebug",
       "adbPort": 5037
     }
