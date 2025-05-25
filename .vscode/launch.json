@@ -1,16 +1,13 @@
 {
-  // Usare IntelliSense per informazioni sui possibili attributi.
-  // Al passaggio del mouse vengono visualizzate le descrizioni degli attributi esistenti.
-  // Per altre informazioni, visitare: https://go.microsoft.com/fwlink/?linkid=830387
   "version": "0.2.0",
   "configurations": [
     {
       "type": "android",
       "request": "launch",
-      "name": "Android debug",
-      "appSrcRoot": "${workspaceRoot}/android/app/src/main",
-      "apkFile": "${workspaceRoot}/android/app/build/outputs/apk/debug/app-debug.apk",
-      "preLaunchTask": "npm: build ",
+      "name": "Android debug (Native)",
+      "appSrcRoot": "${workspaceFolder}/android/app/src/main",
+      "apkFile": "${workspaceFolder}/android/app/build/outputs/apk/debug/app-debug.apk",
+      "preLaunchTask": "Run Android App (Live Reload)",
       "gradleTask": ":app:assembleDebug",
       "adbPort": 5037
     }

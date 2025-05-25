@@ -1,0 +1,17 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run Android App (Live Reload)",
+      "type": "npm",
+      "script": "devlive",
+      "isBackground": true,
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "detail": "Runs the Capacitor Android app with live reload via Ionic CLI."
+    }
+  ]
+}
