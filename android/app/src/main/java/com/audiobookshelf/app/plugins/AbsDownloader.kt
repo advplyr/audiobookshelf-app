@@ -265,6 +265,10 @@ class AbsDownloader : Plugin() {
         val finalDestinationFile = File("$itemFolderPath/$destinationFilename")
         val destinationFile = File("$tempFolderPath/$destinationFilename")
 
+        /*
+        // This logic would delete files if they exist. This has been removed to allow for continuing
+        // downloads if the app is restarted. This should be handled in the download manager
+        // allow a setting to continue downloads or delete incomplete downloads
         if (destinationFile.exists()) {
           Log.d(
                   tag,
@@ -280,6 +284,7 @@ class AbsDownloader : Plugin() {
           )
           finalDestinationFile.delete()
         }
+        */
 
         val downloadItemPart =
                 DownloadItemPart.make(

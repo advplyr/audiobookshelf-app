@@ -121,6 +121,30 @@ class DownloadItemManager(
               }
             }
 
+    // Check if file already exists in shared storage
+    if (!downloadItemPart.isInternalStorage) {
+      val destinationFile =
+              DocumentFileCompat.fromFullPath(mainActivity, downloadItemPart.finalDestinationPath)
+      if (destinationFile != null && destinationFile.exists()) {
+        Log.d(
+                tag,
+                "File already exists in shared storage at path ${downloadItemPart.finalDestinationPath}"
+        )
+        downloadItemPart.completed = true
+        downloadItemPart.moved = true
+        downloadItemPart.failed = false
+        downloadItemPart.downloadId = 1
+        currentDownloadItemParts.add(downloadItemPart)
+        clientEventEmitter.onDownloadItemPartUpdate(downloadItemPart)
+        return
+      } else {
+        Log.d(
+                tag,
+                "File does not exist in shared storage at path ${downloadItemPart.finalDestinationPath}"
+        )
+      }
+    }
+
     Log.d(
             tag,
             "Start internal download to destination path ${downloadItemPart.finalDestinationPath} from ${downloadItemPart.serverUrl}"
@@ -163,8 +187,9 @@ class DownloadItemManager(
 
     if (downloadItemPart.completed) {
       val downloadItem = downloadItemQueue.find { it.id == downloadItemPart.downloadItemId }
-      if (!downloadItemPart.isInternalStorage) {
-        // After downloading, move the downloaded file to the final destination
+      if (!downloadItemPart.isInternalStorage && !downloadItemPart.moved) {
+        // After downloading, move the downloaded file to the final destination if it was
+        // not already moved during a previous multipart download
         // After moving the file, checkDownloadItemFinished is called anyway
         downloadItem?.let { moveDownloadedFile(it, downloadItemPart) }
       } else {
