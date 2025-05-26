@@ -22,9 +22,9 @@
   "ButtonSubmit": "સબમિટ કરો",
   "ButtonYes": "હા",
   "HeaderAccount": "એકાઉન્ટ",
-  "HeaderAdvanced": "અડ્વાન્સડ",
-  "LabelStartTime": "Start Time",
-  "MessageFollowTheProjectOnGithub": "Follow the project on GitHub",
-  "MessageSocketConnectedOverMeteredWifi": "Socket connected over metered Wi-Fi",
-  "MessageSocketConnectedOverUnmeteredWifi": "Socket connected over unmetered Wi-Fi"
+  "HeaderAdvanced": "એડવાન્સ",
+  "LabelStartTime": "શરૂઆત સમય",
+  "MessageFollowTheProjectOnGithub": "GitHub પર ના પ્રોજેક્ટ ને અનુસરો",
+  "MessageSocketConnectedOverMeteredWifi": "માપક Wi-Fi સોકેટ સાથે જોડાયું",
+  "MessageSocketConnectedOverUnmeteredWifi": "મુક્ત Wi-Fi સોકેટ સાથે જોડાયું"
 }
