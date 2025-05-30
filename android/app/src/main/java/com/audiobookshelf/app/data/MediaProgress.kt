@@ -2,8 +2,10 @@ package com.audiobookshelf.app.data
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.squareup.moshi.JsonClass
 
 @JsonIgnoreProperties(ignoreUnknown = true)
+@JsonClass(generateAdapter = true)
 class MediaProgress(
   var id:String,
   var libraryItemId:String,
