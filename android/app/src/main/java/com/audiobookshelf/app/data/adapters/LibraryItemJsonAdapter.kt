@@ -187,7 +187,7 @@ class LibraryItemJsonAdapter(
     )
   }
 
-  public override fun toJson(writer: JsonWriter, value_: LibraryItem?): Unit {
+  override fun toJson(writer: JsonWriter, value_: LibraryItem?): Unit {
     if (value_ == null) {
       throw NullPointerException("value_ was null! Wrap in .nullSafe() to write nullable values.")
     }
@@ -225,7 +225,11 @@ class LibraryItemJsonAdapter(
     writer.name("mediaType")
     stringAdapter.toJson(writer, value_.mediaType)
     writer.name("media")
-    mediaTypeAdapter.toJson(writer, value_.media)
+    when (value_.mediaType) {
+      "book"    -> bookAdapter.toJson(writer, value_.media as Book)
+      "podcast" -> podcastAdapter.toJson(writer, value_.media as Podcast)
+      else      -> mediaTypeAdapter.toJson(writer, value_.media)
+    }
     writer.name("libraryFiles")
     nullableMutableListOfLibraryFileAdapter.toJson(writer, value_.libraryFiles)
     writer.name("userMediaProgress")

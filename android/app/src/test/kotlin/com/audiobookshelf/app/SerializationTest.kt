@@ -3,11 +3,12 @@ package com.audiobookshelf.app
 import com.audiobookshelf.app.data.LibraryItem
 import com.audiobookshelf.app.data.LibraryShelfType
 import com.audiobookshelf.app.data.MoshiProvider.Companion.fromJson
+import com.audiobookshelf.app.data.MoshiProvider.Companion.toJsonWithNulls
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.squareup.moshi.JsonClass
-import org.junit.Test
 import org.junit.FixMethodOrder
+import org.junit.Test
 import org.junit.runners.MethodSorters
 import org.skyscreamer.jsonassert.JSONAssert
 import kotlin.time.Duration
@@ -25,7 +26,7 @@ data class LibraryItems(
 
 
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-class Serialization {
+class SerializationTest {
   @OptIn(ExperimentalStdlibApi::class)
   @Test
   fun `1personalizedTest`() {
@@ -47,6 +48,11 @@ class Serialization {
       JSONAssert.assertEquals(
         jom.writeValueAsString(jacksonDeserialized),
         jom.writeValueAsString(moshiDeserialized),
+        true
+      )
+      JSONAssert.assertEquals(
+        jom.writeValueAsString(jacksonDeserialized),
+        toJsonWithNulls(moshiDeserialized),
         true
       )
     }
@@ -73,6 +79,11 @@ class Serialization {
     JSONAssert.assertEquals(
       jom.writeValueAsString(jacksonDeserialized),
       jom.writeValueAsString(moshiDeserialized),
+      true
+    )
+    JSONAssert.assertEquals(
+      jom.writeValueAsString(jacksonDeserialized),
+      toJsonWithNulls(moshiDeserialized),
       true
     )
   }

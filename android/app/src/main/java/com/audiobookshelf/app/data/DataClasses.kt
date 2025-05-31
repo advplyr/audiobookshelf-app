@@ -6,11 +6,11 @@ import android.os.Bundle
 import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.MediaMetadataCompat
 import androidx.media.utils.MediaConstants
+import com.audiobookshelf.app.data.adapters.CustomPolymorphicJsonAdapterFactory
 import com.audiobookshelf.app.media.MediaManager
 import com.fasterxml.jackson.annotation.*
 import com.audiobookshelf.app.media.getUriToAbsIconDrawable
 import com.squareup.moshi.JsonClass
-import com.squareup.moshi.adapters.PolymorphicJsonAdapterFactory
 import java.util.Date
 
 // This auto-detects whether it is a Book or Podcast
@@ -469,7 +469,7 @@ data class LibraryItemSearchResultType(
 // For personalized shelves
 
 val libraryShelfTypePolymorphicAdapterFactory =
-  PolymorphicJsonAdapterFactory.of(LibraryShelfType::class.java, "type")
+  CustomPolymorphicJsonAdapterFactory.of(LibraryShelfType::class.java, "type")
     .withSubtype(LibraryShelfBookEntity::class.java, "book")
     .withSubtype(LibraryShelfSeriesEntity::class.java, "series")
     .withSubtype(LibraryShelfAuthorEntity::class.java, "authors")

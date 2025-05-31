@@ -4,6 +4,7 @@ import android.util.Log
 import com.audiobookshelf.app.data.LibraryItem
 import com.audiobookshelf.app.data.LibraryShelfType
 import com.audiobookshelf.app.data.MoshiProvider.Companion.fromJson
+import com.audiobookshelf.app.data.MoshiProvider.Companion.toJsonWithNulls
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.squareup.moshi.JsonClass
@@ -26,7 +27,7 @@ data class LibraryItems(
 
 
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-class Serialization {
+class SerializationInstrumentedTest {
   @OptIn(ExperimentalStdlibApi::class)
   @Test
   fun `1personalizedTest`() {
@@ -48,6 +49,11 @@ class Serialization {
       JSONAssert.assertEquals(
         jom.writeValueAsString(jacksonDeserialized),
         jom.writeValueAsString(moshiDeserialized),
+        true
+      )
+      JSONAssert.assertEquals(
+        jom.writeValueAsString(jacksonDeserialized),
+        toJsonWithNulls(moshiDeserialized),
         true
       )
     }
@@ -73,7 +79,12 @@ class Serialization {
     log("Jackson: ${jacksonTime.ms}, Moshi: ${moshiTime.ms}")
     JSONAssert.assertEquals(
       jom.writeValueAsString(jacksonDeserialized),
-      jom.writeValueAsString(moshiDeserialized),
+      toJsonWithNulls(moshiDeserialized),
+      true
+    )
+    JSONAssert.assertEquals(
+      jom.writeValueAsString(jacksonDeserialized),
+      toJsonWithNulls(moshiDeserialized),
       true
     )
   }
