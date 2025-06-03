@@ -104,6 +104,11 @@ export default {
           text: this.$strings.ButtonIssues,
           value: 'issues',
           sublist: false
+        },
+        {
+          text: this.$strings.LabelRSSFeedOpen,
+          value: 'feed-open',
+          sublist: false
         }
       ],
       podcastItems: [
@@ -120,6 +125,11 @@ export default {
           text: this.$strings.LabelTag,
           value: 'tags',
           sublist: true
+        },
+        {
+          text: this.$strings.LabelRSSFeedOpen,
+          value: 'feed-open',
+          sublist: false
         }
       ]
     }
