@@ -220,6 +220,7 @@
   "LabelPublishedDate": "已发布 {0}",
   "LabelRSSFeedCustomOwnerEmail": "自定义所有者电子邮件",
   "LabelRSSFeedCustomOwnerName": "自定义所有者名称",
+  "LabelRSSFeedOpen": "打开 RSS 源",
   "LabelRSSFeedPreventIndexing": "防止索引",
   "LabelRSSFeedSlug": "RSS 源段",
   "LabelRandomly": "随机",
