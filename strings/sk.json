@@ -220,6 +220,7 @@
   "LabelPublishedDate": "Vydané {0}",
   "LabelRSSFeedCustomOwnerEmail": "Vlastný e-mail vlastníka",
   "LabelRSSFeedCustomOwnerName": "Vlastné meno vlastníka",
+  "LabelRSSFeedOpen": "RSS zdroj otvorený",
   "LabelRSSFeedPreventIndexing": "Zakázať indexovanie",
   "LabelRSSFeedSlug": "Slug RSS zdroja",
   "LabelRandomly": "Náhodne",
