@@ -220,6 +220,7 @@
   "LabelPublishedDate": "Objavljeno {0}",
   "LabelRSSFeedCustomOwnerEmail": "E-pošta lastnika po meri",
   "LabelRSSFeedCustomOwnerName": "Ime lastnika po meri",
+  "LabelRSSFeedOpen": "RSS vir je odprt",
   "LabelRSSFeedPreventIndexing": "Prepreči indeksiranje",
   "LabelRSSFeedSlug": "Slug RSS vira",
   "LabelRandomly": "Naključno",
