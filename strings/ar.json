@@ -220,6 +220,7 @@
   "LabelPublishedDate": "منشور {0}",
   "LabelRSSFeedCustomOwnerEmail": "البريد الالكتروني المخصص للمالك",
   "LabelRSSFeedCustomOwnerName": "الاسم المخصص للمالك",
+  "LabelRSSFeedOpen": "موجز RSS مفتوح",
   "LabelRSSFeedPreventIndexing": "منع الفهرسة",
   "LabelRSSFeedSlug": "اسم تعريف تغذية RSS",
   "LabelRandomly": "عشوائياً",
