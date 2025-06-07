@@ -220,6 +220,7 @@
   "LabelPublishedDate": "Опубликовано {0}",
   "LabelRSSFeedCustomOwnerEmail": "Пользовательский Email владельца",
   "LabelRSSFeedCustomOwnerName": "Пользовательское Имя владельца",
+  "LabelRSSFeedOpen": "Открыть RSS-ленту",
   "LabelRSSFeedPreventIndexing": "Запретить индексирование",
   "LabelRSSFeedSlug": "Встроить RSS-канал",
   "LabelRandomly": "Случайно",
