@@ -217,7 +217,7 @@
   "LabelProgress": "Postęp",
   "LabelPubDate": "Data publikacji",
   "LabelPublishYear": "Rok publikacji",
-  "LabelPublishedDate": "Opublikowane",
+  "LabelPublishedDate": "Opublikowano {0}",
   "LabelRSSFeedCustomOwnerEmail": "Własny email",
   "LabelRSSFeedCustomOwnerName": "Własna nazwa",
   "LabelRSSFeedPreventIndexing": "Zapobiegaj indeksowaniu",
