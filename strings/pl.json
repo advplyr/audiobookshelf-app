@@ -220,6 +220,7 @@
   "LabelPublishedDate": "Opublikowano {0}",
   "LabelRSSFeedCustomOwnerEmail": "Własny email",
   "LabelRSSFeedCustomOwnerName": "Własna nazwa",
+  "LabelRSSFeedOpen": "Otwarty Kanał RSS",
   "LabelRSSFeedPreventIndexing": "Zapobiegaj indeksowaniu",
   "LabelRSSFeedSlug": "Numer Kanału RSS",
   "LabelRandomly": "Losowo",
