@@ -220,6 +220,7 @@
   "LabelPublishedDate": "Veröffentlicht {0}",
   "LabelRSSFeedCustomOwnerEmail": "Benutzerdefinierte Eigentümer-E-Mail",
   "LabelRSSFeedCustomOwnerName": "Benutzerdefinierter Name des Eigentümers",
+  "LabelRSSFeedOpen": "RSS Feed öffnen",
   "LabelRSSFeedPreventIndexing": "Indizierung verhindern",
   "LabelRSSFeedSlug": "RSS-Feed-Schlagwort",
   "LabelRandomly": "Zufällig",
