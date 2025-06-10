@@ -23,8 +23,8 @@
           </div>
         </div>
         <div class="w-full h-full" v-else>
-          <template v-for="bookmark in bookmarks">
-            <modals-bookmarks-bookmark-item :key="bookmark.id" :highlight="currentTime === bookmark.time" :bookmark="bookmark" :playback-rate="_playbackRate" @click="clickBookmark" @edit="editBookmark" @delete="deleteBookmark" />
+          <template v-for="bookmark in bookmarks" :key="bookmark.id">
+            <modals-bookmarks-bookmark-item :highlight="currentTime === bookmark.time" :bookmark="bookmark" :playback-rate="_playbackRate" @click="clickBookmark" @edit="editBookmark" @delete="deleteBookmark" />
           </template>
           <div v-if="!bookmarks.length" class="flex h-32 items-center justify-center">
             <p class="text-xl">{{ $strings.MessageNoBookmarks }}</p>
@@ -160,15 +160,18 @@ export default {
       this.newBookmarkTitle = this.$formatDate(Date.now(), 'MMM dd, yyyy HH:mm')
       this.showBookmarkTitleInput = true
 
-      // Auto focus the input and select the text
-      this.$nextTick(() => {
-        if (this.$refs.noteInput?.$refs.input?.$refs.input) {
-          this.$refs.noteInput.$refs.input.$refs.input.focus()
-          setTimeout(() => {
-            this.$refs.noteInput?.$refs.input?.$refs.input?.select()
-          }, 10)
-        }
-      })
+      // Only auto focus if the setting is enabled
+      const deviceSettings = this.$store.state.user.deviceData?.deviceSettings || {}
+      if (deviceSettings.bookmarkAutoFocus) {
+        this.$nextTick(() => {
+          if (this.$refs.noteInput?.$refs.input?.$refs.input) {
+            this.$refs.noteInput.$refs.input.$refs.input.focus()
+            setTimeout(() => {
+              this.$refs.noteInput?.$refs.input?.$refs.input?.select()
+            }, 10)
+          }
+        })
+      }
     },
     async submitBookmark() {
       await this.$hapticsImpact()

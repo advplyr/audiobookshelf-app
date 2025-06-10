@@ -68,6 +68,14 @@
       <p class="pl-4">{{ $strings.LabelAllowSeekingOnMediaControls }}</p>
     </div>
 
+    <div class="flex items-center py-3">
+      <div class="w-10 flex justify-center" @click="toggleBookmarkAutoFocus">
+        <ui-toggle-switch v-model="settings.bookmarkAutoFocus" @input="saveSettings" />
+      </div>
+      <p class="pl-4">Auto-focus bookmark text input</p>
+      <span class="material-symbols text-xl ml-2" @click.stop="showInfo('bookmarkAutoFocus')">info</span>
+    </div>
+
     <!-- Sleep timer settings -->
     <template v-if="!isiOS">
       <p class="uppercase text-xs font-semibold text-fg-muted mb-2 mt-10">{{ $strings.HeaderSleepTimerSettings }}</p>
@@ -221,7 +229,8 @@ export default {
         downloadUsingCellular: 'ALWAYS',
         streamingUsingCellular: 'ALWAYS',
         androidAutoBrowseLimitForGrouping: 100,
-        androidAutoBrowseSeriesSequenceOrder: 'ASC'
+        androidAutoBrowseSeriesSequenceOrder: 'ASC',
+        bookmarkAutoFocus: true
       },
       theme: 'dark',
       lockCurrentOrientation: false,
@@ -257,6 +266,10 @@ export default {
         androidAutoBrowseLimitForGrouping: {
           name: this.$strings.LabelAndroidAutoBrowseLimitForGrouping,
           message: this.$strings.LabelAndroidAutoBrowseLimitForGroupingHelp
+        },
+        bookmarkAutoFocus: {
+          name: 'Auto-focus bookmark text',
+          message: 'When enabled, creating a new bookmark will automatically focus and select the text input field. Disable this to prevent the keyboard from automatically appearing on mobile devices.'
         }
       },
       hapticFeedbackItems: [
@@ -577,6 +590,10 @@ export default {
       this.settings.allowSeekingOnMediaControls = !this.settings.allowSeekingOnMediaControls
       this.saveSettings()
     },
+    toggleBookmarkAutoFocus() {
+      this.settings.bookmarkAutoFocus = !this.settings.bookmarkAutoFocus
+      this.saveSettings()
+    },
     getCurrentOrientation() {
       const orientation = window.screen?.orientation || {}
       const type = orientation.type || ''
@@ -648,6 +665,8 @@ export default {
 
       this.settings.androidAutoBrowseLimitForGrouping = deviceSettings.androidAutoBrowseLimitForGrouping
       this.settings.androidAutoBrowseSeriesSequenceOrder = deviceSettings.androidAutoBrowseSeriesSequenceOrder || 'ASC'
+
+      this.settings.bookmarkAutoFocus = !!deviceSettings.bookmarkAutoFocus
     },
     async init() {
       this.loading = true
