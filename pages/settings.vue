@@ -68,12 +68,13 @@
       <p class="pl-4">{{ $strings.LabelAllowSeekingOnMediaControls }}</p>
     </div>
 
+    <!-- Bookmark settings -->
+    <p class="uppercase text-xs font-semibold text-fg-muted mb-2 mt-10">Bookmark settings</p>
     <div class="flex items-center py-3">
       <div class="w-10 flex justify-center" @click="toggleBookmarkAutoFocus">
         <ui-toggle-switch v-model="settings.bookmarkAutoFocus" @input="saveSettings" />
       </div>
       <p class="pl-4">Auto-focus bookmark text input</p>
-      <span class="material-symbols text-xl ml-2" @click.stop="showInfo('bookmarkAutoFocus')">info</span>
     </div>
 
     <!-- Sleep timer settings -->
@@ -230,7 +231,7 @@ export default {
         streamingUsingCellular: 'ALWAYS',
         androidAutoBrowseLimitForGrouping: 100,
         androidAutoBrowseSeriesSequenceOrder: 'ASC',
-        bookmarkAutoFocus: true
+        bookmarkAutoFocus: true // Default to true
       },
       theme: 'dark',
       lockCurrentOrientation: false,
@@ -666,7 +667,7 @@ export default {
       this.settings.androidAutoBrowseLimitForGrouping = deviceSettings.androidAutoBrowseLimitForGrouping
       this.settings.androidAutoBrowseSeriesSequenceOrder = deviceSettings.androidAutoBrowseSeriesSequenceOrder || 'ASC'
 
-      this.settings.bookmarkAutoFocus = !!deviceSettings.bookmarkAutoFocus
+      this.settings.bookmarkAutoFocus = deviceSettings.bookmarkAutoFocus !== false // Default to true unless explicitly set to false
     },
     async init() {
       this.loading = true
