@@ -220,6 +220,7 @@
   "LabelPublishedDate": "Objavljeno {0}",
   "LabelRSSFeedCustomOwnerEmail": "Prilagođena adresa e-pošte vlasnika",
   "LabelRSSFeedCustomOwnerName": "Prilagođeno ime vlasnika",
+  "LabelRSSFeedOpen": "RSS izvor otvoren",
   "LabelRSSFeedPreventIndexing": "Onemogući indeksiranje",
   "LabelRSSFeedSlug": "Slug RSS izvora",
   "LabelRandomly": "Nasumično",
