@@ -220,7 +220,7 @@
   "LabelPublishedDate": "Publicado {0}",
   "LabelRSSFeedCustomOwnerEmail": "Correo electrónico de dueño personalizado",
   "LabelRSSFeedCustomOwnerName": "Nombre de dueño personalizado",
-  "LabelRSSFeedPreventIndexing": "Prevenir indexado",
+  "LabelRSSFeedPreventIndexing": "Evitar indización",
   "LabelRSSFeedSlug": "«Slug» de suministro RSS",
   "LabelRandomly": "Aleatorio",
   "LabelRead": "Leído",

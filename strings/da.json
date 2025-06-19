@@ -216,6 +216,7 @@
   "LabelPublishedDate": "Publiceret {0}",
   "LabelRSSFeedCustomOwnerEmail": "Brugerdefineret ejerens e-mail",
   "LabelRSSFeedCustomOwnerName": "Brugerdefineret ejerens navn",
+  "LabelRSSFeedOpen": "RSS-feed åbent",
   "LabelRSSFeedPreventIndexing": "Forhindrer indeksering",
   "LabelRSSFeedSlug": "RSS-feed-slug",
   "LabelRandomly": "Tilfældigt",
