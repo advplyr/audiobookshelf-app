@@ -24,7 +24,7 @@
     <div v-if="progressPercent > 0" class="px-4 py-2 bg-primary text-sm font-semibold rounded-md text-fg mt-4 relative" :class="resettingProgress ? 'opacity-25' : ''">
       <p class="leading-6">{{ $strings.LabelYourProgress }}: {{ Math.round(progressPercent * 100) }}%</p>
       <p v-if="progressPercent < 1" class="text-fg-muted text-xs">{{ $getString('LabelTimeRemaining', [$elapsedPretty(userTimeRemaining)]) }}</p>
-      <p v-else class="text-fg-muted text-xs">{{ $strings.LabelFinished }} {{ $formatDate(userProgressFinishedAt) }}</p>
+      <p v-else class="text-fg-muted text-xs">{{ $strings.LabelFinished }} {{ $formatDate(userProgressFinishedAt, this.dateFormat) }}</p>
     </div>
 
     <!-- action buttons -->
@@ -312,6 +312,12 @@ export default {
       }
 
       return items
+    },
+    store() {
+      return this.$store || this.$nuxt.$store
+    },
+    dateFormat() {
+      return this.store.state.deviceData?.deviceSettings?.dateFormat || 'MM/dd/yyyy'
     }
   },
   methods: {
