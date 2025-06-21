@@ -19,7 +19,6 @@ import com.fasterxml.jackson.core.json.JsonReadFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.getcapacitor.JSObject
 import java.io.File
-import java.io.FileOutputStream
 import java.util.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -99,21 +98,16 @@ class DownloadItemManager(
 
   /** Processes the download item parts. */
   private fun processDownloadItemParts(nextDownloadItemParts: List<DownloadItemPart>) {
-    nextDownloadItemParts.forEach {
-      if (it.isInternalStorage) {
-        startInternalDownload(it)
-      } else {
-        startExternalDownload(it)
-      }
-    }
+    nextDownloadItemParts.forEach { startInternalDownload(it) }
   }
 
   /** Starts an internal download. */
   private fun startInternalDownload(downloadItemPart: DownloadItemPart) {
-    val file = File(downloadItemPart.finalDestinationPath)
+    // Create internal download location at temp directory location
+    Log.d(tag, "Creating internal download location at ${downloadItemPart.destinationUri.path}")
+    val file = File(downloadItemPart.destinationUri.path ?: "")
     file.parentFile?.mkdirs()
 
-    val fileOutputStream = FileOutputStream(downloadItemPart.finalDestinationPath)
     val internalProgressCallback =
             object : InternalProgressCallback {
               override fun onProgress(totalBytesWritten: Long, progress: Long) {
@@ -127,22 +121,37 @@ class DownloadItemManager(
               }
             }
 
+    // Check if file already exists in shared storage
+    if (!downloadItemPart.isInternalStorage) {
+      val destinationFile =
+              DocumentFileCompat.fromFullPath(mainActivity, downloadItemPart.finalDestinationPath)
+      if (destinationFile != null && destinationFile.exists()) {
+        Log.d(
+                tag,
+                "File already exists in shared storage at path ${downloadItemPart.finalDestinationPath}"
+        )
+        downloadItemPart.completed = true
+        downloadItemPart.moved = true
+        downloadItemPart.failed = false
+        downloadItemPart.downloadId = 1
+        currentDownloadItemParts.add(downloadItemPart)
+        clientEventEmitter.onDownloadItemPartUpdate(downloadItemPart)
+        return
+      } else {
+        Log.d(
+                tag,
+                "File does not exist in shared storage at path ${downloadItemPart.finalDestinationPath}"
+        )
+      }
+    }
+
     Log.d(
             tag,
             "Start internal download to destination path ${downloadItemPart.finalDestinationPath} from ${downloadItemPart.serverUrl}"
     )
-    InternalDownloadManager(fileOutputStream, internalProgressCallback)
+    InternalDownloadManager(mainActivity, downloadItemPart.destinationUri, internalProgressCallback)
             .download(downloadItemPart.serverUrl)
     downloadItemPart.downloadId = 1
-    currentDownloadItemParts.add(downloadItemPart)
-  }
-
-  /** Starts an external download. */
-  private fun startExternalDownload(downloadItemPart: DownloadItemPart) {
-    val dlRequest = downloadItemPart.getDownloadRequest()
-    val downloadId = downloadManager.enqueue(dlRequest)
-    downloadItemPart.downloadId = downloadId
-    Log.d(tag, "checkUpdateDownloadQueue: Starting download item part, downloadId=$downloadId")
     currentDownloadItemParts.add(downloadItemPart)
   }
 
@@ -157,11 +166,7 @@ class DownloadItemManager(
       while (currentDownloadItemParts.isNotEmpty()) {
         val itemParts = currentDownloadItemParts.filter { !it.isMoving }
         for (downloadItemPart in itemParts) {
-          if (downloadItemPart.isInternalStorage) {
-            handleInternalDownloadPart(downloadItemPart)
-          } else {
-            handleExternalDownloadPart(downloadItemPart)
-          }
+          handleInternalDownloadPart(downloadItemPart)
         }
 
         delay(500)
@@ -182,96 +187,15 @@ class DownloadItemManager(
 
     if (downloadItemPart.completed) {
       val downloadItem = downloadItemQueue.find { it.id == downloadItemPart.downloadItemId }
-      downloadItem?.let { checkDownloadItemFinished(it) }
-      currentDownloadItemParts.remove(downloadItemPart)
-    }
-  }
-
-  /** Handles an external download part. */
-  private fun handleExternalDownloadPart(downloadItemPart: DownloadItemPart) {
-    val downloadCheckStatus = checkDownloadItemPart(downloadItemPart)
-    clientEventEmitter.onDownloadItemPartUpdate(downloadItemPart)
-
-    // Will move to final destination, remove current item parts, and check if download item is
-    // finished
-    handleDownloadItemPartCheck(downloadCheckStatus, downloadItemPart)
-  }
-
-  /** Checks the status of a download item part. */
-  private fun checkDownloadItemPart(downloadItemPart: DownloadItemPart): DownloadCheckStatus {
-    val downloadId = downloadItemPart.downloadId ?: return DownloadCheckStatus.Failed
-
-    val query = DownloadManager.Query().setFilterById(downloadId)
-    downloadManager.query(query).use {
-      if (it.moveToFirst()) {
-        val bytesColumnIndex = it.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)
-        val statusColumnIndex = it.getColumnIndex(DownloadManager.COLUMN_STATUS)
-        val bytesDownloadedColumnIndex =
-                it.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)
-
-        val totalBytes = if (bytesColumnIndex >= 0) it.getInt(bytesColumnIndex) else 0
-        val downloadStatus = if (statusColumnIndex >= 0) it.getInt(statusColumnIndex) else 0
-        val bytesDownloadedSoFar =
-                if (bytesDownloadedColumnIndex >= 0) it.getLong(bytesDownloadedColumnIndex) else 0
-        Log.d(
-                tag,
-                "checkDownloads Download ${downloadItemPart.filename} bytes $totalBytes | bytes dled $bytesDownloadedSoFar | downloadStatus $downloadStatus"
-        )
-
-        return when (downloadStatus) {
-          DownloadManager.STATUS_SUCCESSFUL -> {
-            Log.d(tag, "checkDownloads Download ${downloadItemPart.filename} Successful")
-            downloadItemPart.completed = true
-            downloadItemPart.progress = 1
-            downloadItemPart.bytesDownloaded = bytesDownloadedSoFar
-
-            DownloadCheckStatus.Successful
-          }
-          DownloadManager.STATUS_FAILED -> {
-            Log.d(tag, "checkDownloads Download ${downloadItemPart.filename} Failed")
-            downloadItemPart.completed = true
-            downloadItemPart.failed = true
-
-            DownloadCheckStatus.Failed
-          }
-          else -> {
-            val percentProgress =
-                    if (totalBytes > 0) ((bytesDownloadedSoFar * 100L) / totalBytes) else 0
-            Log.d(
-                    tag,
-                    "checkDownloads Download ${downloadItemPart.filename} Progress = $percentProgress%"
-            )
-            downloadItemPart.progress = percentProgress
-            downloadItemPart.bytesDownloaded = bytesDownloadedSoFar
-
-            DownloadCheckStatus.InProgress
-          }
-        }
+      if (!downloadItemPart.isInternalStorage && !downloadItemPart.moved) {
+        // After downloading, move the downloaded file to the final destination if it was
+        // not already moved during a previous multipart download
+        // After moving the file, checkDownloadItemFinished is called anyway
+        downloadItem?.let { moveDownloadedFile(it, downloadItemPart) }
       } else {
-        Log.d(tag, "Download ${downloadItemPart.filename} not found in dlmanager")
-        downloadItemPart.completed = true
-        downloadItemPart.failed = true
-        return DownloadCheckStatus.Failed
+        // Otherwise, just check if the full item is finished downloading
+        downloadItem?.let { checkDownloadItemFinished(it) }
       }
-    }
-  }
-
-  /** Handles the result of a download item part check. */
-  private fun handleDownloadItemPartCheck(
-          downloadCheckStatus: DownloadCheckStatus,
-          downloadItemPart: DownloadItemPart
-  ) {
-    val downloadItem = downloadItemQueue.find { it.id == downloadItemPart.downloadItemId }
-    if (downloadItem == null) {
-      Log.e(
-              tag,
-              "Download item part finished but download item not found ${downloadItemPart.filename}"
-      )
-      currentDownloadItemParts.remove(downloadItemPart)
-    } else if (downloadCheckStatus == DownloadCheckStatus.Successful) {
-      moveDownloadedFile(downloadItem, downloadItemPart)
-    } else if (downloadCheckStatus != DownloadCheckStatus.InProgress) {
-      checkDownloadItemFinished(downloadItem)
       currentDownloadItemParts.remove(downloadItemPart)
     }
   }
