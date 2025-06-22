@@ -160,18 +160,29 @@ export default {
       this.newBookmarkTitle = this.$formatDate(Date.now(), 'MMM dd, yyyy HH:mm')
       this.showBookmarkTitleInput = true
 
-      // Only auto focus if the setting is enabled
-      const deviceSettings = this.$store.state.user.deviceData?.deviceSettings || {}
-      if (deviceSettings.bookmarkAutoFocus) {
-        this.$nextTick(() => {
-          if (this.$refs.noteInput?.$refs.input?.$refs.input) {
-            this.$refs.noteInput.$refs.input.$refs.input.focus()
-            setTimeout(() => {
-              this.$refs.noteInput?.$refs.input?.$refs.input?.select()
-            }, 10)
-          }
-        })
-      }
+      // Try to get fresh device data from Capacitor plugin
+      this.$db.getDeviceData().then(deviceData => {
+        // Only skip auto focus if explicitly disabled
+        const deviceSettings = deviceData?.deviceSettings || {}
+        
+        if (deviceSettings.disableBookmarkAutoFocus !== true) {
+          this.autoFocusInput()
+        }
+      }).catch(error => {
+        // If we can't get device data, default to auto-focus
+        console.error('Error getting device data from Capacitor plugin:', error)
+        this.autoFocusInput()
+      })
+    },
+    autoFocusInput() {
+      this.$nextTick(() => {
+        if (this.$refs.noteInput?.$refs.input?.$refs.input) {
+          this.$refs.noteInput.$refs.input.$refs.input.focus()
+          setTimeout(() => {
+            this.$refs.noteInput?.$refs.input?.$refs.input?.select()
+          }, 10)
+        }
+      })
     },
     async submitBookmark() {
       await this.$hapticsImpact()
