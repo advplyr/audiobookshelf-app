@@ -23,8 +23,8 @@
           </div>
         </div>
         <div class="w-full h-full" v-else>
-          <template v-for="bookmark in bookmarks" :key="bookmark.id">
-            <modals-bookmarks-bookmark-item :highlight="currentTime === bookmark.time" :bookmark="bookmark" :playback-rate="_playbackRate" @click="clickBookmark" @edit="editBookmark" @delete="deleteBookmark" />
+          <template v-for="bookmark in bookmarks">
+            <modals-bookmarks-bookmark-item :key="bookmark.id" :highlight="currentTime === bookmark.time" :bookmark="bookmark" :playback-rate="_playbackRate" @click="clickBookmark" @edit="editBookmark" @delete="deleteBookmark" />
           </template>
           <div v-if="!bookmarks.length" class="flex h-32 items-center justify-center">
             <p class="text-xl">{{ $strings.MessageNoBookmarks }}</p>

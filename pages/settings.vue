@@ -71,10 +71,10 @@
     <!-- Bookmark settings -->
     <p class="uppercase text-xs font-semibold text-fg-muted mb-2 mt-10">Bookmark settings</p>
     <div class="flex items-center py-3">
-      <div class="w-10 flex justify-center" @click="toggleBookmarkAutoFocus">
-        <ui-toggle-switch v-model="settings.bookmarkAutoFocus" @input="saveSettings" />
+      <div class="w-10 flex justify-center" @click="toggleDisableBookmarkAutoFocus">
+        <ui-toggle-switch v-model="settings.disableBookmarkAutoFocus" @input="saveSettings" />
       </div>
-      <p class="pl-4">Auto-focus bookmark text input</p>
+      <p class="pl-4">Disable auto-focus bookmark text input</p>
     </div>
 
     <!-- Sleep timer settings -->
@@ -231,7 +231,7 @@ export default {
         streamingUsingCellular: 'ALWAYS',
         androidAutoBrowseLimitForGrouping: 100,
         androidAutoBrowseSeriesSequenceOrder: 'ASC',
-        bookmarkAutoFocus: true // Default to true
+        disableBookmarkAutoFocus: false
       },
       theme: 'dark',
       lockCurrentOrientation: false,
@@ -268,8 +268,8 @@ export default {
           name: this.$strings.LabelAndroidAutoBrowseLimitForGrouping,
           message: this.$strings.LabelAndroidAutoBrowseLimitForGroupingHelp
         },
-        bookmarkAutoFocus: {
-          name: 'Auto-focus bookmark text',
+        disableBookmarkAutoFocus: {
+          name: 'Disable auto-focus bookmark text',
           message: 'When enabled, creating a new bookmark will automatically focus and select the text input field. Disable this to prevent the keyboard from automatically appearing on mobile devices.'
         }
       },
@@ -591,8 +591,8 @@ export default {
       this.settings.allowSeekingOnMediaControls = !this.settings.allowSeekingOnMediaControls
       this.saveSettings()
     },
-    toggleBookmarkAutoFocus() {
-      this.settings.bookmarkAutoFocus = !this.settings.bookmarkAutoFocus
+    toggleDisableBookmarkAutoFocus() {
+      this.settings.disableBookmarkAutoFocus = !this.settings.disableBookmarkAutoFocus
       this.saveSettings()
     },
     getCurrentOrientation() {
@@ -667,7 +667,7 @@ export default {
       this.settings.androidAutoBrowseLimitForGrouping = deviceSettings.androidAutoBrowseLimitForGrouping
       this.settings.androidAutoBrowseSeriesSequenceOrder = deviceSettings.androidAutoBrowseSeriesSequenceOrder || 'ASC'
 
-      this.settings.bookmarkAutoFocus = deviceSettings.bookmarkAutoFocus !== false // Default to true unless explicitly set to false
+      this.settings.disableBookmarkAutoFocus = !!deviceSettings.disableBookmarkAutoFocus
     },
     async init() {
       this.loading = true
