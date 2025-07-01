@@ -245,7 +245,7 @@ class AbsAudioPlayerWeb extends WebPlugin {
     this.trackStartTime = Math.max(0, this.startTime - (this.currentTrack.startOffset || 0))
     const serverAddressUrl = new URL(vuexStore.getters['user/getServerAddress'])
     const serverHost = `${serverAddressUrl.protocol}//${serverAddressUrl.host}`
-    this.player.src = `${serverHost}${this.currentTrack.contentUrl}?token=${vuexStore.getters['user/getToken']}`
+    this.player.src = `${serverHost}${this.currentTrack.contentUrl}`
     console.log(`[AbsAudioPlayer] Loading track src ${this.player.src}`)
     this.player.load()
     this.player.playbackRate = this.playbackRate

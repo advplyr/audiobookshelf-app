@@ -436,7 +436,7 @@ export default {
       }
 
       this.error = null
-      var payload = await this.authenticateToken()
+      const payload = await this.authenticateToken()
 
       if (payload) {
         this.setUserAndConnection(payload)
@@ -597,7 +597,7 @@ export default {
         })
     },
     requestServerLogin() {
-      return this.postRequest(`${this.serverConfig.address}/login`, { username: this.serverConfig.username, password: this.password || '' }, this.serverConfig.customHeaders, 20000)
+      return this.postRequest(`${this.serverConfig.address}/login?return_tokens=true`, { username: this.serverConfig.username, password: this.password || '' }, this.serverConfig.customHeaders, 20000)
         .then((data) => {
           if (!data.user) {
             console.error(data.error)
@@ -806,7 +806,7 @@ export default {
       this.error = null
       this.processing = true
 
-      var payload = await this.requestServerLogin()
+      const payload = await this.requestServerLogin()
       this.processing = false
       if (payload) {
         this.setUserAndConnection(payload)
@@ -830,8 +830,13 @@ export default {
       }
 
       this.serverConfig.userId = user.id
-      this.serverConfig.token = user.token
       this.serverConfig.username = user.username
+      // Tokens only returned from /login endpoint
+      if (user.accessToken) {
+        this.serverConfig.token = user.accessToken
+        this.serverConfig.refreshToken = user.refreshToken
+      }
+
       delete this.serverConfig.version
 
       var serverConnectionConfig = await this.$db.setServerConnectionConfig(this.serverConfig)
@@ -850,6 +855,7 @@ export default {
       }
 
       this.$store.commit('user/setUser', user)
+      this.$store.commit('user/setAccessToken', serverConnectionConfig.token)
       this.$store.commit('user/setServerConnectionConfig', serverConnectionConfig)
 
       this.$socket.connect(this.serverConfig.address, this.serverConfig.token)
@@ -865,6 +871,7 @@ export default {
       this.error = null
       this.processing = true
 
+      // TODO: Handle refresh token
       const authRes = await this.postRequest(`${this.serverConfig.address}/api/authorize`, null, { Authorization: `Bearer ${this.serverConfig.token}` }).catch((error) => {
         console.error('[ServerConnectForm] Server auth failed', error)
         const errorMsg = error.message || error
@@ -882,6 +889,7 @@ export default {
     },
     init() {
       if (this.lastServerConnectionConfig) {
+        console.log('[ServerConnectForm] init with lastServerConnectionConfig', this.lastServerConnectionConfig)
         this.connectToServer(this.lastServerConnectionConfig)
       } else {
         this.showForm = !this.serverConnectionConfigs.length

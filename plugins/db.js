@@ -1,7 +1,7 @@
 import { AbsDatabase } from './capacitor/AbsDatabase'
 
 class DbService {
-  constructor() { }
+  constructor() {}
 
   getDeviceData() {
     return AbsDatabase.getDeviceData().then((data) => {
@@ -29,10 +29,12 @@ class DbService {
   }
 
   getLocalFolders() {
-    return AbsDatabase.getLocalFolders().then((data) => data.value).catch((error) => {
-      console.error('Failed to load', error)
-      return null
-    })
+    return AbsDatabase.getLocalFolders()
+      .then((data) => data.value)
+      .catch((error) => {
+        console.error('Failed to load', error)
+        return null
+      })
   }
 
   getLocalFolder(folderId) {
@@ -103,4 +105,10 @@ class DbService {
 
 export default ({ app, store }, inject) => {
   inject('db', new DbService())
+
+  // Listen for token refresh events from native app
+  AbsDatabase.addListener('onTokenRefresh', (data) => {
+    console.log('[db] onTokenRefresh', data)
+    store.commit('user/setAccessToken', data.accessToken)
+  })
 }
