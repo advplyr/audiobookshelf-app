@@ -10,6 +10,26 @@ class DbService {
     })
   }
 
+  /**
+   * Retrieves refresh token from secure storage
+   * @param {string} serverConnectionConfigId
+   * @return {Promise<string|null>}
+   */
+  async getRefreshToken(serverConnectionConfigId) {
+    const refreshTokenData = await AbsDatabase.getRefreshToken({ serverConnectionConfigId })
+    return refreshTokenData?.refreshToken
+  }
+
+  /**
+   * Clears refresh token from secure storage
+   * @param {string} serverConnectionConfigId
+   * @returns {Promise<boolean>}
+   */
+  async clearRefreshToken(serverConnectionConfigId) {
+    const result = await AbsDatabase.clearRefreshToken({ serverConnectionConfigId })
+    return !!result?.success
+  }
+
   setServerConnectionConfig(serverConnectionConfig) {
     return AbsDatabase.setCurrentServerConnectionConfig(serverConnectionConfig).then((data) => {
       console.log('Set server connection config', JSON.stringify(data))

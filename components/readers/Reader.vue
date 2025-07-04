@@ -260,6 +260,7 @@ export default {
       return null
     },
     ebookFile() {
+      if (!this.media) return null
       // ebook file id is passed when reading a supplementary ebook
       if (this.ebookFileId) {
         return this.selectedLibraryItem.libraryFiles.find((lf) => lf.ino === this.ebookFileId)

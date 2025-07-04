@@ -69,6 +69,11 @@ class AbsDatabaseWeb extends WebPlugin {
     return refreshToken ? { refreshToken } : null
   }
 
+  async clearRefreshToken({ serverConnectionConfigId }) {
+    console.log('[AbsDatabase] Clearing refresh token...', serverConnectionConfigId)
+    localStorage.removeItem(`refresh_token_${serverConnectionConfigId}`)
+  }
+
   async removeServerConnectionConfig(serverConnectionConfigCallObject) {
     var serverConnectionConfigId = serverConnectionConfigCallObject.serverConnectionConfigId
     var deviceData = await this.getDeviceData()
@@ -77,6 +82,7 @@ class AbsDatabaseWeb extends WebPlugin {
   }
 
   async logout() {
+    console.log('[AbsDatabase] Logging out...')
     var deviceData = await this.getDeviceData()
     deviceData.lastServerConnectionConfigId = null
     localStorage.setItem('device', JSON.stringify(deviceData))

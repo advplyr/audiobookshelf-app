@@ -70,7 +70,12 @@ class AbsAudioPlayerWeb extends WebPlugin {
       const deviceInfo = {
         deviceId: this.getDeviceId()
       }
-      const playbackSession = await $axios.$post(route, { deviceInfo, mediaPlayer: 'html5-mobile', forceDirectPlay: true })
+      const reqBody = {
+        deviceInfo,
+        mediaPlayer: 'html5-mobile',
+        forceDirectPlay: true
+      }
+      const playbackSession = await $axios.$post(route, reqBody)
       if (playbackSession) {
         if (startTime !== undefined && startTime !== null) playbackSession.currentTime = startTime
         this.setAudioPlayer(playbackSession, playWhenReady)
@@ -245,7 +250,15 @@ class AbsAudioPlayerWeb extends WebPlugin {
     this.trackStartTime = Math.max(0, this.startTime - (this.currentTrack.startOffset || 0))
     const serverAddressUrl = new URL(vuexStore.getters['user/getServerAddress'])
     const serverHost = `${serverAddressUrl.protocol}//${serverAddressUrl.host}`
-    this.player.src = `${serverHost}${this.currentTrack.contentUrl}`
+
+    let sessionTrackUrl = null
+    if (this.currentTrack.contentUrl?.startsWith('/hls')) {
+      sessionTrackUrl = this.currentTrack.contentUrl
+    } else {
+      sessionTrackUrl = `/public/session/${this.playbackSession.id}/track/${this.currentTrack.index}`
+    }
+
+    this.player.src = `${serverHost}${sessionTrackUrl}`
     console.log(`[AbsAudioPlayer] Loading track src ${this.player.src}`)
     this.player.load()
     this.player.playbackRate = this.playbackRate

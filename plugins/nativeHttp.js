@@ -1,7 +1,6 @@
 import { CapacitorHttp } from '@capacitor/core'
-import { AbsDatabase } from '@/plugins/capacitor'
 
-export default function ({ store }, inject) {
+export default function ({ store, $db }, inject) {
   const nativeHttp = {
     async request(method, _url, data, options = {}) {
       // When authorizing before a config is set, server config gets passed in as an option
@@ -9,7 +8,7 @@ export default function ({ store }, inject) {
       delete options.serverConnectionConfig
 
       let url = _url
-      const headers = {}
+      let headers = {}
       if (!url.startsWith('http') && !url.startsWith('capacitor')) {
         const bearerToken = store.getters['user/getToken']
         if (bearerToken) {
@@ -23,6 +22,10 @@ export default function ({ store }, inject) {
       }
       if (data) {
         headers['Content-Type'] = 'application/json'
+      }
+      if (options.headers) {
+        headers = { ...headers, ...options.headers }
+        delete options.headers
       }
       console.log(`[nativeHttp] Making ${method} request to ${url}`)
       return CapacitorHttp.request({
@@ -65,15 +68,15 @@ export default function ({ store }, inject) {
         }
 
         // Get refresh token from secure storage
-        const refreshTokenData = await this.getRefreshToken(serverConnectionConfig.id)
-        if (!refreshTokenData || !refreshTokenData.refreshToken) {
+        const refreshToken = await $db.getRefreshToken(serverConnectionConfig.id)
+        if (!refreshToken) {
           console.error('[nativeHttp] No refresh token available')
           throw new Error('No refresh token available')
         }
 
         // Attempt to refresh the token
-        const newTokens = await this.refreshAccessToken(refreshTokenData.refreshToken, serverConnectionConfig.address)
-        if (!newTokens || !newTokens.accessToken) {
+        const newTokens = await this.refreshAccessToken(refreshToken, serverConnectionConfig.address)
+        if (!newTokens?.accessToken) {
           console.error('[nativeHttp] Failed to refresh access token')
           throw new Error('Failed to refresh access token')
         }
@@ -83,15 +86,15 @@ export default function ({ store }, inject) {
 
         // Retry the original request with the new token
         console.log('[nativeHttp] Retrying original request with new token...')
-        const newHeaders = options?.headers ? { ...options.headers } : { ...headers }
-        newHeaders['Authorization'] = `Bearer ${newTokens.accessToken}`
-
         const retryResponse = await CapacitorHttp.request({
           method,
           url,
           data,
-          ...options,
-          headers: newHeaders
+          headers: {
+            ...headers,
+            Authorization: `Bearer ${newTokens.accessToken}`
+          },
+          ...options
         })
 
         if (retryResponse.status >= 400) {
@@ -104,23 +107,8 @@ export default function ({ store }, inject) {
         console.error('[nativeHttp] Token refresh failed:', error)
 
         // If refresh fails, redirect to login
-        await this.handleRefreshFailure()
+        await this.handleRefreshFailure(serverConnectionConfig?.id)
         throw error
-      }
-    },
-
-    /**
-     * Retrieves refresh token from secure storage
-     * @param {string} serverConnectionConfigId - Server connection config ID
-     * @returns {Promise<Object|null>} - Promise that resolves with refresh token data or null
-     */
-    async getRefreshToken(serverConnectionConfigId) {
-      try {
-        console.log('[nativeHttp] Getting refresh token...')
-        return await AbsDatabase.getRefreshToken({ serverConnectionConfigId })
-      } catch (error) {
-        console.error('[nativeHttp] Failed to get refresh token:', error)
-        return null
       }
     },
 
@@ -142,8 +130,7 @@ export default function ({ store }, inject) {
           url: `${serverAddress}/auth/refresh`,
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${refreshToken}`,
-            'X-Return-Tokens': 'true'
+            'x-refresh-token': refreshToken
           },
           data: {}
         })
@@ -162,7 +149,8 @@ export default function ({ store }, inject) {
         console.log('[nativeHttp] Successfully refreshed access token')
         return {
           accessToken: userResponseData.user.accessToken,
-          refreshToken: userResponseData.user.refreshToken || refreshToken // Use new refresh token if provided, otherwise keep the old one
+          // Refresh token gets returned when refresh token is sent in x-refresh-token header
+          refreshToken: userResponseData.user.refreshToken
         }
       } catch (error) {
         console.error('[nativeHttp] Failed to refresh access token:', error)
@@ -190,7 +178,7 @@ export default function ({ store }, inject) {
         }
 
         // Save updated config to secure storage
-        const savedConfig = await AbsDatabase.setCurrentServerConnectionConfig(updatedConfig)
+        const savedConfig = await $db.setServerConnectionConfig(updatedConfig)
 
         // Update the store
         store.commit('user/setAccessToken', tokens.accessToken)
@@ -208,19 +196,15 @@ export default function ({ store }, inject) {
 
     /**
      * Handles the case when token refresh fails
+     * @param {string} [serverConnectionConfigId]
      * @returns {Promise} - Promise that resolves when logout is complete
      */
-    async handleRefreshFailure() {
+    async handleRefreshFailure(serverConnectionConfigId) {
       try {
         console.log('[nativeHttp] Handling refresh failure - logging out user')
 
-        // Clear the store
-        store.commit('user/setUser', null)
-        store.commit('user/setAccessToken', null)
-        store.commit('user/setServerConnectionConfig', null)
-
-        // Logout from database
-        await AbsDatabase.logout()
+        // Logout from server and clear store
+        await store.dispatch('user/logout', { serverConnectionConfigId })
 
         // Redirect to login page
         if (window.location.pathname !== '/connect') {
@@ -228,19 +212,6 @@ export default function ({ store }, inject) {
         }
       } catch (error) {
         console.error('[nativeHttp] Failed to handle refresh failure:', error)
-      }
-    },
-
-    /**
-     * Gets device data from the database
-     * @returns {Promise<Object>} - Promise that resolves with device data
-     */
-    async getDeviceData() {
-      try {
-        return await AbsDatabase.getDeviceData()
-      } catch (error) {
-        console.error('[nativeHttp] Failed to get device data:', error)
-        return { serverConnectionConfigs: [] }
       }
     },
 

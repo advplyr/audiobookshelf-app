@@ -1,4 +1,5 @@
 import { Browser } from '@capacitor/browser'
+import { AbsLogger } from '@/plugins/capacitor'
 
 export const state = () => ({
   user: null,
@@ -135,12 +136,40 @@ export const actions = {
     } catch (error) {
       console.error('Error opening browser', error)
     }
+  },
+  async logout({ state, commit }, { serverConnectionConfigId }) {
+    if (state.serverConnectionConfig) {
+      const refreshToken = await this.$db.getRefreshToken(state.serverConnectionConfig.id)
+      const options = {}
+      if (refreshToken) {
+        // Refresh token is used to delete the session on the server
+        options.headers = {
+          'x-refresh-token': refreshToken
+        }
+      }
+      // Logout from server
+      await this.$nativeHttp.post('/logout', null, options).catch((error) => {
+        console.error('Failed to logout', error)
+      })
+      await this.$db.clearRefreshToken(state.serverConnectionConfig.id)
+    } else if (serverConnectionConfigId) {
+      // When refresh fails before a server connection config is set, clear refresh token for server connection config
+      await this.$db.clearRefreshToken(serverConnectionConfigId)
+    }
+
+    await this.$db.logout()
+    this.$socket.logout()
+    this.$localStore.removeLastLibraryId()
+    commit('logout')
+    commit('libraries/setCurrentLibrary', null, { root: true })
+    await AbsLogger.info({ tag: 'user', message: `Logged out from server ${state.serverConnectionConfig?.name || 'Not connected'}` })
   }
 }
 
 export const mutations = {
   logout(state) {
     state.user = null
+    state.accessToken = null
     state.serverConnectionConfig = null
   },
   setUser(state, user) {

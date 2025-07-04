@@ -217,6 +217,16 @@ class AbsDatabase : Plugin() {
   }
 
   @PluginMethod
+  fun clearRefreshToken(call:PluginCall) {
+    val serverConnectionConfigId = call.getString("serverConnectionConfigId", "").toString()
+
+    val refreshToken = secureStorage.removeRefreshToken(serverConnectionConfigId)
+    val result = JSObject()
+    result.put("success", refreshToken)
+    call.resolve(result)
+  }
+
+  @PluginMethod
   fun getAccessToken(call:PluginCall) {
     val serverConnectionConfigId = call.getString("serverConnectionConfigId", "").toString()
     val serverConnectionConfig = DeviceManager.deviceData.serverConnectionConfigs.find { it.id == serverConnectionConfigId }
