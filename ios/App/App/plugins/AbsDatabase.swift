@@ -53,6 +53,15 @@ public class AbsDatabase: CAPPlugin, CAPBridgedPlugin {
     private let logger = AppLogger(category: "AbsDatabase")
     private let secureStorage = SecureStorage()
 
+    // Used to notify the webview frontend that the token has been refreshed
+    static var tokenRefreshCallback: ((String, [String: Any]) -> Void)?
+
+    override public func load() {
+        AbsDatabase.tokenRefreshCallback = { [weak self] eventName, data in
+            self?.notifyListeners(eventName, data: data)
+        }
+    }
+
     @objc func setCurrentServerConnectionConfig(_ call: CAPPluginCall) {
         var id = call.getString("id")
         let address = call.getString("address", "")

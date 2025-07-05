@@ -404,6 +404,7 @@ class ApiHandler(var ctx:Context) {
       errorObj.put("error", "Authentication failed - please login again")
       callback(errorObj)
 
+      // TODO: Notify webview frontend
     } catch (e: Exception) {
       Log.e(tag, "handleRefreshFailure: Error during failure handling", e)
       val errorObj = JSObject()
