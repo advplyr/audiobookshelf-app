@@ -126,8 +126,8 @@ class AbsDatabase : Plugin() {
     val userId =  serverConfigPayload.userId
     val username = serverConfigPayload.username
     val serverVersion = serverConfigPayload.version
-    val accessToken = serverConfigPayload.token // New token
-    val refreshToken = serverConfigPayload.refreshToken // Refresh only sent on first connection
+    val accessToken = serverConfigPayload.token
+    val refreshToken = serverConfigPayload.refreshToken // Refresh only sent after login or refresh
 
     GlobalScope.launch(Dispatchers.IO) {
       if (serverConnectionConfig == null) { // New Server Connection

@@ -404,7 +404,14 @@ class ApiHandler(var ctx:Context) {
       errorObj.put("error", "Authentication failed - please login again")
       callback(errorObj)
 
-      // TODO: Notify webview frontend
+      if (checkAbsDatabaseNotifyListenersInitted()) {
+        val tokenJsObject = JSObject()
+        tokenJsObject.put("error", "Token refresh failed")
+        absDatabaseNotifyListeners("onTokenRefreshFailure", tokenJsObject)
+      } else {
+        // Can happen if Webview is never run
+        Log.i(tag, "AbsDatabaseNotifyListeners is not initialized so cannot send token refresh failure notification")
+      }
     } catch (e: Exception) {
       Log.e(tag, "handleRefreshFailure: Error during failure handling", e)
       val errorObj = JSObject()

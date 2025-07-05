@@ -204,7 +204,7 @@ export default function ({ store, $db }, inject) {
       try {
         console.log('[nativeHttp] Handling refresh failure - logging out user')
 
-        // Logout from server and clear store
+        // Clear store
         await store.dispatch('user/logout')
 
         if (serverConnectionConfigId) {

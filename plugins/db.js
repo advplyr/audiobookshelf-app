@@ -131,4 +131,14 @@ export default ({ app, store }, inject) => {
     console.log('[db] onTokenRefresh', data)
     store.commit('user/setAccessToken', data.accessToken)
   })
+
+  // Listen for token refresh failure events from native app
+  AbsDatabase.addListener('onTokenRefreshFailure', async (data) => {
+    console.log('[db] onTokenRefreshFailure', data)
+    // Clear store and redirect to login page
+    await store.dispatch('user/logout')
+    if (window.location.pathname !== '/connect') {
+      window.location.href = '/connect'
+    }
+  })
 }
