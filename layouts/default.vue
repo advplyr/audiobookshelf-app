@@ -151,6 +151,22 @@ export default {
       this.$store.commit('setServerSettings', serverSettings)
       this.$store.commit('libraries/setEReaderDevices', ereaderDevices)
 
+      if (this.$isValidVersion(serverSettings.version, '2.26.0')) {
+        // Check if the server is using the new JWT auth and is still using an old token in the server config
+        // If so, redirect to /connect and request to re-login
+        if (serverConfig.token === user.token) {
+          this.attemptingConnection = false
+          AbsLogger.info({ tag: 'default', message: `attemptConnection: Server is using new JWT auth but is still using an old token (server version: ${serverSettings.version}) (${serverConfig.name})` })
+          // Clear last server config
+          await this.$store.dispatch('user/logout')
+          this.$router.push(`/connect?error=oldAuthToken&serverConnectionConfigId=${serverConfig.id}`)
+          return
+        }
+
+        // Token may have been refreshed during the authorize call so refetch from store
+        serverConfig.token = this.$store.getters['user/getToken'] || serverConfig.token
+      }
+
       // Set library - Use last library if set and available fallback to default user library
       const lastLibraryId = await this.$localStore.getLastLibraryId()
       if (lastLibraryId && (!user.librariesAccessible.length || user.librariesAccessible.includes(lastLibraryId))) {

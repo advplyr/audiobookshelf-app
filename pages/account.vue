@@ -48,7 +48,7 @@ export default {
   methods: {
     async logout() {
       await this.$hapticsImpact()
-      await this.$store.dispatch('user/logout', {})
+      await this.$store.dispatch('user/logout')
       this.$router.push('/connect')
     }
   },

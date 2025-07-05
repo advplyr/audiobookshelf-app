@@ -140,8 +140,11 @@ export const actions = {
       console.error('Error opening browser', error)
     }
   },
-  async logout({ state, commit }, { serverConnectionConfigId }) {
-    if (state.serverConnectionConfig) {
+  async logout({ state, commit }, logoutFromServer = false) {
+    // Logging out from server deletes the session so the refresh token is no longer valid
+    // Currently this is not being used to support switching servers without logging back in (assuming refresh token is still valid)
+    // We may want to make this change in the future
+    if (state.serverConnectionConfig && logoutFromServer) {
       const refreshToken = await this.$db.getRefreshToken(state.serverConnectionConfig.id)
       const options = {}
       if (refreshToken) {
@@ -154,10 +157,6 @@ export const actions = {
       await this.$nativeHttp.post('/logout', null, options).catch((error) => {
         console.error('Failed to logout', error)
       })
-      await this.$db.clearRefreshToken(state.serverConnectionConfig.id)
-    } else if (serverConnectionConfigId) {
-      // When refresh fails before a server connection config is set, clear refresh token for server connection config
-      await this.$db.clearRefreshToken(serverConnectionConfigId)
     }
 
     await this.$db.logout()

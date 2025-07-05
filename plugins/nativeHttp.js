@@ -28,6 +28,7 @@ export default function ({ store, $db }, inject) {
         delete options.headers
       }
       console.log(`[nativeHttp] Making ${method} request to ${url}`)
+
       return CapacitorHttp.request({
         method,
         url,
@@ -177,7 +178,7 @@ export default function ({ store, $db }, inject) {
           refreshToken: tokens.refreshToken
         }
 
-        // Save updated config to secure storage
+        // Save updated config to secure storage, persists refresh token in secure storage
         const savedConfig = await $db.setServerConnectionConfig(updatedConfig)
 
         // Update the store
@@ -204,7 +205,12 @@ export default function ({ store, $db }, inject) {
         console.log('[nativeHttp] Handling refresh failure - logging out user')
 
         // Logout from server and clear store
-        await store.dispatch('user/logout', { serverConnectionConfigId })
+        await store.dispatch('user/logout')
+
+        if (serverConnectionConfigId) {
+          // Clear refresh token for server connection config
+          await $db.clearRefreshToken(serverConnectionConfigId)
+        }
 
         // Redirect to login page
         if (window.location.pathname !== '/connect') {

@@ -245,9 +245,34 @@ Vue.prototype.$sanitizeSlug = (str) => {
   return str
 }
 
+/**
+ * Compares two semantic versioning strings to determine if the current version meets
+ * or exceeds the minimum version requirement.
+ * Only supports 3 part versions, e.g. "1.2.3"
+ *
+ * @param {string} currentVersion - The current version string to compare, e.g., "1.2.3".
+ * @param {string} minVersion - The minimum version string required, e.g., "1.0.0".
+ * @returns {boolean} - Returns true if the current version is greater than or equal
+ *                      to the minimum version, false otherwise.
+ */
+function isValidVersion(currentVersion, minVersion) {
+  if (!currentVersion || !minVersion) return false
+  const currentParts = currentVersion.split('.').map(Number)
+  const minParts = minVersion.split('.').map(Number)
+
+  for (let i = 0; i < minParts.length; i++) {
+    if (currentParts[i] > minParts[i]) return true
+    if (currentParts[i] < minParts[i]) return false
+  }
+
+  return true
+}
+
 export default ({ store, app }, inject) => {
   const eventBus = new Vue()
   inject('eventBus', eventBus)
+
+  inject('isValidVersion', isValidVersion)
 
   // Set theme
   app.$localStore?.getTheme()?.then((theme) => {

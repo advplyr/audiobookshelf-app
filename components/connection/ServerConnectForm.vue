@@ -439,6 +439,7 @@ export default {
       const payload = await this.authenticateToken()
 
       if (payload) {
+        // Will NOT include access token and refresh token
         this.setUserAndConnection(payload)
       } else {
         this.showAuth = true
@@ -770,26 +771,6 @@ export default {
     prependProtocolIfNeeded(address) {
       return address.startsWith('http://') || address.startsWith('https://') ? address : `https://${address}`
     },
-    /**
-     * Compares two semantic versioning strings to determine if the current version meets
-     * or exceeds the minimum version requirement.
-     *
-     * @param {string} currentVersion - The current version string to compare, e.g., "1.2.3".
-     * @param {string} minVersion - The minimum version string required, e.g., "1.0.0".
-     * @returns {boolean} - Returns true if the current version is greater than or equal
-     *                      to the minimum version, false otherwise.
-     */
-    isValidVersion(currentVersion, minVersion) {
-      const currentParts = currentVersion.split('.').map(Number)
-      const minParts = minVersion.split('.').map(Number)
-
-      for (let i = 0; i < minParts.length; i++) {
-        if (currentParts[i] > minParts[i]) return true
-        if (currentParts[i] < minParts[i]) return false
-      }
-
-      return true
-    },
     async submitAuth() {
       if (!this.networkConnected) return
       if (!this.serverConfig.username) {
@@ -809,6 +790,7 @@ export default {
       const payload = await this.requestServerLogin()
       this.processing = false
       if (payload) {
+        // Will include access token and refresh token
         this.setUserAndConnection(payload)
       }
     },
@@ -821,20 +803,27 @@ export default {
       this.$store.commit('libraries/setEReaderDevices', ereaderDevices)
       this.$setServerLanguageCode(serverSettings.language)
 
-      // Set library - Use last library if set and available fallback to default user library
-      var lastLibraryId = await this.$localStore.getLastLibraryId()
-      if (lastLibraryId && (!user.librariesAccessible.length || user.librariesAccessible.includes(lastLibraryId))) {
-        this.$store.commit('libraries/setCurrentLibrary', lastLibraryId)
-      } else if (userDefaultLibraryId) {
-        this.$store.commit('libraries/setCurrentLibrary', userDefaultLibraryId)
-      }
-
       this.serverConfig.userId = user.id
       this.serverConfig.username = user.username
-      // Tokens only returned from /login endpoint
-      if (user.accessToken) {
-        this.serverConfig.token = user.accessToken
-        this.serverConfig.refreshToken = user.refreshToken
+
+      if (this.$isValidVersion(serverSettings.version, '2.26.0')) {
+        // Tokens only returned from /login endpoint
+        if (user.accessToken) {
+          this.serverConfig.token = user.accessToken
+          this.serverConfig.refreshToken = user.refreshToken
+        } else {
+          // Detect if the connection config is using the old token. If so, force re-login
+          if (this.serverConfig.token === user.token) {
+            this.setForceReloginForNewAuth()
+            return
+          }
+
+          // If the token was updated during a refresh (in nativeHttp.js) it gets updated in the store, so refetch
+          this.serverConfig.token = this.$store.getters['user/getToken'] || this.serverConfig.token
+        }
+      } else {
+        // Server version before new JWT auth, use old user.token
+        this.serverConfig.token = user.token
       }
 
       this.serverConfig.version = serverSettings.version
@@ -854,6 +843,14 @@ export default {
         }
       }
 
+      // Set library - Use last library if set and available fallback to default user library
+      const lastLibraryId = await this.$localStore.getLastLibraryId()
+      if (lastLibraryId && (!user.librariesAccessible.length || user.librariesAccessible.includes(lastLibraryId))) {
+        this.$store.commit('libraries/setCurrentLibrary', lastLibraryId)
+      } else if (userDefaultLibraryId) {
+        this.$store.commit('libraries/setCurrentLibrary', userDefaultLibraryId)
+      }
+
       this.$store.commit('user/setUser', user)
       this.$store.commit('user/setAccessToken', serverConnectionConfig.token)
       this.$store.commit('user/setServerConnectionConfig', serverConnectionConfig)
@@ -871,8 +868,13 @@ export default {
       this.error = null
       this.processing = true
 
-      // TODO: Handle refresh token
-      const authRes = await this.postRequest(`${this.serverConfig.address}/api/authorize`, null, { Authorization: `Bearer ${this.serverConfig.token}` }).catch((error) => {
+      const nativeHttpOptions = {
+        headers: {
+          Authorization: `Bearer ${this.serverConfig.token}`
+        },
+        serverConnectionConfig: this.serverConfig
+      }
+      const authRes = await this.$nativeHttp.post(`${this.serverConfig.address}/api/authorize`, null, nativeHttpOptions).catch((error) => {
         console.error('[ServerConnectForm] Server auth failed', error)
         const errorMsg = error.message || error
         this.error = 'Failed to authorize'
@@ -881,13 +883,25 @@ export default {
         }
         return false
       })
-
       console.log('[ServerConnectForm] authRes=', authRes)
 
       this.processing = false
       return authRes
     },
+    setForceReloginForNewAuth() {
+      this.error = 'A new authentication system was added in server v2.26.0. Re-login is required for this server connection.'
+      this.showAuth = true
+    },
     init() {
+      // Handle force re-login for servers using new JWT auth but still using an old token in the server config
+      if (this.$route.query.error === 'oldAuthToken' && this.$route.query.serverConnectionConfigId) {
+        this.serverConfig = this.serverConnectionConfigs.find((scc) => scc.id === this.$route.query.serverConnectionConfigId)
+        if (this.serverConfig) {
+          this.setForceReloginForNewAuth()
+          return
+        }
+      }
+
       if (this.lastServerConnectionConfig) {
         console.log('[ServerConnectForm] init with lastServerConnectionConfig', this.lastServerConnectionConfig)
         this.connectToServer(this.lastServerConnectionConfig)

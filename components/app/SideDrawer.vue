@@ -179,7 +179,7 @@ export default {
       this.show = false
     },
     async logout() {
-      await this.$store.dispatch('user/logout', {})
+      await this.$store.dispatch('user/logout')
     },
     async disconnect() {
       await this.$hapticsImpact()
