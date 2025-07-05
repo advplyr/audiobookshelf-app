@@ -84,6 +84,7 @@ export default {
     },
     async initMobi() {
       // Fetch mobi file as blob
+      // TODO: Handle JWT auth refresh
       var buff = await this.$axios.$get(this.url, {
         responseType: 'blob',
         headers: {

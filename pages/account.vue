@@ -4,6 +4,10 @@
 
     <ui-text-input-with-label :value="username" :label="$strings.LabelUsername" disabled class="my-2" />
 
+    <div v-if="serverVersion" class="text-sm text-fg">
+      <p>Server version: v{{ serverVersion }}</p>
+    </div>
+
     <ui-btn color="primary flex items-center justify-between gap-2 ml-auto text-base mt-8" @click="logout">{{ $strings.ButtonSwitchServerUser }}<span class="material-symbols" style="font-size: 1.1rem">logout</span></ui-btn>
 
     <div class="flex justify-center items-center my-4 left-0 right-0 bottom-0 absolute">
@@ -43,6 +47,10 @@ export default {
     },
     serverAddress() {
       return this.serverConnectionConfig.address
+    },
+    serverVersion() {
+      // Saved in server connection config after 0.9.81
+      return this.serverConnectionConfig.version
     }
   },
   methods: {

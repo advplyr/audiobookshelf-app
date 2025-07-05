@@ -17,6 +17,11 @@
             <p class="text-xs text-warning">{{ $strings.MessageOldServerConnectionWarning }}</p>
             <ui-btn class="text-xs whitespace-nowrap" :padding-x="2" :padding-y="1" @click="showOldUserIdWarningDialog">{{ $strings.LabelMoreInfo }}</ui-btn>
           </div>
+          <!-- warning message if server connection config is using an old auth method -->
+          <div v-if="config.version && checkIsUsingOldAuth(config)" class="flex flex-nowrap justify-between items-center space-x-4 pt-4">
+            <p class="text-xs text-warning">{{ $strings.MessageOldServerAuthWarning }}</p>
+            <ui-btn class="text-xs whitespace-nowrap" :padding-x="2" :padding-y="1" @click="showOldAuthWarningDialog">{{ $strings.LabelMoreInfo }}</ui-btn>
+          </div>
         </div>
         <div class="my-1 py-4 w-full">
           <ui-btn class="w-full" @click="newServerConfigClick">{{ $strings.ButtonAddNewServer }}</ui-btn>
@@ -155,8 +160,19 @@ export default {
         cancelText: this.$strings.ButtonOk
       })
     },
+    showOldAuthWarningDialog() {
+      Dialog.alert({
+        title: 'Old Server Auth Warning',
+        message: this.$strings.MessageOldServerAuthWarningHelp,
+        cancelText: this.$strings.ButtonOk
+      })
+    },
     checkIdUuid(userId) {
       return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)
+    },
+    checkIsUsingOldAuth(config) {
+      if (!config.version) return true
+      return !this.$isValidVersion(config.version, '2.26.0')
     },
     /**
      * Initiates the login process using OpenID via OAuth2.0.
@@ -505,7 +521,7 @@ export default {
       try {
         var urlObject = new URL(url)
         if (protocolOverride) urlObject.protocol = protocolOverride
-        return urlObject.href
+        return urlObject.href.replace(/\/$/, '') // Remove trailing slash
       } catch (error) {
         console.error('Invalid URL', error)
         return null
@@ -889,7 +905,7 @@ export default {
       return authRes
     },
     setForceReloginForNewAuth() {
-      this.error = 'A new authentication system was added in server v2.26.0. Re-login is required for this server connection.'
+      this.error = this.$strings.MessageOldServerAuthReLoginRequired
       this.showAuth = true
     },
     init() {
