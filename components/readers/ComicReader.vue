@@ -245,6 +245,7 @@ export default {
     async extract() {
       this.loading = true
 
+      // TODO: Handle JWT auth refresh
       const buff = await this.$axios.$get(this.url, {
         responseType: 'blob',
         headers: {

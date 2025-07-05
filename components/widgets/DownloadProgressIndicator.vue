@@ -78,15 +78,15 @@ export default {
       this.$store.commit('globals/updateDownloadItemPart', itemPart)
     }
   },
-  mounted() {
-    this.downloadItemListener = AbsDownloader.addListener('onDownloadItem', (data) => this.onDownloadItem(data))
-    this.itemPartUpdateListener = AbsDownloader.addListener('onDownloadItemPartUpdate', (data) => this.onDownloadItemPartUpdate(data))
-    this.completeListener = AbsDownloader.addListener('onItemDownloadComplete', (data) => this.onItemDownloadComplete(data))
+  async mounted() {
+    this.downloadItemListener = await AbsDownloader.addListener('onDownloadItem', (data) => this.onDownloadItem(data))
+    this.itemPartUpdateListener = await AbsDownloader.addListener('onDownloadItemPartUpdate', (data) => this.onDownloadItemPartUpdate(data))
+    this.completeListener = await AbsDownloader.addListener('onItemDownloadComplete', (data) => this.onItemDownloadComplete(data))
   },
   beforeDestroy() {
-    if (this.downloadItemListener) this.downloadItemListener.remove()
-    if (this.completeListener) this.completeListener.remove()
-    if (this.itemPartUpdateListener) this.itemPartUpdateListener.remove()
+    this.downloadItemListener?.remove()
+    this.completeListener?.remove()
+    this.itemPartUpdateListener?.remove()
   }
 }
 </script>

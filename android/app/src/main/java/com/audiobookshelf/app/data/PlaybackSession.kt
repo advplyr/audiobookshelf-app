@@ -150,6 +150,16 @@ class PlaybackSession(
   }
 
   @JsonIgnore
+  fun checkIsServerVersionGte(compareVersion: String): Boolean {
+    // Safety check this playback session is the same one currently connected (should always be)
+    if (DeviceManager.serverConnectionConfigId != serverConnectionConfigId) {
+      return false
+    }
+
+    return DeviceManager.isServerVersionGreaterThanOrEqualTo(compareVersion)
+  }
+
+  @JsonIgnore
   fun getCoverUri(ctx: Context): Uri {
     if (localLibraryItem?.coverContentUrl != null) {
       var coverUri = Uri.parse(localLibraryItem?.coverContentUrl.toString())
@@ -168,12 +178,22 @@ class PlaybackSession(
 
     if (coverPath == null)
             return Uri.parse("android.resource://${BuildConfig.APPLICATION_ID}/" + R.drawable.icon)
+
+    // As of v2.17.0 token is not needed with cover image requests
+    if (checkIsServerVersionGte("2.17.0")) {
+      return Uri.parse("$serverAddress/api/items/$libraryItemId/cover")
+    }
     return Uri.parse("$serverAddress/api/items/$libraryItemId/cover?token=${DeviceManager.token}")
   }
 
   @JsonIgnore
   fun getContentUri(audioTrack: AudioTrack): Uri {
     if (isLocal) return Uri.parse(audioTrack.contentUrl) // Local content url
+    // As of v2.22.0 tracks use a different endpoint
+    // See: https://github.com/advplyr/audiobookshelf/pull/4263
+    if (checkIsServerVersionGte("2.22.0")) {
+      return Uri.parse("$serverAddress/public/session/$id/track/${audioTrack.index}")
+    }
     return Uri.parse("$serverAddress${audioTrack.contentUrl}?token=${DeviceManager.token}")
   }
 
@@ -264,14 +284,16 @@ class PlaybackSession(
                     com.google.android.gms.cast.MediaMetadata.MEDIA_TYPE_AUDIOBOOK_CHAPTER
             )
 
+    // As of v2.17.0 token is not needed with cover image requests
+    val coverUri = if (checkIsServerVersionGte("2.17.0")) {
+      Uri.parse("$serverAddress/api/items/$libraryItemId/cover")
+    } else {
+      Uri.parse("$serverAddress/api/items/$libraryItemId/cover?token=${DeviceManager.token}")
+    }
+
+    // Cast always uses server cover uri
     coverPath?.let {
-      castMetadata.addImage(
-              WebImage(
-                      Uri.parse(
-                              "$serverAddress/api/items/$libraryItemId/cover?token=${DeviceManager.token}"
-                      )
-              )
-      )
+      castMetadata.addImage(WebImage(coverUri))
     }
 
     castMetadata.putString(com.google.android.gms.cast.MediaMetadata.KEY_TITLE, displayTitle ?: "")

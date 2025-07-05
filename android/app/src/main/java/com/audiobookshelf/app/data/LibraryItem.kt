@@ -53,6 +53,11 @@ class LibraryItem(
       return Uri.parse("android.resource://${BuildConfig.APPLICATION_ID}/" + R.drawable.icon)
     }
 
+    // As of v2.17.0 token is not needed with cover image requests
+    if (DeviceManager.isServerVersionGreaterThanOrEqualTo("2.17.0")) {
+      return Uri.parse("${DeviceManager.serverAddress}/api/items/$id/cover")
+    }
+
     return Uri.parse("${DeviceManager.serverAddress}/api/items/$id/cover?token=${DeviceManager.token}")
   }
 

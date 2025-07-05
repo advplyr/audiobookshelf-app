@@ -1,5 +1,5 @@
 export default function ({ $axios, store }) {
-  $axios.onRequest(config => {
+  $axios.onRequest((config) => {
     console.log('[Axios] Making request to ' + config.url)
     if (config.url.startsWith('http:') || config.url.startsWith('https:') || config.url.startsWith('capacitor:')) {
       return
@@ -26,7 +26,7 @@ export default function ({ $axios, store }) {
     console.log('[Axios] Request out', config.url)
   })
 
-  $axios.onError(error => {
+  $axios.onError((error) => {
     console.error('Axios error code', error)
   })
 }

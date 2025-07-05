@@ -351,11 +351,11 @@ export default {
       }
     }
   },
-  mounted() {
-    this.onLocalMediaProgressUpdateListener = AbsAudioPlayer.addListener('onLocalMediaProgressUpdate', this.onLocalMediaProgressUpdate)
-    this.onSleepTimerEndedListener = AbsAudioPlayer.addListener('onSleepTimerEnded', this.onSleepTimerEnded)
-    this.onSleepTimerSetListener = AbsAudioPlayer.addListener('onSleepTimerSet', this.onSleepTimerSet)
-    this.onMediaPlayerChangedListener = AbsAudioPlayer.addListener('onMediaPlayerChanged', this.onMediaPlayerChanged)
+  async mounted() {
+    this.onLocalMediaProgressUpdateListener = await AbsAudioPlayer.addListener('onLocalMediaProgressUpdate', this.onLocalMediaProgressUpdate)
+    this.onSleepTimerEndedListener = await AbsAudioPlayer.addListener('onSleepTimerEnded', this.onSleepTimerEnded)
+    this.onSleepTimerSetListener = await AbsAudioPlayer.addListener('onSleepTimerSet', this.onSleepTimerSet)
+    this.onMediaPlayerChangedListener = await AbsAudioPlayer.addListener('onMediaPlayerChanged', this.onMediaPlayerChanged)
 
     this.playbackSpeed = this.$store.getters['user/getUserSetting']('playbackRate')
     console.log(`[AudioPlayerContainer] Init Playback Speed: ${this.playbackSpeed}`)
@@ -370,10 +370,10 @@ export default {
     this.$eventBus.$on('device-focus-update', this.deviceFocused)
   },
   beforeDestroy() {
-    if (this.onLocalMediaProgressUpdateListener) this.onLocalMediaProgressUpdateListener.remove()
-    if (this.onSleepTimerEndedListener) this.onSleepTimerEndedListener.remove()
-    if (this.onSleepTimerSetListener) this.onSleepTimerSetListener.remove()
-    if (this.onMediaPlayerChangedListener) this.onMediaPlayerChangedListener.remove()
+    this.onLocalMediaProgressUpdateListener?.remove()
+    this.onSleepTimerEndedListener?.remove()
+    this.onSleepTimerSetListener?.remove()
+    this.onMediaPlayerChangedListener?.remove()
 
     this.$eventBus.$off('abs-ui-ready', this.onReady)
     this.$eventBus.$off('play-item', this.playLibraryItem)

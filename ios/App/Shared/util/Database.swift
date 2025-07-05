@@ -27,6 +27,7 @@ class Database {
                 try existing.update {
                     existing.name = config.name
                     existing.address = config.address
+                    existing.version = config.version
                     existing.userId = config.userId
                     existing.username = config.username
                     existing.token = config.token
@@ -58,6 +59,19 @@ class Database {
             }
             
             setLastActiveConfigIndex(index: config.index)
+        }
+    }
+
+    public func updateServerConnectionConfigToken(newToken: String) {
+        do {
+            let realm = try Realm()
+            if let config = realm.objects(ServerConnectionConfig.self).first(where: { $0.index == getLastActiveConfigIndex() }) {
+                try realm.write {
+                    config.token = newToken
+                }
+            }
+        } catch {
+            debugPrint("Failed to update server connection config token: \(error)")
         }
     }
     
