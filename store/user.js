@@ -57,6 +57,9 @@ export const getters = {
   },
   getUserCanDownload: (state) => {
     return !!state.user?.permissions?.download
+  },
+  getUserCanAccessExplicitContent: (state) => {
+    return !!state.user?.permissions?.accessExplicitContent
   }
 }
 
