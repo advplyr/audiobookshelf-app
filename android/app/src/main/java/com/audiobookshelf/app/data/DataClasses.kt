@@ -6,9 +6,11 @@ import android.os.Bundle
 import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.MediaMetadataCompat
 import androidx.media.utils.MediaConstants
+import com.audiobookshelf.app.data.adapters.CustomPolymorphicJsonAdapterFactory
 import com.audiobookshelf.app.media.MediaManager
 import com.fasterxml.jackson.annotation.*
 import com.audiobookshelf.app.media.getUriToAbsIconDrawable
+import com.squareup.moshi.JsonClass
 import java.util.Date
 
 // This auto-detects whether it is a Book or Podcast
@@ -17,6 +19,7 @@ import java.util.Date
   JsonSubTypes.Type(Book::class),
   JsonSubTypes.Type(Podcast::class)
 )
+@JsonClass(generateAdapter = true)
 open class MediaType(var metadata:MediaTypeMetadata, var coverPath:String?) {
   @JsonIgnore
   open fun getAudioTracks():List<AudioTrack> { return mutableListOf() }
@@ -33,6 +36,7 @@ open class MediaType(var metadata:MediaTypeMetadata, var coverPath:String?) {
 }
 
 @JsonIgnoreProperties(ignoreUnknown = true)
+@JsonClass(generateAdapter = false)
 class Podcast(
   metadata:PodcastMetadata,
   coverPath:String?,
@@ -128,6 +132,7 @@ class Podcast(
 }
 
 @JsonIgnoreProperties(ignoreUnknown = true)
+@JsonClass(generateAdapter = false)
 class Book(
   metadata:BookMetadata,
   coverPath:String?,
@@ -204,12 +209,14 @@ class Book(
   JsonSubTypes.Type(BookMetadata::class),
   JsonSubTypes.Type(PodcastMetadata::class)
 )
+@JsonClass(generateAdapter = true)
 open class MediaTypeMetadata(var title:String, var explicit:Boolean) {
   @JsonIgnore
   open fun getAuthorDisplayName():String { return "Unknown" }
 }
 
 @JsonIgnoreProperties(ignoreUnknown = true)
+@JsonClass(generateAdapter = true)
 class BookMetadata(
   title:String,
   var subtitle:String?,
@@ -237,6 +244,7 @@ class BookMetadata(
 }
 
 @JsonIgnoreProperties(ignoreUnknown = true)
+@JsonClass(generateAdapter = true)
 class PodcastMetadata(
   title:String,
   var author:String?,
@@ -249,6 +257,7 @@ class PodcastMetadata(
 }
 
 @JsonIgnoreProperties(ignoreUnknown = true)
+@JsonClass(generateAdapter = true)
 data class Author(
   var id:String,
   var name:String,
@@ -256,9 +265,10 @@ data class Author(
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
+@JsonClass(generateAdapter = true)
 data class PodcastEpisode(
   var id:String,
-  var index:Int,
+  var index:Int?,
   var episode:String?,
   var episodeType:String?,
   var title:String?,
@@ -338,12 +348,14 @@ data class PodcastEpisode(
 }
 
 @JsonIgnoreProperties(ignoreUnknown = true)
+@JsonClass(generateAdapter = true)
 data class LibraryFile(
   var ino:String,
   var metadata:FileMetadata
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
+@JsonClass(generateAdapter = true)
 data class FileMetadata(
   var filename:String,
   var ext:String,
@@ -353,6 +365,7 @@ data class FileMetadata(
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
+@JsonClass(generateAdapter = true)
 data class AudioFile(
   var index:Int,
   var ino:String,
@@ -392,6 +405,7 @@ data class LibraryStats(
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
+@JsonClass(generateAdapter = true)
 data class SeriesType(
   var id: String,
   var name: String,
@@ -405,6 +419,7 @@ data class Folder(
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
+@JsonClass(generateAdapter = true)
 data class BookChapter(
   var id:Int,
   var start:Double,
@@ -452,6 +467,15 @@ data class LibraryItemSearchResultType(
 )
 
 // For personalized shelves
+
+val libraryShelfTypePolymorphicAdapterFactory =
+  CustomPolymorphicJsonAdapterFactory.of(LibraryShelfType::class.java, "type")
+    .withSubtype(LibraryShelfBookEntity::class.java, "book")
+    .withSubtype(LibraryShelfSeriesEntity::class.java, "series")
+    .withSubtype(LibraryShelfAuthorEntity::class.java, "authors")
+    .withSubtype(LibraryShelfEpisodeEntity::class.java, "episode")
+    .withSubtype(LibraryShelfPodcastEntity::class.java, "podcast")
+
 @JsonTypeInfo(
   use=JsonTypeInfo.Id.NAME,
   property = "type",
@@ -473,6 +497,7 @@ sealed class LibraryShelfType(
   open val type: String,
 )
 
+@JsonClass(generateAdapter = true)
 data class LibraryShelfBookEntity(
   override val id: String,
   override val label: String,
@@ -481,6 +506,7 @@ data class LibraryShelfBookEntity(
   val entities: List<LibraryItem>?
 ) : LibraryShelfType(id, label, total, type)
 
+@JsonClass(generateAdapter = true)
 data class LibraryShelfSeriesEntity(
   override val id: String,
   override val label: String,
@@ -489,6 +515,7 @@ data class LibraryShelfSeriesEntity(
   val entities: List<LibrarySeriesItem>?
 ) :  LibraryShelfType(id, label, total, type)
 
+@JsonClass(generateAdapter = true)
 data class LibraryShelfAuthorEntity(
   override val id: String,
   override val label: String,
@@ -497,6 +524,7 @@ data class LibraryShelfAuthorEntity(
   val entities: List<LibraryAuthorItem>?
 ) :  LibraryShelfType(id, label, total, type)
 
+@JsonClass(generateAdapter = true)
 data class LibraryShelfEpisodeEntity(
   override val id: String,
   override val label: String,
@@ -505,6 +533,7 @@ data class LibraryShelfEpisodeEntity(
   val entities: List<LibraryItem>?
 ) :  LibraryShelfType(id, label, total, type)
 
+@JsonClass(generateAdapter = true)
 data class LibraryShelfPodcastEntity(
   override val id: String,
   override val label: String,
