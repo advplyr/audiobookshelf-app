@@ -55,7 +55,7 @@ export default function ({ store, $db }, inject) {
      * @param {*} data - Request data
      * @param {Object} headers - Request headers
      * @param {Object} options - Additional options
-     * @param {{ id: string, address: string }} serverConnectionConfig
+     * @param {{ id: string, address: string, version: string }} serverConnectionConfig
      * @returns {Promise} - Promise that resolves with the response data
      */
     async handleTokenRefresh(method, url, data, headers, options, serverConnectionConfig) {
@@ -161,7 +161,7 @@ export default function ({ store, $db }, inject) {
     /**
      * Updates the store and secure storage with new tokens
      * @param {Object} tokens - Object containing accessToken and refreshToken
-     * @param {{ id: string, address: string }} serverConnectionConfig
+     * @param {{ id: string, address: string, version: string }} serverConnectionConfig
      * @returns {Promise} - Promise that resolves when tokens are updated
      */
     async updateTokens(tokens, serverConnectionConfig) {

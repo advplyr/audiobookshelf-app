@@ -1,5 +1,18 @@
 import { registerPlugin, Capacitor, WebPlugin } from '@capacitor/core'
 
+/**
+ * @typedef {Object} ServerConnectionConfig
+ * @property {string} id
+ * @property {number} index
+ * @property {string} name
+ * @property {string} address
+ * @property {string} version
+ * @property {string} userId
+ * @property {string} username
+ * @property {string} token
+ * @property {string} [refreshToken] - Only passed in when setting config, then stored in secure storage
+ */
+
 class AbsDatabaseWeb extends WebPlugin {
   constructor() {
     super()
@@ -19,6 +32,11 @@ class AbsDatabaseWeb extends WebPlugin {
     return deviceData
   }
 
+  /**
+   *
+   * @param {ServerConnectionConfig} serverConnectionConfig
+   * @returns {Promise<ServerConnectionConfig>}
+   */
   async setCurrentServerConnectionConfig(serverConnectionConfig) {
     var deviceData = await this.getDeviceData()
 
@@ -29,6 +47,7 @@ class AbsDatabaseWeb extends WebPlugin {
       ssc.token = serverConnectionConfig.token
       ssc.userId = serverConnectionConfig.userId
       ssc.username = serverConnectionConfig.username
+      ssc.version = serverConnectionConfig.version
       ssc.customHeaders = serverConnectionConfig.customHeaders || {}
 
       if (serverConnectionConfig.refreshToken) {
@@ -47,6 +66,7 @@ class AbsDatabaseWeb extends WebPlugin {
         username: serverConnectionConfig.username,
         address: serverConnectionConfig.address,
         token: serverConnectionConfig.token,
+        version: serverConnectionConfig.version,
         customHeaders: serverConnectionConfig.customHeaders || {}
       }
 

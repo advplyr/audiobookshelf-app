@@ -23,14 +23,14 @@ class AbsDatabase : Plugin() {
   val tag = "AbsDatabase"
   private var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
 
-  lateinit var mainActivity: MainActivity
-  lateinit var apiHandler: ApiHandler
-  lateinit var secureStorage: SecureStorage
+  private lateinit var mainActivity: MainActivity
+  private lateinit var apiHandler: ApiHandler
+  private lateinit var secureStorage: SecureStorage
 
   data class LocalMediaProgressPayload(val value:List<LocalMediaProgress>)
   data class LocalLibraryItemsPayload(val value:List<LocalLibraryItem>)
   data class LocalFoldersPayload(val value:List<LocalFolder>)
-  data class ServerConnConfigPayload(val id:String?, val index:Int, val name:String?, val userId:String, val username:String, val token:String, val refreshToken:String?, val address:String?, val customHeaders:Map<String,String>?)
+  data class ServerConnConfigPayload(val id:String?, val index:Int, val name:String?, val userId:String, val username:String, var version:String, val token:String, val refreshToken:String?, val address:String?, val customHeaders:Map<String,String>?)
 
   override fun load() {
     mainActivity = (activity as MainActivity)
@@ -125,6 +125,7 @@ class AbsDatabase : Plugin() {
 
     val userId =  serverConfigPayload.userId
     val username = serverConfigPayload.username
+    val serverVersion = serverConfigPayload.version
     val accessToken = serverConfigPayload.token // New token
     val refreshToken = serverConfigPayload.refreshToken // Refresh only sent on first connection
 
@@ -144,7 +145,7 @@ class AbsDatabase : Plugin() {
         }
         Log.d(tag, "Refresh token secured = $hasRefreshToken")
 
-        serverConnectionConfig = ServerConnectionConfig(sscId, sscIndex, "$serverAddress ($username)", serverAddress, userId, username, accessToken, serverConfigPayload.customHeaders)
+        serverConnectionConfig = ServerConnectionConfig(sscId, sscIndex, "$serverAddress ($username)", serverAddress, serverVersion, userId, username, accessToken, serverConfigPayload.customHeaders)
 
         // Add and save
         DeviceManager.deviceData.serverConnectionConfigs.add(serverConnectionConfig!!)
@@ -152,10 +153,11 @@ class AbsDatabase : Plugin() {
         DeviceManager.dbManager.saveDeviceData(DeviceManager.deviceData)
       } else {
         var shouldSave = false
-        if (serverConnectionConfig?.username != username || serverConnectionConfig?.token != accessToken) {
+        if (serverConnectionConfig?.username != username || serverConnectionConfig?.token != accessToken || serverConnectionConfig?.version != serverVersion) {
           serverConnectionConfig?.userId = userId
           serverConnectionConfig?.username = username
           serverConnectionConfig?.name = "${serverConnectionConfig?.address} (${serverConnectionConfig?.username})"
+          serverConnectionConfig?.version = serverVersion
           serverConnectionConfig?.token = accessToken
           shouldSave = true
         }

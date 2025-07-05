@@ -158,6 +158,7 @@ export default {
       } else if (userDefaultLibraryId) {
         this.$store.commit('libraries/setCurrentLibrary', userDefaultLibraryId)
       }
+      serverConfig.version = serverSettings.version
       const serverConnectionConfig = await this.$db.setServerConnectionConfig(serverConfig)
 
       this.$store.commit('user/setUser', user)

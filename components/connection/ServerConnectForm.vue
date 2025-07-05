@@ -837,7 +837,7 @@ export default {
         this.serverConfig.refreshToken = user.refreshToken
       }
 
-      delete this.serverConfig.version
+      this.serverConfig.version = serverSettings.version
 
       var serverConnectionConfig = await this.$db.setServerConnectionConfig(this.serverConfig)
 
