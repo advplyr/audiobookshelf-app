@@ -22,6 +22,9 @@
             <p class="text-xs text-warning">{{ $strings.MessageOldServerAuthWarning }}</p>
             <ui-btn class="text-xs whitespace-nowrap" :padding-x="2" :padding-y="1" @click="showOldAuthWarningDialog">{{ $strings.LabelMoreInfo }}</ui-btn>
           </div>
+          <div v-else-if="!config.version" class="flex flex-nowrap justify-between items-center space-x-4 pt-4">
+            <p class="text-xs text-warning">No server version set. Connect to update server config.</p>
+          </div>
         </div>
         <div class="my-1 py-4 w-full">
           <ui-btn class="w-full" @click="newServerConfigClick">{{ $strings.ButtonAddNewServer }}</ui-btn>
@@ -829,7 +832,7 @@ export default {
           this.serverConfig.refreshToken = user.refreshToken
         } else {
           // Detect if the connection config is using the old token. If so, force re-login
-          if (this.serverConfig.token === user.token) {
+          if (this.serverConfig.token === user.token || user.isOldToken) {
             this.setForceReloginForNewAuth()
             return
           }
@@ -907,6 +910,7 @@ export default {
     setForceReloginForNewAuth() {
       this.error = this.$strings.MessageOldServerAuthReLoginRequired
       this.showAuth = true
+      this.showForm = true
     },
     init() {
       // Handle force re-login for servers using new JWT auth but still using an old token in the server config

@@ -27,6 +27,7 @@ class Database {
                 try existing.update {
                     existing.name = config.name
                     existing.address = config.address
+                    existing.version = config.version
                     existing.userId = config.userId
                     existing.username = config.username
                     existing.token = config.token

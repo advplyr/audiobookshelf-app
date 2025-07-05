@@ -53,11 +53,17 @@ public class AbsDatabase: CAPPlugin, CAPBridgedPlugin {
     @objc func setCurrentServerConnectionConfig(_ call: CAPPluginCall) {
         var id = call.getString("id")
         let address = call.getString("address", "")
+        let version = call.getString("version", "")
         let userId = call.getString("userId", "")
         let username = call.getString("username", "")
         let token = call.getString("token", "")
+        let refreshToken = call.getString("refreshToken", "") // Refresh only sent after login or refresh
 
         let name = "\(address) (\(username))"
+        
+        if (refreshToken != "") {
+            // TODO: Implement secure storage
+        }
 
         if id == nil {
             id = "\(address)@\(username)".toBase64()
@@ -68,6 +74,7 @@ public class AbsDatabase: CAPPlugin, CAPBridgedPlugin {
         config.index = 0
         config.name = name
         config.address = address
+        config.version = version
         config.userId = userId
         config.username = username
         config.token = token
@@ -80,6 +87,16 @@ public class AbsDatabase: CAPPlugin, CAPBridgedPlugin {
         let id = call.getString("serverConnectionConfigId", "")
         Database.shared.deleteServerConnectionConfig(id: id)
 
+        call.resolve()
+    }
+    @objc func getRefreshToken(_ call: CAPPluginCall) {
+        let serverConnectionConfigId = call.getString("serverConnectionConfigId", "")
+        // TODO: Implement secure storage
+        call.resolve()
+    }
+    @objc func clearRefreshToken(_ call: CAPPluginCall) {
+        let serverConnectionConfigId = call.getString("serverConnectionConfigId", "")
+        // TODO: Implement secure storage
         call.resolve()
     }
     @objc func logout(_ call: CAPPluginCall) {

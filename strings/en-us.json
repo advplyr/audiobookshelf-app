@@ -325,7 +325,7 @@
   "MessageNoSeries": "No series",
   "MessageNoUpdatesWereNecessary": "No updates were necessary",
   "MessageNoUserPlaylists": "You have no playlists",
-  "MessageOldServerAuthReLoginRequired": "A new authentication system was added in server v2.26.0. Re-login is required for this server connection.",
+  "MessageOldServerAuthReLoginRequired": "A new authentication system was added in server v2.26.0. Please re-login to use the more secure authentication.",
   "MessageOldServerAuthWarning": "Server is using out-dated authentication",
   "MessageOldServerAuthWarningHelp": "Authentication was updated in server v2.26.0 to use a more secure method. A future app update will require server version v2.26.0 or higher. You will need to re-login after updating the server.",
   "MessageOldServerConnectionWarning": "Server connection config is using an old user ID. Please delete and re-add this server connection.",

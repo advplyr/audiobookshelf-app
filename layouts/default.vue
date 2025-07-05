@@ -154,9 +154,9 @@ export default {
       if (this.$isValidVersion(serverSettings.version, '2.26.0')) {
         // Check if the server is using the new JWT auth and is still using an old token in the server config
         // If so, redirect to /connect and request to re-login
-        if (serverConfig.token === user.token) {
+        if (serverConfig.token === user.token || user.isOldToken) {
           this.attemptingConnection = false
-          AbsLogger.info({ tag: 'default', message: `attemptConnection: Server is using new JWT auth but is still using an old token (server version: ${serverSettings.version}) (${serverConfig.name})` })
+          AbsLogger.info({ tag: 'default', message: `attemptConnection: Server is using new JWT auth but config is still using an old token (server version: ${serverSettings.version}) (${serverConfig.name})` })
           // Clear last server config
           await this.$store.dispatch('user/logout')
           this.$router.push(`/connect?error=oldAuthToken&serverConnectionConfigId=${serverConfig.id}`)
