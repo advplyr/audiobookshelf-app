@@ -33,6 +33,8 @@ public class AbsDatabase: CAPPlugin, CAPBridgedPlugin {
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "setCurrentServerConnectionConfig", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "removeServerConnectionConfig", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getRefreshToken", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "clearRefreshToken", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "logout", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getDeviceData", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getLocalLibraryItems", returnType: CAPPluginReturnPromise),
@@ -49,6 +51,7 @@ public class AbsDatabase: CAPPlugin, CAPBridgedPlugin {
     ]
     
     private let logger = AppLogger(category: "AbsDatabase")
+    private let secureStorage = SecureStorage()
 
     @objc func setCurrentServerConnectionConfig(_ call: CAPPluginCall) {
         var id = call.getString("id")
@@ -62,7 +65,9 @@ public class AbsDatabase: CAPPlugin, CAPBridgedPlugin {
         let name = "\(address) (\(username))"
         
         if (refreshToken != "") {
-            // TODO: Implement secure storage
+            // Store refresh token securely if provided
+            let hasRefreshToken = secureStorage.storeRefreshToken(serverConnectionConfigId: id ?? "", refreshToken: refreshToken)
+            logger.log("Refresh token secured = \(hasRefreshToken)")
         }
 
         if id == nil {
@@ -83,22 +88,35 @@ public class AbsDatabase: CAPPlugin, CAPBridgedPlugin {
         let savedConfig = Store.serverConfig // Fetch the latest value
         call.resolve(convertServerConnectionConfigToJSON(config: savedConfig!))
     }
+    
     @objc func removeServerConnectionConfig(_ call: CAPPluginCall) {
         let id = call.getString("serverConnectionConfigId", "")
+        
+        // Remove refresh token if it exists
+        secureStorage.removeRefreshToken(serverConnectionConfigId: id)
+        
         Database.shared.deleteServerConnectionConfig(id: id)
-
         call.resolve()
     }
+    
     @objc func getRefreshToken(_ call: CAPPluginCall) {
         let serverConnectionConfigId = call.getString("serverConnectionConfigId", "")
-        // TODO: Implement secure storage
-        call.resolve()
+        
+        let refreshToken = secureStorage.getRefreshToken(serverConnectionConfigId: serverConnectionConfigId)
+        if let refreshToken = refreshToken {
+            call.resolve(["refreshToken": refreshToken])
+        } else {
+            call.resolve()
+        }
     }
+    
     @objc func clearRefreshToken(_ call: CAPPluginCall) {
         let serverConnectionConfigId = call.getString("serverConnectionConfigId", "")
-        // TODO: Implement secure storage
-        call.resolve()
+        
+        let success = secureStorage.removeRefreshToken(serverConnectionConfigId: serverConnectionConfigId)
+        call.resolve(["success": success])
     }
+
     @objc func logout(_ call: CAPPluginCall) {
         Store.serverConfig = nil
         call.resolve()
