@@ -30,8 +30,13 @@
         </p>
       </div>
       <div v-if="showPlayButton" class="absolute top-0 bottom-0 right-0 h-full flex items-center justify-center z-20 pr-1">
-        <button type="button" class="p-2 rounded-full bg-fg-muted/50" @click.stop.prevent="play">
-          <span class="material-symbols text-2xl fill text-white">{{ playerIsPlaying ? 'pause' : 'play_arrow' }}</span>
+        <button type="button" class="relative rounded-full bg-fg-muted/50" :class="{ 'p-2': !playerIsStartingForThisMedia }" @click.stop.prevent="play">
+          <span v-if="!playerIsStartingForThisMedia" class="material-symbols text-2xl fill text-white">{{ playerIsPlaying ? 'pause' : 'play_arrow' }}</span>
+          <div v-else class="p-2 text-fg w-10 h-10 flex items-center justify-center bg-fg-muted/80 rounded-full overflow-hidden">
+            <svg class="animate-spin" style="width: 24px; height: 24px" viewBox="0 0 24 24">
+              <path fill="currentColor" d="M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z" />
+            </svg>
+          </div>
         </button>
       </div>
 
@@ -234,6 +239,14 @@ export default {
     playerIsPlaying() {
       return this.store.state.playerIsPlaying && (this.isStreaming || this.isPlaying)
     },
+    playerIsStartingPlayback() {
+      // Play has been pressed and waiting for native play response
+      return this.store.state.playerIsStartingPlayback
+    },
+    playerIsStartingForThisMedia() {
+      const mediaId = this.store.state.playerStartingPlaybackMediaId
+      return mediaId === this.libraryItemId
+    },
     isCasting() {
       return this.store.state.isCasting
     },
@@ -312,6 +325,8 @@ export default {
       this.$emit('select', this.libraryItem)
     },
     async play() {
+      if (this.playerIsStartingPlayback) return
+
       const hapticsImpact = this.$hapticsImpact || this.$nuxt.$hapticsImpact
       if (hapticsImpact) {
         await hapticsImpact()
@@ -332,7 +347,7 @@ export default {
           libraryItemId = this.localLibraryItem.id
         }
 
-        this.store.commit('setPlayerIsStartingPlayback', libraryItemId)
+        this.store.commit('setPlayerIsStartingPlayback', this.libraryItemId)
         eventBus.$emit('play-item', { libraryItemId, serverLibraryItemId: this.libraryItemId })
       }
     },
