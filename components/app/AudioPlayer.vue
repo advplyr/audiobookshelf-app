@@ -1,13 +1,13 @@
 <template>
-  <div v-if="playbackSession" id="streamContainer" class="fixed top-0 left-0 layout-wrapper right-0 z-50 pointer-events-none" :class="{ fullscreen: showFullscreen, 'ios-player': $platform === 'ios', 'web-player': $platform === 'web' }">
+  <div v-if="playbackSession" :aria-label="$strings.LabelAudioPlayerRegion" role="region" id="streamContainer" class="fixed top-0 left-0 layout-wrapper right-0 z-50 pointer-events-none" :class="{ fullscreen: showFullscreen, 'ios-player': $platform === 'ios', 'web-player': $platform === 'web' }">
     <div v-if="showFullscreen" class="w-full h-full z-10 absolute top-0 left-0 pointer-events-auto" :style="{ backgroundColor: coverRgb }">
       <div class="w-full h-full absolute top-0 left-0 pointer-events-none" style="background: var(--gradient-audio-player)" />
 
       <div class="top-4 left-4 absolute cursor-pointer">
-        <span class="material-symbols text-5xl" :class="{ 'text-black text-opacity-75': coverBgIsLight && theme !== 'black' }" @click="collapseFullscreen">keyboard_arrow_down</span>
+        <span role="button" tabindex="0" ref="collapseFullscreenButton" :aria-label="$strings.LabelClosePlayer" class="material-symbols text-5xl" :class="{ 'text-black text-opacity-75': coverBgIsLight && theme !== 'black' }" @keyup.enter="collapseFullscreen" @click="collapseFullscreen">keyboard_arrow_down</span>
       </div>
       <div v-show="showCastBtn" class="top-6 right-16 absolute cursor-pointer">
-        <span class="material-symbols text-3xl" :class="coverBgIsLight && theme !== 'black' ? 'text-black' : ''" @click="castClick">{{ isCasting ? 'cast_connected' : 'cast' }}</span>
+        <span role="button" :aria-label="isCasting ? $strings.ButtonCastConnected : $strings.ButtonCast" @keyup.enter="castClick" class="material-symbols text-3xl" :class="coverBgIsLight && theme !== 'black' ? 'text-black' : ''" @click="castClick">{{ isCasting ? 'cast_connected' : 'cast' }}</span>
       </div>
       <div class="top-6 right-4 absolute cursor-pointer">
         <span class="material-symbols text-3xl" :class="{ 'text-black text-opacity-75': coverBgIsLight && theme !== 'black' }" @click="showMoreMenuDialog = true">more_vert</span>
@@ -30,8 +30,8 @@
       </div>
     </div>
 
-    <div class="cover-wrapper absolute z-30 pointer-events-auto" @click="clickContainer">
-      <div class="w-full h-full flex justify-center">
+    <div :role="!showFullscreen ? 'button' : null" :tabindex="!showFullscreen ? 0 : null" ref="expandFullScreenButton" :aria-label="showFullscreen ? null : $strings.LabelOpenFullscreenPlayer" class="cover-wrapper absolute z-30 pointer-events-auto" @keyup.enter="clickContainer" @click="clickContainer">
+      <div aria-hidden="true" class="w-full h-full flex justify-center">
         <covers-book-cover v-if="libraryItem || localLibraryItemCoverSrc" ref="cover" :library-item="libraryItem" :download-cover="localLibraryItemCoverSrc" :width="bookCoverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" raw @imageLoaded="coverImageLoaded" />
       </div>
 
@@ -40,7 +40,7 @@
       </div>
     </div>
 
-    <div class="title-author-texts absolute z-30 left-0 right-0 overflow-hidden" @click="clickTitleAndAuthor">
+    <div :role="showFullscreen ? 'button' : 'none'" :tabindex="showFullscreen ? 0 : -1" class="title-author-texts absolute z-30 left-0 right-0 overflow-hidden" @keyup.enter="clickTitleAndAuthor" @click="clickTitleAndAuthor">
       <div ref="titlewrapper" class="overflow-hidden relative">
         <p class="title-text whitespace-nowrap"></p>
       </div>
@@ -50,39 +50,92 @@
     <div id="playerContent" class="playerContainer w-full z-20 absolute bottom-0 left-0 right-0 p-2 pointer-events-auto transition-all" :style="{ backgroundColor: showFullscreen ? '' : coverRgb }" @click="clickContainer">
       <div v-if="showFullscreen" class="absolute bottom-4 left-0 right-0 w-full pb-4 pt-2 mx-auto px-6" style="max-width: 414px">
         <div class="flex items-center justify-between pointer-events-auto">
-          <span v-if="!isPodcast && serverLibraryItemId && socketConnected" class="material-symbols text-3xl text-fg-muted cursor-pointer" :class="{ fill: bookmarks.length }" @click="$emit('showBookmarks')">bookmark</span>
+          <span v-if="!isPodcast && serverLibraryItemId && socketConnected" role="button" tabindex="0" aria-haspopup="dialog" :aria-label="bookmarks.length ? $strings.LabelYourBookmarks : $strings.ButtonCreateBookmark" class="material-symbols text-3xl text-fg-muted cursor-pointer" :class="{ fill: bookmarks.length }" @keyup.enter="$emit('showBookmarks')" @click="$emit('showBookmarks')"
+            >bookmark</span
+          >
           <!-- hidden for podcasts but still using this as a placeholder -->
-          <span v-else class="material-symbols text-3xl text-white text-opacity-0">bookmark</span>
+          <span v-else aria-hidden="true" class="material-symbols text-3xl text-white text-opacity-0">bookmark</span>
 
-          <span class="font-mono text-fg-muted cursor-pointer" style="font-size: 1.35rem" @click="$emit('selectPlaybackSpeed')">{{ currentPlaybackRate }}x</span>
-          <svg v-if="!sleepTimerRunning" xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-fg-muted cursor-pointer" fill="none" viewBox="0 0 24 24" stroke="currentColor" @click.stop="$emit('showSleepTimer')">
+          <span role="button" tabindex="0" aria-haspopup="dialog" :aria-label="`${$strings.LabelPlaybackSpeed}: ${currentPlaybackRate}x`" class="font-mono text-fg-muted cursor-pointer" style="font-size: 1.35rem" @keyup.enter="$emit('selectPlaybackSpeed')" @click="$emit('selectPlaybackSpeed')">{{ currentPlaybackRate }}x</span>
+          <svg v-if="!sleepTimerRunning" xmlns="http://www.w3.org/2000/svg" role="button" :aria-label="$strings.LabelSleepTimer" class="h-7 w-7 text-fg-muted cursor-pointer" fill="none" viewBox="0 0 24 24" stroke="currentColor" @keyup.enter.stop="$emit('showSleepTimer')" @click.stop="$emit('showSleepTimer')">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
           </svg>
-          <div v-else class="h-7 w-7 flex items-center justify-around cursor-pointer" @click.stop="$emit('showSleepTimer')">
+          <div v-else role="button" tabindex="0" aria-haspopup="dialog" :aria-label="`${$strings.LabelSleepTimer} - ${sleepTimeRemainingPretty}`" class="h-7 w-7 flex items-center justify-around cursor-pointer" @keyup.enter.stop="$emit('showSleepTimer')" @click.stop="$emit('showSleepTimer')">
             <p class="text-xl font-mono text-success">{{ sleepTimeRemainingPretty }}</p>
           </div>
 
-          <span class="material-symbols text-3xl text-fg cursor-pointer" :class="chapters.length ? 'text-opacity-75' : 'text-opacity-10'" @click="clickChaptersBtn">format_list_bulleted</span>
+          <span class="material-symbols text-3xl text-fg cursor-pointer" role="button" :aria-label="$strings.LabelChapters" aria-haspopup="dialog" :class="chapters.length ? 'text-opacity-75' : 'text-opacity-10'" @keyup.enter="clickChaptersBtn" @click="clickChaptersBtn">format_list_bulleted</span>
         </div>
       </div>
       <div v-else class="w-full h-full absolute top-0 left-0 pointer-events-none" style="background: var(--gradient-minimized-audio-player)" />
 
       <div id="playerControls" class="absolute right-0 bottom-0 mx-auto" style="max-width: 414px">
         <div class="flex items-center max-w-full" :class="playerSettings.lockUi ? 'justify-center' : 'justify-between'">
-          <span v-show="showFullscreen && !playerSettings.lockUi" class="material-symbols next-icon text-fg cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpChapterStart">first_page</span>
-          <span v-show="!playerSettings.lockUi" class="material-symbols jump-icon text-fg cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpBackwards">{{ jumpBackwardsIcon }}</span>
-          <div class="play-btn cursor-pointer shadow-sm flex items-center justify-center rounded-full text-primary mx-4 relative overflow-hidden" :style="{ backgroundColor: coverRgb }" :class="{ 'animate-spin': seekLoading }" @mousedown.prevent @mouseup.prevent @click.stop="playPauseClick">
+          <span
+            role="button"
+            :aria-hidden="isLoading && !showFullscreen"
+            :tabindex="isLoading && !showFullscreen ? -1 : 0"
+            :aria-label="$strings.ButtonPreviousChapter"
+            v-show="showFullscreen && !playerSettings.lockUi"
+            :aria-disabled="isLoading"
+            class="material-symbols next-icon text-fg cursor-pointer"
+            :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'"
+            @keyup.enter.stop="jumpChapterStart"
+            @click.stop="jumpChapterStart"
+            >first_page</span
+          >
+          <span role="button" :tabindex="isLoading ? -1 : 0" :aria-label="$getString('ButtonJumpBackwards', [jumpBackwardsTime])" v-show="!playerSettings.lockUi" :aria-disabled="isLoading" class="material-symbols jump-icon text-fg cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @keyup.enter.stop="jumpBackwards" @click.stop="jumpBackwards">{{ jumpBackwardsIcon }}</span>
+          <div
+            role="button"
+            :tabindex="seekLoading ? -1 : 0"
+            :aria-disabled="seekLoading"
+            @keyup.enter.stop="playPauseClick"
+            :aria-label="seekLoading ? $strings.MessageLoading : !isPlaying ? $strings.ButtonPlay : $strings.ButtonPause"
+            class="play-btn cursor-pointer shadow-sm flex items-center justify-center rounded-full text-primary mx-4 relative overflow-hidden"
+            :style="{ backgroundColor: coverRgb }"
+            :class="{ 'animate-spin': seekLoading }"
+            @mousedown.prevent
+            @mouseup.prevent
+            @click.stop="playPauseClick"
+          >
             <div v-if="!coverBgIsLight" class="absolute top-0 left-0 w-full h-full bg-white bg-opacity-20 pointer-events-none" />
 
             <span v-if="!isLoading" class="material-symbols fill" :class="{ 'text-white': coverRgb && !coverBgIsLight }">{{ seekLoading ? 'autorenew' : !isPlaying ? 'play_arrow' : 'pause' }}</span>
             <widgets-spinner-icon v-else class="h-8 w-8" />
           </div>
-          <span v-show="!playerSettings.lockUi" class="material-symbols jump-icon text-fg cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpForward">{{ jumpForwardIcon }}</span>
-          <span v-show="showFullscreen && !playerSettings.lockUi" class="material-symbols next-icon text-fg cursor-pointer" :class="nextChapter && !isLoading ? 'text-opacity-75' : 'text-opacity-10'" @click.stop="jumpNextChapter">last_page</span>
+          <span role="button" :tabindex="isLoading ? -1 : 0" :aria-label="$getString('ButtonJumpForward', [jumpForwardTime])" v-show="!playerSettings.lockUi" :aria-disabled="isLoading" class="material-symbols jump-icon text-fg cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @keyup.enter.stop="jumpForward" @click.stop="jumpForward">{{ jumpForwardIcon }}</span>
+          <span
+            role="button"
+            :aria-hidden="isLoading && !showFullscreen"
+            :tabindex="isLoading && !showFullscreen ? -1 : 0"
+            :aria-label="$strings.ButtonNextChapter"
+            v-show="showFullscreen && !playerSettings.lockUi"
+            :aria-disabled="isLoading"
+            class="material-symbols next-icon text-fg cursor-pointer"
+            :class="nextChapter && !isLoading ? 'text-opacity-75' : 'text-opacity-10'"
+            @keyup.enter.stop="jumpNextChapter"
+            @click.stop="jumpNextChapter"
+            >last_page</span
+          >
         </div>
       </div>
 
-      <div id="playerTrack" class="absolute left-0 w-full px-6">
+      <div
+        id="playerTrack"
+        class="absolute left-0 w-full px-6"
+        :tabindex="isLoading ? -1 : 0"
+        :aria-disabled="isLoading"
+        :aria-valuetext="`${$strings.LabelProgress}: ${$elapsedPretty(currentTime)} / ${$getString('LabelTimeRemaining', [$elapsedPretty(timeRemaining)])}`"
+        aria-valuemin="0"
+        :aria-valuenow="currentTime.toFixed(0)"
+        :aria-valuemax="totalDuration.toFixed(0)"
+        role="slider"
+        :aria-label="$strings.LabelProgress"
+        @keyup.down.stop="jumpBackwards"
+        @keyup.left.stop="jumpBackwards"
+        @keyup.up.stop="jumpForward"
+        @keyup.right.stop="jumpForward"
+      >
         <div class="flex pointer-events-none">
           <p class="font-mono text-fg" style="font-size: 0.8rem" ref="currentTimestamp">0:00</p>
           <div class="flex-grow" />
@@ -451,12 +504,26 @@ export default {
       this.$nextTick(() => {
         this.updateTrack()
       })
+      this.focusOnCollapseFullScreenButton()
     },
     collapseFullscreen() {
       this.showFullscreen = false
       if (this.titleMarquee) this.titleMarquee.reset()
 
       this.forceCloseDropdownMenu()
+      this.focusOnExpandFullscreenButton()
+    },
+    focusOnCollapseFullScreenButton() {
+      this.$nextTick(() => {
+        const collapseFullscreenButton = this.$refs.collapseFullscreenButton
+        collapseFullscreenButton.focus()
+      })
+    },
+    focusOnExpandFullscreenButton() {
+      this.$nextTick(() => {
+        const expandFullScreenButton = this.$refs.expandFullScreenButton
+        expandFullScreenButton.focus()
+      })
     },
     async jumpNextChapter() {
       await this.$hapticsImpact()

@@ -21,7 +21,7 @@
       <widgets-download-progress-indicator />
 
       <!-- Must be connected to a server to cast, only supports media items on server -->
-      <div v-show="isCastAvailable && user" class="mx-2 cursor-pointer flex items-center" @click="castClick">
+      <div role="button" :aria-label="isCasting ? $strings.ButtonCastConnected : $strings.ButtonCast" tabindex="0" @keyup.enter="castClick" v-show="isCastAvailable && user" class="mx-2 cursor-pointer flex items-center" @click="castClick">
         <span class="material-symbols text-2xl leading-none">
           {{ isCasting ? 'cast_connected' : 'cast' }}
         </span>
