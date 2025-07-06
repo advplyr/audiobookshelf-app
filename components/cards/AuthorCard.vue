@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div role="listitem">
     <div :style="{ width: width + 'px', height: height + 'px' }" class="bg-primary box-shadow-book rounded-md relative overflow-hidden focus-within:outline focus-within:outline-offset-1">
       <!-- Image or placeholder -->
       <covers-author-image :author="author" />
