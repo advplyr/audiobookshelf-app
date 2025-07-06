@@ -1,6 +1,6 @@
 import { CapacitorHttp } from '@capacitor/core'
 
-export default function ({ store, $db }, inject) {
+export default function ({ store, $db, $socket }, inject) {
   const nativeHttp = {
     async request(method, _url, data, options = {}) {
       // When authorizing before a config is set, server config gets passed in as an option
@@ -183,6 +183,13 @@ export default function ({ store, $db }, inject) {
 
         // Update the store
         store.commit('user/setAccessToken', tokens.accessToken)
+
+        // Re-authenticate socket if necessary
+        if ($socket?.connected && !$socket.isAuthenticated) {
+          $socket.sendAuthenticate()
+        } else if (!$socket) {
+          console.warn('[nativeHttp] Socket not available, cannot re-authenticate')
+        }
 
         if (savedConfig) {
           store.commit('user/setServerConnectionConfig', savedConfig)
