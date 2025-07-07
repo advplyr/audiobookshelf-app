@@ -102,7 +102,7 @@ public class AbsDatabase: CAPPlugin, CAPBridgedPlugin {
         let id = call.getString("serverConnectionConfigId", "")
         
         // Remove refresh token if it exists
-        secureStorage.removeRefreshToken(serverConnectionConfigId: id)
+        _ = secureStorage.removeRefreshToken(serverConnectionConfigId: id)
         
         Database.shared.deleteServerConnectionConfig(id: id)
         call.resolve()

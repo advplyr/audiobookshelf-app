@@ -275,12 +275,33 @@ class ApiClient {
             return
         }
         
-        retryRequest.responseDecodable(of: decodable) { response in
-            switch response.result {
-            case .success(let obj):
-                callback?(obj)
-            case .failure(let error):
-                logger.error("retryOriginalRequest: Retry request failed: \(error)")
+        // Handle the response
+        retryRequest.response { response in
+            if let statusCode = response.response?.statusCode, (200...299).contains(statusCode) {
+                // Check if response has data
+                if let data = response.data, !data.isEmpty {
+                    // If it is a string return nil (e.g. express returns OK for 200 status codes)
+                    if let responseString = String(data: data, encoding: .utf8) {
+                        logger.log("retryOriginalRequest: Got string response '\(responseString)'")
+                        callback?(nil)
+                        return
+                    }
+                    
+                    // If not a string, try JSON
+                    do {
+                        let decodedObject = try JSONDecoder().decode(decodable, from: data)
+                        callback?(decodedObject)
+                    } catch {
+                        logger.error("retryOriginalRequest: JSON decode failed: \(error)")
+                        callback?(nil)
+                    }
+                } else {
+                    // Empty response
+                    logger.log("retryOriginalRequest: Empty response with success status \(statusCode)")
+                    callback?(nil)
+                }
+            } else {
+                logger.error("retryOriginalRequest: Request failed with status \(response.response?.statusCode ?? 0)")
                 callback?(nil)
             }
         }
