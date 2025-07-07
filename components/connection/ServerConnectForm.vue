@@ -393,15 +393,19 @@ export default {
       } catch (error) {} // No Error handling needed
 
       try {
+        // Returns the same user response payload as /login
         const response = await CapacitorHttp.get({
           url: backendEndpoint
         })
-
-        if (!response.data || !response.data.user || !response.data.user.token) {
-          throw new Error('Token data is missing in the response.')
+        // v2.26.0+ returns accessToken and refreshToken on user object
+        if (!response.data?.user?.token && !response.data?.user?.accessToken) {
+          throw new Error('Token is missing in response.')
         }
 
-        this.serverConfig.token = response.data.user.token
+        const user = response.data.user
+        this.serverConfig.token = user.accessToken || user.token
+
+        // TODO: Is it necessary to authenticate again?
         const payload = await this.authenticateToken()
 
         if (!payload) {
@@ -411,6 +415,12 @@ export default {
         const duplicateConfig = this.serverConnectionConfigs.find((scc) => scc.address === this.serverConfig.address && scc.username === payload.user.username)
         if (duplicateConfig) {
           throw new Error('Config already exists for this address and username.')
+        }
+
+        // For v2.26.0+ re-attach accessToken and refreshToken to user object because /authorize does not return them
+        if (user.accessToken) {
+          payload.user.accessToken = user.accessToken
+          payload.user.refreshToken = user.refreshToken
         }
 
         this.setUserAndConnection(payload)
