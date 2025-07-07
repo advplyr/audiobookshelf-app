@@ -39,6 +39,11 @@ export default {
   axios: {},
 
   build: {
+    extend(config, ctx) {
+      // 启用 source map
+      console.log('ctx', ctx)
+      config.devtool = 'source-map'
+    },
     postcss: {
       postcssOptions: {
         plugins: {
