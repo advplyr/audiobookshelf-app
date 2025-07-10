@@ -14,7 +14,7 @@
           <span class="material-symbols text-2xl text-fg">settings</span>
         </button>
         <button v-if="comicHasMetadata" type="button" class="inline-flex mx-2" @click.stop="clickMetadataBtn">
-          <span class="material-symbols text-2xl text-fg">more-vert</span>
+          <span class="material-symbols text-2xl text-fg">more</span>
         </button>
       </div>
 
