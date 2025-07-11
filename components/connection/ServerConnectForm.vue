@@ -627,7 +627,12 @@ export default {
         })
     },
     requestServerLogin() {
-      return this.postRequest(`${this.serverConfig.address}/login?return_tokens=true`, { username: this.serverConfig.username, password: this.password || '' }, this.serverConfig.customHeaders, 20000)
+      const headers = {
+        // Tells the Abs server to return the refresh token
+        'x-return-tokens': 'true',
+        ...(this.serverConfig.customHeaders || {})
+      }
+      return this.postRequest(`${this.serverConfig.address}/login`, { username: this.serverConfig.username, password: this.password || '' }, headers, 20000)
         .then((data) => {
           if (!data.user) {
             console.error(data.error)
