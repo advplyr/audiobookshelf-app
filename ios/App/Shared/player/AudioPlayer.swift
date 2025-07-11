@@ -561,8 +561,15 @@ class AudioPlayer: NSObject {
         guard let playbackSession = self.getPlaybackSession() else { return nil }
         
         if (playbackSession.playMethod == PlayMethod.directplay.rawValue) {
-            let urlstr = "\(Store.serverConfig!.address)/api/items/\(itemId)/file/\(ino)?token=\(Store.serverConfig!.token)"
-            let url = URL(string: urlstr)!
+            // As of v2.22.0 tracks use a different endpoint
+            // See: https://github.com/advplyr/audiobookshelf/pull/4263
+            let contentUrl: String
+            if Store.isServerVersionGreaterThanOrEqualTo("2.22.0") {
+                contentUrl = "\(Store.serverConfig!.address)/public/session/\(playbackSession.id)/track/\(track.index ?? 1)"
+            } else {
+                contentUrl = "\(Store.serverConfig!.address)/api/items/\(itemId)/file/\(ino)?token=\(Store.serverConfig!.token)"
+            }
+            let url = URL(string: contentUrl)!
             return AVURLAsset(url: url)
         } else if (playbackSession.playMethod == PlayMethod.local.rawValue) {
             guard let localFile = track.getLocalFile() else {
@@ -577,7 +584,9 @@ class AudioPlayer: NSObject {
             let headers: [String: String] = [
                 "Authorization": "Bearer \(Store.serverConfig!.token)"
             ]
-            return AVURLAsset(url: URL(string: "\(Store.serverConfig!.address)\(track.contentUrl ?? "")")!, options: ["AVURLAssetHTTPHeaderFieldsKey": headers])
+            
+            let contentUrl = "\(Store.serverConfig!.address)\(track.contentUrl ?? "")"
+            return AVURLAsset(url: URL(string: contentUrl)!, options: ["AVURLAssetHTTPHeaderFieldsKey": headers])
         }
     }
     

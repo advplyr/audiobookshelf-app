@@ -1,7 +1,9 @@
 import { Browser } from '@capacitor/browser'
+import { AbsLogger } from '@/plugins/capacitor'
 
 export const state = () => ({
   user: null,
+  accessToken: null,
   serverConnectionConfig: null,
   settings: {
     mobileOrderBy: 'addedAt',
@@ -17,7 +19,7 @@ export const getters = {
   getIsRoot: (state) => state.user && state.user.type === 'root',
   getIsAdminOrUp: (state) => state.user && (state.user.type === 'admin' || state.user.type === 'root'),
   getToken: (state) => {
-    return state.user?.token || null
+    return state.accessToken || null
   },
   getServerConnectionConfigId: (state) => {
     return state.serverConnectionConfig?.id || null
@@ -137,16 +139,47 @@ export const actions = {
     } catch (error) {
       console.error('Error opening browser', error)
     }
+  },
+  async logout({ state, commit }, logoutFromServer = false) {
+    // Logging out from server deletes the session so the refresh token is no longer valid
+    // Currently this is not being used to support switching servers without logging back in (assuming refresh token is still valid)
+    // We may want to make this change in the future
+    if (state.serverConnectionConfig && logoutFromServer) {
+      const refreshToken = await this.$db.getRefreshToken(state.serverConnectionConfig.id)
+      const options = {}
+      if (refreshToken) {
+        // Refresh token is used to delete the session on the server
+        options.headers = {
+          'x-refresh-token': refreshToken
+        }
+      }
+      // Logout from server
+      await this.$nativeHttp.post('/logout', null, options).catch((error) => {
+        console.error('Failed to logout', error)
+      })
+    }
+
+    await this.$db.logout()
+    this.$socket.logout()
+    this.$localStore.removeLastLibraryId()
+    commit('logout')
+    commit('libraries/setCurrentLibrary', null, { root: true })
+    await AbsLogger.info({ tag: 'user', message: `Logged out from server ${state.serverConnectionConfig?.name || 'Not connected'}` })
   }
 }
 
 export const mutations = {
   logout(state) {
     state.user = null
+    state.accessToken = null
     state.serverConnectionConfig = null
   },
   setUser(state, user) {
     state.user = user
+  },
+  setAccessToken(state, accessToken) {
+    console.log('[user] setAccessToken', accessToken)
+    state.accessToken = accessToken
   },
   removeMediaProgress(state, id) {
     if (!state.user) return

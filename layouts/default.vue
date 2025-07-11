@@ -99,21 +99,6 @@ export default {
 
       await this.$store.dispatch('user/loadUserSettings')
     },
-    async postRequest(url, data, headers, connectTimeout = 30000) {
-      const options = {
-        url,
-        headers,
-        data,
-        connectTimeout
-      }
-      const response = await CapacitorHttp.post(options)
-      console.log('[default] POST request response', response)
-      if (response.status >= 400) {
-        throw new Error(response.data)
-      } else {
-        return response.data
-      }
-    },
     async attemptConnection() {
       console.warn('[default] attemptConnection')
       if (!this.networkConnected) {
@@ -145,10 +130,18 @@ export default {
 
       AbsLogger.info({ tag: 'default', message: `attemptConnection: Got server config, attempt authorize (${serverConfig.name})` })
 
-      const authRes = await this.postRequest(`${serverConfig.address}/api/authorize`, null, { Authorization: `Bearer ${serverConfig.token}` }, 6000).catch((error) => {
+      const nativeHttpOptions = {
+        headers: {
+          Authorization: `Bearer ${serverConfig.token}`
+        },
+        connectTimeout: 6000,
+        serverConnectionConfig: serverConfig
+      }
+      const authRes = await this.$nativeHttp.post(`${serverConfig.address}/api/authorize`, null, nativeHttpOptions).catch((error) => {
         AbsLogger.error({ tag: 'default', message: `attemptConnection: Server auth failed (${serverConfig.name})` })
         return false
       })
+
       if (!authRes) {
         this.attemptingConnection = false
         return
@@ -158,6 +151,22 @@ export default {
       this.$store.commit('setServerSettings', serverSettings)
       this.$store.commit('libraries/setEReaderDevices', ereaderDevices)
 
+      if (this.$isValidVersion(serverSettings.version, '2.26.0')) {
+        // Check if the server is using the new JWT auth and is still using an old token in the server config
+        // If so, redirect to /connect and request to re-login
+        if (serverConfig.token === user.token || user.isOldToken) {
+          this.attemptingConnection = false
+          AbsLogger.info({ tag: 'default', message: `attemptConnection: Server is using new JWT auth but config is still using an old token (server version: ${serverSettings.version}) (${serverConfig.name})` })
+          // Clear last server config
+          await this.$store.dispatch('user/logout')
+          this.$router.push(`/connect?error=oldAuthToken&serverConnectionConfigId=${serverConfig.id}`)
+          return
+        }
+
+        // Token may have been refreshed during the authorize call so refetch from store
+        serverConfig.token = this.$store.getters['user/getToken'] || serverConfig.token
+      }
+
       // Set library - Use last library if set and available fallback to default user library
       const lastLibraryId = await this.$localStore.getLastLibraryId()
       if (lastLibraryId && (!user.librariesAccessible.length || user.librariesAccessible.includes(lastLibraryId))) {
@@ -165,9 +174,11 @@ export default {
       } else if (userDefaultLibraryId) {
         this.$store.commit('libraries/setCurrentLibrary', userDefaultLibraryId)
       }
+      serverConfig.version = serverSettings.version
       const serverConnectionConfig = await this.$db.setServerConnectionConfig(serverConfig)
 
       this.$store.commit('user/setUser', user)
+      this.$store.commit('user/setAccessToken', serverConnectionConfig.token)
       this.$store.commit('user/setServerConnectionConfig', serverConnectionConfig)
 
       this.$socket.connect(serverConnectionConfig.address, serverConnectionConfig.token)

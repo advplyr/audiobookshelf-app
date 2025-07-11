@@ -14,6 +14,7 @@ data class AudioTrack(
         var metadata: FileMetadata?,
         var isLocal: Boolean,
         var localFileId: String?,
+        // TODO: This should no longer be necessary
         var serverIndex: Int? // Need to know if server track index is different
 ) {
 

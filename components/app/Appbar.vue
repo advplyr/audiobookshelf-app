@@ -100,14 +100,14 @@ export default {
       this.isCastAvailable = data && data.value
     }
   },
-  mounted() {
+  async mounted() {
     AbsAudioPlayer.getIsCastAvailable().then((data) => {
       this.isCastAvailable = data && data.value
     })
-    this.onCastAvailableUpdateListener = AbsAudioPlayer.addListener('onCastAvailableUpdate', this.onCastAvailableUpdate)
+    this.onCastAvailableUpdateListener = await AbsAudioPlayer.addListener('onCastAvailableUpdate', this.onCastAvailableUpdate)
   },
   beforeDestroy() {
-    if (this.onCastAvailableUpdateListener) this.onCastAvailableUpdateListener.remove()
+    this.onCastAvailableUpdateListener?.remove()
   }
 }
 </script>
