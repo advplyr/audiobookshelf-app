@@ -16,6 +16,7 @@ import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.device.FolderScanner
 import com.audiobookshelf.app.models.DownloadItem
 import com.audiobookshelf.app.models.DownloadItemPart
+import com.audiobookshelf.app.plugins.AbsLogger
 import com.fasterxml.jackson.core.json.JsonReadFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.getcapacitor.JSObject
@@ -69,6 +70,7 @@ class DownloadItemManager(
   fun addDownloadItem(downloadItem: DownloadItem) {
     DeviceManager.dbManager.saveDownloadItem(downloadItem)
     Log.i(tag, "Add download item ${downloadItem.media.metadata.title}")
+    AbsLogger.info(tag, "Adding ${downloadItem.media.metadata.title} to download queue")
 
     downloadItemQueue.add(downloadItem)
     clientEventEmitter.onDownloadItem(downloadItem)
@@ -114,6 +116,10 @@ class DownloadItemManager(
 
     // The margin is based on how many simultaneous downloads can be running at once
     if (availableBytes < fileSize * maxSimultaneousDownloads) {
+      AbsLogger.error(
+              tag,
+              "Not enough internal storage for ${downloadItemPart.filename}. Available: ${availableBytes / (1024)} KB, Required: ${fileSize / (1024)} KB. Trying again..."
+      )
       Log.w(tag, "Not enough internal storage for ${downloadItemPart.filename}, skipping for now")
       return
     }
