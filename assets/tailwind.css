@@ -22,6 +22,25 @@
     --gradient-minimized-audio-player: linear-gradient(145deg, rgba(38, 38, 38, 0.5) 0%, rgba(38, 38, 38, 0.9) 20%, rgb(38, 38, 38) 60%);
   }
 
+  html[data-theme='black'] {
+      color: white;
+      --color-bg: 0 0 0;
+      --color-bg-hover: 0 0 0;
+      --color-fg: 230 237 243;
+      --color-fg-muted: 120 126 132;
+      --color-primary: 0 0 0;
+      --color-secondary: 0 0 0;
+      --color-border: 55 62 65;
+      --color-bg-toggle: 0 0 0;
+      --color-bg-toggle-selected: 35 35 35;
+      --color-track-cursor: 229 231 235;
+      --color-track: 107 114 128;
+      --color-track-buffered: 75 85 99;
+      --gradient-item-page: rgb(0, 0, 0);
+      --gradient-audio-player: rgb(0, 0, 0);
+      --gradient-minimized-audio-player: rgb(0, 0, 0);
+    }
+  
   html[data-theme='light'] {
     color: black;
     --color-bg: 255 255 255;

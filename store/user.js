@@ -31,16 +31,18 @@ export const getters = {
   getCustomHeaders: (state) => {
     return state.serverConnectionConfig?.customHeaders || null
   },
-  getUserMediaProgress: (state) => (libraryItemId, episodeId = null) => {
-    if (!state.user?.mediaProgress) return null
-    return state.user.mediaProgress.find(li => {
-      if (episodeId && li.episodeId !== episodeId) return false
-      return li.libraryItemId == libraryItemId
-    })
-  },
+  getUserMediaProgress:
+    (state) =>
+    (libraryItemId, episodeId = null) => {
+      if (!state.user?.mediaProgress) return null
+      return state.user.mediaProgress.find((li) => {
+        if (episodeId && li.episodeId !== episodeId) return false
+        return li.libraryItemId == libraryItemId
+      })
+    },
   getUserBookmarksForItem: (state) => (libraryItemId) => {
     if (!state?.user?.bookmarks) return []
-    return state.user.bookmarks.filter(bm => bm.libraryItemId === libraryItemId)
+    return state.user.bookmarks.filter((bm) => bm.libraryItemId === libraryItemId)
   },
   getUserSetting: (state) => (key) => {
     return state.settings?.[key] || null
@@ -53,6 +55,9 @@ export const getters = {
   },
   getUserCanDownload: (state) => {
     return !!state.user?.permissions?.download
+  },
+  getUserCanAccessExplicitContent: (state) => {
+    return !!state.user?.permissions?.accessExplicitContent
   }
 }
 
@@ -145,11 +150,11 @@ export const mutations = {
   },
   removeMediaProgress(state, id) {
     if (!state.user) return
-    state.user.mediaProgress = state.user.mediaProgress.filter(mp => mp.id != id)
+    state.user.mediaProgress = state.user.mediaProgress.filter((mp) => mp.id != id)
   },
   updateUserMediaProgress(state, data) {
     if (!data || !state.user) return
-    const mediaProgressIndex = state.user.mediaProgress.findIndex(mp => mp.id === data.id)
+    const mediaProgressIndex = state.user.mediaProgress.findIndex((mp) => mp.id === data.id)
     if (mediaProgressIndex >= 0) {
       state.user.mediaProgress.splice(mediaProgressIndex, 1, data)
     } else {
@@ -174,7 +179,7 @@ export const mutations = {
   },
   deleteBookmark(state, { libraryItemId, time }) {
     if (!state.user?.bookmarks) return
-    state.user.bookmarks = state.user.bookmarks.filter(bm => {
+    state.user.bookmarks = state.user.bookmarks.filter((bm) => {
       if (bm.libraryItemId === libraryItemId && bm.time === time) return false
       return true
     })

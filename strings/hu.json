@@ -220,6 +220,7 @@
   "LabelPublishedDate": "Kiadva {0}",
   "LabelRSSFeedCustomOwnerEmail": "Egyéni tulajdonos e-mail",
   "LabelRSSFeedCustomOwnerName": "Egyéni tulajdonos neve",
+  "LabelRSSFeedOpen": "RSS-hírcsatorna nyitva",
   "LabelRSSFeedPreventIndexing": "Indexelés megakadályozása",
   "LabelRSSFeedSlug": "RSS hírcsatorna rövid cím",
   "LabelRandomly": "Véletlenszerűen",

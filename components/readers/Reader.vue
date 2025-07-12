@@ -14,7 +14,7 @@
           <span class="material-symbols text-2xl text-fg">settings</span>
         </button>
         <button v-if="comicHasMetadata" type="button" class="inline-flex mx-2" @click.stop="clickMetadataBtn">
-          <span class="material-symbols text-2xl text-fg">more-vert</span>
+          <span class="material-symbols text-2xl text-fg">more</span>
         </button>
       </div>
 
@@ -260,6 +260,7 @@ export default {
       return null
     },
     ebookFile() {
+      if (!this.media) return null
       // ebook file id is passed when reading a supplementary ebook
       if (this.ebookFileId) {
         return this.selectedLibraryItem.libraryFiles.find((lf) => lf.ino === this.ebookFileId)

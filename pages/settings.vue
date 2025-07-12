@@ -364,6 +364,10 @@ export default {
     themeOptionItems() {
       return [
         {
+          text: this.$strings.LabelThemeBlack,
+          value: 'black'
+        },
+        {
           text: this.$strings.LabelThemeDark,
           value: 'dark'
         },

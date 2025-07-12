@@ -16,12 +16,6 @@ if (Capacitor.getPlatform() != 'web') {
     await StatusBar.setStyle({ style: Style.Dark })
   }
   setStatusBarStyleDark()
-
-  const setStatusBarOverlays = async () => {
-    // Defaults to true in capacitor v7
-    await StatusBar.setOverlaysWebView({ overlay: false })
-  }
-  setStatusBarOverlays()
 }
 
 Vue.prototype.$showHideStatusBar = async (show) => {
