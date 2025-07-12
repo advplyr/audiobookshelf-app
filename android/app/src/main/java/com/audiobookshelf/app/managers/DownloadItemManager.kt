@@ -2,6 +2,7 @@ package com.audiobookshelf.app.managers
 
 import android.app.DownloadManager
 import android.net.Uri
+import android.os.StatFs
 import android.util.Log
 import androidx.documentfile.provider.DocumentFile
 import com.anggrayudi.storage.callback.FileCallback
@@ -100,6 +101,22 @@ class DownloadItemManager(
     Log.d(tag, "Creating internal download location at ${downloadItemPart.destinationUri.path}")
     val file = File(downloadItemPart.destinationUri.path ?: "")
     file.parentFile?.mkdirs()
+
+    // Check if enough internal storage is available for downloading
+    val statFs = StatFs(file.parentFile?.absolutePath ?: mainActivity.filesDir.absolutePath)
+    val availableBytes = statFs.availableBytes
+    val fileSize = downloadItemPart.fileSize
+
+    Log.d(
+            tag,
+            "Attempting to start ${downloadItemPart.filename}. Available: ${availableBytes / (1024)} KB, Required: ${fileSize / (1024)} KB"
+    )
+
+    // The margin is based on how many simultaneous downloads can be running at once
+    if (availableBytes < fileSize * maxSimultaneousDownloads) {
+      Log.w(tag, "Not enough internal storage for ${downloadItemPart.filename}, skipping for now")
+      return
+    }
 
     val internalProgressCallback =
             object : InternalProgressCallback {
