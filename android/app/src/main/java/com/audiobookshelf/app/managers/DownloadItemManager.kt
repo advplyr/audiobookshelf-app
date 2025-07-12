@@ -84,9 +84,7 @@ class DownloadItemManager(
               "checkUpdateDownloadQueue: numPartsToGet=$numPartsToGet, nextDownloadItemParts=${nextDownloadItemParts.size}"
       )
 
-      if (nextDownloadItemParts.isNotEmpty()) {
-        processDownloadItemParts(nextDownloadItemParts)
-      }
+      nextDownloadItemParts.forEach { startInternalDownload(it) }
 
       if (currentDownloadItemParts.size >= maxSimultaneousDownloads) {
         break
@@ -94,11 +92,6 @@ class DownloadItemManager(
     }
 
     if (currentDownloadItemParts.isNotEmpty()) startWatchingDownloads()
-  }
-
-  /** Processes the download item parts. */
-  private fun processDownloadItemParts(nextDownloadItemParts: List<DownloadItemPart>) {
-    nextDownloadItemParts.forEach { startInternalDownload(it) }
   }
 
   /** Starts an internal download. */
