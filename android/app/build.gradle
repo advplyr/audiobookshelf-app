@@ -2,6 +2,7 @@ plugins {
   id 'com.android.application'
   id 'kotlin-android'
   id 'kotlin-kapt'
+  id 'com.google.devtools.ksp'
 }
 
 kotlin {
@@ -127,6 +128,22 @@ dependencies {
 
   // Jackson for JSON
   implementation 'com.fasterxml.jackson.module:jackson-module-kotlin:2.12.2'
+
+  // Moshi
+  implementation 'com.squareup.moshi:moshi-kotlin:1.15.2'
+  implementation 'com.squareup.moshi:moshi-adapters:1.15.2'
+  ksp 'com.squareup.moshi:moshi-kotlin-codegen:1.15.2'
+
+  testImplementation 'junit:junit:4.13.2'
+  testImplementation 'org.json:json:20210307'
+  testImplementation 'org.skyscreamer:jsonassert:2.0-rc1'
+
+  androidTestImplementation "androidx.test:runner:1.6.2"
+  androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+  androidTestImplementation 'org.skyscreamer:jsonassert:2.0-rc1'
 }
+
+
+// tasks.withType(Test) {enabled = false}
 
 apply from: 'capacitor.build.gradle'
