@@ -163,12 +163,15 @@ export default {
         cancelText: this.$strings.ButtonOk
       })
     },
-    showOldAuthWarningDialog() {
-      Dialog.alert({
+    async showOldAuthWarningDialog() {
+      const confirmResult = await Dialog.confirm({
         title: 'Old Server Auth Warning',
         message: this.$strings.MessageOldServerAuthWarningHelp,
-        cancelText: this.$strings.ButtonOk
+        cancelButtonTitle: this.$strings.ButtonReadMore
       })
+      if (!confirmResult.value) {
+        window.open('https://github.com/advplyr/audiobookshelf/discussions/4460', '_blank')
+      }
     },
     checkIdUuid(userId) {
       return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)
