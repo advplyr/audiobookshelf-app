@@ -1,5 +1,6 @@
 import { Browser } from '@capacitor/browser'
 import { AbsLogger } from '@/plugins/capacitor'
+import { CapacitorHttp } from '@capacitor/core'
 
 export const state = () => ({
   user: null,
@@ -29,9 +30,6 @@ export const getters = {
   },
   getServerConfigName: (state) => {
     return state.serverConnectionConfig?.name || null
-  },
-  getCustomHeaders: (state) => {
-    return state.serverConnectionConfig?.customHeaders || null
   },
   getUserMediaProgress:
     (state) =>
@@ -165,6 +163,61 @@ export const actions = {
     commit('logout')
     commit('libraries/setCurrentLibrary', null, { root: true })
     await AbsLogger.info({ tag: 'user', message: `Logged out from server ${state.serverConnectionConfig?.name || 'Not connected'}` })
+  },
+  async refreshToken({ getters, commit, state }) {
+    const refreshToken = await this.$db.getRefreshToken(getters.getServerConnectionConfigId)
+    if (!refreshToken) {
+      console.error('No refresh token found')
+      return null
+    }
+
+    const serverAddress = getters.getServerAddress
+
+    const response = await CapacitorHttp.post({
+      url: `${serverAddress}/auth/refresh`,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-refresh-token': refreshToken
+      },
+      data: {}
+    })
+
+    if (response.status !== 200) {
+      console.error('[user] Token refresh request failed:', response.status)
+      return null
+    }
+
+    const userResponseData = response.data
+    if (!userResponseData.user?.accessToken) {
+      console.error('[user] No access token in refresh response')
+      return null
+    }
+
+    // Update the config with new tokens
+    const updatedConfig = {
+      ...state.serverConnectionConfig,
+      token: userResponseData.user.accessToken,
+      refreshToken: userResponseData.user.refreshToken
+    }
+
+    // Save updated config to secure storage, persists refresh token in secure storage
+    const savedConfig = await this.$db.setServerConnectionConfig(updatedConfig)
+
+    // Update the store
+    commit('setAccessToken', userResponseData.user.accessToken)
+
+    // Re-authenticate socket if necessary
+    if (this.$socket?.connected && !this.$socket.isAuthenticated) {
+      this.$socket.sendAuthenticate()
+    } else if (!this.$socket) {
+      console.warn('[user] Socket not available, cannot re-authenticate')
+    }
+
+    if (savedConfig) {
+      commit('setServerConnectionConfig', savedConfig)
+    }
+
+    return userResponseData.user.accessToken
   }
 }
 
