@@ -22,11 +22,7 @@ export default {
   data() {
     return {}
   },
-  computed: {
-    userToken() {
-      return this.$store.getters['user/getToken']
-    }
-  },
+  computed: {},
   methods: {
     addHtmlCss() {
       let iframe = document.getElementsByTagName('iframe')[0]
@@ -84,11 +80,9 @@ export default {
     },
     async initMobi() {
       // Fetch mobi file as blob
+      // TODO: Handle JWT auth refresh
       var buff = await this.$axios.$get(this.url, {
-        responseType: 'blob',
-        headers: {
-          Authorization: `Bearer ${this.userToken}`
-        }
+        responseType: 'blob'
       })
       var reader = new FileReader()
       reader.onload = async (event) => {

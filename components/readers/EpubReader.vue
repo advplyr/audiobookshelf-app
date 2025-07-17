@@ -49,9 +49,6 @@ export default {
     }
   },
   computed: {
-    userToken() {
-      return this.$store.getters['user/getToken']
-    },
     /** @returns {string} */
     libraryItemId() {
       return this.libraryItem?.id
@@ -298,15 +295,26 @@ export default {
 
       /** @type {EpubReader} */
       const reader = this
+
+      // Use axios to make request because we have token refresh logic in interceptor
+      const customRequest = async (url) => {
+        try {
+          return this.$axios.$get(url, {
+            responseType: 'arraybuffer'
+          })
+        } catch (error) {
+          console.error('EpubReader.initEpub customRequest failed:', error)
+          throw error
+        }
+      }
+
       console.log('[EpubReader] initEpub', reader.url)
       /** @type {ePub.Book} */
       reader.book = new ePub(reader.url, {
         width: window.innerWidth,
         height: window.innerHeight - this.readerHeightOffset,
         openAs: 'epub',
-        requestHeaders: {
-          Authorization: `Bearer ${this.userToken}`
-        }
+        requestMethod: this.isLocal ? null : customRequest
       })
 
       /** @type {ePub.Rendition} */

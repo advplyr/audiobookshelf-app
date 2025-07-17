@@ -140,13 +140,6 @@ export default {
       readyTrackWidth: 0,
       seekedTime: 0,
       seekLoading: false,
-      onPlaybackSessionListener: null,
-      onPlaybackClosedListener: null,
-      onPlayingUpdateListener: null,
-      onMetadataListener: null,
-      onProgressSyncFailing: null,
-      onProgressSyncSuccess: null,
-      onPlaybackSpeedChangedListener: null,
       touchStartY: 0,
       touchStartTime: 0,
       playerSettings: {
@@ -883,14 +876,14 @@ export default {
     async init() {
       await this.loadPlayerSettings()
 
-      this.onPlaybackSessionListener = AbsAudioPlayer.addListener('onPlaybackSession', this.onPlaybackSession)
-      this.onPlaybackClosedListener = AbsAudioPlayer.addListener('onPlaybackClosed', this.onPlaybackClosed)
-      this.onPlaybackFailedListener = AbsAudioPlayer.addListener('onPlaybackFailed', this.onPlaybackFailed)
-      this.onPlayingUpdateListener = AbsAudioPlayer.addListener('onPlayingUpdate', this.onPlayingUpdate)
-      this.onMetadataListener = AbsAudioPlayer.addListener('onMetadata', this.onMetadata)
-      this.onProgressSyncFailing = AbsAudioPlayer.addListener('onProgressSyncFailing', this.showProgressSyncIsFailing)
-      this.onProgressSyncSuccess = AbsAudioPlayer.addListener('onProgressSyncSuccess', this.showProgressSyncSuccess)
-      this.onPlaybackSpeedChangedListener = AbsAudioPlayer.addListener('onPlaybackSpeedChanged', this.onPlaybackSpeedChanged)
+      AbsAudioPlayer.addListener('onPlaybackSession', this.onPlaybackSession)
+      AbsAudioPlayer.addListener('onPlaybackClosed', this.onPlaybackClosed)
+      AbsAudioPlayer.addListener('onPlaybackFailed', this.onPlaybackFailed)
+      AbsAudioPlayer.addListener('onPlayingUpdate', this.onPlayingUpdate)
+      AbsAudioPlayer.addListener('onMetadata', this.onMetadata)
+      AbsAudioPlayer.addListener('onProgressSyncFailing', this.showProgressSyncIsFailing)
+      AbsAudioPlayer.addListener('onProgressSyncSuccess', this.showProgressSyncSuccess)
+      AbsAudioPlayer.addListener('onPlaybackSpeedChanged', this.onPlaybackSpeedChanged)
     },
     async screenOrientationChange() {
       if (this.isRefreshingUI) return
@@ -984,14 +977,9 @@ export default {
     document.body.removeEventListener('touchend', this.touchend)
     document.body.removeEventListener('touchmove', this.touchmove)
 
-    if (this.onPlayingUpdateListener) this.onPlayingUpdateListener.remove()
-    if (this.onMetadataListener) this.onMetadataListener.remove()
-    if (this.onPlaybackSessionListener) this.onPlaybackSessionListener.remove()
-    if (this.onPlaybackClosedListener) this.onPlaybackClosedListener.remove()
-    if (this.onPlaybackFailedListener) this.onPlaybackFailedListener.remove()
-    if (this.onProgressSyncFailing) this.onProgressSyncFailing.remove()
-    if (this.onProgressSyncSuccess) this.onProgressSyncSuccess.remove()
-    if (this.onPlaybackSpeedChangedListener) this.onPlaybackSpeedChangedListener.remove()
+    if (AbsAudioPlayer.removeAllListeners) {
+      AbsAudioPlayer.removeAllListeners()
+    }
     clearInterval(this.playInterval)
   }
 }

@@ -305,11 +305,11 @@ export default {
       if (this.localContentUrl) {
         return Capacitor.convertFileSrc(this.localContentUrl)
       }
-      const serverAddress = this.$store.getters['user/getServerAddress']
+
       if (this.ebookFileId) {
-        return `${serverAddress}/api/items/${this.selectedLibraryItem.id}/ebook/${this.ebookFileId}`
+        return `/api/items/${this.selectedLibraryItem.id}/ebook/${this.ebookFileId}`
       }
-      return `${serverAddress}/api/items/${this.selectedLibraryItem.id}/ebook`
+      return `/api/items/${this.selectedLibraryItem.id}/ebook`
     },
     isPlayerOpen() {
       return this.$store.getters['getIsPlayerOpen']

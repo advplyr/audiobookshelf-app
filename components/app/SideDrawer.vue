@@ -179,21 +179,7 @@ export default {
       this.show = false
     },
     async logout() {
-      if (this.user) {
-        if (this.$store.getters['getIsPlayerOpen']) {
-          this.$eventBus.$emit('close-stream')
-        }
-
-        await this.$nativeHttp.post('/logout').catch((error) => {
-          console.error('Failed to logout', error)
-        })
-      }
-
-      this.$socket.logout()
-      await this.$db.logout()
-      this.$localStore.removeLastLibraryId()
-      this.$store.commit('user/logout')
-      this.$store.commit('libraries/setCurrentLibrary', null)
+      await this.$store.dispatch('user/logout')
     },
     async disconnect() {
       await this.$hapticsImpact()
