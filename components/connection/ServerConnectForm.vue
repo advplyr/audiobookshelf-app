@@ -22,9 +22,6 @@
             <p class="text-xs text-warning">{{ $strings.MessageOldServerAuthWarning }}</p>
             <ui-btn class="text-xs whitespace-nowrap" :padding-x="2" :padding-y="1" @click="showOldAuthWarningDialog">{{ $strings.LabelMoreInfo }}</ui-btn>
           </div>
-          <div v-else-if="!config.version" class="flex flex-nowrap justify-between items-center space-x-4 pt-4">
-            <p class="text-xs text-warning">No server version set. Connect to update server config.</p>
-          </div>
         </div>
         <div class="my-1 py-4 w-full">
           <ui-btn class="w-full" @click="newServerConfigClick">{{ $strings.ButtonAddNewServer }}</ui-btn>
@@ -680,9 +677,13 @@ export default {
           if (statusData.data.authFormData?.authOpenIDAutoLaunch) {
             this.clickLoginWithOpenId()
           }
+          return true
+        } else {
+          return false
         }
       } catch (error) {
         this.handleLoginFormError(error)
+        return false
       } finally {
         this.processing = false
       }
@@ -925,10 +926,12 @@ export default {
       this.processing = false
       return authRes
     },
-    setForceReloginForNewAuth() {
-      this.error = this.$strings.MessageOldServerAuthReLoginRequired
-      this.showAuth = true
-      this.showForm = true
+    async setForceReloginForNewAuth() {
+      // This calls /status on the server and sets the auth methods
+      const result = await this.submit()
+      if (result) {
+        this.error = this.$strings.MessageOldServerAuthReLoginRequired
+      }
     },
     init() {
       // Handle force re-login for servers using new JWT auth but still using an old token in the server config
