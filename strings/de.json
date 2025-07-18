@@ -325,6 +325,8 @@
   "MessageNoSeries": "Keine Serie",
   "MessageNoUpdatesWereNecessary": "Keine Aktualisierungen waren notwendig",
   "MessageNoUserPlaylists": "Keine Wiedergabelisten vorhanden",
+  "MessageOldServerAuthReLoginRequired": "Für die verbesserung der Sicherheit wurde die Authentifizierung in der Version v2.26.0 verbessert. Alle Nutzer müssen sich neu einloggen.",
+  "MessageOldServerAuthWarning": "Der Server nutzt eine nicht mehr aktuelle Authentifizierung",
   "MessageOldServerConnectionWarning": "Diese Serververbindung nutzt eine alte Nutzer-ID (user ID). Bitte entferne diese Serververbindung und füge sie wieder neu hinzu.",
   "MessageOldServerConnectionWarningHelp": "Du hast diese Serververbindung vor der Datenbankmigration in 2.3.0, veröffentlicht im Juni 2023, eingerichtet. Ein zukünftiges Serverupdate wird die Möglichkeit entfernen, sich mit dieser Verbindung anzumelden. Bitte lösche die existierende Serververbindung und melde dich neu an (mit der gleichen Serveradresse und Zugangsdaten). Wenn du irgendwelche Medien auf dieses Gerät heruntergeladen hast, musst du sie anschließend erneut herunterladen, um den Status zu synchronisieren.",
   "MessagePodcastSearchField": "Suchbegriff oder RSS-Feed URL eingeben",
