@@ -331,7 +331,7 @@
   "MessageProgressSyncFailed": "Poslední pokus o nahlášení průběhu poslechu na server se nezdařil. Během přehrávání médií se budou požadavky na synchronizaci pokroku nadále pokoušet každých 15 až 60 sekund.",
   "MessageReportBugsAndContribute": "Nahlašte chyby, vyžádejte si funkce a přispěte na",
   "MessageSeriesAlreadyDownloaded": "Všechny knihy v této sérii jste již stáhli.",
-  "MessageSeriesDownloadConfirm": "Stáhnout chybějící {0} knihu(y) s {1} souborem(y), celkem {2} do složky {3}?",
+  "MessageSeriesDownloadConfirm": "Stáhnout chybějících {0} knih s {1} souborem/soubory, celkem {2}, do složky {3}?",
   "MessageSeriesDownloadConfirmIos": "Stáhnout chybějící {0} knihu(y) s {1} souborem(y), celkem {2}?",
   "MessageSocketConnectedOverMeteredCellular": "Socket připojen přes měřenou mobilní síť",
   "MessageSocketConnectedOverMeteredWifi": "Socket připojen přes měřenou Wi-Fi",
