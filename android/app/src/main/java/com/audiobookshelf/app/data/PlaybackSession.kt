@@ -192,7 +192,12 @@ class PlaybackSession(
     // As of v2.22.0 tracks use a different endpoint
     // See: https://github.com/advplyr/audiobookshelf/pull/4263
     if (checkIsServerVersionGte("2.22.0")) {
-      return Uri.parse("$serverAddress/public/session/$id/track/${audioTrack.index}")
+      return if (isDirectPlay) {
+        Uri.parse("$serverAddress/public/session/$id/track/${audioTrack.index}")
+      } else {
+        // Transcode uses HlsRouter on server
+        Uri.parse("$serverAddress${audioTrack.contentUrl}")
+      }
     }
     return Uri.parse("$serverAddress${audioTrack.contentUrl}?token=${DeviceManager.token}")
   }
