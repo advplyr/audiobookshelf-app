@@ -255,7 +255,7 @@ class AbsAudioPlayerWeb extends WebPlugin {
     if (this.currentTrack.contentUrl?.startsWith('/hls')) {
       sessionTrackUrl = this.currentTrack.contentUrl
     } else {
-      sessionTrackUrl = `/public/session/${this.playbackSession.id}/track/${this.currentTrack.index}`
+      sessionTrackUrl = `/public/session/${this.playbackSession.id}/track/${this.currentTrack.index || 1}`
     }
 
     this.player.src = `${serverHost}${sessionTrackUrl}`
