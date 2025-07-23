@@ -110,6 +110,20 @@ class MainActivity : BridgeActivity() {
     super.onDestroy()
   }
 
+  override fun onResume() {
+    super.onResume()
+    Log.d(tag, "onResume MainActivity")
+    // Trigger UI sync when app comes to foreground, waiting for UI to be ready
+    if (::foregroundService.isInitialized) {
+      try {
+        val absAudioPlayer = bridge.getPlugin("AbsAudioPlayer").instance as AbsAudioPlayer
+        absAudioPlayer.syncCurrentPlaybackStateWhenReady() // Smart sync that waits for readiness
+      } catch (e: Exception) {
+        Log.e(tag, "Failed to sync playback state on resume: ${e.message}")
+      }
+    }
+  }
+
   override fun onPostCreate(savedInstanceState: Bundle?) {
     super.onPostCreate(savedInstanceState)
     Log.d(tag, "onPostCreate MainActivity")

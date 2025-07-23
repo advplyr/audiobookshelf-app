@@ -108,8 +108,104 @@ class AbsAudioPlayer : Plugin() {
       })
 
       MediaEventManager.clientEventEmitter = playerNotificationService.clientEventEmitter
+      // --- Sync playback state and metadata on service connection ---
+      syncCurrentPlaybackState()
     }
     mainActivity.pluginCallback = foregroundServiceReady
+  }
+
+  // --- New function to sync playback state and metadata ---
+  fun syncCurrentPlaybackState() {
+    try {
+      val playbackSession = playerNotificationService.currentPlaybackSession
+      if (playbackSession != null) {
+        Log.d(tag, "Syncing playback state: ${playbackSession.libraryItem?.media?.metadata?.title}")
+        notifyListeners("onPlaybackSession", JSObject(jacksonMapper.writeValueAsString(playbackSession)))
+
+        // Create and emit metadata using the same pattern as the service
+        val duration = playbackSession.duration
+        val currentTime = playerNotificationService.getCurrentTimeSeconds()
+        val isPlaying = playerNotificationService.currentPlayer.isPlaying
+
+        // Use READY state for both playing and paused (when player is loaded)
+        // Only use IDLE for truly idle states
+        val playerState = PlayerState.READY
+        val metadata = PlaybackMetadata(duration, currentTime, playerState)
+        notifyListeners("onMetadata", JSObject(jacksonMapper.writeValueAsString(metadata)))
+
+        // Also emit the current playing state to update play/pause button
+        emit("onPlayingUpdate", isPlaying)
+
+        // Emit current time to update progress bar
+        val ret = JSObject()
+        ret.put("value", currentTime)
+        ret.put("bufferedTime", playerNotificationService.getBufferedTimeSeconds())
+        notifyListeners("onTimeUpdate", ret)
+
+        Log.d(tag, "Synced state - Playing: $isPlaying, CurrentTime: $currentTime, Duration: $duration, PlayerState: READY")
+
+        // Force a small delay then emit playing state again to ensure UI updates
+        Handler(Looper.getMainLooper()).postDelayed({
+          emit("onPlayingUpdate", isPlaying)
+          Log.d(tag, "Re-emitted playing state: $isPlaying")
+        }, 100)
+
+      } else {
+        Log.d(tag, "No active playback session to sync")
+      }
+    } catch (e: Exception) {
+      Log.e(tag, "Failed to sync playback state: ${e.message}")
+    }
+  }
+
+  // --- Smart sync that waits for web view to be ready ---
+  fun syncCurrentPlaybackStateWhenReady(maxRetries: Int = 10, retryIntervalMs: Long = 500) {
+    var retryCount = 0
+
+    fun attemptSync() {
+      try {
+        // Check if bridge and web view are ready
+        val webView = bridge?.webView
+        if (webView != null && bridge != null) {
+          // Additional check to see if web view has loaded content
+          webView.evaluateJavascript("(function() { return document.readyState === 'complete' && window.Capacitor != null; })();") { result ->
+            if (result == "true") {
+              Log.d(tag, "Web view is ready, syncing playback state")
+              syncCurrentPlaybackState()
+            } else {
+              retryCount++
+              if (retryCount < maxRetries) {
+                Log.d(tag, "Web view not ready yet, retry $retryCount/$maxRetries")
+                Handler(Looper.getMainLooper()).postDelayed({
+                  attemptSync()
+                }, retryIntervalMs)
+              } else {
+                Log.w(tag, "Max retries reached, falling back to immediate sync")
+                syncCurrentPlaybackState()
+              }
+            }
+          }
+          return
+        }
+
+        retryCount++
+        if (retryCount < maxRetries) {
+          Log.d(tag, "Bridge/WebView not ready yet, retry $retryCount/$maxRetries")
+          Handler(Looper.getMainLooper()).postDelayed({
+            attemptSync()
+          }, retryIntervalMs)
+        } else {
+          Log.w(tag, "Max retries reached, falling back to immediate sync")
+          syncCurrentPlaybackState()
+        }
+      } catch (e: Exception) {
+        Log.e(tag, "Error checking web view readiness: ${e.message}")
+        // Fallback to immediate sync
+        syncCurrentPlaybackState()
+      }
+    }
+
+    attemptSync()
   }
 
   fun emit(evtName: String, value: Any) {
@@ -422,5 +518,11 @@ class AbsAudioPlayer : Plugin() {
     val jsobj = JSObject()
     jsobj.put("value", isCastAvailable)
     call.resolve(jsobj)
+  }
+
+  @PluginMethod
+  fun syncPlaybackState(call: PluginCall) {
+    syncCurrentPlaybackState()
+    call.resolve()
   }
 }
