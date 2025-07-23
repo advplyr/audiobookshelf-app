@@ -1,101 +1,103 @@
 <template>
-  <div ref="card" :id="`book-card-${index}`" :style="{ minWidth: width + 'px', maxWidth: width + 'px', height: height + 'px' }" class="rounded-sm z-10 bg-primary cursor-pointer box-shadow-book" @click="clickCard">
-    <!-- When cover image does not fill -->
-    <div v-show="showCoverBg" class="absolute top-0 left-0 w-full h-full overflow-hidden rounded-sm bg-primary">
-      <div class="absolute cover-bg" ref="coverBg" />
-    </div>
+  <div role="listitem">
+    <div ref="card" role="link" @keyup.enter="clickCard" tabindex="0" :id="`book-card-${index}`" :style="{ minWidth: width + 'px', maxWidth: width + 'px', height: height + 'px' }" class="rounded-sm z-10 bg-primary cursor-pointer box-shadow-book" @click="clickCard">
+      <!-- When cover image does not fill -->
+      <div v-show="showCoverBg" class="absolute top-0 left-0 w-full h-full overflow-hidden rounded-sm bg-primary">
+        <div class="absolute cover-bg" ref="coverBg" />
+      </div>
 
-    <!-- Alternative bookshelf title/author/sort -->
-    <div v-if="isAltViewEnabled" class="absolute left-0 z-50 w-full" :style="{ bottom: `-${titleDisplayBottomOffset}rem` }">
-      <div :style="{ fontSize: 0.9 * sizeMultiplier + 'rem' }" class="flex items-center">
-        <p class="truncate" :style="{ fontSize: 0.9 * sizeMultiplier + 'rem' }">
-          {{ displayTitle }}
+      <!-- Alternative bookshelf title/author/sort -->
+      <div v-if="isAltViewEnabled" class="absolute left-0 z-50 w-full" :style="{ bottom: `-${titleDisplayBottomOffset}rem` }">
+        <div :style="{ fontSize: 0.9 * sizeMultiplier + 'rem' }" class="flex items-center">
+          <p class="truncate" :style="{ fontSize: 0.9 * sizeMultiplier + 'rem' }">
+            {{ displayTitle }}
+          </p>
+          <widgets-explicit-indicator v-if="isExplicit" />
+        </div>
+        <p class="truncate text-fg-muted" :style="{ fontSize: 0.8 * sizeMultiplier + 'rem' }">{{ displayLineTwo || '&nbsp;' }}</p>
+        <p v-if="displaySortLine" class="truncate text-fg-muted" :style="{ fontSize: 0.8 * sizeMultiplier + 'rem' }">{{ displaySortLine }}</p>
+      </div>
+
+      <div v-if="seriesSequenceList" class="absolute rounded-lg bg-black bg-opacity-90 box-shadow-md z-20 text-right" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }" style="background-color: #78350f">
+        <p class="text-white" :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }">#{{ seriesSequenceList }}</p>
+      </div>
+      <div v-else-if="booksInSeries" class="absolute rounded-lg bg-black bg-opacity-90 box-shadow-md z-20" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }" style="background-color: #cd9d49dd">
+        <p class="text-white" :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }">{{ booksInSeries }}</p>
+      </div>
+
+      <div class="w-full h-full absolute top-0 left-0 rounded overflow-hidden z-10">
+        <div v-show="libraryItem && !imageReady" class="absolute top-0 left-0 w-full h-full flex items-center justify-center" :style="{ padding: sizeMultiplier * 0.5 + 'rem' }">
+          <p :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }" class="text-fg-muted text-center">{{ title }}</p>
+        </div>
+
+        <img alt v-show="libraryItem" ref="cover" :src="bookCoverSrc" class="w-full h-full transition-opacity duration-300" :class="showCoverBg ? 'object-contain' : 'object-fill'" @load="imageLoaded" :style="{ opacity: imageReady ? 1 : 0 }" />
+
+        <!-- Placeholder Cover Title & Author -->
+        <div v-if="!hasCover" class="absolute top-0 left-0 right-0 bottom-0 w-full h-full flex items-center justify-center" :style="{ padding: placeholderCoverPadding + 'rem' }">
+          <div>
+            <p class="text-center" style="color: rgb(247 223 187)" :style="{ fontSize: titleFontSize + 'rem' }">{{ titleCleaned }}</p>
+          </div>
+        </div>
+        <div v-if="!hasCover" class="absolute left-0 right-0 w-full flex items-center justify-center" :style="{ padding: placeholderCoverPadding + 'rem', bottom: authorBottom + 'rem' }">
+          <p class="text-center" style="color: rgb(247 223 187); opacity: 0.75" :style="{ fontSize: authorFontSize + 'rem' }">{{ authorCleaned }}</p>
+        </div>
+
+        <div v-if="showPlayButton" class="absolute -bottom-16 -right-16 rotate-45 w-32 h-32 p-2 bg-gradient-to-r from-transparent to-black to-40% inline-flex justify-start items-center">
+          <div class="hover:text-white text-gray-200 hover:scale-110 transform duration-200 pointer-events-auto -rotate-45" @click.stop.prevent="play">
+            <span class="material-symbols fill">{{ streamIsPlaying ? 'pause_circle' : 'play_circle' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Play/pause button for podcast episode -->
+      <div v-if="recentEpisode" class="absolute z-10 top-0 left-0 bottom-0 right-0 m-auto flex items-center justify-center w-12 h-12 rounded-full" :class="{ 'bg-white/70': !playerIsStartingForThisMedia }" @click.stop="playEpisode">
+        <span v-if="!playerIsStartingForThisMedia" class="material-symbols fill text-6xl text-black/80">{{ streamIsPlaying ? 'pause_circle' : 'play_circle' }}</span>
+        <div v-else class="text-fg absolute top-0 left-0 w-full h-full flex items-center justify-center bg-black/80 rounded-full overflow-hidden">
+          <svg class="animate-spin" style="width: 24px; height: 24px" viewBox="0 0 24 24">
+            <path fill="currentColor" d="M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z" />
+          </svg>
+        </div>
+      </div>
+
+      <!-- No progress shown for collapsed series in library -->
+      <div v-if="!collapsedSeries && (!isPodcast || recentEpisode)" class="absolute bottom-0 left-0 h-1 max-w-full z-10 rounded-b box-shadow-progressbar" role="img" :aria-label="`${(userProgressPercent * 100).toFixed(0)}% ${$strings.LabelComplete}`" :class="itemIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: width * userProgressPercent + 'px' }"></div>
+
+      <!-- Downloaded icon -->
+      <div v-if="showHasLocalDownload" class="absolute right-0 top-0 z-20" :style="{ top: (isPodcast || (seriesSequence && showSequence) ? 1.75 : 0.375) * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }">
+        <span class="material-symbols text-2xl text-success">download_done</span>
+      </div>
+
+      <!-- Error widget -->
+      <div v-if="showError" :style="{ height: 1.5 * sizeMultiplier + 'rem', width: 2.5 * sizeMultiplier + 'rem' }" class="bg-error rounded-r-full shadow-md flex items-center justify-end border-r border-b border-red-300 absolute bottom-4 left-0 z-10">
+        <span class="material-symbols text-red-100 pr-1" :style="{ fontSize: 0.875 * sizeMultiplier + 'rem' }">priority_high</span>
+      </div>
+
+      <!-- rss feed icon -->
+      <div v-if="rssFeed" class="absolute text-success top-0 left-0 z-10" :style="{ padding: 0.375 * sizeMultiplier + 'rem' }">
+        <span class="material-symbols" :style="{ fontSize: sizeMultiplier * 1.5 + 'rem' }">rss_feed</span>
+      </div>
+
+      <!-- Series sequence -->
+      <div v-if="seriesSequence && showSequence && !isSelectionMode" class="absolute rounded-lg bg-black/90 text-white box-shadow-md z-10" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }">
+        <p :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }">#{{ seriesSequence }}</p>
+      </div>
+
+      <!-- Podcast Episode # -->
+      <div v-if="recentEpisodeNumber !== null && !isSelectionMode" class="absolute rounded-lg bg-black/90 box-shadow-md z-10" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }">
+        <p class="text-white" :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }">
+          Episode<span v-if="recentEpisodeNumber"> #{{ recentEpisodeNumber }}</span>
         </p>
-        <widgets-explicit-indicator v-if="isExplicit" />
-      </div>
-      <p class="truncate text-fg-muted" :style="{ fontSize: 0.8 * sizeMultiplier + 'rem' }">{{ displayLineTwo || '&nbsp;' }}</p>
-      <p v-if="displaySortLine" class="truncate text-fg-muted" :style="{ fontSize: 0.8 * sizeMultiplier + 'rem' }">{{ displaySortLine }}</p>
-    </div>
-
-    <div v-if="seriesSequenceList" class="absolute rounded-lg bg-black bg-opacity-90 box-shadow-md z-20 text-right" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }" style="background-color: #78350f">
-      <p class="text-white" :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }">#{{ seriesSequenceList }}</p>
-    </div>
-    <div v-else-if="booksInSeries" class="absolute rounded-lg bg-black bg-opacity-90 box-shadow-md z-20" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }" style="background-color: #cd9d49dd">
-      <p class="text-white" :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }">{{ booksInSeries }}</p>
-    </div>
-
-    <div class="w-full h-full absolute top-0 left-0 rounded overflow-hidden z-10">
-      <div v-show="libraryItem && !imageReady" class="absolute top-0 left-0 w-full h-full flex items-center justify-center" :style="{ padding: sizeMultiplier * 0.5 + 'rem' }">
-        <p :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }" class="text-fg-muted text-center">{{ title }}</p>
       </div>
 
-      <img v-show="libraryItem" ref="cover" :src="bookCoverSrc" class="w-full h-full transition-opacity duration-300" :class="showCoverBg ? 'object-contain' : 'object-fill'" @load="imageLoaded" :style="{ opacity: imageReady ? 1 : 0 }" />
-
-      <!-- Placeholder Cover Title & Author -->
-      <div v-if="!hasCover" class="absolute top-0 left-0 right-0 bottom-0 w-full h-full flex items-center justify-center" :style="{ padding: placeholderCoverPadding + 'rem' }">
-        <div>
-          <p class="text-center" style="color: rgb(247 223 187)" :style="{ fontSize: titleFontSize + 'rem' }">{{ titleCleaned }}</p>
-        </div>
-      </div>
-      <div v-if="!hasCover" class="absolute left-0 right-0 w-full flex items-center justify-center" :style="{ padding: placeholderCoverPadding + 'rem', bottom: authorBottom + 'rem' }">
-        <p class="text-center" style="color: rgb(247 223 187); opacity: 0.75" :style="{ fontSize: authorFontSize + 'rem' }">{{ authorCleaned }}</p>
+      <!-- Podcast Num Episodes -->
+      <div v-else-if="numEpisodes && !numEpisodesIncomplete && !isSelectionMode" class="absolute rounded-full bg-black bg-opacity-90 box-shadow-md z-10 flex items-center justify-center" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', width: 1.25 * sizeMultiplier + 'rem', height: 1.25 * sizeMultiplier + 'rem' }">
+        <p class="text-white" :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }">{{ numEpisodes }}</p>
       </div>
 
-      <div v-if="showPlayButton" class="absolute -bottom-16 -right-16 rotate-45 w-32 h-32 p-2 bg-gradient-to-r from-transparent to-black to-40% inline-flex justify-start items-center">
-        <div class="hover:text-white text-gray-200 hover:scale-110 transform duration-200 pointer-events-auto -rotate-45" @click.stop.prevent="play">
-          <span class="material-symbols fill">{{ streamIsPlaying ? 'pause_circle' : 'play_circle' }}</span>
-        </div>
+      <!-- Podcast Num Episodes Incomplete -->
+      <div v-else-if="numEpisodesIncomplete && !isSelectionMode" class="absolute rounded-full bg-yellow-400 box-shadow-md z-10 flex items-center justify-center" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', width: 1.25 * sizeMultiplier + 'rem', height: 1.25 * sizeMultiplier + 'rem' }">
+        <p class="text-black" :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }">{{ numEpisodesIncomplete }}</p>
       </div>
-    </div>
-
-    <!-- Play/pause button for podcast episode -->
-    <div v-if="recentEpisode" class="absolute z-10 top-0 left-0 bottom-0 right-0 m-auto flex items-center justify-center w-12 h-12 rounded-full" :class="{ 'bg-white/70': !playerIsStartingForThisMedia }" @click.stop="playEpisode">
-      <span v-if="!playerIsStartingForThisMedia" class="material-symbols fill text-6xl text-black/80">{{ streamIsPlaying ? 'pause_circle' : 'play_circle' }}</span>
-      <div v-else class="text-fg absolute top-0 left-0 w-full h-full flex items-center justify-center bg-black/80 rounded-full overflow-hidden">
-        <svg class="animate-spin" style="width: 24px; height: 24px" viewBox="0 0 24 24">
-          <path fill="currentColor" d="M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z" />
-        </svg>
-      </div>
-    </div>
-
-    <!-- No progress shown for collapsed series in library -->
-    <div v-if="!collapsedSeries && (!isPodcast || recentEpisode)" class="absolute bottom-0 left-0 h-1 max-w-full z-10 rounded-b box-shadow-progressbar" :class="itemIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: width * userProgressPercent + 'px' }"></div>
-
-    <!-- Downloaded icon -->
-    <div v-if="showHasLocalDownload" class="absolute right-0 top-0 z-20" :style="{ top: (isPodcast || (seriesSequence && showSequence) ? 1.75 : 0.375) * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }">
-      <span class="material-symbols text-2xl text-success">download_done</span>
-    </div>
-
-    <!-- Error widget -->
-    <div v-if="showError" :style="{ height: 1.5 * sizeMultiplier + 'rem', width: 2.5 * sizeMultiplier + 'rem' }" class="bg-error rounded-r-full shadow-md flex items-center justify-end border-r border-b border-red-300 absolute bottom-4 left-0 z-10">
-      <span class="material-symbols text-red-100 pr-1" :style="{ fontSize: 0.875 * sizeMultiplier + 'rem' }">priority_high</span>
-    </div>
-
-    <!-- rss feed icon -->
-    <div v-if="rssFeed" class="absolute text-success top-0 left-0 z-10" :style="{ padding: 0.375 * sizeMultiplier + 'rem' }">
-      <span class="material-symbols" :style="{ fontSize: sizeMultiplier * 1.5 + 'rem' }">rss_feed</span>
-    </div>
-
-    <!-- Series sequence -->
-    <div v-if="seriesSequence && showSequence && !isSelectionMode" class="absolute rounded-lg bg-black/90 text-white box-shadow-md z-10" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }">
-      <p :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }">#{{ seriesSequence }}</p>
-    </div>
-
-    <!-- Podcast Episode # -->
-    <div v-if="recentEpisodeNumber !== null && !isSelectionMode" class="absolute rounded-lg bg-black/90 box-shadow-md z-10" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }">
-      <p class="text-white" :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }">
-        Episode<span v-if="recentEpisodeNumber"> #{{ recentEpisodeNumber }}</span>
-      </p>
-    </div>
-
-    <!-- Podcast Num Episodes -->
-    <div v-else-if="numEpisodes && !numEpisodesIncomplete && !isSelectionMode" class="absolute rounded-full bg-black bg-opacity-90 box-shadow-md z-10 flex items-center justify-center" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', width: 1.25 * sizeMultiplier + 'rem', height: 1.25 * sizeMultiplier + 'rem' }">
-      <p class="text-white" :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }">{{ numEpisodes }}</p>
-    </div>
-
-    <!-- Podcast Num Episodes Incomplete -->
-    <div v-else-if="numEpisodesIncomplete && !isSelectionMode" class="absolute rounded-full bg-yellow-400 box-shadow-md z-10 flex items-center justify-center" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', width: 1.25 * sizeMultiplier + 'rem', height: 1.25 * sizeMultiplier + 'rem' }">
-      <p class="text-black" :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }">{{ numEpisodesIncomplete }}</p>
     </div>
   </div>
 </template>
