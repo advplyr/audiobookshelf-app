@@ -41,6 +41,7 @@ class PlayerNotificationListener(var playerNotificationService:PlayerNotificatio
     if (dismissedByUser) {
       Log.d(tag, "onNotificationCancelled dismissed by user")
       playerNotificationService.stopSelf()
+      isForegroundService = false
     } else {
       Log.d(tag, "onNotificationCancelled not dismissed by user")
 
@@ -51,6 +52,5 @@ class PlayerNotificationListener(var playerNotificationService:PlayerNotificatio
         PlayerNotificationService.isSwitchingPlayer = false
       }
     }
-    isForegroundService = false
   }
 }
