@@ -6,8 +6,10 @@ import android.support.v4.media.MediaDescriptionCompat
 import androidx.media.utils.MediaConstants
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.squareup.moshi.JsonClass
 
 @JsonIgnoreProperties(ignoreUnknown = true)
+@JsonClass(generateAdapter = true)
 class LibrarySeriesItem(
   id:String,
   var libraryId:String,
