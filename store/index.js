@@ -136,23 +136,22 @@ export const actions = {
       commit('setIsNetworkUnmetered', isUnmetered)
     })
   },
-  
-  // Queue management actions
+
   async addToQueue({ commit, state }, queueItem) {
     commit('addToQueue', queueItem)
     await this.$localStore.setPlaybackQueue(state.playbackQueue)
   },
-  
+
   async removeFromQueue({ commit, state }, index) {
     commit('removeFromQueue', index)
     await this.$localStore.setPlaybackQueue(state.playbackQueue)
   },
-  
+
   async clearQueue({ commit, state }) {
     commit('clearQueue')
     await this.$localStore.setPlaybackQueue(state.playbackQueue)
   },
-  
+
   async moveQueueItem({ commit, state }, { fromIndex, toIndex }) {
     commit('moveQueueItem', { fromIndex, toIndex })
     await this.$localStore.setPlaybackQueue(state.playbackQueue)
@@ -165,30 +164,73 @@ export const actions = {
       console.log('[Store] Loaded saved queue with', savedQueue.length, 'items')
     }
   },
-  
+
   async playNextInQueue({ commit, getters, dispatch }) {
     const nextItem = getters.getNextQueueItem
     if (nextItem) {
-      // Remove the item from queue since we're about to play it
       await dispatch('removeFromQueue', 0)
-      
-      // Trigger playback
       dispatch('playQueueItem', nextItem)
     }
   },
-  
+
   playQueueItem({ commit }, queueItem) {
-    // Use global event bus accessible from Vue app
     if (typeof window !== 'undefined' && window.$nuxt) {
       window.$nuxt.$eventBus.$emit('play-item', {
         libraryItemId: queueItem.libraryItemId,
         episodeId: queueItem.episodeId,
-        startTime: 0,
+        startTime: queueItem.currentTime || 0,
         paused: false,
         serverLibraryItemId: queueItem.serverLibraryItemId,
         serverEpisodeId: queueItem.serverEpisodeId
       })
     }
+  },
+
+  async addCurrentlyPlayingToQueue({ commit, state, dispatch, getters }) {
+    const currentSession = state.currentPlaybackSession
+    if (!currentSession) return
+
+    const isLocal = currentSession.localLibraryItem != null
+    const libraryItem = isLocal ? currentSession.localLibraryItem : {
+      id: currentSession.libraryItemId,
+      media: {
+        metadata: {
+          title: currentSession.displayTitle,
+          authorName: currentSession.displayAuthor
+        },
+        duration: currentSession.duration,
+        coverPath: currentSession.coverPath
+      }
+    }
+
+    let episode = null
+    if (currentSession.episodeId) {
+      episode = isLocal ? currentSession.localEpisode : {
+        id: currentSession.episodeId,
+        title: currentSession.displayTitle,
+        duration: currentSession.duration
+      }
+    }
+
+    const currentTime = currentSession.currentTime || 0
+
+    const queueItem = {
+      libraryItemId: currentSession.libraryItemId,
+      episodeId: currentSession.episodeId,
+      serverLibraryItemId: currentSession.libraryItemId,
+      serverEpisodeId: currentSession.episodeId,
+      title: currentSession.displayTitle,
+      author: currentSession.displayAuthor,
+      duration: currentSession.duration,
+      coverPath: currentSession.coverPath,
+      libraryItem: libraryItem,
+      episode: episode,
+      isLocal: isLocal,
+      currentTime: currentTime
+    }
+
+    commit('addToQueueAtIndex', { queueItem, index: 0 })
+    await this.$localStore.setPlaybackQueue(state.playbackQueue)
   }
 }
 
@@ -278,35 +320,41 @@ export const mutations = {
     state.serverSettings = val
     this.$localStore.setServerSettings(state.serverSettings)
   },
-  
-  // Queue mutations
+
   addToQueue(state, queueItem) {
-    // Add unique ID for Vue key tracking
     const itemWithId = {
       ...queueItem,
-      id: Date.now() + Math.random() // Simple unique ID generation
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     }
     state.playbackQueue.push(itemWithId)
   },
-  
+
+  addToQueueAtIndex(state, { queueItem, index }) {
+    const itemWithId = {
+      ...queueItem,
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    }
+    state.playbackQueue.splice(index, 0, itemWithId)
+  },
+
   removeFromQueue(state, index) {
     if (index >= 0 && index < state.playbackQueue.length) {
       state.playbackQueue.splice(index, 1)
     }
   },
-  
+
   clearQueue(state) {
     state.playbackQueue = []
   },
-  
+
   moveQueueItem(state, { fromIndex, toIndex }) {
-    if (fromIndex >= 0 && fromIndex < state.playbackQueue.length && 
+    if (fromIndex >= 0 && fromIndex < state.playbackQueue.length &&
         toIndex >= 0 && toIndex < state.playbackQueue.length) {
       const item = state.playbackQueue.splice(fromIndex, 1)[0]
       state.playbackQueue.splice(toIndex, 0, item)
     }
   },
-  
+
   setPlaybackQueue(state, queue) {
     state.playbackQueue = queue
   }
