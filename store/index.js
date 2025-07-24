@@ -27,7 +27,8 @@ export const state = () => ({
   isNetworkListenerInit: false,
   serverSettings: null,
   lastBookshelfScrollData: {},
-  lastItemScrollData: {}
+  lastItemScrollData: {},
+  playbackQueue: []
 })
 
 export const getters = {
@@ -99,6 +100,18 @@ export const getters = {
     const majorVersion = parseInt(versionParts[0])
     const minorVersion = parseInt(versionParts[1])
     return majorVersion < 2 || (majorVersion == 2 && minorVersion < 17)
+  },
+  getPlaybackQueue: (state) => {
+    return state.playbackQueue
+  },
+  getNextQueueItem: (state) => {
+    return state.playbackQueue.length > 0 ? state.playbackQueue[0] : null
+  },
+  hasQueueItems: (state) => {
+    return state.playbackQueue.length > 0
+  },
+  getQueueLength: (state) => {
+    return state.playbackQueue.length
   }
 }
 
@@ -122,6 +135,48 @@ export const actions = {
       console.log('On network metered changed', isUnmetered)
       commit('setIsNetworkUnmetered', isUnmetered)
     })
+  },
+  
+  // Queue management actions
+  addToQueue({ commit }, queueItem) {
+    commit('addToQueue', queueItem)
+  },
+  
+  removeFromQueue({ commit }, index) {
+    commit('removeFromQueue', index)
+  },
+  
+  clearQueue({ commit }) {
+    commit('clearQueue')
+  },
+  
+  moveQueueItem({ commit }, { fromIndex, toIndex }) {
+    commit('moveQueueItem', { fromIndex, toIndex })
+  },
+  
+  playNextInQueue({ commit, getters, dispatch }) {
+    const nextItem = getters.getNextQueueItem
+    if (nextItem) {
+      // Remove the item from queue since we're about to play it
+      commit('removeFromQueue', 0)
+      
+      // Trigger playback
+      dispatch('playQueueItem', nextItem)
+    }
+  },
+  
+  playQueueItem({ commit }, queueItem) {
+    // Use global event bus accessible from Vue app
+    if (typeof window !== 'undefined' && window.$nuxt) {
+      window.$nuxt.$eventBus.$emit('play-item', {
+        libraryItemId: queueItem.libraryItemId,
+        episodeId: queueItem.episodeId,
+        startTime: 0,
+        paused: false,
+        serverLibraryItemId: queueItem.serverLibraryItemId,
+        serverEpisodeId: queueItem.serverEpisodeId
+      })
+    }
   }
 }
 
@@ -210,5 +265,37 @@ export const mutations = {
   setServerSettings(state, val) {
     state.serverSettings = val
     this.$localStore.setServerSettings(state.serverSettings)
+  },
+  
+  // Queue mutations
+  addToQueue(state, queueItem) {
+    // Add unique ID for Vue key tracking
+    const itemWithId = {
+      ...queueItem,
+      id: Date.now() + Math.random() // Simple unique ID generation
+    }
+    state.playbackQueue.push(itemWithId)
+  },
+  
+  removeFromQueue(state, index) {
+    if (index >= 0 && index < state.playbackQueue.length) {
+      state.playbackQueue.splice(index, 1)
+    }
+  },
+  
+  clearQueue(state) {
+    state.playbackQueue = []
+  },
+  
+  moveQueueItem(state, { fromIndex, toIndex }) {
+    if (fromIndex >= 0 && fromIndex < state.playbackQueue.length && 
+        toIndex >= 0 && toIndex < state.playbackQueue.length) {
+      const item = state.playbackQueue.splice(fromIndex, 1)[0]
+      state.playbackQueue.splice(toIndex, 0, item)
+    }
+  },
+  
+  setPlaybackQueue(state, queue) {
+    state.playbackQueue = queue
   }
 }
