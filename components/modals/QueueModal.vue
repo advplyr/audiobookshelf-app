@@ -11,7 +11,9 @@
         <h2 class="text-lg font-semibold">{{ $strings.LabelQueue }}</h2>
         <div class="flex items-center space-x-2">
           <ui-btn v-if="queue.length > 0" small color="error" @click="clearQueue">{{ $strings.ButtonClearQueue }}</ui-btn>
-          <ui-btn small @click="show = false">{{ $strings.ButtonClose }}</ui-btn>
+          <ui-btn small @click="show = false">
+            <span class="material-symbols">close</span>
+          </ui-btn>
         </div>
       </div>
 
