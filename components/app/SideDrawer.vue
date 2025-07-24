@@ -87,6 +87,11 @@ export default {
           icon: 'home',
           text: this.$strings.ButtonHome,
           to: '/bookshelf'
+        },
+        {
+          icon: 'queue_music',
+          text: this.$strings.LabelQueue,
+          action: 'openQueue'
         }
       ]
       if (!this.serverConnectionConfig) {
@@ -168,6 +173,9 @@ export default {
         this.show = false
         let path = `/library/${this.$store.state.libraries.currentLibraryId}`
         await this.$store.dispatch('user/openWebClient', path)
+      } else if (action === 'openQueue') {
+        this.show = false
+        this.$store.commit('globals/setShowQueueModal', true)
       }
     },
     clickBackground() {

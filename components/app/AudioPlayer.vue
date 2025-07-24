@@ -63,6 +63,7 @@
           </div>
 
           <span class="material-symbols text-3xl text-fg cursor-pointer" :class="chapters.length ? 'text-opacity-75' : 'text-opacity-10'" @click="clickChaptersBtn">format_list_bulleted</span>
+          <span class="material-symbols text-3xl text-fg cursor-pointer" :class="$store.getters.hasQueueItems ? 'text-opacity-75' : 'text-opacity-25'" @click="$store.commit('globals/setShowQueueModal', true)">queue_music</span>
         </div>
       </div>
       <div v-else class="w-full h-full absolute top-0 left-0 pointer-events-none" style="background: var(--gradient-minimized-audio-player)" />
@@ -199,6 +200,11 @@ export default {
 
       items.push(
         ...[
+          {
+            text: this.$strings.LabelQueue,
+            value: 'queue',
+            icon: 'queue_music'
+          },
           {
             text: this.$strings.LabelTotalTrack,
             value: 'total_track',
@@ -740,6 +746,8 @@ export default {
         if (action === 'history') {
           this.$router.push(`/media/${this.mediaId}/history?title=${this.title}`)
           this.showFullscreen = false
+        } else if (action === 'queue') {
+          this.$store.commit('globals/setShowQueueModal', true)
         } else if (action === 'scale_elapsed_time') {
           this.playerSettings.scaleElapsedTimeBySpeed = !this.playerSettings.scaleElapsedTimeBySpeed
           this.updateTimestamp()
@@ -841,6 +849,7 @@ export default {
 
       if (data.playerState === 'ENDED') {
         console.log('[AudioPlayer] Playback ended')
+        this.handlePlaybackEnded()
       }
       this.isEnded = data.playerState === 'ENDED'
 
@@ -951,6 +960,16 @@ export default {
     },
     showProgressSyncSuccess() {
       this.syncStatus = this.$constants.SyncStatus.SUCCESS
+    },
+    handlePlaybackEnded() {
+      // Check if there are items in the queue to play next
+      if (this.$store.getters.hasQueueItems) {
+        console.log('[AudioPlayer] Playing next item from queue')
+        // Small delay to allow for proper cleanup
+        setTimeout(() => {
+          this.$store.dispatch('playNextInQueue')
+        }, 1000)
+      }
     }
   },
   mounted() {

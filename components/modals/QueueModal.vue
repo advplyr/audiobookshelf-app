@@ -70,9 +70,6 @@ export default {
   components: {
     draggable
   },
-  props: {
-    value: Boolean
-  },
   data() {
     return {
       localQueue: []
@@ -81,10 +78,10 @@ export default {
   computed: {
     show: {
       get() {
-        return this.value
+        return this.$store.state.globals.showQueueModal
       },
       set(val) {
-        this.$emit('input', val)
+        this.$store.commit('globals/setShowQueueModal', val)
       }
     },
     queue() {
