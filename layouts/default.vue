@@ -350,6 +350,9 @@ export default {
 
       await this.syncLocalSessions(true)
 
+      // Load saved queue from previous session
+      await this.$store.dispatch('loadSavedQueue')
+
       this.hasMounted = true
 
       AbsLogger.info({ tag: 'default', message: 'mounted: fully initialized' })

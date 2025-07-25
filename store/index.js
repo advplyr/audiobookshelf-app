@@ -138,27 +138,39 @@ export const actions = {
   },
   
   // Queue management actions
-  addToQueue({ commit }, queueItem) {
+  async addToQueue({ commit, state }, queueItem) {
     commit('addToQueue', queueItem)
+    await this.$localStore.setPlaybackQueue(state.playbackQueue)
   },
   
-  removeFromQueue({ commit }, index) {
+  async removeFromQueue({ commit, state }, index) {
     commit('removeFromQueue', index)
+    await this.$localStore.setPlaybackQueue(state.playbackQueue)
   },
   
-  clearQueue({ commit }) {
+  async clearQueue({ commit, state }) {
     commit('clearQueue')
+    await this.$localStore.setPlaybackQueue(state.playbackQueue)
   },
   
-  moveQueueItem({ commit }, { fromIndex, toIndex }) {
+  async moveQueueItem({ commit, state }, { fromIndex, toIndex }) {
     commit('moveQueueItem', { fromIndex, toIndex })
+    await this.$localStore.setPlaybackQueue(state.playbackQueue)
+  },
+
+  async loadSavedQueue({ commit }) {
+    const savedQueue = await this.$localStore.getPlaybackQueue()
+    if (savedQueue && savedQueue.length > 0) {
+      commit('setPlaybackQueue', savedQueue)
+      console.log('[Store] Loaded saved queue with', savedQueue.length, 'items')
+    }
   },
   
-  playNextInQueue({ commit, getters, dispatch }) {
+  async playNextInQueue({ commit, getters, dispatch }) {
     const nextItem = getters.getNextQueueItem
     if (nextItem) {
       // Remove the item from queue since we're about to play it
-      commit('removeFromQueue', 0)
+      await dispatch('removeFromQueue', 0)
       
       // Trigger playback
       dispatch('playQueueItem', nextItem)
