@@ -1068,6 +1068,249 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   }
 
   //
+  // SHAKE SENSOR
+  //
+  private fun initSensor() {
+    // ShakeDetector initialization
+    mSensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
+    mAccelerometer = mSensorManager!!.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+
+    mShakeDetector = ShakeDetector()
+    mShakeDetector!!.setOnShakeListener(
+            object : ShakeDetector.OnShakeListener {
+              override fun onShake(count: Int) {
+                Log.d(tag, "PHONE SHAKE! $count")
+                sleepTimerManager.handleShake()
+              }
+            }
+    )
+  }
+
+  // Shake sensor used for sleep timer
+  fun registerSensor() {
+    if (isShakeSensorRegistered) {
+      Log.i(tag, "Shake sensor already registered")
+      return
+    }
+    shakeSensorUnregisterTask?.cancel()
+
+    Log.d(tag, "Registering shake SENSOR ${mAccelerometer?.isWakeUpSensor}")
+    val success =
+            mSensorManager!!.registerListener(
+                    mShakeDetector,
+                    mAccelerometer,
+                    SensorManager.SENSOR_DELAY_UI
+            )
+    if (success) isShakeSensorRegistered = true
+  }
+
+  fun unregisterSensor() {
+    if (!isShakeSensorRegistered) return
+
+    // Unregister shake sensor after wake up expiration
+    shakeSensorUnregisterTask?.cancel()
+    shakeSensorUnregisterTask =
+            Timer("ShakeUnregisterTimer", false).schedule(SLEEP_TIMER_WAKE_UP_EXPIRATION) {
+              Handler(Looper.getMainLooper()).post {
+                Log.d(tag, "wake time expired: Unregistering shake sensor")
+                mSensorManager!!.unregisterListener(mShakeDetector)
+                isShakeSensorRegistered = false
+              }
+            }
+  }
+
+  private val networkCallback =
+          object : ConnectivityManager.NetworkCallback() {
+            // Network capabilities have changed for the network
+            override fun onCapabilitiesChanged(
+                    network: Network,
+                    networkCapabilities: NetworkCapabilities
+            ) {
+              super.onCapabilitiesChanged(network, networkCapabilities)
+
+              isUnmeteredNetwork =
+                      networkCapabilities.hasCapability(
+                              NetworkCapabilities.NET_CAPABILITY_NOT_METERED
+                      )
+              hasNetworkConnectivity =
+                      networkCapabilities.hasCapability(
+                              NetworkCapabilities.NET_CAPABILITY_VALIDATED
+                      ) &&
+                              networkCapabilities.hasCapability(
+                                      NetworkCapabilities.NET_CAPABILITY_INTERNET
+                              )
+              Log.i(
+                      tag,
+                      "Network capabilities changed. hasNetworkConnectivity=$hasNetworkConnectivity | isUnmeteredNetwork=$isUnmeteredNetwork"
+              )
+              clientEventEmitter?.onNetworkMeteredChanged(isUnmeteredNetwork)
+              if (hasNetworkConnectivity) {
+                // Force android auto loading if libraries are empty.
+                // Lack of network connectivity is most likely reason for libraries being empty
+                if (isBrowseTreeInitialized() &&
+                                firstLoadDone &&
+                                mediaManager.serverLibraries.isEmpty()
+                ) {
+                  forceReloadingAndroidAuto = true
+                  notifyChildrenChanged("/")
+                }
+              }
+            }
+          }
+
+  // --- Resume from last session when Android Auto starts ---
+  private fun resumeFromLastSessionForAndroidAuto() {
+    try {
+      Log.d(tag, "Android Auto: Attempting to resume from last session (device or server)")
+
+      // First check for local playback session saved on device
+      val lastPlaybackSession = DeviceManager.deviceData.lastPlaybackSession
+      if (lastPlaybackSession != null) {
+        Log.d(tag, "Android Auto: Found local playback session, resuming: ${lastPlaybackSession.displayTitle}")
+
+        // Prepare the player in paused state with saved playback speed
+        val savedPlaybackSpeed = mediaManager.getSavedPlaybackRate()
+        Handler(Looper.getMainLooper()).post {
+          if (mediaProgressSyncer.listeningTimerRunning) {
+            mediaProgressSyncer.stop {
+              preparePlayer(lastPlaybackSession, false, savedPlaybackSpeed)
+            }
+          } else {
+            mediaProgressSyncer.reset()
+            preparePlayer(lastPlaybackSession, false, savedPlaybackSpeed)
+          }
+        }
+        return
+      }
+
+      // No local session found, check server for last session if connected
+      if (!DeviceManager.checkConnectivity(ctx)) {
+        Log.d(tag, "Android Auto: No connectivity, cannot check server for last session")
+        return
+      }
+
+      Log.d(tag, "Android Auto: No local session found, querying server for last session")
+
+      // Use getCurrentUser to get user data which should include session information
+      apiHandler.getCurrentUser { user ->
+        if (user != null) {
+          Log.d(tag, "Android Auto: Got user data from server")
+
+          try {
+            // Get the most recent media progress
+            if (user.mediaProgress.isNotEmpty()) {
+              val latestProgress = user.mediaProgress.maxByOrNull { it.lastUpdate }
+
+              if (latestProgress != null && latestProgress.currentTime > 0) {
+                Log.d(tag, "Android Auto: Found recent progress: ${latestProgress.libraryItemId} at ${latestProgress.currentTime}s")
+
+                // Check if this library item is downloaded locally
+                val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItemByLId(latestProgress.libraryItemId)
+
+                if (localLibraryItem != null) {
+                  Log.d(tag, "Android Auto: Found local download for ${localLibraryItem.title}, using local copy")
+
+                  // Create a local playback session
+                  val deviceInfo = getDeviceInfo()
+                  val episode = if (latestProgress.episodeId != null && localLibraryItem.isPodcast) {
+                    val podcast = localLibraryItem.media as? Podcast
+                    podcast?.episodes?.find { ep -> ep.id == latestProgress.episodeId }
+                  } else null
+
+                  val localPlaybackSession = localLibraryItem.getPlaybackSession(episode, deviceInfo)
+                  // Override the current time with the server progress to sync position
+                  localPlaybackSession.currentTime = latestProgress.currentTime
+
+                  Log.d(tag, "Android Auto: Resuming from local download: ${localLibraryItem.title} at ${latestProgress.currentTime}s")
+
+                  // Prepare the player in paused state with saved playback speed
+                  val savedPlaybackSpeed = mediaManager.getSavedPlaybackRate()
+                  Handler(Looper.getMainLooper()).post {
+                    if (mediaProgressSyncer.listeningTimerRunning) {
+                      mediaProgressSyncer.stop {
+                        preparePlayer(localPlaybackSession, false, savedPlaybackSpeed)
+                      }
+                    } else {
+                      mediaProgressSyncer.reset()
+                      preparePlayer(localPlaybackSession, false, savedPlaybackSpeed)
+                    }
+                  }
+                  return@getCurrentUser
+                }
+
+                // No local copy found, get the library item from server
+                Log.d(tag, "Android Auto: No local download found, using server streaming")
+                apiHandler.getLibraryItem(latestProgress.libraryItemId) { libraryItem ->
+                  if (libraryItem != null) {
+                    Log.d(tag, "Android Auto: Got library item: ${libraryItem.media?.metadata?.title}")
+
+                    // Create a playback session from the library item and progress
+                    Handler(Looper.getMainLooper()).post {
+                      try {
+                        val episode = if (latestProgress.episodeId != null) {
+                          val podcastMedia = libraryItem.media as? Podcast
+                          podcastMedia?.episodes?.find { ep -> ep.id == latestProgress.episodeId }
+                        } else null
+
+                        // Use the API to get a proper playback session but don't start playback
+                        val playItemRequestPayload = getPlayItemRequestPayload(false)
+
+                        // Get the current playback speed from saved settings
+                        val currentPlaybackSpeed = mediaManager.getSavedPlaybackRate()
+
+                        Log.d(tag, "Android Auto: Using playback speed: $currentPlaybackSpeed")
+
+                        apiHandler.playLibraryItem(latestProgress.libraryItemId, latestProgress.episodeId, playItemRequestPayload) { playbackSession ->
+                          if (playbackSession != null) {
+                            // Override the current time with the saved progress
+                            playbackSession.currentTime = latestProgress.currentTime
+
+                            Log.d(tag, "Android Auto: Resuming from server session: ${libraryItem.media.metadata?.title} at ${latestProgress.currentTime}s in paused state with speed ${currentPlaybackSpeed}x")
+
+                            // Prepare the player in paused state on main thread with correct playback speed
+                            Handler(Looper.getMainLooper()).post {
+                              if (mediaProgressSyncer.listeningTimerRunning) {
+                                mediaProgressSyncer.stop {
+                                  preparePlayer(playbackSession, false, currentPlaybackSpeed)
+                                }
+                              } else {
+                                mediaProgressSyncer.reset()
+                                preparePlayer(playbackSession, false, currentPlaybackSpeed)
+                              }
+                            }
+                          } else {
+                            Log.e(tag, "Android Auto: Failed to create playback session from server")
+                          }
+                        }
+
+                      } catch (e: Exception) {
+                        Log.e(tag, "Android Auto: Error creating playback session from server data: ${e.message}")
+                      }
+                    }
+                  } else {
+                    Log.d(tag, "Android Auto: Could not get library item ${latestProgress.libraryItemId} from server")
+                  }
+                }
+              } else {
+                Log.d(tag, "Android Auto: No recent progress found or progress is at beginning")
+              }
+            } else {
+              Log.d(tag, "Android Auto: No media progress found in user data")
+            }
+
+          } catch (e: Exception) {
+            Log.e(tag, "Android Auto: Error processing user session data: ${e.message}")
+          }
+        } else {
+          Log.d(tag, "Android Auto: No user data found from server")
+        }
+      }
+    } catch (e: Exception) {
+      Log.e(tag, "Android Auto: Failed to resume from last session: ${e.message}")
+    }
+  }
+
+  //
   // MEDIA BROWSER STUFF (ANDROID AUTO)
   //
   private val VALID_MEDIA_BROWSERS =
@@ -1249,6 +1492,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
         AbsLogger.info(tag, "onLoadChildren: Loading Android Auto items")
         mediaManager.loadAndroidAutoItems {
           AbsLogger.info(tag, "onLoadChildren: Loaded Android Auto data, initializing browseTree")
+
+          // Check for existing session or resume from server when Android Auto starts
+          if (currentPlaybackSession == null) {
+            Log.d(tag, "Android Auto: No active session found, attempting to resume from last session")
+            resumeFromLastSessionForAndroidAuto()
+          }
 
           browseTree =
                   BrowseTree(
@@ -1924,175 +2173,75 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     Log.d(tag, "onSearch: Done")
   }
 
-  //
-  // SHAKE SENSOR
-  //
-  private fun initSensor() {
-    // ShakeDetector initialization
-    mSensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
-    mAccelerometer = mSensorManager!!.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-
-    mShakeDetector = ShakeDetector()
-    mShakeDetector!!.setOnShakeListener(
-            object : ShakeDetector.OnShakeListener {
-              override fun onShake(count: Int) {
-                Log.d(tag, "PHONE SHAKE! $count")
-                sleepTimerManager.handleShake()
-              }
-            }
-    )
-  }
-
-  // Shake sensor used for sleep timer
-  fun registerSensor() {
-    if (isShakeSensorRegistered) {
-      Log.i(tag, "Shake sensor already registered")
-      return
-    }
-    shakeSensorUnregisterTask?.cancel()
-
-    Log.d(tag, "Registering shake SENSOR ${mAccelerometer?.isWakeUpSensor}")
-    val success =
-            mSensorManager!!.registerListener(
-                    mShakeDetector,
-                    mAccelerometer,
-                    SensorManager.SENSOR_DELAY_UI
-            )
-    if (success) isShakeSensorRegistered = true
-  }
-
-  fun unregisterSensor() {
-    if (!isShakeSensorRegistered) return
-
-    // Unregister shake sensor after wake up expiration
-    shakeSensorUnregisterTask?.cancel()
-    shakeSensorUnregisterTask =
-            Timer("ShakeUnregisterTimer", false).schedule(SLEEP_TIMER_WAKE_UP_EXPIRATION) {
-              Handler(Looper.getMainLooper()).post {
-                Log.d(tag, "wake time expired: Unregistering shake sensor")
-                mSensorManager!!.unregisterListener(mShakeDetector)
-                isShakeSensorRegistered = false
-              }
-            }
-  }
-
-  private val networkCallback =
-          object : ConnectivityManager.NetworkCallback() {
-            // Network capabilities have changed for the network
-            override fun onCapabilitiesChanged(
-                    network: Network,
-                    networkCapabilities: NetworkCapabilities
-            ) {
-              super.onCapabilitiesChanged(network, networkCapabilities)
-
-              isUnmeteredNetwork =
-                      networkCapabilities.hasCapability(
-                              NetworkCapabilities.NET_CAPABILITY_NOT_METERED
-                      )
-              hasNetworkConnectivity =
-                      networkCapabilities.hasCapability(
-                              NetworkCapabilities.NET_CAPABILITY_VALIDATED
-                      ) &&
-                              networkCapabilities.hasCapability(
-                                      NetworkCapabilities.NET_CAPABILITY_INTERNET
-                              )
-              Log.i(
-                      tag,
-                      "Network capabilities changed. hasNetworkConnectivity=$hasNetworkConnectivity | isUnmeteredNetwork=$isUnmeteredNetwork"
-              )
-              clientEventEmitter?.onNetworkMeteredChanged(isUnmeteredNetwork)
-              if (hasNetworkConnectivity) {
-                // Force android auto loading if libraries are empty.
-                // Lack of network connectivity is most likely reason for libraries being empty
-                if (isBrowseTreeInitialized() &&
-                                firstLoadDone &&
-                                mediaManager.serverLibraries.isEmpty()
-                ) {
-                  forceReloadingAndroidAuto = true
-                  notifyChildrenChanged("/")
-                }
-              }
-            }
-          }
-
+  // Custom Action Providers for Android Auto
   inner class JumpBackwardCustomActionProvider : CustomActionProvider {
     override fun onCustomAction(player: Player, action: String, extras: Bundle?) {
-      /*
-      This does not appear to ever get called. Instead, MediaSessionCallback.onCustomAction() is
-      responsible to reacting to a custom action.
-       */
+      // This does not appear to ever get called. Instead, MediaSessionCallback.onCustomAction() is
+      // responsible to reacting to a custom action.
     }
 
     override fun getCustomAction(player: Player): PlaybackStateCompat.CustomAction? {
       return PlaybackStateCompat.CustomAction.Builder(
-                      CUSTOM_ACTION_JUMP_BACKWARD,
-                      getContext().getString(R.string.action_jump_backward),
-                      R.drawable.exo_icon_rewind
-              )
+              CUSTOM_ACTION_JUMP_BACKWARD,
+              getContext().getString(R.string.action_jump_backward),
+              R.drawable.exo_icon_rewind
+      )
               .build()
     }
   }
 
   inner class JumpForwardCustomActionProvider : CustomActionProvider {
     override fun onCustomAction(player: Player, action: String, extras: Bundle?) {
-      /*
-      This does not appear to ever get called. Instead, MediaSessionCallback.onCustomAction() is
-      responsible to reacting to a custom action.
-       */
+      // This does not appear to ever get called. Instead, MediaSessionCallback.onCustomAction() is
+      // responsible to reacting to a custom action.
     }
 
     override fun getCustomAction(player: Player): PlaybackStateCompat.CustomAction? {
       return PlaybackStateCompat.CustomAction.Builder(
-                      CUSTOM_ACTION_JUMP_FORWARD,
-                      getContext().getString(R.string.action_jump_forward),
-                      R.drawable.exo_icon_fastforward
-              )
+              CUSTOM_ACTION_JUMP_FORWARD,
+              getContext().getString(R.string.action_jump_forward),
+              R.drawable.exo_icon_fastforward
+      )
               .build()
     }
   }
 
   inner class SkipForwardCustomActionProvider : CustomActionProvider {
     override fun onCustomAction(player: Player, action: String, extras: Bundle?) {
-      /*
-      This does not appear to ever get called. Instead, MediaSessionCallback.onCustomAction() is
-      responsible to reacting to a custom action.
-       */
+      // This does not appear to ever get called. Instead, MediaSessionCallback.onCustomAction() is
+      // responsible to reacting to a custom action.
     }
 
     override fun getCustomAction(player: Player): PlaybackStateCompat.CustomAction? {
       return PlaybackStateCompat.CustomAction.Builder(
-                      CUSTOM_ACTION_SKIP_FORWARD,
-                      getContext().getString(R.string.action_skip_forward),
-                      R.drawable.skip_next_24
-              )
+              CUSTOM_ACTION_SKIP_FORWARD,
+              getContext().getString(R.string.action_skip_forward),
+              R.drawable.skip_next_24
+      )
               .build()
     }
   }
 
   inner class SkipBackwardCustomActionProvider : CustomActionProvider {
     override fun onCustomAction(player: Player, action: String, extras: Bundle?) {
-      /*
-      This does not appear to ever get called. Instead, MediaSessionCallback.onCustomAction() is
-      responsible to reacting to a custom action.
-       */
+      // This does not appear to ever get called. Instead, MediaSessionCallback.onCustomAction() is
+      // responsible to reacting to a custom action.
     }
 
     override fun getCustomAction(player: Player): PlaybackStateCompat.CustomAction? {
       return PlaybackStateCompat.CustomAction.Builder(
-                      CUSTOM_ACTION_SKIP_BACKWARD,
-                      getContext().getString(R.string.action_skip_backward),
-                      R.drawable.skip_previous_24
-              )
+              CUSTOM_ACTION_SKIP_BACKWARD,
+              getContext().getString(R.string.action_skip_backward),
+              R.drawable.skip_previous_24
+      )
               .build()
     }
   }
 
   inner class ChangePlaybackSpeedCustomActionProvider : CustomActionProvider {
     override fun onCustomAction(player: Player, action: String, extras: Bundle?) {
-      /*
-      This does not appear to ever get called. Instead, MediaSessionCallback.onCustomAction() is
-      responsible to reacting to a custom action.
-       */
+      // This does not appear to ever get called. Instead, MediaSessionCallback.onCustomAction() is
+      // responsible to reacting to a custom action.
     }
 
     override fun getCustomAction(player: Player): PlaybackStateCompat.CustomAction? {
@@ -2114,10 +2263,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       val customActionExtras = Bundle()
       customActionExtras.putFloat("speed", playbackRate)
       return PlaybackStateCompat.CustomAction.Builder(
-                      CUSTOM_ACTION_CHANGE_SPEED,
-                      getContext().getString(R.string.action_change_speed),
-                      drawable
-              )
+              CUSTOM_ACTION_CHANGE_SPEED,
+              getContext().getString(R.string.action_change_speed),
+              drawable
+      )
               .setExtras(customActionExtras)
               .build()
     }

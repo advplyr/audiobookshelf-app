@@ -8,7 +8,9 @@ import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.util.Log
 import android.view.ViewGroup
 import android.view.WindowInsets
@@ -110,6 +112,20 @@ class MainActivity : BridgeActivity() {
     super.onDestroy()
   }
 
+  override fun onStart() {
+    super.onStart()
+    Log.d(tag, "onStart MainActivity")
+    // Additional sync point for when activity becomes visible
+    if (::foregroundService.isInitialized) {
+      try {
+        val absAudioPlayer = bridge.getPlugin("AbsAudioPlayer").instance as AbsAudioPlayer
+        absAudioPlayer.syncCurrentPlaybackStateWhenReady()
+      } catch (e: Exception) {
+        Log.e(tag, "Failed to sync playback state on start: ${e.message}")
+      }
+    }
+  }
+
   override fun onResume() {
     super.onResume()
     Log.d(tag, "onResume MainActivity")
@@ -143,6 +159,25 @@ class MainActivity : BridgeActivity() {
 
         // Let NativeAudio know foreground service is ready and setup event listener
         pluginCallback()
+
+        // Also trigger UI sync when service connects on activity creation
+        try {
+          val absAudioPlayer = bridge.getPlugin("AbsAudioPlayer").instance as AbsAudioPlayer
+          absAudioPlayer.syncCurrentPlaybackStateWhenReady() // Smart sync that waits for readiness
+
+          // Add a delayed fallback sync for fresh installs/updates where timing might be critical
+          Handler(Looper.getMainLooper()).postDelayed({
+            try {
+              Log.d(tag, "Fallback sync attempt after service connection")
+              absAudioPlayer.syncCurrentPlaybackStateWhenReady()
+            } catch (e: Exception) {
+              Log.e(tag, "Fallback sync failed: ${e.message}")
+            }
+          }, 3000) // 3 second delay
+
+        } catch (e: Exception) {
+          Log.e(tag, "Failed to sync playback state on service connect: ${e.message}")
+        }
       }
     }
 

@@ -151,10 +151,150 @@ class AbsAudioPlayer : Plugin() {
         }, 100)
 
       } else {
-        Log.d(tag, "No active playback session to sync")
+        Log.d(tag, "No active playback session - checking server for last session")
+        resumeFromLastServerSession()
       }
     } catch (e: Exception) {
       Log.e(tag, "Failed to sync playback state: ${e.message}")
+    }
+  }
+
+  // --- Resume from last server session when no active session ---
+  private fun resumeFromLastServerSession() {
+    try {
+      Log.d(tag, "Querying server for current user to get last playback session")
+
+      // Use getCurrentUser to get user data which should include current session
+      apiHandler.getCurrentUser { user ->
+        if (user != null) {
+          Log.d(tag, "Got user data from server")
+
+          try {
+            // Get the most recent media progress
+            if (user.mediaProgress.isNotEmpty()) {
+              val latestProgress = user.mediaProgress.maxByOrNull { it.lastUpdate }
+
+              if (latestProgress != null && latestProgress.currentTime > 0) {
+                Log.d(tag, "Found recent progress: ${latestProgress.libraryItemId} at ${latestProgress.currentTime}s")
+
+                // Check if this library item is downloaded locally
+                val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItemByLId(latestProgress.libraryItemId)
+
+                if (localLibraryItem != null) {
+                  Log.d(tag, "Found local download for ${localLibraryItem.title}, using local copy")
+
+                  // Create a local playback session
+                  val deviceInfo = playerNotificationService.getDeviceInfo()
+                  val episode = if (latestProgress.episodeId != null && localLibraryItem.isPodcast) {
+                    val podcast = localLibraryItem.media as? Podcast
+                    podcast?.episodes?.find { ep -> ep.id == latestProgress.episodeId }
+                  } else null
+
+                  val localPlaybackSession = localLibraryItem.getPlaybackSession(episode, deviceInfo)
+                  // Override the current time with the server progress to sync position
+                  localPlaybackSession.currentTime = latestProgress.currentTime
+
+                  Log.d(tag, "Resuming from local download: ${localLibraryItem.title} at ${latestProgress.currentTime}s")
+
+                  // Get current playbook speed from MediaManager (same as Android Auto implementation)
+                  val currentPlaybackSpeed = playerNotificationService.mediaManager.getSavedPlaybackRate()
+
+                  // Prepare the player in paused state with saved playback speed
+                  Handler(Looper.getMainLooper()).post {
+                    if (playerNotificationService.mediaProgressSyncer.listeningTimerRunning) {
+                      playerNotificationService.mediaProgressSyncer.stop {
+                        PlayerListener.lazyIsPlaying = false
+                        playerNotificationService.preparePlayer(localPlaybackSession, false, currentPlaybackSpeed)
+                      }
+                    } else {
+                      playerNotificationService.mediaProgressSyncer.reset()
+                      PlayerListener.lazyIsPlaying = false
+                      playerNotificationService.preparePlayer(localPlaybackSession, false, currentPlaybackSpeed)
+                    }
+                  }
+                  return@getCurrentUser
+                }
+
+                // No local copy found, get the library item from server
+                Log.d(tag, "No local download found, using server streaming")
+                apiHandler.getLibraryItem(latestProgress.libraryItemId) { libraryItem ->
+                  if (libraryItem != null) {
+                    Log.d(tag, "Got library item: ${libraryItem.media?.metadata?.title}")
+
+                    // Create a playback session from the library item and progress
+                    Handler(Looper.getMainLooper()).post {
+                      try {
+                        val episode = if (latestProgress.episodeId != null) {
+                          val podcastMedia = libraryItem.media as? Podcast
+                          podcastMedia?.episodes?.find { ep -> ep.id == latestProgress.episodeId }
+                        } else null
+
+                        // Use the API to get a proper playback session but don't start playback
+                        val playItemRequestPayload = playerNotificationService.getPlayItemRequestPayload(false)
+
+                        // Try to get the current playback speed from the player, default to 1.0f if not available
+                        val currentPlaybackSpeed = try {
+                          if (::playerNotificationService.isInitialized && playerNotificationService.currentPlayer != null) {
+                            playerNotificationService.currentPlayer.playbackParameters?.speed ?: 1.0f
+                          } else {
+                            1.0f
+                          }
+                        } catch (e: Exception) {
+                          Log.d(tag, "Could not get current playback speed, using default: ${e.message}")
+                          1.0f
+                        }
+
+                        Log.d(tag, "Using playback speed: $currentPlaybackSpeed")
+
+                        apiHandler.playLibraryItem(latestProgress.libraryItemId, latestProgress.episodeId, playItemRequestPayload) { playbackSession ->
+                          if (playbackSession != null) {
+                            // Override the current time with the saved progress
+                            playbackSession.currentTime = latestProgress.currentTime
+
+                            Log.d(tag, "Resuming from server session: ${libraryItem.media.metadata?.title} at ${latestProgress.currentTime}s in paused state with speed ${currentPlaybackSpeed}x")
+
+                            // Prepare the player in paused state on main thread with correct playback speed
+                            Handler(Looper.getMainLooper()).post {
+                              if (playerNotificationService.mediaProgressSyncer.listeningTimerRunning) {
+                                playerNotificationService.mediaProgressSyncer.stop {
+                                  PlayerListener.lazyIsPlaying = false
+                                  playerNotificationService.preparePlayer(playbackSession, false, currentPlaybackSpeed) // Use correct speed
+                                }
+                              } else {
+                                playerNotificationService.mediaProgressSyncer.reset()
+                                PlayerListener.lazyIsPlaying = false
+                                playerNotificationService.preparePlayer(playbackSession, false, currentPlaybackSpeed) // Use correct speed
+                              }
+                            }
+                          } else {
+                            Log.e(tag, "Failed to create playback session from server")
+                          }
+                        }
+
+                      } catch (e: Exception) {
+                        Log.e(tag, "Error creating playback session from server data: ${e.message}")
+                      }
+                    }
+                  } else {
+                    Log.d(tag, "Could not get library item ${latestProgress.libraryItemId} from server")
+                  }
+                }
+              } else {
+                Log.d(tag, "No recent progress found or progress is at beginning")
+              }
+            } else {
+              Log.d(tag, "No media progress found in user data")
+            }
+
+          } catch (e: Exception) {
+            Log.e(tag, "Error processing user session data: ${e.message}")
+          }
+        } else {
+          Log.d(tag, "No user data found from server")
+        }
+      }
+    } catch (e: Exception) {
+      Log.e(tag, "Failed to resume from last server session: ${e.message}")
     }
   }
 
