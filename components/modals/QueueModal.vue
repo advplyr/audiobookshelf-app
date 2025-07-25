@@ -35,11 +35,12 @@
             class="flex items-center p-3 bg-primary bg-opacity-10 rounded-lg border border-primary border-opacity-30 hover:bg-opacity-20 transition-colors group"
           >
             <div class="flex-shrink-0 mr-3">
-              <covers-book-cover 
-                v-if="item.coverPath"
-                :library-item="{ media: { coverPath: item.coverPath } }"
+              <covers-preview-cover 
+                v-if="getCoverSrc(item)"
+                :src="getCoverSrc(item)"
                 :width="40"
                 :book-cover-aspect-ratio="1.6"
+                :show-resolution="false"
               />
               <div v-else class="w-10 h-16 bg-primary bg-opacity-20 rounded flex items-center justify-center">
                 <span class="material-symbols text-primary">{{ item.episodeId ? 'podcast' : 'book' }}</span>
@@ -102,6 +103,22 @@ export default {
     }
   },
   methods: {
+    getCoverSrc(item) {
+      // For episodes and audiobooks, use the library item cover
+      if (item.libraryItem) {
+        // Use the global getter for library item covers
+        if (item.isLocal) {
+          // For local items, check if we have a direct cover path
+          return item.libraryItem.media?.coverPath || null
+        } else {
+          // For server items, use the store getter
+          return this.$store.getters['globals/getLibraryItemCoverSrcById'](item.serverLibraryItemId)
+        }
+      }
+      
+      // Fallback to the coverPath if available
+      return item.coverPath || null
+    },
     onDragEnd(evt) {
       if (evt.oldIndex !== evt.newIndex) {
         this.$store.dispatch('moveQueueItem', {
