@@ -90,11 +90,6 @@ export default {
           icon: 'home',
           text: this.$strings.ButtonHome,
           to: '/bookshelf'
-        },
-        {
-          icon: 'queue_music',
-          text: this.$strings.LabelQueue,
-          action: 'openQueue'
         }
       ]
       if (!this.serverConnectionConfig) {
@@ -133,6 +128,13 @@ export default {
           to: '/downloads'
         })
       }
+
+      // Add queue after local media/downloads
+      items.push({
+        icon: 'playlist_play',
+        text: this.$strings.LabelQueue,
+        action: 'openQueue'
+      })
       items.push({
         icon: 'settings',
         text: this.$strings.HeaderSettings,
