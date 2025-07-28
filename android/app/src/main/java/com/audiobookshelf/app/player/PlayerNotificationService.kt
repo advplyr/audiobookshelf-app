@@ -209,7 +209,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     super.onTaskRemoved(rootIntent)
     Log.d(tag, "onTaskRemoved")
 
-    stopSelf()
+    if (currentPlaybackSession == null || !currentPlayer.isPlaying) {
+      stopSelf()
+    }
   }
 
   override fun onCreate() {
