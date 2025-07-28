@@ -63,7 +63,7 @@
           </div>
 
           <span class="material-symbols text-3xl text-fg cursor-pointer" :class="chapters.length ? 'text-opacity-75' : 'text-opacity-10'" @click="clickChaptersBtn">format_list_bulleted</span>
-          <span class="material-symbols text-3xl text-fg cursor-pointer" :class="$store.getters.hasQueueItems ? 'text-opacity-75' : 'text-opacity-25'" @click="$store.commit('globals/setShowQueueModal', true)">queue_music</span>
+          <span class="material-symbols text-3xl text-fg cursor-pointer" :class="$store.getters.hasQueueItems ? 'text-opacity-75' : 'text-opacity-25'" @click="$store.commit('globals/setShowQueueModal', true)">playlist_play</span>
         </div>
       </div>
       <div v-else class="w-full h-full absolute top-0 left-0 pointer-events-none" style="background: var(--gradient-minimized-audio-player)" />
@@ -203,7 +203,7 @@ export default {
           {
             text: this.$strings.LabelQueue,
             value: 'queue',
-            icon: 'queue_music'
+            icon: 'playlist_play'
           },
           {
             text: this.$strings.LabelTotalTrack,

@@ -92,7 +92,7 @@ export default {
         items.push({
           text: this.$strings.ButtonAddToQueue,
           value: 'addToQueue',
-          icon: 'queue_music'
+          icon: 'playlist_play'
         })
 
         if (this.ereaderDeviceItems.length) {
