@@ -1,0 +1,1 @@
+<p>Zur Verwendung mit Ihrem Audiobookshelf-Server. Audiobookshelf ist ein kostenloser Open-Source-Hörbuch- und Podcast-Manager.</p><p>Verbinden Sie sich mit Ihrem selbst gehosteten Audiobookshelf-Server und streamen Sie Ihre Hörbücher und Podcasts direkt auf Ihr Gerät.</p>
