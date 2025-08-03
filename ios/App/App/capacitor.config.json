@@ -15,7 +15,6 @@
 		"androidScheme": "http"
 	},
 	"packageClassList": [
-		"FileSharerPlugin",
 		"KeepAwakePlugin",
 		"VolumeButtonsPlugin",
 		"AppPlugin",
@@ -26,6 +25,7 @@
 		"CAPNetworkPlugin",
 		"PreferencesPlugin",
 		"StatusBarPlugin",
+		"FileSharerPlugin",
 		"CDVPlugin"
 	]
 }
