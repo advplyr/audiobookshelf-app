@@ -8,6 +8,9 @@ import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.server.ApiHandler
 import com.getcapacitor.JSObject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import java.util.*
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
@@ -176,17 +179,15 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
    * [cb] resolves when all libraries are processed
    */
   fun populatePersonalizedDataForAllLibraries(cb: () -> Unit ) {
-    serverLibraries.forEach {
-      libraryPersonalizationsDone++
-      Log.d(tag, "Loading personalization for library ${it.name} - ${it.id} - ${it.mediaType}")
-      populatePersonalizedDataForLibrary(it.id) {
-        Log.d(tag, "Loaded personalization for library ${it.name} - ${it.id} - ${it.mediaType}")
-        libraryPersonalizationsDone--
-      }
+    runBlocking {
+      serverLibraries.map {
+        async(Dispatchers.Default) {
+          Log.d(tag, "Loading personalization for library ${it.name} - ${it.id} - ${it.mediaType}")
+          populatePersonalizedDataForLibrary(it.id) { }
+          Log.d(tag, "Loaded personalization for library ${it.name} - ${it.id} - ${it.mediaType}")
+        }
+      }.awaitAll()
     }
-
-    while (libraryPersonalizationsDone > 0) { }
-
     Log.d(tag, "Finished loading all library personalization data")
     allLibraryPersonalizationsDone = true
     cb()
