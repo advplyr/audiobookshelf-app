@@ -471,6 +471,21 @@ export default {
         // Will NOT include access token and refresh token
         this.setUserAndConnection(payload)
       } else {
+        // Authentication failed, fetch server auth methods before showing auth form
+        try {
+          this.processing = true
+          const statusData = await this.getServerAddressStatus(this.serverConfig.address)
+          if (statusData && statusData.data) {
+            this.authMethods = statusData.data.authMethods || []
+            this.oauth.buttonText = statusData.data.authFormData?.authOpenIDButtonText || 'Login with OpenID'
+            this.serverConfig.version = statusData.data.serverVersion
+          }
+        } catch (error) {
+          console.error('[ServerConnectForm] Failed to fetch server auth methods during reconnection:', error)
+          // Continue with empty authMethods array - local auth will still work
+        } finally {
+          this.processing = false
+        }
         this.showAuth = true
       }
     },
