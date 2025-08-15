@@ -73,14 +73,14 @@ public class AbsDatabase: CAPPlugin, CAPBridgedPlugin {
 
         let name = "\(address) (\(username))"
         
+        if id == nil {
+            id = "\(address)@\(username)".toBase64()
+        }
+        
         if (refreshToken != "") {
             // Store refresh token securely if provided
             let hasRefreshToken = secureStorage.storeRefreshToken(serverConnectionConfigId: id ?? "", refreshToken: refreshToken)
             logger.log("Refresh token secured = \(hasRefreshToken)")
-        }
-
-        if id == nil {
-            id = "\(address)@\(username)".toBase64()
         }
 
         let config = ServerConnectionConfig()
