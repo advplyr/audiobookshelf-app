@@ -298,6 +298,7 @@
   "MessageDownloading": "Downloading...",
   "MessageDownloadingEpisode": "Downloading episode",
   "MessageEpisodesQueuedForDownload": "{0} Episode(s) queued for download",
+  "MessageFailedToRefreshToken": "Failed to refresh token, re-login required",
   "MessageFeedURLWillBe": "Feed URL will be {0}",
   "MessageFetching": "Fetching...",
   "MessageFollowTheProjectOnGithub": "Follow the project on Github",

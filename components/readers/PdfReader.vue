@@ -173,16 +173,18 @@ export default {
       try {
         console.log('[PdfReader] Handling refresh failure - logging out user')
 
+        const serverConnectionConfigId = this.$store.getters['user/getServerConnectionConfigId']
+
         // Clear store
         await this.$store.dispatch('user/logout')
 
-        if (this.$store.getters['user/getServerConnectionConfigId']) {
+        if (serverConnectionConfigId) {
           // Clear refresh token for server connection config
-          await this.$db.clearRefreshToken(this.$store.getters['user/getServerConnectionConfigId'])
+          await this.$db.clearRefreshToken(serverConnectionConfigId)
         }
 
         if (window.location.pathname !== '/connect') {
-          window.location.href = '/connect'
+          window.location.href = '/connect?error=refreshTokenFailed&serverConnectionConfigId=' + serverConnectionConfigId
         }
       } catch (error) {
         console.error('[PdfReader] Failed to handle refresh failure:', error)

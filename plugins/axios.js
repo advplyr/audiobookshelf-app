@@ -32,7 +32,7 @@ export default function ({ $axios, store, $db }) {
       }
 
       if (window.location.pathname !== '/connect') {
-        window.location.href = '/connect'
+        window.location.href = '/connect?error=refreshTokenFailed&serverConnectionConfigId=' + serverConnectionConfigId
       }
     } catch (error) {
       console.error('[axios] Failed to handle refresh failure:', error)

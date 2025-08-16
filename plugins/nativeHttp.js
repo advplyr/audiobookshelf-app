@@ -221,7 +221,7 @@ export default function ({ store, $db, $socket }, inject) {
 
         // Redirect to login page
         if (window.location.pathname !== '/connect') {
-          window.location.href = '/connect'
+          window.location.href = '/connect?error=refreshTokenFailed&serverConnectionConfigId=' + serverConnectionConfigId
         }
       } catch (error) {
         console.error('[nativeHttp] Failed to handle refresh failure:', error)

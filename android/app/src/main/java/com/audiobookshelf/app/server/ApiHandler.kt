@@ -407,6 +407,9 @@ class ApiHandler(var ctx:Context) {
       if (checkAbsDatabaseNotifyListenersInitted()) {
         val tokenJsObject = JSObject()
         tokenJsObject.put("error", "Token refresh failed")
+        if (serverConnectionConfigId.isNotEmpty()) {
+          tokenJsObject.put("serverConnectionConfigId", serverConnectionConfigId)
+        }
         absDatabaseNotifyListeners("onTokenRefreshFailure", tokenJsObject)
       } else {
         // Can happen if Webview is never run

@@ -138,7 +138,7 @@ export default ({ app, store }, inject) => {
     // Clear store and redirect to login page
     await store.dispatch('user/logout')
     if (window.location.pathname !== '/connect') {
-      window.location.href = '/connect'
+      window.location.href = '/connect?error=refreshTokenFailed&serverConnectionConfigId=' + data.serverConnectionConfigId || ''
     }
   })
 }

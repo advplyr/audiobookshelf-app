@@ -30,7 +30,7 @@
       <!-- form to add a new server connection config -->
       <div v-else class="w-full">
         <!-- server address input -->
-        <form v-if="!showAuth" @submit.prevent="submit" novalidate class="w-full">
+        <form v-if="!showAuth" @submit.prevent="submit(false)" novalidate class="w-full">
           <div v-if="serverConnectionConfigs.length" class="flex items-center mb-4" @click="showServerList">
             <span class="material-symbols text-fg-muted">arrow_back</span>
           </div>
@@ -412,7 +412,7 @@ export default {
           throw new Error('Authentication failed with the provided token.')
         }
 
-        const duplicateConfig = this.serverConnectionConfigs.find((scc) => scc.address === this.serverConfig.address && scc.username === payload.user.username)
+        const duplicateConfig = this.serverConnectionConfigs.find((scc) => scc.address === this.serverConfig.address && scc.username === payload.user.username && scc.id !== this.serverConfig.id)
         if (duplicateConfig) {
           throw new Error('Config already exists for this address and username.')
         }
@@ -471,7 +471,11 @@ export default {
         // Will NOT include access token and refresh token
         this.setUserAndConnection(payload)
       } else {
-        this.showAuth = true
+        let error = this.error
+        if (await this.submit(true)) {
+          this.showForm = true
+          this.error = error
+        }
       }
     },
     async removeServerConfigClick() {
@@ -500,12 +504,14 @@ export default {
         this.showForm = !this.serverConnectionConfigs.length
       }
     },
-    editServerConfig(serverConfig) {
+    async editServerConfig(serverConfig) {
       this.serverConfig = {
         ...serverConfig
       }
-      this.showForm = true
-      this.showAuth = true
+
+      if (await this.submit(true)) {
+        this.showForm = true
+      }
     },
     async newServerConfigClick() {
       await this.$hapticsImpact()
@@ -651,9 +657,8 @@ export default {
           return false
         })
     },
-    async submit() {
-      if (!this.networkConnected) return
-      if (!this.serverConfig.address) return
+    async submit(preventAutoLogin = false) {
+      if (!this.networkConnected || !this.serverConfig.address) return false
 
       const initialAddress = this.serverConfig.address
       // Did the user specify a protocol?
@@ -666,6 +671,7 @@ export default {
       this.authMethods = []
 
       try {
+        console.log('[ServerConnectForm] submit tryServerUrl: ' + this.serverConfig.address)
         // Try the server URL. If it fails and the protocol was not provided, try with http instead of https
         const statusData = await this.tryServerUrl(this.serverConfig.address, !protocolProvided)
         if (this.validateLoginFormResponse(statusData, this.serverConfig.address, protocolProvided)) {
@@ -674,11 +680,12 @@ export default {
           this.oauth.buttonText = statusData.data.authFormData?.authOpenIDButtonText || 'Login with OpenID'
           this.serverConfig.version = statusData.data.serverVersion
 
-          if (statusData.data.authFormData?.authOpenIDAutoLaunch) {
+          if (statusData.data.authFormData?.authOpenIDAutoLaunch && !preventAutoLogin) {
             this.clickLoginWithOpenId()
           }
           return true
         } else {
+          console.log('[ServerConnectForm] submit validateLoginFormResponse failed: ' + this.serverConfig.address)
           return false
         }
       } catch (error) {
@@ -852,7 +859,7 @@ export default {
         } else {
           // Detect if the connection config is using the old token. If so, force re-login
           if (this.serverConfig.token === user.token || user.isOldToken) {
-            this.setForceReloginForNewAuth()
+            this.setForceRelogin('oldAuthToken')
             return
           }
 
@@ -926,20 +933,29 @@ export default {
       this.processing = false
       return authRes
     },
-    async setForceReloginForNewAuth() {
+    async setForceRelogin(error) {
+      console.log('[ServerConnectForm] setForceRelogin', error, this.serverConfig.address)
       // This calls /status on the server and sets the auth methods
-      const result = await this.submit()
+      const result = await this.submit(true)
       if (result) {
-        this.error = this.$strings.MessageOldServerAuthReLoginRequired
+        this.showForm = true
+
+        if (error === 'oldAuthToken') {
+          this.error = this.$strings.MessageOldServerAuthReLoginRequired
+        } else if (error === 'refreshTokenFailed') {
+          this.error = this.$strings.MessageFailedToRefreshToken
+        }
       }
     },
     init() {
-      // Handle force re-login for servers using new JWT auth but still using an old token in the server config
-      if (this.$route.query.error === 'oldAuthToken' && this.$route.query.serverConnectionConfigId) {
+      if (this.$route.query.serverConnectionConfigId) {
+        // Handle force re-login for servers using new JWT auth but still using an old token OR refresh token failed
         this.serverConfig = this.serverConnectionConfigs.find((scc) => scc.id === this.$route.query.serverConnectionConfigId)
         if (this.serverConfig) {
-          this.setForceReloginForNewAuth()
+          this.setForceRelogin(this.$route.query.error)
           return
+        } else {
+          console.error('[ServerConnectForm] init with serverConnectionConfigId but no serverConfig found', this.$route.query.serverConnectionConfigId)
         }
       }
 
