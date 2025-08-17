@@ -1,0 +1,25 @@
+{
+  // 使用 IntelliSense 了解相关属性。
+  // 悬停以查看现有属性的描述。
+  // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "Chrome",
+      "url": "http://localhost:1337",
+      "sourceMapPathOverrides": {
+        "webpack:///pages/*.vue": "${workspaceFolder}/pages/*.vue",
+        "webpack:///components/*.vue": "${workspaceFolder}/components/*.vue",
+        "webpack:///layouts/*.vue": "${workspaceFolder}/layouts/*.vue",
+        "webpack:///./plugins/*.js": "${workspaceFolder}/plugins/*.js",
+        "webpack:///./mixins/*.js": "${workspaceFolder}/mixins/*.js",
+        "webpack:///./objects/*.js": "${workspaceFolder}/objects/*.js",
+        "webpack:///./store/*.js": "${workspaceFolder}/store/*.js",
+        "webpack:///./middleware/*.js": "${workspaceFolder}/middleware/*.js"
+      },
+      "webRoot": "${workspaceFolder}"
+    }
+  ]
+}
