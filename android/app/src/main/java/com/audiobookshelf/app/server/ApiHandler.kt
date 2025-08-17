@@ -13,6 +13,7 @@ import com.audiobookshelf.app.media.MediaProgressSyncData
 import com.audiobookshelf.app.media.SyncResult
 import com.audiobookshelf.app.models.User
 import com.audiobookshelf.app.BuildConfig
+import com.audiobookshelf.app.data.MoshiProvider.Companion.fromJson
 import com.audiobookshelf.app.plugins.AbsLogger
 import com.audiobookshelf.app.managers.SecureStorage
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
@@ -460,13 +461,9 @@ class ApiHandler(var ctx:Context) {
         Log.e(tag, it.getString("error") ?: "getLibraryStats Failed")
         cb(null)
       } else {
-        val items = mutableListOf<LibraryShelfType>()
         val array = it.getJSONArray("value")
-        for (i in 0 until array.length()) {
-          val item = jacksonMapper.readValue<LibraryShelfType>(array.get(i).toString())
-          items.add(item)
-        }
-        cb(items)
+        val shelves = fromJson<List<LibraryShelfType>>(array.toString())
+        cb(shelves)
       }
     }
   }
@@ -615,7 +612,7 @@ class ApiHandler(var ctx:Context) {
         val array = it.getJSONArray("libraryItems")
         for (i in 0 until array.length()) {
           val jsobj = array.get(i) as JSONObject
-          val itemInProgress = ItemInProgress.makeFromServerObject(jsobj, jacksonMapper)
+          val itemInProgress = ItemInProgress.makeFromServerObject(jsobj)
           items.add(itemInProgress)
         }
       }
