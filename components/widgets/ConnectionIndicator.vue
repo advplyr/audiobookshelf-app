@@ -1,6 +1,6 @@
 <template>
   <div v-if="icon" class="flex h-full items-center px-2">
-    <span class="material-symbols text-lg" :class="iconClass" @click="showAlertDialog">{{ icon }}</span>
+    <span role="img" :aria-label="iconLabel" class="material-symbols text-lg" :class="iconClass" @click="showAlertDialog">{{ icon }}</span>
   </div>
 </template>
 
@@ -46,6 +46,19 @@ export default {
         return 'signal_cellular_alt'
       } else {
         return 'cloud_done'
+      }
+    },
+    iconLabel() {
+      if (this.attemptingConnection) {
+        return this.$strings.MessageAttemptingServerConnection
+      } else if (!this.networkConnected) {
+        return this.$strings.MessageNoNetworkConnection
+      } else if (!this.socketConnected) {
+        return this.$strings.MessageSocketNotConnected
+      } else if (this.isCellular) {
+        return this.isNetworkUnmetered ? this.$strings.MessageSocketConnectedOverUnmeteredCellular : this.$strings.MessageSocketConnectedOverMeteredCellular
+      } else {
+        return this.isNetworkUnmetered ? this.$strings.MessageSocketConnectedOverUnmeteredWifi : this.$strings.MessageSocketConnectedOverMeteredWifi
       }
     },
     iconClass() {
