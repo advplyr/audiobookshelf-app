@@ -298,6 +298,7 @@
   "MessageDownloading": "Загрузка...",
   "MessageDownloadingEpisode": "Эпизод скачивается",
   "MessageEpisodesQueuedForDownload": "{0} Эпизод(ов) запланировано для закачки",
+  "MessageFailedToRefreshToken": "Не удалось обновить токен, требуется повторный вход в систему",
   "MessageFeedURLWillBe": "URL канала будет {0}",
   "MessageFetching": "Завершается...",
   "MessageFollowTheProjectOnGithub": "Следите за проектом на GitHub",
