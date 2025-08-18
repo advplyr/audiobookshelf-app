@@ -298,6 +298,7 @@
   "MessageDownloading": "Wird heruntergeladen …",
   "MessageDownloadingEpisode": "Episode herunterladen",
   "MessageEpisodesQueuedForDownload": "{0} Episode(n) in der Warteschlange zum Herunterladen",
+  "MessageFailedToRefreshToken": "Aktualisierung des Tokens fehlgeschlagen, erneute Anmeldung erforderlich",
   "MessageFeedURLWillBe": "Feed-URL wird {0} sein",
   "MessageFetching": "Wird abgerufen …",
   "MessageFollowTheProjectOnGithub": "Folge dem Projekt auf GitHub",
