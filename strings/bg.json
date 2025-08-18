@@ -298,6 +298,7 @@
   "MessageDownloading": "Сваляне...",
   "MessageDownloadingEpisode": "Сваля епизод",
   "MessageEpisodesQueuedForDownload": "{0} Епизод(и) са сложени за сваляне",
+  "MessageFailedToRefreshToken": "Неуспешно опресняване на токена, налага се да се впишете отново",
   "MessageFeedURLWillBe": "Адресът на емисията ще бъде {0}",
   "MessageFetching": "Извличане...",
   "MessageFollowTheProjectOnGithub": "Последвайте проекта в Github",
