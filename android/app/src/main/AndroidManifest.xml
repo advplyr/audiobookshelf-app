@@ -36,6 +36,10 @@
           <meta-data
             android:name="android.appwidget.provider"
             android:resource="@xml/media_player_widget_info" />
+
+          <meta-data
+            android:name="com.samsung.android.appwidget.provider"
+            android:resource="@xml/samsung_cover_widget_info" />
         </receiver>
 
         <!-- Used by Android Auto -->
