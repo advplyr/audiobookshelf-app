@@ -298,6 +298,7 @@
   "MessageDownloading": "Téléchargement…",
   "MessageDownloadingEpisode": "Téléchargement de l’épisode",
   "MessageEpisodesQueuedForDownload": "{0} épisode(s) mis en file pour téléchargement",
+  "MessageFailedToRefreshToken": "Échec de l'actualisation du jeton, reconnexion requise",
   "MessageFeedURLWillBe": "l’URL du flux sera {0}",
   "MessageFetching": "Récupération…",
   "MessageFollowTheProjectOnGithub": "Suivre le projet sur GitHub",

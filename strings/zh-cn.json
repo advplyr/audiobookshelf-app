@@ -298,6 +298,7 @@
   "MessageDownloading": "下载中...",
   "MessageDownloadingEpisode": "正在下载剧集",
   "MessageEpisodesQueuedForDownload": "{0} 个剧集排队等待下载",
+  "MessageFailedToRefreshToken": "无法刷新令牌，需要重新登录",
   "MessageFeedURLWillBe": "源 URL 将改为 {0}",
   "MessageFetching": "正在获取...",
   "MessageFollowTheProjectOnGithub": "在 GitHub 上关注此项目",

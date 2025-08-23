@@ -298,6 +298,7 @@
   "MessageDownloading": "Prenašanje...",
   "MessageDownloadingEpisode": "Prenašam epizodo",
   "MessageEpisodesQueuedForDownload": "{0} epizod v čakalni vrsti za prenos",
+  "MessageFailedToRefreshToken": "Osvežitev žetona ni uspela, potrebna je ponovna prijava",
   "MessageFeedURLWillBe": "URL vira bo {0}",
   "MessageFetching": "Pridobivam...",
   "MessageFollowTheProjectOnGithub": "Sledite projektu na Githubu",

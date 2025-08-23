@@ -298,6 +298,7 @@
   "MessageDownloading": "Letöltés...",
   "MessageDownloadingEpisode": "Epizód letöltése",
   "MessageEpisodesQueuedForDownload": "{0} epizód letöltésre vár",
+  "MessageFailedToRefreshToken": "A token frissítése nem sikerült, ismételt bejelentkezés szükséges",
   "MessageFeedURLWillBe": "A hírcsatorna URL-je lesz: {0}",
   "MessageFetching": "Lekérdezés...",
   "MessageFollowTheProjectOnGithub": "Kövesse a projektet a GitHubon",
