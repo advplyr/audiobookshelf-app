@@ -298,6 +298,7 @@
   "MessageDownloading": "Downloaden...",
   "MessageDownloadingEpisode": "Aflevering aan het dowloaden",
   "MessageEpisodesQueuedForDownload": "{0} aflevering(en) in de rij om te downloaden",
+  "MessageFailedToRefreshToken": "Token vernieuwen mislukt, opnieuw inloggen vereist",
   "MessageFeedURLWillBe": "Feed URL zal {0} zijn",
   "MessageFetching": "Aan het ophalen...",
   "MessageFollowTheProjectOnGithub": "Volg dit project op Github",
