@@ -1,0 +1,1 @@
+<p>For use with your audiobookshelf server. Audiobookshelf is a free and open source audiobook and podcast manager.</p><p>Connect to your self-hosted audiobookshelf server and stream your audiobooks and podcasts directly to your device.</p>
