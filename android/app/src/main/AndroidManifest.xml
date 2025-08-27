@@ -4,6 +4,12 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:installLocation="preferExternal" >
 
+    <!-- Needed for AndroidTV+Mobile support -->
+    <uses-feature android:name="android.software.leanback"
+                android:required="false" />
+
+    <uses-feature android:name="android.hardware.touchscreen"
+                android:required="false" />
     <!-- Permissions -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
