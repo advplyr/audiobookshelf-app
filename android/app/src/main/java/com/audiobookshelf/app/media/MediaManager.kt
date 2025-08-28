@@ -15,6 +15,7 @@ import org.json.JSONException
 import org.json.JSONObject
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
+import java.util.concurrent.atomic.AtomicInteger
 
 class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
   val tag = "MediaManager"
@@ -175,21 +176,20 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
    * Load personalized shelves from server for all libraries.
    * [cb] resolves when all libraries are processed
    */
-  fun populatePersonalizedDataForAllLibraries(cb: () -> Unit ) {
-    serverLibraries.forEach {
-      libraryPersonalizationsDone++
-      Log.d(tag, "Loading personalization for library ${it.name} - ${it.id} - ${it.mediaType}")
-      populatePersonalizedDataForLibrary(it.id) {
-        Log.d(tag, "Loaded personalization for library ${it.name} - ${it.id} - ${it.mediaType}")
-        libraryPersonalizationsDone--
+  fun populatePersonalizedDataForAllLibraries(cb: () -> Unit) {
+    val remaining = AtomicInteger(serverLibraries.size)
+
+    serverLibraries.forEach { lib ->
+      Log.d(tag, "Loading personalization for library ${lib.name}")
+      populatePersonalizedDataForLibrary(lib.id) {
+        Log.d(tag, "Loaded personalization for library ${lib.name}")
+        if (remaining.decrementAndGet() == 0) {
+          Log.d(tag, "Finished loading all library personalization data")
+          allLibraryPersonalizationsDone = true
+          cb()
+        }
       }
     }
-
-    while (libraryPersonalizationsDone > 0) { }
-
-    Log.d(tag, "Finished loading all library personalization data")
-    allLibraryPersonalizationsDone = true
-    cb()
   }
 
   /**
