@@ -5,8 +5,10 @@ import android.os.Bundle
 import android.support.v4.media.MediaDescriptionCompat
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.squareup.moshi.JsonClass
 
 @JsonIgnoreProperties(ignoreUnknown = true)
+@JsonClass(generateAdapter = true)
 class CollapsedSeries(
   id:String,
   var libraryId:String?,
