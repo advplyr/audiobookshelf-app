@@ -11,11 +11,11 @@
 
       <div class="w-full overflow-y-auto">
         <template v-for="item in navItems">
-          <button v-if="item.action" :key="item.text" class="w-full hover:bg-bg/60 flex items-center py-3 px-6 text-fg-muted" @click="clickAction(item.action)">
+          <button v-if="item.action" :key="item.text" :tabindex="show ? 0 : -1" class="w-full hover:bg-bg/60 flex items-center py-3 px-6 text-fg-muted" @click="clickAction(item.action)">
             <span class="material-symbols fill text-lg">{{ item.icon }}</span>
             <p class="pl-4">{{ item.text }}</p>
           </button>
-          <nuxt-link v-else :to="item.to" :key="item.text" class="w-full hover:bg-bg/60 flex items-center py-3 px-6 text-fg" :class="currentRoutePath.startsWith(item.to) ? 'bg-bg-hover/50' : 'text-fg-muted'">
+          <nuxt-link v-else :to="item.to" :key="item.text" :tabindex="show ? 0 : -1" class="w-full hover:bg-bg/60 flex items-center py-3 px-6 text-fg" :class="currentRoutePath.startsWith(item.to) ? 'bg-bg-hover/50' : 'text-fg-muted'">
             <span class="material-symbols fill text-lg">{{ item.icon }}</span>
             <p class="pl-4">{{ item.text }}</p>
           </nuxt-link>
