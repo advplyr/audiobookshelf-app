@@ -298,6 +298,7 @@
   "MessageDownloading": "Stahuje se...",
   "MessageDownloadingEpisode": "Stahuji epizodu",
   "MessageEpisodesQueuedForDownload": "{0} Epizody zařazené do fronty ke stažení",
+  "MessageFailedToRefreshToken": "Nepovedlo se obnovit token, je nutné se znovu přihlásit",
   "MessageFeedURLWillBe": "URL zdroje bude {0}",
   "MessageFetching": "Načítání...",
   "MessageFollowTheProjectOnGithub": "Sledujte projekt na GitHubu",
