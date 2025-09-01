@@ -46,15 +46,18 @@ enum class AndroidAutoBrowseSeriesSequenceOrderSetting {
   DESC
 }
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 data class ServerConnectionConfig(
-        var id: String,
-        var index: Int,
-        var name: String,
-        var address: String,
-        var userId: String,
-        var username: String,
-        var token: String,
-        var customHeaders: Map<String, String>?
+        var id:String,
+        var index:Int,
+        var name:String,
+        var address:String,
+        // version added after 0.9.81-beta
+        var version:String?,
+        var userId:String,
+        var username:String,
+        var token:String,
+        var customHeaders:Map<String, String>?
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)

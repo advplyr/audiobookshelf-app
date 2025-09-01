@@ -1,13 +1,33 @@
 import { AbsDatabase } from './capacitor/AbsDatabase'
 
 class DbService {
-  constructor() { }
+  constructor() {}
 
   getDeviceData() {
     return AbsDatabase.getDeviceData().then((data) => {
       console.log('Loaded device data', JSON.stringify(data))
       return data
     })
+  }
+
+  /**
+   * Retrieves refresh token from secure storage
+   * @param {string} serverConnectionConfigId
+   * @return {Promise<string|null>}
+   */
+  async getRefreshToken(serverConnectionConfigId) {
+    const refreshTokenData = await AbsDatabase.getRefreshToken({ serverConnectionConfigId })
+    return refreshTokenData?.refreshToken
+  }
+
+  /**
+   * Clears refresh token from secure storage
+   * @param {string} serverConnectionConfigId
+   * @returns {Promise<boolean>}
+   */
+  async clearRefreshToken(serverConnectionConfigId) {
+    const result = await AbsDatabase.clearRefreshToken({ serverConnectionConfigId })
+    return !!result?.success
   }
 
   setServerConnectionConfig(serverConnectionConfig) {
@@ -29,10 +49,12 @@ class DbService {
   }
 
   getLocalFolders() {
-    return AbsDatabase.getLocalFolders().then((data) => data.value).catch((error) => {
-      console.error('Failed to load', error)
-      return null
-    })
+    return AbsDatabase.getLocalFolders()
+      .then((data) => data.value)
+      .catch((error) => {
+        console.error('Failed to load', error)
+        return null
+      })
   }
 
   getLocalFolder(folderId) {
@@ -103,4 +125,20 @@ class DbService {
 
 export default ({ app, store }, inject) => {
   inject('db', new DbService())
+
+  // Listen for token refresh events from native app
+  AbsDatabase.addListener('onTokenRefresh', (data) => {
+    console.log('[db] onTokenRefresh', data)
+    store.commit('user/setAccessToken', data.accessToken)
+  })
+
+  // Listen for token refresh failure events from native app
+  AbsDatabase.addListener('onTokenRefreshFailure', async (data) => {
+    console.log('[db] onTokenRefreshFailure', data)
+    // Clear store and redirect to login page
+    await store.dispatch('user/logout')
+    if (window.location.pathname !== '/connect') {
+      window.location.href = '/connect?error=refreshTokenFailed&serverConnectionConfigId=' + data.serverConnectionConfigId || ''
+    }
+  })
 }

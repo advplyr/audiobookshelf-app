@@ -4,14 +4,14 @@
       <nuxt-link v-show="!showBack" to="/" class="mr-3">
         <img src="/Logo.png" class="h-10 w-10" />
       </nuxt-link>
-      <a v-if="showBack" @click="back" class="rounded-full h-10 w-10 flex items-center justify-center mr-2 cursor-pointer">
+      <a v-if="showBack" @click="back" aria-label="Back" class="rounded-full h-10 w-10 flex items-center justify-center mr-2 cursor-pointer">
         <span class="material-symbols text-3xl text-fg">arrow_back</span>
       </a>
       <div v-if="user && currentLibrary">
-        <div class="pl-1.5 pr-2.5 py-2 bg-bg bg-opacity-30 rounded-md flex items-center" @click="clickShowLibraryModal">
+        <button type="button" aria-label="Show library modal" class="pl-1.5 pr-2.5 py-2 bg-bg bg-opacity-30 rounded-md flex items-center" @click="clickShowLibraryModal">
           <ui-library-icon :icon="currentLibraryIcon" :size="4" font-size="base" />
           <p class="text-sm leading-4 ml-2 mt-0.5 max-w-24 truncate">{{ currentLibraryName }}</p>
-        </div>
+        </button>
       </div>
 
       <widgets-connection-indicator />
@@ -21,19 +21,19 @@
       <widgets-download-progress-indicator />
 
       <!-- Must be connected to a server to cast, only supports media items on server -->
-      <div v-show="isCastAvailable && user" class="mx-2 cursor-pointer flex items-center" @click="castClick">
+      <button type="button" aria-label="Cast" v-show="isCastAvailable && user" class="mx-2 cursor-pointer flex items-center" @click="castClick">
         <span class="material-symbols text-2xl leading-none">
           {{ isCasting ? 'cast_connected' : 'cast' }}
         </span>
-      </div>
+      </button>
 
-      <nuxt-link v-if="user" class="mx-1.5 flex items-center h-10" to="/search">
+      <nuxt-link v-if="user" class="mx-1.5 flex items-center h-10" to="/search" aria-label="Search">
         <span class="material-symbols text-2xl leading-none">search</span>
       </nuxt-link>
 
-      <div class="h-7 mx-1.5">
-        <span class="material-symbols" style="font-size: 1.75rem" @click="clickShowSideDrawer">menu</span>
-      </div>
+      <button type="button" aria-label="Toggle side drawer" class="h-7 mx-1.5" @click="clickShowSideDrawer">
+        <span class="material-symbols" style="font-size: 1.75rem">menu</span>
+      </button>
     </div>
   </div>
 </template>
@@ -100,14 +100,14 @@ export default {
       this.isCastAvailable = data && data.value
     }
   },
-  mounted() {
+  async mounted() {
     AbsAudioPlayer.getIsCastAvailable().then((data) => {
       this.isCastAvailable = data && data.value
     })
-    this.onCastAvailableUpdateListener = AbsAudioPlayer.addListener('onCastAvailableUpdate', this.onCastAvailableUpdate)
+    this.onCastAvailableUpdateListener = await AbsAudioPlayer.addListener('onCastAvailableUpdate', this.onCastAvailableUpdate)
   },
   beforeDestroy() {
-    if (this.onCastAvailableUpdateListener) this.onCastAvailableUpdateListener.remove()
+    this.onCastAvailableUpdateListener?.remove()
   }
 }
 </script>
