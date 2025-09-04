@@ -149,14 +149,16 @@ public class AbsDatabase: CAPPlugin, CAPBridgedPlugin {
             call.resolve([ "value": try items.asDictionaryArray()])
         } catch(let exception) {
             logger.error("error while readling local library items")
+            AbsLogger.error("DB", message: "error reading local library items \(exception)")
             debugPrint(exception)
             call.resolve()
         }
     }
 
     @objc func getLocalLibraryItem(_ call: CAPPluginCall) {
+        let id = call.getString("id") ?? ""
         do {
-            let item = Database.shared.getLocalLibraryItem(localLibraryItemId: call.getString("id") ?? "")
+            let item = Database.shared.getLocalLibraryItem(localLibraryItemId: id)
             switch item {
                 case .some(let foundItem):
                     call.resolve(try foundItem.asDictionary())
@@ -165,6 +167,7 @@ public class AbsDatabase: CAPPlugin, CAPBridgedPlugin {
             }
         } catch(let exception) {
             logger.error("error while readling local library items")
+            AbsLogger.error("DB", message: "error reading local library item[\(id)] \(exception)")
             debugPrint(exception)
             call.resolve()
         }
@@ -225,6 +228,7 @@ public class AbsDatabase: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func syncServerMediaProgressWithLocalMediaProgress(_ call: CAPPluginCall) {
+        let tag = "syncServerProgressWithLocal"
         let serverMediaProgress = call.getJson("mediaProgress", type: MediaProgress.self)
         let localLibraryItemId = call.getString("localLibraryItemId")
         let localEpisodeId = call.getString("localEpisodeId")
@@ -245,16 +249,19 @@ public class AbsDatabase: CAPPlugin, CAPBridgedPlugin {
             }
 
             logger.log("syncServerMediaProgressWithLocalMediaProgress: Saving local media progress")
+            AbsLogger.info(tag, message: "Saving local media progress \(serverMediaProgress)")
             try localMediaProgress.updateFromServerMediaProgress(serverMediaProgress)
 
             call.resolve(try localMediaProgress.asDictionary())
         } catch {
             call.reject("Failed to sync media progress")
+            AbsLogger.error(tag, message: "Failed to sync: \(error)")
             debugPrint(error)
         }
     }
 
     @objc func updateLocalMediaProgressFinished(_ call: CAPPluginCall) {
+        let tag = "updateLocalMediaProgress"
         let localLibraryItemId = call.getString("localLibraryItemId")
         let localEpisodeId = call.getString("localEpisodeId")
         let isFinished = call.getBool("isFinished", false)
@@ -265,6 +272,7 @@ public class AbsDatabase: CAPPlugin, CAPBridgedPlugin {
         }
 
         logger.log("updateLocalMediaProgressFinished \(localMediaProgressId) | Is Finished: \(isFinished)")
+        AbsLogger.info(tag, message: "\(localMediaProgressId): isFinished=\(isFinished)")
 
         do {
             let localMediaProgress = try LocalMediaProgress.fetchOrCreateLocalMediaProgress(localMediaProgressId: localMediaProgressId, localLibraryItemId: localLibraryItemId, localEpisodeId: localEpisodeId)
@@ -333,11 +341,13 @@ public class AbsDatabase: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func updateLocalEbookProgress(_ call: CAPPluginCall) {
+        let tag = "updateEbookProgress"
         let localLibraryItemId = call.getString("localLibraryItemId")
         let ebookLocation = call.getString("ebookLocation", "")
         let ebookProgress = call.getDouble("ebookProgress", 0.0)
 
         logger.log("updateLocalEbookProgress \(localLibraryItemId ?? "Unknown") | ebookLocation: \(ebookLocation) | ebookProgress: \(ebookProgress)")
+        AbsLogger.info(tag, message: "\(localLibraryItemId ?? "Unknown"): ebookLocation=\(ebookLocation) ebookProgress=\(ebookProgress)")
 
         do {
             let localMediaProgress = try LocalMediaProgress.fetchOrCreateLocalMediaProgress(localMediaProgressId: localLibraryItemId, localLibraryItemId: localLibraryItemId, localEpisodeId: nil)

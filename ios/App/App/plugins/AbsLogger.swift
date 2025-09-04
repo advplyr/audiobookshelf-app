@@ -19,29 +19,90 @@ public class AbsLogger: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "clearLogs", returnType: CAPPluginReturnPromise)
     ]
     
+    private static let shared: AbsLogger = {
+        AbsLogger()
+    }()
+    
+    public static func error(_ tag: String, message: String)  {
+        try? shared.error(tag: tag, message: message)
+    }
+    
+    public static func info(_ tag: String, message: String)  {
+        try? shared.info(tag: tag, message: message)
+    }
+    
     private let logger = AppLogger(category: "AbsLogger")
+    
+    enum AbsLogLevel {
+        case info
+        case warn
+        case error
+    }
+    
+    private func log(_ level: AbsLogLevel, tag: String, message: String) throws {
+        let entry = LogEntry()
+        entry.tag = tag
+        entry.message = message
+        entry.level = "\(level)"
+        entry.timestamp = Int(Date().timeIntervalSince1970 * 1000)
+        try Database.shared.saveLog(entry)
+        self.notifyListeners("onLog", data: ["value": entry])
+    }
+    
+    public func info(tag: String, message: String, ) throws {
+        logger.log("[\(tag)] \(message)")
+        try log(.info, tag: tag, message: message)
+    }
+    
+    public func error(tag: String, message: String) throws {
+        logger.error("[\(tag)] \(message)")
+        try log(.error, tag: tag, message: message)
+    }
     
     @objc func info(_ call: CAPPluginCall) {
         let message = call.getString("message") ?? ""
         let tag = call.getString("tag") ?? ""
-
-        logger.log("[\(tag)] \(message)")
-        call.resolve()
+        
+        do {
+            try info(tag: tag, message: message)
+            call.resolve()
+        } catch {
+            call.reject("Failed to log \(message)", "101", error)
+        }
+        
+        
     }
     
     @objc func error(_ call: CAPPluginCall) {
         let message = call.getString("message") ?? ""
         let tag = call.getString("tag") ?? ""
-
-        logger.error("[\(tag)] \(message)")
-        call.resolve()
+        
+        do {
+            try error(tag: tag, message: message)
+            call.resolve()
+        } catch {
+            call.reject("Failed to log \(message)", "101", error)
+        }
+        
     }
     
     @objc func getAllLogs(_ call: CAPPluginCall) {
-        call.unimplemented("Not implemented on iOS")
+        do {
+            let logs = Database.shared.getAllLogs()
+            call.resolve([ "value": try logs.asDictionaryArray()])
+        } catch {
+            call.reject("Failed to get logs", "100", error)
+        }
+        
     }
     
     @objc func clearLogs(_ call: CAPPluginCall) {
-        call.unimplemented("Not implemented on iOS")
+        do {
+            try Database.shared.clearLogs()
+            call.resolve()
+        } catch {
+            call.reject("Failed to clear logs", "100", error)
+        }
+        
     }
 }

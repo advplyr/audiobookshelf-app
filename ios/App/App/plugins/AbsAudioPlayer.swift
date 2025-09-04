@@ -75,6 +75,7 @@ public class AbsAudioPlayer: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func prepareLibraryItem(_ call: CAPPluginCall) {
+        let tag = "prepareLibraryItem"
         let libraryItemId = call.getString("libraryItemId")
         let episodeId = call.getString("episodeId")
         let playWhenReady = call.getBool("playWhenReady", true)
@@ -82,6 +83,7 @@ public class AbsAudioPlayer: CAPPlugin, CAPBridgedPlugin {
         let startTimeOverride = call.getDouble("startTime")
 
         if libraryItemId == nil {
+            AbsLogger.error(tag, message: "No id provided")
             logger.error("provide library item id")
             return call.resolve()
         }
@@ -93,6 +95,7 @@ public class AbsAudioPlayer: CAPPlugin, CAPBridgedPlugin {
             let item = Database.shared.getLocalLibraryItem(localLibraryItemId: libraryItemId!)
             let episode = item?.getPodcastEpisode(episodeId: episodeId)
             guard let playbackSession = item?.getPlaybackSession(episode: episode) else {
+                AbsLogger.error(tag, message: "Failed to get local playback session")
                 logger.error("Failed to get local playback session")
                 return call.resolve([:])
             }
@@ -106,6 +109,7 @@ public class AbsAudioPlayer: CAPPlugin, CAPBridgedPlugin {
                 call.resolve(try playbackSession.asDictionary())
             } catch(let exception) {
                 logger.error("Failed to start session")
+                AbsLogger.error(tag, message: "Failed to start session for local item: \(exception)")
                 debugPrint(exception)
                 call.resolve([:])
             }
@@ -120,6 +124,7 @@ public class AbsAudioPlayer: CAPPlugin, CAPBridgedPlugin {
                     call.resolve(try session.asDictionary())
                 } catch(let exception) {
                     self?.logger.error("Failed to start session")
+                    AbsLogger.error(tag, message: "Failed to start streaming session")
                     debugPrint(exception)
                     call.resolve([:])
                 }
@@ -127,6 +132,7 @@ public class AbsAudioPlayer: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
+    /// Stops playback and closes session.
     @objc func closePlayback(_ call: CAPPluginCall) {
         logger.log("Close playback")
 
@@ -134,12 +140,14 @@ public class AbsAudioPlayer: CAPPlugin, CAPBridgedPlugin {
         call.resolve()
     }
 
+    
     @objc func getCurrentTime(_ call: CAPPluginCall) {
         call.resolve([
             "value": PlayerHandler.getCurrentTime() ?? 0,
             "bufferedTime": PlayerHandler.getCurrentTime() ?? 0,
         ])
     }
+
     @objc func setPlaybackSpeed(_ call: CAPPluginCall) {
         let playbackRate = call.getFloat("value", 1.0)
         let settings = PlayerSettings.main()

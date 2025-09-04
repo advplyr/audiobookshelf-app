@@ -15,7 +15,13 @@ class Database {
     
     private let logger = AppLogger(category: "Database")
 
-    private init() {}
+    private init() {
+      do {
+        try cleanExpiredLogs()
+      } catch {
+          debugPrint(error)
+      }
+    }
     
     public func setServerConnectionConfig(config: ServerConnectionConfig) {
         let config = config
@@ -274,5 +280,55 @@ class Database {
             debugPrint(error)
             return nil
         }
+    }
+  
+    public func saveLog(_ log: LogEntry) throws {
+        let realm = try Realm()
+      return try realm.write { realm.add(log) }
+    }
+  
+    public func getAllLogs() -> [LogEntry] {
+      do {
+        let realm = try Realm()
+        return realm.objects(LogEntry.self).toArray()
+      } catch {
+        debugPrint(error)
+        return []
+      }
+    }
+  
+  public func clearLogs() throws {
+    do {
+      let realm = try! Realm()
+      try realm.write {
+        realm.objects(LogEntry.self).forEach { log in
+          realm.delete(log)
+        }
+      }
+    } catch {
+      logger.error(error)
+      throw error
+    }
+  }
+    
+    private func cleanExpiredLogs() throws {
+      let realm = try Realm()
+      let numberOfHoursToKeep = 48
+      let keepLogCutoff = Date().addingTimeInterval(TimeInterval(-1 * numberOfHoursToKeep * 3600))
+      
+      let allLogs = getAllLogs()
+      var logsRemoved = 0
+      try? realm.write {
+        allLogs.forEach { log in
+          if log.timestamp < Int(keepLogCutoff.timeIntervalSince1970) {
+            realm.delete(log)
+            logsRemoved += 1
+          }
+        }
+      }
+      
+      if logsRemoved > 0 {
+        logger.log("cleanLogs: Removed \(logsRemoved) logs older than \(numberOfHoursToKeep) hours")
+      }
     }
 }
