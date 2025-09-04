@@ -33,8 +33,6 @@ public class AbsAudioPlayer: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "getSleepTimerTime", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setSleepTimer", returnType: CAPPluginReturnPromise)
     ]
-    
-    private let logger = AppLogger(category: "AbsAudioPlayer")
 
     private var initialPlayWhenReady = false
     private var monitor: NWPathMonitor?
@@ -75,7 +73,6 @@ public class AbsAudioPlayer: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func prepareLibraryItem(_ call: CAPPluginCall) {
-        let tag = "prepareLibraryItem"
         let libraryItemId = call.getString("libraryItemId")
         let episodeId = call.getString("episodeId")
         let playWhenReady = call.getBool("playWhenReady", true)
@@ -83,8 +80,7 @@ public class AbsAudioPlayer: CAPPlugin, CAPBridgedPlugin {
         let startTimeOverride = call.getDouble("startTime")
 
         if libraryItemId == nil {
-            AbsLogger.error(tag, message: "No id provided")
-            logger.error("provide library item id")
+            AbsLogger.error(message: "No id provided")
             return call.resolve()
         }
 
@@ -95,8 +91,7 @@ public class AbsAudioPlayer: CAPPlugin, CAPBridgedPlugin {
             let item = Database.shared.getLocalLibraryItem(localLibraryItemId: libraryItemId!)
             let episode = item?.getPodcastEpisode(episodeId: episodeId)
             guard let playbackSession = item?.getPlaybackSession(episode: episode) else {
-                AbsLogger.error(tag, message: "Failed to get local playback session")
-                logger.error("Failed to get local playback session")
+                AbsLogger.error(message: "Failed to get local playback session")
                 return call.resolve([:])
             }
 
@@ -108,8 +103,7 @@ public class AbsAudioPlayer: CAPPlugin, CAPBridgedPlugin {
                 try self.startPlaybackSession(playbackSession, playWhenReady: playWhenReady, playbackRate: playbackRate)
                 call.resolve(try playbackSession.asDictionary())
             } catch(let exception) {
-                logger.error("Failed to start session")
-                AbsLogger.error(tag, message: "Failed to start session for local item: \(exception)")
+                AbsLogger.error(message: "Failed to start session for local item: \(exception)")
                 debugPrint(exception)
                 call.resolve([:])
             }
@@ -123,8 +117,7 @@ public class AbsAudioPlayer: CAPPlugin, CAPBridgedPlugin {
                     try self?.startPlaybackSession(session, playWhenReady: playWhenReady, playbackRate: playbackRate)
                     call.resolve(try session.asDictionary())
                 } catch(let exception) {
-                    self?.logger.error("Failed to start session")
-                    AbsLogger.error(tag, message: "Failed to start streaming session")
+                    AbsLogger.error(message: "Failed to start streaming session")
                     debugPrint(exception)
                     call.resolve([:])
                 }
@@ -134,7 +127,7 @@ public class AbsAudioPlayer: CAPPlugin, CAPBridgedPlugin {
 
     /// Stops playback and closes session.
     @objc func closePlayback(_ call: CAPPluginCall) {
-        logger.log("Close playback")
+        AbsLogger.info(message: "Close playback")
 
         PlayerHandler.stopPlayback()
         call.resolve()
@@ -160,7 +153,7 @@ public class AbsAudioPlayer: CAPPlugin, CAPBridgedPlugin {
 
     @objc func setChapterTrack(_ call: CAPPluginCall) {
         let chapterTrack = call.getBool("enabled", true)
-        logger.log(String(chapterTrack))
+        AbsLogger.info(message: String(chapterTrack))
         let settings = PlayerSettings.main()
         try? settings.update {
             settings.chapterTrack = chapterTrack
@@ -233,7 +226,7 @@ public class AbsAudioPlayer: CAPPlugin, CAPBridgedPlugin {
 
         let seconds = time / 1000
 
-        logger.log("chapter time: \(isChapterTime)")
+        AbsLogger.info(message: "chapter time: \(isChapterTime)")
         if isChapterTime {
             PlayerHandler.setChapterSleepTime(stopAt: seconds)
             return call.resolve([ "success": true ])
@@ -270,7 +263,7 @@ public class AbsAudioPlayer: CAPPlugin, CAPBridgedPlugin {
         guard let localMediaProgressId = PlayerHandler.getPlaybackSession()?.localMediaProgressId else { return }
         guard let localMediaProgress = Database.shared.getLocalMediaProgress(localMediaProgressId: localMediaProgressId) else { return }
         guard let progressUpdate = try? localMediaProgress.asDictionary() else { return }
-        logger.log("Sending local progress back to the UI")
+        AbsLogger.info(message: "Sending local progress back to the UI")
         self.notifyListeners("onLocalMediaProgressUpdate", data: progressUpdate)
     }
 
@@ -280,7 +273,7 @@ public class AbsAudioPlayer: CAPPlugin, CAPBridgedPlugin {
             let playWhenReady = PlayerHandler.getPlayWhenReady()
             let libraryItemId = session?.libraryItemId ?? ""
             let episodeId = session?.episodeId ?? nil
-            logger.log("Forcing Transcode")
+            AbsLogger.info(message: "Forcing Transcode")
 
             // If direct playing then fallback to transcode
             ApiClient.startPlaybackSession(libraryItemId: libraryItemId, episodeId: episodeId, forceTranscode: true) { [weak self] session in
@@ -291,7 +284,7 @@ public class AbsAudioPlayer: CAPPlugin, CAPBridgedPlugin {
                     self.sendPlaybackSession(session: try session.asDictionary())
                     self.sendMetadata()
                 } catch(let exception) {
-                    self?.logger.error("Failed to start transcoded session")
+                    AbsLogger.error(message: "Failed to start transcoded session")
                     debugPrint(exception)
                 }
             }

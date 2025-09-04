@@ -8,6 +8,16 @@
 import Foundation
 import Capacitor
 
+enum AbsLogLevel {
+    case info
+    case warn
+    case error
+}
+
+func fileName(file: String = #file) -> String {
+    return (file as NSString).lastPathComponent
+}
+
 @objc(AbsLogger)
 public class AbsLogger: CAPPlugin, CAPBridgedPlugin {
     public var identifier = "AbsLoggerPlugin"
@@ -23,23 +33,21 @@ public class AbsLogger: CAPPlugin, CAPBridgedPlugin {
         AbsLogger()
     }()
     
-    public static func error(_ tag: String, message: String)  {
-        try? shared.error(tag: tag, message: message)
+    public static func info(_ tag: String = #file, message: String)  {
+        try? shared.info(tag: fileName(file: tag), message: message)
     }
     
-    public static func info(_ tag: String, message: String)  {
-        try? shared.info(tag: tag, message: message)
+    public static func error(_ tag: String = #file, message: String, error: Error? = nil)  {
+        try? shared.error(tag: fileName(file: tag), message: message)
     }
     
-    private let logger = AppLogger(category: "AbsLogger")
+    private let loggers: Dictionary<String, AppLogger> = [:]
     
-    enum AbsLogLevel {
-        case info
-        case warn
-        case error
+    private func _logger(_ tag: String) -> AppLogger {
+        return loggers[tag, default: AppLogger(category: tag)]
     }
     
-    private func log(_ level: AbsLogLevel, tag: String, message: String) throws {
+    private func saveLogEntry(_ level: AbsLogLevel, tag: String, message: String) throws {
         let entry = LogEntry()
         entry.tag = tag
         entry.message = message
@@ -49,14 +57,15 @@ public class AbsLogger: CAPPlugin, CAPBridgedPlugin {
         self.notifyListeners("onLog", data: ["value": entry])
     }
     
-    public func info(tag: String, message: String, ) throws {
-        logger.log("[\(tag)] \(message)")
-        try log(.info, tag: tag, message: message)
+    public func info(tag: String = "\(#file)", message: String) throws {
+        _logger(tag).log("[\(tag)] \(message)")
+        try saveLogEntry(.info, tag: tag, message: message)
     }
     
-    public func error(tag: String, message: String) throws {
-        logger.error("[\(tag)] \(message)")
-        try log(.error, tag: tag, message: message)
+    public func error(tag: String = "\(#file)", message: String, error: Error? = nil) throws {
+        _logger(tag).error("[\(tag)] \(message)")
+        if let error = error { _logger(tag).error(error) }
+        try saveLogEntry(.error, tag: tag, message: message)
     }
     
     @objc func info(_ call: CAPPluginCall) {

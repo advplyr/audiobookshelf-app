@@ -9,7 +9,6 @@ import Foundation
 import AVFoundation
 
 class LegacyAudioPlayerRateManager: NSObject, AudioPlayerRateManager {
-    internal let logger = AppLogger(category: "AudioPlayer")
     
     internal var audioPlayer: AVPlayer
     

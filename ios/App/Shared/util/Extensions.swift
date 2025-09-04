@@ -65,8 +65,7 @@ extension CAPPluginCall {
             let json = try JSONSerialization.data(withJSONObject: value)
             return try JSONDecoder().decode(type, from: json)
         } catch {
-            AppLogger().error("Failed to get json for \(key)")
-            debugPrint(error)
+            AbsLogger.error(message: "Failed to get json for \(key)", error: error)
             return nil
         }
     }
