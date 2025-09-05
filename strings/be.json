@@ -298,6 +298,7 @@
   "MessageDownloading": "Спампоўванне...",
   "MessageDownloadingEpisode": "Спампоўка эпізоду",
   "MessageEpisodesQueuedForDownload": "{0} эпізод(аў) у чарзе для спампоўкі",
+  "MessageFailedToRefreshToken": "Не ўдалося абнавіць токен, патрабуецца паўторны ўваход",
   "MessageFeedURLWillBe": "URL стужкі будзе {0}",
   "MessageFetching": "Атрыманне...",
   "MessageFollowTheProjectOnGithub": "Сачыце за праектам на Github",
