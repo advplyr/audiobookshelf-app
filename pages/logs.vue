@@ -21,7 +21,7 @@
           <div class="flex-grow"></div>
           <div class="text-xs text-gray-400">{{ log.tag }}</div>
         </div>
-        <div class="text-xs">{{ maskServerAddress ? log.maskedMessage : log.message }}</div>
+        <div class="text-xs break-words">{{ maskServerAddress ? log.maskedMessage : log.message }}</div>
       </div>
     </div>
 

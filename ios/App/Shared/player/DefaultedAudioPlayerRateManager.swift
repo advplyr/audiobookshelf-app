@@ -10,8 +10,7 @@ import AVFoundation
 
 @available(iOS 16.0, *)
 class DefaultedAudioPlayerRateManager: NSObject, AudioPlayerRateManager {
-    internal let logger = AppLogger(category: "DefaultedAudioPlayerRateManager")
-    
+
     internal var audioPlayer: AVPlayer
     
     // MARK: - AudioPlayerRateManager
