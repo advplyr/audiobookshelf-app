@@ -9,7 +9,6 @@ import Foundation
 import AVFoundation
 
 class LegacyAudioPlayerRateManager: NSObject, AudioPlayerRateManager {
-    internal let logger = AppLogger(category: "AudioPlayer")
     
     internal var audioPlayer: AVPlayer
     
@@ -54,7 +53,7 @@ class LegacyAudioPlayerRateManager: NSObject, AudioPlayerRateManager {
         let playbackSpeedChanged = rate > 0.0 && rate != self.defaultRate && !(observed && rate == 1)
         
         if self.audioPlayer.rate != rate {
-            logger.log("setPlaybakRate rate changed from \(self.audioPlayer.rate) to \(rate)")
+            AbsLogger.info(message: "setPlaybakRate rate changed from \(self.audioPlayer.rate) to \(rate)")
             DispatchQueue.runOnMainQueue {
                 self.audioPlayer.rate = rate
             }
@@ -73,7 +72,7 @@ class LegacyAudioPlayerRateManager: NSObject, AudioPlayerRateManager {
     public override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
         if context == &managerContext {
             if keyPath == #keyPath(AVPlayer.rate) {
-                logger.log("playerContext observer player rate")
+                AbsLogger.info(message: "playerContext observer player rate")
                 self.handlePlaybackRateChange(change?[.newKey] as? Float ?? 1.0, observed: true)
             }
         } else {

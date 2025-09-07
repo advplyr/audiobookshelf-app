@@ -5,8 +5,6 @@ import RealmSwift
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
-    private let logger = AppLogger(category: "AppDelegate")
-
     lazy var window: UIWindow? = UIWindow(frame: UIScreen.main.bounds)
     var backgroundCompletionHandler: (() -> Void)?
 
@@ -17,13 +15,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             schemaVersion: 20,
             migrationBlock: { [weak self] migration, oldSchemaVersion in
                 if (oldSchemaVersion < 1) {
-                    self?.logger.log("Realm schema version was \(oldSchemaVersion)")
+                    AbsLogger.info(message: "Realm schema version was \(oldSchemaVersion)")
                     migration.enumerateObjects(ofType: DeviceSettings.className()) { oldObject, newObject in
                         newObject?["enableAltView"] = false
                     }
                 }
                 if (oldSchemaVersion < 4) {
-                    self?.logger.log("Realm schema version was \(oldSchemaVersion)... Reindexing server configs")
+                    AbsLogger.info(message: "Realm schema version was \(oldSchemaVersion)... Reindexing server configs")
                     var indexCounter = 1
                     migration.enumerateObjects(ofType: ServerConnectionConfig.className()) { oldObject, newObject in
                         newObject?["index"] = indexCounter
@@ -31,44 +29,44 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                     }
                 }
                 if (oldSchemaVersion < 5) {
-                    self?.logger.log("Realm schema version was \(oldSchemaVersion)... Adding lockOrientation setting")
+                    AbsLogger.info(message: "Realm schema version was \(oldSchemaVersion)... Adding lockOrientation setting")
                     migration.enumerateObjects(ofType: DeviceSettings.className()) { oldObject, newObject in
                         newObject?["lockOrientation"] = "NONE"
                     }
                 }
                 if (oldSchemaVersion < 6) {
-                    self?.logger.log("Realm schema version was \(oldSchemaVersion)... Adding hapticFeedback setting")
+                    AbsLogger.info(message: "Realm schema version was \(oldSchemaVersion)... Adding hapticFeedback setting")
                     migration.enumerateObjects(ofType: DeviceSettings.className()) { oldObject, newObject in
                         newObject?["hapticFeedback"] = "LIGHT"
                     }
                 }
                 if (oldSchemaVersion < 15) {
-                    self?.logger.log("Realm schema version was \(oldSchemaVersion)... Adding languageCode setting")
+                    AbsLogger.info(message: "Realm schema version was \(oldSchemaVersion)... Adding languageCode setting")
                     migration.enumerateObjects(ofType: DeviceSettings.className()) { oldObject, newObject in
                         newObject?["languageCode"] = "en-us"
                     }
                 }
                 if (oldSchemaVersion < 16) {
-                    self?.logger.log("Realm schema version was \(oldSchemaVersion)... Adding chapterTrack setting")
+                    AbsLogger.info(message: "Realm schema version was \(oldSchemaVersion)... Adding chapterTrack setting")
                     migration.enumerateObjects(ofType: PlayerSettings.className()) { oldObject, newObject in
                         newObject?["chapterTrack"] = false
                     }
                 }
                 if (oldSchemaVersion < 17) {
-                    self?.logger.log("Realm schema version was \(oldSchemaVersion)... Adding downloadUsingCellular and streamingUsingCellular settings")
+                    AbsLogger.info(message: "Realm schema version was \(oldSchemaVersion)... Adding downloadUsingCellular and streamingUsingCellular settings")
                     migration.enumerateObjects(ofType: PlayerSettings.className()) { oldObject, newObject in
                         newObject?["downloadUsingCellular"] = "ALWAYS"
                         newObject?["streamingUsingCellular"] = "ALWAYS"
                     }
                 }
                 if (oldSchemaVersion < 18) {
-                    self?.logger.log("Realm schema version was \(oldSchemaVersion)... Adding disableSleepTimerFadeOut settings")
+                    AbsLogger.info(message: "Realm schema version was \(oldSchemaVersion)... Adding disableSleepTimerFadeOut settings")
                     migration.enumerateObjects(ofType: PlayerSettings.className()) { oldObject, newObject in
                         newObject?["disableSleepTimerFadeOut"] = false
                     }
                 }
                 if (oldSchemaVersion < 20) {
-                    self?.logger.log("Realm schema version was \(oldSchemaVersion)... Adding version to ServerConnectionConfigs")
+                    AbsLogger.info(message: "Realm schema version was \(oldSchemaVersion)... Adding version to ServerConnectionConfigs")
                     migration.enumerateObjects(ofType: ServerConnectionConfig.className()) { oldObject, newObject in
                         newObject?["version"] = ""
                     }
@@ -88,22 +86,22 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func applicationDidEnterBackground(_ application: UIApplication) {
         // Use this method to release shared resources, save user data, invalidate timers, and store enough application state information to restore your application to its current state in case it is terminated later.
         // If your application supports background execution, this method is called instead of applicationWillTerminate: when the user quits.
-        logger.log("Audiobookself is now in the background")
+        AbsLogger.info(message: "Audiobookself is now in the background")
     }
 
     func applicationWillEnterForeground(_ application: UIApplication) {
         // Called as part of the transition from the background to the active state; here you can undo many of the changes made on entering the background.
-        logger.log("Audiobookself is now in the foreground")
+        AbsLogger.info(message: "Audiobookself is now in the foreground")
     }
 
     func applicationDidBecomeActive(_ application: UIApplication) {
         // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
-        logger.log("Audiobookself is now active")
+        AbsLogger.info(message: "Audiobookself is now active")
     }
 
     func applicationWillTerminate(_ application: UIApplication) {
         // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
-        logger.log("Audiobookself is terminating")
+        AbsLogger.info(message: "Audiobookself is terminating")
     }
 
     func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {

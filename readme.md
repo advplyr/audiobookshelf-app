@@ -144,6 +144,12 @@ npx cap open android
 
 Start coding!
 
+After making changes to the JS layer you need to rebuild the nuxt pages and sync them to the native shells:
+
+```shell
+npm run sync
+```
+
 ### Mac Environment Setup for iOS
 
 Required Software:
@@ -213,3 +219,9 @@ npx cap open ios
 <br>
 
 Start coding!
+
+After making changes to the JS layer you need to rebuild the nuxt pages and sync them to the native shells:
+
+```shell
+npm run sync
+```
