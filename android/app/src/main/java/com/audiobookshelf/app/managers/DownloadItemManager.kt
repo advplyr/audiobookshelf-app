@@ -21,10 +21,7 @@ import com.getcapacitor.JSObject
 import java.io.File
 import java.io.FileOutputStream
 import java.util.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 
 /** Manages download items and their parts. */
 class DownloadItemManager(
@@ -64,6 +61,9 @@ class DownloadItemManager(
   companion object {
     var isDownloading: Boolean = false
   }
+
+  // Use a supervised scope instead of GlobalScope for better lifecycle management
+  private val downloadScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
   /** Adds a download item to the queue and starts processing the queue. */
   fun addDownloadItem(downloadItem: DownloadItem) {
@@ -150,7 +150,7 @@ class DownloadItemManager(
   private fun startWatchingDownloads() {
     if (isDownloading) return // Already watching
 
-    GlobalScope.launch(Dispatchers.IO) {
+    downloadScope.launch {
       Log.d(tag, "Starting watching downloads")
       isDownloading = true
 
@@ -379,5 +379,27 @@ class DownloadItemManager(
         }
       }
     }
+  }
+
+  /** Resumes a download item that was previously paused or failed. */
+  fun resumeDownloadItem(downloadItem: DownloadItem) {
+    Log.i(tag, "Resuming download item ${downloadItem.media.metadata.title}")
+
+    // Check if item is already in queue
+    val existingItem = downloadItemQueue.find { it.id == downloadItem.id }
+    if (existingItem == null) {
+      downloadItemQueue.add(downloadItem)
+      clientEventEmitter.onDownloadItem(downloadItem)
+    }
+
+    checkUpdateDownloadQueue()
+  }
+
+  /** Stops all downloads and cleans up resources. */
+  fun stopAllDownloads() {
+    Log.d(tag, "Stopping all downloads")
+    downloadScope.cancel()
+    isDownloading = false
+    currentDownloadItemParts.clear()
   }
 }
