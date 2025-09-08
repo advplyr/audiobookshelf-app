@@ -19,7 +19,7 @@ import com.audiobookshelf.app.models.DownloadItemPart
 import com.getcapacitor.JSObject
 import kotlinx.coroutines.*
 
-class DownloadService : Service(), DownloadItemManager.DownloadEventEmitter {
+class DownloadService : Service() {
   private val tag = "DownloadService"
   private val NOTIFICATION_ID = 1001
   private val CHANNEL_ID = "download_channel"
@@ -27,12 +27,47 @@ class DownloadService : Service(), DownloadItemManager.DownloadEventEmitter {
   private var downloadItemManager: DownloadItemManager? = null
   private var wakeLock: PowerManager.WakeLock? = null
   private var serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+  private var uiEventEmitter: DownloadItemManager.DownloadEventEmitter? = null
 
   private val binder = DownloadServiceBinder()
 
   inner class DownloadServiceBinder : Binder() {
     fun getService(): DownloadService = this@DownloadService
   }
+
+  // Service's own event emitter for notifications
+  private val serviceEventEmitter =
+          object : DownloadItemManager.DownloadEventEmitter {
+            override fun onDownloadItem(downloadItem: DownloadItem) {
+              updateNotification("Starting download: ${downloadItem.media.metadata.title}")
+              // Also notify UI
+              uiEventEmitter?.onDownloadItem(downloadItem)
+            }
+
+            override fun onDownloadItemPartUpdate(downloadItemPart: DownloadItemPart) {
+              val progress = downloadItemPart.progress
+              updateNotification("Downloading: ${downloadItemPart.filename} ($progress%)")
+              // Also notify UI
+              uiEventEmitter?.onDownloadItemPartUpdate(downloadItemPart)
+            }
+
+            override fun onDownloadItemComplete(jsobj: JSObject) {
+              updateNotification("Download completed")
+              // Also notify UI
+              uiEventEmitter?.onDownloadItemComplete(jsobj)
+
+              // Check if all downloads are complete
+              serviceScope.launch {
+                delay(2000) // Wait a bit before checking
+                downloadItemManager?.let { manager ->
+                  if (manager.downloadItemQueue.isEmpty()) {
+                    Log.d(tag, "All downloads complete, stopping service")
+                    stopSelf()
+                  }
+                }
+              }
+            }
+          }
 
   override fun onCreate() {
     super.onCreate()
@@ -61,19 +96,27 @@ class DownloadService : Service(), DownloadItemManager.DownloadEventEmitter {
     super.onDestroy()
   }
 
-  fun initializeDownloadManager(mainActivity: MainActivity) {
+  fun initializeDownloadManager(
+          mainActivity: MainActivity,
+          uiEmitter: DownloadItemManager.DownloadEventEmitter
+  ) {
     if (downloadItemManager == null) {
       val downloadManager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
       val folderScanner = FolderScanner(mainActivity)
+      uiEventEmitter = uiEmitter
       downloadItemManager =
               DownloadItemManager(
                       downloadManager,
                       folderScanner,
                       mainActivity,
-                      this // Use service as event emitter
+                      serviceEventEmitter // Use service event emitter
               )
       Log.d(tag, "DownloadItemManager initialized")
     }
+  }
+
+  fun getDownloadItemManager(): DownloadItemManager? {
+    return downloadItemManager
   }
 
   fun addDownloadItem(downloadItem: DownloadItem) {
@@ -84,9 +127,16 @@ class DownloadService : Service(), DownloadItemManager.DownloadEventEmitter {
     serviceScope.launch {
       Log.d(tag, "Resuming downloads after service restart")
       downloadItemManager?.let { manager ->
-        // Check for paused downloads in database and resume them
+        // First, clean up any invalid downloads with blank URLs
         val pausedDownloads = DeviceManager.dbManager.getDownloadItems()
-        for (downloadItem in pausedDownloads) {
+        Log.d(tag, "Found ${pausedDownloads.size} downloads in database")
+
+        // Clean up invalid downloads before processing
+        manager.cleanupInvalidDownloads()
+
+        // Check for paused downloads in database and resume them
+        val validDownloads = DeviceManager.dbManager.getDownloadItems()
+        for (downloadItem in validDownloads) {
           if (!downloadItem.isDownloadFinished) {
             Log.d(tag, "Resuming download: ${downloadItem.media.metadata.title}")
             manager.resumeDownloadItem(downloadItem)
@@ -143,31 +193,6 @@ class DownloadService : Service(), DownloadItemManager.DownloadEventEmitter {
       if (it.isHeld) {
         it.release()
         Log.d(tag, "Wake lock released")
-      }
-    }
-  }
-
-  // DownloadEventEmitter implementation
-  override fun onDownloadItem(downloadItem: DownloadItem) {
-    updateNotification("Starting download: ${downloadItem.media.metadata.title}")
-  }
-
-  override fun onDownloadItemPartUpdate(downloadItemPart: DownloadItemPart) {
-    val progress = downloadItemPart.progress
-    updateNotification("Downloading: ${downloadItemPart.filename} ($progress%)")
-  }
-
-  override fun onDownloadItemComplete(jsobj: JSObject) {
-    updateNotification("Download completed")
-
-    // Check if all downloads are complete
-    serviceScope.launch {
-      delay(2000) // Wait a bit before checking
-      downloadItemManager?.let { manager ->
-        if (manager.downloadItemQueue.isEmpty()) {
-          Log.d(tag, "All downloads complete, stopping service")
-          stopSelf()
-        }
       }
     }
   }

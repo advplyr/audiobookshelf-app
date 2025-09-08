@@ -15,6 +15,7 @@ import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.device.FolderScanner
 import com.audiobookshelf.app.models.DownloadItem
 import com.audiobookshelf.app.models.DownloadItemPart
+import com.audiobookshelf.app.plugins.AbsLogger
 import com.fasterxml.jackson.core.json.JsonReadFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.getcapacitor.JSObject
@@ -77,6 +78,21 @@ class DownloadItemManager(
 
   /** Checks and updates the download queue. */
   private fun checkUpdateDownloadQueue() {
+    AbsLogger.debug(tag, "checkUpdateDownloadQueue: Starting queue check")
+    AbsLogger.debug(
+            tag,
+            "checkUpdateDownloadQueue: Queue size=${downloadItemQueue.size}, Current downloads=${currentDownloadItemParts.size}"
+    )
+
+    // Check if server is connected before processing downloads
+    if (!DeviceManager.isConnectedToServer || DeviceManager.serverAddress.isBlank()) {
+      AbsLogger.debug(
+              tag,
+              "checkUpdateDownloadQueue: Server not connected or address blank, skipping downloads"
+      )
+      return
+    }
+
     for (downloadItem in downloadItemQueue) {
       val numPartsToGet = maxSimultaneousDownloads - currentDownloadItemParts.size
       val nextDownloadItemParts = downloadItem.getNextDownloadItemParts(numPartsToGet)
@@ -84,22 +100,45 @@ class DownloadItemManager(
               tag,
               "checkUpdateDownloadQueue: numPartsToGet=$numPartsToGet, nextDownloadItemParts=${nextDownloadItemParts.size}"
       )
+      AbsLogger.debug(
+              tag,
+              "checkUpdateDownloadQueue: Processing item ${downloadItem.id}, numPartsToGet=$numPartsToGet, nextDownloadItemParts=${nextDownloadItemParts.size}"
+      )
 
       if (nextDownloadItemParts.isNotEmpty()) {
         processDownloadItemParts(nextDownloadItemParts)
+      } else {
+        AbsLogger.debug(
+                tag,
+                "checkUpdateDownloadQueue: No parts to download for item ${downloadItem.id}"
+        )
       }
 
       if (currentDownloadItemParts.size >= maxSimultaneousDownloads) {
+        AbsLogger.debug(tag, "checkUpdateDownloadQueue: Max simultaneous downloads reached")
         break
       }
     }
 
-    if (currentDownloadItemParts.isNotEmpty()) startWatchingDownloads()
+    if (currentDownloadItemParts.isNotEmpty()) {
+      AbsLogger.debug(tag, "checkUpdateDownloadQueue: Starting to watch downloads")
+      startWatchingDownloads()
+    } else {
+      AbsLogger.debug(tag, "checkUpdateDownloadQueue: No active downloads to watch")
+    }
   }
 
   /** Processes the download item parts. */
   private fun processDownloadItemParts(nextDownloadItemParts: List<DownloadItemPart>) {
+    AbsLogger.debug(
+            tag,
+            "processDownloadItemParts: Processing ${nextDownloadItemParts.size} download parts"
+    )
     nextDownloadItemParts.forEach {
+      AbsLogger.debug(
+              tag,
+              "processDownloadItemParts: Starting download for ${it.filename}, isInternalStorage=${it.isInternalStorage}"
+      )
       if (it.isInternalStorage) {
         startInternalDownload(it)
       } else {
@@ -110,6 +149,26 @@ class DownloadItemManager(
 
   /** Starts an internal download. */
   private fun startInternalDownload(downloadItemPart: DownloadItemPart) {
+    val serverUrl = downloadItemPart.serverUrl
+    AbsLogger.debug(
+            tag,
+            "startInternalDownload: Starting internal download for ${downloadItemPart.filename}"
+    )
+    AbsLogger.debug(tag, "startInternalDownload: Server URL = $serverUrl")
+
+    if (serverUrl.isBlank()) {
+      Log.e(
+              tag,
+              "Failed to start internal download for ${downloadItemPart.filename} - server URL is blank"
+      )
+      AbsLogger.error(
+              tag,
+              "Failed to start internal download for ${downloadItemPart.filename} - server URL is blank"
+      )
+      downloadItemPart.failed = true
+      return
+    }
+
     val file = File(downloadItemPart.finalDestinationPath)
     file.parentFile?.mkdirs()
 
@@ -119,30 +178,64 @@ class DownloadItemManager(
               override fun onProgress(totalBytesWritten: Long, progress: Long) {
                 downloadItemPart.bytesDownloaded = totalBytesWritten
                 downloadItemPart.progress = progress
+                // Notify UI about progress update
+                AbsLogger.debug(
+                        tag,
+                        "onProgress: ${downloadItemPart.filename} - ${progress}% (${totalBytesWritten} bytes)"
+                )
+                clientEventEmitter.onDownloadItemPartUpdate(downloadItemPart)
               }
 
               override fun onComplete(failed: Boolean) {
                 downloadItemPart.failed = failed
                 downloadItemPart.completed = true
+                AbsLogger.debug(
+                        tag,
+                        "startInternalDownload: Internal download completed for ${downloadItemPart.filename}, failed=$failed"
+                )
+                // Use the proper handler to ensure UI updates and cleanup
+                handleInternalDownloadPart(downloadItemPart)
               }
             }
 
     Log.d(
             tag,
-            "Start internal download to destination path ${downloadItemPart.finalDestinationPath} from ${downloadItemPart.serverUrl}"
+            "Start internal download to destination path ${downloadItemPart.finalDestinationPath} from $serverUrl"
     )
-    InternalDownloadManager(fileOutputStream, internalProgressCallback)
-            .download(downloadItemPart.serverUrl)
+    AbsLogger.debug(
+            tag,
+            "startInternalDownload: Starting InternalDownloadManager for ${downloadItemPart.filename}"
+    )
+    InternalDownloadManager(fileOutputStream, internalProgressCallback).download(serverUrl)
     downloadItemPart.downloadId = 1
     currentDownloadItemParts.add(downloadItemPart)
   }
 
   /** Starts an external download. */
   private fun startExternalDownload(downloadItemPart: DownloadItemPart) {
+    AbsLogger.debug(
+            tag,
+            "startExternalDownload: Starting external download for ${downloadItemPart.filename}"
+    )
+
     val dlRequest = downloadItemPart.getDownloadRequest()
+    if (dlRequest == null) {
+      Log.e(tag, "Failed to create download request for ${downloadItemPart.filename} - URI is null")
+      AbsLogger.error(
+              tag,
+              "Failed to create download request for ${downloadItemPart.filename} - URI is null"
+      )
+      downloadItemPart.failed = true
+      return
+    }
+
     val downloadId = downloadManager.enqueue(dlRequest)
     downloadItemPart.downloadId = downloadId
     Log.d(tag, "checkUpdateDownloadQueue: Starting download item part, downloadId=$downloadId")
+    AbsLogger.debug(
+            tag,
+            "startExternalDownload: Enqueued external download for ${downloadItemPart.filename}, downloadId=$downloadId"
+    )
     currentDownloadItemParts.add(downloadItemPart)
   }
 
@@ -178,11 +271,21 @@ class DownloadItemManager(
 
   /** Handles an internal download part. */
   private fun handleInternalDownloadPart(downloadItemPart: DownloadItemPart) {
+    AbsLogger.debug(
+            tag,
+            "handleInternalDownloadPart: Updating UI for ${downloadItemPart.filename}, progress=${downloadItemPart.progress}%, completed=${downloadItemPart.completed}"
+    )
     clientEventEmitter.onDownloadItemPartUpdate(downloadItemPart)
 
     if (downloadItemPart.completed) {
       val downloadItem = downloadItemQueue.find { it.id == downloadItemPart.downloadItemId }
-      downloadItem?.let { checkDownloadItemFinished(it) }
+      downloadItem?.let {
+        AbsLogger.debug(
+                tag,
+                "handleInternalDownloadPart: Checking if download item finished for ${downloadItem.media.metadata.title}"
+        )
+        checkDownloadItemFinished(it)
+      }
       currentDownloadItemParts.remove(downloadItemPart)
     }
   }
@@ -278,8 +381,15 @@ class DownloadItemManager(
 
   /** Moves the downloaded file to its final destination. */
   private fun moveDownloadedFile(downloadItem: DownloadItem, downloadItemPart: DownloadItemPart) {
-    val file = DocumentFileCompat.fromUri(mainActivity, downloadItemPart.destinationUri)
-    Log.d(tag, "DOWNLOAD: DESTINATION URI ${downloadItemPart.destinationUri}")
+    val destinationUri = downloadItemPart.destinationUri
+    if (destinationUri == null) {
+      Log.e(tag, "Cannot move file - destination URI is null for ${downloadItemPart.filename}")
+      downloadItemPart.failed = true
+      return
+    }
+
+    val file = DocumentFileCompat.fromUri(mainActivity, destinationUri)
+    Log.d(tag, "DOWNLOAD: DESTINATION URI $destinationUri")
 
     val fcb =
             object : FileCallback() {
@@ -384,15 +494,77 @@ class DownloadItemManager(
   /** Resumes a download item that was previously paused or failed. */
   fun resumeDownloadItem(downloadItem: DownloadItem) {
     Log.i(tag, "Resuming download item ${downloadItem.media.metadata.title}")
+    AbsLogger.debug(tag, "Resuming download item ${downloadItem.media.metadata.title}")
 
     // Check if item is already in queue
     val existingItem = downloadItemQueue.find { it.id == downloadItem.id }
     if (existingItem == null) {
       downloadItemQueue.add(downloadItem)
       clientEventEmitter.onDownloadItem(downloadItem)
+      AbsLogger.debug(tag, "Added download item to queue: ${downloadItem.id}")
+    } else {
+      AbsLogger.debug(tag, "Download item already in queue: ${downloadItem.id}")
     }
 
-    checkUpdateDownloadQueue()
+    // Only check download queue if server is connected
+    if (DeviceManager.isConnectedToServer && DeviceManager.serverAddress.isNotBlank()) {
+      checkUpdateDownloadQueue()
+    } else {
+      AbsLogger.debug(
+              tag,
+              "Server not connected, downloads will start when connection is established"
+      )
+    }
+  }
+
+  /** Called when server connection is established to start queued downloads. */
+  fun onServerConnected() {
+    AbsLogger.debug(
+            tag,
+            "onServerConnected: Server connection established, checking queued downloads"
+    )
+    if (downloadItemQueue.isNotEmpty()) {
+      AbsLogger.debug(
+              tag,
+              "onServerConnected: Found ${downloadItemQueue.size} queued downloads, starting them"
+      )
+      checkUpdateDownloadQueue()
+    }
+  }
+
+  /** Removes download items with invalid URLs that cannot be processed. */
+  fun cleanupInvalidDownloads() {
+    AbsLogger.debug(tag, "cleanupInvalidDownloads: Starting cleanup")
+
+    val itemsToRemove = mutableListOf<DownloadItem>()
+
+    for (downloadItem in downloadItemQueue) {
+      val hasValidParts =
+              downloadItem.downloadItemParts.any { part ->
+                val serverUrl = part.serverUrl
+                serverUrl.isNotBlank() &&
+                        (serverUrl.startsWith("http://") || serverUrl.startsWith("https://"))
+              }
+
+      if (!hasValidParts) {
+        AbsLogger.debug(
+                tag,
+                "cleanupInvalidDownloads: Removing item with invalid URLs: ${downloadItem.id}"
+        )
+        itemsToRemove.add(downloadItem)
+      }
+    }
+
+    // Remove invalid items from queue and database
+    for (item in itemsToRemove) {
+      downloadItemQueue.remove(item)
+      DeviceManager.dbManager.removeDownloadItem(item.id)
+      AbsLogger.info(tag, "Removed invalid download item: ${item.media.metadata.title}")
+    }
+
+    if (itemsToRemove.isNotEmpty()) {
+      AbsLogger.info(tag, "Cleaned up ${itemsToRemove.size} invalid download items")
+    }
   }
 
   /** Stops all downloads and cleans up resources. */

@@ -37,7 +37,7 @@ class AbsDownloader : Plugin() {
   lateinit var downloadManager: DownloadManager
   lateinit var apiHandler: ApiHandler
   lateinit var folderScanner: FolderScanner
-  lateinit var downloadItemManager: DownloadItemManager
+  private var downloadItemManager: DownloadItemManager? = null
 
   private var downloadService: DownloadService? = null
   private var isServiceBound = false
@@ -47,7 +47,8 @@ class AbsDownloader : Plugin() {
             override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
               val binder = service as DownloadService.DownloadServiceBinder
               downloadService = binder.getService()
-              downloadService?.initializeDownloadManager(mainActivity)
+              downloadService?.initializeDownloadManager(mainActivity, clientEventEmitter)
+              downloadItemManager = downloadService?.getDownloadItemManager()
               isServiceBound = true
               Log.d(tag, "DownloadService connected")
 
@@ -57,6 +58,7 @@ class AbsDownloader : Plugin() {
 
             override fun onServiceDisconnected(name: ComponentName?) {
               downloadService = null
+              downloadItemManager = null
               isServiceBound = false
               Log.d(tag, "DownloadService disconnected")
             }
@@ -86,8 +88,8 @@ class AbsDownloader : Plugin() {
     downloadManager = activity.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
     folderScanner = FolderScanner(mainActivity)
     apiHandler = ApiHandler(mainActivity)
-    downloadItemManager =
-            DownloadItemManager(downloadManager, folderScanner, mainActivity, clientEventEmitter)
+    // Don't create a separate DownloadItemManager here - use the one from the service
+    // downloadItemManager will be set when service connects
 
     // Start and bind to the download service
     startDownloadService()
@@ -111,7 +113,7 @@ class AbsDownloader : Plugin() {
     )
 
     val downloadId = if (episodeId.isEmpty()) libraryItemId else "$libraryItemId-$episodeId"
-    if (downloadItemManager.downloadItemQueue.find { it.id == downloadId } != null) {
+    if (downloadItemManager?.downloadItemQueue?.find { it.id == downloadId } != null) {
       Log.d(tag, "Download already started for this media entity $downloadId")
       return call.resolve(
               JSObject("{\"error\":\"Download already started for this media entity\"}")
@@ -368,7 +370,7 @@ class AbsDownloader : Plugin() {
         }
 
         downloadService?.addDownloadItem(downloadItem)
-                ?: downloadItemManager.addDownloadItem(downloadItem)
+                ?: downloadItemManager?.addDownloadItem(downloadItem)
       }
     } else {
       // Podcast episode download
@@ -467,7 +469,15 @@ class AbsDownloader : Plugin() {
       }
 
       downloadService?.addDownloadItem(downloadItem)
-              ?: downloadItemManager.addDownloadItem(downloadItem)
+              ?: downloadItemManager?.addDownloadItem(downloadItem)
     }
+  }
+
+  @PluginMethod
+  fun onServerConnected(call: PluginCall) {
+    Log.d(tag, "onServerConnected: Notifying download manager of server connection")
+    downloadService?.getDownloadItemManager()?.onServerConnected()
+            ?: downloadItemManager?.onServerConnected()
+    call.resolve()
   }
 }

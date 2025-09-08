@@ -12,39 +12,52 @@ import com.getcapacitor.annotation.CapacitorPlugin
 import java.util.UUID
 
 data class AbsLog(
-  var id:String,
-  var tag:String,
-  var level:String,
-  var message:String,
-  var timestamp:Long
+        var id: String,
+        var tag: String,
+        var level: String,
+        var message: String,
+        var timestamp: Long
 )
 
-data class AbsLogList(val value:List<AbsLog>)
+data class AbsLogList(val value: List<AbsLog>)
 
 @CapacitorPlugin(name = "AbsLogger")
 class AbsLogger : Plugin() {
-  private var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
+  private var jacksonMapper =
+          jacksonObjectMapper()
+                  .enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
 
   override fun load() {
-    onLogEmitter = { log:AbsLog ->
+    onLogEmitter = { log: AbsLog ->
       notifyListeners("onLog", JSObject(jacksonMapper.writeValueAsString(log)))
     }
     info("AbsLogger", "load: AbsLogger plugin initialized")
   }
 
   companion object {
-    var onLogEmitter:((log:AbsLog) -> Unit)? = null
+    var onLogEmitter: ((log: AbsLog) -> Unit)? = null
 
-    fun log(level:String, tag:String, message:String) {
-      val absLog = AbsLog(id = UUID.randomUUID().toString(), tag, level, message, timestamp = System.currentTimeMillis())
+    fun log(level: String, tag: String, message: String) {
+      val absLog =
+              AbsLog(
+                      id = UUID.randomUUID().toString(),
+                      tag,
+                      level,
+                      message,
+                      timestamp = System.currentTimeMillis()
+              )
       DeviceManager.dbManager.saveLog(absLog)
       onLogEmitter?.let { it(absLog) }
     }
-    fun info(tag:String, message:String) {
+    fun info(tag: String, message: String) {
       Log.i("AbsLogger", message)
       log("info", tag, message)
     }
-    fun error(tag:String, message:String) {
+    fun debug(tag: String, message: String) {
+      Log.d("AbsLogger", message)
+      log("debug", tag, message)
+    }
+    fun error(tag: String, message: String) {
       Log.e("AbsLogger", message)
       log("error", tag, message)
     }
@@ -55,6 +68,14 @@ class AbsLogger : Plugin() {
     val msg = call.getString("message") ?: return call.reject("No message")
     val tag = call.getString("tag") ?: ""
     info(tag, msg)
+    call.resolve()
+  }
+
+  @PluginMethod
+  fun debug(call: PluginCall) {
+    val msg = call.getString("message") ?: return call.reject("No message")
+    val tag = call.getString("tag") ?: ""
+    debug(tag, msg)
     call.resolve()
   }
 
