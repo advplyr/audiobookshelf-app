@@ -81,7 +81,7 @@ class ServerSocket extends EventEmitter {
     this.$store.commit('setSocketConnected', true)
     this.emit('connection-update', true)
     this.sendAuthenticate()
-    
+
     // Notify download manager that server is connected to auto-start queued downloads
     try {
       AbsDownloader.onServerConnected()

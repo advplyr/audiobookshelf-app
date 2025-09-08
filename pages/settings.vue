@@ -158,6 +158,10 @@
         <ui-text-input :value="streamingUsingCellularOption" readonly append-icon="expand_more" style="max-width: 200px" />
       </div>
     </div>
+    <div class="py-3 flex items-center">
+      <p class="pr-4 w-36">Max Simultaneous Downloads</p>
+      <ui-text-input type="number" v-model="settings.maxSimultaneousDownloads" style="width: 145px; max-width: 145px" @input="maxSimultaneousDownloadsUpdated" />
+    </div>
 
     <!-- Android Auto settings -->
     <template v-if="!isiOS">
@@ -220,11 +224,13 @@ export default {
         languageCode: 'en-us',
         downloadUsingCellular: 'ALWAYS',
         streamingUsingCellular: 'ALWAYS',
+        maxSimultaneousDownloads: 1,
         androidAutoBrowseLimitForGrouping: 100,
         androidAutoBrowseSeriesSequenceOrder: 'ASC'
       },
       theme: 'dark',
       lockCurrentOrientation: false,
+      saveSettingsTimeout: null,
       settingInfo: {
         disableShakeToResetSleepTimer: {
           name: this.$strings.LabelDisableShakeToReset,
@@ -519,6 +525,18 @@ export default {
       if (val < 30) val = 30
       this.saveSettings()
     },
+    maxSimultaneousDownloadsUpdated(val) {
+      if (!val) return // invalid values return falsy
+      let numVal = parseInt(val)
+      if (numVal > 10) numVal = 10
+      if (numVal < 1) numVal = 1
+      this.settings.maxSimultaneousDownloads = numVal
+      // Debounce the save to prevent frequent database writes
+      clearTimeout(this.saveSettingsTimeout)
+      this.saveSettingsTimeout = setTimeout(() => {
+        this.saveSettings()
+      }, 500)
+    },
     hapticFeedbackUpdated(val) {
       this.$store.commit('globals/setHapticFeedback', val)
       this.saveSettings()
@@ -649,6 +667,7 @@ export default {
 
       this.settings.downloadUsingCellular = deviceSettings.downloadUsingCellular || 'ALWAYS'
       this.settings.streamingUsingCellular = deviceSettings.streamingUsingCellular || 'ALWAYS'
+      this.settings.maxSimultaneousDownloads = deviceSettings.maxSimultaneousDownloads || 1
 
       this.settings.androidAutoBrowseLimitForGrouping = deviceSettings.androidAutoBrowseLimitForGrouping
       this.settings.androidAutoBrowseSeriesSequenceOrder = deviceSettings.androidAutoBrowseSeriesSequenceOrder || 'ASC'

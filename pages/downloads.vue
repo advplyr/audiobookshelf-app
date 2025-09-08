@@ -2,6 +2,12 @@
   <div class="w-full h-full py-6 px-4 overflow-y-auto">
     <p class="mb-2 text-base text-fg">{{ $strings.HeaderDownloads }} ({{ localLibraryItems.length }})</p>
 
+    <!-- Download Management Buttons -->
+    <div class="flex space-x-2 mb-4">
+      <ui-btn size="sm" color="error" @click="cancelAllDownloads">Cancel All</ui-btn>
+      <ui-btn size="sm" @click="retryDownloadQueue">Retry Queue</ui-btn>
+    </div>
+
     <div class="w-full">
       <template v-for="(mediaItem, num) in localLibraryItems">
         <div :key="mediaItem.id" class="w-full">
@@ -29,6 +35,8 @@
 
 <script>
 import { Capacitor } from '@capacitor/core'
+import { AbsDownloader } from '@/plugins/capacitor'
+import { Dialog } from '@capacitor/dialog'
 
 export default {
   data() {
@@ -69,6 +77,35 @@ export default {
           coverPathSrc: lmi.coverContentUrl ? Capacitor.convertFileSrc(lmi.coverContentUrl) : null
         }
       })
+    },
+    async cancelAllDownloads() {
+      const { value } = await Dialog.confirm({
+        title: 'Cancel All Downloads',
+        message: 'Are you sure you want to cancel all pending downloads? This action cannot be undone.',
+        okButtonTitle: 'Cancel All',
+        cancelButtonTitle: 'Keep Downloads'
+      })
+
+      if (value) {
+        try {
+          await AbsDownloader.cancelAllDownloads()
+          this.$toast.success('All downloads cancelled')
+          // Refresh the list
+          this.init()
+        } catch (error) {
+          console.error('Failed to cancel downloads:', error)
+          this.$toast.error('Failed to cancel downloads')
+        }
+      }
+    },
+    async retryDownloadQueue() {
+      try {
+        await AbsDownloader.retryDownloadQueue()
+        this.$toast.success('Download queue restarted')
+      } catch (error) {
+        console.error('Failed to retry download queue:', error)
+        this.$toast.error('Failed to retry download queue')
+      }
     }
   },
   mounted() {

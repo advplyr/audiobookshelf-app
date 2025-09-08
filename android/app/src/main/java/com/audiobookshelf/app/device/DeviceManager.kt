@@ -29,67 +29,59 @@ object DeviceManager {
   const val tag = "DeviceManager"
 
   val dbManager: DbManager = DbManager()
-  var deviceData: DeviceData = dbManager.getDeviceData()
+  var deviceData: DeviceData = getDeviceDataSafely()
   var serverConnectionConfig: ServerConnectionConfig? = null
 
-  val serverConnectionConfigId get() = serverConnectionConfig?.id ?: ""
-  val serverConnectionConfigName get() = serverConnectionConfig?.name ?: ""
-  val serverConnectionConfigString get() = serverConnectionConfig?.name ?: "No server connection"
+  private fun getDeviceDataSafely(): DeviceData {
+    return try {
+      Log.d(tag, "Loading device data...")
+      val data = dbManager.getDeviceData()
+      Log.d(tag, "Device data loaded successfully")
+
+      // Ensure deviceSettings is not null and has all required fields
+      if (data.deviceSettings == null) {
+        Log.d(tag, "Device settings is null, creating defaults")
+        data.deviceSettings = DeviceSettings.default()
+      }
+
+      // Initialize maxSimultaneousDownloads if missing
+      if (data.deviceSettings?.maxSimultaneousDownloads == null) {
+        Log.d(tag, "Initializing maxSimultaneousDownloads to 1")
+        data.deviceSettings?.maxSimultaneousDownloads = 1
+      }
+
+      try {
+        dbManager.saveDeviceData(data)
+        Log.d(tag, "Device data saved successfully")
+      } catch (e: Exception) {
+        Log.e(tag, "Failed to save device data", e)
+      }
+
+      data
+    } catch (e: Exception) {
+      Log.e(tag, "Failed to load device data, using defaults", e)
+      DeviceData(mutableListOf(), null, DeviceSettings.default(), null)
+    }
+  }
+
+  val serverConnectionConfigId
+    get() = serverConnectionConfig?.id ?: ""
+  val serverConnectionConfigName
+    get() = serverConnectionConfig?.name ?: ""
+  val serverConnectionConfigString
+    get() = serverConnectionConfig?.name ?: "No server connection"
   val serverAddress
     get() = serverConnectionConfig?.address ?: ""
   val serverUserId
     get() = serverConnectionConfig?.userId ?: ""
   val token
     get() = serverConnectionConfig?.token ?: ""
-  val serverVersion get() = serverConnectionConfig?.version ?: ""
+  val serverVersion
+    get() = serverConnectionConfig?.version ?: ""
   val isConnectedToServer
     get() = serverConnectionConfig != null
 
   var widgetUpdater: WidgetEventEmitter? = null
-
-  init {
-    Log.d(tag, "Device Manager Singleton invoked")
-
-    // Initialize new sleep timer settings and shake sensitivity added in v0.9.61
-    if (deviceData.deviceSettings?.autoSleepTimerStartTime == null ||
-                    deviceData.deviceSettings?.autoSleepTimerEndTime == null
-    ) {
-      deviceData.deviceSettings?.autoSleepTimerStartTime = "22:00"
-      deviceData.deviceSettings?.autoSleepTimerEndTime = "06:00"
-      deviceData.deviceSettings?.sleepTimerLength = 900000L
-    }
-    if (deviceData.deviceSettings?.shakeSensitivity == null) {
-      deviceData.deviceSettings?.shakeSensitivity = ShakeSensitivitySetting.MEDIUM
-    }
-    // Initialize auto sleep timer auto rewind added in v0.9.64
-    if (deviceData.deviceSettings?.autoSleepTimerAutoRewindTime == null) {
-      deviceData.deviceSettings?.autoSleepTimerAutoRewindTime = 300000L // 5 minutes
-    }
-    // Initialize sleep timer almost done chime added in v0.9.81
-    if (deviceData.deviceSettings?.enableSleepTimerAlmostDoneChime == null) {
-      deviceData.deviceSettings?.enableSleepTimerAlmostDoneChime = false
-    }
-
-    // Language added in v0.9.69
-    if (deviceData.deviceSettings?.languageCode == null) {
-      deviceData.deviceSettings?.languageCode = "en-us"
-    }
-
-    if (deviceData.deviceSettings?.downloadUsingCellular == null) {
-      deviceData.deviceSettings?.downloadUsingCellular = DownloadUsingCellularSetting.ALWAYS
-    }
-
-    if (deviceData.deviceSettings?.streamingUsingCellular == null) {
-      deviceData.deviceSettings?.streamingUsingCellular = StreamingUsingCellularSetting.ALWAYS
-    }
-    if (deviceData.deviceSettings?.androidAutoBrowseLimitForGrouping == null) {
-      deviceData.deviceSettings?.androidAutoBrowseLimitForGrouping = 100
-    }
-    if (deviceData.deviceSettings?.androidAutoBrowseSeriesSequenceOrder == null) {
-      deviceData.deviceSettings?.androidAutoBrowseSeriesSequenceOrder =
-              AndroidAutoBrowseSeriesSequenceOrderSetting.ASC
-    }
-  }
 
   /**
    * Encodes the given ID to a Base64 string.
@@ -113,19 +105,15 @@ object DeviceManager {
   }
 
   /**
-   * Check if the currently connected server version is >= compareVersion
-   * Abs server only uses major.minor.patch
-   * Note: Version is returned in Abs auth payloads starting v2.6.0
-   * Note: Version is saved with the server connection config starting after v0.9.81
+   * Check if the currently connected server version is >= compareVersion Abs server only uses
+   * major.minor.patch Note: Version is returned in Abs auth payloads starting v2.6.0 Note: Version
+   * is saved with the server connection config starting after v0.9.81
    *
-   * @example
-   * serverVersion=2.25.1
-   * isServerVersionGreaterThanOrEqualTo("2.26.0") = false
+   * @example serverVersion=2.25.1 isServerVersionGreaterThanOrEqualTo("2.26.0") = false
    *
-   * serverVersion=2.26.1
-   * isServerVersionGreaterThanOrEqualTo("2.26.0") = true
+   * serverVersion=2.26.1 isServerVersionGreaterThanOrEqualTo("2.26.0") = true
    */
-  fun isServerVersionGreaterThanOrEqualTo(compareVersion:String):Boolean {
+  fun isServerVersionGreaterThanOrEqualTo(compareVersion: String): Boolean {
     if (serverVersion == "") return false
     if (compareVersion == "") return true
 

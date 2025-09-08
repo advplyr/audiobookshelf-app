@@ -16,6 +16,7 @@ import com.audiobookshelf.app.device.FolderScanner
 import com.audiobookshelf.app.models.DownloadItem
 import com.audiobookshelf.app.models.DownloadItemPart
 import com.audiobookshelf.app.plugins.AbsLogger
+import com.audiobookshelf.app.utils.DebugUtils
 import com.fasterxml.jackson.core.json.JsonReadFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.getcapacitor.JSObject
@@ -23,6 +24,8 @@ import java.io.File
 import java.io.FileOutputStream
 import java.util.*
 import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /** Manages download items and their parts. */
 class DownloadItemManager(
@@ -32,10 +35,13 @@ class DownloadItemManager(
         private var clientEventEmitter: DownloadEventEmitter
 ) {
   val tag = "DownloadItemManager"
-  private val maxSimultaneousDownloads = 3
   private var jacksonMapper =
           jacksonObjectMapper()
                   .enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
+
+  private fun getMaxSimultaneousDownloads(): Int {
+    return DeviceManager.deviceData.deviceSettings?.maxSimultaneousDownloads ?: 1
+  }
 
   enum class DownloadCheckStatus {
     InProgress,
@@ -60,7 +66,23 @@ class DownloadItemManager(
   }
 
   companion object {
-    var isDownloading: Boolean = false
+    @Volatile private var isDownloading: Boolean = false
+    private val downloadingLock = Mutex()
+
+    suspend fun setDownloading(downloading: Boolean) {
+      downloadingLock.withLock { isDownloading = downloading }
+    }
+
+    suspend fun checkAndSetDownloading(): Boolean {
+      return downloadingLock.withLock {
+        if (isDownloading) {
+          false // Already downloading
+        } else {
+          isDownloading = true
+          true // Successfully set to downloading
+        }
+      }
+    }
   }
 
   // Use a supervised scope instead of GlobalScope for better lifecycle management
@@ -78,7 +100,15 @@ class DownloadItemManager(
 
   /** Checks and updates the download queue. */
   private fun checkUpdateDownloadQueue() {
-    AbsLogger.debug(tag, "checkUpdateDownloadQueue: Starting queue check")
+    val finishDebug = DebugUtils.logLongOperation(tag, "checkUpdateDownloadQueue", 50)
+    DebugUtils.logMethodEntry(tag, "checkUpdateDownloadQueue")
+
+    val startTime = System.currentTimeMillis()
+    val threadName = Thread.currentThread().name
+    AbsLogger.debug(
+            tag,
+            "checkUpdateDownloadQueue: Starting queue check [Thread: $threadName, Time: $startTime]"
+    )
     AbsLogger.debug(
             tag,
             "checkUpdateDownloadQueue: Queue size=${downloadItemQueue.size}, Current downloads=${currentDownloadItemParts.size}"
@@ -94,7 +124,7 @@ class DownloadItemManager(
     }
 
     for (downloadItem in downloadItemQueue) {
-      val numPartsToGet = maxSimultaneousDownloads - currentDownloadItemParts.size
+      val numPartsToGet = getMaxSimultaneousDownloads() - currentDownloadItemParts.size
       val nextDownloadItemParts = downloadItem.getNextDownloadItemParts(numPartsToGet)
       Log.d(
               tag,
@@ -114,7 +144,7 @@ class DownloadItemManager(
         )
       }
 
-      if (currentDownloadItemParts.size >= maxSimultaneousDownloads) {
+      if (currentDownloadItemParts.size >= getMaxSimultaneousDownloads()) {
         AbsLogger.debug(tag, "checkUpdateDownloadQueue: Max simultaneous downloads reached")
         break
       }
@@ -126,6 +156,9 @@ class DownloadItemManager(
     } else {
       AbsLogger.debug(tag, "checkUpdateDownloadQueue: No active downloads to watch")
     }
+
+    finishDebug()
+    DebugUtils.logMethodExit(tag, "checkUpdateDownloadQueue")
   }
 
   /** Processes the download item parts. */
@@ -179,10 +212,6 @@ class DownloadItemManager(
                 downloadItemPart.bytesDownloaded = totalBytesWritten
                 downloadItemPart.progress = progress
                 // Notify UI about progress update
-                AbsLogger.debug(
-                        tag,
-                        "onProgress: ${downloadItemPart.filename} - ${progress}% (${totalBytesWritten} bytes)"
-                )
                 clientEventEmitter.onDownloadItemPartUpdate(downloadItemPart)
               }
 
@@ -241,31 +270,43 @@ class DownloadItemManager(
 
   /** Starts watching the downloads. */
   private fun startWatchingDownloads() {
-    if (isDownloading) return // Already watching
-
     downloadScope.launch {
-      Log.d(tag, "Starting watching downloads")
-      isDownloading = true
+      // Use thread-safe check to prevent multiple watchers
+      if (!checkAndSetDownloading()) {
+        Log.d(tag, "Download watching already in progress, skipping")
+        return@launch
+      }
 
-      while (currentDownloadItemParts.isNotEmpty()) {
-        val itemParts = currentDownloadItemParts.filter { !it.isMoving }
-        for (downloadItemPart in itemParts) {
-          if (downloadItemPart.isInternalStorage) {
-            handleInternalDownloadPart(downloadItemPart)
-          } else {
-            handleExternalDownloadPart(downloadItemPart)
+      try {
+        Log.d(tag, "Starting watching downloads")
+
+        while (currentDownloadItemParts.isNotEmpty()) {
+          val itemParts = currentDownloadItemParts.filter { !it.isMoving }
+          for (downloadItemPart in itemParts) {
+            if (downloadItemPart.isInternalStorage) {
+              handleInternalDownloadPart(downloadItemPart)
+            } else {
+              handleExternalDownloadPart(downloadItemPart)
+            }
           }
+
+          delay(2000) // Increased delay to reduce polling frequency
         }
 
-        delay(500)
+        Log.d(tag, "Finished watching downloads")
+      } finally {
+        // Always reset the downloading flag
+        setDownloading(false)
 
-        if (currentDownloadItemParts.size < maxSimultaneousDownloads) {
+        // Only check queue when all downloads are finished and there are items waiting
+        if (downloadItemQueue.isNotEmpty()) {
+          Log.d(
+                  tag,
+                  "Queue check after watching finished - ${downloadItemQueue.size} items remaining"
+          )
           checkUpdateDownloadQueue()
         }
       }
-
-      Log.d(tag, "Finished watching downloads")
-      isDownloading = false
     }
   }
 
@@ -287,6 +328,11 @@ class DownloadItemManager(
         checkDownloadItemFinished(it)
       }
       currentDownloadItemParts.remove(downloadItemPart)
+
+      // Check if we can start more downloads when one completes
+      if (downloadItemQueue.isNotEmpty()) {
+        checkUpdateDownloadQueue()
+      }
     }
   }
 
@@ -528,6 +574,16 @@ class DownloadItemManager(
               tag,
               "onServerConnected: Found ${downloadItemQueue.size} queued downloads, starting them"
       )
+      
+      // Notify frontend about existing download items when reconnecting
+      for (downloadItem in downloadItemQueue) {
+        AbsLogger.debug(
+                tag,
+                "onServerConnected: Notifying frontend about queued download: ${downloadItem.media.metadata.title}"
+        )
+        clientEventEmitter.onDownloadItem(downloadItem)
+      }
+      
       checkUpdateDownloadQueue()
     }
   }
@@ -571,7 +627,52 @@ class DownloadItemManager(
   fun stopAllDownloads() {
     Log.d(tag, "Stopping all downloads")
     downloadScope.cancel()
-    isDownloading = false
+    downloadScope.launch { setDownloading(false) }
     currentDownloadItemParts.clear()
+  }
+
+  /** Cancels all downloads and removes them from the queue. */
+  fun cancelAllDownloads() {
+    Log.d(tag, "Cancelling all downloads")
+    AbsLogger.debug(tag, "cancelAllDownloads: Cancelling all ${downloadItemQueue.size} downloads")
+
+    // Cancel all current download parts
+    for (downloadItemPart in currentDownloadItemParts) {
+      if (!downloadItemPart.isInternalStorage && downloadItemPart.downloadId != null) {
+        downloadManager.remove(downloadItemPart.downloadId!!)
+      }
+    }
+
+    // Clear all download items from queue and database
+    val itemsToRemove = downloadItemQueue.toList()
+    for (downloadItem in itemsToRemove) {
+      DeviceManager.dbManager.removeDownloadItem(downloadItem.id)
+      AbsLogger.debug(
+              tag,
+              "cancelAllDownloads: Removed download item ${downloadItem.media.metadata.title}"
+      )
+    }
+
+    downloadItemQueue.clear()
+    currentDownloadItemParts.clear()
+    downloadScope.launch { setDownloading(false) }
+
+    AbsLogger.info(tag, "Cancelled all downloads")
+  }
+
+  /** Retries the download queue manually. */
+  fun retryDownloadQueue() {
+    Log.d(tag, "Retrying download queue")
+    AbsLogger.debug(
+            tag,
+            "retryDownloadQueue: Retrying download queue with ${downloadItemQueue.size} items"
+    )
+
+    if (downloadItemQueue.isNotEmpty()) {
+      checkUpdateDownloadQueue()
+      AbsLogger.debug(tag, "retryDownloadQueue: Download queue restart initiated")
+    } else {
+      AbsLogger.debug(tag, "retryDownloadQueue: No downloads in queue to retry")
+    }
   }
 }

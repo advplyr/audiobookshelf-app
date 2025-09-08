@@ -480,4 +480,20 @@ class AbsDownloader : Plugin() {
             ?: downloadItemManager?.onServerConnected()
     call.resolve()
   }
+
+  @PluginMethod
+  fun cancelAllDownloads(call: PluginCall) {
+    Log.d(tag, "cancelAllDownloads: Cancelling all downloads")
+    downloadService?.getDownloadItemManager()?.cancelAllDownloads()
+            ?: downloadItemManager?.cancelAllDownloads()
+    call.resolve()
+  }
+
+  @PluginMethod
+  fun retryDownloadQueue(call: PluginCall) {
+    Log.d(tag, "retryDownloadQueue: Retrying download queue")
+    downloadService?.getDownloadItemManager()?.retryDownloadQueue()
+            ?: downloadItemManager?.retryDownloadQueue()
+    call.resolve()
+  }
 }
