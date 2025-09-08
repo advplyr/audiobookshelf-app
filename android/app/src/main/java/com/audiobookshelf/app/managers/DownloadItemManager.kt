@@ -67,7 +67,9 @@ class DownloadItemManager(
 
   companion object {
     @Volatile private var isDownloading: Boolean = false
+    @Volatile private var isProcessingQueue: Boolean = false
     private val downloadingLock = Mutex()
+    private val queueProcessingLock = Mutex()
 
     suspend fun setDownloading(downloading: Boolean) {
       downloadingLock.withLock { isDownloading = downloading }
@@ -80,6 +82,21 @@ class DownloadItemManager(
         } else {
           isDownloading = true
           true // Successfully set to downloading
+        }
+      }
+    }
+
+    suspend fun setProcessingQueue(processing: Boolean) {
+      queueProcessingLock.withLock { isProcessingQueue = processing }
+    }
+
+    suspend fun checkAndSetProcessingQueue(): Boolean {
+      return queueProcessingLock.withLock {
+        if (isProcessingQueue) {
+          false // Already processing
+        } else {
+          isProcessingQueue = true
+          true // Successfully set to processing
         }
       }
     }
@@ -100,65 +117,80 @@ class DownloadItemManager(
 
   /** Checks and updates the download queue. */
   private fun checkUpdateDownloadQueue() {
-    val finishDebug = DebugUtils.logLongOperation(tag, "checkUpdateDownloadQueue", 50)
-    DebugUtils.logMethodEntry(tag, "checkUpdateDownloadQueue")
-
-    val startTime = System.currentTimeMillis()
-    val threadName = Thread.currentThread().name
-    AbsLogger.debug(
-            tag,
-            "checkUpdateDownloadQueue: Starting queue check [Thread: $threadName, Time: $startTime]"
-    )
-    AbsLogger.debug(
-            tag,
-            "checkUpdateDownloadQueue: Queue size=${downloadItemQueue.size}, Current downloads=${currentDownloadItemParts.size}"
-    )
-
-    // Check if server is connected before processing downloads
-    if (!DeviceManager.isConnectedToServer || DeviceManager.serverAddress.isBlank()) {
-      AbsLogger.debug(
-              tag,
-              "checkUpdateDownloadQueue: Server not connected or address blank, skipping downloads"
-      )
-      return
-    }
-
-    for (downloadItem in downloadItemQueue) {
-      val numPartsToGet = getMaxSimultaneousDownloads() - currentDownloadItemParts.size
-      val nextDownloadItemParts = downloadItem.getNextDownloadItemParts(numPartsToGet)
-      Log.d(
-              tag,
-              "checkUpdateDownloadQueue: numPartsToGet=$numPartsToGet, nextDownloadItemParts=${nextDownloadItemParts.size}"
-      )
-      AbsLogger.debug(
-              tag,
-              "checkUpdateDownloadQueue: Processing item ${downloadItem.id}, numPartsToGet=$numPartsToGet, nextDownloadItemParts=${nextDownloadItemParts.size}"
-      )
-
-      if (nextDownloadItemParts.isNotEmpty()) {
-        processDownloadItemParts(nextDownloadItemParts)
-      } else {
+    // Use coroutine to handle thread-safe queue processing
+    downloadScope.launch {
+      if (!checkAndSetProcessingQueue()) {
         AbsLogger.debug(
                 tag,
-                "checkUpdateDownloadQueue: No parts to download for item ${downloadItem.id}"
+                "checkUpdateDownloadQueue: Queue processing already in progress, skipping"
         )
+        return@launch
       }
 
-      if (currentDownloadItemParts.size >= getMaxSimultaneousDownloads()) {
-        AbsLogger.debug(tag, "checkUpdateDownloadQueue: Max simultaneous downloads reached")
-        break
+      try {
+        val finishDebug = DebugUtils.logLongOperation(tag, "checkUpdateDownloadQueue", 50)
+        DebugUtils.logMethodEntry(tag, "checkUpdateDownloadQueue")
+
+        val startTime = System.currentTimeMillis()
+        val threadName = Thread.currentThread().name
+        AbsLogger.debug(
+                tag,
+                "checkUpdateDownloadQueue: Starting queue check [Thread: $threadName, Time: $startTime]"
+        )
+        AbsLogger.debug(
+                tag,
+                "checkUpdateDownloadQueue: Queue size=${downloadItemQueue.size}, Current downloads=${currentDownloadItemParts.size}"
+        )
+
+        // Check if server is connected before processing downloads
+        if (!DeviceManager.isConnectedToServer || DeviceManager.serverAddress.isBlank()) {
+          AbsLogger.debug(
+                  tag,
+                  "checkUpdateDownloadQueue: Server not connected or address blank, skipping downloads"
+          )
+          return@launch
+        }
+
+        for (downloadItem in downloadItemQueue) {
+          val numPartsToGet = getMaxSimultaneousDownloads() - currentDownloadItemParts.size
+          val nextDownloadItemParts = downloadItem.getNextDownloadItemParts(numPartsToGet)
+          Log.d(
+                  tag,
+                  "checkUpdateDownloadQueue: numPartsToGet=$numPartsToGet, nextDownloadItemParts=${nextDownloadItemParts.size}"
+          )
+          AbsLogger.debug(
+                  tag,
+                  "checkUpdateDownloadQueue: Processing item ${downloadItem.id}, numPartsToGet=$numPartsToGet, nextDownloadItemParts=${nextDownloadItemParts.size}"
+          )
+
+          if (nextDownloadItemParts.isNotEmpty()) {
+            processDownloadItemParts(nextDownloadItemParts)
+          } else {
+            AbsLogger.debug(
+                    tag,
+                    "checkUpdateDownloadQueue: No parts to download for item ${downloadItem.id}"
+            )
+          }
+
+          if (currentDownloadItemParts.size >= getMaxSimultaneousDownloads()) {
+            AbsLogger.debug(tag, "checkUpdateDownloadQueue: Max simultaneous downloads reached")
+            break
+          }
+        }
+
+        if (currentDownloadItemParts.isNotEmpty()) {
+          AbsLogger.debug(tag, "checkUpdateDownloadQueue: Starting to watch downloads")
+          startWatchingDownloads()
+        } else {
+          AbsLogger.debug(tag, "checkUpdateDownloadQueue: No active downloads to watch")
+        }
+
+        finishDebug()
+        DebugUtils.logMethodExit(tag, "checkUpdateDownloadQueue")
+      } finally {
+        setProcessingQueue(false)
       }
     }
-
-    if (currentDownloadItemParts.isNotEmpty()) {
-      AbsLogger.debug(tag, "checkUpdateDownloadQueue: Starting to watch downloads")
-      startWatchingDownloads()
-    } else {
-      AbsLogger.debug(tag, "checkUpdateDownloadQueue: No active downloads to watch")
-    }
-
-    finishDebug()
-    DebugUtils.logMethodExit(tag, "checkUpdateDownloadQueue")
   }
 
   /** Processes the download item parts. */
@@ -202,15 +234,45 @@ class DownloadItemManager(
       return
     }
 
+    // Check if file already exists with correct size
     val file = File(downloadItemPart.finalDestinationPath)
+    if (file.exists()) {
+      val expectedSize = downloadItemPart.fileSize
+      val actualSize = file.length()
+
+      if (actualSize == expectedSize) {
+        // File already exists with correct size - mark as completed immediately
+        downloadItemPart.completed = true
+        downloadItemPart.moved = true
+        downloadItemPart.progress = 100
+        downloadItemPart.bytesDownloaded = expectedSize
+
+        AbsLogger.debug(
+                tag,
+                "startInternalDownload: File already exists with correct size: ${file.absolutePath} (${actualSize} bytes)"
+        )
+
+        // Use the handler to ensure proper cleanup and queue processing
+        handleInternalDownloadPart(downloadItemPart)
+        return
+      } else {
+        // File exists but wrong size - delete it
+        AbsLogger.debug(
+                tag,
+                "startInternalDownload: File exists with wrong size: ${file.absolutePath} - expected: ${expectedSize}, actual: ${actualSize}. Deleting."
+        )
+        file.delete()
+      }
+    }
+
     file.parentFile?.mkdirs()
 
     val fileOutputStream = FileOutputStream(downloadItemPart.finalDestinationPath)
     val internalProgressCallback =
             object : InternalProgressCallback {
               override fun onProgress(totalBytesWritten: Long, progress: Long) {
-                downloadItemPart.bytesDownloaded = totalBytesWritten
-                downloadItemPart.progress = progress
+                // Use the new updateProgress method that tracks stalls
+                downloadItemPart.updateProgress(progress, totalBytesWritten)
                 // Notify UI about progress update
                 clientEventEmitter.onDownloadItemPartUpdate(downloadItemPart)
               }
@@ -310,28 +372,110 @@ class DownloadItemManager(
     }
   }
 
+  /** Handles a stalled download by attempting to restart it. */
+  private fun handleStalledDownload(downloadItemPart: DownloadItemPart) {
+    AbsLogger.debug(
+            tag,
+            "handleStalledDownload: Attempting to restart stalled download: ${downloadItemPart.filename}"
+    )
+
+    // Limit restart attempts to prevent infinite loops
+    if (downloadItemPart.stallCount > 3) {
+      AbsLogger.debug(
+              tag,
+              "handleStalledDownload: Too many stall attempts for ${downloadItemPart.filename}, marking as failed"
+      )
+      downloadItemPart.failed = true
+      currentDownloadItemParts.remove(downloadItemPart)
+
+      // Check if download item is finished
+      val downloadItem = downloadItemQueue.find { it.id == downloadItemPart.downloadItemId }
+      downloadItem?.let { checkDownloadItemFinished(it) }
+      return
+    }
+
+    // Cancel existing download if it's external
+    if (!downloadItemPart.isInternalStorage && downloadItemPart.downloadId != null) {
+      downloadManager.remove(downloadItemPart.downloadId!!)
+      AbsLogger.debug(
+              tag,
+              "handleStalledDownload: Cancelled external download ${downloadItemPart.downloadId} for ${downloadItemPart.filename}"
+      )
+    }
+
+    // Reset download state
+    downloadItemPart.downloadId = null
+    downloadItemPart.lastProgressUpdate = System.currentTimeMillis()
+    downloadItemPart.stallCount++
+
+    // Remove from current downloads to allow restart
+    currentDownloadItemParts.remove(downloadItemPart)
+
+    AbsLogger.debug(
+            tag,
+            "handleStalledDownload: Reset download state for ${downloadItemPart.filename}, will retry (attempt ${downloadItemPart.stallCount})"
+    )
+
+    // Trigger queue check to restart the download
+    checkUpdateDownloadQueue()
+  }
+
   /** Handles an internal download part. */
   private fun handleInternalDownloadPart(downloadItemPart: DownloadItemPart) {
     AbsLogger.debug(
             tag,
             "handleInternalDownloadPart: Updating UI for ${downloadItemPart.filename}, progress=${downloadItemPart.progress}%, completed=${downloadItemPart.completed}"
     )
+
+    // Check for stalled downloads only if download has been running for at least 10 seconds
+    if (!downloadItemPart.completed &&
+                    !downloadItemPart.failed &&
+                    downloadItemPart.lastProgressUpdate > 0 &&
+                    (System.currentTimeMillis() - downloadItemPart.lastProgressUpdate) > 10000 &&
+                    downloadItemPart.isDownloadStalled()
+    ) {
+      AbsLogger.debug(
+              tag,
+              "handleInternalDownloadPart: Download appears stalled for ${downloadItemPart.filename}, attempting to restart"
+      )
+      handleStalledDownload(downloadItemPart)
+      return
+    }
+
     clientEventEmitter.onDownloadItemPartUpdate(downloadItemPart)
 
     if (downloadItemPart.completed) {
       val downloadItem = downloadItemQueue.find { it.id == downloadItemPart.downloadItemId }
       downloadItem?.let {
+        // Save the download item state immediately after each file is completed
+        // This ensures that completed files are persisted even if the app is interrupted
+        DeviceManager.dbManager.saveDownloadItem(downloadItem)
+        AbsLogger.debug(
+                tag,
+                "handleInternalDownloadPart: Saved download item state after completing ${downloadItemPart.filename}"
+        )
+
         AbsLogger.debug(
                 tag,
                 "handleInternalDownloadPart: Checking if download item finished for ${downloadItem.media.metadata.title}"
         )
         checkDownloadItemFinished(it)
       }
+
+      // Remove from current downloads immediately to prevent race conditions
       currentDownloadItemParts.remove(downloadItemPart)
+      AbsLogger.debug(
+              tag,
+              "handleInternalDownloadPart: Removed completed download part ${downloadItemPart.filename} from current downloads"
+      )
 
       // Check if we can start more downloads when one completes
-      if (downloadItemQueue.isNotEmpty()) {
-        checkUpdateDownloadQueue()
+      // Use a delay to prevent immediate race conditions
+      downloadScope.launch {
+        delay(100) // Small delay to allow cleanup
+        if (downloadItemQueue.isNotEmpty()) {
+          checkUpdateDownloadQueue()
+        }
       }
     }
   }
@@ -339,6 +483,19 @@ class DownloadItemManager(
   /** Handles an external download part. */
   private fun handleExternalDownloadPart(downloadItemPart: DownloadItemPart) {
     val downloadCheckStatus = checkDownloadItemPart(downloadItemPart)
+
+    // Check for stalled downloads on external downloads too
+    if (downloadCheckStatus == DownloadCheckStatus.InProgress &&
+                    downloadItemPart.isDownloadStalled()
+    ) {
+      AbsLogger.debug(
+              tag,
+              "handleExternalDownloadPart: External download appears stalled for ${downloadItemPart.filename}, attempting to restart"
+      )
+      handleStalledDownload(downloadItemPart)
+      return
+    }
+
     clientEventEmitter.onDownloadItemPartUpdate(downloadItemPart)
 
     // Will move to final destination, remove current item parts, and check if download item is
@@ -390,8 +547,8 @@ class DownloadItemManager(
                     tag,
                     "checkDownloads Download ${downloadItemPart.filename} Progress = $percentProgress%"
             )
-            downloadItemPart.progress = percentProgress
-            downloadItemPart.bytesDownloaded = bytesDownloadedSoFar
+            // Use the new updateProgress method that tracks stalls
+            downloadItemPart.updateProgress(percentProgress, bytesDownloadedSoFar)
 
             DownloadCheckStatus.InProgress
           }
@@ -470,6 +627,15 @@ class DownloadItemManager(
 
                 downloadItemPart.moved = true
                 downloadItemPart.isMoving = false
+
+                // Save the download item state immediately after each file is completed
+                // This ensures that completed files are persisted even if the app is interrupted
+                DeviceManager.dbManager.saveDownloadItem(downloadItem)
+                AbsLogger.debug(
+                        tag,
+                        "DOWNLOAD: Saved download item state after completing ${downloadItemPart.filename}"
+                )
+
                 checkDownloadItemFinished(downloadItem)
                 currentDownloadItemParts.remove(downloadItemPart)
               }
@@ -537,10 +703,66 @@ class DownloadItemManager(
     }
   }
 
+  /**
+   * Scans for existing files and marks completed download item parts as finished. This prevents
+   * re-downloading files that already exist on disk.
+   */
+  private fun scanForExistingFiles(downloadItem: DownloadItem) {
+    AbsLogger.debug(
+            tag,
+            "scanForExistingFiles: Scanning for existing files for ${downloadItem.media.metadata.title}"
+    )
+
+    var hasCompletedFiles = false
+    for (downloadItemPart in downloadItem.downloadItemParts) {
+      if (!downloadItemPart.completed && !downloadItemPart.failed) {
+        val finalFile = File(downloadItemPart.finalDestinationPath)
+
+        if (finalFile.exists()) {
+          val expectedSize = downloadItemPart.fileSize
+          val actualSize = finalFile.length()
+
+          if (actualSize == expectedSize) {
+            // File exists with correct size - mark as completed
+            downloadItemPart.completed = true
+            downloadItemPart.moved = true
+            downloadItemPart.progress = 100
+            downloadItemPart.bytesDownloaded = expectedSize
+            hasCompletedFiles = true
+
+            AbsLogger.debug(
+                    tag,
+                    "scanForExistingFiles: Found existing file: ${finalFile.absolutePath} (${actualSize} bytes)"
+            )
+          } else {
+            // File exists but wrong size - delete it
+            AbsLogger.debug(
+                    tag,
+                    "scanForExistingFiles: File size mismatch: ${finalFile.absolutePath} - expected: ${expectedSize}, actual: ${actualSize}. Deleting."
+            )
+            finalFile.delete()
+          }
+        }
+      }
+    }
+
+    if (hasCompletedFiles) {
+      // Update the download item in the database with new completion status
+      DeviceManager.dbManager.saveDownloadItem(downloadItem)
+      AbsLogger.info(
+              tag,
+              "scanForExistingFiles: Updated completion status for ${downloadItem.media.metadata.title}"
+      )
+    }
+  }
+
   /** Resumes a download item that was previously paused or failed. */
   fun resumeDownloadItem(downloadItem: DownloadItem) {
     Log.i(tag, "Resuming download item ${downloadItem.media.metadata.title}")
     AbsLogger.debug(tag, "Resuming download item ${downloadItem.media.metadata.title}")
+
+    // Scan for existing completed files and mark them as completed
+    scanForExistingFiles(downloadItem)
 
     // Check if item is already in queue
     val existingItem = downloadItemQueue.find { it.id == downloadItem.id }
@@ -574,7 +796,7 @@ class DownloadItemManager(
               tag,
               "onServerConnected: Found ${downloadItemQueue.size} queued downloads, starting them"
       )
-      
+
       // Notify frontend about existing download items when reconnecting
       for (downloadItem in downloadItemQueue) {
         AbsLogger.debug(
@@ -583,7 +805,7 @@ class DownloadItemManager(
         )
         clientEventEmitter.onDownloadItem(downloadItem)
       }
-      
+
       checkUpdateDownloadQueue()
     }
   }
@@ -636,10 +858,29 @@ class DownloadItemManager(
     Log.d(tag, "Cancelling all downloads")
     AbsLogger.debug(tag, "cancelAllDownloads: Cancelling all ${downloadItemQueue.size} downloads")
 
+    // Stop both download watching and queue processing immediately
+    downloadScope.launch {
+      setDownloading(false)
+      setProcessingQueue(false)
+    }
+
     // Cancel all current download parts
     for (downloadItemPart in currentDownloadItemParts) {
       if (!downloadItemPart.isInternalStorage && downloadItemPart.downloadId != null) {
+        // Cancel external downloads through DownloadManager
         downloadManager.remove(downloadItemPart.downloadId!!)
+        AbsLogger.debug(
+                tag,
+                "cancelAllDownloads: Cancelled external download ${downloadItemPart.filename}"
+        )
+      } else if (downloadItemPart.isInternalStorage) {
+        // Mark internal downloads as failed to stop them
+        downloadItemPart.failed = true
+        downloadItemPart.completed = true
+        AbsLogger.debug(
+                tag,
+                "cancelAllDownloads: Marked internal download as cancelled ${downloadItemPart.filename}"
+        )
       }
     }
 
@@ -655,7 +896,6 @@ class DownloadItemManager(
 
     downloadItemQueue.clear()
     currentDownloadItemParts.clear()
-    downloadScope.launch { setDownloading(false) }
 
     AbsLogger.info(tag, "Cancelled all downloads")
   }

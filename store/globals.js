@@ -169,6 +169,9 @@ export const mutations = {
   removeItemDownload(state, id) {
     state.itemDownloads = state.itemDownloads.filter((i) => i.id != id)
   },
+  clearAllDownloads(state) {
+    state.itemDownloads = []
+  },
   setBookshelfListView(state, val) {
     state.bookshelfListView = val
   },

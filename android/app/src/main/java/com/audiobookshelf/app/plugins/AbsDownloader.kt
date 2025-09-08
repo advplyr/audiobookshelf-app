@@ -29,17 +29,45 @@ import java.io.File
 @CapacitorPlugin(name = "AbsDownloader")
 class AbsDownloader : Plugin() {
   private val tag = "AbsDownloader"
-  private var jacksonMapper =
+  private val jacksonMapper =
           jacksonObjectMapper()
                   .enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
 
-  lateinit var mainActivity: MainActivity
-  lateinit var downloadManager: DownloadManager
-  lateinit var apiHandler: ApiHandler
-  lateinit var folderScanner: FolderScanner
+  private lateinit var mainActivity: MainActivity
+  private lateinit var downloadManager: DownloadManager
+  private lateinit var folderScanner: FolderScanner
+  private lateinit var apiHandler: ApiHandler
   private var downloadItemManager: DownloadItemManager? = null
-
   private var downloadService: DownloadService? = null
+
+  /**
+   * Checks if a file already exists with the correct size.
+   * @param file The file to check
+   * @param expectedSize The expected file size in bytes
+   * @return true if file exists and has correct size, false otherwise
+   */
+  private fun isFileAlreadyComplete(file: File, expectedSize: Long): Boolean {
+    if (!file.exists()) {
+      return false
+    }
+
+    val actualSize = file.length()
+    if (actualSize == expectedSize) {
+      Log.d(
+              tag,
+              "File already exists with correct size: ${file.absolutePath} (${actualSize} bytes)"
+      )
+      return true
+    } else {
+      Log.d(
+              tag,
+              "File exists but size mismatch: ${file.absolutePath} - expected: ${expectedSize}, actual: ${actualSize}"
+      )
+      // Delete file with incorrect size
+      file.delete()
+      return false
+    }
+  }
   private var isServiceBound = false
 
   private val serviceConnection =
@@ -238,6 +266,7 @@ class AbsDownloader : Plugin() {
         val finalDestinationFile = File("$itemFolderPath/$destinationFilename")
         val destinationFile = File("$tempFolderPath/$destinationFilename")
 
+        // Clean up any temporary files
         if (destinationFile.exists()) {
           Log.d(
                   tag,
@@ -246,29 +275,50 @@ class AbsDownloader : Plugin() {
           destinationFile.delete()
         }
 
-        if (finalDestinationFile.exists()) {
+        // Check if final file already exists with correct size
+        if (isFileAlreadyComplete(finalDestinationFile, fileSize)) {
           Log.d(
                   tag,
-                  "ebook file already exists, removing it from ${finalDestinationFile.absolutePath}"
+                  "Ebook file already complete, skipping download: ${finalDestinationFile.absolutePath}"
           )
-          finalDestinationFile.delete()
+          // Create a completed download item part for tracking purposes
+          val downloadItemPart =
+                  DownloadItemPart.make(
+                          downloadItem.id,
+                          destinationFilename,
+                          fileSize,
+                          destinationFile,
+                          finalDestinationFile,
+                          itemSubfolder,
+                          serverPath,
+                          localFolder,
+                          ebookFile,
+                          null,
+                          null
+                  )
+          downloadItemPart.completed = true
+          downloadItemPart.moved = true
+          downloadItemPart.progress = 100
+          downloadItemPart.bytesDownloaded = fileSize
+          downloadItem.downloadItemParts.add(downloadItemPart)
+        } else {
+          // File doesn't exist or has wrong size, add to download queue
+          val downloadItemPart =
+                  DownloadItemPart.make(
+                          downloadItem.id,
+                          destinationFilename,
+                          fileSize,
+                          destinationFile,
+                          finalDestinationFile,
+                          itemSubfolder,
+                          serverPath,
+                          localFolder,
+                          ebookFile,
+                          null,
+                          null
+                  )
+          downloadItem.downloadItemParts.add(downloadItemPart)
         }
-
-        val downloadItemPart =
-                DownloadItemPart.make(
-                        downloadItem.id,
-                        destinationFilename,
-                        fileSize,
-                        destinationFile,
-                        finalDestinationFile,
-                        itemSubfolder,
-                        serverPath,
-                        localFolder,
-                        ebookFile,
-                        null,
-                        null
-                )
-        downloadItem.downloadItemParts.add(downloadItemPart)
       }
 
       // Create download item part for each audio track
@@ -290,6 +340,7 @@ class AbsDownloader : Plugin() {
         val finalDestinationFile = File("$itemFolderPath/$destinationFilename")
         val destinationFile = File("$tempFolderPath/$destinationFilename")
 
+        // Clean up any temporary files
         if (destinationFile.exists()) {
           Log.d(
                   tag,
@@ -298,29 +349,50 @@ class AbsDownloader : Plugin() {
           destinationFile.delete()
         }
 
-        if (finalDestinationFile.exists()) {
+        // Check if final file already exists with correct size
+        if (isFileAlreadyComplete(finalDestinationFile, fileSize)) {
           Log.d(
                   tag,
-                  "Audio file already exists, removing it from ${finalDestinationFile.absolutePath}"
+                  "Audio file already complete, skipping download: ${finalDestinationFile.absolutePath}"
           )
-          finalDestinationFile.delete()
+          // Create a completed download item part for tracking purposes
+          val downloadItemPart =
+                  DownloadItemPart.make(
+                          downloadItem.id,
+                          destinationFilename,
+                          fileSize,
+                          destinationFile,
+                          finalDestinationFile,
+                          itemSubfolder,
+                          serverPath,
+                          localFolder,
+                          null,
+                          audioTrack,
+                          null
+                  )
+          downloadItemPart.completed = true
+          downloadItemPart.moved = true
+          downloadItemPart.progress = 100
+          downloadItemPart.bytesDownloaded = fileSize
+          downloadItem.downloadItemParts.add(downloadItemPart)
+        } else {
+          // File doesn't exist or has wrong size, add to download queue
+          val downloadItemPart =
+                  DownloadItemPart.make(
+                          downloadItem.id,
+                          destinationFilename,
+                          fileSize,
+                          destinationFile,
+                          finalDestinationFile,
+                          itemSubfolder,
+                          serverPath,
+                          localFolder,
+                          null,
+                          audioTrack,
+                          null
+                  )
+          downloadItem.downloadItemParts.add(downloadItemPart)
         }
-
-        val downloadItemPart =
-                DownloadItemPart.make(
-                        downloadItem.id,
-                        destinationFilename,
-                        fileSize,
-                        destinationFile,
-                        finalDestinationFile,
-                        itemSubfolder,
-                        serverPath,
-                        localFolder,
-                        null,
-                        audioTrack,
-                        null
-                )
-        downloadItem.downloadItemParts.add(downloadItemPart)
       }
 
       if (downloadItem.downloadItemParts.isNotEmpty()) {
@@ -336,37 +408,59 @@ class AbsDownloader : Plugin() {
           val destinationFile = File("$tempFolderPath/$destinationFilename")
           val finalDestinationFile = File("$itemFolderPath/$destinationFilename")
 
+          // Clean up any temporary files
           if (destinationFile.exists()) {
             Log.d(
                     tag,
-                    "TEMP Audio file already exists, removing it from ${destinationFile.absolutePath}"
+                    "TEMP cover file already exists, removing it from ${destinationFile.absolutePath}"
             )
             destinationFile.delete()
           }
 
-          if (finalDestinationFile.exists()) {
+          // Check if final file already exists with correct size
+          if (isFileAlreadyComplete(finalDestinationFile, coverFileSize)) {
             Log.d(
                     tag,
-                    "Cover already exists, removing it from ${finalDestinationFile.absolutePath}"
+                    "Cover file already complete, skipping download: ${finalDestinationFile.absolutePath}"
             )
-            finalDestinationFile.delete()
+            // Create a completed download item part for tracking purposes
+            val downloadItemPart =
+                    DownloadItemPart.make(
+                            downloadItem.id,
+                            destinationFilename,
+                            coverFileSize,
+                            destinationFile,
+                            finalDestinationFile,
+                            itemSubfolder,
+                            serverPath,
+                            localFolder,
+                            null,
+                            null,
+                            null
+                    )
+            downloadItemPart.completed = true
+            downloadItemPart.moved = true
+            downloadItemPart.progress = 100
+            downloadItemPart.bytesDownloaded = coverFileSize
+            downloadItem.downloadItemParts.add(downloadItemPart)
+          } else {
+            // File doesn't exist or has wrong size, add to download queue
+            val downloadItemPart =
+                    DownloadItemPart.make(
+                            downloadItem.id,
+                            destinationFilename,
+                            coverFileSize,
+                            destinationFile,
+                            finalDestinationFile,
+                            itemSubfolder,
+                            serverPath,
+                            localFolder,
+                            null,
+                            null,
+                            null
+                    )
+            downloadItem.downloadItemParts.add(downloadItemPart)
           }
-
-          val downloadItemPart =
-                  DownloadItemPart.make(
-                          downloadItem.id,
-                          destinationFilename,
-                          coverFileSize,
-                          destinationFile,
-                          finalDestinationFile,
-                          itemSubfolder,
-                          serverPath,
-                          localFolder,
-                          null,
-                          null,
-                          null
-                  )
-          downloadItem.downloadItemParts.add(downloadItemPart)
         }
 
         downloadService?.addDownloadItem(downloadItem)
@@ -411,29 +505,51 @@ class AbsDownloader : Plugin() {
 
       var destinationFile = File("$tempFolderPath/$destinationFilename")
       var finalDestinationFile = File("$itemFolderPath/$destinationFilename")
-      if (finalDestinationFile.exists()) {
+
+      // Check if final file already exists with correct size
+      if (isFileAlreadyComplete(finalDestinationFile, fileSize)) {
         Log.d(
                 tag,
-                "Audio file already exists, removing it from ${finalDestinationFile.absolutePath}"
+                "Podcast episode already complete, skipping download: ${finalDestinationFile.absolutePath}"
         )
-        finalDestinationFile.delete()
+        // Create a completed download item part for tracking purposes
+        var downloadItemPart =
+                DownloadItemPart.make(
+                        downloadItem.id,
+                        destinationFilename,
+                        fileSize,
+                        destinationFile,
+                        finalDestinationFile,
+                        podcastTitle,
+                        serverPath,
+                        localFolder,
+                        null,
+                        audioTrack,
+                        episode
+                )
+        downloadItemPart.completed = true
+        downloadItemPart.moved = true
+        downloadItemPart.progress = 100
+        downloadItemPart.bytesDownloaded = fileSize
+        downloadItem.downloadItemParts.add(downloadItemPart)
+      } else {
+        // File doesn't exist or has wrong size, add to download queue
+        var downloadItemPart =
+                DownloadItemPart.make(
+                        downloadItem.id,
+                        destinationFilename,
+                        fileSize,
+                        destinationFile,
+                        finalDestinationFile,
+                        podcastTitle,
+                        serverPath,
+                        localFolder,
+                        null,
+                        audioTrack,
+                        episode
+                )
+        downloadItem.downloadItemParts.add(downloadItemPart)
       }
-
-      var downloadItemPart =
-              DownloadItemPart.make(
-                      downloadItem.id,
-                      destinationFilename,
-                      fileSize,
-                      destinationFile,
-                      finalDestinationFile,
-                      podcastTitle,
-                      serverPath,
-                      localFolder,
-                      null,
-                      audioTrack,
-                      episode
-              )
-      downloadItem.downloadItemParts.add(downloadItemPart)
 
       if (libraryItem.media.coverPath != null && libraryItem.media.coverPath?.isNotEmpty() == true
       ) {
@@ -447,10 +563,14 @@ class AbsDownloader : Plugin() {
         destinationFile = File("$tempFolderPath/$destinationFilename")
         finalDestinationFile = File("$itemFolderPath/$destinationFilename")
 
-        if (finalDestinationFile.exists()) {
-          Log.d(tag, "Podcast cover already exists - not downloading cover again")
-        } else {
-          downloadItemPart =
+        // Check if final file already exists with correct size
+        if (isFileAlreadyComplete(finalDestinationFile, coverFileSize)) {
+          Log.d(
+                  tag,
+                  "Podcast cover already complete, skipping download: ${finalDestinationFile.absolutePath}"
+          )
+          // Create a completed download item part for tracking purposes
+          val coverDownloadItemPart =
                   DownloadItemPart.make(
                           downloadItem.id,
                           destinationFilename,
@@ -464,7 +584,28 @@ class AbsDownloader : Plugin() {
                           null,
                           null
                   )
-          downloadItem.downloadItemParts.add(downloadItemPart)
+          coverDownloadItemPart.completed = true
+          coverDownloadItemPart.moved = true
+          coverDownloadItemPart.progress = 100
+          coverDownloadItemPart.bytesDownloaded = coverFileSize
+          downloadItem.downloadItemParts.add(coverDownloadItemPart)
+        } else {
+          // File doesn't exist or has wrong size, add to download queue
+          val coverDownloadItemPart =
+                  DownloadItemPart.make(
+                          downloadItem.id,
+                          destinationFilename,
+                          coverFileSize,
+                          destinationFile,
+                          finalDestinationFile,
+                          podcastTitle,
+                          serverPath,
+                          localFolder,
+                          null,
+                          null,
+                          null
+                  )
+          downloadItem.downloadItemParts.add(coverDownloadItemPart)
         }
       }
 

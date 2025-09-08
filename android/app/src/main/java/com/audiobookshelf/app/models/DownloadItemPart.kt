@@ -34,7 +34,11 @@ data class DownloadItemPart(
         val finalDestinationSubfolder: String,
         var downloadId: Long?,
         var progress: Long,
-        var bytesDownloaded: Long
+        var bytesDownloaded: Long,
+        @JsonIgnore
+        var lastProgressUpdate: Long = 0, // Start at 0, will be set on first progress update
+        @JsonIgnore var lastProgress: Long = 0,
+        @JsonIgnore var stallCount: Int = 0
 ) {
   companion object {
     fun make(
@@ -123,6 +127,38 @@ data class DownloadItemPart(
                       }
                       downloadUrl
                     }
+
+  @JsonIgnore
+  fun isDownloadStalled(): Boolean {
+    val currentTime = System.currentTimeMillis()
+    val timeSinceLastUpdate = currentTime - lastProgressUpdate
+
+    // Only check for stalls if we've had at least one progress update
+    // and no progress for more than 30 seconds
+    return lastProgressUpdate > 0 &&
+            timeSinceLastUpdate > 30000 &&
+            !completed &&
+            !failed &&
+            downloadId != null
+  }
+
+  @JsonIgnore
+  fun updateProgress(newProgress: Long, newBytesDownloaded: Long) {
+    val currentTime = System.currentTimeMillis()
+
+    // Check if progress has actually changed
+    if (newProgress == lastProgress) {
+      stallCount++
+    } else {
+      stallCount = 0
+      lastProgress = newProgress
+    }
+
+    // Always update the last progress time when this method is called
+    lastProgressUpdate = currentTime
+    progress = newProgress
+    bytesDownloaded = newBytesDownloaded
+  }
 
   @JsonIgnore
   fun getDownloadRequest(): DownloadManager.Request? {
