@@ -298,6 +298,7 @@
   "MessageDownloading": "Preuzimanje...",
   "MessageDownloadingEpisode": "Preuzimam nastavak",
   "MessageEpisodesQueuedForDownload": "{0} nastavak(a) u redu za preuzimanje",
+  "MessageFailedToRefreshToken": "Osvježavanje tokena nije uspjelo, potrebna je ponovna prijava",
   "MessageFeedURLWillBe": "URL izvora bit će {0}",
   "MessageFetching": "Dohvaćam...",
   "MessageFollowTheProjectOnGithub": "Pratite projekt na GitHubu",
