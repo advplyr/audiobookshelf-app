@@ -41,6 +41,7 @@ object DeviceManager {
     get() = serverConnectionConfig?.userId ?: ""
   val token
     get() = serverConnectionConfig?.token ?: ""
+  val serverVersion get() = serverConnectionConfig?.version ?: ""
   val isConnectedToServer
     get() = serverConnectionConfig != null
 
@@ -112,6 +113,41 @@ object DeviceManager {
    */
   fun getServerConnectionConfig(id: String?): ServerConnectionConfig? {
     return id?.let { deviceData.serverConnectionConfigs.find { it.id == id } }
+  }
+
+  /**
+   * Check if the currently connected server version is >= compareVersion
+   * Abs server only uses major.minor.patch
+   * Note: Version is returned in Abs auth payloads starting v2.6.0
+   * Note: Version is saved with the server connection config starting after v0.9.81
+   *
+   * @example
+   * serverVersion=2.25.1
+   * isServerVersionGreaterThanOrEqualTo("2.26.0") = false
+   *
+   * serverVersion=2.26.1
+   * isServerVersionGreaterThanOrEqualTo("2.26.0") = true
+   */
+  fun isServerVersionGreaterThanOrEqualTo(compareVersion:String):Boolean {
+    if (serverVersion == "") return false
+    if (compareVersion == "") return true
+
+    val serverVersionParts = serverVersion.split(".").map { it.toIntOrNull() ?: 0 }
+    val compareVersionParts = compareVersion.split(".").map { it.toIntOrNull() ?: 0 }
+
+    // Compare major, minor, and patch components
+    for (i in 0 until maxOf(serverVersionParts.size, compareVersionParts.size)) {
+      val serverVersionComponent = serverVersionParts.getOrElse(i) { 0 }
+      val compareVersionComponent = compareVersionParts.getOrElse(i) { 0 }
+
+      if (serverVersionComponent < compareVersionComponent) {
+        return false // Server version is less than compareVersion
+      } else if (serverVersionComponent > compareVersionComponent) {
+        return true // Server version is greater than compareVersion
+      }
+    }
+
+    return true // versions are equal in major, minor, and patch
   }
 
   /**

@@ -14,7 +14,7 @@
         <!-- No progress shown for collapsed series or podcasts in library -->
         <div v-if="!isPodcast && !collapsedSeries" class="absolute bottom-0 left-0 h-1 shadow-sm max-w-full z-10 rounded-b" :class="itemIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: coverWidth * userProgressPercent + 'px' }"></div>
       </div>
-      <div class="flex-grow px-2">
+      <div class="flex-grow pl-2" :class="showPlayButton ? 'pr-12' : 'pr-2'">
         <p class="whitespace-normal line-clamp-2" :style="{ fontSize: 0.8 * sizeMultiplier + 'rem' }">
           <span v-if="seriesSequence">#{{ seriesSequence }}&nbsp;</span>{{ displayTitle }}
         </p>
@@ -28,6 +28,16 @@
         <p v-else-if="numEpisodes" class="truncate text-fg-muted" :style="{ fontSize: 0.7 * sizeMultiplier + 'rem' }">
           {{ $getString('LabelNumEpisodes', [numEpisodes]) }}
         </p>
+      </div>
+      <div v-if="showPlayButton" class="absolute top-0 bottom-0 right-0 h-full flex items-center justify-center z-20 pr-1">
+        <button type="button" class="relative rounded-full bg-fg-muted/50" :class="{ 'p-2': !playerIsStartingForThisMedia }" @click.stop.prevent="play">
+          <span v-if="!playerIsStartingForThisMedia" class="material-symbols text-2xl fill text-white">{{ playerIsPlaying ? 'pause' : 'play_arrow' }}</span>
+          <div v-else class="p-2 text-fg w-10 h-10 flex items-center justify-center bg-fg-muted/80 rounded-full overflow-hidden">
+            <svg class="animate-spin" style="width: 24px; height: 24px" viewBox="0 0 24 24">
+              <path fill="currentColor" d="M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z" />
+            </svg>
+          </div>
+        </button>
       </div>
 
       <div v-if="localLibraryItem || isLocal" class="absolute top-0 right-0 z-20" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }">
@@ -129,6 +139,9 @@ export default {
     libraryItemId() {
       return this._libraryItem.id
     },
+    localLibraryItemId() {
+      return this.localLibraryItem?.id
+    },
     series() {
       return this.mediaMetadata.series
     },
@@ -217,13 +230,31 @@ export default {
       return this.isMissing || this.isInvalid
     },
     isStreaming() {
-      return this.store.getters['getlibraryItemIdStreaming'] === this.libraryItemId
+      return this.isPlaying && !this.store.getters['getIsCurrentSessionLocal']
+    },
+    isPlaying() {
+      if (this.localLibraryItemId && this.store.getters['getIsMediaStreaming'](this.localLibraryItemId)) return true
+      return this.store.getters['getIsMediaStreaming'](this.libraryItemId)
+    },
+    playerIsPlaying() {
+      return this.store.state.playerIsPlaying && (this.isStreaming || this.isPlaying)
+    },
+    playerIsStartingPlayback() {
+      // Play has been pressed and waiting for native play response
+      return this.store.state.playerIsStartingPlayback
+    },
+    playerIsStartingForThisMedia() {
+      const mediaId = this.store.state.playerStartingPlaybackMediaId
+      return mediaId === this.libraryItemId
+    },
+    isCasting() {
+      return this.store.state.isCasting
     },
     showReadButton() {
       return !this.isSelectionMode && !this.showPlayButton && this.hasEbook
     },
     showPlayButton() {
-      return !this.isSelectionMode && !this.isMissing && !this.isInvalid && this.numTracks && !this.isStreaming
+      return !this.isSelectionMode && !this.isMissing && !this.isInvalid && this.numTracks && !this.isPodcast
     },
     showSmallEBookIcon() {
       return !this.isSelectionMode && this.hasEbook
@@ -296,9 +327,32 @@ export default {
       this.selected = !this.selected
       this.$emit('select', this.libraryItem)
     },
-    play() {
-      var eventBus = this.$eventBus || this.$nuxt.$eventBus
-      eventBus.$emit('play-item', { libraryItemId: this.libraryItemId })
+    async play() {
+      if (this.playerIsStartingPlayback) return
+
+      const hapticsImpact = this.$hapticsImpact || this.$nuxt.$hapticsImpact
+      if (hapticsImpact) {
+        await hapticsImpact()
+      }
+
+      const eventBus = this.$eventBus || this.$nuxt.$eventBus
+
+      if (this.playerIsPlaying) {
+        eventBus.$emit('pause-item')
+      } else {
+        // Audiobook
+        let libraryItemId = this.libraryItemId
+
+        // When casting use server library item
+        if (this.localLibraryItem && !this.isCasting) {
+          libraryItemId = this.localLibraryItem.id
+        } else if (this.hasLocal) {
+          libraryItemId = this.localLibraryItem.id
+        }
+
+        this.store.commit('setPlayerIsStartingPlayback', this.libraryItemId)
+        eventBus.$emit('play-item', { libraryItemId, serverLibraryItemId: this.libraryItemId })
+      }
     },
     destroy() {
       // destroy the vue listeners, etc

@@ -62,7 +62,7 @@ export default {
     async loadRecentEpisodes(page = 0) {
       this.loadedLibraryId = this.currentLibraryId
       this.processing = true
-      const episodePayload = await this.$nativeHttp.get(`/api/libraries/${this.currentLibraryId}/recent-episodes?limit=25&page=${page}`).catch((error) => {
+      const episodePayload = await this.$nativeHttp.get(`/api/libraries/${this.currentLibraryId}/recent-episodes?limit=50&page=${page}`).catch((error) => {
         console.error('Failed to get recent episodes', error)
         this.$toast.error('Failed to get recent episodes')
         return null
