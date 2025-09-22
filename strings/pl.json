@@ -297,6 +297,7 @@
   "MessageDownloading": "Pobieranie...",
   "MessageDownloadingEpisode": "Pobieranie odcinka",
   "MessageEpisodesQueuedForDownload": "{0} odcinki w kolejce do pobrania",
+  "MessageFailedToRefreshToken": "Odświeżenie tokenu nie powiodło się. Wymagane jest ponowne zalogowanie.",
   "MessageFeedURLWillBe": "URL kanału: {0}",
   "MessageFetching": "Pobieranie...",
   "MessageFollowTheProjectOnGithub": "Obserwuj projekt na Github'ie",
