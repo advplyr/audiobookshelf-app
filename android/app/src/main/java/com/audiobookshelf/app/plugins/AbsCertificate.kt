@@ -28,6 +28,5 @@ class AbsCertificate : Plugin() {
         call.resolve(ret)
       }
     }, null, null, null, -1, null)
-
   }
 }
