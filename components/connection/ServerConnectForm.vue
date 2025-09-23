@@ -36,6 +36,13 @@
           </div>
           <h2 class="text-lg leading-7 mb-2">{{ $strings.LabelServerAddress }}</h2>
           <ui-text-input v-model="serverConfig.address" :disabled="processing || !networkConnected || !!serverConfig.id" placeholder="http://55.55.55.55:13378" type="url" class="w-full h-10" />
+          <div v-if="$platform === 'android'" class="mt-4">
+            <div class="flex items-center justify-between">
+              <p class="text-sm text-fg-muted">Client Certificate (optional)</p>
+              <ui-btn v-if="!serverConfig.certificateAlias" :disabled="processing" @click="pickCertificate" :padding-x="2" :padding-y="1" class="text-xs h-7">Select</ui-btn>
+            </div>
+            <div v-if="serverConfig.certificateAlias" class="mt-1 text-xs text-fg truncate" :title="serverConfig.certificateAlias">{{ truncatedCertificateAlias }}</div>
+          </div>
           <div class="flex justify-end items-center mt-6">
             <ui-btn :disabled="processing || !networkConnected" type="submit" :padding-x="3" class="h-10">{{ networkConnected ? $strings.ButtonSubmit : $strings.MessageNoNetworkConnection }}</ui-btn>
           </div>
@@ -51,6 +58,7 @@
             <div class="flex-grow" />
             <span v-if="!serverConfig.id" class="material-symbols" style="font-size: 1.1rem" @click="editServerAddress">edit</span>
           </div>
+          <div v-if="$platform === 'android' && serverConfig.certificateAlias" class="mt-2 text-xs text-fg-muted truncate" :title="serverConfig.certificateAlias">Cert: {{ truncatedCertificateAlias }}</div>
           <div class="w-full h-px bg-fg/10 my-2" />
           <form v-if="isLocalAuthEnabled" @submit.prevent="submitAuth" class="pt-3">
             <ui-text-input v-model="serverConfig.username" :disabled="processing" :placeholder="$strings.LabelUsername" class="w-full mb-2 text-lg" />
@@ -95,6 +103,7 @@
 import { Browser } from '@capacitor/browser'
 import { CapacitorHttp } from '@capacitor/core'
 import { Dialog } from '@capacitor/dialog'
+import { AbsCertificate } from '@/plugins/capacitor'
 
 // TODO: when backend ready. See validateLoginFormResponse()
 //const requiredServerVersion = '2.5.0'
@@ -109,7 +118,8 @@ export default {
         address: null,
         version: null,
         username: null,
-        customHeaders: null
+        customHeaders: null,
+        certificateAlias: null
       },
       password: null,
       error: null,
@@ -150,6 +160,11 @@ export default {
     },
     isOpenIDAuthEnabled() {
       return this.authMethods.includes('openid')
+    },
+    truncatedCertificateAlias() {
+      if (!this.serverConfig.certificateAlias) return null
+      const a = this.serverConfig.certificateAlias
+      return a.length > 32 ? a.slice(0, 29) + '...' : a
     }
   },
   methods: {
@@ -436,6 +451,21 @@ export default {
     addCustomHeaders() {
       this.showAddCustomHeaders = true
     },
+    async pickCertificate() {
+      if (this.$platform !== 'android') return
+      try {
+        const res = await AbsCertificate.pickCertificate()
+        if (res?.alias) {
+          // Only set once (read-only after selection)
+            if (!this.serverConfig.certificateAlias) {
+              this.serverConfig.certificateAlias = res.alias
+            }
+        }
+      } catch (e) {
+        console.warn('[ServerConnectForm] pickCertificate failed', e)
+        this.$toast.error('No certificate selected or no certificates available')
+      }
+    },
     showServerList() {
       this.showForm = false
       this.showAuth = false
@@ -443,7 +473,8 @@ export default {
       this.serverConfig = {
         address: null,
         userId: null,
-        username: null
+        username: null,
+        certificateAlias: null
       }
     },
     async connectToServer(config) {
@@ -496,7 +527,8 @@ export default {
         this.serverConfig = {
           address: null,
           userId: null,
-          username: null
+          username: null,
+          certificateAlias: null
         }
         this.password = null
         this.processing = false
@@ -518,7 +550,8 @@ export default {
       this.serverConfig = {
         address: '',
         userId: '',
-        username: ''
+        username: '',
+        certificateAlias: null
       }
       this.showForm = true
       this.showAuth = false
