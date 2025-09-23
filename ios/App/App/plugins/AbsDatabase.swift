@@ -37,6 +37,9 @@ public class AbsDatabase: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "clearRefreshToken", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "logout", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getDeviceData", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getLocalFolders", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getLocalFolder", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "saveLocalFolder", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getLocalLibraryItems", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getLocalLibraryItem", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getLocalLibraryItemByLId", returnType: CAPPluginReturnPromise),
@@ -358,5 +361,20 @@ public class AbsDatabase: CAPPlugin, CAPBridgedPlugin {
             call.resolve(["error": "Failed to update ebook progress"])
             return
         }
+    }
+    
+    @objc func getLocalFolders(_ call: CAPPluginCall) {
+        // iOS doesn't support local folders
+        call.resolve(["value": []])
+    }
+    
+    @objc func getLocalFolder(_ call: CAPPluginCall) {
+        // iOS doesn't support local folders
+        call.resolve()
+    }
+    
+    @objc func saveLocalFolder(_ call: CAPPluginCall) {
+        // iOS doesn't support local folders, just resolve
+        call.resolve()
     }
 }

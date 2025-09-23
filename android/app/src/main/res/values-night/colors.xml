@@ -1,0 +1,4 @@
+<resources>
+    <!-- Dark theme splash icon color: white -->
+    <color name="splash_icon_color">#FFFFFF</color>
+</resources>

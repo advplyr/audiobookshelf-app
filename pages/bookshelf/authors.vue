@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div id="bookshelf" class="w-full h-full p-4 overflow-y-auto">
+    <div id="bookshelf" class="w-full h-full p-4 overflow-y-auto library-scroll-container" :style="contentPaddingStyle">
       <div class="flex flex-wrap justify-center">
         <template v-for="author in authors">
           <cards-author-card :key="author.id" :author="author" :width="cardWidth" :height="cardHeight" class="p-2" />
@@ -26,6 +26,9 @@ export default {
     },
     cardHeight() {
       return this.cardWidth * 1.25
+    },
+    contentPaddingStyle() {
+      return this.$store.getters['getIsPlayerOpen'] ? { paddingBottom: '120px' } : {}
     }
   },
   methods: {
@@ -89,3 +92,12 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+/* Material 3 Expressive Vertical Scroll Container */
+.library-scroll-container {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+</style>

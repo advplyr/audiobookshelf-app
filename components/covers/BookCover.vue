@@ -5,7 +5,12 @@
         <div class="absolute cover-bg" ref="coverBg" />
       </div>
 
-      <img v-if="fullCoverUrl" ref="cover" :src="fullCoverUrl" loading="lazy" @error="imageError" @load="imageLoaded" class="w-full h-full absolute top-0 left-0 z-10 duration-300 transition-opacity" :style="{ opacity: imageReady ? 1 : 0 }" :class="(showCoverBg && hasCover) || noBg ? 'object-contain' : 'object-fill'" />
+      <img v-if="fullCoverUrl && !isMaterialSymbolPlaceholder" ref="cover" :src="fullCoverUrl" loading="lazy" @error="imageError" @load="imageLoaded" class="w-full h-full absolute top-0 left-0 z-10 duration-300 transition-opacity" :style="{ opacity: imageReady ? 1 : 0 }" :class="(showCoverBg && hasCover) || noBg ? 'object-contain' : 'object-fill'" />
+
+      <!-- Material Symbol placeholder -->
+      <div v-if="isMaterialSymbolPlaceholder" class="w-full h-full absolute top-0 left-0 z-10 flex items-center justify-center bg-surface-container">
+        <span class="material-symbols text-6xl text-on-surface-variant">book</span>
+      </div>
 
       <div v-show="loading && libraryItem" class="absolute top-0 left-0 h-full w-full flex items-center justify-center">
         <p class="text-center" :style="{ fontSize: 0.75 * sizeMultiplier + 'rem' }">{{ title }}</p>
@@ -17,7 +22,7 @@
 
     <div v-if="imageFailed" class="absolute top-0 left-0 right-0 bottom-0 w-full h-full bg-red-100" :style="{ padding: placeholderCoverPadding + 'rem' }">
       <div class="w-full h-full border-2 border-error flex flex-col items-center justify-center">
-        <img src="/Logo.png" loading="lazy" class="mb-2" :style="{ height: 64 * sizeMultiplier + 'px' }" />
+        <ui-tomesonic-app-icon :size="64 * sizeMultiplier" color="error" class="mb-2" />
         <p class="text-centertext-error" :style="{ fontSize: titleFontSize + 'rem' }">Invalid Cover</p>
       </div>
     </div>
@@ -107,7 +112,9 @@ export default {
       return this.author
     },
     placeholderUrl() {
-      return '/book_placeholder.jpg'
+      // Material 3 book icon as SVG data URL
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>`
+      return `data:image/svg+xml;base64,${btoa(svg)}`
     },
     fullCoverUrl() {
       if (this.isLocal) {
@@ -141,6 +148,9 @@ export default {
     },
     authorBottom() {
       return 0.75 * this.sizeMultiplier
+    },
+    isMaterialSymbolPlaceholder() {
+      return this.fullCoverUrl === 'material-symbol:book'
     }
   },
   methods: {

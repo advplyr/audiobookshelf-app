@@ -15,7 +15,25 @@ class MyViewController: CAPBridgeViewController {
 
         // Do any additional setup after loading the view.
     }
-    
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        updateSafeAreaInsets()
+    }
+
+    private func updateSafeAreaInsets() {
+        if let webView = self.webView {
+            let insets = view.safeAreaInsets
+            let js = """
+            document.documentElement.style.setProperty('--safe-area-inset-top', '\(insets.top)px');
+            document.documentElement.style.setProperty('--safe-area-inset-bottom', '\(insets.bottom)px');
+            document.documentElement.style.setProperty('--safe-area-inset-left', '\(insets.left)px');
+            document.documentElement.style.setProperty('--safe-area-inset-right', '\(insets.right)px');
+            """
+            webView.evaluateJavaScript(js, completionHandler: nil)
+        }
+    }
+
     override open func capacitorDidLoad() {
         bridge?.registerPluginInstance(AbsDatabase())
         bridge?.registerPluginInstance(AbsAudioPlayer())
@@ -23,7 +41,7 @@ class MyViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(AbsFileSystem())
         bridge?.registerPluginInstance(AbsLogger())
     }
-    
+
 
     /*
     // MARK: - Navigation

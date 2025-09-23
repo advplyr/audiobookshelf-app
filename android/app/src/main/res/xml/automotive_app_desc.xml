@@ -2,4 +2,7 @@
 
 <automotiveApp>
   <uses name="media" />
+  <media>
+    <service name=".player.PlayerNotificationService" />
+  </media>
 </automotiveApp>

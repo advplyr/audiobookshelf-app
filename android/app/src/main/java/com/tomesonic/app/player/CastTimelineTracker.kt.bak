@@ -1,0 +1,9 @@
+// MIGRATION-DEFERRED: CAST - This entire file is temporarily disabled for migration
+package com.audiobookshelf.app.player
+
+// Temporary stub
+class CastTimelineTracker {
+    fun getCastTimeline(remoteMediaClient: Any): CastTimeline {
+        return CastTimeline.EMPTY_CAST_TIMELINE
+    }
+}

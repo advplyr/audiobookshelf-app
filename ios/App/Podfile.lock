@@ -1,29 +1,31 @@
 PODS:
   - Alamofire (5.10.2)
-  - Capacitor (7.2.0):
+  - Capacitor (7.4.3):
     - CapacitorCordova
-  - CapacitorApp (7.0.1):
+  - CapacitorApp (7.1.0):
     - Capacitor
-  - CapacitorBrowser (7.0.1):
+  - CapacitorBrowser (7.0.2):
     - Capacitor
-  - CapacitorClipboard (7.0.1):
+  - CapacitorClipboard (7.0.2):
     - Capacitor
-  - CapacitorCommunityKeepAwake (7.0.0):
+  - CapacitorCommunityKeepAwake (7.1.0):
     - Capacitor
   - CapacitorCommunityVolumeButtons (7.0.0):
     - Capacitor
-  - CapacitorCordova (7.2.0)
-  - CapacitorDialog (7.0.1):
+  - CapacitorCordova (7.4.3)
+  - CapacitorDevice (7.0.2):
     - Capacitor
-  - CapacitorHaptics (7.0.1):
+  - CapacitorDialog (7.0.2):
     - Capacitor
-  - CapacitorNetwork (7.0.1):
+  - CapacitorHaptics (7.0.2):
     - Capacitor
-  - CapacitorPreferences (7.0.1):
+  - CapacitorNetwork (7.0.2):
     - Capacitor
-  - CapacitorStatusBar (7.0.1):
+  - CapacitorPreferences (7.0.2):
     - Capacitor
-  - CordovaPlugins (6.2.1):
+  - CapacitorStatusBar (7.0.3):
+    - Capacitor
+  - CordovaPlugins (7.4.3):
     - CapacitorCordova
   - Realm (10.54.4):
     - Realm/Headers (= 10.54.4)
@@ -42,6 +44,7 @@ DEPENDENCIES:
   - "CapacitorCommunityKeepAwake (from `../../node_modules/@capacitor-community/keep-awake`)"
   - "CapacitorCommunityVolumeButtons (from `../../node_modules/@capacitor-community/volume-buttons`)"
   - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
+  - "CapacitorDevice (from `../../node_modules/@capacitor/device`)"
   - "CapacitorDialog (from `../../node_modules/@capacitor/dialog`)"
   - "CapacitorHaptics (from `../../node_modules/@capacitor/haptics`)"
   - "CapacitorNetwork (from `../../node_modules/@capacitor/network`)"
@@ -72,6 +75,8 @@ EXTERNAL SOURCES:
     :path: "../../node_modules/@capacitor-community/volume-buttons"
   CapacitorCordova:
     :path: "../../node_modules/@capacitor/ios"
+  CapacitorDevice:
+    :path: "../../node_modules/@capacitor/device"
   CapacitorDialog:
     :path: "../../node_modules/@capacitor/dialog"
   CapacitorHaptics:
@@ -89,23 +94,24 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   Alamofire: 7193b3b92c74a07f85569e1a6c4f4237291e7496
-  Capacitor: 106e7a4205f4618d582b886a975657c61179138d
-  CapacitorApp: d63334c052278caf5d81585d80b21905c6f93f39
-  CapacitorBrowser: 081852cf532acf77b9d2953f3a88fe5b9711fb06
-  CapacitorClipboard: b98aead5dc7ec595547fc2c5d75bacd2ae3338bc
-  CapacitorCommunityKeepAwake: 00dfd8fa3cca0df003c9a3e2cd7bee678aeec68b
-  CapacitorCommunityVolumeButtons: 8a0443a202ed659688d85f4d44d66f42f62f2b56
-  CapacitorCordova: 5967b9ba03915ef1d585469d6e31f31dc49be96f
-  CapacitorDialog: 9b934329026b2b0ffa56939bb06df3c67541a2ab
-  CapacitorHaptics: 70e47470fa1a6bd6338cd102552e3846b7f9a1b3
-  CapacitorNetwork: 07ec4c69c1bb696f41c23e00d31bda1bbb221bba
-  CapacitorPreferences: cbf154e5e5519b7f5ab33817a334dda1e98387f9
-  CapacitorStatusBar: 275cbf2f4dfc00388f519ef80c7ec22edda342c9
-  CordovaPlugins: 5a72a85b45469e68556bb172409f1b6d57b27236
+  Capacitor: 28d6c01026a9a3f7156529498ec1f389a2a28dbc
+  CapacitorApp: 26587c2ce485d88ddb39adb21cac64f8e481afe3
+  CapacitorBrowser: 22541e48442de44dc629c214388290d6eecc6ae9
+  CapacitorClipboard: 7e227702976d4435a5a40df54f65e154d0dfc1f3
+  CapacitorCommunityKeepAwake: 05c75aab989f60e621870cf03b24a144a5544c30
+  CapacitorCommunityVolumeButtons: 1b84f7abf29cd9476cef9e8979b2854a64d2eed5
+  CapacitorCordova: 435121e81a2df4d0034f0fb11fcefab5104cfdb5
+  CapacitorDevice: 81ae78d5d1942707caad79276badd458bf6ec603
+  CapacitorDialog: 5bf72a94b747fb339df6f64ef60812e5e4630ad2
+  CapacitorHaptics: b3fb2869e72c4466e18ce9ccbeb60a3d8723b3d4
+  CapacitorNetwork: 695069886b3c5ed514db69aa3d026b8dc3c03a6b
+  CapacitorPreferences: 65107ed7437d96ee72583df5763985e3c0ff2bc2
+  CapacitorStatusBar: 0659ddc7b1713764a05831463d215b177a15d054
+  CordovaPlugins: 7f93f2453343ddfcedc9e71fbae8ec74978b7b9d
   Realm: 8b5cda39a41f17a1734da2f39c6004eb8745587a
   RealmSwift: 0b4f808fed6898f1f6c26f501f740efd80dff0b4
-  WebnativellcCapacitorFilesharer: 10b111373d4dc49608935600dcbcc14605258c73
+  WebnativellcCapacitorFilesharer: e3a5930240633db3335040251d66aac6762ff111
 
-PODFILE CHECKSUM: 498821c0cfa2508609567fa95d7244c01cbef538
+PODFILE CHECKSUM: 7da4d0cefbf790ae8b7ec77945d866b6899f37a1
 
 COCOAPODS: 1.16.2

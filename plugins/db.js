@@ -64,6 +64,14 @@ class DbService {
     })
   }
 
+  saveLocalFolder(folder) {
+    return AbsDatabase.saveLocalFolder({ folder: JSON.stringify(folder) })
+  }
+
+  removeLocalFolder(folderId) {
+    return AbsDatabase.removeLocalFolder({ folderId })
+  }
+
   getLocalLibraryItemsInFolder(folderId) {
     return AbsDatabase.getLocalLibraryItemsInFolder({ folderId }).then((data) => data.value)
   }

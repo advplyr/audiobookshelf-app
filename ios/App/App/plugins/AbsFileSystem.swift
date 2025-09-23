@@ -20,7 +20,8 @@ public class AbsFileSystem: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "removeLocalLibraryItem", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "scanLocalLibraryItem", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "deleteItem", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "deleteTrackFromItem", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "deleteTrackFromItem", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getAppExternalFolder", returnType: CAPPluginReturnPromise)
     ]
     
     private let logger = AppLogger(category: "AbsFileSystem")
@@ -132,6 +133,37 @@ public class AbsFileSystem: CAPPlugin, CAPBridgedPlugin {
         
         if !success {
             call.resolve(["success": success])
+        }
+    }
+    
+    @objc func getAppExternalFolder(_ call: CAPPluginCall) {
+        let mediaType = call.getString("mediaType") ?? "audiobook"
+        
+        logger.log("getAppExternalFolder for media type \(mediaType)")
+        
+        do {
+            let documentsDirectory = try FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false)
+            let downloadsFolder = documentsDirectory.appendingPathComponent("Downloads", isDirectory: true)
+            
+            // Create the folder if it doesn't exist
+            if !FileManager.default.fileExists(atPath: downloadsFolder.path) {
+                try FileManager.default.createDirectory(at: downloadsFolder, withIntermediateDirectories: true, attributes: nil)
+            }
+            
+            let folderData: [String: Any] = [
+                "id": "app-downloads",
+                "name": "App Downloads",
+                "mediaType": mediaType,
+                "contentUrl": downloadsFolder.absoluteString,
+                "absolutePath": downloadsFolder.path,
+                "path": downloadsFolder.path,
+                "isAppFolder": true
+            ]
+            
+            call.resolve(folderData)
+        } catch {
+            logger.error("Failed to get app external folder: \(error)")
+            call.reject("Failed to get app external folder", error.localizedDescription, error)
         }
     }
 }

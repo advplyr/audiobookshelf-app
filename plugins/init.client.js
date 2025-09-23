@@ -11,11 +11,26 @@ import * as locale from 'date-fns/locale'
 
 Vue.directive('click-outside', vClickOutside.directive)
 
-if (Capacitor.getPlatform() != 'web') {
-  const setStatusBarStyleDark = async () => {
-    await StatusBar.setStyle({ style: Style.Dark })
+// Helper: map app theme -> native status bar content style.
+// We want dark app theme to use light status bar icons (light content),
+// and light app theme to use dark status bar icons (dark content).
+const updateNativeStatusBarStyle = async (themeOrBool) => {
+  if (Capacitor.getPlatform() === 'web') return
+  try {
+    let isDark = false
+    if (typeof themeOrBool === 'boolean') {
+      isDark = themeOrBool
+    } else if (themeOrBool === 'system') {
+      isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+    } else {
+      isDark = themeOrBool === 'dark'
+    }
+    // When app is dark -> request Light status bar content (white icons)
+    // When app is light -> request Dark status bar content (dark icons)
+    await StatusBar.setStyle({ style: isDark ? Style.Dark : Style.Light })
+  } catch (e) {
+    console.error('Failed to update native status bar style', e)
   }
-  setStatusBarStyleDark()
 }
 
 Vue.prototype.$showHideStatusBar = async (show) => {
@@ -274,10 +289,219 @@ export default ({ store, app }, inject) => {
 
   inject('isValidVersion', isValidVersion)
 
-  // Set theme
+  // Expose helper so other parts of the app can toggle native status bar theme
+  Vue.prototype.$updateStatusBarTheme = updateNativeStatusBarStyle
+
+  // Calculate and store mini player bottom positions once at startup
+  const calculateMiniPlayerPositions = () => {
+    // Calculate the two positions the mini player should use
+    let withTabBarPosition = '88px' // Default fallback
+    let withoutTabBarPosition = '8px' // Default fallback
+
+    try {
+      // Get safe area bottom inset
+      const safeInset = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-bottom')?.replace('px', '')) || 0
+      const clampedSafeInset = Math.min(safeInset, 16) // Clamp like BookshelfNavBar does
+
+      // Base navigation height (content area)
+      const baseNavHeight = 56
+
+      // Total tab bar height when visible (base + safe area) - back to original calculation
+      const totalTabBarHeight = baseNavHeight + clampedSafeInset
+
+      // Position 1: When tab bar is visible - above the tab bar with small gap
+      // Account for the tab bar's 1px top border by reducing the gap
+      withTabBarPosition = `${totalTabBarHeight + 10}px`
+
+      // Position 2: When tab bar is NOT visible - maintain same visual position from bottom
+      // This is the same distance from bottom as when tab bar is visible
+      withoutTabBarPosition = `${clampedSafeInset + 4}px`
+
+      console.log('[Init] Mini player positions calculated:', {
+        safeInset,
+        clampedSafeInset,
+        baseNavHeight,
+        totalTabBarHeight,
+        withTabBar: withTabBarPosition,
+        withoutTabBar: withoutTabBarPosition
+      })
+    } catch (e) {
+      console.warn('[Init] Error calculating mini player positions, using fallbacks:', e)
+    }
+
+    // Store positions globally
+    window.MINI_PLAYER_POSITIONS = {
+      withTabBar: withTabBarPosition,
+      withoutTabBar: withoutTabBarPosition
+    }
+
+    // Also set CSS custom properties for easier access
+    document.documentElement.style.setProperty('--mini-player-bottom-with-tab', withTabBarPosition)
+    document.documentElement.style.setProperty('--mini-player-bottom-without-tab', withoutTabBarPosition)
+
+    // Notify components that positions are ready
+    if (typeof window !== 'undefined' && window.dispatchEvent) {
+      window.dispatchEvent(new CustomEvent('miniPlayerPositionsReady', {
+        detail: window.MINI_PLAYER_POSITIONS
+      }))
+    }
+  }
+
+  // Expose function globally for app resume/orientation change scenarios
+  window.recalculateMiniPlayerPositions = calculateMiniPlayerPositions
+
+  // Calculate positions after safe area variables are ready
+  const initMiniPlayerPositions = () => {
+    const maxAttempts = 10
+    let attempts = 0
+
+    function tryCalculate() {
+      attempts++
+      const bottom = getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-bottom')
+
+      // Check if we have safe area values or reached max attempts
+      if ((bottom && bottom.trim()) || attempts >= maxAttempts) {
+        calculateMiniPlayerPositions()
+        return
+      }
+
+      setTimeout(tryCalculate, 100)
+    }
+
+    if (typeof window !== 'undefined') tryCalculate()
+  }
+
+  // Ensure safe-area CSS variables are present and notify the document when ready.
+  // Some WebView environments may not have them immediately available on first paint.
+  const ensureSafeAreaVars = () => {
+    const maxAttempts = 100 // Increased to 100 attempts (10 seconds total)
+    let attempts = 0
+
+    function check() {
+      attempts++
+      const top = getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-top')
+      const bottom = getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-bottom')
+
+      // Check if we have meaningful values (not empty, not "0px", not just whitespace)
+      const hasTop = top && top.trim() && top.trim() !== '0px'
+      const hasBottom = bottom && bottom.trim() && bottom.trim() !== '0px'
+
+      if (hasTop || hasBottom || attempts >= maxAttempts) {
+        // Mark that safe-area values are available (or we've given up)
+        document.documentElement.setAttribute('data-safe-area-ready', 'true')
+        console.log(`[SafeArea] Ready after ${attempts} attempts. Top: ${top}, Bottom: ${bottom}`)
+        return
+      }
+
+      // On Android, also try to trigger the inset listener by requesting layout
+      if (attempts % 5 === 0 && window.requestAnimationFrame) {
+        window.requestAnimationFrame(() => {
+          if (document.documentElement.style) {
+            document.documentElement.style.transform = 'translateZ(0)'
+            setTimeout(() => {
+              document.documentElement.style.transform = ''
+            }, 10)
+          }
+        })
+      }
+
+      setTimeout(check, 100)
+    }
+
+    if (typeof window !== 'undefined') check()
+  }
+
+  // Use different initialization strategies for different platforms
+  if (Capacitor.getPlatform() === 'android') {
+    // For Android, wait for the next tick to ensure the WebView is fully initialized
+    setTimeout(() => {
+      ensureSafeAreaVars()
+      // Initialize mini player positions after safe area is ready
+      initMiniPlayerPositions()
+    }, 50)
+
+    // Also set fallback values immediately to prevent layout issues
+    if (typeof window !== 'undefined') {
+      // Set reasonable fallback values for Android devices
+      const docStyle = document.documentElement.style
+      if (!docStyle.getPropertyValue('--safe-area-inset-top')) {
+        // Use more reliable fallback - check if device has status bar
+        const statusBarHeight = window.devicePixelRatio > 1 ? '28px' : '24px'
+        docStyle.setProperty('--safe-area-inset-top', statusBarHeight)
+        console.log('[Init] Set Android status bar fallback:', statusBarHeight)
+      }
+      if (!docStyle.getPropertyValue('--safe-area-inset-bottom')) {
+        docStyle.setProperty('--safe-area-inset-bottom', '0px') // Will be updated by native
+      }
+      if (!docStyle.getPropertyValue('--safe-area-inset-left')) {
+        docStyle.setProperty('--safe-area-inset-left', '0px')
+      }
+      if (!docStyle.getPropertyValue('--safe-area-inset-right')) {
+        docStyle.setProperty('--safe-area-inset-right', '0px')
+      }
+    }
+  } else {
+    // For other platforms, initialize immediately
+    ensureSafeAreaVars()
+    // Initialize mini player positions after safe area is ready
+    initMiniPlayerPositions()
+  }
+
+  // Set theme with Material You integration for all themes
   app.$localStore?.getTheme()?.then((theme) => {
     if (theme) {
-      document.documentElement.dataset.theme = theme
+      if (theme === 'system') {
+        // Use system theme - detect and apply based on Android system preference
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        document.documentElement.dataset.theme = prefersDark ? 'dark' : 'light'
+
+        // Listen for system theme changes
+        if (window.matchMedia) {
+          const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+          mediaQuery.addEventListener('change', (e) => {
+            // Only apply if we're still using system theme
+            app.$localStore?.getTheme()?.then((currentTheme) => {
+              if (currentTheme === 'system') {
+                document.documentElement.dataset.theme = e.matches ? 'dark' : 'light'
+                // Reapply Material You colors for the new theme
+                if (app.$dynamicColor) {
+                  app.$dynamicColor.initialize()
+                }
+                // Update native status bar style to match the new effective theme
+                updateNativeStatusBarStyle(e.matches)
+              }
+
+              // Re-check safe area variables when theme changes (in case they weren't ready initially)
+              ensureSafeAreaVars()
+            })
+          })
+        }
+        // If using system theme initially, set native status bar according to current system
+        if (theme === 'system') {
+          updateNativeStatusBarStyle('system')
+        } else {
+          updateNativeStatusBarStyle(theme)
+        }
+      } else {
+        // Use explicit theme (dark or light) with Material You
+        document.documentElement.dataset.theme = theme
+      }
+
+      // Apply Material You colors for all themes if available
+      if (app.$dynamicColor) {
+        app.$dynamicColor.initialize()
+      }
+    } else {
+      // Default to system theme if no theme is stored
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+      document.documentElement.dataset.theme = prefersDark ? 'dark' : 'light'
+
+      // Apply Material You colors for default theme
+      if (app.$dynamicColor) {
+        app.$dynamicColor.initialize()
+      }
+      // No stored theme -> defaulted to system effective theme above. Update native status bar to match.
+      updateNativeStatusBarStyle(prefersDark)
     }
   })
 
@@ -300,7 +524,10 @@ export default ({ store, app }, inject) => {
 
   // Android only
   App.addListener('backButton', async ({ canGoBack }) => {
-    if (store.state.globals.isModalOpen) {
+    // Close any open modal immediately on Android back.
+    // Some modals (like the Add/Create playlist modal) may set a dedicated flag
+    // before the shared `isModalOpen` is committed, so check those as well.
+    if (store.state.globals.isModalOpen || store.state.globals.showPlaylistsAddCreateModal || store.state.globals.showSelectLocalFolderModal || store.state.globals.showRSSFeedOpenCloseModal) {
       eventBus.$emit('close-modal')
       return
     }
@@ -332,6 +559,33 @@ export default ({ store, app }, inject) => {
   App.addListener('appUrlOpen', (data) => {
     eventBus.$emit('url-open', data.url)
   })
+
+  // Listen for app state changes to recalculate mini player positions when needed
+  App.addListener('appStateChange', ({ isActive }) => {
+    if (isActive && window.recalculateMiniPlayerPositions) {
+      // Recalculate positions when app becomes active (e.g., after background)
+      setTimeout(() => {
+        window.recalculateMiniPlayerPositions()
+      }, 100)
+    }
+  })
+
+  // Listen for orientation changes to recalculate positions
+  if (typeof window !== 'undefined') {
+    const handleOrientationChange = () => {
+      if (window.recalculateMiniPlayerPositions) {
+        setTimeout(() => {
+          window.recalculateMiniPlayerPositions()
+        }, 200) // Longer delay for orientation changes
+      }
+    }
+
+    if (screen.orientation) {
+      screen.orientation.addEventListener('change', handleOrientationChange)
+    } else {
+      window.addEventListener('orientationchange', handleOrientationChange)
+    }
+  }
 }
 
 export { encode, decode }

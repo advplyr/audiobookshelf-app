@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full h-full">
+  <div class="w-full h-full" :style="contentPaddingStyle">
     <div class="w-full h-full overflow-y-auto px-2 py-6 md:p-8">
       <div class="w-full flex justify-center md:block sm:w-32 md:w-52" style="min-width: 240px">
         <div class="relative" style="height: fit-content">
@@ -13,13 +13,13 @@
           </h1>
           <div class="flex-grow" />
           <ui-btn v-if="showPlayButton" color="success" :padding-x="4" :loading="playerIsStartingForThisMedia" small class="flex items-center justify-center mx-1 w-24" @click="playClick">
-            <span class="material-symbols text-2xl fill">{{ playerIsPlaying ? 'pause' : 'play_arrow' }}</span>
+            <span class="material-symbols text-2xl fill text-on-surface">{{ playerIsPlaying ? 'pause' : 'play_arrow' }}</span>
             <span class="px-1 text-sm">{{ playerIsPlaying ? $strings.ButtonPause : $strings.ButtonPlay }}</span>
           </ui-btn>
         </div>
 
         <div class="my-8 max-w-2xl px-2">
-          <p class="text-base text-fg">{{ description }}</p>
+          <p class="text-base text-on-surface">{{ description }}</p>
         </div>
 
         <tables-collection-books-table :books="bookItems" :collection-id="collection.id" />
@@ -107,6 +107,9 @@ export default {
     },
     showPlayButton() {
       return this.playableItems.length
+    },
+    contentPaddingStyle() {
+      return this.$store.getters['getIsPlayerOpen'] ? { paddingBottom: '120px' } : {}
     }
   },
   methods: {

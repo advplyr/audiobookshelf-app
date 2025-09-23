@@ -1,0 +1,97 @@
+# justfile: tasks for Android Auto development
+# Usage examples:
+#   just adb-forward       # sets adb forward tcp:5277 -> localabstract:adb-hub
+#   just run-aa            # sets forwarding then launches Android Auto DHU
+#   just stop-forward      # removes the forwarding
+#   just build             # build the android app (assembleDebug)
+#   just install-debug     # build and install debug APK onto connected device
+#   just build-nuxt        # build Nuxt.js and sync Capacitor
+#   just run-debug         # build Nuxt, sync, build and install debug APK
+#   just run               # full workflow: build Nuxt, sync, build/install APK, start Android Auto
+#   just logcat            # tail filtered logcat for the app
+#   just adb-reverse       # reverse host ports (useful for Nuxt dev server -> Android WebView)
+#   just start-web         # helper to start web dev server (Nuxt) from repo root
+
+ANDROID_SDK_ROOT := "~/Library/Android/sdk"
+ADB_CMD := "adb"
+GRADLEW := "./gradlew"
+DHU_SCRIPT := "~/Library/Android/sdk/extras/google/auto/desktop-head-unit"
+DHU_PORT := "5277"
+APP_ID := "com.tomesonic.app"
+APK_PATH := "app/build/outputs/apk/debug/app-debug.apk"
+WEB_DEV_PORT := "3000"
+WEB_CMD := "npm run dev"
+BUILD_CMD := "npm run generate && npx cap sync android"
+
+# ---------------------------
+# Android Auto tasks
+# ---------------------------
+stop-forward:
+	@sh -lc 'set -euo pipefail; ADB="{{ADB_CMD}}"; if ! command -v "$ADB" >/dev/null 2>&1; then echo "adb not found at $ADB" 1>&2; exit 1; fi; echo "Removing forward tcp:{{DHU_PORT}}"; "$ADB" forward --remove tcp:{{DHU_PORT}} || true; echo "Removed forward (if it existed)"'
+
+adb-forward:
+	adb forward tcp:{{DHU_PORT}} tcp:{{DHU_PORT}}
+
+run-aa: adb-forward
+	@echo "Launching Android Auto DHU..."
+	@exec {{DHU_SCRIPT}}
+
+run: run-debug && run-aa
+
+# ---------------------------
+# Android build helpers
+# ---------------------------
+build:
+	@sh -lc 'set -euo pipefail; echo "Running gradle assembleDebug"; if [ -f "gradlew" ]; then {{GRADLEW}} assembleDebug; else cd android && {{GRADLEW}} assembleDebug; fi'
+
+assemble-debug: build
+
+build-nuxt:
+	@sh -lc 'set -euo pipefail; echo "Building Nuxt and syncing Capacitor"; if [ -f "package.json" ]; then {{BUILD_CMD}}; else cd .. && {{BUILD_CMD}}; fi'
+
+install-debug:
+	@sh -lc 'set -euo pipefail; if [ -f "gradlew" ]; then cd .; else cd android; fi; ADB="{{ADB_CMD}}"; APK="{{APK_PATH}}"; if [ ! -f "$APK" ]; then echo "APK not found at $APK - building first"; ./gradlew assembleDebug; fi; echo "Installing $APK to device"; "$ADB" install "$APK"; echo "Launching app"; "$ADB" shell am start -n {{APP_ID}}/.MainActivity || true'
+
+run-debug: build-nuxt && install-debug
+
+uninstall-debug:
+	@sh -lc 'set -euo pipefail; ADB="{{ADB_CMD}}"; echo "Uninstalling {{APP_ID}}"; "$ADB" uninstall {{APP_ID}} || true'
+
+# ---------------------------
+# Dev server / reverse proxy helpers
+# ---------------------------
+adb-reverse:
+	@sh -lc 'set -euo pipefail; ADB="{{ADB_CMD}}"; echo "Reversing host port {{WEB_DEV_PORT}} to device"; "$ADB" reverse tcp:{{WEB_DEV_PORT}} tcp:{{WEB_DEV_PORT}} || true; echo "Done"'
+
+adb-reverse-remove:
+	@sh -lc 'set -euo pipefail; ADB="{{ADB_CMD}}"; echo "Removing reverse for port {{WEB_DEV_PORT}}"; "$ADB" reverse --remove tcp:{{WEB_DEV_PORT}} || true'
+
+start-web:
+	@sh -lc 'set -euo pipefail; echo "Starting web dev server from repo root with: {{WEB_CMD}}"; if [ -f "package.json" ]; then {{WEB_CMD}}; else cd .. && {{WEB_CMD}}; fi'
+
+dev-with-reverse: adb-reverse start-web
+
+# ---------------------------
+# Logging / cleaning
+# ---------------------------
+logcat:
+	@sh -lc 'set -euo pipefail; ADB="{{ADB_CMD}}"; echo "Tailing logcat for {{APP_ID}} (press Ctrl+C to exit)"; "$ADB" logcat --clear; "$ADB" logcat | grep --line-buffered "{{APP_ID}}"'
+
+logcat-full:
+	@sh -lc 'set -euo pipefail; ADB="{{ADB_CMD}}"; echo "Tailing full logcat"; "$ADB" logcat'
+
+gradle-clean:
+	@sh -lc 'set -euo pipefail; if [ -f "gradlew" ]; then {{GRADLEW}} clean; else cd android && {{GRADLEW}} clean; fi'
+
+clean-build:
+	@sh -lc 'set -euo pipefail; if [ -d "app" ]; then rm -rf app/build; else cd android && rm -rf app/build; fi; echo "Removed app/build"'
+
+
+
+
+
+
+
+
+
+

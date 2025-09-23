@@ -1,14 +1,14 @@
 <template>
-  <div class="w-full bg-primary/50 rounded-lg">
-    <div class="w-full h-14 flex items-center px-3">
-      <p class="pr-2">{{ $strings.HeaderPlaylistItems }}</p>
+  <div class="w-full bg-surface-container border border-outline-variant rounded-2xl">
+    <div class="w-full h-14 flex items-center px-3 bg-surface-container text-on-surface border-b border-outline-variant rounded-t-2xl">
+      <p class="pr-2 font-medium">{{ $strings.HeaderPlaylistItems }}</p>
 
-      <div class="w-6 h-6 md:w-7 md:h-7 bg-fg bg-opacity-10 rounded-full flex items-center justify-center">
-        <span class="text-xs md:text-sm font-mono leading-none">{{ items.length }}</span>
+      <div class="w-6 h-6 md:w-7 md:h-7 bg-secondary-container text-on-secondary-container rounded-full flex items-center justify-center">
+        <span class="text-label-small md:text-body-medium font-mono leading-none">{{ items.length }}</span>
       </div>
 
       <div class="flex-grow" />
-      <p v-if="totalDuration" class="text-sm text-fg">{{ totalDurationPretty }}</p>
+      <p v-if="totalDuration" class="text-body-medium text-on-surface-variant">{{ totalDurationPretty }}</p>
     </div>
     <template v-for="item in items">
       <tables-playlist-item-table-row :key="item.id" :item="item" :playlist-id="playlistId" @showMore="showMore" />

@@ -10,9 +10,11 @@
     <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.NoActionBar">
       <item name="windowActionBar">false</item>
       <item name="windowNoTitle">true</item>
-      <item name="android:background">@color/background_dark</item>
-      <item name="android:statusBarColor">@color/background_dark</item>
-      <item name="android:navigationBarColor">@color/background_dark</item>
+  <item name="android:background">@color/background_dark</item>
+  <!-- Transparent system bars for immersive experience -->
+  <item name="android:statusBarColor">@android:color/transparent</item>
+  <item name="android:navigationBarColor">@android:color/transparent</item>
+  <item name="android:windowDrawsSystemBarBackgrounds">true</item>
     </style>
 
 

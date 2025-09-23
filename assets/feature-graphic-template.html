@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TomeSonic Feature Graphic</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        .feature-graphic {
+            width: 1024px;
+            height: 500px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            position: relative;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .background-pattern {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(circle at 20% 80%, rgba(255,255,255,0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255,255,255,0.1) 0%, transparent 50%);
+        }
+
+        .content {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            height: 100%;
+            padding: 60px;
+        }
+
+        .text-section {
+            flex: 1;
+            color: white;
+        }
+
+        .app-name {
+            font-size: 72px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            background: linear-gradient(45deg, #ffffff, #e8f4fd);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .tagline {
+            font-size: 24px;
+            font-weight: 300;
+            margin-bottom: 20px;
+            opacity: 0.95;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        }
+
+        .features {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            opacity: 0.9;
+        }
+
+        .feature-icon {
+            width: 20px;
+            height: 20px;
+            background: rgba(255,255,255,0.8);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+
+        .visual-section {
+            flex: 0 0 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .phone-mockup {
+            width: 180px;
+            height: 360px;
+            background: #1a1a1a;
+            border-radius: 25px;
+            padding: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            position: relative;
+            transform: rotate(-5deg);
+        }
+
+        .phone-screen {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .app-icon {
+            width: 80px;
+            height: 80px;
+            background: white;
+            border-radius: 20px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            font-weight: bold;
+            color: #667eea;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        }
+
+        .play-button {
+            width: 60px;
+            height: 60px;
+            background: rgba(255,255,255,0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .play-triangle {
+            width: 0;
+            height: 0;
+            border-left: 20px solid #667eea;
+            border-top: 12px solid transparent;
+            border-bottom: 12px solid transparent;
+            margin-left: 4px;
+        }
+
+        .floating-elements {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .floating-icon {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+        }
+
+        .icon-1 { top: 20%; right: 15%; animation: float 3s ease-in-out infinite; }
+        .icon-2 { top: 60%; right: 25%; animation: float 3s ease-in-out infinite 1s; }
+        .icon-3 { top: 80%; left: 15%; animation: float 3s ease-in-out infinite 2s; }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .material-you-badge {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            color: white;
+            backdrop-filter: blur(10px);
+        }
+    </style>
+</head>
+<body>
+    <div class="feature-graphic">
+        <div class="background-pattern"></div>
+        
+        <div class="material-you-badge">
+            Material You Design
+        </div>
+        
+        <div class="content">
+            <div class="text-section">
+                <h1 class="app-name">TomeSonic</h1>
+                <p class="tagline">Your AudiobookShelf companion</p>
+                
+                <div class="features">
+                    <div class="feature-item">
+                        <div class="feature-icon">📱</div>
+                        <span>Stream & Download</span>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">🚗</div>
+                        <span>Android Auto</span>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">📺</div>
+                        <span>ChromeCast</span>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">📊</div>
+                        <span>Progress Sync</span>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">🎨</div>
+                        <span>Material You</span>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">📚</div>
+                        <span>Library Stats</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="visual-section">
+                <div class="phone-mockup">
+                    <div class="phone-screen">
+                        <div class="app-icon">TS</div>
+                        <div class="play-button">
+                            <div class="play-triangle"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="floating-elements">
+            <div class="floating-icon icon-1">🎧</div>
+            <div class="floating-icon icon-2">📖</div>
+            <div class="floating-icon icon-3">⭐</div>
+        </div>
+    </div>
+    
+    <script>
+        // Instructions for creating the final image
+        console.log(`
+To create your feature graphic:
+
+1. Open this HTML file in Chrome/Firefox
+2. Right-click on the graphic and "Inspect Element"
+3. Use browser dev tools to take a screenshot at exactly 1024x500px
+4. OR use a screenshot tool to capture the graphic area
+5. Save as PNG format for upload to Google Play Console
+
+Alternative methods:
+- Use a tool like html2canvas to convert HTML to image
+- Open in browser and use print-to-PDF then convert to PNG
+- Use browser extensions that can capture specific elements
+
+The graphic includes:
+✓ TomeSonic branding
+✓ Key features highlighted
+✓ Material You design elements
+✓ Phone mockup showing the app
+✓ 1024x500 dimensions
+✓ Attractive gradient background
+✓ Floating icons for visual interest
+        `);
+    </script>
+</body>
+</html>

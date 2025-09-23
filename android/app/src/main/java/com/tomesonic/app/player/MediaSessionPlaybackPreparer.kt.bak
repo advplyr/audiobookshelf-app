@@ -1,0 +1,117 @@
+package com.audiobookshelf.app.player
+
+import android.net.Uri
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.ResultReceiver
+import android.support.v4.media.session.PlaybackStateCompat
+import android.util.Log
+import com.audiobookshelf.app.data.LibraryItemWrapper
+import com.audiobookshelf.app.data.PodcastEpisode
+import androidx.media3.Player
+import androidx.media3.ext.mediasession.MediaSessionConnector
+
+class MediaSessionPlaybackPreparer(var playerNotificationService:PlayerNotificationService) : MediaSessionConnector.PlaybackPreparer {
+  var tag = "MediaSessionPlaybackPreparer"
+
+  override fun onCommand(player: Player, command: String, extras: Bundle?, cb: ResultReceiver?): Boolean {
+    Log.d(tag, "ON COMMAND $command")
+    return false
+  }
+
+  override fun getSupportedPrepareActions(): Long {
+    return PlaybackStateCompat.ACTION_PREPARE_FROM_MEDIA_ID or
+      PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID or
+      PlaybackStateCompat.ACTION_PREPARE_FROM_SEARCH or
+      PlaybackStateCompat.ACTION_PLAY_FROM_SEARCH
+  }
+
+  override fun onPrepare(playWhenReady: Boolean) {
+    Log.d(tag, "ON PREPARE $playWhenReady")
+    try {
+      playerNotificationService.mediaManager.getFirstItem()?.let { li ->
+        playerNotificationService.mediaManager.play(li, null, playerNotificationService.getPlayItemRequestPayload(false)) {
+          if (it == null) {
+            Log.e(tag, "Failed to play library item")
+          } else {
+            val playbackRate = playerNotificationService.mediaManager.getSavedPlaybackRate()
+            Handler(Looper.getMainLooper()).post {
+              try {
+                playerNotificationService.preparePlayer(it, playWhenReady, playbackRate)
+              } catch (e: Exception) {
+                Log.e(tag, "Exception during preparePlayer", e)
+              }
+            }
+          }
+        }
+      }
+    } catch (e: Exception) {
+      Log.e(tag, "Exception during onPrepare", e)
+    }
+  }
+
+  override fun onPrepareFromMediaId(mediaId: String, playWhenReady: Boolean, extras: Bundle?) {
+    Log.d(tag, "ON PREPARE FROM MEDIA ID $mediaId $playWhenReady")
+
+    try {
+      val libraryItemWrapper: LibraryItemWrapper?
+      var podcastEpisode: PodcastEpisode? = null
+
+      val libraryItemWithEpisode = playerNotificationService.mediaManager.getPodcastWithEpisodeByEpisodeId(mediaId)
+      if (libraryItemWithEpisode != null) {
+        libraryItemWrapper = libraryItemWithEpisode.libraryItemWrapper
+        podcastEpisode = libraryItemWithEpisode.episode
+      } else {
+        libraryItemWrapper = playerNotificationService.mediaManager.getById(mediaId)
+      }
+
+      libraryItemWrapper?.let { li ->
+        playerNotificationService.mediaManager.play(li, podcastEpisode, playerNotificationService.getPlayItemRequestPayload(false)) {
+          if (it == null) {
+           Log.e(tag, "Failed to play library item")
+          } else {
+            val playbackRate = playerNotificationService.mediaManager.getSavedPlaybackRate()
+            Handler(Looper.getMainLooper()).post {
+              try {
+                playerNotificationService.preparePlayer(it, playWhenReady, playbackRate)
+              } catch (e: Exception) {
+                Log.e(tag, "Exception during preparePlayer from media ID", e)
+              }
+            }
+          }
+        }
+      }
+    } catch (e: Exception) {
+      Log.e(tag, "Exception during onPrepareFromMediaId", e)
+    }
+  }
+
+  override fun onPrepareFromSearch(query: String, playWhenReady: Boolean, extras: Bundle?) {
+    Log.d(tag, "ON PREPARE FROM SEARCH $query")
+    try {
+      playerNotificationService.mediaManager.getFromSearch(query)?.let { li ->
+        playerNotificationService.mediaManager.play(li, null, playerNotificationService.getPlayItemRequestPayload(false)) {
+          if (it == null) {
+           Log.e(tag, "Failed to play library item")
+          } else {
+            val playbackRate = playerNotificationService.mediaManager.getSavedPlaybackRate()
+            Handler(Looper.getMainLooper()).post {
+              try {
+                playerNotificationService.preparePlayer(it, playWhenReady, playbackRate)
+              } catch (e: Exception) {
+                Log.e(tag, "Exception during preparePlayer from search", e)
+              }
+            }
+          }
+        }
+      }
+    } catch (e: Exception) {
+      Log.e(tag, "Exception during onPrepareFromSearch", e)
+    }
+  }
+
+  override fun onPrepareFromUri(uri: Uri, playWhenReady: Boolean, extras: Bundle?) {
+    Log.d(tag, "ON PREPARE FROM URI $uri")
+  }
+}

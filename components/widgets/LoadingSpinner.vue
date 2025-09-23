@@ -44,10 +44,10 @@ export default {
 .la-ball-spin-clockwise {
   display: block;
   font-size: 0;
-  color: #fff;
+  color: rgb(var(--md-sys-color-on-surface));
 }
 .la-ball-spin-clockwise.la-dark {
-  color: #262626;
+  color: rgb(var(--md-sys-color-on-surface-variant));
 }
 .la-ball-spin-clockwise > div {
   display: inline-block;

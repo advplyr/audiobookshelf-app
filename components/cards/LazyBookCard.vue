@@ -1,101 +1,158 @@
 <template>
-  <div ref="card" :id="`book-card-${index}`" :style="{ minWidth: width + 'px', maxWidth: width + 'px', height: height + 'px' }" class="rounded-sm z-10 bg-primary cursor-pointer box-shadow-book" @click="clickCard">
-    <!-- When cover image does not fill -->
-    <div v-show="showCoverBg" class="absolute top-0 left-0 w-full h-full overflow-hidden rounded-sm bg-primary">
-      <div class="absolute cover-bg" ref="coverBg" />
-    </div>
-
-    <!-- Alternative bookshelf title/author/sort -->
-    <div v-if="isAltViewEnabled" class="absolute left-0 z-50 w-full" :style="{ bottom: `-${titleDisplayBottomOffset}rem` }">
-      <div :style="{ fontSize: 0.9 * sizeMultiplier + 'rem' }" class="flex items-center">
-        <p class="truncate" :style="{ fontSize: 0.9 * sizeMultiplier + 'rem' }">
-          {{ displayTitle }}
-        </p>
-        <widgets-explicit-indicator v-if="isExplicit" />
-      </div>
-      <p class="truncate text-fg-muted" :style="{ fontSize: 0.8 * sizeMultiplier + 'rem' }">{{ displayLineTwo || '&nbsp;' }}</p>
-      <p v-if="displaySortLine" class="truncate text-fg-muted" :style="{ fontSize: 0.8 * sizeMultiplier + 'rem' }">{{ displaySortLine }}</p>
-    </div>
-
-    <div v-if="seriesSequenceList" class="absolute rounded-lg bg-black bg-opacity-90 box-shadow-md z-20 text-right" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }" style="background-color: #78350f">
-      <p class="text-white" :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }">#{{ seriesSequenceList }}</p>
-    </div>
-    <div v-else-if="booksInSeries" class="absolute rounded-lg bg-black bg-opacity-90 box-shadow-md z-20" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }" style="background-color: #cd9d49dd">
-      <p class="text-white" :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }">{{ booksInSeries }}</p>
-    </div>
-
-    <div class="w-full h-full absolute top-0 left-0 rounded overflow-hidden z-10">
-      <div v-show="libraryItem && !imageReady" class="absolute top-0 left-0 w-full h-full flex items-center justify-center" :style="{ padding: sizeMultiplier * 0.5 + 'rem' }">
-        <p :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }" class="text-fg-muted text-center">{{ title }}</p>
+  <div ref="card" :id="`book-card-${index}`" :style="{ minWidth: width + 'px', maxWidth: width + 'px', height: height + 'px' }" class="material-3-card rounded-2xl z-10 bg-surface-container cursor-pointer shadow-elevation-1 hover:shadow-elevation-3 transition-all duration-300 ease-expressive state-layer relative" @click="clickCard">
+    <!-- Cover image container - fills entire card (first in DOM, lowest z-index) -->
+    <div class="cover-container absolute inset-0 z-0">
+      <!-- Blurred background for aspect ratio mismatch -->
+      <div v-show="showCoverBg" class="absolute inset-0 z-0">
+        <div class="absolute cover-bg inset-0" ref="coverBg" />
       </div>
 
-      <img v-show="libraryItem" ref="cover" :src="bookCoverSrc" class="w-full h-full transition-opacity duration-300" :class="showCoverBg ? 'object-contain' : 'object-fill'" @load="imageLoaded" :style="{ opacity: imageReady ? 1 : 0 }" />
+      <!-- Loading placeholder -->
+      <div v-show="libraryItem && !imageReady" class="absolute inset-0 flex items-center justify-center bg-surface-container z-10">
+        <p :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }" class="text-on-surface-variant text-center">{{ title }}</p>
+      </div>
+
+      <!-- Book cover image - fills entire card -->
+      <img
+        v-show="libraryItem && !isMaterialSymbolPlaceholder"
+        ref="cover"
+        :src="bookCoverSrc"
+        class="w-full h-full transition-opacity duration-300 object-cover z-5"
+        @load="imageLoaded"
+        :style="{
+          opacity: imageReady ? 1 : 0,
+          objectPosition: 'center center'
+        }"
+      />
+
+      <!-- Material Symbol placeholder -->
+      <div v-if="isMaterialSymbolPlaceholder" class="w-full h-full absolute inset-0 flex items-center justify-center bg-surface-container z-5">
+        <span class="material-symbols text-6xl text-on-surface-variant">book</span>
+      </div>
 
       <!-- Placeholder Cover Title & Author -->
-      <div v-if="!hasCover" class="absolute top-0 left-0 right-0 bottom-0 w-full h-full flex items-center justify-center" :style="{ padding: placeholderCoverPadding + 'rem' }">
-        <div>
-          <p class="text-center" style="color: rgb(247 223 187)" :style="{ fontSize: titleFontSize + 'rem' }">{{ titleCleaned }}</p>
-        </div>
-      </div>
-      <div v-if="!hasCover" class="absolute left-0 right-0 w-full flex items-center justify-center" :style="{ padding: placeholderCoverPadding + 'rem', bottom: authorBottom + 'rem' }">
-        <p class="text-center" style="color: rgb(247 223 187); opacity: 0.75" :style="{ fontSize: authorFontSize + 'rem' }">{{ authorCleaned }}</p>
-      </div>
-
-      <div v-if="showPlayButton" class="absolute -bottom-16 -right-16 rotate-45 w-32 h-32 p-2 bg-gradient-to-r from-transparent to-black to-40% inline-flex justify-start items-center">
-        <div class="hover:text-white text-gray-200 hover:scale-110 transform duration-200 pointer-events-auto -rotate-45" @click.stop.prevent="play">
-          <span class="material-symbols fill">{{ streamIsPlaying ? 'pause_circle' : 'play_circle' }}</span>
+      <div v-if="!hasCover" class="absolute inset-0 flex flex-col items-center justify-center bg-primary p-4 z-10">
+        <div class="text-center">
+          <p class="text-on-primary font-medium mb-2" :style="{ fontSize: titleFontSize + 'rem' }">{{ titleCleaned }}</p>
+          <p class="text-on-primary opacity-75" :style="{ fontSize: authorFontSize + 'rem' }">{{ authorCleaned }}</p>
         </div>
       </div>
     </div>
 
-    <!-- Play/pause button for podcast episode -->
-    <div v-if="recentEpisode" class="absolute z-10 top-0 left-0 bottom-0 right-0 m-auto flex items-center justify-center w-12 h-12 rounded-full" :class="{ 'bg-white/70': !playerIsStartingForThisMedia }" @click.stop="playEpisode">
-      <span v-if="!playerIsStartingForThisMedia" class="material-symbols fill text-6xl text-black/80">{{ streamIsPlaying ? 'pause_circle' : 'play_circle' }}</span>
-      <div v-else class="text-fg absolute top-0 left-0 w-full h-full flex items-center justify-center bg-black/80 rounded-full overflow-hidden">
-        <svg class="animate-spin" style="width: 24px; height: 24px" viewBox="0 0 24 24">
+    <!-- Alternative bookshelf title/author/sort with improved visibility -->
+    <div v-if="isAltViewEnabled && (!imageReady || !hasCover || isMaterialSymbolPlaceholder)" class="absolute bottom-2 z-50 max-w-[80%]" :class="showPlayButton ? 'right-2' : 'left-2'">
+      <div class="bg-card-title-overlay backdrop-blur-md rounded-lg p-2 shadow-elevation-3 border border-outline border-opacity-25">
+        <div :style="{ fontSize: 0.7 * sizeMultiplier + 'rem' }" class="flex items-center">
+          <p class="truncate text-on-surface font-medium" :style="{ fontSize: 0.7 * sizeMultiplier + 'rem' }">
+            {{ displayTitle }}
+          </p>
+          <widgets-explicit-indicator v-if="isExplicit" class="ml-1" />
+        </div>
+        <p class="truncate text-on-surface-variant" :style="{ fontSize: 0.6 * sizeMultiplier + 'rem' }">{{ displayLineTwo || '&nbsp;' }}</p>
+        <p v-if="displaySortLine" class="truncate text-on-surface-variant" :style="{ fontSize: 0.6 * sizeMultiplier + 'rem' }">{{ displaySortLine }}</p>
+      </div>
+    </div>
+
+    <!-- Series sequence badge with enhanced visibility -->
+    <div v-if="seriesSequenceList" class="absolute rounded-lg bg-tertiary-container shadow-elevation-3 z-30 text-right border border-outline-variant border-opacity-30" :style="{ top: (showHasLocalDownload ? 48 : 8) + (rssFeed ? 32 : 0) + 'px', right: '8px', padding: `${0.15 * sizeMultiplier}rem ${0.3 * sizeMultiplier}rem` }">
+      <p class="text-on-tertiary-container font-bold" :style="{ fontSize: sizeMultiplier * 0.7 + 'rem' }">#{{ seriesSequenceList }}</p>
+    </div>
+    <div v-else-if="booksInSeries" class="absolute rounded-lg bg-secondary-container shadow-elevation-3 z-30 border border-outline-variant border-opacity-30" :style="{ top: (showHasLocalDownload ? 48 : 8) + (rssFeed ? 32 : 0) + 'px', right: '8px', padding: `${0.15 * sizeMultiplier}rem ${0.3 * sizeMultiplier}rem` }">
+      <p class="text-on-secondary-container font-bold" :style="{ fontSize: sizeMultiplier * 0.7 + 'rem' }">{{ booksInSeries }}</p>
+    </div>
+
+    <!-- Material 3 Play button with enhanced visibility -->
+    <div v-if="showPlayButton" class="absolute bottom-2 left-2 z-30">
+      <button type="button" class="material-3-play-button rounded-full transition-all duration-200 ease-expressive shadow-elevation-2 hover:shadow-elevation-4 w-12 h-12 bg-primary" @click.stop.prevent="play">
+        <span class="material-symbols text-2xl text-on-primary">{{ streamIsPlaying ? 'pause' : 'play_arrow' }}</span>
+      </button>
+    </div>
+
+    <!-- Play/pause button for podcast episode with enhanced visibility -->
+    <div v-if="recentEpisode" class="absolute z-30 top-0 left-0 bottom-0 right-0 m-auto flex items-center justify-center" @click.stop="playEpisode">
+      <button v-if="!playerIsStartingForThisMedia" type="button" class="material-3-play-button rounded-full transition-all duration-200 ease-expressive shadow-elevation-2 hover:shadow-elevation-4 w-12 h-12 bg-primary" @click.stop.prevent="playEpisode">
+        <span class="material-symbols text-2xl text-on-primary">{{ streamIsPlaying ? 'pause' : 'play_arrow' }}</span>
+      </button>
+      <div v-else class="w-12 h-12 bg-surface-container rounded-full flex items-center justify-center shadow-elevation-3 ring-2 ring-surface ring-opacity-20">
+        <svg class="animate-spin text-primary" style="width: 24px; height: 24px" viewBox="0 0 24 24">
           <path fill="currentColor" d="M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z" />
         </svg>
       </div>
     </div>
 
-    <!-- No progress shown for collapsed series in library -->
-    <div v-if="!collapsedSeries && (!isPodcast || recentEpisode)" class="absolute bottom-0 left-0 h-1 max-w-full z-10 rounded-b box-shadow-progressbar" :class="itemIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: width * userProgressPercent + 'px' }"></div>
-
-    <!-- Downloaded icon -->
-    <div v-if="showHasLocalDownload" class="absolute right-0 top-0 z-20" :style="{ top: (isPodcast || (seriesSequence && showSequence) ? 1.75 : 0.375) * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }">
-      <span class="material-symbols text-2xl text-success">download_done</span>
+    <!-- Material 3 Circular Progress indicator in top left corner -->
+    <div v-if="!collapsedSeries && (!isPodcast || recentEpisode) && userProgressPercent > 0" class="absolute top-2 left-2 z-40">
+      <!-- Completed book check mark -->
+      <div v-if="itemIsFinished" class="bg-primary-container shadow-elevation-4 rounded-full border-2 border-outline-variant border-opacity-40 flex items-center justify-center backdrop-blur-sm" :style="{ width: 1.5 * sizeMultiplier + 'rem', height: 1.5 * sizeMultiplier + 'rem' }">
+        <span class="material-symbols text-on-primary-container drop-shadow-sm" :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }">check</span>
+      </div>
+      <!-- Progress circle for incomplete books -->
+      <div v-else class="relative rounded-full backdrop-blur-sm bg-surface-container bg-opacity-80 border-2 border-outline-variant border-opacity-40 shadow-elevation-3" :style="{ width: 1.5 * sizeMultiplier + 'rem', height: 1.5 * sizeMultiplier + 'rem' }">
+        <!-- Background circle (subtle) -->
+        <svg class="absolute inset-0 w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+          <path
+            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+            fill="none"
+            stroke="rgba(var(--md-sys-color-outline-variant), 0.3)"
+            stroke-width="2"
+            stroke-dasharray="100, 100"
+          />
+          <!-- Progress circle -->
+          <path
+            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+            fill="none"
+            stroke="rgb(var(--md-sys-color-primary))"
+            stroke-width="3"
+            stroke-linecap="round"
+            :stroke-dasharray="`${userProgressPercent * 100}, 100`"
+            class="transition-all duration-300 ease-out"
+          />
+        </svg>
+      </div>
     </div>
 
-    <!-- Error widget -->
-    <div v-if="showError" :style="{ height: 1.5 * sizeMultiplier + 'rem', width: 2.5 * sizeMultiplier + 'rem' }" class="bg-error rounded-r-full shadow-md flex items-center justify-end border-r border-b border-red-300 absolute bottom-4 left-0 z-10">
-      <span class="material-symbols text-red-100 pr-1" :style="{ fontSize: 0.875 * sizeMultiplier + 'rem' }">priority_high</span>
+    <!-- Downloaded indicator with enhanced visibility -->
+    <div v-if="showHasLocalDownload" class="absolute right-2 top-2 z-30">
+      <div class="bg-primary-container shadow-elevation-4 rounded-full border-2 border-outline-variant border-opacity-40 flex items-center justify-center backdrop-blur-sm" :style="{ width: 1.5 * sizeMultiplier + 'rem', height: 1.5 * sizeMultiplier + 'rem' }">
+        <span class="material-symbols text-on-primary-container drop-shadow-sm" :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }">download_done</span>
+      </div>
     </div>
 
-    <!-- rss feed icon -->
-    <div v-if="rssFeed" class="absolute text-success top-0 left-0 z-10" :style="{ padding: 0.375 * sizeMultiplier + 'rem' }">
-      <span class="material-symbols" :style="{ fontSize: sizeMultiplier * 1.5 + 'rem' }">rss_feed</span>
+    <!-- Error indicator with enhanced visibility -->
+    <div v-if="showError" :style="{ height: 1.5 * sizeMultiplier + 'rem', width: 2.5 * sizeMultiplier + 'rem' }" class="bg-error-container rounded-r-full shadow-elevation-3 flex items-center justify-end absolute bottom-4 left-0 z-30 border border-outline-variant border-opacity-30">
+      <span class="material-symbols text-on-error-container pr-1 drop-shadow-sm" :style="{ fontSize: 0.875 * sizeMultiplier + 'rem' }">priority_high</span>
     </div>
 
-    <!-- Series sequence -->
-    <div v-if="seriesSequence && showSequence && !isSelectionMode" class="absolute rounded-lg bg-black/90 text-white box-shadow-md z-10" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }">
-      <p :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }">#{{ seriesSequence }}</p>
+    <!-- RSS feed indicator with enhanced visibility -->
+    <div v-if="rssFeed" class="absolute right-2 z-30" :style="{ top: (showHasLocalDownload ? 4 : 2) + 'px' }">
+      <div class="bg-tertiary-container shadow-elevation-3 rounded-full border border-outline-variant border-opacity-30 flex items-center justify-center" :style="{ width: 1.5 * sizeMultiplier + 'rem', height: 1.5 * sizeMultiplier + 'rem' }">
+        <span class="material-symbols text-on-tertiary-container drop-shadow-sm" :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }">rss_feed</span>
+      </div>
     </div>
 
-    <!-- Podcast Episode # -->
-    <div v-if="recentEpisodeNumber !== null && !isSelectionMode" class="absolute rounded-lg bg-black/90 box-shadow-md z-10" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }">
-      <p class="text-white" :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }">
+    <!-- Series sequence number with enhanced visibility -->
+    <div v-if="seriesSequence && showSequence && !isSelectionMode" class="absolute rounded-lg bg-primary-container shadow-elevation-3 z-30 border border-outline-variant border-opacity-30" :style="{ top: (showHasLocalDownload ? 48 : 8) + (rssFeed ? 32 : 0) + 'px', right: '8px', padding: `${0.15 * sizeMultiplier}rem ${0.3 * sizeMultiplier}rem` }">
+      <p class="text-on-primary-container font-bold drop-shadow-sm" :style="{ fontSize: sizeMultiplier * 0.7 + 'rem' }">#{{ seriesSequence }}</p>
+    </div>
+
+    <!-- Podcast Episode indicator with enhanced visibility -->
+    <div v-if="recentEpisodeNumber !== null && !isSelectionMode" class="absolute rounded-lg bg-secondary-container shadow-elevation-3 z-30 border border-outline-variant border-opacity-30" :style="{ top: (showHasLocalDownload ? 48 : 8) + (rssFeed ? 32 : 0) + 'px', right: '8px', padding: `${0.15 * sizeMultiplier}rem ${0.3 * sizeMultiplier}rem` }">
+      <p class="text-on-secondary-container font-bold drop-shadow-sm" :style="{ fontSize: sizeMultiplier * 0.6 + 'rem' }">
         Episode<span v-if="recentEpisodeNumber"> #{{ recentEpisodeNumber }}</span>
       </p>
     </div>
 
-    <!-- Podcast Num Episodes -->
-    <div v-else-if="numEpisodes && !numEpisodesIncomplete && !isSelectionMode" class="absolute rounded-full bg-black bg-opacity-90 box-shadow-md z-10 flex items-center justify-center" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', width: 1.25 * sizeMultiplier + 'rem', height: 1.25 * sizeMultiplier + 'rem' }">
-      <p class="text-white" :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }">{{ numEpisodes }}</p>
+    <!-- Episode count badges with enhanced visibility -->
+    <div
+      v-else-if="numEpisodes && !numEpisodesIncomplete && !isSelectionMode"
+      class="absolute rounded-full bg-surface-container-high shadow-elevation-3 z-30 flex items-center justify-center border border-outline-variant border-opacity-30"
+      :style="{ top: (showHasLocalDownload ? 48 : 8) + (rssFeed ? 32 : 0) + 'px', right: '8px', width: 1.2 * sizeMultiplier + 'rem', height: 1.2 * sizeMultiplier + 'rem' }"
+    >
+      <p class="text-on-surface font-bold drop-shadow-sm" :style="{ fontSize: sizeMultiplier * 0.6 + 'rem' }">{{ numEpisodes }}</p>
     </div>
 
-    <!-- Podcast Num Episodes Incomplete -->
-    <div v-else-if="numEpisodesIncomplete && !isSelectionMode" class="absolute rounded-full bg-yellow-400 box-shadow-md z-10 flex items-center justify-center" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', width: 1.25 * sizeMultiplier + 'rem', height: 1.25 * sizeMultiplier + 'rem' }">
-      <p class="text-black" :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }">{{ numEpisodesIncomplete }}</p>
+    <div v-else-if="numEpisodesIncomplete && !isSelectionMode" class="absolute rounded-full bg-tertiary-container shadow-elevation-3 z-30 flex items-center justify-center border border-outline-variant border-opacity-30" :style="{ top: (showHasLocalDownload ? 48 : 8) + (rssFeed ? 32 : 0) + 'px', right: '8px', width: 1.2 * sizeMultiplier + 'rem', height: 1.2 * sizeMultiplier + 'rem' }">
+      <p class="text-on-tertiary-container font-bold drop-shadow-sm" :style="{ fontSize: sizeMultiplier * 0.6 + 'rem' }">{{ numEpisodesIncomplete }}</p>
     </div>
   </div>
 </template>
@@ -166,7 +223,9 @@ export default {
       return this.mediaType === 'podcast'
     },
     placeholderUrl() {
-      return '/book_placeholder.jpg'
+      // Material 3 book icon as SVG data URL
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>`
+      return `data:image/svg+xml;base64,${btoa(svg)}`
     },
     bookCoverSrc() {
       if (this.isLocal) {
@@ -412,6 +471,9 @@ export default {
     showPlayButton() {
       return false
       // return !this.isMissing && !this.isInvalid && !this.isStreaming && (this.numTracks || this.recentEpisode)
+    },
+    isMaterialSymbolPlaceholder() {
+      return this.bookCoverSrc === 'material-symbol:book'
     }
   },
   methods: {
@@ -543,13 +605,15 @@ export default {
     imageLoaded() {
       this.imageReady = true
 
+      // Since we're forcing all images to square aspect ratio,
+      // we can be more selective about when to show background blur
       if (this.$refs.cover && this.bookCoverSrc !== this.placeholderUrl) {
         const { naturalWidth, naturalHeight } = this.$refs.cover
         const aspectRatio = naturalHeight / naturalWidth
-        const arDiff = Math.abs(aspectRatio - this.bookCoverAspectRatio)
 
-        // If image aspect ratio is <= 1.45 or >= 1.75 then use cover bg, otherwise stretch to fit
-        if (arDiff > 0.15) {
+        // Only show background blur for extremely non-square images for aesthetic effect
+        // Most images will now appear square due to CSS aspect-ratio and object-cover
+        if (aspectRatio < 0.5 || aspectRatio > 2.0) {
           this.showCoverBg = true
           this.$nextTick(this.setCoverBg)
         } else {
@@ -569,3 +633,122 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+/* Material 3 Expressive Book Card Styles */
+.material-3-card {
+  /* Smooth transitions for Material 3 expressive design */
+  transition: box-shadow 300ms cubic-bezier(0.2, 0, 0, 1), transform 300ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.material-3-card::before {
+  content: '';
+  position: absolute;
+  border-radius: inherit;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: transparent;
+  transition: background-color 200ms cubic-bezier(0.2, 0, 0, 1);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.material-3-card:hover {
+  transform: translateY(-2px);
+}
+
+.material-3-card:hover::before {
+  background-color: rgba(var(--md-sys-color-on-surface), var(--md-sys-state-hover-opacity, 0.08));
+}
+
+.material-3-card:active {
+  transform: translateY(0px);
+}
+
+.material-3-card:active::before {
+  background-color: rgba(var(--md-sys-color-on-surface), var(--md-sys-state-pressed-opacity, 0.12));
+}
+
+/* Ensure content stays above state layer, but exclude cover container and absolutely positioned elements */
+.material-3-card > *:not(.cover-container):not(.absolute) {
+  position: relative;
+  z-index: 2;
+}
+
+/* Add expressive motion to indicators */
+.material-3-card [class*='shadow-elevation-'] {
+  transition: transform 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.material-3-card:hover [class*='shadow-elevation-'] {
+  transform: scale(1.05);
+}
+
+/* Cover background for aspect ratio mismatch */
+.cover-bg {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: blur(20px);
+  transform: scale(1.1);
+  top: -10%;
+  left: -10%;
+  width: 120%;
+  height: 120%;
+  opacity: 0.3;
+}
+
+/* Force square aspect ratio for all book covers */
+.material-3-card img {
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  object-position: center center;
+}
+
+/* Fallback for older browsers that don't support aspect-ratio */
+@supports not (aspect-ratio: 1 / 1) {
+  .material-3-card img {
+    width: 100% !important;
+    height: 100% !important;
+  }
+}
+
+/* Enhanced text visibility */
+.drop-shadow-sm {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+}
+
+/* Ensure overlays are always visible */
+.material-3-card .bg-opacity-95 {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Icon rings for better visibility */
+.ring-2 {
+  box-shadow: 0 0 0 2px currentColor;
+}
+
+.ring-4 {
+  box-shadow: 0 0 0 4px currentColor;
+}
+
+.ring-surface {
+  --tw-ring-color: rgb(var(--md-sys-color-surface));
+}
+
+.ring-opacity-20 {
+  --tw-ring-opacity: 0.2;
+}
+
+.ring-opacity-30 {
+  --tw-ring-opacity: 0.3;
+}
+
+/* Expressive easing definition */
+.ease-expressive {
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+</style>

@@ -12,7 +12,8 @@ export const state = () => ({
     mobileFilterBy: 'all',
     playbackRate: 1,
     collapseSeries: false,
-    collapseBookSeries: false
+    collapseBookSeries: false,
+    enableDynamicColors: true
   }
 })
 
@@ -231,7 +232,6 @@ export const mutations = {
     state.user = user
   },
   setAccessToken(state, accessToken) {
-    console.log('[user] setAccessToken', accessToken)
     state.accessToken = accessToken
   },
   removeMediaProgress(state, id) {

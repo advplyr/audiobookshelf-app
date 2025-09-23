@@ -1,13 +1,13 @@
 <template>
   <modals-modal v-model="show" width="90%">
-    <div class="w-full h-full bg-primary rounded-lg border border-fg/20">
+    <div class="w-full h-full bg-surface rounded-lg border border-outline-variant shadow-elevation-4 backdrop-blur-md">
       <ul class="w-full rounded-lg text-base" role="listbox" aria-labelledby="listbox-label">
         <template v-for="item in items">
-          <li :key="item.value" class="text-fg select-none relative py-4 pr-9 cursor-pointer" :class="item.value === selected ? 'bg-bg bg-opacity-50' : ''" role="option" @click="clickedOption(item.value)">
+          <li :key="item.value" class="text-on-surface select-none relative py-4 pr-9 cursor-pointer state-layer" :class="item.value === selected ? 'bg-primary-container text-on-primary-container' : ''" role="option" @click="clickedOption(item.value)">
             <div class="flex items-center">
               <span class="font-normal ml-3 block truncate text-lg">{{ item.text }}</span>
             </div>
-            <span v-if="item.value === selected" class="text-yellow-300 absolute inset-y-0 right-0 flex items-center pr-4">
+            <span v-if="item.value === selected" class="text-primary absolute inset-y-0 right-0 flex items-center pr-4">
               <span class="material-symbols text-3xl">{{ descending ? 'south' : 'north' }}</span>
             </span>
           </li>

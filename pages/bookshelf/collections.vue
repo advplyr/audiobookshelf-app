@@ -1,14 +1,15 @@
 <template>
-  <bookshelf-lazy-bookshelf page="collections" />
+  <div :style="contentPaddingStyle">
+    <bookshelf-lazy-bookshelf page="collections" />
+  </div>
 </template>
 
 <script>
 export default {
-  data() {
-    return {}
-  },
-  watch: {},
-  computed: {},
-  methods: {}
+  computed: {
+    contentPaddingStyle() {
+      return this.$store.getters['getIsPlayerOpen'] ? { paddingBottom: '120px' } : {}
+    }
+  }
 }
 </script>

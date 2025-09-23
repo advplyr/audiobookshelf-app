@@ -1,5 +1,7 @@
 <template>
-  <bookshelf-lazy-bookshelf page="series-books" :series-id="seriesId" v-on:downloadSeriesClick="downloadSeriesClick" />
+  <div :style="contentPaddingStyle">
+    <bookshelf-lazy-bookshelf page="series-books" :series-id="seriesId" v-on:downloadSeriesClick="downloadSeriesClick" />
+  </div>
 </template>
 
 <script>
@@ -37,6 +39,9 @@ export default {
   computed: {
     isIos() {
       return this.$platform === 'ios'
+    },
+    contentPaddingStyle() {
+      return this.$store.getters['getIsPlayerOpen'] ? { paddingBottom: '120px' } : {}
     }
   },
   methods: {

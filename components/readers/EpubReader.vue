@@ -2,8 +2,8 @@
   <div id="epub-frame" class="w-full">
     <div id="viewer" class="h-full w-full"></div>
 
-    <div class="fixed left-0 h-8 w-full px-4 flex items-center" :class="isLightTheme ? 'bg-white text-black' : isDarkTheme ? 'bg-[#232323] text-white/80' : 'bg-black text-white/80'" :style="{ bottom: isPlayerOpen ? '120px' : '0px' }">
-      <p v-if="totalLocations" class="text-xs text-slate-600">Location {{ currentLocationNum }} of {{ totalLocations }}</p>
+    <div class="fixed left-0 h-8 w-full px-4 flex items-center" :class="isLightTheme ? 'bg-surface-dynamic text-on-surface' : isDarkTheme ? 'bg-surface-dynamic text-on-surface' : 'bg-surface-dynamic text-on-surface'" :style="{ bottom: '0px' }">
+      <p v-if="totalLocations" class="text-xs text-on-surface-variant">Location {{ currentLocationNum }} of {{ totalLocations }}</p>
       <div class="flex-grow" />
       <p class="text-xs">{{ progress }}%</p>
     </div>
@@ -43,11 +43,7 @@ export default {
       }
     }
   },
-  watch: {
-    isPlayerOpen() {
-      this.refreshUI()
-    }
-  },
+  watch: {},
   computed: {
     /** @returns {string} */
     libraryItemId() {
@@ -69,11 +65,8 @@ export default {
       }
       return null
     },
-    isPlayerOpen() {
-      return this.$store.getters['getIsPlayerOpen']
-    },
     readerHeightOffset() {
-      return this.isPlayerOpen ? 204 : 104
+      return 104 // Same offset regardless of player state - no extra padding
     },
     /** @returns {Array<ePub.NavItem>} */
     chapters() {
@@ -108,8 +101,31 @@ export default {
     themeRules() {
       const isDark = this.ereaderSettings.theme === 'dark'
       const isBlack = this.ereaderSettings.theme === 'black'
-      const fontColor = isDark ? '#fff' : isBlack ? '#fff' : '#000'
-      const backgroundColor = isDark ? 'rgb(35 35 35)' : isBlack ? 'rgb(0 0 0)' : 'rgb(255, 255, 255)'
+      const isLight = this.ereaderSettings.theme === 'light'
+
+      // Use CSS custom properties to get current Material 3 colors
+      const computedStyle = getComputedStyle(document.documentElement)
+      const onSurfaceColor = `rgb(${computedStyle.getPropertyValue('--md-sys-color-on-surface').trim()})`
+      const surfaceColor = `rgb(${computedStyle.getPropertyValue('--md-sys-color-surface').trim()})`
+      const surfaceDimColor = `rgb(${computedStyle.getPropertyValue('--md-sys-color-surface-dim').trim()})`
+
+      // Proper theme-based color logic
+      let fontColor = onSurfaceColor
+      let backgroundColor = surfaceColor
+
+      if (isDark) {
+        // For dark theme, ensure we have light text on dark background
+        fontColor = '#FFFFFF' // Force white text for dark theme
+        backgroundColor = surfaceDimColor
+      } else if (isBlack) {
+        // For black theme, ensure we have white text on black background
+        fontColor = '#FFFFFF' // Force white text for black theme
+        backgroundColor = '#000000' // Force pure black background
+      } else if (isLight) {
+        // For light theme, ensure we have dark text on light background
+        fontColor = '#000000' // Force black text for light theme
+        backgroundColor = surfaceColor
+      }
 
       return {
         '*': {

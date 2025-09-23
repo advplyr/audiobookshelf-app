@@ -2,23 +2,23 @@
   <div class="w-full h-full relative">
     <div v-show="canGoPrev" class="absolute top-0 left-0 h-full w-1/2 hover:opacity-100 opacity-0 z-10 cursor-pointer" @click.stop.prevent="prev" @mousedown.prevent>
       <div class="flex items-center justify-center h-full w-1/2">
-        <span class="material-symbols text-5xl text-white cursor-pointer text-opacity-30 hover:text-opacity-90">arrow_back_ios</span>
+        <span class="material-symbols text-5xl text-on-surface cursor-pointer text-opacity-30 hover:text-opacity-90">arrow_back_ios</span>
       </div>
     </div>
     <div v-show="canGoNext" class="absolute top-0 right-0 h-full w-1/2 hover:opacity-100 opacity-0 z-10 cursor-pointer" @click.stop.prevent="next" @mousedown.prevent>
       <div class="flex items-center justify-center h-full w-1/2 ml-auto">
-        <span class="material-symbols text-5xl text-white cursor-pointer text-opacity-30 hover:text-opacity-90">arrow_forward_ios</span>
+        <span class="material-symbols text-5xl text-on-surface cursor-pointer text-opacity-30 hover:text-opacity-90">arrow_forward_ios</span>
       </div>
     </div>
 
     <div class="h-full flex items-center justify-center">
       <div :style="{ width: pdfWidth + 'px', height: pdfHeight + 'px' }" class="w-full h-full overflow-auto">
         <div v-if="loadedRatio > 0 && loadedRatio < 1" style="background-color: green; color: white; text-align: center" :style="{ width: loadedRatio * 100 + '%' }">{{ Math.floor(loadedRatio * 100) }}%</div>
-        <pdf v-if="pdfDocInitParams" ref="pdf" class="m-auto z-10 border border-black border-opacity-20 shadow-md bg-white" :src="pdfDocInitParams" :page="page" :rotate="rotate" @progress="loadedRatio = $event" @error="error" @num-pages="numPagesLoaded" @link-clicked="page = $event" @loaded="loadedEvt"></pdf>
+        <pdf v-if="pdfDocInitParams" ref="pdf" class="m-auto z-10 border border-outline-variant shadow-md bg-surface-dynamic" :src="pdfDocInitParams" :page="page" :rotate="rotate" @progress="loadedRatio = $event" @error="error" @num-pages="numPagesLoaded" @link-clicked="page = $event" @loaded="loadedEvt"></pdf>
       </div>
     </div>
 
-    <div class="fixed left-0 h-8 w-full bg-bg px-4 flex items-center text-fg-muted" :style="{ bottom: isPlayerOpen ? '120px' : '0px' }">
+    <div class="fixed left-0 h-8 w-full bg-surface-dynamic px-4 flex items-center text-on-surface-variant" :style="{ bottom: '0px' }">
       <div class="flex-grow" />
       <p class="text-xs">{{ page }} / {{ numPages }}</p>
     </div>
@@ -107,9 +107,6 @@ export default {
       // Validate ebookLocation is a number
       if (!this.userItemProgress?.ebookLocation || isNaN(this.userItemProgress.ebookLocation)) return 0
       return Number(this.userItemProgress.ebookLocation)
-    },
-    isPlayerOpen() {
-      return this.$store.getters['getIsPlayerOpen']
     },
     ebookUrl() {
       const serverAddress = this.$store.getters['user/getServerAddress']

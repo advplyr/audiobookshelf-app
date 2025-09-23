@@ -2,9 +2,6 @@
   <modals-fullscreen-modal v-model="show" :processing="processing">
     <div class="flex items-end justify-end h-24 pr-4 pb-2">
       <!-- <h1 class="text-lg">RSS Feed</h1> -->
-      <button class="flex" @click="show = false">
-        <span class="material-symbols">close</span>
-      </button>
     </div>
 
     <div class="w-full px-2 h-[calc(100%-176px)] overflow-y-auto">
@@ -14,25 +11,25 @@
 
           <ui-text-input v-model="currentFeed.feedUrl" class="text-sm" readonly />
 
-          <span class="material-symbols absolute right-2 bottom-2 p-0.5 text-base" :class="linkCopied ? 'text-success' : 'text-fg-muted'" @click="copyToClipboard(currentFeed.feedUrl)">{{ linkCopied ? 'check' : 'content_copy' }}</span>
+          <span class="material-symbols absolute right-2 bottom-2 p-0.5 text-base" :class="linkCopied ? 'text-primary' : 'text-on-surface-variant'" @click="copyToClipboard(currentFeed.feedUrl)">{{ linkCopied ? 'check' : 'content_copy' }}</span>
         </div>
 
         <div v-if="currentFeed.meta" class="mt-5">
           <div class="flex py-0.5">
             <div class="w-48">
-              <span class="text-fg-muted uppercase text-sm">{{ $strings.LabelRSSFeedPreventIndexing }}</span>
+              <span class="text-on-surface-variant uppercase text-sm">{{ $strings.LabelRSSFeedPreventIndexing }}</span>
             </div>
             <div>{{ currentFeed.meta.preventIndexing ? $strings.ButtonYes : $strings.LabelNo }}</div>
           </div>
           <div v-if="currentFeed.meta.ownerName" class="flex py-0.5">
             <div class="w-48">
-              <span class="text-fg-muted uppercase text-sm">{{ $strings.LabelRSSFeedCustomOwnerName }}</span>
+              <span class="text-on-surface-variant uppercase text-sm">{{ $strings.LabelRSSFeedCustomOwnerName }}</span>
             </div>
             <div>{{ currentFeed.meta.ownerName }}</div>
           </div>
           <div v-if="currentFeed.meta.ownerEmail" class="flex py-0.5">
             <div class="w-48">
-              <span class="text-fg-muted uppercase text-sm">{{ $strings.LabelRSSFeedCustomOwnerEmail }}</span>
+              <span class="text-on-surface-variant uppercase text-sm">{{ $strings.LabelRSSFeedCustomOwnerEmail }}</span>
             </div>
             <div>{{ currentFeed.meta.ownerEmail }}</div>
           </div>
@@ -41,7 +38,7 @@
       <div v-else class="w-full">
         <div class="w-full relative mb-2">
           <ui-text-input-with-label v-model="newFeedSlug" :label="$strings.LabelRSSFeedSlug" />
-          <p class="text-xs text-fg-muted py-0.5 px-1">{{ $getString('MessageFeedURLWillBe', [demoFeedUrl]) }}</p>
+          <p class="text-xs text-on-surface-variant py-0.5 px-1">{{ $getString('MessageFeedURLWillBe', [demoFeedUrl]) }}</p>
         </div>
         <modals-rssfeeds-rss-feed-metadata-builder v-model="metadataDetails" />
 

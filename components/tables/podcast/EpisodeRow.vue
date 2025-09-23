@@ -30,7 +30,7 @@
 
       <div class="flex items-center pt-2">
         <!-- Play/Pause Button -->
-        <div class="h-10 px-4 border border-border rounded-full flex items-center justify-center cursor-pointer" :class="userIsFinished ? 'text-white text-opacity-40' : ''" @click.stop="playClick">
+        <div class="h-10 px-4 border border-border rounded-full flex items-center justify-center cursor-pointer" :class="userIsFinished ? 'text-on-surface-variant' : ''" @click.stop="playClick">
           <span v-if="!playerIsStartingForThisMedia" class="material-symbols text-2xl fill leading-none" :class="streamIsPlaying ? '' : 'text-success'">
             {{ streamIsPlaying ? 'pause' : 'play_arrow' }}
           </span>
@@ -45,7 +45,7 @@
 
         <!-- Add to Playlist Button -->
         <button v-if="!isLocal" class="mx-1.5" @click.stop="addToPlaylist">
-          <span class="material-symbols text-2xl leading-none">playlist_add</span>
+          <span class="material-symbols text-2xl leading-none text-on-surface">playlist_add</span>
         </button>
 
         <!-- Download Section -->

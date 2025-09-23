@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full h-full py-4">
+  <div class="w-full h-full py-4" :style="contentPaddingStyle">
     <div class="flex items-center mb-2 space-x-2 px-4">
       <p class="text-lg font-bold">{{ $strings.ButtonLogs }}</p>
       <ui-icon-btn outlined borderless :icon="isCopied ? 'check' : 'content_copy'" @click="copyToClipboard" />
@@ -10,16 +10,16 @@
 
     <div class="w-full h-[calc(100%-40px)] overflow-y-auto relative" ref="logContainer">
       <div v-if="!logs.length && !isLoading" class="flex items-center justify-center h-32 p-4">
-        <p class="text-gray-400">{{ $strings.MessageNoLogs }}</p>
+        <p class="text-on-surface-variant">{{ $strings.MessageNoLogs }}</p>
       </div>
       <div v-if="hasScrolled" class="sticky top-0 left-0 w-full h-10 bg-gradient-to-t from-transparent to-bg z-10 pointer-events-none"></div>
 
-      <div v-for="(log, index) in logs" :key="log.id" class="py-2 px-4" :class="{ 'bg-white/5': index % 2 === 0 }">
+      <div v-for="(log, index) in logs" :key="log.id" class="py-2 px-4" :class="{ 'bg-surface-container-lowest': index % 2 === 0 }">
         <div class="flex items-center space-x-4 mb-1">
-          <div class="text-xs uppercase font-bold" :class="{ 'text-error': log.level === 'error', 'text-blue-500': log.level === 'info' }">{{ log.level }}</div>
-          <div class="text-xs text-gray-400">{{ formatEpochToDatetimeString(log.timestamp) }}</div>
+          <div class="text-xs uppercase font-bold" :class="{ 'text-error': log.level === 'error', 'text-primary': log.level === 'info' }">{{ log.level }}</div>
+          <div class="text-xs text-on-surface-variant">{{ formatEpochToDatetimeString(log.timestamp) }}</div>
           <div class="flex-grow"></div>
-          <div class="text-xs text-gray-400">{{ log.tag }}</div>
+          <div class="text-xs text-on-surface-variant">{{ log.tag }}</div>
         </div>
         <div class="text-xs">{{ maskServerAddress ? log.maskedMessage : log.message }}</div>
       </div>
@@ -57,6 +57,9 @@ export default {
           icon: 'delete'
         }
       ]
+    },
+    contentPaddingStyle() {
+      return this.$store.getters['getIsPlayerOpen'] ? { paddingBottom: '120px' } : {}
     }
   },
   methods: {

@@ -1,8 +1,14 @@
 <template>
   <div class="w-full max-w-md mx-auto px-2 sm:px-4 lg:px-8 z-10">
-    <div v-show="!loggedIn" class="mt-8 bg-primary overflow-hidden shadow rounded-lg px-4 py-6 w-full">
+    <div v-show="!loggedIn" class="mt-8 bg-surface-container border border-outline-variant rounded-lg overflow-hidden shadow px-4 py-6 w-full">
       <!-- list of server connection configs -->
       <template v-if="!showForm">
+        <!-- Auto-connecting message -->
+        <div v-if="processing && lastServerConnectionConfig && !showAuth" class="text-center py-4">
+          <p class="text-body-large text-fg mb-2">{{ $strings.ButtonConnect }}</p>
+          <p class="text-body-medium text-fg-muted">{{ lastServerConnectionConfig.name }}</p>
+        </div>
+
         <div v-for="config in serverConnectionConfigs" :key="config.id" class="border-b border-fg/10 py-4">
           <div class="flex items-center my-1 relative" @click="connectToServer(config)">
             <span class="material-symbols text-xl text-fg-muted">dns</span>
@@ -35,7 +41,7 @@
             <span class="material-symbols text-fg-muted">arrow_back</span>
           </div>
           <h2 class="text-lg leading-7 mb-2">{{ $strings.LabelServerAddress }}</h2>
-          <ui-text-input v-model="serverConfig.address" :disabled="processing || !networkConnected || !!serverConfig.id" placeholder="http://55.55.55.55:13378" type="url" class="w-full h-10" />
+          <ui-text-input v-model="serverConfig.address" :disabled="processing || !networkConnected || !!serverConfig.id" placeholder="http://55.55.55.55:13378" type="url" variant="outlined" class="w-full h-10" />
           <div class="flex justify-end items-center mt-6">
             <ui-btn :disabled="processing || !networkConnected" type="submit" :padding-x="3" class="h-10">{{ networkConnected ? $strings.ButtonSubmit : $strings.MessageNoNetworkConnection }}</ui-btn>
           </div>
@@ -53,8 +59,8 @@
           </div>
           <div class="w-full h-px bg-fg/10 my-2" />
           <form v-if="isLocalAuthEnabled" @submit.prevent="submitAuth" class="pt-3">
-            <ui-text-input v-model="serverConfig.username" :disabled="processing" :placeholder="$strings.LabelUsername" class="w-full mb-2 text-lg" />
-            <ui-text-input v-model="password" type="password" :disabled="processing" :placeholder="$strings.LabelPassword" class="w-full mb-2 text-lg" />
+            <ui-text-input v-model="serverConfig.username" :disabled="processing" :placeholder="$strings.LabelUsername" variant="outlined" class="w-full mb-2 text-lg" />
+            <ui-text-input v-model="password" type="password" :disabled="processing" :placeholder="$strings.LabelPassword" variant="outlined" class="w-full mb-2 text-lg" />
 
             <div class="flex items-center pt-2">
               <ui-icon-btn v-if="serverConfig.id" small bg-color="error" icon="delete" type="button" @click="removeServerConfigClick" />
@@ -77,7 +83,7 @@
     <div :class="processing ? 'opacity-100' : 'opacity-0 pointer-events-none'" class="fixed w-full h-full top-0 left-0 bg-black/75 flex items-center justify-center z-30 transition-opacity duration-500">
       <div>
         <div class="absolute top-0 left-0 w-full p-6 flex items-center flex-col justify-center z-0 short:hidden">
-          <img src="/Logo.png" class="h-20 w-20 mb-2" />
+          <ui-tomesonic-app-icon :size="80" color="on-surface" class="mb-2" />
         </div>
         <svg class="animate-spin w-16 h-16" viewBox="0 0 24 24">
           <path fill="currentColor" d="M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z" />
@@ -167,7 +173,7 @@ export default {
         cancelButtonTitle: this.$strings.ButtonReadMore
       })
       if (!confirmResult.value) {
-        window.open('https://github.com/advplyr/audiobookshelf/discussions/4460', '_blank')
+        window.open('https://github.com/AwsomeFox/audiobookshelf/discussions/4460', '_blank')
       }
     },
     checkIdUuid(userId) {
@@ -448,7 +454,6 @@ export default {
     },
     async connectToServer(config) {
       await this.$hapticsImpact()
-      console.log('[ServerConnectForm] connectToServer', config.address)
       this.processing = true
       this.serverConfig = {
         ...config
@@ -456,11 +461,9 @@ export default {
       this.showForm = true
       var success = await this.pingServerAddress(config.address)
       this.processing = false
-      console.log(`[ServerConnectForm] pingServer result ${success}`)
       if (!success) {
         this.showForm = false
         this.showAuth = false
-        console.log(`[ServerConnectForm] showForm ${this.showForm}`)
         return
       }
 
@@ -565,7 +568,6 @@ export default {
       }
       try {
         const response = await CapacitorHttp.get(options)
-        console.log('[ServerConnectForm] GET request response', response)
         if (response.status == 200) {
           return response
         } else {
@@ -593,7 +595,6 @@ export default {
         connectTimeout
       }
       const response = await CapacitorHttp.post(options)
-      console.log('[ServerConnectForm] POST request response', response)
       if (response.status >= 400) {
         throw new Error(response.data)
       } else {
@@ -789,7 +790,6 @@ export default {
         // Also for security reasons, we only retry when the https request did not
         //      return a http status code (so only retry when the TCP connection could not be established)
         if (shouldRetryWithHttp && typeof error.code !== 'number') {
-          console.log('[ServerConnectForm] https failed, trying to connect with http...')
           const validatedHttpUrl = this.validateServerUrl(address, 'http:')
           if (validatedHttpUrl) {
             return await this.getServerAddressStatus(validatedHttpUrl)
@@ -834,8 +834,6 @@ export default {
     },
     async setUserAndConnection({ user, userDefaultLibraryId, serverSettings, ereaderDevices }) {
       if (!user) return
-
-      console.log('Successfully logged in', JSON.stringify(user))
 
       this.$store.commit('setServerSettings', serverSettings)
       this.$store.commit('libraries/setEReaderDevices', ereaderDevices)
@@ -921,7 +919,6 @@ export default {
         }
         return false
       })
-      console.log('[ServerConnectForm] authRes=', authRes)
 
       this.processing = false
       return authRes
@@ -943,8 +940,12 @@ export default {
         }
       }
 
+      // Don't auto-connect if we're already processing or logged in
+      if (this.processing || this.loggedIn) {
+        return
+      }
+
       if (this.lastServerConnectionConfig) {
-        console.log('[ServerConnectForm] init with lastServerConnectionConfig', this.lastServerConnectionConfig)
         this.connectToServer(this.lastServerConnectionConfig)
       } else {
         this.showForm = !this.serverConnectionConfigs.length
@@ -953,6 +954,10 @@ export default {
   },
   mounted() {
     this.$eventBus.$on('url-open', this.appUrlOpen)
+    this.init()
+  },
+  activated() {
+    // Called when component is activated (e.g., when navigating back with keep-alive)
     this.init()
   },
   beforeDestroy() {

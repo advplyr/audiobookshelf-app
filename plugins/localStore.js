@@ -15,7 +15,7 @@ class LocalStorage {
 
   async getUserSettings() {
     try {
-      const settingsObj = await Preferences.get({ key: 'userSettings' }) || {}
+      const settingsObj = (await Preferences.get({ key: 'userSettings' })) || {}
       return settingsObj.value ? JSON.parse(settingsObj.value) : null
     } catch (error) {
       console.error('[LocalStorage] Failed to get user settings', error)
@@ -34,7 +34,7 @@ class LocalStorage {
 
   async getServerSettings() {
     try {
-      var settingsObj = await Preferences.get({ key: 'serverSettings' }) || {}
+      var settingsObj = (await Preferences.get({ key: 'serverSettings' })) || {}
       return settingsObj.value ? JSON.parse(settingsObj.value) : null
     } catch (error) {
       console.error('[LocalStorage] Failed to get server settings', error)
@@ -52,7 +52,7 @@ class LocalStorage {
 
   async getPlayerSettings() {
     try {
-      const playerSettingsObj = await Preferences.get({ key: 'playerSettings' }) || {}
+      const playerSettingsObj = (await Preferences.get({ key: 'playerSettings' })) || {}
       return playerSettingsObj.value ? JSON.parse(playerSettingsObj.value) : null
     } catch (error) {
       console.error('[LocalStorage] Failed to get player settings', error)
@@ -70,7 +70,7 @@ class LocalStorage {
 
   async getBookshelfListView() {
     try {
-      var obj = await Preferences.get({ key: 'bookshelfListView' }) || {}
+      var obj = (await Preferences.get({ key: 'bookshelfListView' })) || {}
       return obj.value === '1'
     } catch (error) {
       console.error('[LocalStorage] Failed to get bookshelf list view', error)
@@ -98,7 +98,7 @@ class LocalStorage {
 
   async getLastLibraryId() {
     try {
-      var obj = await Preferences.get({ key: 'lastLibraryId' }) || {}
+      var obj = (await Preferences.get({ key: 'lastLibraryId' })) || {}
       return obj.value || null
     } catch (error) {
       console.error('[LocalStorage] Failed to get last library id', error)
@@ -117,7 +117,7 @@ class LocalStorage {
 
   async getTheme() {
     try {
-      var obj = await Preferences.get({ key: 'theme' }) || {}
+      var obj = (await Preferences.get({ key: 'theme' })) || {}
       return obj.value || null
     } catch (error) {
       console.error('[LocalStorage] Failed to get theme', error)
@@ -136,31 +136,70 @@ class LocalStorage {
 
   async getLanguage() {
     try {
-      var obj = await Preferences.get({ key: 'lang' }) || {}
-      return obj.value || null
+      const langObj = (await Preferences.get({ key: 'language' })) || {}
+      return langObj.value || null
     } catch (error) {
-      console.error('[LocalStorage] Failed to get lang', error)
-      return false
+      console.error('[LocalStorage] Failed to get language', error)
+      return null
+    }
+  }
+
+  async setLastPlaybackSession(session) {
+    try {
+      await Preferences.set({ key: 'lastPlaybackSession', value: JSON.stringify(session) })
+      console.log('[LocalStorage] Saved last playback session', session.id)
+    } catch (error) {
+      console.error('[LocalStorage] Failed to save last playback session', error)
+    }
+  }
+
+  async getLastPlaybackSession() {
+    try {
+      const sessionObj = (await Preferences.get({ key: 'lastPlaybackSession' })) || {}
+      return sessionObj.value ? JSON.parse(sessionObj.value) : null
+    } catch (error) {
+      console.error('[LocalStorage] Failed to get last playback session', error)
+      return null
+    }
+  }
+
+  async removeLastPlaybackSession() {
+    try {
+      await Preferences.remove({ key: 'lastPlaybackSession' })
+      console.log('[LocalStorage] Removed last playback session')
+    } catch (error) {
+      console.error('[LocalStorage] Failed to remove last playback session', error)
     }
   }
 
   /**
    * Get preference value by key
-   * 
-   * @param {string} key 
-   * @returns {Promise<string>}
+   * @param {string} key
+   * @returns {any} preference value
    */
-  async getPreferenceByKey(key) {
+  async getPreference(key) {
     try {
-      const obj = await Preferences.get({ key }) || {}
-      return obj.value || null
+      const obj = (await Preferences.get({ key })) || {}
+      return obj.value ? JSON.parse(obj.value) : null
     } catch (error) {
-      console.error(`[LocalStorage] Failed to get preference "${key}"`, error)
+      console.error(`[LocalStorage] Failed to get preference ${key}`, error)
       return null
     }
   }
-}
 
+  /**
+   * Set preference by key/value
+   * @param {string} key
+   * @param {any} value
+   */
+  async setPreference(key, value) {
+    try {
+      await Preferences.set({ key, value: JSON.stringify(value) })
+    } catch (error) {
+      console.error(`[LocalStorage] Failed to set preference ${key}`, error)
+    }
+  }
+}
 
 export default ({ app, store }, inject) => {
   inject('localStore', new LocalStorage(store))

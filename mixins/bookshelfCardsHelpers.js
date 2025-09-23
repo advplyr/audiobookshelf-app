@@ -1,9 +1,5 @@
 import Vue from 'vue'
-import LazyBookCard from '@/components/cards/LazyBookCard'
 import LazyListBookCard from '@/components/cards/LazyListBookCard'
-import LazySeriesCard from '@/components/cards/LazySeriesCard'
-import LazyCollectionCard from '@/components/cards/LazyCollectionCard'
-import LazyPlaylistCard from '@/components/cards/LazyPlaylistCard'
 
 export default {
   data() {
@@ -15,11 +11,8 @@ export default {
   },
   methods: {
     getComponentClass() {
-      if (this.entityName === 'series') return Vue.extend(LazySeriesCard)
-      if (this.entityName === 'collections') return Vue.extend(LazyCollectionCard)
-      if (this.entityName === 'playlists') return Vue.extend(LazyPlaylistCard)
-      if (this.showBookshelfListView) return Vue.extend(LazyListBookCard)
-      return Vue.extend(LazyBookCard)
+      // Always use LazyListBookCard for all entities since we force list view everywhere
+      return Vue.extend(LazyListBookCard)
     },
     async mountEntityCard(index) {
       var shelf = Math.floor(index / this.entitiesPerShelf)
@@ -36,11 +29,11 @@ export default {
         bookComponent.isHovering = false
         return
       }
-      var shelfOffsetY = this.showBookshelfListView ? 8 : this.isBookEntity ? 24 : 16
-      var row = index % this.entitiesPerShelf
-
-      var marginShiftLeft = this.showBookshelfListView ? 0 : 12
-      var shelfOffsetX = row * this.totalEntityCardWidth + this.bookshelfMarginLeft + marginShiftLeft
+      // Since everything now uses list view, center the wider items within the shelf container
+      var availableWidth = this.bookshelfWidth - 32 // Container has px-4 padding (32px total)
+      var overflow = Math.max(0, this.entityWidth - availableWidth)
+      var shelfOffsetX = -overflow / 2 // Center by offsetting half the overflow to the left
+      var shelfOffsetY = 4
 
       var ComponentClass = this.getComponentClass()
       var props = {
@@ -71,9 +64,11 @@ export default {
       })
       this.entityComponentRefs[index] = instance
       instance.$mount()
-      instance.$el.style.transform = `translate3d(${shelfOffsetX}px, ${shelfOffsetY}px, 0px)`
 
+      // Since everything uses list view now, always use absolute positioning
+      instance.$el.style.transform = `translate3d(${shelfOffsetX}px, ${shelfOffsetY}px, 0px)`
       instance.$el.classList.add('absolute', 'top-0', 'left-0')
+
       shelfEl.appendChild(instance.$el)
 
       if (this.entities[index]) {
@@ -81,12 +76,12 @@ export default {
         instance.setEntity(entity)
 
         if (this.isBookEntity && !entity.isLocal) {
-          var localLibraryItem = this.localLibraryItems.find(lli => lli.libraryItemId == entity.id)
+          var localLibraryItem = this.localLibraryItems.find((lli) => lli.libraryItemId == entity.id)
           if (localLibraryItem) {
             instance.setLocalLibraryItem(localLibraryItem)
           }
         }
       }
-    },
+    }
   }
 }

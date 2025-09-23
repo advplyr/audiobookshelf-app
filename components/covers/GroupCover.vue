@@ -1,5 +1,5 @@
 <template>
-  <div ref="wrapper" :style="{ height: height + 'px', width: width + 'px' }" class="relative">
+  <div ref="wrapper" :style="{ height: height + 'px', width: width + 'px' }" class="relative overflow-hidden">
     <div v-if="noValidCovers" class="absolute top-0 left-0 w-full h-full flex items-center justify-center box-shadow-book" :style="{ padding: `${sizeMultiplier}rem` }">
       <p :style="{ fontSize: sizeMultiplier + 'rem' }">{{ name }}</p>
     </div>
@@ -91,13 +91,15 @@ export default {
 
       var imgdiv = document.createElement('div')
       imgdiv.style.height = this.height + 'px'
-      imgdiv.style.width = bgCoverWidth + 'px'
+      imgdiv.style.width = this.width + 'px' // Use width since it should equal height for square cards
       imgdiv.style.left = offsetLeft + 'px'
       imgdiv.style.zIndex = zIndex
       imgdiv.dataset.audiobookId = coverData.id
       imgdiv.dataset.volumeNumber = coverData.volumeNumber || ''
       imgdiv.className = 'absolute top-0 box-shadow-book transition-transform'
       imgdiv.style.boxShadow = '4px 0px 4px #11111166'
+      imgdiv.style.aspectRatio = '1 / 1' // Force square aspect ratio
+      imgdiv.style.overflow = 'hidden' // Ensure cropping works properly
       // imgdiv.style.transform = 'skew(0deg, 15deg)'
 
       if (showCoverBg) {
@@ -115,7 +117,9 @@ export default {
       var img = document.createElement('img')
       img.src = src
       img.className = 'absolute top-0 left-0 w-full h-full'
-      img.style.objectFit = showCoverBg ? 'contain' : 'cover'
+      img.style.objectFit = 'cover' // Force cover for square aspect ratio
+      img.style.aspectRatio = '1 / 1' // Force square aspect ratio
+      img.style.objectPosition = 'center center'
 
       imgdiv.appendChild(img)
       return imgdiv

@@ -6,7 +6,7 @@ export default {
   telemetry: false,
   env: {
     PROD: '1',
-    ANDROID_APP_URL: 'https://play.google.com/store/apps/details?id=com.audiobookshelf.app',
+    ANDROID_APP_URL: 'https://play.google.com/store/apps/details?id=com.tomesonic.app',
     IOS_APP_URL: ''
   },
 
@@ -15,7 +15,7 @@ export default {
   },
 
   head: {
-    title: 'Audiobookshelf',
+    title: 'TomeSonic',
     htmlAttrs: {
       lang: 'en'
     },
@@ -30,7 +30,7 @@ export default {
 
   css: ['@/assets/tailwind.css', '@/assets/app.css'],
 
-  plugins: ['@/plugins/server.js', '@/plugins/db.js', '@/plugins/localStore.js', '@/plugins/init.client.js', '@/plugins/axios.js', '@/plugins/capacitor/index.js', '@/plugins/capacitor/AbsAudioPlayer.js', '@/plugins/nativeHttp.js', '@/plugins/toast.js', '@/plugins/constants.js', '@/plugins/haptics.js', '@/plugins/i18n.js'],
+  plugins: ['@/plugins/server.js', '@/plugins/db.js', '@/plugins/localStore.js', '@/plugins/dynamicColor.early.client.js', '@/plugins/init.client.js', '@/plugins/axios.js', '@/plugins/capacitor/index.js', '@/plugins/capacitor/AbsAudioPlayer.js', '@/plugins/nativeHttp.js', '@/plugins/toast.js', '@/plugins/constants.js', '@/plugins/haptics.js', '@/plugins/i18n.js'],
 
   components: true,
 

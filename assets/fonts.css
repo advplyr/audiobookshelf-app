@@ -6,7 +6,7 @@
 }
 
 .material-symbols {
-  font-family: 'Material Symbols Rounded';
+  font-family: 'Material Symbols Rounded' !important;
   font-weight: normal;
   font-style: normal;
   line-height: 1;
@@ -20,9 +20,74 @@
   vertical-align: top;
 }
 
+/* Ensure Material Symbols override any Tailwind typography classes */
+.material-symbols.text-display-large,
+.material-symbols.text-display-medium,
+.material-symbols.text-display-small,
+.material-symbols.text-headline-large,
+.material-symbols.text-headline-medium,
+.material-symbols.text-headline-small,
+.material-symbols.text-title-large,
+.material-symbols.text-title-medium,
+.material-symbols.text-title-small,
+.material-symbols.text-body-large,
+.material-symbols.text-body-medium,
+.material-symbols.text-body-small,
+.material-symbols.text-label-large,
+.material-symbols.text-label-medium,
+.material-symbols.text-label-small {
+  font-family: 'Material Symbols Rounded' !important;
+}
+
 .material-symbols.fill {
   font-variation-settings:
     'FILL' 1
+}
+
+/* Google Sans - Material 3 Expressive Font */
+/* Light */
+@font-face {
+  font-family: 'Google Sans';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: local('Google Sans Light'), local('GoogleSans-Light');
+}
+
+/* Regular */
+@font-face {
+  font-family: 'Google Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Google Sans Regular'), local('GoogleSans-Regular');
+}
+
+/* Medium */
+@font-face {
+  font-family: 'Google Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: local('Google Sans Medium'), local('GoogleSans-Medium');
+}
+
+/* Bold */
+@font-face {
+  font-family: 'Google Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: local('Google Sans Bold'), local('GoogleSans-Bold');
+}
+
+/* Roboto Flex - Variable Font for Expressive Typography */
+@font-face {
+  font-family: 'Roboto Flex';
+  font-style: normal;
+  font-weight: 100 1000;
+  font-display: swap;
+  src: local('Roboto Flex Variable'), local('RobotoFlex-VariableFont');
 }
 
 /* cyrillic-ext */

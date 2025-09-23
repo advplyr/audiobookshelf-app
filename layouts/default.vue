@@ -1,10 +1,24 @@
 <template>
-  <div class="w-full layout-wrapper bg-bg">
+  <div class="w-full layout-wrapper" :class="{ 'full-height': isPlayerOpen && !isInBookshelfContext }">
     <app-appbar />
-    <div id="content" class="overflow-hidden relative" :class="isPlayerOpen ? 'playerOpen' : ''">
-      <Nuxt :key="currentLang" />
+    <div id="content" class="relative transition-all duration-300" :class="[isPlayerOpen ? 'playerOpen' : '', isInBookshelfContext ? 'has-bottom-nav' : '', isPlayerOpen && !isInBookshelfContext ? 'content-scrollable' : 'overflow-hidden']" :style="contentStyle">
+      <transition
+        name="page-transition"
+        mode="out-in"
+        @enter="onPageEnter"
+        @leave="onPageLeave"
+        enter-active-class="transition-all duration-500 ease-emphasized-decelerate"
+        leave-active-class="transition-all duration-300 ease-emphasized-accelerate"
+        enter-from-class="opacity-0 transform scale-90 translate-y-8"
+        enter-to-class="opacity-100 transform scale-100 translate-y-0"
+        leave-from-class="opacity-100 transform scale-100 translate-y-0"
+        leave-to-class="opacity-0 transform scale-95 translate-y-4"
+      >
+        <Nuxt :key="currentLang" />
+      </transition>
     </div>
     <app-audio-player-container ref="streamContainer" />
+    <home-bookshelf-nav-bar v-if="isInBookshelfContext" />
     <modals-libraries-modal />
     <modals-playlists-add-create-modal />
     <modals-select-local-folder-modal />
@@ -17,8 +31,12 @@
 <script>
 import { CapacitorHttp } from '@capacitor/core'
 import { AbsLogger } from '@/plugins/capacitor'
+import HomeBookshelfNavBar from '~/components/home/BookshelfNavBar.vue'
 
 export default {
+  components: {
+    HomeBookshelfNavBar
+  },
   data() {
     return {
       inittingLibraries: false,
@@ -64,6 +82,14 @@ export default {
     routeName() {
       return this.$route.name
     },
+    isInBookshelfContext() {
+      // Check if current route is bookshelf-related which has bottom navigation
+      return this.$route && this.$route.name && this.$route.name.startsWith('bookshelf')
+    },
+    contentStyle() {
+      // Padding is now handled by individual page content
+      return {}
+    },
     networkConnected() {
       return this.$store.state.networkConnected
     },
@@ -86,6 +112,15 @@ export default {
     }
   },
   methods: {
+    onPageEnter(el) {
+      // Optional: Add any additional page enter effects here
+      if (this.$haptics) {
+        this.$haptics.impactLight()
+      }
+    },
+    onPageLeave(el) {
+      // Optional: Add any additional page leave effects here
+    },
     initialStream(stream) {
       if (this.$refs.streamContainer?.audioPlayerReady) {
         this.$refs.streamContainer.streamOpen(stream)
@@ -98,6 +133,16 @@ export default {
       }
 
       await this.$store.dispatch('user/loadUserSettings')
+
+      // Initialize dynamic colors if enabled
+      if (this.$platform === 'android' && this.$store.state.user.settings.enableDynamicColors && this.$dynamicColor) {
+        try {
+          await this.$dynamicColor.loadSystemColors()
+          console.log('Dynamic colors initialized on app startup')
+        } catch (error) {
+          console.warn('Failed to initialize dynamic colors:', error)
+        }
+      }
     },
     async attemptConnection() {
       console.warn('[default] attemptConnection')
@@ -286,7 +331,7 @@ export default {
             newLocalMediaProgress = await this.$db.syncServerMediaProgressWithLocalMediaProgress(payload)
           }
         } else {
-          console.log(`[default] userMediaProgressUpdate no local media progress or lli found for this server item ${prog.id}`)
+          console.log(`[default] userMediaProgressUpdate no local media progress or lli found for this server item ${prog?.id || prog?.libraryItemId || 'unknown'}`)
         }
       }
 
@@ -364,3 +409,68 @@ export default {
   }
 }
 </script>
+
+<style>
+#content.playerOpen {
+  padding-bottom: 0px; /* No padding - views fill to nav bar */
+}
+
+#content {
+  padding-bottom: 0px; /* No padding - views fill to nav bar */
+}
+
+/* Material 3 Expressive Page Transitions */
+.page-transition-enter-active {
+  transition: all 500ms cubic-bezier(0.05, 0.7, 0.1, 1) !important;
+  z-index: 2;
+}
+
+.page-transition-leave-active {
+  transition: all 300ms cubic-bezier(0.3, 0, 0.8, 0.15) !important;
+  z-index: 1;
+}
+
+.page-transition-enter-from {
+  opacity: 0;
+  transform: scale(0.9) translateY(32px);
+  filter: blur(4px);
+}
+
+.page-transition-enter-to {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+  filter: blur(0);
+}
+
+.page-transition-leave-from {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+  filter: blur(0);
+}
+
+.page-transition-leave-to {
+  opacity: 0;
+  transform: scale(0.95) translateY(16px);
+  filter: blur(2px);
+}
+
+/* Prevent layout shift during transitions */
+.page-transition-enter-active,
+.page-transition-leave-active {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  background: rgb(var(--md-sys-color-surface));
+}
+
+/* Enhanced motion for bottom nav transitions */
+.has-bottom-nav .page-transition-enter-from {
+  transform: scale(0.92) translateY(24px);
+}
+
+.has-bottom-nav .page-transition-leave-to {
+  transform: scale(0.96) translateY(12px);
+}
+</style>

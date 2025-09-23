@@ -1,16 +1,16 @@
 <template>
-  <div class="w-full h-full px-4 py-8 overflow-y-auto">
+  <div class="w-full h-full px-6 py-8 overflow-y-auto" :style="contentPaddingStyle">
     <!-- Display settings -->
-    <p class="uppercase text-xs font-semibold text-fg-muted mb-2">{{ $strings.HeaderUserInterfaceSettings }}</p>
+    <p class="uppercase text-label-small font-semibold text-fg-muted mb-2">{{ $strings.HeaderUserInterfaceSettings }}</p>
     <div class="flex items-center py-3">
-      <div class="w-10 flex justify-center" @click="toggleEnableAltView">
+      <div class="w-12 flex justify-center mr-2" @click="toggleEnableAltView">
         <ui-toggle-switch v-model="enableBookshelfView" @input="saveSettings" />
       </div>
       <p class="pl-4">{{ $strings.LabelUseBookshelfView }}</p>
     </div>
     <!-- screen.orientation.lock not supported on iOS webview -->
     <div v-if="!isiOS" class="flex items-center py-3">
-      <div class="w-10 flex justify-center" @click.stop="toggleLockOrientation">
+      <div class="w-12 flex justify-center mr-2" @click.stop="toggleLockOrientation">
         <ui-toggle-switch v-model="lockCurrentOrientation" class="pointer-events-none" />
       </div>
       <p class="pl-4">{{ $strings.LabelLockOrientation }}</p>
@@ -18,51 +18,58 @@
     <div class="py-3 flex items-center">
       <p class="pr-4 w-36">{{ $strings.LabelHapticFeedback }}</p>
       <div @click.stop="showHapticFeedbackOptions">
-        <ui-text-input :value="hapticFeedbackOption" readonly append-icon="expand_more" style="max-width: 200px" />
+        <ui-text-input :value="hapticFeedbackOption" readonly append-icon="expand_more" variant="outlined" style="max-width: 200px" />
       </div>
     </div>
     <div class="py-3 flex items-center">
       <p class="pr-4 w-36">{{ $strings.LabelLanguage }}</p>
       <div @click.stop="showLanguageOptions">
-        <ui-text-input :value="languageOption" readonly append-icon="expand_more" style="max-width: 200px" />
+        <ui-text-input :value="languageOption" readonly append-icon="expand_more" variant="outlined" style="max-width: 200px" />
       </div>
     </div>
     <div class="py-3 flex items-center">
       <p class="pr-4 w-36">{{ $strings.LabelTheme }}</p>
       <div @click.stop="showThemeOptions">
-        <ui-text-input :value="themeOption" readonly append-icon="expand_more" style="max-width: 200px" />
+        <ui-text-input :value="themeOption" readonly append-icon="expand_more" variant="outlined" style="max-width: 200px" />
       </div>
+    </div>
+    <div v-if="$platform === 'android'" class="flex items-center py-3">
+      <div class="w-12 flex justify-center mr-2" @click="toggleDynamicColors">
+        <ui-toggle-switch v-model="settings.enableDynamicColors" @input="saveSettings" />
+      </div>
+      <p class="pl-4">{{ $strings.LabelUseDynamicColors || 'Use Dynamic Colors (Material You)' }}</p>
+      <span class="material-symbols text-display-small ml-2 text-on-surface" @click.stop="showInfo('dynamicColors')">info</span>
     </div>
 
     <!-- Playback settings -->
-    <p class="uppercase text-xs font-semibold text-fg-muted mb-2 mt-10">{{ $strings.HeaderPlaybackSettings }}</p>
+    <p class="uppercase text-label-small font-semibold text-fg-muted mb-2 mt-10">{{ $strings.HeaderPlaybackSettings }}</p>
     <div class="flex items-center py-3">
-      <div class="w-10 flex justify-center" @click="toggleDisableAutoRewind">
+      <div class="w-12 flex justify-center mr-2" @click="toggleDisableAutoRewind">
         <ui-toggle-switch v-model="settings.disableAutoRewind" @input="saveSettings" />
       </div>
       <p class="pl-4">{{ $strings.LabelDisableAutoRewind }}</p>
     </div>
     <div class="flex items-center py-3">
-      <div class="w-10 flex justify-center" @click="toggleJumpBackwards">
-        <span class="material-symbols text-4xl">{{ currentJumpBackwardsTimeIcon }}</span>
+      <div class="w-12 flex justify-center mr-2" @click="toggleJumpBackwards">
+        <span class="material-symbols text-display-large text-on-surface">{{ currentJumpBackwardsTimeIcon }}</span>
       </div>
       <p class="pl-4">{{ $strings.LabelJumpBackwardsTime }}</p>
     </div>
     <div class="flex items-center py-3">
-      <div class="w-10 flex justify-center" @click="toggleJumpForward">
-        <span class="material-symbols text-4xl">{{ currentJumpForwardTimeIcon }}</span>
+      <div class="w-12 flex justify-center mr-2" @click="toggleJumpForward">
+        <span class="material-symbols text-display-large text-on-surface">{{ currentJumpForwardTimeIcon }}</span>
       </div>
       <p class="pl-4">{{ $strings.LabelJumpForwardsTime }}</p>
     </div>
     <div v-if="!isiOS" class="flex items-center py-3">
-      <div class="w-10 flex justify-center" @click="toggleEnableMp3IndexSeeking">
+      <div class="w-12 flex justify-center mr-2" @click="toggleEnableMp3IndexSeeking">
         <ui-toggle-switch v-model="settings.enableMp3IndexSeeking" @input="saveSettings" />
       </div>
       <p class="pl-4">{{ $strings.LabelEnableMp3IndexSeeking }}</p>
-      <span class="material-symbols text-xl ml-2" @click.stop="showConfirmMp3IndexSeeking">info</span>
+      <span class="material-symbols text-display-small ml-2 text-on-surface" @click.stop="showConfirmMp3IndexSeeking">info</span>
     </div>
     <div class="flex items-center py-3">
-      <div class="w-10 flex justify-center" @click="toggleAllowSeekingOnMediaControls">
+      <div class="w-12 flex justify-center mr-2" @click="toggleAllowSeekingOnMediaControls">
         <ui-toggle-switch v-model="settings.allowSeekingOnMediaControls" @input="saveSettings" />
       </div>
       <p class="pl-4">{{ $strings.LabelAllowSeekingOnMediaControls }}</p>
@@ -70,107 +77,107 @@
 
     <!-- Sleep timer settings -->
     <template v-if="!isiOS">
-      <p class="uppercase text-xs font-semibold text-fg-muted mb-2 mt-10">{{ $strings.HeaderSleepTimerSettings }}</p>
+      <p class="uppercase text-label-small font-semibold text-fg-muted mb-2 mt-10">{{ $strings.HeaderSleepTimerSettings }}</p>
       <div class="flex items-center py-3">
-        <div class="w-10 flex justify-center" @click="toggleDisableShakeToResetSleepTimer">
+        <div class="w-12 flex justify-center mr-2" @click="toggleDisableShakeToResetSleepTimer">
           <ui-toggle-switch v-model="settings.disableShakeToResetSleepTimer" @input="saveSettings" />
         </div>
         <p class="pl-4">{{ $strings.LabelDisableShakeToReset }}</p>
-        <span class="material-symbols text-xl ml-2" @click.stop="showInfo('disableShakeToResetSleepTimer')">info</span>
+        <span class="material-symbols text-display-small ml-2 text-on-surface" @click.stop="showInfo('disableShakeToResetSleepTimer')">info</span>
       </div>
       <div v-if="!settings.disableShakeToResetSleepTimer" class="py-3 flex items-center">
         <p class="pr-4 w-36">{{ $strings.LabelShakeSensitivity }}</p>
         <div @click.stop="showShakeSensitivityOptions">
-          <ui-text-input :value="shakeSensitivityOption" readonly append-icon="expand_more" style="width: 145px; max-width: 145px" />
+          <ui-text-input :value="shakeSensitivityOption" readonly append-icon="expand_more" variant="outlined" style="width: 145px; max-width: 145px" />
         </div>
       </div>
     </template>
     <div class="flex items-center py-3">
-      <div class="w-10 flex justify-center" @click="toggleDisableSleepTimerFadeOut">
+      <div class="w-12 flex justify-center mr-2" @click="toggleDisableSleepTimerFadeOut">
         <ui-toggle-switch v-model="settings.disableSleepTimerFadeOut" @input="saveSettings" />
       </div>
       <p class="pl-4">{{ $strings.LabelDisableAudioFadeOut }}</p>
-      <span class="material-symbols text-xl ml-2" @click.stop="showInfo('disableSleepTimerFadeOut')">info</span>
+      <span class="material-symbols text-display-small ml-2 text-on-surface" @click.stop="showInfo('disableSleepTimerFadeOut')">info</span>
     </div>
     <template v-if="!isiOS">
       <div class="flex items-center py-3">
-        <div class="w-10 flex justify-center" @click="toggleDisableSleepTimerResetFeedback">
+        <div class="w-12 flex justify-center mr-2" @click="toggleDisableSleepTimerResetFeedback">
           <ui-toggle-switch v-model="settings.disableSleepTimerResetFeedback" @input="saveSettings" />
         </div>
         <p class="pl-4">{{ $strings.LabelDisableVibrateOnReset }}</p>
-        <span class="material-symbols text-xl ml-2" @click.stop="showInfo('disableSleepTimerResetFeedback')">info</span>
+        <span class="material-symbols text-display-small ml-2 text-on-surface" @click.stop="showInfo('disableSleepTimerResetFeedback')">info</span>
       </div>
       <div class="flex items-center py-3">
-        <div class="w-10 flex justify-center" @click="toggleSleepTimerAlmostDoneChime">
+        <div class="w-12 flex justify-center mr-2" @click="toggleSleepTimerAlmostDoneChime">
           <ui-toggle-switch v-model="settings.enableSleepTimerAlmostDoneChime" @input="saveSettings" />
         </div>
         <p class="pl-4">{{ $strings.LabelSleepTimerAlmostDoneChime }}</p>
-        <span class="material-symbols text-xl ml-2" @click.stop="showInfo('enableSleepTimerAlmostDoneChime')">info</span>
+        <span class="material-symbols text-display-small ml-2 text-on-surface" @click.stop="showInfo('enableSleepTimerAlmostDoneChime')">info</span>
       </div>
       <div class="flex items-center py-3">
-        <div class="w-10 flex justify-center" @click="toggleAutoSleepTimer">
+        <div class="w-12 flex justify-center mr-2" @click="toggleAutoSleepTimer">
           <ui-toggle-switch v-model="settings.autoSleepTimer" @input="saveSettings" />
         </div>
         <p class="pl-4">{{ $strings.LabelAutoSleepTimer }}</p>
-        <span class="material-symbols text-xl ml-2" @click.stop="showInfo('autoSleepTimer')">info</span>
+        <span class="material-symbols text-display-small ml-2 text-on-surface" @click.stop="showInfo('autoSleepTimer')">info</span>
       </div>
     </template>
     <!-- Auto Sleep timer settings -->
     <div v-if="settings.autoSleepTimer" class="py-3 flex items-center">
       <p class="pr-4 w-36">{{ $strings.LabelStartTime }}</p>
-      <ui-text-input type="time" v-model="settings.autoSleepTimerStartTime" style="width: 145px; max-width: 145px" @input="autoSleepTimerTimeUpdated" />
+      <ui-text-input type="time" v-model="settings.autoSleepTimerStartTime" variant="outlined" style="width: 145px; max-width: 145px" @input="autoSleepTimerTimeUpdated" />
     </div>
     <div v-if="settings.autoSleepTimer" class="py-3 flex items-center">
       <p class="pr-4 w-36">{{ $strings.LabelEndTime }}</p>
-      <ui-text-input type="time" v-model="settings.autoSleepTimerEndTime" style="width: 145px; max-width: 145px" @input="autoSleepTimerTimeUpdated" />
+      <ui-text-input type="time" v-model="settings.autoSleepTimerEndTime" variant="outlined" style="width: 145px; max-width: 145px" @input="autoSleepTimerTimeUpdated" />
     </div>
     <div v-if="settings.autoSleepTimer" class="py-3 flex items-center">
       <p class="pr-4 w-36">{{ $strings.LabelSleepTimer }}</p>
       <div @click.stop="showSleepTimerOptions">
-        <ui-text-input :value="sleepTimerLengthOption" readonly append-icon="expand_more" style="width: 145px; max-width: 145px" />
+        <ui-text-input :value="sleepTimerLengthOption" readonly append-icon="expand_more" variant="outlined" style="width: 145px; max-width: 145px" />
       </div>
     </div>
     <div v-if="settings.autoSleepTimer" class="flex items-center py-3">
-      <div class="w-10 flex justify-center" @click="toggleAutoSleepTimerAutoRewind">
+      <div class="w-12 flex justify-center mr-2" @click="toggleAutoSleepTimerAutoRewind">
         <ui-toggle-switch v-model="settings.autoSleepTimerAutoRewind" @input="saveSettings" />
       </div>
       <p class="pl-4">{{ $strings.LabelAutoSleepTimerAutoRewind }}</p>
-      <span class="material-symbols text-xl ml-2" @click.stop="showInfo('autoSleepTimerAutoRewind')">info</span>
+      <span class="material-symbols text-display-small ml-2 text-on-surface" @click.stop="showInfo('autoSleepTimerAutoRewind')">info</span>
     </div>
     <div v-if="settings.autoSleepTimerAutoRewind" class="py-3 flex items-center">
       <p class="pr-4 w-36">{{ $strings.LabelAutoRewindTime }}</p>
       <div @click.stop="showAutoSleepTimerRewindOptions">
-        <ui-text-input :value="autoSleepTimerRewindLengthOption" readonly append-icon="expand_more" style="width: 145px; max-width: 145px" />
+        <ui-text-input :value="autoSleepTimerRewindLengthOption" readonly append-icon="expand_more" variant="outlined" style="width: 145px; max-width: 145px" />
       </div>
     </div>
 
     <!-- Data settings -->
-    <p class="uppercase text-xs font-semibold text-fg-muted mb-2 mt-10">{{ $strings.HeaderDataSettings }}</p>
+    <p class="uppercase text-label-small font-semibold text-fg-muted mb-2 mt-10">{{ $strings.HeaderDataSettings }}</p>
     <div class="py-3 flex items-center">
       <p class="pr-4 w-36">{{ $strings.LabelDownloadUsingCellular }}</p>
       <div @click.stop="showDownloadUsingCellularOptions">
-        <ui-text-input :value="downloadUsingCellularOption" readonly append-icon="expand_more" style="max-width: 200px" />
+        <ui-text-input :value="downloadUsingCellularOption" readonly append-icon="expand_more" variant="outlined" style="max-width: 200px" />
       </div>
     </div>
     <div class="py-3 flex items-center">
       <p class="pr-4 w-36">{{ $strings.LabelStreamingUsingCellular }}</p>
       <div @click.stop="showStreamingUsingCellularOptions">
-        <ui-text-input :value="streamingUsingCellularOption" readonly append-icon="expand_more" style="max-width: 200px" />
+        <ui-text-input :value="streamingUsingCellularOption" readonly append-icon="expand_more" variant="outlined" style="max-width: 200px" />
       </div>
     </div>
 
     <!-- Android Auto settings -->
     <template v-if="!isiOS">
-      <p class="uppercase text-xs font-semibold text-fg-muted mb-2 mt-10">{{ $strings.HeaderAndroidAutoSettings }}</p>
+      <p class="uppercase text-label-small font-semibold text-fg-muted mb-2 mt-10">{{ $strings.HeaderAndroidAutoSettings }}</p>
       <div class="py-3 flex items-center">
         <p class="pr-4 w-36">{{ $strings.LabelAndroidAutoBrowseLimitForGrouping }}</p>
-        <ui-text-input type="number" v-model="settings.androidAutoBrowseLimitForGrouping" style="width: 145px; max-width: 145px" @input="androidAutoBrowseLimitForGroupingUpdated" />
-        <span class="material-symbols text-xl ml-2" @click.stop="showInfo('androidAutoBrowseLimitForGrouping')">info</span>
+        <ui-text-input type="number" v-model="settings.androidAutoBrowseLimitForGrouping" variant="outlined" style="width: 145px; max-width: 145px" @input="androidAutoBrowseLimitForGroupingUpdated" />
+        <span class="material-symbols text-display-small ml-2 text-on-surface" @click.stop="showInfo('androidAutoBrowseLimitForGrouping')">info</span>
       </div>
       <div class="py-3 flex items-center">
         <p class="pr-4 w-36">{{ $strings.LabelAndroidAutoBrowseSeriesSequenceOrder }}</p>
         <div @click.stop="showAndroidAutoBrowseSeriesSequenceOrderOptions">
-          <ui-text-input :value="androidAutoBrowseSeriesSequenceOrderOption" readonly append-icon="expand_more" style="max-width: 200px" />
+          <ui-text-input :value="androidAutoBrowseSeriesSequenceOrderOption" readonly append-icon="expand_more" variant="outlined" style="max-width: 200px" />
         </div>
       </div>
     </template>
@@ -221,9 +228,10 @@ export default {
         downloadUsingCellular: 'ALWAYS',
         streamingUsingCellular: 'ALWAYS',
         androidAutoBrowseLimitForGrouping: 100,
-        androidAutoBrowseSeriesSequenceOrder: 'ASC'
+        androidAutoBrowseSeriesSequenceOrder: 'ASC',
+        enableDynamicColors: true
       },
-      theme: 'dark',
+      theme: 'system',
       lockCurrentOrientation: false,
       settingInfo: {
         disableShakeToResetSleepTimer: {
@@ -241,6 +249,10 @@ export default {
         disableSleepTimerResetFeedback: {
           name: this.$strings.LabelDisableVibrateOnReset,
           message: this.$strings.LabelDisableVibrateOnResetHelp
+        },
+        dynamicColors: {
+          name: 'Dynamic Colors',
+          message: 'Use Material You dynamic colors based on your wallpaper. Available on Android 12+ devices. The app will restart to apply changes.'
         },
         enableSleepTimerAlmostDoneChime: {
           name: this.$strings.LabelSleepTimerAlmostDoneChime,
@@ -364,15 +376,15 @@ export default {
     themeOptionItems() {
       return [
         {
-          text: this.$strings.LabelThemeBlack,
-          value: 'black'
+          text: this.$strings.LabelThemeSystem || 'System',
+          value: 'system'
         },
         {
-          text: this.$strings.LabelThemeDark,
+          text: this.$strings.LabelThemeDark || 'Dark',
           value: 'dark'
         },
         {
-          text: this.$strings.LabelThemeLight,
+          text: this.$strings.LabelThemeLight || 'Light',
           value: 'light'
         }
       ]
@@ -435,6 +447,9 @@ export default {
       else if (this.moreMenuSetting === 'streamingUsingCellular') return this.streamingUsingCellularItems
       else if (this.moreMenuSetting === 'androidAutoBrowseSeriesSequenceOrder') return this.androidAutoBrowseSeriesSequenceOrderItems
       return []
+    },
+    contentPaddingStyle() {
+      return this.$store.getters['getIsPlayerOpen'] ? { paddingBottom: '120px' } : {}
     }
   },
   methods: {
@@ -506,7 +521,56 @@ export default {
       }
     },
     saveTheme(theme) {
-      document.documentElement.dataset.theme = theme
+      console.log('=== THEME CHANGE DEBUG ===')
+      console.log('New theme requested:', theme)
+      console.log('Current document theme:', document.documentElement.dataset.theme)
+      console.log('Dynamic colors enabled:', this.settings.enableDynamicColors)
+      console.log('DynamicColor service available:', !!this.$dynamicColor)
+
+      if (theme === 'system') {
+        // Use system theme - detect and apply based on Android system preference
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        console.log('System prefers dark mode:', prefersDark)
+        document.documentElement.dataset.theme = prefersDark ? 'dark' : 'light'
+        console.log('Applied document theme:', document.documentElement.dataset.theme)
+
+        // Listen for system theme changes
+        if (window.matchMedia) {
+          const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+          mediaQuery.addEventListener('change', (e) => {
+            if (this.theme === 'system') {
+              console.log('System theme changed, new dark mode:', e.matches)
+              document.documentElement.dataset.theme = e.matches ? 'dark' : 'light'
+              // Reapply Material You colors for the new theme
+              if (this.$dynamicColor && this.settings.enableDynamicColors) {
+                console.log('Reapplying Material You colors for system theme change')
+                this.$dynamicColor.initialize('system')
+              }
+            }
+          })
+        }
+      } else if (theme === 'dark') {
+        // Use Material You dark theme
+        console.log('Applying dark theme to document')
+        document.documentElement.dataset.theme = 'dark'
+      } else if (theme === 'light') {
+        // Use Material You light theme
+        console.log('Applying light theme to document')
+        document.documentElement.dataset.theme = 'light'
+      }
+
+      // Apply Material You colors for all themes if enabled - pass the theme parameter
+      if (this.$dynamicColor && this.settings.enableDynamicColors) {
+        console.log('Calling Material You initialize with theme:', theme)
+        this.$dynamicColor.initialize(theme)
+      } else if (!this.$dynamicColor) {
+        console.log('DynamicColor service not available - Material You colors will not be applied')
+      } else if (!this.settings.enableDynamicColors) {
+        console.log('Dynamic colors disabled in settings - skipping Material You colors')
+      }
+
+      console.log('=== END THEME CHANGE DEBUG ===')
+
       this.$localStore.setTheme(theme)
     },
     autoSleepTimerTimeUpdated(val) {
@@ -581,6 +645,24 @@ export default {
       this.settings.allowSeekingOnMediaControls = !this.settings.allowSeekingOnMediaControls
       this.saveSettings()
     },
+    async toggleDynamicColors() {
+      this.settings.enableDynamicColors = !this.settings.enableDynamicColors
+      this.saveSettings()
+
+      // Apply or remove dynamic colors immediately
+      if (this.$dynamicColor) {
+        if (this.settings.enableDynamicColors) {
+          // Get current theme and pass it to initialize
+          const currentTheme = this.theme || 'system'
+          await this.$dynamicColor.initialize(currentTheme)
+          this.$toast.info('Material You colors enabled', { timeout: 2000 })
+        } else {
+          // Clear dynamic colors and use static Material 3 theme
+          this.$dynamicColor.clearDynamicColors()
+          this.$toast.info('Using static Material 3 theme', { timeout: 2000 })
+        }
+      }
+    },
     getCurrentOrientation() {
       const orientation = window.screen?.orientation || {}
       const type = orientation.type || ''
@@ -650,12 +732,18 @@ export default {
       this.settings.downloadUsingCellular = deviceSettings.downloadUsingCellular || 'ALWAYS'
       this.settings.streamingUsingCellular = deviceSettings.streamingUsingCellular || 'ALWAYS'
 
+      this.settings.enableDynamicColors = deviceSettings.enableDynamicColors !== undefined ? deviceSettings.enableDynamicColors : true
+
       this.settings.androidAutoBrowseLimitForGrouping = deviceSettings.androidAutoBrowseLimitForGrouping
       this.settings.androidAutoBrowseSeriesSequenceOrder = deviceSettings.androidAutoBrowseSeriesSequenceOrder || 'ASC'
     },
     async init() {
       this.loading = true
-      this.theme = (await this.$localStore.getTheme()) || 'dark'
+      this.theme = (await this.$localStore.getTheme()) || 'system'
+
+      // Apply theme immediately
+      this.saveTheme(this.theme)
+
       this.deviceData = await this.$db.getDeviceData()
       this.$store.commit('setDeviceData', this.deviceData)
       this.setDeviceSettings()

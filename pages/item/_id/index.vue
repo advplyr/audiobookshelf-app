@@ -1,8 +1,8 @@
 <template>
-  <div v-if="!libraryItem" class="w-full h-full relative flex items-center justify-center bg-bg">
+  <div v-if="!libraryItem" class="w-full h-full relative flex items-center justify-center bg-surface-dynamic">
     <ui-loading-indicator />
   </div>
-  <div v-else id="item-page" class="w-full h-full overflow-y-auto overflow-x-hidden relative bg-bg">
+  <div v-else id="item-page" class="w-full h-full overflow-y-auto overflow-x-hidden relative bg-surface-dynamic" :style="contentPaddingStyle">
     <!-- cover -->
     <div class="w-full flex justify-center relative">
       <div style="width: 0; transform: translateX(-50vw); overflow: visible">
@@ -33,7 +33,7 @@
             <widgets-explicit-indicator v-if="isExplicit" />
             <widgets-abridged-indicator v-if="isAbridged" />
           </div>
-          <p v-if="subtitle" class="text-fg text-base">{{ subtitle }}</p>
+          <p v-if="subtitle" class="text-on-surface text-base">{{ subtitle }}</p>
         </div>
 
         <div v-if="hasLocal" class="mx-1">
@@ -51,30 +51,30 @@
         <!-- action buttons -->
         <div class="col-span-full">
           <div v-if="showPlay || showRead" class="flex mt-4 -mx-1">
-            <ui-btn v-if="showPlay" color="success" class="flex items-center justify-center flex-grow mx-1" :loading="playerIsStartingForThisMedia" :padding-x="4" @click="playClick">
-              <span class="material-symbols text-2xl fill">{{ playerIsPlaying ? 'pause' : 'play_arrow' }}</span>
-              <span class="px-1 text-sm">{{ playerIsPlaying ? $strings.ButtonPause : isPodcast ? $strings.ButtonNextEpisode : hasLocal ? $strings.ButtonPlay : $strings.ButtonStream }}</span>
+            <ui-btn v-if="showPlay" color="primary" class="flex items-center justify-center flex-grow mx-1" :loading="playerIsStartingForThisMedia" :padding-x="4" @click="playClick">
+              <span class="material-symbols text-2xl fill text-on-primary">{{ playerIsPlaying ? 'pause' : 'play_arrow' }}</span>
+              <span class="px-1 text-sm text-on-primary">{{ playerIsPlaying ? $strings.ButtonPause : isPodcast ? $strings.ButtonNextEpisode : hasLocal ? $strings.ButtonPlay : $strings.ButtonStream }}</span>
             </ui-btn>
-            <ui-btn v-if="showRead" color="info" class="flex items-center justify-center mx-1" :class="showPlay ? '' : 'flex-grow'" :padding-x="2" @click="readBook">
-              <span class="material-symbols text-2xl">auto_stories</span>
+            <ui-btn v-if="showRead" variant="tonal" color="secondary" class="flex items-center justify-center mx-1" :class="showPlay ? '' : 'flex-grow'" :padding-x="2" @click="readBook">
+              <span class="material-symbols text-2xl text-on-surface">auto_stories</span>
               <span v-if="!showPlay" class="px-2 text-base">{{ $strings.ButtonRead }} {{ ebookFormat }}</span>
             </ui-btn>
-            <ui-btn v-if="showDownload" :color="downloadItem ? 'warning' : 'primary'" class="flex items-center justify-center mx-1" :padding-x="2" @click="downloadClick">
-              <span class="material-symbols text-2xl" :class="downloadItem || startingDownload ? 'animate-pulse' : ''">{{ downloadItem || startingDownload ? 'downloading' : 'download' }}</span>
+            <ui-btn v-if="showDownload" variant="tonal" color="secondary" class="flex items-center justify-center mx-1" :padding-x="2" @click="downloadClick">
+              <span class="material-symbols text-2xl text-on-surface" :class="downloadItem || startingDownload ? 'animate-pulse' : ''">{{ downloadItem || startingDownload ? 'downloading' : 'download' }}</span>
             </ui-btn>
-            <ui-btn color="primary" class="flex items-center justify-center mx-1" :padding-x="2" @click="moreButtonPress">
-              <span class="material-symbols text-2xl">more_vert</span>
+            <ui-btn variant="tonal" color="secondary" class="flex items-center justify-center mx-1" :padding-x="2" @click="moreButtonPress">
+              <span class="material-symbols text-2xl text-on-surface">more_vert</span>
             </ui-btn>
           </div>
           <ui-btn v-else-if="isMissing" color="error" :padding-x="4" small class="mt-4 flex items-center justify-center w-full" @click="clickMissingButton">
-            <span class="material-symbols">error</span>
+            <span class="material-symbols text-error">error</span>
             <span class="px-1 text-base">{{ $strings.LabelMissing }}</span>
           </ui-btn>
 
-          <div v-if="!isPodcast && progressPercent > 0" class="px-4 py-2 bg-primary text-sm font-semibold rounded-md text-fg mt-4 text-center">
-            <p>{{ $strings.LabelYourProgress }}: {{ Math.round(progressPercent * 100) }}%</p>
-            <p v-if="!useEBookProgress && !userIsFinished" class="text-fg-muted text-xs">{{ $getString('LabelTimeRemaining', [$elapsedPretty(userTimeRemaining)]) }}</p>
-            <p v-else-if="userIsFinished" class="text-fg-muted text-xs">{{ $strings.LabelFinished }} {{ $formatDate(userProgressFinishedAt) }}</p>
+          <div v-if="!isPodcast && progressPercent > 0" class="px-4 py-3 bg-surface-container text-on-surface text-sm font-medium rounded-2xl border border-outline-variant mt-4 text-center shadow-elevation-1">
+            <p class="text-base font-semibold text-on-surface">{{ $strings.LabelYourProgress }}: {{ Math.round(progressPercent * 100) }}%</p>
+            <p v-if="!useEBookProgress && !userIsFinished" class="text-on-surface-variant text-xs mt-1">{{ $getString('LabelTimeRemaining', [$elapsedPretty(userTimeRemaining)]) }}</p>
+            <p v-else-if="userIsFinished" class="text-on-surface-variant text-xs mt-1">{{ $strings.LabelFinished }} {{ $formatDate(userProgressFinishedAt) }}</p>
           </div>
         </div>
 
@@ -139,9 +139,9 @@
         <div v-if="description" class="w-full py-2">
           <div ref="description" class="default-style less-spacing text-sm text-justify whitespace-pre-line font-light" :class="{ 'line-clamp-4': !showFullDescription }" style="hyphens: auto" v-html="description" />
 
-          <div v-if="descriptionClamped" class="text-fg text-sm py-2" @click="showFullDescription = !showFullDescription">
+          <div v-if="descriptionClamped" class="text-on-surface text-sm py-2" @click="showFullDescription = !showFullDescription">
             {{ showFullDescription ? $strings.ButtonReadLess : $strings.ButtonReadMore }}
-            <span class="material-symbols !align-middle text-base -mt-px">{{ showFullDescription ? 'arrow_drop_up' : 'arrow_drop_down' }}</span>
+            <span class="material-symbols !align-middle text-base -mt-px text-on-surface">{{ showFullDescription ? 'arrow_drop_up' : 'arrow_drop_down' }}</span>
           </div>
         </div>
 
@@ -163,6 +163,14 @@
 
     <modals-fullscreen-cover v-model="showFullscreenCover" :library-item="libraryItem" />
 
+    <modals-confirm-dialog
+      v-model="showConfirmDialog"
+      :title="confirmDialogTitle"
+      :message="confirmDialogMessage"
+      @confirm="handleConfirm"
+      @cancel="handleCancel"
+    />
+
     <div v-show="processing" class="fixed top-0 left-0 w-screen h-screen flex items-center justify-center bg-black/50 z-50">
       <ui-loading-indicator />
     </div>
@@ -170,7 +178,6 @@
 </template>
 
 <script>
-import { Dialog } from '@capacitor/dialog'
 import { AbsFileSystem, AbsDownloader } from '@/plugins/capacitor'
 import { FastAverageColor } from 'fast-average-color'
 import cellularPermissionHelpers from '@/mixins/cellularPermissionHelpers'
@@ -221,7 +228,13 @@ export default {
       descriptionClamped: false,
       showFullDescription: false,
       episodeStartingPlayback: null,
-      startingDownload: false
+      startingDownload: false,
+      showConfirmDialog: false,
+      confirmDialogTitle: '',
+      confirmDialogMessage: '',
+      pendingConfirmAction: null,
+      pendingPlaybackData: null,
+      pendingDownloadFolder: null
     }
   },
   mixins: [cellularPermissionHelpers],
@@ -484,6 +497,9 @@ export default {
     },
     coverHeight() {
       return this.coverWidth * this.bookCoverAspectRatio
+    },
+    contentPaddingStyle() {
+      return this.$store.getters['getIsPlayerOpen'] ? { paddingBottom: '120px' } : {}
     }
   },
   methods: {
@@ -583,15 +599,15 @@ export default {
 
         // If start time and is not already streaming then ask for confirmation
         if (startTime !== null && startTime !== undefined && !this.$store.getters['getIsMediaStreaming'](libraryItemId, null)) {
-          const { value } = await Dialog.confirm({
-            title: 'Confirm',
-            message: `Start playback for "${this.title}" at ${this.$secondsToTimestamp(startTime)}?`
-          })
-          if (!value) return
+          this.confirmDialogTitle = 'Confirm'
+          this.confirmDialogMessage = `Start playback for "${this.title}" at ${this.$secondsToTimestamp(startTime)}?`
+          this.pendingConfirmAction = 'startPlayback'
+          this.pendingPlaybackData = { libraryItemId, serverLibraryItemId: this.serverLibraryItemId, startTime }
+          this.showConfirmDialog = true
+          return
         }
 
-        this.$store.commit('setPlayerIsStartingPlayback', libraryItemId)
-        this.$eventBus.$emit('play-item', { libraryItemId, serverLibraryItemId: this.serverLibraryItemId, startTime })
+        this.executeStartPlayback(libraryItemId, this.serverLibraryItemId, startTime)
       }
     },
     itemUpdated(libraryItem) {
@@ -614,6 +630,7 @@ export default {
       this.download(localFolder)
     },
     async downloadClick() {
+      console.log('downloadClick called')
       if (this.downloadItem || this.startingDownload) return
 
       const hasPermission = await this.checkCellularPermission('download')
@@ -645,6 +662,7 @@ export default {
         console.log('Folders with media type', this.mediaType, foldersWithMediaType.length)
         const internalStorageFolder = foldersWithMediaType.find((f) => f.id === `internal-${this.mediaType}`)
         if (!foldersWithMediaType.length) {
+          // Use internal app storage as default
           localFolder = {
             id: `internal-${this.mediaType}`,
             name: this.$strings.LabelInternalAppStorage,
@@ -663,22 +681,17 @@ export default {
         }
       }
 
-      console.log('Local folder', JSON.stringify(localFolder))
-      let startDownloadMessage = `Start download for "${this.title}" with ${this.numTracks} audio track${this.numTracks == 1 ? '' : 's'} to folder ${localFolder.name}?`
-      if (!this.isIos && this.showRead) {
-        if (this.numTracks > 0) {
-          startDownloadMessage = `Start download for "${this.title}" with ${this.numTracks} audio track${this.numTracks == 1 ? '' : 's'} and ebook file to folder ${localFolder.name}?`
-        } else {
-          startDownloadMessage = `Start download for "${this.title}" with ebook file to folder ${localFolder.name}?`
+      // Check if the selected folder is in app's external storage
+      if (localFolder && !this.isIos) {
+        const appExternalFolder = await AbsFileSystem.getAppExternalFolder({ mediaType: this.mediaType })
+        if (appExternalFolder && localFolder.absolutePath && !localFolder.absolutePath.startsWith(appExternalFolder.absolutePath)) {
+          this.$toast.warning('Warning: Files in this location will not be automatically cleaned up when the app is uninstalled.')
         }
       }
-      const { value } = await Dialog.confirm({
-        title: 'Confirm',
-        message: startDownloadMessage
-      })
-      if (value) {
-        this.startDownload(localFolder)
-      }
+
+      console.log('Local folder', JSON.stringify(localFolder))
+      // Start download immediately without confirmation dialog
+      this.startDownload(localFolder)
     },
     async startDownload(localFolder = null) {
       const payload = {
@@ -760,7 +773,6 @@ export default {
       }
     },
     async loadServerLibraryItem() {
-      console.log(`Fetching library item "${this.libraryItemId}" from server`)
       const libraryItem = await this.$nativeHttp.get(`/api/items/${this.libraryItemId}?expanded=1&include=rssfeed`, { connectTimeout: 5000 }).catch((error) => {
         console.error('Failed', error)
         return null
@@ -780,7 +792,23 @@ export default {
         this.$toast.error('Failed to get library item from server')
         return this.$router.replace('/bookshelf')
       }
+    },
+    executeStartPlayback(libraryItemId, serverLibraryItemId, startTime) {
+      this.$store.commit('setPlayerIsStartingPlayback', libraryItemId)
+      this.$eventBus.$emit('play-item', { libraryItemId, serverLibraryItemId, startTime })
     }
+  },
+  handleConfirm() {
+    if (this.pendingConfirmAction === 'startPlayback') {
+      this.executeStartPlayback(this.pendingPlaybackData.libraryItemId, this.pendingPlaybackData.serverLibraryItemId, this.pendingPlaybackData.startTime)
+      this.pendingPlaybackData = null
+    }
+    this.pendingConfirmAction = null
+  },
+  handleCancel() {
+    this.pendingConfirmAction = null
+    this.pendingPlaybackData = null
+    this.pendingDownloadFolder = null
   },
   async mounted() {
     if (!this.libraryItem) {

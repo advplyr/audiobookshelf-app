@@ -2,7 +2,7 @@
   <div class="bg-bg rounded-md shadow-lg border border-white border-opacity-5 p-2 sm:p-4 mb-4">
     <!-- hack to get icon fonts loaded on init -->
     <div class="h-0 w-0 overflow-hidden opacity-0">
-      <span class="material-symbols">close</span>
+      <span class="material-symbols text-on-surface">close</span>
       <span class="abs-icons icon-audiobookshelf" />
     </div>
 
@@ -14,12 +14,12 @@
 
     <!-- your year in review -->
     <div v-if="showYearInReview">
-      <div class="w-full h-px bg-slate-200/10 my-4" />
+      <div class="w-full h-px bg-outline-variant my-4" />
 
       <div class="flex items-center justify-center mb-2 max-w-[800px] mx-auto">
         <!-- previous button -->
         <ui-btn small :disabled="!yearInReviewVariant || processingYearInReview" class="inline-flex items-center font-semibold" @click="yearInReviewVariant--">
-          <span class="material-symbols text-lg sm:pr-1 py-px sm:py-0">chevron_left</span>
+          <span class="material-symbols text-lg sm:pr-1 py-px sm:py-0 text-on-surface">chevron_left</span>
           <span class="hidden sm:inline-block pr-2">Previous</span>
         </ui-btn>
         <!-- share button -->
@@ -33,12 +33,12 @@
         <!-- refresh button -->
         <ui-btn small :disabled="processingYearInReview" class="inline-flex items-center font-semibold mr-1 sm:mr-2" @click="refreshYearInReview">
           <span class="hidden sm:inline-block">Refresh</span>
-          <span class="material-symbols sm:!hidden text-lg py-px">refresh</span>
+          <span class="material-symbols sm:!hidden text-lg py-px text-on-surface">refresh</span>
         </ui-btn>
         <!-- next button -->
         <ui-btn small :disabled="yearInReviewVariant >= 2 || processingYearInReview" class="inline-flex items-center font-semibold" @click="yearInReviewVariant++">
           <span class="hidden sm:inline-block pl-2">Next</span>
-          <span class="material-symbols text-lg sm:pl-1 py-px sm:py-0">chevron_right</span>
+          <span class="material-symbols text-lg sm:pl-1 py-px sm:py-0 text-on-surface">chevron_right</span>
         </ui-btn>
       </div>
       <stats-year-in-review ref="yearInReview" :variant="yearInReviewVariant" :year="yearInReviewYear" :processing.sync="processingYearInReview" />
@@ -55,7 +55,7 @@
         <div class="flex items-center justify-center mb-2">
           <!-- previous button -->
           <ui-btn small :disabled="!yearInReviewServerVariant || processingYearInReviewServer" class="inline-flex items-center font-semibold" @click="yearInReviewServerVariant--">
-            <span class="material-symbols text-lg sm:pr-1 py-px sm:py-0">chevron_left</span>
+            <span class="material-symbols text-lg sm:pr-1 py-px sm:py-0 text-on-surface">chevron_left</span>
             <span class="hidden sm:inline-block pr-2">Previous</span>
           </ui-btn>
           <!-- share button -->
@@ -69,12 +69,12 @@
           <!-- refresh button -->
           <ui-btn small :disabled="processingYearInReviewServer" class="inline-flex items-center font-semibold mr-1 sm:mr-2" @click="refreshYearInReviewServer">
             <span class="hidden sm:inline-block">Refresh</span>
-            <span class="material-symbols sm:!hidden text-lg py-px">refresh</span>
+            <span class="material-symbols sm:!hidden text-lg py-px text-on-surface">refresh</span>
           </ui-btn>
           <!-- next button -->
           <ui-btn small :disabled="yearInReviewServerVariant >= 2 || processingYearInReviewServer" class="inline-flex items-center font-semibold" @click="yearInReviewServerVariant++">
             <span class="hidden sm:inline-block pl-2">Next</span>
-            <span class="material-symbols text-lg sm:pl-1 py-px sm:py-0">chevron_right</span>
+            <span class="material-symbols text-lg sm:pl-1 py-px sm:py-0 text-on-surface">chevron_right</span>
           </ui-btn>
         </div>
       </div>

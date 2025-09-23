@@ -6,17 +6,17 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>com.audiobookshelf.app</string>
+			<string>com.tomesonic.app</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>audiobookshelf</string>
+				<string>tomesonic</string>
 			</array>
 		</dict>
 	</array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>Audiobookshelf</string>
+	<string>TomeSonic</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

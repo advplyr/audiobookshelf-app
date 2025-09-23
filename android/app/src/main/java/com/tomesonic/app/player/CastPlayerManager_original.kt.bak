@@ -1,0 +1,28 @@
+// MIGRATION-DEFERRED: CAST - This entire file is temporarily disabled for migration
+package com.audiobookshelf.app.player
+
+import com.audiobookshelf.app.data.PlaybackSession
+
+// Temporary stub to prevent compilation errors during migration
+class CastPlayerManager(
+    private val service: PlayerNotificationService
+) {
+    companion object {
+        const val PLAYER_CAST = "cast-player"
+        const val PLAYER_EXO = "exo-player"
+    }
+    
+    val castPlayer: CastPlayer? = null
+    var isSwitchingPlayer = false
+    
+    fun initializeCastPlayer(castContext: Any) {}
+    fun release() {}
+    
+    fun getMediaPlayer(currentPlayer: Any): String {
+        return PLAYER_EXO
+    }
+    
+    fun canUseCastPlayer(playbackSession: PlaybackSession): Boolean {
+        return false
+    }
+}

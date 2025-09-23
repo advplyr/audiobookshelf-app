@@ -1,25 +1,25 @@
 <template>
-  <div class="w-full h-full px-3 py-4 overflow-y-auto relative bg-bg">
+  <div class="w-full h-full px-3 py-4 overflow-y-auto relative bg-surface-dynamic" :style="contentPaddingStyle">
     <p class="mb-4 text-lg font-semibold">History for {{ displayTitle }}</p>
 
     <div v-if="!mediaEvents.length" class="text-center py-8">
-      <p class="text-fg">No History</p>
+      <p class="text-on-surface">No History</p>
     </div>
 
     <div v-for="(events, name) in groupedMediaEvents" :key="name" class="py-2">
-      <p class="my-2 text-fg-muted font-semibold">{{ name }}</p>
+      <p class="my-2 text-on-surface-variant font-semibold">{{ name }}</p>
       <div v-for="(evt, index) in events" :key="index" class="py-3 flex items-center">
-        <p class="text-sm text-fg-muted w-12">{{ $formatDate(evt.timestamp, 'HH:mm') }}</p>
+        <p class="text-sm text-on-surface-variant w-12">{{ $formatDate(evt.timestamp, 'HH:mm') }}</p>
         <span class="material-symbols fill px-2" :class="`text-${getEventColor(evt.name)}`">{{ getEventIcon(evt.name) }}</span>
-        <p class="text-sm text-fg px-1">{{ evt.name }}</p>
+        <p class="text-sm text-on-surface px-1">{{ evt.name }}</p>
 
         <span v-if="evt.serverSyncAttempted && evt.serverSyncSuccess" class="material-symbols px-1 text-base text-success">cloud_done</span>
         <span v-if="evt.serverSyncAttempted && !evt.serverSyncSuccess" class="material-symbols px-1 text-base text-error">error_outline</span>
 
-        <p v-if="evt.num" class="text-sm text-fg-muted italic px-1">+{{ evt.num }}</p>
+        <p v-if="evt.num" class="text-sm text-on-surface-variant italic px-1">+{{ evt.num }}</p>
 
         <div class="flex-grow" />
-        <p class="text-base text-fg" @click="clickPlaybackTime(evt.currentTime)">{{ $secondsToTimestampFull(evt.currentTime) }}</p>
+        <p class="text-base text-on-surface" @click="clickPlaybackTime(evt.currentTime)">{{ $secondsToTimestampFull(evt.currentTime) }}</p>
       </div>
     </div>
   </div>
@@ -126,6 +126,9 @@ export default {
     playerIsStartingPlayback() {
       // Play has been pressed and waiting for native play response
       return this.$store.state.playerIsStartingPlayback
+    },
+    contentPaddingStyle() {
+      return this.$store.getters['getIsPlayerOpen'] ? { paddingBottom: '120px' } : {}
     }
   },
   methods: {
@@ -191,7 +194,6 @@ export default {
       if (mediaItemHistory.id !== this.mediaItemHistory.id) {
         return
       }
-      console.log('Media Item History updated')
 
       this.mediaItemHistory = mediaItemHistory
     }

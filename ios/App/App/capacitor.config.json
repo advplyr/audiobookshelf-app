@@ -1,6 +1,6 @@
 {
-	"appId": "com.audiobookshelf.app",
-	"appName": "audiobookshelf-app",
+	"appId": "com.tomesonic.app",
+	"appName": "TomeSonic",
 	"webDir": "dist",
 	"plugins": {
 		"CapacitorHttp": {
@@ -8,24 +8,25 @@
 		},
 		"StatusBar": {
 			"backgroundColor": "#232323",
-			"style": "DARK"
+			"style": "DEFAULT"
 		}
 	},
 	"server": {
 		"androidScheme": "http"
 	},
 	"packageClassList": [
-		"FileSharerPlugin",
 		"KeepAwakePlugin",
 		"VolumeButtonsPlugin",
 		"AppPlugin",
 		"CAPBrowserPlugin",
 		"ClipboardPlugin",
+		"DevicePlugin",
 		"DialogPlugin",
 		"HapticsPlugin",
 		"CAPNetworkPlugin",
 		"PreferencesPlugin",
 		"StatusBarPlugin",
+		"FileSharerPlugin",
 		"CDVPlugin"
 	]
 }

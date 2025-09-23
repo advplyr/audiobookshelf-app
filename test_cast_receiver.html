@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Audiobookshelf Cast Receiver</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            background: #1a1a1a;
+            color: white;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            text-align: center;
+        }
+
+        .status {
+            font-size: 18px;
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 8px;
+            background: #2a2a2a;
+            max-width: 600px;
+        }
+
+        .status.success { background: #0d4d1a; color: #4ade80; }
+        .status.error { background: #4d1a1a; color: #f87171; }
+        .status.loading { background: #1a2d4d; color: #60a5fa; }
+
+        .debug-info {
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: left;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            max-width: 800px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Cast Receiver</h1>
+
+    <div class="status" id="status">Initializing...</div>
+
+    <div class="debug-info" id="debug-info">
+        <div>🚀 Test Cast Receiver Starting...</div>
+    </div>
+
+    <script src="//www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
+    <script src="//www.gstatic.com/cast/sdk/libs/devtools/cast_debug_logger.js"></script>
+    <script>
+        function log(message, type = 'info') {
+            const debugDiv = document.getElementById('debug-info');
+            const timestamp = new Date().toLocaleTimeString();
+            const emoji = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
+            debugDiv.innerHTML += `<div>${emoji} [${timestamp}] ${message}</div>`;
+            debugDiv.scrollTop = debugDiv.scrollHeight;
+        }
+
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+
+        // Simple test receiver with enhanced debugging
+        window.addEventListener('load', () => {
+            log('📱 Test Cast Receiver loaded');
+            updateStatus('Testing Cast framework...', 'loading');
+
+            try {
+                // Check if Cast framework is available
+                if (typeof cast === 'undefined' || !cast.framework) {
+                    throw new Error('Cast framework not available');
+                }
+
+                log(`📱 Cast framework version: ${cast.framework.VERSION || 'unknown'}`);
+
+                // Initialize Cast Debug Logger for detailed diagnostics
+                if (typeof cast.debug !== 'undefined' && cast.debug.CastDebugLogger) {
+                    log('🔍 Initializing Cast Debug Logger for enhanced diagnostics');
+
+                    const castDebugLogger = cast.debug.CastDebugLogger.getInstance();
+
+                    // Enable verbose logging for all categories
+                    castDebugLogger.setEnabled(true);
+                    castDebugLogger.showDebugLogs(true);
+
+                    // Configure logging levels (most verbose)
+                    if (cast.debug.LoggerLevel) {
+                        castDebugLogger.loggerLevelByEvents = {
+                            'cast.framework.events.category.REQUEST': cast.debug.LoggerLevel.DEBUG,
+                            'cast.framework.events.category.MEDIA': cast.debug.LoggerLevel.DEBUG,
+                            'cast.framework.events.category.CORE': cast.debug.LoggerLevel.DEBUG,
+                            'cast.framework.events.EventType.PLAYER_LOAD_COMPLETE': cast.debug.LoggerLevel.DEBUG,
+                            'cast.framework.events.EventType.ERROR': cast.debug.LoggerLevel.DEBUG,
+                            'cast.framework.events.EventType.PLAYING': cast.debug.LoggerLevel.DEBUG,
+                            'cast.framework.events.EventType.PAUSE': cast.debug.LoggerLevel.DEBUG,
+                            'cast.framework.messages.MessageType.LOAD': cast.debug.LoggerLevel.DEBUG
+                        };
+                    }
+
+                    // Add custom log handler to display Cast logs in our UI
+                    castDebugLogger.loggerLevelByTags = {};
+
+                    // Intercept console messages to also display in our UI
+                    const originalConsoleLog = console.log;
+                    const originalConsoleError = console.error;
+                    const originalConsoleWarn = console.warn;
+
+                    console.log = function(...args) {
+                        originalConsoleLog.apply(console, args);
+                        const message = args.join(' ');
+                        if (message.includes('cast.framework') || message.includes('CastDebugLogger')) {
+                            log(`[Cast Debug] ${message}`, 'info');
+                        }
+                    };
+
+                    console.error = function(...args) {
+                        originalConsoleError.apply(console, args);
+                        const message = args.join(' ');
+                        if (message.includes('cast.framework') || message.includes('CastDebugLogger')) {
+                            log(`[Cast Error] ${message}`, 'error');
+                        }
+                    };
+
+                    console.warn = function(...args) {
+                        originalConsoleWarn.apply(console, args);
+                        const message = args.join(' ');
+                        if (message.includes('cast.framework') || message.includes('CastDebugLogger')) {
+                            log(`[Cast Warning] ${message}`, 'warning');
+                        }
+                    };
+
+                    log('✅ Cast Debug Logger initialized - detailed logs will appear both here and in browser console');
+                    log('🔍 Check browser DevTools Console for comprehensive Cast diagnostics');
+                } else {
+                    log('⚠️ Cast Debug Logger not available - limited diagnostics', 'warning');
+                }
+
+                const context = cast.framework.CastReceiverContext.getInstance();
+                const playerManager = context.getPlayerManager();
+
+                if (!context || !playerManager) {
+                    throw new Error('Failed to get Cast context or player manager');
+                }
+
+                log('✅ Cast context and player manager obtained');
+
+                // Set up basic event listeners
+                playerManager.addEventListener(
+                    cast.framework.events.EventType.PLAYER_LOAD_COMPLETE,
+                    () => {
+                        log('✅ Media loaded successfully');
+                        updateStatus('Media loaded', 'success');
+                    }
+                );
+
+                playerManager.addEventListener(
+                    cast.framework.events.EventType.PLAYING,
+                    () => {
+                        log('▶️ Playback started');
+                        updateStatus('Playing', 'success');
+                    }
+                );
+
+                playerManager.addEventListener(
+                    cast.framework.events.EventType.PAUSE,
+                    () => {
+                        log('⏸️ Playback paused');
+                        updateStatus('Paused', 'loading');
+                    }
+                );
+
+                playerManager.addEventListener(
+                    cast.framework.events.EventType.ERROR,
+                    (errorEvent) => {
+                        const error = errorEvent.detailedErrorCode || errorEvent.error;
+                        log(`❌ Player error: ${JSON.stringify(error)}`, 'error');
+                        log(`🔍 Error event details: ${JSON.stringify(errorEvent)}`, 'error');
+
+                        // Detailed error analysis
+                        if (error === 905) {
+                            log(`🎯 ERROR 905 (LOAD_FAILED) Analysis:`, 'error');
+                            log(`   This means the Cast receiver cannot load the media URL`, 'error');
+                            log(`   Common causes:`, 'error');
+                            log(`   1. Network connectivity issues between Cast device and server`, 'error');
+                            log(`   2. Server CORS configuration blocking Cast origin`, 'error');
+                            log(`   3. Authentication/authorization issues`, 'error');
+                            log(`   4. Malformed or inaccessible URL`, 'error');
+                            log(`   5. Server not responding or returning errors`, 'error');
+                            log(`   6. Content-Type header issues`, 'error');
+                            updateStatus('LOAD_FAILED - Check diagnostics above', 'error');
+                        } else if (error === 900) {
+                            log(`🎯 ERROR 900 (INVALID_PLAYER_STATE):`, 'error');
+                            log(`   Player received command in invalid state`, 'error');
+                            updateStatus('Invalid player state', 'error');
+                        } else if (error === 901) {
+                            log(`🎯 ERROR 901 (LOAD_CANCELLED):`, 'error');
+                            log(`   Media load was cancelled`, 'error');
+                            updateStatus('Load cancelled', 'error');
+                        } else {
+                            log(`🎯 Unknown error code: ${error}`, 'error');
+                            updateStatus(`Unknown error: ${error}`, 'error');
+                        }
+
+                        // Log media information if available
+                        const mediaInfo = playerManager.getMediaInformation();
+                        if (mediaInfo) {
+                            log(`📱 Media info at time of error:`, 'error');
+                            log(`   - Content ID: ${mediaInfo.contentId}`, 'error');
+                            log(`   - Content Type: ${mediaInfo.contentType}`, 'error');
+                            log(`   - Stream Type: ${mediaInfo.streamType}`, 'error');
+                            log(`   - Duration: ${mediaInfo.duration}`, 'error');
+                            if (mediaInfo.customData) {
+                                log(`   - Custom Data: ${JSON.stringify(mediaInfo.customData)}`, 'error');
+                            }
+                        }
+                    }
+                );
+
+                // Set up LOAD message interceptor with URL testing
+                playerManager.setMessageInterceptor(
+                    cast.framework.messages.MessageType.LOAD,
+                    (loadRequest) => {
+                        const url = loadRequest.media.contentId;
+                        log(`📥 LOAD request received from sender`);
+                        log(`🔗 ORIGINAL URL from Android: ${url}`);
+                        log(`📱 Content type: ${loadRequest.media.contentType}`);
+                        log(`📱 Stream type: ${loadRequest.media.streamType}`);
+                        log(`📱 Stream duration: ${loadRequest.media.streamDuration}`);
+
+                        // Log complete loadRequest structure
+                        log(`📋 Complete LOAD request structure:`);
+                        log(`${JSON.stringify(loadRequest, null, 2)}`);
+
+                        // CRITICAL: Don't modify the URL - use exactly what Android sends
+                        log(`🎯 Using EXACT URL from Android without modification`);
+
+                        // Compare with how default receiver would handle this
+                        log(`🔍 DEFAULT RECEIVER SIMULATION:`);
+                        log(`   Would use URL: ${url}`);
+                        log(`   Would use content type: ${loadRequest.media.contentType || 'auto-detect'}`);
+                        log(`   Would ignore custom data: ${loadRequest.media.customData ? 'YES' : 'NO'}`);
+
+                        // Comprehensive URL accessibility testing
+                        log(`🔗 Testing URL accessibility for: ${url}`);
+
+                        // Parse URL details
+                        try {
+                            const urlObj = new URL(url);
+                            log(`📊 URL breakdown:`);
+                            log(`   - Protocol: ${urlObj.protocol}`);
+                            log(`   - Host: ${urlObj.host}`);
+                            log(`   - Port: ${urlObj.port || 'default'}`);
+                            log(`   - Path: ${urlObj.pathname}`);
+                            log(`   - Query: ${urlObj.search}`);
+                            log(`   - Hash: ${urlObj.hash}`);
+                        } catch (e) {
+                            log(`❌ Invalid URL format: ${e.message}`, 'error');
+                        }
+
+                        // Test 1: Basic HEAD request with no-cors
+                        fetch(url, { method: 'HEAD', mode: 'no-cors' })
+                            .then(() => {
+                                log(`✅ Test 1: Basic HEAD request succeeded (no-cors mode)`);
+                            })
+                            .catch((error) => {
+                                log(`❌ Test 1: Basic HEAD failed: ${error.name} - ${error.message}`, 'error');
+                            });
+
+                        // Test 2: HEAD request with CORS
+                        fetch(url, { method: 'HEAD' })
+                            .then(response => {
+                                log(`✅ Test 2: CORS HEAD request succeeded: ${response.status} ${response.statusText}`);
+                                log(`📄 Response headers:`);
+                                for (const [key, value] of response.headers.entries()) {
+                                    log(`      ${key}: ${value}`);
+                                }
+
+                                // Check for critical headers
+                                const contentType = response.headers.get('content-type');
+                                const contentLength = response.headers.get('content-length');
+                                const acceptRanges = response.headers.get('accept-ranges');
+                                const corsOrigin = response.headers.get('access-control-allow-origin');
+
+                                log(`🔍 Critical headers analysis:`);
+                                log(`   - Content-Type: ${contentType || 'NOT SET'}`);
+                                log(`   - Content-Length: ${contentLength || 'NOT SET'}`);
+                                log(`   - Accept-Ranges: ${acceptRanges || 'NOT SET'}`);
+                                log(`   - CORS Origin: ${corsOrigin || 'NOT SET'}`);
+
+                                if (!contentType) {
+                                    log(`⚠️ Missing Content-Type header may cause media loading issues`, 'warning');
+                                }
+                                if (!acceptRanges || acceptRanges !== 'bytes') {
+                                    log(`⚠️ Missing or invalid Accept-Ranges header may prevent seeking`, 'warning');
+                                }
+                            })
+                            .catch((error) => {
+                                log(`❌ Test 2: CORS HEAD failed: ${error.name} - ${error.message}`, 'error');
+                                log(`🔍 CORS failure details:`);
+                                log(`   - Error type: ${error.constructor.name}`);
+                                log(`   - This suggests server doesn't allow cross-origin requests`);
+                            });
+
+                        // Test 3: GET request for first few bytes
+                        fetch(url, {
+                            method: 'GET',
+                            headers: { 'Range': 'bytes=0-1023' }
+                        })
+                            .then(response => {
+                                log(`✅ Test 3: Range request succeeded: ${response.status} ${response.statusText}`);
+                                return response.arrayBuffer();
+                            })
+                            .then(buffer => {
+                                log(`✅ Test 3: Downloaded ${buffer.byteLength} bytes successfully`);
+
+                                // Check if it looks like audio data
+                                const view = new Uint8Array(buffer);
+                                const header = Array.from(view.slice(0, 4)).map(b => b.toString(16).padStart(2, '0')).join('');
+                                log(`🔍 File header: ${header}`);
+
+                                // Common audio file signatures
+                                if (header.startsWith('494433')) { // ID3
+                                    log(`🎵 Detected MP3 file with ID3 tag`);
+                                } else if (header === '66747970') { // ftyp
+                                    log(`🎵 Detected MP4/M4A file`);
+                                } else if (header === '4f676753') { // OggS
+                                    log(`🎵 Detected OGG file`);
+                                } else if (header === '52494646') { // RIFF
+                                    log(`🎵 Detected WAV file`);
+                                } else {
+                                    log(`⚠️ Unknown file format, header: ${header}`, 'warning');
+                                }
+                            })
+                            .catch((error) => {
+                                log(`❌ Test 3: Range request failed: ${error.name} - ${error.message}`, 'error');
+                                log(`🔍 Range request failure may indicate server doesn't support partial content`);
+                            });
+
+                        // Test 4: Simple GET request
+                        setTimeout(() => {
+                            log(`🔗 Test 4: Attempting simple GET request...`);
+                            fetch(url)
+                                .then(response => {
+                                    log(`✅ Test 4: Simple GET succeeded: ${response.status} ${response.statusText}`);
+                                    if (response.ok) {
+                                        log(`✅ Response indicates success - Cast should be able to access this URL`);
+                                    } else {
+                                        log(`⚠️ Non-success status code may cause Cast loading issues`, 'warning');
+                                    }
+                                })
+                                .catch((error) => {
+                                    log(`❌ Test 4: Simple GET failed: ${error.name} - ${error.message}`, 'error');
+                                    log(`🔍 This is the most likely cause of Cast error 905`);
+                                });
+                        }, 1000);
+
+                        // Log custom data if present
+                        if (loadRequest.media.customData) {
+                            log(`📊 Custom data: ${JSON.stringify(loadRequest.media.customData, null, 2)}`);
+                        }
+
+                        // CRITICAL CHECK: Ensure we don't accidentally modify the URL
+                        if (loadRequest.media.contentId !== url) {
+                            log(`🚨 WARNING: Content ID was modified!`, 'error');
+                            log(`   Original: ${url}`, 'error');
+                            log(`   Modified: ${loadRequest.media.contentId}`, 'error');
+                        }
+
+                        // Ensure content type is set
+                        if (!loadRequest.media.contentType) {
+                            loadRequest.media.contentType = 'audio/mpeg';
+                            log('🔧 Set content type to audio/mpeg');
+                        }
+
+                        // Log what we're actually returning to Cast framework
+                        log(`📤 Returning to Cast framework:`);
+                        log(`   URL: ${loadRequest.media.contentId}`);
+                        log(`   Content Type: ${loadRequest.media.contentType}`);
+                        log(`   Stream Type: ${loadRequest.media.streamType}`);
+
+                        updateStatus('Loading media...', 'loading');
+                        return loadRequest;
+                    }
+                );
+
+                // Start the receiver
+                context.start();
+                log('🚀 Cast receiver started successfully');
+                updateStatus('Ready for casting', 'success');
+
+            } catch (error) {
+                log(`💥 Initialization failed: ${error.message}`, 'error');
+                updateStatus('Initialization failed', 'error');
+
+                // Log detailed information for debugging
+                log(`🔍 Cast object: ${typeof cast}`, 'info');
+                log(`🔍 Framework: ${typeof cast?.framework}`, 'info');
+                log(`🔍 Current URL: ${window.location.href}`, 'info');
+            }
+        });
+
+        // Handle any unhandled errors
+        window.addEventListener('error', (event) => {
+            log(`💥 JavaScript error: ${event.error?.message || event.message}`, 'error');
+            updateStatus('JavaScript Error', 'error');
+        });
+    </script>
+</body>
+</html>

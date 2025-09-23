@@ -1,12 +1,12 @@
 <template>
-  <div class="w-full h-full px-3 py-4 overflow-y-auto overflow-x-hidden relative bg-bg">
+  <div class="w-full h-full px-3 py-4 overflow-y-auto overflow-x-hidden relative bg-surface-dynamic">
     <div class="flex mb-2">
       <div class="w-10 min-w-10">
         <covers-preview-cover :src="coverUrl" :width="40" :book-cover-aspect-ratio="bookCoverAspectRatio" :show-resolution="false" class="md:hidden" />
       </div>
       <div class="flex-grow px-2">
         <div class="-mt-0.5 mb-0.5">
-          <nuxt-link :to="`/item/${libraryItemId}`" class="text-sm text-fg underline">{{ podcast.metadata.title }}</nuxt-link>
+          <nuxt-link :to="`/item/${libraryItemId}`" class="text-sm text-on-surface underline">{{ podcast.metadata.title }}</nuxt-link>
         </div>
         <p v-if="publishedAt" class="text-xs text-fg-muted">{{ $dateDistanceFromNow(publishedAt) }}</p>
       </div>
@@ -30,14 +30,14 @@
     <!-- action buttons -->
     <div class="flex mt-4 -mx-1">
       <ui-btn color="success" class="flex items-center justify-center flex-grow mx-1" :loading="playerIsStartingForThisMedia" :padding-x="4" @click="playClick">
-        <span class="material-symbols text-2xl fill">{{ playerIsPlaying ? 'pause' : 'play_arrow' }}</span>
+        <span class="material-symbols text-2xl fill text-on-surface">{{ playerIsPlaying ? 'pause' : 'play_arrow' }}</span>
         <span class="px-1 text-sm">{{ playerIsPlaying ? $strings.ButtonPause : localEpisodeId ? $strings.ButtonPlay : $strings.ButtonStream }}</span>
       </ui-btn>
       <ui-btn v-if="showDownload" :color="downloadItem ? 'warning' : 'primary'" class="flex items-center justify-center mx-1" :padding-x="2" @click="downloadClick">
-        <span class="material-symbols text-2xl" :class="downloadItem || startingDownload ? 'animate-pulse' : ''">{{ downloadItem || startingDownload ? 'downloading' : 'download' }}</span>
+        <span class="material-symbols text-2xl text-on-surface" :class="downloadItem || startingDownload ? 'animate-pulse' : ''">{{ downloadItem || startingDownload ? 'downloading' : 'download' }}</span>
       </ui-btn>
       <ui-btn color="primary" class="flex items-center justify-center mx-1" :padding-x="2" @click="showMoreMenu = true">
-        <span class="material-symbols text-2xl">more_vert</span>
+        <span class="material-symbols text-2xl text-on-surface">more_vert</span>
       </ui-btn>
     </div>
 
@@ -69,7 +69,6 @@ export default {
 
     if (libraryItemId.startsWith('local')) {
       libraryItem = await app.$db.getLocalLibraryItem(libraryItemId)
-      console.log('Got lli', libraryItemId)
     } else if (store.state.user.serverConnectionConfig) {
       libraryItem = await app.$nativeHttp.get(`/api/items/${libraryItemId}?expanded=1`).catch((error) => {
         console.error('Failed', error)
@@ -79,7 +78,6 @@ export default {
       if (libraryItem) {
         const localLibraryItem = await app.$db.getLocalLibraryItemByLId(libraryItemId)
         if (localLibraryItem) {
-          console.log('Library item has local library item also', localLibraryItem.id)
           libraryItem.localLibraryItem = localLibraryItem
 
           localEpisode = localLibraryItem.media.episodes.find((ep) => ep.serverEpisodeId === episodeId)
@@ -205,7 +203,10 @@ export default {
     },
     coverUrl() {
       if (this.isLocal) {
-        if (!this.libraryItem.coverContentUrl) return '/book_placeholder.jpg'
+        if (!this.libraryItem.coverContentUrl) {
+          // Return material symbol placeholder
+          return 'material-symbol:book'
+        }
         return Capacitor.convertFileSrc(this.libraryItem.coverContentUrl)
       }
       return this.$store.getters['globals/getLibraryItemCoverSrcById'](this.libraryItemId)

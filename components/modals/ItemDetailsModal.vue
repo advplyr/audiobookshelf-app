@@ -1,18 +1,19 @@
 <template>
   <modals-modal v-model="show" :width="400" height="100%">
-    <template #outer>
-      <div class="absolute top-11 left-4 z-40">
-        <p class="text-white text-2xl truncate">{{ $strings.HeaderDetails }}</p>
-      </div>
-    </template>
+    <div class="w-full h-full overflow-hidden absolute top-0 left-0 flex items-center justify-center" data-modal-backdrop >
+      <div class="w-full overflow-x-hidden overflow-y-auto bg-surface rounded-lg border border-outline-variant shadow-elevation-4 backdrop-blur-md p-2" style="max-height: 75%" >
+        <!-- Material 3 Modal Header -->
+        <div class="px-4 py-4 border-b border-outline-variant">
+          <h2 class="text-headline-small text-on-surface font-medium">{{ $strings.HeaderDetails }}</h2>
+        </div>
 
-    <div class="w-full h-full overflow-hidden absolute top-0 left-0 flex items-center justify-center" @click="show = false">
-      <div class="w-full overflow-x-hidden overflow-y-auto bg-primary rounded-lg border border-border p-2" style="max-height: 75%" @click.stop>
-        <p class="mb-2">{{ mediaMetadata.title }}</p>
+        <div class="p-4">
+          <p class="mb-2 text-on-surface">{{ mediaMetadata.title }}</p>
 
-        <div v-if="size" class="text-sm mb-2">{{ $strings.LabelSize }}: {{ $bytesPretty(size) }}</div>
+          <div v-if="size" class="text-sm mb-2 text-on-surface">{{ $strings.LabelSize }}: {{ $bytesPretty(size) }}</div>
 
-        <p class="mb-1 text-xs text-fg">ID: {{ _libraryItem.id }}</p>
+          <p class="mb-1 text-xs text-on-surface-variant">ID: {{ _libraryItem.id }}</p>
+        </div>
       </div>
     </div>
   </modals-modal>

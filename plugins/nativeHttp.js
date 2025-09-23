@@ -228,6 +228,47 @@ export default function ({ store, $db, $socket }, inject) {
       }
     },
 
+    // Cast Device Methods
+    async getCastDevices() {
+      try {
+        const { AbsAudioPlayer } = await import('@/plugins/capacitor')
+        return await AbsAudioPlayer.getCastDevices()
+      } catch (error) {
+        console.error('[nativeHttp] Failed to get cast devices:', error)
+        throw error
+      }
+    },
+
+    async connectToCastDevice(deviceId) {
+      try {
+        const { AbsAudioPlayer } = await import('@/plugins/capacitor')
+        return await AbsAudioPlayer.connectToCastDevice({ deviceId })
+      } catch (error) {
+        console.error('[nativeHttp] Failed to connect to cast device:', error)
+        throw error
+      }
+    },
+
+    async disconnectFromCastDevice() {
+      try {
+        const { AbsAudioPlayer } = await import('@/plugins/capacitor')
+        return await AbsAudioPlayer.disconnectFromCastDevice()
+      } catch (error) {
+        console.error('[nativeHttp] Failed to disconnect from cast device:', error)
+        throw error
+      }
+    },
+
+    async getCurrentCastDevice() {
+      try {
+        const { AbsAudioPlayer } = await import('@/plugins/capacitor')
+        return await AbsAudioPlayer.getCurrentCastDevice()
+      } catch (error) {
+        console.error('[nativeHttp] Failed to get current cast device:', error)
+        throw error
+      }
+    },
+
     get(url, options = {}) {
       return this.request('GET', url, undefined, options)
     },

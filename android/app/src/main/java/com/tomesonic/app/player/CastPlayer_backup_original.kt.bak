@@ -1,0 +1,9 @@
+// MIGRATION-DEFERRED: CAST - This entire file is temporarily disabled for migration
+// Original CastPlayer.kt content will be restored and migrated to Media3 in Step 7
+
+package com.audiobookshelf.app.player
+
+// Temporary stub to prevent compilation errors
+class CastPlayer {
+    // This is a temporary stub - full implementation deferred until after main migration
+}

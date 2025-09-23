@@ -1,0 +1,2003 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Audiobookshelf Cast Receiver v2024 - Modern</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            background: radial-gradient(ellipse at center, #1e1e1e 0%, #0a0a0a 100%);
+            color: white;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif;
+            text-align: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            flex-direction: column;
+            padding: 20px;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        .receiver-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            max-width: 80%;
+            animation: slideIn 0.8s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(50px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .media-artwork {
+            width: 280px;
+            height: 280px;
+            border-radius: 16px;
+            margin-bottom: 40px;
+            background: linear-gradient(135deg, #333, #666);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 64px;
+            color: #999;
+            box-shadow: 0 16px 48px rgba(0,0,0,0.4);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.5s ease;
+        }
+
+        .media-artwork::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg,
+                transparent 30%,
+                rgba(255,255,255,0.05) 50%,
+                transparent 70%);
+            animation: shimmer 3s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .media-artwork img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 16px;
+            z-index: 1;
+            position: relative;
+        }
+
+        .media-content {
+            text-align: center;
+            max-width: 100%;
+        }
+
+        .media-title {
+            font-size: 2.8em;
+            font-weight: 600;
+            margin: 0 0 16px 0;
+            text-shadow: 0 3px 6px rgba(0,0,0,0.6);
+            line-height: 1.2;
+            background: linear-gradient(45deg, #fff, #e0e0e0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .media-subtitle {
+            font-size: 1.6em;
+            color: #ddd;
+            margin: 0 0 8px 0;
+            font-weight: 400;
+            opacity: 0.9;
+        }
+
+        .media-author {
+            font-size: 1.2em;
+            color: #bbb;
+            margin: 0 0 30px 0;
+            font-style: italic;
+            opacity: 0.8;
+        }
+
+        .playback-controls {
+            width: 100%;
+            max-width: 500px;
+            margin: 20px 0;
+        }
+
+        .controls-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 30px;
+            margin-bottom: 20px;
+        }
+
+        .control-button {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            user-select: none;
+        }
+
+        .control-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+            transform: scale(1.05);
+        }
+
+        .control-button:active {
+            transform: scale(0.95);
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .control-button.clicked {
+            animation: buttonClick 0.3s ease-out;
+        }
+
+        @keyframes buttonClick {
+            0% { transform: scale(1); }
+            50% { transform: scale(0.9); }
+            100% { transform: scale(1); }
+        }
+
+        .skip-button {
+            width: 60px;
+            height: 60px;
+            font-size: 20px;
+        }
+
+        .play-pause-button {
+            width: 80px;
+            height: 80px;
+            font-size: 32px;
+            background: rgba(0, 196, 255, 0.2);
+            border-color: #00c4ff;
+        }
+
+        .play-pause-button:hover {
+            background: rgba(0, 196, 255, 0.3);
+            box-shadow: 0 0 20px rgba(0, 196, 255, 0.4);
+        }
+
+        .skip-time {
+            font-size: 10px;
+            position: absolute;
+            bottom: -18px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ccc;
+            font-weight: 500;
+        }
+
+        .progress-section {
+            margin-bottom: 20px;
+        }
+
+        .progress-track {
+            width: 100%;
+            height: 8px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 12px;
+            position: relative;
+        }
+
+        .progress-indicator {
+            height: 100%;
+            background: linear-gradient(90deg, #00c4ff, #0099cc);
+            width: 0%;
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 0 10px rgba(0, 196, 255, 0.3);
+        }
+
+        .progress-indicator::after {
+            content: '';
+            position: absolute;
+            right: -4px;
+            top: -2px;
+            width: 12px;
+            height: 12px;
+            background: #00c4ff;
+            border-radius: 50%;
+            box-shadow: 0 0 8px rgba(0, 196, 255, 0.6);
+        }
+
+        .time-display {
+            display: flex;
+            justify-content: space-between;
+            font-size: 1em;
+            color: #ccc;
+            font-variant-numeric: tabular-nums;
+            font-weight: 500;
+        }
+
+        .status-indicator {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 8px 16px;
+            background: rgba(0,0,0,0.7);
+            border-radius: 20px;
+            font-size: 12px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .status-playing { color: #4CAF50; }
+        .status-paused { color: #ff9800; }
+        .status-loading { color: #2196F3; }
+        .status-error { color: #f44336; }
+
+        .debug-panel {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+            max-width: none;
+            height: 40vh;
+            background: rgba(0,0,0,0.95);
+            padding: 20px;
+            border-radius: 12px;
+            font-size: 14px;
+            overflow-y: auto;
+            text-align: left;
+            border: 2px solid #333;
+            backdrop-filter: blur(10px);
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            z-index: 1000;
+        }
+
+        .log-entry {
+            margin: 4px 0;
+            padding: 6px 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            border-radius: 4px;
+            line-height: 1.4;
+        }
+
+        .log-entry.info {
+            color: #e0e0e0;
+            background: rgba(255,255,255,0.02);
+        }
+        .log-entry.success {
+            color: #4CAF50;
+            background: rgba(76,175,80,0.1);
+            border-left: 4px solid #4CAF50;
+        }
+        .log-entry.warning {
+            color: #ff9800;
+            background: rgba(255,152,0,0.1);
+            border-left: 4px solid #ff9800;
+        }
+        .log-entry.error {
+            color: #f44336;
+            background: rgba(244,67,54,0.15);
+            border-left: 4px solid #f44336;
+            font-weight: bold;
+        }
+        .log-entry.debug {
+            color: #2196F3;
+            background: rgba(33,150,243,0.05);
+            font-size: 12px;
+        }
+
+        .connection-quality {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .connection-bars {
+            display: flex;
+            gap: 2px;
+            margin-bottom: 5px;
+        }
+
+        .bar {
+            width: 3px;
+            background: #333;
+            border-radius: 1px;
+        }
+
+        .bar:nth-child(1) { height: 6px; }
+        .bar:nth-child(2) { height: 10px; }
+        .bar:nth-child(3) { height: 14px; }
+        .bar:nth-child(4) { height: 18px; }
+
+        .bar.active { background: #4CAF50; }
+
+        .quality-text {
+            font-size: 10px;
+            color: #999;
+            font-weight: 500;
+        }
+
+        @media (max-width: 768px) {
+            .media-title { font-size: 2.2em; }
+            .media-subtitle { font-size: 1.3em; }
+            .media-artwork { width: 200px; height: 200px; }
+            .debug-panel { font-size: 9px; max-width: 300px; }
+        }
+    </style>
+    <!-- Use the latest Cast Application Framework -->
+    <script src="//www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
+</head>
+<body>
+    <div class="connection-quality">
+        <div class="connection-bars">
+            <div class="bar active"></div>
+            <div class="bar active"></div>
+            <div class="bar active"></div>
+            <div class="bar"></div>
+        </div>
+        <div class="quality-text">CAST READY</div>
+    </div>
+
+    <div class="status-indicator">
+        <span id="status-text" class="status-loading">Initializing...</span>
+    </div>
+
+    <div class="receiver-container">
+        <div class="media-artwork" id="artwork">
+            📚
+        </div>
+
+        <div class="media-content">
+            <h1 class="media-title" id="title">Audiobookshelf</h1>
+            <h2 class="media-subtitle" id="subtitle">Cast Receiver Ready</h2>
+            <p class="media-author" id="author">Waiting for media...</p>
+        </div>
+
+        <div class="playback-controls" id="controls" style="display: none;">
+            <div class="controls-row">
+                <div class="control-button skip-button" id="skip-backward" title="Skip Backward 10s">
+                    ⏪
+                    <div class="skip-time">10s</div>
+                </div>
+
+                <div class="control-button play-pause-button" id="play-pause" title="Play/Pause">
+                    ▶️
+                </div>
+
+                <div class="control-button skip-button" id="skip-forward" title="Skip Forward 30s">
+                    ⏩
+                    <div class="skip-time">30s</div>
+                </div>
+            </div>
+
+            <div class="progress-section">
+                <div class="progress-track">
+                    <div class="progress-indicator" id="progress"></div>
+                </div>
+                <div class="time-display">
+                    <span id="current-time">0:00:00</span>
+                    <span id="total-time">0:00:00</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Test Section for Development -->
+    <div style="position: fixed; top: 20px; right: 20px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; max-width: 300px; display: none;" id="test-panel">
+        <h4 style="color: #fff; margin-top: 0; font-size: 14px;">🧪 Quick URL Test</h4>
+        <input type="text" id="test-url" value="https://audiobookshelf.awsomefox.com/public/session/5b83663b-2834-459b-b007-c8e27df43d1d/track/1"
+               style="width: 100%; padding: 5px; margin: 5px 0; font-size: 11px; background: #333; color: #fff; border: 1px solid #555; border-radius: 3px;">
+        <div style="margin: 5px 0;">
+            <button onclick="testQuickURL()" style="padding: 5px 10px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">Test URL</button>
+            <button onclick="loadTestURL()" style="padding: 5px 10px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">Load & Play</button>
+            <button onclick="toggleTestPanel()" style="padding: 5px 10px; background: #dc3545; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">Hide</button>
+        </div>
+        <div style="font-size: 10px; color: #ccc; margin-top: 5px;">
+            Press Ctrl+T to show/hide this panel
+        </div>
+    </div>
+
+    <div class="debug-panel" id="debug-panel">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 2px solid #444;">
+            <h3 style="margin: 0; color: #fff; font-size: 16px;">🔍 Cast Receiver Debug Console</h3>
+            <div>
+                <button onclick="clearDebugLog()" style="background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-right: 8px;">Clear</button>
+                <button onclick="toggleDebugPanel()" style="background: #6c757d; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">Minimize</button>
+            </div>
+        </div>
+        <div id="debug-content">
+            <div class="log-entry info">🚀 Cast Receiver v2024 Starting...</div>
+        </div>
+    </div>
+
+    <script>
+        let playerManager;
+        let currentMedia = null;
+        let progressUpdateInterval;
+        let mediaManager;
+        let isPlaying = false;
+
+        // Skip intervals (in seconds)
+        const SKIP_BACKWARD_TIME = 10;
+        const SKIP_FORWARD_TIME = 30;
+
+        // Enhanced logging system with better visibility
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString('en-US', {
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                fractionalSecondDigits: 1
+            });
+
+            const debugContent = document.getElementById('debug-content');
+            if (!debugContent) return;
+
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}`;
+            logEntry.innerHTML = `<strong>[${timestamp}]</strong> ${message}`;
+
+            debugContent.appendChild(logEntry);
+            debugContent.scrollTop = debugContent.scrollHeight;
+
+            // Auto-trim logs to prevent memory issues (keep last 100 entries)
+            const logEntries = debugContent.getElementsByClassName('log-entry');
+            if (logEntries.length > 100) {
+                debugContent.removeChild(logEntries[0]);
+            }
+
+            // Also log to browser console for debugging
+            console.log(`[${timestamp}] [${type.toUpperCase()}] ${message}`);
+        }
+
+        // Debug panel utility functions
+        function clearDebugLog() {
+            const debugContent = document.getElementById('debug-content');
+            if (debugContent) {
+                debugContent.innerHTML = '<div class="log-entry info">🧹 Debug log cleared</div>';
+                addLog('Debug console cleared by user', 'info');
+            }
+        }
+
+        function toggleDebugPanel() {
+            const debugPanel = document.getElementById('debug-panel');
+            const debugContent = document.getElementById('debug-content');
+
+            if (debugContent.style.display === 'none') {
+                debugContent.style.display = 'block';
+                debugPanel.style.height = '40vh';
+                addLog('Debug panel expanded', 'info');
+            } else {
+                debugContent.style.display = 'none';
+                debugPanel.style.height = 'auto';
+            }
+        }
+
+        // Configuration - These would be passed via customData in load request
+        let AUDIOBOOKSHELF_CONFIG = {
+            serverUrl: '',
+            token: '',
+            libraryId: ''
+        };
+
+        // API helper functions using existing Audiobookshelf endpoints
+        async function fetchFromAPI(endpoint, options = {}) {
+            try {
+                if (!AUDIOBOOKSHELF_CONFIG.serverUrl) {
+                    throw new Error('Server URL not configured');
+                }
+
+                const url = `${AUDIOBOOKSHELF_CONFIG.serverUrl}${endpoint}`;
+                addLog(`🌐 API Request: ${url}`, 'debug');
+
+                const headers = {
+                    'Content-Type': 'application/json',
+                    ...options.headers
+                };
+
+                if (AUDIOBOOKSHELF_CONFIG.token) {
+                    headers['Authorization'] = `Bearer ${AUDIOBOOKSHELF_CONFIG.token}`;
+                }
+
+                addLog(`📋 Request headers: ${JSON.stringify(headers, null, 2)}`, 'debug');
+
+                const response = await fetch(url, {
+                    ...options,
+                    headers
+                });
+
+                addLog(`📡 Response status: ${response.status} ${response.statusText}`, 'debug');
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                addLog(`✅ API response received (${JSON.stringify(result).length} chars)`, 'success');
+                return result;
+            } catch (error) {
+                addLog(`❌ API fetch error: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+
+        // Test API connectivity
+        async function testAPIConnectivity() {
+            addLog('🧪 Testing API connectivity...', 'info');
+
+            if (!AUDIOBOOKSHELF_CONFIG.serverUrl) {
+                addLog('❌ Cannot test API - no server URL configured', 'error');
+                return;
+            }
+
+            try {
+                // Test the simplest endpoint first
+                await fetchFromAPI('/ping');
+                addLog('✅ API connectivity test passed - /ping endpoint working', 'success');
+
+                // Test authenticated endpoint if token is available
+                if (AUDIOBOOKSHELF_CONFIG.token) {
+                    try {
+                        await fetchFromAPI('/api/me');
+                        addLog('✅ Authentication test passed - /api/me endpoint working', 'success');
+                    } catch (authError) {
+                        addLog(`⚠️ Authentication test failed: ${authError.message}`, 'warning');
+                    }
+                }
+            } catch (error) {
+                addLog(`❌ API connectivity test failed: ${error.message}`, 'error');
+            }
+        }
+
+        function setStatus(text, type = 'loading') {
+            const statusElement = document.getElementById('status-text');
+            statusElement.textContent = text;
+            statusElement.className = `status-${type}`;
+        }
+
+        function formatDuration(seconds) {
+            if (!seconds || isNaN(seconds) || seconds < 0) return '0:00:00';
+
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+
+            if (hours > 0) {
+                return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            }
+            return `${minutes}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function updateMediaDisplay(mediaInfo) {
+            if (!mediaInfo || !mediaInfo.metadata) {
+                addLog('No media metadata to display', 'warning');
+                return;
+            }
+
+            const metadata = mediaInfo.metadata;
+            currentMedia = mediaInfo;
+
+            // Update text content
+            const title = metadata.title || 'Unknown Title';
+            const subtitle = metadata.subtitle || metadata.albumName || '';
+            const author = metadata.artist || metadata.albumArtist || '';
+
+            document.getElementById('title').textContent = title;
+            document.getElementById('subtitle').textContent = subtitle;
+            document.getElementById('author').textContent = author;
+
+            addLog(`📖 Now showing: "${title}"${subtitle ? ' - ' + subtitle : ''}`, 'success');
+
+            // Handle artwork with error handling
+            const artworkElement = document.getElementById('artwork');
+            if (metadata.images && metadata.images.length > 0) {
+                const imageUrl = metadata.images[0].url;
+                addLog(`🖼️ Loading artwork: ${imageUrl}`, 'debug');
+
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+
+                img.onload = function() {
+                    artworkElement.innerHTML = '';
+                    artworkElement.appendChild(img);
+                    addLog('✅ Artwork loaded successfully', 'success');
+                };
+
+                img.onerror = function() {
+                    addLog('❌ Failed to load artwork, using fallback', 'warning');
+                    artworkElement.innerHTML = '📚';
+                };
+
+                img.src = imageUrl;
+            } else {
+                addLog('ℹ️ No artwork provided, using default', 'info');
+                artworkElement.innerHTML = '📚';
+            }
+
+            // Show playback controls
+            document.getElementById('controls').style.display = 'block';
+
+            // Setup control button listeners
+            setupControlButtons();
+        }
+
+        function setupControlButtons() {
+            // Add visual feedback for button clicks
+            function addClickFeedback(button) {
+                button.classList.add('clicked');
+                setTimeout(() => button.classList.remove('clicked'), 300);
+            }
+
+            // Skip backward button
+            document.getElementById('skip-backward').addEventListener('click', (e) => {
+                addClickFeedback(e.target);
+                if (playerManager) {
+                    const currentTime = playerManager.getCurrentTimeSec();
+                    const newTime = Math.max(0, currentTime - SKIP_BACKWARD_TIME);
+                    playerManager.seek(newTime);
+                    addLog(`⏪ Skipped backward ${SKIP_BACKWARD_TIME}s to ${formatDuration(newTime)}`, 'info');
+                }
+            });
+
+            // Skip forward button
+            document.getElementById('skip-forward').addEventListener('click', (e) => {
+                addClickFeedback(e.target);
+                if (playerManager) {
+                    const currentTime = playerManager.getCurrentTimeSec();
+                    const duration = playerManager.getDurationSec();
+                    const newTime = Math.min(duration || currentTime + SKIP_FORWARD_TIME, currentTime + SKIP_FORWARD_TIME);
+                    playerManager.seek(newTime);
+                    addLog(`⏩ Skipped forward ${SKIP_FORWARD_TIME}s to ${formatDuration(newTime)}`, 'info');
+                }
+            });
+
+            // Play/Pause button
+            document.getElementById('play-pause').addEventListener('click', (e) => {
+                addClickFeedback(e.target);
+                if (playerManager) {
+                    const playerState = playerManager.getPlayerState();
+                    if (playerState === cast.framework.messages.PlayerState.PLAYING) {
+                        playerManager.pause();
+                        addLog('⏸️ Playback paused via button', 'info');
+                    } else if (playerState === cast.framework.messages.PlayerState.PAUSED) {
+                        playerManager.play();
+                        addLog('▶️ Playback resumed via button', 'info');
+                    }
+                }
+            });
+
+            addLog('🎮 Control buttons initialized', 'success');
+
+            // Add keyboard support for smart displays
+            document.addEventListener('keydown', (event) => {
+                switch(event.key) {
+                    case ' ':
+                    case 'Enter':
+                        event.preventDefault();
+                        document.getElementById('play-pause').click();
+                        break;
+                    case 'ArrowLeft':
+                        event.preventDefault();
+                        document.getElementById('skip-backward').click();
+                        break;
+                    case 'ArrowRight':
+                        event.preventDefault();
+                        document.getElementById('skip-forward').click();
+                        break;
+                    default:
+                        break;
+                }
+            });
+        }
+
+        function updatePlayPauseButton() {
+            const button = document.getElementById('play-pause');
+            const playerState = playerManager?.getPlayerState();
+
+            if (playerState === cast.framework.messages.PlayerState.PLAYING) {
+                button.innerHTML = '⏸️';
+                button.title = 'Pause';
+                isPlaying = true;
+            } else {
+                button.innerHTML = '▶️';
+                button.title = 'Play';
+                isPlaying = false;
+            }
+        }
+
+        function updateProgress() {
+            if (!playerManager) return;
+
+            const currentTime = playerManager.getCurrentTimeSec();
+            const duration = playerManager.getDurationSec();
+
+            if (currentTime !== undefined && duration !== undefined && duration > 0) {
+                const progressPercent = (currentTime / duration) * 100;
+                document.getElementById('progress').style.width = `${Math.min(100, Math.max(0, progressPercent))}%`;
+                document.getElementById('current-time').textContent = formatDuration(currentTime);
+                document.getElementById('total-time').textContent = formatDuration(duration);
+
+                // Check if we have chapter boundaries defined
+                const mediaInfo = playerManager.getMediaInformation();
+                if (mediaInfo && mediaInfo.customData) {
+                    const customData = mediaInfo.customData;
+
+                    // If we have chapter end time, check if we're approaching it
+                    if (typeof customData.endMs === 'number' && typeof customData.startMs === 'number') {
+                        const chapterStartSec = customData.startMs / 1000;
+                        const chapterEndSec = customData.endMs / 1000;
+                        const chapterCurrentTime = currentTime - chapterStartSec;
+                        const chapterDuration = chapterEndSec - chapterStartSec;
+
+                        // If we've reached or passed the chapter end, pause to prevent skipping
+                        if (currentTime >= chapterEndSec) {
+                            addLog(`📖 Chapter end reached at ${formatDuration(chapterEndSec)} - pausing to prevent auto-advance`, 'info');
+                            playerManager.pause();
+                            setStatus('Chapter Finished', 'paused');
+                            return;
+                        }
+
+                        // Log chapter progress occasionally
+                        if (chapterCurrentTime > 0 && Math.floor(chapterCurrentTime) % 30 === 0) {
+                            addLog(`📖 Chapter progress: ${formatDuration(chapterCurrentTime)} / ${formatDuration(chapterDuration)}`, 'debug');
+                        }
+                    }
+                }
+            }
+        }
+
+        function startProgressUpdates() {
+            if (progressUpdateInterval) {
+                clearInterval(progressUpdateInterval);
+            }
+
+            progressUpdateInterval = setInterval(updateProgress, 500);
+            addLog('⏱️ Progress tracking started', 'debug');
+        }
+
+        function stopProgressUpdates() {
+            if (progressUpdateInterval) {
+                clearInterval(progressUpdateInterval);
+                progressUpdateInterval = null;
+                addLog('⏱️ Progress tracking stopped', 'debug');
+            }
+        }
+
+        function setupMediaBrowseSupport() {
+            try {
+                addLog('🗂️ Setting up Media Browse API support...', 'info');
+
+                const context = cast.framework.CastReceiverContext.getInstance();
+
+                // Get MediaManager from context (not a constructor in Cast Framework v3)
+                mediaManager = context.getMediaManager();
+
+                // Configure browse content
+                const browseConfig = {
+                    // Root browse items
+                    rootItems: [
+                        {
+                            entity: 'library',
+                            title: 'Library',
+                            subtitle: 'Browse your audiobook library',
+                            image: {
+                                url: 'https://cast.awsomefox.com/assets/library-icon.png',
+                                width: 200,
+                                height: 200
+                            },
+                            browsable: true
+                        },
+                        {
+                            entity: 'recent',
+                            title: 'Recently Played',
+                            subtitle: 'Your recent audiobooks',
+                            image: {
+                                url: 'https://cast.awsomefox.com/assets/recent-icon.png',
+                                width: 200,
+                                height: 200
+                            },
+                            browsable: true
+                        },
+                        {
+                            entity: 'collections',
+                            title: 'Collections',
+                            subtitle: 'Browse by collection',
+                            image: {
+                                url: 'https://cast.awsomefox.com/assets/collections-icon.png',
+                                width: 200,
+                                height: 200
+                            },
+                            browsable: true
+                        },
+                        {
+                            entity: 'authors',
+                            title: 'Authors',
+                            subtitle: 'Browse by author',
+                            image: {
+                                url: 'https://cast.awsomefox.com/assets/authors-icon.png',
+                                width: 200,
+                                height: 200
+                            },
+                            browsable: true
+                        },
+                        {
+                            entity: 'series',
+                            title: 'Series',
+                            subtitle: 'Browse by series',
+                            image: {
+                                url: 'https://cast.awsomefox.com/assets/series-icon.png',
+                                width: 200,
+                                height: 200
+                            },
+                            browsable: true
+                        }
+                    ]
+                };
+
+                // Handle browse requests
+                mediaManager.setBrowseContentCallback((browseRequest) => {
+                    addLog(`🔍 Browse request: ${JSON.stringify(browseRequest)}`, 'debug');
+
+                    const entity = browseRequest.entity;
+                    const parentEntity = browseRequest.parentEntity;
+
+                    // Handle different browse contexts
+                    switch (entity) {
+                        case 'library':
+                            return handleLibraryBrowse(browseRequest);
+
+                        case 'recent':
+                            return handleRecentBrowse(browseRequest);
+
+                        case 'collections':
+                            return handleCollectionsBrowse(browseRequest);
+
+                        case 'authors':
+                            return handleAuthorsBrowse(browseRequest);
+
+                        case 'series':
+                            return handleSeriesBrowse(browseRequest);
+
+                        default:
+                            // Handle specific item browsing (e.g., books by author)
+                            return handleSpecificBrowse(browseRequest);
+                    }
+                });
+
+                // Set the browse content
+                mediaManager.setBrowseContent(browseConfig);
+
+                addLog('✅ Media Browse API configured successfully', 'success');
+
+            } catch (error) {
+                addLog(`❌ Error setting up Media Browse: ${error.message}`, 'error');
+            }
+        }
+
+        function handleLibraryBrowse(request) {
+            addLog('📚 Handling library browse request', 'info');
+
+            if (!AUDIOBOOKSHELF_CONFIG.libraryId) {
+                addLog('No library ID configured', 'warning');
+                return Promise.resolve({ items: [] });
+            }
+
+            // Use existing endpoint: /api/libraries/{libraryId}/items?limit=100&minified=1
+            return fetchFromAPI(`/api/libraries/${AUDIOBOOKSHELF_CONFIG.libraryId}/items?limit=50&minified=1`)
+                .then(data => {
+                    const items = (data.results || []).map(book => ({
+                        entity: `book_${book.id}`,
+                        title: book.media?.metadata?.title || 'Unknown Title',
+                        subtitle: book.media?.metadata?.authors?.join(', ') || '',
+                        description: book.media?.metadata?.description || '',
+                        image: {
+                            url: `${AUDIOBOOKSHELF_CONFIG.serverUrl}/api/items/${book.id}/cover`,
+                            width: 300,
+                            height: 400
+                        },
+                        playable: true,
+                        contentId: `${AUDIOBOOKSHELF_CONFIG.serverUrl}/api/items/${book.id}/play`,
+                        contentType: 'audio/mpeg',
+                        metadata: {
+                            type: cast.framework.messages.MetadataType.AUDIOBOOK_CHAPTER,
+                            title: book.media?.metadata?.title || 'Unknown Title',
+                            subtitle: book.media?.metadata?.subtitle || '',
+                            artist: book.media?.metadata?.authors?.join(', ') || '',
+                            albumName: book.media?.metadata?.title || '',
+                            images: [{
+                                url: `${AUDIOBOOKSHELF_CONFIG.serverUrl}/api/items/${book.id}/cover`,
+                                width: 300,
+                                height: 400
+                            }]
+                        },
+                        customData: {
+                            bookId: book.id,
+                            libraryId: book.libraryId,
+                            serverUrl: AUDIOBOOKSHELF_CONFIG.serverUrl,
+                            token: AUDIOBOOKSHELF_CONFIG.token
+                        }
+                    }));
+
+                    addLog(`Found ${items.length} books in library`, 'success');
+                    return { items };
+                })
+                .catch(error => {
+                    addLog(`Library browse error: ${error.message}`, 'error');
+                    return { items: [] };
+                });
+        }
+
+        function handleRecentBrowse(request) {
+            addLog('📖 Handling recent browse request', 'info');
+
+            // Use existing endpoint: /api/me/items-in-progress
+            return fetchFromAPI('/api/me/items-in-progress')
+                .then(data => {
+                    const items = (data || []).map(item => {
+                        const book = item.libraryItem;
+                        const progress = item.progress || 0;
+                        const progressPercent = Math.round(progress * 100);
+
+                        return {
+                            entity: `recent_book_${book.id}`,
+                            title: book.media?.metadata?.title || 'Unknown Title',
+                            subtitle: `${book.media?.metadata?.authors?.join(', ') || ''} • ${progressPercent}% complete`,
+                            description: 'Continue where you left off',
+                            image: {
+                                url: `${AUDIOBOOKSHELF_CONFIG.serverUrl}/api/items/${book.id}/cover`,
+                                width: 300,
+                                height: 400
+                            },
+                            playable: true,
+                            contentId: `${AUDIOBOOKSHELF_CONFIG.serverUrl}/api/items/${book.id}/play`,
+                            contentType: 'audio/mpeg',
+                            customData: {
+                                bookId: book.id,
+                                libraryId: book.libraryId,
+                                startMs: Math.floor((item.currentTime || 0) * 1000),
+                                progress: progress,
+                                serverUrl: AUDIOBOOKSHELF_CONFIG.serverUrl,
+                                token: AUDIOBOOKSHELF_CONFIG.token
+                            }
+                        };
+                    });
+
+                    addLog(`Found ${items.length} items in progress`, 'success');
+                    return { items };
+                })
+                .catch(error => {
+                    addLog(`Recent browse error: ${error.message}`, 'error');
+                    return { items: [] };
+                });
+        }
+
+        function handleCollectionsBrowse(request) {
+            addLog('📚 Handling collections browse request', 'info');
+
+            if (!AUDIOBOOKSHELF_CONFIG.libraryId) {
+                return Promise.resolve({ items: [] });
+            }
+
+            // Use existing endpoint: /api/libraries/{libraryId}/collections?minified=1&sort=name&limit=1000
+            return fetchFromAPI(`/api/libraries/${AUDIOBOOKSHELF_CONFIG.libraryId}/collections?minified=1&sort=name&limit=100`)
+                .then(data => {
+                    const items = (data.results || []).map(collection => ({
+                        entity: `collection_${collection.id}`,
+                        title: collection.name || 'Unknown Collection',
+                        subtitle: `${collection.books?.length || 0} books`,
+                        description: collection.description || '',
+                        image: {
+                            url: `${AUDIOBOOKSHELF_CONFIG.serverUrl}/api/collections/${collection.id}/cover`,
+                            width: 300,
+                            height: 300
+                        },
+                        browsable: true
+                    }));
+
+                    addLog(`Found ${items.length} collections`, 'success');
+                    return { items };
+                })
+                .catch(error => {
+                    addLog(`Collections browse error: ${error.message}`, 'error');
+                    return { items: [] };
+                });
+        }
+
+        function handleAuthorsBrowse(request) {
+            addLog('👨‍💼 Handling authors browse request', 'info');
+
+            if (!AUDIOBOOKSHELF_CONFIG.libraryId) {
+                return Promise.resolve({ items: [] });
+            }
+
+            // Use existing endpoint: /api/libraries/{libraryId}/authors
+            return fetchFromAPI(`/api/libraries/${AUDIOBOOKSHELF_CONFIG.libraryId}/authors`)
+                .then(data => {
+                    const items = (data.authors || []).map(author => ({
+                        entity: `author_${author.id}`,
+                        title: author.name || 'Unknown Author',
+                        subtitle: `${author.numBooks || 0} books available`,
+                        description: author.description || '',
+                        image: {
+                            url: author.imagePath ?
+                                `${AUDIOBOOKSHELF_CONFIG.serverUrl}${author.imagePath}` :
+                                `${AUDIOBOOKSHELF_CONFIG.serverUrl}/api/authors/${author.id}/image`,
+                            width: 200,
+                            height: 200
+                        },
+                        browsable: true
+                    }));
+
+                    addLog(`Found ${items.length} authors`, 'success');
+                    return { items };
+                })
+                .catch(error => {
+                    addLog(`Authors browse error: ${error.message}`, 'error');
+                    return { items: [] };
+                });
+        }
+
+        function handleSeriesBrowse(request) {
+            addLog('📚 Handling series browse request', 'info');
+
+            if (!AUDIOBOOKSHELF_CONFIG.libraryId) {
+                return Promise.resolve({ items: [] });
+            }
+
+            // Use existing endpoint: /api/libraries/{libraryId}/series?minified=1&sort=name&limit=10000
+            return fetchFromAPI(`/api/libraries/${AUDIOBOOKSHELF_CONFIG.libraryId}/series?minified=1&sort=name&limit=100`)
+                .then(data => {
+                    const items = (data.results || []).map(series => ({
+                        entity: `series_${series.id}`,
+                        title: series.name || 'Unknown Series',
+                        subtitle: `${series.books?.length || 0} books`,
+                        description: series.description || '',
+                        image: {
+                            url: `${AUDIOBOOKSHELF_CONFIG.serverUrl}/api/series/${series.id}/cover`,
+                            width: 300,
+                            height: 400
+                        },
+                        browsable: true
+                    }));
+
+                    addLog(`Found ${items.length} series`, 'success');
+                    return { items };
+                })
+                .catch(error => {
+                    addLog(`Series browse error: ${error.message}`, 'error');
+                    return { items: [] };
+                });
+        }
+
+        function handleSpecificBrowse(request) {
+            addLog(`🔍 Handling specific browse: ${request.entity}`, 'info');
+
+            // Handle browsing into specific collections, authors, or series
+            const entity = request.entity;
+
+            if (entity.startsWith('author_')) {
+                return handleAuthorBooksBrowse(entity);
+            } else if (entity.startsWith('collection_')) {
+                return handleCollectionBooksBrowse(entity);
+            } else if (entity.startsWith('series_')) {
+                return handleSeriesBooksBrowse(entity);
+            }
+
+            // Default empty response
+            return Promise.resolve({ items: [] });
+        }
+
+        function handleAuthorBooksBrowse(authorEntity) {
+            const authorId = authorEntity.replace('author_', '');
+            addLog(`📖 Browsing books for author: ${authorId}`, 'info');
+
+            if (!AUDIOBOOKSHELF_CONFIG.libraryId) {
+                return Promise.resolve({ items: [] });
+            }
+
+            // Use existing endpoint: /api/libraries/{libraryId}/items?filter=authors.{authorIdBase64}&sort=media.metadata.title&collapseseries=1
+            const authorIdBase64 = btoa(authorId);
+            const endpoint = `/api/libraries/${AUDIOBOOKSHELF_CONFIG.libraryId}/items?limit=100&minified=1&filter=authors.${authorIdBase64}&sort=media.metadata.title&collapseseries=1`;
+
+            return fetchFromAPI(endpoint)
+                .then(data => {
+                    const items = (data.results || []).map(book => ({
+                        entity: `author_book_${book.id}`,
+                        title: book.media?.metadata?.title || 'Unknown Title',
+                        subtitle: book.media?.metadata?.subtitle || '',
+                        description: book.media?.metadata?.description || '',
+                        playable: true,
+                        contentId: `${AUDIOBOOKSHELF_CONFIG.serverUrl}/api/items/${book.id}/play`,
+                        contentType: 'audio/mpeg',
+                        image: {
+                            url: `${AUDIOBOOKSHELF_CONFIG.serverUrl}/api/items/${book.id}/cover`,
+                            width: 300,
+                            height: 400
+                        },
+                        metadata: {
+                            type: cast.framework.messages.MetadataType.AUDIOBOOK_CHAPTER,
+                            title: book.media?.metadata?.title || 'Unknown Title',
+                            subtitle: book.media?.metadata?.subtitle || '',
+                            artist: book.media?.metadata?.authors?.join(', ') || '',
+                            albumName: book.media?.metadata?.title || '',
+                            images: [{
+                                url: `${AUDIOBOOKSHELF_CONFIG.serverUrl}/api/items/${book.id}/cover`,
+                                width: 300,
+                                height: 400
+                            }]
+                        },
+                        customData: {
+                            bookId: book.id,
+                            libraryId: book.libraryId,
+                            authorId: authorId,
+                            serverUrl: AUDIOBOOKSHELF_CONFIG.serverUrl,
+                            token: AUDIOBOOKSHELF_CONFIG.token
+                        }
+                    }));
+
+                    addLog(`Found ${items.length} books for author`, 'success');
+                    return { items };
+                })
+                .catch(error => {
+                    addLog(`Author books browse error: ${error.message}`, 'error');
+                    return { items: [] };
+                });
+        }
+
+        function handleCollectionBooksBrowse(collectionEntity) {
+            const collectionId = collectionEntity.replace('collection_', '');
+            addLog(`📚 Browsing collection: ${collectionId}`, 'info');
+
+            // Use existing endpoint: /api/collections/{collectionId}
+            return fetchFromAPI(`/api/collections/${collectionId}`)
+                .then(data => {
+                    const items = (data.books || []).map(book => ({
+                        entity: `collection_book_${book.id}`,
+                        title: book.media?.metadata?.title || 'Unknown Title',
+                        subtitle: book.media?.metadata?.authors?.join(', ') || '',
+                        description: book.media?.metadata?.description || '',
+                        playable: true,
+                        contentId: `${AUDIOBOOKSHELF_CONFIG.serverUrl}/api/items/${book.id}/play`,
+                        contentType: 'audio/mpeg',
+                        image: {
+                            url: `${AUDIOBOOKSHELF_CONFIG.serverUrl}/api/items/${book.id}/cover`,
+                            width: 300,
+                            height: 400
+                        },
+                        customData: {
+                            bookId: book.id,
+                            libraryId: book.libraryId,
+                            collectionId: collectionId,
+                            serverUrl: AUDIOBOOKSHELF_CONFIG.serverUrl,
+                            token: AUDIOBOOKSHELF_CONFIG.token
+                        }
+                    }));
+
+                    addLog(`Found ${items.length} books in collection`, 'success');
+                    return { items };
+                })
+                .catch(error => {
+                    addLog(`Collection books browse error: ${error.message}`, 'error');
+                    return { items: [] };
+                });
+        }
+
+        function handleSeriesBooksBrowse(seriesEntity) {
+            const seriesId = seriesEntity.replace('series_', '');
+            addLog(`📖 Browsing series: ${seriesId}`, 'info');
+
+            if (!AUDIOBOOKSHELF_CONFIG.libraryId) {
+                return Promise.resolve({ items: [] });
+            }
+
+            // Use existing endpoint: /api/libraries/{libraryId}/items?filter=series.{seriesIdBase64}&sort=media.metadata.title
+            const seriesIdBase64 = btoa(seriesId);
+            const endpoint = `/api/libraries/${AUDIOBOOKSHELF_CONFIG.libraryId}/items?minified=1&sort=media.metadata.title&filter=series.${seriesIdBase64}&limit=100`;
+
+            return fetchFromAPI(endpoint)
+                .then(data => {
+                    const items = (data.results || []).map(book => ({
+                        entity: `series_book_${book.id}`,
+                        title: book.media?.metadata?.title || 'Unknown Title',
+                        subtitle: `Book ${book.media?.metadata?.series?.[0]?.sequence || ''} of series`,
+                        description: book.media?.metadata?.description || '',
+                        playable: true,
+                        contentId: `${AUDIOBOOKSHELF_CONFIG.serverUrl}/api/items/${book.id}/play`,
+                        contentType: 'audio/mpeg',
+                        image: {
+                            url: `${AUDIOBOOKSHELF_CONFIG.serverUrl}/api/items/${book.id}/cover`,
+                            width: 300,
+                            height: 400
+                        },
+                        metadata: {
+                            type: cast.framework.messages.MetadataType.AUDIOBOOK_CHAPTER,
+                            title: book.media?.metadata?.title || 'Unknown Title',
+                            subtitle: book.media?.metadata?.subtitle || '',
+                            artist: book.media?.metadata?.authors?.join(', ') || '',
+                            albumName: book.media?.metadata?.series?.[0]?.name || book.media?.metadata?.title || '',
+                            images: [{
+                                url: `${AUDIOBOOKSHELF_CONFIG.serverUrl}/api/items/${book.id}/cover`,
+                                width: 300,
+                                height: 400
+                            }]
+                        },
+                        customData: {
+                            bookId: book.id,
+                            libraryId: book.libraryId,
+                            seriesId: seriesId,
+                            sequence: book.media?.metadata?.series?.[0]?.sequence || '',
+                            serverUrl: AUDIOBOOKSHELF_CONFIG.serverUrl,
+                            token: AUDIOBOOKSHELF_CONFIG.token
+                        }
+                    }));
+
+                    // Sort by series sequence if available
+                    items.sort((a, b) => {
+                        const seqA = parseFloat(a.customData.sequence) || 0;
+                        const seqB = parseFloat(b.customData.sequence) || 0;
+                        return seqA - seqB;
+                    });
+
+                    addLog(`Found ${items.length} books in series`, 'success');
+                    return { items };
+                })
+                .catch(error => {
+                    addLog(`Series books browse error: ${error.message}`, 'error');
+                    return { items: [] };
+                });
+        }
+
+        function setupCastReceiver() {
+            try {
+                addLog('🔧 Configuring Cast receiver...', 'info');
+
+                const context = cast.framework.CastReceiverContext.getInstance();
+                playerManager = context.getPlayerManager();
+
+                // Configure enhanced playback settings
+                const playbackConfig = new cast.framework.PlaybackConfig();
+
+                // Enable all available modern commands including skip
+                playbackConfig.supportedCommands =
+                    cast.framework.messages.Command.ALL_BASIC_MEDIA |
+                    cast.framework.messages.Command.QUEUE_NEXT |
+                    cast.framework.messages.Command.QUEUE_PREV |
+                    cast.framework.messages.Command.SEEK |
+                    cast.framework.messages.Command.SKIP_FORWARD |
+                    cast.framework.messages.Command.SKIP_BACKWARD;
+
+                // Configure skip intervals for audiobooks
+                playbackConfig.skipStepSec = SKIP_FORWARD_TIME; // Default skip forward
+                playbackConfig.seekStepSec = SKIP_BACKWARD_TIME; // Default skip backward
+
+                // Advanced settings - prevent automatic behaviors that could cause skipping
+                playbackConfig.autoResumeDuration = 0; // Disable auto-resume to prevent unwanted playback
+                playbackConfig.autoPauseDuration = 0; // Don't auto-pause
+                playbackConfig.segmentRequestRetryLimit = 5;
+
+                // Disable queue auto-advance to prevent skipping through chapters
+                playbackConfig.skipPlayersLoad = false;
+
+                addLog('✅ Playback configuration applied', 'success');
+
+                // Verify Cast framework events are available
+                if (!cast.framework.events || !cast.framework.events.EventType) {
+                    throw new Error('Cast framework events not available');
+                }
+
+                const EventType = cast.framework.events.EventType;
+                addLog(`🔍 Available event types: ${Object.keys(EventType).join(', ')}`, 'debug');
+
+                // Handle skip commands from sender apps
+                playerManager.setMessageInterceptor(
+                    cast.framework.messages.MessageType.SEEK,
+                    (seekRequest) => {
+                        const currentTime = playerManager.getCurrentTimeSec();
+                        const seekTime = seekRequest.currentTime;
+                        const seekDiff = seekTime - currentTime;
+
+                        if (Math.abs(seekDiff - SKIP_FORWARD_TIME) < 1) {
+                            addLog(`⏩ Skip forward command received (${SKIP_FORWARD_TIME}s)`, 'info');
+                        } else if (Math.abs(seekDiff + SKIP_BACKWARD_TIME) < 1) {
+                            addLog(`⏪ Skip backward command received (${SKIP_BACKWARD_TIME}s)`, 'info');
+                        } else {
+                            addLog(`🎯 Seek to ${formatDuration(seekTime)}`, 'info');
+                        }
+
+                        return seekRequest;
+                    }
+                );
+
+                // Enhanced LOAD message interceptor
+                playerManager.setMessageInterceptor(
+                    cast.framework.messages.MessageType.LOAD,
+                    (loadRequest) => {
+                        addLog('📥 Processing LOAD request...', 'info');
+
+                        const mediaInfo = loadRequest.media;
+                        if (!mediaInfo) {
+                            addLog('❌ No media information in LOAD request', 'error');
+                            return loadRequest;
+                        }
+
+                        addLog(`🎵 Content ID: ${mediaInfo.contentId}`, 'debug');
+                        addLog(`📄 Content Type: ${mediaInfo.contentType || 'unknown'}`, 'debug');
+
+                        // Test content URL accessibility for 905 error prevention
+                        if (mediaInfo.contentId) {
+                            addLog(`🔍 Testing content URL accessibility: ${mediaInfo.contentId}`, 'debug');
+
+                            // Extract the actual URL to test (before any # fragments)
+                            const urlToTest = mediaInfo.contentId.split('#')[0];
+                            addLog(`🔗 Base URL to test: ${urlToTest}`, 'debug');
+
+                            // Check if this is a public session URL (no auth needed)
+                            const isPublicSession = urlToTest.includes('/public/session/');
+                            addLog(`🔓 Public session URL: ${isPublicSession}`, 'debug');
+
+                            // Enhanced accessibility check with comprehensive testing
+                            const performDetailedURLTest = async () => {
+                                try {
+                                    // Test 1: HEAD request (what Cast receiver does first)
+                                    addLog(`📡 Test 1/4: HEAD request...`, 'info');
+                                    const headOptions = {
+                                        method: 'HEAD',
+                                        mode: 'cors',
+                                        credentials: 'omit'
+                                    };
+
+                                    // For non-public URLs, add auth if available
+                                    if (!isPublicSession && AUDIOBOOKSHELF_CONFIG.token) {
+                                        headOptions.headers = {
+                                            'Authorization': `Bearer ${AUDIOBOOKSHELF_CONFIG.token}`
+                                        };
+                                        addLog(`🔑 Adding auth header for non-public URL`, 'debug');
+                                    }
+
+                                    const headResponse = await fetch(urlToTest, headOptions);
+
+                                    if (headResponse.ok) {
+                                        addLog(`✅ HEAD successful: ${headResponse.status} ${headResponse.statusText}`, 'success');
+
+                                        // Log all response headers for comprehensive debugging
+                                        addLog(`📋 Response headers:`, 'debug');
+                                        for (const [key, value] of headResponse.headers.entries()) {
+                                            addLog(`   ${key}: ${value}`, 'debug');
+                                        }
+
+                                        // Validate critical headers
+                                        const contentType = headResponse.headers.get('content-type');
+                                        const contentLength = headResponse.headers.get('content-length');
+                                        const corsOrigin = headResponse.headers.get('access-control-allow-origin');
+
+                                        if (contentType && contentType.startsWith('audio/')) {
+                                            addLog(`🎵 Valid audio content type: ${contentType}`, 'success');
+                                        } else {
+                                            addLog(`⚠️ Unexpected content type: ${contentType || 'unknown'}`, 'warning');
+                                        }
+
+                                        if (contentLength) {
+                                            const sizeMB = Math.round(parseInt(contentLength) / 1024 / 1024);
+                                            addLog(`📏 Content size: ${sizeMB}MB`, 'info');
+                                        }
+
+                                        if (corsOrigin === '*') {
+                                            addLog(`🌐 CORS properly configured for Cast`, 'success');
+                                        } else if (corsOrigin) {
+                                            addLog(`🌐 CORS origin: ${corsOrigin}`, 'warning');
+                                        } else {
+                                            addLog(`❌ Missing CORS headers - may cause Cast failure`, 'error');
+                                        }
+
+                                    } else {
+                                        addLog(`❌ HEAD failed: ${headResponse.status} ${headResponse.statusText}`, 'error');
+                                        addLog(`🔧 This WILL cause Error 905 (LOAD_FAILED)`, 'error');
+
+                                        // Get response body for 404 errors to understand what's happening
+                                        if (headResponse.status === 404) {
+                                            try {
+                                                const errorText = await headResponse.text();
+                                                addLog(`📄 404 response body: ${errorText}`, 'error');
+                                            } catch (e) {
+                                                addLog(`📄 Could not read 404 response body`, 'debug');
+                                            }
+                                        }
+                                        return;
+                                    }
+
+                                    // Test 2: CORS preflight for actual GET request
+                                    addLog(`🌐 Test 2/4: CORS preflight...`, 'info');
+                                    try {
+                                        const corsResponse = await fetch(urlToTest, {
+                                            method: 'OPTIONS',
+                                            mode: 'cors',
+                                            headers: {
+                                                'Origin': 'https://cast-receiver.cast-device',
+                                                'Access-Control-Request-Method': 'GET',
+                                                'Access-Control-Request-Headers': 'Range'
+                                            }
+                                        });
+                                        addLog(`✅ CORS preflight: ${corsResponse.status}`, corsResponse.ok ? 'success' : 'warning');
+                                    } catch (corsError) {
+                                        addLog(`⚠️ CORS preflight failed: ${corsError.message}`, 'warning');
+                                    }
+
+                                    // Test 3: Range request (simulates media loading)
+                                    addLog(`📥 Test 3/4: Range request (simulating media loading)...`, 'info');
+                                    try {
+                                        const rangeOptions = {
+                                            method: 'GET',
+                                            mode: 'cors',
+                                            headers: {
+                                                'Range': 'bytes=0-1023'
+                                            }
+                                        };
+
+                                        if (!isPublicSession && AUDIOBOOKSHELF_CONFIG.token) {
+                                            rangeOptions.headers['Authorization'] = `Bearer ${AUDIOBOOKSHELF_CONFIG.token}`;
+                                        }
+
+                                        const rangeResponse = await fetch(urlToTest, rangeOptions);
+
+                                        if (rangeResponse.ok || rangeResponse.status === 206) {
+                                            addLog(`✅ Range request successful: ${rangeResponse.status}`, 'success');
+
+                                            // Read the sample content and analyze
+                                            const sample = await rangeResponse.arrayBuffer();
+                                            addLog(`📊 Downloaded ${sample.byteLength} bytes for analysis`, 'debug');
+
+                                            // Basic audio format detection
+                                            const view = new Uint8Array(sample);
+                                            if (view.length >= 8) {
+                                                const header = Array.from(view.slice(0, 8)).map(b =>
+                                                    b.toString(16).padStart(2, '0')).join(' ');
+                                                addLog(`🎵 File header bytes: ${header}`, 'debug');
+
+                                                // Audio format detection
+                                                if (view[0] === 0xFF && (view[1] & 0xE0) === 0xE0) {
+                                                    addLog(`🎵 Detected: MP3 format`, 'success');
+                                                } else if (view[4] === 0x66 && view[5] === 0x74 && view[6] === 0x79 && view[7] === 0x70) {
+                                                    addLog(`🎵 Detected: MP4/M4A container`, 'success');
+                                                } else if (view[0] === 0x4F && view[1] === 0x67 && view[2] === 0x67 && view[3] === 0x53) {
+                                                    addLog(`🎵 Detected: OGG format`, 'success');
+                                                } else {
+                                                    addLog(`❓ Unknown audio format - may still work`, 'warning');
+                                                }
+                                            }
+
+                                        } else {
+                                            addLog(`❌ Range request failed: ${rangeResponse.status}`, 'error');
+                                            addLog(`💡 Cast media loading uses range requests and will fail`, 'error');
+                                        }
+                                    } catch (rangeError) {
+                                        addLog(`💥 Range request error: ${rangeError.message}`, 'error');
+                                    }
+
+                                    // Test 4: Full URL validation
+                                    addLog(`🔍 Test 4/4: URL structure validation...`, 'info');
+                                    try {
+                                        const urlObj = new URL(urlToTest);
+                                        addLog(`✅ Valid URL structure`, 'success');
+                                        addLog(`   Protocol: ${urlObj.protocol}`, 'debug');
+                                        addLog(`   Host: ${urlObj.hostname}:${urlObj.port || 'default'}`, 'debug');
+                                        addLog(`   Path: ${urlObj.pathname}`, 'debug');
+
+                                        // Validate session ID format if it's a public session
+                                        if (isPublicSession) {
+                                            const sessionMatch = urlObj.pathname.match(/\/public\/session\/([a-f0-9-]+)\//);
+                                            if (sessionMatch) {
+                                                const sessionId = sessionMatch[1];
+                                                const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+                                                if (uuidRegex.test(sessionId)) {
+                                                    addLog(`✅ Valid session ID format: ${sessionId}`, 'success');
+                                                } else {
+                                                    addLog(`❌ Invalid session ID format: ${sessionId}`, 'error');
+                                                }
+                                            }
+                                        }
+                                    } catch (urlError) {
+                                        addLog(`❌ Invalid URL: ${urlError.message}`, 'error');
+                                    }
+
+                                    addLog(`🏁 URL testing complete - check results above`, 'info');
+
+                                } catch (error) {
+                                    addLog(`💥 URL testing failed: ${error.message}`, 'error');
+                                    addLog(`💡 Error type: ${error.name}`, 'error');
+                                    if (error.stack) {
+                                        addLog(`🔍 Stack trace: ${error.stack}`, 'debug');
+                                    }
+                                }
+                            };
+
+                            // Run the comprehensive test asynchronously
+                            performDetailedURLTest();
+                        }
+
+                        // Handle custom audiobook data
+                        const customData = mediaInfo.customData;
+                        if (customData) {
+                            addLog(`📊 Custom data received: ${JSON.stringify(customData, null, 2)}`, 'debug');
+
+                            // Extract Audiobookshelf configuration from customData
+                            if (customData.serverUrl) {
+                                AUDIOBOOKSHELF_CONFIG.serverUrl = customData.serverUrl;
+                                addLog(`🔧 Server URL configured: ${customData.serverUrl}`, 'info');
+                            } else {
+                                addLog(`⚠️ No serverUrl in customData`, 'warning');
+                            }
+                            if (customData.token) {
+                                AUDIOBOOKSHELF_CONFIG.token = customData.token;
+                                addLog(`🔑 Authentication token configured (length: ${customData.token.length})`, 'info');
+                            } else {
+                                addLog(`⚠️ No token in customData`, 'warning');
+                            }
+                            if (customData.libraryId) {
+                                AUDIOBOOKSHELF_CONFIG.libraryId = customData.libraryId;
+                                addLog(`📚 Library ID configured: ${customData.libraryId}`, 'info');
+                            } else {
+                                addLog(`⚠️ No libraryId in customData`, 'warning');
+                            }
+
+                            // Test API connectivity when configuration is available
+                            if (customData.serverUrl && customData.token) {
+                                testAPIConnectivity();
+                            }
+
+                            // Handle chapter start time
+                            if (typeof customData.startMs === 'number' && customData.startMs > 0) {
+                                const startTimeSec = customData.startMs / 1000;
+                                loadRequest.currentTime = startTimeSec;
+                                addLog(`⏰ Chapter start time: ${formatDuration(startTimeSec)}`, 'info');
+                            }
+
+                            // Handle custom content URL
+                            if (customData.originalUri) {
+                                addLog(`🔗 Original content ID: ${mediaInfo.contentId}`, 'debug');
+                                addLog(`🔗 Replacing with custom URI: ${customData.originalUri}`, 'info');
+
+                                // Validate the original URI before using it
+                                try {
+                                    new URL(customData.originalUri);
+                                    loadRequest.media.contentId = customData.originalUri;
+                                    addLog(`✅ Custom URI is valid and applied`, 'success');
+
+                                    // Log URI details for debugging
+                                    const isPublicSession = customData.originalUri.includes('/public/session/');
+                                    const hasSessionId = /\/public\/session\/([a-f0-9-]+)\//.test(customData.originalUri);
+                                    addLog(`📋 URI analysis: public=${isPublicSession}, hasSessionId=${hasSessionId}`, 'debug');
+
+                                } catch (urlError) {
+                                    addLog(`❌ Invalid original URI: ${urlError.message}`, 'error');
+                                    addLog(`🔧 Keeping original content ID: ${mediaInfo.contentId}`, 'warning');
+                                }
+                            } else {
+                                // If no originalUri, check if contentId needs processing
+                                const contentId = mediaInfo.contentId;
+                                if (contentId.includes('#')) {
+                                    const baseUrl = contentId.split('#')[0];
+                                    addLog(`🔗 No originalUri, extracting base URL: ${baseUrl}`, 'debug');
+                                    loadRequest.media.contentId = baseUrl;
+                                    addLog(`✅ Using extracted base URL as content ID`, 'info');
+                                }
+                            }
+
+                            // Log chapter information
+                            if (typeof customData.endMs === 'number') {
+                                const durationMs = customData.endMs - (customData.startMs || 0);
+                                addLog(`📖 Chapter duration: ${formatDuration(durationMs / 1000)}`, 'info');
+                            }
+                        }
+
+                        // Update display immediately
+                        updateMediaDisplay(mediaInfo);
+
+                        // Validate and fix content type if needed (helps prevent 905 errors)
+                        if (!mediaInfo.contentType || mediaInfo.contentType === 'unknown') {
+                            // Try to determine content type from URL extension
+                            const url = mediaInfo.contentId;
+                            if (url) {
+                                const extension = url.split('.').pop()?.toLowerCase();
+                                let detectedType = 'audio/mpeg'; // Default fallback
+
+                                switch (extension) {
+                                    case 'mp3':
+                                        detectedType = 'audio/mpeg';
+                                        break;
+                                    case 'm4a':
+                                    case 'aac':
+                                        detectedType = 'audio/mp4';
+                                        break;
+                                    case 'ogg':
+                                        detectedType = 'audio/ogg';
+                                        break;
+                                    case 'wav':
+                                        detectedType = 'audio/wav';
+                                        break;
+                                    case 'flac':
+                                        detectedType = 'audio/flac';
+                                        break;
+                                }
+
+                                loadRequest.media.contentType = detectedType;
+                                addLog(`🔧 Auto-detected content type: ${detectedType}`, 'info');
+                            }
+                        }
+
+                        return loadRequest;
+                    }
+                );
+
+                // Event listeners for player state changes
+                if (EventType.PLAYER_LOAD_COMPLETE) {
+                    playerManager.addEventListener(
+                        EventType.PLAYER_LOAD_COMPLETE,
+                        (event) => {
+                            addLog('✅ Media loaded successfully', 'success');
+                            setStatus('Ready', 'playing');
+
+                            const media = playerManager.getMediaInformation();
+                            if (media) {
+                                updateMediaDisplay(media);
+
+                                // Log media details for debugging
+                                addLog(`🎵 Loaded: "${media.metadata?.title || 'Unknown'}"`, 'info');
+                                addLog(`📁 Content ID: ${media.contentId}`, 'debug');
+                                if (media.customData) {
+                                    if (media.customData.startMs && media.customData.endMs) {
+                                        const chapterDuration = (media.customData.endMs - media.customData.startMs) / 1000;
+                                        addLog(`📖 Chapter duration: ${formatDuration(chapterDuration)}`, 'info');
+                                    }
+                                }
+                            }
+
+                            updatePlayPauseButton();
+                        }
+                    );
+                }
+
+                if (EventType.PLAYER_PLAYING) {
+                    playerManager.addEventListener(
+                        EventType.PLAYER_PLAYING,
+                        () => {
+                            addLog('▶️ Playback started', 'success');
+                            const currentTime = playerManager.getCurrentTimeSec();
+                            const duration = playerManager.getDurationSec();
+                            addLog(`🎵 Playing at ${formatDuration(currentTime)} / ${formatDuration(duration)}`, 'debug');
+                            setStatus('Playing', 'playing');
+                            startProgressUpdates();
+                            updatePlayPauseButton();
+                        }
+                    );
+                }
+
+                if (EventType.PLAYER_PAUSED) {
+                    playerManager.addEventListener(
+                        EventType.PLAYER_PAUSED,
+                        () => {
+                            const currentTime = playerManager.getCurrentTimeSec();
+                            addLog(`⏸️ Playback paused at ${formatDuration(currentTime)}`, 'info');
+                            setStatus('Paused', 'paused');
+                            stopProgressUpdates();
+                            updatePlayPauseButton();
+                        }
+                    );
+                }
+
+                if (EventType.PLAYER_IDLE) {
+                    playerManager.addEventListener(
+                        EventType.PLAYER_IDLE,
+                        (event) => {
+                            const reason = event.idleReason;
+                            addLog(`⏹️ Player idle: ${reason}`, 'info');
+
+                            // Don't automatically advance if media ended naturally
+                            if (reason === cast.framework.events.IdleReason.FINISHED) {
+                                addLog('📖 Chapter/Media finished - staying on current content', 'info');
+                                setStatus('Finished', 'paused');
+                            } else {
+                                setStatus('Idle', 'loading');
+                            }
+
+                            stopProgressUpdates();
+                            updatePlayPauseButton();
+                        }
+                    );
+                }
+
+                // Enhanced error handling
+                if (EventType.ERROR) {
+                    playerManager.addEventListener(
+                        EventType.ERROR,
+                        (errorEvent) => {
+                            const error = errorEvent.detailedErrorCode || errorEvent.error;
+                            addLog(`❌ Player error: ${JSON.stringify(error)}`, 'error');
+                            addLog(`🔍 Full error event: ${JSON.stringify(errorEvent)}`, 'error');
+                            setStatus('Error', 'error');
+
+                            // Specific error handling
+                            if (error) {
+                                // Handle numeric error codes (like 905)
+                                if (typeof error === 'number' || (error.code && !isNaN(error.code))) {
+                                    const errorCode = typeof error === 'number' ? error : parseInt(error.code);
+                                    switch (errorCode) {
+                                        case 905:
+                                            addLog('🚫 Error 905: Media load failed - LOAD_FAILED', 'error');
+                                            addLog('💡 Common causes:', 'error');
+                                            addLog('   1. Content URL is not accessible to Cast receiver', 'error');
+                                            addLog('   2. Server missing CORS headers (Access-Control-Allow-Origin)', 'error');
+                                            addLog('   3. Authentication required but not provided in URL', 'error');
+                                            addLog('   4. Unsupported media format or codec', 'error');
+                                            addLog('   5. Network connectivity issues', 'error');
+
+                                            // Log current media details for debugging
+                                            const failedMedia = playerManager.getMediaInformation();
+                                            if (failedMedia) {
+                                                addLog(`❌ Failed content ID: ${failedMedia.contentId}`, 'error');
+                                                addLog(`❌ Content type: ${failedMedia.contentType || 'unknown'}`, 'error');
+                                                if (failedMedia.customData) {
+                                                    addLog(`❌ Original URI: ${failedMedia.customData.originalUri || 'not set'}`, 'error');
+                                                    addLog(`❌ Server URL: ${failedMedia.customData.serverUrl || 'not set'}`, 'error');
+                                                    addLog(`❌ Has token: ${failedMedia.customData.token ? 'yes' : 'no'}`, 'error');
+                                                }
+                                            }
+                                            break;
+                                        case 900:
+                                            addLog('🚫 Error 900: Invalid player state', 'error');
+                                            break;
+                                        case 901:
+                                            addLog('🚫 Error 901: Load failed', 'error');
+                                            break;
+                                        case 902:
+                                            addLog('🚫 Error 902: Load cancelled', 'error');
+                                            break;
+                                        case 903:
+                                            addLog('🚫 Error 903: Load interrupted', 'error');
+                                            break;
+                                        case 904:
+                                            addLog('🚫 Error 904: Invalid request', 'error');
+                                            break;
+                                        default:
+                                            addLog(`❓ Unknown numeric error code: ${errorCode}`, 'error');
+                                    }
+                                } else if (error.code) {
+                                    switch (error.code) {
+                                        case 'MEDIA_UNKNOWN':
+                                            addLog('🚫 Unsupported media format', 'error');
+                                            break;
+                                        case 'MEDIA_ABORTED':
+                                            addLog('⚠️ Media loading was aborted', 'warning');
+                                            break;
+                                        case 'NETWORK_ERROR':
+                                            addLog('🌐 Network error loading media', 'error');
+                                            break;
+                                        case 'MEDIA_DECODE_ERROR':
+                                            addLog('🔧 Media decode error', 'error');
+                                            break;
+                                        default:
+                                            addLog(`❓ Unknown error code: ${error.code}`, 'error');
+                                    }
+                                }
+                            }
+
+                            if (error && error.reason) {
+                                addLog(`💭 Error reason: ${error.reason}`, 'error');
+                            }
+
+                            // Log current media info for debugging
+                            const mediaInfo = playerManager.getMediaInformation();
+                            if (mediaInfo) {
+                                addLog(`🎵 Failed media: ${mediaInfo.contentId}`, 'error');
+                                addLog(`📄 Content type: ${mediaInfo.contentType || 'unknown'}`, 'error');
+                            }
+                        }
+                    );
+                } else {
+                    addLog('⚠️ ERROR event type not available', 'warning');
+                }
+
+                // Start the Cast receiver with enhanced options
+                const receiverOptions = new cast.framework.CastReceiverOptions();
+                receiverOptions.playbackConfig = playbackConfig;
+                receiverOptions.statusText = "Audiobookshelf Ready 🎧";
+                receiverOptions.maxInactivity = 7200; // 2 hours
+                receiverOptions.skipPlayersLoad = false;
+
+                context.start(receiverOptions);
+
+                // Setup Media Browse API support
+                setupMediaBrowseSupport();
+
+                addLog('🎉 Cast receiver initialized successfully!', 'success');
+                setStatus('Ready', 'playing');
+
+            } catch (error) {
+                addLog(`💥 Critical error during setup: ${error.message}`, 'error');
+                addLog(`Stack trace: ${error.stack}`, 'error');
+                setStatus('Setup Failed', 'error');
+
+                // Show error in UI
+                document.getElementById('title').textContent = 'Setup Error';
+                document.getElementById('subtitle').textContent = error.message;
+            }
+        }
+
+        // Wait for Cast SDK with timeout
+        function waitForCastSDK(timeout = 10000) {
+            const startTime = Date.now();
+
+            function checkSDK() {
+                if (typeof cast !== 'undefined' &&
+                    cast.framework &&
+                    cast.framework.CastReceiverContext) {
+
+                    addLog('✅ Cast SDK loaded successfully', 'success');
+                    setupCastReceiver();
+                    return;
+                }
+
+                if (Date.now() - startTime > timeout) {
+                    addLog('⏰ Timeout waiting for Cast SDK', 'error');
+                    setStatus('SDK Load Failed', 'error');
+                    return;
+                }
+
+                addLog('⏳ Waiting for Cast SDK...', 'info');
+                setTimeout(checkSDK, 100);
+            }
+
+            checkSDK();
+        }
+
+        // Initialize when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => waitForCastSDK());
+        } else {
+            waitForCastSDK();
+        }
+
+        // Handle page lifecycle
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                addLog('👁️ Page visible', 'debug');
+            } else {
+                addLog('🙈 Page hidden', 'debug');
+            }
+        });
+
+        // Global error handlers
+        window.addEventListener('error', (event) => {
+            addLog(`🔥 JavaScript Error: ${event.message} at ${event.filename}:${event.lineno}`, 'error');
+        });
+
+        window.addEventListener('unhandledrejection', (event) => {
+            addLog(`🚨 Unhandled Promise Rejection: ${event.reason}`, 'error');
+            event.preventDefault();
+        });
+
+        // Connection quality simulation (for demo purposes)
+        setInterval(() => {
+            const bars = document.querySelectorAll('.bar');
+            const activeCount = Math.floor(Math.random() * 4) + 1;
+
+            bars.forEach((bar, index) => {
+                if (index < activeCount) {
+                    bar.classList.add('active');
+                } else {
+                    bar.classList.remove('active');
+                }
+            });
+
+            const qualityText = document.querySelector('.quality-text');
+            const qualities = ['EXCELLENT', 'GOOD', 'FAIR', 'POOR'];
+            qualityText.textContent = qualities[activeCount - 1];
+        }, 5000);
+
+        // Quick Test Functions for Development
+        function toggleTestPanel() {
+            const panel = document.getElementById('test-panel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
+
+        async function testQuickURL() {
+            const url = document.getElementById('test-url').value;
+            if (!url) {
+                addLog('❌ No test URL provided', 'error');
+                return;
+            }
+
+            addLog(`🧪 Quick testing URL: ${url}`, 'info');
+
+            try {
+                // Test HEAD request
+                const headResponse = await fetch(url, { method: 'HEAD', mode: 'cors' });
+                if (headResponse.ok) {
+                    addLog(`✅ Quick test successful: ${headResponse.status}`, 'success');
+                    addLog(`📋 Content-Type: ${headResponse.headers.get('content-type')}`, 'debug');
+                    addLog(`📏 Content-Length: ${headResponse.headers.get('content-length')}`, 'debug');
+                    addLog(`🌐 CORS: ${headResponse.headers.get('access-control-allow-origin')}`, 'debug');
+                } else {
+                    addLog(`❌ Quick test failed: ${headResponse.status} ${headResponse.statusText}`, 'error');
+                }
+            } catch (error) {
+                addLog(`💥 Quick test error: ${error.message}`, 'error');
+            }
+        }
+
+        function loadTestURL() {
+            const url = document.getElementById('test-url').value;
+            if (!url) {
+                addLog('❌ No test URL provided', 'error');
+                return;
+            }
+
+            addLog(`🎵 Loading test URL directly into Cast receiver...`, 'info');
+
+            // Create a minimal media info object
+            const mediaInfo = new cast.framework.messages.MediaInformation();
+            mediaInfo.contentId = url;
+            mediaInfo.contentType = 'audio/mp4'; // Assume MP4 based on your test
+            mediaInfo.metadata = new cast.framework.messages.MusicTrackMediaMetadata();
+            mediaInfo.metadata.title = 'Test Audio from URL';
+            mediaInfo.metadata.artist = 'Audiobookshelf Cast Test';
+
+            // Create load request
+            const loadRequest = new cast.framework.messages.LoadRequestData();
+            loadRequest.media = mediaInfo;
+            loadRequest.autoplay = true;
+
+            // Load the media
+            if (playerManager) {
+                addLog(`📥 Sending LOAD request to player manager...`, 'debug');
+                playerManager.load(loadRequest).then(() => {
+                    addLog(`✅ Load request sent successfully`, 'success');
+                }).catch((error) => {
+                    addLog(`❌ Load request failed: ${error.message}`, 'error');
+                });
+            } else {
+                addLog(`❌ Player manager not initialized`, 'error');
+            }
+        }
+
+        // Keyboard shortcuts for development
+        document.addEventListener('keydown', (event) => {
+            if (event.ctrlKey && event.key === 't') {
+                event.preventDefault();
+                toggleTestPanel();
+            }
+        });
+
+        // Show test panel initially for development
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                const testPanel = document.getElementById('test-panel');
+                if (testPanel) {
+                    testPanel.style.display = 'block';
+                    addLog('🧪 Test panel available - press Ctrl+T to toggle', 'info');
+                }
+            }, 2000);
+        });
+
+    </script>
+</body>
+</html>

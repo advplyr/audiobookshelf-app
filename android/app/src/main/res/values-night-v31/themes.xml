@@ -3,8 +3,35 @@
   <!--
     Having themes.xml for night-v31 because of the priority order of the resource qualifiers.
     -->
+
+  <!-- Dark theme with Android 12+ dynamic colors -->
+  <style name="AppTheme" parent="Theme.Material3.DynamicColors.DayNight">
+    <!-- Dynamic colors will automatically adapt to dark mode -->
+  </style>
+
+  <style name="AppTheme.NoActionBar" parent="Theme.Material3.DynamicColors.DayNight.NoActionBar">
+    <item name="windowActionBar">false</item>
+    <item name="windowNoTitle">true</item>
+    <item name="android:statusBarColor">?android:attr/colorBackground</item>
+    <item name="android:navigationBarColor">?android:attr/colorBackground</item>
+    <item name="android:windowLightStatusBar">false</item>
+    <item name="android:windowLightNavigationBar">false</item>
+  </style>
+
+  <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
+    <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
+    <item name="windowSplashScreenBackground">?android:attr/colorBackground</item>
+    <item name="windowSplashScreenAnimatedIcon">@drawable/splash_simple</item>
+    <item name="windowSplashScreenIconBackgroundColor">?android:attr/colorBackground</item>
+  </style>
+
+  <style name="MediaPlayerWidgetTheme" parent="Theme.Material3.DynamicColors.DayNight">
+    <!-- Use dynamic colors for dark mode widget -->
+  </style>
+
   <style name="AppTheme.AppWidgetContainerParent" parent="@android:style/Theme.DeviceDefault.DayNight">
     <item name="appWidgetRadius">@android:dimen/system_app_widget_background_radius</item>
     <item name="appWidgetInnerRadius">@android:dimen/system_app_widget_inner_radius</item>
   </style>
 </resources>
+

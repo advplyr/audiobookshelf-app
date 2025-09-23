@@ -2,24 +2,28 @@
 <resources>
 
   <!-- Base application theme. -->
-  <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+  <style name="AppTheme" parent="Theme.Material3.DayNight">
     <!-- Customize your theme here. -->
     <item name="colorPrimary">@color/colorPrimary</item>
     <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
     <item name="colorAccent">@color/colorAccent</item>
   </style>
 
-  <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
+  <style name="AppTheme.NoActionBar" parent="Theme.Material3.DayNight.NoActionBar">
     <item name="windowActionBar">false</item>
     <item name="windowNoTitle">true</item>
-    <item name="android:background">@color/background_dark</item>
-    <item name="android:statusBarColor">@color/background_dark</item>
-    <item name="android:navigationBarColor">@color/background_dark</item>
+    <item name="android:background">?attr/colorSurface</item>
+  <!-- Make system bars transparent so app content can draw behind them (edge-to-edge) -->
+  <item name="android:statusBarColor">@android:color/transparent</item>
+  <item name="android:navigationBarColor">@android:color/transparent</item>
+  <item name="android:windowDrawsSystemBarBackgrounds">true</item>
   </style>
 
 
   <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
-    <!--        <item name="android:background">@drawable/screen</item>-->
+    <item name="windowSplashScreenBackground">?attr/colorSurface</item>
+    <item name="windowSplashScreenAnimatedIcon">@drawable/splash_simple</item>
+    <item name="windowSplashScreenIconBackgroundColor">?attr/colorSurface</item>
   </style>
 
   <style name="MediaPlayerWidgetTheme" parent="Theme.AppCompat.DayNight">

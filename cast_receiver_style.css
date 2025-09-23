@@ -1,0 +1,217 @@
+/**
+ * Styled Default Cast Receiver for Audiobookshelf
+ * This CSS file customizes the appearance of the default Google Cast receiver
+ * with Audiobookshelf branding and colors optimized for audiobook playback.
+ */
+
+/* Main background with dark audiobook-themed gradient */
+.background {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    font-family: 'Roboto', 'Arial', sans-serif;
+}
+
+/* Splash screen styling */
+.splash {
+    background-color: #1a1a2e;
+    color: #ffffff;
+}
+
+/* Logo area - replace with Audiobookshelf branding */
+.logo {
+    background-image: url('https://cdn.jsdelivr.net/gh/advplyr/audiobookshelf@master/client/static/Logo.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    filter: brightness(1.2);
+}
+
+/* Media info container */
+.media-info {
+    color: #ffffff;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Title styling for book names */
+.media-title {
+    color: #ffffff;
+    font-weight: 500;
+    font-size: 2.5em;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    margin-bottom: 0.5em;
+}
+
+/* Subtitle for author names */
+.media-subtitle {
+    color: #b8c5d6;
+    font-weight: 300;
+    font-size: 1.8em;
+    opacity: 0.9;
+    margin-bottom: 1em;
+}
+
+/* Album art / book cover styling */
+.media-artwork {
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    filter: brightness(1.1) contrast(1.05);
+}
+
+/* Progress bar container */
+.progressBar {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    height: 8px;
+    margin: 20px 0;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Buffered progress */
+.progressBar .bufferBar {
+    background-color: rgba(255, 255, 255, 0.4);
+    border-radius: 4px;
+}
+
+/* Seekable progress */
+.progressBar .seekableBar {
+    background-color: rgba(255, 255, 255, 0.6);
+    border-radius: 4px;
+}
+
+/* Played progress - audiobook themed color */
+.progressBar .playedBar {
+    background: linear-gradient(90deg, #4CAF50 0%, #66BB6A 100%);
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+}
+
+/* Time display */
+.currentTime, .duration {
+    color: #ffffff;
+    font-weight: 400;
+    font-size: 1.2em;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+/* Control buttons */
+.controls-container .control {
+    color: #ffffff;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.controls-container .control:hover {
+    color: #4CAF50;
+    transform: scale(1.1);
+    transition: all 0.2s ease;
+}
+
+/* Play/pause button */
+.controls-container .play-pause {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    padding: 15px;
+}
+
+.controls-container .play-pause:hover {
+    background-color: rgba(76, 175, 80, 0.2);
+    border-color: #4CAF50;
+}
+
+/* Skip buttons (forward/backward) */
+.controls-container .skip-forward,
+.controls-container .skip-backward {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    padding: 12px;
+    margin: 0 10px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.controls-container .skip-forward:hover,
+.controls-container .skip-backward:hover {
+    background-color: rgba(76, 175, 80, 0.2);
+    border-color: #4CAF50;
+}
+
+/* Volume controls */
+.volume-container {
+    color: #ffffff;
+}
+
+.volume-container .volume-bar {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+}
+
+.volume-container .volume-level {
+    background-color: #4CAF50;
+    border-radius: 4px;
+}
+
+/* Hide default Google branding/watermark */
+.watermark {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+}
+
+/* Loading states */
+.loading {
+    color: #4CAF50;
+}
+
+.loading-spinner {
+    border-color: #4CAF50 transparent #4CAF50 transparent;
+}
+
+/* Error states */
+.error {
+    color: #FF5252;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+/* Responsive design for different screen sizes */
+@media (max-width: 768px) {
+    .media-title {
+        font-size: 2em;
+    }
+
+    .media-subtitle {
+        font-size: 1.4em;
+    }
+}
+
+@media (max-width: 480px) {
+    .media-title {
+        font-size: 1.6em;
+    }
+
+    .media-subtitle {
+        font-size: 1.2em;
+    }
+
+    .progressBar {
+        height: 6px;
+        margin: 15px 0;
+    }
+}
+
+/* Enhanced visual feedback for touch interfaces */
+@media (pointer: coarse) {
+    .controls-container .control {
+        padding: 15px;
+        min-width: 48px;
+        min-height: 48px;
+    }
+}
+
+/* Dark mode enhancements */
+@media (prefers-color-scheme: dark) {
+    .background {
+        background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #21262d 100%);
+    }
+
+    .splash {
+        background-color: #0d1117;
+    }
+}

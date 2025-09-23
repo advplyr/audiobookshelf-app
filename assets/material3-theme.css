@@ -1,0 +1,463 @@
+/* Material 3 Expressive Theme */
+:root {
+  /* Light Theme Colors */
+  --md-sys-color-primary: 103 80 164;
+  --md-sys-color-on-primary: 255 255 255;
+  --md-sys-color-primary-container: 234 221 255;
+  --md-sys-color-on-primary-container: 33 0 93;
+  --md-sys-color-primary-fixed: 234 221 255;
+  --md-sys-color-on-primary-fixed: 33 0 93;
+  --md-sys-color-primary-fixed-dim: 208 188 255;
+  --md-sys-color-on-primary-fixed-variant: 78 55 137;
+
+  --md-sys-color-secondary: 98 91 113;
+  --md-sys-color-on-secondary: 255 255 255;
+  --md-sys-color-secondary-container: 232 222 248;
+  --md-sys-color-on-secondary-container: 30 25 43;
+  --md-sys-color-secondary-fixed: 232 222 248;
+  --md-sys-color-on-secondary-fixed: 30 25 43;
+  --md-sys-color-secondary-fixed-dim: 204 194 220;
+  --md-sys-color-on-secondary-fixed-variant: 74 67 87;
+
+  --md-sys-color-tertiary: 125 82 96;
+  --md-sys-color-on-tertiary: 255 255 255;
+  --md-sys-color-tertiary-container: 255 216 228;
+  --md-sys-color-on-tertiary-container: 55 11 30;
+  --md-sys-color-tertiary-fixed: 255 216 228;
+  --md-sys-color-on-tertiary-fixed: 55 11 30;
+  --md-sys-color-tertiary-fixed-dim: 227 187 201;
+  --md-sys-color-on-tertiary-fixed-variant: 99 58 70;
+
+  --md-sys-color-error: 186 26 26;
+  --md-sys-color-on-error: 255 255 255;
+  --md-sys-color-error-container: 255 218 214;
+  --md-sys-color-on-error-container: 65 0 2;
+
+  --md-sys-color-surface: 255 248 250;
+  --md-sys-color-on-surface: 32 26 29;
+  --md-sys-color-surface-variant: 231 224 236;
+  --md-sys-color-on-surface-variant: 73 69 78;
+  --md-sys-color-surface-dim: 222 216 225;
+  --md-sys-color-surface-bright: 255 248 250;
+  --md-sys-color-surface-container-lowest: 255 255 255;
+  --md-sys-color-surface-container-low: 247 242 250;
+  --md-sys-color-surface-container: 241 236 244;
+  --md-sys-color-surface-container-high: 236 230 240;
+  --md-sys-color-surface-container-highest: 230 224 233;
+
+  --md-sys-color-outline: 121 116 126;
+  --md-sys-color-outline-variant: 202 196 208;
+
+  --md-sys-color-inverse-surface: 53 47 51;
+  --md-sys-color-inverse-on-surface: 245 239 244;
+  --md-sys-color-inverse-primary: 208 188 255;
+
+  /* State layers */
+  --md-sys-state-hover-opacity: 0.08;
+  --md-sys-state-focus-opacity: 0.12;
+  --md-sys-state-pressed-opacity: 0.12;
+  --md-sys-state-dragged-opacity: 0.16;
+
+  /* Elevation - Updated for better contrast */
+  --md-sys-elevation-level0: none;
+  --md-sys-elevation-level1: 0px 1px 2px 0px rgba(0, 0, 0, 0.3), 0px 1px 3px 1px rgba(0, 0, 0, 0.15);
+  --md-sys-elevation-level2: 0px 1px 2px 0px rgba(0, 0, 0, 0.3), 0px 2px 6px 2px rgba(0, 0, 0, 0.15);
+  --md-sys-elevation-level3: 0px 1px 3px 0px rgba(0, 0, 0, 0.3), 0px 4px 8px 3px rgba(0, 0, 0, 0.15);
+  --md-sys-elevation-level4: 0px 2px 3px 0px rgba(0, 0, 0, 0.3), 0px 6px 10px 4px rgba(0, 0, 0, 0.15);
+  --md-sys-elevation-level5: 0px 4px 4px 0px rgba(0, 0, 0, 0.3), 0px 8px 12px 6px rgba(0, 0, 0, 0.15);
+
+  /* Motion */
+  --md-sys-motion-easing-linear: cubic-bezier(0, 0, 1, 1);
+  --md-sys-motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
+  --md-sys-motion-easing-standard-accelerate: cubic-bezier(0.3, 0, 1, 1);
+  --md-sys-motion-easing-standard-decelerate: cubic-bezier(0, 0, 0, 1);
+  --md-sys-motion-easing-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --md-sys-motion-easing-emphasized-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
+  --md-sys-motion-easing-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+
+  --md-sys-motion-duration-short1: 50ms;
+  --md-sys-motion-duration-short2: 100ms;
+  --md-sys-motion-duration-short3: 150ms;
+  --md-sys-motion-duration-short4: 200ms;
+  --md-sys-motion-duration-medium1: 250ms;
+  --md-sys-motion-duration-medium2: 300ms;
+  --md-sys-motion-duration-medium3: 350ms;
+  --md-sys-motion-duration-medium4: 400ms;
+  --md-sys-motion-duration-long1: 450ms;
+  --md-sys-motion-duration-long2: 500ms;
+  --md-sys-motion-duration-long3: 550ms;
+  --md-sys-motion-duration-long4: 600ms;
+  --md-sys-motion-duration-extra-long1: 700ms;
+  --md-sys-motion-duration-extra-long2: 800ms;
+  --md-sys-motion-duration-extra-long3: 900ms;
+  --md-sys-motion-duration-extra-long4: 1000ms;
+}
+
+/* Dark Theme Colors - Fixed contrast issues */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --md-sys-color-primary: 208 188 255;
+    --md-sys-color-on-primary: 54 30 114;
+    --md-sys-color-primary-container: 78 55 137;
+    --md-sys-color-on-primary-container: 234 221 255;
+    --md-sys-color-primary-fixed: 234 221 255;
+    --md-sys-color-on-primary-fixed: 33 0 93;
+    --md-sys-color-primary-fixed-dim: 208 188 255;
+    --md-sys-color-on-primary-fixed-variant: 78 55 137;
+
+    --md-sys-color-secondary: 204 194 220;
+    --md-sys-color-on-secondary: 51 44 65;
+    --md-sys-color-secondary-container: 74 67 87;
+    --md-sys-color-on-secondary-container: 232 222 248;
+    --md-sys-color-secondary-fixed: 232 222 248;
+    --md-sys-color-on-secondary-fixed: 30 25 43;
+    --md-sys-color-secondary-fixed-dim: 204 194 220;
+    --md-sys-color-on-secondary-fixed-variant: 74 67 87;
+
+    --md-sys-color-tertiary: 227 187 201;
+    --md-sys-color-on-tertiary: 77 36 49;
+    --md-sys-color-tertiary-container: 99 58 70;
+    --md-sys-color-on-tertiary-container: 255 216 228;
+    --md-sys-color-tertiary-fixed: 255 216 228;
+    --md-sys-color-on-tertiary-fixed: 55 11 30;
+    --md-sys-color-tertiary-fixed-dim: 227 187 201;
+    --md-sys-color-on-tertiary-fixed-variant: 99 58 70;
+
+    --md-sys-color-error: 255 180 171;
+    --md-sys-color-on-error: 105 0 5;
+    --md-sys-color-error-container: 147 0 10;
+    --md-sys-color-on-error-container: 255 218 214;
+
+    /* Fixed dark mode surface colors for proper contrast */
+    --md-sys-color-surface: 20 18 22;
+    --md-sys-color-on-surface: 231 225 229;
+    --md-sys-color-surface-variant: 73 69 78;
+    --md-sys-color-on-surface-variant: 202 196 208;
+    --md-sys-color-surface-dim: 20 18 22;
+    --md-sys-color-surface-bright: 59 56 62;
+    --md-sys-color-surface-container-lowest: 15 13 17;
+    --md-sys-color-surface-container-low: 29 26 30;
+    --md-sys-color-surface-container: 33 30 34;
+    --md-sys-color-surface-container-high: 43 40 44;
+    --md-sys-color-surface-container-highest: 54 51 56;
+
+    --md-sys-color-outline: 148 143 153;
+    --md-sys-color-outline-variant: 73 69 78;
+
+    --md-sys-color-inverse-surface: 231 225 229;
+    --md-sys-color-inverse-on-surface: 53 47 51;
+    --md-sys-color-inverse-primary: 103 80 164;
+  }
+}
+
+/* Force dark theme for the app - Fixed contrast issues */
+[data-theme="dark"] {
+  --md-sys-color-primary: 208 188 255;
+  --md-sys-color-on-primary: 54 30 114;
+  --md-sys-color-primary-container: 78 55 137;
+  --md-sys-color-on-primary-container: 234 221 255;
+  --md-sys-color-primary-fixed: 234 221 255;
+  --md-sys-color-on-primary-fixed: 33 0 93;
+  --md-sys-color-primary-fixed-dim: 208 188 255;
+  --md-sys-color-on-primary-fixed-variant: 78 55 137;
+
+  --md-sys-color-secondary: 204 194 220;
+  --md-sys-color-on-secondary: 51 44 65;
+  --md-sys-color-secondary-container: 74 67 87;
+  --md-sys-color-on-secondary-container: 232 222 248;
+  --md-sys-color-secondary-fixed: 232 222 248;
+  --md-sys-color-on-secondary-fixed: 30 25 43;
+  --md-sys-color-secondary-fixed-dim: 204 194 220;
+  --md-sys-color-on-secondary-fixed-variant: 74 67 87;
+
+  --md-sys-color-tertiary: 227 187 201;
+  --md-sys-color-on-tertiary: 77 36 49;
+  --md-sys-color-tertiary-container: 99 58 70;
+  --md-sys-color-on-tertiary-container: 255 216 228;
+  --md-sys-color-tertiary-fixed: 255 216 228;
+  --md-sys-color-on-tertiary-fixed: 55 11 30;
+  --md-sys-color-tertiary-fixed-dim: 227 187 201;
+  --md-sys-color-on-tertiary-fixed-variant: 99 58 70;
+
+  --md-sys-color-error: 255 180 171;
+  --md-sys-color-on-error: 105 0 5;
+  --md-sys-color-error-container: 147 0 10;
+  --md-sys-color-on-error-container: 255 218 214;
+
+  /* Fixed dark mode surface colors for proper contrast */
+  --md-sys-color-surface: 20 18 22;
+  --md-sys-color-on-surface: 231 225 229;
+  --md-sys-color-surface-variant: 73 69 78;
+  --md-sys-color-on-surface-variant: 202 196 208;
+  --md-sys-color-surface-dim: 20 18 22;
+  --md-sys-color-surface-bright: 59 56 62;
+  --md-sys-color-surface-container-lowest: 15 13 17;
+  --md-sys-color-surface-container-low: 29 26 30;
+  --md-sys-color-surface-container: 33 30 34;
+  --md-sys-color-surface-container-high: 43 40 44;
+  --md-sys-color-surface-container-highest: 54 51 56;
+
+  --md-sys-color-outline: 148 143 153;
+  --md-sys-color-outline-variant: 73 69 78;
+
+  --md-sys-color-inverse-surface: 231 225 229;
+  --md-sys-color-inverse-on-surface: 53 47 51;
+  --md-sys-color-inverse-primary: 103 80 164;
+}
+
+/* Material 3 Component Styles */
+.material-3-button {
+  @apply px-6 py-2.5 rounded-full text-label-large font-medium transition-all duration-200;
+  box-shadow: var(--md-sys-elevation-level0);
+}
+
+.material-3-button-filled {
+  @apply bg-primary text-on-primary;
+}
+
+.material-3-button-filled:hover {
+  box-shadow: var(--md-sys-elevation-level1);
+}
+
+.material-3-button-outlined {
+  @apply bg-transparent text-primary border border-outline;
+}
+
+.material-3-button-text {
+  @apply bg-transparent text-primary;
+}
+
+.material-3-card {
+  @apply bg-surface-container rounded-xl shadow-elevation-1 p-4;
+}
+
+.material-3-card-elevated {
+  @apply bg-surface-container-low rounded-xl shadow-elevation-1 p-4;
+}
+
+.material-3-input {
+  @apply bg-surface-container-highest rounded-md px-4 py-3 text-body-large text-on-surface border border-outline-variant;
+}
+
+.material-3-input:focus {
+  @apply border-primary outline-none ring-0;
+}
+
+.material-3-fab {
+  @apply bg-primary-container text-on-primary-container rounded-2xl shadow-elevation-3 p-4 transition-all duration-200;
+}
+
+.material-3-fab:hover {
+  box-shadow: var(--md-sys-elevation-level4);
+}
+
+/* Typography Classes */
+.display-large {
+  @apply text-display-large text-on-surface;
+}
+
+.display-medium {
+  @apply text-display-medium text-on-surface;
+}
+
+.display-small {
+  @apply text-display-small text-on-surface;
+}
+
+.headline-large {
+  @apply text-headline-large text-on-surface;
+}
+
+.headline-medium {
+  @apply text-headline-medium text-on-surface;
+}
+
+.headline-small {
+  @apply text-headline-small text-on-surface;
+}
+
+.title-large {
+  @apply text-title-large text-on-surface;
+}
+
+.title-medium {
+  @apply text-title-medium text-on-surface;
+}
+
+.title-small {
+  @apply text-title-small text-on-surface;
+}
+
+.body-large {
+  @apply text-body-large text-on-surface;
+}
+
+.body-medium {
+  @apply text-body-medium text-on-surface;
+}
+
+.body-small {
+  @apply text-body-small text-on-surface;
+}
+
+.label-large {
+  @apply text-label-large text-on-surface;
+}
+
+.label-medium {
+  @apply text-label-medium text-on-surface;
+}
+
+.label-small {
+  @apply text-label-small text-on-surface;
+}
+
+/* TEST CLASS - Will be dynamically updated with background color */
+.bg-surface-test {
+  background-color: rgb(var(--md-sys-color-surface-container));
+}
+
+.bg-surface-test2 {
+  background-color: rgb(var(--md-sys-color-surface-container));
+}
+
+.bg-surface-test3 {
+  background-color: rgb(var(--md-sys-color-surface-container));
+}
+
+.bg-surface-test4 {
+  background-color: rgb(var(--md-sys-color-surface-container));
+}
+
+.bg-surface-test5 {
+  background-color: rgb(var(--md-sys-color-surface-container));
+}
+
+.bg-surface-test6 {
+  background-color: rgb(var(--md-sys-color-surface-container));
+}
+
+.bg-surface-test7 {
+  background-color: rgb(var(--md-sys-color-surface-container));
+}
+
+.bg-surface-test8 {
+  background-color: rgb(var(--md-sys-color-surface-container));
+}
+
+.bg-surface-test9 {
+  background-color: rgb(var(--md-sys-color-surface-container));
+}
+
+.bg-surface-test10 {
+  background-color: rgb(var(--md-sys-color-surface-container));
+}
+
+.bg-surface-test11 {
+  background-color: rgb(var(--md-sys-color-surface-container));
+}
+
+.bg-surface-test12 {
+  background-color: rgb(var(--md-sys-color-surface-container));
+}
+
+.bg-surface-test13 {
+  background-color: rgb(var(--md-sys-color-surface-container));
+}
+
+.bg-surface-test14 {
+  background-color: rgb(var(--md-sys-color-surface-container));
+}
+
+.bg-surface-test15 {
+  background-color: rgb(var(--md-sys-color-surface-container));
+}
+
+.bg-surface-test16 {
+  background-color: rgb(var(--md-sys-color-surface-container));
+}
+
+.bg-surface-test17 {
+  background-color: rgb(var(--md-sys-color-surface-container));
+}
+
+/* STATIC CLASSES - Won't be affected by dynamic colors */
+.bg-player-overlay {
+  /* Use a subtle tint based on the theme 'on-surface' color so the backdrop blur is visible
+     on very light backgrounds while remaining appropriate in dark mode. */
+  background-color: rgba(var(--md-sys-color-on-surface), 0.04);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.bg-card-title-overlay {
+  background-color: rgba(var(--md-sys-color-surface-container-highest), 0.85);
+  backdrop-filter: blur(12px);
+}
+
+/* Text colors for card title overlay - now theme-aware */
+.bg-card-title-overlay .text-on-surface {
+  color: rgb(var(--md-sys-color-on-surface)) !important;
+}
+
+.bg-card-title-overlay .text-on-surface-variant {
+  color: rgb(var(--md-sys-color-on-surface-variant)) !important;
+}
+
+/* Dialog button input styling for better visibility */
+.bg-dialog-button {
+  background-color: rgba(var(--md-sys-color-surface-container-highest), 1) !important;
+}
+
+/* Enhanced text input background for even better visibility */
+.bg-input-enhanced {
+  background-color: rgba(var(--md-sys-color-surface-container-high), 1) !important;
+}
+
+/* Force all outlined text inputs to have good visibility */
+.material-3-input.bg-dialog-button {
+  background-color: rgba(var(--md-sys-color-surface-container-highest), 1) !important;
+  color: rgb(var(--md-sys-color-on-surface)) !important;
+}
+
+/* Ensure all text inputs have proper contrast in dark mode */
+[data-theme="dark"] .material-3-input {
+  background-color: rgba(var(--md-sys-color-surface-container-highest), 1) !important;
+  color: rgb(var(--md-sys-color-on-surface)) !important;
+}
+
+/* TRANSPARENT SAFE BACKGROUND - Won't interfere with content */
+.bg-transparent-safe {
+  background-color: transparent !important;
+}
+
+/* DYNAMIC SURFACE CLASS - Safe for Material You colors */
+.bg-surface-dynamic {
+  background-color: rgb(var(--md-sys-color-surface, 255 248 250));
+}
+
+/* Material You Theme Enhancement - Responsive to light/dark themes */
+[data-theme="dark"] .bg-surface-dynamic,
+[data-monet-active="true"][data-theme="dark"] .bg-surface-dynamic {
+  background-color: rgb(var(--md-sys-color-surface, 20 18 22));
+}
+
+[data-theme="light"] .bg-surface-dynamic,
+[data-monet-active="true"][data-theme="light"] .bg-surface-dynamic {
+  background-color: rgb(var(--md-sys-color-surface, 255 248 250));
+}
+
+/* Ensure proper Material You integration for all themes */
+.material-3-dynamic {
+  background-color: rgb(var(--md-sys-color-surface));
+  color: rgb(var(--md-sys-color-on-surface));
+}
+
+/* Material You text colors - responsive to theme */
+[data-monet-active="true"] .text-on-surface {
+  color: rgb(var(--md-sys-color-on-surface)) !important;
+}
+
+[data-monet-active="true"] .text-on-surface-variant {
+  color: rgb(var(--md-sys-color-on-surface-variant)) !important;
+}

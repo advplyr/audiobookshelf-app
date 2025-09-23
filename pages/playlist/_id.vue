@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full h-full">
+  <div class="w-full h-full" :style="contentPaddingStyle">
     <div class="w-full h-full overflow-y-auto py-6 md:p-8">
       <div class="w-full flex justify-center">
         <covers-playlist-cover :items="playlistItems" :width="180" :height="180" />
@@ -11,13 +11,13 @@
           </h1>
           <div class="flex-grow" />
           <ui-btn v-if="showPlayButton" color="success" :padding-x="4" :loading="playerIsStartingForThisMedia" small class="flex items-center justify-center mx-1 w-24" @click="playClick">
-            <span class="material-symbols text-2xl fill">{{ playerIsPlaying ? 'pause' : 'play_arrow' }}</span>
+            <span class="material-symbols text-2xl fill text-on-surface">{{ playerIsPlaying ? 'pause' : 'play_arrow' }}</span>
             <span class="px-1 text-sm">{{ playerIsPlaying ? $strings.ButtonPause : $strings.ButtonPlay }}</span>
           </ui-btn>
         </div>
 
         <div class="my-8 max-w-2xl px-3">
-          <p class="text-base text-fg">{{ description }}</p>
+          <p class="text-base text-on-surface">{{ description }}</p>
         </div>
 
         <tables-playlist-items-table :items="playlistItems" :playlist-id="playlist.id" @showMore="showMore" />
@@ -44,7 +44,7 @@ export default {
     })
 
     if (!playlist) {
-      return redirect('/bookshelf/playlists')
+      return redirect('/bookshelf/collections-playlists')
     }
 
     // Lookup matching local items & episodes and attach to playlist items
@@ -121,6 +121,9 @@ export default {
       if (!this.mediaIdStartingPlayback) return false
       const mediaId = this.$store.state.playerStartingPlaybackMediaId
       return mediaId === this.mediaIdStartingPlayback
+    },
+    contentPaddingStyle() {
+      return this.$store.getters['getIsPlayerOpen'] ? { paddingBottom: '120px' } : {}
     }
   },
   methods: {
@@ -160,7 +163,7 @@ export default {
     },
     playlistRemoved(playlist) {
       if (this.playlist.id === playlist.id) {
-        this.$router.replace('/bookshelf/playlists')
+        this.$router.replace('/bookshelf/collections-playlists')
       }
     }
   },

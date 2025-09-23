@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full p-4">
+  <div class="w-full p-4" :style="contentPaddingStyle">
     <h1 class="text-xl mb-2 font-semibold">{{ $strings.HeaderLatestEpisodes }}</h1>
 
     <template v-for="episode in recentEpisodes">
@@ -45,6 +45,9 @@ export default {
         }
       })
       return epmap
+    },
+    contentPaddingStyle() {
+      return this.$store.getters['getIsPlayerOpen'] ? { paddingBottom: '120px' } : {}
     }
   },
   methods: {

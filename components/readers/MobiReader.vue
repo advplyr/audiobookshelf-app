@@ -1,6 +1,6 @@
 <template>
   <div class="mobi-ebook-viewer w-full relative">
-    <div class="absolute overflow-hidden left-0 top-0 w-screen max-w-screen m-auto z-10 border border-black border-opacity-20 shadow-md bg-white">
+    <div class="absolute overflow-hidden left-0 top-0 w-screen max-w-screen m-auto z-10 border border-outline-variant shadow-md bg-surface-dynamic">
       <iframe title="html-viewer" class="w-full overflow-hidden"> Loading </iframe>
     </div>
   </div>
@@ -23,16 +23,79 @@ export default {
     return {}
   },
   computed: {},
+  watch: {
+    // Watch for theme changes and reapply styles
+    '$store.state.globals.isDark'() {
+      this.updateTheme()
+    }
+  },
   methods: {
     addHtmlCss() {
       let iframe = document.getElementsByTagName('iframe')[0]
       if (!iframe) return
       let doc = iframe.contentDocument
       if (!doc) return
+
+      // Remove existing styles
+      let existingStyle = doc.getElementById('default-style')
+      if (existingStyle) {
+        existingStyle.remove()
+      }
+
+      // Apply default CSS
       let style = doc.createElement('style')
       style.id = 'default-style'
       style.textContent = defaultCss
       doc.head.appendChild(style)
+
+      // Apply theme-aware overrides
+      this.applyThemeOverrides(doc)
+    },
+    applyThemeOverrides(doc) {
+      // Get current Material 3 theme colors
+      const computedStyle = getComputedStyle(document.documentElement)
+      const onSurfaceColor = `rgb(${computedStyle.getPropertyValue('--md-sys-color-on-surface').trim()})`
+      const surfaceColor = `rgb(${computedStyle.getPropertyValue('--md-sys-color-surface').trim()})`
+
+      // Create theme override styles
+      let themeStyle = doc.createElement('style')
+      themeStyle.id = 'theme-overrides'
+      themeStyle.textContent = `
+        body {
+          background-color: ${surfaceColor} !important;
+          color: ${onSurfaceColor} !important;
+        }
+        .calibre {
+          background-color: ${surfaceColor} !important;
+          color: ${onSurfaceColor} !important;
+        }
+        .calibre6 {
+          background-color: ${surfaceColor} !important;
+          color: ${onSurfaceColor} !important;
+        }
+        * {
+          color: ${onSurfaceColor} !important;
+        }
+        a {
+          color: ${onSurfaceColor} !important;
+        }
+      `
+      doc.head.appendChild(themeStyle)
+    },
+    updateTheme() {
+      let iframe = document.getElementsByTagName('iframe')[0]
+      if (!iframe) return
+      let doc = iframe.contentDocument
+      if (!doc) return
+
+      // Remove existing theme overrides
+      let existingThemeStyle = doc.getElementById('theme-overrides')
+      if (existingThemeStyle) {
+        existingThemeStyle.remove()
+      }
+
+      // Reapply theme overrides
+      this.applyThemeOverrides(doc)
     },
     handleIFrameHeight(iFrame) {
       const isElement = (obj) => !!(obj && obj.nodeType === 1)
@@ -102,6 +165,9 @@ export default {
         style.id = 'default-style'
         style.textContent = defaultCss
         iFrame.contentDocument.head.appendChild(style)
+
+        // Apply theme-aware overrides
+        this.applyThemeOverrides(iFrame.contentDocument)
 
         this.handleIFrameHeight(iFrame)
       }

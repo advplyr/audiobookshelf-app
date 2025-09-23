@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full h-full py-6 px-4 overflow-y-auto">
+  <div class="w-full h-full py-6 px-4 overflow-y-auto" :style="contentPaddingStyle">
     <p class="mb-4 text-base text-fg">{{ $strings.HeaderDownloads }} ({{ downloadItemParts.length }})</p>
 
     <div v-if="!downloadItemParts.length" class="py-6 text-center text-lg">No download item parts</div>
@@ -34,6 +34,9 @@ export default {
       let parts = []
       this.downloadItems.forEach((di) => parts.push(...di.downloadItemParts))
       return parts
+    },
+    contentPaddingStyle() {
+      return this.$store.getters['getIsPlayerOpen'] ? { paddingBottom: '120px' } : {}
     }
   },
   mounted() {},

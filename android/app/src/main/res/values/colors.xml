@@ -4,4 +4,12 @@
     <color name="light_blue_600">#FF039BE5</color>
     <color name="light_blue_900">#FF01579B</color>
     <color name="background_dark">#232323</color>
+
+    <!-- Material You color definitions -->
+    <!-- Use neutral colors to prevent unwanted tinting of app icon -->
+    <color name="colorPrimary">#6366F1</color>
+    <color name="colorPrimaryDark">#4F46E5</color>
+    <color name="colorAccent">#6366F1</color>
+    <!-- Splash icon color: black in light theme -->
+    <color name="splash_icon_color">#000000</color>
 </resources>

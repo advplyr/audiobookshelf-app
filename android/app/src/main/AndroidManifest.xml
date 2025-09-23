@@ -44,10 +44,11 @@
             android:resource="@drawable/icon" />
         <meta-data
             android:name="com.google.android.gms.car.application"
-            android:resource="@xml/automotive_app_desc" /> <!-- Support for Cast -->
+            android:resource="@xml/automotive_app_desc" />
+        <!-- Cast Framework Configuration -->
         <meta-data
             android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
-            android:value="com.audiobookshelf.app.CastOptionsProvider" />
+            android:value="com.tomesonic.app.CastOptionsProvider" />
 
         <activity
             android:name=".MainActivity"
@@ -76,6 +77,16 @@
 
                 <data android:scheme="@string/custom_url_scheme" />
             </intent-filter>
+
+            <!-- Legacy URL scheme for OAuth compatibility -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="audiobookshelf" />
+            </intent-filter>
         </activity>
 
         <receiver android:name="androidx.media.session.MediaButtonReceiver" android:exported="true">
@@ -90,7 +101,10 @@
             android:exported="true"
             android:foregroundServiceType="mediaPlayback">
             <intent-filter>
+                <!-- Primary intent filter for Android Auto compatibility -->
                 <action android:name="android.media.browse.MediaBrowserService" />
+                <!-- Media3 MediaLibraryService for modern Android -->
+                <action android:name="androidx.media3.session.MediaLibraryService" />
             </intent-filter>
         </service>
 

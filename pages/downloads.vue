@@ -1,6 +1,6 @@
 <template>
   <div class="w-full h-full py-6 px-4 overflow-y-auto">
-    <p class="mb-2 text-base text-fg">{{ $strings.HeaderDownloads }} ({{ localLibraryItems.length }})</p>
+    <p class="mb-2 text-base text-on-surface">{{ $strings.HeaderDownloads }} ({{ localLibraryItems.length }})</p>
 
     <div class="w-full">
       <template v-for="(mediaItem, num) in localLibraryItems">
@@ -11,19 +11,19 @@
             </div>
             <div class="px-2 flex-grow">
               <p class="text-sm">{{ mediaItem.media.metadata.title }}</p>
-              <p v-if="mediaItem.mediaType == 'book'" class="text-xs text-fg-muted">{{ mediaItem.media.tracks.length }} {{ $strings.LabelTracks }}</p>
-              <p v-else-if="mediaItem.mediaType == 'podcast'" class="text-xs text-fg-muted">{{ mediaItem.media.episodes.length }} {{ $strings.HeaderEpisodes }}</p>
-              <p v-if="mediaItem.size" class="text-xs text-fg-muted">{{ $bytesPretty(mediaItem.size) }}</p>
+              <p v-if="mediaItem.mediaType == 'book'" class="text-xs text-on-surface-variant">{{ mediaItem.media.tracks.length }} {{ $strings.LabelTracks }}</p>
+              <p v-else-if="mediaItem.mediaType == 'podcast'" class="text-xs text-on-surface-variant">{{ mediaItem.media.episodes.length }} {{ $strings.HeaderEpisodes }}</p>
+              <p v-if="mediaItem.size" class="text-xs text-on-surface-variant">{{ $bytesPretty(mediaItem.size) }}</p>
             </div>
-            <div class="w-12 h-12 flex items-center justify-center">
-              <span class="material-symbols text-2xl text-fg-muted">chevron_right</span>
+            <div class="w-8 h-8 flex items-center justify-center">
+              <span class="material-symbols text-2xl text-on-surface-variant">chevron_right</span>
             </div>
           </nuxt-link>
-          <div v-if="num + 1 < localLibraryItems.length" class="flex border-t border-fg/10 my-3" />
+          <div v-if="num + 1 < localLibraryItems.length" class="flex border-t border-outline-variant my-3" />
         </div>
       </template>
     </div>
-    <div v-if="localLibraryItems.length" class="mt-4 text-sm text-fg-muted">{{ $strings.LabelTotalSize }}: {{ $bytesPretty(localLibraryItems.reduce((acc, item) => acc + item.size, 0)) }}</div>
+    <div v-if="localLibraryItems.length" class="mt-4 text-sm text-on-surface-variant">{{ $strings.LabelTotalSize }}: {{ $bytesPretty(localLibraryItems.reduce((acc, item) => acc + item.size, 0)) }}</div>
   </div>
 </template>
 
@@ -62,7 +62,6 @@ export default {
     async init() {
       var items = (await this.$db.getLocalLibraryItems()) || []
       this.localLibraryItems = items.map((lmi) => {
-        console.log('Local library item', JSON.stringify(lmi))
         return {
           ...lmi,
           size: this.getSize(lmi),

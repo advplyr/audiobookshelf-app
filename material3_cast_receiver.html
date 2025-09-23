@@ -1,0 +1,1944 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audiobookshelf Cast Receiver</title>
+
+  <!-- Material Icons -->
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+  <style>
+      :root {
+          /* Material 3 Color Tokens - Dark Theme */
+          --md-sys-color-primary: #90CAF9;
+          --md-sys-color-on-primary: #003258;
+          --md-sys-color-primary-container: #004881;
+          --md-sys-color-on-primary-container: #D1E4FF;
+
+          --md-sys-color-secondary: #BCC7DB;
+          --md-sys-color-on-secondary: #26304B;
+          --md-sys-color-secondary-container: #3C4663;
+          --md-sys-color-on-secondary-container: #D8E3F8;
+
+          --md-sys-color-surface: #121316;
+          --md-sys-color-surface-dim: #121316;
+          --md-sys-color-surface-bright: #38393C;
+          --md-sys-color-surface-container-lowest: #0D0E11;
+          --md-sys-color-surface-container-low: #1A1C1E;
+          --md-sys-color-surface-container: #1E2022;
+          --md-sys-color-surface-container-high: #282A2C;
+          --md-sys-color-surface-container-highest: #333537;
+
+          --md-sys-color-on-surface: #E3E2E6;
+          --md-sys-color-on-surface-variant: #C4C7C5;
+          --md-sys-color-outline: #8E918F;
+          --md-sys-color-outline-variant: #444746;
+
+          --md-sys-color-error: #FFB4AB;
+          --md-sys-color-on-error: #690005;
+          --md-sys-color-error-container: #93000A;
+          --md-sys-color-on-error-container: #FFDAD6;
+
+          /* Typography Scale */
+          --md-sys-typescale-display-large-font-size: 57px;
+          --md-sys-typescale-display-large-line-height: 64px;
+          --md-sys-typescale-display-large-font-weight: 400;
+
+          --md-sys-typescale-headline-large-font-size: 32px;
+          --md-sys-typescale-headline-large-line-height: 40px;
+          --md-sys-typescale-headline-large-font-weight: 400;
+
+          --md-sys-typescale-headline-medium-font-size: 28px;
+          --md-sys-typescale-headline-medium-line-height: 36px;
+          --md-sys-typescale-headline-medium-font-weight: 400;
+
+          --md-sys-typescale-title-large-font-size: 22px;
+          --md-sys-typescale-title-large-line-height: 28px;
+          --md-sys-typescale-title-large-font-weight: 400;
+
+          --md-sys-typescale-body-large-font-size: 16px;
+          --md-sys-typescale-body-large-line-height: 24px;
+          --md-sys-typescale-body-large-font-weight: 400;
+
+          --md-sys-typescale-body-medium-font-size: 14px;
+          --md-sys-typescale-body-medium-line-height: 20px;
+          --md-sys-typescale-body-medium-font-weight: 400;
+
+          --md-sys-typescale-label-large-font-size: 14px;
+          --md-sys-typescale-label-large-line-height: 20px;
+          --md-sys-typescale-label-large-font-weight: 500;
+
+          /* Elevation */
+          --md-sys-elevation-level0: none;
+          --md-sys-elevation-level1: 0px 1px 3px 1px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.30);
+          --md-sys-elevation-level2: 0px 2px 6px 2px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.30);
+          --md-sys-elevation-level3: 0px 4px 8px 3px rgba(0, 0, 0, 0.15), 0px 1px 3px 0px rgba(0, 0, 0, 0.30);
+          --md-sys-elevation-level4: 0px 6px 10px 4px rgba(0, 0, 0, 0.15), 0px 2px 3px 0px rgba(0, 0, 0, 0.30);
+          --md-sys-elevation-level5: 0px 8px 12px 6px rgba(0, 0, 0, 0.15), 0px 4px 4px 0px rgba(0, 0, 0, 0.30);
+
+          /* Animation */
+          --md-sys-motion-duration-short1: 50ms;
+          --md-sys-motion-duration-short2: 100ms;
+          --md-sys-motion-duration-short3: 150ms;
+          --md-sys-motion-duration-short4: 200ms;
+          --md-sys-motion-duration-medium1: 250ms;
+          --md-sys-motion-duration-medium2: 300ms;
+          --md-sys-motion-duration-medium3: 350ms;
+          --md-sys-motion-duration-medium4: 400ms;
+          --md-sys-motion-duration-long1: 450ms;
+          --md-sys-motion-duration-long2: 500ms;
+          --md-sys-motion-duration-long3: 550ms;
+          --md-sys-motion-duration-long4: 600ms;
+
+          --md-sys-motion-easing-emphasized: cubic-bezier(0.2, 0, 0, 1);
+          --md-sys-motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
+      }
+
+      * {
+          box-sizing: border-box;
+      }
+
+      body {
+          margin: 0;
+          padding: 0;
+          background: var(--md-sys-color-surface);
+          color: var(--md-sys-color-on-surface);
+          font-family: 'Roboto', sans-serif;
+          min-height: 100vh;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+      }
+
+      /* Main Container */
+      .receiver-container {
+          display: flex;
+          flex-direction: column;
+          height: 100vh;
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 24px;
+          gap: 24px;
+      }
+
+      /* Media Card */
+      .media-card {
+          background: var(--md-sys-color-surface-container);
+          border-radius: 28px;
+          padding: 32px;
+          box-shadow: var(--md-sys-elevation-level2);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
+          transition: all var(--md-sys-motion-duration-medium2) var(--md-sys-motion-easing-standard);
+      }
+
+      /* Cover Art */
+      .cover-art {
+          width: 280px;
+          height: 280px;
+          border-radius: 20px;
+          background: var(--md-sys-color-surface-container-high);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-bottom: 24px;
+          overflow: hidden;
+          box-shadow: var(--md-sys-elevation-level3);
+          transition: transform var(--md-sys-motion-duration-medium2) var(--md-sys-motion-easing-standard);
+      }
+
+      .cover-art:hover {
+          transform: scale(1.02);
+      }
+
+      .cover-art img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          border-radius: 20px;
+      }
+
+      .cover-art .placeholder {
+          font-size: 64px;
+          color: var(--md-sys-color-on-surface-variant);
+          opacity: 0.6;
+      }
+
+      /* Typography */
+      .book-title {
+          font-size: var(--md-sys-typescale-headline-large-font-size);
+          line-height: var(--md-sys-typescale-headline-large-line-height);
+          font-weight: var(--md-sys-typescale-headline-large-font-weight);
+          color: var(--md-sys-color-on-surface);
+          margin: 0 0 8px 0;
+          text-align: center;
+      }
+
+      .book-author {
+          font-size: var(--md-sys-typescale-title-large-font-size);
+          line-height: var(--md-sys-typescale-title-large-line-height);
+          font-weight: var(--md-sys-typescale-title-large-font-weight);
+          color: var(--md-sys-color-on-surface-variant);
+          margin: 0 0 16px 0;
+      }
+
+      .chapter-title {
+          font-size: var(--md-sys-typescale-body-large-font-size);
+          line-height: var(--md-sys-typescale-body-large-line-height);
+          font-weight: 500;
+          color: var(--md-sys-color-primary);
+          margin: 0;
+          padding: 8px 16px;
+          background: var(--md-sys-color-primary-container);
+          border-radius: 16px;
+          display: inline-block;
+      }
+
+      /* Progress Section */
+      .progress-section {
+          width: 100%;
+          margin-top: 32px;
+          gap: 16px;
+          display: flex;
+          flex-direction: column;
+      }
+
+      .progress-container {
+          width: 100%;
+      }
+
+      .progress-label {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 8px;
+          font-size: var(--md-sys-typescale-body-medium-font-size);
+          font-weight: 500;
+          color: var(--md-sys-color-on-surface-variant);
+      }
+
+      .progress-bar {
+          width: 100%;
+          height: 8px;
+          background: var(--md-sys-color-outline-variant);
+          border-radius: 4px;
+          overflow: hidden;
+          position: relative;
+      }
+
+      .progress-fill {
+          height: 100%;
+          background: var(--md-sys-color-primary);
+          border-radius: 4px;
+          transition: width var(--md-sys-motion-duration-medium2) var(--md-sys-motion-easing-standard);
+          width: 0%;
+      }
+
+      .time-display {
+          display: flex;
+          justify-content: space-between;
+          margin-top: 8px;
+          font-size: var(--md-sys-typescale-body-medium-font-size);
+          color: var(--md-sys-color-on-surface-variant);
+          font-variant-numeric: tabular-nums;
+      }
+
+      /* Status Chip */
+      .status-chip {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 16px;
+          border-radius: 16px;
+          font-size: var(--md-sys-typescale-label-large-font-size);
+          font-weight: var(--md-sys-typescale-label-large-font-weight);
+          transition: all var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+          margin-top: 16px;
+      }
+
+      .status-chip.playing {
+          background: rgba(76, 175, 80, 0.16);
+          color: #4CAF50;
+      }
+
+      .status-chip.paused {
+          background: rgba(255, 152, 0, 0.16);
+          color: #FF9800;
+      }
+
+      .status-chip.loading {
+          background: rgba(33, 150, 243, 0.16);
+          color: #2196F3;
+      }
+
+      .status-chip.error {
+          background: var(--md-sys-color-error-container);
+          color: var(--md-sys-color-on-error-container);
+      }
+
+      .status-chip .material-icons {
+          font-size: 18px;
+      }
+
+      /* Chapter Queue - Simplified for Cast */
+      .chapter-queue {
+          flex: 0 0 auto;
+          max-height: 200px;
+          background: var(--md-sys-color-surface-container);
+          border-radius: 16px;
+          padding: 16px;
+          box-shadow: var(--md-sys-elevation-level1);
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+          margin-top: 16px;
+      }
+
+      .chapter-queue-header {
+          font-size: var(--md-sys-typescale-title-medium-font-size);
+          font-weight: 500;
+          color: var(--md-sys-color-on-surface);
+          margin: 0 0 12px 0;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+      }
+
+      .chapter-list {
+          flex: 1;
+          overflow-y: auto;
+          margin: 0 -16px;
+          padding: 0 16px;
+      }
+
+      .chapter-list::-webkit-scrollbar {
+          width: 8px;
+      }
+
+      .chapter-list::-webkit-scrollbar-track {
+          background: var(--md-sys-color-surface-container-high);
+          border-radius: 4px;
+      }
+
+      .chapter-list::-webkit-scrollbar-thumb {
+          background: var(--md-sys-color-outline);
+          border-radius: 4px;
+      }
+
+      .chapter-list::-webkit-scrollbar-thumb:hover {
+          background: var(--md-sys-color-on-surface-variant);
+      }
+
+      .chapter-item {
+          padding: 8px 12px;
+          border-radius: 12px;
+          margin-bottom: 4px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          transition: all var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+          cursor: pointer;
+          position: relative;
+          overflow: hidden;
+      }
+
+      .chapter-item:hover {
+          background: var(--md-sys-color-surface-container-high);
+      }
+
+      .chapter-item.current {
+          background: var(--md-sys-color-primary-container);
+          color: var(--md-sys-color-on-primary-container);
+      }
+
+      .chapter-item.current::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 0;
+          bottom: 0;
+          width: 4px;
+          background: var(--md-sys-color-primary);
+      }
+
+      .chapter-number {
+          font-size: var(--md-sys-typescale-label-large-font-size);
+          font-weight: 700;
+          color: var(--md-sys-color-primary);
+          min-width: 32px;
+          text-align: center;
+          background: var(--md-sys-color-surface-container-highest);
+          border-radius: 8px;
+          padding: 4px 8px;
+      }
+
+      .chapter-item.current .chapter-number {
+          background: var(--md-sys-color-primary);
+          color: var(--md-sys-color-on-primary);
+      }
+
+      .chapter-info {
+          flex: 1;
+          min-width: 0;
+      }
+
+      .chapter-name {
+          font-size: var(--md-sys-typescale-body-large-font-size);
+          font-weight: 500;
+          color: var(--md-sys-color-on-surface);
+          margin: 0;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+      }
+
+      .chapter-item.current .chapter-name {
+          color: var(--md-sys-color-on-primary-container);
+      }
+
+      .chapter-duration {
+          font-size: var(--md-sys-typescale-body-medium-font-size);
+          color: var(--md-sys-color-on-surface-variant);
+          margin: 4px 0 0 0;
+          font-variant-numeric: tabular-nums;
+      }
+
+      .chapter-item.current .chapter-duration {
+          color: var(--md-sys-color-on-primary-container);
+          opacity: 0.8;
+      }
+
+      /* Debug Panel */
+      .debug-panel {
+          position: fixed;
+          bottom: 24px;
+          right: 24px;
+          width: 400px;
+          max-height: 300px;
+          background: var(--md-sys-color-surface-container-highest);
+          border-radius: 16px;
+          padding: 16px;
+          box-shadow: var(--md-sys-elevation-level5);
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+          z-index: 1000;
+          transition: all var(--md-sys-motion-duration-medium2) var(--md-sys-motion-easing-standard);
+      }
+
+      .debug-panel.collapsed {
+          height: 56px;
+      }
+
+      .debug-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 12px;
+          cursor: pointer;
+      }
+
+      .debug-title {
+          font-size: var(--md-sys-typescale-body-large-font-size);
+          font-weight: 500;
+          color: var(--md-sys-color-on-surface);
+      }
+
+      .debug-toggle {
+          background: none;
+          border: none;
+          color: var(--md-sys-color-primary);
+          cursor: pointer;
+          padding: 8px;
+          border-radius: 50%;
+          transition: background var(--md-sys-motion-duration-short2);
+      }
+
+      .debug-toggle:hover {
+          background: rgba(144, 202, 249, 0.08);
+      }
+
+      .debug-log {
+          flex: 1;
+          overflow-y: auto;
+          font-family: 'Roboto Mono', monospace;
+          font-size: 12px;
+          line-height: 1.4;
+      }
+
+      .debug-log::-webkit-scrollbar {
+          width: 6px;
+      }
+
+      .debug-log::-webkit-scrollbar-track {
+          background: transparent;
+      }
+
+      .debug-log::-webkit-scrollbar-thumb {
+          background: var(--md-sys-color-outline);
+          border-radius: 3px;
+      }
+
+      .log-entry {
+          margin-bottom: 4px;
+          padding: 2px 0;
+          word-break: break-word;
+      }
+
+      .log-entry.info { color: var(--md-sys-color-on-surface); }
+      .log-entry.success { color: #4CAF50; }
+      .log-entry.warning { color: #FF9800; }
+      .log-entry.error { color: var(--md-sys-color-error); }
+
+      /* Smart Display Optimizations */
+      .smart-display-layout {
+          /* Optimize for smart display touch targets */
+          .chapter-item {
+              min-height: 64px;
+              font-size: var(--md-sys-typescale-body-large-font-size);
+          }
+
+          .cover-art {
+              width: 320px;
+              height: 320px;
+          }
+
+          .book-title {
+              font-size: var(--md-sys-typescale-display-large-font-size);
+              line-height: var(--md-sys-typescale-display-large-line-height);
+          }
+
+          .book-author {
+              font-size: var(--md-sys-typescale-headline-medium-font-size);
+              line-height: var(--md-sys-typescale-headline-medium-line-height);
+          }
+
+          .chapter-title {
+              font-size: var(--md-sys-typescale-title-large-font-size);
+              padding: 12px 20px;
+          }
+
+          .progress-section {
+              margin-top: 48px;
+          }
+
+          .progress-bar {
+              height: 12px;
+          }
+
+          .status-chip {
+              padding: 12px 20px;
+              font-size: var(--md-sys-typescale-title-large-font-size);
+              margin-top: 24px;
+          }
+      }
+
+      /* Responsive Design */
+      @media (max-width: 768px) {
+          .receiver-container {
+              padding: 16px;
+              gap: 16px;
+          }
+
+          .media-card {
+              padding: 24px;
+          }
+
+          .cover-art {
+              width: 200px;
+              height: 200px;
+          }
+
+          .book-title {
+              font-size: 24px;
+              line-height: 32px;
+          }
+
+          .debug-panel {
+              width: calc(100vw - 32px);
+              bottom: 16px;
+              right: 16px;
+          }
+      }
+
+      @media (orientation: landscape) and (max-height: 600px) {
+          .receiver-container {
+              flex-direction: row;
+              gap: 24px;
+          }
+
+          .media-card {
+              flex: 1;
+              max-width: 50%;
+          }
+
+          .chapter-queue {
+              flex: 1;
+              max-width: 50%;
+          }
+
+          .cover-art {
+              width: 200px;
+              height: 200px;
+          }
+      }
+
+      /* Loading Animation */
+      @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+      }
+
+      .loading {
+          animation: pulse 2s infinite;
+      }
+
+      /* Ripple Effect */
+      .ripple {
+          position: relative;
+          overflow: hidden;
+      }
+
+      .ripple::before {
+          content: '';
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          width: 0;
+          height: 0;
+          border-radius: 50%;
+          background: rgba(255, 255, 255, 0.1);
+          transform: translate(-50%, -50%);
+          transition: width 0.6s, height 0.6s;
+      }
+
+      .ripple:active::before {
+          width: 300px;
+          height: 300px;
+      }
+
+      /* Touch Ripple Effect for Smart Displays */
+      .ripple-effect {
+          position: absolute;
+          border-radius: 50%;
+          background: rgba(255, 255, 255, 0.2);
+          transform: scale(0);
+          animation: ripple-animation 0.6s linear;
+          pointer-events: none;
+      }
+
+      @keyframes ripple-animation {
+          to {
+              transform: scale(1);
+              opacity: 0;
+          }
+      }
+  </style>
+</head>
+<body>
+  <div class="receiver-container">
+      <!-- Main Media Card -->
+      <div class="media-card">
+          <div class="cover-art" id="cover-art">
+              <div class="placeholder material-icons">headphones</div>
+          </div>
+
+          <h1 class="book-title" id="book-title">Audiobookshelf Cast Receiver</h1>
+          <h2 class="book-author" id="book-author">Ready for content</h2>
+          <div class="chapter-title" id="chapter-title">Waiting for media...</div>
+
+          <div class="progress-section">
+              <!-- Single Book Progress - Simplified for Cast -->
+              <div class="progress-container">
+                  <div class="progress-label">
+                      <span>Book Progress</span>
+                      <span id="book-progress-text">0%</span>
+                  </div>
+                  <div class="progress-bar">
+                      <div class="progress-fill" id="book-progress-fill"></div>
+                  </div>
+                  <div class="time-display">
+                      <span id="book-current-time">0:00:00</span>
+                      <span id="book-duration">0:00:00</span>
+                  </div>
+              </div>
+          </div>
+
+          <div class="status-chip" id="status-chip">
+              <span class="material-icons">cast</span>
+              <span id="status-text">Initializing...</span>
+          </div>
+      </div>
+
+      <!-- Chapter Queue -->
+      <div class="chapter-queue" id="chapter-queue" style="display: none;">
+          <div class="chapter-queue-header">
+              <span class="material-icons">list</span>
+              <span>Chapters</span>
+              <span id="chapter-count"></span>
+          </div>
+          <div class="chapter-list" id="chapter-list">
+              <!-- Chapter items will be populated here -->
+          </div>
+      </div>
+  </div>
+
+  <!-- Debug Panel -->
+  <div class="debug-panel collapsed" id="debug-panel">
+      <div class="debug-header" onclick="toggleDebugPanel()">
+          <span class="debug-title">Debug Log</span>
+          <button class="debug-toggle">
+              <span class="material-icons" id="debug-toggle-icon">expand_less</span>
+          </button>
+      </div>
+      <div class="debug-log" id="debug-log">
+          <div class="log-entry info">🚀 Material 3 Cast Receiver initializing...</div>
+      </div>
+  </div>
+
+  <!-- Cast Receiver SDK -->
+  <script src="//www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
+
+  <script>
+      class AudiobookCastReceiver {
+          constructor() {
+              this.playerManager = null;
+              this.context = null;
+              this.mediaQueue = [];
+              this.currentQueueIndex = 0;
+              this.bookMetadata = {};
+              this.chapterData = {};
+              this.debugCollapsed = true;
+
+              // ABSOLUTE TIMELINE TRACKING - Fixes chapter-relative vs absolute seeking mismatch
+              this.absoluteTimelineMs = 0;       // Current absolute book position
+              this.chapterStartTimes = [];       // Cumulative start times for each chapter
+              this.totalBookDurationMs = 0;      // Total duration of entire book
+              this.currentChapterDurationMs = 0; // Duration of current chapter
+
+              // Smart display detection
+              this.isSmartDisplay = this.detectSmartDisplay();
+
+              this.init();
+          }
+
+          detectSmartDisplay() {
+              try {
+                  // Check for touch capabilities (smart displays have touch)
+                  const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+                  // Check screen size (smart displays are typically larger)
+                  const hasLargeScreen = window.screen &&
+                      (window.screen.width >= 800 || window.screen.height >= 600);
+
+                  // Check user agent for common smart display indicators
+                  const userAgent = navigator.userAgent.toLowerCase();
+                  const hasSmartDisplayUA = userAgent.includes('tv') ||
+                      userAgent.includes('smartdisplay') ||
+                      userAgent.includes('crkey');
+
+                  const isSmartDisplay = hasTouch && hasLargeScreen;
+
+                  this.log(`🔍 Smart display detection: touch=${hasTouch}, largeScreen=${hasLargeScreen}, smartDisplayUA=${hasSmartDisplayUA}`, 'info');
+                  this.log(`📱 Detected device type: ${isSmartDisplay ? 'Smart Display' : 'Cast Device'}`, 'info');
+
+                  return isSmartDisplay;
+              } catch (error) {
+                  this.log(`⚠️ Smart display detection failed: ${error.message}`, 'warning');
+                  return false;
+              }
+          }
+
+          applySmartDisplayLayout() {
+              if (this.isSmartDisplay) {
+                  document.body.classList.add('smart-display-layout');
+                  this.log('📱 Applied smart display layout optimizations', 'info');
+
+                  // Optimize chapter list for touch interaction
+                  const chapterQueue = document.getElementById('chapter-queue');
+                  if (chapterQueue) {
+                      chapterQueue.style.display = 'flex'; // Always show chapters on smart displays
+                  }
+
+                  // Add touch-friendly interactions
+                  this.setupTouchOptimizations();
+              }
+          }
+
+          setupTouchOptimizations() {
+              // Add ripple effects for better touch feedback
+              const addRippleEffect = (element) => {
+                  element.addEventListener('touchstart', function(e) {
+                      const ripple = document.createElement('div');
+                      ripple.classList.add('ripple-effect');
+
+                      const rect = this.getBoundingClientRect();
+                      const size = Math.max(rect.width, rect.height);
+                      const x = e.touches[0].clientX - rect.left - size / 2;
+                      const y = e.touches[0].clientY - rect.top - size / 2;
+
+                      ripple.style.width = ripple.style.height = size + 'px';
+                      ripple.style.left = x + 'px';
+                      ripple.style.top = y + 'px';
+
+                      this.appendChild(ripple);
+
+                      setTimeout(() => {
+                          ripple.remove();
+                      }, 600);
+                  });
+              };
+
+              // Apply to chapter items
+              document.querySelectorAll('.chapter-item').forEach(addRippleEffect);
+
+              this.log('👆 Touch optimizations applied for smart display', 'info');
+          }
+
+          init() {
+              this.log('🎬 Initializing Material 3 Cast Receiver...', 'info');
+              this.updateStatus('Initializing...', 'loading');
+
+              // Check if Cast framework is available
+              if (typeof cast === 'undefined' || !cast.framework) {
+                  this.log('❌ Cast framework not available', 'error');
+                  this.updateStatus('Cast framework not loaded', 'error');
+                  return;
+              }
+
+              try {
+                  // Log framework version if available
+                  if (cast.framework.VERSION) {
+                      this.log(`📱 Cast framework version: ${cast.framework.VERSION}`, 'info');
+                  }
+
+                  this.context = cast.framework.CastReceiverContext.getInstance();
+                  this.playerManager = this.context.getPlayerManager();
+
+                  if (!this.context || !this.playerManager) {
+                      throw new Error('Failed to get Cast context or player manager');
+                  }
+
+                  // Log available event types for debugging
+                  if (cast?.framework?.events) {
+                      this.log(`🔍 Available events object keys: ${Object.keys(cast.framework.events)}`, 'info');
+                      if (cast.framework.events.EventType) {
+                          this.log(`🔍 EventType keys: ${Object.keys(cast.framework.events.EventType)}`, 'info');
+                      }
+                  }
+
+                  this.setupMessageInterceptors();
+                  this.setupEventListeners();
+                  this.setupPlaybackConfig();
+                  this.setupSmartDisplayControls();
+
+                  this.context.start();
+                  this.log('✅ Cast receiver started successfully', 'success');
+                  this.updateStatus('Ready for casting', 'info');
+
+                  // Apply smart display optimizations if detected
+                  this.applySmartDisplayLayout();
+
+              } catch (error) {
+                  this.log(`❌ Failed to initialize: ${error.message}`, 'error');
+                  this.updateStatus('Initialization failed', 'error');
+
+                  // Log additional debug information
+                  this.log(`🔍 Cast object available: ${typeof cast !== 'undefined'}`, 'info');
+                  this.log(`🔍 Framework available: ${typeof cast?.framework !== 'undefined'}`, 'info');
+                  this.log(`🔍 Events available: ${typeof cast?.framework?.events !== 'undefined'}`, 'info');
+
+                  // Log available event types for debugging
+                  if (cast?.framework?.events) {
+                      this.log(`🔍 Available events object keys: ${Object.keys(cast.framework.events)}`, 'info');
+                      if (cast.framework.events.EventType) {
+                          this.log(`🔍 EventType keys: ${Object.keys(cast.framework.events.EventType)}`, 'info');
+                      }
+                  }
+
+                  // Fallback: Try basic initialization without advanced features
+                  this.log(`🔄 Attempting basic fallback initialization...`, 'info');
+                  try {
+                      this.context = cast.framework.CastReceiverContext.getInstance();
+                      this.playerManager = this.context.getPlayerManager();
+
+                      // Start with minimal configuration
+                      this.context.start();
+                      this.log(`✅ Basic fallback initialization successful`, 'success');
+                      this.updateStatus('Basic receiver ready', 'info');
+                  } catch (fallbackError) {
+                      this.log(`❌ Fallback initialization also failed: ${fallbackError.message}`, 'error');
+                      this.updateStatus('Complete failure', 'error');
+                  }
+              }
+          }
+
+          setupPlaybackConfig() {
+              try {
+                  const playbackConfig = new cast.framework.PlaybackConfig();
+
+                  // Set supported commands safely
+                  if (cast.framework.messages && cast.framework.messages.Command) {
+                      playbackConfig.supportedCommands =
+                          cast.framework.messages.Command.ALL_BASIC_MEDIA |
+                          cast.framework.messages.Command.QUEUE_NEXT |
+                          cast.framework.messages.Command.QUEUE_PREV |
+                          cast.framework.messages.Command.SEEK;
+                  }
+
+                  playbackConfig.autoResumeDuration = 5;
+
+                  // Check if setPlaybackConfig exists on context or playerManager
+                  if (typeof this.context.setPlaybackConfig === 'function') {
+                      this.context.setPlaybackConfig(playbackConfig);
+                      this.log('⚙️ Playback configuration set on context', 'info');
+                  } else if (typeof this.playerManager.setPlaybackConfig === 'function') {
+                      this.playerManager.setPlaybackConfig(playbackConfig);
+                      this.log('⚙️ Playback configuration set on playerManager', 'info');
+                  } else {
+                      this.log('⚠️ setPlaybackConfig not available, using defaults', 'warning');
+                  }
+              } catch (error) {
+                  this.log(`⚠️ Failed to set playback config: ${error.message}`, 'warning');
+              }
+          }
+
+          setupSmartDisplayControls() {
+              try {
+                  // Check if UI controls are available for smart displays
+                  if (!cast.framework.ui || !cast.framework.ui.Controls) {
+                      this.log('⚠️ Cast UI Controls not available - smart display controls disabled', 'warning');
+                      return;
+                  }
+
+                  const controls = cast.framework.ui.Controls.getInstance();
+
+                  if (!controls) {
+                      this.log('⚠️ Could not get UI Controls instance - smart display controls disabled', 'warning');
+                      return;
+                  }
+
+                  this.log('📱 Setting up smart display controls for audiobooks...', 'info');
+
+                  // Clear default button assignments
+                  controls.clearDefaultSlotAssignments();
+
+                  // Assign custom buttons optimized for audiobook navigation
+                  // Slot assignment for audiobook controls:
+                  // SLOT_SECONDARY_1: Previous Chapter (queue_prev)
+                  // SLOT_PRIMARY_1: Skip Back 30 seconds
+                  // SLOT_PRIMARY_2: Play/Pause (default)
+                  // SLOT_SECONDARY_2: Skip Forward 30 seconds
+                  // SLOT_TERTIARY: Next Chapter (queue_next)
+
+                  // Previous Chapter (left side)
+                  if (cast.framework.ui.ControlsSlot && cast.framework.ui.ControlsButton) {
+                      controls.assignButton(
+                          cast.framework.ui.ControlsSlot.SLOT_SECONDARY_1,
+                          cast.framework.ui.ControlsButton.QUEUE_PREV
+                      );
+
+                      // Skip backward 30 seconds (primary left)
+                      controls.assignButton(
+                          cast.framework.ui.ControlsSlot.SLOT_PRIMARY_1,
+                          cast.framework.ui.ControlsButton.SKIP_PREVIOUS
+                      );
+
+                      // Skip forward 30 seconds (primary right)
+                      controls.assignButton(
+                          cast.framework.ui.ControlsSlot.SLOT_SECONDARY_2,
+                          cast.framework.ui.ControlsButton.SKIP_NEXT
+                      );
+
+                      // Next Chapter (right side)
+                      controls.assignButton(
+                          cast.framework.ui.ControlsSlot.SLOT_TERTIARY,
+                          cast.framework.ui.ControlsButton.QUEUE_NEXT
+                      );
+
+                      this.log('✅ Smart display button layout configured:', 'success');
+                      this.log('📱 [Previous Chapter] [Skip -30s] [Play/Pause] [Skip +30s] [Next Chapter]', 'info');
+                  }
+
+                  // Set up button event handlers for custom actions
+                  this.setupControlEventHandlers();
+
+                  // Update supported media commands to enable the buttons
+                  this.updateSupportedCommands();
+
+              } catch (error) {
+                  this.log(`❌ Failed to setup smart display controls: ${error.message}`, 'error');
+                  this.log('⚠️ Smart display controls will not be available', 'warning');
+              }
+          }
+
+          setupControlEventHandlers() {
+              try {
+                  // Set up message interceptors for skip commands
+                  this.playerManager.setMessageInterceptor(
+                      cast.framework.messages.MessageType.SKIP,
+                      (skipRequest) => this.handleSkipRequest(skipRequest)
+                  );
+
+                  this.log('✅ Control event handlers configured', 'info');
+              } catch (error) {
+                  this.log(`❌ Failed to setup control event handlers: ${error.message}`, 'error');
+              }
+          }
+
+          updateSupportedCommands() {
+              try {
+                  // Enable all audiobook-relevant commands
+                  if (cast.framework.messages && cast.framework.messages.Command) {
+                      const supportedCommands =
+                          cast.framework.messages.Command.ALL_BASIC_MEDIA |
+                          cast.framework.messages.Command.QUEUE_NEXT |
+                          cast.framework.messages.Command.QUEUE_PREV |
+                          cast.framework.messages.Command.SEEK |
+                          cast.framework.messages.Command.SKIP_FORWARD |
+                          cast.framework.messages.Command.SKIP_BACKWARD;
+
+                      this.playerManager.setSupportedMediaCommands(supportedCommands, true);
+                      this.log('✅ Updated supported media commands for smart display controls', 'info');
+                  }
+              } catch (error) {
+                  this.log(`⚠️ Failed to update supported commands: ${error.message}`, 'warning');
+              }
+          }
+
+          handleSkipRequest(skipRequest) {
+              const skipIntervalSec = skipRequest.skipInterval || 30; // Default to 30 seconds
+              this.log(`⏩ Skip request: ${skipIntervalSec}s interval`, 'info');
+
+              try {
+                  const currentTime = this.playerManager.getCurrentTimeSec() || 0;
+                  let targetTime;
+
+                  if (skipIntervalSec > 0) {
+                      // Skip forward
+                      targetTime = currentTime + skipIntervalSec;
+                      this.log(`⏩ Skipping forward ${skipIntervalSec}s: ${currentTime}s → ${targetTime}s`, 'info');
+                  } else {
+                      // Skip backward
+                      targetTime = Math.max(0, currentTime + skipIntervalSec); // skipIntervalSec is negative
+                      this.log(`⏪ Skipping backward ${Math.abs(skipIntervalSec)}s: ${currentTime}s → ${targetTime}s`, 'info');
+                  }
+
+                  // Handle chapter boundaries for absolute seeking
+                  if (this.chapterStartTimes && this.chapterStartTimes.length > 0) {
+                      const currentChapterStartMs = this.chapterStartTimes[this.currentQueueIndex] || 0;
+                      const absoluteTargetTimeMs = currentChapterStartMs + (targetTime * 1000);
+
+                      // Check if skip crosses chapter boundaries
+                      const chapterResult = this.convertAbsoluteToChapterPosition(absoluteTargetTimeMs);
+
+                      if (chapterResult && chapterResult.chapterIndex !== this.currentQueueIndex) {
+                          this.log(`🔄 Skip crosses chapter boundary - jumping to chapter ${chapterResult.chapterIndex + 1}`, 'info');
+
+                          // Jump to target chapter and seek to position
+                          this.currentQueueIndex = chapterResult.chapterIndex;
+                          this.pendingSeekSeconds = chapterResult.chapterRelativeSeconds;
+
+                          const queueJumpRequest = new cast.framework.messages.QueueJumpRequest();
+                          queueJumpRequest.currentIndex = chapterResult.chapterIndex;
+                          this.playerManager.getQueueManager().queueJump(queueJumpRequest);
+
+                          // Don't seek now - will be handled in media load complete
+                          return skipRequest;
+                      }
+                  }
+
+                  // Same chapter - just seek
+                  this.playerManager.seek(targetTime);
+                  this.log(`✅ Seek completed to ${targetTime}s`, 'success');
+
+              } catch (error) {
+                  this.log(`❌ Skip failed: ${error.message}`, 'error');
+              }
+
+              return skipRequest;
+          }
+
+          setupMessageInterceptors() {
+              // LOAD Message Interceptor
+              this.playerManager.setMessageInterceptor(
+                  cast.framework.messages.MessageType.LOAD,
+                  (loadRequest) => this.handleLoadRequest(loadRequest)
+              );
+
+              // QUEUE_LOAD Message Interceptor
+              this.playerManager.setMessageInterceptor(
+                  cast.framework.messages.MessageType.QUEUE_LOAD,
+                  (queueLoadRequest) => this.handleQueueLoadRequest(queueLoadRequest)
+              );
+
+              // QUEUE_UPDATE Message Interceptor
+              this.playerManager.setMessageInterceptor(
+                  cast.framework.messages.MessageType.QUEUE_UPDATE,
+                  (queueUpdateRequest) => this.handleQueueUpdateRequest(queueUpdateRequest)
+              );
+
+              // SEEK Message Interceptor - CRITICAL FIX for absolute vs chapter-relative seeking
+              this.playerManager.setMessageInterceptor(
+                  cast.framework.messages.MessageType.SEEK,
+                  (seekRequest) => this.handleSeekRequest(seekRequest)
+              );
+
+              this.log('📨 Message interceptors configured', 'info');
+          }
+
+          setupEventListeners() {
+              // Helper function to safely add event listeners
+              const safeAddEventListener = (eventType, handler, description) => {
+                  try {
+                      if (eventType && typeof eventType === 'string') {
+                          this.playerManager.addEventListener(eventType, handler);
+                          this.log(`✅ ${description} listener added`, 'info');
+                      } else {
+                          this.log(`⚠️ Skipping ${description} - event type undefined`, 'warning');
+                      }
+                  } catch (error) {
+                      this.log(`❌ Failed to add ${description} listener: ${error.message}`, 'error');
+                  }
+              };
+
+              // Map our desired events to actual Cast SDK v3 event types
+              const eventTypeMap = {
+                  'PLAYER_LOAD_COMPLETE': 'PLAYER_LOAD_COMPLETE',  // Available
+                  'PLAYING': 'PLAYING',                            // Available
+                  'PAUSED': 'PAUSE',                               // Use PAUSE instead of PAUSED
+                  'IDLE': 'ENDED',                                 // Use ENDED instead of IDLE
+                  'TIME_UPDATE': 'TIME_UPDATE',                    // Available
+                  'QUEUE_CHANGE': 'REQUEST_QUEUE_UPDATE',          // Use queue request event
+                  'ERROR': 'ERROR'                                 // Available
+              };
+
+              // Get the actual event type from Cast SDK
+              const getEventType = (eventName) => {
+                  const mappedName = eventTypeMap[eventName];
+                  return cast.framework.events?.EventType?.[mappedName] || mappedName;
+              };
+
+              // Media Load Complete
+              safeAddEventListener(
+                  getEventType('PLAYER_LOAD_COMPLETE'),
+                  () => this.handleMediaLoadComplete(),
+                  'Media Load Complete'
+              );
+
+              // Playback State Changes
+              safeAddEventListener(
+                  getEventType('PLAYING'),
+                  () => this.handlePlaybackState('playing'),
+                  'Player Playing'
+              );
+
+              safeAddEventListener(
+                  getEventType('PAUSED'),
+                  () => this.handlePlaybackState('paused'),
+                  'Player Paused'
+              );
+
+              safeAddEventListener(
+                  getEventType('IDLE'),
+                  (event) => this.handlePlayerIdle(event),
+                  'Player Idle'
+              );
+
+              // Additional useful events
+              safeAddEventListener(
+                  cast.framework.events?.EventType?.MEDIA_STATUS,
+                  (event) => this.handleMediaStatus(event),
+                  'Media Status'
+              );
+
+              safeAddEventListener(
+                  cast.framework.events?.EventType?.MEDIA_INFORMATION_CHANGED,
+                  (event) => this.handleMediaInformationChanged(event),
+                  'Media Information Changed'
+              );
+
+              // Time Updates
+              safeAddEventListener(
+                  getEventType('TIME_UPDATE'),
+                  () => this.handleTimeUpdate(),
+                  'Time Update'
+              );
+
+              // Queue Changes
+              safeAddEventListener(
+                  getEventType('QUEUE_CHANGE'),
+                  (event) => this.handleQueueChange(event),
+                  'Queue Change'
+              );
+
+              // Errors
+              safeAddEventListener(
+                  getEventType('ERROR'),
+                  (errorEvent) => this.handleError(errorEvent),
+                  'Error'
+              );
+
+              this.log('👂 Event listeners configuration completed', 'info');
+          }
+
+          handleLoadRequest(loadRequest) {
+              this.log('📥 LOAD request received', 'info');
+              this.log(`📱 Content ID: ${loadRequest.media.contentId}`, 'info');
+              this.log(`📱 Content Type: ${loadRequest.media.contentType}`, 'info');
+              this.log(`📱 Stream Type: ${loadRequest.media.streamType}`, 'info');
+              this.log(`📱 Stream Duration: ${loadRequest.media.streamDuration}ms`, 'info');
+
+              // Basic validation - ensure we have a valid URL
+              if (!loadRequest.media.contentId) {
+                  this.log(`❌ No content ID provided`, 'error');
+                  this.updateStatus('Invalid media', 'error');
+                  // Return error instead of continuing
+                  throw new cast.framework.messages.InvalidRequestReason.INVALID_MEDIA_INFO;
+              }
+
+              // Validate URL format
+              try {
+                  new URL(loadRequest.media.contentId);
+              } catch (error) {
+                  this.log(`❌ Invalid URL format: ${loadRequest.media.contentId}`, 'error');
+                  this.updateStatus('Invalid URL', 'error');
+                  throw new cast.framework.messages.InvalidRequestReason.INVALID_MEDIA_INFO;
+              }
+
+              // Test URL accessibility
+              this.log(`🔗 Testing URL accessibility: ${loadRequest.media.contentId}`, 'info');
+
+              if (loadRequest.media.customData) {
+                  this.log(`📊 Custom Data: ${JSON.stringify(loadRequest.media.customData, null, 2)}`, 'info');
+                  this.extractChapterData(loadRequest.media);
+
+                  // Use chapter duration from custom data if available
+                  if (loadRequest.media.customData.chapterDurationMs && loadRequest.media.customData.chapterDurationMs > 0) {
+                      loadRequest.media.streamDuration = loadRequest.media.customData.chapterDurationMs;
+                      this.log(`🕐 Set stream duration from chapter data: ${loadRequest.media.streamDuration}ms`, 'info');
+                  }
+
+                  // Ensure proper content type for audio files
+                  if (!loadRequest.media.contentType || loadRequest.media.contentType === 'application/x-mpegURL') {
+                      loadRequest.media.contentType = 'audio/mpeg';
+                      this.log(`🔧 Set content type to audio/mpeg`, 'info');
+                  }
+              } else {
+                  this.log(`⚠️ No custom data - using basic playback mode`, 'warning');
+                  // Ensure basic content type
+                  if (!loadRequest.media.contentType) {
+                      loadRequest.media.contentType = 'audio/mpeg';
+                      this.log(`🔧 Set default content type to audio/mpeg`, 'info');
+                  }
+              }
+
+              this.updateMediaDisplay(loadRequest.media);
+              this.updateStatus('Loading media...', 'loading');
+
+              return loadRequest;
+          }
+
+          handleQueueLoadRequest(queueLoadRequest) {
+              this.log('📋 QUEUE_LOAD request received', 'info');
+              this.log(`📱 Queue items: ${queueLoadRequest.items.length}`, 'info');
+
+              // Log queue items for debugging
+              queueLoadRequest.items.forEach((queueItem, index) => {
+                  const media = queueItem.media;
+                  this.log(`📱 Item ${index}: ${media.contentId}`, 'info');
+
+                  if (media.customData) {
+                      this.log(`📊 Item ${index} Custom Data: ${JSON.stringify(media.customData, null, 2)}`, 'info');
+
+                      // Ensure proper content type for audio files
+                      if (!media.contentType || media.contentType === 'application/x-mpegURL') {
+                          media.contentType = 'audio/mpeg';
+                      }
+                  }
+              });
+
+              this.mediaQueue = queueLoadRequest.items;
+              this.currentQueueIndex = queueLoadRequest.startIndex || 0;
+
+              // Extract book metadata from first item
+              if (this.mediaQueue.length > 0) {
+                  const firstItem = this.mediaQueue[0];
+                  this.extractBookMetadata(firstItem.media);
+                  this.buildChapterQueue();
+              }
+
+              this.log(`📚 Book has ${this.mediaQueue.length} chapters`, 'success');
+              this.updateChapterDisplay();
+
+              return queueLoadRequest;
+          }
+
+          handleQueueUpdateRequest(queueUpdateRequest) {
+              this.log('📝 QUEUE_UPDATE request received', 'info');
+
+              if (queueUpdateRequest.currentIndex !== undefined) {
+                  this.currentQueueIndex = queueUpdateRequest.currentIndex;
+                  this.updateChapterDisplay();
+              }
+
+              return queueUpdateRequest;
+          }
+
+          // CRITICAL FIX: Handle absolute seeking from Android app
+          handleSeekRequest(seekRequest) {
+              const requestedTime = seekRequest.currentTime;
+              this.log(`🎯 SEEK request: ${requestedTime}s (${Math.round(requestedTime * 1000)}ms)`, 'info');
+
+              // Safety check - if we don't have chapter data yet, pass through the seek as-is
+              if (!this.chapterStartTimes || this.chapterStartTimes.length === 0 || !this.mediaQueue || this.mediaQueue.length === 0) {
+                  this.log(`⚠️ No chapter data available yet - passing seek through as-is`, 'warning');
+                  return seekRequest;
+              }
+
+              // For single chapter or basic media, just pass through
+              if (this.mediaQueue.length === 1) {
+                  this.log(`📱 Single chapter - passing seek through as-is`, 'info');
+                  return seekRequest;
+              }
+
+              // Convert absolute book position to chapter + chapter-relative position
+              const result = this.convertAbsoluteToChapterPosition(requestedTime * 1000);
+
+              if (result) {
+                  this.log(`🔄 Converting absolute ${requestedTime}s to Chapter ${result.chapterIndex + 1} at ${result.chapterRelativeSeconds}s`, 'info');
+
+                  // If we need to change chapters, jump to the target chapter first
+                  if (result.chapterIndex !== this.currentQueueIndex) {
+                      this.log(`⏭️ Switching from chapter ${this.currentQueueIndex + 1} to ${result.chapterIndex + 1}`, 'info');
+
+                      // Update current chapter index
+                      this.currentQueueIndex = result.chapterIndex;
+
+                      // Jump to the target chapter, then seek within it
+                      const queueJumpRequest = new cast.framework.messages.QueueJumpRequest();
+                      queueJumpRequest.currentIndex = result.chapterIndex;
+
+                      // Store the target seek position for after chapter switch
+                      this.pendingSeekSeconds = result.chapterRelativeSeconds;
+
+                      this.playerManager.getQueueManager().queueJump(queueJumpRequest);
+
+                      // Don't seek immediately - let chapter switch complete first
+                      seekRequest.currentTime = 0; // Start at beginning of chapter for now
+                  } else {
+                      // Same chapter, just seek within it
+                      seekRequest.currentTime = result.chapterRelativeSeconds;
+                  }
+
+                  this.updateChapterDisplay();
+              } else {
+                  this.log(`⚠️ Could not convert absolute time ${requestedTime}s to chapter position - passing through`, 'warning');
+              }
+
+              return seekRequest;
+          }
+
+          // Convert absolute book time to chapter index and chapter-relative time
+          convertAbsoluteToChapterPosition(absoluteTimeMs) {
+              if (!this.chapterStartTimes || this.chapterStartTimes.length === 0) {
+                  this.log('⚠️ No chapter start times available for conversion', 'warning');
+                  return null;
+              }
+
+              // Find which chapter contains this absolute time
+              for (let i = 0; i < this.chapterStartTimes.length; i++) {
+                  const chapterStartMs = this.chapterStartTimes[i];
+                  const nextChapterStartMs = this.chapterStartTimes[i + 1] || this.totalBookDurationMs;
+
+                  if (absoluteTimeMs >= chapterStartMs && absoluteTimeMs < nextChapterStartMs) {
+                      const chapterRelativeMs = absoluteTimeMs - chapterStartMs;
+                      return {
+                          chapterIndex: i,
+                          chapterRelativeMs: chapterRelativeMs,
+                          chapterRelativeSeconds: chapterRelativeMs / 1000
+                      };
+                  }
+              }
+
+              // If beyond the last chapter, put it at the end of the last chapter
+              if (absoluteTimeMs >= this.totalBookDurationMs) {
+                  const lastChapterIndex = this.chapterStartTimes.length - 1;
+                  const lastChapterStartMs = this.chapterStartTimes[lastChapterIndex];
+                  const lastChapterDurationMs = this.totalBookDurationMs - lastChapterStartMs;
+
+                  return {
+                      chapterIndex: lastChapterIndex,
+                      chapterRelativeMs: lastChapterDurationMs,
+                      chapterRelativeSeconds: lastChapterDurationMs / 1000
+                  };
+              }
+
+              return null;
+          }
+
+          extractBookMetadata(mediaInfo) {
+              if (!mediaInfo || !mediaInfo.metadata) return;
+
+              this.bookMetadata = {
+                  title: mediaInfo.metadata.albumTitle || mediaInfo.metadata.title || 'Unknown Book',
+                  author: mediaInfo.metadata.artist || mediaInfo.metadata.albumArtist || 'Unknown Author',
+                  coverUrl: mediaInfo.metadata.images?.[0]?.url || null
+              };
+
+              this.log(`📖 Book: "${this.bookMetadata.title}" by ${this.bookMetadata.author}`, 'info');
+          }
+
+          extractChapterData(mediaInfo) {
+              if (!mediaInfo || !mediaInfo.customData) return;
+
+              const customData = mediaInfo.customData;
+
+              // Handle new format (isFullTrack) vs legacy format (isChapter)
+              const isNewFormat = customData.isFullTrack === true;
+              const isLegacyFormat = customData.isChapter === true;
+
+              this.chapterData = {
+                  // Legacy format: use clipping data for boundaries
+                  startMs: isLegacyFormat ? (customData.startMs || 0) : 0,
+                  endMs: isLegacyFormat ? (customData.endMs || 0) : mediaInfo.streamDuration,
+
+                  // New format: extract chapter boundaries from Android app
+                  chapterStartMs: customData.chapterStartMs || 0,
+                  chapterEndMs: customData.chapterEndMs || 0,
+                  chapterDurationMs: customData.chapterDurationMs || 0,
+
+                  // Use proper chapter boundaries for legacy boundary checking
+                  actualChapterEndMs: isLegacyFormat ? (customData.endMs || 0) :
+                                      (customData.chapterEndMs || mediaInfo.streamDuration),
+
+                  isChapter: isNewFormat ? true : (customData.isChapter || false),
+                  isFullTrack: isNewFormat,
+                  trackNumber: customData.trackNumber || 1,
+                  totalTracks: customData.totalTracks || 1,
+                  chapterTitle: mediaInfo.metadata?.title || `Chapter ${customData.trackNumber || 1}`
+              };
+
+              this.log(`📑 Chapter: ${this.chapterData.chapterTitle} (${this.chapterData.trackNumber}/${this.chapterData.totalTracks})`, 'info');
+              this.log(`📊 Format: ${isNewFormat ? 'New (Full Track)' : 'Legacy (Clipped)'}`, 'info');
+
+              if (isNewFormat) {
+                  this.log(`🕐 New format timing - chapterStart: ${this.chapterData.chapterStartMs}ms, chapterEnd: ${this.chapterData.chapterEndMs}ms, duration: ${this.chapterData.chapterDurationMs}ms`, 'info');
+              } else {
+                  this.log(`🕐 Legacy format timing - start: ${this.chapterData.startMs}ms, end: ${this.chapterData.endMs}ms`, 'info');
+              }
+          }
+
+          buildChapterQueue() {
+              const chapterList = document.getElementById('chapter-list');
+              chapterList.innerHTML = '';
+
+              // CALCULATE ABSOLUTE TIMELINE - This fixes seeking to work across chapters
+              this.chapterStartTimes = [];
+              let cumulativeTime = 0;
+              this.totalBookDurationMs = 0;
+
+              this.mediaQueue.forEach((queueItem, index) => {
+                  const media = queueItem.media;
+                  const customData = media.customData || {};
+                  const chapterTitle = media.metadata?.title || `Chapter ${index + 1}`;
+
+                  // Calculate absolute start time for this chapter
+                  this.chapterStartTimes[index] = cumulativeTime;
+
+                  // Get chapter duration - handle both new and legacy formats
+                  let chapterDurationMs = 0;
+
+                  if (customData.chapterDurationMs !== undefined) {
+                      // New format: explicit chapter duration
+                      chapterDurationMs = customData.chapterDurationMs;
+                  } else if (customData.chapterStartMs !== undefined && customData.chapterEndMs !== undefined) {
+                      // New format: calculate from chapter boundaries
+                      chapterDurationMs = customData.chapterEndMs - customData.chapterStartMs;
+                  } else if (customData.startMs !== undefined && customData.endMs !== undefined) {
+                      // Legacy format: clipping data
+                      chapterDurationMs = customData.endMs - customData.startMs;
+                  } else {
+                      // Last resort: use stream duration (this won't be accurate for chapters)
+                      chapterDurationMs = media.streamDuration || 0;
+                      this.log(`⚠️ No chapter duration info for chapter ${index + 1}, using stream duration`, 'warn');
+                  }
+
+                  cumulativeTime += chapterDurationMs;
+
+                  const chapterElement = document.createElement('div');
+                  chapterElement.className = `chapter-item ripple ${index === this.currentQueueIndex ? 'current' : ''}`;
+                  chapterElement.onclick = () => this.jumpToChapter(index);
+
+                  const duration = this.formatDuration(chapterDurationMs / 1000);
+
+                  chapterElement.innerHTML = `
+                      <div class="chapter-number">${index + 1}</div>
+                      <div class="chapter-info">
+                          <div class="chapter-name">${chapterTitle}</div>
+                          <div class="chapter-duration">${duration}</div>
+                      </div>
+                  `;
+
+                  chapterList.appendChild(chapterElement);
+              });
+
+              this.totalBookDurationMs = cumulativeTime;
+
+              document.getElementById('chapter-count').textContent = `(${this.mediaQueue.length})`;
+              document.getElementById('chapter-queue').style.display = 'flex';
+
+              this.log(`📑 Generated chapter list with ${this.mediaQueue.length} items`, 'success');
+              this.log(`📊 Total book duration: ${this.formatDuration(this.totalBookDurationMs / 1000)}`, 'info');
+              this.log(`📍 Chapter start times calculated: ${this.chapterStartTimes.map(t => Math.round(t/1000))}s`, 'info');
+
+              // Apply touch optimizations to new chapter items if smart display
+              if (this.isSmartDisplay) {
+                  this.setupTouchOptimizations();
+              }
+          }
+
+          jumpToChapter(index) {
+              if (index >= 0 && index < this.mediaQueue.length) {
+                  this.log(`⏭️ Jumping to chapter ${index + 1}`, 'info');
+
+                  const queueJumpRequest = new cast.framework.messages.QueueJumpRequest();
+                  queueJumpRequest.currentIndex = index;
+
+                  this.playerManager.getQueueManager().queueJump(queueJumpRequest);
+              }
+          }
+
+          handleMediaLoadComplete() {
+              this.log('✅ Media loaded successfully', 'success');
+              this.updateStatus('Media loaded', 'success');
+
+              const mediaInfo = this.playerManager.getMediaInformation();
+              if (mediaInfo) {
+                  this.updateMediaDisplay(mediaInfo);
+                  this.extractChapterData(mediaInfo);
+
+                  // Check if player is ready and start playback
+                  const playerState = this.playerManager.getPlayerState();
+                  this.log(`📊 Player state after load: ${playerState}`, 'info');
+
+                  // If player is idle after load, try to start playback
+                  if (playerState === cast.framework.messages.PlayerState.IDLE) {
+                      this.log(`▶️ Player idle after load - attempting to start playback`, 'info');
+                      try {
+                          // Give a short delay then start playback
+                          setTimeout(() => {
+                              if (this.playerManager.getPlayerState() === cast.framework.messages.PlayerState.IDLE) {
+                                  this.playerManager.play();
+                                  this.log(`✅ Started playback after media load`, 'success');
+                              }
+                          }, 1000);
+                      } catch (error) {
+                          this.log(`❌ Failed to start playback: ${error.message}`, 'error');
+                      }
+                  }
+
+                  // Handle chapter seeking ONLY for legacy format
+                  // In new format (isFullTrack=true), Android app handles absolute positioning
+                  if (mediaInfo.customData &&
+                      mediaInfo.customData.isChapter &&
+                      !mediaInfo.customData.isFullTrack && // Only for legacy format
+                      mediaInfo.customData.startMs !== undefined &&
+                      mediaInfo.customData.startMs > 0) {
+
+                      const seekTimeSeconds = mediaInfo.customData.startMs / 1000;
+                      this.log(`🎯 [Legacy] Chapter starts at ${seekTimeSeconds}s, seeking...`, 'info');
+
+                      // Seek to chapter start time
+                      setTimeout(() => {
+                          try {
+                              this.playerManager.seek(seekTimeSeconds);
+                              this.log(`✅ [Legacy] Seeked to chapter start: ${seekTimeSeconds}s`, 'success');
+                          } catch (error) {
+                              this.log(`❌ [Legacy] Failed to seek to chapter start: ${error.message}`, 'error');
+                          }
+                      }, 500); // Small delay to ensure media is ready
+                  } else if (mediaInfo.customData && mediaInfo.customData.isFullTrack) {
+                      this.log(`📍 [New Format] Using absolute positioning - no receiver-side seeking needed`, 'info');
+                  }
+              }
+
+              // Handle pending seek from absolute timeline conversion
+              if (this.pendingSeekSeconds !== undefined) {
+                  this.log(`🎯 Executing pending seek to ${this.pendingSeekSeconds}s after chapter switch`, 'info');
+
+                  setTimeout(() => {
+                      try {
+                          this.playerManager.seek(this.pendingSeekSeconds);
+                          this.log(`✅ Completed pending seek to ${this.pendingSeekSeconds}s`, 'success');
+                          this.pendingSeekSeconds = undefined; // Clear pending seek
+                      } catch (error) {
+                          this.log(`❌ Failed pending seek: ${error.message}`, 'error');
+                      }
+                  }, 800); // Longer delay for chapter switch
+              }
+
+              // Update chapter highlighting
+              this.updateChapterDisplay();
+          }
+
+          handlePlaybackState(state) {
+              const stateEmojis = {
+                  'playing': '▶️',
+                  'paused': '⏸️'
+              };
+
+              this.log(`${stateEmojis[state]} Playback ${state}`, 'info');
+              this.updateStatus(state.charAt(0).toUpperCase() + state.slice(1), state);
+
+              if (state === 'playing') {
+                  this.startProgressUpdates();
+              } else {
+                  this.stopProgressUpdates();
+              }
+          }
+
+          handlePlayerIdle(event) {
+              this.log(`⏹️ Player idle: ${event.idleReason}`, 'info');
+              this.updateStatus('Idle', 'info');
+              this.stopProgressUpdates();
+          }
+
+          handleTimeUpdate() {
+              this.updateProgressBars();
+          }
+
+          handleQueueChange(event) {
+              this.log(`📋 Queue changed: ${event.type}`, 'info');
+
+              const queueManager = this.playerManager.getQueueManager();
+              if (queueManager) {
+                  const currentIndex = queueManager.getCurrentIndex();
+
+                  if (currentIndex !== this.currentQueueIndex && currentIndex >= 0) {
+                      this.currentQueueIndex = currentIndex;
+                      this.updateChapterDisplay();
+
+                      // Update current chapter metadata
+                      if (this.mediaQueue[currentIndex]) {
+                          const currentMedia = this.mediaQueue[currentIndex].media;
+                          this.extractChapterData(currentMedia);
+                          this.updateCurrentChapterTitle();
+                      }
+                  }
+              }
+          }
+
+          handleMediaStatus(event) {
+              this.log(`📊 Media status event: ${event.mediaStatus?.playerState}`, 'info');
+
+              if (event.mediaStatus) {
+                  const playerState = event.mediaStatus.playerState;
+
+                  switch (playerState) {
+                      case 'PLAYING':
+                          this.handlePlaybackState('playing');
+                          break;
+                      case 'PAUSED':
+                          this.handlePlaybackState('paused');
+                          break;
+                      case 'IDLE':
+                          this.handlePlayerIdle({ idleReason: event.mediaStatus.idleReason });
+                          break;
+                      case 'BUFFERING':
+                          this.updateStatus('Buffering...', 'loading');
+                          break;
+                  }
+
+                  // Update queue index if available
+                  if (event.mediaStatus.currentItemIndex !== undefined) {
+                      const newIndex = event.mediaStatus.currentItemIndex;
+                      if (newIndex !== this.currentQueueIndex) {
+                          this.currentQueueIndex = newIndex;
+                          this.updateChapterDisplay();
+                      }
+                  }
+              }
+          }
+
+          handleMediaInformationChanged(event) {
+              this.log('📱 Media information changed', 'info');
+
+              const mediaInfo = this.playerManager.getMediaInformation();
+              if (mediaInfo) {
+                  this.updateMediaDisplay(mediaInfo);
+                  this.extractChapterData(mediaInfo);
+              }
+          }
+
+          handleError(errorEvent) {
+              const error = errorEvent.detailedErrorCode || errorEvent.error;
+              this.log(`❌ Player error: ${JSON.stringify(error)}`, 'error');
+              this.updateStatus(`Error: ${error}`, 'error');
+
+              // Provide helpful error messages
+              if (typeof error === 'number') {
+                  const errorMessages = {
+                      905: 'Content URL not accessible',
+                      900: 'Invalid player state',
+                      910: 'Load interrupted',
+                      920: 'Load timeout'
+                  };
+
+                  const message = errorMessages[error] || `Unknown error code: ${error}`;
+                  this.log(`🚫 Error ${error}: ${message}`, 'error');
+              }
+          }
+
+          updateMediaDisplay(mediaInfo) {
+              if (!mediaInfo || !mediaInfo.metadata) return;
+
+              const title = this.bookMetadata.title || mediaInfo.metadata.title || 'Unknown Title';
+              const author = this.bookMetadata.author || mediaInfo.metadata.artist || 'Unknown Author';
+
+              document.getElementById('book-title').textContent = title;
+              document.getElementById('book-author').textContent = author;
+
+              // Update cover art
+              const coverUrl = this.bookMetadata.coverUrl || mediaInfo.metadata.images?.[0]?.url;
+              const coverDiv = document.getElementById('cover-art');
+
+              if (coverUrl) {
+                  coverDiv.innerHTML = `<img src="${coverUrl}" alt="Book Cover" onerror="this.parentElement.innerHTML='<div class=\\"placeholder material-icons\\">book</div>'">`;
+              } else {
+                  coverDiv.innerHTML = '<div class="placeholder material-icons">book</div>';
+              }
+
+              this.updateCurrentChapterTitle();
+          }
+
+          updateCurrentChapterTitle() {
+              const chapterTitle = this.chapterData.chapterTitle || `Chapter ${this.currentQueueIndex + 1}`;
+              document.getElementById('chapter-title').textContent = chapterTitle;
+          }
+
+          updateChapterDisplay() {
+              // Update chapter highlighting
+              const chapterItems = document.querySelectorAll('.chapter-item');
+              chapterItems.forEach((item, index) => {
+                  item.classList.toggle('current', index === this.currentQueueIndex);
+              });
+
+              // Scroll current chapter into view
+              const currentChapter = document.querySelector('.chapter-item.current');
+              if (currentChapter) {
+                  currentChapter.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }
+          }
+
+          updateProgressBars() {
+              if (!this.playerManager) return;
+
+              const currentTime = this.playerManager.getCurrentTimeSec() || 0;
+              const duration = this.playerManager.getDurationSec() || 0;
+
+              // Check if we need to handle chapter boundaries
+              this.checkChapterBoundaries(currentTime);
+
+              // Calculate chapter-specific progress
+              let chapterCurrentTime = currentTime;
+              let chapterDuration = duration;
+
+              // If this is a chapter with custom boundaries, adjust the display
+              if (this.chapterData.isChapter &&
+                  this.chapterData.startMs !== undefined &&
+                  this.chapterData.endMs !== undefined) {
+
+                  const chapterStartSec = this.chapterData.startMs / 1000;
+                  const chapterEndSec = this.chapterData.endMs / 1000;
+
+                  chapterCurrentTime = Math.max(0, currentTime - chapterStartSec);
+                  chapterDuration = chapterEndSec - chapterStartSec;
+
+                  // Ensure we don't go beyond chapter end
+                  chapterCurrentTime = Math.min(chapterCurrentTime, chapterDuration);
+              }
+
+              // Chapter progress removed for simplified Cast UI
+
+              // Book Progress (using absolute timeline)
+              if (this.mediaQueue.length > 0 && this.chapterStartTimes && this.totalBookDurationMs > 0) {
+                  // Calculate absolute book position
+                  const currentChapterStartMs = this.chapterStartTimes[this.currentQueueIndex] || 0;
+                  const absoluteTimeMs = currentChapterStartMs + (chapterCurrentTime * 1000);
+                  this.absoluteTimelineMs = absoluteTimeMs; // Update our tracking
+
+                  // Book progress based on absolute timeline
+                  const bookProgress = Math.min(100, (absoluteTimeMs / this.totalBookDurationMs) * 100);
+
+                  document.getElementById('book-progress-fill').style.width = `${bookProgress}%`;
+                  document.getElementById('book-progress-text').textContent = `${Math.round(bookProgress)}%`;
+
+                  // Use actual calculated durations
+                  document.getElementById('book-current-time').textContent = this.formatTime(absoluteTimeMs / 1000);
+                  document.getElementById('book-duration').textContent = this.formatTime(this.totalBookDurationMs / 1000);
+
+                  // Log absolute position for debugging Android sync
+                  if (Math.floor(absoluteTimeMs / 1000) % 30 === 0) { // Log every 30 seconds
+                      this.log(`📊 Absolute book position: ${Math.round(absoluteTimeMs / 1000)}s / ${Math.round(this.totalBookDurationMs / 1000)}s (${Math.round(bookProgress)}%)`, 'info');
+                  }
+              }
+          }
+
+          checkChapterBoundaries(currentTime) {
+              // Skip boundary checking for new full-track format
+              // New format relies on Cast framework's automatic queue advancement
+              if (this.chapterData.isFullTrack) {
+                  // Log occasionally for debugging, but don't auto-advance
+                  if (Math.floor(currentTime) % 60 === 0) { // Every minute
+                      this.log(`📊 New format: playing at ${currentTime}s (no auto-advancement)`, 'info');
+                  }
+                  return;
+              }
+
+              // Legacy format: Check if we've reached the end of the current chapter
+              // Use actual chapter boundaries, not stream duration
+              if (this.chapterData.isChapter &&
+                  this.chapterData.actualChapterEndMs !== undefined &&
+                  currentTime >= (this.chapterData.actualChapterEndMs / 1000)) {
+
+                  this.log(`🔚 [Legacy] Reached end of chapter at ${currentTime}s (chapter ends at ${this.chapterData.actualChapterEndMs / 1000}s)`, 'info');
+
+                  // Move to next chapter if available
+                  if (this.currentQueueIndex < this.mediaQueue.length - 1) {
+                      this.log(`⏭️ [Legacy] Auto-advancing to next chapter`, 'info');
+                      this.jumpToChapter(this.currentQueueIndex + 1);
+                  } else {
+                      this.log(`🏁 [Legacy] Reached end of book`, 'info');
+                      this.playerManager.stop();
+                  }
+              }
+          }
+
+          updateStatus(message, type = 'info') {
+              const statusChip = document.getElementById('status-chip');
+              const statusText = document.getElementById('status-text');
+
+              statusText.textContent = message;
+              statusChip.className = `status-chip ${type}`;
+
+              // Update icon based on status
+              const iconMap = {
+                  'playing': 'play_arrow',
+                  'paused': 'pause',
+                  'loading': 'hourglass_empty',
+                  'error': 'error',
+                  'info': 'cast'
+              };
+
+              const icon = statusChip.querySelector('.material-icons');
+              icon.textContent = iconMap[type] || 'cast';
+          }
+
+          startProgressUpdates() {
+              this.stopProgressUpdates();
+              this.progressInterval = setInterval(() => this.updateProgressBars(), 1000);
+          }
+
+          stopProgressUpdates() {
+              if (this.progressInterval) {
+                  clearInterval(this.progressInterval);
+                  this.progressInterval = null;
+              }
+          }
+
+          formatTime(seconds) {
+              if (!seconds || isNaN(seconds)) return '0:00:00';
+              const hours = Math.floor(seconds / 3600);
+              const minutes = Math.floor((seconds % 3600) / 60);
+              const secs = Math.floor(seconds % 60);
+              return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+          }
+
+          formatDuration(seconds) {
+              if (!seconds || isNaN(seconds)) return '0:00';
+              const hours = Math.floor(seconds / 3600);
+              const minutes = Math.floor((seconds % 3600) / 60);
+
+              if (hours > 0) {
+                  return `${hours}h ${minutes}m`;
+              } else {
+                  return `${minutes}m`;
+              }
+          }
+
+          log(message, type = 'info') {
+              const debugLog = document.getElementById('debug-log');
+              const timestamp = new Date().toLocaleTimeString();
+
+              const logEntry = document.createElement('div');
+              logEntry.className = `log-entry ${type}`;
+              logEntry.textContent = `[${timestamp}] ${message}`;
+
+              debugLog.appendChild(logEntry);
+              debugLog.scrollTop = debugLog.scrollHeight;
+
+              // Limit log entries to prevent memory issues
+              while (debugLog.children.length > 100) {
+                  debugLog.removeChild(debugLog.firstChild);
+              }
+          }
+      }
+
+      // Debug Panel Toggle
+      function toggleDebugPanel() {
+          const panel = document.getElementById('debug-panel');
+          const icon = document.getElementById('debug-toggle-icon');
+          const receiver = window.audiobookReceiver;
+
+          receiver.debugCollapsed = !receiver.debugCollapsed;
+          panel.classList.toggle('collapsed', receiver.debugCollapsed);
+          icon.textContent = receiver.debugCollapsed ? 'expand_less' : 'expand_more';
+      }
+
+      // Function to wait for Cast framework to be ready
+      function waitForCastFramework(callback, maxAttempts = 50) {
+          let attempts = 0;
+
+          function checkFramework() {
+              attempts++;
+
+              if (typeof cast !== 'undefined' &&
+                  cast.framework &&
+                  cast.framework.CastReceiverContext &&
+                  cast.framework.events &&
+                  cast.framework.events.EventType) {
+                  callback();
+              } else if (attempts < maxAttempts) {
+                  setTimeout(checkFramework, 100);
+              } else {
+                  console.error('Cast framework failed to load after', maxAttempts * 100, 'ms');
+                  // Try to initialize anyway in case some parts work
+                  callback();
+              }
+          }
+
+          checkFramework();
+      }
+
+      // Initialize when page loads
+      window.addEventListener('load', () => {
+          waitForCastFramework(() => {
+              window.audiobookReceiver = new AudiobookCastReceiver();
+          });
+      });
+
+      // Handle unhandled errors
+      window.addEventListener('error', (event) => {
+          if (window.audiobookReceiver) {
+              window.audiobookReceiver.log(`💥 JavaScript error: ${event.error?.message || event.message}`, 'error');
+              window.audiobookReceiver.updateStatus('JavaScript Error', 'error');
+          }
+      });
+  </script>
+</body>
+</html>

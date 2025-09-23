@@ -1,6 +1,6 @@
-# Audiobookshelf Mobile App
+# TomeSonic Mobile App
 
-Audiobookshelf is a self-hosted audiobook and podcast server.
+TomeSonic is a self-hosted audiobook and podcast server application.
 
 ### Android (beta)
 
@@ -14,13 +14,11 @@ Using Test Flight: https://testflight.apple.com/join/wiic7QIW **_(beta is full)_
 
 ---
 
-[Go to the main project repo github.com/advplyr/audiobookshelf](https://github.com/advplyr/audiobookshelf) or the project site [audiobookshelf.org](https://audiobookshelf.org)
-
-Join us on [discord](https://discord.gg/pJsjuNCKRq)
+This is a fork of the original Audiobookshelf project. For the original project, visit [github.com/advplyr/audiobookshelf](https://github.com/advplyr/audiobookshelf) or [audiobookshelf.org](https://audiobookshelf.org)
 
 **Requires an Audiobookshelf server to connect with**
 
-<img alt="Screenshot" src="https://github.com/advplyr/audiobookshelf-app/raw/master/screenshots/DeviceDemoScreens.png" />
+<img alt="Screenshot" src="https://github.com/AwsomeFox/tomesonic-app/raw/master/screenshots/DeviceDemoScreens.png" />
 
 ## Contributing
 
@@ -28,7 +26,7 @@ This application is built using [NuxtJS](https://nuxtjs.org/) and [Capacitor](ht
 
 ### Localization
 
-Thank you to [Weblate](https://hosted.weblate.org/engage/audiobookshelf/) for hosting our localization infrastructure pro-bono. If you want to see Audiobookshelf in your language, please help us localize. Additional information on helping with the translations [here](https://www.audiobookshelf.org/faq#how-do-i-help-with-translations). <a href="https://hosted.weblate.org/engage/audiobookshelf/"> <img src="https://hosted.weblate.org/widget/audiobookshelf/abs-mobile-app/horizontal-auto.svg" alt="Translation status" /> </a>
+This fork utilizes the original Audiobookshelf localization infrastructure. Thank you to [Weblate](https://hosted.weblate.org/engage/audiobookshelf/) for hosting the localization infrastructure pro-bono. If you want to see TomeSonic in your language, please help localize the original project at [audiobookshelf.org](https://www.audiobookshelf.org/faq#how-do-i-help-with-translations).
 
 ### Windows Environment Setup for Android
 

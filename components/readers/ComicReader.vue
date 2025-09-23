@@ -2,7 +2,7 @@
   <div id="comic-reader" class="w-full h-full relative">
     <modals-modal v-model="showInfoMenu" height="90%">
       <div class="w-full h-full overflow-hidden absolute top-0 left-0 flex items-center justify-center" @click.stop="showInfoMenu = false">
-        <div class="w-full overflow-x-hidden overflow-y-auto bg-bg rounded-lg border border-border text-fg" style="max-height: 75%" @click.stop>
+        <div class="w-full overflow-x-hidden overflow-y-auto bg-surface-container rounded-lg border border-outline-variant text-on-surface" style="max-height: 75%" @click.stop>
           <div v-for="key in comicMetadataKeys" :key="key" class="w-full px-2 py-1">
             <p class="text-xs">
               <strong>{{ key }}</strong>
@@ -23,7 +23,7 @@
       </div>
     </div>
 
-    <div class="fixed left-0 h-8 w-full bg-bg px-4 flex items-center text-fg-muted transition-transform" :class="showingToolbar ? 'translate-y-0' : isPlayerOpen ? 'translate-y-[120px]' : 'translate-y-32'" :style="{ bottom: isPlayerOpen ? '120px' : '0px' }">
+    <div class="fixed left-0 h-8 w-full bg-surface-dynamic px-4 flex items-center text-on-surface-variant transition-transform" :class="showingToolbar ? 'translate-y-0' : 'translate-y-32'" :style="{ bottom: '0px' }">
       <div class="flex-grow" />
       <p class="text-xs">{{ page }} / {{ numPages }}</p>
     </div>
@@ -145,9 +145,6 @@ export default {
           value: index++
         }
       })
-    },
-    isPlayerOpen() {
-      return this.$store.getters['getIsPlayerOpen']
     }
   },
   methods: {

@@ -1,23 +1,24 @@
+/* Material 3 Expressive Transitions */
 .slide-enter-active {
-  -moz-transition-duration: 0.1s;
-  -webkit-transition-duration: 0.1s;
-  -o-transition-duration: 0.1s;
-  transition-duration: 0.1s;
-  -moz-transition-timing-function: ease-in;
-  -webkit-transition-timing-function: ease-in;
-  -o-transition-timing-function: ease-in;
-  transition-timing-function: ease-in;
+  -moz-transition-duration: 0.5s;
+  -webkit-transition-duration: 0.5s;
+  -o-transition-duration: 0.5s;
+  transition-duration: 0.5s;
+  -moz-transition-timing-function: cubic-bezier(0.05, 0.7, 0.1, 1);
+  -webkit-transition-timing-function: cubic-bezier(0.05, 0.7, 0.1, 1);
+  -o-transition-timing-function: cubic-bezier(0.05, 0.7, 0.1, 1);
+  transition-timing-function: cubic-bezier(0.05, 0.7, 0.1, 1);
 }
 
 .slide-leave-active {
-  -moz-transition-duration: 0.2s;
-  -webkit-transition-duration: 0.2s;
-  -o-transition-duration: 0.2s;
-  transition-duration: 0.2s;
-  -moz-transition-timing-function: cubic-bezier(0, 1, 0.5, 1);
-  -webkit-transition-timing-function: cubic-bezier(0, 1, 0.5, 1);
-  -o-transition-timing-function: cubic-bezier(0, 1, 0.5, 1);
-  transition-timing-function: cubic-bezier(0, 1, 0.5, 1);
+  -moz-transition-duration: 0.3s;
+  -webkit-transition-duration: 0.3s;
+  -o-transition-duration: 0.3s;
+  transition-duration: 0.3s;
+  -moz-transition-timing-function: cubic-bezier(0.3, 0, 0.8, 0.15);
+  -webkit-transition-timing-function: cubic-bezier(0.3, 0, 0.8, 0.15);
+  -o-transition-timing-function: cubic-bezier(0.3, 0, 0.8, 0.15);
+  transition-timing-function: cubic-bezier(0.3, 0, 0.8, 0.15);
 }
 
 .slide-enter-to,
@@ -32,20 +33,23 @@
   max-height: 0;
 }
 
-.menu-enter,
-.menu-leave-active {
-  transform: translateY(-15px);
-}
-
+/* Material 3 Enhanced Menu Transitions */
 .menu-enter-active {
-  transition: all 0.2s;
+  transition: all 0.4s cubic-bezier(0.05, 0.7, 0.1, 1);
 }
 
 .menu-leave-active {
-  transition: all 0.1s;
+  transition: all 0.25s cubic-bezier(0.3, 0, 0.8, 0.15);
 }
 
-.menu-enter,
-.menu-leave-active {
+.menu-enter-from,
+.menu-leave-to {
   opacity: 0;
+  transform: translateY(-8px) scale(0.95);
+}
+
+.menu-enter-to,
+.menu-leave-from {
+  opacity: 1;
+  transform: translateY(0) scale(1);
 }

@@ -23,42 +23,58 @@ kotlin {
 }
 
 android {
-  namespace 'com.audiobookshelf.app'
+  namespace = 'com.tomesonic.app'
   buildFeatures {
-    viewBinding true
-    buildConfig true
+    viewBinding = true
+    buildConfig = true
   }
   kotlinOptions {
     freeCompilerArgs = ['-Xjvm-default=all']
   }
-  compileSdk rootProject.ext.compileSdkVersion
+  compileSdk = rootProject.ext.compileSdkVersion
+
+  signingConfigs {
+    release {
+      if (project.hasProperty('MYAPP_UPLOAD_STORE_FILE')) {
+        storeFile file(MYAPP_UPLOAD_STORE_FILE)
+        storePassword MYAPP_UPLOAD_STORE_PASSWORD
+        keyAlias MYAPP_UPLOAD_KEY_ALIAS
+        keyPassword MYAPP_UPLOAD_KEY_PASSWORD
+      }
+    }
+  }
   defaultConfig {
-    applicationId "com.audiobookshelf.app"
+    applicationId "com.tomesonic.app"
     minSdkVersion rootProject.ext.minSdkVersion
     targetSdkVersion rootProject.ext.targetSdkVersion
-    versionCode 113
-    versionName "0.10.0-beta"
+    versionCode 115
+    versionName "0.12.0-beta"
     testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     manifestPlaceholders = [
-      "appAuthRedirectScheme": "com.audiobookshelf.app"
+      "appAuthRedirectScheme": "com.tomesonic.app"
     ]
     aaptOptions {
       // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
       // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
-      ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+      ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
     }
   }
   buildTypes {
     debug {
-      applicationIdSuffix ".debug"
       versionNameSuffix "-debug"
       minifyEnabled false
       proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
     }
     release {
+      signingConfig signingConfigs.release
       minifyEnabled false
       proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
     }
+  }
+
+  lint {
+    abortOnError = false
+    checkReleaseBuilds = false
   }
 }
 
@@ -84,6 +100,7 @@ dependencies {
   implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
   implementation fileTree(include: ['*.jar'], dir: 'libs')
   implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+  implementation "com.google.android.material:material:1.12.0"
   implementation project(':capacitor-android')
 
   implementation 'androidx.constraintlayout:constraintlayout:2.2.1'
@@ -98,20 +115,23 @@ dependencies {
 
   implementation "androidx.media:media:$androidx_media_version"
 
-  // Exo Player
-  if (findProject(':exoplayer-library-core') != null) {
-    implementation project(':exoplayer-library-core')
-    implementation project(':exoplayer-library-ui')
-    implementation project(':exoplayer-extension-mediasession')
-    implementation project(':exoplayer-extension-cast')
-    implementation project(':exoplayer-hls')
+  // Media3 - migrated from ExoPlayer2
+  if (findProject(':media3-exoplayer') != null) {
+    implementation project(':media3-exoplayer')
+    implementation project(':media3-ui')
+    implementation project(':media3-session')
+    implementation project(':media3-cast')
+    implementation project(':media3-exoplayer-hls')
   } else {
-    implementation "com.google.android.exoplayer:exoplayer-core:$exoplayer_version"
-    implementation "com.google.android.exoplayer:exoplayer-ui:$exoplayer_version"
-    implementation "com.google.android.exoplayer:extension-mediasession:$exoplayer_version"
-    implementation "com.google.android.exoplayer:extension-cast:$exoplayer_version"
-    implementation "com.google.android.exoplayer:exoplayer-hls:$exoplayer_version"
+    implementation "androidx.media3:media3-exoplayer:$media3_version"
+    implementation "androidx.media3:media3-ui:$media3_version"
+    implementation "androidx.media3:media3-session:$media3_version"
+    implementation "androidx.media3:media3-cast:$media3_version"
+    implementation "androidx.media3:media3-exoplayer-hls:$media3_version"
   }
+
+  // Google Cast Framework
+  implementation "com.google.android.gms:play-services-cast-framework:21.5.0"
 
   // Glide for images
   implementation "com.github.bumptech.glide:glide:$glide_version"
@@ -127,6 +147,13 @@ dependencies {
 
   // Jackson for JSON
   implementation 'com.fasterxml.jackson.module:jackson-module-kotlin:2.12.2'
+}
+
+dependencies {
+  // Test dependencies
+  testImplementation 'junit:junit:4.13.2'
+  androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+  androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
 }
 
 apply from: 'capacitor.build.gradle'

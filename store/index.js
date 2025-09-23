@@ -109,19 +109,88 @@ export const actions = {
     commit('setNetworkListenerInit', true)
 
     const status = await Network.getStatus()
-    console.log('Network status', status)
     commit('setNetworkStatus', status)
 
     Network.addListener('networkStatusChange', (status) => {
-      console.log('Network status changed', status.connected, status.connectionType)
       commit('setNetworkStatus', status)
     })
 
     AbsAudioPlayer.addListener('onNetworkMeteredChanged', (payload) => {
       const isUnmetered = payload.value
-      console.log('On network metered changed', isUnmetered)
       commit('setIsNetworkUnmetered', isUnmetered)
     })
+  },
+
+  // Save current playback session to local storage
+  async saveCurrentPlaybackSession({ state }) {
+    if (!state.currentPlaybackSession) return
+
+    try {
+      await this.$localStore.setLastPlaybackSession(state.currentPlaybackSession)
+    } catch (error) {
+      console.error('[Store] Failed to save current playback session', error)
+    }
+  },
+
+  // Load and potentially resume from last playback session
+  async loadLastPlaybackSession({ commit, dispatch }) {
+    try {
+      const lastSession = await this.$localStore.getLastPlaybackSession()
+      if (!lastSession) {
+        return null
+      }
+
+      return lastSession
+    } catch (error) {
+      console.error('[Store] Failed to load last playback session', error)
+      return null
+    }
+  }, // Compare local session with server session and determine which is more recent
+  async compareAndResumeSession({ state, commit, dispatch }, { localSession, serverSession }) {
+    if (!localSession && !serverSession) return null
+
+    // If only one session exists, use it
+    if (!serverSession) return localSession
+    if (!localSession) return serverSession
+
+    // Compare book/episode to make sure they're the same media
+    const isSameMedia = localSession.libraryItemId === serverSession.libraryItemId && localSession.episodeId === serverSession.episodeId
+
+    if (!isSameMedia) {
+      // Different media, prefer server session as it's likely more recent user action
+      return serverSession
+    }
+
+    // Same media - compare timestamps and progress
+    const localTime = localSession.updatedAt || localSession.startedAt || 0
+    const serverTime = serverSession.updatedAt || serverSession.startedAt || 0
+
+    // If server is newer and has progressed further, use server
+    if (serverTime > localTime && serverSession.currentTime > localSession.currentTime) {
+      return serverSession
+    }
+
+    // If local is newer or has progressed further, use local
+    if (localTime >= serverTime || localSession.currentTime >= serverSession.currentTime) {
+      return localSession
+    }
+
+    // Default to server session
+    return serverSession
+  },
+
+  // Check if there's a resumable session available
+  async hasResumableSession({ dispatch }) {
+    try {
+      const lastSession = await dispatch('loadLastPlaybackSession')
+      if (!lastSession) return false
+
+      const progress = lastSession.currentTime / lastSession.duration
+      return progress > 0.01
+    } catch (error) {
+      console.error('[Store] Failed to check for resumable session', error)
+      return false
+    }
   }
 }
 
@@ -137,8 +206,14 @@ export const mutations = {
   },
   setPlaybackSession(state, playbackSession) {
     state.currentPlaybackSession = playbackSession
-
     state.isCasting = playbackSession?.mediaPlayer === 'cast-player'
+
+    // Auto-save session to local storage when it changes
+    if (playbackSession && this.$localStore) {
+      this.$localStore.setLastPlaybackSession(playbackSession).catch((error) => {
+        console.error('[Store] Failed to auto-save playback session', error)
+      })
+    }
   },
   setMediaPlayer(state, mediaPlayer) {
     state.isCasting = mediaPlayer === 'cast-player'

@@ -15,7 +15,7 @@ body:
   - type: dropdown
     id: confirm-check
     attributes:
-      label: I have verified that the [bug is not already awaiting release](https://github.com/advplyr/audiobookshelf-app/issues?q=is%3Aissue%20label%3A%22awaiting%20release%22)
+      label: I have verified that the [bug is not already awaiting release](https://github.com/AwsomeFox/tomesonic-app/issues?q=is%3Aissue%20label%3A%22awaiting%20release%22)
       multiple: false
       options:
         - 'Yes'

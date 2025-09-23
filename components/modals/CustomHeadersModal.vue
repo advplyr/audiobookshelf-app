@@ -1,12 +1,12 @@
 <template>
   <modals-modal v-model="show" :width="'90%'" :max-width="'420px'" height="100%">
-    <template #outer>
-      <div class="absolute top-5 left-4 z-40">
-        <p class="text-white text-2xl truncate">Custom Headers</p>
-      </div>
-    </template>
-    <div class="w-full h-full overflow-hidden absolute top-0 left-0 flex items-center justify-center" @click="show = false">
-      <div ref="container" class="w-full rounded-lg bg-primary border border-white border-opacity-20 overflow-y-auto overflow-x-hidden" style="max-height: 80vh" @click.stop>
+    <div class="w-full h-full overflow-hidden absolute top-0 left-0 flex items-center justify-center" data-modal-backdrop >
+      <div ref="container" class="w-full rounded-lg bg-surface border border-outline-variant shadow-elevation-4 overflow-y-auto overflow-x-hidden backdrop-blur-md" style="max-height: 80vh" >
+        <!-- Material 3 Modal Header -->
+        <div class="px-6 py-4 border-b border-outline-variant">
+          <h2 class="text-headline-small text-on-surface font-medium">Custom Headers</h2>
+        </div>
+
         <div class="w-full h-full p-4" v-if="showAddHeader">
           <div class="mb-4">
             <ui-icon-btn icon="arrow_back" borderless @click="showAddHeader = false" />
@@ -20,12 +20,12 @@
         </div>
         <div class="w-full h-full p-4" v-else>
           <template v-for="[key, value] in Object.entries(headersCopy)">
-            <div :key="key" class="w-full rounded-lg bg-white bg-opacity-5 py-2 pl-4 pr-12 relative mb-2">
-              <p class="text-base font-semibold text-gray-200 leading-5">{{ key }}</p>
-              <p class="text-sm text-gray-400">{{ value }}</p>
+            <div :key="key" class="w-full rounded-lg bg-surface-container-low py-2 pl-4 pr-12 relative mb-2">
+              <p class="text-base font-semibold text-on-surface leading-5">{{ key }}</p>
+              <p class="text-sm text-on-surface-variant">{{ value }}</p>
 
               <div class="absolute top-0 bottom-0 right-0 h-full p-4 flex items-center justify-center text-error">
-                <button @click="removeHeader(key)"><span class="material-symbols text-lg">delete</span></button>
+                <button @click="removeHeader(key)"><span class="material-symbols text-lg text-on-surface">delete</span></button>
               </div>
             </div>
           </template>

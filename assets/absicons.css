@@ -22,6 +22,93 @@
   /* Better Font Rendering =========== */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* Default Material You color - can be overridden */
+  color: rgb(var(--md-sys-color-on-surface-variant));
+  transition: color 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Material You color variants for abs-icons */
+.abs-icons.text-primary {
+  color: rgb(var(--md-sys-color-primary)) !important;
+}
+
+.abs-icons.text-on-primary {
+  color: rgb(var(--md-sys-color-on-primary)) !important;
+}
+
+.abs-icons.text-secondary {
+  color: rgb(var(--md-sys-color-secondary)) !important;
+}
+
+.abs-icons.text-on-secondary {
+  color: rgb(var(--md-sys-color-on-secondary)) !important;
+}
+
+.abs-icons.text-tertiary {
+  color: rgb(var(--md-sys-color-tertiary)) !important;
+}
+
+.abs-icons.text-on-surface {
+  color: rgb(var(--md-sys-color-on-surface)) !important;
+}
+
+.abs-icons.text-on-surface-variant {
+  color: rgb(var(--md-sys-color-on-surface-variant)) !important;
+}
+
+.abs-icons.text-on-secondary-container {
+  color: rgb(var(--md-sys-color-on-secondary-container)) !important;
+}
+
+.abs-icons.text-on-primary-container {
+  color: rgb(var(--md-sys-color-on-primary-container)) !important;
+}
+
+/* Hover and focus states for interactive icons */
+.abs-icons:hover {
+  color: rgb(var(--md-sys-color-on-surface));
+}
+
+/* Active/pressed state */
+.abs-icons:active {
+  color: rgb(var(--md-sys-color-primary));
+}
+
+/* Context-specific icon colors */
+.navbar .abs-icons {
+  transition: all 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.navbar .abs-icons:hover {
+  color: rgb(var(--md-sys-color-on-surface));
+}
+
+/* Primary context icons */
+.bg-primary-container .abs-icons,
+.primary-context .abs-icons {
+  color: rgb(var(--md-sys-color-on-primary-container));
+}
+
+/* Secondary context icons */
+.bg-secondary-container .abs-icons,
+.secondary-context .abs-icons {
+  color: rgb(var(--md-sys-color-on-secondary-container));
+}
+
+/* Tertiary context icons */
+.bg-tertiary-container .abs-icons,
+.tertiary-context .abs-icons {
+  color: rgb(var(--md-sys-color-on-tertiary-container));
+}
+
+/* Surface context icons */
+.bg-surface .abs-icons,
+.bg-surface-container .abs-icons,
+.bg-surface-container-low .abs-icons,
+.bg-surface-container-high .abs-icons,
+.surface-context .abs-icons {
+  color: rgb(var(--md-sys-color-on-surface));
 }
 
 .icon-list:before {

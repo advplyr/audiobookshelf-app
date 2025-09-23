@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple TomeSonic Cast Receiver</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            background: #1a1a1a;
+            color: white;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            text-align: center;
+        }
+
+        .receiver-container {
+            max-width: 600px;
+            width: 100%;
+        }
+
+        .cover-art {
+            width: 200px;
+            height: 200px;
+            background: #333;
+            border-radius: 12px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            color: #666;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+        }
+
+        .cover-art img {
+            width: 100%;
+            height: 100%;
+            border-radius: 12px;
+            object-fit: cover;
+        }
+
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 10px 0;
+            color: #fff;
+        }
+
+        .author {
+            font-size: 18px;
+            color: #ccc;
+            margin: 5px 0;
+        }
+
+        .chapter {
+            font-size: 16px;
+            color: #aaa;
+            margin: 10px 0;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #333;
+            border-radius: 2px;
+            margin: 20px 0;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #007bff;
+            border-radius: 2px;
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+
+        .time-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            color: #999;
+            margin-bottom: 20px;
+        }
+
+        .status {
+            font-size: 16px;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 6px;
+            background: #2a2a2a;
+        }
+
+        .status.playing { background: #0d4d1a; color: #4ade80; }
+        .status.paused { background: #4d2d0d; color: #f59e0b; }
+        .status.loading { background: #1a2d4d; color: #60a5fa; }
+        .status.error { background: #4d1a1a; color: #f87171; }
+
+        .debug-info {
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: left;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .media-items {
+            background: #333;
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            text-align: left;
+        }
+
+        .media-items h4 {
+            margin: 0 0 10px 0;
+            color: #fff;
+        }
+
+        .chapter-item {
+            padding: 5px 0;
+            border-bottom: 1px solid #444;
+            font-size: 11px;
+        }
+
+        .chapter-item:last-child {
+            border-bottom: none;
+        }
+
+        .chapter-item.current {
+            background: #004080;
+            padding: 5px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="receiver-container">
+        <div class="cover-art" id="cover-art">🎧</div>
+
+        <div class="title" id="title">TomeSonic Cast Receiver</div>
+        <div class="author" id="author">Ready for content</div>
+        <div class="chapter" id="chapter">Waiting for media...</div>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill"></div>
+        </div>
+
+        <div class="time-info">
+            <span id="current-time">0:00:00</span>
+            <span id="duration">0:00:00</span>
+        </div>
+
+        <div class="status" id="status">Initializing Cast receiver...</div>
+
+        <div class="media-items" id="media-items" style="display: none;">
+            <h4>Chapter Segments</h4>
+            <div id="chapter-list"></div>
+        </div>
+
+        <div class="debug-info" id="debug-info">
+            <div>🚀 Simple Cast Receiver Starting...</div>
+        </div>
+    </div>
+
+    <script src="//www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
+    <script>
+        // USING DEFAULT CAST RECEIVER FOR TESTING
+        // This uses the built-in Cast receiver with minimal customization
+        // Custom implementation is commented out below
+
+        function log(message, type = 'info') {
+            const debugDiv = document.getElementById('debug-info');
+            const timestamp = new Date().toLocaleTimeString();
+            const emoji = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
+            debugDiv.innerHTML += `<div>${emoji} [${timestamp}] ${message}</div>`;
+            debugDiv.scrollTop = debugDiv.scrollHeight;
+        }
+
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+
+        // Initialize minimal Cast receiver using defaults
+        window.addEventListener('load', () => {
+            log('📱 Simple Cast Receiver loaded - Using DEFAULT Cast receiver');
+            updateStatus('Using default Cast receiver', 'info');
+
+            try {
+                const context = cast.framework.CastReceiverContext.getInstance();
+
+                // Minimal configuration - let Cast handle everything
+                context.start();
+
+                log('🚀 Default Cast receiver started');
+                updateStatus('Default receiver ready', 'success');
+            } catch (error) {
+                log(`💥 Failed to start default receiver: ${error.message}`, 'error');
+                updateStatus('Failed to start receiver', 'error');
+            }
+        });
+
+        /*
+        // CUSTOM CAST RECEIVER IMPLEMENTATION (COMMENTED OUT FOR TESTING)
+        let playerManager;
+        let currentMediaItems = [];
+        let currentIndex = 0;
+
+        function formatTime(seconds) {
+            if (!seconds || isNaN(seconds)) return '0:00:00';
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function updateMediaDisplay(mediaInfo) {
+            if (!mediaInfo || !mediaInfo.metadata) return;
+
+            const title = mediaInfo.metadata.title || 'Unknown Title';
+            const artist = mediaInfo.metadata.artist || 'Unknown Artist';
+
+            document.getElementById('title').textContent = title;
+            document.getElementById('author').textContent = artist;
+
+            // Update cover art if available
+            if (mediaInfo.metadata.images && mediaInfo.metadata.images.length > 0) {
+                const coverDiv = document.getElementById('cover-art');
+                coverDiv.innerHTML = `<img src="${mediaInfo.metadata.images[0].url}" alt="Cover">`;
+            }
+
+            log(`📱 Media: "${title}" by ${artist}`);
+        }
+
+        function updateChapterDisplay() {
+            const chapterDiv = document.getElementById('chapter');
+            const mediaItemsDiv = document.getElementById('media-items');
+            const chapterListDiv = document.getElementById('chapter-list');
+
+            if (currentMediaItems.length > 0) {
+                mediaItemsDiv.style.display = 'block';
+
+                let chapterListHTML = '';
+                currentMediaItems.forEach((item, index) => {
+                    const title = item.metadata?.title || `Chapter ${index + 1}`;
+                    const isCurrentClass = index === currentIndex ? 'current' : '';
+                    chapterListHTML += `<div class="chapter-item ${isCurrentClass}">${index + 1}. ${title}</div>`;
+                });
+                chapterListDiv.innerHTML = chapterListHTML;
+
+                // Update current chapter display
+                const currentChapterTitle = currentMediaItems[currentIndex]?.metadata?.title || `Chapter ${currentIndex + 1}`;
+                chapterDiv.textContent = `${currentChapterTitle} (${currentIndex + 1}/${currentMediaItems.length})`;
+            } else {
+                mediaItemsDiv.style.display = 'none';
+                chapterDiv.textContent = 'No chapters loaded';
+            }
+        }
+
+        function updateProgress() {
+            if (!playerManager) return;
+
+            const currentTime = playerManager.getCurrentTimeSec() || 0;
+            const duration = playerManager.getDurationSec() || 0;
+
+            document.getElementById('current-time').textContent = formatTime(currentTime);
+            document.getElementById('duration').textContent = formatTime(duration);
+
+            if (duration > 0) {
+                const progressPercent = (currentTime / duration) * 100;
+                document.getElementById('progress-fill').style.width = `${progressPercent}%`;
+            }
+        }
+
+        // Initialize Cast Application Framework
+        function initializeCastReceiver() {
+            log('🎬 Initializing Cast Application Framework...');
+
+            const context = cast.framework.CastReceiverContext.getInstance();
+            playerManager = context.getPlayerManager();
+
+            // Basic playback configuration
+            const playbackConfig = new cast.framework.PlaybackConfig();
+            playbackConfig.supportedCommands = cast.framework.messages.Command.ALL_BASIC_MEDIA;
+
+            log('✅ Cast framework initialized');
+            updateStatus('Ready for casting', 'info');
+
+            // Set up message interceptors
+            playerManager.setMessageInterceptor(
+                cast.framework.messages.MessageType.LOAD,
+                (loadRequest) => {
+                    log(`📥 LOAD request received`);
+                    log(`📱 Content ID: ${loadRequest.media.contentId}`);
+                    log(`📄 Content Type: ${loadRequest.media.contentType}`);
+
+                    // Log custom data if present
+                    if (loadRequest.media.customData) {
+                        log(`📊 Custom Data: ${JSON.stringify(loadRequest.media.customData, null, 2)}`);
+                    }
+
+                    updateMediaDisplay(loadRequest.media);
+                    updateStatus('Loading media...', 'loading');
+
+                    return loadRequest;
+                }
+            );
+
+            // Set up event listeners
+            playerManager.addEventListener(
+                cast.framework.events.EventType.PLAYER_LOAD_COMPLETE,
+                () => {
+                    log('✅ Media loaded successfully');
+                    updateStatus('Media loaded', 'success');
+                    updateMediaDisplay(playerManager.getMediaInformation());
+
+                    // Store the media items for chapter display
+                    const mediaInfo = playerManager.getMediaInformation();
+                    if (mediaInfo) {
+                        currentMediaItems = [mediaInfo]; // Simple receiver just shows single item
+                        currentIndex = 0;
+                        updateChapterDisplay();
+                    }
+                }
+            );
+
+            playerManager.addEventListener(
+                cast.framework.events.EventType.PLAYER_PLAYING,
+                () => {
+                    log('▶️ Playback started');
+                    updateStatus('Playing', 'playing');
+                    startProgressUpdates();
+                }
+            );
+
+            playerManager.addEventListener(
+                cast.framework.events.EventType.PLAYER_PAUSED,
+                () => {
+                    log('⏸️ Playback paused');
+                    updateStatus('Paused', 'paused');
+                    stopProgressUpdates();
+                }
+            );
+
+            playerManager.addEventListener(
+                cast.framework.events.EventType.PLAYER_IDLE,
+                (event) => {
+                    log(`⏹️ Player idle: ${event.idleReason}`);
+                    updateStatus('Idle', 'info');
+                    stopProgressUpdates();
+                }
+            );
+
+            playerManager.addEventListener(
+                cast.framework.events.EventType.ERROR,
+                (errorEvent) => {
+                    const error = errorEvent.detailedErrorCode || errorEvent.error;
+                    log(`❌ Player error: ${JSON.stringify(error)}`, 'error');
+                    updateStatus(`Error: ${error}`, 'error');
+
+                    // Log specific error details for debugging
+                    if (typeof error === 'number') {
+                        switch (error) {
+                            case 905:
+                                log('🚫 Error 905: LOAD_FAILED - Content URL not accessible', 'error');
+                                break;
+                            case 900:
+                                log('🚫 Error 900: Invalid player state', 'error');
+                                break;
+                            default:
+                                log(`❓ Unknown error code: ${error}`, 'error');
+                        }
+                    }
+                }
+            );
+
+            // Start the receiver
+            context.start();
+            log('🚀 Cast receiver started and ready');
+        }
+
+        let progressInterval;
+
+        function startProgressUpdates() {
+            stopProgressUpdates();
+            progressInterval = setInterval(updateProgress, 1000);
+        }
+
+        function stopProgressUpdates() {
+            if (progressInterval) {
+                clearInterval(progressInterval);
+                progressInterval = null;
+            }
+        }
+
+        // Initialize when the page loads
+        window.addEventListener('load', () => {
+            log('📱 Simple Cast Receiver loaded');
+            initializeCastReceiver();
+        });
+
+        // Handle any unhandled errors
+        window.addEventListener('error', (event) => {
+            log(`💥 JavaScript error: ${event.error?.message || event.message}`, 'error');
+            updateStatus('JavaScript Error', 'error');
+        });
+        */
+    </script>
+</body>
+</html>

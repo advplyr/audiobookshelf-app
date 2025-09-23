@@ -1,4 +1,28 @@
 <resources>
+  <!-- Android 12+ Dynamic Colors Theme -->
+  <style name="AppTheme" parent="Theme.Material3.DynamicColors.DayNight">
+    <!-- Use system dynamic colors -->
+  </style>
+
+  <style name="AppTheme.NoActionBar" parent="Theme.Material3.DynamicColors.DayNight.NoActionBar">
+    <item name="windowActionBar">false</item>
+    <item name="windowNoTitle">true</item>
+  <!-- Transparent system bars for immersive, edge-to-edge content -->
+  <item name="android:statusBarColor">@android:color/transparent</item>
+  <item name="android:navigationBarColor">@android:color/transparent</item>
+  <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+  </style>
+
+  <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
+    <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
+    <item name="windowSplashScreenBackground">?android:attr/colorBackground</item>
+    <item name="windowSplashScreenAnimatedIcon">@drawable/splash_simple</item>
+    <item name="windowSplashScreenIconBackgroundColor">?android:attr/colorBackground</item>
+  </style>
+
+  <style name="MediaPlayerWidgetTheme" parent="Theme.Material3.DynamicColors.DayNight">
+    <!-- Use dynamic colors for widget -->
+  </style>
 
   <style name="Widget.Android.AppWidget.Container" parent="android:Widget">
     <item name="android:id">@android:id/background</item>

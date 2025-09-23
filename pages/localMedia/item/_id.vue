@@ -1,57 +1,63 @@
 <template>
-  <div class="w-full h-full py-6 px-2">
+  <div class="w-full h-full py-6 px-2" :style="contentPaddingStyle">
     <div v-if="localLibraryItem" class="w-full h-full">
       <div class="px-2 flex items-center mb-2">
         <p class="text-base font-semibold truncate">{{ mediaMetadata.title }}</p>
         <div class="flex-grow" />
 
-        <button v-if="audioTracks.length && !isPodcast" class="shadow-sm text-success flex items-center justify-center rounded-full mx-2" @click.stop="play">
-          <span class="material-symbols fill" style="font-size: 2rem">play_arrow</span>
+        <button v-if="audioTracks.length && !isPodcast" class="w-12 h-12 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center shadow-elevation-1 hover:shadow-elevation-2 active:scale-95 mx-2" @click.stop="play">
+          <span class="material-symbols fill text-on-surface" style="font-size: 2rem">play_arrow</span>
         </button>
-        <span class="material-symbols text-2xl" @click="showItemDialog">more_vert</span>
+        <button class="w-10 h-10 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center shadow-elevation-1 hover:shadow-elevation-2 active:scale-95" @click="showItemDialog">
+          <span class="material-symbols text-xl text-on-surface">more_vert</span>
+        </button>
       </div>
 
-      <p v-if="!isIos" class="px-2 text-sm mb-0.5 text-fg-muted">{{ $strings.LabelFolder }}: {{ folderName }}</p>
+      <p v-if="!isIos" class="px-2 text-sm mb-0.5 text-on-surface-variant">{{ $strings.LabelFolder }}: {{ folderName }}</p>
 
-      <p class="px-2 mb-4 text-xs text-fg-muted">{{ libraryItemId ? 'Linked to item on server ' + liServerAddress : 'Not linked to server item' }}</p>
+      <p class="px-2 mb-4 text-xs text-on-surface-variant">{{ libraryItemId ? 'Linked to item on server ' + liServerAddress : 'Not linked to server item' }}</p>
 
       <div class="w-full max-w-full media-item-container overflow-y-auto overflow-x-hidden relative pb-4" :class="{ 'media-order-changed': orderChanged }">
         <div v-if="!isPodcast && audioTracksCopy.length" class="w-full py-2">
-          <div class="flex justify-between items-center mb-2">
-            <p class="text-base">Audio Tracks ({{ audioTracks.length }})</p>
-            <p class="text-xs text-fg-muted px-2">{{ $strings.LabelTotalSize }}: {{ $bytesPretty(totalAudioSize) }}</p>
-          </div>
+          <div class="bg-surface-container rounded-2xl p-4 mb-4">
+            <div class="flex justify-between items-center mb-3">
+              <p class="text-base font-medium text-on-surface">Audio Tracks ({{ audioTracks.length }})</p>
+              <p class="text-xs text-on-surface-variant px-2">{{ $strings.LabelTotalSize }}: {{ $bytesPretty(totalAudioSize) }}</p>
+            </div>
 
-          <draggable v-model="audioTracksCopy" v-bind="dragOptions" handle=".drag-handle" draggable=".item" tag="div" @start="drag = true" @end="drag = false" @update="draggableUpdate" :disabled="isIos">
-            <transition-group type="transition" :name="!drag ? 'dragtrack' : null">
-              <template v-for="track in audioTracksCopy">
-                <div :key="track.localFileId" class="flex items-center my-1 item">
-                  <div v-if="!isIos" class="w-8 h-12 flex items-center justify-center" style="min-width: 32px">
-                    <span class="material-symbols drag-handle text-lg text-fg-muted">menu</span>
+            <draggable v-model="audioTracksCopy" v-bind="dragOptions" handle=".drag-handle" draggable=".item" tag="div" @start="drag = true" @end="drag = false" @update="draggableUpdate" :disabled="isIos">
+              <transition-group type="transition" :name="!drag ? 'dragtrack' : null">
+                <template v-for="track in audioTracksCopy">
+                  <div :key="track.localFileId" class="flex items-center my-1 item">
+                    <div v-if="!isIos" class="w-8 h-12 flex items-center justify-center" style="min-width: 32px">
+                      <span class="material-symbols drag-handle text-lg text-on-surface-variant">menu</span>
+                    </div>
+                    <div class="w-8 h-12 flex items-center justify-center" style="min-width: 32px">
+                      <p class="font-mono font-bold text-xl">{{ track.index }}</p>
+                    </div>
+                    <div class="flex-grow px-2">
+                      <p class="text-xs">{{ track.title }}</p>
+                    </div>
+                    <div class="w-20 text-center text-on-surface-variant" style="min-width: 80px">
+                      <p class="text-xs">{{ track.mimeType }}</p>
+                      <p class="text-sm">{{ $elapsedPretty(track.duration) }}</p>
+                    </div>
+                    <div v-if="!isIos" class="w-12 h-12 flex items-center justify-center" style="min-width: 48px">
+                      <button class="w-8 h-8 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center hover:bg-secondary-container-hover active:scale-95" @click="showTrackDialog(track)">
+                        <span class="material-symbols text-lg text-on-surface">more_vert</span>
+                      </button>
+                    </div>
                   </div>
-                  <div class="w-8 h-12 flex items-center justify-center" style="min-width: 32px">
-                    <p class="font-mono font-bold text-xl">{{ track.index }}</p>
-                  </div>
-                  <div class="flex-grow px-2">
-                    <p class="text-xs">{{ track.title }}</p>
-                  </div>
-                  <div class="w-20 text-center text-fg-muted" style="min-width: 80px">
-                    <p class="text-xs">{{ track.mimeType }}</p>
-                    <p class="text-sm">{{ $elapsedPretty(track.duration) }}</p>
-                  </div>
-                  <div v-if="!isIos" class="w-12 h-12 flex items-center justify-center" style="min-width: 48px">
-                    <span class="material-symbols text-2xl" @click="showTrackDialog(track)">more_vert</span>
-                  </div>
-                </div>
-              </template>
-            </transition-group>
-          </draggable>
+                </template>
+              </transition-group>
+            </draggable>
+          </div>
         </div>
 
         <div v-if="isPodcast" class="w-full py-2">
           <div class="flex justify-between items-center mb-2">
             <p class="text-base">Episodes ({{ episodes.length }})</p>
-            <p class="text-xs text-fg-muted px-2">{{ $strings.LabelTotalSize }}: {{ $bytesPretty(totalEpisodesSize) }}</p>
+            <p class="text-xs text-on-surface-variant px-2">{{ $strings.LabelTotalSize }}: {{ $bytesPretty(totalEpisodesSize) }}</p>
           </div>
           <template v-for="episode in episodes">
             <div :key="episode.id" class="flex items-center my-1">
@@ -61,69 +67,74 @@
               <div class="flex-grow px-2">
                 <p class="text-xs">{{ episode.title }}</p>
               </div>
-              <div class="w-20 text-center text-fg-muted" style="min-width: 80px">
+              <div class="w-20 text-center text-on-surface-variant" style="min-width: 80px">
                 <p class="text-xs">{{ episode.audioTrack.mimeType }}</p>
                 <p class="text-sm">{{ $elapsedPretty(episode.audioTrack.duration) }}</p>
               </div>
               <div class="w-12 h-12 flex items-center justify-center" style="min-width: 48px">
-                <span class="material-symbols text-2xl" @click="showTrackDialog(episode)">more_vert</span>
+                <span class="material-symbols text-2xl text-on-surface" @click="showTrackDialog(episode)">more_vert</span>
               </div>
             </div>
           </template>
         </div>
 
         <div v-if="localFileForEbook" class="w-full py-2">
-          <p class="text-base mb-2">EBook File</p>
+          <div class="bg-surface-container rounded-2xl p-4 mb-4">
+            <p class="text-base font-medium text-on-surface mb-3">EBook File</p>
 
-          <div class="flex items-center my-1">
-            <div class="w-10 h-12 flex items-center justify-center" style="min-width: 40px">
-              <p class="font-mono font-bold text-sm">{{ ebookFile.ebookFormat }}</p>
-            </div>
-            <div class="flex-grow px-2">
-              <p class="text-xs">{{ localFileForEbook.filename }}</p>
-            </div>
-            <div class="w-24 text-center text-fg-muted" style="min-width: 96px">
-              <p class="text-xs">{{ localFileForEbook.mimeType }}</p>
-              <p class="text-sm">{{ $bytesPretty(localFileForEbook.size) }}</p>
-            </div>
-          </div>
-        </div>
-
-        <div v-if="otherFiles.length">
-          <div class="flex justify-between items-center py-2">
-            <p class="text-lg">Other Files</p>
-            <p class="text-xs text-fg-muted px-2">{{ $strings.LabelTotalSize }}: {{ $bytesPretty(totalOtherFilesSize) }}</p>
-          </div>
-          <template v-for="file in otherFiles">
-            <div :key="file.id" class="flex items-center my-1">
-              <div class="w-12 h-12 flex items-center justify-center">
-                <img v-if="(file.mimeType || '').startsWith('image')" :src="getCapImageSrc(file.contentUrl)" class="w-full h-full object-contain" />
-                <span v-else class="material-symbols">music_note</span>
+            <div class="flex items-center my-1">
+              <div class="w-10 h-12 flex items-center justify-center" style="min-width: 40px">
+                <p class="font-mono font-bold text-sm">{{ ebookFile.ebookFormat }}</p>
               </div>
               <div class="flex-grow px-2">
-                <p class="text-sm">{{ file.filename }}</p>
+                <p class="text-xs">{{ localFileForEbook.filename }}</p>
               </div>
-              <div class="w-24 text-center text-fg-muted" style="min-width: 96px">
-                <p class="text-xs">{{ file.mimeType }}</p>
-                <p class="text-sm">{{ $bytesPretty(file.size) }}</p>
+              <div class="w-24 text-center text-on-surface-variant" style="min-width: 96px">
+                <p class="text-xs">{{ localFileForEbook.mimeType }}</p>
+                <p class="text-sm">{{ $bytesPretty(localFileForEbook.size) }}</p>
               </div>
             </div>
-          </template>
+          </div>
         </div>
 
-        <div class="mt-4 text-sm text-fg-muted">{{ $strings.LabelTotalSize }}: {{ $bytesPretty(totalLibraryItemSize) }}</div>
+        <div v-if="otherFiles.length" class="w-full py-2">
+          <div class="bg-surface-container rounded-2xl p-4 mb-4">
+            <div class="flex justify-between items-center mb-3">
+              <p class="text-lg font-medium text-on-surface">Other Files</p>
+              <p class="text-xs text-on-surface-variant px-2">{{ $strings.LabelTotalSize }}: {{ $bytesPretty(totalOtherFilesSize) }}</p>
+            </div>
+            <template v-for="file in otherFiles">
+              <div :key="file.id" class="flex items-center my-1">
+                <div class="w-12 h-12 flex items-center justify-center">
+                  <img v-if="(file.mimeType || '').startsWith('image')" :src="getCapImageSrc(file.contentUrl)" class="w-full h-full object-contain" />
+                  <span v-else class="material-symbols text-on-surface-variant">music_note</span>
+                </div>
+                <div class="flex-grow px-2">
+                  <p class="text-sm">{{ file.filename }}</p>
+                </div>
+                <div class="w-24 text-center text-on-surface-variant" style="min-width: 96px">
+                  <p class="text-xs">{{ file.mimeType }}</p>
+                  <p class="text-sm">{{ $bytesPretty(file.size) }}</p>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <div class="mt-4 text-sm text-on-surface-variant">{{ $strings.LabelTotalSize }}: {{ $bytesPretty(totalLibraryItemSize) }}</div>
       </div>
     </div>
     <div v-else class="px-2 w-full h-full">
       <p class="text-lg text-center px-8">{{ failed ? 'Failed to get local library item ' + localLibraryItemId : 'Loading..' }}</p>
     </div>
 
-    <div v-if="orderChanged" class="fixed left-0 w-full py-4 px-4 bg-bg box-shadow-book flex items-center" :style="{ bottom: isPlayerOpen ? '120px' : '0px' }">
+    <div v-if="orderChanged" class="fixed left-0 w-full py-4 px-4 bg-surface-container box-shadow-book flex items-center" :style="{ bottom: '0px' }">
       <div class="flex-grow" />
-      <ui-btn small color="success" @click="saveTrackOrder">{{ $strings.ButtonSaveOrder }}</ui-btn>
+      <ui-btn small class="bg-secondary-container text-on-secondary-container hover:bg-secondary-container-hover active:scale-95" @click="saveTrackOrder">{{ $strings.ButtonSaveOrder }}</ui-btn>
     </div>
 
     <modals-dialog v-model="showDialog" :items="dialogItems" @action="dialogAction" />
+    <modals-confirm-dialog v-model="showConfirmDialog" :title="confirmDialogTitle" :message="confirmDialogMessage" @confirm="handleConfirm" @cancel="handleCancel" />
   </div>
 </template>
 
@@ -131,7 +142,6 @@
 import draggable from 'vuedraggable'
 
 import { Capacitor } from '@capacitor/core'
-import { Dialog } from '@capacitor/dialog'
 import { AbsFileSystem } from '@/plugins/capacitor'
 
 export default {
@@ -161,13 +171,14 @@ export default {
       showDialog: false,
       selectedAudioTrack: null,
       selectedEpisode: null,
-      orderChanged: false
+      orderChanged: false,
+      showConfirmDialog: false,
+      confirmDialogTitle: '',
+      confirmDialogMessage: '',
+      pendingConfirmAction: null
     }
   },
   computed: {
-    isPlayerOpen() {
-      return this.$store.getters['getIsPlayerOpen']
-    },
     isIos() {
       return this.$platform === 'ios'
     },
@@ -271,6 +282,9 @@ export default {
     },
     totalLibraryItemSize() {
       return this.localFiles.reduce((acc, item) => acc + item.size, 0)
+    },
+    contentPaddingStyle() {
+      return this.$store.getters['getIsPlayerOpen'] ? { paddingBottom: '120px' } : {}
     }
   },
   methods: {
@@ -294,7 +308,6 @@ export default {
       var response = await this.$db.updateLocalTrackOrder(payload)
       if (response) {
         this.$toast.success('Library item updated')
-        console.log('updateLocal track order response', JSON.stringify(response))
         this.localLibraryItem = response
         this.audioTracksCopy = this.audioTracks.map((at) => ({ ...at }))
       } else {
@@ -340,7 +353,6 @@ export default {
       })
     },
     async dialogAction(action) {
-      console.log('Dialog action', action)
       await this.$hapticsImpact()
 
       if (action == 'delete') {
@@ -368,17 +380,10 @@ export default {
       if (this.libraryItemId) {
         confirmMessage += ' The file on the server will be unaffected.'
       }
-      const { value } = await Dialog.confirm({
-        title: 'Confirm',
-        message: confirmMessage
-      })
-      if (value) {
-        var res = await AbsFileSystem.deleteTrackFromItem({ id: this.localLibraryItem.id, trackLocalFileId: localFile.id, trackContentUrl: this.selectedEpisode.audioTrack.contentUrl })
-        if (res && res.id) {
-          this.$toast.success('Deleted track successfully')
-          this.localLibraryItem = res
-        } else this.$toast.error('Failed to delete')
-      }
+      this.confirmDialogTitle = 'Confirm'
+      this.confirmDialogMessage = confirmMessage
+      this.pendingConfirmAction = 'deleteEpisode'
+      this.showConfirmDialog = true
     },
     async deleteTrack() {
       if (!this.selectedAudioTrack) {
@@ -394,34 +399,55 @@ export default {
       if (this.libraryItemId) {
         confirmMessage += ' The file on the server will be unaffected.'
       }
-      const { value } = await Dialog.confirm({
-        title: 'Confirm',
-        message: confirmMessage
-      })
-      if (value) {
-        var res = await AbsFileSystem.deleteTrackFromItem({ id: this.localLibraryItem.id, trackLocalFileId: this.selectedAudioTrack.localFileId, trackContentUrl: this.selectedAudioTrack.contentUrl })
-        if (res && res.id) {
-          this.$toast.success('Deleted track successfully')
-          this.localLibraryItem = res
-        } else this.$toast.error('Failed to delete')
-      }
+      this.confirmDialogTitle = 'Confirm'
+      this.confirmDialogMessage = confirmMessage
+      this.pendingConfirmAction = 'deleteTrack'
+      this.showConfirmDialog = true
     },
     async deleteItem() {
       let confirmMessage = 'Remove local files of this item from your device?'
       if (this.libraryItemId) {
         confirmMessage += ' The files on the server and your progress will be unaffected.'
       }
-      const { value } = await Dialog.confirm({
-        title: 'Confirm',
-        message: confirmMessage
-      })
-      if (value) {
-        var res = await AbsFileSystem.deleteItem(this.localLibraryItem)
-        if (res && res.success) {
-          this.$toast.success('Deleted Successfully')
-          this.$router.replace(this.isIos ? '/downloads' : `/localMedia/folders/${this.folderId}`)
-        } else this.$toast.error('Failed to delete')
+      this.confirmDialogTitle = 'Confirm'
+      this.confirmDialogMessage = confirmMessage
+      this.pendingConfirmAction = 'deleteItem'
+      this.showConfirmDialog = true
+    },
+    handleConfirm() {
+      if (this.pendingConfirmAction === 'deleteEpisode') {
+        this.executeDeleteEpisode()
+      } else if (this.pendingConfirmAction === 'deleteTrack') {
+        this.executeDeleteTrack()
+      } else if (this.pendingConfirmAction === 'deleteItem') {
+        this.executeDeleteItem()
       }
+      this.pendingConfirmAction = null
+    },
+    handleCancel() {
+      this.pendingConfirmAction = null
+    },
+    async executeDeleteEpisode() {
+      var localFile = this.getLocalFileForTrack(this.selectedEpisode.audioTrack.localFileId)
+      var res = await AbsFileSystem.deleteTrackFromItem({ id: this.localLibraryItem.id, trackLocalFileId: localFile.id, trackContentUrl: this.selectedEpisode.audioTrack.contentUrl })
+      if (res && res.id) {
+        this.$toast.success('Deleted track successfully')
+        this.localLibraryItem = res
+      } else this.$toast.error('Failed to delete')
+    },
+    async executeDeleteTrack() {
+      var res = await AbsFileSystem.deleteTrackFromItem({ id: this.localLibraryItem.id, trackLocalFileId: this.selectedAudioTrack.localFileId, trackContentUrl: this.selectedAudioTrack.contentUrl })
+      if (res && res.id) {
+        this.$toast.success('Deleted track successfully')
+        this.localLibraryItem = res
+      } else this.$toast.error('Failed to delete')
+    },
+    async executeDeleteItem() {
+      var res = await AbsFileSystem.deleteItem(this.localLibraryItem)
+      if (res && res.success) {
+        this.$toast.success('Deleted Successfully')
+        this.$router.replace(this.isIos ? '/downloads' : `/localMedia/folders/${this.folderId}`)
+      } else this.$toast.error('Failed to delete')
     },
     async init() {
       this.localLibraryItem = await this.$db.getLocalLibraryItem(this.localLibraryItemId)
@@ -454,12 +480,12 @@ export default {
   max-height: calc(100vh - 280px);
 }
 .playerOpen .media-item-container {
-  height: calc(100vh - 300px);
-  max-height: calc(100vh - 300px);
+  height: calc(100vh - 180px); /* No extra padding for player */
+  max-height: calc(100vh - 180px);
 }
 .playerOpen .media-item-container.media-order-changed {
-  height: calc(100vh - 380px);
-  max-height: calc(100vh - 380px);
+  height: calc(100vh - 260px); /* Same reduction for order changed state */
+  max-height: calc(100vh - 260px);
 }
 .sortable-ghost {
   opacity: 0.5;

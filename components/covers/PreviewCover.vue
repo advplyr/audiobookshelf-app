@@ -4,16 +4,21 @@
       <div v-show="showCoverBg" class="absolute top-0 left-0 w-full h-full overflow-hidden rounded-sm bg-primary">
         <div class="absolute cover-bg" ref="coverBg" />
       </div>
-      <img ref="cover" :src="cover" @error="imageError" @load="imageLoaded" class="w-full h-full absolute top-0 left-0" :class="showCoverBg ? 'object-contain' : 'object-fill'" />
+      <img v-if="!isMaterialSymbolPlaceholder" ref="cover" :src="cover" @error="imageError" @load="imageLoaded" class="w-full h-full absolute top-0 left-0" :class="showCoverBg ? 'object-contain' : 'object-fill'" />
+
+      <!-- Material Symbol placeholder -->
+      <div v-if="isMaterialSymbolPlaceholder" class="w-full h-full absolute top-0 left-0 flex items-center justify-center bg-surface-container rounded-sm">
+        <span class="material-symbols text-6xl text-on-surface-variant">book</span>
+      </div>
 
       <a v-if="!imageFailed && showOpenNewTab && isHovering" :href="cover" @click.stop target="_blank" class="absolute bg-primary flex items-center justify-center shadow-sm rounded-full hover:scale-110 transform duration-100" :style="{ top: sizeMultiplier * 0.5 + 'rem', right: sizeMultiplier * 0.5 + 'rem', width: 2.5 * sizeMultiplier + 'rem', height: 2.5 * sizeMultiplier + 'rem' }">
-        <span class="material-symbols" :style="{ fontSize: sizeMultiplier * 1.75 + 'rem' }">open_in_new</span>
+        <span class="material-symbols text-on-surface" :style="{ fontSize: sizeMultiplier * 1.75 + 'rem' }">open_in_new</span>
       </a>
     </div>
 
     <div v-if="imageFailed" class="absolute top-0 left-0 right-0 bottom-0 w-full h-full bg-red-100" :style="{ padding: placeholderCoverPadding + 'rem' }">
       <div class="w-full h-full border-2 border-error flex flex-col items-center justify-center">
-        <img src="/Logo.png" class="mb-2" :style="{ height: 64 * sizeMultiplier + 'px' }" />
+        <ui-tomesonic-app-icon :size="64 * sizeMultiplier" color="error" class="mb-2" />
         <p class="text-centertext-error" :style="{ fontSize: sizeMultiplier + 'rem' }">Invalid Cover</p>
       </div>
     </div>
@@ -65,8 +70,11 @@ export default {
       return `${this.naturalWidth}x${this.naturalHeight}px`
     },
     placeholderUrl() {
-      const config = this.$config || this.$nuxt.$config
-      return `${config.routerBasePath}/book_placeholder.jpg`
+      // Return a placeholder that will be replaced with Material Symbol in template
+      return 'material-symbol:book'
+    },
+    isMaterialSymbolPlaceholder() {
+      return this.cover === 'material-symbol:book'
     }
   },
   methods: {

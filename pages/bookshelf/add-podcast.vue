@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full h-full relative overflow-hidden">
+  <div class="w-full h-full relative overflow-hidden" :style="contentPaddingStyle">
     <template v-if="!showSelectedFeed">
       <div class="w-full mx-auto h-20 flex items-center px-2">
         <form class="w-full" @submit.prevent="submit">
@@ -10,7 +10,7 @@
       <div v-if="!socketConnected" class="w-full text-center py-6">
         <p class="text-lg text-error">{{ $strings.MessageNoNetworkConnection }}</p>
       </div>
-      <div v-else class="w-full mx-auto pb-2 overflow-y-auto overflow-x-hidden h-[calc(100%-85px)]">
+      <div v-else class="w-full mx-auto pb-2 overflow-y-auto overflow-x-hidden h-[calc(100%-85px)]" :style="contentPaddingStyle">
         <p v-if="termSearched && !results.length && !processing" class="text-center text-xl">{{ $strings.MessageNoPodcastsFound }}</p>
         <template v-for="podcast in results">
           <div :key="podcast.id" class="p-2 border-b border-fg border-opacity-10" @click="selectPodcast(podcast)">
@@ -21,12 +21,12 @@
                 </div>
               </div>
               <div class="flex-grow pl-2">
-                <p class="text-xs text-fg whitespace-nowrap truncate">{{ podcast.artistName }}</p>
-                <p class="text-xxs text-fg leading-5">{{ podcast.trackCount }} {{ $strings.HeaderEpisodes }}</p>
+                <p class="text-xs text-on-surface whitespace-nowrap truncate">{{ podcast.artistName }}</p>
+                <p class="text-xxs text-on-surface leading-5">{{ podcast.trackCount }} {{ $strings.HeaderEpisodes }}</p>
               </div>
             </div>
 
-            <p class="text-sm text-fg mb-1">{{ podcast.title }}</p>
+            <p class="text-sm text-on-surface mb-1">{{ podcast.title }}</p>
             <p class="text-xs text-fg-muted leading-5">{{ podcast.genres.join(', ') }}</p>
           </div>
         </template>
@@ -40,7 +40,7 @@
         </div>
       </div>
 
-      <div class="w-full py-2 overflow-y-auto overflow-x-hidden h-[calc(100%-69px)]">
+      <div class="w-full py-2 overflow-y-auto overflow-x-hidden h-[calc(100%-69px)]" :style="contentPaddingStyle">
         <forms-new-podcast-form :podcast-data="selectedPodcast" :podcast-feed-data="selectedPodcastFeed" :processing.sync="processing" />
       </div>
     </template>
@@ -67,6 +67,11 @@ export default {
   computed: {
     socketConnected() {
       return this.$store.state.socketConnected
+    }
+  },
+  computed: {
+    contentPaddingStyle() {
+      return this.$store.getters['getIsPlayerOpen'] ? { paddingBottom: '120px' } : {}
     }
   },
   methods: {
@@ -107,13 +112,11 @@ export default {
         console.error('Search request failed', error)
         return []
       })
-      console.log('Got results', results)
       this.results = results
       this.termSearched = term
       this.processing = false
     },
     async selectPodcast(podcast) {
-      console.log('Selected podcast', podcast)
       if (!podcast.feedUrl) {
         this.$toast.error('Invalid podcast - no feed')
         return
@@ -130,7 +133,6 @@ export default {
       this.selectedPodcastFeed = payload.podcast
       this.selectedPodcast = podcast
       this.showSelectedFeed = true
-      console.log('Got podcast feed', payload.podcast)
     },
     libraryChanged() {
       const libraryMediaType = this.$store.getters['libraries/getCurrentLibraryMediaType']

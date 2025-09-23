@@ -4,8 +4,9 @@ import { AbsDownloader } from './AbsDownloader'
 import { AbsFileSystem } from './AbsFileSystem'
 import { AbsDatabase } from './AbsDatabase'
 import { AbsLogger } from './AbsLogger'
+import { DynamicColor } from './dynamicColor'
 import { Capacitor } from '@capacitor/core'
 
 Vue.prototype.$platform = Capacitor.getPlatform()
 
-export { AbsAudioPlayer, AbsDownloader, AbsFileSystem, AbsLogger, AbsDatabase }
+export { AbsAudioPlayer, AbsDownloader, AbsFileSystem, AbsLogger, AbsDatabase, DynamicColor }
