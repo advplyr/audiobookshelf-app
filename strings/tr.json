@@ -333,7 +333,7 @@
   "MessageOldServerConnectionWarningHelp": "Bu sunucuya bağlantıyı Haziran 2023'te yayınlanan 2.3.0 sürümündeki veritabanı geçişinden önce kurdunuz. Gelecekteki bir sunucu güncellemesi, bu eski bağlantıyla oturum açma yeteneğini kaldıracaktır. Lütfen mevcut sunucu bağlantısını silin ve yeniden bağlanın (aynı sunucu adresini ve kimlik bilgilerini kullanarak). Bu cihazda indirilmiş medyanız varsa, sunucuyla eşitlemek için medyanın yeniden indirilmesi gerekecektir.",
   "MessagePodcastSearchField": "Arama terimi veya RSS akış URL'si girin",
   "MessageProgressSyncFailed": "Dinleme ilerlemenizi sunucuya bildirme denemesi başarısız oldu. Medya oynatılırken ilerleme eşitleme istekleri her 15 saniyede bir ile 1 dakika arasında denenmeye devam edecektir.",
-  "MessageReportBugsAndContribute": "Hataları bildirin, özellikler isteyin ve katkıda bulunun:",
+  "MessageReportBugsAndContribute": "Hataları bildirin, özellikler isteyin ve katkıda bulunun",
   "MessageSeriesAlreadyDownloaded": "Bu serideki tüm kitapları zaten indirdiniz.",
   "MessageSeriesDownloadConfirm": "{3} klasörüne, toplam {2} boyutunda {1} dosyadan oluşan eksik {0} kitap indirilsin mi?",
   "MessageSeriesDownloadConfirmIos": "Toplam {2} boyutunda {1} dosyadan oluşan eksik {0} kitap indirilsin mi?",
