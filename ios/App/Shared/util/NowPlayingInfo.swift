@@ -22,8 +22,16 @@ struct NowPlayingMetadata {
             return item.coverUrl
         } else {
             guard let config = Store.serverConfig else { return nil }
-            guard let url = URL(string: "\(config.address)/api/items/\(itemId)/cover?token=\(config.token)") else { return nil }
-            return url
+            
+            // As of v2.17.0 token is not needed with cover image requests
+            let coverUrlString: String
+            if Store.isServerVersionGreaterThanOrEqualTo("2.17.0") {
+                coverUrlString = "\(config.address)/api/items/\(itemId)/cover"
+            } else {
+                coverUrlString = "\(config.address)/api/items/\(itemId)/cover?token=\(config.token)"
+            }
+            
+            return URL(string: coverUrlString)
         }
     }
 }

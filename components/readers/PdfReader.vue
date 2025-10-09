@@ -49,7 +49,8 @@ export default {
       numPages: 0,
       windowWidth: 0,
       windowHeight: 0,
-      pdfDocInitParams: null
+      pdfDocInitParams: null,
+      isRefreshing: false
     }
   },
   computed: {
@@ -109,6 +110,10 @@ export default {
     },
     isPlayerOpen() {
       return this.$store.getters['getIsPlayerOpen']
+    },
+    ebookUrl() {
+      const serverAddress = this.$store.getters['user/getServerAddress']
+      return this.isLocal ? this.url : `${serverAddress}${this.url}`
     }
   },
   methods: {
@@ -164,7 +169,56 @@ export default {
       this.page++
       this.updateProgress()
     },
-    error(err) {
+    async handleRefreshFailure() {
+      try {
+        console.log('[PdfReader] Handling refresh failure - logging out user')
+
+        const serverConnectionConfigId = this.$store.getters['user/getServerConnectionConfigId']
+
+        // Clear store
+        await this.$store.dispatch('user/logout')
+
+        if (serverConnectionConfigId) {
+          // Clear refresh token for server connection config
+          await this.$db.clearRefreshToken(serverConnectionConfigId)
+        }
+
+        if (window.location.pathname !== '/connect') {
+          window.location.href = '/connect?error=refreshTokenFailed&serverConnectionConfigId=' + serverConnectionConfigId
+        }
+      } catch (error) {
+        console.error('[PdfReader] Failed to handle refresh failure:', error)
+      }
+    },
+    async refreshToken() {
+      if (this.isRefreshing) return
+      this.isRefreshing = true
+      // Cannot use axios with this pdf reader so we need to handle the refresh separately
+      // Should work on migrating to a different pdf reader in the future
+      const newAccessToken = await this.$store.dispatch('user/refreshToken').catch((error) => {
+        console.error('Failed to refresh token', error)
+        return null
+      })
+      if (!newAccessToken) {
+        this.handleRefreshFailure()
+        return
+      }
+
+      // Force Vue to re-render the PDF component by creating a new object
+      this.pdfDocInitParams = {
+        url: this.ebookUrl,
+        httpHeaders: {
+          Authorization: `Bearer ${newAccessToken}`
+        }
+      }
+      this.isRefreshing = false
+    },
+    async error(err) {
+      if (err && err.status === 401) {
+        console.log('Received 401 error, refreshing token')
+        await this.refreshToken()
+        return
+      }
       console.error(err)
     },
     screenOrientationChange() {
@@ -173,7 +227,7 @@ export default {
     },
     init() {
       this.pdfDocInitParams = {
-        url: this.url,
+        url: this.ebookUrl,
         httpHeaders: {
           Authorization: `Bearer ${this.userToken}`
         }
