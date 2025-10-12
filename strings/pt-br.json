@@ -143,7 +143,7 @@
   "LabelEnableMp3IndexSeeking": "Ativar busca por índice mp3",
   "LabelEnableMp3IndexSeekingHelp": "Esta configuração só deve ser ativada se a busca em arquivos mp3 não estiver funcionando corretamente. Buscas incorretas são normalmente causadas por arquivos MP3 com bitrate variável (VBR). Esta configuração forçará a busca por índice, que é uma consulta do tempo-para-byte, elaborado durante a leitura do arquivo. Em alguns casos, com arquivos MP3 maiores, haverá um atraso ao buscar perto do final do arquivo.",
   "LabelEnd": "Fim",
-  "LabelEndOfChapter": "Fim do Chapítulo",
+  "LabelEndOfChapter": "Fim do Capítulo",
   "LabelEndTime": "Tempo final",
   "LabelEpisode": "Episódio",
   "LabelExplicit": "Explícito",
