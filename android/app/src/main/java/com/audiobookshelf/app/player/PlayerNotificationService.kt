@@ -108,6 +108,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
   lateinit var sleepTimerManager: SleepTimerManager
   lateinit var mediaProgressSyncer: MediaProgressSyncer
+  lateinit var queueManager: QueueManager
 
   private var notificationId = 10
   private var channelId = "audiobookshelf_channel"
@@ -249,6 +250,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
     // Initialize media manager
     mediaManager = MediaManager(apiHandler, ctx)
+
+    queueManager = QueueManager(ctx)
 
     channelId =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
