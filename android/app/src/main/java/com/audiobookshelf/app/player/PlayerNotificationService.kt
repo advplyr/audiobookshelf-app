@@ -657,6 +657,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
       Log.d(tag, "Playing next queue item: ${nextQueueItem.title}")
 
+      queueManager.removeFirstItem()
+
       if (nextQueueItem.isLocal) {
         val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(nextQueueItem.libraryItemId)
         if (localLibraryItem == null) {
