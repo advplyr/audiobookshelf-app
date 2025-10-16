@@ -33,6 +33,7 @@ import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.data.DeviceInfo
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.managers.DbManager
+import com.audiobookshelf.app.managers.QueueManager
 import com.audiobookshelf.app.managers.SleepTimerManager
 import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.media.MediaProgressSyncer
@@ -625,6 +626,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
   fun handlePlaybackEnded() {
     Log.d(tag, "handlePlaybackEnded")
+
     if (isAndroidAuto && currentPlaybackSession?.isPodcastEpisode == true) {
       Log.d(tag, "Podcast playback ended on android auto")
       val libraryItem = currentPlaybackSession?.libraryItem ?: return
@@ -644,6 +646,72 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                 val playbackRate = mediaManager.getSavedPlaybackRate()
                 Handler(Looper.getMainLooper()).post { preparePlayer(it, true, playbackRate) }
               }
+            }
+          }
+        }
+      }
+      return
+    }
+
+    if (queueManager.hasQueueItems()) {
+      Log.d(tag, "Playback ended, checking queue for next item")
+
+      val nextQueueItem = queueManager.getNextItem()
+      if (nextQueueItem == null) {
+        Log.d(tag, "No next queue item found")
+        return
+      }
+
+      Log.d(tag, "Playing next queue item: ${nextQueueItem.title}")
+
+      if (nextQueueItem.isLocal) {
+        val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(nextQueueItem.libraryItemId)
+        if (localLibraryItem == null) {
+          Log.e(tag, "Failed to load local library item ${nextQueueItem.libraryItemId}")
+          return
+        }
+
+        val episode = if (nextQueueItem.episodeId != null) {
+          (localLibraryItem.media as? Podcast)?.episodes?.find { it.id == nextQueueItem.episodeId }
+        } else {
+          null
+        }
+
+        mediaManager.play(localLibraryItem, episode, getPlayItemRequestPayload(false)) { playbackSession ->
+          if (playbackSession == null) {
+            Log.e(tag, "Failed to play local queue item")
+          } else {
+            playbackSession.currentTime = nextQueueItem.currentTime
+            val playbackRate = mediaManager.getSavedPlaybackRate()
+            Handler(Looper.getMainLooper()).post { preparePlayer(playbackSession, true, playbackRate) }
+          }
+        }
+      } else {
+        val serverLibraryItemId = nextQueueItem.serverLibraryItemId
+        if (serverLibraryItemId == null) {
+          Log.e(tag, "Server library item ID is null for queue item")
+          return
+        }
+
+        apiHandler.getLibraryItem(serverLibraryItemId) { libraryItem ->
+          if (libraryItem == null) {
+            Log.e(tag, "Failed to load server library item $serverLibraryItemId")
+            return@getLibraryItem
+          }
+
+          val episode = if (nextQueueItem.serverEpisodeId != null) {
+            (libraryItem.media as? Podcast)?.episodes?.find { it.id == nextQueueItem.serverEpisodeId }
+          } else {
+            null
+          }
+
+          mediaManager.play(libraryItem, episode, getPlayItemRequestPayload(false)) { playbackSession ->
+            if (playbackSession == null) {
+              Log.e(tag, "Failed to play server queue item")
+            } else {
+              playbackSession.currentTime = nextQueueItem.currentTime
+              val playbackRate = mediaManager.getSavedPlaybackRate()
+              Handler(Looper.getMainLooper()).post { preparePlayer(playbackSession, true, playbackRate) }
             }
           }
         }
