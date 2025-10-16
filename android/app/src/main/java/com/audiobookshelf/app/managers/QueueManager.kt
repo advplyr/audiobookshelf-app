@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.util.Log
 import com.audiobookshelf.app.data.PlaybackQueueItem
+import com.audiobookshelf.app.data.toJsonArray
 
 /** Manages playback queue stored in Capacitor SharedPreferences. */
 class QueueManager(private val context: Context) {
@@ -47,5 +48,27 @@ class QueueManager(private val context: Context) {
 
     fun getQueueSize(): Int {
         return getQueue().size
+    }
+
+    fun removeFirstItem(): Boolean {
+        try {
+            val queue = getQueue().toMutableList()
+            if (queue.isEmpty()) {
+                Log.d(TAG, "removeFirstItem: Queue is empty, nothing to remove")
+                return false
+            }
+
+            val removedItem = queue.removeAt(0)
+            Log.d(TAG, "removeFirstItem: Removed '${removedItem.title}' from queue")
+
+            val updatedQueueJson = queue.toJsonArray()
+            val success = sharedPrefs.edit().putString(QUEUE_KEY, updatedQueueJson).commit()
+
+            Log.d(TAG, "removeFirstItem: Queue now has ${queue.size} items")
+            return success
+        } catch (e: Exception) {
+            Log.e(TAG, "removeFirstItem: Failed to remove item from queue", e)
+            return false
+        }
     }
 }
