@@ -847,10 +847,6 @@ export default {
         this.isLoading = false
       }
 
-      if (data.playerState === 'ENDED') {
-        console.log('[AudioPlayer] Playback ended')
-        this.handlePlaybackEnded()
-      }
       this.isEnded = data.playerState === 'ENDED'
 
       console.log('received metadata update', data)
@@ -960,16 +956,6 @@ export default {
     },
     showProgressSyncSuccess() {
       this.syncStatus = this.$constants.SyncStatus.SUCCESS
-    },
-    handlePlaybackEnded() {
-      // Check if there are items in the queue to play next
-      if (this.$store.getters.hasQueueItems) {
-        console.log('[AudioPlayer] Playing next item from queue')
-        // Small delay to allow for proper cleanup
-        setTimeout(() => {
-          this.$store.dispatch('playNextInQueue')
-        }, 1000)
-      }
     }
   },
   mounted() {
