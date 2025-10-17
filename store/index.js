@@ -159,9 +159,13 @@ export const actions = {
 
   async loadSavedQueue({ commit }) {
     const savedQueue = await this.$localStore.getPlaybackQueue()
-    if (savedQueue && savedQueue.length > 0) {
+    // Always update state, even when queue is empty
+    if (savedQueue) {
       commit('setPlaybackQueue', savedQueue)
       console.log('[Store] Loaded saved queue with', savedQueue.length, 'items')
+    } else {
+      commit('setPlaybackQueue', [])
+      console.log('[Store] No saved queue found, clearing queue')
     }
   },
 

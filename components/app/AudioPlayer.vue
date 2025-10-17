@@ -878,6 +878,10 @@ export default {
       this.currentPlaybackRate = Number(data.value)
       this.updateTimestamp()
     },
+    onQueueChanged() {
+      console.log('[AudioPlayer] Queue changed by native layer, reloading from storage')
+      this.$store.dispatch('loadSavedQueue')
+    },
     async init() {
       await this.loadPlayerSettings()
 
@@ -889,6 +893,7 @@ export default {
       AbsAudioPlayer.addListener('onProgressSyncFailing', this.showProgressSyncIsFailing)
       AbsAudioPlayer.addListener('onProgressSyncSuccess', this.showProgressSyncSuccess)
       AbsAudioPlayer.addListener('onPlaybackSpeedChanged', this.onPlaybackSpeedChanged)
+      AbsAudioPlayer.addListener('onQueueChanged', this.onQueueChanged)
     },
     async screenOrientationChange() {
       if (this.isRefreshingUI) return
