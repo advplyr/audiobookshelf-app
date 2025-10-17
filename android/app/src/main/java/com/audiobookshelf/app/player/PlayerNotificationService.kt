@@ -39,6 +39,16 @@ import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.media.MediaProgressSyncer
 import com.audiobookshelf.app.media.getUriToAbsIconDrawable
 import com.audiobookshelf.app.media.getUriToDrawable
+import com.audiobookshelf.app.player.ANDROID_AUTO_PKG_NAME
+import com.audiobookshelf.app.player.ANDROID_AUTO_SIMULATOR_PKG_NAME
+import com.audiobookshelf.app.player.ANDROID_AUTOMOTIVE_PKG_NAME
+import com.audiobookshelf.app.player.ANDROID_GSEARCH_PKG_NAME
+import com.audiobookshelf.app.player.ANDROID_WEARABLE_PKG_NAME
+import com.audiobookshelf.app.player.CUSTOM_ACTION_CHANGE_SPEED
+import com.audiobookshelf.app.player.CUSTOM_ACTION_JUMP_BACKWARD
+import com.audiobookshelf.app.player.CUSTOM_ACTION_JUMP_FORWARD
+import com.audiobookshelf.app.player.CUSTOM_ACTION_SKIP_BACKWARD
+import com.audiobookshelf.app.player.CUSTOM_ACTION_SKIP_FORWARD
 import com.audiobookshelf.app.plugins.AbsLogger
 import com.audiobookshelf.app.server.ApiHandler
 import com.google.android.exoplayer2.*
@@ -88,6 +98,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     fun onNetworkMeteredChanged(isUnmetered: Boolean)
     fun onMediaItemHistoryUpdated(mediaItemHistory: MediaItemHistory)
     fun onPlaybackSpeedChanged(playbackSpeed: Float)
+    fun onQueueChanged()
   }
   private val binder = LocalBinder()
 
@@ -96,6 +107,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   private lateinit var ctx: Context
   private lateinit var mediaSessionConnector: MediaSessionConnector
   private lateinit var playerNotificationManager: PlayerNotificationManager
+  private lateinit var mediaDescriptionAdapter: AbMediaDescriptionAdapter
   lateinit var mediaSession: MediaSessionCompat
   private var remoteVolumeProvider: VolumeProviderCompat? = null
   private lateinit var transportControls: MediaControllerCompat.TransportControls
@@ -279,7 +291,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
     val builder = PlayerNotificationManager.Builder(ctx, notificationId, channelId)
 
-    builder.setMediaDescriptionAdapter(AbMediaDescriptionAdapter(mediaController, this))
+    mediaDescriptionAdapter = AbMediaDescriptionAdapter(mediaController, this)
+    builder.setMediaDescriptionAdapter(mediaDescriptionAdapter)
     builder.setNotificationListener(PlayerNotificationListener(this))
 
     playerNotificationManager = builder.build()
@@ -460,13 +473,29 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       playerNotificationManager.setPlayer(castPlayer)
     }
 
+    // Check if this item is in the queue and remove it before notifying UI
+    val queueItem = queueManager.getNextItem()
+    if (queueItem != null) {
+      val matchesQueue = if (playbackSession.episodeId != null) {
+        playbackSession.libraryItemId == queueItem.libraryItemId &&
+        playbackSession.episodeId == queueItem.episodeId
+      } else {
+        playbackSession.libraryItemId == queueItem.libraryItemId
+      }
+
+      if (matchesQueue) {
+        queueManager.removeFirstItem()
+      }
+    }
+
     currentPlaybackSession = playbackSession
     DeviceManager.setLastPlaybackSession(
             playbackSession
     ) // Save playback session to use when app is closed
 
     AbsLogger.info("PlayerNotificationService", "preparePlayer: Started playback session for item ${currentPlaybackSession?.mediaItemId}. MediaPlayer ${currentPlaybackSession?.mediaPlayer}")
-    // Notify client
+    // Notify queue change first so UI has updated state before processing playback session
+    clientEventEmitter?.onQueueChanged()
     clientEventEmitter?.onPlaybackSession(playbackSession)
 
     // Update widget
@@ -666,7 +695,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
       Log.d(tag, "Playing next queue item: ${nextQueueItem.title}")
 
-      queueManager.removeFirstItem()
+      clientEventEmitter?.onQueueChanged()
 
       if (nextQueueItem.isLocal) {
         val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(nextQueueItem.libraryItemId)
