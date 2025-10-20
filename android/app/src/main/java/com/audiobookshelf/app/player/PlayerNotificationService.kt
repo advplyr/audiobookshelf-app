@@ -695,59 +695,67 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
       Log.d(tag, "Playing next queue item: ${nextQueueItem.title}")
 
-      clientEventEmitter?.onQueueChanged()
+      fun playNextItem() {
+        clientEventEmitter?.onQueueChanged()
 
-      if (nextQueueItem.isLocal) {
-        val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(nextQueueItem.libraryItemId)
-        if (localLibraryItem == null) {
-          Log.e(tag, "Failed to load local library item ${nextQueueItem.libraryItemId}")
-          return
-        }
-
-        val episode = if (nextQueueItem.episodeId != null) {
-          (localLibraryItem.media as? Podcast)?.episodes?.find { it.id == nextQueueItem.episodeId }
-        } else {
-          null
-        }
-
-        mediaManager.play(localLibraryItem, episode, getPlayItemRequestPayload(false)) { playbackSession ->
-          if (playbackSession == null) {
-            Log.e(tag, "Failed to play local queue item")
-          } else {
-            playbackSession.currentTime = nextQueueItem.currentTime
-            val playbackRate = mediaManager.getSavedPlaybackRate()
-            Handler(Looper.getMainLooper()).post { preparePlayer(playbackSession, true, playbackRate) }
-          }
-        }
-      } else {
-        val serverLibraryItemId = nextQueueItem.serverLibraryItemId
-        if (serverLibraryItemId == null) {
-          Log.e(tag, "Server library item ID is null for queue item")
-          return
-        }
-
-        apiHandler.getLibraryItem(serverLibraryItemId) { libraryItem ->
-          if (libraryItem == null) {
-            Log.e(tag, "Failed to load server library item $serverLibraryItemId")
-            return@getLibraryItem
+        if (nextQueueItem.isLocal) {
+          val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(nextQueueItem.libraryItemId)
+          if (localLibraryItem == null) {
+            Log.e(tag, "Failed to load local library item ${nextQueueItem.libraryItemId}")
+            return
           }
 
-          val episode = if (nextQueueItem.serverEpisodeId != null) {
-            (libraryItem.media as? Podcast)?.episodes?.find { it.id == nextQueueItem.serverEpisodeId }
+          val episode = if (nextQueueItem.episodeId != null) {
+            (localLibraryItem.media as? Podcast)?.episodes?.find { it.id == nextQueueItem.episodeId }
           } else {
             null
           }
 
-          mediaManager.play(libraryItem, episode, getPlayItemRequestPayload(false)) { playbackSession ->
+          mediaManager.play(localLibraryItem, episode, getPlayItemRequestPayload(false)) { playbackSession ->
             if (playbackSession == null) {
-              Log.e(tag, "Failed to play server queue item")
+              Log.e(tag, "Failed to play local queue item")
             } else {
               playbackSession.currentTime = nextQueueItem.currentTime
               val playbackRate = mediaManager.getSavedPlaybackRate()
               Handler(Looper.getMainLooper()).post { preparePlayer(playbackSession, true, playbackRate) }
             }
           }
+        } else {
+          val serverLibraryItemId = nextQueueItem.serverLibraryItemId
+          if (serverLibraryItemId == null) {
+            Log.e(tag, "Server library item ID is null for queue item")
+            return
+          }
+
+          apiHandler.getLibraryItem(serverLibraryItemId) { libraryItem ->
+            if (libraryItem == null) {
+              Log.e(tag, "Failed to load server library item $serverLibraryItemId")
+              return@getLibraryItem
+            }
+
+            val episode = if (nextQueueItem.serverEpisodeId != null) {
+              (libraryItem.media as? Podcast)?.episodes?.find { it.id == nextQueueItem.serverEpisodeId }
+            } else {
+              null
+            }
+
+            mediaManager.play(libraryItem, episode, getPlayItemRequestPayload(false)) { playbackSession ->
+              if (playbackSession == null) {
+                Log.e(tag, "Failed to play server queue item")
+              } else {
+                playbackSession.currentTime = nextQueueItem.currentTime
+                val playbackRate = mediaManager.getSavedPlaybackRate()
+                Handler(Looper.getMainLooper()).post { preparePlayer(playbackSession, true, playbackRate) }
+              }
+            }
+          }
         }
+      }
+
+      if (mediaProgressSyncer.listeningTimerRunning) {
+        mediaProgressSyncer.finished { playNextItem() }
+      } else {
+        playNextItem()
       }
     }
   }
