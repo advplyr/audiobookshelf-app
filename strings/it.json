@@ -298,6 +298,7 @@
   "MessageDownloading": "Scaricamento…",
   "MessageDownloadingEpisode": "Scaricamento dell’episodio in corso",
   "MessageEpisodesQueuedForDownload": "{0} episodio(i) in coda per lo scaricamento",
+  "MessageFailedToRefreshToken": "Rinnovo del Token fallito, riautenticazione richiesta",
   "MessageFeedURLWillBe": "l’URL del flusso sarà {0}",
   "MessageFetching": "Recupero info…",
   "MessageFollowTheProjectOnGithub": "Segui il progetto su GitHub",
