@@ -695,14 +695,14 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
       Log.d(tag, "Playing next queue item: ${nextQueueItem.title}")
 
-      fun playNextItem() {
+      mediaProgressSyncer.finished {
         clientEventEmitter?.onQueueChanged()
 
         if (nextQueueItem.isLocal) {
           val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(nextQueueItem.libraryItemId)
           if (localLibraryItem == null) {
             Log.e(tag, "Failed to load local library item ${nextQueueItem.libraryItemId}")
-            return
+            return@finished
           }
 
           val episode = if (nextQueueItem.episodeId != null) {
@@ -724,7 +724,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
           val serverLibraryItemId = nextQueueItem.serverLibraryItemId
           if (serverLibraryItemId == null) {
             Log.e(tag, "Server library item ID is null for queue item")
-            return
+            return@finished
           }
 
           apiHandler.getLibraryItem(serverLibraryItemId) { libraryItem ->
@@ -750,12 +750,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
             }
           }
         }
-      }
-
-      if (mediaProgressSyncer.listeningTimerRunning) {
-        mediaProgressSyncer.finished { playNextItem() }
-      } else {
-        playNextItem()
       }
     }
   }
