@@ -2,9 +2,6 @@
 include ':capacitor-android'
 project(':capacitor-android').projectDir = new File('../node_modules/@capacitor/android/capacitor')
 
-include ':webnativellc-capacitor-filesharer'
-project(':webnativellc-capacitor-filesharer').projectDir = new File('../node_modules/@webnativellc/capacitor-filesharer/android')
-
 include ':capacitor-community-keep-awake'
 project(':capacitor-community-keep-awake').projectDir = new File('../node_modules/@capacitor-community/keep-awake/android')
 
@@ -34,3 +31,6 @@ project(':capacitor-preferences').projectDir = new File('../node_modules/@capaci
 
 include ':capacitor-status-bar'
 project(':capacitor-status-bar').projectDir = new File('../node_modules/@capacitor/status-bar/android')
+
+include ':webnativellc-capacitor-filesharer'
+project(':webnativellc-capacitor-filesharer').projectDir = new File('../node_modules/@webnativellc/capacitor-filesharer/android')
