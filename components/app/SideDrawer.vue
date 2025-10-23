@@ -128,6 +128,13 @@ export default {
           to: '/downloads'
         })
       }
+
+      // Add queue after local media/downloads
+      items.push({
+        icon: 'playlist_play',
+        text: this.$strings.LabelQueue,
+        action: 'openQueue'
+      })
       items.push({
         icon: 'settings',
         text: this.$strings.HeaderSettings,
@@ -173,6 +180,9 @@ export default {
         this.show = false
         let path = `/library/${this.$store.state.libraries.currentLibraryId}`
         await this.$store.dispatch('user/openWebClient', path)
+      } else if (action === 'openQueue') {
+        this.show = false
+        this.$store.commit('globals/setShowQueueModal', true)
       }
     },
     clickBackground() {
