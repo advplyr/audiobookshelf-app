@@ -158,7 +158,8 @@ export default {
       coverRgb: 'rgb(55, 56, 56)',
       coverBgIsLight: false,
       titleMarquee: null,
-      isRefreshingUI: false
+      isRefreshingUI: false,
+      introSkipping: false
     }
   },
   watch: {
@@ -565,6 +566,7 @@ export default {
 
       this.updateTimestamp()
       this.updateTrack()
+      this.updateIntroSkip()
     },
     updateTrack() {
       // Update progress track UI
@@ -591,6 +593,24 @@ export default {
       if (this.playerSettings.useChapterTrack) {
         if (this.$refs.totalPlayedTrack) this.$refs.totalPlayedTrack.style.width = Math.round(totalPercentDone * this.trackWidth) + 'px'
         if (this.$refs.totalBufferedTrack) this.$refs.totalBufferedTrack.style.width = Math.round(totalBufferedPercent * this.trackWidth) + 'px'
+      }
+    },
+    updateIntroSkip() {
+      if(!this.currentChapter && !this.nextChapter) return
+      if(!this.currentChapter && this.currentTime < this.nextChapter.start) {
+        if (this.introSkipping) return
+        this.introSkipping = true
+        this.seek(this.nextChapter.start)
+      } else if(this.currentChapter && this.currentTime < this.currentChapter.start) {
+        if (this.introSkipping) return
+        this.introSkipping = true
+        this.seek(this.currentChapter.start)
+      } else if(this.currentChapter && this.nextChapter && this.currentTime > this.currentChapter.end) {
+        if (this.introSkipping) return
+        this.introSkipping = true
+        this.seek(this.nextChapter.start)
+      } else {
+        this.introSkipping = false
       }
     },
     seek(time) {
