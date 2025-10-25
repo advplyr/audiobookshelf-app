@@ -33,6 +33,13 @@
         <ui-text-input :value="themeOption" readonly append-icon="expand_more" style="max-width: 200px" />
       </div>
     </div>
+    <div class="py-3 flex items-center">
+      <p class="pr-4 w-36">Date Format</p>
+      <div @click.stop="showDateFormatOptions">
+        <ui-text-input :value="settings.dateFormat" readonly append-icon="expand_more" style="max-width: 200px" />
+        <p class="text-xs ml-1 text-white text-opacity-60">{{ $strings.LabelExample }}: {{ dateExample }}</p>
+      </div>
+    </div>
 
     <!-- Playback settings -->
     <p class="uppercase text-xs font-semibold text-fg-muted mb-2 mt-10">{{ $strings.HeaderPlaybackSettings }}</p>
@@ -221,7 +228,8 @@ export default {
         downloadUsingCellular: 'ALWAYS',
         streamingUsingCellular: 'ALWAYS',
         androidAutoBrowseLimitForGrouping: 100,
-        androidAutoBrowseSeriesSequenceOrder: 'ASC'
+        androidAutoBrowseSeriesSequenceOrder: 'ASC',
+        dateFormat: 'MM/dd/yyyy'
       },
       theme: 'dark',
       lockCurrentOrientation: false,
@@ -377,6 +385,45 @@ export default {
         }
       ]
     },
+    dateFormatOptionItems() {
+      return [
+         {
+      text: 'MM/DD/YYYY',
+      value: 'MM/dd/yyyy'
+    },
+    {
+      text: 'DD/MM/YYYY',
+      value: 'dd/MM/yyyy'
+    },
+    {
+      text: 'DD.MM.YYYY',
+      value: 'dd.MM.yyyy'
+    },
+    {
+      text: 'YYYY-MM-DD',
+      value: 'yyyy-MM-dd'
+    },
+    {
+      text: 'MMM do, yyyy',
+      value: 'MMM do, yyyy'
+    },
+    {
+      text: 'MMMM do, yyyy',
+      value: 'MMMM do, yyyy'
+    },
+    {
+      text: 'dd MMM yyyy',
+      value: 'dd MMM yyyy'
+    },
+    {
+      text: 'dd MMMM yyyy',
+      value: 'dd MMMM yyyy'
+    }
+      ]
+    },
+    dateExample() {
+      return this.$formatDate(Date.now(), this.$store.state.deviceData?.deviceSettings?.dateFormat)
+    },
     currentJumpForwardTimeIcon() {
       return this.jumpForwardItems[this.currentJumpForwardTimeIndex].icon
     },
@@ -431,6 +478,7 @@ export default {
       else if (this.moreMenuSetting === 'hapticFeedback') return this.hapticFeedbackItems
       else if (this.moreMenuSetting === 'language') return this.languageOptionItems
       else if (this.moreMenuSetting === 'theme') return this.themeOptionItems
+      else if (this.moreMenuSetting === 'dateFormat') return this.dateFormatOptionItems
       else if (this.moreMenuSetting === 'downloadUsingCellular') return this.downloadUsingCellularItems
       else if (this.moreMenuSetting === 'streamingUsingCellular') return this.streamingUsingCellularItems
       else if (this.moreMenuSetting === 'androidAutoBrowseSeriesSequenceOrder') return this.androidAutoBrowseSeriesSequenceOrderItems
@@ -476,6 +524,10 @@ export default {
       this.moreMenuSetting = 'streamingUsingCellular'
       this.showMoreMenuDialog = true
     },
+    showDateFormatOptions() {
+      this.moreMenuSetting = 'dateFormat'
+      this.showMoreMenuDialog = true
+    },
     showAndroidAutoBrowseSeriesSequenceOrderOptions() {
       this.moreMenuSetting = 'androidAutoBrowseSeriesSequenceOrder'
       this.showMoreMenuDialog = true
@@ -494,6 +546,9 @@ export default {
       } else if (this.moreMenuSetting === 'theme') {
         this.theme = action
         this.saveTheme(action)
+      } else if (this.moreMenuSetting === 'dateFormat') {
+        this.settings.dateFormat = action
+        this.saveSettings()
       } else if (this.moreMenuSetting === 'downloadUsingCellular') {
         this.settings.downloadUsingCellular = action
         this.saveSettings()
@@ -652,6 +707,7 @@ export default {
 
       this.settings.androidAutoBrowseLimitForGrouping = deviceSettings.androidAutoBrowseLimitForGrouping
       this.settings.androidAutoBrowseSeriesSequenceOrder = deviceSettings.androidAutoBrowseSeriesSequenceOrder || 'ASC'
+      this.settings.dateFormat = deviceSettings.dateFormat || 'MM/dd/yyyy'
     },
     async init() {
       this.loading = true
