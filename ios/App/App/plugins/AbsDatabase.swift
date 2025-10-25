@@ -303,6 +303,7 @@ public class AbsDatabase: CAPPlugin, CAPBridgedPlugin {
         let disableAutoRewind = call.getBool("disableAutoRewind") ?? false
         let enableAltView = call.getBool("enableAltView") ?? false
         let allowSeekingOnMediaControls = call.getBool("allowSeekingOnMediaControls") ?? false
+        let useDurationInChaptersModal = call.getBool("useDurationInChaptersModal") ?? false
         let jumpBackwardsTime = call.getInt("jumpBackwardsTime") ?? 10
         let jumpForwardTime = call.getInt("jumpForwardTime") ?? 10
         let lockOrientation = call.getString("lockOrientation") ?? "NONE"
@@ -315,6 +316,7 @@ public class AbsDatabase: CAPPlugin, CAPBridgedPlugin {
         settings.disableAutoRewind = disableAutoRewind
         settings.enableAltView = enableAltView
         settings.allowSeekingOnMediaControls = allowSeekingOnMediaControls
+        settings.useDurationInChaptersModal = useDurationInChaptersModal
         settings.jumpBackwardsTime = jumpBackwardsTime
         settings.jumpForwardTime = jumpForwardTime
         settings.lockOrientation = lockOrientation

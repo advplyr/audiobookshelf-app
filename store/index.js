@@ -86,6 +86,10 @@ export const getters = {
     if (!state.deviceData?.deviceSettings?.streamingUsingCellular) return 'ALWAYS'
     return state.deviceData.deviceSettings.streamingUsingCellular || 'ALWAYS'
   },
+  getUseDurationInChaptersModal: (state) => {
+    if (!state.deviceData?.deviceSettings?.useDurationInChaptersModal) return false
+    return state.deviceData.deviceSettings.useDurationInChaptersModal
+  },
   /**
    * Old server versions require a token for images
    *
