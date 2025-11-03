@@ -22,8 +22,8 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.getcapacitor.JSObject
 import java.io.File
 import java.util.*
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -171,11 +171,13 @@ class DownloadItemManager(
     currentDownloadItemParts.add(downloadItemPart)
   }
 
+  private val coroutineScope = CoroutineScope(Dispatchers.IO)
+
   /** Starts watching the downloads. */
   private fun startWatchingDownloads() {
     if (isDownloading) return // Already watching
 
-    GlobalScope.launch(Dispatchers.IO) {
+    coroutineScope.launch(Dispatchers.IO) {
       Log.d(tag, "Starting watching downloads")
       isDownloading = true
 
@@ -285,7 +287,7 @@ class DownloadItemManager(
     if (downloadItem.isDownloadFinished) {
       Log.i(tag, "Download Item finished ${downloadItem.media.metadata.title}")
 
-      GlobalScope.launch(Dispatchers.IO) {
+      coroutineScope.launch(Dispatchers.IO) {
         folderScanner.scanDownloadItem(downloadItem) { downloadItemScanResult ->
           Log.d(
                   tag,
