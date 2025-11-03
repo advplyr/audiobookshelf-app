@@ -127,6 +127,11 @@ class DownloadItemManager(
     val internalProgressCallback =
             object : InternalProgressCallback {
               override fun onProgress(totalBytesWritten: Long, progress: Long) {
+                // Store time progress was last changed to prevent stale downloads from getting
+                // stuck in an infinite loop
+                if (downloadItemPart.bytesDownloaded != totalBytesWritten) {
+                  downloadItemPart.lastUpdateTime = System.currentTimeMillis()
+                }
                 downloadItemPart.bytesDownloaded = totalBytesWritten
                 downloadItemPart.progress = progress
               }
@@ -215,6 +220,21 @@ class DownloadItemManager(
         downloadItem?.let { checkDownloadItemFinished(it) }
       }
       currentDownloadItemParts.remove(downloadItemPart)
+    } else {
+      // Check for stalled downloads
+      val currentTimeMillis = System.currentTimeMillis()
+      val lastUpdateTime = downloadItemPart.lastUpdateTime ?: currentTimeMillis
+      val timeSinceLastUpdate = currentTimeMillis - lastUpdateTime
+      val stallTimeoutMillis = 10 * 1000 // 10 seconds
+      if (timeSinceLastUpdate > stallTimeoutMillis) {
+        Log.w(
+                tag,
+                "Download stalled for ${downloadItemPart.filename}, removing from download queue."
+        )
+        downloadItemPart.failed = true
+        clientEventEmitter.onDownloadItemPartUpdate(downloadItemPart)
+        currentDownloadItemParts.remove(downloadItemPart)
+      }
     }
   }
 
