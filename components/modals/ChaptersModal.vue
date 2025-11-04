@@ -14,7 +14,7 @@
               <div class="relative flex items-center pl-3 pr-20">
                 <p class="font-normal block truncate text-sm text-fg/80">{{ chapter.title }}</p>
                 <div class="absolute top-0 right-3 -mt-0.5">
-                  <span class="font-mono text-fg-muted leading-3 text-sm" style="letter-spacing: -0.5px">{{ $secondsToTimestamp(chapter.start / _playbackRate) }}</span>
+                  <span class="font-mono text-fg-muted leading-3 text-sm" style="letter-spacing: -0.5px">{{ $secondsToTimestamp(((useChapterDuration ? Math.max(0, chapter.end - chapter.start) : chapter.start) / _playbackRate)) }}</span>
                 </div>
               </div>
 
@@ -39,7 +39,8 @@ export default {
       type: Object,
       default: () => null
     },
-    playbackRate: Number
+    playbackRate: Number,
+    useChapterDuration: Boolean
   },
   data() {
     return {}
