@@ -1,9 +1,5 @@
 [
 	{
-		"pkg": "@webnativellc/capacitor-filesharer",
-		"classpath": "com.byteowls.capacitor.filesharer.FileSharerPlugin"
-	},
-	{
 		"pkg": "@capacitor-community/keep-awake",
 		"classpath": "com.getcapacitor.community.keepawake.KeepAwakePlugin"
 	},
@@ -42,5 +38,9 @@
 	{
 		"pkg": "@capacitor/status-bar",
 		"classpath": "com.capacitorjs.plugins.statusbar.StatusBarPlugin"
+	},
+	{
+		"pkg": "@webnativellc/capacitor-filesharer",
+		"classpath": "com.byteowls.capacitor.filesharer.FileSharerPlugin"
 	}
 ]
