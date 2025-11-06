@@ -213,3 +213,15 @@ npx cap open ios
 <br>
 
 Start coding!
+
+#### Running on a device
+
+If you want to run the audiobookshelf app on a physical device you will also need to update the bundle identifier to a unique value for you and regenerate the codesigning profile.
+
+<details>
+<summary>Expand for screenshot</summary>
+
+![](/screenshots/dev_setup_ios_codesigning.png)
+
+</details>
+<br>
