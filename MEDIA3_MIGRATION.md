@@ -1,6 +1,6 @@
 # Media3 Migration Summary
 
-This document summarizes the migration from ExoPlayer 2.x to Google's Media3 library and outlines a staged game plan inspired by Peloton’s migration.
+This document summarizes our incremental migration from ExoPlayer 2.x to Google's Media3 library and outlines a staged game plan aligned with Patreon’s published best practices.
 
 ## Changes Made
 
@@ -130,13 +130,18 @@ Phase 0 — Unblock Gradle and dependency graph
 Phase 1 — Core playback on Media3 (compile-green)
 - Keep scope minimal: `media3-exoplayer`, `media3-ui`, `media3-exoplayer-hls` only.
 - Temporarily disable `media3-cast` and session if dependency conflicts remain; re-enable later.
-- Ensure `PlayerNotificationManager` works with Media3 `ExoPlayer`.
+- Introduce PlayerWrapper seam + feature flag (done): pick Exo vs Media3 without app/UI churn.
+- Wrapper-managed wiring (done): wrappers attach notification/session; service avoids conditionals.
+- Distinct player label (done): `media3-exoplayer` vs `exo-player` vs `cast-player` for telemetry.
+- Lightweight rollout metrics (done): startup READY latency, buffer count, error count (logged with label).
+- Trim/gate logs in release (done).
+- Resource minimization (partial): when Media3 is enabled, avoid configuring audio/noisy on legacy Exo instance; wrapper owns active player.
 
-Phase 2 — Introduce a MediaSession wrapper
-- Create `Media3SessionManager` to replace `MediaSessionConnector` with Media3 `MediaSession` + `Callback`.
-- Map PlayerCommands/SessionCommands to existing features (play/pause, seek, speed, bookmarks, sleep timer, queue).
-- Replace usages in `PlayerNotificationService`:
-	- `setPlayer`, `setQueueNavigator`, `setPlaybackPreparer`, `setCustomActionProviders`, `setEnabledPlaybackActions` → move to `MediaSession` config and `Callback`.
+Phase 2 — Media3 session-centric architecture (Patreon-aligned)
+- Replace legacy `MediaSessionConnector` + legacy notification manager with Media3 `MediaSession` and Media3 notifications when flag is ON.
+- Eliminate reflection: create Media3-native notification manager and let session drive notifications.
+- Maintain a single long-lived Media3 ExoPlayer owned by the service/session.
+- Map commands into `MediaSession.Callback` (play/pause/seek/speed/bookmarks/sleep/queue) and route to existing service methods.
 
 Phase 3 — Port custom actions
 - Recreate custom actions as `SessionCommand`s with stable string IDs.
@@ -147,22 +152,23 @@ Phase 4 — Re-enable Chromecast with `media3-cast`
 - Ensure Play Services versions are aligned (avoid forcing older versions).
 - Validate queue/timeline sync with `CastTimeline` utils.
 
-Phase 5 — Regression and polish
+Phase 5 — Regression, testability, and polish
 - Validate: local + streaming, HLS, seek, notifications, background playback, headset/noisy handling.
-- Add lightweight tests around session commands and player events.
+- Add unit tests around wrapper behavior, session commands, and player events.
+- Expand metrics: startup distributions, rebuffer ratio, failure rate by stack if needed.
 
 Acceptance criteria per phase
-- Phase 1: App builds, local playback works, notifications functional.
-- Phase 2: Transport controls from external sources (locksreen/BT) work via Media3 session.
-- Phase 3: All custom actions available and functional from notification and session clients.
-- Phase 4: Cast playback works, switching between local/cast preserved.
+- Phase 1: App builds; Media3 path plays; wrapper-managed notifications function; metrics emitted; logs quiet in release.
+- Phase 2: Media3 session in control (no reflection); single long-lived player; notification behavior matches/exceeds legacy.
+- Phase 3: All custom actions available and functional via `SessionCommand`.
+- Phase 4: Cast playback works; switching between local/cast preserved.
 
 Suggested PR sequencing
-1) Dependencies + Gradle graph cleanup (this PR) — keep it small, build-only.
-2) Core Media3 playback + compile-green (no behavior changes).
-3) Media3 session wrapper introduction (behind a feature flag if desired).
-4) Custom actions port.
-5) Cast migration.
+1) Dependencies + Gradle graph cleanup — keep it small, build-only.
+2) Core Media3 playback via wrapper + compile-green (no behavior changes, done).
+3) Media3 session + notifications (flag ON), remove reflection.
+4) Custom actions port (`SessionCommand`).
+5) Cast migration (`media3-cast`).
 
 ## How to run (local)
 
@@ -178,9 +184,16 @@ Set-Location -Path .\android
 ./gradlew.bat --no-daemon --warning-mode all clean assembleDebug
 ```
 
-If Gradle still fails on dependency resolution, temporarily comment out `media3-cast` and `media3-session` in `android/app/build.gradle` and re-run. Re-enable them in Phases 2–4.
+If Gradle still fails on dependency resolution, temporarily comment out `media3-cast` in `android/app/build.gradle` and re-run. Re-enable in Phase 4.
 
-## Rollback Plan
+## Rollout & rollback
+
+### Rollout (flag-driven)
+- Default: `USE_MEDIA3=false` in `variables.gradle` (current default).
+- Enable for internal/beta by flipping the gradle flag or remote flag (when available).
+- Compare metrics in logs/dashboards: startup latency, buffer count, error rate labeled by player.
+
+### Rollback Plan
 
 If issues arise, you can revert by:
 1. Restoring `exoplayer_version = '2.18.7'` in `variables.gradle`
