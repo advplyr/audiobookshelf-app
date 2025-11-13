@@ -1,122 +1,168 @@
 package com.audiobookshelf.app.player
 
+import android.content.Context
 import android.net.Uri
 import android.util.Log
-
 import java.lang.reflect.Method
 
 /**
- * Minimal Media3 wrapper placeholder.
- * This implementation intentionally avoids direct Media3 imports so it can compile even when
- * Media3 dependencies are not present. When Media3 is available we can extend this to use
- * the real Media3 player via reflection or by replacing this file with a real implementation.
+ * Media3-backed PlayerWrapper implemented via reflection so this file can remain
+ * compilable even when Media3 dependencies are not added. If Media3 is present
+ * in the classpath (Gradle flag enabled), this wrapper will attempt to construct
+ * a Media3 ExoPlayer instance and forward calls to it. Otherwise methods fall
+ * back to no-op with helpful logs.
  */
-class Media3Wrapper() : PlayerWrapper {
+class Media3Wrapper(private val ctx: Context) : PlayerWrapper {
   private val tag = "Media3Wrapper"
+  private var playerInstance: Any? = null
+  private var playerClass: Class<*>? = null
+
+  init {
+    try {
+      // Try to construct androidx.media3.exoplayer.ExoPlayer via reflection: new ExoPlayer.Builder(ctx).build()
+      val builderClass = Class.forName("androidx.media3.exoplayer.ExoPlayer\$Builder")
+      val ctor = builderClass.getDeclaredConstructor(Context::class.java)
+      val builder = ctor.newInstance(ctx)
+      val buildMethod = builderClass.getMethod("build")
+      playerInstance = buildMethod.invoke(builder)
+      playerClass = playerInstance?.javaClass
+      Log.i(tag, "Media3 player constructed via reflection")
+    } catch (e: Exception) {
+      Log.w(tag, "Media3 not available on classpath or failed to instantiate: ${e.message}")
+      playerInstance = null
+      playerClass = null
+    }
+  }
+
+  private fun invokePlayerMethod(methodName: String, vararg args: Any?): Any? {
+    try {
+      if (playerInstance == null || playerClass == null) return null
+      val argTypes = args.map { it?.javaClass ?: Any::class.java }.toTypedArray()
+      val method = playerClass!!.methods.firstOrNull { it.name == methodName && it.parameterTypes.size == args.size }
+              ?: playerClass!!.getMethod(methodName, *argTypes)
+      return method.invoke(playerInstance, *args)
+    } catch (e: Exception) {
+      Log.w(tag, "Failed to invoke Media3 method $methodName: ${e.message}")
+      return null
+    }
+  }
 
   override fun prepare() {
-    Log.w(tag, "Media3Wrapper.prepare() - not implemented")
+    invokePlayerMethod("prepare")
   }
 
   override fun play() {
-    Log.w(tag, "Media3Wrapper.play() - not implemented")
+    invokePlayerMethod("play")
   }
 
   override fun pause() {
-    Log.w(tag, "Media3Wrapper.pause() - not implemented")
+    invokePlayerMethod("pause")
   }
 
   override fun release() {
-    Log.w(tag, "Media3Wrapper.release() - not implemented")
+    try {
+      invokePlayerMethod("release")
+    } catch (e: Exception) {
+      Log.w(tag, "release failed: ${e.message}")
+    }
   }
 
   override fun setPlayWhenReady(playWhenReady: Boolean) {
-    Log.w(tag, "Media3Wrapper.setPlayWhenReady() - not implemented")
+    invokePlayerMethod("setPlayWhenReady", playWhenReady)
   }
 
   override fun seekTo(positionMs: Long) {
-    Log.w(tag, "Media3Wrapper.seekTo() - not implemented")
+    invokePlayerMethod("seekTo", positionMs)
   }
 
-  override fun setMediaItems(items: List<com.audiobookshelf.app.player.PlayerMediaItem>, startIndex: Int, startPositionMs: Long) {
-    Log.w(tag, "Media3Wrapper.setMediaItems() - not implemented")
+  override fun setMediaItems(items: List<PlayerMediaItem>, startIndex: Int, startPositionMs: Long) {
+    try {
+      val media3Items = items.mapNotNull { toMedia3MediaItem(it) }
+      if (media3Items.isEmpty()) return
+      // find setMediaItems(List) or setMediaItems(List, int, long)
+      val method = playerClass?.methods?.firstOrNull { m ->
+        m.name == "setMediaItems" && m.parameterTypes.size >= 1
+      }
+      method?.invoke(playerInstance, media3Items, startIndex, startPositionMs)
+    } catch (e: Exception) {
+      Log.w(tag, "setMediaItems failed: ${e.message}")
+    }
   }
 
-  override fun addMediaItems(items: List<com.audiobookshelf.app.player.PlayerMediaItem>) {
-    Log.w(tag, "Media3Wrapper.addMediaItems() - not implemented")
+  override fun addMediaItems(items: List<PlayerMediaItem>) {
+    try {
+      val media3Items = items.mapNotNull { toMedia3MediaItem(it) }
+      if (media3Items.isEmpty()) return
+      val method = playerClass?.methods?.firstOrNull { m -> m.name == "addMediaItems" }
+      method?.invoke(playerInstance, media3Items)
+    } catch (e: Exception) {
+      Log.w(tag, "addMediaItems failed: ${e.message}")
+    }
   }
 
   override fun getCurrentPosition(): Long {
-    Log.w(tag, "Media3Wrapper.getCurrentPosition() - not implemented")
-    return 0L
+    return (invokePlayerMethod("getCurrentPosition") as? Number)?.toLong() ?: 0L
   }
 
   override fun getMediaItemCount(): Int {
-    Log.w(tag, "Media3Wrapper.getMediaItemCount() - not implemented")
-    return 0
+    return (invokePlayerMethod("getMediaItemCount") as? Number)?.toInt() ?: 0
   }
+
   override fun setPlaybackSpeed(speed: Float) {
-    Log.w(tag, "Media3Wrapper.setPlaybackSpeed() - not implemented")
+    // Try setPlaybackSpeed or setPlaybackParameters
+    invokePlayerMethod("setPlaybackSpeed", speed)
   }
 
   override fun isPlaying(): Boolean {
-    Log.w(tag, "Media3Wrapper.isPlaying() - not implemented")
-    return false
+    return (invokePlayerMethod("isPlaying") as? Boolean) ?: false
   }
 
-  // Exo-specific helpers removed; Media3Wrapper should accept PlayerMediaItem instead.
-
   override fun seekTo(windowIndex: Int, positionMs: Long) {
-    Log.w(tag, "Media3Wrapper.seekTo(windowIndex, positionMs) - not implemented")
+    invokePlayerMethod("seekTo", windowIndex, positionMs)
   }
 
   override fun getCurrentMediaItemIndex(): Int {
-    Log.w(tag, "Media3Wrapper.getCurrentMediaItemIndex() - not implemented")
-    return 0
+    return (invokePlayerMethod("getCurrentMediaItemIndex") as? Number)?.toInt() ?: 0
   }
 
   override fun getBufferedPosition(): Long {
-    Log.w(tag, "Media3Wrapper.getBufferedPosition() - not implemented")
-    return 0L
+    return (invokePlayerMethod("getBufferedPosition") as? Number)?.toLong() ?: 0L
   }
 
   override fun setVolume(volume: Float) {
-    Log.w(tag, "Media3Wrapper.setVolume() - not implemented")
+    invokePlayerMethod("setVolume", volume)
   }
 
   override fun clearMediaItems() {
-    Log.w(tag, "Media3Wrapper.clearMediaItems() - not implemented")
+    invokePlayerMethod("clearMediaItems")
   }
 
   override fun stop() {
-    Log.w(tag, "Media3Wrapper.stop() - not implemented")
+    invokePlayerMethod("stop")
   }
 
   override fun seekToPrevious() {
-    Log.w(tag, "Media3Wrapper.seekToPrevious() - not implemented")
+    invokePlayerMethod("seekToPrevious")
   }
 
   override fun seekToNext() {
-    Log.w(tag, "Media3Wrapper.seekToNext() - not implemented")
+    invokePlayerMethod("seekToNext")
   }
 
   override fun getDuration(): Long {
-    Log.w(tag, "Media3Wrapper.getDuration() - not implemented")
-    return 0L
+    return (invokePlayerMethod("getDuration") as? Number)?.toLong() ?: 0L
   }
 
   override fun getPlaybackState(): Int {
-    Log.w(tag, "Media3Wrapper.getPlaybackState() - not implemented")
-    return 0
+    return (invokePlayerMethod("getPlaybackState") as? Number)?.toInt() ?: 0
   }
 
   override fun isLoading(): Boolean {
-    Log.w(tag, "Media3Wrapper.isLoading() - not implemented")
-    return false
+    return (invokePlayerMethod("isLoading") as? Boolean) ?: false
   }
+
   override fun getPlaybackSpeed(): Float {
-    Log.w(tag, "Media3Wrapper.getPlaybackSpeed() - not implemented")
-    return 1f
+    return (invokePlayerMethod("getPlaybackSpeed") as? Number)?.toFloat() ?: 1f
   }
 
   /**
@@ -128,28 +174,28 @@ class Media3Wrapper() : PlayerWrapper {
   fun toMedia3MediaItem(dto: PlayerMediaItem): Any? {
     return try {
       val builderClass = Class.forName("androidx.media3.common.MediaItem\$Builder")
-      val builder = builderClass.getDeclaredConstructor().newInstance()
+      val builderCtor = builderClass.getDeclaredConstructor()
+      val builder = builderCtor.newInstance()
 
       try {
-        val setUri: Method = builderClass.getMethod("setUri", Uri::class.java)
+        val setUri: java.lang.reflect.Method = builderClass.getMethod("setUri", Uri::class.java)
         setUri.invoke(builder, dto.uri)
       } catch (ignored: Exception) {
-        // ignore if method missing
       }
 
       try {
-        val setTag: Method = builderClass.getMethod("setTag", Any::class.java)
+        val setTag: java.lang.reflect.Method = builderClass.getMethod("setTag", Any::class.java)
         dto.tag?.let { setTag.invoke(builder, it) }
       } catch (ignored: Exception) {
       }
 
       try {
-        val setMime: Method = builderClass.getMethod("setMimeType", String::class.java)
+        val setMime: java.lang.reflect.Method = builderClass.getMethod("setMimeType", String::class.java)
         dto.mimeType?.let { setMime.invoke(builder, it) }
       } catch (ignored: Exception) {
       }
 
-      val build: Method = builderClass.getMethod("build")
+      val build: java.lang.reflect.Method = builderClass.getMethod("build")
       build.invoke(builder)
     } catch (e: Exception) {
       Log.w(tag, "Media3 not available or failed to build MediaItem: ${e.message}")
@@ -158,4 +204,5 @@ class Media3Wrapper() : PlayerWrapper {
   }
 
   fun toMedia3MediaItems(items: List<PlayerMediaItem>): List<Any?> = items.map { toMedia3MediaItem(it) }
+
 }

@@ -380,11 +380,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                     .build()
 
     mPlayer =
-            ExoPlayer.Builder(this)
-                    .setLoadControl(customLoadControl)
-                    .setSeekBackIncrementMs(deviceSettings.jumpBackwardsTimeMs)
-                    .setSeekForwardIncrementMs(deviceSettings.jumpForwardTimeMs)
-                    .build()
+      ExoPlayer.Builder(this)
+        .setLoadControl(customLoadControl)
+        .setSeekBackIncrementMs(deviceSettings.jumpBackwardsTimeMs)
+        .setSeekForwardIncrementMs(deviceSettings.jumpForwardTimeMs)
+        .build()
     mPlayer.setHandleAudioBecomingNoisy(true)
     mPlayer.addListener(PlayerListener(this))
     val audioAttributes: AudioAttributes =
@@ -399,8 +399,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
     mediaSessionConnector.setPlayer(mPlayer)
 
-    // Create wrapper around the existing ExoPlayer instance so we can migrate call sites
-    playerWrapper = PlayerWrapperFactory.wrapExistingPlayer(mPlayer)
+  // Create wrapper around the existing player instance. The factory will
+  // return a Media3-backed wrapper when the feature flag is enabled, or an
+  // Exo wrapper otherwise.
+  playerWrapper = PlayerWrapperFactory.wrapExistingPlayer(this, mPlayer)
   }
 
   /*
