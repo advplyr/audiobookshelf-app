@@ -137,6 +137,37 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   private var bufferCount: Int = 0
   private var playbackErrorCount: Int = 0
 
+  // --- Lightweight playback metrics helpers ---
+  fun metricsRecordError() {
+    try { playbackErrorCount += 1 } catch (_: Exception) {}
+  }
+
+  fun metricsRecordBuffer() {
+    try { bufferCount += 1 } catch (_: Exception) {}
+  }
+
+  fun metricsRecordFirstReadyIfUnset() {
+    try {
+      if (firstReadyLatencyMs < 0 && playbackStartMonotonicMs > 0) {
+        val now = android.os.SystemClock.elapsedRealtime()
+        firstReadyLatencyMs = now - playbackStartMonotonicMs
+        com.audiobookshelf.app.plugins.AbsLogger.info(
+          "PlaybackMetrics",
+          "startupReadyLatencyMs=${firstReadyLatencyMs} player=${getMediaPlayer()} item=${currentPlaybackSession?.mediaItemId}"
+        )
+      }
+    } catch (_: Exception) {}
+  }
+
+  fun metricsLogSummary() {
+    try {
+      com.audiobookshelf.app.plugins.AbsLogger.info(
+        "PlaybackMetrics",
+        "summary player=${getMediaPlayer()} item=${currentPlaybackSession?.mediaItemId} buffers=${bufferCount} errors=${playbackErrorCount} startupReadyLatencyMs=${firstReadyLatencyMs}"
+      )
+    } catch (_: Exception) {}
+  }
+
   fun isBrowseTreeInitialized(): Boolean {
     return this::browseTree.isInitialized
   }
