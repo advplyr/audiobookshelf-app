@@ -44,12 +44,7 @@ class ExoPlayerWrapper(private val player: Player) : PlayerWrapper {
   }
 
   override fun setMediaItems(items: List<PlayerMediaItem>, startIndex: Int, startPositionMs: Long) {
-    val mediaItems = items.map { dto ->
-      val builder = MediaItem.Builder().setUri(dto.uri)
-      dto.tag?.let { builder.setTag(it) }
-      dto.mimeType?.let { builder.setMimeType(it) }
-      builder.build()
-    }
+    val mediaItems = toExoMediaItems(items)
     if (player is ExoPlayer) {
       player.setMediaItems(mediaItems, startIndex, startPositionMs)
     } else {
@@ -59,14 +54,24 @@ class ExoPlayerWrapper(private val player: Player) : PlayerWrapper {
   }
 
   override fun addMediaItems(items: List<PlayerMediaItem>) {
-    val mediaItems = items.map { dto ->
-      val builder = MediaItem.Builder().setUri(dto.uri)
-      dto.tag?.let { builder.setTag(it) }
-      dto.mimeType?.let { builder.setMimeType(it) }
-      builder.build()
-    }
+    val mediaItems = toExoMediaItems(items)
     player.addMediaItems(mediaItems)
   }
+
+  /**
+   * Convert a PlayerMediaItem to an Exo MediaItem.
+   * Exposed here so callers that need native Exo types (cast, media-source builders)
+   * can obtain them from the Exo-specific implementation rather than building them
+   * in service-level code.
+   */
+  fun toExoMediaItem(dto: PlayerMediaItem): MediaItem {
+    val builder = MediaItem.Builder().setUri(dto.uri)
+    dto.tag?.let { builder.setTag(it) }
+    dto.mimeType?.let { builder.setMimeType(it) }
+    return builder.build()
+  }
+
+  fun toExoMediaItems(items: List<PlayerMediaItem>): List<MediaItem> = items.map { toExoMediaItem(it) }
 
   override fun getCurrentPosition(): Long {
     return player.currentPosition

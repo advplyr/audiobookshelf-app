@@ -4,11 +4,10 @@ import android.content.Context
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.player.PlayerMediaItem
 import android.net.Uri
-import com.google.android.exoplayer2.MediaItem
 
 /**
- * Adapter functions that produce ExoPlayer types from a PlaybackSession.
- * Keeping these in the player package avoids leaking Exo types into the data layer.
+ * Adapter functions that produce PlayerMediaItem DTOs from a PlaybackSession.
+ * Keeping conversion logic in the player package avoids leaking framework types into the data model.
  */
 fun PlaybackSession.toPlayerMediaItems(ctx: Context): List<PlayerMediaItem> {
   val mediaItems: MutableList<PlayerMediaItem> = mutableListOf()
@@ -31,14 +30,3 @@ fun PlaybackSession.toPlayerMediaItems(ctx: Context): List<PlayerMediaItem> {
   return mediaItems
 }
 
-/**
- * Convert a PlayerMediaItem to an Exo MediaItem.
- */
-fun PlayerMediaItem.toExoMediaItem(): MediaItem {
-  val builder = MediaItem.Builder().setUri(this.uri)
-  this.tag?.let { builder.setTag(it) }
-  this.mimeType?.let { builder.setMimeType(it) }
-  return builder.build()
-}
-
-fun List<PlayerMediaItem>.toExoMediaItems(): List<MediaItem> = this.map { it.toExoMediaItem() }
