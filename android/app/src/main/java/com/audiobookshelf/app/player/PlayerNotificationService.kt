@@ -102,6 +102,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   lateinit var mPlayer: ExoPlayer
   lateinit var currentPlayer: Player
   var castPlayer: CastPlayer? = null
+  lateinit var playerWrapper: PlayerWrapper
 
   lateinit var sleepTimerManager: SleepTimerManager
   lateinit var mediaProgressSyncer: MediaProgressSyncer
@@ -397,6 +398,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     playerNotificationManager.setPlayer(mPlayer)
 
     mediaSessionConnector.setPlayer(mPlayer)
+
+    // Create wrapper around the existing ExoPlayer instance so we can migrate call sites
+    playerWrapper = PlayerWrapperFactory.wrapExistingPlayer(mPlayer)
   }
 
   /*
@@ -469,7 +473,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       return
     }
 
-    if (mPlayer == currentPlayer) {
+      if (mPlayer == currentPlayer) {
       val mediaSource: MediaSource
 
       if (playbackSession.isLocal) {
@@ -483,9 +487,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
           extractorsFactory.setMp3ExtractorFlags(Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING)
         }
 
-        mediaSource =
-                ProgressiveMediaSource.Factory(dataSourceFactory, extractorsFactory)
-                        .createMediaSource(mediaItems[0])
+  mediaSource =
+    ProgressiveMediaSource.Factory(dataSourceFactory, extractorsFactory)
+      .createMediaSource(mediaItems[0])
       } else if (!playbackSession.isHLS) {
         AbsLogger.info("PlayerNotificationService", "preparePlayer: Direct playing item ${currentPlaybackSession?.mediaItemId}.")
         val dataSourceFactory = DefaultHttpDataSource.Factory()
@@ -510,12 +514,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
         )
         mediaSource = HlsMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItems[0])
       }
-      mPlayer.setMediaSource(mediaSource)
+        mPlayer.setMediaSource(mediaSource)
 
       // Add remaining media items if multi-track
       if (mediaItems.size > 1) {
-        currentPlayer.addMediaItems(mediaItems.subList(1, mediaItems.size))
-        Log.d(tag, "currentPlayer total media items ${currentPlayer.mediaItemCount}")
+        playerWrapper.addExoMediaItems(mediaItems.subList(1, mediaItems.size))
+        Log.d(tag, "currentPlayer total media items ${playerWrapper.getMediaItemCount()}")
 
         val currentTrackIndex = playbackSession.getCurrentTrackIndex()
         val currentTrackTime = playbackSession.getCurrentTrackTimeMs()
@@ -523,19 +527,19 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                 tag,
                 "currentPlayer current track index $currentTrackIndex & current track time $currentTrackTime"
         )
-        currentPlayer.seekTo(currentTrackIndex, currentTrackTime)
+        playerWrapper.seekTo(currentTrackIndex, currentTrackTime)
       } else {
-        currentPlayer.seekTo(playbackSession.currentTimeMs)
+        playerWrapper.seekTo(playbackSession.currentTimeMs)
       }
 
       Log.d(
               tag,
-              "Prepare complete for session ${currentPlaybackSession?.displayTitle} | ${currentPlayer.mediaItemCount}"
+              "Prepare complete for session ${currentPlaybackSession?.displayTitle} | ${playerWrapper.getMediaItemCount()}"
       )
-      currentPlayer.playWhenReady = playWhenReady
-      currentPlayer.setPlaybackSpeed(playbackRateToUse)
+      playerWrapper.setPlayWhenReady(playWhenReady)
+      playerWrapper.setPlaybackSpeed(playbackRateToUse)
 
-      currentPlayer.prepare()
+      playerWrapper.prepare()
     } else if (castPlayer != null) {
       val currentTrackIndex = playbackSession.getCurrentTrackIndex()
       val currentTrackTime = playbackSession.getCurrentTrackTimeMs()
@@ -667,7 +671,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   }
 
   fun switchToPlayer(useCastPlayer: Boolean) {
-    val wasPlaying = currentPlayer.isPlaying
+  val wasPlaying = playerWrapper.isPlaying()
     if (useCastPlayer) {
       if (currentPlayer == castPlayer) {
         Log.d(tag, "switchToPlayer: Already using Cast Player " + castPlayer?.deviceInfo)
@@ -727,8 +731,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   }
 
   fun getCurrentTrackStartOffsetMs(): Long {
-    return if (currentPlayer.mediaItemCount > 1) {
-      val windowIndex = currentPlayer.currentMediaItemIndex
+    return if (playerWrapper.getMediaItemCount() > 1) {
+      val windowIndex = playerWrapper.getCurrentMediaItemIndex()
       val currentTrackStartOffset = currentPlaybackSession?.getTrackStartOffsetMs(windowIndex) ?: 0L
       currentTrackStartOffset
     } else {
@@ -737,7 +741,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   }
 
   fun getCurrentTime(): Long {
-    return currentPlayer.currentPosition + getCurrentTrackStartOffsetMs()
+    return playerWrapper.getCurrentPosition() + getCurrentTrackStartOffsetMs()
   }
 
   fun getCurrentTimeSeconds(): Double {
@@ -745,12 +749,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   }
 
   private fun getBufferedTime(): Long {
-    return if (currentPlayer.mediaItemCount > 1) {
-      val windowIndex = currentPlayer.currentMediaItemIndex
+    return if (playerWrapper.getMediaItemCount() > 1) {
+      val windowIndex = playerWrapper.getCurrentMediaItemIndex()
       val currentTrackStartOffset = currentPlaybackSession?.getTrackStartOffsetMs(windowIndex) ?: 0L
-      currentPlayer.bufferedPosition + currentTrackStartOffset
+      playerWrapper.getBufferedPosition() + currentTrackStartOffset
     } else {
-      currentPlayer.bufferedPosition
+      playerWrapper.getBufferedPosition()
     }
   }
 
@@ -834,7 +838,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
             Handler(Looper.getMainLooper()).post {
               seekPlayer(playbackSession.currentTimeMs)
               // Should already be playing
-              currentPlayer.volume = 1F // Volume on sleep timer might have decreased this
+              playerWrapper.setVolume(1F) // Volume on sleep timer might have decreased this
               currentPlaybackSession?.let { mediaProgressSyncer.play(it) }
               clientEventEmitter?.onPlayingUpdate(true)
             }
@@ -845,7 +849,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
               }
 
               // Should already be playing
-              currentPlayer.volume = 1F // Volume on sleep timer might have decreased this
+              playerWrapper.setVolume(1F) // Volume on sleep timer might have decreased this
               mediaProgressSyncer.currentPlaybackSession?.let { playbackSession ->
                 mediaProgressSyncer.play(playbackSession)
               }
@@ -867,7 +871,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
             )
 
             Handler(Looper.getMainLooper()).post {
-              currentPlayer.pause()
+              playerWrapper.pause()
               startNewPlaybackSession()
             }
           } else {
@@ -877,7 +881,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                 seekBackward(seekBackTime)
               }
 
-              currentPlayer.volume = 1F // Volume on sleep timer might have decreased this
+              playerWrapper.setVolume(1F) // Volume on sleep timer might have decreased this
               mediaProgressSyncer.currentPlaybackSession?.let { playbackSession ->
                 mediaProgressSyncer.play(playbackSession)
               }
@@ -892,20 +896,22 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   }
 
   fun play() {
-    if (currentPlayer.isPlaying) {
+    if (playerWrapper.isPlaying()) {
       Log.d(tag, "Already playing")
       return
     }
-    currentPlayer.volume = 1F
-    currentPlayer.play()
+  // Use wrapper to play. Under the feature-flag the wrapper will delegate to ExoPlayer or to
+  // a Media3 implementation.
+  playerWrapper.setVolume(1F)
+  playerWrapper.play()
   }
 
   fun pause() {
-    currentPlayer.pause()
+    playerWrapper.pause()
   }
 
   fun playPause(): Boolean {
-    return if (currentPlayer.isPlaying) {
+    return if (playerWrapper.isPlaying()) {
       pause()
       false
     } else {
@@ -916,7 +922,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
   fun seekPlayer(time: Long) {
     var timeToSeek = time
-    Log.d(tag, "seekPlayer mediaCount = ${currentPlayer.mediaItemCount} | $timeToSeek")
+  Log.d(tag, "seekPlayer mediaCount = ${playerWrapper.getMediaItemCount()} | $timeToSeek")
     if (timeToSeek < 0) {
       Log.w(tag, "seekPlayer invalid time $timeToSeek - setting to 0")
       timeToSeek = 0L
@@ -925,23 +931,23 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       timeToSeek = getDuration() - 2000L
     }
 
-    if (currentPlayer.mediaItemCount > 1) {
+    if (playerWrapper.getMediaItemCount() > 1) {
       currentPlaybackSession?.currentTime = timeToSeek / 1000.0
       val newWindowIndex = currentPlaybackSession?.getCurrentTrackIndex() ?: 0
       val newTimeOffset = currentPlaybackSession?.getCurrentTrackTimeMs() ?: 0
       Log.d(tag, "seekPlayer seekTo $newWindowIndex | $newTimeOffset")
-      currentPlayer.seekTo(newWindowIndex, newTimeOffset)
+      playerWrapper.seekTo(newWindowIndex, newTimeOffset)
     } else {
-      currentPlayer.seekTo(timeToSeek)
+      playerWrapper.seekTo(timeToSeek)
     }
   }
 
   fun skipToPrevious() {
-    currentPlayer.seekToPrevious()
+    playerWrapper.seekToPrevious()
   }
 
   fun skipToNext() {
-    currentPlayer.seekToNext()
+    playerWrapper.seekToNext()
   }
 
   fun jumpForward() {
@@ -962,7 +968,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
   fun setPlaybackSpeed(speed: Float) {
     mediaManager.userSettingsPlaybackRate = speed
-    currentPlayer.setPlaybackSpeed(speed)
+    playerWrapper.setPlaybackSpeed(speed)
 
     // Refresh Android Auto actions
     mediaProgressSyncer.currentPlaybackSession?.let { setMediaSessionConnectorCustomActions(it) }
@@ -998,10 +1004,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     }
 
     try {
-      currentPlayer.stop()
-      currentPlayer.clearMediaItems()
+      playerWrapper.stop()
+      playerWrapper.clearMediaItems()
     } catch (e: Exception) {
-      Log.e(tag, "Exception clearing exoplayer $e")
+      Log.e(tag, "Exception clearing player $e")
     }
 
     currentPlaybackSession = null

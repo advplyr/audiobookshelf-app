@@ -189,7 +189,7 @@ object DeviceManager {
     widgetUpdater =
             (object : WidgetEventEmitter {
               override fun onPlayerChanged(pns: PlayerNotificationService) {
-                val isPlaying = pns.currentPlayer.isPlaying
+                val isPlaying = pns.playerWrapper.isPlaying()
 
                 val appWidgetManager = AppWidgetManager.getInstance(context)
                 val componentName = ComponentName(context, MediaPlayerWidget::class.java)

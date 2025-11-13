@@ -77,8 +77,8 @@ class MediaProgressSyncer(
 
     listeningTimerTask =
             Timer("ListeningTimer", false).schedule(15000L, 15000L) {
-              Handler(Looper.getMainLooper()).post() {
-                if (playerNotificationService.currentPlayer.isPlaying) {
+        Handler(Looper.getMainLooper()).post() {
+          if (playerNotificationService.playerWrapper.isPlaying()) {
                   // Set auto sleep timer if enabled and within start/end time
                   playerNotificationService.sleepTimerManager.checkAutoSleepTimer()
 
