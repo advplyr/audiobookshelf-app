@@ -128,6 +128,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   private var forceReloadingAndroidAuto: Boolean = false
   private var firstLoadDone: Boolean = false
 
+  // Simple rollout metrics for comparing Exo vs Media3
+  private var playbackStartMonotonicMs: Long = 0L
+  private var firstReadyLatencyMs: Long = -1L
+  private var bufferCount: Int = 0
+  private var playbackErrorCount: Int = 0
+
   fun isBrowseTreeInitialized(): Boolean {
     return this::browseTree.isInitialized
   }
@@ -386,14 +392,18 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
         .setSeekBackIncrementMs(deviceSettings.jumpBackwardsTimeMs)
         .setSeekForwardIncrementMs(deviceSettings.jumpForwardTimeMs)
         .build()
-    mPlayer.setHandleAudioBecomingNoisy(true)
-    // Note: Don't add listener directly to mPlayer - will be added to wrapper below
-    val audioAttributes: AudioAttributes =
-            AudioAttributes.Builder()
-                    .setUsage(C.USAGE_MEDIA)
-                    .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
-                    .build()
-    mPlayer.setAudioAttributes(audioAttributes, true)
+    // Only configure audio attributes and noisy handling for legacy Exo path.
+    // When using Media3, the wrapper will own the active player/audio configuration.
+    if (!PlayerWrapperFactory.useMedia3()) {
+      mPlayer.setHandleAudioBecomingNoisy(true)
+      // Note: Don't add listener directly to mPlayer - will be added to wrapper below
+      val audioAttributes: AudioAttributes =
+              AudioAttributes.Builder()
+                      .setUsage(C.USAGE_MEDIA)
+                      .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
+                      .build()
+      mPlayer.setAudioAttributes(audioAttributes, true)
+    }
 
   // Note: Do not attach the raw Exo player here. The PlayerWrapper will manage
   // attaching the correct underlying player instance to the notification and
@@ -440,6 +450,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     }
 
     isClosed = false
+
+  // Initialize simple metrics for this prepare/playback attempt
+  playbackStartMonotonicMs = SystemClock.elapsedRealtime()
+  firstReadyLatencyMs = -1L
+  bufferCount = 0
+  playbackErrorCount = 0
 
     val metadata = playbackSession.getMediaMetadataCompat(ctx)
     mediaSession.setMetadata(metadata)
@@ -502,7 +518,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       // than mPlayer (which is ExoPlayer v2). We must use the wrapper for all
       // media operations to ensure we're working with the correct player.
       
-      if (playerWrapper is ExoPlayerWrapper) {
+  if (playerWrapper is ExoPlayerWrapper) {
         // ExoPlayerWrapper: Use the existing MediaSource-based approach for ExoPlayer v2
         val mediaSource: MediaSource
 
@@ -1056,6 +1072,14 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
         }
       }
     }
+
+    // Metrics: emit a summary when closing playback (if not already logged)
+    try {
+      com.audiobookshelf.app.plugins.AbsLogger.info(
+        "PlaybackMetrics",
+        "summary player=${getMediaPlayer()} item=${currentPlaybackSession?.mediaItemId} buffers=${bufferCount} errors=${playbackErrorCount} startupReadyLatencyMs=${firstReadyLatencyMs}"
+      )
+    } catch (_: Exception) {}
 
     try {
       playerWrapper.stop()
