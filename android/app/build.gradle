@@ -42,6 +42,8 @@ android {
     manifestPlaceholders = [
       "appAuthRedirectScheme": "com.audiobookshelf.app"
     ]
+    // Expose feature flag to runtime via BuildConfig for conditional wiring
+    buildConfigField("boolean", "USE_MEDIA3", "${rootProject.ext.media3_feature_enabled?.toString()?.toLowerCase() == 'true'}")
     aaptOptions {
       // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
       // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
@@ -98,7 +100,7 @@ dependencies {
 
   implementation "androidx.media:media:$androidx_media_version"
 
-  // Exo Player
+  // Playback libraries: always include ExoPlayer so existing code compiles.
   if (findProject(':exoplayer-library-core') != null) {
     implementation project(':exoplayer-library-core')
     implementation project(':exoplayer-library-ui')
@@ -111,6 +113,15 @@ dependencies {
     implementation "com.google.android.exoplayer:extension-mediasession:$exoplayer_version"
     implementation "com.google.android.exoplayer:extension-cast:$exoplayer_version"
     implementation "com.google.android.exoplayer:exoplayer-hls:$exoplayer_version"
+  }
+
+  // If Media3 testing is enabled, also add Media3 dependencies alongside ExoPlayer.
+  def useMedia3 = rootProject.ext.media3_feature_enabled?.toString()?.toLowerCase() == 'true'
+  if (useMedia3) {
+    implementation "androidx.media3:media3-exoplayer:$media3_version"
+    implementation "androidx.media3:media3-ui:$media3_version"
+    implementation "androidx.media3:media3-cast:$media3_version"
+    implementation "androidx.media3:media3-exoplayer-hls:$media3_version"
   }
 
   // Glide for images

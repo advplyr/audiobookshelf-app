@@ -50,7 +50,7 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
    * @return Boolean - true if the player is playing, false otherwise.
    */
   private fun getIsPlaying(): Boolean {
-    return playerNotificationService.currentPlayer.isPlaying
+    return playerNotificationService.playerWrapper.isPlaying()
   }
 
   /**
@@ -58,7 +58,7 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
    * @return Float - the playback speed.
    */
   private fun getPlaybackSpeed(): Float {
-    return playerNotificationService.currentPlayer.playbackParameters.speed
+    return playerNotificationService.playerWrapper.getPlaybackSpeed()
   }
 
   /**
@@ -66,17 +66,17 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
    * @param volume Float - the volume level to set.
    */
   private fun setVolume(volume: Float) {
-    playerNotificationService.currentPlayer.volume = volume
+    playerNotificationService.playerWrapper.setVolume(volume)
   }
 
   /** Pauses the player. */
   private fun pause() {
-    playerNotificationService.currentPlayer.pause()
+    playerNotificationService.playerWrapper.pause()
   }
 
   /** Plays the player. */
   private fun play() {
-    playerNotificationService.currentPlayer.play()
+    playerNotificationService.playerWrapper.play()
   }
 
   /**
