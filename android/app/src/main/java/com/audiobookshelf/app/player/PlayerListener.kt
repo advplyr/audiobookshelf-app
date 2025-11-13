@@ -21,7 +21,7 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
     val errorMessage = error.message ?: "Unknown Error"
     Log.e(tag, "onPlayerError $errorMessage")
     // Metrics: count playback errors for this session
-    try { playerNotificationService.apply { playbackErrorCount += 1 } } catch (_: Exception) {}
+    playerNotificationService.metricsRecordError()
     playerNotificationService.handlePlayerPlaybackError(errorMessage) // If was direct playing session, fallback to transcode
   }
 
@@ -110,16 +110,7 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
 
       if (playerNotificationService.playerWrapper.getPlaybackState() == Player.STATE_READY) {
         // Metrics: record first READY latency once per session
-        try {
-          if (playerNotificationService.firstReadyLatencyMs < 0 && playerNotificationService.playbackStartMonotonicMs > 0) {
-            val now = android.os.SystemClock.elapsedRealtime()
-            playerNotificationService.firstReadyLatencyMs = now - playerNotificationService.playbackStartMonotonicMs
-            com.audiobookshelf.app.plugins.AbsLogger.info(
-              "PlaybackMetrics",
-              "startupReadyLatencyMs=${playerNotificationService.firstReadyLatencyMs} player=${playerNotificationService.getMediaPlayer()} item=${playerNotificationService.currentPlaybackSession?.mediaItemId}"
-            )
-          }
-        } catch (_: Exception) {}
+        playerNotificationService.metricsRecordFirstReadyIfUnset()
 
         if (lastPauseTime == 0L) {
           lastPauseTime = -1
@@ -128,19 +119,14 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
       }
       if (playerNotificationService.playerWrapper.getPlaybackState() == Player.STATE_BUFFERING) {
         // Metrics: increment buffer count
-        try { playerNotificationService.apply { bufferCount += 1 } } catch (_: Exception) {}
+        playerNotificationService.metricsRecordBuffer()
         playerNotificationService.sendClientMetadata(PlayerState.BUFFERING)
       }
       if (playerNotificationService.playerWrapper.getPlaybackState() == Player.STATE_ENDED) {
         playerNotificationService.sendClientMetadata(PlayerState.ENDED)
 
         // Metrics: log simple summary on end
-        try {
-          com.audiobookshelf.app.plugins.AbsLogger.info(
-            "PlaybackMetrics",
-            "summary player=${playerNotificationService.getMediaPlayer()} item=${playerNotificationService.currentPlaybackSession?.mediaItemId} buffers=${playerNotificationService.bufferCount} errors=${playerNotificationService.playbackErrorCount} startupReadyLatencyMs=${playerNotificationService.firstReadyLatencyMs}"
-          )
-        } catch (_: Exception) {}
+        playerNotificationService.metricsLogSummary()
         playerNotificationService.handlePlaybackEnded()
       }
       if (playerNotificationService.playerWrapper.getPlaybackState() == Player.STATE_IDLE) {
