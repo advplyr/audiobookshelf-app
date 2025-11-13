@@ -12,7 +12,7 @@ import androidx.media3.exoplayer.ExoPlayer
  * This requires Media3 dependencies to be enabled in Gradle (media3_feature_enabled).
  */
 class Media3Wrapper(private val ctx: Context) : PlayerWrapper {
-  private val tag = "Media3Wrapper"
+  val tag = "Media3Wrapper"
   private var player: ExoPlayer? = null
   
   // Store ExoPlayer v2 listeners that need to receive events
