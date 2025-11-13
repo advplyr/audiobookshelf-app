@@ -3,6 +3,8 @@ package com.audiobookshelf.app.player
 import android.net.Uri
 import android.util.Log
 
+import java.lang.reflect.Method
+
 /**
  * Minimal Media3 wrapper placeholder.
  * This implementation intentionally avoids direct Media3 imports so it can compile even when
@@ -116,4 +118,44 @@ class Media3Wrapper() : PlayerWrapper {
     Log.w(tag, "Media3Wrapper.getPlaybackSpeed() - not implemented")
     return 1f
   }
+
+  /**
+   * Try to build a Media3 MediaItem via reflection. Returns the built object or null
+   * if Media3 classes are not present. This keeps this file safe to compile when
+   * Media3 dependencies are absent while still providing a path for conversion
+   * when Media3 is available at runtime.
+   */
+  fun toMedia3MediaItem(dto: PlayerMediaItem): Any? {
+    return try {
+      val builderClass = Class.forName("androidx.media3.common.MediaItem\$Builder")
+      val builder = builderClass.getDeclaredConstructor().newInstance()
+
+      try {
+        val setUri: Method = builderClass.getMethod("setUri", Uri::class.java)
+        setUri.invoke(builder, dto.uri)
+      } catch (ignored: Exception) {
+        // ignore if method missing
+      }
+
+      try {
+        val setTag: Method = builderClass.getMethod("setTag", Any::class.java)
+        dto.tag?.let { setTag.invoke(builder, it) }
+      } catch (ignored: Exception) {
+      }
+
+      try {
+        val setMime: Method = builderClass.getMethod("setMimeType", String::class.java)
+        dto.mimeType?.let { setMime.invoke(builder, it) }
+      } catch (ignored: Exception) {
+      }
+
+      val build: Method = builderClass.getMethod("build")
+      build.invoke(builder)
+    } catch (e: Exception) {
+      Log.w(tag, "Media3 not available or failed to build MediaItem: ${e.message}")
+      null
+    }
+  }
+
+  fun toMedia3MediaItems(items: List<PlayerMediaItem>): List<Any?> = items.map { toMedia3MediaItem(it) }
 }

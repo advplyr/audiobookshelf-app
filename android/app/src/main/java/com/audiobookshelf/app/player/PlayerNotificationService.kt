@@ -436,8 +436,21 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
     val metadata = playbackSession.getMediaMetadataCompat(ctx)
     mediaSession.setMetadata(metadata)
-  val mediaItems = playbackSession.toPlayerMediaItems(ctx)
-    val exoMediaItems = mediaItems.toExoMediaItems()
+    val mediaItems = playbackSession.toPlayerMediaItems(ctx)
+    val exoMediaItems = if (playerWrapper is ExoPlayerWrapper) {
+      (playerWrapper as ExoPlayerWrapper).toExoMediaItems(mediaItems)
+    } else {
+      // Fallback: build minimal Exo MediaItem instances from DTOs so existing
+      // media-source / cast code continues to work. The canonical conversion
+      // should live in Exo-specific classes; this fallback protects compile/runtime
+      // when a non-Exo wrapper is active.
+      mediaItems.map { dto ->
+        val builder = com.google.android.exoplayer2.MediaItem.Builder().setUri(dto.uri)
+        dto.tag?.let { builder.setTag(it) }
+        dto.mimeType?.let { builder.setMimeType(it) }
+        builder.build()
+      }
+    }
     val playbackRateToUse = playbackRate ?: initialPlaybackRate ?: 1f
     initialPlaybackRate = playbackRate
 
@@ -552,7 +565,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       Log.d(tag, "Loading cast player $currentTrackIndex $currentTrackTime $mediaType")
 
       castPlayer?.load(
-        exoMediaItems,
+        mediaItems,
         currentTrackIndex,
         currentTrackTime,
         playWhenReady,
