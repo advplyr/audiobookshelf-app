@@ -181,7 +181,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
 //              }
 //            }
 
-            if (playerNotificationService.mPlayer.isPlaying) {
+            if (playerNotificationService.playerWrapper.isPlaying()) {
               if (0 == mediaButtonClickCount) playerNotificationService.pause()
               handleMediaButtonClickCount()
             } else {
@@ -208,7 +208,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
           KeyEvent.KEYCODE_HEADSETHOOK -> {
             Log.d(tag, "handleCallMediaButton: Headset Hook")
             if (0 == mediaButtonClickCount) {
-              if (playerNotificationService.mPlayer.isPlaying)
+              if (playerNotificationService.playerWrapper.isPlaying())
                 playerNotificationService.pause()
               else
                 playerNotificationService.play()
