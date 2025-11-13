@@ -40,11 +40,11 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
   }
 
   override fun onIsPlayingChanged(isPlaying: Boolean) {
-  val player = playerNotificationService.playerWrapper
+    val player = playerNotificationService.playerWrapper
 
     // Goal of these 2 if statements and the lazyIsPlaying is to ignore this event when it is triggered by a seek
     //  When a seek occurs the player is paused and buffering, then plays again right afterwards.
-  if (!isPlaying && player.getPlaybackState() == Player.STATE_BUFFERING) {
+    if (!isPlaying && player.getPlaybackState() == Player.STATE_BUFFERING) {
       return
     }
     if (lazyIsPlaying == isPlaying) {
@@ -94,7 +94,7 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
         // Handles auto-starting sleep timer and resetting sleep timer
         playerNotificationService.sleepTimerManager.handleMediaPlayEvent(it.id)
 
-  player.setVolume(1F) // Volume on sleep timer might have decreased this
+        player.setVolume(1F) // Volume on sleep timer might have decreased this
 
         playerNotificationService.mediaProgressSyncer.play(it)
       }
