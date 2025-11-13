@@ -1,6 +1,6 @@
 package com.audiobookshelf.app.player
 
-import android.net.Uri
+import com.audiobookshelf.app.player.PlayerMediaItem
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.Player
@@ -43,19 +43,28 @@ class ExoPlayerWrapper(private val player: Player) : PlayerWrapper {
     player.seekTo(positionMs)
   }
 
-  override fun setMediaItems(uris: List<Uri>, startIndex: Int, startPositionMs: Long) {
-    val mediaItems = uris.map { uri -> MediaItem.fromUri(uri) }
+  override fun setMediaItems(items: List<PlayerMediaItem>, startIndex: Int, startPositionMs: Long) {
+    val mediaItems = items.map { dto ->
+      val builder = MediaItem.Builder().setUri(dto.uri)
+      dto.tag?.let { builder.setTag(it) }
+      dto.mimeType?.let { builder.setMimeType(it) }
+      builder.build()
+    }
     if (player is ExoPlayer) {
       player.setMediaItems(mediaItems, startIndex, startPositionMs)
     } else {
-      // Fallback: clear & add first
       player.clearMediaItems()
-      player.addMediaItem(mediaItems.first())
+      if (mediaItems.isNotEmpty()) player.addMediaItem(mediaItems.first())
     }
   }
 
-  override fun addMediaItems(uris: List<Uri>) {
-    val mediaItems = uris.map { uri -> MediaItem.fromUri(uri) }
+  override fun addMediaItems(items: List<PlayerMediaItem>) {
+    val mediaItems = items.map { dto ->
+      val builder = MediaItem.Builder().setUri(dto.uri)
+      dto.tag?.let { builder.setTag(it) }
+      dto.mimeType?.let { builder.setMimeType(it) }
+      builder.build()
+    }
     player.addMediaItems(mediaItems)
   }
 
@@ -84,11 +93,7 @@ class ExoPlayerWrapper(private val player: Player) : PlayerWrapper {
     }
   }
 
-  override fun addExoMediaItems(items: List<MediaItem>) {
-    if (player is ExoPlayer) {
-      player.addMediaItems(items)
-    }
-  }
+  // Exo-specific APIs removed from public wrapper; conversion happens in this wrapper.
 
   override fun seekTo(windowIndex: Int, positionMs: Long) {
     player.seekTo(windowIndex, positionMs)
