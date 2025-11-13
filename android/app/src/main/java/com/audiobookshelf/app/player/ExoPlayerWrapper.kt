@@ -4,6 +4,9 @@ import com.audiobookshelf.app.player.PlayerMediaItem
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.Player
+import com.google.android.exoplayer2.ui.PlayerNotificationManager
+import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector
+import com.audiobookshelf.app.player.CastPlayer
 
 /**
  * Lightweight wrapper around ExoPlayer/Player so calling code can depend on PlayerWrapper.
@@ -145,5 +148,62 @@ class ExoPlayerWrapper(private val player: Player) : PlayerWrapper {
   }
   override fun getPlaybackSpeed(): Float {
     return try { player.playbackParameters.speed } catch (e: Exception) { 1f }
+  }
+
+  // Notification / session attachments (managed by wrapper to avoid service-level
+  // conditionals between Exo and Media3 player types).
+  private var notificationManagerRef: PlayerNotificationManager? = null
+  private var mediaSessionConnectorRef: MediaSessionConnector? = null
+
+  override fun attachNotificationManager(playerNotificationManager: Any?) {
+    try {
+      notificationManagerRef = playerNotificationManager as? PlayerNotificationManager
+      notificationManagerRef?.setPlayer(player)
+    } catch (e: Exception) {
+      // best-effort
+    }
+  }
+
+  override fun attachMediaSessionConnector(mediaSessionConnector: Any?) {
+    try {
+      mediaSessionConnectorRef = mediaSessionConnector as? MediaSessionConnector
+      mediaSessionConnectorRef?.setPlayer(player)
+    } catch (e: Exception) {
+      // best-effort
+    }
+  }
+
+  override fun setActivePlayerForNotification(activePlayer: Any?) {
+    try {
+      if (activePlayer != null) {
+        val p = activePlayer as? Player
+        notificationManagerRef?.setPlayer(p)
+        mediaSessionConnectorRef?.setPlayer(p)
+      } else {
+        // restore underlying player
+        notificationManagerRef?.setPlayer(player)
+        mediaSessionConnectorRef?.setPlayer(player)
+      }
+    } catch (e: Exception) {
+      // ignore
+    }
+  }
+
+  override fun addListener(listener: Any?) {
+    try {
+      val playerListener = listener as? Player.Listener
+      playerListener?.let { player.addListener(it) }
+    } catch (e: Exception) {
+      // ignore
+    }
+  }
+
+  override fun removeListener(listener: Any?) {
+    try {
+      val playerListener = listener as? Player.Listener
+      playerListener?.let { player.removeListener(it) }
+    } catch (e: Exception) {
+      // ignore
+    }
   }
 }

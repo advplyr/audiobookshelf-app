@@ -30,27 +30,22 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
   ) {
     if (reason == Player.DISCONTINUITY_REASON_SEEK) {
       // If playing set seeking flag
-  Log.d(tag, "onPositionDiscontinuity: oldPosition=${oldPosition.positionMs}/${oldPosition.mediaItemIndex}, newPosition=${newPosition.positionMs}/${newPosition.mediaItemIndex}, isPlaying=${playerNotificationService.playerWrapper.isPlaying()} reason=SEEK")
       playerNotificationService.mediaProgressSyncer.seek()
       lastPauseTime = 0 // When seeking while paused reset the auto-rewind
     } else {
-  Log.d(tag, "onPositionDiscontinuity: oldPosition=${oldPosition.positionMs}/${oldPosition.mediaItemIndex}, newPosition=${newPosition.positionMs}/${newPosition.mediaItemIndex}, isPlaying=${playerNotificationService.playerWrapper.isPlaying()}, reason=$reason")
+      // No-op for other discontinuities
     }
   }
 
   override fun onIsPlayingChanged(isPlaying: Boolean) {
-  Log.d(tag, "onIsPlayingChanged to $isPlaying | ${playerNotificationService.getMediaPlayer()} | playbackState=${playerNotificationService.playerWrapper.getPlaybackState()}")
-
   val player = playerNotificationService.playerWrapper
 
     // Goal of these 2 if statements and the lazyIsPlaying is to ignore this event when it is triggered by a seek
     //  When a seek occurs the player is paused and buffering, then plays again right afterwards.
   if (!isPlaying && player.getPlaybackState() == Player.STATE_BUFFERING) {
-      Log.d(tag, "onIsPlayingChanged: Pause event when buffering is ignored")
       return
     }
     if (lazyIsPlaying == isPlaying) {
-      Log.d(tag, "onIsPlayingChanged: Lazy is playing $lazyIsPlaying is already set to this so ignoring")
       return
     }
 
@@ -60,9 +55,7 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
     DeviceManager.widgetUpdater?.onPlayerChanged(playerNotificationService)
 
     if (isPlaying) {
-      Log.d(tag, "SeekBackTime: Player is playing")
       if (lastPauseTime > 0 && DeviceManager.deviceData.deviceSettings?.disableAutoRewind != true) {
-        Log.d(tag, "SeekBackTime: playing started now set seek back time $lastPauseTime")
         var seekBackTime = calcPauseSeekBackTime()
         if (seekBackTime > 0) {
           // Current chapter is used so that seek back does not go back to the previous chapter
@@ -74,7 +67,6 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
           if (newTime < minSeekBackTime) {
             seekBackTime = currentTime - minSeekBackTime
           }
-          Log.d(tag, "SeekBackTime $seekBackTime")
         }
 
         // TODO: this needs to be reworked so that the audio doesn't start playing before it checks for updated progress
@@ -90,7 +82,6 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
         }
       }
     } else {
-    Log.d(tag, "SeekBackTime: Player not playing set last pause time | playbackState=${player.getPlaybackState()}")
       lastPauseTime = System.currentTimeMillis()
     }
 
@@ -106,30 +97,16 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
         playerNotificationService.mediaProgressSyncer.play(it)
       }
     } else {
-      playerNotificationService.mediaProgressSyncer.pause {
-        Log.d(tag, "Media Progress Syncer paused and synced")
-      }
+      playerNotificationService.mediaProgressSyncer.pause { }
     }
 
     playerNotificationService.clientEventEmitter?.onPlayingUpdate(isPlaying)
   }
 
   override fun onEvents(player: Player, events: Player.Events) {
-    Log.d(tag, "onEvents ${playerNotificationService.getMediaPlayer()} | ${events.size()}")
-
-    if (events.contains(Player.EVENT_POSITION_DISCONTINUITY)) {
-      Log.d(tag, "EVENT_POSITION_DISCONTINUITY")
-    }
-
-    if (events.contains(Player.EVENT_IS_LOADING_CHANGED)) {
-      Log.d(tag, "EVENT_IS_LOADING_CHANGED : " + playerNotificationService.playerWrapper.isLoading())
-    }
-
     if (events.contains(Player.EVENT_PLAYBACK_STATE_CHANGED)) {
-      Log.d(tag, "EVENT_PLAYBACK_STATE_CHANGED MediaPlayer = ${playerNotificationService.getMediaPlayer()}")
 
       if (playerNotificationService.playerWrapper.getPlaybackState() == Player.STATE_READY) {
-        Log.d(tag, "STATE_READY : " + playerNotificationService.playerWrapper.getDuration())
 
         if (lastPauseTime == 0L) {
           lastPauseTime = -1
@@ -137,26 +114,16 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
         playerNotificationService.sendClientMetadata(PlayerState.READY)
       }
       if (playerNotificationService.playerWrapper.getPlaybackState() == Player.STATE_BUFFERING) {
-        Log.d(tag, "STATE_BUFFERING : " + playerNotificationService.playerWrapper.getCurrentPosition())
         playerNotificationService.sendClientMetadata(PlayerState.BUFFERING)
       }
       if (playerNotificationService.playerWrapper.getPlaybackState() == Player.STATE_ENDED) {
-        Log.d(tag, "STATE_ENDED")
         playerNotificationService.sendClientMetadata(PlayerState.ENDED)
 
         playerNotificationService.handlePlaybackEnded()
       }
       if (playerNotificationService.playerWrapper.getPlaybackState() == Player.STATE_IDLE) {
-        Log.d(tag, "STATE_IDLE")
         playerNotificationService.sendClientMetadata(PlayerState.IDLE)
       }
-    }
-
-    if (events.contains(Player.EVENT_MEDIA_METADATA_CHANGED)) {
-      Log.d(tag, "EVENT_MEDIA_METADATA_CHANGED ${playerNotificationService.getMediaPlayer()}")
-    }
-    if (events.contains(Player.EVENT_PLAYLIST_METADATA_CHANGED)) {
-      Log.d(tag, "EVENT_PLAYLIST_METADATA_CHANGED ${playerNotificationService.getMediaPlayer()}")
     }
   }
 

@@ -122,6 +122,14 @@ dependencies {
     implementation "androidx.media3:media3-ui:$media3_version"
     implementation "androidx.media3:media3-cast:$media3_version"
     implementation "androidx.media3:media3-exoplayer-hls:$media3_version"
+  } else {
+    // When the feature flag is OFF, we still need to compile sources that reference
+    // Media3 classes (e.g., Media3Wrapper) even though we won't use them at runtime.
+    // Use compileOnly to satisfy the Kotlin compiler without packaging Media3.
+    compileOnly "androidx.media3:media3-exoplayer:$media3_version"
+    compileOnly "androidx.media3:media3-ui:$media3_version"
+    compileOnly "androidx.media3:media3-cast:$media3_version"
+    compileOnly "androidx.media3:media3-exoplayer-hls:$media3_version"
   }
 
   // Glide for images
