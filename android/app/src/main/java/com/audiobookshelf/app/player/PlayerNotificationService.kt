@@ -99,8 +99,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   lateinit var mediaManager: MediaManager
   lateinit var apiHandler: ApiHandler
 
-  lateinit var mPlayer: ExoPlayer
-  lateinit var currentPlayer: Player
+  private lateinit var mPlayer: ExoPlayer
+  private lateinit var currentPlayer: Player
   var castPlayer: CastPlayer? = null
   lateinit var playerWrapper: PlayerWrapper
 
