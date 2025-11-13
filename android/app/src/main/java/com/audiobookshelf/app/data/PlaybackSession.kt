@@ -16,6 +16,8 @@ import com.audiobookshelf.app.player.*
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 // PlaybackSession is a data model and should not depend on ExoPlayer types.
+import com.google.android.exoplayer2.MediaItem
+import com.google.android.exoplayer2.MediaMetadata
 import com.google.android.gms.cast.MediaInfo
 import com.google.android.gms.cast.MediaQueueItem
 import com.google.android.gms.common.images.WebImage
