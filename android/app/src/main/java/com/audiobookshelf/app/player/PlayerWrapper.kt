@@ -40,4 +40,37 @@ interface PlayerWrapper {
   fun getPlaybackState(): Int
   fun isLoading(): Boolean
   fun getPlaybackSpeed(): Float
+
+  /**
+   * Attach the provided notification manager to the underlying player instance.
+   * Use Any to avoid compile-time coupling in the service; implementations should
+   * cast to the concrete notification/session types they expect.
+   */
+  fun attachNotificationManager(playerNotificationManager: Any?)
+
+  /**
+   * Attach the provided media session connector to the underlying player instance.
+   * Implementations may no-op if they do not support the connector type provided.
+   */
+  fun attachMediaSessionConnector(mediaSessionConnector: Any?)
+
+  /**
+   * Switch the active player used for notification/session presentation. For example
+   * when casting is active the service will pass the cast player here so the
+   * notification/session reflect the cast state. Pass null to restore the wrapper's
+   * underlying player as the active player.
+   */
+  fun setActivePlayerForNotification(activePlayer: Any?)
+
+  /**
+   * Add a player listener to receive playback events. The listener object should be
+   * compatible with the underlying player framework (ExoPlayer v2 or Media3).
+   * Use Any to avoid compile-time coupling; implementations should cast appropriately.
+   */
+  fun addListener(listener: Any?)
+
+  /**
+   * Remove a previously added player listener.
+   */
+  fun removeListener(listener: Any?)
 }

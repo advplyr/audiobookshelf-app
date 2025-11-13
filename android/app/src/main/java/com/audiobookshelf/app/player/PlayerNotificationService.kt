@@ -59,6 +59,7 @@ import kotlinx.coroutines.runBlocking
 const val SLEEP_TIMER_WAKE_UP_EXPIRATION = 120000L // 2m
 const val PLAYER_CAST = "cast-player"
 const val PLAYER_EXO = "exo-player"
+const val PLAYER_MEDIA3 = "media3-exoplayer"
 
 class PlayerNotificationService : MediaBrowserServiceCompat() {
 
@@ -389,7 +390,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
         .setSeekForwardIncrementMs(deviceSettings.jumpForwardTimeMs)
         .build()
     mPlayer.setHandleAudioBecomingNoisy(true)
-    mPlayer.addListener(PlayerListener(this))
+    // Note: Don't add listener directly to mPlayer - will be added to wrapper below
     val audioAttributes: AudioAttributes =
             AudioAttributes.Builder()
                     .setUsage(C.USAGE_MEDIA)
@@ -397,15 +398,22 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                     .build()
     mPlayer.setAudioAttributes(audioAttributes, true)
 
-    // attach player to playerNotificationManager
-    playerNotificationManager.setPlayer(mPlayer)
-
-    mediaSessionConnector.setPlayer(mPlayer)
+  // Note: Do not attach the raw Exo player here. The PlayerWrapper will manage
+  // attaching the correct underlying player instance to the notification and
+  // media session so the service does not need conditional logic.
 
   // Create wrapper around the existing player instance. The factory will
   // return a Media3-backed wrapper when the feature flag is enabled, or an
-  // Exo wrapper otherwise.
+  // Exo wrapper otherwise. The wrapper is responsible for wiring the
+  // notification and media-session to the correct player instance.
   playerWrapper = PlayerWrapperFactory.wrapExistingPlayer(this, mPlayer)
+
+  // Let the wrapper attach our managers to its underlying player.
+  playerWrapper.attachNotificationManager(playerNotificationManager)
+  playerWrapper.attachMediaSessionConnector(mediaSessionConnector)
+
+  // Add our listener through the wrapper so it works with both ExoPlayer v2 and Media3
+  playerWrapper.addListener(PlayerListener(this))
   }
 
   /*
@@ -469,9 +477,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     }
 
     if (playbackSession.mediaPlayer == PLAYER_CAST) {
-      // If cast-player is the first player to be used
-      mediaSessionConnector.setPlayer(castPlayer)
-      playerNotificationManager.setPlayer(castPlayer)
+      // If cast-player is the first player to be used let the wrapper switch
+      // the active player used for notifications/sessions.
+      playerWrapper.setActivePlayerForNotification(castPlayer)
     }
 
     currentPlaybackSession = playbackSession
@@ -492,71 +500,102 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       return
     }
 
-      if (mPlayer == currentPlayer) {
-      val mediaSource: MediaSource
+    if (mPlayer == currentPlayer) {
+      // When Media3 is enabled, playerWrapper contains a different player instance
+      // than mPlayer (which is ExoPlayer v2). We must use the wrapper for all
+      // media operations to ensure we're working with the correct player.
 
-  if (playbackSession.isLocal) {
-        AbsLogger.info("PlayerNotificationService", "preparePlayer: Playing local item ${currentPlaybackSession?.mediaItemId}.")
-        val dataSourceFactory = DefaultDataSource.Factory(ctx)
+      if (playerWrapper is ExoPlayerWrapper) {
+        // ExoPlayerWrapper: Use the existing MediaSource-based approach for ExoPlayer v2
+        val mediaSource: MediaSource
 
-        val extractorsFactory = DefaultExtractorsFactory()
-        if (DeviceManager.deviceData.deviceSettings?.enableMp3IndexSeeking == true) {
-          // @see
-          // https://exoplayer.dev/troubleshooting.html#why-is-seeking-inaccurate-in-some-mp3-files
-          extractorsFactory.setMp3ExtractorFlags(Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING)
+        if (playbackSession.isLocal) {
+          AbsLogger.info("PlayerNotificationService", "preparePlayer: Playing local item ${currentPlaybackSession?.mediaItemId}.")
+          val dataSourceFactory = DefaultDataSource.Factory(ctx)
+
+          val extractorsFactory = DefaultExtractorsFactory()
+          if (DeviceManager.deviceData.deviceSettings?.enableMp3IndexSeeking == true) {
+            extractorsFactory.setMp3ExtractorFlags(Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING)
+          }
+
+          mediaSource =
+            ProgressiveMediaSource.Factory(dataSourceFactory, extractorsFactory)
+              .createMediaSource(exoMediaItems[0])
+        } else if (!playbackSession.isHLS) {
+          AbsLogger.info("PlayerNotificationService", "preparePlayer: Direct playing item ${currentPlaybackSession?.mediaItemId}.")
+          val dataSourceFactory = DefaultHttpDataSource.Factory()
+
+          val extractorsFactory = DefaultExtractorsFactory()
+          if (DeviceManager.deviceData.deviceSettings?.enableMp3IndexSeeking == true) {
+            extractorsFactory.setMp3ExtractorFlags(Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING)
+          }
+
+          dataSourceFactory.setUserAgent(channelId)
+          mediaSource =
+            ProgressiveMediaSource.Factory(dataSourceFactory, extractorsFactory)
+              .createMediaSource(exoMediaItems[0])
+        } else {
+          AbsLogger.info("PlayerNotificationService", "preparePlayer: Playing HLS stream of item ${currentPlaybackSession?.mediaItemId}.")
+          val dataSourceFactory = DefaultHttpDataSource.Factory()
+          dataSourceFactory.setUserAgent(channelId)
+          dataSourceFactory.setDefaultRequestProperties(
+            hashMapOf("Authorization" to "Bearer ${DeviceManager.token}")
+          )
+          mediaSource = HlsMediaSource.Factory(dataSourceFactory).createMediaSource(exoMediaItems[0])
         }
-
-  mediaSource =
-    ProgressiveMediaSource.Factory(dataSourceFactory, extractorsFactory)
-      .createMediaSource(exoMediaItems[0])
-      } else if (!playbackSession.isHLS) {
-        AbsLogger.info("PlayerNotificationService", "preparePlayer: Direct playing item ${currentPlaybackSession?.mediaItemId}.")
-        val dataSourceFactory = DefaultHttpDataSource.Factory()
-
-        val extractorsFactory = DefaultExtractorsFactory()
-        if (DeviceManager.deviceData.deviceSettings?.enableMp3IndexSeeking == true) {
-          // @see
-          // https://exoplayer.dev/troubleshooting.html#why-is-seeking-inaccurate-in-some-mp3-files
-          extractorsFactory.setMp3ExtractorFlags(Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING)
-        }
-
-        dataSourceFactory.setUserAgent(channelId)
-  mediaSource =
-    ProgressiveMediaSource.Factory(dataSourceFactory, extractorsFactory)
-      .createMediaSource(exoMediaItems[0])
-      } else {
-        AbsLogger.info("PlayerNotificationService", "preparePlayer: Playing HLS stream of item ${currentPlaybackSession?.mediaItemId}.")
-        val dataSourceFactory = DefaultHttpDataSource.Factory()
-        dataSourceFactory.setUserAgent(channelId)
-        dataSourceFactory.setDefaultRequestProperties(
-                hashMapOf("Authorization" to "Bearer ${DeviceManager.token}")
-        )
-        mediaSource = HlsMediaSource.Factory(dataSourceFactory).createMediaSource(exoMediaItems[0])
-      }
         mPlayer.setMediaSource(mediaSource)
 
-      // Add remaining media items if multi-track
-      if (mediaItems.size > 1) {
-        // playerWrapper will convert PlayerMediaItem -> native media items internally
-        playerWrapper.addMediaItems(mediaItems.subList(1, mediaItems.size))
-        Log.d(tag, "currentPlayer total media items ${playerWrapper.getMediaItemCount()}")
+        // Add remaining media items if multi-track
+        if (mediaItems.size > 1) {
+          playerWrapper.addMediaItems(mediaItems.subList(1, mediaItems.size))
+          Log.d(tag, "currentPlayer total media items ${playerWrapper.getMediaItemCount()}")
 
-        val currentTrackIndex = playbackSession.getCurrentTrackIndex()
-        val currentTrackTime = playbackSession.getCurrentTrackTimeMs()
-        Log.d(
-                tag,
-                "currentPlayer current track index $currentTrackIndex & current track time $currentTrackTime"
-        )
-        playerWrapper.seekTo(currentTrackIndex, currentTrackTime)
+          val currentTrackIndex = playbackSession.getCurrentTrackIndex()
+          val currentTrackTime = playbackSession.getCurrentTrackTimeMs()
+          Log.d(
+            tag,
+            "currentPlayer current track index $currentTrackIndex & current track time $currentTrackTime"
+          )
+          playerWrapper.seekTo(currentTrackIndex, currentTrackTime)
+        } else {
+          playerWrapper.seekTo(playbackSession.currentTimeMs)
+        }
       } else {
-        playerWrapper.seekTo(playbackSession.currentTimeMs)
+        // Media3Wrapper or other: Use wrapper's setMediaItems which handles
+        // the media setup internally
+        AbsLogger.info("PlayerNotificationService", "preparePlayer: Using wrapper.setMediaItems for ${mediaItems.size} items")
+
+        val currentTrackIndex = if (mediaItems.size > 1) {
+          playbackSession.getCurrentTrackIndex()
+        } else {
+          0
+        }
+
+        val startPosition = if (mediaItems.size > 1) {
+          playbackSession.getCurrentTrackTimeMs()
+        } else {
+          playbackSession.currentTimeMs
+        }
+
+        Log.d(tag, "Media3: Setting ${mediaItems.size} media items, startIndex=$currentTrackIndex, startPos=$startPosition")
+        playerWrapper.setMediaItems(mediaItems, currentTrackIndex, startPosition)
       }
 
       Log.d(
-              tag,
-              "Prepare complete for session ${currentPlaybackSession?.displayTitle} | ${playerWrapper.getMediaItemCount()}"
+        tag,
+        "Prepare complete for session ${currentPlaybackSession?.displayTitle} | ${playerWrapper.getMediaItemCount()}"
       )
       playerWrapper.setPlayWhenReady(playWhenReady)
+      // Proactively emit a playing update when playWhenReady is true so the web UI can
+      // flip from spinner to pause immediately, without waiting for the next listener callback.
+      // This mirrors Exo behavior closely and reduces perceived latency.
+      if (playWhenReady) {
+        try {
+          clientEventEmitter?.onPlayingUpdate(true)
+        } catch (e: Exception) {
+          Log.w(tag, "Early onPlayingUpdate emit failed: ${e.message}")
+        }
+      }
       playerWrapper.setPlaybackSpeed(playbackRateToUse)
 
       playerWrapper.prepare()
@@ -698,7 +737,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
         return
       } else {
         Log.d(tag, "switchToPlayer: Switching to cast player from exo player stop exo player")
-        mPlayer.stop()
+        playerWrapper.stop()
       }
     } else {
       if (currentPlayer == mPlayer) {
@@ -727,14 +766,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     currentPlayer =
             if (useCastPlayer) {
               Log.d(tag, "switchToPlayer: Using Cast Player " + castPlayer?.deviceInfo)
-              mediaSessionConnector.setPlayer(castPlayer)
-              playerNotificationManager.setPlayer(castPlayer)
+              playerWrapper.setActivePlayerForNotification(castPlayer)
               setMediaSessionToCastVolume()
               castPlayer as CastPlayer
             } else {
               Log.d(tag, "switchToPlayer: Using ExoPlayer")
-              mediaSessionConnector.setPlayer(mPlayer)
-              playerNotificationManager.setPlayer(mPlayer)
+              playerWrapper.setActivePlayerForNotification(null)
               setMediaSessionToLocalVolume()
               mPlayer
             }
@@ -1087,7 +1124,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   }
 
   fun getMediaPlayer(): String {
-    return if (currentPlayer == castPlayer) PLAYER_CAST else PLAYER_EXO
+    return if (currentPlayer == castPlayer) {
+      PLAYER_CAST
+    } else {
+      if (BuildConfig.USE_MEDIA3) PLAYER_MEDIA3 else PLAYER_EXO
+    }
   }
 
   @SuppressLint("HardwareIds")
