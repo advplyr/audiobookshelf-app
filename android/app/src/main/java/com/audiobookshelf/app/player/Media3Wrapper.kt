@@ -22,19 +22,16 @@ class Media3Wrapper(private val ctx: Context) : PlayerWrapper {
   // AND forward events to registered ExoPlayer v2 listeners
   private val playerListener = object : Player.Listener {
     override fun onPlaybackStateChanged(playbackState: Int) {
-      
       // Forward to ExoPlayer v2 listeners (state constants are the same)
       exoListeners.forEach { it.onPlaybackStateChanged(playbackState) }
     }
 
     override fun onIsPlayingChanged(isPlaying: Boolean) {
-      
       // Forward to ExoPlayer v2 listeners
       exoListeners.forEach { it.onIsPlayingChanged(isPlaying) }
     }
 
     override fun onIsLoadingChanged(isLoading: Boolean) {
-      
       // Forward to ExoPlayer v2 listeners
       exoListeners.forEach { it.onIsLoadingChanged(isLoading) }
     }
@@ -108,17 +105,14 @@ class Media3Wrapper(private val ctx: Context) : PlayerWrapper {
     try {
       player = ExoPlayer.Builder(ctx).build()
       
-      // Configure audio attributes for media playback (same as ExoPlayer v2 setup)
+      // Configure audio attributes matching ExoPlayer v2 baseline behavior
       val audioAttributes = androidx.media3.common.AudioAttributes.Builder()
         .setUsage(androidx.media3.common.C.USAGE_MEDIA)
         .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_SPEECH)
         .build()
       player?.setAudioAttributes(audioAttributes, true)
-      
-      // Handle audio becoming noisy (e.g., headphones unplugged)
       player?.setHandleAudioBecomingNoisy(true)
       
-      // Add a listener to capture state transitions and errors for debugging
       player?.addListener(playerListener)
     } catch (e: Exception) {
       Log.w(tag, "Failed to construct Media3 ExoPlayer: ${e.message}", e)
