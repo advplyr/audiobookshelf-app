@@ -16,8 +16,7 @@ import com.audiobookshelf.app.player.*
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 // PlaybackSession is a data model and should not depend on ExoPlayer types.
-import com.google.android.exoplayer2.MediaItem
-import com.google.android.exoplayer2.MediaMetadata
+// ExoPlayer types moved to player-side adapter to avoid leaking playback implementation
 import com.google.android.gms.cast.MediaInfo
 import com.google.android.gms.cast.MediaQueueItem
 import com.google.android.gms.common.images.WebImage
@@ -240,47 +239,6 @@ class PlaybackSession(
     }
 
     return metadataBuilder.build()
-  }
-
-  @JsonIgnore
-  fun getExoMediaMetadata(ctx: Context): MediaMetadata {
-    val coverUri = getCoverUri(ctx)
-
-    val metadataBuilder =
-            MediaMetadata.Builder()
-                    .setTitle(displayTitle)
-                    .setDisplayTitle(displayTitle)
-                    .setArtist(displayAuthor)
-                    .setAlbumArtist(displayAuthor)
-                    .setSubtitle(displayAuthor)
-                    .setAlbumTitle(displayAuthor)
-                    .setDescription(displayAuthor)
-                    .setArtworkUri(coverUri)
-                    .setMediaType(MediaMetadata.MEDIA_TYPE_AUDIO_BOOK)
-
-    return metadataBuilder.build()
-  }
-
-  @JsonIgnore
-  fun getMediaItems(ctx: Context): List<MediaItem> {
-    val mediaItems: MutableList<MediaItem> = mutableListOf()
-
-    for (audioTrack in audioTracks) {
-      val mediaMetadata = this.getExoMediaMetadata(ctx)
-      val mediaUri = this.getContentUri(audioTrack)
-      val mimeType = audioTrack.mimeType
-
-      val queueItem = getQueueItem(audioTrack) // Queue item used in exo player CastManager
-      val mediaItem =
-              MediaItem.Builder()
-                      .setUri(mediaUri)
-                      .setTag(queueItem)
-                      .setMediaMetadata(mediaMetadata)
-                      .setMimeType(mimeType)
-                      .build()
-      mediaItems.add(mediaItem)
-    }
-    return mediaItems
   }
 
   @JsonIgnore

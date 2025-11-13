@@ -36,11 +36,11 @@ class Media3Wrapper() : PlayerWrapper {
     Log.w(tag, "Media3Wrapper.seekTo() - not implemented")
   }
 
-  override fun setMediaItems(uris: List<Uri>, startIndex: Int, startPositionMs: Long) {
+  override fun setMediaItems(items: List<com.audiobookshelf.app.player.PlayerMediaItem>, startIndex: Int, startPositionMs: Long) {
     Log.w(tag, "Media3Wrapper.setMediaItems() - not implemented")
   }
 
-  override fun addMediaItems(uris: List<Uri>) {
+  override fun addMediaItems(items: List<com.audiobookshelf.app.player.PlayerMediaItem>) {
     Log.w(tag, "Media3Wrapper.addMediaItems() - not implemented")
   }
 
@@ -62,9 +62,7 @@ class Media3Wrapper() : PlayerWrapper {
     return false
   }
 
-  override fun addExoMediaItems(items: List<com.google.android.exoplayer2.MediaItem>) {
-    Log.w(tag, "Media3Wrapper.addExoMediaItems() - not implemented")
-  }
+  // Exo-specific helpers removed; Media3Wrapper should accept PlayerMediaItem instead.
 
   override fun seekTo(windowIndex: Int, positionMs: Long) {
     Log.w(tag, "Media3Wrapper.seekTo(windowIndex, positionMs) - not implemented")

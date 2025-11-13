@@ -1,7 +1,6 @@
 package com.audiobookshelf.app.player
 
-import android.net.Uri
-import com.google.android.exoplayer2.MediaItem
+import com.audiobookshelf.app.player.PlayerMediaItem
 
 /**
  * Small, focused player abstraction used as a migration seam between ExoPlayer and Media3.
@@ -19,11 +18,8 @@ interface PlayerWrapper {
   fun seekTo(positionMs: Long)
   fun seekTo(windowIndex: Int, positionMs: Long)
 
-  fun setMediaItems(uris: List<Uri>, startIndex: Int = 0, startPositionMs: Long = 0)
-  fun addMediaItems(uris: List<Uri>)
-
-  // ExoPlayer-specific convenience for incremental migration
-  fun addExoMediaItems(items: List<MediaItem>)
+  fun setMediaItems(items: List<PlayerMediaItem>, startIndex: Int = 0, startPositionMs: Long = 0)
+  fun addMediaItems(items: List<PlayerMediaItem>)
 
   fun getCurrentPosition(): Long
   fun getMediaItemCount(): Int

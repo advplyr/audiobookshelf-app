@@ -433,7 +433,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
     val metadata = playbackSession.getMediaMetadataCompat(ctx)
     mediaSession.setMetadata(metadata)
-    val mediaItems = playbackSession.getMediaItems(ctx)
+  val mediaItems = playbackSession.toPlayerMediaItems(ctx)
+    val exoMediaItems = mediaItems.toExoMediaItems()
     val playbackRateToUse = playbackRate ?: initialPlaybackRate ?: 1f
     initialPlaybackRate = playbackRate
 
@@ -476,7 +477,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       if (mPlayer == currentPlayer) {
       val mediaSource: MediaSource
 
-      if (playbackSession.isLocal) {
+  if (playbackSession.isLocal) {
         AbsLogger.info("PlayerNotificationService", "preparePlayer: Playing local item ${currentPlaybackSession?.mediaItemId}.")
         val dataSourceFactory = DefaultDataSource.Factory(ctx)
 
@@ -489,7 +490,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
   mediaSource =
     ProgressiveMediaSource.Factory(dataSourceFactory, extractorsFactory)
-      .createMediaSource(mediaItems[0])
+      .createMediaSource(exoMediaItems[0])
       } else if (!playbackSession.isHLS) {
         AbsLogger.info("PlayerNotificationService", "preparePlayer: Direct playing item ${currentPlaybackSession?.mediaItemId}.")
         val dataSourceFactory = DefaultHttpDataSource.Factory()
@@ -502,9 +503,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
         }
 
         dataSourceFactory.setUserAgent(channelId)
-        mediaSource =
-                ProgressiveMediaSource.Factory(dataSourceFactory, extractorsFactory)
-                        .createMediaSource(mediaItems[0])
+  mediaSource =
+    ProgressiveMediaSource.Factory(dataSourceFactory, extractorsFactory)
+      .createMediaSource(exoMediaItems[0])
       } else {
         AbsLogger.info("PlayerNotificationService", "preparePlayer: Playing HLS stream of item ${currentPlaybackSession?.mediaItemId}.")
         val dataSourceFactory = DefaultHttpDataSource.Factory()
@@ -512,13 +513,14 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
         dataSourceFactory.setDefaultRequestProperties(
                 hashMapOf("Authorization" to "Bearer ${DeviceManager.token}")
         )
-        mediaSource = HlsMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItems[0])
+        mediaSource = HlsMediaSource.Factory(dataSourceFactory).createMediaSource(exoMediaItems[0])
       }
         mPlayer.setMediaSource(mediaSource)
 
       // Add remaining media items if multi-track
       if (mediaItems.size > 1) {
-        playerWrapper.addExoMediaItems(mediaItems.subList(1, mediaItems.size))
+        // playerWrapper will convert PlayerMediaItem -> native media items internally
+        playerWrapper.addMediaItems(mediaItems.subList(1, mediaItems.size))
         Log.d(tag, "currentPlayer total media items ${playerWrapper.getMediaItemCount()}")
 
         val currentTrackIndex = playbackSession.getCurrentTrackIndex()
@@ -540,25 +542,25 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       playerWrapper.setPlaybackSpeed(playbackRateToUse)
 
       playerWrapper.prepare()
-    } else if (castPlayer != null) {
+  } else if (castPlayer != null) {
       val currentTrackIndex = playbackSession.getCurrentTrackIndex()
       val currentTrackTime = playbackSession.getCurrentTrackTimeMs()
       val mediaType = playbackSession.mediaType
       Log.d(tag, "Loading cast player $currentTrackIndex $currentTrackTime $mediaType")
 
       castPlayer?.load(
-              mediaItems,
-              currentTrackIndex,
-              currentTrackTime,
-              playWhenReady,
-              playbackRateToUse,
-              mediaType
+        exoMediaItems,
+        currentTrackIndex,
+        currentTrackTime,
+        playWhenReady,
+        playbackRateToUse,
+        mediaType
       )
     }
   }
 
   private fun setMediaSessionConnectorCustomActions(playbackSession: PlaybackSession) {
-    val mediaItems = playbackSession.getMediaItems(ctx)
+  val mediaItems = playbackSession.toPlayerMediaItems(ctx)
     val customActionProviders =
             mutableListOf(
                     JumpBackwardCustomActionProvider(),
