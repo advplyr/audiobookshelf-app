@@ -1,11 +1,16 @@
 package com.audiobookshelf.app.player
 
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.util.Log
+import android.os.Looper
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.PlaybackException
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.session.MediaSession
 
 /**
  * Media3-backed PlayerWrapper using the androidx.media3 ExoPlayer implementation.
@@ -14,38 +19,27 @@ import androidx.media3.exoplayer.ExoPlayer
 class Media3Wrapper(private val ctx: Context) : PlayerWrapper {
   val tag = "Media3Wrapper"
   private var player: ExoPlayer? = null
-  
-  // Store ExoPlayer v2 listeners that need to receive events
-  private val exoListeners = mutableListOf<com.google.android.exoplayer2.Player.Listener>()
+  private val listeners = mutableSetOf<PlayerEvents>()
+  private var mediaSession: MediaSession? = null
+  private var lastKnownPosition: Long = 0L
 
   // Listener to surface Media3 playback state changes / errors into logcat for debugging
-  // AND forward events to registered ExoPlayer v2 listeners
   private val playerListener = object : Player.Listener {
     override fun onPlaybackStateChanged(playbackState: Int) {
-      // Forward to ExoPlayer v2 listeners (state constants are the same)
-      exoListeners.forEach { it.onPlaybackStateChanged(playbackState) }
+      listeners.forEach { it.onPlaybackStateChanged(playbackState) }
     }
 
     override fun onIsPlayingChanged(isPlaying: Boolean) {
-      // Forward to ExoPlayer v2 listeners
-      exoListeners.forEach { it.onIsPlayingChanged(isPlaying) }
+      listeners.forEach { it.onIsPlayingChanged(isPlaying) }
     }
 
     override fun onIsLoadingChanged(isLoading: Boolean) {
-      // Forward to ExoPlayer v2 listeners
-      exoListeners.forEach { it.onIsLoadingChanged(isLoading) }
+      // No neutral event for isLoading; consumers use onPlaybackStateChanged + wrapper getters
     }
 
     override fun onPlayerError(error: PlaybackException) {
       Log.e(tag, "onPlayerError: ${error.message}", error)
-      
-      // Forward to ExoPlayer v2 listeners - need to convert Media3 exception to ExoPlayer v2 exception
-      val exoError = com.google.android.exoplayer2.PlaybackException(
-        error.message ?: "Unknown error",
-        error.cause,
-        error.errorCode
-      )
-      exoListeners.forEach { it.onPlayerError(exoError) }
+      listeners.forEach { it.onPlayerError(error.message ?: "Unknown error", error.errorCode) }
     }
     
     override fun onPositionDiscontinuity(
@@ -53,53 +47,20 @@ class Media3Wrapper(private val ctx: Context) : PlayerWrapper {
       newPosition: Player.PositionInfo,
       reason: Int
     ) {
-      // Forward to ExoPlayer v2 listeners - need to convert PositionInfo
-      val exoOldPosition = com.google.android.exoplayer2.Player.PositionInfo(
-        oldPosition.windowUid,
-        oldPosition.mediaItemIndex,
-        oldPosition.mediaItem?.let { convertToExoMediaItem(it) },
-        oldPosition.periodUid,
-        oldPosition.periodIndex,
-        oldPosition.positionMs,
-        oldPosition.contentPositionMs,
-        oldPosition.adGroupIndex,
-        oldPosition.adIndexInAdGroup
-      )
-      val exoNewPosition = com.google.android.exoplayer2.Player.PositionInfo(
-        newPosition.windowUid,
-        newPosition.mediaItemIndex,
-        newPosition.mediaItem?.let { convertToExoMediaItem(it) },
-        newPosition.periodUid,
-        newPosition.periodIndex,
-        newPosition.positionMs,
-        newPosition.contentPositionMs,
-        newPosition.adGroupIndex,
-        newPosition.adIndexInAdGroup
-      )
-      exoListeners.forEach { it.onPositionDiscontinuity(exoOldPosition, exoNewPosition, reason) }
+      val isSeek = reason == Player.DISCONTINUITY_REASON_SEEK
+      listeners.forEach { it.onPositionDiscontinuity(isSeek) }
     }
     
     override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
-      // Forward to ExoPlayer v2 listeners
-      val exoMediaItem = mediaItem?.let { convertToExoMediaItem(it) }
-      exoListeners.forEach { it.onMediaItemTransition(exoMediaItem, reason) }
+      // No neutral event required here; consumers can query current item if needed
     }
     
     override fun onPlaybackParametersChanged(playbackParameters: androidx.media3.common.PlaybackParameters) {
-      // Forward to ExoPlayer v2 listeners
-      val exoParams = com.google.android.exoplayer2.PlaybackParameters(playbackParameters.speed, playbackParameters.pitch)
-      exoListeners.forEach { it.onPlaybackParametersChanged(exoParams) }
+      // Expose via wrapper getters (getPlaybackSpeed) rather than event
     }
   }
   
-  // Helper to convert Media3 MediaItem to ExoPlayer v2 MediaItem
-  private fun convertToExoMediaItem(media3Item: androidx.media3.common.MediaItem): com.google.android.exoplayer2.MediaItem {
-    val builder = com.google.android.exoplayer2.MediaItem.Builder()
-      .setUri(media3Item.localConfiguration?.uri ?: android.net.Uri.EMPTY)
-    media3Item.localConfiguration?.tag?.let { builder.setTag(it) }
-    media3Item.localConfiguration?.mimeType?.let { builder.setMimeType(it) }
-    return builder.build()
-  }
+  // Removed v2 conversion helpers; neutral wrapper should not expose v2 types
 
   init {
     try {
@@ -114,9 +75,40 @@ class Media3Wrapper(private val ctx: Context) : PlayerWrapper {
       player?.setHandleAudioBecomingNoisy(true)
       
       player?.addListener(playerListener)
+      
+      // Create MediaSession for Media3 notification support
+      createMediaSession()
     } catch (e: Exception) {
       Log.w(tag, "Failed to construct Media3 ExoPlayer: ${e.message}", e)
       player = null
+    }
+  }
+  
+  private fun createMediaSession() {
+    try {
+      // Build a PendingIntent to relaunch the app if possible; only set if non-null.
+      val launchIntent = ctx.packageManager?.getLaunchIntentForPackage(ctx.packageName)
+      val sessionActivityPendingIntent: PendingIntent? = launchIntent?.let { intent ->
+        PendingIntent.getActivity(
+          ctx,
+          0,
+          intent,
+          PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+      }
+
+      mediaSession = player?.let { p ->
+        val builder = MediaSession.Builder(ctx, p)
+        if (sessionActivityPendingIntent != null) {
+          builder.setSessionActivity(sessionActivityPendingIntent)
+        }
+        builder.build()
+      }
+      
+      Log.d(tag, "Media3 MediaSession created successfully")
+    } catch (e: Exception) {
+      Log.w(tag, "Failed to create MediaSession: ${e.message}", e)
+      mediaSession = null
     }
   }
 
@@ -128,6 +120,8 @@ class Media3Wrapper(private val ctx: Context) : PlayerWrapper {
   override fun release() {
     try {
       player?.removeListener(playerListener)
+      mediaSession?.release()
+      mediaSession = null
       player?.release()
     } catch (e: Exception) {
       Log.w(tag, "release failed: ${e.message}")
@@ -142,6 +136,15 @@ class Media3Wrapper(private val ctx: Context) : PlayerWrapper {
       val b = MediaItem.Builder().setUri(dto.uri)
       dto.tag?.let { b.setTag(it) }
       dto.mimeType?.let { b.setMimeType(it) }
+      
+      // Add metadata for notification display
+      // Note: The service will need to update this with proper title/artist/artwork
+      // This is a placeholder to ensure notifications can display
+      val metadata = MediaMetadata.Builder()
+        .setTitle(dto.tag?.toString() ?: "Audiobook")
+        .build()
+      b.setMediaMetadata(metadata)
+      
       b.build()
     }
     if (player != null) {
@@ -154,13 +157,34 @@ class Media3Wrapper(private val ctx: Context) : PlayerWrapper {
       val b = MediaItem.Builder().setUri(dto.uri)
       dto.tag?.let { b.setTag(it) }
       dto.mimeType?.let { b.setMimeType(it) }
+      
+      // Add metadata for notification display
+      val metadata = MediaMetadata.Builder()
+        .setTitle(dto.tag?.toString() ?: "Audiobook")
+        .build()
+      b.setMediaMetadata(metadata)
+      
       b.build()
     }
     player?.addMediaItems(media3Items)
   }
 
+  // Safe snapshot accessor (any thread). Returns cached value off main.
   override fun getCurrentPosition(): Long {
+    return if (Looper.myLooper() == Looper.getMainLooper()) {
+      lastKnownPosition = player?.currentPosition ?: 0L
+      lastKnownPosition
+    } else {
+      lastKnownPosition
+    }
+  }
+
+  // Live accessor (main thread expected).
+  override fun getCurrentPositionLive(): Long {
     val pos = player?.currentPosition ?: 0L
+    if (Looper.myLooper() == Looper.getMainLooper()) {
+      lastKnownPosition = pos
+    }
     return pos
   }
   
@@ -217,6 +241,9 @@ class Media3Wrapper(private val ctx: Context) : PlayerWrapper {
 
   // Expose underlying player for limited use (e.g., wiring notifications). Prefer not to use widely.
   fun getMedia3Player(): ExoPlayer? = player
+  
+  // Expose MediaSession token for notification integration
+  fun getSessionToken(): androidx.media3.session.SessionToken? = mediaSession?.token
 
 
   // Notification/session attachments
@@ -228,17 +255,13 @@ class Media3Wrapper(private val ctx: Context) : PlayerWrapper {
   private var mediaSessionConnectorRef: Any? = null
 
   override fun attachNotificationManager(playerNotificationManager: Any?) {
+    // Phase 1.5: Media3 uses session-based notifications automatically.
+    // The service should create a Media3 NotificationManager using our MediaSession.
+    // For now, we just log that the legacy notification manager was passed.
+    // The service will need conditional logic to create the appropriate notification type.
+    Log.d(tag, "attachNotificationManager called. Media3 notifications are session-driven.")
+    Log.d(tag, "Service should use DefaultMediaNotificationProvider with our session token.")
     notificationManagerRef = playerNotificationManager
-    
-    // Try to attach our Media3 player to the notification manager via reflection
-    // This handles both ExoPlayer v2 and Media3 notification managers
-    try {
-      val setPlayerMethod = playerNotificationManager?.javaClass?.getMethod("setPlayer", com.google.android.exoplayer2.Player::class.java)
-      setPlayerMethod?.invoke(playerNotificationManager, player)
-    } catch (e: Exception) {
-      Log.w(tag, "attachNotificationManager reflection failed (this is expected if using ExoPlayer v2 notification manager): ${e.message}")
-      // This is OK - notification may not display perfectly but playback should still work
-    }
   }
 
   override fun attachMediaSessionConnector(mediaSessionConnector: Any?) {
@@ -247,41 +270,17 @@ class Media3Wrapper(private val ctx: Context) : PlayerWrapper {
   }
 
   override fun setActivePlayerForNotification(activePlayer: Any?) {
-    try {
-      val playerToSet = if (activePlayer != null) {
-        // Cast player is being set as active
-        activePlayer as? com.google.android.exoplayer2.Player
-      } else {
-        // Switch back to our Media3 player
-        player as? com.google.android.exoplayer2.Player
-      }
-      
-      val setPlayerMethod = notificationManagerRef?.javaClass?.getMethod("setPlayer", com.google.android.exoplayer2.Player::class.java)
-      setPlayerMethod?.invoke(notificationManagerRef, playerToSet)
-    } catch (e: Exception) {
-      Log.w(tag, "setActivePlayerForNotification failed: ${e.message}")
-    }
+    // The service uses ExoPlayer v2 notification APIs; Media3 player cannot be wired to them.
+    // Cast player switching is ExoPlayer v2-based and won't work with Media3 wrapper until
+    // Phase 2 implements Media3-native notification/session management.
+    Log.w(tag, "setActivePlayerForNotification not supported in Media3Wrapper Phase 1. Cast notifications will not work.")
   }
 
-  override fun addListener(listener: Any?) {
-    try {
-      val exoListener = listener as? com.google.android.exoplayer2.Player.Listener
-      if (exoListener != null) {
-        exoListeners.add(exoListener)
-      }
-    } catch (e: Exception) {
-      Log.w(tag, "addListener failed: ${e.message}")
-    }
+  override fun addListener(listener: PlayerEvents) {
+    listeners.add(listener)
   }
 
-  override fun removeListener(listener: Any?) {
-    try {
-      val exoListener = listener as? com.google.android.exoplayer2.Player.Listener
-      if (exoListener != null) {
-        exoListeners.remove(exoListener)
-      }
-    } catch (e: Exception) {
-      Log.w(tag, "removeListener failed: ${e.message}")
-    }
+  override fun removeListener(listener: PlayerEvents) {
+    listeners.remove(listener)
   }
 }

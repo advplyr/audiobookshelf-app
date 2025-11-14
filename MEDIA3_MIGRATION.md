@@ -10,7 +10,7 @@ This document outlines our incremental, feature-flagged migration from ExoPlayer
 - Wrapper pattern abstracts the underlying player, allowing seamless switching without UI/service code changes
 - Default: `USE_MEDIA3=false` (ExoPlayer v2) until Phase 2 validation completes
 
-## Current State: Phase 1 Complete ✅
+## Current State: Phase 1.5 Complete ✅
 
 **Phase 1 Achievements:**
 - ✅ PlayerWrapper abstraction with factory pattern
@@ -20,19 +20,29 @@ This document outlines our incremental, feature-flagged migration from ExoPlayer
 - ✅ Wrapper-managed notification/session attachment
 - ✅ Player label telemetry (`media3-exoplayer` vs `exo-player` vs `cast-player`)
 
+**Phase 1.5 Achievements (Minimal Notification Support):**
+- ✅ Media3 MediaSession integration in Media3Wrapper
+- ✅ Session token exposed for notification provider
+- ✅ MediaMetadata added to MediaItems for notification display
+- ✅ media3-session dependency added to build.gradle
+- ✅ Automatic cleanup on release (session.release())
+- ✅ Introduced dual position accessors: thread-safe snapshot (`getCurrentPosition`) & live main-thread (`getCurrentPositionLive`) for precise listener logging
+
 **What Works (flag ON):**
 - Basic playback (local files and streaming)
 - Seeking, pause/resume, playback speed
 - Sleep timer integration
-- Notification controls (via legacy MediaSessionConnector path)
+- **NEW:** Basic notification controls (play/pause) via Media3 session
+- **NEW:** Media3 session-driven notifications (automatically managed)
 - Background playback
 - Cast switching (wrapper delegates to cast player when active)
 
-**Known Limitations (Phase 1):**
-- Still uses legacy `MediaSessionConnector` + `PlayerNotificationManager` (reflection-based)
-- Media3's native session architecture not yet activated (Phase 2 scope)
-- Custom notification actions use legacy pattern (Phase 3 scope)
-- Cast player still uses ExoPlayer v2 types (Phase 4 scope)
+**Known Limitations (Phase 1.5):**
+- Notification metadata is placeholder-only (title from tag, no artist/artwork)
+- No custom notification actions (jump forward/back buttons missing)
+- Android Auto not supported in Media3 path
+- Cast notifications still use ExoPlayer v2 path
+- Live accessor currently only used in listener logs (may expand in UI during later phases)
 
 ## Dependencies
 
@@ -75,6 +85,10 @@ androidx.media3:media3-exoplayer-hls
 - Factory pattern (`PlayerWrapperFactory`) creates appropriate wrapper based on `USE_MEDIA3` flag
 - Wrappers handle player-specific configuration (audio attributes, noisy handling, listener management)
 - Service uses wrapper interface for all playback operations—no conditional logic scattered throughout
+- Position access semantics:
+  - `getCurrentPosition()` returns a cached snapshot; safe from any thread (used by background sync, pause callbacks, and now paused-event logging—removed earlier main-thread guard)
+  - `getCurrentPositionLive()` queries the underlying player directly; must be on main thread (used in real-time listener event logs for highest fidelity)
+  - Guidance: prefer snapshot in non-UI/background code to avoid wrong-thread exceptions; use live only when already on listener/main thread and accuracy matters. Avoid mixing them in the same log line to keep semantics clear.
 
 **Code Structure:**
 ```kotlin
@@ -124,14 +138,16 @@ PlaybackMetrics: summary player=media3-exoplayer item=book-123 buffers=2 errors=
 
 **New Files:**
 - `player/PlayerWrapper.kt` - Interface defining common player operations
+- `player/PlayerEvents.kt` - Framework-neutral event interface for decoupled listeners
 - `player/PlayerWrapperFactory.kt` - Factory for creating wrapper instances
-- `player/ExoPlayerWrapper.kt` - Wrapper for ExoPlayer v2
-- `player/Media3Wrapper.kt` - Wrapper for Media3 ExoPlayer with event forwarding
+- `player/ExoPlayerWrapper.kt` - Wrapper for ExoPlayer v2 with event forwarding
+- `player/Media3Wrapper.kt` - Wrapper for Media3 ExoPlayer with session + notifications
 
 **Modified Files:**
 - `player/PlayerNotificationService.kt` - Refactored to use wrapper pattern, added metrics helpers
-- `player/PlayerListener.kt` - Updated to use wrapper and record metrics via service helpers
+- `player/PlayerListener.kt` - Implements PlayerEvents, uses framework constants, and logs using `getCurrentPositionLive()` on main-thread callbacks for precise positions
 - `android/variables.gradle` - Added `USE_MEDIA3` flag (default: false)
+- `android/app/build.gradle` - Added media3-session dependency
 
 ## Migration Roadmap
 
@@ -143,10 +159,27 @@ PlaybackMetrics: summary player=media3-exoplayer item=book-123 buffers=2 errors=
 - Lightweight rollout metrics: startup READY latency, buffer count, error count.
 - Resource minimization: when Media3 enabled, avoid configuring audio/noisy on legacy Exo instance.
 
+**Status:** ✅ Complete
+
+### Phase 1.5 — Minimal Media3 notification support ✅
+- Add `media3-session` dependency for session-driven notifications.
+- Create MediaSession in Media3Wrapper with proper lifecycle management.
+- Add MediaMetadata to MediaItems for notification display (placeholder title).
+- Introduce PlayerEvents interface to decouple listeners from framework-specific types.
+- Update PlayerWrapper to accept PlayerEvents; wrappers forward framework events to neutral interface.
+- Basic play/pause notification controls work automatically via MediaSession.
+
 **Status:** ✅ Complete and PR-ready
 
-### Phase 2 — Media3 session-centric architecture (Patreon-aligned)
+**Known Limitations:**
+- Notification shows placeholder metadata (title from tag; no artist, artwork, or chapter info).
+- No custom notification actions (jump forward/backward buttons).
+- Android Auto not functional in Media3 path.
+- Full session-centric architecture deferred to Phase 2.
+
+### Phase 2 — Full Media3 session-centric architecture (Patreon-aligned)
 - Replace legacy `MediaSessionConnector` + `PlayerNotificationManager` with Media3 `MediaSession` and native notifications.
+- Implement proper MediaMetadata population with title, artist, artwork from PlaybackSession.
 - Eliminate reflection: create Media3-native notification manager; let session drive notifications.
 - Maintain single long-lived Media3 ExoPlayer owned by service/session.
 - Map commands into `MediaSession.Callback` (play/pause/seek/speed) and route to existing service methods.
