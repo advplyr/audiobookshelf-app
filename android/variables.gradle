@@ -15,7 +15,7 @@ ext {
     androidx_media_version = '1.7.0'
     exoplayer_version = '2.18.7'
     // Feature flag to enable Media3 dependencies for testing. Set to 'true' to build with Media3.
-    media3_feature_enabled = 'true'
+    media3_feature_enabled = 'false'
     media3_version = '1.5.0'
     glide_version = '4.16.0'
     junit_version = '4.13.2'
