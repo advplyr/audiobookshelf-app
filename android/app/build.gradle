@@ -119,6 +119,7 @@ dependencies {
   def useMedia3 = rootProject.ext.media3_feature_enabled?.toString()?.toLowerCase() == 'true'
   if (useMedia3) {
     implementation "androidx.media3:media3-exoplayer:$media3_version"
+    implementation "androidx.media3:media3-session:$media3_version"
     implementation "androidx.media3:media3-ui:$media3_version"
     implementation "androidx.media3:media3-cast:$media3_version"
     implementation "androidx.media3:media3-exoplayer-hls:$media3_version"
@@ -127,6 +128,7 @@ dependencies {
     // Media3 classes (e.g., Media3Wrapper) even though we won't use them at runtime.
     // Use compileOnly to satisfy the Kotlin compiler without packaging Media3.
     compileOnly "androidx.media3:media3-exoplayer:$media3_version"
+    compileOnly "androidx.media3:media3-session:$media3_version"
     compileOnly "androidx.media3:media3-ui:$media3_version"
     compileOnly "androidx.media3:media3-cast:$media3_version"
     compileOnly "androidx.media3:media3-exoplayer-hls:$media3_version"

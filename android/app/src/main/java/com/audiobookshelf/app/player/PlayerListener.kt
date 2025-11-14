@@ -1,6 +1,7 @@
 package com.audiobookshelf.app.player
 
 import android.util.Log
+import android.os.Looper
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.data.PlayerState
 import com.audiobookshelf.app.device.DeviceManager
@@ -9,7 +10,7 @@ import com.google.android.exoplayer2.Player
 
 //const val PAUSE_LEN_BEFORE_RECHECK = 30000 // 30 seconds
 
-class PlayerListener(var playerNotificationService:PlayerNotificationService) : Player.Listener {
+class PlayerListener(var playerNotificationService:PlayerNotificationService) : Player.Listener, PlayerEvents {
   var tag = "PlayerListener"
 
   companion object {
@@ -17,37 +18,39 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
     var lazyIsPlaying: Boolean = false
   }
 
-  override fun onPlayerError(error: PlaybackException) {
-    val errorMessage = error.message ?: "Unknown Error"
+  // PlayerEvents implementation (neutral)
+  override fun onPlayerError(message: String, errorCode: Int?) {
+    val errorMessage = message.ifBlank { "Unknown Error" }
     Log.e(tag, "onPlayerError $errorMessage")
     // Metrics: count playback errors for this session
     playerNotificationService.metricsRecordError()
     playerNotificationService.handlePlayerPlaybackError(errorMessage) // If was direct playing session, fallback to transcode
   }
 
-  override fun onPositionDiscontinuity(
-    oldPosition: Player.PositionInfo,
-    newPosition: Player.PositionInfo,
-    reason: Int
-  ) {
-    if (reason == Player.DISCONTINUITY_REASON_SEEK) {
+  override fun onPositionDiscontinuity(isSeek: Boolean) {
+    if (isSeek) {
+      val player = playerNotificationService.playerWrapper
+  Log.d(tag, "onPositionDiscontinuity SEEK from index=${player.getCurrentMediaItemIndex()} pos=${player.getCurrentPositionLive()} buffered=${player.getBufferedPosition()} state=${player.getPlaybackState()}")
       // If playing set seeking flag
       playerNotificationService.mediaProgressSyncer.seek()
       lastPauseTime = 0 // When seeking while paused reset the auto-rewind
     } else {
-      // No-op for other discontinuities
+      Log.d(tag, "onPositionDiscontinuity NON-SEEK state=${playerNotificationService.playerWrapper.getPlaybackState()}")
     }
   }
 
   override fun onIsPlayingChanged(isPlaying: Boolean) {
     val player = playerNotificationService.playerWrapper
+  Log.d(tag, "onIsPlayingChanged -> $isPlaying playbackState=${player.getPlaybackState()} pos=${player.getCurrentPositionLive()}")
 
     // Goal of these 2 if statements and the lazyIsPlaying is to ignore this event when it is triggered by a seek
     //  When a seek occurs the player is paused and buffering, then plays again right afterwards.
     if (!isPlaying && player.getPlaybackState() == Player.STATE_BUFFERING) {
+      Log.d(tag, "onIsPlayingChanged: ignoring pause while buffering")
       return
     }
     if (lazyIsPlaying == isPlaying) {
+      Log.d(tag, "onIsPlayingChanged: state already $isPlaying; ignoring duplicate event")
       return
     }
 
@@ -80,10 +83,12 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
 //        }
 
         if (seekBackTime > 0L) {
+          Log.d(tag, "AutoRewind: seeking back $seekBackTime ms after pause length=${System.currentTimeMillis() - lastPauseTime}")
           playerNotificationService.seekBackward(seekBackTime)
         }
       }
     } else {
+      Log.d(tag, "Paused: setting lastPauseTime now (prev=$lastPauseTime)")
       lastPauseTime = System.currentTimeMillis()
     }
 
@@ -96,42 +101,69 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
 
         player.setVolume(1F) // Volume on sleep timer might have decreased this
 
+  Log.d(tag, "MediaProgressSyncer: play session=${it.id} pos=${player.getCurrentPositionLive()}")
         playerNotificationService.mediaProgressSyncer.play(it)
       }
     } else {
-      playerNotificationService.mediaProgressSyncer.pause { }
+      // Always safe: snapshot accessor avoids wrong-thread crashes by returning cached position if off main.
+      playerNotificationService.mediaProgressSyncer.pause {
+        val snapshotPos = player.getCurrentPosition()
+        Log.d(tag, "MediaProgressSyncer: paused at pos=$snapshotPos (snapshot)")
+      }
     }
 
     playerNotificationService.clientEventEmitter?.onPlayingUpdate(isPlaying)
   }
 
+  override fun onPlaybackStateChanged(state: Int) {
+    when (state) {
+  Player.STATE_READY -> Log.d(tag, "State READY duration=${playerNotificationService.playerWrapper.getDuration()} pos=${playerNotificationService.playerWrapper.getCurrentPositionLive()}")
+  Player.STATE_BUFFERING -> Log.d(tag, "State BUFFERING pos=${playerNotificationService.playerWrapper.getCurrentPositionLive()}")
+      Player.STATE_ENDED -> Log.d(tag, "State ENDED")
+      Player.STATE_IDLE -> Log.d(tag, "State IDLE")
+    }
+    if (state == Player.STATE_READY) {
+      // Metrics: record first READY latency once per session
+      playerNotificationService.metricsRecordFirstReadyIfUnset()
+
+      if (lastPauseTime == 0L) {
+        lastPauseTime = -1
+      }
+      playerNotificationService.sendClientMetadata(PlayerState.READY)
+    }
+    if (state == Player.STATE_BUFFERING) {
+      // Metrics: increment buffer count
+      playerNotificationService.metricsRecordBuffer()
+      playerNotificationService.sendClientMetadata(PlayerState.BUFFERING)
+    }
+    if (state == Player.STATE_ENDED) {
+      playerNotificationService.sendClientMetadata(PlayerState.ENDED)
+
+      // Metrics: log simple summary on end
+      playerNotificationService.metricsLogSummary()
+      playerNotificationService.handlePlaybackEnded()
+    }
+    if (state == Player.STATE_IDLE) {
+      playerNotificationService.sendClientMetadata(PlayerState.IDLE)
+    }
+  }
+
+  // ExoPlayer v2 Player.Listener implementation retained for CastPlayer compatibility
+  override fun onPlayerError(error: PlaybackException) {
+    onPlayerError(error.message ?: "Unknown Error", error.errorCode)
+  }
+
+  override fun onPositionDiscontinuity(
+    oldPosition: Player.PositionInfo,
+    newPosition: Player.PositionInfo,
+    reason: Int
+  ) {
+    onPositionDiscontinuity(reason == Player.DISCONTINUITY_REASON_SEEK)
+  }
+
   override fun onEvents(player: Player, events: Player.Events) {
     if (events.contains(Player.EVENT_PLAYBACK_STATE_CHANGED)) {
-
-      if (playerNotificationService.playerWrapper.getPlaybackState() == Player.STATE_READY) {
-        // Metrics: record first READY latency once per session
-        playerNotificationService.metricsRecordFirstReadyIfUnset()
-
-        if (lastPauseTime == 0L) {
-          lastPauseTime = -1
-        }
-        playerNotificationService.sendClientMetadata(PlayerState.READY)
-      }
-      if (playerNotificationService.playerWrapper.getPlaybackState() == Player.STATE_BUFFERING) {
-        // Metrics: increment buffer count
-        playerNotificationService.metricsRecordBuffer()
-        playerNotificationService.sendClientMetadata(PlayerState.BUFFERING)
-      }
-      if (playerNotificationService.playerWrapper.getPlaybackState() == Player.STATE_ENDED) {
-        playerNotificationService.sendClientMetadata(PlayerState.ENDED)
-
-        // Metrics: log simple summary on end
-        playerNotificationService.metricsLogSummary()
-        playerNotificationService.handlePlaybackEnded()
-      }
-      if (playerNotificationService.playerWrapper.getPlaybackState() == Player.STATE_IDLE) {
-        playerNotificationService.sendClientMetadata(PlayerState.IDLE)
-      }
+      onPlaybackStateChanged(player.playbackState)
     }
   }
 

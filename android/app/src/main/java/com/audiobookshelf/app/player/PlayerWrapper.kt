@@ -21,7 +21,17 @@ interface PlayerWrapper {
   fun setMediaItems(items: List<PlayerMediaItem>, startIndex: Int = 0, startPositionMs: Long = 0)
   fun addMediaItems(items: List<PlayerMediaItem>)
 
+  /**
+   * Returns a snapshot of the current playback position. Safe to call from any thread.
+   * Implementations should return a cached value if invoked off the main thread to avoid
+   * wrong-thread IllegalStateException.
+   */
   fun getCurrentPosition(): Long
+  /**
+   * Returns the live position querying the underlying player. Must be called on the main thread.
+   * Off-main callers should prefer getCurrentPosition().
+   */
+  fun getCurrentPositionLive(): Long
   fun getMediaItemCount(): Int
   fun getCurrentMediaItemIndex(): Int
   fun getBufferedPosition(): Long
@@ -63,14 +73,10 @@ interface PlayerWrapper {
   fun setActivePlayerForNotification(activePlayer: Any?)
 
   /**
-   * Add a player listener to receive playback events. The listener object should be
-   * compatible with the underlying player framework (ExoPlayer v2 or Media3).
-   * Use Any to avoid compile-time coupling; implementations should cast appropriately.
+   * Add a player listener to receive playback events in a framework-neutral way.
    */
-  fun addListener(listener: Any?)
+  fun addListener(listener: PlayerEvents)
 
-  /**
-   * Remove a previously added player listener.
-   */
-  fun removeListener(listener: Any?)
+  /** Remove a previously added player listener. */
+  fun removeListener(listener: PlayerEvents)
 }
