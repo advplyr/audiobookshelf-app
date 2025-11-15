@@ -2,6 +2,7 @@ package com.audiobookshelf.app.player
 
 import android.util.Log
 import android.os.Looper
+import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.data.PlayerState
 import com.audiobookshelf.app.device.DeviceManager
@@ -113,6 +114,7 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
     }
 
     playerNotificationService.clientEventEmitter?.onPlayingUpdate(isPlaying)
+    // Media3 notification is now handled by Media3PlaybackService
   }
 
   override fun onPlaybackStateChanged(state: Int) {
@@ -146,6 +148,7 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
     if (state == Player.STATE_IDLE) {
       playerNotificationService.sendClientMetadata(PlayerState.IDLE)
     }
+    // Media3 notification is now handled by Media3PlaybackService
   }
 
   // ExoPlayer v2 Player.Listener implementation retained for CastPlayer compatibility

@@ -114,28 +114,37 @@ class MainActivity : BridgeActivity() {
     super.onPostCreate(savedInstanceState)
     Log.d(tag, "onPostCreate MainActivity")
 
+    // Request POST_NOTIFICATIONS permission on Android 13+
+    if (Build.VERSION.SDK_INT >= 33) {
+      val notifGranted = ActivityCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+      if (!notifGranted) {
+        Log.d(tag, "Requesting POST_NOTIFICATIONS runtime permission")
+        ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 2)
+      }
+    }
+
     mConnection = object : ServiceConnection {
       override fun onServiceDisconnected(name: ComponentName) {
         Log.w(tag, "Service Disconnected $name")
         mBounded = false
       }
-
       override fun onServiceConnected(name: ComponentName, service: IBinder) {
         Log.d(tag, "Service Connected $name")
-
         mBounded = true
         val mLocalBinder = service as PlayerNotificationService.LocalBinder
         foregroundService = mLocalBinder.getService()
-
-        // Let NativeAudio know foreground service is ready and setup event listener
-        pluginCallback()
+        try {
+          pluginCallback()
+        } catch (e: UninitializedPropertyAccessException) {
+          Log.w(tag, "Plugin callback not yet initialized")
+        }
       }
     }
-
     Intent(this, PlayerNotificationService::class.java).also { intent ->
       Log.d(tag, "Binding PlayerNotificationService")
       bindService(intent, mConnection, Context.BIND_AUTO_CREATE)
     }
+
   }
 
   fun isPlayerNotificationServiceInitialized():Boolean {
