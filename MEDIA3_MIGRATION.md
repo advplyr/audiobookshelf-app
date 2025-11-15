@@ -10,7 +10,7 @@ This document outlines our incremental, feature-flagged migration from ExoPlayer
 - Wrapper pattern abstracts the underlying player, allowing seamless switching without UI/service code changes
 - Default: `USE_MEDIA3=false` (ExoPlayer v2) until Phase 2 validation completes
 
-## Current State: Phase 1.5 Complete ✅
+## Current State: Phase 2 In Progress 🔄
 
 **Phase 1 Achievements:**
 - ✅ PlayerWrapper abstraction with factory pattern
@@ -28,22 +28,33 @@ This document outlines our incremental, feature-flagged migration from ExoPlayer
 - ✅ Automatic cleanup on release (session.release())
 - ✅ Introduced dual position accessors: thread-safe snapshot (`getCurrentPosition`) & live main-thread (`getCurrentPositionLive`) for precise listener logging
 
+**Phase 2 Progress (Dedicated Media3 Service):**
+- ✅ Created `Media3PlaybackService` extending `MediaSessionService`
+- ✅ Implemented custom `MediaSession.Callback` with jump commands
+- ✅ Added `MediaNotification.Provider` for native notification building
+- ✅ Registered service in AndroidManifest with proper intent filters
+- ✅ Notification channel creation for Android O+
+- 🔄 Wire service startup logic based on USE_MEDIA3 flag
+- 🔄 Migrate playback session management from legacy service
+- 🔄 Test complete playback lifecycle with new service
+- 🔄 Verify all notification actions render correctly
+
 **What Works (flag ON):**
 - Basic playback (local files and streaming)
 - Seeking, pause/resume, playback speed
 - Sleep timer integration
-- **NEW:** Basic notification controls (play/pause) via Media3 session
-- **NEW:** Media3 session-driven notifications (automatically managed)
-- **NEW:** Cast support via dual-path fallback (switches to v2 notification system when casting)
+- Cast support via dual-path fallback (switches to v2 notification system when casting)
 - Background playback
-- Cast switching (wrapper delegates to v2 system when active)
 
-**Known Limitations (Phase 1.5):**
-- Notification metadata is placeholder-only (title from tag, no artist/artwork)
-- No custom notification actions (jump forward/back buttons missing)
-- Android Auto not supported in Media3 path
+**Current Issue:**
+- Manual notification builder in legacy service shows only play/pause action
+- Need to complete migration to dedicated `Media3PlaybackService` for proper MediaSession integration
+- Custom jump actions require session command handling (implemented but not wired)
+
+**Known Limitations (Phase 2 In Progress):**
+- Android Auto not supported in Media3 path yet
 - **Cast uses v2 notification system** (different notification UI when casting vs local playback)
-- Live accessor currently only used in listener logs (may expand in UI during later phases)
+- Full playback session lifecycle not migrated to new service yet
 
 ## Dependencies
 
@@ -211,32 +222,6 @@ fun initializeMediaSession(service: MediaSessionService, callback: MediaSession.
 }
 ```
 
-**2. Create MediaSessionCallback:**
-```kotlin
-// New file: Media3SessionCallback.kt
-class Media3SessionCallback(
-  private val service: PlayerNotificationService
-) : MediaSession.Callback {
-  
-  override fun onPlay(...): ListenableFuture<SessionResult> {
-    service.play()
-    return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
-  }
-  
-  override fun onPause(...): ListenableFuture<SessionResult> {
-    service.pause()
-    return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
-  }
-  
-  override fun onSeekTo(..., positionMs: Long): ListenableFuture<SessionResult> {
-    service.seekTo(positionMs)
-    return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
-  }
-  
-  // bookmarks, sleep timer, queue → Phase 3 as custom commands
-}
-```
-
 **3. Wrapper Interface Updates:**
 ```kotlin
 interface PlayerWrapper {
@@ -259,9 +244,8 @@ private fun initializeMPlayer() {
   playerWrapper = PlayerWrapperFactory.wrapExistingPlayer(this, mPlayer)
   
   if (PlayerWrapperFactory.useMedia3()) {
-    // Phase 2: Media3 session-driven notifications
-    val sessionCallback = Media3SessionCallback(this)
-    playerWrapper.initializeMediaSession(this, sessionCallback)
+    // Media3 playback now handled by Media3PlaybackService.
+    // Wrapper remains only for Cast fallback and legacy notification hooks.
   } else {
     // Phase 1/Legacy: Old notification manager
     playerWrapper.attachNotificationManager(playerNotificationManager)
@@ -276,7 +260,6 @@ private fun initializeMPlayer() {
 - `PlayerWrapper.kt` - Add MediaSession methods to interface
 - `ExoPlayerWrapper.kt` - Add stub implementations for legacy path
 - `Media3Wrapper.kt` - Implement MediaSession creation and management
-- `Media3SessionCallback.kt` (new) - Implement Media3 session callbacks
 - `PlayerNotificationService.kt` - Conditional initialization based on flag
 
 **Files to Eventually Remove:**

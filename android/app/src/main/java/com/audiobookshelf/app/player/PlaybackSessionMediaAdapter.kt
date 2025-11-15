@@ -23,7 +23,7 @@ fun PlaybackSession.toPlayerMediaItems(ctx: Context): List<PlayerMediaItem> {
             tag = queueItem,
             title = audioTrack.title,
             artworkUri = this.getCoverUri(ctx),
-            startPositionMs = 0L
+                startPositionMs = audioTrack.startOffsetMs
     )
     mediaItems.add(playerMediaItem)
   }

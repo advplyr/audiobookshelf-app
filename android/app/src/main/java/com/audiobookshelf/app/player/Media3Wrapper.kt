@@ -65,10 +65,6 @@ class Media3Wrapper(private val ctx: Context) : PlayerWrapper {
       // Expose via wrapper getters (getPlaybackSpeed) rather than event
     }
   }
-  
-    // Session callback reference - set by service during initialization
-    private var sessionCallback: Media3SessionCallback? = null
-
   init {
     try {
       player = ExoPlayer.Builder(ctx).build()
@@ -124,18 +120,6 @@ class Media3Wrapper(private val ctx: Context) : PlayerWrapper {
       mediaSession = null
     }
   }
-
-    /**
-     * Initialize MediaSession with callback. Must be called after wrapper construction
-     * and before playback starts. This sets up the session to handle playback commands
-     * from notifications, Android Auto, etc.
-     */
-    fun setSessionCallback(callback: Media3SessionCallback) {
-      sessionCallback = callback
-      // MediaSession#setCallback may not be available in this Media3 version.
-      // We'll store the callback for future use when upgrading to MediaLibraryService.
-      Log.d(tag, "Stored MediaSession callback (no-op for current Media3 version)")
-    }
 
     /**
      * Configure seek forward/backward increments for notification buttons.
