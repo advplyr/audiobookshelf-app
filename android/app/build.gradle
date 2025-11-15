@@ -42,14 +42,32 @@ android {
     manifestPlaceholders = [
       "appAuthRedirectScheme": "com.audiobookshelf.app"
     ]
-    // Expose feature flag to runtime via BuildConfig for conditional wiring
-    buildConfigField("boolean", "USE_MEDIA3", "${rootProject.ext.media3_feature_enabled?.toString()?.toLowerCase() == 'true'}")
     aaptOptions {
       // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
       // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
       ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
     }
   }
+  
+  // Flavor dimensions for player backend selection
+  flavorDimensions "player"
+  productFlavors {
+    exov2 {
+      dimension "player"
+      applicationIdSuffix ".exov2"
+      versionNameSuffix "-exov2"
+      // ExoPlayer v2 backend
+      buildConfigField("boolean", "USE_MEDIA3", "false")
+    }
+    media3 {
+      dimension "player"
+      applicationIdSuffix ".media3"
+      versionNameSuffix "-media3"
+      // Media3 backend
+      buildConfigField("boolean", "USE_MEDIA3", "true")
+    }
+  }
+  
   buildTypes {
     debug {
       applicationIdSuffix ".debug"
@@ -115,24 +133,19 @@ dependencies {
     implementation "com.google.android.exoplayer:exoplayer-hls:$exoplayer_version"
   }
 
-  // If Media3 testing is enabled, also add Media3 dependencies alongside ExoPlayer.
-  def useMedia3 = rootProject.ext.media3_feature_enabled?.toString()?.toLowerCase() == 'true'
-  if (useMedia3) {
-    implementation "androidx.media3:media3-exoplayer:$media3_version"
-    implementation "androidx.media3:media3-session:$media3_version"
-    implementation "androidx.media3:media3-ui:$media3_version"
-    implementation "androidx.media3:media3-cast:$media3_version"
-    implementation "androidx.media3:media3-exoplayer-hls:$media3_version"
-  } else {
-    // When the feature flag is OFF, we still need to compile sources that reference
-    // Media3 classes (e.g., Media3Wrapper) even though we won't use them at runtime.
-    // Use compileOnly to satisfy the Kotlin compiler without packaging Media3.
-    compileOnly "androidx.media3:media3-exoplayer:$media3_version"
-    compileOnly "androidx.media3:media3-session:$media3_version"
-    compileOnly "androidx.media3:media3-ui:$media3_version"
-    compileOnly "androidx.media3:media3-cast:$media3_version"
-    compileOnly "androidx.media3:media3-exoplayer-hls:$media3_version"
-  }
+  // Media3 dependencies: keep them packaged for both flavors to avoid NoClassDefFoundError
+  // during class verification on devices that eagerly resolve references. Simpler and safer.
+  exov2Implementation "androidx.media3:media3-exoplayer:$media3_version"
+  exov2Implementation "androidx.media3:media3-session:$media3_version"
+  exov2Implementation "androidx.media3:media3-ui:$media3_version"
+  exov2Implementation "androidx.media3:media3-cast:$media3_version"
+  exov2Implementation "androidx.media3:media3-exoplayer-hls:$media3_version"
+  
+  media3Implementation "androidx.media3:media3-exoplayer:$media3_version"
+  media3Implementation "androidx.media3:media3-session:$media3_version"
+  media3Implementation "androidx.media3:media3-ui:$media3_version"
+  media3Implementation "androidx.media3:media3-cast:$media3_version"
+  media3Implementation "androidx.media3:media3-exoplayer-hls:$media3_version"
 
   // Glide for images
   implementation "com.github.bumptech.glide:glide:$glide_version"

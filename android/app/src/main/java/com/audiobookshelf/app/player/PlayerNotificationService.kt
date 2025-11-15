@@ -25,6 +25,11 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.media.MediaBrowserServiceCompat
 import androidx.media.utils.MediaConstants
+// Media3 notifications via DefaultMediaNotificationProvider can be used with
+import android.content.pm.ServiceInfo
+// MediaSessionService. In this service (MediaBrowserServiceCompat), we avoid
+// relying on internal managers and will retain v2 notifications for cast
+// fallback, plus a foreground placeholder for Media3 path until 2B.
 import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.R
 import com.audiobookshelf.app.data.*
@@ -94,6 +99,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   private lateinit var ctx: Context
   private lateinit var mediaSessionConnector: MediaSessionConnector
   private lateinit var playerNotificationManager: PlayerNotificationManager
+  // Media3 notification provider manager removed to avoid internal API usage
   lateinit var mediaSession: MediaSessionCompat
   private lateinit var transportControls: MediaControllerCompat.TransportControls
 
@@ -214,6 +220,27 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     return channelId
   }
 
+  private fun startForegroundWithPlaceholder() {
+    // Create a placeholder notification to satisfy Android's foreground service requirement
+    // The PlayerNotificationManager will replace this with the actual media notification
+    val notification = NotificationCompat.Builder(this, channelId)
+      .setContentTitle("Audiobookshelf")
+      .setContentText("Loading...")
+      .setSmallIcon(R.drawable.icon_monochrome)
+      .setPriority(NotificationCompat.PRIORITY_LOW)
+      .setOngoing(true)
+      .build()
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      startForeground(notificationId, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+    } else {
+      startForeground(notificationId, notification)
+    }
+
+    PlayerNotificationListener.isForegroundService = true
+    Log.d(tag, "Started foreground service with placeholder notification")
+  }
+
   // detach player
   override fun onDestroy() {
     try {
@@ -299,7 +326,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     mediaSession =
             MediaSessionCompat(this, tag).apply {
               setSessionActivity(sessionActivityPendingIntent)
-              isActive = true
+              // Only activate legacy session when not using Media3.
+              isActive = !BuildConfig.USE_MEDIA3
             }
 
     val mediaController = MediaControllerCompat(ctx, mediaSession.sessionToken)
@@ -307,26 +335,28 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     // This is for Media Browser
     sessionToken = mediaSession.sessionToken
 
-    val builder = PlayerNotificationManager.Builder(ctx, notificationId, channelId)
+    if (!BuildConfig.USE_MEDIA3) {
+      val builder = PlayerNotificationManager.Builder(ctx, notificationId, channelId)
 
-    builder.setMediaDescriptionAdapter(AbMediaDescriptionAdapter(mediaController, this))
-    builder.setNotificationListener(PlayerNotificationListener(this))
+      builder.setMediaDescriptionAdapter(AbMediaDescriptionAdapter(mediaController, this))
+      builder.setNotificationListener(PlayerNotificationListener(this))
 
-    playerNotificationManager = builder.build()
-    playerNotificationManager.setMediaSessionToken(mediaSession.sessionToken)
-    playerNotificationManager.setUsePlayPauseActions(true)
-    playerNotificationManager.setUseNextAction(false)
-    playerNotificationManager.setUsePreviousAction(false)
-    playerNotificationManager.setUseChronometer(false)
-    playerNotificationManager.setUseStopAction(false)
-    playerNotificationManager.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-    playerNotificationManager.setPriority(NotificationCompat.PRIORITY_MAX)
-    playerNotificationManager.setUseFastForwardActionInCompactView(true)
-    playerNotificationManager.setUseRewindActionInCompactView(true)
-    playerNotificationManager.setSmallIcon(R.drawable.icon_monochrome)
+      playerNotificationManager = builder.build()
+      playerNotificationManager.setMediaSessionToken(mediaSession.sessionToken)
+      playerNotificationManager.setUsePlayPauseActions(true)
+      playerNotificationManager.setUseNextAction(false)
+      playerNotificationManager.setUsePreviousAction(false)
+      playerNotificationManager.setUseChronometer(false)
+      playerNotificationManager.setUseStopAction(false)
+      playerNotificationManager.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+      playerNotificationManager.setPriority(NotificationCompat.PRIORITY_MAX)
+      playerNotificationManager.setUseFastForwardActionInCompactView(true)
+      playerNotificationManager.setUseRewindActionInCompactView(true)
+      playerNotificationManager.setSmallIcon(R.drawable.icon_monochrome)
 
-    // Unknown action
-    playerNotificationManager.setBadgeIconType(NotificationCompat.BADGE_ICON_LARGE)
+      // Unknown action
+      playerNotificationManager.setBadgeIconType(NotificationCompat.BADGE_ICON_LARGE)
+    }
 
     transportControls = mediaController.transportControls
 
@@ -404,6 +434,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
     initializeMPlayer()
     currentPlayer = mPlayer
+
+    // Call startForeground immediately to prevent ANR when service is started with startForegroundService
+    // The PlayerNotificationManager will update the notification when media is loaded
+    startForegroundWithPlaceholder()
   }
 
   private fun initializeMPlayer() {
@@ -446,9 +480,41 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   // notification and media-session to the correct player instance.
   playerWrapper = PlayerWrapperFactory.wrapExistingPlayer(this, mPlayer)
 
-  // Let the wrapper attach our managers to its underlying player.
-  playerWrapper.attachNotificationManager(playerNotificationManager)
-  playerWrapper.attachMediaSessionConnector(mediaSessionConnector)
+    // Configure wrapper based on player type
+    if (playerWrapper is Media3Wrapper) {
+      // Media3 path: Set up session callback and seek increments
+      val media3Wrapper = playerWrapper as Media3Wrapper
+      val sessionCallback = Media3SessionCallback(this)
+      media3Wrapper.setSessionCallback(sessionCallback)
+      media3Wrapper.setSeekIncrements(
+        deviceSettings.jumpBackwardsTimeMs,
+        deviceSettings.jumpForwardTimeMs
+      )
+      Log.d(tag, "Media3 session callback and seek increments configured")
+    
+      // IMPORTANT: Create v2 notification manager for Cast fallback
+      // When Media3 is enabled, we don't have a v2 manager from onCreate()
+      // But we need one for Cast, so create it here and attach to the Media3 wrapper
+      val v2Builder = PlayerNotificationManager.Builder(ctx, notificationId, channelId)
+      v2Builder.setMediaDescriptionAdapter(AbMediaDescriptionAdapter(MediaControllerCompat(ctx, mediaSession.sessionToken), this))
+      v2Builder.setNotificationListener(PlayerNotificationListener(this))
+      playerNotificationManager = v2Builder.build()
+      playerNotificationManager.setMediaSessionToken(mediaSession.sessionToken)
+      playerNotificationManager.setSmallIcon(R.drawable.icon_monochrome)
+      
+      // Also set player on v2 manager for Media3 local playback notifications
+      // This gives us notification controls while we wait for Phase 2B
+      playerNotificationManager.setPlayer(mPlayer)
+      
+      media3Wrapper.attachNotificationManager(playerNotificationManager)
+      media3Wrapper.attachMediaSessionConnector(mediaSessionConnector)
+      
+      Log.d(tag, "Media3 v2 notification manager created for Cast fallback and temp controls")
+    } else {
+      // ExoPlayer v2 path: Attach notification managers directly
+      playerWrapper.attachNotificationManager(playerNotificationManager)
+      playerWrapper.attachMediaSessionConnector(mediaSessionConnector)
+    }
   
   // Add our listener through the wrapper so it works with both ExoPlayer v2 and Media3
   playerWrapper.addListener(PlayerListener(this))
@@ -624,6 +690,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
         Log.d(tag, "Media3: Setting ${mediaItems.size} media items, startIndex=$currentTrackIndex, startPos=$startPosition")
         playerWrapper.setMediaItems(mediaItems, currentTrackIndex, startPosition)
       }
+
+        // Update MediaMetadata for Media3 notifications
+        if (playerWrapper is Media3Wrapper) {
+          (playerWrapper as Media3Wrapper).updateMediaMetadata(playbackSession)
+        }
 
       Log.d(
         tag,
@@ -815,6 +886,14 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
             } else {
               Log.d(tag, "switchToPlayer: Using ExoPlayer")
               playerWrapper.setActivePlayerForNotification(null)
+              
+              // For Media3Wrapper, manually restore v2 player to notification manager
+              if (playerWrapper is Media3Wrapper) {
+                playerNotificationManager.setPlayer(mPlayer)
+                mediaSessionConnector.setPlayer(mPlayer)
+                Log.d(tag, "Restored mPlayer to v2 notification manager after Cast exit")
+              }
+              
               mPlayer
             }
 
@@ -822,12 +901,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
     currentPlaybackSession?.let {
       Log.d(tag, "switchToPlayer: Starting new playback session ${it.displayTitle}")
-      if (wasPlaying) { // media is paused when switching players
-        clientEventEmitter?.onPlayingUpdate(false)
-      }
-
-      // TODO: Start a new playback session here instead of using the existing
-      preparePlayer(it, false, null)
+      
+      // Prepare player with restored state, and resume if was playing
+      preparePlayer(it, wasPlaying, null)
+      
+      // Force UI resync: Emit current playing state after prepare (casting may not auto-fire)
+      clientEventEmitter?.onPlayingUpdate(playerWrapper.isPlaying())
     }
   }
 
