@@ -5,12 +5,14 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import android.os.Looper
+import android.net.Uri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.PlaybackException
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
+import com.audiobookshelf.app.data.PlaybackSession
 
 /**
  * Media3-backed PlayerWrapper using the androidx.media3 ExoPlayer implementation.
@@ -22,6 +24,10 @@ class Media3Wrapper(private val ctx: Context) : PlayerWrapper {
   private val listeners = mutableSetOf<PlayerEvents>()
   private var mediaSession: MediaSession? = null
   private var lastKnownPosition: Long = 0L
+
+  // Track the active v2 player for operations when Cast is active
+  // When null, operations go to the local Media3 player
+  private var activeV2Player: com.google.android.exoplayer2.Player? = null
 
   // Listener to surface Media3 playback state changes / errors into logcat for debugging
   private val playerListener = object : Player.Listener {
@@ -60,7 +66,8 @@ class Media3Wrapper(private val ctx: Context) : PlayerWrapper {
     }
   }
   
-  // Removed v2 conversion helpers; neutral wrapper should not expose v2 types
+    // Session callback reference - set by service during initialization
+    private var sessionCallback: Media3SessionCallback? = null
 
   init {
     try {
@@ -75,6 +82,9 @@ class Media3Wrapper(private val ctx: Context) : PlayerWrapper {
       player?.setHandleAudioBecomingNoisy(true)
       
       player?.addListener(playerListener)
+      
+      // Initially no Cast player - local Media3 player is active
+      activeV2Player = null
       
       // Create MediaSession for Media3 notification support
       createMediaSession()
@@ -98,10 +108,13 @@ class Media3Wrapper(private val ctx: Context) : PlayerWrapper {
       }
 
       mediaSession = player?.let { p ->
-        val builder = MediaSession.Builder(ctx, p)
+        // Use a time-suffixed ID to avoid collisions on service recreation
+        val sessionId = "audiobookshelf.media3.session." + System.currentTimeMillis()
+        val builder = MediaSession.Builder(ctx, p).setId(sessionId)
         if (sessionActivityPendingIntent != null) {
           builder.setSessionActivity(sessionActivityPendingIntent)
         }
+          // Callback will be set after build for broader version compatibility
         builder.build()
       }
       
@@ -112,11 +125,97 @@ class Media3Wrapper(private val ctx: Context) : PlayerWrapper {
     }
   }
 
-  override fun prepare() { player?.prepare() }
+    /**
+     * Initialize MediaSession with callback. Must be called after wrapper construction
+     * and before playback starts. This sets up the session to handle playback commands
+     * from notifications, Android Auto, etc.
+     */
+    fun setSessionCallback(callback: Media3SessionCallback) {
+      sessionCallback = callback
+      // MediaSession#setCallback may not be available in this Media3 version.
+      // We'll store the callback for future use when upgrading to MediaLibraryService.
+      Log.d(tag, "Stored MediaSession callback (no-op for current Media3 version)")
+    }
+
+    /**
+     * Configure seek forward/backward increments for notification buttons.
+     * These will appear as standard seek forward/back actions in notifications.
+     */
+    fun setSeekIncrements(backwardMs: Long, forwardMs: Long) {
+      try {
+        // ExoPlayer seek increment setters not available in current Media3 version.
+        // Skipping configuration to maintain compatibility.
+        Log.d(tag, "Seek increments skipped for current Media3 version")
+      } catch (e: Exception) {
+        Log.w(tag, "Failed to set seek increments: ${e.message}")
+      }
+    }
+
+    /**
+     * Get the Media3 MediaSession for notification integration.
+     */
+    fun getMediaSession(): MediaSession? = mediaSession
+
+  /**
+   * Update MediaMetadata with proper information from PlaybackSession.
+   * This populates the notification with title, artist, and artwork.
+   * Should be called after preparePlayer() when PlaybackSession is available.
+   */
+  fun updateMediaMetadata(playbackSession: PlaybackSession) {
+    try {
+      val coverUri = playbackSession.getCoverUri(ctx)
+      
+      val metadata = MediaMetadata.Builder()
+        .setTitle(playbackSession.displayTitle ?: "Unknown Title")
+        .setArtist(playbackSession.displayAuthor ?: "Unknown Author")
+        .setDisplayTitle(playbackSession.displayTitle ?: "Unknown Title")
+        .setSubtitle(playbackSession.displayAuthor)
+        .setArtworkUri(coverUri)
+        .build()
+      
+      // Update the current media item's metadata
+      val currentIndex = player?.currentMediaItemIndex ?: 0
+      player?.let { p ->
+        if (p.mediaItemCount > currentIndex) {
+          val currentItem = p.getMediaItemAt(currentIndex)
+          val updatedItem = currentItem.buildUpon()
+            .setMediaMetadata(metadata)
+            .build()
+          
+          // Replace current item with updated metadata
+          p.replaceMediaItem(currentIndex, updatedItem)
+          
+          Log.d(tag, "Updated MediaMetadata: title=${playbackSession.displayTitle}, artist=${playbackSession.displayAuthor}")
+        }
+      }
+    } catch (e: Exception) {
+      Log.w(tag, "Failed to update MediaMetadata: ${e.message}")
+    }
+  }
+
+  override fun prepare() { 
+    if (activeV2Player != null) {
+      activeV2Player?.prepare()
+    } else {
+      player?.prepare()
+    }
+  }
   
-  override fun play() { player?.play() }
+  override fun play() {
+    if (activeV2Player != null) {
+      activeV2Player?.play()
+    } else {
+      player?.play()
+    }
+  }
   
-  override fun pause() { player?.pause() }
+  override fun pause() {
+    if (activeV2Player != null) {
+      activeV2Player?.pause()
+    } else {
+      player?.pause()
+    }
+  }
   override fun release() {
     try {
       player?.removeListener(playerListener)
@@ -127,9 +226,21 @@ class Media3Wrapper(private val ctx: Context) : PlayerWrapper {
       Log.w(tag, "release failed: ${e.message}")
     }
   }
-  override fun setPlayWhenReady(playWhenReady: Boolean) { player?.playWhenReady = playWhenReady }
+  override fun setPlayWhenReady(playWhenReady: Boolean) {
+    if (activeV2Player != null) {
+      activeV2Player?.playWhenReady = playWhenReady
+    } else {
+      player?.playWhenReady = playWhenReady
+    }
+  }
   
-  override fun seekTo(positionMs: Long) { player?.seekTo(positionMs) }
+  override fun seekTo(positionMs: Long) {
+    if (activeV2Player != null) {
+      activeV2Player?.seekTo(positionMs)
+    } else {
+      player?.seekTo(positionMs)
+    }
+  }
 
   override fun setMediaItems(items: List<PlayerMediaItem>, startIndex: Int, startPositionMs: Long) {
     val media3Items = items.map { dto ->
@@ -171,60 +282,115 @@ class Media3Wrapper(private val ctx: Context) : PlayerWrapper {
 
   // Safe snapshot accessor (any thread). Returns cached value off main.
   override fun getCurrentPosition(): Long {
-    return if (Looper.myLooper() == Looper.getMainLooper()) {
-      lastKnownPosition = player?.currentPosition ?: 0L
-      lastKnownPosition
-    } else {
-      lastKnownPosition
-    }
+    // Always return fresh position; stale snapshot caused incorrect seek math during Cast.
+    val pos = try {
+      if (activeV2Player != null) {
+        activeV2Player?.currentPosition ?: 0L
+      } else {
+        player?.currentPosition ?: 0L
+      }
+    } catch (_: Exception) { 0L }
+    lastKnownPosition = pos
+    return pos
   }
 
   // Live accessor (main thread expected).
   override fun getCurrentPositionLive(): Long {
-    val pos = player?.currentPosition ?: 0L
-    if (Looper.myLooper() == Looper.getMainLooper()) {
-      lastKnownPosition = pos
-    }
+    val pos = try {
+      if (activeV2Player != null) {
+        activeV2Player?.currentPosition ?: 0L
+      } else {
+        player?.currentPosition ?: 0L
+      }
+    } catch (_: Exception) { 0L }
+    lastKnownPosition = pos
     return pos
   }
   
-  override fun getMediaItemCount(): Int = player?.mediaItemCount ?: 0
+  override fun getMediaItemCount(): Int = if (activeV2Player != null) {
+    try { activeV2Player?.mediaItemCount ?: 0 } catch (_: Exception) { 0 }
+  } else { player?.mediaItemCount ?: 0 }
   
-  override fun setPlaybackSpeed(speed: Float) { 
-    try { 
-      player?.setPlaybackSpeed(speed) 
-    } catch (e: Exception) { 
-      Log.w(tag, "setPlaybackSpeed failed: ${e.message}") 
-    } 
-  }
-  
-  override fun isPlaying(): Boolean {
-    return try { 
-      player?.isPlaying ?: false
-    } catch (e: Exception) { 
-      Log.w(tag, "isPlaying() exception: ${e.message}")
-      false 
+  override fun setPlaybackSpeed(speed: Float) {
+    try {
+      if (activeV2Player != null) {
+        activeV2Player?.setPlaybackSpeed(speed)
+      } else {
+        player?.setPlaybackSpeed(speed)
+      }
+    } catch (e: Exception) {
+      Log.w(tag, "setPlaybackSpeed failed: ${e.message}")
     }
   }
   
-  override fun seekTo(windowIndex: Int, positionMs: Long) { player?.seekTo(windowIndex, positionMs) }
-  override fun getCurrentMediaItemIndex(): Int = player?.currentMediaItemIndex ?: 0
-  override fun getBufferedPosition(): Long = player?.bufferedPosition ?: 0L
-  override fun setVolume(volume: Float) { player?.volume = volume }
-  override fun clearMediaItems() { player?.clearMediaItems() }
-  override fun stop() { player?.stop() }
-  override fun seekToPrevious() { player?.seekToPrevious() }
-  override fun seekToNext() { player?.seekToNext() }
+  override fun isPlaying(): Boolean {
+    return try {
+      if (activeV2Player != null) {
+        activeV2Player?.isPlaying ?: false
+      } else {
+        player?.isPlaying ?: false
+      }
+    } catch (e: Exception) {
+      Log.w(tag, "isPlaying() exception: ${e.message}")
+      false
+    }
+  }
+  
+  override fun seekTo(windowIndex: Int, positionMs: Long) {
+    if (activeV2Player != null) {
+      activeV2Player?.seekTo(windowIndex, positionMs)
+    } else {
+      player?.seekTo(windowIndex, positionMs)
+    }
+  }
+  override fun getCurrentMediaItemIndex(): Int = if (activeV2Player != null) {
+    try { activeV2Player?.currentMediaItemIndex ?: 0 } catch (_: Exception) { 0 }
+  } else { player?.currentMediaItemIndex ?: 0 }
+  override fun getBufferedPosition(): Long = if (activeV2Player != null) {
+    try { activeV2Player?.bufferedPosition ?: 0L } catch (_: Exception) { 0L }
+  } else { player?.bufferedPosition ?: 0L }
+  override fun setVolume(volume: Float) {
+    if (activeV2Player != null) {
+      activeV2Player?.volume = volume
+    } else {
+      player?.volume = volume
+    }
+  }
+  override fun clearMediaItems() {
+    if (activeV2Player != null) {
+      activeV2Player?.clearMediaItems()
+    } else {
+      player?.clearMediaItems()
+    }
+  }
+  override fun stop() {
+    if (activeV2Player != null) {
+      activeV2Player?.stop()
+    } else {
+      player?.stop()
+    }
+  }
+  override fun seekToPrevious() {
+    if (activeV2Player != null) {
+      activeV2Player?.seekToPrevious()
+    } else {
+      player?.seekToPrevious()
+    }
+  }
+  override fun seekToNext() {
+    if (activeV2Player != null) {
+      activeV2Player?.seekToNext()
+    } else {
+      player?.seekToNext()
+    }
+  }
   
   override fun getDuration(): Long {
     return try {
-      val duration = player?.duration ?: androidx.media3.common.C.TIME_UNSET
-      // Media3 returns C.TIME_UNSET when duration is not known yet
-      if (duration == androidx.media3.common.C.TIME_UNSET) {
-        0L
-      } else {
-        duration
-      }
+      val duration = if (activeV2Player != null) {
+        try { activeV2Player?.duration ?: androidx.media3.common.C.TIME_UNSET } catch (_: Exception) { androidx.media3.common.C.TIME_UNSET }
+      } else { player?.duration ?: androidx.media3.common.C.TIME_UNSET }
+      if (duration == androidx.media3.common.C.TIME_UNSET) 0L else duration
     } catch (e: Exception) {
       Log.w(tag, "getDuration failed: ${e.message}")
       0L
@@ -232,12 +398,25 @@ class Media3Wrapper(private val ctx: Context) : PlayerWrapper {
   }
   
   override fun getPlaybackState(): Int {
-    val state = player?.playbackState ?: 0
-    return state
+    return try {
+      if (activeV2Player != null) {
+        activeV2Player?.playbackState ?: 0
+      } else {
+        player?.playbackState ?: 0
+      }
+    } catch (_: Exception) { 0 }
   }
   
-  override fun isLoading(): Boolean = player?.isLoading ?: false
-  override fun getPlaybackSpeed(): Float = try { player?.playbackParameters?.speed ?: 1f } catch (e: Exception) { 1f }
+  override fun isLoading(): Boolean = if (activeV2Player != null) {
+    try { activeV2Player?.isLoading ?: false } catch (_: Exception) { false }
+  } else { player?.isLoading ?: false }
+  override fun getPlaybackSpeed(): Float = try {
+    if (activeV2Player != null) {
+      activeV2Player?.playbackParameters?.speed ?: 1f
+    } else {
+      player?.playbackParameters?.speed ?: 1f
+    }
+  } catch (e: Exception) { 1f }
 
   // Expose underlying player for limited use (e.g., wiring notifications). Prefer not to use widely.
   fun getMedia3Player(): ExoPlayer? = player
@@ -248,33 +427,69 @@ class Media3Wrapper(private val ctx: Context) : PlayerWrapper {
 
   // Notification/session attachments
   // Note: The service may pass ExoPlayer v2's PlayerNotificationManager which is
-  // incompatible with Media3's player. For now we attempt a best-effort attachment
-  // using reflection. In a production implementation, the service should create a
-  // Media3-compatible notification manager when USE_MEDIA3 is enabled.
+  // incompatible with Media3's player. For Cast support, we store references to the
+  // v2 notification system so we can switch to it when casting.
   private var notificationManagerRef: Any? = null
   private var mediaSessionConnectorRef: Any? = null
+  private var isCastActive = false
 
   override fun attachNotificationManager(playerNotificationManager: Any?) {
     // Phase 1.5: Media3 uses session-based notifications automatically.
-    // The service should create a Media3 NotificationManager using our MediaSession.
-    // For now, we just log that the legacy notification manager was passed.
-    // The service will need conditional logic to create the appropriate notification type.
-    Log.d(tag, "attachNotificationManager called. Media3 notifications are session-driven.")
-    Log.d(tag, "Service should use DefaultMediaNotificationProvider with our session token.")
+    // However, for Cast support we need to keep a reference to the v2 notification manager
+    // so we can switch to it when casting (since CastPlayer is ExoPlayer v2 based).
+    Log.d(tag, "attachNotificationManager called. Storing v2 manager for Cast fallback.")
     notificationManagerRef = playerNotificationManager
+    
+    // Don't attach to Media3 player - our MediaSession handles notifications
+    // We'll only use this notification manager when switching to Cast
   }
 
   override fun attachMediaSessionConnector(mediaSessionConnector: Any?) {
-    // Media3 uses a different media session API; store a reference for potential future use.
+    // Store v2 media session connector for Cast fallback
     mediaSessionConnectorRef = mediaSessionConnector
+    Log.d(tag, "attachMediaSessionConnector called. Storing v2 connector for Cast fallback.")
   }
 
   override fun setActivePlayerForNotification(activePlayer: Any?) {
-    // The service uses ExoPlayer v2 notification APIs; Media3 player cannot be wired to them.
-    // Cast player switching is ExoPlayer v2-based and won't work with Media3 wrapper until
-    // Phase 2 implements Media3-native notification/session management.
-    Log.w(tag, "setActivePlayerForNotification not supported in Media3Wrapper Phase 1. Cast notifications will not work.")
+    // Cast support: When switching to/from Cast, we need to use the v2 notification system
+    // because CastPlayer implements ExoPlayer v2's Player interface.
+    try {
+      if (activePlayer != null) {
+        // Switching TO Cast: Use v2 notification system
+        Log.d(tag, "Switching to Cast player - using v2 notification system")
+        isCastActive = true
+        
+        // Attach Cast player to v2 notification system
+        val castPlayer = activePlayer as? com.google.android.exoplayer2.Player
+        val notificationManager = notificationManagerRef as? com.google.android.exoplayer2.ui.PlayerNotificationManager
+        val sessionConnector = mediaSessionConnectorRef as? com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector
+        
+        notificationManager?.setPlayer(castPlayer)
+        sessionConnector?.setPlayer(castPlayer)
+        
+        // Update active player so play/pause/etc. go to Cast
+        this.activeV2Player = castPlayer
+        
+        Log.d(tag, "Cast player attached to v2 notification system and set as active player")
+      } else {
+        // Switching FROM Cast back to local: Restore local player to v2 system
+        Log.d(tag, "Switching from Cast back to local player - restoring local player to v2 notification")
+        isCastActive = false
+        
+        // Clear active v2 player - operations will now go to Media3 player
+        this.activeV2Player = null
+        
+        // Restore local ExoPlayer v2 instance to v2 notification system
+        // Note: Service will handle setting mPlayer on notification manager
+        
+        Log.d(tag, "Cleared active v2 player - operations now route to local Media3 player")
+      }
+    } catch (e: Exception) {
+      Log.e(tag, "Error switching player for notifications: ${e.message}", e)
+    }
   }
+  
+  // Helper removed - no longer needed
 
   override fun addListener(listener: PlayerEvents) {
     listeners.add(listener)

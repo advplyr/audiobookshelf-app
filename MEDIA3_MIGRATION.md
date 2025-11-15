@@ -34,14 +34,15 @@ This document outlines our incremental, feature-flagged migration from ExoPlayer
 - Sleep timer integration
 - **NEW:** Basic notification controls (play/pause) via Media3 session
 - **NEW:** Media3 session-driven notifications (automatically managed)
+- **NEW:** Cast support via dual-path fallback (switches to v2 notification system when casting)
 - Background playback
-- Cast switching (wrapper delegates to cast player when active)
+- Cast switching (wrapper delegates to v2 system when active)
 
 **Known Limitations (Phase 1.5):**
 - Notification metadata is placeholder-only (title from tag, no artist/artwork)
 - No custom notification actions (jump forward/back buttons missing)
 - Android Auto not supported in Media3 path
-- Cast notifications still use ExoPlayer v2 path
+- **Cast uses v2 notification system** (different notification UI when casting vs local playback)
 - Live accessor currently only used in listener logs (may expand in UI during later phases)
 
 ## Dependencies
@@ -325,10 +326,28 @@ private fun initializeMPlayer() {
 - Custom actions: bookmarks, sleep timer, queue management
 
 ### Phase 4 — Re-enable Chromecast with `media3-cast`
-- Update `CastPlayer` and `CastManager` to remove legacy Exo types
-- Align with `androidx.media3.cast`
+**Current Status: Cast works via dual-path fallback in Phase 1.5**
+
+- Cast functionality preserved using dual-path approach:
+  - When casting: switches to ExoPlayer v2 notification system
+  - When local: uses Media3 MediaSession notifications
+  - User sees different notification UI depending on cast state
+- ✅ Existing `CastPlayer` (ExoPlayer v2 based) works without changes
+- ✅ Cast switching functional with Media3 enabled
+
+**Phase 4 Goals (Full Media3 Cast Migration):**
+- Migrate to Media3's `androidx.media3.cast.CastPlayer`
+- Replace custom `CastPlayer` implementation (~1000 lines)
+- Update `CastManager`, `CastTimeline`, `CastTimelineTracker` to use Media3 APIs
+- Consistent Media3 MediaSession notifications for both local and cast
+- Align with `androidx.media3.cast` API patterns
 - Ensure Play Services versions aligned
-- Validate queue/timeline sync with `CastTimeline` utils
+- Validate queue/timeline sync with Media3 `CastTimeline` utilities
+
+**Migration Strategy:**
+- Current dual-path approach allows Cast to work immediately while planning full migration
+- Full migration can be done incrementally in a later phase
+- No user-facing functionality lost during transition
 
 ### Phase 5 — Regression, testability, and polish
 - Validate: local + streaming, HLS, seek, notifications, background playback, headset/noisy handling
