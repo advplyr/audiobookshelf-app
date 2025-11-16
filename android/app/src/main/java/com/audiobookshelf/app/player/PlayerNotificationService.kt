@@ -56,8 +56,10 @@ import com.google.android.exoplayer2.source.ProgressiveMediaSource
 import com.google.android.exoplayer2.source.hls.HlsMediaSource
 import com.google.android.exoplayer2.ui.PlayerNotificationManager
 import com.google.android.exoplayer2.upstream.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import java.util.*
-import kotlin.concurrent.schedule
 import kotlinx.coroutines.runBlocking
 
 const val SLEEP_TIMER_WAKE_UP_EXPIRATION = 120000L // 2m
@@ -66,6 +68,8 @@ const val PLAYER_EXO = "exo-player"
 const val PLAYER_MEDIA3 = "media3-exoplayer"
 
 class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetryHost, SleepTimerHost {
+
+  private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
   companion object {
     var isStarted = false
@@ -284,7 +288,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     castPlayer?.release()
     mediaSession.release()
     mediaProgressSyncer.reset()
-    sleepTimerShakeController?.destroy()
+    sleepTimerShakeController?.release()
     sleepTimerShakeController = null
 
     super.onDestroy()
@@ -326,7 +330,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     apiHandler = ApiHandler(ctx)
 
     // Initialize sleep timer
-    sleepTimerManager = SleepTimerManager(this)
+    sleepTimerManager = SleepTimerManager(this, serviceScope)
 
     // Initialize Media Progress Syncer
     mediaProgressSyncer = MediaProgressSyncer(this, apiHandler)
@@ -517,6 +521,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
         deviceSettings.jumpForwardTimeMs
       )
       Log.d(tag, "Media3 seek increments configured")
+
 
       // IMPORTANT: Create v2 notification manager for Cast fallback
       // When Media3 is enabled, we don't have a v2 manager from onCreate()
@@ -2308,7 +2313,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
   private fun initSensor() {
     sleepTimerShakeController = SleepTimerShakeController(
       this,
-      SLEEP_TIMER_WAKE_UP_EXPIRATION
+      SLEEP_TIMER_WAKE_UP_EXPIRATION,
+      serviceScope
     ) {
       Log.d(tag, "PHONE SHAKE!")
       (externalSleepTimerManager ?: sleepTimerManager).handleShake()

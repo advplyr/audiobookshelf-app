@@ -2,10 +2,13 @@ package com.audiobookshelf.app.player
 
 import android.content.Context
 import android.media.AudioManager
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+
 
 /**
  * ForwardingPlayer wrapper that keeps skip commands exposed even when the session hosts
@@ -19,139 +22,132 @@ class SkipCommandForwardingPlayer(
   basePlayer: ExoPlayer,
   private val appContext: Context
 ) : ForwardingPlayer(basePlayer) {
-  private val tag = "SkipFwdPlayer"
+
+  companion object {
+    private const val TAG = "SkipFwdPlayer"
+  }
+
   private val audioManager: AudioManager = appContext.getSystemService(AudioManager::class.java)
-  // When true, map NEXT/PREV commands to seekForward/seekBack instead of track changes
-  var preferSeekOverSkip: Boolean = false
+
+  /** When true, map NEXT/PREV commands to seekForward/seekBack instead of track changes. */
+  var mapSkipToSeek: Boolean = false
 
   override fun getAvailableCommands(): Player.Commands {
     val builder = super.getAvailableCommands().buildUpon()
+      .add(Player.COMMAND_SEEK_BACK)
+      .add(Player.COMMAND_SEEK_FORWARD)
+      .add(Player.COMMAND_GET_DEVICE_VOLUME)
+      .add(Player.COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS)
+      .add(Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS)
 
-    builder.add(Player.COMMAND_SEEK_BACK)
-    builder.add(Player.COMMAND_SEEK_FORWARD)
-
-    if (!preferSeekOverSkip) {
-      builder.add(Player.COMMAND_SEEK_TO_NEXT)
-      builder.add(Player.COMMAND_SEEK_TO_PREVIOUS)
-      builder.add(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
-      builder.add(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
+    if (!mapSkipToSeek) {
+      builder
+        .add(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
+        .add(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
     }
-
-    builder.add(Player.COMMAND_GET_DEVICE_VOLUME)
-    builder.add(Player.COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS)
-    builder.add(Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS)
 
     return builder.build()
   }
 
-
-  // Skip/seek fallbacks
+  // region ===== Skip/Seek Fallbacks ==========================================================
   override fun seekBack() {
     val currentPos = currentPosition
     val increment = seekBackIncrement
-    Log.d(tag, "seekBack called - current: ${currentPos}ms, increment: ${increment}ms, target: ${currentPos - increment}ms")
+    Log.d(TAG, "seekBack called - current: ${currentPos}ms, increment: ${increment}ms, target: ${currentPos - increment}ms")
     super.seekBack()
   }
 
   override fun seekForward() {
     val currentPos = currentPosition
     val increment = seekForwardIncrement
-    Log.d(tag, "seekForward called - current: ${currentPos}ms, increment: ${increment}ms, target: ${currentPos + increment}ms")
+    Log.d(TAG, "seekForward called - current: ${currentPos}ms, increment: ${increment}ms, target: ${currentPos + increment}ms")
     super.seekForward()
   }
 
   override fun hasNextMediaItem(): Boolean {
-    // Report "has next" so controllers (e.g., Wear) enable the Next button
-    return if (preferSeekOverSkip) true else super.hasNextMediaItem()
+    // Report "has next" so controllers (e.g., Wear) enable the Next button.
+    return if (mapSkipToSeek) true else super.hasNextMediaItem()
   }
 
   override fun hasPreviousMediaItem(): Boolean {
-    // Report "has previous" so controllers enable the Previous button
-    return if (preferSeekOverSkip) true else super.hasPreviousMediaItem()
+    // Report "has previous" so controllers enable the Previous button.
+    return if (mapSkipToSeek) true else super.hasPreviousMediaItem()
   }
 
-  override fun seekToNextMediaItem() {
-    if (preferSeekOverSkip) {
-      Log.d(tag, "seekToNextMediaItem -> mapped to seekForward() due to preferSeekOverSkip")
+  override fun seekToNextMediaItem() = handleNext { super.seekToNextMediaItem() }
+
+  override fun seekToNext() = handleNext { super.seekToNext() }
+
+  override fun seekToPreviousMediaItem() = handlePrevious { super.seekToPreviousMediaItem() }
+
+  override fun seekToPrevious() = handlePrevious { super.seekToPrevious() }
+
+  /**
+   * Handles a "next" command, either by seeking forward or skipping to the next track.
+   * @param skipToNextAction The action to perform if a track skip is appropriate.
+   */
+  private fun handleNext(skipToNextAction: () -> Unit) {
+    if (mapSkipToSeek) {
+      Log.d(TAG, "Next command -> mapped to seekForward() due to mapSkipToSeek")
       seekForward()
     } else if (super.hasNextMediaItem()) {
-      Log.d(tag, "seekToNextMediaItem -> has next, performing track skip")
-      super.seekToNextMediaItem()
+      Log.d(TAG, "Next command -> has next, performing track skip")
+      skipToNextAction()
     } else {
-      Log.d(tag, "seekToNextMediaItem -> no next, falling back to seekForward()")
-      // Use our override so we log and use configured increment
+      Log.d(TAG, "Next command -> no next, falling back to seekForward()")
       seekForward()
     }
   }
 
-  override fun seekToNext() {
-    if (preferSeekOverSkip) {
-      Log.d(tag, "seekToNext -> mapped to seekForward() due to preferSeekOverSkip")
-      seekForward()
-    } else if (super.hasNextMediaItem()) {
-      Log.d(tag, "seekToNext -> has next, performing track skip")
-      super.seekToNext()
-    } else {
-      Log.d(tag, "seekToNext -> no next, falling back to seekForward()")
-      seekForward()
-    }
-  }
-
-  override fun seekToPreviousMediaItem() {
-    if (preferSeekOverSkip) {
-      Log.d(tag, "seekToPreviousMediaItem -> mapped to seekBack() due to preferSeekOverSkip")
+  /**
+   * Handles a "previous" command, either by seeking backward or skipping to the previous track.
+   * @param skipToPreviousAction The action to perform if a track skip is appropriate.
+   */
+  private fun handlePrevious(skipToPreviousAction: () -> Unit) {
+    if (mapSkipToSeek) {
+      Log.d(TAG, "Previous command -> mapped to seekBack() due to mapSkipToSeek")
       seekBack()
     } else if (super.hasPreviousMediaItem()) {
-      Log.d(tag, "seekToPreviousMediaItem -> has previous, performing track skip")
-      super.seekToPreviousMediaItem()
+      Log.d(TAG, "Previous command -> has previous, performing track skip")
+      skipToPreviousAction()
     } else {
-      Log.d(tag, "seekToPreviousMediaItem -> no previous, falling back to seekBack()")
+      Log.d(TAG, "Previous command -> no previous, falling back to seekBack()")
       seekBack()
     }
   }
+  // endregion
 
-  override fun seekToPrevious() {
-    if (preferSeekOverSkip) {
-      Log.d(tag, "seekToPrevious -> mapped to seekBack() due to preferSeekOverSkip")
-      seekBack()
-    } else if (super.hasPreviousMediaItem()) {
-      Log.d(tag, "seekToPrevious -> has previous, performing track skip")
-      super.seekToPrevious()
-    } else {
-      Log.d(tag, "seekToPrevious -> no previous, falling back to seekBack()")
-      seekBack()
-    }
-  }
+  // region ===== Device Volume Bridge ========================================================
+  private fun getMaxVolume(): Int = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
 
-  // Device volume bridge
-  private fun maxVol(): Int = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
   override fun getDeviceVolume(): Int = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-  override fun isDeviceMuted(): Boolean = getDeviceVolume() == 0
+
+  @RequiresApi(Build.VERSION_CODES.M)
+  override fun isDeviceMuted(): Boolean {
+    return audioManager.isStreamMute(AudioManager.STREAM_MUSIC)
+  }
+
   override fun setDeviceVolume(volume: Int) {
-    val clamped = volume.coerceIn(0, maxVol())
+    val clamped = volume.coerceIn(0, getMaxVolume())
+    Log.d(TAG, "setDeviceVolume -> $clamped")
     audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, clamped, 0)
-    Log.d(tag, "setDeviceVolume -> $clamped")
   }
+
   override fun increaseDeviceVolume() {
-    val before = getDeviceVolume()
-    val v = (before + 1).coerceAtMost(maxVol())
-    setDeviceVolume(v)
-    Log.d(tag, "increaseDeviceVolume $before -> $v")
+    Log.d(TAG, "increaseDeviceVolume")
+    audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_RAISE, 0)
   }
+
   override fun decreaseDeviceVolume() {
-    val before = getDeviceVolume()
-    val v = (before - 1).coerceAtLeast(0)
-    setDeviceVolume(v)
-    Log.d(tag, "decreaseDeviceVolume $before -> $v")
+    Log.d(TAG, "decreaseDeviceVolume")
+    audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_LOWER, 0)
   }
+
+  @RequiresApi(Build.VERSION_CODES.M)
   override fun setDeviceMuted(muted: Boolean) {
-    if (muted) {
-      setDeviceVolume(0)
-    } else if (isDeviceMuted()) {
-      // Restore to a reasonable level (33% of max) if unmuting from zero
-      val restore = (maxVol() / 3).coerceAtLeast(1)
-      setDeviceVolume(restore)
-    }
-    Log.d(tag, "setDeviceMuted -> $muted")
+    Log.d(TAG, "setDeviceMuted -> $muted")
+    val direction = if (muted) AudioManager.ADJUST_MUTE else AudioManager.ADJUST_UNMUTE
+    audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, 0)
   }
+  // endregion
 }

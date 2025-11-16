@@ -22,6 +22,7 @@ import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.data.PlaybackMetadata
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.data.PlayerState
+import com.audiobookshelf.app.player.Media3PlaybackService.Companion.SleepTimer
 import com.google.common.util.concurrent.FutureCallback
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
@@ -50,11 +51,11 @@ class PlaybackController(private val context: Context) {
   private var mediaController: MediaController? = null
   private var activePlaybackSession: PlaybackSession? = null
 
-  private val setSleepTimerCommand = SessionCommand(Media3PlaybackService.CUSTOM_COMMAND_SET_SLEEP_TIMER, Bundle.EMPTY)
-  private val cancelSleepTimerCommand = SessionCommand(Media3PlaybackService.CUSTOM_COMMAND_CANCEL_SLEEP_TIMER, Bundle.EMPTY)
-  private val adjustSleepTimerCommand = SessionCommand(Media3PlaybackService.CUSTOM_COMMAND_ADJUST_SLEEP_TIMER, Bundle.EMPTY)
-  private val getSleepTimerTimeCommand = SessionCommand(Media3PlaybackService.CUSTOM_COMMAND_GET_SLEEP_TIMER_TIME, Bundle.EMPTY)
-  private val checkAutoSleepTimerCommand = SessionCommand(Media3PlaybackService.CUSTOM_COMMAND_CHECK_AUTO_SLEEP_TIMER, Bundle.EMPTY)
+  private val setSleepTimerCommand = SessionCommand(SleepTimer.ACTION_SET, Bundle.EMPTY)
+  private val cancelSleepTimerCommand = SessionCommand(SleepTimer.ACTION_CANCEL, Bundle.EMPTY)
+  private val adjustSleepTimerCommand = SessionCommand(SleepTimer.ACTION_ADJUST, Bundle.EMPTY)
+  private val getSleepTimerTimeCommand = SessionCommand(SleepTimer.ACTION_GET_TIME, Bundle.EMPTY)
+  private val checkAutoSleepTimerCommand = SessionCommand(SleepTimer.ACTION_CHECK_AUTO, Bundle.EMPTY)
 
   var listener: Listener? = null
   private val progressUpdateIntervalMs = 1000L
@@ -291,9 +292,9 @@ class PlaybackController(private val context: Context) {
 
   fun setSleepTimer(timeMs: Long, isChapterTime: Boolean, playbackSessionId: String?, onResult: (Boolean) -> Unit) {
     val args = Bundle().apply {
-      putLong(Media3PlaybackService.EXTRA_SLEEP_TIMER_TIME_MS, timeMs)
-      putBoolean(Media3PlaybackService.EXTRA_SLEEP_TIMER_IS_CHAPTER, isChapterTime)
-      playbackSessionId?.let { putString(Media3PlaybackService.EXTRA_SLEEP_TIMER_SESSION_ID, it) }
+      putLong(SleepTimer.EXTRA_TIME_MS, timeMs)
+      putBoolean(SleepTimer.EXTRA_IS_CHAPTER, isChapterTime)
+      playbackSessionId?.let { putString(SleepTimer.EXTRA_SESSION_ID, it) }
     }
     sendCommand(setSleepTimerCommand, args) { result ->
       onResult(result.resultCode == SessionResult.RESULT_SUCCESS)
@@ -303,15 +304,15 @@ class PlaybackController(private val context: Context) {
   fun getSleepTimerTime(onResult: (Long) -> Unit) {
     sendCommand(getSleepTimerTimeCommand, Bundle()) { result ->
       val extras = result.extras ?: Bundle.EMPTY
-      onResult(extras.getLong(Media3PlaybackService.EXTRA_SLEEP_TIMER_TIME_MS, 0L))
+      onResult(extras.getLong(SleepTimer.EXTRA_TIME_MS, 0L))
     }
   }
 
   fun increaseSleepTimer(amountMs: Long) {
     if (amountMs <= 0L) return
     val args = Bundle().apply {
-      putLong(Media3PlaybackService.EXTRA_SLEEP_TIMER_ADJUST_DELTA, amountMs)
-      putBoolean(Media3PlaybackService.EXTRA_SLEEP_TIMER_ADJUST_INCREASE, true)
+      putLong(SleepTimer.EXTRA_ADJUST_DELTA, amountMs)
+      putBoolean(SleepTimer.EXTRA_ADJUST_INCREASE, true)
     }
     sendCommand(adjustSleepTimerCommand, args, null)
   }
@@ -319,8 +320,8 @@ class PlaybackController(private val context: Context) {
   fun decreaseSleepTimer(amountMs: Long) {
     if (amountMs <= 0L) return
     val args = Bundle().apply {
-      putLong(Media3PlaybackService.EXTRA_SLEEP_TIMER_ADJUST_DELTA, amountMs)
-      putBoolean(Media3PlaybackService.EXTRA_SLEEP_TIMER_ADJUST_INCREASE, false)
+      putLong(SleepTimer.EXTRA_ADJUST_DELTA, amountMs)
+      putBoolean(SleepTimer.EXTRA_ADJUST_INCREASE, false)
     }
     sendCommand(adjustSleepTimerCommand, args, null)
   }
