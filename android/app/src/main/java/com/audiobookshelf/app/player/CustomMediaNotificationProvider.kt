@@ -23,7 +23,7 @@ class CustomMediaNotificationProvider(
   notificationId: Int
 ) : DefaultMediaNotificationProvider(
   context,
-  { notificationId },
+  { _: MediaSession -> notificationId },
   channelId,
   channelNameResId
 ) {
@@ -40,61 +40,82 @@ class CustomMediaNotificationProvider(
     builder: NotificationCompat.Builder,
     actionFactory: MediaNotification.ActionFactory
   ): IntArray {
-    val seekBack = mediaButtons.firstOrNull { it.playerCommand == Player.COMMAND_SEEK_BACK }
-    val playPause = mediaButtons.firstOrNull { it.playerCommand == Player.COMMAND_PLAY_PAUSE }
-    val seekForward = mediaButtons.firstOrNull { it.playerCommand == Player.COMMAND_SEEK_FORWARD }
-
-    if (seekBack == null || playPause == null || seekForward == null) {
-      return super.addNotificationActions(mediaSession, mediaButtons, builder, actionFactory)
-    }
-
-    val prioritized = ImmutableList.builder<CommandButton>().apply {
-      add(seekBack)
-      add(playPause)
-      add(seekForward)
-      mediaButtons.forEach { button ->
-        if (button !== seekBack && button !== playPause && button !== seekForward) {
-          add(button)
-        }
+    // Log incoming mediaButtons for debugging which commands the provider received
+    val btnSummary = mediaButtons.joinToString(", ") { btn ->
+      val kind = if (btn.sessionCommand != null) "session" else "player"
+      val cmd = when (btn.playerCommand) {
+        Player.COMMAND_SEEK_BACK -> "SEEK_BACK"
+        Player.COMMAND_SEEK_FORWARD -> "SEEK_FORWARD"
+        Player.COMMAND_PLAY_PAUSE -> "PLAY_PAUSE"
+        Player.COMMAND_SEEK_TO_NEXT -> "SEEK_TO_NEXT"
+        Player.COMMAND_SEEK_TO_PREVIOUS -> "SEEK_TO_PREVIOUS"
+        else -> btn.playerCommand.toString()
       }
-    }.build()
+      "$kind:$cmd"
+    }
+    android.util.Log.d("Media3Notif", "addNotificationActions mediaButtons=[$btnSummary]")
+
+    val playPause = mediaButtons.firstOrNull { it.playerCommand == Player.COMMAND_PLAY_PAUSE }
+    // Always create explicit SEEK_BACK/SEEK_FORWARD actions to avoid surfaces substituting prev/next
+    val backAction = actionFactory.createMediaAction(
+      mediaSession,
+      IconCompat.createWithResource(appContext, R.drawable.exo_icon_rewind),
+      "Back 10s",
+      Player.COMMAND_SEEK_BACK
+    )
+    val forwardAction = actionFactory.createMediaAction(
+      mediaSession,
+      IconCompat.createWithResource(appContext, R.drawable.exo_icon_fastforward),
+      "Forward 30s",
+      Player.COMMAND_SEEK_FORWARD
+    )
 
     var actionIndex = 0
     val compact = intArrayOf(-1, -1, -1)
 
-    prioritized.forEach { button ->
-      val action = when {
-        button.sessionCommand != null -> actionFactory.createCustomActionFromCustomCommandButton(mediaSession, button)
-        else -> {
-          // Use the button's iconResId which contains either the custom icon or fallback from icon constant
-          // The CommandButton.iconResId field is automatically populated from either:
-          // 1. setCustomIconResId() - if explicitly set
-          // 2. The icon constant via getIconResIdForIconConstant() - as fallback
-          val iconRes = if (button.iconResId != 0) button.iconResId else when (button.playerCommand) {
-            Player.COMMAND_SEEK_BACK -> R.drawable.exo_icon_rewind
-            Player.COMMAND_SEEK_FORWARD -> R.drawable.exo_icon_fastforward
-            else -> R.drawable.exo_icon_rewind // Fallback (should never reach here)
-          }
+    android.util.Log.d("Media3Notif", "Creating forced SEEK actions + play/pause")
+
+    // Back
+    builder.addAction(backAction)
+    compact[0] = actionIndex
+    actionIndex += 1
+
+    // Play/Pause
+    if (playPause != null) {
+      val pp = actionFactory.createMediaAction(
+        mediaSession,
+        IconCompat.createWithResource(appContext, playPause.iconResId),
+        playPause.displayName,
+        playPause.playerCommand
+      )
+      builder.addAction(pp)
+      compact[1] = actionIndex
+      actionIndex += 1
+    }
+
+    // Forward
+    builder.addAction(forwardAction)
+    compact[2] = actionIndex
+    actionIndex += 1
+
+    // Append remaining custom/session actions (e.g., speed), skipping duplicates
+    mediaButtons.forEach { button ->
+      val isDup = button.playerCommand == Player.COMMAND_SEEK_BACK ||
+                  button.playerCommand == Player.COMMAND_SEEK_FORWARD ||
+                  button.playerCommand == Player.COMMAND_PLAY_PAUSE
+      if (!isDup) {
+        val action = if (button.sessionCommand != null) {
+          actionFactory.createCustomActionFromCustomCommandButton(mediaSession, button)
+        } else {
           actionFactory.createMediaAction(
             mediaSession,
-            IconCompat.createWithResource(appContext, iconRes),
+            IconCompat.createWithResource(appContext, if (button.iconResId != 0) button.iconResId else R.drawable.icon_monochrome),
             button.displayName,
             button.playerCommand
           )
         }
+        builder.addAction(action)
       }
-
-      builder.addAction(action)
-
-      if (compact[0] == -1 && button.playerCommand == Player.COMMAND_SEEK_BACK) {
-        compact[0] = actionIndex
-      } else if (compact[1] == -1 && button.playerCommand == Player.COMMAND_PLAY_PAUSE) {
-        compact[1] = actionIndex
-      } else if (compact[2] == -1 && button.playerCommand == Player.COMMAND_SEEK_FORWARD) {
-        compact[2] = actionIndex
-      }
-
-      actionIndex += 1
     }
 
     for (i in compact.indices) {
