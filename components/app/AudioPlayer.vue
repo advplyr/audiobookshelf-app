@@ -99,7 +99,7 @@
       </div>
     </div>
 
-    <modals-chapters-modal v-model="showChapterModal" :current-chapter="currentChapter" :chapters="chapters" :playback-rate="currentPlaybackRate" :use-chapter-duration="playerSettings.useChapterDuration" @select="selectChapter" />
+    <modals-chapters-modal v-model="showChapterModal" :current-chapter="currentChapter" :chapters="chapters" :playback-rate="currentPlaybackRate" @select="selectChapter" />
     <modals-dialog v-model="showMoreMenuDialog" :items="menuItems" width="80vw" @action="clickMenuAction" />
   </div>
 </template>
@@ -146,7 +146,6 @@ export default {
         useChapterTrack: false,
         useTotalTrack: true,
         scaleElapsedTimeBySpeed: true,
-        useChapterDuration: false,
         lockUi: false
       },
       isLoading: false,
@@ -206,11 +205,6 @@ export default {
             text: this.$strings.LabelScaleElapsedTimeBySpeed,
             value: 'scale_elapsed_time',
             icon: this.playerSettings.scaleElapsedTimeBySpeed ? 'check_box' : 'check_box_outline_blank'
-          },
-          {
-            text: this.$strings.LabelUseChapterDuration,
-            value: 'use_chapter_duration',
-            icon: this.playerSettings.useChapterDuration ? 'check_box' : 'check_box_outline_blank'
           },
           {
             text: this.playerSettings.lockUi ? this.$strings.LabelUnlockPlayer : this.$strings.LabelLockPlayer,
@@ -738,9 +732,6 @@ export default {
           this.playerSettings.scaleElapsedTimeBySpeed = !this.playerSettings.scaleElapsedTimeBySpeed
           this.updateTimestamp()
           this.savePlayerSettings()
-        }  else if (action === 'use_chapter_duration') {
-          this.playerSettings.useChapterDuration = !this.playerSettings.useChapterDuration
-          this.savePlayerSettings()
         } else if (action === 'lock') {
           this.playerSettings.lockUi = !this.playerSettings.lockUi
           this.savePlayerSettings()
@@ -808,7 +799,6 @@ export default {
         this.playerSettings.useTotalTrack = !!savedPlayerSettings.useTotalTrack
         this.playerSettings.lockUi = !!savedPlayerSettings.lockUi
         this.playerSettings.scaleElapsedTimeBySpeed = !!savedPlayerSettings.scaleElapsedTimeBySpeed
-        this.playerSettings.useChapterDuration = !!savedPlayerSettings.useChapterDuration
       }
     },
     savePlayerSettings() {
