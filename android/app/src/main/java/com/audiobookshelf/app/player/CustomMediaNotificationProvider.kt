@@ -1,6 +1,7 @@
 package com.audiobookshelf.app.player
 
 import android.content.Context
+import android.os.Bundle
 import androidx.core.app.NotificationCompat
 import androidx.core.graphics.drawable.IconCompat
 import androidx.media3.common.Player
@@ -9,6 +10,7 @@ import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaNotification
 import androidx.media3.session.MediaSession
+import androidx.media3.session.SessionCommand
 import com.audiobookshelf.app.R
 import com.google.common.collect.ImmutableList
 import java.text.DecimalFormat
@@ -126,6 +128,44 @@ class CustomMediaNotificationProvider(
 
     return compact
   }
+
+  override fun getMediaButtons(
+    session: MediaSession,
+    playerCommands: Player.Commands,
+    mediaButtonPreferences: ImmutableList<CommandButton>,
+    showPauseButton: Boolean
+  ): ImmutableList<CommandButton> {
+    val customButtons = mutableListOf<CommandButton>()
+
+    val rewindCommand = CommandButton.Builder(CommandButton.ICON_SKIP_BACK_10)
+      .setDisplayName("Back 10s")
+      .setSessionCommand(
+        SessionCommand(
+          Media3PlaybackService.CUSTOM_COMMAND_REWIND_10S,
+          Bundle.EMPTY
+        )
+      )
+      .setCustomIconResId(R.drawable.exo_icon_rewind)
+      .build()
+
+    val forwardCommand = CommandButton.Builder(CommandButton.ICON_SKIP_FORWARD_30)
+      .setDisplayName("Forward 30s")
+      .setSessionCommand(SessionCommand(Media3PlaybackService.CUSTOM_COMMAND_FORWARD_30S, Bundle.EMPTY))
+      .setCustomIconResId(R.drawable.exo_icon_fastforward)
+      .build()
+
+    val playPauseCommand = mediaButtonPreferences.firstOrNull {
+      it.playerCommand == Player.COMMAND_PLAY_PAUSE
+    }
+
+    if (playerCommands.contains(Player.COMMAND_SEEK_BACK)) customButtons.add(rewindCommand)
+    if (playPauseCommand != null) customButtons.add(playPauseCommand)
+    if (playerCommands.contains(Player.COMMAND_SEEK_FORWARD)) customButtons.add(forwardCommand)
+
+    return ImmutableList.copyOf(customButtons)
+  }
+
+
 
   companion object {
     fun formatSpeedLabel(speed: Float): String {
