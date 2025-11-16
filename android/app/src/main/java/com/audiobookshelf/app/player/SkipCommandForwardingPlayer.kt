@@ -25,20 +25,25 @@ class SkipCommandForwardingPlayer(
   var preferSeekOverSkip: Boolean = false
 
   override fun getAvailableCommands(): Player.Commands {
-    return super.getAvailableCommands().buildUpon()
-      .add(Player.COMMAND_SEEK_TO_NEXT)
-      .add(Player.COMMAND_SEEK_TO_PREVIOUS)
-      .add(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
-      .add(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
-      // Ensure seek back/forward commands are always available for custom buttons
-      .add(Player.COMMAND_SEEK_BACK)
-      .add(Player.COMMAND_SEEK_FORWARD)
-      // Ensure device volume commands are advertised.
-      .add(Player.COMMAND_GET_DEVICE_VOLUME)
-      .add(Player.COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS)
-      .add(Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS)
-      .build()
+    val builder = super.getAvailableCommands().buildUpon()
+
+    builder.add(Player.COMMAND_SEEK_BACK)
+    builder.add(Player.COMMAND_SEEK_FORWARD)
+
+    if (!preferSeekOverSkip) {
+      builder.add(Player.COMMAND_SEEK_TO_NEXT)
+      builder.add(Player.COMMAND_SEEK_TO_PREVIOUS)
+      builder.add(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
+      builder.add(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
+    }
+
+    builder.add(Player.COMMAND_GET_DEVICE_VOLUME)
+    builder.add(Player.COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS)
+    builder.add(Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS)
+
+    return builder.build()
   }
+
 
   // Skip/seek fallbacks
   override fun seekBack() {
@@ -47,14 +52,14 @@ class SkipCommandForwardingPlayer(
     Log.d(tag, "seekBack called - current: ${currentPos}ms, increment: ${increment}ms, target: ${currentPos - increment}ms")
     super.seekBack()
   }
-  
+
   override fun seekForward() {
     val currentPos = currentPosition
     val increment = seekForwardIncrement
     Log.d(tag, "seekForward called - current: ${currentPos}ms, increment: ${increment}ms, target: ${currentPos + increment}ms")
     super.seekForward()
   }
-  
+
   override fun hasNextMediaItem(): Boolean {
     // Report "has next" so controllers (e.g., Wear) enable the Next button
     return if (preferSeekOverSkip) true else super.hasNextMediaItem()
