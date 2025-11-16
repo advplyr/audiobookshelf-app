@@ -48,7 +48,7 @@ android {
       ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
     }
   }
-  
+
   // Flavor dimensions for player backend selection
   flavorDimensions "player"
   productFlavors {
@@ -67,7 +67,7 @@ android {
       buildConfigField("boolean", "USE_MEDIA3", "true")
     }
   }
-  
+
   buildTypes {
     debug {
       applicationIdSuffix ".debug"
@@ -115,7 +115,7 @@ dependencies {
 
   implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:$kotlin_coroutines_version"
   implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:$kotlin_coroutines_version"
-
+  implementation "org.jetbrains.kotlinx:kotlinx-coroutines-guava:$kotlin_coroutines_version"
   implementation "androidx.media:media:$androidx_media_version"
 
   // Playback libraries: always include ExoPlayer so existing code compiles.
@@ -140,7 +140,7 @@ dependencies {
   exov2Implementation "androidx.media3:media3-ui:$media3_version"
   exov2Implementation "androidx.media3:media3-cast:$media3_version"
   exov2Implementation "androidx.media3:media3-exoplayer-hls:$media3_version"
-  
+
   media3Implementation "androidx.media3:media3-exoplayer:$media3_version"
   media3Implementation "androidx.media3:media3-session:$media3_version"
   media3Implementation "androidx.media3:media3-ui:$media3_version"

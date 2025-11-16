@@ -54,8 +54,10 @@ import com.google.android.exoplayer2.source.ProgressiveMediaSource
 import com.google.android.exoplayer2.source.hls.HlsMediaSource
 import com.google.android.exoplayer2.ui.PlayerNotificationManager
 import com.google.android.exoplayer2.upstream.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import java.util.*
-import kotlin.concurrent.schedule
 import kotlinx.coroutines.runBlocking
 
 const val SLEEP_TIMER_WAKE_UP_EXPIRATION = 120000L // 2m
@@ -64,6 +66,8 @@ const val PLAYER_EXO = "exo-player"
 const val PLAYER_MEDIA3 = "media3-exoplayer"
 
 class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetryHost, SleepTimerHost {
+
+  private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
   companion object {
     var isStarted = false
@@ -281,7 +285,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     castPlayer?.release()
     mediaSession.release()
     mediaProgressSyncer.reset()
-    sleepTimerShakeController?.destroy()
+    sleepTimerShakeController?.release()
     sleepTimerShakeController = null
 
     super.onDestroy()
@@ -323,7 +327,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     apiHandler = ApiHandler(ctx)
 
     // Initialize sleep timer
-    sleepTimerManager = SleepTimerManager(this)
+    sleepTimerManager = SleepTimerManager(this, serviceScope)
 
     // Initialize Media Progress Syncer
     mediaProgressSyncer = MediaProgressSyncer(this, apiHandler)
@@ -514,7 +518,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
         deviceSettings.jumpForwardTimeMs
       )
       Log.d(tag, "Media3 seek increments configured")
-    
+
       // IMPORTANT: Create v2 notification manager for Cast fallback
       // When Media3 is enabled, we don't have a v2 manager from onCreate()
       // But we need one for Cast, so create it here and attach to the Media3 wrapper
@@ -524,21 +528,21 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
       playerNotificationManager = v2Builder.build()
       playerNotificationManager.setMediaSessionToken(mediaSession.sessionToken)
       playerNotificationManager.setSmallIcon(R.drawable.icon_monochrome)
-      
+
       // Also set player on v2 manager for Media3 local playback notifications
       // This gives us notification controls while we wait for Phase 2B
       playerNotificationManager.setPlayer(mPlayer)
-      
+
       media3Wrapper.attachNotificationManager(playerNotificationManager)
       media3Wrapper.attachMediaSessionConnector(mediaSessionConnector)
-      
+
       Log.d(tag, "Media3 v2 notification manager created for Cast fallback and temp controls")
     } else {
       // ExoPlayer v2 path: Attach notification managers directly
       playerWrapper.attachNotificationManager(playerNotificationManager)
       playerWrapper.attachMediaSessionConnector(mediaSessionConnector)
     }
-  
+
   // Add our listener through the wrapper so it works with both ExoPlayer v2 and Media3
   playerWrapper.addListener(PlayerListener(this))
   }
@@ -637,7 +641,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
       // When Media3 is enabled, playerWrapper contains a different player instance
       // than mPlayer (which is ExoPlayer v2). We must use the wrapper for all
       // media operations to ensure we're working with the correct player.
-      
+
   if (playerWrapper is ExoPlayerWrapper) {
         // ExoPlayerWrapper: Use the existing MediaSource-based approach for ExoPlayer v2
         val mediaSource: MediaSource
@@ -697,19 +701,19 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
         // Media3Wrapper or other: Use wrapper's setMediaItems which handles
         // the media setup internally
         AbsLogger.info("PlayerNotificationService", "preparePlayer: Using wrapper.setMediaItems for ${mediaItems.size} items")
-        
+
         val currentTrackIndex = if (mediaItems.size > 1) {
           playbackSession.getCurrentTrackIndex()
         } else {
           0
         }
-        
+
         val startPosition = if (mediaItems.size > 1) {
           playbackSession.getCurrentTrackTimeMs()
         } else {
           playbackSession.currentTimeMs
         }
-        
+
         Log.d(tag, "Media3: Setting ${mediaItems.size} media items, startIndex=$currentTrackIndex, startPos=$startPosition")
         playerWrapper.setMediaItems(mediaItems, currentTrackIndex, startPosition)
       }
@@ -909,14 +913,14 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
             } else {
               Log.d(tag, "switchToPlayer: Using ExoPlayer")
               playerWrapper.setActivePlayerForNotification(null)
-              
+
               // For Media3Wrapper, manually restore v2 player to notification manager
               if (playerWrapper is Media3Wrapper) {
                 playerNotificationManager.setPlayer(mPlayer)
                 mediaSessionConnector.setPlayer(mPlayer)
                 Log.d(tag, "Restored mPlayer to v2 notification manager after Cast exit")
               }
-              
+
               mPlayer
             }
 
@@ -924,10 +928,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
 
     currentPlaybackSession?.let {
       Log.d(tag, "switchToPlayer: Starting new playback session ${it.displayTitle}")
-      
+
       // Prepare player with restored state, and resume if was playing
       preparePlayer(it, wasPlaying, null)
-      
+
       // Force UI resync: Emit current playing state after prepare (casting may not auto-fire)
       clientEventEmitter?.onPlayingUpdate(isPlayerActive())
     }
@@ -2265,7 +2269,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
   private fun initSensor() {
     sleepTimerShakeController = SleepTimerShakeController(
       this,
-      SLEEP_TIMER_WAKE_UP_EXPIRATION
+      SLEEP_TIMER_WAKE_UP_EXPIRATION,
+      serviceScope
     ) {
       Log.d(tag, "PHONE SHAKE!")
       (externalSleepTimerManager ?: sleepTimerManager).handleShake()

@@ -12,6 +12,7 @@ import androidx.media3.session.MediaNotification
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
 import com.audiobookshelf.app.R
+import com.audiobookshelf.app.player.Media3PlaybackService.Companion.CustomCommands
 import com.google.common.collect.ImmutableList
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
@@ -141,7 +142,7 @@ class CustomMediaNotificationProvider(
       .setDisplayName("Back 10s")
       .setSessionCommand(
         SessionCommand(
-          Media3PlaybackService.CUSTOM_COMMAND_REWIND_10S,
+          CustomCommands.SEEK_BACK_INCREMENT,
           Bundle.EMPTY
         )
       )
@@ -150,7 +151,12 @@ class CustomMediaNotificationProvider(
 
     val forwardCommand = CommandButton.Builder(CommandButton.ICON_SKIP_FORWARD_30)
       .setDisplayName("Forward 30s")
-      .setSessionCommand(SessionCommand(Media3PlaybackService.CUSTOM_COMMAND_FORWARD_30S, Bundle.EMPTY))
+      .setSessionCommand(
+        SessionCommand(
+          CustomCommands.SEEK_FORWARD_INCREMENT,
+          Bundle.EMPTY
+        )
+      )
       .setCustomIconResId(R.drawable.exo_icon_fastforward)
       .build()
 

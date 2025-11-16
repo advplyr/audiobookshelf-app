@@ -8,6 +8,7 @@ import com.audiobookshelf.app.R
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.player.SLEEP_TIMER_WAKE_UP_EXPIRATION
 import com.audiobookshelf.app.plugins.AbsLogger
+import kotlinx.coroutines.CoroutineScope
 import java.util.*
 import kotlin.concurrent.schedule
 import kotlin.math.roundToInt
@@ -33,7 +34,7 @@ interface SleepTimerHost {
 }
 
 class SleepTimerManager
-constructor(private val host: SleepTimerHost) {
+constructor(private val host: SleepTimerHost, serviceScope: CoroutineScope) {
   private val tag = "SleepTimerManager"
 
   private var sleepTimerTask: TimerTask? = null

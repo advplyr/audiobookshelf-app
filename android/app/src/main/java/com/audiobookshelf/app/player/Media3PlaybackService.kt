@@ -3,23 +3,33 @@ package com.audiobookshelf.app.player
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
-import android.media.AudioManager
-// Removed legacy compat imports
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.LibraryResult
+import androidx.media3.session.MediaConstants
 import androidx.media3.session.MediaLibraryService
+import androidx.media3.session.MediaNotification
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import com.audiobookshelf.app.MainActivity
 import com.audiobookshelf.app.R
@@ -29,44 +39,57 @@ import com.audiobookshelf.app.managers.SleepTimerHost
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
-import java.util.Locale
 import kotlin.jvm.Volatile
 import kotlin.math.abs
 import kotlin.math.max
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+
 
 /**
  * Media3 playback service following MediaLibraryService architecture.
  * Handles local playback, session management, and native Media3 notifications.
  * Cast playback remains in legacy PlayerNotificationService until Phase 4.
  */
+
 @UnstableApi
 class Media3PlaybackService : MediaLibraryService() {
-  private val tag = "Media3PlaybackService"
+  private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
-  private var mediaSession: MediaLibraryService.MediaLibrarySession? = null
-  private var exoPlayer: androidx.media3.exoplayer.ExoPlayer? = null
-  private var sessionPlayer: Player? = null
-  private var skipForwardingPlayer: SkipCommandForwardingPlayer? = null
-  // Removed compatSession property
-  private val mainHandler by lazy { android.os.Handler(android.os.Looper.getMainLooper()) }
+  private var mediaSession: MediaLibrarySession? = null
 
   private var currentPlaybackSession: PlaybackSession? = null
-  private var sleepTimerManager: SleepTimerManager? = null
   private var sleepTimerShakeController: SleepTimerShakeController? = null
-  private lateinit var rewindCommandButton: CommandButton
-  private lateinit var forwardCommandButton: CommandButton
+  private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
+
+  private lateinit var seekBackButton: CommandButton
+  private lateinit var seekForwardButton: CommandButton
   private var playbackSpeedCommandButton: CommandButton? = null
 
+  private var playerInitialized = false
+  private val player: SkipCommandForwardingPlayer by lazy {
+    val corePlayer = ExoPlayer.Builder(this)
+      .setSeekBackIncrementMs(jumpBackwardMs)
+      .setSeekForwardIncrementMs(jumpForwardMs)
+      .setDeviceVolumeControlEnabled(true)
+      .build()
+    playerInitialized = true
+    SkipCommandForwardingPlayer(corePlayer, this).apply {
+      addListener(PlayerEventListener())
+    }
+  }
+
   private val sleepTimerHost = object : SleepTimerHost {
-    override val context: android.content.Context
+    override val context: Context
       get() = this@Media3PlaybackService
 
     override fun currentTimeMs(): Long {
-      return sessionPlayer?.currentPosition ?: 0L
+      return player.currentPosition
     }
 
     override fun durationMs(): Long {
-      val playerDuration = sessionPlayer?.duration ?: C.TIME_UNSET
+      val playerDuration = player.duration
       return if (playerDuration != C.TIME_UNSET && playerDuration >= 0) {
         playerDuration
       } else {
@@ -75,30 +98,28 @@ class Media3PlaybackService : MediaLibraryService() {
     }
 
     override fun isPlaying(): Boolean {
-      return sessionPlayer?.isPlaying ?: false
+      return player.isPlaying
     }
 
     override fun playbackSpeed(): Float {
-      return sessionPlayer?.playbackParameters?.speed ?: 1f
+      return player.playbackParameters?.speed ?: 1f
     }
 
     override fun setVolume(volume: Float) {
-      sessionPlayer?.volume = volume.coerceIn(0f, 1f)
+      player.volume = volume.coerceIn(0f, 1f)
     }
 
     override fun pause() {
-      sessionPlayer?.pause()
+      player.pause()
     }
 
     override fun play() {
-      sessionPlayer?.play()
+      player.play()
     }
 
     override fun seekBackward(amountMs: Long) {
-      sessionPlayer?.let { player ->
-        val target = max(player.currentPosition - amountMs, 0L)
-        player.seekTo(target)
-      }
+      val target = max(player.currentPosition - amountMs, 0L)
+      player.seekTo(target)
     }
 
     override fun endTimeOfChapterOrTrack(): Long? {
@@ -132,51 +153,80 @@ class Media3PlaybackService : MediaLibraryService() {
     }
   }
 
+  private lateinit var sleepTimerManager: SleepTimerManager
+
   private fun ensureShakeController() {
     if (sleepTimerShakeController == null) {
       sleepTimerShakeController = SleepTimerShakeController(
         this,
-        SLEEP_TIMER_WAKE_UP_EXPIRATION
+        SLEEP_TIMER_WAKE_UP_EXPIRATION,
+        serviceScope
       ) {
-        sleepTimerManager?.handleShake()
+        if (::sleepTimerManager.isInitialized) {
+          sleepTimerManager.handleShake()
+        }
       }
     }
   }
 
   private fun ensureSleepTimerManager(): SleepTimerManager {
-    if (sleepTimerManager == null) {
+    if (!::sleepTimerManager.isInitialized) {
       ensureShakeController()
-      sleepTimerManager = SleepTimerManager(sleepTimerHost)
+      // Pass the serviceScope as the second argument
+      sleepTimerManager = SleepTimerManager(sleepTimerHost, serviceScope)
     }
-    return sleepTimerManager!!
+    return sleepTimerManager
   }
+
 
   // Jump increments applied to the ExoPlayer builder for skip actions
   private var jumpBackwardMs: Long = 10000L
   private var jumpForwardMs: Long = 30000L
 
+  private val becomingNoisyReceiver = object : BroadcastReceiver() {
+    override fun onReceive(context: Context?, intent: Intent?) {
+      if (intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY && player.isPlaying) {
+        Log.d(TAG, "Audio becoming noisy; pausing player")
+        player.pause()
+      }
+    }
+  }
+
 
 
   // Notification constants
   companion object {
-    const val NOTIFICATION_CHANNEL_ID = "media3_playback_channel"
-    const val NOTIFICATION_ID = 100
-    internal const val CUSTOM_COMMAND_CYCLE_PLAYBACK_SPEED = "com.audiobookshelf.player.CYCLE_PLAYBACK_SPEED"
-    internal const val CUSTOM_COMMAND_REWIND_10S = "com.audiobookshelf.player.REWIND_10S"
-    internal const val CUSTOM_COMMAND_FORWARD_30S = "com.audiobookshelf.player.FORWARD_30S"
-    internal const val EXTRA_DISPLAY_SPEED = "display_speed"
+    private const val APP_PREFIX = "com.audiobookshelf.app.player"
+    val TAG: String = Media3PlaybackService::class.java.simpleName
 
-    const val CUSTOM_COMMAND_SET_SLEEP_TIMER = "com.audiobookshelf.player.SET_SLEEP_TIMER"
-    const val CUSTOM_COMMAND_CANCEL_SLEEP_TIMER = "com.audiobookshelf.player.CANCEL_SLEEP_TIMER"
-    const val CUSTOM_COMMAND_ADJUST_SLEEP_TIMER = "com.audiobookshelf.player.ADJUST_SLEEP_TIMER"
-    const val CUSTOM_COMMAND_GET_SLEEP_TIMER_TIME = "com.audiobookshelf.player.GET_SLEEP_TIMER_TIME"
-    const val CUSTOM_COMMAND_CHECK_AUTO_SLEEP_TIMER = "com.audiobookshelf.player.CHECK_AUTO_SLEEP_TIMER"
+    object Notification {
+      const val CHANNEL_ID = "media3_playback_channel"
+      const val ID = 100
+    }
 
-    const val EXTRA_SLEEP_TIMER_TIME_MS = "sleep_timer_time_ms"
-    const val EXTRA_SLEEP_TIMER_IS_CHAPTER = "sleep_timer_is_chapter"
-    const val EXTRA_SLEEP_TIMER_SESSION_ID = "sleep_timer_session_id"
-    const val EXTRA_SLEEP_TIMER_ADJUST_DELTA = "sleep_timer_adjust_delta"
-    const val EXTRA_SLEEP_TIMER_ADJUST_INCREASE = "sleep_timer_adjust_increase"
+    object CustomCommands {
+      const val CYCLE_PLAYBACK_SPEED = "$APP_PREFIX.CYCLE_PLAYBACK_SPEED"
+      const val SEEK_BACK_INCREMENT = "$APP_PREFIX.SEEK_BACK_INCREMENT"
+      const val SEEK_FORWARD_INCREMENT = "$APP_PREFIX.SEEK_FORWARD_INCREMENT"
+    }
+
+    object SleepTimer {
+      const val ACTION_SET = "$APP_PREFIX.SET_SLEEP_TIMER"
+      const val ACTION_CANCEL = "$APP_PREFIX.CANCEL_SLEEP_TIMER"
+      const val ACTION_ADJUST = "$APP_PREFIX.ADJUST_SLEEP_TIMER"
+      const val ACTION_GET_TIME = "$APP_PREFIX.GET_SLEEP_TIMER_TIME"
+      const val ACTION_CHECK_AUTO = "$APP_PREFIX.CHECK_AUTO_SLEEP_TIMER"
+
+      const val EXTRA_TIME_MS = "sleep_timer_time_ms"
+      const val EXTRA_IS_CHAPTER = "sleep_timer_is_chapter"
+      const val EXTRA_SESSION_ID = "sleep_timer_session_id"
+      const val EXTRA_ADJUST_DELTA = "sleep_timer_adjust_delta"
+      const val EXTRA_ADJUST_INCREASE = "sleep_timer_adjust_increase"
+    }
+
+    object Extras {
+      const val DISPLAY_SPEED = "display_speed"
+    }
 
     @Volatile private var sleepTimerUiNotifier: SleepTimerUiNotifier? = null
 
@@ -185,89 +235,73 @@ class Media3PlaybackService : MediaLibraryService() {
     }
   }
 
-  private lateinit var notificationProvider: androidx.media3.session.MediaNotification.Provider
+  private lateinit var notificationProvider: MediaNotification.Provider
   private val playbackSpeedSteps = floatArrayOf(0.5f, 1.0f, 1.2f, 1.5f, 2.0f, 3.0f)
   private var playbackSpeedIndex: Int = playbackSpeedSteps.indexOfFirst { abs(it - 1.0f) < 0.01f }.let { if (it >= 0) it else 0 }
-  private val playbackSpeedCommand = SessionCommand(CUSTOM_COMMAND_CYCLE_PLAYBACK_SPEED, Bundle.EMPTY)
-  private val setSleepTimerCommand = SessionCommand(CUSTOM_COMMAND_SET_SLEEP_TIMER, Bundle.EMPTY)
-  private val cancelSleepTimerCommand = SessionCommand(CUSTOM_COMMAND_CANCEL_SLEEP_TIMER, Bundle.EMPTY)
-  private val adjustSleepTimerCommand = SessionCommand(CUSTOM_COMMAND_ADJUST_SLEEP_TIMER, Bundle.EMPTY)
-  private val getSleepTimerTimeCommand = SessionCommand(CUSTOM_COMMAND_GET_SLEEP_TIMER_TIME, Bundle.EMPTY)
-  private val checkAutoSleepTimerCommand = SessionCommand(CUSTOM_COMMAND_CHECK_AUTO_SLEEP_TIMER, Bundle.EMPTY)
+  private val cyclePlaybackSpeedCommand = SessionCommand(CustomCommands.CYCLE_PLAYBACK_SPEED, Bundle.EMPTY)
+  private val setSleepTimerCommand = SessionCommand(SleepTimer.ACTION_SET, Bundle.EMPTY)
+  private val cancelSleepTimerCommand = SessionCommand(SleepTimer.ACTION_CANCEL, Bundle.EMPTY)
+  private val adjustSleepTimerCommand = SessionCommand(SleepTimer.ACTION_ADJUST, Bundle.EMPTY)
+  private val getSleepTimerTimeCommand = SessionCommand(SleepTimer.ACTION_GET_TIME, Bundle.EMPTY)
+  private val checkAutoSleepTimerCommand = SessionCommand(SleepTimer.ACTION_CHECK_AUTO, Bundle.EMPTY)
+  private val seekBackIncrementCommand = SessionCommand(CustomCommands.SEEK_BACK_INCREMENT, Bundle.EMPTY)
+  private val seekForwardIncrementCommand = SessionCommand(CustomCommands.SEEK_FORWARD_INCREMENT, Bundle.EMPTY)
 
   override fun onCreate() {
     super.onCreate()
-    Log.d(tag, "onCreate: Initializing Media3 playback service")
+    Log.d(TAG, "onCreate: Initializing Media3 playback service")
 
     // Create notification channel
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
       val channelName = "Media Playback"
       val importance = NotificationManager.IMPORTANCE_DEFAULT
-      val channel = NotificationChannel(NOTIFICATION_CHANNEL_ID, channelName, importance).apply {
+      val channel = NotificationChannel(Notification.CHANNEL_ID, channelName, importance).apply {
         description = "Playback controls and progress"
         setShowBadge(false)
       }
       val notificationManager = getSystemService(NotificationManager::class.java)
       notificationManager.createNotificationChannel(channel)
-      Log.d(tag, "Notification channel created: $NOTIFICATION_CHANNEL_ID")
+      Log.d(TAG, "Notification channel created: ${Notification.CHANNEL_ID}")
     }
 
     val notificationProvider = CustomMediaNotificationProvider(
       this,
-      NOTIFICATION_CHANNEL_ID,
-      androidx.media3.session.DefaultMediaNotificationProvider.DEFAULT_CHANNEL_NAME_RESOURCE_ID,
-      NOTIFICATION_ID
+      Notification.CHANNEL_ID,
+      DefaultMediaNotificationProvider.DEFAULT_CHANNEL_NAME_RESOURCE_ID,
+      Notification.ID
     )
     this.notificationProvider = notificationProvider
     setMediaNotificationProvider(notificationProvider)
-    Log.d(tag, "CustomMediaNotificationProvider configured")
-
-      // Initialize ExoPlayer and wrap it with a delegating Player so base skip actions stay present
-    val corePlayer = androidx.media3.exoplayer.ExoPlayer.Builder(this)
-      .setSeekBackIncrementMs(jumpBackwardMs)
-      .setSeekForwardIncrementMs(jumpForwardMs)
-      .setDeviceVolumeControlEnabled(true)
-      .build()
-    exoPlayer = corePlayer
-    val delegatingPlayer = SkipCommandForwardingPlayer(corePlayer, this)
-    skipForwardingPlayer = delegatingPlayer
-    skipForwardingPlayer?.preferSeekOverSkip = true
-    sessionPlayer = delegatingPlayer
-    delegatingPlayer.addListener(PlayerEventListener())
+    Log.d(TAG, "CustomMediaNotificationProvider configured")
 
     // Create MediaLibrarySession with callback
     val sessionId = "AudiobookshelfMedia3_${System.currentTimeMillis()}"
 
- val rewindSessionCommand = SessionCommand(CUSTOM_COMMAND_REWIND_10S, Bundle.EMPTY)
-val forwardSessionCommand = SessionCommand(CUSTOM_COMMAND_FORWARD_30S, Bundle.EMPTY)
+    player.mapSkipToSeek = true
+    seekBackButton = CommandButton.Builder(CommandButton.ICON_SKIP_BACK_10)
+      .setSessionCommand(seekBackIncrementCommand)
+      .setDisplayName("Back ${jumpBackwardMs / 1000}s")
+      .setCustomIconResId(R.drawable.exo_icon_rewind)
+      .setSlots(CommandButton.SLOT_BACK)
+      .build()
 
-rewindCommandButton = CommandButton.Builder(CommandButton.ICON_SKIP_BACK_10)
-  .setSessionCommand(rewindSessionCommand)
-  .setDisplayName("Back 10s")
-  .setCustomIconResId(R.drawable.exo_icon_rewind)
-  .setSlots(CommandButton.SLOT_BACK)
-  .build()
-
-forwardCommandButton = CommandButton.Builder(CommandButton.ICON_SKIP_FORWARD_30)
-  .setSessionCommand(forwardSessionCommand)
-  .setDisplayName("Forward 30s")
-  .setCustomIconResId(R.drawable.exo_icon_fastforward)
-  .setSlots(CommandButton.SLOT_FORWARD)
-  .build()
+    seekForwardButton = CommandButton.Builder(CommandButton.ICON_SKIP_FORWARD_30)
+      .setSessionCommand(seekForwardIncrementCommand)
+      .setDisplayName("Forward ${jumpForwardMs / 1000}s")
+      .setCustomIconResId(R.drawable.exo_icon_fastforward)
+      .setSlots(CommandButton.SLOT_FORWARD)
+      .build()
 
     val playbackSpeedButton = createPlaybackSpeedButton(currentPlaybackSpeed())
     playbackSpeedCommandButton = playbackSpeedButton
 
-    val playerInstance = sessionPlayer ?: error("Player not initialised")
+    val playerInstance = player
 
     // ...existing code...
 
     // Create session activity intent before building Media3 session
-    val sessionActivityFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+    val sessionActivityFlags =
       PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-    } else {
-      PendingIntent.FLAG_UPDATE_CURRENT
-    }
     val sessionActivityIntent = PendingIntent.getActivity(
       this,
       0,
@@ -280,10 +314,10 @@ forwardCommandButton = CommandButton.Builder(CommandButton.ICON_SKIP_FORWARD_30)
     // ...existing code...
 
     // Now build the Media3 session with the compat session token
-    mediaSession = MediaLibraryService.MediaLibrarySession.Builder(this, playerInstance, Media3SessionCallback())
+    mediaSession = MediaLibrarySession.Builder(this, playerInstance, Media3SessionCallback())
       .setId(sessionId)
       .setSessionActivity(sessionActivityIntent)
-      .setMediaButtonPreferences(ImmutableList.of(rewindCommandButton, forwardCommandButton, playbackSpeedButton))
+      .setMediaButtonPreferences(ImmutableList.of(playbackSpeedButton, seekBackButton, seekForwardButton))
       .build()
 
     // Initial state/metadata handled via Media3 session
@@ -293,12 +327,17 @@ forwardCommandButton = CommandButton.Builder(CommandButton.ICON_SKIP_FORWARD_30)
       // Do NOT reserve prev/next slots so system surfaces (e.g., Wear OS)
       // can advertise/use their default previous/next controls.
       // Our phone notification provider still forces SEEK_BACK/SEEK_FORWARD explicitly.
-      putBoolean(androidx.media3.session.MediaConstants.EXTRAS_KEY_SLOT_RESERVATION_SEEK_TO_PREV, false)
-      putBoolean(androidx.media3.session.MediaConstants.EXTRAS_KEY_SLOT_RESERVATION_SEEK_TO_NEXT, false)
+      putBoolean(MediaConstants.EXTRAS_KEY_SLOT_RESERVATION_SEEK_TO_PREV, false)
+      putBoolean(MediaConstants.EXTRAS_KEY_SLOT_RESERVATION_SEEK_TO_NEXT, false)
     }
-    mediaSession?.setSessionExtras(sessionExtras)
+    mediaSession?.sessionExtras = sessionExtras
 
-    Log.d(tag, "MediaLibrarySession created: $sessionId")
+    Log.d(TAG, "MediaLibrarySession created: $sessionId")
+
+    registerReceiver(
+      becomingNoisyReceiver,
+      IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY)
+    )
 
     ensureSleepTimerManager()
   }
@@ -306,11 +345,11 @@ forwardCommandButton = CommandButton.Builder(CommandButton.ICON_SKIP_FORWARD_30)
   // Removed updateCompatPlaybackState and updateCompatMetadataFromPlayer methods
 
   override fun onUpdateNotification(session: MediaSession, startInForegroundRequired: Boolean) {
-    Log.d(tag, "onUpdateNotification: foreground=$startInForegroundRequired, session=${session.id}, isPlaying=${session.player.isPlaying}, state=${session.player.playbackState}")
+    Log.d(TAG, "onUpdateNotification: foreground=$startInForegroundRequired, session=${session.id}, isPlaying=${session.player.isPlaying}, state=${session.player.playbackState}")
     super.onUpdateNotification(session, startInForegroundRequired)
   }
 
-  override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibraryService.MediaLibrarySession? {
+  override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? {
     return mediaSession
   }
 
@@ -319,43 +358,44 @@ forwardCommandButton = CommandButton.Builder(CommandButton.ICON_SKIP_FORWARD_30)
       release()
       mediaSession = null
     }
-    exoPlayer?.release()
-    exoPlayer = null
-    sessionPlayer = null
     // Removed compatSession cleanup
-    sleepTimerShakeController?.destroy()
+    sleepTimerShakeController?.release()
     sleepTimerShakeController = null
-    sleepTimerManager = null
+    unregisterReceiver(becomingNoisyReceiver)
+    if (playerInitialized) {
+      player.release()
+      playerInitialized = false
+    }
     registerSleepTimerNotifier(null)
     super.onDestroy()
-    Log.d(tag, "onDestroy: Media3 service destroyed")
+    Log.d(TAG, "onDestroy: Media3 service destroyed")
   }
 
   /**
    * MediaLibrarySession callback handling transport controls and custom commands.
    */
-    private inner class Media3SessionCallback : MediaLibraryService.MediaLibrarySession.Callback {
+    private inner class Media3SessionCallback : MediaLibrarySession.Callback {
     override fun onPlayerInteractionFinished(
       session: MediaSession,
       controllerInfo: MediaSession.ControllerInfo,
       playerCommands: Player.Commands
     ) {
       try {
-        val pkg = controllerInfo.packageName ?: ""
+        val pkg = controllerInfo.packageName
         if (pkg.contains("wear", ignoreCase = true) || pkg.contains("com.google.android.apps.wear", ignoreCase = true)) {
           // Map NEXT/PREV or SEEK commands sent from Wear controllers to seek increments
-          if (playerCommands.contains(Player.COMMAND_SEEK_BACK) || playerCommands.contains(Player.COMMAND_SEEK_TO_PREVIOUS)) {
-            val p = exoPlayer?.currentPosition ?: sessionPlayer?.currentPosition ?: 0L
+        if (playerCommands.contains(Player.COMMAND_SEEK_BACK) || playerCommands.contains(Player.COMMAND_SEEK_TO_PREVIOUS)) {
+            val p = player.currentPosition
             val target = (p - jumpBackwardMs).coerceAtLeast(0L)
-            Log.d(tag, "Wear interaction SEEK_BACK -> seekTo=$target")
-            mainHandler.post { exoPlayer?.seekTo(target) }
+            Log.d(TAG, "Wear interaction SEEK_BACK -> seekTo=$target")
+            mainHandler.post { player.seekTo(target) }
           }
           if (playerCommands.contains(Player.COMMAND_SEEK_FORWARD) || playerCommands.contains(Player.COMMAND_SEEK_TO_NEXT)) {
-            val p = exoPlayer?.currentPosition ?: sessionPlayer?.currentPosition ?: 0L
-            val dur = exoPlayer?.duration ?: sessionPlayer?.duration ?: Long.MAX_VALUE
+            val p = player.currentPosition
+            val dur = player.duration
             val target = (p + jumpForwardMs).coerceAtMost(if (dur > 0) dur else Long.MAX_VALUE)
-            Log.d(tag, "Wear interaction SEEK_FORWARD -> seekTo=$target")
-            mainHandler.post { exoPlayer?.seekTo(target) }
+            Log.d(TAG, "Wear interaction SEEK_FORWARD -> seekTo=$target")
+            mainHandler.post { player.seekTo(target) }
           }
           // Volume commands should be exposed via Player device-volume APIs now
           // (ExoPlayer created with device-volume control enabled). If further
@@ -363,16 +403,13 @@ forwardCommandButton = CommandButton.Builder(CommandButton.ICON_SKIP_FORWARD_30)
           // observing runtime behavior on device.
         }
       } catch (t: Throwable) {
-        Log.w(tag, "onPlayerInteractionFinished handling error: ${t.message}")
+        Log.w(TAG, "onPlayerInteractionFinished handling error: ${t.message}")
       }
     }
     override fun onConnect(
       session: MediaSession,
       controller: MediaSession.ControllerInfo
     ): MediaSession.ConnectionResult {
-      val rewindSessionCommand = SessionCommand(CUSTOM_COMMAND_REWIND_10S, Bundle.EMPTY)
-val forwardSessionCommand = SessionCommand(CUSTOM_COMMAND_FORWARD_30S, Bundle.EMPTY)
-
       // Build player commands - keep SEEK_BACK/FORWARD but remove track navigation
       val availablePlayerCommands = session.player.availableCommands
       val isWear = controller.packageName.contains("wear", ignoreCase = true)
@@ -382,16 +419,16 @@ val forwardSessionCommand = SessionCommand(CUSTOM_COMMAND_FORWARD_30S, Bundle.EM
         .add(Player.COMMAND_SEEK_FORWARD)
         .add(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
         .add(Player.COMMAND_PLAY_PAUSE)
-        // Ensure device volume commands are advertised so remote controllers (Wear)
-        // can show crown and send device-volume requests to the Media3 session.
-        // We'll detect and log these commands and forward actual volume adjustments
-        // to AudioManager in `onPlayerCommandRequest` where possible.
-        builder.add(Player.COMMAND_GET_DEVICE_VOLUME)
-        builder.add(Player.COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS)
-        builder.add(Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS)
+      // Ensure device volume commands are advertised so remote controllers (Wear)
+      // can show crown and send device-volume requests to the Media3 session.
+      // We'll detect and log these commands and forward actual volume adjustments
+      // to AudioManager in `onPlayerCommandRequest` where possible.
+      builder.add(Player.COMMAND_GET_DEVICE_VOLUME)
+      builder.add(Player.COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS)
+      builder.add(Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS)
       if (isWear) {
-        skipForwardingPlayer?.preferSeekOverSkip = true
-        Log.d(tag, "Wear controller connected; removing default PREV/NEXT to allow custom buttons")
+        player.mapSkipToSeek = true
+        Log.d(TAG, "Wear controller connected; removing default PREV/NEXT to allow custom buttons")
 
         builder.remove(Player.COMMAND_SEEK_TO_PREVIOUS)
         builder.remove(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
@@ -404,20 +441,19 @@ val forwardSessionCommand = SessionCommand(CUSTOM_COMMAND_FORWARD_30S, Bundle.EM
       val playerCommands = builder.build()
 
       fun cmd(c: Int) = if (playerCommands.contains(c)) "Y" else "N"
-      Log.d(tag, "Controller connected pkg=${controller.packageName}. cmds: BACK=${cmd(Player.COMMAND_SEEK_BACK)} FWD=${cmd(Player.COMMAND_SEEK_FORWARD)} SEEK_IN_ITEM=${cmd(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)} PREV=${cmd(Player.COMMAND_SEEK_TO_PREVIOUS)} NEXT=${cmd(Player.COMMAND_SEEK_TO_NEXT)} PREV_ITEM=${cmd(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)} NEXT_ITEM=${cmd(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)} VOL_GET=${cmd(Player.COMMAND_GET_DEVICE_VOLUME)} VOL_SET=${cmd(Player.COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS)} VOL_ADJ=${cmd(Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS)}")
+      Log.d(TAG, "Controller connected pkg=${controller.packageName}. cmd: BACK=${cmd(Player.COMMAND_SEEK_BACK)} FWD=${cmd(Player.COMMAND_SEEK_FORWARD)} SEEK_IN_ITEM=${cmd(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)} PREV=${cmd(Player.COMMAND_SEEK_TO_PREVIOUS)} NEXT=${cmd(Player.COMMAND_SEEK_TO_NEXT)} PREV_ITEM=${cmd(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)} NEXT_ITEM=${cmd(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)} VOL_GET=${cmd(Player.COMMAND_GET_DEVICE_VOLUME)} VOL_SET=${cmd(Player.COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS)} VOL_ADJ=${cmd(Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS)}")
 
       val sessionCommands = MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
-  .buildUpon()
-  .add(playbackSpeedCommand)
-  .add(rewindSessionCommand)
-  .add(forwardSessionCommand)
-  .add(setSleepTimerCommand)
-  .add(cancelSleepTimerCommand)
-  .add(adjustSleepTimerCommand)
-  .add(getSleepTimerTimeCommand)
-  .add(checkAutoSleepTimerCommand)
-  .build()
-
+        .buildUpon()
+        .add(cyclePlaybackSpeedCommand)
+        .add(seekBackIncrementCommand)
+        .add(seekForwardIncrementCommand)
+        .add(setSleepTimerCommand)
+        .add(cancelSleepTimerCommand)
+        .add(adjustSleepTimerCommand)
+        .add(getSleepTimerTimeCommand)
+        .add(checkAutoSleepTimerCommand)
+        .build()
 
       return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
         .setAvailableSessionCommands(sessionCommands)
@@ -427,7 +463,7 @@ val forwardSessionCommand = SessionCommand(CUSTOM_COMMAND_FORWARD_30S, Bundle.EM
 
     override fun onPostConnect(session: MediaSession, controller: MediaSession.ControllerInfo) {
       super.onPostConnect(session, controller)
-      Log.d(tag, "Post-connect: controller=${controller.packageName}")
+      Log.d(TAG, "Post-connect: controller=${controller.packageName}")
     }
 
     override fun onPlaybackResumption(
@@ -445,31 +481,33 @@ val forwardSessionCommand = SessionCommand(CUSTOM_COMMAND_FORWARD_30S, Bundle.EM
       args: Bundle
     ): ListenableFuture<SessionResult> {
       return when (customCommand.customAction) {
-        CUSTOM_COMMAND_CYCLE_PLAYBACK_SPEED -> {
+        CustomCommands.CYCLE_PLAYBACK_SPEED -> {
           val newSpeed = cyclePlaybackSpeed()
-          Log.d(tag, "Playback speed command from controller. New speed=$newSpeed")
+          Log.d(TAG, "Playback speed command from controller. New speed=$newSpeed")
           Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
         }
-        CUSTOM_COMMAND_SET_SLEEP_TIMER -> {
-          val timeMs = args.getLong(EXTRA_SLEEP_TIMER_TIME_MS, 0L)
-          val isChapter = args.getBoolean(EXTRA_SLEEP_TIMER_IS_CHAPTER, false)
-          val sessionId = args.getString(EXTRA_SLEEP_TIMER_SESSION_ID)
+        SleepTimer.ACTION_SET -> {
+          val timeMs = args.getLong(SleepTimer.EXTRA_TIME_MS, 0L)
+          val isChapter = args.getBoolean(SleepTimer.EXTRA_IS_CHAPTER, false)
+          val sessionId = args.getString(SleepTimer.EXTRA_SESSION_ID)
           val manager = ensureSleepTimerManager()
           val resolvedSessionId = sessionId ?: currentPlaybackSession?.id ?: ""
           val success = manager.setManualSleepTimer(resolvedSessionId, timeMs, isChapter)
           val resultCode = if (success) SessionResult.RESULT_SUCCESS else SessionResult.RESULT_ERROR_BAD_VALUE
           Futures.immediateFuture(SessionResult(resultCode))
         }
-        CUSTOM_COMMAND_CANCEL_SLEEP_TIMER -> {
-          sleepTimerManager?.cancelSleepTimer()
+        SleepTimer.ACTION_CANCEL -> {
+          if (::sleepTimerManager.isInitialized) {
+            sleepTimerManager.cancelSleepTimer()
+          }
           Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
         }
-        CUSTOM_COMMAND_ADJUST_SLEEP_TIMER -> {
-          val delta = args.getLong(EXTRA_SLEEP_TIMER_ADJUST_DELTA, 0L)
-          val increase = args.getBoolean(EXTRA_SLEEP_TIMER_ADJUST_INCREASE, true)
-          val manager = sleepTimerManager
+        SleepTimer.ACTION_ADJUST -> {
+          val delta = args.getLong(SleepTimer.EXTRA_ADJUST_DELTA, 0L)
+          val increase = args.getBoolean(SleepTimer.EXTRA_ADJUST_INCREASE, true)
+          val manager = if (::sleepTimerManager.isInitialized) sleepTimerManager else null
           if (manager == null || delta <= 0L) {
-            Futures.immediateFuture(SessionResult(SessionResult.RESULT_ERROR_BAD_VALUE))
+            Futures.immediateFuture(SessionResult(SessionError.ERROR_BAD_VALUE))
           } else {
             if (increase) {
               manager.increaseSleepTime(delta)
@@ -479,40 +517,46 @@ val forwardSessionCommand = SessionCommand(CUSTOM_COMMAND_FORWARD_30S, Bundle.EM
             Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
           }
         }
-        CUSTOM_COMMAND_GET_SLEEP_TIMER_TIME -> {
+        SleepTimer.ACTION_GET_TIME -> {
           val bundle = Bundle().apply {
-            putLong(EXTRA_SLEEP_TIMER_TIME_MS, sleepTimerManager?.getSleepTimerTime() ?: 0L)
+            val time = if (::sleepTimerManager.isInitialized) {
+              sleepTimerManager.getSleepTimerTime()
+            } else {
+              0L
+            }
+            putLong(SleepTimer.EXTRA_TIME_MS, time)
           }
           Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS, bundle))
         }
-        CUSTOM_COMMAND_CHECK_AUTO_SLEEP_TIMER -> {
-          sleepTimerManager?.checkAutoSleepTimer()
+        SleepTimer.ACTION_CHECK_AUTO -> {
+          if (::sleepTimerManager.isInitialized) {
+            sleepTimerManager.checkAutoSleepTimer()
+          }
           Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
         }
-        CUSTOM_COMMAND_REWIND_10S -> {
-  sessionPlayer?.seekBack()
-  Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
-}
-CUSTOM_COMMAND_FORWARD_30S -> {
-  sessionPlayer?.seekForward()
-  Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
-}
-
+        CustomCommands.SEEK_BACK_INCREMENT -> {
+          player.seekBack()
+          Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+        }
+        CustomCommands.SEEK_FORWARD_INCREMENT -> {
+          player.seekForward()
+          Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+        }
         else -> super.onCustomCommand(session, controller, customCommand, args)
       }
     }
 
     override fun onGetLibraryRoot(
-      session: MediaLibraryService.MediaLibrarySession,
+      session: MediaLibrarySession,
       browser: MediaSession.ControllerInfo,
-      params: MediaLibraryService.LibraryParams?
+      params: LibraryParams?
     ): ListenableFuture<LibraryResult<MediaItem>> {
       return Futures.immediateFuture(
         LibraryResult.ofItem(
           MediaItem.Builder()
             .setMediaId("root")
             .setMediaMetadata(
-              androidx.media3.common.MediaMetadata.Builder()
+              MediaMetadata.Builder()
                 .setIsPlayable(false)
                 .setIsBrowsable(true)
                 .setTitle("Audiobookshelf")
@@ -525,12 +569,12 @@ CUSTOM_COMMAND_FORWARD_30S -> {
     }
 
     override fun onGetChildren(
-      session: MediaLibraryService.MediaLibrarySession,
+      session: MediaLibrarySession,
       browser: MediaSession.ControllerInfo,
       parentId: String,
       page: Int,
       pageSize: Int,
-      params: MediaLibraryService.LibraryParams?
+      params: LibraryParams?
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
       // Return empty list for now; can populate with current playback item if needed
       return Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.of(), params))
@@ -541,40 +585,40 @@ CUSTOM_COMMAND_FORWARD_30S -> {
    */
   private inner class PlayerEventListener : Player.Listener {
     override fun onAvailableCommandsChanged(availableCommands: Player.Commands) {
-      val cmds = mutableListOf<String>()
-      if (availableCommands.contains(Player.COMMAND_SEEK_BACK)) cmds.add("SEEK_BACK")
-      if (availableCommands.contains(Player.COMMAND_SEEK_FORWARD)) cmds.add("SEEK_FORWARD")
-      if (availableCommands.contains(Player.COMMAND_PLAY_PAUSE)) cmds.add("PLAY_PAUSE")
-      if (availableCommands.contains(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)) cmds.add("SEEK_IN_ITEM")
-      if (availableCommands.contains(Player.COMMAND_SEEK_TO_PREVIOUS)) cmds.add("SEEK_TO_PREVIOUS")
-      if (availableCommands.contains(Player.COMMAND_SEEK_TO_NEXT)) cmds.add("SEEK_TO_NEXT")
-      if (availableCommands.contains(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)) cmds.add("PREV_ITEM")
-      if (availableCommands.contains(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)) cmds.add("NEXT_ITEM")
-      if (availableCommands.contains(Player.COMMAND_GET_DEVICE_VOLUME)) cmds.add("GET_DEV_VOL")
-      if (availableCommands.contains(Player.COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS)) cmds.add("SET_DEV_VOL")
-      if (availableCommands.contains(Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS)) cmds.add("ADJ_DEV_VOL")
-      Log.d(tag, "AvailableCommandsChanged: ${cmds.joinToString(",")}")
+      val cmd = mutableListOf<String>()
+      if (availableCommands.contains(Player.COMMAND_SEEK_BACK)) cmd.add("SEEK_BACK")
+      if (availableCommands.contains(Player.COMMAND_SEEK_FORWARD)) cmd.add("SEEK_FORWARD")
+      if (availableCommands.contains(Player.COMMAND_PLAY_PAUSE)) cmd.add("PLAY_PAUSE")
+      if (availableCommands.contains(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)) cmd.add("SEEK_IN_ITEM")
+      if (availableCommands.contains(Player.COMMAND_SEEK_TO_PREVIOUS)) cmd.add("SEEK_TO_PREVIOUS")
+      if (availableCommands.contains(Player.COMMAND_SEEK_TO_NEXT)) cmd.add("SEEK_TO_NEXT")
+      if (availableCommands.contains(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)) cmd.add("PREV_ITEM")
+      if (availableCommands.contains(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)) cmd.add("NEXT_ITEM")
+      if (availableCommands.contains(Player.COMMAND_GET_DEVICE_VOLUME)) cmd.add("GET_DEV_VOL")
+      if (availableCommands.contains(Player.COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS)) cmd.add("SET_DEV_VOL")
+      if (availableCommands.contains(Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS)) cmd.add("ADJ_DEV_VOL")
+      Log.d(TAG, "AvailableCommandsChanged: ${cmd.joinToString(",")}")
     }
     override fun onIsPlayingChanged(isPlaying: Boolean) {
-      Log.d(tag, "onIsPlayingChanged: $isPlaying")
+      Log.d(TAG, "onIsPlayingChanged: $isPlaying")
       // MediaController layer now emits playback state to UI
       // No legacy compat updates required
       mainHandler.removeCallbacksAndMessages(null)
     }
 
     override fun onPlaybackStateChanged(playbackState: Int) {
-      Log.d(tag, "onPlaybackStateChanged: $playbackState")
+      Log.d(TAG, "onPlaybackStateChanged: $playbackState")
       when (playbackState) {
         Player.STATE_READY -> Unit
         Player.STATE_ENDED -> {
-          Log.d(tag, "Playback ended")
+          Log.d(TAG, "Playback ended")
         }
       }
-      // No legacy compat updates required
+
     }
 
-    override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-      Log.e(tag, "Player error: ${error.message}")
+    override fun onPlayerError(error: PlaybackException) {
+      Log.e(TAG, "Player error: ${error.message}")
     }
 
     override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
@@ -582,21 +626,11 @@ CUSTOM_COMMAND_FORWARD_30S -> {
     }
 
     override fun onVolumeChanged(volume: Float) {
-      Log.d(tag, "onVolumeChanged: $volume (player volume updated)")
+      Log.d(TAG, "onVolumeChanged: $volume (player volume updated)")
     }
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-      Log.d(tag, "onMediaItemTransition: reason=$reason")
-    }
-  }
-
-  /**
-   * Update MediaSession metadata for notification display.
-   */
-  fun updateSessionMetadata(playbackSession: PlaybackSession?) {
-    playbackSession?.let { session ->
-      currentPlaybackSession = session
-      Log.d(tag, "Session metadata updated: ${session.displayTitle}")
+      Log.d(TAG, "onMediaItemTransition: reason=$reason")
     }
   }
 
@@ -604,46 +638,47 @@ CUSTOM_COMMAND_FORWARD_30S -> {
     if (playbackSpeedSteps.isEmpty()) return 1.0f
     playbackSpeedIndex = (playbackSpeedIndex + 1) % playbackSpeedSteps.size
     val newSpeed = playbackSpeedSteps[playbackSpeedIndex]
-    sessionPlayer?.setPlaybackSpeed(newSpeed)
+    player.setPlaybackSpeed(newSpeed)
     updatePlaybackSpeedButton(newSpeed)
     return newSpeed
   }
 
   private fun currentPlaybackSpeed(): Float {
-    val playerSpeed = sessionPlayer?.playbackParameters?.speed
-    return playerSpeed ?: playbackSpeedSteps.getOrElse(playbackSpeedIndex) { 1.0f }
+    val playerSpeed = player.playbackParameters.speed
+    return playerSpeed
   }
 
   private fun createPlaybackSpeedButton(speed: Float): CommandButton {
     val label = CustomMediaNotificationProvider.formatSpeedLabel(speed)
+    val normalizedSpeed = playbackSpeedSteps.firstOrNull { abs(it - speed) < 0.01f } ?: 1.0f
 
-    // Map speed to custom icon resource - we have icons for all our speed steps
-    val customIconRes = when {
-      abs(speed - 0.5f) < 0.01f -> R.drawable.ic_play_speed_0_5x
-      abs(speed - 1.0f) < 0.01f -> R.drawable.ic_play_speed_1_0x
-      abs(speed - 1.2f) < 0.01f -> R.drawable.ic_play_speed_1_2x
-      abs(speed - 1.5f) < 0.01f -> R.drawable.ic_play_speed_1_5x
-      abs(speed - 2.0f) < 0.01f -> R.drawable.ic_play_speed_2_0x
-      abs(speed - 3.0f) < 0.01f -> R.drawable.ic_play_speed_3_0x
-      else -> R.drawable.ic_play_speed_1_0x // Fallback to 1.0x
+    // Map speed to custom icon resource - we have icons for all our supported steps
+    val customIconRes = when (normalizedSpeed) {
+      0.5f -> R.drawable.ic_play_speed_0_5x
+      1.0f -> R.drawable.ic_play_speed_1_0x
+      1.2f -> R.drawable.ic_play_speed_1_2x
+      1.5f -> R.drawable.ic_play_speed_1_5x
+      2.0f -> R.drawable.ic_play_speed_2_0x
+      3.0f -> R.drawable.ic_play_speed_3_0x
+      else -> R.drawable.ic_play_speed_1_0x
     }
 
     // Use closest predefined Media3 icon constant as base
-    val iconConstant = when {
-      abs(speed - 0.5f) < 0.01f -> CommandButton.ICON_PLAYBACK_SPEED_0_5
-      abs(speed - 1.0f) < 0.01f -> CommandButton.ICON_PLAYBACK_SPEED_1_0
-      abs(speed - 1.2f) < 0.01f -> CommandButton.ICON_PLAYBACK_SPEED_1_2
-      abs(speed - 1.5f) < 0.01f -> CommandButton.ICON_PLAYBACK_SPEED_1_5
-      abs(speed - 2.0f) < 0.01f -> CommandButton.ICON_PLAYBACK_SPEED_2_0
-      abs(speed - 3.0f) < 0.01f -> CommandButton.ICON_PLAYBACK_SPEED_2_0 // Closest available
+    val iconConstant = when (normalizedSpeed) {
+      0.5f -> CommandButton.ICON_PLAYBACK_SPEED_0_5
+      1.0f -> CommandButton.ICON_PLAYBACK_SPEED_1_0
+      1.2f -> CommandButton.ICON_PLAYBACK_SPEED_1_2
+      1.5f -> CommandButton.ICON_PLAYBACK_SPEED_1_5
+      2.0f -> CommandButton.ICON_PLAYBACK_SPEED_2_0
+      3.0f -> CommandButton.ICON_PLAYBACK_SPEED_2_0
       else -> CommandButton.ICON_PLAYBACK_SPEED
     }
 
     // Explicit overflow slot keeps speed in secondary/ellipsis menu, not primary transport row
     return CommandButton.Builder(iconConstant)
-      .setSessionCommand(playbackSpeedCommand)
+      .setSessionCommand(cyclePlaybackSpeedCommand)
       .setDisplayName(label)
-      .setExtras(Bundle().apply { putFloat(EXTRA_DISPLAY_SPEED, speed) })
+      .setExtras(Bundle().apply { putFloat(Extras.DISPLAY_SPEED, speed) })
       .setSlots(CommandButton.SLOT_OVERFLOW)
       .setCustomIconResId(customIconRes)
       .build()
@@ -655,9 +690,9 @@ CUSTOM_COMMAND_FORWARD_30S -> {
     val speedButton = createPlaybackSpeedButton(speed)
     playbackSpeedCommandButton = speedButton
     mediaSession?.let { session ->
-      if (::rewindCommandButton.isInitialized && ::forwardCommandButton.isInitialized) {
+      if (::seekBackButton.isInitialized && ::seekForwardButton.isInitialized) {
         session.setMediaButtonPreferences(
-          ImmutableList.of(speedButton,rewindCommandButton, forwardCommandButton )
+          ImmutableList.of(speedButton, seekBackButton, seekForwardButton)
         )
       }
     }
