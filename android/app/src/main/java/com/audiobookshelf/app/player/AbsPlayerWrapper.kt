@@ -7,24 +7,23 @@ import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.Player
-import androidx.media3.exoplayer.ExoPlayer
-
 
 /**
- * ForwardingPlayer wrapper that keeps skip commands exposed even when the session hosts
- * a single media item. Android surfaces expect SEEK_TO_NEXT/SEEK_TO_PREVIOUS to be present
- * for transport controls; we fall back to the configured seek increments whenever the queue
- * lacks adjacent items.
- * Additionally bridges device volume commands to the local STREAM_MUSIC so wearables
- * and other controllers can adjust phone volume through Media3 device volume APIs.
+ * A generic Player wrapper that applies Audiobookshelf's custom logic.
+ *
+ * This wrapper can wrap any Media3 `Player` (like ExoPlayer or CastPlayer) and:
+ * 1.  Provides a fallback for seek/skip commands, ensuring "next" and "previous"
+ *     buttons work even with a single-item queue by mapping them to seek operations.
+ * 2.  Bridges Media3's device volume commands to Android's AudioManager, allowing
+ *     remote controllers (like wearables) to adjust the device's stream volume.
  */
-class SkipCommandForwardingPlayer(
-  basePlayer: ExoPlayer,
+class AbsPlayerWrapper(
+  player: Player, // Changed from ExoPlayer to the generic Player interface
   private val appContext: Context
-) : ForwardingPlayer(basePlayer) {
+) : ForwardingPlayer(player) {
 
   companion object {
-    private const val TAG = "SkipFwdPlayer"
+    private const val TAG = "AbsPlayerWrapper"
   }
 
   private val audioManager: AudioManager = appContext.getSystemService(AudioManager::class.java)
@@ -34,43 +33,44 @@ class SkipCommandForwardingPlayer(
 
   override fun getAvailableCommands(): Player.Commands {
     val builder = super.getAvailableCommands().buildUpon()
+      // Always add seek commands
       .add(Player.COMMAND_SEEK_BACK)
       .add(Player.COMMAND_SEEK_FORWARD)
-      .add(Player.COMMAND_GET_DEVICE_VOLUME)
-      .add(Player.COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS)
-      .add(Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS)
 
+    // Only add track skipping if not mapping skip to seek
     if (!mapSkipToSeek) {
       builder
         .add(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
         .add(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
     }
 
+    // Always add device volume commands to bridge to AudioManager
+    builder
+      .add(Player.COMMAND_GET_DEVICE_VOLUME)
+      .add(Player.COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS)
+      .add(Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS)
+
     return builder.build()
   }
 
   // region ===== Skip/Seek Fallbacks ==========================================================
   override fun seekBack() {
-    val currentPos = currentPosition
-    val increment = seekBackIncrement
-    Log.d(TAG, "seekBack called - current: ${currentPos}ms, increment: ${increment}ms, target: ${currentPos - increment}ms")
+    Log.d(TAG, "seekBack() called.")
     super.seekBack()
   }
 
   override fun seekForward() {
-    val currentPos = currentPosition
-    val increment = seekForwardIncrement
-    Log.d(TAG, "seekForward called - current: ${currentPos}ms, increment: ${increment}ms, target: ${currentPos + increment}ms")
+    Log.d(TAG, "seekForward() called.")
     super.seekForward()
   }
 
   override fun hasNextMediaItem(): Boolean {
-    // Report "has next" so controllers (e.g., Wear) enable the Next button.
+    // If we map skip to seek, always report "true" so the 'next' button is enabled.
     return if (mapSkipToSeek) true else super.hasNextMediaItem()
   }
 
   override fun hasPreviousMediaItem(): Boolean {
-    // Report "has previous" so controllers enable the Previous button.
+    // If we map skip to seek, always report "true" so the 'previous' button is enabled.
     return if (mapSkipToSeek) true else super.hasPreviousMediaItem()
   }
 
@@ -82,36 +82,28 @@ class SkipCommandForwardingPlayer(
 
   override fun seekToPrevious() = handlePrevious { super.seekToPrevious() }
 
-  /**
-   * Handles a "next" command, either by seeking forward or skipping to the next track.
-   * @param skipToNextAction The action to perform if a track skip is appropriate.
-   */
   private fun handleNext(skipToNextAction: () -> Unit) {
     if (mapSkipToSeek) {
-      Log.d(TAG, "Next command -> mapped to seekForward() due to mapSkipToSeek")
+      Log.d(TAG, "Next command -> mapped to seekForward() due to mapSkipToSeek.")
       seekForward()
     } else if (super.hasNextMediaItem()) {
-      Log.d(TAG, "Next command -> has next, performing track skip")
+      Log.d(TAG, "Next command -> has next item, performing track skip.")
       skipToNextAction()
     } else {
-      Log.d(TAG, "Next command -> no next, falling back to seekForward()")
+      Log.d(TAG, "Next command -> no next item, falling back to seekForward().")
       seekForward()
     }
   }
 
-  /**
-   * Handles a "previous" command, either by seeking backward or skipping to the previous track.
-   * @param skipToPreviousAction The action to perform if a track skip is appropriate.
-   */
   private fun handlePrevious(skipToPreviousAction: () -> Unit) {
     if (mapSkipToSeek) {
-      Log.d(TAG, "Previous command -> mapped to seekBack() due to mapSkipToSeek")
+      Log.d(TAG, "Previous command -> mapped to seekBack() due to mapSkipToSeek.")
       seekBack()
     } else if (super.hasPreviousMediaItem()) {
-      Log.d(TAG, "Previous command -> has previous, performing track skip")
+      Log.d(TAG, "Previous command -> has previous item, performing track skip.")
       skipToPreviousAction()
     } else {
-      Log.d(TAG, "Previous command -> no previous, falling back to seekBack()")
+      Log.d(TAG, "Previous command -> no previous item, falling back to seekBack().")
       seekBack()
     }
   }

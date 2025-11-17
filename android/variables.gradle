@@ -20,7 +20,7 @@ ext {
     glide_version = '4.16.0'
     junit_version = '4.13.2'
     kotlin_version = '2.1.0'
-    kotlin_coroutines_version = '1.10.1'
+    kotlin_coroutines_version = '1.10.2'
     test_runner_version = '1.1.0'
     coreSplashScreenVersion = '1.0.1'
     androidxWebkitVersion = '1.12.1'
