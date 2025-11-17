@@ -29,8 +29,8 @@
 
         <!-- Android app widget -->
         <receiver
-          android:name="MediaPlayerWidget"
-          android:exported="false">
+          android:exported="false"
+          android:name=".MediaPlayerWidget">
           <intent-filter>
             <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
           </intent-filter>

@@ -18,6 +18,7 @@ fun PlaybackSession.toPlayerMediaItems(ctx: Context): List<PlayerMediaItem> {
 
     val queueItem = this.getQueueItem(audioTrack) // Queue item used in exo player CastManager
     val playerMediaItem = PlayerMediaItem(
+            mediaId = "${this.id}_${audioTrack.stableId}",
             uri = mediaUri,
             mimeType = mimeType,
             tag = queueItem,

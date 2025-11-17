@@ -425,3 +425,31 @@ A: Incremental approach. Phase 1 proves Media3 playback works. Phase 2 adds sess
 
 **Q: What about Android Auto?**
 A: Currently works with legacy `MediaBrowserServiceCompat`. Phase 2 will verify Media3 `MediaSession` / `MediaLibraryService` compatibility.
+
+## Recent Progress (Phase 3 prework)
+- ✅ `Media3PlaybackService` now hosts the active `SkipCommandForwardingPlayer`, registers the custom notification provider, and exposes the shared seeking/custom commands (cycle playback speed + sleep timer + seek back/forward) via its `MediaLibrarySession.ConnectionResult`. The service also listens for `AudioManager.ACTION_AUDIO_BECOMING_NOISY` so Media3 playback pauses when Bluetooth/headphones disconnect, matching the legacy behavior.
+- ✅ Sleep timer management lives inside the service with a `lateinit` `SleepTimerManager` and `SleepTimerHost` that pulls state directly from the Media3 player; downstream components can re-register via the new companion helpers (`SleepTimer.*` and `Extras.DISPLAY_SPEED`).
+- ✅ The notification provider imports the nested `CustomCommands` object so the forced seek buttons fire the central Media3 custom commands instead of legacy constants, keeping the action bar consistent across players.
+
+## Casting & Android Auto Roadmap
+1. **Audit current integrations** – list the playback controls, metadata, and extras the existing ExoPlayer-based `CastManager`, `CastPlayer`, and Android Auto integration rely on so we know which callbacks must be preserved when switching to Media3.
+2. **Map to Media3 concepts** – align each responsibility with a Media3 hook (`MediaLibrarySession.Callback`, `MediaNotification.ActionFactory`, session extras such as `MediaConstants.EXTRAS_KEY_SLOT_RESERVATION_SEEK_TO_PREV`, and Media3 custom commands), noting gaps (e.g., how Auto expects the session token, what metadata it inspects, how cast routes get selected).
+3. **Wire casting through Media3PlaybackService** – keep the custom seek and sleep-timer commands registered so casting clients see the same actions, route `CastManager`/`CastPlayer` events through the new session token, and ensure device-volume bridging happens via `SkipCommandForwardingPlayer`.
+4. **Android Auto staging** – have the Auto connector bind to the Media3 session token, honor the same extras/commands as the legacy path, and verify metadata/position reporting remains accurate when the flag is on.
+5. **Validation plan** – once the service + controller handshake is rebuilt, run the same tests as before: streaming playback, Bluetooth disconnection, casting to a device, and launching via Android Auto to confirm expected controls appear.
+
+## Media3CastPlayer Design Notes
+- **Purpose:** build a Media3-native cast path (`Media3CastPlayer`) that mirrors `CastPlayer` but subscribes directly to `Media3PlaybackService` so we can compare its behavior when `USE_MEDIA3=true`. The legacy `CastPlayer` should remain untouched until parity is proven.
+- **Responsibilities:** listen for Media3 session availability/disconnect, expose the same `Player.Commands` set (playing, pausing, seeks, custom jump/speed actions), and issue `RemoteMediaClient` load requests using `PlayerMediaItem` metadata without reaching back into the ExoPlayer2 abstractions.
+- **Integration hooks:** extend `Media3PlaybackService` to:
+  * publish a session listener interface (e.g., `Media3CastListener`) so `Media3CastPlayer` can register when a Cast session should start/stop.
+  * ensure the custom `SessionCommand`s (`CustomCommands` and `SleepTimer`) remain available in `onConnect`.
+  * continue emitting metadata/position updates via the existing telemetry hosts so cast/out-of-process clients can reuse them.
+- **Validation:** run the feature parity checklist above against the Media3 path—with the legacy `CastPlayer` still enabled via the flag—to confirm casting, Bluetooth noise handling, and Auto controls act identically before replacing the old path.
+1. **Audit current integrations** – list the playback controls, metadata, and extras the existing ExoPlayer-based `CastManager`, `CastPlayer`, and Android Auto integration rely on so we know which callbacks must be preserved when switching to Media3.
+2. **Map to Media3 concepts** – align each responsibility with a Media3 hook (`MediaLibrarySession.Callback`, `MediaNotification.ActionFactory`, session extras such as `MediaConstants.EXTRAS_KEY_SLOT_RESERVATION_SEEK_TO_PREV`, and Media3 custom commands), noting gaps (e.g., how Auto expects the session token, what metadata it inspects, how cast routes get selected).
+3. **Wire casting through Media3PlaybackService** – keep the custom seek and sleep-timer commands registered so casting clients see the same actions, route `CastManager`/`CastPlayer` events through the new session token, and ensure device-volume bridging happens via `SkipCommandForwardingPlayer`.
+4. **Android Auto staging** – have the Auto connector bind to the Media3 session token, honor the same extras/commands as the legacy path, and verify metadata/position reporting remains accurate when the flag is on.
+5. **Validation plan** – once the service + controller handshake is rebuilt, run the same tests as before: streaming playback, Bluetooth disconnection, casting to a device, and launching via Android Auto to confirm expected controls appear.
+
+Let me know if you want those roadmap notes expanded into a formal task list or ticket-ready checklist.

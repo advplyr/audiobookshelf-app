@@ -187,8 +187,10 @@ class PlaybackController(private val context: Context) {
       return
     }
 
-    val sessionToken = SessionToken(context, ComponentName(context, Media3PlaybackService::class.java))
-    controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
+    val appContext = context.applicationContext
+    val sessionToken = SessionToken(appContext, ComponentName(appContext, Media3PlaybackService::class.java))
+    controllerFuture  = MediaController.Builder(appContext, sessionToken).buildAsync()
+
 
     Futures.addCallback(controllerFuture!!, object : FutureCallback<MediaController> {
       override fun onSuccess(result: MediaController?) {
@@ -231,14 +233,16 @@ class PlaybackController(private val context: Context) {
     connect {
       val controller = mediaController ?: return@connect
       val mediaItems = playbackSession.toPlayerMediaItems(context).mapIndexed { index, playerMediaItem ->
+        val mediaId = "${playbackSession.id}_${playerMediaItem.mediaId}"
         MediaItem.Builder()
           .setUri(playerMediaItem.uri)
-          .setMediaId("${playbackSession.mediaItemId}_$index")
+          .setMediaId(mediaId)
+          .setMimeType(playerMediaItem.mimeType)
           .setMediaMetadata(
             MediaMetadata.Builder()
               .setTitle(playbackSession.displayTitle)
               .setArtist(playbackSession.displayAuthor)
-              .setAlbumTitle(playbackSession.displayAuthor)
+              .setAlbumArtist(playbackSession.displayAuthor)
               .setArtworkUri(playerMediaItem.artworkUri)
               .build()
           )

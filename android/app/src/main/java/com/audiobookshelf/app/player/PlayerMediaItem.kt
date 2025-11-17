@@ -7,6 +7,7 @@ import android.net.Uri
  * Keeps the public player API independent from ExoPlayer / Media3 types.
  */
 data class PlayerMediaItem(
+  val mediaId: String,
   val uri: Uri,
   val mimeType: String? = null,
   val tag: Any? = null,
