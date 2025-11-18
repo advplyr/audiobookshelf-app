@@ -9,7 +9,6 @@ import Foundation
 import Alamofire
 
 class ApiClient {
-    private static let logger = AppLogger(category: "ApiClient")
     private static let secureStorage = SecureStorage()
     
     public static func getData(from url: URL, completion: @escaping (UIImage?) -> Void) {
@@ -22,7 +21,7 @@ class ApiClient {
     
     public static func postResource<T: Decodable>(endpoint: String, parameters: [String: Any], decodable: T.Type = T.self, callback: ((_ param: T) -> Void)?) {
         if (Store.serverConfig == nil) {
-            logger.error("Server config not set")
+            AbsLogger.error(message: "Server config not set")
             return
         }
         
@@ -35,7 +34,7 @@ class ApiClient {
             case .success(let obj):
                 callback?(obj)
             case .failure(let error):
-                logger.error("api request to \(endpoint) failed")
+                AbsLogger.error(message: "api request to \(endpoint) failed")
                 print(error)
             }
         }
@@ -43,7 +42,7 @@ class ApiClient {
     
     public static func postResource<T: Encodable, U: Decodable>(endpoint: String, parameters: T, decodable: U.Type = U.self, callback: ((_ param: U) -> Void)?) {
         if (Store.serverConfig == nil) {
-            logger.error("Server config not set")
+            AbsLogger.error(message: "Server config not set")
             return
         }
         
@@ -56,7 +55,7 @@ class ApiClient {
             case .success(let obj):
                 callback?(obj)
             case .failure(let error):
-                logger.error("api request to \(endpoint) failed")
+                AbsLogger.error(message: "api request to \(endpoint) failed")
                 print(error)
             }
         }
@@ -72,7 +71,7 @@ class ApiClient {
     
     public static func postResource<T:Encodable>(endpoint: String, parameters: T, callback: ((_ success: Bool) -> Void)?) {
         if (Store.serverConfig == nil) {
-            logger.error("Server config not set")
+            AbsLogger.error(message: "Server config not set")
             callback?(false)
             return
         }
@@ -86,7 +85,7 @@ class ApiClient {
             case .success(_):
                 callback?(true)
             case .failure(let error):
-                logger.error("api request to \(endpoint) failed")
+                AbsLogger.error(message: "api request to \(endpoint) failed")
                 print(error)
                 
                 callback?(false)
@@ -96,7 +95,7 @@ class ApiClient {
     
     public static func patchResource<T: Encodable>(endpoint: String, parameters: T, callback: ((_ success: Bool) -> Void)?) {
         if (Store.serverConfig == nil) {
-            logger.error("Server config not set")
+            AbsLogger.error(message: "Server config not set")
             callback?(false)
             return
         }
@@ -110,7 +109,7 @@ class ApiClient {
             case .success(_):
                 callback?(true)
             case .failure(let error):
-                logger.error("api request to \(endpoint) failed")
+                AbsLogger.error(message: "api request to \(endpoint) failed")
                 print(error)
                 callback?(false)
             }
@@ -127,7 +126,7 @@ class ApiClient {
     
     public static func getResource<T: Decodable>(endpoint: String, decodable: T.Type = T.self, callback: ((_ param: T?) -> Void)?) {
         if (Store.serverConfig == nil) {
-            logger.error("Server config not set")
+            AbsLogger.error(message: "Server config not set")
             callback?(nil)
             return
         }
@@ -141,7 +140,7 @@ class ApiClient {
                 case .success(let obj):
                     callback?(obj)
                 case .failure(let error):
-                    logger.error("api request to \(endpoint) failed")
+                    AbsLogger.error(message: "api request to \(endpoint) failed")
                     print(error)
             }
         }
@@ -160,22 +159,22 @@ class ApiClient {
      */
     private static func handleTokenRefresh<T: Decodable>(originalRequest: DataRequest, endpoint: String, method: HTTPMethod, parameters: Any?, decodable: T.Type, callback: ((_ param: T?) -> Void)?) {
         guard let serverConfig = Store.serverConfig else {
-            logger.error("handleTokenRefresh: No server config available")
+            AbsLogger.error(message: "handleTokenRefresh: No server config available")
             callback?(nil)
             return
         }
         
-        logger.log("handleTokenRefresh: Attempting to refresh auth tokens for server \(serverConfig.name)")
+        AbsLogger.info(message: "handleTokenRefresh: Attempting to refresh auth tokens for server \(serverConfig.name)")
         
         // Get refresh token from secure storage
         guard let refreshToken = secureStorage.getRefreshToken(serverConnectionConfigId: serverConfig.id) else {
-            logger.error("handleTokenRefresh: No refresh token available for server \(serverConfig.name)")
+            AbsLogger.error(message: "handleTokenRefresh: No refresh token available for server \(serverConfig.name)")
             handleRefreshFailure()
             callback?(nil)
             return
         }
         
-        logger.log("handleTokenRefresh: Retrieved refresh token, attempting to refresh access token")
+        AbsLogger.info(message: "handleTokenRefresh: Retrieved refresh token, attempting to refresh access token")
         
         // Create refresh token request
         let refreshHeaders: HTTPHeaders = [
@@ -190,23 +189,23 @@ class ApiClient {
             case .success(let refreshResponse):
                 guard let user = refreshResponse.user,
                       !user.accessToken.isEmpty else {
-                    logger.error("handleTokenRefresh: No access token in refresh response for server \(serverConfig.name)")
+                    AbsLogger.error(message: "handleTokenRefresh: No access token in refresh response for server \(serverConfig.name)")
                     handleRefreshFailure()
                     callback?(nil)
                     return
                 }
                 
-                logger.log("handleTokenRefresh: Successfully obtained new access token")
+                AbsLogger.info(message: "handleTokenRefresh: Successfully obtained new access token")
                 
                 // Update tokens in secure storage and store
                 updateTokens(newAccessToken: user.accessToken, newRefreshToken: user.refreshToken ?? refreshToken, serverConnectionConfigId: serverConfig.id)
                 
                 // Retry the original request with the new access token
-                logger.log("handleTokenRefresh: Retrying original request with new token")
+                AbsLogger.info(message: "handleTokenRefresh: Retrying original request with new token")
                 retryOriginalRequest(endpoint: endpoint, method: method, parameters: parameters, decodable: decodable, newAccessToken: user.accessToken, callback: callback)
                 
             case .failure(let error):
-                logger.error("handleTokenRefresh: Refresh request failed for server \(serverConfig.name): \(error)")
+                AbsLogger.error(message: "handleTokenRefresh: Refresh request failed for server \(serverConfig.name): \(error)")
                 handleRefreshFailure()
                 callback?(nil)
             }
@@ -220,14 +219,14 @@ class ApiClient {
         // Update the refresh token in secure storage if it's new
         if newRefreshToken != secureStorage.getRefreshToken(serverConnectionConfigId: serverConnectionConfigId) {
             let hasStored = secureStorage.storeRefreshToken(serverConnectionConfigId: serverConnectionConfigId, refreshToken: newRefreshToken)
-            logger.log("updateTokens: Updated refresh token in secure storage. Stored=\(hasStored)")
+            AbsLogger.info(message: "updateTokens: Updated refresh token in secure storage. Stored=\(hasStored)")
         }
         
         // Update access token on server connection config
         Database.shared.updateServerConnectionConfigToken(newToken: newAccessToken)
-        logger.log("updateTokens: Updated access token in server connection config")
+        AbsLogger.info(message: "updateTokens: Updated access token in server connection config")
         
-        logger.log("updateTokens: Successfully refreshed auth tokens for server \(Store.serverConfig?.name ?? "unknown")")
+        AbsLogger.info(message: "updateTokens: Successfully refreshed auth tokens for server \(Store.serverConfig?.name ?? "unknown")")
         
         // Notify webview frontend about token refresh
         if let callback = AbsDatabase.tokenRefreshCallback {
@@ -241,7 +240,7 @@ class ApiClient {
      */
     private static func retryOriginalRequest<T: Decodable>(endpoint: String, method: HTTPMethod, parameters: Any?, decodable: T.Type, newAccessToken: String, callback: ((_ param: T?) -> Void)?) {
         guard let serverConfig = Store.serverConfig else {
-            logger.error("retryOriginalRequest: No server config available")
+            AbsLogger.error(message: "retryOriginalRequest: No server config available")
             callback?(nil)
             return
         }
@@ -270,7 +269,7 @@ class ApiClient {
                 retryRequest = AF.request("\(serverConfig.address)/\(endpoint)", method: .patch, headers: headers)
             }
         default:
-            logger.error("retryOriginalRequest: Unsupported method \(method)")
+            AbsLogger.error(message: "retryOriginalRequest: Unsupported method \(method)")
             callback?(nil)
             return
         }
@@ -282,7 +281,7 @@ class ApiClient {
                 if let data = response.data, !data.isEmpty {
                     // If it is a string return nil (e.g. express returns OK for 200 status codes)
                     if let responseString = String(data: data, encoding: .utf8) {
-                        logger.log("retryOriginalRequest: Got string response '\(responseString)'")
+                        AbsLogger.info(message: "retryOriginalRequest: Got string response '\(responseString)'")
                         callback?(nil)
                         return
                     }
@@ -292,16 +291,16 @@ class ApiClient {
                         let decodedObject = try JSONDecoder().decode(decodable, from: data)
                         callback?(decodedObject)
                     } catch {
-                        logger.error("retryOriginalRequest: JSON decode failed: \(error)")
+                        AbsLogger.error(message: "retryOriginalRequest: JSON decode failed: \(error)", error: error)
                         callback?(nil)
                     }
                 } else {
                     // Empty response
-                    logger.log("retryOriginalRequest: Empty response with success status \(statusCode)")
+                    AbsLogger.info(message: "retryOriginalRequest: Empty response with success status \(statusCode)")
                     callback?(nil)
                 }
             } else {
-                logger.error("retryOriginalRequest: Request failed with status \(response.response?.statusCode ?? 0)")
+                AbsLogger.error(message: "retryOriginalRequest: Request failed with status \(response.response?.statusCode ?? 0)")
                 callback?(nil)
             }
         }
@@ -312,7 +311,7 @@ class ApiClient {
      * This will clear the current server connection and notify webview
      */
     private static func handleRefreshFailure() {
-        logger.log("handleRefreshFailure: Token refresh failed, clearing session")
+        AbsLogger.info(message: "handleRefreshFailure: Token refresh failed, clearing session")
         
         // Clear the current server connection
         Store.serverConfig = nil
@@ -332,7 +331,7 @@ class ApiClient {
     
     public static func getResourceWithTokenRefresh<T: Decodable>(endpoint: String, decodable: T.Type = T.self, callback: ((_ param: T?) -> Void)?) {
         if (Store.serverConfig == nil) {
-            logger.error("Server config not set")
+            AbsLogger.error(message: "Server config not set")
             callback?(nil)
             return
         }
@@ -345,14 +344,14 @@ class ApiClient {
         
         request.responseDecodable(of: decodable) { response in
             if let statusCode = response.response?.statusCode, statusCode == 401 {
-                logger.log("getResourceWithTokenRefresh: 401 Unauthorized for request to \(endpoint) - attempting token refresh")
+                AbsLogger.info(message: "getResourceWithTokenRefresh: 401 Unauthorized for request to \(endpoint) - attempting token refresh")
                 handleTokenRefresh(originalRequest: request, endpoint: endpoint, method: .get, parameters: nil, decodable: decodable, callback: callback)
             } else {
                 switch response.result {
                 case .success(let obj):
                     callback?(obj)
                 case .failure(let error):
-                    logger.error("api request to \(endpoint) failed")
+                    AbsLogger.error(message: "api request to \(endpoint) failed")
                     print(error)
                     callback?(nil)
                 }
@@ -362,7 +361,7 @@ class ApiClient {
     
     public static func postResourceWithTokenRefresh<T: Encodable, U: Decodable>(endpoint: String, parameters: T, decodable: U.Type = U.self, callback: ((_ param: U?) -> Void)?) {
         if (Store.serverConfig == nil) {
-            logger.error("Server config not set")
+            AbsLogger.error(message: "Server config not set")
             callback?(nil)
             return
         }
@@ -375,14 +374,14 @@ class ApiClient {
         
         request.responseDecodable(of: decodable) { response in
             if let statusCode = response.response?.statusCode, statusCode == 401 {
-                logger.log("postResourceWithTokenRefresh: 401 Unauthorized for request to \(endpoint) - attempting token refresh")
+                AbsLogger.info(message: "postResourceWithTokenRefresh: 401 Unauthorized for request to \(endpoint) - attempting token refresh")
                 handleTokenRefresh(originalRequest: request, endpoint: endpoint, method: .post, parameters: parameters, decodable: decodable, callback: callback)
             } else {
                 switch response.result {
                 case .success(let obj):
                     callback?(obj)
                 case .failure(let error):
-                    logger.error("api request to \(endpoint) failed")
+                    AbsLogger.error(message: "api request to \(endpoint) failed")
                     print(error)
                     callback?(nil)
                 }
@@ -395,7 +394,7 @@ class ApiClient {
      */
     public static func postResourceWithTokenRefresh<T: Encodable>(endpoint: String, parameters: T, callback: ((_ success: Bool) -> Void)?) {
         if (Store.serverConfig == nil) {
-            logger.error("Server config not set")
+            AbsLogger.error(message: "Server config not set")
             callback?(false)
             return
         }
@@ -408,7 +407,7 @@ class ApiClient {
         
         request.response { response in
             if let statusCode = response.response?.statusCode, statusCode == 401 {
-                logger.log("postResourceWithTokenRefresh: 401 Unauthorized for request to \(endpoint) - attempting token refresh")
+                AbsLogger.info(message: "postResourceWithTokenRefresh: 401 Unauthorized for request to \(endpoint) - attempting token refresh")
                 handleTokenRefresh(originalRequest: request, endpoint: endpoint, method: .post, parameters: parameters, decodable: EmptyResponse.self) { result in
                     callback?(result != nil)
                 }
@@ -417,7 +416,7 @@ class ApiClient {
                 case .success(_):
                     callback?(true)
                 case .failure(let error):
-                    logger.error("api request to \(endpoint) failed")
+                    AbsLogger.error(message: "api request to \(endpoint) failed")
                     print(error)
                     callback?(false)
                 }
@@ -427,7 +426,7 @@ class ApiClient {
     
     public static func patchResourceWithTokenRefresh<T: Encodable>(endpoint: String, parameters: T, callback: ((_ success: Bool) -> Void)?) {
         if (Store.serverConfig == nil) {
-            logger.error("Server config not set")
+            AbsLogger.error(message: "Server config not set")
             callback?(false)
             return
         }
@@ -440,7 +439,7 @@ class ApiClient {
         
         request.response { response in
             if let statusCode = response.response?.statusCode, statusCode == 401 {
-                logger.log("patchResourceWithTokenRefresh: 401 Unauthorized for request to \(endpoint) - attempting token refresh")
+                AbsLogger.info(message: "patchResourceWithTokenRefresh: 401 Unauthorized for request to \(endpoint) - attempting token refresh")
                 handleTokenRefresh(originalRequest: request, endpoint: endpoint, method: .patch, parameters: parameters, decodable: EmptyResponse.self) { result in
                     callback?(result != nil)
                 }
@@ -449,7 +448,7 @@ class ApiClient {
                 case .success(_):
                     callback?(true)
                 case .failure(let error):
-                    logger.error("api request to \(endpoint) failed")
+                    AbsLogger.error(message: "api request to \(endpoint) failed")
                     print(error)
                     callback?(false)
                 }
@@ -489,7 +488,7 @@ class ApiClient {
         // Use the new token refresh-enabled method
         postResourceWithTokenRefresh(endpoint: endpoint, parameters: parameters, decodable: PlaybackSession.self) { session in
             guard let session = session else {
-                logger.error("startPlaybackSession: Failed to create playback session")
+                AbsLogger.error(message: "startPlaybackSession: Failed to create playback session")
                 callback(PlaybackSession()) // Return empty session on failure
                 return
             }
@@ -533,14 +532,14 @@ class ApiClient {
             let localMediaProgressList = Database.shared.getAllLocalMediaProgress().filter {
                 $0.serverConnectionConfigId == Store.serverConfig?.id
             }.map { $0.freeze() }
-            logger.log("syncLocalSessionsWithServer: Found \(localMediaProgressList.count) local media progress for server")
+            AbsLogger.info(message: "syncLocalSessionsWithServer: Found \(localMediaProgressList.count) local media progress for server")
             
             if (localMediaProgressList.isEmpty) {
-                logger.log("syncLocalSessionsWithServer: No local progress to sync")
+                AbsLogger.info(message: "syncLocalSessionsWithServer: No local progress to sync")
             } else {
                 let currentUser = await ApiClient.getCurrentUser()
                 guard let currentUser = currentUser else {
-                    logger.log("syncLocalSessionsWithServer: No User")
+                    AbsLogger.info(message: "syncLocalSessionsWithServer: No User")
                     return
                 }
                 try currentUser.mediaProgress.forEach { mediaProgress in
@@ -552,12 +551,12 @@ class ApiClient {
                         }
                     }
                     if (localMediaProgress != nil && mediaProgress.lastUpdate > localMediaProgress!.lastUpdate) {
-                        logger.log("syncLocalSessionsWithServer: Updating local media progress \(localMediaProgress!.id) with server media progress")
+                        AbsLogger.info(message: "syncLocalSessionsWithServer: Updating local media progress \(localMediaProgress!.id) with server media progress")
                         if let localMediaProgress = localMediaProgress?.thaw() {
                             try localMediaProgress.updateFromServerMediaProgress(mediaProgress)
                         }
                     } else if (localMediaProgress != nil) {
-                        logger.log("syncLocalSessionsWithServer: Local progress for \(localMediaProgress!.id) is more recent then server progress")
+                        AbsLogger.info(message: "syncLocalSessionsWithServer: Local progress for \(localMediaProgress!.id) is more recent then server progress")
                     }
                 }
             }
@@ -566,13 +565,13 @@ class ApiClient {
             let playbackSessions = Database.shared.getAllPlaybackSessions().filter {
                 $0.serverConnectionConfigId == Store.serverConfig?.id
             }.map { $0.freeze() }
-            logger.log("syncLocalSessionsWithServer: Found \(playbackSessions.count) playback sessions for server (first sync: \(isFirstSync))")
+            AbsLogger.info(message: "syncLocalSessionsWithServer: Found \(playbackSessions.count) playback sessions for server (first sync: \(isFirstSync))")
             if (!playbackSessions.isEmpty) {
                 let success = await ApiClient.reportAllLocalPlaybackSessions(playbackSessions)
                 if (success) {
                     // Remove sessions from db
                     try playbackSessions.forEach { session in
-                        logger.log("syncLocalSessionsWithServer: Handling \(session.displayTitle ?? "") (\(session.id)) \(session.isActiveSession)")
+                        AbsLogger.info(message: "syncLocalSessionsWithServer: Handling \(session.displayTitle ?? "") (\(session.id)) \(session.isActiveSession)")
                         // On first sync then remove all sessions
                         if (!session.isActiveSession || isFirstSync) {
                             if let session = session.thaw() {
@@ -589,7 +588,7 @@ class ApiClient {
     }
     
     public static func updateMediaProgress<T:Encodable>(libraryItemId: String, episodeId: String?, payload: T, callback: @escaping () -> Void) {
-        logger.log("updateMediaProgress \(libraryItemId) \(episodeId ?? "NIL") \(payload)")
+        AbsLogger.info(message: "updateMediaProgress \(libraryItemId) \(episodeId ?? "NIL") \(payload)")
         let endpoint = episodeId?.isEmpty ?? true ? "api/me/progress/\(libraryItemId)" : "api/me/progress/\(libraryItemId)/\(episodeId ?? "")"
         patchResourceWithTokenRefresh(endpoint: endpoint, parameters: payload) { _ in
             callback()
@@ -597,7 +596,7 @@ class ApiClient {
     }
     
     public static func getMediaProgress(libraryItemId: String, episodeId: String?) async -> MediaProgress? {
-        logger.log("getMediaProgress \(libraryItemId) \(episodeId ?? "NIL")")
+        AbsLogger.info(message: "getMediaProgress \(libraryItemId) \(episodeId ?? "NIL")")
         let endpoint = episodeId?.isEmpty ?? true ? "api/me/progress/\(libraryItemId)" : "api/me/progress/\(libraryItemId)/\(episodeId ?? "")"
         return await withCheckedContinuation { continuation in
             getResourceWithTokenRefresh(endpoint: endpoint, decodable: MediaProgress.self) { result in
@@ -607,7 +606,7 @@ class ApiClient {
     }
     
     public static func getCurrentUser() async -> User? {
-        logger.log("getCurrentUser")
+        AbsLogger.info(message: "getCurrentUser")
         return await withCheckedContinuation { continuation in
             getResourceWithTokenRefresh(endpoint: "api/me", decodable: User.self) { result in
                 continuation.resume(returning: result)

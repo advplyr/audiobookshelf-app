@@ -31,7 +31,7 @@ extension AudioPlayer {
     }
     
     public func setSleepTimer(secondsUntilSleep: Double) {
-        logger.log("SLEEP TIMER: Sleeping in \(secondsUntilSleep) seconds")
+        AbsLogger.info(message: "SLEEP TIMER: Sleeping in \(secondsUntilSleep) seconds")
         self.removeSleepTimer()
         self.sleepTimeRemaining = secondsUntilSleep
         
@@ -53,7 +53,7 @@ extension AudioPlayer {
         guard let currentTime = self.getCurrentTime() else { return }
         guard stopAt >= currentTime else { return }
         
-        logger.log("SLEEP TIMER: Scheduling for chapter end \(stopAt)")
+        AbsLogger.info(message: "SLEEP TIMER: Scheduling for chapter end \(stopAt)")
         
         // Schedule the observation time
         self.sleepTimeChapterStopAt = stopAt
@@ -138,7 +138,7 @@ extension AudioPlayer {
     }
     
     private func handleSleepEnd() {
-        logger.log("SLEEP TIMER: Pausing audio")
+        AbsLogger.info(message: "SLEEP TIMER: Pausing audio")
         self.pause()
         self.removeSleepTimer()
     }

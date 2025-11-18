@@ -65,8 +65,7 @@ extension CAPPluginCall {
             let json = try JSONSerialization.data(withJSONObject: value)
             return try JSONDecoder().decode(type, from: json)
         } catch {
-            AppLogger().error("Failed to get json for \(key)")
-            debugPrint(error)
+            AbsLogger.error(message: "Failed to get json for \(key)", error: error)
             return nil
         }
     }
@@ -104,5 +103,82 @@ extension URL {
 
     var creationDate: Date? {
         return attributes?[.creationDate] as? Date
+    }
+}
+
+// MARK: - RealmSwift helpers
+// From https://github.com/realm/realm-swift/issues/5859#issuecomment-589026869
+
+extension Results {
+    func toArray<T: Object>() -> [T] {
+        var array = [T]()
+        
+        for i in 0 ..< self.count {
+            if let result = self[i] as? T {
+                array.append(result.detached())
+            }
+        }
+
+        return array
+    }
+}
+
+extension List {
+    func toArray<T: Object>() -> [T] {
+        var array = [T]()
+        
+        for i in 0 ..< self.count {
+            if let result = self[i] as? T {
+                array.append(result.detached())
+            }
+        }
+
+        return array
+    }
+}
+
+protocol DetachableObject: AnyObject {
+    func detached() -> Self
+}
+
+extension Object: DetachableObject {
+    func detached() -> Self {
+        let detached = type(of: self).init()
+        for property in objectSchema.properties {
+            guard let value = value(forKey: property.name) else { continue }
+            if property.isArray == true {
+                //Realm List property support
+                let detachable = value as? DetachableObject
+                detached.setValue(detachable?.detached(), forKey: property.name)
+            } else if property.type == .object {
+                //Realm Object property support
+                let detachable = value as? DetachableObject
+                detached.setValue(detachable?.detached(), forKey: property.name)
+            } else {
+                detached.setValue(value, forKey: property.name)
+            }
+        }
+        return detached
+    }
+}
+
+extension List: DetachableObject {
+    func detached() -> List<Element> {
+        let result = List<Element>()
+
+        forEach {
+            if let detachable = $0 as? DetachableObject {
+                let detached = detachable.detached() as! Element
+                result.append(detached)
+            } else {
+                result.append($0) //Primtives are pass by value; don't need to recreate
+            }
+        }
+
+        return result
+    }
+
+    func toArray() -> [Element] {
+        return Array(self.detached())
     }
 }

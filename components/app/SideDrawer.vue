@@ -134,14 +134,12 @@ export default {
         to: '/settings'
       })
 
-      if (this.$platform !== 'ios') {
-        items.push({
-          icon: 'bug_report',
-          iconOutlined: true,
-          text: this.$strings.ButtonLogs,
-          to: '/logs'
-        })
-      }
+      items.push({
+        icon: 'bug_report',
+        iconOutlined: true,
+        text: this.$strings.ButtonLogs,
+        to: '/logs'
+      })
 
       if (this.serverConnectionConfig) {
         items.push({
