@@ -54,7 +54,14 @@ public class AbsLogger: CAPPlugin, CAPBridgedPlugin {
         entry.level = "\(level)"
         entry.timestamp = Int(Date().timeIntervalSince1970 * 1000)
         try Database.shared.saveLog(entry)
-        self.notifyListeners("onLog", data: ["value": entry])
+        
+        self.notifyListeners("onLog", data: [
+            "id": entry.id,
+            "tag": entry.tag,
+            "message": entry.message,
+            "level": entry.level,
+            "timestamp": entry.timestamp
+        ])
     }
     
     public func info(tag: String = "\(#file)", message: String) throws {
