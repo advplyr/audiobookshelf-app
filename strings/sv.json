@@ -1,6 +1,6 @@
 {
   "ButtonAdd": "Lägg till",
-  "ButtonAddNewServer": "Lägg Till Ny Server",
+  "ButtonAddNewServer": "Lägg till ny server",
   "ButtonAuthors": "Författare",
   "ButtonBack": "Tillbaka",
   "ButtonCancel": "Avbryt",
@@ -298,6 +298,7 @@
   "MessageDownloading": "Laddar ned...",
   "MessageDownloadingEpisode": "Laddar ner avsnitt",
   "MessageEpisodesQueuedForDownload": "{0} avsnitt i kö för nedladdning",
+  "MessageFailedToRefreshToken": "Misslyckades med att uppdatera token, nytt inloggningsförsök krävs",
   "MessageFeedURLWillBe": "Flödes-URL kommer att vara {0}",
   "MessageFetching": "Hämtar...",
   "MessageFollowTheProjectOnGithub": "Följ projektet på Github",
