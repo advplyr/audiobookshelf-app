@@ -156,6 +156,8 @@
   "LabelFolder": "Folder",
   "LabelFontBoldness": "Font Boldness",
   "LabelFontFamily": "Font family",
+  "LabelFontFamilySans": "Sans",
+  "LabelFontFamilySerif": "Serif",
   "LabelFontScale": "Font scale",
   "LabelGenre": "Genre",
   "LabelGenres": "Genres",

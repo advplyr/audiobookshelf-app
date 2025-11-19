@@ -262,11 +262,11 @@ export default {
     fontItems() {
       return [
         {
-          text: 'Sans',
+          text: this.$strings.LabelFontFamilySans,
           value: 'sans-serif'
         },
         {
-          text: 'Serif',
+          text: this.$strings.LabelFontFamilySerif,
           value: 'serif'
         }
       ]
