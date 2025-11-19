@@ -9,17 +9,22 @@ import android.os.Bundle
 import android.provider.MediaStore
 import android.support.v4.media.MediaDescriptionCompat
 import android.util.Log
+import androidx.annotation.OptIn
 import androidx.core.content.FileProvider
 import androidx.core.net.toFile
-import androidx.media.utils.MediaConstants
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.session.MediaConstants
 import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.R
 import com.audiobookshelf.app.device.DeviceManager
+import com.audiobookshelf.app.player.PLAYMETHOD_LOCAL
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-import com.audiobookshelf.app.player.PLAYMETHOD_LOCAL
 import java.io.File
-import java.util.*
+import java.util.UUID
+import androidx.media.utils.MediaConstants as LegacyMediaConstants
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 class LocalLibraryItem(
@@ -156,27 +161,30 @@ class LocalLibraryItem(
     if (progress != null) {
       if (progress.isFinished) {
         extras.putInt(
-          MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
-          MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_FULLY_PLAYED
+          LegacyMediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
+          LegacyMediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_FULLY_PLAYED
         )
       } else {
         extras.putInt(
-          MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
-          MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_PARTIALLY_PLAYED
+          LegacyMediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
+          LegacyMediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_PARTIALLY_PLAYED
         )
         extras.putDouble(
-          MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_PERCENTAGE, progress.progress
+          LegacyMediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_PERCENTAGE, progress.progress
         )
       }
     } else if (mediaType != "podcast") {
       extras.putInt(
-        MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
-        MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_NOT_PLAYED
+        LegacyMediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
+        LegacyMediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_NOT_PLAYED
       )
     }
 
     if (media.metadata.explicit) {
-      extras.putLong(MediaConstants.METADATA_KEY_IS_EXPLICIT, MediaConstants.METADATA_VALUE_ATTRIBUTE_PRESENT)
+      extras.putLong(
+        LegacyMediaConstants.METADATA_KEY_IS_EXPLICIT,
+        LegacyMediaConstants.METADATA_VALUE_ATTRIBUTE_PRESENT
+      )
     }
 
     val mediaDescriptionBuilder = MediaDescriptionCompat.Builder()
@@ -192,4 +200,60 @@ class LocalLibraryItem(
 
     return mediaDescriptionBuilder.build()
   }
+
+  /**
+   * The modern, Media3 counterpart to getMediaDescription.
+   * Creates a fully-formed, playable MediaItem for a local item.
+   */
+  @OptIn(UnstableApi::class)
+  @JsonIgnore
+  override fun getMediaItem(progress: MediaProgressWrapper?, context: Context): MediaItem {
+    val extras = Bundle()
+    extras.putLong(
+      MediaConstants.EXTRAS_KEY_DOWNLOAD_STATUS,
+      MediaConstants.EXTRAS_VALUE_STATUS_DOWNLOADED
+    )
+
+    if (progress != null) {
+      if (progress.isFinished) {
+        extras.putInt(
+          MediaConstants.EXTRAS_KEY_COMPLETION_STATUS,
+          MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_FULLY_PLAYED
+        )
+      } else {
+        extras.putInt(
+          MediaConstants.EXTRAS_KEY_COMPLETION_STATUS,
+          MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_PARTIALLY_PLAYED
+        )
+        extras.putDouble(MediaConstants.EXTRAS_KEY_COMPLETION_PERCENTAGE, progress.progress)
+      }
+    } else if (mediaType != "podcast") {
+      extras.putInt(
+        MediaConstants.EXTRAS_KEY_COMPLETION_STATUS,
+        MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_NOT_PLAYED
+      )
+    }
+
+    if (media.metadata.explicit) {
+      extras.putLong(
+        MediaConstants.EXTRAS_KEY_IS_EXPLICIT,
+        MediaConstants.EXTRAS_VALUE_ATTRIBUTE_PRESENT
+      )
+    }
+
+    val metadata = MediaMetadata.Builder()
+      .setTitle(this.title)
+      .setArtist(this.authorName)
+      .setArtworkUri(getCoverUri(context))
+      .setIsPlayable(true)  // A local item is always playable
+      .setIsBrowsable(isPodcast) // A local podcast is a browsable folder of episodes
+      .setExtras(extras)
+      .build()
+
+    return MediaItem.Builder()
+      .setMediaId(this.id)
+      .setMediaMetadata(metadata)
+      .build()
+  }
+
 }
