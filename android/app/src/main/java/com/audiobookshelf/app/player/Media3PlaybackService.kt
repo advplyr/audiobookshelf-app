@@ -23,6 +23,9 @@ import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.extractor.DefaultExtractorsFactory
+import androidx.media3.extractor.mp3.Mp3Extractor
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.LibraryResult
@@ -35,6 +38,7 @@ import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import com.audiobookshelf.app.MainActivity
 import com.audiobookshelf.app.R
+import com.audiobookshelf.app.data.DeviceSettings
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.managers.SleepTimerHost
@@ -45,14 +49,13 @@ import com.google.android.gms.cast.framework.CastContext
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
-import com.google.common.util.concurrent.SettableFuture
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.guava.future
 import kotlinx.coroutines.launch
-import kotlin.math.abs
 import kotlin.math.max
 
 
@@ -74,12 +77,14 @@ class Media3PlaybackService : MediaLibraryService() {
 
   private lateinit var seekBackButton: CommandButton
   private lateinit var seekForwardButton: CommandButton
+  private lateinit var playbackSpeedButtonProvider: Media3PlaybackSpeedButtonProvider
   private var playbackSpeedCommandButton: CommandButton? = null
 
   private lateinit var localPlayer: AbsPlayerWrapper
   private lateinit var castPlayer: AbsPlayerWrapper
   private lateinit var activePlayer: Player
   private var playerInitialized = false
+  private val playerInitializationSignal = CompletableDeferred<Unit>()
 
 
   private val playerListener = PlayerEventListener()
@@ -87,9 +92,9 @@ class Media3PlaybackService : MediaLibraryService() {
   private lateinit var apiHandler: ApiHandler
   private lateinit var mediaManager: MediaManager
   private lateinit var browseTree: Media3BrowseTree
-  private var isAutoDataLoading = false
-  private val pendingAutoRequests =
-    mutableListOf<Pair<SettableFuture<LibraryResult<ImmutableList<MediaItem>>>, String>>()
+  private lateinit var autoLibraryCoordinator: Media3AutoLibraryCoordinator
+  private val deviceSettings
+    get() = DeviceManager.deviceData.deviceSettings ?: DeviceSettings.default()
 
   private fun switchPlayer(to: Player) {
     if (activePlayer === to) return
@@ -105,6 +110,10 @@ class Media3PlaybackService : MediaLibraryService() {
 
     activePlayer = to
     mediaSession?.player = to
+    // Sync mediaPlayer label for UI consumers (cast vs local)
+    currentPlaybackSession?.mediaPlayer =
+      if (this::castPlayer.isInitialized && activePlayer === castPlayer) PLAYER_CAST else PLAYER_MEDIA3
+    updateMediaPlayerExtra()
 
     if (mediaItems.isNotEmpty()) {
       activePlayer.setMediaItems(mediaItems, startIndex, startPosition)
@@ -174,11 +183,11 @@ class Media3PlaybackService : MediaLibraryService() {
     }
 
     override fun notifySleepTimerSet(secondsRemaining: Int, isAuto: Boolean) {
-      sleepTimerUiNotifier?.onSleepTimerSet(secondsRemaining, isAuto)
+      SleepTimerNotificationCenter.notifySet(secondsRemaining, isAuto)
     }
 
     override fun notifySleepTimerEnded(currentPosition: Long) {
-      sleepTimerUiNotifier?.onSleepTimerEnded(currentPosition)
+      SleepTimerNotificationCenter.notifyEnded(currentPosition)
     }
 
     override fun registerSensor() {
@@ -208,6 +217,48 @@ class Media3PlaybackService : MediaLibraryService() {
     }
   }
 
+  private fun setupPlaybackPipeline() {
+    initializeLocalPlayer()
+    configureNotificationProvider()
+    createNotificationChannel()
+    configureCommandButtons()
+
+    val sessionId = "AudiobookshelfMedia3_${System.currentTimeMillis()}"
+    val sessionActivityIntent = createSessionActivityIntent()
+    buildMediaLibrarySession(sessionId, sessionActivityIntent)
+
+    initializeCastPlayer()
+    registerBecomingNoisyReceiver()
+    ensureSleepTimerManager()
+
+    playerInitializationSignal.complete(Unit)
+  }
+
+  private fun setupMediaManagers() {
+    apiHandler = ApiHandler(this)
+    mediaManager = MediaManager(apiHandler, this)
+    browseTree = Media3BrowseTree(this, mediaManager)
+    autoLibraryCoordinator = Media3AutoLibraryCoordinator(mediaManager, browseTree, serviceScope)
+  }
+
+  private fun cleanupPlaybackResources() {
+    unregisterReceiver(becomingNoisyReceiver)
+    mediaSession?.run {
+      release()
+      mediaSession = null
+    }
+    if (playerInitialized) {
+      localPlayer.release()
+      if (::castPlayer.isInitialized) {
+        castPlayer.release()
+      }
+      playerInitialized = false
+    }
+    sleepTimerShakeController?.release()
+    sleepTimerShakeController = null
+    SleepTimerNotificationCenter.unregister()
+  }
+
   private fun ensureSleepTimerManager(): SleepTimerManager {
     if (!::sleepTimerManager.isInitialized) {
       ensureShakeController()
@@ -220,6 +271,16 @@ class Media3PlaybackService : MediaLibraryService() {
   // Jump increments applied to the ExoPlayer builder for skip actions
   private var jumpBackwardMs: Long = 10000L
   private var jumpForwardMs: Long = 30000L
+
+  private fun applyJumpIncrementsFromDeviceSettings() {
+    val settings = deviceSettings
+    jumpBackwardMs = settings.jumpBackwardsTimeMs
+    jumpForwardMs = settings.jumpForwardTimeMs
+    Log.d(
+      TAG,
+      "Jump increments set from device settings: back=${jumpBackwardMs}ms forward=${jumpForwardMs}ms"
+    )
+  }
 
   private val becomingNoisyReceiver = object : BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
@@ -263,20 +324,11 @@ class Media3PlaybackService : MediaLibraryService() {
 
     object Extras {
       const val DISPLAY_SPEED = "display_speed"
-    }
-
-    @Volatile
-    private var sleepTimerUiNotifier: SleepTimerUiNotifier? = null
-
-    fun registerSleepTimerNotifier(notifier: SleepTimerUiNotifier?) {
-      sleepTimerUiNotifier = notifier
+      const val MEDIA_PLAYER = "media_player"
     }
   }
 
   private lateinit var notificationProvider: MediaNotification.Provider
-  private val playbackSpeedSteps = floatArrayOf(0.5f, 1.0f, 1.2f, 1.5f, 2.0f, 3.0f)
-  private var playbackSpeedIndex: Int =
-    playbackSpeedSteps.indexOfFirst { abs(it - 1.0f) < 0.01f }.let { if (it >= 0) it else 0 }
   private val cyclePlaybackSpeedCommand =
     SessionCommand(CustomCommands.CYCLE_PLAYBACK_SPEED, Bundle.EMPTY)
   private val setSleepTimerCommand = SessionCommand(SleepTimer.ACTION_SET, Bundle.EMPTY)
@@ -294,32 +346,26 @@ class Media3PlaybackService : MediaLibraryService() {
   override fun onCreate() {
     super.onCreate()
     Log.d(TAG, "onCreate: Initializing Media3 playback service")
-
-    initializeLocalPlayer()
-    configureNotificationProvider()
-    createNotificationChannel()
-    configureCommandButtons()
-
-    val sessionId = "AudiobookshelfMedia3_${System.currentTimeMillis()}"
-    val sessionActivityIntent = createSessionActivityIntent()
-    buildMediaLibrarySession(sessionId, sessionActivityIntent)
-
-    initializeCastPlayerInBackground()
-
-    registerBecomingNoisyReceiver()
-    ensureSleepTimerManager()
-    apiHandler = ApiHandler(this)
-    mediaManager = MediaManager(apiHandler, this)
-    browseTree = Media3BrowseTree(this, mediaManager)
+    applyJumpIncrementsFromDeviceSettings()
+    setupPlaybackPipeline()
+    setupMediaManagers()
   }
 
   private fun initializeLocalPlayer() {
+    val extractorsFactory = DefaultExtractorsFactory().apply {
+      if (deviceSettings.enableMp3IndexSeeking) {
+        setMp3ExtractorFlags(Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING)
+      }
+    }
+    val mediaSourceFactory = DefaultMediaSourceFactory(this, extractorsFactory)
+
     val audioAttributes = androidx.media3.common.AudioAttributes.Builder()
       .setUsage(C.USAGE_MEDIA)
       .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
       .build()
 
     val coreExoPlayer = ExoPlayer.Builder(this)
+      .setMediaSourceFactory(mediaSourceFactory)
       .setAudioAttributes(audioAttributes, true)
       .setHandleAudioBecomingNoisy(true)
       .setSeekBackIncrementMs(jumpBackwardMs)
@@ -328,35 +374,40 @@ class Media3PlaybackService : MediaLibraryService() {
       .build()
     localPlayer = AbsPlayerWrapper(coreExoPlayer, this).apply { addListener(playerListener) }
     activePlayer = localPlayer
+    updateMediaPlayerExtra()
     playerInitialized = true
     Log.d(TAG, "Local player initialized.")
   }
 
-  private fun initializeCastPlayerInBackground() {
-    serviceScope.launch {
-      try {
-        val castContext = CastContext.getSharedInstance(this@Media3PlaybackService)
-        val coreCastPlayer = CastPlayer(castContext)
-        castPlayer = AbsPlayerWrapper(coreCastPlayer, this@Media3PlaybackService).apply {
-          addListener(playerListener)
-        }
+  private fun initializeCastPlayer() {
+    try {
+      val castContext = CastContext.getSharedInstance(this@Media3PlaybackService)
+      val coreCastPlayer = CastPlayer(castContext)
+      castPlayer = AbsPlayerWrapper(coreCastPlayer, this@Media3PlaybackService).apply {
+        addListener(playerListener)
+      }
 
-        coreCastPlayer.setSessionAvailabilityListener(object : SessionAvailabilityListener {
+      coreCastPlayer.setSessionAvailabilityListener(object : SessionAvailabilityListener {
           override fun onCastSessionAvailable() {
-            Log.d(TAG, "Cast session available. Switching to CastPlayer.")
-            switchPlayer(to = castPlayer)
+            serviceScope.launch {
+              playerInitializationSignal.await()
+              Log.d(TAG, "Cast session available. Switching to CastPlayer.")
+              switchPlayer(to = castPlayer)
+            }
           }
 
           override fun onCastSessionUnavailable() {
-            Log.d(TAG, "Cast session unavailable. Switching back to local player.")
-            switchPlayer(to = localPlayer)
+            serviceScope.launch {
+              playerInitializationSignal.await()
+              Log.d(TAG, "Cast session unavailable. Switching back to local player.")
+              switchPlayer(to = localPlayer)
+            }
           }
         })
-        Log.d(TAG, "Cast player initialized and listener attached.")
+      Log.d(TAG, "Cast player initialized and listener attached.")
 
-      } catch (e: Exception) {
-        Log.e(TAG, "Failed to initialize CastContext. Cast feature will be unavailable.", e)
-      }
+    } catch (e: Exception) {
+      Log.e(TAG, "Failed to initialize CastContext. Cast feature will be unavailable.", e)
     }
   }
 
@@ -364,10 +415,13 @@ class Media3PlaybackService : MediaLibraryService() {
   private fun createNotificationChannel() {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
       val channelName = "Media Playback"
-      val importance = NotificationManager.IMPORTANCE_DEFAULT
+      // Match legacy service: low priority, no sound/vibration when playback starts or switches.
+      val importance = NotificationManager.IMPORTANCE_LOW
       val channel = NotificationChannel(Notification.CHANNEL_ID, channelName, importance).apply {
         description = "Playback controls and progress"
         setShowBadge(false)
+        setSound(null, null)
+        enableVibration(false)
       }
       val notificationManager = getSystemService(NotificationManager::class.java)
       notificationManager.createNotificationChannel(channel)
@@ -387,6 +441,17 @@ class Media3PlaybackService : MediaLibraryService() {
     Log.d(TAG, "CustomMediaNotificationProvider configured")
   }
 
+  private fun updateMediaPlayerExtra() {
+    if (!this::activePlayer.isInitialized) return
+    val mediaPlayerId =
+      if (this::castPlayer.isInitialized && activePlayer === castPlayer) PLAYER_CAST else PLAYER_MEDIA3
+    mediaSession?.let { session ->
+      val extras = session.sessionExtras
+      extras.putString(Extras.MEDIA_PLAYER, mediaPlayerId)
+      session.sessionExtras = extras
+    }
+  }
+
   private fun configureCommandButtons() {
     seekBackButton = CommandButton.Builder(CommandButton.ICON_SKIP_BACK_10)
       .setSessionCommand(seekBackIncrementCommand)
@@ -402,7 +467,11 @@ class Media3PlaybackService : MediaLibraryService() {
       .setSlots(CommandButton.SLOT_FORWARD)
       .build()
 
-    playbackSpeedCommandButton = createPlaybackSpeedButton(currentPlaybackSpeed())
+    playbackSpeedButtonProvider =
+      Media3PlaybackSpeedButtonProvider(cyclePlaybackSpeedCommand, Extras.DISPLAY_SPEED)
+    playbackSpeedButtonProvider.alignTo(currentPlaybackSpeed())
+    playbackSpeedCommandButton =
+      playbackSpeedButtonProvider.createButton(playbackSpeedButtonProvider.currentSpeed())
   }
 
   private fun createSessionActivityIntent(): PendingIntent {
@@ -418,8 +487,8 @@ class Media3PlaybackService : MediaLibraryService() {
   }
 
   private fun buildMediaLibrarySession(sessionId: String, sessionActivityIntent: PendingIntent) {
-    val playbackButton =
-      playbackSpeedCommandButton ?: createPlaybackSpeedButton(currentPlaybackSpeed()).also {
+    val playbackButton = playbackSpeedCommandButton
+      ?: playbackSpeedButtonProvider.createButton(playbackSpeedButtonProvider.currentSpeed()).also {
         playbackSpeedCommandButton = it
       }
 
@@ -446,6 +515,7 @@ class Media3PlaybackService : MediaLibraryService() {
       putBoolean(MediaConstants.EXTRAS_KEY_SLOT_RESERVATION_SEEK_TO_PREV, false)
       putBoolean(MediaConstants.EXTRAS_KEY_SLOT_RESERVATION_SEEK_TO_NEXT, false)
     }
+    updateMediaPlayerExtra()
 
     Log.d(TAG, "MediaLibrarySession created: $sessionId")
   }
@@ -472,25 +542,21 @@ class Media3PlaybackService : MediaLibraryService() {
   override fun onDestroy() {
     super.onDestroy()
     serviceScope.cancel()
-    unregisterReceiver(becomingNoisyReceiver)
-    mediaSession?.run {
-      release()
-      mediaSession = null
-    }
-    if (playerInitialized) {
-      localPlayer.release()
-      if (::castPlayer.isInitialized) {
-        castPlayer.release()
-      }
-      playerInitialized = false
-    }
-
-    sleepTimerShakeController?.release()
-    sleepTimerShakeController = null
-
-
-    registerSleepTimerNotifier(null)
+    cleanupPlaybackResources()
     Log.d(TAG, "onDestroy: Media3 service destroyed")
+  }
+
+  override fun onTaskRemoved(rootIntent: Intent?) {
+    super.onTaskRemoved(rootIntent)
+    try {
+      mediaSession?.player?.let { player ->
+        player.pause()
+        player.stop()
+      }
+    } catch (_: Exception) {
+      // Best-effort shutdown; proceed to stop service
+    }
+    stopSelf()
   }
 
   /**
@@ -555,6 +621,11 @@ class Media3PlaybackService : MediaLibraryService() {
       builder.add(Player.COMMAND_GET_DEVICE_VOLUME)
       builder.add(Player.COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS)
       builder.add(Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS)
+
+      // Respect device setting that disables seeking from external media controls
+      if (!deviceSettings.allowSeekingOnMediaControls) {
+        builder.remove(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
+      }
       if (isWear) {
         Log.d(TAG, "Wear controller connected; removing default PREV/NEXT to allow custom buttons")
 
@@ -633,7 +704,12 @@ class Media3PlaybackService : MediaLibraryService() {
           "onPlaybackResumption: Found last session for item '${lastSession.libraryItemId}' at ${lastSession.currentTimeMs}ms."
         )
 
-        val mediaItems = lastSession.toPlayerMediaItems(this@Media3PlaybackService)
+        val preferServerUris = this@Media3PlaybackService::castPlayer.isInitialized &&
+          activePlayer === castPlayer && lastSession.isLocal
+        val mediaItems = lastSession.toPlayerMediaItems(
+          this@Media3PlaybackService,
+          preferServerUrisForCast = preferServerUris
+        )
           .mapIndexed { index, playerMediaItem ->
             val mediaId = "${lastSession.id}_${index}"
             MediaItem.Builder()
@@ -768,54 +844,7 @@ class Media3PlaybackService : MediaLibraryService() {
       params: LibraryParams?
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
       Log.d(TAG, "onGetChildren requested for parentId: '$parentId'")
-
-      // Use a SettableFuture to bridge your callback-based initial data load
-      val future = SettableFuture.create<LibraryResult<ImmutableList<MediaItem>>>()
-
-      // This is the first time Android Auto is asking for anything. We must
-      // load the high-level data before we can show any categories.
-      if (parentId == Media3BrowseTree.ROOT_ID && !mediaManager.isAutoDataLoaded) {
-
-        // If another request is already loading the data, just queue this one.
-        if (isAutoDataLoading) {
-          Log.d(TAG, "Data is already loading. Adding request for ROOT to pending queue.")
-          pendingAutoRequests.add(future to parentId)
-          return future
-        }
-
-        // Start the initial data load
-        isAutoDataLoading = true
-        Log.d(TAG, "Initial data not loaded. Starting fetch.")
-        pendingAutoRequests.add(future to parentId)
-
-        mediaManager.loadAndroidAutoItems {
-          // This is the completion callback for your initial data load.
-          Log.d(
-            TAG,
-            "Initial data loaded. Fulfilling ${pendingAutoRequests.size} pending requests."
-          )
-          isAutoDataLoading = false
-
-          // Now that data is loaded, fulfill all pending requests by calling our new, clean getChildren method
-          serviceScope.launch {
-            pendingAutoRequests.forEach { (pendingFuture, requestedParentId) ->
-              val children = browseTree.getChildren(requestedParentId)
-              pendingFuture.set(LibraryResult.ofItemList(ImmutableList.copyOf(children), params))
-            }
-            pendingAutoRequests.clear()
-          }
-        }
-      } else {
-        // If data is already loaded, we can fulfill the request immediately.
-        // We still use a coroutine to call the suspend function.
-        serviceScope.launch {
-          val children = browseTree.getChildren(parentId)
-          future.set(LibraryResult.ofItemList(ImmutableList.copyOf(children), params))
-        }
-      }
-
-      // Return the future immediately. Android Auto will await its result.
-      return future
+      return autoLibraryCoordinator.requestChildren(parentId, params)
     }
   }
 
@@ -873,9 +902,7 @@ class Media3PlaybackService : MediaLibraryService() {
   }
 
   private fun cyclePlaybackSpeed(): Float {
-    if (playbackSpeedSteps.isEmpty()) return 1.0f
-    playbackSpeedIndex = (playbackSpeedIndex + 1) % playbackSpeedSteps.size
-    val newSpeed = playbackSpeedSteps[playbackSpeedIndex]
+    val newSpeed = playbackSpeedButtonProvider.cycleSpeed()
     activePlayer.setPlaybackSpeed(newSpeed)
     updatePlaybackSpeedButton(newSpeed)
     return newSpeed
@@ -886,46 +913,9 @@ class Media3PlaybackService : MediaLibraryService() {
     return playerSpeed
   }
 
-  private fun createPlaybackSpeedButton(speed: Float): CommandButton {
-    val label = CustomMediaNotificationProvider.formatSpeedLabel(speed)
-    val normalizedSpeed = playbackSpeedSteps.firstOrNull { abs(it - speed) < 0.01f } ?: 1.0f
-
-    // Map speed to custom icon resource - we have icons for all our supported steps
-    val customIconRes = when (normalizedSpeed) {
-      0.5f -> R.drawable.ic_play_speed_0_5x
-      1.0f -> R.drawable.ic_play_speed_1_0x
-      1.2f -> R.drawable.ic_play_speed_1_2x
-      1.5f -> R.drawable.ic_play_speed_1_5x
-      2.0f -> R.drawable.ic_play_speed_2_0x
-      3.0f -> R.drawable.ic_play_speed_3_0x
-      else -> R.drawable.ic_play_speed_1_0x
-    }
-
-    // Use closest predefined Media3 icon constant as base
-    val iconConstant = when (normalizedSpeed) {
-      0.5f -> CommandButton.ICON_PLAYBACK_SPEED_0_5
-      1.0f -> CommandButton.ICON_PLAYBACK_SPEED_1_0
-      1.2f -> CommandButton.ICON_PLAYBACK_SPEED_1_2
-      1.5f -> CommandButton.ICON_PLAYBACK_SPEED_1_5
-      2.0f -> CommandButton.ICON_PLAYBACK_SPEED_2_0
-      3.0f -> CommandButton.ICON_PLAYBACK_SPEED_2_0
-      else -> CommandButton.ICON_PLAYBACK_SPEED
-    }
-
-    // Explicit overflow slot keeps speed in secondary/ellipsis menu, not primary transport row
-    return CommandButton.Builder(iconConstant)
-      .setSessionCommand(cyclePlaybackSpeedCommand)
-      .setDisplayName(label)
-      .setExtras(Bundle().apply { putFloat(Extras.DISPLAY_SPEED, speed) })
-      .setSlots(CommandButton.SLOT_OVERFLOW)
-      .setCustomIconResId(customIconRes)
-      .build()
-  }
-
   private fun updatePlaybackSpeedButton(speed: Float) {
-    val index = playbackSpeedSteps.indexOfFirst { abs(it - speed) < 0.01f }
-    if (index >= 0) playbackSpeedIndex = index
-    val speedButton = createPlaybackSpeedButton(speed)
+    playbackSpeedButtonProvider.alignTo(speed)
+    val speedButton = playbackSpeedButtonProvider.createButton(speed)
     playbackSpeedCommandButton = speedButton
     mediaSession?.let { session ->
       if (::seekBackButton.isInitialized && ::seekForwardButton.isInitialized) {

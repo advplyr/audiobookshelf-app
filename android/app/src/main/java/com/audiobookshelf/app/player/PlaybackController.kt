@@ -32,6 +32,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 @UnstableApi
 class PlaybackController(private val context: Context) {
+  private val mediaPlayerExtraKey = "media_player"
+  private val PLAYER_CAST = "cast-player"
+
   interface Listener {
     fun onPlaybackSession(session: PlaybackSession)
     fun onPlayingUpdate(isPlaying: Boolean)
@@ -39,6 +42,8 @@ class PlaybackController(private val context: Context) {
     fun onPlaybackSpeedChanged(speed: Float)
     fun onPlaybackFailed(errorMessage: String)
     fun onPlaybackEnded()
+    fun onPlaybackClosed() {}
+    fun onMediaPlayerChanged(mediaPlayer: String) {}
     fun onSeekCompleted(positionMs: Long, mediaItemIndex: Int) {}
   }
 
@@ -49,6 +54,8 @@ class PlaybackController(private val context: Context) {
   private var controllerFuture: ListenableFuture<MediaController>? = null
   private var mediaController: MediaController? = null
   private var activePlaybackSession: PlaybackSession? = null
+  private var currentMediaPlayer: String? = null
+  private var hasEmittedClose = false
 
   private val setSleepTimerCommand = SessionCommand(SleepTimer.ACTION_SET, Bundle.EMPTY)
   private val cancelSleepTimerCommand = SessionCommand(SleepTimer.ACTION_CANCEL, Bundle.EMPTY)
@@ -69,9 +76,36 @@ class PlaybackController(private val context: Context) {
     }
   }
 
+  private fun maybeEmitMediaPlayerFromExtras() {
+    val mediaPlayer =
+      mediaController?.sessionExtras?.getString(mediaPlayerExtraKey)
+    if (!mediaPlayer.isNullOrEmpty() && mediaPlayer != currentMediaPlayer) {
+      currentMediaPlayer = mediaPlayer
+      // Update the active session so UI consumers see the current player (cast vs local).
+      activePlaybackSession?.let { session ->
+        session.mediaPlayer = mediaPlayer
+        listener?.onPlaybackSession(session)
+      }
+      listener?.onMediaPlayerChanged(mediaPlayer)
+    }
+  }
+
 
   private val controllerListener = object : Player.Listener {
+    override fun onEvents(player: Player, events: Player.Events) {
+      val controller = player as? MediaController
+      if (controller != null && !controller.isConnected) {
+        mainHandler.post { handleControllerDisconnected(controller) }
+        return
+      }
+      maybeEmitMediaPlayerFromExtras()
+      // Mirror legacy service behavior: resync playing state and metadata on any event.
+      listener?.onPlayingUpdate(player.isPlaying)
+      mediaController?.let { emitMetadata(it) }
+    }
+
     override fun onIsPlayingChanged(isPlaying: Boolean) {
+      maybeEmitMediaPlayerFromExtras()
       listener?.onPlayingUpdate(isPlaying)
       mediaController?.let { emitMetadata(it) }
       if (isPlaying) {
@@ -83,6 +117,7 @@ class PlaybackController(private val context: Context) {
 
     override fun onPlaybackStateChanged(playbackState: Int) {
       val controller = mediaController ?: return
+      maybeEmitMediaPlayerFromExtras()
       emitMetadata(controller)
       if (playbackState == Player.STATE_ENDED || playbackState == Player.STATE_IDLE) {
         stopProgressUpdates()
@@ -176,6 +211,18 @@ class PlaybackController(private val context: Context) {
   }
 
 
+  private fun handleControllerDisconnected(controller: MediaController) {
+    if (hasEmittedClose) return
+    hasEmittedClose = true
+    stopProgressUpdates()
+    controller.removeListener(controllerListener)
+    controller.release()
+    mediaController = null
+    controllerFuture = null
+    isConnecting.set(false)
+    listener?.onPlaybackClosed()
+  }
+
   private fun controllerPlaybackState(controller: MediaController): PlayerState {
     return when (controller.playbackState) {
       Player.STATE_READY -> PlayerState.READY
@@ -205,6 +252,8 @@ class PlaybackController(private val context: Context) {
           isConnecting.set(false)
           mediaController = result
           mediaController?.addListener(controllerListener)
+          hasEmittedClose = false
+          maybeEmitMediaPlayerFromExtras()
           result?.let { listener?.onPlaybackSpeedChanged(it.playbackParameters.speed) }
           if (result?.isPlaying == true) {
             startProgressUpdates()
@@ -224,11 +273,27 @@ class PlaybackController(private val context: Context) {
   fun disconnect() {
     stopProgressUpdates()
     controllerFuture?.cancel(true)
-    mediaController?.removeListener(controllerListener)
-    mediaController?.release()
+    mediaController?.let { handleControllerDisconnected(it) }
     mediaController = null
     controllerFuture = null
     isConnecting.set(false)
+  }
+
+  fun stopAndDisconnect() {
+    try {
+      mediaController?.let {
+        try {
+          it.pause()
+        } catch (_: Exception) {
+        }
+        try {
+          it.stop()
+        } catch (_: Exception) {
+        }
+      }
+    } catch (_: Exception) {
+    }
+    disconnect()
   }
 
   fun preparePlayback(playbackSession: PlaybackSession, playWhenReady: Boolean, playbackRate: Float?) {
@@ -239,7 +304,10 @@ class PlaybackController(private val context: Context) {
 
     connect {
       val controller = mediaController ?: return@connect
-      val mediaItems = playbackSession.toPlayerMediaItems(context).map { playerMediaItem ->
+      val targetIsCast = playbackSession.isLocal && currentMediaPlayer == PLAYER_CAST
+      val mediaItems =
+        playbackSession.toPlayerMediaItems(context, preferServerUrisForCast = targetIsCast)
+          .map { playerMediaItem ->
         val mediaId = "${playbackSession.id}_${playerMediaItem.mediaId}"
         MediaItem.Builder()
           .setUri(playerMediaItem.uri)

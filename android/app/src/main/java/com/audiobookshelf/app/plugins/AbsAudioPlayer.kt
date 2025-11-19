@@ -4,30 +4,41 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import com.audiobookshelf.app.MainActivity
+import androidx.annotation.OptIn
+import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import com.audiobookshelf.app.BuildConfig
-import com.audiobookshelf.app.data.*
+import com.audiobookshelf.app.MainActivity
+import com.audiobookshelf.app.data.LocalMediaProgress
+import com.audiobookshelf.app.data.MediaItemHistory
+import com.audiobookshelf.app.data.PlaybackMetadata
+import com.audiobookshelf.app.data.PlaybackSession
+import com.audiobookshelf.app.data.Podcast
+import com.audiobookshelf.app.data.PodcastEpisode
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.media.MediaEventManager
 import com.audiobookshelf.app.media.MediaProgressSyncer
 import com.audiobookshelf.app.player.CastManager
-import com.audiobookshelf.app.player.PlaybackTelemetryHost
 import com.audiobookshelf.app.player.PlaybackController
+import com.audiobookshelf.app.player.PlaybackTelemetryHost
 import com.audiobookshelf.app.player.PlayerListener
 import com.audiobookshelf.app.player.PlayerNotificationService
-import com.audiobookshelf.app.player.Media3PlaybackService
+import com.audiobookshelf.app.player.SleepTimerNotificationCenter
 import com.audiobookshelf.app.player.SleepTimerUiNotifier
 import com.audiobookshelf.app.server.ApiHandler
 import com.fasterxml.jackson.core.json.JsonReadFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.getcapacitor.*
+import com.getcapacitor.JSObject
+import com.getcapacitor.Plugin
+import com.getcapacitor.PluginCall
+import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
 import com.google.android.gms.cast.CastDevice
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
-import androidx.media3.common.Player
 import org.json.JSONObject
 
+@UnstableApi
 @CapacitorPlugin(name = "AbsAudioPlayer")
 class AbsAudioPlayer : Plugin() {
   private val tag = "AbsAudioPlayer"
@@ -44,6 +55,7 @@ class AbsAudioPlayer : Plugin() {
 
   private var isCastAvailable:Boolean = false
   private var activePlaybackSession: PlaybackSession? = null
+  private var lastKnownMediaPlayer: String? = null
 
   private val playbackStateBridge = object : PlayerNotificationService.PlaybackStateBridge {
     override fun currentPositionMs(): Long {
@@ -178,6 +190,7 @@ class AbsAudioPlayer : Plugin() {
 
   private val playbackControllerListener = object : PlaybackController.Listener {
     override fun onPlaybackSession(session: PlaybackSession) {
+      lastKnownMediaPlayer?.let { session.mediaPlayer = it }
       activePlaybackSession = session
       playerNotificationService.currentPlaybackSession = session
       DeviceManager.setLastPlaybackSession(session)
@@ -204,6 +217,20 @@ class AbsAudioPlayer : Plugin() {
 
     override fun onPlaybackSpeedChanged(speed: Float) {
       appEventEmitter.onPlaybackSpeedChanged(speed)
+    }
+
+    override fun onPlaybackClosed() {
+      lastKnownMediaPlayer = null
+      appEventEmitter.onPlaybackClosed()
+    }
+
+    override fun onMediaPlayerChanged(mediaPlayer: String) {
+      lastKnownMediaPlayer = mediaPlayer
+      activePlaybackSession?.let { session ->
+        session.mediaPlayer = mediaPlayer
+        appEventEmitter.onPlaybackSession(session)
+      }
+      appEventEmitter.onMediaPlayerChanged(mediaPlayer)
     }
 
     override fun onPlaybackFailed(errorMessage: String) {
@@ -261,12 +288,12 @@ class AbsAudioPlayer : Plugin() {
         playbackController?.listener = playbackControllerListener
         playbackController?.connect()
         playerNotificationService.setExternalSleepTimerManager(null)
-        Media3PlaybackService.registerSleepTimerNotifier(sleepTimerNotifier)
+        SleepTimerNotificationCenter.register(sleepTimerNotifier)
         Log.d(tag, "PlaybackController connected")
       } else {
         playerNotificationService.setExternalPlaybackState(null)
         playerNotificationService.setExternalSleepTimerManager(null)
-        Media3PlaybackService.registerSleepTimerNotifier(null)
+        SleepTimerNotificationCenter.unregister()
       }
     }
     mainActivity.pluginCallback = foregroundServiceReady
@@ -677,10 +704,15 @@ class AbsAudioPlayer : Plugin() {
     }
   }
 
+  @OptIn(UnstableApi::class)
   override fun handleOnDestroy() {
     super.handleOnDestroy()
     if (BuildConfig.USE_MEDIA3) {
-      Media3PlaybackService.registerSleepTimerNotifier(null)
+      try {
+        playbackController?.stopAndDisconnect()
+      } catch (_: Exception) {
+      }
+      SleepTimerNotificationCenter.unregister()
     }
   }
 
