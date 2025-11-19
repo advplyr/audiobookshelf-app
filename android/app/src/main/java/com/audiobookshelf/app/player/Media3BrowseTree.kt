@@ -12,19 +12,20 @@ import com.audiobookshelf.app.R
 import com.audiobookshelf.app.data.AndroidAutoBrowseSeriesSequenceOrderSetting
 import com.audiobookshelf.app.data.Library
 import com.audiobookshelf.app.data.LibraryItem
-import com.audiobookshelf.app.data.LibraryShelfBookEntity
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.media.getUriToAbsIconDrawable
 import com.google.common.collect.ImmutableList
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlin.coroutines.resume
 
 /**
  * Handles the creation of a browsable media tree for Media3 clients like Android Auto.
  */
 @OptIn(UnstableApi::class)
-class Media3BrowseTree(private val context: Context, private var mediaManager: MediaManager) {
+class Media3BrowseTree(
+  private val context: Context,
+  private val mediaManager: MediaManager,
+  private val repository: Media3BrowseTreeRepository = Media3BrowseTreeRepository(mediaManager)
+) {
 
   suspend fun getChildren(parentId: String): ImmutableList<MediaItem> {
     Log.d("M3BrowseTree", "getChildren: parentId=$parentId")
@@ -119,132 +120,92 @@ class Media3BrowseTree(private val context: Context, private var mediaManager: M
     }
   }
 
-  private suspend fun buildLibraryChildren(libraryId: String): List<MediaItem> =
-    suspendCancellableCoroutine { continuation ->
-      val selectedLibrary = mediaManager.getLibrary(libraryId)
-      if (selectedLibrary?.mediaType == "podcast") {
-        mediaManager.loadLibraryPodcasts(libraryId) { podcasts ->
-          val mediaItems = podcasts?.map { it.getMediaItem(null, context) } ?: emptyList()
-          if (continuation.isActive) continuation.resume(mediaItems)
-        }
-      } else {
-        val subFolders = buildList {
-          add(createBrowsableCategory("__LIBRARY__${libraryId}__AUTHORS", "Authors"))
-          add(createBrowsableCategory("__LIBRARY__${libraryId}__SERIES_LIST", "Series"))
-          add(createBrowsableCategory("__LIBRARY__${libraryId}__COLLECTIONS", "Collections"))
-          if (mediaManager.getHasDiscovery(libraryId)) {
-            add(createBrowsableCategory("__LIBRARY__${libraryId}__DISCOVERY", "Discovery"))
-          }
-        }
-        if (continuation.isActive) continuation.resume(subFolders)
-      }
+  private suspend fun buildLibraryChildren(libraryId: String): List<MediaItem> {
+    val selectedLibrary = mediaManager.getLibrary(libraryId)
+    if (selectedLibrary?.mediaType == "podcast") {
+      val podcasts = repository.loadLibraryPodcasts(libraryId)
+      return podcasts.map { it.getMediaItem(null, context) }
     }
 
-  private suspend fun buildLibrarySubChildren(parentId: String): List<MediaItem> =
-    suspendCancellableCoroutine { continuation ->
-      val parts = parentId.split("__")
-      if (parts.size < 4) {
-        continuation.resume(emptyList())
-        return@suspendCancellableCoroutine
-      }
-
-      val libraryId = parts[2]
-      val browseType = parts[3]
-
-      when (browseType) {
-        "AUTHORS" -> {
-          mediaManager.loadAuthorsWithBooks(libraryId) { authors ->
-            val mediaItems = authors.map { author ->
-              buildMediaItem(
-                mediaId = "__LIBRARY__${libraryId}__AUTHOR__${author.id}",
-                title = author.name,
-                subtitle = "${author.bookCount} books",
-                artworkUri = getUriToAbsIconDrawable(context, "person"),
-                isBrowsable = true, mimeType = null
-              )
-            }
-            continuation.resume(mediaItems)
-          }
-        }
-
-        "SERIES_LIST" -> {
-          mediaManager.loadLibrarySeriesWithAudio(libraryId) { series ->
-            val mediaItems = series.map { seriesItem ->
-              buildMediaItem(
-                mediaId = "__LIBRARY__${libraryId}__SERIES__${seriesItem.id}",
-                title = seriesItem.title,
-                subtitle = "${seriesItem.audiobookCount} books",
-                artworkUri = getUriToAbsIconDrawable(context, "bookshelf"),
-                isBrowsable = true, mimeType = null
-              )
-            }
-            continuation.resume(mediaItems)
-          }
-        }
-
-        "COLLECTIONS" -> {
-          mediaManager.loadLibraryCollectionsWithAudio(libraryId) { collections ->
-            val mediaItems = collections.map { collection ->
-              buildMediaItem(
-                mediaId = "__LIBRARY__${libraryId}__COLLECTION__${collection.id}",
-                title = collection.name,
-                subtitle = "${collection.audiobookCount} books",
-                artworkUri = getUriToAbsIconDrawable(context, "list-box"),
-                isBrowsable = true, mimeType = null
-              )
-            }
-            continuation.resume(mediaItems)
-          }
-        }
-
-        "DISCOVERY" -> {
-          mediaManager.loadLibraryDiscoveryBooksWithAudio(libraryId) { books ->
-            continuation.resume(books.map { book -> libraryItemToMediaItem(book, parentId) })
-          }
-        }
-
-        "AUTHOR" -> {
-          val authorId = parts.getOrNull(4)
-            ?: return@suspendCancellableCoroutine continuation.resume(emptyList())
-          mediaManager.loadAuthorBooksWithAudio(libraryId, authorId) { books ->
-            continuation.resume(books.map { book -> libraryItemToMediaItem(book, parentId) })
-          }
-        }
-
-        "SERIES" -> {
-          val seriesId = parts.getOrNull(4)
-            ?: return@suspendCancellableCoroutine continuation.resume(emptyList())
-          mediaManager.loadLibrarySeriesItemsWithAudio(libraryId, seriesId) { books ->
-            continuation.resume(books.map { book -> libraryItemToMediaItem(book, parentId) })
-          }
-        }
-
-        "COLLECTION" -> {
-          val collectionId = parts.getOrNull(4)
-            ?: return@suspendCancellableCoroutine continuation.resume(emptyList())
-          mediaManager.loadLibraryCollectionBooksWithAudio(libraryId, collectionId) { books ->
-            continuation.resume(books.map { book -> libraryItemToMediaItem(book, parentId) })
-          }
-        }
-
-        else -> continuation.resume(emptyList())
+    return buildList {
+      add(createBrowsableCategory("__LIBRARY__${libraryId}__AUTHORS", "Authors"))
+      add(createBrowsableCategory("__LIBRARY__${libraryId}__SERIES_LIST", "Series"))
+      add(createBrowsableCategory("__LIBRARY__${libraryId}__COLLECTIONS", "Collections"))
+      if (mediaManager.getHasDiscovery(libraryId)) {
+        add(createBrowsableCategory("__LIBRARY__${libraryId}__DISCOVERY", "Discovery"))
       }
     }
-
-  suspend fun buildPodcastEpisodes(podcastId: String): List<MediaItem> {
-    return mediaManager.loadPodcastEpisodes(podcastId, context) ?: emptyList()
   }
 
-  private suspend fun buildRecentlyShelfItems(libraryId: String): List<MediaItem> =
-    suspendCancellableCoroutine { continuation ->
-      mediaManager.getLibraryRecentShelfByType(libraryId, "book") { shelf ->
-        val bookShelf = shelf as? LibraryShelfBookEntity
-        val mediaItems = bookShelf?.entities?.map { book ->
-          libraryItemToMediaItem(book, "__RECENTLY__${libraryId}")
-        } ?: emptyList()
-        continuation.resume(mediaItems)
+  private suspend fun buildLibrarySubChildren(parentId: String): List<MediaItem> {
+    val parts = parentId.split("__")
+    if (parts.size < 4) return emptyList()
+
+    val libraryId = parts[2]
+    val browseType = parts[3]
+
+    return when (browseType) {
+      "AUTHORS" -> repository.loadAuthorsWithBooks(libraryId).map { author ->
+        buildMediaItem(
+          mediaId = "__LIBRARY__${libraryId}__AUTHOR__${author.id}",
+          title = author.name,
+          subtitle = "${author.bookCount} books",
+          artworkUri = getUriToAbsIconDrawable(context, "person"),
+          isBrowsable = true, mimeType = null
+        )
       }
+
+      "SERIES_LIST" -> repository.loadLibrarySeriesWithAudio(libraryId).map { seriesItem ->
+        buildMediaItem(
+          mediaId = "__LIBRARY__${libraryId}__SERIES__${seriesItem.id}",
+          title = seriesItem.title,
+          subtitle = "${seriesItem.audiobookCount} books",
+          artworkUri = getUriToAbsIconDrawable(context, "bookshelf"),
+          isBrowsable = true, mimeType = null
+        )
+      }
+
+      "COLLECTIONS" -> repository.loadLibraryCollectionsWithAudio(libraryId).map { collection ->
+        buildMediaItem(
+          mediaId = "__LIBRARY__${libraryId}__COLLECTION__${collection.id}",
+          title = collection.name,
+          subtitle = "${collection.audiobookCount} books",
+          artworkUri = getUriToAbsIconDrawable(context, "list-box"),
+          isBrowsable = true, mimeType = null
+        )
+      }
+
+      "DISCOVERY" -> repository.loadLibraryDiscoveryBooksWithAudio(libraryId)
+        .map { book -> libraryItemToMediaItem(book, parentId) }
+
+      "AUTHOR" -> parts.getOrNull(4)?.let { authorId ->
+        repository.loadAuthorBooksWithAudio(libraryId, authorId)
+          .map { book -> libraryItemToMediaItem(book, parentId) }
+      } ?: emptyList()
+
+      "SERIES" -> parts.getOrNull(4)?.let { seriesId ->
+        repository.loadLibrarySeriesItemsWithAudio(libraryId, seriesId)
+          .map { book -> libraryItemToMediaItem(book, parentId) }
+      } ?: emptyList()
+
+      "COLLECTION" -> parts.getOrNull(4)?.let { collectionId ->
+        repository.loadLibraryCollectionBooksWithAudio(libraryId, collectionId)
+          .map { book -> libraryItemToMediaItem(book, parentId) }
+      } ?: emptyList()
+
+      else -> emptyList()
     }
+  }
+
+  suspend fun buildPodcastEpisodes(podcastId: String): List<MediaItem> =
+    repository.loadPodcastEpisodes(podcastId, context)
+
+  private suspend fun buildRecentlyShelfItems(libraryId: String): List<MediaItem> {
+    val parentId = "__RECENTLY__${libraryId}"
+    return repository.loadRecentShelfBooks(libraryId).map { book ->
+      libraryItemToMediaItem(book, parentId)
+    }
+  }
 
   private fun buildMediaItem(
     mediaId: String, title: String, subtitle: String?, artworkUri: Uri?,

@@ -33,8 +33,10 @@ class CustomMediaNotificationProvider(
 
   private val appContext = context.applicationContext
 
+  private val defaultIcon = R.drawable.icon_monochrome
+
   init {
-    setSmallIcon(R.drawable.icon_monochrome)
+    setSmallIcon(defaultIcon)
   }
 
   override fun addNotificationActions(
