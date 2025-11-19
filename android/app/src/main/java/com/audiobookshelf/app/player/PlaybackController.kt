@@ -14,10 +14,12 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
-import androidx.media3.session.SessionToken
+import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
+import androidx.media3.session.SessionToken
 import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.data.PlaybackMetadata
 import com.audiobookshelf.app.data.PlaybackSession
@@ -28,10 +30,7 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import java.util.concurrent.atomic.AtomicBoolean
 
-/**
- * High-level controller that wraps a MediaController connection to Media3PlaybackService.
- * Coordinates lifecycle, media item preparation, and propagates player events to the UI layer.
- */
+@UnstableApi
 class PlaybackController(private val context: Context) {
   interface Listener {
     fun onPlaybackSession(session: PlaybackSession)
@@ -60,17 +59,16 @@ class PlaybackController(private val context: Context) {
   var listener: Listener? = null
   private val progressUpdateIntervalMs = 1000L
   private var progressUpdaterScheduled = false
+
   private val progressUpdater = object : Runnable {
     override fun run() {
-      val controller = mediaController
-      if (controller != null) {
-        emitMetadata(controller)
-      }
+      mediaController?.let { emitMetadata(it) }
       if (progressUpdaterScheduled) {
         mainHandler.postDelayed(this, progressUpdateIntervalMs)
       }
     }
   }
+
 
   private val controllerListener = object : Player.Listener {
     override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -144,6 +142,12 @@ class PlaybackController(private val context: Context) {
     }
   }
 
+  // It's good practice to define these constants in a companion object or at the top level
+  companion object {
+    private val DEFAULT_SUCCESS_RESULT = SessionResult(SessionResult.RESULT_SUCCESS)
+    private val UNKNOWN_ERROR_RESULT = SessionResult(SessionError.ERROR_UNKNOWN)
+  }
+
   private fun sendCommand(
     command: SessionCommand,
     args: Bundle = Bundle(),
@@ -151,23 +155,26 @@ class PlaybackController(private val context: Context) {
   ) {
     executeWithController { controller ->
       val future = controller.sendCustomCommand(command, args)
-      if (onComplete == null) {
-        return@executeWithController
-      }
-      Futures.addCallback(future, object : FutureCallback<SessionResult> {
-        override fun onSuccess(result: SessionResult?) {
-          val resolved = result ?: SessionResult(SessionResult.RESULT_ERROR_UNKNOWN)
-          mainHandler.post { onComplete(resolved) }
-        }
+      onComplete?.let { callback ->
+        Futures.addCallback(
+          future,
+          object : FutureCallback<SessionResult> {
+            override fun onSuccess(result: SessionResult?) {
+              callback(result ?: DEFAULT_SUCCESS_RESULT)
+            }
 
-        override fun onFailure(t: Throwable) {
-          Log.e(tag, "Custom command failure", t)
-          val fallback = SessionResult(SessionResult.RESULT_ERROR_UNKNOWN)
-          mainHandler.post { onComplete(fallback) }
-        }
-      }, ContextCompat.getMainExecutor(context))
+            override fun onFailure(t: Throwable) {
+              Log.e(tag, "Custom command failure", t)
+
+              callback(UNKNOWN_ERROR_RESULT)
+            }
+          },
+          ContextCompat.getMainExecutor(context)
+        )
+      }
     }
   }
+
 
   private fun controllerPlaybackState(controller: MediaController): PlayerState {
     return when (controller.playbackState) {
@@ -232,7 +239,7 @@ class PlaybackController(private val context: Context) {
 
     connect {
       val controller = mediaController ?: return@connect
-      val mediaItems = playbackSession.toPlayerMediaItems(context).mapIndexed { index, playerMediaItem ->
+      val mediaItems = playbackSession.toPlayerMediaItems(context).map { playerMediaItem ->
         val mediaId = "${playbackSession.id}_${playerMediaItem.mediaId}"
         MediaItem.Builder()
           .setUri(playerMediaItem.uri)
@@ -274,14 +281,19 @@ class PlaybackController(private val context: Context) {
 
   fun playPause(): Boolean {
     val controller = mediaController ?: return false
-    return if (controller.isPlaying) {
-      controller.pause()
-      false
-    } else {
-      controller.play()
-      true
+    return when {
+      controller.isPlaying -> {
+        controller.pause()
+        false
+      }
+
+      else -> {
+        controller.play()
+        true
+      }
     }
   }
+
 
   fun seekTo(positionMs: Long) {
     mediaController?.seekTo(positionMs)
@@ -307,8 +319,7 @@ class PlaybackController(private val context: Context) {
 
   fun getSleepTimerTime(onResult: (Long) -> Unit) {
     sendCommand(getSleepTimerTimeCommand, Bundle()) { result ->
-      val extras = result.extras ?: Bundle.EMPTY
-      onResult(extras.getLong(SleepTimer.EXTRA_TIME_MS, 0L))
+      onResult(result.extras.getLong(SleepTimer.EXTRA_TIME_MS, 0L))
     }
   }
 

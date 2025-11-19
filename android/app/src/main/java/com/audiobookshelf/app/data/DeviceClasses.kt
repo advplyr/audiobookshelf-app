@@ -3,6 +3,7 @@ package com.audiobookshelf.app.data
 import android.content.Context
 import android.support.v4.media.MediaDescriptionCompat
 import android.util.Log
+import androidx.media3.common.MediaItem
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonSubTypes
@@ -99,6 +100,22 @@ data class LocalFolder(
 open class LibraryItemWrapper(var id:String) {
   @JsonIgnore
   open fun getMediaDescription(progress:MediaProgressWrapper?, ctx: Context): MediaDescriptionCompat { return MediaDescriptionCompat.Builder().build() }
+
+  /**
+   * The modern, Media3 counterpart to getMediaDescription.
+   * It creates a fully-formed, playable MediaItem. This method is designed to be overridden
+   * by subclasses to provide specific metadata and logic for the Media3 player.
+   *
+   * @param progress The playback progress for this item.
+   * @param context The application context.
+   * @return A complete MediaItem ready for use in Media3.
+   */
+  @JsonIgnore
+  open fun getMediaItem(progress: MediaProgressWrapper?, context: Context): MediaItem {
+    // The base implementation returns an empty item.
+    // Subclasses are expected to override this with meaningful implementations.
+    return MediaItem.EMPTY
+  }
 }
 
 @JsonIgnoreProperties(ignoreUnknown = true)

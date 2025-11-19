@@ -7,7 +7,13 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.util.Log
 import com.audiobookshelf.app.MediaPlayerWidget
-import com.audiobookshelf.app.data.*
+import com.audiobookshelf.app.data.AndroidAutoBrowseSeriesSequenceOrderSetting
+import com.audiobookshelf.app.data.DeviceData
+import com.audiobookshelf.app.data.DownloadUsingCellularSetting
+import com.audiobookshelf.app.data.PlaybackSession
+import com.audiobookshelf.app.data.ServerConnectionConfig
+import com.audiobookshelf.app.data.ShakeSensitivitySetting
+import com.audiobookshelf.app.data.StreamingUsingCellularSetting
 import com.audiobookshelf.app.managers.DbManager
 import com.audiobookshelf.app.player.PlayerNotificationService
 import com.audiobookshelf.app.updateAppWidget
@@ -190,6 +196,16 @@ object DeviceManager {
     // need to return the in-memory copy. We might add a reload here if neededKotlin,
     // but for now, this is the correct direct access pattern.
     return deviceData.lastPlaybackSession
+  }
+
+  /**
+   * Checks if there are any locally stored media items.
+   * @return True if there is at least one local book or podcast, false otherwise.
+   */
+  fun hasLocalMedia(): Boolean {
+    val localBooks = dbManager.getLocalLibraryItems("book")
+    val localPodcasts = dbManager.getLocalLibraryItems("podcast")
+    return localBooks.isNotEmpty() || localPodcasts.isNotEmpty()
   }
 
   /**

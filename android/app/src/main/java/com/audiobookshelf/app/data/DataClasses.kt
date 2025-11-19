@@ -5,11 +5,20 @@ import android.icu.text.DateFormat
 import android.os.Bundle
 import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.MediaMetadataCompat
-import androidx.media.utils.MediaConstants
+import androidx.annotation.OptIn
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.session.MediaConstants
 import com.audiobookshelf.app.media.MediaManager
-import com.fasterxml.jackson.annotation.*
 import com.audiobookshelf.app.media.getUriToAbsIconDrawable
+import com.fasterxml.jackson.annotation.JsonFormat
+import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.JsonTypeInfo
 import java.util.Date
+import androidx.media.utils.MediaConstants as LegacyMediaConstants
 
 // This auto-detects whether it is a Book or Podcast
 @JsonTypeInfo(use=JsonTypeInfo.Id.DEDUCTION)
@@ -294,22 +303,22 @@ data class PodcastEpisode(
     if (progress != null) {
       if (progress.isFinished) {
         extras.putInt(
-          MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
-          MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_FULLY_PLAYED
+          LegacyMediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
+          LegacyMediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_FULLY_PLAYED
         )
       } else {
         extras.putInt(
-          MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
-          MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_PARTIALLY_PLAYED
+          LegacyMediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
+          LegacyMediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_PARTIALLY_PLAYED
         )
         extras.putDouble(
-          MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_PERCENTAGE, progress.progress
+          LegacyMediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_PERCENTAGE, progress.progress
         )
       }
     } else {
       extras.putInt(
-        MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
-        MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_NOT_PLAYED
+        LegacyMediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
+        LegacyMediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_NOT_PLAYED
       )
     }
 
@@ -335,6 +344,86 @@ data class PodcastEpisode(
 
     return mediaDescriptionBuilder.build()
   }
+
+  /**
+   * Modern Media3 counterpart to getMediaDescription.
+   * It creates a fully-formed, playable MediaItem for an episode, faithfully
+   * replicating all the logic from the legacy method, including the extras bundle.
+   *
+   * @param libraryItem The parent LibraryItemWrapper for context (title, artwork).
+   * @param progress The playback progress for this episode.
+   * @param context The application context.
+   * @return A complete MediaItem ready for use in Media3.
+   */
+  @OptIn(UnstableApi::class)
+  @JsonIgnore
+  fun getMediaItem(
+    libraryItem: LibraryItemWrapper,
+    progress: MediaProgressWrapper?,
+    context: Context
+  ): MediaItem {
+
+    val coverUri = if (libraryItem is LocalLibraryItem) {
+      libraryItem.getCoverUri(context)
+    } else {
+      (libraryItem as? LibraryItem)?.getCoverUri()
+    }
+
+    val extras = Bundle()
+    if (localEpisodeId != null) {
+      extras.putLong(
+        MediaConstants.EXTRAS_KEY_DOWNLOAD_STATUS,
+        MediaConstants.EXTRAS_VALUE_STATUS_DOWNLOADED
+      )
+    }
+
+    if (progress != null) {
+      if (progress.isFinished) {
+        extras.putInt(
+          MediaConstants.EXTRAS_KEY_COMPLETION_STATUS,
+          MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_FULLY_PLAYED
+        )
+      } else {
+        extras.putInt(
+          MediaConstants.EXTRAS_KEY_COMPLETION_STATUS,
+          MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_PARTIALLY_PLAYED
+        )
+        extras.putDouble(MediaConstants.EXTRAS_KEY_COMPLETION_PERCENTAGE, progress.progress)
+      }
+    } else {
+      extras.putInt(
+        MediaConstants.EXTRAS_KEY_COMPLETION_STATUS,
+        MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_NOT_PLAYED
+      )
+    }
+
+    extras.putLong("duration", (this.duration?.toLong() ?: 0L) * 1000)
+
+    val libraryItemMediaItem = libraryItem.getMediaItem(null, context)
+    val mediaId = localEpisodeId ?: this.id
+    val podcastTitle = libraryItemMediaItem.mediaMetadata.title
+    val formattedSubtitle = publishedAt?.let {
+      val sdf = DateFormat.getDateInstance()
+      val publishedAtDT = Date(it)
+      "${sdf.format(publishedAtDT)} / $podcastTitle"
+    } ?: podcastTitle
+
+    val metadata = MediaMetadata.Builder()
+      .setTitle(title)
+      .setSubtitle(formattedSubtitle)
+      .setArtworkUri(coverUri)
+      .setIsPlayable(true)
+      .setIsBrowsable(false)
+      .setExtras(extras)
+      .build()
+
+
+    return MediaItem.Builder()
+      .setMediaId(mediaId)
+      .setMediaMetadata(metadata)
+      .build()
+  }
+
 }
 
 @JsonIgnoreProperties(ignoreUnknown = true)
