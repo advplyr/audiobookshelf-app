@@ -581,8 +581,12 @@ export default {
       }
 
       const ptWidth = Math.round(percentDone * this.trackWidth)
-      this.$refs.playedTrack.style.width = ptWidth + 'px'
-      this.$refs.bufferedTrack.style.width = Math.round(bufferedPercent * this.trackWidth) + 'px'
+      if (this.$refs.playedTrack) {
+        this.$refs.playedTrack.style.width = ptWidth + 'px'
+      }
+      if (this.$refs.bufferedTrack) {
+        this.$refs.bufferedTrack.style.width = Math.round(bufferedPercent * this.trackWidth) + 'px'
+      }
 
       if (this.$refs.trackCursor) {
         this.$refs.trackCursor.style.left = ptWidth - 14 + 'px'

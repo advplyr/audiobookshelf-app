@@ -62,7 +62,7 @@
             <span class="material-symbols">close</span>
           </button>
         </div>
-        <div class="w-full overflow-y-auto overflow-x-hidden h-full max-h-[calc(75vh-85px)]">
+        <div class="w-full overflow-y-auto overflow-x-hidden h-[calc(75vh-85px)] min-h-[320px] short:min-h-0 short:h-[calc(100vh-85px)]">
           <div class="w-full h-full px-4">
             <div class="flex items-center mb-6">
               <div class="w-32">
