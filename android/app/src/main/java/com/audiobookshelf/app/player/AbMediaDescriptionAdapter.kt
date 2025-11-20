@@ -91,4 +91,9 @@ class AbMediaDescriptionAdapter (private val controller: MediaControllerCompat, 
       }
     }
   }
+
+  fun invalidateCache() {
+    currentIconUri = null
+    currentBitmap = null
+  }
 }

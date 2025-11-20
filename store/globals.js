@@ -40,7 +40,8 @@ export const state = () => ({
   localFolderSelectData: null,
   hapticFeedback: 'LIGHT',
   showRSSFeedOpenCloseModal: false,
-  rssFeedEntity: null
+  rssFeedEntity: null,
+  showQueueModal: false
 })
 
 export const getters = {
@@ -220,5 +221,8 @@ export const mutations = {
   setRSSFeedOpenCloseModal(state, entity) {
     state.rssFeedEntity = entity
     state.showRSSFeedOpenCloseModal = true
+  },
+  setShowQueueModal(state, val) {
+    state.showQueueModal = val
   }
 }
