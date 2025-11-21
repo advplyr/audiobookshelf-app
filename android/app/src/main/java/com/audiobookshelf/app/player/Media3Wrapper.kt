@@ -2,7 +2,6 @@ package com.audiobookshelf.app.player
 
 import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
 import android.util.Log
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C

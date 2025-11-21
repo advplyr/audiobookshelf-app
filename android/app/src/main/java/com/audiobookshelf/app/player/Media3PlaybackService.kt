@@ -12,6 +12,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import android.util.Log
 import androidx.media3.cast.CastPlayer
 import androidx.media3.cast.SessionAvailabilityListener
@@ -38,9 +39,14 @@ import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import com.audiobookshelf.app.MainActivity
 import com.audiobookshelf.app.R
+import com.audiobookshelf.app.BuildConfig
+import com.audiobookshelf.app.data.AudioTrack
+import com.audiobookshelf.app.data.DeviceInfo
 import com.audiobookshelf.app.data.DeviceSettings
+import com.audiobookshelf.app.data.PlayItemRequestPayload
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.device.DeviceManager
+import com.audiobookshelf.app.managers.DbManager
 import com.audiobookshelf.app.managers.SleepTimerHost
 import com.audiobookshelf.app.managers.SleepTimerManager
 import com.audiobookshelf.app.media.MediaManager
@@ -56,6 +62,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.guava.future
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 import kotlin.math.max
 
 
@@ -65,6 +73,7 @@ import kotlin.math.max
  * Cast playback remains in legacy PlayerNotificationService until Phase 4.
  */
 
+// Media3 cast/session/notification APIs are annotated @UnstableApi; opt-in is required here.
 @UnstableApi
 class Media3PlaybackService : MediaLibraryService() {
   private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -88,6 +97,11 @@ class Media3PlaybackService : MediaLibraryService() {
 
 
   private val playerListener = PlayerEventListener()
+
+  // Gate debug logs so release builds stay quiet while preserving useful diagnostics during dev.
+  private inline fun debugLog(crossinline message: () -> String) {
+    if (BuildConfig.DEBUG) Log.d(TAG, message())
+  }
 
   private lateinit var apiHandler: ApiHandler
   private lateinit var mediaManager: MediaManager
@@ -121,10 +135,9 @@ class Media3PlaybackService : MediaLibraryService() {
       activePlayer.prepare()
     }
 
-    Log.d(
-      TAG,
+    debugLog {
       "Switched active player from ${oldPlayer.javaClass.simpleName} to ${to.javaClass.simpleName}"
-    )
+    }
   }
 
   private val sleepTimerHost = object : SleepTimerHost {
@@ -273,19 +286,19 @@ class Media3PlaybackService : MediaLibraryService() {
   private var jumpForwardMs: Long = 30000L
 
   private fun applyJumpIncrementsFromDeviceSettings() {
+    // Mirror legacy behavior: respect user-configured seek intervals for Media3 players.
     val settings = deviceSettings
     jumpBackwardMs = settings.jumpBackwardsTimeMs
     jumpForwardMs = settings.jumpForwardTimeMs
-    Log.d(
-      TAG,
+    debugLog {
       "Jump increments set from device settings: back=${jumpBackwardMs}ms forward=${jumpForwardMs}ms"
-    )
+    }
   }
 
   private val becomingNoisyReceiver = object : BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
       if (intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY && activePlayer.isPlaying) {
-        Log.d(TAG, "Audio becoming noisy; pausing player")
+        debugLog { "Audio becoming noisy; pausing player" }
         activePlayer.pause()
       }
     }
@@ -342,10 +355,35 @@ class Media3PlaybackService : MediaLibraryService() {
   private val seekForwardIncrementCommand =
     SessionCommand(CustomCommands.SEEK_FORWARD_INCREMENT, Bundle.EMPTY)
 
+  private fun getDeviceInfo(): DeviceInfo {
+    val deviceId = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+    return DeviceInfo(
+      deviceId,
+      android.os.Build.MANUFACTURER,
+      android.os.Build.MODEL,
+      android.os.Build.VERSION.SDK_INT,
+      BuildConfig.VERSION_NAME
+    )
+  }
+
+  private fun getPlayItemRequestPayload(forceTranscode: Boolean): PlayItemRequestPayload {
+    val mediaPlayerId =
+      if (this::castPlayer.isInitialized && activePlayer === castPlayer) PLAYER_CAST else PLAYER_MEDIA3
+    return PlayItemRequestPayload(
+      mediaPlayerId,
+      forceDirectPlay = !forceTranscode,
+      forceTranscode = forceTranscode,
+      deviceInfo = getDeviceInfo()
+    )
+  }
+
 
   override fun onCreate() {
     super.onCreate()
-    Log.d(TAG, "onCreate: Initializing Media3 playback service")
+    debugLog { "onCreate: Initializing Media3 playback service" }
+    // Ensure local storage (Paper) and widget updates are available before any DeviceManager access.
+    DbManager.initialize(this)
+    DeviceManager.initializeWidgetUpdater(this)
     applyJumpIncrementsFromDeviceSettings()
     setupPlaybackPipeline()
     setupMediaManagers()
@@ -376,7 +414,7 @@ class Media3PlaybackService : MediaLibraryService() {
     activePlayer = localPlayer
     updateMediaPlayerExtra()
     playerInitialized = true
-    Log.d(TAG, "Local player initialized.")
+    debugLog { "Local player initialized." }
   }
 
   private fun initializeCastPlayer() {
@@ -391,7 +429,7 @@ class Media3PlaybackService : MediaLibraryService() {
           override fun onCastSessionAvailable() {
             serviceScope.launch {
               playerInitializationSignal.await()
-              Log.d(TAG, "Cast session available. Switching to CastPlayer.")
+              debugLog { "Cast session available. Switching to CastPlayer." }
               switchPlayer(to = castPlayer)
             }
           }
@@ -399,12 +437,12 @@ class Media3PlaybackService : MediaLibraryService() {
           override fun onCastSessionUnavailable() {
             serviceScope.launch {
               playerInitializationSignal.await()
-              Log.d(TAG, "Cast session unavailable. Switching back to local player.")
+              debugLog { "Cast session unavailable. Switching back to local player." }
               switchPlayer(to = localPlayer)
             }
           }
         })
-      Log.d(TAG, "Cast player initialized and listener attached.")
+      debugLog { "Cast player initialized and listener attached." }
 
     } catch (e: Exception) {
       Log.e(TAG, "Failed to initialize CastContext. Cast feature will be unavailable.", e)
@@ -425,7 +463,7 @@ class Media3PlaybackService : MediaLibraryService() {
       }
       val notificationManager = getSystemService(NotificationManager::class.java)
       notificationManager.createNotificationChannel(channel)
-      Log.d(TAG, "Notification channel created: ${Notification.CHANNEL_ID}")
+      debugLog { "Notification channel created: ${Notification.CHANNEL_ID}" }
     }
   }
 
@@ -438,7 +476,7 @@ class Media3PlaybackService : MediaLibraryService() {
     )
     this.notificationProvider = provider
     setMediaNotificationProvider(provider)
-    Log.d(TAG, "CustomMediaNotificationProvider configured")
+    debugLog { "CustomMediaNotificationProvider configured" }
   }
 
   private fun updateMediaPlayerExtra() {
@@ -517,7 +555,7 @@ class Media3PlaybackService : MediaLibraryService() {
     }
     updateMediaPlayerExtra()
 
-    Log.d(TAG, "MediaLibrarySession created: $sessionId")
+    debugLog { "MediaLibrarySession created: $sessionId" }
   }
 
   private fun registerBecomingNoisyReceiver() {
@@ -528,10 +566,10 @@ class Media3PlaybackService : MediaLibraryService() {
   }
 
   override fun onUpdateNotification(session: MediaSession, startInForegroundRequired: Boolean) {
-    Log.d(
-      TAG,
-      "onUpdateNotification: foreground=$startInForegroundRequired, session=${session.id}, isPlaying=${session.player.isPlaying}, state=${session.player.playbackState}"
-    )
+    debugLog {
+      "onUpdateNotification: foreground=$startInForegroundRequired, session=${session.id}, " +
+        "isPlaying=${session.player.isPlaying}, state=${session.player.playbackState}"
+    }
     super.onUpdateNotification(session, startInForegroundRequired)
   }
 
@@ -543,7 +581,7 @@ class Media3PlaybackService : MediaLibraryService() {
     super.onDestroy()
     serviceScope.cancel()
     cleanupPlaybackResources()
-    Log.d(TAG, "onDestroy: Media3 service destroyed")
+    debugLog { "onDestroy: Media3 service destroyed" }
   }
 
   override fun onTaskRemoved(rootIntent: Intent?) {
@@ -556,6 +594,7 @@ class Media3PlaybackService : MediaLibraryService() {
     } catch (_: Exception) {
       // Best-effort shutdown; proceed to stop service
     }
+    // Match legacy swipe-away behavior: stop playback and tear down service when task is removed.
     stopSelf()
   }
 
@@ -563,6 +602,7 @@ class Media3PlaybackService : MediaLibraryService() {
    * MediaLibrarySession callback handling transport controls and custom commands.
    */
   private inner class Media3SessionCallback : MediaLibrarySession.Callback {
+
     override fun onPlayerInteractionFinished(
       session: MediaSession,
       controllerInfo: MediaSession.ControllerInfo,
@@ -579,14 +619,14 @@ class Media3PlaybackService : MediaLibraryService() {
           if (playerCommands.contains(Player.COMMAND_SEEK_BACK) || playerCommands.contains(Player.COMMAND_SEEK_TO_PREVIOUS)) {
             val p = activePlayer.currentPosition
             val target = (p - jumpBackwardMs).coerceAtLeast(0L)
-            Log.d(TAG, "Wear interaction SEEK_BACK -> seekTo=$target")
+            debugLog { "Wear interaction SEEK_BACK -> seekTo=$target" }
             mainHandler.post { activePlayer.seekTo(target) }
           }
           if (playerCommands.contains(Player.COMMAND_SEEK_FORWARD) || playerCommands.contains(Player.COMMAND_SEEK_TO_NEXT)) {
             val p = activePlayer.currentPosition
             val dur = activePlayer.duration
             val target = (p + jumpForwardMs).coerceAtMost(if (dur > 0) dur else Long.MAX_VALUE)
-            Log.d(TAG, "Wear interaction SEEK_FORWARD -> seekTo=$target")
+            debugLog { "Wear interaction SEEK_FORWARD -> seekTo=$target" }
             mainHandler.post { activePlayer.seekTo(target) }
           }
           // Volume commands should be exposed via Player device-volume APIs now
@@ -604,30 +644,31 @@ class Media3PlaybackService : MediaLibraryService() {
       controller: MediaSession.ControllerInfo
     ): MediaSession.ConnectionResult {
       // Build player commands - keep SEEK_BACK/FORWARD but remove track navigation
-      val availablePlayerCommands = session.player.availableCommands
-      val isWear = controller.packageName.contains("wear", ignoreCase = true)
-      (session.player as? AbsPlayerWrapper)?.mapSkipToSeek = isWear
+        val availablePlayerCommands = session.player.availableCommands
+        val isWear = controller.packageName.contains("wear", ignoreCase = true)
+        val isAppController = controller.packageName == this@Media3PlaybackService.packageName
+        (session.player as? AbsPlayerWrapper)?.mapSkipToSeek = isWear
 
-      val builder = Player.Commands.Builder().addAll(availablePlayerCommands)
-        // Explicitly ensure core seek commands are present
-        .add(Player.COMMAND_SEEK_BACK)
-        .add(Player.COMMAND_SEEK_FORWARD)
-        .add(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
-        .add(Player.COMMAND_PLAY_PAUSE)
-      // Ensure device volume commands are advertised so remote controllers (Wear)
-      // can show crown and send device-volume requests to the Media3 session.
-      // We'll detect and log these commands and forward actual volume adjustments
-      // to AudioManager in `onPlayerCommandRequest` where possible.
-      builder.add(Player.COMMAND_GET_DEVICE_VOLUME)
-      builder.add(Player.COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS)
-      builder.add(Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS)
+        val builder = Player.Commands.Builder().addAll(availablePlayerCommands)
+          // Explicitly ensure core seek commands are present
+          .add(Player.COMMAND_SEEK_BACK)
+          .add(Player.COMMAND_SEEK_FORWARD)
+          .add(Player.COMMAND_PLAY_PAUSE)
+        builder.add(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
+        // Ensure device volume commands are advertised so remote controllers (Wear)
+        // can show crown and send device-volume requests to the Media3 session.
+        // We'll detect and log these commands and forward actual volume adjustments
+        // to AudioManager in `onPlayerCommandRequest` where possible.
+        builder.add(Player.COMMAND_GET_DEVICE_VOLUME)
+        builder.add(Player.COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS)
+        builder.add(Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS)
 
       // Respect device setting that disables seeking from external media controls
-      if (!deviceSettings.allowSeekingOnMediaControls) {
-        builder.remove(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
-      }
+        if (!isAppController && !deviceSettings.allowSeekingOnMediaControls) {
+          builder.remove(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
+        }
       if (isWear) {
-        Log.d(TAG, "Wear controller connected; removing default PREV/NEXT to allow custom buttons")
+        debugLog { "Wear controller connected; removing default PREV/NEXT to allow custom buttons" }
 
         builder.remove(Player.COMMAND_SEEK_TO_PREVIOUS)
         builder.remove(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
@@ -640,20 +681,14 @@ class Media3PlaybackService : MediaLibraryService() {
       val playerCommands = builder.build()
 
       fun cmd(c: Int) = if (playerCommands.contains(c)) "Y" else "N"
-      Log.d(
-        TAG,
-        "Controller connected pkg=${controller.packageName}. cmd: BACK=${cmd(Player.COMMAND_SEEK_BACK)} FWD=${
-          cmd(Player.COMMAND_SEEK_FORWARD)
-        } SEEK_IN_ITEM=${cmd(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)} PREV=${cmd(Player.COMMAND_SEEK_TO_PREVIOUS)} NEXT=${
-          cmd(
-            Player.COMMAND_SEEK_TO_NEXT
-          )
-        } PREV_ITEM=${cmd(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)} NEXT_ITEM=${cmd(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)} VOL_GET=${
-          cmd(
-            Player.COMMAND_GET_DEVICE_VOLUME
-          )
-        } VOL_SET=${cmd(Player.COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS)} VOL_ADJ=${cmd(Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS)}"
-      )
+      debugLog {
+        "Controller connected pkg=${controller.packageName}. cmd: BACK=${cmd(Player.COMMAND_SEEK_BACK)} " +
+          "FWD=${cmd(Player.COMMAND_SEEK_FORWARD)} SEEK_IN_ITEM=${cmd(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)} " +
+          "PREV=${cmd(Player.COMMAND_SEEK_TO_PREVIOUS)} NEXT=${cmd(Player.COMMAND_SEEK_TO_NEXT)} " +
+          "PREV_ITEM=${cmd(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)} NEXT_ITEM=${cmd(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)} " +
+          "VOL_GET=${cmd(Player.COMMAND_GET_DEVICE_VOLUME)} VOL_SET=${cmd(Player.COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS)} " +
+          "VOL_ADJ=${cmd(Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS)}"
+      }
 
       val sessionCommands = MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
         .buildUpon()
@@ -675,7 +710,7 @@ class Media3PlaybackService : MediaLibraryService() {
 
     override fun onPostConnect(session: MediaSession, controller: MediaSession.ControllerInfo) {
       super.onPostConnect(session, controller)
-      Log.d(TAG, "Post-connect: controller=${controller.packageName}")
+      debugLog { "Post-connect: controller=${controller.packageName}" }
     }
 
 
@@ -684,14 +719,46 @@ class Media3PlaybackService : MediaLibraryService() {
       controller: MediaSession.ControllerInfo
     ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
       // This is the implementation for session restoration.
-      Log.d(
-        TAG,
-        "onPlaybackResumption: Controller '${controller.packageName}' requested to resume playback."
-      )
+      debugLog { "onPlaybackResumption: Controller '${controller.packageName}' requested to resume playback." }
 
       // Use the coroutine scope from the service to do this work asynchronously.
       // The 'future' builder from kotlinx-coroutines-guava is perfect for this.
       return serviceScope.future {
+        val preferServerUrisForCast = this@Media3PlaybackService::castPlayer.isInitialized &&
+          activePlayer === castPlayer
+
+        // Prefer the most recent server-side in-progress item so cross-device playback resumes
+        // from the latest position, not just the last local session.
+        val latestServerItem = if (mediaManager.serverItemsInProgress.isNotEmpty()) {
+          mediaManager.serverItemsInProgress.maxByOrNull { it.progressLastUpdate }
+        } else {
+          null
+        }
+
+        if (latestServerItem != null) {
+          val mediaId = latestServerItem.episode?.id ?: latestServerItem.libraryItemWrapper.id
+          val resolved = browseTree.resolvePlayableItem(
+            mediaId = mediaId,
+            payload = getPlayItemRequestPayload(forceTranscode = false),
+            preferServerUrisForCast = preferServerUrisForCast
+          )
+
+          if (resolved != null) {
+            currentPlaybackSession = resolved.session
+            debugLog {
+              "onPlaybackResumption: Resolved server in-progress item=${resolved.session.id} " +
+                "startIndex=${resolved.startIndex} startPos=${resolved.startPositionMs}"
+            }
+            return@future MediaSession.MediaItemsWithStartPosition(
+              resolved.mediaItems,
+              resolved.startIndex,
+              resolved.startPositionMs
+            )
+          } else {
+            Log.w(TAG, "onPlaybackResumption: Failed to resolve server in-progress item '$mediaId'. Falling back to last local session.")
+          }
+        }
+
         // STEP 1: Load the last known playback session from your persistent storage.
         val lastSession = DeviceManager.getLastPlaybackSession()
         if (lastSession == null) {
@@ -699,13 +766,11 @@ class Media3PlaybackService : MediaLibraryService() {
           return@future MediaSession.MediaItemsWithStartPosition(emptyList(), 0, C.TIME_UNSET)
         }
 
-        Log.d(
-          TAG,
+        debugLog {
           "onPlaybackResumption: Found last session for item '${lastSession.libraryItemId}' at ${lastSession.currentTimeMs}ms."
-        )
+        }
 
-        val preferServerUris = this@Media3PlaybackService::castPlayer.isInitialized &&
-          activePlayer === castPlayer && lastSession.isLocal
+        val preferServerUris = preferServerUrisForCast && lastSession.isLocal
         val mediaItems = lastSession.toPlayerMediaItems(
           this@Media3PlaybackService,
           preferServerUrisForCast = preferServerUris
@@ -730,15 +795,21 @@ class Media3PlaybackService : MediaLibraryService() {
           return@future MediaSession.MediaItemsWithStartPosition(emptyList(), 0, C.TIME_UNSET)
         } else {
 
-          val startIndex = lastSession.getCurrentTrackIndex().coerceIn(0, mediaItems.lastIndex)
-          val trackStartOffsetMs = startIndex.let { lastSession.getTrackStartOffsetMs(it) }
-          val startPositionMs =
-            trackStartOffsetMs.let { (lastSession.currentTimeMs.minus(it)).coerceAtLeast(0L) }
+          // If the server has fresher progress for this item/episode, honor that to resume from
+          // the latest point; otherwise fall back to the locally stored session position.
+          val serverProgressMs = mediaManager.serverUserMediaProgress.find {
+            it.libraryItemId == lastSession.libraryItemId && it.episodeId == lastSession.episodeId
+          }?.currentTime?.times(1000)?.toLong() ?: 0L
 
-          Log.d(
-            TAG,
+          val resumeMs = maxOf(serverProgressMs, lastSession.currentTimeMs)
+          val startIndex = resolveTrackIndexForPosition(lastSession.audioTracks, resumeMs)
+            .coerceIn(0, mediaItems.lastIndex)
+          val trackStartOffsetMs = lastSession.getTrackStartOffsetMs(startIndex)
+          val startPositionMs = (resumeMs - trackStartOffsetMs).coerceAtLeast(0L)
+
+          debugLog {
             "onPlaybackResumption: Resuming at index $startIndex with position ${startPositionMs}ms."
-          )
+          }
 
           MediaSession.MediaItemsWithStartPosition(
             mediaItems,
@@ -747,6 +818,16 @@ class Media3PlaybackService : MediaLibraryService() {
           )
         }
       }
+    }
+
+    private fun resolveTrackIndexForPosition(
+      tracks: List<AudioTrack>,
+      positionMs: Long
+    ): Int {
+      if (tracks.isEmpty()) return 0
+      val track = tracks.firstOrNull { positionMs in it.startOffsetMs until it.endOffsetMs }
+        ?: tracks.last()
+      return tracks.indexOf(track)
     }
 
 
@@ -817,6 +898,123 @@ class Media3PlaybackService : MediaLibraryService() {
       return super.onCustomCommand(session, controller, customCommand, args)
     }
 
+    override fun onAddMediaItems(
+      mediaSession: MediaSession,
+      controller: MediaSession.ControllerInfo,
+      mediaItems: MutableList<MediaItem>
+    ): ListenableFuture<MutableList<MediaItem>> {
+      return serviceScope.future {
+        val requested = mediaItems.firstOrNull()
+        if (requested == null) {
+          debugLog { "onAddMediaItems: empty request from ${controller.packageName}" }
+          return@future mutableListOf<MediaItem>()
+        }
+
+        val isPlayableRequest =
+          requested.localConfiguration != null || requested.requestMetadata.mediaUri != null
+
+        if (isPlayableRequest) {
+          debugLog { "onAddMediaItems: passthrough playable request '${requested.mediaId}'" }
+          val candidateId = requested.mediaId.substringBefore('_')
+          if (currentPlaybackSession?.id != candidateId) {
+            mediaManager.getById(candidateId)?.let { libraryItem ->
+              val payload = getPlayItemRequestPayload(forceTranscode = false)
+              val session = suspendCancellableCoroutine<PlaybackSession?> { cont ->
+                mediaManager.play(libraryItem, null, payload) { newSession ->
+                  if (cont.isActive) cont.resume(newSession)
+                }
+              }
+              if (session != null) currentPlaybackSession = session
+            }
+          }
+          return@future mediaItems
+        }
+
+        val mediaId = requested.mediaId
+        val preferServerUrisForCast = this@Media3PlaybackService::castPlayer.isInitialized &&
+          activePlayer === castPlayer
+
+        val resolved = browseTree.resolvePlayableItem(
+          mediaId = mediaId,
+          payload = getPlayItemRequestPayload(forceTranscode = false),
+          preferServerUrisForCast = preferServerUrisForCast
+        )
+
+        if (resolved == null) {
+          debugLog { "onAddMediaItems: unable to resolve mediaId=$mediaId" }
+          return@future mutableListOf<MediaItem>()
+        }
+
+        currentPlaybackSession = resolved.session
+        debugLog {
+          "onAddMediaItems: resolved ${resolved.mediaItems.size} items for session=${resolved.session.id} " +
+            "startIndex=${resolved.startIndex} startPos=${resolved.startPositionMs}"
+        }
+        // Apply queue and resume position immediately to avoid starting at 0 on AA.
+        activePlayer.setMediaItems(
+          resolved.mediaItems,
+          resolved.startIndex.coerceIn(0, resolved.mediaItems.lastIndex),
+          resolved.startPositionMs
+        )
+        activePlayer.prepare()
+        return@future resolved.mediaItems.toMutableList()
+      }
+    }
+
+    override fun onSetMediaItems(
+      mediaSession: MediaSession,
+      controller: MediaSession.ControllerInfo,
+      mediaItems: MutableList<MediaItem>,
+      startIndex: Int,
+      startPositionMs: Long
+    ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+      return serviceScope.future {
+        val playablePassthrough = mediaItems.filter {
+          it.localConfiguration != null || it.requestMetadata.mediaUri != null
+        }
+        if (playablePassthrough.isNotEmpty()) {
+          debugLog { "onSetMediaItems: passthrough items=${playablePassthrough.size}" }
+          return@future MediaSession.MediaItemsWithStartPosition(
+            playablePassthrough,
+            startIndex,
+            startPositionMs
+          )
+        }
+
+        val requested = mediaItems.firstOrNull()
+        if (requested == null) {
+          debugLog { "onSetMediaItems: empty request from ${controller.packageName}" }
+          return@future MediaSession.MediaItemsWithStartPosition(emptyList(), 0, C.TIME_UNSET)
+        }
+
+        val mediaId = requested.mediaId
+        val preferServerUrisForCast = this@Media3PlaybackService::castPlayer.isInitialized &&
+          activePlayer === castPlayer
+
+        val resolved = browseTree.resolvePlayableItem(
+          mediaId = mediaId,
+          payload = getPlayItemRequestPayload(forceTranscode = false),
+          preferServerUrisForCast = preferServerUrisForCast
+        )
+
+        if (resolved == null) {
+          debugLog { "onSetMediaItems: unable to resolve mediaId=$mediaId" }
+          return@future MediaSession.MediaItemsWithStartPosition(emptyList(), 0, C.TIME_UNSET)
+        }
+
+        currentPlaybackSession = resolved.session
+        debugLog {
+          "onSetMediaItems: resolved ${resolved.mediaItems.size} items for session=${resolved.session.id} " +
+            "startIndex=${resolved.startIndex} startPos=${resolved.startPositionMs}"
+        }
+        MediaSession.MediaItemsWithStartPosition(
+          resolved.mediaItems,
+          resolved.startIndex,
+          resolved.startPositionMs
+        )
+      }
+    }
+
     /**
      * This is the entry point for Android Auto. It should be fast and synchronous.
      * It simply provides the static root node of the browse tree.
@@ -826,7 +1024,7 @@ class Media3PlaybackService : MediaLibraryService() {
       browser: MediaSession.ControllerInfo,
       params: LibraryParams?
     ): ListenableFuture<LibraryResult<MediaItem>> {
-      Log.d(TAG, "onGetLibraryRoot requested by ${browser.packageName}")
+      debugLog { "onGetLibraryRoot requested by ${browser.packageName}" }
       return Futures.immediateFuture(LibraryResult.ofItem(browseTree.getRootItem(), params))
     }
 
@@ -845,6 +1043,26 @@ class Media3PlaybackService : MediaLibraryService() {
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
       Log.d(TAG, "onGetChildren requested for parentId: '$parentId'")
       return autoLibraryCoordinator.requestChildren(parentId, params)
+    }
+
+    override fun onGetItem(
+      session: MediaLibrarySession,
+      browser: MediaSession.ControllerInfo,
+      mediaId: String
+    ): ListenableFuture<LibraryResult<MediaItem>> {
+      debugLog { "onGetItem: Resolving '$mediaId' via browseTree for ${browser.packageName}" }
+      return serviceScope.future {
+        // First, get the base MediaItem from the browse tree to check its flags.
+        val mediaItem = browseTree.getItem(mediaId)
+
+        if (mediaItem == null) {
+          debugLog { "onGetItem: browseTree.getItem failed to resolve '$mediaId'" }
+          return@future LibraryResult.ofError(LibraryResult.RESULT_ERROR_BAD_VALUE)
+        }
+
+        // Always return the metadata-only item; playback resolution happens in onAdd/onSet.
+        LibraryResult.ofItem(mediaItem, null)
+      }
     }
   }
 
@@ -865,20 +1083,20 @@ class Media3PlaybackService : MediaLibraryService() {
       if (availableCommands.contains(Player.COMMAND_GET_DEVICE_VOLUME)) cmd.add("GET_DEV_VOL")
       if (availableCommands.contains(Player.COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS)) cmd.add("SET_DEV_VOL")
       if (availableCommands.contains(Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS)) cmd.add("ADJ_DEV_VOL")
-      Log.d(TAG, "AvailableCommandsChanged: ${cmd.joinToString(",")}")
+      debugLog { "AvailableCommandsChanged: ${cmd.joinToString(",")}" }
     }
 
-    override fun onIsPlayingChanged(isPlaying: Boolean) {
-      Log.d(TAG, "onIsPlayingChanged: $isPlaying")
+  override fun onIsPlayingChanged(isPlaying: Boolean) {
+      debugLog { "onIsPlayingChanged: $isPlaying" }
       mainHandler.removeCallbacksAndMessages(null)
     }
 
     override fun onPlaybackStateChanged(playbackState: Int) {
-      Log.d(TAG, "onPlaybackStateChanged: $playbackState")
+      debugLog { "onPlaybackStateChanged: $playbackState" }
       when (playbackState) {
         Player.STATE_READY -> Unit
         Player.STATE_ENDED -> {
-          Log.d(TAG, "Playback ended")
+          debugLog { "Playback ended" }
         }
       }
 
@@ -893,11 +1111,11 @@ class Media3PlaybackService : MediaLibraryService() {
     }
 
     override fun onVolumeChanged(volume: Float) {
-      Log.d(TAG, "onVolumeChanged: $volume (player volume updated)")
+      debugLog { "onVolumeChanged: $volume (player volume updated)" }
     }
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-      Log.d(TAG, "onMediaItemTransition: reason=$reason")
+      debugLog { "onMediaItemTransition: reason=$reason" }
     }
   }
 

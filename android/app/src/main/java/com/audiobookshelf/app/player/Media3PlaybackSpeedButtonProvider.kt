@@ -31,7 +31,7 @@ class Media3PlaybackSpeedButtonProvider(
     return playbackSpeedSteps[playbackSpeedIndex]
   }
 
-  @OptIn(UnstableApi::class)
+  @OptIn(UnstableApi::class) // CommandButton icons sourced via Media3 notification provider (unstable)
   fun createButton(speed: Float): CommandButton {
     val label = CustomMediaNotificationProvider.formatSpeedLabel(speed)
     val normalizedSpeed = playbackSpeedSteps.firstOrNull { abs(it - speed) < 0.01f } ?: 1.0f

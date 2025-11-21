@@ -30,6 +30,7 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import java.util.concurrent.atomic.AtomicBoolean
 
+// Media3 controller/session APIs require UnstableApi opt-in.
 @UnstableApi
 class PlaybackController(private val context: Context) {
   private val mediaPlayerExtraKey = "media_player"
@@ -177,7 +178,6 @@ class PlaybackController(private val context: Context) {
     }
   }
 
-  // It's good practice to define these constants in a companion object or at the top level
   companion object {
     private val DEFAULT_SUCCESS_RESULT = SessionResult(SessionResult.RESULT_SUCCESS)
     private val UNKNOWN_ERROR_RESULT = SessionResult(SessionError.ERROR_UNKNOWN)
@@ -297,6 +297,9 @@ class PlaybackController(private val context: Context) {
   }
 
   fun preparePlayback(playbackSession: PlaybackSession, playWhenReady: Boolean, playbackRate: Float?) {
+    if (BuildConfig.DEBUG) {
+      Log.d(tag, "preparePlayback: session=${playbackSession.id} title=${playbackSession.displayTitle}")
+    }
     activePlaybackSession = playbackSession
     listener?.onPlaybackSession(playbackSession)
 
@@ -334,7 +337,10 @@ class PlaybackController(private val context: Context) {
       playbackRate?.let { controller.setPlaybackSpeed(it) }
       emitMetadata(controller)
       if (BuildConfig.DEBUG) {
-        Log.d(tag, "Prepared playback for ${playbackSession.displayTitle}")
+        Log.d(
+          tag,
+          "Prepared playback for ${playbackSession.displayTitle} items=${mediaItems.size} startIndex=$trackIndex pos=$positionInTrack"
+        )
       }
     }
   }
@@ -446,6 +452,6 @@ class PlaybackController(private val context: Context) {
 
   private fun ensureServiceStarted() {
     val intent = Intent(context, Media3PlaybackService::class.java)
-    ContextCompat.startForegroundService(context, intent)
+      ContextCompat.startForegroundService(context, intent)
   }
 }

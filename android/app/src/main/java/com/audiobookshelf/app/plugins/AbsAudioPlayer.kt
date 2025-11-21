@@ -1,5 +1,6 @@
 package com.audiobookshelf.app.plugins
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
@@ -9,12 +10,16 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.MainActivity
+import android.provider.Settings
+import androidx.collection.emptyLongSet
+import com.audiobookshelf.app.data.DeviceInfo
 import com.audiobookshelf.app.data.LocalMediaProgress
 import com.audiobookshelf.app.data.MediaItemHistory
 import com.audiobookshelf.app.data.PlaybackMetadata
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.data.Podcast
 import com.audiobookshelf.app.data.PodcastEpisode
+import com.audiobookshelf.app.data.PlayItemRequestPayload
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.media.MediaEventManager
 import com.audiobookshelf.app.media.MediaProgressSyncer
@@ -23,6 +28,9 @@ import com.audiobookshelf.app.player.PlaybackController
 import com.audiobookshelf.app.player.PlaybackTelemetryHost
 import com.audiobookshelf.app.player.PlayerListener
 import com.audiobookshelf.app.player.PlayerNotificationService
+import com.audiobookshelf.app.media.PlaybackEventSource
+import com.audiobookshelf.app.player.PLAYER_EXO
+import com.audiobookshelf.app.player.PLAYER_MEDIA3
 import com.audiobookshelf.app.player.SleepTimerNotificationCenter
 import com.audiobookshelf.app.player.SleepTimerUiNotifier
 import com.audiobookshelf.app.server.ApiHandler
@@ -38,8 +46,8 @@ import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
 import org.json.JSONObject
 
-@UnstableApi
 @CapacitorPlugin(name = "AbsAudioPlayer")
+@OptIn(UnstableApi::class) // Uses Media3 Player APIs exposed via PlaybackController
 class AbsAudioPlayer : Plugin() {
   private val tag = "AbsAudioPlayer"
   private var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
@@ -52,6 +60,7 @@ class AbsAudioPlayer : Plugin() {
   lateinit var playerNotificationService: PlayerNotificationService
   private var playbackController: PlaybackController? = null
   private var media3ProgressSyncer: MediaProgressSyncer? = null
+  private var pendingUiPlaybackEvent: Boolean = false
 
   private var isCastAvailable:Boolean = false
   private var activePlaybackSession: PlaybackSession? = null
@@ -192,8 +201,12 @@ class AbsAudioPlayer : Plugin() {
     override fun onPlaybackSession(session: PlaybackSession) {
       lastKnownMediaPlayer?.let { session.mediaPlayer = it }
       activePlaybackSession = session
-      playerNotificationService.currentPlaybackSession = session
       DeviceManager.setLastPlaybackSession(session)
+      if(BuildConfig.USE_MEDIA3) { }
+        else{
+        playerNotificationService.currentPlaybackSession = session
+      }
+
       appEventEmitter.onPlaybackSession(session)
     }
 
@@ -271,33 +284,59 @@ class AbsAudioPlayer : Plugin() {
       Log.e(tag, "initCastManager exception ${e.printStackTrace()}")
     }
 
-    val foregroundServiceReady : () -> Unit = {
-      playerNotificationService = mainActivity.foregroundService
+    // --- REFACTORED INITIALIZATION LOGIC ---
 
-      playerNotificationService.clientEventEmitter = appEventEmitter
+    if (BuildConfig.USE_MEDIA3) {
+      // For Media3 builds, the old PlayerNotificationService is disabled in the manifest.
+      // We must initialize playback components directly instead of waiting for a service
+      // that will never start.
+
+      Log.d(tag, "USE_MEDIA3 is true. Initializing components directly in load().")
+
+      // Set the event emitter for MediaEventManager, which is used by Media3PlaybackService.
+      // This ensures events from the service are sent to the UI.
       MediaEventManager.clientEventEmitter = appEventEmitter
 
-      if (BuildConfig.USE_MEDIA3) {
-        playerNotificationService.setExternalPlaybackState(playbackStateBridge)
-        if (playbackController == null) {
-          playbackController = PlaybackController(mainActivity.applicationContext)
-        }
-        if (media3ProgressSyncer == null) {
-          media3ProgressSyncer = MediaProgressSyncer(media3TelemetryHost, apiHandler)
-        }
-        playbackController?.listener = playbackControllerListener
-        playbackController?.connect()
-        playerNotificationService.setExternalSleepTimerManager(null)
-        SleepTimerNotificationCenter.register(sleepTimerNotifier)
-        Log.d(tag, "PlaybackController connected")
-      } else {
+      // Initialize the playback controller and progress syncer.
+      if (playbackController == null) {
+        playbackController = PlaybackController(mainActivity.applicationContext)
+      }
+      if (media3ProgressSyncer == null) {
+        media3ProgressSyncer = MediaProgressSyncer(media3TelemetryHost, apiHandler)
+      }
+      if (pendingUiPlaybackEvent) {
+        ensureUiPlaybackEventSource()
+      }
+
+      // Connect the controller to its listener and to the Media3PlaybackService.
+      playbackController?.listener = playbackControllerListener
+      playbackController?.connect()
+
+      // The Media3 service handles its own notifications, but we still need to manage the sleep timer.
+      SleepTimerNotificationCenter.register(sleepTimerNotifier)
+
+      Log.d(tag, "Media3 components initialized and PlaybackController connected.")
+
+    } else {
+      // This is the original logic for non-Media3 builds. It remains unchanged.
+      // It relies on MainActivity starting the foreground service and then calling our callback.
+
+      Log.d(tag, "USE_MEDIA3 is false. Using legacy foregroundServiceReady callback.")
+
+      val foregroundServiceReady : () -> Unit = {
+        playerNotificationService = mainActivity.foregroundService
+        playerNotificationService.clientEventEmitter = appEventEmitter
+        MediaEventManager.clientEventEmitter = appEventEmitter // Set for consistency
+
+        // For legacy builds, the service handles everything.
         playerNotificationService.setExternalPlaybackState(null)
         playerNotificationService.setExternalSleepTimerManager(null)
         SleepTimerNotificationCenter.unregister()
       }
+      mainActivity.pluginCallback = foregroundServiceReady
     }
-    mainActivity.pluginCallback = foregroundServiceReady
   }
+
 
   fun emit(evtName: String, value: Any) {
     val ret = JSObject()
@@ -359,6 +398,47 @@ class AbsAudioPlayer : Plugin() {
     castManager = CastManager(mainActivity)
     castManager?.startRouteScan(connListener)
   }
+  @SuppressLint("HardwareIds")
+  private fun buildDeviceInfo(): DeviceInfo {
+    /* EXAMPLE
+ manufacturer: Google
+ model: Pixel 6
+ brand: google
+ sdkVersion: 32
+ appVersion: 0.9.46-beta
+*/
+    val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+    return DeviceInfo(
+      deviceId,
+      android.os.Build.MANUFACTURER,
+      android.os.Build.MODEL,
+      android.os.Build.VERSION.SDK_INT,
+      BuildConfig.VERSION_NAME
+    )
+  }
+
+  private fun updateSyncerCurrentTime(seconds: Double) {
+    media3ProgressSyncer?.updatePlaybackTimeFromUi(seconds)
+  }
+
+  private fun buildPlayItemRequestPayload(forceTranscode: Boolean): PlayItemRequestPayload {
+    val mediaPlayerId = if (BuildConfig.USE_MEDIA3) PLAYER_MEDIA3 else PLAYER_EXO
+    return PlayItemRequestPayload(
+      mediaPlayer = mediaPlayerId,
+      forceDirectPlay = !forceTranscode,
+      forceTranscode = forceTranscode,
+      deviceInfo = buildDeviceInfo()
+    )
+  }
+
+  private fun ensureUiPlaybackEventSource() {
+    if (media3ProgressSyncer != null) {
+      media3ProgressSyncer?.markNextPlaybackEventSource(PlaybackEventSource.UI)
+      pendingUiPlaybackEvent = false
+    } else {
+      pendingUiPlaybackEvent = true
+    }
+  }
 
   @PluginMethod
   fun prepareLibraryItem(call: PluginCall) {
@@ -392,7 +472,7 @@ class AbsAudioPlayer : Plugin() {
 
         Handler(Looper.getMainLooper()).post {
           Log.d(tag, "prepareLibraryItem: Preparing Local Media item ${jacksonMapper.writeValueAsString(it)}")
-          val playbackSession = it.getPlaybackSession(episode, playerNotificationService.getDeviceInfo())
+          val playbackSession = it.getPlaybackSession(episode, buildDeviceInfo())
           if (startTimeOverride != null) {
             Log.d(tag, "prepareLibraryItem: Using start time override $startTimeOverride")
             playbackSession.currentTime = startTimeOverride
@@ -409,11 +489,12 @@ class AbsAudioPlayer : Plugin() {
                   playbackController?.preparePlayback(playbackSession, playWhenReady, playbackRate)
                 }
               }
-            } else {
+            } else{
               syncer?.reset()
               playbackController?.preparePlayback(playbackSession, playWhenReady, playbackRate)
             }
-          } else {
+          }
+          else {
             if (playerNotificationService.mediaProgressSyncer.listeningTimerRunning) {
               playerNotificationService.mediaProgressSyncer.stop {
                 Log.d(tag, "Media progress syncer was already syncing - stopped")
@@ -436,7 +517,7 @@ class AbsAudioPlayer : Plugin() {
         return call.resolve(JSObject())
       }
     } else { // Play library item from server
-      val playItemRequestPayload = playerNotificationService.getPlayItemRequestPayload(false)
+      val playItemRequestPayload = buildPlayItemRequestPayload(false)
       Handler(Looper.getMainLooper()).post {
         val stopCurrentPlayback: (() -> Unit) -> Unit = { completion ->
           if (BuildConfig.USE_MEDIA3) {
@@ -505,6 +586,7 @@ class AbsAudioPlayer : Plugin() {
   fun pausePlayer(call: PluginCall) {
     Handler(Looper.getMainLooper()).post {
       if (BuildConfig.USE_MEDIA3) {
+        ensureUiPlaybackEventSource()
         playbackController?.pause()
       } else {
         playerNotificationService.pause()
@@ -517,6 +599,7 @@ class AbsAudioPlayer : Plugin() {
   fun playPlayer(call: PluginCall) {
     Handler(Looper.getMainLooper()).post {
       if (BuildConfig.USE_MEDIA3) {
+      ensureUiPlaybackEventSource()
         playbackController?.play()
       } else {
         playerNotificationService.play()
@@ -529,6 +612,7 @@ class AbsAudioPlayer : Plugin() {
   fun playPause(call: PluginCall) {
     Handler(Looper.getMainLooper()).post {
       val playing = if (BuildConfig.USE_MEDIA3) {
+        ensureUiPlaybackEventSource()
         playbackController?.playPause() ?: false
       } else {
         playerNotificationService.playPause()
@@ -543,6 +627,7 @@ class AbsAudioPlayer : Plugin() {
     Log.d(tag, "seek action to $time")
     Handler(Looper.getMainLooper()).post {
       if (BuildConfig.USE_MEDIA3) {
+        updateSyncerCurrentTime(time.toDouble())
         playbackController?.seekTo(time * 1000L)
       } else {
         playerNotificationService.seekPlayer(time * 1000L) // convert to ms
@@ -556,6 +641,8 @@ class AbsAudioPlayer : Plugin() {
     val amount:Int = call.getInt("value", 0) ?: 0
     Handler(Looper.getMainLooper()).post {
       if (BuildConfig.USE_MEDIA3) {
+        val currentTime = media3ProgressSyncer?.currentPlaybackSession?.currentTime ?: 0.0
+        updateSyncerCurrentTime(currentTime + amount)
         playbackController?.seekBy(amount * 1000L)
       } else {
         playerNotificationService.seekForward(amount * 1000L) // convert to ms
@@ -569,6 +656,8 @@ class AbsAudioPlayer : Plugin() {
     val amount:Int = call.getInt("value", 0) ?: 0 // Value in seconds
     Handler(Looper.getMainLooper()).post {
       if (BuildConfig.USE_MEDIA3) {
+        val currentTime = media3ProgressSyncer?.currentPlaybackSession?.currentTime ?: 0.0
+        updateSyncerCurrentTime((currentTime - amount).coerceAtLeast(0.0))
         playbackController?.seekBy(-amount * 1000L)
       } else {
         playerNotificationService.seekBackward(amount * 1000L) // convert to ms
@@ -704,7 +793,6 @@ class AbsAudioPlayer : Plugin() {
     }
   }
 
-  @OptIn(UnstableApi::class)
   override fun handleOnDestroy() {
     super.handleOnDestroy()
     if (BuildConfig.USE_MEDIA3) {

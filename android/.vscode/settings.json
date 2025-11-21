@@ -1,6 +1,0 @@
-{
-  "java.project.root": "android",
-  "java.import.gradle.enabled": true,
-  "java.import.gradle.wrapper.enabled": true,
-  "java.import.gradle.user.home": "${workspaceFolder}/.gradle"
-}

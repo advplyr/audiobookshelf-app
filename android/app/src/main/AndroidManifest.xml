@@ -88,7 +88,7 @@
 
         <service
             android:name=".player.PlayerNotificationService"
-            android:enabled="true"
+            android:enabled="${use_exov2}"
             android:exported="true"
             android:foregroundServiceType="mediaPlayback">
             <intent-filter>
@@ -99,7 +99,7 @@
         <!-- Media3 playback service for local playback when USE_MEDIA3 enabled -->
         <service
             android:name=".player.Media3PlaybackService"
-            android:enabled="true"
+            android:enabled="${use_media3}"
             android:exported="true"
             android:foregroundServiceType="mediaPlayback">
             <intent-filter>
