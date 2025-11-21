@@ -4,12 +4,15 @@
       <!-- list of server connection configs -->
       <template v-if="!showForm">
         <div v-for="config in serverConnectionConfigs" :key="config.id" class="border-b border-fg/10 py-4">
-          <div class="flex items-center my-1 relative" @click="connectToServer(config)">
-            <span class="material-symbols text-xl text-fg-muted">dns</span>
-            <p class="pl-3 pr-6 text-base text-fg">{{ config.name }}</p>
-
-            <div class="absolute top-0 right-0 h-full px-4 flex items-center" @click.stop="editServerConfig(config)">
+          <div class="flex items-center my-1 relative space-x-2" @click="connectToServer(config)">
+            <div class="grow inline-flex items-center overflow-hidden">
+              <p class="text-base text-fg truncate">{{ config.name }}</p>
+            </div>
+            <div class="h-full w-6 flex items-center" @click.stop="editServerConfig(config)">
               <span class="material-symbols text-2xl text-fg-muted">more_vert</span>
+            </div>
+            <div class="h-full w-6 flex items-center" @click.stop="removeServerConfigClick(config)">
+              <span class="material-symbols fill text-1.5xl text-fg-muted">delete</span>
             </div>
           </div>
           <!-- warning message if server connection config is using an old user id -->
@@ -57,7 +60,7 @@
             <ui-text-input v-model="password" type="password" :disabled="processing" :placeholder="$strings.LabelPassword" class="w-full mb-2 text-lg" />
 
             <div class="flex items-center pt-2">
-              <ui-icon-btn v-if="serverConfig.id" small bg-color="error" icon="delete" type="button" @click="removeServerConfigClick" />
+              <ui-icon-btn v-if="serverConfig.id" bg-color="error" icon="delete" type="button" @click="removeServerConfigClick(serverConfig)" />
               <div class="flex-grow" />
               <ui-btn :disabled="processing || !networkConnected" type="submit" class="mt-1 h-10">{{ networkConnected ? $strings.ButtonSubmit : $strings.MessageNoNetworkConnection }}</ui-btn>
             </div>
@@ -478,8 +481,8 @@ export default {
         }
       }
     },
-    async removeServerConfigClick() {
-      if (!this.serverConfig.id) return
+    async removeServerConfigClick(serverConfig) {
+      if (!serverConfig.id) return
       await this.$hapticsImpact()
 
       const { value } = await Dialog.confirm({
@@ -488,9 +491,9 @@ export default {
       })
       if (value) {
         this.processing = true
-        await this.$db.removeServerConnectionConfig(this.serverConfig.id)
+        await this.$db.removeServerConnectionConfig(serverConfig.id)
         const updatedDeviceData = { ...this.deviceData }
-        updatedDeviceData.serverConnectionConfigs = this.deviceData.serverConnectionConfigs.filter((scc) => scc.id != this.serverConfig.id)
+        updatedDeviceData.serverConnectionConfigs = this.deviceData.serverConnectionConfigs.filter((scc) => scc.id != serverConfig.id)
         this.$store.commit('setDeviceData', updatedDeviceData)
 
         this.serverConfig = {
@@ -502,6 +505,7 @@ export default {
         this.processing = false
         this.showAuth = false
         this.showForm = !this.serverConnectionConfigs.length
+        this.error = null
       }
     },
     async editServerConfig(serverConfig) {

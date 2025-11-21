@@ -1,17 +1,11 @@
 const defaultTheme = require('tailwindcss/defaultTheme')
 
 module.exports = {
-  content: [
-    'components/**/*.vue',
-    'layouts/**/*.vue',
-    'pages/**/*.vue',
-    'mixins/**/*.js',
-    'plugins/**/*.js'
-  ],
+  content: ['components/**/*.vue', 'layouts/**/*.vue', 'pages/**/*.vue', 'mixins/**/*.js', 'plugins/**/*.js'],
   theme: {
     extend: {
       screens: {
-        'short': { 'raw': '(max-height: 500px)' }
+        short: { raw: '(max-height: 500px)' }
       },
       colors: {
         bg: 'rgb(var(--color-bg) / <alpha-value>)',
@@ -24,7 +18,7 @@ module.exports = {
         'bg-toggle': 'rgb(var(--color-bg-toggle) / <alpha-value>)',
         'bg-toggle-selected': 'rgb(var(--color-bg-toggle-selected) / <alpha-value>)',
         'track-cursor': 'rgb(var(--color-track-cursor) / <alpha-value>)',
-        'track': 'rgb(var(--color-track) / <alpha-value>)',
+        track: 'rgb(var(--color-track) / <alpha-value>)',
         'track-buffered': 'rgb(var(--color-track-buffered) / <alpha-value>)',
         accent: '#1ad691',
         error: '#FF5252',
@@ -41,28 +35,29 @@ module.exports = {
         mono: ['Ubuntu Mono', ...defaultTheme.fontFamily.mono]
       },
       fontSize: {
+        '1.5xl': '1.375rem',
         xxs: '0.625rem'
       },
       spacing: {
-        '18': '4.5rem'
+        18: '4.5rem'
       },
       height: {
-        '18': '4.5rem'
+        18: '4.5rem'
       },
       maxWidth: {
-        '24': '6rem'
+        24: '6rem'
       },
       minWidth: {
-        '4': '1rem',
-        '8': '2rem',
-        '10': '2.5rem',
-        '12': '3rem',
-        '16': '4rem'
+        4: '1rem',
+        8: '2rem',
+        10: '2.5rem',
+        12: '3rem',
+        16: '4rem'
       },
       minHeight: {
-        '12': '3rem'
+        12: '3rem'
       }
     }
   },
-  plugins: [],
+  plugins: []
 }
