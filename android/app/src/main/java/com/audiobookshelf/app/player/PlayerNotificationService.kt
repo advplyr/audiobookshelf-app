@@ -3,6 +3,7 @@ package com.audiobookshelf.app.player
 import android.annotation.SuppressLint
 import android.app.*
 import android.content.Context
+import android.content.pm.ServiceInfo
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
@@ -25,11 +26,6 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.media.MediaBrowserServiceCompat
 import androidx.media.utils.MediaConstants
-// Media3 notifications via DefaultMediaNotificationProvider can be used with
-import android.content.pm.ServiceInfo
-// MediaSessionService. In this service (MediaBrowserServiceCompat), we avoid
-// relying on internal managers and will retain v2 notifications for cast
-// fallback, plus a foreground placeholder for Media3 path until 2B.
 import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.R
 import com.audiobookshelf.app.data.*
@@ -157,7 +153,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
   // The following are used for the shake detection
   private var sleepTimerShakeController: SleepTimerShakeController? = null
 
-  // These are used to trigger reloading if
+  // Flags to control Android Auto reload behavior when connectivity or state changes.
   private var forceReloadingAndroidAuto: Boolean = false
   private var firstLoadDone: Boolean = false
 
@@ -179,9 +175,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
   fun metricsRecordFirstReadyIfUnset() {
     try {
       if (firstReadyLatencyMs < 0 && playbackStartMonotonicMs > 0) {
-        val now = android.os.SystemClock.elapsedRealtime()
+        val now = SystemClock.elapsedRealtime()
         firstReadyLatencyMs = now - playbackStartMonotonicMs
-        com.audiobookshelf.app.plugins.AbsLogger.info(
+        AbsLogger.info(
           "PlaybackMetrics",
           "startupReadyLatencyMs=${firstReadyLatencyMs} player=${getMediaPlayer()} item=${currentPlaybackSession?.mediaItemId}"
         )
@@ -191,7 +187,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
 
   fun metricsLogSummary() {
     try {
-      com.audiobookshelf.app.plugins.AbsLogger.info(
+      AbsLogger.info(
         "PlaybackMetrics",
         "summary player=${getMediaPlayer()} item=${currentPlaybackSession?.mediaItemId} buffers=${bufferCount} errors=${playbackErrorCount} startupReadyLatencyMs=${firstReadyLatencyMs}"
       )
@@ -242,7 +238,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     val chan = NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_LOW)
     chan.lightColor = Color.DKGRAY
     chan.lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-    val service = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    val service = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
     service.createNotificationChannel(chan)
     return channelId
   }
@@ -523,29 +519,28 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
       Log.d(tag, "Media3 seek increments configured")
 
 
-      // IMPORTANT: Create v2 notification manager for Cast fallback
-      // When Media3 is enabled, we don't have a v2 manager from onCreate()
-      // But we need one for Cast, so create it here and attach to the Media3 wrapper
-      val v2Builder = PlayerNotificationManager.Builder(ctx, notificationId, channelId)
-      v2Builder.setMediaDescriptionAdapter(AbMediaDescriptionAdapter(MediaControllerCompat(ctx, mediaSession.sessionToken), this))
-      v2Builder.setNotificationListener(PlayerNotificationListener(this))
-      playerNotificationManager = v2Builder.build()
-      playerNotificationManager.setMediaSessionToken(mediaSession.sessionToken)
-      playerNotificationManager.setSmallIcon(R.drawable.icon_monochrome)
+    // Create the legacy v2 notification manager to cover Cast and local notifications
+    // when running with Media3. The Media3 service owns its own notifications, so we
+    // instantiate v2 here for cast fallback and to provide controls during migration.
+    val v2Builder = PlayerNotificationManager.Builder(ctx, notificationId, channelId)
+    v2Builder.setMediaDescriptionAdapter(AbMediaDescriptionAdapter(MediaControllerCompat(ctx, mediaSession.sessionToken), this))
+    v2Builder.setNotificationListener(PlayerNotificationListener(this))
+    playerNotificationManager = v2Builder.build()
+    playerNotificationManager.setMediaSessionToken(mediaSession.sessionToken)
+    playerNotificationManager.setSmallIcon(R.drawable.icon_monochrome)
 
-      // Also set player on v2 manager for Media3 local playback notifications
-      // This gives us notification controls while we wait for Phase 2B
-      playerNotificationManager.setPlayer(mPlayer)
+    // Also set player on v2 manager so local Media3 playback still shows notification controls
+    playerNotificationManager.setPlayer(mPlayer)
 
-      media3Wrapper.attachNotificationManager(playerNotificationManager)
-      media3Wrapper.attachMediaSessionConnector(mediaSessionConnector)
+    media3Wrapper.attachNotificationManager(playerNotificationManager)
+    media3Wrapper.attachMediaSessionConnector(mediaSessionConnector)
 
-      Log.d(tag, "Media3 v2 notification manager created for Cast fallback and temp controls")
-    } else {
-      // ExoPlayer v2 path: Attach notification managers directly
-      playerWrapper.attachNotificationManager(playerNotificationManager)
-      playerWrapper.attachMediaSessionConnector(mediaSessionConnector)
-    }
+    Log.d(tag, "Media3 v2 notification manager created for Cast fallback and temp controls")
+  } else {
+    // ExoPlayer v2 path: Attach notification managers directly
+    playerWrapper.attachNotificationManager(playerNotificationManager)
+    playerWrapper.attachMediaSessionConnector(mediaSessionConnector)
+  }
 
   // Add our listener through the wrapper so it works with both ExoPlayer v2 and Media3
   playerWrapper.addListener(PlayerListener(this))
@@ -596,7 +591,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
       // should live in Exo-specific classes; this fallback protects compile/runtime
       // when a non-Exo wrapper is active.
       mediaItems.map { dto ->
-        val builder = com.google.android.exoplayer2.MediaItem.Builder().setUri(dto.uri)
+        val builder = MediaItem.Builder().setUri(dto.uri)
         dto.tag?.let { builder.setTag(it) }
         dto.mimeType?.let { builder.setMimeType(it) }
         builder.build()
@@ -876,7 +871,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
   }
 
   fun switchToPlayer(useCastPlayer: Boolean) {
-  val wasPlaying = isPlayerActive()
+    val wasPlaying = isPlayerActive()
     if (useCastPlayer) {
       if (currentPlayer == castPlayer) {
         Log.d(tag, "switchToPlayer: Already using Cast Player " + castPlayer?.deviceInfo)
@@ -1293,7 +1288,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
 
     // Metrics: emit a summary when closing playback (if not already logged)
     try {
-      com.audiobookshelf.app.plugins.AbsLogger.info(
+      AbsLogger.info(
         "PlaybackMetrics",
         "summary player=${getMediaPlayer()} item=${currentPlaybackSession?.mediaItemId} buffers=${bufferCount} errors=${playbackErrorCount} startupReadyLatencyMs=${firstReadyLatencyMs}"
       )
@@ -1313,7 +1308,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     PlayerListener.lastPauseTime = 0
     isClosed = true
     DeviceManager.widgetUpdater?.onPlayerClosed()
-    stopForeground(Service.STOP_FOREGROUND_REMOVE)
+    stopForeground(STOP_FOREGROUND_REMOVE)
     stopSelf()
   }
 
@@ -1873,7 +1868,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
                       }
               val children =
                       episodesWithRecentEpisode?.map { libraryItem ->
-                        val podcast = libraryItem.media as Podcast
+                        libraryItem.media as Podcast
                         val progress =
                                 mediaManager.serverUserMediaProgress.find {
                                   it.libraryItemId == libraryItem.libraryId &&

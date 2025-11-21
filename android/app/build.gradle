@@ -58,6 +58,7 @@ android {
       versionNameSuffix "-exov2"
       // ExoPlayer v2 backend
       buildConfigField("boolean", "USE_MEDIA3", "false")
+      manifestPlaceholders = [ use_exov2: "true", use_media3: "false" ]
     }
     media3 {
       dimension "player"
@@ -65,6 +66,7 @@ android {
       versionNameSuffix "-media3"
       // Media3 backend
       buildConfigField("boolean", "USE_MEDIA3", "true")
+      manifestPlaceholders = [ use_exov2: "false", use_media3: "true" ]
     }
   }
 

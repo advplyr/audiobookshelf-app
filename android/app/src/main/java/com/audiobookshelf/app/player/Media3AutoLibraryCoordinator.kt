@@ -71,22 +71,25 @@ class Media3AutoLibraryCoordinator(
     Log.d(TAG, "loadAutoData() start")
     isAutoDataLoading = true
     mediaManager.loadAndroidAutoItems {
-      Log.d(TAG, "loadAutoData() completed, fulfilling ${pendingRequests.size} pending requests")
-      isAutoDataLoading = false
-      val requestsToFulfill = pendingRequests.toList()
-      pendingRequests.clear()
-      scope.launch {
-        requestsToFulfill.forEach { request ->
-          try {
-            val children = browseTree.getChildren(request.parentId)
-            request.future.set(
-              LibraryResult.ofItemList(
-                ImmutableList.copyOf(children),
-                request.params
+      // Warm in-progress cache so Continue Listening has data (matches legacy flow).
+      mediaManager.initializeInProgressItems {
+        Log.d(TAG, "loadAutoData() completed, fulfilling ${pendingRequests.size} pending requests")
+        isAutoDataLoading = false
+        val requestsToFulfill = pendingRequests.toList()
+        pendingRequests.clear()
+        scope.launch {
+          requestsToFulfill.forEach { request ->
+            try {
+              val children = browseTree.getChildren(request.parentId)
+              request.future.set(
+                LibraryResult.ofItemList(
+                  ImmutableList.copyOf(children),
+                  request.params
+                )
               )
-            )
-          } catch (t: Throwable) {
-            request.future.setException(t)
+            } catch (t: Throwable) {
+              request.future.setException(t)
+            }
           }
         }
       }

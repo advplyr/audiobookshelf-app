@@ -7,6 +7,7 @@ import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 
 /**
  * A generic Player wrapper that applies Audiobookshelf's custom logic.
@@ -17,6 +18,7 @@ import androidx.media3.common.Player
  * 2.  Bridges Media3's device volume commands to Android's AudioManager, allowing
  *     remote controllers (like wearables) to adjust the device's stream volume.
  */
+@UnstableApi
 class AbsPlayerWrapper(
   player: Player, // Changed from ExoPlayer to the generic Player interface
   private val appContext: Context

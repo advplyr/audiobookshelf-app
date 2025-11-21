@@ -34,6 +34,9 @@ class MediaProgressSyncer(
 
   private var listeningTimerTask: TimerTask? = null
   var listeningTimerRunning: Boolean = false
+  private val mainHandler = Handler(Looper.getMainLooper())
+  private var pendingManualPlaybackTime: Double? = null
+  private var pendingManualPlaybackTimeExpiresAt: Long = 0
 
   private var lastSyncTime: Long = 0
   private var failedSyncs: Int = 0
@@ -49,6 +52,11 @@ class MediaProgressSyncer(
     get() = currentPlaybackSession?.id ?: ""
   private val currentPlaybackDuration
     get() = currentPlaybackSession?.duration ?: 0.0
+  private var nextPlaybackEventSource = PlaybackEventSource.SYSTEM
+
+  fun markNextPlaybackEventSource(source: PlaybackEventSource) {
+    nextPlaybackEventSource = source
+  }
 
   fun start(playbackSession: PlaybackSession) {
     if (listeningTimerRunning) {
@@ -106,7 +114,15 @@ class MediaProgressSyncer(
 
   fun play(playbackSession: PlaybackSession) {
     Log.d(tag, "play ${playbackSession.displayTitle}")
-    MediaEventManager.playEvent(playbackSession)
+    val source = nextPlaybackEventSource
+    nextPlaybackEventSource = PlaybackEventSource.SYSTEM
+    // Always refresh the current time from the player before logging a play event
+    // to ensure accuracy after seeks or other position changes.
+    refreshCurrentPlaybackTime()
+    MediaEventManager.playEvent(playbackSession, source)
+    if (source == PlaybackEventSource.UI) {
+      consumeManualPlaybackTime()
+    }
 
     start(playbackSession)
   }
@@ -159,7 +175,12 @@ class MediaProgressSyncer(
         failedSyncs = 0
 
         currentPlaybackSession?.let { playbackSession ->
-          MediaEventManager.pauseEvent(playbackSession, syncResult)
+          val source = nextPlaybackEventSource
+          nextPlaybackEventSource = PlaybackEventSource.SYSTEM
+          // Always refresh the current time from the player before logging a pause event
+          // to ensure accuracy after seeks or other position changes.
+          refreshCurrentPlaybackTime()
+          MediaEventManager.pauseEvent(playbackSession, syncResult, source)
         }
 
         cb()
@@ -169,9 +190,12 @@ class MediaProgressSyncer(
       Log.d(tag, "pause: Set last sync time 0 $lastSyncTime (current time < 0)")
       failedSyncs = 0
 
-      currentPlaybackSession?.let { playbackSession ->
-        MediaEventManager.pauseEvent(playbackSession, null)
-      }
+        currentPlaybackSession?.let { playbackSession ->
+          val source = nextPlaybackEventSource
+          nextPlaybackEventSource = PlaybackEventSource.SYSTEM
+          refreshCurrentPlaybackTime()
+          MediaEventManager.pauseEvent(playbackSession, null, source)
+        }
 
       cb()
     }
@@ -197,7 +221,7 @@ class MediaProgressSyncer(
   }
 
   fun seek() {
-    currentPlaybackSession?.currentTime = telemetryHost.getCurrentTimeSeconds()
+    refreshCurrentPlaybackTimeInternal()
     Log.d(tag, "seek: $currentDisplayTitle, currentTime=${currentPlaybackSession?.currentTime}")
 
     if (currentPlaybackSession == null) {
@@ -355,5 +379,42 @@ class MediaProgressSyncer(
     lastSyncTime = 0L
     Log.d(tag, "reset: Set last sync time 0 $lastSyncTime")
     failedSyncs = 0
+    pendingManualPlaybackTime = null
+    pendingManualPlaybackTimeExpiresAt = 0
+  }
+
+  private fun refreshCurrentPlaybackTime() {
+    if (Looper.myLooper() == Looper.getMainLooper()) {
+      refreshCurrentPlaybackTimeInternal()
+    } else {
+      mainHandler.post { refreshCurrentPlaybackTimeInternal() }
+    }
+  }
+
+  private fun refreshCurrentPlaybackTimeInternal() {
+    val manualTime = pendingManualPlaybackTime
+    if (manualTime != null) {
+      if (System.currentTimeMillis() <= pendingManualPlaybackTimeExpiresAt) {
+        currentPlaybackSession?.currentTime = manualTime
+        return
+      }
+      pendingManualPlaybackTime = null
+      pendingManualPlaybackTimeExpiresAt = 0
+    }
+    val current = telemetryHost.getCurrentTimeSeconds()
+    if (current > 0 && currentPlaybackSession != null) {
+      currentPlaybackSession?.currentTime = current
+    }
+  }
+
+  fun updatePlaybackTimeFromUi(seconds: Double) {
+    pendingManualPlaybackTime = seconds
+    currentPlaybackSession?.currentTime = seconds
+    pendingManualPlaybackTimeExpiresAt = System.currentTimeMillis() + 5000L
+  }
+
+  private fun consumeManualPlaybackTime() {
+    pendingManualPlaybackTime = null
+    pendingManualPlaybackTimeExpiresAt = 0
   }
 }

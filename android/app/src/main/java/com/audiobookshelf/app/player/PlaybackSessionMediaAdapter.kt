@@ -33,6 +33,7 @@ fun PlaybackSession.toPlayerMediaItems(
       this.getQueueItem(audioTrack) // Queue item used in exo player CastManager
     }
     val mimeType = audioTrack.mimeType
+    val displayTitle = this.displayTitle ?: audioTrack.title
 
     val safeUri = mediaUri ?: continue
     val playerMediaItem = PlayerMediaItem(
@@ -40,7 +41,7 @@ fun PlaybackSession.toPlayerMediaItems(
       uri = safeUri,
       mimeType = mimeType,
       tag = queueItem,
-      title = audioTrack.title,
+      title = displayTitle,
       artworkUri = this.getCoverUri(ctx),
       startPositionMs = audioTrack.startOffsetMs
     )
@@ -81,4 +82,3 @@ private fun PlaybackSession.castQueueItemWithServerUri(
     .apply { setPlaybackDuration(audioTrack.duration) }
     .build()
 }
-

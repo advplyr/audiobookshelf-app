@@ -5,42 +5,75 @@ import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.player.PlayerNotificationService
 
+enum class PlaybackEventSource {
+  UI,
+  SYSTEM
+}
+
 object MediaEventManager {
   const val tag = "MediaEventManager"
+  private const val DUPLICATE_PLAYBACK_EVENT_WINDOW_MS = 1000L
+  private const val SEEK_PLAYBACK_SUPPRESSION_MS = 2000L
+  private var lastSeekTimestampMs: Long = 0L
+  private var skipNextPostSeekPlaybackEvent = false
+  private var hasRecordedUiPlaybackEvent = false
 
   var clientEventEmitter: PlayerNotificationService.ClientEventEmitter? = null
 
-  fun playEvent(playbackSession: PlaybackSession) {
+  fun playEvent(
+          playbackSession: PlaybackSession,
+          source: PlaybackEventSource = PlaybackEventSource.SYSTEM
+  ) {
     Log.i(tag, "Play Event for media \"${playbackSession.displayTitle}\"")
-    addPlaybackEvent("Play", playbackSession, null)
+    addPlaybackEvent("Play", playbackSession, null, source)
   }
 
-  fun pauseEvent(playbackSession: PlaybackSession, syncResult: SyncResult?) {
+  fun pauseEvent(
+          playbackSession: PlaybackSession,
+          syncResult: SyncResult?,
+          source: PlaybackEventSource = PlaybackEventSource.SYSTEM
+  ) {
     Log.i(tag, "Pause Event for media \"${playbackSession.displayTitle}\"")
-    addPlaybackEvent("Pause", playbackSession, syncResult)
+    addPlaybackEvent("Pause", playbackSession, syncResult, source)
   }
 
-  fun stopEvent(playbackSession: PlaybackSession, syncResult: SyncResult?) {
+  fun stopEvent(
+          playbackSession: PlaybackSession,
+          syncResult: SyncResult?,
+          source: PlaybackEventSource = PlaybackEventSource.SYSTEM
+  ) {
     Log.i(tag, "Stop Event for media \"${playbackSession.displayTitle}\"")
-    addPlaybackEvent("Stop", playbackSession, syncResult)
+    addPlaybackEvent("Stop", playbackSession, syncResult, source)
   }
 
-  fun saveEvent(playbackSession: PlaybackSession, syncResult: SyncResult?) {
+  fun saveEvent(
+          playbackSession: PlaybackSession,
+          syncResult: SyncResult?,
+          source: PlaybackEventSource = PlaybackEventSource.SYSTEM
+  ) {
     Log.i(tag, "Save Event for media \"${playbackSession.displayTitle}\"")
-    addPlaybackEvent("Save", playbackSession, syncResult)
+    addPlaybackEvent("Save", playbackSession, syncResult, source)
   }
 
-  fun finishedEvent(playbackSession: PlaybackSession, syncResult: SyncResult?) {
+  fun finishedEvent(
+          playbackSession: PlaybackSession,
+          syncResult: SyncResult?,
+          source: PlaybackEventSource = PlaybackEventSource.SYSTEM
+  ) {
     Log.i(tag, "Finished Event for media \"${playbackSession.displayTitle}\"")
-    addPlaybackEvent("Finished", playbackSession, syncResult)
+    addPlaybackEvent("Finished", playbackSession, syncResult, source)
   }
 
-  fun seekEvent(playbackSession: PlaybackSession, syncResult: SyncResult?) {
+  fun seekEvent(
+          playbackSession: PlaybackSession,
+          syncResult: SyncResult?,
+          source: PlaybackEventSource = PlaybackEventSource.SYSTEM
+  ) {
     Log.i(
             tag,
             "Seek Event for media \"${playbackSession.displayTitle}\", currentTime=${playbackSession.currentTime}"
     )
-    addPlaybackEvent("Seek", playbackSession, syncResult)
+    addPlaybackEvent("Seek", playbackSession, syncResult, source)
   }
 
   fun syncEvent(mediaProgress: MediaProgressWrapper, description: String) {
@@ -85,11 +118,29 @@ object MediaEventManager {
   private fun addPlaybackEvent(
           eventName: String,
           playbackSession: PlaybackSession,
-          syncResult: SyncResult?
+          syncResult: SyncResult?,
+          source: PlaybackEventSource
   ) {
     val mediaItemHistory =
             getMediaItemHistoryMediaItem(playbackSession.mediaItemId)
                     ?: createMediaItemHistoryForSession(playbackSession)
+
+    if (source == PlaybackEventSource.UI) {
+      skipNextPostSeekPlaybackEvent = false
+      lastSeekTimestampMs = 0L
+      hasRecordedUiPlaybackEvent = true
+    }
+    if (shouldSkipPlaybackAfterRecentSeek(eventName)) {
+      return
+    }
+    if (eventName in listOf("Play", "Pause") && source == PlaybackEventSource.SYSTEM && hasRecordedUiPlaybackEvent) {
+      return
+    }
+
+    val now = System.currentTimeMillis()
+    if (shouldSkipDuplicatePlaybackEvent(mediaItemHistory.events.lastOrNull(), eventName, playbackSession.currentTime, now)) {
+      return
+    }
 
     val mediaItemEvent =
             MediaItemEvent(
@@ -100,9 +151,13 @@ object MediaEventManager {
                     serverSyncAttempted = syncResult?.serverSyncAttempted ?: false,
                     serverSyncSuccess = syncResult?.serverSyncSuccess,
                     serverSyncMessage = syncResult?.serverSyncMessage,
-                    timestamp = System.currentTimeMillis()
+                    timestamp = now
             )
     mediaItemHistory.events.add(mediaItemEvent)
+    if (eventName == "Seek") {
+      lastSeekTimestampMs = now
+      skipNextPostSeekPlaybackEvent = true
+    }
     DeviceManager.dbManager.saveMediaItemHistory(mediaItemHistory)
 
     clientEventEmitter?.onMediaItemHistoryUpdated(mediaItemHistory)
@@ -128,5 +183,32 @@ object MediaEventManager {
             createdAt = System.currentTimeMillis(),
             events = mutableListOf()
     )
+  }
+
+  private fun shouldSkipDuplicatePlaybackEvent(
+          lastEvent: MediaItemEvent?,
+          eventName: String,
+          currentTime: Double,
+          nowMs: Long
+  ): Boolean {
+    if (lastEvent == null) return false
+    if (lastEvent.type != "Playback") return false
+    if (lastEvent.name != eventName) return false
+    val lastCurrent = lastEvent.currentTime?.toDouble() ?: return false
+    if (lastCurrent != currentTime) return false
+    if (nowMs - lastEvent.timestamp > DUPLICATE_PLAYBACK_EVENT_WINDOW_MS) return false
+    return true
+  }
+
+  private fun shouldSkipPlaybackAfterRecentSeek(eventName: String): Boolean {
+    if (!skipNextPostSeekPlaybackEvent) return false
+    if (eventName != "Play" && eventName != "Pause") return false
+    val nowMs = System.currentTimeMillis()
+    if (nowMs - lastSeekTimestampMs > SEEK_PLAYBACK_SUPPRESSION_MS) {
+      skipNextPostSeekPlaybackEvent = false
+      lastSeekTimestampMs = 0L
+      return false
+    }
+    return true
   }
 }
