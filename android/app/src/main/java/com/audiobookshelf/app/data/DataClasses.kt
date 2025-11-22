@@ -118,7 +118,7 @@ class Podcast(
 
   @JsonIgnore
   fun getNextUnfinishedEpisode(libraryItemId:String, mediaManager: MediaManager):PodcastEpisode? {
-    val sortedEpisodes = episodes?.sortedByDescending { it.publishedAt }
+    val sortedEpisodes = episodes?.sortedBy { it.publishedAt }
     val podcastEpisode = sortedEpisodes?.find { episode ->
       val progress = mediaManager.serverUserMediaProgress.find { it.libraryItemId == libraryItemId && it.episodeId == episode.id }
       progress == null || !progress.isFinished
