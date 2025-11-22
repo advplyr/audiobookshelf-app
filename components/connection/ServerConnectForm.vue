@@ -79,9 +79,6 @@
 
     <div :class="processing ? 'opacity-100' : 'opacity-0 pointer-events-none'" class="fixed w-full h-full top-0 left-0 bg-black/75 flex items-center justify-center z-30 transition-opacity duration-500">
       <div>
-        <div class="absolute top-0 left-0 w-full p-6 flex items-center flex-col justify-center z-0 short:hidden">
-          <img src="/Logo.png" class="h-20 w-20 mb-2" />
-        </div>
         <svg class="animate-spin w-16 h-16" viewBox="0 0 24 24">
           <path fill="currentColor" d="M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z" />
         </svg>
