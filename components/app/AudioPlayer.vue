@@ -551,6 +551,9 @@ export default {
     timeupdate() {
       if (!this.$refs.playedTrack) {
         console.error('Invalid no played track ref')
+        this.pause()
+        this.closePlayback()
+        // TODO: Attempt to rehydrate Vue session without interrupting native playback.
         return
       }
       this.$emit('updateTime', this.currentTime)
