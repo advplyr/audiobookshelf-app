@@ -18,6 +18,8 @@ import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaControllerCompat
 import android.support.v4.media.session.MediaSessionCompat
+import androidx.media.VolumeProviderCompat
+import android.media.AudioManager
 import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
 import androidx.annotation.RequiresApi
@@ -94,6 +96,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   private lateinit var mediaSessionConnector: MediaSessionConnector
   private lateinit var playerNotificationManager: PlayerNotificationManager
   lateinit var mediaSession: MediaSessionCompat
+  private var remoteVolumeProvider: VolumeProviderCompat? = null
   private lateinit var transportControls: MediaControllerCompat.TransportControls
 
   lateinit var mediaManager: MediaManager
@@ -705,11 +708,13 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
               Log.d(tag, "switchToPlayer: Using Cast Player " + castPlayer?.deviceInfo)
               mediaSessionConnector.setPlayer(castPlayer)
               playerNotificationManager.setPlayer(castPlayer)
+              setMediaSessionToCastVolume()
               castPlayer as CastPlayer
             } else {
               Log.d(tag, "switchToPlayer: Using ExoPlayer")
               mediaSessionConnector.setPlayer(mPlayer)
               playerNotificationManager.setPlayer(mPlayer)
+              setMediaSessionToLocalVolume()
               mPlayer
             }
 
@@ -724,6 +729,44 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       // TODO: Start a new playback session here instead of using the existing
       preparePlayer(it, false, null)
     }
+  }
+
+  private fun setMediaSessionToCastVolume() {
+    val currentVol = try { castPlayer?.getDeviceVolume() ?: 0 } catch (e: Exception) { 0 }
+    val provider = object : VolumeProviderCompat(VolumeProviderCompat.VOLUME_CONTROL_ABSOLUTE, 100, currentVol) {
+      override fun onSetVolumeTo(volume: Int) {
+        val clamped = volume.coerceIn(0, 100)
+        try {
+          castPlayer?.setDeviceVolume(clamped)
+          val actual = castPlayer?.getDeviceVolume() ?: clamped
+          setCurrentVolume(actual)
+        } catch (_: Exception) {}
+      }
+      override fun onAdjustVolume(direction: Int) {
+        val current = try { castPlayer?.getDeviceVolume() ?: currentVolume } catch (_: Exception) { currentVolume }
+        val step = if (direction > 0) 1 else if (direction < 0) -1 else 0
+        if (step == 0) return
+        var target = (current + step).coerceIn(0, 100)
+        try {
+          castPlayer?.setDeviceVolume(target)
+          var actual = castPlayer?.getDeviceVolume() ?: current
+          // If device ignored tiny step, try nudging up to 3 steps total.
+          if (actual == current) {
+            target = (current + step * 3).coerceIn(0, 100)
+            castPlayer?.setDeviceVolume(target)
+            actual = castPlayer?.getDeviceVolume() ?: current
+          }
+          setCurrentVolume(actual)
+        } catch (_: Exception) {}
+      }
+    }
+    remoteVolumeProvider = provider
+    mediaSession.setPlaybackToRemote(provider)
+  }
+
+  private fun setMediaSessionToLocalVolume() {
+    mediaSession.setPlaybackToLocal(AudioManager.STREAM_MUSIC)
+    remoteVolumeProvider = null
   }
 
   fun getCurrentTrackStartOffsetMs(): Long {

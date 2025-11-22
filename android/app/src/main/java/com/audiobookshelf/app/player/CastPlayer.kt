@@ -76,7 +76,10 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
       COMMAND_GET_MEDIA_ITEMS_METADATA,
       COMMAND_SET_MEDIA_ITEMS_METADATA,
       COMMAND_CHANGE_MEDIA_ITEMS,
-      COMMAND_GET_TRACKS)
+      COMMAND_GET_TRACKS,
+      COMMAND_GET_DEVICE_VOLUME,
+      COMMAND_SET_DEVICE_VOLUME,
+      COMMAND_ADJUST_DEVICE_VOLUME)
     .build()
 
   var currentPlaybackState = Player.STATE_IDLE
@@ -861,27 +864,48 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
   }
 
   override fun getDeviceVolume(): Int {
-   return 0
+    val session = castContext.sessionManager.currentCastSession
+    return if (session != null && !session.isMute) {
+      (session.volume * 100).toInt()
+    } else {
+      0
+    }
   }
 
   override fun isDeviceMuted(): Boolean {
-   return false
+    val session = castContext.sessionManager.currentCastSession
+    return session?.isMute ?: false
   }
 
   override fun setDeviceVolume(volume: Int) {
-
+    val session = castContext.sessionManager.currentCastSession
+    try {
+      val clamped = volume.coerceIn(0, 100)
+      session?.volume = clamped / 100.0
+    } catch (e: Exception) {
+      Log.e(tag, "Failed to set cast device volume", e)
+    }
   }
 
   override fun increaseDeviceVolume() {
-
+    val currentVolume = getDeviceVolume()
+    val newVolume = (currentVolume + 1).coerceAtMost(100)
+    setDeviceVolume(newVolume)
   }
 
   override fun decreaseDeviceVolume() {
-
+    val currentVolume = getDeviceVolume()
+    val newVolume = (currentVolume - 1).coerceAtLeast(0)
+    setDeviceVolume(newVolume)
   }
 
   override fun setDeviceMuted(muted: Boolean) {
-
+    val session = castContext.sessionManager.currentCastSession
+    try {
+      session?.isMute = muted
+    } catch (e: Exception) {
+      Log.e(tag, "Failed to set cast device mute state", e)
+    }
   }
 
   inner class StatusListener() : RemoteMediaClient.Callback(), SessionManagerListener<CastSession>, RemoteMediaClient.ProgressListener {
