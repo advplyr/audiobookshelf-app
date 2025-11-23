@@ -74,6 +74,12 @@ export default {
         console.log(`[categories] networkConnected false so fetching categories`)
         this.fetchCategories()
       }
+    },
+    user(newVal, oldVal) {
+      if ((newVal && !oldVal) || (!newVal && oldVal)) {
+        console.log(`[categories] user changed so fetching categories`)
+        this.fetchCategories()
+      }
     }
   },
   computed: {
