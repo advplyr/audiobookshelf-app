@@ -551,7 +551,6 @@ export default {
     timeupdate() {
       if (!this.$refs.playedTrack) {
         console.error('Invalid no played track ref')
-        this.closePlayback()
         return
       }
       this.$emit('updateTime', this.currentTime)
