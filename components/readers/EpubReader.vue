@@ -21,7 +21,11 @@ export default {
       default: () => {}
     },
     isLocal: Boolean,
-    keepProgress: Boolean
+    keepProgress: Boolean,
+    showingToolbar: {
+      type: Boolean,
+      default: false
+    }
   },
   data() {
     return {
@@ -35,6 +39,24 @@ export default {
       currentLocationCfi: null,
       inittingDisplay: true,
       isRefreshingUI: false,
+      // Search state
+      searchQuery: '',
+      searchResults: [],
+      currentSearchIndex: -1,
+      searching: false,
+      lastHighlightCfi: null,
+      searchToken: 0,
+      lastSearchQuery: '',
+      // Cache
+      searchCacheLoaded: false,
+      // Internal swipe tracking
+      swipeStartX: 0,
+      swipeStartY: 0,
+      swipeStartTime: 0,
+      // Prevent re-displays during explicit navigation
+      isNavigatingToCfi: false,
+      // True while the UI is resizing due to toolbar show/hide
+      isUiResizing: false,
       ereaderSettings: {
         theme: 'dark',
         font: 'serif',
@@ -47,6 +69,9 @@ export default {
   watch: {
     isPlayerOpen() {
       this.refreshUI()
+    },
+    showingToolbar() {
+      // No-op: keep viewport height constant to prevent geometry drift
     }
   },
   computed: {
@@ -121,11 +146,308 @@ export default {
         },
         a: {
           color: `${fontColor}!important`
+        },
+        '.abs-epub-search-highlight': {
+          'background-color': 'rgba(255, 235, 59, 0.6)!important'
         }
+      }
+    },
+    searchCacheKey() {
+      return this.libraryItemId ? `ebookSearch-${this.libraryItemId}` : null
+    },
+    topOverlayPx() {
+      // Align with Reader toolbar height (h-24 = 96px) — not used to resize viewport
+      return this.showingToolbar ? 96 : 0
+    },
+    viewerStyle() {
+      return {
+        marginTop: '0px'
       }
     }
   },
   methods: {
+    // Compare CFIs; fallback to string compare if library function missing
+    compareCfi(a, b) {
+      try {
+        if (ePub?.CFI?.compare) return ePub.CFI.compare(a, b)
+      } catch (e) {}
+      return String(a).localeCompare(String(b))
+    },
+    cfiInCurrentPage(targetCfi) {
+      try {
+        const loc = this.rendition?.currentLocation()
+        if (!loc || !loc.start?.cfi || !loc.end?.cfi) return false
+        const start = loc.start.cfi
+        const end = loc.end.cfi
+        return this.compareCfi(start, targetCfi) <= 0 && this.compareCfi(targetCfi, end) <= 0
+      } catch (e) {
+        return false
+      }
+    },
+    async displayEnsureCfi(targetCfi, maxTries = 4) {
+      for (let i = 0; i < maxTries; i++) {
+        await this.rendition.display(targetCfi)
+        // allow layout to settle
+        await new Promise((r) => setTimeout(r, i === 0 ? 0 : 60))
+        if (this.cfiInCurrentPage(targetCfi)) return true
+      }
+      return false
+    },
+    loadSearchCache() {
+      if (!this.searchCacheKey) return null
+      try {
+        const raw = localStorage.getItem(this.searchCacheKey)
+        if (!raw) return null
+        const parsed = JSON.parse(raw)
+        if (!parsed || typeof parsed !== 'object') return null
+        if (!Array.isArray(parsed.results)) return null
+        return parsed
+      } catch (e) {
+        try { localStorage.removeItem(this.searchCacheKey) } catch (_) {}
+        return null
+      }
+    },
+    saveSearchCache() {
+      if (!this.searchCacheKey) return
+      try {
+        const payload = {
+          query: this.searchQuery,
+          results: this.searchResults,
+          index: this.currentSearchIndex
+        }
+        localStorage.setItem(this.searchCacheKey, JSON.stringify(payload))
+      } catch (e) {}
+    },
+    clearSearchCache() {
+      if (!this.searchCacheKey) return
+      try { localStorage.removeItem(this.searchCacheKey) } catch (e) {}
+    },
+    async restoreCachedSearch() {
+      if (this.searchCacheLoaded) return
+      const cached = this.loadSearchCache()
+      if (!cached || !this.rendition) { this.searchCacheLoaded = true; return }
+      // Apply cached state
+      this.searchQuery = cached.query || ''
+      this.lastSearchQuery = this.searchQuery
+      this.searchResults = Array.isArray(cached.results) ? cached.results : []
+      this.currentSearchIndex = typeof cached.index === 'number' ? cached.index : -1
+      this.$emit('search-results', {
+        query: this.searchQuery,
+        results: this.searchResults.slice(),
+        index: this.currentSearchIndex
+      })
+      // Navigate/highlight if valid index
+      if (this.searchResults.length && this.currentSearchIndex >= 0 && this.currentSearchIndex < this.searchResults.length) {
+        await this.goToSearchResult(this.currentSearchIndex)
+      }
+      this.searchCacheLoaded = true
+    },
+    handleRenditionTouchStart(event) {
+      const t = event?.touches?.[0] || event?.changedTouches?.[0]
+      if (!t) return
+      this.swipeStartX = t.screenX
+      this.swipeStartY = t.screenY
+      this.swipeStartTime = Date.now()
+    },
+    handleRenditionTouchEnd(event) {
+      const t = event?.touches?.[0] || event?.changedTouches?.[0]
+      if (!t) return
+      const dx = t.screenX - this.swipeStartX
+      const dy = t.screenY - this.swipeStartY
+      const dt = Date.now() - this.swipeStartTime
+      if (dt > 800) return
+      const absDx = Math.abs(dx)
+      const absDy = Math.abs(dy)
+      if (absDx < 50 || absDy > absDx) return
+      if (dx < 0) this.next()
+      else if (dx > 0) this.prev()
+    },
+    redisplayCurrentLocation() {
+      if (this.isNavigatingToCfi) return
+      try {
+        const cfi = this.currentLocationCfi
+        if (cfi) this.rendition.display(cfi)
+      } catch (e) {}
+    },
+    ensurePageVisible() {
+      try {
+        const loc = this.rendition?.currentLocation()
+        if (!loc || !loc.start?.cfi) {
+          if (this.currentLocationCfi) {
+            this.rendition.display(this.currentLocationCfi)
+          }
+        }
+      } catch (e) {}
+    },
+    scrollCurrentHighlightIntoView() {
+      try {
+        const contents = this.rendition?.getContents?.() || []
+        contents.forEach((c) => {
+          const el = c.document?.querySelector?.('.abs-epub-search-highlight')
+          if (el) {
+            el.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' })
+          }
+        })
+      } catch (e) {}
+    },
+    // --- Search API exposed to parent ---
+    async searchEbook(query) {
+      if (!this.book || !query || !query.trim()) {
+        this.clearSearch()
+        return []
+      }
+      this.searchQuery = query
+      this.lastSearchQuery = query
+      this.searching = true
+      this.searchResults = []
+      this.currentSearchIndex = -1
+      const token = ++this.searchToken
+
+      const seen = new Set()
+      const pushResult = (cfiLike, excerpt, href) => {
+        const cfi = cfiLike && (cfiLike.cfiRange || cfiLike.cfi || cfiLike)
+        if (!cfi || seen.has(cfi)) return
+        seen.add(cfi)
+        this.searchResults.push({ cfi, excerpt: (excerpt || '').slice(0, 180), href })
+      }
+
+      try {
+        // Prefer built-in epub.js search if available for complete results
+        if (typeof this.book.search === 'function') {
+          const results = await this.book.search(query)
+          if (token !== this.searchToken) return []
+          if (Array.isArray(results)) {
+            results.forEach((m) => pushResult(m, m.excerpt, m.href))
+          }
+        }
+
+        // Also crawl sections to ensure completeness (merge unique CFIs)
+        const spineItems = this.book.spine?.spineItems || []
+        const batchSize = 3
+        for (let i = 0; i < spineItems.length; i++) {
+          if (token !== this.searchToken) {
+            return []
+          }
+          const section = spineItems[i]
+          await section.load(this.book.load.bind(this.book))
+          if (typeof section.find === 'function') {
+            const matches = section.find(query)
+            if (Array.isArray(matches) && matches.length) {
+              matches.forEach((m) => pushResult(m, m.excerpt, section.href))
+            }
+          }
+          section.unload()
+          if ((i + 1) % batchSize === 0) {
+            this.$emit('search-results', {
+              query: this.searchQuery,
+              results: this.searchResults.slice(),
+              index: this.currentSearchIndex
+            })
+            await new Promise((resolve) => setTimeout(resolve, 0))
+          }
+        }
+      } catch (error) {
+        console.error('[EpubReader] search failed', error)
+      } finally {
+        this.searching = false
+      }
+
+      if (this.searchResults.length) {
+        await this.goToSearchResult(0)
+      }
+      this.saveSearchCache()
+      // Notify parent listeners
+      this.$emit('search-results', {
+        query: this.searchQuery,
+        results: this.searchResults.slice(),
+        index: this.currentSearchIndex
+      })
+      return this.searchResults
+    },
+    async ensureSearch(query) {
+      // Reuse existing results if they match the query
+      const q = (query && query.trim()) || this.lastSearchQuery || this.searchQuery
+      if (!q) return []
+      if (this.searchResults.length && this.searchQuery === q) {
+        return this.searchResults
+      }
+      return this.searchEbook(q)
+    },
+    getEbookSearchState() {
+      return {
+        query: this.searchQuery,
+        results: this.searchResults,
+        index: this.currentSearchIndex,
+        searching: this.searching
+      }
+    },
+    async goToSearchResult(index) {
+      if (!this.rendition || !this.searchResults.length) return null
+      if (index < 0 || index >= this.searchResults.length) return null
+
+      const { cfi } = this.searchResults[index]
+      this.currentSearchIndex = index
+
+      try {
+        this.isNavigatingToCfi = true
+        // Robustly ensure the CFI falls within the visible page
+        await this.displayEnsureCfi(cfi)
+        // Clear previous highlight
+        if (this.lastHighlightCfi) {
+          try {
+            this.rendition.annotations.remove(this.lastHighlightCfi, 'highlight')
+          } catch (e) {}
+        }
+        // Highlight current
+        this.rendition.annotations.add('highlight', cfi, {}, null, 'abs-epub-search-highlight')
+        this.lastHighlightCfi = cfi
+        // Center the highlighted range in view (robust to large fonts)
+        setTimeout(() => this.scrollCurrentHighlightIntoView(), 0)
+        setTimeout(() => this.scrollCurrentHighlightIntoView(), 120)
+      } catch (error) {
+        console.error('[EpubReader] failed to display search result', error)
+      } finally {
+        // Small delay lets the layout settle before reflows trigger
+        setTimeout(() => {
+          this.isNavigatingToCfi = false
+        }, 150)
+      }
+
+      this.$emit('search-results', {
+        query: this.searchQuery,
+        results: this.searchResults.slice(),
+        index: this.currentSearchIndex
+      })
+      this.saveSearchCache()
+      return this.searchResults[this.currentSearchIndex]
+    },
+    async nextSearchResult() {
+      if (!this.searchResults.length) return null
+      const nextIndex = (this.currentSearchIndex + 1) % this.searchResults.length
+      return this.goToSearchResult(nextIndex)
+    },
+    async prevSearchResult() {
+      if (!this.searchResults.length) return null
+      const prevIndex = (this.currentSearchIndex - 1 + this.searchResults.length) % this.searchResults.length
+      return this.goToSearchResult(prevIndex)
+    },
+    clearSearch() {
+      this.searchQuery = ''
+      this.searchResults = []
+      this.currentSearchIndex = -1
+      if (this.rendition && this.lastHighlightCfi) {
+        try {
+          this.rendition.annotations.remove(this.lastHighlightCfi, 'highlight')
+        } catch (e) {}
+      }
+      this.lastHighlightCfi = null
+      this.clearSearchCache()
+      this.$emit('search-results', {
+        query: this.searchQuery,
+        results: [],
+        index: -1
+      })
+    },
     updateSettings(settings) {
       this.ereaderSettings = settings
 
@@ -263,32 +585,28 @@ export default {
 
       return locationsObject.locations
     },
-    /** @param {string} location - CFI of the new location */
+    /** @param {object} location */
     relocated(location) {
-      console.log(`[EpubReader] relocated ${location.start.cfi}`)
-      if (this.inittingDisplay) {
-        console.log(`[EpubReader] relocated but initting display ${location.start.cfi}`)
+      const newCfi = location.start?.cfi
+      if (!newCfi) return
+      if (this.inittingDisplay || this.isUiResizing || this.isNavigatingToCfi) {
         return
       }
       this.currentLocationNum = location.start.location
-
-      if (this.currentLocationCfi === location.start.cfi) {
-        console.log(`[EpubReader] location already saved`, location.start.cfi)
+      if (this.currentLocationCfi === newCfi) {
         return
       }
+      this.currentLocationCfi = newCfi
 
-      console.log(`[EpubReader] Saving new location ${location.start.cfi}`)
-      this.currentLocationCfi = location.start.cfi
-
-      if (location.end.percentage) {
+      if (location.end?.percentage) {
         this.updateProgress({
-          ebookLocation: location.start.cfi,
+          ebookLocation: newCfi,
           ebookProgress: location.end.percentage
         })
         this.progress = Math.round(location.end.percentage * 100)
       } else {
         this.updateProgress({
-          ebookLocation: location.start.cfi
+          ebookLocation: newCfi
         })
       }
     },
@@ -349,6 +667,15 @@ export default {
 
         reader.rendition.on('rendered', (section, view) => {
           this.applyTheme()
+          // Re-apply highlight after re-render
+          if (this.lastHighlightCfi) {
+            try {
+              this.rendition.annotations.remove(this.lastHighlightCfi, 'highlight')
+            } catch (e) {}
+            try {
+              this.rendition.annotations.add('highlight', this.lastHighlightCfi, {}, null, 'abs-epub-search-highlight')
+            } catch (e) {}
+          }
           console.log('%c [EpubReader] Rendition rendered', 'color:red;', section, view)
         })
 
@@ -360,9 +687,11 @@ export default {
         })
 
         reader.rendition.on('touchstart', (event) => {
+          this.handleRenditionTouchStart(event)
           this.$emit('touchstart', event)
         })
         reader.rendition.on('touchend', (event) => {
+          this.handleRenditionTouchEnd(event)
           this.$emit('touchend', event)
         })
 
@@ -379,13 +708,13 @@ export default {
           })
         }
 
-        // TODO: To get the correct page need to render twice. On book ready and after first display. Figure out why
+        // Display initial CFI once
         console.log(`[EpubReader] Displaying cfi ${displayCfi}`)
         this.currentLocationCfi = displayCfi
         reader.rendition.display(displayCfi).then(() => {
-          reader.rendition.display(displayCfi).then(() => {
-            this.inittingDisplay = false
-          })
+          this.inittingDisplay = false
+          // Attempt to restore cached search state once initial display is complete
+          this.restoreCachedSearch()
         })
       })
     },

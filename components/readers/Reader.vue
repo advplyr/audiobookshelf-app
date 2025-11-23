@@ -1,12 +1,21 @@
 <template>
   <div v-if="show" :data-theme="ereaderTheme" class="group fixed top-0 left-0 right-0 layout-wrapper w-full z-40 pt-8 data-[theme=black]:bg-black data-[theme=black]:text-white data-[theme=dark]:bg-[#232323] data-[theme=dark]:text-white data-[theme=light]:bg-white data-[theme=light]:text-black" :class="{ 'reader-player-open': isPlayerOpen }">
     <!-- toolbar -->
-    <div class="h-32 pt-10 w-full px-2 fixed top-0 left-0 z-30 transition-transform bg-bg text-fg" :class="showingToolbar ? 'translate-y-0' : '-translate-y-32'" :style="{ boxShadow: showingToolbar ? '0px 8px 8px #11111155' : '' }" @touchstart.stop @mousedown.stop @touchend.stop @mouseup.stop>
+    <div class="h-24 pt-6 w-full px-2 fixed top-0 left-0 z-30 bg-bg text-fg transform transition-transform duration-200 ease-out" :class="{ 'translate-y-0': showingToolbar, '-translate-y-24': !showingToolbar }" :style="{ boxShadow: '0px 8px 8px #11111155' }" @touchstart.stop @mousedown.stop @touchend.stop @mouseup.stop>
       <div class="flex items-center mb-2">
         <button type="button" class="inline-flex mx-2" @click.stop="show = false">
           <span class="material-symbols text-3xl text-fg">chevron_left</span>
         </button>
         <div class="flex-grow" />
+        <button v-if="isEpub" type="button" class="inline-flex mx-2" @click.stop="clickSearchBtn">
+          <span class="material-symbols text-2xl text-fg">search</span>
+        </button>
+        <button v-if="isEpub" type="button" class="inline-flex mx-1" :disabled="!hasActiveSearch" @click.stop="toolbarPrevSearchResult">
+          <span class="material-symbols text-2xl text-fg" :class="{ 'opacity-40': !hasActiveSearch }">arrow_upward</span>
+        </button>
+        <button v-if="isEpub" type="button" class="inline-flex mx-1" :disabled="!hasActiveSearch" @click.stop="toolbarNextSearchResult">
+          <span class="material-symbols text-2xl text-fg" :class="{ 'opacity-40': !hasActiveSearch }">arrow_downward</span>
+        </button>
         <button v-if="isComic || isEpub" type="button" class="inline-flex mx-2" @click.stop="clickTOCBtn">
           <span class="material-symbols text-2xl text-fg">format_list_bulleted</span>
         </button>
@@ -22,7 +31,7 @@
     </div>
 
     <!-- ereader -->
-    <component v-if="readerComponentName" ref="readerComponent" :is="readerComponentName" :url="ebookUrl" :library-item="selectedLibraryItem" :is-local="isLocal" :keep-progress="keepProgress" :showing-toolbar="showingToolbar" @touchstart="touchstart" @touchend="touchend" @loaded="readerLoaded" @hook:mounted="readerMounted" />
+    <component v-if="readerComponentName" ref="readerComponent" :is="readerComponentName" :url="ebookUrl" :library-item="selectedLibraryItem" :is-local="isLocal" :keep-progress="keepProgress" :showing-toolbar="showingToolbar" @touchstart="touchstart" @touchend="touchend" @loaded="readerLoaded" @hook:mounted="readerMounted" @search-results="onSearchResults" />
 
     <!-- table of contents modal -->
     <modals-fullscreen-modal v-model="showTOCModal" :theme="ereaderTheme">
@@ -122,6 +131,46 @@
         </div>
       </div>
     </modals-fullscreen-modal>
+
+    <!-- epub search modal -->
+    <modals-fullscreen-modal v-model="showSearchModal" :theme="ereaderTheme" threeQuartersScreen>
+      <div style="box-shadow: 0px -8px 8px #11111155">
+        <div class="flex items-end justify-between h-14 px-4 pb-2 mb-6">
+          <h1 class="text-lg">{{ $strings.HeaderSearch }}</h1>
+          <button class="flex" @click="showSearchModal = false">
+            <span class="material-symbols">close</span>
+          </button>
+        </div>
+        <div class="w-full overflow-y-auto overflow-x-hidden h-full max-h-[calc(75vh-85px)]">
+          <div class="w-full h-full px-4">
+            <div class="flex items-center gap-2 mb-4">
+              <ui-text-input v-model="searchQuery" :placeholder="$strings.PlaceholderSearchEbook" prepend-icon="search" clearable @keyup.enter.native="performSearch" />
+              <ui-btn :disabled="!searchQuery || searching" @click="performSearch">{{ $strings.ButtonSearch }}</ui-btn>
+            </div>
+
+            <div class="flex items-center justify-between mb-2" v-if="searchResults.length">
+              <p class="text-sm opacity-80">{{ $getString('LabelSearchResultsCount', [String(searchResults.length)]) }}</p>
+              <div class="flex items-center gap-2">
+                <ui-btn :small="true" @click="prevResult">{{ $strings.ButtonPrevious }}</ui-btn>
+                <p class="text-sm">{{ currentSearchIndex + 1 }} / {{ searchResults.length }}</p>
+                <ui-btn :small="true" @click="nextResult">{{ $strings.ButtonNext }}</ui-btn>
+              </div>
+            </div>
+
+            <ul>
+              <li v-for="(r, idx) in searchResults" :key="r.cfi" class="py-2 border-b border-border cursor-pointer" :class="{ 'opacity-100': idx === currentSearchIndex, 'opacity-80 hover:opacity-100': idx !== currentSearchIndex }" @click="goToResult(idx)">
+                <p class="text-sm truncate" v-if="r.excerpt">{{ r.excerpt }}</p>
+                <p class="text-xs opacity-60">CFI: {{ r.cfi }}</p>
+              </li>
+            </ul>
+
+            <div v-if="!searching && searched && !searchResults.length" class="mt-4 opacity-80">
+              <p>{{ $strings.MessageNoItemsFound }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </modals-fullscreen-modal>
   </div>
 </template>
 
@@ -142,9 +191,16 @@ export default {
       showingToolbar: false,
       showTOCModal: false,
       showSettingsModal: false,
+      showSearchModal: false,
       comicHasMetadata: false,
       chapters: [],
       isInittingWatchVolume: false,
+      // Search UI state
+      searchQuery: '',
+      searchResults: [],
+      currentSearchIndex: -1,
+      searching: false,
+      searched: false,
       ereaderSettings: {
         theme: 'dark',
         font: 'serif',
@@ -338,6 +394,9 @@ export default {
     },
     ebookFileId() {
       return this.$store.state.ereaderFileId
+    },
+    hasActiveSearch() {
+      return this.isEpub && this.searchResults.length > 0 && this.currentSearchIndex >= 0
     }
   },
   methods: {
@@ -377,6 +436,73 @@ export default {
     clickSettingsBtn() {
       this.hideToolbar()
       this.showSettingsModal = true
+    },
+    clickSearchBtn() {
+      this.hideToolbar()
+      this.showSearchModal = true
+      this.$nextTick(() => {})
+    },
+    async performSearch() {
+      if (!this.isEpub || !this.$refs.readerComponent?.searchEbook) return
+      if (!this.searchQuery || !this.searchQuery.trim()) return
+      this.searching = true
+      this.searched = true
+      const results = await this.$refs.readerComponent.searchEbook(this.searchQuery)
+      this.searchResults = results || []
+      this.currentSearchIndex = this.searchResults.length ? 0 : -1
+      this.searching = false
+    },
+    nextResult() {
+      if (!this.isEpub) return
+      const rc = this.$refs.readerComponent
+      if (!rc?.nextSearchResult) return
+      // Ensure search results exist; if not, re-run last query
+      const ensure = rc.ensureSearch ? rc.ensureSearch(this.searchQuery) : Promise.resolve(null)
+      Promise.resolve(ensure)
+        .then(() => rc.nextSearchResult())
+        .then((r) => {
+          if (!r) return
+          this.currentSearchIndex = rc.getEbookSearchState().index
+        })
+    },
+    prevResult() {
+      if (!this.isEpub) return
+      const rc = this.$refs.readerComponent
+      if (!rc?.prevSearchResult) return
+      const ensure = rc.ensureSearch ? rc.ensureSearch(this.searchQuery) : Promise.resolve(null)
+      Promise.resolve(ensure)
+        .then(() => rc.prevSearchResult())
+        .then((r) => {
+          if (!r) return
+          this.currentSearchIndex = rc.getEbookSearchState().index
+        })
+    },
+    goToResult(idx) {
+      if (!this.isEpub || !this.$refs.readerComponent?.goToSearchResult) return
+      this.$refs.readerComponent.goToSearchResult(idx).then((r) => {
+        if (!r) return
+        // Update current index from child state (in case of wrap)
+        if (this.$refs.readerComponent?.getEbookSearchState) {
+          this.currentSearchIndex = this.$refs.readerComponent.getEbookSearchState().index
+        } else {
+          this.currentSearchIndex = idx
+        }
+        // Close search modal after navigating to selection
+        this.showSearchModal = false
+      })
+    },
+    toolbarNextSearchResult() {
+      if (!this.hasActiveSearch) return
+      this.nextResult()
+    },
+    toolbarPrevSearchResult() {
+      if (!this.hasActiveSearch) return
+      this.prevResult()
+    },
+    onSearchResults(payload) {
+      this.searchQuery = payload?.query || this.searchQuery
+      this.searchResults = payload?.results || []
+      this.currentSearchIndex = payload?.index ?? this.currentSearchIndex
     },
     next() {
       if (this.$refs.readerComponent && this.$refs.readerComponent.next) {
