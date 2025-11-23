@@ -25,11 +25,11 @@ PODS:
     - Capacitor
   - CordovaPlugins (6.2.1):
     - CapacitorCordova
-  - Realm (10.54.4):
-    - Realm/Headers (= 10.54.4)
-  - Realm/Headers (10.54.4)
-  - RealmSwift (10.54.4):
-    - Realm (= 10.54.4)
+  - Realm (10.54.6):
+    - Realm/Headers (= 10.54.6)
+  - Realm/Headers (10.54.6)
+  - RealmSwift (10.54.6):
+    - Realm (= 10.54.6)
   - WebnativellcCapacitorFilesharer (7.0.4):
     - Capacitor
 
@@ -48,7 +48,7 @@ DEPENDENCIES:
   - "CapacitorPreferences (from `../../node_modules/@capacitor/preferences`)"
   - "CapacitorStatusBar (from `../../node_modules/@capacitor/status-bar`)"
   - CordovaPlugins (from `../capacitor-cordova-ios-plugins`)
-  - RealmSwift (~> 10)
+  - RealmSwift (~> 10.54.6)
   - "WebnativellcCapacitorFilesharer (from `../../node_modules/@webnativellc/capacitor-filesharer`)"
 
 SPEC REPOS:
@@ -102,10 +102,10 @@ SPEC CHECKSUMS:
   CapacitorPreferences: cbf154e5e5519b7f5ab33817a334dda1e98387f9
   CapacitorStatusBar: 275cbf2f4dfc00388f519ef80c7ec22edda342c9
   CordovaPlugins: 5a72a85b45469e68556bb172409f1b6d57b27236
-  Realm: 8b5cda39a41f17a1734da2f39c6004eb8745587a
-  RealmSwift: 0b4f808fed6898f1f6c26f501f740efd80dff0b4
+  Realm: b1b3bc68162fa242132eb7eefbf91d7c40f36a85
+  RealmSwift: 456cfd82a4f23dff8e3456980999331ab69bbf3e
   WebnativellcCapacitorFilesharer: 10b111373d4dc49608935600dcbcc14605258c73
 
-PODFILE CHECKSUM: 498821c0cfa2508609567fa95d7244c01cbef538
+PODFILE CHECKSUM: 33c5ed7d2196b210757567da75c9e5b3a26a796e
 
 COCOAPODS: 1.16.2
