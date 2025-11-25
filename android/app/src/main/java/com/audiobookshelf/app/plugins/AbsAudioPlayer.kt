@@ -580,17 +580,21 @@ class AbsAudioPlayer : Plugin() {
           if (BuildConfig.USE_MEDIA3) {
             Log.d(tag, "prepareLibraryItem: Routing to Media3 playback controller")
             val syncer = media3ProgressSyncer
+            val prepareAndStart: () -> Unit = {
+              playbackController?.preparePlayback(playbackSession, playWhenReady, playbackRate)
+              syncer?.start(playbackSession)
+            }
             if (syncer?.listeningTimerRunning == true) {
               syncer.stop {
                 Log.d(tag, "Media3 progress syncer was already syncing - stopped")
                 PlayerListener.lazyIsPlaying = false
                 Handler(Looper.getMainLooper()).post {
-                  playbackController?.preparePlayback(playbackSession, playWhenReady, playbackRate)
+                  prepareAndStart()
                 }
               }
-            } else{
+            } else {
               syncer?.reset()
-              playbackController?.preparePlayback(playbackSession, playWhenReady, playbackRate)
+              prepareAndStart()
             }
           }
           else {
