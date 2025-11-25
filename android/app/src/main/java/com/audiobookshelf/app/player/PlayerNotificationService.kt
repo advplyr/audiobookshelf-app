@@ -758,18 +758,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
         }
       }
       playerWrapper.setPlaybackSpeed(playbackRateToUse)
-      playerWrapper.setPlayWhenReady(playWhenReady)
-      // Proactively emit a playing update when playWhenReady is true so the web UI can
-      // flip from spinner to pause immediately, without waiting for the next listener callback.
-      // This mirrors Exo behavior closely and reduces perceived latency.
-      if (playWhenReady) {
-        try {
-          clientEventEmitter?.onPlayingUpdate(true)
-        } catch (e: Exception) {
-          Log.w(tag, "Early onPlayingUpdate emit failed: ${e.message}")
-        }
-      }
-      playerWrapper.setPlaybackSpeed(playbackRateToUse)
 
       playerWrapper.prepare()
   } else if (castPlayer != null) {
