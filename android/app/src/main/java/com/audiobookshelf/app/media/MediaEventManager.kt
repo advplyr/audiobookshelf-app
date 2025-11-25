@@ -1,7 +1,10 @@
 package com.audiobookshelf.app.media
 
 import android.util.Log
-import com.audiobookshelf.app.data.*
+import com.audiobookshelf.app.data.MediaItemEvent
+import com.audiobookshelf.app.data.MediaItemHistory
+import com.audiobookshelf.app.data.MediaProgressWrapper
+import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.player.PlayerNotificationService
 
@@ -134,6 +137,7 @@ object MediaEventManager {
       return
     }
     if (eventName in listOf("Play", "Pause") && source == PlaybackEventSource.SYSTEM && hasRecordedUiPlaybackEvent) {
+      hasRecordedUiPlaybackEvent = false
       return
     }
 

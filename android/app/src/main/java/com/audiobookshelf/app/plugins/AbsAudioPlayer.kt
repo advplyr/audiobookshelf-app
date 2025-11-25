@@ -4,35 +4,36 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.MainActivity
-import android.provider.Settings
-import androidx.collection.emptyLongSet
 import com.audiobookshelf.app.data.DeviceInfo
 import com.audiobookshelf.app.data.LocalMediaProgress
 import com.audiobookshelf.app.data.MediaItemHistory
+import com.audiobookshelf.app.data.PlayItemRequestPayload
 import com.audiobookshelf.app.data.PlaybackMetadata
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.data.Podcast
 import com.audiobookshelf.app.data.PodcastEpisode
-import com.audiobookshelf.app.data.PlayItemRequestPayload
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.media.MediaEventManager
 import com.audiobookshelf.app.media.MediaProgressSyncer
+import com.audiobookshelf.app.media.PlaybackEventSource
 import com.audiobookshelf.app.player.CastManager
+import com.audiobookshelf.app.player.NetworkMonitor
+import com.audiobookshelf.app.player.PLAYER_EXO
+import com.audiobookshelf.app.player.PLAYER_MEDIA3
 import com.audiobookshelf.app.player.PlaybackController
 import com.audiobookshelf.app.player.PlaybackTelemetryHost
 import com.audiobookshelf.app.player.PlayerListener
 import com.audiobookshelf.app.player.PlayerNotificationService
-import com.audiobookshelf.app.media.PlaybackEventSource
-import com.audiobookshelf.app.player.PLAYER_EXO
-import com.audiobookshelf.app.player.PLAYER_MEDIA3
 import com.audiobookshelf.app.player.SleepTimerNotificationCenter
 import com.audiobookshelf.app.player.SleepTimerUiNotifier
+import com.audiobookshelf.app.player.toWidgetSnapshot
 import com.audiobookshelf.app.server.ApiHandler
 import com.fasterxml.jackson.core.json.JsonReadFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -61,10 +62,12 @@ class AbsAudioPlayer : Plugin() {
   private var playbackController: PlaybackController? = null
   private var media3ProgressSyncer: MediaProgressSyncer? = null
   private var pendingUiPlaybackEvent: Boolean = false
+  private var networkStateListener: NetworkMonitor.Listener? = null
 
   private var isCastAvailable:Boolean = false
   private var activePlaybackSession: PlaybackSession? = null
   private var lastKnownMediaPlayer: String? = null
+  private var lastPauseTimestampMs: Long = 0L
 
   private val playbackStateBridge = object : PlayerNotificationService.PlaybackStateBridge {
     override fun currentPositionMs(): Long {
@@ -170,14 +173,32 @@ class AbsAudioPlayer : Plugin() {
       get() = mainActivity.applicationContext
 
     override val isUnmeteredNetwork: Boolean
-      get() = PlayerNotificationService.isUnmeteredNetwork
+      get() = NetworkMonitor.isUnmeteredNetwork
 
     override fun isPlayerActive(): Boolean {
       return playbackController?.isPlaying() ?: false
     }
 
     override fun getCurrentTimeSeconds(): Double {
-      return playbackController?.currentPosition()?.div(1000.0) ?: 0.0
+      val controllerWrapper = playbackController
+      val session = media3ProgressSyncer?.currentPlaybackSession ?: activePlaybackSession
+      if (controllerWrapper == null) {
+        return session?.currentTime ?: 0.0
+      }
+      val basePositionMs = controllerWrapper.snapshotPosition()
+      if (session != null) {
+        val trackIndex = controllerWrapper.snapshotMediaItemIndex()
+        val offsetMs = session.getTrackStartOffsetMs(trackIndex)
+        var absoluteSeconds = (basePositionMs + offsetMs) / 1000.0
+        if (absoluteSeconds <= 0.0 && session.currentTime > 0.0) {
+          val state = controllerWrapper.playbackState()
+          if (state == Player.STATE_IDLE || state == Player.STATE_BUFFERING) {
+            absoluteSeconds = session.currentTime
+          }
+        }
+        return absoluteSeconds
+      }
+      return basePositionMs / 1000.0
     }
 
     override fun alertSyncSuccess() {
@@ -208,6 +229,7 @@ class AbsAudioPlayer : Plugin() {
       }
 
       appEventEmitter.onPlaybackSession(session)
+      notifyWidgetStateFromController()
     }
 
     override fun onPlayingUpdate(isPlaying: Boolean) {
@@ -215,6 +237,14 @@ class AbsAudioPlayer : Plugin() {
       if (BuildConfig.USE_MEDIA3) {
         val session = activePlaybackSession
         val syncer = media3ProgressSyncer
+        if (isPlaying) {
+          if (session != null) {
+            maybeAutoRewindOnResume(session)
+          }
+          lastPauseTimestampMs = -1L
+        } else {
+          lastPauseTimestampMs = System.currentTimeMillis()
+        }
         if (isPlaying && session != null && syncer != null) {
           mainHandler.post { syncer.play(session) }
         }
@@ -222,6 +252,7 @@ class AbsAudioPlayer : Plugin() {
           mainHandler.post { syncer.pause { } }
         }
       }
+      notifyWidgetStateFromController()
     }
 
     override fun onMetadata(metadata: PlaybackMetadata) {
@@ -235,6 +266,7 @@ class AbsAudioPlayer : Plugin() {
     override fun onPlaybackClosed() {
       lastKnownMediaPlayer = null
       appEventEmitter.onPlaybackClosed()
+      notifyWidgetStateFromController(isClosed = true)
     }
 
     override fun onMediaPlayerChanged(mediaPlayer: String) {
@@ -252,17 +284,15 @@ class AbsAudioPlayer : Plugin() {
 
     override fun onPlaybackEnded() {
       if (BuildConfig.USE_MEDIA3) {
-        val syncer = media3ProgressSyncer
-        if (syncer != null) {
-          mainHandler.post {
-            syncer.finished {
-              playerNotificationService.handlePlaybackEnded()
-            }
-          }
+        media3ProgressSyncer?.let { syncer ->
+          mainHandler.post { syncer.finished { } }
         }
+      } else {
+        playerNotificationService.handlePlaybackEnded()
       }
       activePlaybackSession = null
       appEventEmitter.onPlaybackClosed()
+      notifyWidgetStateFromController(isClosed = true)
     }
 
     override fun onSeekCompleted(positionMs: Long, mediaItemIndex: Int) {
@@ -300,6 +330,14 @@ class AbsAudioPlayer : Plugin() {
       // Initialize the playback controller and progress syncer.
       if (playbackController == null) {
         playbackController = PlaybackController(mainActivity.applicationContext)
+      }
+      NetworkMonitor.initialize(mainActivity.applicationContext)
+      if (networkStateListener == null) {
+        val listener = NetworkMonitor.Listener { state ->
+          appEventEmitter.onNetworkMeteredChanged(state.isUnmetered)
+        }
+        networkStateListener = listener
+        NetworkMonitor.addListener(listener)
       }
       if (media3ProgressSyncer == null) {
         media3ProgressSyncer = MediaProgressSyncer(media3TelemetryHost, apiHandler)
@@ -421,6 +459,66 @@ class AbsAudioPlayer : Plugin() {
     media3ProgressSyncer?.updatePlaybackTimeFromUi(seconds)
   }
 
+  private fun notifyWidgetStateFromController(isClosed: Boolean = false) {
+    if (!BuildConfig.USE_MEDIA3) return
+    val updater = DeviceManager.widgetUpdater ?: return
+    val session = activePlaybackSession ?: return
+    val controller = playbackController
+    val absolutePosition = if (controller != null) {
+      currentAbsolutePositionMs(controller, session)
+    } else {
+      session.currentTimeMs
+    }
+    val snapshot = session.toWidgetSnapshot(
+      context = mainActivity,
+      isPlaying = controller?.isPlaying() ?: false,
+      isClosed = isClosed,
+      positionOverrideMs = absolutePosition
+    )
+    updater.onPlayerChanged(snapshot)
+    if (isClosed) {
+      updater.onPlayerClosed()
+    }
+  }
+
+  private fun maybeAutoRewindOnResume(session: PlaybackSession) {
+    if (lastPauseTimestampMs <= 0L) return
+    if (DeviceManager.deviceData.deviceSettings?.disableAutoRewind == true) return
+    val pauseDuration = System.currentTimeMillis() - lastPauseTimestampMs
+    val seekBackMs = calcPauseSeekBackTime(pauseDuration)
+    if (seekBackMs <= 0L) return
+    val controller = playbackController ?: return
+    val currentAbsoluteMs = currentAbsolutePositionMs(controller, session)
+    val chapterStartMs = session.getChapterForTime(currentAbsoluteMs)?.startMs ?: 0L
+    var safeSeekMs = seekBackMs
+    val potentialPosition = currentAbsoluteMs - seekBackMs
+    if (potentialPosition < chapterStartMs) {
+      safeSeekMs = (currentAbsoluteMs - chapterStartMs).coerceAtLeast(0L)
+    }
+    if (safeSeekMs > 0L) {
+      controller.seekBy(-safeSeekMs)
+    }
+  }
+
+  private fun currentAbsolutePositionMs(
+    controller: PlaybackController,
+    session: PlaybackSession
+  ): Long {
+    val trackIndex = controller.currentMediaItemIndex()
+    val offsetMs = session.getTrackStartOffsetMs(trackIndex)
+    return controller.currentPosition() + offsetMs
+  }
+
+  private fun calcPauseSeekBackTime(durationSincePauseMs: Long): Long {
+    return when {
+      durationSincePauseMs < 10000L -> 0L
+      durationSincePauseMs < 60000L -> 3000L
+      durationSincePauseMs < 300000L -> 10000L
+      durationSincePauseMs < 1800000L -> 20000L
+      else -> 29500L
+    }
+  }
+
   private fun buildPlayItemRequestPayload(forceTranscode: Boolean): PlayItemRequestPayload {
     val mediaPlayerId = if (BuildConfig.USE_MEDIA3) PLAYER_MEDIA3 else PLAYER_EXO
     return PlayItemRequestPayload(
@@ -434,6 +532,7 @@ class AbsAudioPlayer : Plugin() {
   private fun ensureUiPlaybackEventSource() {
     if (media3ProgressSyncer != null) {
       media3ProgressSyncer?.markNextPlaybackEventSource(PlaybackEventSource.UI)
+      playbackController?.forceNextPlayingStateDispatch()
       pendingUiPlaybackEvent = false
     } else {
       pendingUiPlaybackEvent = true
@@ -801,6 +900,8 @@ class AbsAudioPlayer : Plugin() {
       } catch (_: Exception) {
       }
       SleepTimerNotificationCenter.unregister()
+      networkStateListener?.let { NetworkMonitor.removeListener(it) }
+      networkStateListener = null
     }
   }
 
@@ -813,7 +914,8 @@ class AbsAudioPlayer : Plugin() {
       Log.e(tag, "Cast Manager not initialized")
       return
     }
-    castManager?.requestSession(playerNotificationService, object : CastManager.RequestSessionCallback() {
+    val legacyService = if (BuildConfig.USE_MEDIA3) null else playerNotificationService
+    castManager?.requestSession(legacyService, object : CastManager.RequestSessionCallback() {
       override fun onError(errorCode: Int) {
         Log.e(tag, "CAST REQUEST SESSION CALLBACK ERROR $errorCode")
       }

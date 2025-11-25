@@ -1,8 +1,6 @@
 package com.audiobookshelf.app.player
 
 import android.util.Log
-import android.os.Looper
-import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.data.PlayerState
 import com.audiobookshelf.app.device.DeviceManager
@@ -58,7 +56,14 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
     lazyIsPlaying = isPlaying
 
     // Update widget
-    DeviceManager.widgetUpdater?.onPlayerChanged(playerNotificationService)
+    playerNotificationService.getCurrentPlaybackSessionCopy()?.let { session ->
+      val snapshot = session.toWidgetSnapshot(
+        playerNotificationService,
+        isPlaying,
+        PlayerNotificationService.isClosed
+      )
+      DeviceManager.widgetUpdater?.onPlayerChanged(snapshot)
+    }
 
     if (isPlaying) {
       if (lastPauseTime > 0 && DeviceManager.deviceData.deviceSettings?.disableAutoRewind != true) {

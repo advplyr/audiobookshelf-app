@@ -14,6 +14,7 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import android.util.Log
+import androidx.core.app.NotificationCompat
 import androidx.media3.cast.CastPlayer
 import androidx.media3.cast.SessionAvailabilityListener
 import androidx.media3.common.C
@@ -37,9 +38,9 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
+import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.MainActivity
 import com.audiobookshelf.app.R
-import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.data.AudioTrack
 import com.audiobookshelf.app.data.DeviceInfo
 import com.audiobookshelf.app.data.DeviceSettings
@@ -62,8 +63,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.guava.future
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlin.coroutines.resume
 import kotlin.math.max
 
 
@@ -97,6 +96,7 @@ class Media3PlaybackService : MediaLibraryService() {
 
 
   private val playerListener = PlayerEventListener()
+  private val playbackMetrics = PlaybackMetricsRecorder()
 
   // Gate debug logs so release builds stay quiet while preserving useful diagnostics during dev.
   private inline fun debugLog(crossinline message: () -> String) {
@@ -110,33 +110,144 @@ class Media3PlaybackService : MediaLibraryService() {
   private val deviceSettings
     get() = DeviceManager.deviceData.deviceSettings ?: DeviceSettings.default()
 
+  private data class CachedResolvedPlayable(
+    val key: String,
+    val resolved: Media3BrowseTree.ResolvedPlayable,
+    val timestampMs: Long
+  )
+
+  private val resolvedPlayableCache = ArrayDeque<CachedResolvedPlayable>()
+  private fun resolvedPlayableCacheKey(mediaId: String, preferCastUris: Boolean): String {
+    return "$mediaId|cast=$preferCastUris"
+  }
+
+  private fun cleanupResolvedCache(nowMs: Long = System.currentTimeMillis()) {
+    while (resolvedPlayableCache.isNotEmpty()) {
+      val head = resolvedPlayableCache.firstOrNull() ?: break
+      if (nowMs - head.timestampMs > RESOLVED_CACHE_TTL_MS) {
+        resolvedPlayableCache.removeFirst()
+      } else {
+        break
+      }
+    }
+  }
+
+  private fun getCachedResolvedPlayable(
+    mediaId: String,
+    preferCastUris: Boolean
+  ): Media3BrowseTree.ResolvedPlayable? {
+    cleanupResolvedCache()
+    val key = resolvedPlayableCacheKey(mediaId, preferCastUris)
+    val cached = resolvedPlayableCache.firstOrNull { it.key == key } ?: return null
+    return cached.resolved.copy(session = cached.resolved.session.clone())
+  }
+
+  private fun storeResolvedPlayable(
+    mediaId: String,
+    preferCastUris: Boolean,
+    resolvedPlayable: Media3BrowseTree.ResolvedPlayable
+  ) {
+    cleanupResolvedCache()
+    val key = resolvedPlayableCacheKey(mediaId, preferCastUris)
+    resolvedPlayableCache.removeAll { it.key == key }
+    resolvedPlayableCache.addLast(
+      CachedResolvedPlayable(
+        key,
+        resolvedPlayable.copy(session = resolvedPlayable.session.clone()),
+        System.currentTimeMillis()
+      )
+    )
+    while (resolvedPlayableCache.size > RESOLVED_CACHE_LIMIT) {
+      resolvedPlayableCache.removeFirst()
+    }
+  }
+
+  private suspend fun resolvePlayableWithCache(
+    mediaId: String,
+    preferCastUris: Boolean
+  ): Media3BrowseTree.ResolvedPlayable? {
+    getCachedResolvedPlayable(mediaId, preferCastUris)?.let { return it }
+    val resolved = browseTree.resolvePlayableItem(
+      mediaId = mediaId,
+      payload = getPlayItemRequestPayload(forceTranscode = false),
+      preferServerUrisForCast = preferCastUris
+    )
+    if (resolved != null) {
+      storeResolvedPlayable(mediaId, preferCastUris, resolved)
+    }
+    return resolved
+  }
+
+  private fun currentMediaPlayerId(): String {
+    val isCastActive =
+      this::castPlayer.isInitialized &&
+        this::activePlayer.isInitialized &&
+        activePlayer === castPlayer
+    return if (isCastActive) PLAYER_CAST else PLAYER_MEDIA3
+  }
+
+  private fun notifyWidgetState(isClosed: Boolean = false) {
+    val updater = DeviceManager.widgetUpdater ?: return
+    if (isClosed) {
+      updater.onPlayerClosed()
+      return
+    }
+    buildWidgetSnapshot(isClosed)?.let { updater.onPlayerChanged(it) }
+  }
+
+  private fun assignPlaybackSession(session: PlaybackSession) {
+    currentPlaybackSession = session
+    if (this::mediaManager.isInitialized) {
+      mediaManager.updateLatestServerItemFromSession(session)
+    }
+    session.mediaPlayer = currentMediaPlayerId()
+    playbackMetrics.begin(session.mediaPlayer, session.mediaItemId)
+    notifyWidgetState()
+  }
+
   private fun switchPlayer(to: Player) {
     if (activePlayer === to) return
 
-    val oldPlayer = activePlayer
-    val mediaItems = List(oldPlayer.mediaItemCount) { oldPlayer.getMediaItemAt(it) }
-    val startIndex = oldPlayer.currentMediaItemIndex
-    val startPosition = oldPlayer.currentPosition.coerceAtLeast(0)
-    val playWhenReady = oldPlayer.isPlaying
+    val fromPlayer = activePlayer
+    val toPlayer = to
 
-    oldPlayer.stop()
-    oldPlayer.clearMediaItems()
+    val itemCount = fromPlayer.mediaItemCount
+    val startIndex = fromPlayer.currentMediaItemIndex
+    val startPosition = fromPlayer.currentPosition.coerceAtLeast(0)
+    val playWhenReady = fromPlayer.playWhenReady
 
-    activePlayer = to
-    mediaSession?.player = to
-    // Sync mediaPlayer label for UI consumers (cast vs local)
-    currentPlaybackSession?.mediaPlayer =
-      if (this::castPlayer.isInitialized && activePlayer === castPlayer) PLAYER_CAST else PLAYER_MEDIA3
+    activePlayer = toPlayer
+    mediaSession?.player = toPlayer
+    currentPlaybackSession?.mediaPlayer = currentMediaPlayerId()
+    notifyWidgetState()
     updateMediaPlayerExtra()
 
-    if (mediaItems.isNotEmpty()) {
-      activePlayer.setMediaItems(mediaItems, startIndex, startPosition)
-      activePlayer.playWhenReady = playWhenReady
-      activePlayer.prepare()
+    if (itemCount > 0) {
+      toPlayer.setMediaItems(
+        List(itemCount) { fromPlayer.getMediaItemAt(it) },
+        startIndex,
+        startPosition
+      )
+    }
+    toPlayer.playWhenReady = playWhenReady
+    toPlayer.prepare()
+
+    if (fromPlayer !== localPlayer) {
+      fromPlayer.stop()
+      fromPlayer.clearMediaItems()
     }
 
     debugLog {
-      "Switched active player from ${oldPlayer.javaClass.simpleName} to ${to.javaClass.simpleName}"
+      "Switched active player from ${fromPlayer.javaClass.simpleName} to ${toPlayer.javaClass.simpleName}"
+    }
+  }
+
+  private fun pauseLocalPlaybackForCasting() {
+    if (!this::localPlayer.isInitialized) return
+    if (!this::activePlayer.isInitialized) return
+    if (activePlayer !== localPlayer) return
+    if (localPlayer.isPlaying) {
+      localPlayer.pause()
     }
   }
 
@@ -234,6 +345,7 @@ class Media3PlaybackService : MediaLibraryService() {
     initializeLocalPlayer()
     configureNotificationProvider()
     createNotificationChannel()
+    ensureForegroundNotification()
     configureCommandButtons()
 
     val sessionId = "AudiobookshelfMedia3_${System.currentTimeMillis()}"
@@ -309,6 +421,8 @@ class Media3PlaybackService : MediaLibraryService() {
   companion object {
     private const val APP_PREFIX = "com.audiobookshelf.app.player"
     val TAG: String = Media3PlaybackService::class.java.simpleName
+    private const val RESOLVED_CACHE_TTL_MS = 5_000L
+    private const val RESOLVED_CACHE_LIMIT = 6
 
     object Notification {
       const val CHANNEL_ID = "media3_playback_channel"
@@ -342,6 +456,7 @@ class Media3PlaybackService : MediaLibraryService() {
   }
 
   private lateinit var notificationProvider: MediaNotification.Provider
+  private var foregroundStarted = false
   private val cyclePlaybackSpeedCommand =
     SessionCommand(CustomCommands.CYCLE_PLAYBACK_SPEED, Bundle.EMPTY)
   private val setSleepTimerCommand = SessionCommand(SleepTimer.ACTION_SET, Bundle.EMPTY)
@@ -359,16 +474,15 @@ class Media3PlaybackService : MediaLibraryService() {
     val deviceId = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
     return DeviceInfo(
       deviceId,
-      android.os.Build.MANUFACTURER,
-      android.os.Build.MODEL,
-      android.os.Build.VERSION.SDK_INT,
+      Build.MANUFACTURER,
+      Build.MODEL,
+      Build.VERSION.SDK_INT,
       BuildConfig.VERSION_NAME
     )
   }
 
   private fun getPlayItemRequestPayload(forceTranscode: Boolean): PlayItemRequestPayload {
-    val mediaPlayerId =
-      if (this::castPlayer.isInitialized && activePlayer === castPlayer) PLAYER_CAST else PLAYER_MEDIA3
+    val mediaPlayerId = currentMediaPlayerId()
     return PlayItemRequestPayload(
       mediaPlayerId,
       forceDirectPlay = !forceTranscode,
@@ -426,13 +540,14 @@ class Media3PlaybackService : MediaLibraryService() {
       }
 
       coreCastPlayer.setSessionAvailabilityListener(object : SessionAvailabilityListener {
-          override fun onCastSessionAvailable() {
-            serviceScope.launch {
-              playerInitializationSignal.await()
-              debugLog { "Cast session available. Switching to CastPlayer." }
-              switchPlayer(to = castPlayer)
-            }
+        override fun onCastSessionAvailable() {
+          serviceScope.launch {
+            playerInitializationSignal.await()
+            debugLog { "Cast session available. Switching to CastPlayer." }
+            pauseLocalPlaybackForCasting()
+            switchPlayer(to = castPlayer)
           }
+        }
 
           override fun onCastSessionUnavailable() {
             serviceScope.launch {
@@ -481,8 +596,7 @@ class Media3PlaybackService : MediaLibraryService() {
 
   private fun updateMediaPlayerExtra() {
     if (!this::activePlayer.isInitialized) return
-    val mediaPlayerId =
-      if (this::castPlayer.isInitialized && activePlayer === castPlayer) PLAYER_CAST else PLAYER_MEDIA3
+    val mediaPlayerId = currentMediaPlayerId()
     mediaSession?.let { session ->
       val extras = session.sessionExtras
       extras.putString(Extras.MEDIA_PLAYER, mediaPlayerId)
@@ -579,8 +693,13 @@ class Media3PlaybackService : MediaLibraryService() {
 
   override fun onDestroy() {
     super.onDestroy()
+    if (foregroundStarted) {
+      stopForeground(STOP_FOREGROUND_REMOVE)
+      foregroundStarted = false
+    }
     serviceScope.cancel()
     cleanupPlaybackResources()
+    notifyWidgetState(isClosed = true)
     debugLog { "onDestroy: Media3 service destroyed" }
   }
 
@@ -729,11 +848,7 @@ class Media3PlaybackService : MediaLibraryService() {
 
         // Prefer the most recent server-side in-progress item so cross-device playback resumes
         // from the latest position, not just the last local session.
-        val latestServerItem = if (mediaManager.serverItemsInProgress.isNotEmpty()) {
-          mediaManager.serverItemsInProgress.maxByOrNull { it.progressLastUpdate }
-        } else {
-          null
-        }
+        val latestServerItem = mediaManager.latestServerItemInProgress
 
         if (latestServerItem != null) {
           val mediaId = latestServerItem.episode?.id ?: latestServerItem.libraryItemWrapper.id
@@ -744,7 +859,7 @@ class Media3PlaybackService : MediaLibraryService() {
           )
 
           if (resolved != null) {
-            currentPlaybackSession = resolved.session
+            assignPlaybackSession(resolved.session)
             debugLog {
               "onPlaybackResumption: Resolved server in-progress item=${resolved.session.id} " +
                 "startIndex=${resolved.startIndex} startPos=${resolved.startPositionMs}"
@@ -811,6 +926,7 @@ class Media3PlaybackService : MediaLibraryService() {
             "onPlaybackResumption: Resuming at index $startIndex with position ${startPositionMs}ms."
           }
 
+          assignPlaybackSession(lastSession)
           MediaSession.MediaItemsWithStartPosition(
             mediaItems,
             startIndex,
@@ -915,17 +1031,9 @@ class Media3PlaybackService : MediaLibraryService() {
 
         if (isPlayableRequest) {
           debugLog { "onAddMediaItems: passthrough playable request '${requested.mediaId}'" }
-          val candidateId = requested.mediaId.substringBefore('_')
-          if (currentPlaybackSession?.id != candidateId) {
-            mediaManager.getById(candidateId)?.let { libraryItem ->
-              val payload = getPlayItemRequestPayload(forceTranscode = false)
-              val session = suspendCancellableCoroutine<PlaybackSession?> { cont ->
-                mediaManager.play(libraryItem, null, payload) { newSession ->
-                  if (cont.isActive) cont.resume(newSession)
-                }
-              }
-              if (session != null) currentPlaybackSession = session
-            }
+          if (!isPassthroughRequestAllowed(requested.mediaId, controller)) {
+            debugLog { "onAddMediaItems: rejecting passthrough request for id=${requested.mediaId}" }
+            return@future mutableListOf<MediaItem>()
           }
           return@future mediaItems
         }
@@ -934,18 +1042,14 @@ class Media3PlaybackService : MediaLibraryService() {
         val preferServerUrisForCast = this@Media3PlaybackService::castPlayer.isInitialized &&
           activePlayer === castPlayer
 
-        val resolved = browseTree.resolvePlayableItem(
-          mediaId = mediaId,
-          payload = getPlayItemRequestPayload(forceTranscode = false),
-          preferServerUrisForCast = preferServerUrisForCast
-        )
+        val resolved = resolvePlayableWithCache(mediaId, preferServerUrisForCast)
 
         if (resolved == null) {
           debugLog { "onAddMediaItems: unable to resolve mediaId=$mediaId" }
           return@future mutableListOf<MediaItem>()
         }
 
-        currentPlaybackSession = resolved.session
+        assignPlaybackSession(resolved.session)
         debugLog {
           "onAddMediaItems: resolved ${resolved.mediaItems.size} items for session=${resolved.session.id} " +
             "startIndex=${resolved.startIndex} startPos=${resolved.startPositionMs}"
@@ -974,6 +1078,10 @@ class Media3PlaybackService : MediaLibraryService() {
         }
         if (playablePassthrough.isNotEmpty()) {
           debugLog { "onSetMediaItems: passthrough items=${playablePassthrough.size}" }
+          if (playablePassthrough.any { !isPassthroughRequestAllowed(it.mediaId, controller) }) {
+            debugLog { "onSetMediaItems: rejecting passthrough set; ids do not match current session" }
+            return@future MediaSession.MediaItemsWithStartPosition(emptyList(), 0, C.TIME_UNSET)
+          }
           return@future MediaSession.MediaItemsWithStartPosition(
             playablePassthrough,
             startIndex,
@@ -991,18 +1099,14 @@ class Media3PlaybackService : MediaLibraryService() {
         val preferServerUrisForCast = this@Media3PlaybackService::castPlayer.isInitialized &&
           activePlayer === castPlayer
 
-        val resolved = browseTree.resolvePlayableItem(
-          mediaId = mediaId,
-          payload = getPlayItemRequestPayload(forceTranscode = false),
-          preferServerUrisForCast = preferServerUrisForCast
-        )
+        val resolved = resolvePlayableWithCache(mediaId, preferServerUrisForCast)
 
         if (resolved == null) {
           debugLog { "onSetMediaItems: unable to resolve mediaId=$mediaId" }
           return@future MediaSession.MediaItemsWithStartPosition(emptyList(), 0, C.TIME_UNSET)
         }
 
-        currentPlaybackSession = resolved.session
+        assignPlaybackSession(resolved.session)
         debugLog {
           "onSetMediaItems: resolved ${resolved.mediaItems.size} items for session=${resolved.session.id} " +
             "startIndex=${resolved.startIndex} startPos=${resolved.startPositionMs}"
@@ -1086,17 +1190,30 @@ class Media3PlaybackService : MediaLibraryService() {
       debugLog { "AvailableCommandsChanged: ${cmd.joinToString(",")}" }
     }
 
-  override fun onIsPlayingChanged(isPlaying: Boolean) {
+    override fun onIsPlayingChanged(isPlaying: Boolean) {
       debugLog { "onIsPlayingChanged: $isPlaying" }
       mainHandler.removeCallbacksAndMessages(null)
+      if (isPlaying) {
+        val session = currentPlaybackSession
+        if (session != null) {
+          ensureSleepTimerManager().handleMediaPlayEvent(session.id)
+        }
+        if (playerInitialized) {
+          activePlayer.volume = 1f
+        }
+      }
+      notifyWidgetState()
     }
 
     override fun onPlaybackStateChanged(playbackState: Int) {
       debugLog { "onPlaybackStateChanged: $playbackState" }
       when (playbackState) {
-        Player.STATE_READY -> Unit
+        Player.STATE_READY -> playbackMetrics.recordFirstReadyIfUnset()
+        Player.STATE_BUFFERING -> playbackMetrics.recordBuffer()
         Player.STATE_ENDED -> {
           debugLog { "Playback ended" }
+          playbackMetrics.logSummary()
+          notifyWidgetState()
         }
       }
 
@@ -1104,6 +1221,7 @@ class Media3PlaybackService : MediaLibraryService() {
 
     override fun onPlayerError(error: PlaybackException) {
       Log.e(TAG, "Player error: ${error.message}")
+      playbackMetrics.recordError()
     }
 
     override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
@@ -1142,5 +1260,73 @@ class Media3PlaybackService : MediaLibraryService() {
         )
       }
     }
+  }
+
+  private fun isHostController(controller: MediaSession.ControllerInfo?): Boolean {
+    return controller?.packageName == packageName
+  }
+
+  private fun syncSessionFromHostController() {
+    val latest = DeviceManager.getLastPlaybackSession() ?: return
+    val currentId = currentPlaybackSession?.id
+    if (currentId == latest.id) return
+    assignPlaybackSession(latest)
+  }
+
+  private fun isPassthroughRequestAllowed(
+    mediaId: String?,
+    controller: MediaSession.ControllerInfo?
+  ): Boolean {
+    if (mediaId.isNullOrBlank()) return false
+
+    var sessionId = currentPlaybackSession?.id
+    if (sessionId == null && isHostController(controller)) {
+      syncSessionFromHostController()
+      sessionId = currentPlaybackSession?.id
+    }
+
+    if (sessionId == null) return false
+    if (mediaId.startsWith(sessionId)) return true
+
+    if (isHostController(controller)) {
+      debugLog { "Allowing passthrough request from host app despite session mismatch" }
+      syncSessionFromHostController()
+      return true
+    }
+    return false
+  }
+
+  private fun ensureForegroundNotification() {
+    if (foregroundStarted) return
+    val notification =
+      NotificationCompat.Builder(this, Notification.CHANNEL_ID)
+        .setContentTitle(getString(R.string.app_name))
+        .setContentText(getString(R.string.notification_preparing_playback))
+        .setSmallIcon(R.drawable.icon_monochrome)
+        .setOngoing(true)
+        .setOnlyAlertOnce(true)
+        .build()
+    startForeground(Notification.ID, notification)
+    foregroundStarted = true
+  }
+
+  private fun buildWidgetSnapshot(isClosed: Boolean): WidgetPlaybackSnapshot? {
+    val session = currentPlaybackSession ?: return null
+    val isPlaying = this::activePlayer.isInitialized && activePlayer.isPlaying
+    var absolutePosition = session.currentTimeMs
+    if (playerInitialized) {
+      val trackIndex = activePlayer.currentMediaItemIndex
+      val trackOffset = session.getTrackStartOffsetMs(trackIndex)
+      absolutePosition = (activePlayer.currentPosition + trackOffset).coerceAtLeast(0L)
+    }
+    return WidgetPlaybackSnapshot(
+      title = session.displayTitle,
+      author = session.displayAuthor,
+      coverUri = session.getCoverUri(this),
+      positionMs = absolutePosition,
+      durationMs = session.totalDurationMs,
+      isPlaying = isPlaying,
+      isClosed = isClosed
+    )
   }
 }

@@ -1,15 +1,22 @@
 package com.audiobookshelf.app.player
 
 import android.annotation.SuppressLint
-import android.app.*
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
-import android.content.pm.ServiceInfo
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.ImageDecoder
-import android.net.*
-import android.os.*
+import android.os.Binder
+import android.os.Build
+import android.os.Bundle
+import android.os.Handler
+import android.os.IBinder
+import android.os.Looper
 import android.provider.MediaStore
 import android.provider.Settings
 import android.support.v4.media.MediaBrowserCompat
@@ -26,19 +33,40 @@ import androidx.media.MediaBrowserServiceCompat
 import androidx.media.utils.MediaConstants
 import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.R
-import com.audiobookshelf.app.data.*
+import com.audiobookshelf.app.data.AndroidAutoBrowseSeriesSequenceOrderSetting
+import com.audiobookshelf.app.data.BookChapter
 import com.audiobookshelf.app.data.DeviceInfo
+import com.audiobookshelf.app.data.DeviceSettings
+import com.audiobookshelf.app.data.LibraryItem
+import com.audiobookshelf.app.data.LibraryShelfAuthorEntity
+import com.audiobookshelf.app.data.LibraryShelfBookEntity
+import com.audiobookshelf.app.data.LibraryShelfEpisodeEntity
+import com.audiobookshelf.app.data.LibraryShelfPodcastEntity
+import com.audiobookshelf.app.data.LibraryShelfSeriesEntity
+import com.audiobookshelf.app.data.LocalMediaProgress
+import com.audiobookshelf.app.data.MediaItemHistory
+import com.audiobookshelf.app.data.MediaProgressWrapper
+import com.audiobookshelf.app.data.PlayItemRequestPayload
+import com.audiobookshelf.app.data.PlaybackMetadata
+import com.audiobookshelf.app.data.PlaybackSession
+import com.audiobookshelf.app.data.PlayerState
+import com.audiobookshelf.app.data.Podcast
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.managers.DbManager
-import com.audiobookshelf.app.managers.SleepTimerManager
 import com.audiobookshelf.app.managers.SleepTimerHost
+import com.audiobookshelf.app.managers.SleepTimerManager
 import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.media.MediaProgressSyncer
 import com.audiobookshelf.app.media.getUriToAbsIconDrawable
 import com.audiobookshelf.app.media.getUriToDrawable
 import com.audiobookshelf.app.plugins.AbsLogger
 import com.audiobookshelf.app.server.ApiHandler
-import com.google.android.exoplayer2.*
+import com.google.android.exoplayer2.C
+import com.google.android.exoplayer2.DefaultLoadControl
+import com.google.android.exoplayer2.ExoPlayer
+import com.google.android.exoplayer2.LoadControl
+import com.google.android.exoplayer2.MediaItem
+import com.google.android.exoplayer2.Player
 import com.google.android.exoplayer2.audio.AudioAttributes
 import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector
 import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector.CustomActionProvider
@@ -49,11 +77,11 @@ import com.google.android.exoplayer2.source.MediaSource
 import com.google.android.exoplayer2.source.ProgressiveMediaSource
 import com.google.android.exoplayer2.source.hls.HlsMediaSource
 import com.google.android.exoplayer2.ui.PlayerNotificationManager
-import com.google.android.exoplayer2.upstream.*
+import com.google.android.exoplayer2.upstream.DefaultDataSource
+import com.google.android.exoplayer2.upstream.DefaultHttpDataSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import java.util.*
 import kotlinx.coroutines.runBlocking
 
 const val SLEEP_TIMER_WAKE_UP_EXPIRATION = 120000L // 2m
@@ -68,8 +96,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
   companion object {
     var isStarted = false
     var isClosed = false
-    var isUnmeteredNetwork = false
+    val isUnmeteredNetwork: Boolean
+      get() = NetworkMonitor.isUnmeteredNetwork
+
+    @Volatile
     var hasNetworkConnectivity = false // Not 100% reliable has internet
+      internal set
     var isSwitchingPlayer = false // Used when switching between cast player and exoplayer
   }
 
@@ -99,7 +131,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
   override val appContext: Context
     get() = ctx
   override val isUnmeteredNetwork: Boolean
-    get() = Companion.isUnmeteredNetwork
+    get() = NetworkMonitor.isUnmeteredNetwork
   override val context: Context
     get() = ctx
   private lateinit var mediaSessionConnector: MediaSessionConnector
@@ -119,6 +151,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
   lateinit var sleepTimerManager: SleepTimerManager
   lateinit var mediaProgressSyncer: MediaProgressSyncer
   private var externalSleepTimerManager: SleepTimerManager? = null
+  private var networkStateListener: NetworkMonitor.Listener? = null
 
   private var notificationId = 10
   private var channelId = "audiobookshelf_channel"
@@ -154,41 +187,23 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
   private var forceReloadingAndroidAuto: Boolean = false
   private var firstLoadDone: Boolean = false
 
-  // Simple rollout metrics for comparing Exo vs Media3
-  private var playbackStartMonotonicMs: Long = 0L
-  private var firstReadyLatencyMs: Long = -1L
-  private var bufferCount: Int = 0
-  private var playbackErrorCount: Int = 0
+  private val playbackMetrics = PlaybackMetricsRecorder()
 
   // --- Lightweight playback metrics helpers ---
   fun metricsRecordError() {
-    try { playbackErrorCount += 1 } catch (_: Exception) {}
+    playbackMetrics.recordError()
   }
 
   fun metricsRecordBuffer() {
-    try { bufferCount += 1 } catch (_: Exception) {}
+    playbackMetrics.recordBuffer()
   }
 
   fun metricsRecordFirstReadyIfUnset() {
-    try {
-      if (firstReadyLatencyMs < 0 && playbackStartMonotonicMs > 0) {
-        val now = SystemClock.elapsedRealtime()
-        firstReadyLatencyMs = now - playbackStartMonotonicMs
-        AbsLogger.info(
-          "PlaybackMetrics",
-          "startupReadyLatencyMs=${firstReadyLatencyMs} player=${getMediaPlayer()} item=${currentPlaybackSession?.mediaItemId}"
-        )
-      }
-    } catch (_: Exception) {}
+    playbackMetrics.recordFirstReadyIfUnset()
   }
 
   fun metricsLogSummary() {
-    try {
-      AbsLogger.info(
-        "PlaybackMetrics",
-        "summary player=${getMediaPlayer()} item=${currentPlaybackSession?.mediaItemId} buffers=${bufferCount} errors=${playbackErrorCount} startupReadyLatencyMs=${firstReadyLatencyMs}"
-      )
-    } catch (_: Exception) {}
+    playbackMetrics.logSummary()
   }
 
   fun isBrowseTreeInitialized(): Boolean {
@@ -263,18 +278,13 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
 
   // detach player
   override fun onDestroy() {
-    try {
-      val connectivityManager =
-              getSystemService(ConnectivityManager::class.java) as ConnectivityManager
-      connectivityManager.unregisterNetworkCallback(networkCallback)
-    } catch (error: Exception) {
-      Log.e(tag, "Error unregistering network listening callback $error")
-    }
+    networkStateListener?.let { NetworkMonitor.removeListener(it) }
+    networkStateListener = null
 
     Log.d(tag, "onDestroy")
     isStarted = false
     isClosed = true
-    DeviceManager.widgetUpdater?.onPlayerChanged(this)
+    notifyWidgetChanged()
 
     playerNotificationManager.setPlayer(null)
     mPlayer.release()
@@ -306,16 +316,26 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     // Initialize widget
     DeviceManager.initializeWidgetUpdater(ctx)
 
-    // To listen for network change from metered to unmetered
-    val networkRequest =
-            NetworkRequest.Builder()
-                    .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                    .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
-                    .addCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
-                    .build()
-    val connectivityManager =
-            getSystemService(ConnectivityManager::class.java) as ConnectivityManager
-    connectivityManager.registerNetworkCallback(networkRequest, networkCallback)
+    NetworkMonitor.initialize(applicationContext)
+    val listener = NetworkMonitor.Listener { state ->
+      hasNetworkConnectivity = state.hasConnectivity
+      Log.i(
+        tag,
+        "Network state changed. hasNetworkConnectivity=${state.hasConnectivity} | isUnmeteredNetwork=${state.isUnmetered}"
+      )
+      clientEventEmitter?.onNetworkMeteredChanged(state.isUnmetered)
+      if (
+        state.hasConnectivity &&
+        isBrowseTreeInitialized() &&
+        firstLoadDone &&
+        mediaManager.serverLibraries.isEmpty()
+      ) {
+        forceReloadingAndroidAuto = true
+        notifyChildrenChanged("/")
+      }
+    }
+    networkStateListener = listener
+    NetworkMonitor.addListener(listener)
 
     DbManager.initialize(ctx)
 
@@ -570,11 +590,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
 
     isClosed = false
 
-  // Initialize simple metrics for this prepare/playback attempt
-  playbackStartMonotonicMs = SystemClock.elapsedRealtime()
-  firstReadyLatencyMs = -1L
-  bufferCount = 0
-  playbackErrorCount = 0
+    // Initialize simple metrics for this prepare/playback attempt
+    playbackMetrics.begin(getMediaPlayer(), playbackSession.mediaItemId)
 
     val metadata = playbackSession.getMediaMetadataCompat(ctx)
     mediaSession.setMetadata(metadata)
@@ -618,13 +635,16 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     DeviceManager.setLastPlaybackSession(
             playbackSession
     ) // Save playback session to use when app is closed
+    if (this::mediaManager.isInitialized) {
+      mediaManager.updateLatestServerItemFromSession(playbackSession)
+    }
 
     AbsLogger.info("PlayerNotificationService", "preparePlayer: Started playback session for item ${currentPlaybackSession?.mediaItemId}. MediaPlayer ${currentPlaybackSession?.mediaPlayer}")
     // Notify client
     clientEventEmitter?.onPlaybackSession(playbackSession)
 
     // Update widget
-    DeviceManager.widgetUpdater?.onPlayerChanged(this)
+    notifyWidgetChanged()
 
     if (mediaItems.isEmpty()) {
       Log.e(tag, "Invalid playback session no media items to play")
@@ -1009,6 +1029,16 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     return currentPlaybackSession?.clone()
   }
 
+  private fun notifyWidgetChanged(isClosedState: Boolean = isClosed) {
+    val session = getCurrentPlaybackSessionCopy() ?: return
+    val snapshot = session.toWidgetSnapshot(
+      context = this,
+      isPlaying = playerWrapper.isPlaying(),
+      isClosed = isClosedState
+    )
+    DeviceManager.widgetUpdater?.onPlayerChanged(snapshot)
+  }
+
   fun getCurrentBookChapter(): BookChapter? {
     return currentPlaybackSession?.getChapterForTime(this.getCurrentTime())
   }
@@ -1243,12 +1273,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     }
 
     // Metrics: emit a summary when closing playback (if not already logged)
-    try {
-      AbsLogger.info(
-        "PlaybackMetrics",
-        "summary player=${getMediaPlayer()} item=${currentPlaybackSession?.mediaItemId} buffers=${bufferCount} errors=${playbackErrorCount} startupReadyLatencyMs=${firstReadyLatencyMs}"
-      )
-    } catch (_: Exception) {}
+    playbackMetrics.logSummary()
 
     try {
       playerWrapper.stop()
@@ -2280,45 +2305,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
   override fun unregisterSensor() {
     sleepTimerShakeController?.scheduleUnregister()
   }
-
-  private val networkCallback =
-          object : ConnectivityManager.NetworkCallback() {
-            // Network capabilities have changed for the network
-            override fun onCapabilitiesChanged(
-                    network: Network,
-                    networkCapabilities: NetworkCapabilities
-            ) {
-              super.onCapabilitiesChanged(network, networkCapabilities)
-
-                    Companion.isUnmeteredNetwork =
-                      networkCapabilities.hasCapability(
-                              NetworkCapabilities.NET_CAPABILITY_NOT_METERED
-                      )
-              hasNetworkConnectivity =
-                      networkCapabilities.hasCapability(
-                              NetworkCapabilities.NET_CAPABILITY_VALIDATED
-                      ) &&
-                              networkCapabilities.hasCapability(
-                                      NetworkCapabilities.NET_CAPABILITY_INTERNET
-                              )
-              Log.i(
-                      tag,
-                      "Network capabilities changed. hasNetworkConnectivity=$hasNetworkConnectivity | isUnmeteredNetwork=${Companion.isUnmeteredNetwork}"
-              )
-                    clientEventEmitter?.onNetworkMeteredChanged(Companion.isUnmeteredNetwork)
-              if (hasNetworkConnectivity) {
-                // Force android auto loading if libraries are empty.
-                // Lack of network connectivity is most likely reason for libraries being empty
-                if (isBrowseTreeInitialized() &&
-                                firstLoadDone &&
-                                mediaManager.serverLibraries.isEmpty()
-                ) {
-                  forceReloadingAndroidAuto = true
-                  notifyChildrenChanged("/")
-                }
-              }
-            }
-          }
 
   inner class JumpBackwardCustomActionProvider : CustomActionProvider {
     override fun onCustomAction(player: Player, action: String, extras: Bundle?) {
