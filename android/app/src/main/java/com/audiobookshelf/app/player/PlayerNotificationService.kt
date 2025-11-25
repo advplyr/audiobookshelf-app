@@ -758,6 +758,18 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
         }
       }
       playerWrapper.setPlaybackSpeed(playbackRateToUse)
+      playerWrapper.setPlayWhenReady(playWhenReady)
+      // Proactively emit a playing update when playWhenReady is true so the web UI can
+      // flip from spinner to pause immediately, without waiting for the next listener callback.
+      // This mirrors Exo behavior closely and reduces perceived latency.
+      if (playWhenReady) {
+        try {
+          clientEventEmitter?.onPlayingUpdate(true)
+        } catch (e: Exception) {
+          Log.w(tag, "Early onPlayingUpdate emit failed: ${e.message}")
+        }
+      }
+      playerWrapper.setPlaybackSpeed(playbackRateToUse)
 
       playerWrapper.prepare()
   } else if (castPlayer != null) {
@@ -949,12 +961,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
 
     currentPlaybackSession?.let {
       Log.d(tag, "switchToPlayer: Starting new playback session ${it.displayTitle}")
-      if (wasPlaying) { // media is paused when switching players
-        clientEventEmitter?.onPlayingUpdate(false)
-      }
 
-      // TODO: Start a new playback session here instead of using the existing
-      preparePlayer(it, false, null)
+      // Prepare player with restored state, and resume if was playing
+      preparePlayer(it, wasPlaying, null)
+
+      // Force UI resync: Emit current playing state after prepare (casting may not auto-fire)
+      clientEventEmitter?.onPlayingUpdate(isPlayerActive())
     }
   }
 
