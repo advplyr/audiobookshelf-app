@@ -10,15 +10,22 @@ import androidx.appcompat.R
 import androidx.mediarouter.app.MediaRouteChooserDialog
 import androidx.mediarouter.media.MediaRouteSelector
 import androidx.mediarouter.media.MediaRouter
-import com.getcapacitor.PluginCall
-import com.google.android.exoplayer2.ext.cast.SessionAvailabilityListener
-import com.google.android.gms.cast.*
-import com.google.android.gms.cast.framework.*
-import org.json.JSONObject
 import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.CastConstants
+import com.getcapacitor.PluginCall
+import com.google.android.exoplayer2.ext.cast.SessionAvailabilityListener
+import com.google.android.gms.cast.Cast
+import com.google.android.gms.cast.CastDevice
+import com.google.android.gms.cast.CastMediaControlIntent
+import com.google.android.gms.cast.framework.CastContext
+import com.google.android.gms.cast.framework.CastSession
+import com.google.android.gms.cast.framework.CastState
+import com.google.android.gms.cast.framework.CastStateListener
+import com.google.android.gms.cast.framework.SessionManager
+import com.google.android.gms.cast.framework.SessionManagerListener
+import org.json.JSONObject
 
-class CastManager constructor(val mainActivity:Activity) {
+class CastManager(val mainActivity:Activity) {
   private val tag = "CastManager"
 
   private var playerNotificationService:PlayerNotificationService? = null
@@ -27,7 +34,7 @@ class CastManager constructor(val mainActivity:Activity) {
   var onCastSessionUnavailable: (() -> Unit)? = null
 
   private fun switchToPlayer(useCastPlayer:Boolean) {
-    Handler(Looper.getMainLooper()).post() {
+    Handler(Looper.getMainLooper()).post {
       playerNotificationService?.switchToPlayer(useCastPlayer)
     }
   }
@@ -52,7 +59,10 @@ class CastManager constructor(val mainActivity:Activity) {
     }
   }
 
-  fun requestSession(playerNotificationService: PlayerNotificationService, callback: RequestSessionCallback) {
+  fun requestSession(
+    playerNotificationService: PlayerNotificationService?,
+    callback: RequestSessionCallback
+  ) {
     this.playerNotificationService = playerNotificationService
 
     mainActivity.runOnUiThread {
@@ -321,11 +331,11 @@ class CastManager constructor(val mainActivity:Activity) {
     return CastContext.getSharedInstance(mainActivity)
   }
 
-  private fun getSessionManager(): SessionManager? {
+  private fun getSessionManager(): SessionManager {
     return getContext().sessionManager
   }
 
-  private fun getMediaRouter(): MediaRouter? {
+  private fun getMediaRouter(): MediaRouter {
     return MediaRouter.getInstance(mainActivity)
   }
 

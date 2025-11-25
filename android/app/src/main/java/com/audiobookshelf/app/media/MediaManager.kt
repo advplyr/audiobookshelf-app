@@ -61,6 +61,7 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
   private var serverConfigLastPing:Long = 0L
   var serverUserMediaProgress:MutableList<MediaProgress> = mutableListOf()
   var serverItemsInProgress = listOf<ItemInProgress>()
+  var latestServerItemInProgress: ItemInProgress? = null
   var serverLibraries = listOf<Library>()
 
   var userSettingsPlaybackRate:Float? = null
@@ -180,6 +181,7 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
       cachedLibraryPodcasts = hashMapOf()
       isLibraryPodcastsCached = hashMapOf()
       serverItemsInProgress = listOf()
+      latestServerItemInProgress = null
       allLibraryPersonalizationsDone = false
       libraryPersonalizationsDone = 0
       return true
@@ -189,6 +191,7 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
 
   private fun loadItemsInProgressForAllLibraries(cb: (List<ItemInProgress>) -> Unit) {
     if (serverItemsInProgress.isNotEmpty()) {
+      latestServerItemInProgress = serverItemsInProgress.maxByOrNull { it.progressLastUpdate }
       cb(serverItemsInProgress)
     } else {
       apiHandler.getAllItemsInProgress { itemsInProgress ->
@@ -196,9 +199,50 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
           val libraryItem = it.libraryItemWrapper as LibraryItem
           libraryItem.checkHasTracks()
         }
+        latestServerItemInProgress = serverItemsInProgress.maxByOrNull { it.progressLastUpdate }
         cb(serverItemsInProgress)
       }
     }
+  }
+
+  fun updateLatestServerItemFromSession(session: PlaybackSession) {
+    val (wrapper, episode) = resolveWrapperAndEpisode(session) ?: return
+    latestServerItemInProgress = ItemInProgress(
+      libraryItemWrapper = wrapper,
+      episode = episode,
+      progressLastUpdate = System.currentTimeMillis(),
+      isLocal = session.isLocal
+    )
+  }
+
+  private fun resolveWrapperAndEpisode(
+    session: PlaybackSession
+  ): Pair<LibraryItemWrapper, PodcastEpisode?>? {
+    val episodeId = session.episodeId
+    if (!episodeId.isNullOrBlank()) {
+      val resolved = getPodcastWithEpisodeByEpisodeId(episodeId)
+      if (resolved != null) {
+        return resolved.libraryItemWrapper to resolved.episode
+      }
+    }
+    val wrapper = resolveWrapperForSession(session) ?: return null
+    return wrapper to null
+  }
+
+  private fun resolveWrapperForSession(session: PlaybackSession): LibraryItemWrapper? {
+    session.libraryItem?.let { return it }
+    session.localLibraryItem?.let { return it }
+    val candidates = mutableListOf<String>()
+    session.libraryItemId?.let { candidates.add(it) }
+    val localId = session.localLibraryItem?.id
+    if (!localId.isNullOrBlank()) {
+      candidates.add(localId)
+    }
+    for (id in candidates) {
+      val wrapper = getById(id)
+      if (wrapper != null) return wrapper
+    }
+    return null
   }
 
   /**

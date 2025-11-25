@@ -57,6 +57,14 @@ class PlaybackController(private val context: Context) {
   private var activePlaybackSession: PlaybackSession? = null
   private var currentMediaPlayer: String? = null
   private var hasEmittedClose = false
+  private var lastNotifiedIsPlaying: Boolean? = null
+  private var forceNextPlayingStateDispatch = false
+  @Volatile
+  private var cachedPositionMs: Long = 0L
+  @Volatile
+  private var cachedMediaItemIndex: Int = 0
+  @Volatile
+  private var suppressNextSeekEvent = false
 
   private val setSleepTimerCommand = SessionCommand(SleepTimer.ACTION_SET, Bundle.EMPTY)
   private val cancelSleepTimerCommand = SessionCommand(SleepTimer.ACTION_CANCEL, Bundle.EMPTY)
@@ -70,7 +78,12 @@ class PlaybackController(private val context: Context) {
 
   private val progressUpdater = object : Runnable {
     override fun run() {
-      mediaController?.let { emitMetadata(it) }
+      mediaController?.let { controller ->
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+          cachedPositionMs = controller.currentPosition
+        }
+        emitMetadata(controller)
+      }
       if (progressUpdaterScheduled) {
         mainHandler.postDelayed(this, progressUpdateIntervalMs)
       }
@@ -101,15 +114,23 @@ class PlaybackController(private val context: Context) {
       }
       maybeEmitMediaPlayerFromExtras()
       // Mirror legacy service behavior: resync playing state and metadata on any event.
-      listener?.onPlayingUpdate(player.isPlaying)
+      notifyPlayingState(effectiveIsPlaying(player))
+      cachedPositionMs = player.currentPosition
+      cachedMediaItemIndex = player.currentMediaItemIndex
       mediaController?.let { emitMetadata(it) }
     }
 
     override fun onIsPlayingChanged(isPlaying: Boolean) {
       maybeEmitMediaPlayerFromExtras()
-      listener?.onPlayingUpdate(isPlaying)
-      mediaController?.let { emitMetadata(it) }
-      if (isPlaying) {
+      val controller = mediaController
+      val effective = controller?.let { effectiveIsPlaying(it) } ?: isPlaying
+      notifyPlayingState(effective)
+      if (controller != null) {
+        cachedPositionMs = controller.currentPosition
+        cachedMediaItemIndex = controller.currentMediaItemIndex
+        emitMetadata(controller)
+      }
+      if (effective) {
         startProgressUpdates()
       } else {
         stopProgressUpdates()
@@ -119,6 +140,8 @@ class PlaybackController(private val context: Context) {
     override fun onPlaybackStateChanged(playbackState: Int) {
       val controller = mediaController ?: return
       maybeEmitMediaPlayerFromExtras()
+      cachedPositionMs = controller.currentPosition
+      cachedMediaItemIndex = controller.currentMediaItemIndex
       emitMetadata(controller)
       if (playbackState == Player.STATE_ENDED || playbackState == Player.STATE_IDLE) {
         stopProgressUpdates()
@@ -126,6 +149,7 @@ class PlaybackController(private val context: Context) {
       when (playbackState) {
         Player.STATE_ENDED -> listener?.onPlaybackEnded()
       }
+      notifyPlayingState(effectiveIsPlaying(controller))
     }
 
     override fun onPlayerError(error: PlaybackException) {
@@ -141,8 +165,12 @@ class PlaybackController(private val context: Context) {
       newPosition: Player.PositionInfo,
       reason: Int
     ) {
-      if (reason == Player.DISCONTINUITY_REASON_SEEK) {
-        listener?.onSeekCompleted(newPosition.positionMs, newPosition.mediaItemIndex)
+      if (reason == Player.DISCONTINUITY_REASON_SEEK || reason == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT) {
+        if (suppressNextSeekEvent) {
+          suppressNextSeekEvent = false
+        } else {
+          listener?.onSeekCompleted(newPosition.positionMs, newPosition.mediaItemIndex)
+        }
       }
     }
   }
@@ -163,14 +191,36 @@ class PlaybackController(private val context: Context) {
     val fallbackDuration = activePlaybackSession?.let { (it.getTotalDuration() * 1000).toLong() } ?: 0L
     val duration = controller.duration.takeIf { it > 0 } ?: fallbackDuration
     val current = controller.currentPosition
+    cachedPositionMs = current
+    cachedMediaItemIndex = controller.currentMediaItemIndex
     val metadata = PlaybackMetadata(duration / 1000.0, current / 1000.0, controllerPlaybackState(controller))
     listener?.onMetadata(metadata)
+  }
+
+  fun forceNextPlayingStateDispatch() {
+    forceNextPlayingStateDispatch = true
+  }
+
+  private fun notifyPlayingState(isPlaying: Boolean) {
+    val shouldForce = forceNextPlayingStateDispatch
+    if (!shouldForce && lastNotifiedIsPlaying == isPlaying) return
+    lastNotifiedIsPlaying = isPlaying
+    if (shouldForce) {
+      forceNextPlayingStateDispatch = false
+    }
+    listener?.onPlayingUpdate(isPlaying)
+  }
+
+  private fun effectiveIsPlaying(player: Player): Boolean {
+    if (player.isPlaying) return true
+    return player.playWhenReady && player.playbackState == Player.STATE_BUFFERING
   }
 
   private fun executeWithController(onReady: (MediaController) -> Unit) {
     val controller = mediaController
     if (controller != null) {
       onReady(controller)
+      cachedPositionMs = controller.currentPosition
       return
     }
     connect {
@@ -220,6 +270,8 @@ class PlaybackController(private val context: Context) {
     mediaController = null
     controllerFuture = null
     isConnecting.set(false)
+    lastNotifiedIsPlaying = null
+    forceNextPlayingStateDispatch = false
     listener?.onPlaybackClosed()
   }
 
@@ -258,6 +310,7 @@ class PlaybackController(private val context: Context) {
           if (result?.isPlaying == true) {
             startProgressUpdates()
           }
+          result?.let { notifyPlayingState(it.isPlaying) }
           onConnected?.invoke()
         }
       }
@@ -332,6 +385,7 @@ class PlaybackController(private val context: Context) {
       val positionInTrack = (playbackSession.currentTimeMs - trackStartOffsetMs).coerceAtLeast(0L)
 
       controller.setMediaItems(mediaItems, trackIndex, positionInTrack)
+      suppressNextSeekEvent = true
       controller.prepare()
       controller.playWhenReady = playWhenReady
       playbackRate?.let { controller.setPlaybackSpeed(it) }
@@ -346,15 +400,18 @@ class PlaybackController(private val context: Context) {
   }
 
   fun play() {
+    forceNextPlayingStateDispatch = true
     mediaController?.play()
   }
 
   fun pause() {
+    forceNextPlayingStateDispatch = true
     mediaController?.pause()
   }
 
   fun playPause(): Boolean {
     val controller = mediaController ?: return false
+    forceNextPlayingStateDispatch = true
     return when {
       controller.isPlaying -> {
         controller.pause()
@@ -427,7 +484,16 @@ class PlaybackController(private val context: Context) {
     mediaController?.setPlaybackSpeed(speed)
   }
 
-  fun currentPosition(): Long = mediaController?.currentPosition ?: 0L
+  fun currentPosition(): Long {
+    val controller = mediaController
+    return if (controller != null && Looper.myLooper() == Looper.getMainLooper()) {
+      controller.currentPosition.also { cachedPositionMs = it }
+    } else {
+      cachedPositionMs
+    }
+  }
+
+  fun snapshotPosition(): Long = cachedPositionMs
 
   fun bufferedPosition(): Long = mediaController?.bufferedPosition ?: currentPosition()
 
@@ -436,9 +502,20 @@ class PlaybackController(private val context: Context) {
   fun playbackState(): Int = mediaController?.playbackState ?: Player.STATE_IDLE
 
   fun currentMediaItemIndex(): Int {
-    return mediaController?.currentMediaItemIndex
-      ?: activePlaybackSession?.getCurrentTrackIndex()
-      ?: 0
+    val controller = mediaController
+    return if (controller != null && Looper.myLooper() == Looper.getMainLooper()) {
+      controller.currentMediaItemIndex.also { cachedMediaItemIndex = it }
+    } else {
+      cachedMediaItemIndex.takeIf { it >= 0 }
+        ?: activePlaybackSession?.getCurrentTrackIndex()
+        ?: 0
+    }
+  }
+
+  fun snapshotMediaItemIndex(): Int {
+    val cached = cachedMediaItemIndex
+    if (cached >= 0) return cached
+    return activePlaybackSession?.getCurrentTrackIndex() ?: 0
   }
 
   fun duration(): Long {

@@ -15,16 +15,16 @@ import com.audiobookshelf.app.data.ServerConnectionConfig
 import com.audiobookshelf.app.data.ShakeSensitivitySetting
 import com.audiobookshelf.app.data.StreamingUsingCellularSetting
 import com.audiobookshelf.app.managers.DbManager
-import com.audiobookshelf.app.player.PlayerNotificationService
+import com.audiobookshelf.app.player.WidgetPlaybackSnapshot
+import com.audiobookshelf.app.player.toWidgetSnapshot
 import com.audiobookshelf.app.updateAppWidget
 
 /** Interface for widget event handling. */
 interface WidgetEventEmitter {
   /**
-   * Called when the player state changes.
-   * @param pns The PlayerNotificationService instance.
+   * Called when the player state changes, providing the info required to update the widget.
    */
-  fun onPlayerChanged(pns: PlayerNotificationService)
+  fun onPlayerChanged(snapshot: WidgetPlaybackSnapshot)
 
   /** Called when the player is closed. */
   fun onPlayerClosed()
@@ -215,23 +215,17 @@ object DeviceManager {
   fun initializeWidgetUpdater(context: Context) {
     Log.d(tag, "Initializing widget updater")
     widgetUpdater =
-            (object : WidgetEventEmitter {
-              override fun onPlayerChanged(pns: PlayerNotificationService) {
-                val isPlaying = pns.playerWrapper.isPlaying()
-
+      (object : WidgetEventEmitter {
+        override fun onPlayerChanged(snapshot: WidgetPlaybackSnapshot) {
                 val appWidgetManager = AppWidgetManager.getInstance(context)
                 val componentName = ComponentName(context, MediaPlayerWidget::class.java)
                 val ids = appWidgetManager.getAppWidgetIds(componentName)
-                val playbackSession = pns.getCurrentPlaybackSessionCopy()
-
                 for (widgetId in ids) {
                   updateAppWidget(
                           context,
                           appWidgetManager,
                           widgetId,
-                          playbackSession,
-                          isPlaying,
-                          PlayerNotificationService.isClosed
+                    snapshot
                   )
                 }
               }
@@ -240,14 +234,13 @@ object DeviceManager {
                 val appWidgetManager = AppWidgetManager.getInstance(context)
                 val componentName = ComponentName(context, MediaPlayerWidget::class.java)
                 val ids = appWidgetManager.getAppWidgetIds(componentName)
+                val lastSession = deviceData.lastPlaybackSession
                 for (widgetId in ids) {
                   updateAppWidget(
                           context,
                           appWidgetManager,
                           widgetId,
-                          deviceData.lastPlaybackSession,
-                          false,
-                          PlayerNotificationService.isClosed
+                    lastSession?.toWidgetSnapshot(context, isPlaying = false, isClosed = true)
                   )
                 }
               }

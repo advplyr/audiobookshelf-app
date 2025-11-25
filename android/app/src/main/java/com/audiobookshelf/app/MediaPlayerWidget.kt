@@ -13,9 +13,10 @@ import android.util.Log
 import android.view.View
 import android.widget.RemoteViews
 import androidx.media.session.MediaButtonReceiver
-import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.managers.DbManager
+import com.audiobookshelf.app.player.WidgetPlaybackSnapshot
+import com.audiobookshelf.app.player.toWidgetSnapshot
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import com.bumptech.glide.request.target.AppWidgetTarget
@@ -40,8 +41,9 @@ class MediaPlayerWidget : AppWidgetProvider() {
       val componentName = ComponentName(context, MediaPlayerWidget::class.java)
       val ids = appWidgetManager.getAppWidgetIds(componentName)
       Log.d(tag, "Setting initial widget state with last playback session ${it.displayTitle}")
+      val snapshot = it.toWidgetSnapshot(context, isPlaying = false, isClosed = true)
       for (widgetId in ids) {
-        updateAppWidget(context, appWidgetManager, widgetId, it, false, true)
+        updateAppWidget(context, appWidgetManager, widgetId, snapshot)
       }
     }
 
@@ -50,10 +52,18 @@ class MediaPlayerWidget : AppWidgetProvider() {
   }
 }
 
-internal fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int, playbackSession: PlaybackSession?, isPlaying:Boolean, isAppClosed:Boolean) {
+internal fun updateAppWidget(
+  context: Context,
+  appWidgetManager: AppWidgetManager,
+  appWidgetId: Int,
+  snapshot: WidgetPlaybackSnapshot?
+) {
   val tag = "MediaPlayerWidget"
   val views = RemoteViews(context.packageName, R.layout.media_player_widget)
-  Log.i(tag, "updateAppWidget ${playbackSession?.displayTitle ?: "No Title"} isPlaying=$isPlaying isAppClosed=$isAppClosed")
+  val title = snapshot?.title ?: "Unknown"
+  val isPlaying = snapshot?.isPlaying ?: false
+  val isAppClosed = snapshot?.isClosed ?: false
+  Log.i(tag, "updateAppWidget $title isPlaying=$isPlaying isAppClosed=$isAppClosed")
   val wholeWidgetClickI = Intent(context, MainActivity::class.java)
   wholeWidgetClickI.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
   val wholeWidgetClickPI = PendingIntent.getActivity(
@@ -77,17 +87,17 @@ internal fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManage
 
   views.setOnClickPendingIntent(R.id.widgetBackground, wholeWidgetClickPI)
 
-  val imageUri = playbackSession?.getCoverUri(context) ?: Uri.parse("android.resource://${BuildConfig.APPLICATION_ID}/" + R.drawable.icon)
+  val imageUri = snapshot?.coverUri
+    ?: Uri.parse("android.resource://${BuildConfig.APPLICATION_ID}/" + R.drawable.icon)
   val awt: AppWidgetTarget = object : AppWidgetTarget(context.applicationContext, R.id.widgetAlbumArt, views, appWidgetId) {
     override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
       super.onResourceReady(resource, transition)
     }
   }
 
-  val artist = playbackSession?.displayAuthor ?: "Unknown"
+  val artist = snapshot?.author ?: "Unknown"
   views.setTextViewText(R.id.widgetArtistText, artist)
 
-  val title = playbackSession?.displayTitle ?: "Unknown"
   views.setTextViewText(R.id.widgetMediaTitle, title)
 
   val options = RequestOptions().override(300, 300).placeholder(R.drawable.icon).error(R.drawable.icon)
