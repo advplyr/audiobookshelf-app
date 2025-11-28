@@ -46,6 +46,10 @@
           <span class="material-symbols text-2xl leading-none">playlist_add</span>
         </button>
 
+        <button class="mx-1.5" @click.stop="addToQueue">
+          <span class="material-symbols text-2xl leading-none">playlist_play</span>
+        </button>
+
         <!-- Download Section -->
         <div v-if="userCanDownload" class="flex items-center">
           <span v-if="isLocal" class="material-symbols px-2 text-success text-2xl leading-none">audio_file</span>
@@ -71,6 +75,7 @@
 <script>
 import { AbsFileSystem, AbsDownloader } from '@/plugins/capacitor'
 import CellularPermissionHelpers from '@/mixins/cellularPermissionHelpers'
+import QueueMixin from '@/mixins/queueMixin'
 
 export default {
   props: {
@@ -93,7 +98,7 @@ export default {
       processing: false
     }
   },
-  mixins: [CellularPermissionHelpers],
+  mixins: [CellularPermissionHelpers, QueueMixin],
   computed: {
     bookCoverAspectRatio() {
       return this.$store.getters['libraries/getBookCoverAspectRatio']
@@ -188,6 +193,12 @@ export default {
     },
     addToPlaylist() {
       this.$emit('addToPlaylist', this.episode)
+    },
+    addToQueue() {
+      const libraryItem = this.isLocal ? this.localEpisode?.libraryItem : { id: this.libraryItemId }
+      const episode = this.isLocal ? this.localEpisode : this.episode
+
+      this.addItemToQueue(libraryItem, episode)
     },
     async selectFolder() {
       var folderObj = await AbsFileSystem.selectFolder({ mediaType: this.mediaType })
