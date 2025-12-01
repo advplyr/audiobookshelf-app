@@ -102,6 +102,44 @@ For platform-specific details, see:
 - Respect existing code style and conventions
 - Avoid destructive git commands
 
+# GitHub Copilot Code Review Instructions
+
+## Review Philosophy
+
+- Only comment when you have HIGH CONFIDENCE (>80%) that an issue exists
+- Be concise: one sentence per comment when possible
+- Focus on actionable feedback, not observations
+- When reviewing text, only comment on clarity issues if the text is genuinely confusing or could lead to errors. "Could be clearer" is not the same as "is confusing" - stay silent unless HIGH confidence it will cause problems
+
+### Architecture & Patterns
+
+- Code that violates existing patterns in the codebase
+- Code that introduces unnecessary complexity or deviates from established architecture
+- Code that does not follow the project's conventions or best practices
+
+### Code Quality
+
+- Code that is difficult to read or understand
+- Code that is overly complex or convoluted
+- Code that lacks proper error handling or logging
+- Code that does not follow the project's coding standards or style guide
+
+### Performance & Security
+
+- Code that could lead to performance issues (e.g., unnecessary loops, excessive memory usage)
+
+## Response Format
+
+When you identify an issue:
+
+1. **State the problem** (1 sentence)
+2. **Why it matters** (1 sentence, only if not obvious)
+3. **Suggested fix** (code snippet or specific action)
+
+## When to Stay Silent
+
+If you're uncertain whether something is an issue, don't comment. False positives create noise and reduce trust in the review process.
+
 ---
 
 _Last updated: November 24, 2025_

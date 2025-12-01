@@ -180,25 +180,8 @@ class AbsAudioPlayer : Plugin() {
     }
 
     override fun getCurrentTimeSeconds(): Double {
-      val controllerWrapper = playbackController
-      val session = media3ProgressSyncer?.currentPlaybackSession ?: activePlaybackSession
-      if (controllerWrapper == null) {
-        return session?.currentTime ?: 0.0
-      }
-      val basePositionMs = controllerWrapper.snapshotPosition()
-      if (session != null) {
-        val trackIndex = controllerWrapper.snapshotMediaItemIndex()
-        val offsetMs = session.getTrackStartOffsetMs(trackIndex)
-        var absoluteSeconds = (basePositionMs + offsetMs) / 1000.0
-        if (absoluteSeconds <= 0.0 && session.currentTime > 0.0) {
-          val state = controllerWrapper.playbackState()
-          if (state == Player.STATE_IDLE || state == Player.STATE_BUFFERING) {
-            absoluteSeconds = session.currentTime
-          }
-        }
-        return absoluteSeconds
-      }
-      return basePositionMs / 1000.0
+      val session = activePlaybackSession
+      return session?.currentTime ?: 0.0
     }
 
     override fun alertSyncSuccess() {
@@ -236,7 +219,6 @@ class AbsAudioPlayer : Plugin() {
       appEventEmitter.onPlayingUpdate(isPlaying)
       if (BuildConfig.USE_MEDIA3) {
         val session = activePlaybackSession
-        val syncer = media3ProgressSyncer
         if (isPlaying) {
           if (session != null) {
             maybeAutoRewindOnResume(session)
@@ -244,12 +226,6 @@ class AbsAudioPlayer : Plugin() {
           lastPauseTimestampMs = -1L
         } else {
           lastPauseTimestampMs = System.currentTimeMillis()
-        }
-        if (isPlaying && session != null && syncer != null) {
-          mainHandler.post { syncer.play(session) }
-        }
-        if (!isPlaying && syncer != null) {
-          mainHandler.post { syncer.pause { } }
         }
       }
       notifyWidgetStateFromController()
@@ -284,9 +260,6 @@ class AbsAudioPlayer : Plugin() {
 
     override fun onPlaybackEnded() {
       if (BuildConfig.USE_MEDIA3) {
-        media3ProgressSyncer?.let { syncer ->
-          mainHandler.post { syncer.finished { } }
-        }
       } else {
         playerNotificationService.handlePlaybackEnded()
       }
@@ -296,11 +269,6 @@ class AbsAudioPlayer : Plugin() {
     }
 
     override fun onSeekCompleted(positionMs: Long, mediaItemIndex: Int) {
-      if (BuildConfig.USE_MEDIA3) {
-        media3ProgressSyncer?.let { syncer ->
-          mainHandler.post { syncer.seek() }
-        }
-      }
     }
   }
 
@@ -314,20 +282,11 @@ class AbsAudioPlayer : Plugin() {
       Log.e(tag, "initCastManager exception ${e.printStackTrace()}")
     }
 
-    // --- REFACTORED INITIALIZATION LOGIC ---
-
     if (BuildConfig.USE_MEDIA3) {
-      // For Media3 builds, the old PlayerNotificationService is disabled in the manifest.
-      // We must initialize playback components directly instead of waiting for a service
-      // that will never start.
-
       Log.d(tag, "USE_MEDIA3 is true. Initializing components directly in load().")
 
-      // Set the event emitter for MediaEventManager, which is used by Media3PlaybackService.
-      // This ensures events from the service are sent to the UI.
       MediaEventManager.clientEventEmitter = appEventEmitter
 
-      // Initialize the playback controller and progress syncer.
       if (playbackController == null) {
         playbackController = PlaybackController(mainActivity.applicationContext)
       }
@@ -346,27 +305,21 @@ class AbsAudioPlayer : Plugin() {
         ensureUiPlaybackEventSource()
       }
 
-      // Connect the controller to its listener and to the Media3PlaybackService.
       playbackController?.listener = playbackControllerListener
       playbackController?.connect()
 
-      // The Media3 service handles its own notifications, but we still need to manage the sleep timer.
       SleepTimerNotificationCenter.register(sleepTimerNotifier)
 
       Log.d(tag, "Media3 components initialized and PlaybackController connected.")
 
     } else {
-      // This is the original logic for non-Media3 builds. It remains unchanged.
-      // It relies on MainActivity starting the foreground service and then calling our callback.
-
       Log.d(tag, "USE_MEDIA3 is false. Using legacy foregroundServiceReady callback.")
 
       val foregroundServiceReady : () -> Unit = {
         playerNotificationService = mainActivity.foregroundService
         playerNotificationService.clientEventEmitter = appEventEmitter
-        MediaEventManager.clientEventEmitter = appEventEmitter // Set for consistency
+        MediaEventManager.clientEventEmitter = appEventEmitter
 
-        // For legacy builds, the service handles everything.
         playerNotificationService.setExternalPlaybackState(null)
         playerNotificationService.setExternalSleepTimerManager(null)
         SleepTimerNotificationCenter.unregister()
@@ -786,7 +739,15 @@ class AbsAudioPlayer : Plugin() {
   @PluginMethod
   fun closePlayback(call: PluginCall) {
     Handler(Looper.getMainLooper()).post {
-      playerNotificationService.closePlayback()
+      if (BuildConfig.USE_MEDIA3) {
+        playbackController?.closePlayback { success ->
+          if (!success) {
+            Log.w(tag, "closePlayback command returned failure")
+          }
+        }
+      } else {
+        playerNotificationService.closePlayback()
+      }
       call.resolve()
     }
   }
