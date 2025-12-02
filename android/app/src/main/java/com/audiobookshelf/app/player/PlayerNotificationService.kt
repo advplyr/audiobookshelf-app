@@ -138,7 +138,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     get() = ctx
   private lateinit var mediaSessionConnector: MediaSessionConnector
   private lateinit var playerNotificationManager: PlayerNotificationManager
-  // Media3 notification provider manager removed to avoid internal API usage
   lateinit var mediaSession: MediaSessionCompat
   private var remoteVolumeProvider: VolumeProviderCompat? = null
   private lateinit var transportControls: MediaControllerCompat.TransportControls
@@ -370,8 +369,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     mediaSession =
             MediaSessionCompat(this, tag).apply {
               setSessionActivity(sessionActivityPendingIntent)
-              // Only activate legacy session when not using Media3.
-              isActive = !BuildConfig.USE_MEDIA3
+              isActive = true
             }
 
     val mediaController = MediaControllerCompat(ctx, mediaSession.sessionToken)
@@ -379,28 +377,26 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     // This is for Media Browser
     sessionToken = mediaSession.sessionToken
 
-    if (!BuildConfig.USE_MEDIA3) {
-      val builder = PlayerNotificationManager.Builder(ctx, notificationId, channelId)
+    val builder = PlayerNotificationManager.Builder(ctx, notificationId, channelId)
 
-      builder.setMediaDescriptionAdapter(AbMediaDescriptionAdapter(mediaController, this))
-      builder.setNotificationListener(PlayerNotificationListener(this))
+    builder.setMediaDescriptionAdapter(AbMediaDescriptionAdapter(mediaController, this))
+    builder.setNotificationListener(PlayerNotificationListener(this))
 
-      playerNotificationManager = builder.build()
-      playerNotificationManager.setMediaSessionToken(mediaSession.sessionToken)
-      playerNotificationManager.setUsePlayPauseActions(true)
-      playerNotificationManager.setUseNextAction(false)
-      playerNotificationManager.setUsePreviousAction(false)
-      playerNotificationManager.setUseChronometer(false)
-      playerNotificationManager.setUseStopAction(false)
-      playerNotificationManager.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-      playerNotificationManager.setPriority(NotificationCompat.PRIORITY_MAX)
-      playerNotificationManager.setUseFastForwardActionInCompactView(true)
-      playerNotificationManager.setUseRewindActionInCompactView(true)
-      playerNotificationManager.setSmallIcon(R.drawable.icon_monochrome)
+    playerNotificationManager = builder.build()
+    playerNotificationManager.setMediaSessionToken(mediaSession.sessionToken)
+    playerNotificationManager.setUsePlayPauseActions(true)
+    playerNotificationManager.setUseNextAction(false)
+    playerNotificationManager.setUsePreviousAction(false)
+    playerNotificationManager.setUseChronometer(false)
+    playerNotificationManager.setUseStopAction(false)
+    playerNotificationManager.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+    playerNotificationManager.setPriority(NotificationCompat.PRIORITY_MAX)
+    playerNotificationManager.setUseFastForwardActionInCompactView(true)
+    playerNotificationManager.setUseRewindActionInCompactView(true)
+    playerNotificationManager.setSmallIcon(R.drawable.icon_monochrome)
 
-      // Unknown action
-      playerNotificationManager.setBadgeIconType(NotificationCompat.BADGE_ICON_LARGE)
-    }
+    // Unknown action
+    playerNotificationManager.setBadgeIconType(NotificationCompat.BADGE_ICON_LARGE)
 
     transportControls = mediaController.transportControls
 
@@ -479,13 +475,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     initializeMPlayer()
     currentPlayer = mPlayer
 
-    // Call startForeground immediately to prevent ANR only for legacy playback path.
-    // When Media3 migration flag enabled, skip placeholder to avoid duplicate silent notification.
-    if (!BuildConfig.USE_MEDIA3) {
-      startForegroundWithPlaceholder()
-    } else {
-      Log.d(tag, "Skipping placeholder foreground notification (Media3 path)")
-    }
+    // Call startForeground immediately to prevent ANR
+    startForegroundWithPlaceholder()
   }
 
   private fun initializeMPlayer() {
@@ -505,8 +496,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
         .setSeekBackIncrementMs(deviceSettings.jumpBackwardsTimeMs)
         .setSeekForwardIncrementMs(deviceSettings.jumpForwardTimeMs)
         .build()
-    // Only configure audio attributes and noisy handling for legacy Exo path.
-    // When using Media3, the wrapper will own the active player/audio configuration.
     if (!PlayerWrapperFactory.useMedia3()) {
       mPlayer.setHandleAudioBecomingNoisy(true)
       // Note: Don't add listener directly to mPlayer - will be added to wrapper below
@@ -518,18 +507,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
       mPlayer.setAudioAttributes(audioAttributes, true)
     }
 
-  // Note: Do not attach the raw Exo player here. The PlayerWrapper will manage
-  // attaching the correct underlying player instance to the notification and
-  // media session so the service does not need conditional logic.
-
-  // Create wrapper around the existing player instance. The factory will
-  // return a Media3-backed wrapper when the feature flag is enabled, or an
-  // Exo wrapper otherwise. The wrapper is responsible for wiring the
-  // notification and media-session to the correct player instance.
-  playerWrapper = PlayerWrapperFactory.wrapExistingPlayer(this, mPlayer)
-    // Configure wrapper based on player type
+    playerWrapper = PlayerWrapperFactory.wrapExistingPlayer(this, mPlayer)
     if (playerWrapper is Media3Wrapper) {
-      // Media3 path: Set up session callback and seek increments
       val media3Wrapper = playerWrapper as Media3Wrapper
       media3Wrapper.setSeekIncrements(
         deviceSettings.jumpBackwardsTimeMs,
@@ -538,9 +517,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
       Log.d(tag, "Media3 seek increments configured")
 
 
-    // Create the legacy v2 notification manager to cover Cast and local notifications
-    // when running with Media3. The Media3 service owns its own notifications, so we
-    // instantiate v2 here for cast fallback and to provide controls during migration.
     val v2Builder = PlayerNotificationManager.Builder(ctx, notificationId, channelId)
     v2Builder.setMediaDescriptionAdapter(AbMediaDescriptionAdapter(MediaControllerCompat(ctx, mediaSession.sessionToken), this))
     v2Builder.setNotificationListener(PlayerNotificationListener(this))
@@ -548,7 +524,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     playerNotificationManager.setMediaSessionToken(mediaSession.sessionToken)
     playerNotificationManager.setSmallIcon(R.drawable.icon_monochrome)
 
-    // Also set player on v2 manager so local Media3 playback still shows notification controls
     playerNotificationManager.setPlayer(mPlayer)
 
     media3Wrapper.attachNotificationManager(playerNotificationManager)
@@ -556,12 +531,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
 
     Log.d(tag, "Media3 v2 notification manager created for Cast fallback and temp controls")
   } else {
-    // ExoPlayer v2 path: Attach notification managers directly
     playerWrapper.attachNotificationManager(playerNotificationManager)
     playerWrapper.attachMediaSessionConnector(mediaSessionConnector)
   }
 
-  // Add our listener through the wrapper so it works with both ExoPlayer v2 and Media3
   playerWrapper.addListener(PlayerListener(this))
   }
 
@@ -656,10 +629,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     }
 
     if (mPlayer == currentPlayer) {
-      // When Media3 is enabled, playerWrapper contains a different player instance
-      // than mPlayer (which is ExoPlayer v2). We must use the wrapper for all
-      // media operations to ensure we're working with the correct player.
-
       if (playerWrapper is ExoPlayerWrapper) {
         // ExoPlayerWrapper: Use the existing MediaSource-based approach for ExoPlayer v2
         val mediaSource: MediaSource
@@ -716,8 +685,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
           playerWrapper.seekTo(playbackSession.currentTimeMs)
         }
       } else {
-        // Media3Wrapper or other: Use wrapper's setMediaItems which handles
-        // the media setup internally
         AbsLogger.info("PlayerNotificationService", "preparePlayer: Using wrapper.setMediaItems for ${mediaItems.size} items")
 
         val currentTrackIndex = if (mediaItems.size > 1) {

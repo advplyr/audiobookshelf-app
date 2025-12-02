@@ -119,7 +119,6 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
     }
 
     playerNotificationService.clientEventEmitter?.onPlayingUpdate(isPlaying)
-    // Media3 notification is now handled by Media3PlaybackService
   }
 
   override fun onPlaybackStateChanged(state: Int) {
