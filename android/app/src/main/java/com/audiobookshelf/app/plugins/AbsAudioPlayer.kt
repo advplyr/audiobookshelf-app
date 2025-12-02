@@ -180,8 +180,11 @@ class AbsAudioPlayer : Plugin() {
     }
 
     override fun getCurrentTimeSeconds(): Double {
-      val session = activePlaybackSession
-      return session?.currentTime ?: 0.0
+      val session = activePlaybackSession ?: return 0.0
+      val controller = playbackController ?: return session.currentTime
+      val trackIndex = controller.currentMediaItemIndex()
+      val offsetMs = session.getTrackStartOffsetMs(trackIndex)
+      return (controller.currentPosition() + offsetMs) / 1000.0
     }
 
     override fun alertSyncSuccess() {
@@ -222,10 +225,14 @@ class AbsAudioPlayer : Plugin() {
         if (isPlaying) {
           if (session != null) {
             maybeAutoRewindOnResume(session)
+            media3ProgressSyncer?.play(session)
           }
           lastPauseTimestampMs = -1L
         } else {
           lastPauseTimestampMs = System.currentTimeMillis()
+          media3ProgressSyncer?.pause {
+            Log.d(tag, "Media3 progress syncer paused")
+          }
         }
       }
       notifyWidgetStateFromController()
@@ -259,13 +266,16 @@ class AbsAudioPlayer : Plugin() {
     }
 
     override fun onPlaybackEnded() {
+      notifyWidgetStateFromController(isClosed = true)
       if (BuildConfig.USE_MEDIA3) {
+        media3ProgressSyncer?.stop(true) {
+          Log.d(tag, "Media3 progress syncer stopped after playback ended")
+        }
       } else {
         playerNotificationService.handlePlaybackEnded()
       }
       activePlaybackSession = null
       appEventEmitter.onPlaybackClosed()
-      notifyWidgetStateFromController(isClosed = true)
     }
 
     override fun onSeekCompleted(positionMs: Long, mediaItemIndex: Int) {
@@ -861,6 +871,9 @@ class AbsAudioPlayer : Plugin() {
     super.handleOnDestroy()
     if (BuildConfig.USE_MEDIA3) {
       try {
+        media3ProgressSyncer?.stop(false) {
+          Log.d(tag, "Media3 progress syncer stopped on destroy")
+        }
         playbackController?.stopAndDisconnect()
       } catch (_: Exception) {
       }
