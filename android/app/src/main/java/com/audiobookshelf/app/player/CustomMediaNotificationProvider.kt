@@ -12,6 +12,8 @@ import androidx.media3.session.MediaNotification
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
 import com.audiobookshelf.app.R
+import com.audiobookshelf.app.data.DeviceSettings
+import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.player.Media3PlaybackService.Companion.CustomCommands
 import com.google.common.collect.ImmutableList
 import java.text.DecimalFormat
@@ -33,6 +35,9 @@ class CustomMediaNotificationProvider(
 
   private val appContext = context.applicationContext
 
+  private val deviceSettings
+    get() = DeviceManager.deviceData.deviceSettings ?: DeviceSettings.default()
+
   private val defaultIcon = R.drawable.icon_monochrome
 
   init {
@@ -45,7 +50,6 @@ class CustomMediaNotificationProvider(
     builder: NotificationCompat.Builder,
     actionFactory: MediaNotification.ActionFactory
   ): IntArray {
-    // Log incoming mediaButtons for debugging which commands the provider received
     val btnSummary = mediaButtons.joinToString(", ") { btn ->
       val kind = if (btn.sessionCommand != null) "session" else "player"
       val cmd = when (btn.playerCommand) {
@@ -61,17 +65,18 @@ class CustomMediaNotificationProvider(
     android.util.Log.d("Media3Notif", "addNotificationActions mediaButtons=[$btnSummary]")
 
     val playPause = mediaButtons.firstOrNull { it.playerCommand == Player.COMMAND_PLAY_PAUSE }
-    // Always create explicit SEEK_BACK/SEEK_FORWARD actions to avoid surfaces substituting prev/next
+    val backLabel = "Back ${deviceSettings.jumpBackwardsTimeMs / 1000}s"
+    val forwardLabel = "Forward ${deviceSettings.jumpForwardTimeMs / 1000}s"
     val backAction = actionFactory.createMediaAction(
       mediaSession,
       IconCompat.createWithResource(appContext, R.drawable.exo_icon_rewind),
-      "Back 10s",
+      backLabel,
       Player.COMMAND_SEEK_BACK
     )
     val forwardAction = actionFactory.createMediaAction(
       mediaSession,
       IconCompat.createWithResource(appContext, R.drawable.exo_icon_fastforward),
-      "Forward 30s",
+      forwardLabel,
       Player.COMMAND_SEEK_FORWARD
     )
 
@@ -141,7 +146,7 @@ class CustomMediaNotificationProvider(
     val customButtons = mutableListOf<CommandButton>()
 
     val rewindCommand = CommandButton.Builder(CommandButton.ICON_SKIP_BACK_10)
-      .setDisplayName("Back 10s")
+      .setDisplayName("Back ${deviceSettings.jumpBackwardsTimeMs / 1000}s")
       .setSessionCommand(
         SessionCommand(
           CustomCommands.SEEK_BACK_INCREMENT,
@@ -151,8 +156,8 @@ class CustomMediaNotificationProvider(
       .setCustomIconResId(R.drawable.exo_icon_rewind)
       .build()
 
-    val forwardCommand = CommandButton.Builder(CommandButton.ICON_SKIP_FORWARD_30)
-      .setDisplayName("Forward 30s")
+    val forwardCommand = CommandButton.Builder(CommandButton.ICON_SKIP_FORWARD_10)
+      .setDisplayName("Forward ${deviceSettings.jumpForwardTimeMs / 1000}s")
       .setSessionCommand(
         SessionCommand(
           CustomCommands.SEEK_FORWARD_INCREMENT,

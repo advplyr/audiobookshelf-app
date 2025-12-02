@@ -11,6 +11,7 @@ import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.ImageDecoder
+import android.media.AudioManager
 import android.os.Binder
 import android.os.Build
 import android.os.Bundle
@@ -24,14 +25,13 @@ import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaControllerCompat
 import android.support.v4.media.session.MediaSessionCompat
-import androidx.media.VolumeProviderCompat
-import android.media.AudioManager
 import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.media.MediaBrowserServiceCompat
+import androidx.media.VolumeProviderCompat
 import androidx.media.utils.MediaConstants
 import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.R
@@ -527,7 +527,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
   // Exo wrapper otherwise. The wrapper is responsible for wiring the
   // notification and media-session to the correct player instance.
   playerWrapper = PlayerWrapperFactory.wrapExistingPlayer(this, mPlayer)
-
     // Configure wrapper based on player type
     if (playerWrapper is Media3Wrapper) {
       // Media3 path: Set up session callback and seek increments
@@ -960,7 +959,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
 
   private fun setMediaSessionToCastVolume() {
     val currentVol = try { castPlayer?.getDeviceVolume() ?: 0 } catch (e: Exception) { 0 }
-    val provider = object : VolumeProviderCompat(VolumeProviderCompat.VOLUME_CONTROL_ABSOLUTE, 100, currentVol) {
+    val provider = object : VolumeProviderCompat(VOLUME_CONTROL_ABSOLUTE, 100, currentVol) {
       override fun onSetVolumeTo(volume: Int) {
         val clamped = volume.coerceIn(0, 100)
         try {

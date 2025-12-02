@@ -53,6 +53,7 @@ class PlaybackController(private val context: Context) {
 
   private val mainHandler = Handler(Looper.getMainLooper())
   private val isConnecting = AtomicBoolean(false)
+  private val isDisconnecting = AtomicBoolean(false)
   private var controllerFuture: ListenableFuture<MediaController>? = null
   private var mediaController: MediaController? = null
   private var activePlaybackSession: PlaybackSession? = null
@@ -111,7 +112,8 @@ class PlaybackController(private val context: Context) {
     override fun onEvents(player: Player, events: Player.Events) {
       val controller = player as? MediaController
       if (controller != null && !controller.isConnected) {
-        mainHandler.post { handleControllerDisconnected(controller) }
+        // Make disconnect synchronous to avoid races with new connection attempts
+        disconnectControllerSync(controller)
         return
       }
       maybeEmitMediaPlayerFromExtras()
@@ -276,6 +278,35 @@ class PlaybackController(private val context: Context) {
     listener?.onPlaybackClosed()
   }
 
+  private fun disconnectControllerSync(controller: MediaController) {
+    if (!isDisconnecting.compareAndSet(false, true)) return
+    try {
+      runOnMainSync { handleControllerDisconnected(controller) }
+    } finally {
+      isDisconnecting.set(false)
+    }
+  }
+
+  private fun runOnMainSync(block: () -> Unit) {
+    if (Looper.myLooper() == Looper.getMainLooper()) {
+      block()
+      return
+    }
+    val latch = java.util.concurrent.CountDownLatch(1)
+    mainHandler.post {
+      try {
+        block()
+      } finally {
+        latch.countDown()
+      }
+    }
+    try {
+      // Wait briefly; this keeps semantics synchronous without risking deadlock
+      latch.await(2, java.util.concurrent.TimeUnit.SECONDS)
+    } catch (_: InterruptedException) {
+    }
+  }
+
   private fun controllerPlaybackState(controller: MediaController): PlayerState {
     return when (controller.playbackState) {
       Player.STATE_READY -> PlayerState.READY
@@ -288,6 +319,9 @@ class PlaybackController(private val context: Context) {
   fun connect(onConnected: (() -> Unit)? = null) {
     if (mediaController != null) {
       onConnected?.let { mainHandler.post(it) }
+      return
+    }
+    if (isDisconnecting.get()) {
       return
     }
     if (!isConnecting.compareAndSet(false, true)) {
@@ -327,7 +361,7 @@ class PlaybackController(private val context: Context) {
   fun disconnect() {
     stopProgressUpdates()
     controllerFuture?.cancel(true)
-    mediaController?.let { handleControllerDisconnected(it) }
+    mediaController?.let { disconnectControllerSync(it) }
     mediaController = null
     controllerFuture = null
     isConnecting.set(false)

@@ -192,12 +192,12 @@ class MediaProgressSyncer(
       Log.d(tag, "pause: Set last sync time 0 $lastSyncTime (current time < 0)")
       failedSyncs = 0
 
-        currentPlaybackSession?.let { playbackSession ->
-          val source = nextPlaybackEventSource
-          nextPlaybackEventSource = PlaybackEventSource.SYSTEM
-          applyRefreshedTimeToSession(playbackSession)
-          MediaEventManager.pauseEvent(playbackSession, null, source)
-        }
+      currentPlaybackSession?.let { playbackSession ->
+        val source = nextPlaybackEventSource
+        nextPlaybackEventSource = PlaybackEventSource.SYSTEM
+        applyRefreshedTimeToSession(playbackSession)
+        MediaEventManager.pauseEvent(playbackSession, null, source)
+      }
 
       cb()
     }

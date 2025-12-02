@@ -10,8 +10,6 @@ import android.content.IntentFilter
 import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.provider.Settings
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -62,10 +60,14 @@ import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.guava.future
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeout
 import kotlin.math.max
 
 
@@ -88,6 +90,9 @@ class Media3PlaybackService : MediaLibraryService() {
     private const val CHAPTER_RESTART_THRESHOLD_MS = 4_000L
     private const val POSITION_UPDATE_INTERVAL_MS = 1_000L
     private const val SAVE_SYNC_INTERVAL_SECONDS = 15L
+    private const val TASK_REMOVAL_CLOSE_TIMEOUT_MS = 5_000L
+    private const val ERROR_RESET_WINDOW_MS = 30_000L
+    private const val RETRY_BACKOFF_STEP_MS = 1_000L
 
     object Notification {
       const val CHANNEL_ID = "media3_playback_channel"
@@ -130,7 +135,6 @@ class Media3PlaybackService : MediaLibraryService() {
 
   private var currentPlaybackSession: PlaybackSession? = null
   private var sleepTimerShakeController: SleepTimerShakeController? = null
-  private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
 
   private lateinit var seekBackButton: CommandButton
   private lateinit var seekForwardButton: CommandButton
@@ -140,11 +144,21 @@ class Media3PlaybackService : MediaLibraryService() {
   private lateinit var localPlayer: AbsPlayerWrapper
   private lateinit var castPlayer: AbsPlayerWrapper
   private lateinit var activePlayer: Player
+
+  @Volatile
   private var playerInitialized = false
+  private val hasActivePlayer: Boolean
+    get() = playerInitialized && this::activePlayer.isInitialized
   private val playerInitializationSignal = CompletableDeferred<Unit>()
 
+  @Volatile
   private var consecutiveErrorCount = 0
+
+  @Volatile
   private var lastErrorTimeMs = 0L
+  private var errorRetryJob: Job? = null
+  private val playerSwitchMutex = Mutex()
+  private var closePlaybackSignal: CompletableDeferred<Unit>? = null
 
   private val speechAudioAttributes = androidx.media3.common.AudioAttributes.Builder()
     .setUsage(C.USAGE_MEDIA)
@@ -155,10 +169,15 @@ class Media3PlaybackService : MediaLibraryService() {
   private val playerListener = PlayerEventListener()
   private val playbackMetrics = PlaybackMetricsRecorder()
 
+  @Volatile
   private var lastKnownIsPlaying: Boolean = false
+
+  @Volatile
   private var listenedSinceLastSaveSec: Long = 0
+
+  @Volatile
   private var progressSyncInFlight: Boolean = false
-  private var positionUpdateJob: kotlinx.coroutines.Job? = null
+  private var positionUpdateJob: Job? = null
   private fun startPositionUpdates() {
     if (positionUpdateJob != null) return
     positionUpdateJob = serviceScope.launch {
@@ -196,48 +215,55 @@ class Media3PlaybackService : MediaLibraryService() {
   )
 
   private val resolvedPlayableCache = ArrayDeque<CachedResolvedPlayable>()
+  private val resolvedCacheMutex = Mutex()
   private fun resolvedPlayableCacheKey(mediaId: String, preferCastUris: Boolean): String {
     return "$mediaId|cast=$preferCastUris"
   }
 
-  private fun cleanupResolvedCache(nowMs: Long = System.currentTimeMillis()) {
-    while (resolvedPlayableCache.isNotEmpty()) {
-      val head = resolvedPlayableCache.firstOrNull() ?: break
-      if (nowMs - head.timestampMs > RESOLVED_CACHE_TTL_MS) {
-        resolvedPlayableCache.removeFirst()
-      } else {
-        break
+  private suspend fun cleanupResolvedCache(nowMs: Long = System.currentTimeMillis()) {
+    resolvedCacheMutex.withLock {
+      while (resolvedPlayableCache.isNotEmpty()) {
+        val head = resolvedPlayableCache.firstOrNull() ?: break
+        if (nowMs - head.timestampMs > RESOLVED_CACHE_TTL_MS) {
+          resolvedPlayableCache.removeFirst()
+        } else {
+          break
+        }
       }
     }
   }
 
-  private fun getCachedResolvedPlayable(
+  private suspend fun getCachedResolvedPlayable(
     mediaId: String,
     preferCastUris: Boolean
   ): Media3BrowseTree.ResolvedPlayable? {
     cleanupResolvedCache()
     val key = resolvedPlayableCacheKey(mediaId, preferCastUris)
-    val cached = resolvedPlayableCache.firstOrNull { it.key == key } ?: return null
-    return cached.resolved.copy(session = cached.resolved.session.clone())
+    return resolvedCacheMutex.withLock {
+      val cached = resolvedPlayableCache.firstOrNull { it.key == key } ?: return@withLock null
+      cached.resolved.copy(session = cached.resolved.session.clone())
+    }
   }
 
-  private fun storeResolvedPlayable(
+  private suspend fun storeResolvedPlayable(
     mediaId: String,
     preferCastUris: Boolean,
     resolvedPlayable: Media3BrowseTree.ResolvedPlayable
   ) {
     cleanupResolvedCache()
     val key = resolvedPlayableCacheKey(mediaId, preferCastUris)
-    resolvedPlayableCache.removeAll { it.key == key }
-    resolvedPlayableCache.addLast(
-      CachedResolvedPlayable(
-        key,
-        resolvedPlayable.copy(session = resolvedPlayable.session.clone()),
-        System.currentTimeMillis()
+    resolvedCacheMutex.withLock {
+      resolvedPlayableCache.removeAll { it.key == key }
+      resolvedPlayableCache.addLast(
+        CachedResolvedPlayable(
+          key,
+          resolvedPlayable.copy(session = resolvedPlayable.session.clone()),
+          System.currentTimeMillis()
+        )
       )
-    )
-    while (resolvedPlayableCache.size > RESOLVED_CACHE_LIMIT) {
-      resolvedPlayableCache.removeFirst()
+      while (resolvedPlayableCache.size > RESOLVED_CACHE_LIMIT) {
+        resolvedPlayableCache.removeFirst()
+      }
     }
   }
 
@@ -284,40 +310,43 @@ class Media3PlaybackService : MediaLibraryService() {
     notifyWidgetState()
   }
 
-  private fun switchPlayer(to: Player) {
-    if (activePlayer === to) return
+  private suspend fun switchPlayer(to: Player) {
+    playerSwitchMutex.withLock {
+      if (activePlayer === to) return
 
-    val fromPlayer = activePlayer
-    val toPlayer = to
+      val fromPlayer = activePlayer
+      val toPlayer = to
 
-    val itemCount = fromPlayer.mediaItemCount
-    val startIndex = fromPlayer.currentMediaItemIndex
-    val startPosition = fromPlayer.currentPosition.coerceAtLeast(0)
-    val playWhenReady = fromPlayer.playWhenReady
+      // Snapshot state atomically before we change active player
+      val itemCount = fromPlayer.mediaItemCount
+      val startIndex = fromPlayer.currentMediaItemIndex
+      val startPosition = fromPlayer.currentPosition.coerceAtLeast(0)
+      val playWhenReady = fromPlayer.playWhenReady
 
-    activePlayer = toPlayer
-    mediaSession?.player = toPlayer
-    currentPlaybackSession?.mediaPlayer = currentMediaPlayerId()
-    notifyWidgetState()
-    updateMediaPlayerExtra()
+      activePlayer = toPlayer
+      mediaSession?.player = toPlayer
+      currentPlaybackSession?.mediaPlayer = currentMediaPlayerId()
+      notifyWidgetState()
+      updateMediaPlayerExtra()
 
-    if (itemCount > 0) {
-      toPlayer.setMediaItems(
-        List(itemCount) { fromPlayer.getMediaItemAt(it) },
-        startIndex,
-        startPosition
-      )
-    }
-    toPlayer.playWhenReady = playWhenReady
-    toPlayer.prepare()
+      if (itemCount > 0) {
+        toPlayer.setMediaItems(
+          List(itemCount) { fromPlayer.getMediaItemAt(it) },
+          startIndex,
+          startPosition
+        )
+      }
+      toPlayer.playWhenReady = playWhenReady
+      toPlayer.prepare()
 
-    if (fromPlayer !== localPlayer) {
-      fromPlayer.stop()
-      fromPlayer.clearMediaItems()
-    }
+      if (fromPlayer !== localPlayer) {
+        fromPlayer.stop()
+        fromPlayer.clearMediaItems()
+      }
 
-    debugLog {
-      "Switched active player from ${fromPlayer.javaClass.simpleName} to ${toPlayer.javaClass.simpleName}"
+      debugLog {
+        "Switched active player from ${fromPlayer.javaClass.simpleName} to ${toPlayer.javaClass.simpleName}"
+      }
     }
   }
 
@@ -335,11 +364,11 @@ class Media3PlaybackService : MediaLibraryService() {
       get() = this@Media3PlaybackService
 
     override fun currentTimeMs(): Long {
-      return if (playerInitialized) activePlayer.currentPosition else 0L
+      return if (hasActivePlayer) activePlayer.currentPosition else 0L
     }
 
     override fun durationMs(): Long {
-      val playerDuration = if (playerInitialized) activePlayer.duration else C.TIME_UNSET
+      val playerDuration = if (hasActivePlayer) activePlayer.duration else C.TIME_UNSET
       return if (playerDuration != C.TIME_UNSET && playerDuration >= 0) {
         playerDuration
       } else {
@@ -348,27 +377,27 @@ class Media3PlaybackService : MediaLibraryService() {
     }
 
     override fun isPlaying(): Boolean {
-      return if (playerInitialized) activePlayer.isPlaying else false
+      return if (hasActivePlayer) activePlayer.isPlaying else false
     }
 
     override fun playbackSpeed(): Float {
-      return if (playerInitialized) activePlayer.playbackParameters.speed else 1f
+      return if (hasActivePlayer) activePlayer.playbackParameters.speed else 1f
     }
 
     override fun setVolume(volume: Float) {
-      if (playerInitialized) activePlayer.volume = volume.coerceIn(0f, 1f)
+      if (hasActivePlayer) activePlayer.volume = volume.coerceIn(0f, 1f)
     }
 
     override fun pause() {
-      if (playerInitialized) activePlayer.pause()
+      if (hasActivePlayer) activePlayer.pause()
     }
 
     override fun play() {
-      if (playerInitialized) activePlayer.play()
+      if (hasActivePlayer) activePlayer.play()
     }
 
     override fun seekBackward(amountMs: Long) {
-      if (!playerInitialized) return
+      if (!hasActivePlayer) return
       val target = max(activePlayer.currentPosition - amountMs, 0L)
       activePlayer.seekTo(target)
     }
@@ -472,7 +501,7 @@ class Media3PlaybackService : MediaLibraryService() {
   }
 
   private var jumpBackwardMs: Long = 10000L
-  private var jumpForwardMs: Long = 30000L
+  private var jumpForwardMs: Long = 10000L
 
   private fun applyJumpIncrementsFromDeviceSettings() {
     val settings = deviceSettings
@@ -485,7 +514,11 @@ class Media3PlaybackService : MediaLibraryService() {
 
   private val becomingNoisyReceiver = object : BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
-      if (intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY && activePlayer.isPlaying) {
+      if (
+        intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY &&
+        playerInitialized && this@Media3PlaybackService::activePlayer.isInitialized &&
+        activePlayer.isPlaying
+      ) {
         debugLog { "Audio becoming noisy; pausing player" }
         activePlayer.pause()
       }
@@ -493,6 +526,8 @@ class Media3PlaybackService : MediaLibraryService() {
   }
 
   private lateinit var notificationProvider: MediaNotification.Provider
+
+  @Volatile
   private var foregroundStarted = false
   private val cyclePlaybackSpeedCommand =
     SessionCommand(CustomCommands.CYCLE_PLAYBACK_SPEED, Bundle.EMPTY)
@@ -698,8 +733,14 @@ class Media3PlaybackService : MediaLibraryService() {
 
   fun closePlayback() {
     debugLog { "closePlayback: user requested stop" }
+    // Cancel any pending retry attempts
+    errorRetryJob?.cancel()
+    errorRetryJob = null
     val session = currentPlaybackSession
     if (session != null) {
+      // Create/replace a completion signal for callers awaiting cleanup
+      val signal = CompletableDeferred<Unit>()
+      closePlaybackSignal = signal
       stopPositionUpdates()
       if (playerInitialized && activePlayer.isPlaying) {
         activePlayer.pause()
@@ -716,8 +757,13 @@ class Media3PlaybackService : MediaLibraryService() {
           listenedSinceLastSaveSec = 0
           lastKnownIsPlaying = false
           notifyWidgetState(isClosed = true)
+          // Signal completion to any waiter (onTaskRemoved, etc.)
+          signal.complete(Unit)
         }
       }
+    } else {
+      // Nothing to close; ensure any waiter proceeds
+      closePlaybackSignal?.complete(Unit)
     }
   }
 
@@ -798,7 +844,7 @@ class Media3PlaybackService : MediaLibraryService() {
       .setSlots(CommandButton.SLOT_BACK)
       .build()
 
-    seekForwardButton = CommandButton.Builder(CommandButton.ICON_SKIP_FORWARD_30)
+    seekForwardButton = CommandButton.Builder(CommandButton.ICON_SKIP_FORWARD_10)
       .setSessionCommand(seekForwardIncrementCommand)
       .setDisplayName("Forward ${jumpForwardMs / 1000}s")
       .setCustomIconResId(R.drawable.exo_icon_fastforward)
@@ -883,6 +929,8 @@ class Media3PlaybackService : MediaLibraryService() {
       stopForeground(STOP_FOREGROUND_REMOVE)
       foregroundStarted = false
     }
+    errorRetryJob?.cancel()
+    errorRetryJob = null
     stopPositionUpdates()
     serviceScope.cancel()
     cleanupPlaybackResources()
@@ -892,12 +940,22 @@ class Media3PlaybackService : MediaLibraryService() {
 
   override fun onTaskRemoved(rootIntent: Intent?) {
     super.onTaskRemoved(rootIntent)
+    // Request close and await its completion instead of using a fixed delay
     if (currentPlaybackSession != null) {
       closePlayback()
     }
     serviceScope.launch {
-      kotlinx.coroutines.delay(500L)
-      stopSelf()
+      try {
+        // Wait up to a reasonable bound to avoid hanging the task removal
+        val signal = closePlaybackSignal
+        if (signal != null) {
+          withTimeout(TASK_REMOVAL_CLOSE_TIMEOUT_MS) { signal.await() }
+        }
+      } catch (_: Exception) {
+        // Timeout or cancellation; proceed to stop service
+      } finally {
+        stopSelf()
+      }
     }
   }
 
@@ -1384,7 +1442,7 @@ class Media3PlaybackService : MediaLibraryService() {
 
         if (mediaItem == null) {
           debugLog { "onGetItem: browseTree.getItem failed to resolve '$mediaId'" }
-          return@future LibraryResult.ofError(LibraryResult.RESULT_ERROR_BAD_VALUE)
+          return@future LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
         }
 
         LibraryResult.ofItem(mediaItem, null)
@@ -1424,6 +1482,9 @@ class Media3PlaybackService : MediaLibraryService() {
         updateCurrentPosition()
 
         if (isPlaying) {
+          // Cancel any pending error retry when playback resumes
+          errorRetryJob?.cancel()
+          errorRetryJob = null
           consecutiveErrorCount = 0
           MediaEventManager.playEvent(session)
           ensureSleepTimerManager().handleMediaPlayEvent(session.id)
@@ -1481,12 +1542,14 @@ class Media3PlaybackService : MediaLibraryService() {
       if (!isRecoverable) {
         debugLog { "Non-recoverable error: ${error.errorCodeName}" }
         consecutiveErrorCount = 0
+        errorRetryJob?.cancel()
+        errorRetryJob = null
         return
       }
 
       val now = System.currentTimeMillis()
       // Reset counter if errors are spaced out (> 30s)
-      if (now - lastErrorTimeMs > 30_000L) {
+      if (now - lastErrorTimeMs > ERROR_RESET_WINDOW_MS) {
         consecutiveErrorCount = 0
       }
       lastErrorTimeMs = now
@@ -1499,10 +1562,12 @@ class Media3PlaybackService : MediaLibraryService() {
       }
 
       // Exponential backoff: 1s, 2s, 4s
-      val backoffMs = (1000L * (1 shl (consecutiveErrorCount - 1))).coerceAtMost(4000L)
+      val backoffMs =
+        (RETRY_BACKOFF_STEP_MS * (1 shl (consecutiveErrorCount - 1))).coerceAtMost(4 * RETRY_BACKOFF_STEP_MS)
       debugLog { "Recoverable error (attempt $consecutiveErrorCount/$maxRetries), retrying in ${backoffMs}ms" }
 
-      serviceScope.launch {
+      errorRetryJob?.cancel()
+      errorRetryJob = serviceScope.launch {
         kotlinx.coroutines.delay(backoffMs)
         if (playerInitialized && currentPlaybackSession != null) {
           debugLog { "Retrying playback after error..." }
