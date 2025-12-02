@@ -1,4 +1,4 @@
-package com.audiobookshelf.app.player
+package com.audiobookshelf.app.player.wrapper
 
 import android.content.Context
 import com.audiobookshelf.app.BuildConfig

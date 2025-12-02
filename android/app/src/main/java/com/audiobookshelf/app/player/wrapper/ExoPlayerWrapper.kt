@@ -1,14 +1,13 @@
-package com.audiobookshelf.app.player
+package com.audiobookshelf.app.player.wrapper
 
 import android.os.Looper
-
+import com.audiobookshelf.app.player.PlayerEvents
 import com.audiobookshelf.app.player.PlayerMediaItem
-import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.ExoPlayer
+import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.Player
-import com.google.android.exoplayer2.ui.PlayerNotificationManager
 import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector
-import com.audiobookshelf.app.player.CastPlayer
+import com.google.android.exoplayer2.ui.PlayerNotificationManager
 
 /**
  * Lightweight wrapper around ExoPlayer/Player so calling code can depend on PlayerWrapper.

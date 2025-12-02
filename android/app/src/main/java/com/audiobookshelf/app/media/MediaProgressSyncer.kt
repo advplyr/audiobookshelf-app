@@ -7,7 +7,7 @@ import com.audiobookshelf.app.data.LocalMediaProgress
 import com.audiobookshelf.app.data.MediaProgress
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.device.DeviceManager
-import com.audiobookshelf.app.player.PlaybackTelemetryHost
+import com.audiobookshelf.app.player.core.PlaybackTelemetryHost
 import com.audiobookshelf.app.plugins.AbsLogger
 import com.audiobookshelf.app.server.ApiHandler
 import java.util.Timer

@@ -1,9 +1,13 @@
-package com.audiobookshelf.app.player
+package com.audiobookshelf.app.player.media3
 
 import android.content.Context
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import androidx.annotation.OptIn
+import androidx.core.content.FileProvider
+import androidx.core.net.toFile
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.util.Log
@@ -14,24 +18,23 @@ import com.audiobookshelf.app.data.AndroidAutoBrowseSeriesSequenceOrderSetting
 import com.audiobookshelf.app.data.DeviceInfo
 import com.audiobookshelf.app.data.Library
 import com.audiobookshelf.app.data.LibraryItem
+import com.audiobookshelf.app.data.LibraryItemWrapper
 import com.audiobookshelf.app.data.LocalLibraryItem
 import com.audiobookshelf.app.data.PlayItemRequestPayload
 import com.audiobookshelf.app.data.PlaybackSession
+import com.audiobookshelf.app.data.PodcastEpisode
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.media.getUriToAbsIconDrawable
+import com.audiobookshelf.app.player.PLAYER_MEDIA3
+import com.audiobookshelf.app.player.PlayerMediaItem
+import com.audiobookshelf.app.player.toPlayerMediaItems
 import com.google.common.collect.ImmutableList
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlin.coroutines.resume
-import android.provider.Settings
-import android.os.Build
-import com.audiobookshelf.app.data.LibraryItemWrapper
-import com.audiobookshelf.app.data.PodcastEpisode
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
-import androidx.core.content.FileProvider
-import androidx.core.net.toFile
 import java.io.File
+import kotlin.coroutines.resume
 
 /**
  * Handles the creation of a browsable media tree for Media3 clients like Android Auto.

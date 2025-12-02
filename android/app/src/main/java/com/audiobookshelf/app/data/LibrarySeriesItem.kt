@@ -102,7 +102,7 @@ class LibrarySeriesItem(
 
   /**
    * The modern, public override for getMediaItem. It calls the detailed
-   * implementation with a null groupTitle, perfectly mirroring the legacy pattern.
+   * implementation with a null groupTitle, perfectly mirroring the ExoPlayer pattern.
    */
   @JsonIgnore
   override fun getMediaItem(progress: MediaProgressWrapper?, context: Context): MediaItem {

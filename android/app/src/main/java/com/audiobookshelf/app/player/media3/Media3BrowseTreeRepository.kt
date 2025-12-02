@@ -1,4 +1,4 @@
-package com.audiobookshelf.app.player
+package com.audiobookshelf.app.player.media3
 
 import android.content.Context
 import androidx.media3.common.MediaItem
@@ -6,10 +6,9 @@ import com.audiobookshelf.app.data.LibraryAuthorItem
 import com.audiobookshelf.app.data.LibraryCollection
 import com.audiobookshelf.app.data.LibraryItem
 import com.audiobookshelf.app.data.LibrarySeriesItem
-import com.audiobookshelf.app.data.LibraryShelfBookEntity
 import com.audiobookshelf.app.data.LibraryShelfAuthorEntity
+import com.audiobookshelf.app.data.LibraryShelfBookEntity
 import com.audiobookshelf.app.data.LibraryShelfEpisodeEntity
-import com.audiobookshelf.app.data.LibraryShelfType
 import com.audiobookshelf.app.data.LibraryShelfPodcastEntity
 import com.audiobookshelf.app.media.MediaManager
 import kotlinx.coroutines.suspendCancellableCoroutine

@@ -61,6 +61,13 @@ import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.media.MediaProgressSyncer
 import com.audiobookshelf.app.media.getUriToAbsIconDrawable
 import com.audiobookshelf.app.media.getUriToDrawable
+import com.audiobookshelf.app.player.core.NetworkMonitor
+import com.audiobookshelf.app.player.core.PlaybackMetricsRecorder
+import com.audiobookshelf.app.player.core.PlaybackTelemetryHost
+import com.audiobookshelf.app.player.wrapper.ExoPlayerWrapper
+import com.audiobookshelf.app.player.wrapper.Media3Wrapper
+import com.audiobookshelf.app.player.wrapper.PlayerWrapper
+import com.audiobookshelf.app.player.wrapper.PlayerWrapperFactory
 import com.audiobookshelf.app.plugins.AbsLogger
 import com.audiobookshelf.app.server.ApiHandler
 import com.google.android.exoplayer2.C

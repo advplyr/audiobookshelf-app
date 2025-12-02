@@ -24,15 +24,15 @@ import com.audiobookshelf.app.media.MediaEventManager
 import com.audiobookshelf.app.media.MediaProgressSyncer
 import com.audiobookshelf.app.media.PlaybackEventSource
 import com.audiobookshelf.app.player.CastManager
-import com.audiobookshelf.app.player.NetworkMonitor
 import com.audiobookshelf.app.player.PLAYER_EXO
 import com.audiobookshelf.app.player.PLAYER_MEDIA3
-import com.audiobookshelf.app.player.PlaybackController
-import com.audiobookshelf.app.player.PlaybackTelemetryHost
 import com.audiobookshelf.app.player.PlayerListener
 import com.audiobookshelf.app.player.PlayerNotificationService
 import com.audiobookshelf.app.player.SleepTimerNotificationCenter
 import com.audiobookshelf.app.player.SleepTimerUiNotifier
+import com.audiobookshelf.app.player.core.NetworkMonitor
+import com.audiobookshelf.app.player.core.PlaybackTelemetryHost
+import com.audiobookshelf.app.player.media3.PlaybackController
 import com.audiobookshelf.app.player.toWidgetSnapshot
 import com.audiobookshelf.app.server.ApiHandler
 import com.fasterxml.jackson.core.json.JsonReadFeature
@@ -323,7 +323,7 @@ class AbsAudioPlayer : Plugin() {
       Log.d(tag, "Media3 components initialized and PlaybackController connected.")
 
     } else {
-      Log.d(tag, "USE_MEDIA3 is false. Using legacy foregroundServiceReady callback.")
+      Log.d(tag, "USE_MEDIA3 is false. Using ExoPlayer foregroundServiceReady callback.")
 
       val foregroundServiceReady : () -> Unit = {
         playerNotificationService = mainActivity.foregroundService
@@ -892,8 +892,8 @@ class AbsAudioPlayer : Plugin() {
       Log.e(tag, "Cast Manager not initialized")
       return
     }
-    val legacyService = if (BuildConfig.USE_MEDIA3) null else playerNotificationService
-    castManager?.requestSession(legacyService, object : CastManager.RequestSessionCallback() {
+    val exoService = if (BuildConfig.USE_MEDIA3) null else playerNotificationService
+    castManager?.requestSession(exoService, object : CastManager.RequestSessionCallback() {
       override fun onError(errorCode: Int) {
         Log.e(tag, "CAST REQUEST SESSION CALLBACK ERROR $errorCode")
       }

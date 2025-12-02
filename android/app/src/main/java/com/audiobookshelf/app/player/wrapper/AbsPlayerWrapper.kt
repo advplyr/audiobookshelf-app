@@ -1,4 +1,4 @@
-package com.audiobookshelf.app.player
+package com.audiobookshelf.app.player.wrapper
 
 import android.content.Context
 import android.media.AudioManager
@@ -36,21 +36,21 @@ class AbsPlayerWrapper(
   override fun getAvailableCommands(): Player.Commands {
     val builder = super.getAvailableCommands().buildUpon()
       // Always add seek commands
-      .add(Player.COMMAND_SEEK_BACK)
-      .add(Player.COMMAND_SEEK_FORWARD)
+      .add(COMMAND_SEEK_BACK)
+      .add(COMMAND_SEEK_FORWARD)
 
     // Only add track skipping if not mapping skip to seek
     if (!mapSkipToSeek) {
       builder
-        .add(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
-        .add(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
+        .add(COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
+        .add(COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
     }
 
     // Always add device volume commands to bridge to AudioManager
     builder
-      .add(Player.COMMAND_GET_DEVICE_VOLUME)
-      .add(Player.COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS)
-      .add(Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS)
+      .add(COMMAND_GET_DEVICE_VOLUME)
+      .add(COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS)
+      .add(COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS)
 
     return builder.build()
   }

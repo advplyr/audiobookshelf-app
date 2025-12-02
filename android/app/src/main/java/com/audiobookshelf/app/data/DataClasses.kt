@@ -348,7 +348,7 @@ data class PodcastEpisode(
   /**
    * Modern Media3 counterpart to getMediaDescription.
    * It creates a fully-formed, playable MediaItem for an episode, faithfully
-   * replicating all the logic from the legacy method, including the extras bundle.
+   * replicating all the logic from the ExoPlayer method, including the extras bundle.
    *
    * @param libraryItem The parent LibraryItemWrapper for context (title, artwork).
    * @param progress The playback progress for this episode.

@@ -1,11 +1,11 @@
-package com.audiobookshelf.app.player
+package com.audiobookshelf.app.player.core
 
 import android.os.SystemClock
 import com.audiobookshelf.app.plugins.AbsLogger
 
 /**
- * Lightweight helper that mirrors the rollout metrics the legacy player recorded so
- * both the Media3 stack and the old PlayerNotificationService can share the same logic.
+ * Lightweight helper that mirrors the rollout metrics the ExoPlayer player recorded so
+ * both the Media3 stack and the ExoPlayer-based PlayerNotificationService can share the same logic.
  */
 class PlaybackMetricsRecorder(
   private val logTag: String = "PlaybackMetrics"

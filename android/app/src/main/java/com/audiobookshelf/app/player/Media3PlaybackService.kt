@@ -52,6 +52,12 @@ import com.audiobookshelf.app.media.MediaEventManager
 import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.media.MediaProgressSyncData
 import com.audiobookshelf.app.media.SyncResult
+import com.audiobookshelf.app.player.core.PlaybackMetricsRecorder
+import com.audiobookshelf.app.player.media3.CustomMediaNotificationProvider
+import com.audiobookshelf.app.player.media3.Media3AutoLibraryCoordinator
+import com.audiobookshelf.app.player.media3.Media3BrowseTree
+import com.audiobookshelf.app.player.media3.Media3PlaybackSpeedButtonProvider
+import com.audiobookshelf.app.player.wrapper.AbsPlayerWrapper
 import com.audiobookshelf.app.server.ApiHandler
 import com.google.android.gms.cast.framework.CastContext
 import com.google.common.collect.ImmutableList
@@ -74,7 +80,7 @@ import kotlin.math.max
 /**
  * Media3 playback service following MediaLibraryService architecture.
  * Handles local playback, session management, and native Media3 notifications.
- * Cast playback remains in legacy PlayerNotificationService until Phase 4.
+ * Cast playback is handled via Media3 CastPlayer within this service.
  */
 
 // Media3 cast/session/notification APIs are annotated @UnstableApi; opt-in is required here.

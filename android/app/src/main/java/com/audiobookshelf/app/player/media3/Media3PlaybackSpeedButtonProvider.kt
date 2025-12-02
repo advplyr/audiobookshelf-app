@@ -1,4 +1,4 @@
-package com.audiobookshelf.app.player
+package com.audiobookshelf.app.player.media3
 
 import android.os.Bundle
 import androidx.annotation.OptIn

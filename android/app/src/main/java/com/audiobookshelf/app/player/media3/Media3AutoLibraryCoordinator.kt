@@ -1,4 +1,4 @@
-package com.audiobookshelf.app.player
+package com.audiobookshelf.app.player.media3
 
 import android.util.Log
 import androidx.media3.common.MediaItem
@@ -71,7 +71,7 @@ class Media3AutoLibraryCoordinator(
     Log.d(TAG, "loadAutoData() start")
     isAutoDataLoading = true
     mediaManager.loadAndroidAutoItems {
-      // Warm in-progress cache so Continue Listening has data (matches legacy flow).
+      // Warm in-progress cache so Continue Listening has data (matches ExoPlayer flow).
       mediaManager.initializeInProgressItems {
         Log.d(TAG, "loadAutoData() completed, fulfilling ${pendingRequests.size} pending requests")
         isAutoDataLoading = false

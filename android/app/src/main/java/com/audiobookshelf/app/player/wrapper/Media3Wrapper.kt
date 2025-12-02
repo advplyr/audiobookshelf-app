@@ -1,4 +1,4 @@
-package com.audiobookshelf.app.player
+package com.audiobookshelf.app.player.wrapper
 
 import android.app.PendingIntent
 import android.content.Context
@@ -12,6 +12,8 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import com.audiobookshelf.app.data.PlaybackSession
+import com.audiobookshelf.app.player.PlayerEvents
+import com.audiobookshelf.app.player.PlayerMediaItem
 
 /**
  * Media3-backed PlayerWrapper using the androidx.media3 ExoPlayer implementation.

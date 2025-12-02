@@ -1,4 +1,4 @@
-package com.audiobookshelf.app.player
+package com.audiobookshelf.app.player.media3
 
 import android.content.ComponentName
 import android.content.Context
@@ -24,8 +24,10 @@ import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.data.PlaybackMetadata
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.data.PlayerState
+import com.audiobookshelf.app.player.Media3PlaybackService
 import com.audiobookshelf.app.player.Media3PlaybackService.Companion.CustomCommands
 import com.audiobookshelf.app.player.Media3PlaybackService.Companion.SleepTimer
+import com.audiobookshelf.app.player.toPlayerMediaItems
 import com.google.common.util.concurrent.FutureCallback
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
@@ -400,10 +402,9 @@ class PlaybackController(private val context: Context) {
       val mediaItems =
         playbackSession.toPlayerMediaItems(context, preferServerUrisForCast = targetIsCast)
           .map { playerMediaItem ->
-        val mediaId = "${playbackSession.id}_${playerMediaItem.mediaId}"
         MediaItem.Builder()
-          .setUri(playerMediaItem.uri)
-          .setMediaId(mediaId)
+          .setUri(playerMediaItem.uri.toString())
+          .setMediaId("${playbackSession.id}_${playerMediaItem.mediaId}")
           .setMimeType(playerMediaItem.mimeType)
           .setMediaMetadata(
             MediaMetadata.Builder()

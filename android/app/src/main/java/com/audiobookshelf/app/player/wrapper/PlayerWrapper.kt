@@ -1,5 +1,7 @@
-package com.audiobookshelf.app.player
+package com.audiobookshelf.app.player.wrapper
 
+import com.audiobookshelf.app.player.PlayerEvents
+import com.audiobookshelf.app.player.PlayerMediaItem
 
 
 /**

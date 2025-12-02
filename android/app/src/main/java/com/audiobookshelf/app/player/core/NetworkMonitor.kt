@@ -1,4 +1,4 @@
-package com.audiobookshelf.app.player
+package com.audiobookshelf.app.player.core
 
 import android.content.Context
 import android.net.ConnectivityManager
@@ -7,9 +7,8 @@ import android.net.NetworkCapabilities
 import java.util.concurrent.CopyOnWriteArraySet
 
 /**
- * Centralized network state tracker used by both the legacy PlayerNotificationService
- * and the Media3 stack. This lets us retire the legacy service without losing the
- * ability to detect metered/unmetered connectivity.
+ * Centralized network state tracker used by both the ExoPlayer PlayerNotificationService
+ * and the Media3 stack. This shares metered/unmetered connectivity detection across both paths.
  */
 object NetworkMonitor {
   data class State(val hasConnectivity: Boolean, val isUnmetered: Boolean)
