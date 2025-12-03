@@ -145,27 +145,43 @@ class CustomMediaNotificationProvider(
   ): ImmutableList<CommandButton> {
     val customButtons = mutableListOf<CommandButton>()
 
-    val rewindCommand = CommandButton.Builder(CommandButton.ICON_SKIP_BACK_10)
-      .setDisplayName("Back ${deviceSettings.jumpBackwardsTimeMs / 1000}s")
-      .setSessionCommand(
-        SessionCommand(
-          CustomCommands.SEEK_BACK_INCREMENT,
-          Bundle.EMPTY
+    val rewindCommand = if (playerCommands.contains(Player.COMMAND_SEEK_BACK)) {
+      CommandButton.Builder(CommandButton.ICON_SKIP_BACK_10)
+        .setDisplayName("Back ${deviceSettings.jumpBackwardsTimeMs / 1000}s")
+        .setPlayerCommand(Player.COMMAND_SEEK_BACK)
+        .setCustomIconResId(R.drawable.exo_icon_rewind)
+        .build()
+    } else {
+      CommandButton.Builder(CommandButton.ICON_SKIP_BACK_10)
+        .setDisplayName("Back ${deviceSettings.jumpBackwardsTimeMs / 1000}s")
+        .setSessionCommand(
+          SessionCommand(
+            CustomCommands.SEEK_BACK_INCREMENT,
+            Bundle.EMPTY
+          )
         )
-      )
-      .setCustomIconResId(R.drawable.exo_icon_rewind)
-      .build()
+        .setCustomIconResId(R.drawable.exo_icon_rewind)
+        .build()
+    }
 
-    val forwardCommand = CommandButton.Builder(CommandButton.ICON_SKIP_FORWARD_10)
-      .setDisplayName("Forward ${deviceSettings.jumpForwardTimeMs / 1000}s")
-      .setSessionCommand(
-        SessionCommand(
-          CustomCommands.SEEK_FORWARD_INCREMENT,
-          Bundle.EMPTY
+    val forwardCommand = if (playerCommands.contains(Player.COMMAND_SEEK_FORWARD)) {
+      CommandButton.Builder(CommandButton.ICON_SKIP_FORWARD_10)
+        .setDisplayName("Forward ${deviceSettings.jumpForwardTimeMs / 1000}s")
+        .setPlayerCommand(Player.COMMAND_SEEK_FORWARD)
+        .setCustomIconResId(R.drawable.exo_icon_fastforward)
+        .build()
+    } else {
+      CommandButton.Builder(CommandButton.ICON_SKIP_FORWARD_10)
+        .setDisplayName("Forward ${deviceSettings.jumpForwardTimeMs / 1000}s")
+        .setSessionCommand(
+          SessionCommand(
+            CustomCommands.SEEK_FORWARD_INCREMENT,
+            Bundle.EMPTY
+          )
         )
-      )
-      .setCustomIconResId(R.drawable.exo_icon_fastforward)
-      .build()
+        .setCustomIconResId(R.drawable.exo_icon_fastforward)
+        .build()
+    }
 
     val playPauseCommand = mediaButtonPreferences.firstOrNull {
       it.playerCommand == Player.COMMAND_PLAY_PAUSE

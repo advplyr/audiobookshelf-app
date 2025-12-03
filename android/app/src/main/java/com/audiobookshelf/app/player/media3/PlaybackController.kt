@@ -153,6 +153,17 @@ class PlaybackController(private val context: Context) {
       }
       when (playbackState) {
         Player.STATE_ENDED -> listener?.onPlaybackEnded()
+        Player.STATE_BUFFERING -> {
+          TODO()
+        }
+
+        Player.STATE_IDLE -> {
+          TODO()
+        }
+
+        Player.STATE_READY -> {
+          TODO()
+        }
       }
       notifyPlayingState(effectiveIsPlaying(controller))
     }

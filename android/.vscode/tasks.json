@@ -12,6 +12,15 @@
       "isBackground": false,
       "problemMatcher": [],
       "group": "build"
+    },
+    {
+      "label": "Assemble Media3 Debug",
+      "type": "shell",
+      "command": ".\\gradlew.bat",
+      "args": [
+        ":app:assembleMedia3Debug"
+      ],
+      "group": "build"
     }
   ]
 }
