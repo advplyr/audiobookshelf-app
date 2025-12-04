@@ -1,10 +1,10 @@
 <template>
   <div class="w-full relative">
     <div v-if="altViewEnabled" class="px-5 pb-3 pt-4">
-      <p class="font-semibold" :style="{ fontSize: sizeMultiplier + 'rem' }">{{ label }}</p>
+      <p role="heading" aria-level="2" class="font-semibold" :style="{ fontSize: sizeMultiplier + 'rem' }">{{ label }}</p>
     </div>
 
-    <div class="flex items-end px-3 max-w-full overflow-x-auto" :class="altViewEnabled ? '' : 'bookshelfRow'" :style="{ height: shelfHeight + 'px', paddingBottom: entityPaddingBottom + 'px' }">
+    <div role="list" :aria-label="label" class="flex items-end px-3 max-w-full overflow-x-auto" :class="altViewEnabled ? '' : 'bookshelfRow'" :style="{ height: shelfHeight + 'px', paddingBottom: entityPaddingBottom + 'px' }">
       <template v-for="(entity, index) in entities">
         <cards-lazy-book-card v-if="type === 'book' || type === 'podcast'" :key="entity.id" :index="index" :book-mount="entity" :width="bookWidth" :height="entityHeight" :book-cover-aspect-ratio="bookCoverAspectRatio" :is-alt-view-enabled="altViewEnabled" class="mx-2 relative" />
         <cards-lazy-book-card v-if="type === 'episode'" :key="entity.recentEpisode.id" :index="index" :book-mount="entity" :width="bookWidth" :height="entityHeight" :book-cover-aspect-ratio="bookCoverAspectRatio" :is-alt-view-enabled="altViewEnabled" class="mx-2 relative" />

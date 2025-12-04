@@ -1,15 +1,16 @@
 <template>
   <div class="w-full h-16 bg-primary relative z-20">
     <div id="appbar" class="absolute top-0 left-0 w-full h-full flex items-center px-2">
-      <nuxt-link v-show="!showBack" to="/" class="mr-3">
+      <nuxt-link v-show="!showBack" to="/" class="mr-3" :aria-label="$strings.ButtonHome">
         <img src="/Logo.png" class="h-10 w-10" />
       </nuxt-link>
-      <a v-if="showBack" @click="back" aria-label="Back" class="rounded-full h-10 w-10 flex items-center justify-center mr-2 cursor-pointer">
+      <a v-if="showBack" @click="back" :aria-label="$strings.ButtonBack" class="rounded-full h-10 w-10 flex items-center justify-center mr-2 cursor-pointer">
         <span class="material-symbols text-3xl text-fg">arrow_back</span>
       </a>
       <div v-if="user && currentLibrary">
-        <button type="button" aria-label="Show library modal" class="pl-1.5 pr-2.5 py-2 bg-bg bg-opacity-30 rounded-md flex items-center" @click="clickShowLibraryModal">
-          <ui-library-icon :icon="currentLibraryIcon" :size="4" font-size="base" />
+        <!-- Removed hardcoded string. You want the accessibile name of the control to match or contain the visible label --> 
+        <button type="button" aria-haspopup="dialog" class="pl-1.5 pr-2.5 py-2 bg-bg bg-opacity-30 rounded-md flex items-center" @click="clickShowLibraryModal">
+          <ui-library-icon :icon="currentLibraryIcon" :aria-label="$strings.ButtonLibrary" role="img" :size="4" font-size="base" />
           <p class="text-sm leading-4 ml-2 mt-0.5 max-w-24 truncate">{{ currentLibraryName }}</p>
         </button>
       </div>
@@ -21,19 +22,28 @@
       <widgets-download-progress-indicator />
 
       <!-- Must be connected to a server to cast, only supports media items on server -->
-      <button type="button" aria-label="Cast" v-show="isCastAvailable && user" class="mx-2 cursor-pointer flex items-center" @click="castClick">
+      <!-- There are two states here for casting so we want the aria-label to reflect that -->
+      <button type="button" :aria-label="isCasting ? $strings.ButtonCastConnected : $strings.ButtonCast" v-show="isCastAvailable && user" class="mx-2 cursor-pointer flex items-center" @click="castClick">
         <span class="material-symbols text-2xl leading-none">
           {{ isCasting ? 'cast_connected' : 'cast' }}
         </span>
       </button>
 
+      <nuxt-link v-if="user" class="mx-1.5 flex items-center h-10" :aria-label="$strings.ButtonSearch" to="/search">
+        <span class="material-symbols text-2xl leading-none">search</span>
+      </nuxt-link>
+
+      <div class="h-7 mx-1.5">
+        <span class="material-symbols" role="button" aria-haspopup="dialog" :aria-label="$strings.ButtonNavDrawer" tabindex="0" @keyup.enter="clickShowSideDrawer" style="font-size: 1.75rem" @click="clickShowSideDrawer">menu</span>
+      </div>
       <nuxt-link v-if="user" class="mx-1.5 flex items-center h-10" to="/search" aria-label="Search">
         <span class="material-symbols text-2xl leading-none">search</span>
       </nuxt-link>
 
-      <button type="button" aria-label="Toggle side drawer" class="h-7 mx-1.5" @click="clickShowSideDrawer">
+      <button type="button" aria-haspopup="dialog" :aria-label="$strings.ButtonNavDrawer" class="h-7 mx-1.5" @click="clickShowSideDrawer">
         <span class="material-symbols" style="font-size: 1.75rem">menu</span>
       </button>
+
     </div>
   </div>
 </template>
