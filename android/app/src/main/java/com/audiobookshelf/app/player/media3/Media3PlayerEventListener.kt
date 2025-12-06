@@ -117,21 +117,12 @@ class Media3PlayerEventListener(
         api.stopPositionUpdates()
         api.startPositionUpdates()
       } else {
-        val shouldTreatAsPause = player?.playWhenReady != true
-        if (BuildConfig.DEBUG) {
-          api.debug {
-            "pause branch: shouldTreatAsPause=$shouldTreatAsPause playWhenReady=${player?.playWhenReady} state=${player?.playbackState}"
-          }
+        api.debug { "Playback stopped. Syncing progress." }
+        api.stopPositionUpdates()
+        api.currentSession()?.let { session ->
+          api.maybeSyncProgress("pause", true, session, null)
         }
-        if (shouldTreatAsPause) {
-          api.stopPositionUpdates()
-          api.currentSession()?.let { session ->
-            api.maybeSyncProgress("pause", true, session, null)
-          }
-          api.abandonAudioFocus()
-        } else {
-          api.debug { "Ignoring transient pause while playWhenReady is true (likely buffering/track gap)" }
-        }
+        api.abandonAudioFocus()
       }
     }
 

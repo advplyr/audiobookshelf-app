@@ -3,12 +3,8 @@ package com.audiobookshelf.app.player
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
-import android.media.AudioFocusRequest
-import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -61,7 +57,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
 import kotlin.math.max
-import android.media.AudioAttributes as AndroidAudioAttributes
 
 
 /**
@@ -89,6 +84,7 @@ class Media3PlaybackService : MediaLibraryService() {
     }
 
     object CustomCommands {
+      const val PREPARE_PLAYBACK = "$APP_PREFIX.PREPARE_PLAYBACK"
       const val CYCLE_PLAYBACK_SPEED = "$APP_PREFIX.CYCLE_PLAYBACK_SPEED"
       const val SEEK_BACK_INCREMENT = "$APP_PREFIX.SEEK_BACK_INCREMENT"
       const val SEEK_FORWARD_INCREMENT = "$APP_PREFIX.SEEK_FORWARD_INCREMENT"
@@ -114,6 +110,9 @@ class Media3PlaybackService : MediaLibraryService() {
     }
 
     object Extras {
+      const val PLAYBACK_SESSION_JSON = "playback_session_json"
+      const val PLAY_WHEN_READY = "play_when_ready"
+      const val PLAYBACK_RATE = "playback_rate"
       const val DISPLAY_SPEED = "display_speed"
       const val MEDIA_PLAYER = "media_player"
     }
@@ -193,10 +192,7 @@ class Media3PlaybackService : MediaLibraryService() {
   private var sleepTimerEndObserved: Boolean = false
 
   // Audio focus management
-  private val audioManager: AudioManager by lazy { getSystemService(AUDIO_SERVICE) as AudioManager }
-  private var audioFocusRequest: AudioFocusRequest? = null
-  private var isDucked = false
-  private var lastUnduckedVolume: Float = 1f
+  private lateinit var audioFocusManager: AudioFocusManager
 
   // Command definitions
   private val cyclePlaybackSpeedCommand =
@@ -206,50 +202,6 @@ class Media3PlaybackService : MediaLibraryService() {
   private val seekForwardIncrementCommand =
     SessionCommand(CustomCommands.SEEK_FORWARD_INCREMENT, Bundle.EMPTY)
 
-  // Audio focus handling
-  private val becomingNoisyReceiver = object : BroadcastReceiver() {
-    override fun onReceive(context: Context?, intent: Intent?) {
-      if (
-        intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY &&
-        playerInitialized && this@Media3PlaybackService::activePlayer.isInitialized &&
-        activePlayer.isPlaying
-      ) {
-        debugLog { "Audio becoming noisy; pausing player" }
-        activePlayer.pause()
-      }
-    }
-  }
-
-  private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
-    when (focusChange) {
-      AudioManager.AUDIOFOCUS_GAIN -> {
-        if (isDucked && this::activePlayer.isInitialized && activePlayer === localPlayer) {
-          activePlayer.volume = lastUnduckedVolume
-          isDucked = false
-        }
-      }
-
-      AudioManager.AUDIOFOCUS_LOSS,
-      AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
-        if (this::activePlayer.isInitialized && activePlayer.isPlaying) {
-          activePlayer.pause()
-        }
-        abandonAudioFocus()
-      }
-
-      AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-        if (this::activePlayer.isInitialized && activePlayer === localPlayer) {
-          if (!isDucked) {
-            lastUnduckedVolume = activePlayer.volume
-          }
-          activePlayer.volume = 0.2f
-          isDucked = true
-        }
-      }
-
-      else -> Unit
-    }
-  }
 
   // Cache for resolved playable
   private val resolvedCache = com.audiobookshelf.app.player.media3.ResolvedPlayableCache(
@@ -360,6 +312,38 @@ class Media3PlaybackService : MediaLibraryService() {
     debugLog { "onCreate: Initializing Media3 playback service" }
     DbManager.initialize(this)
     DeviceManager.initializeWidgetUpdater(this)
+    audioFocusManager = AudioFocusManager(
+      context = this,
+      tag = TAG,
+      playerController = object : AudioFocusManager.PlayerController {
+        private var lastDuckVolume: Float = 1f
+
+        override fun duck(): Float? {
+          if (!this@Media3PlaybackService::activePlayer.isInitialized || activePlayer !== localPlayer) return null
+          val previous = activePlayer.volume
+          lastDuckVolume = previous
+          activePlayer.volume = 0.2f
+          return previous
+        }
+
+        override fun unduck(previousVolume: Float?) {
+          if (!this@Media3PlaybackService::activePlayer.isInitialized || activePlayer !== localPlayer) return
+          activePlayer.volume = previousVolume ?: lastDuckVolume
+        }
+
+        override fun pause() {
+          if (this@Media3PlaybackService::activePlayer.isInitialized && activePlayer.isPlaying) {
+            activePlayer.pause()
+          }
+        }
+
+        override fun isLocalPlayback(): Boolean {
+          return this@Media3PlaybackService::activePlayer.isInitialized &&
+            this@Media3PlaybackService::localPlayer.isInitialized &&
+            activePlayer === localPlayer
+        }
+      }
+    )
     applyJumpIncrementsFromDeviceSettings()
     setupMediaManagers()
     setupPlaybackPipeline()
@@ -497,7 +481,6 @@ class Media3PlaybackService : MediaLibraryService() {
     ensureForegroundNotification()
 
     initializeCastPlayer()
-    registerBecomingNoisyReceiver()
     ensureSleepTimerManager()
 
     playerInitializationSignal.complete(Unit)
@@ -514,7 +497,6 @@ class Media3PlaybackService : MediaLibraryService() {
   }
 
   private fun cleanupPlaybackResources() {
-    unregisterReceiver(becomingNoisyReceiver)
     mediaSession?.run {
       release()
       mediaSession = null
@@ -658,51 +640,11 @@ class Media3PlaybackService : MediaLibraryService() {
   }
 
   private fun ensureAudioFocus(): Boolean {
-    // Only request focus for local playback
-    if (!this::activePlayer.isInitialized || activePlayer !== localPlayer) return true
-
-    val granted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      if (audioFocusRequest == null) {
-        val aa = AndroidAudioAttributes.Builder()
-          .setUsage(AndroidAudioAttributes.USAGE_MEDIA)
-          .setContentType(AndroidAudioAttributes.CONTENT_TYPE_SPEECH)
-          .build()
-        audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-          .setAudioAttributes(aa)
-          .setAcceptsDelayedFocusGain(false)
-          .setOnAudioFocusChangeListener(audioFocusChangeListener)
-          .build()
-      }
-      audioFocusRequest?.let { audioManager.requestAudioFocus(it) }
-        ?: AudioManager.AUDIOFOCUS_REQUEST_FAILED
-    } else {
-      @Suppress("DEPRECATION")
-      audioManager.requestAudioFocus(
-        audioFocusChangeListener,
-        AudioManager.STREAM_MUSIC,
-        AudioManager.AUDIOFOCUS_GAIN
-      )
-    }
-
-    // Best-effort: do not block playback if focus is denied; log in debug builds.
-    val grantedBool = granted == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
-    if (!grantedBool && BuildConfig.DEBUG) {
-      Log.w(TAG, "Audio focus request was denied; continuing playback best-effort.")
-    }
-    return true
+    return audioFocusManager.requestAudioFocus()
   }
 
   private fun abandonAudioFocus() {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
-    } else {
-      @Suppress("DEPRECATION")
-      audioManager.abandonAudioFocus(audioFocusChangeListener)
-    }
-    if (isDucked && this::activePlayer.isInitialized && activePlayer === localPlayer) {
-      activePlayer.volume = lastUnduckedVolume
-      isDucked = false
-    }
+    audioFocusManager.abandonAudioFocus()
   }
 
   // ========================================
@@ -730,6 +672,10 @@ class Media3PlaybackService : MediaLibraryService() {
     // Only reset metrics for NEW sessions, not player switches
     if (isNewSession) {
       playbackMetrics.begin(session.mediaPlayer, session.mediaItemId)
+    }
+    // Ensure syncer always tracks the latest session immediately (even before play fires)
+    if (this::unifiedProgressSyncer.isInitialized) {
+      unifiedProgressSyncer.play(session)
     }
     notifyWidgetState()
   }
@@ -1286,13 +1232,6 @@ class Media3PlaybackService : MediaLibraryService() {
     }.onFailure { t ->
       debugLog { "Failed to update media button preferences after speed change: ${t.message}" }
     }
-  }
-
-  private fun registerBecomingNoisyReceiver() {
-    registerReceiver(
-      becomingNoisyReceiver,
-      IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY)
-    )
   }
 
   // ========================================

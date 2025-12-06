@@ -18,8 +18,11 @@ import androidx.media3.session.SessionResult
 import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.media.MediaManager
+import com.audiobookshelf.app.player.Media3PlaybackService.Companion.CustomCommands
+import com.audiobookshelf.app.player.Media3PlaybackService.Companion.Extras
 import com.audiobookshelf.app.player.toPlayerMediaItems
 import com.audiobookshelf.app.player.wrapper.AbsPlayerWrapper
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
@@ -63,6 +66,8 @@ class Media3SessionCallback(
   private val debug: ((() -> String) -> Unit),
   private val sessionController: SessionController? = null
 ) : MediaLibraryService.MediaLibrarySession.Callback {
+
+  private val jacksonMapper by lazy { jacksonObjectMapper() }
 
   override fun onPlayerInteractionFinished(
     session: MediaSession,
@@ -138,51 +143,52 @@ class Media3SessionCallback(
       val base = sessionController?.availableSessionCommands
         ?: MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
       val builder = base.buildUpon()
+      builder.add(SessionCommand(CustomCommands.PREPARE_PLAYBACK, Bundle.EMPTY))
       builder.add(
         SessionCommand(
-          com.audiobookshelf.app.player.Media3PlaybackService.Companion.CustomCommands.CYCLE_PLAYBACK_SPEED,
+          CustomCommands.CYCLE_PLAYBACK_SPEED,
           Bundle.EMPTY
         )
       )
       builder.add(
         SessionCommand(
-          com.audiobookshelf.app.player.Media3PlaybackService.Companion.CustomCommands.SEEK_BACK_INCREMENT,
+          CustomCommands.SEEK_BACK_INCREMENT,
           Bundle.EMPTY
         )
       )
       builder.add(
         SessionCommand(
-          com.audiobookshelf.app.player.Media3PlaybackService.Companion.CustomCommands.SEEK_FORWARD_INCREMENT,
+          CustomCommands.SEEK_FORWARD_INCREMENT,
           Bundle.EMPTY
         )
       )
       builder.add(
         SessionCommand(
-          com.audiobookshelf.app.player.Media3PlaybackService.Companion.CustomCommands.SEEK_TO_PREVIOUS_CHAPTER,
+          CustomCommands.SEEK_TO_PREVIOUS_CHAPTER,
           Bundle.EMPTY
         )
       )
       builder.add(
         SessionCommand(
-          com.audiobookshelf.app.player.Media3PlaybackService.Companion.CustomCommands.SEEK_TO_NEXT_CHAPTER,
+          CustomCommands.SEEK_TO_NEXT_CHAPTER,
           Bundle.EMPTY
         )
       )
       builder.add(
         SessionCommand(
-          com.audiobookshelf.app.player.Media3PlaybackService.Companion.CustomCommands.SEEK_TO_CHAPTER,
+          CustomCommands.SEEK_TO_CHAPTER,
           Bundle.EMPTY
         )
       )
       builder.add(
         SessionCommand(
-          com.audiobookshelf.app.player.Media3PlaybackService.Companion.CustomCommands.SYNC_PROGRESS_FORCE,
+          CustomCommands.SYNC_PROGRESS_FORCE,
           Bundle.EMPTY
         )
       )
       builder.add(
         SessionCommand(
-          com.audiobookshelf.app.player.Media3PlaybackService.Companion.CustomCommands.MARK_UI_PLAYBACK_EVENT,
+          CustomCommands.MARK_UI_PLAYBACK_EVENT,
           Bundle.EMPTY
         )
       )
@@ -321,24 +327,76 @@ class Media3SessionCallback(
     customCommand: SessionCommand,
     args: Bundle
   ): ListenableFuture<SessionResult> {
-    if (customCommand.customAction ==
-      com.audiobookshelf.app.player.Media3PlaybackService.Companion.CustomCommands.CLOSE_PLAYBACK
-    ) {
-      val future = SettableFuture.create<SessionResult>()
-      sessionController?.closePlayback {
-        future.set(SessionResult(SessionResult.RESULT_SUCCESS))
-      } ?: future.set(SessionResult(SessionError.ERROR_UNKNOWN))
-      return future
+    when (customCommand.customAction) {
+      CustomCommands.PREPARE_PLAYBACK -> {
+        return scope.future {
+          awaitFinalSync()
+          val sessionJson = args.getString(Extras.PLAYBACK_SESSION_JSON)
+          val playWhenReady = args.getBoolean(Extras.PLAY_WHEN_READY, true)
+          val playbackRate = args.getFloat(Extras.PLAYBACK_RATE, 1.0f)
+
+          if (sessionJson.isNullOrEmpty()) {
+            return@future SessionResult(SessionError.ERROR_BAD_VALUE, Bundle.EMPTY)
+          }
+
+          val playbackSession = try {
+            jacksonMapper.readValue(sessionJson, PlaybackSession::class.java)
+          } catch (e: Exception) {
+            Log.e(logTag, "Failed to deserialize PlaybackSession from custom command", e)
+            return@future SessionResult(SessionError.ERROR_BAD_VALUE, Bundle.EMPTY)
+          }
+
+          browseApi.assignSession(playbackSession)
+          val playerMediaItems = playbackSession.toPlayerMediaItems(appContext, isCastActive())
+          val mediaItems = playerMediaItems.map { playerMediaItem ->
+            MediaItem.Builder()
+              .setUri(playerMediaItem.uri.toString())
+              .setMediaId(playerMediaItem.mediaId)
+              .setMimeType(playerMediaItem.mimeType)
+              .setMediaMetadata(
+                MediaMetadata.Builder()
+                  .setTitle(playbackSession.displayTitle)
+                  .setArtist(playbackSession.displayAuthor)
+                  .setAlbumArtist(playbackSession.displayAuthor)
+                  .setArtworkUri(playerMediaItem.artworkUri)
+                  .build()
+              )
+              .build()
+          }
+          val player = playerProvider()
+          val trackIndex = playbackSession.getCurrentTrackIndex().coerceIn(0, mediaItems.lastIndex)
+          val trackStartOffsetMs = playbackSession.getTrackStartOffsetMs(trackIndex)
+          val positionInTrack =
+            (playbackSession.currentTimeMs - trackStartOffsetMs).coerceAtLeast(0L)
+
+          player.setMediaItems(mediaItems, trackIndex, positionInTrack)
+          player.prepare()
+          player.playWhenReady = playWhenReady
+          player.setPlaybackSpeed(playbackRate)
+
+          SessionResult(SessionResult.RESULT_SUCCESS)
+        }
+      }
+
+      CustomCommands.CLOSE_PLAYBACK -> {
+        val future = SettableFuture.create<SessionResult>()
+        sessionController?.closePlayback {
+          future.set(SessionResult(SessionResult.RESULT_SUCCESS))
+        } ?: future.set(SessionResult(SessionError.ERROR_UNKNOWN))
+        return future
+      }
+
+      CustomCommands.MARK_UI_PLAYBACK_EVENT -> {
+        markNextPlaybackEventSourceUi?.invoke()
+        return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+      }
+
+      else -> {
+        val result = sessionController?.onCustomCommand(customCommand, args)
+          ?: SessionResult(SessionResult.RESULT_SUCCESS)
+        return Futures.immediateFuture(result)
+      }
     }
-    if (customCommand.customAction ==
-      com.audiobookshelf.app.player.Media3PlaybackService.Companion.CustomCommands.MARK_UI_PLAYBACK_EVENT
-    ) {
-      markNextPlaybackEventSourceUi?.invoke()
-      return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
-    }
-    val result = sessionController?.onCustomCommand(customCommand, args)
-      ?: SessionResult(SessionResult.RESULT_SUCCESS)
-    return Futures.immediateFuture(result)
   }
 
 

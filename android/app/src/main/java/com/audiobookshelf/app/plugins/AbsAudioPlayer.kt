@@ -6,7 +6,6 @@ import android.os.Looper
 import android.provider.Settings
 import android.util.Log
 import androidx.annotation.OptIn
-import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.MainActivity
@@ -62,34 +61,6 @@ class AbsAudioPlayer : Plugin() {
   private var activePlaybackSession: PlaybackSession? = null
   private var lastKnownMediaPlayer: String? = null
   private var lastPauseTimestampMs: Long = 0L
-
-  private val playbackStateBridge = object : PlayerNotificationService.PlaybackStateBridge {
-    override fun currentPositionMs(): Long {
-      return playbackController?.currentPosition() ?: 0L
-    }
-
-    override fun bufferedPositionMs(): Long {
-      return playbackController?.bufferedPosition() ?: currentPositionMs()
-    }
-
-    override fun durationMs(): Long {
-      return playbackController?.duration() ?: (activePlaybackSession?.totalDurationMs ?: 0L)
-    }
-
-    override fun isPlaying(): Boolean {
-      return playbackController?.isPlaying() ?: false
-    }
-
-    override fun playbackState(): Int {
-      return playbackController?.playbackState() ?: Player.STATE_IDLE
-    }
-
-    override fun currentMediaItemIndex(): Int {
-      return playbackController?.currentMediaItemIndex()
-        ?: activePlaybackSession?.getCurrentTrackIndex()
-        ?: 0
-    }
-  }
 
   private val appEventEmitter = object : PlayerNotificationService.ClientEventEmitter {
     override fun onPlaybackSession(playbackSession: PlaybackSession) {
@@ -290,18 +261,17 @@ class AbsAudioPlayer : Plugin() {
     val statusCode = googleApi.isGooglePlayServicesAvailable(mainActivity)
 
     if (statusCode != ConnectionResult.SUCCESS) {
-        if (statusCode == ConnectionResult.SERVICE_MISSING) {
-          Log.w(tag, "initCastManager: Google Api Missing")
-        } else if (statusCode == ConnectionResult.SERVICE_DISABLED) {
-          Log.w(tag, "initCastManager: Google Api Disabled")
-        } else if (statusCode == ConnectionResult.SERVICE_INVALID) {
-          Log.w(tag, "initCastManager: Google Api Invalid")
-        } else if (statusCode == ConnectionResult.SERVICE_UPDATING) {
-          Log.w(tag, "initCastManager: Google Api Updating")
-        } else if (statusCode == ConnectionResult.SERVICE_VERSION_UPDATE_REQUIRED) {
-          Log.w(tag, "initCastManager: Google Api Update Required")
-        }
-        return
+      when (statusCode) {
+        ConnectionResult.SERVICE_MISSING -> Log.w(tag, "initCastManager: Google Api Missing")
+        ConnectionResult.SERVICE_DISABLED -> Log.w(tag, "initCastManager: Google Api Disabled")
+        ConnectionResult.SERVICE_INVALID -> Log.w(tag, "initCastManager: Google Api Invalid")
+        ConnectionResult.SERVICE_UPDATING -> Log.w(tag, "initCastManager: Google Api Updating")
+        ConnectionResult.SERVICE_VERSION_UPDATE_REQUIRED -> Log.w(
+          tag,
+          "initCastManager: Google Api Update Required"
+        )
+      }
+      return
     }
 
     val connListener = object: CastManager.ChromecastListener() {
@@ -418,12 +388,12 @@ class AbsAudioPlayer : Plugin() {
     }
   }
 
-  private fun buildPlayItemRequestPayload(forceTranscode: Boolean): PlayItemRequestPayload {
+  private fun buildPlayItemRequestPayload(): PlayItemRequestPayload {
     val mediaPlayerId = if (BuildConfig.USE_MEDIA3) PLAYER_MEDIA3 else PLAYER_EXO
     return PlayItemRequestPayload(
       mediaPlayer = mediaPlayerId,
-      forceDirectPlay = !forceTranscode,
-      forceTranscode = forceTranscode,
+      forceDirectPlay = true,
+      forceTranscode = false,
       deviceInfo = buildDeviceInfo()
     )
   }
@@ -474,7 +444,7 @@ class AbsAudioPlayer : Plugin() {
           return call.resolve(JSObject("{\"error\":\"No audio files found on device. Download book again to fix.\"}"))
         }
 
-        Handler(Looper.getMainLooper()).post {
+        mainHandler.post {
           Log.d(tag, "prepareLibraryItem: Preparing Local Media item ${jacksonMapper.writeValueAsString(it)}")
           val playbackSession = it.getPlaybackSession(episode, buildDeviceInfo())
           if (startTimeOverride != null) {
@@ -492,24 +462,18 @@ class AbsAudioPlayer : Plugin() {
             }
           }
           stopCurrentPlayback {
-            Handler(Looper.getMainLooper()).post { startPlayback() }
+            mainHandler.post { startPlayback() }
           }
         }
         return call.resolve(JSObject())
       }
     } else { // Play library item from server
-      val playItemRequestPayload = buildPlayItemRequestPayload(false)
-      Handler(Looper.getMainLooper()).post {
+      val playItemRequestPayload = buildPlayItemRequestPayload()
+      mainHandler.post {
         if (BuildConfig.USE_MEDIA3) {
           // For Media3, ensure we flush a final sync for the current session before requesting a new one.
-          val syncLatch = java.util.concurrent.CountDownLatch(1)
-          playbackController?.forceSyncProgress { syncLatch.countDown() }
-          Thread {
-            try {
-              syncLatch.await(2, java.util.concurrent.TimeUnit.SECONDS)
-            } catch (_: InterruptedException) {
-            }
-            Handler(Looper.getMainLooper()).post {
+          playbackController?.forceSyncProgress {
+            mainHandler.post {
               stopCurrentPlayback {
                 apiHandler.playLibraryItem(
                   libraryItemId,
@@ -523,7 +487,7 @@ class AbsAudioPlayer : Plugin() {
                       Log.d(tag, "prepareLibraryItem: Using start time override $startTimeOverride")
                       playbackSession.currentTime = startTimeOverride
                     }
-                    Handler(Looper.getMainLooper()).post {
+                    mainHandler.post {
                       Log.d(
                         tag,
                         "Preparing Player playback session ${
@@ -542,7 +506,7 @@ class AbsAudioPlayer : Plugin() {
                 }
               }
             }
-          }.start()
+          }
         } else {
           stopCurrentPlayback {
             apiHandler.playLibraryItem(
@@ -557,7 +521,7 @@ class AbsAudioPlayer : Plugin() {
                   Log.d(tag, "prepareLibraryItem: Using start time override $startTimeOverride")
                   playbackSession.currentTime = startTimeOverride
                 }
-                Handler(Looper.getMainLooper()).post {
+                mainHandler.post {
                   Log.d(
                     tag,
                     "Preparing Player playback session ${
@@ -578,7 +542,7 @@ class AbsAudioPlayer : Plugin() {
 
   @PluginMethod
   fun getCurrentTime(call: PluginCall) {
-    Handler(Looper.getMainLooper()).post {
+    mainHandler.post {
       val currentTime = if (BuildConfig.USE_MEDIA3) {
         playbackController?.currentPosition()?.div(1000.0) ?: 0.0
       } else {
@@ -598,7 +562,7 @@ class AbsAudioPlayer : Plugin() {
 
   @PluginMethod
   fun pausePlayer(call: PluginCall) {
-    Handler(Looper.getMainLooper()).post {
+    mainHandler.post {
       if (BuildConfig.USE_MEDIA3) {
         ensureUiPlaybackEventSource()
         playbackController?.pause()
@@ -611,7 +575,7 @@ class AbsAudioPlayer : Plugin() {
 
   @PluginMethod
   fun playPlayer(call: PluginCall) {
-    Handler(Looper.getMainLooper()).post {
+    mainHandler.post {
       if (BuildConfig.USE_MEDIA3) {
       ensureUiPlaybackEventSource()
         playbackController?.play()
@@ -624,7 +588,7 @@ class AbsAudioPlayer : Plugin() {
 
   @PluginMethod
   fun playPause(call: PluginCall) {
-    Handler(Looper.getMainLooper()).post {
+    mainHandler.post {
       val playing = if (BuildConfig.USE_MEDIA3) {
         ensureUiPlaybackEventSource()
         playbackController?.playPause() ?: false
@@ -639,7 +603,7 @@ class AbsAudioPlayer : Plugin() {
   fun seek(call: PluginCall) {
     val time:Int = call.getInt("value", 0) ?: 0 // Value in seconds
     Log.d(tag, "seek action to $time")
-    Handler(Looper.getMainLooper()).post {
+    mainHandler.post {
       if (BuildConfig.USE_MEDIA3) {
         playbackController?.seekTo(time * 1000L)
       } else {
@@ -652,7 +616,7 @@ class AbsAudioPlayer : Plugin() {
   @PluginMethod
   fun seekForward(call: PluginCall) {
     val amount:Int = call.getInt("value", 0) ?: 0
-    Handler(Looper.getMainLooper()).post {
+    mainHandler.post {
       if (BuildConfig.USE_MEDIA3) {
         playbackController?.seekBy(amount * 1000L)
       } else {
@@ -665,7 +629,7 @@ class AbsAudioPlayer : Plugin() {
   @PluginMethod
   fun seekBackward(call: PluginCall) {
     val amount:Int = call.getInt("value", 0) ?: 0 // Value in seconds
-    Handler(Looper.getMainLooper()).post {
+    mainHandler.post {
       if (BuildConfig.USE_MEDIA3) {
         playbackController?.seekBy(-amount * 1000L)
       } else {
@@ -679,7 +643,7 @@ class AbsAudioPlayer : Plugin() {
   fun setPlaybackSpeed(call: PluginCall) {
     val playbackSpeed:Float = call.getFloat("value", 1.0f) ?: 1.0f
 
-    Handler(Looper.getMainLooper()).post {
+    mainHandler.post {
       if (BuildConfig.USE_MEDIA3) {
         playbackController?.setPlaybackSpeed(playbackSpeed)
       } else {
@@ -691,7 +655,7 @@ class AbsAudioPlayer : Plugin() {
 
   @PluginMethod
   fun closePlayback(call: PluginCall) {
-    Handler(Looper.getMainLooper()).post {
+    mainHandler.post {
       if (BuildConfig.USE_MEDIA3) {
         playbackController?.closePlayback { success ->
           if (!success) {
@@ -710,7 +674,7 @@ class AbsAudioPlayer : Plugin() {
     val time:Long = call.getString("time", "360000")!!.toLong()
     val isChapterTime:Boolean = call.getBoolean("isChapterTime", false) == true
 
-    Handler(Looper.getMainLooper()).post {
+    mainHandler.post {
       if (BuildConfig.USE_MEDIA3) {
         val controller = playbackController
         if (controller == null) {
@@ -744,7 +708,7 @@ class AbsAudioPlayer : Plugin() {
 
   @PluginMethod
   fun getSleepTimerTime(call: PluginCall) {
-    Handler(Looper.getMainLooper()).post {
+    mainHandler.post {
       if (BuildConfig.USE_MEDIA3) {
         val controller = playbackController
         if (controller == null) {
@@ -772,7 +736,7 @@ class AbsAudioPlayer : Plugin() {
   fun increaseSleepTime(call: PluginCall) {
     val time:Long = call.getString("time", "300000")!!.toLong()
 
-    Handler(Looper.getMainLooper()).post {
+    mainHandler.post {
       if (BuildConfig.USE_MEDIA3) {
         playbackController?.increaseSleepTimer(time)
       } else {
@@ -786,7 +750,7 @@ class AbsAudioPlayer : Plugin() {
   fun decreaseSleepTime(call: PluginCall) {
     val time:Long = call.getString("time", "300000")!!.toLong()
 
-    Handler(Looper.getMainLooper()).post {
+    mainHandler.post {
       if (BuildConfig.USE_MEDIA3) {
         playbackController?.decreaseSleepTimer(time)
       } else {
@@ -798,7 +762,7 @@ class AbsAudioPlayer : Plugin() {
 
   @PluginMethod
   fun cancelSleepTimer(call: PluginCall) {
-    Handler(Looper.getMainLooper()).post {
+    mainHandler.post {
       if (BuildConfig.USE_MEDIA3) {
         playbackController?.cancelSleepTimer()
       } else {
