@@ -3,6 +3,7 @@ package com.audiobookshelf.app.media
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.data.LocalMediaProgress
 import com.audiobookshelf.app.data.MediaProgress
 import com.audiobookshelf.app.data.PlaybackSession
@@ -28,10 +29,13 @@ data class SyncResult(
 
 class MediaProgressSyncer(
   private val telemetryHost: PlaybackTelemetryHost,
-  private val apiHandler: ApiHandler
+  private val apiHandler: ApiHandler,
+  private val emitPlaybackEvents: Boolean = true,
+  private val allowServerSync: Boolean = true
 ) {
   private val tag = "MediaProgressSync"
   private val METERED_CONNECTION_SYNC_INTERVAL = 60000
+  private var loopEnabledForSession = !BuildConfig.USE_MEDIA3
 
   private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -60,10 +64,6 @@ class MediaProgressSyncer(
     get() = currentPlaybackSession?.duration ?: 0.0
   private var nextPlaybackEventSource = PlaybackEventSource.SYSTEM
 
-  fun markNextPlaybackEventSource(source: PlaybackEventSource) {
-    nextPlaybackEventSource = source
-  }
-
   fun start(playbackSession: PlaybackSession) {
     if (listeningTimerRunning) {
       Log.d(tag, "start: Timer already running for $currentDisplayTitle")
@@ -89,6 +89,12 @@ class MediaProgressSyncer(
             "start: init last sync time $lastSyncTime with playback session id=${currentPlaybackSession?.id}"
     )
 
+    loopEnabledForSession = !BuildConfig.USE_MEDIA3 || playbackSession.isLocal
+    if (!loopEnabledForSession) {
+      listeningTimerRunning = false
+      return
+    }
+
     listeningTimerTask =
             Timer("ListeningTimer", false).schedule(15000L, 15000L) {
         Handler(Looper.getMainLooper()).post {
@@ -108,8 +114,10 @@ class MediaProgressSyncer(
                     sync(shouldSyncServer, currentTime) { syncResult ->
                       Log.d(tag, "Sync complete")
 
-                      currentPlaybackSession?.let { playbackSession ->
-                        MediaEventManager.saveEvent(playbackSession, syncResult)
+                      if (emitPlaybackEvents && syncResult != null) {
+                        currentPlaybackSession?.let { playbackSession ->
+                          MediaEventManager.saveEvent(playbackSession, syncResult)
+                        }
                       }
                     }
                   }
@@ -119,11 +127,16 @@ class MediaProgressSyncer(
   }
 
   fun play(playbackSession: PlaybackSession) {
+    if (!loopEnabledForSession) {
+      currentPlaybackSession = playbackSession.clone()
+    }
     Log.d(tag, "play ${playbackSession.displayTitle}")
     val source = nextPlaybackEventSource
     nextPlaybackEventSource = PlaybackEventSource.SYSTEM
     applyRefreshedTimeToSession(playbackSession)
-    MediaEventManager.playEvent(playbackSession, source)
+    if (emitPlaybackEvents) {
+      MediaEventManager.playEvent(playbackSession, source)
+    }
     if (source == PlaybackEventSource.UI) {
       consumeManualPlaybackTime()
     }
@@ -132,6 +145,11 @@ class MediaProgressSyncer(
   }
 
   fun stop(shouldSync: Boolean? = true, cb: () -> Unit) {
+    if (!loopEnabledForSession) {
+      reset()
+      cb()
+      return
+    }
     if (!listeningTimerRunning) {
       reset()
       return cb()
@@ -146,7 +164,9 @@ class MediaProgressSyncer(
     if (currentTime > 0) { // Current time should always be > 0 on stop
       sync(true, currentTime) { syncResult ->
         currentPlaybackSession?.let { playbackSession ->
-          MediaEventManager.stopEvent(playbackSession, syncResult)
+          if (emitPlaybackEvents) {
+            MediaEventManager.stopEvent(playbackSession, syncResult)
+          }
         }
 
         reset()
@@ -154,7 +174,9 @@ class MediaProgressSyncer(
       }
     } else {
       currentPlaybackSession?.let { playbackSession ->
-        MediaEventManager.stopEvent(playbackSession, null)
+        if (emitPlaybackEvents) {
+          MediaEventManager.stopEvent(playbackSession, null)
+        }
       }
 
       reset()
@@ -163,6 +185,10 @@ class MediaProgressSyncer(
   }
 
   fun pause(cb: () -> Unit) {
+    if (!loopEnabledForSession) {
+      cb()
+      return
+    }
     if (!listeningTimerRunning) return
 
     listeningTimerTask?.cancel()
@@ -182,7 +208,9 @@ class MediaProgressSyncer(
           val source = nextPlaybackEventSource
           nextPlaybackEventSource = PlaybackEventSource.SYSTEM
           applyRefreshedTimeToSession(playbackSession)
-          MediaEventManager.pauseEvent(playbackSession, syncResult, source)
+          if (emitPlaybackEvents) {
+            MediaEventManager.pauseEvent(playbackSession, syncResult, source)
+          }
         }
 
         cb()
@@ -196,7 +224,9 @@ class MediaProgressSyncer(
         val source = nextPlaybackEventSource
         nextPlaybackEventSource = PlaybackEventSource.SYSTEM
         applyRefreshedTimeToSession(playbackSession)
-        MediaEventManager.pauseEvent(playbackSession, null, source)
+        if (emitPlaybackEvents) {
+          MediaEventManager.pauseEvent(playbackSession, null, source)
+        }
       }
 
       cb()
@@ -204,6 +234,11 @@ class MediaProgressSyncer(
   }
 
   fun finished(cb: () -> Unit) {
+    if (!loopEnabledForSession) {
+      reset()
+      cb()
+      return
+    }
     if (!listeningTimerRunning) return
 
     listeningTimerTask?.cancel()
@@ -215,7 +250,9 @@ class MediaProgressSyncer(
       reset()
 
       currentPlaybackSession?.let { playbackSession ->
-        MediaEventManager.finishedEvent(playbackSession, syncResult)
+        if (emitPlaybackEvents) {
+          MediaEventManager.finishedEvent(playbackSession, syncResult)
+        }
       }
 
       cb()
@@ -223,6 +260,7 @@ class MediaProgressSyncer(
   }
 
   fun seek() {
+    if (!loopEnabledForSession) return
     resolveCurrentPlaybackTime()
     Log.d(tag, "seek: $currentDisplayTitle, currentTime=${currentPlaybackSession?.currentTime}")
 
@@ -231,7 +269,9 @@ class MediaProgressSyncer(
       return
     }
 
-    MediaEventManager.seekEvent(currentPlaybackSession!!, null)
+    if (emitPlaybackEvents) {
+      MediaEventManager.seekEvent(currentPlaybackSession!!, null)
+    }
   }
 
   // Currently unused
@@ -240,15 +280,22 @@ class MediaProgressSyncer(
       it.updatedAt = mediaProgress.lastUpdate
       it.currentTime = mediaProgress.currentTime
 
-      MediaEventManager.syncEvent(
-              mediaProgress,
-              "Received from server get media progress request while playback session open"
-      )
+      if (emitPlaybackEvents) {
+        MediaEventManager.syncEvent(
+          mediaProgress,
+          "Received from server get media progress request while playback session open"
+        )
+      }
       saveLocalProgress(it)
     }
   }
 
   fun sync(shouldSyncServer: Boolean, currentTime: Double, cb: (SyncResult?) -> Unit) {
+    if (!loopEnabledForSession) {
+      postCallback(cb, null)
+      return
+    }
+    val attemptServerSync = shouldSyncServer && allowServerSync
     if (lastSyncTime <= 0) {
       Log.e(tag, "Last sync time is not set $lastSyncTime")
       postCallback(cb, null)
@@ -297,7 +344,7 @@ class MediaProgressSyncer(
         // server
         val isConnectedToSameServer = it.serverConnectionConfigId != null && DeviceManager.serverConnectionConfig?.id == it.serverConnectionConfigId
         if (hasNetworkConnection &&
-                        shouldSyncServer &&
+          attemptServerSync &&
                         !it.libraryItemId.isNullOrEmpty() &&
                         isConnectedToSameServer
         ) {
@@ -323,7 +370,7 @@ class MediaProgressSyncer(
           postCallback(cb, SyncResult(false, null, null))
         }
       }
-    } else if (hasNetworkConnection && shouldSyncServer) {
+    } else if (hasNetworkConnection && attemptServerSync) {
       AbsLogger.info("MediaProgressSyncer", "sync: Sending progress sync to server (title: \"$currentDisplayTitle\") (currentTime: $currentTime) (session id: ${currentSessionId}) (${DeviceManager.serverConnectionConfigName})")
 
       apiHandler.sendProgressSync(currentSessionId, syncData) { syncSuccess, errorMsg ->
@@ -386,6 +433,7 @@ class MediaProgressSyncer(
     failedSyncs = 0
     pendingManualPlaybackTime = null
     pendingManualPlaybackTimeExpiresAt = 0
+    loopEnabledForSession = !BuildConfig.USE_MEDIA3
   }
 
   fun updatePlaybackTimeFromUi(seconds: Double) {

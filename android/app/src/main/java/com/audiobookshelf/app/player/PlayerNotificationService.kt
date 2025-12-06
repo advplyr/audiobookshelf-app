@@ -515,34 +515,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     }
 
     playerWrapper = PlayerWrapperFactory.wrapExistingPlayer(this, mPlayer)
-    if (playerWrapper is Media3Wrapper) {
-      val media3Wrapper = playerWrapper as Media3Wrapper
-      media3Wrapper.setSeekIncrements(
-        deviceSettings.jumpBackwardsTimeMs,
-        deviceSettings.jumpForwardTimeMs
-      )
-      Log.d(tag, "Media3 seek increments configured")
-
-
-    val v2Builder = PlayerNotificationManager.Builder(ctx, notificationId, channelId)
-    v2Builder.setMediaDescriptionAdapter(AbMediaDescriptionAdapter(MediaControllerCompat(ctx, mediaSession.sessionToken), this))
-    v2Builder.setNotificationListener(PlayerNotificationListener(this))
-    playerNotificationManager = v2Builder.build()
-    playerNotificationManager.setMediaSessionToken(mediaSession.sessionToken)
-    playerNotificationManager.setSmallIcon(R.drawable.icon_monochrome)
-
-    playerNotificationManager.setPlayer(mPlayer)
-
-    media3Wrapper.attachNotificationManager(playerNotificationManager)
-    media3Wrapper.attachMediaSessionConnector(mediaSessionConnector)
-
-    Log.d(tag, "Media3 v2 notification manager created for Cast fallback and temp controls")
-  } else {
     playerWrapper.attachNotificationManager(playerNotificationManager)
     playerWrapper.attachMediaSessionConnector(mediaSessionConnector)
-  }
 
-  playerWrapper.addListener(PlayerListener(this))
+    playerWrapper.addListener(PlayerListener(this))
   }
 
   /*

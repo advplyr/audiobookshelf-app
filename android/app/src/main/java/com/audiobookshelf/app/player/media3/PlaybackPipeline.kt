@@ -55,7 +55,8 @@ class PlaybackPipeline(
 
     val coreExoPlayer = ExoPlayer.Builder(context)
       .setMediaSourceFactory(mediaSourceFactory)
-      .setAudioAttributes(speechAttributes, true)
+      // Audio focus is managed at the service layer; disable internal handling to avoid double requests
+      .setAudioAttributes(speechAttributes, /* handleAudioFocus= */ false)
       .setHandleAudioBecomingNoisy(true)
       .setSeekBackIncrementMs(jumpBackwardMs)
       .setSeekForwardIncrementMs(jumpForwardMs)

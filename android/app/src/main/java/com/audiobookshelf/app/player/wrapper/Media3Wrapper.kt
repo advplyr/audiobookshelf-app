@@ -67,7 +67,9 @@ class Media3Wrapper(private val ctx: Context) : PlayerWrapper {
           .setUsage(C.USAGE_MEDIA)
           .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
           .build()
-        newPlayer.setAudioAttributes(audioAttributes, true)
+        // We manage audio focus at the service layer; disable ExoPlayer's internal focus handling
+        // to avoid double requests that can flip playWhenReady to false.
+        newPlayer.setAudioAttributes(audioAttributes, /* handleAudioFocus= */ false)
         newPlayer.setHandleAudioBecomingNoisy(true)
         newPlayer.addListener(playerListener)
       }
@@ -99,20 +101,6 @@ class Media3Wrapper(private val ctx: Context) : PlayerWrapper {
     }
   }
 
-  /**
-   * Configure seek forward/backward increments for notification buttons.
-   * These will appear as standard seek forward/back actions in notifications.
-   */
-  fun setSeekIncrements(backwardMs: Long, forwardMs: Long) {
-    try {
-      // ExoPlayer seek increment setters not available in current Media3 version.
-      // Skipping configuration to maintain compatibility.
-      Log.d(TAG, "Seek increments skipped for current Media3 version")
-    } catch (e: Exception) {
-      Log.w(TAG, "Failed to set seek increments: ${e.message}")
-    }
-  }
-
   override fun release() {
     try {
       player?.removeListener(playerListener)
@@ -125,9 +113,6 @@ class Media3Wrapper(private val ctx: Context) : PlayerWrapper {
       player = null
     }
   }
-
-  fun getMediaSession(): MediaSession? = mediaSession
-  fun getSessionToken(): androidx.media3.session.SessionToken? = mediaSession?.token
 
   fun updateMediaMetadata(playbackSession: PlaybackSession) {
     player?.run {
@@ -397,6 +382,7 @@ class Media3Wrapper(private val ctx: Context) : PlayerWrapper {
 
     return MediaItem.Builder()
       .setUri(this.uri)
+      .setMediaId(this.mediaId)
       .setTag(this.tag)
       .setMimeType(this.mimeType)
       .setMediaMetadata(metadata)

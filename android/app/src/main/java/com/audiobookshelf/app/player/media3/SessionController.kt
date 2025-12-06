@@ -16,21 +16,17 @@ interface SleepTimerApi {
   fun cancel()
   fun adjust(deltaMs: Long, increase: Boolean)
   fun getTime(): Long
-  fun checkAuto()
 }
 
 interface PlaybackControlApi {
-  fun sync(reason: String, force: Boolean)
+  fun sync(reason: String, force: Boolean, onComplete: (() -> Unit)? = null)
   fun close(afterStop: (() -> Unit)?)
 }
 
 @UnstableApi
 class SessionController(
   private val context: Context,
-  val transportSessionCommands: SessionCommands,
-  val customSessionCommands: SessionCommands,
   val availableSessionCommands: SessionCommands,
-  val playbackSpeedCommandButton: CommandButton?,
   // Custom commands and helpers
   private val cyclePlaybackSpeedCommand: SessionCommand?,
   private val seekBackIncrementCommand: SessionCommand?,
@@ -39,7 +35,6 @@ class SessionController(
   private val cancelSleepTimerCommand: SessionCommand?,
   private val adjustSleepTimerCommand: SessionCommand?,
   private val getSleepTimerTimeCommand: SessionCommand?,
-  private val checkAutoSleepTimerCommand: SessionCommand?,
   private val sleepTimerApi: SleepTimerApi,
   private val previousChapterCommand: SessionCommand?,
   private val nextChapterCommand: SessionCommand?,
@@ -83,10 +78,7 @@ class SessionController(
     playerProvider: () -> Player?
   ) : this(
     context = context,
-    transportSessionCommands = MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS,
-    customSessionCommands = MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS,
     availableSessionCommands = MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS,
-    playbackSpeedCommandButton = playbackSpeedCommandButton,
     cyclePlaybackSpeedCommand = SessionCommand(CustomCommands.CYCLE_PLAYBACK_SPEED, Bundle.EMPTY),
     seekBackIncrementCommand = SessionCommand(CustomCommands.SEEK_BACK_INCREMENT, Bundle.EMPTY),
     seekForwardIncrementCommand = SessionCommand(
@@ -97,7 +89,6 @@ class SessionController(
     cancelSleepTimerCommand = SessionCommand(SleepTimer.ACTION_CANCEL, Bundle.EMPTY),
     adjustSleepTimerCommand = SessionCommand(SleepTimer.ACTION_ADJUST, Bundle.EMPTY),
     getSleepTimerTimeCommand = SessionCommand(SleepTimer.ACTION_GET_TIME, Bundle.EMPTY),
-    checkAutoSleepTimerCommand = SessionCommand(SleepTimer.ACTION_CHECK_AUTO, Bundle.EMPTY),
     previousChapterCommand = SessionCommand(CustomCommands.SEEK_TO_PREVIOUS_CHAPTER, Bundle.EMPTY),
     nextChapterCommand = SessionCommand(CustomCommands.SEEK_TO_NEXT_CHAPTER, Bundle.EMPTY),
     seekToChapterCommand = SessionCommand(CustomCommands.SEEK_TO_CHAPTER, Bundle.EMPTY),
@@ -133,7 +124,6 @@ class SessionController(
     const val ACTION_CANCEL = "com.audiobookshelf.app.player.CANCEL_SLEEP_TIMER"
     const val ACTION_ADJUST = "com.audiobookshelf.app.player.ADJUST_SLEEP_TIMER"
     const val ACTION_GET_TIME = "com.audiobookshelf.app.player.GET_SLEEP_TIMER_TIME"
-    const val ACTION_CHECK_AUTO = "com.audiobookshelf.app.player.CHECK_AUTO_SLEEP_TIMER"
     const val EXTRA_TIME_MS = "sleep_timer_time_ms"
     const val EXTRA_IS_CHAPTER = "sleep_timer_is_chapter"
     const val EXTRA_SESSION_ID = "sleep_timer_session_id"
@@ -164,11 +154,10 @@ class SessionController(
   fun onCustomCommand(command: SessionCommand, data: Bundle?): SessionResult {
     val action = command.customAction
     if (syncProgressForceCommand != null && action == syncProgressForceCommand.customAction) {
-      val player = playerProvider()
-      if (player != null && player.isPlaying) {
-        player.pause()
-      }
-      playbackControlApi.sync("switch", true)
+      playerProvider()?.takeIf { it.isPlaying }?.pause()
+      val latch = java.util.concurrent.CountDownLatch(1)
+      playbackControlApi.sync("switch", true) { latch.countDown() }
+      latch.await(2, java.util.concurrent.TimeUnit.SECONDS)
       return SessionResult(SessionResult.RESULT_SUCCESS)
     }
     if (cyclePlaybackSpeedCommand != null && action == cyclePlaybackSpeedCommand.customAction) {
@@ -234,9 +223,6 @@ class SessionController(
       return SessionResult(
         SessionResult.RESULT_SUCCESS,
         Bundle().apply { putLong(sleepExtraTimeMsKey ?: "sleep_time_ms", time) })
-    }
-    if (checkAutoSleepTimerCommand != null && action == checkAutoSleepTimerCommand.customAction) {
-      sleepTimerApi.checkAuto(); return SessionResult(SessionResult.RESULT_SUCCESS)
     }
     if (action.contains("CLOSE_PLAYBACK")) {
       playbackControlApi.close(null); return SessionResult(SessionResult.RESULT_SUCCESS)

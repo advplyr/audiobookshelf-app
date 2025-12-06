@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.media3.common.MediaItem
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
+import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.media.MediaManager
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.ListenableFuture
@@ -34,7 +35,9 @@ class Media3AutoLibraryCoordinator(
     parentId: String,
     params: MediaLibraryService.LibraryParams?
   ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-    Log.d(TAG, "requestChildren(parentId=$parentId, params=$params)")
+    if (BuildConfig.DEBUG) {
+      Log.d(TAG, "requestChildren(parentId=$parentId, params=$params)")
+    }
     val future = SettableFuture.create<LibraryResult<ImmutableList<MediaItem>>>()
     if (!needsInitialLoad(parentId)) {
       fulfillRequest(parentId, params, future)
@@ -68,12 +71,17 @@ class Media3AutoLibraryCoordinator(
   }
 
   private fun loadAutoData() {
-    Log.d(TAG, "loadAutoData() start")
+    if (BuildConfig.DEBUG) Log.d(TAG, "loadAutoData() start")
     isAutoDataLoading = true
     mediaManager.loadAndroidAutoItems {
       // Warm in-progress cache so Continue Listening has data (matches ExoPlayer flow).
       mediaManager.initializeInProgressItems {
-        Log.d(TAG, "loadAutoData() completed, fulfilling ${pendingRequests.size} pending requests")
+        if (BuildConfig.DEBUG) {
+          Log.d(
+            TAG,
+            "loadAutoData() completed, fulfilling ${pendingRequests.size} pending requests"
+          )
+        }
         isAutoDataLoading = false
         val requestsToFulfill = pendingRequests.toList()
         pendingRequests.clear()

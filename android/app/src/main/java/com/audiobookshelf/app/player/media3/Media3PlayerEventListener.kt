@@ -5,8 +5,8 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
+import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.data.PlaybackSession
-import com.audiobookshelf.app.media.MediaEventManager
 import com.audiobookshelf.app.media.SyncResult
 import com.audiobookshelf.app.player.core.PlaybackMetricsRecorder
 import kotlinx.coroutines.CoroutineScope
@@ -21,8 +21,15 @@ interface ListenerApi {
   fun isPlayerInitialized(): Boolean
   fun lastKnownIsPlaying(): Boolean
   fun setLastKnownIsPlaying(value: Boolean)
-  fun updateCurrentPosition()
-  fun maybeSyncProgress(reason: String, force: Boolean, onComplete: ((SyncResult?) -> Unit)?)
+  fun updateCurrentPosition(targetSession: PlaybackSession? = null)
+  fun maybeSyncProgress(
+    reason: String,
+    force: Boolean,
+    targetSession: PlaybackSession? = null,
+    onComplete: ((SyncResult?) -> Unit)?
+  )
+
+  fun progressSyncPlay(session: PlaybackSession)
   fun onPlayStarted(sessionId: String)
   fun startPositionUpdates()
   fun stopPositionUpdates()
@@ -34,10 +41,13 @@ interface ListenerApi {
   val errorResetWindowMs: Long
   val retryBackoffStepMs: Long
   fun debug(msg: () -> String)
+  fun ensureAudioFocus(): Boolean
+  fun abandonAudioFocus()
 }
 
 class Media3PlayerEventListener(
-  private val api: ListenerApi
+  private val api: ListenerApi,
+  private val eventPipeline: Media3EventPipeline
 ) : Player.Listener {
 
   private var consecutiveErrorCount: Int = 0
@@ -60,35 +70,73 @@ class Media3PlayerEventListener(
   }
 
   override fun onIsPlayingChanged(isPlaying: Boolean) {
-    api.debug { "onIsPlayingChanged: $isPlaying" }
+    api.debug {
+      val p = if (api.isPlayerInitialized()) api.activePlayer() else null
+      "onIsPlayingChanged: raw=$isPlaying playWhenReady=${p?.playWhenReady} state=${p?.playbackState}"
+    }
 
-    if (api.lastKnownIsPlaying() == isPlaying) return
+    val player = if (api.isPlayerInitialized()) api.activePlayer() else null
+    val effectiveIsPlaying = when {
+      isPlaying -> true
+      player?.playWhenReady == true && player.playbackState == Player.STATE_BUFFERING -> true
+      else -> false
+    }
+
+    if (api.lastKnownIsPlaying() == effectiveIsPlaying) return
 
     val session = api.currentSession()
     if (session != null) {
-      api.updateCurrentPosition()
+      api.updateCurrentPosition(session)
 
-      if (isPlaying) {
+      if (effectiveIsPlaying) {
+        if (!api.ensureAudioFocus()) {
+          api.debug { "Audio focus not granted; pausing playback" }
+          if (api.isPlayerInitialized()) {
+            api.activePlayer().pause()
+          }
+          api.setLastKnownIsPlaying(false)
+          return
+        }
         api.getErrorRetryJob()?.cancel()
         api.setErrorRetryJob(null)
         consecutiveErrorCount = 0
-        MediaEventManager.playEvent(session)
         api.onPlayStarted(session.id)
+        eventPipeline.emitPlayEvent(session)
+        api.progressSyncPlay(session)
         if (api.isPlayerInitialized()) {
           api.activePlayer().volume = 1f
         }
         api.stopPositionUpdates()
         api.startPositionUpdates()
       } else {
-        api.stopPositionUpdates()
-        api.maybeSyncProgress("pause", true) { result ->
-          MediaEventManager.pauseEvent(session, result)
+        val shouldTreatAsPause = player?.playWhenReady != true
+        if (BuildConfig.DEBUG) {
+          api.debug {
+            "pause branch: shouldTreatAsPause=$shouldTreatAsPause playWhenReady=${player?.playWhenReady} state=${player?.playbackState}"
+          }
+        }
+        if (shouldTreatAsPause) {
+          api.stopPositionUpdates()
+          api.currentSession()?.let { session ->
+            api.maybeSyncProgress("pause", true, session, null)
+          }
+          api.abandonAudioFocus()
+        } else {
+          api.debug { "Ignoring transient pause while playWhenReady is true (likely buffering/track gap)" }
         }
       }
     }
 
-    api.setLastKnownIsPlaying(isPlaying)
+    api.setLastKnownIsPlaying(effectiveIsPlaying)
     api.notifyWidgetState()
+  }
+
+  override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+    if (BuildConfig.DEBUG) {
+      api.debug {
+        "onPlayWhenReadyChanged: playWhenReady=$playWhenReady reason=$reason"
+      }
+    }
   }
 
   override fun onPlaybackStateChanged(playbackState: Int) {
@@ -100,17 +148,13 @@ class Media3PlayerEventListener(
         api.debug { "Playback ended" }
         api.playbackMetrics.logSummary()
         api.currentSession()?.let { session ->
-          api.updateCurrentPosition()
-          api.maybeSyncProgress("ended", true) { result ->
-            MediaEventManager.stopEvent(session, result)
-          }
+          api.updateCurrentPosition(session)
+          api.maybeSyncProgress("ended", true, session, null)
         }
         api.notifyWidgetState()
       }
 
-      Player.STATE_IDLE -> {
-        TODO()
-      }
+      Player.STATE_IDLE -> api.debug { "Player idle" }
     }
   }
 
@@ -197,8 +241,7 @@ class Media3PlayerEventListener(
         val absolutePositionMs = trackStartOffset + positionInTrack
 
         session.currentTime = absolutePositionMs / 1000.0
-
-        MediaEventManager.seekEvent(session, null)
+        eventPipeline.emitSeekEvent(session, null)
       }
     }
   }

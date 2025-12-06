@@ -37,7 +37,7 @@ class ExoPlayerWrapper(private val player: Player) : PlayerWrapper {
   override fun release() {
     try {
       if (player is ExoPlayer) player.release()
-    } catch (e: Exception) {
+    } catch (_: Exception) {
       // ignore
     }
   }
@@ -73,6 +73,7 @@ class ExoPlayerWrapper(private val player: Player) : PlayerWrapper {
    */
   fun toExoMediaItem(dto: PlayerMediaItem): MediaItem {
     val builder = MediaItem.Builder().setUri(dto.uri)
+      .setMediaId(dto.mediaId)
     dto.tag?.let { builder.setTag(it) }
     dto.mimeType?.let { builder.setMimeType(it) }
     return builder.build()

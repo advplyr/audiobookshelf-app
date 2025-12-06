@@ -31,6 +31,8 @@ import com.audiobookshelf.app.player.toPlayerMediaItems
 import com.google.common.util.concurrent.FutureCallback
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 // Media3 controller/session APIs require UnstableApi opt-in.
@@ -74,9 +76,12 @@ class PlaybackController(private val context: Context) {
   private val cancelSleepTimerCommand = SessionCommand(SleepTimer.ACTION_CANCEL, Bundle.EMPTY)
   private val adjustSleepTimerCommand = SessionCommand(SleepTimer.ACTION_ADJUST, Bundle.EMPTY)
   private val getSleepTimerTimeCommand = SessionCommand(SleepTimer.ACTION_GET_TIME, Bundle.EMPTY)
-  private val checkAutoSleepTimerCommand = SessionCommand(SleepTimer.ACTION_CHECK_AUTO, Bundle.EMPTY)
+
+  @Suppress("unused") // Invoked from the UI layer via custom command
   private val forceSyncProgressCommand =
     SessionCommand(CustomCommands.SYNC_PROGRESS_FORCE, Bundle.EMPTY)
+  private val markUiPlaybackEventCommand =
+    SessionCommand(CustomCommands.MARK_UI_PLAYBACK_EVENT, Bundle.EMPTY)
 
   var listener: Listener? = null
   private val progressUpdateIntervalMs = 1000L
@@ -153,17 +158,9 @@ class PlaybackController(private val context: Context) {
       }
       when (playbackState) {
         Player.STATE_ENDED -> listener?.onPlaybackEnded()
-        Player.STATE_BUFFERING -> {
-          TODO()
-        }
-
-        Player.STATE_IDLE -> {
-          TODO()
-        }
-
-        Player.STATE_READY -> {
-          TODO()
-        }
+        Player.STATE_BUFFERING,
+        Player.STATE_IDLE,
+        Player.STATE_READY -> Unit
       }
       notifyPlayingState(effectiveIsPlaying(controller))
     }
@@ -305,7 +302,7 @@ class PlaybackController(private val context: Context) {
       block()
       return
     }
-    val latch = java.util.concurrent.CountDownLatch(1)
+    val latch = CountDownLatch(1)
     mainHandler.post {
       try {
         block()
@@ -315,7 +312,7 @@ class PlaybackController(private val context: Context) {
     }
     try {
       // Wait briefly; this keeps semantics synchronous without risking deadlock
-      latch.await(2, java.util.concurrent.TimeUnit.SECONDS)
+      latch.await(2, TimeUnit.SECONDS)
     } catch (_: InterruptedException) {
     }
   }
@@ -408,14 +405,16 @@ class PlaybackController(private val context: Context) {
 
     connect {
       val controller = mediaController ?: return@connect
-      sendCommand(forceSyncProgressCommand, Bundle.EMPTY) { _ ->
+      val latch = CountDownLatch(1)
+      sendCommand(forceSyncProgressCommand, Bundle.EMPTY) { latch.countDown() }
+      latch.await(2, TimeUnit.SECONDS)
       val targetIsCast = playbackSession.isLocal && currentMediaPlayer == PLAYER_CAST
       val mediaItems =
         playbackSession.toPlayerMediaItems(context, preferServerUrisForCast = targetIsCast)
           .map { playerMediaItem ->
         MediaItem.Builder()
           .setUri(playerMediaItem.uri.toString())
-          .setMediaId("${playbackSession.id}_${playerMediaItem.mediaId}")
+          .setMediaId(playerMediaItem.mediaId)
           .setMimeType(playerMediaItem.mimeType)
           .setMediaMetadata(
             MediaMetadata.Builder()
@@ -427,6 +426,7 @@ class PlaybackController(private val context: Context) {
           )
           .build()
       }
+
 
       val trackIndex = playbackSession.getCurrentTrackIndex().coerceIn(0, mediaItems.lastIndex)
       val trackStartOffsetMs = playbackSession.getTrackStartOffsetMs(trackIndex)
@@ -443,7 +443,6 @@ class PlaybackController(private val context: Context) {
           tag,
           "Prepared playback for ${playbackSession.displayTitle} items=${mediaItems.size} startIndex=$trackIndex pos=$positionInTrack"
         )
-      }
       }
     }
   }
@@ -541,15 +540,22 @@ class PlaybackController(private val context: Context) {
     sendCommand(cancelSleepTimerCommand, Bundle(), null)
   }
 
-  fun checkAutoSleepTimer() {
-    sendCommand(checkAutoSleepTimerCommand, Bundle(), null)
-  }
 
   fun closePlayback(onComplete: ((Boolean) -> Unit)? = null) {
     val closeCommand = SessionCommand(CustomCommands.CLOSE_PLAYBACK, Bundle.EMPTY)
     sendCommand(closeCommand, Bundle.EMPTY) { result ->
       onComplete?.invoke(result.resultCode == SessionResult.RESULT_SUCCESS)
     }
+  }
+
+  fun forceSyncProgress(onComplete: (() -> Unit)? = null) {
+    sendCommand(forceSyncProgressCommand, Bundle.EMPTY) {
+      onComplete?.invoke()
+    }
+  }
+
+  fun markNextUiPlaybackEvent() {
+    sendCommand(markUiPlaybackEventCommand, Bundle.EMPTY, null)
   }
 
   fun setPlaybackSpeed(speed: Float) {

@@ -1,7 +1,6 @@
 package com.audiobookshelf.app.plugins
 
 import android.annotation.SuppressLint
-import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
@@ -21,8 +20,6 @@ import com.audiobookshelf.app.data.Podcast
 import com.audiobookshelf.app.data.PodcastEpisode
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.media.MediaEventManager
-import com.audiobookshelf.app.media.MediaProgressSyncer
-import com.audiobookshelf.app.media.PlaybackEventSource
 import com.audiobookshelf.app.player.CastManager
 import com.audiobookshelf.app.player.PLAYER_EXO
 import com.audiobookshelf.app.player.PLAYER_MEDIA3
@@ -31,7 +28,6 @@ import com.audiobookshelf.app.player.PlayerNotificationService
 import com.audiobookshelf.app.player.SleepTimerNotificationCenter
 import com.audiobookshelf.app.player.SleepTimerUiNotifier
 import com.audiobookshelf.app.player.core.NetworkMonitor
-import com.audiobookshelf.app.player.core.PlaybackTelemetryHost
 import com.audiobookshelf.app.player.media3.PlaybackController
 import com.audiobookshelf.app.player.toWidgetSnapshot
 import com.audiobookshelf.app.server.ApiHandler
@@ -60,8 +56,6 @@ class AbsAudioPlayer : Plugin() {
 
   lateinit var playerNotificationService: PlayerNotificationService
   private var playbackController: PlaybackController? = null
-  private var media3ProgressSyncer: MediaProgressSyncer? = null
-  private var pendingUiPlaybackEvent: Boolean = false
   private var networkStateListener: NetworkMonitor.Listener? = null
 
   private var isCastAvailable:Boolean = false
@@ -167,43 +161,6 @@ class AbsAudioPlayer : Plugin() {
       appEventEmitter.onSleepTimerEnded(currentPosition)
     }
   }
-
-  private val media3TelemetryHost = object : PlaybackTelemetryHost {
-    override val appContext: Context
-      get() = mainActivity.applicationContext
-
-    override val isUnmeteredNetwork: Boolean
-      get() = NetworkMonitor.isUnmeteredNetwork
-
-    override fun isPlayerActive(): Boolean {
-      return playbackController?.isPlaying() ?: false
-    }
-
-    override fun getCurrentTimeSeconds(): Double {
-      val session = activePlaybackSession ?: return 0.0
-      val controller = playbackController ?: return session.currentTime
-      val trackIndex = controller.currentMediaItemIndex()
-      val offsetMs = session.getTrackStartOffsetMs(trackIndex)
-      return (controller.currentPosition() + offsetMs) / 1000.0
-    }
-
-    override fun alertSyncSuccess() {
-      appEventEmitter.onProgressSyncSuccess()
-    }
-
-    override fun alertSyncFailing() {
-      appEventEmitter.onProgressSyncFailing()
-    }
-
-    override fun notifyLocalProgressUpdate(localMediaProgress: LocalMediaProgress) {
-      appEventEmitter.onLocalMediaProgressUpdate(localMediaProgress)
-    }
-
-    override fun checkAutoSleepTimer() {
-      playbackController?.checkAutoSleepTimer()
-    }
-  }
-
   private val playbackControllerListener = object : PlaybackController.Listener {
     override fun onPlaybackSession(session: PlaybackSession) {
       lastKnownMediaPlayer?.let { session.mediaPlayer = it }
@@ -221,18 +178,11 @@ class AbsAudioPlayer : Plugin() {
     override fun onPlayingUpdate(isPlaying: Boolean) {
       appEventEmitter.onPlayingUpdate(isPlaying)
       if (BuildConfig.USE_MEDIA3) {
-        val session = activePlaybackSession
         if (isPlaying) {
-          if (session != null) {
-            maybeAutoRewindOnResume(session)
-            media3ProgressSyncer?.play(session)
-          }
+          activePlaybackSession?.let { maybeAutoRewindOnResume(it) }
           lastPauseTimestampMs = -1L
         } else {
           lastPauseTimestampMs = System.currentTimeMillis()
-          media3ProgressSyncer?.pause {
-            Log.d(tag, "Media3 progress syncer paused")
-          }
         }
       }
       notifyWidgetStateFromController()
@@ -267,11 +217,7 @@ class AbsAudioPlayer : Plugin() {
 
     override fun onPlaybackEnded() {
       notifyWidgetStateFromController(isClosed = true)
-      if (BuildConfig.USE_MEDIA3) {
-        media3ProgressSyncer?.stop(true) {
-          Log.d(tag, "Media3 progress syncer stopped after playback ended")
-        }
-      } else {
+      if (!BuildConfig.USE_MEDIA3) {
         playerNotificationService.handlePlaybackEnded()
       }
       activePlaybackSession = null
@@ -307,12 +253,6 @@ class AbsAudioPlayer : Plugin() {
         }
         networkStateListener = listener
         NetworkMonitor.addListener(listener)
-      }
-      if (media3ProgressSyncer == null) {
-        media3ProgressSyncer = MediaProgressSyncer(media3TelemetryHost, apiHandler)
-      }
-      if (pendingUiPlaybackEvent) {
-        ensureUiPlaybackEventSource()
       }
 
       playbackController?.listener = playbackControllerListener
@@ -418,10 +358,6 @@ class AbsAudioPlayer : Plugin() {
     )
   }
 
-  private fun updateSyncerCurrentTime(seconds: Double) {
-    media3ProgressSyncer?.updatePlaybackTimeFromUi(seconds)
-  }
-
   private fun notifyWidgetStateFromController(isClosed: Boolean = false) {
     if (!BuildConfig.USE_MEDIA3) return
     val updater = DeviceManager.widgetUpdater ?: return
@@ -493,13 +429,8 @@ class AbsAudioPlayer : Plugin() {
   }
 
   private fun ensureUiPlaybackEventSource() {
-    if (media3ProgressSyncer != null) {
-      media3ProgressSyncer?.markNextPlaybackEventSource(PlaybackEventSource.UI)
-      playbackController?.forceNextPlayingStateDispatch()
-      pendingUiPlaybackEvent = false
-    } else {
-      pendingUiPlaybackEvent = true
-    }
+    playbackController?.markNextUiPlaybackEvent()
+    playbackController?.forceNextPlayingStateDispatch()
   }
 
   @PluginMethod
@@ -515,6 +446,29 @@ class AbsAudioPlayer : Plugin() {
     if (libraryItemId.isEmpty()) {
       Log.e(tag, "Invalid call to play library item no library item id")
       return call.resolve(JSObject("{\"error\":\"Invalid request\"}"))
+    }
+
+    val stopCurrentPlayback: (() -> Unit) -> Unit = { completion ->
+      if (BuildConfig.USE_MEDIA3) {
+        val controller = playbackController
+        if (controller != null) {
+          val latch = java.util.concurrent.CountDownLatch(1)
+          controller.closePlayback { latch.countDown() }
+          Thread {
+            try {
+              latch.await(3, java.util.concurrent.TimeUnit.SECONDS)
+            } catch (_: InterruptedException) {
+            }
+            mainHandler.post { completion() }
+          }.start()
+        } else {
+          completion()
+        }
+      } else {
+        playerNotificationService.mediaProgressSyncer.stop {
+          completion()
+        }
+      }
     }
 
     if (libraryItemId.startsWith("local")) { // Play local media item
@@ -540,44 +494,17 @@ class AbsAudioPlayer : Plugin() {
             playbackSession.currentTime = startTimeOverride
           }
           Log.d(tag, "prepareLibraryItem: USE_MEDIA3=${BuildConfig.USE_MEDIA3}")
-          if (BuildConfig.USE_MEDIA3) {
-            Log.d(tag, "prepareLibraryItem: Routing to Media3 playback controller")
-            val syncer = media3ProgressSyncer
-            val prepareAndStart: () -> Unit = {
+          val startPlayback = {
+            if (BuildConfig.USE_MEDIA3) {
+              Log.d(tag, "prepareLibraryItem: Routing to Media3 playback controller")
               playbackController?.preparePlayback(playbackSession, playWhenReady, playbackRate)
-              syncer?.start(playbackSession)
-            }
-            if (syncer?.listeningTimerRunning == true) {
-              syncer.stop {
-                Log.d(tag, "Media3 progress syncer was already syncing - stopped")
-                PlayerListener.lazyIsPlaying = false
-                Handler(Looper.getMainLooper()).post {
-                  prepareAndStart()
-                }
-              }
-            } else {
-              syncer?.reset()
-              prepareAndStart()
-            }
-          }
-          else {
-            if (playerNotificationService.mediaProgressSyncer.listeningTimerRunning) {
-              playerNotificationService.mediaProgressSyncer.stop {
-                Log.d(tag, "Media progress syncer was already syncing - stopped")
-                PlayerListener.lazyIsPlaying = false
-
-                Handler(Looper.getMainLooper()).post {
-                  playerNotificationService.preparePlayer(
-                    playbackSession,
-                    playWhenReady,
-                    playbackRate
-                  )
-                }
-              }
             } else {
               playerNotificationService.mediaProgressSyncer.reset()
               playerNotificationService.preparePlayer(playbackSession, playWhenReady, playbackRate)
             }
+          }
+          stopCurrentPlayback {
+            Handler(Looper.getMainLooper()).post { startPlayback() }
           }
         }
         return call.resolve(JSObject())
@@ -585,42 +512,75 @@ class AbsAudioPlayer : Plugin() {
     } else { // Play library item from server
       val playItemRequestPayload = buildPlayItemRequestPayload(false)
       Handler(Looper.getMainLooper()).post {
-        val stopCurrentPlayback: (() -> Unit) -> Unit = { completion ->
-          if (BuildConfig.USE_MEDIA3) {
-            val syncer = media3ProgressSyncer
-            if (syncer != null) {
-              syncer.stop {
-                completion()
-              }
-            } else {
-              completion()
+        if (BuildConfig.USE_MEDIA3) {
+          // For Media3, ensure we flush a final sync for the current session before requesting a new one.
+          val syncLatch = java.util.concurrent.CountDownLatch(1)
+          playbackController?.forceSyncProgress { syncLatch.countDown() }
+          Thread {
+            try {
+              syncLatch.await(2, java.util.concurrent.TimeUnit.SECONDS)
+            } catch (_: InterruptedException) {
             }
-          } else {
-            playerNotificationService.mediaProgressSyncer.stop {
-              completion()
-            }
-          }
-        }
-
-        stopCurrentPlayback {
-          apiHandler.playLibraryItem(libraryItemId, episodeId, playItemRequestPayload) { playbackSession ->
-            if (playbackSession == null) {
-              call.resolve(JSObject("{\"error\":\"Server play request failed\"}"))
-            } else {
-              if (startTimeOverride != null) {
-                Log.d(tag, "prepareLibraryItem: Using start time override $startTimeOverride")
-                playbackSession.currentTime = startTimeOverride
-              }
-              Handler(Looper.getMainLooper()).post {
-                Log.d(tag, "Preparing Player playback session ${jacksonMapper.writeValueAsString(playbackSession)}")
-                PlayerListener.lazyIsPlaying = false
-                if (BuildConfig.USE_MEDIA3) {
-                  playbackController?.preparePlayback(playbackSession, playWhenReady, playbackRate)
-                } else {
-                  playerNotificationService.preparePlayer(playbackSession, playWhenReady, playbackRate)
+            Handler(Looper.getMainLooper()).post {
+              stopCurrentPlayback {
+                apiHandler.playLibraryItem(
+                  libraryItemId,
+                  episodeId,
+                  playItemRequestPayload
+                ) { playbackSession ->
+                  if (playbackSession == null) {
+                    call.resolve(JSObject("{\"error\":\"Server play request failed\"}"))
+                  } else {
+                    if (startTimeOverride != null) {
+                      Log.d(tag, "prepareLibraryItem: Using start time override $startTimeOverride")
+                      playbackSession.currentTime = startTimeOverride
+                    }
+                    Handler(Looper.getMainLooper()).post {
+                      Log.d(
+                        tag,
+                        "Preparing Player playback session ${
+                          jacksonMapper.writeValueAsString(playbackSession)
+                        }"
+                      )
+                      PlayerListener.lazyIsPlaying = false
+                      playbackController?.preparePlayback(
+                        playbackSession,
+                        playWhenReady,
+                        playbackRate
+                      )
+                    }
+                    call.resolve(JSObject(jacksonMapper.writeValueAsString(playbackSession)))
+                  }
                 }
               }
-              call.resolve(JSObject(jacksonMapper.writeValueAsString(playbackSession)))
+            }
+          }.start()
+        } else {
+          stopCurrentPlayback {
+            apiHandler.playLibraryItem(
+              libraryItemId,
+              episodeId,
+              playItemRequestPayload
+            ) { playbackSession ->
+              if (playbackSession == null) {
+                call.resolve(JSObject("{\"error\":\"Server play request failed\"}"))
+              } else {
+                if (startTimeOverride != null) {
+                  Log.d(tag, "prepareLibraryItem: Using start time override $startTimeOverride")
+                  playbackSession.currentTime = startTimeOverride
+                }
+                Handler(Looper.getMainLooper()).post {
+                  Log.d(
+                    tag,
+                    "Preparing Player playback session ${
+                      jacksonMapper.writeValueAsString(playbackSession)
+                    }"
+                  )
+                  PlayerListener.lazyIsPlaying = false
+                  playerNotificationService.preparePlayer(playbackSession, playWhenReady, playbackRate)
+                }
+                call.resolve(JSObject(jacksonMapper.writeValueAsString(playbackSession)))
+              }
             }
           }
         }
@@ -693,7 +653,6 @@ class AbsAudioPlayer : Plugin() {
     Log.d(tag, "seek action to $time")
     Handler(Looper.getMainLooper()).post {
       if (BuildConfig.USE_MEDIA3) {
-        updateSyncerCurrentTime(time.toDouble())
         playbackController?.seekTo(time * 1000L)
       } else {
         playerNotificationService.seekPlayer(time * 1000L) // convert to ms
@@ -707,8 +666,6 @@ class AbsAudioPlayer : Plugin() {
     val amount:Int = call.getInt("value", 0) ?: 0
     Handler(Looper.getMainLooper()).post {
       if (BuildConfig.USE_MEDIA3) {
-        val currentTime = media3ProgressSyncer?.currentPlaybackSession?.currentTime ?: 0.0
-        updateSyncerCurrentTime(currentTime + amount)
         playbackController?.seekBy(amount * 1000L)
       } else {
         playerNotificationService.seekForward(amount * 1000L) // convert to ms
@@ -722,8 +679,6 @@ class AbsAudioPlayer : Plugin() {
     val amount:Int = call.getInt("value", 0) ?: 0 // Value in seconds
     Handler(Looper.getMainLooper()).post {
       if (BuildConfig.USE_MEDIA3) {
-        val currentTime = media3ProgressSyncer?.currentPlaybackSession?.currentTime ?: 0.0
-        updateSyncerCurrentTime((currentTime - amount).coerceAtLeast(0.0))
         playbackController?.seekBy(-amount * 1000L)
       } else {
         playerNotificationService.seekBackward(amount * 1000L) // convert to ms
@@ -776,10 +731,8 @@ class AbsAudioPlayer : Plugin() {
           call.resolve(ret)
           return@post
         }
-        val playbackSessionId = media3ProgressSyncer?.currentPlaybackSession?.id
-          ?: activePlaybackSession?.id
-          ?: playerNotificationService.mediaProgressSyncer.currentPlaybackSession?.id
-          ?: playerNotificationService.currentPlaybackSession?.id
+        val playbackSessionId = activePlaybackSession?.id
+          ?: DeviceManager.getLastPlaybackSession()?.id
         controller.setSleepTimer(time, isChapterTime, playbackSessionId) { success ->
           val ret = JSObject()
           ret.put("success", success)
@@ -871,9 +824,6 @@ class AbsAudioPlayer : Plugin() {
     super.handleOnDestroy()
     if (BuildConfig.USE_MEDIA3) {
       try {
-        media3ProgressSyncer?.stop(false) {
-          Log.d(tag, "Media3 progress syncer stopped on destroy")
-        }
         playbackController?.stopAndDisconnect()
       } catch (_: Exception) {
       }

@@ -2,6 +2,7 @@ package com.audiobookshelf.app.player.media3
 
 import android.content.Context
 import androidx.media3.common.MediaItem
+import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.data.LibraryAuthorItem
 import com.audiobookshelf.app.data.LibraryCollection
 import com.audiobookshelf.app.data.LibraryItem
@@ -38,42 +39,66 @@ class Media3BrowseTreeRepository(private val mediaManager: MediaManager) {
 
   suspend fun loadLibraryPodcasts(libraryId: String): List<LibraryItem> = withMediaManagerCallback {
     mediaManager.loadLibraryPodcasts(libraryId) { items ->
-      android.util.Log.d("M3BrowseRepo", "podcasts loaded library=$libraryId count=${items?.size ?: 0}")
+      if (BuildConfig.DEBUG) {
+        android.util.Log.d(
+          "M3BrowseRepo",
+          "podcasts loaded library=$libraryId count=${items?.size ?: 0}"
+        )
+      }
       it(items)
     }
   }
 
   suspend fun loadAuthorsWithBooks(libraryId: String): List<LibraryAuthorItem> = withMediaManagerCallback {
     mediaManager.loadAuthorsWithBooks(libraryId) { items ->
-      android.util.Log.d("M3BrowseRepo", "authors loaded library=$libraryId count=${items.size}")
+      if (BuildConfig.DEBUG) {
+        android.util.Log.d("M3BrowseRepo", "authors loaded library=$libraryId count=${items.size}")
+      }
       it(items)
     }
   }
 
   suspend fun loadLibrarySeriesWithAudio(libraryId: String): List<LibrarySeriesItem> = withMediaManagerCallback {
     mediaManager.loadLibrarySeriesWithAudio(libraryId) { items ->
-      android.util.Log.d("M3BrowseRepo", "series loaded library=$libraryId count=${items.size}")
+      if (BuildConfig.DEBUG) {
+        android.util.Log.d("M3BrowseRepo", "series loaded library=$libraryId count=${items.size}")
+      }
       it(items)
     }
   }
 
   suspend fun loadLibraryCollectionsWithAudio(libraryId: String): List<LibraryCollection> = withMediaManagerCallback {
     mediaManager.loadLibraryCollectionsWithAudio(libraryId) { items ->
-      android.util.Log.d("M3BrowseRepo", "collections loaded library=$libraryId count=${items.size}")
+      if (BuildConfig.DEBUG) {
+        android.util.Log.d(
+          "M3BrowseRepo",
+          "collections loaded library=$libraryId count=${items.size}"
+        )
+      }
       it(items)
     }
   }
 
   suspend fun loadLibraryDiscoveryBooksWithAudio(libraryId: String): List<LibraryItem> = withMediaManagerCallback {
     mediaManager.loadLibraryDiscoveryBooksWithAudio(libraryId) { items ->
-      android.util.Log.d("M3BrowseRepo", "discovery loaded library=$libraryId count=${items.size}")
+      if (BuildConfig.DEBUG) {
+        android.util.Log.d(
+          "M3BrowseRepo",
+          "discovery loaded library=$libraryId count=${items.size}"
+        )
+      }
       it(items)
     }
   }
 
   suspend fun loadAuthorBooksWithAudio(libraryId: String, authorId: String): List<LibraryItem> = withMediaManagerCallback {
     mediaManager.loadAuthorBooksWithAudio(libraryId, authorId) { items ->
-      android.util.Log.d("M3BrowseRepo", "author books loaded library=$libraryId author=$authorId count=${items.size}")
+      if (BuildConfig.DEBUG) {
+        android.util.Log.d(
+          "M3BrowseRepo",
+          "author books loaded library=$libraryId author=$authorId count=${items.size}"
+        )
+      }
       it(items)
     }
   }
