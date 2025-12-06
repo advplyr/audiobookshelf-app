@@ -16,9 +16,12 @@ import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.R
 import com.audiobookshelf.app.data.AndroidAutoBrowseSeriesSequenceOrderSetting
 import com.audiobookshelf.app.data.DeviceInfo
+import com.audiobookshelf.app.data.DeviceSettings
 import com.audiobookshelf.app.data.Library
+import com.audiobookshelf.app.data.LibraryAuthorItem
 import com.audiobookshelf.app.data.LibraryItem
 import com.audiobookshelf.app.data.LibraryItemWrapper
+import com.audiobookshelf.app.data.LibrarySeriesItem
 import com.audiobookshelf.app.data.LocalLibraryItem
 import com.audiobookshelf.app.data.PlayItemRequestPayload
 import com.audiobookshelf.app.data.PlaybackSession
@@ -45,6 +48,9 @@ class Media3BrowseTree(
   private val mediaManager: MediaManager,
   private val repository: Media3BrowseTreeRepository = Media3BrowseTreeRepository(mediaManager)
 ) {
+
+  private val deviceSettings
+    get() = DeviceManager.deviceData.deviceSettings ?: DeviceSettings.default()
 
   data class ResolvedPlayable(
     val session: PlaybackSession,
@@ -424,24 +430,26 @@ suspend fun getChildren(parentId: String): ImmutableList<MediaItem> {
     val browseType = parts[3]
 
     return when (browseType) {
-      "AUTHORS" -> repository.loadAuthorsWithBooks(libraryId).map { author ->
-        buildMediaItem(
-          mediaId = "__LIBRARY__${libraryId}__AUTHOR__${author.id}",
-          title = author.name,
-          subtitle = "${author.bookCount} books",
-          artworkUri = getUriToAbsIconDrawable(context, "person"),
-          isBrowsable = true, mimeType = null
+      "AUTHORS" -> {
+        val authors = repository.loadAuthorsWithBooks(libraryId)
+        val letter = parts.getOrNull(4)?.firstOrNull()?.uppercaseChar()
+        if (letter == null) buildAuthorIndex(libraryId, authors) else buildAuthorLetterChildren(
+          authors,
+          letter
         )
       }
 
-      "SERIES_LIST" -> repository.loadLibrarySeriesWithAudio(libraryId).map { seriesItem ->
-        buildMediaItem(
-          mediaId = "__LIBRARY__${libraryId}__SERIES__${seriesItem.id}",
-          title = seriesItem.title,
-          subtitle = "${seriesItem.audiobookCount} books",
-          artworkUri = getUriToAbsIconDrawable(context, "bookshelf"),
-          isBrowsable = true, mimeType = null
-        )
+      "SERIES_LIST" -> {
+        val seriesItems = orderSeries(repository.loadLibrarySeriesWithAudio(libraryId))
+        seriesItems.map { seriesItem ->
+          buildMediaItem(
+            mediaId = "__LIBRARY__${libraryId}__SERIES__${seriesItem.id}",
+            title = seriesItem.title,
+            subtitle = "${seriesItem.audiobookCount} books",
+            artworkUri = getUriToAbsIconDrawable(context, "bookshelf"),
+            isBrowsable = true, mimeType = null
+          )
+        }
       }
 
       "COLLECTIONS" -> repository.loadLibraryCollectionsWithAudio(libraryId).map { collection ->
@@ -463,8 +471,9 @@ suspend fun getChildren(parentId: String): ImmutableList<MediaItem> {
       } ?: emptyList()
 
       "SERIES" -> parts.getOrNull(4)?.let { seriesId ->
-        repository.loadLibrarySeriesItemsWithAudio(libraryId, seriesId)
-          .map { book -> libraryItemToMediaItem(book, parentId) }
+        repository.loadLibrarySeriesItemsWithAudio(libraryId, seriesId).map { book ->
+          libraryItemToMediaItem(book, parentId)
+        }
       } ?: emptyList()
 
       "COLLECTION" -> parts.getOrNull(4)?.let { collectionId ->
@@ -635,6 +644,58 @@ suspend fun getChildren(parentId: String): ImmutableList<MediaItem> {
       isBrowsable = true,
       mimeType = null
     )
+  }
+
+  private fun orderSeries(series: List<LibrarySeriesItem>): List<LibrarySeriesItem> {
+    return if (deviceSettings.androidAutoBrowseSeriesSequenceOrder == AndroidAutoBrowseSeriesSequenceOrderSetting.DESC) {
+      series.reversed()
+    } else {
+      series
+    }
+  }
+
+  private fun buildAuthorIndex(
+    libraryId: String,
+    authors: List<LibraryAuthorItem>
+  ): List<MediaItem> {
+    if (!shouldGroupAuthors(authors)) {
+      return authors.map { author -> author.getMediaItem(null, context) }
+    }
+    val groups = authors.groupBy { authorLetterKey(it.name) }
+    if (groups.size <= 1) {
+      return authors.map { author -> author.getMediaItem(null, context) }
+    }
+    return groups.keys.sorted().map { letter ->
+      val count = groups[letter]?.size ?: 0
+      buildMediaItem(
+        mediaId = "__LIBRARY__${libraryId}__AUTHORS__${letter}",
+        title = letter.toString(),
+        subtitle = "$count authors",
+        artworkUri = getUriToAbsIconDrawable(context, "person"),
+        isBrowsable = true,
+        mimeType = null
+      )
+    }
+  }
+
+  private fun buildAuthorLetterChildren(
+    authors: List<LibraryAuthorItem>,
+    letter: Char
+  ): List<MediaItem> {
+    val normalized = letter.uppercaseChar()
+    return authors
+      .filter { authorLetterKey(it.name) == normalized }
+      .map { author -> author.getMediaItem(null, context, normalized.toString()) }
+  }
+
+  private fun shouldGroupAuthors(authors: List<LibraryAuthorItem>): Boolean {
+    val limit = deviceSettings.androidAutoBrowseLimitForGrouping
+    return authors.size > limit && authors.size > 1
+  }
+
+  private fun authorLetterKey(name: String?): Char {
+    val first = name?.firstOrNull()?.uppercaseChar()
+    return if (first != null && first.isLetter()) first else '#'
   }
 
   private fun libraryToMediaItem(library: Library, prefix: String): MediaItem {

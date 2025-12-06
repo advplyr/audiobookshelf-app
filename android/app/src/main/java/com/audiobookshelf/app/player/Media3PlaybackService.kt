@@ -135,6 +135,9 @@ class Media3PlaybackService : MediaLibraryService() {
   private var currentPlaybackSession: PlaybackSession? = null
   private val playbackMetrics = PlaybackMetricsRecorder()
 
+  @Volatile
+  private var sessionAssignTimestampMs: Long = 0L
+
   // Player instances and state
   private lateinit var localPlayer: AbsPlayerWrapper
   private lateinit var castPlayer: AbsPlayerWrapper
@@ -335,6 +338,14 @@ class Media3PlaybackService : MediaLibraryService() {
       override fun abandonAudioFocus() {
         this@Media3PlaybackService.abandonAudioFocus()
       }
+
+      override fun getPlaybackSessionAssignTimestampMs(): Long {
+        return this@Media3PlaybackService.getPlaybackSessionAssignTimestampMs()
+      }
+
+      override fun resetPlaybackSessionAssignTimestamp() {
+        this@Media3PlaybackService.resetPlaybackSessionAssignTimestamp()
+      }
     },
     eventPipeline = eventPipeline
   )
@@ -345,6 +356,7 @@ class Media3PlaybackService : MediaLibraryService() {
 
   override fun onCreate() {
     super.onCreate()
+    playbackMetrics.noteServiceStart()
     debugLog { "onCreate: Initializing Media3 playback service" }
     DbManager.initialize(this)
     DeviceManager.initializeWidgetUpdater(this)
@@ -489,6 +501,7 @@ class Media3PlaybackService : MediaLibraryService() {
     ensureSleepTimerManager()
 
     playerInitializationSignal.complete(Unit)
+    playbackMetrics.recordServiceReady()
   }
 
   private fun applyJumpIncrementsFromDeviceSettings() {
@@ -555,6 +568,7 @@ class Media3PlaybackService : MediaLibraryService() {
       scope = serviceScope,
       speechAudioAttributes = speechAudioAttributes,
       onSwitchToCast = { wrapper ->
+        playbackMetrics.markCastHandoffStart()
         serviceScope.launch {
           playerInitializationSignal.await()
           castPlayer = wrapper.apply { addListener(playerListener) }
@@ -582,6 +596,7 @@ class Media3PlaybackService : MediaLibraryService() {
       if (activePlayer === to) return
 
       val fromPlayer = activePlayer
+      System.currentTimeMillis()
 
       val itemCount = fromPlayer.mediaItemCount
       val startIndex = fromPlayer.currentMediaItemIndex
@@ -591,6 +606,8 @@ class Media3PlaybackService : MediaLibraryService() {
       activePlayer = to
       mediaSession?.player = to
       currentPlaybackSession?.mediaPlayer = currentMediaPlayerId()
+      // Update player ID in metrics without resetting counters
+      playbackMetrics.updatePlayerId(currentMediaPlayerId())
       notifyWidgetState()
       updateMediaPlayerExtra()
 
@@ -613,6 +630,10 @@ class Media3PlaybackService : MediaLibraryService() {
       if (fromPlayer !== localPlayer) {
         fromPlayer.stop()
         fromPlayer.clearMediaItems()
+      }
+
+      if (to === castPlayer) {
+        playbackMetrics.recordCastHandoffComplete(PLAYER_CAST)
       }
 
       debugLog { "Switched active player from ${fromPlayer.javaClass.simpleName} to ${to.javaClass.simpleName}" }
@@ -700,16 +721,21 @@ class Media3PlaybackService : MediaLibraryService() {
       }
       return
     }
+    val isNewSession = currentPlaybackSession?.id != session.id
     currentPlaybackSession = session
     if (this::mediaManager.isInitialized) {
       mediaManager.updateLatestServerItemFromSession(session)
     }
     session.mediaPlayer = currentMediaPlayerId()
-    playbackMetrics.begin(session.mediaPlayer, session.mediaItemId)
+    // Only reset metrics for NEW sessions, not player switches
+    if (isNewSession) {
+      playbackMetrics.begin(session.mediaPlayer, session.mediaItemId)
+    }
     notifyWidgetState()
   }
 
   private fun switchPlaybackSession(session: PlaybackSession) {
+    markPlaybackSessionAssigned()
     val previous = currentPlaybackSession
     if (previous != null && previous.id != session.id) {
       updateCurrentPosition(previous)
@@ -730,6 +756,7 @@ class Media3PlaybackService : MediaLibraryService() {
       updateCurrentPosition(session)
       maybeSyncProgress("close", force = true, session) { result ->
         serviceScope.launch(Dispatchers.Main) {
+          playbackMetrics.logSummary()
           if (playerInitialized) {
             activePlayer.stop()
             activePlayer.clearMediaItems()
@@ -920,6 +947,18 @@ class Media3PlaybackService : MediaLibraryService() {
     if (this::unifiedProgressSyncer.isInitialized) {
       unifiedProgressSyncer.markCurrentSessionClosed()
     }
+  }
+
+  fun markPlaybackSessionAssigned() {
+    sessionAssignTimestampMs = System.currentTimeMillis()
+  }
+
+  fun getPlaybackSessionAssignTimestampMs(): Long {
+    return sessionAssignTimestampMs
+  }
+
+  fun resetPlaybackSessionAssignTimestamp() {
+    sessionAssignTimestampMs = 0L
   }
 
   // ========================================

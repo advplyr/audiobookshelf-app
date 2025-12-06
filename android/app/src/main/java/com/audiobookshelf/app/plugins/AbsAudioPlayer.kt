@@ -450,20 +450,8 @@ class AbsAudioPlayer : Plugin() {
 
     val stopCurrentPlayback: (() -> Unit) -> Unit = { completion ->
       if (BuildConfig.USE_MEDIA3) {
-        val controller = playbackController
-        if (controller != null) {
-          val latch = java.util.concurrent.CountDownLatch(1)
-          controller.closePlayback { latch.countDown() }
-          Thread {
-            try {
-              latch.await(3, java.util.concurrent.TimeUnit.SECONDS)
-            } catch (_: InterruptedException) {
-            }
-            mainHandler.post { completion() }
-          }.start()
-        } else {
-          completion()
-        }
+        playbackController?.closePlayback { /* fire-and-forget */ }
+        completion()
       } else {
         playerNotificationService.mediaProgressSyncer.stop {
           completion()

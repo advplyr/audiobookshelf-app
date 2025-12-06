@@ -394,7 +394,11 @@ class PlaybackController(private val context: Context) {
     disconnect()
   }
 
-  fun preparePlayback(playbackSession: PlaybackSession, playWhenReady: Boolean, playbackRate: Float?) {
+  fun preparePlayback(
+    playbackSession: PlaybackSession,
+    playWhenReady: Boolean,
+    playbackRate: Float?
+  ) {
     if (BuildConfig.DEBUG) {
       Log.d(tag, "preparePlayback: session=${playbackSession.id} title=${playbackSession.displayTitle}")
     }
@@ -426,7 +430,6 @@ class PlaybackController(private val context: Context) {
           )
           .build()
       }
-
 
       val trackIndex = playbackSession.getCurrentTrackIndex().coerceIn(0, mediaItems.lastIndex)
       val trackStartOffsetMs = playbackSession.getTrackStartOffsetMs(trackIndex)

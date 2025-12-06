@@ -37,6 +37,8 @@ interface ListenerApi {
   fun updatePlaybackSpeedButton(speed: Float)
   fun getErrorRetryJob(): Job?
   fun setErrorRetryJob(job: Job?)
+  fun getPlaybackSessionAssignTimestampMs(): Long
+  fun resetPlaybackSessionAssignTimestamp()
   val serviceScope: CoroutineScope
   val errorResetWindowMs: Long
   val retryBackoffStepMs: Long
@@ -101,6 +103,12 @@ class Media3PlayerEventListener(
         api.setErrorRetryJob(null)
         consecutiveErrorCount = 0
         api.onPlayStarted(session.id)
+        val assignTimestamp = api.getPlaybackSessionAssignTimestampMs()
+        if (assignTimestamp > 0L) {
+          val latency = System.currentTimeMillis() - assignTimestamp
+          api.debug { "Ready latency after session assign: ${latency}ms" }
+          api.resetPlaybackSessionAssignTimestamp()
+        }
         eventPipeline.emitPlayEvent(session)
         api.progressSyncPlay(session)
         if (api.isPlayerInitialized()) {
@@ -191,6 +199,8 @@ class Media3PlayerEventListener(
       Log.w(api.tag, "Max retries ($maxRetries) exceeded for recoverable error")
       return
     }
+
+    api.playbackMetrics.recordRecoverableRetry()
 
     // Exponential backoff: 1s, 2s, 4s
     val backoffMs =

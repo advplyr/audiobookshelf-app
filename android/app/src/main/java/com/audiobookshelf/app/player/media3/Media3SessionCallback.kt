@@ -246,7 +246,7 @@ class Media3SessionCallback(
         if (resolved != null) {
           browseApi.assignSession(resolved.session)
           if (BuildConfig.DEBUG) {
-          debug {
+            debug {
             "onPlaybackResumption: Resolved server in-progress item=${resolved.session.id} " +
               "startIndex=${resolved.startIndex} startPos=${resolved.startPositionMs}"
           }

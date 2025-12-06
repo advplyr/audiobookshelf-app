@@ -3,6 +3,7 @@ package com.audiobookshelf.app.player.media3
 import android.content.Context
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.extractor.DefaultExtractorsFactory
@@ -53,8 +54,19 @@ class PlaybackPipeline(
     }
     val mediaSourceFactory = DefaultMediaSourceFactory(context, extractorsFactory)
 
+    // Use the same aggressive buffer settings as the legacy ExoPlayer v2 for fast startup
+    val customLoadControl = DefaultLoadControl.Builder()
+      .setBufferDurationsMs(
+        1000 * 20, // 20s min buffer
+        1000 * 45, // 45s max buffer
+        1000 * 5,  // 5s playback start
+        1000 * 20  // 20s playback rebuffer
+      )
+      .build()
+
     val coreExoPlayer = ExoPlayer.Builder(context)
       .setMediaSourceFactory(mediaSourceFactory)
+      .setLoadControl(customLoadControl)
       // Audio focus is managed at the service layer; disable internal handling to avoid double requests
       .setAudioAttributes(speechAttributes, /* handleAudioFocus= */ false)
       .setHandleAudioBecomingNoisy(true)
