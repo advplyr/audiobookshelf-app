@@ -126,7 +126,7 @@
   "LabelCustomTime": "Temps personalitzat",
   "LabelDescription": "Descripció",
   "LabelDisableAudioFadeOut": "Desactivar desaparició d'àudio",
-  "LabelDisableAudioFadeOutHelp": "El volum de l'audio començara a reduïr-se quan quede menys d'1 minut del temporitzador d'anar a dormir. Habilita este ajustament per a no reduïr el volum.",
+  "LabelDisableAudioFadeOutHelp": "El volum de l'audio començara a reduïr-se quan quedi menys d'1 minut del temporitzador d'anar a dormir. Habilita aquest ajustament per a no reduïr el volum.",
   "LabelDisableAutoRewind": "Desactivar rebobinatge automàtic",
   "LabelDisableShakeToReset": "Desactivar sacsejar per reiniciar",
   "LabelDisableShakeToResetHelp": "Si sacseges el teu dispositiu quan el temporitzador és actiu o durant els 2 minuts després que hagi expirat, el temporitzador es reinicia. Activa aquesta opció per evitar-ho.",
