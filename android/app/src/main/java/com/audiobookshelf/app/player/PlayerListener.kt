@@ -103,7 +103,7 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
       val playbackSession: PlaybackSession? = playerNotificationService.mediaProgressSyncer.currentPlaybackSession ?: playerNotificationService.currentPlaybackSession
       playbackSession?.let {
         // Handles auto-starting sleep timer and resetting sleep timer
-        playerNotificationService.sleepTimerManager.handleMediaPlayEvent(it.id)
+        playerNotificationService.handleSleepTimerPlayEvent(it.id)
 
         player.setVolume(1F) // Volume on sleep timer might have decreased this
 

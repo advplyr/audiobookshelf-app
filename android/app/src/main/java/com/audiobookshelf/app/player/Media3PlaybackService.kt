@@ -30,8 +30,6 @@ import com.audiobookshelf.app.data.PlayItemRequestPayload
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.managers.DbManager
-import com.audiobookshelf.app.managers.SleepTimerHost
-import com.audiobookshelf.app.managers.SleepTimerManager
 import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.media.SyncResult
 import com.audiobookshelf.app.media.UnifiedMediaProgressSyncer
@@ -120,6 +118,7 @@ class Media3PlaybackService : MediaLibraryService() {
 
   // Core service infrastructure
   private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+  private val sleepTimerCoordinator = SleepTimerCoordinator(serviceScope)
 
   // Media session and managers
   private var mediaSession: MediaLibrarySession? = null
@@ -173,10 +172,6 @@ class Media3PlaybackService : MediaLibraryService() {
   private var jumpForwardMs: Long = 10000L
   private var closePlaybackSignal: CompletableDeferred<Unit>? = null
 
-  // Sleep timer
-  private lateinit var sleepTimerManager: SleepTimerManager
-  private var sleepTimerShakeController: SleepTimerShakeController? = null
-
   // Notification and UI
   private lateinit var notificationProvider: MediaNotification.Provider
   private lateinit var playbackSpeedButtonProvider: Media3PlaybackSpeedButtonProvider
@@ -184,12 +179,6 @@ class Media3PlaybackService : MediaLibraryService() {
 
   @Volatile
   private var foregroundStarted = false
-
-  @Volatile
-  private var lastSleepTimerEndedSessionId: String? = null
-
-  @Volatile
-  private var sleepTimerEndObserved: Boolean = false
 
   // Audio focus management
   private lateinit var audioFocusManager: AudioFocusManager
@@ -248,15 +237,7 @@ class Media3PlaybackService : MediaLibraryService() {
       }
 
       override fun onPlayStarted(sessionId: String) {
-        // If the last sleep timer ended and the user didn't re-arm it, skip auto-reset on the next play.
-        if (sleepTimerEndObserved && lastSleepTimerEndedSessionId == sessionId) {
-          sleepTimerEndObserved = false
-          lastSleepTimerEndedSessionId = null
-          return
-        }
-        ensureSleepTimerManager().handleMediaPlayEvent(sessionId)
-        // Match Exo behavior: evaluate auto sleep immediately at play start, not just on periodic sync.
-        ensureSleepTimerManager().checkAutoSleepTimer()
+        sleepTimerCoordinator.handlePlayStarted(sessionId)
       }
 
       override fun startPositionUpdates() {
@@ -452,7 +433,7 @@ class Media3PlaybackService : MediaLibraryService() {
       }
 
       override fun checkAutoSleepTimer() {
-        ensureSleepTimerManager().checkAutoSleepTimer()
+        sleepTimerCoordinator.checkAutoTimerIfNeeded()
       }
     }
 
@@ -481,7 +462,7 @@ class Media3PlaybackService : MediaLibraryService() {
     ensureForegroundNotification()
 
     initializeCastPlayer()
-    ensureSleepTimerManager()
+    sleepTimerCoordinator.start(sleepTimerHostAdapter)
 
     playerInitializationSignal.complete(Unit)
     playbackMetrics.recordServiceReady()
@@ -508,8 +489,7 @@ class Media3PlaybackService : MediaLibraryService() {
       }
       playerInitialized = false
     }
-    sleepTimerShakeController?.release()
-    sleepTimerShakeController = null
+    sleepTimerCoordinator.release()
     SleepTimerNotificationCenter.unregister()
   }
 
@@ -911,7 +891,7 @@ class Media3PlaybackService : MediaLibraryService() {
   // Sleep Timer
   // ========================================
 
-  private val sleepTimerHost = object : SleepTimerHost {
+  private val sleepTimerHostAdapter = object : SleepTimerHostAdapter {
     override val context: Context
       get() = this@Media3PlaybackService
 
@@ -968,52 +948,13 @@ class Media3PlaybackService : MediaLibraryService() {
 
     override fun notifySleepTimerSet(secondsRemaining: Int, isAuto: Boolean) {
       SleepTimerNotificationCenter.notifySet(secondsRemaining, isAuto)
-      // User explicitly set a timer; clear any pending skip from a prior end.
-      sleepTimerEndObserved = false
-      lastSleepTimerEndedSessionId = null
     }
 
     override fun notifySleepTimerEnded(currentPosition: Long) {
       SleepTimerNotificationCenter.notifyEnded(currentPosition)
-      // Remember the session that just ended via sleep timer so we don't auto re-arm on the next play.
-      val sessionId = currentPlaybackSession?.id
-      if (!sessionId.isNullOrEmpty()) {
-        lastSleepTimerEndedSessionId = sessionId
-        sleepTimerEndObserved = true
-      }
     }
 
-    override fun registerSensor() {
-      ensureShakeController()
-      sleepTimerShakeController?.register()
-    }
-
-    override fun unregisterSensor() {
-      ensureShakeController()
-      sleepTimerShakeController?.scheduleUnregister()
-    }
-  }
-
-  private fun ensureSleepTimerManager(): SleepTimerManager {
-    if (!::sleepTimerManager.isInitialized) {
-      ensureShakeController()
-      sleepTimerManager = SleepTimerManager(sleepTimerHost, serviceScope)
-    }
-    return sleepTimerManager
-  }
-
-  private fun ensureShakeController() {
-    if (sleepTimerShakeController == null) {
-      sleepTimerShakeController = SleepTimerShakeController(
-        this,
-        SLEEP_TIMER_WAKE_UP_EXPIRATION,
-        serviceScope
-      ) {
-        if (::sleepTimerManager.isInitialized) {
-          sleepTimerManager.handleShake()
-        }
-      }
-    }
+    override fun getCurrentSessionId(): String? = currentPlaybackSession?.id
   }
 
   // ========================================
@@ -1023,23 +964,21 @@ class Media3PlaybackService : MediaLibraryService() {
   private fun createSessionCallback(): com.audiobookshelf.app.player.media3.Media3SessionCallback {
     val sleepTimerApi = object : com.audiobookshelf.app.player.media3.SleepTimerApi {
       override fun set(sessionId: String, timeMs: Long, isChapter: Boolean) {
-        ensureSleepTimerManager().setManualSleepTimer(sessionId, timeMs, isChapter)
+        sleepTimerCoordinator.setManualTimer(sessionId, timeMs, isChapter)
       }
 
       override fun cancel() {
-        if (::sleepTimerManager.isInitialized) sleepTimerManager.cancelSleepTimer()
+        sleepTimerCoordinator.cancelTimer()
       }
 
       override fun adjust(deltaMs: Long, increase: Boolean) {
-        if (::sleepTimerManager.isInitialized) {
-          if (increase) sleepTimerManager.increaseSleepTime(deltaMs) else sleepTimerManager.decreaseSleepTime(
-            deltaMs
-          )
-        }
+        if (increase) sleepTimerCoordinator.increaseTimer(deltaMs) else sleepTimerCoordinator.decreaseTimer(
+          deltaMs
+        )
       }
 
       override fun getTime(): Long {
-        return if (::sleepTimerManager.isInitialized) sleepTimerManager.getSleepTimerTime() else 0L
+        return sleepTimerCoordinator.getTimerTimeMs()
       }
     }
     val playbackControlApi = object : com.audiobookshelf.app.player.media3.PlaybackControlApi {

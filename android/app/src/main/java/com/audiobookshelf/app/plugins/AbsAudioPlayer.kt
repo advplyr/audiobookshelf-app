@@ -242,7 +242,6 @@ class AbsAudioPlayer : Plugin() {
         MediaEventManager.clientEventEmitter = appEventEmitter
 
         playerNotificationService.setExternalPlaybackState(null)
-        playerNotificationService.setExternalSleepTimerManager(null)
         SleepTimerNotificationCenter.unregister()
       }
       mainActivity.pluginCallback = foregroundServiceReady
@@ -695,7 +694,7 @@ class AbsAudioPlayer : Plugin() {
 
       val playbackSession = playerNotificationService.mediaProgressSyncer.currentPlaybackSession
         ?: playerNotificationService.currentPlaybackSession
-      val success = playerNotificationService.sleepTimerManager.setManualSleepTimer(
+      val success = playerNotificationService.setManualSleepTimer(
         playbackSession?.id ?: "",
         time,
         isChapterTime
@@ -725,7 +724,7 @@ class AbsAudioPlayer : Plugin() {
         return@post
       }
 
-      val time = playerNotificationService.sleepTimerManager.getSleepTimerTime()
+      val time = playerNotificationService.getSleepTimerTime()
       val ret = JSObject()
       ret.put("value", time)
       call.resolve(ret)
@@ -740,7 +739,7 @@ class AbsAudioPlayer : Plugin() {
       if (BuildConfig.USE_MEDIA3) {
         playbackController?.increaseSleepTimer(time)
       } else {
-        playerNotificationService.sleepTimerManager.increaseSleepTime(time)
+        playerNotificationService.increaseSleepTimer(time)
       }
       call.resolve()
     }
@@ -754,7 +753,7 @@ class AbsAudioPlayer : Plugin() {
       if (BuildConfig.USE_MEDIA3) {
         playbackController?.decreaseSleepTimer(time)
       } else {
-        playerNotificationService.sleepTimerManager.decreaseSleepTime(time)
+        playerNotificationService.decreaseSleepTimer(time)
       }
       call.resolve()
     }
@@ -766,7 +765,7 @@ class AbsAudioPlayer : Plugin() {
       if (BuildConfig.USE_MEDIA3) {
         playbackController?.cancelSleepTimer()
       } else {
-        playerNotificationService.sleepTimerManager.cancelSleepTimer()
+        playerNotificationService.cancelSleepTimer()
       }
       call.resolve()
     }

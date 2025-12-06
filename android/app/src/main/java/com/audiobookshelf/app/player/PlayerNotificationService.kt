@@ -55,8 +55,6 @@ import com.audiobookshelf.app.data.PlayerState
 import com.audiobookshelf.app.data.Podcast
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.managers.DbManager
-import com.audiobookshelf.app.managers.SleepTimerHost
-import com.audiobookshelf.app.managers.SleepTimerManager
 import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.media.MediaProgressSyncer
 import com.audiobookshelf.app.media.getUriToAbsIconDrawable
@@ -93,14 +91,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.runBlocking
 
-const val SLEEP_TIMER_WAKE_UP_EXPIRATION = 120000L // 2m
 const val PLAYER_CAST = "cast-player"
 const val PLAYER_EXO = "exo-player"
 const val PLAYER_MEDIA3 = "media3-exoplayer"
 
-class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetryHost, SleepTimerHost {
+class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetryHost {
 
   private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+  private val sleepTimerCoordinator = SleepTimerCoordinator(serviceScope)
 
   companion object {
     var isStarted = false
@@ -141,7 +139,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     get() = ctx
   override val isUnmeteredNetwork: Boolean
     get() = NetworkMonitor.isUnmeteredNetwork
-  override val context: Context
+  val context: Context
     get() = ctx
   private lateinit var mediaSessionConnector: MediaSessionConnector
   private lateinit var playerNotificationManager: PlayerNotificationManager
@@ -157,9 +155,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
   var castPlayer: CastPlayer? = null
   lateinit var playerWrapper: PlayerWrapper
 
-  lateinit var sleepTimerManager: SleepTimerManager
   lateinit var mediaProgressSyncer: MediaProgressSyncer
-  private var externalSleepTimerManager: SleepTimerManager? = null
   private var networkStateListener: NetworkMonitor.Listener? = null
 
   private var notificationId = 10
@@ -183,14 +179,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     externalPlaybackState = bridge
   }
 
-  fun setExternalSleepTimerManager(manager: SleepTimerManager?) {
-    externalSleepTimerManager = manager
-  }
-
   private var isAndroidAuto = false
-
-  // The following are used for the shake detection
-  private var sleepTimerShakeController: SleepTimerShakeController? = null
 
   // Flags to control Android Auto reload behavior when connectivity or state changes.
   private var forceReloadingAndroidAuto: Boolean = false
@@ -300,8 +289,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     castPlayer?.release()
     mediaSession.release()
     mediaProgressSyncer.reset()
-    sleepTimerShakeController?.release()
-    sleepTimerShakeController = null
+    sleepTimerCoordinator.release()
 
     super.onDestroy()
   }
@@ -352,13 +340,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     apiHandler = ApiHandler(ctx)
 
     // Initialize sleep timer
-    sleepTimerManager = SleepTimerManager(this, serviceScope)
+    sleepTimerCoordinator.start(sleepTimerHostAdapter)
 
     // Initialize Media Progress Syncer
     mediaProgressSyncer = MediaProgressSyncer(this, apiHandler)
-
-    // Initialize shake sensor
-    initSensor()
 
     // Initialize media manager
     mediaManager = MediaManager(apiHandler, ctx)
@@ -1157,7 +1142,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     return false
   }
 
-  override fun play() {
+  fun play() {
     if (isPlayerActive()) {
       Log.d(tag, "Already playing")
       return
@@ -1168,7 +1153,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
   playerWrapper.play()
   }
 
-  override fun pause() {
+  fun pause() {
     playerWrapper.pause()
   }
 
@@ -1224,7 +1209,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     seekPlayer(getCurrentTime() + amount)
   }
 
-  override fun seekBackward(amountMs: Long) {
+  fun seekBackward(amountMs: Long) {
     seekPlayer(getCurrentTime() - amountMs)
   }
 
@@ -1344,39 +1329,94 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
   }
 
   override fun checkAutoSleepTimer() {
-    if (this::sleepTimerManager.isInitialized) {
-      sleepTimerManager.checkAutoSleepTimer()
+    sleepTimerCoordinator.checkAutoTimerIfNeeded()
+  }
+
+  private val sleepTimerHostAdapter = object : SleepTimerHostAdapter {
+    override val context: Context
+      get() = this@PlayerNotificationService
+
+    override fun currentTimeMs(): Long = getCurrentTime()
+
+    override fun durationMs(): Long = getDuration()
+
+    override fun isPlaying(): Boolean = isPlayerActive()
+
+    override fun playbackSpeed(): Float {
+      return try {
+        playerWrapper.getPlaybackSpeed()
+      } catch (_: Exception) {
+        1f
+      }
     }
+
+    override fun setVolume(volume: Float) {
+      try {
+        playerWrapper.setVolume(volume)
+      } catch (_: Exception) {
+      }
+    }
+
+    override fun pause() {
+      try {
+        playerWrapper.pause()
+      } catch (_: Exception) {
+      }
+    }
+
+    override fun play() {
+      try {
+        playerWrapper.play()
+      } catch (_: Exception) {
+      }
+    }
+
+    override fun seekBackward(amountMs: Long) {
+      this@PlayerNotificationService.seekBackward(amountMs)
+    }
+
+    override fun endTimeOfChapterOrTrack(): Long? = getEndTimeOfChapterOrTrack()
+
+    override fun endTimeOfNextChapterOrTrack(): Long? = getEndTimeOfNextChapterOrTrack()
+
+    override fun notifySleepTimerSet(secondsRemaining: Int, isAuto: Boolean) {
+      clientEventEmitter?.onSleepTimerSet(secondsRemaining, isAuto)
+    }
+
+    override fun notifySleepTimerEnded(currentPosition: Long) {
+      clientEventEmitter?.onSleepTimerEnded(currentPosition)
+    }
+
+    override fun getCurrentSessionId(): String? =
+      mediaProgressSyncer.currentPlaybackSession?.id ?: currentPlaybackSession?.id
   }
 
-  override fun currentTimeMs(): Long = getCurrentTime()
-
-  override fun durationMs(): Long = getDuration()
-
-  override fun isPlaying(): Boolean = isPlayerActive()
-
-  override fun playbackSpeed(): Float = try {
-    playerWrapper.getPlaybackSpeed()
-  } catch (_: Exception) {
-    1f
+  fun handleSleepTimerPlayEvent(sessionId: String) {
+    sleepTimerCoordinator.handlePlayStarted(sessionId)
   }
 
-  override fun setVolume(volume: Float) {
-    try {
-      playerWrapper.setVolume(volume)
-    } catch (_: Exception) {}
+  fun setManualSleepTimer(
+    playbackSessionId: String,
+    timeMs: Long,
+    isChapterTime: Boolean
+  ): Boolean {
+    return sleepTimerCoordinator.setManualTimer(playbackSessionId, timeMs, isChapterTime)
   }
 
-  override fun endTimeOfChapterOrTrack(): Long? = getEndTimeOfChapterOrTrack()
-
-  override fun endTimeOfNextChapterOrTrack(): Long? = getEndTimeOfNextChapterOrTrack()
-
-  override fun notifySleepTimerSet(secondsRemaining: Int, isAuto: Boolean) {
-    clientEventEmitter?.onSleepTimerSet(secondsRemaining, isAuto)
+  fun increaseSleepTimer(timeMs: Long) {
+    sleepTimerCoordinator.increaseTimer(timeMs)
   }
 
-  override fun notifySleepTimerEnded(currentPosition: Long) {
-    clientEventEmitter?.onSleepTimerEnded(currentPosition)
+  fun decreaseSleepTimer(timeMs: Long) {
+    sleepTimerCoordinator.decreaseTimer(timeMs)
+  }
+
+  fun cancelSleepTimer() {
+    sleepTimerCoordinator.cancelTimer()
+  }
+
+  fun getSleepTimerTime(): Long {
+    return sleepTimerCoordinator.getTimerTimeMs()
   }
 
   //
@@ -2274,29 +2314,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     result.sendResult(cachedSearchResults)
     cachedSearch = query
     Log.d(tag, "onSearch: Done")
-  }
-
-  //
-  // SHAKE SENSOR
-  //
-  private fun initSensor() {
-    sleepTimerShakeController = SleepTimerShakeController(
-      this,
-      SLEEP_TIMER_WAKE_UP_EXPIRATION,
-      serviceScope
-    ) {
-      Log.d(tag, "PHONE SHAKE!")
-      (externalSleepTimerManager ?: sleepTimerManager).handleShake()
-    }
-  }
-
-  // Shake sensor used for sleep timer
-  override fun registerSensor() {
-    sleepTimerShakeController?.register()
-  }
-
-  override fun unregisterSensor() {
-    sleepTimerShakeController?.scheduleUnregister()
   }
 
   inner class JumpBackwardCustomActionProvider : CustomActionProvider {
