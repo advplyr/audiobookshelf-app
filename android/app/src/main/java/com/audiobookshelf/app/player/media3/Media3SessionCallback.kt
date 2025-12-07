@@ -2,6 +2,7 @@ package com.audiobookshelf.app.player.media3
 
 import android.content.Context
 import android.os.Bundle
+import android.support.v4.media.MediaBrowserCompat
 import android.util.Log
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -29,6 +30,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.guava.future
+import java.util.Collections
 
 data class SeekConfig(
   val jumpBackwardMs: Long,
@@ -68,6 +70,7 @@ class Media3SessionCallback(
 ) : MediaLibraryService.MediaLibrarySession.Callback {
 
   private val jacksonMapper by lazy { jacksonObjectMapper() }
+  private val searchCache = Collections.synchronizedMap(mutableMapOf<String, List<MediaItem>>())
 
   override fun onPlayerInteractionFinished(
     session: MediaSession,
@@ -555,6 +558,88 @@ class Media3SessionCallback(
       }
       LibraryResult.ofItem(mediaItem, null)
     }
+  }
+
+  override fun onSearch(
+    session: MediaLibraryService.MediaLibrarySession,
+    browser: MediaSession.ControllerInfo,
+    query: String,
+    params: LibraryParams?
+  ): ListenableFuture<LibraryResult<Void>> {
+    return scope.future {
+      if (query.isBlank()) {
+        searchCache.remove(query)
+        session.notifySearchResultChanged(browser, query, 0, params)
+        return@future LibraryResult.ofVoid()
+      }
+      val results = performSearch(query)
+      searchCache[query] = results
+      session.notifySearchResultChanged(browser, query, results.size, params)
+      LibraryResult.ofVoid()
+    }
+  }
+
+  override fun onGetSearchResult(
+    session: MediaLibraryService.MediaLibrarySession,
+    browser: MediaSession.ControllerInfo,
+    query: String,
+    page: Int,
+    pageSize: Int,
+    params: LibraryParams?
+  ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+    return scope.future {
+      val (results, _) = searchCache[query]?.let { it to false } ?: run {
+        val computed = performSearch(query)
+        searchCache[query] = computed
+        computed to true
+      }
+      session.notifySearchResultChanged(browser, query, results.size, params)
+      val start = page * pageSize
+      val end = (start + pageSize).coerceAtMost(results.size)
+      val pageItems = if (start >= results.size) emptyList() else results.subList(start, end)
+      LibraryResult.ofItemList(ImmutableList.copyOf(pageItems), params)
+    }
+  }
+
+  private suspend fun performSearch(query: String): List<MediaItem> {
+    if (query.isBlank()) return emptyList()
+    val aggregated = mutableListOf<MediaItem>()
+    mediaManager.serverLibraries.forEach { library ->
+      if ((library.stats?.numAudioFiles ?: 0) == 0) return@forEach
+      val searchResult = runCatching { mediaManager.doSearch(library.id, query) }
+        .onFailure { t ->
+          Log.w(logTag, "onSearch: Failed to search ${library.id}", t)
+        }
+        .getOrNull()
+        ?: return@forEach
+      searchResult.values.forEach { compatItems ->
+        aggregated.addAll(compatItems.mapNotNull { it.toMedia3Item() })
+      }
+    }
+    return aggregated
+  }
+
+  private fun MediaBrowserCompat.MediaItem.toMedia3Item(): MediaItem? {
+    val description = description
+    val isPlayable = flags and MediaBrowserCompat.MediaItem.FLAG_PLAYABLE != 0
+    val isBrowsable = flags and MediaBrowserCompat.MediaItem.FLAG_BROWSABLE != 0
+    val extrasCopy = description.extras?.let { Bundle(it) }
+    val metadata = MediaMetadata.Builder()
+      .setTitle(description.title?.toString())
+      .setSubtitle(description.subtitle?.toString())
+      .setIsPlayable(isPlayable)
+      .setIsBrowsable(isBrowsable)
+      .apply {
+        description.iconUri?.let { setArtworkUri(it) }
+        extrasCopy?.let { setExtras(it) }
+      }
+      .build()
+    val mediaId = description.mediaId ?: return null
+    return MediaItem.Builder()
+      .setMediaId(mediaId)
+      .setMediaMetadata(metadata)
+      .also { description.mediaUri?.let { uri -> it.setUri(uri) } }
+      .build()
   }
 
 }

@@ -30,6 +30,7 @@ import com.audiobookshelf.app.data.PlayItemRequestPayload
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.managers.DbManager
+import com.audiobookshelf.app.media.MediaEventManager
 import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.media.SyncResult
 import com.audiobookshelf.app.media.UnifiedMediaProgressSyncer
@@ -421,15 +422,15 @@ class Media3PlaybackService : MediaLibraryService() {
       }
 
       override fun alertSyncSuccess() {
-        // No-op for now; UI alerts handled via pipeline events
+        MediaEventManager.clientEventEmitter?.onProgressSyncSuccess()
       }
 
       override fun alertSyncFailing() {
-        // No-op for now; UI alerts handled via pipeline events
+        MediaEventManager.clientEventEmitter?.onProgressSyncFailing()
       }
 
       override fun notifyLocalProgressUpdate(localMediaProgress: LocalMediaProgress) {
-        // No-op for now; Media3 UI consumes history events via pipeline
+        MediaEventManager.clientEventEmitter?.onLocalMediaProgressUpdate(localMediaProgress)
       }
 
       override fun checkAutoSleepTimer() {
