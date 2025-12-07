@@ -3,7 +3,6 @@ package com.audiobookshelf.app.media
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.data.LocalMediaProgress
 import com.audiobookshelf.app.data.MediaProgress
 import com.audiobookshelf.app.data.PlaybackSession
@@ -35,7 +34,6 @@ class MediaProgressSyncer(
 ) {
   private val tag = "MediaProgressSync"
   private val METERED_CONNECTION_SYNC_INTERVAL = 60000
-  private var loopEnabledForSession = !BuildConfig.USE_MEDIA3
 
   private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -89,12 +87,6 @@ class MediaProgressSyncer(
             "start: init last sync time $lastSyncTime with playback session id=${currentPlaybackSession?.id}"
     )
 
-    loopEnabledForSession = !BuildConfig.USE_MEDIA3 || playbackSession.isLocal
-    if (!loopEnabledForSession) {
-      listeningTimerRunning = false
-      return
-    }
-
     listeningTimerTask =
             Timer("ListeningTimer", false).schedule(15000L, 15000L) {
         Handler(Looper.getMainLooper()).post {
@@ -127,9 +119,6 @@ class MediaProgressSyncer(
   }
 
   fun play(playbackSession: PlaybackSession) {
-    if (!loopEnabledForSession) {
-      currentPlaybackSession = playbackSession.clone()
-    }
     Log.d(tag, "play ${playbackSession.displayTitle}")
     val source = nextPlaybackEventSource
     nextPlaybackEventSource = PlaybackEventSource.SYSTEM
@@ -145,11 +134,6 @@ class MediaProgressSyncer(
   }
 
   fun stop(shouldSync: Boolean? = true, cb: () -> Unit) {
-    if (!loopEnabledForSession) {
-      reset()
-      cb()
-      return
-    }
     if (!listeningTimerRunning) {
       reset()
       return cb()
@@ -185,10 +169,6 @@ class MediaProgressSyncer(
   }
 
   fun pause(cb: () -> Unit) {
-    if (!loopEnabledForSession) {
-      cb()
-      return
-    }
     if (!listeningTimerRunning) return
 
     listeningTimerTask?.cancel()
@@ -234,11 +214,6 @@ class MediaProgressSyncer(
   }
 
   fun finished(cb: () -> Unit) {
-    if (!loopEnabledForSession) {
-      reset()
-      cb()
-      return
-    }
     if (!listeningTimerRunning) return
 
     listeningTimerTask?.cancel()
@@ -260,7 +235,6 @@ class MediaProgressSyncer(
   }
 
   fun seek() {
-    if (!loopEnabledForSession) return
     resolveCurrentPlaybackTime()
     Log.d(tag, "seek: $currentDisplayTitle, currentTime=${currentPlaybackSession?.currentTime}")
 
@@ -291,10 +265,6 @@ class MediaProgressSyncer(
   }
 
   fun sync(shouldSyncServer: Boolean, currentTime: Double, cb: (SyncResult?) -> Unit) {
-    if (!loopEnabledForSession) {
-      postCallback(cb, null)
-      return
-    }
     val attemptServerSync = shouldSyncServer && allowServerSync
     if (lastSyncTime <= 0) {
       Log.e(tag, "Last sync time is not set $lastSyncTime")
@@ -433,7 +403,6 @@ class MediaProgressSyncer(
     failedSyncs = 0
     pendingManualPlaybackTime = null
     pendingManualPlaybackTimeExpiresAt = 0
-    loopEnabledForSession = !BuildConfig.USE_MEDIA3
   }
 
   fun updatePlaybackTimeFromUi(seconds: Double) {
