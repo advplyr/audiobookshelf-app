@@ -24,10 +24,13 @@ object NetworkMonitor {
   private var connectivityManager: ConnectivityManager? = null
   private var networkCallback: ConnectivityManager.NetworkCallback? = null
   @Volatile
-  private var initialized = false
+  var initialized = false
 
   val isUnmeteredNetwork: Boolean
     get() = currentState.isUnmetered
+
+  val hasConnectivity: Boolean
+    get() = currentState.hasConnectivity
 
   fun initialize(context: Context) {
     if (initialized) return

@@ -40,8 +40,6 @@ class Media3BrowseTree(
   private val dataLoader = Media3BrowseDataLoader(mediaManager)
   private val itemBuilder = Media3BrowseItemBuilder(context, mediaManager, dataLoader)
 
-
-
   data class ResolvedPlayable(
     val session: PlaybackSession,
     val mediaItems: List<MediaItem>,
@@ -230,13 +228,13 @@ class Media3BrowseTree(
         mediaId == RECENTLY_ROOT -> return createBrowsableCategory(RECENTLY_ROOT, "Recent", "clock")
 
         mediaId.startsWith(LIBRARIES_ROOT) && mediaId != LIBRARIES_ROOT -> {
-            val libraryId = mediaId.substringAfter(LIBRARIES_ROOT)
+          val libraryId = mediaId.removePrefix(LIBRARIES_ROOT).trimStart('_')
             val library = mediaManager.getLibrary(libraryId)
           return library?.let { itemBuilder.libraryToMediaItem(it, LIBRARIES_ROOT) }
         }
 
         mediaId.startsWith(RECENTLY_ROOT) && mediaId != RECENTLY_ROOT -> {
-            val libraryId = mediaId.substringAfter(RECENTLY_ROOT)
+          val libraryId = mediaId.removePrefix(RECENTLY_ROOT).trimStart('_')
             val library = mediaManager.getLibrary(libraryId)
           return library?.let { itemBuilder.libraryToMediaItem(it, RECENTLY_ROOT) }
         }

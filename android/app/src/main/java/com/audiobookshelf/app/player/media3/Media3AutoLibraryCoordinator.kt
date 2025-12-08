@@ -52,7 +52,12 @@ class Media3AutoLibraryCoordinator(
   }
 
   private fun needsInitialLoad(parentId: String): Boolean {
-    return parentId == Media3BrowseTree.ROOT_ID && !mediaManager.isAutoDataLoaded
+    // Queue any early browse requests until the Android Auto data load completes.
+    // Previously only the ROOT request was used to trigger loading; that allowed
+    // clients (car head units) to request sub-parents before the data was ready
+    // and receive empty results. Treat any request as needing the initial load
+    // when the manager has not finished initializing.
+    return !mediaManager.isAutoDataLoaded
   }
 
   private fun fulfillRequest(
@@ -74,36 +79,38 @@ class Media3AutoLibraryCoordinator(
     if (BuildConfig.DEBUG) Log.d(TAG, "loadAutoData() start")
     isAutoDataLoading = true
     mediaManager.loadAndroidAutoItems {
-      // Warm in-progress cache so Continue Listening has data (matches ExoPlayer flow).
-      mediaManager.initializeInProgressItems {
-        if (BuildConfig.DEBUG) {
-          Log.d(
-            TAG,
-            "loadAutoData() completed, fulfilling ${pendingRequests.size} pending requests"
-          )
-        }
-        isAutoDataLoading = false
-        val requestsToFulfill = pendingRequests.toList()
-        pendingRequests.clear()
-        scope.launch {
-          requestsToFulfill.forEach { request ->
-            try {
-              val children = browseTree.getChildren(request.parentId)
-              request.future.set(
-                LibraryResult.ofItemList(
-                  ImmutableList.copyOf(children),
-                  request.params
+      // Load personalized data (recent shelves) for all libraries.
+      mediaManager.populatePersonalizedDataForAllLibraries {
+        // Warm in-progress cache so Continue Listening has data (matches ExoPlayer flow).
+        mediaManager.initializeInProgressItems {
+          if (BuildConfig.DEBUG) {
+            Log.d(
+              TAG,
+              "loadAutoData() completed, fulfilling ${pendingRequests.size} pending requests"
+            )
+          }
+          isAutoDataLoading = false
+          val requestsToFulfill = pendingRequests.toList()
+          pendingRequests.clear()
+          scope.launch {
+            requestsToFulfill.forEach { request ->
+              try {
+                val children = browseTree.getChildren(request.parentId)
+                request.future.set(
+                  LibraryResult.ofItemList(
+                    ImmutableList.copyOf(children),
+                    request.params
+                  )
                 )
-              )
-            } catch (t: Throwable) {
-              request.future.setException(t)
+              } catch (t: Throwable) {
+                request.future.setException(t)
+              }
             }
           }
         }
       }
     }
   }
-
   companion object {
     private val TAG = Media3AutoLibraryCoordinator::class.java.simpleName
   }

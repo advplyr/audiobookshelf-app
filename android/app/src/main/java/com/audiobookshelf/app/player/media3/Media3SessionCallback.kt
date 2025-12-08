@@ -20,6 +20,7 @@ import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.player.PlaybackConstants
+import com.audiobookshelf.app.player.core.NetworkMonitor
 import com.audiobookshelf.app.player.toPlayerMediaItems
 import com.audiobookshelf.app.player.wrapper.AbsPlayerWrapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -200,7 +201,7 @@ class Media3SessionCallback(
 
       val latestUnfinishedItem = mediaManager.latestServerItemInProgress
 
-      if (latestUnfinishedItem != null) {
+      if (latestUnfinishedItem != null && NetworkMonitor.initialized && NetworkMonitor.hasConnectivity) {
         val mediaId = latestUnfinishedItem.episode?.id ?: latestUnfinishedItem.libraryItemWrapper.id
         val resolvedPlayable = browseApi.resolve(mediaId, preferCastStream)
 
@@ -223,6 +224,11 @@ class Media3SessionCallback(
             "onPlaybackResumption: Failed to resolve server in-progress item '$mediaId'. Falling back to last local session."
           )
         }
+      } else if (latestUnfinishedItem != null && (!NetworkMonitor.initialized || !NetworkMonitor.hasConnectivity)) {
+        Log.w(
+          logTag,
+          "onPlaybackResumption: Network monitor not initialized or no network connectivity available. Skipping server in-progress item resolution and falling back to last local session."
+        )
       }
 
       val lastLocalSession = com.audiobookshelf.app.device.DeviceManager.getLastPlaybackSession()
@@ -236,10 +242,20 @@ class Media3SessionCallback(
       }
 
       val preferCastStreamForLocal = preferCastStream && lastLocalSession.isLocal
-      val mediaItems = lastLocalSession.toPlayerMediaItems(
+      val playerMediaItems = lastLocalSession.toPlayerMediaItems(
         appContext,
         preferServerUrisForCast = preferCastStreamForLocal
-      ).mapIndexed { index, playerMediaItem ->
+      )
+
+      if (BuildConfig.DEBUG) {
+        try {
+          debug { "onPlaybackResumption: prepared URIs=${playerMediaItems.map { it.uri.toString() }}" }
+        } catch (t: Throwable) {
+          Log.w(logTag, "Failed to log playback URIs: ${t.message}")
+        }
+      }
+
+      val mediaItems = playerMediaItems.mapIndexed { index, playerMediaItem ->
         val mediaId = "${lastLocalSession.id}_${index}"
         MediaItem.Builder()
           .setUri(playerMediaItem.uri)
@@ -404,6 +420,11 @@ class Media3SessionCallback(
           "onAddMediaItems: resolved ${resolvedPlayable.mediaItems.size} items for session=${resolvedPlayable.session.id} " +
             "startIndex=${resolvedPlayable.startIndex} startPos=${resolvedPlayable.startPositionMs}"
         }
+        try {
+          debug { "onAddMediaItems: resolved URIs=${resolvedPlayable.mediaItems.map { item -> (item.localConfiguration?.uri ?: item.requestMetadata.mediaUri)?.toString() }}" }
+        } catch (t: Throwable) {
+          Log.w(logTag, "Failed to log resolvedPlayable URIs: ${t.message}")
+        }
       }
       val player = playerProvider()
       player.setMediaItems(
@@ -491,7 +512,7 @@ class Media3SessionCallback(
     params: LibraryParams?
   ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
     if (BuildConfig.DEBUG) {
-      Log.d(logTag, "onGetChildren requested for parentId: '$parentId'")
+      Log.d(logTag, "onGetChildren requested for parentId: '$parentId' by ${browser.packageName}")
     }
     return autoLibraryCoordinator.requestChildren(parentId, params)
   }

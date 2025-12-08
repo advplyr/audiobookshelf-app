@@ -43,7 +43,6 @@ class PlaybackPipeline(
 
   fun initializeLocalPlayer(
     enableMp3IndexSeeking: Boolean,
-    speechAttributes: AudioAttributes,
     seekBackIncrementMs: Long,
     seekForwardIncrementMs: Long,
     onPlayerReady: (AbsPlayerWrapper) -> Unit,
@@ -67,8 +66,6 @@ class PlaybackPipeline(
     val coreExoPlayer = ExoPlayer.Builder(context)
       .setMediaSourceFactory(mediaSourceFactory)
       .setLoadControl(customLoadControl)
-      // Audio focus is managed at the service layer; disable internal handling to avoid double requests
-      .setAudioAttributes(speechAttributes, /* handleAudioFocus= */ false)
       .setHandleAudioBecomingNoisy(true)
       .setSeekBackIncrementMs(seekBackIncrementMs)
       .setSeekForwardIncrementMs(seekForwardIncrementMs)
