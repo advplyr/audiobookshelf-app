@@ -23,9 +23,7 @@ import com.audiobookshelf.app.data.PlaybackMetadata
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.data.PlayerState
 import com.audiobookshelf.app.player.Media3PlaybackService
-import com.audiobookshelf.app.player.Media3PlaybackService.Companion.CustomCommands
-import com.audiobookshelf.app.player.Media3PlaybackService.Companion.Extras
-import com.audiobookshelf.app.player.Media3PlaybackService.Companion.SleepTimer
+import com.audiobookshelf.app.player.PlaybackConstants
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.google.common.util.concurrent.FutureCallback
 import com.google.common.util.concurrent.Futures
@@ -36,6 +34,10 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 // Media3 controller/session APIs require UnstableApi opt-in.
 @UnstableApi
+/**
+ * Controls Media3 playback via MediaController, handling session connections and command execution.
+ * Manages playback state, metadata, and provides callbacks for UI updates and error handling.
+ */
 class PlaybackController(private val context: Context) {
   private val mediaPlayerExtraKey = "media_player"
   private val PLAYER_CAST = "cast-player"
@@ -52,52 +54,56 @@ class PlaybackController(private val context: Context) {
     fun onSeekCompleted(positionMs: Long, mediaItemIndex: Int) {}
   }
 
-  private val tag = "PlaybackController"
+  private val TAG = "PlaybackController"
 
   private val mainHandler = Handler(Looper.getMainLooper())
-  private val isConnecting = AtomicBoolean(false)
-  private val isDisconnecting = AtomicBoolean(false)
-  private var controllerFuture: ListenableFuture<MediaController>? = null
+  private val isConnectionInProgress = AtomicBoolean(false)
+  private val isDisconnectionInProgress = AtomicBoolean(false)
+  private var mediaControllerFuture: ListenableFuture<MediaController>? = null
   private var mediaController: MediaController? = null
   private var activePlaybackSession: PlaybackSession? = null
   private var currentMediaPlayer: String? = null
-  private var hasEmittedClose = false
+  private var hasEmittedCloseEvent = false
   private var lastNotifiedIsPlaying: Boolean? = null
-  private var forceNextPlayingStateDispatch = false
+  private var forceNextPlayingStateUpdate = false
   @Volatile
-  private var cachedPositionMs: Long = 0L
+  private var lastKnownPositionMs: Long = 0L
   @Volatile
-  private var cachedMediaItemIndex: Int = 0
+  private var lastKnownMediaItemIndex: Int = 0
   @Volatile
-  private var suppressNextSeekEvent = false
+  private var ignoreNextSeekEvent = false
 
   private val jacksonMapper by lazy { jacksonObjectMapper() }
 
-  private val setSleepTimerCommand = SessionCommand(SleepTimer.ACTION_SET, Bundle.EMPTY)
-  private val cancelSleepTimerCommand = SessionCommand(SleepTimer.ACTION_CANCEL, Bundle.EMPTY)
-  private val adjustSleepTimerCommand = SessionCommand(SleepTimer.ACTION_ADJUST, Bundle.EMPTY)
-  private val getSleepTimerTimeCommand = SessionCommand(SleepTimer.ACTION_GET_TIME, Bundle.EMPTY)
+  private val setSleepTimerCommand =
+    PlaybackConstants.sessionCommand(PlaybackConstants.SleepTimer.ACTION_SET)
+  private val cancelSleepTimerCommand =
+    PlaybackConstants.sessionCommand(PlaybackConstants.SleepTimer.ACTION_CANCEL)
+  private val adjustSleepTimerCommand =
+    PlaybackConstants.sessionCommand(PlaybackConstants.SleepTimer.ACTION_ADJUST)
+  private val getSleepTimerTimeCommand =
+    PlaybackConstants.sessionCommand(PlaybackConstants.SleepTimer.ACTION_GET_TIME)
 
-  @Suppress("unused") // Invoked from the UI layer via custom command
+  // Invoked from the UI layer via custom command
   private val forceSyncProgressCommand =
-    SessionCommand(CustomCommands.SYNC_PROGRESS_FORCE, Bundle.EMPTY)
+    PlaybackConstants.sessionCommand(PlaybackConstants.Commands.SYNC_PROGRESS_FORCE)
   private val markUiPlaybackEventCommand =
-    SessionCommand(CustomCommands.MARK_UI_PLAYBACK_EVENT, Bundle.EMPTY)
+    PlaybackConstants.sessionCommand(PlaybackConstants.Commands.MARK_UI_PLAYBACK_EVENT)
 
   var listener: Listener? = null
-  private val progressUpdateIntervalMs = 1000L
-  private var progressUpdaterScheduled = false
+  private val progressUpdateIntervalMillis = 1000L
+  private var isProgressUpdaterScheduled = false
 
   private val progressUpdater = object : Runnable {
     override fun run() {
-      mediaController?.let { controller ->
+      mediaController?.let { mediaController ->
         if (Looper.myLooper() == Looper.getMainLooper()) {
-          cachedPositionMs = controller.currentPosition
+          lastKnownPositionMs = mediaController.currentPosition
         }
-        emitMetadata(controller)
+        emitMetadata(mediaController)
       }
-      if (progressUpdaterScheduled) {
-        mainHandler.postDelayed(this, progressUpdateIntervalMs)
+      if (isProgressUpdaterScheduled) {
+        mainHandler.postDelayed(this, progressUpdateIntervalMillis)
       }
     }
   }
@@ -118,28 +124,28 @@ class PlaybackController(private val context: Context) {
 
   private val controllerListener = object : Player.Listener {
     override fun onEvents(player: Player, events: Player.Events) {
-      val controller = player as? MediaController
-      if (controller != null && !controller.isConnected) {
+      val mediaController = player as? MediaController
+      if (mediaController != null && !mediaController.isConnected) {
         // Make disconnect synchronous to avoid races with new connection attempts
-        disconnectControllerSync(controller)
+        disconnectControllerSync(mediaController)
         return
       }
       maybeEmitMediaPlayerFromExtras()
       notifyPlayingState(effectiveIsPlaying(player))
-      cachedPositionMs = player.currentPosition
-      cachedMediaItemIndex = player.currentMediaItemIndex
-      mediaController?.let { emitMetadata(it) }
+      lastKnownPositionMs = player.currentPosition
+      lastKnownMediaItemIndex = player.currentMediaItemIndex
+      this@PlaybackController.mediaController?.let { emitMetadata(it) }
     }
 
     override fun onIsPlayingChanged(isPlaying: Boolean) {
       maybeEmitMediaPlayerFromExtras()
-      val controller = mediaController
-      val effective = controller?.let { effectiveIsPlaying(it) } ?: isPlaying
+      val mediaController = this@PlaybackController.mediaController
+      val effective = mediaController?.let { effectiveIsPlaying(it) } ?: isPlaying
       notifyPlayingState(effective)
-      if (controller != null) {
-        cachedPositionMs = controller.currentPosition
-        cachedMediaItemIndex = controller.currentMediaItemIndex
-        emitMetadata(controller)
+      if (mediaController != null) {
+        lastKnownPositionMs = mediaController.currentPosition
+        lastKnownMediaItemIndex = mediaController.currentMediaItemIndex
+        emitMetadata(mediaController)
       }
       if (effective) {
         startProgressUpdates()
@@ -149,11 +155,11 @@ class PlaybackController(private val context: Context) {
     }
 
     override fun onPlaybackStateChanged(playbackState: Int) {
-      val controller = mediaController ?: return
+      val mediaController = this@PlaybackController.mediaController ?: return
       maybeEmitMediaPlayerFromExtras()
-      cachedPositionMs = controller.currentPosition
-      cachedMediaItemIndex = controller.currentMediaItemIndex
-      emitMetadata(controller)
+      lastKnownPositionMs = mediaController.currentPosition
+      lastKnownMediaItemIndex = mediaController.currentMediaItemIndex
+      emitMetadata(mediaController)
       if (playbackState == Player.STATE_ENDED || playbackState == Player.STATE_IDLE) {
         stopProgressUpdates()
       }
@@ -163,7 +169,7 @@ class PlaybackController(private val context: Context) {
         Player.STATE_IDLE,
         Player.STATE_READY -> Unit
       }
-      notifyPlayingState(effectiveIsPlaying(controller))
+      notifyPlayingState(effectiveIsPlaying(mediaController))
     }
 
     override fun onPlayerError(error: PlaybackException) {
@@ -180,8 +186,8 @@ class PlaybackController(private val context: Context) {
       reason: Int
     ) {
       if (reason == Player.DISCONTINUITY_REASON_SEEK || reason == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT) {
-        if (suppressNextSeekEvent) {
-          suppressNextSeekEvent = false
+        if (ignoreNextSeekEvent) {
+          ignoreNextSeekEvent = false
         } else {
           listener?.onSeekCompleted(newPosition.positionMs, newPosition.mediaItemIndex)
         }
@@ -190,37 +196,41 @@ class PlaybackController(private val context: Context) {
   }
 
   private fun startProgressUpdates() {
-    if (progressUpdaterScheduled) return
-    progressUpdaterScheduled = true
+    if (isProgressUpdaterScheduled) return
+    isProgressUpdaterScheduled = true
     mainHandler.post(progressUpdater)
   }
 
   private fun stopProgressUpdates() {
-    if (!progressUpdaterScheduled) return
-    progressUpdaterScheduled = false
+    if (!isProgressUpdaterScheduled) return
+    isProgressUpdaterScheduled = false
     mainHandler.removeCallbacks(progressUpdater)
   }
 
-  private fun emitMetadata(controller: MediaController) {
-    val durationMs = computeAbsoluteDuration(controller)
-    val currentMs = computeAbsolutePosition(controller)
-    cachedPositionMs = currentMs
-    cachedMediaItemIndex = controller.currentMediaItemIndex
+  private fun emitMetadata(mediaController: MediaController) {
+    val durationMs = computeAbsoluteDuration(mediaController)
+    val currentMs = computeAbsolutePosition(mediaController)
+    lastKnownPositionMs = currentMs
+    lastKnownMediaItemIndex = mediaController.currentMediaItemIndex
     val metadata =
-      PlaybackMetadata(durationMs / 1000.0, currentMs / 1000.0, controllerPlaybackState(controller))
+      PlaybackMetadata(
+        durationMs / 1000.0,
+        currentMs / 1000.0,
+        controllerPlaybackState(mediaController)
+      )
     listener?.onMetadata(metadata)
   }
 
   fun forceNextPlayingStateDispatch() {
-    forceNextPlayingStateDispatch = true
+    forceNextPlayingStateUpdate = true
   }
 
   private fun notifyPlayingState(isPlaying: Boolean) {
-    val shouldForce = forceNextPlayingStateDispatch
+    val shouldForce = forceNextPlayingStateUpdate
     if (!shouldForce && lastNotifiedIsPlaying == isPlaying) return
     lastNotifiedIsPlaying = isPlaying
     if (shouldForce) {
-      forceNextPlayingStateDispatch = false
+      forceNextPlayingStateUpdate = false
     }
     listener?.onPlayingUpdate(isPlaying)
   }
@@ -230,15 +240,15 @@ class PlaybackController(private val context: Context) {
     return player.playWhenReady && player.playbackState == Player.STATE_BUFFERING
   }
 
-  private fun executeWithController(onReady: (MediaController) -> Unit) {
-    val controller = mediaController
-    if (controller != null) {
-      onReady(controller)
-      cachedPositionMs = controller.currentPosition
+  private fun executeWithController(onControllerReady: (MediaController) -> Unit) {
+    val mediaController = this@PlaybackController.mediaController
+    if (mediaController != null) {
+      onControllerReady(mediaController)
+      lastKnownPositionMs = mediaController.currentPosition
       return
     }
     connect {
-      mediaController?.let(onReady)
+      this@PlaybackController.mediaController?.let(onControllerReady)
     }
   }
 
@@ -249,21 +259,21 @@ class PlaybackController(private val context: Context) {
 
   private fun sendCommand(
     command: SessionCommand,
-    args: Bundle = Bundle(),
-    onComplete: ((SessionResult) -> Unit)? = null
+    commandArgs: Bundle = Bundle(),
+    onCommandComplete: ((SessionResult) -> Unit)? = null
   ) {
-    executeWithController { controller ->
-      val future = controller.sendCustomCommand(command, args)
-      onComplete?.let { callback ->
+    executeWithController { mediaController ->
+      val future = mediaController.sendCustomCommand(command, commandArgs)
+      onCommandComplete?.let { callback ->
         Futures.addCallback(
           future,
           object : FutureCallback<SessionResult> {
-            override fun onSuccess(result: SessionResult?) {
-              callback(result ?: DEFAULT_SUCCESS_RESULT)
+            override fun onSuccess(sessionResult: SessionResult?) {
+              callback(sessionResult ?: DEFAULT_SUCCESS_RESULT)
             }
 
-            override fun onFailure(t: Throwable) {
-              Log.e(tag, "Custom command failure", t)
+            override fun onFailure(throwable: Throwable) {
+              Log.e(TAG, "Custom command failure", throwable)
 
               callback(UNKNOWN_ERROR_RESULT)
             }
@@ -275,38 +285,38 @@ class PlaybackController(private val context: Context) {
   }
 
 
-  private fun handleControllerDisconnected(controller: MediaController) {
-    if (hasEmittedClose) return
-    hasEmittedClose = true
+  private fun handleControllerDisconnected(mediaController: MediaController) {
+    if (hasEmittedCloseEvent) return
+    hasEmittedCloseEvent = true
     stopProgressUpdates()
-    controller.removeListener(controllerListener)
-    controller.release()
-    mediaController = null
-    controllerFuture = null
-    isConnecting.set(false)
+    mediaController.removeListener(controllerListener)
+    mediaController.release()
+    this@PlaybackController.mediaController = null
+    mediaControllerFuture = null
+    isConnectionInProgress.set(false)
     lastNotifiedIsPlaying = null
-    forceNextPlayingStateDispatch = false
+    forceNextPlayingStateUpdate = false
     listener?.onPlaybackClosed()
   }
 
-  private fun disconnectControllerSync(controller: MediaController) {
-    if (!isDisconnecting.compareAndSet(false, true)) return
+  private fun disconnectControllerSync(mediaController: MediaController) {
+    if (!isDisconnectionInProgress.compareAndSet(false, true)) return
     try {
-      runOnMainSync { handleControllerDisconnected(controller) }
+      runOnMainSync { handleControllerDisconnected(mediaController) }
     } finally {
-      isDisconnecting.set(false)
+      isDisconnectionInProgress.set(false)
     }
   }
 
-  private fun runOnMainSync(block: () -> Unit) {
+  private fun runOnMainSync(action: () -> Unit) {
     if (Looper.myLooper() == Looper.getMainLooper()) {
-      block()
+      action()
       return
     }
     val latch = CountDownLatch(1)
     mainHandler.post {
       try {
-        block()
+        action()
       } finally {
         latch.countDown()
       }
@@ -318,8 +328,8 @@ class PlaybackController(private val context: Context) {
     }
   }
 
-  private fun controllerPlaybackState(controller: MediaController): PlayerState {
-    return when (controller.playbackState) {
+  private fun controllerPlaybackState(mediaController: MediaController): PlayerState {
+    return when (mediaController.playbackState) {
       Player.STATE_READY -> PlayerState.READY
       Player.STATE_ENDED -> PlayerState.ENDED
       Player.STATE_BUFFERING -> PlayerState.BUFFERING
@@ -327,55 +337,62 @@ class PlaybackController(private val context: Context) {
     }
   }
 
-  fun connect(onConnected: (() -> Unit)? = null) {
+  fun connect(onConnectionSuccess: (() -> Unit)? = null) {
     if (mediaController != null) {
-      onConnected?.let { mainHandler.post(it) }
+      onConnectionSuccess?.let { mainHandler.post(it) }
       return
     }
-    if (isDisconnecting.get()) {
+    if (isDisconnectionInProgress.get()) {
       return
     }
-    if (!isConnecting.compareAndSet(false, true)) {
+    if (!isConnectionInProgress.compareAndSet(false, true)) {
       return
     }
 
-    val appContext = context.applicationContext
-    val sessionToken = SessionToken(appContext, ComponentName(appContext, Media3PlaybackService::class.java))
-    controllerFuture  = MediaController.Builder(appContext, sessionToken).buildAsync()
+    val applicationContext = context.applicationContext
+    val sessionToken = SessionToken(
+      applicationContext,
+      ComponentName(applicationContext, Media3PlaybackService::class.java)
+    )
+    mediaControllerFuture = MediaController.Builder(applicationContext, sessionToken).buildAsync()
 
 
-    Futures.addCallback(controllerFuture!!, object : FutureCallback<MediaController> {
-      override fun onSuccess(result: MediaController?) {
+    Futures.addCallback(mediaControllerFuture!!, object : FutureCallback<MediaController> {
+      override fun onSuccess(sessionResult: MediaController?) {
         mainHandler.post {
-          isConnecting.set(false)
-          mediaController = result
+          isConnectionInProgress.set(false)
+          mediaController = sessionResult
           mediaController?.addListener(controllerListener)
-          hasEmittedClose = false
+          hasEmittedCloseEvent = false
           maybeEmitMediaPlayerFromExtras()
-          result?.let { listener?.onPlaybackSpeedChanged(it.playbackParameters.speed) }
-          if (result?.isPlaying == true) {
+          sessionResult?.let { listener?.onPlaybackSpeedChanged(it.playbackParameters.speed) }
+          if (sessionResult?.isPlaying == true) {
             startProgressUpdates()
           }
-          result?.let { notifyPlayingState(it.isPlaying) }
-          onConnected?.invoke()
+          sessionResult?.let { notifyPlayingState(it.isPlaying) }
+          onConnectionSuccess?.invoke()
         }
       }
 
-      override fun onFailure(t: Throwable) {
-        Log.e(tag, "MediaController connection failure", t)
-        isConnecting.set(false)
-        mainHandler.post { listener?.onPlaybackFailed(t.message ?: "Controller connection failed") }
+      override fun onFailure(throwable: Throwable) {
+        Log.e(TAG, "MediaController connection failure", throwable)
+        isConnectionInProgress.set(false)
+        mainHandler.post {
+          listener?.onPlaybackFailed(
+            throwable.message ?: "Controller connection failed"
+          )
+        }
       }
     }, ContextCompat.getMainExecutor(context))
   }
 
   fun disconnect() {
     stopProgressUpdates()
-    controllerFuture?.cancel(true)
+    mediaControllerFuture?.cancel(true)
     mediaController?.let { disconnectControllerSync(it) }
     mediaController = null
-    controllerFuture = null
-    isConnecting.set(false)
+    mediaControllerFuture = null
+    isConnectionInProgress.set(false)
   }
 
   fun stopAndDisconnect() {
@@ -383,17 +400,17 @@ class PlaybackController(private val context: Context) {
       mediaController?.let {
         try {
           it.pause()
-        } catch (e: Exception) {
-          Log.w(tag, "Failed to pause controller in stopAndDisconnect", e)
+        } catch (exception: Exception) {
+          Log.w(TAG, "Failed to pause controller in stopAndDisconnect", exception)
         }
         try {
           it.stop()
-        } catch (e: Exception) {
-          Log.w(tag, "Failed to stop controller in stopAndDisconnect", e)
+        } catch (exception: Exception) {
+          Log.w(TAG, "Failed to stop controller in stopAndDisconnect", exception)
         }
       }
-    } catch (e: Exception) {
-      Log.e(tag, "Exception in stopAndDisconnect", e)
+    } catch (exception: Exception) {
+      Log.e(TAG, "Exception in stopAndDisconnect", exception)
     }
     disconnect()
   }
@@ -404,49 +421,58 @@ class PlaybackController(private val context: Context) {
     playbackRate: Float?
   ) {
     if (BuildConfig.DEBUG) {
-      Log.d(tag, "preparePlayback: session=${playbackSession.id} title=${playbackSession.displayTitle}")
+      Log.d(
+        TAG,
+        "preparePlayback: session=${playbackSession.id} title=${playbackSession.displayTitle}"
+      )
     }
     activePlaybackSession = playbackSession
     listener?.onPlaybackSession(playbackSession)
 
-    ensureServiceStarted()
+    // Ensure controller is connected before starting service
+    connect {
+      ensureServiceStarted()
 
-    val sessionJson = jacksonMapper.writeValueAsString(playbackSession)
-    val args = Bundle().apply {
-      putString(Extras.PLAYBACK_SESSION_JSON, sessionJson)
-      putBoolean(Extras.PLAY_WHEN_READY, playWhenReady)
-      playbackRate?.let { putFloat(Extras.PLAYBACK_RATE, it) }
-    }
+      val sessionJson = jacksonMapper.writeValueAsString(playbackSession)
+      val commandArgs = Bundle().apply {
+        putString(PlaybackConstants.PLAYBACK_SESSION_JSON, sessionJson)
+        putBoolean(PlaybackConstants.PLAY_WHEN_READY, playWhenReady)
+        playbackRate?.let { putFloat(PlaybackConstants.PLAYBACK_RATE, it) }
+      }
 
-    sendCommand(SessionCommand(CustomCommands.PREPARE_PLAYBACK, Bundle.EMPTY), args) { result ->
-      if (result.resultCode != SessionResult.RESULT_SUCCESS) {
-        Log.e(tag, "preparePlayback command failed")
-        mainHandler.post { listener?.onPlaybackFailed("preparePlayback command failed") }
+      sendCommand(
+        PlaybackConstants.sessionCommand(PlaybackConstants.Commands.PREPARE_PLAYBACK),
+        commandArgs
+      ) { sessionResult ->
+        if (sessionResult.resultCode != SessionResult.RESULT_SUCCESS) {
+          Log.e(TAG, "preparePlayback command failed")
+          mainHandler.post { listener?.onPlaybackFailed("preparePlayback command failed") }
+        }
       }
     }
   }
 
   fun play() {
-    forceNextPlayingStateDispatch = true
+    forceNextPlayingStateUpdate = true
     mediaController?.play()
   }
 
   fun pause() {
-    forceNextPlayingStateDispatch = true
+    forceNextPlayingStateUpdate = true
     mediaController?.pause()
   }
 
   fun playPause(): Boolean {
-    val controller = mediaController ?: return false
-    forceNextPlayingStateDispatch = true
+    val mediaController = this@PlaybackController.mediaController ?: return false
+    forceNextPlayingStateUpdate = true
     return when {
-      controller.isPlaying -> {
-        controller.pause()
+      mediaController.isPlaying -> {
+        mediaController.pause()
         false
       }
 
       else -> {
-        controller.play()
+        mediaController.play()
         true
       }
     }
@@ -455,64 +481,70 @@ class PlaybackController(private val context: Context) {
 
   fun seekTo(positionMs: Long) {
     val session = activePlaybackSession
-    val controller = mediaController
-    if (session == null || controller == null) return
+    val mediaController = this@PlaybackController.mediaController
+    if (session == null || mediaController == null) return
 
-    val clampedMs = positionMs.coerceIn(0L, session.totalDurationMs)
-    session.currentTime = clampedMs / 1000.0
+    val clampedPositionMs = positionMs.coerceIn(0L, session.totalDurationMs)
+    session.currentTime = clampedPositionMs / 1000.0
 
-    val tracks = session.audioTracks
-    if (tracks.isEmpty()) {
-      controller.seekTo(clampedMs)
+    val audioTracks = session.audioTracks
+    if (audioTracks.isEmpty()) {
+      mediaController.seekTo(clampedPositionMs)
       return
     }
 
-    val trackIndex = session.getCurrentTrackIndex().coerceIn(0, controller.mediaItemCount - 1)
-    val positionInTrack = session.getCurrentTrackTimeMs()
+    val currentTrackIndex =
+      session.getCurrentTrackIndex().coerceIn(0, mediaController.mediaItemCount - 1)
+    val currentTrackPositionMs = session.getCurrentTrackTimeMs()
 
-    controller.seekTo(trackIndex, positionInTrack)
+    mediaController.seekTo(currentTrackIndex, currentTrackPositionMs)
   }
 
-  fun seekBy(deltaMs: Long) {
-    mediaController?.let { controller ->
-      val target = (controller.currentPosition + deltaMs).coerceAtLeast(0L)
-      controller.seekTo(target)
-    }
-  }
-
-  fun setSleepTimer(timeMs: Long, isChapterTime: Boolean, playbackSessionId: String?, onResult: (Boolean) -> Unit) {
-    val args = Bundle().apply {
-      putLong(SleepTimer.EXTRA_TIME_MS, timeMs)
-      putBoolean(SleepTimer.EXTRA_IS_CHAPTER, isChapterTime)
-      playbackSessionId?.let { putString(SleepTimer.EXTRA_SESSION_ID, it) }
-    }
-    sendCommand(setSleepTimerCommand, args) { result ->
-      onResult(result.resultCode == SessionResult.RESULT_SUCCESS)
+  fun seekBy(seekDeltaMs: Long) {
+    mediaController?.let { mediaController ->
+      val targetPositionMs = (mediaController.currentPosition + seekDeltaMs).coerceAtLeast(0L)
+      mediaController.seekTo(targetPositionMs)
     }
   }
 
-  fun getSleepTimerTime(onResult: (Long) -> Unit) {
-    sendCommand(getSleepTimerTimeCommand, Bundle()) { result ->
-      onResult(result.extras.getLong(SleepTimer.EXTRA_TIME_MS, 0L))
+  fun setSleepTimer(
+    durationMs: Long,
+    isRelativeToChapter: Boolean,
+    playbackSessionId: String?,
+    onCompletion: (Boolean) -> Unit
+  ) {
+    val commandArgs = Bundle().apply {
+      putLong(PlaybackConstants.SleepTimer.EXTRA_TIME_MS, durationMs)
+      putBoolean(PlaybackConstants.SleepTimer.EXTRA_IS_CHAPTER, isRelativeToChapter)
+      playbackSessionId?.let { putString(PlaybackConstants.SleepTimer.EXTRA_SESSION_ID, it) }
+    }
+    sendCommand(setSleepTimerCommand, commandArgs) { sessionResult ->
+      onCompletion(sessionResult.resultCode == SessionResult.RESULT_SUCCESS)
     }
   }
 
-  fun increaseSleepTimer(amountMs: Long) {
-    if (amountMs <= 0L) return
-    val args = Bundle().apply {
-      putLong(SleepTimer.EXTRA_ADJUST_DELTA, amountMs)
-      putBoolean(SleepTimer.EXTRA_ADJUST_INCREASE, true)
+  fun getSleepTimerTime(onCompletion: (Long) -> Unit) {
+    sendCommand(getSleepTimerTimeCommand, Bundle()) { sessionResult ->
+      onCompletion(sessionResult.extras.getLong(PlaybackConstants.SleepTimer.EXTRA_TIME_MS, 0L))
     }
-    sendCommand(adjustSleepTimerCommand, args, null)
   }
 
-  fun decreaseSleepTimer(amountMs: Long) {
-    if (amountMs <= 0L) return
-    val args = Bundle().apply {
-      putLong(SleepTimer.EXTRA_ADJUST_DELTA, amountMs)
-      putBoolean(SleepTimer.EXTRA_ADJUST_INCREASE, false)
+  fun increaseSleepTimer(deltaMs: Long) {
+    if (deltaMs <= 0L) return
+    val commandArgs = Bundle().apply {
+      putLong(PlaybackConstants.SleepTimer.EXTRA_ADJUST_DELTA, deltaMs)
+      putBoolean(PlaybackConstants.SleepTimer.EXTRA_ADJUST_INCREASE, true)
     }
-    sendCommand(adjustSleepTimerCommand, args, null)
+    sendCommand(adjustSleepTimerCommand, commandArgs, null)
+  }
+
+  fun decreaseSleepTimer(deltaMs: Long) {
+    if (deltaMs <= 0L) return
+    val commandArgs = Bundle().apply {
+      putLong(PlaybackConstants.SleepTimer.EXTRA_ADJUST_DELTA, deltaMs)
+      putBoolean(PlaybackConstants.SleepTimer.EXTRA_ADJUST_INCREASE, false)
+    }
+    sendCommand(adjustSleepTimerCommand, commandArgs, null)
   }
 
   fun cancelSleepTimer() {
@@ -520,16 +552,16 @@ class PlaybackController(private val context: Context) {
   }
 
 
-  fun closePlayback(onComplete: ((Boolean) -> Unit)? = null) {
-    val closeCommand = SessionCommand(CustomCommands.CLOSE_PLAYBACK, Bundle.EMPTY)
-    sendCommand(closeCommand, Bundle.EMPTY) { result ->
-      onComplete?.invoke(result.resultCode == SessionResult.RESULT_SUCCESS)
+  fun closePlayback(onCommandComplete: ((Boolean) -> Unit)? = null) {
+    val closeCommand = PlaybackConstants.sessionCommand(PlaybackConstants.Commands.CLOSE_PLAYBACK)
+    sendCommand(closeCommand, Bundle.EMPTY) { sessionResult ->
+      onCommandComplete?.invoke(sessionResult.resultCode == SessionResult.RESULT_SUCCESS)
     }
   }
 
-  fun forceSyncProgress(onComplete: (() -> Unit)? = null) {
+  fun forceSyncProgress(onCommandComplete: (() -> Unit)? = null) {
     sendCommand(forceSyncProgressCommand, Bundle.EMPTY) {
-      onComplete?.invoke()
+      onCommandComplete?.invoke()
     }
   }
 
@@ -542,22 +574,22 @@ class PlaybackController(private val context: Context) {
   }
 
   fun currentPosition(): Long {
-    val controller = mediaController
-    return if (controller != null && Looper.myLooper() == Looper.getMainLooper()) {
-      val absolute = computeAbsolutePosition(controller)
-      cachedPositionMs = absolute
-      absolute
+    val mediaController = this@PlaybackController.mediaController
+    return if (mediaController != null && Looper.myLooper() == Looper.getMainLooper()) {
+      val absolutePositionMs = computeAbsolutePosition(mediaController)
+      lastKnownPositionMs = absolutePositionMs
+      absolutePositionMs
     } else {
-      cachedPositionMs
+      lastKnownPositionMs
     }
   }
 
   fun bufferedPosition(): Long {
-    val controller = mediaController
-    if (controller != null) {
-      val offset =
-        activePlaybackSession?.getTrackStartOffsetMs(controller.currentMediaItemIndex) ?: 0L
-      return (controller.bufferedPosition + offset).coerceAtLeast(0L)
+    val mediaController = this@PlaybackController.mediaController
+    if (mediaController != null) {
+      val trackStartOffsetMs =
+        activePlaybackSession?.getTrackStartOffsetMs(mediaController.currentMediaItemIndex) ?: 0L
+      return (mediaController.bufferedPosition + trackStartOffsetMs).coerceAtLeast(0L)
     }
     return currentPosition()
   }
@@ -565,11 +597,11 @@ class PlaybackController(private val context: Context) {
   fun isPlaying(): Boolean = mediaController?.isPlaying ?: false
 
   fun currentMediaItemIndex(): Int {
-    val controller = mediaController
-    return if (controller != null && Looper.myLooper() == Looper.getMainLooper()) {
-      controller.currentMediaItemIndex.also { cachedMediaItemIndex = it }
+    val mediaController = this@PlaybackController.mediaController
+    return if (mediaController != null && Looper.myLooper() == Looper.getMainLooper()) {
+      mediaController.currentMediaItemIndex.also { lastKnownMediaItemIndex = it }
     } else {
-      cachedMediaItemIndex.takeIf { it >= 0 }
+      lastKnownMediaItemIndex.takeIf { it >= 0 }
         ?: activePlaybackSession?.getCurrentTrackIndex()
         ?: 0
     }
@@ -585,15 +617,15 @@ class PlaybackController(private val context: Context) {
     }
   }
 
-  private fun computeAbsolutePosition(controller: MediaController): Long {
-    val offset =
-      activePlaybackSession?.getTrackStartOffsetMs(controller.currentMediaItemIndex) ?: 0L
-    return (controller.currentPosition + offset).coerceAtLeast(0L)
+  private fun computeAbsolutePosition(mediaController: MediaController): Long {
+    val trackStartOffsetMs =
+      activePlaybackSession?.getTrackStartOffsetMs(mediaController.currentMediaItemIndex) ?: 0L
+    return (mediaController.currentPosition + trackStartOffsetMs).coerceAtLeast(0L)
   }
 
-  private fun computeAbsoluteDuration(controller: MediaController): Long {
+  private fun computeAbsoluteDuration(mediaController: MediaController): Long {
     val sessionDuration = activePlaybackSession?.totalDurationMs ?: 0L
-    val controllerDuration = controller.duration.takeIf { it > 0 } ?: 0L
+    val controllerDuration = mediaController.duration.takeIf { it > 0 } ?: 0L
     return when {
       sessionDuration > 0 -> sessionDuration
       controllerDuration > 0 -> controllerDuration

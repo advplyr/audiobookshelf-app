@@ -18,10 +18,10 @@ class Media3CastCoordinator(
   private val speechAudioAttributes: AudioAttributes,
   private val onSwitchToCast: (AbsPlayerWrapper) -> Unit,
   private val onSwitchToLocal: () -> Unit,
-  private val onPauseLocalForCasting: () -> Unit,
+  private val pauseLocalForCasting: () -> Unit,
   private val debug: (msg: () -> String) -> Unit = { }
 ) {
-  private val tag = "Media3CastCoord"
+  private val tag = "Media3CastCoordinator"
 
   fun initialize(): AbsPlayerWrapper? {
     return try {
@@ -35,7 +35,7 @@ class Media3CastCoordinator(
         override fun onCastSessionAvailable() {
           scope.launch {
             debug { "Cast session available. Switching to CastPlayer." }
-            onPauseLocalForCasting()
+            pauseLocalForCasting()
             onSwitchToCast(wrapper)
           }
         }

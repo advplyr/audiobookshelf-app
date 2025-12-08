@@ -4,53 +4,30 @@ import android.content.Context
 import android.os.Bundle
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionCommands
 import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 
-interface SleepTimerApi {
-  fun set(sessionId: String, timeMs: Long, isChapter: Boolean)
-  fun cancel()
-  fun adjust(deltaMs: Long, increase: Boolean)
-  fun getTime(): Long
-}
-
-interface PlaybackControlApi {
-  fun sync(reason: String, force: Boolean, onComplete: (() -> Unit)? = null)
-  fun close(afterStop: (() -> Unit)?)
-}
-
 @UnstableApi
+/**
+ * Handles custom Media3 session commands including sleep timer, chapter navigation, and playback speed control.
+ * Processes command execution and provides callbacks for various playback operations.
+ */
 class SessionController(
   private val context: Context,
   val availableSessionCommands: SessionCommands,
-  // Custom commands and helpers
-  private val cyclePlaybackSpeedCommand: SessionCommand?,
-  private val seekBackIncrementCommand: SessionCommand?,
-  private val seekForwardIncrementCommand: SessionCommand?,
-  private val setSleepTimerCommand: SessionCommand?,
-  private val cancelSleepTimerCommand: SessionCommand?,
-  private val adjustSleepTimerCommand: SessionCommand?,
-  private val getSleepTimerTimeCommand: SessionCommand?,
-  private val sleepTimerApi: SleepTimerApi,
-  private val previousChapterCommand: SessionCommand?,
-  private val nextChapterCommand: SessionCommand?,
-  private val seekToChapterCommand: SessionCommand?,
-  private val syncProgressForceCommand: SessionCommand?,
-  private val sleepExtraTimeMsKey: String?,
-  private val sleepExtraIsChapterKey: String?,
-  private val sleepExtraSessionIdKey: String?,
-  private val sleepExtraAdjustDeltaKey: String?,
-  private val sleepExtraAdjustIncreaseKey: String?,
-  private val extraChapterStartMsKey: String?,
+  // Sleep timer operations and other callbacks
+  private val setSleepTimer: (sessionId: String, timeMs: Long, isChapter: Boolean) -> Unit,
+  private val cancelSleepTimer: () -> Unit,
+  private val adjustSleepTimer: (deltaMs: Long, increase: Boolean) -> Unit,
+  private val getSleepTimerTime: () -> Long,
   private val cyclePlaybackSpeed: (() -> Unit)?,
   private val getCurrentSession: (() -> com.audiobookshelf.app.data.PlaybackSession?)?,
   private val currentAbsolutePositionMs: (() -> Long?)?,
-  private val playbackControlApi: PlaybackControlApi,
-  private val logger: (String) -> Unit,
+  private val syncProgress: (reason: String, force: Boolean, onComplete: (() -> Unit)?) -> Unit,
+  private val closePlaybackCallback: (afterStop: (() -> Unit)?) -> Unit,
   private val playerProvider: () -> Player?
 ) {
   fun onPlay() {
@@ -63,72 +40,6 @@ class SessionController(
 
   fun onStop() {
     playerProvider()?.stop()
-  }
-
-  // Lightweight secondary constructor: builds default command sets internally
-  constructor(
-    context: Context,
-    playbackSpeedCommandButton: CommandButton?,
-    sleepTimerApi: SleepTimerApi,
-    cyclePlaybackSpeed: (() -> Unit)?,
-    getCurrentSession: (() -> com.audiobookshelf.app.data.PlaybackSession?)?,
-    currentAbsolutePositionMs: (() -> Long?)?,
-    playbackControlApi: PlaybackControlApi,
-    logger: (String) -> Unit,
-    playerProvider: () -> Player?
-  ) : this(
-    context = context,
-    availableSessionCommands = MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS,
-    cyclePlaybackSpeedCommand = SessionCommand(CustomCommands.CYCLE_PLAYBACK_SPEED, Bundle.EMPTY),
-    seekBackIncrementCommand = SessionCommand(CustomCommands.SEEK_BACK_INCREMENT, Bundle.EMPTY),
-    seekForwardIncrementCommand = SessionCommand(
-      CustomCommands.SEEK_FORWARD_INCREMENT,
-      Bundle.EMPTY
-    ),
-    setSleepTimerCommand = SessionCommand(SleepTimer.ACTION_SET, Bundle.EMPTY),
-    cancelSleepTimerCommand = SessionCommand(SleepTimer.ACTION_CANCEL, Bundle.EMPTY),
-    adjustSleepTimerCommand = SessionCommand(SleepTimer.ACTION_ADJUST, Bundle.EMPTY),
-    getSleepTimerTimeCommand = SessionCommand(SleepTimer.ACTION_GET_TIME, Bundle.EMPTY),
-    previousChapterCommand = SessionCommand(CustomCommands.SEEK_TO_PREVIOUS_CHAPTER, Bundle.EMPTY),
-    nextChapterCommand = SessionCommand(CustomCommands.SEEK_TO_NEXT_CHAPTER, Bundle.EMPTY),
-    seekToChapterCommand = SessionCommand(CustomCommands.SEEK_TO_CHAPTER, Bundle.EMPTY),
-    syncProgressForceCommand = SessionCommand(CustomCommands.SYNC_PROGRESS_FORCE, Bundle.EMPTY),
-    sleepExtraTimeMsKey = SleepTimer.EXTRA_TIME_MS,
-    sleepExtraIsChapterKey = SleepTimer.EXTRA_IS_CHAPTER,
-    sleepExtraSessionIdKey = SleepTimer.EXTRA_SESSION_ID,
-    sleepExtraAdjustDeltaKey = SleepTimer.EXTRA_ADJUST_DELTA,
-    sleepExtraAdjustIncreaseKey = SleepTimer.EXTRA_ADJUST_INCREASE,
-    extraChapterStartMsKey = CustomCommands.EXTRA_CHAPTER_START_MS,
-    cyclePlaybackSpeed = cyclePlaybackSpeed,
-    sleepTimerApi = sleepTimerApi,
-    getCurrentSession = getCurrentSession,
-    currentAbsolutePositionMs = currentAbsolutePositionMs,
-    playbackControlApi = playbackControlApi,
-    logger = logger,
-    playerProvider = playerProvider
-  )
-
-  private object CustomCommands {
-    const val CYCLE_PLAYBACK_SPEED = "com.audiobookshelf.app.player.CYCLE_PLAYBACK_SPEED"
-    const val SEEK_BACK_INCREMENT = "com.audiobookshelf.app.player.SEEK_BACK_INCREMENT"
-    const val SEEK_FORWARD_INCREMENT = "com.audiobookshelf.app.player.SEEK_FORWARD_INCREMENT"
-    const val SEEK_TO_PREVIOUS_CHAPTER = "com.audiobookshelf.app.player.SEEK_TO_PREVIOUS_CHAPTER"
-    const val SEEK_TO_NEXT_CHAPTER = "com.audiobookshelf.app.player.SEEK_TO_NEXT_CHAPTER"
-    const val SEEK_TO_CHAPTER = "com.audiobookshelf.app.player.SEEK_TO_CHAPTER"
-    const val SYNC_PROGRESS_FORCE = "com.audiobookshelf.app.player.SYNC_PROGRESS_FORCE"
-    const val EXTRA_CHAPTER_START_MS = "chapter_start_ms"
-  }
-
-  private object SleepTimer {
-    const val ACTION_SET = "com.audiobookshelf.app.player.SET_SLEEP_TIMER"
-    const val ACTION_CANCEL = "com.audiobookshelf.app.player.CANCEL_SLEEP_TIMER"
-    const val ACTION_ADJUST = "com.audiobookshelf.app.player.ADJUST_SLEEP_TIMER"
-    const val ACTION_GET_TIME = "com.audiobookshelf.app.player.GET_SLEEP_TIMER_TIME"
-    const val EXTRA_TIME_MS = "sleep_timer_time_ms"
-    const val EXTRA_IS_CHAPTER = "sleep_timer_is_chapter"
-    const val EXTRA_SESSION_ID = "sleep_timer_session_id"
-    const val EXTRA_ADJUST_DELTA = "sleep_timer_adjust_delta"
-    const val EXTRA_ADJUST_INCREASE = "sleep_timer_adjust_increase"
   }
 
   fun onSeekTo(positionMs: Long) {
@@ -151,81 +62,139 @@ class SessionController(
     playerProvider()?.let { it.repeatMode = repeatMode }
   }
 
-  fun onCustomCommand(command: SessionCommand, data: Bundle?): SessionResult {
-    val action = command.customAction
-    if (syncProgressForceCommand != null && action == syncProgressForceCommand.customAction) {
+  fun onCustomCommand(command: SessionCommand, commandData: Bundle?): SessionResult {
+    val customAction = command.customAction
+    // Build canonical commands/keys from PlaybackConstants so callers don't need to supply them.
+    val syncProgressForceCommand = SessionCommand(
+      com.audiobookshelf.app.player.PlaybackConstants.Commands.SYNC_PROGRESS_FORCE,
+      Bundle.EMPTY
+    )
+    val cyclePlaybackSpeedCommand = SessionCommand(
+      com.audiobookshelf.app.player.PlaybackConstants.Commands.CYCLE_PLAYBACK_SPEED,
+      Bundle.EMPTY
+    )
+    val seekBackIncrementCommand = SessionCommand(
+      com.audiobookshelf.app.player.PlaybackConstants.Commands.SEEK_BACK_INCREMENT,
+      Bundle.EMPTY
+    )
+    val seekForwardIncrementCommand = SessionCommand(
+      com.audiobookshelf.app.player.PlaybackConstants.Commands.SEEK_FORWARD_INCREMENT,
+      Bundle.EMPTY
+    )
+    val previousChapterCommand = SessionCommand(
+      com.audiobookshelf.app.player.PlaybackConstants.Commands.SEEK_TO_PREVIOUS_CHAPTER,
+      Bundle.EMPTY
+    )
+    val nextChapterCommand = SessionCommand(
+      com.audiobookshelf.app.player.PlaybackConstants.Commands.SEEK_TO_NEXT_CHAPTER,
+      Bundle.EMPTY
+    )
+    val seekToChapterCommand = SessionCommand(
+      com.audiobookshelf.app.player.PlaybackConstants.Commands.SEEK_TO_CHAPTER,
+      Bundle.EMPTY
+    )
+    val setSleepTimerCommand = SessionCommand(
+      com.audiobookshelf.app.player.PlaybackConstants.SleepTimer.ACTION_SET,
+      Bundle.EMPTY
+    )
+    val cancelSleepTimerCommand = SessionCommand(
+      com.audiobookshelf.app.player.PlaybackConstants.SleepTimer.ACTION_CANCEL,
+      Bundle.EMPTY
+    )
+    val adjustSleepTimerCommand = SessionCommand(
+      com.audiobookshelf.app.player.PlaybackConstants.SleepTimer.ACTION_ADJUST,
+      Bundle.EMPTY
+    )
+    val getSleepTimerTimeCommand = SessionCommand(
+      com.audiobookshelf.app.player.PlaybackConstants.SleepTimer.ACTION_GET_TIME,
+      Bundle.EMPTY
+    )
+    val sleepExtraTimeMsKey =
+      com.audiobookshelf.app.player.PlaybackConstants.SleepTimer.EXTRA_TIME_MS
+    val sleepExtraIsChapterKey =
+      com.audiobookshelf.app.player.PlaybackConstants.SleepTimer.EXTRA_IS_CHAPTER
+    val sleepExtraSessionIdKey =
+      com.audiobookshelf.app.player.PlaybackConstants.SleepTimer.EXTRA_SESSION_ID
+    val sleepExtraAdjustDeltaKey =
+      com.audiobookshelf.app.player.PlaybackConstants.SleepTimer.EXTRA_ADJUST_DELTA
+    val sleepExtraAdjustIncreaseKey =
+      com.audiobookshelf.app.player.PlaybackConstants.SleepTimer.EXTRA_ADJUST_INCREASE
+    val extraChapterStartMsKey = "chapter_start_ms"
+
+    if (customAction == syncProgressForceCommand.customAction) {
       playerProvider()?.takeIf { it.isPlaying }?.pause()
-      val latch = java.util.concurrent.CountDownLatch(1)
-      playbackControlApi.sync("switch", true) { latch.countDown() }
-      latch.await(2, java.util.concurrent.TimeUnit.SECONDS)
+      val progressSyncLatch = java.util.concurrent.CountDownLatch(1)
+      syncProgress("switch", true) { progressSyncLatch.countDown() }
+      progressSyncLatch.await(2, java.util.concurrent.TimeUnit.SECONDS)
       return SessionResult(SessionResult.RESULT_SUCCESS)
     }
-    if (cyclePlaybackSpeedCommand != null && action == cyclePlaybackSpeedCommand.customAction) {
+    if (customAction == cyclePlaybackSpeedCommand.customAction) {
       cyclePlaybackSpeed?.invoke(); return SessionResult(SessionResult.RESULT_SUCCESS)
     }
-    if (seekBackIncrementCommand != null && action == seekBackIncrementCommand.customAction) {
+    if (customAction == seekBackIncrementCommand.customAction) {
       playerProvider()?.seekBack(); return SessionResult(SessionResult.RESULT_SUCCESS)
     }
-    if (seekForwardIncrementCommand != null && action == seekForwardIncrementCommand.customAction) {
+    if (customAction == seekForwardIncrementCommand.customAction) {
       playerProvider()?.seekForward(); return SessionResult(SessionResult.RESULT_SUCCESS)
     }
-    if (previousChapterCommand != null && action == previousChapterCommand.customAction) {
+    if (customAction == previousChapterCommand.customAction) {
       val session = getCurrentSession?.invoke()
-      val absPos = currentAbsolutePositionMs?.invoke()
-      if (session != null && absPos != null) {
-        val target = resolvePreviousChapter(session, absPos)
-        if (target != null) {
+      val absolutePositionMs = currentAbsolutePositionMs?.invoke()
+      if (session != null && absolutePositionMs != null) {
+        val targetChapter = resolvePreviousChapter(session, absolutePositionMs)
+        if (targetChapter != null) {
           // Use absolute seek via player
-          playerProvider()?.let { p -> p.seekTo(target.startMs) }
+          playerProvider()?.seekTo(targetChapter.startMs)
           return SessionResult(SessionResult.RESULT_SUCCESS)
         }
       }
       playerProvider()?.seekBack(); return SessionResult(SessionResult.RESULT_SUCCESS)
     }
-    if (nextChapterCommand != null && action == nextChapterCommand.customAction) {
+    if (customAction == nextChapterCommand.customAction) {
       val session = getCurrentSession?.invoke()
-      val absPos = currentAbsolutePositionMs?.invoke()
-      if (session != null && absPos != null) {
-        val target = session.getNextChapterForTime(absPos)
-        if (target != null) {
-          playerProvider()?.let { p -> p.seekTo(target.startMs) }
+      val absolutePositionMs = currentAbsolutePositionMs?.invoke()
+      if (session != null && absolutePositionMs != null) {
+        val targetChapter = session.getNextChapterForTime(absolutePositionMs)
+        if (targetChapter != null) {
+          playerProvider()?.seekTo(targetChapter.startMs)
           return SessionResult(SessionResult.RESULT_SUCCESS)
         }
       }
       playerProvider()?.seekForward(); return SessionResult(SessionResult.RESULT_SUCCESS)
     }
-    if (seekToChapterCommand != null && action == seekToChapterCommand.customAction) {
-      val startMs = data?.getLong(extraChapterStartMsKey ?: "", Long.MIN_VALUE) ?: Long.MIN_VALUE
-      if (startMs >= 0L) {
-        playerProvider()?.seekTo(startMs)
+    if (customAction == seekToChapterCommand.customAction) {
+      val chapterStartMs =
+        commandData?.getLong(extraChapterStartMsKey, Long.MIN_VALUE) ?: Long.MIN_VALUE
+      if (chapterStartMs >= 0L) {
+        playerProvider()?.seekTo(chapterStartMs)
         return SessionResult(SessionResult.RESULT_SUCCESS)
       }
       return SessionResult(SessionError.ERROR_BAD_VALUE)
     }
-    if (setSleepTimerCommand != null && action == setSleepTimerCommand.customAction) {
-      val timeMs = data?.getLong(sleepExtraTimeMsKey ?: "", 0L) ?: 0L
-      val isChapter = data?.getBoolean(sleepExtraIsChapterKey ?: "", false) ?: false
-      val sessionId = data?.getString(sleepExtraSessionIdKey ?: "") ?: ""
-      sleepTimerApi.set(sessionId, timeMs, isChapter)
+    if (customAction == setSleepTimerCommand.customAction) {
+      val timeMs = commandData?.getLong(sleepExtraTimeMsKey, 0L) ?: 0L
+      val isChapter = commandData?.getBoolean(sleepExtraIsChapterKey, false) ?: false
+      val sessionId = commandData?.getString(sleepExtraSessionIdKey) ?: ""
+      setSleepTimer(sessionId, timeMs, isChapter)
       return SessionResult(SessionResult.RESULT_SUCCESS)
     }
-    if (cancelSleepTimerCommand != null && action == cancelSleepTimerCommand.customAction) {
-      sleepTimerApi.cancel(); return SessionResult(SessionResult.RESULT_SUCCESS)
+    if (customAction == cancelSleepTimerCommand.customAction) {
+      cancelSleepTimer(); return SessionResult(SessionResult.RESULT_SUCCESS)
     }
-    if (adjustSleepTimerCommand != null && action == adjustSleepTimerCommand.customAction) {
-      val delta = data?.getLong(sleepExtraAdjustDeltaKey ?: "", 0L) ?: 0L
-      val inc = data?.getBoolean(sleepExtraAdjustIncreaseKey ?: "", true) ?: true
-      if (delta <= 0L) return SessionResult(SessionError.ERROR_BAD_VALUE)
-      sleepTimerApi.adjust(delta, inc); return SessionResult(SessionResult.RESULT_SUCCESS)
+    if (customAction == adjustSleepTimerCommand.customAction) {
+      val deltaMs = commandData?.getLong(sleepExtraAdjustDeltaKey, 0L) ?: 0L
+      val increase = commandData?.getBoolean(sleepExtraAdjustIncreaseKey, true) ?: true
+      if (deltaMs <= 0L) return SessionResult(SessionError.ERROR_BAD_VALUE)
+      adjustSleepTimer(deltaMs, increase); return SessionResult(SessionResult.RESULT_SUCCESS)
     }
-    if (getSleepTimerTimeCommand != null && action == getSleepTimerTimeCommand.customAction) {
-      val time = sleepTimerApi.getTime()
+    if (customAction == getSleepTimerTimeCommand.customAction) {
+      val remainingSleepTimeMs = getSleepTimerTime()
       return SessionResult(
         SessionResult.RESULT_SUCCESS,
-        Bundle().apply { putLong(sleepExtraTimeMsKey ?: "sleep_time_ms", time) })
+        Bundle().apply { putLong(sleepExtraTimeMsKey, remainingSleepTimeMs) })
     }
-    if (action.contains("CLOSE_PLAYBACK")) {
-      playbackControlApi.close(null); return SessionResult(SessionResult.RESULT_SUCCESS)
+    if (customAction.contains("CLOSE_PLAYBACK")) {
+      closePlaybackCallback(null); return SessionResult(SessionResult.RESULT_SUCCESS)
     }
     // Default success
     return SessionResult(SessionResult.RESULT_SUCCESS)
@@ -233,32 +202,43 @@ class SessionController(
 
   private fun resolvePreviousChapter(
     session: com.audiobookshelf.app.data.PlaybackSession,
-    currentMs: Long
+    currentPositionMs: Long
   ): com.audiobookshelf.app.data.BookChapter? {
     val chapters = session.chapters
     if (chapters.isEmpty()) return null
-    val currentChapter = session.getChapterForTime(currentMs) ?: return chapters.firstOrNull()
+    val currentChapter =
+      session.getChapterForTime(currentPositionMs) ?: return chapters.firstOrNull()
     val currentIndex = chapters.indexOf(currentChapter).coerceAtLeast(0)
-    val nearStart = currentMs - currentChapter.startMs <= 3_000L
-    return if (nearStart && currentIndex > 0) chapters[currentIndex - 1] else currentChapter
+    val isNearChapterStart = currentPositionMs - currentChapter.startMs <= 3_000L
+    return if (isNearChapterStart && currentIndex > 0) chapters[currentIndex - 1] else currentChapter
   }
 
-  fun closePlayback(afterStop: (() -> Unit)?) = playbackControlApi.close(afterStop)
-  fun debugLog(message: String) = logger(message)
+  fun closePlayback(afterStop: (() -> Unit)?): Unit = closePlaybackCallback(afterStop)
   fun getContext(): Context = context
-  fun currentPlayer(): Player? = playerProvider()
 
   fun buildPlayerCommands(
     controllerInfo: MediaSession.ControllerInfo,
     allowSeekingOnMediaControls: Boolean,
     appPackageName: String
   ): Player.Commands {
-    val player = playerProvider() ?: return Player.Commands.EMPTY
-    val available = player.availableCommands
-    val isWear = controllerInfo.packageName.contains("wear", ignoreCase = true)
-    val isAppController = controllerInfo.packageName == appPackageName
+    val player = playerProvider()
+    if (player == null) {
+      // Player not yet available; return a reasonable default so controllers still show play/pause
+      val fallbackCommands = Player.Commands.Builder()
+        .add(Player.COMMAND_PLAY_PAUSE)
+        .add(Player.COMMAND_SEEK_BACK)
+        .add(Player.COMMAND_SEEK_FORWARD)
+        .add(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
+        .add(Player.COMMAND_GET_DEVICE_VOLUME)
+        .add(Player.COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS)
+        .add(Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS)
+      return fallbackCommands.build()
+    }
+    val availablePlayerCommands = player.availableCommands
+    val isWearController = controllerInfo.packageName.contains("wear", ignoreCase = true)
+    val isAppPackageController = controllerInfo.packageName == appPackageName
 
-    val builder = Player.Commands.Builder().addAll(available)
+    val builder = Player.Commands.Builder().addAll(availablePlayerCommands)
       .add(Player.COMMAND_SEEK_BACK)
       .add(Player.COMMAND_SEEK_FORWARD)
       .add(Player.COMMAND_PLAY_PAUSE)
@@ -267,10 +247,10 @@ class SessionController(
       .add(Player.COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS)
       .add(Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS)
 
-    if (!isAppController && !allowSeekingOnMediaControls) {
+    if (!isAppPackageController && !allowSeekingOnMediaControls) {
       builder.remove(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
     }
-    if (isWear) {
+    if (isWearController) {
       // Allow custom buttons for wear
       builder.remove(Player.COMMAND_SEEK_TO_PREVIOUS)
       builder.remove(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)

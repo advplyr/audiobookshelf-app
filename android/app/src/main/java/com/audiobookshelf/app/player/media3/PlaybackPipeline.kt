@@ -19,7 +19,7 @@ class PlaybackPipeline(
   private val onSwitchToCast: (AbsPlayerWrapper) -> Unit,
   private val onSwitchToLocal: () -> Unit,
   private val pauseLocalForCasting: () -> Unit,
-  private val debug: (msg: () -> String) -> Unit = { }
+  private val log: (msg: () -> String) -> Unit = { }
 ) {
   var castCoordinator: Media3CastCoordinator? = null
     private set
@@ -35,8 +35,8 @@ class PlaybackPipeline(
       speechAudioAttributes = speechAudioAttributes,
       onSwitchToCast = onSwitchToCast,
       onSwitchToLocal = onSwitchToLocal,
-      onPauseLocalForCasting = pauseLocalForCasting,
-      debug = debug
+      pauseLocalForCasting = pauseLocalForCasting,
+      debug = log
     ).also { it.initialize() }
     return castCoordinator
   }
@@ -44,8 +44,8 @@ class PlaybackPipeline(
   fun initializeLocalPlayer(
     enableMp3IndexSeeking: Boolean,
     speechAttributes: AudioAttributes,
-    jumpBackwardMs: Long,
-    jumpForwardMs: Long,
+    seekBackIncrementMs: Long,
+    seekForwardIncrementMs: Long,
     onPlayerReady: (AbsPlayerWrapper) -> Unit,
     buildListener: () -> androidx.media3.common.Player.Listener,
   ): AbsPlayerWrapper {
@@ -70,15 +70,15 @@ class PlaybackPipeline(
       // Audio focus is managed at the service layer; disable internal handling to avoid double requests
       .setAudioAttributes(speechAttributes, /* handleAudioFocus= */ false)
       .setHandleAudioBecomingNoisy(true)
-      .setSeekBackIncrementMs(jumpBackwardMs)
-      .setSeekForwardIncrementMs(jumpForwardMs)
+      .setSeekBackIncrementMs(seekBackIncrementMs)
+      .setSeekForwardIncrementMs(seekForwardIncrementMs)
       .setDeviceVolumeControlEnabled(true)
       .build()
 
     playerListener = buildListener()
     localPlayer = AbsPlayerWrapper(coreExoPlayer, context).apply { addListener(playerListener!!) }
     onPlayerReady(localPlayer!!)
-    debug { "Local player initialized via pipeline." }
+    log { "Local player initialized via pipeline." }
     return localPlayer!!
   }
 }

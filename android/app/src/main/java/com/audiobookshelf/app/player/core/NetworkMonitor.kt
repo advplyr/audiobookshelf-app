@@ -29,18 +29,15 @@ object NetworkMonitor {
   val isUnmeteredNetwork: Boolean
     get() = currentState.isUnmetered
 
-  val hasNetworkConnectivity: Boolean
-    get() = currentState.hasConnectivity
-
   fun initialize(context: Context) {
     if (initialized) return
     synchronized(this) {
       if (initialized) return
-      val manager =
+      val connectivityManagerService =
         context.applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
           ?: return
-      connectivityManager = manager
-      val callback = object : ConnectivityManager.NetworkCallback() {
+      connectivityManager = connectivityManagerService
+      val defaultNetworkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onCapabilitiesChanged(
           network: Network,
           networkCapabilities: NetworkCapabilities
@@ -54,9 +51,13 @@ object NetworkMonitor {
           updateNetworkState(null)
         }
       }
-      manager.registerDefaultNetworkCallback(callback)
-      networkCallback = callback
-      updateNetworkState(manager.getNetworkCapabilities(manager.activeNetwork))
+      connectivityManagerService.registerDefaultNetworkCallback(defaultNetworkCallback)
+      networkCallback = defaultNetworkCallback
+      updateNetworkState(
+        connectivityManagerService.getNetworkCapabilities(
+          connectivityManagerService.activeNetwork
+        )
+      )
       initialized = true
     }
   }
@@ -70,12 +71,12 @@ object NetworkMonitor {
     listeners.remove(listener)
   }
 
-  private fun updateNetworkState(capabilities: NetworkCapabilities?) {
+  private fun updateNetworkState(networkCapabilities: NetworkCapabilities?) {
     val hasConnectivity =
-      capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true &&
-        capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+      networkCapabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true &&
+        networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     val isUnmetered =
-      capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED) == true
+      networkCapabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED) == true
     val newState = State(hasConnectivity, isUnmetered)
     if (newState == currentState) return
     currentState = newState

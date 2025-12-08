@@ -10,8 +10,8 @@ import com.audiobookshelf.app.plugins.AbsLogger
 class PlaybackMetricsRecorder(
   private val logTag: String = "PlaybackMetrics"
 ) {
-  private var playbackStartMonotonicMs: Long = 0L
-  private var firstReadyLatencyMs: Long = -1L
+  private var playbackStartTimeMs: Long = 0L
+  private var timeToFirstReadyMs: Long = -1L
   private var bufferCount: Int = 0
   private var playbackErrorCount: Int = 0
   private var playerId: String? = null
@@ -22,17 +22,17 @@ class PlaybackMetricsRecorder(
   private var castHandoffCount: Int = 0
   private var recoverableRetryCount: Int = 0
 
-  fun begin(player: String?, mediaItem: String?) {
-    playbackStartMonotonicMs = SystemClock.elapsedRealtime()
-    firstReadyLatencyMs = -1L
+  fun begin(playerId: String?, mediaItemId: String?) {
+    playbackStartTimeMs = SystemClock.elapsedRealtime()
+    timeToFirstReadyMs = -1L
     bufferCount = 0
     playbackErrorCount = 0
-    playerId = player
-    mediaItemId = mediaItem
+    this@PlaybackMetricsRecorder.playerId = playerId
+    this@PlaybackMetricsRecorder.mediaItemId = mediaItemId
   }
 
-  fun updatePlayerId(player: String?) {
-    playerId = player
+  fun updatePlayerId(playerId: String?) {
+    this@PlaybackMetricsRecorder.playerId = playerId
   }
 
   fun noteServiceStart() {
@@ -53,12 +53,15 @@ class PlaybackMetricsRecorder(
     castHandoffStartMs = SystemClock.elapsedRealtime()
   }
 
-  fun recordCastHandoffComplete(target: String) {
+  fun recordCastHandoffComplete(castTargetPlayerId: String) {
     if (castHandoffStartMs <= 0L) return
     val duration = SystemClock.elapsedRealtime() - castHandoffStartMs
     castHandoffStartMs = -1L
     castHandoffCount += 1
-    AbsLogger.info(logTag, "castHandoff target=$target durationMs=$duration")
+    AbsLogger.info(
+      logTag,
+      "castHandoff castTargetPlayerId=$castTargetPlayerId durationMs=$duration"
+    )
   }
 
   fun recordRecoverableRetry() {
@@ -81,11 +84,11 @@ class PlaybackMetricsRecorder(
 
   fun recordFirstReadyIfUnset() {
     try {
-      if (firstReadyLatencyMs >= 0 || playbackStartMonotonicMs <= 0L) return
-      firstReadyLatencyMs = SystemClock.elapsedRealtime() - playbackStartMonotonicMs
+      if (timeToFirstReadyMs >= 0 || playbackStartTimeMs <= 0L) return
+      timeToFirstReadyMs = SystemClock.elapsedRealtime() - playbackStartTimeMs
       AbsLogger.info(
         logTag,
-        "startupReadyLatencyMs=$firstReadyLatencyMs player=$playerId item=$mediaItemId"
+        "startupReadyLatencyMs=$timeToFirstReadyMs player=$playerId item=$mediaItemId"
       )
     } catch (_: Exception) {
     }
@@ -93,10 +96,10 @@ class PlaybackMetricsRecorder(
 
   fun logSummary() {
     try {
-      if (playbackStartMonotonicMs <= 0L) return
+      if (playbackStartTimeMs <= 0L) return
       AbsLogger.info(
         logTag,
-        "summary player=$playerId item=$mediaItemId buffers=$bufferCount errors=$playbackErrorCount startupReadyLatencyMs=$firstReadyLatencyMs serviceReadyLatencyMs=$serviceReadyLatencyMs castHandoffs=$castHandoffCount recoverableRetries=$recoverableRetryCount"
+        "summary player=$playerId item=$mediaItemId buffers=$bufferCount errors=$playbackErrorCount startupReadyLatencyMs=$timeToFirstReadyMs serviceReadyLatencyMs=$serviceReadyLatencyMs castHandoffs=$castHandoffCount recoverableRetries=$recoverableRetryCount"
       )
     } catch (_: Exception) {
     }

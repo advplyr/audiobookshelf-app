@@ -3,8 +3,12 @@ package com.audiobookshelf.app.player.media3
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
+/**
+ * LRU cache for Media3BrowseTree.ResolvedPlayable items with TTL and size limits.
+ * Thread-safe using Mutex for concurrent access, automatically cleans expired entries.
+ */
 class ResolvedPlayableCache(
-  private val ttlMs: Long,
+  private val timeToLiveMillis: Long,
   private val limit: Int
 ) {
   private data class Entry(
@@ -22,7 +26,7 @@ class ResolvedPlayableCache(
     mutex.withLock {
       while (deque.isNotEmpty()) {
         val head = deque.firstOrNull() ?: break
-        if (nowMs - head.timestamp > ttlMs) {
+        if (nowMs - head.timestamp > timeToLiveMillis) {
           deque.removeFirst()
         } else {
           break
@@ -33,9 +37,9 @@ class ResolvedPlayableCache(
 
   suspend fun get(mediaId: String, preferCastUris: Boolean): Media3BrowseTree.ResolvedPlayable? {
     cleanup()
-    val k = key(mediaId, preferCastUris)
+    val entryKey = key(mediaId, preferCastUris)
     return mutex.withLock {
-      val entry = deque.firstOrNull { it.key == k } ?: return@withLock null
+      val entry = deque.firstOrNull { it.key == entryKey } ?: return@withLock null
       entry.value.copy(session = entry.value.session.clone())
     }
   }
@@ -46,11 +50,11 @@ class ResolvedPlayableCache(
     resolvedPlayable: Media3BrowseTree.ResolvedPlayable
   ) {
     cleanup()
-    val k = key(mediaId, preferCastUris)
-    val copy = resolvedPlayable.copy(session = resolvedPlayable.session.clone())
+    val entryKey = key(mediaId, preferCastUris)
+    val playableCopy = resolvedPlayable.copy(session = resolvedPlayable.session.clone())
     mutex.withLock {
-      deque.removeAll { it.key == k }
-      deque.addLast(Entry(k, copy, System.currentTimeMillis()))
+      deque.removeAll { it.key == entryKey }
+      deque.addLast(Entry(entryKey, playableCopy, System.currentTimeMillis()))
       while (deque.size > limit) deque.removeFirst()
     }
   }

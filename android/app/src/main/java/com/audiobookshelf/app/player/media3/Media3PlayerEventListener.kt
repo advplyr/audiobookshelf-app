@@ -21,16 +21,16 @@ interface ListenerApi {
   fun isPlayerInitialized(): Boolean
   fun lastKnownIsPlaying(): Boolean
   fun setLastKnownIsPlaying(value: Boolean)
-  fun updateCurrentPosition(targetSession: PlaybackSession? = null)
+  fun updateCurrentPosition(sessionToUpdate: PlaybackSession? = null)
   fun maybeSyncProgress(
-    reason: String,
-    force: Boolean,
-    targetSession: PlaybackSession? = null,
-    onComplete: ((SyncResult?) -> Unit)?
+    changeReason: String,
+    forceSync: Boolean,
+    sessionToUpdate: PlaybackSession? = null,
+    onSyncComplete: ((SyncResult?) -> Unit)?
   )
 
-  fun progressSyncPlay(session: PlaybackSession)
-  fun onPlayStarted(sessionId: String)
+  fun progressSyncPlay(currentSession: PlaybackSession)
+  fun onPlayStarted(currentSessionId: String)
   fun startPositionUpdates()
   fun stopPositionUpdates()
   fun notifyWidgetState()
@@ -42,126 +42,132 @@ interface ListenerApi {
   val serviceScope: CoroutineScope
   val errorResetWindowMs: Long
   val retryBackoffStepMs: Long
-  fun debug(msg: () -> String)
+  fun debug(message: () -> String)
   fun ensureAudioFocus(): Boolean
   fun abandonAudioFocus()
 }
 
+/**
+ * Media3 Player.Listener implementation that handles playback events and coordinates with the service.
+ * Manages play/pause state, error recovery with exponential backoff, and progress synchronization.
+ */
 class Media3PlayerEventListener(
-  private val api: ListenerApi,
-  private val eventPipeline: Media3EventPipeline
+  private val listener: ListenerApi,
+  private val playerEventPipeline: Media3EventPipeline
 ) : Player.Listener {
 
   private var consecutiveErrorCount: Int = 0
   private var lastErrorTimeMs: Long = 0L
 
-  override fun onAvailableCommandsChanged(availableCommands: Player.Commands) {
-    val cmd = mutableListOf<String>()
-    if (availableCommands.contains(Player.COMMAND_SEEK_BACK)) cmd.add("SEEK_BACK")
-    if (availableCommands.contains(Player.COMMAND_SEEK_FORWARD)) cmd.add("SEEK_FORWARD")
-    if (availableCommands.contains(Player.COMMAND_PLAY_PAUSE)) cmd.add("PLAY_PAUSE")
-    if (availableCommands.contains(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)) cmd.add("SEEK_IN_ITEM")
-    if (availableCommands.contains(Player.COMMAND_SEEK_TO_PREVIOUS)) cmd.add("SEEK_TO_PREVIOUS")
-    if (availableCommands.contains(Player.COMMAND_SEEK_TO_NEXT)) cmd.add("SEEK_TO_NEXT")
-    if (availableCommands.contains(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)) cmd.add("PREV_ITEM")
-    if (availableCommands.contains(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)) cmd.add("NEXT_ITEM")
-    if (availableCommands.contains(Player.COMMAND_GET_DEVICE_VOLUME)) cmd.add("GET_DEV_VOL")
-    if (availableCommands.contains(Player.COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS)) cmd.add("SET_DEV_VOL")
-    if (availableCommands.contains(Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS)) cmd.add("ADJ_DEV_VOL")
-    api.debug { "AvailableCommandsChanged: ${cmd.joinToString(",")}" }
+  override fun onAvailableCommandsChanged(commands: Player.Commands) {
+    val availableCommandNames = mutableListOf<String>()
+    if (commands.contains(Player.COMMAND_SEEK_BACK)) availableCommandNames.add("SEEK_BACK")
+    if (commands.contains(Player.COMMAND_SEEK_FORWARD)) availableCommandNames.add("SEEK_FORWARD")
+    if (commands.contains(Player.COMMAND_PLAY_PAUSE)) availableCommandNames.add("PLAY_PAUSE")
+    if (commands.contains(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)) availableCommandNames.add("SEEK_IN_ITEM")
+    if (commands.contains(Player.COMMAND_SEEK_TO_PREVIOUS)) availableCommandNames.add("SEEK_TO_PREVIOUS")
+    if (commands.contains(Player.COMMAND_SEEK_TO_NEXT)) availableCommandNames.add("SEEK_TO_NEXT")
+    if (commands.contains(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)) availableCommandNames.add("PREV_ITEM")
+    if (commands.contains(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)) availableCommandNames.add("NEXT_ITEM")
+    if (commands.contains(Player.COMMAND_GET_DEVICE_VOLUME)) availableCommandNames.add("GET_DEV_VOL")
+    if (commands.contains(Player.COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS)) availableCommandNames.add("SET_DEV_VOL")
+    if (commands.contains(Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS)) availableCommandNames.add(
+      "ADJ_DEV_VOL"
+    )
+    listener.debug { "AvailableCommandsChanged: ${availableCommandNames.joinToString(",")}" }
   }
 
-  override fun onIsPlayingChanged(isPlaying: Boolean) {
-    api.debug {
-      val p = if (api.isPlayerInitialized()) api.activePlayer() else null
-      "onIsPlayingChanged: raw=$isPlaying playWhenReady=${p?.playWhenReady} state=${p?.playbackState}"
+  override fun onIsPlayingChanged(isNowPlaying: Boolean) {
+    listener.debug {
+      val player = if (listener.isPlayerInitialized()) listener.activePlayer() else null
+      "onIsPlayingChanged: raw=$isNowPlaying playWhenReady=${player?.playWhenReady} state=${player?.playbackState}"
     }
 
-    val player = if (api.isPlayerInitialized()) api.activePlayer() else null
-    val effectiveIsPlaying = when {
-      isPlaying -> true
-      player?.playWhenReady == true && player.playbackState == Player.STATE_BUFFERING -> true
+    val activePlayer = if (listener.isPlayerInitialized()) listener.activePlayer() else null
+    val isEffectivelyPlaying = when {
+      isNowPlaying -> true
+      activePlayer?.playWhenReady == true && activePlayer.playbackState == Player.STATE_BUFFERING -> true
       else -> false
     }
 
-    if (api.lastKnownIsPlaying() == effectiveIsPlaying) return
+    if (listener.lastKnownIsPlaying() == isEffectivelyPlaying) return
 
-    val session = api.currentSession()
-    if (session != null) {
-      api.updateCurrentPosition(session)
+    val currentSession = listener.currentSession()
+    if (currentSession != null) {
+      listener.updateCurrentPosition(currentSession)
 
-      if (effectiveIsPlaying) {
-        if (!api.ensureAudioFocus()) {
-          api.debug { "Audio focus not granted; pausing playback" }
-          if (api.isPlayerInitialized()) {
-            api.activePlayer().pause()
+      if (isEffectivelyPlaying) {
+        if (!listener.ensureAudioFocus()) {
+          listener.debug { "Audio focus not granted; pausing playback" }
+          if (listener.isPlayerInitialized()) {
+            listener.activePlayer().pause()
           }
-          api.setLastKnownIsPlaying(false)
+          listener.setLastKnownIsPlaying(false)
           return
         }
-        api.getErrorRetryJob()?.cancel()
-        api.setErrorRetryJob(null)
+        listener.getErrorRetryJob()?.cancel()
+        listener.setErrorRetryJob(null)
         consecutiveErrorCount = 0
-        api.onPlayStarted(session.id)
-        val assignTimestamp = api.getPlaybackSessionAssignTimestampMs()
-        if (assignTimestamp > 0L) {
-          val latency = System.currentTimeMillis() - assignTimestamp
-          api.debug { "Ready latency after session assign: ${latency}ms" }
-          api.resetPlaybackSessionAssignTimestamp()
+        listener.onPlayStarted(currentSession.id)
+        val sessionAssignmentTimestampMs = listener.getPlaybackSessionAssignTimestampMs()
+        if (sessionAssignmentTimestampMs > 0L) {
+          val playbackLatencyMs = System.currentTimeMillis() - sessionAssignmentTimestampMs
+          listener.debug { "Ready latency after session assign: ${playbackLatencyMs}ms" }
+          listener.resetPlaybackSessionAssignTimestamp()
         }
-        eventPipeline.emitPlayEvent(session)
-        api.progressSyncPlay(session)
-        if (api.isPlayerInitialized()) {
-          api.activePlayer().volume = 1f
+        playerEventPipeline.emitPlayEvent(currentSession)
+        listener.progressSyncPlay(currentSession)
+        if (listener.isPlayerInitialized()) {
+          listener.activePlayer().volume = 1f
         }
-        api.stopPositionUpdates()
-        api.startPositionUpdates()
+        listener.stopPositionUpdates()
+        listener.startPositionUpdates()
       } else {
-        api.debug { "Playback stopped. Syncing progress." }
-        api.stopPositionUpdates()
-        api.currentSession()?.let { session ->
-          api.maybeSyncProgress("pause", true, session, null)
+        listener.debug { "Playback stopped. Syncing progress." }
+        listener.stopPositionUpdates()
+        listener.currentSession()?.let { currentSession ->
+          listener.maybeSyncProgress("pause", true, currentSession, null)
         }
-        api.abandonAudioFocus()
+        listener.abandonAudioFocus()
       }
     }
 
-    api.setLastKnownIsPlaying(effectiveIsPlaying)
-    api.notifyWidgetState()
+    listener.setLastKnownIsPlaying(isEffectivelyPlaying)
+    listener.notifyWidgetState()
   }
 
-  override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+  override fun onPlayWhenReadyChanged(isPlayWhenReady: Boolean, changeReason: Int) {
     if (BuildConfig.DEBUG) {
-      api.debug {
-        "onPlayWhenReadyChanged: playWhenReady=$playWhenReady reason=$reason"
+      listener.debug {
+        "onPlayWhenReadyChanged: isPlayWhenReady=$isPlayWhenReady changeReason=$changeReason"
       }
     }
   }
 
-  override fun onPlaybackStateChanged(playbackState: Int) {
-    api.debug { "onPlaybackStateChanged: $playbackState" }
-    when (playbackState) {
-      Player.STATE_READY -> api.playbackMetrics.recordFirstReadyIfUnset()
-      Player.STATE_BUFFERING -> api.playbackMetrics.recordBuffer()
+  override fun onPlaybackStateChanged(state: Int) {
+    listener.debug { "onPlaybackStateChanged: $state" }
+    when (state) {
+      Player.STATE_READY -> listener.playbackMetrics.recordFirstReadyIfUnset()
+      Player.STATE_BUFFERING -> listener.playbackMetrics.recordBuffer()
       Player.STATE_ENDED -> {
-        api.debug { "Playback ended" }
-        api.playbackMetrics.logSummary()
-        api.currentSession()?.let { session ->
-          api.updateCurrentPosition(session)
-          api.maybeSyncProgress("ended", true, session, null)
+        listener.debug { "Playback ended" }
+        listener.playbackMetrics.logSummary()
+        listener.currentSession()?.let { currentSession ->
+          listener.updateCurrentPosition(currentSession)
+          listener.maybeSyncProgress("finished", true, currentSession, null)
         }
-        api.notifyWidgetState()
+        listener.notifyWidgetState()
       }
 
-      Player.STATE_IDLE -> api.debug { "Player idle" }
+      Player.STATE_IDLE -> listener.debug { "Player idle" }
     }
   }
 
-  override fun onPlayerError(error: PlaybackException) {
-    Log.e(api.tag, "Player error: ${error.message}", error)
-    api.playbackMetrics.recordError()
+  override fun onPlayerError(playbackError: PlaybackException) {
+    Log.e(listener.tag, "Player playbackError: ${playbackError.message}", playbackError)
+    listener.playbackMetrics.recordError()
 
-    val isRecoverable = when (error.errorCode) {
+    val isErrorRecoverable = when (playbackError.errorCode) {
       PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
       PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
       PlaybackException.ERROR_CODE_TIMEOUT,
@@ -170,79 +176,79 @@ class Media3PlayerEventListener(
       else -> false
     }
 
-    if (!isRecoverable) {
-      api.debug { "Non-recoverable error: ${error.errorCodeName}" }
+    if (!isErrorRecoverable) {
+      listener.debug { "Non-recoverable playbackError: ${playbackError.errorCodeName}" }
       consecutiveErrorCount = 0
-      api.getErrorRetryJob()?.cancel()
-      api.setErrorRetryJob(null)
+      listener.getErrorRetryJob()?.cancel()
+      listener.setErrorRetryJob(null)
       return
     }
 
-    val now = System.currentTimeMillis()
-    if (now - lastErrorTimeMs > api.errorResetWindowMs) {
+    val currentTimeMs = System.currentTimeMillis()
+    if (currentTimeMs - lastErrorTimeMs > listener.errorResetWindowMs) {
       consecutiveErrorCount = 0
     }
-    lastErrorTimeMs = now
+    lastErrorTimeMs = currentTimeMs
     consecutiveErrorCount++
 
-    val maxRetries = 3
-    if (consecutiveErrorCount > maxRetries) {
-      Log.w(api.tag, "Max retries ($maxRetries) exceeded for recoverable error")
+    val maxRetryAttempts = 3
+    if (consecutiveErrorCount > maxRetryAttempts) {
+      Log.w(listener.tag, "Max retries ($maxRetryAttempts) exceeded for recoverable playbackError")
       return
     }
 
-    api.playbackMetrics.recordRecoverableRetry()
+    listener.playbackMetrics.recordRecoverableRetry()
 
     // Exponential backoff: 1s, 2s, 4s
-    val backoffMs =
-      (api.retryBackoffStepMs * (1 shl (consecutiveErrorCount - 1))).coerceAtMost(4 * api.retryBackoffStepMs)
-    api.debug { "Recoverable error (attempt $consecutiveErrorCount/$maxRetries), retrying in ${backoffMs}ms" }
+    val retryBackoffDelayMs =
+      (listener.retryBackoffStepMs * (1 shl (consecutiveErrorCount - 1))).coerceAtMost(4 * listener.retryBackoffStepMs)
+    listener.debug { "Recoverable playbackError (attempt $consecutiveErrorCount/$maxRetryAttempts), retrying in ${retryBackoffDelayMs}ms" }
 
-    api.getErrorRetryJob()?.cancel()
-    api.setErrorRetryJob(
-      api.serviceScope.launch {
-        kotlinx.coroutines.delay(backoffMs)
-        if (api.isPlayerInitialized() && api.currentSession() != null) {
-          api.debug { "Retrying playback after error..." }
-          val player = api.activePlayer()
-          player.prepare()
-          if (api.lastKnownIsPlaying()) {
-            player.play()
+    listener.getErrorRetryJob()?.cancel()
+    listener.setErrorRetryJob(
+      listener.serviceScope.launch {
+        kotlinx.coroutines.delay(retryBackoffDelayMs)
+        if (listener.isPlayerInitialized() && listener.currentSession() != null) {
+          listener.debug { "Retrying playback after playbackError..." }
+          val activePlayer = listener.activePlayer()
+          activePlayer.prepare()
+          if (listener.lastKnownIsPlaying()) {
+            activePlayer.play()
           }
         }
       }
     )
   }
 
-  override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
-    api.updatePlaybackSpeedButton(playbackParameters.speed)
+  override fun onPlaybackParametersChanged(parameters: PlaybackParameters) {
+    listener.updatePlaybackSpeedButton(parameters.speed)
   }
 
   override fun onVolumeChanged(volume: Float) {
-    api.debug { "onVolumeChanged: $volume (player volume updated)" }
+    listener.debug { "onVolumeChanged: $volume (player volume updated)" }
   }
 
-  override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-    api.debug { "onMediaItemTransition: reason=$reason" }
+  override fun onMediaItemTransition(newMediaItem: MediaItem?, changeReason: Int) {
+    listener.debug { "onMediaItemTransition: changeReason=$changeReason" }
   }
 
   override fun onPositionDiscontinuity(
     oldPosition: Player.PositionInfo,
     newPosition: Player.PositionInfo,
-    reason: Int
+    changeReason: Int
   ) {
-    api.debug { "onPositionDiscontinuity: reason=$reason, oldPos=${oldPosition.positionMs}, newPos=${newPosition.positionMs}" }
-    if (reason == Player.DISCONTINUITY_REASON_SEEK ||
-      reason == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT
+    listener.debug { "onPositionDiscontinuity: changeReason=$changeReason, oldPos=${oldPosition.positionMs}, newPos=${newPosition.positionMs}" }
+    if (changeReason == Player.DISCONTINUITY_REASON_SEEK ||
+      changeReason == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT
     ) {
-      api.currentSession()?.let { session ->
-        val trackIndex = newPosition.mediaItemIndex
-        val positionInTrack = newPosition.positionMs
-        val trackStartOffset = session.getTrackStartOffsetMs(trackIndex)
-        val absolutePositionMs = trackStartOffset + positionInTrack
+      listener.currentSession()?.let { currentSession ->
+        val newTrackIndex = newPosition.mediaItemIndex
+        val newPositionInTrackMs = newPosition.positionMs
+        val newTrackStartOffsetMs = currentSession.getTrackStartOffsetMs(newTrackIndex)
+        val newAbsolutePositionMs = newTrackStartOffsetMs + newPositionInTrackMs
 
-        session.currentTime = absolutePositionMs / 1000.0
-        eventPipeline.emitSeekEvent(session, null)
+        currentSession.currentTime = newAbsolutePositionMs / 1000.0
+        playerEventPipeline.emitSeekEvent(currentSession, null)
       }
     }
   }

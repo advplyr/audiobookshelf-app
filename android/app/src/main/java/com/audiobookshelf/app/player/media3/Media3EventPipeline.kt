@@ -23,96 +23,96 @@ import com.audiobookshelf.app.media.SyncResult
  * It ONLY handles: event emission to history + UI delivery.
  */
 class Media3EventPipeline {
-  private val tag = "Media3EventPipeline"
+  private val loggingTag = "Media3EventPipeline"
   private val mainHandler = Handler(Looper.getMainLooper())
 
   fun emitPlayEvent(
-    session: PlaybackSession,
+    playbackSession: PlaybackSession,
     source: PlaybackEventSource = PlaybackEventSource.SYSTEM
   ) {
-    if (BuildConfig.DEBUG) Log.d(tag, "Emit Play: ${session.displayTitle}")
+    if (BuildConfig.DEBUG) Log.d(loggingTag, "Emit Play: ${playbackSession.displayTitle}")
     mainHandler.post {
-      MediaEventManager.playEvent(session, source)
+      MediaEventManager.playEvent(playbackSession, source)
     }
   }
 
   fun emitPauseEvent(
-    session: PlaybackSession,
+    playbackSession: PlaybackSession,
     syncResult: SyncResult?,
     source: PlaybackEventSource = PlaybackEventSource.SYSTEM
   ) {
     if (BuildConfig.DEBUG) {
       Log.d(
-        tag,
-        "Emit Pause: ${session.displayTitle} (syncResult: ${syncResult?.serverSyncAttempted})"
+        loggingTag,
+        "Emit Pause: ${playbackSession.displayTitle} (syncResult: ${syncResult?.serverSyncAttempted})"
       )
     }
     mainHandler.post {
-      MediaEventManager.pauseEvent(session, syncResult, source)
+      MediaEventManager.pauseEvent(playbackSession, syncResult, source)
     }
   }
 
   fun emitStopEvent(
-    session: PlaybackSession,
+    playbackSession: PlaybackSession,
     syncResult: SyncResult?,
     source: PlaybackEventSource = PlaybackEventSource.SYSTEM
   ) {
     if (BuildConfig.DEBUG) {
       Log.d(
-        tag,
-        "Emit Stop: ${session.displayTitle} (syncResult: ${syncResult?.serverSyncAttempted})"
+        loggingTag,
+        "Emit Stop: ${playbackSession.displayTitle} (syncResult: ${syncResult?.serverSyncAttempted})"
       )
     }
     mainHandler.post {
-      MediaEventManager.stopEvent(session, syncResult, source)
+      MediaEventManager.stopEvent(playbackSession, syncResult, source)
     }
   }
 
   fun emitSaveEvent(
-    session: PlaybackSession,
+    playbackSession: PlaybackSession,
     syncResult: SyncResult?,
     source: PlaybackEventSource = PlaybackEventSource.SYSTEM
   ) {
     if (BuildConfig.DEBUG) {
       Log.d(
-        tag,
-        "Emit Save: ${session.displayTitle} (syncResult: ${syncResult?.serverSyncAttempted})"
+        loggingTag,
+        "Emit Save: ${playbackSession.displayTitle} (syncResult: ${syncResult?.serverSyncAttempted})"
       )
     }
     mainHandler.post {
-      MediaEventManager.saveEvent(session, syncResult, source)
+      MediaEventManager.saveEvent(playbackSession, syncResult, source)
     }
   }
 
   fun emitFinishedEvent(
-    session: PlaybackSession,
+    playbackSession: PlaybackSession,
     syncResult: SyncResult?,
     source: PlaybackEventSource = PlaybackEventSource.SYSTEM
   ) {
     if (BuildConfig.DEBUG) {
       Log.d(
-        tag,
-        "Emit Finished: ${session.displayTitle} (syncResult: ${syncResult?.serverSyncAttempted})"
+        loggingTag,
+        "Emit Finished: ${playbackSession.displayTitle} (syncResult: ${syncResult?.serverSyncAttempted})"
       )
     }
     mainHandler.post {
-      MediaEventManager.finishedEvent(session, syncResult, source)
+      MediaEventManager.finishedEvent(playbackSession, syncResult, source)
     }
   }
 
   fun emitSeekEvent(
-    session: PlaybackSession,
+    playbackSession: PlaybackSession,
     syncResult: SyncResult?,
     source: PlaybackEventSource = PlaybackEventSource.SYSTEM
   ) {
     if (BuildConfig.DEBUG) {
       Log.d(
-        tag,
-        "Emit Seek: ${session.displayTitle} to ${session.currentTime}s (syncResult: ${syncResult?.serverSyncAttempted})"
+        loggingTag,
+        "Emit Seek: ${playbackSession.displayTitle} to ${playbackSession.currentTime}s (syncResult: ${syncResult?.serverSyncAttempted})"
       )
     }
     mainHandler.post {
-      MediaEventManager.seekEvent(session, syncResult, source)
+      MediaEventManager.seekEvent(playbackSession, syncResult, source)
     }
   }
 }

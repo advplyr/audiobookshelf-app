@@ -1,0 +1,44 @@
+package com.audiobookshelf.app.player
+
+import android.os.Bundle
+import androidx.media3.session.SessionCommand
+
+object PlaybackConstants {
+  // Intent/command extras used when sending playback commands or building media items
+  const val PLAYBACK_SESSION_JSON = "playback_session_json"
+  const val PLAY_WHEN_READY = "play_when_ready"
+  const val PLAYBACK_RATE = "playback_rate"
+  const val DISPLAY_SPEED = "display_speed"
+  const val MEDIA_PLAYER = "media_player"
+
+  object Commands {
+    const val PREPARE_PLAYBACK = "com.audiobookshelf.app.player.PREPARE_PLAYBACK"
+    const val CYCLE_PLAYBACK_SPEED = "com.audiobookshelf.app.player.CYCLE_PLAYBACK_SPEED"
+    const val SEEK_BACK_INCREMENT = "com.audiobookshelf.app.player.SEEK_BACK_INCREMENT"
+    const val SEEK_FORWARD_INCREMENT = "com.audiobookshelf.app.player.SEEK_FORWARD_INCREMENT"
+    const val SEEK_TO_PREVIOUS_CHAPTER = "com.audiobookshelf.app.player.SEEK_TO_PREVIOUS_CHAPTER"
+    const val SEEK_TO_NEXT_CHAPTER = "com.audiobookshelf.app.player.SEEK_TO_NEXT_CHAPTER"
+    const val SEEK_TO_CHAPTER = "com.audiobookshelf.app.player.SEEK_TO_CHAPTER"
+    const val CLOSE_PLAYBACK = "com.audiobookshelf.app.player.CLOSE_PLAYBACK"
+    const val SYNC_PROGRESS_FORCE = "com.audiobookshelf.app.player.SYNC_PROGRESS_FORCE"
+    const val MARK_UI_PLAYBACK_EVENT = "com.audiobookshelf.app.player.MARK_UI_PLAYBACK_EVENT"
+  }
+
+  object SleepTimer {
+    const val ACTION_SET = "com.audiobookshelf.app.player.SET_SLEEP_TIMER"
+    const val ACTION_CANCEL = "com.audiobookshelf.app.player.CANCEL_SLEEP_TIMER"
+    const val ACTION_ADJUST = "com.audiobookshelf.app.player.ADJUST_SLEEP_TIMER"
+    const val ACTION_GET_TIME = "com.audiobookshelf.app.player.GET_SLEEP_TIMER_TIME"
+
+    const val EXTRA_TIME_MS = "sleep_timer_time_ms"
+    const val EXTRA_IS_CHAPTER = "sleep_timer_is_chapter"
+    const val EXTRA_SESSION_ID = "sleep_timer_session_id"
+    const val EXTRA_ADJUST_DELTA = "sleep_timer_adjust_delta"
+    const val EXTRA_ADJUST_INCREASE = "sleep_timer_adjust_increase"
+  }
+
+  /**
+   * Convenience helper to create a SessionCommand for the given action using an empty Bundle.
+   */
+  fun sessionCommand(action: String): SessionCommand = SessionCommand(action, Bundle.EMPTY)
+}

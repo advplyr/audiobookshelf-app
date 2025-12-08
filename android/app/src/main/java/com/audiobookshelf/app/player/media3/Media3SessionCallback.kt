@@ -19,8 +19,7 @@ import androidx.media3.session.SessionResult
 import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.media.MediaManager
-import com.audiobookshelf.app.player.Media3PlaybackService.Companion.CustomCommands
-import com.audiobookshelf.app.player.Media3PlaybackService.Companion.Extras
+import com.audiobookshelf.app.player.PlaybackConstants
 import com.audiobookshelf.app.player.toPlayerMediaItems
 import com.audiobookshelf.app.player.wrapper.AbsPlayerWrapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -49,6 +48,10 @@ interface BrowseApi {
 }
 
 @UnstableApi
+/**
+ * Media3 MediaSession.Callback implementation handling session interactions, browsing, and custom commands.
+ * Manages Android Auto integration, custom playback controls, and session state.
+ */
 class Media3SessionCallback(
   private val logTag: String,
   private val appPackageName: String,
@@ -64,6 +67,7 @@ class Media3SessionCallback(
   private val resolveTrackIndexForPosition: (PlaybackSession, Long) -> Int,
   private val awaitFinalSync: suspend () -> Unit,
   private val markNextPlaybackEventSourceUi: (() -> Unit)? = null,
+  private val suppressFinalServerSync: (() -> Unit)? = null,
   // Extras keys
   private val debug: ((() -> String) -> Unit),
   private val sessionController: SessionController? = null
@@ -72,37 +76,45 @@ class Media3SessionCallback(
   private val jacksonMapper by lazy { jacksonObjectMapper() }
   private val searchCache = Collections.synchronizedMap(mutableMapOf<String, List<MediaItem>>())
 
+  /**
+   * Handles post-interaction adjustments for specific clients like Wear OS.
+   * For Wear devices, converts skip commands to seek operations with custom jump distances.
+   */
   override fun onPlayerInteractionFinished(
     session: MediaSession,
     controllerInfo: MediaSession.ControllerInfo,
     playerCommands: Player.Commands
   ) {
     try {
-      val pkg = controllerInfo.packageName
+      val controllerPackageName = controllerInfo.packageName
       val player = playerProvider()
-      val jumpBack = seekConfig.jumpBackwardMs
-      val jumpForward = seekConfig.jumpForwardMs
-      if (pkg.contains("wear", ignoreCase = true) || pkg.contains(
+      val jumpBackwardDurationMs = seekConfig.jumpBackwardMs
+      val jumpForwardDurationMs = seekConfig.jumpForwardMs
+      if (controllerPackageName.contains(
+          "wear",
+          ignoreCase = true
+        ) || controllerPackageName.contains(
           "com.google.android.apps.wear",
           ignoreCase = true
         )
       ) {
         if (playerCommands.contains(Player.COMMAND_SEEK_BACK) || playerCommands.contains(Player.COMMAND_SEEK_TO_PREVIOUS)) {
-          val p = player.currentPosition
-          val target = (p - jumpBack).coerceAtLeast(0L)
+          val currentPositionMs = player.currentPosition
+          val target = (currentPositionMs - jumpBackwardDurationMs).coerceAtLeast(0L)
           debug { "Wear interaction SEEK_BACK -> seekTo=$target" }
           player.seekTo(target)
         }
         if (playerCommands.contains(Player.COMMAND_SEEK_FORWARD) || playerCommands.contains(Player.COMMAND_SEEK_TO_NEXT)) {
-          val p = player.currentPosition
-          val dur = player.duration
-          val target = (p + jumpForward).coerceAtMost(if (dur > 0) dur else Long.MAX_VALUE)
+          val currentPositionMs = player.currentPosition
+          val durationMs = player.duration
+          val target =
+            (currentPositionMs + jumpForwardDurationMs).coerceAtMost(if (durationMs > 0) durationMs else Long.MAX_VALUE)
           debug { "Wear interaction SEEK_FORWARD -> seekTo=$target" }
           player.seekTo(target)
         }
       }
-    } catch (t: Throwable) {
-      Log.w(logTag, "onPlayerInteractionFinished handling error: ${t.message}")
+    } catch (throwable: Throwable) {
+      Log.w(logTag, "onPlayerInteractionFinished handling error: ${throwable.message}")
     }
   }
 
@@ -111,8 +123,8 @@ class Media3SessionCallback(
     controller: MediaSession.ControllerInfo
   ): MediaSession.ConnectionResult {
     val player = playerProvider()
-    val isWear = controller.packageName.contains("wear", ignoreCase = true)
-    (player as? AbsPlayerWrapper)?.mapSkipToSeek = isWear
+    val isWearableDevice = controller.packageName.contains("wear", ignoreCase = true)
+    (player as? AbsPlayerWrapper)?.mapSkipToSeek = isWearableDevice
 
     val playerCommands = sessionController?.buildPlayerCommands(
       controllerInfo = controller,
@@ -131,7 +143,7 @@ class Media3SessionCallback(
       builder.build()
     }
 
-    fun cmd(c: Int) = if (playerCommands.contains(c)) "Y" else "N"
+    fun cmd(commandCode: Int) = if (playerCommands.contains(commandCode)) "Y" else "N"
     debug {
       "Controller connected pkg=${controller.packageName}. cmd: BACK=${cmd(Player.COMMAND_SEEK_BACK)} " +
         "FWD=${cmd(Player.COMMAND_SEEK_FORWARD)} SEEK_IN_ITEM=${cmd(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)} " +
@@ -143,82 +155,22 @@ class Media3SessionCallback(
 
     // Advertise custom session commands alongside defaults so controllers can render actions
     val sessionCommands = run {
-      val base = sessionController?.availableSessionCommands
+      val baseSessionCommands = sessionController?.availableSessionCommands
         ?: MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
-      val builder = base.buildUpon()
-      builder.add(SessionCommand(CustomCommands.PREPARE_PLAYBACK, Bundle.EMPTY))
-      builder.add(
-        SessionCommand(
-          CustomCommands.CYCLE_PLAYBACK_SPEED,
-          Bundle.EMPTY
-        )
-      )
-      builder.add(
-        SessionCommand(
-          CustomCommands.SEEK_BACK_INCREMENT,
-          Bundle.EMPTY
-        )
-      )
-      builder.add(
-        SessionCommand(
-          CustomCommands.SEEK_FORWARD_INCREMENT,
-          Bundle.EMPTY
-        )
-      )
-      builder.add(
-        SessionCommand(
-          CustomCommands.SEEK_TO_PREVIOUS_CHAPTER,
-          Bundle.EMPTY
-        )
-      )
-      builder.add(
-        SessionCommand(
-          CustomCommands.SEEK_TO_NEXT_CHAPTER,
-          Bundle.EMPTY
-        )
-      )
-      builder.add(
-        SessionCommand(
-          CustomCommands.SEEK_TO_CHAPTER,
-          Bundle.EMPTY
-        )
-      )
-      builder.add(
-        SessionCommand(
-          CustomCommands.SYNC_PROGRESS_FORCE,
-          Bundle.EMPTY
-        )
-      )
-      builder.add(
-        SessionCommand(
-          CustomCommands.MARK_UI_PLAYBACK_EVENT,
-          Bundle.EMPTY
-        )
-      )
-      builder.add(
-        SessionCommand(
-          com.audiobookshelf.app.player.Media3PlaybackService.Companion.SleepTimer.ACTION_SET,
-          Bundle.EMPTY
-        )
-      )
-      builder.add(
-        SessionCommand(
-          com.audiobookshelf.app.player.Media3PlaybackService.Companion.SleepTimer.ACTION_CANCEL,
-          Bundle.EMPTY
-        )
-      )
-      builder.add(
-        SessionCommand(
-          com.audiobookshelf.app.player.Media3PlaybackService.Companion.SleepTimer.ACTION_ADJUST,
-          Bundle.EMPTY
-        )
-      )
-      builder.add(
-        SessionCommand(
-          com.audiobookshelf.app.player.Media3PlaybackService.Companion.SleepTimer.ACTION_GET_TIME,
-          Bundle.EMPTY
-        )
-      )
+      val builder = baseSessionCommands.buildUpon()
+      builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.PREPARE_PLAYBACK))
+      builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.CYCLE_PLAYBACK_SPEED))
+      builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.SEEK_BACK_INCREMENT))
+      builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.SEEK_FORWARD_INCREMENT))
+      builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.SEEK_TO_PREVIOUS_CHAPTER))
+      builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.SEEK_TO_NEXT_CHAPTER))
+      builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.SEEK_TO_CHAPTER))
+      builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.SYNC_PROGRESS_FORCE))
+      builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.MARK_UI_PLAYBACK_EVENT))
+      builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.SleepTimer.ACTION_SET))
+      builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.SleepTimer.ACTION_CANCEL))
+      builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.SleepTimer.ACTION_ADJUST))
+      builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.SleepTimer.ACTION_GET_TIME))
       builder.build()
     }
 
@@ -244,26 +196,26 @@ class Media3SessionCallback(
     }
 
     return scope.future {
-      val preferServerUrisForCast = isCastActive()
+      val preferCastStream = isCastActive()
 
-      val latestServerItem = mediaManager.latestServerItemInProgress
+      val latestUnfinishedItem = mediaManager.latestServerItemInProgress
 
-      if (latestServerItem != null) {
-        val mediaId = latestServerItem.episode?.id ?: latestServerItem.libraryItemWrapper.id
-        val resolved = browseApi.resolve(mediaId, preferServerUrisForCast)
+      if (latestUnfinishedItem != null) {
+        val mediaId = latestUnfinishedItem.episode?.id ?: latestUnfinishedItem.libraryItemWrapper.id
+        val resolvedPlayable = browseApi.resolve(mediaId, preferCastStream)
 
-        if (resolved != null) {
-          browseApi.assignSession(resolved.session)
+        if (resolvedPlayable != null) {
+          browseApi.assignSession(resolvedPlayable.session)
           if (BuildConfig.DEBUG) {
             debug {
-            "onPlaybackResumption: Resolved server in-progress item=${resolved.session.id} " +
-              "startIndex=${resolved.startIndex} startPos=${resolved.startPositionMs}"
+              "onPlaybackResumption: Resolved server in-progress item=${resolvedPlayable.session.id} " +
+                "startIndex=${resolvedPlayable.startIndex} startPos=${resolvedPlayable.startPositionMs}"
           }
           }
           return@future MediaSession.MediaItemsWithStartPosition(
-            resolved.mediaItems,
-            resolved.startIndex,
-            resolved.startPositionMs
+            resolvedPlayable.mediaItems,
+            resolvedPlayable.startIndex,
+            resolvedPlayable.startPositionMs
           )
         } else {
           Log.w(
@@ -273,29 +225,29 @@ class Media3SessionCallback(
         }
       }
 
-      val lastSession = com.audiobookshelf.app.device.DeviceManager.getLastPlaybackSession()
-      if (lastSession == null) {
+      val lastLocalSession = com.audiobookshelf.app.device.DeviceManager.getLastPlaybackSession()
+      if (lastLocalSession == null) {
         Log.w(logTag, "onPlaybackResumption: No last playback session found. Returning empty.")
         return@future MediaSession.MediaItemsWithStartPosition(emptyList(), 0, C.TIME_UNSET)
       }
 
       if (BuildConfig.DEBUG) {
-        debug { "onPlaybackResumption: Found last session for item '${lastSession.libraryItemId}' at ${lastSession.currentTimeMs}ms." }
+        debug { "onPlaybackResumption: Found last session for item '${lastLocalSession.libraryItemId}' at ${lastLocalSession.currentTimeMs}ms." }
       }
 
-      val preferServerUris = preferServerUrisForCast && lastSession.isLocal
-      val mediaItems = lastSession.toPlayerMediaItems(
+      val preferCastStreamForLocal = preferCastStream && lastLocalSession.isLocal
+      val mediaItems = lastLocalSession.toPlayerMediaItems(
         appContext,
-        preferServerUrisForCast = preferServerUris
+        preferServerUrisForCast = preferCastStreamForLocal
       ).mapIndexed { index, playerMediaItem ->
-        val mediaId = "${lastSession.id}_${index}"
+        val mediaId = "${lastLocalSession.id}_${index}"
         MediaItem.Builder()
           .setUri(playerMediaItem.uri)
           .setMediaId(mediaId)
           .setMediaMetadata(
             MediaMetadata.Builder()
-              .setTitle(lastSession.displayTitle)
-              .setArtist(lastSession.displayAuthor)
+              .setTitle(lastLocalSession.displayTitle)
+              .setArtist(lastLocalSession.displayAuthor)
               .setArtworkUri(playerMediaItem.artworkUri)
               .build()
           )
@@ -306,19 +258,19 @@ class Media3SessionCallback(
         Log.e(logTag, "onPlaybackResumption: Failed to create MediaItems from last session.")
         return@future MediaSession.MediaItemsWithStartPosition(emptyList(), 0, C.TIME_UNSET)
       } else {
-        val serverProgressMs = mediaManager.serverUserMediaProgress.find {
-          it.libraryItemId == lastSession.libraryItemId && it.episodeId == lastSession.episodeId
+        val serverProgressDurationMs = mediaManager.serverUserMediaProgress.find {
+          it.libraryItemId == lastLocalSession.libraryItemId && it.episodeId == lastLocalSession.episodeId
         }?.currentTime?.times(1000)?.toLong() ?: 0L
 
-        val resumeMs = maxOf(serverProgressMs, lastSession.currentTimeMs)
-        val startIndex = resolveTrackIndexForPosition(lastSession, resumeMs)
+        val resumeAtMs = maxOf(serverProgressDurationMs, lastLocalSession.currentTimeMs)
+        val startIndex = resolveTrackIndexForPosition(lastLocalSession, resumeAtMs)
           .coerceIn(0, mediaItems.lastIndex)
-        val trackStartOffsetMs = lastSession.getTrackStartOffsetMs(startIndex)
-        val startPositionMs = (resumeMs - trackStartOffsetMs).coerceAtLeast(0L)
+        val trackStartOffsetMs = lastLocalSession.getTrackStartOffsetMs(startIndex)
+        val startPositionMs = (resumeAtMs - trackStartOffsetMs).coerceAtLeast(0L)
 
         debug { "onPlaybackResumption: Resuming at index $startIndex with position ${startPositionMs}ms." }
 
-        browseApi.assignSession(lastSession)
+        browseApi.assignSession(lastLocalSession)
         MediaSession.MediaItemsWithStartPosition(mediaItems, startIndex, startPositionMs)
       }
     }
@@ -331,21 +283,21 @@ class Media3SessionCallback(
     args: Bundle
   ): ListenableFuture<SessionResult> {
     when (customCommand.customAction) {
-      CustomCommands.PREPARE_PLAYBACK -> {
+      PlaybackConstants.Commands.PREPARE_PLAYBACK -> {
         return scope.future {
           awaitFinalSync()
-          val sessionJson = args.getString(Extras.PLAYBACK_SESSION_JSON)
-          val playWhenReady = args.getBoolean(Extras.PLAY_WHEN_READY, true)
-          val playbackRate = args.getFloat(Extras.PLAYBACK_RATE, 1.0f)
+          val playbackSessionJson = args.getString(PlaybackConstants.PLAYBACK_SESSION_JSON)
+          val playWhenReady = args.getBoolean(PlaybackConstants.PLAY_WHEN_READY, true)
+          val playbackRate = args.getFloat(PlaybackConstants.PLAYBACK_RATE, 1.0f)
 
-          if (sessionJson.isNullOrEmpty()) {
+          if (playbackSessionJson.isNullOrEmpty()) {
             return@future SessionResult(SessionError.ERROR_BAD_VALUE, Bundle.EMPTY)
           }
 
           val playbackSession = try {
-            jacksonMapper.readValue(sessionJson, PlaybackSession::class.java)
-          } catch (e: Exception) {
-            Log.e(logTag, "Failed to deserialize PlaybackSession from custom command", e)
+            jacksonMapper.readValue(playbackSessionJson, PlaybackSession::class.java)
+          } catch (exception: Exception) {
+            Log.e(logTag, "Failed to deserialize PlaybackSession from custom command", exception)
             return@future SessionResult(SessionError.ERROR_BAD_VALUE, Bundle.EMPTY)
           }
 
@@ -381,15 +333,15 @@ class Media3SessionCallback(
         }
       }
 
-      CustomCommands.CLOSE_PLAYBACK -> {
+      PlaybackConstants.Commands.CLOSE_PLAYBACK -> {
         val future = SettableFuture.create<SessionResult>()
-        sessionController?.closePlayback {
-          future.set(SessionResult(SessionResult.RESULT_SUCCESS))
-        } ?: future.set(SessionResult(SessionError.ERROR_UNKNOWN))
+        val afterStop: () -> Unit = { future.set(SessionResult(SessionResult.RESULT_SUCCESS)) }
+        sessionController?.closePlayback(afterStop)
+          ?: future.set(SessionResult(SessionError.ERROR_UNKNOWN))
         return future
       }
 
-      CustomCommands.MARK_UI_PLAYBACK_EVENT -> {
+      PlaybackConstants.Commands.MARK_UI_PLAYBACK_EVENT -> {
         markNextPlaybackEventSourceUi?.invoke()
         return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
       }
@@ -411,56 +363,56 @@ class Media3SessionCallback(
     return scope.future {
       awaitFinalSync()
       // Signal service to avoid server sync on the final close of the current session (handoff).
-      (appContext as? com.audiobookshelf.app.player.Media3PlaybackService)?.markSuppressFinalServerSync()
-      val requested = mediaItems.firstOrNull()
-      if (requested == null) {
+      suppressFinalServerSync?.invoke()
+      val requestedMediaItem = mediaItems.firstOrNull()
+      if (requestedMediaItem == null) {
         if (BuildConfig.DEBUG) {
         debug { "onAddMediaItems: empty request from ${controller.packageName}" }
         }
         return@future mutableListOf()
       }
 
-      val isPlayableRequest =
-        requested.localConfiguration != null || requested.requestMetadata.mediaUri != null
-      if (isPlayableRequest) {
+      val isPlayable =
+        requestedMediaItem.localConfiguration != null || requestedMediaItem.requestMetadata.mediaUri != null
+      if (isPlayable) {
         if (BuildConfig.DEBUG) {
-          debug { "onAddMediaItems: passthrough playable request '${requested.mediaId}'" }
+          debug { "onAddMediaItems: passthrough playable request '${requestedMediaItem.mediaId}'" }
         }
-        if (!browseApi.passthroughAllowed(requested.mediaId, controller)) {
+        if (!browseApi.passthroughAllowed(requestedMediaItem.mediaId, controller)) {
           if (BuildConfig.DEBUG) {
-          debug { "onAddMediaItems: rejecting passthrough request for id=${requested.mediaId}" }
+            debug { "onAddMediaItems: rejecting passthrough request for id=${requestedMediaItem.mediaId}" }
           }
           return@future mutableListOf()
         }
         return@future mediaItems
       }
 
-      val mediaId = requested.mediaId
-      val preferServerUrisForCast = isCastActive()
-      val resolved = browseApi.resolve(mediaId, preferServerUrisForCast)
+      val mediaId = requestedMediaItem.mediaId
+      val preferCastStream = isCastActive()
+      val resolvedPlayable = browseApi.resolve(mediaId, preferCastStream)
 
-      if (resolved == null) {
+      if (resolvedPlayable == null) {
         if (BuildConfig.DEBUG) {
           debug { "onAddMediaItems: unable to resolve mediaId=$mediaId" }
         }
         return@future mutableListOf()
       }
 
-      browseApi.assignSession(resolved.session)
+      browseApi.assignSession(resolvedPlayable.session)
       if (BuildConfig.DEBUG) {
         debug {
-          "onAddMediaItems: resolved ${resolved.mediaItems.size} items for session=${resolved.session.id} " +
-            "startIndex=${resolved.startIndex} startPos=${resolved.startPositionMs}"
+          "onAddMediaItems: resolved ${resolvedPlayable.mediaItems.size} items for session=${resolvedPlayable.session.id} " +
+            "startIndex=${resolvedPlayable.startIndex} startPos=${resolvedPlayable.startPositionMs}"
         }
       }
       val player = playerProvider()
       player.setMediaItems(
-        resolved.mediaItems,
-        resolved.startIndex.coerceIn(0, resolved.mediaItems.lastIndex),
-        resolved.startPositionMs
+        resolvedPlayable.mediaItems,
+        resolvedPlayable.startIndex.coerceIn(0, resolvedPlayable.mediaItems.lastIndex),
+        resolvedPlayable.startPositionMs
       )
       player.prepare()
-      return@future resolved.mediaItems.toMutableList()
+      return@future resolvedPlayable.mediaItems.toMutableList()
     }
   }
 
@@ -473,7 +425,7 @@ class Media3SessionCallback(
   ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
     return scope.future {
       awaitFinalSync()
-      (appContext as? com.audiobookshelf.app.player.Media3PlaybackService)?.markSuppressFinalServerSync()
+      suppressFinalServerSync?.invoke()
       val playablePassthrough =
         mediaItems.filter { it.localConfiguration != null || it.requestMetadata.mediaUri != null }
       if (playablePassthrough.isNotEmpty()) {
@@ -489,34 +441,34 @@ class Media3SessionCallback(
         )
       }
 
-      val requested = mediaItems.firstOrNull()
-      if (requested == null) {
+      val requestedMediaItem = mediaItems.firstOrNull()
+      if (requestedMediaItem == null) {
         debug { "onSetMediaItems: empty request from ${controller.packageName}" }
         return@future MediaSession.MediaItemsWithStartPosition(emptyList(), 0, C.TIME_UNSET)
       }
 
-      val mediaId = requested.mediaId
-      val preferServerUrisForCast = isCastActive()
-      val resolved = browseApi.resolve(mediaId, preferServerUrisForCast)
+      val mediaId = requestedMediaItem.mediaId
+      val preferCastStream = isCastActive()
+      val resolvedPlayable = browseApi.resolve(mediaId, preferCastStream)
 
-      if (resolved == null) {
+      if (resolvedPlayable == null) {
         if (BuildConfig.DEBUG) {
           debug { "onSetMediaItems: unable to resolve mediaId=$mediaId" }
         }
         return@future MediaSession.MediaItemsWithStartPosition(emptyList(), 0, C.TIME_UNSET)
       }
 
-      browseApi.assignSession(resolved.session)
+      browseApi.assignSession(resolvedPlayable.session)
       if (BuildConfig.DEBUG) {
         debug {
-          "onSetMediaItems: resolved ${resolved.mediaItems.size} items for session=${resolved.session.id} " +
-            "startIndex=${resolved.startIndex} startPos=${resolved.startPositionMs}"
+          "onSetMediaItems: resolved ${resolvedPlayable.mediaItems.size} items for session=${resolvedPlayable.session.id} " +
+            "startIndex=${resolvedPlayable.startIndex} startPos=${resolvedPlayable.startPositionMs}"
         }
       }
       MediaSession.MediaItemsWithStartPosition(
-        resolved.mediaItems,
-        resolved.startIndex,
-        resolved.startPositionMs
+        resolvedPlayable.mediaItems,
+        resolvedPlayable.startIndex,
+        resolvedPlayable.startPositionMs
       )
     }
   }
@@ -603,42 +555,42 @@ class Media3SessionCallback(
 
   private suspend fun performSearch(query: String): List<MediaItem> {
     if (query.isBlank()) return emptyList()
-    val aggregated = mutableListOf<MediaItem>()
+    val aggregatedResults = mutableListOf<MediaItem>()
     mediaManager.serverLibraries.forEach { library ->
       if ((library.stats?.numAudioFiles ?: 0) == 0) return@forEach
       val searchResult = runCatching { mediaManager.doSearch(library.id, query) }
-        .onFailure { t ->
-          Log.w(logTag, "onSearch: Failed to search ${library.id}", t)
+        .onFailure { throwable ->
+          Log.w(logTag, "onSearch: Failed to search ${library.id}", throwable)
         }
         .getOrNull()
         ?: return@forEach
-      searchResult.values.forEach { compatItems ->
-        aggregated.addAll(compatItems.mapNotNull { it.toMedia3Item() })
+      searchResult.values.forEach { searchResultItems ->
+        aggregatedResults.addAll(searchResultItems.mapNotNull { it.toMedia3Item() })
       }
     }
-    return aggregated
+    return aggregatedResults
   }
 
   private fun MediaBrowserCompat.MediaItem.toMedia3Item(): MediaItem? {
-    val description = description
+    val mediaDescription = description
     val isPlayable = flags and MediaBrowserCompat.MediaItem.FLAG_PLAYABLE != 0
     val isBrowsable = flags and MediaBrowserCompat.MediaItem.FLAG_BROWSABLE != 0
-    val extrasCopy = description.extras?.let { Bundle(it) }
+    val mediaExtras = mediaDescription.extras?.let { Bundle(it) }
     val metadata = MediaMetadata.Builder()
-      .setTitle(description.title?.toString())
-      .setSubtitle(description.subtitle?.toString())
+      .setTitle(mediaDescription.title?.toString())
+      .setSubtitle(mediaDescription.subtitle?.toString())
       .setIsPlayable(isPlayable)
       .setIsBrowsable(isBrowsable)
       .apply {
-        description.iconUri?.let { setArtworkUri(it) }
-        extrasCopy?.let { setExtras(it) }
+        mediaDescription.iconUri?.let { setArtworkUri(it) }
+        mediaExtras?.let { setExtras(it) }
       }
       .build()
-    val mediaId = description.mediaId ?: return null
+    val mediaId = mediaDescription.mediaId ?: return null
     return MediaItem.Builder()
       .setMediaId(mediaId)
       .setMediaMetadata(metadata)
-      .also { description.mediaUri?.let { uri -> it.setUri(uri) } }
+      .also { mediaDescription.mediaUri?.let { artworkUri -> it.setUri(artworkUri) } }
       .build()
   }
 
