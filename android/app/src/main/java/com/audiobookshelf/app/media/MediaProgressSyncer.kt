@@ -14,7 +14,7 @@ import java.util.*
 import kotlin.concurrent.schedule
 
 data class MediaProgressSyncData(
-        var timeListened: Long, // seconds
+        var timeListened: Double, // seconds
         var duration: Double, // seconds
         var currentTime: Double // seconds
 )
@@ -230,10 +230,12 @@ class MediaProgressSyncer(
     }
 
     val diffSinceLastSync = System.currentTimeMillis() - lastSyncTime
-    if (diffSinceLastSync < 1000L) {
+    // Do not sync on to quick pause or when the sync should not be possible. 180 sec is thrice the max sync amount
+    if (diffSinceLastSync !in 1000L..180000L) {
+      lastSyncTime = System.currentTimeMillis()
       return cb(null)
     }
-    val listeningTimeToAdd = diffSinceLastSync / 1000L
+    val listeningTimeToAdd = diffSinceLastSync / 1000.0
 
     val syncData = MediaProgressSyncData(listeningTimeToAdd, currentPlaybackDuration, currentTime)
     currentPlaybackSession?.syncData(syncData)
@@ -304,7 +306,6 @@ class MediaProgressSyncer(
 
           failedSyncs = 0
           playerNotificationService.alertSyncSuccess()
-          lastSyncTime = System.currentTimeMillis()
           DeviceManager.dbManager.removePlaybackSession(currentSessionId) // Remove session from db
         } else {
           failedSyncs++

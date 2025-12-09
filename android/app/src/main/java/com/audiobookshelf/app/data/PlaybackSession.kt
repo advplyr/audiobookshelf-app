@@ -38,7 +38,7 @@ class PlaybackSession(
         var playMethod: Int,
         var startedAt: Long,
         var updatedAt: Long,
-        var timeListening: Long,
+        var timeListening: Double,
         var audioTracks: MutableList<AudioTrack>,
         var currentTime: Double,
         var libraryItem: LibraryItem?,
