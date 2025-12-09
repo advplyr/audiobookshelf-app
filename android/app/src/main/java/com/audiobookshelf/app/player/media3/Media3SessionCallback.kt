@@ -55,7 +55,6 @@ interface BrowseApi {
  */
 class Media3SessionCallback(
   private val logTag: String,
-  private val appPackageName: String,
   private val scope: CoroutineScope,
   private val appContext: Context,
   private val browseTree: Media3BrowseTree,
@@ -129,8 +128,7 @@ class Media3SessionCallback(
 
     val playerCommands = sessionController?.buildPlayerCommands(
       controllerInfo = controller,
-      allowSeekingOnMediaControls = seekConfig.allowSeekingOnMediaControls,
-      appPackageName = appPackageName
+      allowSeekingOnMediaControls = seekConfig.allowSeekingOnMediaControls
     ) ?: run {
       val availablePlayerCommands = player.availableCommands
       val builder = Player.Commands.Builder().addAll(availablePlayerCommands)

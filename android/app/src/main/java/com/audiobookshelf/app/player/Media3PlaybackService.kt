@@ -438,8 +438,6 @@ class Media3PlaybackService : MediaLibraryService() {
       jumpBackwardMsProvider = { jumpBackwardMs },
       jumpForwardMsProvider = { jumpForwardMs },
       currentPlaybackSpeedProvider = { if (playerInitialized && this::activePlayer.isInitialized) activePlayer.playbackParameters.speed else 1.0f },
-      cyclePlaybackSpeedAction = { cyclePlaybackSpeed() },
-      updatePlaybackSpeedButtonAction = { speed -> updatePlaybackSpeedButton(speed) },
       debugLog = { lazyMessage -> debugLog { lazyMessage } }
     )
     media3NotificationManager.createNotificationChannel()
@@ -932,7 +930,6 @@ class Media3PlaybackService : MediaLibraryService() {
 
     return com.audiobookshelf.app.player.media3.Media3SessionCallback(
       logTag = TAG,
-      appPackageName = packageName,
       scope = serviceScope,
       appContext = this,
       browseTree = browseTree,
@@ -999,6 +996,61 @@ class Media3PlaybackService : MediaLibraryService() {
 
     // Set initial media button preferences so notifications have custom actions immediately
     media3NotificationManager.applyInitialMediaButtonPreferences(mediaSession)
+  }
+
+  /**
+   * Update available player commands for connected controllers and refresh notification buttons.
+   * Ensures the notification's seek behaviour reflects `deviceSettings.allowSeekingOnMediaControls`.
+   */
+  fun updateMediaSessionPlaybackActions() {
+    try {
+      val allowSeeking = deviceSettings.allowSeekingOnMediaControls
+      val sessionCommands = androidx.media3.session.SessionCommands.Builder()
+        .add(cyclePlaybackSpeedCommand)
+        .add(seekBackIncrementCommand)
+        .add(seekForwardIncrementCommand)
+        .build()
+      val connected = mediaSession?.connectedControllers ?: emptyList()
+      connected.forEach { controllerInfo ->
+        try {
+          // Build player commands using shared logic
+          val player = if (this::activePlayer.isInitialized) this.activePlayer else null
+          val playerCommands =
+            com.audiobookshelf.app.player.media3.SessionController.buildBasePlayerCommands(
+              player,
+              allowSeeking
+            )
+          mediaSession?.setAvailableCommands(controllerInfo, sessionCommands, playerCommands)
+        } catch (t: Throwable) {
+          Log.w(
+            TAG,
+            "updateMediaSessionPlaybackActions: failed for controller=${controllerInfo.packageName}: ${t.message}"
+          )
+        }
+      }
+
+      // Refresh notification/button preferences to force a rebuild
+      try {
+        media3NotificationManager.updateMediaButtonPreferencesAfterSpeedChange(
+          mediaSession,
+          currentPlaybackSpeed()
+        )
+      } catch (t: Throwable) {
+        Log.w(
+          TAG,
+          "updateMediaSessionPlaybackActions: failed to refresh notification buttons: ${t.message}"
+        )
+      }
+    } catch (t: Throwable) {
+      Log.w(TAG, "updateMediaSessionPlaybackActions: ${t.message}")
+    }
+  }
+
+  override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    if (intent?.action == "UPDATE_COMMANDS") {
+      updateMediaSessionPlaybackActions()
+    }
+    return super.onStartCommand(intent, flags, startId)
   }
 
   private fun createSessionActivityIntent(): PendingIntent {

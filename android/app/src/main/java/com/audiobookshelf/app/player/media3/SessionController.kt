@@ -218,8 +218,7 @@ class SessionController(
 
   fun buildPlayerCommands(
     controllerInfo: MediaSession.ControllerInfo,
-    allowSeekingOnMediaControls: Boolean,
-    appPackageName: String
+    allowSeekingOnMediaControls: Boolean
   ): Player.Commands {
     val player = playerProvider()
     if (player == null) {
@@ -234,22 +233,11 @@ class SessionController(
         .add(Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS)
       return fallbackCommands.build()
     }
-    val availablePlayerCommands = player.availableCommands
+    val baseCommands = buildBasePlayerCommands(player, allowSeekingOnMediaControls)
     val isWearController = controllerInfo.packageName.contains("wear", ignoreCase = true)
-    val isAppPackageController = controllerInfo.packageName == appPackageName
 
-    val builder = Player.Commands.Builder().addAll(availablePlayerCommands)
-      .add(Player.COMMAND_SEEK_BACK)
-      .add(Player.COMMAND_SEEK_FORWARD)
-      .add(Player.COMMAND_PLAY_PAUSE)
-      .add(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
-      .add(Player.COMMAND_GET_DEVICE_VOLUME)
-      .add(Player.COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS)
-      .add(Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS)
+    val builder = Player.Commands.Builder().addAll(baseCommands)
 
-    if (!isAppPackageController && !allowSeekingOnMediaControls) {
-      builder.remove(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
-    }
     if (isWearController) {
       // Allow custom buttons for wear
       builder.remove(Player.COMMAND_SEEK_TO_PREVIOUS)
@@ -258,5 +246,24 @@ class SessionController(
       builder.remove(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
     }
     return builder.build()
+  }
+
+  companion object {
+    fun buildBasePlayerCommands(player: Player?, allowSeeking: Boolean): Player.Commands {
+      val availablePlayerCommands = player?.availableCommands
+      val builder = Player.Commands.Builder()
+      if (availablePlayerCommands != null) builder.addAll(availablePlayerCommands)
+      builder.add(Player.COMMAND_SEEK_BACK)
+      builder.add(Player.COMMAND_SEEK_FORWARD)
+      builder.add(Player.COMMAND_PLAY_PAUSE)
+      builder.add(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
+      builder.add(Player.COMMAND_GET_DEVICE_VOLUME)
+      builder.add(Player.COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS)
+      builder.add(Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS)
+      if (!allowSeeking) {
+        builder.remove(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
+      }
+      return builder.build()
+    }
   }
 }

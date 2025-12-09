@@ -26,8 +26,6 @@ class Media3NotificationManager(
   private val jumpBackwardMsProvider: () -> Long,
   private val jumpForwardMsProvider: () -> Long,
   private val currentPlaybackSpeedProvider: () -> Float,
-  private val cyclePlaybackSpeedAction: () -> Float,
-  private val updatePlaybackSpeedButtonAction: (Float) -> Unit,
   private val debugLog: (String) -> Unit
 ) {
   companion object {
@@ -38,6 +36,7 @@ class Media3NotificationManager(
   private lateinit var notificationProvider: androidx.media3.session.MediaNotification.Provider
   private lateinit var playbackSpeedButtonProvider: Media3PlaybackSpeedButtonProvider
   private var playbackSpeedCommandButton: CommandButton? = null
+  private var lastMediaButtonPreferences: List<CommandButton>? = null
 
   @Volatile
   private var foregroundStarted = false
@@ -139,12 +138,6 @@ class Media3NotificationManager(
     updateMediaButtonPreferencesAfterSpeedChange(null, speed)
   }
 
-  fun cyclePlaybackSpeed(): Float {
-    val newSpeed = playbackSpeedButtonProvider.cycleSpeed()
-    cyclePlaybackSpeedAction()
-    return newSpeed
-  }
-
   fun getPlaybackSpeedCommandButton(): CommandButton? = playbackSpeedCommandButton
 
   fun setPlaybackSpeedCommandButton(button: CommandButton?) {
@@ -153,8 +146,11 @@ class Media3NotificationManager(
 
   fun applyInitialMediaButtonPreferences(mediaSession: MediaSession?) {
     runCatching {
-      val prefs = ImmutableList.copyOf(buildServiceMediaButtons())
+      val built = buildServiceMediaButtons()
+      val merged = mergeWithLastPreferences(built)
+      val prefs = ImmutableList.copyOf(merged)
       mediaSession?.setMediaButtonPreferences(prefs)
+      lastMediaButtonPreferences = prefs
       debugLog("Initial media button preferences applied: ${prefs.size}")
     }.onFailure { t ->
       debugLog("Failed to apply initial media button preferences: ${t.message}")
@@ -163,11 +159,31 @@ class Media3NotificationManager(
 
   fun updateMediaButtonPreferencesAfterSpeedChange(mediaSession: MediaSession?, speed: Float) {
     runCatching {
-      val prefs = ImmutableList.copyOf(buildServiceMediaButtons())
+      val built = buildServiceMediaButtons()
+      val merged = mergeWithLastPreferences(built)
+      val prefs = ImmutableList.copyOf(merged)
       mediaSession?.setMediaButtonPreferences(prefs)
+      lastMediaButtonPreferences = prefs
       debugLog("Updated media button preferences after speed change: ${speed}x")
     }.onFailure { t ->
       debugLog("Failed to update media button preferences after speed change: ${t.message}")
     }
+  }
+
+  private fun mergeWithLastPreferences(built: List<CommandButton>): List<CommandButton> {
+    val existing = lastMediaButtonPreferences ?: emptyList()
+    // Use a simple uniqueness key: sessionCommand.customAction if present, else playerCommand
+    val keys = built.mapNotNull { CustomMediaNotificationProvider.keyOf(it) }.toMutableSet()
+    val merged = mutableListOf<CommandButton>()
+    // Start with built (service buttons take precedence)
+    merged.addAll(built)
+    // Append existing preferences that don't conflict
+    existing.forEach { btn ->
+      val k = CustomMediaNotificationProvider.keyOf(btn)
+      if (k == null || !keys.contains(k)) {
+        merged.add(btn)
+      }
+    }
+    return merged
   }
 }
