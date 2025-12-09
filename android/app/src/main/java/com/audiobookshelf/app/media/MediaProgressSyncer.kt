@@ -299,7 +299,8 @@ class MediaProgressSyncer(
       }
     } else if (hasNetworkConnection && shouldSyncServer) {
       AbsLogger.info("MediaProgressSyncer", "sync: Sending progress sync to server (title: \"$currentDisplayTitle\") (currentTime: $currentTime) (session id: ${currentSessionId}) (${DeviceManager.serverConnectionConfigName})")
-
+      val tmpSyncTime = lastSyncTime;
+      lastSyncTime = System.currentTimeMillis()
       apiHandler.sendProgressSync(currentSessionId, syncData) { syncSuccess, errorMsg ->
         if (syncSuccess) {
           AbsLogger.info("MediaProgressSyncer", "sync: Successfully synced progress (title: \"$currentDisplayTitle\") (currentTime: $currentTime) (session id: ${currentSessionId}) (${DeviceManager.serverConnectionConfigName})")
@@ -308,6 +309,7 @@ class MediaProgressSyncer(
           playerNotificationService.alertSyncSuccess()
           DeviceManager.dbManager.removePlaybackSession(currentSessionId) // Remove session from db
         } else {
+          lastSyncTime = tmpSyncTime;
           failedSyncs++
           if (failedSyncs == 2) {
             playerNotificationService.alertSyncFailing() // Show alert in client
