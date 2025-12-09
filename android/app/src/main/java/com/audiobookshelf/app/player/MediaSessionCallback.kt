@@ -2,13 +2,17 @@ package com.audiobookshelf.app.player
 
 import android.annotation.SuppressLint
 import android.content.Intent
-import android.os.*
+import android.os.Build
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.Message
 import android.support.v4.media.session.MediaSessionCompat
 import android.util.Log
 import android.view.KeyEvent
 import com.audiobookshelf.app.data.LibraryItemWrapper
 import com.audiobookshelf.app.data.PodcastEpisode
-import java.util.*
+import java.util.Timer
 import kotlin.concurrent.schedule
 
 class MediaSessionCallback(var playerNotificationService:PlayerNotificationService) : MediaSessionCompat.Callback() {
@@ -181,7 +185,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
 //              }
 //            }
 
-            if (playerNotificationService.playerWrapper.isPlaying()) {
+            if (playerNotificationService.mPlayer.isPlaying) {
               if (0 == mediaButtonClickCount) playerNotificationService.pause()
               handleMediaButtonClickCount()
             } else {
@@ -208,7 +212,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
           KeyEvent.KEYCODE_HEADSETHOOK -> {
             Log.d(tag, "handleCallMediaButton: Headset Hook")
             if (0 == mediaButtonClickCount) {
-              if (playerNotificationService.playerWrapper.isPlaying())
+              if (playerNotificationService.mPlayer.isPlaying)
                 playerNotificationService.pause()
               else
                 playerNotificationService.play()

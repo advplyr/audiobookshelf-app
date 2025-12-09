@@ -62,10 +62,7 @@ import com.audiobookshelf.app.media.getUriToDrawable
 import com.audiobookshelf.app.player.core.NetworkMonitor
 import com.audiobookshelf.app.player.core.PlaybackMetricsRecorder
 import com.audiobookshelf.app.player.core.PlaybackTelemetryHost
-import com.audiobookshelf.app.player.wrapper.ExoPlayerWrapper
-import com.audiobookshelf.app.player.wrapper.Media3Wrapper
-import com.audiobookshelf.app.player.wrapper.PlayerWrapper
-import com.audiobookshelf.app.player.wrapper.PlayerWrapperFactory
+
 import com.audiobookshelf.app.plugins.AbsLogger
 import com.audiobookshelf.app.server.ApiHandler
 import com.google.android.exoplayer2.C
@@ -73,6 +70,7 @@ import com.google.android.exoplayer2.DefaultLoadControl
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.LoadControl
 import com.google.android.exoplayer2.MediaItem
+import com.google.android.exoplayer2.PlaybackParameters
 import com.google.android.exoplayer2.Player
 import com.google.android.exoplayer2.audio.AudioAttributes
 import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector
@@ -150,10 +148,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
   lateinit var mediaManager: MediaManager
   lateinit var apiHandler: ApiHandler
 
-  private lateinit var mPlayer: ExoPlayer
+  internal lateinit var mPlayer: ExoPlayer
   private lateinit var currentPlayer: Player
   var castPlayer: CastPlayer? = null
-  lateinit var playerWrapper: PlayerWrapper
 
   lateinit var mediaProgressSyncer: MediaProgressSyncer
   private var networkStateListener: NetworkMonitor.Listener? = null
@@ -488,22 +485,20 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
         .setSeekBackIncrementMs(deviceSettings.jumpBackwardsTimeMs)
         .setSeekForwardIncrementMs(deviceSettings.jumpForwardTimeMs)
         .build()
-    if (!PlayerWrapperFactory.useMedia3()) {
-      mPlayer.setHandleAudioBecomingNoisy(true)
-      // Note: Don't add listener directly to mPlayer - will be added to wrapper below
-      val audioAttributes: AudioAttributes =
-              AudioAttributes.Builder()
-                      .setUsage(C.USAGE_MEDIA)
-                      .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
-                      .build()
-      mPlayer.setAudioAttributes(audioAttributes, true)
-    }
 
-    playerWrapper = PlayerWrapperFactory.wrapExistingPlayer(this, mPlayer)
-    playerWrapper.attachNotificationManager(playerNotificationManager)
-    playerWrapper.attachMediaSessionConnector(mediaSessionConnector)
+    mPlayer.setHandleAudioBecomingNoisy(true)
+    // Note: Don't add listener directly to mPlayer - will be added below
+    val audioAttributes: AudioAttributes =
+      AudioAttributes.Builder()
+        .setUsage(C.USAGE_MEDIA)
+        .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
+        .build()
+    mPlayer.setAudioAttributes(audioAttributes, true)
 
-    playerWrapper.addListener(PlayerListener(this))
+    playerNotificationManager.setPlayer(mPlayer)
+    mediaSessionConnector.setPlayer(mPlayer)
+
+    mPlayer.addListener(PlayerListener(this))
   }
 
   /*
@@ -540,19 +535,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     val metadata = playbackSession.getMediaMetadataCompat(ctx)
     mediaSession.setMetadata(metadata)
     val mediaItems = playbackSession.toPlayerMediaItems(ctx)
-    val exoMediaItems = if (playerWrapper is ExoPlayerWrapper) {
-      (playerWrapper as ExoPlayerWrapper).toExoMediaItems(mediaItems)
-    } else {
-      // Fallback: build minimal Exo MediaItem instances from DTOs so existing
-      // media-source / cast code continues to work. The canonical conversion
-      // should live in Exo-specific classes; this fallback protects compile/runtime
-      // when a non-Exo wrapper is active.
-      mediaItems.map { dto ->
-        val builder = MediaItem.Builder().setUri(dto.uri)
-        dto.tag?.let { builder.setTag(it) }
-        dto.mimeType?.let { builder.setMimeType(it) }
-        builder.build()
-      }
+    val exoMediaItems = mediaItems.map { dto ->
+      val builder = MediaItem.Builder().setUri(dto.uri)
+        .setMediaId(dto.mediaId)
+      dto.tag?.let { builder.setTag(it) }
+      dto.mimeType?.let { builder.setMimeType(it) }
+      builder.build()
     }
     val playbackRateToUse = playbackRate ?: initialPlaybackRate ?: 1f
     initialPlaybackRate = playbackRate
@@ -570,9 +558,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     }
 
     if (playbackSession.mediaPlayer == PLAYER_CAST) {
-      // If cast-player is the first player to be used let the wrapper switch
+      // If cast-player is the first player to be used, switch the active player for notifications
       // the active player used for notifications/sessions.
-      playerWrapper.setActivePlayerForNotification(castPlayer)
+      playerNotificationManager.setPlayer(castPlayer)
     }
 
     currentPlaybackSession = playbackSession
@@ -596,10 +584,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
       return
     }
 
-    if (mPlayer == currentPlayer) {
-      if (playerWrapper is ExoPlayerWrapper) {
-        // ExoPlayerWrapper: Use the existing MediaSource-based approach for ExoPlayer v2
-        val mediaSource: MediaSource
+    if (!BuildConfig.USE_MEDIA3) {
+      // Use the existing MediaSource-based approach for ExoPlayer
+      val mediaSource: MediaSource
 
         if (playbackSession.isLocal) {
           AbsLogger.info("PlayerNotificationService", "preparePlayer: Playing local item ${currentPlaybackSession?.mediaItemId}.")
@@ -639,8 +626,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
 
         // Add remaining media items if multi-track
         if (mediaItems.size > 1) {
-          playerWrapper.addMediaItems(mediaItems.subList(1, mediaItems.size))
-          Log.d(tag, "currentPlayer total media items ${playerWrapper.getMediaItemCount()}")
+          mPlayer.addMediaItems(exoMediaItems.subList(1, mediaItems.size))
+          Log.d(tag, "currentPlayer total media items ${mPlayer.mediaItemCount}")
 
           val currentTrackIndex = playbackSession.getCurrentTrackIndex()
           val currentTrackTime = playbackSession.getCurrentTrackTimeMs()
@@ -648,53 +635,63 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
             tag,
             "currentPlayer current track index $currentTrackIndex & current track time $currentTrackTime"
           )
-          playerWrapper.seekTo(currentTrackIndex, currentTrackTime)
+          mPlayer.seekTo(currentTrackIndex, currentTrackTime)
         } else {
-          playerWrapper.seekTo(playbackSession.currentTimeMs)
+          mPlayer.seekTo(playbackSession.currentTimeMs)
         }
-      } else {
-        AbsLogger.info("PlayerNotificationService", "preparePlayer: Using wrapper.setMediaItems for ${mediaItems.size} items")
+    } else {
+      AbsLogger.info(
+        "PlayerNotificationService",
+        "preparePlayer: Using setMediaItems for ${mediaItems.size} items"
+      )
 
-        val currentTrackIndex = if (mediaItems.size > 1) {
-          playbackSession.getCurrentTrackIndex()
-        } else {
-          0
-        }
-
-        val startPosition = if (mediaItems.size > 1) {
-          playbackSession.getCurrentTrackTimeMs()
-        } else {
-          playbackSession.currentTimeMs
-        }
-
-        Log.d(tag, "Media3: Setting ${mediaItems.size} media items, startIndex=$currentTrackIndex, startPos=$startPosition")
-        playerWrapper.setMediaItems(mediaItems, currentTrackIndex, startPosition)
+      val exoMediaItems = mediaItems.map { dto ->
+        val builder = MediaItem.Builder().setUri(dto.uri)
+          .setMediaId(dto.mediaId)
+        dto.tag?.let { builder.setTag(it) }
+        dto.mimeType?.let { builder.setMimeType(it) }
+        builder.build()
       }
 
-        // Update MediaMetadata for Media3 notifications
-        if (playerWrapper is Media3Wrapper) {
-          (playerWrapper as Media3Wrapper).updateMediaMetadata(playbackSession)
-        }
+      val currentTrackIndex = if (mediaItems.size > 1) {
+        playbackSession.getCurrentTrackIndex()
+      } else {
+        0
+      }
+
+      val startPosition = if (mediaItems.size > 1) {
+        playbackSession.getCurrentTrackTimeMs()
+      } else {
+        playbackSession.currentTimeMs
+      }
 
       Log.d(
         tag,
-        "Prepare complete for session ${currentPlaybackSession?.displayTitle} | ${playerWrapper.getMediaItemCount()}"
+        "Media3: Setting ${mediaItems.size} media items, startIndex=$currentTrackIndex, startPos=$startPosition"
       )
-      playerWrapper.setPlayWhenReady(playWhenReady)
-      // Proactively emit a playing update when playWhenReady is true so the web UI can
-      // flip from spinner to pause immediately, without waiting for the next listener callback.
-      // This mirrors Exo behavior closely and reduces perceived latency.
-      if (playWhenReady) {
-        try {
-          clientEventEmitter?.onPlayingUpdate(true)
-        } catch (e: Exception) {
-          Log.w(tag, "Early onPlayingUpdate emit failed: ${e.message}")
-        }
-      }
-      playerWrapper.setPlaybackSpeed(playbackRateToUse)
+      mPlayer.setMediaItems(exoMediaItems, currentTrackIndex, startPosition)
+    }
 
-      playerWrapper.prepare()
-  } else if (castPlayer != null) {
+    Log.d(
+      tag,
+      "Prepare complete for session ${currentPlaybackSession?.displayTitle} | ${mPlayer.mediaItemCount}"
+    )
+    mPlayer.playWhenReady = playWhenReady
+    // Proactively emit a playing update when playWhenReady is true so the web UI can
+    // flip from spinner to pause immediately, without waiting for the next listener callback.
+    // This mirrors Exo behavior closely and reduces perceived latency.
+    if (playWhenReady) {
+      try {
+        clientEventEmitter?.onPlayingUpdate(true)
+      } catch (e: Exception) {
+        Log.w(tag, "Early onPlayingUpdate emit failed: ${e.message}")
+      }
+    }
+    mPlayer.setPlaybackSpeed(playbackRateToUse)
+
+    mPlayer.prepare()
+
+    if (castPlayer != null) {
       val currentTrackIndex = playbackSession.getCurrentTrackIndex()
       val currentTrackTime = playbackSession.getCurrentTrackTimeMs()
       val mediaType = playbackSession.mediaType
@@ -712,7 +709,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
   }
 
   private fun setMediaSessionConnectorCustomActions(playbackSession: PlaybackSession) {
-  val mediaItems = playbackSession.toPlayerMediaItems(ctx)
+    val mediaItems = playbackSession.toPlayerMediaItems(ctx)
     val customActionProviders =
             mutableListOf(
                     JumpBackwardCustomActionProvider(),
@@ -832,7 +829,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
         return
       } else {
         Log.d(tag, "switchToPlayer: Switching to cast player from exo player stop exo player")
-        playerWrapper.stop()
+        mPlayer.stop()
       }
     } else {
       if (currentPlayer == mPlayer) {
@@ -861,20 +858,13 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     currentPlayer =
             if (useCastPlayer) {
               Log.d(tag, "switchToPlayer: Using Cast Player " + castPlayer?.deviceInfo)
-              playerWrapper.setActivePlayerForNotification(castPlayer)
+              playerNotificationManager.setPlayer(castPlayer)
               setMediaSessionToCastVolume()
               castPlayer as CastPlayer
             } else {
               Log.d(tag, "switchToPlayer: Using ExoPlayer")
-              playerWrapper.setActivePlayerForNotification(null)
+              playerNotificationManager.setPlayer(mPlayer)
               setMediaSessionToLocalVolume()
-
-              // For Media3Wrapper, manually restore v2 player to notification manager
-              if (playerWrapper is Media3Wrapper) {
-                playerNotificationManager.setPlayer(mPlayer)
-                mediaSessionConnector.setPlayer(mPlayer)
-                Log.d(tag, "Restored mPlayer to v2 notification manager after Cast exit")
-              }
 
               mPlayer
             }
@@ -937,7 +927,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
   private fun currentMediaItemIndexInternal(): Int {
     externalPlaybackState?.let { return it.currentMediaItemIndex() }
     return try {
-      playerWrapper.getCurrentMediaItemIndex()
+      mPlayer.currentMediaItemIndex
     } catch (_: Exception) {
       0
     }
@@ -966,7 +956,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
       val offset = if (hasMultipleTracks()) trackOffsetForIndex(state.currentMediaItemIndex()) else 0L
       return state.currentPositionMs() + offset
     }
-    return playerWrapper.getCurrentPosition() + getCurrentTrackStartOffsetMs()
+    return mPlayer.currentPosition + getCurrentTrackStartOffsetMs()
   }
 
   override fun getCurrentTimeSeconds(): Double {
@@ -981,9 +971,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     return if (hasMultipleTracks()) {
       val currentIndex = currentMediaItemIndexInternal()
       val currentTrackStartOffset = currentPlaybackSession?.getTrackStartOffsetMs(currentIndex) ?: 0L
-      playerWrapper.getBufferedPosition() + currentTrackStartOffset
+      mPlayer.bufferedPosition + currentTrackStartOffset
     } else {
-      playerWrapper.getBufferedPosition()
+      mPlayer.bufferedPosition
     }
   }
 
@@ -992,11 +982,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
   }
 
   override fun isPlayerActive(): Boolean {
-    return externalPlaybackState?.isPlaying() ?: playerWrapper.isPlaying()
+    return externalPlaybackState?.isPlaying() ?: mPlayer.isPlaying
   }
 
   fun currentPlaybackState(): Int {
-    return externalPlaybackState?.playbackState() ?: playerWrapper.getPlaybackState()
+    return externalPlaybackState?.playbackState() ?: mPlayer.playbackState
   }
 
   fun getDuration(): Long {
@@ -1011,7 +1001,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     val session = getCurrentPlaybackSessionCopy() ?: return
     val snapshot = session.toWidgetSnapshot(
       context = this,
-      isPlaying = playerWrapper.isPlaying(),
+      isPlaying = mPlayer.isPlaying,
       isClosed = isClosedState
     )
     DeviceManager.widgetUpdater?.onPlayerChanged(snapshot)
@@ -1085,7 +1075,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
             Handler(Looper.getMainLooper()).post {
               seekPlayer(playbackSession.currentTimeMs)
               // Should already be playing
-              playerWrapper.setVolume(1F) // Volume on sleep timer might have decreased this
+              mPlayer.volume = 1F // Volume on sleep timer might have decreased this
               currentPlaybackSession?.let { mediaProgressSyncer.play(it) }
               clientEventEmitter?.onPlayingUpdate(true)
             }
@@ -1096,7 +1086,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
               }
 
               // Should already be playing
-              playerWrapper.setVolume(1F) // Volume on sleep timer might have decreased this
+              mPlayer.volume = 1F // Volume on sleep timer might have decreased this
               mediaProgressSyncer.currentPlaybackSession?.let { playbackSession ->
                 mediaProgressSyncer.play(playbackSession)
               }
@@ -1118,7 +1108,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
             )
 
             Handler(Looper.getMainLooper()).post {
-              playerWrapper.pause()
+              mPlayer.pause()
               startNewPlaybackSession()
             }
           } else {
@@ -1128,7 +1118,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
                 seekBackward(seekBackTime)
               }
 
-              playerWrapper.setVolume(1F) // Volume on sleep timer might have decreased this
+              mPlayer.volume = 1F // Volume on sleep timer might have decreased this
               mediaProgressSyncer.currentPlaybackSession?.let { playbackSession ->
                 mediaProgressSyncer.play(playbackSession)
               }
@@ -1147,14 +1137,13 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
       Log.d(tag, "Already playing")
       return
     }
-  // Use wrapper to play. Under the feature-flag the wrapper will delegate to ExoPlayer or to
-  // a Media3 implementation.
-  playerWrapper.setVolume(1F)
-  playerWrapper.play()
+    // Play the current media item
+    mPlayer.volume = 1F
+    mPlayer.play()
   }
 
   fun pause() {
-    playerWrapper.pause()
+    mPlayer.pause()
   }
 
   fun playPause(): Boolean {
@@ -1169,7 +1158,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
 
   fun seekPlayer(time: Long) {
     var timeToSeek = time
-  Log.d(tag, "seekPlayer mediaCount = ${playerWrapper.getMediaItemCount()} | $timeToSeek")
+    Log.d(tag, "seekPlayer mediaCount = ${mPlayer.mediaItemCount} | $timeToSeek")
     if (timeToSeek < 0) {
       Log.w(tag, "seekPlayer invalid time $timeToSeek - setting to 0")
       timeToSeek = 0L
@@ -1178,23 +1167,23 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
       timeToSeek = getDuration() - 2000L
     }
 
-    if (playerWrapper.getMediaItemCount() > 1) {
+    if (mPlayer.mediaItemCount > 1) {
       currentPlaybackSession?.currentTime = timeToSeek / 1000.0
       val newWindowIndex = currentPlaybackSession?.getCurrentTrackIndex() ?: 0
       val newTimeOffset = currentPlaybackSession?.getCurrentTrackTimeMs() ?: 0
       Log.d(tag, "seekPlayer seekTo $newWindowIndex | $newTimeOffset")
-      playerWrapper.seekTo(newWindowIndex, newTimeOffset)
+      mPlayer.seekTo(newWindowIndex, newTimeOffset)
     } else {
-      playerWrapper.seekTo(timeToSeek)
+      mPlayer.seekTo(timeToSeek)
     }
   }
 
   fun skipToPrevious() {
-    playerWrapper.seekToPrevious()
+    mPlayer.seekToPrevious()
   }
 
   fun skipToNext() {
-    playerWrapper.seekToNext()
+    mPlayer.seekToNext()
   }
 
   fun jumpForward() {
@@ -1215,7 +1204,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
 
   fun setPlaybackSpeed(speed: Float) {
     mediaManager.userSettingsPlaybackRate = speed
-    playerWrapper.setPlaybackSpeed(speed)
+    mPlayer.playbackParameters = PlaybackParameters(speed)
 
     // Refresh Android Auto actions
     mediaProgressSyncer.currentPlaybackSession?.let { setMediaSessionConnectorCustomActions(it) }
@@ -1254,8 +1243,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     playbackMetrics.logSummary()
 
     try {
-      playerWrapper.stop()
-      playerWrapper.clearMediaItems()
+      mPlayer.stop()
+      mPlayer.clearMediaItems()
     } catch (e: Exception) {
       Log.e(tag, "Exception clearing player $e")
     }
@@ -1344,7 +1333,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
 
     override fun playbackSpeed(): Float {
       return try {
-        playerWrapper.getPlaybackSpeed()
+        mPlayer.playbackParameters.speed
       } catch (_: Exception) {
         1f
       }
@@ -1352,21 +1341,21 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
 
     override fun setVolume(volume: Float) {
       try {
-        playerWrapper.setVolume(volume)
+        mPlayer.volume = volume
       } catch (_: Exception) {
       }
     }
 
     override fun pause() {
       try {
-        playerWrapper.pause()
+        mPlayer.pause()
       } catch (_: Exception) {
       }
     }
 
     override fun play() {
       try {
-        playerWrapper.play()
+        mPlayer.play()
       } catch (_: Exception) {
       }
     }

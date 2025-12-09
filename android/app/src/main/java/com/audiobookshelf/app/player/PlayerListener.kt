@@ -28,23 +28,32 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
 
   override fun onPositionDiscontinuity(isSeek: Boolean) {
     if (isSeek) {
-      val player = playerNotificationService.playerWrapper
-  Log.d(tag, "onPositionDiscontinuity SEEK from index=${player.getCurrentMediaItemIndex()} pos=${player.getCurrentPositionLive()} buffered=${player.getBufferedPosition()} state=${player.getPlaybackState()}")
+      val player = playerNotificationService.mPlayer
+      Log.d(
+        tag,
+        "onPositionDiscontinuity SEEK from index=${player.currentMediaItemIndex} pos=${player.currentPosition} buffered=${player.bufferedPosition} state=${player.playbackState}"
+      )
       // If playing set seeking flag
       playerNotificationService.mediaProgressSyncer.seek()
       lastPauseTime = 0 // When seeking while paused reset the auto-rewind
     } else {
-      Log.d(tag, "onPositionDiscontinuity NON-SEEK state=${playerNotificationService.playerWrapper.getPlaybackState()}")
+      Log.d(
+        tag,
+        "onPositionDiscontinuity NON-SEEK state=${playerNotificationService.mPlayer.playbackState}"
+      )
     }
   }
 
   override fun onIsPlayingChanged(isPlaying: Boolean) {
-    val player = playerNotificationService.playerWrapper
-  Log.d(tag, "onIsPlayingChanged -> $isPlaying playbackState=${player.getPlaybackState()} pos=${player.getCurrentPositionLive()}")
+    val player = playerNotificationService.mPlayer
+    Log.d(
+      tag,
+      "onIsPlayingChanged -> $isPlaying playbackState=${player.playbackState} pos=${player.currentPosition}"
+    )
 
     // Goal of these 2 if statements and the lazyIsPlaying is to ignore this event when it is triggered by a seek
     //  When a seek occurs the player is paused and buffering, then plays again right afterwards.
-    if (!isPlaying && player.getPlaybackState() == Player.STATE_BUFFERING) {
+    if (!isPlaying && player.playbackState == Player.STATE_BUFFERING) {
       Log.d(tag, "onIsPlayingChanged: ignoring pause while buffering")
       return
     }
@@ -105,15 +114,15 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
         // Handles auto-starting sleep timer and resetting sleep timer
         playerNotificationService.handleSleepTimerPlayEvent(it.id)
 
-        player.setVolume(1F) // Volume on sleep timer might have decreased this
+        player.volume = 1F // Volume on sleep timer might have decreased this
 
-  Log.d(tag, "MediaProgressSyncer: play session=${it.id} pos=${player.getCurrentPositionLive()}")
+        Log.d(tag, "MediaProgressSyncer: play session=${it.id} pos=${player.currentPosition}")
         playerNotificationService.mediaProgressSyncer.play(it)
       }
     } else {
       // Always safe: snapshot accessor avoids wrong-thread crashes by returning cached position if off main.
       playerNotificationService.mediaProgressSyncer.pause {
-        val snapshotPos = player.getCurrentPosition()
+        val snapshotPos = player.currentPosition
         Log.d(tag, "MediaProgressSyncer: paused at pos=$snapshotPos (snapshot)")
       }
     }
@@ -123,8 +132,15 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
 
   override fun onPlaybackStateChanged(state: Int) {
     when (state) {
-  Player.STATE_READY -> Log.d(tag, "State READY duration=${playerNotificationService.playerWrapper.getDuration()} pos=${playerNotificationService.playerWrapper.getCurrentPositionLive()}")
-  Player.STATE_BUFFERING -> Log.d(tag, "State BUFFERING pos=${playerNotificationService.playerWrapper.getCurrentPositionLive()}")
+      Player.STATE_READY -> Log.d(
+        tag,
+        "State READY duration=${playerNotificationService.mPlayer.duration} pos=${playerNotificationService.mPlayer.currentPosition}"
+      )
+
+      Player.STATE_BUFFERING -> Log.d(
+        tag,
+        "State BUFFERING pos=${playerNotificationService.mPlayer.currentPosition}"
+      )
       Player.STATE_ENDED -> Log.d(tag, "State ENDED")
       Player.STATE_IDLE -> Log.d(tag, "State IDLE")
     }

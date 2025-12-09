@@ -37,7 +37,6 @@ This file contains Android-specific agent instructions for the audiobookshelf-ap
   - `media3` flavor: Media3 backend, `USE_MEDIA3=true`
 - Dependencies and service enablement in `build.gradle` and `AndroidManifest.xml` are conditional on the selected flavor/flag.
 - Manual and automated testing should cover both flavors to ensure migration safety.
-- See `PlayerWrapperFactory` for runtime selection and abstraction between player backends.
 
 ## Legacy ExoPlayer2 Implementation (master branch)
 
@@ -61,9 +60,9 @@ The legacy playback system uses ExoPlayer2 for local audio playback and PlayerNo
   - Handles Google Cast sessions and switching between local and remote playback.
   - Notifies PlayerNotificationService to switch player and update notifications.
 
-- **PlayerWrapper/ExoPlayerWrapper:**
-  - Abstraction layer to allow migration to Media3 or other player implementations.
-  - Provides a consistent interface for play, pause, seek, and notification/session attachment.
+- **Direct ExoPlayer Usage:**
+  - PlayerNotificationService now uses ExoPlayer2 directly without wrapper abstraction
+  - Simplified architecture for the legacy exov2 flavor
 
 - **Notification and session management:**
   - Uses `PlayerNotificationManager` for notification controls.
@@ -72,7 +71,6 @@ The legacy playback system uses ExoPlayer2 for local audio playback and PlayerNo
 
 **Key files:**
 - `android/app/src/main/java/com/audiobookshelf/app/player/PlayerNotificationService.kt`
-- `android/app/src/main/java/com/audiobookshelf/app/player/ExoPlayerWrapper.kt`
 - `android/app/src/main/java/com/audiobookshelf/app/player/PlayerListener.kt`
 - `android/app/src/main/java/com/audiobookshelf/app/player/CastManager.kt`
 - `android/app/src/main/java/com/audiobookshelf/app/player/CastPlayer.kt`
@@ -80,9 +78,10 @@ The legacy playback system uses ExoPlayer2 for local audio playback and PlayerNo
 
 
 **Migration notes:**
-- When the Media3 feature flag is enabled, both local and cast playback use Media3 APIs and player implementations.
-- The legacy ExoPlayer2 path is retained only for builds/flavors where Media3 is disabled.
-- The PlayerWrapper abstraction allows toggling between ExoPlayer2 and Media3 implementations via feature flags.
+
+- The exov2 flavor uses direct ExoPlayer2 APIs without wrapper abstraction
+- The media3 flavor uses Media3 APIs with AbsPlayerWrapper for Media3-specific features
+- Build flavors provide clean separation between implementations
 
 ---
 
