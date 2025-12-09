@@ -123,26 +123,29 @@ class MainActivity : BridgeActivity() {
       }
     }
 
-    mConnection = object : ServiceConnection {
-      override fun onServiceDisconnected(name: ComponentName) {
-        Log.w(tag, "Service Disconnected $name")
-        mBounded = false
-      }
-      override fun onServiceConnected(name: ComponentName, service: IBinder) {
-        Log.d(tag, "Service Connected $name")
-        mBounded = true
-        val mLocalBinder = service as PlayerNotificationService.LocalBinder
-        foregroundService = mLocalBinder.getService()
-        try {
-          pluginCallback()
-        } catch (e: UninitializedPropertyAccessException) {
-          Log.w(tag, "Plugin callback not yet initialized")
+    if (!BuildConfig.USE_MEDIA3) {
+      mConnection = object : ServiceConnection {
+        override fun onServiceDisconnected(name: ComponentName) {
+          Log.w(tag, "Service Disconnected $name")
+          mBounded = false
+        }
+
+        override fun onServiceConnected(name: ComponentName, service: IBinder) {
+          Log.d(tag, "Service Connected $name")
+          mBounded = true
+          val mLocalBinder = service as PlayerNotificationService.LocalBinder
+          foregroundService = mLocalBinder.getService()
+          try {
+            pluginCallback()
+          } catch (e: UninitializedPropertyAccessException) {
+            Log.w(tag, "Plugin callback not yet initialized")
+          }
         }
       }
-    }
-    Intent(this, PlayerNotificationService::class.java).also { intent ->
-      Log.d(tag, "Binding PlayerNotificationService")
-      bindService(intent, mConnection, Context.BIND_AUTO_CREATE)
+      Intent(this, PlayerNotificationService::class.java).also { intent ->
+        Log.d(tag, "Binding PlayerNotificationService")
+        bindService(intent, mConnection, BIND_AUTO_CREATE)
+      }
     }
 
   }
@@ -152,12 +155,14 @@ class MainActivity : BridgeActivity() {
   }
 
   fun stopMyService() {
-    if (mBounded) {
-      mConnection.let { unbindService(it) };
-      mBounded = false;
+    if (!BuildConfig.USE_MEDIA3) {
+      if (mBounded) {
+        mConnection.let { unbindService(it) }
+        mBounded = false
+      }
+      val stopIntent = Intent(this, PlayerNotificationService::class.java)
+      stopService(stopIntent)
     }
-    val stopIntent = Intent(this, PlayerNotificationService::class.java)
-    stopService(stopIntent)
   }
 
   override fun onSaveInstanceState(outState: Bundle) {
