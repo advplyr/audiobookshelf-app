@@ -230,9 +230,7 @@ class MediaProgressSyncer(
     }
 
     val diffSinceLastSync = System.currentTimeMillis() - lastSyncTime
-    // Do not sync on to quick pause or when the sync should not be possible. 180 sec is thrice the max sync amount
-    if (diffSinceLastSync !in 1000L..180000L) {
-      lastSyncTime = System.currentTimeMillis()
+    if (diffSinceLastSync <= 1000L) {
       return cb(null)
     }
     val listeningTimeToAdd = diffSinceLastSync / 1000.0
@@ -298,6 +296,13 @@ class MediaProgressSyncer(
         }
       }
     } else if (hasNetworkConnection && shouldSyncServer) {
+      // Do not sync when the sync should not be possible. 180 sec is thrice the max sync amount
+      if (diffSinceLastSync >= 180000L) {
+        lastSyncTime = System.currentTimeMillis()
+        AbsLogger.info("MediaProgressSyncer", "sync: Not sending progress to server. timeListened too big $diffSinceLastSync (title: \"$currentDisplayTitle\") (currentTime: $currentTime)")
+        return cb(null)
+      }
+
       AbsLogger.info("MediaProgressSyncer", "sync: Sending progress sync to server (title: \"$currentDisplayTitle\") (currentTime: $currentTime) (session id: ${currentSessionId}) (${DeviceManager.serverConnectionConfigName})")
       val tmpSyncTime = lastSyncTime;
       lastSyncTime = System.currentTimeMillis()
