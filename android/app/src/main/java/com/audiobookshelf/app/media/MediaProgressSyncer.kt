@@ -296,13 +296,6 @@ class MediaProgressSyncer(
         }
       }
     } else if (hasNetworkConnection && shouldSyncServer) {
-      // Do not sync when the sync should not be possible. 180 sec is thrice the max sync amount
-      if (diffSinceLastSync >= 180000L) {
-        lastSyncTime = System.currentTimeMillis()
-        AbsLogger.info("MediaProgressSyncer", "sync: Not sending progress to server. timeListened too big $diffSinceLastSync (title: \"$currentDisplayTitle\") (currentTime: $currentTime)")
-        return cb(null)
-      }
-
       AbsLogger.info("MediaProgressSyncer", "sync: Sending progress sync to server (title: \"$currentDisplayTitle\") (currentTime: $currentTime) (session id: ${currentSessionId}) (${DeviceManager.serverConnectionConfigName})")
       val tmpSyncTime = lastSyncTime;
       lastSyncTime = System.currentTimeMillis()
