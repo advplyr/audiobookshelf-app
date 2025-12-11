@@ -440,5 +440,8 @@ suspend fun getChildren(parentId: String): ImmutableList<MediaItem> {
     const val LIBRARIES_ROOT = "__LIBRARIES__"
     const val RECENTLY_ROOT = "__RECENTLY__"
   }
-}
 
+  fun invalidateSeriesCache() {
+    itemBuilder.clearSeriesViewCache()
+  }
+}

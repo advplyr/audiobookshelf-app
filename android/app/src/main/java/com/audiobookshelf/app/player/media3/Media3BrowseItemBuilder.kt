@@ -91,7 +91,7 @@ class Media3BrowseItemBuilder(
    */
   fun libraryToMediaItem(library: Library, parentId: String): MediaItem {
     val mediaId = "${parentId}_${library.id}"
-    val iconName = when (library.mediaType) {
+    val iconName = library.icon.takeIf { it.isNotBlank() } ?: when (library.mediaType) {
       "book" -> "book-open-page-variant"
       "podcast" -> "podcast"
       else -> "library"
@@ -168,7 +168,7 @@ class Media3BrowseItemBuilder(
    */
   fun buildLibraryList(parentId: String): List<MediaItem> {
     val libraries = mediaManager.serverLibraries
-      .filter { ((it.stats?.numAudioFiles ?: 0) + (it.stats?.totalItems ?: 0)) > 0 }
+      .filter { (it.stats?.numAudioFiles ?: 0) > 0 }
       .sortedBy { it.name }
     return if (shouldGroupLetters(libraries)) {
       groupByLetter(libraries, parentId)
@@ -231,8 +231,15 @@ class Media3BrowseItemBuilder(
   private suspend fun buildPodcastLibraryChildren(libraryId: String): List<MediaItem> {
     val recentPodcasts = browseDataLoader.loadLibraryPodcasts(libraryId)
     return recentPodcasts.map { podcast ->
-      val progress = mediaManager.serverUserMediaProgress.find { it.libraryItemId == podcast.id }
-      podcast.getMediaItem(progress, context)
+      val artworkUri = resolveLocalCoverUri(podcast) ?: podcast.getCoverUri()
+      buildMediaItem(
+        mediaId = "__PODCAST__${podcast.id}",
+        title = podcast.media.metadata.title,
+        subtitle = podcast.media.metadata.getAuthorDisplayName(),
+        artworkUri = artworkUri,
+        isBrowsable = true,
+        mimeType = null
+      )
     }
   }
 
@@ -289,7 +296,14 @@ class Media3BrowseItemBuilder(
     }
   }
 
+  private val seriesViewCache = mutableMapOf<String, List<MediaItem>>()
+
+  fun clearSeriesViewCache() {
+    seriesViewCache.clear()
+  }
+
   private suspend fun buildSeriesList(libraryId: String): List<MediaItem> {
+    seriesViewCache[libraryId]?.let { return it }
     val librarySeriesItems = orderSeries(browseDataLoader.loadLibrarySeriesWithAudio(libraryId))
     return librarySeriesItems.map { librarySeries ->
       buildMediaItem(
@@ -300,7 +314,7 @@ class Media3BrowseItemBuilder(
         true,
         null
       )
-    }
+    }.also { seriesViewCache[libraryId] = it }
   }
 
   private suspend fun buildCollectionsList(libraryId: String): List<MediaItem> {

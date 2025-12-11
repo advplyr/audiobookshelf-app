@@ -19,6 +19,11 @@ import androidx.media3.session.SessionResult
 import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.media.MediaManager
+import com.audiobookshelf.app.player.ANDROID_AUTOMOTIVE_PKG_NAME
+import com.audiobookshelf.app.player.ANDROID_AUTO_PKG_NAME
+import com.audiobookshelf.app.player.ANDROID_AUTO_SIMULATOR_PKG_NAME
+import com.audiobookshelf.app.player.ANDROID_GSEARCH_PKG_NAME
+import com.audiobookshelf.app.player.ANDROID_WEARABLE_PKG_NAME
 import com.audiobookshelf.app.player.PlaybackConstants
 import com.audiobookshelf.app.player.core.NetworkMonitor
 import com.audiobookshelf.app.player.toPlayerMediaItems
@@ -74,6 +79,13 @@ class Media3SessionCallback(
 
   private val jacksonMapper by lazy { jacksonObjectMapper() }
   private val searchCache = Collections.synchronizedMap(mutableMapOf<String, List<MediaItem>>())
+  private val androidAutoControllerPackages = setOf(
+    ANDROID_AUTO_PKG_NAME,
+    ANDROID_AUTO_SIMULATOR_PKG_NAME,
+    ANDROID_WEARABLE_PKG_NAME,
+    ANDROID_GSEARCH_PKG_NAME,
+    ANDROID_AUTOMOTIVE_PKG_NAME
+  )
 
   /**
    * Handles post-interaction adjustments for specific clients like Wear OS.
@@ -190,6 +202,10 @@ class Media3SessionCallback(
     }
 
     return scope.future {
+      if (controller.packageName in androidAutoControllerPackages) {
+        autoLibraryCoordinator.awaitAutoDataLoaded()
+      }
+
       val preferCastStream = isCastActive()
 
       val latestUnfinishedItem = mediaManager.latestServerItemInProgress

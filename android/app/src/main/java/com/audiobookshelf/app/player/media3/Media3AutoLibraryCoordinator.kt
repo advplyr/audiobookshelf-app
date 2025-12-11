@@ -9,6 +9,7 @@ import com.audiobookshelf.app.media.MediaManager
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -30,6 +31,7 @@ class Media3AutoLibraryCoordinator(
 
   private val pendingRequests = mutableListOf<PendingRequest>()
   private var isAutoDataLoading = false
+  private var autoDataLoadedDeferred = CompletableDeferred<Unit>()
 
   fun requestChildren(
     parentId: String,
@@ -73,7 +75,9 @@ class Media3AutoLibraryCoordinator(
   private fun loadAutoData() {
     if (BuildConfig.DEBUG) Log.d(TAG, "loadAutoData() start")
     isAutoDataLoading = true
+    autoDataLoadedDeferred = CompletableDeferred()
     mediaManager.loadAndroidAutoItems {
+      browseTree.invalidateSeriesCache()
       mediaManager.populatePersonalizedDataForAllLibraries {
         mediaManager.initializeInProgressItems {
           if (BuildConfig.DEBUG) {
@@ -83,6 +87,9 @@ class Media3AutoLibraryCoordinator(
             )
           }
           isAutoDataLoading = false
+          if (!autoDataLoadedDeferred.isCompleted) {
+            autoDataLoadedDeferred.complete(Unit)
+          }
           val requestsToFulfill = pendingRequests.toList()
           pendingRequests.clear()
           scope.launch {
@@ -104,6 +111,16 @@ class Media3AutoLibraryCoordinator(
       }
     }
   }
+
+  suspend fun awaitAutoDataLoaded() {
+    if (mediaManager.isAutoDataLoaded) return
+    if (!isAutoDataLoading) {
+      loadAutoData()
+    }
+    if (mediaManager.isAutoDataLoaded) return
+    autoDataLoadedDeferred.await()
+  }
+
   companion object {
     private val TAG = Media3AutoLibraryCoordinator::class.java.simpleName
   }
