@@ -24,7 +24,6 @@ import kotlin.coroutines.resume
  */
 class Media3BrowseDataLoader(private val mediaManager: MediaManager) {
 
-  // In-flight request coalescing maps to avoid duplicate concurrent calls
   private val authorBooksRequests: MutableMap<String, Deferred<List<LibraryItem>>> = mutableMapOf()
   private val seriesItemsRequests: MutableMap<String, Deferred<List<LibraryItem>>> = mutableMapOf()
   private val collectionBooksRequests: MutableMap<String, Deferred<List<LibraryItem>>> =
@@ -36,13 +35,10 @@ class Media3BrowseDataLoader(private val mediaManager: MediaManager) {
   private val collectionsListRequests: MutableMap<String, Deferred<List<LibraryCollection>>> =
     mutableMapOf()
 
-  // Helper functions for MediaManager callback wrapping
   private suspend fun <T> withMediaManagerCallback(operation: (callback: (T?) -> Unit) -> Unit): T =
     suspendCancellableCoroutine { continuation ->
       operation { result ->
         if (continuation.isActive) {
-          // If the underlying API returns null, provide a default empty list.
-          // This makes the result non-nullable, matching the function's return type.
           @Suppress("UNCHECKED_CAST")
           val nonNullResult = result ?: (emptyList<Any>() as T)
           continuation.resume(nonNullResult)
@@ -189,7 +185,6 @@ class Media3BrowseDataLoader(private val mediaManager: MediaManager) {
   }
 
   suspend fun loadLibraryDiscoveryBooksWithAudio(libraryId: String): List<LibraryItem> {
-    // Discovery loads can be heavy and duplicated; coalesce per library
     val key = libraryId
     var waiter: Deferred<List<LibraryItem>>? = null
     val created = CompletableDeferred<List<LibraryItem>>()
@@ -198,7 +193,6 @@ class Media3BrowseDataLoader(private val mediaManager: MediaManager) {
       if (existing != null) {
         waiter = existing
       } else {
-        // reuse seriesItemsRequests map here because discovery and series use similar load patterns
         seriesItemsRequests[key] = created as Deferred<List<LibraryItem>>
         waiter = created
       }
@@ -230,7 +224,6 @@ class Media3BrowseDataLoader(private val mediaManager: MediaManager) {
   }
 
   suspend fun loadAuthorBooksWithAudio(libraryId: String, authorId: String): List<LibraryItem> =
-    // Coalesce concurrent identical author requests to avoid duplicate network calls
     run {
       val key = "$libraryId:$authorId"
       var waiter: Deferred<List<LibraryItem>>? = null
@@ -274,7 +267,6 @@ class Media3BrowseDataLoader(private val mediaManager: MediaManager) {
     libraryId: String,
     seriesId: String
   ): List<LibraryItem> {
-    // coalesce series item requests
     val key = "$libraryId:$seriesId"
     var waiter: Deferred<List<LibraryItem>>? = null
     val created = CompletableDeferred<List<LibraryItem>>()

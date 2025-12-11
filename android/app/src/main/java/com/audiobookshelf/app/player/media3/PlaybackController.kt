@@ -32,7 +32,6 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
-// Media3 controller/session APIs require UnstableApi opt-in.
 @UnstableApi
 /**
  * Controls Media3 playback via MediaController, handling session connections and command execution.
@@ -84,7 +83,6 @@ class PlaybackController(private val context: Context) {
   private val getSleepTimerTimeCommand =
     PlaybackConstants.sessionCommand(PlaybackConstants.SleepTimer.ACTION_GET_TIME)
 
-  // Invoked from the UI layer via custom command
   private val forceSyncProgressCommand =
     PlaybackConstants.sessionCommand(PlaybackConstants.Commands.SYNC_PROGRESS_FORCE)
   private val markUiPlaybackEventCommand =
@@ -126,7 +124,6 @@ class PlaybackController(private val context: Context) {
     override fun onEvents(player: Player, events: Player.Events) {
       val mediaController = player as? MediaController
       if (mediaController != null && !mediaController.isConnected) {
-        // Make disconnect synchronous to avoid races with new connection attempts
         disconnectControllerSync(mediaController)
         return
       }
@@ -322,7 +319,6 @@ class PlaybackController(private val context: Context) {
       }
     }
     try {
-      // Wait briefly; this keeps semantics synchronous without risking deadlock
       latch.await(2, TimeUnit.SECONDS)
     } catch (_: InterruptedException) {
     }
@@ -429,7 +425,6 @@ class PlaybackController(private val context: Context) {
     activePlaybackSession = playbackSession
     listener?.onPlaybackSession(playbackSession)
 
-    // Ensure controller is connected before starting service
     connect {
       ensureServiceStarted()
 

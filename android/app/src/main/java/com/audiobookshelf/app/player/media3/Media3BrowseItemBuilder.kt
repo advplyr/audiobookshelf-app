@@ -538,7 +538,6 @@ class Media3BrowseItemBuilder(
         .mapNotNull { podcastItem ->
           val recentEpisode = podcastItem.recentEpisode ?: return@mapNotNull null
 
-          // Align local mapping if available
           podcastItem.localLibraryItemId?.let { localId ->
             val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItemByLId(localId)
             val localEpisode =

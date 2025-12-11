@@ -68,7 +68,6 @@ class Media3SessionCallback(
   private val awaitFinalSync: suspend () -> Unit,
   private val markNextPlaybackEventSourceUi: (() -> Unit)? = null,
   private val suppressFinalServerSync: (() -> Unit)? = null,
-  // Extras keys
   private val debug: ((() -> String) -> Unit),
   private val sessionController: SessionController? = null
 ) : MediaLibraryService.MediaLibrarySession.Callback {
@@ -152,7 +151,6 @@ class Media3SessionCallback(
         "VOL_ADJ=${cmd(Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS)}"
     }
 
-    // Advertise custom session commands alongside defaults so controllers can render actions
     val sessionCommands = run {
       val baseSessionCommands = sessionController?.availableSessionCommands
         ?: MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
@@ -376,7 +374,6 @@ class Media3SessionCallback(
   ): ListenableFuture<MutableList<MediaItem>> {
     return scope.future {
       awaitFinalSync()
-      // Signal service to avoid server sync on the final close of the current session (handoff).
       suppressFinalServerSync?.invoke()
       val requestedMediaItem = mediaItems.firstOrNull()
       if (requestedMediaItem == null) {

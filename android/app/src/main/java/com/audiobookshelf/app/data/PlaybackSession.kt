@@ -12,11 +12,11 @@ import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.R
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.media.MediaProgressSyncData
-import com.audiobookshelf.app.player.*
+import com.audiobookshelf.app.player.PLAYMETHOD_DIRECTPLAY
+import com.audiobookshelf.app.player.PLAYMETHOD_LOCAL
+import com.audiobookshelf.app.player.PLAYMETHOD_TRANSCODE
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-// PlaybackSession is a data model and should not depend on ExoPlayer types.
-// ExoPlayer types moved to player-side adapter to avoid leaking playback implementation
 import com.google.android.gms.cast.MediaInfo
 import com.google.android.gms.cast.MediaQueueItem
 import com.google.android.gms.common.images.WebImage

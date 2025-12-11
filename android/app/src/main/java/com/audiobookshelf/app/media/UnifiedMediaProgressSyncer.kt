@@ -43,8 +43,8 @@ class UnifiedMediaProgressSyncer(
   private val onPlaybackEvent: (event: String, session: PlaybackSession, syncResult: SyncResult?) -> Unit
 ) {
   private val tag = "UnifiedMediaProgressSync"
-  private val METERED_CONNECTION_SYNC_INTERVAL = 60000L // 60 seconds
-  private val PERIODIC_SYNC_INTERVAL = 15000L // 15 seconds
+  private val METERED_CONNECTION_SYNC_INTERVAL = 60000L
+  private val PERIODIC_SYNC_INTERVAL = 15000L
 
   private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -74,6 +74,7 @@ class UnifiedMediaProgressSyncer(
     playbackEventSource = source
   }
 
+  // ------------ Lifecycle control ------------
   /**
    * Start the 15-second periodic sync loop.
    */
@@ -99,7 +100,6 @@ class UnifiedMediaProgressSyncer(
     serverSessionClosed = false
     Log.d(tag, "start: Started 15s periodic sync loop for ${playbackSession.displayTitle}")
 
-    // Schedule 15s periodic sync loop
     syncTimerTask = Timer("UnifiedListeningTimer", false).schedule(
       PERIODIC_SYNC_INTERVAL,
       PERIODIC_SYNC_INTERVAL
@@ -108,7 +108,6 @@ class UnifiedMediaProgressSyncer(
         if (playbackTelemetryProvider.isPlayerActive()) {
           playbackTelemetryProvider.checkAutoSleepTimer()
 
-          // Determine if we should attempt server sync
           val shouldSyncServer =
             playbackTelemetryProvider.isUnmeteredNetwork ||
               System.currentTimeMillis() - lastSyncTime >= METERED_CONNECTION_SYNC_INTERVAL
@@ -117,7 +116,6 @@ class UnifiedMediaProgressSyncer(
           if (currentTime > 0) {
             sync(shouldSyncServer, currentTime) { syncResult ->
               Log.d(tag, "Periodic sync complete for $currentDisplayTitle at ${currentTime}s")
-              // Emit Save event with sync result attached
               currentPlaybackSession?.let { session ->
                 onPlaybackEvent("save", session, syncResult)
               }
@@ -142,7 +140,6 @@ class UnifiedMediaProgressSyncer(
    */
   fun pause(onComplete: () -> Unit) {
     if (!isSyncTimerRunning) {
-      // Loop already stopped; still emit pause with freshest time if available.
       val currentTime = playbackTelemetryProvider.getCurrentTimeSeconds()
       if (currentTime > 0 && currentPlaybackSession != null) {
         sync(true, currentTime, force = true) { syncResult ->
@@ -180,7 +177,6 @@ class UnifiedMediaProgressSyncer(
           playbackEventSource
           playbackEventSource = PlaybackEventSource.SYSTEM
           applyRefreshedTimeToSession(session)
-          // Pause event emitted with sync result
           onPlaybackEvent("pause", session, syncResult)
         }
         onComplete()
@@ -263,13 +259,13 @@ class UnifiedMediaProgressSyncer(
     }
   }
 
+  // ------------ Event helpers ------------
   /**
    * Seek: Mark that a seek occurred for telemetry.
    * Seek event emission happens at listener/pipeline level.
    */
   fun seek() {
     Log.d(tag, "seek: Seek detected")
-    // Just mark for metrics; event emission happens elsewhere
   }
 
   fun reset() {
@@ -285,45 +281,7 @@ class UnifiedMediaProgressSyncer(
     playbackEventSource = PlaybackEventSource.SYSTEM
   }
 
-  /**
-   * Mark the current session as closed so we skip further server sync attempts.
-   * Useful during handoff when the server has already invalidated the session.
-   */
-  fun markCurrentSessionClosed() {
-    serverSessionClosed = true
-  }
-
-  fun syncNow(
-    event: String,
-    session: PlaybackSession,
-    shouldSyncServer: Boolean = true,
-    onComplete: (SyncResult?) -> Unit = {}
-  ) {
-    currentPlaybackSession = session.clone()
-    localMediaProgress = null
-    if (lastSyncTime == 0L) {
-      lastSyncTime = System.currentTimeMillis() - 2000L // ensure diffSinceLastSync >= 1s
-    }
-    val currentTime =
-      playbackTelemetryProvider.getCurrentTimeSeconds().takeIf { it > 0 } ?: session.currentTime
-    sync(shouldSyncServer, currentTime) { result ->
-      if (result != null) {
-        currentPlaybackSession?.let { playbackSession ->
-          onPlaybackEvent(event, playbackSession, result)
-        }
-      } else {
-        // Some callers expect an event even when a sync was skipped (for example pause/stop/finished).
-        // Emit terminal lifecycle events even when the sync logic decides to no-op so history isn't
-        // dropped.
-        if (event == "pause" || event == "stop" || event == "finished") {
-          currentPlaybackSession?.let { playbackSession ->
-            onPlaybackEvent(event, playbackSession, null)
-          }
-        }
-      }
-      onComplete(result)
-    }
-  }
+  // ------------ Sync helpers ------------
 
   /**
    * Perform actual sync: save to DB, optionally sync to server.
@@ -343,7 +301,6 @@ class UnifiedMediaProgressSyncer(
     Log.d(tag, "sync: Starting sync for $currentDisplayTitle at ${currentTime}s")
     val timeSinceLastSyncMillis = System.currentTimeMillis() - lastSyncTime
 
-    // If we synced very recently and playback time hasn't advanced, skip duplicate server calls.
     val lastSyncedPlaybackTime = currentPlaybackSession?.currentTime ?: 0.0
     val playbackTimeDeltaSeconds = currentTime - lastSyncedPlaybackTime
     if (timeSinceLastSyncMillis in 1000L..5000L && playbackTimeDeltaSeconds <= 0.5) {
@@ -357,11 +314,10 @@ class UnifiedMediaProgressSyncer(
 
     if (!force && timeSinceLastSyncMillis < 1000L) {
       Log.d(tag, "sync: Skip; diffSinceLastSync=${timeSinceLastSyncMillis}ms (<1s) force=$force")
-      onComplete(null) // Treat as no-op so we don't emit duplicate local saves
+      onComplete(null)
       return
     }
 
-    // If the server already told us this session is closed, don't keep sending bad syncs.
     if (!currentIsLocal && serverSessionClosed) {
       Log.d(tag, "sync: Skip server sync because session is closed for $currentSessionId")
       onComplete(SyncResult(false, null, "server_session_closed"))
@@ -381,7 +337,6 @@ class UnifiedMediaProgressSyncer(
 
     val hasNetworkConnection = DeviceManager.checkConnectivity(playbackTelemetryProvider.appContext)
 
-    // Persist playback session locally (server-linked sessions only). Removed after successful server sync.
     currentPlaybackSession?.let { DeviceManager.dbManager.savePlaybackSession(it) }
 
     if (currentIsLocal) {
@@ -509,5 +464,42 @@ class UnifiedMediaProgressSyncer(
       session.currentTime = pendingTime
     }
     pendingPlaybackTime = null
+  }
+
+  /**
+   * Mark the current session as closed so we skip further server sync attempts.
+   * Useful during handoff when the server has already invalidated the session.
+   */
+  fun markCurrentSessionClosed() {
+    serverSessionClosed = true
+  }
+
+  fun syncNow(
+    event: String,
+    session: PlaybackSession,
+    shouldSyncServer: Boolean = true,
+    onComplete: (SyncResult?) -> Unit = {}
+  ) {
+    currentPlaybackSession = session.clone()
+    localMediaProgress = null
+    if (lastSyncTime == 0L) {
+      lastSyncTime = System.currentTimeMillis() - 2000L
+    }
+    val currentTime =
+      playbackTelemetryProvider.getCurrentTimeSeconds().takeIf { it > 0 } ?: session.currentTime
+    sync(shouldSyncServer, currentTime) { result ->
+      if (result != null) {
+        currentPlaybackSession?.let { playbackSession ->
+          onPlaybackEvent(event, playbackSession, result)
+        }
+      } else {
+        if (event == "pause" || event == "stop" || event == "finished") {
+          currentPlaybackSession?.let { playbackSession ->
+            onPlaybackEvent(event, playbackSession, null)
+          }
+        }
+      }
+      onComplete(result)
+    }
   }
 }

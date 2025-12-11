@@ -91,9 +91,9 @@ class LibraryAuthorItem(
       .setTitle(this.title)
       .setSubtitle(subtitle)
       .setArtworkUri(getPortraitUri())
-      .setIsBrowsable(true) // An author is always a browsable folder
+      .setIsBrowsable(true)
       .setIsPlayable(false)
-      .setExtras(extras) // Apply the extras bundle
+      .setExtras(extras)
       .build()
 
     return MediaItem.Builder()
@@ -103,8 +103,7 @@ class LibraryAuthorItem(
   }
 
   /**
-   * The modern, public override for getMediaItem. It calls the detailed
-   * implementation with a null groupTitle, perfectly mirroring the ExoPlayer pattern.
+   * The public override that forwards to the detailed Media3 builder with no group title.
    */
   @JsonIgnore
   override fun getMediaItem(progress: MediaProgressWrapper?, context: Context): MediaItem {

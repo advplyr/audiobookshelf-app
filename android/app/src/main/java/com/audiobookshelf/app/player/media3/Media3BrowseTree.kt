@@ -31,7 +31,7 @@ import kotlin.coroutines.resume
 /**
  * Handles the creation of a browsable media tree for Media3 clients like Android Auto.
  */
-@OptIn(UnstableApi::class) // Media3 MediaItem/Metadata helpers are marked unstable
+@OptIn(UnstableApi::class)
 class Media3BrowseTree(
   private val context: Context,
   private val mediaManager: MediaManager
@@ -138,7 +138,6 @@ class Media3BrowseTree(
     }
     val userProgressMs = userMediaProgress?.currentTime?.times(1000)?.toLong() ?: 0L
     val sessionCurrentTimeMs = session.currentTimeMs
-    // Use whichever is greater than zero; cap to duration.
     val resumeCandidateMs = if (userProgressMs > 0) userProgressMs else sessionCurrentTimeMs
     return resumeCandidateMs.coerceIn(0L, session.totalDurationMs)
   }
@@ -153,19 +152,17 @@ class Media3BrowseTree(
   }
 
   /**
-   * Suggestion 4: A dedicated data class for clarity instead of a Pair.
    * Represents the media item to be played, which could be a standalone item or an episode within a podcast.
    */
   private data class MediaTarget(
     val libraryItem: LibraryItemWrapper,
-    val episode: PodcastEpisode? = null // Nullable to represent items that aren't episodes
+    val episode: PodcastEpisode? = null
   )
 
   /**
    * Finds the media target from a given mediaId.
    */
   private fun findMediaTarget(mediaId: String): MediaTarget? {
-    // Suggestion 1: Simplified and more readable chaining
     return mediaManager.getById(mediaId)?.let { MediaTarget(it) }
       ?: mediaManager.getPodcastWithEpisodeByEpisodeId(mediaId)?.let {
         MediaTarget(it.libraryItemWrapper, it.episode)
@@ -173,8 +170,8 @@ class Media3BrowseTree(
   }
 
   /**
-   * Suggestion 2: Wraps the callback-based API into a modern suspend function.
-   * This makes the calling code cleaner and improves error/cancellation handling.
+   * Requests a playback session using the callback-based API wrapped inside a suspend helper.
+   * This keeps the calling code sequential and cancellable.
    */
   private suspend fun requestPlaybackSession(
     mediaTargetPair: MediaTarget,
@@ -193,9 +190,7 @@ class Media3BrowseTree(
       }
     }
 
-    // Automatically handles cancellation by invoking this block if the coroutine is cancelled.
     sessionContinuation.invokeOnCancellation {
-      // If your mediaManager supports request cancellation, you would call it here.
       Log.w(
         "M3BrowseTree",
         "Playback request was cancelled for library item: ${mediaTargetPair.libraryItem.id}"
@@ -219,7 +214,7 @@ class Media3BrowseTree(
   suspend fun getItem(mediaId: String): MediaItem? {
     Log.d("M3BrowseTree", "getItem: Resolving mediaId='$mediaId'")
 
-    // First, handle all known browsable category IDs
+
     when {
         mediaId == ROOT_ID -> return getRootItem()
         mediaId == DOWNLOADS_ID -> return createBrowsableCategory(DOWNLOADS_ID, "Downloads", "downloads")
@@ -315,7 +310,7 @@ class Media3BrowseTree(
         }
     }
 
-    // If it wasn't a browsable category, assume it's a playable item ID.
+
     val mediaTargetPair = mediaManager.getById(mediaId)?.let { it to null }
         ?: mediaManager.getPodcastWithEpisodeByEpisodeId(mediaId)?.let {
             it.libraryItemWrapper to it.episode
@@ -331,7 +326,7 @@ class Media3BrowseTree(
         it.libraryItemId == libraryItem.id && it.episodeId == episode?.id
     }
 
-    // Use the existing getMediaItem() helpers on the data classes.
+
     return episode?.getMediaItem(libraryItem, userMediaProgress, context)
       ?: libraryItem.getMediaItem(userMediaProgress, context)
   }
@@ -412,9 +407,6 @@ suspend fun getChildren(parentId: String): ImmutableList<MediaItem> {
       .build()
   }
 
-  // Deprecated duplicate browse-building helpers removed; functionality has been
-  // consolidated into `Media3BrowseItemBuilder` and `Media3BrowseDataLoader`.
-
   private fun buildMediaItem(
     mediaId: String, title: String, subtitle: String?, artworkUri: Uri?,
     isBrowsable: Boolean, mimeType: String?, extras: Bundle? = null
@@ -441,9 +433,6 @@ suspend fun getChildren(parentId: String): ImmutableList<MediaItem> {
     return buildMediaItem(categoryId, title, null, artworkUri, true, null)
   }
 
-  // Helper logic for author/library grouping and cover resolution
-  // has been moved to `Media3BrowseItemBuilder` and `Media3BrowseDataLoader`.
-
   companion object {
     const val ROOT_ID = "__ROOT__"
     const val DOWNLOADS_ID = "__DOWNLOADS__"
@@ -453,6 +442,3 @@ suspend fun getChildren(parentId: String): ImmutableList<MediaItem> {
   }
 }
 
-
-// `resolveLocalDownloadCover` moved to `Media3BrowseItemBuilder.kt` to centralize
-// download-cover resolution logic. The duplicate implementation was removed.

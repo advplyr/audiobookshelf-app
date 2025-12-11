@@ -78,7 +78,6 @@ class LibrarySeriesItem(
   ): MediaItem {
     val extras = Bundle()
 
-    // This is the correct, modern way to provide the group title hint for Media3.
     if (groupTitle != null) {
       extras.putString(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_GROUP_TITLE, groupTitle)
     }
@@ -89,7 +88,7 @@ class LibrarySeriesItem(
     val metadata = MediaMetadata.Builder()
       .setTitle(this.title)
       .setSubtitle(subtitle)
-      .setIsBrowsable(true) // A Series is always a browsable folder of books
+      .setIsBrowsable(true)
       .setIsPlayable(false)
       .setExtras(extras)
       .build()
@@ -101,8 +100,7 @@ class LibrarySeriesItem(
   }
 
   /**
-   * The modern, public override for getMediaItem. It calls the detailed
-   * implementation with a null groupTitle, perfectly mirroring the ExoPlayer pattern.
+   * Public Media3 override that forwards to the detailed `getMediaItem` with a null group title.
    */
   @JsonIgnore
   override fun getMediaItem(progress: MediaProgressWrapper?, context: Context): MediaItem {

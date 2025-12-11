@@ -18,7 +18,6 @@ import androidx.media3.session.SessionResult
 class SessionController(
   private val context: Context,
   val availableSessionCommands: SessionCommands,
-  // Sleep timer operations and other callbacks
   private val setSleepTimer: (sessionId: String, timeMs: Long, isChapter: Boolean) -> Unit,
   private val cancelSleepTimer: () -> Unit,
   private val adjustSleepTimer: (deltaMs: Long, increase: Boolean) -> Unit,
@@ -64,7 +63,6 @@ class SessionController(
 
   fun onCustomCommand(command: SessionCommand, commandData: Bundle?): SessionResult {
     val customAction = command.customAction
-    // Build canonical commands/keys from PlaybackConstants so callers don't need to supply them.
     val syncProgressForceCommand = SessionCommand(
       com.audiobookshelf.app.player.PlaybackConstants.Commands.SYNC_PROGRESS_FORCE,
       Bundle.EMPTY
@@ -143,7 +141,6 @@ class SessionController(
       if (session != null && absolutePositionMs != null) {
         val targetChapter = resolvePreviousChapter(session, absolutePositionMs)
         if (targetChapter != null) {
-          // Use absolute seek via player
           playerProvider()?.seekTo(targetChapter.startMs)
           return SessionResult(SessionResult.RESULT_SUCCESS)
         }
@@ -196,7 +193,6 @@ class SessionController(
     if (customAction.contains("CLOSE_PLAYBACK")) {
       closePlaybackCallback(null); return SessionResult(SessionResult.RESULT_SUCCESS)
     }
-    // Default success
     return SessionResult(SessionResult.RESULT_SUCCESS)
   }
 
@@ -222,7 +218,6 @@ class SessionController(
   ): Player.Commands {
     val player = playerProvider()
     if (player == null) {
-      // Player not yet available; return a reasonable default so controllers still show play/pause
       val fallbackCommands = Player.Commands.Builder()
         .add(Player.COMMAND_PLAY_PAUSE)
         .add(Player.COMMAND_SEEK_BACK)
@@ -239,7 +234,6 @@ class SessionController(
     val builder = Player.Commands.Builder().addAll(baseCommands)
 
     if (isWearController) {
-      // Allow custom buttons for wear
       builder.remove(Player.COMMAND_SEEK_TO_PREVIOUS)
       builder.remove(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
       builder.remove(Player.COMMAND_SEEK_TO_NEXT)

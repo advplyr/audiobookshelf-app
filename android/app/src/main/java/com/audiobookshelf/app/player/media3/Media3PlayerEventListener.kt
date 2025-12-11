@@ -199,7 +199,6 @@ class Media3PlayerEventListener(
 
     listener.playbackMetrics.recordRecoverableRetry()
 
-    // Exponential backoff: 1s, 2s, 4s
     val retryBackoffDelayMs =
       (listener.retryBackoffStepMs * (1 shl (consecutiveErrorCount - 1))).coerceAtMost(4 * listener.retryBackoffStepMs)
     listener.debug { "Recoverable playbackError (attempt $consecutiveErrorCount/$maxRetryAttempts), retrying in ${retryBackoffDelayMs}ms" }

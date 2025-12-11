@@ -39,7 +39,7 @@ class Media3AutoLibraryCoordinator(
       Log.d(TAG, "requestChildren(parentId=$parentId, params=$params)")
     }
     val future = SettableFuture.create<LibraryResult<ImmutableList<MediaItem>>>()
-    if (!needsInitialLoad(parentId)) {
+    if (!needsInitialLoad()) {
       fulfillRequest(parentId, params, future)
       return future
     }
@@ -51,12 +51,7 @@ class Media3AutoLibraryCoordinator(
     return future
   }
 
-  private fun needsInitialLoad(parentId: String): Boolean {
-    // Queue any early browse requests until the Android Auto data load completes.
-    // Previously only the ROOT request was used to trigger loading; that allowed
-    // clients (car head units) to request sub-parents before the data was ready
-    // and receive empty results. Treat any request as needing the initial load
-    // when the manager has not finished initializing.
+  private fun needsInitialLoad(): Boolean {
     return !mediaManager.isAutoDataLoaded
   }
 
@@ -79,9 +74,7 @@ class Media3AutoLibraryCoordinator(
     if (BuildConfig.DEBUG) Log.d(TAG, "loadAutoData() start")
     isAutoDataLoading = true
     mediaManager.loadAndroidAutoItems {
-      // Load personalized data (recent shelves) for all libraries.
       mediaManager.populatePersonalizedDataForAllLibraries {
-        // Warm in-progress cache so Continue Listening has data (matches ExoPlayer flow).
         mediaManager.initializeInProgressItems {
           if (BuildConfig.DEBUG) {
             Log.d(

@@ -72,12 +72,10 @@ class CustomMediaNotificationProvider(
     var actionIndex = 0
     val compactViewActionIndices = intArrayOf(-1, -1, -1)
 
-    // Back
     builder.addAction(seekBackAction)
     compactViewActionIndices[0] = 0
     actionIndex += 1
 
-    // Play/Pause
     if (playPauseButton != null) {
       val iconRes = if (playPauseButton.iconResId != 0) playPauseButton.iconResId else defaultIcon
       val display = playPauseButton.displayName
@@ -92,12 +90,10 @@ class CustomMediaNotificationProvider(
       actionIndex += 1
     }
 
-    // Forward
     builder.addAction(seekForwardAction)
     compactViewActionIndices[2] = actionIndex
     actionIndex += 1
 
-    // Append remaining custom/session actions (e.g., speed), skipping duplicates
     mediaButtons.forEach { button ->
       val isDuplicatePlayerCommand = button.playerCommand == Player.COMMAND_SEEK_BACK ||
                   button.playerCommand == Player.COMMAND_SEEK_FORWARD ||
@@ -132,7 +128,6 @@ class CustomMediaNotificationProvider(
     mediaButtonPreferences: ImmutableList<CommandButton>,
     showPauseButton: Boolean
   ): ImmutableList<CommandButton> {
-    // Build canonical service buttons (back, forward, speed)
     val builtButtons = mutableListOf<CommandButton>()
     val seekBackCmd = if (playerCommands.contains(Player.COMMAND_SEEK_BACK))
       CommandButton.Builder(CommandButton.ICON_SKIP_BACK_10)
@@ -169,12 +164,10 @@ class CustomMediaNotificationProvider(
     builtButtons.add(seekFwdCmd)
     builtButtons.add(speedCmd)
 
-    // If session provided preferences are empty, return built defaults
     if (mediaButtonPreferences.isEmpty()) {
       return ImmutableList.copyOf(builtButtons)
     }
 
-    // Merge: start with built buttons keyed by session customAction or playerCommand, allow session prefs to override
     val map = linkedMapOf<String, CommandButton>()
     builtButtons.forEach { btn -> keyOf(btn)?.let { map[it] = btn } }
     mediaButtonPreferences.forEach { btn ->

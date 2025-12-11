@@ -185,8 +185,7 @@ class LibraryItem(
   }
 
   /**
-   * The modern, Media3 counterpart to getMediaDescription.
-   * This is the most detailed version that all other overloads will call.
+   * Builds the detailed Media3 `MediaItem` for this library entry; other overloads delegate here.
    */
   @OptIn(UnstableApi::class)
   @JsonIgnore
@@ -264,9 +263,9 @@ class LibraryItem(
     val metadata = MediaMetadata.Builder()
       .setTitle(itemTitle)
       .setSubtitle(subtitle)
-      .setArtist(authorName) // Always good to have the artist
+      .setArtist(authorName)
       .setArtworkUri(getCoverUri())
-      .setIsPlayable(collapsedSeries == null) // A series is browsable, a book is playable
+      .setIsPlayable(collapsedSeries == null)
       .setIsBrowsable(collapsedSeries != null)
       .setExtras(extras)
       .build()
@@ -276,8 +275,6 @@ class LibraryItem(
       .setMediaMetadata(metadata)
       .build()
   }
-
-// --- Create the public overloads that mirror the legacy structure ---
 
   @JsonIgnore
   fun getMediaItem(

@@ -53,7 +53,6 @@ class PlaybackPipeline(
     }
     val mediaSourceFactory = DefaultMediaSourceFactory(context, extractorsFactory)
 
-    // Use the same aggressive buffer settings as the legacy ExoPlayer v2 for fast startup
     val customLoadControl = DefaultLoadControl.Builder()
       .setBufferDurationsMs(
         1000 * 20, // 20s min buffer

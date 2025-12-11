@@ -41,8 +41,7 @@ class LibraryCollection(
   }
 
   /**
-   * The modern, Media3 counterpart to getMediaDescription.
-   * A Collection is always a browsable folder, not a playable item.
+   * Builds the Media3 `MediaItem` for a collection, which remains browsable.
    */
   @JsonIgnore
   override fun getMediaItem(progress: MediaProgressWrapper?, context: Context): MediaItem {
@@ -52,7 +51,7 @@ class LibraryCollection(
     val metadata = MediaMetadata.Builder()
       .setTitle(this.title)
       .setSubtitle(subtitle)
-      .setIsBrowsable(true) // A collection is a browsable folder of books
+      .setIsBrowsable(true)
       .setIsPlayable(false)
       .build()
 

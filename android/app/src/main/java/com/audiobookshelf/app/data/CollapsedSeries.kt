@@ -37,8 +37,7 @@ class CollapsedSeries(
   }
 
   /**
-   * The modern, Media3 counterpart to getMediaDescription.
-   * A CollapsedSeries is always a browsable folder, not a playable item.
+   * Constructs the Media3 `MediaItem` for a collapsed series (browsable only).
    */
   @JsonIgnore
   override fun getMediaItem(progress: MediaProgressWrapper?, context: Context): MediaItem {
@@ -49,7 +48,7 @@ class CollapsedSeries(
     val metadata = MediaMetadata.Builder()
       .setTitle(this.title)
       .setSubtitle(subtitle)
-      .setIsBrowsable(true) // A series is a browsable folder
+      .setIsBrowsable(true)
       .setIsPlayable(false)
       .setExtras(extras)
       .build()

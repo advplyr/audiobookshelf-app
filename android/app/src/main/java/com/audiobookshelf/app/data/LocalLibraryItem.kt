@@ -202,8 +202,7 @@ class LocalLibraryItem(
   }
 
   /**
-   * The modern, Media3 counterpart to getMediaDescription.
-   * Creates a fully-formed, playable MediaItem for a local item.
+   * Creates the Media3 `MediaItem` for this local library entry, including download/completion metadata.
    */
   @OptIn(UnstableApi::class)
   @JsonIgnore
@@ -245,8 +244,8 @@ class LocalLibraryItem(
       .setTitle(this.title)
       .setArtist(this.authorName)
       .setArtworkUri(getCoverUri(context))
-      .setIsPlayable(true)  // A local item is always playable
-      .setIsBrowsable(isPodcast) // A local podcast is a browsable folder of episodes
+      .setIsPlayable(true)
+      .setIsBrowsable(isPodcast)
       .setExtras(extras)
       .build()
 
