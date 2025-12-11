@@ -37,17 +37,23 @@ jobs:
         run: npx cap sync
 
       - name: build Android app
-        run: ./android/gradlew assembleDebug -p android --no-daemon
+        run: ./android/gradlew :app:assembleExov2Debug :app:assembleMedia3Debug -p android --no-daemon
 
-      - name: rename apk
-        working-directory: android/app/build/outputs/apk/debug/
+      - name: rename apks
         run: |
           build="$(date +%Y%m%d-%H%M%S)-$(git rev-parse --short HEAD)"
-          name="audiobookshelf-${build}.apk"
-          mv -v app-debug.apk "${name}"
+          for variant in exov2 media3; do
+            dir="android/app/build/outputs/apk/${variant}/debug"
+            if [ -d "${dir}" ]; then
+              for apk in "${dir}"/*.apk; do
+                name="audiobookshelf-${variant}-${build}.apk"
+                mv -v "${apk}" "${dir}/${name}"
+              done
+            fi
+          done
 
       - name: upload app
         uses: actions/upload-artifact@v4
         with:
-          name: audiobookshelf-apk
-          path: android/app/build/outputs/apk/debug/*.apk
+          name: audiobookshelf-apks
+          path: android/app/build/outputs/apk/*/debug/*.apk
