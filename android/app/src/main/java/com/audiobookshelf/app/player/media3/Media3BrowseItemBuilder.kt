@@ -322,12 +322,12 @@ class Media3BrowseItemBuilder(
    * Convert a LibraryItem to a MediaItem appropriate for browse contexts.
    */
   fun libraryItemToMediaItem(libraryItem: LibraryItem, parentId: String): MediaItem {
+    val parentIdSegments = parentId.split("__")
+    val parentLibraryId = parentIdSegments.getOrNull(2)?.trimStart('_')
     val isSubFolderBrowseContext = parentId.contains("__AUTHOR__")
       || parentId.contains("__SERIES__")
       || parentId.contains("__COLLECTION__")
       || parentId.contains("__DISCOVERY__")
-
-    val parentLibraryId = parentId.split("__").getOrNull(2)?.trimStart('_')
 
     if (libraryItem.mediaType == "podcast" && parentId.startsWith(RECENTLY_ROOT)) {
       val mediaMetadata = MediaMetadata.Builder()
@@ -362,16 +362,22 @@ class Media3BrowseItemBuilder(
 
     val isPodcast = libraryItem.mediaType == "podcast"
     val canBeBrowsed = if (isSubFolderBrowseContext) false else isPodcast
+    val progress = mediaManager.serverUserMediaProgress.find {
+      it.libraryItemId == libraryItem.id && it.episodeId.isNullOrBlank()
+    }
+    val authorId = if (parentId.contains("__AUTHOR__")) parentIdSegments.getOrNull(4) else null
+    val showSeriesNumber =
+      parentId.contains("__SERIES__") || parentId.contains("__AUTHOR_SERIES__")
 
     if (!canBeBrowsed) {
-      val mediaItem = libraryItem.getMediaItem(null, context)
+      val mediaItem =
+        libraryItem.getMediaItem(progress, context, authorId, showSeriesNumber, null)
       val localUri = resolveLocalCoverUri(libraryItem)
       if (localUri != null && mediaItem.mediaMetadata.artworkUri != localUri) {
         val updatedMetadata = mediaItem.mediaMetadata.buildUpon().setArtworkUri(localUri).build()
         return mediaItem.buildUpon().setMediaMetadata(updatedMetadata).build()
-      } else {
-        return mediaItem
       }
+      return mediaItem
     }
 
     val mediaId = "${parentId}_${libraryItem.id}"

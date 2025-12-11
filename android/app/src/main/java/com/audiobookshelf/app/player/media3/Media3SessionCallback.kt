@@ -86,17 +86,14 @@ class Media3SessionCallback(
   ) {
     try {
       val controllerPackageName = controllerInfo.packageName
-      val player = playerProvider()
-      val jumpBackwardDurationMs = seekConfig.jumpBackwardMs
-      val jumpForwardDurationMs = seekConfig.jumpForwardMs
-      if (controllerPackageName.contains(
-          "wear",
-          ignoreCase = true
-        ) || controllerPackageName.contains(
-          "com.google.android.apps.wear",
-          ignoreCase = true
-        )
-      ) {
+      val isWearController = controllerPackageName.contains("wear", ignoreCase = true) ||
+        controllerPackageName.contains("com.google.android.apps.wear", ignoreCase = true)
+
+      if (isWearController) {
+        val player = playerProvider()
+        val jumpBackwardDurationMs = seekConfig.jumpBackwardMs
+        val jumpForwardDurationMs = seekConfig.jumpForwardMs
+
         if (playerCommands.contains(Player.COMMAND_SEEK_BACK) || playerCommands.contains(Player.COMMAND_SEEK_TO_PREVIOUS)) {
           val currentPositionMs = player.currentPosition
           val target = (currentPositionMs - jumpBackwardDurationMs).coerceAtLeast(0L)
