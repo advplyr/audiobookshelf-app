@@ -188,24 +188,10 @@ object DeviceManager {
 
   /**
    * Retrieves the last saved playback session from persistent storage.
-   * This is crucial for session resumption.
-   *   * @return The last PlaybackSession, or null if none is saved.
+   * @return The last PlaybackSession, or null if none is saved.
    */
   fun getLastPlaybackSession(): PlaybackSession? {
-    // The DbManager is responsible for loading the data initially, so we just
-    // need to return the in-memory copy. We might add a reload here if neededKotlin,
-    // but for now, this is the correct direct access pattern.
     return deviceData.lastPlaybackSession
-  }
-
-  /**
-   * Checks if there are any locally stored media items.
-   * @return True if there is at least one local book or podcast, false otherwise.
-   */
-  fun hasLocalMedia(): Boolean {
-    val localBooks = dbManager.getLocalLibraryItems("book")
-    val localPodcasts = dbManager.getLocalLibraryItems("podcast")
-    return localBooks.isNotEmpty() || localPodcasts.isNotEmpty()
   }
 
   /**
