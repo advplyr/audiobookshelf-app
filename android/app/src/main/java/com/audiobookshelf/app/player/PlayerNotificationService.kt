@@ -584,10 +584,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
       return
     }
 
-    if (!BuildConfig.USE_MEDIA3) {
-      // Use the existing MediaSource-based approach for ExoPlayer
-      val mediaSource: MediaSource
-
+    if (mPlayer == currentPlayer) {
+      val mediaSource: MediaSource =
         if (playbackSession.isLocal) {
           AbsLogger.info("PlayerNotificationService", "preparePlayer: Playing local item ${currentPlaybackSession?.mediaItemId}.")
           val dataSourceFactory = DefaultDataSource.Factory(ctx)
@@ -597,9 +595,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
             extractorsFactory.setMp3ExtractorFlags(Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING)
           }
 
-          mediaSource =
-            ProgressiveMediaSource.Factory(dataSourceFactory, extractorsFactory)
-              .createMediaSource(exoMediaItems[0])
+          ProgressiveMediaSource.Factory(dataSourceFactory, extractorsFactory)
+            .createMediaSource(exoMediaItems[0])
         } else if (!playbackSession.isHLS) {
           AbsLogger.info("PlayerNotificationService", "preparePlayer: Direct playing item ${currentPlaybackSession?.mediaItemId}.")
           val dataSourceFactory = DefaultHttpDataSource.Factory()
@@ -610,9 +607,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
           }
 
           dataSourceFactory.setUserAgent(channelId)
-          mediaSource =
-            ProgressiveMediaSource.Factory(dataSourceFactory, extractorsFactory)
-              .createMediaSource(exoMediaItems[0])
+          ProgressiveMediaSource.Factory(dataSourceFactory, extractorsFactory)
+            .createMediaSource(exoMediaItems[0])
         } else {
           AbsLogger.info("PlayerNotificationService", "preparePlayer: Playing HLS stream of item ${currentPlaybackSession?.mediaItemId}.")
           val dataSourceFactory = DefaultHttpDataSource.Factory()
@@ -620,78 +616,42 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
           dataSourceFactory.setDefaultRequestProperties(
             hashMapOf("Authorization" to "Bearer ${DeviceManager.token}")
           )
-          mediaSource = HlsMediaSource.Factory(dataSourceFactory).createMediaSource(exoMediaItems[0])
+          HlsMediaSource.Factory(dataSourceFactory).createMediaSource(exoMediaItems[0])
         }
-        mPlayer.setMediaSource(mediaSource)
 
-        // Add remaining media items if multi-track
-        if (mediaItems.size > 1) {
-          mPlayer.addMediaItems(exoMediaItems.subList(1, mediaItems.size))
-          Log.d(tag, "currentPlayer total media items ${mPlayer.mediaItemCount}")
+      mPlayer.setMediaSource(mediaSource)
 
-          val currentTrackIndex = playbackSession.getCurrentTrackIndex()
-          val currentTrackTime = playbackSession.getCurrentTrackTimeMs()
-          Log.d(
-            tag,
-            "currentPlayer current track index $currentTrackIndex & current track time $currentTrackTime"
-          )
-          mPlayer.seekTo(currentTrackIndex, currentTrackTime)
-        } else {
-          mPlayer.seekTo(playbackSession.currentTimeMs)
-        }
-    } else {
-      AbsLogger.info(
-        "PlayerNotificationService",
-        "preparePlayer: Using setMediaItems for ${mediaItems.size} items"
-      )
+      // Add remaining media items if multi-track
+      if (mediaItems.size > 1) {
+        currentPlayer.addMediaItems(exoMediaItems.subList(1, mediaItems.size))
+        Log.d(tag, "currentPlayer total media items ${currentPlayer.mediaItemCount}")
 
-      val exoMediaItems = mediaItems.map { dto ->
-        val builder = MediaItem.Builder().setUri(dto.uri)
-          .setMediaId(dto.mediaId)
-        dto.tag?.let { builder.setTag(it) }
-        dto.mimeType?.let { builder.setMimeType(it) }
-        builder.build()
-      }
-
-      val currentTrackIndex = if (mediaItems.size > 1) {
-        playbackSession.getCurrentTrackIndex()
+        val currentTrackIndex = playbackSession.getCurrentTrackIndex()
+        val currentTrackTime = playbackSession.getCurrentTrackTimeMs()
+        Log.d(
+          tag,
+          "currentPlayer current track index $currentTrackIndex & current track time $currentTrackTime"
+        )
+        currentPlayer.seekTo(currentTrackIndex, currentTrackTime)
       } else {
-        0
-      }
-
-      val startPosition = if (mediaItems.size > 1) {
-        playbackSession.getCurrentTrackTimeMs()
-      } else {
-        playbackSession.currentTimeMs
+        currentPlayer.seekTo(playbackSession.currentTimeMs)
       }
 
       Log.d(
         tag,
-        "Media3: Setting ${mediaItems.size} media items, startIndex=$currentTrackIndex, startPos=$startPosition"
+        "Prepare complete for session ${currentPlaybackSession?.displayTitle} | ${currentPlayer.mediaItemCount}"
       )
-      mPlayer.setMediaItems(exoMediaItems, currentTrackIndex, startPosition)
-    }
-
-    Log.d(
-      tag,
-      "Prepare complete for session ${currentPlaybackSession?.displayTitle} | ${mPlayer.mediaItemCount}"
-    )
-    mPlayer.playWhenReady = playWhenReady
-    // Proactively emit a playing update when playWhenReady is true so the web UI can
-    // flip from spinner to pause immediately, without waiting for the next listener callback.
-    // This mirrors Exo behavior closely and reduces perceived latency.
-    if (playWhenReady) {
-      try {
-        clientEventEmitter?.onPlayingUpdate(true)
-      } catch (e: Exception) {
-        Log.w(tag, "Early onPlayingUpdate emit failed: ${e.message}")
+      currentPlayer.playWhenReady = playWhenReady
+      if (playWhenReady) {
+        try {
+          clientEventEmitter?.onPlayingUpdate(true)
+        } catch (e: Exception) {
+          Log.w(tag, "Early onPlayingUpdate emit failed: ${e.message}")
+        }
       }
-    }
-    mPlayer.setPlaybackSpeed(playbackRateToUse)
-
-    mPlayer.prepare()
-
-    if (castPlayer != null) {
+      currentPlayer.setPlaybackSpeed(playbackRateToUse)
+      currentPlayer.prepare()
+    } else if (castPlayer != null) {
       val currentTrackIndex = playbackSession.getCurrentTrackIndex()
       val currentTrackTime = playbackSession.getCurrentTrackTimeMs()
       val mediaType = playbackSession.mediaType
