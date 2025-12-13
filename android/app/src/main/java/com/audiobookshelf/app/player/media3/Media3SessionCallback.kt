@@ -23,18 +23,17 @@ import com.audiobookshelf.app.player.ANDROID_AUTOMOTIVE_PKG_NAME
 import com.audiobookshelf.app.player.ANDROID_AUTO_PKG_NAME
 import com.audiobookshelf.app.player.ANDROID_AUTO_SIMULATOR_PKG_NAME
 import com.audiobookshelf.app.player.ANDROID_GSEARCH_PKG_NAME
-import com.audiobookshelf.app.player.ANDROID_WEARABLE_PKG_NAME
 import com.audiobookshelf.app.player.PlaybackConstants
 import com.audiobookshelf.app.player.core.NetworkMonitor
 import com.audiobookshelf.app.player.toPlayerMediaItems
 import com.audiobookshelf.app.player.wrapper.AbsPlayerWrapper
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.guava.future
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Collections
 
 data class SeekConfig(
@@ -77,12 +76,10 @@ class Media3SessionCallback(
   private val sessionController: SessionController? = null
 ) : MediaLibraryService.MediaLibrarySession.Callback {
 
-  private val jacksonMapper by lazy { jacksonObjectMapper() }
   private val searchCache = Collections.synchronizedMap(mutableMapOf<String, List<MediaItem>>())
   private val androidAutoControllerPackages = setOf(
     ANDROID_AUTO_PKG_NAME,
     ANDROID_AUTO_SIMULATOR_PKG_NAME,
-    ANDROID_WEARABLE_PKG_NAME,
     ANDROID_GSEARCH_PKG_NAME,
     ANDROID_AUTOMOTIVE_PKG_NAME
   )
@@ -164,7 +161,6 @@ class Media3SessionCallback(
       val baseSessionCommands = sessionController?.availableSessionCommands
         ?: MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
       val builder = baseSessionCommands.buildUpon()
-      builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.PREPARE_PLAYBACK))
       builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.CYCLE_PLAYBACK_SPEED))
       builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.SEEK_BACK_INCREMENT))
       builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.SEEK_FORWARD_INCREMENT))
@@ -203,7 +199,9 @@ class Media3SessionCallback(
 
     return scope.future {
       if (controller.packageName in androidAutoControllerPackages) {
-        autoLibraryCoordinator.awaitAutoDataLoaded()
+        withTimeoutOrNull(3000) {
+          autoLibraryCoordinator.awaitAutoDataLoaded()
+        }
       }
 
       val preferCastStream = isCastActive()
@@ -247,7 +245,35 @@ class Media3SessionCallback(
       }
 
       if (BuildConfig.DEBUG) {
-        debug { "onPlaybackResumption: Found last session for item '${lastLocalSession.libraryItemId}' at ${lastLocalSession.currentTimeMs}ms." }
+        debug { "onPlaybackResumption: Found last session for item '${lastLocalSession.libraryItemId}' at ${lastLocalSession.currentTimeMs}ms. isLocal=${lastLocalSession.isLocal}" }
+      }
+
+      if (!lastLocalSession.isLocal && NetworkMonitor.initialized && NetworkMonitor.hasConnectivity) {
+        val mediaId = (lastLocalSession.episodeId ?: lastLocalSession.libraryItemId) ?: ""
+        if (BuildConfig.DEBUG) {
+          debug { "onPlaybackResumption: Attempting to re-resolve server item with mediaId='$mediaId'" }
+        }
+        if (mediaId.isNotEmpty()) {
+          val resolvedPlayable = browseApi.resolve(mediaId, preferCastStream)
+          if (resolvedPlayable != null) {
+            browseApi.assignSession(resolvedPlayable.session)
+            if (BuildConfig.DEBUG) {
+              debug {
+                "onPlaybackResumption: Re-resolved server session for last played item=${resolvedPlayable.session.id} " +
+                  "startIndex=${resolvedPlayable.startIndex} startPos=${resolvedPlayable.startPositionMs}"
+              }
+            }
+            return@future MediaSession.MediaItemsWithStartPosition(
+              resolvedPlayable.mediaItems,
+              resolvedPlayable.startIndex,
+              resolvedPlayable.startPositionMs
+            )
+          } else {
+            if (BuildConfig.DEBUG) {
+              debug { "onPlaybackResumption: Failed to re-resolve server item '$mediaId', falling back to cached session" }
+            }
+          }
+        }
       }
 
       val preferCastStreamForLocal = preferCastStream && lastLocalSession.isLocal
@@ -308,56 +334,6 @@ class Media3SessionCallback(
     args: Bundle
   ): ListenableFuture<SessionResult> {
     when (customCommand.customAction) {
-      PlaybackConstants.Commands.PREPARE_PLAYBACK -> {
-        return scope.future {
-          awaitFinalSync()
-          val playbackSessionJson = args.getString(PlaybackConstants.PLAYBACK_SESSION_JSON)
-          val playWhenReady = args.getBoolean(PlaybackConstants.PLAY_WHEN_READY, true)
-          val playbackRate = args.getFloat(PlaybackConstants.PLAYBACK_RATE, 1.0f)
-
-          if (playbackSessionJson.isNullOrEmpty()) {
-            return@future SessionResult(SessionError.ERROR_BAD_VALUE, Bundle.EMPTY)
-          }
-
-          val playbackSession = try {
-            jacksonMapper.readValue(playbackSessionJson, PlaybackSession::class.java)
-          } catch (exception: Exception) {
-            Log.e(logTag, "Failed to deserialize PlaybackSession from custom command", exception)
-            return@future SessionResult(SessionError.ERROR_BAD_VALUE, Bundle.EMPTY)
-          }
-
-          browseApi.assignSession(playbackSession)
-          val playerMediaItems = playbackSession.toPlayerMediaItems(appContext, isCastActive())
-          val mediaItems = playerMediaItems.map { playerMediaItem ->
-            MediaItem.Builder()
-              .setUri(playerMediaItem.uri.toString())
-              .setMediaId(playerMediaItem.mediaId)
-              .setMimeType(playerMediaItem.mimeType)
-              .setMediaMetadata(
-                MediaMetadata.Builder()
-                  .setTitle(playbackSession.displayTitle)
-                  .setArtist(playbackSession.displayAuthor)
-                  .setAlbumArtist(playbackSession.displayAuthor)
-                  .setArtworkUri(playerMediaItem.artworkUri)
-                  .build()
-              )
-              .build()
-          }
-          val player = playerProvider()
-          val trackIndex = playbackSession.getCurrentTrackIndex().coerceIn(0, mediaItems.lastIndex)
-          val trackStartOffsetMs = playbackSession.getTrackStartOffsetMs(trackIndex)
-          val positionInTrack =
-            (playbackSession.currentTimeMs - trackStartOffsetMs).coerceAtLeast(0L)
-
-          player.setMediaItems(mediaItems, trackIndex, positionInTrack)
-          player.prepare()
-          player.playWhenReady = playWhenReady
-          player.setPlaybackSpeed(playbackRate)
-
-          SessionResult(SessionResult.RESULT_SUCCESS)
-        }
-      }
-
       PlaybackConstants.Commands.CLOSE_PLAYBACK -> {
         val future = SettableFuture.create<SessionResult>()
         val afterStop: () -> Unit = { future.set(SessionResult(SessionResult.RESULT_SUCCESS)) }
@@ -463,6 +439,9 @@ class Media3SessionCallback(
           debug { "onSetMediaItems: rejecting passthrough set; ids do not match current session" }
           return@future MediaSession.MediaItemsWithStartPosition(emptyList(), 0, C.TIME_UNSET)
         }
+        if (BuildConfig.DEBUG) {
+          debug { "onSetMediaItems: passthrough allowed, returning ${playablePassthrough.size} items with startIndex=$startIndex startPos=$startPositionMs from ${controller.packageName}" }
+        }
         return@future MediaSession.MediaItemsWithStartPosition(
           playablePassthrough,
           startIndex,
@@ -488,16 +467,27 @@ class Media3SessionCallback(
       }
 
       browseApi.assignSession(resolvedPlayable.session)
+
+      // Reset position to 0 if the book is finished (within 5 seconds of the end)
+      var adjustedStartPositionMs = resolvedPlayable.startPositionMs
+      val totalDurationMs = resolvedPlayable.session.totalDurationMs
+      if (totalDurationMs > 0 && (totalDurationMs - adjustedStartPositionMs) < 5000) {
+        if (BuildConfig.DEBUG) {
+          debug { "onSetMediaItems: Book is finished (within 5s of end), resetting to start" }
+        }
+        adjustedStartPositionMs = 0L
+      }
+
       if (BuildConfig.DEBUG) {
         debug {
           "onSetMediaItems: resolved ${resolvedPlayable.mediaItems.size} items for session=${resolvedPlayable.session.id} " +
-            "startIndex=${resolvedPlayable.startIndex} startPos=${resolvedPlayable.startPositionMs}"
+            "startIndex=${resolvedPlayable.startIndex} startPos=$adjustedStartPositionMs"
         }
       }
       MediaSession.MediaItemsWithStartPosition(
         resolvedPlayable.mediaItems,
         resolvedPlayable.startIndex,
-        resolvedPlayable.startPositionMs
+        adjustedStartPositionMs
       )
     }
   }

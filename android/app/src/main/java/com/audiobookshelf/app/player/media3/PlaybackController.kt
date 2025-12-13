@@ -9,6 +9,8 @@ import android.os.Looper
 import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.media3.common.C
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
@@ -24,7 +26,7 @@ import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.data.PlayerState
 import com.audiobookshelf.app.player.Media3PlaybackService
 import com.audiobookshelf.app.player.PlaybackConstants
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.audiobookshelf.app.player.toPlayerMediaItems
 import com.google.common.util.concurrent.FutureCallback
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
@@ -71,8 +73,6 @@ class PlaybackController(private val context: Context) {
   private var lastKnownMediaItemIndex: Int = 0
   @Volatile
   private var ignoreNextSeekEvent = false
-
-  private val jacksonMapper by lazy { jacksonObjectMapper() }
 
   private val setSleepTimerCommand =
     PlaybackConstants.sessionCommand(PlaybackConstants.SleepTimer.ACTION_SET)
@@ -425,24 +425,51 @@ class PlaybackController(private val context: Context) {
     activePlaybackSession = playbackSession
     listener?.onPlaybackSession(playbackSession)
 
+    ensureServiceStarted()
+
     connect {
-      ensureServiceStarted()
+      val controller = mediaController ?: return@connect
 
-      val sessionJson = jacksonMapper.writeValueAsString(playbackSession)
-      val commandArgs = Bundle().apply {
-        putString(PlaybackConstants.PLAYBACK_SESSION_JSON, sessionJson)
-        putBoolean(PlaybackConstants.PLAY_WHEN_READY, playWhenReady)
-        playbackRate?.let { putFloat(PlaybackConstants.PLAYBACK_RATE, it) }
-      }
+      // Sync any pending progress before re-preparing to keep resume positions accurate.
+      val latch = CountDownLatch(1)
+      sendCommand(forceSyncProgressCommand, Bundle.EMPTY) { latch.countDown() }
+      latch.await(2, TimeUnit.SECONDS)
 
-      sendCommand(
-        PlaybackConstants.sessionCommand(PlaybackConstants.Commands.PREPARE_PLAYBACK),
-        commandArgs
-      ) { sessionResult ->
-        if (sessionResult.resultCode != SessionResult.RESULT_SUCCESS) {
-          Log.e(TAG, "preparePlayback command failed")
-          mainHandler.post { listener?.onPlaybackFailed("preparePlayback command failed") }
-        }
+      val targetIsCast = playbackSession.isLocal && currentMediaPlayer == PLAYER_CAST
+      val mediaItems =
+        playbackSession.toPlayerMediaItems(context, preferServerUrisForCast = targetIsCast)
+          .map { playerMediaItem ->
+            MediaItem.Builder()
+              .setUri(playerMediaItem.uri.toString())
+              .setMediaId(playerMediaItem.mediaId)
+              .setMimeType(playerMediaItem.mimeType)
+              .setMediaMetadata(
+                MediaMetadata.Builder()
+                  .setTitle(playbackSession.displayTitle)
+                  .setArtist(playbackSession.displayAuthor)
+                  .setAlbumArtist(playbackSession.displayAuthor)
+                  .setArtworkUri(playerMediaItem.artworkUri)
+                  .build()
+              )
+              .build()
+          }
+
+      val trackIndex = playbackSession.getCurrentTrackIndex().coerceIn(0, mediaItems.lastIndex)
+      val trackStartOffsetMs = playbackSession.getTrackStartOffsetMs(trackIndex)
+      val positionInTrack = (playbackSession.currentTimeMs - trackStartOffsetMs).coerceAtLeast(0L)
+
+      controller.setMediaItems(mediaItems, trackIndex, positionInTrack)
+      ignoreNextSeekEvent = true
+      controller.prepare()
+      controller.playWhenReady = playWhenReady
+      playbackRate?.let { controller.setPlaybackSpeed(it) }
+      emitMetadata(controller)
+
+      if (BuildConfig.DEBUG) {
+        Log.d(
+          TAG,
+          "Prepared playback for ${playbackSession.displayTitle} items=${mediaItems.size} startIndex=$trackIndex pos=$positionInTrack"
+        )
       }
     }
   }

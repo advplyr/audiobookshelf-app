@@ -70,7 +70,7 @@ class AudioFocusManager(
     if (!granted && BuildConfig.DEBUG) {
       Log.w(tag, "Audio focus request was denied; continuing playback best-effort.")
     }
-    return true
+    return granted
   }
 
   fun abandonAudioFocus() {

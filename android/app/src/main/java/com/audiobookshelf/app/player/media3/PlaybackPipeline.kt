@@ -43,6 +43,7 @@ class PlaybackPipeline(
 
   fun initializeLocalPlayer(
     enableMp3IndexSeeking: Boolean,
+    speechAttributes: AudioAttributes,
     seekBackIncrementMs: Long,
     seekForwardIncrementMs: Long,
     onPlayerReady: (AbsPlayerWrapper) -> Unit,
@@ -65,6 +66,7 @@ class PlaybackPipeline(
     val coreExoPlayer = ExoPlayer.Builder(context)
       .setMediaSourceFactory(mediaSourceFactory)
       .setLoadControl(customLoadControl)
+      .setAudioAttributes(speechAttributes, false)
       .setHandleAudioBecomingNoisy(true)
       .setSeekBackIncrementMs(seekBackIncrementMs)
       .setSeekForwardIncrementMs(seekForwardIncrementMs)

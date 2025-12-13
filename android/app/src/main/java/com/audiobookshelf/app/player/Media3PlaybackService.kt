@@ -517,6 +517,7 @@ class Media3PlaybackService : MediaLibraryService() {
 
     pipeline.initializeLocalPlayer(
       enableMp3IndexSeeking = deviceSettings.enableMp3IndexSeeking,
+      speechAttributes = speechAudioAttributes,
       seekBackIncrementMs = jumpBackwardMs,
       seekForwardIncrementMs = jumpForwardMs,
       onPlayerReady = { localPlayer ->

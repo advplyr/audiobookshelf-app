@@ -5,14 +5,10 @@ import androidx.media3.session.SessionCommand
 
 object PlaybackConstants {
   // Intent/command extras used when sending playback commands or building media items
-  const val PLAYBACK_SESSION_JSON = "playback_session_json"
-  const val PLAY_WHEN_READY = "play_when_ready"
-  const val PLAYBACK_RATE = "playback_rate"
   const val DISPLAY_SPEED = "display_speed"
   const val MEDIA_PLAYER = "media_player"
 
   object Commands {
-    const val PREPARE_PLAYBACK = "com.audiobookshelf.app.player.PREPARE_PLAYBACK"
     const val CYCLE_PLAYBACK_SPEED = "com.audiobookshelf.app.player.CYCLE_PLAYBACK_SPEED"
     const val SEEK_BACK_INCREMENT = "com.audiobookshelf.app.player.SEEK_BACK_INCREMENT"
     const val SEEK_FORWARD_INCREMENT = "com.audiobookshelf.app.player.SEEK_FORWARD_INCREMENT"
