@@ -228,7 +228,9 @@ class SessionController(
         .add(Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS)
       return fallbackCommands.build()
     }
-    val baseCommands = buildBasePlayerCommands(player, allowSeekingOnMediaControls)
+    val isAppController = controllerInfo.packageName == context.packageName
+    val allowSeeking = allowSeekingOnMediaControls || isAppController
+    val baseCommands = buildBasePlayerCommands(player, allowSeeking)
     val isWearController = controllerInfo.packageName.contains("wear", ignoreCase = true)
 
     val builder = Player.Commands.Builder().addAll(baseCommands)
