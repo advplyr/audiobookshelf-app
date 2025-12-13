@@ -746,7 +746,11 @@ class Media3PlaybackService : MediaLibraryService() {
     }
     if (suppressFinalServerSync && !shouldSyncServer) {
       debugLog { "Skipping progress sync due to suppression: $reason" }
-      onSyncComplete?.invoke(SyncResult(false, null, "Suppressed"))
+      val suppressedResult = SyncResult(false, null, "Suppressed")
+      barrier?.let { if (!it.isCompleted) it.complete(suppressedResult) }
+      finalSyncBarrier = null
+      suppressFinalServerSync = false
+      onSyncComplete?.invoke(suppressedResult)
       return
     }
     val completion: (SyncResult?) -> Unit = { syncResult ->
@@ -911,16 +915,6 @@ class Media3PlaybackService : MediaLibraryService() {
           unifiedProgressSyncer.markNextPlaybackEventSource(com.audiobookshelf.app.media.PlaybackEventSource.UI)
         }
       },
-      suppressFinalServerSync = {
-        try {
-          suppressFinalServerSync = true
-          if (this::unifiedProgressSyncer.isInitialized) {
-            unifiedProgressSyncer.markCurrentSessionClosed()
-            debugLog { "suppressFinalServerSync: marked current session closed" }
-          }
-        } catch (_: Exception) {
-        }
-      },
       debug = { msg -> debugLog(msg) },
       sessionController = sessionController
     )
@@ -966,7 +960,7 @@ class Media3PlaybackService : MediaLibraryService() {
    */
   fun updateMediaSessionPlaybackActions() {
     try {
-      val allowSeeking = deviceSettings.allowSeekingOnMediaControls
+      val allowSeekingOnMediaControls = deviceSettings.allowSeekingOnMediaControls
       val sessionCommands = androidx.media3.session.SessionCommands.Builder()
         .add(cyclePlaybackSpeedCommand)
         .add(seekBackIncrementCommand)
@@ -979,7 +973,7 @@ class Media3PlaybackService : MediaLibraryService() {
           val playerCommands =
             com.audiobookshelf.app.player.media3.SessionController.buildBasePlayerCommands(
               player,
-              allowSeeking
+              allowSeekingOnMediaControls
             )
           mediaSession?.setAvailableCommands(controllerInfo, sessionCommands, playerCommands)
         } catch (t: Throwable) {

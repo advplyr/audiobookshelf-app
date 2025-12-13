@@ -515,24 +515,9 @@ class PlaybackController(private val context: Context) {
   }
 
   fun seekBy(seekDeltaMs: Long) {
-    val controller = mediaController
-    if (controller == null) {
-      if (BuildConfig.DEBUG) {
-        Log.w(TAG, "seekBy called but mediaController is null")
-      }
-      return
-    }
+    val controller = mediaController ?: return
     val targetPositionMs = (controller.currentPosition + seekDeltaMs).coerceAtLeast(0L)
-    if (BuildConfig.DEBUG) {
-      Log.d(
-        TAG,
-        "seekBy delta=$seekDeltaMs current=${controller.currentPosition} -> target=$targetPositionMs, controller.isConnected=${controller.isConnected}"
-      )
-    }
     controller.seekTo(targetPositionMs)
-    if (BuildConfig.DEBUG) {
-      Log.d(TAG, "seekBy: called controller.seekTo($targetPositionMs)")
-    }
   }
 
   fun setSleepTimer(

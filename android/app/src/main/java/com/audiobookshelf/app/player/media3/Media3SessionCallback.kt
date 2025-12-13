@@ -71,7 +71,6 @@ class Media3SessionCallback(
   private val resolveTrackIndexForPosition: (PlaybackSession, Long) -> Int,
   private val awaitFinalSync: suspend () -> Unit,
   private val markNextPlaybackEventSourceUi: (() -> Unit)? = null,
-  private val suppressFinalServerSync: (() -> Unit)? = null,
   private val debug: ((() -> String) -> Unit),
   private val sessionController: SessionController? = null
 ) : MediaLibraryService.MediaLibrarySession.Callback {
@@ -135,16 +134,16 @@ class Media3SessionCallback(
       controllerInfo = controller,
       allowSeekingOnMediaControls = seekConfig.allowSeekingOnMediaControls
     ) ?: run {
+      debug { "onConnect: sessionController is null, using fallback commands for pkg=${controller.packageName}" }
       val availablePlayerCommands = player.availableCommands
-      val builder = Player.Commands.Builder().addAll(availablePlayerCommands)
+      Player.Commands.Builder().addAll(availablePlayerCommands)
         .add(Player.COMMAND_SEEK_BACK)
         .add(Player.COMMAND_SEEK_FORWARD)
         .add(Player.COMMAND_PLAY_PAUSE)
-        .add(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
         .add(Player.COMMAND_GET_DEVICE_VOLUME)
         .add(Player.COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS)
         .add(Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS)
-      builder.build()
+        .build()
     }
 
     fun cmd(commandCode: Int) = if (playerCommands.contains(commandCode)) "Y" else "N"
@@ -363,7 +362,6 @@ class Media3SessionCallback(
   ): ListenableFuture<MutableList<MediaItem>> {
     return scope.future {
       awaitFinalSync()
-      suppressFinalServerSync?.invoke()
       val requestedMediaItem = mediaItems.firstOrNull()
       if (requestedMediaItem == null) {
         if (BuildConfig.DEBUG) {
@@ -430,7 +428,6 @@ class Media3SessionCallback(
   ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
     return scope.future {
       awaitFinalSync()
-      suppressFinalServerSync?.invoke()
       val playablePassthrough =
         mediaItems.filter { it.localConfiguration != null || it.requestMetadata.mediaUri != null }
       if (playablePassthrough.isNotEmpty()) {

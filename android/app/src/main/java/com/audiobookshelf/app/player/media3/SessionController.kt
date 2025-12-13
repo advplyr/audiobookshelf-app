@@ -216,21 +216,21 @@ class SessionController(
     controllerInfo: MediaSession.ControllerInfo,
     allowSeekingOnMediaControls: Boolean
   ): Player.Commands {
+
     val player = playerProvider()
     if (player == null) {
       val fallbackCommands = Player.Commands.Builder()
         .add(Player.COMMAND_PLAY_PAUSE)
         .add(Player.COMMAND_SEEK_BACK)
         .add(Player.COMMAND_SEEK_FORWARD)
-        .add(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
         .add(Player.COMMAND_GET_DEVICE_VOLUME)
         .add(Player.COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS)
         .add(Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS)
+
       return fallbackCommands.build()
     }
-    val isAppController = controllerInfo.packageName == context.packageName
-    val allowSeeking = allowSeekingOnMediaControls || isAppController
-    val baseCommands = buildBasePlayerCommands(player, allowSeeking)
+
+    val baseCommands = buildBasePlayerCommands(player, allowSeekingOnMediaControls)
     val isWearController = controllerInfo.packageName.contains("wear", ignoreCase = true)
 
     val builder = Player.Commands.Builder().addAll(baseCommands)
