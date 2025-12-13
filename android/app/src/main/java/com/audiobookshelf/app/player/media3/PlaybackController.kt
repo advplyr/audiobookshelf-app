@@ -496,35 +496,42 @@ class PlaybackController(private val context: Context) {
 
   fun seekTo(positionMs: Long) {
     val session = activePlaybackSession ?: return
+    val controller = mediaController ?: return
 
     val clampedPositionMs = positionMs.coerceIn(0L, session.totalDurationMs)
     session.currentTime = clampedPositionMs / 1000.0
 
-    executeWithController { mediaController ->
-      val audioTracks = session.audioTracks
-      if (audioTracks.isEmpty()) {
-        mediaController.seekTo(clampedPositionMs)
-        return@executeWithController
-      }
-
-      val currentTrackIndex =
-        session.getCurrentTrackIndex().coerceIn(0, mediaController.mediaItemCount - 1)
-      val currentTrackPositionMs = session.getCurrentTrackTimeMs()
-
-      mediaController.seekTo(currentTrackIndex, currentTrackPositionMs)
+    val audioTracks = session.audioTracks
+    if (audioTracks.isEmpty()) {
+      controller.seekTo(clampedPositionMs)
+      return
     }
+
+    val currentTrackIndex =
+      session.getCurrentTrackIndex().coerceIn(0, controller.mediaItemCount - 1)
+    val currentTrackPositionMs = session.getCurrentTrackTimeMs()
+
+    controller.seekTo(currentTrackIndex, currentTrackPositionMs)
   }
 
   fun seekBy(seekDeltaMs: Long) {
-    executeWithController { mediaController ->
-      val targetPositionMs = (mediaController.currentPosition + seekDeltaMs).coerceAtLeast(0L)
+    val controller = mediaController
+    if (controller == null) {
       if (BuildConfig.DEBUG) {
-        Log.d(
-          TAG,
-          "seekBy delta=$seekDeltaMs current=${mediaController.currentPosition} -> target=$targetPositionMs"
-        )
+        Log.w(TAG, "seekBy called but mediaController is null")
       }
-      mediaController.seekTo(targetPositionMs)
+      return
+    }
+    val targetPositionMs = (controller.currentPosition + seekDeltaMs).coerceAtLeast(0L)
+    if (BuildConfig.DEBUG) {
+      Log.d(
+        TAG,
+        "seekBy delta=$seekDeltaMs current=${controller.currentPosition} -> target=$targetPositionMs, controller.isConnected=${controller.isConnected}"
+      )
+    }
+    controller.seekTo(targetPositionMs)
+    if (BuildConfig.DEBUG) {
+      Log.d(TAG, "seekBy: called controller.seekTo($targetPositionMs)")
     }
   }
 

@@ -604,6 +604,7 @@ class AbsAudioPlayer : Plugin() {
     Log.d(tag, "seek action to $time")
     mainHandler.post {
       if (BuildConfig.USE_MEDIA3) {
+        ensureUiPlaybackEventSource()
         playbackController?.seekTo(time * 1000L)
       } else {
         playerNotificationService.seekPlayer(time * 1000L) // convert to ms
@@ -617,6 +618,7 @@ class AbsAudioPlayer : Plugin() {
     val amount:Int = call.getInt("value", 0) ?: 0
     mainHandler.post {
       if (BuildConfig.USE_MEDIA3) {
+        ensureUiPlaybackEventSource()
         playbackController?.seekBy(amount * 1000L)
       } else {
         playerNotificationService.seekForward(amount * 1000L) // convert to ms
@@ -630,6 +632,7 @@ class AbsAudioPlayer : Plugin() {
     val amount:Int = call.getInt("value", 0) ?: 0 // Value in seconds
     mainHandler.post {
       if (BuildConfig.USE_MEDIA3) {
+        ensureUiPlaybackEventSource()
         playbackController?.seekBy(-amount * 1000L)
       } else {
         playerNotificationService.seekBackward(amount * 1000L) // convert to ms
