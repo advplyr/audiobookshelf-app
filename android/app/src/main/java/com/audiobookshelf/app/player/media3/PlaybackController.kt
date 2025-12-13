@@ -516,6 +516,7 @@ class PlaybackController(private val context: Context) {
   }
 
   fun seekBy(seekDeltaMs: Long) {
+    val mediaController = this@PlaybackController.mediaController
     mediaController?.let { mediaController ->
       val targetPositionMs = (mediaController.currentPosition + seekDeltaMs).coerceAtLeast(0L)
       if (BuildConfig.DEBUG) {
