@@ -71,8 +71,6 @@ class PlaybackController(private val context: Context) {
   private var lastKnownPositionMs: Long = 0L
   @Volatile
   private var lastKnownMediaItemIndex: Int = 0
-  @Volatile
-  private var ignoreNextSeekEvent = false
 
   private val setSleepTimerCommand =
     PlaybackConstants.sessionCommand(PlaybackConstants.SleepTimer.ACTION_SET)
@@ -183,11 +181,7 @@ class PlaybackController(private val context: Context) {
       reason: Int
     ) {
       if (reason == Player.DISCONTINUITY_REASON_SEEK || reason == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT) {
-        if (ignoreNextSeekEvent) {
-          ignoreNextSeekEvent = false
-        } else {
-          listener?.onSeekCompleted(newPosition.positionMs, newPosition.mediaItemIndex)
-        }
+        listener?.onSeekCompleted(newPosition.positionMs, newPosition.mediaItemIndex)
       }
     }
   }
@@ -459,7 +453,6 @@ class PlaybackController(private val context: Context) {
       val positionInTrack = (playbackSession.currentTimeMs - trackStartOffsetMs).coerceAtLeast(0L)
 
       controller.setMediaItems(mediaItems, trackIndex, positionInTrack)
-      ignoreNextSeekEvent = true
       controller.prepare()
       controller.playWhenReady = playWhenReady
       playbackRate?.let { controller.setPlaybackSpeed(it) }
@@ -525,7 +518,17 @@ class PlaybackController(private val context: Context) {
   fun seekBy(seekDeltaMs: Long) {
     mediaController?.let { mediaController ->
       val targetPositionMs = (mediaController.currentPosition + seekDeltaMs).coerceAtLeast(0L)
+      if (BuildConfig.DEBUG) {
+        Log.d(
+          TAG,
+          "seekBy delta=$seekDeltaMs current=${mediaController.currentPosition} -> target=$targetPositionMs"
+        )
+      }
       mediaController.seekTo(targetPositionMs)
+    } ?: run {
+      if (BuildConfig.DEBUG) {
+        Log.w(TAG, "seekBy ignored: mediaController is null (delta=$seekDeltaMs)")
+      }
     }
   }
 
