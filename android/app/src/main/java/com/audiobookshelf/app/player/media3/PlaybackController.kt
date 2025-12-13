@@ -495,29 +495,28 @@ class PlaybackController(private val context: Context) {
 
 
   fun seekTo(positionMs: Long) {
-    val session = activePlaybackSession
-    val mediaController = this@PlaybackController.mediaController
-    if (session == null || mediaController == null) return
+    val session = activePlaybackSession ?: return
 
     val clampedPositionMs = positionMs.coerceIn(0L, session.totalDurationMs)
     session.currentTime = clampedPositionMs / 1000.0
 
-    val audioTracks = session.audioTracks
-    if (audioTracks.isEmpty()) {
-      mediaController.seekTo(clampedPositionMs)
-      return
+    executeWithController { mediaController ->
+      val audioTracks = session.audioTracks
+      if (audioTracks.isEmpty()) {
+        mediaController.seekTo(clampedPositionMs)
+        return@executeWithController
+      }
+
+      val currentTrackIndex =
+        session.getCurrentTrackIndex().coerceIn(0, mediaController.mediaItemCount - 1)
+      val currentTrackPositionMs = session.getCurrentTrackTimeMs()
+
+      mediaController.seekTo(currentTrackIndex, currentTrackPositionMs)
     }
-
-    val currentTrackIndex =
-      session.getCurrentTrackIndex().coerceIn(0, mediaController.mediaItemCount - 1)
-    val currentTrackPositionMs = session.getCurrentTrackTimeMs()
-
-    mediaController.seekTo(currentTrackIndex, currentTrackPositionMs)
   }
 
   fun seekBy(seekDeltaMs: Long) {
-    val mediaController = this@PlaybackController.mediaController
-    mediaController?.let { mediaController ->
+    executeWithController { mediaController ->
       val targetPositionMs = (mediaController.currentPosition + seekDeltaMs).coerceAtLeast(0L)
       if (BuildConfig.DEBUG) {
         Log.d(
@@ -526,10 +525,6 @@ class PlaybackController(private val context: Context) {
         )
       }
       mediaController.seekTo(targetPositionMs)
-    } ?: run {
-      if (BuildConfig.DEBUG) {
-        Log.w(TAG, "seekBy ignored: mediaController is null (delta=$seekDeltaMs)")
-      }
     }
   }
 
