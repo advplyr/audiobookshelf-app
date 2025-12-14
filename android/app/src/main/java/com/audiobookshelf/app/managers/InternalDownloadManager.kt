@@ -50,25 +50,19 @@ class InternalDownloadManager(
                       }
                     }
                     override fun createSocket(host: String?, port: Int): Socket {
-                      return createSocket().apply {
-                        connect(java.net.InetSocketAddress(host, port), 60000)
-                      }
+                      return createSocket()
                     }
                     override fun createSocket(host: String?, port: Int, localHost: java.net.InetAddress?, localPort: Int): Socket {
                       return createSocket().apply {
                         bind(java.net.InetSocketAddress(localHost, localPort))
-                        connect(java.net.InetSocketAddress(host, port), 60000)
                       }
                     }
                     override fun createSocket(host: java.net.InetAddress?, port: Int): Socket {
-                      return createSocket().apply {
-                        connect(java.net.InetSocketAddress(host, port), 60000)
-                      }
+                      return createSocket()
                     }
                     override fun createSocket(address: java.net.InetAddress?, port: Int, localAddress: java.net.InetAddress?, localPort: Int): Socket {
                       return createSocket().apply {
                         bind(java.net.InetSocketAddress(localAddress, localPort))
-                        connect(java.net.InetSocketAddress(address, port), 60000)
                       }
                     }
                   })
