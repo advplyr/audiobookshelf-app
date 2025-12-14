@@ -21,9 +21,9 @@ class InternalDownloadManager(
   private val client: OkHttpClient =
           OkHttpClient.Builder()
                   .connectTimeout(60, TimeUnit.SECONDS)
-                  .readTimeout(0, TimeUnit.SECONDS) // Disable read timeout to prevent socket closure
+                  .readTimeout(10, TimeUnit.MINUTES) // Set a long but finite read timeout
                   .writeTimeout(60, TimeUnit.SECONDS)
-                  .callTimeout(0, TimeUnit.SECONDS) // Disable call timeout
+                  .callTimeout(10, TimeUnit.MINUTES) // Set a long but finite call timeout
                   .retryOnConnectionFailure(true)
                   // Keep connections alive for reuse
                   .connectionPool(ConnectionPool(5, 5, TimeUnit.MINUTES))
