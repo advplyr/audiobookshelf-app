@@ -171,7 +171,7 @@ class DownloadNotificationService : Service() {
         enableVibration(false)
         setShowBadge(false)
         lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-        setBypassDnd(true)
+        // setBypassDnd(true) // Removed to respect user DND preferences
       }
 
       val notificationManager = getSystemService(NotificationManager::class.java)
