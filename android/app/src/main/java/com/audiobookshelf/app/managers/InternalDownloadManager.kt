@@ -215,10 +215,7 @@ class BinaryFileWriter(
         outputStream.write(dataBuffer, 0, readBytes)
         chunksWritten++
 
-        // Flush less frequently for better performance (every ~64MB)
-        if (chunksWritten % 1000 == 0) {
-          outputStream.flush()
-        }
+        // Removed periodic flush; rely on BufferedOutputStream to manage flushing efficiently
 
         val totalBytesDownloaded = startingBytes + bytesWritten
         val progress = if (totalLength > 0) {
