@@ -113,8 +113,9 @@ class DownloadNotificationService : Service() {
         "AudiobookshelfApp:DownloadWifiLock"
       ).apply {
         setReferenceCounted(false)
-        acquire()
-        Log.d(tag, "WiFi lock acquired")
+        // Acquire WiFi lock with a 10-minute timeout as a safeguard
+        acquire(10 * 60 * 1000L) // 10 minutes in milliseconds
+        Log.d(tag, "WiFi lock acquired (10 min timeout)")
       }
     } catch (e: Exception) {
       Log.e(tag, "Failed to acquire WiFi lock", e)
