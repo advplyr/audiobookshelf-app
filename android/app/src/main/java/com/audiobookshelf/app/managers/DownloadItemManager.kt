@@ -179,7 +179,12 @@ class DownloadItemManager(
       try {
         mainActivity.applicationContext.unbindService(serviceConnection)
       } catch (e: Exception) {
-        Log.w(tag, "Could not unbind service", e)
+        Log.w(
+          tag,
+          "Could not unbind service: ${e.javaClass.simpleName}: ${e.message}. " +
+          "This may occur if the service was never bound or already unbound, but could also indicate a more serious problem.",
+          e
+        )
       }
 
       isBound = false
