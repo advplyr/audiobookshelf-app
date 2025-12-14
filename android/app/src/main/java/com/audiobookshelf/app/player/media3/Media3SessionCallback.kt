@@ -75,6 +75,10 @@ class Media3SessionCallback(
   private val sessionController: SessionController? = null
 ) : MediaLibraryService.MediaLibrarySession.Callback {
 
+  companion object {
+    private const val FINISHED_BOOK_THRESHOLD_MS = 5_000L
+  }
+
   private val searchCache = Collections.synchronizedMap(mutableMapOf<String, List<MediaItem>>())
   private val androidAutoControllerPackages = setOf(
     ANDROID_AUTO_PKG_NAME,
@@ -82,6 +86,8 @@ class Media3SessionCallback(
     ANDROID_GSEARCH_PKG_NAME,
     ANDROID_AUTOMOTIVE_PKG_NAME
   )
+
+  /* ======== Session Management ======== */
 
   /**
    * Handles post-interaction adjustments for specific clients like Wear OS.
@@ -198,6 +204,8 @@ class Media3SessionCallback(
       .setAvailablePlayerCommands(playerCommands)
       .build()
   }
+
+  /* ======== Playback Resumption ======== */
 
   override fun onPlaybackResumption(
     mediaSession: MediaSession,
@@ -337,6 +345,8 @@ class Media3SessionCallback(
     }
   }
 
+  /* ======== Custom Commands ======== */
+
   override fun onCustomCommand(
     session: MediaSession,
     controller: MediaSession.ControllerInfo,
@@ -365,6 +375,7 @@ class Media3SessionCallback(
     }
   }
 
+  /* ======== Media Item Management ======== */
 
   override fun onAddMediaItems(
     mediaSession: MediaSession,
@@ -476,12 +487,13 @@ class Media3SessionCallback(
 
       browseApi.assignSession(resolvedPlayable.session)
 
-      // Reset position to 0 if the book is finished (within 5 seconds of the end)
+      // Auto-restart logic: prevents awkward UX of resuming at the very end of a book
+      // If within 5s of completion, restart from beginning instead
       var adjustedStartPositionMs = resolvedPlayable.startPositionMs
       val totalDurationMs = resolvedPlayable.session.totalDurationMs
-      if (totalDurationMs > 0 && (totalDurationMs - adjustedStartPositionMs) < 5000) {
+      if (totalDurationMs > 0 && (totalDurationMs - adjustedStartPositionMs) < FINISHED_BOOK_THRESHOLD_MS) {
         if (BuildConfig.DEBUG) {
-          debug { "onSetMediaItems: Book is finished (within 5s of end), resetting to start" }
+          debug { "onSetMediaItems: Book is finished (within ${FINISHED_BOOK_THRESHOLD_MS}ms of end), resetting to start" }
         }
         adjustedStartPositionMs = 0L
       }
@@ -499,6 +511,8 @@ class Media3SessionCallback(
       )
     }
   }
+
+  /* ======== Library Browsing ======== */
 
   override fun onGetLibraryRoot(
     session: MediaLibraryService.MediaLibrarySession,
@@ -538,6 +552,8 @@ class Media3SessionCallback(
       LibraryResult.ofItem(mediaItem, null)
     }
   }
+
+  /* ======== Search ======== */
 
   override fun onSearch(
     session: MediaLibraryService.MediaLibrarySession,
@@ -597,6 +613,8 @@ class Media3SessionCallback(
     }
     return aggregatedResults
   }
+
+  /* ======== Helper Functions ======== */
 
   private fun MediaBrowserCompat.MediaItem.toMedia3Item(): MediaItem? {
     val mediaDescription = description

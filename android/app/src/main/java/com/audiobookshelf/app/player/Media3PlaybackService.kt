@@ -35,8 +35,11 @@ import com.audiobookshelf.app.player.core.PlaybackMetricsRecorder
 import com.audiobookshelf.app.player.core.PlaybackTelemetryHost
 import com.audiobookshelf.app.player.media3.Media3AutoLibraryCoordinator
 import com.audiobookshelf.app.player.media3.Media3BrowseTree
+import com.audiobookshelf.app.player.media3.Media3CastCoordinator
+import com.audiobookshelf.app.player.media3.Media3EventPipeline
 import com.audiobookshelf.app.player.media3.Media3PlaybackSpeedButtonProvider
 import com.audiobookshelf.app.player.media3.PlaybackPipeline
+import com.audiobookshelf.app.player.media3.ResolvedPlayableCache
 import com.audiobookshelf.app.player.wrapper.AbsPlayerWrapper
 import com.audiobookshelf.app.server.ApiHandler
 import kotlinx.coroutines.CompletableDeferred
@@ -62,42 +65,63 @@ import kotlin.math.max
 class Media3PlaybackService : MediaLibraryService() {
   companion object {
     val TAG: String = Media3PlaybackService::class.java.simpleName
+
+    // Cache settings
     private const val RESOLVED_CACHE_TTL_MS = 5_000L
     private const val RESOLVED_CACHE_LIMIT = 6
+
+    // Sync & timeout settings
     private const val TASK_REMOVAL_CLOSE_TIMEOUT_MS = 5_000L
+    private const val FINAL_SYNC_TIMEOUT_MS = 3_000L
+    private const val SYNC_LATCH_TIMEOUT_SEC = 2L
+    private const val ONBOARDING_SYNC_TIMEOUT_SEC = 1L
+
+    // Error retry settings
     private const val ERROR_RESET_WINDOW_MS = 30_000L
     private const val RETRY_BACKOFF_STEP_MS = 1_000L
+
+    // Player identifiers
+    private const val PLAYER_MEDIA3 = "media3-player"
+    private const val PLAYER_CAST = "cast-player"
+
+    // Bundle keys
+    private const val KEY_IS_APP_UI_CONTROLLER = "isAppUiController"
 
     object Notification {
       const val CHANNEL_ID = "media3_playback_channel"
       const val ID = 100
     }
-
-
   }
 
+  // Lifecycle & Scope
   private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-  private val sleepTimerCoordinator = SleepTimerCoordinator(serviceScope)
 
+  // Media3 Core Components
   private var mediaSession: MediaLibrarySession? = null
+  private lateinit var localPlayer: AbsPlayerWrapper
+  private lateinit var castPlayer: AbsPlayerWrapper
+  private lateinit var activePlayer: Player
+  private var playbackPipeline: PlaybackPipeline? = null
+  private var castCoordinator: Media3CastCoordinator? = null
+
+  // Media3 Managers & Coordinators
   private lateinit var apiHandler: ApiHandler
   private lateinit var mediaManager: MediaManager
   private lateinit var browseTree: Media3BrowseTree
   private lateinit var autoLibraryCoordinator: Media3AutoLibraryCoordinator
   private lateinit var unifiedProgressSyncer: UnifiedMediaProgressSyncer
-  private val eventPipeline = com.audiobookshelf.app.player.media3.Media3EventPipeline()
+  private lateinit var media3SessionManager: Media3SessionManager
+  private lateinit var media3ProgressManager: Media3ProgressManager
+  private lateinit var media3NotificationManager: Media3NotificationManager
+  private val sleepTimerCoordinator = SleepTimerCoordinator(serviceScope)
 
+  // Pipelines & State Trackers
+  private val eventPipeline = Media3EventPipeline()
+  private val playbackMetrics = PlaybackMetricsRecorder()
   private val currentPlaybackSession: PlaybackSession?
     get() = media3SessionManager.currentPlaybackSession
-  private val playbackMetrics = PlaybackMetricsRecorder()
 
-
-  private lateinit var localPlayer: AbsPlayerWrapper
-  private lateinit var castPlayer: AbsPlayerWrapper
-  private lateinit var activePlayer: Player
-  private var playbackPipeline: PlaybackPipeline? = null
-  private var castCoordinator: com.audiobookshelf.app.player.media3.Media3CastCoordinator? = null
-
+  // Player State & Synchronization
   @Volatile
   private var playerInitialized = false
   private val hasActivePlayer: Boolean
@@ -105,41 +129,40 @@ class Media3PlaybackService : MediaLibraryService() {
   private val playerInitializationSignal = CompletableDeferred<Unit>()
   private val playerSwitchMutex = Mutex()
   private var finalSyncBarrier: CompletableDeferred<SyncResult?>? = null
-
   @Volatile
   private var suppressFinalServerSync: Boolean = false
 
+  @Volatile
+  private var lastKnownIsPlaying: Boolean = false
+
+  // Public Player Access (for other components)
   val hasActivePlayerPublic: Boolean
     get() = hasActivePlayer
   val activePlayerPublic: Player
     get() = activePlayer
 
+  // Audio Configuration
   private val speechAudioAttributes = androidx.media3.common.AudioAttributes.Builder()
     .setUsage(C.USAGE_MEDIA)
     .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
     .build()
+  private lateinit var audioFocusManager: AudioFocusManager
 
-  @Volatile
-  private var lastKnownIsPlaying: Boolean = false
-
+  // Error Handling & Retry
   private var errorRetryJob: Job? = null
 
+  // Playback Controls
   private var jumpBackwardMs: Long = 10000L
   private var jumpForwardMs: Long = 10000L
   private val closePlaybackSignal: CompletableDeferred<Unit>?
     get() = media3SessionManager.getClosePlaybackSignal()
 
+  // Notification Components
   private lateinit var notificationProvider: MediaNotification.Provider
-  private lateinit var media3NotificationManager: Media3NotificationManager
-  private lateinit var media3ProgressManager: Media3ProgressManager
-  private lateinit var media3SessionManager: Media3SessionManager
   private lateinit var playbackSpeedButtonProvider: Media3PlaybackSpeedButtonProvider
   private var playbackSpeedCommandButton: CommandButton? = null
 
-  @Volatile
-
-  private lateinit var audioFocusManager: AudioFocusManager
-
+  // Session Commands
   private val cyclePlaybackSpeedCommand =
     PlaybackConstants.sessionCommand(PlaybackConstants.Commands.CYCLE_PLAYBACK_SPEED)
   private val seekBackIncrementCommand =
@@ -147,12 +170,11 @@ class Media3PlaybackService : MediaLibraryService() {
   private val seekForwardIncrementCommand =
     PlaybackConstants.sessionCommand(PlaybackConstants.Commands.SEEK_FORWARD_INCREMENT)
 
-
-  private val resolvedCache = com.audiobookshelf.app.player.media3.ResolvedPlayableCache(
+  // Caching & Settings
+  private val resolvedCache = ResolvedPlayableCache(
     RESOLVED_CACHE_TTL_MS,
     RESOLVED_CACHE_LIMIT
   )
-
   private val deviceSettings
     get() = DeviceManager.deviceData.deviceSettings ?: DeviceSettings.default()
 
@@ -303,7 +325,7 @@ class Media3PlaybackService : MediaLibraryService() {
           session.clone(),
           shouldSyncServer = true
         ) { latch.countDown() }
-        latch.await(1, java.util.concurrent.TimeUnit.SECONDS)
+        latch.await(ONBOARDING_SYNC_TIMEOUT_SEC, java.util.concurrent.TimeUnit.SECONDS)
       }
     } catch (_: Exception) {
     }
@@ -561,12 +583,15 @@ class Media3PlaybackService : MediaLibraryService() {
     playerSwitchMutex.withLock {
       if (activePlayer === nextPlayer) return
 
+      // Capture state from current player before switching
+      // This ensures seamless handoff with no position/playback state loss
       val previousPlayer = activePlayer
       val itemCount = previousPlayer.mediaItemCount
       val startIndex = previousPlayer.currentMediaItemIndex
       val startPosition = previousPlayer.currentPosition.coerceAtLeast(0)
       val playWhenReady = previousPlayer.playWhenReady
 
+      // Switch to new player and update Media3 session
       activePlayer = nextPlayer
       mediaSession?.player = nextPlayer
       currentPlaybackSession?.mediaPlayer = currentMediaPlayerId()
@@ -574,6 +599,7 @@ class Media3PlaybackService : MediaLibraryService() {
       notifyWidgetState()
       updateMediaPlayerExtra()
 
+      // Transfer media queue and playback state to new player
       if (itemCount > 0) {
         nextPlayer.setMediaItems(
           List(itemCount) { previousPlayer.getMediaItemAt(it) },
@@ -584,12 +610,14 @@ class Media3PlaybackService : MediaLibraryService() {
       nextPlayer.playWhenReady = playWhenReady
       nextPlayer.prepare()
 
+      // Local player needs audio focus; cast player manages its own focus
       if (nextPlayer === localPlayer) {
         ensureAudioFocus()
       } else {
         abandonAudioFocus()
       }
 
+      // Clean up previous player (but preserve local player for potential handback)
       if (previousPlayer !== localPlayer) {
         previousPlayer.stop()
         previousPlayer.clearMediaItems()
@@ -712,7 +740,7 @@ class Media3PlaybackService : MediaLibraryService() {
   private suspend fun awaitFinalSyncBarrier() {
     val barrier = finalSyncBarrier ?: return
     try {
-      withTimeout(3_000L) { barrier.await() }
+      withTimeout(FINAL_SYNC_TIMEOUT_MS) { barrier.await() }
     } catch (_: Exception) {
     }
   }
@@ -732,10 +760,15 @@ class Media3PlaybackService : MediaLibraryService() {
       onSyncComplete?.invoke(null)
       return
     }
+
+    // Create barrier for critical sync points (pause/ended/close) to ensure completion before service cleanup
+    // This prevents progress loss if service terminates immediately after these events
     val shouldCreateBarrier = (reason == "pause" || reason == "ended" || reason == "close")
     val barrier = if (shouldCreateBarrier && finalSyncBarrier == null) {
       CompletableDeferred<SyncResult?>().also { finalSyncBarrier = it }
     } else finalSyncBarrier
+
+    // Determine server sync necessity: critical events always sync, others check connectivity
     val shouldSyncServerOverride =
       if (shouldCreateBarrier && suppressFinalServerSync) false else null
     val shouldSyncServer = when (reason) {
@@ -744,6 +777,8 @@ class Media3PlaybackService : MediaLibraryService() {
         applicationContext
       ))
     }
+
+    // Suppression flag allows emergency cancellation (e.g., user force-stops app)
     if (suppressFinalServerSync && !shouldSyncServer) {
       debugLog { "Skipping progress sync due to suppression: $reason" }
       val suppressedResult = SyncResult(false, null, "Suppressed")
@@ -972,7 +1007,7 @@ class Media3PlaybackService : MediaLibraryService() {
         try {
           val player = if (this::activePlayer.isInitialized) this.activePlayer else null
           val isAppUiController =
-            controllerInfo.connectionHints.getBoolean("isAppUiController", false)
+            controllerInfo.connectionHints.getBoolean(KEY_IS_APP_UI_CONTROLLER, false)
           val effectiveAllowSeeking = isAppUiController || allowSeekingOnMediaControls
 
           val playerCommands =

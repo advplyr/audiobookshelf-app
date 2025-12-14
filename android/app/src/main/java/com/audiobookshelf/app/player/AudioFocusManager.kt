@@ -66,7 +66,7 @@ class AudioFocusManager(
       )
     }
 
-    val granted = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+    val granted: Boolean = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
     if (!granted && BuildConfig.DEBUG) {
       Log.w(tag, "Audio focus request was denied; continuing playback best-effort.")
     }

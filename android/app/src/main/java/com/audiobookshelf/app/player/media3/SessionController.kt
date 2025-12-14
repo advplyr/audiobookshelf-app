@@ -117,13 +117,12 @@ class SessionController(
       com.audiobookshelf.app.player.PlaybackConstants.SleepTimer.EXTRA_ADJUST_DELTA
     val sleepExtraAdjustIncreaseKey =
       com.audiobookshelf.app.player.PlaybackConstants.SleepTimer.EXTRA_ADJUST_INCREASE
-    val extraChapterStartMsKey = "chapter_start_ms"
 
     if (customAction == syncProgressForceCommand.customAction) {
       playerProvider()?.takeIf { it.isPlaying }?.pause()
       val progressSyncLatch = java.util.concurrent.CountDownLatch(1)
       syncProgress("switch", true) { progressSyncLatch.countDown() }
-      progressSyncLatch.await(2, java.util.concurrent.TimeUnit.SECONDS)
+      progressSyncLatch.await(SYNC_LATCH_TIMEOUT_SEC, java.util.concurrent.TimeUnit.SECONDS)
       return SessionResult(SessionResult.RESULT_SUCCESS)
     }
     if (customAction == cyclePlaybackSpeedCommand.customAction) {
@@ -161,7 +160,7 @@ class SessionController(
     }
     if (customAction == seekToChapterCommand.customAction) {
       val chapterStartMs =
-        commandData?.getLong(extraChapterStartMsKey, Long.MIN_VALUE) ?: Long.MIN_VALUE
+        commandData?.getLong(KEY_CHAPTER_START_MS, Long.MIN_VALUE) ?: Long.MIN_VALUE
       if (chapterStartMs >= 0L) {
         playerProvider()?.seekTo(chapterStartMs)
         return SessionResult(SessionResult.RESULT_SUCCESS)
@@ -205,7 +204,8 @@ class SessionController(
     val currentChapter =
       session.getChapterForTime(currentPositionMs) ?: return chapters.firstOrNull()
     val currentIndex = chapters.indexOf(currentChapter).coerceAtLeast(0)
-    val isNearChapterStart = currentPositionMs - currentChapter.startMs <= 3_000L
+    val isNearChapterStart =
+      currentPositionMs - currentChapter.startMs <= CHAPTER_START_THRESHOLD_MS
     return if (isNearChapterStart && currentIndex > 0) chapters[currentIndex - 1] else currentChapter
   }
 
@@ -248,6 +248,12 @@ class SessionController(
   }
 
   companion object {
+    private const val CHAPTER_START_THRESHOLD_MS = 3_000L
+    private const val SYNC_LATCH_TIMEOUT_SEC = 2L
+
+    // Bundle keys
+    private const val KEY_CHAPTER_START_MS = "chapter_start_ms"
+
     fun buildBasePlayerCommands(player: Player?, allowSeeking: Boolean): Player.Commands {
       val availablePlayerCommands = player?.availableCommands
       val builder = Player.Commands.Builder()

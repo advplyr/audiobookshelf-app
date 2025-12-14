@@ -81,7 +81,8 @@ class Media3BrowseDataLoader(private val mediaManager: MediaManager) {
       }
     }
     if (waiter !== created) {
-      return waiter!!.await()
+      return waiter?.await()
+        ?: throw IllegalStateException("Authors list waiter was unexpectedly null")
     }
     try {
       val result = withMediaManagerCallback {
@@ -120,7 +121,8 @@ class Media3BrowseDataLoader(private val mediaManager: MediaManager) {
       }
     }
     if (waiter !== created) {
-      return waiter!!.await()
+      return waiter?.await()
+        ?: throw IllegalStateException("Series list waiter was unexpectedly null")
     }
     try {
       val result = withMediaManagerCallback {
@@ -159,7 +161,8 @@ class Media3BrowseDataLoader(private val mediaManager: MediaManager) {
       }
     }
     if (waiter !== created) {
-      return waiter!!.await()
+      return waiter?.await()
+        ?: throw IllegalStateException("Collections list waiter was unexpectedly null")
     }
     try {
       val result = withMediaManagerCallback {
@@ -198,7 +201,8 @@ class Media3BrowseDataLoader(private val mediaManager: MediaManager) {
       }
     }
     if (waiter !== created) {
-      return waiter!!.await()
+      return waiter?.await()
+        ?: throw IllegalStateException("Discovery books waiter was unexpectedly null")
     }
     try {
       val result = withMediaManagerCallback {
@@ -238,7 +242,8 @@ class Media3BrowseDataLoader(private val mediaManager: MediaManager) {
         }
       }
       if (waiter !== created) {
-        return waiter!!.await()
+        return waiter?.await()
+          ?: throw IllegalStateException("Author books waiter was unexpectedly null")
       }
       try {
         val result = withMediaManagerCallback {
@@ -280,7 +285,8 @@ class Media3BrowseDataLoader(private val mediaManager: MediaManager) {
       }
     }
     if (waiter !== created) {
-      return waiter!!.await()
+      return waiter?.await()
+        ?: throw IllegalStateException("Series items waiter was unexpectedly null")
     }
     try {
       val result = withMediaManagerCallback {
@@ -320,7 +326,8 @@ class Media3BrowseDataLoader(private val mediaManager: MediaManager) {
       }
     }
     if (waiter !== created) {
-      return waiter!!.await()
+      return waiter?.await()
+        ?: throw IllegalStateException("Collection books waiter was unexpectedly null")
     }
     try {
       val result = withMediaManagerCallback {

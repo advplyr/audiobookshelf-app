@@ -204,19 +204,26 @@ class Media3PlayerEventListener(
     listener.debug { "Recoverable playbackError (attempt $consecutiveErrorCount/$maxRetryAttempts), retrying in ${retryBackoffDelayMs}ms" }
 
     listener.getErrorRetryJob()?.cancel()
-    listener.setErrorRetryJob(
-      listener.serviceScope.launch {
+    val retryJob = listener.serviceScope.launch {
+      try {
         kotlinx.coroutines.delay(retryBackoffDelayMs)
         if (listener.isPlayerInitialized() && listener.currentSession() != null) {
-          listener.debug { "Retrying playback after playbackError..." }
+          listener.debug { "Retrying playback after error..." }
           val activePlayer = listener.activePlayer()
           activePlayer.prepare()
           if (listener.lastKnownIsPlaying()) {
             activePlayer.play()
           }
         }
+      } catch (e: Exception) {
+        if (e !is kotlinx.coroutines.CancellationException) {
+          listener.debug { "Error retry job failed: ${e.message}" }
+        }
+      } finally {
+        listener.setErrorRetryJob(null)
       }
-    )
+    }
+    listener.setErrorRetryJob(retryJob)
   }
 
   override fun onPlaybackParametersChanged(parameters: PlaybackParameters) {

@@ -28,6 +28,14 @@ class PlaybackPipeline(
   var playerListener: androidx.media3.common.Player.Listener? = null
     private set
 
+  companion object {
+    // Buffer settings (in milliseconds)
+    private const val BUFFER_MIN_MS = 20_000
+    private const val BUFFER_MAX_MS = 45_000
+    private const val BUFFER_PLAYBACK_MS = 5_000
+    private const val BUFFER_REBUFFER_MS = 20_000
+  }
+
   fun initializeCast(): Media3CastCoordinator? {
     castCoordinator = Media3CastCoordinator(
       context = context,
@@ -56,10 +64,10 @@ class PlaybackPipeline(
 
     val customLoadControl = DefaultLoadControl.Builder()
       .setBufferDurationsMs(
-        1000 * 20, // 20s min buffer
-        1000 * 45, // 45s max buffer
-        1000 * 5,  // 5s playback start
-        1000 * 20  // 20s playback rebuffer
+        BUFFER_MIN_MS,
+        BUFFER_MAX_MS,
+        BUFFER_PLAYBACK_MS,
+        BUFFER_REBUFFER_MS
       )
       .build()
 
@@ -73,10 +81,13 @@ class PlaybackPipeline(
       .setDeviceVolumeControlEnabled(true)
       .build()
 
-    playerListener = buildListener()
-    localPlayer = AbsPlayerWrapper(coreExoPlayer, context).apply { addListener(playerListener!!) }
-    onPlayerReady(localPlayer!!)
+    val listener = buildListener()
+    playerListener = listener
+
+    val player = AbsPlayerWrapper(coreExoPlayer, context).apply { addListener(listener) }
+    localPlayer = player
+    onPlayerReady(player)
     log { "Local player initialized via pipeline." }
-    return localPlayer!!
+    return player
   }
 }
