@@ -53,9 +53,9 @@ class DownloadNotificationService : Service() {
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
     Log.d(tag, "DownloadNotificationService onStartCommand")
     startForegroundService()
-    // START_STICKY ensures service is recreated if killed
-    // START_REDELIVER_INTENT would redeliver the intent, but we don't need that
-    return START_STICKY
+    // START_NOT_STICKY ensures service is not recreated if killed by the system
+    // This prevents holding wake locks when no downloads are in progress
+    return START_NOT_STICKY
   }
 
   override fun onTaskRemoved(rootIntent: Intent?) {
