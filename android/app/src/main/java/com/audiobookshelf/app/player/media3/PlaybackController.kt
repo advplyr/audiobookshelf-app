@@ -344,7 +344,14 @@ class PlaybackController(private val context: Context) {
       applicationContext,
       ComponentName(applicationContext, Media3PlaybackService::class.java)
     )
-    mediaControllerFuture = MediaController.Builder(applicationContext, sessionToken).buildAsync()
+    // Add connection hint to identify this as the app's UI controller
+    // This allows the session to differentiate the app UI from other controllers (notification, wear, etc)
+    val connectionHints = Bundle().apply {
+      putBoolean("isAppUiController", true)
+    }
+    mediaControllerFuture = MediaController.Builder(applicationContext, sessionToken)
+      .setConnectionHints(connectionHints)
+      .buildAsync()
 
 
     Futures.addCallback(mediaControllerFuture!!, object : FutureCallback<MediaController> {

@@ -36,7 +36,6 @@ import com.audiobookshelf.app.player.core.PlaybackTelemetryHost
 import com.audiobookshelf.app.player.media3.Media3AutoLibraryCoordinator
 import com.audiobookshelf.app.player.media3.Media3BrowseTree
 import com.audiobookshelf.app.player.media3.Media3PlaybackSpeedButtonProvider
-import com.audiobookshelf.app.player.media3.NotificationCommandFilteringPlayer
 import com.audiobookshelf.app.player.media3.PlaybackPipeline
 import com.audiobookshelf.app.player.wrapper.AbsPlayerWrapper
 import com.audiobookshelf.app.server.ApiHandler
@@ -932,12 +931,8 @@ class Media3PlaybackService : MediaLibraryService() {
         media3NotificationManager.setPlaybackSpeedCommandButton(playbackSpeedCommandButton)
       }
 
-    val playerForSession = NotificationCommandFilteringPlayer(
-      player = activePlayer,
-      allowSeekingOnMediaControls = { deviceSettings.allowSeekingOnMediaControls }
-    )
 
-    mediaSession = MediaLibrarySession.Builder(this, playerForSession, createSessionCallback())
+    mediaSession = MediaLibrarySession.Builder(this, activePlayer, createSessionCallback())
       .setId(sessionId)
       .setSessionActivity(sessionActivityIntent)
       .build()
@@ -976,10 +971,14 @@ class Media3PlaybackService : MediaLibraryService() {
       connected.forEach { controllerInfo ->
         try {
           val player = if (this::activePlayer.isInitialized) this.activePlayer else null
+          val isAppUiController =
+            controllerInfo.connectionHints.getBoolean("isAppUiController", false)
+          val effectiveAllowSeeking = isAppUiController || allowSeekingOnMediaControls
+
           val playerCommands =
             com.audiobookshelf.app.player.media3.SessionController.buildBasePlayerCommands(
               player,
-              allowSeekingOnMediaControls
+              effectiveAllowSeeking
             )
           mediaSession?.setAvailableCommands(controllerInfo, sessionCommands, playerCommands)
         } catch (t: Throwable) {

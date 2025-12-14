@@ -130,6 +130,14 @@ class Media3SessionCallback(
     val isWearableDevice = controller.packageName.contains("wear", ignoreCase = true)
     (player as? AbsPlayerWrapper)?.mapSkipToSeek = isWearableDevice
 
+    val isAppUiController = controller.connectionHints.getBoolean("isAppUiController", false)
+    val controllerType = when {
+      isAppUiController -> "APP_UI"
+      controller.packageName.contains("wear", ignoreCase = true) -> "WEAR"
+      controller.packageName.contains("auto", ignoreCase = true) -> "AUTO"
+      else -> "OTHER"
+    }
+
     val playerCommands = sessionController?.buildPlayerCommands(
       controllerInfo = controller,
       allowSeekingOnMediaControls = seekConfig.allowSeekingOnMediaControls
@@ -146,14 +154,24 @@ class Media3SessionCallback(
         .build()
     }
 
-    fun cmd(commandCode: Int) = if (playerCommands.contains(commandCode)) "Y" else "N"
-    debug {
-      "Controller connected pkg=${controller.packageName}. cmd: BACK=${cmd(Player.COMMAND_SEEK_BACK)} " +
-        "FWD=${cmd(Player.COMMAND_SEEK_FORWARD)} SEEK_IN_ITEM=${cmd(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)} " +
+
+    if (BuildConfig.DEBUG) {
+      fun cmd(commandCode: Int) = if (playerCommands.contains(commandCode)) "Y" else "N"
+      Log.d(logTag, "onConnect: $controllerType controller (${controller.packageName})")
+      Log.d(
+        logTag,
+        "  Commands: SEEK_IN_ITEM=${cmd(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)} BACK=${
+          cmd(Player.COMMAND_SEEK_BACK)
+        } FWD=${cmd(Player.COMMAND_SEEK_FORWARD)} " +
         "PREV=${cmd(Player.COMMAND_SEEK_TO_PREVIOUS)} NEXT=${cmd(Player.COMMAND_SEEK_TO_NEXT)} " +
         "PREV_ITEM=${cmd(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)} NEXT_ITEM=${cmd(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)} " +
-        "VOL_GET=${cmd(Player.COMMAND_GET_DEVICE_VOLUME)} VOL_SET=${cmd(Player.COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS)} " +
-        "VOL_ADJ=${cmd(Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS)}"
+          "VOL_GET=${cmd(Player.COMMAND_GET_DEVICE_VOLUME)} VOL_SET=${cmd(Player.COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS)} VOL_ADJ=${
+            cmd(
+              Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS
+            )
+          } " +
+          "(allowSeekSetting=${seekConfig.allowSeekingOnMediaControls})"
+      )
     }
 
     val sessionCommands = run {
@@ -179,13 +197,6 @@ class Media3SessionCallback(
       .setAvailableSessionCommands(sessionCommands)
       .setAvailablePlayerCommands(playerCommands)
       .build()
-  }
-
-  override fun onPostConnect(session: MediaSession, controller: MediaSession.ControllerInfo) {
-    super.onPostConnect(session, controller)
-    if (BuildConfig.DEBUG) {
-      debug { "Post-connect: controller=${controller.packageName}" }
-    }
   }
 
   override fun onPlaybackResumption(

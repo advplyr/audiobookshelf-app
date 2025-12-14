@@ -230,7 +230,10 @@ class SessionController(
       return fallbackCommands.build()
     }
 
-    val baseCommands = buildBasePlayerCommands(player, allowSeekingOnMediaControls)
+    val isAppUiController = controllerInfo.connectionHints.getBoolean("isAppUiController", false)
+    val effectiveAllowSeeking = isAppUiController || allowSeekingOnMediaControls
+
+    val baseCommands = buildBasePlayerCommands(player, effectiveAllowSeeking)
     val isWearController = controllerInfo.packageName.contains("wear", ignoreCase = true)
 
     val builder = Player.Commands.Builder().addAll(baseCommands)
