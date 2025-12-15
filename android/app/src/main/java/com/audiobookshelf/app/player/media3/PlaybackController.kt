@@ -24,7 +24,6 @@ import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.data.PlaybackMetadata
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.data.PlayerState
-import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.player.Media3PlaybackService
 import com.audiobookshelf.app.player.PlaybackConstants
 import com.audiobookshelf.app.player.toPlayerMediaItems
@@ -88,33 +87,6 @@ class PlaybackController(private val context: Context) {
 
   var listener: Listener? = null
   private var isProgressUpdaterScheduled = false
-  private var sessionBootstrapRetries = 0
-  private val MAX_BOOTSTRAP_RETRIES = 2
-
-  private val sessionBootstrapRetrier = object : Runnable {
-    override fun run() {
-      if (sessionBootstrapRetries >= MAX_BOOTSTRAP_RETRIES) {
-        sessionBootstrapRetries = 0
-        return
-      }
-
-      val session = activePlaybackSession
-      if (session == null) {
-        sessionBootstrapRetries = 0
-        return
-      }
-
-      listener?.onPlaybackSession(session)
-      mediaController?.let { controller ->
-        emitMetadata(controller)
-        val isPlaying = effectiveIsPlaying(controller)
-        listener?.onPlayingUpdate(isPlaying)
-        listener?.onPlaybackSpeedChanged(controller.playbackParameters.speed)
-      }
-      sessionBootstrapRetries++
-      mainHandler.postDelayed(this, 500)
-    }
-  }
 
   private val progressUpdater = object : Runnable {
     override fun run() {
@@ -166,14 +138,7 @@ class PlaybackController(private val context: Context) {
           mediaController = sessionResult
           mediaController?.addListener(controllerListener)
           hasEmittedCloseEvent = false
-          maybeBootstrapSession(sessionResult)
           maybeEmitMediaPlayerFromExtras()
-          sessionResult?.let { controller ->
-            emitMetadata(controller)
-            val effectivePlaying = effectiveIsPlaying(controller)
-            notifyPlayingState(effectivePlaying)
-            if (effectivePlaying) startProgressUpdates()
-          }
           sessionResult?.let { listener?.onPlaybackSpeedChanged(it.playbackParameters.speed) }
           onConnectionSuccess?.invoke()
         }
@@ -224,8 +189,6 @@ class PlaybackController(private val context: Context) {
     if (hasEmittedCloseEvent) return
     hasEmittedCloseEvent = true
     stopProgressUpdates()
-    mainHandler.removeCallbacks(sessionBootstrapRetrier)
-    sessionBootstrapRetries = 0
     mediaController.removeListener(controllerListener)
     mediaController.release()
     this@PlaybackController.mediaController = null
@@ -260,7 +223,6 @@ class PlaybackController(private val context: Context) {
         disconnectControllerSync(mediaController)
         return
       }
-      maybeBootstrapSession(mediaController)
       maybeEmitMediaPlayerFromExtras()
       notifyPlayingState(effectiveIsPlaying(player))
       lastKnownPositionMs = player.currentPosition
@@ -296,8 +258,14 @@ class PlaybackController(private val context: Context) {
       }
       when (playbackState) {
         Player.STATE_ENDED -> listener?.onPlaybackEnded()
+        Player.STATE_IDLE -> {
+          // If player is idle with no media items, playback has been closed
+          if (mediaController.mediaItemCount == 0 && activePlaybackSession != null) {
+            activePlaybackSession = null
+            listener?.onPlaybackClosed()
+          }
+        }
         Player.STATE_BUFFERING,
-        Player.STATE_IDLE,
         Player.STATE_READY -> Unit
       }
       notifyPlayingState(effectiveIsPlaying(mediaController))
@@ -335,37 +303,6 @@ class PlaybackController(private val context: Context) {
     }
   }
 
-  private fun maybeBootstrapSession(controller: MediaController?) {
-    val hasActiveMedia = controller != null &&
-      controller.mediaItemCount > 0 &&
-      controller.currentMediaItem != null &&
-      (controller.isPlaying ||
-        controller.playWhenReady ||
-        controller.playbackState == Player.STATE_READY ||
-        controller.playbackState == Player.STATE_BUFFERING)
-
-    if (!hasActiveMedia) return
-
-    val lastSession = DeviceManager.getLastPlaybackSession()
-    if (lastSession == null) return
-
-    val isNewSession = activePlaybackSession?.id != lastSession.id
-    val wasUninitialized = activePlaybackSession == null
-
-    // Always update the session reference to ensure it's current
-    activePlaybackSession = lastSession
-
-    if (isNewSession || wasUninitialized) {
-      listener?.onPlaybackSession(lastSession)
-
-      // Start retry loop to ensure UI receives the session (handles race condition with JS loading)
-      // First emission happens immediately, then retries start after 2s to give JS time to load
-      sessionBootstrapRetries = 0
-      mainHandler.removeCallbacks(sessionBootstrapRetrier)
-      mainHandler.postDelayed(sessionBootstrapRetrier, 2000)
-    }
-  }
-
   /* ======== Playback Session & Preparation ======== */
 
   fun preparePlayback(
@@ -379,11 +316,7 @@ class PlaybackController(private val context: Context) {
         "preparePlayback: session=${playbackSession.id} title=${playbackSession.displayTitle}"
       )
     }
-    val isSameAsActiveSession = activePlaybackSession?.id == playbackSession.id
-    if (!isSameAsActiveSession) {
-      mainHandler.removeCallbacks(sessionBootstrapRetrier)
-      sessionBootstrapRetries = 0
-    }
+    activePlaybackSession?.id == playbackSession.id
 
     activePlaybackSession = playbackSession
     listener?.onPlaybackSession(playbackSession)

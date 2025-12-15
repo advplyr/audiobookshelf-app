@@ -1,6 +1,5 @@
 package com.audiobookshelf.app.player.media3
 
-import android.content.Context
 import android.os.Bundle
 import android.support.v4.media.MediaBrowserCompat
 import android.util.Log
@@ -10,7 +9,6 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.LibraryResult
-import androidx.media3.session.MediaConstants
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaLibraryService.LibraryParams
 import androidx.media3.session.MediaSession
@@ -19,15 +17,8 @@ import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.data.PlaybackSession
-import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.media.MediaManager
-import com.audiobookshelf.app.player.ANDROID_AUTOMOTIVE_PKG_NAME
-import com.audiobookshelf.app.player.ANDROID_AUTO_PKG_NAME
-import com.audiobookshelf.app.player.ANDROID_AUTO_SIMULATOR_PKG_NAME
-import com.audiobookshelf.app.player.ANDROID_GSEARCH_PKG_NAME
 import com.audiobookshelf.app.player.PlaybackConstants
-import com.audiobookshelf.app.player.core.NetworkMonitor
-import com.audiobookshelf.app.player.toPlayerMediaItems
 import com.audiobookshelf.app.player.wrapper.AbsPlayerWrapper
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
@@ -35,9 +26,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.guava.future
-import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Collections
-import kotlin.math.abs
 
 data class SeekConfig(
   val jumpBackwardMs: Long,
@@ -63,7 +52,6 @@ interface BrowseApi {
 class Media3SessionCallback(
   private val logTag: String,
   private val scope: CoroutineScope,
-  private val appContext: Context,
   private val browseTree: Media3BrowseTree,
   private val autoLibraryCoordinator: Media3AutoLibraryCoordinator,
   private val mediaManager: MediaManager,
@@ -71,13 +59,10 @@ class Media3SessionCallback(
   private val isCastActive: () -> Boolean,
   private val seekConfig: SeekConfig,
   private val browseApi: BrowseApi,
-  private val resolveTrackIndexForPosition: (PlaybackSession, Long) -> Int,
   private val awaitFinalSync: suspend () -> Unit,
   private val markNextPlaybackEventSourceUi: (() -> Unit)? = null,
   private val debug: ((() -> String) -> Unit),
-  private val sessionController: SessionController? = null,
-  private val ensurePipelineReady: () -> Boolean,
-  private val onRejectedResumption: () -> Unit
+  private val sessionController: SessionController? = null
 ) : MediaLibraryService.MediaLibrarySession.Callback {
 
   companion object {
@@ -85,13 +70,6 @@ class Media3SessionCallback(
   }
 
   private val searchCache = Collections.synchronizedMap(mutableMapOf<String, List<MediaItem>>())
-  private val androidAutoControllerPackages = setOf(
-    ANDROID_AUTO_PKG_NAME,
-    ANDROID_AUTO_SIMULATOR_PKG_NAME,
-    ANDROID_GSEARCH_PKG_NAME,
-    ANDROID_AUTOMOTIVE_PKG_NAME
-  )
-  private val systemMediaControllerPackages = setOf("com.android.systemui")
 
   /* ======== Session Management ======== */
 
@@ -148,16 +126,6 @@ class Media3SessionCallback(
       controller.packageName.contains("wear", ignoreCase = true) -> "WEAR"
       controller.packageName.contains("gearhead", ignoreCase = true) -> "AUTO"
       else -> "OTHER"
-    }
-
-    val isAllowedController =
-      isAppUiController || controllerType == "AUTO" || controllerType == "WEAR"
-    if (isAllowedController && !ensurePipelineReady()) {
-      Log.w(
-        logTag,
-        "onConnect: failed to initialize pipeline for controller ${controller.packageName}"
-      )
-      return MediaSession.ConnectionResult.reject()
     }
 
     val playerCommands = sessionController?.buildPlayerCommands(
@@ -220,170 +188,6 @@ class Media3SessionCallback(
       .setAvailableSessionCommands(sessionCommands)
       .setAvailablePlayerCommands(playerCommands)
       .build()
-  }
-
-  /* ======== Playback Resumption ======== */
-
-  override fun onPlaybackResumption(
-    mediaSession: MediaSession,
-    controller: MediaSession.ControllerInfo
-  ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
-
-    return scope.future {
-      if (!ensurePipelineReady()) {
-        Log.w(
-          logTag,
-          "onPlaybackResumption: failed to initialize pipeline for controller '${controller.packageName}'"
-        )
-        onRejectedResumption()
-        return@future MediaSession.MediaItemsWithStartPosition(emptyList(), 0, C.TIME_UNSET)
-      }
-
-      if (controller.packageName in androidAutoControllerPackages) {
-        withTimeoutOrNull(3000) {
-          autoLibraryCoordinator.awaitAutoDataLoaded()
-        }
-      }
-
-      configurePlayerForResumption()
-
-      val preferCastStream = isCastActive()
-
-      attemptServerInProgressResumption(preferCastStream)?.let { return@future it }
-      attemptLastSessionResumption(preferCastStream)?.let { return@future it }
-
-      Log.w(logTag, "onPlaybackResumption: No resumable session found")
-      MediaSession.MediaItemsWithStartPosition(emptyList(), 0, C.TIME_UNSET)
-    }
-  }
-
-  private suspend fun attemptServerInProgressResumption(
-    preferCastStream: Boolean
-  ): MediaSession.MediaItemsWithStartPosition? {
-    val latestUnfinishedItem = mediaManager.latestServerItemInProgress ?: return null
-    if (!NetworkMonitor.initialized || !NetworkMonitor.hasConnectivity) return null
-
-    val mediaId = latestUnfinishedItem.episode?.id ?: latestUnfinishedItem.libraryItemWrapper.id
-    val resolvedPlayable = browseApi.resolve(mediaId, preferCastStream) ?: return null
-
-    browseApi.assignSession(resolvedPlayable.session)
-    val mediaItemsWithExtras = addCompletionExtras(
-      resolvedPlayable.mediaItems,
-      resolvedPlayable.session,
-      resolvedPlayable.startIndex,
-      resolvedPlayable.startPositionMs
-    )
-    return MediaSession.MediaItemsWithStartPosition(
-      mediaItemsWithExtras,
-      resolvedPlayable.startIndex,
-      resolvedPlayable.startPositionMs
-    )
-  }
-
-  private suspend fun attemptLastSessionResumption(
-    preferCastStream: Boolean
-  ): MediaSession.MediaItemsWithStartPosition? {
-    val lastLocalSession = DeviceManager.getLastPlaybackSession() ?: return null
-
-    attemptServerReResolution(lastLocalSession, preferCastStream)?.let { return it }
-    return buildCachedSessionResumption(
-      lastLocalSession,
-      preferCastStream && lastLocalSession.isLocal
-    )
-  }
-
-  private suspend fun attemptServerReResolution(
-    session: PlaybackSession,
-    preferCastStream: Boolean
-  ): MediaSession.MediaItemsWithStartPosition? {
-    if (session.isLocal) return null
-    if (!NetworkMonitor.initialized || !NetworkMonitor.hasConnectivity) return null
-    if (!DeviceManager.isConnectedToServer) return null
-
-    val mediaId = (session.episodeId ?: session.libraryItemId) ?: ""
-    if (mediaId.isEmpty()) return null
-
-    val resolvedPlayable = browseApi.resolve(mediaId, preferCastStream) ?: return null
-
-    browseApi.assignSession(resolvedPlayable.session)
-    val mediaItemsWithExtras = addCompletionExtras(
-      resolvedPlayable.mediaItems,
-      resolvedPlayable.session,
-      resolvedPlayable.startIndex,
-      resolvedPlayable.startPositionMs
-    )
-    return MediaSession.MediaItemsWithStartPosition(
-      mediaItemsWithExtras,
-      resolvedPlayable.startIndex,
-      resolvedPlayable.startPositionMs
-    )
-  }
-
-  private fun buildCachedSessionResumption(
-    session: PlaybackSession,
-    preferServerUrisForCast: Boolean
-  ): MediaSession.MediaItemsWithStartPosition? {
-    val playerMediaItems = session.toPlayerMediaItems(
-      appContext,
-      preferServerUrisForCast = preferServerUrisForCast
-    )
-
-    val mediaItems = playerMediaItems.mapIndexed { index, playerMediaItem ->
-      val mediaId = "${session.id}_${index}"
-      MediaItem.Builder()
-        .setUri(playerMediaItem.uri)
-        .setMediaId(mediaId)
-        .setMediaMetadata(
-          MediaMetadata.Builder()
-            .setTitle(session.displayTitle)
-            .setArtist(session.displayAuthor)
-            .setArtworkUri(playerMediaItem.artworkUri)
-            .build()
-        )
-        .build()
-    }
-
-    if (mediaItems.isEmpty()) {
-      Log.e(logTag, "onPlaybackResumption: Failed to create MediaItems from cached session")
-      return null
-    }
-
-    val serverProgressDurationMs = mediaManager.serverUserMediaProgress.find {
-      it.libraryItemId == session.libraryItemId && it.episodeId == session.episodeId
-    }?.currentTime?.times(1000)?.toLong() ?: 0L
-
-    val resumeAtMs = maxOf(serverProgressDurationMs, session.currentTimeMs)
-    val startIndex = resolveTrackIndexForPosition(session, resumeAtMs)
-      .coerceIn(0, mediaItems.lastIndex)
-    val trackStartOffsetMs = session.getTrackStartOffsetMs(startIndex)
-    val startPositionMs = (resumeAtMs - trackStartOffsetMs).coerceAtLeast(0L)
-
-    browseApi.assignSession(session)
-    val mediaItemsWithExtras =
-      addCompletionExtras(mediaItems, session, startIndex, startPositionMs)
-    return MediaSession.MediaItemsWithStartPosition(
-      mediaItemsWithExtras,
-      startIndex,
-      startPositionMs
-    )
-  }
-
-  private fun configurePlayerForResumption() {
-    val player = runCatching { playerProvider() }.getOrNull() ?: return
-    val savedRate = runCatching { mediaManager.getSavedPlaybackRate() }.getOrNull() ?: 1f
-    if (savedRate > 0f) {
-      val currentSpeed = player.playbackParameters.speed
-      if (abs(currentSpeed - savedRate) > 0.01f) {
-        runCatching { player.setPlaybackSpeed(savedRate) }
-          .onFailure {
-            Log.w(
-              logTag,
-              "onPlaybackResumption: failed to apply saved speed $savedRate",
-              it
-            )
-          }
-      }
-    }
   }
 
   /* ======== Custom Commands ======== */
@@ -674,42 +478,5 @@ class Media3SessionCallback(
       .also { mediaDescription.mediaUri?.let { artworkUri -> it.setUri(artworkUri) } }
       .build()
   }
-  
-  private fun addCompletionExtras(
-    mediaItems: List<MediaItem>,
-    session: PlaybackSession,
-    startIndex: Int,
-    startPositionMs: Long
-  ): List<MediaItem> {
-    if (mediaItems.isEmpty()) return mediaItems
-    val totalDurationMs = session.totalDurationMs
-    if (totalDurationMs <= 0) return mediaItems
 
-    val clampedIndex = startIndex.coerceIn(0, mediaItems.lastIndex)
-    val resumeAbsoluteMs =
-      (session.getTrackStartOffsetMs(clampedIndex) + startPositionMs).coerceAtLeast(0L)
-    val completionPercent =
-      (resumeAbsoluteMs.toDouble() / totalDurationMs.toDouble()).coerceIn(0.0, 1.0) * 100.0
-    val completionStatus = when {
-      completionPercent >= 99.0 -> MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_FULLY_PLAYED
-      completionPercent <= 1.0 -> MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_NOT_PLAYED
-      else -> MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_PARTIALLY_PLAYED
-    }
-
-    val targetItem = mediaItems[clampedIndex]
-    val extras = Bundle(targetItem.mediaMetadata.extras ?: Bundle()).apply {
-      putInt(MediaConstants.EXTRAS_KEY_COMPLETION_STATUS, completionStatus)
-      putDouble(MediaConstants.EXTRAS_KEY_COMPLETION_PERCENTAGE, completionPercent)
-    }
-
-    val updatedMetadata = targetItem.mediaMetadata.buildUpon()
-      .setExtras(extras)
-      .build()
-
-    val updatedItem = targetItem.buildUpon()
-      .setMediaMetadata(updatedMetadata)
-      .build()
-
-    return mediaItems.mapIndexed { idx, item -> if (idx == clampedIndex) updatedItem else item }
-  }
 }

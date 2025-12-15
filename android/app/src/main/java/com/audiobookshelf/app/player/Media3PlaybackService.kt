@@ -335,6 +335,16 @@ class Media3PlaybackService : MediaLibraryService() {
           shouldSyncServer = true
         ) { latch.countDown() }
         latch.await(ONBOARDING_SYNC_TIMEOUT_SEC, java.util.concurrent.TimeUnit.SECONDS)
+
+        // Close session on server if not local
+        if (!session.isLocal && session.id.isNotEmpty()) {
+          apiHandler.closePlaybackSession(
+            session.id,
+            DeviceManager.serverConnectionConfig
+          ) { success ->
+            debugLog { "onDestroy: Closed playback session ${session.id} on server: $success" }
+          }
+        }
       }
     } catch (_: Exception) {
     }
@@ -491,7 +501,15 @@ class Media3PlaybackService : MediaLibraryService() {
       stopPlayer = { if (playerInitialized) activePlayer.stop() },
       clearPlayerMediaItems = { if (playerInitialized) activePlayer.clearMediaItems() },
       setPlayerNotInitialized = { playerInitialized = false },
-      setLastKnownIsPlaying = { lastKnownIsPlaying = it }
+      setLastKnownIsPlaying = { lastKnownIsPlaying = it },
+      closeSessionOnServer = { sessionId ->
+        apiHandler.closePlaybackSession(
+          sessionId,
+          DeviceManager.serverConnectionConfig
+        ) { success ->
+          debugLog { "Closed playback session $sessionId on server: $success" }
+        }
+      }
     )
   }
 
@@ -674,7 +692,12 @@ class Media3PlaybackService : MediaLibraryService() {
   }
 
   fun closePlayback(onPlaybackStopped: (() -> Unit)? = null) {
-    media3SessionManager.closePlayback(onPlaybackStopped)
+    media3SessionManager.closePlayback {
+      // After session manager completes, stop the service
+      media3NotificationManager.stopForegroundNotification()
+      onPlaybackStopped?.invoke()
+      stopSelf()
+    }
   }
 
   private fun isHostController(controllerInfo: MediaSession.ControllerInfo?): Boolean {
@@ -946,7 +969,6 @@ class Media3PlaybackService : MediaLibraryService() {
     return com.audiobookshelf.app.player.media3.Media3SessionCallback(
       logTag = TAG,
       scope = serviceScope,
-      appContext = this,
       browseTree = browseTree,
       autoLibraryCoordinator = autoLibraryCoordinator,
       mediaManager = mediaManager,
@@ -954,7 +976,6 @@ class Media3PlaybackService : MediaLibraryService() {
       isCastActive = { this::castPlayer.isInitialized && this::activePlayer.isInitialized && activePlayer === castPlayer },
       seekConfig = seekConfig,
       browseApi = browseApi,
-      resolveTrackIndexForPosition = { session, pos -> resolveTrackIndexForPosition(session, pos) },
       awaitFinalSync = { awaitFinalSyncBarrier() },
       markNextPlaybackEventSourceUi = {
         if (this::unifiedProgressSyncer.isInitialized) {
@@ -962,9 +983,7 @@ class Media3PlaybackService : MediaLibraryService() {
         }
       },
       debug = { msg -> debugLog(msg) },
-      sessionController = sessionController,
-      ensurePipelineReady = { ensurePipelineInitialized() },
-      onRejectedResumption = { stopServiceAndReleaseSession() }
+      sessionController = sessionController
     )
   }
 

@@ -28,7 +28,8 @@ class Media3SessionManager(
   private val stopPlayer: () -> Unit,
   private val clearPlayerMediaItems: () -> Unit,
   private val setPlayerNotInitialized: () -> Unit,
-  private val setLastKnownIsPlaying: (Boolean) -> Unit
+  private val setLastKnownIsPlaying: (Boolean) -> Unit,
+  private val closeSessionOnServer: (String) -> Unit
 ) {
   var currentPlaybackSession: PlaybackSession? = null
     private set
@@ -87,14 +88,16 @@ class Media3SessionManager(
       closePlaybackSignal = signal
       stopPositionUpdates()
 
-      if (isPlayerInitialized() && playerProvider().isPlaying) {
-        pausePlayer()
-      }
-
       updateCurrentPosition(session)
       maybeSyncProgress("close", true, session) { result ->
         serviceScope.launch(Dispatchers.Main) {
           playbackMetrics.logSummary()
+
+          // Close session on server if not local
+          if (!session.isLocal && session.id.isNotEmpty()) {
+            closeSessionOnServer(session.id)
+          }
+
           if (isPlayerInitialized()) {
             stopPlayer()
             clearPlayerMediaItems()

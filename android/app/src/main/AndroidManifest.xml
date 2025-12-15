@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:dist="http://schemas.android.com/apk/distribution"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:installLocation="preferExternal" >
+  android:installLocation="preferExternal">
 
     <!-- Permissions -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -84,7 +82,11 @@
             </intent-filter>
         </activity>
 
-        <receiver android:name="androidx.media.session.MediaButtonReceiver" android:exported="true">
+      <!-- Media button receiver for ExoPlayer v2 only -->
+      <receiver
+        android:name="androidx.media.session.MediaButtonReceiver"
+        android:enabled="${use_exov2}"
+        android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MEDIA_BUTTON" />
             </intent-filter>
