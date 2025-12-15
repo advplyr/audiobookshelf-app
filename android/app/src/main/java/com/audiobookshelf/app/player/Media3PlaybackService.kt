@@ -88,7 +88,7 @@ class Media3PlaybackService : MediaLibraryService() {
     private const val KEY_IS_APP_UI_CONTROLLER = "isAppUiController"
 
     object Notification {
-      const val CHANNEL_ID = "media3_playback_channel"
+      const val CHANNEL_ID = PlaybackConstants.MEDIA3_NOTIFICATION_CHANNEL_ID
       const val ID = 100
     }
   }
@@ -114,6 +114,10 @@ class Media3PlaybackService : MediaLibraryService() {
   private lateinit var media3ProgressManager: Media3ProgressManager
   private lateinit var media3NotificationManager: Media3NotificationManager
   private val sleepTimerCoordinator = SleepTimerCoordinator(serviceScope)
+  private var networkStateListener: NetworkMonitor.Listener? = null
+
+  @Volatile
+  private var pipelineInitialized: Boolean = false
 
   // Pipelines & State Trackers
   private val eventPipeline = Media3EventPipeline()
@@ -252,6 +256,10 @@ class Media3PlaybackService : MediaLibraryService() {
         this@Media3PlaybackService.abandonAudioFocus()
       }
 
+      override fun ensureForeground() {
+        this@Media3PlaybackService.ensureForegroundNotification()
+      }
+
       override fun getPlaybackSessionAssignTimestampMs(): Long {
         return media3SessionManager.sessionAssignTimestampMs
       }
@@ -307,6 +315,7 @@ class Media3PlaybackService : MediaLibraryService() {
     )
     applyJumpIncrementsFromDeviceSettings()
     setupMediaManagers()
+    registerNetworkMonitor()
     initializeMedia3NotificationManager()
     initializeMedia3ProgressManager()
     initializeMedia3SessionManager()
@@ -337,7 +346,9 @@ class Media3PlaybackService : MediaLibraryService() {
     media3ProgressManager.stopPositionUpdates()
     serviceScope.cancel()
     cleanupPlaybackResources()
+    networkStateListener?.let { NetworkMonitor.removeListener(it) }
     notifyWidgetState(isPlaybackClosed = true)
+    pipelineInitialized = false
     debugLog { "onDestroy: Media3 service destroyed" }
   }
 
@@ -357,16 +368,6 @@ class Media3PlaybackService : MediaLibraryService() {
         stopSelf()
       }
     }
-  }
-
-  override fun onUpdateNotification(session: MediaSession, startInForegroundRequired: Boolean) {
-    if (startInForegroundRequired || BuildConfig.DEBUG && session.player.playbackState == Player.STATE_IDLE) {
-      debugLog {
-        "onUpdateNotification: foreground=$startInForegroundRequired, session=${session.id}, " +
-          "isPlaying=${session.player.isPlaying}, state=${session.player.playbackState}"
-      }
-    }
-    super.onUpdateNotification(session, startInForegroundRequired)
   }
 
   override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? {
@@ -428,6 +429,19 @@ class Media3PlaybackService : MediaLibraryService() {
     }
   }
 
+  private fun registerNetworkMonitor() {
+    val listener = NetworkMonitor.Listener { state ->
+      debugLog {
+        "Network state changed. hasNetworkConnectivity=${state.hasConnectivity} | isUnmeteredNetwork=${state.isUnmetered}"
+      }
+      if (state.hasConnectivity && mediaManager.serverLibraries.isEmpty()) {
+        serviceScope.launch { runCatching { autoLibraryCoordinator.awaitAutoDataLoaded() } }
+      }
+    }
+    networkStateListener = listener
+    NetworkMonitor.addListener(listener)
+  }
+
   private fun initializeMedia3NotificationManager() {
     media3NotificationManager = Media3NotificationManager(
       context = this,
@@ -477,27 +491,25 @@ class Media3PlaybackService : MediaLibraryService() {
       stopPlayer = { if (playerInitialized) activePlayer.stop() },
       clearPlayerMediaItems = { if (playerInitialized) activePlayer.clearMediaItems() },
       setPlayerNotInitialized = { playerInitialized = false },
-      setLastKnownIsPlaying = { lastKnownIsPlaying = it },
-      debugLog = { lazyMessage -> debugLog { lazyMessage } }
+      setLastKnownIsPlaying = { lastKnownIsPlaying = it }
     )
   }
 
   private fun setupPlaybackPipeline() {
     initializeLocalPlayer()
-    createNotificationChannel()
     configureNotificationProvider()
     configureCommandButtons()
 
     val sessionId = "AudiobookshelfMedia3_${System.currentTimeMillis()}"
     val sessionActivityIntent = createSessionActivityIntent()
     buildMediaLibrarySession(sessionId, sessionActivityIntent)
-    ensureForegroundNotification()
 
     initializeCastPlayer()
     sleepTimerCoordinator.start(sleepTimerHostAdapter)
 
     playerInitializationSignal.complete(Unit)
     playbackMetrics.recordServiceReady()
+    pipelineInitialized = true
   }
 
   private fun applyJumpIncrementsFromDeviceSettings() {
@@ -550,7 +562,6 @@ class Media3PlaybackService : MediaLibraryService() {
       },
       buildListener = { playerListener }
     )
-    debugLog { "Local player initialized via pipeline." }
   }
 
   private fun initializeCastPlayer() {
@@ -951,7 +962,9 @@ class Media3PlaybackService : MediaLibraryService() {
         }
       },
       debug = { msg -> debugLog(msg) },
-      sessionController = sessionController
+      sessionController = sessionController,
+      ensurePipelineReady = { ensurePipelineInitialized() },
+      onRejectedResumption = { stopServiceAndReleaseSession() }
     )
   }
 
@@ -1001,6 +1014,7 @@ class Media3PlaybackService : MediaLibraryService() {
         .add(cyclePlaybackSpeedCommand)
         .add(seekBackIncrementCommand)
         .add(seekForwardIncrementCommand)
+        .add(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.CLOSE_PLAYBACK))
         .build()
       val connected = mediaSession?.connectedControllers ?: emptyList()
       connected.forEach { controllerInfo ->
@@ -1103,7 +1117,6 @@ class Media3PlaybackService : MediaLibraryService() {
       }
       val notificationManager = getSystemService(NotificationManager::class.java)
       notificationManager.createNotificationChannel(channel)
-      debugLog { "Notification channel created: ${Notification.CHANNEL_ID}" }
     }
   }
 
@@ -1111,11 +1124,35 @@ class Media3PlaybackService : MediaLibraryService() {
     val provider = media3NotificationManager.createNotificationProvider()
     this.notificationProvider = provider
     setMediaNotificationProvider(provider)
-    debugLog { "CustomMediaNotificationProvider configured via Media3NotificationManager" }
   }
 
-  private fun ensureForegroundNotification() {
-    media3NotificationManager.ensureForegroundNotification()
+  private fun ensureForegroundNotification(): Boolean {
+    return media3NotificationManager.ensureForegroundNotification()
+  }
+
+  @Synchronized
+  private fun ensurePipelineInitialized(): Boolean {
+    if (pipelineInitialized) return true
+    return try {
+      setupPlaybackPipeline()
+      true
+    } catch (t: Throwable) {
+      Log.w(TAG, "Failed to initialize playback pipeline: ${t.message}")
+      pipelineInitialized = false
+      false
+    }
+  }
+
+  private fun stopServiceAndReleaseSession() {
+    try {
+      media3NotificationManager.stopForegroundNotification()
+      mediaSession?.release()
+      mediaSession = null
+      cleanupPlaybackResources()
+    } catch (_: Exception) {
+    } finally {
+      stopSelf()
+    }
   }
 
 

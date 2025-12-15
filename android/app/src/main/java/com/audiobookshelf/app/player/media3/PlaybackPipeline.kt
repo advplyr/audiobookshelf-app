@@ -3,11 +3,15 @@ package com.audiobookshelf.app.player.media3
 import android.content.Context
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.extractor.mp3.Mp3Extractor
+import com.audiobookshelf.app.device.DeviceManager
+import com.audiobookshelf.app.player.PlaybackConstants
 import com.audiobookshelf.app.player.wrapper.AbsPlayerWrapper
 import kotlinx.coroutines.CoroutineScope
 
@@ -60,7 +64,15 @@ class PlaybackPipeline(
     val extractorsFactory = DefaultExtractorsFactory().apply {
       if (enableMp3IndexSeeking) setMp3ExtractorFlags(Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING)
     }
-    val mediaSourceFactory = DefaultMediaSourceFactory(context, extractorsFactory)
+
+    val httpDataSourceFactory = DefaultHttpDataSource.Factory()
+      .setUserAgent(PlaybackConstants.MEDIA3_NOTIFICATION_CHANNEL_ID)
+      .setDefaultRequestProperties(
+        hashMapOf("Authorization" to "Bearer ${DeviceManager.token}")
+      )
+    val dataSourceFactory = DefaultDataSource.Factory(context, httpDataSourceFactory)
+
+    val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory, extractorsFactory)
 
     val customLoadControl = DefaultLoadControl.Builder()
       .setBufferDurationsMs(

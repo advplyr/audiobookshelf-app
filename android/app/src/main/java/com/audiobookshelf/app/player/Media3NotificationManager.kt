@@ -30,7 +30,7 @@ class Media3NotificationManager(
 ) {
   companion object {
     private const val NOTIFICATION_ID = 100
-    private const val CHANNEL_ID = "media3_playback_channel"
+    private const val CHANNEL_ID = PlaybackConstants.MEDIA3_NOTIFICATION_CHANNEL_ID
   }
 
   private lateinit var notificationProvider: androidx.media3.session.MediaNotification.Provider
@@ -53,7 +53,6 @@ class Media3NotificationManager(
       }
       val notificationManager = context.getSystemService(NotificationManager::class.java)
       notificationManager.createNotificationChannel(channel)
-      debugLog("Notification channel created: $CHANNEL_ID")
     }
   }
 
@@ -66,7 +65,6 @@ class Media3NotificationManager(
       NOTIFICATION_ID
     )
     this.notificationProvider = provider
-    debugLog("CustomMediaNotificationProvider created")
     return provider
   }
 
@@ -77,8 +75,8 @@ class Media3NotificationManager(
     playbackSpeedCommandButton = null
   }
 
-  fun ensureForegroundNotification() {
-    if (foregroundStarted) return
+  fun ensureForegroundNotification(): Boolean {
+    if (foregroundStarted) return true
     val notification =
       NotificationCompat.Builder(context, CHANNEL_ID)
         .setContentTitle(context.getString(R.string.app_name))
@@ -87,8 +85,14 @@ class Media3NotificationManager(
         .setOngoing(true)
         .setOnlyAlertOnce(true)
         .build()
-    service.startForeground(NOTIFICATION_ID, notification)
-    foregroundStarted = true
+    try {
+      service.startForeground(NOTIFICATION_ID, notification)
+      foregroundStarted = true
+      return true
+    } catch (t: Throwable) {
+      debugLog("startForeground failed: ${t.message}")
+    }
+    return false
   }
 
   fun stopForegroundNotification() {
@@ -151,7 +155,6 @@ class Media3NotificationManager(
       val prefs = ImmutableList.copyOf(merged)
       mediaSession?.setMediaButtonPreferences(prefs)
       lastMediaButtonPreferences = prefs
-      debugLog("Initial media button preferences applied: ${prefs.size}")
     }.onFailure { t ->
       debugLog("Failed to apply initial media button preferences: ${t.message}")
     }

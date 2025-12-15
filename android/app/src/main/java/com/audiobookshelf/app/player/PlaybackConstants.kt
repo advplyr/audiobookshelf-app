@@ -7,6 +7,7 @@ object PlaybackConstants {
   // Intent/command extras used when sending playback commands or building media items
   const val DISPLAY_SPEED = "display_speed"
   const val MEDIA_PLAYER = "media_player"
+  const val MEDIA3_NOTIFICATION_CHANNEL_ID = "media3_playback_channel"
 
   object Commands {
     const val CYCLE_PLAYBACK_SPEED = "com.audiobookshelf.app.player.CYCLE_PLAYBACK_SPEED"

@@ -1,11 +1,9 @@
 package com.audiobookshelf.app.player.media3
 
 import android.util.Log
-import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
-import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.media.SyncResult
 import com.audiobookshelf.app.player.core.PlaybackMetricsRecorder
@@ -45,6 +43,7 @@ interface ListenerApi {
   fun debug(message: () -> String)
   fun ensureAudioFocus(): Boolean
   fun abandonAudioFocus()
+  fun ensureForeground()
 }
 
 /**
@@ -59,30 +58,24 @@ class Media3PlayerEventListener(
   private var consecutiveErrorCount: Int = 0
   private var lastErrorTimeMs: Long = 0L
 
-  override fun onAvailableCommandsChanged(commands: Player.Commands) {
-    val availableCommandNames = mutableListOf<String>()
-    if (commands.contains(Player.COMMAND_SEEK_BACK)) availableCommandNames.add("SEEK_BACK")
-    if (commands.contains(Player.COMMAND_SEEK_FORWARD)) availableCommandNames.add("SEEK_FORWARD")
-    if (commands.contains(Player.COMMAND_PLAY_PAUSE)) availableCommandNames.add("PLAY_PAUSE")
-    if (commands.contains(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)) availableCommandNames.add("SEEK_IN_ITEM")
-    if (commands.contains(Player.COMMAND_SEEK_TO_PREVIOUS)) availableCommandNames.add("SEEK_TO_PREVIOUS")
-    if (commands.contains(Player.COMMAND_SEEK_TO_NEXT)) availableCommandNames.add("SEEK_TO_NEXT")
-    if (commands.contains(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)) availableCommandNames.add("PREV_ITEM")
-    if (commands.contains(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)) availableCommandNames.add("NEXT_ITEM")
-    if (commands.contains(Player.COMMAND_GET_DEVICE_VOLUME)) availableCommandNames.add("GET_DEV_VOL")
-    if (commands.contains(Player.COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS)) availableCommandNames.add("SET_DEV_VOL")
-    if (commands.contains(Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS)) availableCommandNames.add(
-      "ADJ_DEV_VOL"
-    )
-    listener.debug { "AvailableCommandsChanged: ${availableCommandNames.joinToString(",")}" }
+  override fun onEvents(player: Player, events: Player.Events) {
+    if (events.contains(Player.EVENT_IS_PLAYING_CHANGED) ||
+      events.contains(Player.EVENT_PLAYBACK_STATE_CHANGED)
+    ) {
+      val stateLabel = when (player.playbackState) {
+        Player.STATE_IDLE -> "IDLE"
+        Player.STATE_BUFFERING -> "BUFFERING"
+        Player.STATE_READY -> "READY"
+        Player.STATE_ENDED -> "ENDED"
+        else -> player.playbackState.toString()
+      }
+      listener.debug {
+        "state=$stateLabel playWhenReady=${player.playWhenReady} isPlaying=${player.isPlaying} buffered=${player.bufferedPercentage}%"
+      }
+    }
   }
 
   override fun onIsPlayingChanged(isNowPlaying: Boolean) {
-    listener.debug {
-      val player = if (listener.isPlayerInitialized()) listener.activePlayer() else null
-      "onIsPlayingChanged: raw=$isNowPlaying playWhenReady=${player?.playWhenReady} state=${player?.playbackState}"
-    }
-
     val activePlayer = if (listener.isPlayerInitialized()) listener.activePlayer() else null
     val isEffectivelyPlaying = when {
       isNowPlaying -> true
@@ -109,6 +102,7 @@ class Media3PlayerEventListener(
         listener.setErrorRetryJob(null)
         consecutiveErrorCount = 0
         listener.onPlayStarted(currentSession.id)
+        listener.ensureForeground()
         val sessionAssignmentTimestampMs = listener.getPlaybackSessionAssignTimestampMs()
         if (sessionAssignmentTimestampMs > 0L) {
           val playbackLatencyMs = System.currentTimeMillis() - sessionAssignmentTimestampMs
@@ -136,21 +130,11 @@ class Media3PlayerEventListener(
     listener.notifyWidgetState()
   }
 
-  override fun onPlayWhenReadyChanged(isPlayWhenReady: Boolean, changeReason: Int) {
-    if (BuildConfig.DEBUG) {
-      listener.debug {
-        "onPlayWhenReadyChanged: isPlayWhenReady=$isPlayWhenReady changeReason=$changeReason"
-      }
-    }
-  }
-
   override fun onPlaybackStateChanged(state: Int) {
-    listener.debug { "onPlaybackStateChanged: $state" }
     when (state) {
       Player.STATE_READY -> listener.playbackMetrics.recordFirstReadyIfUnset()
       Player.STATE_BUFFERING -> listener.playbackMetrics.recordBuffer()
       Player.STATE_ENDED -> {
-        listener.debug { "Playback ended" }
         listener.playbackMetrics.logSummary()
         listener.currentSession()?.let { currentSession ->
           listener.updateCurrentPosition(currentSession)
@@ -158,8 +142,7 @@ class Media3PlayerEventListener(
         }
         listener.notifyWidgetState()
       }
-
-      Player.STATE_IDLE -> listener.debug { "Player idle" }
+      Player.STATE_IDLE -> Unit
     }
   }
 
@@ -228,14 +211,6 @@ class Media3PlayerEventListener(
 
   override fun onPlaybackParametersChanged(parameters: PlaybackParameters) {
     listener.updatePlaybackSpeedButton(parameters.speed)
-  }
-
-  override fun onVolumeChanged(volume: Float) {
-    listener.debug { "onVolumeChanged: $volume (player volume updated)" }
-  }
-
-  override fun onMediaItemTransition(newMediaItem: MediaItem?, changeReason: Int) {
-    listener.debug { "onMediaItemTransition: changeReason=$changeReason" }
   }
 
   override fun onPositionDiscontinuity(

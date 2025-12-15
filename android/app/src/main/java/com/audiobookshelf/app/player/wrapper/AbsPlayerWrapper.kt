@@ -3,7 +3,6 @@ package com.audiobookshelf.app.player.wrapper
 import android.content.Context
 import android.media.AudioManager
 import android.os.Build
-import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.Player
@@ -38,6 +37,9 @@ class AbsPlayerWrapper(
       // Always add seek commands
       .add(COMMAND_SEEK_BACK)
       .add(COMMAND_SEEK_FORWARD)
+      // Keep skip commands available so hardware remotes (car controls, BT) can fall back to seeking even with single-item queues.
+      .add(COMMAND_SEEK_TO_PREVIOUS)
+      .add(COMMAND_SEEK_TO_NEXT)
 
     // Only add track skipping if not mapping skip to seek
     if (!mapSkipToSeek) {
@@ -57,12 +59,10 @@ class AbsPlayerWrapper(
 
   // region ===== Skip/Seek Fallbacks ==========================================================
   override fun seekBack() {
-    Log.d(TAG, "seekBack() called.")
     super.seekBack()
   }
 
   override fun seekForward() {
-    Log.d(TAG, "seekForward() called.")
     super.seekForward()
   }
 
@@ -86,26 +86,20 @@ class AbsPlayerWrapper(
 
   private fun handleNext(skipToNextAction: () -> Unit) {
     if (mapSkipToSeek) {
-      Log.d(TAG, "Next command -> mapped to seekForward() due to mapSkipToSeek.")
       seekForward()
     } else if (super.hasNextMediaItem()) {
-      Log.d(TAG, "Next command -> has next item, performing track skip.")
       skipToNextAction()
     } else {
-      Log.d(TAG, "Next command -> no next item, falling back to seekForward().")
       seekForward()
     }
   }
 
   private fun handlePrevious(skipToPreviousAction: () -> Unit) {
     if (mapSkipToSeek) {
-      Log.d(TAG, "Previous command -> mapped to seekBack() due to mapSkipToSeek.")
       seekBack()
     } else if (super.hasPreviousMediaItem()) {
-      Log.d(TAG, "Previous command -> has previous item, performing track skip.")
       skipToPreviousAction()
     } else {
-      Log.d(TAG, "Previous command -> no previous item, falling back to seekBack().")
       seekBack()
     }
   }
@@ -123,23 +117,19 @@ class AbsPlayerWrapper(
 
   override fun setDeviceVolume(volume: Int) {
     val clamped = volume.coerceIn(0, getMaxVolume())
-    Log.d(TAG, "setDeviceVolume -> $clamped")
     audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, clamped, 0)
   }
 
   override fun increaseDeviceVolume() {
-    Log.d(TAG, "increaseDeviceVolume")
     audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_RAISE, 0)
   }
 
   override fun decreaseDeviceVolume() {
-    Log.d(TAG, "decreaseDeviceVolume")
     audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_LOWER, 0)
   }
 
   @RequiresApi(Build.VERSION_CODES.M)
   override fun setDeviceMuted(muted: Boolean) {
-    Log.d(TAG, "setDeviceMuted -> $muted")
     val direction = if (muted) AudioManager.ADJUST_MUTE else AudioManager.ADJUST_UNMUTE
     audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, 0)
   }

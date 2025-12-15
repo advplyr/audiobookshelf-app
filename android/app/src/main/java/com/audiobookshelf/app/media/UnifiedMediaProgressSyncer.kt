@@ -80,7 +80,6 @@ class UnifiedMediaProgressSyncer(
    */
   fun start(playbackSession: PlaybackSession) {
     if (isSyncTimerRunning) {
-      Log.d(tag, "start: Timer already running for $currentDisplayTitle")
       if (playbackSession.id != currentSessionId) {
         Log.d(tag, "Playback session changed, reset timer")
         localMediaProgress = null
@@ -115,7 +114,7 @@ class UnifiedMediaProgressSyncer(
           val currentTime = playbackTelemetryProvider.getCurrentTimeSeconds()
           if (currentTime > 0) {
             sync(shouldSyncServer, currentTime) { syncResult ->
-              Log.d(tag, "Periodic sync complete for $currentDisplayTitle at ${currentTime}s")
+              Log.v(tag, "Periodic sync complete for $currentDisplayTitle at ${currentTime}s")
               currentPlaybackSession?.let { session ->
                 onPlaybackEvent("save", session, syncResult)
               }
@@ -131,7 +130,6 @@ class UnifiedMediaProgressSyncer(
    * Event emission happens at listener level (before syncer is called).
    */
   fun play(playbackSession: PlaybackSession) {
-    Log.d(tag, "play: ${playbackSession.displayTitle}")
     start(playbackSession)
   }
 
@@ -304,7 +302,7 @@ class UnifiedMediaProgressSyncer(
     val lastSyncedPlaybackTime = currentPlaybackSession?.currentTime ?: 0.0
     val playbackTimeDeltaSeconds = currentTime - lastSyncedPlaybackTime
     if (timeSinceLastSyncMillis in 1000L..5000L && playbackTimeDeltaSeconds <= 0.5) {
-      Log.d(
+      Log.v(
         tag,
         "sync: Skip; recent sync ($timeSinceLastSyncMillis ms ago) with no progress (delta=$playbackTimeDeltaSeconds s)"
       )
@@ -313,7 +311,7 @@ class UnifiedMediaProgressSyncer(
     }
 
     if (!force && timeSinceLastSyncMillis < 1000L) {
-      Log.d(tag, "sync: Skip; diffSinceLastSync=${timeSinceLastSyncMillis}ms (<1s) force=$force")
+      Log.v(tag, "sync: Skip; diffSinceLastSync=${timeSinceLastSyncMillis}ms (<1s) force=$force")
       onComplete(null)
       return
     }
@@ -464,14 +462,6 @@ class UnifiedMediaProgressSyncer(
       session.currentTime = pendingTime
     }
     pendingPlaybackTime = null
-  }
-
-  /**
-   * Mark the current session as closed so we skip further server sync attempts.
-   * Useful during handoff when the server has already invalidated the session.
-   */
-  fun markCurrentSessionClosed() {
-    serverSessionClosed = true
   }
 
   fun syncNow(

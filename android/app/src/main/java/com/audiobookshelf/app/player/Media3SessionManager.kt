@@ -28,8 +28,7 @@ class Media3SessionManager(
   private val stopPlayer: () -> Unit,
   private val clearPlayerMediaItems: () -> Unit,
   private val setPlayerNotInitialized: () -> Unit,
-  private val setLastKnownIsPlaying: (Boolean) -> Unit,
-  private val debugLog: (String) -> Unit
+  private val setLastKnownIsPlaying: (Boolean) -> Unit
 ) {
   var currentPlaybackSession: PlaybackSession? = null
     private set
@@ -55,6 +54,7 @@ class Media3SessionManager(
 
     val isNewSession = currentPlaybackSession?.id != session.id
     currentPlaybackSession = session
+    DeviceManager.setLastPlaybackSession(session)
     mediaManager.updateLatestServerItemFromSession(session)
 
     session.mediaPlayer = currentMediaPlayerIdProvider()
@@ -80,7 +80,6 @@ class Media3SessionManager(
   }
 
   fun closePlayback(afterStop: (() -> Unit)? = null) {
-    debugLog("closePlayback: user requested stop")
 
     val session = currentPlaybackSession
     if (session != null) {
