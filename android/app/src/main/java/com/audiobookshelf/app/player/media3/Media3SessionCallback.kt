@@ -116,6 +116,12 @@ class Media3SessionCallback(
     session: MediaSession,
     controller: MediaSession.ControllerInfo
   ): MediaSession.ConnectionResult {
+    // Reject system UI to prevent MediaResumeListener connection delays
+    if (controller.packageName == "com.android.systemui") {
+      debug { "Rejecting MediaSession connection from system UI" }
+      return MediaSession.ConnectionResult.reject()
+    }
+
     val player = playerProvider()
     val isWearableDevice = controller.packageName.contains("wear", ignoreCase = true)
     (player as? AbsPlayerWrapper)?.mapSkipToSeek = isWearableDevice

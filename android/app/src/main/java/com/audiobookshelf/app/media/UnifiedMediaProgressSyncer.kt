@@ -1,16 +1,19 @@
 package com.audiobookshelf.app.media
 
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import com.audiobookshelf.app.data.LocalMediaProgress
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.player.core.PlaybackTelemetryHost
 import com.audiobookshelf.app.server.ApiHandler
-import java.util.Timer
-import java.util.TimerTask
-import kotlin.concurrent.schedule
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 /**
  * UnifiedMediaProgressSyncer: Handles both ExoPlayer and Media3 with IDENTICAL behavior.
@@ -46,9 +49,9 @@ class UnifiedMediaProgressSyncer(
   private val METERED_CONNECTION_SYNC_INTERVAL = 60000L
   private val PERIODIC_SYNC_INTERVAL = 15000L
 
-  private val mainHandler = Handler(Looper.getMainLooper())
-
-  private var syncTimerTask: TimerTask? = null
+  // Coroutine scope for periodic sync loop - uses Main dispatcher for consistency
+  private val syncScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+  private var syncJob: Job? = null
   var isSyncTimerRunning: Boolean = false
 
   var currentPlaybackSession: PlaybackSession? = null
@@ -83,7 +86,7 @@ class UnifiedMediaProgressSyncer(
       if (playbackSession.id != currentSessionId) {
         Log.d(tag, "Playback session changed, reset timer")
         localMediaProgress = null
-        syncTimerTask?.cancel()
+        syncJob?.cancel()
         lastSyncTime = 0L
         failedSyncs = 0
       } else {
@@ -99,11 +102,11 @@ class UnifiedMediaProgressSyncer(
     serverSessionClosed = false
     Log.d(tag, "start: Started 15s periodic sync loop for ${playbackSession.displayTitle}")
 
-    syncTimerTask = Timer("UnifiedListeningTimer", false).schedule(
-      PERIODIC_SYNC_INTERVAL,
-      PERIODIC_SYNC_INTERVAL
-    ) {
-      mainHandler.post {
+    // Coroutine-based periodic sync - replaces Timer + Handler.post chain
+    syncJob = syncScope.launch {
+      while (isActive) {
+        delay(PERIODIC_SYNC_INTERVAL)
+
         if (playbackTelemetryProvider.isPlayerActive()) {
           playbackTelemetryProvider.checkAutoSleepTimer()
 
@@ -161,8 +164,8 @@ class UnifiedMediaProgressSyncer(
       return
     }
 
-    syncTimerTask?.cancel()
-    syncTimerTask = null
+    syncJob?.cancel()
+    syncJob = null
     isSyncTimerRunning = false
     Log.v(tag, "pause: Stopping sync loop for $currentDisplayTitle")
 
@@ -197,8 +200,8 @@ class UnifiedMediaProgressSyncer(
    */
   fun stop(shouldSyncOnStop: Boolean = true, onComplete: () -> Unit) {
     if (isSyncTimerRunning) {
-      syncTimerTask?.cancel()
-      syncTimerTask = null
+      syncJob?.cancel()
+      syncJob = null
       isSyncTimerRunning = false
       Log.v(tag, "stop: Stopping sync loop for $currentDisplayTitle")
     } else {
@@ -234,8 +237,8 @@ class UnifiedMediaProgressSyncer(
       return
     }
 
-    syncTimerTask?.cancel()
-    syncTimerTask = null
+    syncJob?.cancel()
+    syncJob = null
     isSyncTimerRunning = false
     Log.d(tag, "finished: Book finished for $currentDisplayTitle")
 
@@ -268,8 +271,8 @@ class UnifiedMediaProgressSyncer(
 
   fun reset() {
     Log.d(tag, "reset")
-    syncTimerTask?.cancel()
-    syncTimerTask = null
+    syncJob?.cancel()
+    syncJob = null
     isSyncTimerRunning = false
     currentPlaybackSession = null
     localMediaProgress = null
@@ -277,6 +280,17 @@ class UnifiedMediaProgressSyncer(
     failedSyncs = 0
     serverSessionClosed = false
     playbackEventSource = PlaybackEventSource.SYSTEM
+  }
+
+  /**
+   * Cleanup: Cancel sync scope and all jobs.
+   * Call this when the syncer is no longer needed (e.g., service destroyed).
+   */
+  fun cleanup() {
+    syncJob?.cancel()
+    syncJob = null
+    syncScope.cancel()
+    isSyncTimerRunning = false
   }
 
   // ------------ Sync helpers ------------

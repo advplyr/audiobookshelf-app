@@ -326,45 +326,91 @@ class PlaybackController(private val context: Context) {
     connect {
       val controller = mediaController ?: return@connect
 
-      // Sync any pending progress before re-preparing to keep resume positions accurate.
-      val latch = CountDownLatch(1)
-      sendCommand(forceSyncProgressCommand, Bundle.EMPTY) { latch.countDown() }
-      latch.await(CONNECTION_TIMEOUT_SEC, TimeUnit.SECONDS)
+      val prepareNewSession = {
+        val targetIsCast = playbackSession.isLocal && currentMediaPlayer == PLAYER_CAST
+        val mediaItems =
+          playbackSession.toPlayerMediaItems(context, preferServerUrisForCast = targetIsCast)
+            .map { playerMediaItem ->
+              MediaItem.Builder()
+                .setUri(playerMediaItem.uri.toString())
+                .setMediaId(playerMediaItem.mediaId)
+                .setMimeType(playerMediaItem.mimeType)
+                .setMediaMetadata(
+                  MediaMetadata.Builder()
+                    .setTitle(playbackSession.displayTitle)
+                    .setArtist(playbackSession.displayAuthor)
+                    .setAlbumArtist(playbackSession.displayAuthor)
+                    .setArtworkUri(playerMediaItem.artworkUri)
+                    .build()
+                )
+                .build()
+            }
 
-      val targetIsCast = playbackSession.isLocal && currentMediaPlayer == PLAYER_CAST
-      val mediaItems =
-        playbackSession.toPlayerMediaItems(context, preferServerUrisForCast = targetIsCast)
-          .map { playerMediaItem ->
-            MediaItem.Builder()
-              .setUri(playerMediaItem.uri.toString())
-              .setMediaId(playerMediaItem.mediaId)
-              .setMimeType(playerMediaItem.mimeType)
-              .setMediaMetadata(
-                MediaMetadata.Builder()
-                  .setTitle(playbackSession.displayTitle)
-                  .setArtist(playbackSession.displayAuthor)
-                  .setAlbumArtist(playbackSession.displayAuthor)
-                  .setArtworkUri(playerMediaItem.artworkUri)
-                  .build()
+        val trackIndex = playbackSession.getCurrentTrackIndex().coerceIn(0, mediaItems.lastIndex)
+        val trackStartOffsetMs = playbackSession.getTrackStartOffsetMs(trackIndex)
+        val positionInTrack = (playbackSession.currentTimeMs - trackStartOffsetMs).coerceAtLeast(0L)
+
+        controller.setMediaItems(mediaItems, trackIndex, positionInTrack)
+        controller.prepare()
+        controller.playWhenReady = playWhenReady
+        playbackRate?.let { controller.setPlaybackSpeed(it) }
+        emitMetadata(controller)
+
+        if (BuildConfig.DEBUG) {
+          Log.d(
+            TAG,
+            "Prepared playback for ${playbackSession.displayTitle} items=${mediaItems.size} startIndex=$trackIndex pos=$positionInTrack"
+          )
+        }
+      }
+
+      // Sync previous session progress asynchronously when switching books
+      // Initial playback (no media) prepares immediately without blocking
+      if (controller.mediaItemCount > 0 && controller.currentMediaItem != null) {
+        sendCommand(forceSyncProgressCommand, Bundle.EMPTY) {
+          // Re-acquire controller for async callback to prepare new session
+          executeWithController { ctrl ->
+            val targetIsCast = playbackSession.isLocal && currentMediaPlayer == PLAYER_CAST
+            val mediaItems =
+              playbackSession.toPlayerMediaItems(context, preferServerUrisForCast = targetIsCast)
+                .map { playerMediaItem ->
+                  MediaItem.Builder()
+                    .setUri(playerMediaItem.uri.toString())
+                    .setMediaId(playerMediaItem.mediaId)
+                    .setMimeType(playerMediaItem.mimeType)
+                    .setMediaMetadata(
+                      MediaMetadata.Builder()
+                        .setTitle(playbackSession.displayTitle)
+                        .setArtist(playbackSession.displayAuthor)
+                        .setAlbumArtist(playbackSession.displayAuthor)
+                        .setArtworkUri(playerMediaItem.artworkUri)
+                        .build()
+                    )
+                    .build()
+                }
+
+            val trackIndex =
+              playbackSession.getCurrentTrackIndex().coerceIn(0, mediaItems.lastIndex)
+            val trackStartOffsetMs = playbackSession.getTrackStartOffsetMs(trackIndex)
+            val positionInTrack =
+              (playbackSession.currentTimeMs - trackStartOffsetMs).coerceAtLeast(0L)
+
+            ctrl.setMediaItems(mediaItems, trackIndex, positionInTrack)
+            ctrl.prepare()
+            ctrl.playWhenReady = playWhenReady
+            playbackRate?.let { ctrl.setPlaybackSpeed(it) }
+            emitMetadata(ctrl)
+
+            if (BuildConfig.DEBUG) {
+              Log.d(
+                TAG,
+                "Prepared playback for ${playbackSession.displayTitle} items=${mediaItems.size} startIndex=$trackIndex pos=$positionInTrack"
               )
-              .build()
+            }
           }
-
-      val trackIndex = playbackSession.getCurrentTrackIndex().coerceIn(0, mediaItems.lastIndex)
-      val trackStartOffsetMs = playbackSession.getTrackStartOffsetMs(trackIndex)
-      val positionInTrack = (playbackSession.currentTimeMs - trackStartOffsetMs).coerceAtLeast(0L)
-
-      controller.setMediaItems(mediaItems, trackIndex, positionInTrack)
-      controller.prepare()
-      controller.playWhenReady = playWhenReady
-      playbackRate?.let { controller.setPlaybackSpeed(it) }
-      emitMetadata(controller)
-
-      if (BuildConfig.DEBUG) {
-        Log.d(
-          TAG,
-          "Prepared playback for ${playbackSession.displayTitle} items=${mediaItems.size} startIndex=$trackIndex pos=$positionInTrack"
-        )
+        }
+      } else {
+        prepareNewSession()
       }
     }
   }

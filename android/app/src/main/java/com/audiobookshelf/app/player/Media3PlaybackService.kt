@@ -256,10 +256,6 @@ class Media3PlaybackService : MediaLibraryService() {
         this@Media3PlaybackService.abandonAudioFocus()
       }
 
-      override fun ensureForeground() {
-        this@Media3PlaybackService.ensureForegroundNotification()
-      }
-
       override fun getPlaybackSessionAssignTimestampMs(): Long {
         return media3SessionManager.sessionAssignTimestampMs
       }
@@ -472,8 +468,7 @@ class Media3PlaybackService : MediaLibraryService() {
       unifiedProgressSyncer = unifiedProgressSyncer,
       serviceScope = serviceScope,
       currentSessionProvider = { currentPlaybackSession },
-      playbackServiceProvider = { this },
-      debugLog = { lazyMessage -> debugLog { lazyMessage } }
+      playbackServiceProvider = { this }
     )
   }
 
@@ -495,12 +490,11 @@ class Media3PlaybackService : MediaLibraryService() {
       },
       stopPositionUpdates = { media3ProgressManager.stopPositionUpdates() },
       notifyWidgetState = { isPlaybackClosed -> notifyWidgetState(isPlaybackClosed) },
-      playerProvider = { activePlayer },
       isPlayerInitialized = { playerInitialized },
-      pausePlayer = { if (playerInitialized) activePlayer.pause() },
       stopPlayer = { if (playerInitialized) activePlayer.stop() },
       clearPlayerMediaItems = { if (playerInitialized) activePlayer.clearMediaItems() },
       setPlayerNotInitialized = { playerInitialized = false },
+      setPlayerInitialized = { playerInitialized = true },
       setLastKnownIsPlaying = { lastKnownIsPlaying = it },
       closeSessionOnServer = { sessionId ->
         apiHandler.closePlaybackSession(
@@ -521,6 +515,7 @@ class Media3PlaybackService : MediaLibraryService() {
     val sessionId = "AudiobookshelfMedia3_${System.currentTimeMillis()}"
     val sessionActivityIntent = createSessionActivityIntent()
     buildMediaLibrarySession(sessionId, sessionActivityIntent)
+    ensureForegroundNotification()
 
     initializeCastPlayer()
     sleepTimerCoordinator.start(sleepTimerHostAdapter)

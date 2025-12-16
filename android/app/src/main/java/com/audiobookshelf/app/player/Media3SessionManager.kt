@@ -1,6 +1,5 @@
 package com.audiobookshelf.app.player
 
-import androidx.media3.common.Player
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.media.MediaManager
@@ -22,12 +21,11 @@ class Media3SessionManager(
   private val maybeSyncProgress: (String, Boolean, PlaybackSession?, ((SyncResult?) -> Unit)?) -> Unit,
   private val stopPositionUpdates: () -> Unit,
   private val notifyWidgetState: (Boolean) -> Unit,
-  private val playerProvider: () -> Player,
   private val isPlayerInitialized: () -> Boolean,
-  private val pausePlayer: () -> Unit,
   private val stopPlayer: () -> Unit,
   private val clearPlayerMediaItems: () -> Unit,
   private val setPlayerNotInitialized: () -> Unit,
+  private val setPlayerInitialized: () -> Unit,
   private val setLastKnownIsPlaying: (Boolean) -> Unit,
   private val closeSessionOnServer: (String) -> Unit
 ) {
@@ -52,6 +50,9 @@ class Media3SessionManager(
       }
       return
     }
+
+    // Ensure flags return to a ready state after a closePlayback call
+    setPlayerInitialized()
 
     val isNewSession = currentPlaybackSession?.id != session.id
     currentPlaybackSession = session

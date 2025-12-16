@@ -43,7 +43,6 @@ interface ListenerApi {
   fun debug(message: () -> String)
   fun ensureAudioFocus(): Boolean
   fun abandonAudioFocus()
-  fun ensureForeground()
 }
 
 /**
@@ -102,7 +101,6 @@ class Media3PlayerEventListener(
         listener.setErrorRetryJob(null)
         consecutiveErrorCount = 0
         listener.onPlayStarted(currentSession.id)
-        listener.ensureForeground()
         val sessionAssignmentTimestampMs = listener.getPlaybackSessionAssignTimestampMs()
         if (sessionAssignmentTimestampMs > 0L) {
           val playbackLatencyMs = System.currentTimeMillis() - sessionAssignmentTimestampMs

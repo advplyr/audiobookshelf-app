@@ -12,6 +12,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.math.max
+import kotlin.math.min
 
 @OptIn(UnstableApi::class)
 class Media3ProgressManager
@@ -19,14 +20,20 @@ class Media3ProgressManager
   private val unifiedProgressSyncer: UnifiedMediaProgressSyncer,
   private val serviceScope: CoroutineScope,
   private val currentSessionProvider: () -> PlaybackSession?,
-  private val playbackServiceProvider: () -> Media3PlaybackService,
-  private val debugLog: (String) -> Unit
+  private val playbackServiceProvider: () -> Media3PlaybackService
 ) {
   companion object {
     private const val POSITION_UPDATE_INTERVAL_MS = 1_000L
   }
 
   private var positionUpdateJob: Job? = null
+
+  // Cache for track ID -> index lookups to avoid O(n) search every second
+  private var trackIdCache: Map<String, Int>? = null
+  private var cachedSessionId: String? = null
+
+  // Cache for cumulative track durations to optimize seek operations (binary search)
+  private var cumulativeDurationsMs: LongArray? = null
 
   fun startPositionUpdates() {
     stopPositionUpdates() // Cancel any existing job
@@ -63,14 +70,31 @@ class Media3ProgressManager
 
   private fun resolveTrackIndexForPlayer(session: PlaybackSession, player: Player): Int {
     if (session.audioTracks.isEmpty()) return 0
+
+    // Build caches if session changed or not initialized
+    if (trackIdCache == null || cachedSessionId != session.id) {
+      trackIdCache = session.audioTracks.mapIndexed { index, track ->
+        "${session.id}_${track.stableId}" to index
+      }.toMap()
+
+      // Pre-compute cumulative durations for binary search during seeks
+      val cumulative = LongArray(session.audioTracks.size)
+      var total = 0L
+      session.audioTracks.forEachIndexed { index, track ->
+        total += (track.duration * 1000).toLong()
+        cumulative[index] = total
+      }
+      cumulativeDurationsMs = cumulative
+
+      cachedSessionId = session.id
+    }
+
     val mediaId = player.currentMediaItem?.mediaId
     if (!mediaId.isNullOrEmpty()) {
-      val indexById = session.audioTracks.indexOfFirst { track ->
-        val trackId = "${session.id}_${track.stableId}"
-        trackId == mediaId
-      }
-      if (indexById >= 0) return indexById
+      // O(1) hash lookup instead of O(n) linear search
+      trackIdCache?.get(mediaId)?.let { return it }
     }
+
     val playerIndex = player.currentMediaItemIndex
     if (playerIndex in session.audioTracks.indices) {
       return playerIndex
@@ -92,16 +116,26 @@ class Media3ProgressManager
   fun resolveTrackIndexForPosition(session: PlaybackSession, positionMs: Long): Int {
     if (session.audioTracks.isEmpty()) return 0
 
-    var cumulativeDuration = 0L
-    for ((index, track) in session.audioTracks.withIndex()) {
-      cumulativeDuration += (track.duration * 1000).toLong()
-      if (positionMs < cumulativeDuration) {
-        return index
-      }
+    // Ensure cache is built (shares cache with resolveTrackIndexForPlayer)
+    if (cumulativeDurationsMs == null || cachedSessionId != session.id) {
+      // Trigger cache build via resolveTrackIndexForPlayer which builds both caches
+      val dummyPlayer = playbackServiceProvider().activePlayerPublic
+      resolveTrackIndexForPlayer(session, dummyPlayer)
     }
 
-    // If position is beyond all tracks, return the last track
-    return max(0, session.audioTracks.size - 1)
+    val cumulative = cumulativeDurationsMs ?: return 0
+
+    // Binary search through pre-computed cumulative durations - O(log n) instead of O(n)
+    val index = cumulative.binarySearch(positionMs)
+    return when {
+      index >= 0 -> index // Exact match
+      else -> {
+        val insertionPoint = -(index + 1)
+        // Position falls before first track's end = track 0
+        // Otherwise it's in the track at insertionPoint
+        max(0, min(insertionPoint, session.audioTracks.size - 1))
+      }
+    }
   }
 
 }

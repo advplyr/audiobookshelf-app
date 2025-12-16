@@ -110,6 +110,7 @@
             android:foregroundServiceType="mediaPlayback">
             <intent-filter>
                 <action android:name="androidx.media3.session.MediaLibraryService" />
+              <!-- Required for Android Auto browse entry -->
                 <action android:name="android.media.browse.MediaBrowserService" />
             </intent-filter>
         </service>
