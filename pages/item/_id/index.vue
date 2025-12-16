@@ -584,8 +584,8 @@ export default {
         // If start time and is not already streaming then ask for confirmation
         if (startTime !== null && startTime !== undefined && !this.$store.getters['getIsMediaStreaming'](libraryItemId, null)) {
           const { value } = await Dialog.confirm({
-            title: 'Confirm',
-            message: `Start playback for "${this.title}" at ${this.$secondsToTimestamp(startTime)}?`
+            title: this.$strings.HeaderConfirm,
+            message: this.$getString('MessageConfirmPlaybackTime', [this.title, this.$secondsToTimestamp(startTime)])
           })
           if (!value) return
         }
@@ -673,7 +673,7 @@ export default {
         }
       }
       const { value } = await Dialog.confirm({
-        title: 'Confirm',
+        title: this.$strings.HeaderConfirm,
         message: startDownloadMessage
       })
       if (value) {

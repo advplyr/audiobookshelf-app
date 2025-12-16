@@ -314,8 +314,8 @@ export default ({ store, app }, inject) => {
     }
     if (!canGoBack) {
       const { value } = await Dialog.confirm({
-        title: 'Confirm',
-        message: `Did you want to exit the app?`
+        title: this.$strings.HeaderConfirm,
+        message: this.$strings.MessageConfirmAppExit
       })
       if (value) {
         App.exitApp()

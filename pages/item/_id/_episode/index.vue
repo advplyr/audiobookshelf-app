@@ -346,7 +346,7 @@ export default {
       }
 
       const { value } = await Dialog.confirm({
-        title: 'Confirm',
+        title: this.$strings.HeaderConfirm,
         message: this.$getString('MessageConfirmDeleteLocalEpisode', [localFile.basePath])
       })
       if (value) {
@@ -514,7 +514,7 @@ export default {
       await this.$hapticsImpact()
 
       const { value } = await Dialog.confirm({
-        title: 'Confirm',
+        title: this.$strings.HeaderConfirm,
         message: this.$strings.MessageConfirmDiscardProgress
       })
       if (value) {
@@ -575,8 +575,8 @@ export default {
       await this.$hapticsImpact()
 
       const { value } = await Dialog.confirm({
-        title: 'Confirm',
-        message: `Are you sure you want to delete episode "${this.title}" from the server?\nWarning: This will delete the audio file.`
+        title: this.$strings.HeaderConfirm,
+        message: $this.$getString('MessageConfirmDeleteServerEpisode', [this.title])
       })
 
       if (value) {

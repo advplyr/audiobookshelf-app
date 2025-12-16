@@ -369,7 +369,7 @@ export default {
         confirmMessage += ' The file on the server will be unaffected.'
       }
       const { value } = await Dialog.confirm({
-        title: 'Confirm',
+        title: this.$strings.HeaderConfirm,
         message: confirmMessage
       })
       if (value) {
@@ -395,7 +395,7 @@ export default {
         confirmMessage += ' The file on the server will be unaffected.'
       }
       const { value } = await Dialog.confirm({
-        title: 'Confirm',
+        title: this.$strings.HeaderConfirm,
         message: confirmMessage
       })
       if (value) {
@@ -412,7 +412,7 @@ export default {
         confirmMessage += ' The files on the server and your progress will be unaffected.'
       }
       const { value } = await Dialog.confirm({
-        title: 'Confirm',
+        title: this.$strings.HeaderConfirm,
         message: confirmMessage
       })
       if (value) {

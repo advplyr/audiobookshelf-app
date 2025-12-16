@@ -4,7 +4,7 @@
     <div class="absolute top-0 right-0 w-64 h-full bg-bg transform transition-transform py-6 pointer-events-auto" :class="show ? '' : 'translate-x-64'" @click.stop>
       <div class="px-6 mb-4">
         <p v-if="user" class="text-base">
-          Welcome,
+          {{ $strings.HeaderWelcome }}
           <strong>{{ username }}</strong>
         </p>
       </div>
