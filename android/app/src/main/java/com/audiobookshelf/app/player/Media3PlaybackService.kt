@@ -350,6 +350,9 @@ class Media3PlaybackService : MediaLibraryService() {
     errorRetryJob?.cancel()
     errorRetryJob = null
     media3ProgressManager.stopPositionUpdates()
+    if (this::unifiedProgressSyncer.isInitialized) {
+      unifiedProgressSyncer.cleanup()
+    }
     serviceScope.cancel()
     cleanupPlaybackResources()
     networkStateListener?.let { NetworkMonitor.removeListener(it) }
@@ -1162,6 +1165,9 @@ class Media3PlaybackService : MediaLibraryService() {
       media3NotificationManager.stopForegroundNotification()
       mediaSession?.release()
       mediaSession = null
+      if (this::unifiedProgressSyncer.isInitialized) {
+        unifiedProgressSyncer.cleanup()
+      }
       cleanupPlaybackResources()
     } catch (_: Exception) {
     } finally {
