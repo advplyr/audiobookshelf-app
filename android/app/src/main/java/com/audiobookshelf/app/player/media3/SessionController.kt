@@ -79,6 +79,14 @@ class SessionController(
       com.audiobookshelf.app.player.PlaybackConstants.Commands.SEEK_FORWARD_INCREMENT,
       Bundle.EMPTY
     )
+    val previousTrackCommand = SessionCommand(
+      com.audiobookshelf.app.player.PlaybackConstants.Commands.SEEK_TO_PREVIOUS_TRACK,
+      Bundle.EMPTY
+    )
+    val nextTrackCommand = SessionCommand(
+      com.audiobookshelf.app.player.PlaybackConstants.Commands.SEEK_TO_NEXT_TRACK,
+      Bundle.EMPTY
+    )
     val previousChapterCommand = SessionCommand(
       com.audiobookshelf.app.player.PlaybackConstants.Commands.SEEK_TO_PREVIOUS_CHAPTER,
       Bundle.EMPTY
@@ -133,6 +141,12 @@ class SessionController(
     }
     if (customAction == seekForwardIncrementCommand.customAction) {
       playerProvider()?.seekForward(); return SessionResult(SessionResult.RESULT_SUCCESS)
+    }
+    if (customAction == previousTrackCommand.customAction) {
+      playerProvider()?.seekToPreviousMediaItem(); return SessionResult(SessionResult.RESULT_SUCCESS)
+    }
+    if (customAction == nextTrackCommand.customAction) {
+      playerProvider()?.seekToNextMediaItem(); return SessionResult(SessionResult.RESULT_SUCCESS)
     }
     if (customAction == previousChapterCommand.customAction) {
       val session = getCurrentSession?.invoke()

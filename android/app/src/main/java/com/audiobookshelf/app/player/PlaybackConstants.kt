@@ -16,6 +16,8 @@ object PlaybackConstants {
     const val SEEK_TO_PREVIOUS_CHAPTER = "com.audiobookshelf.app.player.SEEK_TO_PREVIOUS_CHAPTER"
     const val SEEK_TO_NEXT_CHAPTER = "com.audiobookshelf.app.player.SEEK_TO_NEXT_CHAPTER"
     const val SEEK_TO_CHAPTER = "com.audiobookshelf.app.player.SEEK_TO_CHAPTER"
+    const val SEEK_TO_PREVIOUS_TRACK = "com.audiobookshelf.app.player.SEEK_TO_PREVIOUS_TRACK"
+    const val SEEK_TO_NEXT_TRACK = "com.audiobookshelf.app.player.SEEK_TO_NEXT_TRACK"
     const val CLOSE_PLAYBACK = "com.audiobookshelf.app.player.CLOSE_PLAYBACK"
     const val SYNC_PROGRESS_FORCE = "com.audiobookshelf.app.player.SYNC_PROGRESS_FORCE"
     const val MARK_UI_PLAYBACK_EVENT = "com.audiobookshelf.app.player.MARK_UI_PLAYBACK_EVENT"

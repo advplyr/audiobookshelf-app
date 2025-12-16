@@ -41,6 +41,9 @@ class Media3NotificationManager(
   @Volatile
   private var foregroundStarted = false
 
+  @Volatile
+  private var includeTrackNavigationButtons = false
+
   fun createNotificationChannel() {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
       val channelName = "Media Playback"
@@ -73,6 +76,10 @@ class Media3NotificationManager(
       Media3PlaybackSpeedButtonProvider(cyclePlaybackSpeedCommand, PlaybackConstants.DISPLAY_SPEED)
     playbackSpeedButtonProvider.alignTo(currentPlaybackSpeedProvider())
     playbackSpeedCommandButton = null
+  }
+
+  fun setTrackNavigationEnabled(enabled: Boolean) {
+    includeTrackNavigationButtons = enabled
   }
 
   fun ensureForegroundNotification(): Boolean {
@@ -122,6 +129,23 @@ class Media3NotificationManager(
       .build()
     buttons.add(back)
     buttons.add(fwd)
+
+    if (includeTrackNavigationButtons) {
+      val previous =
+        CommandButton.Builder(CommandButton.ICON_PREVIOUS)
+          .setDisplayName("Previous")
+          .setSessionCommand(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.SEEK_TO_PREVIOUS_TRACK))
+          .setCustomIconResId(R.drawable.skip_previous_24)
+          .build()
+      val next =
+        CommandButton.Builder(CommandButton.ICON_NEXT)
+          .setDisplayName("Next")
+          .setSessionCommand(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.SEEK_TO_NEXT_TRACK))
+          .setCustomIconResId(R.drawable.skip_next_24)
+          .build()
+      buttons.add(previous)
+      buttons.add(next)
+    }
 
     val speedBtn = playbackSpeedCommandButton ?: run {
       CommandButton.Builder(CommandButton.ICON_PLAYBACK_SPEED)
@@ -182,6 +206,10 @@ class Media3NotificationManager(
     merged.addAll(built)
     // Append existing preferences that don't conflict
     existing.forEach { btn ->
+      val isNavButton =
+        btn.playerCommand == androidx.media3.common.Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM ||
+          btn.playerCommand == androidx.media3.common.Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM
+      if (!includeTrackNavigationButtons && isNavButton) return@forEach
       val k = CustomMediaNotificationProvider.keyOf(btn)
       if (k == null || !keys.contains(k)) {
         merged.add(btn)

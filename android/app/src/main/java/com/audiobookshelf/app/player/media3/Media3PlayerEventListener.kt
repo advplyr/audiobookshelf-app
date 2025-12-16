@@ -40,6 +40,9 @@ interface ListenerApi {
   val serviceScope: CoroutineScope
   val errorResetWindowMs: Long
   val retryBackoffStepMs: Long
+  fun handlePlaybackError(playbackError: PlaybackException)
+  fun onPlaybackEnded(session: PlaybackSession)
+  fun onPlaybackResumed(pauseDurationMs: Long)
   fun debug(message: () -> String)
   fun ensureAudioFocus(): Boolean
   fun abandonAudioFocus()
@@ -56,6 +59,7 @@ class Media3PlayerEventListener(
 
   private var consecutiveErrorCount: Int = 0
   private var lastErrorTimeMs: Long = 0L
+  private var lastPauseTimestampMs: Long = 0L
 
   override fun onEvents(player: Player, events: Player.Events) {
     if (events.contains(Player.EVENT_IS_PLAYING_CHANGED) ||
@@ -114,6 +118,10 @@ class Media3PlayerEventListener(
         }
         listener.stopPositionUpdates()
         listener.startPositionUpdates()
+        val pauseDurationMs =
+          if (lastPauseTimestampMs > 0) System.currentTimeMillis() - lastPauseTimestampMs else 0L
+        lastPauseTimestampMs = 0L
+        listener.onPlaybackResumed(pauseDurationMs)
       } else {
         listener.debug { "Playback stopped. Syncing progress." }
         listener.stopPositionUpdates()
@@ -121,6 +129,7 @@ class Media3PlayerEventListener(
           listener.maybeSyncProgress("pause", true, currentSession, null)
         }
         listener.abandonAudioFocus()
+        lastPauseTimestampMs = System.currentTimeMillis()
       }
     }
 
@@ -136,7 +145,9 @@ class Media3PlayerEventListener(
         listener.playbackMetrics.logSummary()
         listener.currentSession()?.let { currentSession ->
           listener.updateCurrentPosition(currentSession)
-          listener.maybeSyncProgress("finished", true, currentSession, null)
+          listener.maybeSyncProgress("finished", true, currentSession) {
+            listener.onPlaybackEnded(currentSession)
+          }
         }
         listener.notifyWidgetState()
       }
@@ -147,6 +158,11 @@ class Media3PlayerEventListener(
   override fun onPlayerError(playbackError: PlaybackException) {
     Log.e(listener.tag, "Player playbackError: ${playbackError.message}", playbackError)
     listener.playbackMetrics.recordError()
+
+    listener.currentSession()?.takeIf { it.isDirectPlay && !it.isLocal }?.let {
+      listener.handlePlaybackError(playbackError)
+      return
+    }
 
     val isErrorRecoverable = when (playbackError.errorCode) {
       PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,

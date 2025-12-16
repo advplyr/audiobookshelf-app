@@ -70,6 +70,10 @@ class Media3SessionCallback(
   }
 
   private val searchCache = Collections.synchronizedMap(mutableMapOf<String, List<MediaItem>>())
+  private fun isWearController(controllerInfo: MediaSession.ControllerInfo): Boolean {
+    val pkg = controllerInfo.packageName.lowercase()
+    return pkg.contains("wear") || pkg.contains("com.google.android.apps.wear")
+  }
 
   /* ======== Session Management ======== */
 
@@ -83,11 +87,7 @@ class Media3SessionCallback(
     playerCommands: Player.Commands
   ) {
     try {
-      val controllerPackageName = controllerInfo.packageName
-      val isWearController = controllerPackageName.contains("wear", ignoreCase = true) ||
-        controllerPackageName.contains("com.google.android.apps.wear", ignoreCase = true)
-
-      if (isWearController) {
+      if (isWearController(controllerInfo)) {
         val player = playerProvider()
         val jumpBackwardDurationMs = seekConfig.jumpBackwardMs
         val jumpForwardDurationMs = seekConfig.jumpForwardMs
@@ -123,13 +123,12 @@ class Media3SessionCallback(
     }
 
     val player = playerProvider()
-    val isWearableDevice = controller.packageName.contains("wear", ignoreCase = true)
-    (player as? AbsPlayerWrapper)?.mapSkipToSeek = isWearableDevice
+    (player as? AbsPlayerWrapper)?.mapSkipToSeek = isWearController(controller)
 
     val isAppUiController = controller.connectionHints.getBoolean("isAppUiController", false)
     val controllerType = when {
       isAppUiController -> "APP_UI"
-      controller.packageName.contains("wear", ignoreCase = true) -> "WEAR"
+      isWearController(controller) -> "WEAR"
       controller.packageName.contains("gearhead", ignoreCase = true) -> "AUTO"
       else -> "OTHER"
     }
@@ -177,6 +176,8 @@ class Media3SessionCallback(
       builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.CYCLE_PLAYBACK_SPEED))
       builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.SEEK_BACK_INCREMENT))
       builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.SEEK_FORWARD_INCREMENT))
+      builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.SEEK_TO_PREVIOUS_TRACK))
+      builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.SEEK_TO_NEXT_TRACK))
       builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.SEEK_TO_PREVIOUS_CHAPTER))
       builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.SEEK_TO_NEXT_CHAPTER))
       builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.SEEK_TO_CHAPTER))
