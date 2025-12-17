@@ -113,6 +113,7 @@
   "LabelAutoSleepTimerAutoRewindHelp": "当自动睡眠计时器结束时, 再次播放该项目将自动倒带你之前的位置.",
   "LabelAutoSleepTimerHelp": "当在指定的时间范围内播放媒体时, 睡眠计时器将自动启动.",
   "LabelBooks": "图书",
+  "LabelByAuthor": "作者: {0}",
   "LabelChapterTrack": "章节音轨",
   "LabelChapters": "章节",
   "LabelClosePlayer": "关闭播放器",
