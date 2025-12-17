@@ -113,6 +113,7 @@
   "LabelAutoSleepTimerAutoRewindHelp": "When the auto sleep timer finishes, playing the item again will automatically rewind your position.",
   "LabelAutoSleepTimerHelp": "When playing media between the specified start and end times a sleep timer will automatically start.",
   "LabelBooks": "Books",
+  "LabelByAuthor": "by {0}",
   "LabelChapterTrack": "Chapter Track",
   "LabelChapters": "Chapters",
   "LabelClosePlayer": "Close player",

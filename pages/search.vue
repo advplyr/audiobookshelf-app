@@ -14,7 +14,7 @@
       <template v-for="item in bookResults">
         <div :key="item.libraryItem.id" class="w-full h-16 py-1">
           <nuxt-link :to="`/item/${item.libraryItem.id}`">
-            <cards-item-search-card :library-item="item.libraryItem" :match-key="item.matchKey" :match-text="item.matchText" :search="lastSearch" />
+            <cards-item-search-card :library-item="item.libraryItem" :search="lastSearch" />
           </nuxt-link>
         </div>
       </template>
@@ -23,7 +23,7 @@
       <template v-for="item in podcastResults">
         <div :key="item.libraryItem.id" class="text-fg select-none relative py-1">
           <nuxt-link :to="`/item/${item.libraryItem.id}`">
-            <cards-item-search-card :library-item="item.libraryItem" :match-key="item.matchKey" :match-text="item.matchText" :search="lastSearch" />
+            <cards-item-search-card :library-item="item.libraryItem" :search="lastSearch" />
           </nuxt-link>
         </div>
       </template>
