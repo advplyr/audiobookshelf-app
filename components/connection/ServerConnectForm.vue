@@ -483,8 +483,8 @@ export default {
       await this.$hapticsImpact()
 
       const { value } = await Dialog.confirm({
-        title: 'Confirm',
-        message: `Remove this server config?`
+        title: this.$strings.HeaderConfirm,
+        message: this.$strings.MessageConfirmDeleteServerConfig,
       })
       if (value) {
         this.processing = true
