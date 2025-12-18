@@ -157,7 +157,6 @@ class Media3PlaybackService : MediaLibraryService() {
     .setUsage(C.USAGE_MEDIA)
     .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
     .build()
-  private lateinit var audioFocusManager: AudioFocusManager
 
   // Error Handling & Retry
   private var errorRetryJob: Job? = null
@@ -263,9 +262,8 @@ class Media3PlaybackService : MediaLibraryService() {
       override fun debug(message: () -> String) {
         this@Media3PlaybackService.debugLog(message)
       }
-      override fun ensureAudioFocus(): Boolean = audioFocusManager.requestAudioFocus()
+      override fun ensureAudioFocus(): Boolean = true
       override fun abandonAudioFocus() {
-        audioFocusManager.abandonAudioFocus()
       }
 
       override fun getPlaybackSessionAssignTimestampMs(): Long {
@@ -301,42 +299,6 @@ class Media3PlaybackService : MediaLibraryService() {
     debugLog { "onCreate: Initializing Media3 playback service" }
     DbManager.initialize(this)
     DeviceManager.initializeWidgetUpdater(this)
-    audioFocusManager = AudioFocusManager(
-      context = this,
-      tag = TAG,
-      playerController = object : AudioFocusManager.PlayerController {
-        private var lastDuckVolume: Float = 1f
-
-        override fun duck(): Float? {
-          if (!this@Media3PlaybackService::activePlayer.isInitialized || activePlayer !== localPlayer) return null
-          val previous = activePlayer.volume
-          lastDuckVolume = previous
-          activePlayer.volume = 0.2f
-          return previous
-        }
-
-        override fun unduck(previousVolume: Float?) {
-          if (!this@Media3PlaybackService::activePlayer.isInitialized || activePlayer !== localPlayer) return
-          activePlayer.volume = previousVolume ?: lastDuckVolume
-        }
-
-        override fun pause() {
-          if (this@Media3PlaybackService::activePlayer.isInitialized && activePlayer.isPlaying) {
-            activePlayer.pause()
-          }
-        }
-
-        override fun isLocalPlayback(): Boolean {
-          return this@Media3PlaybackService::activePlayer.isInitialized &&
-            this@Media3PlaybackService::localPlayer.isInitialized &&
-            activePlayer === localPlayer
-        }
-
-        override fun shouldPauseOnAudioInterruptions(): Boolean {
-          return deviceSettings?.pauseOnAudioInterruptions ?: false
-        }
-      }
-    )
     applyJumpIncrementsFromDeviceSettings()
     setupMediaManagers()
     registerNetworkMonitor()
@@ -347,7 +309,6 @@ class Media3PlaybackService : MediaLibraryService() {
   }
 
   override fun onDestroy() {
-    audioFocusManager.abandonAudioFocus()
     try {
       val session = currentPlaybackSession
       if (session != null && this::unifiedProgressSyncer.isInitialized && playerInitialized) {

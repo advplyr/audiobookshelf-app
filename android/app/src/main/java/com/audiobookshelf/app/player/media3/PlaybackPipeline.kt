@@ -86,7 +86,7 @@ class PlaybackPipeline(
     val coreExoPlayer = ExoPlayer.Builder(context)
       .setMediaSourceFactory(mediaSourceFactory)
       .setLoadControl(customLoadControl)
-      .setAudioAttributes(speechAttributes, false)
+      .setAudioAttributes(speechAttributes, true)
       .setHandleAudioBecomingNoisy(true)
       .setSeekBackIncrementMs(seekBackIncrementMs)
       .setSeekForwardIncrementMs(seekForwardIncrementMs)

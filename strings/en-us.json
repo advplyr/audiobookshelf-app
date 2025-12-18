@@ -97,8 +97,6 @@
   "LabelAddedDate": "Added {0}",
   "LabelAll": "All",
   "LabelAllowSeekingOnMediaControls": "Allow position seeking on media notification controls",
-  "LabelPauseOnAudioInterruptions": "Pause on audio interruptions",
-  "LabelPauseOnAudioInterruptionsHelp": "OFF (default): Navigation/notification sounds lower playback volume briefly instead of pausing.\n\nON: Navigation/notification interruptions pause playback.\n\nPhone calls and other media apps always pause playback.",
   "LabelAlways": "Always",
   "LabelAndroidAutoBrowseLimitForGrouping": "Alphabetical drawdown limit",
   "LabelAndroidAutoBrowseLimitForGroupingHelp": "Don't use alphabetical drawdown when there is less than this amount of items to show",
