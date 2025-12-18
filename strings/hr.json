@@ -113,6 +113,7 @@
   "LabelAutoSleepTimerAutoRewindHelp": "Kada automatsk timer za spavanje završi, ponovna reprodukcija stavke će se automatski vratiti na zadani položaj.",
   "LabelAutoSleepTimerHelp": "Automatski timer za spavanje uključit će se u zadano vrijeme prilikom izvođenja medija.",
   "LabelBooks": "Knjige",
+  "LabelByAuthor": "autor: {0}",
   "LabelChapterTrack": "Zapis poglavlja",
   "LabelChapters": "Poglavlja",
   "LabelClosePlayer": "Zatvori reproduktor",
