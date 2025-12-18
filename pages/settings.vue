@@ -67,6 +67,13 @@
       </div>
       <p class="pl-4">{{ $strings.LabelAllowSeekingOnMediaControls }}</p>
     </div>
+    <div v-if="!isiOS" class="flex items-center py-3">
+      <div class="w-10 flex justify-center" @click="togglePauseOnAudioInterruptions">
+        <ui-toggle-switch v-model="settings.pauseOnAudioInterruptions" @input="saveSettings" />
+      </div>
+      <p class="pl-4">{{ $strings.LabelPauseOnAudioInterruptions }}</p>
+      <span class="material-symbols text-xl ml-2" @click.stop="showInfo('pauseOnAudioInterruptions')">info</span>
+    </div>
 
     <!-- Sleep timer settings -->
     <template v-if="!isiOS">
@@ -221,7 +228,8 @@ export default {
         downloadUsingCellular: 'ALWAYS',
         streamingUsingCellular: 'ALWAYS',
         androidAutoBrowseLimitForGrouping: 100,
-        androidAutoBrowseSeriesSequenceOrder: 'ASC'
+        androidAutoBrowseSeriesSequenceOrder: 'ASC',
+        pauseOnAudioInterruptions: false
       },
       theme: 'dark',
       lockCurrentOrientation: false,
@@ -253,6 +261,10 @@ export default {
         enableMp3IndexSeeking: {
           name: this.$strings.LabelEnableMp3IndexSeeking,
           message: this.$strings.LabelEnableMp3IndexSeekingHelp
+        },
+        pauseOnAudioInterruptions: {
+          name: this.$strings.LabelPauseOnAudioInterruptions,
+          message: this.$strings.LabelPauseOnAudioInterruptionsHelp
         },
         androidAutoBrowseLimitForGrouping: {
           name: this.$strings.LabelAndroidAutoBrowseLimitForGrouping,
@@ -581,6 +593,10 @@ export default {
       this.settings.allowSeekingOnMediaControls = !this.settings.allowSeekingOnMediaControls
       this.saveSettings()
     },
+    togglePauseOnAudioInterruptions() {
+      this.settings.pauseOnAudioInterruptions = !this.settings.pauseOnAudioInterruptions
+      this.saveSettings()
+    },
     getCurrentOrientation() {
       const orientation = window.screen?.orientation || {}
       const type = orientation.type || ''
@@ -627,6 +643,7 @@ export default {
       this.settings.jumpForwardTime = deviceSettings.jumpForwardTime || 10
       this.settings.jumpBackwardsTime = deviceSettings.jumpBackwardsTime || 10
       this.settings.enableMp3IndexSeeking = !!deviceSettings.enableMp3IndexSeeking
+      this.settings.pauseOnAudioInterruptions = !!deviceSettings.pauseOnAudioInterruptions
 
       this.settings.lockOrientation = deviceSettings.lockOrientation || 'NONE'
       this.lockCurrentOrientation = this.settings.lockOrientation !== 'NONE'

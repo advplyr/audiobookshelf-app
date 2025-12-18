@@ -151,6 +151,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
   internal lateinit var mPlayer: ExoPlayer
   private lateinit var currentPlayer: Player
   var castPlayer: CastPlayer? = null
+  private lateinit var audioFocusManager: AudioFocusManager
 
   lateinit var mediaProgressSyncer: MediaProgressSyncer
   private var networkStateListener: NetworkMonitor.Listener? = null
@@ -273,6 +274,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
 
   // detach player
   override fun onDestroy() {
+    audioFocusManager.abandonAudioFocus()
     networkStateListener?.let { NetworkMonitor.removeListener(it) }
     networkStateListener = null
 
@@ -309,6 +311,44 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
 
     // Initialize widget
     DeviceManager.initializeWidgetUpdater(ctx)
+
+    // Initialize AudioFocusManager
+    audioFocusManager = AudioFocusManager(
+      context = this,
+      tag = tag,
+      playerController = object : AudioFocusManager.PlayerController {
+        private var lastDuckVolume: Float = 1f
+
+        override fun duck(): Float? {
+          if (!this@PlayerNotificationService::currentPlayer.isInitialized || currentPlayer !== mPlayer) return null
+          val previous = currentPlayer.volume
+          lastDuckVolume = previous
+          currentPlayer.volume = 0.2f
+          return previous
+        }
+
+        override fun unduck(previousVolume: Float?) {
+          if (!this@PlayerNotificationService::currentPlayer.isInitialized || currentPlayer !== mPlayer) return
+          currentPlayer.volume = previousVolume ?: lastDuckVolume
+        }
+
+        override fun pause() {
+          if (this@PlayerNotificationService::currentPlayer.isInitialized && currentPlayer.isPlaying) {
+            currentPlayer.pause()
+          }
+        }
+
+        override fun isLocalPlayback(): Boolean {
+          return this@PlayerNotificationService::currentPlayer.isInitialized &&
+            this@PlayerNotificationService::mPlayer.isInitialized &&
+            currentPlayer === mPlayer
+        }
+
+        override fun shouldPauseOnAudioInterruptions(): Boolean {
+          return DeviceManager.deviceData.deviceSettings?.pauseOnAudioInterruptions ?: false
+        }
+      }
+    )
 
     NetworkMonitor.initialize(applicationContext)
     val listener = NetworkMonitor.Listener { state ->
@@ -493,7 +533,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
         .setUsage(C.USAGE_MEDIA)
         .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
         .build()
-    mPlayer.setAudioAttributes(audioAttributes, true)
+    mPlayer.setAudioAttributes(audioAttributes, false)
 
     playerNotificationManager.setPlayer(mPlayer)
     mediaSessionConnector.setPlayer(mPlayer)
@@ -1097,6 +1137,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
       Log.d(tag, "Already playing")
       return
     }
+    // Request audio focus before playing
+    if (!audioFocusManager.requestAudioFocus()) {
+      Log.w(tag, "Audio focus not granted; pausing playback")
+      return
+    }
     // Play the current media item
     mPlayer.volume = 1F
     mPlayer.play()
@@ -1104,6 +1149,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
 
   fun pause() {
     mPlayer.pause()
+    audioFocusManager.abandonAudioFocus()
   }
 
   fun playPause(): Boolean {
