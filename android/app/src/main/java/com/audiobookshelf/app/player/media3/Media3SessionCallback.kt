@@ -26,7 +26,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.guava.future
-import java.util.Collections
+import java.util.concurrent.ConcurrentHashMap
 
 data class SeekConfig(
   val jumpBackwardMs: Long,
@@ -69,7 +69,7 @@ class Media3SessionCallback(
     private const val FINISHED_BOOK_THRESHOLD_MS = 5_000L
   }
 
-  private val searchCache = Collections.synchronizedMap(mutableMapOf<String, List<MediaItem>>())
+  private val searchCache = ConcurrentHashMap<String, List<MediaItem>>()
   private fun isWearController(controllerInfo: MediaSession.ControllerInfo): Boolean {
     val pkg = controllerInfo.packageName.lowercase()
     return pkg.contains("wear") || pkg.contains("com.google.android.apps.wear")

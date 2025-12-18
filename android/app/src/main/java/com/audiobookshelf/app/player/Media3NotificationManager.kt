@@ -5,10 +5,8 @@ import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
 import androidx.annotation.OptIn
-import androidx.core.app.NotificationCompat
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.CommandButton
-import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
 import com.audiobookshelf.app.R
@@ -19,7 +17,6 @@ import com.google.common.collect.ImmutableList
 @UnstableApi
 class Media3NotificationManager(
   private val context: Context,
-  private val service: MediaLibraryService,
   private val cyclePlaybackSpeedCommand: SessionCommand,
   private val seekBackIncrementCommand: SessionCommand,
   private val seekForwardIncrementCommand: SessionCommand,
@@ -39,23 +36,28 @@ class Media3NotificationManager(
   private var lastMediaButtonPreferences: List<CommandButton>? = null
 
   @Volatile
-  private var foregroundStarted = false
-
-  @Volatile
   private var includeTrackNavigationButtons = false
 
+  @Volatile
+  private var channelCreated = false
+
   fun createNotificationChannel() {
+    if (channelCreated) return
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      val channelName = "Media Playback"
-      val importance = NotificationManager.IMPORTANCE_LOW
-      val channel = NotificationChannel(CHANNEL_ID, channelName, importance).apply {
-        description = "Playback controls and progress"
-        setShowBadge(false)
-        setSound(null, null)
-        enableVibration(false)
+      synchronized(this) {
+        if (channelCreated) return
+        val channelName = "Media Playback"
+        val importance = NotificationManager.IMPORTANCE_LOW
+        val channel = NotificationChannel(CHANNEL_ID, channelName, importance).apply {
+          description = "Playback controls and progress"
+          setShowBadge(false)
+          setSound(null, null)
+          enableVibration(false)
+        }
+        val notificationManager = context.getSystemService(NotificationManager::class.java)
+        notificationManager.createNotificationChannel(channel)
+        channelCreated = true
       }
-      val notificationManager = context.getSystemService(NotificationManager::class.java)
-      notificationManager.createNotificationChannel(channel)
     }
   }
 
@@ -80,33 +82,6 @@ class Media3NotificationManager(
 
   fun setTrackNavigationEnabled(enabled: Boolean) {
     includeTrackNavigationButtons = enabled
-  }
-
-  fun ensureForegroundNotification(): Boolean {
-    if (foregroundStarted) return true
-    val notification =
-      NotificationCompat.Builder(context, CHANNEL_ID)
-        .setContentTitle(context.getString(R.string.app_name))
-        .setContentText(context.getString(R.string.notification_preparing_playback))
-        .setSmallIcon(R.drawable.icon_monochrome)
-        .setOngoing(true)
-        .setOnlyAlertOnce(true)
-        .build()
-    try {
-      service.startForeground(NOTIFICATION_ID, notification)
-      foregroundStarted = true
-      return true
-    } catch (t: Throwable) {
-      debugLog("startForeground failed: ${t.message}")
-    }
-    return false
-  }
-
-  fun stopForegroundNotification() {
-    if (foregroundStarted) {
-      service.stopForeground(android.app.Service.STOP_FOREGROUND_REMOVE)
-      foregroundStarted = false
-    }
   }
 
   fun buildServiceMediaButtons(): List<CommandButton> {

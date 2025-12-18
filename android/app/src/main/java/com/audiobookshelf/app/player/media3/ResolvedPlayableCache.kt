@@ -22,7 +22,7 @@ class ResolvedPlayableCache(
 
   private fun key(mediaId: String, preferCastUris: Boolean) = "$mediaId|cast=$preferCastUris"
 
-  private suspend fun cleanup(nowMs: Long = System.currentTimeMillis()) {
+  private suspend fun cleanup(nowMs: Long) {
     mutex.withLock {
       while (deque.isNotEmpty()) {
         val head = deque.firstOrNull() ?: break
@@ -36,11 +36,15 @@ class ResolvedPlayableCache(
   }
 
   suspend fun get(mediaId: String, preferCastUris: Boolean): Media3BrowseTree.ResolvedPlayable? {
-    cleanup()
     val entryKey = key(mediaId, preferCastUris)
+    val nowMs = System.currentTimeMillis()
     return mutex.withLock {
       val entry = deque.firstOrNull { it.key == entryKey } ?: return@withLock null
-      entry.value.copy(session = entry.value.session.clone())
+      if (nowMs - entry.timestamp > timeToLiveMillis) {
+        null
+      } else {
+        entry.value.copy(session = entry.value.session.clone())
+      }
     }
   }
 
@@ -49,13 +53,14 @@ class ResolvedPlayableCache(
     preferCastUris: Boolean,
     resolvedPlayable: Media3BrowseTree.ResolvedPlayable
   ) {
-    cleanup()
     val entryKey = key(mediaId, preferCastUris)
     val playableCopy = resolvedPlayable.copy(session = resolvedPlayable.session.clone())
+    val nowMs = System.currentTimeMillis()
     mutex.withLock {
       deque.removeAll { it.key == entryKey }
-      deque.addLast(Entry(entryKey, playableCopy, System.currentTimeMillis()))
+      deque.addLast(Entry(entryKey, playableCopy, nowMs))
       while (deque.size > limit) deque.removeFirst()
     }
+    cleanup(nowMs)
   }
 }

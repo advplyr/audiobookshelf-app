@@ -4,7 +4,6 @@ import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.media.SyncResult
-import com.audiobookshelf.app.media.UnifiedMediaProgressSyncer
 import com.audiobookshelf.app.player.core.PlaybackMetricsRecorder
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -14,7 +13,6 @@ import kotlinx.coroutines.launch
 class Media3SessionManager(
   private val serviceScope: CoroutineScope,
   private val mediaManager: MediaManager,
-  private val unifiedProgressSyncer: UnifiedMediaProgressSyncer,
   private val playbackMetrics: PlaybackMetricsRecorder,
   private val currentMediaPlayerIdProvider: () -> String,
   private val updateCurrentPosition: (PlaybackSession) -> Unit,
@@ -66,17 +64,17 @@ class Media3SessionManager(
       playbackMetrics.begin(session.mediaPlayer, session.mediaItemId)
     }
 
-    // Ensure syncer always tracks the latest session immediately (even before play fires)
-    unifiedProgressSyncer.play(session)
     notifyWidgetState(false)
   }
 
-  fun switchPlaybackSession(session: PlaybackSession) {
+  fun switchPlaybackSession(session: PlaybackSession, syncPreviousSession: Boolean = true) {
     markPlaybackSessionAssigned()
     val previous = currentPlaybackSession
     if (previous != null && previous.id != session.id) {
       updateCurrentPosition(previous)
-      maybeSyncProgress("switch", true, previous) { _ -> }
+      if (syncPreviousSession) {
+        maybeSyncProgress("switch", true, previous) { _ -> }
+      }
     }
     assignPlaybackSession(session)
   }
