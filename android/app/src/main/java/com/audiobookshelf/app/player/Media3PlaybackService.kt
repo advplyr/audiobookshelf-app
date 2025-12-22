@@ -989,6 +989,9 @@ class Media3PlaybackService : MediaLibraryService() {
     activePlayer.prepare()
     activePlayer.playWhenReady = playWhenReady
     updateTrackNavigationButtons()
+
+    // Update widget to show controls when playback is prepared
+    notifyWidgetState()
   }
 
   private fun startNewPlaybackSessionFromServer(session: PlaybackSession) {
@@ -1381,12 +1384,17 @@ class Media3PlaybackService : MediaLibraryService() {
    * Widget Integration
    * ======================================== */
   private fun notifyWidgetState(isPlaybackClosed: Boolean = false) {
-    val updater = DeviceManager.widgetUpdater ?: return
+    val updater = DeviceManager.widgetUpdater
+    if (updater == null) {
+      return
+    }
     if (isPlaybackClosed) {
       updater.onPlayerClosed()
       return
     }
-    buildWidgetSnapshot(isPlaybackClosed)?.let { updater.onPlayerChanged(it) }
+    buildWidgetSnapshot(isPlaybackClosed)?.let { snapshot ->
+      updater.onPlayerChanged(snapshot)
+    }
   }
 
   private fun buildWidgetSnapshot(isPlaybackClosed: Boolean): WidgetPlaybackSnapshot? {
