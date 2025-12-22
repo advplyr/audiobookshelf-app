@@ -263,9 +263,6 @@ class Media3PlaybackService : MediaLibraryService() {
       override fun debug(message: () -> String) {
         this@Media3PlaybackService.debugLog(message)
       }
-      override fun ensureAudioFocus(): Boolean = true
-      override fun abandonAudioFocus() {
-      }
 
       override fun currentMediaPlayerId(): String {
         return this@Media3PlaybackService.currentMediaPlayerId()
@@ -1466,7 +1463,9 @@ class Media3PlaybackService : MediaLibraryService() {
     isPlayingOverride: Boolean?
   ): WidgetPlaybackSnapshot? {
     val session = currentPlaybackSession ?: return null
-    val isPlaying = isPlayingOverride ?: lastKnownIsPlaying
+    val isPlaying = isPlayingOverride
+      ?: if (playerInitialized && this::activePlayer.isInitialized) activePlayer.isPlaying
+      else lastKnownIsPlaying
     var absolutePosition = session.currentTimeMs
     if (playerInitialized) {
       val trackIndex = activePlayer.currentMediaItemIndex

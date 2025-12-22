@@ -44,8 +44,6 @@ interface ListenerApi {
   fun onPlaybackEnded(session: PlaybackSession)
   fun onPlaybackResumed(pauseDurationMs: Long)
   fun debug(message: () -> String)
-  fun ensureAudioFocus(): Boolean
-  fun abandonAudioFocus()
   fun currentMediaPlayerId(): String
 }
 
@@ -94,14 +92,6 @@ class Media3PlayerEventListener(
       listener.updateCurrentPosition(currentSession)
 
       if (isEffectivelyPlaying) {
-        if (!listener.ensureAudioFocus()) {
-          listener.debug { "Audio focus not granted; pausing playback" }
-          if (listener.isPlayerInitialized()) {
-            listener.activePlayer().pause()
-          }
-          listener.setLastKnownIsPlaying(false)
-          return
-        }
         listener.getErrorRetryJob()?.cancel()
         listener.setErrorRetryJob(null)
         consecutiveErrorCount = 0
@@ -129,7 +119,6 @@ class Media3PlayerEventListener(
         listener.currentSession()?.let { currentSession ->
           listener.maybeSyncProgress("pause", true, currentSession, null)
         }
-        listener.abandonAudioFocus()
         lastPauseTimestampMs = System.currentTimeMillis()
       }
     }
@@ -146,18 +135,7 @@ class Media3PlayerEventListener(
 
   override fun onPlaybackStateChanged(state: Int) {
     when (state) {
-      Player.STATE_READY -> {
-        listener.playbackMetrics.recordFirstReadyIfUnset()
-        // Notify web app of current player when playback becomes ready
-        // This handles cases where playback is initiated through MediaController
-        listener.currentSession()?.let {
-          val mediaPlayerId = listener.currentMediaPlayerId()
-          listener.debug { "PlayerListener STATE_READY: Notifying web app - player=$mediaPlayerId" }
-          com.audiobookshelf.app.media.MediaEventManager.clientEventEmitter?.onMediaPlayerChanged(
-            mediaPlayerId
-          )
-        }
-      }
+      Player.STATE_READY -> listener.playbackMetrics.recordFirstReadyIfUnset()
       Player.STATE_BUFFERING -> listener.playbackMetrics.recordBuffer()
       Player.STATE_ENDED -> {
         listener.playbackMetrics.logSummary()
