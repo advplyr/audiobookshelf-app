@@ -138,7 +138,7 @@ class Media3NotificationManager(
     val speedButton = playbackSpeedButtonProvider.createButton(speed)
     playbackSpeedCommandButton = speedButton
     // Refresh media button preferences so controllers/notifications get updated icon/label
-    updateMediaButtonPreferencesAfterSpeedChange(null, speed)
+    updateMediaButtonPreferencesAfterSpeedChange(null)
   }
 
   fun getPlaybackSpeedCommandButton(): CommandButton? = playbackSpeedCommandButton
@@ -159,14 +159,13 @@ class Media3NotificationManager(
     }
   }
 
-  fun updateMediaButtonPreferencesAfterSpeedChange(mediaSession: MediaSession?, speed: Float) {
+  fun updateMediaButtonPreferencesAfterSpeedChange(mediaSession: MediaSession?) {
     runCatching {
       val built = buildServiceMediaButtons()
       val merged = mergeWithLastPreferences(built)
       val prefs = ImmutableList.copyOf(merged)
       mediaSession?.setMediaButtonPreferences(prefs)
       lastMediaButtonPreferences = prefs
-      debugLog("Updated media button preferences after speed change: ${speed}x")
     }.onFailure { t ->
       debugLog("Failed to update media button preferences after speed change: ${t.message}")
     }

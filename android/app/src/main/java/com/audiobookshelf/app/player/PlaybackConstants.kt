@@ -23,6 +23,12 @@ object PlaybackConstants {
     const val MARK_UI_PLAYBACK_EVENT = "com.audiobookshelf.app.player.MARK_UI_PLAYBACK_EVENT"
   }
 
+  object WidgetActions {
+    const val PLAY_PAUSE = "com.audiobookshelf.app.widget.PLAY_PAUSE"
+    const val FAST_FORWARD = "com.audiobookshelf.app.widget.FAST_FORWARD"
+    const val REWIND = "com.audiobookshelf.app.widget.REWIND"
+  }
+
   object SleepTimer {
     const val ACTION_SET = "com.audiobookshelf.app.player.SET_SLEEP_TIMER"
     const val ACTION_CANCEL = "com.audiobookshelf.app.player.CANCEL_SLEEP_TIMER"

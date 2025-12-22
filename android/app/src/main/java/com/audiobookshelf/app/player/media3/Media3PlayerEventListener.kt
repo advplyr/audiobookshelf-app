@@ -46,6 +46,7 @@ interface ListenerApi {
   fun debug(message: () -> String)
   fun ensureAudioFocus(): Boolean
   fun abandonAudioFocus()
+  fun currentMediaPlayerId(): String
 }
 
 /**
@@ -135,11 +136,28 @@ class Media3PlayerEventListener(
 
     listener.setLastKnownIsPlaying(isEffectivelyPlaying)
     listener.notifyWidgetState()
+
+    // Notify web app about playing state change
+    listener.debug { "PlayerListener: Notifying web app - isPlaying=$isEffectivelyPlaying" }
+    com.audiobookshelf.app.media.MediaEventManager.clientEventEmitter?.onPlayingUpdate(
+      isEffectivelyPlaying
+    )
   }
 
   override fun onPlaybackStateChanged(state: Int) {
     when (state) {
-      Player.STATE_READY -> listener.playbackMetrics.recordFirstReadyIfUnset()
+      Player.STATE_READY -> {
+        listener.playbackMetrics.recordFirstReadyIfUnset()
+        // Notify web app of current player when playback becomes ready
+        // This handles cases where playback is initiated through MediaController
+        listener.currentSession()?.let {
+          val mediaPlayerId = listener.currentMediaPlayerId()
+          listener.debug { "PlayerListener STATE_READY: Notifying web app - player=$mediaPlayerId" }
+          com.audiobookshelf.app.media.MediaEventManager.clientEventEmitter?.onMediaPlayerChanged(
+            mediaPlayerId
+          )
+        }
+      }
       Player.STATE_BUFFERING -> listener.playbackMetrics.recordBuffer()
       Player.STATE_ENDED -> {
         listener.playbackMetrics.logSummary()

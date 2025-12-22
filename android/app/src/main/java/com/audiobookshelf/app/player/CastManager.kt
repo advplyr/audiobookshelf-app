@@ -140,9 +140,11 @@ class CastManager(val mainActivity:Activity) {
     val callback = object : ScanCallback() {
       override fun onRouteUpdate(routes: List<MediaRouter.RouteInfo>?) {
         Log.d(tag, "CAST On ROUTE UPDATED ${routes?.size} | ${getContext().castState}")
-        // if the routes have changed, we may have an available device
-        // If there is at least one device available
-        if (getContext().castState != CastState.NO_DEVICES_AVAILABLE) {
+        // Check if we have any non-default, non-bluetooth routes (these are Cast devices)
+        // Don't rely solely on castState as it can be incorrect when devices don't support our receiver app
+        val hasCastDevices = routes?.any { !it.isDefault && !it.isBluetooth } == true
+
+        if (hasCastDevices) {
           routes?.forEach { Log.d(tag, "CAST ROUTE ${it.description} | ${it.deviceType} | ${it.isBluetooth} | ${it.name}") }
 
           // Stop the scan

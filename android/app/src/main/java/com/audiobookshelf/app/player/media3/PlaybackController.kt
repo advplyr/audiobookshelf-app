@@ -66,6 +66,7 @@ class PlaybackController(private val context: Context) {
   private var hasEmittedCloseEvent = false
   private var lastNotifiedIsPlaying: Boolean? = null
   private var forceNextPlayingStateUpdate = false
+  private var isPreparingPlayback = false
   @Volatile
   private var lastKnownPositionMs: Long = 0L
   @Volatile
@@ -194,6 +195,7 @@ class PlaybackController(private val context: Context) {
     this@PlaybackController.mediaController = null
     mediaControllerFuture = null
     isConnectionInProgress.set(false)
+    isPreparingPlayback = false
     lastNotifiedIsPlaying = null
     forceNextPlayingStateUpdate = false
     activePlaybackSession = null
@@ -231,16 +233,18 @@ class PlaybackController(private val context: Context) {
     }
 
     override fun onIsPlayingChanged(isPlaying: Boolean) {
-      maybeEmitMediaPlayerFromExtras()
-      val mediaController = this@PlaybackController.mediaController
-      val effective = mediaController?.let { effectiveIsPlaying(it) } ?: isPlaying
-      notifyPlayingState(effective)
-      if (mediaController != null) {
-        lastKnownPositionMs = mediaController.currentPosition
-        lastKnownMediaItemIndex = mediaController.currentMediaItemIndex
-        emitMetadata(mediaController)
+      val controller = mediaController
+
+      if (controller != null) {
+        updateStateSnapshot(controller)
       }
-      if (effective) {
+
+      // Determine the effective state. If controller is null, fall back to the raw event value.
+      val isEffectivelyPlaying = controller?.let { effectiveIsPlaying(it) } ?: isPlaying
+
+      notifyPlayingState(isEffectivelyPlaying)
+
+      if (isEffectivelyPlaying) {
         startProgressUpdates()
       } else {
         stopProgressUpdates()
@@ -248,30 +252,59 @@ class PlaybackController(private val context: Context) {
     }
 
     override fun onPlaybackStateChanged(playbackState: Int) {
-      val mediaController = this@PlaybackController.mediaController ?: return
-      maybeEmitMediaPlayerFromExtras()
-      lastKnownPositionMs = mediaController.currentPosition
-      lastKnownMediaItemIndex = mediaController.currentMediaItemIndex
-      emitMetadata(mediaController)
-      if (playbackState == Player.STATE_ENDED || playbackState == Player.STATE_IDLE) {
-        stopProgressUpdates()
-      }
+      val controller = mediaController ?: return
+
+      updateStateSnapshot(controller)
+
       when (playbackState) {
-        Player.STATE_ENDED -> listener?.onPlaybackEnded()
-        Player.STATE_IDLE -> {
-          // If player is idle with no media items, playback has been closed
-          if (mediaController.mediaItemCount == 0 && activePlaybackSession != null) {
-            activePlaybackSession = null
-            listener?.onPlaybackClosed()
-          }
-        }
         Player.STATE_BUFFERING,
-        Player.STATE_READY -> Unit
+        Player.STATE_READY -> {
+          // Preparation finished; allow idle handling to resume for future transitions.
+          isPreparingPlayback = false
+        }
+
+        Player.STATE_ENDED -> {
+          stopProgressUpdates()
+          listener?.onPlaybackEnded()
+        }
+        Player.STATE_IDLE -> {
+          handleIdleState(controller)
+        }
       }
-      notifyPlayingState(effectiveIsPlaying(mediaController))
+
+      notifyPlayingState(effectiveIsPlaying(controller))
     }
 
+    /**
+     * Updates internal tracking variables based on the current controller state.
+     */
+    private fun updateStateSnapshot(controller: MediaController) {
+      maybeEmitMediaPlayerFromExtras()
+      lastKnownPositionMs = controller.currentPosition
+      lastKnownMediaItemIndex = controller.currentMediaItemIndex
+      emitMetadata(controller)
+    }
+
+    /**
+     * Handles logic specifically for when the player goes IDLE.
+     */
+    private fun handleIdleState(controller: Player) {
+      // If player is idle but we are actively preparing or waiting to play, ignore.
+      if (isPreparingPlayback || controller.playWhenReady) return
+
+      stopProgressUpdates()
+
+      // If queue is empty and we had an active session, the playback was closed.
+      if (controller.mediaItemCount == 0 && activePlaybackSession != null) {
+        activePlaybackSession = null
+        listener?.onPlaybackClosed()
+      }
+    }
+
+
     override fun onPlayerError(error: PlaybackException) {
+      // Avoid getting stuck in a "preparing" state on failure.
+      isPreparingPlayback = false
       listener?.onPlaybackFailed(error.message ?: "Unknown playback error")
     }
 
@@ -318,6 +351,7 @@ class PlaybackController(private val context: Context) {
     }
     activePlaybackSession?.id == playbackSession.id
 
+    isPreparingPlayback = true
     activePlaybackSession = playbackSession
     listener?.onPlaybackSession(playbackSession)
 
