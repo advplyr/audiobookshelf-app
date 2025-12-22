@@ -113,6 +113,7 @@
   "LabelAutoSleepTimerAutoRewindHelp": "Kun automaattinen uniajastin päättyy, ensi kerralla toistetaan osa kuunenltua uudelleen.",
   "LabelAutoSleepTimerHelp": "Toiston alkaessa tällä aikävälillä unikytkin kytketään automaattisesti käyttöön.",
   "LabelBooks": "Kirjat",
+  "LabelByAuthor": "Tekijältä: {0}",
   "LabelChapterTrack": "Luvun raita",
   "LabelChapters": "Luvut",
   "LabelClosePlayer": "Sulje soitin",
