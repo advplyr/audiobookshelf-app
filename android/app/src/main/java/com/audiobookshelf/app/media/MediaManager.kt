@@ -4,18 +4,37 @@ import android.app.Activity
 import android.content.Context
 import android.support.v4.media.MediaBrowserCompat
 import android.util.Log
-import com.audiobookshelf.app.data.*
+import androidx.media3.common.MediaItem
+import com.audiobookshelf.app.data.ItemInProgress
+import com.audiobookshelf.app.data.Library
+import com.audiobookshelf.app.data.LibraryAuthorItem
+import com.audiobookshelf.app.data.LibraryCollection
+import com.audiobookshelf.app.data.LibraryItem
+import com.audiobookshelf.app.data.LibraryItemWithEpisode
+import com.audiobookshelf.app.data.LibraryItemWrapper
+import com.audiobookshelf.app.data.LibrarySeriesItem
+import com.audiobookshelf.app.data.LibraryShelfBookEntity
+import com.audiobookshelf.app.data.LibraryShelfEpisodeEntity
+import com.audiobookshelf.app.data.LibraryShelfType
+import com.audiobookshelf.app.data.LocalLibraryItem
+import com.audiobookshelf.app.data.MediaProgress
+import com.audiobookshelf.app.data.PlayItemRequestPayload
+import com.audiobookshelf.app.data.PlaybackSession
+import com.audiobookshelf.app.data.Podcast
+import com.audiobookshelf.app.data.PodcastEpisode
+import com.audiobookshelf.app.data.ServerConnectionConfig
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.server.ApiHandler
 import com.getcapacitor.JSObject
-import java.util.*
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.suspendCancellableCoroutine
 import org.json.JSONException
 import org.json.JSONObject
+import java.util.Locale
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
-import java.util.concurrent.atomic.AtomicInteger
 
 class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
   val tag = "MediaManager"
@@ -42,9 +61,20 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
   private var serverConfigLastPing:Long = 0L
   var serverUserMediaProgress:MutableList<MediaProgress> = mutableListOf()
   var serverItemsInProgress = listOf<ItemInProgress>()
+  var latestServerItemInProgress: ItemInProgress? = null
   var serverLibraries = listOf<Library>()
 
   var userSettingsPlaybackRate:Float? = null
+
+  var isAutoDataLoaded = false
+
+  suspend fun getLibraryItems(libraryId: String): List<LibraryItem> {
+    return suspendCoroutine { continuation ->
+      apiHandler.getLibraryItems(libraryId) { items ->
+        continuation.resume(items)
+      }
+    }
+  }
 
   fun getIsLibrary(id:String) : Boolean {
     return serverLibraries.find { it.id == id } != null
@@ -151,6 +181,7 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
       cachedLibraryPodcasts = hashMapOf()
       isLibraryPodcastsCached = hashMapOf()
       serverItemsInProgress = listOf()
+      latestServerItemInProgress = null
       allLibraryPersonalizationsDone = false
       libraryPersonalizationsDone = 0
       return true
@@ -160,6 +191,7 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
 
   private fun loadItemsInProgressForAllLibraries(cb: (List<ItemInProgress>) -> Unit) {
     if (serverItemsInProgress.isNotEmpty()) {
+      latestServerItemInProgress = serverItemsInProgress.maxByOrNull { it.progressLastUpdate }
       cb(serverItemsInProgress)
     } else {
       apiHandler.getAllItemsInProgress { itemsInProgress ->
@@ -167,9 +199,50 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
           val libraryItem = it.libraryItemWrapper as LibraryItem
           libraryItem.checkHasTracks()
         }
+        latestServerItemInProgress = serverItemsInProgress.maxByOrNull { it.progressLastUpdate }
         cb(serverItemsInProgress)
       }
     }
+  }
+
+  fun updateLatestServerItemFromSession(session: PlaybackSession) {
+    val (wrapper, episode) = resolveWrapperAndEpisode(session) ?: return
+    latestServerItemInProgress = ItemInProgress(
+      libraryItemWrapper = wrapper,
+      episode = episode,
+      progressLastUpdate = System.currentTimeMillis(),
+      isLocal = session.isLocal
+    )
+  }
+
+  private fun resolveWrapperAndEpisode(
+    session: PlaybackSession
+  ): Pair<LibraryItemWrapper, PodcastEpisode?>? {
+    val episodeId = session.episodeId
+    if (!episodeId.isNullOrBlank()) {
+      val resolved = getPodcastWithEpisodeByEpisodeId(episodeId)
+      if (resolved != null) {
+        return resolved.libraryItemWrapper to resolved.episode
+      }
+    }
+    val wrapper = resolveWrapperForSession(session) ?: return null
+    return wrapper to null
+  }
+
+  private fun resolveWrapperForSession(session: PlaybackSession): LibraryItemWrapper? {
+    session.libraryItem?.let { return it }
+    session.localLibraryItem?.let { return it }
+    val candidates = mutableListOf<String>()
+    session.libraryItemId?.let { candidates.add(it) }
+    val localId = session.localLibraryItem?.id
+    if (!localId.isNullOrBlank()) {
+      candidates.add(localId)
+    }
+    for (id in candidates) {
+      val wrapper = getById(id)
+      if (wrapper != null) return wrapper
+    }
+    return null
   }
 
   /**
@@ -691,6 +764,71 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
   }
 
   /**
+   * Modern method for Media3. Fetches podcast episodes and returns them as a list of fully-formed MediaItems.
+   *
+   * @param podcastId The ID of the podcast to fetch episodes for.
+   * @param ctx The application context needed by getMediaItem.
+   * @return A list of MediaItems ready for use in Media3.
+   */
+  suspend fun loadPodcastEpisodes(podcastId: String, ctx: Context): List<MediaItem>? =
+    suspendCancellableCoroutine { continuation ->
+      loadLibraryItem(podcastId) { libraryItemWrapper ->
+        if (!continuation.isActive) return@loadLibraryItem
+
+        val mediaItems: List<MediaItem>? = when (val wrapper = libraryItemWrapper) {
+
+          is LocalLibraryItem -> {
+            if (wrapper.mediaType != "podcast" || wrapper.media.getAudioTracks().isEmpty()) {
+              emptyList()
+            } else {
+              val podcast = wrapper.media as Podcast
+              selectedLibraryItemId = wrapper.id
+              selectedPodcast = podcast
+              // Map over the episodes and call the new getMediaItem method.
+              podcast.episodes?.map { podcastEpisode ->
+                val progress =
+                  DeviceManager.dbManager.getLocalMediaProgress("${wrapper.id}-${podcastEpisode.id}")
+                podcastEpisode.getMediaItem(wrapper, progress, ctx)
+              }
+            }
+          }
+
+          is LibraryItem -> {
+            if (wrapper.mediaType != "podcast" || wrapper.media.getAudioTracks().isEmpty()) {
+              emptyList()
+            } else {
+              val podcast = wrapper.media as Podcast
+              selectedLibraryItemId = wrapper.id
+              selectedPodcast = podcast
+
+              val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItemByLId(wrapper.id)
+
+              podcast.episodes?.sortedByDescending { it.publishedAt }?.map { podcastEpisode ->
+                podcastEpisodeLibraryItemMap[podcastEpisode.id] =
+                  LibraryItemWithEpisode(wrapper, podcastEpisode)
+                val progress =
+                  serverUserMediaProgress.find { it.libraryItemId == wrapper.id && it.episodeId == podcastEpisode.id }
+
+                localLibraryItem?.let { lli ->
+                  val localEpisode =
+                    (lli.media as? Podcast)?.episodes?.find { it.serverEpisodeId == podcastEpisode.id }
+                  podcastEpisode.localEpisodeId = localEpisode?.id
+                }
+                podcastEpisode.getMediaItem(wrapper, progress, ctx)
+              }
+            }
+          }
+
+          else -> null
+        }
+
+        if (continuation.isActive) {
+          continuation.resume(mediaItems)
+        }
+      }
+    }
+
+  /**
    * Loads libraries for selected server with stats
    */
   private fun loadLibraries(cb: (List<Library>) -> Unit) {
@@ -846,6 +984,7 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
             Log.w(tag, "No libraries returned from server request")
             cb()
           } else {
+            isAutoDataLoaded = true
             cb() // Fully loaded
           }
         }
