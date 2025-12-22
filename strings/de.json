@@ -113,6 +113,7 @@
   "LabelAutoSleepTimerAutoRewindHelp": "Wenn die Schlummerfunktion abgelaufen ist, wird bei der erneuten Wiedergabe des Titels die Position automatisch zurückgespult.",
   "LabelAutoSleepTimerHelp": "Bei der Wiedergabe von Medien zwischen der angegebenen Start- und Endzeit wird automatisch eine Schlummerfunktion gestartet.",
   "LabelBooks": "Bücher",
+  "LabelByAuthor": "von {0}",
   "LabelChapterTrack": "Kapitelspur",
   "LabelChapters": "Kapitel",
   "LabelClosePlayer": "Player schließen",
