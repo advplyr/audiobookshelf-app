@@ -113,6 +113,7 @@
   "LabelAutoSleepTimerAutoRewindHelp": "Когда таймер сна закончится, то позиция воспроизведения будет отмотана назад.",
   "LabelAutoSleepTimerHelp": "Если медиа воспроизводится между указанными началом и окончанием, таймер сна будет включаться автоматически.",
   "LabelBooks": "Книги",
+  "LabelByAuthor": "от {0}",
   "LabelChapterTrack": "Трек главы",
   "LabelChapters": "Главы",
   "LabelClosePlayer": "Закрыть проигрыватель",
