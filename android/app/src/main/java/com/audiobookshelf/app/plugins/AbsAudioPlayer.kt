@@ -214,8 +214,6 @@ class AbsAudioPlayer : Plugin() {
 
       MediaEventManager.clientEventEmitter = appEventEmitter
 
-      DeviceManager.initializeWidgetUpdater(mainActivity)
-
       if (playbackController == null) {
         playbackController = PlaybackController(mainActivity.applicationContext)
       }
@@ -230,11 +228,6 @@ class AbsAudioPlayer : Plugin() {
 
       playbackController?.listener = playbackControllerListener
       playbackController?.connect()
-
-      val updater = DeviceManager.widgetUpdater
-      if (updater != null && activePlaybackSession == null && playbackController?.isPlaying() != true) {
-        updater.onPlayerClosed()
-      }
 
       SleepTimerNotificationCenter.register(sleepTimerNotifier)
 
