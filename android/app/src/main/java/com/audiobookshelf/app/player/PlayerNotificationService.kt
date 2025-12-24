@@ -480,6 +480,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
         val dataSourceFactory = DefaultDataSource.Factory(ctx)
 
         val extractorsFactory = DefaultExtractorsFactory()
+        extractorsFactory.setConstantBitrateSeekingEnabled(true)
+
         if (DeviceManager.deviceData.deviceSettings?.enableMp3IndexSeeking == true) {
           // @see
           // https://exoplayer.dev/troubleshooting.html#why-is-seeking-inaccurate-in-some-mp3-files
@@ -494,6 +496,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
         val dataSourceFactory = DefaultHttpDataSource.Factory()
 
         val extractorsFactory = DefaultExtractorsFactory()
+        extractorsFactory.setConstantBitrateSeekingEnabled(true)
+
         if (DeviceManager.deviceData.deviceSettings?.enableMp3IndexSeeking == true) {
           // @see
           // https://exoplayer.dev/troubleshooting.html#why-is-seeking-inaccurate-in-some-mp3-files
