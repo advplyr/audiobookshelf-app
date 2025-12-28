@@ -23,7 +23,6 @@ class Media3SessionManager(
   private val clearPlayerMediaItems: () -> Unit,
   private val setPlayerNotInitialized: () -> Unit,
   private val setPlayerInitialized: () -> Unit,
-  private val setLastKnownIsPlaying: (Boolean) -> Unit,
   private val closeSessionOnServer: (String) -> Unit
 ) {
   var currentPlaybackSession: PlaybackSession? = null
@@ -101,7 +100,6 @@ class Media3SessionManager(
             setPlayerNotInitialized()
           }
           currentPlaybackSession = null
-          setLastKnownIsPlaying(false)
           notifyWidgetState(true)
           signal.complete(Unit)
           closePlaybackSignal = null

@@ -15,7 +15,6 @@ interface ListenerApi {
   fun activePlayer(): Player
   fun isPlayerInitialized(): Boolean
   fun lastKnownIsPlaying(): Boolean
-  fun setLastKnownIsPlaying(value: Boolean)
   fun updateCurrentPosition(sessionToUpdate: PlaybackSession? = null)
   fun maybeSyncProgress(
     changeReason: String,
@@ -66,14 +65,13 @@ class Media3PlayerEventListener(
   }
 
   override fun onIsPlayingChanged(isNowPlaying: Boolean) {
-    val activePlayer = if (listener.isPlayerInitialized()) listener.activePlayer() else null
-    val isEffectivelyPlaying = when {
-      isNowPlaying -> true
-      activePlayer?.playWhenReady == true && activePlayer.playbackState == Player.STATE_BUFFERING -> true
-      else -> false
-    }
+    val isEffectivelyPlaying = listener.lastKnownIsPlaying()
 
-    if (listener.lastKnownIsPlaying() == isEffectivelyPlaying) return
+    // Early exit if state hasn't changed - prevents redundant widget/sync operations
+    // Note: We query the player's current state rather than trusting the callback parameter
+    // because Media3 may fire this callback during transitions where playWhenReady=true
+    // but playbackState=BUFFERING, which we consider "effectively playing"
+    if (isEffectivelyPlaying == isNowPlaying) return
 
     val currentSession = listener.currentSession()
     if (currentSession != null) {
@@ -105,7 +103,6 @@ class Media3PlayerEventListener(
       }
     }
 
-    listener.setLastKnownIsPlaying(isEffectivelyPlaying)
     listener.notifyWidgetState()
 
     // Notify web app about playing state change

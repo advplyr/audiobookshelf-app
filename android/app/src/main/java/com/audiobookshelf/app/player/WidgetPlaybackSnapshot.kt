@@ -12,7 +12,17 @@ data class WidgetPlaybackSnapshot(
   val durationMs: Long,
   val isPlaying: Boolean,
   val isClosed: Boolean
-)
+) {
+  fun hasMeaningfulChangesFrom(other: WidgetPlaybackSnapshot?): Boolean {
+    if (other == null) return true
+    return title != other.title ||
+            author != other.author ||
+            coverUri != other.coverUri ||
+            durationMs != other.durationMs ||
+            isPlaying != other.isPlaying ||
+            isClosed != other.isClosed
+  }
+}
 
 fun PlaybackSession.toWidgetSnapshot(
   context: Context,

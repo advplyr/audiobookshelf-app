@@ -76,8 +76,9 @@ class Media3NotificationManager(
   fun configureCommandButtons() {
     playbackSpeedButtonProvider =
       Media3PlaybackSpeedButtonProvider(cyclePlaybackSpeedCommand, PlaybackConstants.DISPLAY_SPEED)
-    playbackSpeedButtonProvider.alignTo(currentPlaybackSpeedProvider())
-    playbackSpeedCommandButton = null
+    val currentSpeed = currentPlaybackSpeedProvider()
+    playbackSpeedButtonProvider.alignTo(currentSpeed)
+    playbackSpeedCommandButton = playbackSpeedButtonProvider.createButton(currentSpeed)
   }
 
   fun setTrackNavigationEnabled(enabled: Boolean) {
@@ -133,7 +134,15 @@ class Media3NotificationManager(
     return buttons
   }
 
+  fun cyclePlaybackSpeed(): Float {
+    if (!this::playbackSpeedButtonProvider.isInitialized) return 1.0f
+    val newSpeed = playbackSpeedButtonProvider.cycleSpeed()
+    updatePlaybackSpeedButton(newSpeed)
+    return newSpeed
+  }
+
   fun updatePlaybackSpeedButton(speed: Float) {
+    if (!this::playbackSpeedButtonProvider.isInitialized) return
     playbackSpeedButtonProvider.alignTo(speed)
     val speedButton = playbackSpeedButtonProvider.createButton(speed)
     playbackSpeedCommandButton = speedButton
@@ -142,10 +151,6 @@ class Media3NotificationManager(
   }
 
   fun getPlaybackSpeedCommandButton(): CommandButton? = playbackSpeedCommandButton
-
-  fun setPlaybackSpeedCommandButton(button: CommandButton?) {
-    playbackSpeedCommandButton = button
-  }
 
   fun applyInitialMediaButtonPreferences(mediaSession: MediaSession?) {
     runCatching {

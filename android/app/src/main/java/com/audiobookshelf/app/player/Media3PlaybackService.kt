@@ -37,7 +37,6 @@ import com.audiobookshelf.app.player.media3.Media3AutoLibraryCoordinator
 import com.audiobookshelf.app.player.media3.Media3BrowseTree
 import com.audiobookshelf.app.player.media3.Media3CastCoordinator
 import com.audiobookshelf.app.player.media3.Media3EventPipeline
-import com.audiobookshelf.app.player.media3.Media3PlaybackSpeedButtonProvider
 import com.audiobookshelf.app.player.media3.PlaybackPipeline
 import com.audiobookshelf.app.player.media3.ResolvedPlayableCache
 import com.audiobookshelf.app.player.wrapper.AbsPlayerWrapper
@@ -137,9 +136,6 @@ class Media3PlaybackService : MediaLibraryService() {
   @Volatile
   private var suppressFinalServerSync: Boolean = false
 
-  @Volatile
-  private var lastKnownIsPlaying: Boolean = false
-
   private var transcodeFallbackAttemptedSessionId: String? = null
 
   // Public Player Access (for other components)
@@ -162,8 +158,10 @@ class Media3PlaybackService : MediaLibraryService() {
 
   // Notification Components
   private lateinit var notificationProvider: MediaNotification.Provider
-  private lateinit var playbackSpeedButtonProvider: Media3PlaybackSpeedButtonProvider
   private var playbackSpeedCommandButton: CommandButton? = null
+
+  // Widget state cache
+  private var lastWidgetSnapshot: WidgetPlaybackSnapshot? = null
 
   // Session Commands
   private val cyclePlaybackSpeedCommand =
@@ -194,10 +192,7 @@ class Media3PlaybackService : MediaLibraryService() {
       override fun currentSession(): PlaybackSession? = currentPlaybackSession
       override fun activePlayer(): Player = activePlayer
       override fun isPlayerInitialized(): Boolean = playerInitialized
-      override fun lastKnownIsPlaying(): Boolean = lastKnownIsPlaying
-      override fun setLastKnownIsPlaying(value: Boolean) {
-        lastKnownIsPlaying = value
-      }
+      override fun lastKnownIsPlaying(): Boolean = isEffectivelyPlaying()
 
       override fun updateCurrentPosition(sessionToUpdate: PlaybackSession?) {
         media3ProgressManager.updateCurrentPosition(sessionToUpdate ?: return)
@@ -461,7 +456,6 @@ class Media3PlaybackService : MediaLibraryService() {
       clearPlayerMediaItems = { if (playerInitialized) activePlayer.clearMediaItems() },
       setPlayerNotInitialized = { playerInitialized = false },
       setPlayerInitialized = { playerInitialized = true },
-      setLastKnownIsPlaying = { lastKnownIsPlaying = it },
       closeSessionOnServer = { sessionId ->
         apiHandler.closePlaybackSession(
           sessionId,
@@ -946,7 +940,6 @@ class Media3PlaybackService : MediaLibraryService() {
     (playbackSpeed ?: mediaManager.getSavedPlaybackRate()).let { activePlayer.setPlaybackSpeed(it) }
     activePlayer.prepare()
     activePlayer.playWhenReady = playWhenReady
-    lastKnownIsPlaying = playWhenReady
     updateTrackNavigationButtons()
 
     notifyWidgetState(isPlayingOverride = playWhenReady)
@@ -1016,7 +1009,7 @@ class Media3PlaybackService : MediaLibraryService() {
     }
 
     override fun isPlaying(): Boolean {
-      return if (hasActivePlayer) activePlayer.isPlaying else false
+      return isEffectivelyPlaying()
     }
 
     override fun playbackSpeed(): Float {
@@ -1153,13 +1146,6 @@ class Media3PlaybackService : MediaLibraryService() {
    * Media Session & Buttons
    * ======================================== */
   private fun buildMediaLibrarySession(sessionId: String, sessionActivityIntent: PendingIntent) {
-    playbackSpeedCommandButton
-      ?: playbackSpeedButtonProvider.createButton(playbackSpeedButtonProvider.currentSpeed()).also {
-        playbackSpeedCommandButton = it
-        media3NotificationManager.setPlaybackSpeedCommandButton(playbackSpeedCommandButton)
-      }
-
-
     mediaSession = MediaLibrarySession.Builder(this, activePlayer, createSessionCallback())
       .setId(sessionId)
       .setSessionActivity(sessionActivityIntent)
@@ -1267,17 +1253,16 @@ class Media3PlaybackService : MediaLibraryService() {
 
   private fun configureCommandButtons() {
     media3NotificationManager.configureCommandButtons()
-    playbackSpeedButtonProvider =
-      Media3PlaybackSpeedButtonProvider(cyclePlaybackSpeedCommand, PlaybackConstants.DISPLAY_SPEED)
-    playbackSpeedButtonProvider.alignTo(currentPlaybackSpeed())
     playbackSpeedCommandButton = media3NotificationManager.getPlaybackSpeedCommandButton()
   }
 
 
   private fun cyclePlaybackSpeed(): Float {
-    val newSpeed = playbackSpeedButtonProvider.cycleSpeed()
+    val newSpeed = media3NotificationManager.cyclePlaybackSpeed()
     activePlayer.setPlaybackSpeed(newSpeed)
-    updatePlaybackSpeedButton(newSpeed)
+    mediaManager.setSavedPlaybackRate(newSpeed)
+    playbackSpeedCommandButton = media3NotificationManager.getPlaybackSpeedCommandButton()
+    media3NotificationManager.updateMediaButtonPreferencesAfterSpeedChange(mediaSession)
     return newSpeed
   }
 
@@ -1292,7 +1277,6 @@ class Media3PlaybackService : MediaLibraryService() {
   private fun updatePlaybackSpeedButton(speed: Float) {
     mediaManager.setSavedPlaybackRate(speed)
     media3NotificationManager.updatePlaybackSpeedButton(speed)
-    playbackSpeedButtonProvider.alignTo(speed)
     playbackSpeedCommandButton = media3NotificationManager.getPlaybackSpeedCommandButton()
     media3NotificationManager.updateMediaButtonPreferencesAfterSpeedChange(mediaSession)
   }
@@ -1354,11 +1338,15 @@ class Media3PlaybackService : MediaLibraryService() {
       return
     }
     if (isPlaybackClosed) {
+      lastWidgetSnapshot = null
       updater.onPlayerClosed()
       return
     }
     buildWidgetSnapshot(isPlaybackClosed, isPlayingOverride)?.let { snapshot ->
-      updater.onPlayerChanged(snapshot)
+      if (snapshot.hasMeaningfulChangesFrom(lastWidgetSnapshot)) {
+        lastWidgetSnapshot = snapshot
+        updater.onPlayerChanged(snapshot)
+      }
     }
   }
 
@@ -1378,7 +1366,6 @@ class Media3PlaybackService : MediaLibraryService() {
     } else {
       activePlayer.play()
     }
-    lastKnownIsPlaying = targetPlaying
     notifyWidgetState(isPlayingOverride = targetPlaying)
   }
 
@@ -1405,9 +1392,7 @@ class Media3PlaybackService : MediaLibraryService() {
     isPlayingOverride: Boolean?
   ): WidgetPlaybackSnapshot? {
     val session = currentPlaybackSession ?: return null
-    val isPlaying = isPlayingOverride
-      ?: if (playerInitialized && this::activePlayer.isInitialized) activePlayer.isPlaying
-      else lastKnownIsPlaying
+    val isPlaying = isPlayingOverride ?: isEffectivelyPlaying()
     var absolutePosition = session.currentTimeMs
     if (playerInitialized) {
       val trackIndex = activePlayer.currentMediaItemIndex
@@ -1429,11 +1414,19 @@ class Media3PlaybackService : MediaLibraryService() {
   /* ========================================
    * Utility Helpers
    * ======================================== */
+  private fun isEffectivelyPlaying(): Boolean {
+    if (!playerInitialized || !this::activePlayer.isInitialized) return false
+
+    val player = activePlayer
+    return player.isPlaying ||
+      (player.playWhenReady && player.playbackState == Player.STATE_BUFFERING)
+  }
+
   private fun applySavedPlaybackSpeed(target: Player? = null) {
     val player = target ?: if (this::activePlayer.isInitialized) activePlayer else return
     val savedSpeed = mediaManager.getSavedPlaybackRate()
     runCatching { player.setPlaybackSpeed(savedSpeed) }
-    if (this::playbackSpeedButtonProvider.isInitialized) {
+    if (this::media3NotificationManager.isInitialized) {
       updatePlaybackSpeedButton(savedSpeed)
     }
   }
