@@ -2,12 +2,15 @@ package com.audiobookshelf.app.player.media3
 
 import android.content.Context
 import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
+import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
 import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.extractor.mp3.Mp3Extractor
 import com.audiobookshelf.app.device.DeviceManager
@@ -38,6 +41,10 @@ class PlaybackPipeline(
     private const val BUFFER_MAX_MS = 45_000
     private const val BUFFER_PLAYBACK_MS = 5_000
     private const val BUFFER_REBUFFER_MS = 20_000
+
+    // Error retry settings
+    private const val MAX_RETRY_ATTEMPTS = 3
+    private const val RETRY_BASE_DELAY_MS = 1_000L
   }
 
   fun initializeCast(): Media3CastCoordinator? {
@@ -72,7 +79,16 @@ class PlaybackPipeline(
       )
     val dataSourceFactory = DefaultDataSource.Factory(context, httpDataSourceFactory)
 
+    val loadErrorHandlingPolicy = object : DefaultLoadErrorHandlingPolicy(MAX_RETRY_ATTEMPTS) {
+      override fun getRetryDelayMsFor(loadErrorInfo: LoadErrorHandlingPolicy.LoadErrorInfo): Long {
+        val errorCount = loadErrorInfo.errorCount
+        if (errorCount > MAX_RETRY_ATTEMPTS) return C.TIME_UNSET
+        return (RETRY_BASE_DELAY_MS * (1 shl (errorCount - 1))).coerceAtMost(4 * RETRY_BASE_DELAY_MS)
+      }
+    }
+
     val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory, extractorsFactory)
+      .setLoadErrorHandlingPolicy(loadErrorHandlingPolicy)
 
     val customLoadControl = DefaultLoadControl.Builder()
       .setBufferDurationsMs(

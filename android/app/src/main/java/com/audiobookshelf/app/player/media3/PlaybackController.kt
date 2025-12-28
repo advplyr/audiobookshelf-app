@@ -72,6 +72,7 @@ class PlaybackController(private val context: Context) {
   @Volatile
   private var lastKnownMediaItemIndex: Int = 0
 
+
   private val setSleepTimerCommand =
     PlaybackConstants.sessionCommand(PlaybackConstants.SleepTimer.ACTION_SET)
   private val cancelSleepTimerCommand =
@@ -303,9 +304,35 @@ class PlaybackController(private val context: Context) {
 
 
     override fun onPlayerError(error: PlaybackException) {
-      // Avoid getting stuck in a "preparing" state on failure.
       isPreparingPlayback = false
-      listener?.onPlaybackFailed(error.message ?: "Unknown playback error")
+
+      if (BuildConfig.DEBUG) {
+        Log.e(TAG, "Player error: ${error.message}", error)
+      }
+
+      val isNetworkError = when (error.errorCode) {
+        PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+        PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
+        PlaybackException.ERROR_CODE_TIMEOUT,
+        PlaybackException.ERROR_CODE_IO_UNSPECIFIED -> true
+
+        PlaybackException.ERROR_CODE_UNSPECIFIED -> {
+          error.cause?.javaClass?.simpleName == "StuckPlayerException"
+        }
+
+        else -> false
+      }
+
+      if (isNetworkError) {
+        if (BuildConfig.DEBUG) {
+          Log.d(TAG, "Network error - Media3 LoadErrorHandlingPolicy will retry automatically")
+        }
+      } else {
+        if (BuildConfig.DEBUG) {
+          Log.d(TAG, "Fatal error: ${error.errorCodeName}")
+        }
+        listener?.onPlaybackFailed(error.message ?: "Playback error")
+      }
     }
 
     override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {

@@ -7,9 +7,6 @@ import androidx.media3.common.Player
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.media.SyncResult
 import com.audiobookshelf.app.player.core.PlaybackMetricsRecorder
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
 
 interface ListenerApi {
   val tag: String
@@ -33,13 +30,8 @@ interface ListenerApi {
   fun stopPositionUpdates()
   fun notifyWidgetState()
   fun updatePlaybackSpeedButton(speed: Float)
-  fun getErrorRetryJob(): Job?
-  fun setErrorRetryJob(job: Job?)
   fun getPlaybackSessionAssignTimestampMs(): Long
   fun resetPlaybackSessionAssignTimestamp()
-  val serviceScope: CoroutineScope
-  val errorResetWindowMs: Long
-  val retryBackoffStepMs: Long
   fun handlePlaybackError(playbackError: PlaybackException)
   fun onPlaybackEnded(session: PlaybackSession)
   fun onPlaybackResumed(pauseDurationMs: Long)
@@ -49,15 +41,13 @@ interface ListenerApi {
 
 /**
  * Media3 Player.Listener implementation that handles playback events and coordinates with the service.
- * Manages play/pause state, error recovery with exponential backoff, and progress synchronization.
+ * Manages play/pause state and progress synchronization.
  */
 class Media3PlayerEventListener(
   private val listener: ListenerApi,
   private val playerEventPipeline: Media3EventPipeline
 ) : Player.Listener {
 
-  private var consecutiveErrorCount: Int = 0
-  private var lastErrorTimeMs: Long = 0L
   private var lastPauseTimestampMs: Long = 0L
 
   override fun onEvents(player: Player, events: Player.Events) {
@@ -92,9 +82,6 @@ class Media3PlayerEventListener(
       listener.updateCurrentPosition(currentSession)
 
       if (isEffectivelyPlaying) {
-        listener.getErrorRetryJob()?.cancel()
-        listener.setErrorRetryJob(null)
-        consecutiveErrorCount = 0
         listener.onPlayStarted(currentSession.id)
         val sessionAssignmentTimestampMs = listener.getPlaybackSessionAssignTimestampMs()
         if (sessionAssignmentTimestampMs > 0L) {
@@ -152,7 +139,7 @@ class Media3PlayerEventListener(
   }
 
   override fun onPlayerError(playbackError: PlaybackException) {
-    Log.e(listener.tag, "Player playbackError: ${playbackError.message}", playbackError)
+    Log.e(listener.tag, "Player error: ${playbackError.message}", playbackError)
     listener.playbackMetrics.recordError()
 
     listener.currentSession()?.takeIf { it.isDirectPlay && !it.isLocal }?.let {
@@ -160,71 +147,25 @@ class Media3PlayerEventListener(
       return
     }
 
-    val isErrorRecoverable = when (playbackError.errorCode) {
+    val isNetworkError = when (playbackError.errorCode) {
       PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
       PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
       PlaybackException.ERROR_CODE_TIMEOUT,
-      PlaybackException.ERROR_CODE_IO_UNSPECIFIED,
+      PlaybackException.ERROR_CODE_IO_UNSPECIFIED -> true
       PlaybackException.ERROR_CODE_UNSPECIFIED -> {
-        if (playbackError.cause?.javaClass?.simpleName == "StuckPlayerException") {
-          listener.debug { "Stuck player detected: ${playbackError.message}" }
-          true
-        } else {
-          playbackError.errorCode != PlaybackException.ERROR_CODE_UNSPECIFIED
-        }
+        playbackError.cause?.javaClass?.simpleName == "StuckPlayerException"
       }
-
       else -> false
     }
 
-    if (!isErrorRecoverable) {
-      listener.debug { "Non-recoverable playbackError: ${playbackError.errorCodeName}" }
-      consecutiveErrorCount = 0
-      listener.getErrorRetryJob()?.cancel()
-      listener.setErrorRetryJob(null)
-      return
-    }
-
-    val currentTimeMs = System.currentTimeMillis()
-    if (currentTimeMs - lastErrorTimeMs > listener.errorResetWindowMs) {
-      consecutiveErrorCount = 0
-    }
-    lastErrorTimeMs = currentTimeMs
-    consecutiveErrorCount++
-
-    val maxRetryAttempts = 3
-    if (consecutiveErrorCount > maxRetryAttempts) {
-      Log.w(listener.tag, "Max retries ($maxRetryAttempts) exceeded for recoverable playbackError")
-      return
-    }
-
-    listener.playbackMetrics.recordRecoverableRetry()
-
-    val retryBackoffDelayMs =
-      (listener.retryBackoffStepMs * (1 shl (consecutiveErrorCount - 1))).coerceAtMost(4 * listener.retryBackoffStepMs)
-    listener.debug { "Recoverable playbackError (attempt $consecutiveErrorCount/$maxRetryAttempts), retrying in ${retryBackoffDelayMs}ms" }
-
-    listener.getErrorRetryJob()?.cancel()
-    val retryJob = listener.serviceScope.launch {
-      try {
-        kotlinx.coroutines.delay(retryBackoffDelayMs)
-        if (listener.isPlayerInitialized() && listener.currentSession() != null) {
-          listener.debug { "Retrying playback after error..." }
-          val activePlayer = listener.activePlayer()
-          activePlayer.prepare()
-          if (listener.lastKnownIsPlaying()) {
-            activePlayer.play()
-          }
-        }
-      } catch (e: Exception) {
-        if (e !is kotlinx.coroutines.CancellationException) {
-          listener.debug { "Error retry job failed: ${e.message}" }
-        }
-      } finally {
-        listener.setErrorRetryJob(null)
+    if (isNetworkError) {
+      listener.playbackMetrics.recordRecoverableRetry()
+      listener.debug {
+        "Network error - Media3 LoadErrorHandlingPolicy will retry automatically"
       }
+    } else {
+      listener.debug { "Fatal error: ${playbackError.errorCodeName}" }
     }
-    listener.setErrorRetryJob(retryJob)
   }
 
   override fun onPlaybackParametersChanged(parameters: PlaybackParameters) {

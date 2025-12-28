@@ -47,7 +47,6 @@ import com.audiobookshelf.app.server.ApiHandler
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
@@ -78,9 +77,7 @@ class Media3PlaybackService : MediaLibraryService() {
     private const val FINAL_SYNC_TIMEOUT_MS = 500L
     private const val ONBOARDING_SYNC_TIMEOUT_SEC = 1L
 
-    // Error retry settings
-    private const val ERROR_RESET_WINDOW_MS = 30_000L
-    private const val RETRY_BACKOFF_STEP_MS = 1_000L
+    // Playback recheck settings
     private const val PAUSE_LEN_BEFORE_RECHECK_MS = 30_000L
 
     // Player identifiers
@@ -158,9 +155,6 @@ class Media3PlaybackService : MediaLibraryService() {
     .setUsage(C.USAGE_MEDIA)
     .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
     .build()
-
-  // Error Handling & Retry
-  private var errorRetryJob: Job? = null
 
   // Playback Controls
   private var jumpBackwardMs: Long = 10000L
@@ -252,14 +246,6 @@ class Media3PlaybackService : MediaLibraryService() {
         this@Media3PlaybackService.updatePlaybackSpeedButton(speed)
       }
 
-      override fun getErrorRetryJob(): Job? = errorRetryJob
-      override fun setErrorRetryJob(job: Job?) {
-        errorRetryJob = job
-      }
-
-      override val serviceScope: CoroutineScope = this@Media3PlaybackService.serviceScope
-      override val errorResetWindowMs: Long = ERROR_RESET_WINDOW_MS
-      override val retryBackoffStepMs: Long = RETRY_BACKOFF_STEP_MS
       override fun debug(message: () -> String) {
         this@Media3PlaybackService.debugLog(message)
       }
@@ -342,8 +328,6 @@ class Media3PlaybackService : MediaLibraryService() {
     }
 
     super.onDestroy()
-    errorRetryJob?.cancel()
-    errorRetryJob = null
     media3ProgressManager.stopPositionUpdates()
     if (this::unifiedProgressSyncer.isInitialized) {
       unifiedProgressSyncer.cleanup()
@@ -1005,10 +989,8 @@ class Media3PlaybackService : MediaLibraryService() {
     lastKnownIsPlaying = playWhenReady
     updateTrackNavigationButtons()
 
-    // Update widget to show controls when playback is prepared
     notifyWidgetState(isPlayingOverride = playWhenReady)
 
-    // Let the listener pipeline emit play-state updates to avoid duplicates
     MediaEventManager.clientEventEmitter?.onMediaPlayerChanged(currentMediaPlayerId())
   }
 
