@@ -8,8 +8,6 @@ import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
 import androidx.media3.common.C
-import androidx.media3.common.MediaItem
-import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -230,14 +228,6 @@ class Media3PlaybackService : MediaLibraryService() {
         sleepTimerCoordinator.handlePlayStarted(currentSessionId)
       }
 
-      override fun startPositionUpdates() {
-        media3ProgressManager.startPositionUpdates()
-      }
-
-      override fun stopPositionUpdates() {
-        media3ProgressManager.stopPositionUpdates()
-      }
-
       override fun notifyWidgetState() {
         this@Media3PlaybackService.notifyWidgetState()
       }
@@ -328,7 +318,6 @@ class Media3PlaybackService : MediaLibraryService() {
     }
 
     super.onDestroy()
-    media3ProgressManager.stopPositionUpdates()
     if (this::unifiedProgressSyncer.isInitialized) {
       unifiedProgressSyncer.cleanup()
     }
@@ -446,9 +435,6 @@ class Media3PlaybackService : MediaLibraryService() {
 
   private fun initializeMedia3ProgressManager() {
     media3ProgressManager = Media3ProgressManager(
-      unifiedProgressSyncer = unifiedProgressSyncer,
-      serviceScope = serviceScope,
-      currentSessionProvider = { currentPlaybackSession },
       playbackServiceProvider = { this }
     )
   }
@@ -461,14 +447,14 @@ class Media3PlaybackService : MediaLibraryService() {
       currentMediaPlayerIdProvider = { currentMediaPlayerId() },
       updateCurrentPosition = { session -> media3ProgressManager.updateCurrentPosition(session) },
       maybeSyncProgress = { reason, force, session, onSyncComplete ->
-        media3ProgressManager.maybeSyncProgress(
-          reason,
-          force,
-          session,
-          onSyncComplete
-        )
+        val currentSession = session ?: currentPlaybackSession
+        if (currentSession != null) {
+          media3ProgressManager.updateCurrentPosition(currentSession)
+          unifiedProgressSyncer.syncNow(reason, currentSession, force, onSyncComplete ?: {})
+        } else {
+          onSyncComplete?.invoke(null)
+        }
       },
-      stopPositionUpdates = { media3ProgressManager.stopPositionUpdates() },
       notifyWidgetState = { isPlaybackClosed -> notifyWidgetState(isPlaybackClosed) },
       isPlayerInitialized = { playerInitialized },
       stopPlayer = { if (playerInitialized) activePlayer.stop() },
@@ -729,20 +715,7 @@ class Media3PlaybackService : MediaLibraryService() {
   }
 
   private fun resolveTrackIndexForPlayer(session: PlaybackSession, activePlayer: Player): Int {
-    if (session.audioTracks.isEmpty()) return 0
-    val requestedMediaId = activePlayer.currentMediaItem?.mediaId
-    if (!requestedMediaId.isNullOrEmpty()) {
-      val indexById = session.audioTracks.indexOfFirst { track ->
-        val trackId = "${session.id}_${track.stableId}"
-        trackId == requestedMediaId
-      }
-      if (indexById >= 0) return indexById
-    }
-    val playerIndex = activePlayer.currentMediaItemIndex
-    if (playerIndex in session.audioTracks.indices) {
-      return playerIndex
-    }
-    return session.getCurrentTrackIndex().coerceIn(0, session.audioTracks.lastIndex)
+    return media3ProgressManager.resolveTrackIndexForPlayer(session, activePlayer)
   }
 
   private suspend fun awaitFinalSyncBarrier() {
@@ -806,7 +779,8 @@ class Media3PlaybackService : MediaLibraryService() {
         suppressFinalServerSync = false
       }
     }
-    media3ProgressManager.maybeSyncProgress(reason, shouldSyncServer, session, completion)
+    media3ProgressManager.updateCurrentPosition(session)
+    unifiedProgressSyncer.syncNow(reason, session, shouldSyncServer, completion)
   }
 
 
@@ -958,24 +932,10 @@ class Media3PlaybackService : MediaLibraryService() {
     val preferCastUris = this::castPlayer.isInitialized &&
       this::activePlayer.isInitialized &&
       activePlayer === castPlayer
-    val mediaItems = session.toPlayerMediaItems(
+    val mediaItems = session.toMedia3MediaItems(
       this,
       preferServerUrisForCast = preferCastUris
-    ).map { playerMediaItem ->
-      MediaItem.Builder()
-        .setUri(playerMediaItem.uri.toString())
-        .setMediaId(playerMediaItem.mediaId)
-        .setMimeType(playerMediaItem.mimeType)
-        .setMediaMetadata(
-          MediaMetadata.Builder()
-            .setTitle(session.displayTitle)
-            .setArtist(session.displayAuthor)
-            .setAlbumArtist(session.displayAuthor)
-            .setArtworkUri(playerMediaItem.artworkUri)
-            .build()
-        )
-        .build()
-    }
+    )
     if (mediaItems.isEmpty()) return
 
     val trackIndex = session.getCurrentTrackIndex().coerceIn(0, mediaItems.lastIndex)

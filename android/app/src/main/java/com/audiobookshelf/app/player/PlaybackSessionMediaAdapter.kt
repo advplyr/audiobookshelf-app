@@ -3,6 +3,8 @@ package com.audiobookshelf.app.player
 import android.content.Context
 import android.net.Uri
 import androidx.core.net.toUri
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import com.audiobookshelf.app.data.AudioTrack
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.device.DeviceManager
@@ -81,4 +83,25 @@ private fun PlaybackSession.castQueueItemWithServerUri(
   return MediaQueueItem.Builder(mediaInfo)
     .apply { setPlaybackDuration(audioTrack.duration) }
     .build()
+}
+
+fun PlaybackSession.toMedia3MediaItems(
+  ctx: Context,
+  preferServerUrisForCast: Boolean = false
+): List<MediaItem> {
+  return toPlayerMediaItems(ctx, preferServerUrisForCast).map { playerMediaItem ->
+    MediaItem.Builder()
+      .setUri(playerMediaItem.uri.toString())
+      .setMediaId(playerMediaItem.mediaId)
+      .setMimeType(playerMediaItem.mimeType)
+      .setMediaMetadata(
+        MediaMetadata.Builder()
+          .setTitle(displayTitle)
+          .setArtist(displayAuthor)
+          .setAlbumArtist(displayAuthor)
+          .setArtworkUri(playerMediaItem.artworkUri)
+          .build()
+      )
+      .build()
+  }
 }

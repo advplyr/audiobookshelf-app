@@ -4,55 +4,20 @@ import androidx.annotation.OptIn
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import com.audiobookshelf.app.data.PlaybackSession
-import com.audiobookshelf.app.media.SyncResult
-import com.audiobookshelf.app.media.UnifiedMediaProgressSyncer
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import kotlin.math.max
 import kotlin.math.min
 
 @OptIn(UnstableApi::class)
 class Media3ProgressManager
   (
-  private val unifiedProgressSyncer: UnifiedMediaProgressSyncer,
-  private val serviceScope: CoroutineScope,
-  private val currentSessionProvider: () -> PlaybackSession?,
   private val playbackServiceProvider: () -> Media3PlaybackService
 ) {
-  companion object {
-    private const val POSITION_UPDATE_INTERVAL_MS = 1_000L
-  }
-
-  private var positionUpdateJob: Job? = null
-
-  // Cache for track ID -> index lookups to avoid O(n) search every second
+  // Cache for track ID -> index lookups to avoid O(n) search
   private var trackIdCache: Map<String, Int>? = null
   private var cachedSessionId: String? = null
 
   // Cache for cumulative track durations to optimize seek operations (binary search)
   private var cumulativeDurationsMs: LongArray? = null
-
-  fun startPositionUpdates() {
-    stopPositionUpdates() // Cancel any existing job
-
-    positionUpdateJob = serviceScope.launch {
-      while (isActive) {
-        val session = currentSessionProvider()
-        if (session != null) {
-          updateCurrentPosition(session)
-        }
-        delay(POSITION_UPDATE_INTERVAL_MS)
-      }
-    }
-  }
-
-  fun stopPositionUpdates() {
-    positionUpdateJob?.cancel()
-    positionUpdateJob = null
-  }
 
   @OptIn(UnstableApi::class)
   fun updateCurrentPosition(session: PlaybackSession) {
@@ -68,7 +33,7 @@ class Media3ProgressManager
     }
   }
 
-  private fun resolveTrackIndexForPlayer(session: PlaybackSession, player: Player): Int {
+  fun resolveTrackIndexForPlayer(session: PlaybackSession, player: Player): Int {
     if (session.audioTracks.isEmpty()) return 0
 
     // Build caches if session changed or not initialized
@@ -100,17 +65,6 @@ class Media3ProgressManager
       return playerIndex
     }
     return session.getCurrentTrackIndex().coerceIn(0, session.audioTracks.lastIndex)
-  }
-
-  fun maybeSyncProgress(
-    reason: String,
-    shouldSyncServer: Boolean,
-    session: PlaybackSession? = null,
-    onComplete: ((SyncResult?) -> Unit)? = null
-  ) {
-    val currentSession = session ?: currentSessionProvider() ?: return
-
-    unifiedProgressSyncer.syncNow(reason, currentSession, shouldSyncServer, onComplete ?: {})
   }
 
   fun resolveTrackIndexForPosition(session: PlaybackSession, positionMs: Long): Int {

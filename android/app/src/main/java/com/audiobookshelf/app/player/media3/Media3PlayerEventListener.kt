@@ -26,8 +26,6 @@ interface ListenerApi {
 
   fun progressSyncPlay(currentSession: PlaybackSession)
   fun onPlayStarted(currentSessionId: String)
-  fun startPositionUpdates()
-  fun stopPositionUpdates()
   fun notifyWidgetState()
   fun updatePlaybackSpeedButton(speed: Float)
   fun getPlaybackSessionAssignTimestampMs(): Long
@@ -94,15 +92,12 @@ class Media3PlayerEventListener(
         if (listener.isPlayerInitialized()) {
           listener.activePlayer().volume = 1f
         }
-        listener.stopPositionUpdates()
-        listener.startPositionUpdates()
         val pauseDurationMs =
           if (lastPauseTimestampMs > 0) System.currentTimeMillis() - lastPauseTimestampMs else 0L
         lastPauseTimestampMs = 0L
         listener.onPlaybackResumed(pauseDurationMs)
       } else {
         listener.debug { "Playback stopped. Syncing progress." }
-        listener.stopPositionUpdates()
         listener.currentSession()?.let { currentSession ->
           listener.maybeSyncProgress("pause", true, currentSession, null)
         }

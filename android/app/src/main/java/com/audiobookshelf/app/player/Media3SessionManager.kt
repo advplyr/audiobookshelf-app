@@ -17,7 +17,6 @@ class Media3SessionManager(
   private val currentMediaPlayerIdProvider: () -> String,
   private val updateCurrentPosition: (PlaybackSession) -> Unit,
   private val maybeSyncProgress: (String, Boolean, PlaybackSession?, ((SyncResult?) -> Unit)?) -> Unit,
-  private val stopPositionUpdates: () -> Unit,
   private val notifyWidgetState: (Boolean) -> Unit,
   private val isPlayerInitialized: () -> Boolean,
   private val stopPlayer: () -> Unit,
@@ -85,7 +84,6 @@ class Media3SessionManager(
     if (session != null) {
       val signal = CompletableDeferred<Unit>()
       closePlaybackSignal = signal
-      stopPositionUpdates()
 
       updateCurrentPosition(session)
       maybeSyncProgress("close", true, session) { result ->
