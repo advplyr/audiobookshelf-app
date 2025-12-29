@@ -36,23 +36,23 @@
 
     <!-- Playback settings -->
     <p class="uppercase text-xs font-semibold text-fg-muted mb-2 mt-10">{{ $strings.HeaderPlaybackSettings }}</p>
+    <div class="py-3 flex items-center">
+      <p class="pr-4 w-36">{{ $strings.LabelJumpBackwardsTime }}</p>
+      <div @click.stop="showJumpBackwardsOptions">
+        <ui-text-input :value="jumpBackwardsOption" readonly append-icon="expand_more" style="width: 145px; max-width: 145px" />
+      </div>
+    </div>
+    <div class="py-3 flex items-center">
+      <p class="pr-4 w-36">{{ $strings.LabelJumpForwardsTime }}</p>
+      <div @click.stop="showJumpForwardOptions">
+        <ui-text-input :value="jumpForwardOption" readonly append-icon="expand_more" style="width: 145px; max-width: 145px" />
+      </div>
+    </div>
     <div class="flex items-center py-3">
       <div class="w-10 flex justify-center" @click="toggleDisableAutoRewind">
         <ui-toggle-switch v-model="settings.disableAutoRewind" @input="saveSettings" />
       </div>
       <p class="pl-4">{{ $strings.LabelDisableAutoRewind }}</p>
-    </div>
-    <div class="flex items-center py-3">
-      <div class="w-10 flex justify-center" @click="toggleJumpBackwards">
-        <span class="material-symbols text-4xl">{{ currentJumpBackwardsTimeIcon }}</span>
-      </div>
-      <p class="pl-4">{{ $strings.LabelJumpBackwardsTime }}</p>
-    </div>
-    <div class="flex items-center py-3">
-      <div class="w-10 flex justify-center" @click="toggleJumpForward">
-        <span class="material-symbols text-4xl">{{ currentJumpForwardTimeIcon }}</span>
-      </div>
-      <p class="pl-4">{{ $strings.LabelJumpForwardsTime }}</p>
     </div>
     <div v-if="!isiOS" class="flex items-center py-3">
       <div class="w-10 flex justify-center" @click="toggleEnableMp3IndexSeeking">
@@ -179,7 +179,7 @@
       <ui-loading-indicator />
     </div>
 
-    <modals-dialog v-model="showMoreMenuDialog" :items="moreMenuItems" @action="clickMenuAction" />
+    <modals-dialog v-model="showMoreMenuDialog" :items="moreMenuItems" :selected="moreMenuSelected" @action="clickMenuAction" />
     <modals-sleep-timer-length-modal v-model="showSleepTimerLengthModal" @change="sleepTimerLengthModalSelection" />
     <modals-auto-sleep-timer-rewind-length-modal v-model="showAutoSleepTimerRewindLengthModal" @change="showAutoSleepTimerRewindLengthModalSelection" />
   </div>
@@ -361,6 +361,12 @@ export default {
     languageOptionItems() {
       return this.$languageCodeOptions || []
     },
+    jumpForwardOption() {
+      return this.currentJumpForwardItem.label || ''
+    },
+    jumpBackwardsOption() {
+      return this.currentJumpBackwardsItem.label || ''
+    },
     themeOptionItems() {
       return [
         {
@@ -378,18 +384,24 @@ export default {
       ]
     },
     currentJumpForwardTimeIcon() {
-      return this.jumpForwardItems[this.currentJumpForwardTimeIndex].icon
+      return this.currentJumpForwardItem.icon
     },
     currentJumpForwardTimeIndex() {
       var index = this.jumpForwardItems.findIndex((jfi) => jfi.value === this.settings.jumpForwardTime)
       return index >= 0 ? index : 1
     },
+    currentJumpForwardItem() {
+      return this.jumpForwardItems[this.currentJumpForwardTimeIndex] || this.jumpForwardItems[0] || {}
+    },
     currentJumpBackwardsTimeIcon() {
-      return this.jumpBackwardsItems[this.currentJumpBackwardsTimeIndex].icon
+      return this.currentJumpBackwardsItem.icon
     },
     currentJumpBackwardsTimeIndex() {
       var index = this.jumpBackwardsItems.findIndex((jfi) => jfi.value === this.settings.jumpBackwardsTime)
       return index >= 0 ? index : 1
+    },
+    currentJumpBackwardsItem() {
+      return this.jumpBackwardsItems[this.currentJumpBackwardsTimeIndex] || this.jumpBackwardsItems[0] || {}
     },
     shakeSensitivityOption() {
       const item = this.shakeSensitivityItems.find((i) => i.value === this.settings.shakeSensitivity)
@@ -434,7 +446,31 @@ export default {
       else if (this.moreMenuSetting === 'downloadUsingCellular') return this.downloadUsingCellularItems
       else if (this.moreMenuSetting === 'streamingUsingCellular') return this.streamingUsingCellularItems
       else if (this.moreMenuSetting === 'androidAutoBrowseSeriesSequenceOrder') return this.androidAutoBrowseSeriesSequenceOrderItems
+      else if (this.moreMenuSetting === 'jumpForward')
+        return this.jumpForwardItems.map((i) => ({
+          text: i.label,
+          value: i.value,
+          icon: i.icon
+        }))
+      else if (this.moreMenuSetting === 'jumpBackwards')
+        return this.jumpBackwardsItems.map((i) => ({
+          text: i.label,
+          value: i.value,
+          icon: i.icon
+        }))
       return []
+    },
+    moreMenuSelected() {
+      if (this.moreMenuSetting === 'jumpForward') return this.settings.jumpForwardTime
+      if (this.moreMenuSetting === 'jumpBackwards') return this.settings.jumpBackwardsTime
+      if (this.moreMenuSetting === 'language') return this.settings.languageCode
+      if (this.moreMenuSetting === 'theme') return this.theme
+      if (this.moreMenuSetting === 'downloadUsingCellular') return this.settings.downloadUsingCellular
+      if (this.moreMenuSetting === 'streamingUsingCellular') return this.settings.streamingUsingCellular
+      if (this.moreMenuSetting === 'androidAutoBrowseSeriesSequenceOrder') return this.settings.androidAutoBrowseSeriesSequenceOrder
+      if (this.moreMenuSetting === 'shakeSensitivity') return this.settings.shakeSensitivity
+      if (this.moreMenuSetting === 'hapticFeedback') return this.settings.hapticFeedback
+      return null
     }
   },
   methods: {
@@ -466,6 +502,14 @@ export default {
     },
     showThemeOptions() {
       this.moreMenuSetting = 'theme'
+      this.showMoreMenuDialog = true
+    },
+    showJumpForwardOptions() {
+      this.moreMenuSetting = 'jumpForward'
+      this.showMoreMenuDialog = true
+    },
+    showJumpBackwardsOptions() {
+      this.moreMenuSetting = 'jumpBackwards'
       this.showMoreMenuDialog = true
     },
     showDownloadUsingCellularOptions() {
@@ -502,6 +546,12 @@ export default {
         this.saveSettings()
       } else if (this.moreMenuSetting === 'androidAutoBrowseSeriesSequenceOrder') {
         this.settings.androidAutoBrowseSeriesSequenceOrder = action
+        this.saveSettings()
+      } else if (this.moreMenuSetting === 'jumpForward') {
+        this.settings.jumpForwardTime = action
+        this.saveSettings()
+      } else if (this.moreMenuSetting === 'jumpBackwards') {
+        this.settings.jumpBackwardsTime = action
         this.saveSettings()
       }
     },
@@ -596,17 +646,6 @@ export default {
         this.settings.lockOrientation = 'NONE'
       }
       this.$setOrientationLock(this.settings.lockOrientation)
-      this.saveSettings()
-    },
-    toggleJumpForward() {
-      var next = (this.currentJumpForwardTimeIndex + 1) % 3
-      this.settings.jumpForwardTime = this.jumpForwardItems[next].value
-      this.saveSettings()
-    },
-    toggleJumpBackwards() {
-      var next = (this.currentJumpBackwardsTimeIndex + 4) % 3
-      if (next > 2) return
-      this.settings.jumpBackwardsTime = this.jumpBackwardsItems[next].value
       this.saveSettings()
     },
     async saveSettings() {
