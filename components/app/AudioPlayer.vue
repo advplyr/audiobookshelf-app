@@ -70,9 +70,14 @@
       <div id="playerControls" class="absolute right-0 bottom-0 mx-auto" style="max-width: 414px">
         <div class="flex items-center max-w-full" :class="playerSettings.lockUi ? 'justify-center' : 'justify-between'">
           <span v-show="showFullscreen && !playerSettings.lockUi" class="material-symbols next-icon text-fg cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpChapterStart">first_page</span>
-          <div v-show="!playerSettings.lockUi" class="jump-icon text-fg cursor-pointer flex items-center space-x-1" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpBackwards">
-            <span class="material-symbols">{{ jumpBackwardsItem.icon }}</span>
-            <span class="text-xs font-semibold leading-none">{{ jumpBackwardsItem.label }}</span>
+          <div
+            v-show="!playerSettings.lockUi"
+            class="jump-icon text-fg cursor-pointer flex flex-col items-center"
+            :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'"
+            @click.stop="jumpBackwards"
+          >
+            <span class="material-symbols text-3xl leading-none">{{ jumpBackwardsItem.icon }}</span>
+            <span class="jump-label text-[10px] font-semibold leading-tight">{{ jumpBackwardsItem.label }}</span>
           </div>
           <div class="play-btn cursor-pointer shadow-sm flex items-center justify-center rounded-full text-primary mx-4 relative overflow-hidden" :style="{ backgroundColor: coverRgb }" :class="{ 'animate-spin': seekLoading }" @mousedown.prevent @mouseup.prevent @click.stop="playPauseClick">
             <div v-if="!coverBgIsLight" class="absolute top-0 left-0 w-full h-full bg-white bg-opacity-20 pointer-events-none" />
@@ -80,9 +85,14 @@
             <span v-if="!isLoading" class="material-symbols fill" :class="{ 'text-white': coverRgb && !coverBgIsLight }">{{ seekLoading ? 'autorenew' : !isPlaying ? 'play_arrow' : 'pause' }}</span>
             <widgets-spinner-icon v-else class="h-8 w-8" />
           </div>
-          <div v-show="!playerSettings.lockUi" class="jump-icon text-fg cursor-pointer flex items-center space-x-1" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpForward">
-            <span class="material-symbols">{{ jumpForwardItem.icon }}</span>
-            <span class="text-xs font-semibold leading-none">{{ jumpForwardItem.label }}</span>
+          <div
+            v-show="!playerSettings.lockUi"
+            class="jump-icon text-fg cursor-pointer flex flex-col items-center"
+            :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'"
+            @click.stop="jumpForward"
+          >
+            <span class="material-symbols text-3xl leading-none">{{ jumpForwardItem.icon }}</span>
+            <span class="jump-label text-[10px] font-semibold leading-tight">{{ jumpForwardItem.label }}</span>
           </div>
           <span v-show="showFullscreen && !playerSettings.lockUi" class="material-symbols next-icon text-fg cursor-pointer" :class="nextChapter && !isLoading ? 'text-opacity-75' : 'text-opacity-10'" @click.stop="jumpNextChapter">last_page</span>
         </div>
@@ -1098,6 +1108,9 @@ export default {
 
   margin: 0px 0px;
   font-size: 1.6rem;
+}
+#playerControls .jump-label {
+  margin-top: 2px;
 }
 #playerControls .play-btn {
   transition: all 0.15s cubic-bezier(0.39, 0.575, 0.565, 1);
