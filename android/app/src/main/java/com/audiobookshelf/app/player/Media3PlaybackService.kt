@@ -127,6 +127,8 @@ class Media3PlaybackService : MediaLibraryService() {
   private var playerInitialized = false
   private val hasActivePlayer: Boolean
     get() = playerInitialized && this::activePlayer.isInitialized
+  private val isCastActive: Boolean
+    get() = this::castPlayer.isInitialized && this::activePlayer.isInitialized && activePlayer === castPlayer
   private val playerInitializationSignal = CompletableDeferred<Unit>()
   private val playerSwitchMutex = Mutex()
   private var finalSyncBarrier: CompletableDeferred<SyncResult?>? = null
@@ -611,10 +613,6 @@ class Media3PlaybackService : MediaLibraryService() {
   }
 
   private fun currentMediaPlayerId(): String {
-    val isCastActive =
-      this::castPlayer.isInitialized &&
-        this::activePlayer.isInitialized &&
-        activePlayer === castPlayer
     return if (isCastActive) PLAYER_CAST else PLAYER_MEDIA3
   }
 
@@ -907,12 +905,9 @@ class Media3PlaybackService : MediaLibraryService() {
     syncOnSwitch: Boolean = true
   ) {
     switchPlaybackSession(session, syncOnSwitch)
-    val preferCastUris = this::castPlayer.isInitialized &&
-      this::activePlayer.isInitialized &&
-      activePlayer === castPlayer
     val mediaItems = session.toMedia3MediaItems(
       this,
-      preferServerUrisForCast = preferCastUris
+      preferServerUrisForCast = isCastActive
     )
     if (mediaItems.isEmpty()) return
 
@@ -1109,7 +1104,7 @@ class Media3PlaybackService : MediaLibraryService() {
       autoLibraryCoordinator = autoLibraryCoordinator,
       mediaManager = mediaManager,
       playerProvider = { activePlayer },
-      isCastActive = { this::castPlayer.isInitialized && this::activePlayer.isInitialized && activePlayer === castPlayer },
+      isCastActive = { isCastActive },
       seekConfig = seekConfig,
       browseApi = browseApi,
       awaitFinalSync = { awaitFinalSyncBarrier() },
@@ -1262,9 +1257,7 @@ class Media3PlaybackService : MediaLibraryService() {
   private fun updateTrackNavigationButtons() {
     val session = currentPlaybackSession
     val hasMultipleTracks = session?.audioTracks?.size ?: 0 > 1
-    val usingCast =
-      this::castPlayer.isInitialized && this::activePlayer.isInitialized && activePlayer === castPlayer
-    media3NotificationManager.setTrackNavigationEnabled(hasMultipleTracks && !usingCast)
+    media3NotificationManager.setTrackNavigationEnabled(hasMultipleTracks && !isCastActive)
     runCatching {
       media3NotificationManager.updateMediaButtonPreferencesAfterSpeedChange(
         mediaSession
