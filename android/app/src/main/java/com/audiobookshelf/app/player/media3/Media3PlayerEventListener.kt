@@ -46,6 +46,7 @@ class Media3PlayerEventListener(
 ) : Player.Listener {
 
   private var lastPauseTimestampMs: Long = 0L
+  private var previousIsPlaying: Boolean = false
 
   override fun onEvents(player: Player, events: Player.Events) {
     if (events.contains(Player.EVENT_IS_PLAYING_CHANGED) ||
@@ -71,12 +72,10 @@ class Media3PlayerEventListener(
     // Note: We query the player's current state rather than trusting the callback parameter
     // because Media3 may fire this callback during transitions where playWhenReady=true
     // but playbackState=BUFFERING, which we consider "effectively playing"
-    if (isEffectivelyPlaying == isNowPlaying) return
+    if (isEffectivelyPlaying == previousIsPlaying) return
 
     val currentSession = listener.currentSession()
     if (currentSession != null) {
-      listener.updateCurrentPosition(currentSession)
-
       if (isEffectivelyPlaying) {
         listener.onPlayStarted(currentSession.id)
         val sessionAssignmentTimestampMs = listener.getPlaybackSessionAssignTimestampMs()
@@ -97,6 +96,7 @@ class Media3PlayerEventListener(
       } else {
         listener.debug { "Playback stopped. Syncing progress." }
         listener.currentSession()?.let { currentSession ->
+          listener.updateCurrentPosition(currentSession)
           listener.maybeSyncProgress("pause", true, currentSession, null)
         }
         lastPauseTimestampMs = System.currentTimeMillis()
@@ -110,6 +110,8 @@ class Media3PlayerEventListener(
     com.audiobookshelf.app.media.MediaEventManager.clientEventEmitter?.onPlayingUpdate(
       isEffectivelyPlaying
     )
+
+    previousIsPlaying = isEffectivelyPlaying
   }
 
   override fun onPlaybackStateChanged(state: Int) {
@@ -119,7 +121,6 @@ class Media3PlayerEventListener(
       Player.STATE_ENDED -> {
         listener.playbackMetrics.logSummary()
         listener.currentSession()?.let { currentSession ->
-          listener.updateCurrentPosition(currentSession)
           listener.maybeSyncProgress("finished", true, currentSession) {
             listener.onPlaybackEnded(currentSession)
           }
