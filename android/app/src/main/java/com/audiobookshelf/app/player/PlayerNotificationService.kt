@@ -1,93 +1,42 @@
 package com.audiobookshelf.app.player
 
 import android.annotation.SuppressLint
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
-import android.content.Context
-import android.content.Intent
+import android.app.*
+import android.content.*
 import android.content.pm.ServiceInfo
-import android.graphics.Bitmap
-import android.graphics.Color
-import android.graphics.ImageDecoder
+import android.graphics.*
 import android.media.AudioManager
-import android.os.Binder
-import android.os.Build
-import android.os.Bundle
-import android.os.Handler
-import android.os.IBinder
-import android.os.Looper
-import android.provider.MediaStore
-import android.provider.Settings
-import android.support.v4.media.MediaBrowserCompat
-import android.support.v4.media.MediaDescriptionCompat
-import android.support.v4.media.MediaMetadataCompat
-import android.support.v4.media.session.MediaControllerCompat
-import android.support.v4.media.session.MediaSessionCompat
-import android.support.v4.media.session.PlaybackStateCompat
+import android.os.*
+import android.provider.*
+import android.support.v4.media.*
+import android.support.v4.media.session.*
 import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
-import androidx.media.MediaBrowserServiceCompat
-import androidx.media.VolumeProviderCompat
+import androidx.media.*
 import androidx.media.utils.MediaConstants
 import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.R
-import com.audiobookshelf.app.data.AndroidAutoBrowseSeriesSequenceOrderSetting
-import com.audiobookshelf.app.data.BookChapter
+import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.data.DeviceInfo
-import com.audiobookshelf.app.data.DeviceSettings
-import com.audiobookshelf.app.data.LibraryItem
-import com.audiobookshelf.app.data.LibraryShelfAuthorEntity
-import com.audiobookshelf.app.data.LibraryShelfBookEntity
-import com.audiobookshelf.app.data.LibraryShelfEpisodeEntity
-import com.audiobookshelf.app.data.LibraryShelfPodcastEntity
-import com.audiobookshelf.app.data.LibraryShelfSeriesEntity
-import com.audiobookshelf.app.data.LocalMediaProgress
-import com.audiobookshelf.app.data.MediaItemHistory
-import com.audiobookshelf.app.data.MediaProgressWrapper
-import com.audiobookshelf.app.data.PlayItemRequestPayload
-import com.audiobookshelf.app.data.PlaybackMetadata
-import com.audiobookshelf.app.data.PlaybackSession
-import com.audiobookshelf.app.data.PlayerState
-import com.audiobookshelf.app.data.Podcast
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.managers.DbManager
-import com.audiobookshelf.app.media.MediaManager
-import com.audiobookshelf.app.media.MediaProgressSyncer
-import com.audiobookshelf.app.media.getUriToAbsIconDrawable
-import com.audiobookshelf.app.media.getUriToDrawable
-import com.audiobookshelf.app.player.core.NetworkMonitor
-import com.audiobookshelf.app.player.core.PlaybackMetricsRecorder
-import com.audiobookshelf.app.player.core.PlaybackTelemetryHost
-
+import com.audiobookshelf.app.media.*
+import com.audiobookshelf.app.player.core.*
 import com.audiobookshelf.app.plugins.AbsLogger
 import com.audiobookshelf.app.server.ApiHandler
-import com.google.android.exoplayer2.C
-import com.google.android.exoplayer2.DefaultLoadControl
-import com.google.android.exoplayer2.ExoPlayer
-import com.google.android.exoplayer2.LoadControl
-import com.google.android.exoplayer2.MediaItem
-import com.google.android.exoplayer2.PlaybackParameters
-import com.google.android.exoplayer2.Player
+import com.google.android.exoplayer2.*
 import com.google.android.exoplayer2.audio.AudioAttributes
-import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector
+import com.google.android.exoplayer2.ext.mediasession.*
 import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector.CustomActionProvider
-import com.google.android.exoplayer2.ext.mediasession.TimelineQueueNavigator
 import com.google.android.exoplayer2.extractor.DefaultExtractorsFactory
 import com.google.android.exoplayer2.extractor.mp3.Mp3Extractor
-import com.google.android.exoplayer2.source.MediaSource
-import com.google.android.exoplayer2.source.ProgressiveMediaSource
+import com.google.android.exoplayer2.source.*
 import com.google.android.exoplayer2.source.hls.HlsMediaSource
 import com.google.android.exoplayer2.ui.PlayerNotificationManager
-import com.google.android.exoplayer2.upstream.DefaultDataSource
-import com.google.android.exoplayer2.upstream.DefaultHttpDataSource
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.runBlocking
+import com.google.android.exoplayer2.upstream.*
+import kotlinx.coroutines.*
 
 const val PLAYER_CAST = "cast-player"
 const val PLAYER_EXO = "exo-player"
@@ -1244,11 +1193,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     */
     val deviceId = Settings.Secure.getString(ctx.contentResolver, Settings.Secure.ANDROID_ID)
     return DeviceInfo(
-            deviceId,
-            Build.MANUFACTURER,
-            Build.MODEL,
-            Build.VERSION.SDK_INT,
-            BuildConfig.VERSION_NAME
+      deviceId,
+      Build.MANUFACTURER,
+      Build.MODEL,
+      Build.VERSION.SDK_INT,
+      BuildConfig.VERSION_NAME
     )
   }
 

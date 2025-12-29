@@ -5,36 +5,15 @@ import android.content.Context
 import android.support.v4.media.MediaBrowserCompat
 import android.util.Log
 import androidx.media3.common.MediaItem
-import com.audiobookshelf.app.data.ItemInProgress
-import com.audiobookshelf.app.data.Library
-import com.audiobookshelf.app.data.LibraryAuthorItem
-import com.audiobookshelf.app.data.LibraryCollection
-import com.audiobookshelf.app.data.LibraryItem
-import com.audiobookshelf.app.data.LibraryItemWithEpisode
-import com.audiobookshelf.app.data.LibraryItemWrapper
-import com.audiobookshelf.app.data.LibrarySeriesItem
-import com.audiobookshelf.app.data.LibraryShelfBookEntity
-import com.audiobookshelf.app.data.LibraryShelfEpisodeEntity
-import com.audiobookshelf.app.data.LibraryShelfType
-import com.audiobookshelf.app.data.LocalLibraryItem
-import com.audiobookshelf.app.data.MediaProgress
-import com.audiobookshelf.app.data.PlayItemRequestPayload
-import com.audiobookshelf.app.data.PlaybackSession
-import com.audiobookshelf.app.data.Podcast
-import com.audiobookshelf.app.data.PodcastEpisode
-import com.audiobookshelf.app.data.ServerConnectionConfig
+import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.server.ApiHandler
 import com.getcapacitor.JSObject
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.suspendCancellableCoroutine
-import org.json.JSONException
-import org.json.JSONObject
+import kotlinx.coroutines.*
+import org.json.*
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
+import kotlin.coroutines.*
 
 class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
   val tag = "MediaManager"

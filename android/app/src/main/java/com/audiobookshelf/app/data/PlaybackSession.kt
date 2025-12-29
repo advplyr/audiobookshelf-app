@@ -8,17 +8,13 @@ import android.provider.MediaStore
 import android.support.v4.media.MediaMetadataCompat
 import androidx.core.content.FileProvider
 import androidx.core.net.toFile
-import com.audiobookshelf.app.BuildConfig
+import com.audiobookshelf.app.*
 import com.audiobookshelf.app.R
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.media.MediaProgressSyncData
-import com.audiobookshelf.app.player.PLAYMETHOD_DIRECTPLAY
-import com.audiobookshelf.app.player.PLAYMETHOD_LOCAL
-import com.audiobookshelf.app.player.PLAYMETHOD_TRANSCODE
-import com.fasterxml.jackson.annotation.JsonIgnore
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-import com.google.android.gms.cast.MediaInfo
-import com.google.android.gms.cast.MediaQueueItem
+import com.audiobookshelf.app.player.*
+import com.fasterxml.jackson.annotation.*
+import com.google.android.gms.cast.*
 import com.google.android.gms.common.images.WebImage
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -242,11 +238,11 @@ class PlaybackSession(
   }
 
   @JsonIgnore
-  fun getCastMediaMetadata(audioTrack: AudioTrack): com.google.android.gms.cast.MediaMetadata {
+  fun getCastMediaMetadata(audioTrack: AudioTrack): MediaMetadata {
     val castMetadata =
-            com.google.android.gms.cast.MediaMetadata(
-                    com.google.android.gms.cast.MediaMetadata.MEDIA_TYPE_AUDIOBOOK_CHAPTER
-            )
+      MediaMetadata(
+              MediaMetadata.MEDIA_TYPE_AUDIOBOOK_CHAPTER
+      )
 
     // As of v2.17.0 token is not needed with cover image requests
     val coverUri = if (checkIsServerVersionGte("2.17.0")) {
@@ -260,22 +256,22 @@ class PlaybackSession(
       castMetadata.addImage(WebImage(coverUri))
     }
 
-    castMetadata.putString(com.google.android.gms.cast.MediaMetadata.KEY_TITLE, displayTitle ?: "")
+    castMetadata.putString(MediaMetadata.KEY_TITLE, displayTitle ?: "")
     castMetadata.putString(
-            com.google.android.gms.cast.MediaMetadata.KEY_ARTIST,
+            MediaMetadata.KEY_ARTIST,
             displayAuthor ?: ""
     )
     castMetadata.putString(
-            com.google.android.gms.cast.MediaMetadata.KEY_ALBUM_TITLE,
+            MediaMetadata.KEY_ALBUM_TITLE,
             displayAuthor ?: ""
     )
     castMetadata.putString(
-            com.google.android.gms.cast.MediaMetadata.KEY_CHAPTER_TITLE,
+            MediaMetadata.KEY_CHAPTER_TITLE,
             audioTrack.title
     )
 
     castMetadata.putInt(
-            com.google.android.gms.cast.MediaMetadata.KEY_TRACK_NUMBER,
+            MediaMetadata.KEY_TRACK_NUMBER,
             audioTrack.index
     )
     return castMetadata

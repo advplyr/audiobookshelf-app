@@ -1,17 +1,13 @@
 package com.audiobookshelf.app.media
 
-import android.os.Handler
-import android.os.Looper
+import android.os.*
 import android.util.Log
-import com.audiobookshelf.app.data.LocalMediaProgress
-import com.audiobookshelf.app.data.MediaProgress
-import com.audiobookshelf.app.data.PlaybackSession
+import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.player.core.PlaybackTelemetryHost
 import com.audiobookshelf.app.plugins.AbsLogger
 import com.audiobookshelf.app.server.ApiHandler
-import java.util.Timer
-import java.util.TimerTask
+import java.util.*
 import kotlin.concurrent.schedule
 
 data class MediaProgressSyncData(
@@ -84,7 +80,7 @@ class MediaProgressSyncer(
 
     listeningTimerTask =
             Timer("ListeningTimer", false).schedule(15000L, 15000L) {
-              Handler(Looper.getMainLooper()).post() {
+              Handler(Looper.getMainLooper()).post {
                 if (telemetryHost.isPlayerActive()) {
                   telemetryHost.checkAutoSleepTimer()
 

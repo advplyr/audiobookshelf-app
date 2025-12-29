@@ -1,37 +1,21 @@
 package com.audiobookshelf.app.plugins
 
 import android.content.Intent
-import android.os.Handler
-import android.os.Looper
+import android.os.*
 import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import com.audiobookshelf.app.MainActivity
-import com.audiobookshelf.app.data.Book
-import com.audiobookshelf.app.data.DeviceSettings
-import com.audiobookshelf.app.data.LocalFolder
-import com.audiobookshelf.app.data.LocalLibraryItem
-import com.audiobookshelf.app.data.LocalMediaProgress
-import com.audiobookshelf.app.data.MediaProgress
-import com.audiobookshelf.app.data.Podcast
-import com.audiobookshelf.app.data.PodcastEpisode
-import com.audiobookshelf.app.data.ServerConnectionConfig
+import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.managers.SecureStorage
 import com.audiobookshelf.app.media.MediaEventManager
 import com.audiobookshelf.app.server.ApiHandler
 import com.fasterxml.jackson.core.json.JsonReadFeature
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
-import com.getcapacitor.JSArray
-import com.getcapacitor.JSObject
-import com.getcapacitor.Plugin
-import com.getcapacitor.PluginCall
-import com.getcapacitor.PluginMethod
+import com.fasterxml.jackson.module.kotlin.*
+import com.getcapacitor.*
 import com.getcapacitor.annotation.CapacitorPlugin
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 
 @CapacitorPlugin(name = "AbsDatabase")
 class AbsDatabase : Plugin() {

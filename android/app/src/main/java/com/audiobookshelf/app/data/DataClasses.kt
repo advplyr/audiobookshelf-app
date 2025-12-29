@@ -3,20 +3,13 @@ package com.audiobookshelf.app.data
 import android.content.Context
 import android.icu.text.DateFormat
 import android.os.Bundle
-import android.support.v4.media.MediaDescriptionCompat
-import android.support.v4.media.MediaMetadataCompat
+import android.support.v4.media.*
 import androidx.annotation.OptIn
-import androidx.media3.common.MediaItem
-import androidx.media3.common.MediaMetadata
+import androidx.media3.common.*
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaConstants
-import com.audiobookshelf.app.media.MediaManager
-import com.audiobookshelf.app.media.getUriToAbsIconDrawable
-import com.fasterxml.jackson.annotation.JsonFormat
-import com.fasterxml.jackson.annotation.JsonIgnore
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-import com.fasterxml.jackson.annotation.JsonSubTypes
-import com.fasterxml.jackson.annotation.JsonTypeInfo
+import com.audiobookshelf.app.media.*
+import com.fasterxml.jackson.annotation.*
 import java.util.Date
 import androidx.media.utils.MediaConstants as LegacyMediaConstants
 
