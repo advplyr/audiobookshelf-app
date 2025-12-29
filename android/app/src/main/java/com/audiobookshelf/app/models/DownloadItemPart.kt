@@ -89,6 +89,11 @@ data class DownloadItemPart(
     dlRequest.setDescription("Downloading to $localFolderName with filename $filename")
     dlRequest.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
     dlRequest.setDestinationUri(destinationUri)
+
+    // Add custom header for Cloudflare Access, etc.
+    DeviceManager.customHeaders?.forEach { (key, value) ->
+      dlRequest.addRequestHeader(key, value)
+    }
     return dlRequest
   }
 }
