@@ -187,8 +187,10 @@
 
 <script>
 import { Dialog } from '@capacitor/dialog'
+import jumpLabelMixin from '@/mixins/jumpLabel'
 
 export default {
+  mixins: [jumpLabelMixin],
   data() {
     return {
       loading: false,
@@ -362,10 +364,10 @@ export default {
       return this.$languageCodeOptions || []
     },
     jumpForwardOption() {
-      return this.currentJumpForwardItem.label || ''
+      return this.getJumpLabel(this.settings.jumpForwardTime)
     },
     jumpBackwardsOption() {
-      return this.currentJumpBackwardsItem.label || ''
+      return this.getJumpLabel(this.settings.jumpBackwardsTime)
     },
     themeOptionItems() {
       return [
@@ -448,13 +450,13 @@ export default {
       else if (this.moreMenuSetting === 'androidAutoBrowseSeriesSequenceOrder') return this.androidAutoBrowseSeriesSequenceOrderItems
       else if (this.moreMenuSetting === 'jumpForward')
         return this.jumpForwardItems.map((i) => ({
-          text: i.label,
+          text: this.getJumpLabel(i.value),
           value: i.value,
           icon: i.icon
         }))
       else if (this.moreMenuSetting === 'jumpBackwards')
         return this.jumpBackwardsItems.map((i) => ({
-          text: i.label,
+          text: this.getJumpLabel(i.value),
           value: i.value,
           icon: i.icon
         }))

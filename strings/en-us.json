@@ -359,5 +359,7 @@
   "ToastPodcastCreateSuccess": "Podcast created successfully",
   "ToastRSSFeedCloseFailed": "Failed to close RSS feed",
   "ToastRSSFeedCloseSuccess": "RSS feed closed",
-  "ToastStreamingNotAllowedOnCellular": "Streaming is not allowed on cellular data"
+  "ToastStreamingNotAllowedOnCellular": "Streaming is not allowed on cellular data",
+  "UnitSecondsShort": "{0}s",
+  "UnitMinutesShort": "{0}m"
 }

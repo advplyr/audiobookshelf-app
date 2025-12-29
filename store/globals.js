@@ -8,74 +8,60 @@ export const state = () => ({
   jumpForwardItems: [
     {
       icon: 'forward_media',
-      label: '5s',
       value: 5
     },
     {
       icon: 'forward_media',
-      label: '10s',
       value: 10
     },
     {
       icon: 'forward_media',
-      label: '15s',
       value: 15
     },
     {
       icon: 'forward_media',
-      label: '30s',
       value: 30
     },
     {
       icon: 'forward_media',
-      label: '60s',
       value: 60
     },
     {
       icon: 'forward_media',
-      label: '2m',
       value: 120
     },
     {
       icon: 'forward_media',
-      label: '5m',
       value: 300
     }
   ],
   jumpBackwardsItems: [
     {
       icon: 'replay',
-      label: '5s',
       value: 5
     },
     {
       icon: 'replay',
-      label: '10s',
       value: 10
     },
     {
       icon: 'replay',
-      label: '15s',
       value: 15
     },
     {
       icon: 'replay',
-      label: '30s',
       value: 30
     },
     {
       icon: 'replay',
-      label: '60s',
       value: 60
     },
     {
       icon: 'replay',
-      label: '2m',
       value: 120
     },
     {
       icon: 'replay',
-      label: '5m',
       value: 300
     }
   ],

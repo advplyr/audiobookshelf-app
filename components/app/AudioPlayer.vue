@@ -77,7 +77,7 @@
             @click.stop="jumpBackwards"
           >
             <span class="material-symbols text-3xl leading-none">{{ jumpBackwardsItem.icon }}</span>
-            <span class="jump-label text-[10px] font-semibold leading-tight">{{ jumpBackwardsItem.label }}</span>
+            <span class="jump-label text-[10px] font-semibold leading-tight">{{ jumpBackwardsLabel }}</span>
           </div>
           <div class="play-btn cursor-pointer shadow-sm flex items-center justify-center rounded-full text-primary mx-4 relative overflow-hidden" :style="{ backgroundColor: coverRgb }" :class="{ 'animate-spin': seekLoading }" @mousedown.prevent @mouseup.prevent @click.stop="playPauseClick">
             <div v-if="!coverBgIsLight" class="absolute top-0 left-0 w-full h-full bg-white bg-opacity-20 pointer-events-none" />
@@ -92,7 +92,7 @@
             @click.stop="jumpForward"
           >
             <span class="material-symbols text-3xl leading-none">{{ jumpForwardItem.icon }}</span>
-            <span class="jump-label text-[10px] font-semibold leading-tight">{{ jumpForwardItem.label }}</span>
+            <span class="jump-label text-[10px] font-semibold leading-tight">{{ jumpForwardLabel }}</span>
           </div>
           <span v-show="showFullscreen && !playerSettings.lockUi" class="material-symbols next-icon text-fg cursor-pointer" :class="nextChapter && !isLoading ? 'text-opacity-75' : 'text-opacity-10'" @click.stop="jumpNextChapter">last_page</span>
         </div>
@@ -126,6 +126,7 @@ import { AbsAudioPlayer } from '@/plugins/capacitor'
 import { Dialog } from '@capacitor/dialog'
 import { FastAverageColor } from 'fast-average-color'
 import WrappingMarquee from '@/assets/WrappingMarquee.js'
+import jumpLabelMixin from '@/mixins/jumpLabel'
 
 export default {
   props: {
@@ -137,6 +138,7 @@ export default {
     sleepTimeRemaining: Number,
     serverLibraryItemId: String
   },
+  mixins: [jumpLabelMixin],
   data() {
     return {
       windowHeight: 0,
@@ -242,6 +244,12 @@ export default {
     },
     jumpBackwardsItem() {
       return this.$store.getters['globals/getJumpBackwardsItem'](this.jumpBackwardsTime)
+    },
+    jumpForwardLabel() {
+      return this.getJumpLabel(this.jumpForwardTime)
+    },
+    jumpBackwardsLabel() {
+      return this.getJumpLabel(this.jumpBackwardsTime)
     },
     jumpForwardTime() {
       return this.$store.getters['getJumpForwardTime']
@@ -959,7 +967,7 @@ export default {
     },
     showProgressSyncSuccess() {
       this.syncStatus = this.$constants.SyncStatus.SUCCESS
-    }
+    },
   },
   mounted() {
     this.updateScreenSize()
