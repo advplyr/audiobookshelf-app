@@ -35,7 +35,6 @@ class Media3NotificationManager(
   private var playbackSpeedCommandButton: CommandButton? = null
   private var lastMediaButtonPreferences: List<CommandButton>? = null
 
-  @Volatile
   private var includeTrackNavigationButtons = false
 
   @Volatile

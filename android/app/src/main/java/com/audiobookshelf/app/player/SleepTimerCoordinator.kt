@@ -39,6 +39,8 @@ class SleepTimerCoordinator(
   private var sleepTimerEndObserved = false
   private var lastSleepTimerEndedSessionId: String? = null
 
+  fun isStarted(): Boolean = hostAdapter != null
+
   fun start(adapter: SleepTimerHostAdapter) {
     hostAdapter = adapter
     ensureShakeController()

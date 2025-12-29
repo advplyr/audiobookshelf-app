@@ -116,9 +116,6 @@ class Media3PlaybackService : MediaLibraryService() {
   @Volatile
   private var pipelineInitialized: Boolean = false
 
-  @Volatile
-  private var sleepTimerStarted: Boolean = false
-
   // Pipelines & State Trackers
   private val eventPipeline = Media3EventPipeline()
   private val playbackMetrics = PlaybackMetricsRecorder()
@@ -967,11 +964,10 @@ class Media3PlaybackService : MediaLibraryService() {
    * Sleep Timer
    * ======================================== */
   private fun ensureSleepTimerStarted() {
-    if (!sleepTimerStarted) {
+    if (!sleepTimerCoordinator.isStarted()) {
       synchronized(this) {
-        if (!sleepTimerStarted) {
+        if (!sleepTimerCoordinator.isStarted()) {
           sleepTimerCoordinator.start(sleepTimerHostAdapter)
-          sleepTimerStarted = true
         }
       }
     }
