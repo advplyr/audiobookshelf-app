@@ -226,16 +226,20 @@ class PlaybackSession(
 
     // Local covers get bitmap
     if (localLibraryItem?.coverContentUrl != null) {
-      val bitmap =
-              if (Build.VERSION.SDK_INT < 28) {
-                MediaStore.Images.Media.getBitmap(ctx.contentResolver, coverUri)
-              } else {
-                val source: ImageDecoder.Source =
-                        ImageDecoder.createSource(ctx.contentResolver, coverUri)
-                ImageDecoder.decodeBitmap(source)
-              }
-      metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
-      metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, bitmap)
+      try {
+        val bitmap =
+                if (Build.VERSION.SDK_INT < 28) {
+                  MediaStore.Images.Media.getBitmap(ctx.contentResolver, coverUri)
+                } else {
+                  val source: ImageDecoder.Source =
+                          ImageDecoder.createSource(ctx.contentResolver, coverUri)
+                  ImageDecoder.decodeBitmap(source)
+                }
+        metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
+        metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, bitmap)
+      } catch (e: Exception) {
+        android.util.Log.w("PlaybackSession", "Failed to decode cover bitmap: ${e.message}")
+      }
     }
 
     return metadataBuilder.build()
