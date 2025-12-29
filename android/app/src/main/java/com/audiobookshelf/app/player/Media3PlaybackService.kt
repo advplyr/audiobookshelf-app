@@ -532,7 +532,7 @@ class Media3PlaybackService : MediaLibraryService() {
   }
 
   private fun initializeCastPlayer() {
-    playbackPipeline = PlaybackPipeline(
+    val castPipeline = PlaybackPipeline(
       context = this,
       scope = serviceScope,
       speechAudioAttributes = speechAudioAttributes,
@@ -540,6 +540,7 @@ class Media3PlaybackService : MediaLibraryService() {
         playbackMetrics.markCastHandoffStart()
         serviceScope.launch {
           playerInitializationSignal.await()
+          wrapper.removeListener(playerListener)
           castPlayer = wrapper.apply { addListener(playerListener) }
           switchPlayer(nextPlayer = castPlayer)
         }
@@ -553,7 +554,7 @@ class Media3PlaybackService : MediaLibraryService() {
       pauseLocalForCasting = { pauseLocalPlaybackForCasting() },
       log = { msg -> debugLog(msg) }
     )
-    castCoordinator = playbackPipeline?.initializeCast()
+    castCoordinator = castPipeline.initializeCast()
   }
 
 
@@ -561,8 +562,6 @@ class Media3PlaybackService : MediaLibraryService() {
     playerSwitchMutex.withLock {
       if (activePlayer === nextPlayer) return
 
-      // Capture state from current player before switching
-      // This ensures seamless handoff with no position/playback state loss
       val previousPlayer = activePlayer
       val itemCount = previousPlayer.mediaItemCount
       val startIndex = previousPlayer.currentMediaItemIndex
@@ -570,20 +569,6 @@ class Media3PlaybackService : MediaLibraryService() {
       val playWhenReady = previousPlayer.playWhenReady
       val previousSpeed = runCatching { previousPlayer.playbackParameters.speed }.getOrNull()
 
-      // Switch to new player and update Media3 session
-      activePlayer = nextPlayer
-      mediaSession?.player = nextPlayer
-      currentPlaybackSession?.mediaPlayer = currentMediaPlayerId()
-      playbackMetrics.updatePlayerId(currentMediaPlayerId())
-      notifyWidgetState()
-      updateMediaPlayerExtra()
-
-      // Notify web app that the media player has changed (cast vs local)
-      val mediaPlayerId = currentMediaPlayerId()
-      debugLog { "switchPlayer: Notifying web app - player=$mediaPlayerId" }
-      MediaEventManager.clientEventEmitter?.onMediaPlayerChanged(mediaPlayerId)
-
-      // Transfer media queue and playback state to new player
       if (itemCount > 0) {
         nextPlayer.setMediaItems(
           List(itemCount) { previousPlayer.getMediaItemAt(it) },
@@ -595,7 +580,15 @@ class Media3PlaybackService : MediaLibraryService() {
       nextPlayer.playWhenReady = playWhenReady
       nextPlayer.prepare()
 
-      // Clean up previous player (but preserve local player for potential handback)
+      activePlayer = nextPlayer
+      mediaSession?.player = nextPlayer
+      currentPlaybackSession?.mediaPlayer = currentMediaPlayerId()
+      playbackMetrics.updatePlayerId(currentMediaPlayerId())
+      notifyWidgetState()
+      updateMediaPlayerExtra()
+
+      MediaEventManager.clientEventEmitter?.onMediaPlayerChanged(currentMediaPlayerId())
+
       if (previousPlayer !== localPlayer) {
         previousPlayer.stop()
         previousPlayer.clearMediaItems()
@@ -607,8 +600,6 @@ class Media3PlaybackService : MediaLibraryService() {
 
       updateTrackNavigationButtons()
 
-      // Force UI resync: Emit current playing state after prepare (casting may not auto-fire)
-      // Use playWhenReady because isPlaying will be false until player actually starts
       MediaEventManager.clientEventEmitter?.onPlayingUpdate(playWhenReady)
     }
   }
