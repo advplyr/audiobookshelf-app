@@ -362,7 +362,7 @@ class Media3PlaybackService : MediaLibraryService() {
         get() = NetworkMonitor.isUnmeteredNetwork
 
       override fun isPlayerActive(): Boolean {
-        return playerInitialized && this@Media3PlaybackService::activePlayer.isInitialized && activePlayer.isPlaying
+        return hasActivePlayer && activePlayer.isPlaying
       }
 
       override fun getCurrentTimeSeconds(): Double {
@@ -422,7 +422,7 @@ class Media3PlaybackService : MediaLibraryService() {
       seekForwardIncrementCommand = seekForwardIncrementCommand,
       jumpBackwardMsProvider = { jumpBackwardMs },
       jumpForwardMsProvider = { jumpForwardMs },
-      currentPlaybackSpeedProvider = { if (playerInitialized && this::activePlayer.isInitialized) activePlayer.playbackParameters.speed else 1.0f },
+      currentPlaybackSpeedProvider = { if (hasActivePlayer) activePlayer.playbackParameters.speed else 1.0f },
       debugLog = { lazyMessage -> debugLog { lazyMessage } }
     )
     media3NotificationManager.createNotificationChannel()
@@ -788,10 +788,7 @@ class Media3PlaybackService : MediaLibraryService() {
         Log.w(TAG, "handlePlaybackError: transcode fallback failed for session=${session.id}")
         return@launch
       }
-      val currentSpeed =
-        if (playerInitialized && this@Media3PlaybackService::activePlayer.isInitialized) {
-          activePlayer.playbackParameters.speed
-        } else null
+      val currentSpeed = if (hasActivePlayer) activePlayer.playbackParameters.speed else null
       prepareAndPlaySession(
         fallbackSession,
         playWhenReady = true,
@@ -805,8 +802,7 @@ class Media3PlaybackService : MediaLibraryService() {
     if (!session.isPodcastEpisode) return
     if (!isAndroidAutoControllerConnected()) return
     val libraryItem = session.libraryItem ?: return
-    val currentSpeed =
-      if (playerInitialized && this::activePlayer.isInitialized) activePlayer.playbackParameters.speed else null
+    val currentSpeed = if (hasActivePlayer) activePlayer.playbackParameters.speed else null
 
     mediaManager.loadServerUserMediaProgress {
       val podcast = libraryItem.media as? Podcast ?: return@loadServerUserMediaProgress
@@ -879,7 +875,7 @@ class Media3PlaybackService : MediaLibraryService() {
   }
 
   private fun seekToSessionPosition(session: PlaybackSession) {
-    if (!playerInitialized || !this::activePlayer.isInitialized) return
+    if (!hasActivePlayer) return
     val trackIndex = session.getCurrentTrackIndex().coerceIn(0, session.audioTracks.lastIndex)
     val trackOffsetMs = session.getTrackStartOffsetMs(trackIndex)
     val positionInTrack = (session.currentTimeMs - trackOffsetMs).coerceAtLeast(0L)
@@ -946,8 +942,7 @@ class Media3PlaybackService : MediaLibraryService() {
         episodeId = session.episodeId,
         forceTranscode = session.isHLS
       ) ?: return@launch
-      val currentSpeed =
-        if (playerInitialized && this@Media3PlaybackService::activePlayer.isInitialized) activePlayer.playbackParameters.speed else null
+      val currentSpeed = if (hasActivePlayer) activePlayer.playbackParameters.speed else null
       prepareAndPlaySession(
         newSession,
         playWhenReady = true,
@@ -1258,11 +1253,7 @@ class Media3PlaybackService : MediaLibraryService() {
   }
 
   private fun currentPlaybackSpeed(): Float {
-    return if (playerInitialized && this::activePlayer.isInitialized) {
-      activePlayer.playbackParameters.speed
-    } else {
-      1f
-    }
+    return if (hasActivePlayer) activePlayer.playbackParameters.speed else 1f
   }
 
   private fun updatePlaybackSpeedButton(speed: Float) {
@@ -1406,7 +1397,7 @@ class Media3PlaybackService : MediaLibraryService() {
    * Utility Helpers
    * ======================================== */
   private fun isEffectivelyPlaying(): Boolean {
-    if (!playerInitialized || !this::activePlayer.isInitialized) return false
+    if (!hasActivePlayer) return false
 
     val player = activePlayer
     return player.isPlaying ||
