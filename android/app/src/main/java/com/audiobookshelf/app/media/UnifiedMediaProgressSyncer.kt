@@ -108,7 +108,9 @@ class UnifiedMediaProgressSyncer(
         delay(PERIODIC_SYNC_INTERVAL)
 
         if (playbackTelemetryProvider.isPlayerActive()) {
-          playbackTelemetryProvider.checkAutoSleepTimer()
+          if (playbackTelemetryProvider.isSleepTimerActive()) {
+            playbackTelemetryProvider.checkAutoSleepTimer()
+          }
 
           val shouldSyncServer =
             playbackTelemetryProvider.isUnmeteredNetwork ||

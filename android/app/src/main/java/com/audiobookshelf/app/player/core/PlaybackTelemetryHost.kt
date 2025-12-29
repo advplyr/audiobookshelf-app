@@ -15,5 +15,6 @@ interface PlaybackTelemetryHost {
   fun alertSyncSuccess()
   fun alertSyncFailing()
   fun notifyLocalProgressUpdate(localMediaProgress: LocalMediaProgress)
+  fun isSleepTimerActive(): Boolean = false
   fun checkAutoSleepTimer() {}
 }

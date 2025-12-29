@@ -1277,6 +1277,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     clientEventEmitter?.onLocalMediaProgressUpdate(localMediaProgress)
   }
 
+  override fun isSleepTimerActive(): Boolean {
+    return sleepTimerCoordinator.isStarted()
+  }
+
   override fun checkAutoSleepTimer() {
     sleepTimerCoordinator.checkAutoTimerIfNeeded()
   }
