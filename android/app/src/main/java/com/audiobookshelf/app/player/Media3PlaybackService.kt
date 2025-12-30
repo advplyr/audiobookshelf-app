@@ -1,57 +1,27 @@
 package com.audiobookshelf.app.player
 
 import android.app.PendingIntent
-import android.content.Context
-import android.content.Intent
-import android.os.Build
-import android.os.Bundle
+import android.content.*
+import android.os.*
 import android.provider.Settings
 import android.util.Log
-import androidx.media3.common.C
-import androidx.media3.common.PlaybackException
-import androidx.media3.common.Player
+import androidx.media3.common.*
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.session.CommandButton
-import androidx.media3.session.MediaConstants
-import androidx.media3.session.MediaLibraryService
-import androidx.media3.session.MediaNotification
-import androidx.media3.session.MediaSession
-import com.audiobookshelf.app.BuildConfig
-import com.audiobookshelf.app.MainActivity
+import androidx.media3.session.*
+import com.audiobookshelf.app.*
+import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.data.DeviceInfo
-import com.audiobookshelf.app.data.DeviceSettings
-import com.audiobookshelf.app.data.LocalMediaProgress
-import com.audiobookshelf.app.data.PlayItemRequestPayload
-import com.audiobookshelf.app.data.PlaybackSession
-import com.audiobookshelf.app.data.Podcast
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.managers.DbManager
-import com.audiobookshelf.app.media.MediaEventManager
-import com.audiobookshelf.app.media.MediaManager
+import com.audiobookshelf.app.media.*
 import com.audiobookshelf.app.media.SyncResult
-import com.audiobookshelf.app.media.UnifiedMediaProgressSyncer
-import com.audiobookshelf.app.player.core.NetworkMonitor
-import com.audiobookshelf.app.player.core.PlaybackMetricsRecorder
-import com.audiobookshelf.app.player.core.PlaybackTelemetryHost
-import com.audiobookshelf.app.player.media3.Media3AutoLibraryCoordinator
-import com.audiobookshelf.app.player.media3.Media3BrowseTree
-import com.audiobookshelf.app.player.media3.Media3CastCoordinator
-import com.audiobookshelf.app.player.media3.Media3EventPipeline
-import com.audiobookshelf.app.player.media3.PlaybackPipeline
-import com.audiobookshelf.app.player.media3.ResolvedPlayableCache
+import com.audiobookshelf.app.player.core.*
+import com.audiobookshelf.app.player.media3.*
 import com.audiobookshelf.app.player.wrapper.AbsPlayerWrapper
 import com.audiobookshelf.app.server.ApiHandler
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withTimeout
-import kotlin.math.max
-import kotlin.math.min
+import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.*
+import kotlin.math.*
 
 
 /**
@@ -77,8 +47,8 @@ class Media3PlaybackService : MediaLibraryService() {
     // Playback recheck settings
     private const val PAUSE_LEN_BEFORE_RECHECK_MS = 30_000L
 
-    // Player identifiers
-    private const val PLAYER_MEDIA3 = "media3-player"
+    // Player identifiers - must match values in PlayerNotificationService for server compatibility
+    private const val PLAYER_MEDIA3 = "media3-exoplayer"
     private const val PLAYER_CAST = "cast-player"
 
     // Bundle keys
@@ -144,7 +114,7 @@ class Media3PlaybackService : MediaLibraryService() {
     get() = activePlayer
 
   // Audio Configuration
-  private val speechAudioAttributes = androidx.media3.common.AudioAttributes.Builder()
+  private val speechAudioAttributes = AudioAttributes.Builder()
     .setUsage(C.USAGE_MEDIA)
     .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
     .build()
@@ -182,8 +152,8 @@ class Media3PlaybackService : MediaLibraryService() {
   private val deviceSettings
     get() = DeviceManager.deviceData.deviceSettings ?: DeviceSettings.default()
 
-  private val playerListener = com.audiobookshelf.app.player.media3.Media3PlayerEventListener(
-    listener = object : com.audiobookshelf.app.player.media3.ListenerApi {
+  private val playerListener = Media3PlayerEventListener(
+    listener = object : ListenerApi {
       override val tag: String = TAG
       override val playbackMetrics: PlaybackMetricsRecorder =
         this@Media3PlaybackService.playbackMetrics
@@ -1042,13 +1012,13 @@ class Media3PlaybackService : MediaLibraryService() {
   /* ========================================
    * Session Callback & Controller
    * ======================================== */
-  private fun createSessionCallback(): com.audiobookshelf.app.player.media3.Media3SessionCallback {
-    val seekConfig = com.audiobookshelf.app.player.media3.SeekConfig(
+  private fun createSessionCallback(): Media3SessionCallback {
+    val seekConfig = SeekConfig(
       jumpBackwardMs = jumpBackwardMs,
       jumpForwardMs = jumpForwardMs,
       allowSeekingOnMediaControls = deviceSettings.allowSeekingOnMediaControls
     )
-    val browseApi = object : com.audiobookshelf.app.player.media3.BrowseApi {
+    val browseApi = object : BrowseApi {
       override fun getPayload(forceTranscode: Boolean): PlayItemRequestPayload {
         return getPlayItemRequestPayload(forceTranscode)
       }
@@ -1071,7 +1041,7 @@ class Media3PlaybackService : MediaLibraryService() {
         return isPassthroughRequestAllowed(mediaId, controller)
       }
     }
-    val sessionController = com.audiobookshelf.app.player.media3.SessionController(
+    val sessionController = SessionController(
       context = this,
       availableSessionCommands = MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS,
       setSleepTimer = { sessionId, timeMs, isChapter ->
@@ -1101,7 +1071,7 @@ class Media3PlaybackService : MediaLibraryService() {
       playerProvider = { if (this::activePlayer.isInitialized) activePlayer else null }
     )
 
-    return com.audiobookshelf.app.player.media3.Media3SessionCallback(
+    return Media3SessionCallback(
       logTag = TAG,
       scope = serviceScope,
       browseTree = browseTree,
@@ -1114,7 +1084,7 @@ class Media3PlaybackService : MediaLibraryService() {
       awaitFinalSync = { awaitFinalSyncBarrier() },
       markNextPlaybackEventSourceUi = {
         if (this::unifiedProgressSyncer.isInitialized) {
-          unifiedProgressSyncer.markNextPlaybackEventSource(com.audiobookshelf.app.media.PlaybackEventSource.UI)
+          unifiedProgressSyncer.markNextPlaybackEventSource(PlaybackEventSource.UI)
         }
       },
       debug = { msg -> debugLog(msg) },
@@ -1157,7 +1127,7 @@ class Media3PlaybackService : MediaLibraryService() {
   fun updateMediaSessionPlaybackActions() {
     runCatching {
       val allowSeekingOnMediaControls = deviceSettings.allowSeekingOnMediaControls
-      val sessionCommands = androidx.media3.session.SessionCommands.Builder()
+      val sessionCommands = SessionCommands.Builder()
         .add(cyclePlaybackSpeedCommand)
         .add(seekBackIncrementCommand)
         .add(seekForwardIncrementCommand)
@@ -1175,7 +1145,7 @@ class Media3PlaybackService : MediaLibraryService() {
           val effectiveAllowSeeking = isAppUiController || allowSeekingOnMediaControls
 
           val playerCommands =
-            com.audiobookshelf.app.player.media3.SessionController.buildBasePlayerCommands(
+            SessionController.buildBasePlayerCommands(
               player,
               effectiveAllowSeeking
             )

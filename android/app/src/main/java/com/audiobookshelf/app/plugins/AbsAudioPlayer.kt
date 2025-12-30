@@ -117,8 +117,8 @@ class AbsAudioPlayer : Plugin() {
       lastKnownMediaPlayer?.let { session.mediaPlayer = it }
       activePlaybackSession = session
       DeviceManager.setLastPlaybackSession(session)
-      if(BuildConfig.USE_MEDIA3) { }
-        else{
+      // ExoPlayer v2 service needs session reference for direct access; Media3 uses session commands
+      if (!BuildConfig.USE_MEDIA3) {
         playerNotificationService.currentPlaybackSession = session
       }
 
