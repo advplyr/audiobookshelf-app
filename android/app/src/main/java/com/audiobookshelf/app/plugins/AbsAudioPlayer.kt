@@ -10,14 +10,7 @@ import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.MainActivity
-import com.audiobookshelf.app.data.DeviceInfo
-import com.audiobookshelf.app.data.LocalMediaProgress
-import com.audiobookshelf.app.data.MediaItemHistory
-import com.audiobookshelf.app.data.PlayItemRequestPayload
-import com.audiobookshelf.app.data.PlaybackMetadata
-import com.audiobookshelf.app.data.PlaybackSession
-import com.audiobookshelf.app.data.Podcast
-import com.audiobookshelf.app.data.PodcastEpisode
+import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.media.MediaEventManager
 import com.audiobookshelf.app.player.CastManager
@@ -33,10 +26,7 @@ import com.audiobookshelf.app.player.toWidgetSnapshot
 import com.audiobookshelf.app.server.ApiHandler
 import com.fasterxml.jackson.core.json.JsonReadFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.getcapacitor.JSObject
-import com.getcapacitor.Plugin
-import com.getcapacitor.PluginCall
-import com.getcapacitor.PluginMethod
+import com.getcapacitor.*
 import com.getcapacitor.annotation.CapacitorPlugin
 import com.google.android.gms.cast.CastDevice
 import com.google.android.gms.common.ConnectionResult

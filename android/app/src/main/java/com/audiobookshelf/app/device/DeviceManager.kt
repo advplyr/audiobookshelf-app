@@ -7,13 +7,7 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.util.Log
 import com.audiobookshelf.app.MediaPlayerWidget
-import com.audiobookshelf.app.data.AndroidAutoBrowseSeriesSequenceOrderSetting
-import com.audiobookshelf.app.data.DeviceData
-import com.audiobookshelf.app.data.DownloadUsingCellularSetting
-import com.audiobookshelf.app.data.PlaybackSession
-import com.audiobookshelf.app.data.ServerConnectionConfig
-import com.audiobookshelf.app.data.ShakeSensitivitySetting
-import com.audiobookshelf.app.data.StreamingUsingCellularSetting
+import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.managers.DbManager
 import com.audiobookshelf.app.player.WidgetPlaybackSnapshot
 import com.audiobookshelf.app.player.toWidgetSnapshot

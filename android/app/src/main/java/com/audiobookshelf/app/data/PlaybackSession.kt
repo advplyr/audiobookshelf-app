@@ -12,9 +12,7 @@ import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.R
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.media.MediaProgressSyncData
-import com.audiobookshelf.app.player.PLAYMETHOD_DIRECTPLAY
-import com.audiobookshelf.app.player.PLAYMETHOD_LOCAL
-import com.audiobookshelf.app.player.PLAYMETHOD_TRANSCODE
+import com.audiobookshelf.app.player.*
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.google.android.gms.cast.MediaInfo

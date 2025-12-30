@@ -14,15 +14,8 @@ import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.CastConstants
 import com.getcapacitor.PluginCall
 import com.google.android.exoplayer2.ext.cast.SessionAvailabilityListener
-import com.google.android.gms.cast.Cast
-import com.google.android.gms.cast.CastDevice
-import com.google.android.gms.cast.CastMediaControlIntent
-import com.google.android.gms.cast.framework.CastContext
-import com.google.android.gms.cast.framework.CastSession
-import com.google.android.gms.cast.framework.CastState
-import com.google.android.gms.cast.framework.CastStateListener
-import com.google.android.gms.cast.framework.SessionManager
-import com.google.android.gms.cast.framework.SessionManagerListener
+import com.google.android.gms.cast.*
+import com.google.android.gms.cast.framework.*
 import org.json.JSONObject
 
 class CastManager(val mainActivity:Activity) {
