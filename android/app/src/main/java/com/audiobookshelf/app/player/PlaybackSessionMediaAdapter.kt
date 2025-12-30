@@ -3,13 +3,14 @@ package com.audiobookshelf.app.player
 import android.content.Context
 import android.net.Uri
 import androidx.core.net.toUri
-import androidx.media3.common.MediaItem
+import androidx.media3.common.*
 import androidx.media3.common.MediaMetadata
-import com.audiobookshelf.app.data.AudioTrack
-import com.audiobookshelf.app.data.PlaybackSession
+import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
-import com.google.android.gms.cast.MediaInfo
-import com.google.android.gms.cast.MediaQueueItem
+import com.google.android.gms.cast.*
+
+/** HLS MIME type used by DefaultMediaSourceFactory to create HlsMediaSource */
+private const val MIME_TYPE_HLS = "application/x-mpegURL"
 
 /**
  * Adapter functions that produce PlayerMediaItem DTOs from a PlaybackSession.
@@ -34,7 +35,9 @@ fun PlaybackSession.toPlayerMediaItems(
     } else {
       this.getQueueItem(audioTrack) // Queue item used in exo player CastManager
     }
-    val mimeType = audioTrack.mimeType
+    // Use HLS MIME type for transcoded sessions so DefaultMediaSourceFactory
+    // creates an HlsMediaSource instead of a ProgressiveMediaSource
+    val mimeType = if (this.isHLS) MIME_TYPE_HLS else audioTrack.mimeType
     val displayTitle = this.displayTitle ?: audioTrack.title
 
     val safeUri = mediaUri ?: continue
