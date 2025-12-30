@@ -7,30 +7,62 @@ export const state = () => ({
   lastSearch: null,
   jumpForwardItems: [
     {
-      icon: 'forward_5',
+      icon: 'forward_media',
       value: 5
     },
     {
-      icon: 'forward_10',
+      icon: 'forward_media',
       value: 10
     },
     {
-      icon: 'forward_30',
+      icon: 'forward_media',
+      value: 15
+    },
+    {
+      icon: 'forward_media',
       value: 30
+    },
+    {
+      icon: 'forward_media',
+      value: 60
+    },
+    {
+      icon: 'forward_media',
+      value: 120
+    },
+    {
+      icon: 'forward_media',
+      value: 300
     }
   ],
   jumpBackwardsItems: [
     {
-      icon: 'replay_5',
+      icon: 'replay',
       value: 5
     },
     {
-      icon: 'replay_10',
+      icon: 'replay',
       value: 10
     },
     {
-      icon: 'replay_30',
+      icon: 'replay',
+      value: 15
+    },
+    {
+      icon: 'replay',
       value: 30
+    },
+    {
+      icon: 'replay',
+      value: 60
+    },
+    {
+      icon: 'replay',
+      value: 120
+    },
+    {
+      icon: 'replay',
+      value: 300
     }
   ],
   libraryIcons: ['database', 'audiobookshelf', 'books-1', 'books-2', 'book-1', 'microphone-1', 'microphone-3', 'radio', 'podcast', 'rss', 'headphones', 'music', 'file-picture', 'rocket', 'power', 'star', 'heart'],
@@ -119,6 +151,12 @@ export const getters = {
   getJumpBackwardsIcon: (state) => (jumpBackwardsTime) => {
     const item = state.jumpBackwardsItems.find((i) => i.value == jumpBackwardsTime)
     return item ? item.icon : 'replay_10'
+  },
+  getJumpForwardItem: (state) => (jumpForwardTime) => {
+    return state.jumpForwardItems.find((i) => i.value == jumpForwardTime) || state.jumpForwardItems[1]
+  },
+  getJumpBackwardsItem: (state) => (jumpBackwardsTime) => {
+    return state.jumpBackwardsItems.find((i) => i.value == jumpBackwardsTime) || state.jumpBackwardsItems[1]
   }
 }
 
