@@ -12,13 +12,19 @@
         <p class="text-sm text-fg-muted w-12">{{ $formatDate(evt.timestamp, 'HH:mm') }}</p>
         <span class="material-symbols fill px-2" :class="`text-${getEventColor(evt.name)}`">{{ getEventIcon(evt.name) }}</span>
         <p class="text-sm text-fg px-1">{{ evt.name }}</p>
-
         <span v-if="evt.serverSyncAttempted && evt.serverSyncSuccess" class="material-symbols px-1 text-base text-success">cloud_done</span>
         <span v-if="evt.serverSyncAttempted && !evt.serverSyncSuccess" class="material-symbols px-1 text-base text-error">error_outline</span>
 
         <p v-if="evt.num" class="text-sm text-fg-muted italic px-1">+{{ evt.num }}</p>
 
         <div class="flex-grow" />
+        <p
+          v-if="chapterTitle(evt)"
+          class="text-xs text-fg-muted px-2 truncate max-w-xs text-right"
+          :title="chapterTitle(evt)"
+        >
+          {{ chapterTitle(evt) }}
+        </p>
         <p class="text-base text-fg" @click="clickPlaybackTime(evt.currentTime)">{{ $secondsToTimestampFull(evt.currentTime) }}</p>
       </div>
     </div>
@@ -146,6 +152,19 @@ export default {
         // Only on server
         this.$eventBus.$emit('play-item', { libraryItemId: this.mediaItemLibraryItemId, episodeId: this.mediaItemEpisodeId, startTime })
       }
+    },
+    chapterTitle(evt) {
+      if (!evt || evt.currentTime == null) return null
+      const chapters = (this.mediaItemHistory && this.mediaItemHistory.chaptersSnapshot) || []
+      if (!chapters.length) return null
+      const time = Number(evt.currentTime)
+
+      // Find chapter where start <= time < end; if no end match, use last with start <= time
+      const chapter =
+        chapters.find((ch) => Number(ch.start) <= time && (ch.end == null || time < Number(ch.end))) ||
+        [...chapters].reverse().find((ch) => Number(ch.start) <= time)
+
+      return chapter && chapter.title ? chapter.title : null
     },
     getEventIcon(name) {
       switch (name) {
