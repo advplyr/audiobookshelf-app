@@ -8,13 +8,18 @@ import android.provider.MediaStore
 import android.support.v4.media.MediaMetadataCompat
 import androidx.core.content.FileProvider
 import androidx.core.net.toFile
-import com.audiobookshelf.app.*
+import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.R
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.media.MediaProgressSyncData
-import com.audiobookshelf.app.player.*
-import com.fasterxml.jackson.annotation.*
-import com.google.android.gms.cast.*
+import com.audiobookshelf.app.player.PLAYMETHOD_DIRECTPLAY
+import com.audiobookshelf.app.player.PLAYMETHOD_LOCAL
+import com.audiobookshelf.app.player.PLAYMETHOD_TRANSCODE
+import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.google.android.gms.cast.MediaInfo
+import com.google.android.gms.cast.MediaMetadata
+import com.google.android.gms.cast.MediaQueueItem
 import com.google.android.gms.common.images.WebImage
 
 @JsonIgnoreProperties(ignoreUnknown = true)

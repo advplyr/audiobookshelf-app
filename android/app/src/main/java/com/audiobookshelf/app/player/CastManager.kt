@@ -1,16 +1,28 @@
 package com.audiobookshelf.app.player
 
-import android.app.*
-import android.os.*
+import android.app.Activity
+import android.app.AlertDialog
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import androidx.appcompat.R
 import androidx.mediarouter.app.MediaRouteChooserDialog
-import androidx.mediarouter.media.*
-import com.audiobookshelf.app.*
+import androidx.mediarouter.media.MediaRouteSelector
+import androidx.mediarouter.media.MediaRouter
+import com.audiobookshelf.app.BuildConfig
+import com.audiobookshelf.app.CastConstants
 import com.getcapacitor.PluginCall
 import com.google.android.exoplayer2.ext.cast.SessionAvailabilityListener
-import com.google.android.gms.cast.*
-import com.google.android.gms.cast.framework.*
+import com.google.android.gms.cast.Cast
+import com.google.android.gms.cast.CastDevice
+import com.google.android.gms.cast.CastMediaControlIntent
+import com.google.android.gms.cast.framework.CastContext
+import com.google.android.gms.cast.framework.CastSession
+import com.google.android.gms.cast.framework.CastState
+import com.google.android.gms.cast.framework.CastStateListener
+import com.google.android.gms.cast.framework.SessionManager
+import com.google.android.gms.cast.framework.SessionManagerListener
 import org.json.JSONObject
 
 class CastManager(val mainActivity:Activity) {

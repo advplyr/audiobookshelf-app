@@ -1,13 +1,17 @@
 package com.audiobookshelf.app.media
 
-import android.os.*
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
-import com.audiobookshelf.app.data.*
+import com.audiobookshelf.app.data.LocalMediaProgress
+import com.audiobookshelf.app.data.MediaProgress
+import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.player.core.PlaybackTelemetryHost
 import com.audiobookshelf.app.plugins.AbsLogger
 import com.audiobookshelf.app.server.ApiHandler
-import java.util.*
+import java.util.Timer
+import java.util.TimerTask
 import kotlin.concurrent.schedule
 
 data class MediaProgressSyncData(
