@@ -39,6 +39,18 @@
           </div>
           <h2 class="text-lg leading-7 mb-2">{{ $strings.LabelServerAddress }}</h2>
           <ui-text-input v-model="serverConfig.address" :disabled="processing || !networkConnected || !!serverConfig.id" placeholder="http://55.55.55.55:13378" type="url" class="w-full h-10" />
+
+          <!-- Custom headers for CloudFlare Access, etc. -->
+          <div class="flex items-center mt-4">
+            <button type="button" class="text-fg-muted text-sm flex items-center" @click="addCustomHeaders">
+              <span class="material-symbols text-lg mr-1">tune</span>
+              Custom Headers
+              <span v-if="serverConfig.customHeaders && Object.keys(serverConfig.customHeaders).length" class="ml-2 text-xs bg-fg/10 px-1.5 py-0.5 rounded">
+                {{ Object.keys(serverConfig.customHeaders).length }}
+              </span>
+            </button>
+          </div>
+
           <div class="flex justify-end items-center mt-6">
             <ui-btn :disabled="processing || !networkConnected" type="submit" :padding-x="3" class="h-10">{{ networkConnected ? $strings.ButtonSubmit : $strings.MessageNoNetworkConnection }}</ui-btn>
           </div>
@@ -454,7 +466,7 @@ export default {
         ...config
       }
       this.showForm = true
-      var success = await this.pingServerAddress(config.address)
+      var success = await this.pingServerAddress(config.address, config.customHeaders)
       this.processing = false
       console.log(`[ServerConnectForm] pingServer result ${success}`)
       if (!success) {
@@ -615,7 +627,7 @@ export default {
      *    HttpResponse.data is {isInit:boolean, language:string, authMethods:string[]}>
      */
     async getServerAddressStatus(address) {
-      return this.getRequest(`${address}/status`)
+      return this.getRequest(`${address}/status`, this.serverConfig.customHeaders)
     },
     pingServerAddress(address, customHeaders) {
       return this.getRequest(`${address}/ping`, customHeaders)
