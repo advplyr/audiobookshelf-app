@@ -89,6 +89,9 @@ object DeviceManager {
       deviceData.deviceSettings?.androidAutoBrowseSeriesSequenceOrder =
               AndroidAutoBrowseSeriesSequenceOrderSetting.ASC
     }
+    if (deviceData.deviceSettings?.dateFormat == null) {
+      deviceData.deviceSettings?.dateFormat = "MM/dd/yyyy"
+    }
   }
 
   /**
