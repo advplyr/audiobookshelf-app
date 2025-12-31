@@ -11,6 +11,11 @@ import com.google.android.gms.cast.framework.CastContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
+/**
+ * Manages Google Cast integration for Media3 playback.
+ * Monitors cast session availability and switches between local and cast players.
+ * Pauses local playback before cast starts to prevent audio overlap.
+ */
 @UnstableApi
 class Media3CastCoordinator(
   private val context: Context,

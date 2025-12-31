@@ -7,17 +7,21 @@ import kotlinx.coroutines.CoroutineScope
 
 const val SLEEP_TIMER_WAKE_UP_EXPIRATION = 2 * 60 * 1000L // 2 minutes
 
+/**
+ * Bridges sleep timer to player implementations. Provides playback state,
+ * control methods, and UI notification callbacks.
+ */
 interface SleepTimerHostAdapter {
   val context: Context
-  fun currentTimeMs(): Long
-  fun durationMs(): Long
+    fun currentTimeMs(): Long // Playback position (ms)
+    fun durationMs(): Long // Total media duration (ms)
   fun isPlaying(): Boolean
   fun playbackSpeed(): Float
-  fun setVolume(volume: Float)
+    fun setVolume(volume: Float) // 0.0-1.0 for fade-out
   fun pause()
   fun play()
   fun seekBackward(amountMs: Long)
-  fun endTimeOfChapterOrTrack(): Long?
+    fun endTimeOfChapterOrTrack(): Long? // Absolute position (ms) where current chapter/track ends
   fun endTimeOfNextChapterOrTrack(): Long?
   fun notifySleepTimerSet(secondsRemaining: Int, isAuto: Boolean)
   fun notifySleepTimerEnded(currentPosition: Long)

@@ -312,7 +312,7 @@ class UnifiedMediaProgressSyncer(
       onComplete(null)
       return
     }
-    Log.d(tag, "sync: Starting sync for $currentDisplayTitle at ${currentTime}s")
+      Log.v(tag, "sync: Starting sync for $currentDisplayTitle at ${currentTime}s")
     val timeSinceLastSyncMillis = System.currentTimeMillis() - lastSyncTime
 
     val lastSyncedPlaybackTime = currentPlaybackSession?.currentTime ?: 0.0
@@ -438,7 +438,7 @@ class UnifiedMediaProgressSyncer(
         onComplete(SyncResult(true, syncSuccess, errorMsg))
       }
     } else {
-      Log.d(
+        Log.v(
         tag,
         "sync: skip server; hasNetwork=$hasNetworkConnection shouldSyncServer=$shouldSyncServer currentTime=$currentTime"
       )

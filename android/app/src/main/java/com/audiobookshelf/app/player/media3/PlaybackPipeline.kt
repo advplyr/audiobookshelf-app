@@ -18,6 +18,14 @@ import com.audiobookshelf.app.player.PlaybackConstants
 import com.audiobookshelf.app.player.wrapper.AbsPlayerWrapper
 import kotlinx.coroutines.CoroutineScope
 
+/**
+ * Manages Media3 local and cast players and coordinates switching between them.
+ * Creates ExoPlayer with audiobook-optimized buffer and retry settings.
+ *
+ * @param onSwitchToCast Called on main thread when switching to cast (receives cast player wrapper)
+ * @param onSwitchToLocal Called on main thread when switching to local
+ * @param pauseLocalForCasting Pauses local before cast starts to prevent overlap
+ */
 @UnstableApi
 class PlaybackPipeline(
   private val context: Context,

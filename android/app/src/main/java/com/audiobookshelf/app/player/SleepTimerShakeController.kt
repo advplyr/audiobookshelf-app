@@ -9,9 +9,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * Lightweight helper that encapsulates shake sensor registration used by the sleep timer.
- * Handles delayed unregistration using modern coroutines for lifecycle-aware and
- * efficient background tasks.
+ * Encapsulates shake sensor registration used by the sleep timer.
+ * Handles delayed unregistration using coroutines for lifecycle-aware background tasks.
  *
  * @param context The application context to access system services.
  * @param unregisterDelayMs The delay in milliseconds before the sensor is automatically unregistered.

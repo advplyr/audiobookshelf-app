@@ -10,6 +10,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
+/**
+ * Manages playback session lifecycle for Media3PlaybackService.
+ * Coordinates session assignment, metrics tracking, and deferred close operations.
+ * Threading: All public methods must be called on main thread or within serviceScope.
+ */
 class Media3SessionManager(
   private val serviceScope: CoroutineScope,
   private val mediaManager: MediaManager,

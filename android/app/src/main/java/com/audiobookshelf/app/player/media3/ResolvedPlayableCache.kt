@@ -5,7 +5,7 @@ import kotlinx.coroutines.sync.withLock
 
 /**
  * LRU cache for Media3BrowseTree.ResolvedPlayable items with TTL and size limits.
- * Thread-safe using Mutex for concurrent access, automatically cleans expired entries.
+ * Thread-safe using Mutex for concurrent access, cleans expired entries on access.
  */
 class ResolvedPlayableCache(
   private val timeToLiveMillis: Long,

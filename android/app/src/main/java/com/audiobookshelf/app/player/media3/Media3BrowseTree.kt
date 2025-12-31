@@ -29,7 +29,9 @@ import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
 
 /**
- * Handles the creation of a browsable media tree for Media3 clients like Android Auto.
+ * Manages the browsable media tree for Android Auto and other Media3 clients.
+ * Builds hierarchical browse structure from root → libraries → categories → items.
+ * Uses pull-based architecture: queries MediaManager on demand rather than pre-loading.
  */
 @OptIn(UnstableApi::class)
 class Media3BrowseTree(

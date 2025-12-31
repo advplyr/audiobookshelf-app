@@ -40,6 +40,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 class PlaybackController(private val context: Context) {
   private val PLAYER_CAST = "cast-player"
 
+    /** Callbacks for playback state changes. All callbacks invoked on main thread. */
   interface Listener {
     fun onPlaybackSession(session: PlaybackSession)
     fun onPlayingUpdate(isPlaying: Boolean)
