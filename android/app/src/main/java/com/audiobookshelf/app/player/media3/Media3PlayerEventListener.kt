@@ -34,6 +34,7 @@ interface ListenerApi {
   fun onPlaybackResumed(pauseDurationMs: Long)
   fun debug(message: () -> String)
   fun currentMediaPlayerId(): String
+    fun onCastDeviceChanged(isCast: Boolean)
 }
 
 /**
@@ -185,4 +186,11 @@ class Media3PlayerEventListener(
       }
     }
   }
+
+    override fun onDeviceInfoChanged(deviceInfo: androidx.media3.common.DeviceInfo) {
+        val isCast =
+            deviceInfo.playbackType == androidx.media3.common.DeviceInfo.PLAYBACK_TYPE_REMOTE
+        listener.debug { "Device changed: playbackType=${deviceInfo.playbackType}, isCast=$isCast" }
+        listener.onCastDeviceChanged(isCast)
+    }
 }

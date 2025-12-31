@@ -1,6 +1,8 @@
 package com.audiobookshelf.app.player.media3
 
 import android.content.Context
+import android.util.Log
+import androidx.media3.cast.CastPlayer
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
@@ -16,29 +18,21 @@ import androidx.media3.extractor.mp3.Mp3Extractor
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.player.PlaybackConstants
 import com.audiobookshelf.app.player.wrapper.AbsPlayerWrapper
-import kotlinx.coroutines.CoroutineScope
 
 /**
- * Manages Media3 local and cast players and coordinates switching between them.
- * Creates ExoPlayer with audiobook-optimized buffer and retry settings.
+ * Creates a unified player with automatic cast support via [CastPlayer.Builder].
  *
- * @param onSwitchToCast Called on main thread when switching to cast (receives cast player wrapper)
- * @param onSwitchToLocal Called on main thread when switching to local
- * @param pauseLocalForCasting Pauses local before cast starts to prevent overlap
+ * Wraps ExoPlayer to enable seamless local/remote switching without manual state management.
+ * Configures audiobook-optimized buffering, retry policy, and authentication.
  */
 @UnstableApi
 class PlaybackPipeline(
   private val context: Context,
-  private val scope: CoroutineScope,
-  private val speechAudioAttributes: AudioAttributes,
-  private val onSwitchToCast: (AbsPlayerWrapper) -> Unit,
-  private val onSwitchToLocal: () -> Unit,
-  private val pauseLocalForCasting: () -> Unit,
   private val log: (msg: () -> String) -> Unit = { }
 ) {
-  var castCoordinator: Media3CastCoordinator? = null
-    private set
-  var localPlayer: AbsPlayerWrapper? = null
+    private val tag = "PlaybackPipeline"
+
+    var player: AbsPlayerWrapper? = null
     private set
   var playerListener: androidx.media3.common.Player.Listener? = null
     private set
@@ -55,20 +49,12 @@ class PlaybackPipeline(
     private const val RETRY_BASE_DELAY_MS = 1_000L
   }
 
-  fun initializeCast(): Media3CastCoordinator? {
-    castCoordinator = Media3CastCoordinator(
-      context = context,
-      scope = scope,
-      speechAudioAttributes = speechAudioAttributes,
-      onSwitchToCast = onSwitchToCast,
-      onSwitchToLocal = onSwitchToLocal,
-      pauseLocalForCasting = pauseLocalForCasting,
-      debug = log
-    ).also { it.initialize() }
-    return castCoordinator
-  }
-
-  fun initializeLocalPlayer(
+    /**
+     * Initializes player with [CastPlayer] wrapping [ExoPlayer] for automatic cast switching.
+     *
+     * CastPlayer handles local/remote transitions internally, eliminating manual state transfers.
+     */
+    fun initializePlayer(
     enableMp3IndexSeeking: Boolean,
     speechAttributes: AudioAttributes,
     seekBackIncrementMs: Long,
@@ -107,7 +93,7 @@ class PlaybackPipeline(
       )
       .build()
 
-    val coreExoPlayer = ExoPlayer.Builder(context)
+        val exoPlayer = ExoPlayer.Builder(context)
       .setMediaSourceFactory(mediaSourceFactory)
       .setLoadControl(customLoadControl)
       .setAudioAttributes(speechAttributes, true)
@@ -117,13 +103,22 @@ class PlaybackPipeline(
       .setDeviceVolumeControlEnabled(true)
       .build()
 
+        val playerWithCast = try {
+            CastPlayer.Builder(context)
+                .setLocalPlayer(exoPlayer)
+                .build()
+        } catch (e: Exception) {
+            Log.w(tag, "Failed to create CastPlayer, using local-only ExoPlayer", e)
+            exoPlayer
+        }
+
     val listener = buildListener()
     playerListener = listener
 
-    val player = AbsPlayerWrapper(coreExoPlayer, context).apply { addListener(listener) }
-    localPlayer = player
-    onPlayerReady(player)
-    log { "Local player initialized via pipeline." }
-    return player
+        val wrapper = AbsPlayerWrapper(playerWithCast, context).apply { addListener(listener) }
+        player = wrapper
+        onPlayerReady(wrapper)
+        log { "Player initialized with cast support via CastPlayer.Builder." }
+        return wrapper
   }
 }
