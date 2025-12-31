@@ -626,7 +626,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
       Log.d(tag, "Loading cast player $currentTrackIndex $currentTrackTime $mediaType")
 
       castPlayer?.load(
-        mediaItems,
+        exoMediaItems,
         currentTrackIndex,
         currentTrackTime,
         playWhenReady,
