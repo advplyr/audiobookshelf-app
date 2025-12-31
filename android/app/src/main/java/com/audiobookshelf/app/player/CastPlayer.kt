@@ -33,8 +33,6 @@ import com.google.android.gms.common.api.ResultCallback
 import org.json.JSONObject
 
 
-import com.audiobookshelf.app.player.PlayerMediaItem
-
 class CastPlayer(var castContext: CastContext) : BasePlayer() {
   val tag = "CastPlayer"
 
@@ -118,7 +116,7 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
     setRemoteMediaClient(session?.remoteMediaClient)
   }
 
-  fun load(mediaItems:List<PlayerMediaItem>, startIndex:Int, startTime:Long, playWhenReady:Boolean, playbackRate:Float, mediaType:String) {
+  fun load(mediaItems:List<MediaItem>, startIndex:Int, startTime:Long, playWhenReady:Boolean, playbackRate:Float, mediaType:String) {
     Log.d(tag, "Load called")
 
     if (remoteMediaClient == null) {
@@ -126,17 +124,9 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
       return
     }
 
-    // Convert DTOs to Exo MediaItem internally so callers don't need Exo types.
-    val exoItems: List<MediaItem> = mediaItems.map { dto ->
-      val builder = MediaItem.Builder().setUri(dto.uri)
-      dto.tag?.let { builder.setTag(it) }
-      dto.mimeType?.let { builder.setMimeType(it) }
-      builder.build()
-    }
+    currentMediaItems = mediaItems
 
-    currentMediaItems = exoItems
-
-    var mediaQueueItems = exoItems.map { toMediaQueueItem(it) }
+    var mediaQueueItems = mediaItems.map { toMediaQueueItem(it) }
 
     var queueData = MediaQueueData.Builder().apply {
       setItems(mediaQueueItems)
