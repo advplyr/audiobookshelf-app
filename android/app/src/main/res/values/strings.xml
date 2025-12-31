@@ -11,5 +11,4 @@
     <string name="action_skip_forward">Skip Forward</string>
     <string name="action_skip_backward">Skip Backward</string>
     <string name="action_change_speed">Change Playback Speed</string>
-  <string name="notification_preparing_playback">Preparing playback</string>
 </resources>
