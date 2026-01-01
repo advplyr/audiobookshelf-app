@@ -113,6 +113,7 @@
   "LabelAutoSleepTimerAutoRewindHelp": "Lorsque le minuteur nocturne se termine, relire l'élément fera un saut en arrière.",
   "LabelAutoSleepTimerHelp": "Lorsqu'un éléments est lu entre l'heure de début et de fin, un minuteur nocturne se lance automatiquement.",
   "LabelBooks": "Livres",
+  "LabelByAuthor": "de {0}",
   "LabelChapterTrack": "Piste des chapitres",
   "LabelChapters": "Chapitres",
   "LabelClosePlayer": "Fermer le lecteur",
