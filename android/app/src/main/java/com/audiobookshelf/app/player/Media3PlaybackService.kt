@@ -711,22 +711,31 @@ class Media3PlaybackService : MediaLibraryService() {
 
     transcodeFallbackAttemptedSessionId = session.id
     serviceScope.launch {
-      val fallbackSession = requestPlaybackSession(
-        libraryItemId = session.libraryItemId ?: return@launch,
-        episodeId = session.episodeId,
-        forceTranscode = true
-      )
-      if (fallbackSession == null) {
-        Log.w(TAG, "handlePlaybackError: transcode fallback failed for session=${session.id}")
-        return@launch
-      }
+        try {
+            val fallbackSession = requestPlaybackSession(
+                libraryItemId = session.libraryItemId ?: return@launch,
+                episodeId = session.episodeId,
+                forceTranscode = true
+            )
+            if (fallbackSession == null) {
+                Log.w(
+                    TAG,
+                    "handlePlaybackError: transcode fallback failed for session=${session.id}"
+                )
+                MediaEventManager.clientEventEmitter?.onPlaybackFailed("Unable to play this item")
+                return@launch
+            }
         val currentSpeed = if (hasActivePlayer) player.playbackParameters.speed else null
-      prepareAndPlaySession(
-        fallbackSession,
-        playWhenReady = true,
-        playbackSpeed = currentSpeed,
-        syncOnSwitch = false
-      )
+            prepareAndPlaySession(
+                fallbackSession,
+                playWhenReady = true,
+                playbackSpeed = currentSpeed,
+                syncOnSwitch = false
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "handlePlaybackError: Exception during transcode fallback", e)
+            MediaEventManager.clientEventEmitter?.onPlaybackFailed("Playback error: ${e.message}")
+        }
     }
   }
 
