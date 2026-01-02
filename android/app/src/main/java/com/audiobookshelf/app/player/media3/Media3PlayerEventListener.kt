@@ -73,7 +73,7 @@ class Media3PlayerEventListener(
     // Note: We query the player's current state rather than trusting the callback parameter
     // because Media3 may fire this callback during transitions where playWhenReady=true
     // but playbackState=BUFFERING, which we consider "effectively playing"
-        if (isEffectivelyPlaying==lastIsPlayingState) return
+        if (isEffectivelyPlaying == lastIsPlayingState) return
 
         val currentSession = serviceCallbacks.currentSession()
     if (currentSession != null) {
@@ -137,10 +137,10 @@ class Media3PlayerEventListener(
       serviceCallbacks.playbackMetrics.recordError()
 
       val isTransientDecoderError =
-          playbackError.errorCode==PlaybackException.ERROR_CODE_DECODING_RESOURCES_RECLAIMED
+          playbackError.errorCode == PlaybackException.ERROR_CODE_DECODING_RESOURCES_RECLAIMED
 
       val shouldAttemptTranscodeFallback = !isTransientDecoderError &&
-              serviceCallbacks.currentSession()?.let { it.isDirectPlay && !it.isLocal }==true
+              serviceCallbacks.currentSession()?.let { it.isDirectPlay && !it.isLocal } == true
 
       if (shouldAttemptTranscodeFallback) {
           serviceCallbacks.handlePlaybackError(playbackError)
@@ -199,7 +199,7 @@ class Media3PlayerEventListener(
 
     override fun onDeviceInfoChanged(deviceInfo: androidx.media3.common.DeviceInfo) {
         val isCast =
-            deviceInfo.playbackType==androidx.media3.common.DeviceInfo.PLAYBACK_TYPE_REMOTE
+            deviceInfo.playbackType == androidx.media3.common.DeviceInfo.PLAYBACK_TYPE_REMOTE
         serviceCallbacks.debug { "Device changed: playbackType=${deviceInfo.playbackType}, isCast=$isCast" }
         serviceCallbacks.onCastDeviceChanged(isCast)
     }
