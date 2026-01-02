@@ -97,9 +97,9 @@ class Media3PlaybackService : MediaLibraryService() {
   private var transcodeFallbackAttemptedSessionId: String? = null
 
   // Public Player Access (for other components)
-  val hasActivePlayerPublic: Boolean
+  val isPlayerActive: Boolean
     get() = hasActivePlayer
-    val playerPublic: Player
+    val currentPlayer: Player
         get() = player
 
   // Audio Configuration
@@ -142,87 +142,89 @@ class Media3PlaybackService : MediaLibraryService() {
     get() = DeviceManager.deviceData.deviceSettings ?: DeviceSettings.default()
 
   private val playerListener = Media3PlayerEventListener(
-    listener = object : ListenerApi {
-      override val tag: String = TAG
-      override val playbackMetrics: PlaybackMetricsRecorder =
-        this@Media3PlaybackService.playbackMetrics
+      serviceCallbacks = PlayerListenerBridge(),
+      playerEventPipeline = eventPipeline
+  )
 
-      override fun currentSession(): PlaybackSession? = currentPlaybackSession
+    private inner class PlayerListenerBridge : ListenerApi {
+        override val tag: String = TAG
+        override val playbackMetrics: PlaybackMetricsRecorder =
+            this@Media3PlaybackService.playbackMetrics
+
+        override fun currentSession(): PlaybackSession? = currentPlaybackSession
         override fun activePlayer(): Player = this@Media3PlaybackService.player
-      override fun isPlayerInitialized(): Boolean = playerInitialized
-      override fun lastKnownIsPlaying(): Boolean = isEffectivelyPlaying()
+        override fun isPlayerInitialized(): Boolean = playerInitialized
+        override fun lastKnownIsPlaying(): Boolean = isEffectivelyPlaying()
 
-      override fun updateCurrentPosition(sessionToUpdate: PlaybackSession?) {
-          this@Media3PlaybackService.updateCurrentPosition(sessionToUpdate ?: return)
-      }
-
-      override fun maybeSyncProgress(
-        changeReason: String,
-        forceSync: Boolean,
-        sessionToUpdate: PlaybackSession?,
-        onSyncComplete: ((SyncResult?) -> Unit)?
-      ) {
-        this@Media3PlaybackService.maybeSyncProgress(
-          changeReason,
-          forceSync,
-          sessionToUpdate,
-          onSyncComplete
-        )
-      }
-
-      override fun progressSyncPlay(currentSession: PlaybackSession) {
-        if (this@Media3PlaybackService::unifiedProgressSyncer.isInitialized) {
-          unifiedProgressSyncer.play(currentSession)
+        override fun updateCurrentPosition(sessionToUpdate: PlaybackSession?) {
+            this@Media3PlaybackService.updateCurrentPosition(sessionToUpdate ?: return)
         }
-      }
 
-      override fun onPlayStarted(currentSessionId: String) {
-        ensureSleepTimerStarted()
-        sleepTimerCoordinator.handlePlayStarted(currentSessionId)
-      }
+        override fun maybeSyncProgress(
+            changeReason: String,
+            forceSync: Boolean,
+            sessionToUpdate: PlaybackSession?,
+            onSyncComplete: ((SyncResult?) -> Unit)?
+        ) {
+            this@Media3PlaybackService.maybeSyncProgress(
+                changeReason,
+                forceSync,
+                sessionToUpdate,
+                onSyncComplete
+            )
+        }
 
-      override fun notifyWidgetState() {
-        this@Media3PlaybackService.notifyWidgetState()
-      }
+        override fun progressSyncPlay(currentSession: PlaybackSession) {
+            if (this@Media3PlaybackService::unifiedProgressSyncer.isInitialized) {
+                unifiedProgressSyncer.play(currentSession)
+            }
+        }
 
-      override fun updatePlaybackSpeedButton(speed: Float) {
-        this@Media3PlaybackService.updatePlaybackSpeedButton(speed)
-      }
+        override fun onPlayStarted(currentSessionId: String) {
+            ensureSleepTimerStarted()
+            sleepTimerCoordinator.handlePlayStarted(currentSessionId)
+        }
 
-      override fun debug(message: () -> String) {
-        this@Media3PlaybackService.debugLog(message)
-      }
+        override fun notifyWidgetState() {
+            this@Media3PlaybackService.notifyWidgetState()
+        }
 
-      override fun currentMediaPlayerId(): String {
-        return this@Media3PlaybackService.currentMediaPlayerId()
-      }
+        override fun updatePlaybackSpeedButton(speed: Float) {
+            this@Media3PlaybackService.updatePlaybackSpeedButton(speed)
+        }
 
-      override fun getPlaybackSessionAssignTimestampMs(): Long {
-        return media3SessionManager.sessionAssignTimestampMs
-      }
+        override fun debug(message: () -> String) {
+            this@Media3PlaybackService.debugLog(message)
+        }
 
-      override fun resetPlaybackSessionAssignTimestamp() {
-        media3SessionManager.resetSessionAssignTimestamp()
-      }
+        override fun currentMediaPlayerId(): String {
+            return this@Media3PlaybackService.currentMediaPlayerId()
+        }
 
-      override fun handlePlaybackError(playbackError: PlaybackException) {
-        this@Media3PlaybackService.handlePlaybackError(playbackError)
-      }
+        override fun getPlaybackSessionAssignTimestampMs(): Long {
+            return media3SessionManager.sessionAssignTimestampMs
+        }
 
-      override fun onPlaybackEnded(session: PlaybackSession) {
-        this@Media3PlaybackService.handlePlaybackEnded(session)
-      }
+        override fun resetPlaybackSessionAssignTimestamp() {
+            media3SessionManager.resetSessionAssignTimestamp()
+        }
 
-      override fun onPlaybackResumed(pauseDurationMs: Long) {
-        this@Media3PlaybackService.handlePlaybackResumed(pauseDurationMs)
-      }
+        override fun handlePlaybackError(playbackError: PlaybackException) {
+            this@Media3PlaybackService.handlePlaybackError(playbackError)
+        }
+
+        override fun onPlaybackEnded(session: PlaybackSession) {
+            this@Media3PlaybackService.handlePlaybackEnded(session)
+        }
+
+        override fun onPlaybackResumed(pauseDurationMs: Long) {
+            this@Media3PlaybackService.handlePlaybackResumed(pauseDurationMs)
+        }
 
         override fun onCastDeviceChanged(isCast: Boolean) {
             this@Media3PlaybackService.handleCastDeviceChanged(isCast)
         }
-    },
-    playerEventPipeline = eventPipeline
-  )
+    }
 
 
   /* ========================================
@@ -603,10 +605,10 @@ class Media3PlaybackService : MediaLibraryService() {
   }
 
     private fun updateCurrentPosition(session: PlaybackSession) {
-        if (hasActivePlayerPublic) {
-            val currentPlayer = playerPublic
-            val trackIndex = resolveTrackIndexForPlayer(session, currentPlayer)
-            val positionInTrack = currentPlayer.currentPosition
+        if (isPlayerActive) {
+            val player = currentPlayer
+            val trackIndex = resolveTrackIndexForPlayer(session, player)
+            val positionInTrack = player.currentPosition
             val trackStartOffset = session.getTrackStartOffsetMs(trackIndex)
             val absolutePositionMs = trackStartOffset + positionInTrack
 
@@ -734,7 +736,7 @@ class Media3PlaybackService : MediaLibraryService() {
             )
         } catch (e: Exception) {
             Log.e(TAG, "handlePlaybackError: Exception during transcode fallback", e)
-            MediaEventManager.clientEventEmitter?.onPlaybackFailed("Playback error: ${e.message}")
+            MediaEventManager.clientEventEmitter?.onPlaybackFailed("Unable to play this item")
         }
     }
   }
@@ -862,7 +864,7 @@ class Media3PlaybackService : MediaLibraryService() {
     val positionInTrack = (session.currentTimeMs - trackStartOffsetMs).coerceAtLeast(0L)
 
       player.setMediaItems(mediaItems, trackIndex, positionInTrack)
-      (playbackSpeed ?: mediaManager.getSavedPlaybackRate()).let { player.setPlaybackSpeed(it) }
+      player.setPlaybackSpeed(playbackSpeed ?: mediaManager.getSavedPlaybackRate())
       player.prepare()
       player.playWhenReady = playWhenReady
     updateTrackNavigationButtons()
