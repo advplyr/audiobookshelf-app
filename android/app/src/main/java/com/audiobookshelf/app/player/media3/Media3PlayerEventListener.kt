@@ -42,12 +42,12 @@ interface ListenerApi {
  * Manages play/pause state and progress synchronization.
  */
 class Media3PlayerEventListener(
-  private val listener: ListenerApi,
+    private val serviceCallbacks: ListenerApi,
   private val playerEventPipeline: Media3EventPipeline
 ) : Player.Listener {
 
   private var lastPauseTimestampMs: Long = 0L
-  private var previousIsPlaying: Boolean = false
+    private var lastIsPlayingState: Boolean = false
 
   override fun onEvents(player: Player, events: Player.Events) {
     if (events.contains(Player.EVENT_IS_PLAYING_CHANGED) ||
@@ -60,84 +60,90 @@ class Media3PlayerEventListener(
         Player.STATE_ENDED -> "ENDED"
         else -> player.playbackState.toString()
       }
-      listener.debug {
+        serviceCallbacks.debug {
         "state=$stateLabel playWhenReady=${player.playWhenReady} isPlaying=${player.isPlaying} buffered=${player.bufferedPercentage}%"
       }
     }
   }
 
-  override fun onIsPlayingChanged(isNowPlaying: Boolean) {
-    val isEffectivelyPlaying = listener.lastKnownIsPlaying()
+    override fun onIsPlayingChanged(callbackIsPlaying: Boolean) {
+        val isEffectivelyPlaying = serviceCallbacks.lastKnownIsPlaying()
 
     // Early exit if state hasn't changed - prevents redundant widget/sync operations
     // Note: We query the player's current state rather than trusting the callback parameter
     // because Media3 may fire this callback during transitions where playWhenReady=true
     // but playbackState=BUFFERING, which we consider "effectively playing"
-    if (isEffectivelyPlaying == previousIsPlaying) return
+        if (isEffectivelyPlaying==lastIsPlayingState) return
 
-    val currentSession = listener.currentSession()
+        val currentSession = serviceCallbacks.currentSession()
     if (currentSession != null) {
       if (isEffectivelyPlaying) {
-        listener.onPlayStarted(currentSession.id)
-        val sessionAssignmentTimestampMs = listener.getPlaybackSessionAssignTimestampMs()
+          serviceCallbacks.onPlayStarted(currentSession.id)
+          val sessionAssignmentTimestampMs = serviceCallbacks.getPlaybackSessionAssignTimestampMs()
         if (sessionAssignmentTimestampMs > 0L) {
           val playbackLatencyMs = System.currentTimeMillis() - sessionAssignmentTimestampMs
-          listener.debug { "Ready latency after session assign: ${playbackLatencyMs}ms" }
-          listener.resetPlaybackSessionAssignTimestamp()
+            serviceCallbacks.debug { "Ready latency after session assign: ${playbackLatencyMs}ms" }
+            serviceCallbacks.resetPlaybackSessionAssignTimestamp()
         }
         playerEventPipeline.emitPlayEvent(currentSession)
-        listener.progressSyncPlay(currentSession)
-        if (listener.isPlayerInitialized()) {
-          listener.activePlayer().volume = 1f
+          serviceCallbacks.progressSyncPlay(currentSession)
+          if (serviceCallbacks.isPlayerInitialized()) {
+              serviceCallbacks.activePlayer().volume = 1f
         }
         val pauseDurationMs =
           if (lastPauseTimestampMs > 0) System.currentTimeMillis() - lastPauseTimestampMs else 0L
         lastPauseTimestampMs = 0L
-        listener.onPlaybackResumed(pauseDurationMs)
+          serviceCallbacks.onPlaybackResumed(pauseDurationMs)
       } else {
-        listener.debug { "Playback stopped. Syncing progress." }
-        listener.currentSession()?.let { currentSession ->
-          listener.updateCurrentPosition(currentSession)
-          listener.maybeSyncProgress("pause", true, currentSession, null)
+          serviceCallbacks.debug { "Playback stopped. Syncing progress." }
+          serviceCallbacks.currentSession()?.let { currentSession ->
+              serviceCallbacks.updateCurrentPosition(currentSession)
+              serviceCallbacks.maybeSyncProgress("pause", true, currentSession, null)
         }
         lastPauseTimestampMs = System.currentTimeMillis()
       }
     }
 
-    listener.notifyWidgetState()
+        serviceCallbacks.notifyWidgetState()
 
     // Notify web app about playing state change
-    listener.debug { "PlayerListener: Notifying web app - isPlaying=$isEffectivelyPlaying" }
+        serviceCallbacks.debug { "PlayerListener: Notifying web app - isPlaying=$isEffectivelyPlaying" }
     com.audiobookshelf.app.media.MediaEventManager.clientEventEmitter?.onPlayingUpdate(
       isEffectivelyPlaying
     )
 
-    previousIsPlaying = isEffectivelyPlaying
+        lastIsPlayingState = isEffectivelyPlaying
   }
 
   override fun onPlaybackStateChanged(state: Int) {
     when (state) {
-      Player.STATE_READY -> listener.playbackMetrics.recordFirstReadyIfUnset()
-      Player.STATE_BUFFERING -> listener.playbackMetrics.recordBuffer()
+        Player.STATE_READY -> serviceCallbacks.playbackMetrics.recordFirstReadyIfUnset()
+        Player.STATE_BUFFERING -> serviceCallbacks.playbackMetrics.recordBuffer()
       Player.STATE_ENDED -> {
-        listener.playbackMetrics.logSummary()
-        listener.currentSession()?.let { currentSession ->
-          listener.maybeSyncProgress("finished", true, currentSession) {
-            listener.onPlaybackEnded(currentSession)
+          serviceCallbacks.playbackMetrics.logSummary()
+          serviceCallbacks.currentSession()?.let { currentSession ->
+              serviceCallbacks.maybeSyncProgress("finished", true, currentSession) {
+                  serviceCallbacks.onPlaybackEnded(currentSession)
           }
         }
-        listener.notifyWidgetState()
+          serviceCallbacks.notifyWidgetState()
       }
       Player.STATE_IDLE -> Unit
     }
   }
 
   override fun onPlayerError(playbackError: PlaybackException) {
-    Log.e(listener.tag, "Player error: ${playbackError.message}", playbackError)
-    listener.playbackMetrics.recordError()
+      Log.e(serviceCallbacks.tag, "Player error: ${playbackError.message}", playbackError)
+      serviceCallbacks.playbackMetrics.recordError()
 
-    listener.currentSession()?.takeIf { it.isDirectPlay && !it.isLocal }?.let {
-      listener.handlePlaybackError(playbackError)
+      val isTransientDecoderError =
+          playbackError.errorCode==PlaybackException.ERROR_CODE_DECODING_RESOURCES_RECLAIMED
+
+      val shouldAttemptTranscodeFallback = !isTransientDecoderError &&
+              serviceCallbacks.currentSession()?.let { it.isDirectPlay && !it.isLocal }==true
+
+      if (shouldAttemptTranscodeFallback) {
+          serviceCallbacks.handlePlaybackError(playbackError)
       return
     }
 
@@ -153,17 +159,21 @@ class Media3PlayerEventListener(
     }
 
     if (isNetworkError) {
-      listener.playbackMetrics.recordRecoverableRetry()
-      listener.debug {
+        serviceCallbacks.playbackMetrics.recordRecoverableRetry()
+        serviceCallbacks.debug {
         "Network error - Media3 LoadErrorHandlingPolicy will retry automatically"
+        }
+    } else if (isTransientDecoderError) {
+        serviceCallbacks.debug {
+            "Transient decoder error - Android reclaimed resources, will recover on resume"
       }
     } else {
-      listener.debug { "Fatal error: ${playbackError.errorCodeName}" }
+        serviceCallbacks.debug { "Fatal error: ${playbackError.errorCodeName}" }
     }
   }
 
   override fun onPlaybackParametersChanged(parameters: PlaybackParameters) {
-    listener.updatePlaybackSpeedButton(parameters.speed)
+      serviceCallbacks.updatePlaybackSpeedButton(parameters.speed)
   }
 
   override fun onPositionDiscontinuity(
@@ -171,11 +181,11 @@ class Media3PlayerEventListener(
     newPosition: Player.PositionInfo,
     changeReason: Int
   ) {
-    listener.debug { "onPositionDiscontinuity: changeReason=$changeReason, oldPos=${oldPosition.positionMs}, newPos=${newPosition.positionMs}" }
+      serviceCallbacks.debug { "onPositionDiscontinuity: changeReason=$changeReason, oldPos=${oldPosition.positionMs}, newPos=${newPosition.positionMs}" }
     if (changeReason == Player.DISCONTINUITY_REASON_SEEK ||
       changeReason == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT
     ) {
-      listener.currentSession()?.let { currentSession ->
+        serviceCallbacks.currentSession()?.let { currentSession ->
         val newTrackIndex = newPosition.mediaItemIndex
         val newPositionInTrackMs = newPosition.positionMs
         val newTrackStartOffsetMs = currentSession.getTrackStartOffsetMs(newTrackIndex)
@@ -189,8 +199,8 @@ class Media3PlayerEventListener(
 
     override fun onDeviceInfoChanged(deviceInfo: androidx.media3.common.DeviceInfo) {
         val isCast =
-            deviceInfo.playbackType == androidx.media3.common.DeviceInfo.PLAYBACK_TYPE_REMOTE
-        listener.debug { "Device changed: playbackType=${deviceInfo.playbackType}, isCast=$isCast" }
-        listener.onCastDeviceChanged(isCast)
+            deviceInfo.playbackType==androidx.media3.common.DeviceInfo.PLAYBACK_TYPE_REMOTE
+        serviceCallbacks.debug { "Device changed: playbackType=${deviceInfo.playbackType}, isCast=$isCast" }
+        serviceCallbacks.onCastDeviceChanged(isCast)
     }
 }
