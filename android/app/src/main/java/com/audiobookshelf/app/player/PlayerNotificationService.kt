@@ -55,6 +55,7 @@ import com.google.android.exoplayer2.upstream.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 const val PLAYER_CAST = "cast-player"
@@ -1540,39 +1541,41 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
       if (!this::browseTree.isInitialized || forceReloadingAndroidAuto) {
         forceReloadingAndroidAuto = false
         AbsLogger.info(tag, "onLoadChildren: Loading Android Auto items")
-        mediaManager.loadAndroidAutoItems {
-          AbsLogger.info(tag, "onLoadChildren: Loaded Android Auto data, initializing browseTree")
+          serviceScope.launch {
+              mediaManager.loadAndroidAutoItems {
+                  AbsLogger.info(tag, "onLoadChildren: Loaded Android Auto data, initializing browseTree")
 
-          browseTree =
-                  BrowseTree(
-                          this,
+                  browseTree =
+                      BrowseTree(
+                          this@PlayerNotificationService,
                           mediaManager.serverItemsInProgress,
                           mediaManager.serverLibraries,
                           mediaManager.allLibraryPersonalizationsDone
-                  )
-          onBrowseTreeInitialized()
-          val children =
-                  browseTree[parentMediaId]?.map { item ->
-                    Log.d(tag, "Found top menu item: ${item.description.title}")
-                    MediaBrowserCompat.MediaItem(
-                            item.description,
-                            MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
-                    )
-                  }
+                      )
+                  onBrowseTreeInitialized()
+                  val children =
+                      browseTree[parentMediaId]?.map { item ->
+                          Log.d(tag, "Found top menu item: ${item.description.title}")
+                          MediaBrowserCompat.MediaItem(
+                              item.description,
+                              MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
+                          )
+                      }
 
-          result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
-          firstLoadDone = true
-          if (mediaManager.serverLibraries.isNotEmpty()) {
-            AbsLogger.info(tag, "onLoadChildren: Android Auto fetching personalized data for all libraries")
-            mediaManager.populatePersonalizedDataForAllLibraries {
-              AbsLogger.info(tag, "onLoadChildren: Android Auto loaded personalized data for all libraries")
-              notifyChildrenChanged("/")
-            }
+                  result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
+                  firstLoadDone = true
+                  if (mediaManager.serverLibraries.isNotEmpty()) {
+                      AbsLogger.info(tag, "onLoadChildren: Android Auto fetching personalized data for all libraries")
+                      mediaManager.populatePersonalizedDataForAllLibraries {
+                          AbsLogger.info(tag, "onLoadChildren: Android Auto loaded personalized data for all libraries")
+                          notifyChildrenChanged("/")
+                      }
 
-            AbsLogger.info(tag, "onLoadChildren: Android Auto fetching in progress items")
-            mediaManager.initializeInProgressItems {
-              AbsLogger.info(tag, "onLoadChildren: Android Auto loaded in progress items")
-              notifyChildrenChanged("/")
+                      AbsLogger.info(tag, "onLoadChildren: Android Auto fetching in progress items")
+                      mediaManager.initializeInProgressItems {
+                          AbsLogger.info(tag, "onLoadChildren: Android Auto loaded in progress items")
+                          notifyChildrenChanged("/")
+                      }
             }
           }
         }

@@ -9,8 +9,6 @@ import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.server.ApiHandler
 import com.getcapacitor.JSObject
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.json.JSONException
 import org.json.JSONObject
@@ -851,70 +849,67 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
     return mediaProgress
   }
 
-  private fun checkSetValidServerConnectionConfig(cb: (Boolean) -> Unit) = runBlocking {
+    private suspend fun checkSetValidServerConnectionConfig(): Boolean {
     Log.d(tag, "checkSetValidServerConnectionConfig | serverConfigIdUsed=$serverConfigIdUsed | lastServerConnectionConfigId=${DeviceManager.deviceData.lastServerConnectionConfigId}")
 
-    coroutineScope {
-      if (!DeviceManager.checkConnectivity(ctx)) {
-        serverUserMediaProgress = mutableListOf()
-        Log.d(tag, "checkSetValidServerConnectionConfig: No connectivity")
-        cb(false)
-      } else if (DeviceManager.deviceData.lastServerConnectionConfigId.isNullOrBlank()) { // If in offline mode last server connection config is unset
-        serverUserMediaProgress = mutableListOf()
-        Log.d(tag, "checkSetValidServerConnectionConfig: No last server connection config")
-        cb(false)
-      } else {
-        var hasValidConn = false
-        var lookupMediaProgress = true
-
-        if (!serverConfigIdUsed.isNullOrEmpty() && serverConfigLastPing > 0L && System.currentTimeMillis() - serverConfigLastPing < 5000) {
-            Log.d(tag, "checkSetValidServerConnectionConfig last ping less than a 5 seconds ago")
-          hasValidConn = true
-          lookupMediaProgress = false
+        if (!DeviceManager.checkConnectivity(ctx)) {
+            serverUserMediaProgress = mutableListOf()
+            Log.d(tag, "checkSetValidServerConnectionConfig: No connectivity")
+            return false
+        } else if (DeviceManager.deviceData.lastServerConnectionConfigId.isNullOrBlank()) { // If in offline mode last server connection config is unset
+            serverUserMediaProgress = mutableListOf()
+            Log.d(tag, "checkSetValidServerConnectionConfig: No last server connection config")
+            return false
         } else {
-          serverUserMediaProgress = mutableListOf()
-        }
+            var hasValidConn = false
+            var lookupMediaProgress = true
 
-        if (!hasValidConn) {
-          // First check if the current selected config is pingable
-          DeviceManager.serverConnectionConfig?.let {
-            hasValidConn = checkServerConnection(it)
-            Log.d(
-              tag,
-              "checkSetValidServerConnectionConfig: Current config ${DeviceManager.serverAddress} is pingable? $hasValidConn"
-            )
-          }
-        }
-
-        if (!hasValidConn) {
-          // Loop through available configs and check if can connect
-          for (config: ServerConnectionConfig in DeviceManager.deviceData.serverConnectionConfigs) {
-            val result = checkServerConnection(config)
-
-            if (result) {
-              hasValidConn = true
-              DeviceManager.serverConnectionConfig = config
-              Log.d(tag, "checkSetValidServerConnectionConfig: Set server connection config ${DeviceManager.serverConnectionConfigId}")
-              break
+            if (!serverConfigIdUsed.isNullOrEmpty() && serverConfigLastPing > 0L && System.currentTimeMillis() - serverConfigLastPing < 5000) {
+                Log.d(tag, "checkSetValidServerConnectionConfig last ping less than a 5 seconds ago")
+                hasValidConn = true
+                lookupMediaProgress = false
+            } else {
+                serverUserMediaProgress = mutableListOf()
             }
-          }
-        }
 
-        if (hasValidConn) {
-          serverConfigLastPing = System.currentTimeMillis()
-
-          if (lookupMediaProgress) {
-            Log.d(tag, "Has valid conn now get user media progress")
-            DeviceManager.serverConnectionConfig?.let {
-              serverUserMediaProgress = authorize(it)
+            if (!hasValidConn) {
+                // First check if the current selected config is pingable
+                DeviceManager.serverConnectionConfig?.let {
+                    hasValidConn = checkServerConnection(it)
+                    Log.d(
+                        tag,
+                        "checkSetValidServerConnectionConfig: Current config ${DeviceManager.serverAddress} is pingable? $hasValidConn"
+                    )
+                }
             }
-          }
+
+            if (!hasValidConn) {
+                // Loop through available configs and check if can connect
+                for (config: ServerConnectionConfig in DeviceManager.deviceData.serverConnectionConfigs) {
+                    val result = checkServerConnection(config)
+
+                    if (result) {
+                        hasValidConn = true
+                        DeviceManager.serverConnectionConfig = config
+                        Log.d(tag, "checkSetValidServerConnectionConfig: Set server connection config ${DeviceManager.serverConnectionConfigId}")
+                        break
+                    }
+                }
+            }
+
+            if (hasValidConn) {
+                serverConfigLastPing = System.currentTimeMillis()
+
+                if (lookupMediaProgress) {
+                    Log.d(tag, "Has valid conn now get user media progress")
+                    DeviceManager.serverConnectionConfig?.let {
+                        serverUserMediaProgress = authorize(it)
+                    }
+                }
+            }
+
+            return hasValidConn
         }
-
-        cb(hasValidConn)
-      }
-    }
-
   }
 
   fun loadServerUserMediaProgress(cb: () -> Unit) {
@@ -953,28 +948,27 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
     }
   }
 
-  fun loadAndroidAutoItems(cb: () -> Unit) {
+    suspend fun loadAndroidAutoItems(cb: () -> Unit) {
     Log.d(tag, "Load android auto items")
 
     // Check if any valid server connection if not use locally downloaded books
-    checkSetValidServerConnectionConfig { isConnected ->
-      if (isConnected) {
-        serverConfigIdUsed = DeviceManager.serverConnectionConfigId
-        Log.d(tag, "loadAndroidAutoItems: Connected to server config id=$serverConfigIdUsed")
+        val isConnected = checkSetValidServerConnectionConfig()
+        if (isConnected) {
+            serverConfigIdUsed = DeviceManager.serverConnectionConfigId
+            Log.d(tag, "loadAndroidAutoItems: Connected to server config id=$serverConfigIdUsed")
 
-        loadLibraries { libraries ->
-          if (libraries.isEmpty()) {
-            Log.w(tag, "No libraries returned from server request")
+            loadLibraries { libraries ->
+                if (libraries.isEmpty()) {
+                    Log.w(tag, "No libraries returned from server request")
+                    cb()
+                } else {
+                    isAutoDataLoaded = true
+                    cb() // Fully loaded
+                }
+            }
+        } else { // Not connected to server
+            Log.d(tag, "loadAndroidAutoItems: Not connected to server")
             cb()
-          } else {
-            isAutoDataLoaded = true
-            cb() // Fully loaded
-          }
-        }
-      } else { // Not connected to server
-        Log.d(tag, "loadAndroidAutoItems: Not connected to server")
-        cb()
-      }
     }
   }
 

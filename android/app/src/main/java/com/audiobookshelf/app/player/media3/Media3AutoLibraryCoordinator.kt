@@ -76,34 +76,36 @@ class Media3AutoLibraryCoordinator(
     if (BuildConfig.DEBUG) Log.d(TAG, "loadAutoData() start")
     isAutoDataLoading = true
     autoDataLoadedDeferred = CompletableDeferred()
-    mediaManager.loadAndroidAutoItems {
-      browseTree.invalidateSeriesCache()
-      mediaManager.populatePersonalizedDataForAllLibraries {
-        mediaManager.initializeInProgressItems {
-          if (BuildConfig.DEBUG) {
-            Log.d(
-              TAG,
-              "loadAutoData() completed, fulfilling ${pendingRequests.size} pending requests"
-            )
-          }
-          isAutoDataLoading = false
-          if (!autoDataLoadedDeferred.isCompleted) {
-            autoDataLoadedDeferred.complete(Unit)
-          }
-          val requestsToFulfill = pendingRequests.toList()
-          pendingRequests.clear()
-          scope.launch {
-            requestsToFulfill.forEach { request ->
-              try {
-                val children = browseTree.getChildren(request.parentId)
-                request.future.set(
-                  LibraryResult.ofItemList(
-                    ImmutableList.copyOf(children),
-                    request.params
-                  )
-                )
-              } catch (t: Throwable) {
-                request.future.setException(t)
+      scope.launch {
+          mediaManager.loadAndroidAutoItems {
+              browseTree.invalidateSeriesCache()
+              mediaManager.populatePersonalizedDataForAllLibraries {
+                  mediaManager.initializeInProgressItems {
+                      if (BuildConfig.DEBUG) {
+                          Log.d(
+                              TAG,
+                              "loadAutoData() completed, fulfilling ${pendingRequests.size} pending requests"
+                          )
+                      }
+                      isAutoDataLoading = false
+                      if (!autoDataLoadedDeferred.isCompleted) {
+                          autoDataLoadedDeferred.complete(Unit)
+                      }
+                      val requestsToFulfill = pendingRequests.toList()
+                      pendingRequests.clear()
+                      scope.launch {
+                          requestsToFulfill.forEach { request ->
+                              try {
+                                  val children = browseTree.getChildren(request.parentId)
+                                  request.future.set(
+                                      LibraryResult.ofItemList(
+                                          ImmutableList.copyOf(children),
+                                          request.params
+                                      )
+                                  )
+                              } catch (t: Throwable) {
+                                  request.future.setException(t)
+                              }
               }
             }
           }
