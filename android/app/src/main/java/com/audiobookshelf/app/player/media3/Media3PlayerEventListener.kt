@@ -24,6 +24,7 @@ interface ListenerApi {
   )
 
   fun progressSyncPlay(currentSession: PlaybackSession)
+    fun progressSyncPause()
   fun onPlayStarted(currentSessionId: String)
   fun notifyWidgetState()
   fun updatePlaybackSpeedButton(speed: Float)
@@ -81,7 +82,7 @@ class Media3PlayerEventListener(
           serviceCallbacks.onPlayStarted(currentSession.id)
           val sessionAssignmentTimestampMs = serviceCallbacks.getPlaybackSessionAssignTimestampMs()
         if (sessionAssignmentTimestampMs > 0L) {
-          val playbackLatencyMs = System.currentTimeMillis() - sessionAssignmentTimestampMs
+            val playbackLatencyMs = System.currentTimeMillis() - sessionAssignmentTimestampMs
             serviceCallbacks.debug { "Ready latency after session assign: ${playbackLatencyMs}ms" }
             serviceCallbacks.resetPlaybackSessionAssignTimestamp()
         }
@@ -96,10 +97,7 @@ class Media3PlayerEventListener(
           serviceCallbacks.onPlaybackResumed(pauseDurationMs)
       } else {
           serviceCallbacks.debug { "Playback stopped. Syncing progress." }
-          serviceCallbacks.currentSession()?.let { currentSession ->
-              serviceCallbacks.updateCurrentPosition(currentSession)
-              serviceCallbacks.maybeSyncProgress("pause", true, currentSession, null)
-        }
+          serviceCallbacks.progressSyncPause()
         lastPauseTimestampMs = System.currentTimeMillis()
       }
     }

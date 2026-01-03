@@ -180,6 +180,12 @@ class Media3PlaybackService : MediaLibraryService() {
             }
         }
 
+        override fun progressSyncPause() {
+            if (this@Media3PlaybackService::unifiedProgressSyncer.isInitialized) {
+                unifiedProgressSyncer.pause {}
+            }
+        }
+
         override fun onPlayStarted(currentSessionId: String) {
             ensureSleepTimerStarted()
             sleepTimerCoordinator.handlePlayStarted(currentSessionId)
