@@ -742,7 +742,11 @@ class Media3PlaybackService : MediaLibraryService() {
   }
 
   private fun handlePlaybackEnded(session: PlaybackSession) {
-    if (!session.isPodcastEpisode) return
+    if (!session.isPodcastEpisode) {
+      closePlayback()
+      return
+    }
+
     if (!isAndroidAutoControllerConnected()) return
     val libraryItem = session.libraryItem ?: return
       val currentSpeed = if (hasActivePlayer) player.playbackParameters.speed else null
