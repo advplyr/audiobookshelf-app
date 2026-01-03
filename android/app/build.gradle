@@ -127,6 +127,9 @@ dependencies {
 
   // Jackson for JSON
   implementation 'com.fasterxml.jackson.module:jackson-module-kotlin:2.12.2'
+
+  // mmupnp for DLNA/UPnP support
+  implementation 'net.mm2d.mmupnp:mmupnp:3.1.6'
 }
 
 apply from: 'capacitor.build.gradle'

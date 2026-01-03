@@ -101,7 +101,11 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
         // Handles auto-starting sleep timer and resetting sleep timer
         playerNotificationService.sleepTimerManager.handleMediaPlayEvent(it.id)
 
-        player.volume = 1F // Volume on sleep timer might have decreased this
+        // Only reset volume for local ExoPlayer (sleep timer fades audio)
+        // For remote players (Cast/DLNA), volume is controlled via VolumeProvider
+        if (playerNotificationService.getMediaPlayer() == PLAYER_EXO) {
+          player.volume = 1F
+        }
 
         playerNotificationService.mediaProgressSyncer.play(it)
       }

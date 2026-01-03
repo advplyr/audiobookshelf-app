@@ -11,6 +11,9 @@ export const state = () => ({
   playerStartingPlaybackMediaId: null,
   isCasting: false,
   isCastAvailable: false,
+  isDlnaAvailable: false,
+  dlnaDevices: [],
+  connectedDlnaDevice: null,
   attemptingConnection: false,
   socketConnected: false,
   networkConnected: false,
@@ -142,6 +145,19 @@ export const mutations = {
   },
   setMediaPlayer(state, mediaPlayer) {
     state.isCasting = mediaPlayer === 'cast-player'
+  },
+  setDlnaAvailable(state, available) {
+    state.isDlnaAvailable = available
+  },
+  setDlnaDevices(state, devices) {
+    state.dlnaDevices = devices
+    state.isDlnaAvailable = devices.length > 0
+  },
+  setConnectedDlnaDevice(state, device) {
+    state.connectedDlnaDevice = device
+  },
+  clearDlnaConnection(state) {
+    state.connectedDlnaDevice = null
   },
   setCastAvailable(state, available) {
     state.isCastAvailable = available
