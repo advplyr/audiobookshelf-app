@@ -36,19 +36,25 @@ jobs:
         run: npx cap sync
 
       - name: build Android app
-        run: ./android/gradlew assembleDebug -p android --no-daemon
+        run: ./android/gradlew :app:assembleExov2Debug :app:assembleMedia3Debug -p android --no-daemon
 
-      - name: rename apk
-        working-directory: android/app/build/outputs/apk/debug/
+      - name: rename apks
         run: |
           build="$(date +%Y%m%d-%H%M%S)-$(git rev-parse --short HEAD)"
-          name="audiobookshelf-${build}.apk"
-          mv -v app-debug.apk "${name}"
+          for variant in exov2 media3; do
+            dir="android/app/build/outputs/apk/${variant}/debug"
+            if [ -d "${dir}" ]; then
+              for apk in "${dir}"/*.apk; do
+                name="audiobookshelf-${variant}-${build}.apk"
+                mv -v "${apk}" "${dir}/${name}"
+              done
+            fi
+          done
 
       - name: prepare test page ressources
         run: |
-          mkdir ghpages
-          cp android/app/build/outputs/apk/debug/*apk ghpages/
+          mkdir -p ghpages
+          find android/app/build/outputs/apk -path '*debug/*.apk' -exec cp {} ghpages/ \;
           cp static/Logo.png ghpages/logo.png
           cp .github/testing-page-template.html ghpages/index.html
 

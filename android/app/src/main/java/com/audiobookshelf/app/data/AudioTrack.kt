@@ -2,6 +2,7 @@ package com.audiobookshelf.app.data
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import java.util.UUID
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class AudioTrack(
@@ -18,6 +19,25 @@ data class AudioTrack(
         var serverIndex: Int? // Need to know if server track index is different
 ) {
 
+  /**
+   * Provides a guaranteed stable and unique identifier for this track.
+   *
+   * It prioritizes the most stable ID available:
+   * 1. The local file ID if the track is on the device.
+   * 2. The remote content URL if the track is being streamed.
+   * 3. A generated ID based on title and index as a last resort.
+   */
+  @get:JsonIgnore
+  val stableId: String
+    get() {
+      if (isLocal && !localFileId.isNullOrBlank()) {
+        return localFileId!!
+      }
+      if (contentUrl.isNotBlank()) {
+        return contentUrl
+      }
+      return "${title}_${index}"
+    }
   @get:JsonIgnore
   val startOffsetMs
     get() = (startOffset * 1000L).toLong()

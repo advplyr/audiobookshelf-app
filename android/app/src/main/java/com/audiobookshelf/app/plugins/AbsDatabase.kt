@@ -1,14 +1,17 @@
 package com.audiobookshelf.app.plugins
 
+import android.content.Intent
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import androidx.annotation.OptIn
+import androidx.media3.common.util.UnstableApi
 import com.audiobookshelf.app.MainActivity
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
+import com.audiobookshelf.app.managers.SecureStorage
 import com.audiobookshelf.app.media.MediaEventManager
 import com.audiobookshelf.app.server.ApiHandler
-import com.audiobookshelf.app.managers.SecureStorage
 import com.fasterxml.jackson.core.json.JsonReadFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
@@ -556,6 +559,7 @@ class AbsDatabase : Plugin() {
     }
   }
 
+  @OptIn(UnstableApi::class)
   @PluginMethod
   fun updateDeviceSettings(call:PluginCall) { // Returns device data
     Log.d(tag, "updateDeviceSettings ${call.data}")
@@ -568,6 +572,16 @@ class AbsDatabase : Plugin() {
       // Updates playback actions for media notification (handles media control seek locking setting)
       if (mainActivity.isPlayerNotificationServiceInitialized()) {
         mainActivity.foregroundService.setMediaSessionConnectorPlaybackActions()
+      }
+
+      // Also notify Media3 playback service (if present) to refresh media session / notification commands
+      try {
+        val intent =
+          Intent(mainActivity, com.audiobookshelf.app.player.Media3PlaybackService::class.java)
+        intent.action = "UPDATE_COMMANDS"
+        mainActivity.startService(intent)
+      } catch (t: Throwable) {
+        Log.w(tag, "Failed to notify Media3PlaybackService: ${t.message}")
       }
 
       call.resolve(JSObject(jacksonMapper.writeValueAsString(DeviceManager.deviceData)))
