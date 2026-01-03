@@ -183,6 +183,7 @@ class Media3PlayerEventListener(
     if (changeReason == Player.DISCONTINUITY_REASON_SEEK ||
       changeReason == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT
     ) {
+        lastPauseTimestampMs = 0L
         serviceCallbacks.currentSession()?.let { currentSession ->
         val newTrackIndex = newPosition.mediaItemIndex
         val newPositionInTrackMs = newPosition.positionMs
