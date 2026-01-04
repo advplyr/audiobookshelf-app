@@ -218,9 +218,9 @@ export default {
       AbsLogger.info({ tag: 'default', message: 'Calling syncLocalSessions' })
       const response = await this.$db.syncLocalSessionsWithServer(isFirstSync)
       if (response?.error) {
-        console.error('[default] Failed to sync local sessions', response.error)
+        await AbsLogger.error({ tag: 'default', message: `syncLocalSessions: Failed to sync local sessions, ${response.error}` })
       } else {
-        console.log('[default] Successfully synced local sessions')
+        await AbsLogger.info({ tag: 'default', message: 'syncLocalSessions: Successfully synced local sessions' })
         // Reload local media progresses
         await this.$store.dispatch('globals/loadLocalMediaProgress')
       }
@@ -232,12 +232,14 @@ export default {
     },
     async userMediaProgressUpdated(payload) {
       const prog = payload.data // MediaProgress
-      await AbsLogger.info({ tag: 'default', message: `userMediaProgressUpdate: Received updated media progress for current user from socket event. Media item id ${payload.id}` })
+      const mediaProgressesID = payload.id
+
+      await AbsLogger.info({ tag: 'default', message: `userMediaProgressUpdate: Received updated media progress for current user from socket event (mediaProgressesID: ${mediaProgressesID}) (libraryItemId: ${prog.libraryItemId}${prog.episodeId ? ` episodeId: ${prog.episodeId}` : ''})` })
 
       // Check if this media item is currently open in the player, paused, and this progress update is coming from a different session
       const isMediaOpenInPlayer = this.$store.getters['getIsMediaStreaming'](prog.libraryItemId, prog.episodeId)
       if (isMediaOpenInPlayer && this.$store.getters['getCurrentPlaybackSessionId'] !== payload.sessionId && !this.$store.state.playerIsPlaying) {
-        await AbsLogger.info({ tag: 'default', message: `userMediaProgressUpdate: Item is currently open in player, paused and this progress update is coming from a different session. Updating playback time to ${payload.data.currentTime}` })
+        await AbsLogger.info({ tag: 'default', message: `userMediaProgressUpdate: Library item is currently open in player, paused and this progress update is coming from a different session. Updating playback time to ${payload.data.currentTime} (mediaProgressesID: ${mediaProgressesID})` })
         this.$eventBus.$emit('playback-time-update', payload.data.currentTime)
       }
 
@@ -245,54 +247,66 @@ export default {
       const localProg = await this.$db.getLocalMediaProgressForServerItem({ libraryItemId: prog.libraryItemId, episodeId: prog.episodeId })
 
       let newLocalMediaProgress = null
-      // Progress update is more recent then local progress
-      if (localProg && localProg.lastUpdate < prog.lastUpdate) {
+
+      if (localProg) {
+
         if (localProg.currentTime == prog.currentTime && localProg.isFinished == prog.isFinished) {
-          await AbsLogger.info({ tag: 'default', message: `userMediaProgressUpdate: server lastUpdate is more recent but progress is up-to-date (libraryItemId: ${prog.libraryItemId}${prog.episodeId ? ` episodeId: ${prog.episodeId}` : ''})` })
+          // All data is up to date, log and move on
+          await AbsLogger.info({ tag: 'default', message: `userMediaProgressUpdate: server progress and local progress match, nothing to update (mediaProgressesID: ${mediaProgressesID})` })
           return
         }
 
-        // Server progress is more up-to-date
-        await AbsLogger.info({ tag: 'default', message: `userMediaProgressUpdate: syncing progress from server with local item for "${prog.libraryItemId}" ${prog.episodeId ? `episode ${prog.episodeId}` : ''} | server lastUpdate=${prog.lastUpdate} > local lastUpdate=${localProg.lastUpdate}` })
+        if (localProg.lastUpdate > prog.lastUpdate) {
+          // Server progress is older then local, log it and move on
+          await AbsLogger.info({ tag: 'default', message: `userMediaProgressUpdate: server lastUpdate is older then local lastUpdate, skip updating (mediaProgressesID: ${mediaProgressesID}) (server lastUpdate=${prog.lastUpdate} < local lastUpdate=${localProg.lastUpdate})` })
+          return
+        }
+
+        // Server progress is newer the local
+        await AbsLogger.info({ tag: 'default', message: `userMediaProgressUpdate: syncing progress from server with local item (mediaProgressesID: ${mediaProgressesID}) (server lastUpdate=${prog.lastUpdate} > local lastUpdate=${localProg.lastUpdate})` })
         const payload = {
           localMediaProgressId: localProg.id,
           mediaProgress: prog
         }
         newLocalMediaProgress = await this.$db.syncServerMediaProgressWithLocalMediaProgress(payload)
+
       } else if (!localProg) {
         // Check if local library item exists
         //   local media progress may not exist yet if it hasn't been played
         const localLibraryItem = await this.$db.getLocalLibraryItemByLId(prog.libraryItemId)
-        if (localLibraryItem) {
-          if (prog.episodeId) {
-            // If episode check if local episode exists
-            const lliEpisodes = localLibraryItem.media.episodes || []
-            const localEpisode = lliEpisodes.find((ep) => ep.serverEpisodeId === prog.episodeId)
-            if (localEpisode) {
-              // Add new local media progress
-              const payload = {
-                localLibraryItemId: localLibraryItem.id,
-                localEpisodeId: localEpisode.id,
-                mediaProgress: prog
-              }
-              newLocalMediaProgress = await this.$db.syncServerMediaProgressWithLocalMediaProgress(payload)
-            }
-          } else {
-            // Add new local media progress
-            const payload = {
-              localLibraryItemId: localLibraryItem.id,
-              mediaProgress: prog
-            }
-            newLocalMediaProgress = await this.$db.syncServerMediaProgressWithLocalMediaProgress(payload)
-          }
-        } else {
-          console.log(`[default] userMediaProgressUpdate no local media progress or lli found for this server item ${prog.id}`)
+        if (!localLibraryItem) {
+          await AbsLogger.info({ tag: 'default', message: `userMediaProgressUpdate: local library item not found, ignoring update (mediaProgressesID: ${mediaProgressesID})` })
+          return
         }
+
+        let localEpisodeId = null
+
+        if (prog.episodeId) {
+          // If episode check if local episode exists
+          const lliEpisodes = localLibraryItem.media.episodes || []
+          const localEpisode = lliEpisodes.find((ep) => ep.serverEpisodeId === prog.episodeId)
+          if (!localEpisode) {
+            await AbsLogger.info({ tag: 'default', message: `userMediaProgressUpdate: local episode item not found, ignoring update (mediaProgressesID: ${mediaProgressesID})` })
+            return
+          }
+
+          localEpisodeId = localEpisode.id
+        }
+
+        // Add new local media progress
+        const payload = {
+          localLibraryItemId: localLibraryItem.id,
+          localEpisodeId: localEpisodeId,
+          mediaProgress: prog
+        }
+        newLocalMediaProgress = await this.$db.syncServerMediaProgressWithLocalMediaProgress(payload)
       }
 
       if (newLocalMediaProgress?.id) {
-        await AbsLogger.info({ tag: 'default', message: `userMediaProgressUpdate: local media progress updated for ${newLocalMediaProgress.id}` })
+        await AbsLogger.info({ tag: 'default', message: `userMediaProgressUpdate: local media progress updated for ${newLocalMediaProgress.id} (mediaProgressesID: ${mediaProgressesID})` })
         this.$store.commit('globals/updateLocalMediaProgress', newLocalMediaProgress)
+      } else {
+        await AbsLogger.error({ tag: 'default', message: `userMediaProgressUpdate: Something went wrong saving local media progress (mediaProgressesID: ${mediaProgressesID})` })
       }
     },
     async visibilityChanged() {
