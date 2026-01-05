@@ -82,6 +82,8 @@ class AbsAudioPlayer : Plugin() {
         }
 
         override fun onLocalMediaProgressUpdate(localMediaProgress: LocalMediaProgress) {
+          // Skip progress updates when app is backgrounded to prevent event queue buildup
+          if (!isInForeground) return
           notifyListeners("onLocalMediaProgressUpdate", JSObject(jacksonMapper.writeValueAsString(localMediaProgress)))
         }
 
@@ -128,20 +130,21 @@ class AbsAudioPlayer : Plugin() {
   override fun handleOnPause() {
     super.handleOnPause()
     isInForeground = false
-    Log.d(tag, "App paused - disabling frequent event emission")
   }
 
   override fun handleOnResume() {
     super.handleOnResume()
     isInForeground = true
-    Log.d(tag, "App resumed - enabling event emission and sending current state")
 
-    // Send current state to UI after resume to sync up
+    // Send current state to UI after resume to sync up (with small delay to let WebView fully resume)
     if (::playerNotificationService.isInitialized && playerNotificationService.currentPlaybackSession != null) {
-      Handler(Looper.getMainLooper()).post {
+      Handler(Looper.getMainLooper()).postDelayed({
         playerNotificationService.sendClientMetadata(PlayerState.READY)
         playerNotificationService.sleepTimerManager.sendCurrentSleepTimerState()
-      }
+        playerNotificationService.mediaProgressSyncer.currentLocalMediaProgress?.let {
+          playerNotificationService.clientEventEmitter?.onLocalMediaProgressUpdate(it)
+        }
+      }, 100)
     }
   }
 
