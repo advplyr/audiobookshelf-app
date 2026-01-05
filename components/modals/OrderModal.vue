@@ -64,6 +64,18 @@ export default {
           text: this.$strings.LabelFileModified,
           value: 'mtimeMs'
         },
+                {
+          text: this.$strings.LabelLibrarySortByProgress,
+          value: 'progress'
+        },
+        {
+          text: this.$strings.LabelLibrarySortByProgressStarted,
+          value: 'progress.createdAt'
+        },
+        {
+          text: this.$strings.LabelLibrarySortByProgressFinished,
+          value: 'progress.finishedAt'
+        },
         {
           text: this.$strings.LabelRandomly,
           value: 'random'
