@@ -64,7 +64,7 @@ export default {
           text: this.$strings.LabelFileModified,
           value: 'mtimeMs'
         },
-                {
+        {
           text: this.$strings.LabelLibrarySortByProgress,
           value: 'progress'
         },
