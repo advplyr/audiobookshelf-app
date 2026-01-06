@@ -20,6 +20,7 @@ import android.support.v4.media.session.MediaControllerCompat
 import android.support.v4.media.session.MediaSessionCompat
 import androidx.media.VolumeProviderCompat
 import android.media.AudioManager
+import android.media.audiofx.Equalizer
 import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
 import androidx.annotation.RequiresApi
@@ -103,6 +104,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   lateinit var apiHandler: ApiHandler
 
   lateinit var mPlayer: ExoPlayer
+  lateinit var mPlayerEqualizer: Equalizer
   lateinit var currentPlayer: Player
   var castPlayer: CastPlayer? = null
 
@@ -395,11 +397,30 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                     .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
                     .build()
     mPlayer.setAudioAttributes(audioAttributes, true)
+    setupEqualizer(mPlayer.audioSessionId)
+
 
     // attach player to playerNotificationManager
     playerNotificationManager.setPlayer(mPlayer)
-
     mediaSessionConnector.setPlayer(mPlayer)
+  }
+
+  fun setupEqualizer(audioSessionId: Int) {
+    // TESTING
+    try {
+      if (audioSessionId == 0) {
+        Log.w(tag, "audio session not ready yet, audioSessionId=0")
+        return
+      }
+      mPlayerEqualizer = Equalizer(0, audioSessionId)
+      mPlayerEqualizer.enabled = true
+
+      Log.d(tag, "Equalizer initialized")
+    } catch (e: Exception) {
+      Log.e(tag, "Error initializing Equalizer: $e")
+    }
+
+    // END TEST
   }
 
   /*

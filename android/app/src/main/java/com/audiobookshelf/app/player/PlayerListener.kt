@@ -1,5 +1,6 @@
 package com.audiobookshelf.app.player
 
+import android.media.audiofx.Equalizer
 import android.util.Log
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.data.PlayerState
@@ -11,6 +12,7 @@ import com.google.android.exoplayer2.Player
 
 class PlayerListener(var playerNotificationService:PlayerNotificationService) : Player.Listener {
   var tag = "PlayerListener"
+  var equalizerInitiated = false
 
   companion object {
     var lastPauseTime: Long = 0   //ms
@@ -104,6 +106,26 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
         player.volume = 1F // Volume on sleep timer might have decreased this
 
         playerNotificationService.mediaProgressSyncer.play(it)
+
+        // Now that the player has started, can apply the equalizer
+        val gains = listOf(
+          1500.toShort(),   // +15dB boost very low frequencies (super bass)
+          1000.toShort(),   // +10dB boost low-mid
+          0.toShort(),      // flat mid
+          (-1000).toShort(),// -10dB cut high-mid
+          (-1500).toShort() // -15dB cut highs (very tinny treble)
+        )
+
+        // Log what we're setting
+        for ((index, gain) in gains.withIndex()) {
+          Log.d("EqualizerTest", "Band $index: gain = $gain")
+        }
+
+        playerNotificationService.mPlayerEqualizer.setBandLevel(0, gains[0])
+        playerNotificationService.mPlayerEqualizer.setBandLevel(1, gains[1])
+        playerNotificationService.mPlayerEqualizer.setBandLevel(2, gains[2])
+        playerNotificationService.mPlayerEqualizer.setBandLevel(3, gains[3])
+        playerNotificationService.mPlayerEqualizer.setBandLevel(4, gains[4])
       }
     } else {
       playerNotificationService.mediaProgressSyncer.pause {
@@ -112,7 +134,10 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
     }
 
     playerNotificationService.clientEventEmitter?.onPlayingUpdate(isPlaying)
+
   }
+
+
 
   override fun onEvents(player: Player, events: Player.Events) {
     Log.d(tag, "onEvents ${playerNotificationService.getMediaPlayer()} | ${events.size()}")
