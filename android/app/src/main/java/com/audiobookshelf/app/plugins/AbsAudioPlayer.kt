@@ -82,6 +82,10 @@ class AbsAudioPlayer : Plugin() {
           emit("onPlaybackFailed", errorMessage)
         }
 
+        override fun onEqualizerFrequenciesSet(frequencies: List<Int>) {
+          emit("onEqualizerFrequenciesSet", frequencies)
+        }
+
         override fun onMediaPlayerChanged(mediaPlayer:String) {
           emit("onMediaPlayerChanged", mediaPlayer)
         }

@@ -107,25 +107,39 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
 
         playerNotificationService.mediaProgressSyncer.play(it)
 
+        // TODO: MOVE THIS TO A FUNCTION!!!
         // Now that the player has started, can apply the equalizer
-        val gains = listOf(
-          1500.toShort(),   // +15dB boost very low frequencies (super bass)
-          1000.toShort(),   // +10dB boost low-mid
-          0.toShort(),      // flat mid
-          (-1000).toShort(),// -10dB cut high-mid
-          (-1500).toShort() // -15dB cut highs (very tinny treble)
-        )
+//        val gains = listOf(
+//          1500.toShort(),   // +15dB boost very low frequencies (super bass)
+//          1000.toShort(),   // +10dB boost low-mid
+//          0.toShort(),      // flat mid
+//          (-1000).toShort(),// -10dB cut high-mid
+//          (-1500).toShort() // -15dB cut highs (very tinny treble)
+//        )
 
-        // Log what we're setting
-        for ((index, gain) in gains.withIndex()) {
-          Log.d("EqualizerTest", "Band $index: gain = $gain")
+        val eq = playerNotificationService.mPlayerEqualizer
+        val frequencies = mutableListOf<Int>()
+        for (i in 0 until eq.numberOfBands) {
+          val centerFreq = eq.getCenterFreq(i.toShort()) / 1000 // in Hz
+          frequencies.add(centerFreq)
         }
 
-        playerNotificationService.mPlayerEqualizer.setBandLevel(0, gains[0])
-        playerNotificationService.mPlayerEqualizer.setBandLevel(1, gains[1])
-        playerNotificationService.mPlayerEqualizer.setBandLevel(2, gains[2])
-        playerNotificationService.mPlayerEqualizer.setBandLevel(3, gains[3])
-        playerNotificationService.mPlayerEqualizer.setBandLevel(4, gains[4])
+        // Log what we're setting
+        for ((index, freq) in frequencies.withIndex()) {
+          Log.d("EqualizerTest", "Band $index: freq = $freq")
+        }
+
+        // Inform frontend about available frequencies
+        playerNotificationService.clientEventEmitter?.onEqualizerFrequenciesSet(frequencies)
+
+//        playerNotificationService.mPlayerEqualizer.numberOfBands
+//        playerNotificationService.mPlayerEqualizer.bandLevelRange
+//        playerNotificationService.mPlayerEqualizer.setBandLevel(0, gains[0])
+//        playerNotificationService.mPlayerEqualizer.setBandLevel(1, gains[1])
+//        playerNotificationService.mPlayerEqualizer.setBandLevel(2, gains[2])
+//        playerNotificationService.mPlayerEqualizer.setBandLevel(3, gains[3])
+//        playerNotificationService.mPlayerEqualizer.setBandLevel(4, gains[4])
+        // to-do: end
       }
     } else {
       playerNotificationService.mediaProgressSyncer.pause {

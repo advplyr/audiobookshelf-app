@@ -100,6 +100,7 @@
     </div>
 
     <modals-chapters-modal v-model="showChapterModal" :current-chapter="currentChapter" :chapters="chapters" :playback-rate="currentPlaybackRate" @select="selectChapter" />
+    <modals-equalizer-modal v-model="showEqualizerModal" :equalizer-settings="playerSettings.equalizerSettings" @save="saveEqualizerSettings" />
     <modals-dialog v-model="showMoreMenuDialog" :items="menuItems" width="80vw" @action="clickMenuAction" />
   </div>
 </template>
@@ -146,7 +147,8 @@ export default {
         useChapterTrack: false,
         useTotalTrack: true,
         scaleElapsedTimeBySpeed: true,
-        lockUi: false
+        lockUi: false,
+        equalizerSettings: { bands: [] } // Band will be array of object { freq: number, gain: number }
       },
       isLoading: false,
       isDraggingCursor: false,
@@ -158,7 +160,8 @@ export default {
       coverRgb: 'rgb(55, 56, 56)',
       coverBgIsLight: false,
       titleMarquee: null,
-      isRefreshingUI: false
+      isRefreshingUI: false,
+      showEqualizerModal: false,
     }
   },
   watch: {
@@ -395,6 +398,33 @@ export default {
     }
   },
   methods: {
+    updateEqualizerFrequencies(recievedFrequencies) {
+      if (typeof recievedFrequencies === 'string') { // Ensure array of ints
+        recievedFrequencies = JSON.parse(recievedFrequencies)
+      }
+      
+      // Only update the equalizer settings if the available frequencies differ from the settings (this may happen if the user changes devices)
+      let savedFrequencies = this.playerSettings.equalizerSettings.bands.map(band => band.freq).sort((a,b) => a-b)
+      let frequenciesAreSame =
+        recievedFrequencies.length == savedFrequencies.length &&
+        recievedFrequencies.sort((a,b) => a-b).every((val, index) => val == savedFrequencies[index])
+
+      // If they differ, equalizerSettings needs rebuilt and therefore wiped
+      // It could try to save some of the settings, by keeping frequency-gain settings and only using the ones available
+      // eg. [{freq:250,gain:23}, {freq:500,gain:20}], if only freq 250 was available, it would keep freq 500 but not actually use the info
+      // But that is more complex and gives more room for buggy behaviour, I feel this is fine for now
+      if (!frequenciesAreSame) {
+        this.playerSettings.equalizerSettings = { bands: recievedFrequencies.map(freq => ({ freq, gain: 0 }))}
+        this.savePlayerSettings()
+      }
+    },
+    saveEqualizerSettings(bands) {
+      // Only want the frequency and gain, ignore label and other key-vals
+      let equalizerSettings = {bands: bands.map(band => ({ freq: band.freq, gain: band.gain })) }
+      this.playerSettings.equalizerSettings = equalizerSettings
+
+      this.savePlayerSettings()
+    },
     showSyncsFailedDialog() {
       Dialog.alert({
         title: this.$strings.HeaderProgressSyncFailed,
@@ -766,7 +796,7 @@ export default {
           this.updateUseChapterTrack()
           this.savePlayerSettings()
         } else if (action == 'show_equalizer') {
-          this.$emit("showEqualizer")
+          this.showEqualizerModal = true
         } else if (action === 'close') {
           this.closePlayback()
         }
@@ -813,6 +843,7 @@ export default {
         this.playerSettings.useTotalTrack = !!savedPlayerSettings.useTotalTrack
         this.playerSettings.lockUi = !!savedPlayerSettings.lockUi
         this.playerSettings.scaleElapsedTimeBySpeed = !!savedPlayerSettings.scaleElapsedTimeBySpeed
+        this.playerSettings.equalizerSettings = savedPlayerSettings.equalizerSettings
       }
     },
     savePlayerSettings() {

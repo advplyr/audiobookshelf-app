@@ -82,6 +82,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     fun onSleepTimerSet(sleepTimeRemaining: Int, isAutoSleepTimer: Boolean)
     fun onLocalMediaProgressUpdate(localMediaProgress: LocalMediaProgress)
     fun onPlaybackFailed(errorMessage: String)
+    fun onEqualizerFrequenciesSet(frequencies: List<Int>)
     fun onMediaPlayerChanged(mediaPlayer: String)
     fun onProgressSyncFailing()
     fun onProgressSyncSuccess()

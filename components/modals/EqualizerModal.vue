@@ -99,11 +99,9 @@
 export default {
   props: {
     value: Boolean,
-    frequencies: {
+    equalizerSettings: {
       type: Array,
-      // Bands are hard coded atm, but they are device dependant, so will need to recieve this from the android side somehow
-      // playerSettings in AudioPlayer.vue has a way to save (savePlayerSettings)
-      default: () => [60, 170, 310, 600, 1000, 3000, 6000, 12000] 
+      default: () => ({ bands: [] }) // Band frequencies have to be decided by the equalizer implementation, as they are device specific. So a default is not safe
     }
   },
   data() {
@@ -123,14 +121,28 @@ export default {
       }
     }
   },
+  watch: {
+    value(newVal, oldVal) {
+      // If the modal was open, and then is set to closed: save the settings
+      if (oldVal === true && newVal === false) {
+        this.$emit('save', this.bands)
+      }
+    },
+    equalizerSettings() { // Don't care about the new value, only that it has been changed
+      this.setBands()
+    }
+  },
   mounted() {
-    this.bands = this.frequencies.map(f => ({
-      freq: f,
-      label: f >= 1000 ? `${f / 1000}kHz` : `${f}Hz`,
-      gain: 0
-    }))
+    this.setBands()
   },
   methods: {
+    setBands() {
+      this.bands = this.equalizerSettings.bands.map(band => ({
+        freq: band.freq,
+        label: band.freq >= 1000 ? `${band.freq / 1000}kHz` : `${band.freq}Hz`,
+        gain: band.gain
+      }))
+    },
     onBandInput(index, newGain) {
       if (!this.linkBandsEnabled) {
         this.bands[index].gain = newGain
