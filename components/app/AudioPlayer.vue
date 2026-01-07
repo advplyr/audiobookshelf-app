@@ -100,7 +100,7 @@
     </div>
 
     <modals-chapters-modal v-model="showChapterModal" :current-chapter="currentChapter" :chapters="chapters" :playback-rate="currentPlaybackRate" @select="selectChapter" />
-    <modals-equalizer-modal v-model="showEqualizerModal" :equalizer-settings="playerSettings.equalizerSettings" @save="saveEqualizerSettings" />
+    <modals-equalizer-modal v-model="showEqualizerModal" :equalizer-settings="playerSettings.equalizerSettings" @change="onEqualizerChange" @save="saveEqualizerSettings" />
     <modals-dialog v-model="showMoreMenuDialog" :items="menuItems" width="80vw" @action="clickMenuAction" />
   </div>
 </template>
@@ -417,6 +417,12 @@ export default {
         this.playerSettings.equalizerSettings = { bands: recievedFrequencies.map(freq => ({ freq, gain: 0 }))}
         this.savePlayerSettings()
       }
+    },
+    setEqualizerBands(bands) {
+      AbsAudioPlayer.setEqualizerBands({ value: bands })
+    },
+    onEqualizerChange(bands) {
+      this.setEqualizerBands(bands)
     },
     saveEqualizerSettings(bands) {
       // Only want the frequency and gain, ignore label and other key-vals
@@ -929,6 +935,8 @@ export default {
       AbsAudioPlayer.addListener('onProgressSyncFailing', this.showProgressSyncIsFailing)
       AbsAudioPlayer.addListener('onProgressSyncSuccess', this.showProgressSyncSuccess)
       AbsAudioPlayer.addListener('onPlaybackSpeedChanged', this.onPlaybackSpeedChanged)
+
+      this.setEqualizerBands(this.playerSettings.equalizerSettings.bands)
     },
     async screenOrientationChange() {
       if (this.isRefreshingUI) return

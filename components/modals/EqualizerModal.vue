@@ -172,7 +172,7 @@ export default {
     emitChange() {
       this.$emit(
         'change',
-        this.bands.map(b => Math.round(b.gain))
+        this.bands
       )
     },
     reset() {

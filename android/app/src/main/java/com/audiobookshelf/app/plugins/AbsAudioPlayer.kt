@@ -398,6 +398,29 @@ class AbsAudioPlayer : Plugin() {
   }
 
   @PluginMethod
+  fun setEqualizerBands(call: PluginCall) {
+    val bandsArray = call.getArray("value")
+    val bands = mutableListOf<EqualizerBand>()
+
+    if (bandsArray == null) {
+      Log.i(tag, "Bands supplied by capacitor (frontend) don't exist")
+      return
+    }
+
+    for (i in 0 until bandsArray.length()) {
+      val obj = bandsArray.getJSONObject(i)
+      val freq = obj.getInt("freq")
+      val gain = obj.getInt("gain")
+      bands.add(EqualizerBand(freq, gain))
+    }
+
+    playerNotificationService.updateEqualizer(bands)
+    Log.d(tag, "Received new equalizer band information $bands")
+
+    call.resolve()
+  }
+
+  @PluginMethod
   fun requestSession(call: PluginCall) {
     // Need to make sure the player service has been started
     Log.d(tag, "CAST REQUEST SESSION PLUGIN")

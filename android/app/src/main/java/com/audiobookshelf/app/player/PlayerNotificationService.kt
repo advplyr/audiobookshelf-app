@@ -407,7 +407,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   }
 
   fun setupEqualizer(audioSessionId: Int) {
-    // TESTING
     try {
       if (audioSessionId == 0) {
         Log.w(tag, "audio session not ready yet, audioSessionId=0")
@@ -420,8 +419,50 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     } catch (e: Exception) {
       Log.e(tag, "Error initializing Equalizer: $e")
     }
+  }
 
-    // END TEST
+  fun getAvailableFrequencies(): List<Int> {
+    val frequencies = mutableListOf<Int>()
+    for (i in 0 until mPlayerEqualizer.numberOfBands) {
+      val centerFreq = mPlayerEqualizer.getCenterFreq(i.toShort()) / 1000 // in Hz
+      frequencies.add(centerFreq)
+    }
+
+    return frequencies
+  }
+
+  fun emitAvailableFrequencies() {
+    clientEventEmitter?.onEqualizerFrequenciesSet(getAvailableFrequencies())
+  }
+
+  fun updateEqualizer(bands: List<EqualizerBand>) {
+    // Nesting function as it will only be used in this context, can move out if people are opposed
+    fun smoothSetBandLevel(band: Short, targetGain: Short, steps: Int = 20, delayMs: Long = 20) {
+      val currentGain = mPlayerEqualizer.getBandLevel(band)
+      val delta = (targetGain - currentGain) / steps
+      for (i in 1..steps) {
+        Handler(Looper.getMainLooper()).postDelayed({
+          mPlayerEqualizer.setBandLevel(band, (currentGain + delta * i).toShort())
+        }, i * delayMs)
+      }
+    }
+
+    // Do a sanity check on given band frequencies to ensure they match
+    val givenFrequencies = bands.map { it.freq }
+    val availableFrequencies = getAvailableFrequencies()
+
+    // These SHOULD match, as the frontend does some work to maintain continuity. But good practice to check anyway
+    if (givenFrequencies != availableFrequencies) {
+      Log.i(tag, "Given equalizer frequencies do not match with available ones")
+      return
+    }
+
+    // Now apply the bands to the equalizer
+    for ((i, band) in bands.withIndex()) {
+//      smoothSetBandLevel(i.toShort(), band.gain.toShort())
+      mPlayerEqualizer.setBandLevel(i.toShort(), band.gain.toShort())
+      Log.d(tag, "Equalizer, setting band #$i (${band.freq}Hz) to ${band.gain}")
+    }
   }
 
   /*
