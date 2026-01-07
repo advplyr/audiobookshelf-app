@@ -101,7 +101,9 @@ export default {
     value: Boolean,
     frequencies: {
       type: Array,
-      default: () => [60, 170, 310, 600, 1000, 3000, 6000, 12000]
+      // Bands are hard coded atm, but they are device dependant, so will need to recieve this from the android side somehow
+      // playerSettings in AudioPlayer.vue has a way to save (savePlayerSettings)
+      default: () => [60, 170, 310, 600, 1000, 3000, 6000, 12000] 
     }
   },
   data() {

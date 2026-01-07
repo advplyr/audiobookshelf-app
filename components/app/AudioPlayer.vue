@@ -62,8 +62,6 @@
             <p class="text-xl font-mono text-success">{{ sleepTimeRemainingPretty }}</p>
           </div>
 
-          <span class="material-symbols text-3xl text-fg cursor-pointer" :class="chapters.length ? 'text-opacity-75' : 'text-opacity-10'" @click="$emit('showEqualizer')">tune</span> <!-- equalizer and graphic-eq are also good icons -->
-
           <span class="material-symbols text-3xl text-fg cursor-pointer" :class="chapters.length ? 'text-opacity-75' : 'text-opacity-10'" @click="clickChaptersBtn">format_list_bulleted</span>
         </div>
       </div>
@@ -183,12 +181,20 @@ export default {
     menuItems() {
       const items = []
       // TODO: Implement on iOS
-      if (this.$platform !== 'ios' && !this.isPodcast && this.mediaId) {
+      if (this.$platform !== 'ios' && this.mediaId) {
+        if (!this.isPodcast) {
+          items.push({
+            text: this.$strings.ButtonHistory,
+            value: 'history',
+            icon: 'history'
+          })
+        }
+
         items.push({
-          text: this.$strings.ButtonHistory,
-          value: 'history',
-          icon: 'history'
-        })
+          text: "Equalizer", // TODO, replace with $strings version
+          value: 'show_equalizer',
+          icon: 'instant_mix'
+         })
       }
 
       items.push(
@@ -759,6 +765,8 @@ export default {
           this.updateReadyTrack()
           this.updateUseChapterTrack()
           this.savePlayerSettings()
+        } else if (action == 'show_equalizer') {
+          this.$emit("showEqualizer")
         } else if (action === 'close') {
           this.closePlayback()
         }
