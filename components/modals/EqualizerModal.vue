@@ -31,11 +31,11 @@
                   min="-1500"
                   max="1500"
                   step="50"
-                  :value="band.gain"
-                  @input="onBandInput(i, $event.target.valueAsNumber)"
+                  :value="-band.gain"
+                  @input="onBandInput(i, -$event.target.valueAsNumber)"
                   @mousedown="activeBand = i"
                   @touchstart="activeBand = i"
-                  class="-rotate-90 w-40 h-6"
+                  class="rotate-90 w-40 h-6 accent-track"
                 />
               </div>
 
@@ -70,11 +70,8 @@
             <!-- Checkbox -->
             <div
               class="w-5 h-5 rounded border flex items-center justify-center
-                    transition
-                    "
-              :class="linkBandsEnabled
-                ? 'border-success text-white'
-                : 'border-fg/40'"
+                    transition"
+              :class="linkBandsEnabled ? 'text-white border-fg/75' : 'border-fg/50'"
             >
               <span
                 v-if="linkBandsEnabled"
