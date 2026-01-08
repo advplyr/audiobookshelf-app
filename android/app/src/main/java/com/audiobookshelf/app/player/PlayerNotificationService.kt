@@ -106,6 +106,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
   lateinit var mPlayer: ExoPlayer
   lateinit var mPlayerEqualizer: Equalizer
+  // Equalizer debounce vars
+  private var equalizerBandRequests = mutableMapOf<Int, Short>()
+  private var equalizerDebounceHandler: Handler? = null
+  private var equalizerDebounceHandlerFinished = true
+  private val EQUALIZER_DEBOUNCE_MS = 400L
+
   lateinit var currentPlayer: Player
   var castPlayer: CastPlayer? = null
 
@@ -435,6 +441,28 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     clientEventEmitter?.onEqualizerFrequenciesSet(getAvailableFrequencies())
   }
 
+  fun requestEqualizerBandChange(band: Int, gain: Short) {
+    // Non standard debounce, doesn't refresh delay, instead it chunks requests
+    equalizerBandRequests[band] = gain // Update band with newest gain
+
+    if (!equalizerDebounceHandlerFinished) {
+      return
+    }
+
+    // Set new debounce handler if previous one finished
+    equalizerDebounceHandler = Handler(Looper.getMainLooper())
+    equalizerDebounceHandlerFinished = false
+    equalizerDebounceHandler?.postDelayed({
+      // Apply the latest requested gains
+      for ((band, gain) in equalizerBandRequests) {
+        mPlayerEqualizer.setBandLevel(band.toShort(), gain)
+      }
+      Log.d("ermwts", "debounce done")
+      equalizerBandRequests.clear()
+      equalizerDebounceHandlerFinished = true
+    }, EQUALIZER_DEBOUNCE_MS)
+  }
+
   fun updateEqualizer(bands: List<EqualizerBand>) {
     // Nesting function as it will only be used in this context, can move out if people are opposed
     fun smoothSetBandLevel(band: Short, targetGain: Short, steps: Int = 20, delayMs: Long = 20) {
@@ -459,8 +487,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
     // Now apply the bands to the equalizer
     for ((i, band) in bands.withIndex()) {
-//      smoothSetBandLevel(i.toShort(), band.gain.toShort())
-      mPlayerEqualizer.setBandLevel(i.toShort(), band.gain.toShort())
+//      mPlayerEqualizer.setBandLevel(i.toShort(), band.gain.toShort())
+      requestEqualizerBandChange(i, band.gain.toShort())
       Log.d(tag, "Equalizer, setting band #$i (${band.freq}Hz) to ${band.gain}")
     }
   }
