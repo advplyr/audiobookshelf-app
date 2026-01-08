@@ -20,7 +20,6 @@ import android.support.v4.media.session.MediaControllerCompat
 import android.support.v4.media.session.MediaSessionCompat
 import androidx.media.VolumeProviderCompat
 import android.media.AudioManager
-import android.media.audiofx.Equalizer
 import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
 import androidx.annotation.RequiresApi
@@ -34,6 +33,7 @@ import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.data.DeviceInfo
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.managers.DbManager
+import com.audiobookshelf.app.managers.EqualizerManager
 import com.audiobookshelf.app.managers.SleepTimerManager
 import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.media.MediaProgressSyncer
@@ -103,17 +103,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
   lateinit var mediaManager: MediaManager
   lateinit var apiHandler: ApiHandler
-
   lateinit var mPlayer: ExoPlayer
-  lateinit var mPlayerEqualizer: Equalizer
-  // Equalizer debounce vars
-  private var equalizerBandRequests = mutableMapOf<Int, Short>()
-  private var equalizerDebounceHandler: Handler? = null
-  private var equalizerDebounceHandlerFinished = true
-  private val EQUALIZER_DEBOUNCE_MS = 400L
-
   lateinit var currentPlayer: Player
   var castPlayer: CastPlayer? = null
+
+  lateinit var equalizerManager: EqualizerManager
 
   lateinit var sleepTimerManager: SleepTimerManager
   lateinit var mediaProgressSyncer: MediaProgressSyncer
@@ -248,6 +242,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
     // Initialize sleep timer
     sleepTimerManager = SleepTimerManager(this)
+
+    // Initialize equalizer manager
+    equalizerManager = EqualizerManager(this)
 
     // Initialize Media Progress Syncer
     mediaProgressSyncer = MediaProgressSyncer(this, apiHandler)
@@ -404,7 +401,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                     .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
                     .build()
     mPlayer.setAudioAttributes(audioAttributes, true)
-    setupEqualizer(mPlayer.audioSessionId)
+    equalizerManager.setup(mPlayer.audioSessionId)
 
 
     // attach player to playerNotificationManager
@@ -412,86 +409,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     mediaSessionConnector.setPlayer(mPlayer)
   }
 
-  fun setupEqualizer(audioSessionId: Int) {
-    try {
-      if (audioSessionId == 0) {
-        Log.w(tag, "audio session not ready yet, audioSessionId=0")
-        return
-      }
-      mPlayerEqualizer = Equalizer(0, audioSessionId)
-      mPlayerEqualizer.enabled = true
 
-      Log.d(tag, "Equalizer initialized")
-    } catch (e: Exception) {
-      Log.e(tag, "Error initializing Equalizer: $e")
-    }
-  }
-
-  fun getAvailableFrequencies(): List<Int> {
-    val frequencies = mutableListOf<Int>()
-    for (i in 0 until mPlayerEqualizer.numberOfBands) {
-      val centerFreq = mPlayerEqualizer.getCenterFreq(i.toShort()) / 1000 // in Hz
-      frequencies.add(centerFreq)
-    }
-
-    return frequencies
-  }
-
-  fun emitAvailableFrequencies() {
-    clientEventEmitter?.onEqualizerFrequenciesSet(getAvailableFrequencies())
-  }
-
-  fun requestEqualizerBandChange(band: Int, gain: Short) {
-    // Non standard debounce, doesn't refresh delay, instead it chunks requests
-    equalizerBandRequests[band] = gain // Update band with newest gain
-
-    if (!equalizerDebounceHandlerFinished) {
-      return
-    }
-
-    // Set new debounce handler if previous one finished
-    equalizerDebounceHandler = Handler(Looper.getMainLooper())
-    equalizerDebounceHandlerFinished = false
-    equalizerDebounceHandler?.postDelayed({
-      // Apply the latest requested gains
-      for ((band, gain) in equalizerBandRequests) {
-        mPlayerEqualizer.setBandLevel(band.toShort(), gain)
-      }
-      Log.d("ermwts", "debounce done")
-      equalizerBandRequests.clear()
-      equalizerDebounceHandlerFinished = true
-    }, EQUALIZER_DEBOUNCE_MS)
-  }
-
-  fun updateEqualizer(bands: List<EqualizerBand>) {
-    // Nesting function as it will only be used in this context, can move out if people are opposed
-    fun smoothSetBandLevel(band: Short, targetGain: Short, steps: Int = 20, delayMs: Long = 20) {
-      val currentGain = mPlayerEqualizer.getBandLevel(band)
-      val delta = (targetGain - currentGain) / steps
-      for (i in 1..steps) {
-        Handler(Looper.getMainLooper()).postDelayed({
-          mPlayerEqualizer.setBandLevel(band, (currentGain + delta * i).toShort())
-        }, i * delayMs)
-      }
-    }
-
-    // Do a sanity check on given band frequencies to ensure they match
-    val givenFrequencies = bands.map { it.freq }
-    val availableFrequencies = getAvailableFrequencies()
-
-    // These SHOULD match, as the frontend does some work to maintain continuity. But good practice to check anyway
-    if (givenFrequencies != availableFrequencies) {
-      Log.i(tag, "Given equalizer frequencies do not match with available ones")
-      return
-    }
-
-    // Now apply the bands to the equalizer
-    for ((i, band) in bands.withIndex()) {
-//      mPlayerEqualizer.setBandLevel(i.toShort(), band.gain.toShort())
-      requestEqualizerBandChange(i, band.gain.toShort())
-      Log.d(tag, "Equalizer, setting band #$i (${band.freq}Hz) to ${band.gain}")
-    }
-  }
 
   /*
     User callable methods

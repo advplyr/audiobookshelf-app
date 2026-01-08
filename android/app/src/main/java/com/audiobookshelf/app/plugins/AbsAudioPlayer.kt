@@ -414,7 +414,7 @@ class AbsAudioPlayer : Plugin() {
       bands.add(EqualizerBand(freq, gain))
     }
 
-    playerNotificationService.updateEqualizer(bands)
+    playerNotificationService.equalizerManager.updateBands(bands)
     Log.d(tag, "Received new equalizer band information $bands")
 
     call.resolve()

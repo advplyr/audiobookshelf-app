@@ -108,7 +108,7 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
         playerNotificationService.mediaProgressSyncer.play(it)
 
         // Inform frontend about available frequencies
-        playerNotificationService.emitAvailableFrequencies()
+        playerNotificationService.equalizerManager.emitAvailableFrequencies()
 
       }
     } else {
