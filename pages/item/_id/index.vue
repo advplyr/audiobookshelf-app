@@ -535,7 +535,11 @@ export default {
 
       if (this.isPodcast) {
         this.episodes.sort((a, b) => {
-          return String(b.publishedAt).localeCompare(String(a.publishedAt), undefined, { numeric: true, sensitivity: 'base' })
+          if (this.podcastType === 'serial') {
+            return String(a.publishedAt).localeCompare(String(b.publishedAt), undefined, { numeric: true, sensitivity: 'base' })
+          } else {
+            return String(b.publishedAt).localeCompare(String(a.publishedAt), undefined, { numeric: true, sensitivity: 'base' })
+          }
         })
 
         let episode = this.episodes.find((ep) => {
