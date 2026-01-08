@@ -33,6 +33,7 @@ import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.data.DeviceInfo
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.managers.DbManager
+import com.audiobookshelf.app.managers.EqualizerManager
 import com.audiobookshelf.app.managers.SleepTimerManager
 import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.media.MediaProgressSyncer
@@ -81,6 +82,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     fun onSleepTimerSet(sleepTimeRemaining: Int, isAutoSleepTimer: Boolean)
     fun onLocalMediaProgressUpdate(localMediaProgress: LocalMediaProgress)
     fun onPlaybackFailed(errorMessage: String)
+    fun onEqualizerFrequenciesSet(frequencies: List<Int>)
     fun onMediaPlayerChanged(mediaPlayer: String)
     fun onProgressSyncFailing()
     fun onProgressSyncSuccess()
@@ -101,10 +103,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
   lateinit var mediaManager: MediaManager
   lateinit var apiHandler: ApiHandler
-
   lateinit var mPlayer: ExoPlayer
   lateinit var currentPlayer: Player
   var castPlayer: CastPlayer? = null
+
+  lateinit var equalizerManager: EqualizerManager
 
   lateinit var sleepTimerManager: SleepTimerManager
   lateinit var mediaProgressSyncer: MediaProgressSyncer
@@ -239,6 +242,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
     // Initialize sleep timer
     sleepTimerManager = SleepTimerManager(this)
+
+    // Initialize equalizer manager
+    equalizerManager = EqualizerManager(this)
 
     // Initialize Media Progress Syncer
     mediaProgressSyncer = MediaProgressSyncer(this, apiHandler)
@@ -395,10 +401,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                     .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
                     .build()
     mPlayer.setAudioAttributes(audioAttributes, true)
+    equalizerManager.setup(mPlayer.audioSessionId)
 
     // attach player to playerNotificationManager
     playerNotificationManager.setPlayer(mPlayer)
-
     mediaSessionConnector.setPlayer(mPlayer)
   }
 
