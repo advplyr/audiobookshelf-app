@@ -2,7 +2,7 @@
   <modals-modal v-model="show" :width="400" height="100%">
     <template #outer>
       <div class="absolute top-11 left-4 z-40">
-        <p class="text-white text-2xl truncate">Equalizer</p>
+        <p class="text-white text-2xl truncate">{{ $strings.LabelEqualizer }}</p>
       </div>
     </template>
 

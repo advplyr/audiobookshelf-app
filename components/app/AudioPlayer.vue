@@ -194,7 +194,7 @@ export default {
         }
 
         items.push({
-          text: "Equalizer", // TODO, replace with $strings version
+          text: this.$strings.LabelEqualizer,
           value: 'show_equalizer',
           icon: 'instant_mix'
          })

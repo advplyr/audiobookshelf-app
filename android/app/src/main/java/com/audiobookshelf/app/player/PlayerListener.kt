@@ -12,7 +12,6 @@ import com.google.android.exoplayer2.Player
 
 class PlayerListener(var playerNotificationService:PlayerNotificationService) : Player.Listener {
   var tag = "PlayerListener"
-  var equalizerInitiated = false
 
   companion object {
     var lastPauseTime: Long = 0   //ms
@@ -118,10 +117,7 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
     }
 
     playerNotificationService.clientEventEmitter?.onPlayingUpdate(isPlaying)
-
   }
-
-
 
   override fun onEvents(player: Player, events: Player.Events) {
     Log.d(tag, "onEvents ${playerNotificationService.getMediaPlayer()} | ${events.size()}")

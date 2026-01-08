@@ -403,13 +403,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     mPlayer.setAudioAttributes(audioAttributes, true)
     equalizerManager.setup(mPlayer.audioSessionId)
 
-
     // attach player to playerNotificationManager
     playerNotificationManager.setPlayer(mPlayer)
     mediaSessionConnector.setPlayer(mPlayer)
   }
-
-
 
   /*
     User callable methods
