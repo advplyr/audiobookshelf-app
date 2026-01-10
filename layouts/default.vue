@@ -295,15 +295,43 @@ export default {
         this.$store.commit('globals/updateLocalMediaProgress', newLocalMediaProgress)
       }
     },
+    async reloadServerMediaProgress(){
+      try {
+        const deviceData = await this.$db.getDeviceData()
+        let serverConfig = null
+        if (deviceData && deviceData.lastServerConnectionConfigId && deviceData.serverConnectionConfigs.length) {
+          serverConfig = deviceData.serverConnectionConfigs.find((scc) => scc.id === deviceData.lastServerConnectionConfigId)
+        }
+        if (!serverConfig){
+          console.error('[default] No server config found, cannot reload server media progress');
+          return;
+        }
+        const response = await CapacitorHttp.get({
+          url: `${serverConfig.address}/api/me`,
+          headers: { Authorization: `Bearer ${serverConfig.token}` },
+          connectTimeout: 6000
+        })
+        if (response && response.data && response.data) {
+          console.log('✅ [default] Successfully refreshed user info/media progress from server on visibility change')
+          this.$store.commit('user/setUser', response.data)
+        } else {
+          console.error('[default] No user in /api/me response')
+        }
+      } catch (err) {
+        console.error('[default] Failed to refresh user info on visibility change', err)
+      }
+    },
     async visibilityChanged() {
       if (document.visibilityState === 'visible') {
         const elapsedTimeOutOfFocus = Date.now() - this.timeLostFocus
         console.log(`✅ [default] device visibility: has focus (${elapsedTimeOutOfFocus}ms out of focus)`)
         // If device out of focus for more than 30s then reload local media progress
         if (elapsedTimeOutOfFocus > 30000) {
-          console.log(`✅ [default] device visibility: reloading local media progress`)
-          // Reload local media progresses
-          await this.$store.dispatch('globals/loadLocalMediaProgress')
+          console.log(`✅ [default] device visibility: syncing local + server media progress after > 30s out of focus`)
+          await this.syncLocalSessions(false).then(() => this.reloadServerMediaProgress());
+        } else if(!this.$socket?.connected){
+          console.log(`✅ [default] device visibility: syncing local + server media progress after websocket disconnect`)
+          await this.syncLocalSessions(false).then(() => this.reloadServerMediaProgress());
         }
         if (document.visibilityState === 'visible') {
           this.$eventBus.$emit('device-focus-update', true)
