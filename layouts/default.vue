@@ -238,7 +238,7 @@ export default {
       const isMediaOpenInPlayer = this.$store.getters['getIsMediaStreaming'](prog.libraryItemId, prog.episodeId)
       if (isMediaOpenInPlayer && this.$store.getters['getCurrentPlaybackSessionId'] !== payload.sessionId && !this.$store.state.playerIsPlaying) {
         await AbsLogger.info({ tag: 'default', message: `userMediaProgressUpdate: Item is currently open in player, paused and this progress update is coming from a different session. Updating playback time to ${payload.data.currentTime}` })
-        this.$eventBus.$emit('playback-time-update', payload.data.currentTime)
+        this.$eventBus.$emit('playback-time-update', prog.currentTime)
       }
 
       // Get local media progress if exists
@@ -311,11 +311,14 @@ export default {
           headers: { Authorization: `Bearer ${serverConfig.token}` },
           connectTimeout: 6000
         })
-        if (response && response.data && response.data) {
+        if (response && response.data && response.data.mediaProgress) {
           console.log('✅ [default] Successfully refreshed user info/media progress from server on visibility change')
-          this.$store.commit('user/setUser', response.data)
+          response.data.mediaProgress.forEach(async (prog) => {
+            // Update local media progress
+            await this.userMediaProgressUpdated({ id: prog.id, data: prog, sessionId: 'visibility-change-sync' })
+          })
         } else {
-          console.error('[default] No user in /api/me response')
+          console.warn('[default] No mediaProgress in /api/me response')
         }
       } catch (err) {
         console.error('[default] Failed to refresh user info on visibility change', err)
