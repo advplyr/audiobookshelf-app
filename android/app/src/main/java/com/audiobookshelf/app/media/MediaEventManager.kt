@@ -91,12 +91,6 @@ object MediaEventManager {
             getMediaItemHistoryMediaItem(playbackSession.mediaItemId)
                     ?: createMediaItemHistoryForSession(playbackSession)
 
-    // Backfill chapter snapshot if missing
-    if ((mediaItemHistory.chaptersSnapshot == null || mediaItemHistory.chaptersSnapshot!!.isEmpty())
-            && playbackSession.chapters.isNotEmpty()) {
-      mediaItemHistory.chaptersSnapshot = playbackSession.chapters
-    }
-
     val mediaItemEvent =
             MediaItemEvent(
                     name = eventName,
@@ -132,8 +126,7 @@ object MediaEventManager {
             playbackSession.serverAddress,
             playbackSession.userId,
             createdAt = System.currentTimeMillis(),
-            events = mutableListOf(),
-            chaptersSnapshot = playbackSession.chapters
+            events = mutableListOf()
     )
   }
 }

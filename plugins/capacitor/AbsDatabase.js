@@ -279,11 +279,6 @@ class AbsDatabaseWeb extends WebPlugin {
       serverConnectionConfigId: null,
       serverAddress: null,
       createdAt: Date.now(),
-      chaptersSnapshot: [
-        { id: 1, start: 0, end: 600, title: 'Introduction' },
-        { id: 2, start: 600, end: 1800, title: 'Chapter 1' },
-        { id: 3, start: 1800, end: 3600, title: 'Chapter 2' }
-      ],
       events: [
         {
           name: 'Pause',

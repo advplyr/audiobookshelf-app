@@ -14,6 +14,4 @@ class MediaItemHistory(
         var serverUserId: String?,
         var createdAt: Long,
         var events: MutableList<MediaItemEvent>,
-        // Snapshot of chapters when history was first created; used for offline and stable display
-        var chaptersSnapshot: List<BookChapter>? = null
 )

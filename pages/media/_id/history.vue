@@ -12,6 +12,7 @@
         <p class="text-sm text-fg-muted w-12">{{ $formatDate(evt.timestamp, 'HH:mm') }}</p>
         <span class="material-symbols fill px-2" :class="`text-${getEventColor(evt.name)}`">{{ getEventIcon(evt.name) }}</span>
         <p class="text-sm text-fg px-1">{{ evt.name }}</p>
+
         <span v-if="evt.serverSyncAttempted && evt.serverSyncSuccess" class="material-symbols px-1 text-base text-success">cloud_done</span>
         <span v-if="evt.serverSyncAttempted && !evt.serverSyncSuccess" class="material-symbols px-1 text-base text-error">error_outline</span>
 
@@ -34,6 +35,47 @@
 <script>
 import { AbsAudioPlayer } from '@/plugins/capacitor'
 
+const extractChapters = (libraryItem, episodeId) => {
+  if (!libraryItem || !libraryItem.media) return []
+
+  if (episodeId && Array.isArray(libraryItem.media.episodes)) {
+    const episode = libraryItem.media.episodes.find((ep) => {
+      return ep.id === episodeId || ep.episodeId === episodeId || ep.serverEpisodeId === episodeId || ep.localEpisodeId === episodeId
+    })
+    return (episode && episode.chapters) || []
+  }
+
+  return libraryItem.media.chapters || []
+}
+
+const fetchHistoryChapters = async ({ db, nativeHttp }, mediaItemHistory) => {
+  if (!mediaItemHistory || !mediaItemHistory.libraryItemId) return []
+
+  const libraryItemId = mediaItemHistory.libraryItemId
+  const episodeId = mediaItemHistory.episodeId
+
+  if (libraryItemId.startsWith('local_')) {
+    const localLibraryItem = await db.getLocalLibraryItem(libraryItemId).catch((error) => {
+      console.error('Failed to load local library item for history chapters', error)
+      return null
+    })
+    return extractChapters(localLibraryItem, episodeId)
+  }
+
+  const localLibraryItem = await db.getLocalLibraryItemByLId(libraryItemId).catch((error) => {
+    console.error('Failed to load local library item for history chapters', error)
+    return null
+  })
+  const localChapters = extractChapters(localLibraryItem, episodeId)
+  if (localChapters.length) return localChapters
+
+  const libraryItem = await nativeHttp.get(`/api/items/${libraryItemId}?expanded=1`, { connectTimeout: 5000 }).catch((error) => {
+    console.error('Failed to load library item for history chapters', error)
+    return null
+  })
+  return extractChapters(libraryItem, episodeId)
+}
+
 export default {
   async asyncData({ params, store, redirect, app, query }) {
     const mediaItemHistory = await app.$db.getMediaItemHistory(params.id)
@@ -45,7 +87,8 @@ export default {
   },
   data() {
     return {
-      onMediaItemHistoryUpdatedListener: null
+      onMediaItemHistoryUpdatedListener: null,
+      historyChapters: []
     }
   },
   computed: {
@@ -155,7 +198,7 @@ export default {
     },
     chapterTitle(evt) {
       if (!evt || evt.currentTime == null) return null
-      const chapters = (this.mediaItemHistory && this.mediaItemHistory.chaptersSnapshot) || []
+      const chapters = this.historyChapters || []
       if (!chapters.length) return null
       const time = Number(evt.currentTime)
 
@@ -213,10 +256,17 @@ export default {
       console.log('Media Item History updated')
 
       this.mediaItemHistory = mediaItemHistory
+      if (!this.historyChapters.length) {
+        this.refreshHistoryChapters()
+      }
+    },
+    async refreshHistoryChapters() {
+      this.historyChapters = await fetchHistoryChapters({ db: this.$db, nativeHttp: this.$nativeHttp }, this.mediaItemHistory)
     }
   },
   async mounted() {
     this.onMediaItemHistoryUpdatedListener = await AbsAudioPlayer.addListener('onMediaItemHistoryUpdated', this.onMediaItemHistoryUpdated)
+    this.refreshHistoryChapters()
   },
   beforeDestroy() {
     this.onMediaItemHistoryUpdatedListener?.remove()
