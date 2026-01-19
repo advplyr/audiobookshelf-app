@@ -113,6 +113,7 @@
   "LabelAutoSleepTimerAutoRewindHelp": "Amikor az automatikus alvásidőzítő befejeződik, az elem újrajátszásakor automatikusan visszatekeri a pozíciót.",
   "LabelAutoSleepTimerHelp": "Amikor a megadott kezdési és befejezési idők között média lejátszása történik, egy alvásidőzítő automatikusan elindul.",
   "LabelBooks": "Könyv",
+  "LabelByAuthor": "{0} által",
   "LabelChapterTrack": "Fejezet sáv",
   "LabelChapters": "Fejezetek",
   "LabelClosePlayer": "Lejátszó bezárása",
