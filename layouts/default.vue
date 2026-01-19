@@ -328,12 +328,9 @@ export default {
       if (document.visibilityState === 'visible') {
         const elapsedTimeOutOfFocus = Date.now() - this.timeLostFocus
         console.log(`✅ [default] device visibility: has focus (${elapsedTimeOutOfFocus}ms out of focus)`)
-        // If device out of focus for more than 30s then reload local media progress
-        if (elapsedTimeOutOfFocus > 30000) {
-          console.log(`✅ [default] device visibility: syncing local + server media progress after > 30s out of focus`)
-          await this.syncLocalSessions(false).then(() => this.reloadServerMediaProgress());
-        } else if(!this.$socket?.connected){
-          console.log(`✅ [default] device visibility: syncing local + server media progress after websocket disconnect`)
+        // If device out of focus for more than 30s or websocket disconnected then sync local progress with server progress
+        if (elapsedTimeOutOfFocus > 30000 || !this.$socket?.connected) {
+          console.log(`✅ [default] device visibility: syncing local + server media progress ${elapsedTimeOutOfFocus > 30000 ? 'after being out of focus for more than 30s' : 'after websocket disconnect'}`)
           await this.syncLocalSessions(false).then(() => this.reloadServerMediaProgress());
         }
         if (document.visibilityState === 'visible') {
