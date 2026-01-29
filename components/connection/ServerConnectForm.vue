@@ -951,8 +951,9 @@ export default {
     init() {
       if (this.$route.query.serverConnectionConfigId) {
         // Handle force re-login for servers using new JWT auth but still using an old token OR refresh token failed
-        this.serverConfig = this.serverConnectionConfigs.find((scc) => scc.id === this.$route.query.serverConnectionConfigId)
-        if (this.serverConfig) {
+        const _serverConfig = this.serverConnectionConfigs.find((scc) => scc.id === this.$route.query.serverConnectionConfigId)
+        if (_serverConfig) {
+          this.serverConfig = { ..._serverConfig }
           this.setForceRelogin(this.$route.query.error)
           return
         } else {
