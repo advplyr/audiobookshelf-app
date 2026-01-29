@@ -143,21 +143,7 @@ export const getters = {
         if (episodeId != null && lmp.episodeId != episodeId) return false
         return lmp.libraryItemId == libraryItemId
       })
-    },
-  getJumpForwardIcon: (state) => (jumpForwardTime) => {
-    const item = state.jumpForwardItems.find((i) => i.value == jumpForwardTime)
-    return item ? item.icon : 'forward_10'
-  },
-  getJumpBackwardsIcon: (state) => (jumpBackwardsTime) => {
-    const item = state.jumpBackwardsItems.find((i) => i.value == jumpBackwardsTime)
-    return item ? item.icon : 'replay_10'
-  },
-  getJumpForwardItem: (state) => (jumpForwardTime) => {
-    return state.jumpForwardItems.find((i) => i.value == jumpForwardTime) || state.jumpForwardItems[1]
-  },
-  getJumpBackwardsItem: (state) => (jumpBackwardsTime) => {
-    return state.jumpBackwardsItems.find((i) => i.value == jumpBackwardsTime) || state.jumpBackwardsItems[1]
-  }
+    }
 }
 
 export const actions = {

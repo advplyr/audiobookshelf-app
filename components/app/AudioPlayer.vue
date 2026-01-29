@@ -70,14 +70,9 @@
       <div id="playerControls" class="absolute right-0 bottom-0 mx-auto" style="max-width: 414px">
         <div class="flex items-center max-w-full" :class="playerSettings.lockUi ? 'justify-center' : 'justify-between'">
           <span v-show="showFullscreen && !playerSettings.lockUi" class="material-symbols next-icon text-fg cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpChapterStart">first_page</span>
-          <div
-            v-show="!playerSettings.lockUi"
-            class="jump-icon text-fg cursor-pointer flex flex-col items-center"
-            :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'"
-            @click.stop="jumpBackwards"
-          >
-            <span class="material-symbols text-3xl leading-none">{{ jumpBackwardsItem.icon }}</span>
-            <span class="jump-label text-[10px] font-semibold leading-tight">{{ jumpBackwardsLabel }}</span>
+          <div v-show="!playerSettings.lockUi" class="jump-icon text-fg cursor-pointer flex flex-col items-center" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpBackwards">
+            <span class="material-symbols text-3xl leading-none">replay</span>
+            <span v-if="showFullscreen" class="jump-label text-[10px] font-semibold leading-tight">{{ jumpBackwardsLabel }}</span>
           </div>
           <div class="play-btn cursor-pointer shadow-sm flex items-center justify-center rounded-full text-primary mx-4 relative overflow-hidden" :style="{ backgroundColor: coverRgb }" :class="{ 'animate-spin': seekLoading }" @mousedown.prevent @mouseup.prevent @click.stop="playPauseClick">
             <div v-if="!coverBgIsLight" class="absolute top-0 left-0 w-full h-full bg-white bg-opacity-20 pointer-events-none" />
@@ -85,14 +80,9 @@
             <span v-if="!isLoading" class="material-symbols fill" :class="{ 'text-white': coverRgb && !coverBgIsLight }">{{ seekLoading ? 'autorenew' : !isPlaying ? 'play_arrow' : 'pause' }}</span>
             <widgets-spinner-icon v-else class="h-8 w-8" />
           </div>
-          <div
-            v-show="!playerSettings.lockUi"
-            class="jump-icon text-fg cursor-pointer flex flex-col items-center"
-            :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'"
-            @click.stop="jumpForward"
-          >
-            <span class="material-symbols text-3xl leading-none">{{ jumpForwardItem.icon }}</span>
-            <span class="jump-label text-[10px] font-semibold leading-tight">{{ jumpForwardLabel }}</span>
+          <div v-show="!playerSettings.lockUi" class="jump-icon text-fg cursor-pointer flex flex-col items-center" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpForward">
+            <span class="material-symbols text-3xl leading-none">forward_media</span>
+            <span v-if="showFullscreen" class="jump-label text-[10px] font-semibold leading-tight">{{ jumpForwardLabel }}</span>
           </div>
           <span v-show="showFullscreen && !playerSettings.lockUi" class="material-symbols next-icon text-fg cursor-pointer" :class="nextChapter && !isLoading ? 'text-opacity-75' : 'text-opacity-10'" @click.stop="jumpNextChapter">last_page</span>
         </div>
@@ -238,12 +228,6 @@ export default {
       )
 
       return items
-    },
-    jumpForwardItem() {
-      return this.$store.getters['globals/getJumpForwardItem'](this.jumpForwardTime)
-    },
-    jumpBackwardsItem() {
-      return this.$store.getters['globals/getJumpBackwardsItem'](this.jumpBackwardsTime)
     },
     jumpForwardLabel() {
       return this.getJumpLabel(this.jumpForwardTime)
@@ -967,7 +951,7 @@ export default {
     },
     showProgressSyncSuccess() {
       this.syncStatus = this.$constants.SyncStatus.SUCCESS
-    },
+    }
   },
   mounted() {
     this.updateScreenSize()
