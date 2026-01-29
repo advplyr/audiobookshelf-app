@@ -1,7 +1,7 @@
 <template>
   <div class="w-full h-full">
     <div class="px-4 py-6">
-      <ui-text-input ref="input" v-model="search" @input="updateSearch" borderless :placeholder="$strings.ButtonSearch" bg="white bg-opacity-10" rounded="md" prepend-icon="search" text-size="base" clearable class="w-full text-lg" />
+      <ui-text-input ref="input" v-model="search" @input="updateSearch" borderless :aria-label="$strings.ButtonSearch" :placeholder="$strings.ButtonSearch" bg="white bg-opacity-10" rounded="md" prepend-icon="search" text-size="base" clearable class="w-full text-lg" />
     </div>
     <div class="w-full overflow-x-hidden overflow-y-auto search-content px-4" @click.stop>
       <div v-show="isFetching" class="w-full py-8 flex justify-center">
