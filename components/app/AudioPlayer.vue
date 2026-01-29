@@ -1088,10 +1088,8 @@ export default {
 #playerControls {
   transition: all 0.15s cubic-bezier(0.39, 0.575, 0.565, 1);
   transition-property: width, bottom;
-  width: auto;
-  min-width: 150px;
-  padding-left: 8px;
-  padding-right: 8px;
+  width: 128px;
+  padding-right: 24px;
   bottom: 70px;
 }
 #playerControls .jump-icon {
