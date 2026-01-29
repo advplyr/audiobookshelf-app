@@ -5,34 +5,8 @@ export const state = () => ({
   series: null,
   localMediaProgress: [],
   lastSearch: null,
-  jumpForwardItems: [
-    {
-      icon: 'forward_5',
-      value: 5
-    },
-    {
-      icon: 'forward_10',
-      value: 10
-    },
-    {
-      icon: 'forward_30',
-      value: 30
-    }
-  ],
-  jumpBackwardsItems: [
-    {
-      icon: 'replay_5',
-      value: 5
-    },
-    {
-      icon: 'replay_10',
-      value: 10
-    },
-    {
-      icon: 'replay_30',
-      value: 30
-    }
-  ],
+  jumpForwardSecondsOptions: [5, 10, 15, 30, 60, 120, 300],
+  jumpBackwardsSecondsOptions: [5, 10, 15, 30, 60, 120, 300],
   libraryIcons: ['database', 'audiobookshelf', 'books-1', 'books-2', 'book-1', 'microphone-1', 'microphone-3', 'radio', 'podcast', 'rss', 'headphones', 'music', 'file-picture', 'rocket', 'power', 'star', 'heart'],
   selectedPlaylistItems: [],
   showPlaylistsAddCreateModal: false,
@@ -111,15 +85,7 @@ export const getters = {
         if (episodeId != null && lmp.episodeId != episodeId) return false
         return lmp.libraryItemId == libraryItemId
       })
-    },
-  getJumpForwardIcon: (state) => (jumpForwardTime) => {
-    const item = state.jumpForwardItems.find((i) => i.value == jumpForwardTime)
-    return item ? item.icon : 'forward_10'
-  },
-  getJumpBackwardsIcon: (state) => (jumpBackwardsTime) => {
-    const item = state.jumpBackwardsItems.find((i) => i.value == jumpBackwardsTime)
-    return item ? item.icon : 'replay_10'
-  }
+    }
 }
 
 export const actions = {
