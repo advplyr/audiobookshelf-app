@@ -5,66 +5,8 @@ export const state = () => ({
   series: null,
   localMediaProgress: [],
   lastSearch: null,
-  jumpForwardItems: [
-    {
-      icon: 'forward_media',
-      value: 5
-    },
-    {
-      icon: 'forward_media',
-      value: 10
-    },
-    {
-      icon: 'forward_media',
-      value: 15
-    },
-    {
-      icon: 'forward_media',
-      value: 30
-    },
-    {
-      icon: 'forward_media',
-      value: 60
-    },
-    {
-      icon: 'forward_media',
-      value: 120
-    },
-    {
-      icon: 'forward_media',
-      value: 300
-    }
-  ],
-  jumpBackwardsItems: [
-    {
-      icon: 'replay',
-      value: 5
-    },
-    {
-      icon: 'replay',
-      value: 10
-    },
-    {
-      icon: 'replay',
-      value: 15
-    },
-    {
-      icon: 'replay',
-      value: 30
-    },
-    {
-      icon: 'replay',
-      value: 60
-    },
-    {
-      icon: 'replay',
-      value: 120
-    },
-    {
-      icon: 'replay',
-      value: 300
-    }
-  ],
+  jumpForwardSecondsOptions: [5, 10, 15, 30, 60, 120, 300],
+  jumpBackwardsSecondsOptions: [5, 10, 15, 30, 60, 120, 300],
   libraryIcons: ['database', 'audiobookshelf', 'books-1', 'books-2', 'book-1', 'microphone-1', 'microphone-3', 'radio', 'podcast', 'rss', 'headphones', 'music', 'file-picture', 'rocket', 'power', 'star', 'heart'],
   selectedPlaylistItems: [],
   showPlaylistsAddCreateModal: false,

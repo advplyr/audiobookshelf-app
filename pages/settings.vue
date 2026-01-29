@@ -354,11 +354,11 @@ export default {
     isiOS() {
       return this.$platform === 'ios'
     },
-    jumpForwardItems() {
-      return this.$store.state.globals.jumpForwardItems || []
+    jumpForwardSecondsOptions() {
+      return this.$store.state.globals.jumpForwardSecondsOptions || []
     },
-    jumpBackwardsItems() {
-      return this.$store.state.globals.jumpBackwardsItems || []
+    jumpBackwardsSecondsOptions() {
+      return this.$store.state.globals.jumpBackwardsSecondsOptions || []
     },
     languageOptionItems() {
       return this.$languageCodeOptions || []
@@ -384,26 +384,6 @@ export default {
           value: 'light'
         }
       ]
-    },
-    currentJumpForwardTimeIcon() {
-      return this.currentJumpForwardItem.icon
-    },
-    currentJumpForwardTimeIndex() {
-      var index = this.jumpForwardItems.findIndex((jfi) => jfi.value === this.settings.jumpForwardTime)
-      return index >= 0 ? index : 1
-    },
-    currentJumpForwardItem() {
-      return this.jumpForwardItems[this.currentJumpForwardTimeIndex] || this.jumpForwardItems[0] || {}
-    },
-    currentJumpBackwardsTimeIcon() {
-      return this.currentJumpBackwardsItem.icon
-    },
-    currentJumpBackwardsTimeIndex() {
-      var index = this.jumpBackwardsItems.findIndex((jfi) => jfi.value === this.settings.jumpBackwardsTime)
-      return index >= 0 ? index : 1
-    },
-    currentJumpBackwardsItem() {
-      return this.jumpBackwardsItems[this.currentJumpBackwardsTimeIndex] || this.jumpBackwardsItems[0] || {}
     },
     shakeSensitivityOption() {
       const item = this.shakeSensitivityItems.find((i) => i.value === this.settings.shakeSensitivity)
@@ -449,16 +429,14 @@ export default {
       else if (this.moreMenuSetting === 'streamingUsingCellular') return this.streamingUsingCellularItems
       else if (this.moreMenuSetting === 'androidAutoBrowseSeriesSequenceOrder') return this.androidAutoBrowseSeriesSequenceOrderItems
       else if (this.moreMenuSetting === 'jumpForward')
-        return this.jumpForwardItems.map((i) => ({
-          text: this.getJumpLabel(i.value),
-          value: i.value,
-          icon: i.icon
+        return this.jumpForwardSecondsOptions.map((value) => ({
+          text: this.getJumpLabel(value),
+          value: value
         }))
       else if (this.moreMenuSetting === 'jumpBackwards')
-        return this.jumpBackwardsItems.map((i) => ({
-          text: this.getJumpLabel(i.value),
-          value: i.value,
-          icon: i.icon
+        return this.jumpBackwardsSecondsOptions.map((value) => ({
+          text: this.getJumpLabel(value),
+          value: value
         }))
       return []
     },
