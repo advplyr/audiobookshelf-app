@@ -359,5 +359,7 @@
   "ToastPodcastCreateSuccess": "Podcasten skapades framgångsrikt",
   "ToastRSSFeedCloseFailed": "Misslyckades med att stänga RSS-flödet",
   "ToastRSSFeedCloseSuccess": "RSS-flödet stängt",
-  "ToastStreamingNotAllowedOnCellular": "Strömning tillåts inte över mobildata."
+  "ToastStreamingNotAllowedOnCellular": "Strömning tillåts inte över mobildata.",
+  "UnitMinutesShort": "{0}m",
+  "UnitSecondsShort": "{0}s"
 }
