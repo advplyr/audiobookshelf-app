@@ -576,7 +576,7 @@ export default {
 
       const { value } = await Dialog.confirm({
         title: this.$strings.HeaderConfirm,
-        message: $this.$getString('MessageConfirmDeleteServerEpisode', [this.title])
+        message: this.$getString('MessageConfirmDeleteServerEpisode', [this.title])
       })
 
       if (value) {
