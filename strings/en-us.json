@@ -92,7 +92,7 @@
   "HeaderStatsRecentSessions": "Recent Sessions",
   "HeaderTableOfContents": "Table of Contents",
   "HeaderUserInterfaceSettings": "User Interface Settings",
-  "HeaderWelcome": "Welcome,",
+  "HeaderWelcome": "Welcome, <strong>{0}</strong>",
   "HeaderYourStats": "Your Stats",
   "LabelAddToPlaylist": "Add to Playlist",
   "LabelAddedAt": "Added At",
