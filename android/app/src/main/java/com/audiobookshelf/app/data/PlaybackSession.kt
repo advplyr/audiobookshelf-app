@@ -38,7 +38,7 @@ class PlaybackSession(
         var playMethod: Int,
         var startedAt: Long,
         var updatedAt: Long,
-        var timeListening: Long,
+        var timeListening: Number,
         var audioTracks: MutableList<AudioTrack>,
         var currentTime: Double,
         var libraryItem: LibraryItem?,
@@ -375,7 +375,7 @@ class PlaybackSession(
 
   @JsonIgnore
   fun syncData(syncData: MediaProgressSyncData) {
-    timeListening += syncData.timeListened
+    timeListening = timeListening.toDouble() + syncData.timeListened
     updatedAt = System.currentTimeMillis()
     currentTime = syncData.currentTime
   }
