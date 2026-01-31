@@ -325,11 +325,11 @@ export default {
     },
     currentChapter() {
       if (!this.chapters.length) return null
-      return this.chapters.find((ch) => Number(Number(ch.start).toFixed(2)) <= this.currentTime && Number(Number(ch.end).toFixed(2)) > this.currentTime)
+      return this.chapters.find((ch) => Math.floor(Number(ch.start)) <= Math.floor(this.currentTime) && Math.floor(Number(ch.end)) > Math.floor(this.currentTime))
     },
     nextChapter() {
       if (!this.chapters.length) return
-      return this.chapters.find((c) => Number(Number(c.start).toFixed(2)) > this.currentTime)
+      return this.chapters.find((c) => Math.floor(Number(c.start)) > Math.floor(this.currentTime))
     },
     currentChapterTitle() {
       return this.currentChapter?.title || ''
