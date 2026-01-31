@@ -113,6 +113,7 @@
   "LabelAutoSleepTimerAutoRewindHelp": "När den automatiska insomningstimern är klar spolas din position automatiskt tillbaka.",
   "LabelAutoSleepTimerHelp": "Vid uppspelning av media mellan de angivna start- och sluttiderna startar en insomningstimer automatiskt.",
   "LabelBooks": "Böcker",
+  "LabelByAuthor": "av {0}",
   "LabelChapterTrack": "Kapitel Spår",
   "LabelChapters": "Kapitel",
   "LabelClosePlayer": "Stäng spelaren",
@@ -358,5 +359,7 @@
   "ToastPodcastCreateSuccess": "Podcasten skapades framgångsrikt",
   "ToastRSSFeedCloseFailed": "Misslyckades med att stänga RSS-flödet",
   "ToastRSSFeedCloseSuccess": "RSS-flödet stängt",
-  "ToastStreamingNotAllowedOnCellular": "Strömning tillåts inte över mobildata."
+  "ToastStreamingNotAllowedOnCellular": "Strömning tillåts inte över mobildata.",
+  "UnitMinutesShort": "{0}m",
+  "UnitSecondsShort": "{0}s"
 }
