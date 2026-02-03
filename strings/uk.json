@@ -113,6 +113,7 @@
   "LabelAutoSleepTimerAutoRewindHelp": "Коли сплине автотаймер вимкнення, відтворення знову автоматично перемотає доріжку.",
   "LabelAutoSleepTimerHelp": "Таймер вимкнення автоматично ввімкнеться при відтворенні медіа між вказаним початковим та кінцевим часом.",
   "LabelBooks": "Книг",
+  "LabelByAuthor": "від {0}",
   "LabelChapterTrack": "Прогрес глави",
   "LabelChapters": "Глави",
   "LabelClosePlayer": "Закрити програвач",
