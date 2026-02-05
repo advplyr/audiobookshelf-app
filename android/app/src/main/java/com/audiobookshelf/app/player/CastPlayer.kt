@@ -34,7 +34,11 @@ import org.json.JSONObject
 
 
 class CastPlayer(var castContext: CastContext) : BasePlayer() {
-  val tag = "CastPlayer"
+  companion object {
+    private const val TAG = "CastPlayer"
+  }
+
+  private val tag = TAG
 
   private val RENDERER_COUNT = 3
   private val RENDERER_INDEX_VIDEO = 0
@@ -150,9 +154,10 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
     Log.d(tag, "Loaded cast player request data $loadRequestData")
   }
 
-  private fun toMediaQueueItem(mediaItem: MediaItem): MediaQueueItem {
+  private fun toMediaQueueItem(mediaItem: MediaItem): MediaQueueItem? {
     // The MediaQueueItem you build is expected to be in the tag.
-    return (mediaItem.localConfiguration!!.tag as MediaQueueItem?)!!
+    val localConfig = mediaItem.localConfiguration ?: return null
+    return localConfig.tag as? MediaQueueItem
   }
 
   @JvmName("setRemoteMediaClient1")
@@ -243,7 +248,7 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
   }
 
   private fun updatePlaybackRateAndNotifyIfChanged() {
-     val mediaStatus = remoteMediaClient!!.mediaStatus
+     val mediaStatus = remoteMediaClient?.mediaStatus
       val speed = mediaStatus?.playbackRate?.toFloat() ?: PlaybackParameters.DEFAULT.speed
       if (speed > 0.0f) {
         // Set the speed if not paused.
@@ -592,7 +597,8 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
       playWhenReady, PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST, playbackState)
 
     listeners.flushEvents()
-    val pendingResult: PendingResult<RemoteMediaClient.MediaChannelResult> = if (playWhenReady) remoteMediaClient!!.play() else remoteMediaClient!!.pause()
+    val client = remoteMediaClient ?: return
+    val pendingResult: PendingResult<RemoteMediaClient.MediaChannelResult> = if (playWhenReady) client.play() else client.pause()
 
     val resultCb = ResultCallback<RemoteMediaClient.MediaChannelResult?> {
       updatePlayerStateAndNotifyIfChanged()

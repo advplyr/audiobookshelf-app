@@ -12,7 +12,12 @@ import java.util.*
 import kotlin.concurrent.schedule
 
 class MediaSessionCallback(var playerNotificationService:PlayerNotificationService) : MediaSessionCompat.Callback() {
-  var tag = "MediaSessionCallback"
+  companion object {
+    private const val TAG = "MediaSessionCallback"
+  }
+
+  private val tag = TAG
+  private val mainHandler = Handler(Looper.getMainLooper())
 
   private var mediaButtonClickCount: Int = 0
   private var mediaButtonClickTimeout: Long = 1000  //ms
@@ -25,7 +30,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
           Log.e(tag, "Failed to play library item")
         } else {
           val playbackRate = playerNotificationService.mediaManager.getSavedPlaybackRate()
-          Handler(Looper.getMainLooper()).post {
+          mainHandler.post {
             playerNotificationService.preparePlayer(it,true, playbackRate)
           }
         }
@@ -51,7 +56,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
            Log.e(tag, "Failed to play library item")
         } else {
           val playbackRate = playerNotificationService.mediaManager.getSavedPlaybackRate()
-          Handler(Looper.getMainLooper()).post {
+          mainHandler.post {
             playerNotificationService.preparePlayer(it, true, playbackRate)
           }
         }
@@ -134,7 +139,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
          Log.e(tag, "Failed to play library item")
         } else {
           val playbackRate = playerNotificationService.mediaManager.getSavedPlaybackRate()
-          Handler(Looper.getMainLooper()).post {
+          mainHandler.post {
             playerNotificationService.preparePlayer(it, true, playbackRate)
           }
         }

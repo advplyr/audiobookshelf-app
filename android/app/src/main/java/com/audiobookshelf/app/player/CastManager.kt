@@ -98,15 +98,19 @@ class CastManager constructor(val mainActivity:Activity) {
   }
 
   fun endSession(stopCasting: Boolean, pluginCall: PluginCall?) {
+    val sessionManager = getSessionManager() ?: run {
+      pluginCall?.resolve()
+      return
+    }
 
-    getSessionManager()!!.addSessionManagerListener(object : SessionListener() {
+    sessionManager.addSessionManagerListener(object : SessionListener() {
       override fun onSessionEnded(castSession: CastSession, error: Int) {
-        getSessionManager()!!.removeSessionManagerListener(this, CastSession::class.java)
+        getSessionManager()?.removeSessionManagerListener(this, CastSession::class.java)
         Log.d(tag, "CAST END SESSION")
         pluginCall?.resolve()
       }
     }, CastSession::class.java)
-    getSessionManager()!!.endCurrentSession(stopCasting)
+    sessionManager.endCurrentSession(stopCasting)
 
   }
 
@@ -227,7 +231,7 @@ class CastManager constructor(val mainActivity:Activity) {
       }
       val outRoutes: MutableList<MediaRouter.RouteInfo> = ArrayList()
       // Filter the routes
-      for (route in mediaRouter!!.routes) {
+      for (route in mediaRouter?.routes ?: emptyList()) {
         // We don't want default routes, or duplicate active routes
         // or multizone duplicates https://github.com/jellyfin/cordova-plugin-chromecast/issues/32
         val extras: Bundle? = route.extras

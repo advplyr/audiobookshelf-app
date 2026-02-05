@@ -24,6 +24,7 @@ import org.json.JSONObject
 class AbsAudioPlayer : Plugin() {
   private val tag = "AbsAudioPlayer"
   private var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
+  private val mainHandler = Handler(Looper.getMainLooper())
 
   private lateinit var mainActivity: MainActivity
   private lateinit var apiHandler:ApiHandler
@@ -203,7 +204,7 @@ class AbsAudioPlayer : Plugin() {
           return call.resolve(JSObject("{\"error\":\"No audio files found on device. Download book again to fix.\"}"))
         }
 
-        Handler(Looper.getMainLooper()).post {
+        mainHandler.post {
           Log.d(tag, "prepareLibraryItem: Preparing Local Media item ${jacksonMapper.writeValueAsString(it)}")
           val playbackSession = it.getPlaybackSession(episode, playerNotificationService.getDeviceInfo())
           if (startTimeOverride != null) {
@@ -216,7 +217,7 @@ class AbsAudioPlayer : Plugin() {
               Log.d(tag, "Media progress syncer was already syncing - stopped")
               PlayerListener.lazyIsPlaying = false
 
-              Handler(Looper.getMainLooper()).post { // TODO: This was needed again which is probably a design a flaw
+              mainHandler.post { // TODO: This was needed again which is probably a design a flaw
                 playerNotificationService.preparePlayer(
                   playbackSession,
                   playWhenReady,
@@ -233,7 +234,7 @@ class AbsAudioPlayer : Plugin() {
       }
     } else { // Play library item from server
       val playItemRequestPayload = playerNotificationService.getPlayItemRequestPayload(false)
-      Handler(Looper.getMainLooper()).post {
+      mainHandler.post {
         playerNotificationService.mediaProgressSyncer.stop {
           apiHandler.playLibraryItem(libraryItemId, episodeId, playItemRequestPayload) {
             if (it == null) {
@@ -244,7 +245,7 @@ class AbsAudioPlayer : Plugin() {
                 it.currentTime = startTimeOverride
               }
 
-              Handler(Looper.getMainLooper()).post {
+              mainHandler.post {
                 Log.d(tag, "Preparing Player playback session ${jacksonMapper.writeValueAsString(it)}")
                 PlayerListener.lazyIsPlaying = false
                 playerNotificationService.preparePlayer(it, playWhenReady, playbackRate)
@@ -259,7 +260,7 @@ class AbsAudioPlayer : Plugin() {
 
   @PluginMethod
   fun getCurrentTime(call: PluginCall) {
-    Handler(Looper.getMainLooper()).post {
+    mainHandler.post {
       val currentTime = playerNotificationService.getCurrentTimeSeconds()
       val bufferedTime = playerNotificationService.getBufferedTimeSeconds()
       val ret = JSObject()
@@ -271,7 +272,7 @@ class AbsAudioPlayer : Plugin() {
 
   @PluginMethod
   fun pausePlayer(call: PluginCall) {
-    Handler(Looper.getMainLooper()).post {
+    mainHandler.post {
       playerNotificationService.pause()
       call.resolve()
     }
@@ -279,7 +280,7 @@ class AbsAudioPlayer : Plugin() {
 
   @PluginMethod
   fun playPlayer(call: PluginCall) {
-    Handler(Looper.getMainLooper()).post {
+    mainHandler.post {
       playerNotificationService.play()
       call.resolve()
     }
@@ -287,7 +288,7 @@ class AbsAudioPlayer : Plugin() {
 
   @PluginMethod
   fun playPause(call: PluginCall) {
-    Handler(Looper.getMainLooper()).post {
+    mainHandler.post {
       val playing = playerNotificationService.playPause()
       call.resolve(JSObject("{\"playing\":$playing}"))
     }
@@ -297,7 +298,7 @@ class AbsAudioPlayer : Plugin() {
   fun seek(call: PluginCall) {
     val time:Int = call.getInt("value", 0) ?: 0 // Value in seconds
     Log.d(tag, "seek action to $time")
-    Handler(Looper.getMainLooper()).post {
+    mainHandler.post {
       playerNotificationService.seekPlayer(time * 1000L) // convert to ms
       call.resolve()
     }
@@ -306,7 +307,7 @@ class AbsAudioPlayer : Plugin() {
   @PluginMethod
   fun seekForward(call: PluginCall) {
     val amount:Int = call.getInt("value", 0) ?: 0
-    Handler(Looper.getMainLooper()).post {
+    mainHandler.post {
       playerNotificationService.seekForward(amount * 1000L) // convert to ms
       call.resolve()
     }
@@ -315,7 +316,7 @@ class AbsAudioPlayer : Plugin() {
   @PluginMethod
   fun seekBackward(call: PluginCall) {
     val amount:Int = call.getInt("value", 0) ?: 0 // Value in seconds
-    Handler(Looper.getMainLooper()).post {
+    mainHandler.post {
       playerNotificationService.seekBackward(amount * 1000L) // convert to ms
       call.resolve()
     }
@@ -325,7 +326,7 @@ class AbsAudioPlayer : Plugin() {
   fun setPlaybackSpeed(call: PluginCall) {
     val playbackSpeed:Float = call.getFloat("value", 1.0f) ?: 1.0f
 
-    Handler(Looper.getMainLooper()).post {
+    mainHandler.post {
       playerNotificationService.setPlaybackSpeed(playbackSpeed)
       call.resolve()
     }
@@ -333,7 +334,7 @@ class AbsAudioPlayer : Plugin() {
 
   @PluginMethod
   fun closePlayback(call: PluginCall) {
-    Handler(Looper.getMainLooper()).post {
+    mainHandler.post {
       playerNotificationService.closePlayback()
       call.resolve()
     }
@@ -341,10 +342,10 @@ class AbsAudioPlayer : Plugin() {
 
   @PluginMethod
   fun setSleepTimer(call: PluginCall) {
-    val time:Long = call.getString("time", "360000")!!.toLong()
+    val time:Long = call.getString("time", "360000")?.toLongOrNull() ?: 360000L
     val isChapterTime:Boolean = call.getBoolean("isChapterTime", false) == true
 
-    Handler(Looper.getMainLooper()).post {
+    mainHandler.post {
         val playbackSession: PlaybackSession? = playerNotificationService.mediaProgressSyncer.currentPlaybackSession ?: playerNotificationService.currentPlaybackSession
         val success:Boolean = playerNotificationService.sleepTimerManager.setManualSleepTimer(playbackSession?.id ?: "", time, isChapterTime)
         val ret = JSObject()
@@ -363,9 +364,9 @@ class AbsAudioPlayer : Plugin() {
 
   @PluginMethod
   fun increaseSleepTime(call: PluginCall) {
-    val time:Long = call.getString("time", "300000")!!.toLong()
+    val time:Long = call.getString("time", "300000")?.toLongOrNull() ?: 300000L
 
-    Handler(Looper.getMainLooper()).post {
+    mainHandler.post {
       playerNotificationService.sleepTimerManager.increaseSleepTime(time)
       val ret = JSObject()
       ret.put("success", true)
@@ -375,9 +376,9 @@ class AbsAudioPlayer : Plugin() {
 
   @PluginMethod
   fun decreaseSleepTime(call: PluginCall) {
-    val time:Long = call.getString("time", "300000")!!.toLong()
+    val time:Long = call.getString("time", "300000")?.toLongOrNull() ?: 300000L
 
-    Handler(Looper.getMainLooper()).post {
+    mainHandler.post {
       playerNotificationService.sleepTimerManager.decreaseSleepTime(time)
       val ret = JSObject()
       ret.put("success", true)
@@ -387,7 +388,7 @@ class AbsAudioPlayer : Plugin() {
 
   @PluginMethod
   fun cancelSleepTimer(call: PluginCall) {
-    Handler(Looper.getMainLooper()).post {
+    mainHandler.post {
       playerNotificationService.sleepTimerManager.cancelSleepTimer()
     }
     call.resolve()

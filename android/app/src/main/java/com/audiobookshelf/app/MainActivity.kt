@@ -107,6 +107,15 @@ class MainActivity : BridgeActivity() {
   }
 
   override fun onDestroy() {
+    Log.d(tag, "MainActivity onDestroy")
+    if (mBounded) {
+      try {
+        unbindService(mConnection)
+        mBounded = false
+      } catch (e: Exception) {
+        Log.e(tag, "Error unbinding service", e)
+      }
+    }
     super.onDestroy()
   }
 

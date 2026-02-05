@@ -7,11 +7,12 @@ import android.util.Log
 import com.google.android.exoplayer2.ui.PlayerNotificationManager
 
 class PlayerNotificationListener(var playerNotificationService:PlayerNotificationService) : PlayerNotificationManager.NotificationListener {
-  var tag = "PlayerNotificationListener"
-
   companion object {
+    private const val TAG = "PlayerNotificationListener"
     var isForegroundService = false
   }
+
+  private val tag = TAG
 
   override fun onNotificationPosted(
     notificationId: Int,

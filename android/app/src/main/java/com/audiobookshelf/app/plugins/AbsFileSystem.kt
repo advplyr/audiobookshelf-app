@@ -266,4 +266,93 @@ class AbsFileSystem : Plugin() {
       call.resolve(JSObject("{\"success\":false}"))
     }
   }
+
+  @PluginMethod
+  fun deleteMultipleItems(call: PluginCall) {
+    val itemsArray = call.getArray("items")
+    if (itemsArray == null) {
+      Log.e(tag, "deleteMultipleItems: items array is null")
+      return call.resolve(JSObject("{\"success\":false, \"deleted\":0}"))
+    }
+
+    var deletedCount = 0
+    val failedItems = mutableListOf<String>()
+
+    for (i in 0 until itemsArray.length()) {
+      try {
+        val itemObj = itemsArray.getJSONObject(i)
+        val localLibraryItemId = itemObj.getString("id")
+        val absolutePath = itemObj.getString("absolutePath")
+        val contentUrl = itemObj.getString("contentUrl")
+
+        Log.d(tag, "deleteMultipleItems: Deleting item $localLibraryItemId")
+
+        val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(localLibraryItemId)
+        var success = false
+
+        // If internal library item use File to delete
+        if (localLibraryItem?.folderId?.startsWith("internal-") == true) {
+          Log.d(tag, "Deleting internal library item at absolutePath $absolutePath")
+          val file = File(absolutePath)
+          success = if (file.exists()) {
+            file.deleteRecursively()
+          } else {
+            true
+          }
+        } else {
+          var subfolderPathToDelete = ""
+          localLibraryItem?.folderId?.let { folderId ->
+            val folder = DeviceManager.dbManager.getLocalFolder(folderId)
+            folder?.absolutePath?.let { folderPath ->
+              val splitAbsolutePath = absolutePath.split("/")
+              val fullSubDir = splitAbsolutePath.subList(0, splitAbsolutePath.size - 1).joinToString("/")
+              if (fullSubDir != folderPath) {
+                val subdirHasAnItem = DeviceManager.dbManager.getLocalLibraryItems().any { _localLibraryItem ->
+                  if (_localLibraryItem.id == localLibraryItemId) {
+                    false
+                  } else {
+                    _localLibraryItem.absolutePath.startsWith(fullSubDir)
+                  }
+                }
+                subfolderPathToDelete = if (subdirHasAnItem) "" else fullSubDir
+              }
+            }
+          }
+
+          val docfile = DocumentFileCompat.fromUri(mainActivity, Uri.parse(contentUrl))
+          if (docfile?.exists() == true) {
+            success = docfile.delete() == true
+          } else {
+            Log.d(tag, "Folder $contentUrl doesn't exist, marking as success")
+            success = true
+          }
+
+          if (success && subfolderPathToDelete != "") {
+            Log.d(tag, "Deleting empty subfolder at $subfolderPathToDelete")
+            val docfilesub = DocumentFileCompat.fromFullPath(mainActivity, subfolderPathToDelete)
+            docfilesub?.delete()
+          }
+        }
+
+        if (success) {
+          DeviceManager.dbManager.removeLocalLibraryItem(localLibraryItemId)
+          deletedCount++
+        } else {
+          failedItems.add(localLibraryItemId)
+        }
+      } catch (e: Exception) {
+        Log.e(tag, "deleteMultipleItems: Error deleting item at index $i", e)
+        failedItems.add("index_$i")
+      }
+    }
+
+    val result = JSObject()
+    result.put("success", failedItems.isEmpty())
+    result.put("deleted", deletedCount)
+    result.put("failed", failedItems.size)
+    if (failedItems.isNotEmpty()) {
+      result.put("failedItems", failedItems.joinToString(","))
+    }
+    call.resolve(result)
+  }
 }

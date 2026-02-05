@@ -1,8 +1,14 @@
 package com.audiobookshelf.app.managers
 
 import android.app.DownloadManager
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.content.ServiceConnection
 import android.net.Uri
+import android.os.IBinder
 import android.util.Log
+import androidx.core.content.ContextCompat
 import androidx.documentfile.provider.DocumentFile
 import com.anggrayudi.storage.callback.FileCallback
 import com.anggrayudi.storage.file.DocumentFileCompat
@@ -13,6 +19,7 @@ import com.anggrayudi.storage.media.FileDescription
 import com.audiobookshelf.app.MainActivity
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.device.FolderScanner
+import com.audiobookshelf.app.download.DownloadNotificationService
 import com.audiobookshelf.app.models.DownloadItem
 import com.audiobookshelf.app.models.DownloadItemPart
 import com.fasterxml.jackson.core.json.JsonReadFeature
@@ -21,8 +28,11 @@ import com.getcapacitor.JSObject
 import java.io.File
 import java.io.FileOutputStream
 import java.util.*
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -33,11 +43,50 @@ class DownloadItemManager(
         var mainActivity: MainActivity,
         private var clientEventEmitter: DownloadEventEmitter
 ) {
-  val tag = "DownloadItemManager"
-  private val maxSimultaneousDownloads = 3
+  companion object {
+    private const val TAG = "DownloadItemManager"
+    var isDownloading: Boolean = false
+    // Storage buffer: minimum 100MB or 5% of file size, whichever is greater
+    // This provides adequate buffer for small files while avoiding excessive waste for large files
+    private const val MIN_STORAGE_BUFFER_BYTES = 100L * 1024 * 1024 // 100MB
+    private const val STORAGE_BUFFER_PERCENTAGE = 0.05 // 5%
+  }
+
+  private val tag = TAG
+
+  // Create a supervisor scope tied to the manager's lifecycle
+  private val managerScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+  private val maxSimultaneousDownloads = 5 // Increased for faster parallel downloads
   private var jacksonMapper =
           jacksonObjectMapper()
                   .enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
+
+  @Volatile
+  private var downloadService: DownloadNotificationService? = null
+  @Volatile
+  private var isBound = false
+  private val serviceLock = Any()
+
+  private val serviceConnection = object : ServiceConnection {
+    override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+      synchronized(serviceLock) {
+        val binder = service as? DownloadNotificationService.LocalBinder
+        downloadService = binder?.getService()
+        isBound = true
+        Log.d(tag, "Download service connected")
+      }
+      // Call outside synchronized block to avoid potential deadlocks
+      updateServiceNotification()
+    }
+
+    override fun onServiceDisconnected(name: ComponentName?) {
+      synchronized(serviceLock) {
+        downloadService = null
+        isBound = false
+        Log.d(tag, "Download service disconnected")
+      }
+    }
+  }
 
   enum class DownloadCheckStatus {
     InProgress,
@@ -50,10 +99,39 @@ class DownloadItemManager(
   var currentDownloadItemParts: MutableList<DownloadItemPart> =
           mutableListOf() // Item parts currently being downloaded
 
+  init {
+    // Restore incomplete downloads from previous session
+    restoreIncompleteDownloads()
+  }
+
+  /**
+   * Restores incomplete downloads from database on app restart.
+   * This allows downloads to resume if the app was killed by the system.
+   */
+  private fun restoreIncompleteDownloads() {
+    try {
+      val savedDownloads = DeviceManager.dbManager.getDownloadItems()
+      if (savedDownloads.isNotEmpty()) {
+        Log.d(tag, "Restoring ${savedDownloads.size} incomplete downloads from previous session")
+        synchronized(downloadItemQueue) {
+          downloadItemQueue.addAll(savedDownloads)
+        }
+        // Start processing restored downloads
+        if (savedDownloads.isNotEmpty()) {
+          startDownloadService()
+          checkUpdateDownloadQueue()
+        }
+      }
+    } catch (e: Exception) {
+      Log.e(tag, "Error restoring incomplete downloads", e)
+    }
+  }
+
   interface DownloadEventEmitter {
     fun onDownloadItem(downloadItem: DownloadItem)
     fun onDownloadItemPartUpdate(downloadItemPart: DownloadItemPart)
     fun onDownloadItemComplete(jsobj: JSObject)
+    fun onDownloadError(error: String, details: String)
   }
 
   interface InternalProgressCallback {
@@ -61,23 +139,181 @@ class DownloadItemManager(
     fun onComplete(failed: Boolean)
   }
 
-  companion object {
-    var isDownloading: Boolean = false
+  /**
+   * Returns true if there are any active or pending downloads
+   */
+  fun hasActiveDownloads(): Boolean {
+    synchronized(downloadItemQueue) {
+      return downloadItemQueue.isNotEmpty() || currentDownloadItemParts.isNotEmpty()
+    }
   }
 
   /** Adds a download item to the queue and starts processing the queue. */
   fun addDownloadItem(downloadItem: DownloadItem) {
+    // Check if there's enough storage space before starting download
+    val totalSize = downloadItem.downloadItemParts.sumOf { it.fileSize }
+    val availableSpace = getAvailableStorageSpace()
+
+    // Calculate buffer with progressive percentage:
+    // - Files < 1GB: 5% buffer
+    // - Files 1-5GB: 3% buffer  
+    // - Files > 5GB: 2% buffer (to avoid excessive waste)
+    val oneGB = 1024L * 1024 * 1024
+    val fiveGB = 5L * 1024 * 1024 * 1024
+    val bufferPercentage = when {
+      totalSize < oneGB -> STORAGE_BUFFER_PERCENTAGE
+      totalSize < fiveGB -> 0.03
+      else -> 0.02
+    }
+    val percentageBuffer = (totalSize * bufferPercentage).toLong()
+    val storageBuffer = maxOf(MIN_STORAGE_BUFFER_BYTES, percentageBuffer)
+    val requiredSpace = totalSize + storageBuffer
+
+    if (availableSpace < requiredSpace) {
+      val requiredMB = requiredSpace / (1024 * 1024)
+      val availableMB = availableSpace / (1024 * 1024)
+      val bufferMB = storageBuffer / (1024 * 1024)
+      val errorMessage = "Insufficient storage space. Required: ${requiredMB}MB (${bufferMB}MB buffer), Available: ${availableMB}MB"
+      Log.e(tag, errorMessage)
+
+      // Notify via event emitter for proper handling regardless of activity state
+      val errorDetails = "Need ${requiredMB}MB but only ${availableMB}MB available."
+      clientEventEmitter.onDownloadError("INSUFFICIENT_STORAGE", errorDetails)
+      return
+    }
+
     DeviceManager.dbManager.saveDownloadItem(downloadItem)
     Log.i(tag, "Add download item ${downloadItem.media.metadata.title}")
 
-    downloadItemQueue.add(downloadItem)
+    synchronized(downloadItemQueue) {
+      downloadItemQueue.add(downloadItem)
+    }
     clientEventEmitter.onDownloadItem(downloadItem)
+
+    // Start foreground service if not already started
+    startDownloadService()
+
     checkUpdateDownloadQueue()
+  }
+
+  /** Gets available storage space in bytes */
+  private fun getAvailableStorageSpace(): Long {
+    return try {
+      val downloadDir = File(mainActivity.filesDir, "downloads")
+      if (!downloadDir.exists()) {
+        downloadDir.mkdirs()
+      }
+      val stat = android.os.StatFs(downloadDir.absolutePath)
+      stat.availableBytes
+    } catch (e: Exception) {
+      Log.e(tag, "Error getting available storage space", e)
+      0L
+    }
+  }
+
+  /** Starts the download foreground service */
+  private fun startDownloadService() {
+    synchronized(serviceLock) {
+      if (isBound) {
+        Log.d(tag, "Download service already running")
+        return
+      }
+    }
+
+    try {
+      // Verify activity and context are valid before proceeding
+      if (mainActivity.isFinishing || mainActivity.isDestroyed) {
+        Log.w(tag, "Cannot start service: activity is finishing or destroyed")
+        return
+      }
+
+      // Use application context to keep service alive independent of activity
+      val context = mainActivity.applicationContext
+      if (context == null) {
+        Log.e(tag, "Cannot start service: application context is null")
+        return
+      }
+
+      val intent = Intent(context, DownloadNotificationService::class.java)
+
+      // Start as foreground service first
+      ContextCompat.startForegroundService(context, intent)
+
+      // Then bind to get service reference, using application context
+      context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+      Log.d(tag, "Started download foreground service with application context")
+    } catch (e: Exception) {
+      Log.e(tag, "Failed to start download service", e)
+    }
+  }
+
+  /** Stops the download foreground service */
+  private fun stopDownloadService() {
+    val service: DownloadNotificationService?
+    synchronized(serviceLock) {
+      if (!isBound) {
+        Log.d(tag, "Download service not running")
+        return
+      }
+      service = downloadService
+    }
+
+    try {
+      service?.stopForegroundService()
+
+      // Unbind from application context
+      try {
+        val context = mainActivity.applicationContext
+        if (context != null) {
+          context.unbindService(serviceConnection)
+        } else {
+          Log.w(tag, "Application context is null, cannot unbind service")
+        }
+      } catch (e: IllegalArgumentException) {
+        // Service was never bound or already unbound - this is expected in some cases
+        Log.d(tag, "Service connection not registered (already unbound or never bound)")
+      } catch (e: Exception) {
+        // Unexpected error during unbind - log with full details for debugging
+        Log.e(tag, "Unexpected error unbinding service: ${e.javaClass.simpleName}: ${e.message}", e)
+      }
+
+      synchronized(serviceLock) {
+        isBound = false
+        downloadService = null
+      }
+      Log.d(tag, "Stopped download foreground service")
+    } catch (e: Exception) {
+      Log.e(tag, "Failed to stop download service", e)
+    }
+  }
+
+  /** Updates the service notification with current download status */
+  private fun updateServiceNotification() {
+    val service: DownloadNotificationService?
+    synchronized(serviceLock) {
+      if (!isBound || downloadService == null) {
+        Log.d(tag, "Service not bound, skipping notification update")
+        return
+      }
+      service = downloadService
+    }
+
+    try {
+      val currentFile = currentDownloadItemParts.firstOrNull()?.filename ?: ""
+      service?.updateNotification(currentDownloadItemParts.size, currentFile)
+    } catch (e: Exception) {
+      Log.e(tag, "Failed to update service notification", e)
+    }
   }
 
   /** Checks and updates the download queue. */
   private fun checkUpdateDownloadQueue() {
-    for (downloadItem in downloadItemQueue) {
+    // Create a snapshot to avoid ConcurrentModificationException
+    val queueSnapshot = synchronized(downloadItemQueue) {
+      downloadItemQueue.toList()
+    }
+
+    for (downloadItem in queueSnapshot) {
       val numPartsToGet = maxSimultaneousDownloads - currentDownloadItemParts.size
       val nextDownloadItemParts = downloadItem.getNextDownloadItemParts(numPartsToGet)
       Log.d(
@@ -106,6 +342,7 @@ class DownloadItemManager(
         startExternalDownload(it)
       }
     }
+    updateServiceNotification()
   }
 
   /** Starts an internal download. */
@@ -113,7 +350,6 @@ class DownloadItemManager(
     val file = File(downloadItemPart.finalDestinationPath)
     file.parentFile?.mkdirs()
 
-    val fileOutputStream = FileOutputStream(downloadItemPart.finalDestinationPath)
     val internalProgressCallback =
             object : InternalProgressCallback {
               override fun onProgress(totalBytesWritten: Long, progress: Long) {
@@ -124,6 +360,28 @@ class DownloadItemManager(
               override fun onComplete(failed: Boolean) {
                 downloadItemPart.failed = failed
                 downloadItemPart.completed = true
+                
+                // Notify user of download failure
+                if (failed) {
+                  val errorMsg = "Download failed: ${downloadItemPart.filename}"
+                  Log.e(tag, errorMsg)
+                  
+                  // Check if this might be a token expiration (downloads taking >1 hour)
+                  val downloadTime = System.currentTimeMillis() - (downloadItemPart.bytesDownloaded / 100000) // Rough estimate
+                  val errorType = if (downloadTime > 3600000) { // >1 hour
+                    "TOKEN_EXPIRED"
+                  } else {
+                    "DOWNLOAD_FAILED"
+                  }
+                  
+                  val errorDetails = if (errorType == "TOKEN_EXPIRED") {
+                    "Download session expired. Large downloads may require re-authentication."
+                  } else {
+                    "Failed to download: ${downloadItemPart.filename}"
+                  }
+                  
+                  clientEventEmitter.onDownloadError(errorType, errorDetails)
+                }
               }
             }
 
@@ -131,10 +389,15 @@ class DownloadItemManager(
             tag,
             "Start internal download to destination path ${downloadItemPart.finalDestinationPath} from ${downloadItemPart.serverUrl}"
     )
-    InternalDownloadManager(fileOutputStream, internalProgressCallback)
+
+    // Use file-based constructor for resume support
+    InternalDownloadManager(file, internalProgressCallback)
             .download(downloadItemPart.serverUrl)
     downloadItemPart.downloadId = 1
-    currentDownloadItemParts.add(downloadItemPart)
+    synchronized(currentDownloadItemParts) {
+      currentDownloadItemParts.add(downloadItemPart)
+    }
+    updateServiceNotification()
   }
 
   /** Starts an external download. */
@@ -143,14 +406,17 @@ class DownloadItemManager(
     val downloadId = downloadManager.enqueue(dlRequest)
     downloadItemPart.downloadId = downloadId
     Log.d(tag, "checkUpdateDownloadQueue: Starting download item part, downloadId=$downloadId")
-    currentDownloadItemParts.add(downloadItemPart)
+    synchronized(currentDownloadItemParts) {
+      currentDownloadItemParts.add(downloadItemPart)
+    }
+    updateServiceNotification()
   }
 
   /** Starts watching the downloads. */
   private fun startWatchingDownloads() {
     if (isDownloading) return // Already watching
 
-    GlobalScope.launch(Dispatchers.IO) {
+    managerScope.launch {
       Log.d(tag, "Starting watching downloads")
       isDownloading = true
 
@@ -169,10 +435,22 @@ class DownloadItemManager(
         if (currentDownloadItemParts.size < maxSimultaneousDownloads) {
           checkUpdateDownloadQueue()
         }
+
+        // Update notification periodically
+        launch(Dispatchers.Main) {
+          updateServiceNotification()
+        }
       }
 
       Log.d(tag, "Finished watching downloads")
       isDownloading = false
+
+      // Stop the foreground service when all downloads are complete
+      if (downloadItemQueue.isEmpty()) {
+        launch(Dispatchers.Main) {
+          stopDownloadService()
+        }
+      }
     }
   }
 
@@ -183,7 +461,10 @@ class DownloadItemManager(
     if (downloadItemPart.completed) {
       val downloadItem = downloadItemQueue.find { it.id == downloadItemPart.downloadItemId }
       downloadItem?.let { checkDownloadItemFinished(it) }
-      currentDownloadItemParts.remove(downloadItemPart)
+      synchronized(currentDownloadItemParts) {
+        currentDownloadItemParts.remove(downloadItemPart)
+      }
+      updateServiceNotification()
     }
   }
 
@@ -267,12 +548,18 @@ class DownloadItemManager(
               tag,
               "Download item part finished but download item not found ${downloadItemPart.filename}"
       )
-      currentDownloadItemParts.remove(downloadItemPart)
+      synchronized(currentDownloadItemParts) {
+        currentDownloadItemParts.remove(downloadItemPart)
+      }
+      updateServiceNotification()
     } else if (downloadCheckStatus == DownloadCheckStatus.Successful) {
       moveDownloadedFile(downloadItem, downloadItemPart)
     } else if (downloadCheckStatus != DownloadCheckStatus.InProgress) {
       checkDownloadItemFinished(downloadItem)
-      currentDownloadItemParts.remove(downloadItemPart)
+      synchronized(currentDownloadItemParts) {
+        currentDownloadItemParts.remove(downloadItemPart)
+      }
+      updateServiceNotification()
     }
   }
 
@@ -291,9 +578,30 @@ class DownloadItemManager(
                 Log.e(tag, "DOWNLOAD: FAILED TO MOVE FILE $errorCode")
                 downloadItemPart.failed = true
                 downloadItemPart.isMoving = false
+                
+                // Cleanup both temporary and destination files
                 file?.delete()
+                try {
+                  val tempFile = File(downloadItemPart.finalDestinationPath)
+                  if (tempFile.exists()) {
+                    tempFile.delete()
+                    Log.d(tag, "Cleaned up failed download file: ${tempFile.name}")
+                  }
+                } catch (e: Exception) {
+                  Log.w(tag, "Error cleaning up failed download", e)
+                }
+                
+                // Notify user
+                clientEventEmitter.onDownloadError(
+                  "MOVE_FAILED",
+                  "Failed to move ${downloadItemPart.filename}: $errorCode"
+                )
+                
                 checkDownloadItemFinished(downloadItem)
-                currentDownloadItemParts.remove(downloadItemPart)
+                synchronized(currentDownloadItemParts) {
+                  currentDownloadItemParts.remove(downloadItemPart)
+                }
+                updateServiceNotification()
               }
 
               override fun onCompleted(result: Any) {
@@ -315,7 +623,10 @@ class DownloadItemManager(
                 downloadItemPart.moved = true
                 downloadItemPart.isMoving = false
                 checkDownloadItemFinished(downloadItem)
-                currentDownloadItemParts.remove(downloadItemPart)
+                synchronized(currentDownloadItemParts) {
+                  currentDownloadItemParts.remove(downloadItemPart)
+                }
+                updateServiceNotification()
               }
             }
 
@@ -326,7 +637,10 @@ class DownloadItemManager(
       downloadItemPart.failed = true
       Log.e(tag, "Local Folder File from uri is null")
       checkDownloadItemFinished(downloadItem)
-      currentDownloadItemParts.remove(downloadItemPart)
+      synchronized(currentDownloadItemParts) {
+        currentDownloadItemParts.remove(downloadItemPart)
+      }
+      updateServiceNotification()
     } else {
       downloadItemPart.isMoving = true
       val mimetype = if (downloadItemPart.audioTrack != null) MimeType.AUDIO else MimeType.IMAGE
@@ -345,8 +659,16 @@ class DownloadItemManager(
     if (downloadItem.isDownloadFinished) {
       Log.i(tag, "Download Item finished ${downloadItem.media.metadata.title}")
 
-      GlobalScope.launch(Dispatchers.IO) {
-        folderScanner.scanDownloadItem(downloadItem) { downloadItemScanResult ->
+      // Persist download completion to DB before scanning to prevent orphaned files on crash
+      try {
+        DeviceManager.dbManager.saveDownloadItem(downloadItem)
+      } catch (e: Exception) {
+        Log.e(tag, "Failed to save download item to database", e)
+      }
+
+      managerScope.launch {
+        try {
+          folderScanner.scanDownloadItem(downloadItem) { downloadItemScanResult ->
           Log.d(
                   tag,
                   "Item download complete ${downloadItem.itemTitle} | local library item id: ${downloadItemScanResult?.localLibraryItem?.id}"
@@ -373,11 +695,60 @@ class DownloadItemManager(
 
           launch(Dispatchers.Main) {
             clientEventEmitter.onDownloadItemComplete(jsobj)
-            downloadItemQueue.remove(downloadItem)
+            synchronized(downloadItemQueue) {
+              downloadItemQueue.remove(downloadItem)
+            }
             DeviceManager.dbManager.removeDownloadItem(downloadItem.id)
           }
         }
+        } catch (e: Exception) {
+          Log.e(tag, "Error during folder scan for ${downloadItem.itemTitle}", e)
+          launch(Dispatchers.Main) {
+            clientEventEmitter.onDownloadError(
+              "SCAN_FAILED",
+              "Failed to process ${downloadItem.itemTitle}: ${e.message}"
+            )
+            // Still remove from queue to prevent stuck downloads
+            synchronized(downloadItemQueue) {
+              downloadItemQueue.remove(downloadItem)
+            }
+          }
+        }
       }
+    }
+  }
+
+  /**
+   * Cleanup method to properly release resources when the manager is destroyed.
+   * Should be called when the plugin or activity is being destroyed.
+   */
+  fun cleanup() {
+    Log.d(tag, "Cleaning up DownloadItemManager")
+
+    // Cancel all coroutines to prevent leaks
+    try {
+      managerScope.cancel("DownloadItemManager cleanup")
+    } catch (e: Exception) {
+      Log.e(tag, "Error canceling coroutine scope", e)
+    }
+
+    // Stop the service if still running
+    synchronized(serviceLock) {
+      if (isBound) {
+        try {
+          stopDownloadService()
+        } catch (e: Exception) {
+          Log.e(tag, "Error stopping service during cleanup", e)
+        }
+      }
+    }
+
+    // Clear queues with proper synchronization
+    synchronized(downloadItemQueue) {
+      downloadItemQueue.clear()
+    }
+    synchronized(currentDownloadItemParts) {
+      currentDownloadItemParts.clear()
     }
   }
 }

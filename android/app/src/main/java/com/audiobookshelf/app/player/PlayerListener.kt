@@ -10,12 +10,13 @@ import com.google.android.exoplayer2.Player
 //const val PAUSE_LEN_BEFORE_RECHECK = 30000 // 30 seconds
 
 class PlayerListener(var playerNotificationService:PlayerNotificationService) : Player.Listener {
-  var tag = "PlayerListener"
-
   companion object {
+    private const val TAG = "PlayerListener"
     var lastPauseTime: Long = 0   //ms
     var lazyIsPlaying: Boolean = false
   }
+
+  private val tag = TAG
 
   override fun onPlayerError(error: PlaybackException) {
     val errorMessage = error.message ?: "Unknown Error"

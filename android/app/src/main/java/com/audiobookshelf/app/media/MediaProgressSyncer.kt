@@ -30,6 +30,7 @@ class MediaProgressSyncer(
         private val apiHandler: ApiHandler
 ) {
   private val tag = "MediaProgressSync"
+  private val mainHandler = Handler(Looper.getMainLooper())
   private val METERED_CONNECTION_SYNC_INTERVAL = 60000
 
   private var listeningTimerTask: TimerTask? = null
@@ -77,7 +78,7 @@ class MediaProgressSyncer(
 
     listeningTimerTask =
             Timer("ListeningTimer", false).schedule(15000L, 15000L) {
-              Handler(Looper.getMainLooper()).post() {
+              mainHandler.post() {
                 if (playerNotificationService.currentPlayer.isPlaying) {
                   // Set auto sleep timer if enabled and within start/end time
                   playerNotificationService.sleepTimerManager.checkAutoSleepTimer()
@@ -356,5 +357,17 @@ class MediaProgressSyncer(
     lastSyncTime = 0L
     Log.d(tag, "reset: Set last sync time 0 $lastSyncTime")
     failedSyncs = 0
+  }
+
+  /**
+   * Cleanup method to release all resources.
+   * Should be called when the service is being destroyed.
+   */
+  fun cleanup() {
+    Log.d(tag, "Cleaning up MediaProgressSyncer resources")
+    listeningTimerTask?.cancel()
+    listeningTimerTask = null
+    listeningTimerRunning = false
+    reset()
   }
 }
