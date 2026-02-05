@@ -23,6 +23,10 @@ export default function ({ store, $db, $socket }, inject) {
       if (data) {
         headers['Content-Type'] = 'application/json'
       }
+      // Add custom headers from server connection config (e.g., CloudFlare Access)
+      if (serverConnectionConfig?.customHeaders) {
+        headers = { ...headers, ...serverConnectionConfig.customHeaders }
+      }
       if (options.headers) {
         headers = { ...headers, ...options.headers }
         delete options.headers
