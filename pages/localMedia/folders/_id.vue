@@ -1,10 +1,23 @@
 <template>
   <div class="w-full h-full py-6 px-4">
-    <div class="flex items-center mb-2">
+    <div class="flex items-center justify-between mb-2">
       <p class="text-base font-semibold">{{ $strings.LabelFolder }}: {{ folderName }}</p>
-      <div class="flex-grow" />
 
-      <span v-if="dialogItems.length" class="material-symbols text-2xl" @click="showDialog = true">more_vert</span>
+      <div v-if="selectedItems.length > 0" class="flex items-center gap-2">
+        <p class="text-sm text-fg-muted">{{ selectedItems.length }} selected</p>
+        <button @click.stop="bulkDelete" type="button" class="px-3 py-1 bg-error text-white rounded-md text-sm">
+          Delete Selected
+        </button>
+        <button @click.stop="clearSelection" type="button" class="px-3 py-1 bg-bg-secondary text-fg rounded-md text-sm">
+          Cancel
+        </button>
+      </div>
+      <div v-else class="flex items-center gap-2">
+        <button v-if="localLibraryItems.length > 0" @click="toggleSelectMode" class="px-3 py-1 bg-bg-secondary text-fg rounded-md text-sm">
+          Select Multiple
+        </button>
+        <span v-if="dialogItems.length" class="material-symbols text-2xl" @click="showDialog = true">more_vert</span>
+      </div>
     </div>
 
     <p class="text-sm mb-4 text-fg-muted">{{ $strings.LabelMediaType }}: {{ mediaType }}</p>
@@ -13,18 +26,35 @@
 
     <div class="w-full media-item-container overflow-y-auto">
       <template v-for="localLibraryItem in localLibraryItems">
-        <nuxt-link :to="`/localMedia/item/${localLibraryItem.id}`" :key="localLibraryItem.id" class="flex my-1">
-          <div class="w-12 h-12 min-w-12 min-h-12 bg-primary">
-            <img v-if="localLibraryItem.coverPathSrc" :src="localLibraryItem.coverPathSrc" class="w-full h-full object-contain" />
+        <div :key="localLibraryItem.id" class="flex my-1" :class="{ 'bg-bg-secondary rounded-lg': selectedItems.includes(localLibraryItem.id) }">
+          <div v-if="selectMode" class="w-10 flex items-center justify-center" @click="toggleSelection(localLibraryItem.id)">
+            <input type="checkbox" :checked="selectedItems.includes(localLibraryItem.id)" class="w-5 h-5" />
           </div>
-          <div class="flex-grow px-2">
-            <p class="text-sm">{{ localLibraryItem.media.metadata.title }}</p>
-            <p class="text-xs text-fg-muted">{{ getLocalLibraryItemSubText(localLibraryItem) }}</p>
+          <nuxt-link v-if="!selectMode" :to="`/localMedia/item/${localLibraryItem.id}`" class="flex flex-grow">
+            <div class="w-12 h-12 min-w-12 min-h-12 bg-primary">
+              <img v-if="localLibraryItem.coverPathSrc" :src="localLibraryItem.coverPathSrc" class="w-full h-full object-contain" />
+            </div>
+            <div class="flex-grow px-2">
+              <p class="text-sm">{{ localLibraryItem.media.metadata.title }}</p>
+              <p class="text-xs text-fg-muted">{{ getLocalLibraryItemSubText(localLibraryItem) }}</p>
+            </div>
+            <div class="w-12 h-12 flex items-center justify-center">
+              <span class="material-symbols text-xl text-fg-muted">arrow_right</span>
+            </div>
+          </nuxt-link>
+          <div v-else class="flex flex-grow" @click="toggleSelection(localLibraryItem.id)">
+            <div class="w-12 h-12 min-w-12 min-h-12 bg-primary">
+              <img v-if="localLibraryItem.coverPathSrc" :src="localLibraryItem.coverPathSrc" class="w-full h-full object-contain" />
+            </div>
+            <div class="flex-grow px-2">
+              <p class="text-sm">{{ localLibraryItem.media.metadata.title }}</p>
+              <p class="text-xs text-fg-muted">{{ getLocalLibraryItemSubText(localLibraryItem) }}</p>
+            </div>
+            <div class="w-12 h-12 flex items-center justify-center">
+              <span class="material-symbols text-xl text-fg-muted">arrow_right</span>
+            </div>
           </div>
-          <div class="w-12 h-12 flex items-center justify-center">
-            <span class="material-symbols text-xl text-fg-muted">arrow_right</span>
-          </div>
-        </nuxt-link>
+        </div>
       </template>
     </div>
 
@@ -48,7 +78,9 @@ export default {
       localLibraryItems: [],
       folder: null,
       removingFolder: false,
-      showDialog: false
+      showDialog: false,
+      selectMode: false,
+      selectedItems: []
     }
   },
   computed: {
@@ -72,6 +104,73 @@ export default {
     }
   },
   methods: {
+    toggleSelectMode() {
+      this.selectMode = !this.selectMode
+      if (!this.selectMode) {
+        this.selectedItems = []
+      }
+    },
+    toggleSelection(itemId) {
+      const index = this.selectedItems.indexOf(itemId)
+      if (index >= 0) {
+        this.selectedItems.splice(index, 1)
+      } else {
+        this.selectedItems.push(itemId)
+      }
+    },
+    clearSelection() {
+      this.selectedItems = []
+      this.selectMode = false
+    },
+    bulkDelete() {
+      if (this.selectedItems.length === 0) return
+
+      // Use native confirm instead of $confirm
+      if (!confirm(`Delete ${this.selectedItems.length} item(s)? This will permanently delete the selected downloads.`)) {
+        return
+      }
+
+      console.log('=== BULK DELETE START ===')
+      console.log('Starting delete...')
+      this.$hapticsImpact()
+
+      const itemsToDelete = this.selectedItems.map(id => {
+        const item = this.localLibraryItems.find(li => li.id === id)
+        return {
+          id: item.id,
+          absolutePath: item.absolutePath,
+          contentUrl: item.contentUrl
+        }
+      })
+
+      console.log('Calling deleteMultipleItems with', itemsToDelete.length, 'items')
+      console.log('First item:', JSON.stringify(itemsToDelete[0], null, 2))
+      console.log('All items:', JSON.stringify(itemsToDelete, null, 2))
+
+      AbsFileSystem.deleteMultipleItems({ items: itemsToDelete }).then(result => {
+        console.log('Got result:', JSON.stringify(result, null, 2))
+        if (result.success) {
+          console.log('SUCCESS: Deleted', result.deleted, 'items')
+          this.$toast.success(`Deleted ${result.deleted} items`)
+          this.localLibraryItems = this.localLibraryItems.filter(item => !this.selectedItems.includes(item.id))
+        } else {
+          console.log('PARTIAL: Deleted', result.deleted, 'items,', result.failed, 'failed')
+          this.$toast.warning(`Deleted ${result.deleted} items, ${result.failed} failed`)
+          const failedIds = result.failedItems ? result.failedItems.split(',') : []
+          const deletedIds = this.selectedItems.filter(id => !failedIds.includes(id))
+          this.localLibraryItems = this.localLibraryItems.filter(item => !deletedIds.includes(item.id))
+        }
+        this.clearSelection()
+        console.log('=== BULK DELETE END ===')
+      }).catch(error => {
+        console.error('=== BULK DELETE ERROR ===')
+        console.error('Error:', error)
+        console.error('Error message:', error.message)
+        console.error('Error stack:', error.stack)
+        this.$toast.error('Failed to delete items')
+        this.clearSelection()
+      })
+    },
     getLocalLibraryItemSubText(localLibraryItem) {
       if (!localLibraryItem) return ''
       if (localLibraryItem.mediaType == 'book') {
@@ -152,11 +251,9 @@ export default {
 
 <style scoped>
 .media-item-container {
-  height: calc(100vh - 210px);
-  max-height: calc(100vh - 210px);
-}
-.playerOpen .media-item-container {
-  height: calc(100vh - 310px);
-  max-height: calc(100vh - 310px);
+  height: calc(100vh - 220px);
+  max-height: calc(100vh - 220px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 </style>

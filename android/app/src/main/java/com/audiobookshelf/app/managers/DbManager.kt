@@ -10,18 +10,22 @@ import io.paperdb.Paper
 import java.io.File
 
 class DbManager {
-  val tag = "DbManager"
-
   companion object {
+    private const val TAG = "DbManager"
     private var isDbInitialized = false
 
     fun initialize(ctx: Context) {
       if (isDbInitialized) return
       Paper.init(ctx)
       isDbInitialized = true
-      Log.i("DbManager", "Initialized Paper db")
+      Log.i(TAG, "Initialized Paper db")
     }
   }
+
+  private val tag = TAG
+
+  // PaperDB is not thread-safe, synchronize all access
+  private val dbLock = Any()
 
   fun getDeviceData(): DeviceData {
     return Paper.book("device").read("data")
@@ -31,7 +35,7 @@ class DbManager {
     Paper.book("device").write("data", deviceData)
   }
 
-  fun getLocalLibraryItems(mediaType: String? = null): MutableList<LocalLibraryItem> {
+  fun getLocalLibraryItems(mediaType: String? = null): MutableList<LocalLibraryItem> = synchronized(dbLock) {
     val localLibraryItems: MutableList<LocalLibraryItem> = mutableListOf()
     Paper.book("localLibraryItems").allKeys.forEach {
       val localLibraryItem: LocalLibraryItem? = Paper.book("localLibraryItems").read(it)
@@ -53,7 +57,7 @@ class DbManager {
     return getLocalLibraryItems().find { it.libraryItemId == libraryItemId }
   }
 
-  fun getLocalLibraryItem(localLibraryItemId: String): LocalLibraryItem? {
+  fun getLocalLibraryItem(localLibraryItemId: String): LocalLibraryItem? = synchronized(dbLock) {
     return Paper.book("localLibraryItems").read(localLibraryItemId)
   }
 
@@ -72,27 +76,27 @@ class DbManager {
     }
   }
 
-  fun removeLocalLibraryItem(localLibraryItemId: String) {
+  fun removeLocalLibraryItem(localLibraryItemId: String) = synchronized(dbLock) {
     Paper.book("localLibraryItems").delete(localLibraryItemId)
   }
 
-  fun saveLocalLibraryItems(localLibraryItems: List<LocalLibraryItem>) {
+  fun saveLocalLibraryItems(localLibraryItems: List<LocalLibraryItem>) = synchronized(dbLock) {
     localLibraryItems.map { Paper.book("localLibraryItems").write(it.id, it) }
   }
 
-  fun saveLocalLibraryItem(localLibraryItem: LocalLibraryItem) {
+  fun saveLocalLibraryItem(localLibraryItem: LocalLibraryItem) = synchronized(dbLock) {
     Paper.book("localLibraryItems").write(localLibraryItem.id, localLibraryItem)
   }
 
-  fun saveLocalFolder(localFolder: LocalFolder) {
+  fun saveLocalFolder(localFolder: LocalFolder) = synchronized(dbLock) {
     Paper.book("localFolders").write(localFolder.id, localFolder)
   }
 
-  fun getLocalFolder(folderId: String): LocalFolder? {
+  fun getLocalFolder(folderId: String): LocalFolder? = synchronized(dbLock) {
     return Paper.book("localFolders").read(folderId)
   }
 
-  fun getAllLocalFolders(): List<LocalFolder> {
+  fun getAllLocalFolders(): List<LocalFolder> = synchronized(dbLock) {
     val localFolders: MutableList<LocalFolder> = mutableListOf()
     Paper.book("localFolders").allKeys.forEach { localFolderId ->
       Paper.book("localFolders").read<LocalFolder>(localFolderId)?.let { localFolders.add(it) }
@@ -100,21 +104,21 @@ class DbManager {
     return localFolders
   }
 
-  fun removeLocalFolder(folderId: String) {
+  fun removeLocalFolder(folderId: String) = synchronized(dbLock) {
     val localLibraryItems = getLocalLibraryItemsInFolder(folderId)
     localLibraryItems.forEach { Paper.book("localLibraryItems").delete(it.id) }
     Paper.book("localFolders").delete(folderId)
   }
 
-  fun saveDownloadItem(downloadItem: DownloadItem) {
+  fun saveDownloadItem(downloadItem: DownloadItem) = synchronized(dbLock) {
     Paper.book("downloadItems").write(downloadItem.id, downloadItem)
   }
 
-  fun removeDownloadItem(downloadItemId: String) {
+  fun removeDownloadItem(downloadItemId: String) = synchronized(dbLock) {
     Paper.book("downloadItems").delete(downloadItemId)
   }
 
-  fun getDownloadItems(): List<DownloadItem> {
+  fun getDownloadItems(): List<DownloadItem> = synchronized(dbLock) {
     val downloadItems: MutableList<DownloadItem> = mutableListOf()
     Paper.book("downloadItems").allKeys.forEach { downloadItemId ->
       Paper.book("downloadItems").read<DownloadItem>(downloadItemId)?.let { downloadItems.add(it) }
@@ -122,15 +126,17 @@ class DbManager {
     return downloadItems
   }
 
-  fun saveLocalMediaProgress(mediaProgress: LocalMediaProgress) {
+  fun saveLocalMediaProgress(mediaProgress: LocalMediaProgress) = synchronized(dbLock) {
     Paper.book("localMediaProgress").write(mediaProgress.id, mediaProgress)
   }
+
   // For books this will just be the localLibraryItemId for podcast episodes this will be
   // "{localLibraryItemId}-{episodeId}"
-  fun getLocalMediaProgress(localMediaProgressId: String): LocalMediaProgress? {
+  fun getLocalMediaProgress(localMediaProgressId: String): LocalMediaProgress? = synchronized(dbLock) {
     return Paper.book("localMediaProgress").read(localMediaProgressId)
   }
-  fun getAllLocalMediaProgress(): List<LocalMediaProgress> {
+
+  fun getAllLocalMediaProgress(): List<LocalMediaProgress> = synchronized(dbLock) {
     val mediaProgress: MutableList<LocalMediaProgress> = mutableListOf()
     Paper.book("localMediaProgress").allKeys.forEach { localMediaProgressId ->
       Paper.book("localMediaProgress").read<LocalMediaProgress>(localMediaProgressId)?.let {
@@ -139,11 +145,12 @@ class DbManager {
     }
     return mediaProgress
   }
-  fun removeLocalMediaProgress(localMediaProgressId: String) {
+
+  fun removeLocalMediaProgress(localMediaProgressId: String) = synchronized(dbLock) {
     Paper.book("localMediaProgress").delete(localMediaProgressId)
   }
 
-  fun removeAllLocalMediaProgress() {
+  fun removeAllLocalMediaProgress() = synchronized(dbLock) {
     Paper.book("localMediaProgress").destroy()
   }
 
@@ -223,7 +230,9 @@ class DbManager {
         Paper.book("localLibraryItems").delete(lli.id)
       } else if (hasUpdates) {
         Log.d(tag, "cleanLocalLibraryItems: Saving local library item ${lli.id}")
-        Paper.book("localLibraryItems").write(lli.id, lli)
+        synchronized(dbLock) {
+          Paper.book("localLibraryItems").write(lli.id, lli)
+        }
       }
     }
   }
@@ -241,17 +250,23 @@ class DbManager {
                 tag,
                 "cleanLocalMediaProgress: Invalid local media progress does not start with 'local' (fixed on server 2.0.24)"
         )
-        Paper.book("localMediaProgress").delete(it.id)
+        synchronized(dbLock) {
+          Paper.book("localMediaProgress").delete(it.id)
+        }
       } else if (matchingLLI == null) {
         Log.d(
                 tag,
                 "cleanLocalMediaProgress: No matching local library item for local media progress ${it.id} - removing"
         )
-        Paper.book("localMediaProgress").delete(it.id)
+        synchronized(dbLock) {
+          Paper.book("localMediaProgress").delete(it.id)
+        }
       } else if (matchingLLI.isPodcast) {
         if (it.localEpisodeId.isNullOrEmpty()) {
           Log.d(tag, "cleanLocalMediaProgress: Podcast media progress has no episode id - removing")
-          Paper.book("localMediaProgress").delete(it.id)
+          synchronized(dbLock) {
+            Paper.book("localMediaProgress").delete(it.id)
+          }
         } else {
           val podcast = matchingLLI.media as Podcast
           val matchingLEp = podcast.episodes?.find { ep -> ep.id == it.localEpisodeId }
@@ -260,27 +275,32 @@ class DbManager {
                     tag,
                     "cleanLocalMediaProgress: Podcast media progress for episode ${it.localEpisodeId} not found - removing"
             )
-            Paper.book("localMediaProgress").delete(it.id)
+            synchronized(dbLock) {
+              Paper.book("localMediaProgress").delete(it.id)
+            }
           }
         }
       }
     }
   }
 
-  fun saveMediaItemHistory(mediaItemHistory: MediaItemHistory) {
+  fun saveMediaItemHistory(mediaItemHistory: MediaItemHistory) = synchronized(dbLock) {
     Paper.book("mediaItemHistory").write(mediaItemHistory.id, mediaItemHistory)
   }
-  fun getMediaItemHistory(id: String): MediaItemHistory? {
+
+  fun getMediaItemHistory(id: String): MediaItemHistory? = synchronized(dbLock) {
     return Paper.book("mediaItemHistory").read(id)
   }
 
-  fun savePlaybackSession(playbackSession: PlaybackSession) {
+  fun savePlaybackSession(playbackSession: PlaybackSession) = synchronized(dbLock) {
     Paper.book("playbackSession").write(playbackSession.id, playbackSession)
   }
-  fun removePlaybackSession(playbackSessionId: String) {
+
+  fun removePlaybackSession(playbackSessionId: String) = synchronized(dbLock) {
     Paper.book("playbackSession").delete(playbackSessionId)
   }
-  fun getPlaybackSessions(): List<PlaybackSession> {
+
+  fun getPlaybackSessions(): List<PlaybackSession> = synchronized(dbLock) {
     val sessions: MutableList<PlaybackSession> = mutableListOf()
     Paper.book("playbackSession").allKeys.forEach { playbackSessionId ->
       Paper.book("playbackSession").read<PlaybackSession>(playbackSessionId)?.let {
@@ -290,10 +310,11 @@ class DbManager {
     return sessions
   }
 
-  fun saveLog(log:AbsLog) {
+  fun saveLog(log:AbsLog) = synchronized(dbLock) {
     Paper.book("log").write(log.id, log)
   }
-  fun getAllLogs() : List<AbsLog> {
+
+  fun getAllLogs() : List<AbsLog> = synchronized(dbLock) {
     val logs:MutableList<AbsLog> = mutableListOf()
     Paper.book("log").allKeys.forEach { logId ->
       Paper.book("log").read<AbsLog>(logId)?.let {
@@ -302,9 +323,11 @@ class DbManager {
     }
     return logs.sortedBy { it.timestamp }
   }
-  fun removeAllLogs() {
+
+  fun removeAllLogs() = synchronized(dbLock) {
     Paper.book("log").destroy()
   }
+
   fun cleanLogs() {
     val numberOfHoursToKeep = 48
     val keepLogCutoff = System.currentTimeMillis() - (3600000 * numberOfHoursToKeep)
@@ -312,7 +335,9 @@ class DbManager {
     var logsRemoved = 0
     allLogs.forEach {
       if (it.timestamp < keepLogCutoff) {
-        Paper.book("log").delete(it.id)
+        synchronized(dbLock) {
+          Paper.book("log").delete(it.id)
+        }
         logsRemoved++
       }
     }

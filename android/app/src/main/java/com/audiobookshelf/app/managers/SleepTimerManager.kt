@@ -17,7 +17,12 @@ const val SLEEP_TIMER_CHIME_SOUND_VOLUME = 0.7f
 
 class SleepTimerManager
 constructor(private val playerNotificationService: PlayerNotificationService) {
-  private val tag = "SleepTimerManager"
+  companion object {
+    private const val TAG = "SleepTimerManager"
+  }
+
+  private val tag = TAG
+  private val mainHandler = Handler(Looper.getMainLooper())
 
   private var sleepTimerTask: TimerTask? = null
   private var sleepTimerRunning: Boolean = false
@@ -143,7 +148,7 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
 
     sleepTimerTask =
             Timer("SleepTimer", false).schedule(0L, 1000L) {
-              Handler(Looper.getMainLooper()).post {
+              mainHandler.post {
                 if (getIsPlaying()) {
                   sleepTimerElapsed += 1000L
 
@@ -245,6 +250,20 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
 
     clearSleepTimer()
     playerNotificationService.clientEventEmitter?.onSleepTimerSet(0, false)
+  }
+
+  /**
+   * Cleanup method to release all resources.
+   * Should be called when the service is being destroyed.
+   */
+  fun cleanup() {
+    Log.d(tag, "Cleaning up SleepTimerManager resources")
+    sleepTimerTask?.cancel()
+    sleepTimerTask = null
+    sleepTimerRunning = false
+    sleepTimerEndTime = 0L
+    sleepTimerLength = 0L
+    sleepTimerElapsed = 0L
   }
 
   /** Provides vibration feedback when resetting the sleep timer. */

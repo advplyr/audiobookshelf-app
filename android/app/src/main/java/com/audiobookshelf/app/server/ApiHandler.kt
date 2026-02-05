@@ -32,19 +32,24 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 class ApiHandler(var ctx:Context) {
-  val tag = "ApiHandler"
-
   companion object {
-    // For sending data back to the Webview frontend
-    lateinit var absDatabaseNotifyListeners:(String, JSObject) -> Unit
+    private const val TAG = "ApiHandler"
 
-    fun checkAbsDatabaseNotifyListenersInitted():Boolean {
-      return ::absDatabaseNotifyListeners.isInitialized
+    // Shared OkHttpClient instances to avoid creating multiple clients
+    private val defaultClient: OkHttpClient by lazy { OkHttpClient() }
+    private val pingClient: OkHttpClient by lazy {
+      OkHttpClient.Builder().callTimeout(3, TimeUnit.SECONDS).build()
     }
+
+    /**
+     * Callback for sending database events to the Webview frontend
+     * Set by AbsDatabase plugin during initialization
+     * Uses nullable type to avoid lateinit exceptions
+     */
+    var absDatabaseNotifyListeners: ((String, JSObject) -> Unit)? = null
   }
 
-  private var defaultClient = OkHttpClient()
-  private var pingClient = OkHttpClient.Builder().callTimeout(3, TimeUnit.SECONDS).build()
+  private val tag = TAG
   private var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
   private var secureStorage = SecureStorage(ctx)
 
@@ -135,8 +140,8 @@ class ApiHandler(var ctx:Context) {
             return
           }
 
-          val bodyString = it.body!!.string()
-          if (bodyString == "OK") {
+          val bodyString = it.body?.string() ?: ""
+          if (bodyString.isEmpty() || bodyString == "OK") {
             cb(JSObject())
           } else {
             try {
@@ -225,7 +230,13 @@ class ApiHandler(var ctx:Context) {
               return
             }
 
-            val bodyString = it.body!!.string()
+            val bodyString = it.body?.string() ?: ""
+            if (bodyString.isEmpty()) {
+              AbsLogger.error(tag, "handleTokenRefresh: Empty response body for server ${DeviceManager.serverConnectionConfigString}")
+              handleRefreshFailure(callback)
+              return
+            }
+
             try {
               val responseJson = JSONObject(bodyString)
               val userObj = responseJson.optJSONObject("user")
@@ -291,14 +302,11 @@ class ApiHandler(var ctx:Context) {
       }
 
       // Send access token to Webview frontend
-      if (checkAbsDatabaseNotifyListenersInitted()) {
-        val tokenJsObject = JSObject()
-        tokenJsObject.put("accessToken", newAccessToken)
-        absDatabaseNotifyListeners("onTokenRefresh", tokenJsObject)
-      } else {
-        // Can happen if Webview is never run
-        Log.i(tag, "AbsDatabaseNotifyListeners is not initialized so cannot send new access token")
-      }
+      val tokenJsObject = JSObject()
+      tokenJsObject.put("accessToken", newAccessToken)
+      absDatabaseNotifyListeners?.invoke("onTokenRefresh", tokenJsObject)
+        ?: Log.i(tag, "AbsDatabaseNotifyListeners is not initialized so cannot send new access token")
+
       AbsLogger.info(tag, "updateTokens: Successfully refreshed auth tokens for server ${DeviceManager.serverConnectionConfigString}")
     } catch (e: Exception) {
       Log.e(tag, "updateTokens: Failed to update tokens", e)
@@ -346,8 +354,8 @@ class ApiHandler(var ctx:Context) {
               return
             }
 
-            val bodyString = it.body!!.string()
-            if (bodyString == "OK") {
+            val bodyString = it.body?.string() ?: ""
+            if (bodyString.isEmpty() || bodyString == "OK") {
               callback(JSObject())
             } else {
               try {
@@ -404,17 +412,13 @@ class ApiHandler(var ctx:Context) {
       errorObj.put("error", "Authentication failed - please login again")
       callback(errorObj)
 
-      if (checkAbsDatabaseNotifyListenersInitted()) {
-        val tokenJsObject = JSObject()
-        tokenJsObject.put("error", "Token refresh failed")
-        if (serverConnectionConfigId.isNotEmpty()) {
-          tokenJsObject.put("serverConnectionConfigId", serverConnectionConfigId)
-        }
-        absDatabaseNotifyListeners("onTokenRefreshFailure", tokenJsObject)
-      } else {
-        // Can happen if Webview is never run
-        Log.i(tag, "AbsDatabaseNotifyListeners is not initialized so cannot send token refresh failure notification")
+      val tokenJsObject = JSObject()
+      tokenJsObject.put("error", "Token refresh failed")
+      if (serverConnectionConfigId.isNotEmpty()) {
+        tokenJsObject.put("serverConnectionConfigId", serverConnectionConfigId)
       }
+      absDatabaseNotifyListeners?.invoke("onTokenRefreshFailure", tokenJsObject)
+        ?: Log.i(tag, "AbsDatabaseNotifyListeners is not initialized so cannot send token refresh failure notification")
     } catch (e: Exception) {
       Log.e(tag, "handleRefreshFailure: Error during failure handling", e)
       val errorObj = JSObject()

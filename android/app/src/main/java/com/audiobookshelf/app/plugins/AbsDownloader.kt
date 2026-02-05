@@ -23,7 +23,11 @@ import java.io.File
 
 @CapacitorPlugin(name = "AbsDownloader")
 class AbsDownloader : Plugin() {
-  private val tag = "AbsDownloader"
+  companion object {
+    private const val TAG = "AbsDownloader"
+  }
+
+  private val tag = TAG
   private var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
 
   lateinit var mainActivity: MainActivity
@@ -41,6 +45,12 @@ class AbsDownloader : Plugin() {
     }
     override fun onDownloadItemComplete(jsobj:JSObject) {
       notifyListeners("onItemDownloadComplete", jsobj)
+    }
+    override fun onDownloadError(error: String, details: String) {
+      val errorObj = JSObject()
+      errorObj.put("error", error)
+      errorObj.put("details", details)
+      notifyListeners("onDownloadError", errorObj)
     }
   })
 
@@ -61,9 +71,20 @@ class AbsDownloader : Plugin() {
     Log.d(tag, "Download library item $libraryItemId to folder $localFolderId / episode: $episodeId")
 
     val downloadId = if (episodeId.isEmpty()) libraryItemId else "$libraryItemId-$episodeId"
+
+    // Check if already in download queue
     if (downloadItemManager.downloadItemQueue.find { it.id == downloadId } != null) {
       Log.d(tag, "Download already started for this media entity $downloadId")
       return call.resolve(JSObject("{\"error\":\"Download already started for this media entity\"}"))
+    }
+
+    // Check if already downloaded
+    val existingLocalItem = DeviceManager.dbManager.getLocalLibraryItemByLId(libraryItemId)
+    if (existingLocalItem != null) {
+      if (episodeId.isEmpty() || (existingLocalItem.media as? Podcast)?.episodes?.any { it.serverEpisodeId == episodeId } == true) {
+        Log.d(tag, "Item already downloaded: $downloadId")
+        return call.resolve(JSObject("{\"error\":\"Item already downloaded\"}"))
+      }
     }
 
     apiHandler.getLibraryItemWithProgress(libraryItemId, episodeId) { libraryItem ->
@@ -270,6 +291,23 @@ class AbsDownloader : Plugin() {
       }
 
       downloadItemManager.addDownloadItem(downloadItem)
+    }
+  }
+
+  /**
+   * Called when the plugin is being destroyed.
+   * Clean up resources to prevent memory leaks and ensure proper service shutdown.
+   */
+  override fun handleOnDestroy() {
+    super.handleOnDestroy()
+    Log.d(tag, "AbsDownloader handleOnDestroy - cleaning up resources")
+
+    if (::downloadItemManager.isInitialized) {
+      try {
+        downloadItemManager.cleanup()
+      } catch (e: Exception) {
+        Log.e(tag, "Error during downloadItemManager cleanup", e)
+      }
     }
   }
 }

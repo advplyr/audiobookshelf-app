@@ -53,6 +53,15 @@ class DownloadNotificationService : Service() {
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
     Log.d(tag, "DownloadNotificationService onStartCommand")
     startForegroundService()
+    
+    // Restore incomplete downloads from previous session if service was killed
+    // This is handled in DownloadItemManager init, but we need to ensure
+    // the service stays alive to process restored downloads
+    val hasActiveDownloads = downloadManager.hasActiveDownloads()
+    if (hasActiveDownloads) {
+      Log.d(tag, "Service started with active downloads (possibly restored)")
+    }
+    
     // START_NOT_STICKY ensures service is not recreated if killed by the system
     // This prevents holding wake locks when no downloads are in progress
     return START_NOT_STICKY
@@ -87,10 +96,11 @@ class DownloadNotificationService : Service() {
         PowerManager.PARTIAL_WAKE_LOCK or PowerManager.ON_AFTER_RELEASE,
         WAKE_LOCK_TAG
       ).apply {
-        // No timeout - will be released when service stops
+        // Acquire with 6-hour timeout as safety measure to prevent battery drain
+        // if service crashes or is killed without proper cleanup
         setReferenceCounted(false)
-        acquire()
-        Log.d(tag, "Wake lock acquired")
+        acquire(6 * 60 * 60 * 1000L) // 6 hours in milliseconds
+        Log.d(tag, "Wake lock acquired with 6-hour timeout")
       }
     } catch (e: Exception) {
       Log.e(tag, "Failed to acquire wake lock", e)
@@ -113,9 +123,9 @@ class DownloadNotificationService : Service() {
         "AudiobookshelfApp:DownloadWifiLock"
       ).apply {
         setReferenceCounted(false)
-        // Acquire WiFi lock with a 10-minute timeout as a safeguard
-        acquire(10 * 60 * 1000L) // 10 minutes in milliseconds
-        Log.d(tag, "WiFi lock acquired (10 min timeout)")
+        // Acquire WiFi lock (timeout removed as it's not supported in newer Android versions)
+        acquire()
+        Log.d(tag, "WiFi lock acquired")
       }
     } catch (e: Exception) {
       Log.e(tag, "Failed to acquire WiFi lock", e)
@@ -164,7 +174,7 @@ class DownloadNotificationService : Service() {
       val channel = NotificationChannel(
         CHANNEL_ID,
         CHANNEL_NAME,
-        NotificationManager.IMPORTANCE_DEFAULT
+        NotificationManager.IMPORTANCE_HIGH
       ).apply {
         description = "Shows download progress"
         enableLights(false)
@@ -176,7 +186,7 @@ class DownloadNotificationService : Service() {
 
       val notificationManager = getSystemService(NotificationManager::class.java)
       notificationManager.createNotificationChannel(channel)
-      Log.d(tag, "Notification channel created")
+      Log.d(tag, "Notification channel created with HIGH importance")
     }
   }
 

@@ -28,9 +28,21 @@ interface WidgetEventEmitter {
 object DeviceManager {
   const val tag = "DeviceManager"
 
+  // Lock for synchronizing access to mutable state
+  private val stateLock = Any()
+
   val dbManager: DbManager = DbManager()
-  var deviceData: DeviceData = dbManager.getDeviceData()
-  var serverConnectionConfig: ServerConnectionConfig? = null
+
+  @Volatile
+  private var _deviceData: DeviceData = dbManager.getDeviceData()
+  val deviceData: DeviceData
+    get() = synchronized(stateLock) { _deviceData }
+
+  @Volatile
+  private var _serverConnectionConfig: ServerConnectionConfig? = null
+  var serverConnectionConfig: ServerConnectionConfig?
+    get() = synchronized(stateLock) { _serverConnectionConfig }
+    set(value) = synchronized(stateLock) { _serverConnectionConfig = value }
 
   val serverConnectionConfigId get() = serverConnectionConfig?.id ?: ""
   val serverConnectionConfigName get() = serverConnectionConfig?.name ?: ""
@@ -45,49 +57,53 @@ object DeviceManager {
   val isConnectedToServer
     get() = serverConnectionConfig != null
 
+  @Volatile
   var widgetUpdater: WidgetEventEmitter? = null
 
   init {
     Log.d(tag, "Device Manager Singleton invoked")
 
-    // Initialize new sleep timer settings and shake sensitivity added in v0.9.61
-    if (deviceData.deviceSettings?.autoSleepTimerStartTime == null ||
-                    deviceData.deviceSettings?.autoSleepTimerEndTime == null
-    ) {
-      deviceData.deviceSettings?.autoSleepTimerStartTime = "22:00"
-      deviceData.deviceSettings?.autoSleepTimerEndTime = "06:00"
-      deviceData.deviceSettings?.sleepTimerLength = 900000L
-    }
-    if (deviceData.deviceSettings?.shakeSensitivity == null) {
-      deviceData.deviceSettings?.shakeSensitivity = ShakeSensitivitySetting.MEDIUM
-    }
-    // Initialize auto sleep timer auto rewind added in v0.9.64
-    if (deviceData.deviceSettings?.autoSleepTimerAutoRewindTime == null) {
-      deviceData.deviceSettings?.autoSleepTimerAutoRewindTime = 300000L // 5 minutes
-    }
-    // Initialize sleep timer almost done chime added in v0.9.81
-    if (deviceData.deviceSettings?.enableSleepTimerAlmostDoneChime == null) {
-      deviceData.deviceSettings?.enableSleepTimerAlmostDoneChime = false
-    }
+    // Initialize device data with thread safety
+    synchronized(stateLock) {
+      // Initialize new sleep timer settings and shake sensitivity added in v0.9.61
+      if (_deviceData.deviceSettings?.autoSleepTimerStartTime == null ||
+                      _deviceData.deviceSettings?.autoSleepTimerEndTime == null
+      ) {
+        _deviceData.deviceSettings?.autoSleepTimerStartTime = "22:00"
+        _deviceData.deviceSettings?.autoSleepTimerEndTime = "06:00"
+        _deviceData.deviceSettings?.sleepTimerLength = 900000L
+      }
+      if (_deviceData.deviceSettings?.shakeSensitivity == null) {
+        _deviceData.deviceSettings?.shakeSensitivity = ShakeSensitivitySetting.MEDIUM
+      }
+      // Initialize auto sleep timer auto rewind added in v0.9.64
+      if (_deviceData.deviceSettings?.autoSleepTimerAutoRewindTime == null) {
+        _deviceData.deviceSettings?.autoSleepTimerAutoRewindTime = 300000L // 5 minutes
+      }
+      // Initialize sleep timer almost done chime added in v0.9.81
+      if (_deviceData.deviceSettings?.enableSleepTimerAlmostDoneChime == null) {
+        _deviceData.deviceSettings?.enableSleepTimerAlmostDoneChime = false
+      }
 
-    // Language added in v0.9.69
-    if (deviceData.deviceSettings?.languageCode == null) {
-      deviceData.deviceSettings?.languageCode = "en-us"
-    }
+      // Language added in v0.9.69
+      if (_deviceData.deviceSettings?.languageCode == null) {
+        _deviceData.deviceSettings?.languageCode = "en-us"
+      }
 
-    if (deviceData.deviceSettings?.downloadUsingCellular == null) {
-      deviceData.deviceSettings?.downloadUsingCellular = DownloadUsingCellularSetting.ALWAYS
-    }
+      if (_deviceData.deviceSettings?.downloadUsingCellular == null) {
+        _deviceData.deviceSettings?.downloadUsingCellular = DownloadUsingCellularSetting.ALWAYS
+      }
 
-    if (deviceData.deviceSettings?.streamingUsingCellular == null) {
-      deviceData.deviceSettings?.streamingUsingCellular = StreamingUsingCellularSetting.ALWAYS
-    }
-    if (deviceData.deviceSettings?.androidAutoBrowseLimitForGrouping == null) {
-      deviceData.deviceSettings?.androidAutoBrowseLimitForGrouping = 100
-    }
-    if (deviceData.deviceSettings?.androidAutoBrowseSeriesSequenceOrder == null) {
-      deviceData.deviceSettings?.androidAutoBrowseSeriesSequenceOrder =
-              AndroidAutoBrowseSeriesSequenceOrderSetting.ASC
+      if (_deviceData.deviceSettings?.streamingUsingCellular == null) {
+        _deviceData.deviceSettings?.streamingUsingCellular = StreamingUsingCellularSetting.ALWAYS
+      }
+      if (_deviceData.deviceSettings?.androidAutoBrowseLimitForGrouping == null) {
+        _deviceData.deviceSettings?.androidAutoBrowseLimitForGrouping = 100
+      }
+      if (_deviceData.deviceSettings?.androidAutoBrowseSeriesSequenceOrder == null) {
+        _deviceData.deviceSettings?.androidAutoBrowseSeriesSequenceOrder =
+                AndroidAutoBrowseSeriesSequenceOrderSetting.ASC
+      }
     }
   }
 
@@ -109,7 +125,22 @@ object DeviceManager {
    * @return The ServerConnectionConfig instance or null if not found.
    */
   fun getServerConnectionConfig(id: String?): ServerConnectionConfig? {
-    return id?.let { deviceData.serverConnectionConfigs.find { it.id == id } }
+    return id?.let {
+      synchronized(stateLock) {
+        _deviceData.serverConnectionConfigs.find { it.id == id }
+      }
+    }
+  }
+
+  /**
+   * Reloads device data from database with thread safety.
+   * Should be called after external modifications to device data.
+   */
+  fun reloadDeviceData() {
+    synchronized(stateLock) {
+      _deviceData = dbManager.getDeviceData()
+    }
+    Log.d(tag, "Device data reloaded from database")
   }
 
   /**
@@ -176,8 +207,10 @@ object DeviceManager {
    * @param playbackSession The playback session to set.
    */
   fun setLastPlaybackSession(playbackSession: PlaybackSession) {
-    deviceData.lastPlaybackSession = playbackSession
-    dbManager.saveDeviceData(deviceData)
+    synchronized(stateLock) {
+      _deviceData.lastPlaybackSession = playbackSession
+      dbManager.saveDeviceData(_deviceData)
+    }
   }
 
   /**

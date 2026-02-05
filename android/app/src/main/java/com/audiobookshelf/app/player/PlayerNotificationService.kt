@@ -89,6 +89,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     fun onPlaybackSpeedChanged(playbackSpeed: Float)
   }
   private val binder = LocalBinder()
+  private val mainHandler = Handler(Looper.getMainLooper())
 
   var clientEventEmitter: ClientEventEmitter? = null
 
@@ -192,6 +193,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     isStarted = false
     isClosed = true
     DeviceManager.widgetUpdater?.onPlayerChanged(this)
+
+    // Cleanup timers to prevent leaks
+    sleepTimerManager.cleanup()
+    mediaProgressSyncer.cleanup()
 
     playerNotificationManager.setPlayer(null)
     mPlayer.release()
@@ -312,14 +317,19 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                   return MediaDescriptionCompat.Builder().build()
                 }
 
-                val coverUri = currentPlaybackSession!!.getCoverUri(ctx)
+                val currentSession = currentPlaybackSession ?: run {
+                  Log.e(tag, "Current playback session is null")
+                  return MediaDescriptionCompat.Builder().build()
+                }
+
+                val coverUri = currentSession.getCoverUri(ctx)
 
 
                 var bitmap: Bitmap? = null
                 // Local covers get bitmap
                 // Note: In Android Auto for local cover images, setting the icon uri to a local path does not work (cover is blank)
                 // so we create and set the bitmap here instead of AbMediaDescriptionAdapter
-                if (currentPlaybackSession!!.localLibraryItem?.coverContentUrl != null) {
+                if (currentSession.localLibraryItem?.coverContentUrl != null) {
                   bitmap =
                     if (Build.VERSION.SDK_INT < 28) {
                       MediaStore.Images.Media.getBitmap(ctx.contentResolver, coverUri)
@@ -345,13 +355,13 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                 val extra = Bundle()
                 extra.putString(
                         MediaMetadataCompat.METADATA_KEY_ARTIST,
-                        currentPlaybackSession!!.displayAuthor
+                        currentSession.displayAuthor
                 )
 
                 val mediaDescriptionBuilder =
                         MediaDescriptionCompat.Builder()
                                 .setExtras(extra)
-                                .setTitle(currentPlaybackSession!!.displayTitle)
+                                .setTitle(currentSession.displayTitle)
 
                 bitmap?.let { mediaDescriptionBuilder.setIconBitmap(it) }
                   ?: mediaDescriptionBuilder.setIconUri(coverUri)
@@ -732,7 +742,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   }
 
   private fun setMediaSessionToCastVolume() {
-    val currentVol = try { castPlayer?.getDeviceVolume() ?: 0 } catch (e: Exception) { 0 }
+    val currentVol = try { castPlayer?.getDeviceVolume() ?: 0 } catch (e: Exception) { 
+      Log.w(tag, "Failed to get Chromecast volume", e)
+      0 
+    }
     val provider = object : VolumeProviderCompat(VolumeProviderCompat.VOLUME_CONTROL_ABSOLUTE, 100, currentVol) {
       override fun onSetVolumeTo(volume: Int) {
         val clamped = volume.coerceIn(0, 100)
@@ -740,10 +753,15 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
           castPlayer?.setDeviceVolume(clamped)
           val actual = castPlayer?.getDeviceVolume() ?: clamped
           setCurrentVolume(actual)
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+          Log.w(tag, "Failed to set Chromecast volume to $clamped", e)
+        }
       }
       override fun onAdjustVolume(direction: Int) {
-        val current = try { castPlayer?.getDeviceVolume() ?: currentVolume } catch (_: Exception) { currentVolume }
+        val current = try { castPlayer?.getDeviceVolume() ?: currentVolume } catch (e: Exception) { 
+          Log.w(tag, "Failed to get Chromecast volume for adjustment", e)
+          currentVolume 
+        }
         val step = if (direction > 0) 1 else if (direction < 0) -1 else 0
         if (step == 0) return
         var target = (current + step).coerceIn(0, 100)
@@ -757,7 +775,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
             actual = castPlayer?.getDeviceVolume() ?: current
           }
           setCurrentVolume(actual)
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+          Log.w(tag, "Failed to adjust Chromecast volume (direction=$direction, target=$target)", e)
+        }
       }
     }
     remoteVolumeProvider = provider
@@ -1581,29 +1601,32 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                                 }
 
                         // to show download icon
-                        val localLibraryItem =
-                                DeviceManager.dbManager.getLocalLibraryItemByLId(
-                                        libraryItem.recentEpisode!!.id
-                                )
-                        localLibraryItem?.let { lli ->
-                          val localEpisode =
-                                  (lli.media as Podcast).episodes?.find {
-                                    it.serverEpisodeId == libraryItem.recentEpisode.id
-                                  }
-                          libraryItem.recentEpisode.localEpisodeId = localEpisode?.id
+                        val recentEpisodeId = libraryItem.recentEpisode?.id
+                        if (recentEpisodeId != null) {
+                          val localLibraryItem =
+                                  DeviceManager.dbManager.getLocalLibraryItemByLId(
+                                          recentEpisodeId
+                                  )
+                          localLibraryItem?.let { lli ->
+                            val localEpisode =
+                                    (lli.media as Podcast).episodes?.find {
+                                      it.serverEpisodeId == libraryItem.recentEpisode?.id
+                                    }
+                            libraryItem.recentEpisode?.localEpisodeId = localEpisode?.id
+                          }
                         }
 
                         val description =
-                                libraryItem.recentEpisode.getMediaDescription(
+                                libraryItem.recentEpisode?.getMediaDescription(
                                         libraryItem,
                                         progress,
                                         ctx
-                                )
+                                ) ?: return@map null
                         MediaBrowserCompat.MediaItem(
                                 description,
                                 MediaBrowserCompat.MediaItem.FLAG_PLAYABLE
                         )
-                      }
+                      }?.filterNotNull()
               result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
             } else if (shelf.type == "podcast") {
               val children =
@@ -1743,7 +1766,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                 libraryItems ->
           Log.d(tag, "Received ${libraryItems.size} library items")
           var items = libraryItems
-          if (DeviceManager.deviceData.deviceSettings!!.androidAutoBrowseSeriesSequenceOrder ===
+          if (DeviceManager.deviceData.deviceSettings?.androidAutoBrowseSeriesSequenceOrder ===
                           AndroidAutoBrowseSeriesSequenceOrderSetting.DESC
           ) {
             items = libraryItems.reversed()
@@ -1875,7 +1898,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                 mediaIdParts[5]
         ) { libraryItems ->
           var items = libraryItems
-          if (DeviceManager.deviceData.deviceSettings!!.androidAutoBrowseSeriesSequenceOrder ===
+          if (DeviceManager.deviceData.deviceSettings?.androidAutoBrowseSeriesSequenceOrder ===
                           AndroidAutoBrowseSeriesSequenceOrderSetting.DESC
           ) {
             items = libraryItems.reversed()
@@ -1984,10 +2007,20 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       var foundAuthors: MutableList<MediaBrowserCompat.MediaItem> = mutableListOf()
 
       mediaManager.serverLibraries.forEach { serverLibrary ->
-        runBlocking {
-          // Skip searching library if it doesn't have any audio files
-          if (serverLibrary.stats?.numAudioFiles == 0) return@runBlocking
-          val searchResult = mediaManager.doSearch(serverLibrary.id, query)
+        // Skip searching library if it doesn't have any audio files
+        if (serverLibrary.stats?.numAudioFiles == 0) return@forEach
+
+        // Perform search synchronously since we're already detached
+        val searchResult = try {
+          runBlocking {
+            mediaManager.doSearch(serverLibrary.id, query)
+          }
+        } catch (e: Exception) {
+          Log.e(tag, "Search failed for library ${serverLibrary.id}", e)
+          return@forEach
+        }
+
+        try {
           for (resultData in searchResult.entries.iterator()) {
             when (resultData.key) {
               "book" -> foundBooks.addAll(resultData.value)
@@ -1996,6 +2029,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
               "podcast" -> foundPodcasts.addAll(resultData.value)
             }
           }
+        } catch (e: Exception) {
+          Log.e(tag, "Error processing search results", e)
         }
       }
       foundBooks.addAll(foundSeries)
@@ -2012,11 +2047,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   //
   private fun initSensor() {
     // ShakeDetector initialization
-    mSensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
-    mAccelerometer = mSensorManager!!.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+    mSensorManager = getSystemService(SENSOR_SERVICE) as? SensorManager
+    mAccelerometer = mSensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
 
     mShakeDetector = ShakeDetector()
-    mShakeDetector!!.setOnShakeListener(
+    mShakeDetector?.setOnShakeListener(
             object : ShakeDetector.OnShakeListener {
               override fun onShake(count: Int) {
                 Log.d(tag, "PHONE SHAKE! $count")
@@ -2036,11 +2071,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
     Log.d(tag, "Registering shake SENSOR ${mAccelerometer?.isWakeUpSensor}")
     val success =
-            mSensorManager!!.registerListener(
+            mSensorManager?.registerListener(
                     mShakeDetector,
                     mAccelerometer,
                     SensorManager.SENSOR_DELAY_UI
-            )
+            ) ?: false
     if (success) isShakeSensorRegistered = true
   }
 
@@ -2051,9 +2086,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     shakeSensorUnregisterTask?.cancel()
     shakeSensorUnregisterTask =
             Timer("ShakeUnregisterTimer", false).schedule(SLEEP_TIMER_WAKE_UP_EXPIRATION) {
-              Handler(Looper.getMainLooper()).post {
+              mainHandler.post {
                 Log.d(tag, "wake time expired: Unregistering shake sensor")
-                mSensorManager!!.unregisterListener(mShakeDetector)
+                mSensorManager?.unregisterListener(mShakeDetector)
                 isShakeSensorRegistered = false
               }
             }

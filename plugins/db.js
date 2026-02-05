@@ -121,6 +121,10 @@ class DbService {
   getMediaItemHistory(mediaId) {
     return AbsDatabase.getMediaItemHistory({ mediaId })
   }
+
+  deleteMultipleItems(items) {
+    return AbsFileSystem.deleteMultipleItems({ items })
+  }
 }
 
 export default ({ app, store }, inject) => {

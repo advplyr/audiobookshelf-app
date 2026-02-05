@@ -13,7 +13,12 @@ import com.google.android.exoplayer2.Player
 import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector
 
 class MediaSessionPlaybackPreparer(var playerNotificationService:PlayerNotificationService) : MediaSessionConnector.PlaybackPreparer {
-  var tag = "MediaSessionPlaybackPreparer"
+  companion object {
+    private const val TAG = "MediaSessionPlaybackPreparer"
+  }
+
+  private val tag = TAG
+  private val mainHandler = Handler(Looper.getMainLooper())
 
   override fun onCommand(player: Player, command: String, extras: Bundle?, cb: ResultReceiver?): Boolean {
     Log.d(tag, "ON COMMAND $command")
@@ -35,7 +40,7 @@ class MediaSessionPlaybackPreparer(var playerNotificationService:PlayerNotificat
           Log.e(tag, "Failed to play library item")
         } else {
           val playbackRate = playerNotificationService.mediaManager.getSavedPlaybackRate()
-          Handler(Looper.getMainLooper()).post {
+          mainHandler.post {
             playerNotificationService.preparePlayer(it, playWhenReady, playbackRate)
           }
         }
@@ -63,7 +68,7 @@ class MediaSessionPlaybackPreparer(var playerNotificationService:PlayerNotificat
          Log.e(tag, "Failed to play library item")
         } else {
           val playbackRate = playerNotificationService.mediaManager.getSavedPlaybackRate()
-          Handler(Looper.getMainLooper()).post {
+          mainHandler.post {
             playerNotificationService.preparePlayer(it, playWhenReady, playbackRate)
           }
         }
@@ -79,7 +84,7 @@ class MediaSessionPlaybackPreparer(var playerNotificationService:PlayerNotificat
          Log.e(tag, "Failed to play library item")
         } else {
           val playbackRate = playerNotificationService.mediaManager.getSavedPlaybackRate()
-          Handler(Looper.getMainLooper()).post {
+          mainHandler.post {
             playerNotificationService.preparePlayer(it, playWhenReady, playbackRate)
           }
         }

@@ -19,7 +19,7 @@ kotlin {
     "--add-opens=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED"
   ]
 
-  jvmToolchain(17)
+  jvmToolchain(21)
 }
 
 android {
@@ -127,6 +127,14 @@ dependencies {
 
   // Jackson for JSON
   implementation 'com.fasterxml.jackson.module:jackson-module-kotlin:2.12.2'
+
+  // Testing dependencies
+  testImplementation 'junit:junit:4.13.2'
+  testImplementation 'org.mockito:mockito-core:5.5.0'
+  testImplementation 'org.mockito:mockito-inline:5.2.0'
+  testImplementation 'org.robolectric:robolectric:4.11.1'
+  testImplementation 'org.jetbrains.kotlin:kotlin-test:2.0.0'
+  testImplementation 'org.jetbrains.kotlin:kotlin-test-junit:2.0.0'
 }
 
 apply from: 'capacitor.build.gradle'

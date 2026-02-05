@@ -50,7 +50,7 @@ class ShakeDetector : SensorEventListener {
         AbsLogger.info("ShakeDetector", "Device shake above threshold ($gForce > $shakeThreshold)")
         mShakeTimestamp = now
         mShakeCount++
-        mListener!!.onShake(mShakeCount)
+        mListener?.onShake(mShakeCount)
       }
     }
   }
