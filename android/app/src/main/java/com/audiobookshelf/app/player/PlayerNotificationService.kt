@@ -562,12 +562,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
   private fun setMediaSessionConnectorCustomActions(playbackSession: PlaybackSession) {
     val mediaItems = playbackSession.getMediaItems(ctx)
-    val customActionProviders =
-            mutableListOf(
-                    JumpBackwardCustomActionProvider(),
-                    JumpForwardCustomActionProvider(),
-                    ChangePlaybackSpeedCustomActionProvider() // Will be pushed to far left
-            )
+    val customActionProviders = mutableListOf(
+            ChangePlaybackSpeedCustomActionProvider(),
+            JumpBackwardCustomActionProvider(),
+            JumpForwardCustomActionProvider()
+    )
+
     if (playbackSession.mediaPlayer != PLAYER_CAST && mediaItems.size > 1) {
       customActionProviders.addAll(
               listOf(
