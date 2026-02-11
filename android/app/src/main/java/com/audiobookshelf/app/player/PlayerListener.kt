@@ -1,5 +1,6 @@
 package com.audiobookshelf.app.player
 
+import android.media.audiofx.Equalizer
 import android.util.Log
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.data.PlayerState
@@ -104,6 +105,10 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
         player.volume = 1F // Volume on sleep timer might have decreased this
 
         playerNotificationService.mediaProgressSyncer.play(it)
+
+        // Inform frontend about available frequencies
+        playerNotificationService.equalizerManager.emitAvailableFrequencies()
+
       }
     } else {
       playerNotificationService.mediaProgressSyncer.pause {
