@@ -30,7 +30,7 @@
       </div>
     </div>
 
-    <div class="cover-wrapper absolute z-30 pointer-events-auto" @click="clickContainer">
+    <div class="cover-wrapper absolute z-30 pointer-events-auto" @click="clickCover">
       <div class="w-full h-full flex justify-center">
         <covers-book-cover v-if="libraryItem || localLibraryItemCoverSrc" ref="cover" :library-item="libraryItem" :download-cover="localLibraryItemCoverSrc" :width="bookCoverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" raw @imageLoaded="coverImageLoaded" />
       </div>
@@ -241,6 +241,9 @@ export default {
     jumpBackwardsTime() {
       return this.$store.getters['getJumpBackwardsTime']
     },
+    coverTapToTogglePlayPause() {
+      return this.$store.getters['getCoverTapToTogglePlayPause']
+    },
     bookCoverAspectRatio() {
       return this.$store.getters['libraries/getBookCoverAspectRatio']
     },
@@ -440,6 +443,13 @@ export default {
         return
       }
       AbsAudioPlayer.requestSession()
+    },
+    clickCover() {
+      if (this.showFullscreen && this.coverTapToTogglePlayPause) {
+        this.playPauseClick()
+      } else {
+        this.expandToFullscreen()
+      }
     },
     clickContainer() {
       this.expandToFullscreen()
