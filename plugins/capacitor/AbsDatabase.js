@@ -11,6 +11,8 @@ import { registerPlugin, Capacitor, WebPlugin } from '@capacitor/core'
  * @property {string} username
  * @property {string} token
  * @property {string} [refreshToken] - Only passed in when setting config, then stored in secure storage
+ * @property {string} [customHeaders]
+ * @property {string} [certificateAlias] // Optional client certificate alias (Android only)
  */
 
 class AbsDatabaseWeb extends WebPlugin {
@@ -49,6 +51,9 @@ class AbsDatabaseWeb extends WebPlugin {
       ssc.username = serverConnectionConfig.username
       ssc.version = serverConnectionConfig.version
       ssc.customHeaders = serverConnectionConfig.customHeaders || {}
+      if (serverConnectionConfig.certificateAlias && !ssc.certificateAlias) {
+        ssc.certificateAlias = serverConnectionConfig.certificateAlias
+      }
 
       if (serverConnectionConfig.refreshToken) {
         console.log('[AbsDatabase] Updating refresh token...', serverConnectionConfig.refreshToken)
@@ -67,7 +72,8 @@ class AbsDatabaseWeb extends WebPlugin {
         address: serverConnectionConfig.address,
         token: serverConnectionConfig.token,
         version: serverConnectionConfig.version,
-        customHeaders: serverConnectionConfig.customHeaders || {}
+        customHeaders: serverConnectionConfig.customHeaders || {},
+        certificateAlias: serverConnectionConfig.certificateAlias || null
       }
 
       if (serverConnectionConfig.refreshToken) {
