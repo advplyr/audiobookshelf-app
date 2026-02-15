@@ -551,10 +551,9 @@ constructor(private val host: SleepTimerHost, serviceScope: CoroutineScope) {
   fun sendCurrentSleepTimerState() {
     if (sleepTimerRunning) {
       val timeRemaining = getSleepTimerTimeRemainingSeconds(getPlaybackSpeed())
-      playerNotificationService.clientEventEmitter?.onSleepTimerSet(timeRemaining, isAutoSleepTimer)
+        host.notifySleepTimerSet(timeRemaining, isAutoSleepTimer)
     } else {
-      // No timer running - send 0 to clear any stale UI state
-      playerNotificationService.clientEventEmitter?.onSleepTimerSet(0, false)
+        host.notifySleepTimerSet(0, false)
     }
   }
 }

@@ -102,6 +102,10 @@ class SleepTimerCoordinator(
     sleepTimerManager?.handleShake()
   }
 
+    fun sendCurrentSleepTimerState() {
+        sleepTimerManager?.sendCurrentSleepTimerState()
+    }
+
   override val context: Context
     get() = hostAdapter?.context
       ?: throw IllegalStateException("SleepTimerHostAdapter must be set before using SleepTimerCoordinator")

@@ -82,6 +82,8 @@ class PlaybackController(private val context: Context) {
     PlaybackConstants.sessionCommand(PlaybackConstants.Commands.SYNC_PROGRESS_FORCE)
   private val markUiPlaybackEventCommand =
     PlaybackConstants.sessionCommand(PlaybackConstants.Commands.MARK_UI_PLAYBACK_EVENT)
+    private val resyncSleepTimerCommand =
+        PlaybackConstants.sessionCommand(PlaybackConstants.Commands.RESYNC_SLEEP_TIMER)
 
   var listener: Listener? = null
   private var isProgressUpdaterScheduled = false
@@ -560,6 +562,14 @@ class PlaybackController(private val context: Context) {
   fun forceNextPlayingStateDispatch() {
     forceNextPlayingStateUpdate = true
   }
+
+    fun resyncUiState() {
+        mediaController?.let { controller ->
+            emitMetadata(controller)
+            notifyPlayingState(effectiveIsPlaying(controller))
+        }
+        sendCommand(resyncSleepTimerCommand, Bundle.EMPTY, null)
+    }
 
   private fun notifyPlayingState(isPlaying: Boolean) {
     val shouldForce = forceNextPlayingStateUpdate

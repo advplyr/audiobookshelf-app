@@ -21,6 +21,7 @@ object PlaybackConstants {
     const val CLOSE_PLAYBACK = "com.audiobookshelf.app.player.CLOSE_PLAYBACK"
     const val SYNC_PROGRESS_FORCE = "com.audiobookshelf.app.player.SYNC_PROGRESS_FORCE"
     const val MARK_UI_PLAYBACK_EVENT = "com.audiobookshelf.app.player.MARK_UI_PLAYBACK_EVENT"
+      const val RESYNC_SLEEP_TIMER = "com.audiobookshelf.app.player.RESYNC_SLEEP_TIMER"
   }
 
   object WidgetActions {

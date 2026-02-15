@@ -262,10 +262,14 @@ class AbsAudioPlayer : Plugin() {
     isInForeground = true
 
     // Send current state to UI after resume to sync up (with small delay to let WebView fully resume)
-    if (::playerNotificationService.isInitialized && playerNotificationService.currentPlaybackSession != null) {
+      if (BuildConfig.USE_MEDIA3) {
+          Handler(Looper.getMainLooper()).postDelayed({
+              playbackController?.resyncUiState()
+          }, 100)
+      } else if (::playerNotificationService.isInitialized && playerNotificationService.currentPlaybackSession!=null) {
       Handler(Looper.getMainLooper()).postDelayed({
         playerNotificationService.sendClientMetadata(PlayerState.READY)
-        playerNotificationService.sleepTimerManager.sendCurrentSleepTimerState()
+          playerNotificationService.sendCurrentSleepTimerState()
         playerNotificationService.mediaProgressSyncer.currentLocalMediaProgress?.let {
           playerNotificationService.clientEventEmitter?.onLocalMediaProgressUpdate(it)
         }

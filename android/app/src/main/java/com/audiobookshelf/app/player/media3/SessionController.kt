@@ -23,6 +23,7 @@ class SessionController(
   private val cancelSleepTimer: () -> Unit,
   private val adjustSleepTimer: (deltaMs: Long, increase: Boolean) -> Unit,
   private val getSleepTimerTime: () -> Long,
+  private val resyncSleepTimerState: () -> Unit,
   private val cyclePlaybackSpeed: (() -> Unit)?,
   private val getCurrentSession: (() -> PlaybackSession?)?,
   private val currentAbsolutePositionMs: (() -> Long?)?,
@@ -139,6 +140,11 @@ class SessionController(
                   SessionResult.RESULT_SUCCESS,
                   Bundle().apply { putLong(PlaybackConstants.SleepTimer.EXTRA_TIME_MS, remainingSleepTimeMs) }
               )
+          }
+
+          PlaybackConstants.Commands.RESYNC_SLEEP_TIMER -> {
+              resyncSleepTimerState()
+              success
           }
 
           PlaybackConstants.Commands.CLOSE_PLAYBACK -> {

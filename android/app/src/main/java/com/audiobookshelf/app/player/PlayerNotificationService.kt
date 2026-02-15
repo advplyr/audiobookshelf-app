@@ -1333,6 +1333,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     return sleepTimerCoordinator.getTimerTimeMs()
   }
 
+    fun sendCurrentSleepTimerState() {
+        sleepTimerCoordinator.sendCurrentSleepTimerState()
+    }
+
   //
   // MEDIA BROWSER STUFF (ANDROID AUTO)
   //

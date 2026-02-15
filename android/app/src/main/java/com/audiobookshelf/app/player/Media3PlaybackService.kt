@@ -1040,6 +1040,7 @@ class Media3PlaybackService : MediaLibraryService() {
         ) else sleepTimerCoordinator.decreaseTimer(deltaMs)
       },
       getSleepTimerTime = { sleepTimerCoordinator.getTimerTimeMs() },
+        resyncSleepTimerState = { sleepTimerCoordinator.sendCurrentSleepTimerState() },
       cyclePlaybackSpeed = { cyclePlaybackSpeed() },
       getCurrentSession = { currentPlaybackSession },
       currentAbsolutePositionMs = { currentAbsolutePositionMs() },
