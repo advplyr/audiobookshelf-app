@@ -10,20 +10,24 @@ import androidx.appcompat.R
 import androidx.mediarouter.app.MediaRouteChooserDialog
 import androidx.mediarouter.media.MediaRouteSelector
 import androidx.mediarouter.media.MediaRouter
+import com.audiobookshelf.app.BuildConfig
+import com.audiobookshelf.app.CastConstants
 import com.getcapacitor.PluginCall
 import com.google.android.exoplayer2.ext.cast.SessionAvailabilityListener
 import com.google.android.gms.cast.*
 import com.google.android.gms.cast.framework.*
 import org.json.JSONObject
 
-class CastManager constructor(val mainActivity:Activity) {
+class CastManager(val mainActivity:Activity) {
   private val tag = "CastManager"
 
   private var playerNotificationService:PlayerNotificationService? = null
   private var newConnectionListener: SessionListener? = null
+  var onCastSessionAvailable: ((CastContext) -> Unit)? = null
+  var onCastSessionUnavailable: (() -> Unit)? = null
 
   private fun switchToPlayer(useCastPlayer:Boolean) {
-    Handler(Looper.getMainLooper()).post() {
+    Handler(Looper.getMainLooper()).post {
       playerNotificationService?.switchToPlayer(useCastPlayer)
     }
   }
@@ -48,7 +52,10 @@ class CastManager constructor(val mainActivity:Activity) {
     }
   }
 
-  fun requestSession(playerNotificationService: PlayerNotificationService, callback: RequestSessionCallback) {
+  fun requestSession(
+    playerNotificationService: PlayerNotificationService?,
+    callback: RequestSessionCallback
+  ) {
     this.playerNotificationService = playerNotificationService
 
     mainActivity.runOnUiThread {
@@ -60,7 +67,7 @@ class CastManager constructor(val mainActivity:Activity) {
 
         val builder = MediaRouteChooserDialog(mainActivity, R.style.Theme_AppCompat_NoActionBar)
         builder.routeSelector = MediaRouteSelector.Builder()
-          .addControlCategory(CastMediaControlIntent.categoryForCast(CastMediaControlIntent.DEFAULT_MEDIA_RECEIVER_APPLICATION_ID))
+        .addControlCategory(CastMediaControlIntent.categoryForCast(CastConstants.RECEIVER_APPLICATION_ID))
           .build()
         builder.setCanceledOnTouchOutside(true)
         builder.setOnCancelListener {
@@ -126,9 +133,11 @@ class CastManager constructor(val mainActivity:Activity) {
     val callback = object : ScanCallback() {
       override fun onRouteUpdate(routes: List<MediaRouter.RouteInfo>?) {
         Log.d(tag, "CAST On ROUTE UPDATED ${routes?.size} | ${getContext().castState}")
-        // if the routes have changed, we may have an available device
-        // If there is at least one device available
-        if (getContext().castState != CastState.NO_DEVICES_AVAILABLE) {
+        // Check if we have any non-default, non-bluetooth routes (these are Cast devices)
+        // Don't rely solely on castState as it can be incorrect when devices don't support our receiver app
+        val hasCastDevices = routes?.any { !it.isDefault && !it.isBluetooth } == true
+
+        if (hasCastDevices) {
           routes?.forEach { Log.d(tag, "CAST ROUTE ${it.description} | ${it.deviceType} | ${it.isBluetooth} | ${it.name}") }
 
           // Stop the scan
@@ -149,10 +158,12 @@ class CastManager constructor(val mainActivity:Activity) {
 
     callback.setMediaRouter(getMediaRouter())
 
+    Log.d(tag, "Starting route scan; current cast state=${getContext().castState}")
     callback.onFilteredRouteUpdate()
 
+    Log.d(tag, "Registering media router callback")
     getMediaRouter()?.addCallback(MediaRouteSelector.Builder()
-      .addControlCategory(CastMediaControlIntent.categoryForCast(CastMediaControlIntent.DEFAULT_MEDIA_RECEIVER_APPLICATION_ID))
+      .addControlCategory(CastMediaControlIntent.categoryForCast(CastConstants.RECEIVER_APPLICATION_ID))
       .build(),
       callback,
       MediaRouter.CALLBACK_FLAG_PERFORM_ACTIVE_SCAN)
@@ -183,7 +194,7 @@ class CastManager constructor(val mainActivity:Activity) {
     }
 
 //    mainActivity.runOnUiThread {
-      Log.d(tag, "Removing callback on media router")
+    Log.d(tag, "Removing callback on media router")
       callback.stop()
       getMediaRouter()?.removeCallback(callback)
       completionCallback?.run()
@@ -271,17 +282,20 @@ class CastManager constructor(val mainActivity:Activity) {
         getSessionManager()?.removeSessionManagerListener(this, CastSession::class.java)
 
         val castContext = CastContext.getSharedInstance(mainActivity)
-
-        playerNotificationService?.let {
-          if (it.castPlayer == null) {
-            Log.d(tag, "Initializing castPlayer on session started - switch to cast player")
-            it.castPlayer = CastPlayer(castContext).apply {
-              addListener(PlayerListener(it))
-              setSessionAvailabilityListener(CastSessionAvailabilityListener())
+        if (BuildConfig.USE_MEDIA3) {
+          onCastSessionAvailable?.invoke(castContext)
+        } else {
+          playerNotificationService?.let {
+            if (it.castPlayer == null) {
+              Log.d(tag, "Initializing castPlayer on session started - switch to cast player")
+              it.castPlayer = CastPlayer(castContext).apply {
+                addListener(PlayerListener(it))
+                setSessionAvailabilityListener(CastSessionAvailabilityListener())
+              }
+              switchToPlayer(true)
+            } else {
+              Log.d(tag, "castPlayer is already initialized on session started")
             }
-            switchToPlayer(true)
-          } else {
-            Log.d(tag, "castPlayer is already initialized on session started")
           }
         }
       }
@@ -293,6 +307,9 @@ class CastManager constructor(val mainActivity:Activity) {
       }
 
       override fun onSessionEnded(castSession: CastSession, error: Int) {
+        if (BuildConfig.USE_MEDIA3) {
+          onCastSessionUnavailable?.invoke()
+        }
         if (callback.onSessionEndedBeforeStart(error)) {
           getSessionManager()?.removeSessionManagerListener(this, CastSession::class.java)
         }
@@ -309,11 +326,11 @@ class CastManager constructor(val mainActivity:Activity) {
     return CastContext.getSharedInstance(mainActivity)
   }
 
-  private fun getSessionManager(): SessionManager? {
+  private fun getSessionManager(): SessionManager {
     return getContext().sessionManager
   }
 
-  private fun getMediaRouter(): MediaRouter? {
+  private fun getMediaRouter(): MediaRouter {
     return MediaRouter.getInstance(mainActivity)
   }
 
