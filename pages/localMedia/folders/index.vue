@@ -22,7 +22,7 @@
       </div>
       <div v-if="!isAndroid10OrBelow || overrideFolderRestriction" class="flex border-t border-fg/10 my-4 py-4">
         <div class="flex-grow pr-1">
-          <ui-dropdown v-model="newFolderMediaType" placeholder="Select media type" :items="mediaTypeItems" />
+          <ui-dropdown v-model="newFolderMediaType" :placeholder="$strings.LabelSelectMediaType" :items="mediaTypeItems" />
         </div>
         <ui-btn small class="w-28" color="success" @click="selectFolder">{{ $strings.ButtonNewFolder }}</ui-btn>
       </div>

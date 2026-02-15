@@ -543,4 +543,18 @@ constructor(private val host: SleepTimerHost, serviceScope: CoroutineScope) {
 
     checkAutoSleepTimer()
   }
+
+  /**
+   * Sends the current sleep timer state to the client.
+   * Called when app resumes from background to sync UI state.
+   */
+  fun sendCurrentSleepTimerState() {
+    if (sleepTimerRunning) {
+      val timeRemaining = getSleepTimerTimeRemainingSeconds(getPlaybackSpeed())
+      playerNotificationService.clientEventEmitter?.onSleepTimerSet(timeRemaining, isAutoSleepTimer)
+    } else {
+      // No timer running - send 0 to clear any stale UI state
+      playerNotificationService.clientEventEmitter?.onSleepTimerSet(0, false)
+    }
+  }
 }

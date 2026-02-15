@@ -113,6 +113,7 @@
   "LabelAutoSleepTimerAutoRewindHelp": "Cuando el temporizador de auto apagado finaliza, reproducir el elemento nuevamente rebobinará automáticamente tu posición.",
   "LabelAutoSleepTimerHelp": "Cuando se reproduce contenido multimedia entre las horas de inicio y finalización especificadas, se activará automáticamente un temporizador de apagado.",
   "LabelBooks": "Libros",
+  "LabelByAuthor": "por",
   "LabelChapterTrack": "Seguimiento de Capítulo",
   "LabelChapters": "Capítulos",
   "LabelClosePlayer": "Cerrar reproductor",

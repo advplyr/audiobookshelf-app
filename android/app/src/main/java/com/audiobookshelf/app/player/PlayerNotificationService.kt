@@ -564,6 +564,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
             extractorsFactory.setMp3ExtractorFlags(Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING)
           }
 
+          extractorsFactory.setConstantBitrateSeekingEnabled(true)
+
           ProgressiveMediaSource.Factory(dataSourceFactory, extractorsFactory)
             .createMediaSource(exoMediaItems[0])
         } else if (!playbackSession.isHLS) {
@@ -571,6 +573,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
           val dataSourceFactory = DefaultHttpDataSource.Factory()
 
           val extractorsFactory = DefaultExtractorsFactory()
+          extractorsFactory.setConstantBitrateSeekingEnabled(true)
+
           if (DeviceManager.deviceData.deviceSettings?.enableMp3IndexSeeking == true) {
             extractorsFactory.setMp3ExtractorFlags(Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING)
           }
@@ -587,7 +591,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
           )
           HlsMediaSource.Factory(dataSourceFactory).createMediaSource(exoMediaItems[0])
         }
-
       mPlayer.setMediaSource(mediaSource)
 
       // Add remaining media items if multi-track
@@ -812,32 +815,21 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
   }
 
   private fun setMediaSessionToCastVolume() {
-    val currentVol = try { castPlayer?.getDeviceVolume() ?: 0 } catch (e: Exception) { 0 }
-    val provider = object : VolumeProviderCompat(VOLUME_CONTROL_ABSOLUTE, 100, currentVol) {
+    val currentVol = try { castPlayer?.getDeviceVolume() ?: 0 } catch (_: Exception) { 0 }
+    val provider = object : VolumeProviderCompat(VolumeProviderCompat.VOLUME_CONTROL_ABSOLUTE, 100, currentVol) {
       override fun onSetVolumeTo(volume: Int) {
+        // Clamp, update UI immediately, then send to device
         val clamped = volume.coerceIn(0, 100)
-        try {
-          castPlayer?.setDeviceVolume(clamped)
-          val actual = castPlayer?.getDeviceVolume() ?: clamped
-          setCurrentVolume(actual)
-        } catch (_: Exception) {}
+        setCurrentVolume(clamped)
+        try { castPlayer?.setDeviceVolume(clamped) } catch (_: Exception) {}
       }
+
       override fun onAdjustVolume(direction: Int) {
-        val current = try { castPlayer?.getDeviceVolume() ?: currentVolume } catch (_: Exception) { currentVolume }
-        val step = if (direction > 0) 1 else if (direction < 0) -1 else 0
-        if (step == 0) return
-        var target = (current + step).coerceIn(0, 100)
-        try {
-          castPlayer?.setDeviceVolume(target)
-          var actual = castPlayer?.getDeviceVolume() ?: current
-          // If device ignored tiny step, try nudging up to 3 steps total.
-          if (actual == current) {
-            target = (current + step * 3).coerceIn(0, 100)
-            castPlayer?.setDeviceVolume(target)
-            actual = castPlayer?.getDeviceVolume() ?: current
-          }
-          setCurrentVolume(actual)
-        } catch (_: Exception) {}
+        // Use Android-provided step (−1, 0, +1). Clamp, update UI immediately, then send.
+        val current = currentVolume
+        val target = (current + direction).coerceIn(0, 100)
+        setCurrentVolume(target)
+        try { castPlayer?.setDeviceVolume(target) } catch (_: Exception) {}
       }
     }
     remoteVolumeProvider = provider

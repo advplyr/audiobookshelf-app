@@ -113,6 +113,7 @@
   "LabelAutoSleepTimerAutoRewindHelp": "Al termine del timer di spegnimento automatico, la riproduzione dell'elemento riavvolgerà automaticamente la tua posizione.",
   "LabelAutoSleepTimerHelp": "Durante la riproduzione di contenuti multimediali tra l'ora di inizio e quella di fine specificate, verrà avviato automaticamente un timer di spegnimento.",
   "LabelBooks": "Libri",
+  "LabelByAuthor": "di {0}",
   "LabelChapterTrack": "Traccia capitolo",
   "LabelChapters": "Capitoli",
   "LabelClosePlayer": "Chiudi player",
