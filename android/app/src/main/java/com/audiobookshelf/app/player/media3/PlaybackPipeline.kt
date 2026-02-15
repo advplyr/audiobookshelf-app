@@ -58,6 +58,7 @@ class PlaybackPipeline(
     buildListener: () -> androidx.media3.common.Player.Listener,
   ): AbsPlayerWrapper {
     val extractorsFactory = DefaultExtractorsFactory().apply {
+      setConstantBitrateSeekingEnabled(true)
       if (enableMp3IndexSeeking) setMp3ExtractorFlags(Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING)
     }
 

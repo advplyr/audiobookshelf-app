@@ -67,6 +67,7 @@ class AbsAudioPlayer : Plugin() {
     }
 
     override fun onMetadata(metadata: PlaybackMetadata) {
+      if (!isInForeground) return
       notifyListeners("onMetadata", JSObject(jacksonMapper.writeValueAsString(metadata)))
     }
 
@@ -75,6 +76,7 @@ class AbsAudioPlayer : Plugin() {
     }
 
     override fun onSleepTimerSet(sleepTimeRemaining: Int, isAutoSleepTimer:Boolean) {
+      if (!isInForeground) return
       val ret = JSObject()
       ret.put("value", sleepTimeRemaining)
       ret.put("isAuto", isAutoSleepTimer)
@@ -82,6 +84,7 @@ class AbsAudioPlayer : Plugin() {
     }
 
     override fun onLocalMediaProgressUpdate(localMediaProgress: LocalMediaProgress) {
+      if (!isInForeground) return
       notifyListeners("onLocalMediaProgressUpdate", JSObject(jacksonMapper.writeValueAsString(localMediaProgress)))
     }
 
