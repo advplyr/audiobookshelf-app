@@ -32,13 +32,12 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
-@UnstableApi
 /**
  * Controls Media3 playback via MediaController, handling session connections and command execution.
  * Manages playback state, metadata, and provides callbacks for UI updates and error handling.
  */
+@UnstableApi
 class PlaybackController(private val context: Context) {
-  private val PLAYER_CAST = "cast-player"
 
     /** Callbacks for playback state changes. All callbacks invoked on main thread. */
   interface Listener {
@@ -53,9 +52,8 @@ class PlaybackController(private val context: Context) {
     fun onSeekCompleted(positionMs: Long, mediaItemIndex: Int) {}
   }
 
-  private val TAG = "PlaybackController"
-
   private val mainHandler = Handler(Looper.getMainLooper())
+    private val isOnMainThread get() = Looper.myLooper()==Looper.getMainLooper()
   private val isConnectionInProgress = AtomicBoolean(false)
   private val isDisconnectionInProgress = AtomicBoolean(false)
   private var mediaControllerFuture: ListenableFuture<MediaController>? = null
@@ -70,7 +68,6 @@ class PlaybackController(private val context: Context) {
   private var lastKnownPositionMs: Long = 0L
   @Volatile
   private var lastKnownMediaItemIndex: Int = 0
-
 
   private val setSleepTimerCommand =
     PlaybackConstants.sessionCommand(PlaybackConstants.SleepTimer.ACTION_SET)
@@ -92,7 +89,7 @@ class PlaybackController(private val context: Context) {
   private val progressUpdater = object : Runnable {
     override fun run() {
       mediaController?.let { mediaController ->
-        if (Looper.myLooper() == Looper.getMainLooper()) {
+          if (isOnMainThread) {
           lastKnownPositionMs = mediaController.currentPosition
         }
         emitMetadata(mediaController)
@@ -301,7 +298,6 @@ class PlaybackController(private val context: Context) {
       }
     }
 
-
     override fun onPlayerError(error: PlaybackException) {
       isPreparingPlayback = false
 
@@ -375,8 +371,6 @@ class PlaybackController(private val context: Context) {
         "preparePlayback: session=${playbackSession.id} title=${playbackSession.displayTitle}"
       )
     }
-    activePlaybackSession?.id == playbackSession.id
-
     isPreparingPlayback = true
     activePlaybackSession = playbackSession
     listener?.onPlaybackSession(playbackSession)
@@ -386,10 +380,29 @@ class PlaybackController(private val context: Context) {
     connect {
       val controller = mediaController ?: return@connect
 
-      val prepareNewSession = {
-        val targetIsCast = playbackSession.isLocal && currentMediaPlayer == PLAYER_CAST
+        // Sync previous session progress asynchronously when switching books.
+        // Initial playback (no media) prepares immediately without blocking.
+        if (controller.mediaItemCount > 0 && controller.currentMediaItem!=null) {
+            sendCommand(forceSyncProgressCommand, Bundle.EMPTY) {
+                executeWithController { ctrl ->
+                    prepareSessionOnController(ctrl, playbackSession, playWhenReady, playbackRate)
+                }
+            }
+        } else {
+            prepareSessionOnController(controller, playbackSession, playWhenReady, playbackRate)
+        }
+    }
+  }
+
+    private fun prepareSessionOnController(
+        controller: MediaController,
+        playbackSession: PlaybackSession,
+        playWhenReady: Boolean,
+        playbackRate: Float?
+    ) {
+        val targetIsCast = playbackSession.isLocal && currentMediaPlayer==PLAYER_CAST
         val mediaItems =
-          playbackSession.toMedia3MediaItems(context, preferServerUrisForCast = targetIsCast)
+            playbackSession.toMedia3MediaItems(context, preferServerUrisForCast = targetIsCast)
 
         val trackIndex = playbackSession.getCurrentTrackIndex().coerceIn(0, mediaItems.lastIndex)
         val trackStartOffsetMs = playbackSession.getTrackStartOffsetMs(trackIndex)
@@ -402,48 +415,12 @@ class PlaybackController(private val context: Context) {
         emitMetadata(controller)
 
         if (BuildConfig.DEBUG) {
-          Log.d(
-            TAG,
-            "Prepared playback for ${playbackSession.displayTitle} items=${mediaItems.size} startIndex=$trackIndex pos=$positionInTrack"
-          )
-        }
-      }
-
-      // Sync previous session progress asynchronously when switching books
-      // Initial playback (no media) prepares immediately without blocking
-      if (controller.mediaItemCount > 0 && controller.currentMediaItem != null) {
-        sendCommand(forceSyncProgressCommand, Bundle.EMPTY) {
-          // Re-acquire controller for async callback to prepare new session
-          executeWithController { ctrl ->
-            val targetIsCast = playbackSession.isLocal && currentMediaPlayer == PLAYER_CAST
-            val mediaItems =
-              playbackSession.toMedia3MediaItems(context, preferServerUrisForCast = targetIsCast)
-
-            val trackIndex =
-              playbackSession.getCurrentTrackIndex().coerceIn(0, mediaItems.lastIndex)
-            val trackStartOffsetMs = playbackSession.getTrackStartOffsetMs(trackIndex)
-            val positionInTrack =
-              (playbackSession.currentTimeMs - trackStartOffsetMs).coerceAtLeast(0L)
-
-            ctrl.setMediaItems(mediaItems, trackIndex, positionInTrack)
-            ctrl.prepare()
-            ctrl.playWhenReady = playWhenReady
-            playbackRate?.let { ctrl.setPlaybackSpeed(it) }
-            emitMetadata(ctrl)
-
-            if (BuildConfig.DEBUG) {
-              Log.d(
+            Log.d(
                 TAG,
                 "Prepared playback for ${playbackSession.displayTitle} items=${mediaItems.size} startIndex=$trackIndex pos=$positionInTrack"
-              )
-            }
-          }
+            )
         }
-      } else {
-        prepareNewSession()
-      }
     }
-  }
 
   /* ======== Playback Control ======== */
 
@@ -458,18 +435,14 @@ class PlaybackController(private val context: Context) {
   }
 
   fun playPause(): Boolean {
-    val mediaController = this@PlaybackController.mediaController ?: return false
+      val controller = mediaController ?: return false
     forceNextPlayingStateUpdate = true
-    return when {
-      mediaController.isPlaying -> {
-        mediaController.pause()
-        false
-      }
-
-      else -> {
-        mediaController.play()
-        true
-      }
+      return if (controller.isPlaying) {
+          controller.pause()
+          false
+      } else {
+          controller.play()
+          true
     }
   }
 
@@ -611,8 +584,8 @@ class PlaybackController(private val context: Context) {
   /* ======== State Query Functions ======== */
 
   fun currentPosition(): Long {
-    val mediaController = this@PlaybackController.mediaController
-    return if (mediaController != null && Looper.myLooper() == Looper.getMainLooper()) {
+      val mediaController = mediaController
+      return if (mediaController!=null && isOnMainThread) {
       val absolutePositionMs = computeAbsolutePosition(mediaController)
       lastKnownPositionMs = absolutePositionMs
       absolutePositionMs
@@ -622,7 +595,7 @@ class PlaybackController(private val context: Context) {
   }
 
   fun bufferedPosition(): Long {
-    val mediaController = this@PlaybackController.mediaController
+      val mediaController = mediaController
     if (mediaController != null) {
       val trackStartOffsetMs =
         activePlaybackSession?.getTrackStartOffsetMs(mediaController.currentMediaItemIndex) ?: 0L
@@ -634,8 +607,8 @@ class PlaybackController(private val context: Context) {
   fun isPlaying(): Boolean = mediaController?.isPlaying ?: false
 
   fun currentMediaItemIndex(): Int {
-    val mediaController = this@PlaybackController.mediaController
-    return if (mediaController != null && Looper.myLooper() == Looper.getMainLooper()) {
+      val mediaController = mediaController
+      return if (mediaController!=null && isOnMainThread) {
       mediaController.currentMediaItemIndex.also { lastKnownMediaItemIndex = it }
     } else {
       lastKnownMediaItemIndex.takeIf { it >= 0 }
@@ -662,7 +635,7 @@ class PlaybackController(private val context: Context) {
   }
 
   private fun executeWithController(onControllerReady: (MediaController) -> Unit) {
-    val mediaController = this@PlaybackController.mediaController
+      val mediaController = mediaController
     if (mediaController != null) {
       onControllerReady(mediaController)
       lastKnownPositionMs = mediaController.currentPosition
@@ -699,7 +672,7 @@ class PlaybackController(private val context: Context) {
   }
 
   private fun runOnMainSync(action: () -> Unit) {
-    if (Looper.myLooper() == Looper.getMainLooper()) {
+      if (isOnMainThread) {
       action()
       return
     }
@@ -745,6 +718,8 @@ class PlaybackController(private val context: Context) {
   }
 
   companion object {
+      private const val TAG = "PlaybackController"
+      private const val PLAYER_CAST = "cast-player"
     private const val PROGRESS_UPDATE_INTERVAL_MS = 1_000L
     private const val CONNECTION_TIMEOUT_SEC = 2L
 

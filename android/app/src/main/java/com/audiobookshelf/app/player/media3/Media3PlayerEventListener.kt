@@ -1,10 +1,12 @@
 package com.audiobookshelf.app.player.media3
 
 import android.util.Log
+import androidx.media3.common.DeviceInfo
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import com.audiobookshelf.app.data.PlaybackSession
+import com.audiobookshelf.app.media.MediaEventManager
 import com.audiobookshelf.app.media.SyncResult
 import com.audiobookshelf.app.player.core.PlaybackMetricsRecorder
 
@@ -22,7 +24,6 @@ interface ListenerApi {
     sessionToUpdate: PlaybackSession? = null,
     onSyncComplete: ((SyncResult?) -> Unit)?
   )
-
   fun progressSyncPlay(currentSession: PlaybackSession)
     fun progressSyncPause()
   fun onPlayStarted(currentSessionId: String)
@@ -70,11 +71,11 @@ class Media3PlayerEventListener(
     override fun onIsPlayingChanged(callbackIsPlaying: Boolean) {
         val isEffectivelyPlaying = serviceCallbacks.lastKnownIsPlaying()
 
-    // Early exit if state hasn't changed - prevents redundant widget/sync operations
-    // Note: We query the player's current state rather than trusting the callback parameter
+        // Early exit if state hasn't changed - prevents redundant widget/sync operations.
+        // We query the player's current state rather than trusting the callback parameter
     // because Media3 may fire this callback during transitions where playWhenReady=true
-    // but playbackState=BUFFERING, which we consider "effectively playing"
-        if (isEffectivelyPlaying == lastIsPlayingState) return
+        // but playbackState=BUFFERING, which we consider "effectively playing".
+        if (isEffectivelyPlaying==lastIsPlayingState) return
 
         val currentSession = serviceCallbacks.currentSession()
     if (currentSession != null) {
@@ -104,11 +105,8 @@ class Media3PlayerEventListener(
 
         serviceCallbacks.notifyWidgetState()
 
-    // Notify web app about playing state change
         serviceCallbacks.debug { "PlayerListener: Notifying web app - isPlaying=$isEffectivelyPlaying" }
-    com.audiobookshelf.app.media.MediaEventManager.clientEventEmitter?.onPlayingUpdate(
-      isEffectivelyPlaying
-    )
+        MediaEventManager.clientEventEmitter?.onPlayingUpdate(isEffectivelyPlaying)
 
         lastIsPlayingState = isEffectivelyPlaying
   }
@@ -135,10 +133,10 @@ class Media3PlayerEventListener(
       serviceCallbacks.playbackMetrics.recordError()
 
       val isTransientDecoderError =
-          playbackError.errorCode == PlaybackException.ERROR_CODE_DECODING_RESOURCES_RECLAIMED
+          playbackError.errorCode==PlaybackException.ERROR_CODE_DECODING_RESOURCES_RECLAIMED
 
       val shouldAttemptTranscodeFallback = !isTransientDecoderError &&
-              serviceCallbacks.currentSession()?.let { it.isDirectPlay && !it.isLocal } == true
+              serviceCallbacks.currentSession()?.let { it.isDirectPlay && !it.isLocal }==true
 
       if (shouldAttemptTranscodeFallback) {
           serviceCallbacks.handlePlaybackError(playbackError)
@@ -179,7 +177,9 @@ class Media3PlayerEventListener(
     newPosition: Player.PositionInfo,
     changeReason: Int
   ) {
-      serviceCallbacks.debug { "onPositionDiscontinuity: changeReason=$changeReason, oldPos=${oldPosition.positionMs}, newPos=${newPosition.positionMs}" }
+      serviceCallbacks.debug {
+          "onPositionDiscontinuity: changeReason=$changeReason, oldPos=${oldPosition.positionMs}, newPos=${newPosition.positionMs}"
+      }
     if (changeReason == Player.DISCONTINUITY_REASON_SEEK ||
       changeReason == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT
     ) {
@@ -196,9 +196,8 @@ class Media3PlayerEventListener(
     }
   }
 
-    override fun onDeviceInfoChanged(deviceInfo: androidx.media3.common.DeviceInfo) {
-        val isCast =
-            deviceInfo.playbackType == androidx.media3.common.DeviceInfo.PLAYBACK_TYPE_REMOTE
+    override fun onDeviceInfoChanged(deviceInfo: DeviceInfo) {
+        val isCast = deviceInfo.playbackType==DeviceInfo.PLAYBACK_TYPE_REMOTE
         serviceCallbacks.debug { "Device changed: playbackType=${deviceInfo.playbackType}, isCast=$isCast" }
         serviceCallbacks.onCastDeviceChanged(isCast)
     }

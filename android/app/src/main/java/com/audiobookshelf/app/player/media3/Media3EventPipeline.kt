@@ -10,30 +10,25 @@ import com.audiobookshelf.app.media.PlaybackEventSource
 import com.audiobookshelf.app.media.SyncResult
 
 /**
- * Media3EventPipeline: Single source of truth for all Media3 playback event emission.
+ * Single source of truth for all Media3 playback event emission.
  *
- * This pipeline ensures:
- * - All events (Play/Pause/Stop/Seek/Finished) are emitted consistently
- * - Events are delivered on the main thread for UI safety
- * - SyncResult is properly attached to Pause/Stop/Seek events
- * - No duplicate events during transitions
- * - Complete feature parity with ExoPlayer event patterns
- *
- * The pipeline does NOT handle persistence (that's the syncer's job).
- * It ONLY handles: event emission to history + UI delivery.
+ * Events are delivered on the main thread for UI safety. This pipeline does NOT
+ * handle persistence (that is the syncer's job) -- it only handles event emission
+ * to history and UI delivery.
  */
 class Media3EventPipeline {
-  private val loggingTag = "Media3EventPipeline"
+    companion object {
+        private const val TAG = "Media3EventPipeline"
+    }
+
   private val mainHandler = Handler(Looper.getMainLooper())
 
   fun emitPlayEvent(
     playbackSession: PlaybackSession,
     source: PlaybackEventSource = PlaybackEventSource.SYSTEM
   ) {
-    if (BuildConfig.DEBUG) Log.d(loggingTag, "Emit Play: ${playbackSession.displayTitle}")
-    mainHandler.post {
-      MediaEventManager.playEvent(playbackSession, source)
-    }
+      debugLog { "Emit Play: ${playbackSession.displayTitle}" }
+      mainHandler.post { MediaEventManager.playEvent(playbackSession, source) }
   }
 
   fun emitPauseEvent(
@@ -41,15 +36,8 @@ class Media3EventPipeline {
     syncResult: SyncResult?,
     source: PlaybackEventSource = PlaybackEventSource.SYSTEM
   ) {
-    if (BuildConfig.DEBUG) {
-      Log.d(
-        loggingTag,
-        "Emit Pause: ${playbackSession.displayTitle} (syncResult: ${syncResult?.serverSyncAttempted})"
-      )
-    }
-    mainHandler.post {
-      MediaEventManager.pauseEvent(playbackSession, syncResult, source)
-    }
+      debugLogWithSync("Pause", playbackSession, syncResult)
+      mainHandler.post { MediaEventManager.pauseEvent(playbackSession, syncResult, source) }
   }
 
   fun emitStopEvent(
@@ -57,15 +45,8 @@ class Media3EventPipeline {
     syncResult: SyncResult?,
     source: PlaybackEventSource = PlaybackEventSource.SYSTEM
   ) {
-    if (BuildConfig.DEBUG) {
-      Log.d(
-        loggingTag,
-        "Emit Stop: ${playbackSession.displayTitle} (syncResult: ${syncResult?.serverSyncAttempted})"
-      )
-    }
-    mainHandler.post {
-      MediaEventManager.stopEvent(playbackSession, syncResult, source)
-    }
+      debugLogWithSync("Stop", playbackSession, syncResult)
+      mainHandler.post { MediaEventManager.stopEvent(playbackSession, syncResult, source) }
   }
 
   fun emitSaveEvent(
@@ -73,15 +54,8 @@ class Media3EventPipeline {
     syncResult: SyncResult?,
     source: PlaybackEventSource = PlaybackEventSource.SYSTEM
   ) {
-    if (BuildConfig.DEBUG) {
-      Log.d(
-        loggingTag,
-        "Emit Save: ${playbackSession.displayTitle} (syncResult: ${syncResult?.serverSyncAttempted})"
-      )
-    }
-    mainHandler.post {
-      MediaEventManager.saveEvent(playbackSession, syncResult, source)
-    }
+      debugLogWithSync("Save", playbackSession, syncResult)
+      mainHandler.post { MediaEventManager.saveEvent(playbackSession, syncResult, source) }
   }
 
   fun emitFinishedEvent(
@@ -89,15 +63,8 @@ class Media3EventPipeline {
     syncResult: SyncResult?,
     source: PlaybackEventSource = PlaybackEventSource.SYSTEM
   ) {
-    if (BuildConfig.DEBUG) {
-      Log.d(
-        loggingTag,
-        "Emit Finished: ${playbackSession.displayTitle} (syncResult: ${syncResult?.serverSyncAttempted})"
-      )
-    }
-    mainHandler.post {
-      MediaEventManager.finishedEvent(playbackSession, syncResult, source)
-    }
+      debugLogWithSync("Finished", playbackSession, syncResult)
+      mainHandler.post { MediaEventManager.finishedEvent(playbackSession, syncResult, source) }
   }
 
   fun emitSeekEvent(
@@ -105,14 +72,17 @@ class Media3EventPipeline {
     syncResult: SyncResult?,
     source: PlaybackEventSource = PlaybackEventSource.SYSTEM
   ) {
-    if (BuildConfig.DEBUG) {
-      Log.d(
-        loggingTag,
-        "Emit Seek: ${playbackSession.displayTitle} to ${playbackSession.currentTime}s (syncResult: ${syncResult?.serverSyncAttempted})"
-      )
+      debugLog {
+          "Emit Seek: ${playbackSession.displayTitle} to ${playbackSession.currentTime}s (syncResult: ${syncResult?.serverSyncAttempted})"
     }
-    mainHandler.post {
-      MediaEventManager.seekEvent(playbackSession, syncResult, source)
+      mainHandler.post { MediaEventManager.seekEvent(playbackSession, syncResult, source) }
+  }
+
+    private inline fun debugLog(message: () -> String) {
+        if (BuildConfig.DEBUG) Log.d(TAG, message())
     }
+
+    private fun debugLogWithSync(eventName: String, session: PlaybackSession, syncResult: SyncResult?) {
+        debugLog { "Emit $eventName: ${session.displayTitle} (syncResult: ${syncResult?.serverSyncAttempted})" }
   }
 }

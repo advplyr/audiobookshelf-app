@@ -5,6 +5,7 @@ import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
 import androidx.annotation.OptIn
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaSession
@@ -30,7 +31,6 @@ class Media3NotificationManager(
     private const val CHANNEL_ID = PlaybackConstants.MEDIA3_NOTIFICATION_CHANNEL_ID
   }
 
-  private lateinit var notificationProvider: androidx.media3.session.MediaNotification.Provider
   private lateinit var playbackSpeedButtonProvider: Media3PlaybackSpeedButtonProvider
   private var playbackSpeedCommandButton: CommandButton? = null
   private var lastMediaButtonPreferences: List<CommandButton>? = null
@@ -68,7 +68,6 @@ class Media3NotificationManager(
       androidx.media3.session.DefaultMediaNotificationProvider.DEFAULT_CHANNEL_NAME_RESOURCE_ID,
       NOTIFICATION_ID
     )
-    this.notificationProvider = provider
     return provider
   }
 
@@ -149,9 +148,13 @@ class Media3NotificationManager(
     updateMediaButtonPreferencesAfterSpeedChange(null)
   }
 
-  fun getPlaybackSpeedCommandButton(): CommandButton? = playbackSpeedCommandButton
+    fun applyInitialMediaButtonPreferences(mediaSession: MediaSession?) =
+        refreshMediaButtonPreferences(mediaSession)
 
-  fun applyInitialMediaButtonPreferences(mediaSession: MediaSession?) {
+    fun updateMediaButtonPreferencesAfterSpeedChange(mediaSession: MediaSession?) =
+        refreshMediaButtonPreferences(mediaSession)
+
+    private fun refreshMediaButtonPreferences(mediaSession: MediaSession?) {
     runCatching {
       val built = buildServiceMediaButtons()
       val merged = mergeWithLastPreferences(built)
@@ -159,19 +162,7 @@ class Media3NotificationManager(
       mediaSession?.setMediaButtonPreferences(prefs)
       lastMediaButtonPreferences = prefs
     }.onFailure { t ->
-      debugLog("Failed to apply initial media button preferences: ${t.message}")
-    }
-  }
-
-  fun updateMediaButtonPreferencesAfterSpeedChange(mediaSession: MediaSession?) {
-    runCatching {
-      val built = buildServiceMediaButtons()
-      val merged = mergeWithLastPreferences(built)
-      val prefs = ImmutableList.copyOf(merged)
-      mediaSession?.setMediaButtonPreferences(prefs)
-      lastMediaButtonPreferences = prefs
-    }.onFailure { t ->
-      debugLog("Failed to update media button preferences after speed change: ${t.message}")
+        debugLog("Failed to refresh media button preferences: ${t.message}")
     }
   }
 
@@ -185,8 +176,8 @@ class Media3NotificationManager(
     // Append existing preferences that don't conflict
     existing.forEach { btn ->
       val isNavButton =
-        btn.playerCommand == androidx.media3.common.Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM ||
-          btn.playerCommand == androidx.media3.common.Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM
+          btn.playerCommand==Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM ||
+                  btn.playerCommand==Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM
       if (!includeTrackNavigationButtons && isNavButton) return@forEach
       val k = CustomMediaNotificationProvider.keyOf(btn)
       if (k == null || !keys.contains(k)) {

@@ -30,7 +30,8 @@ object DeviceManager {
 
   val dbManager: DbManager = DbManager()
   var deviceData: DeviceData = dbManager.getDeviceData()
-  var serverConnectionConfig: ServerConnectionConfig? = null
+    @Volatile
+    var serverConnectionConfig: ServerConnectionConfig? = null
 
   val serverConnectionConfigId get() = serverConnectionConfig?.id ?: ""
   val serverConnectionConfigName get() = serverConnectionConfig?.name ?: ""

@@ -54,18 +54,16 @@ class CustomMediaNotificationProvider(
   ): IntArray {
 
     val playPauseButton = mediaButtons.firstOrNull { it.playerCommand == Player.COMMAND_PLAY_PAUSE }
-    val seekBackLabel = "Back ${deviceSettings.jumpBackwardsTimeMs / 1000}s"
-    val seekForwardLabel = "Forward ${deviceSettings.jumpForwardTimeMs / 1000}s"
     val seekBackAction = actionFactory.createMediaAction(
       mediaSession,
       IconCompat.createWithResource(appContext, R.drawable.exo_icon_rewind),
-      seekBackLabel,
+        "Back ${deviceSettings.jumpBackwardsTimeMs / 1000}s",
       Player.COMMAND_SEEK_BACK
     )
     val seekForwardAction = actionFactory.createMediaAction(
       mediaSession,
       IconCompat.createWithResource(appContext, R.drawable.exo_icon_fastforward),
-      seekForwardLabel,
+        "Forward ${deviceSettings.jumpForwardTimeMs / 1000}s",
       Player.COMMAND_SEEK_FORWARD
     )
 
@@ -78,11 +76,10 @@ class CustomMediaNotificationProvider(
 
     if (playPauseButton != null) {
       val iconRes = if (playPauseButton.iconResId != 0) playPauseButton.iconResId else defaultIcon
-      val display = playPauseButton.displayName
       val playPauseAction = actionFactory.createMediaAction(
         mediaSession,
         IconCompat.createWithResource(appContext, iconRes),
-        display,
+          playPauseButton.displayName,
         playPauseButton.playerCommand
       )
       builder.addAction(playPauseAction)
@@ -94,17 +91,20 @@ class CustomMediaNotificationProvider(
     compactViewActionIndices[2] = actionIndex
     actionIndex += 1
 
+      val handledPlayerCommands = setOf(
+          Player.COMMAND_SEEK_BACK,
+          Player.COMMAND_SEEK_FORWARD,
+          Player.COMMAND_PLAY_PAUSE
+      )
     mediaButtons.forEach { button ->
-      val isDuplicatePlayerCommand = button.playerCommand == Player.COMMAND_SEEK_BACK ||
-                  button.playerCommand == Player.COMMAND_SEEK_FORWARD ||
-                  button.playerCommand == Player.COMMAND_PLAY_PAUSE
-      if (!isDuplicatePlayerCommand) {
+        if (button.playerCommand !in handledPlayerCommands) {
         val action = if (button.sessionCommand != null) {
           actionFactory.createCustomActionFromCustomCommandButton(mediaSession, button)
         } else {
+            val iconRes = if (button.iconResId!=0) button.iconResId else defaultIcon
           actionFactory.createMediaAction(
             mediaSession,
-            IconCompat.createWithResource(appContext, if (button.iconResId != 0) button.iconResId else R.drawable.icon_monochrome),
+              IconCompat.createWithResource(appContext, iconRes),
             button.displayName,
             button.playerCommand
           )
@@ -122,47 +122,58 @@ class CustomMediaNotificationProvider(
     return compactViewActionIndices
   }
 
+    /**
+     * Builds a seek command button, using player command when available or falling back to session command.
+     */
+    private fun buildSeekButton(
+        icon: Int,
+        label: String,
+        playerCommand: Int,
+        sessionCommandId: String,
+        iconResId: Int,
+        hasPlayerCommand: Boolean
+    ): CommandButton {
+        val builder = CommandButton.Builder(icon)
+            .setDisplayName(label)
+            .setCustomIconResId(iconResId)
+        if (hasPlayerCommand) {
+            builder.setPlayerCommand(playerCommand)
+        } else {
+            builder.setSessionCommand(PlaybackConstants.sessionCommand(sessionCommandId))
+        }
+        return builder.build()
+    }
+
   override fun getMediaButtons(
     mediaSession: MediaSession,
     playerCommands: Player.Commands,
     mediaButtonPreferences: ImmutableList<CommandButton>,
     showPauseButton: Boolean
   ): ImmutableList<CommandButton> {
-    val builtButtons = mutableListOf<CommandButton>()
-    val seekBackCmd = if (playerCommands.contains(Player.COMMAND_SEEK_BACK))
-      CommandButton.Builder(CommandButton.ICON_SKIP_BACK_10)
-        .setDisplayName("Back ${deviceSettings.jumpBackwardsTimeMs / 1000}s")
-        .setPlayerCommand(Player.COMMAND_SEEK_BACK)
-        .setCustomIconResId(R.drawable.exo_icon_rewind)
-        .build()
-    else
-      CommandButton.Builder(CommandButton.ICON_SKIP_BACK_10)
-        .setDisplayName("Back ${deviceSettings.jumpBackwardsTimeMs / 1000}s")
-        .setSessionCommand(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.SEEK_BACK_INCREMENT))
-        .setCustomIconResId(R.drawable.exo_icon_rewind)
-        .build()
+      val seekBackCmd = buildSeekButton(
+          icon = CommandButton.ICON_SKIP_BACK_10,
+          label = "Back ${deviceSettings.jumpBackwardsTimeMs / 1000}s",
+          playerCommand = Player.COMMAND_SEEK_BACK,
+          sessionCommandId = PlaybackConstants.Commands.SEEK_BACK_INCREMENT,
+          iconResId = R.drawable.exo_icon_rewind,
+          hasPlayerCommand = playerCommands.contains(Player.COMMAND_SEEK_BACK)
+      )
 
-    val seekFwdCmd = if (playerCommands.contains(Player.COMMAND_SEEK_FORWARD))
-      CommandButton.Builder(CommandButton.ICON_SKIP_FORWARD_10)
-        .setDisplayName("Forward ${deviceSettings.jumpForwardTimeMs / 1000}s")
-        .setPlayerCommand(Player.COMMAND_SEEK_FORWARD)
-        .setCustomIconResId(R.drawable.exo_icon_fastforward)
-        .build()
-    else
-      CommandButton.Builder(CommandButton.ICON_SKIP_FORWARD_10)
-        .setDisplayName("Forward ${deviceSettings.jumpForwardTimeMs / 1000}s")
-        .setSessionCommand(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.SEEK_FORWARD_INCREMENT))
-        .setCustomIconResId(R.drawable.exo_icon_fastforward)
-        .build()
+      val seekFwdCmd = buildSeekButton(
+          icon = CommandButton.ICON_SKIP_FORWARD_10,
+          label = "Forward ${deviceSettings.jumpForwardTimeMs / 1000}s",
+          playerCommand = Player.COMMAND_SEEK_FORWARD,
+          sessionCommandId = PlaybackConstants.Commands.SEEK_FORWARD_INCREMENT,
+          iconResId = R.drawable.exo_icon_fastforward,
+          hasPlayerCommand = playerCommands.contains(Player.COMMAND_SEEK_FORWARD)
+      )
 
     val speedCmd = CommandButton.Builder(CommandButton.ICON_PLAYBACK_SPEED)
       .setSessionCommand(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.CYCLE_PLAYBACK_SPEED))
       .setDisplayName("Speed")
       .build()
 
-    builtButtons.add(seekBackCmd)
-    builtButtons.add(seekFwdCmd)
-    builtButtons.add(speedCmd)
+      val builtButtons = mutableListOf(seekBackCmd, seekFwdCmd, speedCmd)
 
     if (mediaButtonPreferences.isEmpty()) {
       return ImmutableList.copyOf(builtButtons)
@@ -177,7 +188,6 @@ class CustomMediaNotificationProvider(
 
     return ImmutableList.copyOf(map.values)
   }
-
 
   companion object {
     fun formatSpeedLabel(speed: Float): String {

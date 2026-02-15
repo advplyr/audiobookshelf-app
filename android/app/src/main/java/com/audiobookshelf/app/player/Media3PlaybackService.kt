@@ -28,7 +28,6 @@ import kotlin.math.*
  * Handles local playback, session management, and native Media3 notifications.
  * Cast playback is handled via Media3 CastPlayer within this service.
  */
-
 @UnstableApi
 class Media3PlaybackService : MediaLibraryService() {
   companion object {
@@ -52,7 +51,6 @@ class Media3PlaybackService : MediaLibraryService() {
 
     // Bundle keys
     private const val KEY_IS_APP_UI_CONTROLLER = "isAppUiController"
-
   }
 
   // Lifecycle & Scope
@@ -88,19 +86,13 @@ class Media3PlaybackService : MediaLibraryService() {
   private val isCastActive: Boolean
       get() {
           if (!this::player.isInitialized) return false
-          return player.deviceInfo.playbackType == androidx.media3.common.DeviceInfo.PLAYBACK_TYPE_REMOTE
+          return player.deviceInfo.playbackType==androidx.media3.common.DeviceInfo.PLAYBACK_TYPE_REMOTE
       }
   private var finalSyncBarrier: CompletableDeferred<SyncResult?>? = null
   @Volatile
   private var suppressFinalServerSync: Boolean = false
 
   private var transcodeFallbackAttemptedSessionId: String? = null
-
-  // Public Player Access (for other components)
-  val isPlayerActive: Boolean
-    get() = hasActivePlayer
-    val currentPlayer: Player
-        get() = player
 
   // Audio Configuration
   private val speechAudioAttributes = AudioAttributes.Builder()
@@ -112,11 +104,7 @@ class Media3PlaybackService : MediaLibraryService() {
   private var jumpBackwardMs: Long = 10000L
   private var jumpForwardMs: Long = 10000L
   private val closePlaybackSignal: CompletableDeferred<Unit>?
-    get() = media3SessionManager.getClosePlaybackSignal()
-
-  // Notification Components
-  private lateinit var notificationProvider: MediaNotification.Provider
-  private var playbackSpeedCommandButton: CommandButton? = null
+      get() = media3SessionManager.closePlaybackSignalSnapshot
 
   // Widget state cache
   private var lastWidgetSnapshot: WidgetPlaybackSnapshot? = null
@@ -242,14 +230,14 @@ class Media3PlaybackService : MediaLibraryService() {
     debugLog { "onCreate: Initializing Media3 playback service" }
 
     DbManager.initialize(this)
+      restoreServerConnectionConfigIfNeeded()
     DeviceManager.initializeWidgetUpdater(this)
     applyJumpIncrementsFromDeviceSettings()
     setupMediaManagers()
     registerNetworkMonitor()
 
     initializeMedia3NotificationManager()
-    notificationProvider = media3NotificationManager.createNotificationProvider()
-    setMediaNotificationProvider(notificationProvider)
+      setMediaNotificationProvider(media3NotificationManager.createNotificationProvider())
 
     initializeMedia3SessionManager()
     setupPlaybackPipeline()
@@ -318,6 +306,16 @@ class Media3PlaybackService : MediaLibraryService() {
   /* ========================================
    * Setup & Initialization
    * ======================================== */
+    /** Restore server connection config from persisted data when the service starts before the UI. */
+    private fun restoreServerConnectionConfigIfNeeded() {
+        if (DeviceManager.serverConnectionConfig!=null) return
+        val lastConfig = DeviceManager.deviceData.getLastServerConnectionConfig()
+        if (lastConfig!=null) {
+            DeviceManager.serverConnectionConfig = lastConfig
+            Log.d(TAG, "Restored server connection config: ${lastConfig.name}")
+        }
+    }
+
   private fun setupMediaManagers() {
     apiHandler = ApiHandler(this)
     mediaManager = MediaManager(apiHandler, this)
@@ -378,7 +376,7 @@ class Media3PlaybackService : MediaLibraryService() {
       debugLog {
         "Network state changed. hasNetworkConnectivity=${state.hasConnectivity} | isUnmeteredNetwork=${state.isUnmetered}"
       }
-      if (state.hasConnectivity && mediaManager.serverLibraries.isEmpty()) {
+        if (state.hasConnectivity && !mediaManager.isAutoDataLoaded) {
         serviceScope.launch { runCatching { autoLibraryCoordinator.awaitAutoDataLoaded() } }
       }
     }
@@ -394,48 +392,68 @@ class Media3PlaybackService : MediaLibraryService() {
       seekForwardIncrementCommand = seekForwardIncrementCommand,
       jumpBackwardMsProvider = { jumpBackwardMs },
       jumpForwardMsProvider = { jumpForwardMs },
-        currentPlaybackSpeedProvider = { if (hasActivePlayer) player.playbackParameters.speed else 1.0f },
+        currentPlaybackSpeedProvider = { currentPlaybackSpeed() ?: 1.0f },
       debugLog = { lazyMessage -> debugLog { lazyMessage } }
     )
     media3NotificationManager.createNotificationChannel()
   }
 
   private fun initializeMedia3SessionManager() {
-    media3SessionManager = Media3SessionManager(
-      serviceScope = serviceScope,
-      mediaManager = mediaManager,
-      playbackMetrics = playbackMetrics,
-      currentMediaPlayerIdProvider = { currentMediaPlayerId() },
-        updateCurrentPosition = { session -> updateCurrentPosition(session) },
-      maybeSyncProgress = { reason, force, session, onSyncComplete ->
+      val playerControl = object : Media3SessionManager.PlayerControl {
+          override var isInitialized: Boolean
+              get() = playerInitialized
+              set(value) {
+                  playerInitialized = value
+              }
+
+          override fun stop() {
+              player.stop()
+          }
+
+          override fun clearMediaItems() {
+              player.clearMediaItems()
+          }
+      }
+
+      val serviceCallbacks = object : Media3SessionManager.ServiceCallbacks {
+          override fun currentMediaPlayerId() = this@Media3PlaybackService.currentMediaPlayerId()
+          override fun updateCurrentPosition(session: PlaybackSession) =
+              this@Media3PlaybackService.updateCurrentPosition(session)
+
+          override fun maybeSyncProgress(
+              reason: String, force: Boolean, session: PlaybackSession?, onComplete: ((SyncResult?) -> Unit)?
+          ) {
         val currentSession = session ?: currentPlaybackSession
         if (currentSession != null) {
-            updateCurrentPosition(currentSession)
-          unifiedProgressSyncer.syncNow(reason, currentSession, force, onSyncComplete ?: {})
+            this@Media3PlaybackService.updateCurrentPosition(currentSession)
+            unifiedProgressSyncer.syncNow(reason, currentSession, force, onComplete ?: {})
         } else {
-          onSyncComplete?.invoke(null)
+            onComplete?.invoke(null)
         }
-      },
-      notifyWidgetState = { isPlaybackClosed -> notifyWidgetState(isPlaybackClosed) },
-      isPlayerInitialized = { playerInitialized },
-        stopPlayer = { if (playerInitialized) player.stop() },
-        clearPlayerMediaItems = { if (playerInitialized) player.clearMediaItems() },
-      setPlayerNotInitialized = { playerInitialized = false },
-      setPlayerInitialized = { playerInitialized = true },
-      closeSessionOnServer = { sessionId ->
-        apiHandler.closePlaybackSession(
-          sessionId,
-          DeviceManager.serverConnectionConfig
-        ) { success ->
+          }
+
+          override fun notifyWidgetState(isPlaybackClosed: Boolean) =
+              this@Media3PlaybackService.notifyWidgetState(isPlaybackClosed)
+
+          override fun closeSessionOnServer(sessionId: String) {
+              apiHandler.closePlaybackSession(sessionId, DeviceManager.serverConnectionConfig) { success ->
           debugLog { "Closed playback session $sessionId on server: $success" }
         }
       }
+      }
+
+      media3SessionManager = Media3SessionManager(
+          serviceScope = serviceScope,
+          mediaManager = mediaManager,
+          playbackMetrics = playbackMetrics,
+          playerControl = playerControl,
+          serviceCallbacks = serviceCallbacks
     )
   }
 
   private fun setupPlaybackPipeline() {
       initializePlayer()
-    configureCommandButtons()
+      media3NotificationManager.configureCommandButtons()
 
     val sessionId = "AudiobookshelfMedia3_${System.currentTimeMillis()}"
     val sessionActivityIntent = createSessionActivityIntent()
@@ -463,7 +481,6 @@ class Media3PlaybackService : MediaLibraryService() {
     SleepTimerNotificationCenter.unregister()
   }
 
-
     private fun initializePlayer() {
     val pipeline = playbackPipeline ?: PlaybackPipeline(
       context = this,
@@ -485,11 +502,10 @@ class Media3PlaybackService : MediaLibraryService() {
     )
   }
 
-
     private fun currentMediaPlayerId(): String {
         if (!this::player.isInitialized) return PLAYER_MEDIA3
         val deviceInfo = player.deviceInfo
-        return if (deviceInfo.playbackType == androidx.media3.common.DeviceInfo.PLAYBACK_TYPE_REMOTE) {
+        return if (deviceInfo.playbackType==androidx.media3.common.DeviceInfo.PLAYBACK_TYPE_REMOTE) {
             PLAYER_CAST
         } else {
             PLAYER_MEDIA3
@@ -508,7 +524,7 @@ class Media3PlaybackService : MediaLibraryService() {
         updateTrackNavigationButtons()
 
         val session = currentPlaybackSession
-        if (session != null && isCast && session.isLocal) {
+        if (session!=null && isCast && session.isLocal) {
             reloadQueueForCast(session)
     }
 
@@ -567,10 +583,6 @@ class Media3PlaybackService : MediaLibraryService() {
     return controllerInfo?.packageName == packageName
   }
 
-  private fun syncSessionFromHostController() {
-    media3SessionManager.syncSessionFromHostController()
-  }
-
   private fun isPassthroughRequestAllowed(
     requestedMediaId: String?,
     controllerInfo: MediaSession.ControllerInfo?
@@ -579,7 +591,7 @@ class Media3PlaybackService : MediaLibraryService() {
 
     var sessionId = currentPlaybackSession?.id
     if (sessionId == null && isHostController(controllerInfo)) {
-      syncSessionFromHostController()
+        media3SessionManager.syncSessionFromHostController()
       sessionId = currentPlaybackSession?.id
     }
 
@@ -588,7 +600,7 @@ class Media3PlaybackService : MediaLibraryService() {
 
     if (isHostController(controllerInfo)) {
       debugLog { "Allowing passthrough request from host app despite session mismatch" }
-      syncSessionFromHostController()
+        media3SessionManager.syncSessionFromHostController()
       return true
     }
     return false
@@ -601,24 +613,19 @@ class Media3PlaybackService : MediaLibraryService() {
   private fun currentAbsolutePositionMs(): Long? {
     if (!playerInitialized) return null
     val session = currentPlaybackSession ?: return null
-      val currentPlayer = this@Media3PlaybackService.player
-      val mediaItemCount = currentPlayer.mediaItemCount
-      if (mediaItemCount <= 0) return currentPlayer.currentPosition.coerceAtLeast(0L)
+      val mediaItemCount = player.mediaItemCount
+      if (mediaItemCount <= 0) return player.currentPosition.coerceAtLeast(0L)
     val trackIndex =
-        resolveTrackIndexForPlayer(session, currentPlayer).coerceIn(0, mediaItemCount - 1)
+        resolveTrackIndexForPlayer(session, player).coerceIn(0, mediaItemCount - 1)
     val offset = session.getTrackStartOffsetMs(trackIndex)
-      return (currentPlayer.currentPosition + offset).coerceAtLeast(0L)
+      return (player.currentPosition + offset).coerceAtLeast(0L)
   }
 
     private fun updateCurrentPosition(session: PlaybackSession) {
-        if (isPlayerActive) {
-            val player = currentPlayer
+        if (hasActivePlayer) {
             val trackIndex = resolveTrackIndexForPlayer(session, player)
-            val positionInTrack = player.currentPosition
             val trackStartOffset = session.getTrackStartOffsetMs(trackIndex)
-            val absolutePositionMs = trackStartOffset + positionInTrack
-
-            session.currentTime = (absolutePositionMs / 1000.0)
+            session.currentTime = ((trackStartOffset + player.currentPosition) / 1000.0)
         }
   }
 
@@ -677,13 +684,9 @@ class Media3PlaybackService : MediaLibraryService() {
     } else finalSyncBarrier
 
     // Determine server sync necessity: critical events always sync, others check connectivity
-    val shouldSyncServerOverride =
-      if (shouldCreateBarrier && suppressFinalServerSync) false else null
     val shouldSyncServer = when (reason) {
-      "pause", "ended", "close" -> shouldSyncServerOverride ?: true
-      else -> null ?: (force || DeviceManager.checkConnectivity(
-        applicationContext
-      ))
+        "pause", "ended", "close" -> !suppressFinalServerSync
+        else -> force || DeviceManager.checkConnectivity(applicationContext)
     }
 
     // Suppression flag allows emergency cancellation (e.g., user force-stops app)
@@ -733,7 +736,7 @@ class Media3PlaybackService : MediaLibraryService() {
                 MediaEventManager.clientEventEmitter?.onPlaybackFailed("Unable to play this item")
                 return@launch
             }
-        val currentSpeed = if (hasActivePlayer) player.playbackParameters.speed else null
+            val currentSpeed = currentPlaybackSpeed()
             prepareAndPlaySession(
                 fallbackSession,
                 playWhenReady = true,
@@ -755,7 +758,7 @@ class Media3PlaybackService : MediaLibraryService() {
 
     if (!isAndroidAutoControllerConnected()) return
     val libraryItem = session.libraryItem ?: return
-      val currentSpeed = if (hasActivePlayer) player.playbackParameters.speed else null
+      val currentSpeed = currentPlaybackSpeed()
 
     mediaManager.loadServerUserMediaProgress {
       val podcast = libraryItem.media as? Podcast ?: return@loadServerUserMediaProgress
@@ -892,7 +895,7 @@ class Media3PlaybackService : MediaLibraryService() {
         episodeId = session.episodeId,
         forceTranscode = session.isHLS
       ) ?: return@launch
-        val currentSpeed = if (hasActivePlayer) player.playbackParameters.speed else null
+        val currentSpeed = currentPlaybackSpeed()
       prepareAndPlaySession(
         newSession,
         playWhenReady = true,
@@ -948,7 +951,7 @@ class Media3PlaybackService : MediaLibraryService() {
     }
 
     override fun playbackSpeed(): Float {
-        return if (hasActivePlayer) player.playbackParameters.speed else 1f
+        return currentPlaybackSpeed() ?: 1f
     }
 
     override fun setVolume(volume: Float) {
@@ -1003,10 +1006,6 @@ class Media3PlaybackService : MediaLibraryService() {
       allowSeekingOnMediaControls = deviceSettings.allowSeekingOnMediaControls
     )
     val browseApi = object : BrowseApi {
-      override fun getPayload(forceTranscode: Boolean): PlayItemRequestPayload {
-        return getPlayItemRequestPayload(forceTranscode)
-      }
-
       override suspend fun resolve(
         mediaId: String,
         preferCast: Boolean
@@ -1026,7 +1025,6 @@ class Media3PlaybackService : MediaLibraryService() {
       }
     }
     val sessionController = SessionController(
-      context = this,
       availableSessionCommands = MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS,
       setSleepTimer = { sessionId, timeMs, isChapter ->
         sleepTimerCoordinator.setManualTimer(
@@ -1189,17 +1187,10 @@ class Media3PlaybackService : MediaLibraryService() {
     )
   }
 
-  private fun configureCommandButtons() {
-    media3NotificationManager.configureCommandButtons()
-    playbackSpeedCommandButton = media3NotificationManager.getPlaybackSpeedCommandButton()
-  }
-
-
   private fun cyclePlaybackSpeed(): Float {
     val newSpeed = media3NotificationManager.cyclePlaybackSpeed()
       player.setPlaybackSpeed(newSpeed)
     mediaManager.setSavedPlaybackRate(newSpeed)
-    playbackSpeedCommandButton = media3NotificationManager.getPlaybackSpeedCommandButton()
     media3NotificationManager.updateMediaButtonPreferencesAfterSpeedChange(mediaSession)
     return newSpeed
   }
@@ -1207,7 +1198,6 @@ class Media3PlaybackService : MediaLibraryService() {
     private fun updatePlaybackSpeedButton(speed: Float) {
     mediaManager.setSavedPlaybackRate(speed)
     media3NotificationManager.updatePlaybackSpeedButton(speed)
-    playbackSpeedCommandButton = media3NotificationManager.getPlaybackSpeedCommandButton()
     media3NotificationManager.updateMediaButtonPreferencesAfterSpeedChange(mediaSession)
   }
 
@@ -1224,8 +1214,8 @@ class Media3PlaybackService : MediaLibraryService() {
 
 
     /* ========================================
-       * Widget Integration
-       * ======================================== */
+     * Widget Integration
+     * ======================================== */
   private fun notifyWidgetState(
     isPlaybackClosed: Boolean = false,
     isPlayingOverride: Boolean? = null
@@ -1236,7 +1226,7 @@ class Media3PlaybackService : MediaLibraryService() {
       updater.onPlayerClosed()
       return
     }
-    buildWidgetSnapshot(isPlaybackClosed, isPlayingOverride)?.let { snapshot ->
+        buildWidgetSnapshot(isPlayingOverride)?.let { snapshot ->
       if (snapshot.hasMeaningfulChangesFrom(lastWidgetSnapshot)) {
         lastWidgetSnapshot = snapshot
         updater.onPlayerChanged(snapshot)
@@ -1281,10 +1271,7 @@ class Media3PlaybackService : MediaLibraryService() {
     notifyWidgetState()
   }
 
-  private fun buildWidgetSnapshot(
-    isPlaybackClosed: Boolean,
-    isPlayingOverride: Boolean?
-  ): WidgetPlaybackSnapshot? {
+    private fun buildWidgetSnapshot(isPlayingOverride: Boolean?): WidgetPlaybackSnapshot? {
     val session = currentPlaybackSession ?: return null
     val isPlaying = isPlayingOverride ?: isEffectivelyPlaying()
     var absolutePosition = session.currentTimeMs
@@ -1300,7 +1287,7 @@ class Media3PlaybackService : MediaLibraryService() {
       positionMs = absolutePosition,
       durationMs = session.totalDurationMs,
       isPlaying = isPlaying,
-      isClosed = isPlaybackClosed
+        isClosed = false
     )
   }
 
@@ -1332,6 +1319,9 @@ class Media3PlaybackService : MediaLibraryService() {
       pkg.contains("gearhead") || pkg.contains("android.auto") || pkg.contains("android.automotive")
     }
   }
+
+    private fun currentPlaybackSpeed(): Float? =
+        if (hasActivePlayer) player.playbackParameters.speed else null
 
   private inline fun debugLog(crossinline lazyMessage: () -> String) {
     if (BuildConfig.DEBUG) Log.d(TAG, lazyMessage())
@@ -1383,5 +1373,4 @@ class Media3PlaybackService : MediaLibraryService() {
       session.sessionExtras = extras
     }
   }
-
 }

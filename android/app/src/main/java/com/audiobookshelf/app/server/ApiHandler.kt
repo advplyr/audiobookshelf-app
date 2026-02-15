@@ -122,6 +122,15 @@ class ApiHandler(var ctx:Context) {
       override fun onResponse(call: Call, response: Response) {
         response.use {
           if (it.code == 401) {
+              val requestPath = request.url.encodedPath
+              // Skip token refresh for auth endpoints — the JS/webview side handles its own refresh
+              if (requestPath=="/api/authorize" || requestPath=="/auth/refresh" || requestPath=="/login") {
+                  AbsLogger.info(tag, "makeRequest: 401 for auth endpoint \"${request.url}\" - skipping token refresh")
+                  val jsobj = JSObject()
+                  jsobj.put("error", "Unauthorized")
+                  cb(jsobj)
+                  return
+              }
             // Handle 401 Unauthorized by attempting token refresh
             AbsLogger.info(tag, "makeRequest: 401 Unauthorized for request to \"${request.url}\" - attempt token refresh")
             handleTokenRefresh(request, httpClient, cb)

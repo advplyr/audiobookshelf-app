@@ -30,14 +30,9 @@ class PlaybackPipeline(
   private val context: Context,
   private val log: (msg: () -> String) -> Unit = { }
 ) {
-    private val tag = "PlaybackPipeline"
-
-    var player: AbsPlayerWrapper? = null
-    private set
-  var playerListener: androidx.media3.common.Player.Listener? = null
-    private set
-
   companion object {
+      private const val TAG = "PlaybackPipeline"
+
     // Buffer settings (in milliseconds)
     private const val BUFFER_MIN_MS = 20_000
     private const val BUFFER_MAX_MS = 45_000
@@ -108,15 +103,12 @@ class PlaybackPipeline(
                 .setLocalPlayer(exoPlayer)
                 .build()
         } catch (e: Exception) {
-            Log.w(tag, "Failed to create CastPlayer, using local-only ExoPlayer", e)
+            Log.w(TAG, "Failed to create CastPlayer, using local-only ExoPlayer", e)
             exoPlayer
         }
 
     val listener = buildListener()
-    playerListener = listener
-
         val wrapper = AbsPlayerWrapper(playerWithCast, context).apply { addListener(listener) }
-        player = wrapper
         onPlayerReady(wrapper)
         log { "Player initialized with cast support via CastPlayer.Builder." }
         return wrapper

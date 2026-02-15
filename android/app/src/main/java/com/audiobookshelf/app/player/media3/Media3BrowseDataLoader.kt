@@ -1,6 +1,7 @@
 package com.audiobookshelf.app.player.media3
 
 import android.content.Context
+import android.util.Log
 import androidx.media3.common.MediaItem
 import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.data.LibraryAuthorItem
@@ -16,6 +17,7 @@ import com.audiobookshelf.app.media.MediaManager
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeout
 import kotlin.coroutines.resume
 
 /**
@@ -26,336 +28,167 @@ class Media3BrowseDataLoader(private val mediaManager: MediaManager) {
 
   private val authorBooksRequests: MutableMap<String, Deferred<List<LibraryItem>>> = mutableMapOf()
   private val seriesItemsRequests: MutableMap<String, Deferred<List<LibraryItem>>> = mutableMapOf()
-  private val collectionBooksRequests: MutableMap<String, Deferred<List<LibraryItem>>> =
-    mutableMapOf()
-  private val authorsListRequests: MutableMap<String, Deferred<List<LibraryAuthorItem>>> =
-    mutableMapOf()
-  private val seriesListRequests: MutableMap<String, Deferred<List<LibrarySeriesItem>>> =
-    mutableMapOf()
-  private val collectionsListRequests: MutableMap<String, Deferred<List<LibraryCollection>>> =
-    mutableMapOf()
+    private val collectionBooksRequests: MutableMap<String, Deferred<List<LibraryItem>>> = mutableMapOf()
+    private val authorsListRequests: MutableMap<String, Deferred<List<LibraryAuthorItem>>> = mutableMapOf()
+    private val seriesListRequests: MutableMap<String, Deferred<List<LibrarySeriesItem>>> = mutableMapOf()
+    private val collectionsListRequests: MutableMap<String, Deferred<List<LibraryCollection>>> = mutableMapOf()
 
   private suspend fun <T> withMediaManagerCallback(operation: (callback: (T?) -> Unit) -> Unit): T =
-    suspendCancellableCoroutine { continuation ->
-      operation { result ->
-        if (continuation.isActive) {
-          @Suppress("UNCHECKED_CAST")
-          val nonNullResult = result ?: (emptyList<Any>() as T)
-          continuation.resume(nonNullResult)
+      withTimeout(CALLBACK_TIMEOUT_MS) {
+          suspendCancellableCoroutine { continuation ->
+              operation { result ->
+                  if (continuation.isActive) {
+                      @Suppress("UNCHECKED_CAST")
+                      val nonNullResult = result ?: (emptyList<Any>() as T)
+                      continuation.resume(nonNullResult)
+                  }
         }
       }
     }
 
   private suspend fun <T> withSingleItemCallback(operation: (callback: (T?) -> Unit) -> Unit): T? =
-    suspendCancellableCoroutine { continuation ->
-      operation { result ->
-        if (continuation.isActive) {
-          continuation.resume(result)
-        }
+      withTimeout(CALLBACK_TIMEOUT_MS) {
+          suspendCancellableCoroutine { continuation ->
+              operation { result ->
+                  if (continuation.isActive) {
+                      continuation.resume(result)
+                  }
+              }
+          }
       }
-    }
 
-  suspend fun loadLibraryPodcasts(libraryId: String): List<LibraryItem> = withMediaManagerCallback {
-    mediaManager.loadLibraryPodcasts(libraryId) { result ->
-      if (BuildConfig.DEBUG) {
-        android.util.Log.d(
-          "M3BrowseDataLoader",
-          "podcasts loaded library=$libraryId count=${result?.size ?: 0}"
-        )
-      }
-      it(result)
-    }
-  }
-
-  suspend fun loadAuthorsWithBooks(libraryId: String): List<LibraryAuthorItem> {
-    val key = libraryId
-    var waiter: Deferred<List<LibraryAuthorItem>>? = null
-    val created = CompletableDeferred<List<LibraryAuthorItem>>()
-    synchronized(authorsListRequests) {
-      val existing = authorsListRequests[key]
+    /**
+     * Coalesces concurrent requests for the same key: the first caller performs the load,
+     * subsequent callers for the same key await the same result.
+     */
+    private suspend fun <T> coalescedLoad(
+        cache: MutableMap<String, Deferred<T>>,
+        key: String,
+        load: suspend () -> T
+    ): T {
+        val created = CompletableDeferred<T>()
+        val waiter: Deferred<T>
+        synchronized(cache) {
+            val existing = cache[key]
       if (existing != null) {
         waiter = existing
       } else {
-        authorsListRequests[key] = created
+          cache[key] = created
         waiter = created
       }
     }
     if (waiter !== created) {
-      return waiter?.await()
-        ?: throw IllegalStateException("Authors list waiter was unexpectedly null")
+        return waiter.await()
     }
     try {
-      val result = withMediaManagerCallback {
-        mediaManager.loadAuthorsWithBooks(libraryId) { result ->
-          if (BuildConfig.DEBUG) {
-            android.util.Log.d(
-              "M3BrowseDataLoader",
-              "authors loaded library=$libraryId count=${result.size}"
-            )
-          }
-          it(result)
+        val result = load()
+        val copy = if (result is List<*>) {
+            @Suppress("UNCHECKED_CAST")
+            (result as List<*>).toList() as T
+        } else {
+            result
         }
-      }
-      val copy = result.toList()
       created.complete(copy)
       return copy
     } catch (e: Exception) {
       created.completeExceptionally(e)
       throw e
     } finally {
-      synchronized(authorsListRequests) { authorsListRequests.remove(key) }
+        synchronized(cache) { cache.remove(key) }
+    }
+    }
+
+    private fun debugLog(message: String) {
+        if (BuildConfig.DEBUG) Log.d(TAG, message)
+    }
+
+    suspend fun loadLibraryPodcasts(libraryId: String): List<LibraryItem> =
+        withMediaManagerCallback {
+            mediaManager.loadLibraryPodcasts(libraryId) { result ->
+                debugLog("podcasts loaded library=$libraryId count=${result?.size ?: 0}")
+                it(result)
     }
   }
 
-  suspend fun loadLibrarySeriesWithAudio(libraryId: String): List<LibrarySeriesItem> {
-    val key = libraryId
-    var waiter: Deferred<List<LibrarySeriesItem>>? = null
-    val created = CompletableDeferred<List<LibrarySeriesItem>>()
-    synchronized(seriesListRequests) {
-      val existing = seriesListRequests[key]
-      if (existing != null) {
-        waiter = existing
-      } else {
-        seriesListRequests[key] = created
-        waiter = created
-      }
+    suspend fun loadAuthorsWithBooks(libraryId: String): List<LibraryAuthorItem> =
+        coalescedLoad(authorsListRequests, libraryId) {
+            withMediaManagerCallback {
+                mediaManager.loadAuthorsWithBooks(libraryId) { result ->
+                    debugLog("authors loaded library=$libraryId count=${result.size}")
+                    it(result)
+                }
+            }
     }
-    if (waiter !== created) {
-      return waiter?.await()
-        ?: throw IllegalStateException("Series list waiter was unexpectedly null")
-    }
-    try {
-      val result = withMediaManagerCallback {
+
+    suspend fun loadLibrarySeriesWithAudio(libraryId: String): List<LibrarySeriesItem> =
+        coalescedLoad(seriesListRequests, libraryId) {
+            withMediaManagerCallback {
         mediaManager.loadLibrarySeriesWithAudio(libraryId) { result ->
-          if (BuildConfig.DEBUG) {
-            android.util.Log.d(
-              "M3BrowseDataLoader",
-              "series loaded library=$libraryId count=${result.size}"
-            )
-          }
+            debugLog("series loaded library=$libraryId count=${result.size}")
           it(result)
         }
       }
-      val copy = result.toList()
-      created.complete(copy)
-      return copy
-    } catch (e: Exception) {
-      created.completeExceptionally(e)
-      throw e
-    } finally {
-      synchronized(seriesListRequests) { seriesListRequests.remove(key) }
-    }
-  }
+        }
 
-  suspend fun loadLibraryCollectionsWithAudio(libraryId: String): List<LibraryCollection> {
-    val key = libraryId
-    var waiter: Deferred<List<LibraryCollection>>? = null
-    val created = CompletableDeferred<List<LibraryCollection>>()
-    synchronized(collectionsListRequests) {
-      val existing = collectionsListRequests[key]
-      if (existing != null) {
-        waiter = existing
-      } else {
-        collectionsListRequests[key] = created
-        waiter = created
-      }
-    }
-    if (waiter !== created) {
-      return waiter?.await()
-        ?: throw IllegalStateException("Collections list waiter was unexpectedly null")
-    }
-    try {
-      val result = withMediaManagerCallback {
+    suspend fun loadLibraryCollectionsWithAudio(libraryId: String): List<LibraryCollection> =
+        coalescedLoad(collectionsListRequests, libraryId) {
+            withMediaManagerCallback {
         mediaManager.loadLibraryCollectionsWithAudio(libraryId) { result ->
-          if (BuildConfig.DEBUG) {
-            android.util.Log.d(
-              "M3BrowseDataLoader",
-              "collections loaded library=$libraryId count=${result.size}"
-            )
-          }
+            debugLog("collections loaded library=$libraryId count=${result.size}")
           it(result)
         }
       }
-      val copy = result.toList()
-      created.complete(copy)
-      return copy
-    } catch (e: Exception) {
-      created.completeExceptionally(e)
-      throw e
-    } finally {
-      synchronized(collectionsListRequests) { collectionsListRequests.remove(key) }
-    }
-  }
+        }
 
-  suspend fun loadLibraryDiscoveryBooksWithAudio(libraryId: String): List<LibraryItem> {
-    val key = libraryId
-    var waiter: Deferred<List<LibraryItem>>? = null
-    val created = CompletableDeferred<List<LibraryItem>>()
-    synchronized(seriesItemsRequests) {
-      val existing = seriesItemsRequests[key]
-      if (existing != null) {
-        waiter = existing
-      } else {
-        seriesItemsRequests[key] = created as Deferred<List<LibraryItem>>
-        waiter = created
-      }
-    }
-    if (waiter !== created) {
-      return waiter?.await()
-        ?: throw IllegalStateException("Discovery books waiter was unexpectedly null")
-    }
-    try {
-      val result = withMediaManagerCallback {
+    suspend fun loadLibraryDiscoveryBooksWithAudio(libraryId: String): List<LibraryItem> =
+        coalescedLoad(seriesItemsRequests, libraryId) {
+            withMediaManagerCallback {
         mediaManager.loadLibraryDiscoveryBooksWithAudio(libraryId) { result ->
-          if (BuildConfig.DEBUG) {
-            android.util.Log.d(
-              "M3BrowseDataLoader",
-              "discovery loaded library=$libraryId count=${result.size}"
-            )
-          }
+            debugLog("discovery loaded library=$libraryId count=${result.size}")
           it(result)
         }
       }
-      val copy = result.toList()
-      created.complete(copy)
-      return copy
-    } catch (e: Exception) {
-      created.completeExceptionally(e)
-      throw e
-    } finally {
-      synchronized(seriesItemsRequests) { seriesItemsRequests.remove(key) }
-    }
-  }
+        }
 
   suspend fun loadAuthorBooksWithAudio(libraryId: String, authorId: String): List<LibraryItem> =
-    run {
-      val key = "$libraryId:$authorId"
-      var waiter: Deferred<List<LibraryItem>>? = null
-      val created = CompletableDeferred<List<LibraryItem>>()
-      synchronized(authorBooksRequests) {
-        val existing = authorBooksRequests[key]
-        if (existing != null) {
-          waiter = existing
-        } else {
-          authorBooksRequests[key] = created
-          waiter = created
-        }
-      }
-      if (waiter !== created) {
-        return waiter?.await()
-          ?: throw IllegalStateException("Author books waiter was unexpectedly null")
-      }
-      try {
-        val result = withMediaManagerCallback {
-          mediaManager.loadAuthorBooksWithAudio(libraryId, authorId) { result ->
-            if (BuildConfig.DEBUG) {
-              android.util.Log.d(
-                "M3BrowseDataLoader",
-                "author books loaded library=$libraryId author=$authorId count=${result.size}"
-              )
-            }
-            it(result)
-          }
-        }
-        val copy = result.toList()
-        created.complete(copy)
-        return copy
-      } catch (e: Exception) {
-        created.completeExceptionally(e)
-        throw e
-      } finally {
-        synchronized(authorBooksRequests) { authorBooksRequests.remove(key) }
+      coalescedLoad(authorBooksRequests, "$libraryId:$authorId") {
+          withMediaManagerCallback {
+              mediaManager.loadAuthorBooksWithAudio(libraryId, authorId) { result ->
+                  debugLog("author books loaded library=$libraryId author=$authorId count=${result.size}")
+                  it(result)
+              }
       }
     }
 
   suspend fun loadLibrarySeriesItemsWithAudio(
     libraryId: String,
     seriesId: String
-  ): List<LibraryItem> {
-    val key = "$libraryId:$seriesId"
-    var waiter: Deferred<List<LibraryItem>>? = null
-    val created = CompletableDeferred<List<LibraryItem>>()
-    synchronized(seriesItemsRequests) {
-      val existing = seriesItemsRequests[key]
-      if (existing != null) {
-        waiter = existing
-      } else {
-        seriesItemsRequests[key] = created
-        waiter = created
-      }
-    }
-    if (waiter !== created) {
-      return waiter?.await()
-        ?: throw IllegalStateException("Series items waiter was unexpectedly null")
-    }
-    try {
-      val result = withMediaManagerCallback {
+  ): List<LibraryItem> =
+      coalescedLoad(seriesItemsRequests, "$libraryId:$seriesId") {
+          withMediaManagerCallback {
         mediaManager.loadLibrarySeriesItemsWithAudio(libraryId, seriesId) { result ->
-          android.util.Log.d(
-            "M3BrowseDataLoader",
-            "series items loaded library=$libraryId series=$seriesId count=${result.size}"
-          )
+            debugLog("series items loaded library=$libraryId series=$seriesId count=${result.size}")
           it(result)
         }
       }
-      val copy = result.toList()
-      created.complete(copy)
-      return copy
-    } catch (e: Exception) {
-      created.completeExceptionally(e)
-      throw e
-    } finally {
-      synchronized(seriesItemsRequests) { seriesItemsRequests.remove(key) }
-    }
-  }
+      }
 
   suspend fun loadLibraryCollectionBooksWithAudio(
     libraryId: String,
     collectionId: String
-  ): List<LibraryItem> {
-    val key = "$libraryId:$collectionId"
-    var waiter: Deferred<List<LibraryItem>>? = null
-    val created = CompletableDeferred<List<LibraryItem>>()
-    synchronized(collectionBooksRequests) {
-      val existing = collectionBooksRequests[key]
-      if (existing != null) {
-        waiter = existing
-      } else {
-        collectionBooksRequests[key] = created
-        waiter = created
-      }
-    }
-    if (waiter !== created) {
-      return waiter?.await()
-        ?: throw IllegalStateException("Collection books waiter was unexpectedly null")
-    }
-    try {
-      val result = withMediaManagerCallback {
+  ): List<LibraryItem> =
+      coalescedLoad(collectionBooksRequests, "$libraryId:$collectionId") {
+          withMediaManagerCallback {
         mediaManager.loadLibraryCollectionBooksWithAudio(libraryId, collectionId) { result ->
-          android.util.Log.d(
-            "M3BrowseDataLoader",
-            "collection books loaded library=$libraryId collection=$collectionId count=${result.size}"
-          )
+            debugLog("collection books loaded library=$libraryId collection=$collectionId count=${result.size}")
           it(result)
         }
       }
-      val copy = result.toList()
-      created.complete(copy)
-      return copy
-    } catch (e: Exception) {
-      created.completeExceptionally(e)
-      throw e
-    } finally {
-      synchronized(collectionBooksRequests) { collectionBooksRequests.remove(key) }
-    }
-  }
+      }
 
   suspend fun loadPodcastEpisodes(podcastId: String, context: Context): List<MediaItem> {
     val episodes = mediaManager.loadPodcastEpisodes(podcastId, context) ?: emptyList()
-    android.util.Log.d(
-      "M3BrowseDataLoader",
-      "podcast episodes loaded podcast=$podcastId count=${episodes.size}"
-    )
+      debugLog("podcast episodes loaded podcast=$podcastId count=${episodes.size}")
     return episodes.toList()
   }
 
@@ -398,4 +231,9 @@ class Media3BrowseDataLoader(private val mediaManager: MediaManager) {
       item
     } ?: emptyList()
   }
+
+    companion object {
+        private const val TAG = "M3BrowseDataLoader"
+        private const val CALLBACK_TIMEOUT_MS = 15_000L
+    }
 }

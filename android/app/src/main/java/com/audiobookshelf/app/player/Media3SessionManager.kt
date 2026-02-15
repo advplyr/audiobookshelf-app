@@ -19,17 +19,23 @@ class Media3SessionManager(
   private val serviceScope: CoroutineScope,
   private val mediaManager: MediaManager,
   private val playbackMetrics: PlaybackMetricsRecorder,
-  private val currentMediaPlayerIdProvider: () -> String,
-  private val updateCurrentPosition: (PlaybackSession) -> Unit,
-  private val maybeSyncProgress: (String, Boolean, PlaybackSession?, ((SyncResult?) -> Unit)?) -> Unit,
-  private val notifyWidgetState: (Boolean) -> Unit,
-  private val isPlayerInitialized: () -> Boolean,
-  private val stopPlayer: () -> Unit,
-  private val clearPlayerMediaItems: () -> Unit,
-  private val setPlayerNotInitialized: () -> Unit,
-  private val setPlayerInitialized: () -> Unit,
-  private val closeSessionOnServer: (String) -> Unit
+  private val playerControl: PlayerControl,
+  private val serviceCallbacks: ServiceCallbacks
 ) {
+
+    interface PlayerControl {
+        var isInitialized: Boolean
+        fun stop()
+        fun clearMediaItems()
+    }
+
+    interface ServiceCallbacks {
+        fun currentMediaPlayerId(): String
+        fun updateCurrentPosition(session: PlaybackSession)
+        fun maybeSyncProgress(reason: String, force: Boolean, session: PlaybackSession?, onComplete: ((SyncResult?) -> Unit)?)
+        fun notifyWidgetState(isPlaybackClosed: Boolean)
+        fun closeSessionOnServer(sessionId: String)
+    }
   var currentPlaybackSession: PlaybackSession? = null
     private set
 
@@ -53,59 +59,57 @@ class Media3SessionManager(
     }
 
     // Ensure flags return to a ready state after a closePlayback call
-    setPlayerInitialized()
+      playerControl.isInitialized = true
 
     val isNewSession = currentPlaybackSession?.id != session.id
     currentPlaybackSession = session
     DeviceManager.setLastPlaybackSession(session)
     mediaManager.updateLatestServerItemFromSession(session)
 
-    session.mediaPlayer = currentMediaPlayerIdProvider()
+      session.mediaPlayer = serviceCallbacks.currentMediaPlayerId()
 
     // Only reset metrics for NEW sessions, not player switches
     if (isNewSession) {
       playbackMetrics.begin(session.mediaPlayer, session.mediaItemId)
     }
 
-    notifyWidgetState(false)
+      serviceCallbacks.notifyWidgetState(false)
   }
 
   fun switchPlaybackSession(session: PlaybackSession, syncPreviousSession: Boolean = true) {
     markPlaybackSessionAssigned()
     val previous = currentPlaybackSession
     if (previous != null && previous.id != session.id) {
-      updateCurrentPosition(previous)
+        serviceCallbacks.updateCurrentPosition(previous)
       if (syncPreviousSession) {
-        maybeSyncProgress("switch", true, previous) { _ -> }
+          serviceCallbacks.maybeSyncProgress("switch", true, previous) { _ -> }
       }
     }
     assignPlaybackSession(session)
   }
 
   fun closePlayback(afterStop: (() -> Unit)? = null) {
-
     val session = currentPlaybackSession
     if (session != null) {
       val signal = CompletableDeferred<Unit>()
       closePlaybackSignal = signal
 
-      updateCurrentPosition(session)
-      maybeSyncProgress("close", true, session) { result ->
+        serviceCallbacks.updateCurrentPosition(session)
+        serviceCallbacks.maybeSyncProgress("close", true, session) { _ ->
         serviceScope.launch(Dispatchers.Main) {
           playbackMetrics.logSummary()
 
-          // Close session on server if not local
           if (!session.isLocal && session.id.isNotEmpty()) {
-            closeSessionOnServer(session.id)
+              serviceCallbacks.closeSessionOnServer(session.id)
           }
 
-          if (isPlayerInitialized()) {
-            stopPlayer()
-            clearPlayerMediaItems()
-            setPlayerNotInitialized()
+            if (playerControl.isInitialized) {
+                playerControl.stop()
+                playerControl.clearMediaItems()
+                playerControl.isInitialized = false
           }
           currentPlaybackSession = null
-          notifyWidgetState(true)
+            serviceCallbacks.notifyWidgetState(true)
           signal.complete(Unit)
           closePlaybackSignal = null
           afterStop?.invoke()
@@ -125,7 +129,7 @@ class Media3SessionManager(
     assignPlaybackSession(latest)
   }
 
-  fun markPlaybackSessionAssigned() {
+    private fun markPlaybackSessionAssigned() {
     sessionAssignTimestampMs = System.currentTimeMillis()
   }
 
@@ -133,5 +137,6 @@ class Media3SessionManager(
     sessionAssignTimestampMs = 0L
   }
 
-  fun getClosePlaybackSignal(): CompletableDeferred<Unit>? = closePlaybackSignal
+    val closePlaybackSignalSnapshot: CompletableDeferred<Unit>?
+        get() = closePlaybackSignal
 }

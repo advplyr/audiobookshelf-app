@@ -1,7 +1,11 @@
 package com.audiobookshelf.app.player.media3
 
 import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
 import android.net.Uri
+import android.provider.MediaStore
+import android.util.Log
 import androidx.core.content.FileProvider
 import androidx.core.graphics.scale
 import androidx.core.net.toFile
@@ -22,11 +26,16 @@ import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.media.getUriToAbsIconDrawable
 import com.google.common.collect.ImmutableList
+import java.io.ByteArrayOutputStream
 import java.io.File
+
+private const val TAG = "M3BrowseItemBuilder"
+private const val FILE_PROVIDER_AUTHORITY = "${BuildConfig.APPLICATION_ID}.fileprovider"
+private const val URI_GRANT_FLAGS =
+    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
 
 /**
  * Handles building MediaItems for the Media3 browse tree.
- * Provides methods for creating different types of browse items.
  */
 @UnstableApi
 class Media3BrowseItemBuilder(
@@ -36,18 +45,15 @@ class Media3BrowseItemBuilder(
 ) {
 
   companion object {
-    const val DOWNLOADS_ID = "__DOWNLOADS__"
-    const val CONTINUE_LISTENING_ID = "__CONTINUE_LISTENING__"
-    const val LIBRARIES_ROOT = "__LIBRARIES__"
-    const val RECENTLY_ROOT = "__RECENTLY__"
+      const val DOWNLOADS_ID = Media3BrowseTree.DOWNLOADS_ID
+      const val CONTINUE_LISTENING_ID = Media3BrowseTree.CONTINUE_LISTENING_ID
+      const val LIBRARIES_ROOT = Media3BrowseTree.LIBRARIES_ROOT
+      const val RECENTLY_ROOT = Media3BrowseTree.RECENTLY_ROOT
   }
 
   private val deviceSettings
     get() = DeviceManager.deviceData.deviceSettings ?: DeviceSettings.default()
 
-  /**
-   * Creates a browsable category MediaItem.
-   */
   fun createBrowsableCategory(mediaId: String, title: String, iconName: String): MediaItem {
     val mediaMetadata = MediaMetadata.Builder()
       .setTitle(title)
@@ -61,9 +67,6 @@ class Media3BrowseItemBuilder(
       .build()
   }
 
-  /**
-   * Builds a generic MediaItem with the specified properties.
-   */
   fun buildMediaItem(
     mediaId: String,
     title: String,
@@ -86,9 +89,6 @@ class Media3BrowseItemBuilder(
       .build()
   }
 
-  /**
-   * Converts a Library to a MediaItem.
-   */
   fun libraryToMediaItem(library: Library, parentId: String): MediaItem {
     val mediaId = "${parentId}_${library.id}"
     val iconName = library.icon.takeIf { it.isNotBlank() } ?: when (library.mediaType) {
@@ -106,9 +106,6 @@ class Media3BrowseItemBuilder(
     )
   }
 
-  /**
-   * Builds the root children items.
-   */
   fun getRootChildren(): List<MediaItem> {
     if (!mediaManager.isAutoDataLoaded) return emptyList()
     return buildList {
@@ -121,17 +118,11 @@ class Media3BrowseItemBuilder(
     }
   }
 
-  /**
-   * Builds downloads items.
-   */
   fun buildDownloadsItems(): List<MediaItem> {
-    android.util.Log.d("M3BrowseItemBuilder", "buildDownloadsItems: start")
+      Log.d(TAG, "buildDownloadsItems: start")
     val localBooks = DeviceManager.dbManager.getLocalLibraryItems("book")
     val localPodcasts = DeviceManager.dbManager.getLocalLibraryItems("podcast")
-    android.util.Log.d(
-      "M3BrowseItemBuilder",
-      "buildDownloadsItems: localBooks ${localBooks.size}, localPodcasts ${localPodcasts.size}"
-    )
+      Log.d(TAG, "buildDownloadsItems: localBooks ${localBooks.size}, localPodcasts ${localPodcasts.size}")
 
     val bookItems = localBooks.mapNotNull { libraryItem ->
       if (!libraryItem.hasTracks(null)) return@mapNotNull null
@@ -143,16 +134,10 @@ class Media3BrowseItemBuilder(
       val progress = DeviceManager.dbManager.getLocalMediaProgress(libraryItem.id)
       libraryItem.getMediaItem(progress, context).withDownloadArtwork(libraryItem, context)
     }
-    android.util.Log.d(
-      "M3BrowseItemBuilder",
-      "buildDownloadsItems: bookItems ${bookItems.size}, podcastItems ${podcastItems.size}"
-    )
+      Log.d(TAG, "buildDownloadsItems: bookItems ${bookItems.size}, podcastItems ${podcastItems.size}")
     return bookItems + podcastItems
   }
 
-  /**
-   * Builds continue listening items.
-   */
   fun buildContinueListeningItems(): List<MediaItem> {
     return mediaManager.serverItemsInProgress.mapNotNull { inProgressItem ->
       val libraryItem = inProgressItem.libraryItemWrapper as? LibraryItem ?: return@mapNotNull null
@@ -163,9 +148,6 @@ class Media3BrowseItemBuilder(
     }
   }
 
-  /**
-   * Builds library list items.
-   */
   fun buildLibraryList(parentId: String): List<MediaItem> {
     val libraries = mediaManager.serverLibraries
       .filter { (it.stats?.numAudioFiles ?: 0) > 0 }
@@ -173,9 +155,7 @@ class Media3BrowseItemBuilder(
     return if (shouldGroupLetters(libraries)) {
       groupByLetter(libraries, parentId)
     } else {
-      libraries.map { library ->
-        libraryToMediaItem(library, parentId)
-      }
+        libraries.map { library -> libraryToMediaItem(library, parentId) }
     }
   }
 
@@ -188,13 +168,13 @@ class Media3BrowseItemBuilder(
   }
 
   private fun groupByLetter(libraries: List<Library>, prefix: String): List<MediaItem> {
-    val groupingThreshold =
+      val sortOrder =
       DeviceManager.deviceData.deviceSettings?.androidAutoBrowseSeriesSequenceOrder
         ?: AndroidAutoBrowseSeriesSequenceOrderSetting.ASC
     val grouped = libraries.groupBy { it.name.firstOrNull()?.uppercaseChar() ?: '#' }
     val sortedLetters = grouped.keys.sorted()
     val finalLetters =
-      if (groupingThreshold == AndroidAutoBrowseSeriesSequenceOrderSetting.DESC) sortedLetters.reversed() else sortedLetters
+        if (sortOrder==AndroidAutoBrowseSeriesSequenceOrderSetting.DESC) sortedLetters.reversed() else sortedLetters
     return finalLetters.map { letter ->
       buildMediaItem(
         mediaId = "${prefix}__${letter}",
@@ -206,12 +186,8 @@ class Media3BrowseItemBuilder(
     }
   }
 
-  /**
-   * Builds library children items.
-   */
   suspend fun buildLibraryChildren(libraryId: String): List<MediaItem> {
     val library = mediaManager.getLibrary(libraryId) ?: return emptyList()
-
     return when (library.mediaType) {
       "book" -> buildBookLibraryChildren(libraryId)
       "podcast" -> buildPodcastLibraryChildren(libraryId)
@@ -243,11 +219,8 @@ class Media3BrowseItemBuilder(
     }
   }
 
-  /**
-   * Builds library sub-children items.
-   */
   suspend fun buildLibrarySubChildren(parentId: String): List<MediaItem> {
-    android.util.Log.d("M3BrowseItemBuilder", "buildLibrarySubChildren parent=$parentId")
+      Log.d(TAG, "buildLibrarySubChildren parent=$parentId")
     val mediaIdParts = parentId.split("__")
     if (mediaIdParts.size < 4) return emptyList()
 
@@ -260,25 +233,21 @@ class Media3BrowseItemBuilder(
       "COLLECTIONS" -> buildCollectionsList(libraryId)
       "DISCOVERY" -> browseDataLoader.loadLibraryDiscoveryBooksWithAudio(libraryId)
         .map { book -> libraryItemToMediaItem(book, parentId) }
-
       "AUTHOR" -> {
         val authorId = mediaIdParts.getOrNull(4) ?: return emptyList()
         browseDataLoader.loadAuthorBooksWithAudio(libraryId, authorId)
           .map { book -> libraryItemToMediaItem(book, parentId) }
       }
-
       "SERIES" -> {
         val seriesId = mediaIdParts.getOrNull(4) ?: return emptyList()
         browseDataLoader.loadLibrarySeriesItemsWithAudio(libraryId, seriesId)
           .map { book -> libraryItemToMediaItem(book, parentId) }
       }
-
       "COLLECTION" -> {
         val collectionId = mediaIdParts.getOrNull(4) ?: return emptyList()
         browseDataLoader.loadLibraryCollectionBooksWithAudio(libraryId, collectionId)
           .map { book -> libraryItemToMediaItem(book, parentId) }
       }
-
       else -> emptyList()
     }
   }
@@ -332,9 +301,6 @@ class Media3BrowseItemBuilder(
     }
   }
 
-  /**
-   * Convert a LibraryItem to a MediaItem appropriate for browse contexts.
-   */
   fun libraryItemToMediaItem(libraryItem: LibraryItem, parentId: String): MediaItem {
     val parentIdSegments = parentId.split("__")
     val parentLibraryId = parentIdSegments.getOrNull(2)?.trimStart('_')
@@ -459,42 +425,16 @@ class Media3BrowseItemBuilder(
     localLibraryItem.coverAbsolutePath?.let { coverPath ->
       val coverFile = File(coverPath)
       if (coverFile.exists()) {
-        val uri = FileProvider.getUriForFile(
-          context,
-          "${BuildConfig.APPLICATION_ID}.fileprovider",
-          coverFile
-        )
-        try {
-          val flags =
-            android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
-          context.grantUriPermission(null, uri, flags)
-        } catch (e: Exception) {
-          android.util.Log.w(
-            "M3BrowseItemBuilder",
-            "Failed to grant URI permission for cover: ${e.message}"
-          )
-        }
+          val uri = fileProviderUri(coverFile)
+          grantReadPermission(uri)
         return uri
       }
     }
 
     localLibraryItem.coverContentUrl?.let { coverUrl ->
       val uri = if (coverUrl.startsWith("file:")) {
-        val fileUri = FileProvider.getUriForFile(
-          context,
-          "${BuildConfig.APPLICATION_ID}.fileprovider",
-          coverUrl.toUri().toFile()
-        )
-        try {
-          val flags =
-            android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
-          context.grantUriPermission(null, fileUri, flags)
-        } catch (e: Exception) {
-          android.util.Log.w(
-            "M3BrowseItemBuilder",
-            "Failed to grant URI permission for cover: ${e.message}"
-          )
-        }
+          val fileUri = fileProviderUri(coverUrl.toUri().toFile())
+          grantReadPermission(fileUri)
         fileUri
       } else {
         coverUrl.toUri()
@@ -505,17 +445,22 @@ class Media3BrowseItemBuilder(
     return null
   }
 
-  /**
-   * Builds podcast episodes.
-   */
+    private fun fileProviderUri(file: File): Uri =
+        FileProvider.getUriForFile(context, FILE_PROVIDER_AUTHORITY, file)
+
+    private fun grantReadPermission(uri: Uri) {
+        try {
+            context.grantUriPermission(null, uri, URI_GRANT_FLAGS)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to grant URI permission for cover: ${e.message}")
+        }
+    }
+
   suspend fun buildPodcastEpisodes(podcastId: String): List<MediaItem> =
     browseDataLoader.loadPodcastEpisodes(podcastId, context)
 
   /**
    * Handles recent children with section support.
-   * Supports paths like: `${RECENTLY_ROOT}{libraryId}`,
-   * `${RECENTLY_ROOT}{libraryId}__BOOKS`, `${RECENTLY_ROOT}{libraryId}__AUTHORS`,
-   * `${RECENTLY_ROOT}{libraryId}__PODCASTS`, and `${RECENTLY_ROOT}{libraryId}__EPISODES`.
    */
   suspend fun handleRecentChildren(parentId: String): ImmutableList<MediaItem> {
     val trimmed = parentId.removePrefix(RECENTLY_ROOT).trimStart('_')
@@ -530,11 +475,7 @@ class Media3BrowseItemBuilder(
       null -> {
         if (library?.mediaType == "podcast") {
           listOf(
-            createBrowsableCategory(
-              "${RECENTLY_ROOT}${libraryId}__EPISODES",
-              "Episodes",
-              "microphone_2"
-            ),
+              createBrowsableCategory("${RECENTLY_ROOT}${libraryId}__EPISODES", "Episodes", "microphone_2"),
             createBrowsableCategory("${RECENTLY_ROOT}${libraryId}__PODCASTS", "Podcasts", "podcast")
           )
         } else {
@@ -544,20 +485,15 @@ class Media3BrowseItemBuilder(
           )
         }
       }
-
       "BOOKS" -> browseDataLoader.loadRecentShelfBooks(libraryId)
         .map { item -> libraryItemToMediaItem(item, "${RECENTLY_ROOT}${libraryId}") }
-
       "AUTHORS" -> browseDataLoader.loadRecentShelfAuthors(libraryId)
         .map { author -> author.getMediaItem(null, context) }
-
       "PODCASTS" -> browseDataLoader.loadRecentShelfPodcasts(libraryId)
         .map { item -> libraryItemToMediaItem(item, "${RECENTLY_ROOT}${libraryId}") }
-
       "EPISODES" -> browseDataLoader.loadRecentShelfEpisodes(libraryId)
         .mapNotNull { podcastItem ->
           val recentEpisode = podcastItem.recentEpisode ?: return@mapNotNull null
-
           podcastItem.localLibraryItemId?.let { localId ->
             val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItemByLId(localId)
             val localEpisode =
@@ -565,22 +501,17 @@ class Media3BrowseItemBuilder(
                 ?.find { it.serverEpisodeId == recentEpisode.id }
             recentEpisode.localEpisodeId = localEpisode?.id
           }
-
           val progress = mediaManager.serverUserMediaProgress.find {
             it.libraryItemId == podcastItem.id && it.episodeId == recentEpisode.id
           }
           recentEpisode.getMediaItem(podcastItem, progress, context)
         }
-
       else -> emptyList()
     }
 
     return ImmutableList.copyOf(items)
   }
 
-  /**
-   * Orders librarySeries based on device settings.
-   */
   private fun orderSeries(librarySeries: List<LibrarySeriesItem>): List<LibrarySeriesItem> {
     return when (deviceSettings.androidAutoBrowseSeriesSequenceOrder) {
       AndroidAutoBrowseSeriesSequenceOrderSetting.ASC -> librarySeries
@@ -591,16 +522,12 @@ class Media3BrowseItemBuilder(
 
 internal fun MediaItem.withDownloadArtwork(item: LocalLibraryItem, context: Context): MediaItem {
   val coverUri = resolveLocalDownloadCover(item, context) ?: return this
-  android.util.Log.d(
-    "M3BrowseItemBuilder",
-    "withDownloadArtwork: item ${item.id}, coverUri $coverUri"
-  )
+    Log.d(TAG, "withDownloadArtwork: item ${item.id}, coverUri $coverUri")
   try {
-    val bitmap =
-      android.provider.MediaStore.Images.Media.getBitmap(context.contentResolver, coverUri)
+      val bitmap = MediaStore.Images.Media.getBitmap(context.contentResolver, coverUri)
     val resizedBitmap = bitmap.scale(256, 256)
-    val outputStream = java.io.ByteArrayOutputStream()
-    resizedBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, outputStream)
+      val outputStream = ByteArrayOutputStream()
+      resizedBitmap.compress(Bitmap.CompressFormat.JPEG, 90, outputStream)
     val artworkData = outputStream.toByteArray()
     val updatedMetadata = mediaMetadata.buildUpon()
       .setArtworkData(artworkData, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
@@ -609,7 +536,7 @@ internal fun MediaItem.withDownloadArtwork(item: LocalLibraryItem, context: Cont
       .setMediaMetadata(updatedMetadata)
       .build()
   } catch (e: Exception) {
-    android.util.Log.w("M3BrowseItemBuilder", "Failed to load bitmap for artwork: ${e.message}")
+      Log.w(TAG, "Failed to load bitmap for artwork: ${e.message}")
     return this
   }
 }
@@ -618,30 +545,15 @@ private fun resolveLocalDownloadCover(item: LocalLibraryItem, context: Context):
   val path = item.coverAbsolutePath ?: return null
   val file = File(path)
   if (!file.exists()) {
-    android.util.Log.w(
-      "M3BrowseItemBuilder",
-      "resolveLocalDownloadCover: file does not exist $path for item ${item.id}"
-    )
+      Log.w(TAG, "resolveLocalDownloadCover: file does not exist $path for item ${item.id}")
     return null
   }
-  val uri = FileProvider.getUriForFile(
-    context,
-    "${BuildConfig.APPLICATION_ID}.fileprovider",
-    file
-  )
+    val uri = FileProvider.getUriForFile(context, FILE_PROVIDER_AUTHORITY, file)
   try {
-    val flags =
-      android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
-    context.grantUriPermission("com.google.android.projection.gearhead", uri, flags)
+      context.grantUriPermission("com.google.android.projection.gearhead", uri, URI_GRANT_FLAGS)
   } catch (e: Exception) {
-    android.util.Log.w(
-      "M3BrowseItemBuilder",
-      "Failed to grant URI permission for download cover: ${e.message}"
-    )
+      Log.w(TAG, "Failed to grant URI permission for download cover: ${e.message}")
   }
-  android.util.Log.d(
-    "M3BrowseItemBuilder",
-    "resolveLocalDownloadCover: item ${item.id}, path $path, uri $uri"
-  )
+    Log.d(TAG, "resolveLocalDownloadCover: item ${item.id}, path $path, uri $uri")
   return uri
 }
