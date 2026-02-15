@@ -224,11 +224,10 @@ class AbsAudioPlayer : Plugin() {
       }
 
       playbackController?.listener = playbackControllerListener
-      playbackController?.connect()
 
       SleepTimerNotificationCenter.register(sleepTimerNotifier)
 
-      Log.d(tag, "Media3 components initialized and PlaybackController connected.")
+        Log.d(tag, "Media3 components initialized.")
 
     } else {
       Log.d(tag, "USE_MEDIA3 is false. Using ExoPlayer foregroundServiceReady callback.")
