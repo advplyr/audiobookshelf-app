@@ -23,6 +23,7 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
   private var sleepTimerRunning: Boolean = false
   private var sleepTimerEndTime: Long = 0L
   private var sleepTimerLength: Long = 0L
+  private var chapterSleepTimer: Boolean = false
   private var sleepTimerElapsed: Long = 0L
   private var sleepTimerFinishedAt: Long = 0L
   private var isAutoSleepTimer: Boolean = false // When timer was auto-set
@@ -85,7 +86,7 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
    * @return Int - the remaining time in seconds.
    */
   private fun getSleepTimerTimeRemainingSeconds(speed: Float = 1f): Int {
-    if (sleepTimerEndTime == 0L && sleepTimerLength > 0) { // For regular timer
+    if (sleepTimerEndTime == 0L && sleepTimerLength > 0 && !chapterSleepTimer) { // For regular timer
       return ((sleepTimerLength - sleepTimerElapsed) / 1000).toDouble().roundToInt()
     }
     // For chapter end timer
@@ -130,8 +131,8 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
       sleepTimerEndTime = 0L
     }
 
-    // Set sleep timer length. Will be 0L if using chapter end time
     sleepTimerLength = time
+    chapterSleepTimer = isChapter
 
     // Register shake sensor
     playerNotificationService.registerSensor()
@@ -353,10 +354,17 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
     if (sleepTimerRunning) {
       // Reset the sleep timer if it has been running for at least 3 seconds or it is an end of
       // chapter/track timer
-      if (sleepTimerLength == 0L || sleepTimerElapsed > 3000L) {
+      if (chapterSleepTimer || sleepTimerElapsed > 3000L) {
+        // when using chapter sleep there is no reason to reset if the timer is still running
+        // at best it will set the timer to the current time, at worst it will reset multi chapter
+        // sleep back to single chapter
+        if (sleepTimerFinishedAt == 0L) {
+          return
+        }
+
         Log.d(tag, "Resetting running sleep timer")
         vibrateFeedback()
-        setSleepTimer(sleepTimerLength)
+        setSleepTimer(0L, chapterSleepTimer)
         play()
       }
     } else {
