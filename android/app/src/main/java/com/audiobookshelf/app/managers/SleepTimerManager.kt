@@ -131,7 +131,11 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
       sleepTimerEndTime = 0L
     }
 
-    sleepTimerLength = time
+    sleepTimerLength = if (isChapter) {
+      0L
+    } else {
+      time
+    }
     chapterSleepTimer = isChapter
 
     // Register shake sensor
@@ -355,16 +359,17 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
       // Reset the sleep timer if it has been running for at least 3 seconds or it is an end of
       // chapter/track timer
       if (chapterSleepTimer || sleepTimerElapsed > 3000L) {
-        // when using chapter sleep there is no reason to reset if the timer is still running
-        // at best it will set the timer to the current time, at worst it will reset multi chapter
-        // sleep back to single chapter
-        if (sleepTimerFinishedAt == 0L) {
+        // when using chapter sleep there is no reason to reset if the timer isnt about to expire
+        // doing so would reset to a single chapter
+        // we still vibrate as it maintians existing functionalyt
+        vibrateFeedback()
+
+        if (getSleepTimerTimeRemainingSeconds(getPlaybackSpeed()) > 10) {
           return
         }
 
         Log.d(tag, "Resetting running sleep timer")
-        vibrateFeedback()
-        setSleepTimer(0L, chapterSleepTimer)
+        setSleepTimer(0L, true)
         play()
       }
     } else {
@@ -393,7 +398,7 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
       // Set sleep timer
       Log.d(tag, "Resetting stopped sleep timer")
       vibrateFeedback()
-      setSleepTimer(sleepTimerLength)
+      setSleepTimer(sleepTimerLength, chapterSleepTimer)
       play()
     }
   }
