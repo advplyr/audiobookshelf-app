@@ -114,7 +114,7 @@
   "LabelAutoSleepTimerAutoRewind": "Auto sleep timer auto rewind",
   "LabelAutoSleepTimerAutoRewindHelp": "When the auto sleep timer finishes, playing the item again will automatically rewind your position.",
   "LabelAutoSleepTimerHelp": "When playing media between the specified start and end times a sleep timer will automatically start.",
-  "LabelMultiChapterSleep": "Multi Chapter sleep",
+  "LabelMultiChapterSleep": "Multi Chapter Sleep",
   "LabelMultiChapterSleepHelp": "When in end of chapter sleep mode you will get the option to increase/decrease the sleep timer by full chapters",
   "LabelBooks": "Books",
   "LabelByAuthor": "by {0}",
