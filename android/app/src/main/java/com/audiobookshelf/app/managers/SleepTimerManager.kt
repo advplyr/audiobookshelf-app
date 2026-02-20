@@ -98,7 +98,7 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
    * @param time Long - the time to set the sleep timer for. When 0L, use end of chapter/track time.
    * @return Boolean - true if the sleep timer was set successfully, false otherwise.
    */
-  private fun setSleepTimer(time: Long): Boolean {
+  private fun setSleepTimer(time: Long, isChapter: Boolean = false): Boolean {
     Log.d(tag, "Setting Sleep Timer for $time")
     sleepTimerTask?.cancel()
     sleepTimerRunning = true
@@ -106,9 +106,9 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
     sleepTimerElapsed = 0L
     setVolume(1f)
 
-    if (time == 0L) {
+    if (isChapter) {
       // Get the current chapter time and set the sleep timer to the end of the chapter
-      val chapterEndTime = this.getChapterEndTime()
+      val chapterEndTime = this.getChapterEndTime(time)
 
       if (chapterEndTime == null) {
         Log.e(tag, "Setting sleep timer to end of chapter/track but there is no current session")
@@ -207,8 +207,12 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
     sleepTimerSessionId = playbackSessionId
     isAutoSleepTimer = false
     if (isChapterTime) {
-      Log.d(tag, "Setting manual sleep timer for end of chapter")
-      return setSleepTimer(0L)
+      if (time > 0L) {
+        Log.d(tag, "Setting manual sleep timer for end of chapter $time")
+      } else {
+        Log.d(tag, "Setting manual sleep timer for end of current chapter")
+      }
+      return setSleepTimer(time, true)
     } else {
       Log.d(tag, "Setting manual sleep timer for $time")
       return setSleepTimer(time)
@@ -289,21 +293,32 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
    * the chapter, then use the next chapter.
    * @return Long? - the chapter end time in milliseconds, or null if there is no current session.
    */
-  private fun getChapterEndTime(): Long? {
-    val currentChapterEndTimeMs = playerNotificationService.getEndTimeOfChapterOrTrack()
-    if (currentChapterEndTimeMs == null) {
+  private fun getChapterEndTime(index: Long): Long? {
+    val idx = if (index > 0L) {
+      index
+    } else {
+      playerNotificationService.getCurrentChapterOrTractkIndex()
+    }
+
+    if (idx == null) {
       Log.e(tag, "Getting chapter sleep timer end of chapter/track but there is no current session")
       return null
     }
 
-    val timeLeftInChapter = currentChapterEndTimeMs - getCurrentTime()
+    val targetChapterEndTime = playerNotificationService.getEndTimeOfChapterOrTrack(idx.toInt())
+    if (targetChapterEndTime == null) {
+      Log.e(tag, "Getting chapter sleep timer end of chapter/track but there is no current session")
+      return null
+    }
+
+    val timeLeftInChapter = targetChapterEndTime - getCurrentTime()
     // If less than 10 seconds remain in the chapter, set the timer to the next chapter or track
     // This handles the auto-rewind from not playing media for a little bit to select the next
     // chapter
     return if (timeLeftInChapter < 10000L) {
       Log.i(tag, "Getting chapter sleep timer time and current chapter has less than 10s remaining")
-      val nextChapterEndTimeMs = playerNotificationService.getEndTimeOfNextChapterOrTrack()
-      if (nextChapterEndTimeMs == null || currentChapterEndTimeMs == nextChapterEndTimeMs) {
+      val nextChapterEndTimeMs = playerNotificationService.getEndTimeOfChapterOrTrack(idx.toInt() + 1)
+      if (nextChapterEndTimeMs == null || targetChapterEndTime == nextChapterEndTimeMs) {
         Log.e(
                 tag,
                 "Invalid next chapter time. No current session or equal to current chapter. $nextChapterEndTimeMs"
@@ -313,7 +328,7 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
         nextChapterEndTimeMs
       }
     } else {
-      currentChapterEndTimeMs
+      targetChapterEndTime
     }
   }
 

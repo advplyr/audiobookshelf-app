@@ -99,7 +99,10 @@ export const getters = {
     const majorVersion = parseInt(versionParts[0])
     const minorVersion = parseInt(versionParts[1])
     return majorVersion < 2 || (majorVersion == 2 && minorVersion < 17)
-  }
+  },
+  getMultiChapterSleep: (state) => {
+    return !!state.deviceData?.deviceSettings?.multiChapterSleep
+  },
 }
 
 export const actions = {
