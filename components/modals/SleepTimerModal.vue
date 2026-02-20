@@ -41,8 +41,13 @@
         <div v-else class="p-4">
           <div class="flex my-2 justify-between">
             <ui-btn @click="decreaseSleepTime" class="w-9 h-9" :padding-x="0" small style="max-width: 36px"><span class="material-symbols text-lg">remove</span></ui-btn>
-            <p class="text-2xl font-mono text-center">{{ timeRemainingPretty }}</p>
+            <p class="text-2xl mx-2 font-mono text-center">{{ timeRemainingPretty }}</p>
             <ui-btn @click="increaseSleepTime" class="w-9 h-9" :padding-x="0" small style="max-width: 36px"><span class="material-symbols text-lg">add</span></ui-btn>
+          </div>
+          <div v-if="multiChapterSleep" class="flex my-2 justify-between">
+            <ui-btn @click="decreaseSleepTimeByChapter" class="w-9 h-9" :padding-x="0" small style="max-width: 36px"><span class="material-symbols text-lg">remove</span></ui-btn>
+            <p class="text-2xl mx-2 font-mono text-center">{{ $strings.LabelChapter }}</p>
+            <ui-btn @click="increaseSleepTimeByChapter" class="w-9 h-9" :padding-x="0" small style="max-width: 36px"><span class="material-symbols text-lg">add</span></ui-btn>
           </div>
 
           <ui-btn @click="cancelSleepTimer" class="w-full">{{ isAuto ? $strings.ButtonDisableAutoTimer : $strings.ButtonCancelTimer }}</ui-btn>
@@ -90,6 +95,9 @@ export default {
     },
     isIos() {
       return this.$platform === 'ios'
+    },
+    multiChapterSleep() {
+      return this.$store.getters['getMultiChapterSleep']
     }
   },
   methods: {
@@ -126,6 +134,14 @@ export default {
       await this.$hapticsImpact()
       this.$emit('decrease')
     },
+    async increaseSleepTimeByChapter() {
+      await this.$hapticsImpact()
+      this.$emit('increase-chapter')
+    },
+    async decreaseSleepTimeByChapter() {
+      await this.$hapticsImpact()
+      this.$emit('decrease-chapter')
+    },
     async increaseManualTimeout() {
       await this.$hapticsImpact()
       this.manualTimeoutMin++
@@ -135,6 +151,7 @@ export default {
       if (this.manualTimeoutMin > 1) this.manualTimeoutMin--
     }
   },
-  mounted() {}
+  mounted() {
+  }
 }
 </script>
