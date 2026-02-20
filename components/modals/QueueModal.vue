@@ -60,8 +60,8 @@
                 <button
                   class="play-btn rounded-md flex items-center justify-center h-8 w-8 bg-primary border border-gray-600 hover:bg-opacity-80 transition-colors"
                   style="pointer-events: auto; position: relative; z-index: 102;"
-                  @click.stop.prevent="handlePlayClick(item, $event)"
-                  @touchstart.stop.prevent="handlePlayClick(item, $event)"
+                  @click.stop.prevent="playItem(item)"
+                  @touchstart.stop.prevent="playItem(item)"
                   type="button"
                 >
                   <span class="material-symbols text-lg text-white" style="pointer-events: none;">play_arrow</span>
@@ -73,8 +73,8 @@
                 <button
                   class="delete-btn rounded-md flex items-center justify-center h-8 w-8 bg-red-600 border border-red-700 hover:bg-opacity-80 transition-colors"
                   style="pointer-events: auto; position: relative; z-index: 102;"
-                  @click.stop.prevent="handleDeleteClick(index, $event)"
-                  @touchstart.stop.prevent="handleDeleteClick(index, $event)"
+                  @click.stop.prevent="removeItem(index)"
+                  @touchstart.stop.prevent="removeItem(index)"
                   type="button"
                 >
                   <span class="material-symbols text-lg text-white" style="pointer-events: none;">delete</span>
@@ -161,12 +161,6 @@ export default {
     },
     clearQueue() {
       this.$store.dispatch('clearQueue')
-    },
-    handlePlayClick(item, event) {
-      this.playItem(item)
-    },
-    handleDeleteClick(index, event) {
-      this.removeItem(index)
     },
     async playItem(item) {
       // Find the actual index in the store queue by matching IDs

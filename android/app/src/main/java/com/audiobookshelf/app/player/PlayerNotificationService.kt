@@ -39,16 +39,6 @@ import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.media.MediaProgressSyncer
 import com.audiobookshelf.app.media.getUriToAbsIconDrawable
 import com.audiobookshelf.app.media.getUriToDrawable
-import com.audiobookshelf.app.player.ANDROID_AUTO_PKG_NAME
-import com.audiobookshelf.app.player.ANDROID_AUTO_SIMULATOR_PKG_NAME
-import com.audiobookshelf.app.player.ANDROID_AUTOMOTIVE_PKG_NAME
-import com.audiobookshelf.app.player.ANDROID_GSEARCH_PKG_NAME
-import com.audiobookshelf.app.player.ANDROID_WEARABLE_PKG_NAME
-import com.audiobookshelf.app.player.CUSTOM_ACTION_CHANGE_SPEED
-import com.audiobookshelf.app.player.CUSTOM_ACTION_JUMP_BACKWARD
-import com.audiobookshelf.app.player.CUSTOM_ACTION_JUMP_FORWARD
-import com.audiobookshelf.app.player.CUSTOM_ACTION_SKIP_BACKWARD
-import com.audiobookshelf.app.player.CUSTOM_ACTION_SKIP_FORWARD
 import com.audiobookshelf.app.plugins.AbsLogger
 import com.audiobookshelf.app.server.ApiHandler
 import com.google.android.exoplayer2.*
