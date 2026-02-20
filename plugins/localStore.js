@@ -144,6 +144,25 @@ class LocalStorage {
     }
   }
 
+  async setPlaybackQueue(queue) {
+    try {
+      await Preferences.set({ key: 'playbackQueue', value: JSON.stringify(queue) })
+      console.log('[LocalStorage] Set playback queue', queue.length, 'items')
+    } catch (error) {
+      console.error('[LocalStorage] Failed to set playback queue', error)
+    }
+  }
+
+  async getPlaybackQueue() {
+    try {
+      const queueObj = await Preferences.get({ key: 'playbackQueue' }) || {}
+      return queueObj.value ? JSON.parse(queueObj.value) : []
+    } catch (error) {
+      console.error('[LocalStorage] Failed to get playback queue', error)
+      return []
+    }
+  }
+
   /**
    * Get preference value by key
    * 

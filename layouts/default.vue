@@ -9,6 +9,7 @@
     <modals-playlists-add-create-modal />
     <modals-select-local-folder-modal />
     <modals-rssfeeds-rss-feed-modal />
+    <modals-queue-modal />
     <app-side-drawer :key="currentLang" />
     <readers-reader />
   </div>
@@ -349,6 +350,9 @@ export default {
       }
 
       await this.syncLocalSessions(true)
+
+      // Load saved queue from previous session
+      await this.$store.dispatch('loadSavedQueue')
 
       this.hasMounted = true
 
