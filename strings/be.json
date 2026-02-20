@@ -91,6 +91,7 @@
   "HeaderStatsRecentSessions": "Апошнія сеансы",
   "HeaderTableOfContents": "Змест",
   "HeaderUserInterfaceSettings": "Налады інтэрфейсу карыстальніка",
+  "HeaderWelcome": "Вітаем, <strong>{0}</strong>",
   "HeaderYourStats": "Ваша статыстыка",
   "LabelAddToPlaylist": "Дадаць у спіс прайгравання",
   "LabelAddedAt": "Дата дабаўлення",
@@ -285,6 +286,7 @@
   "MessageAudiobookshelfServerNotConnected": "Сервер Audiobookshelf не падлучаны",
   "MessageAudiobookshelfServerRequired": "<strong>Важна!</strong> Гэта праграма прызначана для працы з серверам Audiobookshelf, які вы ці хтосьці іншы абслугоўваеце. Праграма не змяшчае ўласнага кантэнту.",
   "MessageBookshelfEmpty": "Кніжная паліца пустая",
+  "MessageConfirmAppExit": "Вы хацелі выйсці з праграмы?",
   "MessageConfirmDeleteLocalEpisode": "Выдаліць лакальны эпізод \"{0}\" з вашай прылады? Файл на серверы застанецца нязменным.",
   "MessageConfirmDeleteLocalFiles": "Выдаліць лакальныя файлы гэтага элемента з вашай прылады? Файлы на серверы і ваш прагрэс застануцца нязменнымі.",
   "MessageConfirmDisableAutoTimer": "Вы ўпэўнены, што жадаеце адключыць аўтаматычны таймер на сённяшні дзень? Таймер будзе зноў уключаны па заканчэнні гэтага перыяду аўтаматычнага таймера сну або пры перазапуску праграмы.",
@@ -355,5 +357,7 @@
   "ToastPodcastCreateSuccess": "Падкаст паспяхова створаны",
   "ToastRSSFeedCloseFailed": "Не ўдалося закрыць RSS-стужку",
   "ToastRSSFeedCloseSuccess": "RSS-стужка закрыта",
-  "ToastStreamingNotAllowedOnCellular": "Патокавая перадача праз мабільную сувязь забаронена"
+  "ToastStreamingNotAllowedOnCellular": "Патокавая перадача праз мабільную сувязь забаронена",
+  "UnitMinutesShort": "{0} хв",
+  "UnitSecondsShort": "{0} с"
 }
