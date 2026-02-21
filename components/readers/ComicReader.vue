@@ -264,11 +264,12 @@ export default {
       }
     },
     getServerPageUrl(pageNum) {
+      const serverAddress = this.$store.getters['user/getServerAddress']
       const baseUrl = `/api/items/${this.serverLibraryItemId}/comic-page/${pageNum}`
       if (this.fileIno) {
-        return `${baseUrl}/${this.fileIno}`
+        return `${serverAddress}${baseUrl}/${this.fileIno}`
       }
-      return baseUrl
+      return `${serverAddress}${baseUrl}`
     },
     preloadAdjacentPages(currentPage) {
       // Preload 2 pages ahead and 1 behind
@@ -300,7 +301,9 @@ export default {
           pagesUrl += `/${this.fileIno}`
         }
 
+        console.log('[ComicReader] Fetching comic pages from:', pagesUrl)
         const response = await this.$nativeHttp.get(pagesUrl)
+        console.log('[ComicReader] Got response:', response.data)
         this.serverPagesData = response.data
 
         this.pages = response.data.pages.map(p => p.filename)
@@ -317,9 +320,10 @@ export default {
           hasMetadata: false // Server extraction doesn't include comic metadata yet
         })
       } catch (error) {
-        console.error('Failed to init server extraction:', error)
+        console.error('[ComicReader] Failed to init server extraction:', error)
+        console.error('[ComicReader] Error details:', error.response?.status, error.response?.data)
         // Fall back to client-side extraction
-        console.log('Falling back to client-side extraction')
+        console.log('[ComicReader] Falling back to client-side extraction')
         this.useServerExtraction = false
         await this.extract()
       }
@@ -482,12 +486,13 @@ export default {
 
       // Determine whether to use server-side or client-side extraction
       // Use server-side for remote files, client-side for local files
+      console.log('[ComicReader] init - isLocal:', this.isLocal, 'serverLibraryItemId:', this.serverLibraryItemId)
       if (this.isLocal || !this.serverLibraryItemId) {
-        console.log('Using client-side comic extraction (local file)')
+        console.log('[ComicReader] Using client-side comic extraction (local file)')
         this.useServerExtraction = false
         await this.extract()
       } else {
-        console.log('Using server-side comic extraction')
+        console.log('[ComicReader] Using server-side comic extraction')
         this.useServerExtraction = true
         await this.initServerExtraction()
       }
