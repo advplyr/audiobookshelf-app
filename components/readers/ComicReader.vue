@@ -70,6 +70,7 @@ export default {
       useServerExtraction: false,
       serverPagesData: null,
       fileIno: null,
+      extractedItemId: null,
       // Preloading for smooth navigation
       preloadedPages: {},
       preloadQueue: []
@@ -265,7 +266,8 @@ export default {
     },
     getServerPageUrl(pageNum) {
       const serverAddress = this.$store.getters['user/getServerAddress']
-      const baseUrl = `/api/items/${this.serverLibraryItemId}/comic-page/${pageNum}`
+      const itemId = this.extractedItemId || this.serverLibraryItemId
+      const baseUrl = `/api/items/${itemId}/comic-page/${pageNum}`
       if (this.fileIno) {
         return `${serverAddress}${baseUrl}/${this.fileIno}`
       }
@@ -291,8 +293,17 @@ export default {
       this.loading = true
 
       try {
+        // Extract item ID from the ebook URL which we know works
+        // URL format: /api/items/{itemId}/ebook or /api/items/{itemId}/ebook/{fileId}
+        const itemIdMatch = this.url.match(/\/api\/items\/([^/]+)\/ebook/)
+        if (!itemIdMatch) {
+          console.error('[ComicReader] Could not extract item ID from URL:', this.url)
+          throw new Error('Could not extract item ID from URL')
+        }
+        const itemId = itemIdMatch[1]
+        
         // Get comic metadata from server
-        let pagesUrl = `/api/items/${this.serverLibraryItemId}/comic-pages`
+        let pagesUrl = `/api/items/${itemId}/comic-pages`
         
         // Extract file ino from URL if present (for supplementary ebooks)
         const urlMatch = this.url.match(/\/ebook\/([^/]+)$/)
@@ -301,15 +312,19 @@ export default {
           pagesUrl += `/${this.fileIno}`
         }
 
+        console.log('[ComicReader] URL:', this.url)
         console.log('[ComicReader] Fetching comic pages from:', pagesUrl)
+        // Use nativeHttp which handles server address and auth
         const response = await this.$nativeHttp.get(pagesUrl)
-        console.log('[ComicReader] Got response:', response.data)
-        this.serverPagesData = response.data
+        console.log('[ComicReader] Got response:', response)
+        this.serverPagesData = response
 
-        this.pages = response.data.pages.map(p => p.filename)
-        this.numPages = response.data.numPages
-        this.fileIno = response.data.fileIno
+        this.pages = response.pages.map(p => p.filename)
+        this.numPages = response.numPages
+        this.fileIno = response.fileIno
+        this.extractedItemId = itemId  // Store for use in getServerPageUrl
 
+        this.$toast.success(`Server extraction: ${this.numPages} pages`)
         this.loading = false
 
         const startPage = this.savedPage > 0 && this.savedPage <= this.numPages ? this.savedPage : 1
@@ -323,6 +338,7 @@ export default {
         console.error('[ComicReader] Failed to init server extraction:', error)
         console.error('[ComicReader] Error details:', error.response?.status, error.response?.data)
         // Fall back to client-side extraction
+        this.$toast.error(`Server failed (${error.response?.status || 'network'}), using slow extraction`)
         console.log('[ComicReader] Falling back to client-side extraction')
         this.useServerExtraction = false
         await this.extract()
@@ -489,10 +505,12 @@ export default {
       console.log('[ComicReader] init - isLocal:', this.isLocal, 'serverLibraryItemId:', this.serverLibraryItemId)
       if (this.isLocal || !this.serverLibraryItemId) {
         console.log('[ComicReader] Using client-side comic extraction (local file)')
+        this.$toast.info('Using client-side extraction (slow)')
         this.useServerExtraction = false
         await this.extract()
       } else {
         console.log('[ComicReader] Using server-side comic extraction')
+        this.$toast.info('Trying server-side extraction...')
         this.useServerExtraction = true
         await this.initServerExtraction()
       }
