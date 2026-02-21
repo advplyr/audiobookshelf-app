@@ -324,7 +324,7 @@ export default {
         this.fileIno = response.fileIno
         this.extractedItemId = itemId  // Store for use in getServerPageUrl
 
-        this.$toast.success(`Server extraction: ${this.numPages} pages`)
+        console.log(`[ComicReader] Server extraction ready: ${this.numPages} pages`)
         this.loading = false
 
         const startPage = this.savedPage > 0 && this.savedPage <= this.numPages ? this.savedPage : 1
@@ -505,12 +505,12 @@ export default {
       console.log('[ComicReader] init - isLocal:', this.isLocal, 'serverLibraryItemId:', this.serverLibraryItemId)
       if (this.isLocal || !this.serverLibraryItemId) {
         console.log('[ComicReader] Using client-side comic extraction (local file)')
-        this.$toast.info('Using client-side extraction (slow)')
+        console.log('[ComicReader] Using client-side extraction')
         this.useServerExtraction = false
         await this.extract()
       } else {
         console.log('[ComicReader] Using server-side comic extraction')
-        this.$toast.info('Trying server-side extraction...')
+        console.log('[ComicReader] Trying server-side extraction')
         this.useServerExtraction = true
         await this.initServerExtraction()
       }
