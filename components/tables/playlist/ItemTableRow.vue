@@ -38,6 +38,10 @@ export default {
     item: {
       type: Object,
       default: () => {}
+    },
+    playlistPlayableItems: {
+      type: Array,
+      default: () => []
     }
   },
   data() {
@@ -162,20 +166,32 @@ export default {
       let mediaId = this.episodeId || this.libraryItem.id
       if (this.streamIsPlaying) {
         this.$eventBus.$emit('pause-item')
-      } else if (this.localLibraryItem) {
-        this.$store.commit('setPlayerIsStartingPlayback', mediaId)
-        this.$eventBus.$emit('play-item', {
-          libraryItemId: this.localLibraryItem.id,
-          episodeId: this.localEpisode?.id,
-          serverLibraryItemId: this.libraryItem.id,
-          serverEpisodeId: this.episodeId
-        })
       } else {
-        this.$store.commit('setPlayerIsStartingPlayback', mediaId)
-        this.$eventBus.$emit('play-item', {
-          libraryItemId: this.libraryItem.id,
-          episodeId: this.episodeId
-        })
+        if (this.playlistPlayableItems.length) {
+          const currentIndex = this.playlistPlayableItems.findIndex((i) => i.libraryItemId === this.libraryItem.id && i.episodeId === this.episodeId)
+          if (currentIndex >= 0) {
+            this.$store.commit('setPlaylistQueue', {
+              playlistId: this.playlistId,
+              items: this.playlistPlayableItems,
+              currentIndex
+            })
+          }
+        }
+        if (this.localLibraryItem) {
+          this.$store.commit('setPlayerIsStartingPlayback', mediaId)
+          this.$eventBus.$emit('play-item', {
+            libraryItemId: this.localLibraryItem.id,
+            episodeId: this.localEpisode?.id,
+            serverLibraryItemId: this.libraryItem.id,
+            serverEpisodeId: this.episodeId
+          })
+        } else {
+          this.$store.commit('setPlayerIsStartingPlayback', mediaId)
+          this.$eventBus.$emit('play-item', {
+            libraryItemId: this.libraryItem.id,
+            episodeId: this.episodeId
+          })
+        }
       }
     }
   },
