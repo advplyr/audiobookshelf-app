@@ -870,6 +870,7 @@ export default {
 
       if (data.playerState === 'ENDED') {
         console.log('[AudioPlayer] Playback ended')
+        this.$eventBus.$emit('playback-ended')
       }
       this.isEnded = data.playerState === 'ENDED'
 

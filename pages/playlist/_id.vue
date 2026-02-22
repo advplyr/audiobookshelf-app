@@ -140,11 +140,17 @@ export default {
       }
     },
     playNextItem() {
-      const nextItem = this.playableItems.find((i) => {
+      const nextIndex = this.playableItems.findIndex((i) => {
         const prog = this.$store.getters['user/getUserMediaProgress'](i.libraryItemId, i.episodeId)
         return !prog?.isFinished
       })
-      if (nextItem) {
+      if (nextIndex >= 0) {
+        const nextItem = this.playableItems[nextIndex]
+        this.$store.commit('setPlaylistQueue', {
+          playlistId: this.playlist.id,
+          items: this.playableItems,
+          currentIndex: nextIndex
+        })
         this.mediaIdStartingPlayback = nextItem.episodeId || nextItem.libraryItemId
         this.$store.commit('setPlayerIsStartingPlayback', this.mediaIdStartingPlayback)
         if (nextItem.localLibraryItem) {
