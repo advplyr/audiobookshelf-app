@@ -190,6 +190,9 @@ export default {
         })
     },
     onPlaybackEnded() {
+      // Native layer (PlayerNotificationService.advancePlaylistQueue) handles the actual
+      // playback advancement even when the screen is off or the app is backgrounded.
+      // This handler only keeps the Vuex state in sync for UI purposes.
       const playlistQueue = this.$store.state.playlistQueue
       if (!playlistQueue) return
 
@@ -197,27 +200,12 @@ export default {
       const nextIndex = currentIndex + 1
       if (nextIndex >= items.length) {
         this.$store.commit('clearPlaylistQueue')
+        AbsAudioPlayer.clearPlaylistQueue()
         return
       }
 
-      const nextItem = items[nextIndex]
+      // Advance Vuex index so the UI reflects the currently playing episode
       this.$store.commit('setPlaylistQueue', { ...playlistQueue, currentIndex: nextIndex })
-      this.$store.commit('setPlayerIsStartingPlayback', nextItem.episodeId || nextItem.libraryItemId)
-      if (nextItem.localLibraryItem) {
-        this.$eventBus.$emit('play-item', {
-          libraryItemId: nextItem.localLibraryItem.id,
-          episodeId: nextItem.localEpisode?.id,
-          serverLibraryItemId: nextItem.libraryItemId,
-          serverEpisodeId: nextItem.episodeId,
-          fromPlaylistQueue: true
-        })
-      } else {
-        this.$eventBus.$emit('play-item', {
-          libraryItemId: nextItem.libraryItemId,
-          episodeId: nextItem.episodeId,
-          fromPlaylistQueue: true
-        })
-      }
     },
     async playLibraryItem(payload) {
       await AbsLogger.info({ tag: 'AudioPlayerContainer', message: `playLibraryItem: Received play request for library item ${payload.libraryItemId} ${payload.episodeId ? `episode ${payload.episodeId}` : ''}` })
@@ -236,6 +224,7 @@ export default {
             this.$store.commit('setPlaylistQueue', { ...playlistQueue, currentIndex: matchIndex })
           } else {
             this.$store.commit('clearPlaylistQueue')
+            AbsAudioPlayer.clearPlaylistQueue()
           }
         }
       }

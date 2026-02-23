@@ -449,6 +449,36 @@ class AbsAudioPlayer : Plugin() {
   }
 
   @PluginMethod
+  fun setPlaylistQueue(call: PluginCall) {
+    val items = call.getArray("items") ?: run { call.resolve(); return }
+    val currentIndex = call.getInt("currentIndex", 0) ?: 0
+    val queue = mutableListOf<PlayerNotificationService.PlaylistQueueItem>()
+    for (i in 0 until items.length()) {
+      val item = items.getJSONObject(i)
+      queue.add(PlayerNotificationService.PlaylistQueueItem(
+        libraryItemId = item.getString("libraryItemId"),
+        episodeId = if (item.has("episodeId") && !item.isNull("episodeId")) item.getString("episodeId") else null
+      ))
+    }
+    Handler(Looper.getMainLooper()).post {
+      playerNotificationService.playlistQueue = queue
+      playerNotificationService.playlistQueueIndex = currentIndex
+      Log.d(tag, "setPlaylistQueue: ${queue.size} items, currentIndex=$currentIndex")
+    }
+    call.resolve()
+  }
+
+  @PluginMethod
+  fun clearPlaylistQueue(call: PluginCall) {
+    Handler(Looper.getMainLooper()).post {
+      playerNotificationService.playlistQueue = emptyList()
+      playerNotificationService.playlistQueueIndex = -1
+      Log.d(tag, "clearPlaylistQueue: cleared")
+    }
+    call.resolve()
+  }
+
+  @PluginMethod
   fun getIsCastAvailable(call: PluginCall) {
     val jsobj = JSObject()
     jsobj.put("value", isCastAvailable)
