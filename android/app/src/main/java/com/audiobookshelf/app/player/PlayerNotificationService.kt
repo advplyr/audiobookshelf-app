@@ -11,6 +11,7 @@ import android.hardware.Sensor
 import android.hardware.SensorManager
 import android.net.*
 import android.os.*
+import android.os.PowerManager
 import android.provider.MediaStore
 import android.provider.Settings
 import android.support.v4.media.MediaBrowserCompat
@@ -392,6 +393,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                     .setSeekBackIncrementMs(deviceSettings.jumpBackwardsTimeMs)
                     .setSeekForwardIncrementMs(deviceSettings.jumpForwardTimeMs)
                     .build()
+    mPlayer.setWakeMode(C.WAKE_MODE_NETWORK)
     mPlayer.setHandleAudioBecomingNoisy(true)
     mPlayer.addListener(PlayerListener(this))
     val audioAttributes: AudioAttributes =
@@ -667,10 +669,16 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     Log.d(tag, "advancePlaylistQueue: advancing to index $nextIndex, libraryItemId=${nextItem.libraryItemId}")
     val playbackRate = initialPlaybackRate ?: 1f
 
+    // Acquire a temporary WakeLock to keep the CPU alive during playlist advancement
+    val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+    val wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "audiobookshelf:playlistAdvance")
+    wakeLock.acquire(30_000L) // 30 second timeout
+
     if (nextItem.libraryItemId.startsWith("local")) {
       val localItem = DeviceManager.dbManager.getLocalLibraryItem(nextItem.libraryItemId)
       if (localItem == null) {
         Log.e(tag, "advancePlaylistQueue: Local library item not found ${nextItem.libraryItemId}")
+        if (wakeLock.isHeld) wakeLock.release()
         return
       }
       var episode: PodcastEpisode? = null
@@ -679,22 +687,36 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
         episode = podcastMedia?.episodes?.find { ep -> ep.id == nextItem.episodeId }
         if (episode == null) {
           Log.e(tag, "advancePlaylistQueue: Local podcast episode not found ${nextItem.episodeId}")
+          if (wakeLock.isHeld) wakeLock.release()
           return
         }
       }
       val playbackSession = localItem.getPlaybackSession(episode, getDeviceInfo())
       PlayerListener.lazyIsPlaying = false
       preparePlayer(playbackSession, true, playbackRate)
+      if (wakeLock.isHeld) wakeLock.release()
     } else {
-      val playItemRequestPayload = getPlayItemRequestPayload(false)
-      mediaProgressSyncer.stop {
-        apiHandler.playLibraryItem(nextItem.libraryItemId, nextItem.episodeId ?: "", playItemRequestPayload) { session ->
-          if (session == null) {
-            Log.e(tag, "advancePlaylistQueue: Server play request failed for ${nextItem.libraryItemId}")
-          } else {
-            PlayerListener.lazyIsPlaying = false
-            Handler(Looper.getMainLooper()).post { preparePlayer(session, true, playbackRate) }
-          }
+      advancePlaylistQueueServerItem(nextItem, playbackRate, wakeLock, 0)
+    }
+  }
+
+  private fun advancePlaylistQueueServerItem(nextItem: PlaylistQueueItem, playbackRate: Float, wakeLock: PowerManager.WakeLock, retryCount: Int) {
+    val playItemRequestPayload = getPlayItemRequestPayload(false)
+    mediaProgressSyncer.stop {
+      apiHandler.playLibraryItem(nextItem.libraryItemId, nextItem.episodeId ?: "", playItemRequestPayload) { session ->
+        if (session == null && retryCount < 2) {
+          val delay = (retryCount + 1) * 2000L
+          Log.w(tag, "advancePlaylistQueue: Server play request failed for ${nextItem.libraryItemId}, retrying in ${delay}ms (attempt ${retryCount + 1}/2)")
+          Handler(Looper.getMainLooper()).postDelayed({
+            advancePlaylistQueueServerItem(nextItem, playbackRate, wakeLock, retryCount + 1)
+          }, delay)
+        } else if (session != null) {
+          PlayerListener.lazyIsPlaying = false
+          Handler(Looper.getMainLooper()).post { preparePlayer(session, true, playbackRate) }
+          if (wakeLock.isHeld) wakeLock.release()
+        } else {
+          Log.e(tag, "advancePlaylistQueue: Server play request failed for ${nextItem.libraryItemId} after ${retryCount + 1} attempts")
+          if (wakeLock.isHeld) wakeLock.release()
         }
       }
     }
