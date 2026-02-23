@@ -72,9 +72,13 @@ The bridge between JS and native is five custom Capacitor plugins. Each has a JS
 
 ### Playlist Queue
 
-Podcast playlist playback is coordinated entirely in the JS layer. `store/index.js` holds `playlistQueue: { playlistId, items, currentIndex }`. When an episode ends, `AudioPlayer.vue` receives the `ENDED` `onMetadata` event and emits `playback-ended` on `$eventBus`. `AudioPlayerContainer.vue` handles this by advancing `currentIndex` and emitting `play-item` for the next episode.
+Playlist playback uses a two-layer approach so advancement works even when the screen is off or Android's Doze mode throttles the WebView's JS engine:
 
-**Background playback gotcha**: `AbsAudioPlayer.kt` suppresses `onMetadata` events while the app is backgrounded (`isInForeground == false`) to avoid flooding the WebView. The `ENDED` state is explicitly exempted from this suppression so that playlist advancement works when the screen is off or the app is minimized. Do not remove this exemption.
+**Native layer** (`PlayerNotificationService.kt`): Holds `playlistQueue: List<PlaylistQueueItem>` and `playlistQueueIndex`. When ExoPlayer fires `STATE_ENDED`, `PlayerListener` calls `advancePlaylistQueue()` directly on the service. This calls `preparePlayer()` for the next item (local: from DB; server: via `apiHandler.playLibraryItem()`) without touching the JS layer at all.
+
+**JS layer** (`AudioPlayerContainer.vue` + `pages/playlist/_id.vue`): When a playlist starts, `AbsAudioPlayer.setPlaylistQueue(items, currentIndex)` is called to sync the native queue. When `onPlaybackEnded` fires in JS (app in foreground), it only updates the Vuex `currentIndex` for UI purposes — it does NOT trigger playback. `AbsAudioPlayer.clearPlaylistQueue()` is called when a non-playlist item is started.
+
+**`AbsAudioPlayer.kt` background suppression**: `onMetadata` events are suppressed while backgrounded (`isInForeground == false`) except for `ENDED` state. Do not remove this exemption — it allows the JS Vuex state to sync when the app returns to foreground after an episode ended.
 
 ### Communication Patterns
 

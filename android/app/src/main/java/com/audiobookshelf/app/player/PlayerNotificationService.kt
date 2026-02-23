@@ -118,6 +118,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
   private var isAndroidAuto = false
 
+  // Playlist queue for native background advancement (bypasses WebView/JS layer)
+  data class PlaylistQueueItem(val libraryItemId: String, val episodeId: String?)
+  var playlistQueue: List<PlaylistQueueItem> = emptyList()
+  var playlistQueueIndex: Int = -1
+
   // The following are used for the shake detection
   private var isShakeSensorRegistered: Boolean = false
   private var mSensorManager: SensorManager? = null
@@ -642,6 +647,53 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                 Handler(Looper.getMainLooper()).post { preparePlayer(it, true, playbackRate) }
               }
             }
+          }
+        }
+      }
+    }
+  }
+
+  fun advancePlaylistQueue() {
+    if (playlistQueue.isEmpty()) return
+    val nextIndex = playlistQueueIndex + 1
+    if (nextIndex >= playlistQueue.size) {
+      Log.d(tag, "advancePlaylistQueue: end of queue")
+      playlistQueue = emptyList()
+      playlistQueueIndex = -1
+      return
+    }
+    playlistQueueIndex = nextIndex
+    val nextItem = playlistQueue[nextIndex]
+    Log.d(tag, "advancePlaylistQueue: advancing to index $nextIndex, libraryItemId=${nextItem.libraryItemId}")
+    val playbackRate = initialPlaybackRate ?: 1f
+
+    if (nextItem.libraryItemId.startsWith("local")) {
+      val localItem = DeviceManager.dbManager.getLocalLibraryItem(nextItem.libraryItemId)
+      if (localItem == null) {
+        Log.e(tag, "advancePlaylistQueue: Local library item not found ${nextItem.libraryItemId}")
+        return
+      }
+      var episode: PodcastEpisode? = null
+      if (!nextItem.episodeId.isNullOrEmpty()) {
+        val podcastMedia = localItem.media as? Podcast
+        episode = podcastMedia?.episodes?.find { ep -> ep.id == nextItem.episodeId }
+        if (episode == null) {
+          Log.e(tag, "advancePlaylistQueue: Local podcast episode not found ${nextItem.episodeId}")
+          return
+        }
+      }
+      val playbackSession = localItem.getPlaybackSession(episode, getDeviceInfo())
+      PlayerListener.lazyIsPlaying = false
+      preparePlayer(playbackSession, true, playbackRate)
+    } else {
+      val playItemRequestPayload = getPlayItemRequestPayload(false)
+      mediaProgressSyncer.stop {
+        apiHandler.playLibraryItem(nextItem.libraryItemId, nextItem.episodeId ?: "", playItemRequestPayload) { session ->
+          if (session == null) {
+            Log.e(tag, "advancePlaylistQueue: Server play request failed for ${nextItem.libraryItemId}")
+          } else {
+            PlayerListener.lazyIsPlaying = false
+            Handler(Looper.getMainLooper()).post { preparePlayer(session, true, playbackRate) }
           }
         }
       }
