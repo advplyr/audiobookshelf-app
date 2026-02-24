@@ -189,12 +189,45 @@ export default {
           this.$toast.error('Failed to play')
         })
     },
+    onPlaybackEnded() {
+      // Native layer (PlayerNotificationService.advancePlaylistQueue) handles the actual
+      // playback advancement even when the screen is off or the app is backgrounded.
+      // This handler only keeps the Vuex state in sync for UI purposes.
+      const playlistQueue = this.$store.state.playlistQueue
+      if (!playlistQueue) return
+
+      const { items, currentIndex } = playlistQueue
+      const nextIndex = currentIndex + 1
+      if (nextIndex >= items.length) {
+        this.$store.commit('clearPlaylistQueue')
+        AbsAudioPlayer.clearPlaylistQueue()
+        return
+      }
+
+      // Advance Vuex index so the UI reflects the currently playing episode
+      this.$store.commit('setPlaylistQueue', { ...playlistQueue, currentIndex: nextIndex })
+    },
     async playLibraryItem(payload) {
       await AbsLogger.info({ tag: 'AudioPlayerContainer', message: `playLibraryItem: Received play request for library item ${payload.libraryItemId} ${payload.episodeId ? `episode ${payload.episodeId}` : ''}` })
       const libraryItemId = payload.libraryItemId
       const episodeId = payload.episodeId
       const startTime = payload.startTime
       const startWhenReady = !payload.paused
+
+      if (!payload.fromPlaylistQueue) {
+        const playlistQueue = this.$store.state.playlistQueue
+        if (playlistQueue) {
+          const serverLibraryItemId = payload.serverLibraryItemId || (!libraryItemId?.startsWith('local') ? libraryItemId : null)
+          const serverEpisodeId = payload.serverEpisodeId || (!episodeId?.startsWith('local') ? episodeId : null)
+          const matchIndex = playlistQueue.items.findIndex((i) => i.libraryItemId === serverLibraryItemId && i.episodeId === serverEpisodeId)
+          if (matchIndex >= 0) {
+            this.$store.commit('setPlaylistQueue', { ...playlistQueue, currentIndex: matchIndex })
+          } else {
+            this.$store.commit('clearPlaylistQueue')
+            AbsAudioPlayer.clearPlaylistQueue()
+          }
+        }
+      }
 
       const isLocal = libraryItemId.startsWith('local')
       if (!isLocal) {
@@ -368,6 +401,7 @@ export default {
     this.$eventBus.$on('user-settings', this.settingsUpdated)
     this.$eventBus.$on('playback-time-update', this.playbackTimeUpdate)
     this.$eventBus.$on('device-focus-update', this.deviceFocused)
+    this.$eventBus.$on('playback-ended', this.onPlaybackEnded)
   },
   beforeDestroy() {
     this.onLocalMediaProgressUpdateListener?.remove()
@@ -383,6 +417,7 @@ export default {
     this.$eventBus.$off('user-settings', this.settingsUpdated)
     this.$eventBus.$off('playback-time-update', this.playbackTimeUpdate)
     this.$eventBus.$off('device-focus-update', this.deviceFocused)
+    this.$eventBus.$off('playback-ended', this.onPlaybackEnded)
   }
 }
 </script>
