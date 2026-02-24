@@ -32,6 +32,8 @@
 </template>
 
 <script>
+import { AbsAudioPlayer } from '@/plugins/capacitor'
+
 export default {
   props: {
     playlistId: String,
@@ -173,6 +175,14 @@ export default {
             this.$store.commit('setPlaylistQueue', {
               playlistId: this.playlistId,
               items: this.playlistPlayableItems,
+              currentIndex
+            })
+            // Sync queue to native layer so it can advance independently of the WebView
+            AbsAudioPlayer.setPlaylistQueue({
+              items: this.playlistPlayableItems.map((item) => ({
+                libraryItemId: item.localLibraryItem ? item.localLibraryItem.id : item.libraryItemId,
+                episodeId: item.localLibraryItem ? (item.localEpisode?.id || null) : (item.episodeId || null)
+              })),
               currentIndex
             })
           }

@@ -141,7 +141,7 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
         playerNotificationService.sendClientMetadata(PlayerState.BUFFERING)
       }
       if (playerNotificationService.currentPlayer.playbackState == Player.STATE_ENDED) {
-        Log.d(tag, "STATE_ENDED")
+        Log.d(tag, "STATE_ENDED | playlistQueueSize=${playerNotificationService.playlistQueue.size} | playlistQueueIndex=${playerNotificationService.playlistQueueIndex}")
         playerNotificationService.sendClientMetadata(PlayerState.ENDED)
 
         playerNotificationService.handlePlaybackEnded()
