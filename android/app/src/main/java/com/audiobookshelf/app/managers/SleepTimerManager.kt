@@ -19,10 +19,12 @@ class SleepTimerManager
 constructor(private val playerNotificationService: PlayerNotificationService) {
   private val tag = "SleepTimerManager"
 
+  private var sessionId: String? = null
   private var sleepTimerTask: TimerTask? = null
   private var sleepTimerRunning: Boolean = false
   private var sleepTimerEndTime: Long = 0L
   private var sleepTimerLength: Long = 0L
+  private var isChapterSleepTimer: Boolean = false
   private var sleepTimerElapsed: Long = 0L
   private var sleepTimerFinishedAt: Long = 0L
   private var isAutoSleepTimer: Boolean = false // When timer was auto-set
@@ -85,7 +87,7 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
    * @return Int - the remaining time in seconds.
    */
   private fun getSleepTimerTimeRemainingSeconds(speed: Float = 1f): Int {
-    if (sleepTimerEndTime == 0L && sleepTimerLength > 0) { // For regular timer
+    if (sleepTimerEndTime == 0L && sleepTimerLength > 0 && !isChapterSleepTimer) { // For regular timer
       return ((sleepTimerLength - sleepTimerElapsed) / 1000).toDouble().roundToInt()
     }
     // For chapter end timer
@@ -98,17 +100,18 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
    * @param time Long - the time to set the sleep timer for. When 0L, use end of chapter/track time.
    * @return Boolean - true if the sleep timer was set successfully, false otherwise.
    */
-  private fun setSleepTimer(time: Long): Boolean {
+  private fun setSleepTimer(time: Long, isChapter: Boolean = false): Boolean {
     Log.d(tag, "Setting Sleep Timer for $time")
     sleepTimerTask?.cancel()
     sleepTimerRunning = true
     sleepTimerFinishedAt = 0L
     sleepTimerElapsed = 0L
+    sessionId = playerNotificationService.currentPlaybackSession?.id
     setVolume(1f)
 
-    if (time == 0L) {
+    if (isChapter) {
       // Get the current chapter time and set the sleep timer to the end of the chapter
-      val chapterEndTime = this.getChapterEndTime()
+      val chapterEndTime = this.getChapterEndTime(time)
 
       if (chapterEndTime == null) {
         Log.e(tag, "Setting sleep timer to end of chapter/track but there is no current session")
@@ -122,16 +125,15 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
       }
 
       sleepTimerEndTime = chapterEndTime
-
       if (sleepTimerEndTime > getDuration()) {
         sleepTimerEndTime = getDuration()
       }
+      sleepTimerLength = sleepTimerEndTime - currentTime
     } else {
-      sleepTimerEndTime = 0L
+      sleepTimerLength = time
     }
 
-    // Set sleep timer length. Will be 0L if using chapter end time
-    sleepTimerLength = time
+    isChapterSleepTimer = isChapter
 
     // Register shake sensor
     playerNotificationService.registerSensor()
@@ -207,8 +209,12 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
     sleepTimerSessionId = playbackSessionId
     isAutoSleepTimer = false
     if (isChapterTime) {
-      Log.d(tag, "Setting manual sleep timer for end of chapter")
-      return setSleepTimer(0L)
+      if (time > 0L) {
+        Log.d(tag, "Setting manual sleep timer for end of chapter $time")
+      } else {
+        Log.d(tag, "Setting manual sleep timer for end of current chapter")
+      }
+      return setSleepTimer(time, true)
     } else {
       Log.d(tag, "Setting manual sleep timer for $time")
       return setSleepTimer(time)
@@ -219,7 +225,6 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
   private fun clearSleepTimer() {
     sleepTimerTask?.cancel()
     sleepTimerTask = null
-    sleepTimerEndTime = 0
     sleepTimerRunning = false
     playerNotificationService.unregisterSensor()
 
@@ -289,21 +294,32 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
    * the chapter, then use the next chapter.
    * @return Long? - the chapter end time in milliseconds, or null if there is no current session.
    */
-  private fun getChapterEndTime(): Long? {
-    val currentChapterEndTimeMs = playerNotificationService.getEndTimeOfChapterOrTrack()
-    if (currentChapterEndTimeMs == null) {
+  private fun getChapterEndTime(index: Long): Long? {
+    val idx = if (index > 0L) {
+      index
+    } else {
+      playerNotificationService.getCurrentChapterOrTractkIndex()
+    }
+
+    if (idx == null) {
       Log.e(tag, "Getting chapter sleep timer end of chapter/track but there is no current session")
       return null
     }
 
-    val timeLeftInChapter = currentChapterEndTimeMs - getCurrentTime()
+    val targetChapterEndTime = playerNotificationService.getEndTimeOfChapterOrTrack(idx.toInt())
+    if (targetChapterEndTime == null) {
+      Log.e(tag, "Getting chapter sleep timer end of chapter/track but there is no current session")
+      return null
+    }
+
+    val timeLeftInChapter = targetChapterEndTime - getCurrentTime()
     // If less than 10 seconds remain in the chapter, set the timer to the next chapter or track
     // This handles the auto-rewind from not playing media for a little bit to select the next
     // chapter
     return if (timeLeftInChapter < 10000L) {
       Log.i(tag, "Getting chapter sleep timer time and current chapter has less than 10s remaining")
-      val nextChapterEndTimeMs = playerNotificationService.getEndTimeOfNextChapterOrTrack()
-      if (nextChapterEndTimeMs == null || currentChapterEndTimeMs == nextChapterEndTimeMs) {
+      val nextChapterEndTimeMs = playerNotificationService.getEndTimeOfChapterOrTrack(idx.toInt() + 1)
+      if (nextChapterEndTimeMs == null || targetChapterEndTime == nextChapterEndTimeMs) {
         Log.e(
                 tag,
                 "Invalid next chapter time. No current session or equal to current chapter. $nextChapterEndTimeMs"
@@ -313,7 +329,7 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
         nextChapterEndTimeMs
       }
     } else {
-      currentChapterEndTimeMs
+      targetChapterEndTime
     }
   }
 
@@ -335,13 +351,22 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
 
   /** Checks if the sleep timer should be reset. */
   private fun checkShouldResetSleepTimer() {
+    Log.d(tag, "checkShouldResetSleepTimer: ${getSleepTimerTime()} -- ${getChapterEndTime(0L)}")
     if (sleepTimerRunning) {
       // Reset the sleep timer if it has been running for at least 3 seconds or it is an end of
       // chapter/track timer
-      if (sleepTimerLength == 0L || sleepTimerElapsed > 3000L) {
-        Log.d(tag, "Resetting running sleep timer")
+      if (isChapterSleepTimer || sleepTimerElapsed > 3000L) {
+        if (
+          getSleepTimerTimeRemainingSeconds(getPlaybackSpeed()) > 10
+            && sessionId == playerNotificationService.currentPlaybackSession?.id
+        ) {
+          return
+        }
+
         vibrateFeedback()
-        setSleepTimer(sleepTimerLength)
+        Log.d(tag, "Resetting running sleep timer")
+        sessionId = playerNotificationService.currentPlaybackSession?.id
+        setSleepTimer(0L, true)
         play()
       }
     } else {
@@ -370,7 +395,7 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
       // Set sleep timer
       Log.d(tag, "Resetting stopped sleep timer")
       vibrateFeedback()
-      setSleepTimer(sleepTimerLength)
+      setSleepTimer(sleepTimerLength, isChapterSleepTimer)
       play()
     }
   }
@@ -399,14 +424,14 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
 
     // Increase the sleep timer time (if using fixed length) or end time (if using chapter end time)
     // and ensure it doesn't go over the duration of the current playback item
-    if (sleepTimerEndTime == 0L) {
+    if (!isChapterSleepTimer) {
       // Fixed length
       sleepTimerLength += time
       sleepTimerLength = minOf(sleepTimerLength, getDuration() - getCurrentTime())
     } else {
       // Chapter end time
       sleepTimerEndTime =
-              minOf(sleepTimerEndTime + (time * getPlaybackSpeed()).roundToInt(), getDuration())
+        minOf(sleepTimerEndTime + (time * getPlaybackSpeed()).roundToInt(), getDuration())
     }
 
     setVolume(1F)
@@ -426,16 +451,16 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
 
     // Decrease the sleep timer time (if using fixed length) or end time (if using chapter end time)
     // and ensure it doesn't go below 1 second
-    if (sleepTimerEndTime == 0L) {
+    if (!isChapterSleepTimer) {
       // Fixed length
       sleepTimerLength = maxOf(sleepTimerLength - time, 1000L)
     } else {
       // Chapter end time
       sleepTimerEndTime =
-              maxOf(
-                      sleepTimerEndTime - (time * getPlaybackSpeed()).roundToInt(),
-                      getCurrentTime() + 1000
-              )
+        maxOf(
+          sleepTimerEndTime - (time * getPlaybackSpeed()).roundToInt(),
+          getCurrentTime() + 1000
+        )
     }
 
     setVolume(1F)
