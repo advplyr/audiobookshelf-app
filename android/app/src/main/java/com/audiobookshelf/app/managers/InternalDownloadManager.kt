@@ -13,7 +13,8 @@ import okhttp3.*
  */
 class InternalDownloadManager(
         private val outputStream: FileOutputStream,
-        private val progressCallback: DownloadItemManager.InternalProgressCallback
+        private val progressCallback: DownloadItemManager.InternalProgressCallback,
+        private val customHeaders: Map<String, String>? = null
 ) : AutoCloseable {
 
   private val tag = "InternalDownloadManager"
@@ -29,8 +30,13 @@ class InternalDownloadManager(
    */
   @Throws(IOException::class)
   fun download(url: String) {
-    val request: Request = Request.Builder().url(url).addHeader("Accept-Encoding", "identity").build()
-    client.newCall(request)
+    val request = Request.Builder().url(url).addHeader("Accept-Encoding", "identity")
+
+    customHeaders?.forEach { (key, value) ->
+      request.addHeader(key, value)
+    }
+
+    client.newCall(request.build())
             .enqueue(
                     object : Callback {
                       override fun onFailure(call: Call, e: IOException) {
