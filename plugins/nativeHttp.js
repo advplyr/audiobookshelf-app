@@ -80,7 +80,7 @@ export default function ({ store, $db, $socket }, inject) {
         }
 
         // Attempt to refresh the token
-        const newTokens = await this.refreshAccessToken(refreshToken, serverConnectionConfig.address)
+        const newTokens = await this.refreshAccessToken(refreshToken, serverConnectionConfig.address, serverConnectionConfig)
         if (!newTokens?.accessToken) {
           console.error('[nativeHttp] Failed to refresh access token')
           throw new Error('Failed to refresh access token')
@@ -123,7 +123,7 @@ export default function ({ store, $db, $socket }, inject) {
      * @param {string} serverAddress - The server address
      * @returns {Promise<Object|null>} - Promise that resolves with new tokens or null
      */
-    async refreshAccessToken(refreshToken, serverAddress) {
+    async refreshAccessToken(refreshToken, serverAddress, serverConnectionConfig) {
       try {
         if (!serverAddress) {
           throw new Error('No server address available')
@@ -131,12 +131,18 @@ export default function ({ store, $db, $socket }, inject) {
 
         console.log('[nativeHttp] Refreshing access token...')
 
+        const refreshHeaders = {
+          'Content-Type': 'application/json',
+          'x-refresh-token': refreshToken
+        }
+        // Add custom headers from server connection config (e.g., CloudFlare Access)
+        if (serverConnectionConfig?.customHeaders) {
+          Object.assign(refreshHeaders, serverConnectionConfig.customHeaders)
+        }
+
         const response = await CapacitorHttp.post({
           url: `${serverAddress}/auth/refresh`,
-          headers: {
-            'Content-Type': 'application/json',
-            'x-refresh-token': refreshToken
-          },
+          headers: refreshHeaders,
           data: {}
         })
 

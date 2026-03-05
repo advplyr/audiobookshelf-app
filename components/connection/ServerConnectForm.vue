@@ -913,7 +913,7 @@ export default {
       this.$store.commit('user/setAccessToken', serverConnectionConfig.token)
       this.$store.commit('user/setServerConnectionConfig', serverConnectionConfig)
 
-      this.$socket.connect(this.serverConfig.address, this.serverConfig.token)
+      this.$socket.connect(this.serverConfig.address, this.serverConfig.token, serverConnectionConfig.customHeaders)
       this.$router.replace('/bookshelf')
     },
     async authenticateToken() {

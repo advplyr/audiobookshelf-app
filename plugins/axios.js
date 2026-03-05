@@ -56,6 +56,13 @@ export default function ({ $axios, store, $db }) {
     if (serverUrl) {
       config.url = `${serverUrl}${config.url}`
     }
+
+    // Add custom headers from server connection config (e.g., CloudFlare Access)
+    const serverConnectionConfig = store.state.user.serverConnectionConfig
+    if (serverConnectionConfig?.customHeaders) {
+      Object.assign(config.headers.common, serverConnectionConfig.customHeaders)
+    }
+
     console.log('[Axios] Request out', config.url)
   })
 
