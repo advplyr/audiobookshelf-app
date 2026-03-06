@@ -173,12 +173,18 @@ export const actions = {
 
     const serverAddress = getters.getServerAddress
 
+    const refreshHeaders = {
+      'Content-Type': 'application/json',
+      'x-refresh-token': refreshToken
+    }
+    // Add custom headers from server connection config (e.g., CloudFlare Access)
+    if (state.serverConnectionConfig?.customHeaders) {
+      Object.assign(refreshHeaders, state.serverConnectionConfig.customHeaders)
+    }
+
     const response = await CapacitorHttp.post({
       url: `${serverAddress}/auth/refresh`,
-      headers: {
-        'Content-Type': 'application/json',
-        'x-refresh-token': refreshToken
-      },
+      headers: refreshHeaders,
       data: {}
     })
 

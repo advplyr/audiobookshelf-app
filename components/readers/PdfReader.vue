@@ -226,11 +226,17 @@ export default {
       this.windowHeight = window.innerHeight
     },
     init() {
+      const httpHeaders = {
+        Authorization: `Bearer ${this.userToken}`
+      }
+      // Add custom headers from server connection config (e.g., CloudFlare Access)
+      const customHeaders = this.$store.state.user.serverConnectionConfig?.customHeaders
+      if (customHeaders) {
+        Object.assign(httpHeaders, customHeaders)
+      }
       this.pdfDocInitParams = {
         url: this.ebookUrl,
-        httpHeaders: {
-          Authorization: `Bearer ${this.userToken}`
-        }
+        httpHeaders
       }
     }
   },
