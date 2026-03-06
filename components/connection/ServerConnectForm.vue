@@ -522,9 +522,9 @@ export default {
         ...serverConfig
       }
 
-      if (await this.submit(true)) {
-        this.showForm = true
-      }
+      this.showForm = true
+      this.showAuth = false
+      this.error = null
     },
     async newServerConfigClick() {
       await this.$hapticsImpact()
