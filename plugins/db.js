@@ -121,6 +121,45 @@ class DbService {
   getMediaItemHistory(mediaId) {
     return AbsDatabase.getMediaItemHistory({ mediaId })
   }
+
+  getClientCertificateAlias(serverConnectionConfigId) {
+    return AbsDatabase.getClientCertificateAlias({ serverConnectionConfigId })
+  }
+
+  /**
+   * Opens the Android system certificate picker. Returns { alias } or { alias: null } if cancelled.
+   * @param {string} [serverConnectionConfigId] - Pass empty string if config ID is not yet known.
+   * @param {string} [serverAddress]
+   */
+  selectClientCertificate(serverConnectionConfigId = '', serverAddress = '') {
+    return AbsDatabase.selectClientCertificate({ serverConnectionConfigId, serverAddress })
+  }
+
+  /**
+   * Applies a certificate alias as the global SSLSocketFactory without persisting it.
+   * Use before first login when the server config ID is unknown.
+   * @param {string} alias
+   */
+  applyClientCertAlias(alias) {
+    return AbsDatabase.applyClientCertAlias({ alias })
+  }
+
+  /**
+   * Persists a certificate alias for the given server config ID and applies it globally.
+   * @param {string} serverConnectionConfigId
+   * @param {string|null} alias - Pass null to clear.
+   */
+  setClientCertificateAlias(serverConnectionConfigId, alias) {
+    return AbsDatabase.setClientCertificateAlias({ serverConnectionConfigId, alias })
+  }
+
+  /**
+   * Clears the mTLS certificate for the given server and resets to default SSL.
+   * @param {string} [serverConnectionConfigId]
+   */
+  clearClientCertificate(serverConnectionConfigId = '') {
+    return AbsDatabase.clearClientCertificate({ serverConnectionConfigId })
+  }
 }
 
 export default ({ app, store }, inject) => {

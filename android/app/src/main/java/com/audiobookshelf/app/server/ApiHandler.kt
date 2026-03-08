@@ -14,6 +14,7 @@ import com.audiobookshelf.app.media.SyncResult
 import com.audiobookshelf.app.models.User
 import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.plugins.AbsLogger
+import com.audiobookshelf.app.managers.MtlsManager
 import com.audiobookshelf.app.managers.SecureStorage
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.core.json.JsonReadFeature
@@ -43,8 +44,31 @@ class ApiHandler(var ctx:Context) {
     }
   }
 
-  private var defaultClient = OkHttpClient()
-  private var pingClient = OkHttpClient.Builder().callTimeout(3, TimeUnit.SECONDS).build()
+  @Volatile private var defaultClient = OkHttpClient()
+  @Volatile private var pingClient = OkHttpClient.Builder().callTimeout(3, TimeUnit.SECONDS).build()
+
+  /**
+   * Rebuilds the OkHttp clients with mTLS configured for the given server config ID.
+   * Falls back to plain clients if no certificate alias is set for this server.
+   *
+   * BLOCKING — must be called from a background thread (e.g. Dispatchers.IO).
+   */
+  fun refreshMtlsClients(serverConfigId: String) {
+    val mtlsDefault = MtlsManager.buildOkHttpClient(serverConfigId)
+    val mtlsPing = MtlsManager.buildOkHttpClient(serverConfigId, callTimeout = 3)
+    if (mtlsDefault != null && mtlsPing != null) {
+      defaultClient = mtlsDefault
+      pingClient = mtlsPing
+      // Also apply as global default so CapacitorHttp (HttpURLConnection) is covered
+      MtlsManager.applyAsGlobalDefault(serverConfigId)
+      Log.d(tag, "refreshMtlsClients: mTLS clients configured for server $serverConfigId")
+    } else {
+      defaultClient = OkHttpClient()
+      pingClient = OkHttpClient.Builder().callTimeout(3, TimeUnit.SECONDS).build()
+      MtlsManager.resetGlobalDefault()
+      Log.d(tag, "refreshMtlsClients: No mTLS cert for server $serverConfigId, using default clients")
+    }
+  }
   private var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
   private var secureStorage = SecureStorage(ctx)
 

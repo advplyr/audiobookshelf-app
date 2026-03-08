@@ -39,6 +39,15 @@
           </div>
           <h2 class="text-lg leading-7 mb-2">{{ $strings.LabelServerAddress }}</h2>
           <ui-text-input v-model="serverConfig.address" :disabled="processing || !networkConnected || !!serverConfig.id" placeholder="http://55.55.55.55:13378" type="url" class="w-full h-10" />
+          <!-- mTLS client certificate (Android only) -->
+          <div v-if="isAndroid" class="flex items-center mt-4 space-x-2">
+            <span class="material-symbols text-fg-muted" style="font-size: 1.1rem">lock</span>
+            <p class="text-sm text-fg-muted flex-grow truncate">
+              {{ $strings.LabelClientCertificate }}: <span class="text-fg">{{ mtlsCertAlias || $strings.LabelClientCertificateNone }}</span>
+            </p>
+            <ui-btn v-if="mtlsCertAlias" :padding-x="2" :padding-y="1" class="text-xs shrink-0" @click.prevent="clearCert">{{ $strings.ButtonRemoveCertificate }}</ui-btn>
+            <ui-btn :padding-x="2" :padding-y="1" class="text-xs shrink-0" :disabled="mtlsCertLoading" @click.prevent="selectCert">{{ mtlsCertAlias ? $strings.ButtonChangeCertificate : $strings.ButtonSelectCertificate }}</ui-btn>
+          </div>
           <div class="flex justify-end items-center mt-6">
             <ui-btn :disabled="processing || !networkConnected" type="submit" :padding-x="3" class="h-10">{{ networkConnected ? $strings.ButtonSubmit : $strings.MessageNoNetworkConnection }}</ui-btn>
           </div>
@@ -53,6 +62,15 @@
             <p class="text-fg-muted">{{ serverConfig.address }}</p>
             <div class="flex-grow" />
             <span v-if="!serverConfig.id" class="material-symbols" style="font-size: 1.1rem" @click="editServerAddress">edit</span>
+          </div>
+          <!-- mTLS client certificate (Android only) -->
+          <div v-if="isAndroid" class="flex items-center mt-2 space-x-2">
+            <span class="material-symbols text-fg-muted" style="font-size: 1rem">lock</span>
+            <p class="text-xs text-fg-muted flex-grow truncate">
+              {{ $strings.LabelClientCertificate }}: <span class="text-fg">{{ mtlsCertAlias || $strings.LabelClientCertificateNone }}</span>
+            </p>
+            <ui-btn v-if="mtlsCertAlias" :padding-x="2" :padding-y="1" class="text-xs shrink-0" @click="clearCert">{{ $strings.ButtonRemoveCertificate }}</ui-btn>
+            <ui-btn :padding-x="2" :padding-y="1" class="text-xs shrink-0" :disabled="mtlsCertLoading" @click="selectCert">{{ mtlsCertAlias ? $strings.ButtonChangeCertificate : $strings.ButtonSelectCertificate }}</ui-btn>
           </div>
           <div class="w-full h-px bg-fg/10 my-2" />
           <form v-if="isLocalAuthEnabled" @submit.prevent="submitAuth" class="pt-3">
@@ -70,8 +88,17 @@
         </template>
       </div>
 
+      <!-- SSL certificate required prompt -->
+      <div v-if="sslCertRequired" class="w-full rounded-lg bg-yellow-600 bg-opacity-10 border border-warning border-opacity-50 py-3 px-2 mt-4">
+        <div class="flex items-center">
+          <span class="material-symbols mr-2 text-warning" style="font-size: 1.1rem">lock</span>
+          <p class="text-warning text-sm">{{ $strings.MessageServerRequiresClientCert }}</p>
+        </div>
+        <ui-btn v-if="isAndroid" class="w-full mt-2 text-sm" :disabled="mtlsCertLoading" @click="selectCertAndRetry">{{ $strings.ButtonSelectCertificateAndRetry }}</ui-btn>
+        <p v-else class="text-xs text-fg-muted mt-1">Client certificates are only supported on Android.</p>
+      </div>
       <!-- auth error message -->
-      <div v-show="error" class="w-full rounded-lg bg-red-600 bg-opacity-10 border border-error border-opacity-50 py-3 px-2 flex items-center mt-4">
+      <div v-else v-show="error" class="w-full rounded-lg bg-red-600 bg-opacity-10 border border-error border-opacity-50 py-3 px-2 flex items-center mt-4">
         <span class="material-symbols mr-2 text-error" style="font-size: 1.1rem">warning</span>
         <p class="text-error">{{ error }}</p>
       </div>
@@ -115,6 +142,9 @@ export default {
       error: null,
       showForm: false,
       showAddCustomHeaders: false,
+      mtlsCertAlias: null,
+      mtlsCertLoading: false,
+      sslCertRequired: false,
       authMethods: [],
       oauth: {
         state: null,
@@ -150,6 +180,9 @@ export default {
     },
     isOpenIDAuthEnabled() {
       return this.authMethods.includes('openid')
+    },
+    isAndroid() {
+      return this.$platform === 'android'
     }
   },
   methods: {
@@ -433,6 +466,45 @@ export default {
         this.oauth.challenge = null
       }
     },
+    async selectCert() {
+      this.mtlsCertLoading = true
+      try {
+        const result = await this.$db.selectClientCertificate(this.serverConfig.id || '', this.serverConfig.address || '')
+        this.mtlsCertAlias = result?.alias || null
+        if (this.mtlsCertAlias && !this.serverConfig.id) {
+          // Config ID not yet known — apply globally so the next ping request works
+          await this.$db.applyClientCertAlias(this.mtlsCertAlias).catch((e) => console.error('[ServerConnectForm] applyClientCertAlias failed', e))
+        }
+      } catch (e) {
+        console.error('[ServerConnectForm] selectCert failed', e)
+      }
+      this.mtlsCertLoading = false
+    },
+    async clearCert() {
+      const configId = this.serverConfig.id || ''
+      this.mtlsCertAlias = null
+      await this.$db.clearClientCertificate(configId).catch((e) => console.error('[ServerConnectForm] clearCert failed', e))
+    },
+    async loadCertAlias(serverConfigId) {
+      if (!this.isAndroid || !serverConfigId) return
+      try {
+        const result = await this.$db.getClientCertificateAlias(serverConfigId)
+        this.mtlsCertAlias = result?.alias || null
+        if (this.mtlsCertAlias) {
+          await this.$db.applyClientCertAlias(this.mtlsCertAlias).catch((e) => console.error('[ServerConnectForm] applyClientCertAlias failed', e))
+        }
+      } catch (e) {
+        console.error('[ServerConnectForm] loadCertAlias failed', e)
+      }
+    },
+    async selectCertAndRetry() {
+      await this.selectCert()
+      if (this.mtlsCertAlias) {
+        this.sslCertRequired = false
+        this.error = null
+        await this.submit(false)
+      }
+    },
     addCustomHeaders() {
       this.showAddCustomHeaders = true
     },
@@ -440,6 +512,7 @@ export default {
       this.showForm = false
       this.showAuth = false
       this.error = null
+      this.sslCertRequired = false
       this.serverConfig = {
         address: null,
         userId: null,
@@ -450,16 +523,22 @@ export default {
       await this.$hapticsImpact()
       console.log('[ServerConnectForm] connectToServer', config.address)
       this.processing = true
+      this.sslCertRequired = false
       this.serverConfig = {
         ...config
       }
       this.showForm = true
+      // Load and apply mTLS cert before pinging (Android only)
+      await this.loadCertAlias(config.id)
       var success = await this.pingServerAddress(config.address)
       this.processing = false
       console.log(`[ServerConnectForm] pingServer result ${success}`)
       if (!success) {
-        this.showForm = false
-        this.showAuth = false
+        if (!this.sslCertRequired) {
+          this.showForm = false
+          this.showAuth = false
+        }
+        // If sslCertRequired, keep form visible so the cert prompt is shown
         console.log(`[ServerConnectForm] showForm ${this.showForm}`)
         return
       }
@@ -484,7 +563,7 @@ export default {
 
       const { value } = await Dialog.confirm({
         title: this.$strings.HeaderConfirm,
-        message: this.$strings.MessageConfirmDeleteServerConfig,
+        message: this.$strings.MessageConfirmDeleteServerConfig
       })
       if (value) {
         this.processing = true
@@ -624,12 +703,20 @@ export default {
         })
         .catch((error) => {
           console.error('Server ping failed', error)
+          // code >= 100 means a real HTTP status — anything else (undefined, 0, null) is a connection/SSL error
+          if (!(error.code >= 100)) {
+            const msg = (error.message || String(error)).toLowerCase()
+            if (msg.includes('certificate') || msg.includes('tlsv1') || msg.includes('sslhandshake') || msg.includes('handshake') || (msg.includes('ssl') && (msg.includes('peer') || msg.includes('alert')))) {
+              this.sslCertRequired = true
+              this.error = this.$strings.MessageServerRequiresClientCert
+              return false
+            }
+          }
           const errorMsg = error.message || error
           this.error = 'Failed to ping server'
           if (typeof errorMsg === 'string') {
             this.error += ` (${errorMsg})`
           }
-
           return false
         })
     },
@@ -669,6 +756,7 @@ export default {
 
       this.processing = true
       this.error = null
+      this.sslCertRequired = false
       this.authMethods = []
 
       try {
@@ -764,6 +852,17 @@ export default {
     handleLoginFormError(error) {
       console.error('[ServerConnectForm] Received invalid status', error)
 
+      // Detect SSL/TLS client certificate required errors (connection-level, not HTTP status)
+      // code >= 100 means a real HTTP status — anything else (undefined, 0, null) is a connection/SSL error
+      if (!(error.code >= 100)) {
+        const msg = (error.message || String(error)).toLowerCase()
+        if (msg.includes('certificate') || msg.includes('tlsv1') || msg.includes('sslhandshake') || msg.includes('handshake') || (msg.includes('ssl') && (msg.includes('peer') || msg.includes('alert')))) {
+          this.sslCertRequired = true
+          this.error = this.$strings.MessageServerRequiresClientCert
+          return
+        }
+      }
+
       if (error.code === 404) {
         this.error = `This does not seem to be an Audiobookshelf server. (Error: 404 querying /status)`
       } else if (typeof error.code === 'number') {
@@ -796,7 +895,11 @@ export default {
         // We only retry when the user did not specify a protocol
         // Also for security reasons, we only retry when the https request did not
         //      return a http status code (so only retry when the TCP connection could not be established)
-        if (shouldRetryWithHttp && typeof error.code !== 'number') {
+        // Never retry with HTTP when the server explicitly rejected with an SSL/TLS alert
+        // (e.g. TLSV1_ALERT_CERTIFICATE_REQUIRED) — that means the server IS reachable but
+        // requires a client certificate; falling back to HTTP would lose the original error.
+        const isSslError = error.code === 'SSLProtocolException' || (typeof error.code !== 'number' && ((error.message || '').toLowerCase().includes('tlsv1') || (error.message || '').toLowerCase().includes('certificate') || (error.message || '').toLowerCase().includes('handshake')))
+        if (shouldRetryWithHttp && typeof error.code !== 'number' && !isSslError) {
           console.log('[ServerConnectForm] https failed, trying to connect with http...')
           const validatedHttpUrl = this.validateServerUrl(address, 'http:')
           if (validatedHttpUrl) {
@@ -875,6 +978,11 @@ export default {
       this.serverConfig.version = serverSettings.version
 
       var serverConnectionConfig = await this.$db.setServerConnectionConfig(this.serverConfig)
+
+      // Persist mTLS cert alias under the real server config ID (handles the "before first login" case)
+      if (this.isAndroid && this.mtlsCertAlias && serverConnectionConfig?.id) {
+        await this.$db.setClientCertificateAlias(serverConnectionConfig.id, this.mtlsCertAlias).catch((e) => console.error('[ServerConnectForm] setClientCertificateAlias failed', e))
+      }
 
       // Set the device language to match the servers if this is the first server connection
       if (!this.serverConnectionConfigs.length && serverSettings.language !== 'en-us') {
