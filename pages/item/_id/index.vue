@@ -535,7 +535,11 @@ export default {
 
       if (this.isPodcast) {
         this.episodes.sort((a, b) => {
-          return String(b.publishedAt).localeCompare(String(a.publishedAt), undefined, { numeric: true, sensitivity: 'base' })
+          if (this.podcastType === 'serial') {
+            return String(a.publishedAt).localeCompare(String(b.publishedAt), undefined, { numeric: true, sensitivity: 'base' })
+          } else {
+            return String(b.publishedAt).localeCompare(String(a.publishedAt), undefined, { numeric: true, sensitivity: 'base' })
+          }
         })
 
         let episode = this.episodes.find((ep) => {
@@ -584,8 +588,8 @@ export default {
         // If start time and is not already streaming then ask for confirmation
         if (startTime !== null && startTime !== undefined && !this.$store.getters['getIsMediaStreaming'](libraryItemId, null)) {
           const { value } = await Dialog.confirm({
-            title: 'Confirm',
-            message: `Start playback for "${this.title}" at ${this.$secondsToTimestamp(startTime)}?`
+            title: this.$strings.HeaderConfirm,
+            message: this.$getString('MessageConfirmPlaybackTime', [this.title, this.$secondsToTimestamp(startTime)])
           })
           if (!value) return
         }
@@ -673,7 +677,7 @@ export default {
         }
       }
       const { value } = await Dialog.confirm({
-        title: 'Confirm',
+        title: this.$strings.HeaderConfirm,
         message: startDownloadMessage
       })
       if (value) {

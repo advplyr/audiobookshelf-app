@@ -1,5 +1,5 @@
 <template>
-  <div ref="wrapper" class="modal modal-bg w-screen fixed bottom-0 left-0 flex items-center justify-center z-50" :class="threeQuartersScreen ? 'h-[75vh] min-h-[400px]' : 'h-screen'" @click.stop @touchstart.stop @touchend.stop>
+  <div ref="wrapper" class="modal modal-bg w-screen fixed bottom-0 left-0 flex items-center justify-center z-50" :class="threeQuartersScreen ? 'h-[75vh] min-h-[400px] short:min-h-0 short:h-screen' : 'h-screen'" @click.stop @touchstart.stop @touchend.stop>
     <div ref="content" class="relative text-fg h-full w-full bg-bg">
       <slot />
     </div>

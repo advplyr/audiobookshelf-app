@@ -3,10 +3,7 @@
     <div class="absolute top-0 left-0 w-full h-full bg-black transition-opacity duration-200" :class="show ? 'bg-opacity-60 pointer-events-auto' : 'bg-opacity-0'" @click="clickBackground" />
     <div class="absolute top-0 right-0 w-64 h-full bg-bg transform transition-transform py-6 pointer-events-auto" :class="show ? '' : 'translate-x-64'" @click.stop>
       <div class="px-6 mb-4">
-        <p v-if="user" class="text-base">
-          Welcome,
-          <strong>{{ username }}</strong>
-        </p>
+        <p v-if="user" class="text-base" v-html="$getString('HeaderWelcome', [username])" />
       </div>
 
       <div class="w-full overflow-y-auto">
@@ -134,14 +131,12 @@ export default {
         to: '/settings'
       })
 
-      if (this.$platform !== 'ios') {
-        items.push({
-          icon: 'bug_report',
-          iconOutlined: true,
-          text: this.$strings.ButtonLogs,
-          to: '/logs'
-        })
-      }
+      items.push({
+        icon: 'bug_report',
+        iconOutlined: true,
+        text: this.$strings.ButtonLogs,
+        to: '/logs'
+      })
 
       if (this.serverConnectionConfig) {
         items.push({
@@ -185,11 +180,18 @@ export default {
       await this.$hapticsImpact()
       await this.logout()
 
+      // Redirect to home page
       if (this.$route.name !== 'bookshelf') {
         this.$router.replace('/bookshelf')
-      } else {
-        location.reload()
       }
+
+      // If player is open and not playing locally, then close the player
+      if (this.$store.getters['getIsPlayerOpen']) {
+        this.$eventBus.$emit('close-stream')
+      }
+
+      // Close side drawer
+      this.show = false
     },
     touchstart(e) {
       this.touchEvent = new TouchEvent(e)

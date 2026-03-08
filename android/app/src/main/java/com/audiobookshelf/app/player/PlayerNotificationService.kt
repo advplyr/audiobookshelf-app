@@ -18,6 +18,8 @@ import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaControllerCompat
 import android.support.v4.media.session.MediaSessionCompat
+import androidx.media.VolumeProviderCompat
+import android.media.AudioManager
 import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
 import androidx.annotation.RequiresApi
@@ -94,6 +96,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   private lateinit var mediaSessionConnector: MediaSessionConnector
   private lateinit var playerNotificationManager: PlayerNotificationManager
   lateinit var mediaSession: MediaSessionCompat
+  private var remoteVolumeProvider: VolumeProviderCompat? = null
   private lateinit var transportControls: MediaControllerCompat.TransportControls
 
   lateinit var mediaManager: MediaManager
@@ -477,6 +480,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
         val dataSourceFactory = DefaultDataSource.Factory(ctx)
 
         val extractorsFactory = DefaultExtractorsFactory()
+        extractorsFactory.setConstantBitrateSeekingEnabled(true)
+
         if (DeviceManager.deviceData.deviceSettings?.enableMp3IndexSeeking == true) {
           // @see
           // https://exoplayer.dev/troubleshooting.html#why-is-seeking-inaccurate-in-some-mp3-files
@@ -491,6 +496,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
         val dataSourceFactory = DefaultHttpDataSource.Factory()
 
         val extractorsFactory = DefaultExtractorsFactory()
+        extractorsFactory.setConstantBitrateSeekingEnabled(true)
+
         if (DeviceManager.deviceData.deviceSettings?.enableMp3IndexSeeking == true) {
           // @see
           // https://exoplayer.dev/troubleshooting.html#why-is-seeking-inaccurate-in-some-mp3-files
@@ -705,11 +712,13 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
               Log.d(tag, "switchToPlayer: Using Cast Player " + castPlayer?.deviceInfo)
               mediaSessionConnector.setPlayer(castPlayer)
               playerNotificationManager.setPlayer(castPlayer)
+              setMediaSessionToCastVolume()
               castPlayer as CastPlayer
             } else {
               Log.d(tag, "switchToPlayer: Using ExoPlayer")
               mediaSessionConnector.setPlayer(mPlayer)
               playerNotificationManager.setPlayer(mPlayer)
+              setMediaSessionToLocalVolume()
               mPlayer
             }
 
@@ -724,6 +733,33 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       // TODO: Start a new playback session here instead of using the existing
       preparePlayer(it, false, null)
     }
+  }
+
+  private fun setMediaSessionToCastVolume() {
+    val currentVol = try { castPlayer?.getDeviceVolume() ?: 0 } catch (_: Exception) { 0 }
+    val provider = object : VolumeProviderCompat(VolumeProviderCompat.VOLUME_CONTROL_ABSOLUTE, 100, currentVol) {
+      override fun onSetVolumeTo(volume: Int) {
+        // Clamp, update UI immediately, then send to device
+        val clamped = volume.coerceIn(0, 100)
+        setCurrentVolume(clamped)
+        try { castPlayer?.setDeviceVolume(clamped) } catch (_: Exception) {}
+      }
+
+      override fun onAdjustVolume(direction: Int) {
+        // Use Android-provided step (−1, 0, +1). Clamp, update UI immediately, then send.
+        val current = currentVolume
+        val target = (current + direction).coerceIn(0, 100)
+        setCurrentVolume(target)
+        try { castPlayer?.setDeviceVolume(target) } catch (_: Exception) {}
+      }
+    }
+    remoteVolumeProvider = provider
+    mediaSession.setPlaybackToRemote(provider)
+  }
+
+  private fun setMediaSessionToLocalVolume() {
+    mediaSession.setPlaybackToLocal(AudioManager.STREAM_MUSIC)
+    remoteVolumeProvider = null
   }
 
   fun getCurrentTrackStartOffsetMs(): Long {
