@@ -128,6 +128,7 @@ class AbsDatabase : Plugin() {
     val serverVersion = serverConfigPayload.version
     val accessToken = serverConfigPayload.token
     val refreshToken = serverConfigPayload.refreshToken // Refresh only sent after login or refresh
+    val customHeaders = serverConfigPayload.customHeaders
 
     GlobalScope.launch(Dispatchers.IO) {
       if (serverConnectionConfig == null) { // New Server Connection
@@ -145,7 +146,7 @@ class AbsDatabase : Plugin() {
         }
         Log.d(tag, "Refresh token secured = $hasRefreshToken")
 
-        serverConnectionConfig = ServerConnectionConfig(sscId, sscIndex, "$serverAddress ($username)", serverAddress, serverVersion, userId, username, accessToken, serverConfigPayload.customHeaders)
+        serverConnectionConfig = ServerConnectionConfig(sscId, sscIndex, "$serverAddress ($username)", serverAddress, serverVersion, userId, username, accessToken, customHeaders)
 
         // Add and save
         DeviceManager.deviceData.serverConnectionConfigs.add(serverConnectionConfig!!)
@@ -159,6 +160,12 @@ class AbsDatabase : Plugin() {
           serverConnectionConfig?.name = "${serverConnectionConfig?.address} (${serverConnectionConfig?.username})"
           serverConnectionConfig?.version = serverVersion
           serverConnectionConfig?.token = accessToken
+          shouldSave = true
+        }
+
+        // Can change independently
+        if (serverConnectionConfig?.customHeaders != customHeaders) {
+          serverConnectionConfig?.customHeaders = customHeaders
           shouldSave = true
         }
 
