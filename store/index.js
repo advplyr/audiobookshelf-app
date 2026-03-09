@@ -9,6 +9,7 @@ export const state = () => ({
   playerIsFullscreen: false,
   playerIsStartingPlayback: false, // When pressing play before native play response
   playerStartingPlaybackMediaId: null,
+  playlistQueue: null, // { playlistId: String, items: Array, currentIndex: Number }
   isCasting: false,
   isCastAvailable: false,
   attemptingConnection: false,
@@ -210,5 +211,11 @@ export const mutations = {
   setServerSettings(state, val) {
     state.serverSettings = val
     this.$localStore.setServerSettings(state.serverSettings)
+  },
+  setPlaylistQueue(state, queue) {
+    state.playlistQueue = queue
+  },
+  clearPlaylistQueue(state) {
+    state.playlistQueue = null
   }
 }
