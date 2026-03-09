@@ -9,16 +9,16 @@ import android.util.Log
 import com.audiobookshelf.app.MediaPlayerWidget
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.managers.DbManager
-import com.audiobookshelf.app.player.PlayerNotificationService
+import com.audiobookshelf.app.player.WidgetPlaybackSnapshot
+import com.audiobookshelf.app.player.toWidgetSnapshot
 import com.audiobookshelf.app.updateAppWidget
 
 /** Interface for widget event handling. */
 interface WidgetEventEmitter {
   /**
-   * Called when the player state changes.
-   * @param pns The PlayerNotificationService instance.
+   * Called when the player state changes, providing the info required to update the widget.
    */
-  fun onPlayerChanged(pns: PlayerNotificationService)
+  fun onPlayerChanged(snapshot: WidgetPlaybackSnapshot)
 
   /** Called when the player is closed. */
   fun onPlayerClosed()
@@ -30,7 +30,8 @@ object DeviceManager {
 
   val dbManager: DbManager = DbManager()
   var deviceData: DeviceData = dbManager.getDeviceData()
-  var serverConnectionConfig: ServerConnectionConfig? = null
+    @Volatile
+    var serverConnectionConfig: ServerConnectionConfig? = null
 
   val serverConnectionConfigId get() = serverConnectionConfig?.id ?: ""
   val serverConnectionConfigName get() = serverConnectionConfig?.name ?: ""
@@ -181,29 +182,31 @@ object DeviceManager {
   }
 
   /**
+   * Retrieves the last saved playback session from persistent storage.
+   * @return The last PlaybackSession, or null if none is saved.
+   */
+  fun getLastPlaybackSession(): PlaybackSession? {
+    return deviceData.lastPlaybackSession
+  }
+
+  /**
    * Initializes the widget updater.
    * @param context The context to use for initializing the widget updater.
    */
   fun initializeWidgetUpdater(context: Context) {
     Log.d(tag, "Initializing widget updater")
     widgetUpdater =
-            (object : WidgetEventEmitter {
-              override fun onPlayerChanged(pns: PlayerNotificationService) {
-                val isPlaying = pns.currentPlayer.isPlaying
-
+      (object : WidgetEventEmitter {
+        override fun onPlayerChanged(snapshot: WidgetPlaybackSnapshot) {
                 val appWidgetManager = AppWidgetManager.getInstance(context)
                 val componentName = ComponentName(context, MediaPlayerWidget::class.java)
                 val ids = appWidgetManager.getAppWidgetIds(componentName)
-                val playbackSession = pns.getCurrentPlaybackSessionCopy()
-
                 for (widgetId in ids) {
                   updateAppWidget(
                           context,
                           appWidgetManager,
                           widgetId,
-                          playbackSession,
-                          isPlaying,
-                          PlayerNotificationService.isClosed
+                    snapshot
                   )
                 }
               }
@@ -212,14 +215,13 @@ object DeviceManager {
                 val appWidgetManager = AppWidgetManager.getInstance(context)
                 val componentName = ComponentName(context, MediaPlayerWidget::class.java)
                 val ids = appWidgetManager.getAppWidgetIds(componentName)
+                val lastSession = deviceData.lastPlaybackSession
                 for (widgetId in ids) {
                   updateAppWidget(
                           context,
                           appWidgetManager,
                           widgetId,
-                          deviceData.lastPlaybackSession,
-                          false,
-                          PlayerNotificationService.isClosed
+                    lastSession?.toWidgetSnapshot(context, isPlaying = false, isClosed = true)
                   )
                 }
               }
