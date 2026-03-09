@@ -39,6 +39,16 @@ class DownloadItemManager(
           jacksonObjectMapper()
                   .enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
 
+  /**
+   * Tracks in-flight InternalDownloadManager instances keyed by DownloadItemPart.id.
+   * Used to cancel active OkHttp calls when cancelAllDownloads() is invoked.
+   */
+  private val activeInternalDownloads: MutableMap<String, InternalDownloadManager> = mutableMapOf()
+
+  /** Throttle progress-update UI events to at most once per 500ms per download part. */
+  private val lastProgressEmitTime: MutableMap<String, Long> = mutableMapOf()
+  private val progressEmitThrottleMs = 500L
+
   private fun getMaxSimultaneousDownloads(): Int {
     return DeviceManager.deviceData.deviceSettings?.maxSimultaneousDownloads ?: 1
   }
@@ -273,13 +283,20 @@ class DownloadItemManager(
               override fun onProgress(totalBytesWritten: Long, progress: Long) {
                 // Use the new updateProgress method that tracks stalls
                 downloadItemPart.updateProgress(progress, totalBytesWritten)
-                // Notify UI about progress update
-                clientEventEmitter.onDownloadItemPartUpdate(downloadItemPart)
+                // Throttle UI notifications to avoid log/event spam
+                val now = System.currentTimeMillis()
+                val lastEmit = lastProgressEmitTime[downloadItemPart.id] ?: 0L
+                if (now - lastEmit >= progressEmitThrottleMs) {
+                  lastProgressEmitTime[downloadItemPart.id] = now
+                  clientEventEmitter.onDownloadItemPartUpdate(downloadItemPart)
+                }
               }
 
               override fun onComplete(failed: Boolean) {
                 downloadItemPart.failed = failed
                 downloadItemPart.completed = true
+                activeInternalDownloads.remove(downloadItemPart.id)
+                lastProgressEmitTime.remove(downloadItemPart.id)
                 AbsLogger.debug(
                         tag,
                         "startInternalDownload: Internal download completed for ${downloadItemPart.filename}, failed=$failed"
@@ -297,7 +314,10 @@ class DownloadItemManager(
             tag,
             "startInternalDownload: Starting InternalDownloadManager for ${downloadItemPart.filename}"
     )
-    InternalDownloadManager(fileOutputStream, internalProgressCallback).download(serverUrl)
+    InternalDownloadManager(fileOutputStream, internalProgressCallback).also { mgr ->
+      activeInternalDownloads[downloadItemPart.id] = mgr
+      mgr.download(serverUrl)
+    }
     downloadItemPart.downloadId = 1
     currentDownloadItemParts.add(downloadItemPart)
   }
@@ -427,13 +447,8 @@ class DownloadItemManager(
             "handleInternalDownloadPart: Updating UI for ${downloadItemPart.filename}, progress=${downloadItemPart.progress}%, completed=${downloadItemPart.completed}"
     )
 
-    // Check for stalled downloads only if download has been running for at least 10 seconds
-    if (!downloadItemPart.completed &&
-                    !downloadItemPart.failed &&
-                    downloadItemPart.lastProgressUpdate > 0 &&
-                    (System.currentTimeMillis() - downloadItemPart.lastProgressUpdate) > 10000 &&
-                    downloadItemPart.isDownloadStalled()
-    ) {
+    // isDownloadStalled() already checks !completed, !failed, lastProgressUpdate > 0, and a 30s threshold
+    if (downloadItemPart.isDownloadStalled()) {
       AbsLogger.debug(
               tag,
               "handleInternalDownloadPart: Download appears stalled for ${downloadItemPart.filename}, attempting to restart"
@@ -864,6 +879,17 @@ class DownloadItemManager(
       setProcessingQueue(false)
     }
 
+    // Cancel all active internal OkHttp calls immediately
+    // Snapshot the map first to avoid ConcurrentModificationException: cancel() can trigger
+    // onComplete on another thread which removes entries from activeInternalDownloads.
+    val activeDownloadSnapshot = activeInternalDownloads.entries.toList()
+    activeInternalDownloads.clear()
+    lastProgressEmitTime.clear()
+    for ((partId, mgr) in activeDownloadSnapshot) {
+      mgr.cancel()
+      AbsLogger.debug(tag, "cancelAllDownloads: Cancelled internal download manager for part $partId")
+    }
+
     // Cancel all current download parts
     for (downloadItemPart in currentDownloadItemParts) {
       if (!downloadItemPart.isInternalStorage && downloadItemPart.downloadId != null) {
@@ -872,14 +898,6 @@ class DownloadItemManager(
         AbsLogger.debug(
                 tag,
                 "cancelAllDownloads: Cancelled external download ${downloadItemPart.filename}"
-        )
-      } else if (downloadItemPart.isInternalStorage) {
-        // Mark internal downloads as failed to stop them
-        downloadItemPart.failed = true
-        downloadItemPart.completed = true
-        AbsLogger.debug(
-                tag,
-                "cancelAllDownloads: Marked internal download as cancelled ${downloadItemPart.filename}"
         )
       }
     }
@@ -914,5 +932,14 @@ class DownloadItemManager(
     } else {
       AbsLogger.debug(tag, "retryDownloadQueue: No downloads in queue to retry")
     }
+  }
+
+  /**
+   * Cancels the internal coroutine scope.
+   * Must be called when the owning service is destroyed to avoid coroutine leaks.
+   */
+  fun cancel() {
+    Log.d(tag, "cancel: Cancelling downloadScope")
+    downloadScope.cancel()
   }
 }

@@ -95,19 +95,25 @@ class AbsDownloader : Plugin() {
   private val clientEventEmitter =
           (object : DownloadItemManager.DownloadEventEmitter {
             override fun onDownloadItem(downloadItem: DownloadItem) {
-              notifyListeners(
-                      "onDownloadItem",
-                      JSObject(jacksonMapper.writeValueAsString(downloadItem))
-              )
+              if (hasListeners("onDownloadItem")) {
+                notifyListeners(
+                        "onDownloadItem",
+                        JSObject(jacksonMapper.writeValueAsString(downloadItem))
+                )
+              }
             }
             override fun onDownloadItemPartUpdate(downloadItemPart: DownloadItemPart) {
-              notifyListeners(
-                      "onDownloadItemPartUpdate",
-                      JSObject(jacksonMapper.writeValueAsString(downloadItemPart))
-              )
+              if (hasListeners("onDownloadItemPartUpdate")) {
+                notifyListeners(
+                        "onDownloadItemPartUpdate",
+                        JSObject(jacksonMapper.writeValueAsString(downloadItemPart))
+                )
+              }
             }
             override fun onDownloadItemComplete(jsobj: JSObject) {
-              notifyListeners("onItemDownloadComplete", jsobj)
+              if (hasListeners("onItemDownloadComplete")) {
+                notifyListeners("onItemDownloadComplete", jsobj)
+              }
             }
           })
 
@@ -625,8 +631,12 @@ class AbsDownloader : Plugin() {
   @PluginMethod
   fun cancelAllDownloads(call: PluginCall) {
     Log.d(tag, "cancelAllDownloads: Cancelling all downloads")
-    downloadService?.getDownloadItemManager()?.cancelAllDownloads()
-            ?: downloadItemManager?.cancelAllDownloads()
+    // cancelAllDownloads on the service also stops the foreground service/notification
+    if (downloadService != null) {
+      downloadService?.cancelAllDownloads()
+    } else {
+      downloadItemManager?.cancelAllDownloads()
+    }
     call.resolve()
   }
 

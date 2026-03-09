@@ -159,7 +159,7 @@
       </div>
     </div>
     <div class="py-3 flex items-center">
-      <p class="pr-4 w-36">Max Simultaneous Downloads</p>
+      <p class="pr-4 w-36">{{ $strings.LabelMaxSimultaneousDownloads }}</p>
       <ui-text-input type="number" v-model="settings.maxSimultaneousDownloads" style="width: 145px; max-width: 145px" @input="maxSimultaneousDownloadsUpdated" />
     </div>
 

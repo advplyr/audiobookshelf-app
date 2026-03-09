@@ -127,7 +127,6 @@ export const mutations = {
 
     if (totalBytes > 0) {
       downloadItem.itemProgress = Math.min(1, totalBytesDownloaded / totalBytes)
-      console.log(`updateDownloadItemPart: filename=${downloadItemPart.filename}, totalBytes=${totalBytes}, downloaded=${totalBytesDownloaded}, itemProgress=${downloadItem.itemProgress}`)
     } else {
       downloadItem.itemProgress = 0
     }

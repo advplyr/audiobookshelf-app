@@ -29,7 +29,9 @@ class AbsLogger : Plugin() {
 
   override fun load() {
     onLogEmitter = { log: AbsLog ->
-      notifyListeners("onLog", JSObject(jacksonMapper.writeValueAsString(log)))
+      if (hasListeners("onLog")) {
+        notifyListeners("onLog", JSObject(jacksonMapper.writeValueAsString(log)))
+      }
     }
     info("AbsLogger", "load: AbsLogger plugin initialized")
   }

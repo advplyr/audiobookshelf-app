@@ -20,36 +20,45 @@ class InternalDownloadManager(
   private val client: OkHttpClient =
           OkHttpClient.Builder().connectTimeout(30, TimeUnit.SECONDS).build()
   private val writer = BinaryFileWriter(outputStream, progressCallback)
+  /** The in-flight OkHttp call; used by [cancel] to abort an ongoing download. */
+  private var activeCall: Call? = null
+
+  /**
+   * Cancels the ongoing download, if any.
+   * The OkHttp call is aborted, causing the stream to throw IOException, which
+   * the writer treats as a failure and reports via [progressCallback.onComplete].
+   */
+  fun cancel() {
+    activeCall?.cancel()
+    Log.d(tag, "Download cancelled")
+  }
 
   /**
    * Downloads a file from the given URL.
    *
    * @param url The URL to download the file from.
-   * @throws IOException If an I/O error occurs.
    */
-  @Throws(IOException::class)
   fun download(url: String) {
     val request: Request = Request.Builder().url(url).addHeader("Accept-Encoding", "identity").build()
-    client.newCall(request)
-            .enqueue(
-                    object : Callback {
-                      override fun onFailure(call: Call, e: IOException) {
-                        Log.e(tag, "Download URL $url FAILED", e)
-                        progressCallback.onComplete(true)
-                      }
+    activeCall = client.newCall(request)
+    activeCall!!.enqueue(
+            object : Callback {
+              override fun onFailure(call: Call, e: IOException) {
+                Log.e(tag, "Download URL $url FAILED", e)
+                progressCallback.onComplete(true)
+              }
 
-                      override fun onResponse(call: Call, response: Response) {
-                        response.body?.let { responseBody ->
-                          val length: Long = response.header("Content-Length")?.toLongOrNull() ?: 0L
-                          writer.write(responseBody.byteStream(), length)
-                        }
-                                ?: run {
-                                  Log.e(tag, "Response doesn't contain a file")
-                                  progressCallback.onComplete(true)
-                                }
-                      }
-                    }
-            )
+              override fun onResponse(call: Call, response: Response) {
+                response.body?.let { responseBody ->
+                  val length: Long = response.header("Content-Length")?.toLongOrNull() ?: 0L
+                  writer.write(responseBody.byteStream(), length, call::isCanceled)
+                } ?: run {
+                  Log.e(tag, "Response doesn't contain a file")
+                  progressCallback.onComplete(true)
+                }
+              }
+            }
+    )
   }
 
   /**
@@ -79,23 +88,31 @@ class BinaryFileWriter(
    *
    * @param inputStream The input stream to read the data from.
    * @param length The total length of the data to be written.
+   * @param isCancelled Optional lambda checked each chunk; when true the write aborts cleanly.
    * @return The total number of bytes written.
-   * @throws IOException If an I/O error occurs.
    */
-  @Throws(IOException::class)
-  fun write(inputStream: InputStream, length: Long): Long {
-    BufferedInputStream(inputStream).use { input ->
-      val dataBuffer = ByteArray(CHUNK_SIZE)
-      var totalBytes: Long = 0
-      var readBytes: Int
-      while (input.read(dataBuffer).also { readBytes = it } != -1) {
-        totalBytes += readBytes
-        outputStream.write(dataBuffer, 0, readBytes)
-        progressCallback.onProgress(totalBytes, (totalBytes * 100L) / length)
+  fun write(inputStream: InputStream, length: Long, isCancelled: () -> Boolean = { false }): Long {
+    var totalBytes: Long = 0
+    var onCompleteCalled = false
+    try {
+      BufferedInputStream(inputStream).use { input ->
+        val dataBuffer = ByteArray(CHUNK_SIZE)
+        var readBytes: Int = input.read(dataBuffer)
+        while (!isCancelled() && readBytes != -1) {
+          totalBytes += readBytes
+          outputStream.write(dataBuffer, 0, readBytes)
+          progressCallback.onProgress(totalBytes, (totalBytes * 100L) / length)
+          readBytes = input.read(dataBuffer)
+        }
+        // Report cancellation as failure so the caller can clean up
+        progressCallback.onComplete(isCancelled())
+        onCompleteCalled = true
       }
-      progressCallback.onComplete(false)
-      return totalBytes
+    } catch (e: IOException) {
+      // Stream closed due to call cancellation or network error
+      if (!onCompleteCalled) progressCallback.onComplete(true)
     }
+    return totalBytes
   }
 
   /**

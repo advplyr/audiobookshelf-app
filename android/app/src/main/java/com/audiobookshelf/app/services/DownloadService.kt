@@ -73,7 +73,8 @@ class DownloadService : Service() {
     super.onCreate()
     Log.d(tag, "DownloadService created")
     createNotificationChannel()
-    acquireWakeLock()
+    // Wake lock is acquired in initializeDownloadManager, not here, so we don't
+    // hold it if the service starts but the manager never gets initialized.
   }
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -92,6 +93,7 @@ class DownloadService : Service() {
   override fun onDestroy() {
     Log.d(tag, "DownloadService destroyed")
     serviceScope.cancel()
+    downloadItemManager?.cancel()
     releaseWakeLock()
     super.onDestroy()
   }
@@ -111,6 +113,8 @@ class DownloadService : Service() {
                       mainActivity,
                       serviceEventEmitter // Use service event emitter
               )
+      // Acquire wake lock only after the manager is ready — releasing in onDestroy.
+      acquireWakeLock()
       Log.d(tag, "DownloadItemManager initialized")
     }
   }
@@ -121,6 +125,16 @@ class DownloadService : Service() {
 
   fun addDownloadItem(downloadItem: DownloadItem) {
     downloadItemManager?.addDownloadItem(downloadItem)
+  }
+
+  /**
+   * Cancels all downloads and stops the foreground service so the
+   * notification and wake lock are released immediately.
+   */
+  fun cancelAllDownloads() {
+    downloadItemManager?.cancelAllDownloads()
+    Log.d(tag, "cancelAllDownloads: All downloads cancelled, stopping service")
+    stopSelf()
   }
 
   fun resumeDownloads() {
@@ -184,7 +198,10 @@ class DownloadService : Service() {
   private fun acquireWakeLock() {
     val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
     wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "$tag::DownloadWakeLock")
-    wakeLock?.acquire(10 * 60 * 1000L /*10 minutes*/)
+    // No timeout — the foreground service lifecycle manages the lock duration.
+    // releaseWakeLock() is always called from onDestroy().
+    @Suppress("WakelockTimeout")
+    wakeLock?.acquire()
     Log.d(tag, "Wake lock acquired")
   }
 
