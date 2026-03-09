@@ -272,8 +272,10 @@ class AbsDownloader : Plugin() {
         val finalDestinationFile = File("$itemFolderPath/$destinationFilename")
         val destinationFile = File("$tempFolderPath/$destinationFilename")
 
-        // Clean up any temporary files
-        if (destinationFile.exists()) {
+        // Only clean up the temporary file when it is a different path from the final destination.
+        // For internal storage both paths are identical, so deleting here would erase a completed file
+        // before isFileAlreadyComplete can detect it.
+        if (destinationFile.absolutePath != finalDestinationFile.absolutePath && destinationFile.exists()) {
           Log.d(
                   tag,
                   "TEMP ebook file already exists, removing it from ${destinationFile.absolutePath}"
@@ -346,8 +348,10 @@ class AbsDownloader : Plugin() {
         val finalDestinationFile = File("$itemFolderPath/$destinationFilename")
         val destinationFile = File("$tempFolderPath/$destinationFilename")
 
-        // Clean up any temporary files
-        if (destinationFile.exists()) {
+        // Only clean up the temporary file when it is a different path from the final destination.
+        // For internal storage both paths are identical, so deleting here would erase a completed file
+        // before isFileAlreadyComplete can detect it.
+        if (destinationFile.absolutePath != finalDestinationFile.absolutePath && destinationFile.exists()) {
           Log.d(
                   tag,
                   "TEMP Audio file already exists, removing it from ${destinationFile.absolutePath}"
@@ -414,8 +418,10 @@ class AbsDownloader : Plugin() {
           val destinationFile = File("$tempFolderPath/$destinationFilename")
           val finalDestinationFile = File("$itemFolderPath/$destinationFilename")
 
-          // Clean up any temporary files
-          if (destinationFile.exists()) {
+          // Only clean up the temporary file when it is a different path from the final destination.
+          // For internal storage both paths are identical, so deleting here would erase a completed file
+          // before isFileAlreadyComplete can detect it.
+          if (destinationFile.absolutePath != finalDestinationFile.absolutePath && destinationFile.exists()) {
             Log.d(
                     tag,
                     "TEMP cover file already exists, removing it from ${destinationFile.absolutePath}"

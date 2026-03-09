@@ -117,6 +117,8 @@ class DownloadItemManager(
 
   /** Adds a download item to the queue and starts processing the queue. */
   fun addDownloadItem(downloadItem: DownloadItem) {
+    // Skip files that were already fully downloaded in a previous attempt
+    scanForExistingFiles(downloadItem)
     DeviceManager.dbManager.saveDownloadItem(downloadItem)
     Log.i(tag, "Add download item ${downloadItem.media.metadata.title}")
 
@@ -927,6 +929,10 @@ class DownloadItemManager(
     )
 
     if (downloadItemQueue.isNotEmpty()) {
+      // Scan each queued item so already-completed files on disk are not re-downloaded
+      for (downloadItem in downloadItemQueue) {
+        scanForExistingFiles(downloadItem)
+      }
       checkUpdateDownloadQueue()
       AbsLogger.debug(tag, "retryDownloadQueue: Download queue restart initiated")
     } else {
