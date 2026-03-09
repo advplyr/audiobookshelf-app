@@ -39,8 +39,8 @@
           </div>
           <h2 class="text-lg leading-7 mb-2">{{ $strings.LabelServerAddress }}</h2>
           <ui-text-input v-model="serverConfig.address" :disabled="processing || !networkConnected || !!serverConfig.id" placeholder="http://55.55.55.55:13378" type="url" class="w-full h-10" />
-          <!-- mTLS client certificate (Android only) -->
-          <div v-if="isAndroid" class="flex items-center mt-4 space-x-2">
+          <!-- mTLS client certificate (Android only, shown only when server requests cert or one is already configured) -->
+          <div v-if="isAndroid && (sslCertRequired || mtlsCertAlias)" class="flex items-center mt-4 space-x-2">
             <span class="material-symbols text-fg-muted" style="font-size: 1.1rem">lock</span>
             <p class="text-sm text-fg-muted flex-grow truncate">
               {{ $strings.LabelClientCertificate }}: <span class="text-fg">{{ mtlsCertAlias || $strings.LabelClientCertificateNone }}</span>
@@ -63,8 +63,8 @@
             <div class="flex-grow" />
             <span v-if="!serverConfig.id" class="material-symbols" style="font-size: 1.1rem" @click="editServerAddress">edit</span>
           </div>
-          <!-- mTLS client certificate (Android only) -->
-          <div v-if="isAndroid" class="flex items-center mt-2 space-x-2">
+          <!-- mTLS client certificate (Android only, shown only when server requests cert or one is already configured) -->
+          <div v-if="isAndroid && (sslCertRequired || mtlsCertAlias)" class="flex items-center mt-2 space-x-2">
             <span class="material-symbols text-fg-muted" style="font-size: 1rem">lock</span>
             <p class="text-xs text-fg-muted flex-grow truncate">
               {{ $strings.LabelClientCertificate }}: <span class="text-fg">{{ mtlsCertAlias || $strings.LabelClientCertificateNone }}</span>
