@@ -238,7 +238,7 @@ export default {
       const isMediaOpenInPlayer = this.$store.getters['getIsMediaStreaming'](prog.libraryItemId, prog.episodeId)
       if (isMediaOpenInPlayer && this.$store.getters['getCurrentPlaybackSessionId'] !== payload.sessionId && !this.$store.state.playerIsPlaying) {
         await AbsLogger.info({ tag: 'default', message: `userMediaProgressUpdate: Item is currently open in player, paused and this progress update is coming from a different session. Updating playback time to ${payload.data.currentTime}` })
-        this.$eventBus.$emit('playback-time-update', payload.data.currentTime)
+        this.$eventBus.$emit('playback-time-update', prog.currentTime)
       }
 
       // Get local media progress if exists
@@ -295,15 +295,43 @@ export default {
         this.$store.commit('globals/updateLocalMediaProgress', newLocalMediaProgress)
       }
     },
+    async reloadServerMediaProgress(){
+      try {
+        const deviceData = await this.$db.getDeviceData()
+        let serverConfig = null
+        if (deviceData && deviceData.lastServerConnectionConfigId && deviceData.serverConnectionConfigs.length) {
+          serverConfig = deviceData.serverConnectionConfigs.find((scc) => scc.id === deviceData.lastServerConnectionConfigId)
+        }
+        if (!serverConfig){
+          console.error('[default] No server config found, cannot reload server media progress');
+          return;
+        }
+        const response = await CapacitorHttp.get({
+          url: `${serverConfig.address}/api/me`,
+          headers: { Authorization: `Bearer ${serverConfig.token}` },
+          connectTimeout: 6000
+        })
+        if (response && response.data && response.data.mediaProgress) {
+          console.log('✅ [default] Successfully refreshed user info/media progress from server on visibility change')
+          response.data.mediaProgress.forEach(async (prog) => {
+            // Update local media progress
+            await this.userMediaProgressUpdated({ id: prog.id, data: prog, sessionId: 'visibility-change-sync' })
+          })
+        } else {
+          console.warn('[default] No mediaProgress in /api/me response')
+        }
+      } catch (err) {
+        console.error('[default] Failed to refresh user info on visibility change', err)
+      }
+    },
     async visibilityChanged() {
       if (document.visibilityState === 'visible') {
         const elapsedTimeOutOfFocus = Date.now() - this.timeLostFocus
         console.log(`✅ [default] device visibility: has focus (${elapsedTimeOutOfFocus}ms out of focus)`)
-        // If device out of focus for more than 30s then reload local media progress
-        if (elapsedTimeOutOfFocus > 30000) {
-          console.log(`✅ [default] device visibility: reloading local media progress`)
-          // Reload local media progresses
-          await this.$store.dispatch('globals/loadLocalMediaProgress')
+        // If device out of focus for more than 30s or websocket disconnected then sync local progress with server progress
+        if (elapsedTimeOutOfFocus > 30000 || !this.$socket?.connected) {
+          console.log(`✅ [default] device visibility: syncing local + server media progress ${elapsedTimeOutOfFocus > 30000 ? 'after being out of focus for more than 30s' : 'after websocket disconnect'}`)
+          await this.syncLocalSessions(false).then(() => this.reloadServerMediaProgress());
         }
         if (document.visibilityState === 'visible') {
           this.$eventBus.$emit('device-focus-update', true)
