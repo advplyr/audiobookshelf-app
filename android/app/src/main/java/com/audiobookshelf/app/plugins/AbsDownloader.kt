@@ -653,4 +653,58 @@ class AbsDownloader : Plugin() {
             ?: downloadItemManager?.retryDownloadQueue()
     call.resolve()
   }
+
+  /**
+   * Deletes orphaned partial-download folders from internal storage.
+   *
+   * A folder is considered orphaned when:
+   *  - It is NOT referenced by an active/queued DownloadItem (in-memory or persisted in DB), AND
+   *  - It has no corresponding completed LocalLibraryItem in the DB.
+   *
+   * Returns { bytesFreed: Long, foldersDeleted: Int }.
+   */
+  @PluginMethod
+  fun clearIncompleteDownloads(call: PluginCall) {
+    val downloadsDir = java.io.File(mainActivity.filesDir, "downloads")
+    if (!downloadsDir.exists()) {
+      call.resolve(JSObject().apply {
+        put("bytesFreed", 0)
+        put("foldersDeleted", 0)
+      })
+      return
+    }
+
+    // Collect library item IDs that are actively downloading (in-memory queue + DB records).
+    // Both sources are checked so the edge case where the service was restarted is covered.
+    val activeManager = downloadService?.getDownloadItemManager() ?: downloadItemManager
+    val activeLibraryItemIds = mutableSetOf<String>()
+    activeManager?.downloadItemQueue?.forEach { activeLibraryItemIds.add(it.libraryItemId) }
+    DeviceManager.dbManager.getDownloadItems().forEach { activeLibraryItemIds.add(it.libraryItemId) }
+
+    var bytesFreed = 0L
+    var foldersDeleted = 0
+
+    downloadsDir.listFiles()?.forEach { folder ->
+      if (!folder.isDirectory) return@forEach
+      val libraryItemId = folder.name
+
+      // Skip folders belonging to active/pending downloads
+      if (activeLibraryItemIds.contains(libraryItemId)) return@forEach
+
+      // Skip folders that have a completed LocalLibraryItem (i.e. the download succeeded)
+      if (DeviceManager.dbManager.getLocalLibraryItemByLId(libraryItemId) != null) return@forEach
+
+      // Orphaned incomplete download — measure and delete
+      bytesFreed += folder.walkBottomUp().filter { it.isFile }.sumOf { it.length() }
+      folder.deleteRecursively()
+      foldersDeleted++
+      Log.d(tag, "clearIncompleteDownloads: Deleted orphan folder $libraryItemId")
+    }
+
+    Log.i(tag, "clearIncompleteDownloads: Deleted $foldersDeleted folder(s), freed $bytesFreed bytes")
+    call.resolve(JSObject().apply {
+      put("bytesFreed", bytesFreed)
+      put("foldersDeleted", foldersDeleted)
+    })
+  }
 }

@@ -1,4 +1,4 @@
-import { registerPlugin, WebPlugin } from '@capacitor/core';
+import { registerPlugin, WebPlugin } from '@capacitor/core'
 
 class AbsDownloaderWeb extends WebPlugin {
   constructor() {
@@ -13,6 +13,11 @@ class AbsDownloaderWeb extends WebPlugin {
   async retryDownloadQueue() {
     console.log('[AbsDownloaderWeb] retryDownloadQueue called')
     return Promise.resolve()
+  }
+
+  async clearIncompleteDownloads() {
+    console.log('[AbsDownloaderWeb] clearIncompleteDownloads called')
+    return Promise.resolve({ bytesFreed: 0, foldersDeleted: 0 })
   }
 
   async onServerConnected() {

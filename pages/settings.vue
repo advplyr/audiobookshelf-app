@@ -162,6 +162,19 @@
       <p class="pr-4 w-36">{{ $strings.LabelMaxSimultaneousDownloads }}</p>
       <ui-text-input type="number" v-model="settings.maxSimultaneousDownloads" style="width: 145px; max-width: 145px" @input="maxSimultaneousDownloadsUpdated" />
     </div>
+    <div v-if="!isiOS" class="py-3 flex items-center justify-between">
+      <p class="text-sm text-fg-muted flex-grow pr-4">{{ $strings.LabelIncompleteDownloads }}</p>
+      <ui-btn size="sm" :disabled="clearingIncompleteDownloads" @click="clearIncompleteDownloads">
+        <span v-if="clearingIncompleteDownloads" class="flex items-center space-x-1">
+          <svg class="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+          </svg>
+          <span>Clearing...</span>
+        </span>
+        <span v-else>{{ $strings.ButtonClearIncompleteDownloads }}</span>
+      </ui-btn>
+    </div>
 
     <!-- Android Auto settings -->
     <template v-if="!isiOS">
@@ -191,6 +204,7 @@
 
 <script>
 import { Dialog } from '@capacitor/dialog'
+import { AbsDownloader } from '@/plugins/capacitor'
 import jumpLabelMixin from '@/mixins/jumpLabel'
 
 export default {
@@ -203,6 +217,7 @@ export default {
       showSleepTimerLengthModal: false,
       showAutoSleepTimerRewindLengthModal: false,
       moreMenuSetting: '',
+      clearingIncompleteDownloads: false,
       settings: {
         disableAutoRewind: false,
         enableAltView: true,
@@ -566,6 +581,32 @@ export default {
       this.saveSettingsTimeout = setTimeout(() => {
         this.saveSettings()
       }, 500)
+    },
+    async clearIncompleteDownloads() {
+      const { value } = await Dialog.confirm({
+        title: this.$strings.ButtonClearIncompleteDownloads,
+        message: 'This will delete all partially downloaded files. Completed downloads will not be affected.',
+        okButtonTitle: 'Clear',
+        cancelButtonTitle: 'Cancel'
+      })
+      if (!value) return
+
+      this.clearingIncompleteDownloads = true
+      try {
+        const result = await AbsDownloader.clearIncompleteDownloads()
+        const { bytesFreed, foldersDeleted } = result
+        if (foldersDeleted === 0) {
+          this.$toast.info('No incomplete downloads found')
+        } else {
+          const mb = (bytesFreed / 1024 / 1024).toFixed(1)
+          this.$toast.success(`Cleared ${foldersDeleted} incomplete download(s), freed ${mb} MB`)
+        }
+      } catch (e) {
+        console.error('[Settings] clearIncompleteDownloads failed', e)
+        this.$toast.error('Failed to clear incomplete downloads')
+      } finally {
+        this.clearingIncompleteDownloads = false
+      }
     },
     hapticFeedbackUpdated(val) {
       this.$store.commit('globals/setHapticFeedback', val)
