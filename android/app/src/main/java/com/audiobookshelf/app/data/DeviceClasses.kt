@@ -43,7 +43,8 @@ data class ServerConnectionConfig(
   var userId:String,
   var username:String,
   var token:String,
-  var customHeaders:Map<String, String>?
+  var customHeaders:Map<String, String>?,
+  var certificateAlias:String? = null // Added for client certificate alias (Android only currently)
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)

@@ -29,7 +29,6 @@ import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.IOException
-import java.util.concurrent.TimeUnit
 
 class ApiHandler(var ctx:Context) {
   val tag = "ApiHandler"
@@ -43,25 +42,32 @@ class ApiHandler(var ctx:Context) {
     }
   }
 
-  private var defaultClient = OkHttpClient()
-  private var pingClient = OkHttpClient.Builder().callTimeout(3, TimeUnit.SECONDS).build()
   private var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
   private var secureStorage = SecureStorage(ctx)
+
+  // Used to avoid rebuilding OkHttpClient instances unnecessarily
+  private var lastClientAlias: String? = null
 
   data class LocalSessionsSyncRequestPayload(val sessions:List<PlaybackSession>, val deviceInfo:DeviceInfo)
   @JsonIgnoreProperties(ignoreUnknown = true)
   data class LocalSessionSyncResult(val id:String, val success:Boolean, val progressSynced:Boolean?, val error:String?)
   data class LocalSessionsSyncResponsePayload(val results:List<LocalSessionSyncResult>)
 
-  private fun getRequest(endpoint:String, httpClient:OkHttpClient?, config:ServerConnectionConfig?, cb: (JSObject) -> Unit) {
+  private fun getRequest(endpoint: String, config: ServerConnectionConfig?, cb: (JSObject) -> Unit) {
     val address = config?.address ?: DeviceManager.serverAddress
     val token = config?.token ?: DeviceManager.token
+    val alias = config?.certificateAlias ?: DeviceManager.serverConnectionConfig?.certificateAlias
+
+    if (alias != null && (alias !== lastClientAlias)) {
+      lastClientAlias = alias
+      HttpClientProvider.updateMtlsConfig(alias, ctx)
+    }
 
     try {
       val request = Request.Builder()
         .url("${address}$endpoint").addHeader("Authorization", "Bearer $token")
         .build()
-      makeRequest(request, httpClient, cb)
+      makeRequest(request, cb)
     } catch(e: Exception) {
       e.printStackTrace()
       val jsobj = JSObject()
@@ -76,12 +82,19 @@ class ApiHandler(var ctx:Context) {
     val mediaType = "application/json; charset=utf-8".toMediaType()
     val requestBody = payload?.toString()?.toRequestBody(mediaType) ?: EMPTY_REQUEST
     val requestUrl = "${address}$endpoint"
+    val alias = config?.certificateAlias ?: DeviceManager.serverConnectionConfig?.certificateAlias
+
+    if (alias != null && (alias !== lastClientAlias)) {
+      lastClientAlias = alias
+      HttpClientProvider.updateMtlsConfig(alias, ctx)
+    }
+
     Log.d(tag, "postRequest to $requestUrl")
     try {
       val request = Request.Builder().post(requestBody)
         .url(requestUrl).addHeader("Authorization", "Bearer ${token}")
         .build()
-      makeRequest(request, null, cb)
+      makeRequest(request, cb)
     } catch(e: Exception) {
       e.printStackTrace()
       val jsobj = JSObject()
@@ -97,7 +110,7 @@ class ApiHandler(var ctx:Context) {
       val request = Request.Builder().patch(requestBody)
         .url("${DeviceManager.serverAddress}$endpoint").addHeader("Authorization", "Bearer ${DeviceManager.token}")
         .build()
-      makeRequest(request, null, cb)
+      makeRequest(request, cb)
     } catch(e: Exception) {
       e.printStackTrace()
       val jsobj = JSObject()
@@ -106,8 +119,8 @@ class ApiHandler(var ctx:Context) {
     }
   }
 
-  private fun makeRequest(request:Request, httpClient:OkHttpClient?, cb: (JSObject) -> Unit) {
-    val client = httpClient ?: defaultClient
+  private fun makeRequest(request: Request, cb: (JSObject) -> Unit) {
+    val client = HttpClientProvider.getDefaultClient()
 
     client.newCall(request).enqueue(object : Callback {
       override fun onFailure(call: Call, e: IOException) {
@@ -124,7 +137,7 @@ class ApiHandler(var ctx:Context) {
           if (it.code == 401) {
             // Handle 401 Unauthorized by attempting token refresh
             AbsLogger.info(tag, "makeRequest: 401 Unauthorized for request to \"${request.url}\" - attempt token refresh")
-            handleTokenRefresh(request, httpClient, cb)
+            handleTokenRefresh(request, cb)
             return
           }
 
@@ -170,10 +183,9 @@ class ApiHandler(var ctx:Context) {
    * 5. If refresh fails, handle logout
    *
    * @param originalRequest The original request that failed with 401
-   * @param httpClient The HTTP client to use for the request
    * @param callback The callback to return the response
    */
-  private fun handleTokenRefresh(originalRequest: Request, httpClient: OkHttpClient?, callback: (JSObject) -> Unit) {
+  private fun handleTokenRefresh(originalRequest: Request, callback: (JSObject) -> Unit) {
     try {
       AbsLogger.info(tag, "handleTokenRefresh: Attempting to refresh auth tokens for server ${DeviceManager.serverConnectionConfigString}")
 
@@ -209,7 +221,7 @@ class ApiHandler(var ctx:Context) {
         .build()
 
       // Make the refresh request
-      val client = httpClient ?: defaultClient
+      val client = HttpClientProvider.getDefaultClient()
       client.newCall(refreshRequest).enqueue(object : Callback {
         override fun onFailure(call: Call, e: IOException) {
           Log.e(tag, "handleTokenRefresh: Failed to connect to refresh endpoint", e)
@@ -252,7 +264,7 @@ class ApiHandler(var ctx:Context) {
 
               // Retry the original request with the new access token
               Log.d(tag, "handleTokenRefresh: Retrying original request with new token")
-              retryOriginalRequest(originalRequest, newAccessToken, httpClient, callback)
+              retryOriginalRequest(originalRequest, newAccessToken, callback)
 
             } catch (e: Exception) {
               Log.e(tag, "handleTokenRefresh: Failed to parse refresh response", e)
@@ -314,7 +326,7 @@ class ApiHandler(var ctx:Context) {
    * @param httpClient The HTTP client to use
    * @param callback The callback to return the response
    */
-  private fun retryOriginalRequest(originalRequest: Request, newAccessToken: String, httpClient: OkHttpClient?, callback: (JSObject) -> Unit) {
+  private fun retryOriginalRequest(originalRequest: Request, newAccessToken: String, callback: (JSObject) -> Unit) {
     try {
       // Create a new request with the updated authorization header
       val newRequest = originalRequest.newBuilder()
@@ -325,7 +337,7 @@ class ApiHandler(var ctx:Context) {
       Log.d(tag, "retryOriginalRequest: Retrying request to ${newRequest.url}")
 
       // Make the retry request
-      val client = httpClient ?: defaultClient
+      val client = HttpClientProvider.getDefaultClient()
       client.newCall(newRequest).enqueue(object : Callback {
         override fun onFailure(call: Call, e: IOException) {
           Log.e(tag, "retryOriginalRequest: Failed to retry request", e)
@@ -424,7 +436,7 @@ class ApiHandler(var ctx:Context) {
   }
 
   fun getCurrentUser(cb: (User?) -> Unit) {
-    getRequest("/api/me", null, null) {
+    getRequest("/api/me", null) {
       if (it.has("error")) {
         Log.e(tag, it.getString("error") ?: "getCurrentUser Failed")
         cb(null)
@@ -437,7 +449,7 @@ class ApiHandler(var ctx:Context) {
 
   fun getLibraries(cb: (List<Library>) -> Unit) {
     val mapper = jacksonMapper
-    getRequest("/api/libraries?include=stats", null,null) {
+    getRequest("/api/libraries?include=stats", null) {
       val libraries = mutableListOf<Library>()
 
       var array = JSONArray()
@@ -455,7 +467,7 @@ class ApiHandler(var ctx:Context) {
   }
 
   fun getLibraryPersonalized(libraryItemId:String, cb: (List<LibraryShelfType>?) -> Unit) {
-    getRequest("/api/libraries/$libraryItemId/personalized", null, null) {
+    getRequest("/api/libraries/$libraryItemId/personalized", null) {
       if (it.has("error")) {
         Log.e(tag, it.getString("error") ?: "getLibraryStats Failed")
         cb(null)
@@ -472,7 +484,7 @@ class ApiHandler(var ctx:Context) {
   }
 
   fun getLibraryItem(libraryItemId:String, cb: (LibraryItem?) -> Unit) {
-    getRequest("/api/items/$libraryItemId?expanded=1", null, null) {
+    getRequest("/api/items/$libraryItemId?expanded=1", null) {
       if (it.has("error")) {
         Log.e(tag, it.getString("error") ?: "getLibraryItem Failed")
         cb(null)
@@ -486,7 +498,7 @@ class ApiHandler(var ctx:Context) {
   fun getLibraryItemWithProgress(libraryItemId:String, episodeId:String?, cb: (LibraryItem?) -> Unit) {
     var requestUrl = "/api/items/$libraryItemId?expanded=1&include=progress"
     if (!episodeId.isNullOrEmpty()) requestUrl += "&episode=$episodeId"
-    getRequest(requestUrl, null, null) {
+    getRequest(requestUrl, null) {
       if (it.has("error")) {
         Log.e(tag, it.getString("error") ?: "getLibraryItemWithProgress Failed")
         cb(null)
@@ -498,7 +510,7 @@ class ApiHandler(var ctx:Context) {
   }
 
   fun getLibraryItems(libraryId:String, cb: (List<LibraryItem>) -> Unit) {
-    getRequest("/api/libraries/$libraryId/items?limit=100&minified=1", null, null) {
+    getRequest("/api/libraries/$libraryId/items?limit=100&minified=1", null) {
       val items = mutableListOf<LibraryItem>()
       if (it.has("results")) {
         val array = it.getJSONArray("results")
@@ -513,7 +525,7 @@ class ApiHandler(var ctx:Context) {
 
   fun getLibrarySeries(libraryId:String, cb: (List<LibrarySeriesItem>) -> Unit) {
     Log.d(tag, "Getting series")
-    getRequest("/api/libraries/$libraryId/series?minified=1&sort=name&limit=10000", null, null) {
+    getRequest("/api/libraries/$libraryId/series?minified=1&sort=name&limit=10000", null) {
       val items = mutableListOf<LibrarySeriesItem>()
       if (it.has("results")) {
         val array = it.getJSONArray("results")
@@ -529,7 +541,10 @@ class ApiHandler(var ctx:Context) {
   fun getLibrarySeriesItems(libraryId:String, seriesId:String, cb: (List<LibraryItem>) -> Unit) {
     Log.d(tag, "Getting items for series")
     val seriesIdBase64 = Base64.encodeToString(seriesId.toByteArray(), Base64.DEFAULT)
-    getRequest("/api/libraries/$libraryId/items?minified=1&sort=media.metadata.title&filter=series.${seriesIdBase64}&limit=1000", null, null) {
+    getRequest(
+      "/api/libraries/$libraryId/items?minified=1&sort=media.metadata.title&filter=series.${seriesIdBase64}&limit=1000",
+      null
+    ) {
       val items = mutableListOf<LibraryItem>()
       if (it.has("results")) {
         val array = it.getJSONArray("results")
@@ -544,7 +559,7 @@ class ApiHandler(var ctx:Context) {
 
   fun getLibraryAuthors(libraryId:String, cb: (List<LibraryAuthorItem>) -> Unit) {
     Log.d(tag, "Getting series")
-    getRequest("/api/libraries/$libraryId/authors", null, null) {
+    getRequest("/api/libraries/$libraryId/authors", null) {
       val items = mutableListOf<LibraryAuthorItem>()
       if (it.has("authors")) {
         val array = it.getJSONArray("authors")
@@ -552,7 +567,7 @@ class ApiHandler(var ctx:Context) {
           val item = jacksonMapper.readValue<LibraryAuthorItem>(array.get(i).toString())
           items.add(item)
         }
-      }else{
+      } else {
         Log.e(tag, "No results")
       }
       cb(items)
@@ -562,7 +577,10 @@ class ApiHandler(var ctx:Context) {
   fun getLibraryItemsFromAuthor(libraryId:String, authorId:String, cb: (List<LibraryItem>) -> Unit) {
     Log.d(tag, "Getting author items")
     val authorIdBase64 = Base64.encodeToString(authorId.toByteArray(), Base64.DEFAULT)
-    getRequest("/api/libraries/$libraryId/items?limit=1000&minified=1&filter=authors.${authorIdBase64}&sort=media.metadata.title&collapseseries=1", null, null) {
+    getRequest(
+      "/api/libraries/$libraryId/items?limit=1000&minified=1&filter=authors.${authorIdBase64}&sort=media.metadata.title&collapseseries=1",
+      null
+    ) {
       val items = mutableListOf<LibraryItem>()
       if (it.has("results")) {
         val array = it.getJSONArray("results")
@@ -573,7 +591,7 @@ class ApiHandler(var ctx:Context) {
           }
           items.add(item)
         }
-      }else{
+      } else {
         Log.e(tag, "No results")
       }
       cb(items)
@@ -582,7 +600,7 @@ class ApiHandler(var ctx:Context) {
 
   fun getLibraryCollections(libraryId:String, cb: (List<LibraryCollection>) -> Unit) {
     Log.d(tag, "Getting collections")
-    getRequest("/api/libraries/$libraryId/collections?minified=1&sort=name&limit=1000", null, null) {
+    getRequest("/api/libraries/$libraryId/collections?minified=1&sort=name&limit=1000", null) {
       val items = mutableListOf<LibraryCollection>()
       if (it.has("results")) {
         val array = it.getJSONArray("results")
@@ -597,19 +615,20 @@ class ApiHandler(var ctx:Context) {
 
   fun getSearchResults(libraryId:String, queryString:String, cb: (LibraryItemSearchResultType?) -> Unit) {
     Log.d(tag, "Doing search for library $libraryId")
-    getRequest("/api/libraries/$libraryId/search?q=$queryString", null, null) {
+    getRequest("/api/libraries/$libraryId/search?q=$queryString", null) {
       if (it.has("error")) {
         Log.e(tag, it.getString("error") ?: "getSearchResults Failed")
         cb(null)
       } else {
-        val librarySearchResults = jacksonMapper.readValue<LibraryItemSearchResultType>(it.toString())
+        val librarySearchResults =
+          jacksonMapper.readValue<LibraryItemSearchResultType>(it.toString())
         cb(librarySearchResults)
       }
     }
   }
 
   fun getAllItemsInProgress(cb: (List<ItemInProgress>) -> Unit) {
-    getRequest("/api/me/items-in-progress", null, null) {
+    getRequest("/api/me/items-in-progress", null) {
       val items = mutableListOf<ItemInProgress>()
       if (it.has("libraryItems")) {
         val array = it.getJSONArray("libraryItems")
@@ -677,7 +696,7 @@ class ApiHandler(var ctx:Context) {
     val endpoint = if(episodeId.isNullOrEmpty()) "/api/me/progress/$libraryItemId" else "/api/me/progress/$libraryItemId/$episodeId"
 
     // TODO: Using ping client here allows for shorter timeout (3 seconds), maybe rename or make diff client for requests requiring quicker response
-    getRequest(endpoint, pingClient, serverConnectionConfig) {
+    getRequest(endpoint, serverConnectionConfig) {
       if (it.has("error")) {
         Log.e(tag, "getMediaProgress: Failed to get progress")
         cb(null)
@@ -691,7 +710,7 @@ class ApiHandler(var ctx:Context) {
   fun getPlaybackSession(playbackSessionId:String, cb: (PlaybackSession?) -> Unit) {
     Log.d(tag, "getPlaybackSession for $playbackSessionId for server ${DeviceManager.serverAddress}")
     val endpoint = "/api/session/$playbackSessionId"
-    getRequest(endpoint, null, null) {
+    getRequest(endpoint, null) {
       val err = it.getString("error")
       if (!err.isNullOrEmpty()) {
         cb(null)
@@ -703,7 +722,7 @@ class ApiHandler(var ctx:Context) {
 
   fun pingServer(config:ServerConnectionConfig, cb: (Boolean) -> Unit) {
     Log.d(tag, "pingServer: Pinging ${config.address}")
-    getRequest("/ping", pingClient, config) {
+    getRequest("/ping", config) {
       val success = it.getString("success")
       if (success.isNullOrEmpty()) {
         Log.d(tag, "pingServer: Ping ${config.address} Failed")
