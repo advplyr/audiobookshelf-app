@@ -91,6 +91,10 @@ class AbsAudioPlayer : Plugin() {
           emit("onPlaybackFailed", errorMessage)
         }
 
+        override fun onEqualizerFrequenciesSet(frequencies: List<Int>) {
+          emit("onEqualizerFrequenciesSet", frequencies)
+        }
+
         override fun onMediaPlayerChanged(mediaPlayer:String) {
           emit("onMediaPlayerChanged", mediaPlayer)
         }
@@ -420,6 +424,29 @@ class AbsAudioPlayer : Plugin() {
     Handler(Looper.getMainLooper()).post {
       playerNotificationService.sleepTimerManager.cancelSleepTimer()
     }
+    call.resolve()
+  }
+
+  @PluginMethod
+  fun setEqualizerBands(call: PluginCall) {
+    val bandsArray = call.getArray("value")
+    val bands = mutableListOf<EqualizerBand>()
+
+    if (bandsArray == null) {
+      Log.i(tag, "Bands supplied by capacitor (frontend) don't exist")
+      return
+    }
+
+    for (i in 0 until bandsArray.length()) {
+      val obj = bandsArray.getJSONObject(i)
+      val freq = obj.getInt("freq")
+      val gain = obj.getInt("gain")
+      bands.add(EqualizerBand(freq, gain))
+    }
+
+    playerNotificationService.equalizerManager.updateBands(bands)
+    Log.d(tag, "Received new equalizer band information $bands")
+
     call.resolve()
   }
 
