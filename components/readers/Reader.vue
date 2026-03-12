@@ -72,6 +72,12 @@
             </div>
             <div class="flex items-center mb-6">
               <div class="w-32">
+                <p class="text-sm">{{ $strings.LabelTint }}</p>
+              </div>
+              <ui-range-input v-model="ereaderSettings.tint" :min="0" :max="10" input-width="180px" @input="settingsUpdated" />
+            </div>
+            <div class="flex items-center mb-6">
+              <div class="w-32">
                 <p class="text-sm">{{ $strings.LabelFontFamily }}</p>
               </div>
               <ui-toggle-btns v-model="ereaderSettings.font" name="font" :items="fontItems" @input="settingsUpdated" />
@@ -147,6 +153,7 @@ export default {
       isInittingWatchVolume: false,
       ereaderSettings: {
         theme: 'dark',
+        tint: 0,
         font: 'serif',
         fontScale: 100,
         lineSpacing: 115,
