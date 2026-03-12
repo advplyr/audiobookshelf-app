@@ -67,6 +67,13 @@
       </div>
       <p class="pl-4">{{ $strings.LabelAllowSeekingOnMediaControls }}</p>
     </div>
+    <div v-if="!isiOS" class="flex items-center py-3">
+      <div class="w-10 flex justify-center" @click="toggleMediaNextButtonCreateBookmark">
+        <ui-toggle-switch v-model="settings.mediaNextButtonCreateBookmark" @input="saveSettings" />
+      </div>
+      <p class="pl-4">{{ $strings.LabelMediaNextButtonCreateBookmark }}</p>
+      <span class="material-symbols text-xl ml-2" @click.stop="showInfo('mediaNextButtonCreateBookmark')">info</span>
+    </div>
 
     <!-- Sleep timer settings -->
     <template v-if="!isiOS">
@@ -223,7 +230,8 @@ export default {
         downloadUsingCellular: 'ALWAYS',
         streamingUsingCellular: 'ALWAYS',
         androidAutoBrowseLimitForGrouping: 100,
-        androidAutoBrowseSeriesSequenceOrder: 'ASC'
+        androidAutoBrowseSeriesSequenceOrder: 'ASC',
+        mediaNextButtonCreateBookmark: false
       },
       theme: 'dark',
       lockCurrentOrientation: false,
@@ -259,6 +267,10 @@ export default {
         androidAutoBrowseLimitForGrouping: {
           name: this.$strings.LabelAndroidAutoBrowseLimitForGrouping,
           message: this.$strings.LabelAndroidAutoBrowseLimitForGroupingHelp
+        },
+        mediaNextButtonCreateBookmark: {
+          name: this.$strings.LabelMediaNextButtonCreateBookmark,
+          message: this.$strings.LabelMediaNextButtonCreateBookmarkHelp
         }
       },
       hapticFeedbackItems: [
@@ -611,6 +623,10 @@ export default {
       this.settings.allowSeekingOnMediaControls = !this.settings.allowSeekingOnMediaControls
       this.saveSettings()
     },
+    toggleMediaNextButtonCreateBookmark() {
+      this.settings.mediaNextButtonCreateBookmark = !this.settings.mediaNextButtonCreateBookmark
+      this.saveSettings()
+    },
     getCurrentOrientation() {
       const orientation = window.screen?.orientation || {}
       const type = orientation.type || ''
@@ -671,6 +687,7 @@ export default {
 
       this.settings.androidAutoBrowseLimitForGrouping = deviceSettings.androidAutoBrowseLimitForGrouping
       this.settings.androidAutoBrowseSeriesSequenceOrder = deviceSettings.androidAutoBrowseSeriesSequenceOrder || 'ASC'
+      this.settings.mediaNextButtonCreateBookmark = !!deviceSettings.mediaNextButtonCreateBookmark
     },
     async init() {
       this.loading = true
