@@ -134,8 +134,7 @@ export default {
       const tintFullColor = '#ff8c00'
       const tintedColor = interpolate(tintBaseColor, tintFullColor, textTint / 100)
       // const tintedColor = tintFullColor
-      // const fontColor = textTint ? tintedColor : isDark ? '#fff' : isBlack ? '#fff' : '#000'
-      const fontColor = tintedColor
+      const fontColor = isDark || isBlack ? tintedColor : '#000'
       const backgroundColor = isDark ? 'rgb(35 35 35)' : isBlack ? 'rgb(0 0 0)' : 'rgb(255, 255, 255)'
 
       return {
