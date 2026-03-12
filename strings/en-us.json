@@ -191,6 +191,8 @@
   "LabelLockOrientation": "Lock orientation",
   "LabelLockPlayer": "Lock Player",
   "LabelLow": "Low",
+  "LabelMediaNextButtonCreateBookmark": "Remap media next button to create bookmark",
+  "LabelMediaNextButtonCreateBookmarkHelp": "When enabled, the media next button (e.g. from a Bluetooth headset) will create a bookmark at the current position instead of jumping forward.",
   "LabelMediaType": "Media Type",
   "LabelMedium": "Medium",
   "LabelMissing": "Missing",
