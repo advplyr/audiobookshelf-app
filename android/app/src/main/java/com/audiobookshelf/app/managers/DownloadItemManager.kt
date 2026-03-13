@@ -124,7 +124,14 @@ class DownloadItemManager(
 
     downloadItemQueue.add(downloadItem)
     clientEventEmitter.onDownloadItem(downloadItem)
-    checkUpdateDownloadQueue()
+
+    // If all parts were already downloaded (pre-existing files), finish immediately
+    if (downloadItem.isDownloadFinished) {
+      Log.i(tag, "addDownloadItem: All parts already downloaded for ${downloadItem.itemTitle}, finishing immediately")
+      checkDownloadItemFinished(downloadItem)
+    } else {
+      checkUpdateDownloadQueue()
+    }
   }
 
   /** Checks and updates the download queue. */
