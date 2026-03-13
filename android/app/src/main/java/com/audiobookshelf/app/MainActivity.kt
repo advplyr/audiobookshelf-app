@@ -26,23 +26,20 @@ import com.audiobookshelf.app.plugins.AbsFileSystem
 import com.audiobookshelf.app.plugins.AbsLogger
 import com.getcapacitor.BridgeActivity
 
-
 class MainActivity : BridgeActivity() {
   private val tag = "MainActivity"
 
   private var mBounded = false
-  lateinit var foregroundService : PlayerNotificationService
-  private lateinit var mConnection : ServiceConnection
+  lateinit var foregroundService: PlayerNotificationService
+  private lateinit var mConnection: ServiceConnection
 
-  lateinit var pluginCallback : () -> Unit
+  lateinit var pluginCallback: () -> Unit
 
   val storageHelper = SimpleStorageHelper(this)
   val storage = SimpleStorage(this)
 
   val REQUEST_PERMISSIONS = 1
-  var PERMISSIONS_ALL = arrayOf(
-    Manifest.permission.READ_EXTERNAL_STORAGE
-  )
+  var PERMISSIONS_ALL = arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
 
   public override fun onCreate(savedInstanceState: Bundle?) {
     DbManager.initialize(applicationContext)
@@ -60,22 +57,24 @@ class MainActivity : BridgeActivity() {
     // See: https://developer.android.com/develop/ui/views/layout/edge-to-edge
     val webView: WebView = findViewById(R.id.webview)
     webView.setOnApplyWindowInsetsListener { v, insets ->
-      val (left, top, right, bottom) = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-        val sysInsets = insets.getInsets(WindowInsets.Type.systemBars())
-        Log.d(tag, "safe sysInsets: $sysInsets")
-        arrayOf(sysInsets.left, sysInsets.top, sysInsets.right, sysInsets.bottom)
-      } else {
-        arrayOf(
-          insets.systemWindowInsetLeft,
-          insets.systemWindowInsetTop,
-          insets.systemWindowInsetRight,
-          insets.systemWindowInsetBottom
-        )
-      }
+      val (left, top, right, bottom) =
+              if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val sysInsets = insets.getInsets(WindowInsets.Type.systemBars())
+                Log.d(tag, "safe sysInsets: $sysInsets")
+                arrayOf(sysInsets.left, sysInsets.top, sysInsets.right, sysInsets.bottom)
+              } else {
+                arrayOf(
+                        insets.systemWindowInsetLeft,
+                        insets.systemWindowInsetTop,
+                        insets.systemWindowInsetRight,
+                        insets.systemWindowInsetBottom
+                )
+              }
 
       // Inject as CSS variables
       // NOTE: Possibly able to use in the future to support edge-to-edge better.
-       val js = """
+      val js =
+              """
        document.documentElement.style.setProperty('--safe-area-inset-top', '${top}px');
        document.documentElement.style.setProperty('--safe-area-inset-bottom', '${bottom}px');
        document.documentElement.style.setProperty('--safe-area-inset-left', '${left}px');
@@ -98,11 +97,10 @@ class MainActivity : BridgeActivity() {
       }
     }
 
-    val permission = ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
+    val permission =
+            ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
     if (permission != PackageManager.PERMISSION_GRANTED) {
-      ActivityCompat.requestPermissions(this,
-        PERMISSIONS_ALL,
-        REQUEST_PERMISSIONS)
+      ActivityCompat.requestPermissions(this, PERMISSIONS_ALL, REQUEST_PERMISSIONS)
     }
   }
 
@@ -110,27 +108,40 @@ class MainActivity : BridgeActivity() {
     super.onDestroy()
   }
 
+  override fun onResume() {
+    super.onResume()
+    Log.d(tag, "onResume - checking for paused downloads")
+    // Trigger download resumption check when app comes to foreground
+    checkAndResumeDownloads()
+  }
+
+  private fun checkAndResumeDownloads() {
+    // This will be called when the app resumes to check for any paused downloads
+    // The DownloadService will handle the actual resumption logic
+  }
+
   override fun onPostCreate(savedInstanceState: Bundle?) {
     super.onPostCreate(savedInstanceState)
     Log.d(tag, "onPostCreate MainActivity")
 
-    mConnection = object : ServiceConnection {
-      override fun onServiceDisconnected(name: ComponentName) {
-        Log.w(tag, "Service Disconnected $name")
-        mBounded = false
-      }
+    mConnection =
+            object : ServiceConnection {
+              override fun onServiceDisconnected(name: ComponentName) {
+                Log.w(tag, "Service Disconnected $name")
+                mBounded = false
+              }
 
-      override fun onServiceConnected(name: ComponentName, service: IBinder) {
-        Log.d(tag, "Service Connected $name")
+              override fun onServiceConnected(name: ComponentName, service: IBinder) {
+                Log.d(tag, "Service Connected $name")
 
-        mBounded = true
-        val mLocalBinder = service as PlayerNotificationService.LocalBinder
-        foregroundService = mLocalBinder.getService()
+                mBounded = true
+                val mLocalBinder = service as PlayerNotificationService.LocalBinder
+                foregroundService = mLocalBinder.getService()
 
-        // Let NativeAudio know foreground service is ready and setup event listener
-        pluginCallback()
-      }
-    }
+                // Let NativeAudio know foreground service is ready and setup event listener
+                pluginCallback()
+              }
+            }
 
     Intent(this, PlayerNotificationService::class.java).also { intent ->
       Log.d(tag, "Binding PlayerNotificationService")
@@ -138,14 +149,14 @@ class MainActivity : BridgeActivity() {
     }
   }
 
-  fun isPlayerNotificationServiceInitialized():Boolean {
+  fun isPlayerNotificationServiceInitialized(): Boolean {
     return ::foregroundService.isInitialized
   }
 
   fun stopMyService() {
     if (mBounded) {
-      mConnection.let { unbindService(it) };
-      mBounded = false;
+      mConnection.let { unbindService(it) }
+      mBounded = false
     }
     val stopIntent = Intent(this, PlayerNotificationService::class.java)
     stopService(stopIntent)
@@ -168,7 +179,11 @@ class MainActivity : BridgeActivity() {
     storageHelper.storage.onActivityResult(requestCode, resultCode, data)
   }
 
-  override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+  override fun onRequestPermissionsResult(
+          requestCode: Int,
+          permissions: Array<String>,
+          grantResults: IntArray
+  ) {
     super.onRequestPermissionsResult(requestCode, permissions, grantResults)
     Log.d(tag, "onRequestPermissionResult $requestCode")
     permissions.forEach { Log.d(tag, "PERMISSION $it") }

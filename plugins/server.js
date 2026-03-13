@@ -1,5 +1,6 @@
 import { io } from 'socket.io-client'
 import EventEmitter from 'events'
+import { AbsDownloader } from './capacitor/AbsDownloader'
 
 class ServerSocket extends EventEmitter {
   constructor(store) {
@@ -80,6 +81,14 @@ class ServerSocket extends EventEmitter {
     this.$store.commit('setSocketConnected', true)
     this.emit('connection-update', true)
     this.sendAuthenticate()
+
+    // Notify download manager that server is connected to auto-start queued downloads
+    try {
+      AbsDownloader.onServerConnected()
+      console.log('[SOCKET] Notified download manager of server connection')
+    } catch (error) {
+      console.error('[SOCKET] Failed to notify download manager of server connection:', error)
+    }
   }
 
   onReconnectAttempt(attemptNumber) {

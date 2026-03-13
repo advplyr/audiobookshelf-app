@@ -1,6 +1,6 @@
 <template>
   <div class="w-full h-full py-6 px-4 overflow-y-auto">
-    <p class="mb-2 text-base text-fg">{{ $strings.HeaderDownloads }} ({{ localLibraryItems.length }})</p>
+    <p class="mb-4 text-base text-fg">{{ $strings.HeaderDownloads }} ({{ localLibraryItems.length }})</p>
 
     <div class="w-full">
       <template v-for="(mediaItem, num) in localLibraryItems">

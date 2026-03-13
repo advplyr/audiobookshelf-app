@@ -100,6 +100,17 @@ export const mutations = {
     state.isModalOpen = val
   },
   addUpdateItemDownload(state, downloadItem) {
+    // Calculate initial itemProgress from parts (handles pre-completed files)
+    if (downloadItem.downloadItemParts && downloadItem.downloadItemParts.length > 0) {
+      let totalBytes = 0
+      let totalBytesDownloaded = 0
+      for (const dip of downloadItem.downloadItemParts) {
+        totalBytes += dip.completed ? Number(dip.bytesDownloaded) : Number(dip.fileSize)
+        totalBytesDownloaded += Number(dip.bytesDownloaded)
+      }
+      downloadItem.itemProgress = totalBytes > 0 ? Math.min(1, totalBytesDownloaded / totalBytes) : 0
+    }
+
     var index = state.itemDownloads.findIndex((i) => i.id == downloadItem.id)
     if (index >= 0) {
       state.itemDownloads.splice(index, 1, downloadItem)
@@ -127,13 +138,15 @@ export const mutations = {
 
     if (totalBytes > 0) {
       downloadItem.itemProgress = Math.min(1, totalBytesDownloaded / totalBytes)
-      console.log(`updateDownloadItemPart: filename=${downloadItemPart.filename}, totalBytes=${totalBytes}, downloaded=${totalBytesDownloaded}, itemProgress=${downloadItem.itemProgress}`)
     } else {
       downloadItem.itemProgress = 0
     }
   },
   removeItemDownload(state, id) {
     state.itemDownloads = state.itemDownloads.filter((i) => i.id != id)
+  },
+  clearAllDownloads(state) {
+    state.itemDownloads = []
   },
   setBookshelfListView(state, val) {
     state.bookshelfListView = val
