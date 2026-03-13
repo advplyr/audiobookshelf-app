@@ -146,6 +146,12 @@ class AbsDownloader : Plugin() {
             "Download library item $libraryItemId to folder $localFolderId / episode: $episodeId"
     )
 
+    // Ensure mTLS client certs are applied for the current server connection
+    val serverConfigId = DeviceManager.serverConnectionConfigId
+    if (serverConfigId.isNotEmpty()) {
+      apiHandler.refreshMtlsClients(serverConfigId)
+    }
+
     val downloadId = if (episodeId.isEmpty()) libraryItemId else "$libraryItemId-$episodeId"
     if (downloadItemManager?.downloadItemQueue?.find { it.id == downloadId } != null) {
       Log.d(tag, "Download already started for this media entity $downloadId")
@@ -156,7 +162,8 @@ class AbsDownloader : Plugin() {
 
     apiHandler.getLibraryItemWithProgress(libraryItemId, episodeId) { libraryItem ->
       if (libraryItem == null) {
-        call.resolve(JSObject("{\"error\":\"Server request failed\"}"))
+        Log.e(tag, "downloadLibraryItem: Failed to get library item $libraryItemId from server — server returned null")
+        call.resolve(JSObject("{\"error\":\"Server request failed for item $libraryItemId\"}"))
       } else {
         Log.d(tag, "Got library item from server ${libraryItem.id}")
 
