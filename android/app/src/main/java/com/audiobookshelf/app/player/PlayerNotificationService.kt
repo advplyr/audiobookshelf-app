@@ -806,8 +806,26 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     return currentPlaybackSession?.getChapterForTime(this.getCurrentTime())
   }
 
+  fun getCurrentChapterOrTractkIndex(): Int? {
+    val chapter = getCurrentBookChapter()
+    return if (chapter != null) {
+      chapter.id
+    } else {
+      currentPlaybackSession?.getCurrentTrackIndex()
+    }
+  }
+
   fun getEndTimeOfChapterOrTrack(): Long? {
     return getCurrentBookChapter()?.endMs ?: currentPlaybackSession?.getCurrentTrackEndTime()
+  }
+
+  fun getEndTimeOfChapterOrTrack(index: Int): Long? {
+    val chapter = currentPlaybackSession?.chapters[index]
+    return if (chapter != null) {
+      chapter.endMs
+    } else {
+      currentPlaybackSession?.getTrackEndTime(index)
+    }
   }
 
   private fun getNextBookChapter(): BookChapter? {

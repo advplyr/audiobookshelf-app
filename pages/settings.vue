@@ -114,6 +114,13 @@
         <p class="pl-4">{{ $strings.LabelAutoSleepTimer }}</p>
         <span class="material-symbols text-xl ml-2" @click.stop="showInfo('autoSleepTimer')">info</span>
       </div>
+      <div class="flex items-center py-3">
+        <div class="w-10 flex justify-center" @click="toggleMultiChapterSleep">
+          <ui-toggle-switch v-model="settings.multiChapterSleep" @input="saveSettings" />
+        </div>
+        <p class="pl-4">{{ $strings.LabelMultiChapterSleep }}</p>
+        <span class="material-symbols text-xl ml-2" @click.stop="showInfo('multiChapterSleep')">info</span>
+    </div>
     </template>
     <!-- Auto Sleep timer settings -->
     <div v-if="settings.autoSleepTimer" class="py-3 flex items-center">
@@ -214,6 +221,7 @@ export default {
         autoSleepTimerStartTime: '22:00',
         autoSleepTimerEndTime: '06:00',
         sleepTimerLength: 900000, // 15 minutes
+        multiChapterSleep: false,
         disableSleepTimerFadeOut: false,
         disableSleepTimerResetFeedback: false,
         enableSleepTimerAlmostDoneChime: false,
@@ -235,6 +243,10 @@ export default {
         autoSleepTimer: {
           name: this.$strings.LabelAutoSleepTimer,
           message: this.$strings.LabelAutoSleepTimerHelp
+        },
+        multiChapterSleep: {
+          name: this.$strings.LabelMultiChapterSleep,
+          message: this.$strings.LabelMultiChapterSleepHelp
         },
         disableSleepTimerFadeOut: {
           name: this.$strings.LabelDisableAudioFadeOut,
@@ -575,6 +587,10 @@ export default {
       this.settings.enableMp3IndexSeeking = !this.settings.enableMp3IndexSeeking
       this.saveSettings()
     },
+    toggleMultiChapterSleep() {
+      this.settings.multiChapterSleep = !this.settings.multiChapterSleep
+      this.saveSettings()
+    },
     toggleAutoSleepTimer() {
       this.settings.autoSleepTimer = !this.settings.autoSleepTimer
       this.saveSettings()
@@ -660,6 +676,7 @@ export default {
       this.settings.disableSleepTimerFadeOut = !!deviceSettings.disableSleepTimerFadeOut
       this.settings.disableSleepTimerResetFeedback = !!deviceSettings.disableSleepTimerResetFeedback
       this.settings.enableSleepTimerAlmostDoneChime = !!deviceSettings.enableSleepTimerAlmostDoneChime
+      this.settings.multiChapterSleep = !!deviceSettings.multiChapterSleep
 
       this.settings.autoSleepTimerAutoRewind = !!deviceSettings.autoSleepTimerAutoRewind
       this.settings.autoSleepTimerAutoRewindTime = !isNaN(deviceSettings.autoSleepTimerAutoRewindTime) ? deviceSettings.autoSleepTimerAutoRewindTime : 300000 // 5 minutes
