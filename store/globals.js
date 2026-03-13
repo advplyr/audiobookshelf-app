@@ -100,6 +100,17 @@ export const mutations = {
     state.isModalOpen = val
   },
   addUpdateItemDownload(state, downloadItem) {
+    // Calculate initial itemProgress from parts (handles pre-completed files)
+    if (downloadItem.downloadItemParts && downloadItem.downloadItemParts.length > 0) {
+      let totalBytes = 0
+      let totalBytesDownloaded = 0
+      for (const dip of downloadItem.downloadItemParts) {
+        totalBytes += dip.completed ? Number(dip.bytesDownloaded) : Number(dip.fileSize)
+        totalBytesDownloaded += Number(dip.bytesDownloaded)
+      }
+      downloadItem.itemProgress = totalBytes > 0 ? Math.min(1, totalBytesDownloaded / totalBytes) : 0
+    }
+
     var index = state.itemDownloads.findIndex((i) => i.id == downloadItem.id)
     if (index >= 0) {
       state.itemDownloads.splice(index, 1, downloadItem)
