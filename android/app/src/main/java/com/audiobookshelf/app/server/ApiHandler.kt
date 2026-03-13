@@ -135,11 +135,12 @@ class ApiHandler(var ctx:Context) {
 
     client.newCall(request).enqueue(object : Callback {
       override fun onFailure(call: Call, e: IOException) {
-        Log.d(tag, "FAILURE TO CONNECT")
+        val url = call.request().url
+        Log.e(tag, "makeRequest: FAILURE TO CONNECT to $url — ${e.javaClass.simpleName}: ${e.message}")
         e.printStackTrace()
 
         val jsobj = JSObject()
-        jsobj.put("error", "Failed to connect")
+        jsobj.put("error", "Failed to connect to $url: ${e.javaClass.simpleName}: ${e.message}")
         cb(jsobj)
       }
 
@@ -153,8 +154,9 @@ class ApiHandler(var ctx:Context) {
           }
 
           if (!it.isSuccessful) {
+            Log.e(tag, "makeRequest: HTTP ${it.code} from ${request.url}")
             val jsobj = JSObject()
-            jsobj.put("error", "Unexpected code $response")
+            jsobj.put("error", "HTTP ${it.code} from ${request.url}")
             cb(jsobj)
             return
           }

@@ -236,6 +236,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
     // Initialize API
     apiHandler = ApiHandler(ctx)
+    val serverConfigId = DeviceManager.serverConnectionConfigId
+    if (serverConfigId.isNotEmpty()) {
+      apiHandler.refreshMtlsClients(serverConfigId)
+    }
 
     // Initialize sleep timer
     sleepTimerManager = SleepTimerManager(this)
