@@ -60,12 +60,6 @@ class AbsDownloader : Plugin() {
     var localFolderId = call.data.getString("localFolderId", "").toString()
     Log.d(tag, "Download library item $libraryItemId to folder $localFolderId / episode: $episodeId")
 
-    // Ensure mTLS client certs are applied for the current server connection
-    val serverConfigId = DeviceManager.serverConnectionConfigId
-    if (serverConfigId.isNotEmpty()) {
-      apiHandler.refreshMtlsClients(serverConfigId)
-    }
-
     val downloadId = if (episodeId.isEmpty()) libraryItemId else "$libraryItemId-$episodeId"
     if (downloadItemManager.downloadItemQueue.find { it.id == downloadId } != null) {
       Log.d(tag, "Download already started for this media entity $downloadId")

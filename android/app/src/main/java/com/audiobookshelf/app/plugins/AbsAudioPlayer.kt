@@ -39,10 +39,6 @@ class AbsAudioPlayer : Plugin() {
   override fun load() {
     mainActivity = (activity as MainActivity)
     apiHandler = ApiHandler(mainActivity)
-    val serverConfigId = DeviceManager.serverConnectionConfigId
-    if (serverConfigId.isNotEmpty()) {
-      apiHandler.refreshMtlsClients(serverConfigId)
-    }
 
     try {
       initCastManager()

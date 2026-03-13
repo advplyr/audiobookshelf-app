@@ -29,8 +29,10 @@ import okhttp3.internal.EMPTY_REQUEST
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
+import android.os.Looper
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.Executors
 
 class ApiHandler(var ctx:Context) {
   val tag = "ApiHandler"
@@ -46,6 +48,8 @@ class ApiHandler(var ctx:Context) {
 
   @Volatile private var defaultClient = OkHttpClient()
   @Volatile private var pingClient = OkHttpClient.Builder().callTimeout(3, TimeUnit.SECONDS).build()
+  /** The server config ID for which the current clients were built, or null if plain. */
+  @Volatile private var mtlsConfiguredFor: String? = null
 
   /**
    * Rebuilds the OkHttp clients with mTLS configured for the given server config ID.
@@ -59,15 +63,40 @@ class ApiHandler(var ctx:Context) {
     if (mtlsDefault != null && mtlsPing != null) {
       defaultClient = mtlsDefault
       pingClient = mtlsPing
+      mtlsConfiguredFor = serverConfigId
       // Also apply as global default so CapacitorHttp (HttpURLConnection) is covered
       MtlsManager.applyAsGlobalDefault(serverConfigId)
       Log.d(tag, "refreshMtlsClients: mTLS clients configured for server $serverConfigId")
     } else {
       defaultClient = OkHttpClient()
       pingClient = OkHttpClient.Builder().callTimeout(3, TimeUnit.SECONDS).build()
+      mtlsConfiguredFor = null
       MtlsManager.resetGlobalDefault()
       Log.d(tag, "refreshMtlsClients: No mTLS cert for server $serverConfigId, using default clients")
     }
+  }
+
+  private val mtlsExecutor = Executors.newSingleThreadExecutor()
+
+  /**
+   * Ensures mTLS clients are configured for the current server connection.
+   * No-op if already configured for this server or if no cert is set.
+   * BLOCKING — must NOT be called from the main thread.
+   */
+  private fun ensureMtlsConfigured() {
+    val serverConfigId = DeviceManager.serverConnectionConfigId
+    if (serverConfigId.isNotEmpty() && mtlsConfiguredFor != serverConfigId) {
+      refreshMtlsClients(serverConfigId)
+    }
+  }
+
+  /**
+   * Returns true if mTLS needs to be configured (server has a cert alias
+   * and clients haven't been built for the current server yet).
+   */
+  private fun needsMtlsRefresh(): Boolean {
+    val serverConfigId = DeviceManager.serverConnectionConfigId
+    return serverConfigId.isNotEmpty() && mtlsConfiguredFor != serverConfigId
   }
   private var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
   private var secureStorage = SecureStorage(ctx)
@@ -131,6 +160,13 @@ class ApiHandler(var ctx:Context) {
   }
 
   private fun makeRequest(request:Request, httpClient:OkHttpClient?, cb: (JSObject) -> Unit) {
+    // KeyChain calls are blocking and cannot run on the main thread.
+    // If we're on the main thread and mTLS needs configuring, dispatch to a background thread.
+    if (needsMtlsRefresh() && Looper.myLooper() == Looper.getMainLooper()) {
+      mtlsExecutor.execute { makeRequest(request, httpClient, cb) }
+      return
+    }
+    ensureMtlsConfigured()
     val client = httpClient ?: defaultClient
 
     client.newCall(request).enqueue(object : Callback {
