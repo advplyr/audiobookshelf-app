@@ -68,13 +68,16 @@ class MainActivity : BridgeActivity() {
     // This extends Capacitor's BridgeWebViewClient so all existing routing is preserved.
     bridge.webView.webViewClient = object : BridgeWebViewClient(bridge) {
       override fun onReceivedClientCertRequest(view: WebView, request: ClientCertRequest) {
+        Log.d(tag, "onReceivedClientCertRequest: host=${request.host}:${request.port}")
         val serverConfigId = DeviceManager.serverConnectionConfigId
         if (serverConfigId.isEmpty()) {
+          Log.w(tag, "onReceivedClientCertRequest: no serverConnectionConfigId, cancelling")
           request.cancel()
           return
         }
         val alias = MtlsManager.getAliasForServer(serverConfigId)
         if (alias == null) {
+          Log.w(tag, "onReceivedClientCertRequest: no cert alias for server $serverConfigId, cancelling")
           request.cancel()
           return
         }
