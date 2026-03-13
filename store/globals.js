@@ -127,13 +127,15 @@ export const mutations = {
 
     if (totalBytes > 0) {
       downloadItem.itemProgress = Math.min(1, totalBytesDownloaded / totalBytes)
-      console.log(`updateDownloadItemPart: filename=${downloadItemPart.filename}, totalBytes=${totalBytes}, downloaded=${totalBytesDownloaded}, itemProgress=${downloadItem.itemProgress}`)
     } else {
       downloadItem.itemProgress = 0
     }
   },
   removeItemDownload(state, id) {
     state.itemDownloads = state.itemDownloads.filter((i) => i.id != id)
+  },
+  clearAllDownloads(state) {
+    state.itemDownloads = []
   },
   setBookshelfListView(state, val) {
     state.bookshelfListView = val
