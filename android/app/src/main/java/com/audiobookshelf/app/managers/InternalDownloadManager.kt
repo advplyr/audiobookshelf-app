@@ -1,9 +1,7 @@
 package com.audiobookshelf.app.managers
 
 import android.util.Log
-import com.audiobookshelf.app.device.DeviceManager
 import java.io.*
-import java.util.concurrent.TimeUnit
 import okhttp3.*
 
 /**
@@ -18,11 +16,7 @@ class InternalDownloadManager(
 ) : AutoCloseable {
 
   private val tag = "InternalDownloadManager"
-  private val client: OkHttpClient = run {
-    val serverConfigId = DeviceManager.serverConnectionConfigId
-    MtlsManager.buildOkHttpClient(serverConfigId, connectTimeout = 30)
-      ?: OkHttpClient.Builder().connectTimeout(30, TimeUnit.SECONDS).build()
-  }
+  private val client: OkHttpClient = MtlsManager.getClient(connectTimeout = 30)
   private val writer = BinaryFileWriter(outputStream, progressCallback)
 
   /**

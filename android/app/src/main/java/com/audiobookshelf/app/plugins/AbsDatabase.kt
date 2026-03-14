@@ -179,8 +179,8 @@ class AbsDatabase : Plugin() {
       }
 
       DeviceManager.serverConnectionConfig = serverConnectionConfig
-      // Rebuild OkHttp clients with mTLS for this server (no-op if no cert is configured)
-      apiHandler.refreshMtlsClients(serverConnectionConfig!!.id)
+      // Refresh centralized mTLS state for this server (no-op if no cert is configured)
+      MtlsManager.refreshForServer(serverConnectionConfig!!.id)
       call.resolve(JSObject(jacksonMapper.writeValueAsString(DeviceManager.serverConnectionConfig)))
     }
   }
@@ -625,7 +625,7 @@ class AbsDatabase : Plugin() {
       Log.d(tag, "selectClientCertificate: selected alias=$alias for server=$serverConnectionConfigId")
       if (alias != null && serverConnectionConfigId.isNotEmpty()) {
         GlobalScope.launch(Dispatchers.IO) {
-          apiHandler.refreshMtlsClients(serverConnectionConfigId)
+          MtlsManager.refreshForServer(serverConnectionConfigId)
         }
       } else if (alias != null) {
         // No server config ID yet (e.g. before first login): apply globally without saving under a config ID
@@ -668,7 +668,7 @@ class AbsDatabase : Plugin() {
     val alias = call.getString("alias")
     MtlsManager.setAliasForServer(serverConnectionConfigId, alias)
     GlobalScope.launch(Dispatchers.IO) {
-      apiHandler.refreshMtlsClients(serverConnectionConfigId)
+      MtlsManager.refreshForServer(serverConnectionConfigId)
       call.resolve()
     }
   }
@@ -684,9 +684,8 @@ class AbsDatabase : Plugin() {
   fun clearClientCertificate(call: PluginCall) {
     val serverConnectionConfigId = call.getString("serverConnectionConfigId") ?: DeviceManager.serverConnectionConfigId
     MtlsManager.clearAliasForServer(serverConnectionConfigId)
-    MtlsManager.resetGlobalDefault()
     GlobalScope.launch(Dispatchers.IO) {
-      apiHandler.refreshMtlsClients(serverConnectionConfigId)
+      MtlsManager.refreshForServer(serverConnectionConfigId)
     }
     val ret = JSObject()
     ret.put("success", true)
