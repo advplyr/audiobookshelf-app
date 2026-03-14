@@ -34,8 +34,8 @@ class ServerSocket extends EventEmitter {
     console.log(`[SOCKET] Connecting to ${serverHost} with path ${serverPath}/socket.io`)
 
     const socketOptions = {
-      transports: ['websocket'],
-      upgrade: false,
+      transports: ['polling', 'websocket'],
+      upgrade: true,
       path: `${serverPath}/socket.io`,
       reconnectionDelayMax: 15000
     }

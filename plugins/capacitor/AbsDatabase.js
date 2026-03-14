@@ -268,6 +268,30 @@ class AbsDatabaseWeb extends WebPlugin {
     return deviceData
   }
 
+  async getClientCertificateAlias({ serverConnectionConfigId }) {
+    return { alias: null }
+  }
+
+  async selectClientCertificate({ serverConnectionConfigId, serverAddress } = {}) {
+    console.log('[AbsDatabase] selectClientCertificate (web stub) - not supported')
+    return { alias: null }
+  }
+
+  async applyClientCertAlias({ alias } = {}) {
+    console.log('[AbsDatabase] applyClientCertAlias (web stub) - not supported', alias)
+    return null
+  }
+
+  async setClientCertificateAlias({ serverConnectionConfigId, alias } = {}) {
+    console.log('[AbsDatabase] setClientCertificateAlias (web stub) - not supported', serverConnectionConfigId, alias)
+    return null
+  }
+
+  async clearClientCertificate({ serverConnectionConfigId } = {}) {
+    console.log('[AbsDatabase] clearClientCertificate (web stub) - not supported', serverConnectionConfigId)
+    return { success: true }
+  }
+
   async getMediaItemHistory({ mediaId }) {
     console.log('Get media item history', mediaId)
     return {

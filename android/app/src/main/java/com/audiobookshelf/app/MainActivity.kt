@@ -12,12 +12,15 @@ import android.os.IBinder
 import android.util.Log
 import android.view.ViewGroup
 import android.view.WindowInsets
+import android.webkit.ClientCertRequest
 import android.webkit.WebView
 import androidx.core.app.ActivityCompat
 import androidx.core.view.updateLayoutParams
 import com.anggrayudi.storage.SimpleStorage
 import com.anggrayudi.storage.SimpleStorageHelper
+import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.managers.DbManager
+import com.audiobookshelf.app.managers.MtlsManager
 import com.audiobookshelf.app.player.PlayerNotificationService
 import com.audiobookshelf.app.plugins.AbsAudioPlayer
 import com.audiobookshelf.app.plugins.AbsDatabase
@@ -25,6 +28,10 @@ import com.audiobookshelf.app.plugins.AbsDownloader
 import com.audiobookshelf.app.plugins.AbsFileSystem
 import com.audiobookshelf.app.plugins.AbsLogger
 import com.getcapacitor.BridgeActivity
+import com.getcapacitor.BridgeWebViewClient
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 
 
 class MainActivity : BridgeActivity() {
@@ -46,6 +53,7 @@ class MainActivity : BridgeActivity() {
 
   public override fun onCreate(savedInstanceState: Bundle?) {
     DbManager.initialize(applicationContext)
+    MtlsManager.initialize(applicationContext)
 
     registerPlugin(AbsAudioPlayer::class.java)
     registerPlugin(AbsDownloader::class.java)
@@ -55,6 +63,37 @@ class MainActivity : BridgeActivity() {
 
     super.onCreate(savedInstanceState)
     Log.d(tag, "onCreate")
+
+    // Install a WebViewClient that handles mTLS client certificate requests for socket.io.
+    // This extends Capacitor's BridgeWebViewClient so all existing routing is preserved.
+    bridge.webView.webViewClient = object : BridgeWebViewClient(bridge) {
+      override fun onReceivedClientCertRequest(view: WebView, request: ClientCertRequest) {
+        Log.d(tag, "onReceivedClientCertRequest: host=${request.host}:${request.port}")
+        val serverConfigId = DeviceManager.serverConnectionConfigId
+        if (serverConfigId.isEmpty()) {
+          Log.w(tag, "onReceivedClientCertRequest: no serverConnectionConfigId, cancelling")
+          request.cancel()
+          return
+        }
+        val alias = MtlsManager.getAliasForServer(serverConfigId)
+        if (alias == null) {
+          Log.w(tag, "onReceivedClientCertRequest: no cert alias for server $serverConfigId, cancelling")
+          request.cancel()
+          return
+        }
+        // KeyChain access is blocking; perform on IO thread
+        GlobalScope.launch(Dispatchers.IO) {
+          val pair = MtlsManager.getKeyAndChain(alias)
+          if (pair != null) {
+            Log.d(tag, "onReceivedClientCertRequest: responding with alias=$alias")
+            request.proceed(pair.first, pair.second)
+          } else {
+            Log.w(tag, "onReceivedClientCertRequest: no key/chain for alias=$alias, cancelling")
+            request.cancel()
+          }
+        }
+      }
+    }
 
     // Update the margins to handle edge-to-edge enforced in SDK 35
     // See: https://developer.android.com/develop/ui/views/layout/edge-to-edge
