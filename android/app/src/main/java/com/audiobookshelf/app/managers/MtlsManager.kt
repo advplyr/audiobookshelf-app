@@ -38,9 +38,97 @@ object MtlsManager {
   // Saved so we can restore it when mTLS is disabled
   private var originalDefaultSocketFactory: SSLSocketFactory? = null
 
+  // --- Centralized client cache ---
+  /** The server config ID for which the cached clients were built, or null if plain. */
+  @Volatile private var configuredForServer: String? = null
+  /** Cached SSLSocketFactory built from the current server's cert, or null if plain. */
+  @Volatile private var cachedSslSocketFactory: SSLSocketFactory? = null
+  /** Cached TrustManager for the current mTLS context. */
+  @Volatile private var cachedTrustManager: X509TrustManager? = null
+
   fun initialize(context: Context) {
     applicationContext = context.applicationContext
   }
+
+  /**
+   * Returns an OkHttpClient configured for the current server connection.
+   * If the current server has an mTLS certificate, the client will present it.
+   * If not, a plain OkHttpClient is returned.
+   *
+   * Thread-safe. The underlying SSLSocketFactory is cached and reused across calls.
+   * Call [refreshForServer] when the server connection or certificate changes.
+   */
+  fun getClient(
+    connectTimeout: Long = 0,
+    callTimeout: Long = 0
+  ): OkHttpClient {
+    val builder = OkHttpClient.Builder()
+
+    // Apply cached mTLS SSLSocketFactory if available
+    val sslFactory = cachedSslSocketFactory
+    val trustMgr = cachedTrustManager
+    if (sslFactory != null && trustMgr != null) {
+      builder.sslSocketFactory(sslFactory, trustMgr)
+    }
+
+    if (connectTimeout > 0) builder.connectTimeout(connectTimeout, TimeUnit.SECONDS)
+    if (callTimeout > 0) builder.callTimeout(callTimeout, TimeUnit.SECONDS)
+    return builder.build()
+  }
+
+  /**
+   * Rebuilds the cached SSL context for the given server and applies the global default
+   * SSLSocketFactory (for HttpURLConnection / CapacitorHttp / ExoPlayer).
+   *
+   * If no certificate alias is configured for this server, clears any cached mTLS state
+   * and restores the original global default — resulting in plain TLS clients.
+   *
+   * BLOCKING — must be called from a background thread.
+   */
+  fun refreshForServer(serverConfigId: String) {
+    val alias = getAliasForServer(serverConfigId)
+    if (alias != null) {
+      val pair = getKeyAndChain(alias)
+      if (pair != null) {
+        val (privateKey, certChain) = pair
+        try {
+          val keyManager = makeKeyManager(alias, privateKey, certChain)
+          val tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
+          tmf.init(null as java.security.KeyStore?)
+          val trustManager = tmf.trustManagers.filterIsInstance<X509TrustManager>().first()
+          val sslContext = SSLContext.getInstance("TLS")
+          sslContext.init(arrayOf(keyManager), null, null)
+
+          // Cache for getClient()
+          cachedSslSocketFactory = sslContext.socketFactory
+          cachedTrustManager = trustManager
+          configuredForServer = serverConfigId
+
+          // Apply globally for HttpURLConnection (CapacitorHttp, ExoPlayer DefaultHttpDataSource)
+          if (originalDefaultSocketFactory == null) {
+            originalDefaultSocketFactory = HttpsURLConnection.getDefaultSSLSocketFactory()
+          }
+          HttpsURLConnection.setDefaultSSLSocketFactory(sslContext.socketFactory)
+          Log.d(tag, "refreshForServer: mTLS configured for server $serverConfigId (alias=$alias)")
+          return
+        } catch (e: Exception) {
+          Log.e(tag, "refreshForServer: failed to build mTLS context for alias=$alias", e)
+        }
+      }
+    }
+
+    // No cert or failed — clear mTLS state
+    cachedSslSocketFactory = null
+    cachedTrustManager = null
+    configuredForServer = null
+    resetGlobalDefault()
+    Log.d(tag, "refreshForServer: plain TLS for server $serverConfigId (no cert)")
+  }
+
+  /**
+   * Returns the server config ID for which mTLS clients are currently configured, or null.
+   */
+  fun getConfiguredServer(): String? = configuredForServer
 
   fun getAliasForServer(serverConfigId: String): String? {
     val prefs = applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
