@@ -76,6 +76,13 @@
       <span class="material-symbols" :style="{ fontSize: sizeMultiplier * 1.5 + 'rem' }">rss_feed</span>
     </div>
 
+    <!-- Favorite star icon -->
+    <div v-if="isFavorite && !isSelectionMode"
+          class="absolute text-yellow-400 left-0 z-10 transform duration-150"
+          :style="{ left: 0.375 + 'em', bottom: 0.375 + 'em' }">
+      <span class="material-symbols fill" aria-hidden="true" :style="{ fontSize: 1.5 + 'em' }">star</span>
+    </div>
+
     <!-- Series sequence -->
     <div v-if="seriesSequence && showSequence && !isSelectionMode" class="absolute rounded-lg bg-black/90 text-white box-shadow-md z-10" :style="{ top: 0.375 * sizeMultiplier + 'rem', right: 0.375 * sizeMultiplier + 'rem', padding: `${0.1 * sizeMultiplier}rem ${0.25 * sizeMultiplier}rem` }">
       <p :style="{ fontSize: sizeMultiplier * 0.8 + 'rem' }">#{{ seriesSequence }}</p>
@@ -408,6 +415,9 @@ export default {
     rssFeed() {
       if (this.booksInSeries) return null
       return this._libraryItem.rssFeed || null
+    },
+    isFavorite() {
+      return this.store.getters['user/getIsLibraryItemFavorite'](this.libraryItemId)
     },
     showPlayButton() {
       return false

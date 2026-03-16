@@ -92,6 +92,11 @@ export default {
           value: 'all'
         },
         {
+          text: this.$strings.LabelFavorite,
+          value: 'favorite',
+          sublist: false
+        },
+        {
           text: this.$strings.LabelGenre,
           value: 'genres',
           sublist: true
@@ -158,6 +163,11 @@ export default {
         {
           text: this.$strings.LabelAll,
           value: 'all'
+        },
+        {
+          text: this.$strings.LabelFavorite,
+          value: 'favorite',
+          sublist: false
         },
         {
           text: this.$strings.LabelGenre,
