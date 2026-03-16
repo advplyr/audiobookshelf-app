@@ -32,6 +32,9 @@
             <h1 class="text-xl font-semibold">{{ title }}</h1>
             <widgets-explicit-indicator v-if="isExplicit" />
             <widgets-abridged-indicator v-if="isAbridged" />
+            <button class="ml-2 cursor-pointer hover:scale-110 transform duration-150 flex items-center" @click="toggleFavorite">
+              <span class="material-symbols" :class="[isFavorite ? 'fill text-yellow-400' : 'text-gray-300']" :style="{ fontSize: '1.2em' }">star</span>
+            </button>
           </div>
           <p v-if="subtitle" class="text-fg text-base">{{ subtitle }}</p>
         </div>
@@ -442,6 +445,9 @@ export default {
     isAbridged() {
       return !!this.mediaMetadata.abridged
     },
+    isFavorite() {
+      return this.$store.getters['user/getIsLibraryItemFavorite'](this.libraryItemId)
+    },
     showPlay() {
       return !this.isMissing && !this.isInvalid && (this.numTracks || this.episodes.length)
     },
@@ -510,6 +516,21 @@ export default {
     },
     moreButtonPress() {
       this.showMoreMenu = true
+    },
+    toggleFavorite() {
+      const endpoint = `/api/me/item/${this.libraryItemId}/favorite`
+
+      if (this.isFavorite) {
+        this.$nativeHttp.delete(endpoint).catch(error => {
+          console.error('Failed to remove favorite', error)
+          this.$toast.error('Failed to remove from favorites')
+        })
+      } else {
+        this.$nativeHttp.post(endpoint).catch(error => {
+          console.error('Failed to add favorite', error)
+          this.$toast.error('Failed to add to favorites')
+        })
+      }
     },
     readBook() {
       if (this.localLibraryItem?.media?.ebookFile) {

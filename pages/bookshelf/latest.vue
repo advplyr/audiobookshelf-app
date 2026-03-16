@@ -1,8 +1,15 @@
 <template>
   <div class="w-full p-4">
-    <h1 class="text-xl mb-2 font-semibold">{{ $strings.HeaderLatestEpisodes }}</h1>
+    <div class="flex justify-between items-center mb-2">
+      <h1 class="text-xl font-semibold">{{ $strings.HeaderLatestEpisodes }}</h1>
 
-    <template v-for="episode in recentEpisodes">
+      <div class="flex items-center cursor-pointer relative top-[1px]" @click="toggleOnlyShowFavorites">
+        <span class="material-symbols text-xl" :class="onlyShowFavorites ? 'fill text-yellow-400' : 'text-gray-400'">{{ onlyShowFavorites ? 'check_box' : 'check_box_outline_blank' }}</span>
+        <span class="text-sm ml-1 text-gray-300">{{ $strings.LabelOnlyFavorites }}</span>
+      </div>
+    </div>
+
+    <template v-for="episode in filteredEpisodes">
       <tables-podcast-latest-episode-row :episode="episode" :local-episode="localEpisodeMap[episode.id]" :library-item-id="episode.libraryItemId" :local-library-item-id="localEpisodeMap[episode.id]?.localLibraryItemId" :key="episode.id" @addToPlaylist="addEpisodeToPlaylist" />
     </template>
   </div>
@@ -45,9 +52,19 @@ export default {
         }
       })
       return epmap
+    },
+    onlyShowFavorites() {
+      return this.$store.getters['user/getUserSetting']('mobilePodcastLatestOnlyFavorites')
+    },
+    filteredEpisodes() {
+      if (!this.onlyShowFavorites) return this.recentEpisodes
+      return this.recentEpisodes.filter((ep) => this.$store.getters['user/getIsLibraryItemFavorite'](ep.libraryItemId))
     }
   },
   methods: {
+    toggleOnlyShowFavorites() {
+      this.$store.dispatch('user/updateUserSettings', { mobilePodcastLatestOnlyFavorites: !this.onlyShowFavorites })
+    },
     async addEpisodeToPlaylist(episode) {
       const libraryItem = await this.$nativeHttp.get(`/api/items/${episode.libraryItemId}`).catch((error) => {
         console.error('Failed to get library item', error)
