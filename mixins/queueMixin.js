@@ -47,10 +47,12 @@ export default {
 
       // Add to queue
       this.$store.dispatch('addToQueue', queueItem)
-
-      // Show success message
-      const itemName = episode ? episode.title : libraryItem.media?.metadata?.title
-      this.$toast.success(`Added "${itemName}" to queue`)
+    },
+    removeItemFromQueue(serverEpisodeId) {
+      const index = this.$store.getters['getQueueItemIndexByEpisode'](serverEpisodeId)
+      if (index !== -1) {
+        this.$store.dispatch('removeFromQueue', index)
+      }
     }
   }
 }

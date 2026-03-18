@@ -90,8 +90,8 @@ export default {
         })
 
         items.push({
-          text: this.$strings.ButtonAddToQueue,
-          value: 'addToQueue',
+          text: this.isInQueue ? this.$strings.ButtonRemoveFromQueue : this.$strings.ButtonAddToQueue,
+          value: this.isInQueue ? 'removeFromQueue' : 'addToQueue',
           icon: 'playlist_play'
         })
 
@@ -270,6 +270,11 @@ export default {
     mediaId() {
       if (this.isPodcast) return null
       return this.serverLibraryItemId || this.localLibraryItemId
+    },
+    isInQueue() {
+      const serverEpisodeId = this.serverEpisodeId
+      if (!serverEpisodeId) return false
+      return this.$store.getters['isEpisodeInQueue'](serverEpisodeId)
     }
   },
   methods: {
@@ -286,6 +291,8 @@ export default {
         this.$store.commit('globals/setShowPlaylistsAddCreateModal', true)
       } else if (action === 'addToQueue') {
         this.addToQueue()
+      } else if (action === 'removeFromQueue') {
+        this.removeItemFromQueue(this.serverEpisodeId)
       } else if (action === 'removeFromPlaylist') {
         this.removeFromPlaylistClick()
       } else if (action === 'markFinished') {

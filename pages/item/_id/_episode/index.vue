@@ -269,6 +269,10 @@ export default {
     showDownload() {
       return this.userCanDownload && !this.localEpisode
     },
+    isInQueue() {
+      if (!this.serverEpisodeId) return false
+      return this.$store.getters['isEpisodeInQueue'](this.serverEpisodeId)
+    },
     moreMenuItems() {
       const items = []
 
@@ -296,8 +300,8 @@ export default {
         })
 
         items.push({
-          text: this.$strings.ButtonAddToQueue,
-          value: 'addToQueue',
+          text: this.isInQueue ? this.$strings.ButtonRemoveFromQueue : this.$strings.ButtonAddToQueue,
+          value: this.isInQueue ? 'removeFromQueue' : 'addToQueue',
           icon: 'playlist_play'
         })
       }
@@ -513,6 +517,8 @@ export default {
         this.$store.commit('globals/setShowPlaylistsAddCreateModal', true)
       } else if (action === 'addToQueue' && !this.isLocal) {
         this.addToQueue()
+      } else if (action === 'removeFromQueue') {
+        this.removeItemFromQueue(this.serverEpisodeId)
       } else if (action === 'remove_from_server' && this.serverEpisodeId && this.isAdminOrUp) {
         this.deleteEpisodeFromServerClick()
       } else if (action === 'deleteLocal') {

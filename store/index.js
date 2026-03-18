@@ -112,6 +112,14 @@ export const getters = {
   },
   getQueueLength: (state) => {
     return state.playbackQueue.length
+  },
+  isEpisodeInQueue: (state) => (serverEpisodeId) => {
+    if (!serverEpisodeId) return false
+    return state.playbackQueue.some((item) => item.serverEpisodeId === serverEpisodeId)
+  },
+  getQueueItemIndexByEpisode: (state) => (serverEpisodeId) => {
+    if (!serverEpisodeId) return -1
+    return state.playbackQueue.findIndex((item) => item.serverEpisodeId === serverEpisodeId)
   }
 }
 

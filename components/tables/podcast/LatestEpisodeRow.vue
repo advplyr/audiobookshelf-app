@@ -46,8 +46,8 @@
           <span class="material-symbols text-2xl leading-none">playlist_add</span>
         </button>
 
-        <button class="mx-1.5" @click.stop="addToQueue">
-          <span class="material-symbols text-2xl leading-none">playlist_play</span>
+        <button class="mx-1.5" @click.stop="toggleQueue">
+          <span class="material-symbols text-2xl leading-none" :class="isInQueue ? 'text-success' : ''">playlist_play</span>
         </button>
 
         <!-- Download Section -->
@@ -185,6 +185,10 @@ export default {
     },
     podcast() {
       return this.episode.podcast || {}
+    },
+    isInQueue() {
+      const serverEpisodeId = this.isLocal ? this.localEpisode?.serverEpisodeId : this.episode?.id
+      return this.$store.getters['isEpisodeInQueue'](serverEpisodeId)
     }
   },
   methods: {
@@ -194,11 +198,15 @@ export default {
     addToPlaylist() {
       this.$emit('addToPlaylist', this.episode)
     },
-    addToQueue() {
-      const libraryItem = this.isLocal ? this.localEpisode?.libraryItem : { id: this.libraryItemId }
-      const episode = this.isLocal ? this.localEpisode : this.episode
-
-      this.addItemToQueue(libraryItem, episode)
+    toggleQueue() {
+      if (this.isInQueue) {
+        const serverEpisodeId = this.isLocal ? this.localEpisode?.serverEpisodeId : this.episode?.id
+        this.removeItemFromQueue(serverEpisodeId)
+      } else {
+        const libraryItem = this.isLocal ? this.localEpisode?.libraryItem : { id: this.libraryItemId }
+        const episode = this.isLocal ? this.localEpisode : this.episode
+        this.addItemToQueue(libraryItem, episode)
+      }
     },
     async selectFolder() {
       var folderObj = await AbsFileSystem.selectFolder({ mediaType: this.mediaType })
