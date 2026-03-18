@@ -57,6 +57,7 @@ import { Capacitor } from '@capacitor/core'
 import { Dialog } from '@capacitor/dialog'
 import { AbsFileSystem, AbsDownloader } from '@/plugins/capacitor'
 import cellularPermissionHelpers from '@/mixins/cellularPermissionHelpers'
+import queueMixin from '@/mixins/queueMixin'
 
 export default {
   async asyncData({ store, params, redirect, app }) {
@@ -116,7 +117,7 @@ export default {
       startingDownload: false
     }
   },
-  mixins: [cellularPermissionHelpers],
+  mixins: [cellularPermissionHelpers, queueMixin],
   computed: {
     transformedDescription() {
       return this.parseDescription(this.description)
@@ -268,6 +269,10 @@ export default {
     showDownload() {
       return this.userCanDownload && !this.localEpisode
     },
+    isInQueue() {
+      if (!this.serverEpisodeId) return false
+      return this.$store.getters['isEpisodeInQueue'](this.serverEpisodeId)
+    },
     moreMenuItems() {
       const items = []
 
@@ -292,6 +297,12 @@ export default {
           text: this.$strings.LabelAddToPlaylist,
           value: 'playlist',
           icon: 'playlist_add'
+        })
+
+        items.push({
+          text: this.isInQueue ? this.$strings.ButtonRemoveFromQueue : this.$strings.ButtonAddToQueue,
+          value: this.isInQueue ? 'removeFromQueue' : 'addToQueue',
+          icon: 'playlist_play'
         })
       }
 
@@ -504,6 +515,10 @@ export default {
       } else if (action === 'playlist' && !this.isLocal) {
         this.$store.commit('globals/setSelectedPlaylistItems', [{ libraryItem: this.libraryItem, episode: this.episode }])
         this.$store.commit('globals/setShowPlaylistsAddCreateModal', true)
+      } else if (action === 'addToQueue' && !this.isLocal) {
+        this.addToQueue()
+      } else if (action === 'removeFromQueue') {
+        this.removeItemFromQueue(this.serverEpisodeId)
       } else if (action === 'remove_from_server' && this.serverEpisodeId && this.isAdminOrUp) {
         this.deleteEpisodeFromServerClick()
       } else if (action === 'deleteLocal') {
@@ -595,6 +610,9 @@ export default {
             this.processing = false
           })
       }
+    },
+    addToQueue() {
+      this.addItemToQueue(this.libraryItem, this.episode)
     },
     newLocalLibraryItem(item) {
       if (item.libraryItemId == this.libraryItemId) {

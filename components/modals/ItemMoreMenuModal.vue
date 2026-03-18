@@ -9,8 +9,10 @@
 <script>
 import { Dialog } from '@capacitor/dialog'
 import { AbsFileSystem } from '@/plugins/capacitor'
+import queueMixin from '@/mixins/queueMixin'
 
 export default {
+  mixins: [queueMixin],
   props: {
     value: Boolean,
     processing: Boolean,
@@ -80,11 +82,17 @@ export default {
         }
       }
 
-      if ((!this.isPodcast && this.serverLibraryItemId) || (this.episode && this.serverEpisodeId)) {
+      if ((!this.isPodcast && (this.serverLibraryItemId || this.localLibraryItemId)) || (this.episode && (this.serverEpisodeId || this.localEpisodeId))) {
         items.push({
           text: this.$strings.LabelAddToPlaylist,
           value: 'playlist',
           icon: 'playlist_add'
+        })
+
+        items.push({
+          text: this.isInQueue ? this.$strings.ButtonRemoveFromQueue : this.$strings.ButtonAddToQueue,
+          value: this.isInQueue ? 'removeFromQueue' : 'addToQueue',
+          icon: 'playlist_play'
         })
 
         if (this.ereaderDeviceItems.length) {
@@ -262,6 +270,11 @@ export default {
     mediaId() {
       if (this.isPodcast) return null
       return this.serverLibraryItemId || this.localLibraryItemId
+    },
+    isInQueue() {
+      const serverEpisodeId = this.serverEpisodeId
+      if (!serverEpisodeId) return false
+      return this.$store.getters['isEpisodeInQueue'](serverEpisodeId)
     }
   },
   methods: {
@@ -276,6 +289,10 @@ export default {
       } else if (action === 'playlist') {
         this.$store.commit('globals/setSelectedPlaylistItems', [{ libraryItem: this.libraryItem, episode: this.episode }])
         this.$store.commit('globals/setShowPlaylistsAddCreateModal', true)
+      } else if (action === 'addToQueue') {
+        this.addToQueue()
+      } else if (action === 'removeFromQueue') {
+        this.removeItemFromQueue(this.serverEpisodeId)
       } else if (action === 'removeFromPlaylist') {
         this.removeFromPlaylistClick()
       } else if (action === 'markFinished') {
@@ -481,6 +498,9 @@ export default {
         .finally(() => {
           this.$emit('update:processing', false)
         })
+    },
+    addToQueue() {
+      this.addItemToQueue(this.libraryItem, this.episode)
     },
     removeFromPlaylistClick() {
       if (!this.playlist) {

@@ -33,6 +33,7 @@ import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.data.DeviceInfo
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.managers.DbManager
+import com.audiobookshelf.app.managers.QueueManager
 import com.audiobookshelf.app.managers.SleepTimerManager
 import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.media.MediaProgressSyncer
@@ -87,6 +88,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     fun onNetworkMeteredChanged(isUnmetered: Boolean)
     fun onMediaItemHistoryUpdated(mediaItemHistory: MediaItemHistory)
     fun onPlaybackSpeedChanged(playbackSpeed: Float)
+    fun onQueueChanged()
   }
   private val binder = LocalBinder()
 
@@ -95,6 +97,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   private lateinit var ctx: Context
   private lateinit var mediaSessionConnector: MediaSessionConnector
   private lateinit var playerNotificationManager: PlayerNotificationManager
+  private lateinit var mediaDescriptionAdapter: AbMediaDescriptionAdapter
   lateinit var mediaSession: MediaSessionCompat
   private var remoteVolumeProvider: VolumeProviderCompat? = null
   private lateinit var transportControls: MediaControllerCompat.TransportControls
@@ -108,6 +111,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
   lateinit var sleepTimerManager: SleepTimerManager
   lateinit var mediaProgressSyncer: MediaProgressSyncer
+  lateinit var queueManager: QueueManager
 
   private var notificationId = 10
   private var channelId = "audiobookshelf_channel"
@@ -207,7 +211,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     super.onTaskRemoved(rootIntent)
     Log.d(tag, "onTaskRemoved")
 
-    stopSelf()
+    if (currentPlaybackSession == null || !currentPlayer.isPlaying) {
+      stopSelf()
+    }
   }
 
   override fun onCreate() {
@@ -250,6 +256,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     // Initialize media manager
     mediaManager = MediaManager(apiHandler, ctx)
 
+    queueManager = QueueManager(ctx)
+
     channelId =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
               createNotificationChannel(channelId, channelName)
@@ -273,7 +281,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
     val builder = PlayerNotificationManager.Builder(ctx, notificationId, channelId)
 
-    builder.setMediaDescriptionAdapter(AbMediaDescriptionAdapter(mediaController, this))
+    mediaDescriptionAdapter = AbMediaDescriptionAdapter(mediaController, this)
+    builder.setMediaDescriptionAdapter(mediaDescriptionAdapter)
     builder.setNotificationListener(PlayerNotificationListener(this))
 
     playerNotificationManager = builder.build()
@@ -454,13 +463,29 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       playerNotificationManager.setPlayer(castPlayer)
     }
 
+    // Check if this item is in the queue and remove it before notifying UI
+    val queueItem = queueManager.getNextItem()
+    if (queueItem != null) {
+      val matchesQueue = if (playbackSession.episodeId != null) {
+        playbackSession.libraryItemId == queueItem.libraryItemId &&
+        playbackSession.episodeId == queueItem.episodeId
+      } else {
+        playbackSession.libraryItemId == queueItem.libraryItemId
+      }
+
+      if (matchesQueue) {
+        queueManager.removeFirstItem()
+      }
+    }
+
     currentPlaybackSession = playbackSession
     DeviceManager.setLastPlaybackSession(
             playbackSession
     ) // Save playback session to use when app is closed
 
     AbsLogger.info("PlayerNotificationService", "preparePlayer: Started playback session for item ${currentPlaybackSession?.mediaItemId}. MediaPlayer ${currentPlaybackSession?.mediaPlayer}")
-    // Notify client
+    // Notify queue change first so UI has updated state before processing playback session
+    clientEventEmitter?.onQueueChanged()
     clientEventEmitter?.onPlaybackSession(playbackSession)
 
     // Update widget
@@ -622,6 +647,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
   fun handlePlaybackEnded() {
     Log.d(tag, "handlePlaybackEnded")
+
     if (isAndroidAuto && currentPlaybackSession?.isPodcastEpisode == true) {
       Log.d(tag, "Podcast playback ended on android auto")
       val libraryItem = currentPlaybackSession?.libraryItem ?: return
@@ -640,6 +666,76 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
               } else {
                 val playbackRate = mediaManager.getSavedPlaybackRate()
                 Handler(Looper.getMainLooper()).post { preparePlayer(it, true, playbackRate) }
+              }
+            }
+          }
+        }
+      }
+      return
+    }
+
+    if (queueManager.hasQueueItems()) {
+      Log.d(tag, "Playback ended, checking queue for next item")
+
+      val nextQueueItem = queueManager.getNextItem()
+      if (nextQueueItem == null) {
+        Log.d(tag, "No next queue item found")
+        return
+      }
+
+      Log.d(tag, "Playing next queue item: ${nextQueueItem.title}")
+
+      mediaProgressSyncer.finished {
+        clientEventEmitter?.onQueueChanged()
+
+        if (nextQueueItem.isLocal) {
+          val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(nextQueueItem.libraryItemId)
+          if (localLibraryItem == null) {
+            Log.e(tag, "Failed to load local library item ${nextQueueItem.libraryItemId}")
+            return@finished
+          }
+
+          val episode = if (nextQueueItem.episodeId != null) {
+            (localLibraryItem.media as? Podcast)?.episodes?.find { it.id == nextQueueItem.episodeId }
+          } else {
+            null
+          }
+
+          mediaManager.play(localLibraryItem, episode, getPlayItemRequestPayload(false)) { playbackSession ->
+            if (playbackSession == null) {
+              Log.e(tag, "Failed to play local queue item")
+            } else {
+              playbackSession.currentTime = nextQueueItem.currentTime
+              val playbackRate = mediaManager.getSavedPlaybackRate()
+              Handler(Looper.getMainLooper()).post { preparePlayer(playbackSession, true, playbackRate) }
+            }
+          }
+        } else {
+          val serverLibraryItemId = nextQueueItem.serverLibraryItemId
+          if (serverLibraryItemId == null) {
+            Log.e(tag, "Server library item ID is null for queue item")
+            return@finished
+          }
+
+          apiHandler.getLibraryItem(serverLibraryItemId) { libraryItem ->
+            if (libraryItem == null) {
+              Log.e(tag, "Failed to load server library item $serverLibraryItemId")
+              return@getLibraryItem
+            }
+
+            val episode = if (nextQueueItem.serverEpisodeId != null) {
+              (libraryItem.media as? Podcast)?.episodes?.find { it.id == nextQueueItem.serverEpisodeId }
+            } else {
+              null
+            }
+
+            mediaManager.play(libraryItem, episode, getPlayItemRequestPayload(false)) { playbackSession ->
+              if (playbackSession == null) {
+                Log.e(tag, "Failed to play server queue item")
+              } else {
+                playbackSession.currentTime = nextQueueItem.currentTime
+                val playbackRate = mediaManager.getSavedPlaybackRate()
+                Handler(Looper.getMainLooper()).post { preparePlayer(playbackSession, true, playbackRate) }
               }
             }
           }

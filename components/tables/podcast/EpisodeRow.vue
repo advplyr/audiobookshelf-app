@@ -48,6 +48,11 @@
           <span class="material-symbols text-2xl leading-none">playlist_add</span>
         </button>
 
+        <!-- Add/Remove Queue Button -->
+        <button class="mx-1.5" @click.stop="toggleQueue">
+          <span class="material-symbols text-2xl leading-none" :class="isInQueue ? 'text-success' : ''">playlist_play</span>
+        </button>
+
         <!-- Download Section -->
         <div v-if="userCanDownload" class="flex items-center">
           <span v-if="isLocal" class="material-symbols px-2 text-success text-2xl leading-none">audio_file</span>
@@ -73,6 +78,7 @@
 <script>
 import { AbsFileSystem, AbsDownloader } from '@/plugins/capacitor'
 import cellularPermissionHelpers from '@/mixins/cellularPermissionHelpers'
+import QueueMixin from '@/mixins/queueMixin'
 
 export default {
   props: {
@@ -89,7 +95,7 @@ export default {
     isLocal: Boolean,
     sortKey: String
   },
-  mixins: [cellularPermissionHelpers],
+  mixins: [cellularPermissionHelpers, QueueMixin],
   data() {
     return {
       isProcessingReadUpdate: false,
@@ -178,6 +184,12 @@ export default {
     },
     localEpisodeId() {
       return this.localEpisode?.id || null
+    },
+    serverEpisodeId() {
+      return this.isLocal ? this.episode?.serverEpisodeId : this.episode?.id
+    },
+    isInQueue() {
+      return this.$store.getters['isEpisodeInQueue'](this.serverEpisodeId)
     }
   },
   methods: {
@@ -186,6 +198,15 @@ export default {
     },
     addToPlaylist() {
       this.$emit('addToPlaylist', this.episode)
+    },
+    toggleQueue() {
+      if (this.isInQueue) {
+        this.removeItemFromQueue(this.serverEpisodeId)
+      } else {
+        const libraryItem = this.isLocal ? this.episode?.libraryItem : { id: this.libraryItemId }
+        const episode = this.isLocal ? this.localEpisode : this.episode
+        this.addItemToQueue(libraryItem, episode)
+      }
     },
     async selectFolder() {
       var folderObj = await AbsFileSystem.selectFolder({ mediaType: this.mediaType })
