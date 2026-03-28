@@ -12,6 +12,6 @@
     }
   },
   "server": {
-    "androidScheme": "http"
+    "androidScheme": "https"
   }
 }
