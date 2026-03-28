@@ -847,8 +847,8 @@ export default {
       const payload = await this.requestServerLogin()
       this.processing = false
       if (payload) {
-        // Save credentials via Android Credential Manager
-        AbsCredentialManager.saveCredential({
+        // Save credentials via Android Credential Manager (await so the dialog appears before navigating away)
+        await AbsCredentialManager.saveCredential({
           username: this.serverConfig.username,
           password: this.password || ''
         }).catch((e) => console.warn('Failed to save credential', e))
