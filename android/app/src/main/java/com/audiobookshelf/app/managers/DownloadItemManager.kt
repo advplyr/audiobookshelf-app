@@ -22,6 +22,7 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.getcapacitor.JSObject
 import java.io.File
 import java.util.*
+import java.util.concurrent.CopyOnWriteArrayList
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -35,7 +36,7 @@ class DownloadItemManager(
         private var clientEventEmitter: DownloadEventEmitter
 ) {
   val tag = "DownloadItemManager"
-  private val maxSimultaneousDownloads = 3
+  private val maxSimultaneousDownloads = 3 // also controls the free-space margin (fileSize × this value)
   private var jacksonMapper =
           jacksonObjectMapper()
                   .enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
@@ -47,9 +48,9 @@ class DownloadItemManager(
   }
 
   var downloadItemQueue: MutableList<DownloadItem> =
-          mutableListOf() // All pending and downloading items
+          CopyOnWriteArrayList() // All pending and downloading items; COW for thread-safe iteration
   var currentDownloadItemParts: MutableList<DownloadItemPart> =
-          mutableListOf() // Item parts currently being downloaded
+          CopyOnWriteArrayList() // Item parts currently being downloaded; COW for thread-safe iteration
 
   interface DownloadEventEmitter {
     fun onDownloadItem(downloadItem: DownloadItem)
@@ -63,10 +64,11 @@ class DownloadItemManager(
   }
 
   companion object {
-    var isDownloading: Boolean = false
+    @Volatile var isDownloading: Boolean = false
   }
 
   /** Adds a download item to the queue and starts processing the queue. */
+  @Synchronized
   fun addDownloadItem(downloadItem: DownloadItem) {
     DeviceManager.dbManager.saveDownloadItem(downloadItem)
     Log.i(tag, "Add download item ${downloadItem.media.metadata.title}")
@@ -78,19 +80,23 @@ class DownloadItemManager(
   }
 
   /** Checks and updates the download queue. */
+  @Synchronized
   private fun checkUpdateDownloadQueue() {
-    for (downloadItem in downloadItemQueue) {
-      val numPartsToGet = maxSimultaneousDownloads - currentDownloadItemParts.size
-      val nextDownloadItemParts = downloadItem.getNextDownloadItemParts(numPartsToGet)
-      Log.d(
-              tag,
-              "checkUpdateDownloadQueue: numPartsToGet=$numPartsToGet, nextDownloadItemParts=${nextDownloadItemParts.size}"
-      )
-
-      nextDownloadItemParts.forEach { startInternalDownload(it) }
-
-      if (currentDownloadItemParts.size >= maxSimultaneousDownloads) {
-        break
+    // Distribute slots round-robin across queued books so all books make
+    // progress simultaneously rather than downloading one book at a time.
+    var slotsRemaining = maxSimultaneousDownloads - currentDownloadItemParts.size
+    var anyStarted = true
+    while (slotsRemaining > 0 && anyStarted) {
+      anyStarted = false
+      for (downloadItem in downloadItemQueue) {
+        if (slotsRemaining <= 0) break
+        val nextParts = downloadItem.getNextDownloadItemParts(1)
+        if (nextParts.isNotEmpty()) {
+          Log.d(tag, "checkUpdateDownloadQueue: starting part for ${downloadItem.media.metadata.title}")
+          startInternalDownload(nextParts[0])
+          slotsRemaining--
+          anyStarted = true
+        }
       }
     }
 

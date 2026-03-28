@@ -6,6 +6,7 @@ import android.util.Log
 import java.io.*
 import java.util.concurrent.TimeUnit
 import okhttp3.*
+import okhttp3.ConnectionPool
 
 /**
  * Manages the internal download process.
@@ -20,8 +21,17 @@ class InternalDownloadManager(
 ) : AutoCloseable {
 
   private val tag = "InternalDownloadManager"
-  private val client: OkHttpClient =
-          OkHttpClient.Builder().connectTimeout(30, TimeUnit.SECONDS).build()
+
+  companion object {
+    // Shared across all downloads so TCP connections are reused between files.
+    // Pool keeps a few extra connections warm beyond maxSimultaneousDownloads.
+    val client: OkHttpClient =
+            OkHttpClient.Builder()
+                    .connectTimeout(30, TimeUnit.SECONDS)
+                    .readTimeout(30, TimeUnit.SECONDS) // generous per-read timeout; 0 would block threads permanently on stall
+                    .connectionPool(ConnectionPool(5, 5, TimeUnit.MINUTES))
+                    .build()
+  }
 
   /**
    * Downloads a file from the given URL.
@@ -123,21 +133,26 @@ class BinaryFileWriter(
    * @return The total number of bytes written.
    * @throws IOException If an I/O error occurs.
    */
-  @Throws(IOException::class)
   fun write(inputStream: InputStream, totalLength: Long): Long {
-    BufferedInputStream(inputStream).use { input ->
-      val dataBuffer = ByteArray(CHUNK_SIZE)
-      var totalBytes = existingSize
-      var readBytes: Int
-
-      while (input.read(dataBuffer).also { readBytes = it } != -1) {
+    val dataBuffer = ByteArray(CHUNK_SIZE)
+    var totalBytes = existingSize
+    var readBytes: Int
+    try {
+      while (inputStream.read(dataBuffer).also { readBytes = it } != -1) {
         totalBytes += readBytes
         outputStream.write(dataBuffer, 0, readBytes)
-        progressCallback.onProgress(totalBytes, (totalBytes * 100L) / totalLength)
+        // Call onProgress every chunk so the stall detector in DownloadItemManager
+        // receives frequent lastUpdateTime updates. The watcher loop crosses the
+        // Capacitor bridge on its own 500ms schedule, so there is no bridge cost here.
+        progressCallback.onProgress(totalBytes, if (totalLength > 0) (totalBytes * 100L) / totalLength else 0L)
       }
+      progressCallback.onProgress(totalBytes, if (totalLength > 0) (totalBytes * 100L) / totalLength else 100L)
       progressCallback.onComplete(false)
-      return totalBytes
+    } catch (e: IOException) {
+      Log.e("BinaryFileWriter", "IO error during download write after $totalBytes bytes", e)
+      progressCallback.onComplete(true)
     }
+    return totalBytes
   }
 
   /**
@@ -151,6 +166,6 @@ class BinaryFileWriter(
   }
 
   companion object {
-    private const val CHUNK_SIZE = 8192 // Increased chunk size for better performance
+    private const val CHUNK_SIZE = 262144 // 256 KiB — reduces syscall overhead vs. the original 8 KiB
   }
 }
