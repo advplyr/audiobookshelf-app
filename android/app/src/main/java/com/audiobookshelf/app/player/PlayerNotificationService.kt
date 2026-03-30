@@ -2101,11 +2101,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
               // If currently streaming from server, try to switch to local copy
               currentPlaybackSession?.let { session ->
-                if (!session.isLocal && currentPlayer.isPlaying) {
+                if (!session.isLocal) {
                   Handler(Looper.getMainLooper()).post {
-                    if (switchToLocalCopyIfAvailable()) {
+                    if (currentPlayer.isPlaying && switchToLocalCopyIfAvailable()) {
                       AbsLogger.info("PlayerNotificationService", "Network lost: Switched to local copy for \"${session.displayTitle}\"")
-                    } else {
+                    } else if (currentPlayer.isPlaying) {
                       Log.w(tag, "Network lost: No local copy available for \"${session.displayTitle}\"")
                     }
                   }
