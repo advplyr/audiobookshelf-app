@@ -313,10 +313,17 @@ class MediaProgressSyncer(
             failedSyncs = 0
           }
           AbsLogger.error("MediaProgressSyncer", "sync: Progress sync failed (count: $failedSyncs) (title: \"$currentDisplayTitle\") (currentTime: $currentTime) (session id: $currentSessionId) (${DeviceManager.serverConnectionConfigName})")
+
+          // Save progress locally as fallback when server sync fails
+          currentPlaybackSession?.let { saveServerProgressLocally(it) }
         }
         cb(SyncResult(true, syncSuccess, errorMsg))
       }
     } else {
+      // Save progress locally as fallback when network is down
+      currentPlaybackSession?.let { saveServerProgressLocally(it) }
+      lastSyncTime = System.currentTimeMillis()
+
       AbsLogger.info("MediaProgressSyncer", "sync: Not sending progress to server (title: \"$currentDisplayTitle\") (currentTime: $currentTime) (session id: $currentSessionId) (${DeviceManager.serverConnectionConfigName}) (hasNetworkConnection: $hasNetworkConnection)")
       cb(SyncResult(false, null, null))
     }
@@ -350,9 +357,56 @@ class MediaProgressSyncer(
     }
   }
 
+  private var serverOfflineMediaProgress: LocalMediaProgress? = null
+
+  private fun saveServerProgressLocally(playbackSession: PlaybackSession) {
+    val libraryItemId = playbackSession.libraryItemId ?: return
+    val progressId = if (playbackSession.episodeId.isNullOrEmpty()) "server-offline-$libraryItemId"
+      else "server-offline-$libraryItemId-${playbackSession.episodeId}"
+
+    if (serverOfflineMediaProgress == null) {
+      val existing = DeviceManager.dbManager.getLocalMediaProgress(progressId)
+      if (existing != null) {
+        serverOfflineMediaProgress = existing
+        serverOfflineMediaProgress?.updateFromPlaybackSession(playbackSession)
+      } else {
+        serverOfflineMediaProgress = LocalMediaProgress(
+          progressId,
+          progressId, // localLibraryItemId - synthetic since this is a server item
+          playbackSession.localEpisodeId,
+          playbackSession.getTotalDuration(),
+          playbackSession.progress,
+          playbackSession.currentTime,
+          false,
+          null,
+          null,
+          playbackSession.updatedAt,
+          playbackSession.startedAt,
+          null,
+          playbackSession.serverConnectionConfigId,
+          playbackSession.serverAddress,
+          playbackSession.userId,
+          playbackSession.libraryItemId,
+          playbackSession.episodeId
+        )
+      }
+    } else {
+      serverOfflineMediaProgress?.updateFromPlaybackSession(playbackSession)
+    }
+
+    serverOfflineMediaProgress?.let {
+      if (!it.progress.isNaN()) {
+        DeviceManager.dbManager.saveLocalMediaProgress(it)
+        playerNotificationService.clientEventEmitter?.onLocalMediaProgressUpdate(it)
+        Log.d(tag, "Saved server progress locally: ID ${it.id} | ${it.currentTime} | Progress ${it.progressPercent}%")
+      }
+    }
+  }
+
   fun reset() {
     currentPlaybackSession = null
     currentLocalMediaProgress = null
+    serverOfflineMediaProgress = null
     lastSyncTime = 0L
     Log.d(tag, "reset: Set last sync time 0 $lastSyncTime")
     failedSyncs = 0
