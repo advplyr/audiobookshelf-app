@@ -36,7 +36,7 @@ class AbsLogger : Plugin() {
     var onLogEmitter:((log:AbsLog) -> Unit)? = null
 
     private val isEnabled: Boolean
-      get() = DeviceManager.deviceData.deviceSettings.enableLogging
+      get() = DeviceManager.deviceData.deviceSettings?.enableLogging == true
 
     fun log(level:String, tag:String, message:String) {
       if (!isEnabled) return

@@ -12,7 +12,7 @@
 		}
 	},
 	"server": {
-		"androidScheme": "http"
+		"androidScheme": "https"
 	},
 	"packageClassList": [
 		"FileSharerPlugin",
