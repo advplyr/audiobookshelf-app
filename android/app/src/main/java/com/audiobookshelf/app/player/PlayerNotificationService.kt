@@ -594,9 +594,49 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     mediaSessionConnector.setEnabledPlaybackActions(playbackActions)
   }
 
+  fun switchToLocalCopyIfAvailable(): Boolean {
+    val session = currentPlaybackSession ?: return false
+    if (session.isLocal) return false
+
+    val libraryItemId = session.libraryItemId ?: return false
+    val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItemByLId(libraryItemId) ?: return false
+
+    // For podcasts, find the matching local episode
+    var episode: PodcastEpisode? = null
+    if (!session.episodeId.isNullOrEmpty() && localLibraryItem.isPodcast) {
+      val podcast = localLibraryItem.media as Podcast
+      episode = podcast.episodes?.find { it.serverEpisodeId == session.episodeId }
+      if (episode == null) return false
+    }
+
+    if (!localLibraryItem.hasTracks(episode)) return false
+
+    val currentTime = getCurrentTimeSeconds()
+    val playbackRate = currentPlayer.playbackParameters.speed
+
+    AbsLogger.info("PlayerNotificationService", "switchToLocalCopy: Switching to local copy for \"${session.displayTitle}\" at position $currentTime")
+
+    // Build local playback session preserving current position
+    val localSession = localLibraryItem.getPlaybackSession(episode, getDeviceInfo())
+    localSession.currentTime = currentTime
+
+    mediaProgressSyncer.stop(false) {
+      Handler(Looper.getMainLooper()).post {
+        preparePlayer(localSession, true, playbackRate)
+      }
+    }
+    return true
+  }
+
   fun handlePlayerPlaybackError(errorMessage: String) {
-    // On error and was attempting to direct play - fallback to transcode
     currentPlaybackSession?.let { playbackSession ->
+      // First, try switching to a downloaded local copy
+      if (!playbackSession.isLocal && switchToLocalCopyIfAvailable()) {
+        AbsLogger.info("PlayerNotificationService", "handlePlayerPlaybackError: Switched to local copy for \"${playbackSession.displayTitle}\"")
+        return
+      }
+
+      // On error and was attempting to direct play - fallback to transcode
       if (playbackSession.isDirectPlay) {
         val playItemRequestPayload = getPlayItemRequestPayload(true)
         Log.d(tag, "Fallback to transcode $playItemRequestPayload.mediaPlayer")
@@ -2054,6 +2094,25 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
   private val networkCallback =
           object : ConnectivityManager.NetworkCallback() {
+            override fun onLost(network: Network) {
+              super.onLost(network)
+              hasNetworkConnectivity = false
+              Log.w(tag, "Network lost")
+
+              // If currently streaming from server, try to switch to local copy
+              currentPlaybackSession?.let { session ->
+                if (!session.isLocal && currentPlayer.isPlaying) {
+                  Handler(Looper.getMainLooper()).post {
+                    if (switchToLocalCopyIfAvailable()) {
+                      AbsLogger.info("PlayerNotificationService", "Network lost: Switched to local copy for \"${session.displayTitle}\"")
+                    } else {
+                      Log.w(tag, "Network lost: No local copy available for \"${session.displayTitle}\"")
+                    }
+                  }
+                }
+              }
+            }
+
             // Network capabilities have changed for the network
             override fun onCapabilitiesChanged(
                     network: Network,
