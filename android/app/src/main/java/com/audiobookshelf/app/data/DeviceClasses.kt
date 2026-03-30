@@ -160,7 +160,8 @@ data class DeviceSettings(
         var streamingUsingCellular: StreamingUsingCellularSetting,
         var maxSimultaneousDownloads: Int? = 1,
         var androidAutoBrowseLimitForGrouping: Int,
-        var androidAutoBrowseSeriesSequenceOrder: AndroidAutoBrowseSeriesSequenceOrderSetting
+        var androidAutoBrowseSeriesSequenceOrder: AndroidAutoBrowseSeriesSequenceOrderSetting,
+        var enableLogging: Boolean
 ) {
   companion object {
     // Static method to get default device settings
@@ -190,7 +191,8 @@ data class DeviceSettings(
               streamingUsingCellular = StreamingUsingCellularSetting.ALWAYS,
               maxSimultaneousDownloads = 1,
               androidAutoBrowseLimitForGrouping = 100,
-              androidAutoBrowseSeriesSequenceOrder = AndroidAutoBrowseSeriesSequenceOrderSetting.ASC
+              androidAutoBrowseSeriesSequenceOrder = AndroidAutoBrowseSeriesSequenceOrderSetting.ASC,
+              enableLogging = false
       )
     }
   }

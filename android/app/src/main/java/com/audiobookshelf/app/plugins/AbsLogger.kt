@@ -39,7 +39,11 @@ class AbsLogger : Plugin() {
   companion object {
     var onLogEmitter: ((log: AbsLog) -> Unit)? = null
 
+    private val isEnabled: Boolean
+      get() = DeviceManager.deviceData.deviceSettings.enableLogging
+
     fun log(level: String, tag: String, message: String) {
+      if (!isEnabled) return
       val absLog =
               AbsLog(
                       id = UUID.randomUUID().toString(),
@@ -52,14 +56,17 @@ class AbsLogger : Plugin() {
       onLogEmitter?.let { it(absLog) }
     }
     fun info(tag: String, message: String) {
+      if (!isEnabled) return
       Log.i("AbsLogger", message)
       log("info", tag, message)
     }
     fun debug(tag: String, message: String) {
+      if (!isEnabled) return
       Log.d("AbsLogger", message)
       log("debug", tag, message)
     }
     fun error(tag: String, message: String) {
+      if (!isEnabled) return
       Log.e("AbsLogger", message)
       log("error", tag, message)
     }

@@ -61,6 +61,12 @@
       <p class="pl-4">{{ $strings.LabelEnableMp3IndexSeeking }}</p>
       <span class="material-symbols text-xl ml-2" @click.stop="showConfirmMp3IndexSeeking">info</span>
     </div>
+    <div v-if="!isiOS" class="flex items-center py-3">
+      <div class="w-10 flex justify-center" @click="toggleEnableLogging">
+        <ui-toggle-switch v-model="settings.enableLogging" @input="saveSettings" />
+      </div>
+      <p class="pl-4">{{ $strings.LabelEnableLogging }}</p>
+    </div>
     <div class="flex items-center py-3">
       <div class="w-10 flex justify-center" @click="toggleAllowSeekingOnMediaControls">
         <ui-toggle-switch v-model="settings.allowSeekingOnMediaControls" @input="saveSettings" />
@@ -225,6 +231,7 @@ export default {
         jumpForwardTime: 10,
         jumpBackwardsTime: 10,
         enableMp3IndexSeeking: false,
+        enableLogging: false,
         disableShakeToResetSleepTimer: false,
         shakeSensitivity: 'MEDIUM',
         lockOrientation: 0,
@@ -634,6 +641,10 @@ export default {
       this.settings.enableMp3IndexSeeking = !this.settings.enableMp3IndexSeeking
       this.saveSettings()
     },
+    toggleEnableLogging() {
+      this.settings.enableLogging = !this.settings.enableLogging
+      this.saveSettings()
+    },
     toggleAutoSleepTimer() {
       this.settings.autoSleepTimer = !this.settings.autoSleepTimer
       this.saveSettings()
@@ -705,6 +716,7 @@ export default {
       this.settings.jumpForwardTime = deviceSettings.jumpForwardTime || 10
       this.settings.jumpBackwardsTime = deviceSettings.jumpBackwardsTime || 10
       this.settings.enableMp3IndexSeeking = !!deviceSettings.enableMp3IndexSeeking
+      this.settings.enableLogging = !!deviceSettings.enableLogging
 
       this.settings.lockOrientation = deviceSettings.lockOrientation || 'NONE'
       this.lockCurrentOrientation = this.settings.lockOrientation !== 'NONE'
