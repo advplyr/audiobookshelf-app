@@ -4,8 +4,11 @@ import android.app.Notification
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.util.Log
-import com.google.android.exoplayer2.ui.PlayerNotificationManager
+import androidx.annotation.OptIn
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.ui.PlayerNotificationManager
 
+@OptIn(UnstableApi::class)
 class PlayerNotificationListener(var playerNotificationService:PlayerNotificationService) : PlayerNotificationManager.NotificationListener {
   var tag = "PlayerNotificationListener"
 

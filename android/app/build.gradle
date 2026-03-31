@@ -98,20 +98,14 @@ dependencies {
 
   implementation "androidx.media:media:$androidx_media_version"
 
-  // Exo Player
-  if (findProject(':exoplayer-library-core') != null) {
-    implementation project(':exoplayer-library-core')
-    implementation project(':exoplayer-library-ui')
-    implementation project(':exoplayer-extension-mediasession')
-    implementation project(':exoplayer-extension-cast')
-    implementation project(':exoplayer-hls')
-  } else {
-    implementation "com.google.android.exoplayer:exoplayer-core:$exoplayer_version"
-    implementation "com.google.android.exoplayer:exoplayer-ui:$exoplayer_version"
-    implementation "com.google.android.exoplayer:extension-mediasession:$exoplayer_version"
-    implementation "com.google.android.exoplayer:extension-cast:$exoplayer_version"
-    implementation "com.google.android.exoplayer:exoplayer-hls:$exoplayer_version"
-  }
+  // AndroidX Media3
+  implementation "androidx.media3:media3-exoplayer:$media3_version"
+  implementation "androidx.media3:media3-ui:$media3_version"
+  implementation "androidx.media3:media3-session:$media3_version"
+  implementation "androidx.media3:media3-cast:$media3_version"
+  implementation "androidx.media3:media3-exoplayer-hls:$media3_version"
+  implementation "androidx.media3:media3-datasource:$media3_version"
+  implementation "androidx.media3:media3-extractor:$media3_version"
 
   // Glide for images
   implementation "com.github.bumptech.glide:glide:$glide_version"

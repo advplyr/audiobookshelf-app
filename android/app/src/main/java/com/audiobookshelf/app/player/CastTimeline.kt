@@ -16,12 +16,11 @@
 package com.audiobookshelf.app.player
 
 import android.net.Uri
-import android.util.Log
 import android.util.SparseArray
 import android.util.SparseIntArray
-import com.google.android.exoplayer2.C
-import com.google.android.exoplayer2.MediaItem
-import com.google.android.exoplayer2.Timeline
+import androidx.media3.common.C
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Timeline
 import java.util.*
 
 /** A [Timeline] for Cast media queues.  */ /* package */

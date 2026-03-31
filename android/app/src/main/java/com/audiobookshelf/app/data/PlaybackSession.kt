@@ -15,8 +15,8 @@ import com.audiobookshelf.app.media.MediaProgressSyncData
 import com.audiobookshelf.app.player.*
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-import com.google.android.exoplayer2.MediaItem
-import com.google.android.exoplayer2.MediaMetadata
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import com.google.android.gms.cast.MediaInfo
 import com.google.android.gms.cast.MediaQueueItem
 import com.google.android.gms.common.images.WebImage
