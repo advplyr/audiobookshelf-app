@@ -348,6 +348,14 @@ export default {
         await this.attemptConnection()
       }
 
+      // Navigate to any pending deep link now that the server connection is ready.
+      // Use replace so the bookshelf is not left in the navigation history.
+      const pendingDeepLink = this.$store.state.pendingDeepLink
+      if (pendingDeepLink) {
+        this.$store.commit('setPendingDeepLink', null)
+        this.$router.replace(pendingDeepLink)
+      }
+
       await this.syncLocalSessions(true)
 
       this.hasMounted = true

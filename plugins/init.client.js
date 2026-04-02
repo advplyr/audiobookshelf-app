@@ -325,12 +325,45 @@ export default ({ store, app }, inject) => {
     }
   })
 
+  // Extract a library item ID from a deep link URL, or null if not a match
+  function parseItemDeepLink(url) {
+    if (!url) return null
+    const match = url.match(/^audiobookshelf:\/\/item\/([^?#]+)/)
+    if (!match) return null
+    try {
+      return decodeURIComponent(match[1])
+    } catch (e) {
+      console.error('Failed to parse deep link URL', url, e)
+      return null
+    }
+  }
+
   /**
    * @see https://capacitorjs.com/docs/apis/app#addlistenerappurlopen-
    * Listen for url open events for the app. This handles both custom URL scheme links as well as URLs your app handles
    */
   App.addListener('appUrlOpen', (data) => {
+    const libraryItemId = parseItemDeepLink(data.url)
+    if (libraryItemId) {
+      if (app.router) {
+        app.router.push(`/item/${libraryItemId}`)
+      }
+      return
+    }
+
+    // audiobookshelf://oauth and others - handled by component listeners
     eventBus.$emit('url-open', data.url)
+  })
+
+  // Handle deep link that launched the app from a cold start.
+  // Store in Vuex so the default layout can navigate after the server connection is ready.
+  App.getLaunchUrl().then((result) => {
+    const libraryItemId = parseItemDeepLink(result?.url)
+    if (libraryItemId) {
+      store.commit('setPendingDeepLink', `/item/${libraryItemId}`)
+    }
+  }).catch((e) => {
+    console.error('Failed to get launch URL', e)
   })
 }
 
