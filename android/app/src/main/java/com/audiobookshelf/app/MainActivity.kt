@@ -17,6 +17,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.view.updateLayoutParams
 import com.anggrayudi.storage.SimpleStorage
 import com.anggrayudi.storage.SimpleStorageHelper
+import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.managers.DbManager
 import com.audiobookshelf.app.player.PlayerNotificationService
 import com.audiobookshelf.app.plugins.AbsAudioPlayer
@@ -95,6 +96,17 @@ class MainActivity : BridgeActivity() {
         WindowInsets.CONSUMED
       } else {
         insets
+      }
+    }
+
+    // If running on Android TV, inject a CSS class for TV-specific styling
+    if (DeviceManager.isAndroidTV(this)) {
+      Log.d(tag, "Android TV detected, injecting tv mode class")
+      webView.post {
+        webView.evaluateJavascript(
+          "document.documentElement.classList.add('android-tv');",
+          null
+        )
       }
     }
 
