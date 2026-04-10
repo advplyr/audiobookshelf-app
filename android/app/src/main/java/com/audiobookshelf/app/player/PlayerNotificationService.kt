@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.*
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.ImageDecoder
@@ -118,6 +119,22 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
   private var isAndroidAuto = false
 
+  // Chapter-track mode mirrors the iOS PlayerSettings.chapterTrack flag.
+  // JS owns the source of truth and pushes via AbsAudioPlayer.setChapterTrack;
+  // we cache locally for cold-start scenarios (Android Auto, lock screen).
+  private val chapterTrackPrefsName: String = "PlayerNotificationServicePrefs"
+  private val chapterTrackPrefsKey: String = "chapterTrackEnabled"
+  private val useAuthorAsChapterSubtitlePrefsKey: String = "useAuthorAsChapterSubtitle"
+  @Volatile
+  private var chapterTrackEnabled: Boolean = true
+  @Volatile
+  private var useAuthorAsChapterSubtitle: Boolean = false
+  private var mPlayerWrapper: ChapterAwareForwardingPlayer? = null
+  private var castPlayerWrapper: ChapterAwareForwardingPlayer? = null
+  private var lastReportedChapterId: Int? = null
+  private var chapterTickHandler: Handler? = null
+  private var chapterTickRunnable: Runnable? = null
+
   // The following are used for the shake detection
   private var isShakeSensorRegistered: Boolean = false
   private var mSensorManager: SensorManager? = null
@@ -193,6 +210,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     isClosed = true
     DeviceManager.widgetUpdater?.onPlayerChanged(this)
 
+    stopChapterTicker()
     playerNotificationManager.setPlayer(null)
     mPlayer.release()
     castPlayer?.release()
@@ -214,6 +232,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     Log.d(tag, "onCreate")
     super.onCreate()
     ctx = this
+
+    val playerPrefs: SharedPreferences = getSharedPreferences(chapterTrackPrefsName, Context.MODE_PRIVATE)
+    chapterTrackEnabled = playerPrefs.getBoolean(chapterTrackPrefsKey, true)
+    useAuthorAsChapterSubtitle = playerPrefs.getBoolean(useAuthorAsChapterSubtitlePrefsKey, false)
 
     // Initialize Paper
     DbManager.initialize(ctx)
@@ -363,6 +385,16 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     setMediaSessionConnectorPlaybackActions()
     mediaSessionConnector.setQueueNavigator(queueNavigator)
     mediaSessionConnector.setPlaybackPreparer(MediaSessionPlaybackPreparer(this))
+    // Drives metadata both for our explicit invalidations and the connector's
+    // auto-invalidations (track transitions, EVENT_MEDIA_METADATA_CHANGED, etc.)
+    mediaSessionConnector.setMediaMetadataProvider { _ ->
+      val session: PlaybackSession? = currentPlaybackSession
+      if (session != null) {
+        session.getMediaMetadataCompat(ctx, chapterTrackEnabled, useAuthorAsChapterSubtitle, getCurrentTime())
+      } else {
+        MediaMetadataCompat.Builder().build()
+      }
+    }
 
     mediaSession.setCallback(MediaSessionCallback(this))
 
@@ -396,10 +428,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                     .build()
     mPlayer.setAudioAttributes(audioAttributes, true)
 
-    // attach player to playerNotificationManager
-    playerNotificationManager.setPlayer(mPlayer)
-
-    mediaSessionConnector.setPlayer(mPlayer)
+    // Wrap so chapter-track mode can lie about position/duration to the system UI
+    mPlayerWrapper = ChapterAwareForwardingPlayer(mPlayer, this)
+    playerNotificationManager.setPlayer(mPlayerWrapper)
+    mediaSessionConnector.setPlayer(mPlayerWrapper)
   }
 
   /*
@@ -430,8 +462,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
     isClosed = false
 
-    val metadata = playbackSession.getMediaMetadataCompat(ctx)
+    val metadata: MediaMetadataCompat = playbackSession.getMediaMetadataCompat(ctx, chapterTrackEnabled, useAuthorAsChapterSubtitle, playbackSession.currentTimeMs)
     mediaSession.setMetadata(metadata)
+    lastReportedChapterId = null
     val mediaItems = playbackSession.getMediaItems(ctx)
     val playbackRateToUse = playbackRate ?: initialPlaybackRate ?: 1f
     initialPlaybackRate = playbackRate
@@ -450,8 +483,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
     if (playbackSession.mediaPlayer == PLAYER_CAST) {
       // If cast-player is the first player to be used
-      mediaSessionConnector.setPlayer(castPlayer)
-      playerNotificationManager.setPlayer(castPlayer)
+      val castWrapper = getOrCreateCastPlayerWrapper()
+      mediaSessionConnector.setPlayer(castWrapper ?: castPlayer)
+      playerNotificationManager.setPlayer(castWrapper ?: castPlayer)
     }
 
     currentPlaybackSession = playbackSession
@@ -710,14 +744,15 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     currentPlayer =
             if (useCastPlayer) {
               Log.d(tag, "switchToPlayer: Using Cast Player " + castPlayer?.deviceInfo)
-              mediaSessionConnector.setPlayer(castPlayer)
-              playerNotificationManager.setPlayer(castPlayer)
+              val castWrapper = getOrCreateCastPlayerWrapper()
+              mediaSessionConnector.setPlayer(castWrapper ?: castPlayer)
+              playerNotificationManager.setPlayer(castWrapper ?: castPlayer)
               setMediaSessionToCastVolume()
               castPlayer as CastPlayer
             } else {
               Log.d(tag, "switchToPlayer: Using ExoPlayer")
-              mediaSessionConnector.setPlayer(mPlayer)
-              playerNotificationManager.setPlayer(mPlayer)
+              mediaSessionConnector.setPlayer(mPlayerWrapper ?: mPlayer)
+              playerNotificationManager.setPlayer(mPlayerWrapper ?: mPlayer)
               setMediaSessionToLocalVolume()
               mPlayer
             }
@@ -804,6 +839,114 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
   fun getCurrentBookChapter(): BookChapter? {
     return currentPlaybackSession?.getChapterForTime(this.getCurrentTime())
+  }
+
+  // --- Chapter-track support (used by ChapterAwareForwardingPlayer) -------
+
+  fun isChapterTrackEnabled(): Boolean = chapterTrackEnabled
+
+  fun isUseAuthorAsChapterSubtitleEnabled(): Boolean = useAuthorAsChapterSubtitle
+
+  // Caller passes the underlying delegate to avoid recursing through the wrapper
+  fun getAbsoluteBookPositionFor(player: Player): Long {
+    val sess: PlaybackSession = currentPlaybackSession ?: return player.currentPosition
+    return if (player.mediaItemCount > 1) {
+      sess.getTrackStartOffsetMs(player.currentMediaItemIndex) + player.currentPosition
+    } else {
+      player.currentPosition
+    }
+  }
+
+  fun getAbsoluteBookBufferedPositionFor(player: Player): Long {
+    val sess: PlaybackSession = currentPlaybackSession ?: return player.bufferedPosition
+    return if (player.mediaItemCount > 1) {
+      sess.getTrackStartOffsetMs(player.currentMediaItemIndex) + player.bufferedPosition
+    } else {
+      player.bufferedPosition
+    }
+  }
+
+  private fun getOrCreateCastPlayerWrapper(): ChapterAwareForwardingPlayer? {
+    val cp: CastPlayer = castPlayer ?: return null
+    castPlayerWrapper?.let { return it }
+    val created = ChapterAwareForwardingPlayer(cp, this)
+    castPlayerWrapper = created
+    return created
+  }
+
+  // Invoked from JS via AbsAudioPlayer.setChapterTrack
+  fun setChapterTrackEnabled(enabled: Boolean) {
+    if (chapterTrackEnabled == enabled) return
+    chapterTrackEnabled = enabled
+    getSharedPreferences(chapterTrackPrefsName, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(chapterTrackPrefsKey, enabled)
+            .apply()
+    lastReportedChapterId = null
+    refreshSystemUiMetadata()
+  }
+
+  // Invoked from JS via AbsAudioPlayer.setUseAuthorAsChapterSubtitle
+  fun setUseAuthorAsChapterSubtitleEnabled(enabled: Boolean) {
+    if (useAuthorAsChapterSubtitle == enabled) return
+    useAuthorAsChapterSubtitle = enabled
+    getSharedPreferences(chapterTrackPrefsName, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(useAuthorAsChapterSubtitlePrefsKey, enabled)
+            .apply()
+    refreshSystemUiMetadata()
+  }
+
+  private fun refreshSystemUiMetadata() {
+    Handler(Looper.getMainLooper()).post {
+      try {
+        mediaSessionConnector.invalidateMediaSessionMetadata()
+        playerNotificationManager.invalidate()
+      } catch (e: Exception) {
+        Log.e(tag, "refreshSystemUiMetadata error", e)
+      }
+    }
+  }
+
+  // 1s tick mirrors iOS AudioPlayer.swift addPeriodicTimeObserver — refreshes
+  // the system UI when natural playback crosses a chapter boundary
+  fun startChapterTicker() {
+    if (chapterTickRunnable != null) return
+    val handler = Handler(Looper.getMainLooper())
+    chapterTickHandler = handler
+    val runnable: Runnable = object : Runnable {
+      override fun run() {
+        try {
+          maybeInvalidateForChapterChange()
+        } catch (e: Exception) {
+          Log.e(tag, "chapterTick error", e)
+        }
+        handler.postDelayed(this, 1000L)
+      }
+    }
+    chapterTickRunnable = runnable
+    handler.post(runnable)
+  }
+
+  fun stopChapterTicker() {
+    val handler: Handler? = chapterTickHandler
+    val runnable: Runnable? = chapterTickRunnable
+    if (handler != null && runnable != null) {
+      handler.removeCallbacks(runnable)
+    }
+    chapterTickRunnable = null
+    chapterTickHandler = null
+  }
+
+  private fun maybeInvalidateForChapterChange() {
+    if (!chapterTrackEnabled) return
+    val session: PlaybackSession = currentPlaybackSession ?: return
+    val chapter: BookChapter? = session.getChapterForTime(getCurrentTime())
+    val chapterId: Int? = chapter?.id
+    if (chapterId != lastReportedChapterId) {
+      lastReportedChapterId = chapterId
+      refreshSystemUiMetadata()
+    }
   }
 
   fun getEndTimeOfChapterOrTrack(): Long? {

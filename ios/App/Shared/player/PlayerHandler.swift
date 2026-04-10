@@ -65,6 +65,10 @@ class PlayerHandler {
         self.player?.setChapterTrack()
     }
 
+    public static func setUseAuthorAsChapterSubtitle() {
+        self.player?.setUseAuthorAsChapterSubtitle()
+    }
+
     public static func getSleepTimeRemaining() -> Double? {
         return self.player?.getSleepTimeRemaining()
     }
