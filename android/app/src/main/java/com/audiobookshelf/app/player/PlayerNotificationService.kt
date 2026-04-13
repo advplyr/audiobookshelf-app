@@ -354,15 +354,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
                 // Fix for local images crashing on Android 11 for specific devices
                 // https://stackoverflow.com/questions/64186578/android-11-mediastyle-notification-crash/64232958#64232958
-                try {
-                  ctx.grantUriPermission(
-                          "com.android.systemui",
-                          coverUri,
-                          Intent.FLAG_GRANT_READ_URI_PERMISSION
-                  )
-                } catch (error: Exception) {
-                  Log.e(tag, "Grant uri permission error $error")
-                }
+                // Also covers Android Auto, which can't read FileProvider URIs
+                // off the session metadata without an explicit grant.
+                currentPlaybackSession!!.grantCoverUriPermissions(ctx, coverUri)
 
                 val extra = Bundle()
                 extra.putString(

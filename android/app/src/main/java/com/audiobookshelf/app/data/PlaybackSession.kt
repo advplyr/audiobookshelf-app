@@ -1,11 +1,13 @@
 package com.audiobookshelf.app.data
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import android.support.v4.media.MediaMetadataCompat
+import android.util.Log
 import androidx.core.content.FileProvider
 import androidx.core.net.toFile
 import com.audiobookshelf.app.BuildConfig
@@ -193,6 +195,25 @@ class PlaybackSession(
     return Uri.parse("$serverAddress/api/items/$libraryItemId/cover?token=${DeviceManager.token}")
   }
 
+  // Grants read permission on a local cover URI to the system processes that
+  // need to resolve it off the session metadata. Skipped for non-FileProvider
+  // URIs (server URLs, app resources) since they don't need a grant.
+  @JsonIgnore
+  fun grantCoverUriPermissions(ctx: Context, coverUri: Uri) {
+    if (coverUri.scheme != "content") return
+    val targets: List<String> = listOf(
+      "com.android.systemui",
+      "com.google.android.projection.gearhead"
+    )
+    for (pkg in targets) {
+      try {
+        ctx.grantUriPermission(pkg, coverUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+      } catch (error: Exception) {
+        Log.e("PlaybackSession", "grantCoverUriPermissions error for $pkg: $error")
+      }
+    }
+  }
+
   @JsonIgnore
   fun getContentUri(audioTrack: AudioTrack): Uri {
     if (isLocal) return Uri.parse(audioTrack.contentUrl) // Local content url
@@ -212,6 +233,10 @@ class PlaybackSession(
   @JsonIgnore
   fun getMediaMetadataCompat(ctx: Context, chapterTrackEnabled: Boolean = false, useAuthorAsChapterSubtitle: Boolean = false, currentTimeOverrideMs: Long? = null): MediaMetadataCompat {
     val coverUri: Uri = getCoverUri(ctx)
+
+    // Local FileProvider URIs need explicit read permission for any process
+    // that will resolve them off the session metadata (lock screen, Android Auto)
+    grantCoverUriPermissions(ctx, coverUri)
 
     // Match iOS NowPlayingInfo: chapter goes in the main title slot, secondary
     // slot is book title (default) or author (when useAuthorAsChapterSubtitle on)
