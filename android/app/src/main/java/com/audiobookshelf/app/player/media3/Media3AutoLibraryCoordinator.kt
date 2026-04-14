@@ -8,16 +8,26 @@ import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.media.MediaManager
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.ListenableFuture
-import com.google.common.util.concurrent.SettableFuture
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.guava.future
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 /**
  * Encapsulates the Android Auto browse-tree async setup so Media3PlaybackService can focus on
  * session management and defer the pull-based loading concerns to this coordinator.
+ *
+ * A single shared [Deferred] represents the in-flight or completed load; every caller awaits the
+ * same instance. On a successful load the deferred is reused (cache). On an unsuccessful load the
+ * next request restarts it, so transient server/network failures self-heal.
  */
 class Media3AutoLibraryCoordinator(
   private val mediaManager: MediaManager,
@@ -25,148 +35,79 @@ class Media3AutoLibraryCoordinator(
   private val scope: CoroutineScope
 ) {
 
-  private data class PendingRequest(
-    val future: SettableFuture<LibraryResult<ImmutableList<MediaItem>>>,
-    val parentId: String,
-    val params: MediaLibraryService.LibraryParams?
-  )
-
-  private val pendingRequests = mutableListOf<PendingRequest>()
-
-    @Volatile
-  private var isAutoDataLoading = false
-
-    @Volatile
-    private var isFullyLoaded = false
-  private var autoDataLoadedDeferred = CompletableDeferred<Unit>()
-    private var loadAttemptCount = 0
+    private val loadMutex = Mutex()
+    private var loadJob: Deferred<Boolean>? = null
 
   fun requestChildren(
     parentId: String,
     params: MediaLibraryService.LibraryParams?
   ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-      if (BuildConfig.DEBUG) Log.d(TAG, "requestChildren(parentId=$parentId, params=$params)")
-    val future = SettableFuture.create<LibraryResult<ImmutableList<MediaItem>>>()
-      if (isFullyLoaded) {
-      fulfillRequest(parentId, params, future)
-      return future
-    }
-
-      synchronized(pendingRequests) {
-          pendingRequests.add(PendingRequest(future, parentId, params))
-      }
-    if (!isAutoDataLoading) {
-      loadAutoData()
-    }
-    return future
-  }
-
-  private fun fulfillRequest(
-    parentId: String,
-    params: MediaLibraryService.LibraryParams?,
-    future: SettableFuture<LibraryResult<ImmutableList<MediaItem>>>
-  ) {
-    scope.launch {
-      try {
-        val children = browseTree.getChildren(parentId)
-        future.set(LibraryResult.ofItemList(ImmutableList.copyOf(children), params))
-      } catch (t: Throwable) {
-        future.setException(t)
-      }
-    }
-  }
-
-  private fun loadAutoData() {
-      if (BuildConfig.DEBUG) Log.d(TAG, "loadAutoData() start (attempt=${loadAttemptCount + 1})")
-    isAutoDataLoading = true
-    autoDataLoadedDeferred = CompletableDeferred()
-      loadAttemptCount++
-      scope.launch {
-          try {
-              withTimeout(LOAD_TIMEOUT_MS) {
-          mediaManager.loadAndroidAutoItems {
-              browseTree.invalidateSeriesCache()
-              if (mediaManager.serverLibraries.isEmpty()) {
-                  onLoadFinished()
-              } else {
-              mediaManager.populatePersonalizedDataForAllLibraries {
-                  mediaManager.initializeInProgressItems {
-                      onLoadFinished()
-                  }
-              }
-              }
-          }
-              }
-          } catch (e: Exception) {
-              Log.w(TAG, "loadAutoData() timed out or failed: ${e.message}")
-              onLoadFinished()
-          }
+      if (BuildConfig.DEBUG) Log.d(TAG, "requestChildren(parentId=$parentId)")
+      return scope.future {
+          ensureLoaded()
+          val children = browseTree.getChildren(parentId)
+          LibraryResult.ofItemList(ImmutableList.copyOf(children), params)
       }
   }
 
-    private fun onLoadFinished() {
-        val dataLoaded = mediaManager.isAutoDataLoaded
-        if (BuildConfig.DEBUG) {
-            Log.d(TAG, "loadAutoData() finished, dataLoaded=$dataLoaded, pendingRequests=${pendingRequests.size}")
-        }
-        isAutoDataLoading = false
-        if (dataLoaded) {
-            isFullyLoaded = true
-        }
-        if (!autoDataLoadedDeferred.isCompleted) {
-            autoDataLoadedDeferred.complete(Unit)
-        }
+    suspend fun awaitAutoDataLoaded() {
+        ensureLoaded()
+    }
 
-        if (dataLoaded) {
-            loadAttemptCount = 0
-            drainPendingRequests()
-        } else if (loadAttemptCount < MAX_LOAD_RETRIES) {
-            val delayMs = RETRY_BASE_DELAY_MS * loadAttemptCount
-            if (BuildConfig.DEBUG) Log.d(TAG, "Auto data not loaded, retrying in ${delayMs}ms")
-            scope.launch {
-                delay(delayMs)
-                if (!isFullyLoaded) {
-                    loadAutoData()
-                }
+    private suspend fun ensureLoaded(): Boolean {
+        val job = loadMutex.withLock {
+            val current = loadJob
+            if (current!=null && (!current.isCompleted || current.succeededWith(true))) {
+                current
+            } else {
+                scope.async { loadWithRetries() }.also { loadJob = it }
             }
-        } else {
-            // Exhausted retries — fulfill pending requests with whatever we have
-            // (downloads are still available without server connection)
-            Log.w(TAG, "Auto data load failed after $MAX_LOAD_RETRIES attempts, fulfilling with available data")
-            loadAttemptCount = 0
-            drainPendingRequests()
         }
+        return runCatching { job.await() }.getOrDefault(false)
     }
 
-    private fun drainPendingRequests() {
-        val requestsToFulfill = synchronized(pendingRequests) {
-            val snapshot = pendingRequests.toList()
-            pendingRequests.clear()
-            snapshot
+    private suspend fun loadWithRetries(): Boolean {
+        repeat(MAX_LOAD_RETRIES) { attempt ->
+            val loaded = runCatching {
+                withTimeout(LOAD_TIMEOUT_MS) { loadOnce() }
+            }.getOrElse { throwable ->
+                Log.w(TAG, "loadAutoData attempt ${attempt + 1} failed: ${throwable.message}")
+                false
+            }
+            if (loaded) return true
+            if (attempt < MAX_LOAD_RETRIES - 1) delay(RETRY_BASE_DELAY_MS * (attempt + 1))
         }
-        if (requestsToFulfill.isEmpty()) return
-        scope.launch {
-            requestsToFulfill.forEach { request ->
-                try {
-                    val children = browseTree.getChildren(request.parentId)
-                    request.future.set(
-                        LibraryResult.ofItemList(ImmutableList.copyOf(children), request.params)
-                    )
-                } catch (t: Throwable) {
-                    request.future.setException(t)
-        }
-      }
+        Log.w(TAG, "Auto data load failed after $MAX_LOAD_RETRIES attempts; serving available data")
+        return false
     }
+
+    private suspend fun loadOnce(): Boolean {
+        awaitSuspendCallback { cb -> mediaManager.loadAndroidAutoItems { cb() } }
+        browseTree.invalidateSeriesCache()
+        if (mediaManager.serverLibraries.isNotEmpty()) {
+            awaitCallback { cb -> mediaManager.populatePersonalizedDataForAllLibraries { cb() } }
+            awaitCallback { cb -> mediaManager.initializeInProgressItems { cb() } }
+    }
+        return mediaManager.isAutoDataLoaded
   }
 
-  suspend fun awaitAutoDataLoaded() {
-      if (isFullyLoaded) return
-    if (!isAutoDataLoading) {
-      loadAutoData()
+    private suspend fun awaitCallback(op: (cb: () -> Unit) -> Unit) =
+        suspendCancellableCoroutine { cont ->
+            op { if (cont.isActive) cont.resume(Unit) }
     }
-      if (isFullyLoaded) return
-    autoDataLoadedDeferred.await()
-  }
+
+    private suspend fun awaitSuspendCallback(op: suspend (cb: () -> Unit) -> Unit) =
+        suspendCancellableCoroutine { cont ->
+            val job = scope.async {
+                runCatching { op { if (cont.isActive) cont.resume(Unit) } }
+                    .onFailure { if (cont.isActive) cont.resumeWithException(it) }
+            }
+            cont.invokeOnCancellation { job.cancel() }
+        }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun Deferred<Boolean>.succeededWith(expected: Boolean): Boolean =
+        getCompletionExceptionOrNull()==null && getCompleted()==expected
 
   companion object {
       private const val TAG = "M3AutoLibCoordinator"
