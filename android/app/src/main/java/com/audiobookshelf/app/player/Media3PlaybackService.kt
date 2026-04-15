@@ -255,7 +255,8 @@ class Media3PlaybackService : MediaLibraryService() {
         unifiedProgressSyncer.syncNow(
           "stop",
           session.clone(),
-          shouldSyncServer = true
+            shouldSyncServer = true,
+            callbackOnMainThread = false
         ) { latch.countDown() }
         latch.await(ONBOARDING_SYNC_TIMEOUT_SEC, java.util.concurrent.TimeUnit.SECONDS)
 
@@ -427,13 +428,12 @@ class Media3PlaybackService : MediaLibraryService() {
           override fun maybeSyncProgress(
               reason: String, force: Boolean, session: PlaybackSession?, onComplete: ((SyncResult?) -> Unit)?
           ) {
-        val currentSession = session ?: currentPlaybackSession
-        if (currentSession != null) {
-            this@Media3PlaybackService.updateCurrentPosition(currentSession)
-            unifiedProgressSyncer.syncNow(reason, currentSession, force, onComplete ?: {})
-        } else {
-            onComplete?.invoke(null)
-        }
+              this@Media3PlaybackService.maybeSyncProgress(
+                  reason = reason,
+                  force = force,
+                  targetSession = session,
+                  onSyncComplete = onComplete
+              )
           }
 
           override fun notifyWidgetState(isPlaybackClosed: Boolean) =
@@ -686,7 +686,7 @@ class Media3PlaybackService : MediaLibraryService() {
       onSyncComplete?.invoke(syncResult)
     }
       updateCurrentPosition(session)
-    unifiedProgressSyncer.syncNow(reason, session, shouldSyncServer, completion)
+      unifiedProgressSyncer.syncNow(reason, session, shouldSyncServer, onComplete = completion)
   }
 
 

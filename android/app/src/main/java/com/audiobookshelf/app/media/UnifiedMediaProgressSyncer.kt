@@ -458,9 +458,11 @@ class UnifiedMediaProgressSyncer(
     event: String,
     session: PlaybackSession,
     shouldSyncServer: Boolean = true,
+    callbackOnMainThread: Boolean = true,
     onComplete: (SyncResult?) -> Unit = {}
   ) {
-    currentPlaybackSession = session.clone()
+      val requestSession = session.clone()
+      currentPlaybackSession = requestSession
     localMediaProgress = null
     if (lastSyncTime == 0L) {
       lastSyncTime = System.currentTimeMillis() - 2000L
@@ -468,19 +470,20 @@ class UnifiedMediaProgressSyncer(
     val currentTime =
       playbackTelemetryProvider.getCurrentTimeSeconds().takeIf { it > 0 } ?: session.currentTime
     sync(shouldSyncServer, currentTime) { result ->
-        mainHandler.post {
+        val deliverCompletion = {
             if (result!=null) {
-                currentPlaybackSession?.let { playbackSession ->
-                    onPlaybackEvent(event, playbackSession, result)
-                }
+                onPlaybackEvent(event, requestSession, result)
             } else {
                 if (event=="pause" || event=="stop" || event=="finished") {
-                    currentPlaybackSession?.let { playbackSession ->
-                        onPlaybackEvent(event, playbackSession, null)
-                    }
+                    onPlaybackEvent(event, requestSession, null)
                 }
             }
             onComplete(result)
+        }
+        if (callbackOnMainThread) {
+            mainHandler.post(deliverCompletion)
+        } else {
+            deliverCompletion()
         }
     }
   }
