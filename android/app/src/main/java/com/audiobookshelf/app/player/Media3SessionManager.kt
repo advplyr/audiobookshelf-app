@@ -35,6 +35,7 @@ class Media3SessionManager(
         fun maybeSyncProgress(reason: String, force: Boolean, session: PlaybackSession?, onComplete: ((SyncResult?) -> Unit)?)
         fun notifyWidgetState(isPlaybackClosed: Boolean)
         fun closeSessionOnServer(sessionId: String)
+        fun resetProgressSyncState()
     }
   var currentPlaybackSession: PlaybackSession? = null
     private set
@@ -108,6 +109,7 @@ class Media3SessionManager(
                 playerControl.clearMediaItems()
                 playerControl.isInitialized = false
           }
+            serviceCallbacks.resetProgressSyncState()
           currentPlaybackSession = null
             serviceCallbacks.notifyWidgetState(true)
           signal.complete(Unit)

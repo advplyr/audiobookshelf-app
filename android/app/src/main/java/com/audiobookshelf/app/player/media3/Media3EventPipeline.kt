@@ -19,9 +19,13 @@ import com.audiobookshelf.app.media.SyncResult
 class Media3EventPipeline {
     companion object {
         private const val TAG = "Media3EventPipeline"
+        private const val TERMINAL_EVENT_SUPPRESSION_WINDOW_MS = 2000L
     }
 
   private val mainHandler = Handler(Looper.getMainLooper())
+    private var lastTerminalStopMediaItemId: String? = null
+    private var lastTerminalStopCurrentTime: Double? = null
+    private var lastTerminalStopTimestampMs: Long = 0L
 
   fun emitPlayEvent(
     playbackSession: PlaybackSession,
@@ -36,6 +40,10 @@ class Media3EventPipeline {
     syncResult: SyncResult?,
     source: PlaybackEventSource = PlaybackEventSource.SYSTEM
   ) {
+      if (shouldSuppressPauseAfterTerminalStop(playbackSession)) {
+          debugLog { "Suppress Pause after recent Stop: ${playbackSession.displayTitle}" }
+          return
+      }
       debugLogWithSync("Pause", playbackSession, syncResult)
       mainHandler.post { MediaEventManager.pauseEvent(playbackSession, syncResult, source) }
   }
@@ -45,6 +53,7 @@ class Media3EventPipeline {
     syncResult: SyncResult?,
     source: PlaybackEventSource = PlaybackEventSource.SYSTEM
   ) {
+      recordTerminalStop(playbackSession)
       debugLogWithSync("Stop", playbackSession, syncResult)
       mainHandler.post { MediaEventManager.stopEvent(playbackSession, syncResult, source) }
   }
@@ -85,4 +94,22 @@ class Media3EventPipeline {
     private fun debugLogWithSync(eventName: String, session: PlaybackSession, syncResult: SyncResult?) {
         debugLog { "Emit $eventName: ${session.displayTitle} (syncResult: ${syncResult?.serverSyncAttempted})" }
   }
+
+    @Synchronized
+    private fun recordTerminalStop(session: PlaybackSession) {
+        lastTerminalStopMediaItemId = session.mediaItemId
+        lastTerminalStopCurrentTime = session.currentTime
+        lastTerminalStopTimestampMs = System.currentTimeMillis()
+    }
+
+    @Synchronized
+    private fun shouldSuppressPauseAfterTerminalStop(session: PlaybackSession): Boolean {
+        if (System.currentTimeMillis() - lastTerminalStopTimestampMs > TERMINAL_EVENT_SUPPRESSION_WINDOW_MS) {
+            return false
+        }
+        if (lastTerminalStopMediaItemId!=session.mediaItemId) {
+            return false
+        }
+        return lastTerminalStopCurrentTime==session.currentTime
+    }
 }

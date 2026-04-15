@@ -1,5 +1,7 @@
 package com.audiobookshelf.app.media
 
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import com.audiobookshelf.app.data.LocalMediaProgress
 import com.audiobookshelf.app.data.PlaybackSession
@@ -34,6 +36,7 @@ class UnifiedMediaProgressSyncer(
 
   // Coroutine scope for periodic sync loop - uses Main dispatcher for consistency
   private val syncScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private val mainHandler = Handler(Looper.getMainLooper())
   private var syncJob: Job? = null
   var isSyncTimerRunning: Boolean = false
 
@@ -465,18 +468,20 @@ class UnifiedMediaProgressSyncer(
     val currentTime =
       playbackTelemetryProvider.getCurrentTimeSeconds().takeIf { it > 0 } ?: session.currentTime
     sync(shouldSyncServer, currentTime) { result ->
-      if (result != null) {
-        currentPlaybackSession?.let { playbackSession ->
-          onPlaybackEvent(event, playbackSession, result)
+        mainHandler.post {
+            if (result!=null) {
+                currentPlaybackSession?.let { playbackSession ->
+                    onPlaybackEvent(event, playbackSession, result)
+                }
+            } else {
+                if (event=="pause" || event=="stop" || event=="finished") {
+                    currentPlaybackSession?.let { playbackSession ->
+                        onPlaybackEvent(event, playbackSession, null)
+                    }
+                }
+            }
+            onComplete(result)
         }
-      } else {
-        if (event == "pause" || event == "stop" || event == "finished") {
-          currentPlaybackSession?.let { playbackSession ->
-            onPlaybackEvent(event, playbackSession, null)
-          }
-        }
-      }
-      onComplete(result)
     }
   }
 }

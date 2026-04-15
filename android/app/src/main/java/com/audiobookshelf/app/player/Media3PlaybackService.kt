@@ -88,9 +88,7 @@ class Media3PlaybackService : MediaLibraryService() {
           if (!this::player.isInitialized) return false
           return player.deviceInfo.playbackType==androidx.media3.common.DeviceInfo.PLAYBACK_TYPE_REMOTE
       }
-  private var finalSyncBarrier: CompletableDeferred<SyncResult?>? = null
-  @Volatile
-  private var suppressFinalServerSync: Boolean = false
+    private val finalSyncBarrier = FinalSyncBarrier()
 
   private var transcodeFallbackAttemptedSessionId: String? = null
 
@@ -169,6 +167,11 @@ class Media3PlaybackService : MediaLibraryService() {
         }
 
         override fun progressSyncPause() {
+            val closeSignal = closePlaybackSignal
+            if (closeSignal!=null && !closeSignal.isCompleted) {
+                debugLog { "Skipping pause sync because closePlayback is already in progress" }
+                return
+            }
             if (this@Media3PlaybackService::unifiedProgressSyncer.isInitialized) {
                 unifiedProgressSyncer.pause {}
             }
@@ -365,6 +368,7 @@ class Media3PlaybackService : MediaLibraryService() {
       when (event) {
         "save" -> eventPipeline.emitSaveEvent(session, result)
         "pause" -> eventPipeline.emitPauseEvent(session, result)
+          "close" -> eventPipeline.emitStopEvent(session, result)
         "stop" -> eventPipeline.emitStopEvent(session, result)
         "finished" -> eventPipeline.emitFinishedEvent(session, result)
       }
@@ -440,6 +444,12 @@ class Media3PlaybackService : MediaLibraryService() {
           debugLog { "Closed playback session $sessionId on server: $success" }
         }
       }
+
+          override fun resetProgressSyncState() {
+              if (this@Media3PlaybackService::unifiedProgressSyncer.isInitialized) {
+                  unifiedProgressSyncer.reset()
+              }
+          }
       }
 
       media3SessionManager = Media3SessionManager(
@@ -650,17 +660,6 @@ class Media3PlaybackService : MediaLibraryService() {
         return session.getCurrentTrackIndex().coerceIn(0, tracks.lastIndex)
   }
 
-  private suspend fun awaitFinalSyncBarrier() {
-    val barrier = finalSyncBarrier ?: return
-    if (barrier.isCompleted) return
-
-    try {
-      withTimeout(FINAL_SYNC_TIMEOUT_MS) { barrier.await() }
-    } catch (_: Exception) {
-    }
-  }
-
-
   /* ========================================
    * Progress Sync
    * ======================================== */
@@ -676,36 +675,15 @@ class Media3PlaybackService : MediaLibraryService() {
       return
     }
 
-    // Create barrier for critical sync points (pause/ended/close) to ensure completion before service cleanup
-    // This prevents progress loss if service terminates immediately after these events
-    val shouldCreateBarrier = (reason == "pause" || reason == "ended" || reason == "close")
-    val barrier = if (shouldCreateBarrier && finalSyncBarrier == null) {
-      CompletableDeferred<SyncResult?>().also { finalSyncBarrier = it }
-    } else finalSyncBarrier
-
-    // Determine server sync necessity: critical events always sync, others check connectivity
+      val barrier = finalSyncBarrier.armIfCritical(reason)
     val shouldSyncServer = when (reason) {
-        "pause", "ended", "close" -> !suppressFinalServerSync
+        "pause", "ended", "close" -> true
         else -> force || DeviceManager.checkConnectivity(applicationContext)
     }
 
-    // Suppression flag allows emergency cancellation (e.g., user force-stops app)
-    if (suppressFinalServerSync && !shouldSyncServer) {
-      debugLog { "Skipping progress sync due to suppression: $reason" }
-      val suppressedResult = SyncResult(false, null, "Suppressed")
-      barrier?.let { if (!it.isCompleted) it.complete(suppressedResult) }
-      finalSyncBarrier = null
-      suppressFinalServerSync = false
-      onSyncComplete?.invoke(suppressedResult)
-      return
-    }
     val completion: (SyncResult?) -> Unit = { syncResult ->
-      barrier?.let { if (!it.isCompleted) it.complete(syncResult) }
+        finalSyncBarrier.complete(syncResult, barrier)
       onSyncComplete?.invoke(syncResult)
-      if (shouldCreateBarrier && finalSyncBarrier === barrier && (barrier?.isCompleted == true)) {
-        finalSyncBarrier = null
-        suppressFinalServerSync = false
-      }
     }
       updateCurrentPosition(session)
     unifiedProgressSyncer.syncNow(reason, session, shouldSyncServer, completion)
@@ -1027,20 +1005,31 @@ class Media3PlaybackService : MediaLibraryService() {
     val sessionController = SessionController(
       availableSessionCommands = MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS,
       setSleepTimer = { sessionId, timeMs, isChapter ->
+          ensureSleepTimerStarted()
         sleepTimerCoordinator.setManualTimer(
           sessionId,
           timeMs,
           isChapter
         )
       },
-      cancelSleepTimer = { sleepTimerCoordinator.cancelTimer() },
+        cancelSleepTimer = {
+            ensureSleepTimerStarted()
+            sleepTimerCoordinator.cancelTimer()
+        },
       adjustSleepTimer = { deltaMs, increase ->
+          ensureSleepTimerStarted()
         if (increase) sleepTimerCoordinator.increaseTimer(
           deltaMs
         ) else sleepTimerCoordinator.decreaseTimer(deltaMs)
       },
-      getSleepTimerTime = { sleepTimerCoordinator.getTimerTimeMs() },
-        resyncSleepTimerState = { sleepTimerCoordinator.sendCurrentSleepTimerState() },
+        getSleepTimerTime = {
+            ensureSleepTimerStarted()
+            sleepTimerCoordinator.getTimerTimeMs()
+        },
+        resyncSleepTimerState = {
+            ensureSleepTimerStarted()
+            sleepTimerCoordinator.sendCurrentSleepTimerState()
+        },
       cyclePlaybackSpeed = { cyclePlaybackSpeed() },
       getCurrentSession = { currentPlaybackSession },
       currentAbsolutePositionMs = { currentAbsolutePositionMs() },
@@ -1064,7 +1053,7 @@ class Media3PlaybackService : MediaLibraryService() {
       isCastActive = { isCastActive },
       seekConfig = seekConfig,
       browseApi = browseApi,
-      awaitFinalSync = { awaitFinalSyncBarrier() },
+        awaitFinalSync = { finalSyncBarrier.await(FINAL_SYNC_TIMEOUT_MS) },
       markNextPlaybackEventSourceUi = {
         if (this::unifiedProgressSyncer.isInitialized) {
           unifiedProgressSyncer.markNextPlaybackEventSource(PlaybackEventSource.UI)
