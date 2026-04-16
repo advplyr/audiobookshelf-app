@@ -895,6 +895,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     Handler(Looper.getMainLooper()).post {
       try {
         mediaSessionConnector.invalidateMediaSessionMetadata()
+        // Republish position so Android Auto rebases its progress interpolation
+        // against the new chapter — ExoPlayer emits no event on virtual chapter
+        // boundaries, so without this the progress bar sticks at 100% until the
+        // next real state change
+        mediaSessionConnector.invalidateMediaSessionPlaybackState()
         playerNotificationManager.invalidate()
       } catch (e: Exception) {
         Log.e(tag, "refreshSystemUiMetadata error", e)
