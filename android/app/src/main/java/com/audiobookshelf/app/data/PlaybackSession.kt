@@ -5,6 +5,7 @@ import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import android.util.Log
 import android.support.v4.media.MediaMetadataCompat
 import androidx.core.content.FileProvider
 import androidx.core.net.toFile
@@ -224,18 +225,27 @@ class PlaybackSession(
                             coverUri.toString()
                     )
 
-    // Local covers get bitmap
+    // Local covers get bitmap — guarded against corrupt/partial files left by interrupted downloads
     if (localLibraryItem?.coverContentUrl != null) {
-      val bitmap =
-              if (Build.VERSION.SDK_INT < 28) {
-                MediaStore.Images.Media.getBitmap(ctx.contentResolver, coverUri)
-              } else {
-                val source: ImageDecoder.Source =
-                        ImageDecoder.createSource(ctx.contentResolver, coverUri)
-                ImageDecoder.decodeBitmap(source)
-              }
-      metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
-      metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, bitmap)
+      try {
+        val bitmap =
+                if (Build.VERSION.SDK_INT < 28) {
+                  @Suppress("DEPRECATION")
+                  MediaStore.Images.Media.getBitmap(ctx.contentResolver, coverUri)
+                } else {
+                  val source: ImageDecoder.Source =
+                          ImageDecoder.createSource(ctx.contentResolver, coverUri)
+                  ImageDecoder.decodeBitmap(source)
+                }
+        metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
+        metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, bitmap)
+      } catch (e: Exception) {
+        Log.e("PlaybackSession", "getMediaMetadataCompat: Failed to decode local cover, clearing coverContentUrl", e)
+        localLibraryItem?.let { lli ->
+          lli.coverContentUrl = null
+          DeviceManager.dbManager.saveLocalLibraryItem(lli)
+        }
+      }
     }
 
     return metadataBuilder.build()

@@ -34,7 +34,9 @@ data class DownloadItemPart(
   val finalDestinationSubfolder: String,
   var downloadId: Long?,
   var progress: Long,
-  var bytesDownloaded: Long
+  var bytesDownloaded: Long,
+  /** True while waiting for network to return; the watcher loop skips paused parts. */
+  @JsonIgnore var paused: Boolean = false
 ) {
   companion object {
     fun make(downloadItemId:String, filename:String, fileSize: Long, destinationFile: File, finalDestinationFile: File, subfolder:String, serverPath:String, localFolder: LocalFolder, ebookFile: EBookFile?, audioTrack: AudioTrack?, episode: PodcastEpisode?) :DownloadItemPart {
