@@ -75,11 +75,14 @@ class DownloadItemManager(
 
   private val networkCallback = object : ConnectivityManager.NetworkCallback() {
     override fun onLost(network: Network) {
-      val inFlight = currentDownloadItemParts.filter { !it.completed && !it.failed }
+      // Include parts that OkHttp already marked failed due to the drop — the watcher loop
+      // will catch them via isNetworkAvailable(), but marking them paused here ensures
+      // the .tmp file is kept and they are re-queued when connectivity returns.
+      val inFlight = currentDownloadItemParts.filter { !it.completed || it.failed }
       if (inFlight.isNotEmpty()) {
         Log.i(tag, "networkCallback: Network lost — pausing ${inFlight.size} in-flight part(s)")
         inFlight.forEach { it.paused = true }
-        pausedDownloadItemParts.addAll(inFlight)
+        pausedDownloadItemParts.addAll(inFlight.filter { !pausedDownloadItemParts.contains(it) })
       }
     }
 
@@ -242,10 +245,20 @@ class DownloadItemManager(
 
     if (downloadItemPart.completed) {
       if (downloadItemPart.failed) {
-        if (downloadItemPart.paused) {
-          // Network interruption: keep .tmp so the download can resume from its byte offset.
-          // The NetworkCallback will reset and re-queue this part when connectivity returns.
-          Log.d(tag, "handleInternalDownloadPart: Keeping .tmp for paused part ${downloadItemPart.filename}")
+        // OkHttp's onFailure fires before networkCallback.onLost, so a part can be marked
+        // completed+failed due to a network drop before paused=true is ever set. Treat any
+        // failure while offline the same as an explicit pause so files aren't lost.
+        if (downloadItemPart.paused || !isNetworkAvailable()) {
+          Log.d(tag, "handleInternalDownloadPart: Network unavailable — deferring retry for ${downloadItemPart.filename}")
+          downloadItemPart.completed = false
+          downloadItemPart.failed = false
+          downloadItemPart.paused = true
+          downloadItemPart.downloadId = null
+          if (!pausedDownloadItemParts.contains(downloadItemPart)) {
+            pausedDownloadItemParts.add(downloadItemPart)
+          }
+          currentDownloadItemParts.remove(downloadItemPart)
+          return
         } else {
           // Permanent failure: remove any partial files so the folder scanner never
           // registers a corrupt file as a completed download.
@@ -257,6 +270,15 @@ class DownloadItemManager(
       downloadItem?.let { checkDownloadItemFinished(it) }
       currentDownloadItemParts.remove(downloadItemPart)
     }
+  }
+
+  /** Returns true if the device currently has a validated internet connection. */
+  private fun isNetworkAvailable(): Boolean {
+    val cm = mainActivity.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    val network = cm.activeNetwork ?: return false
+    val caps = cm.getNetworkCapabilities(network) ?: return false
+    return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+            caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
   }
 
   /** Handles an external download part. */
