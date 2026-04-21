@@ -228,7 +228,12 @@ export default {
     },
     userItemProgress() {
       if (this.isLocal) return this.localItemProgress
-      return this.serverItemProgress
+      const server = this.serverItemProgress
+      const local = this.localProgressForServerItem
+      if (!server && !local) return null
+      if (!server) return local
+      if (!local) return server
+      return local.lastUpdate > server.lastUpdate ? local : server
     },
     localItemProgress() {
       if (!this.localLibraryItemId || !this.localEpisodeId) return null
@@ -237,6 +242,10 @@ export default {
     serverItemProgress() {
       if (!this.serverLibraryItemId || !this.serverEpisodeId) return null
       return this.$store.getters['user/getUserMediaProgress'](this.serverLibraryItemId, this.serverEpisodeId)
+    },
+    localProgressForServerItem() {
+      if (!this.serverLibraryItemId) return null
+      return this.$store.getters['globals/getLocalMediaProgressByServerItemId'](this.serverLibraryItemId, this.serverEpisodeId)
     },
     progressPercent() {
       return this.userItemProgress?.progress || 0
