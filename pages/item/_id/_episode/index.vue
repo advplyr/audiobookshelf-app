@@ -57,6 +57,7 @@ import { Capacitor } from '@capacitor/core'
 import { Dialog } from '@capacitor/dialog'
 import { AbsFileSystem, AbsDownloader } from '@/plugins/capacitor'
 import cellularPermissionHelpers from '@/mixins/cellularPermissionHelpers'
+import progressHelpers from '@/mixins/progressHelpers'
 
 export default {
   async asyncData({ store, params, redirect, app }) {
@@ -116,7 +117,7 @@ export default {
       startingDownload: false
     }
   },
-  mixins: [cellularPermissionHelpers],
+  mixins: [cellularPermissionHelpers, progressHelpers],
   computed: {
     transformedDescription() {
       return this.parseDescription(this.description)
@@ -228,12 +229,7 @@ export default {
     },
     userItemProgress() {
       if (this.isLocal) return this.localItemProgress
-      const server = this.serverItemProgress
-      const local = this.localProgressForServerItem
-      if (!server && !local) return null
-      if (!server) return local
-      if (!local) return server
-      return local.lastUpdate > server.lastUpdate ? local : server
+      return this.getFreshestProgress(this.serverItemProgress, this.localProgressForServerItem)
     },
     localItemProgress() {
       if (!this.localLibraryItemId || !this.localEpisodeId) return null
@@ -242,10 +238,6 @@ export default {
     serverItemProgress() {
       if (!this.serverLibraryItemId || !this.serverEpisodeId) return null
       return this.$store.getters['user/getUserMediaProgress'](this.serverLibraryItemId, this.serverEpisodeId)
-    },
-    localProgressForServerItem() {
-      if (!this.serverLibraryItemId) return null
-      return this.$store.getters['globals/getLocalMediaProgressByServerItemId'](this.serverLibraryItemId, this.serverEpisodeId)
     },
     progressPercent() {
       return this.userItemProgress?.progress || 0
