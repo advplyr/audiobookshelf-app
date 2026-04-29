@@ -16,6 +16,9 @@ export default {
     }
   },
   computed: {
+    serverConnectionConfigId() {
+      return this.$store.state.user.serverConnectionConfig?.id || null
+    },
     downloadItems() {
       return this.$store.state.globals.itemDownloads
     },
@@ -42,9 +45,24 @@ export default {
       return this.$platform === 'ios'
     }
   },
+  watch: {
+    serverConnectionConfigId(newId, oldId) {
+      // Server connection just came online — pick up any persisted downloads that we
+      // couldn't restore on cold-mount (token/serverAddress weren't available yet).
+      if (newId && !oldId) this.tryRestoreDownloadQueue()
+    }
+  },
   methods: {
     clickedIt() {
       this.$router.push('/downloading')
+    },
+    async tryRestoreDownloadQueue() {
+      if (this.$platform !== 'android' || !AbsDownloader.restoreDownloadQueue) return
+      try {
+        await AbsDownloader.restoreDownloadQueue()
+      } catch (e) {
+        console.error('Failed to restore download queue', e)
+      }
     },
     onItemDownloadComplete(data) {
       console.log('DownloadProgressIndicator onItemDownloadComplete', JSON.stringify(data))
@@ -82,6 +100,10 @@ export default {
     this.downloadItemListener = await AbsDownloader.addListener('onDownloadItem', (data) => this.onDownloadItem(data))
     this.itemPartUpdateListener = await AbsDownloader.addListener('onDownloadItemPartUpdate', (data) => this.onDownloadItemPartUpdate(data))
     this.completeListener = await AbsDownloader.addListener('onItemDownloadComplete', (data) => this.onItemDownloadComplete(data))
+
+    // If a server connection is already established at mount time, restore now.
+    // Otherwise the watcher above will kick off restoration once the user re-authenticates.
+    if (this.serverConnectionConfigId) await this.tryRestoreDownloadQueue()
   },
   beforeDestroy() {
     this.downloadItemListener?.remove()

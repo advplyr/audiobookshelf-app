@@ -17,6 +17,9 @@ data class DownloadItemPart(
   val filename: String,
   val fileSize: Long,
   val finalDestinationPath:String,
+  // Path of the (temporary) file the system DownloadManager / OkHttp writes to before the
+  // SAF move. Stored as a String so it survives PaperDB serialization (Uri does not).
+  val destinationPath: String,
   val serverPath: String,
   val localFolderName: String,
   val localFolderUrl: String,
@@ -28,9 +31,6 @@ data class DownloadItemPart(
   var moved:Boolean,
   var isMoving:Boolean,
   var failed:Boolean,
-  @JsonIgnore val uri: Uri,
-  @JsonIgnore val destinationUri: Uri,
-  @JsonIgnore val finalDestinationUri: Uri,
   val finalDestinationSubfolder: String,
   var downloadId: Long?,
   var progress: Long,
@@ -38,22 +38,14 @@ data class DownloadItemPart(
 ) {
   companion object {
     fun make(downloadItemId:String, filename:String, fileSize: Long, destinationFile: File, finalDestinationFile: File, subfolder:String, serverPath:String, localFolder: LocalFolder, ebookFile: EBookFile?, audioTrack: AudioTrack?, episode: PodcastEpisode?) :DownloadItemPart {
-      val destinationUri = Uri.fromFile(destinationFile)
-      val finalDestinationUri = Uri.fromFile(finalDestinationFile)
-
-      var downloadUrl = "${DeviceManager.serverAddress}${serverPath}?token=${DeviceManager.token}"
-      if (serverPath.endsWith("/cover")) {
-        downloadUrl += "&raw=1" // Download raw cover image
-      }
-
-      val downloadUri = Uri.parse(downloadUrl)
-      Log.d("DownloadItemPart", "Audio File Destination Uri: $destinationUri | Final Destination Uri: $finalDestinationUri | Download URI $downloadUri")
+      Log.d("DownloadItemPart", "Audio File Destination: ${destinationFile.absolutePath} | Final Destination: ${finalDestinationFile.absolutePath} | Server Path $serverPath")
       return DownloadItemPart(
         id = DeviceManager.getBase64Id(finalDestinationFile.absolutePath),
         downloadItemId,
         filename = filename,
         fileSize = fileSize,
         finalDestinationPath = finalDestinationFile.absolutePath,
+        destinationPath = destinationFile.absolutePath,
         serverPath = serverPath,
         localFolderName = localFolder.name,
         localFolderUrl = localFolder.contentUrl,
@@ -65,9 +57,6 @@ data class DownloadItemPart(
         moved = false,
         isMoving = false,
         failed = false,
-        uri = downloadUri,
-        destinationUri = destinationUri,
-        finalDestinationUri = finalDestinationUri,
         finalDestinationSubfolder = subfolder,
         downloadId = null,
         progress = 0,
@@ -79,8 +68,23 @@ data class DownloadItemPart(
   @get:JsonIgnore
   val isInternalStorage get() = localFolderId.startsWith("internal-")
 
+  // Re-derive on every access so we always pick up the current server token (if it rotated
+  // while the app was suspended) and so we don't depend on Uri being deserialized.
   @get:JsonIgnore
-  val serverUrl get() = uri.toString()
+  val serverUrl: String get() {
+    var url = "${DeviceManager.serverAddress}${serverPath}?token=${DeviceManager.token}"
+    if (serverPath.endsWith("/cover")) url += "&raw=1"
+    return url
+  }
+
+  @get:JsonIgnore
+  val uri: Uri get() = Uri.parse(serverUrl)
+
+  @get:JsonIgnore
+  val destinationUri: Uri get() = Uri.fromFile(File(destinationPath))
+
+  @get:JsonIgnore
+  val finalDestinationUri: Uri get() = Uri.fromFile(File(finalDestinationPath))
 
   @JsonIgnore
   fun getDownloadRequest(): DownloadManager.Request {

@@ -75,6 +75,98 @@ class DownloadItemManager(
     checkUpdateDownloadQueue()
   }
 
+  /**
+   * Re-hydrate the in-memory queue from persisted state and resume any in-flight downloads.
+   * Idempotent: safe to call multiple times. Bails out if no server is connected yet, since any
+   * internal-storage part needs a fresh signed URL to re-enqueue.
+   */
+  fun restoreQueue() {
+    if (!DeviceManager.isConnectedToServer) {
+      Log.i(tag, "restoreQueue skipped: no server connection")
+      return
+    }
+
+    val persistedItems = DeviceManager.dbManager.getDownloadItems()
+    if (persistedItems.isEmpty()) return
+
+    Log.i(tag, "Restoring ${persistedItems.size} persisted download item(s)")
+    for (downloadItem in persistedItems) {
+      try {
+        restorePersistedItem(downloadItem)
+      } catch (e: Exception) {
+        Log.e(tag, "Dropping unrestorable persisted download ${downloadItem.id}", e)
+        DeviceManager.dbManager.removeDownloadItem(downloadItem.id)
+      }
+    }
+    checkUpdateDownloadQueue()
+  }
+
+  private fun restorePersistedItem(downloadItem: DownloadItem) {
+    if (downloadItemQueue.any { it.id == downloadItem.id }) return
+
+    // Records written by older builds may be missing string fields needed for restoration.
+    if (downloadItem.downloadItemParts.any {
+              it.finalDestinationPath.isEmpty() || it.destinationPath.isEmpty()
+            }
+    ) {
+      throw IllegalStateException("Persisted item ${downloadItem.id} has parts with missing paths")
+    }
+
+    // Self-heal: records persisted by app versions before per-part progress was saved
+    // (i.e. anyone upgrading from a prior release) report every part as fresh. For
+    // internal-storage parts the file on disk is the ground truth - if it's there at the
+    // expected size, mark it completed regardless of what the record claims.
+    downloadItem.downloadItemParts.forEach { part ->
+      if (!part.completed && part.isInternalStorage) {
+        val file = File(part.finalDestinationPath)
+        if (file.exists() &&
+                        file.length() > 0 &&
+                        (part.fileSize <= 0 || file.length() == part.fileSize)
+        ) {
+          part.completed = true
+          part.failed = false
+          part.bytesDownloaded = file.length()
+          part.progress = 100
+        }
+      }
+    }
+
+    downloadItem.downloadItemParts.forEach { part ->
+      when (DownloadRestoreLogic.classifyPart(
+                      isInternalStorage = part.isInternalStorage,
+                      downloadId = part.downloadId,
+                      completed = part.completed,
+                      moved = part.moved,
+                      failed = part.failed
+              )
+      ) {
+        DownloadRestoreLogic.PartRestoreAction.AlreadyDone -> {
+          /* keep flagged done */
+        }
+        DownloadRestoreLogic.PartRestoreAction.ResetAndReenqueue -> {
+          part.downloadId = null
+          part.bytesDownloaded = 0
+          part.progress = 0
+          part.completed = false
+          part.failed = false
+          part.isMoving = false
+          File(part.finalDestinationPath).takeIf { it.exists() }?.delete()
+        }
+        DownloadRestoreLogic.PartRestoreAction.ResumeExternal -> {
+          part.isMoving = false // stale flag if app died mid-move; watcher will retry
+          currentDownloadItemParts.add(part)
+        }
+      }
+    }
+
+    downloadItemQueue.add(downloadItem)
+    clientEventEmitter.onDownloadItem(downloadItem)
+
+    // Self-heal may have made the whole item done; run the normal completion path to scan
+    // and clean up the persisted record.
+    if (downloadItem.isDownloadFinished) checkDownloadItemFinished(downloadItem)
+  }
+
   /** Checks and updates the download queue. */
   private fun checkUpdateDownloadQueue() {
     for (downloadItem in downloadItemQueue) {
@@ -135,6 +227,7 @@ class DownloadItemManager(
             .download(downloadItemPart.serverUrl)
     downloadItemPart.downloadId = 1
     currentDownloadItemParts.add(downloadItemPart)
+    persistParentOf(downloadItemPart)
   }
 
   /** Starts an external download. */
@@ -144,6 +237,17 @@ class DownloadItemManager(
     downloadItemPart.downloadId = downloadId
     Log.d(tag, "checkUpdateDownloadQueue: Starting download item part, downloadId=$downloadId")
     currentDownloadItemParts.add(downloadItemPart)
+    persistParentOf(downloadItemPart)
+  }
+
+  /**
+   * Persist the parent DownloadItem so transient flags on its parts (downloadId, completed, moved,
+   * failed) survive process death and can be re-read by [restoreQueue].
+   */
+  private fun persistParentOf(downloadItemPart: DownloadItemPart) {
+    downloadItemQueue.find { it.id == downloadItemPart.downloadItemId }?.let {
+      DeviceManager.dbManager.saveDownloadItem(it)
+    }
   }
 
   /** Starts watching the downloads. */
@@ -181,6 +285,7 @@ class DownloadItemManager(
     clientEventEmitter.onDownloadItemPartUpdate(downloadItemPart)
 
     if (downloadItemPart.completed) {
+      persistParentOf(downloadItemPart)
       val downloadItem = downloadItemQueue.find { it.id == downloadItemPart.downloadItemId }
       downloadItem?.let { checkDownloadItemFinished(it) }
       currentDownloadItemParts.remove(downloadItemPart)
@@ -292,6 +397,7 @@ class DownloadItemManager(
                 downloadItemPart.failed = true
                 downloadItemPart.isMoving = false
                 file?.delete()
+                persistParentOf(downloadItemPart)
                 checkDownloadItemFinished(downloadItem)
                 currentDownloadItemParts.remove(downloadItemPart)
               }
@@ -314,6 +420,7 @@ class DownloadItemManager(
 
                 downloadItemPart.moved = true
                 downloadItemPart.isMoving = false
+                persistParentOf(downloadItemPart)
                 checkDownloadItemFinished(downloadItem)
                 currentDownloadItemParts.remove(downloadItemPart)
               }
