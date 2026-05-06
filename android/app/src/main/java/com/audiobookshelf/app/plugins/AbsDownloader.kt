@@ -53,6 +53,13 @@ class AbsDownloader : Plugin() {
   }
 
   @PluginMethod
+  fun restoreDownloadQueue(call: PluginCall) {
+    Log.d(tag, "restoreDownloadQueue called")
+    downloadItemManager.restoreQueue()
+    call.resolve()
+  }
+
+  @PluginMethod
   fun downloadLibraryItem(call: PluginCall) {
     val libraryItemId = call.data.getString("libraryItemId").toString()
     var episodeId = call.data.getString("episodeId").toString()
