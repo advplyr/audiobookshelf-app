@@ -295,33 +295,39 @@ export default {
         this.$store.commit('globals/updateLocalMediaProgress', newLocalMediaProgress)
       }
     },
-    async reloadServerMediaProgress(){
+    async reloadServerProgressForCurrentlyPlaying() {
       try {
+        const currentSession = this.$store.state.currentPlaybackSession
+        if (!currentSession || !currentSession.libraryItemId) {
+          return
+        }
+
         const deviceData = await this.$db.getDeviceData()
         let serverConfig = null
         if (deviceData && deviceData.lastServerConnectionConfigId && deviceData.serverConnectionConfigs.length) {
           serverConfig = deviceData.serverConnectionConfigs.find((scc) => scc.id === deviceData.lastServerConnectionConfigId)
         }
-        if (!serverConfig){
-          console.error('[default] No server config found, cannot reload server media progress');
-          return;
+        if (!serverConfig) {
+          AbsLogger.error({ tag: 'default', message: 'reloadServerProgressForCurrentlyPlaying: No server config found, cannot reload server media progress' })
+          return
         }
+
+        const url = `${serverConfig.address}/api/me/progress/${currentSession.libraryItemId}${currentSession.episodeId ? `/${currentSession.episodeId}` : ''}`
         const response = await CapacitorHttp.get({
-          url: `${serverConfig.address}/api/me`,
+          url,
           headers: { Authorization: `Bearer ${serverConfig.token}` },
           connectTimeout: 6000
         })
-        if (response && response.data && response.data.mediaProgress) {
-          console.log('✅ [default] Successfully refreshed user info/media progress from server on visibility change')
-          response.data.mediaProgress.forEach(async (prog) => {
-            // Update local media progress
-            await this.userMediaProgressUpdated({ id: prog.id, data: prog, sessionId: 'visibility-change-sync' })
-          })
+
+        if (response && response.data) {
+          AbsLogger.info({ tag: 'default', message: 'reloadServerProgressForCurrentlyPlaying: Successfully refreshed current item media progress from server on visibility change' })
+          const prog = response.data
+          await this.userMediaProgressUpdated({ id: prog.id, data: prog, sessionId: 'visibility-change-sync' })
         } else {
-          console.warn('[default] No mediaProgress in /api/me response')
+          AbsLogger.info({ tag: 'default', message: 'reloadServerProgressForCurrentlyPlaying: No mediaProgress in /api/me/progress response' })
         }
       } catch (err) {
-        console.error('[default] Failed to refresh user info on visibility change', err)
+        AbsLogger.error({ tag: 'default', message: `reloadServerProgressForCurrentlyPlaying: Failed to refresh user info on visibility change: ${err.message}` })
       }
     },
     async visibilityChanged() {
@@ -331,11 +337,10 @@ export default {
         // If device out of focus for more than 30s or websocket disconnected then sync local progress with server progress
         if (elapsedTimeOutOfFocus > 30000 || !this.$socket?.connected) {
           console.log(`✅ [default] device visibility: syncing local + server media progress ${elapsedTimeOutOfFocus > 30000 ? 'after being out of focus for more than 30s' : 'after websocket disconnect'}`)
-          await this.syncLocalSessions(false).then(() => this.reloadServerMediaProgress());
+          await this.syncLocalSessions(false)
+          await this.reloadServerProgressForCurrentlyPlaying()
         }
-        if (document.visibilityState === 'visible') {
-          this.$eventBus.$emit('device-focus-update', true)
-        }
+        this.$eventBus.$emit('device-focus-update', true)
       } else {
         console.log('⛔️ [default] device visibility: does NOT have focus')
         this.timeLostFocus = Date.now()
