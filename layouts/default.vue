@@ -336,8 +336,7 @@ export default {
         console.log(`✅ [default] device visibility: has focus (${elapsedTimeOutOfFocus}ms out of focus)`)
         // If device out of focus for more than 30s or websocket disconnected then sync local progress with server progress
         if (elapsedTimeOutOfFocus > 30000 || !this.$socket?.connected) {
-          console.log(`✅ [default] device visibility: syncing local + server media progress ${elapsedTimeOutOfFocus > 30000 ? 'after being out of focus for more than 30s' : 'after websocket disconnect'}`)
-          await this.syncLocalSessions(false)
+          console.log(`✅ [default] device visibility: syncing media progress for currently playing item ${elapsedTimeOutOfFocus > 30000 ? 'after being out of focus for more than 30s' : 'after websocket disconnect'}`)
           await this.reloadServerProgressForCurrentlyPlaying()
         }
         this.$eventBus.$emit('device-focus-update', true)
