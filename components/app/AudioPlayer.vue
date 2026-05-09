@@ -1120,11 +1120,21 @@ export default {
   font-size: 0.85rem;
   line-height: 1.5;
 }
+@media (orientation: landscape) {
+  .fullscreen .title-author-texts .title-text {
+    font-size: larger !important;
+  }
+}
 .title-author-texts .author-text {
   transition: all 0.15s cubic-bezier(0.39, 0.575, 0.565, 1);
   transition-property: font-size;
   font-size: 0.75rem;
   line-height: 1.2;
+}
+@media (orientation: landscape) {
+  .fullscreen .title-author-texts .author-text {
+    font-size: inherit !important;
+  }
 }
 
 .fullscreen .title-author-texts {
