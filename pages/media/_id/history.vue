@@ -19,6 +19,13 @@
         <p v-if="evt.num" class="text-sm text-fg-muted italic px-1">+{{ evt.num }}</p>
 
         <div class="flex-grow" />
+        <p
+          v-if="chapterTitle(evt)"
+          class="text-xs text-fg-muted px-2 truncate max-w-xs text-right"
+          :title="chapterTitle(evt)"
+        >
+          {{ chapterTitle(evt) }}
+        </p>
         <p class="text-base text-fg" @click="clickPlaybackTime(evt.currentTime)">{{ $secondsToTimestampFull(evt.currentTime) }}</p>
       </div>
     </div>
@@ -27,6 +34,47 @@
 
 <script>
 import { AbsAudioPlayer } from '@/plugins/capacitor'
+
+const extractChapters = (libraryItem, episodeId) => {
+  if (!libraryItem || !libraryItem.media) return []
+
+  if (episodeId && Array.isArray(libraryItem.media.episodes)) {
+    const episode = libraryItem.media.episodes.find((ep) => {
+      return ep.id === episodeId || ep.episodeId === episodeId || ep.serverEpisodeId === episodeId || ep.localEpisodeId === episodeId
+    })
+    return (episode && episode.chapters) || []
+  }
+
+  return libraryItem.media.chapters || []
+}
+
+const fetchHistoryChapters = async ({ db, nativeHttp }, mediaItemHistory) => {
+  if (!mediaItemHistory || !mediaItemHistory.libraryItemId) return []
+
+  const libraryItemId = mediaItemHistory.libraryItemId
+  const episodeId = mediaItemHistory.episodeId
+
+  if (libraryItemId.startsWith('local_')) {
+    const localLibraryItem = await db.getLocalLibraryItem(libraryItemId).catch((error) => {
+      console.error('Failed to load local library item for history chapters', error)
+      return null
+    })
+    return extractChapters(localLibraryItem, episodeId)
+  }
+
+  const localLibraryItem = await db.getLocalLibraryItemByLId(libraryItemId).catch((error) => {
+    console.error('Failed to load local library item for history chapters', error)
+    return null
+  })
+  const localChapters = extractChapters(localLibraryItem, episodeId)
+  if (localChapters.length) return localChapters
+
+  const libraryItem = await nativeHttp.get(`/api/items/${libraryItemId}?expanded=1`, { connectTimeout: 5000 }).catch((error) => {
+    console.error('Failed to load library item for history chapters', error)
+    return null
+  })
+  return extractChapters(libraryItem, episodeId)
+}
 
 export default {
   async asyncData({ params, store, redirect, app, query }) {
@@ -39,7 +87,8 @@ export default {
   },
   data() {
     return {
-      onMediaItemHistoryUpdatedListener: null
+      onMediaItemHistoryUpdatedListener: null,
+      historyChapters: []
     }
   },
   computed: {
@@ -147,6 +196,19 @@ export default {
         this.$eventBus.$emit('play-item', { libraryItemId: this.mediaItemLibraryItemId, episodeId: this.mediaItemEpisodeId, startTime })
       }
     },
+    chapterTitle(evt) {
+      if (!evt || evt.currentTime == null) return null
+      const chapters = this.historyChapters || []
+      if (!chapters.length) return null
+      const time = Number(evt.currentTime)
+
+      // Find chapter where start <= time < end; if no end match, use last with start <= time
+      const chapter =
+        chapters.find((ch) => Number(ch.start) <= time && (ch.end == null || time < Number(ch.end))) ||
+        [...chapters].reverse().find((ch) => Number(ch.start) <= time)
+
+      return chapter && chapter.title ? chapter.title : null
+    },
     getEventIcon(name) {
       switch (name) {
         case 'Play':
@@ -194,10 +256,17 @@ export default {
       console.log('Media Item History updated')
 
       this.mediaItemHistory = mediaItemHistory
+      if (!this.historyChapters.length) {
+        this.refreshHistoryChapters()
+      }
+    },
+    async refreshHistoryChapters() {
+      this.historyChapters = await fetchHistoryChapters({ db: this.$db, nativeHttp: this.$nativeHttp }, this.mediaItemHistory)
     }
   },
   async mounted() {
     this.onMediaItemHistoryUpdatedListener = await AbsAudioPlayer.addListener('onMediaItemHistoryUpdated', this.onMediaItemHistoryUpdated)
+    this.refreshHistoryChapters()
   },
   beforeDestroy() {
     this.onMediaItemHistoryUpdatedListener?.remove()
