@@ -3,7 +3,7 @@
     <app-audio-player ref="audioPlayer" :bookmarks="bookmarks" :sleep-timer-running="isSleepTimerRunning" :sleep-time-remaining="sleepTimeRemaining" :serverLibraryItemId="serverLibraryItemId" @selectPlaybackSpeed="showPlaybackSpeedModal = true" @updateTime="(t) => (currentTime = t)" @showSleepTimer="showSleepTimer" @showBookmarks="showBookmarks" />
 
     <modals-playback-speed-modal v-model="showPlaybackSpeedModal" :playback-rate.sync="playbackSpeed" @update:playbackRate="updatePlaybackSpeed" @change="changePlaybackSpeed" />
-    <modals-sleep-timer-modal v-model="showSleepTimerModal" :current-time="sleepTimeRemaining" :sleep-timer-running="isSleepTimerRunning" :current-end-of-chapter-time="currentEndOfChapterTime" :is-auto="isAutoSleepTimer" @change="selectSleepTimeout" @cancel="cancelSleepTimer" @increase="increaseSleepTimer" @decrease="decreaseSleepTimer" />
+    <modals-sleep-timer-modal v-model="showSleepTimerModal" :current-time="sleepTimeRemaining" :sleep-timer-running="isSleepTimerRunning" :current-end-of-chapter-time="currentEndOfChapterTime" :is-auto="isAutoSleepTimer" @change="selectSleepTimeout" @cancel="cancelSleepTimer" @increase="increaseSleepTimer" @decrease="decreaseSleepTimer" @increase-chapter="increaseSleepTimerByChapter" @decrease-chapter="decreaseSleepTimerByChapter" />
     <modals-bookmarks-modal v-model="showBookmarksModal" :bookmarks="bookmarks" :current-time="currentTime" :library-item-id="serverLibraryItemId" :playback-rate="playbackSpeed" @select="selectBookmark" />
   </div>
 </template>
@@ -91,7 +91,7 @@ export default {
     },
     async selectSleepTimeout({ time, isChapterTime }) {
       console.log('Setting sleep timer', time, isChapterTime)
-      var res = await AbsAudioPlayer.setSleepTimer({ time: String(time), isChapterTime })
+      var res = await AbsAudioPlayer.setSleepTimer({ time: String(isChapterTime ? 0 : time), isChapterTime })
       if (!res.success) {
         return this.$toast.error('Sleep timer did not set, invalid time')
       }
@@ -102,6 +102,53 @@ export default {
     },
     decreaseSleepTimer() {
       AbsAudioPlayer.decreaseSleepTime({ time: '300000' })
+    },
+    async increaseSleepTimerByChapter() {
+      const currentSleepEndTime = this.$refs.audioPlayer.currentTime + this.sleepTimeRemaining
+      const sleepEndChapterIndex = this.$refs.audioPlayer.chapters.findIndex(
+        (ch) => Number(Number(ch.start).toFixed(2)) <= currentSleepEndTime
+          && Number(Number(ch.end).toFixed(2)) >= currentSleepEndTime
+      )
+
+      // in the case where a user has mixed chapter increments with time increments
+      // we want to make sure that we only skip to the end of the nearest chapter
+      const currentChapter = this.$refs.audioPlayer.chapters[sleepEndChapterIndex]
+      const nextChapterIndex = currentChapter.end - 10 > currentSleepEndTime
+        ? sleepEndChapterIndex
+        : sleepEndChapterIndex + 1
+
+      const nextChapter = this.$refs.audioPlayer.chapters[nextChapterIndex]
+      if (!nextChapter) {
+        return
+      }
+
+      const res = await AbsAudioPlayer.setSleepTimer({
+        time: String(nextChapterIndex),
+        isChapterTime: true
+      })
+      if (!res.success) {
+        return this.$toast.error('Sleep timer did not set, invalid time')
+      }
+    },
+    async decreaseSleepTimerByChapter() {
+      const currentSleepEndTime = this.$refs.audioPlayer.currentTime + this.sleepTimeRemaining
+      const sleepEndChapterIndex = this.$refs.audioPlayer.chapters.findIndex(
+        (ch) => Number(Number(ch.start).toFixed(2)) <= currentSleepEndTime
+          && Number(Number(ch.end).toFixed(2)) >= currentSleepEndTime
+      )
+
+      const prevChapter = this.$refs.audioPlayer.chapters[sleepEndChapterIndex - 1]
+      if (!prevChapter || prevChapter.end <= this.$refs.audioPlayer.currentChapter.start) {
+        return
+      }
+
+      const res = await AbsAudioPlayer.setSleepTimer({
+        time: String(sleepEndChapterIndex - 1),
+        isChapterTime: true
+      })
+      if (!res.success) {
+        return this.$toast.error('Sleep timer did not set, invalid time')
+      }
     },
     async cancelSleepTimer() {
       console.log('Canceling sleep timer')
