@@ -146,7 +146,7 @@
         </div>
 
         <!-- tables -->
-        <tables-podcast-episodes-table v-if="isPodcast" :library-item="libraryItem" :local-library-item-id="localLibraryItemId" :episodes="episodes" :local-episodes="localLibraryItemEpisodes" :is-local="isLocal" />
+        <tables-podcast-episodes-table ref="episodesTable" v-if="isPodcast" :library-item="libraryItem" :local-library-item-id="localLibraryItemId" :episodes="episodes" :local-episodes="localLibraryItemEpisodes" :is-local="isLocal" />
 
         <tables-chapters-table v-if="numChapters" :library-item="libraryItem" @playAtTimestamp="playAtTimestamp" />
 
@@ -534,15 +534,22 @@ export default {
       if (this.playerIsStartingPlayback) return
 
       if (this.isPodcast) {
-        this.episodes.sort((a, b) => {
-          if (this.podcastType === 'serial') {
-            return String(a.publishedAt).localeCompare(String(b.publishedAt), undefined, { numeric: true, sensitivity: 'base' })
-          } else {
-            return String(b.publishedAt).localeCompare(String(a.publishedAt), undefined, { numeric: true, sensitivity: 'base' })
-          }
-        })
+        const episodesSorted = this.$refs.episodesTable?.episodesSorted
+        const hasEpisodesSorted = Array.isArray(episodesSorted)
 
-        let episode = this.episodes.find((ep) => {
+        if (!hasEpisodesSorted) {
+          this.episodes.sort((a, b) => {
+            if (this.podcastType === 'serial') {
+              return String(a.publishedAt).localeCompare(String(b.publishedAt), undefined, { numeric: true, sensitivity: 'base' })
+            } else {
+              return String(b.publishedAt).localeCompare(String(a.publishedAt), undefined, { numeric: true, sensitivity: 'base' })
+            }
+          })
+        }
+
+        const episodesInOrder = hasEpisodesSorted ? episodesSorted : this.episodes
+
+        let episode = episodesInOrder.find((ep) => {
           var podcastProgress = null
           if (!this.isLocal) {
             podcastProgress = this.$store.getters['user/getUserMediaProgress'](this.libraryItemId, ep.id)
@@ -552,7 +559,8 @@ export default {
           return !podcastProgress?.isFinished
         })
 
-        if (!episode) episode = this.episodes[0]
+        if (!episode) episode = episodesInOrder[0]
+        if (!episode) return
 
         const episodeId = episode.id
 
@@ -564,15 +572,53 @@ export default {
         }
         const serverEpisodeId = !this.isLocal ? episodeId : localEpisode?.serverEpisodeId || null
 
+        const buildQueuePayload = (ep) => {
+          const epId = ep.id
+          const queueText = ep.episodeDisplayTitle || ep.title || ep.episodeTitle || epId
+
+          let localEp = null
+          if (this.hasLocal && !this.isLocal) {
+            localEp = this.localLibraryItem.media.episodes.find((le) => le.serverEpisodeId == epId)
+          } else if (this.isLocal) {
+            localEp = ep
+          }
+          const serverEpId = !this.isLocal ? epId : localEp?.serverEpisodeId || null
+
+          if (serverEpId && this.serverLibraryItemId && this.isCasting) {
+            return { libraryItemId: this.serverLibraryItemId, episodeId: serverEpId, queueText }
+          } else if (localEp) {
+            return {
+              libraryItemId: this.localLibraryItem.id,
+              episodeId: localEp.id,
+              serverLibraryItemId: this.serverLibraryItemId,
+              serverEpisodeId: serverEpId,
+              queueText
+            }
+          }
+          return { libraryItemId: this.libraryItemId, episodeId: epId, queueText }
+        }
+
+        const episodeIndex = episodesInOrder.findIndex((ep) => ep.id === episodeId)
+        const queueEpisodes = (episodeIndex >= 0 ? episodesInOrder.slice(episodeIndex + 1) : episodesInOrder).filter((ep) => {
+          var podcastProgress = null
+          if (!this.isLocal) {
+            podcastProgress = this.$store.getters['user/getUserMediaProgress'](this.libraryItemId, ep.id)
+          } else {
+            podcastProgress = this.$store.getters['globals/getLocalMediaProgressById'](this.libraryItemId, ep.id)
+          }
+          return !podcastProgress?.isFinished
+        })
+        const queueItems = queueEpisodes.map(buildQueuePayload)
+
         this.episodeStartingPlayback = serverEpisodeId
         this.$store.commit('setPlayerIsStartingPlayback', serverEpisodeId)
+
         if (serverEpisodeId && this.serverLibraryItemId && this.isCasting) {
-          // If casting and connected to server for local library item then send server library item id
-          this.$eventBus.$emit('play-item', { libraryItemId: this.serverLibraryItemId, episodeId: serverEpisodeId })
+          this.$eventBus.$emit('play-item', { libraryItemId: this.serverLibraryItemId, episodeId: serverEpisodeId, queueItems })
         } else if (localEpisode) {
-          this.$eventBus.$emit('play-item', { libraryItemId: this.localLibraryItem.id, episodeId: localEpisode.id, serverLibraryItemId: this.serverLibraryItemId, serverEpisodeId })
+          this.$eventBus.$emit('play-item', { libraryItemId: this.localLibraryItem.id, episodeId: localEpisode.id, serverLibraryItemId: this.serverLibraryItemId, serverEpisodeId, queueItems })
         } else {
-          this.$eventBus.$emit('play-item', { libraryItemId: this.libraryItemId, episodeId })
+          this.$eventBus.$emit('play-item', { libraryItemId: this.libraryItemId, episodeId, queueItems })
         }
       } else {
         // Audiobook

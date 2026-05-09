@@ -63,6 +63,11 @@
           </div>
 
           <span class="material-symbols text-3xl text-fg cursor-pointer" :class="chapters.length ? 'text-opacity-75' : 'text-opacity-10'" @click="clickChaptersBtn">format_list_bulleted</span>
+
+          <div v-if="isPodcast && playerQueueItems.length" class="relative cursor-pointer" @click.stop="showPlayerQueueItemsModal = true">
+            <span class="material-symbols text-3xl text-fg cursor-pointer text-opacity-75">playlist_play</span>
+            <span class="absolute -top-1 -right-1 bg-success text-black rounded-full px-1" style="font-size: 10px; line-height: 14px">{{ playerQueueItems.length }}</span>
+          </div>
         </div>
       </div>
       <div v-else class="w-full h-full absolute top-0 left-0 pointer-events-none" style="background: var(--gradient-minimized-audio-player)" />
@@ -84,7 +89,7 @@
             <span class="material-symbols text-3xl leading-none">forward_media</span>
             <span v-if="showFullscreen" class="jump-label text-[10px] font-semibold leading-tight">{{ jumpForwardLabel }}</span>
           </div>
-          <span v-show="showFullscreen && !playerSettings.lockUi" class="material-symbols next-icon text-fg cursor-pointer" :class="nextChapter && !isLoading ? 'text-opacity-75' : 'text-opacity-10'" @click.stop="jumpNextChapter">last_page</span>
+          <span v-show="showFullscreen && !playerSettings.lockUi" class="material-symbols next-icon text-fg cursor-pointer" :class="hasNext && !isLoading ? 'text-opacity-75' : 'text-opacity-10'" @click.stop="nextClick">last_page</span>
         </div>
       </div>
 
@@ -106,6 +111,7 @@
     </div>
 
     <modals-chapters-modal v-model="showChapterModal" :current-chapter="currentChapter" :chapters="chapters" :playback-rate="currentPlaybackRate" @select="selectChapter" />
+    <modals-podcast-queue-modal v-model="showPlayerQueueItemsModal" :queue-items="playerQueueItems" @play="selectPlayerQueueIndex" @remove="playerQueueItems.splice($event, 1)" />
     <modals-dialog v-model="showMoreMenuDialog" :items="menuItems" width="80vw" @action="clickMenuAction" />
   </div>
 </template>
@@ -135,6 +141,7 @@ export default {
       windowWidth: 0,
       playbackSession: null,
       showChapterModal: false,
+      showPlayerQueueItemsModal: false,
       showFullscreen: false,
       totalDuration: 0,
       currentPlaybackRate: 1,
@@ -166,7 +173,8 @@ export default {
       coverRgb: 'rgb(55, 56, 56)',
       coverBgIsLight: false,
       titleMarquee: null,
-      isRefreshingUI: false
+      isRefreshingUI: false,
+      playerQueueItems: []
     }
   },
   watch: {
@@ -285,6 +293,9 @@ export default {
     isPodcast() {
       return this.mediaType === 'podcast'
     },
+    hasNext() {
+      return !!this.playerQueueItems?.length || !!this.nextChapter
+    },
     mediaMetadata() {
       return this.playbackSession?.mediaMetadata || null
     },
@@ -395,6 +406,34 @@ export default {
     }
   },
   methods: {
+    selectPlayerQueueIndex(index) {
+      const i = Number(index)
+      if (isNaN(i) || !this.playerQueueItems?.[i]) return
+
+      const payload = this.playerQueueItems[i]
+      this.playerQueueItems = this.playerQueueItems.slice(i + 1)
+      this.showPlayerQueueItemsModal = false
+
+      this.$store.commit('setPlayerIsStartingPlayback', payload.episodeId || payload.libraryItemId)
+      this.$eventBus.$emit('play-item', { ...payload, queueItems: this.playerQueueItems })
+    },
+    nextClick() {
+      if (!this.hasNext || this.isLoading) return
+      if (this.playerQueueItems?.length) return this.playNextItemInQueue()
+      return this.jumpNextChapter()
+    },
+    playNextItemInQueue() {
+      if (!this.playerQueueItems?.length) return
+
+      const nextPayload = this.playerQueueItems.shift()
+      if (!nextPayload) return
+
+      this.$store.commit('setPlayerIsStartingPlayback', nextPayload.episodeId || nextPayload.libraryItemId)
+      this.$eventBus.$emit('play-item', { ...nextPayload, queueItems: this.playerQueueItems })
+    },
+    onPlayItem(payload) {
+      this.playerQueueItems = Array.isArray(payload?.queueItems) ? payload.queueItems : []
+    },
     showSyncsFailedDialog() {
       Dialog.alert({
         title: this.$strings.HeaderProgressSyncFailed,
@@ -842,7 +881,16 @@ export default {
       if (data.playerState === 'ENDED') {
         console.log('[AudioPlayer] Playback ended')
       }
-      this.isEnded = data.playerState === 'ENDED'
+      const ended = data.playerState === 'ENDED'
+      const endedNow = !this.isEnded && ended
+      this.isEnded = ended
+
+      if (endedNow && this.isPodcast && this.playerQueueItems?.length) {
+        setTimeout(() => {
+          // Auto play next item in queue
+          this.playNextItemInQueue()
+        }, 250)
+      }
 
       console.log('received metadata update', data)
 
@@ -964,6 +1012,7 @@ export default {
     window.addEventListener('resize', this.screenOrientationChange)
 
     this.$eventBus.$on('minimize-player', this.minimizePlayerEvt)
+    this.$eventBus.$on('play-item', this.onPlayItem)
     document.body.addEventListener('touchstart', this.touchstart, { passive: false })
     document.body.addEventListener('touchend', this.touchend)
     document.body.addEventListener('touchmove', this.touchmove)
@@ -985,6 +1034,7 @@ export default {
 
     this.forceCloseDropdownMenu()
     this.$eventBus.$off('minimize-player', this.minimizePlayerEvt)
+    this.$eventBus.$off('play-item', this.onPlayItem)
     document.body.removeEventListener('touchstart', this.touchstart)
     document.body.removeEventListener('touchend', this.touchend)
     document.body.removeEventListener('touchmove', this.touchmove)
