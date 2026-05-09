@@ -16,7 +16,7 @@
 package com.audiobookshelf.app.player
 
 import android.util.SparseArray
-import com.google.android.exoplayer2.C
+import androidx.media3.common.C
 import com.google.android.gms.cast.MediaInfo
 import com.google.android.gms.cast.framework.media.RemoteMediaClient
 

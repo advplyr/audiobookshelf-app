@@ -3,147 +3,19 @@ package com.audiobookshelf.app.player
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.*
-import android.support.v4.media.session.MediaSessionCompat
 import android.util.Log
 import android.view.KeyEvent
-import com.audiobookshelf.app.data.LibraryItemWrapper
-import com.audiobookshelf.app.data.PodcastEpisode
 import java.util.*
 import kotlin.concurrent.schedule
 
-class MediaSessionCallback(var playerNotificationService:PlayerNotificationService) : MediaSessionCompat.Callback() {
+class MediaSessionCallback(var playerNotificationService:PlayerNotificationService) {
   var tag = "MediaSessionCallback"
 
   private var mediaButtonClickCount: Int = 0
   private var mediaButtonClickTimeout: Long = 1000  //ms
 
-  override fun onPrepare() {
-    Log.d(tag, "ON PREPARE MEDIA SESSION COMPAT")
-    playerNotificationService.mediaManager.getFirstItem()?.let { li ->
-      playerNotificationService.mediaManager.play(li, null, playerNotificationService.getPlayItemRequestPayload(false)) {
-        if (it == null) {
-          Log.e(tag, "Failed to play library item")
-        } else {
-          val playbackRate = playerNotificationService.mediaManager.getSavedPlaybackRate()
-          Handler(Looper.getMainLooper()).post {
-            playerNotificationService.preparePlayer(it,true, playbackRate)
-          }
-        }
-      }
-    }
-  }
-
-  override fun onPlay() {
-    Log.d(tag, "ON PLAY MEDIA SESSION COMPAT")
-    playerNotificationService.play()
-  }
-
-  override fun onPrepareFromSearch(query: String?, extras: Bundle?) {
-    Log.d(tag, "ON PREPARE FROM SEARCH $query")
-    super.onPrepareFromSearch(query, extras)
-  }
-
-  override fun onPlayFromSearch(query: String?, extras: Bundle?) {
-    Log.d(tag, "ON PLAY FROM SEARCH $query")
-    playerNotificationService.mediaManager.getFromSearch(query)?.let { li ->
-      playerNotificationService.mediaManager.play(li, null, playerNotificationService.getPlayItemRequestPayload(false)) {
-        if (it == null) {
-           Log.e(tag, "Failed to play library item")
-        } else {
-          val playbackRate = playerNotificationService.mediaManager.getSavedPlaybackRate()
-          Handler(Looper.getMainLooper()).post {
-            playerNotificationService.preparePlayer(it, true, playbackRate)
-          }
-        }
-      }
-    }
-  }
-
-  override fun onPause() {
-    Log.d(tag, "ON PAUSE MEDIA SESSION COMPAT")
-    playerNotificationService.pause()
-  }
-
-  override fun onStop() {
-    playerNotificationService.pause()
-  }
-
-  override fun onSkipToPrevious() {
-    playerNotificationService.skipToPrevious()
-  }
-
-  override fun onSkipToNext() {
-    playerNotificationService.skipToNext()
-  }
-
-  override fun onFastForward() {
-    playerNotificationService.jumpForward()
-  }
-
-  override fun onRewind() {
-    playerNotificationService.jumpBackward()
-  }
-
-  override fun onSeekTo(pos: Long) {
-    val currentTrackStartOffset = playerNotificationService.getCurrentTrackStartOffsetMs()
-    playerNotificationService.seekPlayer(currentTrackStartOffset + pos)
-  }
-
-  private fun onChangeSpeed() {
-    // cycle to next speed, only contains preset android app options, as each increment needs it's own icon
-    // Rounding values in the event a non preset value (.5, 1, 1.2, 1.5, 2, 3) is selected in the phone app
-    val mediaManager = playerNotificationService.mediaManager
-    val newSpeed = when (mediaManager.getSavedPlaybackRate()) {
-      in 0.5f..0.7f -> 1.0f
-      in 0.8f..1.0f -> 1.2f
-      in 1.1f..1.2f -> 1.5f
-      in 1.3f..1.5f -> 2.0f
-      in 1.6f..2.0f -> 3.0f
-      in 2.1f..3.0f -> 0.5f
-      // anything set above 3 (can happen in the android app) will be reset to 1
-      else -> 1.0f
-    }
-    mediaManager.setSavedPlaybackRate(newSpeed)
-    playerNotificationService.setPlaybackSpeed(newSpeed)
-    playerNotificationService.clientEventEmitter?.onPlaybackSpeedChanged(newSpeed)
-  }
-
-  override fun onPlayFromMediaId(mediaId: String?, extras: Bundle?) {
-    Log.d(tag, "ON PLAY FROM MEDIA ID $mediaId")
-    val libraryItemWrapper: LibraryItemWrapper?
-    var podcastEpisode: PodcastEpisode? = null
-
-    if (mediaId.isNullOrEmpty()) {
-      libraryItemWrapper = playerNotificationService.mediaManager.getFirstItem()
-    } else {
-      val libraryItemWithEpisode = playerNotificationService.mediaManager.getPodcastWithEpisodeByEpisodeId(mediaId)
-      if (libraryItemWithEpisode != null) {
-        libraryItemWrapper = libraryItemWithEpisode.libraryItemWrapper
-        podcastEpisode = libraryItemWithEpisode.episode
-      } else {
-        libraryItemWrapper = playerNotificationService.mediaManager.getById(mediaId)
-        if (libraryItemWrapper == null) {
-          Log.e(tag, "onPlayFromMediaId: Media item not found $mediaId")
-        }
-      }
-    }
-
-    libraryItemWrapper?.let { li ->
-      playerNotificationService.mediaManager.play(li, podcastEpisode, playerNotificationService.getPlayItemRequestPayload(false)) {
-        if (it == null) {
-         Log.e(tag, "Failed to play library item")
-        } else {
-          val playbackRate = playerNotificationService.mediaManager.getSavedPlaybackRate()
-          Handler(Looper.getMainLooper()).post {
-            playerNotificationService.preparePlayer(it, true, playbackRate)
-          }
-        }
-      }
-    }
-  }
-
-  override fun onMediaButtonEvent(mediaButtonEvent: Intent): Boolean {
-    return handleCallMediaButton(mediaButtonEvent)
+  fun handleMediaButtonIntent(intent: Intent): Boolean {
+    return handleCallMediaButton(intent)
   }
 
   private fun handleCallMediaButton(intent: Intent): Boolean {
@@ -269,18 +141,6 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
         playerNotificationService.jumpForward()
         playerNotificationService.play()
       }
-    }
-  }
-
-  override fun onCustomAction(action: String?, extras: Bundle?) {
-    super.onCustomAction(action, extras)
-
-    when (action) {
-      CUSTOM_ACTION_JUMP_FORWARD -> onFastForward()
-      CUSTOM_ACTION_JUMP_BACKWARD -> onRewind()
-      CUSTOM_ACTION_SKIP_FORWARD -> onSkipToNext()
-      CUSTOM_ACTION_SKIP_BACKWARD -> onSkipToPrevious()
-      CUSTOM_ACTION_CHANGE_SPEED -> onChangeSpeed()
     }
   }
 }

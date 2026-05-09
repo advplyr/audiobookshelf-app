@@ -565,11 +565,6 @@ class AbsDatabase : Plugin() {
       DeviceManager.deviceData.deviceSettings = newDeviceSettings
       DeviceManager.dbManager.saveDeviceData(DeviceManager.deviceData)
 
-      // Updates playback actions for media notification (handles media control seek locking setting)
-      if (mainActivity.isPlayerNotificationServiceInitialized()) {
-        mainActivity.foregroundService.setMediaSessionConnectorPlaybackActions()
-      }
-
       call.resolve(JSObject(jacksonMapper.writeValueAsString(DeviceManager.deviceData)))
     }
   }

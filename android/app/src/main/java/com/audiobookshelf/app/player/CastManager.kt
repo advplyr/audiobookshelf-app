@@ -6,16 +6,19 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import androidx.annotation.OptIn
 import androidx.appcompat.R
 import androidx.mediarouter.app.MediaRouteChooserDialog
 import androidx.mediarouter.media.MediaRouteSelector
 import androidx.mediarouter.media.MediaRouter
 import com.getcapacitor.PluginCall
-import com.google.android.exoplayer2.ext.cast.SessionAvailabilityListener
+import androidx.media3.cast.SessionAvailabilityListener
+import androidx.media3.common.util.UnstableApi
 import com.google.android.gms.cast.*
 import com.google.android.gms.cast.framework.*
 import org.json.JSONObject
 
+@OptIn(UnstableApi::class)
 class CastManager constructor(val mainActivity:Activity) {
   private val tag = "CastManager"
 

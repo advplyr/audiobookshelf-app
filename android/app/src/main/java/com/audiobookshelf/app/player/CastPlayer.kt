@@ -8,23 +8,43 @@ import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.TextureView
-import com.google.android.exoplayer2.*
-import com.google.android.exoplayer2.C.TrackType
-import com.google.android.exoplayer2.MediaMetadata
-import com.google.android.exoplayer2.Player.*
-import com.google.android.exoplayer2.Tracks.Group
-import com.google.android.exoplayer2.audio.AudioAttributes
-import com.google.android.exoplayer2.ext.cast.SessionAvailabilityListener
-import com.google.android.exoplayer2.source.TrackGroup
-import com.google.android.exoplayer2.source.TrackGroupArray
-import com.google.android.exoplayer2.text.CueGroup
-import com.google.android.exoplayer2.trackselection.TrackSelection
-import com.google.android.exoplayer2.trackselection.TrackSelectionArray
-import com.google.android.exoplayer2.trackselection.TrackSelectionParameters
-import com.google.android.exoplayer2.util.*
-import com.google.android.exoplayer2.util.Util.castNonNull
-import com.google.android.exoplayer2.video.VideoSize
-import com.google.android.gms.cast.*
+import androidx.annotation.OptIn
+import androidx.media3.cast.SessionAvailabilityListener
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.BasePlayer
+import androidx.media3.common.C
+import androidx.media3.common.C.TrackType
+import androidx.media3.common.DeviceInfo
+import androidx.media3.common.FlagSet
+import androidx.media3.common.Format
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
+import androidx.media3.common.MimeTypes
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.PlaybackParameters
+import androidx.media3.common.Player
+import androidx.media3.common.Player.*
+import androidx.media3.common.Timeline
+import androidx.media3.common.TrackGroup
+import androidx.media3.common.TrackSelectionParameters
+import androidx.media3.common.Tracks
+import androidx.media3.common.Tracks.Group
+import androidx.media3.common.VideoSize
+import androidx.media3.common.text.CueGroup
+import androidx.media3.common.util.Clock
+import androidx.media3.common.util.ListenerSet
+import androidx.media3.common.util.Size
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.common.util.Util
+import androidx.media3.common.util.Util.castNonNull
+import androidx.media3.exoplayer.trackselection.TrackSelection
+import com.google.android.gms.cast.CastStatusCodes
+import com.google.android.gms.cast.MediaLoadRequestData
+import com.google.android.gms.cast.MediaQueueData
+import com.google.android.gms.cast.MediaQueueItem
+import com.google.android.gms.cast.MediaSeekOptions
+import com.google.android.gms.cast.MediaStatus
+import com.google.android.gms.cast.MediaTrack
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastSession
 import com.google.android.gms.cast.framework.SessionManagerListener
@@ -33,7 +53,7 @@ import com.google.android.gms.common.api.PendingResult
 import com.google.android.gms.common.api.ResultCallback
 import org.json.JSONObject
 
-
+@OptIn(UnstableApi::class)
 class CastPlayer(var castContext: CastContext) : BasePlayer() {
   val tag = "CastPlayer"
 
@@ -42,17 +62,17 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
   private val RENDERER_INDEX_AUDIO = 1
   private val RENDERER_INDEX_TEXT = 2
   private val PROGRESS_REPORT_PERIOD_MS: Long = 1000
-  private val EMPTY_TRACK_SELECTION_ARRAY = TrackSelectionArray()
+  private val EMPTY_TRACK_SELECTION_ARRAY = emptyArray<TrackSelection?>()
   private val EMPTY_TRACK_ID_ARRAY = LongArray(0)
 
   private val seekBackIncrementMs: Long = 5000L
   private val seekForwardIncrementMs: Long = 5000L
   private var myPlayWhenReady:Boolean = false
-  private var playbackParameters:PlaybackParameters = PlaybackParameters.DEFAULT
+  private var playbackParameters: PlaybackParameters = PlaybackParameters.DEFAULT
   private var myAvailableCommands: Commands
   private var myCurrentTracksInfo: Tracks
-  private var myCurrentTrackGroups: TrackGroupArray
-  private var myCurrentTrackSelections: TrackSelectionArray
+  private var myCurrentTrackGroups: List<TrackGroup>
+  private var myCurrentTrackSelections: Array<TrackSelection?>
 
   // Cache for pending volume to handle async setVolume
   private var pendingVolume: Int? = null
@@ -64,7 +84,7 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
   var myCurrentTimeline: CastTimeline
   val timelineTracker: CastTimelineTracker
   val period: Timeline.Period
-  var listeners: ListenerSet<Player.Listener>
+  var listeners: ListenerSet<Listener>
 
   /* package */
   val PERMANENT_AVAILABLE_COMMANDS = Commands.Builder()
@@ -78,13 +98,13 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
       COMMAND_SET_SPEED_AND_PITCH,
       COMMAND_GET_CURRENT_MEDIA_ITEM,
       COMMAND_GET_TIMELINE,
-      COMMAND_GET_MEDIA_ITEMS_METADATA,
-      COMMAND_SET_MEDIA_ITEMS_METADATA,
+      COMMAND_GET_METADATA,
+      COMMAND_SET_PLAYLIST_METADATA,
       COMMAND_CHANGE_MEDIA_ITEMS,
       COMMAND_GET_TRACKS,
       COMMAND_GET_DEVICE_VOLUME,
-      COMMAND_SET_DEVICE_VOLUME,
-      COMMAND_ADJUST_DEVICE_VOLUME)
+      COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS,
+      COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS)
     .build()
 
   var currentPlaybackState = Player.STATE_IDLE
@@ -101,7 +121,7 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
 
   init {
     Log.d(tag, "Init CastPlayer")
-    myCurrentTrackGroups = TrackGroupArray.EMPTY
+    myCurrentTrackGroups = emptyList<TrackGroup>()
     myCurrentTrackSelections = EMPTY_TRACK_SELECTION_ARRAY
     myCurrentTracksInfo = Tracks.EMPTY
     statusListener = StatusListener()
@@ -350,7 +370,7 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
     currentMediaItemIndex = fetchCurrentWindowIndex(remoteMediaClient, currentTimeline)
     val currentPeriodUid = if (!currentTimeline.isEmpty) currentTimeline.getPeriod(currentMediaItemIndex, period,  /* setIds= */true).uid else null
     if (!playingPeriodChangedByTimelineChange
-      && !Util.areEqual(oldPeriodUid, currentPeriodUid)
+      && (oldPeriodUid?.equals(currentPeriodUid) != true)
       && pendingSeekCount == 0) {
       // Report discontinuity and media item auto transition.
       currentTimeline.getPeriod(oldWindowIndex, period,  /* setIds= */true)
@@ -410,8 +430,8 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
     val mediaInfo = mediaStatus?.mediaInfo
     val castMediaTracks = mediaInfo?.mediaTracks
     if (castMediaTracks == null || castMediaTracks.isEmpty()) {
-      val hasChanged = !myCurrentTrackGroups.isEmpty
-      myCurrentTrackGroups = TrackGroupArray.EMPTY
+      val hasChanged = myCurrentTrackGroups.isNotEmpty()
+      myCurrentTrackGroups = emptyList<TrackGroup>()
       myCurrentTrackSelections = EMPTY_TRACK_SELECTION_ARRAY
       myCurrentTracksInfo = Tracks.EMPTY
       return hasChanged
@@ -440,10 +460,11 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
     }
 
     val tg = trackGroups.filterNotNull().toTypedArray()
-    val ts = trackSelections.filterNotNull().toTypedArray()
+    @Suppress("USELESS_CAST")
+    val ts = trackSelections.map { it as TrackSelection? }.toTypedArray()
     val tgi = trackGroupInfos.filterNotNull().toMutableList()
-    val newTrackGroups = TrackGroupArray(*tg)
-    val newTrackSelections = TrackSelectionArray(*ts)
+    val newTrackGroups = tg.toList()
+    val newTrackSelections = ts
     val newTracksInfo = Tracks(tgi)
     if (newTracksInfo != currentTracks) {
       myCurrentTrackSelections = newTrackSelections
@@ -567,6 +588,9 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
   }
 
   override fun moveMediaItems(fromIndex: Int, toIndex: Int, newIndex: Int) {
+  }
+
+  override fun replaceMediaItems(fromIndex: Int, toIndex: Int, mediaItems: MutableList<MediaItem>) {
   }
 
   override fun removeMediaItems(fromIndex: Int, toIndex: Int) {
@@ -732,10 +756,6 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
     remoteMediaClient?.stop()
   }
 
-  override fun stop(reset: Boolean) {
-    stop()
-  }
-
   override fun release() {
     val sessionManager = castContext.sessionManager
     sessionManager.removeSessionManagerListener(statusListener, CastSession::class.java)
@@ -747,7 +767,7 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
   }
 
   override fun getTrackSelectionParameters(): TrackSelectionParameters {
-    return TrackSelectionParameters.DEFAULT_WITHOUT_CONTEXT
+    return TrackSelectionParameters.DEFAULT
   }
 
   override fun setTrackSelectionParameters(parameters: TrackSelectionParameters) {}
@@ -894,7 +914,12 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
     return session?.isMute ?: false
   }
 
+  @Deprecated("Use setDeviceVolume(Int, Int) instead", ReplaceWith("setDeviceVolume(volume, 0)"))
   override fun setDeviceVolume(volume: Int) {
+    setDeviceVolume(volume, 0)
+  }
+
+  override fun setDeviceVolume(volume: Int, flags: Int) {
     val session = castContext.sessionManager.currentCastSession
     try {
       val clamped = volume.coerceIn(0, 100)
@@ -910,19 +935,45 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
     }
   }
 
+  @Deprecated("Use increaseDeviceVolume(Int) instead", ReplaceWith("increaseDeviceVolume(0)"))
   override fun increaseDeviceVolume() {
+    increaseDeviceVolume(0)
+  }
+
+  override fun increaseDeviceVolume(flags: Int) {
     val current = getDeviceVolume()
     val next = current + 1
-    setDeviceVolume(next.coerceAtMost(100))
+    setDeviceVolume(next.coerceAtMost(100), flags)
   }
 
+  @Deprecated("Use decreaseDeviceVolume(Int) instead", ReplaceWith("decreaseDeviceVolume(0)"))
   override fun decreaseDeviceVolume() {
+    decreaseDeviceVolume(0)
+  }
+
+  override fun decreaseDeviceVolume(flags: Int) {
     val current = getDeviceVolume()
     val next = current - 1
-    setDeviceVolume(next.coerceAtLeast(0))
+    setDeviceVolume(next.coerceAtLeast(0), flags)
   }
 
+  @Deprecated("Use setDeviceMuted(Boolean, Int) instead", ReplaceWith("setDeviceMuted(muted, 0)"))
   override fun setDeviceMuted(muted: Boolean) {
+    setDeviceMuted(muted, 0)
+  }
+
+  override fun setAudioAttributes(audioAttributes: AudioAttributes, handleAudioFocus: Boolean) {
+  }
+
+  override fun mute() {
+    setDeviceMuted(true, 0)
+  }
+
+  override fun unmute() {
+    setDeviceMuted(false, 0)
+  }
+
+  override fun setDeviceMuted(muted: Boolean, flags: Int) {
     val session = castContext.sessionManager.currentCastSession
     try {
       session?.isMute = muted
@@ -941,24 +992,24 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
 
     // RemoteMediaClient.Callback implementation.
     override fun onStatusUpdated() {
-      Log.d(TAG, "StatusListener status queue items " + remoteMediaClient?.mediaStatus?.queueItemCount)
-      if (remoteMediaClient?.playerState == MediaStatus.PLAYER_STATE_IDLE) {
-        Log.d(TAG, "StatusListener CastPlayer STATE_IDLE")
-      } else if (remoteMediaClient?.playerState == MediaStatus.PLAYER_STATE_BUFFERING) {
-        Log.d(TAG, "StatusListener CastPlayer BUFFERING")
-      } else if (remoteMediaClient?.playerState == MediaStatus.PLAYER_STATE_LOADING) {
-        Log.d(TAG, "StatusListener CastPlayer PLAYER_STATE_LOADING")
-      } else if (remoteMediaClient?.playerState == MediaStatus.PLAYER_STATE_PAUSED) {
-        Log.d(TAG, "StatusListener CastPlayer PLAYER_STATE_PAUSED")
-      } else if (remoteMediaClient?.playerState == MediaStatus.PLAYER_STATE_PLAYING) {
-        Log.d(TAG, "StatusListener CastPlayer PLAYER_STATE_PLAYING")
-      } else if (remoteMediaClient?.playerState == MediaStatus.PLAYER_STATE_UNKNOWN) {
-        Log.d(TAG, "StatusListener CastPlayer PLAYER_STATE_UNKNOWN")
+      val client = remoteMediaClient
+      val queueItemCount = client?.mediaStatus?.queueItemCount
+      val stateLabel = when (client?.playerState) {
+        MediaStatus.PLAYER_STATE_IDLE -> "STATE_IDLE"
+        MediaStatus.PLAYER_STATE_BUFFERING -> "BUFFERING"
+        MediaStatus.PLAYER_STATE_LOADING -> "PLAYER_STATE_LOADING"
+        MediaStatus.PLAYER_STATE_PAUSED -> "PLAYER_STATE_PAUSED"
+        MediaStatus.PLAYER_STATE_PLAYING -> "PLAYER_STATE_PLAYING"
+        MediaStatus.PLAYER_STATE_UNKNOWN -> "PLAYER_STATE_UNKNOWN"
+        null -> "null"
+        else -> "UNHANDLED_STATE"
       }
+
+      Log.d(TAG, "StatusListener status queue items: $queueItemCount")
+      Log.d(TAG, "StatusListener CastPlayer $stateLabel")
 
       updateInternalStateAndNotifyIfChanged()
     }
-
     override fun onMetadataUpdated() {}
     override fun onQueueStatusUpdated() {
       Log.d(TAG, "onQueueStatusUpdated")
