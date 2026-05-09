@@ -19,7 +19,7 @@ kotlin {
     "--add-opens=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED"
   ]
 
-  jvmToolchain(17)
+  jvmToolchain(21)
 }
 
 android {
