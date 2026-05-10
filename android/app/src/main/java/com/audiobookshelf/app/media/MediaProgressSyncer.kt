@@ -179,20 +179,69 @@ class MediaProgressSyncer(
   }
 
   fun finished(cb: () -> Unit) {
-    if (!listeningTimerRunning) return
+    val playbackSession = currentPlaybackSession
+    if (playbackSession == null) {
+      Log.d(tag, "finished: No playback session to finish")
+      return cb()
+    }
 
-    listeningTimerTask?.cancel()
-    listeningTimerTask = null
-    listeningTimerRunning = false
-    Log.d(tag, "finished: Stopping listening for $currentDisplayTitle")
+    if (listeningTimerRunning) {
+      listeningTimerTask?.cancel()
+      listeningTimerTask = null
+      listeningTimerRunning = false
+      Log.d(tag, "finished: Stopping listening for $currentDisplayTitle")
+    } else {
+      Log.d(tag, "finished: Timer already stopped for $currentDisplayTitle, syncing anyway")
+    }
 
-    sync(true, currentPlaybackSession?.duration ?: 0.0) { syncResult ->
-      reset()
+    // Manually set current time to duration and sync
+    val duration = playbackSession.duration
+    playbackSession.currentTime = duration
 
-      currentPlaybackSession?.let { playbackSession ->
+    // Save to local storage
+    if (playbackSession.isLocal) {
+      saveLocalProgress(playbackSession)
+    }
+
+    // Sync with server
+    val hasNetworkConnection = DeviceManager.checkConnectivity(playerNotificationService)
+    if (hasNetworkConnection && !playbackSession.isLocal) {
+      val syncData = MediaProgressSyncData(0, duration, duration)
+      playbackSession.syncData(syncData)
+
+      apiHandler.sendProgressSync(playbackSession.id, syncData) { syncSuccess, errorMsg ->
+        if (syncSuccess) {
+          DeviceManager.dbManager.removePlaybackSession(playbackSession.id)
+        }
+
+        val syncResult = SyncResult(true, syncSuccess, errorMsg)
         MediaEventManager.finishedEvent(playbackSession, syncResult)
+        reset()
+        cb()
       }
+    } else if (hasNetworkConnection && playbackSession.isLocal && playbackSession.libraryItemId != null) {
+      // Local item connected to server
+      val isConnectedToSameServer = playbackSession.serverConnectionConfigId != null &&
+                                     DeviceManager.serverConnectionConfig?.id == playbackSession.serverConnectionConfigId
+      if (isConnectedToSameServer) {
+        apiHandler.sendLocalProgressSync(playbackSession) { syncSuccess, errorMsg ->
+          if (syncSuccess) {
+            DeviceManager.dbManager.removePlaybackSession(playbackSession.id)
+          }
 
+          val syncResult = SyncResult(true, syncSuccess, errorMsg)
+          MediaEventManager.finishedEvent(playbackSession, syncResult)
+          reset()
+          cb()
+        }
+      } else {
+        MediaEventManager.finishedEvent(playbackSession, null)
+        reset()
+        cb()
+      }
+    } else {
+      MediaEventManager.finishedEvent(playbackSession, null)
+      reset()
       cb()
     }
   }

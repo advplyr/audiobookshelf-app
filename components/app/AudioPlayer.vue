@@ -63,6 +63,7 @@
           </div>
 
           <span class="material-symbols text-3xl text-fg cursor-pointer" :class="chapters.length ? 'text-opacity-75' : 'text-opacity-10'" @click="clickChaptersBtn">format_list_bulleted</span>
+          <span class="material-symbols text-3xl text-fg cursor-pointer" :class="$store.getters.hasQueueItems ? 'text-opacity-75' : 'text-opacity-25'" @click="$store.commit('globals/setShowQueueModal', true)">playlist_play</span>
         </div>
       </div>
       <div v-else class="w-full h-full absolute top-0 left-0 pointer-events-none" style="background: var(--gradient-minimized-audio-player)" />
@@ -84,7 +85,7 @@
             <span class="material-symbols text-3xl leading-none">forward_media</span>
             <span v-if="showFullscreen" class="jump-label text-[10px] font-semibold leading-tight">{{ jumpForwardLabel }}</span>
           </div>
-          <span v-show="showFullscreen && !playerSettings.lockUi" class="material-symbols next-icon text-fg cursor-pointer" :class="nextChapter && !isLoading ? 'text-opacity-75' : 'text-opacity-10'" @click.stop="jumpNextChapter">last_page</span>
+          <span v-show="showFullscreen && !playerSettings.lockUi" class="material-symbols next-icon text-fg cursor-pointer" :class="(nextChapter || $store.getters.hasQueueItems) && !isLoading ? 'text-opacity-75' : 'text-opacity-10'" @click.stop="jumpNextChapter">last_page</span>
         </div>
       </div>
 
@@ -199,6 +200,11 @@ export default {
 
       items.push(
         ...[
+          {
+            text: this.$strings.LabelQueue,
+            value: 'queue',
+            icon: 'playlist_play'
+          },
           {
             text: this.$strings.LabelTotalTrack,
             value: 'total_track',
@@ -462,8 +468,11 @@ export default {
     async jumpNextChapter() {
       await this.$hapticsImpact()
       if (this.isLoading) return
-      if (!this.nextChapter) return
-      this.seek(this.nextChapter.start)
+      if (this.nextChapter) {
+        this.seek(this.nextChapter.start)
+      } else if (this.$store.getters.hasQueueItems) {
+        this.$store.dispatch('playNextInQueue')
+      }
     },
     async jumpChapterStart() {
       await this.$hapticsImpact()
@@ -740,6 +749,8 @@ export default {
         if (action === 'history') {
           this.$router.push(`/media/${this.mediaId}/history?title=${this.title}`)
           this.showFullscreen = false
+        } else if (action === 'queue') {
+          this.$store.commit('globals/setShowQueueModal', true)
         } else if (action === 'scale_elapsed_time') {
           this.playerSettings.scaleElapsedTimeBySpeed = !this.playerSettings.scaleElapsedTimeBySpeed
           this.updateTimestamp()
@@ -839,9 +850,6 @@ export default {
         this.isLoading = false
       }
 
-      if (data.playerState === 'ENDED') {
-        console.log('[AudioPlayer] Playback ended')
-      }
       this.isEnded = data.playerState === 'ENDED'
 
       console.log('received metadata update', data)
@@ -885,6 +893,10 @@ export default {
       this.currentPlaybackRate = Number(data.value)
       this.updateTimestamp()
     },
+    onQueueChanged() {
+      console.log('[AudioPlayer] Queue changed by native layer, reloading from storage')
+      this.$store.dispatch('loadSavedQueue')
+    },
     async init() {
       await this.loadPlayerSettings()
 
@@ -896,6 +908,7 @@ export default {
       AbsAudioPlayer.addListener('onProgressSyncFailing', this.showProgressSyncIsFailing)
       AbsAudioPlayer.addListener('onProgressSyncSuccess', this.showProgressSyncSuccess)
       AbsAudioPlayer.addListener('onPlaybackSpeedChanged', this.onPlaybackSpeedChanged)
+      AbsAudioPlayer.addListener('onQueueChanged', this.onQueueChanged)
     },
     async screenOrientationChange() {
       if (this.isRefreshingUI) return

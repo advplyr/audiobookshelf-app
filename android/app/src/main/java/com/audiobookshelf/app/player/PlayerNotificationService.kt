@@ -33,6 +33,7 @@ import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.data.DeviceInfo
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.managers.DbManager
+import com.audiobookshelf.app.managers.QueueManager
 import com.audiobookshelf.app.managers.SleepTimerManager
 import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.media.MediaProgressSyncer
@@ -87,6 +88,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     fun onNetworkMeteredChanged(isUnmetered: Boolean)
     fun onMediaItemHistoryUpdated(mediaItemHistory: MediaItemHistory)
     fun onPlaybackSpeedChanged(playbackSpeed: Float)
+    fun onQueueChanged()
   }
   private val binder = LocalBinder()
 
@@ -95,6 +97,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   private lateinit var ctx: Context
   private lateinit var mediaSessionConnector: MediaSessionConnector
   private lateinit var playerNotificationManager: PlayerNotificationManager
+  private lateinit var mediaDescriptionAdapter: AbMediaDescriptionAdapter
   lateinit var mediaSession: MediaSessionCompat
   private var remoteVolumeProvider: VolumeProviderCompat? = null
   private lateinit var transportControls: MediaControllerCompat.TransportControls
@@ -108,6 +111,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
   lateinit var sleepTimerManager: SleepTimerManager
   lateinit var mediaProgressSyncer: MediaProgressSyncer
+  lateinit var queueManager: QueueManager
 
   private var notificationId = 10
   private var channelId = "audiobookshelf_channel"
@@ -207,7 +211,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     super.onTaskRemoved(rootIntent)
     Log.d(tag, "onTaskRemoved")
 
-    stopSelf()
+    if (currentPlaybackSession == null || !currentPlayer.isPlaying) {
+      stopSelf()
+    }
   }
 
   override fun onCreate() {
@@ -250,6 +256,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     // Initialize media manager
     mediaManager = MediaManager(apiHandler, ctx)
 
+    queueManager = QueueManager(ctx)
+
     channelId =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
               createNotificationChannel(channelId, channelName)
@@ -273,14 +281,17 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
     val builder = PlayerNotificationManager.Builder(ctx, notificationId, channelId)
 
-    builder.setMediaDescriptionAdapter(AbMediaDescriptionAdapter(mediaController, this))
+    mediaDescriptionAdapter = AbMediaDescriptionAdapter(mediaController, this)
+    builder.setMediaDescriptionAdapter(mediaDescriptionAdapter)
     builder.setNotificationListener(PlayerNotificationListener(this))
 
     playerNotificationManager = builder.build()
     playerNotificationManager.setMediaSessionToken(mediaSession.sessionToken)
     playerNotificationManager.setUsePlayPauseActions(true)
-    playerNotificationManager.setUseNextAction(false)
-    playerNotificationManager.setUsePreviousAction(false)
+    playerNotificationManager.setUseNextAction(true)
+    playerNotificationManager.setUsePreviousAction(true)
+    playerNotificationManager.setUseNextActionInCompactView(false)
+    playerNotificationManager.setUsePreviousActionInCompactView(false)
     playerNotificationManager.setUseChronometer(false)
     playerNotificationManager.setUseStopAction(false)
     playerNotificationManager.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -300,7 +311,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
               override fun getSupportedQueueNavigatorActions(player: Player): Long {
                 return PlaybackStateCompat.ACTION_PLAY_PAUSE or
                         PlaybackStateCompat.ACTION_PLAY or
-                        PlaybackStateCompat.ACTION_PAUSE
+                        PlaybackStateCompat.ACTION_PAUSE or
+                        PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
+                        PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
               }
 
               override fun getMediaDescription(
@@ -454,13 +467,29 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       playerNotificationManager.setPlayer(castPlayer)
     }
 
+    // Check if this item is in the queue and remove it before notifying UI
+    val queueItem = queueManager.getNextItem()
+    if (queueItem != null) {
+      val matchesQueue = if (playbackSession.episodeId != null) {
+        playbackSession.libraryItemId == queueItem.libraryItemId &&
+        playbackSession.episodeId == queueItem.episodeId
+      } else {
+        playbackSession.libraryItemId == queueItem.libraryItemId
+      }
+
+      if (matchesQueue) {
+        queueManager.removeFirstItem()
+      }
+    }
+
     currentPlaybackSession = playbackSession
     DeviceManager.setLastPlaybackSession(
             playbackSession
     ) // Save playback session to use when app is closed
 
     AbsLogger.info("PlayerNotificationService", "preparePlayer: Started playback session for item ${currentPlaybackSession?.mediaItemId}. MediaPlayer ${currentPlaybackSession?.mediaPlayer}")
-    // Notify client
+    // Notify queue change first so UI has updated state before processing playback session
+    clientEventEmitter?.onQueueChanged()
     clientEventEmitter?.onPlaybackSession(playbackSession)
 
     // Update widget
@@ -586,7 +615,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                     PlaybackStateCompat.ACTION_PAUSE or
                     PlaybackStateCompat.ACTION_FAST_FORWARD or
                     PlaybackStateCompat.ACTION_REWIND or
-                    PlaybackStateCompat.ACTION_STOP
+                    PlaybackStateCompat.ACTION_STOP or
+                    PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
+                    PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
 
     if (deviceSettings.allowSeekingOnMediaControls) {
       playbackActions = playbackActions or PlaybackStateCompat.ACTION_SEEK_TO
@@ -622,6 +653,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
   fun handlePlaybackEnded() {
     Log.d(tag, "handlePlaybackEnded")
+
     if (isAndroidAuto && currentPlaybackSession?.isPodcastEpisode == true) {
       Log.d(tag, "Podcast playback ended on android auto")
       val libraryItem = currentPlaybackSession?.libraryItem ?: return
@@ -642,6 +674,74 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                 Handler(Looper.getMainLooper()).post { preparePlayer(it, true, playbackRate) }
               }
             }
+          }
+        }
+      }
+      return
+    }
+
+    if (queueManager.hasQueueItems()) {
+      Log.d(tag, "Playback ended, advancing to next queue item")
+      mediaProgressSyncer.finished {
+        startNextQueueItem()
+      }
+    }
+  }
+
+  private fun startNextQueueItem() {
+    val nextQueueItem = queueManager.getNextItem()
+    if (nextQueueItem == null) {
+      Log.d(tag, "startNextQueueItem: No next queue item found")
+      return
+    }
+    Log.d(tag, "startNextQueueItem: Starting '${nextQueueItem.title}'")
+
+    clientEventEmitter?.onQueueChanged()
+
+    if (nextQueueItem.isLocal) {
+      val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(nextQueueItem.libraryItemId)
+      if (localLibraryItem == null) {
+        Log.e(tag, "startNextQueueItem: Failed to load local library item ${nextQueueItem.libraryItemId}")
+        return
+      }
+
+      val episode = if (nextQueueItem.episodeId != null) {
+        (localLibraryItem.media as? Podcast)?.episodes?.find { it.id == nextQueueItem.episodeId }
+      } else null
+
+      mediaManager.play(localLibraryItem, episode, getPlayItemRequestPayload(false)) { playbackSession ->
+        if (playbackSession == null) {
+          Log.e(tag, "startNextQueueItem: Failed to play local queue item")
+        } else {
+          playbackSession.currentTime = nextQueueItem.currentTime
+          val playbackRate = mediaManager.getSavedPlaybackRate()
+          Handler(Looper.getMainLooper()).post { preparePlayer(playbackSession, true, playbackRate) }
+        }
+      }
+    } else {
+      val serverLibraryItemId = nextQueueItem.serverLibraryItemId
+      if (serverLibraryItemId == null) {
+        Log.e(tag, "startNextQueueItem: Server library item ID is null for queue item")
+        return
+      }
+
+      apiHandler.getLibraryItem(serverLibraryItemId) { libraryItem ->
+        if (libraryItem == null) {
+          Log.e(tag, "startNextQueueItem: Failed to load server library item $serverLibraryItemId")
+          return@getLibraryItem
+        }
+
+        val episode = if (nextQueueItem.serverEpisodeId != null) {
+          (libraryItem.media as? Podcast)?.episodes?.find { it.id == nextQueueItem.serverEpisodeId }
+        } else null
+
+        mediaManager.play(libraryItem, episode, getPlayItemRequestPayload(false)) { playbackSession ->
+          if (playbackSession == null) {
+            Log.e(tag, "startNextQueueItem: Failed to play server queue item")
+          } else {
+            playbackSession.currentTime = nextQueueItem.currentTime
+            val playbackRate = mediaManager.getSavedPlaybackRate()
+            Handler(Looper.getMainLooper()).post { preparePlayer(playbackSession, true, playbackRate) }
           }
         }
       }
@@ -977,7 +1077,19 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   }
 
   fun skipToNext() {
-    currentPlayer.seekToNext()
+    // For multi-track items not at the last track, use native track navigation
+    if (currentPlayer.mediaItemCount > 1 && currentPlayer.currentMediaItemIndex < currentPlayer.mediaItemCount - 1) {
+      currentPlayer.seekToNext()
+      return
+    }
+    // Otherwise advance the queue, syncing progress without marking as finished
+    if (queueManager.hasQueueItems()) {
+      mediaProgressSyncer.stop(true) {
+        startNextQueueItem()
+      }
+    } else {
+      currentPlayer.seekToNext()
+    }
   }
 
   fun jumpForward() {
