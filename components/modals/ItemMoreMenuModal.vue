@@ -499,7 +499,8 @@ export default {
           this.$emit('update:processing', false)
         })
     },
-    addToQueue() {
+    async addToQueue() {
+      await this.$hapticsImpact()
       this.addItemToQueue(this.libraryItem, this.episode)
     },
     removeFromPlaylistClick() {

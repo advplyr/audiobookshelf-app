@@ -611,7 +611,8 @@ export default {
           })
       }
     },
-    addToQueue() {
+    async addToQueue() {
+      await this.$hapticsImpact()
       this.addItemToQueue(this.libraryItem, this.episode)
     },
     newLocalLibraryItem(item) {

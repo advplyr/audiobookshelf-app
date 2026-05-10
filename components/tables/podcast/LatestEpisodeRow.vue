@@ -198,7 +198,8 @@ export default {
     addToPlaylist() {
       this.$emit('addToPlaylist', this.episode)
     },
-    toggleQueue() {
+    async toggleQueue() {
+      await this.$hapticsImpact()
       if (this.isInQueue) {
         const serverEpisodeId = this.isLocal ? this.localEpisode?.serverEpisodeId : this.episode?.id
         this.removeItemFromQueue(serverEpisodeId)

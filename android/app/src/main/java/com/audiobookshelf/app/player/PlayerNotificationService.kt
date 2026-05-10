@@ -675,69 +675,67 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     }
 
     if (queueManager.hasQueueItems()) {
-      Log.d(tag, "Playback ended, checking queue for next item")
+      Log.d(tag, "Playback ended, advancing to next queue item")
+      mediaProgressSyncer.finished {
+        startNextQueueItem()
+      }
+    }
+  }
 
-      val nextQueueItem = queueManager.getNextItem()
-      if (nextQueueItem == null) {
-        Log.d(tag, "No next queue item found")
+  private fun startNextQueueItem() {
+    val nextQueueItem = queueManager.getNextItem()
+    if (nextQueueItem == null) {
+      Log.d(tag, "startNextQueueItem: No next queue item found")
+      return
+    }
+    Log.d(tag, "startNextQueueItem: Starting '${nextQueueItem.title}'")
+
+    clientEventEmitter?.onQueueChanged()
+
+    if (nextQueueItem.isLocal) {
+      val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(nextQueueItem.libraryItemId)
+      if (localLibraryItem == null) {
+        Log.e(tag, "startNextQueueItem: Failed to load local library item ${nextQueueItem.libraryItemId}")
         return
       }
 
-      Log.d(tag, "Playing next queue item: ${nextQueueItem.title}")
+      val episode = if (nextQueueItem.episodeId != null) {
+        (localLibraryItem.media as? Podcast)?.episodes?.find { it.id == nextQueueItem.episodeId }
+      } else null
 
-      mediaProgressSyncer.finished {
-        clientEventEmitter?.onQueueChanged()
-
-        if (nextQueueItem.isLocal) {
-          val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(nextQueueItem.libraryItemId)
-          if (localLibraryItem == null) {
-            Log.e(tag, "Failed to load local library item ${nextQueueItem.libraryItemId}")
-            return@finished
-          }
-
-          val episode = if (nextQueueItem.episodeId != null) {
-            (localLibraryItem.media as? Podcast)?.episodes?.find { it.id == nextQueueItem.episodeId }
-          } else {
-            null
-          }
-
-          mediaManager.play(localLibraryItem, episode, getPlayItemRequestPayload(false)) { playbackSession ->
-            if (playbackSession == null) {
-              Log.e(tag, "Failed to play local queue item")
-            } else {
-              playbackSession.currentTime = nextQueueItem.currentTime
-              val playbackRate = mediaManager.getSavedPlaybackRate()
-              Handler(Looper.getMainLooper()).post { preparePlayer(playbackSession, true, playbackRate) }
-            }
-          }
+      mediaManager.play(localLibraryItem, episode, getPlayItemRequestPayload(false)) { playbackSession ->
+        if (playbackSession == null) {
+          Log.e(tag, "startNextQueueItem: Failed to play local queue item")
         } else {
-          val serverLibraryItemId = nextQueueItem.serverLibraryItemId
-          if (serverLibraryItemId == null) {
-            Log.e(tag, "Server library item ID is null for queue item")
-            return@finished
-          }
+          playbackSession.currentTime = nextQueueItem.currentTime
+          val playbackRate = mediaManager.getSavedPlaybackRate()
+          Handler(Looper.getMainLooper()).post { preparePlayer(playbackSession, true, playbackRate) }
+        }
+      }
+    } else {
+      val serverLibraryItemId = nextQueueItem.serverLibraryItemId
+      if (serverLibraryItemId == null) {
+        Log.e(tag, "startNextQueueItem: Server library item ID is null for queue item")
+        return
+      }
 
-          apiHandler.getLibraryItem(serverLibraryItemId) { libraryItem ->
-            if (libraryItem == null) {
-              Log.e(tag, "Failed to load server library item $serverLibraryItemId")
-              return@getLibraryItem
-            }
+      apiHandler.getLibraryItem(serverLibraryItemId) { libraryItem ->
+        if (libraryItem == null) {
+          Log.e(tag, "startNextQueueItem: Failed to load server library item $serverLibraryItemId")
+          return@getLibraryItem
+        }
 
-            val episode = if (nextQueueItem.serverEpisodeId != null) {
-              (libraryItem.media as? Podcast)?.episodes?.find { it.id == nextQueueItem.serverEpisodeId }
-            } else {
-              null
-            }
+        val episode = if (nextQueueItem.serverEpisodeId != null) {
+          (libraryItem.media as? Podcast)?.episodes?.find { it.id == nextQueueItem.serverEpisodeId }
+        } else null
 
-            mediaManager.play(libraryItem, episode, getPlayItemRequestPayload(false)) { playbackSession ->
-              if (playbackSession == null) {
-                Log.e(tag, "Failed to play server queue item")
-              } else {
-                playbackSession.currentTime = nextQueueItem.currentTime
-                val playbackRate = mediaManager.getSavedPlaybackRate()
-                Handler(Looper.getMainLooper()).post { preparePlayer(playbackSession, true, playbackRate) }
-              }
-            }
+        mediaManager.play(libraryItem, episode, getPlayItemRequestPayload(false)) { playbackSession ->
+          if (playbackSession == null) {
+            Log.e(tag, "startNextQueueItem: Failed to play server queue item")
+          } else {
+            playbackSession.currentTime = nextQueueItem.currentTime
+            val playbackRate = mediaManager.getSavedPlaybackRate()
+            Handler(Looper.getMainLooper()).post { preparePlayer(playbackSession, true, playbackRate) }
           }
         }
       }
@@ -1073,7 +1071,19 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   }
 
   fun skipToNext() {
-    currentPlayer.seekToNext()
+    // For multi-track items not at the last track, use native track navigation
+    if (currentPlayer.mediaItemCount > 1 && currentPlayer.currentMediaItemIndex < currentPlayer.mediaItemCount - 1) {
+      currentPlayer.seekToNext()
+      return
+    }
+    // Otherwise advance the queue, syncing progress without marking as finished
+    if (queueManager.hasQueueItems()) {
+      mediaProgressSyncer.stop(true) {
+        startNextQueueItem()
+      }
+    } else {
+      currentPlayer.seekToNext()
+    }
   }
 
   fun jumpForward() {

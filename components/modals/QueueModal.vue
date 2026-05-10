@@ -151,18 +151,20 @@ export default {
         })
       }
     },
-    removeItem(index) {
-      // Find the actual index in the store queue by matching IDs
+    async removeItem(index) {
+      await this.$hapticsImpact()
       const item = this.localQueue[index]
       const storeIndex = this.queue.findIndex(queueItem => queueItem.id === item.id)
       if (storeIndex >= 0) {
         this.$store.dispatch('removeFromQueue', storeIndex)
       }
     },
-    clearQueue() {
+    async clearQueue() {
+      await this.$hapticsImpact()
       this.$store.dispatch('clearQueue')
     },
     async playItem(item) {
+      await this.$hapticsImpact()
       // Find the actual index in the store queue by matching IDs
       let storeIndex = this.queue.findIndex(queueItem => queueItem.id === item.id)
 
