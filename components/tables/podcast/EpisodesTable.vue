@@ -197,10 +197,15 @@ export default {
           bValue = b[this.sortKey]
         }
 
-        // Sort episodes with no pub date as the oldest
+        // publishedAt is a numeric ms epoch (negative for pre-1970 broadcasts).
+        // Compare numerically so the leading "-" of negative epochs doesn't
+        // break Intl.Collator{numeric:true}, which only handles unsigned digit
+        // runs. Missing dates count as oldest (sink in DESC).
         if (this.sortKey === 'publishedAt') {
-          if (!aValue) aValue = Number.MAX_VALUE
-          if (!bValue) bValue = Number.MAX_VALUE
+          const av = aValue == null ? Number.NEGATIVE_INFINITY : Number(aValue)
+          const bv = bValue == null ? Number.NEGATIVE_INFINITY : Number(bValue)
+          const cmp = av < bv ? -1 : av > bv ? 1 : 0
+          return this.sortDesc ? -cmp : cmp
         }
 
         if (this.sortDesc) {
