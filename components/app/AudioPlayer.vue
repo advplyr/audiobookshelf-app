@@ -85,7 +85,7 @@
             <span class="material-symbols text-3xl leading-none">forward_media</span>
             <span v-if="showFullscreen" class="jump-label text-[10px] font-semibold leading-tight">{{ jumpForwardLabel }}</span>
           </div>
-          <span v-show="showFullscreen && !playerSettings.lockUi" class="material-symbols next-icon text-fg cursor-pointer" :class="nextChapter && !isLoading ? 'text-opacity-75' : 'text-opacity-10'" @click.stop="jumpNextChapter">last_page</span>
+          <span v-show="showFullscreen && !playerSettings.lockUi" class="material-symbols next-icon text-fg cursor-pointer" :class="(nextChapter || $store.getters.hasQueueItems) && !isLoading ? 'text-opacity-75' : 'text-opacity-10'" @click.stop="jumpNextChapter">last_page</span>
         </div>
       </div>
 
@@ -468,8 +468,11 @@ export default {
     async jumpNextChapter() {
       await this.$hapticsImpact()
       if (this.isLoading) return
-      if (!this.nextChapter) return
-      this.seek(this.nextChapter.start)
+      if (this.nextChapter) {
+        this.seek(this.nextChapter.start)
+      } else if (this.$store.getters.hasQueueItems) {
+        this.$store.dispatch('playNextInQueue')
+      }
     },
     async jumpChapterStart() {
       await this.$hapticsImpact()
