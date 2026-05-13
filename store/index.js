@@ -86,6 +86,9 @@ export const getters = {
     if (!state.deviceData?.deviceSettings?.streamingUsingCellular) return 'ALWAYS'
     return state.deviceData.deviceSettings.streamingUsingCellular || 'ALWAYS'
   },
+  getCoverTapToTogglePlayPause: (state) => {
+    return !!state.deviceData?.deviceSettings?.coverTapToTogglePlayPause
+  },
   /**
    * Old server versions require a token for images
    *
