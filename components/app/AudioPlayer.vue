@@ -315,7 +315,6 @@ export default {
     title() {
       const mediaItemTitle = this.playbackSession?.displayTitle || this.mediaMetadata?.title || 'Title'
       if (this.currentChapterTitle) {
-        if (this.showFullscreen) return this.currentChapterTitle
         return `${mediaItemTitle} | ${this.currentChapterTitle}`
       }
       return mediaItemTitle
