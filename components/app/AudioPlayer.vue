@@ -154,7 +154,8 @@ export default {
         useChapterTrack: false,
         useTotalTrack: true,
         scaleElapsedTimeBySpeed: true,
-        lockUi: false
+        lockUi: false,
+        useAuthorAsChapterSubtitle: false
       },
       isLoading: false,
       isCheckingServerProgress: false,
@@ -209,6 +210,11 @@ export default {
             text: this.$strings.LabelChapterTrack,
             value: 'chapter_track',
             icon: this.playerSettings.useChapterTrack ? 'check_box' : 'check_box_outline_blank'
+          },
+          {
+            text: this.$strings.LabelShowAuthorBelowChapterTitle,
+            value: 'author_as_chapter_subtitle',
+            icon: this.playerSettings.useAuthorAsChapterSubtitle ? 'check_box' : 'check_box_outline_blank'
           },
           {
             text: this.$strings.LabelScaleElapsedTimeBySpeed,
@@ -769,16 +775,20 @@ export default {
           this.updateReadyTrack()
           this.updateUseChapterTrack()
           this.savePlayerSettings()
+        } else if (action === 'author_as_chapter_subtitle') {
+          this.playerSettings.useAuthorAsChapterSubtitle = !this.playerSettings.useAuthorAsChapterSubtitle
+          this.updateUseAuthorAsChapterSubtitle()
+          this.savePlayerSettings()
         } else if (action === 'close') {
           this.closePlayback()
         }
       })
     },
     updateUseChapterTrack() {
-      // Chapter track in NowPlaying only supported on iOS for now
-      if (this.$platform === 'ios') {
-        AbsAudioPlayer.setChapterTrack({ enabled: this.playerSettings.useChapterTrack })
-      }
+      AbsAudioPlayer.setChapterTrack({ enabled: this.playerSettings.useChapterTrack })
+    },
+    updateUseAuthorAsChapterSubtitle() {
+      AbsAudioPlayer.setUseAuthorAsChapterSubtitle({ enabled: this.playerSettings.useAuthorAsChapterSubtitle })
     },
     forceCloseDropdownMenu() {
       if (this.$refs.dropdownMenu && this.$refs.dropdownMenu.closeMenu) {
@@ -815,7 +825,11 @@ export default {
         this.playerSettings.useTotalTrack = !!savedPlayerSettings.useTotalTrack
         this.playerSettings.lockUi = !!savedPlayerSettings.lockUi
         this.playerSettings.scaleElapsedTimeBySpeed = !!savedPlayerSettings.scaleElapsedTimeBySpeed
+        this.playerSettings.useAuthorAsChapterSubtitle = !!savedPlayerSettings.useAuthorAsChapterSubtitle
       }
+      // Reassert into native cache so cold-start (Android Auto / lock-screen) stays in sync
+      this.updateUseChapterTrack()
+      this.updateUseAuthorAsChapterSubtitle()
     },
     savePlayerSettings() {
       return this.$localStore.setPlayerSettings({ ...this.playerSettings })

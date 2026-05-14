@@ -362,6 +362,24 @@ class AbsAudioPlayer : Plugin() {
   }
 
   @PluginMethod
+  fun setChapterTrack(call: PluginCall) {
+    val enabled: Boolean = call.getBoolean("enabled", true) == true
+    Handler(Looper.getMainLooper()).post {
+      playerNotificationService.setChapterTrackEnabled(enabled)
+      call.resolve()
+    }
+  }
+
+  @PluginMethod
+  fun setUseAuthorAsChapterSubtitle(call: PluginCall) {
+    val enabled: Boolean = call.getBoolean("enabled", false) == true
+    Handler(Looper.getMainLooper()).post {
+      playerNotificationService.setUseAuthorAsChapterSubtitleEnabled(enabled)
+      call.resolve()
+    }
+  }
+
+  @PluginMethod
   fun closePlayback(call: PluginCall) {
     Handler(Looper.getMainLooper()).post {
       playerNotificationService.closePlayback()

@@ -13,6 +13,7 @@ class PlayerSettings: Object {
     // Lets track it natively as well, so we never have a situation where the UI and native player are out of sync
     @Persisted var playbackRate: Float = 1.0
     @Persisted var chapterTrack: Bool = true
+    @Persisted var useAuthorAsChapterSubtitle: Bool = false
 
     
     // Singleton pattern for Realm objects
