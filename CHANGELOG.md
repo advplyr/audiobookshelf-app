@@ -8,6 +8,19 @@ Entries below are quoted from `docs/PR_DESCRIPTION.md` where that file has a per
 
 ## [Unreleased]
 
+## [1.0.9] - 2026-05-14
+
+### Changed
+- Synced upstream `advplyr/audiobookshelf-app` to `v0.13.0-beta` (40 commits).
+- Cover image color sampling now uses CapacitorHttp, fixing the case where the WebView strips the origin header from cover requests.
+- Focus-regain progress sync no longer double-fetches when the app returns to the foreground while connected to a server.
+- 30+ second socket reconnects now reconcile media-open progress on resume.
+- Removed several debug log statements (upstream cleanup).
+
+### Added
+- Belarusian and Bulgarian language options (upstream).
+- Podcast episode results included in search (upstream).
+
 ## [1.0.8] — 2026-04-25 — User-Customizable Focus Ring Color (TV-only)
 
 Adds a TV-only Settings control that lets the user pick the D-pad focus-ring color from a curated set of 7 high-contrast presets, plus the underlying refactor that makes the runtime override possible. Zero effect on phone / tablet / iOS.
