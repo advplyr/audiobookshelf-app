@@ -15,7 +15,7 @@
 
     <div class="overflow-hidden m-auto comicwrapper relative">
       <div class="h-full flex justify-center">
-        <img v-if="mainImg" :src="mainImg" class="object-contain comicimg" />
+        <img v-if="mainImg" :src="mainImg" class="object-contain comicimg" @error="onImageError" />
       </div>
 
       <div v-show="loading" class="w-full h-full absolute top-0 left-0 flex items-center justify-center z-10">
@@ -65,14 +65,22 @@ export default {
       loadTimeout: null,
       loadedFirstPage: false,
       comicMetadata: null,
-      pageMenuWidth: 256
+      pageMenuWidth: 256,
+      // Server-side extraction support
+      useServerExtraction: false,
+      serverPagesData: null,
+      fileIno: null,
+      extractedItemId: null,
+      // Preloading for smooth navigation
+      preloadedPages: {},
+      preloadQueue: []
     }
   },
   watch: {
     url: {
       immediate: true,
       handler() {
-        this.extract()
+        this.init()
       }
     }
   },
@@ -203,22 +211,141 @@ export default {
       if (!this.canGoPrev) return
       this.setPage(this.page - 1)
     },
-    setPage(page) {
+    async setPage(page) {
       if (page <= 0 || page > this.numPages) {
         return
       }
       this.showPageMenu = false
-      const filename = this.pages[page - 1]
       this.page = page
 
       this.updateProgress()
-      return this.extractFile(filename)
+
+      if (this.useServerExtraction) {
+        await this.loadServerPage(page)
+        this.preloadAdjacentPages(page)
+      } else {
+        const filename = this.pages[page - 1]
+        await this.extractFile(filename)
+      }
     },
     setLoadTimeout() {
       this.loadTimeout = setTimeout(() => {
         this.loading = true
       }, 150)
     },
+    onImageError(e) {
+      console.error('Failed to load image', e)
+      this.$toast.error('Failed to load page')
+      this.loading = false
+    },
+
+    // ===== Server-side extraction methods =====
+    async loadServerPage(pageNum) {
+      // Check if already preloaded
+      if (this.preloadedPages[pageNum]) {
+        this.mainImg = this.preloadedPages[pageNum]
+        this.loading = false
+        return
+      }
+
+      this.setLoadTimeout()
+
+      try {
+        const pageUrl = this.getServerPageUrl(pageNum)
+        // For server pages, we can use the URL directly as img src
+        // The server handles extraction and returns the image
+        this.mainImg = pageUrl
+        this.loading = false
+        clearTimeout(this.loadTimeout)
+      } catch (error) {
+        console.error('Failed to load server page:', error)
+        this.$toast.error('Failed to load page')
+        this.loading = false
+        clearTimeout(this.loadTimeout)
+      }
+    },
+    getServerPageUrl(pageNum) {
+      const serverAddress = this.$store.getters['user/getServerAddress']
+      const itemId = this.extractedItemId || this.serverLibraryItemId
+      const baseUrl = `/api/items/${itemId}/comic-page/${pageNum}`
+      if (this.fileIno) {
+        return `${serverAddress}${baseUrl}/${this.fileIno}`
+      }
+      return `${serverAddress}${baseUrl}`
+    },
+    preloadAdjacentPages(currentPage) {
+      // Preload 2 pages ahead and 1 behind
+      const pagesToPreload = [
+        currentPage + 1,
+        currentPage + 2,
+        currentPage - 1
+      ].filter(p => p > 0 && p <= this.numPages && !this.preloadedPages[p])
+
+      pagesToPreload.forEach(pageNum => {
+        const img = new Image()
+        img.onload = () => {
+          this.preloadedPages[pageNum] = img.src
+        }
+        img.src = this.getServerPageUrl(pageNum)
+      })
+    },
+    async initServerExtraction() {
+      this.loading = true
+
+      try {
+        // Extract item ID from the ebook URL which we know works
+        // URL format: /api/items/{itemId}/ebook or /api/items/{itemId}/ebook/{fileId}
+        const itemIdMatch = this.url.match(/\/api\/items\/([^/]+)\/ebook/)
+        if (!itemIdMatch) {
+          console.error('[ComicReader] Could not extract item ID from URL:', this.url)
+          throw new Error('Could not extract item ID from URL')
+        }
+        const itemId = itemIdMatch[1]
+        
+        // Get comic metadata from server
+        let pagesUrl = `/api/items/${itemId}/comic-pages`
+        
+        // Extract file ino from URL if present (for supplementary ebooks)
+        const urlMatch = this.url.match(/\/ebook\/([^/]+)$/)
+        if (urlMatch) {
+          this.fileIno = urlMatch[1]
+          pagesUrl += `/${this.fileIno}`
+        }
+
+        console.log('[ComicReader] URL:', this.url)
+        console.log('[ComicReader] Fetching comic pages from:', pagesUrl)
+        // Use nativeHttp which handles server address and auth
+        const response = await this.$nativeHttp.get(pagesUrl)
+        console.log('[ComicReader] Got response:', response)
+        this.serverPagesData = response
+
+        this.pages = response.pages.map(p => p.filename)
+        this.numPages = response.numPages
+        this.fileIno = response.fileIno
+        this.extractedItemId = itemId  // Store for use in getServerPageUrl
+
+        console.log(`[ComicReader] Server extraction ready: ${this.numPages} pages`)
+        this.loading = false
+
+        const startPage = this.savedPage > 0 && this.savedPage <= this.numPages ? this.savedPage : 1
+        await this.setPage(startPage)
+        this.loadedFirstPage = true
+
+        this.$emit('loaded', {
+          hasMetadata: false // Server extraction doesn't include comic metadata yet
+        })
+      } catch (error) {
+        console.error('[ComicReader] Failed to init server extraction:', error)
+        console.error('[ComicReader] Error details:', error.response?.status, error.response?.data)
+        // Fall back to client-side extraction
+        this.$toast.error(`Server failed (${error.response?.status || 'network'}), using slow extraction`)
+        console.log('[ComicReader] Falling back to client-side extraction')
+        this.useServerExtraction = false
+        await this.extract()
+      }
+    },
+
+    // ===== Client-side extraction methods (for local files) =====
     extractFile(filename) {
       return new Promise(async (resolve) => {
         this.setLoadTimeout()
@@ -359,6 +486,34 @@ export default {
       orderedImages = orderedImages.concat(noNumImages.map((i) => i.filename))
 
       this.pages = orderedImages
+    },
+
+    // ===== Initialization =====
+    async init() {
+      // Reset state
+      this.preloadedPages = {}
+      this.filesObject = null
+      this.serverPagesData = null
+      this.fileIno = null
+      this.page = 0
+      this.numPages = 0
+      this.mainImg = null
+      this.loadedFirstPage = false
+
+      // Determine whether to use server-side or client-side extraction
+      // Use server-side for remote files, client-side for local files
+      console.log('[ComicReader] init - isLocal:', this.isLocal, 'serverLibraryItemId:', this.serverLibraryItemId)
+      if (this.isLocal || !this.serverLibraryItemId) {
+        console.log('[ComicReader] Using client-side comic extraction (local file)')
+        console.log('[ComicReader] Using client-side extraction')
+        this.useServerExtraction = false
+        await this.extract()
+      } else {
+        console.log('[ComicReader] Using server-side comic extraction')
+        console.log('[ComicReader] Trying server-side extraction')
+        this.useServerExtraction = true
+        await this.initServerExtraction()
+      }
     }
   },
   mounted() {},
