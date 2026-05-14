@@ -52,7 +52,7 @@ class AbsDatabaseWeb extends WebPlugin {
       ssc.customHeaders = serverConnectionConfig.customHeaders || {}
 
       if (serverConnectionConfig.refreshToken) {
-        console.log('[AbsDatabase] Updating refresh token...', serverConnectionConfig.refreshToken)
+        console.log('[AbsDatabase] Updating refresh token...')
         // Only using local storage for web version that is only used for testing
         localStorage.setItem(`refresh_token_${ssc.id}`, serverConnectionConfig.refreshToken)
       }
@@ -72,7 +72,7 @@ class AbsDatabaseWeb extends WebPlugin {
       }
 
       if (serverConnectionConfig.refreshToken) {
-        console.log('[AbsDatabase] Setting refresh token...', serverConnectionConfig.refreshToken)
+        console.log('[AbsDatabase] Setting refresh token...')
         // Only using local storage for web version that is only used for testing
         localStorage.setItem(`refresh_token_${ssc.id}`, serverConnectionConfig.refreshToken)
       }

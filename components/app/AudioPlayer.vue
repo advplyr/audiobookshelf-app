@@ -69,22 +69,22 @@
 
       <div id="playerControls" class="absolute right-0 bottom-0 mx-auto" style="max-width: 414px">
         <div class="flex items-center max-w-full" :class="playerSettings.lockUi ? 'justify-center' : 'justify-between'">
-          <span v-show="showFullscreen && !playerSettings.lockUi" :tabindex="showFullscreen && !playerSettings.lockUi ? 0 : -1" class="material-symbols next-icon text-fg cursor-pointer" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpChapterStart" @keydown.enter.prevent.stop="jumpChapterStart">first_page</span>
-          <div v-show="!playerSettings.lockUi" tabindex="0" class="jump-icon text-fg cursor-pointer flex flex-col items-center" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpBackwards" @keydown.enter.prevent.stop="jumpBackwards">
+          <span v-show="showFullscreen && !playerSettings.lockUi" :tabindex="showFullscreen && !playerSettings.lockUi ? 0 : -1" class="material-symbols next-icon text-fg cursor-pointer" :class="showLoadingState ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpChapterStart" @keydown.enter.prevent.stop="jumpChapterStart">first_page</span>
+          <div v-show="!playerSettings.lockUi" tabindex="0" class="jump-icon text-fg cursor-pointer flex flex-col items-center" :class="showLoadingState ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpBackwards" @keydown.enter.prevent.stop="jumpBackwards">
             <span class="material-symbols text-3xl leading-none">replay</span>
             <span v-if="showFullscreen" class="jump-label text-[10px] font-semibold leading-tight">{{ jumpBackwardsLabel }}</span>
           </div>
           <div tabindex="0" class="play-btn cursor-pointer shadow-sm flex items-center justify-center rounded-full text-primary mx-4 relative overflow-hidden" :style="{ backgroundColor: coverRgb }" :class="{ 'animate-spin': seekLoading }" @mousedown.prevent @mouseup.prevent @click.stop="playPauseClick" @keydown.enter.prevent.stop="playPauseClick">
             <div v-if="!coverBgIsLight" class="absolute top-0 left-0 w-full h-full bg-white bg-opacity-20 pointer-events-none" />
 
-            <span v-if="!isLoading" class="material-symbols fill" :class="{ 'text-white': coverRgb && !coverBgIsLight }">{{ seekLoading ? 'autorenew' : !isPlaying ? 'play_arrow' : 'pause' }}</span>
+            <span v-if="!showLoadingState" class="material-symbols fill" :class="{ 'text-white': coverRgb && !coverBgIsLight }">{{ seekLoading ? 'autorenew' : !isPlaying ? 'play_arrow' : 'pause' }}</span>
             <widgets-spinner-icon v-else class="h-8 w-8" />
           </div>
-          <div v-show="!playerSettings.lockUi" tabindex="0" class="jump-icon text-fg cursor-pointer flex flex-col items-center" :class="isLoading ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpForward" @keydown.enter.prevent.stop="jumpForward">
+          <div v-show="!playerSettings.lockUi" tabindex="0" class="jump-icon text-fg cursor-pointer flex flex-col items-center" :class="showLoadingState ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpForward" @keydown.enter.prevent.stop="jumpForward">
             <span class="material-symbols text-3xl leading-none">forward_media</span>
             <span v-if="showFullscreen" class="jump-label text-[10px] font-semibold leading-tight">{{ jumpForwardLabel }}</span>
           </div>
-          <span v-show="showFullscreen && !playerSettings.lockUi" :tabindex="showFullscreen && !playerSettings.lockUi ? 0 : -1" class="material-symbols next-icon text-fg cursor-pointer" :class="nextChapter && !isLoading ? 'text-opacity-75' : 'text-opacity-10'" @click.stop="jumpNextChapter" @keydown.enter.prevent.stop="jumpNextChapter">last_page</span>
+          <span v-show="showFullscreen && !playerSettings.lockUi" :tabindex="showFullscreen && !playerSettings.lockUi ? 0 : -1" class="material-symbols next-icon text-fg cursor-pointer" :class="nextChapter && !showLoadingState ? 'text-opacity-75' : 'text-opacity-10'" @click.stop="jumpNextChapter" @keydown.enter.prevent.stop="jumpNextChapter">last_page</span>
         </div>
       </div>
 
@@ -94,7 +94,7 @@
           <div class="flex-grow" />
           <p class="font-mono text-fg" style="font-size: 0.8rem">{{ timeRemainingPretty }}</p>
         </div>
-        <div ref="track" class="h-1.5 w-full bg-track/50 relative rounded-full" :class="{ 'animate-pulse': isLoading }" @click.stop>
+        <div ref="track" class="h-1.5 w-full bg-track/50 relative rounded-full" :class="{ 'animate-pulse': showLoadingState }" @click.stop>
           <div ref="readyTrack" class="h-full bg-track-buffered absolute top-0 left-0 rounded-full pointer-events-none" />
           <div ref="bufferedTrack" class="h-full bg-track absolute top-0 left-0 rounded-full pointer-events-none" />
           <div ref="playedTrack" class="h-full bg-track-cursor absolute top-0 left-0 rounded-full pointer-events-none" />
@@ -115,7 +115,7 @@ import { Capacitor } from '@capacitor/core'
 import { AbsAudioPlayer } from '@/plugins/capacitor'
 import { Dialog } from '@capacitor/dialog'
 import { KeepAwake } from '@capacitor-community/keep-awake'
-import { FastAverageColor } from 'fast-average-color'
+import { getAverageColorFromCoverUrl } from '@/utils/coverAverageColor'
 import WrappingMarquee from '@/assets/WrappingMarquee.js'
 import jumpLabelMixin from '@/mixins/jumpLabel'
 
@@ -158,6 +158,7 @@ export default {
         lockUi: false
       },
       isLoading: false,
+      isCheckingServerProgress: false,
       isDraggingCursor: false,
       draggingTouchStartX: 0,
       draggingTouchStartTime: 0,
@@ -274,6 +275,9 @@ export default {
         }
         return 190 * heightScale
       }
+    },
+    showLoadingState() {
+      return this.isLoading || this.isCheckingServerProgress
     },
     showCastBtn() {
       return this.$store.state.isCastAvailable
@@ -413,17 +417,14 @@ export default {
     },
     async coverImageLoaded(fullCoverUrl) {
       if (!fullCoverUrl) return
-
-      const fac = new FastAverageColor()
-      fac
-        .getColorAsync(fullCoverUrl)
-        .then((color) => {
-          this.coverRgb = color.rgba
-          this.coverBgIsLight = color.isLight
-        })
-        .catch((e) => {
-          console.log(e)
-        })
+      const avg = await getAverageColorFromCoverUrl(this, fullCoverUrl)
+      if (!avg) {
+        this.coverRgb = 'rgb(55, 56, 56)'
+        this.coverBgIsLight = false
+      } else {
+        this.coverRgb = avg.rgba
+        this.coverBgIsLight = avg.isLight
+      }
     },
     clickTitleAndAuthor() {
       if (!this.showFullscreen) return
@@ -473,13 +474,13 @@ export default {
     },
     async jumpNextChapter() {
       await this.$hapticsImpact()
-      if (this.isLoading) return
+      if (this.showLoadingState) return
       if (!this.nextChapter) return
       this.seek(this.nextChapter.start)
     },
     async jumpChapterStart() {
       await this.$hapticsImpact()
-      if (this.isLoading) return
+      if (this.showLoadingState) return
       if (!this.currentChapter) {
         return this.restart()
       }
@@ -509,12 +510,12 @@ export default {
     },
     async jumpBackwards() {
       await this.$hapticsImpact()
-      if (this.isLoading) return
+      if (this.showLoadingState) return
       AbsAudioPlayer.seekBackward({ value: this.jumpBackwardsTime })
     },
     async jumpForward() {
       await this.$hapticsImpact()
-      if (this.isLoading) return
+      if (this.showLoadingState) return
       AbsAudioPlayer.seekForward({ value: this.jumpForwardTime })
     },
     setStreamReady() {
@@ -618,7 +619,7 @@ export default {
       }
     },
     seek(time) {
-      if (this.isLoading) return
+      if (this.showLoadingState) return
       if (this.seekLoading) {
         console.error('Already seek loading', this.seekedTime)
         return
@@ -650,10 +651,13 @@ export default {
     },
     async playPauseClick() {
       await this.$hapticsImpact()
-      if (this.isLoading) return
+      if (this.showLoadingState) return
 
       this.isPlaying = !!((await AbsAudioPlayer.playPause()) || {}).playing
       this.isEnded = false
+    },
+    setIsCheckingServerProgress(value) {
+      this.isCheckingServerProgress = !!value
     },
     play() {
       AbsAudioPlayer.playPlayer()

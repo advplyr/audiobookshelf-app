@@ -128,13 +128,12 @@ export default ({ app, store }, inject) => {
 
   // Listen for token refresh events from native app
   AbsDatabase.addListener('onTokenRefresh', (data) => {
-    console.log('[db] onTokenRefresh', data)
     store.commit('user/setAccessToken', data.accessToken)
   })
 
   // Listen for token refresh failure events from native app
   AbsDatabase.addListener('onTokenRefreshFailure', async (data) => {
-    console.log('[db] onTokenRefreshFailure', data)
+    console.log('[db] onTokenRefreshFailure')
     // Clear store and redirect to login page
     await store.dispatch('user/logout')
     if (window.location.pathname !== '/connect') {

@@ -19,11 +19,20 @@
         </div>
       </template>
 
-      <p v-if="podcastResults.length" class="uppercase text-xs text-fg-muted my-1 px-1 font-semibold">{{ $strings.LabelPodcasts }}</p>
+      <p v-if="podcastResults.length" class="font-semibold text-sm mb-1 mt-2">{{ $strings.LabelPodcasts }}</p>
       <template v-for="item in podcastResults">
         <div :key="item.libraryItem.id" class="text-fg select-none relative py-1">
           <nuxt-link :to="`/item/${item.libraryItem.id}`">
             <cards-item-search-card :library-item="item.libraryItem" :search="lastSearch" />
+          </nuxt-link>
+        </div>
+      </template>
+
+      <p v-if="episodeResults.length" class="font-semibold text-sm mb-1 mt-2">{{ $strings.HeaderEpisodes }}</p>
+      <template v-for="item in episodeResults">
+        <div :key="item.libraryItem.recentEpisode.id" class="text-fg select-none relative py-1">
+          <nuxt-link :to="`/item/${item.libraryItem.id}/${item.libraryItem.recentEpisode.id}`">
+            <cards-episode-search-card :episode="item.libraryItem.recentEpisode" :library-item="item.libraryItem" />
           </nuxt-link>
         </div>
       </template>
@@ -77,6 +86,7 @@ export default {
       isFetching: false,
       bookResults: [],
       podcastResults: [],
+      episodeResults: [],
       seriesResults: [],
       authorResults: [],
       narratorResults: [],
@@ -91,7 +101,7 @@ export default {
       return this.$store.getters['libraries/getBookCoverAspectRatio']
     },
     totalResults() {
-      return this.bookResults.length + this.seriesResults.length + this.authorResults.length + this.podcastResults.length + this.narratorResults.length + this.tagResults.length
+      return this.bookResults.length + this.seriesResults.length + this.authorResults.length + this.podcastResults.length + this.narratorResults.length + this.tagResults.length + this.episodeResults.length
     }
   },
   methods: {
@@ -104,6 +114,7 @@ export default {
       if (!this.lastSearch) {
         this.bookResults = []
         this.podcastResults = []
+        this.episodeResults = []
         this.seriesResults = []
         this.authorResults = []
         this.narratorResults = []
@@ -125,6 +136,7 @@ export default {
 
       this.bookResults = results?.book || []
       this.podcastResults = results?.podcast || []
+      this.episodeResults = results?.episodes || []
       this.seriesResults = results?.series || []
       this.authorResults = results?.authors || []
       this.narratorResults = results?.narrators || []
