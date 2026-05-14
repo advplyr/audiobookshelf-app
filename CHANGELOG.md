@@ -8,7 +8,7 @@ Entries below are quoted from `docs/PR_DESCRIPTION.md` where that file has a per
 
 ## [Unreleased]
 
-## [1.0.9] - 2026-05-14
+## [1.0.9] — 2026-05-14 — Upstream v0.13.0-beta sync (cover image + progress sync fixes)
 
 ### Changed
 - Synced upstream `advplyr/audiobookshelf-app` to `v0.13.0-beta` (40 commits).
