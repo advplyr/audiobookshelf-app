@@ -1,20 +1,31 @@
 <template>
+  <!-- Main container - only shows when playback session exists, applies fullscreen/platform classes -->
   <div v-if="playbackSession" id="streamContainer" class="fixed top-0 left-0 layout-wrapper right-0 z-50 pointer-events-none" :class="{ fullscreen: showFullscreen, 'ios-player': $platform === 'ios', 'web-player': $platform === 'web' }">
+    <!-- Fullscreen overlays: colored background and menu overlays -->
     <div v-if="showFullscreen" class="w-full h-full z-10 absolute top-0 left-0 pointer-events-auto" :style="{ backgroundColor: coverRgb }">
+      <!-- Background gradient for player -->
       <div class="w-full h-full absolute top-0 left-0 pointer-events-none" style="background: var(--gradient-audio-player)" />
 
+      <!-- Collapse button - minimizes player -->
       <div class="top-4 left-4 absolute cursor-pointer">
         <span class="material-symbols text-5xl" :class="{ 'text-black text-opacity-75': coverBgIsLight && theme !== 'black' }" @click="collapseFullscreen">keyboard_arrow_down</span>
       </div>
+
+      <!-- Cast button - Chromecast toggle -->
       <div v-show="showCastBtn" class="top-6 right-16 absolute cursor-pointer">
         <span class="material-symbols text-3xl" :class="coverBgIsLight && theme !== 'black' ? 'text-black' : ''" @click="castClick">{{ isCasting ? 'cast_connected' : 'cast' }}</span>
       </div>
+
+      <!-- Player options menu button -->
       <div class="top-6 right-4 absolute cursor-pointer">
         <span class="material-symbols text-3xl" :class="{ 'text-black text-opacity-75': coverBgIsLight && theme !== 'black' }" @click="showMoreMenuDialog = true">more_vert</span>
       </div>
-      <p class="top-4 absolute left-0 right-0 mx-auto text-center uppercase tracking-widest text-opacity-75" :class="{ 'text-black text-opacity-75': coverBgIsLight && theme !== 'black' }" style="font-size: 10px">{{ isDirectPlayMethod ? $strings.LabelPlaybackDirect : isLocalPlayMethod ? $strings.LabelPlaybackLocal : $strings.LabelPlaybackTranscode }}</p>
+
+      <!-- Playback method indicator (Direct/Local/Transcode) -->
+      <p class="top-4 absolute left-0 right-0 mx-auto text-center uppercase tracking-widest text-opacity-75 z-50" :class="{ 'text-black text-opacity-75': coverBgIsLight && theme !== 'black' }" style="font-size: 10px">{{ isDirectPlayMethod ? $strings.LabelPlaybackDirect : isLocalPlayMethod ? $strings.LabelPlaybackLocal : $strings.LabelPlaybackTranscode }}</p>
     </div>
 
+    <!-- Overall book progress bar -->
     <div v-if="playerSettings.useChapterTrack && playerSettings.useTotalTrack && showFullscreen" class="absolute total-track w-full z-30 px-6">
       <div class="flex">
         <p class="font-mono text-fg" style="font-size: 0.8rem">{{ currentTimePretty }}</p>
@@ -30,16 +41,19 @@
       </div>
     </div>
 
+    <!-- Book cover wrapper  -->
     <div class="cover-wrapper absolute z-30 pointer-events-auto" @click="clickContainer">
       <div class="w-full h-full flex justify-center">
         <covers-book-cover v-if="libraryItem || localLibraryItemCoverSrc" ref="cover" :library-item="libraryItem" :download-cover="localLibraryItemCoverSrc" :width="bookCoverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" raw @imageLoaded="coverImageLoaded" />
       </div>
 
+      <!-- Sync failed indicator - shows error icon if progress sync failed -->
       <div v-if="syncStatus === $constants.SyncStatus.FAILED" class="absolute top-0 left-0 w-full h-full flex items-center justify-center z-30" @click.stop="showSyncsFailedDialog">
         <span class="material-symbols text-error text-3xl">error</span>
       </div>
     </div>
 
+    <!-- Title and author text -->
     <div class="title-author-texts absolute z-30 left-0 right-0 overflow-hidden" @click="clickTitleAndAuthor">
       <div ref="titlewrapper" class="overflow-hidden relative">
         <p class="title-text whitespace-nowrap"></p>
@@ -48,6 +62,7 @@
     </div>
 
     <div id="playerContent" class="playerContainer w-full z-20 absolute bottom-0 left-0 right-0 p-2 pointer-events-auto transition-all" :style="{ backgroundColor: showFullscreen ? '' : coverRgb }" @click="clickContainer">
+      <!-- Top controls bar - fullscreen only: bookmarks, speed, sleep timer, chapters -->
       <div v-if="showFullscreen" class="absolute bottom-4 left-0 right-0 w-full pb-4 pt-2 mx-auto px-6" style="max-width: 414px">
         <div class="flex items-center justify-between pointer-events-auto">
           <span v-if="!isPodcast && serverLibraryItemId && socketConnected" class="material-symbols text-3xl text-fg-muted cursor-pointer" :class="{ fill: bookmarks.length }" @click="$emit('showBookmarks')">bookmark</span>
@@ -67,6 +82,7 @@
       </div>
       <div v-else class="w-full h-full absolute top-0 left-0 pointer-events-none" style="background: var(--gradient-minimized-audio-player)" />
 
+      <!-- Playback controls - jump buttons, play/pause, chapter navigation -->
       <div id="playerControls" class="absolute right-0 bottom-0 mx-auto" style="max-width: 414px">
         <div class="flex items-center max-w-full" :class="playerSettings.lockUi ? 'justify-center' : 'justify-between'">
           <span v-show="showFullscreen && !playerSettings.lockUi" class="material-symbols next-icon text-fg cursor-pointer" :class="showLoadingState ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpChapterStart">first_page</span>
@@ -88,6 +104,7 @@
         </div>
       </div>
 
+      <!-- Chapter progress bar -->
       <div id="playerTrack" class="absolute left-0 w-full px-6">
         <div class="flex pointer-events-none">
           <p class="font-mono text-fg" style="font-size: 0.8rem" ref="currentTimestamp">0:00</p>
@@ -105,7 +122,9 @@
       </div>
     </div>
 
+    <!-- Chapters modal - lists chapters for navigation -->
     <modals-chapters-modal v-model="showChapterModal" :current-chapter="currentChapter" :chapters="chapters" :playback-rate="currentPlaybackRate" @select="selectChapter" />
+    <!-- More menu dialog - player settings and options -->
     <modals-dialog v-model="showMoreMenuDialog" :items="menuItems" width="80vw" @action="clickMenuAction" />
   </div>
 </template>
@@ -1017,6 +1036,12 @@ export default {
 .fullscreen .playerContainer {
   height: 200px;
 }
+@media (orientation: landscape) {
+  .fullscreen .playerContainer {
+    width: 50%;
+    left: 50%;
+  }
+}
 #playerContent {
   box-shadow: 0px -8px 8px #11111155;
 }
@@ -1044,13 +1069,45 @@ export default {
   border-radius: 3px;
   overflow: hidden;
 }
+@media (orientation: landscape) {
+  .fullscreen .cover-wrapper {
+    left: 25px !important;
+    top: 50px;
+    width: calc(50% - 25px) !important;
+    height: calc(100% - 85px) !important;
+  }
+  .fullscreen .cover-wrapper > div > div {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+  }
+  .fullscreen .cover-wrapper > div > div > div {
+    background-color: transparent;
+  }
+  .fullscreen .cover-wrapper img {
+    object-fit: contain;
+  }
+}
 
 .total-track {
   bottom: 215px;
   left: 0;
   right: 0;
 }
+@media (orientation: landscape) {
+  .fullscreen .total-track {
+    left: 50%;
+    width: 50%;
+  }
+}
 
+@media (orientation: landscape) {
+  .fullscreen .title-author-texts {
+    left: 50% !important;
+    width: 50% !important;
+  }
+}
 .title-author-texts {
   transition: all 0.15s cubic-bezier(0.39, 0.575, 0.565, 1);
   transition-property: left, bottom, width, height;
@@ -1067,11 +1124,21 @@ export default {
   font-size: 0.85rem;
   line-height: 1.5;
 }
+@media (orientation: landscape) {
+  .fullscreen .title-author-texts .title-text {
+    font-size: larger !important;
+  }
+}
 .title-author-texts .author-text {
   transition: all 0.15s cubic-bezier(0.39, 0.575, 0.565, 1);
   transition-property: font-size;
   font-size: 0.75rem;
   line-height: 1.2;
+}
+@media (orientation: landscape) {
+  .fullscreen .title-author-texts .author-text {
+    font-size: inherit !important;
+  }
 }
 
 .fullscreen .title-author-texts {
