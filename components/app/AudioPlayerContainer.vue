@@ -34,6 +34,7 @@ export default {
       onSleepTimerEndedListener: null,
       onSleepTimerSetListener: null,
       onMediaPlayerChangedListener: null,
+      onEqualizerFrequenciesSetListener: null,
       sleepInterval: null,
       currentEndOfChapterTime: 0,
       serverLibraryItemId: null,
@@ -287,6 +288,9 @@ export default {
     onMediaPlayerChanged(data) {
       this.$store.commit('setMediaPlayer', data.value)
     },
+    onEqualizerFrequenciesSet(frequencies) {
+      this.$refs.audioPlayer.updateEqualizerFrequencies(frequencies.value)
+    },
     onReady() {
       // The UI is reporting elsewhere we are ready
       this.isReady = true
@@ -440,6 +444,7 @@ export default {
     this.onSleepTimerEndedListener = await AbsAudioPlayer.addListener('onSleepTimerEnded', this.onSleepTimerEnded)
     this.onSleepTimerSetListener = await AbsAudioPlayer.addListener('onSleepTimerSet', this.onSleepTimerSet)
     this.onMediaPlayerChangedListener = await AbsAudioPlayer.addListener('onMediaPlayerChanged', this.onMediaPlayerChanged)
+    this.onEqualizerFrequenciesSetListener = await AbsAudioPlayer.addListener('onEqualizerFrequenciesSet', this.onEqualizerFrequenciesSet)
 
     this.playbackSpeed = this.$store.getters['user/getUserSetting']('playbackRate')
     console.log(`[AudioPlayerContainer] Init Playback Speed: ${this.playbackSpeed}`)
@@ -459,6 +464,7 @@ export default {
     this.onSleepTimerEndedListener?.remove()
     this.onSleepTimerSetListener?.remove()
     this.onMediaPlayerChangedListener?.remove()
+    this.onEqualizerFrequenciesSetListener?.remove()
 
     this.$eventBus.$off('abs-ui-ready', this.onReady)
     this.$eventBus.$off('play-item', this.playLibraryItem)
