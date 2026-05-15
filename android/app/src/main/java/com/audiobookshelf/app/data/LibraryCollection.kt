@@ -3,6 +3,8 @@ package com.audiobookshelf.app.data
 import android.content.Context
 import android.os.Bundle
 import android.support.v4.media.MediaDescriptionCompat
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 
@@ -35,6 +37,27 @@ class LibraryCollection(
       //.setIconUri(getCoverUri())
       .setSubtitle("${bookCount} books")
       .setExtras(extras)
+      .build()
+  }
+
+  /**
+   * Builds the Media3 `MediaItem` for a collection, which remains browsable.
+   */
+  @JsonIgnore
+  override fun getMediaItem(progress: MediaProgressWrapper?, context: Context): MediaItem {
+    val mediaId = "__LIBRARY__${libraryId}__COLLECTION__${id}"
+    val subtitle = "${bookCount} books"
+
+    val metadata = MediaMetadata.Builder()
+      .setTitle(this.title)
+      .setSubtitle(subtitle)
+      .setIsBrowsable(true)
+      .setIsPlayable(false)
+      .build()
+
+    return MediaItem.Builder()
+      .setMediaId(mediaId)
+      .setMediaMetadata(metadata)
       .build()
   }
 }

@@ -45,6 +45,9 @@ fun getUriToAbsIconDrawable(context: Context, absIconName: String): Uri {
     "rocket" -> R.drawable.abs_rocket
     "rss" -> R.drawable.abs_rss
     "star" -> R.drawable.abs_star
+    "library-folder" -> R.drawable.icon_library_folder
+    "downloads" -> R.drawable.abs_download_check
+    "clock" -> R.drawable.md_clock_outline
     else -> R.drawable.icon_library_folder
   }
   return Uri.parse(

@@ -3,6 +3,8 @@ package com.audiobookshelf.app.data
 import android.content.Context
 import android.os.Bundle
 import android.support.v4.media.MediaDescriptionCompat
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 
@@ -31,6 +33,28 @@ class CollapsedSeries(
       //.setIconUri(getCoverUri())
       .setSubtitle("${numBooks} books")
       .setExtras(extras)
+      .build()
+  }
+
+  /**
+   * Constructs the Media3 `MediaItem` for a collapsed series (browsable only).
+   */
+  @JsonIgnore
+  override fun getMediaItem(progress: MediaProgressWrapper?, context: Context): MediaItem {
+    val mediaId = "__LIBRARY__${libraryId}__SERIE__${id}"
+    val subtitle = "${numBooks} books"
+    val extras = Bundle()
+
+    val metadata = MediaMetadata.Builder()
+      .setTitle(this.title)
+      .setSubtitle(subtitle)
+      .setIsBrowsable(true)
+      .setIsPlayable(false)
+      .setExtras(extras)
+      .build()
+
+    return MediaItem.Builder().setMediaId(mediaId)
+      .setMediaMetadata(metadata)
       .build()
   }
 }

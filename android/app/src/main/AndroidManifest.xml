@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:dist="http://schemas.android.com/apk/distribution"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:installLocation="preferExternal" >
+  android:installLocation="preferExternal">
 
     <!-- Permissions -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Android 13+ notification runtime permission -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
@@ -27,8 +27,8 @@
 
         <!-- Android app widget -->
         <receiver
-          android:name="MediaPlayerWidget"
-          android:exported="false">
+          android:exported="false"
+          android:name=".MediaPlayerWidget">
           <intent-filter>
             <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
           </intent-filter>
@@ -82,7 +82,11 @@
             </intent-filter>
         </activity>
 
-        <receiver android:name="androidx.media.session.MediaButtonReceiver" android:exported="true">
+      <!-- Media button receiver for ExoPlayer v2 only -->
+      <receiver
+        android:name="androidx.media.session.MediaButtonReceiver"
+        android:enabled="${use_exov2}"
+        android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MEDIA_BUTTON" />
             </intent-filter>
@@ -90,10 +94,23 @@
 
         <service
             android:name=".player.PlayerNotificationService"
-            android:enabled="true"
+            android:enabled="${use_exov2}"
             android:exported="true"
             android:foregroundServiceType="mediaPlayback">
             <intent-filter>
+                <action android:name="android.media.browse.MediaBrowserService" />
+            </intent-filter>
+        </service>
+
+        <!-- Media3 playback service for local playback when USE_MEDIA3 enabled -->
+        <service
+            android:name=".player.Media3PlaybackService"
+            android:enabled="${use_media3}"
+            android:exported="true"
+            android:foregroundServiceType="mediaPlayback">
+            <intent-filter>
+                <action android:name="androidx.media3.session.MediaLibraryService" />
+              <!-- Required for Android Auto browse entry -->
                 <action android:name="android.media.browse.MediaBrowserService" />
             </intent-filter>
         </service>

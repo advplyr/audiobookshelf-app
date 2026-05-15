@@ -48,6 +48,28 @@ android {
       ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
     }
   }
+
+  // Flavor dimensions for player backend selection
+  flavorDimensions "player"
+  productFlavors {
+    exov2 {
+      dimension "player"
+      applicationIdSuffix ".exov2"
+      versionNameSuffix "-exov2"
+      // ExoPlayer v2 backend
+      buildConfigField("boolean", "USE_MEDIA3", "false")
+      manifestPlaceholders = [ use_exov2: "true", use_media3: "false" ]
+    }
+    media3 {
+      dimension "player"
+      applicationIdSuffix ".media3"
+      versionNameSuffix "-media3"
+      // Media3 backend
+      buildConfigField("boolean", "USE_MEDIA3", "true")
+      manifestPlaceholders = [ use_exov2: "false", use_media3: "true" ]
+    }
+  }
+
   buildTypes {
     debug {
       applicationIdSuffix ".debug"
@@ -95,10 +117,10 @@ dependencies {
 
   implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:$kotlin_coroutines_version"
   implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:$kotlin_coroutines_version"
-
+  implementation "org.jetbrains.kotlinx:kotlinx-coroutines-guava:$kotlin_coroutines_version"
   implementation "androidx.media:media:$androidx_media_version"
 
-  // Exo Player
+  // Playback libraries: always include ExoPlayer so existing code compiles.
   if (findProject(':exoplayer-library-core') != null) {
     implementation project(':exoplayer-library-core')
     implementation project(':exoplayer-library-ui')
@@ -112,6 +134,20 @@ dependencies {
     implementation "com.google.android.exoplayer:extension-cast:$exoplayer_version"
     implementation "com.google.android.exoplayer:exoplayer-hls:$exoplayer_version"
   }
+
+  // Media3 dependencies: keep them packaged for both flavors to avoid NoClassDefFoundError
+  // during class verification on devices that eagerly resolve references. Simpler and safer.
+  exov2Implementation "androidx.media3:media3-exoplayer:$media3_version"
+  exov2Implementation "androidx.media3:media3-session:$media3_version"
+  exov2Implementation "androidx.media3:media3-ui:$media3_version"
+  exov2Implementation "androidx.media3:media3-cast:$media3_version"
+  exov2Implementation "androidx.media3:media3-exoplayer-hls:$media3_version"
+
+  media3Implementation "androidx.media3:media3-exoplayer:$media3_version"
+  media3Implementation "androidx.media3:media3-session:$media3_version"
+  media3Implementation "androidx.media3:media3-ui:$media3_version"
+  media3Implementation "androidx.media3:media3-cast:$media3_version"
+  media3Implementation "androidx.media3:media3-exoplayer-hls:$media3_version"
 
   // Glide for images
   implementation "com.github.bumptech.glide:glide:$glide_version"
