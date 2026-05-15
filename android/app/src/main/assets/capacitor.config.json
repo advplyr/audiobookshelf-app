@@ -4,7 +4,7 @@
 	"webDir": "dist",
 	"plugins": {
 		"CapacitorHttp": {
-			"enabled": false
+			"enabled": true
 		},
 		"StatusBar": {
 			"backgroundColor": "#232323",

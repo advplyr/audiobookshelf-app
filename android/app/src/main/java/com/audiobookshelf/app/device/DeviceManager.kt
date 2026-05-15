@@ -41,6 +41,8 @@ object DeviceManager {
     get() = serverConnectionConfig?.userId ?: ""
   val token
     get() = serverConnectionConfig?.token ?: ""
+  val customHeaders
+    get() = serverConnectionConfig?.customHeaders
   val serverVersion get() = serverConnectionConfig?.version ?: ""
   val isConnectedToServer
     get() = serverConnectionConfig != null

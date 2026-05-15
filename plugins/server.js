@@ -24,7 +24,7 @@ class ServerSocket extends EventEmitter {
     else console.error('$off Socket not initialized')
   }
 
-  connect(serverAddress, token) {
+  connect(serverAddress, token, customHeaders) {
     this.serverAddress = serverAddress
 
     const serverUrl = new URL(serverAddress)
@@ -38,6 +38,10 @@ class ServerSocket extends EventEmitter {
       upgrade: false,
       path: `${serverPath}/socket.io`,
       reconnectionDelayMax: 15000
+    }
+    // Add custom headers for CF Access or other proxy authentication
+    if (customHeaders && Object.keys(customHeaders).length) {
+      socketOptions.extraHeaders = { ...customHeaders }
     }
     this.socket = io(serverHost, socketOptions)
     this.setSocketListeners()
