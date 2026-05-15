@@ -1004,6 +1004,27 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     mediaProgressSyncer.currentPlaybackSession?.let { setMediaSessionConnectorCustomActions(it) }
   }
 
+  fun createBookmark() {
+    val session = currentPlaybackSession
+    if (session == null) {
+      Log.w(tag, "createBookmark: No playback session")
+      return
+    }
+    val libraryItemId = session.libraryItemId
+    if (libraryItemId.isNullOrEmpty()) {
+      Log.w(tag, "createBookmark: No library item id")
+      return
+    }
+    val currentTime = getCurrentTimeSeconds()
+    val title = java.text.SimpleDateFormat("MMM dd, yyyy HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+    Log.d(tag, "createBookmark: Creating bookmark at ${currentTime}s for item $libraryItemId")
+    apiHandler.createBookmark(libraryItemId, currentTime, title) { success ->
+      if (success) {
+        Log.i(tag, "createBookmark: Bookmark created successfully")
+      }
+    }
+  }
+
   fun closePlayback(calledOnError: Boolean? = false) {
     Log.d(tag, "closePlayback")
     val config = DeviceManager.serverConnectionConfig

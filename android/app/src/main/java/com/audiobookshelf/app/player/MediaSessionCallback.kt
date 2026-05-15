@@ -8,6 +8,7 @@ import android.util.Log
 import android.view.KeyEvent
 import com.audiobookshelf.app.data.LibraryItemWrapper
 import com.audiobookshelf.app.data.PodcastEpisode
+import com.audiobookshelf.app.device.DeviceManager
 import java.util.*
 import kotlin.concurrent.schedule
 
@@ -228,7 +229,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
             handleMediaButtonClickCount()
           }
           KeyEvent.KEYCODE_MEDIA_NEXT -> {
-            playerNotificationService.jumpForward()
+            handleMediaNextButton()
           }
           KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
             playerNotificationService.jumpBackward()
@@ -244,6 +245,16 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
       }
     }
     return true
+  }
+
+  private fun handleMediaNextButton() {
+    val settings = DeviceManager.deviceData.deviceSettings
+    if (settings?.mediaNextButtonCreateBookmark == true) {
+      Log.d(tag, "handleMediaNextButton: Creating bookmark (remapped from media next)")
+      playerNotificationService.createBookmark()
+    } else {
+      playerNotificationService.jumpForward()
+    }
   }
 
   private fun handleMediaButtonClickCount() {

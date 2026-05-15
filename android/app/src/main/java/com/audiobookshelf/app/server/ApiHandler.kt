@@ -722,6 +722,22 @@ class ApiHandler(var ctx:Context) {
     }
   }
 
+  fun createBookmark(libraryItemId:String, time:Double, title:String, cb: (Boolean) -> Unit) {
+    val payload = JSObject()
+    payload.put("time", Math.floor(time).toLong())
+    payload.put("title", title)
+    postRequest("/api/me/item/$libraryItemId/bookmark", payload, null) {
+      val error = it.getString("error")
+      if (!error.isNullOrEmpty()) {
+        Log.e(tag, "createBookmark: Failed to create bookmark: $error")
+        cb(false)
+      } else {
+        Log.d(tag, "createBookmark: Bookmark created at ${Math.floor(time).toLong()}s")
+        cb(true)
+      }
+    }
+  }
+
   fun authorize(config:ServerConnectionConfig, cb: (MutableList<MediaProgress>?) -> Unit) {
     Log.d(tag, "authorize: Authorizing ${config.address}")
     postRequest("/api/authorize", JSObject(), config) {
