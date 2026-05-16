@@ -48,6 +48,14 @@ android {
       ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
     }
   }
+  testOptions {
+    unitTests {
+      // Android framework stubs throw RuntimeException("Stub!") by default in JVM unit tests.
+      // returnDefaultValues = true makes them return 0/false/null instead so Log.d/Log.e
+      // don't crash the coroutine error handler before onComplete() is called.
+      returnDefaultValues = true
+    }
+  }
   buildTypes {
     debug {
       applicationIdSuffix ".debug"
@@ -124,6 +132,11 @@ dependencies {
 
   // OK HTTP
   implementation 'com.squareup.okhttp3:okhttp:4.9.2'
+
+  // Test dependencies
+  testImplementation 'junit:junit:4.13.2'
+  testImplementation 'com.squareup.okhttp3:mockwebserver:4.9.2'
+  testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.1'
 
   // Jackson for JSON
   implementation 'com.fasterxml.jackson.module:jackson-module-kotlin:2.12.2'
