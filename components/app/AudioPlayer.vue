@@ -6,6 +6,9 @@
       <div class="top-4 left-4 absolute cursor-pointer">
         <span class="material-symbols text-5xl" :class="{ 'text-black text-opacity-75': coverBgIsLight && theme !== 'black' }" @click="collapseFullscreen">keyboard_arrow_down</span>
       </div>
+      <div v-show="showDlnaBtn" class="top-6 absolute cursor-pointer" :class="showCastBtn ? 'right-28' : 'right-16'">
+        <span class="material-symbols text-3xl" :class="[coverBgIsLight && theme !== 'black' ? 'text-black' : '', isDlnaConnected ? 'text-success' : '']" @click="dlnaClick">speaker</span>
+      </div>
       <div v-show="showCastBtn" class="top-6 right-16 absolute cursor-pointer">
         <span class="material-symbols text-3xl" :class="coverBgIsLight && theme !== 'black' ? 'text-black' : ''" @click="castClick">{{ isCasting ? 'cast_connected' : 'cast' }}</span>
       </div>
@@ -107,6 +110,7 @@
 
     <modals-chapters-modal v-model="showChapterModal" :current-chapter="currentChapter" :chapters="chapters" :playback-rate="currentPlaybackRate" @select="selectChapter" />
     <modals-dialog v-model="showMoreMenuDialog" :items="menuItems" width="80vw" @action="clickMenuAction" />
+    <modals-dlna-device-modal v-model="showDlnaModal" />
   </div>
 </template>
 
@@ -164,6 +168,7 @@ export default {
       draggingCurrentTime: 0,
       syncStatus: 0,
       showMoreMenuDialog: false,
+      showDlnaModal: false,
       coverRgb: 'rgb(55, 56, 56)',
       coverBgIsLight: false,
       titleMarquee: null,
@@ -276,6 +281,12 @@ export default {
     },
     showCastBtn() {
       return this.$store.state.isCastAvailable
+    },
+    showDlnaBtn() {
+      return this.$platform === 'android' && this.$store.state.isDlnaAvailable
+    },
+    isDlnaConnected() {
+      return !!this.$store.state.connectedDlnaDevice
     },
     isCasting() {
       return this.mediaPlayer === 'cast-player'
@@ -441,6 +452,14 @@ export default {
         return
       }
       AbsAudioPlayer.requestSession()
+    },
+    async dlnaClick() {
+      await this.$hapticsImpact()
+      if (this.isLocalPlayMethod) {
+        this.$toast.warning('DLNA streaming requires server playback')
+        return
+      }
+      this.showDlnaModal = true
     },
     clickContainer() {
       this.expandToFullscreen()
@@ -900,6 +919,31 @@ export default {
       AbsAudioPlayer.addListener('onProgressSyncFailing', this.showProgressSyncIsFailing)
       AbsAudioPlayer.addListener('onProgressSyncSuccess', this.showProgressSyncSuccess)
       AbsAudioPlayer.addListener('onPlaybackSpeedChanged', this.onPlaybackSpeedChanged)
+
+      // DLNA event listeners
+      AbsAudioPlayer.addListener('onDlnaDevicesUpdate', this.onDlnaDevicesUpdate)
+      AbsAudioPlayer.addListener('onDlnaDeviceConnected', this.onDlnaDeviceConnected)
+      AbsAudioPlayer.addListener('onDlnaDeviceDisconnected', this.onDlnaDeviceDisconnected)
+
+      if (this.$platform === 'android') {
+        AbsAudioPlayer.startDlnaDiscovery()
+      }
+    },
+    onDlnaDevicesUpdate(data) {
+      console.log('[AudioPlayer] DLNA devices update:', JSON.stringify(data))
+      if (data.devices) {
+        this.$store.commit('setDlnaDevices', data.devices)
+      }
+    },
+    onDlnaDeviceConnected(data) {
+      console.log('[AudioPlayer] DLNA device connected:', JSON.stringify(data))
+      if (data && data.id) {
+        this.$store.commit('setConnectedDlnaDevice', data)
+      }
+    },
+    onDlnaDeviceDisconnected() {
+      console.log('[AudioPlayer] DLNA device disconnected')
+      this.$store.commit('clearDlnaConnection')
     },
     async screenOrientationChange() {
       if (this.isRefreshingUI) return
@@ -995,6 +1039,9 @@ export default {
 
     if (AbsAudioPlayer.removeAllListeners) {
       AbsAudioPlayer.removeAllListeners()
+    }
+    if (this.$platform === 'android') {
+      AbsAudioPlayer.stopDlnaDiscovery()
     }
     clearInterval(this.playInterval)
   }

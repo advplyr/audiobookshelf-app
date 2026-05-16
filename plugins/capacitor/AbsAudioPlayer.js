@@ -171,6 +171,41 @@ class AbsAudioPlayerWeb extends WebPlugin {
     return false
   }
 
+  // PluginMethod
+  async startDlnaDiscovery() {
+    return { supported: false }
+  }
+
+  // PluginMethod
+  async stopDlnaDiscovery() {
+    return { supported: false }
+  }
+
+  // PluginMethod
+  async getDlnaDevices() {
+    return { devices: [] }
+  }
+
+  // PluginMethod
+  async connectDlnaDevice() {
+    return { error: 'DLNA not supported on web' }
+  }
+
+  // PluginMethod
+  async disconnectDlnaDevice() {
+    return { supported: false }
+  }
+
+  // PluginMethod
+  async getIsDlnaAvailable() {
+    return { value: false }
+  }
+
+  // PluginMethod
+  async getDlnaConnectedDevice() {
+    return null
+  }
+
   initializePlayer() {
     if (document.getElementById('audio-player')) {
       document.getElementById('audio-player').remove()

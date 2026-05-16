@@ -40,6 +40,9 @@ import com.audiobookshelf.app.media.getUriToAbsIconDrawable
 import com.audiobookshelf.app.media.getUriToDrawable
 import com.audiobookshelf.app.plugins.AbsLogger
 import com.audiobookshelf.app.server.ApiHandler
+import com.audiobookshelf.app.dlna.DlnaManager
+import com.audiobookshelf.app.dlna.DlnaPlayer
+import com.audiobookshelf.app.dlna.DlnaMetadataBuilder
 import com.google.android.exoplayer2.*
 import com.google.android.exoplayer2.audio.AudioAttributes
 import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector
@@ -59,6 +62,7 @@ import kotlinx.coroutines.runBlocking
 const val SLEEP_TIMER_WAKE_UP_EXPIRATION = 120000L // 2m
 const val PLAYER_CAST = "cast-player"
 const val PLAYER_EXO = "exo-player"
+const val PLAYER_DLNA = "dlna-player"
 
 class PlayerNotificationService : MediaBrowserServiceCompat() {
 
@@ -105,6 +109,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   lateinit var mPlayer: ExoPlayer
   lateinit var currentPlayer: Player
   var castPlayer: CastPlayer? = null
+  var dlnaPlayer: DlnaPlayer? = null
+  var dlnaManager: DlnaManager? = null
 
   lateinit var sleepTimerManager: SleepTimerManager
   lateinit var mediaProgressSyncer: MediaProgressSyncer
@@ -543,7 +549,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       currentPlayer.setPlaybackSpeed(playbackRateToUse)
 
       currentPlayer.prepare()
-    } else if (castPlayer != null) {
+    } else if (castPlayer != null && castPlayer == currentPlayer) {
       val currentTrackIndex = playbackSession.getCurrentTrackIndex()
       val currentTrackTime = playbackSession.getCurrentTrackTimeMs()
       val mediaType = playbackSession.mediaType
@@ -557,6 +563,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
               playbackRateToUse,
               mediaType
       )
+    } else if (dlnaPlayer != null && dlnaPlayer == currentPlayer) {
+      Log.d(tag, "Loading DLNA player for session ${playbackSession.displayTitle}")
+      prepareDlnaPlayer(playbackSession, playWhenReady, playbackRateToUse)
     }
   }
 
@@ -682,6 +691,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       } else {
         Log.d(tag, "switchToPlayer: Switching to cast player from exo player stop exo player")
         mPlayer.stop()
+        dlnaPlayer?.stop()
       }
     } else {
       if (currentPlayer == mPlayer) {
@@ -690,6 +700,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       } else if (castPlayer != null) {
         Log.d(tag, "switchToPlayer: Switching to exo player from cast player stop cast player")
         castPlayer?.stop()
+      } else if (dlnaPlayer != null) {
+        Log.d(tag, "switchToPlayer: Switching to exo player from dlna player stop dlna player")
+        dlnaPlayer?.stop()
       }
     }
 
@@ -732,6 +745,204 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
       // TODO: Start a new playback session here instead of using the existing
       preparePlayer(it, false, null)
+    }
+  }
+
+  fun switchToDlnaPlayer(manager: DlnaManager) {
+    val wasPlaying = currentPlayer.isPlaying
+
+    if (getMediaPlayer() == PLAYER_DLNA) {
+      Log.d(tag, "switchToDlnaPlayer: Already using DLNA Player")
+      return
+    }
+
+    Log.d(tag, "switchToDlnaPlayer: Stopping current player")
+    mPlayer.stop()
+    castPlayer?.stop()
+
+    if (currentPlaybackSession == null) {
+      Log.e(tag, "switchToDlnaPlayer: No Current playback session")
+    } else {
+      isSwitchingPlayer = true
+    }
+
+    if (mediaProgressSyncer.currentPlaybackSession != null) {
+      currentPlaybackSession = mediaProgressSyncer.currentPlaybackSession?.clone()
+    }
+
+    dlnaManager = manager
+    dlnaPlayer = DlnaPlayer(manager)
+    dlnaPlayer?.addListener(PlayerListener(this))
+
+    dlnaPlayer?.trackProvider = object : DlnaPlayer.TrackProvider {
+      override fun getTrackInfo(trackIndex: Int): DlnaPlayer.TrackInfo? {
+        val session = currentPlaybackSession ?: return null
+        val audioTrack = session.audioTracks.getOrNull(trackIndex) ?: return null
+
+        val mediaUrl = session.getContentUri(audioTrack).toString()
+        val coverUrl = session.getCoverUri(ctx).toString()
+
+        val mimeType = detectMimeType(audioTrack.mimeType, mediaUrl, audioTrack.contentUrl)
+
+        val dlnaMetadata = DlnaMetadataBuilder.buildAudioMetadata(
+          title = session.displayTitle ?: "Unknown",
+          artist = session.displayAuthor,
+          album = session.displayTitle,
+          albumArtUrl = coverUrl,
+          mediaUrl = mediaUrl,
+          mimeType = mimeType,
+          durationSeconds = audioTrack.duration.toLong()
+        )
+
+        return DlnaPlayer.TrackInfo(mediaUrl, dlnaMetadata)
+      }
+    }
+
+    Log.d(tag, "switchToDlnaPlayer: Using DLNA Player")
+    mediaSessionConnector.setPlayer(dlnaPlayer)
+    playerNotificationManager.setPlayer(dlnaPlayer)
+    currentPlayer = dlnaPlayer as DlnaPlayer
+
+    // Setup volume control AFTER setPlayer (like Cast does)
+    // setPlayer() resets MediaSession volume control, so we must call this after
+    dlnaPlayer?.sessionAvailabilityListener = object : DlnaPlayer.DlnaSessionAvailabilityListener {
+      override fun onDlnaSessionAvailable() {
+        Log.d(tag, "DlnaSessionAvailabilityListener: onDlnaSessionAvailable - setting up volume")
+        setMediaSessionToDlnaVolume()
+      }
+
+      override fun onDlnaSessionUnavailable() {
+        Log.d(tag, "DlnaSessionAvailabilityListener: onDlnaSessionUnavailable")
+      }
+    }
+
+    // If device is already connected, set up volume immediately
+    if (manager.getConnectedDevice() != null) {
+      Log.d(tag, "switchToDlnaPlayer: Device already connected, setting up volume immediately")
+      setMediaSessionToDlnaVolume()
+    }
+
+    clientEventEmitter?.onMediaPlayerChanged(getMediaPlayer())
+
+    currentPlaybackSession?.let {
+      Log.d(tag, "switchToDlnaPlayer: Preparing playback session ${it.displayTitle}")
+      if (wasPlaying) {
+        clientEventEmitter?.onPlayingUpdate(false)
+      }
+      prepareDlnaPlayer(it, false, null)
+    }
+  }
+
+  private fun prepareDlnaPlayer(playbackSession: PlaybackSession, playWhenReady: Boolean, playbackRate: Float?) {
+    val dlna = dlnaPlayer ?: return
+
+    val metadata = playbackSession.getMediaMetadataCompat(ctx)
+    mediaSession.setMetadata(metadata)
+
+    val mediaItems = playbackSession.getMediaItems(ctx)
+    if (mediaItems.isEmpty()) {
+      Log.e(tag, "prepareDlnaPlayer: No media items")
+      return
+    }
+
+    val currentTrackIndex = playbackSession.getCurrentTrackIndex()
+    val currentTrackTime = playbackSession.getCurrentTrackTimeMs()
+    val audioTrack = playbackSession.audioTracks.getOrNull(currentTrackIndex) ?: return
+
+    val mediaUrl = playbackSession.getContentUri(audioTrack).toString()
+    val coverUrl = playbackSession.getCoverUri(ctx).toString()
+
+    Log.d(tag, "prepareDlnaPlayer: Track contentUrl: ${audioTrack.contentUrl}")
+    Log.d(tag, "prepareDlnaPlayer: Track index: ${audioTrack.index}")
+    Log.d(tag, "prepareDlnaPlayer: Track mimeType from server: '${audioTrack.mimeType}'")
+
+    val mimeType = detectMimeType(audioTrack.mimeType, mediaUrl, audioTrack.contentUrl)
+
+    Log.d(tag, "prepareDlnaPlayer: Final MIME type: $mimeType")
+
+    val dlnaMetadata = DlnaMetadataBuilder.buildAudioMetadata(
+      title = playbackSession.displayTitle ?: "Unknown",
+      artist = playbackSession.displayAuthor,
+      album = playbackSession.displayTitle,
+      albumArtUrl = coverUrl,
+      mediaUrl = mediaUrl,
+      mimeType = mimeType,
+      durationSeconds = audioTrack.duration.toLong()
+    )
+
+    Log.d(tag, "prepareDlnaPlayer: Loading DLNA with URL: $mediaUrl")
+    Log.d(tag, "prepareDlnaPlayer: Metadata: $dlnaMetadata")
+
+    val trackDurationsMs = playbackSession.audioTracks.map { (it.duration * 1000).toLong() }
+
+    dlna.load(
+      mediaItems = mediaItems,
+      trackDurationsMs = trackDurationsMs,
+      startIndex = currentTrackIndex,
+      startTime = currentTrackTime,
+      playWhenReady = playWhenReady,
+      playbackRate = playbackRate ?: 1f,
+      mediaUrl = mediaUrl,
+      metadata = dlnaMetadata,
+    )
+  }
+
+  private fun detectMimeType(mimeType: String?, mediaUrl: String, contentUrl: String): String {
+    if (!mimeType.isNullOrEmpty()) return mimeType
+    return when {
+      mediaUrl.endsWith(".mp3", ignoreCase = true) -> "audio/mpeg"
+      mediaUrl.endsWith(".m4a", ignoreCase = true) || mediaUrl.endsWith(".m4b", ignoreCase = true) -> "audio/mp4"
+      mediaUrl.endsWith(".aac", ignoreCase = true) -> "audio/aac"
+      mediaUrl.endsWith(".ogg", ignoreCase = true) -> "audio/ogg"
+      mediaUrl.endsWith(".opus", ignoreCase = true) -> "audio/opus"
+      mediaUrl.endsWith(".flac", ignoreCase = true) -> "audio/flac"
+      mediaUrl.endsWith(".wav", ignoreCase = true) -> "audio/wav"
+      contentUrl.contains(".mp3", ignoreCase = true) -> "audio/mpeg"
+      contentUrl.contains(".m4", ignoreCase = true) -> "audio/mp4"
+      else -> "audio/mpeg"
+    }
+  }
+
+  private fun setMediaSessionToDlnaVolume() {
+    Log.d(tag, "setMediaSessionToDlnaVolume: Starting volume setup")
+
+    if (dlnaManager == null) {
+      Log.w(tag, "setMediaSessionToDlnaVolume: dlnaManager is null")
+      return
+    }
+
+    dlnaManager?.getVolume { actualVolume ->
+      Log.d(tag, "setMediaSessionToDlnaVolume: Received device volume = $actualVolume")
+      dlnaPlayer?.setDeviceVolume(actualVolume)
+
+      val provider = object : VolumeProviderCompat(VolumeProviderCompat.VOLUME_CONTROL_ABSOLUTE, 100, actualVolume) {
+        override fun onSetVolumeTo(volume: Int) {
+          val clamped = volume.coerceIn(0, 100)
+          Log.d(tag, "DLNA Volume: onSetVolumeTo $clamped (previous: $currentVolume)")
+          try {
+            dlnaPlayer?.setDeviceVolume(clamped)
+            setCurrentVolume(clamped)
+          } catch (e: Exception) {
+            Log.e(tag, "DLNA Volume: onSetVolumeTo failed", e)
+          }
+        }
+        override fun onAdjustVolume(direction: Int) {
+          val current = currentVolume
+          val step = if (direction > 0) 5 else if (direction < 0) -5 else 0
+          if (step == 0) return
+          val target = (current + step).coerceIn(0, 100)
+          Log.d(tag, "DLNA Volume: onAdjustVolume direction=$direction, current=$current, target=$target")
+          try {
+            dlnaPlayer?.setDeviceVolume(target)
+            setCurrentVolume(target)
+          } catch (e: Exception) {
+            Log.e(tag, "DLNA Volume: onAdjustVolume failed", e)
+          }
+        }
+      }
+      remoteVolumeProvider = provider
+      mediaSession.setPlaybackToRemote(provider)
+      Log.d(tag, "setMediaSessionToDlnaVolume: Volume provider setup complete with volume=$actualVolume")
     }
   }
 
@@ -1057,7 +1268,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   }
 
   fun getMediaPlayer(): String {
-    return if (currentPlayer == castPlayer) PLAYER_CAST else PLAYER_EXO
+    return when (currentPlayer) {
+      castPlayer -> PLAYER_CAST
+      dlnaPlayer -> PLAYER_DLNA
+      else -> PLAYER_EXO
+    }
   }
 
   @SuppressLint("HardwareIds")
