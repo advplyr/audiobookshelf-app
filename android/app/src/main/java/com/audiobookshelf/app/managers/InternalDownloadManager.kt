@@ -179,9 +179,10 @@ class InternalDownloadManager(
                         }
                         try {
                           val length = response.header("Content-Length")?.toLongOrNull() ?: 0L
-                          val outputStream = FileOutputStream(filePath)
-                          BinaryFileWriter(outputStream, progressCallback)
-                                  .write(body.byteStream(), length)
+                          FileOutputStream(filePath).use { outputStream ->
+                            BinaryFileWriter(outputStream, progressCallback)
+                                    .write(body.byteStream(), length)
+                          }
                         } catch (e: IOException) {
                           Log.e(tag, "Write failed for $url", e)
                           progressCallback.onComplete(true)

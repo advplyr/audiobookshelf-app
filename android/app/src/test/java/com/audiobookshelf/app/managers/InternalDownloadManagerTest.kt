@@ -9,6 +9,7 @@ import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
 import java.io.File
+import java.nio.file.Files
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
@@ -26,7 +27,7 @@ class InternalDownloadManagerTest {
   fun setUp() {
     server = MockWebServer()
     server.start()
-    tmpDir = createTempDir()
+    tmpDir = Files.createTempDirectory("abs-test-").toFile()
   }
 
   @After
