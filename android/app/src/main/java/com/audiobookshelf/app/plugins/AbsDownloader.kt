@@ -68,7 +68,8 @@ class AbsDownloader : Plugin() {
 
     apiHandler.getLibraryItemWithProgress(libraryItemId, episodeId) { libraryItem ->
       if (libraryItem == null) {
-        call.resolve(JSObject("{\"error\":\"Server request failed\"}"))
+        Log.e(tag, "downloadLibraryItem: Failed to get library item $libraryItemId from server — server returned null")
+        call.resolve(JSObject("{\"error\":\"Server request failed for item $libraryItemId\"}"))
       } else {
         Log.d(tag, "Got library item from server ${libraryItem.id}")
 

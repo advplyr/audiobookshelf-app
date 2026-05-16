@@ -14,6 +14,7 @@ import com.audiobookshelf.app.media.SyncResult
 import com.audiobookshelf.app.models.User
 import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.plugins.AbsLogger
+import com.audiobookshelf.app.managers.MtlsManager
 import com.audiobookshelf.app.managers.SecureStorage
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.core.json.JsonReadFeature
@@ -29,7 +30,6 @@ import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.IOException
-import java.util.concurrent.TimeUnit
 
 class ApiHandler(var ctx:Context) {
   val tag = "ApiHandler"
@@ -43,8 +43,6 @@ class ApiHandler(var ctx:Context) {
     }
   }
 
-  private var defaultClient = OkHttpClient()
-  private var pingClient = OkHttpClient.Builder().callTimeout(3, TimeUnit.SECONDS).build()
   private var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
   private var secureStorage = SecureStorage(ctx)
 
@@ -107,15 +105,16 @@ class ApiHandler(var ctx:Context) {
   }
 
   private fun makeRequest(request:Request, httpClient:OkHttpClient?, cb: (JSObject) -> Unit) {
-    val client = httpClient ?: defaultClient
+    val client = httpClient ?: MtlsManager.getClient()
 
     client.newCall(request).enqueue(object : Callback {
       override fun onFailure(call: Call, e: IOException) {
-        Log.d(tag, "FAILURE TO CONNECT")
+        val url = call.request().url
+        Log.e(tag, "makeRequest: FAILURE TO CONNECT to $url — ${e.javaClass.simpleName}: ${e.message}")
         e.printStackTrace()
 
         val jsobj = JSObject()
-        jsobj.put("error", "Failed to connect")
+        jsobj.put("error", "Failed to connect to $url: ${e.javaClass.simpleName}: ${e.message}")
         cb(jsobj)
       }
 
@@ -129,8 +128,9 @@ class ApiHandler(var ctx:Context) {
           }
 
           if (!it.isSuccessful) {
+            Log.e(tag, "makeRequest: HTTP ${it.code} from ${request.url}")
             val jsobj = JSObject()
-            jsobj.put("error", "Unexpected code $response")
+            jsobj.put("error", "HTTP ${it.code} from ${request.url}")
             cb(jsobj)
             return
           }
@@ -209,7 +209,7 @@ class ApiHandler(var ctx:Context) {
         .build()
 
       // Make the refresh request
-      val client = httpClient ?: defaultClient
+      val client = httpClient ?: MtlsManager.getClient()
       client.newCall(refreshRequest).enqueue(object : Callback {
         override fun onFailure(call: Call, e: IOException) {
           Log.e(tag, "handleTokenRefresh: Failed to connect to refresh endpoint", e)
@@ -325,7 +325,7 @@ class ApiHandler(var ctx:Context) {
       Log.d(tag, "retryOriginalRequest: Retrying request to ${newRequest.url}")
 
       // Make the retry request
-      val client = httpClient ?: defaultClient
+      val client = httpClient ?: MtlsManager.getClient()
       client.newCall(newRequest).enqueue(object : Callback {
         override fun onFailure(call: Call, e: IOException) {
           Log.e(tag, "retryOriginalRequest: Failed to retry request", e)
@@ -676,8 +676,7 @@ class ApiHandler(var ctx:Context) {
   fun getMediaProgress(libraryItemId:String, episodeId:String?, serverConnectionConfig:ServerConnectionConfig?, cb: (MediaProgress?) -> Unit) {
     val endpoint = if(episodeId.isNullOrEmpty()) "/api/me/progress/$libraryItemId" else "/api/me/progress/$libraryItemId/$episodeId"
 
-    // TODO: Using ping client here allows for shorter timeout (3 seconds), maybe rename or make diff client for requests requiring quicker response
-    getRequest(endpoint, pingClient, serverConnectionConfig) {
+    getRequest(endpoint, MtlsManager.getClient(callTimeout = 3), serverConnectionConfig) {
       if (it.has("error")) {
         Log.e(tag, "getMediaProgress: Failed to get progress")
         cb(null)
@@ -703,7 +702,7 @@ class ApiHandler(var ctx:Context) {
 
   fun pingServer(config:ServerConnectionConfig, cb: (Boolean) -> Unit) {
     Log.d(tag, "pingServer: Pinging ${config.address}")
-    getRequest("/ping", pingClient, config) {
+    getRequest("/ping", MtlsManager.getClient(callTimeout = 3), config) {
       val success = it.getString("success")
       if (success.isNullOrEmpty()) {
         Log.d(tag, "pingServer: Ping ${config.address} Failed")
