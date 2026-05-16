@@ -17,18 +17,21 @@ class InternalDownloadManager(
 ) : AutoCloseable {
 
   private val tag = "InternalDownloadManager"
-  private val client: OkHttpClient =
-          OkHttpClient.Builder()
-                  .connectTimeout(30, TimeUnit.SECONDS)
-                  // Add read/write timeouts to prevent stalled downloads from hanging indefinitely.
-                  // Large audio files can take many minutes, so we use a generous timeout.
-                  .readTimeout(5, TimeUnit.MINUTES)
-                  .writeTimeout(5, TimeUnit.MINUTES)
-                  // Enable connection keep-alive with a large connection pool for better
-                  // throughput on back-to-back file downloads.
-                  .connectionPool(ConnectionPool(5, 5, TimeUnit.MINUTES))
-                  .build()
   private val writer = BinaryFileWriter(outputStream, progressCallback)
+
+  companion object {
+    // Singleton OkHttpClient shared across ALL downloads. Creating a new client per file
+    // means a fresh ConnectionPool per file — connections are never reused and every
+    // file pays a full TCP + TLS handshake. One shared client means the pool stays warm
+    // across the 6 concurrent slots and sequential batches.
+    val client: OkHttpClient =
+            OkHttpClient.Builder()
+                    .connectTimeout(30, TimeUnit.SECONDS)
+                    .readTimeout(5, TimeUnit.MINUTES)
+                    .writeTimeout(5, TimeUnit.MINUTES)
+                    .connectionPool(ConnectionPool(10, 5, TimeUnit.MINUTES))
+                    .build()
+  }
 
   /**
    * Downloads a file from the given URL.
