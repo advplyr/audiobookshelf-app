@@ -19,7 +19,6 @@ import com.fasterxml.jackson.core.json.JsonReadFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.getcapacitor.JSObject
 import java.io.File
-import java.io.FileOutputStream
 import java.util.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -34,7 +33,9 @@ class DownloadItemManager(
         private var clientEventEmitter: DownloadEventEmitter
 ) {
   val tag = "DownloadItemManager"
-  private val maxSimultaneousDownloads = 3
+  // Allow up to 12 concurrent parts. Server serves files in <50ms on LAN; higher
+  // concurrency keeps the pipeline full especially over remote/Cloudflare connections.
+  private val maxSimultaneousDownloads = 12
   private var jacksonMapper =
           jacksonObjectMapper()
                   .enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
@@ -113,7 +114,6 @@ class DownloadItemManager(
     val file = File(downloadItemPart.finalDestinationPath)
     file.parentFile?.mkdirs()
 
-    val fileOutputStream = FileOutputStream(downloadItemPart.finalDestinationPath)
     val internalProgressCallback =
             object : InternalProgressCallback {
               override fun onProgress(totalBytesWritten: Long, progress: Long) {
@@ -131,7 +131,7 @@ class DownloadItemManager(
             tag,
             "Start internal download to destination path ${downloadItemPart.finalDestinationPath} from ${downloadItemPart.serverUrl}"
     )
-    InternalDownloadManager(fileOutputStream, internalProgressCallback)
+    InternalDownloadManager(downloadItemPart.finalDestinationPath, internalProgressCallback)
             .download(downloadItemPart.serverUrl)
     downloadItemPart.downloadId = 1
     currentDownloadItemParts.add(downloadItemPart)
@@ -164,7 +164,9 @@ class DownloadItemManager(
           }
         }
 
-        delay(500)
+        // Reduced from 500ms → 250ms → 50ms; server responds in <50ms on LAN
+        // so shorter polling keeps slots filled with minimal idle time.
+        delay(50)
 
         if (currentDownloadItemParts.size < maxSimultaneousDownloads) {
           checkUpdateDownloadQueue()
