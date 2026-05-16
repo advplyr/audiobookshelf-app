@@ -18,7 +18,16 @@ class InternalDownloadManager(
 
   private val tag = "InternalDownloadManager"
   private val client: OkHttpClient =
-          OkHttpClient.Builder().connectTimeout(30, TimeUnit.SECONDS).build()
+          OkHttpClient.Builder()
+                  .connectTimeout(30, TimeUnit.SECONDS)
+                  // Add read/write timeouts to prevent stalled downloads from hanging indefinitely.
+                  // Large audio files can take many minutes, so we use a generous timeout.
+                  .readTimeout(5, TimeUnit.MINUTES)
+                  .writeTimeout(5, TimeUnit.MINUTES)
+                  // Enable connection keep-alive with a large connection pool for better
+                  // throughput on back-to-back file downloads.
+                  .connectionPool(ConnectionPool(5, 5, TimeUnit.MINUTES))
+                  .build()
   private val writer = BinaryFileWriter(outputStream, progressCallback)
 
   /**
@@ -84,14 +93,18 @@ class BinaryFileWriter(
    */
   @Throws(IOException::class)
   fun write(inputStream: InputStream, length: Long): Long {
-    BufferedInputStream(inputStream).use { input ->
+    // Use the raw OkHttp response stream directly — OkHttp already buffers internally
+    // via Okio, so wrapping in BufferedInputStream adds an extra copy layer with a
+    // much smaller (8 KiB) default buffer, which hurts throughput.
+    inputStream.use { input ->
       val dataBuffer = ByteArray(CHUNK_SIZE)
       var totalBytes: Long = 0
       var readBytes: Int
       while (input.read(dataBuffer).also { readBytes = it } != -1) {
         totalBytes += readBytes
         outputStream.write(dataBuffer, 0, readBytes)
-        progressCallback.onProgress(totalBytes, (totalBytes * 100L) / length)
+        val safeLength = if (length > 0L) length else totalBytes
+        progressCallback.onProgress(totalBytes, (totalBytes * 100L) / safeLength)
       }
       progressCallback.onComplete(false)
       return totalBytes
@@ -109,6 +122,9 @@ class BinaryFileWriter(
   }
 
   companion object {
-    private const val CHUNK_SIZE = 8192 // Increased chunk size for better performance
+    // 128 KiB per read: large enough to keep throughput high on mobile networks
+    // without over-committing heap. The default 8 KiB causes too many syscalls
+    // for multi-hundred-MB audiobook files and visibly limits throughput.
+    private const val CHUNK_SIZE = 131072
   }
 }

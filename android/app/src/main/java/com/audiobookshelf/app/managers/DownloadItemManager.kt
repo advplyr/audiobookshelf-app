@@ -34,7 +34,10 @@ class DownloadItemManager(
         private var clientEventEmitter: DownloadEventEmitter
 ) {
   val tag = "DownloadItemManager"
-  private val maxSimultaneousDownloads = 3
+  // Allow up to 6 concurrent parts. Audiobooks regularly have 10-30 audio files;
+  // 3 concurrent downloads underutilized bandwidth on typical home/mobile connections.
+  // 6 is a reasonable ceiling before HTTP connection overhead becomes a bottleneck.
+  private val maxSimultaneousDownloads = 6
   private var jacksonMapper =
           jacksonObjectMapper()
                   .enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
@@ -164,7 +167,9 @@ class DownloadItemManager(
           }
         }
 
-        delay(500)
+        // Reduced from 500ms → 250ms so new parts are kicked off sooner after
+        // a part finishes, keeping the concurrent slot count topped up.
+        delay(250)
 
         if (currentDownloadItemParts.size < maxSimultaneousDownloads) {
           checkUpdateDownloadQueue()
