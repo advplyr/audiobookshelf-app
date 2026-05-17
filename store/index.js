@@ -27,7 +27,8 @@ export const state = () => ({
   isNetworkListenerInit: false,
   serverSettings: null,
   lastBookshelfScrollData: {},
-  lastItemScrollData: {}
+  lastItemScrollData: {},
+  pendingDeepLink: null
 })
 
 export const getters = {
@@ -128,6 +129,9 @@ export const actions = {
 export const mutations = {
   setDeviceData(state, deviceData) {
     state.deviceData = deviceData
+  },
+  setPendingDeepLink(state, route) {
+    state.pendingDeepLink = route
   },
   setLastBookshelfScrollData(state, { scrollTop, path, name }) {
     state.lastBookshelfScrollData[name] = { scrollTop, path }
