@@ -1,6 +1,11 @@
 package com.audiobookshelf.app.managers
 
 import android.app.DownloadManager
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.net.Uri
 import android.util.Log
 import androidx.documentfile.provider.DocumentFile
@@ -65,6 +70,52 @@ class DownloadItemManager(
     var isDownloading: Boolean = false
   }
 
+  /** Parts interrupted by a network loss; restored to the queue when connectivity returns. */
+  private val pausedDownloadItemParts: MutableList<DownloadItemPart> = mutableListOf()
+
+  private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+    override fun onLost(network: Network) {
+      // Include parts that OkHttp already marked failed due to the drop — the watcher loop
+      // will catch them via isNetworkAvailable(), but marking them paused here ensures
+      // the .tmp file is kept and they are re-queued when connectivity returns.
+      val inFlight = currentDownloadItemParts.filter { !it.completed || it.failed }
+      if (inFlight.isNotEmpty()) {
+        Log.i(tag, "networkCallback: Network lost — pausing ${inFlight.size} in-flight part(s)")
+        inFlight.forEach { it.paused = true }
+        pausedDownloadItemParts.addAll(inFlight.filter { !pausedDownloadItemParts.contains(it) })
+      }
+    }
+
+    override fun onAvailable(network: Network) {
+      if (pausedDownloadItemParts.isNotEmpty()) {
+        Log.i(tag, "networkCallback: Network available — restoring ${pausedDownloadItemParts.size} paused part(s)")
+        pausedDownloadItemParts.forEach { part ->
+          part.paused = false
+          part.completed = false
+          part.failed = false
+          part.downloadId = null
+        }
+        pausedDownloadItemParts.clear()
+        checkUpdateDownloadQueue()
+      }
+    }
+  }
+
+  init {
+    val networkRequest = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+            .build()
+    (mainActivity.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager)
+            .registerNetworkCallback(networkRequest, networkCallback)
+  }
+
+  /** Unregisters the network callback. Call when the owning component is destroyed. */
+  fun destroy() {
+    (mainActivity.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager)
+            .unregisterNetworkCallback(networkCallback)
+  }
+
   /** Adds a download item to the queue and starts processing the queue. */
   fun addDownloadItem(downloadItem: DownloadItem) {
     DeviceManager.dbManager.saveDownloadItem(downloadItem)
@@ -108,12 +159,16 @@ class DownloadItemManager(
     }
   }
 
-  /** Starts an internal download. */
+  /** Starts an internal download, writing to a .tmp file and renaming on success. */
   private fun startInternalDownload(downloadItemPart: DownloadItemPart) {
-    val file = File(downloadItemPart.finalDestinationPath)
-    file.parentFile?.mkdirs()
+    val finalFile = File(downloadItemPart.finalDestinationPath)
+    val tempFile = File(downloadItemPart.finalDestinationPath + ".tmp")
+    finalFile.parentFile?.mkdirs()
 
-    val fileOutputStream = FileOutputStream(downloadItemPart.finalDestinationPath)
+    // Resume from however many bytes are already in the temp file, if any.
+    val resumeFrom = if (tempFile.exists()) tempFile.length() else 0L
+    val fileOutputStream = FileOutputStream(tempFile, resumeFrom > 0L)
+
     val internalProgressCallback =
             object : InternalProgressCallback {
               override fun onProgress(totalBytesWritten: Long, progress: Long) {
@@ -124,15 +179,23 @@ class DownloadItemManager(
               override fun onComplete(failed: Boolean) {
                 downloadItemPart.failed = failed
                 downloadItemPart.completed = true
+                if (!failed) {
+                  // Atomic rename: only expose the file once it is fully written.
+                  if (!tempFile.renameTo(finalFile)) {
+                    Log.e(tag, "Failed to rename ${tempFile.absolutePath} → ${finalFile.absolutePath}")
+                    downloadItemPart.failed = true
+                    tempFile.delete()
+                  }
+                }
               }
             }
 
     Log.d(
             tag,
-            "Start internal download to destination path ${downloadItemPart.finalDestinationPath} from ${downloadItemPart.serverUrl}"
+            "Start internal download to ${downloadItemPart.finalDestinationPath} from ${downloadItemPart.serverUrl} (resumeFrom=$resumeFrom)"
     )
     InternalDownloadManager(fileOutputStream, internalProgressCallback)
-            .download(downloadItemPart.serverUrl)
+            .download(downloadItemPart.serverUrl, resumeFrom)
     downloadItemPart.downloadId = 1
     currentDownloadItemParts.add(downloadItemPart)
   }
@@ -155,7 +218,7 @@ class DownloadItemManager(
       isDownloading = true
 
       while (currentDownloadItemParts.isNotEmpty()) {
-        val itemParts = currentDownloadItemParts.filter { !it.isMoving }
+        val itemParts = currentDownloadItemParts.filter { !it.isMoving && !it.paused }
         for (downloadItemPart in itemParts) {
           if (downloadItemPart.isInternalStorage) {
             handleInternalDownloadPart(downloadItemPart)
@@ -181,10 +244,41 @@ class DownloadItemManager(
     clientEventEmitter.onDownloadItemPartUpdate(downloadItemPart)
 
     if (downloadItemPart.completed) {
+      if (downloadItemPart.failed) {
+        // OkHttp's onFailure fires before networkCallback.onLost, so a part can be marked
+        // completed+failed due to a network drop before paused=true is ever set. Treat any
+        // failure while offline the same as an explicit pause so files aren't lost.
+        if (downloadItemPart.paused || !isNetworkAvailable()) {
+          Log.d(tag, "handleInternalDownloadPart: Network unavailable — deferring retry for ${downloadItemPart.filename}")
+          downloadItemPart.completed = false
+          downloadItemPart.failed = false
+          downloadItemPart.paused = true
+          downloadItemPart.downloadId = null
+          if (!pausedDownloadItemParts.contains(downloadItemPart)) {
+            pausedDownloadItemParts.add(downloadItemPart)
+          }
+          currentDownloadItemParts.remove(downloadItemPart)
+          return
+        } else {
+          // Permanent failure: remove any partial files so the folder scanner never
+          // registers a corrupt file as a completed download.
+          File(downloadItemPart.finalDestinationPath).delete()
+          File(downloadItemPart.finalDestinationPath + ".tmp").delete()
+        }
+      }
       val downloadItem = downloadItemQueue.find { it.id == downloadItemPart.downloadItemId }
       downloadItem?.let { checkDownloadItemFinished(it) }
       currentDownloadItemParts.remove(downloadItemPart)
     }
+  }
+
+  /** Returns true if the device currently has a validated internet connection. */
+  private fun isNetworkAvailable(): Boolean {
+    val cm = mainActivity.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    val network = cm.activeNetwork ?: return false
+    val caps = cm.getNetworkCapabilities(network) ?: return false
+    return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+            caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
   }
 
   /** Handles an external download part. */
