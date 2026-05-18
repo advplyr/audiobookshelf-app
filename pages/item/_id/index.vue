@@ -174,6 +174,7 @@ import { Dialog } from '@capacitor/dialog'
 import { AbsFileSystem, AbsDownloader } from '@/plugins/capacitor'
 import { getAverageColorFromCoverUrl } from '@/utils/coverAverageColor'
 import cellularPermissionHelpers from '@/mixins/cellularPermissionHelpers'
+import progressHelpers from '@/mixins/progressHelpers'
 
 export default {
   async asyncData({ store, params, redirect, app, query }) {
@@ -224,7 +225,7 @@ export default {
       startingDownload: false
     }
   },
-  mixins: [cellularPermissionHelpers],
+  mixins: [cellularPermissionHelpers, progressHelpers],
   computed: {
     isIos() {
       return this.$platform === 'ios'
@@ -367,7 +368,7 @@ export default {
     userItemProgress() {
       if (this.isPodcast) return null
       if (this.isLocal) return this.localItemProgress
-      return this.serverItemProgress
+      return this.getFreshestProgress(this.serverItemProgress, this.localProgressForServerItem)
     },
     localItemProgress() {
       if (this.isPodcast) return null
