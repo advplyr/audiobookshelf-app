@@ -56,8 +56,8 @@
           </div>
           <div class="w-full h-px bg-fg/10 my-2" />
           <form v-if="isLocalAuthEnabled" @submit.prevent="submitAuth" class="pt-3">
-            <ui-text-input v-model="serverConfig.username" :disabled="processing" :placeholder="$strings.LabelUsername" class="w-full mb-2 text-lg" />
-            <ui-text-input v-model="password" type="password" :disabled="processing" :placeholder="$strings.LabelPassword" class="w-full mb-2 text-lg" />
+            <ui-text-input v-model="serverConfig.username" :disabled="processing" :placeholder="$strings.LabelUsername" autocomplete="username" name="username" input-id="username" class="w-full mb-2 text-lg" />
+            <ui-text-input v-model="password" type="password" :disabled="processing" :placeholder="$strings.LabelPassword" autocomplete="current-password" name="password" input-id="password" class="w-full mb-2 text-lg" />
 
             <div class="flex items-center pt-2">
               <ui-icon-btn v-if="serverConfig.id" bg-color="error" icon="delete" type="button" @click="removeServerConfigClick(serverConfig)" />
@@ -95,6 +95,7 @@
 import { Browser } from '@capacitor/browser'
 import { CapacitorHttp } from '@capacitor/core'
 import { Dialog } from '@capacitor/dialog'
+import { AbsCredentialManager } from '@/plugins/capacitor/AbsCredentialManager'
 
 // TODO: when backend ready. See validateLoginFormResponse()
 //const requiredServerVersion = '2.5.0'
@@ -681,6 +682,16 @@ export default {
           this.oauth.buttonText = statusData.data.authFormData?.authOpenIDButtonText || 'Login with OpenID'
           this.serverConfig.version = statusData.data.serverVersion
 
+          // Try to retrieve saved credentials
+          AbsCredentialManager.getCredential()
+            .then((cred) => {
+              if (cred?.username && !this.serverConfig.username) {
+                this.serverConfig.username = cred.username
+                this.password = cred.password
+              }
+            })
+            .catch((e) => console.warn('Failed to get credential', e))
+
           if (statusData.data.authFormData?.authOpenIDAutoLaunch && !preventAutoLogin) {
             this.clickLoginWithOpenId()
           }
@@ -836,6 +847,12 @@ export default {
       const payload = await this.requestServerLogin()
       this.processing = false
       if (payload) {
+        // Save credentials via Android Credential Manager (await so the dialog appears before navigating away)
+        await AbsCredentialManager.saveCredential({
+          username: this.serverConfig.username,
+          password: this.password || ''
+        }).catch((e) => console.warn('Failed to save credential', e))
+
         // Will include access token and refresh token
         this.setUserAndConnection(payload)
       }

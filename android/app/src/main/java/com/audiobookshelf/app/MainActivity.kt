@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
+import android.view.View
 import android.view.ViewGroup
 import android.view.WindowInsets
 import android.webkit.WebView
@@ -20,6 +21,7 @@ import com.anggrayudi.storage.SimpleStorageHelper
 import com.audiobookshelf.app.managers.DbManager
 import com.audiobookshelf.app.player.PlayerNotificationService
 import com.audiobookshelf.app.plugins.AbsAudioPlayer
+import com.audiobookshelf.app.plugins.AbsCredentialManager
 import com.audiobookshelf.app.plugins.AbsDatabase
 import com.audiobookshelf.app.plugins.AbsDownloader
 import com.audiobookshelf.app.plugins.AbsFileSystem
@@ -48,6 +50,7 @@ class MainActivity : BridgeActivity() {
     DbManager.initialize(applicationContext)
 
     registerPlugin(AbsAudioPlayer::class.java)
+    registerPlugin(AbsCredentialManager::class.java)
     registerPlugin(AbsDownloader::class.java)
     registerPlugin(AbsFileSystem::class.java)
     registerPlugin(AbsDatabase::class.java)
@@ -59,6 +62,9 @@ class MainActivity : BridgeActivity() {
     // Update the margins to handle edge-to-edge enforced in SDK 35
     // See: https://developer.android.com/develop/ui/views/layout/edge-to-edge
     val webView: WebView = findViewById(R.id.webview)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      webView.importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_YES
+    }
     webView.setOnApplyWindowInsetsListener { v, insets ->
       val (left, top, right, bottom) = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
         val sysInsets = insets.getInsets(WindowInsets.Type.systemBars())
