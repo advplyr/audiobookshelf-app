@@ -67,6 +67,12 @@
       </div>
       <p class="pl-4">{{ $strings.LabelAllowSeekingOnMediaControls }}</p>
     </div>
+    <div class="flex items-center py-3">
+      <div class="w-10 flex justify-center" @click="togglePlaybackRateLock">
+        <ui-toggle-switch v-model="settings.playbackRateLock" @input="saveSettings" />
+      </div>
+      <p class="pl-4">{{ $strings.LabelPlaybackRateLock }}</p>
+    </div>
 
     <!-- Sleep timer settings -->
     <template v-if="!isiOS">
@@ -206,6 +212,7 @@ export default {
         jumpForwardTime: 10,
         jumpBackwardsTime: 10,
         enableMp3IndexSeeking: false,
+        playbackRateLock = false,
         disableShakeToResetSleepTimer: false,
         shakeSensitivity: 'MEDIUM',
         lockOrientation: 0,
@@ -255,6 +262,10 @@ export default {
         enableMp3IndexSeeking: {
           name: this.$strings.LabelEnableMp3IndexSeeking,
           message: this.$strings.LabelEnableMp3IndexSeekingHelp
+        },
+        playbackRateLock: {
+          name: this.$strings.LabelPlaybackRateLock,
+          message: this.$strings.LabelPlaybackRateLockHelp
         },
         androidAutoBrowseLimitForGrouping: {
           name: this.$strings.LabelAndroidAutoBrowseLimitForGrouping,
@@ -573,6 +584,10 @@ export default {
     },
     toggleEnableMp3IndexSeeking() {
       this.settings.enableMp3IndexSeeking = !this.settings.enableMp3IndexSeeking
+      this.saveSettings()
+    },
+    togglePlaybackRateLock() {
+      this.settings.playbackRateLock = !this.settings.playbackRateLock
       this.saveSettings()
     },
     toggleAutoSleepTimer() {
