@@ -6,33 +6,23 @@ on:
     paths:
       - strings/** # Should only check if any strings changed
 
-# Workflow-level default: read-only.
-permissions:
-  contents: read
-
 jobs:
   update_translations:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
     # Check out the repository
     - name: Checkout repository
-      # actions/checkout@v4 pinned to commit SHA per security hardening Phase 3.
-      uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      uses: actions/checkout@v4
 
     # Set up node to run the javascript
     - name: Set up node
-      # actions/setup-node@v4 pinned to commit SHA.
-      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      uses: actions/setup-node@v4
       with:
         node-version: '20'
 
     # The only argument is the `directory`, which is where the i18n files are
     # stored.
     - name: Run Update JSON Files action
-      # audiobookshelf/audiobookshelf-i18n-updater@v1.3.0 pinned to commit SHA.
-      # First-party action under the upstream org; still pinned per defense-in-depth.
-      uses: audiobookshelf/audiobookshelf-i18n-updater@f827a936bfaae6ceee4babf807bf8b5cc20efab4
+      uses: audiobookshelf/audiobookshelf-i18n-updater@v1.3.0
       with:
         directory: 'strings/'  # Adjust the directory path as needed
