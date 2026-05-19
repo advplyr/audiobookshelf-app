@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full h-full px-3 py-4 overflow-y-auto overflow-x-hidden relative bg-bg">
+  <div id="episode-page" class="w-full h-full px-3 py-4 overflow-y-auto overflow-x-hidden relative bg-bg">
     <div class="flex mb-2">
       <div class="w-10 min-w-10">
         <covers-preview-cover :src="coverUrl" :width="40" :book-cover-aspect-ratio="bookCoverAspectRatio" :show-resolution="false" class="md:hidden" />

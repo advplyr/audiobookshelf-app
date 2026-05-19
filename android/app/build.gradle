@@ -48,6 +48,14 @@ android {
       ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
     }
   }
+  signingConfigs {
+    release {
+      storeFile = android.signingConfigs.debug.storeFile
+      storePassword = android.signingConfigs.debug.storePassword
+      keyAlias = android.signingConfigs.debug.keyAlias
+      keyPassword = android.signingConfigs.debug.keyPassword
+    }
+  }
   buildTypes {
     debug {
       applicationIdSuffix ".debug"
@@ -56,8 +64,18 @@ android {
       proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
     }
     release {
+      signingConfig signingConfigs.release
       minifyEnabled false
       proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+    }
+  }
+  applicationVariants.configureEach { variant ->
+    variant.outputs.configureEach {
+      if (variant.buildType.name == 'release') {
+        outputFileName = "abs-android-tv-release.apk"
+      } else {
+        outputFileName = "abs-android-tv.apk"
+      }
     }
   }
 }

@@ -4,13 +4,13 @@
       <div class="w-full h-full absolute top-0 left-0 pointer-events-none" style="background: var(--gradient-audio-player)" />
 
       <div class="top-4 left-4 absolute cursor-pointer">
-        <span class="material-symbols text-5xl" :class="{ 'text-black text-opacity-75': coverBgIsLight && theme !== 'black' }" @click="collapseFullscreen">keyboard_arrow_down</span>
+        <span tabindex="0" class="material-symbols text-5xl" :class="{ 'text-black text-opacity-75': coverBgIsLight && theme !== 'black' }" @click="collapseFullscreen" @keydown.enter.prevent="collapseFullscreen">keyboard_arrow_down</span>
       </div>
       <div v-show="showCastBtn" class="top-6 right-16 absolute cursor-pointer">
         <span class="material-symbols text-3xl" :class="coverBgIsLight && theme !== 'black' ? 'text-black' : ''" @click="castClick">{{ isCasting ? 'cast_connected' : 'cast' }}</span>
       </div>
       <div class="top-6 right-4 absolute cursor-pointer">
-        <span class="material-symbols text-3xl" :class="{ 'text-black text-opacity-75': coverBgIsLight && theme !== 'black' }" @click="showMoreMenuDialog = true">more_vert</span>
+        <span tabindex="0" class="material-symbols text-3xl" :class="{ 'text-black text-opacity-75': coverBgIsLight && theme !== 'black' }" @click="showMoreMenuDialog = true" @keydown.enter.prevent="showMoreMenuDialog = true">more_vert</span>
       </div>
       <p class="top-4 absolute left-0 right-0 mx-auto text-center uppercase tracking-widest text-opacity-75" :class="{ 'text-black text-opacity-75': coverBgIsLight && theme !== 'black' }" style="font-size: 10px">{{ isDirectPlayMethod ? $strings.LabelPlaybackDirect : isLocalPlayMethod ? $strings.LabelPlaybackLocal : $strings.LabelPlaybackTranscode }}</p>
     </div>
@@ -50,41 +50,41 @@
     <div id="playerContent" class="playerContainer w-full z-20 absolute bottom-0 left-0 right-0 p-2 pointer-events-auto transition-all" :style="{ backgroundColor: showFullscreen ? '' : coverRgb }" @click="clickContainer">
       <div v-if="showFullscreen" class="absolute bottom-4 left-0 right-0 w-full pb-4 pt-2 mx-auto px-6" style="max-width: 414px">
         <div class="flex items-center justify-between pointer-events-auto">
-          <span v-if="!isPodcast && serverLibraryItemId && socketConnected" class="material-symbols text-3xl text-fg-muted cursor-pointer" :class="{ fill: bookmarks.length }" @click="$emit('showBookmarks')">bookmark</span>
+          <span v-if="!isPodcast && serverLibraryItemId && socketConnected" tabindex="0" class="material-symbols text-3xl text-fg-muted cursor-pointer" :class="{ fill: bookmarks.length }" @click="$emit('showBookmarks')" @keydown.enter.prevent="$emit('showBookmarks')">bookmark</span>
           <!-- hidden for podcasts but still using this as a placeholder -->
           <span v-else class="material-symbols text-3xl text-white text-opacity-0">bookmark</span>
 
-          <span class="font-mono text-fg-muted cursor-pointer" style="font-size: 1.35rem" @click="$emit('selectPlaybackSpeed')">{{ currentPlaybackRate }}x</span>
-          <svg v-if="!sleepTimerRunning" xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-fg-muted cursor-pointer" fill="none" viewBox="0 0 24 24" stroke="currentColor" @click.stop="$emit('showSleepTimer')">
+          <span tabindex="0" class="font-mono text-fg-muted cursor-pointer" style="font-size: 1.35rem" @click="$emit('selectPlaybackSpeed')" @keydown.enter.prevent="$emit('selectPlaybackSpeed')">{{ currentPlaybackRate }}x</span>
+          <svg v-if="!sleepTimerRunning" xmlns="http://www.w3.org/2000/svg" tabindex="0" class="h-7 w-7 text-fg-muted cursor-pointer" fill="none" viewBox="0 0 24 24" stroke="currentColor" @click.stop="$emit('showSleepTimer')" @keydown.enter.prevent.stop="$emit('showSleepTimer')">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
           </svg>
-          <div v-else class="h-7 w-7 flex items-center justify-around cursor-pointer" @click.stop="$emit('showSleepTimer')">
+          <div v-else tabindex="0" class="h-7 w-7 flex items-center justify-around cursor-pointer" @click.stop="$emit('showSleepTimer')" @keydown.enter.prevent.stop="$emit('showSleepTimer')">
             <p class="text-xl font-mono text-success">{{ sleepTimeRemainingPretty }}</p>
           </div>
 
-          <span class="material-symbols text-3xl text-fg cursor-pointer" :class="chapters.length ? 'text-opacity-75' : 'text-opacity-10'" @click="clickChaptersBtn">format_list_bulleted</span>
+          <span tabindex="0" class="material-symbols text-3xl text-fg cursor-pointer" :class="chapters.length ? 'text-opacity-75' : 'text-opacity-10'" @click="clickChaptersBtn" @keydown.enter.prevent="clickChaptersBtn">format_list_bulleted</span>
         </div>
       </div>
       <div v-else class="w-full h-full absolute top-0 left-0 pointer-events-none" style="background: var(--gradient-minimized-audio-player)" />
 
       <div id="playerControls" class="absolute right-0 bottom-0 mx-auto" style="max-width: 414px">
         <div class="flex items-center max-w-full" :class="playerSettings.lockUi ? 'justify-center' : 'justify-between'">
-          <span v-show="showFullscreen && !playerSettings.lockUi" class="material-symbols next-icon text-fg cursor-pointer" :class="showLoadingState ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpChapterStart">first_page</span>
-          <div v-show="!playerSettings.lockUi" class="jump-icon text-fg cursor-pointer flex flex-col items-center" :class="showLoadingState ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpBackwards">
+          <span v-show="showFullscreen && !playerSettings.lockUi" :tabindex="showFullscreen && !playerSettings.lockUi ? 0 : -1" class="material-symbols next-icon text-fg cursor-pointer" :class="showLoadingState ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpChapterStart" @keydown.enter.prevent.stop="jumpChapterStart">first_page</span>
+          <div v-show="!playerSettings.lockUi" tabindex="0" class="jump-icon text-fg cursor-pointer flex flex-col items-center" :class="showLoadingState ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpBackwards" @keydown.enter.prevent.stop="jumpBackwards">
             <span class="material-symbols text-3xl leading-none">replay</span>
             <span v-if="showFullscreen" class="jump-label text-[10px] font-semibold leading-tight">{{ jumpBackwardsLabel }}</span>
           </div>
-          <div class="play-btn cursor-pointer shadow-sm flex items-center justify-center rounded-full text-primary mx-4 relative overflow-hidden" :style="{ backgroundColor: coverRgb }" :class="{ 'animate-spin': seekLoading }" @mousedown.prevent @mouseup.prevent @click.stop="playPauseClick">
+          <div tabindex="0" class="play-btn cursor-pointer shadow-sm flex items-center justify-center rounded-full text-primary mx-4 relative overflow-hidden" :style="{ backgroundColor: coverRgb }" :class="{ 'animate-spin': seekLoading }" @mousedown.prevent @mouseup.prevent @click.stop="playPauseClick" @keydown.enter.prevent.stop="playPauseClick">
             <div v-if="!coverBgIsLight" class="absolute top-0 left-0 w-full h-full bg-white bg-opacity-20 pointer-events-none" />
 
             <span v-if="!showLoadingState" class="material-symbols fill" :class="{ 'text-white': coverRgb && !coverBgIsLight }">{{ seekLoading ? 'autorenew' : !isPlaying ? 'play_arrow' : 'pause' }}</span>
             <widgets-spinner-icon v-else class="h-8 w-8" />
           </div>
-          <div v-show="!playerSettings.lockUi" class="jump-icon text-fg cursor-pointer flex flex-col items-center" :class="showLoadingState ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpForward">
+          <div v-show="!playerSettings.lockUi" tabindex="0" class="jump-icon text-fg cursor-pointer flex flex-col items-center" :class="showLoadingState ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpForward" @keydown.enter.prevent.stop="jumpForward">
             <span class="material-symbols text-3xl leading-none">forward_media</span>
             <span v-if="showFullscreen" class="jump-label text-[10px] font-semibold leading-tight">{{ jumpForwardLabel }}</span>
           </div>
-          <span v-show="showFullscreen && !playerSettings.lockUi" class="material-symbols next-icon text-fg cursor-pointer" :class="nextChapter && !showLoadingState ? 'text-opacity-75' : 'text-opacity-10'" @click.stop="jumpNextChapter">last_page</span>
+          <span v-show="showFullscreen && !playerSettings.lockUi" :tabindex="showFullscreen && !playerSettings.lockUi ? 0 : -1" class="material-symbols next-icon text-fg cursor-pointer" :class="nextChapter && !showLoadingState ? 'text-opacity-75' : 'text-opacity-10'" @click.stop="jumpNextChapter" @keydown.enter.prevent.stop="jumpNextChapter">last_page</span>
         </div>
       </div>
 
@@ -114,6 +114,7 @@
 import { Capacitor } from '@capacitor/core'
 import { AbsAudioPlayer } from '@/plugins/capacitor'
 import { Dialog } from '@capacitor/dialog'
+import { KeepAwake } from '@capacitor-community/keep-awake'
 import { getAverageColorFromCoverUrl } from '@/utils/coverAverageColor'
 import WrappingMarquee from '@/assets/WrappingMarquee.js'
 import jumpLabelMixin from '@/mixins/jumpLabel'
@@ -190,7 +191,11 @@ export default {
     menuItems() {
       const items = []
       // TODO: Implement on iOS
-      if (this.$platform !== 'ios' && !this.isPodcast && this.mediaId) {
+      // Android TV: hide History here — it routes to a separate page which collapses
+      // the fullscreen player into the retired mini-player state. History remains
+      // accessible from book detail pages. Tracked in
+      // project_tv_fullscreen_history_regression.md
+      if (this.$platform !== 'ios' && !this.isPodcast && this.mediaId && !this.$store.state.isAndroidTv) {
         items.push({
           text: this.$strings.ButtonHistory,
           value: 'history',
@@ -455,6 +460,13 @@ export default {
       })
     },
     collapseFullscreen() {
+      // On Android TV, close the player entirely instead of minimizing.
+      // The mini player is difficult to navigate back to on TV. A future
+      // user setting will allow toggling between minimize and close behavior.
+      if (this.$store.state.isAndroidTv) {
+        this.closePlayback()
+        return
+      }
       this.showFullscreen = false
       if (this.titleMarquee) this.titleMarquee.reset()
 
@@ -795,6 +807,21 @@ export default {
       this.isEnded = false
       this.isLoading = false
       this.playbackSession = null
+      this.updateKeepAwake(false)
+    },
+    // Android TV only: hold a screen-wake lock during active playback so the
+    // Ambient Mode screensaver does not kick in (which kills playback on CCwGTV).
+    async updateKeepAwake(shouldKeepAwake) {
+      if (!this.$store.state.isAndroidTv) return
+      try {
+        if (shouldKeepAwake) {
+          await KeepAwake.keepAwake()
+        } else {
+          await KeepAwake.allowSleep()
+        }
+      } catch (error) {
+        console.error('[AudioPlayer] Failed to update keep awake state', error)
+      }
     },
     async loadPlayerSettings() {
       const savedPlayerSettings = await this.$localStore.getPlayerSettings()
@@ -832,6 +859,7 @@ export default {
       } else {
         this.stopPlayInterval()
       }
+      this.updateKeepAwake(this.isPlaying)
     },
     onMetadata(data) {
       console.log('onMetadata', JSON.stringify(data))

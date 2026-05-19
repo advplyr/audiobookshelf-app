@@ -12,7 +12,7 @@
           </div>
         </div>
       </div>
-      <div class="relative" @click="showFullscreenCover = true">
+      <div id="item-cover" class="relative" tabindex="0" @click="showFullscreenCover = true" @keydown.enter="showFullscreenCover = true">
         <covers-book-cover :library-item="libraryItem" :width="coverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" no-bg raw />
         <div v-if="!isPodcast" class="absolute bottom-0 left-0 h-1 z-10 box-shadow-progressbar" :class="userIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: coverWidth * progressPercent + 'px' }"></div>
       </div>
@@ -139,7 +139,7 @@
         <div v-if="description" class="w-full py-2">
           <div ref="description" class="default-style less-spacing text-sm text-justify whitespace-pre-line font-light" :class="{ 'line-clamp-4': !showFullDescription }" style="hyphens: auto" v-html="description" />
 
-          <div v-if="descriptionClamped" class="text-fg text-sm py-2" @click="showFullDescription = !showFullDescription">
+          <div v-if="descriptionClamped" class="text-fg text-sm py-2" tabindex="0" @click="showFullDescription = !showFullDescription" @keydown.enter.prevent="showFullDescription = !showFullDescription">
             {{ showFullDescription ? $strings.ButtonReadLess : $strings.ButtonReadMore }}
             <span class="material-symbols !align-middle text-base -mt-px">{{ showFullDescription ? 'arrow_drop_up' : 'arrow_drop_down' }}</span>
           </div>

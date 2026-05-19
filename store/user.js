@@ -12,7 +12,8 @@ export const state = () => ({
     mobileFilterBy: 'all',
     playbackRate: 1,
     collapseSeries: false,
-    collapseBookSeries: false
+    collapseBookSeries: false,
+    tvFocusColor: '#1ad691'
   }
 })
 

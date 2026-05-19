@@ -8,7 +8,7 @@
 
       <div class="w-full overflow-y-auto">
         <template v-for="item in navItems">
-          <button v-if="item.action" :key="item.text" :tabindex="show ? 0 : -1" class="w-full hover:bg-bg/60 flex items-center py-3 px-6 text-fg-muted" @click="clickAction(item.action)">
+          <button v-if="item.action" :key="item.text" :tabindex="show ? 0 : -1" class="w-full hover:bg-bg/60 flex items-center py-3 px-6 text-fg-muted" @click="clickAction(item.action)" @keydown.enter.prevent="clickAction(item.action)">
             <span class="material-symbols fill text-lg">{{ item.icon }}</span>
             <p class="pl-4">{{ item.text }}</p>
           </button>
@@ -25,7 +25,7 @@
         <div class="flex items-center">
           <p class="text-xs">{{ $config.version }}</p>
           <div class="flex-grow" />
-          <div v-if="user" class="flex items-center" @click="disconnect">
+          <div v-if="user" :tabindex="show ? 0 : -1" class="flex items-center cursor-pointer" @click="disconnect" @keydown.enter.prevent="disconnect">
             <p class="text-xs pr-2">{{ $strings.ButtonDisconnect }}</p>
             <i class="material-symbols text-sm -mb-0.5">cloud_off</i>
           </div>

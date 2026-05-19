@@ -1,6 +1,6 @@
 <template>
-  <div>
-    <div :style="{ width: width + 'px', height: height + 'px' }" class="bg-primary box-shadow-book rounded-md relative overflow-hidden">
+  <div tabindex="0" class="author-card-wrapper" :style="{ width: width + 'px', height: (height + (nameBelow ? 30 : 0)) + 'px' }" @click="clickCard" @keydown.enter.prevent="clickCard">
+    <div :style="{ width: width + 'px', height: height + 'px' }" class="author-card-inner bg-primary box-shadow-book rounded-md relative overflow-hidden">
       <!-- Image or placeholder -->
       <covers-author-image :author="author" />
 
@@ -55,7 +55,17 @@ export default {
       return this._author.numBooks || 0
     }
   },
-  methods: {},
+  methods: {
+    clickCard() {
+      if (this.authorId) {
+        if (this.$store.state.isAndroidTv) {
+          this.$router.push(`/author/${this.authorId}`)
+        } else {
+          this.$router.push(`/bookshelf/library?filter=authors.${this.$encode(this.authorId)}`)
+        }
+      }
+    }
+  },
   mounted() {}
 }
 </script>

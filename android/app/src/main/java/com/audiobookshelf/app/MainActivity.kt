@@ -17,6 +17,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.view.updateLayoutParams
 import com.anggrayudi.storage.SimpleStorage
 import com.anggrayudi.storage.SimpleStorageHelper
+import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.managers.DbManager
 import com.audiobookshelf.app.player.PlayerNotificationService
 import com.audiobookshelf.app.plugins.AbsAudioPlayer
@@ -98,11 +99,35 @@ class MainActivity : BridgeActivity() {
       }
     }
 
+    // If running on Android TV, inject a CSS class for TV-specific styling
+    if (DeviceManager.isAndroidTV(this)) {
+      Log.d(tag, "Android TV detected, injecting tv mode class")
+      webView.post {
+        webView.evaluateJavascript(
+          "document.documentElement.classList.add('android-tv');",
+          null
+        )
+      }
+    }
+
     val permission = ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
     if (permission != PackageManager.PERMISSION_GRANTED) {
       ActivityCompat.requestPermissions(this,
         PERMISSIONS_ALL,
         REQUEST_PERMISSIONS)
+    }
+  }
+
+  override fun onStop() {
+    super.onStop()
+    // On Android TV, fully terminate when the user leaves (Home button, etc.)
+    // so the app always starts fresh. The WebView/JS state goes stale when
+    // resumed from memory, breaking TV navigation. Mobile is unaffected.
+    // Audio is stopped and the process is killed — tester feedback indicates
+    // background audio on TV is not desired and causes confusion.
+    if (DeviceManager.isAndroidTV(this) && !isChangingConfigurations) {
+      finishAndRemoveTask()
+      android.os.Process.killProcess(android.os.Process.myPid())
     }
   }
 

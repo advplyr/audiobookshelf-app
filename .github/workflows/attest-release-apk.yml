@@ -1,0 +1,97 @@
+# Sigstore build-provenance attestation for fork-specific tagged releases.
+#
+# Triggers AFTER a release is published with the APK already attached. This
+# preserves the local-build workflow (developer builds APK on their workstation
+# using the stable local debug keystore, uploads via `gh release create`); the
+# workflow just adds a verifiable provenance attestation to the release.
+#
+# Filter: only attests releases with tags matching `android-tv-v*`. Other
+# releases (e.g. pre-releases, debug snapshots) are skipped — but you can
+# manually re-run via workflow_dispatch with a tag input.
+#
+# Mirrors the CM / ws-scrcpy-web baseline (Phase 4 of the security hardening
+# pass). The attestation lets downstream installers verify the APK came from
+# this specific repository + workflow run, defending against repo
+# impersonation and supply-chain swaps.
+
+name: Attest Release APK
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to attest (e.g. android-tv-v1.0.10)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  attest:
+    runs-on: ubuntu-latest
+    # Skip non-android-tv releases (don't attest random snapshots / pre-release tags
+    # that don't match our convention). workflow_dispatch overrides this filter.
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'android-tv-v')
+
+    permissions:
+      contents: write       # write attestation back to the release as an asset
+      id-token: write       # required by attest-build-provenance for OIDC token
+      attestations: write   # required by attest-build-provenance for attestation upload
+
+    steps:
+      - name: Resolve target tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download APK from release
+        # robinraju/release-downloader@v1 pinned to commit SHA.
+        # We expect exactly one APK file matching `abs-android-tv-release-*.apk`.
+        uses: robinraju/release-downloader@28fc21f50d76778e7023361aa1f863e717d3d56f
+        with:
+          repository: ${{ github.repository }}
+          tag: ${{ steps.tag.outputs.tag }}
+          fileName: 'abs-android-tv-release-*.apk'
+          out-file-path: 'release-apk'
+
+      - name: Confirm exactly one APK downloaded
+        id: apk
+        run: |
+          shopt -s nullglob
+          apks=( release-apk/abs-android-tv-release-*.apk )
+          if [ ${#apks[@]} -eq 0 ]; then
+            echo "::error::No APK matching 'abs-android-tv-release-*.apk' found in release ${{ steps.tag.outputs.tag }}"
+            exit 1
+          fi
+          if [ ${#apks[@]} -gt 1 ]; then
+            echo "::error::Multiple APKs matched — expected exactly one. Found: ${apks[*]}"
+            exit 1
+          fi
+          echo "path=${apks[0]}" >> "$GITHUB_OUTPUT"
+          echo "Found: ${apks[0]} ($(stat -c '%s' "${apks[0]}") bytes)"
+
+      - name: Generate build-provenance attestation
+        # actions/attest-build-provenance@v2 pinned to commit SHA.
+        # Generates a SLSA-v1.0 attestation bundle (.intoto.jsonl) and registers
+        # it with the GitHub Attestation API + Sigstore transparency log.
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be
+        id: attest
+        with:
+          subject-path: ${{ steps.apk.outputs.path }}
+
+      - name: Upload attestation bundle to the release
+        # softprops/action-gh-release@v2 pinned to commit SHA. Adds the
+        # attestation bundle file as a release asset alongside the APK so
+        # offline verifiers can grab both from the same release page.
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          files: ${{ steps.attest.outputs.bundle-path }}
+          fail_on_unmatched_files: true

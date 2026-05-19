@@ -1,0 +1,127 @@
+/* Focus styles only apply on Android TV devices. */
+
+/* Focus ring color — single source of truth. Override at runtime via
+   document.documentElement.style.setProperty('--tv-focus-color', value). */
+:root.android-tv {
+  --tv-focus-color: #1ad691;
+}
+
+/* Default: no focus ring (overridden below for specific elements) */
+.android-tv *:focus {
+  outline: none !important;
+}
+
+
+/* ── Cards: pseudo-element border overlay ── */
+.android-tv [id^="book-card-"]:focus::after,
+.android-tv [id^="series-card-"]:focus::after,
+.android-tv [id^="collection-card-"]:focus::after,
+.android-tv [id^="playlist-card-"]:focus::after,
+.android-tv [id^="author-book-"]:focus::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 3px solid var(--tv-focus-color);
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 200;
+}
+
+/* ── Modal/overlay items: green left accent on focus ── */
+.android-tv .modal li[role="option"]:focus,
+.android-tv .modal li[tabindex="0"]:focus {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  border-left: 3px solid var(--tv-focus-color) !important;
+  outline: none !important;
+}
+
+/* Side drawer items: green left accent on focus */
+.android-tv .bg-bg.transition-transform button:focus,
+.android-tv .bg-bg.transition-transform a:focus {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  border-left: 3px solid var(--tv-focus-color) !important;
+  outline: none !important;
+}
+
+/* Library modal items */
+.android-tv .modal li[role="option"]:focus > div,
+.android-tv .modal li[tabindex="0"]:focus > div {
+  opacity: 1;
+}
+
+/* Author cards: use a permanent transparent border to prevent layout shift on focus */
+.android-tv .author-card-inner {
+  border: 3px solid transparent;
+}
+.android-tv .author-card-wrapper:focus .author-card-inner {
+  border-color: var(--tv-focus-color);
+}
+
+/* ── Item detail cover art: pseudo-element border overlay ── */
+.android-tv #item-cover:focus {
+  outline: none !important;
+}
+.android-tv #item-cover:focus::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 3px solid var(--tv-focus-color);
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 200;
+}
+/* Hide cover focus ring when a modal is open (e.g. fullscreen cover overlay) */
+.android-tv.modal-open #item-cover:focus::after {
+  display: none;
+}
+
+/* ── Non-card, non-modal elements: tight green outline ── */
+.android-tv button:focus,
+.android-tv a:focus,
+.android-tv input:focus,
+.android-tv select:focus,
+.android-tv span[tabindex="0"]:focus,
+.android-tv svg[tabindex="0"]:focus,
+.android-tv p[tabindex="0"]:focus,
+.android-tv div[tabindex="0"]:focus:not([id^="book-card-"]):not([id^="series-card-"]):not([id^="collection-card-"]):not([id^="playlist-card-"]):not([id^="author-book-"]):not(.author-card-wrapper) {
+  outline: 2px solid var(--tv-focus-color) !important;
+  outline-offset: -2px;
+  border-radius: 2px;
+}
+
+/* ── Settings dropdown wrappers: green border on the input inside when focused ── */
+.android-tv .settings-dropdown:focus {
+  outline: none !important;
+}
+.android-tv .settings-dropdown:focus input {
+  border: 2px solid var(--tv-focus-color) !important;
+  border-radius: 4px;
+}
+
+/* Override: podcast episode description links should NOT get the green outline */
+.android-tv .episode-subtitle a:focus,
+.android-tv .description-container a:focus {
+  outline: none !important;
+}
+
+/* Override: modal items should NOT get the green outline */
+.android-tv .modal li[role="option"]:focus,
+.android-tv .modal li[tabindex="0"]:focus,
+.android-tv .bg-bg.transition-transform button:focus,
+.android-tv .bg-bg.transition-transform a:focus {
+  outline: none !important;
+}
+
+/* ── Player controls: round focus ring ── */
+.android-tv .play-btn:focus,
+.android-tv .jump-icon:focus {
+  outline: 2px solid var(--tv-focus-color) !important;
+  outline-offset: -2px;
+  border-radius: 50%;
+}

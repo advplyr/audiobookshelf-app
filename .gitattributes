@@ -1,0 +1,47 @@
+# Force LF line endings on text files for cross-platform consistency.
+# Without this, Windows checkouts can introduce CRLF on commit, which
+# produces noisy diffs and partial-normalization commits like the
+# original 5b02ba1d "chore: normalize line endings to LF" that left
+# some files (plugins/tv-navigation.js, .github/ISSUE_TEMPLATE/*.yml,
+# etc.) on CRLF.
+
+* text=auto eol=lf
+
+# Windows-specific text files keep CRLF
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+*.ps1   text eol=crlf
+
+# Unix-specific text files force LF
+*.sh        text eol=lf
+gradlew     text eol=lf
+
+# Binary files — never normalize
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.webp      binary
+*.ico       binary
+*.icns      binary
+*.pdf       binary
+*.apk       binary
+*.aar       binary
+*.jar       binary
+*.zip       binary
+*.gz        binary
+*.tar       binary
+*.7z        binary
+*.so        binary
+*.dll       binary
+*.dylib     binary
+*.keystore  binary
+*.ttf       binary
+*.otf       binary
+*.woff      binary
+*.woff2     binary
+*.eot       binary
+*.mp3       binary
+*.mp4       binary
+*.mov       binary
+*.webm      binary
