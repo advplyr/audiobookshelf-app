@@ -5,20 +5,26 @@ on:
     types:
       - opened
 
+# Workflow-level default + explicit per-job permissions below per defense-in-depth.
 permissions:
+  contents: read
   issues: write
 
 jobs:
   close_issue:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
 
     steps:
       - name: Check issue headings
-        uses: actions/github-script@v6
+        # actions/github-script@v6 pinned to commit SHA per security hardening Phase 3.
+        uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410
         with:
           script: |
             const issueBody = context.payload.issue.body || "";
-            
+
             // Match Markdown headings (e.g., # Heading, ## Heading)
             const headingRegex = /^(#{1,6})\s.+/gm;
             const headings = [...issueBody.matchAll(headingRegex)];

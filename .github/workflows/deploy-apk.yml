@@ -8,20 +8,29 @@ on:
       - 'ios/**'
       - 'readme.md'
 
+# Workflow-level default: read-only. Per-job overrides below.
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: checkout sources
-        uses: actions/checkout@v3
+        # actions/checkout@v3 pinned to commit SHA per security hardening Phase 3.
+        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744
 
       - name: use Node.js 20.x
-        uses: actions/setup-node@v3
+        # actions/setup-node@v3 pinned to commit SHA.
+        uses: actions/setup-node@3235b876344d2a9aa001b8d1453c930bba69e610
         with:
           node-version: 20
 
       - name: Set up Java
-        uses: actions/setup-java@v2
+        # actions/setup-java@v2 pinned to commit SHA.
+        uses: actions/setup-java@91d3aa4956ec4a53e477c4907347b5e3481be8c9
         with:
           distribution: 'temurin'
           java-version: 21
@@ -60,7 +69,8 @@ jobs:
           sed -i "s/__APK__/$(ls *apk)/g" index.html
 
       - name: upload test page artifact
-        uses: actions/upload-pages-artifact@v3
+        # actions/upload-pages-artifact@v3 pinned to commit SHA.
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa
         with:
           path: ./ghpages
 
@@ -68,6 +78,7 @@ jobs:
     needs: build
 
     permissions:
+      contents: read
       pages: write
       id-token: write
 
@@ -79,4 +90,5 @@ jobs:
     steps:
       - name: deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        # actions/deploy-pages@v4 pinned to commit SHA.
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e

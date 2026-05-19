@@ -9,20 +9,31 @@ on:
     paths-ignore:
       - 'ios/**'
       - 'readme.md'
+
+# Workflow-level default: read-only access. Per-job overrides below where writes are needed.
+permissions:
+  contents: read
+
 jobs:
   main:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: checkout sources
-        uses: actions/checkout@v3
+        # actions/checkout@v3 pinned to commit SHA per security hardening Phase 3 (CM baseline mirror).
+        # Dependabot github-actions ecosystem will surface major-version bumps as separate PRs.
+        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744
 
       - name: use Node.js 20.x
-        uses: actions/setup-node@v3
+        # actions/setup-node@v3 pinned to commit SHA.
+        uses: actions/setup-node@3235b876344d2a9aa001b8d1453c930bba69e610
         with:
           node-version: 20
 
       - name: Set up Java
-        uses: actions/setup-java@v2
+        # actions/setup-java@v2 pinned to commit SHA.
+        uses: actions/setup-java@91d3aa4956ec4a53e477c4907347b5e3481be8c9
         with:
           distribution: 'temurin'
           java-version: 21
@@ -47,7 +58,8 @@ jobs:
           mv -v app-debug.apk "${name}"
 
       - name: upload app
-        uses: actions/upload-artifact@v4
+        # actions/upload-artifact@v4 pinned to commit SHA.
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: audiobookshelf-apk
           path: android/app/build/outputs/apk/debug/*.apk

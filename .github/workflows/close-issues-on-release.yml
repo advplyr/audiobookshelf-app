@@ -10,6 +10,9 @@ permissions:
 jobs:
   comment:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
     steps:
       - name: Close issues marked as fixed upon a release.
         uses: gcampbell-msft/fixed-pending-release@7fa1b75a0c04bcd4b375110522878e5f6100cff5
