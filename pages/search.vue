@@ -122,7 +122,7 @@ export default {
         return
       }
       this.isFetching = true
-      const results = await this.$nativeHttp.get(`/api/libraries/${this.currentLibraryId}/search?q=${value}&limit=5`).catch((error) => {
+      const results = await this.$nativeHttp.get(`/api/libraries/${this.currentLibraryId}/search?q=${value}`).catch((error) => {
         console.error('Search error', error)
         return null
       })
