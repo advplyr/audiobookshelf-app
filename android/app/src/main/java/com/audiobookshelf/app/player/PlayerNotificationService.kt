@@ -623,47 +623,51 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   fun handlePlaybackEnded() {
     Log.d(tag, "handlePlaybackEnded")
     val isPodcastEpisode = currentPlaybackSession?.isPodcastEpisode == true
-    if (isPodcastEpisode && (isAndroidAuto || deviceSettings.autoPlayNextPodcastEpisode)) {
-      Log.d(tag, "Podcast playback ended - advancing to next episode (androidAuto=$isAndroidAuto, autoPlayNextPodcastEpisode=${deviceSettings.autoPlayNextPodcastEpisode})")
+    val autoPlay = deviceSettings.autoPlayNextPodcastEpisode
+    AbsLogger.info(tag, "handlePlaybackEnded: isPodcastEpisode=$isPodcastEpisode, isAndroidAuto=$isAndroidAuto, autoPlayNextPodcastEpisode=$autoPlay, mediaType=${currentPlaybackSession?.mediaType}")
+    if (isPodcastEpisode && (isAndroidAuto || autoPlay)) {
       val libraryItemId = currentPlaybackSession?.libraryItemId ?: run {
-        Log.e(tag, "handlePlaybackEnded: no libraryItemId in session")
+        AbsLogger.error(tag, "handlePlaybackEnded: no libraryItemId in session - aborting")
         return
       }
       val currentEpisodeId = currentPlaybackSession?.episodeId
-      Log.d(tag, "handlePlaybackEnded: libraryItemId=$libraryItemId, currentEpisodeId=$currentEpisodeId")
+      AbsLogger.info(tag, "handlePlaybackEnded: advancing - libraryItemId=$libraryItemId, currentEpisodeId=$currentEpisodeId")
 
       // Need to sync with server to set as finished
       mediaProgressSyncer.finished {
-        Log.d(tag, "handlePlaybackEnded: finished() complete, loading server user progress")
+        AbsLogger.info(tag, "handlePlaybackEnded: finished() complete, loading server user progress")
         // Need to reload media progress
         mediaManager.loadServerUserMediaProgress {
-          Log.d(tag, "handlePlaybackEnded: user progress loaded (${mediaManager.serverUserMediaProgress.size} items), fetching full library item")
+          AbsLogger.info(tag, "handlePlaybackEnded: user progress loaded (${mediaManager.serverUserMediaProgress.size} items), fetching full library item $libraryItemId")
           // Fetch full library item to ensure episodes list is populated
           // (PlaybackSession response does not include the full episode list)
           apiHandler.getLibraryItem(libraryItemId) { fullLibraryItem ->
             if (fullLibraryItem == null) {
-              Log.e(tag, "handlePlaybackEnded: failed to fetch library item $libraryItemId")
+              AbsLogger.error(tag, "handlePlaybackEnded: getLibraryItem returned null for $libraryItemId - aborting")
               return@getLibraryItem
             }
             val podcast = fullLibraryItem.media as? Podcast
             if (podcast == null) {
-              Log.e(tag, "handlePlaybackEnded: media is not a Podcast for $libraryItemId")
+              AbsLogger.error(tag, "handlePlaybackEnded: media is not a Podcast for $libraryItemId (mediaType=${fullLibraryItem.mediaType}) - aborting")
               return@getLibraryItem
             }
-            Log.d(tag, "handlePlaybackEnded: podcast episodes count=${podcast.episodes?.size}, finding next after $currentEpisodeId")
+            val episodeCount = podcast.episodes?.size ?: 0
+            AbsLogger.info(tag, "handlePlaybackEnded: podcast has $episodeCount episodes, finding next after $currentEpisodeId")
             val nextEpisode = podcast.getNextUnfinishedEpisode(fullLibraryItem.id, mediaManager, currentEpisodeId)
-            Log.d(tag, "handlePlaybackEnded: nextEpisode=$nextEpisode")
-            nextEpisode?.let { podcastEpisode ->
-              Log.d(tag, "handlePlaybackEnded: playing next episode ${podcastEpisode.id} - ${podcastEpisode.title}")
-              mediaManager.play(fullLibraryItem, podcastEpisode, getPlayItemRequestPayload(false)) {
-                if (it == null) {
-                  Log.e(tag, "handlePlaybackEnded: Failed to start playback for next episode")
-                } else {
-                  val playbackRate = mediaManager.getSavedPlaybackRate()
-                  Handler(Looper.getMainLooper()).post { preparePlayer(it, true, playbackRate) }
-                }
+            if (nextEpisode == null) {
+              AbsLogger.info(tag, "handlePlaybackEnded: no next unfinished episode found after $currentEpisodeId (total=$episodeCount)")
+              return@getLibraryItem
+            }
+            AbsLogger.info(tag, "handlePlaybackEnded: playing next episode ${nextEpisode.id} - ${nextEpisode.title}")
+            mediaManager.play(fullLibraryItem, nextEpisode, getPlayItemRequestPayload(false)) {
+              if (it == null) {
+                AbsLogger.error(tag, "handlePlaybackEnded: mediaManager.play returned null - playback failed")
+              } else {
+                AbsLogger.info(tag, "handlePlaybackEnded: new playback session started ${it.id} for '${it.displayTitle}'")
+                val playbackRate = mediaManager.getSavedPlaybackRate()
+                Handler(Looper.getMainLooper()).post { preparePlayer(it, true, playbackRate) }
               }
-            } ?: Log.d(tag, "handlePlaybackEnded: no next unfinished episode found after $currentEpisodeId")
+            }
           }
         }
       }
