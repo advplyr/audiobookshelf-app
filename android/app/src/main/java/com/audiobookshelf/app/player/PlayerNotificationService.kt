@@ -632,7 +632,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
         // Need to reload media progress
         mediaManager.loadServerUserMediaProgress {
           val podcast = libraryItem.media as Podcast
-          val nextEpisode = podcast.getNextUnfinishedEpisode(libraryItem.id, mediaManager)
+          val currentEpisodeId = currentPlaybackSession?.episodeId
+          val nextEpisode = podcast.getNextUnfinishedEpisode(libraryItem.id, mediaManager, currentEpisodeId)
           Log.d(tag, "handlePlaybackEnded nextEpisode=$nextEpisode")
           nextEpisode?.let { podcastEpisode ->
             mediaManager.play(libraryItem, podcastEpisode, getPlayItemRequestPayload(false)) {
