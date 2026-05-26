@@ -625,25 +625,45 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     val isPodcastEpisode = currentPlaybackSession?.isPodcastEpisode == true
     if (isPodcastEpisode && (isAndroidAuto || deviceSettings.autoPlayNextPodcastEpisode)) {
       Log.d(tag, "Podcast playback ended - advancing to next episode (androidAuto=$isAndroidAuto, autoPlayNextPodcastEpisode=${deviceSettings.autoPlayNextPodcastEpisode})")
-      val libraryItem = currentPlaybackSession?.libraryItem ?: return
+      val libraryItemId = currentPlaybackSession?.libraryItemId ?: run {
+        Log.e(tag, "handlePlaybackEnded: no libraryItemId in session")
+        return
+      }
       val currentEpisodeId = currentPlaybackSession?.episodeId
+      Log.d(tag, "handlePlaybackEnded: libraryItemId=$libraryItemId, currentEpisodeId=$currentEpisodeId")
 
       // Need to sync with server to set as finished
       mediaProgressSyncer.finished {
+        Log.d(tag, "handlePlaybackEnded: finished() complete, loading server user progress")
         // Need to reload media progress
         mediaManager.loadServerUserMediaProgress {
-          val podcast = libraryItem.media as Podcast
-          val nextEpisode = podcast.getNextUnfinishedEpisode(libraryItem.id, mediaManager, currentEpisodeId)
-          Log.d(tag, "handlePlaybackEnded nextEpisode=$nextEpisode")
-          nextEpisode?.let { podcastEpisode ->
-            mediaManager.play(libraryItem, podcastEpisode, getPlayItemRequestPayload(false)) {
-              if (it == null) {
-                Log.e(tag, "Failed to play library item")
-              } else {
-                val playbackRate = mediaManager.getSavedPlaybackRate()
-                Handler(Looper.getMainLooper()).post { preparePlayer(it, true, playbackRate) }
-              }
+          Log.d(tag, "handlePlaybackEnded: user progress loaded (${mediaManager.serverUserMediaProgress.size} items), fetching full library item")
+          // Fetch full library item to ensure episodes list is populated
+          // (PlaybackSession response does not include the full episode list)
+          apiHandler.getLibraryItem(libraryItemId) { fullLibraryItem ->
+            if (fullLibraryItem == null) {
+              Log.e(tag, "handlePlaybackEnded: failed to fetch library item $libraryItemId")
+              return@getLibraryItem
             }
+            val podcast = fullLibraryItem.media as? Podcast
+            if (podcast == null) {
+              Log.e(tag, "handlePlaybackEnded: media is not a Podcast for $libraryItemId")
+              return@getLibraryItem
+            }
+            Log.d(tag, "handlePlaybackEnded: podcast episodes count=${podcast.episodes?.size}, finding next after $currentEpisodeId")
+            val nextEpisode = podcast.getNextUnfinishedEpisode(fullLibraryItem.id, mediaManager, currentEpisodeId)
+            Log.d(tag, "handlePlaybackEnded: nextEpisode=$nextEpisode")
+            nextEpisode?.let { podcastEpisode ->
+              Log.d(tag, "handlePlaybackEnded: playing next episode ${podcastEpisode.id} - ${podcastEpisode.title}")
+              mediaManager.play(fullLibraryItem, podcastEpisode, getPlayItemRequestPayload(false)) {
+                if (it == null) {
+                  Log.e(tag, "handlePlaybackEnded: Failed to start playback for next episode")
+                } else {
+                  val playbackRate = mediaManager.getSavedPlaybackRate()
+                  Handler(Looper.getMainLooper()).post { preparePlayer(it, true, playbackRate) }
+                }
+              }
+            } ?: Log.d(tag, "handlePlaybackEnded: no next unfinished episode found after $currentEpisodeId")
           }
         }
       }
