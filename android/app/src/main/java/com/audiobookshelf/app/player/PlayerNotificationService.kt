@@ -626,13 +626,13 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     if (isPodcastEpisode && (isAndroidAuto || deviceSettings.autoPlayNextPodcastEpisode)) {
       Log.d(tag, "Podcast playback ended - advancing to next episode (androidAuto=$isAndroidAuto, autoPlayNextPodcastEpisode=${deviceSettings.autoPlayNextPodcastEpisode})")
       val libraryItem = currentPlaybackSession?.libraryItem ?: return
+      val currentEpisodeId = currentPlaybackSession?.episodeId
 
       // Need to sync with server to set as finished
       mediaProgressSyncer.finished {
         // Need to reload media progress
         mediaManager.loadServerUserMediaProgress {
           val podcast = libraryItem.media as Podcast
-          val currentEpisodeId = currentPlaybackSession?.episodeId
           val nextEpisode = podcast.getNextUnfinishedEpisode(libraryItem.id, mediaManager, currentEpisodeId)
           Log.d(tag, "handlePlaybackEnded nextEpisode=$nextEpisode")
           nextEpisode?.let { podcastEpisode ->

@@ -121,7 +121,12 @@ class Podcast(
     val sortedEpisodes = episodes?.sortedBy { it.publishedAt } ?: return null
     if (afterEpisodeId != null) {
       val idx = sortedEpisodes.indexOfFirst { it.id == afterEpisodeId }
-      if (idx >= 0) return sortedEpisodes.getOrNull(idx + 1)
+      if (idx >= 0) {
+        return sortedEpisodes.drop(idx + 1).find { ep ->
+          val prog = mediaManager.serverUserMediaProgress.find { it.libraryItemId == libraryItemId && it.episodeId == ep.id }
+          prog == null || !prog.isFinished
+        }
+      }
     }
     return sortedEpisodes.find { episode ->
       val progress = mediaManager.serverUserMediaProgress.find { it.libraryItemId == libraryItemId && it.episodeId == episode.id }

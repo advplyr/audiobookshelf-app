@@ -179,20 +179,23 @@ class MediaProgressSyncer(
   }
 
   fun finished(cb: () -> Unit) {
-    if (!listeningTimerRunning) return
-
     listeningTimerTask?.cancel()
     listeningTimerTask = null
-    listeningTimerRunning = false
-    Log.d(tag, "finished: Stopping listening for $currentDisplayTitle")
+
+    if (listeningTimerRunning) {
+      listeningTimerRunning = false
+      Log.d(tag, "finished: Stopping listening for $currentDisplayTitle")
+    } else {
+      // ExoPlayer fires onIsPlayingChanged(false) before STATE_ENDED, so pause() already
+      // set listeningTimerRunning=false. We still need to sync as finished and call cb().
+      Log.d(tag, "finished: Timer already stopped (paused at end), syncing as finished for $currentDisplayTitle")
+    }
 
     sync(true, currentPlaybackSession?.duration ?: 0.0) { syncResult ->
-      reset()
-
       currentPlaybackSession?.let { playbackSession ->
         MediaEventManager.finishedEvent(playbackSession, syncResult)
       }
-
+      reset()
       cb()
     }
   }
