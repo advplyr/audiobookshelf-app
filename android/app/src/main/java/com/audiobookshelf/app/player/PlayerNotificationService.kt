@@ -1325,19 +1325,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
           result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
           firstLoadDone = true
-          if (mediaManager.serverLibraries.isNotEmpty()) {
-            AbsLogger.info(tag, "onLoadChildren: Android Auto fetching personalized data for all libraries")
-            mediaManager.populatePersonalizedDataForAllLibraries {
-              AbsLogger.info(tag, "onLoadChildren: Android Auto loaded personalized data for all libraries")
-              notifyChildrenChanged("/")
-            }
-
-            AbsLogger.info(tag, "onLoadChildren: Android Auto fetching in progress items")
-            mediaManager.initializeInProgressItems {
-              AbsLogger.info(tag, "onLoadChildren: Android Auto loaded in progress items")
-              notifyChildrenChanged("/")
-            }
-          }
         }
       } else {
         Log.d(tag, "Starting browseTree refresh")
