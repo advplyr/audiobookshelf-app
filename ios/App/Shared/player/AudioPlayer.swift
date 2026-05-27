@@ -45,6 +45,7 @@ class AudioPlayer: NSObject {
     private var queueItemStatusObserver:NSKeyValueObservation?
     
     private var isRebuildingQueue = false
+    private var wasPlayingBeforeInterruption = false
     
     // Sleep timer values
     internal var sleepTimeChapterStopAt: Double?
@@ -623,10 +624,12 @@ class AudioPlayer: NSObject {
         }
         
         switch type {
+            case .began:
+                wasPlayingBeforeInterruption = self.status == .playing
             case .ended:
                 guard let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt else { return }
                 let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
-                if options.contains(.shouldResume) {
+                if options.contains(.shouldResume) && wasPlayingBeforeInterruption {
                     self.play(allowSeekBack: true)
                 }
             default: ()
