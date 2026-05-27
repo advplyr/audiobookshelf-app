@@ -109,6 +109,7 @@
   "LabelAuthorLastFirst": "Author (Last, First)",
   "LabelAuthors": "Authors",
   "LabelAutoDownloadEpisodes": "Auto Download Episodes",
+  "LabelAutoPlayNextPodcastEpisode": "Auto-play next podcast episode",
   "LabelAutoRewindTime": "Auto rewind time",
   "LabelAutoSleepTimer": "Auto sleep timer",
   "LabelAutoSleepTimerAutoRewind": "Auto sleep timer auto rewind",

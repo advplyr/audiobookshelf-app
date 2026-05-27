@@ -117,13 +117,21 @@ class Podcast(
   }
 
   @JsonIgnore
-  fun getNextUnfinishedEpisode(libraryItemId:String, mediaManager: MediaManager):PodcastEpisode? {
-    val sortedEpisodes = episodes?.sortedByDescending { it.publishedAt }
-    val podcastEpisode = sortedEpisodes?.find { episode ->
+  fun getNextUnfinishedEpisode(libraryItemId:String, mediaManager: MediaManager, afterEpisodeId: String? = null):PodcastEpisode? {
+    val sortedEpisodes = episodes?.sortedBy { it.publishedAt ?: 0L } ?: return null
+    if (afterEpisodeId != null) {
+      val idx = sortedEpisodes.indexOfFirst { it.id == afterEpisodeId }
+      if (idx >= 0) {
+        return sortedEpisodes.drop(idx + 1).find { ep ->
+          val prog = mediaManager.serverUserMediaProgress.find { it.libraryItemId == libraryItemId && it.episodeId == ep.id }
+          prog == null || !prog.isFinished
+        }
+      }
+    }
+    return sortedEpisodes.find { episode ->
       val progress = mediaManager.serverUserMediaProgress.find { it.libraryItemId == libraryItemId && it.episodeId == episode.id }
       progress == null || !progress.isFinished
     }
-    return podcastEpisode
   }
 }
 

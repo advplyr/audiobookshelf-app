@@ -144,6 +144,14 @@
       </div>
     </div>
 
+    <!-- Podcast auto-advance setting -->
+    <div v-if="!isiOS" class="flex items-center py-3">
+      <div class="w-10 flex justify-center" @click="toggleAutoPlayNextPodcastEpisode">
+        <ui-toggle-switch v-model="settings.autoPlayNextPodcastEpisode" @input="saveSettings" />
+      </div>
+      <p class="pl-4">{{ $strings.LabelAutoPlayNextPodcastEpisode }}</p>
+    </div>
+
     <!-- Data settings -->
     <p class="uppercase text-xs font-semibold text-fg-muted mb-2 mt-10">{{ $strings.HeaderDataSettings }}</p>
     <div class="py-3 flex items-center">
@@ -223,7 +231,8 @@ export default {
         downloadUsingCellular: 'ALWAYS',
         streamingUsingCellular: 'ALWAYS',
         androidAutoBrowseLimitForGrouping: 100,
-        androidAutoBrowseSeriesSequenceOrder: 'ASC'
+        androidAutoBrowseSeriesSequenceOrder: 'ASC',
+        autoPlayNextPodcastEpisode: false
       },
       theme: 'dark',
       lockCurrentOrientation: false,
@@ -611,6 +620,10 @@ export default {
       this.settings.allowSeekingOnMediaControls = !this.settings.allowSeekingOnMediaControls
       this.saveSettings()
     },
+    toggleAutoPlayNextPodcastEpisode() {
+      this.settings.autoPlayNextPodcastEpisode = !this.settings.autoPlayNextPodcastEpisode
+      this.saveSettings()
+    },
     getCurrentOrientation() {
       const orientation = window.screen?.orientation || {}
       const type = orientation.type || ''
@@ -671,6 +684,8 @@ export default {
 
       this.settings.androidAutoBrowseLimitForGrouping = deviceSettings.androidAutoBrowseLimitForGrouping
       this.settings.androidAutoBrowseSeriesSequenceOrder = deviceSettings.androidAutoBrowseSeriesSequenceOrder || 'ASC'
+
+      this.settings.autoPlayNextPodcastEpisode = !!deviceSettings.autoPlayNextPodcastEpisode
     },
     async init() {
       this.loading = true

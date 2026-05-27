@@ -622,22 +622,52 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
   fun handlePlaybackEnded() {
     Log.d(tag, "handlePlaybackEnded")
-    if (isAndroidAuto && currentPlaybackSession?.isPodcastEpisode == true) {
-      Log.d(tag, "Podcast playback ended on android auto")
-      val libraryItem = currentPlaybackSession?.libraryItem ?: return
+    val isPodcastEpisode = currentPlaybackSession?.isPodcastEpisode == true
+    val autoPlay = deviceSettings.autoPlayNextPodcastEpisode
+    AbsLogger.info(tag, "handlePlaybackEnded: isPodcastEpisode=$isPodcastEpisode, isAndroidAuto=$isAndroidAuto, autoPlayNextPodcastEpisode=$autoPlay, mediaType=${currentPlaybackSession?.mediaType}")
+    if (isPodcastEpisode && (isAndroidAuto || autoPlay)) {
+      val libraryItemId = currentPlaybackSession?.libraryItemId ?: run {
+        AbsLogger.error(tag, "handlePlaybackEnded: no libraryItemId in session - aborting")
+        return
+      }
+      val currentEpisodeId = currentPlaybackSession?.episodeId
+      AbsLogger.info(tag, "handlePlaybackEnded: advancing - libraryItemId=$libraryItemId, currentEpisodeId=$currentEpisodeId")
 
       // Need to sync with server to set as finished
       mediaProgressSyncer.finished {
+        AbsLogger.info(tag, "handlePlaybackEnded: finished() complete, loading server user progress")
         // Need to reload media progress
         mediaManager.loadServerUserMediaProgress {
-          val podcast = libraryItem.media as Podcast
-          val nextEpisode = podcast.getNextUnfinishedEpisode(libraryItem.id, mediaManager)
-          Log.d(tag, "handlePlaybackEnded nextEpisode=$nextEpisode")
-          nextEpisode?.let { podcastEpisode ->
-            mediaManager.play(libraryItem, podcastEpisode, getPlayItemRequestPayload(false)) {
+          AbsLogger.info(tag, "handlePlaybackEnded: user progress loaded (${mediaManager.serverUserMediaProgress.size} items), fetching full library item $libraryItemId")
+          // Fetch full library item to ensure episodes list is populated
+          // (PlaybackSession response does not include the full episode list)
+          apiHandler.getLibraryItem(libraryItemId) { fullLibraryItem ->
+            if (fullLibraryItem == null) {
+              AbsLogger.error(tag, "handlePlaybackEnded: getLibraryItem returned null for $libraryItemId - aborting")
+              return@getLibraryItem
+            }
+            val podcast = fullLibraryItem.media as? Podcast
+            if (podcast == null) {
+              AbsLogger.error(tag, "handlePlaybackEnded: media is not a Podcast for $libraryItemId (mediaType=${fullLibraryItem.mediaType}) - aborting")
+              return@getLibraryItem
+            }
+            val episodeCount = podcast.episodes?.size ?: 0
+            AbsLogger.info(tag, "handlePlaybackEnded: podcast has $episodeCount episodes, finding next after $currentEpisodeId")
+            val nextEpisode = podcast.getNextUnfinishedEpisode(fullLibraryItem.id, mediaManager, currentEpisodeId)
+            if (nextEpisode == null) {
+              AbsLogger.info(tag, "handlePlaybackEnded: no next unfinished episode found after $currentEpisodeId (total=$episodeCount)")
+              return@getLibraryItem
+            }
+            AbsLogger.info(tag, "handlePlaybackEnded: playing next episode ${nextEpisode.id} - ${nextEpisode.title}")
+            if (mediaProgressSyncer.currentPlaybackSession != null) {
+              AbsLogger.info(tag, "handlePlaybackEnded: user started new session during auto-advance - aborting")
+              return@getLibraryItem
+            }
+            mediaManager.play(fullLibraryItem, nextEpisode, getPlayItemRequestPayload(false)) {
               if (it == null) {
-                Log.e(tag, "Failed to play library item")
+                AbsLogger.error(tag, "handlePlaybackEnded: mediaManager.play returned null - playback failed")
               } else {
+                AbsLogger.info(tag, "handlePlaybackEnded: new playback session started ${it.id} for '${it.displayTitle}'")
                 val playbackRate = mediaManager.getSavedPlaybackRate()
                 Handler(Looper.getMainLooper()).post { preparePlayer(it, true, playbackRate) }
               }
