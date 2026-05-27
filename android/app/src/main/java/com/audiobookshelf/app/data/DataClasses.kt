@@ -118,7 +118,7 @@ class Podcast(
 
   @JsonIgnore
   fun getNextUnfinishedEpisode(libraryItemId:String, mediaManager: MediaManager, afterEpisodeId: String? = null):PodcastEpisode? {
-    val sortedEpisodes = episodes?.sortedBy { it.publishedAt } ?: return null
+    val sortedEpisodes = episodes?.sortedBy { it.publishedAt ?: 0L } ?: return null
     if (afterEpisodeId != null) {
       val idx = sortedEpisodes.indexOfFirst { it.id == afterEpisodeId }
       if (idx >= 0) {

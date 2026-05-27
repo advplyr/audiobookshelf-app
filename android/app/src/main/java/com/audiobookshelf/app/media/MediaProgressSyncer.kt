@@ -182,6 +182,9 @@ class MediaProgressSyncer(
     listeningTimerTask?.cancel()
     listeningTimerTask = null
 
+    val session = currentPlaybackSession
+    val duration = session?.duration ?: 0.0
+
     if (listeningTimerRunning) {
       listeningTimerRunning = false
       Log.d(tag, "finished: Stopping listening for $currentDisplayTitle")
@@ -191,8 +194,15 @@ class MediaProgressSyncer(
       Log.d(tag, "finished: Timer already stopped (paused at end), syncing as finished for $currentDisplayTitle")
     }
 
-    sync(true, currentPlaybackSession?.duration ?: 0.0) { syncResult ->
-      currentPlaybackSession?.let { playbackSession ->
+    // If pause() already completed its sync and reset lastSyncTime to 0, reset it here so
+    // sync() doesn't early-return — the episode must be marked as finished on the server.
+    if (lastSyncTime <= 0) {
+      lastSyncTime = System.currentTimeMillis()
+      Log.d(tag, "finished: lastSyncTime was 0 (pause completed), resetting for finished sync")
+    }
+
+    sync(true, duration) { syncResult ->
+      session?.let { playbackSession ->
         MediaEventManager.finishedEvent(playbackSession, syncResult)
       }
       reset()
