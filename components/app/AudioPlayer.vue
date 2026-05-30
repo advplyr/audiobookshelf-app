@@ -47,9 +47,10 @@
       <p class="author-text text-fg text-opacity-75 truncate">{{ authorName }}</p>
     </div>
 
-    <div id="playerContent" class="playerContainer w-full z-20 absolute bottom-0 left-0 right-0 p-2 pointer-events-auto transition-all" :style="{ backgroundColor: showFullscreen ? '' : coverRgb }" @click="clickContainer">
+    <div id="playerContent" v-show="!showCarModeModal" class="playerContainer w-full z-20 absolute bottom-0 left-0 right-0 p-2 pointer-events-auto transition-all" :style="{ backgroundColor: showFullscreen ? '' : coverRgb }" @click="clickContainer">
       <div v-if="showFullscreen" class="absolute bottom-4 left-0 right-0 w-full pb-4 pt-2 mx-auto px-6" style="max-width: 414px">
         <div class="flex items-center justify-between pointer-events-auto">
+          <span class="material-symbols text-3xl text-fg-muted cursor-pointer" @click="clickCarModeBtn">directions_car</span>
           <span v-if="!isPodcast && serverLibraryItemId && socketConnected" class="material-symbols text-3xl text-fg-muted cursor-pointer" :class="{ fill: bookmarks.length }" @click="$emit('showBookmarks')">bookmark</span>
           <!-- hidden for podcasts but still using this as a placeholder -->
           <span v-else class="material-symbols text-3xl text-white text-opacity-0">bookmark</span>
@@ -67,7 +68,7 @@
       </div>
       <div v-else class="w-full h-full absolute top-0 left-0 pointer-events-none" style="background: var(--gradient-minimized-audio-player)" />
 
-      <div id="playerControls" class="absolute right-0 bottom-0 mx-auto" style="max-width: 414px">
+      <div id="playerControls" v-show="!showCarModeModal" class="absolute right-0 bottom-0 mx-auto" style="max-width: 414px">
         <div class="flex items-center max-w-full" :class="playerSettings.lockUi ? 'justify-center' : 'justify-between'">
           <span v-show="showFullscreen && !playerSettings.lockUi" class="material-symbols next-icon text-fg cursor-pointer" :class="showLoadingState ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpChapterStart">first_page</span>
           <div v-show="!playerSettings.lockUi" class="jump-icon text-fg cursor-pointer flex flex-col items-center" :class="showLoadingState ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpBackwards">
@@ -88,7 +89,7 @@
         </div>
       </div>
 
-      <div id="playerTrack" class="absolute left-0 w-full px-6">
+      <div id="playerTrack" v-show="!showCarModeModal" class="absolute left-0 w-full px-6">
         <div class="flex pointer-events-none">
           <p class="font-mono text-fg" style="font-size: 0.8rem" ref="currentTimestamp">0:00</p>
           <div class="flex-grow" />
@@ -105,6 +106,7 @@
       </div>
     </div>
 
+    <modals-car-mode-modal v-model="showCarModeModal" :is-playing="isPlaying" @close="showCarModeModal = false" />
     <modals-chapters-modal v-model="showChapterModal" :current-chapter="currentChapter" :chapters="chapters" :playback-rate="currentPlaybackRate" @select="selectChapter" />
     <modals-dialog v-model="showMoreMenuDialog" :items="menuItems" width="80vw" @action="clickMenuAction" />
   </div>
@@ -135,6 +137,7 @@ export default {
       windowWidth: 0,
       playbackSession: null,
       showChapterModal: false,
+      showCarModeModal: false,
       showFullscreen: false,
       totalDuration: 0,
       currentPlaybackRate: 1,
@@ -409,6 +412,10 @@ export default {
     clickChaptersBtn() {
       if (!this.chapters.length) return
       this.showChapterModal = true
+    },
+    clickCarModeBtn() {
+      console.log('[AudioPlayer] Car mode toggled', !this.showCarModeModal)
+      this.showCarModeModal = true
     },
     async coverImageLoaded(fullCoverUrl) {
       if (!fullCoverUrl) return
