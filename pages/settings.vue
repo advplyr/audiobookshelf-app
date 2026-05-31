@@ -48,6 +48,12 @@
         <ui-text-input :value="jumpForwardOption" readonly append-icon="expand_more" style="width: 145px; max-width: 145px" />
       </div>
     </div>
+    <div class="py-3 flex items-center">
+      <p class="pr-4 w-36">{{ $strings.LabelPlaybackRateIncrementDecrement }}</p>
+      <div @click.stop="showPlaybackRateIncrementDecrementOptions">
+        <ui-text-input :value="playbackRateIncrementDecrementOption" readonly append-icon="expand_more" style="width: 145px; max-width: 145px" />
+      </div>
+    </div>
     <div class="flex items-center py-3">
       <div class="w-10 flex justify-center" @click="toggleDisableAutoRewind">
         <ui-toggle-switch v-model="settings.disableAutoRewind" @input="saveSettings" />
@@ -205,6 +211,7 @@ export default {
         allowSeekingOnMediaControls: false,
         jumpForwardTime: 10,
         jumpBackwardsTime: 10,
+        playbackRateIncrementDecrement: 0.1,
         enableMp3IndexSeeking: false,
         disableShakeToResetSleepTimer: false,
         shakeSensitivity: 'MEDIUM',
@@ -360,6 +367,9 @@ export default {
     jumpBackwardsSecondsOptions() {
       return this.$store.state.globals.jumpBackwardsSecondsOptions || []
     },
+    playbackRateIncrementDecrementOptions() {
+      return this.$store.state.globals.playbackRateIncrementDecrementOptions || []
+    },
     languageOptionItems() {
       return this.$languageCodeOptions || []
     },
@@ -368,6 +378,9 @@ export default {
     },
     jumpBackwardsOption() {
       return this.getJumpLabel(this.settings.jumpBackwardsTime)
+    },
+    playbackRateIncrementDecrementOption() {
+      return `${this.settings.playbackRateIncrementDecrement}x`
     },
     themeOptionItems() {
       return [
@@ -438,11 +451,17 @@ export default {
           text: this.getJumpLabel(value),
           value: value
         }))
+      else if (this.moreMenuSetting === 'playbackRateIncrementDecrement')
+        return this.playbackRateIncrementDecrementOptions.map((value) => ({
+          text: `${value}x`,
+          value: value
+        }))
       return []
     },
     moreMenuSelected() {
       if (this.moreMenuSetting === 'jumpForward') return this.settings.jumpForwardTime
       if (this.moreMenuSetting === 'jumpBackwards') return this.settings.jumpBackwardsTime
+      if (this.moreMenuSetting === 'playbackRateIncrementDecrement') return this.settings.playbackRateIncrementDecrement
       if (this.moreMenuSetting === 'language') return this.settings.languageCode
       if (this.moreMenuSetting === 'theme') return this.theme
       if (this.moreMenuSetting === 'downloadUsingCellular') return this.settings.downloadUsingCellular
@@ -492,6 +511,10 @@ export default {
       this.moreMenuSetting = 'jumpBackwards'
       this.showMoreMenuDialog = true
     },
+    showPlaybackRateIncrementDecrementOptions() {
+      this.moreMenuSetting = 'playbackRateIncrementDecrement'
+      this.showMoreMenuDialog = true
+    },
     showDownloadUsingCellularOptions() {
       this.moreMenuSetting = 'downloadUsingCellular'
       this.showMoreMenuDialog = true
@@ -532,6 +555,9 @@ export default {
         this.saveSettings()
       } else if (this.moreMenuSetting === 'jumpBackwards') {
         this.settings.jumpBackwardsTime = action
+        this.saveSettings()
+      } else if (this.moreMenuSetting === 'playbackRateIncrementDecrement') {
+        this.settings.playbackRateIncrementDecrement = action
         this.saveSettings()
       }
     },
@@ -645,6 +671,7 @@ export default {
       this.settings.allowSeekingOnMediaControls = !!deviceSettings.allowSeekingOnMediaControls
       this.settings.jumpForwardTime = deviceSettings.jumpForwardTime || 10
       this.settings.jumpBackwardsTime = deviceSettings.jumpBackwardsTime || 10
+      this.settings.playbackRateIncrementDecrement = deviceSettings.playbackRateIncrementDecrement ? Number(deviceSettings.playbackRateIncrementDecrement.toFixed(2)) : 0.1
       this.settings.enableMp3IndexSeeking = !!deviceSettings.enableMp3IndexSeeking
 
       this.settings.lockOrientation = deviceSettings.lockOrientation || 'NONE'

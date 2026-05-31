@@ -219,6 +219,7 @@
   "LabelPath": "Path",
   "LabelPlaybackDirect": "Direct",
   "LabelPlaybackLocal": "Local",
+  "LabelPlaybackRateIncrementDecrement": "Playback speed step",
   "LabelPlaybackSpeed": "Playback Speed",
   "LabelPlaybackTranscode": "Transcode",
   "LabelPodcast": "Podcast",

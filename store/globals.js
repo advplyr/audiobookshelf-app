@@ -7,6 +7,7 @@ export const state = () => ({
   lastSearch: null,
   jumpForwardSecondsOptions: [5, 10, 15, 30, 60, 120, 300],
   jumpBackwardsSecondsOptions: [5, 10, 15, 30, 60, 120, 300],
+  playbackRateIncrementDecrementOptions: [0.1, 0.05],
   libraryIcons: ['database', 'audiobookshelf', 'books-1', 'books-2', 'book-1', 'microphone-1', 'microphone-3', 'radio', 'podcast', 'rss', 'headphones', 'music', 'file-picture', 'rocket', 'power', 'star', 'heart'],
   selectedPlaylistItems: [],
   showPlaylistsAddCreateModal: false,

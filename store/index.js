@@ -71,6 +71,11 @@ export const getters = {
     if (!state.deviceData?.deviceSettings) return 10
     return state.deviceData.deviceSettings.jumpBackwardsTime || 10
   },
+  getPlaybackRateIncrementDecrement: (state) => {
+    const value = state.deviceData?.deviceSettings?.playbackRateIncrementDecrement
+    if (!value) return 0.1
+    return Number(value.toFixed(2))
+  },
   getAltViewEnabled: (state) => {
     if (!state.deviceData?.deviceSettings) return true
     return state.deviceData.deviceSettings.enableAltView
