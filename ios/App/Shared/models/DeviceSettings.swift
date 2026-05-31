@@ -14,6 +14,7 @@ class DeviceSettings: Object {
     @Persisted var allowSeekingOnMediaControls: Bool = false
     @Persisted var jumpBackwardsTime: Int = 10
     @Persisted var jumpForwardTime: Int = 10
+    @Persisted var playbackRateIncrementDecrement: Float = 0.1
     @Persisted var lockOrientation: String = "NONE"
     @Persisted var hapticFeedback: String = "LIGHT"
     @Persisted var languageCode: String = "en-us"
@@ -33,6 +34,7 @@ func deviceSettingsToJSON(settings: DeviceSettings) -> Dictionary<String, Any> {
         "allowSeekingOnMediaControls": settings.allowSeekingOnMediaControls,
         "jumpBackwardsTime": settings.jumpBackwardsTime,
         "jumpForwardTime": settings.jumpForwardTime,
+        "playbackRateIncrementDecrement": settings.playbackRateIncrementDecrement,
         "lockOrientation": settings.lockOrientation,
         "hapticFeedback": settings.hapticFeedback,
         "languageCode": settings.languageCode,

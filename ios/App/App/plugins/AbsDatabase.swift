@@ -304,6 +304,7 @@ public class AbsDatabase: CAPPlugin, CAPBridgedPlugin {
         let allowSeekingOnMediaControls = call.getBool("allowSeekingOnMediaControls") ?? false
         let jumpBackwardsTime = call.getInt("jumpBackwardsTime") ?? 10
         let jumpForwardTime = call.getInt("jumpForwardTime") ?? 10
+        let playbackRateIncrementDecrement = call.getFloat("playbackRateIncrementDecrement", 0.1)
         let lockOrientation = call.getString("lockOrientation") ?? "NONE"
         let hapticFeedback = call.getString("hapticFeedback") ?? "LIGHT"
         let languageCode = call.getString("languageCode") ?? "en-us"
@@ -316,6 +317,7 @@ public class AbsDatabase: CAPPlugin, CAPBridgedPlugin {
         settings.allowSeekingOnMediaControls = allowSeekingOnMediaControls
         settings.jumpBackwardsTime = jumpBackwardsTime
         settings.jumpForwardTime = jumpForwardTime
+        settings.playbackRateIncrementDecrement = playbackRateIncrementDecrement
         settings.lockOrientation = lockOrientation
         settings.hapticFeedback = hapticFeedback
         settings.languageCode = languageCode

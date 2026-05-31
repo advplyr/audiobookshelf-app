@@ -22,7 +22,7 @@
             <span class="material-symbols">remove</span>
           </button>
           <div class="w-24 text-center">
-            <p class="text-xl">{{ playbackRate }}<span class="text-lg">⨯</span></p>
+            <p class="text-xl">{{ playbackRateDisplay }}<span class="text-lg">⨯</span></p>
           </div>
           <button :disabled="!canIncrement" @click="increment" class="icon-num-btn w-8 h-8 text-fg-muted rounded border border-border flex items-center justify-center">
             <span class="material-symbols">add</span>
@@ -37,7 +37,11 @@
 export default {
   props: {
     value: Boolean,
-    playbackRate: Number
+    playbackRate: Number,
+    playbackRateIncrementDecrement: {
+      type: Number,
+      default: 0.1
+    }
   },
   data() {
     return {
@@ -74,22 +78,29 @@ export default {
       return [0.5, 1, 1.2, 1.5, 1.7, 2, 3]
     },
     canIncrement() {
-      return this.playbackRate + 0.1 <= this.MAX_SPEED
+      return this.playbackRate + this.playbackRateIncrementDecrement <= this.MAX_SPEED
     },
     canDecrement() {
-      return this.playbackRate - 0.1 >= this.MIN_SPEED
+      return this.playbackRate - this.playbackRateIncrementDecrement >= this.MIN_SPEED
+    },
+    playbackRateDisplay() {
+      if (this.playbackRateIncrementDecrement == 0.05) return this.playbackRate.toFixed(2)
+      // For 0.1 increment: Only show 2 decimal places if the playback rate is 2 decimals
+      const numDecimals = String(this.playbackRate).split('.')[1]?.length || 0
+      if (numDecimals <= 1) return this.playbackRate.toFixed(1)
+      return this.playbackRate.toFixed(2)
     }
   },
   methods: {
     increment() {
-      if (this.selected + 0.1 > this.MAX_SPEED) return
-      var newPlaybackRate = this.selected + 0.1
-      this.selected = Number(newPlaybackRate.toFixed(1))
+      if (this.selected + this.playbackRateIncrementDecrement > this.MAX_SPEED) return
+      var newPlaybackRate = this.selected + this.playbackRateIncrementDecrement
+      this.selected = Number(newPlaybackRate.toFixed(2))
     },
     decrement() {
-      if (this.selected - 0.1 < this.MIN_SPEED) return
-      var newPlaybackRate = this.selected - 0.1
-      this.selected = Number(newPlaybackRate.toFixed(1))
+      if (this.selected - this.playbackRateIncrementDecrement < this.MIN_SPEED) return
+      var newPlaybackRate = this.selected - this.playbackRateIncrementDecrement
+      this.selected = Number(newPlaybackRate.toFixed(2))
     },
     modalInput(val) {
       if (!val) {
