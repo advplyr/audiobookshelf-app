@@ -67,6 +67,12 @@
       </div>
       <p class="pl-4">{{ $strings.LabelAllowSeekingOnMediaControls }}</p>
     </div>
+    <div class="flex items-center py-3">
+      <div class="w-10 flex justify-center" @click="toggleCoverTapToTogglePlayPause">
+        <ui-toggle-switch v-model="settings.coverTapToTogglePlayPause" @input="saveSettings" />
+      </div>
+      <p class="pl-4">{{ $strings.LabelCoverTapToTogglePlayPause }}</p>
+    </div>
 
     <!-- Sleep timer settings -->
     <template v-if="!isiOS">
@@ -203,6 +209,7 @@ export default {
         disableAutoRewind: false,
         enableAltView: true,
         allowSeekingOnMediaControls: false,
+        coverTapToTogglePlayPause: false,
         jumpForwardTime: 10,
         jumpBackwardsTime: 10,
         enableMp3IndexSeeking: false,
@@ -611,6 +618,10 @@ export default {
       this.settings.allowSeekingOnMediaControls = !this.settings.allowSeekingOnMediaControls
       this.saveSettings()
     },
+    toggleCoverTapToTogglePlayPause() {
+      this.settings.coverTapToTogglePlayPause = !this.settings.coverTapToTogglePlayPause
+      this.saveSettings()
+    },
     getCurrentOrientation() {
       const orientation = window.screen?.orientation || {}
       const type = orientation.type || ''
@@ -643,6 +654,7 @@ export default {
       this.settings.disableAutoRewind = !!deviceSettings.disableAutoRewind
       this.settings.enableAltView = !!deviceSettings.enableAltView
       this.settings.allowSeekingOnMediaControls = !!deviceSettings.allowSeekingOnMediaControls
+      this.settings.coverTapToTogglePlayPause = !!deviceSettings.coverTapToTogglePlayPause
       this.settings.jumpForwardTime = deviceSettings.jumpForwardTime || 10
       this.settings.jumpBackwardsTime = deviceSettings.jumpBackwardsTime || 10
       this.settings.enableMp3IndexSeeking = !!deviceSettings.enableMp3IndexSeeking
