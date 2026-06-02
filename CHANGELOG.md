@@ -8,6 +8,31 @@ Entries below are quoted from `docs/PR_DESCRIPTION.md` where that file has a per
 
 ## [Unreleased]
 
+## [1.0.10] — 2026-06-02 — Internal refactor: modularize tv-navigation.js into plugins/tv/
+
+### Internal (no user-visible changes)
+
+- **refactor:** Split `plugins/tv-navigation.js` (1,675-line monolith) into 18 focused modules under `plugins/tv/`. Behavior-preserving file split — every function moves with same name + signature, module-level mutable state migrated 1:1 into a `tvContext` singleton object. New structure:
+  - `plugins/tv/index.js` (138 LOC) — Nuxt plugin entry + slim `handleKeyDown` dispatcher
+  - `plugins/tv/context.js` (65 LOC) — singleton state (9 properties)
+  - `plugins/tv/listeners.js` (406 LOC) — `registerAllTvListeners` orchestrator + 5 sub-registration functions (router, player watchers, focus-out, overlay watchers, eventBus subscribers)
+  - 8 kit modules: `visibility.js`, `scrollHelpers.js`, `focusColor.js`, `focusMemory.js`, `spatialNav.js`, `overlayFocus.js`, `focusEntry.js` (plus `context.js`)
+  - 8 page handlers under `plugins/tv/pageHandlers/`: `playerNav`, `episodeRow`, `logsContainer`, `navBarEscape`, `statsPage`, `itemPage`, `authorPage`, `gridNav`
+- **chore(plugins):** `nuxt.config.js` plugin entry path updated from `@/plugins/tv-navigation.js` to `@/plugins/tv/index.js`.
+- **Why:** Foundation for upstream PR submission series (9 PRs replacing #1843). Single source of truth for fork + upstream PRs; eliminates dual-maintenance overhead the monolithic structure would have required. Verified clean via `npm run generate` + `assembleRelease` after each major extraction milestone. Full design rationale at `docs/superpowers/specs/2026-05-18-pr-decomposition-and-fork-modularization-design.md`; implementation plan at `docs/superpowers/plans/2026-05-18-v1.0.10-modularize-tv-navigation.md`.
+
+### Security (parallel hardening pass landed 2026-05-19; repo-level, not part of the APK but at the same release timeframe)
+
+- **chore(security):** Enabled GitHub secret scanning + push protection (settings only, no code change).
+- **chore(security):** Enabled Dependabot vulnerability alerts + Dependabot security updates.
+- **chore(security):** Configured CodeQL default setup for `javascript-typescript`, `java-kotlin`, and `actions` (scan results visible in repo Security tab).
+- **chore(security):** Added `.github/dependabot.yml` on master — three ecosystems with per-ecosystem target branches (npm + gradle → `android-tv-dpad-navigation` where active dev happens; `github-actions` → master). Weekly Monday 08:00 ET, 5-PR/ecosystem cap.
+- **chore(security):** Created two repository rulesets:
+  - "Protect android-tv-dpad-navigation" (enforcing): deletion + non-fast-forward + linear history + required signatures + pull request (0 reviewers required, self-approve OK).
+  - "Protect release tags" (enforcing): deletion + non-fast-forward on `android-tv-v*`.
+- **chore(security):** Added `.github/workflows/attest-release-apk.yml` — generates Sigstore SLSA-v1.0 build-provenance attestation on every `android-tv-v*` release published. Downstream installers can verify with `gh attestation verify <apk> --repo bilbospocketses/abs-app`. Triggers on `release: published` (not on tag push) so the existing local-APK-build flow is preserved (CI does NOT build the APK — it attests the one you uploaded with the release).
+- **Note on workflow hardening (Phase 3, considered then reverted):** A pass to SHA-pin Actions + add per-job permissions in the 5 inherited workflow files was shipped as PR #13 and immediately reverted as PR #15. Rationale: the workflow files are upstream-owned; modifying them creates ongoing upstream-sync merge cost without value visible to the upstream maintainer in the 9-PR TV series. The hardening is deferred to a goodwill upstream PR (`todo_abs_tv.md` item 17) once the maintainer relationship is established via the 9-PR series acceptance.
+
 ## [1.0.9] — 2026-05-14 — Upstream v0.13.0-beta sync (cover image + progress sync fixes)
 
 ### Changed
