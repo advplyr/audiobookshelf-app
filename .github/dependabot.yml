@@ -1,0 +1,74 @@
+# Dependabot configuration for the bilbospocketses/abs-app fork.
+#
+# Branch topology (set 2026-06-03):
+#   - master is a PURE upstream-sync mirror of advplyr/audiobookshelf-app. We
+#     never develop on it and Dependabot never targets it.
+#   - android-tv-dpad-navigation is our long-lived dev branch AND the repo's
+#     default branch. All of our work -- features and dependency bumps -- lands
+#     here until it is PR'd upstream.
+#
+# Why the dev branch is the default: Dependabot SECURITY updates can only target
+# the default branch (the target-branch setting below governs only VERSION
+# updates). Making the dev branch the default routes security PRs onto the dev
+# line too, so fixes reach shipped code and master stays a clean mirror.
+#
+# Every ecosystem targets android-tv-dpad-navigation explicitly so version
+# updates are unambiguous; security updates follow the default branch to the
+# same place. Cadence: weekly Monday 08:00 ET, capped at 5 open PRs/ecosystem.
+#
+# Auto-merge: .github/workflows/dependabot-auto-merge.yml enables --auto --squash
+# for patch/minor version bumps and ALL security updates on green CI; non-security
+# major version bumps are labeled needs-manual-review and left for a human.
+
+version: 2
+updates:
+  # --- Web layer (Nuxt 2 / Vue 2 / Capacitor) ---
+  - package-ecosystem: "npm"
+    directory: "/"
+    target-branch: "android-tv-dpad-navigation"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "ecosystem/npm"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+
+  # --- Android native layer ---
+  - package-ecosystem: "gradle"
+    directory: "/android"
+    target-branch: "android-tv-dpad-navigation"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "ecosystem/gradle"
+    commit-message:
+      prefix: "deps(android)"
+      include: "scope"
+
+  # --- GitHub Actions workflows (SHA pin updates) ---
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "android-tv-dpad-navigation"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "ecosystem/github-actions"
+    commit-message:
+      prefix: "chore(ci)"
+      include: "scope"

@@ -40,11 +40,15 @@ jobs:
         run: ./android/gradlew assembleDebug -p android --no-daemon
 
       - name: rename apk
-        working-directory: android/app/build/outputs/apk/debug/
         run: |
+          set -e
+          src="$(find android/app/build/outputs/apk -name '*.apk' -print -quit)"
+          if [ -z "$src" ]; then
+            echo "No APK produced under android/app/build/outputs/apk"; exit 1
+          fi
           build="$(date +%Y%m%d-%H%M%S)-$(git rev-parse --short HEAD)"
-          name="audiobookshelf-${build}.apk"
-          mv -v app-debug.apk "${name}"
+          mkdir -p android/app/build/outputs/apk/debug
+          mv -v "$src" "android/app/build/outputs/apk/debug/audiobookshelf-${build}.apk"
 
       - name: upload app
         uses: actions/upload-artifact@v4
