@@ -2,13 +2,18 @@ name: Build APK
 
 on:
   push:
+    branches:
+      - android-tv-dpad-navigation
     paths-ignore:
       - 'ios/**'
       - 'readme.md'
   pull_request:
+    branches:
+      - android-tv-dpad-navigation
     paths-ignore:
       - 'ios/**'
       - 'readme.md'
+  workflow_dispatch: {}
 jobs:
   main:
     runs-on: ubuntu-latest
@@ -36,8 +41,21 @@ jobs:
       - name: copy to Android project
         run: npx cap sync
 
+      - name: create debug keystore (release variant signs with it; a fresh CI runner has none)
+        run: |
+          set -e
+          for ks in "$HOME/.config/.android/debug.keystore" "$HOME/.android/debug.keystore"; do
+            mkdir -p "$(dirname "$ks")"
+            if [ ! -f "$ks" ]; then
+              keytool -genkeypair -v -keystore "$ks" \
+                -storepass android -keypass android -alias androiddebugkey \
+                -keyalg RSA -keysize 2048 -validity 10000 \
+                -dname "CN=Android Debug,O=Android,C=US"
+            fi
+          done
+
       - name: build Android app
-        run: ./android/gradlew assembleDebug -p android --no-daemon
+        run: ./android/gradlew assembleRelease -p android --no-daemon
 
       - name: rename apk
         run: |
