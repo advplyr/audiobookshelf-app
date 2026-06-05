@@ -14,13 +14,14 @@
 import { tvContext } from '../context.js'
 import { getScrollBehavior, scrollParentToReveal, findPageScrollContainer } from '../scrollHelpers.js'
 import { isVisible } from '../visibility.js'
-import { findHorizontalTarget, findVerticalTarget } from '../spatialNav.js'
+import { findHorizontalTarget, findVerticalTarget, findShelfVerticalTarget, rememberGridCol, rememberGridRow } from '../spatialNav.js'
 
 export function handleGridNav(event, key, activeEl) {
   if (key === 'ArrowLeft' || key === 'ArrowRight') {
     const next = findHorizontalTarget(key)
     if (next) {
       event.preventDefault()
+      rememberGridCol(next)
       next.focus({ preventScroll: true })
       tvContext.lastFocusRect = next.getBoundingClientRect()
       scrollParentToReveal(next)
@@ -37,8 +38,27 @@ export function handleGridNav(event, key, activeEl) {
     // detaches the focused element.  Suppress focusout recovery during scroll.
     tvContext.verticalNavInProgress = true
     const clearNavGuard = () => { tvContext.verticalNavInProgress = false }
-    const next = findVerticalTarget(key)
+    // Column-stable structural target first. It resolves the column from the
+    // remembered grid position when focus has dropped to <body> during
+    // virtualizer churn — exactly when the geometric finder sampled a
+    // half-rendered row and collapsed focus to column 1 / the last column.
+    // Falls through to geometry for grid-exit moves (e.g. ArrowUp to the
+    // toolbar) and non-shelf pages; a not-yet-mounted target row takes the
+    // scroll-and-retry path below.
+    const shelfHit = findShelfVerticalTarget(key)
+    const next = shelfHit ? shelfHit.card : findVerticalTarget(key)
     if (next) {
+      if (shelfHit) {
+        tvContext.lastGridIndex = shelfHit.index
+        tvContext.lastGridPrefix = shelfHit.prefix
+        tvContext.gridIntendedCol = shelfHit.col
+      } else {
+        // Geometry fallback: track the row anchor only — NEVER let a fallback
+        // (which may land on the engine's hijacked column) overwrite the
+        // intended column.
+        rememberGridRow(next)
+      }
+      tvContext.lastVerticalNavAt = Date.now()
       const targetId = next.id
       next.focus({ preventScroll: true })
       tvContext.lastFocusRect = next.getBoundingClientRect()
@@ -72,8 +92,17 @@ export function handleGridNav(event, key, activeEl) {
         scrollContainer.scrollBy({ top: scrollAmount, behavior: getScrollBehavior() })
         setTimeout(() => {
           try {
-            const retryTarget = findVerticalTarget(key)
+            const retryHit = findShelfVerticalTarget(key)
+            const retryTarget = retryHit ? retryHit.card : findVerticalTarget(key)
             if (retryTarget) {
+              if (retryHit) {
+                tvContext.lastGridIndex = retryHit.index
+                tvContext.lastGridPrefix = retryHit.prefix
+                tvContext.gridIntendedCol = retryHit.col
+              } else {
+                rememberGridRow(retryTarget)
+              }
+              tvContext.lastVerticalNavAt = Date.now()
               retryTarget.focus({ preventScroll: true })
               tvContext.lastFocusRect = retryTarget.getBoundingClientRect()
               scrollParentToReveal(retryTarget)

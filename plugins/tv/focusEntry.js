@@ -13,6 +13,7 @@
 import { tvContext } from './context.js'
 import { isGridPage, scrollParentToReveal } from './scrollHelpers.js'
 import { restoreFromFingerprint } from './focusMemory.js'
+import { findPlayButton } from './selectors.js'
 
 export function focusFirstContentElement() {
   // Try cards first (bookshelf pages)
@@ -38,7 +39,7 @@ export function focusFirstContentElement() {
   // Don't scroll — the page starts at the top and the Play button is
   // already visible below the cover art. Scrolling to "reveal" it pushes
   // the cover image out of view.
-  const playBtn = document.querySelector('.btn.bg-success, ui-btn[color="success"], button.bg-success')
+  const playBtn = findPlayButton()
   if (playBtn) {
     playBtn.focus({ preventScroll: true })
     return true

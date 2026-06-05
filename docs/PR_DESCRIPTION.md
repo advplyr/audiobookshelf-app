@@ -1,183 +1,263 @@
-# PR: Add Android TV support with D-pad navigation
+# Android TV Support — Upstream PR Descriptions (9-PR series)
 
-**Closes #606**
+**Supersedes the single ~7,000-LOC PR #1843.** This document holds the ready-to-use
+description for each PR in the 9-PR series that replaces #1843. It is the detailed
+companion to [`PR_DECOMPOSITION_PLAN.md`](PR_DECOMPOSITION_PLAN.md) — the plan is the
+high-level map (titles, waves, dependencies, LOC budget); this file is the per-PR copy.
 
-## Summary
+- **Release history** for the fork (v1.0.0 → v1.0.11) lives in [`CHANGELOG.md`](../CHANGELOG.md), not here.
+- **Module-by-module line ranges** for the engine are in the design spec:
+  [`docs/superpowers/specs/2026-05-18-pr-decomposition-and-fork-modularization-design.md`](superpowers/specs/2026-05-18-pr-decomposition-and-fork-modularization-design.md).
+- **LOC counts** quoted in `PR_DECOMPOSITION_PLAN.md` predate the v1.0.11 bundle. The
+  v1.0.11 work (I2 init hardening, I4 spatial-nav perf, I5 stable selectors, loading-dot
+  color) is folded into PRs 3 / 4 / 5 / 7 below, so those PRs run slightly larger than the
+  plan's table until it is re-validated post-v1.0.11 (fork TODO item 15).
 
-Adds full Android TV support to the audiobookshelf app, including leanback launcher integration, spatial D-pad navigation, focus ring styling, and a TV user guide. All TV behavior is gated behind device detection — mobile/tablet behavior is unchanged.
+All TV behavior is gated behind device detection (`android-tv` CSS class on `<html>`, or the
+`isAndroidTv` Vuex state). Phone / tablet / iOS behavior is unchanged — the additive
+`tabindex` / `keydown.enter` attributes are inert on touch devices.
 
-This PR combines what was originally scoped as two separate PRs (basic TV scaffolding + D-pad navigation) into a single submission since the scaffolding is a prerequisite with no standalone value.
+---
 
-## What's included
+# Wave 1 — Foundation (parallel, no inter-dependencies)
 
-- **Leanback launcher integration** — TV banner, manifest declarations, app appears in Android TV launcher
-- **Device detection** — `DeviceManager.isAndroidTV()` exposes an `isAndroidTv` flag to the WebView via the AbsDatabase plugin and Vuex store
-- **CSS class injection** — `android-tv` class added to `<html>` on TV devices, used to scope all TV-specific styles
-- **Spatial D-pad navigation** — full arrow-key navigation using a beam model (horizontal stays in row, vertical finds nearest row)
-- **Focus ring styling** — green (#1ad691) focus indicators scoped to `.android-tv`, with different treatments for cards, player controls, modals, and general elements
-- **Focus memory** — saves and restores the focused element across page navigation using a fingerprint system (ID, structural path, position fallback)
-- **Overlay handling** — focus trapping inside modals and side drawer, with focus restore on close
-- **Audio player** — auto-expands to fullscreen on playback start, full D-pad navigation across three control rows (top/main/utility)
-- **Author detail page** — new page (`pages/author/_id.vue`) with bio, image, and book grid, accessible from AuthorCard on TV
-- **App termination** — on Android TV, the app fully terminates on exit (`finishAndRemoveTask` + `killProcess` in `onStop`) to prevent stale WebView state on resume
-- **TV user guide** — `docs/TV_USER_GUIDE.md` with inline screenshots covering all navigation features
-- **CastOptionsProvider guard** — prevents crash on devices without Google Play Services (e.g., some TV devices)
+PRs 1, 2, and 3 are independent and submit simultaneously off `upstream/master`. After
+Wave 1, phone/tablet behavior is byte-identical to upstream — the foundation *enables* TV
+but activates nothing visible until the Wave 2 engine lands.
 
-## Shared code changes
+## PR 1 — Foundation + TV detection
 
-These changes add `tabindex` and `keydown.enter` attributes to existing components. On mobile/touch devices, these attributes are inert — they don't affect tap behavior or layout. They exist so that TV remotes (which fire keyboard events) can focus and activate these elements.
+**Scope:** Leanback launcher integration, device detection, and the `android-tv` class
+injection that scopes every later TV change. No navigation behavior yet.
 
 | File | Change |
 |------|--------|
-| `AudioPlayer.vue` | Added `.prevent` to all `keydown.enter` handlers (fixes double-fire on Android TV). Added `tabindex` + `keydown.enter.prevent` on more_vert, bookmark, playback speed, sleep timer, chapters button, and collapse button. |
-| `ChaptersTable.vue` | Wrapped timestamp text in `<span tabindex="0">` inside `<td>` for focus targeting. Added `tabindex` + `keydown.enter.prevent` on expand bar. |
-| `TracksTable.vue` | Added `tabindex` + `keydown.enter.prevent` on expand bar div. |
-| `EpisodeRow.vue` | Added `tabindex` + `keydown.enter.prevent` on row, play button, playlist button, download icon. |
-| `LatestEpisodeRow.vue` | Same as EpisodeRow. |
-| `EpisodesTable.vue` | Added `tabindex` + `keydown.enter.prevent` on sort control. |
-| `ToggleSwitch.vue` | Added `tabindex` + `keydown.enter.prevent` on toggle div. This affects all toggles app-wide but has no effect on touch interaction. |
-| `TextInput.vue` | Readonly inputs get `tabindex="-1"` to prevent focus stealing from their wrapper. |
-| `SideDrawer.vue` | Disconnect button: added `tabindex` + `keydown.enter.prevent`. Removed conflicting local keydown handlers. |
-| `ServerConnectForm.vue` | Server config rows, edit/delete icons, back arrows: added `tabindex` + `keydown.enter.prevent`. |
-| `Appbar.vue` | `tabindex="-1"` on logo (prevents accidental focus). `keydown.enter` on back button. |
-| `BookshelfToolbar.vue` | Added `tabindex` + `keydown.enter` on filter/sort/view icons. |
-| `LibrariesModal.vue` | Added `tabindex` + `keydown.enter` on list items. Auto-focus first item on open. |
-| `LazyBookCard.vue` | Added `@keydown.enter="clickCard"`. |
-| `LazySeriesCard.vue` | Added `tabindex` + `keydown.enter`. |
-| `LazyCollectionCard.vue` | Added `tabindex` + `keydown.enter`. |
-| `LazyPlaylistCard.vue` | Added `tabindex` + `keydown.enter`. |
-| `AuthorCard.vue` | Added `tabindex`, click/enter handler. On TV, navigates to `/author/{id}` detail page. |
-| `AuthorImage.vue` | `tabindex="-1"` to prevent double-focus with parent AuthorCard. |
-| `pages/item/_id/index.vue` | Cover art: added `id`, `tabindex`, `keydown.enter` for focusable/clickable. Read More toggle: added `tabindex` + `keydown.enter.prevent`. |
-| `pages/item/_id/_episode/index.vue` | Added `id="episode-page"` for scroll container recognition. |
-| `pages/settings.vue` | All 11 dropdown wrappers: added `tabindex`, `keydown.enter.prevent`, `settings-dropdown` class. 8 info icons: added `tabindex` + `keydown.enter.prevent`. Added `id="settings-page"`. |
-| `pages/account.vue` | Added `id="account-page"` + `overflow-y-auto`. |
-| `pages/stats.vue` | Added `id="stats-page"`. |
-| `pages/logs.vue` | Added `id="logs-container"` on log scroll container. |
-| `pages/localMedia/item/_id.vue` | Added `id="manage-files-page"`. Header ellipsis, episode/track ellipsis: added `tabindex` + `keydown.enter.prevent`. Play button: added `keydown.enter.prevent`. |
-
-## TV-only changes
-
-These files are either new or contain changes gated behind the `android-tv` CSS class or `isAndroidTv` Vuex state:
-
-| File | Description |
-|------|-------------|
-| `AndroidManifest.xml` | Leanback launcher intent filter, `uses-feature` declarations (touchscreen + leanback both `required="false"`), banner attribute |
-| `MainActivity.kt` | Injects `android-tv` CSS class on `<html>`. On TV: `finishAndRemoveTask` + `killProcess` in `onStop` to fully terminate app on exit. |
-| `DeviceManager.kt` | `isAndroidTV()` detection method |
-| `AbsDatabase.kt` | Exposes `isAndroidTv` flag to WebView |
-| `CastOptionsProvider.kt` | Guard against missing Google Play Services |
-| `tv_banner.png` | 320x180 leanback launcher banner |
-| `tv-focus.css` | All focus ring styles scoped to `.android-tv` |
-| `tv-navigation.js` | Spatial navigation plugin (~1500 lines): D-pad handling, focus memory/fingerprinting, overlay detection, scroll coordination, author page scroll handler, player navigation |
-| `pages/author/_id.vue` | Author detail page (TV navigation target from AuthorCard) |
+| `android/.../AndroidManifest.xml` | Leanback launcher intent filter; `uses-feature` declarations (`touchscreen` + `leanback` both `required="false"`); banner attribute |
+| `android/.../MainActivity.kt` | Injects the `android-tv` class on `<html>` at `WebViewClient.onPageStarted` (via a Capacitor `WebViewListener` registered on the bridge) so it lands before page-script execution, with a `webView.post {}` injection retained as an idempotent backup. On TV: `finishAndRemoveTask()` + `Process.killProcess()` in `onStop` to fully terminate on exit (no swipe-to-close on TV; prevents stale WebView state on resume). |
+| `android/.../DeviceManager.kt` | `isAndroidTV()` detection |
+| `android/.../AbsDatabase.kt` | Exposes the `isAndroidTv` flag to the WebView |
+| `android/.../CastOptionsProvider.kt` | Guard against missing Google Play Services (some TV devices) |
+| `android/.../tv_banner.png` | 320×180 leanback launcher banner |
+| `store/index.js` | `isAndroidTv` state + mutation (also `resetLastBookshelfScrollData` mutation used by the engine) |
 | `layouts/default.vue` | Sets `isAndroidTv` from device data on mount |
-| `store/index.js` | `isAndroidTv` state + mutation |
-| `nuxt.config.js` | Registers `tv-focus.css` and `tv-navigation.js` plugin |
-| `plugins/init.client.js` | Side drawer check added to existing back button handler |
 | `plugins/capacitor/AbsDatabase.js` | Reads `isAndroidTv` from device info |
-| `pages/bookshelf/authors.vue` | Responsive column count for TV screen widths |
-| `docs/TV_USER_GUIDE.md` | User guide with inline screenshots |
-| `docs/images/*` | 9 TV screenshots |
+| `pages/connect.vue` | Sets `isAndroidTv` on mount — the connect page bypasses `layouts/default.vue`, so first launch with no saved server was rendering a phone layout on TV |
 
-## Robustness & Audit Hardening
+**Folded-in fork work:** the `onPageStarted` injection point is the **Kotlin half of the I2
+CSS-injection-race fix (v1.0.11)** — replacing the original `webView.post {}` that raced
+Nuxt plugin execution on slower devices. The JS-side poll half lives in PR 5 (`index.js`).
 
-After the initial submission, a full code audit of the TV-related changes surfaced 35 findings (5 HIGH, 15 MEDIUM, 15 LOW; 0 CRITICAL). All HIGH and actionable MEDIUM items are fixed in this PR:
+**Testing:** install on Android TV, confirm the app appears in the leanback launcher and the
+`android-tv` class is present on `<html>` at first paint; confirm clean exit (no stale UI on
+relaunch); confirm phone/tablet layout unchanged.
 
-**Safety guards**
-- `try/finally` around all navigation `setTimeout` callbacks — if an exception is thrown mid-restore, the nav guard is always cleared instead of permanently blocking focus recovery.
-- `CSS.escape()` polyfill for older Android TV WebViews (Chrome < 46, still present on some ATV devices) to prevent selector-construction errors when card IDs contain special characters.
+## PR 2 — Keyboard hygiene (tabindex + `keydown.enter.prevent`)
 
-**Double-fire prevention**
-- `.prevent` modifier on 11 `@keydown.enter` handlers across 8 components (cards, toolbar, modal, drawer). On Android TV, D-pad Enter fires both a `keydown` and a synthesized `click`; without `.prevent`, navigation fired twice.
+**Scope:** Additive focus/activation attributes on existing shared components so TV remotes
+(which fire keyboard events) can focus and activate them. Inert on touch devices.
 
-**Connect-page TV detection**
-- `connect.vue` now sets `isAndroidTv` in the Vuex store on mount. The connect page bypasses `layouts/default.vue` (where this was previously set), so the first launch with no saved server was rendering a phone layout on TV.
+| File | Change |
+|------|--------|
+| `AudioPlayer.vue` | `.prevent` on all `keydown.enter` handlers (fixes D-pad Enter double-fire); `tabindex` + `keydown.enter.prevent` on more_vert, bookmark, playback speed, sleep timer, chapters, collapse |
+| `ChaptersTable.vue` | Timestamp text wrapped in `<span tabindex="0">`; `tabindex` + `keydown.enter.prevent` on expand bar |
+| `TracksTable.vue` | `tabindex` + `keydown.enter.prevent` on expand bar |
+| `EpisodeRow.vue` / `LatestEpisodeRow.vue` | `tabindex` + `keydown.enter.prevent` on row, play, playlist, download |
+| `EpisodesTable.vue` | `tabindex` + `keydown.enter.prevent` on sort control |
+| `ToggleSwitch.vue` | `tabindex` + `keydown.enter.prevent` on toggle div (app-wide; no touch effect) |
+| `TextInput.vue` | Readonly inputs get `tabindex="-1"` to prevent focus stealing |
+| `SideDrawer.vue` | Disconnect button `tabindex` + `keydown.enter.prevent`; removed conflicting local keydown handlers |
+| `Appbar.vue` | `tabindex="-1"` on logo; `keydown.enter` on back button |
+| `BookshelfToolbar.vue` | `tabindex` + `keydown.enter` on filter/sort/view icons |
+| `LibrariesModal.vue` | `tabindex` + `keydown.enter` on list items; auto-focus first item on open |
+| `LazyBookCard.vue` / `LazySeriesCard.vue` / `LazyCollectionCard.vue` / `LazyPlaylistCard.vue` | `tabindex` + `keydown.enter` / `clickCard` |
+| `pages/item/_id/index.vue` | Cover art `id` + `tabindex` + `keydown.enter`; Read More toggle `tabindex` + `keydown.enter.prevent` |
+| `pages/item/_id/_episode/index.vue` | `id="episode-page"` for scroll-container recognition |
+| `pages/settings.vue` | 11 dropdown wrappers `tabindex` + `keydown.enter.prevent` + `settings-dropdown`; 8 info icons; `id="settings-page"` |
+| `pages/account.vue` / `stats.vue` / `logs.vue` | Scroll-container `id`s (`account-page`, `stats-page`, `logs-container`) + `overflow-y-auto` where needed |
+| `pages/localMedia/item/_id.vue` | `id="manage-files-page"`; ellipsis/play `tabindex` + `keydown.enter.prevent` |
 
-**Vuex reactivity**
-- Replaced a direct `store.state.lastBookshelfScrollData = {}` mutation with a proper Vuex `resetLastBookshelfScrollData` mutation so scroll-restore invalidation is observable and reactive.
+**Hardening:** the `.prevent` modifier across 11 `@keydown.enter` handlers prevents the
+Android-TV double-fire where D-pad Enter emits both `keydown` and a synthesized `click`.
 
-**Phone/tablet safety**
-- All TV-only listeners (`focusout`, store watchers, router hooks, eventBus subscriptions) are gated behind an `android-tv` class check. Previously a subset could fire on phones if the class was set briefly during init.
+**Folded-in fork work (I5, v1.0.11):** `SideDrawer.vue` gains `data-tv-overlay="side-drawer"`
+on its panel (bound to the open state) and the item/episode/playlist/collection detail pages
+gain `data-tv-target="play-button"` on the primary Play button. These stable hooks are *read*
+by `selectors.js` (PR 4) — see the I5 note there. localMedia "Save Order" is deliberately
+**not** tagged (removes a latent mis-focus).
 
-**Focus interval bookkeeping**
-- `refocusAfterContentChange` tracks and clears its prior interval before creating a new one — prevents two polling loops from fighting for focus during rapid navigation.
-- `focusLossTimer` is now cleared on `router.beforeEach` so a stale `focusout` recovery timer from the previous page can't fire during a transition.
+**Testing:** on touch devices confirm no layout/tap changes; on TV confirm every listed
+element can receive D-pad focus and activates once (no double-fire).
 
-**Player controls + accessibility**
-- Hidden fullscreen player controls (`v-show`) use a dynamic `tabindex` so the invisible jump-chapter buttons don't receive D-pad focus when the player is collapsed.
-- Removed the blanket `:not(.android-tv) *:focus { outline: none }` rule that was suppressing focus indicators for phone/tablet keyboard and accessibility users. Focus suppression is now scoped to only what TV needs.
+## PR 3 — CSS foundation (`tv-focus.css` + `--tv-focus-color`)
 
-A 33-item manual test plan covering each fix plus regression scenarios was executed on a Chromecast with Google TV before release.
+**Scope:** All focus-ring presentation, scoped to `.android-tv`, driven by a single CSS
+custom property.
 
-## v1.0.6 — Screensaver Prevention During Playback (TV-only)
+| File | Change |
+|------|--------|
+| `assets/css/tv-focus.css` | All focus-ring styles scoped to `.android-tv`. The focus color is a single `--tv-focus-color` custom property on `:root.android-tv` (default `#1ad691`); all eight focus-ring surfaces (card borders, modal left-accents, drawer accents, generic outlines, settings dropdowns, player controls, etc.) reference `var(--tv-focus-color)`, so one property write retints everything. Removed the blanket `:not(.android-tv) *:focus { outline: none }` rule so phone/tablet keyboard + a11y users keep focus indicators. |
+| `components/ui/LoadingIndicator.vue` | A `tv-focus-dots` hook class on the loading-dots wrapper |
+| `nuxt.config.js` | Registers `tv-focus.css` (the engine plugin registration is PR 5) |
 
-Addresses a user-reported issue where the Chromecast with Google TV / Android TV Ambient Mode screensaver engaged during playback and killed audio after ~10 minutes of inactivity. Per Android TV developer guidance, audio should continue through Ambient Mode automatically — but CCwGTV firmware behavior diverges from the docs and stops playback regardless. This fix works around that platform quirk.
+**Folded-in fork work (loading dots, v1.0.11):** a single TV-gated rule —
+`.android-tv .tv-focus-dots > div { background-color: var(--tv-focus-color) !important; }` —
+makes the content-loading overlay dots a ninth `--tv-focus-color` surface, so they follow the
+user's chosen focus color live (zero JS). Phone/tablet keep green. The circular `la-ball`
+spinner stays white for contrast (deliberate).
 
-- `components/app/AudioPlayer.vue` — new `updateKeepAwake(shouldKeepAwake)` helper, TV-gated via the `isAndroidTv` Vuex state. Wired into `onPlayingUpdate` (chokepoint for every play↔pause transition) and `endPlayback` (chokepoint for all session teardown: close, failure, fullscreen-collapse-close, component destroy).
-- Uses `@capacitor-community/keep-awake` — already in the dependency tree via the e-reader (`Reader.vue`). No new dependencies.
-- Try/catch around plugin calls; plugin errors are logged but never disrupt playback.
-- Behavior on phone / tablet / iOS: unchanged — the `isAndroidTv` gate returns early.
-- Behavior during paused playback on TV: wake lock released; screensaver engages normally; standard Android TV "Home after ~30 min" behavior applies, matching every other TV media app.
+**Testing:** on TV confirm the green focus ring renders on cards/controls/modals and that
+changing `--tv-focus-color` retints every surface including the loading dots; on phone confirm
+focus indicators are present for keyboard/a11y and the dots stay green.
 
-## v1.0.7 — Post-v1.0.6 Regression Fixes (TV-only)
+---
 
-Three pre-existing regressions surfaced during the v1.0.5+v1.0.6 QA pass — each was present in v1.0.5 and earlier but not caught until a thorough 42-item manual test run. All three fixes are TV-gated and have zero effect on phone/tablet/iOS.
+# Wave 2 — Engine (sequential)
 
-**History option no longer breaks the fullscreen player** (`components/app/AudioPlayer.vue`)
-- Selecting History from the fullscreen audio player's ellipsis menu on TV collapsed the player into a stale mini-player state (mini player was retired in an earlier release).
-- Fix: hide History from the fullscreen ellipsis on TV via an `isAndroidTv` guard on the menu-item conditional. History remains accessible from book detail pages, the normal entry point.
+## PR 4 — Engine kit (utility modules + page handlers)
 
-**Library sort modal D-pad wrap-around** (`plugins/tv-navigation.js`)
-- D-pad Down from the last option in a long sort modal (13-option library sort) wrapped to whatever option happened to be visible in the viewport (typically a middle item) instead of the first option.
-- Root cause: the overlay focusable filter was rejecting scrolled-off-screen items via a viewport check, so the "wrap to index 0" landed on index 0 of the trimmed visible set rather than the full list.
-- Fix: added an `ignoreViewport` option to `isVisible` and `getAllFocusable`; `handleOverlayNavigation` now passes `{ ignoreViewport: true }` so the full logical list is the navigable set regardless of scroll position. `scrollIntoView` (already called after focus) brings the newly-focused item into view. Main-page navigation is unchanged — bookshelf scroll still filters by viewport.
+**Scope:** The TV focus engine as a library — modules that export functions but attach to
+nothing at runtime until PR 5 wires them. All under `plugins/tv/`. Stacked dependency: opens
+after PR 1 merges. Full architecture overview: [`TV_FOCUS_SYSTEM.md`](TV_FOCUS_SYSTEM.md).
 
-**Playlist row play-button fingerprint preserved across player close** (`plugins/tv-navigation.js`)
-- Starting playback from an individual book's play button inside a playlist, then closing the fullscreen player, landed focus on the playlist's primary "Play Playlist" button instead of the row the user started from.
-- Root cause: two interacting problems. (a) No fingerprint was being saved for the pre-playback focus since the route doesn't change when the fullscreen player opens (it's an overlay). (b) Three separate code paths raced to call `focusFirstContentElement()` on close, and Android TV's native focus engine aggressively re-focused a nearby button (the primary Play) the instant the player's focused element unmounted.
-- Fix: save fingerprint synchronously via a dedicated `store.watch` on `playerStartingPlaybackMediaId` (committed inside `playClick` before any async). Added `focusAfterPlayerClose` helper that unconditionally restores the saved fingerprint if one exists (overriding the native engine's recovery guess), falling back only when no fingerprint was saved AND no element is currently focused. Routed all three player-close paths (Back button, MutationObserver, session watch) through the helper so the race no longer matters.
+| Module | Responsibility |
+|--------|----------------|
+| `plugins/tv/context.js` | The `tvContext` singleton (shared mutable state: `pageFocusMemory`, `focusHistory`, `lastFocusRect`, `fingerprintRestoreActive`, `verticalNavInProgress`, the `cssEscape` polyfill, etc.) |
+| `plugins/tv/visibility.js` | `isVisible` (display/visibility/opacity + non-zero rect + viewport bounds), `getAllFocusable(root, { ignoreViewport })`, `centerOf`, `isSameRow` |
+| `plugins/tv/scrollHelpers.js` | `findPageScrollContainer`, `scrollParentToReveal` |
+| `plugins/tv/focusColor.js` | `VALID_TV_FOCUS_HEXES` (7 presets) + `DEFAULT_TV_FOCUS_HEX` + `applyTvFocusColor(value, store)` — writes `--tv-focus-color`; an out-of-allowlist value self-heals to the default via a corrective `user/updateUserSettings` |
+| `plugins/tv/focusMemory.js` | `getElementFingerprint` + `restoreFromFingerprint` — 5-tier lookup (unique ID → author index → non-unique-ID position → structural path → position fallback), 12-attempt retry (250 ms fast-poll → 500 ms) with scroll restored synchronously before each attempt |
+| `plugins/tv/spatialNav.js` | `findVerticalTarget` / `findHorizontalTarget` — beam model (horizontal stays in row, vertical finds nearest row); `lastFocusRect` holds the column when the virtualizer detaches the focused card |
+| `plugins/tv/overlayFocus.js` | `saveFocusBeforeOverlay`, `restoreFocusAfterOverlay`, `getActiveOverlay`, `handleOverlayNavigation` — traps D-pad inside modals/drawers; uses `{ ignoreViewport: true }` so long scrolled lists (e.g. the 13-option sort modal) wrap across the full logical list |
+| `plugins/tv/focusEntry.js` | `focusFirstContentElement`, `focusAfterPlayerClose`, `refocusAfterContentChange`; logged-out recovery (clear stale state → toast → `router.replace('/')`) |
+| `plugins/tv/selectors.js` | `findPlayButton` / `findVisibleSideDrawer` — the single read-point for the `data-*` hook contract |
+| `plugins/tv/pageHandlers/*.js` (8) | Per-context key handling: `playerNav`, `episodeRow`, `logsContainer`, `navBarEscape`, `statsPage`, `itemPage`, `authorPage`, `gridNav` |
 
-## v1.0.8 — User-Customizable Focus Ring Color (TV-only)
+**Folded-in fork work:**
 
-Adds a TV-only Settings control that lets the user pick the D-pad focus-ring color from a curated set of 7 high-contrast presets, plus the underlying refactor that makes the runtime override possible. Zero effect on phone / tablet / iOS.
+- **I4 spatial-nav perf (v1.0.11):** `findVerticalTarget` / `findHorizontalTarget` snapshot every
+  candidate's `getBoundingClientRect()` once per keypress into an ephemeral `Map`, eliminating the
+  repeated forced reflows previously incurred inside the filter + `sort` comparators (O(n log n)
+  layout flushes per D-pad press). `restoreFromFingerprint` hoists the invariant scroll-container
+  rect out of its non-unique-ID position-match loop.
+- **I5 stable selectors (v1.0.11):** `selectors.js` is the new single source of truth for overlay /
+  target detection, replacing fragile Tailwind utility-class selectors. It resolves
+  `data-tv-overlay="side-drawer"` and `data-tv-target="play-button"`; the attributes themselves are
+  added to the owning components in PR 2. Contract documented in `TV_FOCUS_SYSTEM.md`.
 
-**Variable extraction** (`assets/css/tv-focus.css`)
-- The hardcoded `#1ad691` literal was repeated 8 times across every focus-ring presentation (border overlays, modal left-accents, drawer accents, generic outlines, settings dropdowns, player controls, etc.). Extracted to a single `--tv-focus-color` CSS custom property defined on `:root.android-tv`. All 8 sites now reference `var(--tv-focus-color)` so a single setProperty call retints every surface.
+**Hardening:** `CSS.escape()` polyfill (via `tvContext.cssEscape`) for older ATV WebViews
+(Chrome < 46); `try/finally` around navigation `setTimeout` callbacks so a mid-restore
+exception always clears the nav guard; all engine work is `android-tv`-gated.
 
-**Settings storage** (`store/user.js`)
-- New `tvFocusColor: '#1ad691'` key on the initial `state.settings` object. Rides the existing `updateUserSettings` / `loadUserSettings` / `$localStore.setUserSettings` pipeline alongside `playbackRate`, `collapseSeries`, etc. Persistence model is the same single device-wide `'userSettings'` Capacitor Preferences key every other setting uses — not per-user, matching the existing app contract.
+**Testing:** ships dormant (no runtime attachment); verify ESLint clean and `npm run generate`
+succeeds. Behavior is exercised once PR 5 wires it.
 
-**Runtime apply** (`plugins/tv-navigation.js`)
-- New `VALID_TV_FOCUS_HEXES` allowlist + `applyTvFocusColor(value, store)` helper at module scope. Inside `registerTvListeners`, an initial-apply call handles the case where `loadUserSettings` finishes before TV nav init runs, then a `user-settings` event-bus subscriber writes the chosen hex into `--tv-focus-color` on `<html>` for every later change. Stored values not in the allowlist self-heal back to default by dispatching a corrective `updateUserSettings`.
+## PR 5 — Engine integration (listeners + dispatcher)
 
-**Picker component** (`components/ui/TvFocusColorPicker.vue` — new)
-- Horizontal swatch row of 7 buttons (ABS Green default · Sky · Amber · Red · Violet · Yellow · White). The currently-in-use swatch carries a `★` glyph (white char with black halo so it reads on every fill including white). D-pad focus draws a black inner edge + outer band in `var(--tv-focus-color)` via box-shadow — the black band keeps the indicator readable when the focused swatch is the same color as the focus ring itself, and box-shadow takes no layout space so swatches don't shift between focused/unfocused states. Component is TV-agnostic; the parent handles `isAndroidTv` gating.
+**Scope:** Activates the engine — registers the global keydown dispatcher and wires
+router / store / eventBus hooks. Stacked on PR 4.
 
-**Settings page wiring** (`pages/settings.vue`)
-- New v-if=isAndroidTv "TV Settings" section at the top of the page hosting `<TvFocusColorPicker>`. Adds `isAndroidTv` and `tvFocusColor` computeds plus a `setTvFocusColor` method that dispatches `updateUserSettings`. The `mt-10` spacer on the next section header is gated to TV only so phone layout is byte-identical to before. Section header / row label are hardcoded English on this fork (not routed through `$strings`) to avoid touching `strings/en-us.json`; i18n migration deferred until after upstream PR acceptance.
+| File | Change |
+|------|--------|
+| `plugins/tv/index.js` | Nuxt client plugin entry. `checkAndInit` gates init on the `android-tv` class, with a ~5 s JS-side poll fallback (the **JS half of the I2 race fix**) before giving up. Slim `handleKeyDown` dispatcher routes each press to the right page handler, the spatial finders, or overlay navigation. |
+| `plugins/tv/listeners.js` | `registerAllTvListeners(store)` orchestrates five sub-registrations: `registerRouterHooks` (beforeEach fingerprint save / afterEach restore + main→main scroll-to-top), `registerPlayerWatchers` (auto-fullscreen on playback start; `focusAfterPlayerClose`; synchronous fingerprint save on `playerStartingPlaybackMediaId`), `registerFocusOutHandler` (DOM-removal focus recovery; stats-page Next-button retry), `registerOverlayWatchers` (side-drawer + debounced modal open/close), `registerEventBusSubscribers` (`library-changed`, `bookshelf-total-entities`, and the `user-settings` → `applyTvFocusColor` focus-color subscriber). |
+| `nuxt.config.js` | Registers `@/plugins/tv/index.js` (client mode) — updated from the pre-v1.0.10 `@/plugins/tv-navigation.js` |
 
-**Verification**
-- 26-item manual test checklist passed on Google TV Streamer 4K, including a non-default-color regression pass over all 8 I8 focus surfaces and a smoke run of the v1.0.5/v1.0.6 42-item TV checklist with the picker landed.
+**Folded-in fork work:** the **I2 JS-side poll** (`index.js`) pairs with PR 1's Kotlin
+`onPageStarted` injection — together they make the CSS-injection race structurally impossible on
+the happy path and self-healing on edge cases (e.g. mid-session reload).
 
-## Notes
+**Hardening:** `focusLossTimer` cleared on `router.beforeEach` so a stale `focusout` recovery
+timer can't fire during a transition; `refocusAfterContentChange` clears its prior interval
+before starting a new one (no duelling focus pollers); the `resetLastBookshelfScrollData`
+mutation keeps scroll-restore invalidation reactive.
 
-- **`android.view.View` import** — During development we explored using Android's native `View.setFocusHighlightEnabled(false)` to suppress a green focus box that appeared on the author bio page. This turned out to be our own CSS (a missing `position: relative` on a card container), not a native Android highlight. The import was reverted.
+**Testing:** full D-pad navigation across Home/Library/Series/Collections/Playlists/Authors;
+Back restores focus; modals trap + restore; side drawer focus management; the focus-color
+picker live-updates every surface.
 
-- **App termination on TV** — On Android TV, the app calls `finishAndRemoveTask()` and `Process.killProcess()` in `onStop`. This is necessary because the WebView and JavaScript state go stale when the app is backgrounded on TV (there's no swipe-to-close gesture). Without this, resuming the app shows stale UI. This only runs on TV devices.
+---
 
-- **Podcast episode download** — On TV with D-pad navigation, it's easy to accidentally press Enter on a podcast episode's download button. Books have a confirmation dialog before downloading, but podcast episodes do not. Would a confirmation dialog for podcast episode downloads be a welcome addition?
+# Wave 3 — Features (parallel, on top of the live engine)
 
-## Test plan
+## PR 6 — Audio player TV behavior
 
-- [ ] Install on Android TV device and verify app appears in leanback launcher
-- [ ] Connect to server, navigate all main pages (Home, Library, Series, Collections, Playlists, Authors)
-- [ ] Verify D-pad navigation moves focus with green ring visible on all focusable elements
-- [ ] Open a book detail page, verify chapters/tracks/cover art are navigable
-- [ ] Start playback, verify player opens fullscreen with all controls navigable
-- [ ] Open author card, verify author detail page loads with bio and books
-- [ ] Test Back button restores focus to previous position
-- [ ] Test modals (libraries, chapters list) trap focus and restore on close
-- [ ] Test side drawer opens/closes with proper focus management
-- [ ] Verify all settings toggles, dropdowns, and info icons are navigable
-- [ ] Install on phone/tablet and verify no behavior changes (no focus rings, no keyboard artifacts)
+**Scope:** `components/app/AudioPlayer.vue` — TV-gated player behavior. Depends on PR 1 + PR 5.
+
+- **Auto-fullscreen** on playback start (full D-pad nav across the three control rows).
+- **Close-vs-minimize:** on TV the player closes entirely on any fullscreen exit (no mini-player on TV).
+- **Screensaver prevention (v1.0.6):** `updateKeepAwake(shouldKeepAwake)` via
+  `@capacitor-community/keep-awake` (already in the tree via the e-reader — no new dependency),
+  wired into `onPlayingUpdate` (every play↔pause) and `endPlayback` (all teardown). Works around
+  CCwGTV/ATV Ambient-Mode firmware killing audio after ~10 min. Try/catch so plugin errors never
+  disrupt playback; wake lock released on pause.
+- **History gate (v1.0.7):** History is hidden from the fullscreen ellipsis on TV (it collapsed
+  the player into a retired mini-player state); still reachable from book detail pages.
+
+**Hardening:** hidden (`v-show`) fullscreen controls use a dynamic `tabindex` so collapsed
+jump-chapter buttons don't take D-pad focus.
+
+**Testing:** start/pause/close playback on TV; confirm audio survives idle (screensaver) while
+playing and the screensaver engages normally while paused; phone/tablet unchanged.
+
+## PR 7 — Settings + focus-color picker
+
+**Scope:** The TV-only user control for the focus-ring color (v1.0.8). Depends on PR 3 (the
+`--tv-focus-color` variable) + PR 5 (the `user-settings` subscriber).
+
+| File | Change |
+|------|--------|
+| `components/ui/TvFocusColorPicker.vue` (new) | Horizontal swatch row of 7 presets (ABS Green default · Sky · Amber · Red · Violet · Yellow · White). The in-use swatch carries a `★` glyph (white with a black halo so it reads on every fill); D-pad focus draws a black inner edge + outer band in `var(--tv-focus-color)` via box-shadow (readable even when the focused swatch matches the ring color; no layout shift). TV-agnostic — the parent gates on `isAndroidTv`. |
+| `pages/settings.vue` | A `v-if="isAndroidTv"` "TV Settings" section at the top hosts the picker; adds `isAndroidTv` + `tvFocusColor` computeds and a `setTvFocusColor` method dispatching `updateUserSettings`. The `mt-10` spacer is TV-gated so phone layout is byte-identical. Labels are hardcoded English on the fork (not routed through `$strings`) — i18n deferred until after upstream acceptance. |
+| `store/user.js` | `tvFocusColor: '#1ad691'` on the initial `state.settings`; rides the existing `updateUserSettings` / `loadUserSettings` / `$localStore.setUserSettings` pipeline. Device-wide (single `userSettings` Capacitor Preferences key), matching every other UI preference. |
+
+The allowlist + apply logic live in `plugins/tv/focusColor.js` (PR 4); the `user-settings`
+subscriber that re-applies on change lives in `plugins/tv/listeners.js` (PR 5).
+
+**Testing:** pick each preset on TV and confirm every focus surface (including loading dots)
+retints live and persists across restart; confirm phone/tablet show no TV Settings section.
+
+## PR 8 — Server connect form D-pad navigation
+
+**Scope:** `components/connection/ServerConnectForm.vue` (+ `pages/connect.vue` TV layout) —
+D-pad navigation for the server list / add-server flow (v1.0.3 overhaul). Depends on PR 2 + PR 5.
+
+- Component-local TV focus helpers: `dpadFocus(el)` (defers `.focus({ preventScroll: true })`
+  via `setTimeout(0)` to run after the native engine; saves/restores scroll to prevent
+  oscillation), `handleIconFocus` (redirects cross-row icon focus to the entry row),
+  `onEntryRowFocus` (deferred scroll-to-top so the back arrow stays visible), `lockScroll`
+  (prevents oscillation on dead-end presses), plus `@keydown.*.prevent.stop` on icons to stop
+  bubbling.
+- TV layout: column-flow server list, in-flow logo, `overflow-y-auto`, focus breathing room,
+  username shown above URL in the focusable row.
+
+**Testing:** add/edit/delete/select servers via D-pad; confirm focus lands correctly on each
+transition and the list scrolls without oscillation; phone/tablet unchanged.
+
+## PR 9 — Author detail page
+
+**Scope:** `pages/author/_id.vue` (new) + related Vue files. Depends on PR 2.
+
+- New author detail page (bio, image, book grid) — TV navigation target from `AuthorCard`.
+- `AuthorCard.vue`: `tabindex` + click/enter; on TV navigates to `/author/{id}`.
+- `AuthorImage.vue`: `tabindex="-1"` to avoid double-focus with the parent card.
+- `pages/bookshelf/authors.vue`: responsive column count for TV screen widths.
+
+**Maintainer note:** the page itself is arguably **not TV-specific** — mobile users could
+benefit too. Flagged for the maintainer's discretion (keep as TV-target-only, or generalize).
+
+**Testing:** open an author from a card; confirm bio scroll → book-grid focus transfer, Up
+reaches the nav bar at the top, and Enter opens a book.
+
+---
+
+# Notes
+
+- **App termination on TV (PR 1):** `finishAndRemoveTask()` + `Process.killProcess()` in `onStop`
+  is necessary because the WebView/JS state goes stale when backgrounded on TV (no swipe-to-close).
+  Runs only on TV.
+- **Podcast episode download (PR 2 / PR 9):** on TV it's easy to D-pad-Enter a podcast episode's
+  download button. Books have a download confirmation dialog; podcast episodes do not — a
+  confirmation dialog would be a welcome addition (open question for the maintainer).
+- **`android.view.View` import:** an early experiment with native `View.setFocusHighlightEnabled(false)`
+  was reverted — the stray green box was our own CSS (a missing `position: relative`), not a native
+  highlight.

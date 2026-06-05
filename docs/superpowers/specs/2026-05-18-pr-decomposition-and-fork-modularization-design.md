@@ -454,7 +454,7 @@ Total upstream addition across all 9 PRs from docs alone: ~225 LOC. Compared to 
 | 8 | Connect-form items + phone smoke | Subset of 42-item |
 | 9 | Author flow on TV + phone smoke | New ~10-item check |
 
-**Playwright (Tier 1) and Maestro (Tier 2) test harnesses** are queued in `todo_abs_tv.md` item 12. Not blocking for this PR series — manual testing on Google TV Streamer 4K and Android 16 phone is the established practice and is sufficient. If the test harnesses land before the PR series completes, retrofit as additive coverage.
+**Playwright (Tier 1) and Maestro (Tier 2) test harnesses** are queued in `todo_abs_app.md` item 12. Not blocking for this PR series — manual testing on Google TV Streamer 4K and Android 16 phone is the established practice and is sufficient. If the test harnesses land before the PR series completes, retrofit as additive coverage.
 
 ---
 
@@ -534,7 +534,7 @@ If maintainer's response to the new plan is "I want X completely different appro
 
 ## 12. Open questions / TBD
 
-None at design approval. Items that emerge during execution will be tracked in `todo_abs_tv.md`.
+None at design approval. Items that emerge during execution will be tracked in `todo_abs_app.md`.
 
 ---
 

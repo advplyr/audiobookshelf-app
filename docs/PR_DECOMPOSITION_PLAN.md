@@ -98,7 +98,7 @@ description flags this for the maintainer's discretion.
 
 Before any upstream PR opens, the fork ships v1.0.10 — a single
 behavior-preserving commit that splits the current 1,675-line
-`plugins/tv-navigation.js` monolith into 17 focused modules under
+`plugins/tv-navigation.js` monolith into 18 focused modules under
 `plugins/tv/`, sharing state through a `tvContext` singleton object.
 
 **Why first:** so the fork and upstream PRs share one code structure. Without
@@ -170,7 +170,7 @@ later for their own conventions.
 - **TV focus system architecture overview:** [`docs/TV_FOCUS_SYSTEM.md`](TV_FOCUS_SYSTEM.md)
 - **End-user TV feature documentation:** [`docs/TV_USER_GUIDE.md`](TV_USER_GUIDE.md)
 - **TV user guide PDF (12.7 MB):** [`docs/TV_USER_GUIDE.pdf`](TV_USER_GUIDE.pdf)
-- **Fork active TODO file:** maintained in `~/.claude/projects/.../memory/todo_abs_tv.md` (private to maintainer)
+- **Fork active TODO file:** maintained in `~/.claude/projects/.../memory/todo_abs_app.md` (private to maintainer)
 
 ---
 
@@ -186,4 +186,4 @@ spec's Section 10 outlines contingencies for the most likely variations.
 
 ---
 
-**Last updated:** 2026-05-18 (plan creation)
+**Last updated:** 2026-06-03 (corrected the module count 17→18 and the fork-TODO filename). The per-PR LOC table still reflects the pre-v1.0.11 split; PRs 3/4/5 shift once v1.0.11's I2/I4/I5 land upstream, so the table is pending re-validation after v1.0.11 ships — see fork TODO item 15. Plan originally created 2026-05-18.

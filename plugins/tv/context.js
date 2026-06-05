@@ -38,6 +38,24 @@ export const tvContext = {
   // correct column.
   lastFocusRect: null,
 
+  // Grid vertical-nav state for the column-stable D-pad fix. `gridIntendedCol`
+  // is the user's chosen column (set only on Left/Right + first focus), kept
+  // SEPARATE from live focus so the native TV focus engine — which re-homes
+  // focus to an edge column when the virtualizer unmounts the focused card —
+  // can't corrupt it. Vertical nav takes the ROW from where focus actually is
+  // but re-asserts `gridIntendedCol`; a focusin watcher (listeners.js) then
+  // re-asserts it every 100ms for ~2s after a hijack (gridCorrectionInterval /
+  // gridCorrectionUntil) to out-persist the engine, time-boxed by the
+  // `lastVerticalNavAt` window so it only acts in the wake of a fast scroll.
+  // All reset on route change.
+  lastGridIndex: null,
+  lastGridPrefix: null,
+  gridItemsPerRow: null,
+  gridIntendedCol: null,
+  lastVerticalNavAt: 0,
+  gridCorrectionInterval: null,
+  gridCorrectionUntil: 0,
+
   // Page focus memory. Saves the focused element selector per route so Back
   // navigation can restore focus to where the user was. TV only.
   pageFocusMemory: {},

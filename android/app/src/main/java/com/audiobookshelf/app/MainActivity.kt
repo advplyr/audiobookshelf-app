@@ -26,6 +26,7 @@ import com.audiobookshelf.app.plugins.AbsDownloader
 import com.audiobookshelf.app.plugins.AbsFileSystem
 import com.audiobookshelf.app.plugins.AbsLogger
 import com.getcapacitor.BridgeActivity
+import com.getcapacitor.WebViewListener
 
 
 class MainActivity : BridgeActivity() {
@@ -99,9 +100,25 @@ class MainActivity : BridgeActivity() {
       }
     }
 
-    // If running on Android TV, inject a CSS class for TV-specific styling
+    // If running on Android TV, inject a CSS class for TV-specific styling.
+    // Primary path: WebViewClient.onPageStarted runs synchronously before the
+    // page's scripts (incl. the Nuxt tv plugin) execute, so the class is
+    // present before TV-mode init checks for it — fixes the CSS-injection race
+    // (I2). super.onCreate() above started the (async) page load, so this
+    // listener is registered before the first onPageStarted dispatches.
+    // Backup path: the original webView.post injection is retained — classList
+    // .add is idempotent, so a redundant late add is harmless and covers any
+    // first-load edge on flaky TV WebViews.
     if (DeviceManager.isAndroidTV(this)) {
       Log.d(tag, "Android TV detected, injecting tv mode class")
+      bridge.addWebViewListener(object : WebViewListener() {
+        override fun onPageStarted(webView: WebView) {
+          webView.evaluateJavascript(
+            "document.documentElement.classList.add('android-tv');",
+            null
+          )
+        }
+      })
       webView.post {
         webView.evaluateJavascript(
           "document.documentElement.classList.add('android-tv');",

@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-25
 **Status:** Design approved, ready for implementation plan
-**Related TODO:** `todo_abs_tv.md` #10
+**Related TODO:** `todo_abs_app.md` #10
 **Depends on:** I8 (extract focus color to CSS variable) — shipped
 
 ## Summary

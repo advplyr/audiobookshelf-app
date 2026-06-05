@@ -19,6 +19,7 @@ import { isVisible, getAllFocusable } from './visibility.js'
 import { scrollParentToReveal } from './scrollHelpers.js'
 import { getElementFingerprint, restoreFromFingerprint } from './focusMemory.js'
 import { saveFocusBeforeOverlay, restoreFocusAfterOverlay } from './overlayFocus.js'
+import { findPlayButton, findVisibleSideDrawer } from './selectors.js'
 import {
   focusFirstContentElement,
   focusAfterPlayerClose,
@@ -132,6 +133,15 @@ function registerRouterHooks(store) {
 
     tvContext.focusHistory.length = 0
     tvContext.lastFocusRect = null
+    tvContext.lastGridIndex = null
+    tvContext.lastGridPrefix = null
+    tvContext.gridItemsPerRow = null
+    tvContext.gridIntendedCol = null
+    tvContext.lastVerticalNavAt = 0
+    if (tvContext.gridCorrectionInterval) {
+      clearInterval(tvContext.gridCorrectionInterval)
+      tvContext.gridCorrectionInterval = null
+    }
     next()
   })
 
@@ -301,7 +311,7 @@ function registerFocusOutHandler(store) {
         return
       }
       // Redirect to Play button on detail pages, or first content element
-      const playBtn = document.querySelector('.btn.bg-success, button.bg-success')
+      const playBtn = findPlayButton()
       if (playBtn && isVisible(playBtn)) {
         playBtn.focus({ preventScroll: true })
       } else {
@@ -319,7 +329,7 @@ function registerOverlayWatchers(store) {
       if (newVal) {
         saveFocusBeforeOverlay()
         setTimeout(() => {
-          const drawer = document.querySelector('.fixed.z-50 .bg-bg.transition-transform:not(.translate-x-64)')
+          const drawer = findVisibleSideDrawer()
           if (drawer) {
             const first = drawer.querySelector('button, a')
             if (first) first.focus()
@@ -397,10 +407,62 @@ function registerEventBusSubscribers(store) {
   })
 }
 
+// Native-focus-engine column correction. When the LazyBookshelf virtualizer
+// unmounts the focused card during fast scroll, the native TV focus engine
+// re-homes focus to an edge column. Right after a vertical move, if focus lands
+// on a grid card in the wrong column, re-focus the intended-column card in that
+// same row. Guarded against any focus-war, and time-boxed to the fast-scroll
+// window so it never overrides a deliberate first-card reset elsewhere.
+function registerGridFocusCorrection() {
+  // Re-assert the intended column for ~2s after a native hijack, one tick per
+  // 100ms. The native focus engine yields with a little persistence, so rather
+  // than a single shot we keep re-focusing the intended-column card until it
+  // sticks. Each tick no-ops the instant focus is already correct (so it can't
+  // thrash a settled focus), only runs at rest (the keydown re-assert owns the
+  // column during an active scroll), and the whole thing is time-boxed by
+  // lastVerticalNavAt so it never touches a deliberate first-card reset.
+  const tick = () => {
+    if (Date.now() > tvContext.gridCorrectionUntil || tvContext.gridIntendedCol == null || !tvContext.gridItemsPerRow) {
+      clearInterval(tvContext.gridCorrectionInterval)
+      tvContext.gridCorrectionInterval = null
+      return
+    }
+    if (tvContext.verticalNavInProgress) return
+    const el = document.activeElement
+    if (!el || !el.id) return
+    const m = el.id.match(/^(.*-card-)(\d+)$/)
+    if (!m) return
+    const epp = tvContext.gridItemsPerRow
+    const index = parseInt(m[2], 10)
+    if (index % epp === tvContext.gridIntendedCol) return // already the intended column
+    const targetIndex = Math.floor(index / epp) * epp + tvContext.gridIntendedCol
+    const target = document.getElementById(m[1] + targetIndex)
+    if (target) {
+      target.focus({ preventScroll: true })
+      tvContext.lastGridIndex = targetIndex
+    }
+  }
+  document.addEventListener('focusin', (e) => {
+    if (tvContext.gridIntendedCol == null || !tvContext.gridItemsPerRow) return
+    if (Date.now() - (tvContext.lastVerticalNavAt || 0) > 1500) return
+    const card = e.target
+    if (!card || !card.id) return
+    const m = card.id.match(/^(.*-card-)(\d+)$/)
+    if (!m) return
+    if (parseInt(m[2], 10) % tvContext.gridItemsPerRow === tvContext.gridIntendedCol) return // already right
+    // Wrong column in the wake of a vertical move — (re)arm the 2s re-assert.
+    tvContext.gridCorrectionUntil = Date.now() + 2000
+    if (!tvContext.gridCorrectionInterval) {
+      tvContext.gridCorrectionInterval = setInterval(tick, 100)
+    }
+  })
+}
+
 export function registerAllTvListeners(store) {
   registerRouterHooks(store)
   registerPlayerWatchers(store)
   registerFocusOutHandler(store)
   registerOverlayWatchers(store)
   registerEventBusSubscribers(store)
+  registerGridFocusCorrection()
 }

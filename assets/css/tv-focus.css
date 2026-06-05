@@ -125,3 +125,8 @@
   outline-offset: -2px;
   border-radius: 50%;
 }
+
+/* ── Loading-overlay dots follow the chosen focus color (TV only, #20) ── */
+.android-tv .tv-focus-dots > div {
+  background-color: var(--tv-focus-color) !important;
+}

@@ -134,5 +134,14 @@ export default function ({ store }) {
   }
 
   checkAndInit()
-  setTimeout(checkAndInit, 1000)
+  // Fallback for the CSS-injection race (I2): if the native android-tv class
+  // lands after this plugin first runs, keep re-checking for up to ~5s.
+  // checkAndInit no-ops once initialized, so this is idempotent.
+  if (!initialized) {
+    let initAttempts = 0
+    const initPoll = setInterval(() => {
+      checkAndInit()
+      if (initialized || ++initAttempts >= 50) clearInterval(initPoll)
+    }, 100)
+  }
 }

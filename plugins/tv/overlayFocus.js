@@ -8,6 +8,7 @@
 
 import { tvContext } from './context.js'
 import { getAllFocusable } from './visibility.js'
+import { findVisibleSideDrawer } from './selectors.js'
 
 export function saveFocusBeforeOverlay() {
   const active = document.activeElement
@@ -42,7 +43,7 @@ export function restoreFocusAfterOverlay() {
  */
 export function getActiveOverlay() {
   // Check for side drawer first (it doesn't use the modal system)
-  const drawerPanel = document.querySelector('.fixed.z-50 .bg-bg.transition-transform:not(.translate-x-64)')
+  const drawerPanel = findVisibleSideDrawer()
   if (drawerPanel) return drawerPanel
 
   // Check for any open modal (the Modal.vue base component adds modal-open to <html>

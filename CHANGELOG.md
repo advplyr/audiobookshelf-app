@@ -4,9 +4,25 @@ All notable changes to the Android TV fork of audiobookshelf-app are documented 
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to a fork-specific patch/minor versioning convention (`android-tv-vX.Y.Z`) tracked separately from the upstream `package.json` version.
 
-Entries below are quoted from `docs/PR_DESCRIPTION.md` where that file has a per-version section; pre-v1.0.6 versions are summarized from the GitHub release notes and `memory/todo_abs_tv.md` Shipped section.
+Entries below are quoted from `docs/PR_DESCRIPTION.md` where that file has a per-version section; pre-v1.0.6 versions are summarized from the GitHub release notes and `memory/todo_abs_app.md` Shipped section.
 
 ## [Unreleased]
+
+The **v1.0.11 bundle** — TV init hardening (I2), spatial-nav performance (I4), selector robustness (I5), and loading-dot color. Implemented on branch `v1.0.11-bundle`; will release as `android-tv-v1.0.11` after the on-device smoke pass.
+
+### Fixed
+
+- **fix(tv): CSS-injection race (I2)** — inject the `android-tv` class at `WebViewClient.onPageStarted` (via a Capacitor `WebViewListener` registered on the bridge) so it lands before the Nuxt TV plugin boots, replacing the previous `webView.post {}` that raced page-script execution. The `webView.post` injection is retained as an idempotent backup, and `plugins/tv/index.js` now polls ~5s for the class as a JS-side fallback. (`MainActivity.kt`, `plugins/tv/index.js`)
+- **fix(tv): grid focus column drift on fast vertical scroll** — on the virtualized bookshelf grids (library / series / collections / playlists), a fast Down-scroll could land focus in the wrong column (deterministically the last column) instead of the one you started in. Root cause: the `LazyBookshelf` virtualizer `el.remove()`s the focused card mid-scroll, and the **native Android-TV focus engine** then re-homes focus to an edge column — invisibly to our JS recovery, which only acts when focus falls to `<body>`. Fix (TV-only, in `plugins/tv/`): track the user's **intended column** in memory (`tvContext.gridIntendedCol`, set only on Left/Right + first focus), and on each Up/Down take the row from where focus actually is but **re-assert the intended column** (`findShelfVerticalTarget` → `(row ± 1) × itemsPerRow + intendedCol`, focused by id). A `focusin` watcher (`plugins/tv/listeners.js`) then re-asserts the intended column every 100 ms for ~2 s after a hijack — out-persisting the engine — each tick a no-op once focus is already correct, gated to the at-rest moment and time-boxed so it never touches a deliberate first-card reset. Geometry still handles grid-exit (ArrowUp → toolbar) and non-shelf pages (authors).
+
+### Changed
+
+- **perf(tv): spatial-nav rect caching (I4)** — `findVerticalTarget` / `findHorizontalTarget` (`plugins/tv/spatialNav.js`) snapshot each candidate's `getBoundingClientRect()` once per keypress into an ephemeral `Map`, eliminating the repeated forced reflows previously incurred inside the filter + `sort` comparators (O(n log n) layout flushes per D-pad press). Also hoisted an invariant container rect out of the `restoreFromFingerprint` loop in `plugins/tv/focusMemory.js`.
+- **refactor(tv): stable selector hooks (I5)** — replaced fragile Tailwind utility-class selectors for the side drawer and primary Play button with `data-tv-overlay="side-drawer"` / `data-tv-target="play-button"`, resolved via a new shared `plugins/tv/selectors.js` (`findVisibleSideDrawer()` / `findPlayButton()`). Drawer hook bound to open-state; play-button hooks on item / episode / playlist / collection detail pages. (`components/app/SideDrawer.vue`, 4 detail pages, `plugins/tv/{overlayFocus,listeners,focusEntry,selectors}.js`)
+
+### Added
+
+- **feat(tv): loading-overlay dots follow the focus color** — on Android TV, `components/ui/LoadingIndicator.vue` dots use `var(--tv-focus-color)` via a `tv-focus-dots` hook + one TV-gated rule in `assets/css/tv-focus.css`, matching the user's chosen focus-ring color live (zero JS). Phone/tablet unchanged (green).
 
 ## [1.0.10] — 2026-06-02 — Internal refactor: modularize tv-navigation.js into plugins/tv/
 
@@ -31,7 +47,7 @@ Entries below are quoted from `docs/PR_DESCRIPTION.md` where that file has a per
   - "Protect android-tv-dpad-navigation" (enforcing): deletion + non-fast-forward + linear history + required signatures + pull request (0 reviewers required, self-approve OK).
   - "Protect release tags" (enforcing): deletion + non-fast-forward on `android-tv-v*`.
 - **chore(security):** Added `.github/workflows/attest-release-apk.yml` — generates Sigstore SLSA-v1.0 build-provenance attestation on every `android-tv-v*` release published. Downstream installers can verify with `gh attestation verify <apk> --repo bilbospocketses/abs-app`. Triggers on `release: published` (not on tag push) so the existing local-APK-build flow is preserved (CI does NOT build the APK — it attests the one you uploaded with the release).
-- **Note on workflow hardening (Phase 3, considered then reverted):** A pass to SHA-pin Actions + add per-job permissions in the 5 inherited workflow files was shipped as PR #13 and immediately reverted as PR #15. Rationale: the workflow files are upstream-owned; modifying them creates ongoing upstream-sync merge cost without value visible to the upstream maintainer in the 9-PR TV series. The hardening is deferred to a goodwill upstream PR (`todo_abs_tv.md` item 17) once the maintainer relationship is established via the 9-PR series acceptance.
+- **Note on workflow hardening (Phase 3, considered then reverted):** A pass to SHA-pin Actions + add per-job permissions in the 5 inherited workflow files was shipped as PR #13 and immediately reverted as PR #15. Rationale: the workflow files are upstream-owned; modifying them creates ongoing upstream-sync merge cost without value visible to the upstream maintainer in the 9-PR TV series. The hardening is deferred to a goodwill upstream PR (`todo_abs_app.md` item 17) once the maintainer relationship is established via the 9-PR series acceptance.
 
 ## [1.0.9] — 2026-05-14 — Upstream v0.13.0-beta sync (cover image + progress sync fixes)
 

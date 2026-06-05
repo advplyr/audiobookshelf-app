@@ -1,18 +1,39 @@
 # TV Focus System — Technical Reference
 
-This document describes the D-pad focus management system for Android TV, implemented in `plugins/tv-navigation.js`. It is intended for developers working on the TV navigation PR or extending TV support.
+This document describes the D-pad focus management system for Android TV, implemented in the `plugins/tv/` module suite (split from the former monolithic `plugins/tv-navigation.js` in v1.0.10). It is intended for developers working on the TV navigation PR or extending TV support.
+
+> **Module map:** the `plugins/tv/` suite is summarized in `CHANGELOG.md` under `[1.0.10]` (the v1.0.10 monolith split) and `[Unreleased]` (the v1.0.11 `selectors.js` addition + the I4 perf / I5 selector work). Function-to-module references below are current as of the v1.0.11 bundle.
 
 ---
 
 ## Architecture Overview
 
-The focus system has three layers:
+The focus system has three core layers, plus a slim dispatcher and a listener/watcher layer:
 
-1. **Spatial Navigation** — `findVerticalTarget()` / `findHorizontalTarget()` pick the nearest focusable element in the pressed direction using bounding rect geometry.
-2. **Fingerprint Restore** — `restoreFromFingerprint()` saves and restores focus position across router navigations (Back button).
-3. **Overlay Focus Trapping** — `handleOverlayNavigation()` traps D-pad navigation inside modals and drawers, with a focus history stack for open/close restore.
+1. **Spatial Navigation** (`plugins/tv/spatialNav.js`) — `findVerticalTarget()` / `findHorizontalTarget()` pick the nearest focusable element in the pressed direction using bounding-rect geometry. Each finder snapshots every candidate's rect once per keypress into an ephemeral `Map` to avoid repeated forced reflows (see *Spatial nav rect caching* below).
+2. **Fingerprint Restore** (`plugins/tv/focusMemory.js`) — `getElementFingerprint()` / `restoreFromFingerprint()` save and restore focus position across router navigations (Back button).
+3. **Overlay Focus Trapping** (`plugins/tv/overlayFocus.js`) — `handleOverlayNavigation()` / `getActiveOverlay()` trap D-pad navigation inside modals and drawers, with a focus-history stack (`tvContext.focusHistory`) for open/close restore.
 
-All TV behavior is gated behind the `android-tv` CSS class on `<html>` (injected by `MainActivity.kt`) or the `isAndroidTv` Vuex state.
+The Nuxt plugin entry + the slim `handleKeyDown` dispatcher live in `plugins/tv/index.js`; router hooks, player/overlay watchers, the focus-out recovery handler, and the eventBus subscribers are all registered by `registerAllTvListeners()` in `plugins/tv/listeners.js`. Shared singleton state lives in `plugins/tv/context.js` (the `tvContext` object).
+
+All TV behavior is gated behind the `android-tv` CSS class on `<html>` (injected by `MainActivity.kt` at `WebViewClient.onPageStarted` via a Capacitor `WebViewListener`, with a `webView.post` backup and a ~5s JS-side poll in `plugins/tv/index.js` — the I2 race fix) or the `isAndroidTv` Vuex state.
+
+### Spatial nav rect caching (I4, v1.0.11)
+
+`getBoundingClientRect()` forces a synchronous layout. The two finders in `spatialNav.js` previously called it once per candidate *inside* their `filter` and `sort` comparators — O(n log n) forced reflows on every D-pad press, measurable input lag on low-power TV hardware (Chromecast with Google TV, Fire TV Stick). As of the v1.0.11 bundle, each finder snapshots every candidate's rect once into an ephemeral per-call `Map` and reads from the Map thereafter (one reflow per focusable; the Map is per-keypress, so no invalidation is needed). `restoreFromFingerprint()` in `focusMemory.js` applies the same idea — it hoists the invariant scroll-container rect out of its non-unique-ID position-match loop.
+
+---
+
+## Stable Selector Hooks (`data-*` contract, I5)
+
+TV overlay/target detection uses dedicated `data-*` attributes rather than Tailwind utility-class selectors, so maintainer-side class renames don't silently break D-pad navigation. Resolved through `plugins/tv/selectors.js` (single source of truth):
+
+| Hook | Set on | Read by |
+|---|---|---|
+| `data-tv-overlay="side-drawer"` | side-drawer panel in `components/app/SideDrawer.vue` (bound to `show` — present only while open) | `findVisibleSideDrawer()` → `getActiveOverlay()` (`overlayFocus.js`) + drawer-open watcher (`listeners.js`) |
+| `data-tv-target="play-button"` | primary Play `<ui-btn>` on item / episode / playlist / collection detail pages | `findPlayButton()` → `focusFirstContentElement()` (`focusEntry.js`) + redirect handler (`listeners.js`) |
+
+When adding a new overlay or primary action that TV nav must find, add the documented `data-*` attribute rather than relying on a styling class.
 
 ---
 
@@ -24,7 +45,8 @@ The runtime override pipeline:
 
 - `pages/settings.vue` renders a TV-only "TV Settings" section hosting `components/ui/TvFocusColorPicker.vue` (7 curated presets, default `#1ad691`).
 - Selection dispatches `user/updateUserSettings` with `{ tvFocusColor }`, which persists via `$localStore.setUserSettings` and emits `user-settings` on `$eventBus`.
-- A subscriber inside `registerTvListeners` in `plugins/tv-navigation.js` writes the chosen hex into `--tv-focus-color` on `<html>`. An initial-apply call before the listener handles the case where `loadUserSettings` finishes before TV nav init runs. Stored values not in the `VALID_TV_FOCUS_HEXES` allowlist self-heal back to default.
+- The preset allowlist (`VALID_TV_FOCUS_HEXES`) and the `applyTvFocusColor(value, store)` helper live in `plugins/tv/focusColor.js`. The helper writes the chosen hex into `--tv-focus-color` on `<html>`; a stored value not in the allowlist self-heals back to the `#1ad691` default (it dispatches a corrective `user/updateUserSettings`).
+- `registerEventBusSubscribers()` — one of the five registrations orchestrated by `registerAllTvListeners()` in `plugins/tv/listeners.js` — does an initial `applyTvFocusColor(store.state.user?.settings?.tvFocusColor, store)` (covering the case where `loadUserSettings` finishes before TV-nav init runs), then subscribes to the `user-settings` event and re-applies on every later change.
 
 ---
 
@@ -87,10 +109,18 @@ Grid pages (Library, Series, Collections, Playlists) use a virtualizer that only
 3. First lookup attempt may fail (card not rendered yet)
 4. Retry at 250ms succeeds after virtualizer renders
 
-During rapid vertical scrolling, the virtualizer may detach the currently focused card:
-- `lastFocusRect` tracks the last known card position
-- `findVerticalTarget()` uses `lastFocusRect` when `document.activeElement === body` (focus lost)
-- This maintains the correct column during fast scroll even when the focused card is temporarily removed from the DOM
+During rapid vertical scrolling, the virtualizer `el.remove()`s the currently focused card, which drops focus to `<body>` — and the **native Android-TV focus engine then re-homes focus to an edge column** (deterministically the last). This slips past the JS recovery: the focus-out handler only acts when focus falls to `<body>`, but the engine parks focus on a real, wrong-column card. Reading the column from live `activeElement` therefore drifts to that edge column. Column stability is maintained structurally instead (next section); `lastFocusRect` now only feeds the legacy geometric `findVerticalTarget` fallback.
+
+### Column stability during fast scroll (native focus engine)
+
+Shelf-grid cards encode their position in their id (`book-card-42` → absolute index 42; column = `index % itemsPerRow`), so vertical nav does not trust live geometry:
+
+- **Intended column** (`tvContext.gridIntendedCol`) — the user's chosen column, set **only** on Left/Right + first focus, never from live focus, so a native hijack can't corrupt it. `gridItemsPerRow` is read off the in-view shelf's card count (monotonic max).
+- **Vertical nav** (`findShelfVerticalTarget` in `spatialNav.js`, tried before the geometric finder in `gridNav.js`) takes the **row** from where focus actually is but re-asserts the **intended column**: target = `(row ± 1) × itemsPerRow + intendedCol`, focused by id — so a hijack to the last column is undone on the next keypress.
+- **Resting correction** — a `focusin` watcher in `listeners.js` re-asserts the intended column every 100 ms for ~2 s after a hijack, out-persisting the engine. Each tick no-ops once focus is already correct, only runs at rest (the keydown re-assert owns the column mid-scroll), and is time-boxed by `tvContext.lastVerticalNavAt` so it never overrides a deliberate first-card reset.
+- The geometric `findVerticalTarget` fallback (grid-exit ArrowUp → toolbar, non-shelf Authors flex-grid) **must not write `gridIntendedCol`** — doing so poisoned the intended column with the engine's hijacked column, which was the original bug.
+
+All grid state (`gridIntendedCol`, `lastGridIndex`, `lastGridPrefix`, `gridItemsPerRow`, `lastVerticalNavAt`, `gridCorrectionInterval`/`Until`) lives on `tvContext` and resets on route change.
 
 ---
 
@@ -226,7 +256,7 @@ The viewport check (step 3) is critical for preventing the side drawer's Disconn
 | All TV code gated behind `android-tv` class | Zero impact on phone/tablet builds |
 | Spatial "beam model" navigation | Horizontal stays in row, vertical finds nearest row — feels natural on grid layouts |
 | Focus memory uses fingerprints, not element references | Elements are destroyed and recreated on page navigation; fingerprints survive re-renders |
-| `lastFocusRect` for rapid scroll recovery | Virtualizer detaches cards during scroll — saved position maintains column alignment |
+| Structural column re-assert during fast scroll | The native focus engine hijacks focus to an edge column when the virtualizer unmounts the focused card; tracking the intended column separately and re-asserting it (keydown + a `focusin` watcher) beats the engine where live-geometry reads cannot |
 | `ensureScroll` before lookup (not parallel) | Prevents timing race where elements are rejected as off-screen before scroll applies |
 | Strict `isVisible` with viewport check | Prevents translated/off-screen drawer elements from stealing focus |
 | `verticalNavInProgress` guard | Prevents `focusout` recovery from fighting virtualizer card re-attachment during scroll |

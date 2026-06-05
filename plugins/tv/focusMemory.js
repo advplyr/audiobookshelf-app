@@ -155,10 +155,12 @@ export function restoreFromFingerprint(fingerprint) {
           el = candidates[0]
         } else if (candidates.length > 1) {
           let bestDist = Infinity
+          // Container rect is invariant across candidates — compute once (I4).
+          const containerRect = scrollContainer?.getBoundingClientRect()
+          const containerScrollTop = scrollContainer?.scrollTop || 0
           for (const candidate of candidates) {
             const rect = candidate.getBoundingClientRect()
-            const containerRect = scrollContainer?.getBoundingClientRect()
-            const relTop = containerRect ? rect.top - containerRect.top + (scrollContainer?.scrollTop || 0) : rect.top
+            const relTop = containerRect ? rect.top - containerRect.top + containerScrollTop : rect.top
             const dist = Math.abs(relTop - fingerprint.relativeTop) + Math.abs(rect.left - fingerprint.relativeLeft)
             if (dist < bestDist) {
               bestDist = dist
