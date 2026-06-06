@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full h-full p-4">
+  <div id="account-page" class="w-full h-full p-4 overflow-y-auto">
     <ui-text-input-with-label :value="serverAddress" :label="$strings.LabelHost" disabled class="my-2" />
 
     <ui-text-input-with-label :value="username" :label="$strings.LabelUsername" disabled class="my-2" />
