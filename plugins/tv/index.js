@@ -103,7 +103,7 @@ function handleKeyDown(event) {
   }
 
   // Generic grid navigation (terminal handler)
-  handleGridNav(event, key, activeEl)
+  handleGridNav(event, key)
 }
 
 // ── Initialization ──

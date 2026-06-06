@@ -8,12 +8,15 @@ Entries below are quoted from `docs/PR_DESCRIPTION.md` where that file has a per
 
 ## [Unreleased]
 
-The **v1.0.11 bundle** — TV init hardening (I2), spatial-nav performance (I4), selector robustness (I5), and loading-dot color. Implemented on branch `v1.0.11-bundle`; will release as `android-tv-v1.0.11` after the on-device smoke pass.
+## [1.0.11] — 2026-06-06
+
+The **v1.0.11 bundle** — TV init hardening (I2), spatial-nav performance (I4), selector robustness (I5), loading-dot color, and a side-drawer fix that hides the browser-only "Go to Web Client" action on Android TV. Verified via the full 13-batch on-device smoke on the Google TV Streamer 4K.
 
 ### Fixed
 
 - **fix(tv): CSS-injection race (I2)** — inject the `android-tv` class at `WebViewClient.onPageStarted` (via a Capacitor `WebViewListener` registered on the bridge) so it lands before the Nuxt TV plugin boots, replacing the previous `webView.post {}` that raced page-script execution. The `webView.post` injection is retained as an idempotent backup, and `plugins/tv/index.js` now polls ~5s for the class as a JS-side fallback. (`MainActivity.kt`, `plugins/tv/index.js`)
 - **fix(tv): grid focus column drift on fast vertical scroll** — on the virtualized bookshelf grids (library / series / collections / playlists), a fast Down-scroll could land focus in the wrong column (deterministically the last column) instead of the one you started in. Root cause: the `LazyBookshelf` virtualizer `el.remove()`s the focused card mid-scroll, and the **native Android-TV focus engine** then re-homes focus to an edge column — invisibly to our JS recovery, which only acts when focus falls to `<body>`. Fix (TV-only, in `plugins/tv/`): track the user's **intended column** in memory (`tvContext.gridIntendedCol`, set only on Left/Right + first focus), and on each Up/Down take the row from where focus actually is but **re-assert the intended column** (`findShelfVerticalTarget` → `(row ± 1) × itemsPerRow + intendedCol`, focused by id). A `focusin` watcher (`plugins/tv/listeners.js`) then re-asserts the intended column every 100 ms for ~2 s after a hijack — out-persisting the engine — each tick a no-op once focus is already correct, gated to the at-rest moment and time-boxed so it never touches a deliberate first-card reset. Geometry still handles grid-exit (ArrowUp → toolbar) and non-shelf pages (authors).
+- **fix(tv): hide "Go to Web Client" in the side drawer on Android TV** — Android TV devices typically have no web browser, so the side drawer's "Go to Web Client" action dead-ended when invoked. It is now gated behind the existing `isAndroidTv` store state in `components/app/SideDrawer.vue` and hidden on TV; phone and tablet are unchanged.
 
 ### Changed
 

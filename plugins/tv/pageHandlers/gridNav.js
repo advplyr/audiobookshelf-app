@@ -16,7 +16,7 @@ import { getScrollBehavior, scrollParentToReveal, findPageScrollContainer } from
 import { isVisible } from '../visibility.js'
 import { findHorizontalTarget, findVerticalTarget, findShelfVerticalTarget, rememberGridCol, rememberGridRow } from '../spatialNav.js'
 
-export function handleGridNav(event, key, activeEl) {
+export function handleGridNav(event, key) {
   if (key === 'ArrowLeft' || key === 'ArrowRight') {
     const next = findHorizontalTarget(key)
     if (next) {
