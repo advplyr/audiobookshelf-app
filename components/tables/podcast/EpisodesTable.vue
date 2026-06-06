@@ -32,7 +32,7 @@
         <div v-show="filterKey !== 'all' && episodesAreFiltered" class="absolute top-0 right-0 w-1.5 h-1.5 rounded-full bg-success border border-green-300 shadow-sm z-10 pointer-events-none" />
       </button>
 
-      <div class="flex items-center border border-white border-opacity-25 rounded px-2" @click="clickSort">
+      <div tabindex="0" class="flex items-center border border-white border-opacity-25 rounded px-2 cursor-pointer" @click="clickSort" @keydown.enter.prevent="clickSort">
         <p class="text-sm text-fg">{{ sortText }}</p>
         <span class="material-symbols ml-1 text-fg">{{ sortDesc ? 'arrow_drop_down' : 'arrow_drop_up' }}</span>
       </div>
