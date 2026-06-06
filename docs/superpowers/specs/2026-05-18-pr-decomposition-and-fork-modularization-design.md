@@ -2,8 +2,34 @@
 
 **Date:** 2026-05-18
 **Author:** Jamie Chapman (jchapz30@gmail.com) with Claude
-**Status:** Design approved; awaiting execution authorization
+**Status:** Design approved; execution in progress (Wave 1 not yet opened)
 **Supersedes:** ad-hoc plan to keep `tv-navigation.js` monolithic on upstream PR #1843
+
+---
+
+## ⟳ Re-validation note (2026-06-06, after v1.0.11 shipped)
+
+This spec was written 2026-05-18 as a **9-PR** plan. It is now a **10-PR**
+series. The canonical, current numbering and per-PR sizing live in
+[`docs/PR_DECOMPOSITION_PLAN.md`](../../PR_DECOMPOSITION_PLAN.md); the section
+numbering in **this** spec still uses the original 9-PR scheme except where
+noted. Translation:
+
+- **New PR3** inserted in Wave 1: *hide "Go to Web Client" in the side drawer on
+  Android TV* (~19 LOC, `components/app/SideDrawer.vue`; gated on `isAndroidTv`,
+  shares the file with PR2). The former PRs 3-9 shift to **4-10**.
+- **Engine kit** = this spec's "PR4" = **now PR5** (~1,630 LOC / 17 files).
+- **Engine integration** = this spec's "PR5" = **now PR6** (~615 LOC).
+- **Module roster refreshed** (§3.2): the live `plugins/tv/` tree is **19 files**
+  (was 17 planned). Added since this spec: `selectors.js` (I5 `data-*` target
+  finders), `pageHandlers/navBarEscape.js`, `pageHandlers/playerNav.js`. The
+  planned `pageHandlers/streamContainer.js` is not in the live tree
+  (fullscreen-player keydown now lives in `playerNav.js`). The v1.0.11
+  column-drift fix grew `spatialNav.js`, `gridNav.js`, `listeners.js`, and
+  `context.js`.
+- Architecture decision (§9, external files) is **unchanged and confirmed in
+  the clear** — the maintainer never requested inlining; the fork publicly
+  posted the decompose-plus-docs-split approach on PR #1843 (2026-05-25).
 
 ---
 
@@ -85,29 +111,31 @@ Every other module imports `tvContext` and reads/writes via `tvContext.lastFocus
 - *ESM live bindings of `let` exports:* read-only across modules; doesn't fit mutable state needs.
 - *Pass context as first arg to every helper:* extremely verbose; every call site changes.
 
-### 3.2 File layout in `plugins/tv/` (17 files, ~2,100 LOC total)
+### 3.2 File layout in `plugins/tv/` (19 files, ~2,250 LOC total — refreshed 2026-06-06)
 
 | File | LOC | Contents | PR |
 |---|---|---|---|
-| `context.js` | ~30 | Singleton `tvContext` object | 4 |
-| `visibility.js` | ~150 | `isVisible`, `getAllFocusable`, `centerOf`, `isSameRow` — pure DOM/geometry helpers | 4 |
-| `scrollHelpers.js` | ~100 | `findPageScrollContainer`, `findScrollableParent`, `scrollParentToReveal`, `getScrollBehavior`, `isDetailScrollContainer` | 4 |
-| `focusMemory.js` | ~250 | `getElementFingerprint`, `buildStructuralPath`, `findByStructuralPath`, `restoreFromFingerprint` — fingerprint system | 4 |
-| `spatialNav.js` | ~200 | `findHorizontalTarget`, `findVerticalTarget` — beam-model navigators | 4 |
-| `overlayFocus.js` | ~200 | `getActiveOverlay`, `saveFocusBeforeOverlay`, `restoreFocusAfterOverlay`, `handleOverlayNavigation` | 4 |
-| `focusColor.js` | ~30 | `applyTvFocusColor`, `VALID_TV_FOCUS_HEXES`, `DEFAULT_TV_FOCUS_HEX` | 4 |
-| `focusEntry.js` | ~200 | `focusFirstContentElement`, `isGridPage`, `focusAfterPlayerClose`, `refocusAfterContentChange` | 4 |
-| `pageHandlers/episodeRow.js` | ~110 | `handleEpisodeRow` — podcast/audiobook track row keydown | 4 |
-| `pageHandlers/logsContainer.js` | ~55 | `handleLogsContainer` — logs scroll-page keydown | 4 |
-| `pageHandlers/statsPage.js` | ~85 | `handleStatsPage` — stats page keydown + chart focus | 4 |
-| `pageHandlers/itemPage.js` | ~25 | `handleItemPage` — book/podcast detail keydown | 4 |
-| `pageHandlers/authorPage.js` | ~55 | `handleAuthorPage` — author detail keydown | 4 |
-| `pageHandlers/streamContainer.js` | ~15 | `handleStreamContainer` — stream/transcode page keydown | 4 |
-| `pageHandlers/gridNav.js` | ~95 | `handleGridArrowUp` + `handleGridArrowLeftRight` — grid-page horizontal/vertical | 4 |
-| `listeners.js` | ~400 | `registerRouterHooks`, `registerPlayerWatchers`, `registerModalWatcher`, `registerDrawerWatcher`, `registerEventBusSubscribers` | 5 |
-| `index.js` | ~150 | Nuxt plugin default export, `checkAndInit`, global keydown listener, dispatcher to pageHandlers | 5 |
+| `context.js` | 83 | Singleton `tvContext` object (incl. intended-column state from the column-drift fix) | 4 |
+| `selectors.js` | 21 | `findPlayButton`, `findVisibleSideDrawer` — stable `data-*` target finders (I5; replaced fragile Tailwind-class selectors) | 4 |
+| `visibility.js` | 47 | `isVisible`, `getAllFocusable`, `centerOf`, `isSameRow` — pure DOM/geometry helpers | 4 |
+| `scrollHelpers.js` | 124 | `findPageScrollContainer`, `findScrollableParent`, `scrollParentToReveal`, `getScrollBehavior`, `isDetailScrollContainer` | 4 |
+| `focusMemory.js` | 223 | `getElementFingerprint`, `buildStructuralPath`, `findByStructuralPath`, `restoreFromFingerprint` — fingerprint system | 4 |
+| `spatialNav.js` | 235 | `findHorizontalTarget`, `findVerticalTarget` — beam-model navigators (grew with the column-drift intended-column tracking) | 4 |
+| `overlayFocus.js` | 92 | `getActiveOverlay`, `saveFocusBeforeOverlay`, `restoreFocusAfterOverlay`, `handleOverlayNavigation` | 4 |
+| `focusColor.js` | 25 | `applyTvFocusColor`, `VALID_TV_FOCUS_HEXES`, `DEFAULT_TV_FOCUS_HEX` | 4 |
+| `focusEntry.js` | 131 | `focusFirstContentElement`, `isGridPage`, `focusAfterPlayerClose`, `refocusAfterContentChange` | 4 |
+| `pageHandlers/episodeRow.js` | 124 | `handleEpisodeRow` — podcast/audiobook track row keydown | 4 |
+| `pageHandlers/logsContainer.js` | 64 | `handleLogsContainer` — logs scroll-page keydown | 4 |
+| `pageHandlers/statsPage.js` | 94 | `handleStatsPage` — stats page keydown + chart focus | 4 |
+| `pageHandlers/itemPage.js` | 40 | `handleItemPage` — book/podcast detail keydown | 4 |
+| `pageHandlers/authorPage.js` | 68 | `handleAuthorPage` — author detail keydown | 4 |
+| `pageHandlers/gridNav.js` | 122 | `handleGridArrowUp` + `handleGridArrowLeftRight` — grid-page nav (grew with the column-drift fix) | 4 |
+| `pageHandlers/navBarEscape.js` | 38 | `handleNavBarEscape` — Up-from-content escapes to the appbar back button | 4 |
+| `pageHandlers/playerNav.js` | 102 | `handlePlayerNav` — fullscreen audio-player D-pad nav + Back-to-close (the spec's planned `streamContainer.js` no longer exists) | 4 |
+| `listeners.js` | 468 | `registerRouterHooks`, `registerPlayerWatchers`, `registerModalWatcher`, `registerDrawerWatcher`, `registerEventBusSubscribers` (+ column-drift focusin watcher) | 5 |
+| `index.js` | 147 | Nuxt plugin default export, `checkAndInit`, global keydown listener, dispatcher to pageHandlers | 5 |
 
-**Total: ~2,150 LOC** (current: 1,675 + ~475 of import statements, exports, JSDoc, and module-level scaffolding). Trade-off accepted — per-file reviewability >> the ~28% LOC growth from modularization overhead.
+**Total: 2,248 LOC** across 19 files (live count, 2026-06-06; the former monolith was 1,675 — the ~34% growth is modularization scaffolding plus the v1.0.11 column-drift fix). The **PR column uses this spec's original 9-PR labels** (engine kit = PR4 = **now PR5**; integration = PR5 = **now PR6** — see the re-validation note above). Trade-off accepted — per-file reviewability >> the LOC growth.
 
 ### 3.3 Dependency graph
 
@@ -540,7 +568,12 @@ None at design approval. Items that emerge during execution will be tracked in `
 
 ## Appendix A: file-by-file mapping (`tv-navigation.js` → `plugins/tv/*`)
 
-Approximate line ranges in current `plugins/tv-navigation.js` → target file:
+**Historical (pre-v1.0.10).** This maps the original 1,675-line monolith —
+which no longer exists — onto the modules it was split into. The live roster is
+§3.2 (refreshed 2026-06-06); note that `streamContainer` below was not carried
+over as its own file (fullscreen-player keydown now lives in `playerNav.js`),
+and `selectors.js`/`navBarEscape.js` were added later. Approximate line ranges
+in the former `plugins/tv-navigation.js` → target file:
 
 | Source line range | Function(s) | Target file |
 |---|---|---|
