@@ -27,7 +27,8 @@ class AbsDatabaseWeb extends WebPlugin {
       serverConnectionConfigs: [],
       lastServerConnectionConfigId: null,
       currentLocalPlaybackSession: null,
-      deviceSettings: {}
+      deviceSettings: {},
+      isAndroidTv: false
     }
     return deviceData
   }
