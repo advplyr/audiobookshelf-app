@@ -50,6 +50,22 @@ class AbsDownloader : Plugin() {
     folderScanner = FolderScanner(mainActivity)
     apiHandler = ApiHandler(mainActivity)
     downloadItemManager = DownloadItemManager(downloadManager, folderScanner, mainActivity, clientEventEmitter)
+
+    // Resume any downloads that were interrupted by an app restart
+    downloadItemManager.restoreDownloadQueue()
+  }
+
+  // Re-emit any in-progress download items when JS registers its listener. This handles the case
+  // where restoreDownloadQueue() ran before the WebView loaded, so the initial onDownloadItem
+  // events were dropped. The JS store bootstraps from these re-emitted events.
+  @PluginMethod(returnType = PluginMethod.RETURN_NONE)
+  override fun addListener(call: PluginCall) {
+    super.addListener(call)
+    if (call.getString("eventName") == "onDownloadItem" && downloadItemManager.downloadItemQueue.isNotEmpty()) {
+      downloadItemManager.downloadItemQueue.forEach { item ->
+        notifyListeners("onDownloadItem", JSObject(jacksonMapper.writeValueAsString(item)))
+      }
+    }
   }
 
   @PluginMethod

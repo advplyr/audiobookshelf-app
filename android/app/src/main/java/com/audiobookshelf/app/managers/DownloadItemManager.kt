@@ -75,6 +75,60 @@ class DownloadItemManager(
     checkUpdateDownloadQueue()
   }
 
+  /**
+   * Restores any download items that were persisted to disk and resumes them. Called once on app
+   * startup. Parts whose files already exist at their final destination are skipped by the queue's
+   * existing file-existence check; the rest are re-downloaded.
+   */
+  fun restoreDownloadQueue() {
+    val savedItems = DeviceManager.dbManager.getDownloadItems()
+    if (savedItems.isEmpty()) return
+
+    Log.i(tag, "Restoring ${savedItems.size} persisted download item(s) from disk")
+
+    var restoredCount = 0
+    savedItems.forEach { downloadItem ->
+      // Skip anything already in the in-memory queue
+      if (downloadItemQueue.any { it.id == downloadItem.id }) return@forEach
+
+      // Reset transient per-part state so the queue re-evaluates every part. getNextDownloadItemParts()
+      // only picks parts with a null downloadId, so a part that was mid-download when the app died must
+      // be reset or it would never resume. Already-finished parts are re-detected by the file-existence
+      // check in processDownloadItemParts().
+      downloadItem.downloadItemParts.forEach { part ->
+        part.downloadId = null
+        part.completed = false
+        part.moved = false
+        part.isMoving = false
+        part.failed = false
+        part.progress = 0
+        part.bytesDownloaded = 0
+
+        // Remove any stale partial temp file from an interrupted external download. The normal build
+        // path deletes these before queueing; the restore path bypasses it, and DownloadManager fails
+        // if the destination already exists.
+        if (!part.isInternalStorage) {
+          part.destinationUri.path?.let { tempPath ->
+            val tempFile = File(tempPath)
+            if (tempFile.exists()) {
+              Log.d(tag, "Removing stale temp file on restore: $tempPath")
+              tempFile.delete()
+            }
+          }
+        }
+      }
+
+      downloadItemQueue.add(downloadItem)
+      clientEventEmitter.onDownloadItem(downloadItem)
+      restoredCount++
+    }
+
+    if (restoredCount > 0) {
+      Log.i(tag, "Resuming $restoredCount restored download item(s)")
+      checkUpdateDownloadQueue()
+    }
+  }
+
   /** Checks and updates the download queue. */
   private fun checkUpdateDownloadQueue() {
     for (downloadItem in downloadItemQueue) {
@@ -99,13 +153,41 @@ class DownloadItemManager(
 
   /** Processes the download item parts. */
   private fun processDownloadItemParts(nextDownloadItemParts: List<DownloadItemPart>) {
-    nextDownloadItemParts.forEach {
-      if (it.isInternalStorage) {
-        startInternalDownload(it)
+    val skippedItemIds = mutableSetOf<String>()
+
+    nextDownloadItemParts.forEach { part ->
+      if (isFileAlreadyDownloaded(part)) {
+        Log.i(tag, "Skipping already-downloaded file: ${part.filename}")
+        part.completed = true
+        part.moved = true
+        part.bytesDownloaded = part.fileSize
+        part.progress = 100
+        part.downloadId = -1L
+        clientEventEmitter.onDownloadItemPartUpdate(part)
+        skippedItemIds.add(part.downloadItemId)
+      } else if (part.isInternalStorage) {
+        startInternalDownload(part)
       } else {
-        startExternalDownload(it)
+        startExternalDownload(part)
       }
     }
+
+    skippedItemIds.forEach { id ->
+      downloadItemQueue.find { it.id == id }?.let { checkDownloadItemFinished(it) }
+    }
+
+    // If all parts in this batch were skipped, the watch loop won't start.
+    // Kick off another queue check to process any remaining unscheduled parts.
+    if (skippedItemIds.isNotEmpty() && currentDownloadItemParts.isEmpty()) {
+      GlobalScope.launch(Dispatchers.Main) { checkUpdateDownloadQueue() }
+    }
+  }
+
+  /** Returns true if a file already exists at the final destination with the expected size. */
+  private fun isFileAlreadyDownloaded(part: DownloadItemPart): Boolean {
+    val file = File(part.finalDestinationPath)
+    if (!file.exists()) return false
+    return if (part.fileSize > 0) file.length() == part.fileSize else file.length() > 0
   }
 
   /** Starts an internal download. */
