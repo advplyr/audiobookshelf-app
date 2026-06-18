@@ -295,12 +295,17 @@
   "MessageAudiobookshelfServerNotConnected": "Servidor Audiobookshelf não conectado",
   "MessageAudiobookshelfServerRequired": "<strong>Importante!</strong> Esse aplicativo foi desenvolvido para funcionar com um servidor Audiobookshelf que você ou algum conhecido seu está mantendo. Esse aplicativo não oferece qualquer conteúdo.",
   "MessageBookshelfEmpty": "Estante vazia",
+  "MessageConfirmAppExit": "Deseja sair do aplicativo?",
+  "MessageConfirmDeleteEpisodeDownloadQueue": "Tem certeza de que deseja limpar a fila de downloads de episódios?",
   "MessageConfirmDeleteLocalEpisode": "Remover episódio local \"{0}\" do seu dispositivo? O arquivo no servidor não será afetado.",
   "MessageConfirmDeleteLocalFiles": "Remover arquivos locais deste item do seu dispositivo? Os arquivos no servidor e o seu progresso não serão afetados.",
+  "MessageConfirmDeleteServerConfig": "Remover esta configuração do servidor?",
+  "MessageConfirmDeleteServerEpisode": "Tem certeza de que deseja excluir o episódio \"{0}\" do servidor?\nAviso: Isso excluirá o arquivo de áudio.",
   "MessageConfirmDisableAutoTimer": "Tem certeza de que deseja desabilitar o timer automático para o resto do dia? O timer será re-ativado ao final do período do timer automático ou se você reiniciar o aplicativo.",
   "MessageConfirmDiscardProgress": "Tem certeza de que deseja resetar o seu progresso?",
   "MessageConfirmDownloadUsingCellular": "Você irá fazer o download usando dados do celular. Isso pode incidir em cobrança por sua operadora. Deseja continuar?",
   "MessageConfirmMarkAsFinished": "Tem certeza de que deseja marcar esse item como concluído?",
+  "MessageConfirmPlaybackTime": "Iniciar reprodução para \"{0}\" em {1}?",
   "MessageConfirmRemoveBookmark": "Tem certeza de que deseja remover o marcador?",
   "MessageConfirmStreamingUsingCellular": "Você irá fazer o streaming usando dados do celular. Isso pode incidir em cobrança por sua operadora. Deseja continuar?",
   "MessageDiscardProgress": "Descartar Progresso",
@@ -365,5 +370,7 @@
   "ToastPodcastCreateSuccess": "Podcast criado",
   "ToastRSSFeedCloseFailed": "Falha ao fechar feed RSS",
   "ToastRSSFeedCloseSuccess": "Feed RSS fechado",
-  "ToastStreamingNotAllowedOnCellular": "Streaming não é permitido usando dados do celular"
+  "ToastStreamingNotAllowedOnCellular": "Streaming não é permitido usando dados do celular",
+  "UnitMinutesShort": "{0}m",
+  "UnitSecondsShort": "{0}s"
 }
