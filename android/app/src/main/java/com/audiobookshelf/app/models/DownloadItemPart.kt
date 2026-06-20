@@ -47,7 +47,7 @@ data class DownloadItemPart(
       }
 
       val downloadUri = Uri.parse(downloadUrl)
-      Log.d("DownloadItemPart", "Audio File Destination Uri: $destinationUri | Final Destination Uri: $finalDestinationUri | Download URI $downloadUri")
+      Log.d("DownloadItemPart", "Audio File Destination Uri: $destinationUri | Final Destination Uri: $finalDestinationUri | Server Path $serverPath")
       return DownloadItemPart(
         id = DeviceManager.getBase64Id(finalDestinationFile.absolutePath),
         downloadItemId,

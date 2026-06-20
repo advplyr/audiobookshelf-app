@@ -28,32 +28,70 @@ public class AbsDownloader: CAPPlugin, CAPBridgedPlugin, URLSessionDownloadDeleg
     private let progressStatusQueue = DispatchQueue(label: "progress-status-queue", attributes: .concurrent)
     private var downloadItemProgress = [String: DownloadItem]()
     private var monitoringProgressTimer: Timer?
+
+    // Download queue management
+    private let downloadQueueLock = NSLock()
+    private var pendingDownloadTasks: [DownloadItemPartTask] = []
+    private var activeDownloadTasks: Set<String> = [] // Track active task IDs
+    private let maxConcurrentDownloads = 3
     
     
+    // MARK: - Download Queue Management
+
+    private func startNextDownloadInQueue() {
+        downloadQueueLock.lock()
+        defer { downloadQueueLock.unlock() }
+
+        // Start downloads up to the max concurrent limit
+        while activeDownloadTasks.count < maxConcurrentDownloads && !pendingDownloadTasks.isEmpty {
+            let nextTask = pendingDownloadTasks.removeFirst()
+            activeDownloadTasks.insert(nextTask.partId)
+            AbsLogger.info(message: "Starting download for \(nextTask.filename) (\(activeDownloadTasks.count)/\(maxConcurrentDownloads) active, \(pendingDownloadTasks.count) pending)")
+            nextTask.task.resume()
+        }
+    }
+
+    private func markDownloadTaskCompleted(_ taskId: String) {
+        downloadQueueLock.lock()
+        activeDownloadTasks.remove(taskId)
+        downloadQueueLock.unlock()
+
+        // Try to start the next download
+        startNextDownloadInQueue()
+    }
+
+
     // MARK: - Progress handling
-    
+
     public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         handleDownloadTaskUpdate(downloadTask: downloadTask) { downloadItem, downloadItemPart in
             let realm = try Realm()
+            let partId = downloadItemPart.id
+
+            // Get fresh reference to the object in this realm
+            guard let liveDownloadItemPart = realm.object(ofType: DownloadItemPart.self, forPrimaryKey: partId) else {
+                throw LibraryItemDownloadError.downloadItemPartNotFound
+            }
+
             try realm.write {
-                downloadItemPart.bytesDownloaded = downloadItemPart.fileSize
-                downloadItemPart.progress = 100
-                downloadItemPart.completed = true
+                liveDownloadItemPart.bytesDownloaded = liveDownloadItemPart.fileSize
+                liveDownloadItemPart.progress = 100
+                liveDownloadItemPart.completed = true
             }
             
             do {
                 // Move the downloaded file into place
-                guard let destinationUrl = downloadItemPart.destinationURL else {
+                guard let destinationUrl = liveDownloadItemPart.destinationURL else {
                     throw LibraryItemDownloadError.downloadItemPartDestinationUrlNotDefined
                 }
                 try? FileManager.default.removeItem(at: destinationUrl)
                 try FileManager.default.moveItem(at: location, to: destinationUrl)
                 try realm.write {
-                    downloadItemPart.moved = true
+                    liveDownloadItemPart.moved = true
                 }
             } catch {
                 try realm.write {
-                    downloadItemPart.failed = true
+                    liveDownloadItemPart.failed = true
                 }
                 throw error
             }
@@ -63,12 +101,25 @@ public class AbsDownloader: CAPPlugin, CAPBridgedPlugin, URLSessionDownloadDeleg
     public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         handleDownloadTaskUpdate(downloadTask: task) { downloadItem, downloadItemPart in
             if let error = error {
-                try Realm().write {
-                    downloadItemPart.completed = true
-                    downloadItemPart.failed = true
+                let realm = try Realm()
+                let partId = downloadItemPart.id
+
+                // Get fresh reference to the object in this realm
+                guard let liveDownloadItemPart = realm.object(ofType: DownloadItemPart.self, forPrimaryKey: partId) else {
+                    throw LibraryItemDownloadError.downloadItemPartNotFound
+                }
+
+                try realm.write {
+                    liveDownloadItemPart.completed = true
+                    liveDownloadItemPart.failed = true
                 }
                 throw error
             }
+        }
+
+        // Mark this task as completed and start the next download in queue
+        if let taskId = task.taskDescription {
+            markDownloadTaskCompleted(taskId)
         }
     }
     
@@ -79,9 +130,17 @@ public class AbsDownloader: CAPPlugin, CAPBridgedPlugin, URLSessionDownloadDeleg
 
             // Only update the progress if we received accurate progress data
             if percentDownloaded >= 0.0 && percentDownloaded <= 100.0 {
-                try Realm().write {
-                    downloadItemPart.bytesDownloaded = Double(totalBytesWritten)
-                    downloadItemPart.progress = percentDownloaded
+                let realm = try Realm()
+                let partId = downloadItemPart.id
+
+                // Get fresh reference to the object in this realm
+                guard let liveDownloadItemPart = realm.object(ofType: DownloadItemPart.self, forPrimaryKey: partId) else {
+                    throw LibraryItemDownloadError.downloadItemPartNotFound
+                }
+
+                try realm.write {
+                    liveDownloadItemPart.bytesDownloaded = Double(totalBytesWritten)
+                    liveDownloadItemPart.progress = percentDownloaded
                 }
             }
         }
@@ -307,32 +366,37 @@ public class AbsDownloader: CAPPlugin, CAPBridgedPlugin, URLSessionDownloadDeleg
         
         // Persist in the database before status start coming in
         try Database.shared.saveDownloadItem(downloadItem)
-        
-        // Start all the downloads
-        for task in tasks {
-            task.task.resume()
-        }
+
+        // Add all tasks to the download queue
+        downloadQueueLock.lock()
+        pendingDownloadTasks.append(contentsOf: tasks)
+        downloadQueueLock.unlock()
+
+        AbsLogger.info(message: "Added \(tasks.count) tasks to download queue. Starting downloads...")
+
+        // Start downloading (up to maxConcurrentDownloads at a time)
+        startNextDownloadInQueue()
     }
     
     private func startLibraryItemTrackDownload(downloadItemId: String, item: LibraryItem, position: Int, track: AudioTrack, episode: PodcastEpisode?) throws -> DownloadItemPartTask {
         AbsLogger.info(message: "TRACK \(track.contentUrl!)")
-        
+
         // If we don't name metadata, then we can't proceed
         guard let filename = track.metadata?.filename else {
             throw LibraryItemDownloadError.noMetadata
         }
-        
+
         let serverUrl = urlForTrack(item: item, track: track)
         let itemDirectory = try createLibraryItemFileDirectory(item: item)
         let localUrl = "\(itemDirectory)/\(filename)"
-        
+
         let task = session.downloadTask(with: serverUrl)
         let part = DownloadItemPart(downloadItemId: downloadItemId, filename: filename, destination: localUrl, itemTitle: track.title ?? "Unknown", serverPath: Store.serverConfig!.address, audioTrack: track, episode: episode, ebookFile: nil, size: track.metadata?.size ?? 0)
-        
+
         // Store the id on the task so the download item can be pulled from the database later
         task.taskDescription = part.id
-        
-        return DownloadItemPartTask(part: part, task: task)
+
+        return DownloadItemPartTask(part: part, task: task, partId: part.id, filename: filename)
     }
     
     private func startLibraryItemEbookDownload(downloadItemId: String, item: LibraryItem, ebookFile: EBookFile) throws -> DownloadItemPartTask {
@@ -340,14 +404,14 @@ public class AbsDownloader: CAPPlugin, CAPBridgedPlugin, URLSessionDownloadDeleg
         let serverPath = "/api/items/\(item.id)/file/\(ebookFile.ino)/download"
         let itemDirectory = try createLibraryItemFileDirectory(item: item)
         let localUrl = "\(itemDirectory)/\(filename)"
-        
+
         let part = DownloadItemPart(downloadItemId: downloadItemId, filename: filename, destination: localUrl, itemTitle: filename, serverPath: serverPath, audioTrack: nil, episode: nil, ebookFile: ebookFile, size: ebookFile.metadata?.size ?? 0)
         let task = session.downloadTask(with: part.downloadURL!)
-        
+
         // Store the id on the task so the download item can be pulled from the database later
         task.taskDescription = part.id
-        
-        return DownloadItemPartTask(part: part, task: task)
+
+        return DownloadItemPartTask(part: part, task: task, partId: part.id, filename: filename)
     }
     
     private func startLibraryItemCoverDownload(downloadItemId: String, item: LibraryItem) throws -> DownloadItemPartTask {
@@ -355,19 +419,19 @@ public class AbsDownloader: CAPPlugin, CAPBridgedPlugin, URLSessionDownloadDeleg
         let serverPath = "/api/items/\(item.id)/cover"
         let itemDirectory = try createLibraryItemFileDirectory(item: item)
         let localUrl = "\(itemDirectory)/\(filename)"
-        
+
         // Find library file to get cover size
         let coverLibraryFile = item.libraryFiles.first(where: {
             $0.metadata?.path == item.media?.coverPath
         })
-        
+
         let part = DownloadItemPart(downloadItemId: downloadItemId, filename: filename, destination: localUrl, itemTitle: "cover", serverPath: serverPath, audioTrack: nil, episode: nil, ebookFile: nil, size: coverLibraryFile?.metadata?.size ?? 0)
         let task = session.downloadTask(with: part.downloadURL!)
-        
+
         // Store the id on the task so the download item can be pulled from the database later
         task.taskDescription = part.id
-        
-        return DownloadItemPartTask(part: part, task: task)
+
+        return DownloadItemPartTask(part: part, task: task, partId: part.id, filename: filename)
     }
     
     private func urlForTrack(item: LibraryItem, track: AudioTrack) -> URL {
@@ -431,6 +495,8 @@ typealias DownloadProgressHandler = (_ downloadItem: DownloadItem, _ downloadIte
 struct DownloadItemPartTask {
     let part: DownloadItemPart
     let task: URLSessionDownloadTask
+    let partId: String // Cache the ID to avoid cross-thread Realm access
+    let filename: String // Cache the filename to avoid cross-thread Realm access
 }
 
 enum LibraryItemDownloadError: String, Error {

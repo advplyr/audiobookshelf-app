@@ -231,7 +231,6 @@ export const mutations = {
     state.user = user
   },
   setAccessToken(state, accessToken) {
-    console.log('[user] setAccessToken', accessToken)
     state.accessToken = accessToken
   },
   removeMediaProgress(state, id) {

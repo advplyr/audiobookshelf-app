@@ -3,6 +3,7 @@ package com.audiobookshelf.app.player
 import android.annotation.SuppressLint
 import android.os.Looper
 import android.util.Log
+import kotlin.math.roundToInt
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
@@ -52,6 +53,10 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
   private var myCurrentTracksInfo: Tracks
   private var myCurrentTrackGroups: TrackGroupArray
   private var myCurrentTrackSelections: TrackSelectionArray
+
+  // Cache for pending volume to handle async setVolume
+  private var pendingVolume: Int? = null
+  private var pendingVolumeSetAt: Long = 0L
 
   var currentMediaItems:List<MediaItem> = mutableListOf()
   var remoteMediaClient:RemoteMediaClient? = null
@@ -864,12 +869,24 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
   }
 
   override fun getDeviceVolume(): Int {
+    // Short-lived cache without even-value quantization
+    val now = System.currentTimeMillis()
+    if (pendingVolume != null && (now - pendingVolumeSetAt) < 100) {
+      return pendingVolume!!
+    }
+
     val session = castContext.sessionManager.currentCastSession
-    return if (session != null && !session.isMute) {
-      (session.volume * 100).toInt()
+    val vol = if (session != null && !session.isMute) {
+      (session.volume * 100).roundToInt().coerceIn(0, 100)
     } else {
       0
     }
+
+    if (pendingVolume != null && vol == pendingVolume) {
+      pendingVolume = null
+    }
+
+    return vol
   }
 
   override fun isDeviceMuted(): Boolean {
@@ -881,22 +898,28 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
     val session = castContext.sessionManager.currentCastSession
     try {
       val clamped = volume.coerceIn(0, 100)
-      session?.volume = clamped / 100.0
+      val target = (clamped / 100.0).let { kotlin.math.round(it * 100.0) / 100.0 }
+
+      // Cache for 100ms to return in getDeviceVolume during async period
+      pendingVolume = clamped
+      pendingVolumeSetAt = System.currentTimeMillis()
+
+      session?.setVolume(target)
     } catch (e: Exception) {
       Log.e(tag, "Failed to set cast device volume", e)
     }
   }
 
   override fun increaseDeviceVolume() {
-    val currentVolume = getDeviceVolume()
-    val newVolume = (currentVolume + 1).coerceAtMost(100)
-    setDeviceVolume(newVolume)
+    val current = getDeviceVolume()
+    val next = current + 1
+    setDeviceVolume(next.coerceAtMost(100))
   }
 
   override fun decreaseDeviceVolume() {
-    val currentVolume = getDeviceVolume()
-    val newVolume = (currentVolume - 1).coerceAtLeast(0)
-    setDeviceVolume(newVolume)
+    val current = getDeviceVolume()
+    val next = current - 1
+    setDeviceVolume(next.coerceAtLeast(0))
   }
 
   override fun setDeviceMuted(muted: Boolean) {

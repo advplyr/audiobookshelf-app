@@ -11,7 +11,7 @@
             <span v-else class="font-semibold text-fg">{{ Math.round(itemPart.progress) }}%</span>
           </div>
           <div class="flex-grow px-2">
-            <p class="truncate">{{ itemPart.filename }}</p>
+            <p class="break-all">{{ itemPart.filename }}</p>
           </div>
         </div>
 

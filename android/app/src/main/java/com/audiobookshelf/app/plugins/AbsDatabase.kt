@@ -119,7 +119,7 @@ class AbsDatabase : Plugin() {
 
   @PluginMethod
   fun setCurrentServerConnectionConfig(call:PluginCall) {
-    Log.d(tag, "setCurrentServerConnectionConfig ${call.data}")
+    Log.d(tag, "setCurrentServerConnectionConfig called")
     val serverConfigPayload = jacksonMapper.readValue<ServerConnConfigPayload>(call.data.toString())
     var serverConnectionConfig = DeviceManager.deviceData.serverConnectionConfigs.find { it.id == serverConfigPayload.id }
 
@@ -558,7 +558,7 @@ class AbsDatabase : Plugin() {
 
   @PluginMethod
   fun updateDeviceSettings(call:PluginCall) { // Returns device data
-    Log.d(tag, "updateDeviceSettings ${call.data}")
+    Log.d(tag, "updateDeviceSettings called")
     val newDeviceSettings = jacksonMapper.readValue<DeviceSettings>(call.data.toString())
 
     Handler(Looper.getMainLooper()).post {
@@ -576,7 +576,7 @@ class AbsDatabase : Plugin() {
 
   @PluginMethod
   fun getMediaItemHistory(call:PluginCall) { // Returns device data
-    Log.d(tag, "getMediaItemHistory ${call.data}")
+    Log.d(tag, "getMediaItemHistory called")
     val mediaId = call.getString("mediaId") ?: ""
 
     GlobalScope.launch(Dispatchers.IO) {

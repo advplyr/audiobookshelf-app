@@ -12,11 +12,14 @@
 <script>
 export default {
   props: {
-    libraryItem: {
+    episode: {
       type: Object,
       default: () => {}
     },
-    search: String
+    libraryItem: {
+      type: Object,
+      default: () => {}
+    }
   },
   data() {
     return {}
@@ -42,14 +45,13 @@ export default {
       return this.mediaType === 'podcast'
     },
     title() {
-      return this.mediaMetadata.title || 'No Title'
+      return this.episode?.title || 'No Title'
     },
     subtitle() {
-      return this.mediaMetadata.subtitle
+      return this.mediaMetadata.title
     },
     authorName() {
-      if (this.isPodcast) return this.mediaMetadata.author
-      return this.mediaMetadata.authorName
+      return this.mediaMetadata.author
     }
   },
   methods: {},

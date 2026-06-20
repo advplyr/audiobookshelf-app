@@ -108,7 +108,7 @@ export default {
     async cancelSleepTimer() {
       if (this.isAuto) {
         const { value } = await Dialog.confirm({
-          title: 'Confirm',
+          title: this.$strings.HeaderConfirm,
           message: this.$strings.MessageConfirmDisableAutoTimer
         })
         if (!value) return

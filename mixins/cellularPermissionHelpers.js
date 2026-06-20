@@ -33,7 +33,7 @@ export default {
         this.$strings.MessageConfirmStreamingUsingCellular
 
       const { value } = await Dialog.confirm({
-        title: 'Confirm',
+        title: this.$strings.HeaderConfirm,
         message
       })
       return value

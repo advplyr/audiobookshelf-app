@@ -13,7 +13,7 @@
         </div>
       </div>
       <div class="relative" @click="showFullscreenCover = true">
-        <covers-book-cover :library-item="libraryItem" :width="coverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" no-bg raw @imageLoaded="coverImageLoaded" />
+        <covers-book-cover :library-item="libraryItem" :width="coverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" no-bg raw />
         <div v-if="!isPodcast" class="absolute bottom-0 left-0 h-1 z-10 box-shadow-progressbar" :class="userIsFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: coverWidth * progressPercent + 'px' }"></div>
       </div>
     </div>
@@ -172,7 +172,7 @@
 <script>
 import { Dialog } from '@capacitor/dialog'
 import { AbsFileSystem, AbsDownloader } from '@/plugins/capacitor'
-import { FastAverageColor } from 'fast-average-color'
+import { getAverageColorFromCoverUrl } from '@/utils/coverAverageColor'
 import cellularPermissionHelpers from '@/mixins/cellularPermissionHelpers'
 
 export default {
@@ -496,17 +496,10 @@ export default {
     },
     async coverImageLoaded(fullCoverUrl) {
       if (!fullCoverUrl) return
-
-      const fac = new FastAverageColor()
-      fac
-        .getColorAsync(fullCoverUrl)
-        .then((color) => {
-          this.coverRgb = color.rgba
-          this.coverBgIsLight = color.isLight
-        })
-        .catch((e) => {
-          console.log(e)
-        })
+      const avg = await getAverageColorFromCoverUrl(this, fullCoverUrl)
+      if (!avg) return
+      this.coverRgb = avg.rgba
+      this.coverBgIsLight = avg.isLight
     },
     moreButtonPress() {
       this.showMoreMenu = true
@@ -535,7 +528,11 @@ export default {
 
       if (this.isPodcast) {
         this.episodes.sort((a, b) => {
-          return String(b.publishedAt).localeCompare(String(a.publishedAt), undefined, { numeric: true, sensitivity: 'base' })
+          if (this.podcastType === 'serial') {
+            return String(a.publishedAt).localeCompare(String(b.publishedAt), undefined, { numeric: true, sensitivity: 'base' })
+          } else {
+            return String(b.publishedAt).localeCompare(String(a.publishedAt), undefined, { numeric: true, sensitivity: 'base' })
+          }
         })
 
         let episode = this.episodes.find((ep) => {
@@ -584,8 +581,8 @@ export default {
         // If start time and is not already streaming then ask for confirmation
         if (startTime !== null && startTime !== undefined && !this.$store.getters['getIsMediaStreaming'](libraryItemId, null)) {
           const { value } = await Dialog.confirm({
-            title: 'Confirm',
-            message: `Start playback for "${this.title}" at ${this.$secondsToTimestamp(startTime)}?`
+            title: this.$strings.HeaderConfirm,
+            message: this.$getString('MessageConfirmPlaybackTime', [this.title, this.$secondsToTimestamp(startTime)])
           })
           if (!value) return
         }
@@ -673,7 +670,7 @@ export default {
         }
       }
       const { value } = await Dialog.confirm({
-        title: 'Confirm',
+        title: this.$strings.HeaderConfirm,
         message: startDownloadMessage
       })
       if (value) {

@@ -24,6 +24,7 @@ export default {
       inittingLibraries: false,
       hasMounted: false,
       disconnectTime: 0,
+      socketDisconnectedTime: 0,
       timeLostFocus: 0,
       currentLang: null
     }
@@ -44,7 +45,7 @@ export default {
           } else {
             var timeSinceDisconnect = Date.now() - this.disconnectTime
             if (timeSinceDisconnect > 5000) {
-              console.log('Time since disconnect was', timeSinceDisconnect, 'sync with server')
+              console.log('[default] Time since disconnect was', timeSinceDisconnect, 'sync with server')
               setTimeout(() => {
                 this.syncLocalSessions(false)
               }, 4000)
@@ -53,6 +54,28 @@ export default {
         } else {
           console.log(`[default] lost network connection`)
           this.disconnectTime = Date.now()
+        }
+      }
+    },
+    socketConnected: {
+      handler(newVal, oldVal) {
+        if (!this.hasMounted) {
+          // watcher runs before mount, handling libraries/connection should be handled in mount
+          return
+        }
+        if (newVal) {
+          // if we havent been receiving socket events then external progress updates may have been missed
+          const timeSinceDisconnect = Date.now() - this.socketDisconnectedTime
+          if (timeSinceDisconnect > 30000 && this.isPlayerOpen) {
+            console.log('[default] socket reconnected after ' + timeSinceDisconnect + 'ms and player is open, triggering server media progress sync')
+            // used for triggering a server media progress sync if local media item is open in player
+            this.$eventBus.$emit('socket-reconnected')
+          } else {
+            console.log('[default] socket reconnected after ' + timeSinceDisconnect + 'ms')
+          }
+        } else {
+          console.log('[default] socket disconnected')
+          this.socketDisconnectedTime = Date.now()
         }
       }
     }
@@ -66,6 +89,9 @@ export default {
     },
     networkConnected() {
       return this.$store.state.networkConnected
+    },
+    socketConnected() {
+      return this.$store.state.socketConnected
     },
     user() {
       return this.$store.state.user.user

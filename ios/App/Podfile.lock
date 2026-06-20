@@ -25,11 +25,11 @@ PODS:
     - Capacitor
   - CordovaPlugins (6.2.1):
     - CapacitorCordova
-  - Realm (10.54.4):
-    - Realm/Headers (= 10.54.4)
-  - Realm/Headers (10.54.4)
-  - RealmSwift (10.54.4):
-    - Realm (= 10.54.4)
+  - Realm (10.54.6):
+    - Realm/Headers (= 10.54.6)
+  - Realm/Headers (10.54.6)
+  - RealmSwift (10.54.6):
+    - Realm (= 10.54.6)
   - WebnativellcCapacitorFilesharer (7.0.4):
     - Capacitor
 
@@ -89,22 +89,22 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   Alamofire: 7193b3b92c74a07f85569e1a6c4f4237291e7496
-  Capacitor: 106e7a4205f4618d582b886a975657c61179138d
-  CapacitorApp: d63334c052278caf5d81585d80b21905c6f93f39
-  CapacitorBrowser: 081852cf532acf77b9d2953f3a88fe5b9711fb06
-  CapacitorClipboard: b98aead5dc7ec595547fc2c5d75bacd2ae3338bc
-  CapacitorCommunityKeepAwake: 00dfd8fa3cca0df003c9a3e2cd7bee678aeec68b
-  CapacitorCommunityVolumeButtons: 8a0443a202ed659688d85f4d44d66f42f62f2b56
+  Capacitor: 03bc7cbdde6a629a8b910a9d7d78c3cc7ed09ea7
+  CapacitorApp: febecbb9582cb353aed037e18ec765141f880fe9
+  CapacitorBrowser: 6299776d496e968505464884d565992faa20444a
+  CapacitorClipboard: 70bfdb42b877b320a6e511ab94fa7a6a55d57ecb
+  CapacitorCommunityKeepAwake: ae762ce29b53147d28cfcaae5273cd1db0c38fc4
+  CapacitorCommunityVolumeButtons: 1b84f7abf29cd9476cef9e8979b2854a64d2eed5
   CapacitorCordova: 5967b9ba03915ef1d585469d6e31f31dc49be96f
-  CapacitorDialog: 9b934329026b2b0ffa56939bb06df3c67541a2ab
-  CapacitorHaptics: 70e47470fa1a6bd6338cd102552e3846b7f9a1b3
-  CapacitorNetwork: 07ec4c69c1bb696f41c23e00d31bda1bbb221bba
-  CapacitorPreferences: cbf154e5e5519b7f5ab33817a334dda1e98387f9
-  CapacitorStatusBar: 275cbf2f4dfc00388f519ef80c7ec22edda342c9
-  CordovaPlugins: 5a72a85b45469e68556bb172409f1b6d57b27236
-  Realm: 8b5cda39a41f17a1734da2f39c6004eb8745587a
-  RealmSwift: 0b4f808fed6898f1f6c26f501f740efd80dff0b4
-  WebnativellcCapacitorFilesharer: 10b111373d4dc49608935600dcbcc14605258c73
+  CapacitorDialog: 0e09f242f6c3f5e82e4dc76b20f2a056be57a579
+  CapacitorHaptics: 1f1e17041f435d8ead9ff2a34edd592c6aa6a8d6
+  CapacitorNetwork: 15cb4385f0913a8ceb5e9a4d7af1ec554bdb8de8
+  CapacitorPreferences: 6c98117d4d7508034a4af9db64d6b26fc75d7b94
+  CapacitorStatusBar: 6e7af040d8fc4dd655999819625cae9c2d74c36f
+  CordovaPlugins: 2ecbba09775516c41764dbf78ade612427311b7e
+  Realm: b1b3bc68162fa242132eb7eefbf91d7c40f36a85
+  RealmSwift: 456cfd82a4f23dff8e3456980999331ab69bbf3e
+  WebnativellcCapacitorFilesharer: e3a5930240633db3335040251d66aac6762ff111
 
 PODFILE CHECKSUM: 498821c0cfa2508609567fa95d7244c01cbef538
 

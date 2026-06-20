@@ -483,8 +483,8 @@ export default {
       await this.$hapticsImpact()
 
       const { value } = await Dialog.confirm({
-        title: 'Confirm',
-        message: `Remove this server config?`
+        title: this.$strings.HeaderConfirm,
+        message: this.$strings.MessageConfirmDeleteServerConfig
       })
       if (value) {
         this.processing = true
@@ -843,7 +843,7 @@ export default {
     async setUserAndConnection({ user, userDefaultLibraryId, serverSettings, ereaderDevices }) {
       if (!user) return
 
-      console.log('Successfully logged in', JSON.stringify(user))
+      console.log('Successfully logged in: ' + user.username)
 
       this.$store.commit('setServerSettings', serverSettings)
       this.$store.commit('libraries/setEReaderDevices', ereaderDevices)
@@ -951,8 +951,9 @@ export default {
     init() {
       if (this.$route.query.serverConnectionConfigId) {
         // Handle force re-login for servers using new JWT auth but still using an old token OR refresh token failed
-        this.serverConfig = this.serverConnectionConfigs.find((scc) => scc.id === this.$route.query.serverConnectionConfigId)
-        if (this.serverConfig) {
+        const _serverConfig = this.serverConnectionConfigs.find((scc) => scc.id === this.$route.query.serverConnectionConfigId)
+        if (_serverConfig) {
+          this.serverConfig = { ..._serverConfig }
           this.setForceRelogin(this.$route.query.error)
           return
         } else {

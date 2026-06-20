@@ -303,7 +303,7 @@ export default {
       // Show confirm if item has progress since it will reset
       if (this.userItemProgress && this.userItemProgress.progress > 0 && !this.userIsFinished) {
         const { value } = await Dialog.confirm({
-          title: 'Confirm',
+          title: this.$strings.HeaderConfirm,
           message: this.$strings.MessageConfirmMarkAsFinished
         })
         if (!value) return
@@ -369,7 +369,7 @@ export default {
       await this.$hapticsImpact()
 
       const { value } = await Dialog.confirm({
-        title: 'Confirm',
+        title: this.$strings.HeaderConfirm,
         message: this.$strings.MessageConfirmDiscardProgress
       })
       if (value) {
@@ -407,7 +407,7 @@ export default {
       }
 
       const { value } = await Dialog.confirm({
-        title: 'Confirm',
+        title: this.$strings.HeaderConfirm,
         message: this.$getString('MessageConfirmDeleteLocalEpisode', [localFile.basePath])
       })
       if (value) {
@@ -432,7 +432,7 @@ export default {
       await this.$hapticsImpact()
 
       const { value } = await Dialog.confirm({
-        title: 'Confirm',
+        title: this.$strings.HeaderConfirm,
         message: this.$strings.MessageConfirmDeleteLocalFiles
       })
       if (value) {
