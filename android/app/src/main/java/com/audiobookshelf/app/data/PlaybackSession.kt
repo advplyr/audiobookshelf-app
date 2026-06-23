@@ -332,7 +332,7 @@ class PlaybackSession(
             MediaInfo.Builder(mediaUri.toString())
                     .apply {
                       setContentUrl(mediaUri.toString())
-                      setContentType(audioTrack.mimeType)
+                      setContentType(audioTrack.mimeType ?: "")
                       setMetadata(castMetadata)
                       setStreamType(MediaInfo.STREAM_TYPE_BUFFERED)
                     }
