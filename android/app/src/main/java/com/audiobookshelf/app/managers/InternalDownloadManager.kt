@@ -127,6 +127,6 @@ class BinaryFileWriter(
   }
 
   companion object {
-    private const val CHUNK_SIZE = 65536 // Increased to 64KB for much faster I/O
+    private const val CHUNK_SIZE = 65536 // Increased chunk size for better performance
   }
 }
