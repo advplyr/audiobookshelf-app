@@ -19,7 +19,7 @@ class InternalDownloadManager(
   private val tag = "InternalDownloadManager"
   private val client: OkHttpClient =
           OkHttpClient.Builder()
-                  .connectTimeout(15, TimeUnit.SECONDS)
+                  .connectTimeout(30, TimeUnit.SECONDS)
                   .readTimeout(15, TimeUnit.SECONDS)
                   .build()
   private val writer = BinaryFileWriter(outputStream, progressCallback)
