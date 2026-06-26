@@ -18,7 +18,10 @@ class InternalDownloadManager(
 
   private val tag = "InternalDownloadManager"
   private val client: OkHttpClient =
-          OkHttpClient.Builder().connectTimeout(30, TimeUnit.SECONDS).build()
+          OkHttpClient.Builder()
+                  .connectTimeout(15, TimeUnit.SECONDS)
+                  .readTimeout(15, TimeUnit.SECONDS)
+                  .build()
   private val writer = BinaryFileWriter(outputStream, progressCallback)
 
   /**
@@ -39,14 +42,21 @@ class InternalDownloadManager(
                       }
 
                       override fun onResponse(call: Call, response: Response) {
-                        response.body?.let { responseBody ->
-                          val length: Long = response.header("Content-Length")?.toLongOrNull() ?: 0L
-                          writer.write(responseBody.byteStream(), length)
+                        try {
+                          response.body?.let { responseBody ->
+                            val length: Long = response.header("Content-Length")?.toLongOrNull() ?: 0L
+                            writer.write(responseBody.byteStream(), length)
+                          }
+                                  ?: run {
+                                    Log.e(tag, "Response doesn't contain a file")
+                                    progressCallback.onComplete(true)
+                                  }
+                        } catch (e: Exception) {
+                          Log.e(tag, "Exception during internal download write for URL $url", e)
+                          progressCallback.onComplete(true)
+                        } finally {
+                          response.close()
                         }
-                                ?: run {
-                                  Log.e(tag, "Response doesn't contain a file")
-                                  progressCallback.onComplete(true)
-                                }
                       }
                     }
             )
@@ -84,14 +94,22 @@ class BinaryFileWriter(
    */
   @Throws(IOException::class)
   fun write(inputStream: InputStream, length: Long): Long {
-    BufferedInputStream(inputStream).use { input ->
+    inputStream.use { input ->
       val dataBuffer = ByteArray(CHUNK_SIZE)
       var totalBytes: Long = 0
       var readBytes: Int
+      var lastProgressTime: Long = 0
+
       while (input.read(dataBuffer).also { readBytes = it } != -1) {
         totalBytes += readBytes
         outputStream.write(dataBuffer, 0, readBytes)
-        progressCallback.onProgress(totalBytes, (totalBytes * 100L) / length)
+
+        val currentTime = System.currentTimeMillis()
+        // Only report progress at most every 250ms to avoid flooding the JS bridge
+        if (currentTime - lastProgressTime > 250) {
+          lastProgressTime = currentTime
+          progressCallback.onProgress(totalBytes, if (length > 0) (totalBytes * 100L) / length else 0)
+        }
       }
       progressCallback.onComplete(false)
       return totalBytes
@@ -109,6 +127,6 @@ class BinaryFileWriter(
   }
 
   companion object {
-    private const val CHUNK_SIZE = 8192 // Increased chunk size for better performance
+    private const val CHUNK_SIZE = 65536 // Increased to 64KB for much faster I/O
   }
 }
