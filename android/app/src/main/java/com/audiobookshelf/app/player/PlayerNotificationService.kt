@@ -19,6 +19,8 @@ import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaControllerCompat
 import android.support.v4.media.session.MediaSessionCompat
 import androidx.media.VolumeProviderCompat
+import android.media.AudioDeviceCallback
+import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
@@ -133,6 +135,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   private var mShakeDetector: ShakeDetector? = null
   private var shakeSensorUnregisterTask: TimerTask? = null
 
+  // BT auto-resume: set when KEYCODE_MEDIA_STOP fires (car power-off), cleared after 3s or on resume
+  @Volatile var stoppedByCarPowerOff = false
+  private var carDisconnectTimer: TimerTask? = null
+  private var previousBtDevice: CharSequence? = null
+  private var btResumeCallback: AudioDeviceCallback? = null
+
   // These are used to trigger reloading if
   private var forceReloadingAndroidAuto: Boolean = false
   private var firstLoadDone: Boolean = false
@@ -199,6 +207,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     Log.d(tag, "onDestroy")
     isStarted = false
     isClosed = true
+
+    carDisconnectTimer?.cancel()
+    btResumeCallback?.let {
+      (getSystemService(Context.AUDIO_SERVICE) as AudioManager).unregisterAudioDeviceCallback(it)
+    }
+
     DeviceManager.widgetUpdater?.onPlayerChanged(this)
 
     playerNotificationManager.setPlayer(null)
@@ -383,6 +397,43 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
     initializeMPlayer()
     currentPlayer = mPlayer
+
+    val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    btResumeCallback = object : AudioDeviceCallback() {
+      override fun onAudioDevicesRemoved(removedDevices: Array<AudioDeviceInfo>) {
+        val bumped = removedDevices.firstOrNull { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP }
+        if (bumped != null && mPlayer.isPlaying && previousBtDevice == null) {
+          previousBtDevice = bumped.productName
+          Log.i(tag, "BT device '${bumped.productName}' bumped while playing, remembering it")
+        }
+      }
+      override fun onAudioDevicesAdded(addedDevices: Array<AudioDeviceInfo>) {
+        if (!stoppedByCarPowerOff || deviceSettings.autoResumeAfterCarDisconnect != true) return
+        val returning = addedDevices.firstOrNull {
+          it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP && it.productName == previousBtDevice
+        }
+        if (returning != null) {
+          Log.i(tag, "Previous BT device '${previousBtDevice}' returned, resuming playback")
+          stoppedByCarPowerOff = false
+          previousBtDevice = null
+          carDisconnectTimer?.cancel()
+          carDisconnectTimer = null
+          Handler(Looper.getMainLooper()).post { play() }
+        }
+      }
+    }
+    audioManager.registerAudioDeviceCallback(btResumeCallback, null)
+  }
+
+  fun handleCarDisconnectStop() {
+    stoppedByCarPowerOff = true
+    carDisconnectTimer?.cancel()
+    carDisconnectTimer = Timer().schedule(15000L) {
+      stoppedByCarPowerOff = false
+      previousBtDevice = null
+      carDisconnectTimer = null
+    }
+    pause()
   }
 
   private fun initializeMPlayer() {
