@@ -362,6 +362,23 @@ class AbsAudioPlayer : Plugin() {
   }
 
   @PluginMethod
+  fun setPitch(call: PluginCall) {
+    val pitch: Float = call.getFloat("value", 1.0f) ?: 1.0f
+    Handler(Looper.getMainLooper()).post {
+      playerNotificationService.setPitch(pitch)
+      call.resolve()
+    }
+  }
+
+  @PluginMethod
+  fun getPitchAdjust(call: PluginCall) {
+    val pitch = DeviceManager.deviceData.deviceSettings?.pitchAdjust ?: 1.0f
+    val ret = JSObject()
+    ret.put("value", pitch)
+    call.resolve(ret)
+  }
+
+  @PluginMethod
   fun closePlayback(call: PluginCall) {
     Handler(Looper.getMainLooper()).post {
       playerNotificationService.closePlayback()

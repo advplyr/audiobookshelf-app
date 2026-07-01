@@ -38,6 +38,7 @@ import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.media.MediaProgressSyncer
 import com.audiobookshelf.app.media.getUriToAbsIconDrawable
 import com.audiobookshelf.app.media.getUriToDrawable
+import com.google.android.exoplayer2.PlaybackParameters
 import com.audiobookshelf.app.plugins.AbsLogger
 import com.audiobookshelf.app.server.ApiHandler
 import com.google.android.exoplayer2.*
@@ -540,7 +541,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
               "Prepare complete for session ${currentPlaybackSession?.displayTitle} | ${currentPlayer.mediaItemCount}"
       )
       currentPlayer.playWhenReady = playWhenReady
-      currentPlayer.setPlaybackSpeed(playbackRateToUse)
+      currentPlayer.setPlaybackParameters(PlaybackParameters(playbackRateToUse, currentPitch()))
 
       currentPlayer.prepare()
     } else if (castPlayer != null) {
@@ -996,12 +997,21 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     seekPlayer(getCurrentTime() - amount)
   }
 
+  private fun currentPitch(): Float = DeviceManager.deviceData.deviceSettings?.pitchAdjust ?: 1.0f
+
   fun setPlaybackSpeed(speed: Float) {
     mediaManager.userSettingsPlaybackRate = speed
-    currentPlayer.setPlaybackSpeed(speed)
+    currentPlayer.setPlaybackParameters(PlaybackParameters(speed, currentPitch()))
 
     // Refresh Android Auto actions
     mediaProgressSyncer.currentPlaybackSession?.let { setMediaSessionConnectorCustomActions(it) }
+  }
+
+  fun setPitch(pitch: Float) {
+    val clamped = pitch.coerceIn(0.5f, 2.0f)
+    DeviceManager.deviceData.deviceSettings?.pitchAdjust = clamped
+    DeviceManager.dbManager.saveDeviceData(DeviceManager.deviceData)
+    currentPlayer.setPlaybackParameters(PlaybackParameters(currentPlayer.playbackParameters.speed, clamped))
   }
 
   fun closePlayback(calledOnError: Boolean? = false) {
