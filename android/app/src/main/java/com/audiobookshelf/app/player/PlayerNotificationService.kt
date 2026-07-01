@@ -138,7 +138,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   // BT auto-resume: set when KEYCODE_MEDIA_STOP fires (car power-off), cleared after 3s or on resume
   @Volatile var stoppedByCarPowerOff = false
   private var carDisconnectTimer: TimerTask? = null
-  private var previousBtDevice: CharSequence? = null
+  @Volatile private var previousBtDevice: CharSequence? = null
   private var btResumeCallback: AudioDeviceCallback? = null
 
   // These are used to trigger reloading if
