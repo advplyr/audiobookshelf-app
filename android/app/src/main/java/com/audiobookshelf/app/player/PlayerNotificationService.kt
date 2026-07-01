@@ -19,6 +19,8 @@ import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaControllerCompat
 import android.support.v4.media.session.MediaSessionCompat
 import androidx.media.VolumeProviderCompat
+import android.media.AudioDeviceCallback
+import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
@@ -38,6 +40,7 @@ import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.media.MediaProgressSyncer
 import com.audiobookshelf.app.media.getUriToAbsIconDrawable
 import com.audiobookshelf.app.media.getUriToDrawable
+import com.google.android.exoplayer2.PlaybackParameters
 import com.audiobookshelf.app.plugins.AbsLogger
 import com.audiobookshelf.app.server.ApiHandler
 import com.google.android.exoplayer2.*
@@ -125,6 +128,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   private var mShakeDetector: ShakeDetector? = null
   private var shakeSensorUnregisterTask: TimerTask? = null
 
+  // BT auto-resume: set when KEYCODE_MEDIA_STOP fires (car power-off), cleared after 3s or on resume
+  @Volatile var stoppedByCarPowerOff = false
+  private var carDisconnectTimer: TimerTask? = null
+  @Volatile private var previousBtDevice: CharSequence? = null
+  private var btResumeCallback: AudioDeviceCallback? = null
+
   // These are used to trigger reloading if
   private var forceReloadingAndroidAuto: Boolean = false
   private var firstLoadDone: Boolean = false
@@ -191,6 +200,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     Log.d(tag, "onDestroy")
     isStarted = false
     isClosed = true
+
+    carDisconnectTimer?.cancel()
+    btResumeCallback?.let {
+      (getSystemService(Context.AUDIO_SERVICE) as AudioManager).unregisterAudioDeviceCallback(it)
+    }
+
     DeviceManager.widgetUpdater?.onPlayerChanged(this)
 
     playerNotificationManager.setPlayer(null)
@@ -368,6 +383,43 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
     initializeMPlayer()
     currentPlayer = mPlayer
+
+    val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    btResumeCallback = object : AudioDeviceCallback() {
+      override fun onAudioDevicesRemoved(removedDevices: Array<AudioDeviceInfo>) {
+        val bumped = removedDevices.firstOrNull { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP }
+        if (bumped != null && mPlayer.isPlaying && previousBtDevice == null) {
+          previousBtDevice = bumped.productName
+          Log.i(tag, "BT device '${bumped.productName}' bumped while playing, remembering it")
+        }
+      }
+      override fun onAudioDevicesAdded(addedDevices: Array<AudioDeviceInfo>) {
+        if (!stoppedByCarPowerOff || deviceSettings.autoResumeAfterCarDisconnect != true) return
+        val returning = addedDevices.firstOrNull {
+          it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP && it.productName == previousBtDevice
+        }
+        if (returning != null) {
+          Log.i(tag, "Previous BT device '${previousBtDevice}' returned, resuming playback")
+          stoppedByCarPowerOff = false
+          previousBtDevice = null
+          carDisconnectTimer?.cancel()
+          carDisconnectTimer = null
+          Handler(Looper.getMainLooper()).post { play() }
+        }
+      }
+    }
+    audioManager.registerAudioDeviceCallback(btResumeCallback, null)
+  }
+
+  fun handleCarDisconnectStop() {
+    stoppedByCarPowerOff = true
+    carDisconnectTimer?.cancel()
+    carDisconnectTimer = Timer().schedule(3000L) {
+      stoppedByCarPowerOff = false
+      previousBtDevice = null
+      carDisconnectTimer = null
+    }
+    pause()
   }
 
   private fun initializeMPlayer() {
@@ -540,7 +592,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
               "Prepare complete for session ${currentPlaybackSession?.displayTitle} | ${currentPlayer.mediaItemCount}"
       )
       currentPlayer.playWhenReady = playWhenReady
-      currentPlayer.setPlaybackSpeed(playbackRateToUse)
+      currentPlayer.setPlaybackParameters(PlaybackParameters(playbackRateToUse, currentPitch()))
 
       currentPlayer.prepare()
     } else if (castPlayer != null) {
@@ -996,12 +1048,21 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     seekPlayer(getCurrentTime() - amount)
   }
 
+  private fun currentPitch(): Float = DeviceManager.deviceData.deviceSettings?.pitchAdjust ?: 1.0f
+
   fun setPlaybackSpeed(speed: Float) {
     mediaManager.userSettingsPlaybackRate = speed
-    currentPlayer.setPlaybackSpeed(speed)
+    currentPlayer.setPlaybackParameters(PlaybackParameters(speed, currentPitch()))
 
     // Refresh Android Auto actions
     mediaProgressSyncer.currentPlaybackSession?.let { setMediaSessionConnectorCustomActions(it) }
+  }
+
+  fun setPitch(pitch: Float) {
+    val clamped = pitch.coerceIn(0.5f, 2.0f)
+    DeviceManager.deviceData.deviceSettings?.pitchAdjust = clamped
+    DeviceManager.dbManager.saveDeviceData(DeviceManager.deviceData)
+    currentPlayer.setPlaybackParameters(PlaybackParameters(currentPlayer.playbackParameters.speed, clamped))
   }
 
   fun closePlayback(calledOnError: Boolean? = false) {
