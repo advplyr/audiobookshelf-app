@@ -232,7 +232,7 @@
   "LabelRSSFeedCustomOwnerName": "自定义所有者名称",
   "LabelRSSFeedOpen": "打开 RSS 源",
   "LabelRSSFeedPreventIndexing": "防止索引",
-  "LabelRSSFeedSlug": "RSS 源段",
+  "LabelRSSFeedSlug": "RSS 源别名（Slug）",
   "LabelRandomly": "随机",
   "LabelRead": "阅读",
   "LabelReadAgain": "再次阅读",
