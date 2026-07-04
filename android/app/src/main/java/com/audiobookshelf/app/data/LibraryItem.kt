@@ -4,12 +4,17 @@ import android.content.Context
 import android.net.Uri
 import android.os.Bundle
 import android.support.v4.media.MediaDescriptionCompat
-import androidx.media.utils.MediaConstants
+import androidx.annotation.OptIn
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.session.MediaConstants
 import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.R
 import com.audiobookshelf.app.device.DeviceManager
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import androidx.media.utils.MediaConstants as LegacyMediaConstants
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 class LibraryItem(
@@ -100,34 +105,37 @@ class LibraryItem(
       if (progress != null) {
         if (progress.isFinished) {
           extras.putInt(
-            MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
-            MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_FULLY_PLAYED
+            LegacyMediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
+            LegacyMediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_FULLY_PLAYED
           )
         } else {
           extras.putInt(
-            MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
-            MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_PARTIALLY_PLAYED
+            LegacyMediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
+            LegacyMediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_PARTIALLY_PLAYED
           )
           extras.putDouble(
-            MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_PERCENTAGE, progress.progress
+            LegacyMediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_PERCENTAGE, progress.progress
           )
         }
       } else if (mediaType != "podcast") {
         extras.putInt(
-          MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
-          MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_NOT_PLAYED
+          LegacyMediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
+          LegacyMediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_NOT_PLAYED
         )
       }
 
       if (media.metadata.explicit) {
         extras.putLong(
-          MediaConstants.METADATA_KEY_IS_EXPLICIT,
-          MediaConstants.METADATA_VALUE_ATTRIBUTE_PRESENT
+          LegacyMediaConstants.METADATA_KEY_IS_EXPLICIT,
+          LegacyMediaConstants.METADATA_VALUE_ATTRIBUTE_PRESENT
         )
       }
     }
     if (groupTitle !== null) {
-      extras.putString(MediaConstants.DESCRIPTION_EXTRAS_KEY_CONTENT_STYLE_GROUP_TITLE, groupTitle)
+      extras.putString(
+        LegacyMediaConstants.DESCRIPTION_EXTRAS_KEY_CONTENT_STYLE_GROUP_TITLE,
+        groupTitle
+      )
     }
 
     val mediaId = if (localLibraryItemId != null) {
@@ -175,4 +183,123 @@ class LibraryItem(
      */
     return getMediaDescription(progress, ctx, null, null, null)
   }
+
+  /**
+   * Builds the detailed Media3 `MediaItem` for this library entry; other overloads delegate here.
+   */
+  @OptIn(UnstableApi::class)
+  @JsonIgnore
+  fun getMediaItem(
+    progress: MediaProgressWrapper?,
+    context: Context,
+    authorId: String?,
+    showSeriesNumber: Boolean?,
+    groupTitle: String?
+  ): MediaItem {
+    val extras = Bundle()
+    if (collapsedSeries == null) {
+      if (localLibraryItemId != null) {
+        extras.putLong(
+          MediaConstants.EXTRAS_KEY_DOWNLOAD_STATUS,
+          MediaConstants.EXTRAS_VALUE_STATUS_DOWNLOADED
+        )
+      }
+
+      if (progress != null) {
+        if (progress.isFinished) {
+          extras.putInt(
+            MediaConstants.EXTRAS_KEY_COMPLETION_STATUS,
+            MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_FULLY_PLAYED
+          )
+        } else {
+          extras.putInt(
+            MediaConstants.EXTRAS_KEY_COMPLETION_STATUS,
+            MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_PARTIALLY_PLAYED
+          )
+          extras.putDouble(MediaConstants.EXTRAS_KEY_COMPLETION_PERCENTAGE, progress.progress)
+        }
+      } else if (mediaType != "podcast") {
+        extras.putInt(
+          MediaConstants.EXTRAS_KEY_COMPLETION_STATUS,
+          MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_NOT_PLAYED
+        )
+      }
+
+      if (media.metadata.explicit) {
+        extras.putLong(
+          MediaConstants.EXTRAS_KEY_IS_EXPLICIT,
+          MediaConstants.EXTRAS_VALUE_ATTRIBUTE_PRESENT
+        )
+      }
+    }
+
+    if (groupTitle != null) {
+      extras.putString(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_GROUP_TITLE, groupTitle)
+    }
+
+    val mediaId = if (localLibraryItemId != null) {
+      localLibraryItemId
+    } else if (collapsedSeries != null) {
+      if (authorId != null) {
+        "__LIBRARY__${libraryId}__AUTHOR_SERIES__${authorId}__${collapsedSeries!!.id}"
+      } else {
+        "__LIBRARY__${libraryId}__SERIES__${collapsedSeries!!.id}"
+      }
+    } else {
+      id
+    }
+
+    val itemTitle = if (showSeriesNumber == true && seriesSequence.isNotEmpty()) {
+      "$seriesSequence. $title"
+    } else {
+      title
+    }
+    val subtitle = if (collapsedSeries != null) {
+      "${collapsedSeries!!.numBooks} books"
+    } else {
+      authorName
+    }
+
+    val metadata = MediaMetadata.Builder()
+      .setTitle(itemTitle)
+      .setSubtitle(subtitle)
+      .setArtist(authorName)
+      .setArtworkUri(getCoverUri())
+      .setIsPlayable(collapsedSeries == null)
+      .setIsBrowsable(collapsedSeries != null)
+      .setExtras(extras)
+      .build()
+
+    return MediaItem.Builder()
+      .setMediaId(mediaId.toString())
+      .setMediaMetadata(metadata)
+      .build()
+  }
+
+  @JsonIgnore
+  fun getMediaItem(
+    progress: MediaProgressWrapper?,
+    ctx: Context,
+    authorId: String?,
+    showSeriesNumber: Boolean?
+  ): MediaItem {
+    return getMediaItem(progress, ctx, authorId, showSeriesNumber, null)
+  }
+
+  @JsonIgnore
+  fun getMediaItem(progress: MediaProgressWrapper?, ctx: Context, authorId: String?): MediaItem {
+    return getMediaItem(progress, ctx, authorId, null, null)
+  }
+
+  @JsonIgnore
+  override fun getMediaItem(progress: MediaProgressWrapper?, context: Context): MediaItem {
+    return getMediaItem(progress, context, null, null, null)
+  }
+
+
+
+
+
+
+
 }
