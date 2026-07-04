@@ -6,15 +6,15 @@ import android.os.Build
 import android.provider.Settings
 import android.util.Base64
 import android.util.Log
+import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
+import com.audiobookshelf.app.managers.SecureStorage
 import com.audiobookshelf.app.media.MediaEventManager
 import com.audiobookshelf.app.media.MediaProgressSyncData
 import com.audiobookshelf.app.media.SyncResult
 import com.audiobookshelf.app.models.User
-import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.plugins.AbsLogger
-import com.audiobookshelf.app.managers.SecureStorage
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.core.json.JsonReadFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -644,9 +644,12 @@ class ApiHandler(var ctx:Context) {
     val payload = JSObject(jacksonMapper.writeValueAsString(syncData))
 
     postRequest("/api/session/$sessionId/sync", payload, null) {
-      if (!it.getString("error").isNullOrEmpty()) {
-        cb(false, it.getString("error"))
+      val error = it.getString("error")
+      if (!error.isNullOrEmpty()) {
+        Log.w(tag, "sendProgressSync failed for session=$sessionId: $error")
+        cb(false, error)
       } else {
+        Log.d(tag, "sendProgressSync success for session=$sessionId")
         cb(true, null)
       }
     }
@@ -656,9 +659,12 @@ class ApiHandler(var ctx:Context) {
     val payload = JSObject(jacksonMapper.writeValueAsString(playbackSession))
 
     postRequest("/api/session/local", payload, null) {
-      if (!it.getString("error").isNullOrEmpty()) {
-        cb(false, it.getString("error"))
+      val error = it.getString("error")
+      if (!error.isNullOrEmpty()) {
+        Log.w(tag, "sendLocalProgressSync failed for session=${playbackSession.id}: $error")
+        cb(false, error)
       } else {
+        Log.d(tag, "sendLocalProgressSync success for session=${playbackSession.id}")
         cb(true, null)
       }
     }
@@ -763,7 +769,9 @@ class ApiHandler(var ctx:Context) {
           playbackSessions.find { ps -> ps.id == localSessionSyncResult.id }?.let { session ->
             if (localSessionSyncResult.progressSynced == true) {
               val syncResult = SyncResult(true, true, "Progress synced on server")
-              MediaEventManager.saveEvent(session, syncResult)
+              if (!BuildConfig.USE_MEDIA3) {
+                MediaEventManager.saveEvent(session, syncResult)
+              }
 
               AbsLogger.info("ApiHandler", "sendSyncLocalSessions: Synced session \"${session.displayTitle}\" with server, server progress was updated for item ${session.mediaItemId}")
             } else if (!localSessionSyncResult.success) {

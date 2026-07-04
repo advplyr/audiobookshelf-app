@@ -7,6 +7,10 @@ import com.audiobookshelf.app.player.PlayerNotificationService
 
 object MediaEventManager {
   const val tag = "MediaEventManager"
+  private const val DUPLICATE_PLAYBACK_EVENT_WINDOW_MS = 1000L
+  private const val SEEK_PLAYBACK_SUPPRESSION_MS = 2000L
+  private var lastSeekTimestampMs: Long = 0L
+  private var skipNextPostSeekPlaybackEvent = false
 
   var clientEventEmitter: PlayerNotificationService.ClientEventEmitter? = null
 
@@ -37,45 +41,45 @@ object MediaEventManager {
 
   fun seekEvent(playbackSession: PlaybackSession, syncResult: SyncResult?) {
     Log.i(
-            tag,
-            "Seek Event for media \"${playbackSession.displayTitle}\", currentTime=${playbackSession.currentTime}"
+      tag,
+      "Seek Event for media \"${playbackSession.displayTitle}\", currentTime=${playbackSession.currentTime}"
     )
     addPlaybackEvent("Seek", playbackSession, syncResult)
   }
 
   fun syncEvent(mediaProgress: MediaProgressWrapper, description: String) {
     Log.i(
-            tag,
-            "Sync Event for media item id \"${mediaProgress.mediaItemId}\", currentTime=${mediaProgress.currentTime}"
+      tag,
+      "Sync Event for media item id \"${mediaProgress.mediaItemId}\", currentTime=${mediaProgress.currentTime}"
     )
     addSyncEvent("Sync", mediaProgress, description)
   }
 
   private fun addSyncEvent(
-          eventName: String,
-          mediaProgress: MediaProgressWrapper,
-          description: String
+    eventName: String,
+    mediaProgress: MediaProgressWrapper,
+    description: String
   ) {
     val mediaItemHistory = getMediaItemHistoryMediaItem(mediaProgress.mediaItemId)
     if (mediaItemHistory == null) {
       Log.w(
-              tag,
-              "addSyncEvent: Media Item History not created yet for media item id ${mediaProgress.mediaItemId}"
+        tag,
+        "addSyncEvent: Media Item History not created yet for media item id ${mediaProgress.mediaItemId}"
       )
       return
     }
 
     val mediaItemEvent =
-            MediaItemEvent(
-                    name = eventName,
-                    type = "Sync",
-                    description = description,
-                    currentTime = mediaProgress.currentTime,
-                    serverSyncAttempted = false,
-                    serverSyncSuccess = null,
-                    serverSyncMessage = null,
-                    timestamp = System.currentTimeMillis()
-            )
+      MediaItemEvent(
+        name = eventName,
+        type = "Sync",
+        description = description,
+        currentTime = mediaProgress.currentTime,
+        serverSyncAttempted = false,
+        serverSyncSuccess = null,
+        serverSyncMessage = null,
+        timestamp = System.currentTimeMillis()
+      )
     mediaItemHistory.events.add(mediaItemEvent)
     DeviceManager.dbManager.saveMediaItemHistory(mediaItemHistory)
 
@@ -83,26 +87,39 @@ object MediaEventManager {
   }
 
   private fun addPlaybackEvent(
-          eventName: String,
-          playbackSession: PlaybackSession,
-          syncResult: SyncResult?
+    eventName: String,
+    playbackSession: PlaybackSession,
+    syncResult: SyncResult?
   ) {
     val mediaItemHistory =
-            getMediaItemHistoryMediaItem(playbackSession.mediaItemId)
-                    ?: createMediaItemHistoryForSession(playbackSession)
+      getMediaItemHistoryMediaItem(playbackSession.mediaItemId)
+        ?: createMediaItemHistoryForSession(playbackSession)
+
+    if (shouldSkipPlaybackAfterRecentSeek(eventName)) {
+      return
+    }
+
+    val now = System.currentTimeMillis()
+    if (shouldSkipDuplicatePlaybackEvent(mediaItemHistory.events.lastOrNull(), eventName, playbackSession.currentTime, now)) {
+      return
+    }
 
     val mediaItemEvent =
-            MediaItemEvent(
-                    name = eventName,
-                    type = "Playback",
-                    description = "",
-                    currentTime = playbackSession.currentTime,
-                    serverSyncAttempted = syncResult?.serverSyncAttempted ?: false,
-                    serverSyncSuccess = syncResult?.serverSyncSuccess,
-                    serverSyncMessage = syncResult?.serverSyncMessage,
-                    timestamp = System.currentTimeMillis()
-            )
+      MediaItemEvent(
+        name = eventName,
+        type = "Playback",
+        description = "",
+        currentTime = playbackSession.currentTime,
+        serverSyncAttempted = syncResult?.serverSyncAttempted ?: false,
+        serverSyncSuccess = syncResult?.serverSyncSuccess,
+        serverSyncMessage = syncResult?.serverSyncMessage,
+        timestamp = now
+      )
     mediaItemHistory.events.add(mediaItemEvent)
+    if (eventName == "Seek") {
+      lastSeekTimestampMs = now
+      skipNextPostSeekPlaybackEvent = true
+    }
     DeviceManager.dbManager.saveMediaItemHistory(mediaItemHistory)
 
     clientEventEmitter?.onMediaItemHistoryUpdated(mediaItemHistory)
@@ -117,16 +134,43 @@ object MediaEventManager {
     val libraryItemId = playbackSession.libraryItemId ?: ""
     val episodeId: String? = playbackSession.episodeId
     return MediaItemHistory(
-            id = playbackSession.mediaItemId,
-            mediaDisplayTitle = playbackSession.displayTitle ?: "Unset",
-            libraryItemId,
-            episodeId,
-            false, // local-only items are not supported
-            playbackSession.serverConnectionConfigId,
-            playbackSession.serverAddress,
-            playbackSession.userId,
-            createdAt = System.currentTimeMillis(),
-            events = mutableListOf()
+      id = playbackSession.mediaItemId,
+      mediaDisplayTitle = playbackSession.displayTitle ?: "Unset",
+      libraryItemId,
+      episodeId,
+      false, // local-only items are not supported
+      playbackSession.serverConnectionConfigId,
+      playbackSession.serverAddress,
+      playbackSession.userId,
+      createdAt = System.currentTimeMillis(),
+      events = mutableListOf()
     )
+  }
+
+  private fun shouldSkipDuplicatePlaybackEvent(
+    lastEvent: MediaItemEvent?,
+    eventName: String,
+    currentTime: Double,
+    nowMs: Long
+  ): Boolean {
+    if (lastEvent == null) return false
+    if (lastEvent.type != "Playback") return false
+    if (lastEvent.name != eventName) return false
+    val lastCurrent = lastEvent.currentTime?.toDouble() ?: return false
+    if (lastCurrent != currentTime) return false
+    if (nowMs - lastEvent.timestamp > DUPLICATE_PLAYBACK_EVENT_WINDOW_MS) return false
+    return true
+  }
+
+  private fun shouldSkipPlaybackAfterRecentSeek(eventName: String): Boolean {
+    if (!skipNextPostSeekPlaybackEvent) return false
+    if (eventName != "Play" && eventName != "Pause") return false
+    val nowMs = System.currentTimeMillis()
+    if (nowMs - lastSeekTimestampMs > SEEK_PLAYBACK_SUPPRESSION_MS) {
+      skipNextPostSeekPlaybackEvent = false
+      lastSeekTimestampMs = 0L
+      return false
+    }
+    return true
   }
 }
