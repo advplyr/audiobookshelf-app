@@ -728,13 +728,15 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
     if (!isAndroidAutoControllerConnected()) return
     val libraryItem = session.libraryItem ?: return
       val currentSpeed = currentPlaybackSpeed()
+    // Captured before the async hops below: building the payload reads player.deviceInfo, which
+    // is main-thread-only, and loadServerUserMediaProgress calls back on a network thread
+    val payload = getPlayItemRequestPayload(forceTranscode = session.isHLS)
 
     mediaManager.loadServerUserMediaProgress {
       val podcast = libraryItem.media as? Podcast ?: return@loadServerUserMediaProgress
       val nextEpisode = podcast.getNextUnfinishedEpisode(libraryItem.id, mediaManager)
         ?: return@loadServerUserMediaProgress
 
-      val payload = getPlayItemRequestPayload(forceTranscode = session.isHLS)
       mediaManager.play(libraryItem, nextEpisode, payload) { nextSession ->
         if (nextSession != null) {
           serviceScope.launch(Dispatchers.Main) {
