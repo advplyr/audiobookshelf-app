@@ -21,6 +21,7 @@ import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.data.PlaybackMetadata
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.data.PlayerState
+import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.player.PLAYER_CAST
 import com.audiobookshelf.app.player.PlaybackConstants
 import com.audiobookshelf.app.player.toMedia3MediaItems
@@ -137,6 +138,7 @@ class PlaybackController(private val context: Context) {
           hasEmittedCloseEvent = false
           maybeEmitMediaPlayerFromExtras()
           sessionResult?.let { listener?.onPlaybackSpeedChanged(it.playbackParameters.speed) }
+          sessionResult?.let { maybeAttachToServiceSession(it) }
           onConnectionSuccess?.invoke()
         }
       }
@@ -220,7 +222,11 @@ class PlaybackController(private val context: Context) {
       notifyPlayingState(effectiveIsPlaying(player))
       lastKnownPositionMs = player.currentPosition
       lastKnownMediaItemIndex = player.currentMediaItemIndex
-      this@PlaybackController.mediaController?.let { emitMetadata(it) }
+      this@PlaybackController.mediaController?.let {
+        emitMetadata(it)
+        // Covers playback started outside the app (e.g. Android Auto) while connected
+        maybeAttachToServiceSession(it)
+      }
     }
 
     override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -337,6 +343,39 @@ class PlaybackController(private val context: Context) {
         listener?.onSeekCompleted(newPosition.positionMs, newPosition.mediaItemIndex)
       }
     }
+  }
+
+  /**
+   * Adopt a playback session the service started without this controller (e.g. Android Auto,
+   * podcast auto-advance), so the app UI can display and control it. The service runs in the
+   * same process and publishes every assigned session via
+   * [DeviceManager.setLastPlaybackSession] before loading its queue; the queue's media ids are
+   * prefixed with the session id, which guards against attaching a stale persisted session.
+   * No-op while the active session still owns the loaded queue; re-attaches when the service
+   * has swapped to a different session.
+   */
+  private fun maybeAttachToServiceSession(mediaController: MediaController) {
+    // preparePlayback sets the new session before the service reloads the queue; don't let the
+    // still-loaded old queue re-attach us to the outgoing session
+    if (isPreparingPlayback) return
+    if (mediaController.mediaItemCount == 0) return
+    val currentMediaId = mediaController.currentMediaItem?.mediaId ?: return
+    val attachedSessionId = activePlaybackSession?.id
+    if (attachedSessionId != null && currentMediaId.startsWith(attachedSessionId)) return
+    val session = DeviceManager.getLastPlaybackSession() ?: return
+    if (!currentMediaId.startsWith(session.id)) {
+      Log.w(
+        TAG,
+        "maybeAttachToServiceSession: loaded queue does not match last session ${session.id}"
+      )
+      return
+    }
+    activePlaybackSession = session
+    Log.d(TAG, "Attached to service playback session ${session.id} (${session.displayTitle})")
+    listener?.onPlaybackSession(session)
+    emitMetadata(mediaController)
+    notifyPlayingState(effectiveIsPlaying(mediaController))
+    if (effectiveIsPlaying(mediaController)) startProgressUpdates()
   }
 
   private fun maybeEmitMediaPlayerFromExtras() {

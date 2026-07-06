@@ -43,7 +43,10 @@ class AbsAudioPlayer : Plugin() {
 
   private val appEventEmitter = object : PlayerNotificationService.ClientEventEmitter {
     override fun onPlaybackSession(playbackSession: PlaybackSession) {
-      notifyListeners("onPlaybackSession", JSObject(jacksonMapper.writeValueAsString(playbackSession)))
+      // retainUntilConsumed: on app open the controller attaches to a service-started session
+      // (e.g. Android Auto) before the webview has registered listeners; without retention the
+      // event is dropped and the UI never learns about the active session.
+      notifyListeners("onPlaybackSession", JSObject(jacksonMapper.writeValueAsString(playbackSession)), true)
     }
 
     override fun onPlaybackClosed() {
@@ -51,7 +54,12 @@ class AbsAudioPlayer : Plugin() {
     }
 
     override fun onPlayingUpdate(isPlaying: Boolean) {
-      emit("onPlayingUpdate", isPlaying)
+      // Retained for the same reason as onPlaybackSession: attaching to a service-started
+      // session emits the playing state before the webview registers listeners, and an
+      // unretained event leaves the play button out of sync with actual playback.
+      val ret = JSObject()
+      ret.put("value", isPlaying)
+      notifyListeners("onPlayingUpdate", ret, true)
     }
 
     override fun onMetadata(metadata: PlaybackMetadata) {
