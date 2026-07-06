@@ -1040,6 +1040,15 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
     }
   }
 
+  /**
+   * Register the episode -> podcast mapping used to resolve playback requests by episode id.
+   * Browse surfaces that display episodes must register them, otherwise a tap on the episode
+   * cannot be resolved back to its podcast (episode ids alone are not fetchable from the server).
+   */
+  fun registerPodcastEpisode(libraryItem: LibraryItemWrapper, episode: PodcastEpisode) {
+    podcastEpisodeLibraryItemMap[episode.id] = LibraryItemWithEpisode(libraryItem, episode)
+  }
+
   fun getPodcastWithEpisodeByEpisodeId(id:String) : LibraryItemWithEpisode? {
     return if (id.startsWith("local")) {
       DeviceManager.dbManager.getLocalLibraryItemWithEpisode(id)
@@ -1053,6 +1062,20 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
       DeviceManager.dbManager.getLocalLibraryItem(id)
     } else {
       serverLibraryItems.find { it.id == id }
+    }
+  }
+
+  /**
+   * Resolve a library item even when it is not in the in-memory browse cache. Some browse
+   * surfaces (e.g. the Android Auto recent shelves) display items without registering them
+   * in [serverLibraryItems], so playback requests for them must fall back to fetching the
+   * item from the server. Fetched items are registered for subsequent lookups.
+   */
+  fun getByIdOrFetch(id:String, cb: (LibraryItemWrapper?) -> Unit) {
+    getById(id)?.let { return cb(it) }
+    loadLibraryItem(id) { libraryItemWrapper ->
+      (libraryItemWrapper as? LibraryItem)?.let { addServerLibrary(it) }
+      cb(libraryItemWrapper)
     }
   }
 

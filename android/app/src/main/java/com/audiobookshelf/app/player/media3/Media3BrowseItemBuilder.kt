@@ -556,6 +556,8 @@ class Media3BrowseItemBuilder(
           val progress = mediaManager.serverUserMediaProgress.find {
             it.libraryItemId == podcastItem.id && it.episodeId == recentEpisode.id
           }
+          // Register so a tap on this episode can be resolved back to its podcast
+          mediaManager.registerPodcastEpisode(podcastItem, recentEpisode)
           recentEpisode.getMediaItem(podcastItem, progress, context)
         }
       else -> emptyList()

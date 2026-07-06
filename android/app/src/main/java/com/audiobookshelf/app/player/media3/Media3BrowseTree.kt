@@ -119,11 +119,21 @@ class Media3BrowseTree(
     val episode: PodcastEpisode? = null
   )
 
-  private fun findMediaTarget(mediaId: String): MediaTarget? {
-    return mediaManager.getById(mediaId)?.let { MediaTarget(it) }
-      ?: mediaManager.getPodcastWithEpisodeByEpisodeId(mediaId)?.let {
-        MediaTarget(it.libraryItemWrapper, it.episode)
+  private suspend fun findMediaTarget(mediaId: String): MediaTarget? {
+    mediaManager.getById(mediaId)?.let { return MediaTarget(it) }
+    mediaManager.getPodcastWithEpisodeByEpisodeId(mediaId)?.let {
+      return MediaTarget(it.libraryItemWrapper, it.episode)
+    }
+
+    // Browse surfaces like the Auto recent shelves display items that are never registered
+    // in the in-memory cache, so resolve them with a server fetch instead of failing the tap.
+    Log.d(TAG, "findMediaTarget: '$mediaId' not in memory cache, fetching from server")
+    val fetchedItem = suspendCancellableCoroutine<LibraryItemWrapper?> { itemContinuation ->
+      mediaManager.getByIdOrFetch(mediaId) { result ->
+        if (itemContinuation.isActive) itemContinuation.resume(result)
       }
+    }
+    return fetchedItem?.let { MediaTarget(it) }
   }
 
   /**
