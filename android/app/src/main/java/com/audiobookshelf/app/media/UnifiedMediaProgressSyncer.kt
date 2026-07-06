@@ -301,8 +301,11 @@ class UnifiedMediaProgressSyncer(
       return
     }
 
-    val listeningDurationSeconds = (timeSinceLastSyncMillis / 1000L).coerceAtLeast(1L)
-      lastSyncTime = System.currentTimeMillis()
+    // Matches MediaProgressSyncer semantics: lastSyncTime marks the last time listening was
+    // DELIVERED (saved locally, or accepted by the server), not the last tick. Ticks that skip
+    // or fail the server sync leave it alone, so the next successful sync reports the full
+    // elapsed listening time and the metered-connection interval can actually elapse.
+    val listeningDurationSeconds = timeSinceLastSyncMillis / 1000L
     val progressSyncData =
       MediaProgressSyncData(listeningDurationSeconds, currentPlaybackDuration, currentTime)
     currentPlaybackSession?.syncData(progressSyncData)
@@ -320,6 +323,7 @@ class UnifiedMediaProgressSyncer(
     if (currentIsLocal) {
       currentPlaybackSession?.let { session ->
         saveLocalProgress(session)
+        lastSyncTime = System.currentTimeMillis()
 
         val isConnectedToSameServer =
           session.serverConnectionConfigId != null &&
@@ -370,6 +374,7 @@ class UnifiedMediaProgressSyncer(
         if (syncSuccess) {
           failedSyncs = 0
           playbackTelemetryProvider.alertSyncSuccess()
+          lastSyncTime = System.currentTimeMillis()
           DeviceManager.dbManager.removePlaybackSession(sessionIdForSync)
         } else {
           if (errorMsg?.contains("404") == true) {
