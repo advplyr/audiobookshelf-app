@@ -586,6 +586,11 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
   }
 
   private fun syncChapterMetadataIfNeeded(session: PlaybackSession, currentPosMs: Long, trackIndex: Int) {
+    // Never replace queue items while casting: CastPlayer implements replaceMediaItem by
+    // reloading the receiver's current item, which restarts playback from the item start.
+    // Skipped before the cache update so the title refreshes on the first tick after cast ends.
+    if (isCastActive) return
+
     val chapterTitle = session.getChapterForTime(currentPosMs)?.title
 
     if (trackIndex == lastSyncedTrackIndex && chapterTitle == lastSyncedChapterTitle) return
