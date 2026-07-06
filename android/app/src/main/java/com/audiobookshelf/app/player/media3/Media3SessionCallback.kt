@@ -376,9 +376,9 @@ class Media3SessionCallback(
     params: LibraryParams?
   ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
     if (BuildConfig.DEBUG) {
-      Log.d(logTag, "onGetChildren requested for parentId: '$parentId' by ${browser.packageName}")
+      Log.d(logTag, "onGetChildren requested for parentId: '$parentId' page=$page pageSize=$pageSize by ${browser.packageName}")
     }
-    return autoLibraryCoordinator.requestChildren(parentId, params)
+    return autoLibraryCoordinator.requestChildren(parentId, page, pageSize, params)
   }
 
   override fun onGetItem(

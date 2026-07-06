@@ -40,15 +40,33 @@ class Media3AutoLibraryCoordinator(
 
   fun requestChildren(
     parentId: String,
+    page: Int,
+    pageSize: Int,
     params: MediaLibraryService.LibraryParams?
   ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-      if (BuildConfig.DEBUG) Log.d(TAG, "requestChildren(parentId=$parentId)")
+      if (BuildConfig.DEBUG) Log.d(TAG, "requestChildren(parentId=$parentId page=$page pageSize=$pageSize)")
       return scope.future {
           ensureLoaded()
           val children = browseTree.getChildren(parentId)
-          LibraryResult.ofItemList(ImmutableList.copyOf(children), params)
+          val pagedChildren = pageChildren(children, page, pageSize)
+          if (BuildConfig.DEBUG && pagedChildren.size != children.size) {
+              Log.d(TAG, "requestChildren paged parentId=$parentId returned=${pagedChildren.size}/${children.size}")
+          }
+          LibraryResult.ofItemList(ImmutableList.copyOf(pagedChildren), params)
       }
   }
+
+    private fun pageChildren(
+        children: ImmutableList<MediaItem>,
+        page: Int,
+        pageSize: Int
+    ): List<MediaItem> {
+        if (page < 0 || pageSize <= 0) return children
+        val start = page.toLong() * pageSize.toLong()
+        if (start >= children.size) return emptyList()
+        val end = (start + pageSize).coerceAtMost(children.size.toLong()).toInt()
+        return children.subList(start.toInt(), end)
+    }
 
     suspend fun awaitAutoDataLoaded() {
         ensureLoaded()
