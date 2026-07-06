@@ -92,7 +92,7 @@ data class LocalFolder(
   var mediaType:String
 )
 
-@JsonTypeInfo(use= JsonTypeInfo.Id.DEDUCTION)
+@JsonTypeInfo(use = JsonTypeInfo.Id.DEDUCTION)
 @JsonSubTypes(
   JsonSubTypes.Type(LibraryItem::class),
   JsonSubTypes.Type(LocalLibraryItem::class)
@@ -199,7 +199,6 @@ data class DeviceSettings(
   @get:JsonIgnore
   val autoSleepTimerEndMinute get() = autoSleepTimerEndTime.split(":")[1].toInt()
 
-
   @JsonIgnore
   fun getShakeThresholdGravity() : Float { // Used in ShakeDetector
     return if (shakeSensitivity == ShakeSensitivitySetting.VERY_HIGH) 1.1f
@@ -227,4 +226,3 @@ data class DeviceData(
     }
   }
 }
-

@@ -11,27 +11,27 @@ import kotlinx.coroutines.withTimeout
  * earlier pause barrier.
  */
 class FinalSyncBarrier {
-    private var barrier: CompletableDeferred<SyncResult?>? = null
+  private var barrier: CompletableDeferred<SyncResult?>? = null
 
-    @Synchronized
-    fun armIfCritical(reason: String): CompletableDeferred<SyncResult?>? {
-        if (reason!="pause" && reason!="ended" && reason!="close") return null
-        return CompletableDeferred<SyncResult?>().also { barrier = it }
-    }
+  @Synchronized
+  fun armIfCritical(reason: String): CompletableDeferred<SyncResult?>? {
+    if (reason != "pause" && reason != "ended" && reason != "close") return null
+    return CompletableDeferred<SyncResult?>().also { barrier = it }
+  }
 
-    @Synchronized
-    fun complete(result: SyncResult?, expected: CompletableDeferred<SyncResult?>?) {
-        expected ?: return
-        if (!expected.isCompleted) expected.complete(result)
-        if (barrier===expected) barrier = null
-    }
+  @Synchronized
+  fun complete(result: SyncResult?, expected: CompletableDeferred<SyncResult?>?) {
+    expected ?: return
+    if (!expected.isCompleted) expected.complete(result)
+    if (barrier === expected) barrier = null
+  }
 
-    suspend fun await(timeoutMs: Long) {
-        val current = synchronized(this) { barrier } ?: return
-        if (current.isCompleted) return
-        try {
-            withTimeout(timeoutMs) { current.await() }
-        } catch (_: Exception) {
-        }
+  suspend fun await(timeoutMs: Long) {
+    val current = synchronized(this) { barrier } ?: return
+    if (current.isCompleted) return
+    try {
+      withTimeout(timeoutMs) { current.await() }
+    } catch (_: Exception) {
     }
+  }
 }

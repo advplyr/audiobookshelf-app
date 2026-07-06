@@ -33,7 +33,7 @@ class PlaybackPipeline(
   private val log: (msg: () -> String) -> Unit = { }
 ) {
   companion object {
-      private const val TAG = "PlaybackPipeline"
+    private const val TAG = "PlaybackPipeline"
 
     // Buffer settings (in milliseconds)
     private const val BUFFER_MIN_MS = 20_000
@@ -46,12 +46,12 @@ class PlaybackPipeline(
     private const val RETRY_BASE_DELAY_MS = 1_000L
   }
 
-    /**
-     * Initializes player with [CastPlayer] wrapping [ExoPlayer] for automatic cast switching.
-     *
-     * CastPlayer handles local/remote transitions internally, eliminating manual state transfers.
-     */
-    fun initializePlayer(
+  /**
+   * Initializes player with [CastPlayer] wrapping [ExoPlayer] for automatic cast switching.
+   *
+   * CastPlayer handles local/remote transitions internally, eliminating manual state transfers.
+   */
+  fun initializePlayer(
     enableMp3IndexSeeking: Boolean,
     speechAttributes: AudioAttributes,
     seekBackIncrementMs: Long,
@@ -100,7 +100,7 @@ class PlaybackPipeline(
       )
       .build()
 
-        val exoPlayer = ExoPlayer.Builder(context)
+    val exoPlayer = ExoPlayer.Builder(context)
       .setMediaSourceFactory(mediaSourceFactory)
       .setLoadControl(customLoadControl)
       .setAudioAttributes(speechAttributes, true)
@@ -110,19 +110,19 @@ class PlaybackPipeline(
       .setDeviceVolumeControlEnabled(true)
       .build()
 
-        val playerWithCast = try {
-            CastPlayer.Builder(context)
-                .setLocalPlayer(exoPlayer)
-                .build()
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to create CastPlayer, using local-only ExoPlayer", e)
-            exoPlayer
-        }
+    val playerWithCast = try {
+      CastPlayer.Builder(context)
+        .setLocalPlayer(exoPlayer)
+        .build()
+    } catch (e: Exception) {
+      Log.w(TAG, "Failed to create CastPlayer, using local-only ExoPlayer", e)
+      exoPlayer
+    }
 
     val listener = buildListener()
-        val wrapper = AbsPlayerWrapper(playerWithCast).apply { addListener(listener) }
-        onPlayerReady(wrapper)
-        log { "Player initialized with cast support via CastPlayer.Builder." }
-        return wrapper
+    val wrapper = AbsPlayerWrapper(playerWithCast).apply { addListener(listener) }
+    onPlayerReady(wrapper)
+    log { "Player initialized with cast support via CastPlayer.Builder." }
+    return wrapper
   }
 }

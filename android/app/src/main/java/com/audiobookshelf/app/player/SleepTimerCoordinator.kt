@@ -13,15 +13,15 @@ const val SLEEP_TIMER_WAKE_UP_EXPIRATION = 2 * 60 * 1000L // 2 minutes
  */
 interface SleepTimerHostAdapter {
   val context: Context
-    fun currentTimeMs(): Long // Playback position (ms)
-    fun durationMs(): Long // Total media duration (ms)
+  fun currentTimeMs(): Long // Playback position (ms)
+  fun durationMs(): Long // Total media duration (ms)
   fun isPlaying(): Boolean
   fun playbackSpeed(): Float
-    fun setVolume(volume: Float) // 0.0-1.0 for fade-out
+  fun setVolume(volume: Float) // 0.0-1.0 for fade-out
   fun pause()
   fun play()
   fun seekBackward(amountMs: Long)
-    fun endTimeOfChapterOrTrack(): Long? // Absolute position (ms) where current chapter/track ends
+  fun endTimeOfChapterOrTrack(): Long? // Absolute position (ms) where current chapter/track ends
   fun endTimeOfNextChapterOrTrack(): Long?
   fun notifySleepTimerSet(secondsRemaining: Int, isAuto: Boolean)
   fun notifySleepTimerEnded(currentPosition: Long)
@@ -105,9 +105,9 @@ class SleepTimerCoordinator(
     sleepTimerManager?.handleShake()
   }
 
-    fun sendCurrentSleepTimerState() {
-        sleepTimerManager?.sendCurrentSleepTimerState()
-    }
+  fun sendCurrentSleepTimerState() {
+    sleepTimerManager?.sendCurrentSleepTimerState()
+  }
 
   override val context: Context
     get() = hostAdapter?.context

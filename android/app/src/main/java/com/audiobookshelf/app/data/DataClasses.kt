@@ -17,7 +17,7 @@ import java.util.Date
 import androidx.media.utils.MediaConstants as LegacyMediaConstants
 
 // This auto-detects whether it is a Book or Podcast
-@JsonTypeInfo(use=JsonTypeInfo.Id.DEDUCTION)
+@JsonTypeInfo(use = JsonTypeInfo.Id.DEDUCTION)
 @JsonSubTypes(
   JsonSubTypes.Type(Book::class),
   JsonSubTypes.Type(Podcast::class)
@@ -32,7 +32,7 @@ open class MediaType(var metadata:MediaTypeMetadata, var coverPath:String?) {
   @JsonIgnore
   open fun removeAudioTrack(localFileId:String) { }
   @JsonIgnore
-  open fun getLocalCopy():MediaType { return MediaType(MediaTypeMetadata("", false),null) }
+  open fun getLocalCopy():MediaType { return MediaType(MediaTypeMetadata("", false), null) }
   @JsonIgnore
   open fun checkHasTracks():Boolean { return false }
 }
@@ -60,9 +60,9 @@ class Podcast(
 
     // Add new episodes
     audioTracks.forEach { at ->
-      if (episodes?.find{ it.audioTrack?.localFileId == at.localFileId } == null) {
+      if (episodes?.find { it.audioTrack?.localFileId == at.localFileId } == null) {
         val localEpisodeId = "local_ep_" + at.localFileId
-        val newEpisode = PodcastEpisode(localEpisodeId,(episodes?.size ?: 0) + 1,null,null,at.title,null,null,null, null, null, at,null,at.duration,0, null, localEpisodeId)
+        val newEpisode = PodcastEpisode(localEpisodeId, (episodes?.size ?: 0) + 1, null, null, at.title, null, null, null, null, null, at, null, at.duration, 0, null, localEpisodeId)
         episodes?.add(newEpisode)
       }
     }
@@ -76,7 +76,7 @@ class Podcast(
   @JsonIgnore
   override fun addAudioTrack(audioTrack:AudioTrack) {
     val localEpisodeId = "local_ep_" + audioTrack.localFileId
-    val newEpisode = PodcastEpisode(localEpisodeId,(episodes?.size ?: 0) + 1,null,null,audioTrack.title,null,null,null, null, null,audioTrack,null,audioTrack.duration,0, null, localEpisodeId)
+    val newEpisode = PodcastEpisode(localEpisodeId, (episodes?.size ?: 0) + 1, null, null, audioTrack.title, null, null, null, null, null, audioTrack, null, audioTrack.duration, 0, null, localEpisodeId)
     episodes?.add(newEpisode)
 
     var index = 1
@@ -99,7 +99,7 @@ class Podcast(
   // Used for FolderScanner local podcast item to get copy of Podcast excluding episodes
   @JsonIgnore
   override fun getLocalCopy(): Podcast {
-    return Podcast(metadata as PodcastMetadata,coverPath,tags, mutableListOf(),autoDownloadEpisodes, 0)
+    return Podcast(metadata as PodcastMetadata, coverPath, tags, mutableListOf(), autoDownloadEpisodes, 0)
   }
 
   @JsonIgnore
@@ -110,7 +110,7 @@ class Podcast(
   @JsonIgnore
   fun addEpisode(audioTrack:AudioTrack, episode:PodcastEpisode):PodcastEpisode {
     val localEpisodeId = "local_ep_" + episode.id
-    val newEpisode = PodcastEpisode(localEpisodeId,(episodes?.size ?: 0) + 1,episode.episode,episode.episodeType,episode.title,episode.subtitle,episode.description,null,null,null,audioTrack,episode.chapters,audioTrack.duration,episode.size, episode.id, localEpisodeId)
+    val newEpisode = PodcastEpisode(localEpisodeId, (episodes?.size ?: 0) + 1, episode.episode, episode.episodeType, episode.title, episode.subtitle, episode.description, null, null, null, audioTrack, episode.chapters, audioTrack.duration, episode.size, episode.id, localEpisodeId)
     episodes?.add(newEpisode)
 
     var index = 1
@@ -194,7 +194,7 @@ class Book(
   }
   @JsonIgnore
   override fun getLocalCopy(): Book {
-    return Book(metadata as BookMetadata,coverPath,tags, mutableListOf(),chapters,mutableListOf(), ebookFile, null,null, 0)
+    return Book(metadata as BookMetadata, coverPath, tags, mutableListOf(), chapters, mutableListOf(), ebookFile, null, null, 0)
   }
 
   @JsonIgnore
@@ -204,7 +204,7 @@ class Book(
 }
 
 // This auto-detects whether it is a BookMetadata or PodcastMetadata
-@JsonTypeInfo(use=JsonTypeInfo.Id.DEDUCTION)
+@JsonTypeInfo(use = JsonTypeInfo.Id.DEDUCTION)
 @JsonSubTypes(
   JsonSubTypes.Type(BookMetadata::class),
   JsonSubTypes.Type(PodcastMetadata::class)
@@ -234,7 +234,7 @@ class BookMetadata(
   var authorNameLF:String?,
   var narratorName:String?,
   var seriesName:String?,
-  @JsonFormat(with=[JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY])
+  @JsonFormat(with = [JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY])
   var series:List<SeriesType>?
 ) : MediaTypeMetadata(title, explicit) {
   @JsonIgnore
@@ -410,7 +410,6 @@ data class PodcastEpisode(
       .setExtras(extras)
       .build()
 
-
     return MediaItem.Builder()
       .setMediaId(mediaId)
       .setMediaMetadata(metadata)
@@ -499,7 +498,7 @@ data class BookChapter(
   val endMs get() = (end * 1000L).toLong()
 }
 
-@JsonTypeInfo(use= JsonTypeInfo.Id.DEDUCTION, defaultImpl = MediaProgress::class)
+@JsonTypeInfo(use = JsonTypeInfo.Id.DEDUCTION, defaultImpl = MediaProgress::class)
 @JsonSubTypes(
   JsonSubTypes.Type(MediaProgress::class),
   JsonSubTypes.Type(LocalMediaProgress::class)
@@ -535,7 +534,7 @@ data class LibraryItemSearchResultType(
 
 // For personalized shelves
 @JsonTypeInfo(
-  use=JsonTypeInfo.Id.NAME,
+  use = JsonTypeInfo.Id.NAME,
   property = "type",
   include = JsonTypeInfo.As.PROPERTY,
   visible = true
@@ -569,7 +568,7 @@ data class LibraryShelfSeriesEntity(
   override val total: Int,
   override val type: String,
   val entities: List<LibrarySeriesItem>?
-) :  LibraryShelfType(id, label, total, type)
+) : LibraryShelfType(id, label, total, type)
 
 data class LibraryShelfAuthorEntity(
   override val id: String,
@@ -577,7 +576,7 @@ data class LibraryShelfAuthorEntity(
   override val total: Int,
   override val type: String,
   val entities: List<LibraryAuthorItem>?
-) :  LibraryShelfType(id, label, total, type)
+) : LibraryShelfType(id, label, total, type)
 
 data class LibraryShelfEpisodeEntity(
   override val id: String,
@@ -585,7 +584,7 @@ data class LibraryShelfEpisodeEntity(
   override val total: Int,
   override val type: String,
   val entities: List<LibraryItem>?
-) :  LibraryShelfType(id, label, total, type)
+) : LibraryShelfType(id, label, total, type)
 
 data class LibraryShelfPodcastEntity(
   override val id: String,
@@ -593,4 +592,4 @@ data class LibraryShelfPodcastEntity(
   override val total: Int,
   override val type: String,
   val entities: List<LibraryItem>?
-) :  LibraryShelfType(id, label, total, type)
+) : LibraryShelfType(id, label, total, type)

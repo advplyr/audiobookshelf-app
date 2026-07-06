@@ -132,7 +132,7 @@ class AbsAudioPlayer : Plugin() {
 
     try {
       initCastManager()
-    } catch(e:Exception) {
+    } catch (e:Exception) {
       Log.e(tag, "initCastManager exception ${e.printStackTrace()}")
     }
 
@@ -145,7 +145,6 @@ class AbsAudioPlayer : Plugin() {
     }
     playerBackend.initialize()
   }
-
 
   fun emit(evtName: String, value: Any) {
     val ret = JSObject()
@@ -226,7 +225,7 @@ class AbsAudioPlayer : Plugin() {
     val libraryItemId = call.getString("libraryItemId", "").toString()
     val episodeId = call.getString("episodeId", "").toString()
     val playWhenReady = call.getBoolean("playWhenReady") == true
-    val playbackRate = call.getFloat("playbackRate",1f) ?: 1f
+    val playbackRate = call.getFloat("playbackRate", 1f) ?: 1f
     val startTimeOverride = call.getDouble("startTime")
 
     AbsLogger.info("AbsAudioPlayer", "prepareLibraryItem: lid=$libraryItemId, startTimeOverride=$startTimeOverride, playbackRate=$playbackRate")

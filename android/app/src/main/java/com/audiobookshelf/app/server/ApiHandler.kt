@@ -62,7 +62,7 @@ class ApiHandler(var ctx:Context) {
         .url("${address}$endpoint").addHeader("Authorization", "Bearer $token")
         .build()
       makeRequest(request, httpClient, cb)
-    } catch(e: Exception) {
+    } catch (e: Exception) {
       e.printStackTrace()
       val jsobj = JSObject()
       jsobj.put("error", "Request failed: ${e.message}")
@@ -82,7 +82,7 @@ class ApiHandler(var ctx:Context) {
         .url(requestUrl).addHeader("Authorization", "Bearer ${token}")
         .build()
       makeRequest(request, null, cb)
-    } catch(e: Exception) {
+    } catch (e: Exception) {
       e.printStackTrace()
       val jsobj = JSObject()
       jsobj.put("error", "Request failed: ${e.message}")
@@ -98,7 +98,7 @@ class ApiHandler(var ctx:Context) {
         .url("${DeviceManager.serverAddress}$endpoint").addHeader("Authorization", "Bearer ${DeviceManager.token}")
         .build()
       makeRequest(request, null, cb)
-    } catch(e: Exception) {
+    } catch (e: Exception) {
       e.printStackTrace()
       val jsobj = JSObject()
       jsobj.put("error", "Request failed: ${e.message}")
@@ -148,7 +148,7 @@ class ApiHandler(var ctx:Context) {
                 jsonObj = JSObject(bodyString)
               }
               cb(jsonObj)
-            } catch(je:JSONException) {
+            } catch (je:JSONException) {
               Log.e(tag, "Invalid JSON response ${je.localizedMessage} from body $bodyString")
               val jsobj = JSObject()
               jsobj.put("error", "Invalid response body")
@@ -359,7 +359,7 @@ class ApiHandler(var ctx:Context) {
                   jsonObj = JSObject(bodyString)
                 }
                 callback(jsonObj)
-              } catch(je:JSONException) {
+              } catch (je:JSONException) {
                 Log.e(tag, "retryOriginalRequest: Invalid JSON response ${je.localizedMessage} from body $bodyString")
                 val errorObj = JSObject()
                 errorObj.put("error", "Invalid response body")
@@ -437,7 +437,7 @@ class ApiHandler(var ctx:Context) {
 
   fun getLibraries(cb: (List<Library>) -> Unit) {
     val mapper = jacksonMapper
-    getRequest("/api/libraries?include=stats", null,null) {
+    getRequest("/api/libraries?include=stats", null, null) {
       val libraries = mutableListOf<Library>()
 
       var array = JSONArray()
@@ -552,7 +552,7 @@ class ApiHandler(var ctx:Context) {
           val item = jacksonMapper.readValue<LibraryAuthorItem>(array.get(i).toString())
           items.add(item)
         }
-      }else{
+      } else {
         Log.e(tag, "No results")
       }
       cb(items)
@@ -573,7 +573,7 @@ class ApiHandler(var ctx:Context) {
           }
           items.add(item)
         }
-      }else{
+      } else {
         Log.e(tag, "No results")
       }
       cb(items)
@@ -670,17 +670,17 @@ class ApiHandler(var ctx:Context) {
     }
   }
 
-  fun updateMediaProgress(libraryItemId:String,episodeId:String?,updatePayload:JSObject, cb: () -> Unit) {
+  fun updateMediaProgress(libraryItemId:String, episodeId:String?, updatePayload:JSObject, cb: () -> Unit) {
     Log.d(tag, "updateMediaProgress $libraryItemId $episodeId $updatePayload")
-    val endpoint = if(episodeId.isNullOrEmpty()) "/api/me/progress/$libraryItemId" else "/api/me/progress/$libraryItemId/$episodeId"
-    patchRequest(endpoint,updatePayload) {
+    val endpoint = if (episodeId.isNullOrEmpty()) "/api/me/progress/$libraryItemId" else "/api/me/progress/$libraryItemId/$episodeId"
+    patchRequest(endpoint, updatePayload) {
       Log.d(tag, "updateMediaProgress patched progress")
       cb()
     }
   }
 
   fun getMediaProgress(libraryItemId:String, episodeId:String?, serverConnectionConfig:ServerConnectionConfig?, cb: (MediaProgress?) -> Unit) {
-    val endpoint = if(episodeId.isNullOrEmpty()) "/api/me/progress/$libraryItemId" else "/api/me/progress/$libraryItemId/$episodeId"
+    val endpoint = if (episodeId.isNullOrEmpty()) "/api/me/progress/$libraryItemId" else "/api/me/progress/$libraryItemId/$episodeId"
 
     // TODO: Using ping client here allows for shorter timeout (3 seconds), maybe rename or make diff client for requests requiring quicker response
     getRequest(endpoint, pingClient, serverConnectionConfig) {
@@ -843,7 +843,7 @@ class ApiHandler(var ctx:Context) {
               updatePayload.put("ebookLocation", localMediaProgress.ebookLocation)
               updatePayload.put("ebookProgress", localMediaProgress.ebookProgress)
               updatePayload.put("lastUpdate", localMediaProgress.lastUpdate)
-              patchRequest(endpoint,updatePayload) {
+              patchRequest(endpoint, updatePayload) {
                 AbsLogger.info("ApiHandler", "syncLocalMediaProgressForUser: Successfully updated server ebook progress for item item \"${mediaProgress.mediaItemId}\"")
               }
             } else {

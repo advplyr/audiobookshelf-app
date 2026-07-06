@@ -33,7 +33,7 @@ class AbsDatabase : Plugin() {
   data class LocalMediaProgressPayload(val value:List<LocalMediaProgress>)
   data class LocalLibraryItemsPayload(val value:List<LocalLibraryItem>)
   data class LocalFoldersPayload(val value:List<LocalFolder>)
-  data class ServerConnConfigPayload(val id:String?, val index:Int, val name:String?, val userId:String, val username:String, var version:String, val token:String, val refreshToken:String?, val address:String?, val customHeaders:Map<String,String>?)
+  data class ServerConnConfigPayload(val id:String?, val index:Int, val name:String?, val userId:String, val username:String, var version:String, val token:String, val refreshToken:String?, val address:String?, val customHeaders:Map<String, String>?)
 
   override fun load() {
     mainActivity = (activity as MainActivity)
@@ -126,7 +126,7 @@ class AbsDatabase : Plugin() {
     val serverConfigPayload = jacksonMapper.readValue<ServerConnConfigPayload>(call.data.toString())
     var serverConnectionConfig = DeviceManager.deviceData.serverConnectionConfigs.find { it.id == serverConfigPayload.id }
 
-    val userId =  serverConfigPayload.userId
+    val userId = serverConfigPayload.userId
     val username = serverConfigPayload.username
     val serverVersion = serverConfigPayload.version
     val accessToken = serverConfigPayload.token
@@ -326,7 +326,7 @@ class AbsDatabase : Plugin() {
     if (localEpisodeId.isNullOrEmpty()) localEpisodeId = null
     var localMediaProgressId = call.getString("localMediaProgressId") ?: ""
 
-    val mediaProgress =  jacksonMapper.readValue<MediaProgress>(serverMediaProgress)
+    val mediaProgress = jacksonMapper.readValue<MediaProgress>(serverMediaProgress)
 
     if (localMediaProgressId == "") {
       val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(localLibraryItemId)
@@ -388,7 +388,7 @@ class AbsDatabase : Plugin() {
     var localMediaProgress = DeviceManager.dbManager.getLocalMediaProgress(localMediaProgressId)
 
     if (localMediaProgress == null) { // Create new local media progress if does not exist
-     Log.d(tag, "updateLocalMediaProgressFinished Local Media Progress not found $localMediaProgressId - Creating new")
+      Log.d(tag, "updateLocalMediaProgressFinished Local Media Progress not found $localMediaProgressId - Creating new")
       val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(localLibraryItemId)
 
       if (localLibraryItem == null) {
@@ -401,10 +401,10 @@ class AbsDatabase : Plugin() {
       val duration: Double
       var podcastEpisode: PodcastEpisode? = null
       if (!localEpisodeId.isNullOrEmpty()) {
-          val podcast = localLibraryItem.media as Podcast
+        val podcast = localLibraryItem.media as Podcast
         podcastEpisode = podcast.episodes?.find { episode ->
-            episode.id == localEpisodeId
-          }
+          episode.id == localEpisodeId
+        }
         if (podcastEpisode == null) {
           return call.resolve(JSObject("{\"error\":\"Podcast episode not found\"}"))
         }
@@ -450,7 +450,7 @@ class AbsDatabase : Plugin() {
         val episodeId = localMediaProgress.episodeId ?: ""
         val updatePayload = JSObject()
         updatePayload.put("isFinished", isFinished)
-        apiHandler.updateMediaProgress(libraryItemId,episodeId,updatePayload) {
+        apiHandler.updateMediaProgress(libraryItemId, episodeId, updatePayload) {
           Log.d(tag, "updateLocalMediaProgressFinished: Updated media progress isFinished on server")
           val jsobj = JSObject()
           jsobj.put("local", true)
@@ -538,7 +538,7 @@ class AbsDatabase : Plugin() {
       val track = tracks.getJSONObject(i)
       val localFileId = track.getString("localFileId")
 
-      val existingTrack = audioTracks.find{ it.localFileId == localFileId }
+      val existingTrack = audioTracks.find { it.localFileId == localFileId }
       if (existingTrack != null) {
         Log.d(tag, "Found existing track ${existingTrack.localFileId} that has index ${existingTrack.index} should be index $index")
         if (existingTrack.index != index) hasUpdates = true

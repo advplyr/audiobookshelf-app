@@ -16,11 +16,11 @@ data class WidgetPlaybackSnapshot(
   fun hasMeaningfulChangesFrom(other: WidgetPlaybackSnapshot?): Boolean {
     if (other == null) return true
     return title != other.title ||
-            author != other.author ||
-            coverUri != other.coverUri ||
-            durationMs != other.durationMs ||
-            isPlaying != other.isPlaying ||
-            isClosed != other.isClosed
+      author != other.author ||
+      coverUri != other.coverUri ||
+      durationMs != other.durationMs ||
+      isPlaying != other.isPlaying ||
+      isClosed != other.isClosed
   }
 }
 

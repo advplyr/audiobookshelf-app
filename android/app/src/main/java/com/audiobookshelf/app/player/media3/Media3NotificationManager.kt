@@ -147,13 +147,13 @@ class Media3NotificationManager(
     updateMediaButtonPreferencesAfterSpeedChange(null)
   }
 
-    fun applyInitialMediaButtonPreferences(mediaSession: MediaSession?) =
-        refreshMediaButtonPreferences(mediaSession)
+  fun applyInitialMediaButtonPreferences(mediaSession: MediaSession?) =
+    refreshMediaButtonPreferences(mediaSession)
 
-    fun updateMediaButtonPreferencesAfterSpeedChange(mediaSession: MediaSession?) =
-        refreshMediaButtonPreferences(mediaSession)
+  fun updateMediaButtonPreferencesAfterSpeedChange(mediaSession: MediaSession?) =
+    refreshMediaButtonPreferences(mediaSession)
 
-    private fun refreshMediaButtonPreferences(mediaSession: MediaSession?) {
+  private fun refreshMediaButtonPreferences(mediaSession: MediaSession?) {
     runCatching {
       val built = buildServiceMediaButtons()
       val merged = mergeWithLastPreferences(built)
@@ -161,7 +161,7 @@ class Media3NotificationManager(
       mediaSession?.setMediaButtonPreferences(prefs)
       lastMediaButtonPreferences = prefs
     }.onFailure { t ->
-        debugLog("Failed to refresh media button preferences: ${t.message}")
+      debugLog("Failed to refresh media button preferences: ${t.message}")
     }
   }
 
@@ -175,8 +175,8 @@ class Media3NotificationManager(
     // Append existing preferences that don't conflict
     existing.forEach { btn ->
       val isNavButton =
-          btn.playerCommand==Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM ||
-                  btn.playerCommand==Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM
+        btn.playerCommand == Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM ||
+          btn.playerCommand == Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM
       if (!includeTrackNavigationButtons && isNavButton) return@forEach
       val k = CustomMediaNotificationProvider.keyOf(btn)
       if (k == null || !keys.contains(k)) {

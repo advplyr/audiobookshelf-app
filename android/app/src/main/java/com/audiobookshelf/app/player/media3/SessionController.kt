@@ -22,124 +22,124 @@ class SessionController(
   private val host: Media3ServiceHost
 ) {
   fun onCustomCommand(command: SessionCommand, commandData: Bundle?): SessionResult {
-      val action = command.customAction
-      val success = SessionResult(SessionResult.RESULT_SUCCESS)
+    val action = command.customAction
+    val success = SessionResult(SessionResult.RESULT_SUCCESS)
 
-      return when (action) {
-          PlaybackConstants.Commands.CYCLE_PLAYBACK_SPEED -> {
-              host.cyclePlaybackSpeed()
-              success
-          }
-
-          PlaybackConstants.Commands.SEEK_BACK_INCREMENT -> {
-              host.playerOrNull()?.seekBack()
-              success
-          }
-
-          PlaybackConstants.Commands.SEEK_FORWARD_INCREMENT -> {
-              host.playerOrNull()?.seekForward()
-              success
-          }
-
-          PlaybackConstants.Commands.SEEK_TO_PREVIOUS_TRACK -> {
-              host.playerOrNull()?.seekToPreviousMediaItem()
-              success
-          }
-
-          PlaybackConstants.Commands.SEEK_TO_NEXT_TRACK -> {
-              host.playerOrNull()?.seekToNextMediaItem()
-              success
-          }
-
-          PlaybackConstants.Commands.SEEK_TO_PREVIOUS_CHAPTER -> {
-              val session = host.currentSession()
-              val absolutePositionMs = host.currentAbsolutePositionMs()
-              if (session!=null && absolutePositionMs!=null) {
-                  val targetChapter = resolvePreviousChapter(session, absolutePositionMs)
-                  if (targetChapter!=null) {
-                      host.playerOrNull()?.seekTo(targetChapter.startMs)
-                      return success
-                  }
-              }
-              host.playerOrNull()?.seekBack()
-              success
-          }
-
-          PlaybackConstants.Commands.SEEK_TO_NEXT_CHAPTER -> {
-              val session = host.currentSession()
-              val absolutePositionMs = host.currentAbsolutePositionMs()
-              if (session!=null && absolutePositionMs!=null) {
-                  val targetChapter = session.getNextChapterForTime(absolutePositionMs)
-                  if (targetChapter!=null) {
-                      host.playerOrNull()?.seekTo(targetChapter.startMs)
-                      return success
-                  }
-              }
-              host.playerOrNull()?.seekForward()
-              success
-          }
-
-          PlaybackConstants.Commands.SEEK_TO_CHAPTER -> {
-              val chapterStartMs =
-                  commandData?.getLong(KEY_CHAPTER_START_MS, Long.MIN_VALUE) ?: Long.MIN_VALUE
-              if (chapterStartMs >= 0L) {
-                  host.playerOrNull()?.seekTo(chapterStartMs)
-                  success
-              } else {
-                  SessionResult(SessionError.ERROR_BAD_VALUE)
-              }
-          }
-
-          PlaybackConstants.SleepTimer.ACTION_SET -> {
-              val timeMs = commandData?.getLong(PlaybackConstants.SleepTimer.EXTRA_TIME_MS, 0L)
-                  ?: 0L
-              val isChapter = commandData?.getBoolean(PlaybackConstants.SleepTimer.EXTRA_IS_CHAPTER, false)
-                  ?: false
-              val sessionId = commandData?.getString(PlaybackConstants.SleepTimer.EXTRA_SESSION_ID)
-                  ?: ""
-              host.setSleepTimer(sessionId, timeMs, isChapter)
-              success
-          }
-
-          PlaybackConstants.SleepTimer.ACTION_CANCEL -> {
-              host.cancelSleepTimer()
-              success
-          }
-
-          PlaybackConstants.SleepTimer.ACTION_ADJUST -> {
-              val deltaMs = commandData?.getLong(PlaybackConstants.SleepTimer.EXTRA_ADJUST_DELTA, 0L)
-                  ?: 0L
-              val increase = commandData?.getBoolean(PlaybackConstants.SleepTimer.EXTRA_ADJUST_INCREASE, true)
-                  ?: true
-              if (deltaMs <= 0L) return SessionResult(SessionError.ERROR_BAD_VALUE)
-              host.adjustSleepTimer(deltaMs, increase)
-              success
-          }
-
-          PlaybackConstants.SleepTimer.ACTION_GET_TIME -> {
-              val remainingSleepTimeMs = host.getSleepTimerTimeMs()
-              SessionResult(
-                  SessionResult.RESULT_SUCCESS,
-                  Bundle().apply { putLong(PlaybackConstants.SleepTimer.EXTRA_TIME_MS, remainingSleepTimeMs) }
-              )
-          }
-
-          PlaybackConstants.Commands.RESYNC_SLEEP_TIMER -> {
-              host.resyncSleepTimerState()
-              success
-          }
-
-          PlaybackConstants.Commands.CLOSE_PLAYBACK -> {
-              host.closePlayback()
-              success
-          }
-
-          else -> success
+    return when (action) {
+      PlaybackConstants.Commands.CYCLE_PLAYBACK_SPEED -> {
+        host.cyclePlaybackSpeed()
+        success
       }
+
+      PlaybackConstants.Commands.SEEK_BACK_INCREMENT -> {
+        host.playerOrNull()?.seekBack()
+        success
+      }
+
+      PlaybackConstants.Commands.SEEK_FORWARD_INCREMENT -> {
+        host.playerOrNull()?.seekForward()
+        success
+      }
+
+      PlaybackConstants.Commands.SEEK_TO_PREVIOUS_TRACK -> {
+        host.playerOrNull()?.seekToPreviousMediaItem()
+        success
+      }
+
+      PlaybackConstants.Commands.SEEK_TO_NEXT_TRACK -> {
+        host.playerOrNull()?.seekToNextMediaItem()
+        success
+      }
+
+      PlaybackConstants.Commands.SEEK_TO_PREVIOUS_CHAPTER -> {
+        val session = host.currentSession()
+        val absolutePositionMs = host.currentAbsolutePositionMs()
+        if (session != null && absolutePositionMs != null) {
+          val targetChapter = resolvePreviousChapter(session, absolutePositionMs)
+          if (targetChapter != null) {
+            host.playerOrNull()?.seekTo(targetChapter.startMs)
+            return success
+          }
+        }
+        host.playerOrNull()?.seekBack()
+        success
+      }
+
+      PlaybackConstants.Commands.SEEK_TO_NEXT_CHAPTER -> {
+        val session = host.currentSession()
+        val absolutePositionMs = host.currentAbsolutePositionMs()
+        if (session != null && absolutePositionMs != null) {
+          val targetChapter = session.getNextChapterForTime(absolutePositionMs)
+          if (targetChapter != null) {
+            host.playerOrNull()?.seekTo(targetChapter.startMs)
+            return success
+          }
+        }
+        host.playerOrNull()?.seekForward()
+        success
+      }
+
+      PlaybackConstants.Commands.SEEK_TO_CHAPTER -> {
+        val chapterStartMs =
+          commandData?.getLong(KEY_CHAPTER_START_MS, Long.MIN_VALUE) ?: Long.MIN_VALUE
+        if (chapterStartMs >= 0L) {
+          host.playerOrNull()?.seekTo(chapterStartMs)
+          success
+        } else {
+          SessionResult(SessionError.ERROR_BAD_VALUE)
+        }
+      }
+
+      PlaybackConstants.SleepTimer.ACTION_SET -> {
+        val timeMs = commandData?.getLong(PlaybackConstants.SleepTimer.EXTRA_TIME_MS, 0L)
+          ?: 0L
+        val isChapter = commandData?.getBoolean(PlaybackConstants.SleepTimer.EXTRA_IS_CHAPTER, false)
+          ?: false
+        val sessionId = commandData?.getString(PlaybackConstants.SleepTimer.EXTRA_SESSION_ID)
+          ?: ""
+        host.setSleepTimer(sessionId, timeMs, isChapter)
+        success
+      }
+
+      PlaybackConstants.SleepTimer.ACTION_CANCEL -> {
+        host.cancelSleepTimer()
+        success
+      }
+
+      PlaybackConstants.SleepTimer.ACTION_ADJUST -> {
+        val deltaMs = commandData?.getLong(PlaybackConstants.SleepTimer.EXTRA_ADJUST_DELTA, 0L)
+          ?: 0L
+        val increase = commandData?.getBoolean(PlaybackConstants.SleepTimer.EXTRA_ADJUST_INCREASE, true)
+          ?: true
+        if (deltaMs <= 0L) return SessionResult(SessionError.ERROR_BAD_VALUE)
+        host.adjustSleepTimer(deltaMs, increase)
+        success
+      }
+
+      PlaybackConstants.SleepTimer.ACTION_GET_TIME -> {
+        val remainingSleepTimeMs = host.getSleepTimerTimeMs()
+        SessionResult(
+          SessionResult.RESULT_SUCCESS,
+          Bundle().apply { putLong(PlaybackConstants.SleepTimer.EXTRA_TIME_MS, remainingSleepTimeMs) }
+        )
+      }
+
+      PlaybackConstants.Commands.RESYNC_SLEEP_TIMER -> {
+        host.resyncSleepTimerState()
+        success
+      }
+
+      PlaybackConstants.Commands.CLOSE_PLAYBACK -> {
+        host.closePlayback()
+        success
+      }
+
+      else -> success
+    }
   }
 
   private fun resolvePreviousChapter(
-      session: PlaybackSession,
+    session: PlaybackSession,
     currentPositionMs: Long
   ): BookChapter? {
     val chapters = session.chapters

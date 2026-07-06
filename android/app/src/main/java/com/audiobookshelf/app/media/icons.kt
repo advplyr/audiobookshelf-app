@@ -18,14 +18,13 @@ fun getUriToDrawable(context: Context, @AnyRes drawableId: Int): Uri {
     + '/' + context.resources.getResourceEntryName(drawableId))
 }
 
-
 /**
  * get uri to drawable or any other resource type if u wish
  * @param drawableId - drawable res id
  * @return - uri
  */
 fun getUriToAbsIconDrawable(context: Context, absIconName: String): Uri {
-  val drawableId = when(absIconName) {
+  val drawableId = when (absIconName) {
     "audiobookshelf" -> R.drawable.abs_audiobookshelf
     "authors" -> R.drawable.abs_authors
     "book-1" -> R.drawable.abs_book_1
@@ -50,9 +49,8 @@ fun getUriToAbsIconDrawable(context: Context, absIconName: String): Uri {
     "clock" -> R.drawable.md_clock_outline
     else -> R.drawable.icon_library_folder
   }
-  return Uri.parse(
-    ContentResolver.SCHEME_ANDROID_RESOURCE
-      + "://" + context.resources.getResourcePackageName(drawableId)
-      + '/' + context.resources.getResourceTypeName(drawableId)
-      + '/' + context.resources.getResourceEntryName(drawableId))
+  return Uri.parse(ContentResolver.SCHEME_ANDROID_RESOURCE
+    + "://" + context.resources.getResourcePackageName(drawableId)
+    + '/' + context.resources.getResourceTypeName(drawableId)
+    + '/' + context.resources.getResourceEntryName(drawableId))
 }

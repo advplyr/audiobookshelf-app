@@ -29,15 +29,15 @@ class UnifiedMediaProgressSyncer(
   private val progressApi: ApiHandler,
   private val onPlaybackEvent: (event: String, session: PlaybackSession, syncResult: SyncResult?) -> Unit
 ) {
-    companion object {
-        private const val TAG = "UnifiedProgressSync"
-        private const val METERED_CONNECTION_SYNC_INTERVAL = 60000L
-        private const val PERIODIC_SYNC_INTERVAL = 15000L
-    }
+  companion object {
+    private const val TAG = "UnifiedProgressSync"
+    private const val METERED_CONNECTION_SYNC_INTERVAL = 60000L
+    private const val PERIODIC_SYNC_INTERVAL = 15000L
+  }
 
   // Coroutine scope for periodic sync loop - uses Main dispatcher for consistency
   private val syncScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-    private val mainHandler = Handler(Looper.getMainLooper())
+  private val mainHandler = Handler(Looper.getMainLooper())
   private var syncJob: Job? = null
   var isSyncTimerRunning: Boolean = false
 
@@ -64,7 +64,7 @@ class UnifiedMediaProgressSyncer(
   fun start(playbackSession: PlaybackSession) {
     if (isSyncTimerRunning) {
       if (playbackSession.id != currentSessionId) {
-          Log.d(TAG, "Playback session changed, reset timer")
+        Log.d(TAG, "Playback session changed, reset timer")
         localMediaProgress = null
         syncJob?.cancel()
         lastSyncTime = 0L
@@ -79,8 +79,8 @@ class UnifiedMediaProgressSyncer(
     isSyncTimerRunning = true
     lastSyncTime = System.currentTimeMillis()
     currentPlaybackSession = playbackSession.clone()
-      serverSessionClosed = false
-      Log.d(TAG, "start: Started 15s periodic sync loop for ${playbackSession.displayTitle}")
+    serverSessionClosed = false
+    Log.d(TAG, "start: Started 15s periodic sync loop for ${playbackSession.displayTitle}")
 
     // Coroutine-based periodic sync - replaces Timer + Handler.post chain
     syncJob = syncScope.launch {
@@ -99,7 +99,7 @@ class UnifiedMediaProgressSyncer(
           val currentTime = playbackTelemetryProvider.getCurrentTimeSeconds()
           if (currentTime > 0) {
             sync(shouldSyncServer, currentTime) { syncResult ->
-                Log.v(TAG, "Periodic sync complete for $currentDisplayTitle at ${currentTime}s")
+              Log.v(TAG, "Periodic sync complete for $currentDisplayTitle at ${currentTime}s")
               currentPlaybackSession?.let { session ->
                 onPlaybackEvent("save", session, syncResult)
               }
@@ -142,8 +142,8 @@ class UnifiedMediaProgressSyncer(
 
     syncJob?.cancel()
     syncJob = null
-      isSyncTimerRunning = false
-      Log.v(TAG, "pause: Stopping sync loop for $currentDisplayTitle")
+    isSyncTimerRunning = false
+    Log.v(TAG, "pause: Stopping sync loop for $currentDisplayTitle")
 
     val currentTime = playbackTelemetryProvider.getCurrentTimeSeconds()
     if (currentTime > 0) {
@@ -172,10 +172,10 @@ class UnifiedMediaProgressSyncer(
     if (isSyncTimerRunning) {
       syncJob?.cancel()
       syncJob = null
-        isSyncTimerRunning = false
-        Log.v(TAG, "stop: Stopping sync loop for $currentDisplayTitle")
+      isSyncTimerRunning = false
+      Log.v(TAG, "stop: Stopping sync loop for $currentDisplayTitle")
     } else {
-        Log.v(TAG, "stop: Sync loop already stopped for $currentDisplayTitle")
+      Log.v(TAG, "stop: Sync loop already stopped for $currentDisplayTitle")
     }
 
     val currentTime =
@@ -209,8 +209,8 @@ class UnifiedMediaProgressSyncer(
 
     syncJob?.cancel()
     syncJob = null
-      isSyncTimerRunning = false
-      Log.d(TAG, "finished: Book finished for $currentDisplayTitle")
+    isSyncTimerRunning = false
+    Log.d(TAG, "finished: Book finished for $currentDisplayTitle")
 
     val currentTime = playbackTelemetryProvider.getCurrentTimeSeconds()
     if (currentTime > 0) {
@@ -233,7 +233,7 @@ class UnifiedMediaProgressSyncer(
   // ------------ Event helpers ------------
 
   fun reset() {
-      Log.d(TAG, "reset")
+    Log.d(TAG, "reset")
     syncJob?.cancel()
     syncJob = null
     isSyncTimerRunning = false
@@ -268,11 +268,11 @@ class UnifiedMediaProgressSyncer(
   ) {
     val sessionIdForSync = currentSessionId
     if (sessionIdForSync.isEmpty()) {
-        Log.d(TAG, "sync: Abort; no active session id")
+      Log.d(TAG, "sync: Abort; no active session id")
       onComplete(null)
       return
     }
-      Log.v(TAG, "sync: Starting sync for $currentDisplayTitle at ${currentTime}s")
+    Log.v(TAG, "sync: Starting sync for $currentDisplayTitle at ${currentTime}s")
     val timeSinceLastSyncMillis = System.currentTimeMillis() - lastSyncTime
 
     val lastSyncedPlaybackTime = currentPlaybackSession?.currentTime ?: 0.0
@@ -282,7 +282,7 @@ class UnifiedMediaProgressSyncer(
     // skipping would drop the last few seconds of listening progress.
     if (!force && timeSinceLastSyncMillis in 1000L..5000L && playbackTimeDeltaSeconds <= 0.5) {
       Log.v(
-          TAG,
+        TAG,
         "sync: Skip; recent sync ($timeSinceLastSyncMillis ms ago) with no progress (delta=$playbackTimeDeltaSeconds s)"
       )
       onComplete(null)
@@ -290,13 +290,13 @@ class UnifiedMediaProgressSyncer(
     }
 
     if (!force && timeSinceLastSyncMillis < 1000L) {
-        Log.v(TAG, "sync: Skip; diffSinceLastSync=${timeSinceLastSyncMillis}ms (<1s) force=$force")
+      Log.v(TAG, "sync: Skip; diffSinceLastSync=${timeSinceLastSyncMillis}ms (<1s) force=$force")
       onComplete(null)
       return
     }
 
     if (!currentIsLocal && serverSessionClosed) {
-        Log.d(TAG, "sync: Skip server sync because session is closed for $currentSessionId")
+      Log.d(TAG, "sync: Skip server sync because session is closed for $currentSessionId")
       onComplete(SyncResult(false, null, "server_session_closed"))
       return
     }
@@ -311,7 +311,7 @@ class UnifiedMediaProgressSyncer(
     currentPlaybackSession?.syncData(progressSyncData)
 
     if (currentPlaybackSession?.progress?.isNaN() == true) {
-        Log.e(TAG, "Invalid progress for session ${currentPlaybackSession?.id}")
+      Log.e(TAG, "Invalid progress for session ${currentPlaybackSession?.id}")
       onComplete(null)
       return
     }
@@ -348,14 +348,14 @@ class UnifiedMediaProgressSyncer(
               }
             }
             Log.d(
-                TAG,
+              TAG,
               "sync(local): session=${session.id} serverAttempted=$shouldSyncServer success=$syncSuccess error=${errorMsg ?: "none"} listened=${listeningDurationSeconds}s current=${currentTime}s"
             )
             onComplete(SyncResult(true, syncSuccess, errorMsg))
           }
         } else {
           Log.d(
-              TAG,
+            TAG,
             "sync(local): session=${session.id} not sent to server (hasNetworkConnection=$hasNetworkConnection  shouldSyncServer=$shouldSyncServer)"
           )
           onComplete(SyncResult(false, null, null))
@@ -364,7 +364,7 @@ class UnifiedMediaProgressSyncer(
     } else if (hasNetworkConnection && shouldSyncServer) {
       if (currentPlaybackSession?.id != sessionIdForSync) {
         Log.d(
-            TAG,
+          TAG,
           "sync(server): Abort; session changed (expected=$sessionIdForSync, actual=${currentPlaybackSession?.id})"
         )
         onComplete(null)
@@ -379,7 +379,7 @@ class UnifiedMediaProgressSyncer(
         } else {
           if (errorMsg?.contains("404") == true) {
             Log.w(
-                TAG,
+              TAG,
               "sync(server): session not found (404), marking closed for $sessionIdForSync"
             )
             serverSessionClosed = true
@@ -399,14 +399,14 @@ class UnifiedMediaProgressSyncer(
           }
         }
         Log.d(
-            TAG,
+          TAG,
           "sync(server): session=$currentSessionId success=$syncSuccess error=${errorMsg ?: "none"} listened=${listeningDurationSeconds}s current=${currentTime}s"
         )
         onComplete(SyncResult(true, syncSuccess, errorMsg))
       }
     } else {
-        Log.v(
-            TAG,
+      Log.v(
+        TAG,
         "sync: skip server; hasNetwork=$hasNetworkConnection shouldSyncServer=$shouldSyncServer currentTime=$currentTime"
       )
       onComplete(SyncResult(false, null, null))
@@ -427,12 +427,12 @@ class UnifiedMediaProgressSyncer(
 
     localMediaProgress?.let {
       if (it.progress.isNaN()) {
-          Log.e(TAG, "Invalid progress on local media progress")
+        Log.e(TAG, "Invalid progress on local media progress")
       } else {
         DeviceManager.dbManager.saveLocalMediaProgress(it)
         playbackTelemetryProvider.notifyLocalProgressUpdate(it)
         Log.d(
-            TAG,
+          TAG,
           "Saved Local Progress ID ${it.id} current=${it.currentTime} duration=${it.duration} progress=${it.progressPercent}%"
         )
       }
@@ -446,8 +446,8 @@ class UnifiedMediaProgressSyncer(
     callbackOnMainThread: Boolean = true,
     onComplete: (SyncResult?) -> Unit = {}
   ) {
-      val requestSession = session.clone()
-      currentPlaybackSession = requestSession
+    val requestSession = session.clone()
+    currentPlaybackSession = requestSession
     localMediaProgress = null
     if (lastSyncTime == 0L) {
       lastSyncTime = System.currentTimeMillis() - 2000L
@@ -455,21 +455,21 @@ class UnifiedMediaProgressSyncer(
     val currentTime =
       playbackTelemetryProvider.getCurrentTimeSeconds().takeIf { it > 0 } ?: session.currentTime
     sync(shouldSyncServer, currentTime, force = true) { result ->
-        val deliverCompletion = {
-            if (result!=null) {
-                onPlaybackEvent(event, requestSession, result)
-            } else {
-                if (event=="pause" || event=="stop" || event=="finished") {
-                    onPlaybackEvent(event, requestSession, null)
-                }
-            }
-            onComplete(result)
-        }
-        if (callbackOnMainThread) {
-            mainHandler.post(deliverCompletion)
+      val deliverCompletion = {
+        if (result != null) {
+          onPlaybackEvent(event, requestSession, result)
         } else {
-            deliverCompletion()
+          if (event == "pause" || event == "stop" || event == "finished") {
+            onPlaybackEvent(event, requestSession, null)
+          }
         }
+        onComplete(result)
+      }
+      if (callbackOnMainThread) {
+        mainHandler.post(deliverCompletion)
+      } else {
+        deliverCompletion()
+      }
     }
   }
 }

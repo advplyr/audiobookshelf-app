@@ -14,20 +14,20 @@ import java.util.*
 import kotlin.concurrent.schedule
 
 data class MediaProgressSyncData(
-        var timeListened: Long, // seconds
-        var duration: Double, // seconds
-        var currentTime: Double // seconds
+  var timeListened: Long, // seconds
+  var duration: Double, // seconds
+  var currentTime: Double // seconds
 )
 
 data class SyncResult(
-        var serverSyncAttempted: Boolean,
-        var serverSyncSuccess: Boolean?,
-        var serverSyncMessage: String?
+  var serverSyncAttempted: Boolean,
+  var serverSyncSuccess: Boolean?,
+  var serverSyncMessage: String?
 )
 
 class MediaProgressSyncer(
-        private val telemetryHost: PlaybackTelemetryHost,
-        private val apiHandler: ApiHandler
+  private val telemetryHost: PlaybackTelemetryHost,
+  private val apiHandler: ApiHandler
 ) {
   private val tag = "MediaProgressSync"
   private val METERED_CONNECTION_SYNC_INTERVAL = 60000
@@ -77,34 +77,34 @@ class MediaProgressSyncer(
     lastSyncTime = System.currentTimeMillis()
     currentPlaybackSession = playbackSession.clone()
     Log.d(
-            tag,
-            "start: init last sync time $lastSyncTime with playback session id=${currentPlaybackSession?.id}"
+      tag,
+      "start: init last sync time $lastSyncTime with playback session id=${currentPlaybackSession?.id}"
     )
 
     listeningTimerTask =
-            Timer("ListeningTimer", false).schedule(15000L, 15000L) {
-              Handler(Looper.getMainLooper()).post {
-                if (telemetryHost.isPlayerActive()) {
-                  telemetryHost.checkAutoSleepTimer()
+      Timer("ListeningTimer", false).schedule(15000L, 15000L) {
+        Handler(Looper.getMainLooper()).post {
+          if (telemetryHost.isPlayerActive()) {
+            telemetryHost.checkAutoSleepTimer()
 
-                  val shouldSyncServer =
-                          telemetryHost.isUnmeteredNetwork ||
-                                  System.currentTimeMillis() - lastSyncTime >=
-                                          METERED_CONNECTION_SYNC_INTERVAL
+            val shouldSyncServer =
+              telemetryHost.isUnmeteredNetwork ||
+                System.currentTimeMillis() - lastSyncTime >=
+                METERED_CONNECTION_SYNC_INTERVAL
 
-                  val currentTime = telemetryHost.getCurrentTimeSeconds()
-                  if (currentTime > 0) {
-                    sync(shouldSyncServer, currentTime) { syncResult ->
-                      Log.d(tag, "Sync complete")
+            val currentTime = telemetryHost.getCurrentTimeSeconds()
+            if (currentTime > 0) {
+              sync(shouldSyncServer, currentTime) { syncResult ->
+                Log.d(tag, "Sync complete")
 
-                      currentPlaybackSession?.let { playbackSession ->
-                        MediaEventManager.saveEvent(playbackSession, syncResult)
-                      }
-                    }
-                  }
+                currentPlaybackSession?.let { playbackSession ->
+                  MediaEventManager.saveEvent(playbackSession, syncResult)
                 }
               }
             }
+          }
+        }
+      }
   }
 
   fun play(playbackSession: PlaybackSession) {
@@ -126,7 +126,7 @@ class MediaProgressSyncer(
     Log.d(tag, "stop: Stopping listening for $currentDisplayTitle")
 
     val currentTime =
-            if (shouldSync == true) telemetryHost.getCurrentTimeSeconds() else 0.0
+      if (shouldSync == true) telemetryHost.getCurrentTimeSeconds() else 0.0
     if (currentTime > 0) { // Current time should always be > 0 on stop
       sync(true, currentTime) { syncResult ->
         currentPlaybackSession?.let { playbackSession ->
@@ -219,8 +219,8 @@ class MediaProgressSyncer(
       it.currentTime = mediaProgress.currentTime
 
       MediaEventManager.syncEvent(
-              mediaProgress,
-              "Received from server get media progress request while playback session open"
+        mediaProgress,
+        "Received from server get media progress request while playback session open"
       )
       saveLocalProgress(it)
     }
@@ -249,8 +249,8 @@ class MediaProgressSyncer(
 
     if (currentPlaybackSession?.progress?.isNaN() == true) {
       Log.e(
-              tag,
-              "Current Playback Session invalid progress ${currentPlaybackSession?.progress} | Current Time: ${currentPlaybackSession?.currentTime} | Duration: ${currentPlaybackSession?.getTotalDuration()}"
+        tag,
+        "Current Playback Session invalid progress ${currentPlaybackSession?.progress} | Current Time: ${currentPlaybackSession?.currentTime} | Duration: ${currentPlaybackSession?.getTotalDuration()}"
       )
       postCallback(cb, null)
       return
@@ -273,8 +273,8 @@ class MediaProgressSyncer(
         lastSyncTime = System.currentTimeMillis()
 
         Log.d(
-                tag,
-                "Sync local device current serverConnectionConfigId=${DeviceManager.serverConnectionConfig?.id}"
+          tag,
+          "Sync local device current serverConnectionConfigId=${DeviceManager.serverConnectionConfig?.id}"
         )
         AbsLogger.info("MediaProgressSyncer", "sync: Saved local progress (title: \"$currentDisplayTitle\") (currentTime: $currentTime) (session id: ${it.id})")
 
@@ -283,9 +283,9 @@ class MediaProgressSyncer(
         // server
         val isConnectedToSameServer = it.serverConnectionConfigId != null && DeviceManager.serverConnectionConfig?.id == it.serverConnectionConfigId
         if (hasNetworkConnection &&
-                        shouldSyncServer &&
-                        !it.libraryItemId.isNullOrEmpty() &&
-                        isConnectedToSameServer
+          shouldSyncServer &&
+          !it.libraryItemId.isNullOrEmpty() &&
+          isConnectedToSameServer
         ) {
           apiHandler.sendLocalProgressSync(it) { syncSuccess, errorMsg ->
             if (syncSuccess) {
@@ -339,7 +339,7 @@ class MediaProgressSyncer(
   private fun saveLocalProgress(playbackSession: PlaybackSession) {
     if (currentLocalMediaProgress == null) {
       val mediaProgress =
-              DeviceManager.dbManager.getLocalMediaProgress(playbackSession.localMediaProgressId)
+        DeviceManager.dbManager.getLocalMediaProgress(playbackSession.localMediaProgressId)
       if (mediaProgress == null) {
         currentLocalMediaProgress = playbackSession.getNewLocalMediaProgress()
       } else {
@@ -357,8 +357,8 @@ class MediaProgressSyncer(
         DeviceManager.dbManager.saveLocalMediaProgress(it)
         telemetryHost.notifyLocalProgressUpdate(it)
         Log.d(
-                tag,
-                "Saved Local Progress Current Time: ID ${it.id} | ${it.currentTime} | Duration ${it.duration} | Progress ${it.progressPercent}%"
+          tag,
+          "Saved Local Progress Current Time: ID ${it.id} | ${it.currentTime} | Duration ${it.duration} | Progress ${it.progressPercent}%"
         )
       }
     }

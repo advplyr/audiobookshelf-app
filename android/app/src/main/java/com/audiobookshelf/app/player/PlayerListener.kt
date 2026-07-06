@@ -13,7 +13,7 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
   var tag = "PlayerListener"
 
   companion object {
-    var lastPauseTime: Long = 0   //ms
+    var lastPauseTime: Long = 0 //ms
     var lazyIsPlaying: Boolean = false
   }
 

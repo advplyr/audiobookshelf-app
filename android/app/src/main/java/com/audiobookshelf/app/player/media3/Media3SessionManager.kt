@@ -41,30 +41,30 @@ class Media3SessionManager(
     }
 
     // Ensure flags return to a ready state after a closePlayback call
-      host.isPlayerInitialized = true
+    host.isPlayerInitialized = true
 
     val isNewSession = currentPlaybackSession?.id != session.id
     currentPlaybackSession = session
     DeviceManager.setLastPlaybackSession(session)
     mediaManager.updateLatestServerItemFromSession(session)
 
-      session.mediaPlayer = host.currentMediaPlayerId()
+    session.mediaPlayer = host.currentMediaPlayerId()
 
     // Only reset metrics for NEW sessions, not player switches
     if (isNewSession) {
       host.playbackMetrics.begin(session.mediaPlayer, session.mediaItemId)
     }
 
-      host.notifyWidgetState(false)
+    host.notifyWidgetState(false)
   }
 
   fun switchPlaybackSession(session: PlaybackSession, syncPreviousSession: Boolean = true) {
     markPlaybackSessionAssigned()
     val previous = currentPlaybackSession
     if (previous != null && previous.id != session.id) {
-        host.updateCurrentPosition(previous)
+      host.updateCurrentPosition(previous)
       if (syncPreviousSession) {
-          host.maybeSyncProgress("switch", true, previous) { _ -> }
+        host.maybeSyncProgress("switch", true, previous) { _ -> }
       }
     }
     assignPlaybackSession(session)
@@ -81,19 +81,19 @@ class Media3SessionManager(
           host.playbackMetrics.logSummary()
 
           if (!session.isLocal && session.id.isNotEmpty()) {
-              host.closeSessionOnServer(session.id)
+            host.closeSessionOnServer(session.id)
           }
 
-            if (host.isPlayerInitialized) {
-                host.playerOrNull()?.run {
-                    stop()
-                    clearMediaItems()
-                }
-                host.isPlayerInitialized = false
+          if (host.isPlayerInitialized) {
+            host.playerOrNull()?.run {
+              stop()
+              clearMediaItems()
+            }
+            host.isPlayerInitialized = false
           }
-            host.resetProgressSyncState()
-            currentPlaybackSession = null
-            host.notifyWidgetState(true)
+          host.resetProgressSyncState()
+          currentPlaybackSession = null
+          host.notifyWidgetState(true)
           signal.complete(Unit)
           closePlaybackSignal = null
           afterStop?.invoke()
@@ -121,7 +121,7 @@ class Media3SessionManager(
     assignPlaybackSession(latest)
   }
 
-    private fun markPlaybackSessionAssigned() {
+  private fun markPlaybackSessionAssigned() {
     sessionAssignTimestampMs = System.currentTimeMillis()
   }
 
@@ -129,6 +129,6 @@ class Media3SessionManager(
     sessionAssignTimestampMs = 0L
   }
 
-    val closePlaybackSignalSnapshot: CompletableDeferred<Unit>?
-        get() = closePlaybackSignal
+  val closePlaybackSignalSnapshot: CompletableDeferred<Unit>?
+    get() = closePlaybackSignal
 }

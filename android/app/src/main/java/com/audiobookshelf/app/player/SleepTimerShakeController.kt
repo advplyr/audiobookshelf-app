@@ -38,8 +38,6 @@ class SleepTimerShakeController(
     })
   }
 
-
-
   private var unregisterJob: Job? = null
   private var isRegistered = false
 

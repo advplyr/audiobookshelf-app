@@ -149,12 +149,12 @@ class Media3SessionCallback(
     }
 
     if (BuildConfig.DEBUG) {
-        val controllerType = when {
-            isAppUiController -> "APP_UI"
-            isWearController(controller) -> "WEAR"
-            controller.packageName.contains("gearhead", ignoreCase = true) -> "AUTO"
-            else -> "OTHER"
-        }
+      val controllerType = when {
+        isAppUiController -> "APP_UI"
+        isWearController(controller) -> "WEAR"
+        controller.packageName.contains("gearhead", ignoreCase = true) -> "AUTO"
+        else -> "OTHER"
+      }
       fun cmd(commandCode: Int) = if (playerCommands.contains(commandCode)) "Y" else "N"
       Log.d(logTag, "onConnect: $controllerType controller (${controller.packageName})")
       Log.d(
@@ -162,8 +162,8 @@ class Media3SessionCallback(
         "  Commands: SEEK_IN_ITEM=${cmd(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)} BACK=${
           cmd(Player.COMMAND_SEEK_BACK)
         } FWD=${cmd(Player.COMMAND_SEEK_FORWARD)} " +
-        "PREV=${cmd(Player.COMMAND_SEEK_TO_PREVIOUS)} NEXT=${cmd(Player.COMMAND_SEEK_TO_NEXT)} " +
-        "PREV_ITEM=${cmd(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)} NEXT_ITEM=${cmd(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)} " +
+          "PREV=${cmd(Player.COMMAND_SEEK_TO_PREVIOUS)} NEXT=${cmd(Player.COMMAND_SEEK_TO_NEXT)} " +
+          "PREV_ITEM=${cmd(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)} NEXT_ITEM=${cmd(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)} " +
           "VOL_GET=${cmd(Player.COMMAND_GET_DEVICE_VOLUME)} VOL_SET=${cmd(Player.COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS)} VOL_ADJ=${
             cmd(
               Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS
@@ -254,9 +254,9 @@ class Media3SessionCallback(
       val isPlayable =
         requestedMediaItem.localConfiguration != null || requestedMediaItem.requestMetadata.mediaUri != null
       if (isPlayable) {
-          debug { "onAddMediaItems: passthrough playable request '${requestedMediaItem.mediaId}'" }
+        debug { "onAddMediaItems: passthrough playable request '${requestedMediaItem.mediaId}'" }
         if (!browseApi.passthroughAllowed(requestedMediaItem.mediaId, controller)) {
-            debug { "onAddMediaItems: rejecting passthrough request for id=${requestedMediaItem.mediaId}" }
+          debug { "onAddMediaItems: rejecting passthrough request for id=${requestedMediaItem.mediaId}" }
           return@future mutableListOf()
         }
         return@future mediaItems
@@ -267,7 +267,7 @@ class Media3SessionCallback(
       val resolvedPlayable = browseApi.resolve(mediaId, preferCastStream)
 
       if (resolvedPlayable == null) {
-          debug { "onAddMediaItems: unable to resolve mediaId=$mediaId" }
+        debug { "onAddMediaItems: unable to resolve mediaId=$mediaId" }
         return@future mutableListOf()
       }
 
@@ -322,7 +322,7 @@ class Media3SessionCallback(
       val resolvedPlayable = browseApi.resolve(mediaId, preferCastStream)
 
       if (resolvedPlayable == null) {
-          debug { "onSetMediaItems: unable to resolve mediaId=$mediaId" }
+        debug { "onSetMediaItems: unable to resolve mediaId=$mediaId" }
         return@future MediaSession.MediaItemsWithStartPosition(emptyList(), 0, C.TIME_UNSET)
       }
 
@@ -339,14 +339,14 @@ class Media3SessionCallback(
       val absoluteStartMs =
         resolvedSession.getTrackStartOffsetMs(adjustedStartIndex) + adjustedStartPositionMs
       if (totalDurationMs > 0 && (totalDurationMs - absoluteStartMs) < FINISHED_BOOK_THRESHOLD_MS) {
-          debug { "onSetMediaItems: Book is finished (within ${FINISHED_BOOK_THRESHOLD_MS}ms of end), resetting to start" }
+        debug { "onSetMediaItems: Book is finished (within ${FINISHED_BOOK_THRESHOLD_MS}ms of end), resetting to start" }
         adjustedStartIndex = 0
         adjustedStartPositionMs = 0L
       }
 
-        debug {
-            "onSetMediaItems: resolved ${resolvedPlayable.mediaItems.size} items for session=${resolvedSession.id} " +
-                    "startIndex=$adjustedStartIndex startPos=$adjustedStartPositionMs"
+      debug {
+        "onSetMediaItems: resolved ${resolvedPlayable.mediaItems.size} items for session=${resolvedSession.id} " +
+          "startIndex=$adjustedStartIndex startPos=$adjustedStartPositionMs"
       }
       MediaSession.MediaItemsWithStartPosition(
         resolvedPlayable.mediaItems,
@@ -427,10 +427,10 @@ class Media3SessionCallback(
     params: LibraryParams?
   ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
     return scope.future {
-        val results = searchCache[query] ?: run {
+      val results = searchCache[query] ?: run {
         val computed = performSearch(query)
         cacheSearchResults(query, computed)
-            computed
+        computed
       }
       session.notifySearchResultChanged(browser, query, results.size, params)
       val start = page * pageSize

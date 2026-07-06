@@ -45,7 +45,7 @@ class LocalLibraryItem(
   var serverAddress:String?,
   var serverUserId:String?,
   var libraryItemId:String?
-  ) : LibraryItemWrapper(id) {
+) : LibraryItemWrapper(id) {
   @get:JsonIgnore
   val title get() = media.metadata.title
   @get:JsonIgnore
@@ -65,7 +65,7 @@ class LocalLibraryItem(
   fun getDuration():Double {
     var total = 0.0
     val audioTracks = media.getAudioTracks()
-    audioTracks.forEach{ total += it.duration }
+    audioTracks.forEach { total += it.duration }
     return total
   }
 
@@ -115,7 +115,6 @@ class LocalLibraryItem(
     val mediaProgress = DeviceManager.dbManager.getLocalMediaProgress(mediaProgressId)
     val currentTime = mediaProgress?.currentTime ?: 0.0
 
-
     val mediaMetadata = media.metadata
     var chapters = if (mediaType == "book") (media as Book).chapters else mutableListOf()
     var audioTracks = media.getAudioTracks() as MutableList<AudioTrack>
@@ -131,7 +130,7 @@ class LocalLibraryItem(
 
     val dateNow = System.currentTimeMillis()
     val mediaPlayerLabel = if (BuildConfig.USE_MEDIA3) "media3-exoplayer" else "exo-player"
-    return PlaybackSession(sessionId,serverUserId,libraryItemId,episode?.serverEpisodeId, mediaType, mediaMetadata, deviceInfo,chapters ?: mutableListOf(), displayTitle, authorName,null,duration,PLAYMETHOD_LOCAL,dateNow,0L,0L, audioTracks,currentTime,null,this,localEpisodeId,serverConnectionConfigId, serverAddress, mediaPlayerLabel)
+    return PlaybackSession(sessionId, serverUserId, libraryItemId, episode?.serverEpisodeId, mediaType, mediaMetadata, deviceInfo, chapters ?: mutableListOf(), displayTitle, authorName, null, duration, PLAYMETHOD_LOCAL, dateNow, 0L, 0L, audioTracks, currentTime, null, this, localEpisodeId, serverConnectionConfigId, serverAddress, mediaPlayerLabel)
   }
 
   @JsonIgnore

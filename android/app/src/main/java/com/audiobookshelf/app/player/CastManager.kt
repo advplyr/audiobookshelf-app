@@ -67,7 +67,7 @@ class CastManager(val mainActivity:Activity) {
 
         val builder = MediaRouteChooserDialog(mainActivity, R.style.Theme_AppCompat_NoActionBar)
         builder.routeSelector = MediaRouteSelector.Builder()
-        .addControlCategory(CastMediaControlIntent.categoryForCast(CastConstants.RECEIVER_APPLICATION_ID))
+          .addControlCategory(CastMediaControlIntent.categoryForCast(CastConstants.RECEIVER_APPLICATION_ID))
           .build()
         builder.setCanceledOnTouchOutside(true)
         builder.setOnCancelListener {
@@ -195,9 +195,9 @@ class CastManager(val mainActivity:Activity) {
 
 //    mainActivity.runOnUiThread {
     Log.d(tag, "Removing callback on media router")
-      callback.stop()
-      getMediaRouter()?.removeCallback(callback)
-      completionCallback?.run()
+    callback.stop()
+    getMediaRouter()?.removeCallback(callback)
+    completionCallback?.run()
 //    }
 
   }

@@ -55,17 +55,17 @@ class Media3BrowseTree(
     playRequestPayload: PlayItemRequestPayload? = null,
     preferServerUrisForCast: Boolean = false
   ): ResolvedPlayable? = withContext(Dispatchers.IO) {
-      Log.d(TAG, "Attempting to resolve playable item for mediaId: $mediaId")
+    Log.d(TAG, "Attempting to resolve playable item for mediaId: $mediaId")
 
     val mediaTarget = findMediaTarget(mediaId)
     if (mediaTarget == null) {
-        Log.e(TAG, "Failed to find a media target for mediaId: $mediaId")
+      Log.e(TAG, "Failed to find a media target for mediaId: $mediaId")
       return@withContext null
     }
 
     val playbackSession = requestPlaybackSession(mediaTarget, playRequestPayload)
     if (playbackSession == null) {
-        Log.e(TAG, "Failed to create a playback session for mediaId: $mediaId")
+      Log.e(TAG, "Failed to create a playback session for mediaId: $mediaId")
       return@withContext null
     }
 
@@ -157,7 +157,7 @@ class Media3BrowseTree(
     }
 
     sessionContinuation.invokeOnCancellation {
-        Log.w(TAG, "Playback request was cancelled for library item: ${mediaTargetPair.libraryItem.id}")
+      Log.w(TAG, "Playback request was cancelled for library item: ${mediaTargetPair.libraryItem.id}")
     }
 
     mediaManager.play(
@@ -172,84 +172,84 @@ class Media3BrowseTree(
    * Retrieves a single MediaItem by media ID, handling browsable categories and library items.
    */
   suspend fun getItem(mediaId: String): MediaItem? {
-      Log.d(TAG, "getItem: Resolving mediaId='$mediaId'")
+    Log.d(TAG, "getItem: Resolving mediaId='$mediaId'")
 
     when {
-        mediaId==ROOT_ID -> return getRootItem()
-        mediaId==DOWNLOADS_ID -> return itemBuilder.createBrowsableCategory(DOWNLOADS_ID, "Downloads", "downloads")
-        mediaId==CONTINUE_LISTENING_ID -> return itemBuilder.createBrowsableCategory(CONTINUE_LISTENING_ID, "Continue Listening", "music")
-        mediaId==LIBRARIES_ROOT -> return itemBuilder.createBrowsableCategory(LIBRARIES_ROOT, "Libraries", "library-folder")
-        mediaId==RECENTLY_ROOT -> return itemBuilder.createBrowsableCategory(RECENTLY_ROOT, "Recent", "clock")
+      mediaId == ROOT_ID -> return getRootItem()
+      mediaId == DOWNLOADS_ID -> return itemBuilder.createBrowsableCategory(DOWNLOADS_ID, "Downloads", "downloads")
+      mediaId == CONTINUE_LISTENING_ID -> return itemBuilder.createBrowsableCategory(CONTINUE_LISTENING_ID, "Continue Listening", "music")
+      mediaId == LIBRARIES_ROOT -> return itemBuilder.createBrowsableCategory(LIBRARIES_ROOT, "Libraries", "library-folder")
+      mediaId == RECENTLY_ROOT -> return itemBuilder.createBrowsableCategory(RECENTLY_ROOT, "Recent", "clock")
 
-        mediaId.startsWith(LIBRARIES_ROOT) && mediaId!=LIBRARIES_ROOT -> {
-            val libraryId = mediaId.removePrefix(LIBRARIES_ROOT).trimStart('_')
-            val library = mediaManager.getLibrary(libraryId)
-            return library?.let { itemBuilder.libraryToMediaItem(it, LIBRARIES_ROOT) }
-        }
+      mediaId.startsWith(LIBRARIES_ROOT) && mediaId != LIBRARIES_ROOT -> {
+        val libraryId = mediaId.removePrefix(LIBRARIES_ROOT).trimStart('_')
+        val library = mediaManager.getLibrary(libraryId)
+        return library?.let { itemBuilder.libraryToMediaItem(it, LIBRARIES_ROOT) }
+      }
 
-        mediaId.startsWith(RECENTLY_ROOT) && mediaId!=RECENTLY_ROOT -> {
-            val libraryId = mediaId.removePrefix(RECENTLY_ROOT).trimStart('_')
-            val library = mediaManager.getLibrary(libraryId)
-            return library?.let { itemBuilder.libraryToMediaItem(it, RECENTLY_ROOT) }
-        }
+      mediaId.startsWith(RECENTLY_ROOT) && mediaId != RECENTLY_ROOT -> {
+        val libraryId = mediaId.removePrefix(RECENTLY_ROOT).trimStart('_')
+        val library = mediaManager.getLibrary(libraryId)
+        return library?.let { itemBuilder.libraryToMediaItem(it, RECENTLY_ROOT) }
+      }
 
-        mediaId.startsWith("__LIBRARY__") -> {
-            val mediaIdSegments = mediaId.split("__")
-            if (mediaIdSegments.size >= 4) {
-                val libraryId = mediaIdSegments[2]
-                val browseType = mediaIdSegments[3]
-                when (browseType) {
-                    "AUTHORS" -> return itemBuilder.createBrowsableCategory(mediaId, "Authors", "authors")
-                    "SERIES_LIST" -> return itemBuilder.createBrowsableCategory(mediaId, "Series", "books-2")
-                    "COLLECTIONS" -> return itemBuilder.createBrowsableCategory(mediaId, "Collections", "books-1")
-                    "DISCOVERY" -> return itemBuilder.createBrowsableCategory(mediaId, "Discovery", "rocket")
-                    "AUTHOR" -> return mediaIdSegments.getOrNull(4)?.let { authorId ->
-                        dataLoader.loadAuthorsWithBooks(libraryId).find { it.id==authorId }
-                            ?.let { author ->
-                                itemBuilder.buildMediaItem(
-                                    mediaId, author.name, "${author.bookCount} books",
-                                    getUriToAbsIconDrawable(context, "person"), true, null
-                                )
-                            }
-                    }
-
-                    "SERIES" -> return mediaIdSegments.getOrNull(4)?.let { seriesId ->
-                        dataLoader.loadLibrarySeriesWithAudio(libraryId).find { it.id==seriesId }
-                            ?.let { seriesItem ->
-                                itemBuilder.buildMediaItem(
-                                    mediaId, seriesItem.title, "${seriesItem.audiobookCount} books",
-                                    getUriToAbsIconDrawable(context, "bookshelf"), true, null
-                                )
-                            }
-                    }
-
-                    "COLLECTION" -> return mediaIdSegments.getOrNull(4)?.let { collectionId ->
-                        dataLoader.loadLibraryCollectionsWithAudio(libraryId)
-                            .find { it.id==collectionId }?.let { collection ->
-                                itemBuilder.buildMediaItem(
-                                    mediaId, collection.name, "${collection.audiobookCount} books",
-                                    getUriToAbsIconDrawable(context, "list-box"), true, null
-                                )
-                            }
-                    }
+      mediaId.startsWith("__LIBRARY__") -> {
+        val mediaIdSegments = mediaId.split("__")
+        if (mediaIdSegments.size >= 4) {
+          val libraryId = mediaIdSegments[2]
+          val browseType = mediaIdSegments[3]
+          when (browseType) {
+            "AUTHORS" -> return itemBuilder.createBrowsableCategory(mediaId, "Authors", "authors")
+            "SERIES_LIST" -> return itemBuilder.createBrowsableCategory(mediaId, "Series", "books-2")
+            "COLLECTIONS" -> return itemBuilder.createBrowsableCategory(mediaId, "Collections", "books-1")
+            "DISCOVERY" -> return itemBuilder.createBrowsableCategory(mediaId, "Discovery", "rocket")
+            "AUTHOR" -> return mediaIdSegments.getOrNull(4)?.let { authorId ->
+              dataLoader.loadAuthorsWithBooks(libraryId).find { it.id == authorId }
+                ?.let { author ->
+                  itemBuilder.buildMediaItem(
+                    mediaId, author.name, "${author.bookCount} books",
+                    getUriToAbsIconDrawable(context, "person"), true, null
+                  )
                 }
             }
+
+            "SERIES" -> return mediaIdSegments.getOrNull(4)?.let { seriesId ->
+              dataLoader.loadLibrarySeriesWithAudio(libraryId).find { it.id == seriesId }
+                ?.let { seriesItem ->
+                  itemBuilder.buildMediaItem(
+                    mediaId, seriesItem.title, "${seriesItem.audiobookCount} books",
+                    getUriToAbsIconDrawable(context, "bookshelf"), true, null
+                  )
+                }
+            }
+
+            "COLLECTION" -> return mediaIdSegments.getOrNull(4)?.let { collectionId ->
+              dataLoader.loadLibraryCollectionsWithAudio(libraryId)
+                .find { it.id == collectionId }?.let { collection ->
+                  itemBuilder.buildMediaItem(
+                    mediaId, collection.name, "${collection.audiobookCount} books",
+                    getUriToAbsIconDrawable(context, "list-box"), true, null
+                  )
+                }
+            }
+          }
         }
+      }
     }
 
     val mediaTargetPair = mediaManager.getById(mediaId)?.let { it to null }
-        ?: mediaManager.getPodcastWithEpisodeByEpisodeId(mediaId)?.let {
-            it.libraryItemWrapper to it.episode
-        }
+      ?: mediaManager.getPodcastWithEpisodeByEpisodeId(mediaId)?.let {
+        it.libraryItemWrapper to it.episode
+      }
 
     if (mediaTargetPair == null) {
-        Log.w(TAG, "getItem: Unable to resolve playable mediaId='$mediaId'")
-        return null
+      Log.w(TAG, "getItem: Unable to resolve playable mediaId='$mediaId'")
+      return null
     }
 
     val (libraryItem, episode) = mediaTargetPair
     val userMediaProgress = mediaManager.serverUserMediaProgress.find {
-        it.libraryItemId==libraryItem.id && it.episodeId==episode?.id
+      it.libraryItemId == libraryItem.id && it.episodeId == episode?.id
     }
 
     return episode?.getMediaItem(libraryItem, userMediaProgress, context)
@@ -260,43 +260,43 @@ class Media3BrowseTree(
    * Builds the children for a given parent ID in the browse tree hierarchy.
    */
   suspend fun getChildren(parentId: String): ImmutableList<MediaItem> {
-      Log.d(TAG, "getChildren: parentId=$parentId")
+    Log.d(TAG, "getChildren: parentId=$parentId")
 
     val mediaItems = when {
       parentId == ROOT_ID -> itemBuilder.getRootChildren()
       parentId == DOWNLOADS_ID -> itemBuilder.buildDownloadsItems().also {
-          Log.d(TAG, "downloads items=${it.size}")
+        Log.d(TAG, "downloads items=${it.size}")
       }
       parentId == CONTINUE_LISTENING_ID -> itemBuilder.buildContinueListeningItems().also {
-          Log.d(TAG, "continueListening items=${it.size}")
+        Log.d(TAG, "continueListening items=${it.size}")
       }
       parentId == LIBRARIES_ROOT -> itemBuilder.buildLibraryList(LIBRARIES_ROOT).also {
-          Log.d(TAG, "libraries items=${it.size}")
+        Log.d(TAG, "libraries items=${it.size}")
       }
       parentId == RECENTLY_ROOT -> itemBuilder.buildLibraryList(RECENTLY_ROOT).also {
-          Log.d(TAG, "recently libraries items=${it.size}")
+        Log.d(TAG, "recently libraries items=${it.size}")
       }
       parentId.startsWith("__PODCAST__") -> {
         val podcastId = parentId.substringAfter("__PODCAST__")
         itemBuilder.buildPodcastEpisodes(podcastId).also {
-            Log.d(TAG, "podcastEpisodes id=$podcastId items=${it.size}")
+          Log.d(TAG, "podcastEpisodes id=$podcastId items=${it.size}")
         }
       }
       parentId.startsWith(LIBRARIES_ROOT) -> {
         val libraryId = parentId.removePrefix(LIBRARIES_ROOT).trimStart('_')
         if (libraryId.isBlank()) return ImmutableList.of()
         itemBuilder.buildLibraryChildren(libraryId).also {
-            Log.d(TAG, "libraryChildren library=$libraryId items=${it.size}")
+          Log.d(TAG, "libraryChildren library=$libraryId items=${it.size}")
         }
       }
       parentId.startsWith("__LIBRARY__") -> itemBuilder.buildLibrarySubChildren(parentId).also {
-          Log.d(TAG, "librarySubChildren parent=$parentId items=${it.size}")
+        Log.d(TAG, "librarySubChildren parent=$parentId items=${it.size}")
       }
       parentId.startsWith(RECENTLY_ROOT) -> {
         return itemBuilder.handleRecentChildren(parentId)
       }
       else -> {
-          Log.w(TAG, "getChildren: Unhandled parentId: $parentId")
+        Log.w(TAG, "getChildren: Unhandled parentId: $parentId")
         emptyList()
       }
     }
@@ -304,7 +304,7 @@ class Media3BrowseTree(
   }
 
   fun getRootItem(): MediaItem {
-      Log.d(TAG, "getRootItem: creating browsable root.")
+    Log.d(TAG, "getRootItem: creating browsable root.")
     val metadata = MediaMetadata.Builder()
       .setTitle(context.getString(R.string.app_name))
       .setIsBrowsable(true)
@@ -316,12 +316,12 @@ class Media3BrowseTree(
       .build()
   }
 
-    fun invalidateSeriesCache() {
-        dataLoader.clearCache()
+  fun invalidateSeriesCache() {
+    dataLoader.clearCache()
   }
 
   companion object {
-      private const val TAG = "M3BrowseTree"
+    private const val TAG = "M3BrowseTree"
     const val ROOT_ID = "__ROOT__"
     const val DOWNLOADS_ID = "__DOWNLOADS__"
     const val CONTINUE_LISTENING_ID = "__CONTINUE_LISTENING__"

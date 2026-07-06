@@ -25,7 +25,6 @@ import com.audiobookshelf.app.plugins.AbsFileSystem
 import com.audiobookshelf.app.plugins.AbsLogger
 import com.getcapacitor.BridgeActivity
 
-
 class MainActivity : BridgeActivity() {
   private val tag = "MainActivity"
 
@@ -74,7 +73,7 @@ class MainActivity : BridgeActivity() {
 
       // Inject as CSS variables
       // NOTE: Possibly able to use in the future to support edge-to-edge better.
-       val js = """
+      val js = """
        document.documentElement.style.setProperty('--safe-area-inset-top', '${top}px');
        document.documentElement.style.setProperty('--safe-area-inset-bottom', '${bottom}px');
        document.documentElement.style.setProperty('--safe-area-inset-left', '${left}px');

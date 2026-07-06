@@ -36,7 +36,7 @@ import java.io.File
 private const val TAG = "M3BrowseItemBuilder"
 private const val FILE_PROVIDER_AUTHORITY = "${BuildConfig.APPLICATION_ID}.fileprovider"
 private const val URI_GRANT_FLAGS =
-    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
+  Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
 
 /**
  * Handles building MediaItems for the Media3 browse tree.
@@ -63,11 +63,11 @@ class Media3BrowseItemBuilder(
     // Explicitly target nodes that should be grids (covers/shelves)
     // Avoid targeting the root categories (AUTHORS, SERIES_LIST) so they remain lists
     val isGrid = mediaId.contains("__BOOKS") ||
-                 mediaId.contains("__DISCOVERY") ||
-                 mediaId.contains("__AUTHOR__") ||
-                 mediaId.contains("__SERIES__") ||
-                 mediaId.contains("__COLLECTION__") ||
-                 mediaId.contains(CONTINUE_LISTENING_ID)
+      mediaId.contains("__DISCOVERY") ||
+      mediaId.contains("__AUTHOR__") ||
+      mediaId.contains("__SERIES__") ||
+      mediaId.contains("__COLLECTION__") ||
+      mediaId.contains(CONTINUE_LISTENING_ID)
 
     if (isGrid) {
       extras.putInt(
@@ -149,10 +149,10 @@ class Media3BrowseItemBuilder(
   }
 
   fun buildDownloadsItems(): List<MediaItem> {
-      Log.d(TAG, "buildDownloadsItems: start")
+    Log.d(TAG, "buildDownloadsItems: start")
     val localBooks = DeviceManager.dbManager.getLocalLibraryItems("book")
-      val localPodcasts = DeviceManager.dbManager.getLocalLibraryItems("podcast")
-      Log.d(TAG, "buildDownloadsItems: localBooks ${localBooks.size}, localPodcasts ${localPodcasts.size}")
+    val localPodcasts = DeviceManager.dbManager.getLocalLibraryItems("podcast")
+    Log.d(TAG, "buildDownloadsItems: localBooks ${localBooks.size}, localPodcasts ${localPodcasts.size}")
 
     val bookItems = localBooks.mapNotNull { libraryItem ->
       if (!libraryItem.hasTracks(null)) return@mapNotNull null
@@ -164,7 +164,7 @@ class Media3BrowseItemBuilder(
       val progress = DeviceManager.dbManager.getLocalMediaProgress(libraryItem.id)
       libraryItem.getMediaItem(progress, context).withDownloadArtwork(libraryItem, context)
     }
-      Log.d(TAG, "buildDownloadsItems: bookItems ${bookItems.size}, podcastItems ${podcastItems.size}")
+    Log.d(TAG, "buildDownloadsItems: bookItems ${bookItems.size}, podcastItems ${podcastItems.size}")
     return bookItems + podcastItems
   }
 
@@ -185,7 +185,7 @@ class Media3BrowseItemBuilder(
     return if (shouldGroupLetters(libraries)) {
       groupByLetter(libraries, parentId)
     } else {
-        libraries.map { library -> libraryToMediaItem(library, parentId) }
+      libraries.map { library -> libraryToMediaItem(library, parentId) }
     }
   }
 
@@ -198,13 +198,13 @@ class Media3BrowseItemBuilder(
   }
 
   private fun groupByLetter(libraries: List<Library>, prefix: String): List<MediaItem> {
-      val sortOrder =
+    val sortOrder =
       DeviceManager.deviceData.deviceSettings?.androidAutoBrowseSeriesSequenceOrder
         ?: AndroidAutoBrowseSeriesSequenceOrderSetting.ASC
     val grouped = libraries.groupBy { it.name.firstOrNull()?.uppercaseChar() ?: '#' }
     val sortedLetters = grouped.keys.sorted()
     val finalLetters =
-        if (sortOrder==AndroidAutoBrowseSeriesSequenceOrderSetting.DESC) sortedLetters.reversed() else sortedLetters
+      if (sortOrder == AndroidAutoBrowseSeriesSequenceOrderSetting.DESC) sortedLetters.reversed() else sortedLetters
     return finalLetters.map { letter ->
       buildMediaItem(
         mediaId = "${prefix}__${letter}",
@@ -250,7 +250,7 @@ class Media3BrowseItemBuilder(
   }
 
   suspend fun buildLibrarySubChildren(parentId: String): List<MediaItem> {
-      Log.d(TAG, "buildLibrarySubChildren parent=$parentId")
+    Log.d(TAG, "buildLibrarySubChildren parent=$parentId")
     val mediaIdParts = parentId.split("__")
     if (mediaIdParts.size < 4) return emptyList()
 
@@ -477,16 +477,16 @@ class Media3BrowseItemBuilder(
     localLibraryItem.coverAbsolutePath?.let { coverPath ->
       val coverFile = File(coverPath)
       if (coverFile.exists()) {
-          val uri = fileProviderUri(coverFile)
-          grantReadPermission(uri)
+        val uri = fileProviderUri(coverFile)
+        grantReadPermission(uri)
         return uri
       }
     }
 
     localLibraryItem.coverContentUrl?.let { coverUrl ->
       val uri = if (coverUrl.startsWith("file:")) {
-          val fileUri = fileProviderUri(coverUrl.toUri().toFile())
-          grantReadPermission(fileUri)
+        val fileUri = fileProviderUri(coverUrl.toUri().toFile())
+        grantReadPermission(fileUri)
         fileUri
       } else {
         coverUrl.toUri()
@@ -497,16 +497,16 @@ class Media3BrowseItemBuilder(
     return null
   }
 
-    private fun fileProviderUri(file: File): Uri =
-        FileProvider.getUriForFile(context, FILE_PROVIDER_AUTHORITY, file)
+  private fun fileProviderUri(file: File): Uri =
+    FileProvider.getUriForFile(context, FILE_PROVIDER_AUTHORITY, file)
 
-    private fun grantReadPermission(uri: Uri) {
-        try {
-            context.grantUriPermission(null, uri, URI_GRANT_FLAGS)
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to grant URI permission for cover: ${e.message}")
-        }
+  private fun grantReadPermission(uri: Uri) {
+    try {
+      context.grantUriPermission(null, uri, URI_GRANT_FLAGS)
+    } catch (e: Exception) {
+      Log.w(TAG, "Failed to grant URI permission for cover: ${e.message}")
     }
+  }
 
   suspend fun buildPodcastEpisodes(podcastId: String): List<MediaItem> =
     browseDataLoader.loadPodcastEpisodes(podcastId, context)
@@ -527,7 +527,7 @@ class Media3BrowseItemBuilder(
       null -> {
         if (library?.mediaType == "podcast") {
           listOf(
-              createBrowsableCategory("${RECENTLY_ROOT}${libraryId}__EPISODES", "Episodes", "microphone_2"),
+            createBrowsableCategory("${RECENTLY_ROOT}${libraryId}__EPISODES", "Episodes", "microphone_2"),
             createBrowsableCategory("${RECENTLY_ROOT}${libraryId}__PODCASTS", "Podcasts", "podcast")
           )
         } else {
@@ -624,15 +624,15 @@ private fun resolveLocalDownloadCover(item: LocalLibraryItem, context: Context):
   val path = item.coverAbsolutePath ?: return null
   val file = File(path)
   if (!file.exists()) {
-      Log.w(TAG, "resolveLocalDownloadCover: file does not exist $path for item ${item.id}")
+    Log.w(TAG, "resolveLocalDownloadCover: file does not exist $path for item ${item.id}")
     return null
   }
-    val uri = FileProvider.getUriForFile(context, FILE_PROVIDER_AUTHORITY, file)
+  val uri = FileProvider.getUriForFile(context, FILE_PROVIDER_AUTHORITY, file)
   try {
-      context.grantUriPermission("com.google.android.projection.gearhead", uri, URI_GRANT_FLAGS)
+    context.grantUriPermission("com.google.android.projection.gearhead", uri, URI_GRANT_FLAGS)
   } catch (e: Exception) {
-      Log.w(TAG, "Failed to grant URI permission for download cover: ${e.message}")
+    Log.w(TAG, "Failed to grant URI permission for download cover: ${e.message}")
   }
-    Log.d(TAG, "resolveLocalDownloadCover: item ${item.id}, path $path, uri $uri")
+  Log.d(TAG, "resolveLocalDownloadCover: item ${item.id}, path $path, uri $uri")
   return uri
 }
