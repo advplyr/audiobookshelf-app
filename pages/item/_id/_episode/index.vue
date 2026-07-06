@@ -250,7 +250,12 @@ export default {
     userTimeRemaining() {
       if (!this.userItemProgress) return 0
       const duration = this.userItemProgress.duration || this.episode.duration
-      return duration - this.userItemProgress.currentTime
+      const remaining = duration - this.userItemProgress.currentTime
+      if (this.$store.state.globals.scaleRemainingTimeBySpeed) {
+        const playbackRate = this.$store.getters['user/getUserSetting']('playbackRate') || 1
+        return remaining / playbackRate
+      }
+      return remaining
     },
     timeRemaining() {
       if (this.playerIsPlaying) return 'Playing'

@@ -240,6 +240,7 @@
   "LabelRecentlyAdded": "Recently Added",
   "LabelRemoveFromPlaylist": "Remove from Playlist",
   "LabelScaleElapsedTimeBySpeed": "Scale Elapsed Time by Speed",
+  "LabelScaleRemainingTimeBySpeed": "Scale Remaining Time by Speed",
   "LabelSeason": "Season",
   "LabelSelectADevice": "Select a device",
   "LabelSelectMediaType": "Select media type",
