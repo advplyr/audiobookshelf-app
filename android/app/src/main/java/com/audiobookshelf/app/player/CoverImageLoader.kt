@@ -19,7 +19,6 @@ suspend fun resolveUriAsBitmap(context: Context, uri: Uri): Bitmap? {
       Glide.with(context)
         .asBitmap()
         .load(uri)
-        .override(512, 512)
         .placeholder(R.drawable.icon)
         .error(R.drawable.icon)
         .submit()
