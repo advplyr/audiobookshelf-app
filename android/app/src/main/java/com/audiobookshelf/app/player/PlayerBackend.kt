@@ -99,7 +99,7 @@ class ExoV2PlayerBackend(
     }
   }
 
-  override fun getDeviceInfo(): DeviceInfo = playerNotificationService.getDeviceInfo()
+  override fun getDeviceInfo(): DeviceInfo = PlaybackConstants.buildDeviceInfo(mainActivity)
 
   override fun getPlayItemRequestPayload(forceTranscode: Boolean): PlayItemRequestPayload =
     playerNotificationService.getPlayItemRequestPayload(forceTranscode)
@@ -200,6 +200,7 @@ class Media3PlayerBackend(
 
   private var activePlaybackSession: PlaybackSession? = null
   private var lastKnownMediaPlayer: String? = null
+  private var lastWidgetSnapshot: WidgetPlaybackSnapshot? = null
 
   override fun getDeviceInfo(): DeviceInfo = PlaybackConstants.buildDeviceInfo(context)
 
@@ -248,17 +249,14 @@ class Media3PlayerBackend(
   override fun bufferedTimeSeconds(): Double = playbackController.bufferedPosition() / 1000.0
 
   override fun play() {
-    playbackController.forceNextPlayingStateDispatch()
     playbackController.play()
   }
 
   override fun pause() {
-    playbackController.forceNextPlayingStateDispatch()
     playbackController.pause()
   }
 
   override fun playPause(): Boolean {
-    playbackController.forceNextPlayingStateDispatch()
     return playbackController.playPause()
   }
 
@@ -362,23 +360,25 @@ class Media3PlayerBackend(
     clientEventEmitter.onPlaybackClosed()
   }
 
-  override fun onSeekCompleted(positionMs: Long, mediaItemIndex: Int) {
-  }
-
   /* ======== Widget ======== */
 
   private fun notifyWidgetState(isClosed: Boolean = false) {
     val updater = DeviceManager.widgetUpdater ?: return
+    if (isClosed) {
+      lastWidgetSnapshot = null
+      updater.onPlayerClosed()
+      return
+    }
     val session = activePlaybackSession ?: return
     val snapshot = session.toWidgetSnapshot(
       context = context,
       isPlaying = playbackController.isPlaying(),
-      isClosed = isClosed,
+      isClosed = false,
       positionOverrideMs = currentAbsolutePositionMs(session)
     )
-    updater.onPlayerChanged(snapshot)
-    if (isClosed) {
-      updater.onPlayerClosed()
+    if (snapshot.hasMeaningfulChangesFrom(lastWidgetSnapshot)) {
+      lastWidgetSnapshot = snapshot
+      updater.onPlayerChanged(snapshot)
     }
   }
 

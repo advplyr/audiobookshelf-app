@@ -23,8 +23,6 @@ class CastManager(val mainActivity:Activity) {
 
   private var playerNotificationService:PlayerNotificationService? = null
   private var newConnectionListener: SessionListener? = null
-  var onCastSessionAvailable: ((CastContext) -> Unit)? = null
-  var onCastSessionUnavailable: (() -> Unit)? = null
 
   private fun switchToPlayer(useCastPlayer:Boolean) {
     Handler(Looper.getMainLooper()).post {
@@ -281,10 +279,11 @@ class CastManager(val mainActivity:Activity) {
         Log.d(tag, "CAST SESSION STARTED ${castSession.castDevice?.friendlyName}")
         getSessionManager()?.removeSessionManagerListener(this, CastSession::class.java)
 
-        val castContext = CastContext.getSharedInstance(mainActivity)
-        if (BuildConfig.USE_MEDIA3) {
-          onCastSessionAvailable?.invoke(castContext)
-        } else {
+        // On media3 the CastPlayer built via CastPlayer.Builder shares this same CastContext and
+        // transitions to the receiver on its own (surfaced through Player.onDeviceInfoChanged), so
+        // nothing needs to happen here. exov2 attaches its CastPlayer and switches manually.
+        if (!BuildConfig.USE_MEDIA3) {
+          val castContext = CastContext.getSharedInstance(mainActivity)
           playerNotificationService?.let {
             if (it.castPlayer == null) {
               Log.d(tag, "Initializing castPlayer on session started - switch to cast player")
@@ -307,9 +306,6 @@ class CastManager(val mainActivity:Activity) {
       }
 
       override fun onSessionEnded(castSession: CastSession, error: Int) {
-        if (BuildConfig.USE_MEDIA3) {
-          onCastSessionUnavailable?.invoke()
-        }
         if (callback.onSessionEndedBeforeStart(error)) {
           getSessionManager()?.removeSessionManagerListener(this, CastSession::class.java)
         }

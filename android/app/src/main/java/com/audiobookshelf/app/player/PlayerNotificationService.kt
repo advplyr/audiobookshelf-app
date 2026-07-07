@@ -1,6 +1,5 @@
 package com.audiobookshelf.app.player
 
-import android.annotation.SuppressLint
 import android.app.*
 import android.content.Context
 import android.content.Intent
@@ -11,7 +10,6 @@ import android.graphics.ImageDecoder
 import android.media.AudioManager
 import android.os.*
 import android.provider.MediaStore
-import android.provider.Settings
 import android.support.v4.media.MediaBrowserCompat
 import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.MediaMetadataCompat
@@ -1193,7 +1191,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     }
   }
 
-  @SuppressLint("HardwareIds")
   fun getDeviceInfo(): DeviceInfo {
     /* EXAMPLE
      manufacturer: Google
@@ -1202,14 +1199,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
      sdkVersion: 32
      appVersion: 0.9.46-beta
     */
-    val deviceId = Settings.Secure.getString(ctx.contentResolver, Settings.Secure.ANDROID_ID)
-    return DeviceInfo(
-      deviceId,
-      Build.MANUFACTURER,
-      Build.MODEL,
-      Build.VERSION.SDK_INT,
-      BuildConfig.VERSION_NAME
-    )
+    return PlaybackConstants.buildDeviceInfo(ctx)
   }
 
   private val deviceSettings

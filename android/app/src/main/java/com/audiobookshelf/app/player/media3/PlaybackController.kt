@@ -49,7 +49,6 @@ class PlaybackController(private val context: Context) {
     fun onPlaybackEnded()
     fun onPlaybackClosed() {}
     fun onMediaPlayerChanged(mediaPlayer: String) {}
-    fun onSeekCompleted(positionMs: Long, mediaItemIndex: Int) {}
   }
 
   private val mainHandler = Handler(Looper.getMainLooper())
@@ -335,15 +334,6 @@ class PlaybackController(private val context: Context) {
       listener?.onPlaybackSpeedChanged(playbackParameters.speed)
     }
 
-    override fun onPositionDiscontinuity(
-      oldPosition: Player.PositionInfo,
-      newPosition: Player.PositionInfo,
-      reason: Int
-    ) {
-      if (reason == Player.DISCONTINUITY_REASON_SEEK || reason == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT) {
-        listener?.onSeekCompleted(newPosition.positionMs, newPosition.mediaItemIndex)
-      }
-    }
   }
 
   /**
@@ -597,10 +587,6 @@ class PlaybackController(private val context: Context) {
     if (metadata == lastEmittedMetadata) return
     lastEmittedMetadata = metadata
     listener?.onMetadata(metadata)
-  }
-
-  fun forceNextPlayingStateDispatch() {
-    forceNextPlayingStateUpdate = true
   }
 
   fun resyncUiState() {
