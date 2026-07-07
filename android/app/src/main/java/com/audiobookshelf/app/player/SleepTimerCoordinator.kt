@@ -153,11 +153,9 @@ class SleepTimerCoordinator(
     adapter.seekBackward(amountMs)
   }
 
-  override fun endTimeOfChapterOrTrack(): Long = hostAdapter?.endTimeOfChapterOrTrack()
-    ?: throw IllegalStateException("SleepTimerHostAdapter must be set before using SleepTimerCoordinator")
+  override fun endTimeOfChapterOrTrack(): Long? = hostAdapter?.endTimeOfChapterOrTrack()
 
-  override fun endTimeOfNextChapterOrTrack(): Long = hostAdapter?.endTimeOfNextChapterOrTrack()
-    ?: throw IllegalStateException("SleepTimerHostAdapter must be set before using SleepTimerCoordinator")
+  override fun endTimeOfNextChapterOrTrack(): Long? = hostAdapter?.endTimeOfNextChapterOrTrack()
 
   override fun notifySleepTimerSet(secondsRemaining: Int, isAuto: Boolean) {
     sleepTimerEndObserved = false

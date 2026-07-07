@@ -64,6 +64,7 @@ class PlaybackController(private val context: Context) {
   private var lastNotifiedIsPlaying: Boolean? = null
   private var forceNextPlayingStateUpdate = false
   private var isPreparingPlayback = false
+  private var lastEmittedMetadata: PlaybackMetadata? = null
   @Volatile
   private var lastKnownPositionMs: Long = 0L
   @Volatile
@@ -438,6 +439,7 @@ class PlaybackController(private val context: Context) {
     val targetIsCast = playbackSession.isLocal && currentMediaPlayer == PLAYER_CAST
     val mediaItems =
       playbackSession.toMedia3MediaItems(context, preferServerUrisForCast = targetIsCast)
+    if (mediaItems.isEmpty()) return
 
     val trackIndex = playbackSession.getCurrentTrackIndex().coerceIn(0, mediaItems.lastIndex)
     val trackStartOffsetMs = playbackSession.getTrackStartOffsetMs(trackIndex)
@@ -589,6 +591,11 @@ class PlaybackController(private val context: Context) {
         currentMs / 1000.0,
         controllerPlaybackState(mediaController)
       )
+    // currentTime is reported in whole seconds, so consecutive ticks within the same second
+    // (and repeated paused/buffering ticks) produce an identical payload. Skip the redundant
+    // JSON serialization and JS-bridge dispatch when nothing changed.
+    if (metadata == lastEmittedMetadata) return
+    lastEmittedMetadata = metadata
     listener?.onMetadata(metadata)
   }
 
@@ -597,6 +604,9 @@ class PlaybackController(private val context: Context) {
   }
 
   fun resyncUiState() {
+    // Force a fresh emit even if the payload matches the last one (e.g. webview returning to
+    // foreground needs the current state pushed regardless of the dedup in emitMetadata).
+    lastEmittedMetadata = null
     mediaController?.let { controller ->
       emitMetadata(controller)
       notifyPlayingState(effectiveIsPlaying(controller))

@@ -12,6 +12,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.guava.future
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -103,8 +104,12 @@ class Media3AutoLibraryCoordinator(
     awaitSuspendCallback { cb -> mediaManager.loadAndroidAutoItems { cb() } }
     browseTree.invalidateSeriesCache()
     if (mediaManager.serverLibraries.isNotEmpty()) {
-      awaitCallback { cb -> mediaManager.populatePersonalizedDataForAllLibraries { cb() } }
-      awaitCallback { cb -> mediaManager.initializeInProgressItems { cb() } }
+      // These populate disjoint state via independent network calls, so run them concurrently
+      // rather than serializing two round-trips before browse children can be served.
+      listOf(
+        scope.async { awaitCallback { cb -> mediaManager.populatePersonalizedDataForAllLibraries { cb() } } },
+        scope.async { awaitCallback { cb -> mediaManager.initializeInProgressItems { cb() } } }
+      ).awaitAll()
     }
     return mediaManager.isAutoDataLoaded
   }

@@ -321,7 +321,7 @@ class Media3SessionCallback(
       val preferCastStream = isCastActive()
       val resolvedPlayable = browseApi.resolve(mediaId, preferCastStream)
 
-      if (resolvedPlayable == null) {
+      if (resolvedPlayable == null || resolvedPlayable.mediaItems.isEmpty()) {
         debug { "onSetMediaItems: unable to resolve mediaId=$mediaId" }
         return@future MediaSession.MediaItemsWithStartPosition(emptyList(), 0, C.TIME_UNSET)
       }

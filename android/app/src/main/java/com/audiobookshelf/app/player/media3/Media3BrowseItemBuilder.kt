@@ -154,14 +154,17 @@ class Media3BrowseItemBuilder(
     val localPodcasts = DeviceManager.dbManager.getLocalLibraryItems("podcast")
     Log.d(TAG, "buildDownloadsItems: localBooks ${localBooks.size}, localPodcasts ${localPodcasts.size}")
 
+    // Load all local media progress once and index by id rather than doing a disk read per item.
+    val progressById = DeviceManager.dbManager.getAllLocalMediaProgress().associateBy { it.id }
+
     val bookItems = localBooks.mapNotNull { libraryItem ->
       if (!libraryItem.hasTracks(null)) return@mapNotNull null
-      val progress = DeviceManager.dbManager.getLocalMediaProgress(libraryItem.id)
+      val progress = progressById[libraryItem.id]
       libraryItem.getMediaItem(progress, context).withDownloadArtwork(libraryItem, context)
     }
 
     val podcastItems = localPodcasts.map { libraryItem ->
-      val progress = DeviceManager.dbManager.getLocalMediaProgress(libraryItem.id)
+      val progress = progressById[libraryItem.id]
       libraryItem.getMediaItem(progress, context).withDownloadArtwork(libraryItem, context)
     }
     Log.d(TAG, "buildDownloadsItems: bookItems ${bookItems.size}, podcastItems ${podcastItems.size}")
