@@ -5,7 +5,6 @@ import android.util.Log
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.models.DownloadItem
 import com.audiobookshelf.app.plugins.AbsLog
-import com.audiobookshelf.app.plugins.AbsLogger
 import io.paperdb.Paper
 import java.io.File
 
@@ -14,6 +13,9 @@ class DbManager {
 
   companion object {
     private var isDbInitialized = false
+    // Bound the log viewer read and the total stored log count (mirrors iOS Database).
+    private const val MAX_LOGS_RETURNED = 500
+    private const val MAX_LOGS_STORED = 1000
 
     fun initialize(ctx: Context) {
       if (isDbInitialized) return
@@ -293,14 +295,21 @@ class DbManager {
   fun saveLog(log:AbsLog) {
     Paper.book("log").write(log.id, log)
   }
-  fun getAllLogs() : List<AbsLog> {
+  private fun readAllLogs() : List<AbsLog> {
+    val book = Paper.book("log")
     val logs:MutableList<AbsLog> = mutableListOf()
-    Paper.book("log").allKeys.forEach { logId ->
-      Paper.book("log").read<AbsLog>(logId)?.let {
+    book.allKeys.forEach { logId ->
+      book.read<AbsLog>(logId)?.let {
         logs.add(it)
       }
     }
     return logs.sortedBy { it.timestamp }
+  }
+  fun getAllLogs() : List<AbsLog> {
+    // Bounded read for the log viewer. Loading/serializing/rendering the entire log book hangs the
+    // viewer on devices with a large accumulated history, so return only the most recent entries
+    // (chronological order). See iOS Database.getAllLogs.
+    return readAllLogs().takeLast(MAX_LOGS_RETURNED)
   }
   fun removeAllLogs() {
     Paper.book("log").destroy()
@@ -308,16 +317,28 @@ class DbManager {
   fun cleanLogs() {
     val numberOfHoursToKeep = 48
     val keepLogCutoff = System.currentTimeMillis() - (3600000 * numberOfHoursToKeep)
-    val allLogs = getAllLogs()
+    // Read the full book directly (getAllLogs is intentionally bounded and can't be used here).
+    val allLogs = readAllLogs()
+    val book = Paper.book("log")
     var logsRemoved = 0
+
+    // Remove logs older than the retention window
     allLogs.forEach {
       if (it.timestamp < keepLogCutoff) {
-        Paper.book("log").delete(it.id)
+        book.delete(it.id)
         logsRemoved++
       }
     }
+
+    // Also cap the total stored logs by count. Within the retention window, frequent logging can still
+    // accumulate far more entries than the viewer can load, so trim the oldest overflow (list is ascending).
+    allLogs.filter { it.timestamp >= keepLogCutoff }.dropLast(MAX_LOGS_STORED).forEach {
+      book.delete(it.id)
+      logsRemoved++
+    }
+
     if (logsRemoved > 0) {
-      AbsLogger.info("DbManager", "cleanLogs: Removed $logsRemoved logs older than $numberOfHoursToKeep hours")
+      Log.i("DbManager", "cleanLogs: Removed $logsRemoved expired/overflow logs")
     }
   }
 }

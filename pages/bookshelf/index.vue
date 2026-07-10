@@ -41,12 +41,16 @@
 export default {
   props: {},
   data() {
+    // Restore the previously loaded home shelves (and fetch timestamps) so returning to the home
+    // screen paints instantly instead of refetching from scratch. On slow connections a refetch
+    // shows a "Please Wait" overlay and, if it times out, wipes the bookshelf. See setBookshelfTabCache.
+    const homeCache = this.$store.state.bookshelfTabCache.home
     return {
-      shelves: [],
+      shelves: homeCache?.shelves || [],
       isFirstNetworkConnection: true,
-      lastServerFetch: 0,
-      lastServerFetchLibraryId: null,
-      lastLocalFetch: 0,
+      lastServerFetch: homeCache?.lastServerFetch || 0,
+      lastServerFetchLibraryId: homeCache?.lastServerFetchLibraryId || null,
+      lastLocalFetch: homeCache?.lastLocalFetch || 0,
       localLibraryItems: [],
       isLoading: false
     }
@@ -238,25 +242,28 @@ export default {
       // Set local library items first
       this.localLibraryItems = await this.$db.getLocalLibraryItems()
       const localCategories = this.getLocalMediaItemCategories()
-      this.shelves = localCategories
-      console.log('[categories] Local shelves set', this.shelves.length, this.lastLocalFetch)
 
       if (isConnectedToServerWithInternet) {
+        // Note: don't clear the current shelves before the server responds. On slow connections this
+        // fetch can take several seconds (or time out at connectTimeout), and clearing first flashes an
+        // empty/local-only bookshelf. Keep whatever is already shown until fresh data arrives.
         const categories = await this.$nativeHttp.get(`/api/libraries/${this.currentLibraryId}/personalized?minified=1&include=rssfeed,numEpisodesIncomplete`, { connectTimeout: 10000 }).catch((error) => {
           console.error('[categories] Failed to fetch categories', error)
           return []
         })
         if (!categories.length) {
-          // Failed to load categories so use local shelves
-          console.warn(`[categories] Failed to get server categories so using local categories`)
+          // Failed to load (or timed out). Keep the shelves we already have; only fall back to local if
+          // we have nothing to show. This prevents a transient failure from wiping the home screen.
+          console.warn(`[categories] Failed to get server categories, keeping existing shelves`)
+          if (!this.shelves.length) this.shelves = localCategories
           this.lastServerFetch = 0
           this.lastLocalFetch = Date.now()
           this.isLoading = false
-          console.log('[categories] Local shelves set from failure', this.shelves.length, this.lastLocalFetch)
+          console.log('[categories] Shelves after server failure', this.shelves.length, this.lastLocalFetch)
           return
         }
 
-        this.shelves = categories.map((cat) => {
+        const serverShelves = categories.map((cat) => {
           if (cat.type == 'book' || cat.type == 'podcast' || cat.type == 'episode') {
             // Map localLibraryItem to entities
             cat.entities = cat.entities.map((entity) => {
@@ -274,8 +281,11 @@ export default {
 
         // Only add the local shelf with the same media type
         const localShelves = localCategories.filter((cat) => cat.type === this.currentLibraryMediaType && !cat.localOnly)
-        this.shelves.push(...localShelves)
+        this.shelves = [...serverShelves, ...localShelves]
         console.log('[categories] Server shelves set', this.shelves.length, this.lastServerFetch)
+      } else {
+        this.shelves = localCategories
+        console.log('[categories] Local shelves set', this.shelves.length, this.lastLocalFetch)
       }
 
       this.isLoading = false
@@ -345,6 +355,17 @@ export default {
   },
   beforeDestroy() {
     this.removeListeners()
+    // Cache the loaded shelves + fetch timestamps so returning to the home screen restores instantly
+    // instead of refetching (which flashes a loading/empty state on slow connections).
+    this.$store.commit('setBookshelfTabCache', {
+      key: 'home',
+      data: {
+        shelves: this.shelves,
+        lastServerFetch: this.lastServerFetch,
+        lastServerFetchLibraryId: this.lastServerFetchLibraryId,
+        lastLocalFetch: this.lastLocalFetch
+      }
+    })
   }
 }
 </script>

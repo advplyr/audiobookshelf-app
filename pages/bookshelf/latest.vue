@@ -11,13 +11,17 @@
 <script>
 export default {
   data() {
+    // Restore previously loaded episodes so returning to this tab (e.g. after viewing Logs) paints
+    // instantly instead of remounting blank and refetching. Only reuse if same library.
+    const cached = this.$store.state.bookshelfTabCache.latest
+    const cache = cached?.loadedLibraryId === this.$store.state.libraries.currentLibraryId ? cached : {}
     return {
       processing: false,
-      recentEpisodes: [],
-      totalEpisodes: 0,
-      currentPage: 0,
+      recentEpisodes: cache.recentEpisodes || [],
+      totalEpisodes: cache.totalEpisodes || 0,
+      currentPage: cache.currentPage || 0,
       localLibraryItems: [],
-      loadedLibraryId: null
+      loadedLibraryId: cache.loadedLibraryId || null
     }
   },
   watch: {},
@@ -69,9 +73,12 @@ export default {
       })
       this.processing = false
       console.log('Episodes', episodePayload)
-      this.recentEpisodes = episodePayload.episodes || []
-      this.totalEpisodes = episodePayload.total
-      this.currentPage = page
+      // Keep any existing (cached) episodes if the fetch failed (also avoids a null dereference)
+      if (episodePayload) {
+        this.recentEpisodes = episodePayload.episodes || []
+        this.totalEpisodes = episodePayload.total
+        this.currentPage = page
+      }
     },
     libraryChanged(libraryId) {
       if (libraryId !== this.loadedLibraryId) {
@@ -104,6 +111,11 @@ export default {
     this.$eventBus.$on('new-local-library-item', this.newLocalLibraryItem)
   },
   beforeDestroy() {
+    // Cache episodes so returning to this tab restores instantly instead of remounting blank + refetching.
+    this.$store.commit('setBookshelfTabCache', {
+      key: 'latest',
+      data: { recentEpisodes: this.recentEpisodes, totalEpisodes: this.totalEpisodes, currentPage: this.currentPage, loadedLibraryId: this.loadedLibraryId }
+    })
     this.$eventBus.$off('library-changed', this.libraryChanged)
     this.$eventBus.$off('new-local-library-item', this.newLocalLibraryItem)
   }

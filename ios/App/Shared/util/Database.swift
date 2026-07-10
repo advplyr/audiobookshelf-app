@@ -219,7 +219,7 @@ class Database {
             return nil
         }
     }
-    
+
     public func saveDownloadItem(_ downloadItem: DownloadItem) throws {
         let realm = try Realm()
         return try realm.write { realm.add(downloadItem, update: .modified) }
@@ -285,10 +285,22 @@ class Database {
         return try realm.write { realm.add(log) }
     }
     
+    // Bounded read for the log viewer. The log table can hold a large number of very frequent entries;
+    // loading, JSON-encoding and rendering all of them hangs the viewer (and blocks the plugin queue so
+    // even Clear Logs can't run). Return only the most recent entries, in chronological order.
+    static let maxLogsReturned = 500
+
     public func getAllLogs() -> [LogEntry] {
         do {
             let realm = try Realm()
-            return realm.objects(LogEntry.self).toArray()
+            // Take the most recent N and detach them from Realm (thread-independent copies), matching
+            // Results.toArray(). Live Realm objects can't be JSON-encoded off their realm/thread, which
+            // is what asDictionaryArray() does. Reverse to chronological (oldest -> newest) for the viewer.
+            let recent: [LogEntry] = realm.objects(LogEntry.self)
+                .sorted(byKeyPath: "timestamp", ascending: false)
+                .prefix(Database.maxLogsReturned)
+                .map { $0.detached() }
+            return Array(recent.reversed())
         } catch {
             debugPrint(error)
             return []
@@ -312,21 +324,31 @@ class Database {
     private func cleanExpiredLogs() throws {
         let realm = try Realm()
         let numberOfHoursToKeep = 48
-        let keepLogCutoff = Date().addingTimeInterval(TimeInterval(-1 * numberOfHoursToKeep * 3600))
-        
-        let allLogs = getAllLogs()
+        let maxLogsToKeep = 1000
+        let keepLogCutoff = Int(Date().addingTimeInterval(TimeInterval(-1 * numberOfHoursToKeep * 3600)).timeIntervalSince1970)
+
         var logsRemoved = 0
+        // Query the full table directly (getAllLogs is intentionally bounded and can't be used here).
         try? realm.write {
-            allLogs.forEach { log in
-                if log.timestamp < Int(keepLogCutoff.timeIntervalSince1970) {
-                    realm.delete(log)
-                    logsRemoved += 1
-                }
+            // Remove logs older than the retention window (batch delete via query, not one-by-one).
+            let expired = realm.objects(LogEntry.self).filter("timestamp < %@", NSNumber(value: keepLogCutoff))
+            logsRemoved += expired.count
+            realm.delete(expired)
+
+            // Also cap the total stored logs by count. Within the retention window, frequent logging can
+            // still accumulate far more entries than the viewer can load, so trim the oldest overflow.
+            let remaining = realm.objects(LogEntry.self).sorted(byKeyPath: "timestamp", ascending: false)
+            if remaining.count > maxLogsToKeep {
+                let overflow = Array(remaining[maxLogsToKeep...])
+                logsRemoved += overflow.count
+                realm.delete(overflow)
             }
         }
-        
+
+        // Note: use debugPrint here, not AbsLogger.info — this runs inside Database.init, and logging
+        // would re-enter Database.shared before it finishes initializing.
         if logsRemoved > 0 {
-            AbsLogger.info(message: "cleanLogs: Removed \(logsRemoved) logs older than \(numberOfHoursToKeep) hours")
+            debugPrint("cleanLogs: Removed \(logsRemoved) expired/overflow logs")
         }
     }
 }

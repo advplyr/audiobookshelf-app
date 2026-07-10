@@ -27,7 +27,8 @@ export const state = () => ({
   isNetworkListenerInit: false,
   serverSettings: null,
   lastBookshelfScrollData: {},
-  lastItemScrollData: {}
+  lastItemScrollData: {},
+  bookshelfTabCache: {}
 })
 
 export const getters = {
@@ -134,6 +135,11 @@ export const mutations = {
   },
   setLastItemScrollData(state, data) {
     state.lastItemScrollData = data
+  },
+  setBookshelfTabCache(state, { key, data }) {
+    // Cache per bookshelf sub-tab (home/authors/latest/...) so returning to a tab after visiting another
+    // top-level page (Logs, Settings...) restores instantly instead of remounting and refetching.
+    state.bookshelfTabCache = { ...state.bookshelfTabCache, [key]: data }
   },
   setPlaybackSession(state, playbackSession) {
     state.currentPlaybackSession = playbackSession

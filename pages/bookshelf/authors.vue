@@ -13,10 +13,14 @@
 <script>
 export default {
   data() {
+    // Restore previously loaded authors so returning to this tab (e.g. after viewing Logs) paints
+    // instantly instead of remounting to a blank list and refetching. Only reuse if same library.
+    const cached = this.$store.state.bookshelfTabCache.authors
+    const cache = cached?.loadedLibraryId === this.$store.state.libraries.currentLibraryId ? cached : {}
     return {
       loading: true,
-      authors: [],
-      loadedLibraryId: null,
+      authors: cache.authors || [],
+      loadedLibraryId: cache.loadedLibraryId || null,
       cardWidth: 200
     }
   },
@@ -35,13 +39,15 @@ export default {
         return
       }
       this.loadedLibraryId = this.currentLibraryId
-      this.authors = await this.$nativeHttp
+      const authors = await this.$nativeHttp
         .get(`/api/libraries/${this.currentLibraryId}/authors`)
         .then((response) => response.authors)
         .catch((error) => {
           console.error('Failed to load authors', error)
-          return []
+          return null
         })
+      // Keep any existing (cached) authors if the fetch failed, so a transient error doesn't blank the list
+      if (authors) this.authors = authors
       console.log('Loaded authors', this.authors)
       this.$eventBus.$emit('bookshelf-total-entities', this.authors.length)
       this.loading = false
@@ -82,6 +88,11 @@ export default {
     this.$eventBus.$on('library-changed', this.libraryChanged)
   },
   beforeDestroy() {
+    // Cache authors so returning to this tab restores instantly instead of remounting blank + refetching.
+    this.$store.commit('setBookshelfTabCache', {
+      key: 'authors',
+      data: { authors: this.authors, loadedLibraryId: this.loadedLibraryId }
+    })
     this.$socket.$off('author_added', this.authorAdded)
     this.$socket.$off('author_updated', this.authorUpdated)
     this.$socket.$off('author_removed', this.authorRemoved)

@@ -79,6 +79,9 @@ export default {
     entityName() {
       return this.page
     },
+    cacheKey() {
+      return `lazy:${this.page}${this.seriesId ? ':' + this.seriesId : ''}`
+    },
     hasFilter() {
       if (this.page === 'series' || this.page === 'collections' || this.page === 'playlists') return false
       return this.filterBy !== 'all'
@@ -344,6 +347,20 @@ export default {
       }
       return entitiesPerShelfBefore < this.entitiesPerShelf // Books per shelf has changed
     },
+    restoreFromCache() {
+      const cache = this.$store.state.bookshelfTabCache[this.cacheKey]
+      if (!cache || !cache.totalEntities) return false
+      // Only reuse if the library and query (filter/sort) are unchanged
+      if (cache.libraryId !== this.currentLibraryId || cache.queryString !== this.buildSearchParams()) return false
+      this.currentSFQueryString = cache.queryString
+      this.entities = cache.entities
+      this.totalEntities = cache.totalEntities
+      this.totalShelves = Math.ceil(this.totalEntities / this.entitiesPerShelf)
+      this.pagesLoaded = { ...cache.pagesLoaded }
+      this.initialized = true
+      this.$eventBus.$emit('bookshelf-total-entities', this.totalEntities)
+      return true
+    },
     async init() {
       if (this.isFirstInit) return
       if (!this.user) {
@@ -358,7 +375,15 @@ export default {
 
       this.isFirstInit = true
       this.initSizeData()
-      await this.loadPage(0)
+      // Restore cached entities to avoid a blank refetch when returning to this tab (e.g. after Logs).
+      const restoredFromCache = this.restoreFromCache()
+      if (!restoredFromCache) {
+        await this.loadPage(0)
+      } else {
+        // Let the template render the restored shelf spacer (totalShelves) before imperatively mounting
+        // cards, otherwise they mount into an unsized container and don't appear.
+        await this.$nextTick()
+      }
       var lastBookIndex = Math.min(this.totalEntities, this.shelvesPerPage * this.entitiesPerShelf)
       this.mountEntites(0, lastBookIndex)
 
@@ -369,6 +394,11 @@ export default {
           // Exact path match with query so use scroll position
           window['bookshelf-wrapper'].scrollTop = scrollTop
         }
+      }
+
+      // If restored from cache, refresh page 0 in the background so content updates in place (no blank flash).
+      if (restoredFromCache) {
+        this.loadPage(0)
       }
     },
     scroll(e) {
@@ -556,6 +586,21 @@ export default {
     // Set bookshelf scroll position for specific bookshelf page and query
     if (window['bookshelf-wrapper']) {
       this.$store.commit('setLastBookshelfScrollData', { scrollTop: window['bookshelf-wrapper'].scrollTop || 0, path: this.routeFullPath, name: this.page })
+    }
+
+    // Cache loaded entities so returning to this tab restores instantly instead of remounting blank + refetching.
+    if (this.initialized && this.totalEntities > 0) {
+      this.$store.commit('setBookshelfTabCache', {
+        key: this.cacheKey,
+        data: {
+          libraryId: this.currentLibraryId,
+          queryString: this.currentSFQueryString,
+          entities: this.entities,
+          totalEntities: this.totalEntities,
+          totalShelves: this.totalShelves,
+          pagesLoaded: this.pagesLoaded
+        }
+      })
     }
   }
 }
