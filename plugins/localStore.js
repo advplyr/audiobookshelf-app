@@ -1,5 +1,53 @@
 import { Preferences } from '@capacitor/preferences'
 
+export const BOOKMARK_CACHE_VERSION = 1
+
+export function getBookmarkCacheKey(identity) {
+  const parts = [identity?.serverConnectionConfigId, identity?.serverUserId, identity?.libraryItemId]
+  if (parts.some((part) => !part)) return null
+  return `bookmarkCache:v${BOOKMARK_CACHE_VERSION}:${parts.map((part) => encodeURIComponent(String(part))).join(':')}`
+}
+
+export function createEmptyBookmarkCache(identity) {
+  return {
+    version: BOOKMARK_CACHE_VERSION,
+    serverConnectionConfigId: identity?.serverConnectionConfigId || null,
+    serverUserId: identity?.serverUserId || null,
+    libraryItemId: identity?.libraryItemId || null,
+    bookmarks: [],
+    pendingOperations: [],
+    tombstones: {}
+  }
+}
+
+export function normalizeBookmarkCache(cache, identity) {
+  const empty = createEmptyBookmarkCache(identity)
+  if (!cache || cache.version !== BOOKMARK_CACHE_VERSION) return empty
+
+  const bookmarks = Array.isArray(cache.bookmarks) ? cache.bookmarks.filter((bookmark) => bookmark && Number.isFinite(Number(bookmark.time))).map((bookmark) => ({
+    ...bookmark,
+    time: Math.floor(Number(bookmark.time))
+  })) : []
+  const pendingOperations = Array.isArray(cache.pendingOperations) ? cache.pendingOperations.filter((operation) => operation && ['create', 'update', 'delete'].includes(operation.type) && operation.bookmarkKey != null).map((operation) => ({
+    ...operation,
+    bookmarkKey: String(operation.bookmarkKey),
+    attempts: Number(operation.attempts) || 0,
+    lastError: operation.lastError || null
+  })) : []
+  const tombstones = cache.tombstones && typeof cache.tombstones === 'object' ? cache.tombstones : {}
+
+  return {
+    ...empty,
+    ...cache,
+    serverConnectionConfigId: identity?.serverConnectionConfigId || cache.serverConnectionConfigId,
+    serverUserId: identity?.serverUserId || cache.serverUserId,
+    libraryItemId: identity?.libraryItemId || cache.libraryItemId,
+    bookmarks,
+    pendingOperations,
+    tombstones
+  }
+}
+
 class LocalStorage {
   constructor(vuexStore) {
     this.vuexStore = vuexStore
@@ -157,6 +205,45 @@ class LocalStorage {
     } catch (error) {
       console.error(`[LocalStorage] Failed to get preference "${key}"`, error)
       return null
+    }
+  }
+
+  async getBookmarkCache(identity) {
+    const key = getBookmarkCacheKey(identity)
+    if (!key) return createEmptyBookmarkCache(identity)
+
+    try {
+      const preference = await Preferences.get({ key }) || {}
+      if (!preference.value) return createEmptyBookmarkCache(identity)
+      return normalizeBookmarkCache(JSON.parse(preference.value), identity)
+    } catch (error) {
+      console.warn('[LocalStorage] Failed to get bookmark cache; using an empty cache', error)
+      return createEmptyBookmarkCache(identity)
+    }
+  }
+
+  async setBookmarkCache(identity, cache) {
+    const key = getBookmarkCacheKey(identity)
+    if (!key) throw new Error('Cannot persist bookmark cache without server, user, and item identity')
+
+    const normalizedCache = normalizeBookmarkCache(cache, identity)
+    try {
+      await Preferences.set({ key, value: JSON.stringify(normalizedCache) })
+    } catch (error) {
+      console.error('[LocalStorage] Failed to persist bookmark cache', error)
+      throw error
+    }
+    return normalizedCache
+  }
+
+  async removeBookmarkCache(identity) {
+    const key = getBookmarkCacheKey(identity)
+    if (!key) return
+    try {
+      await Preferences.remove({ key })
+    } catch (error) {
+      console.error('[LocalStorage] Failed to remove bookmark cache', error)
+      throw error
     }
   }
 }
