@@ -33,6 +33,8 @@ export function normalizeBookmarkCache(cache, identity) {
     ...operation,
     bookmarkKey: String(operation.bookmarkKey),
     attempts: Number(operation.attempts) || 0,
+    nextAttemptAt: Number(operation.nextAttemptAt) || 0,
+    permanentFailure: operation.permanentFailure === true,
     lastError: operation.lastError || null
   })) : []
   const tombstones = cache.tombstones && typeof cache.tombstones === 'object' ? cache.tombstones : {}
@@ -47,6 +49,15 @@ export function normalizeBookmarkCache(cache, identity) {
     pendingOperations,
     tombstones
   }
+}
+
+function isEmptyBookmarkCache(cache) {
+  return !cache.bookmarks.length && !cache.pendingOperations.length && !Object.keys(cache.tombstones).length
+}
+
+function identityKey(identity) {
+  if (!identity?.serverConnectionConfigId || !identity?.serverUserId || !identity?.libraryItemId) return null
+  return [identity.serverConnectionConfigId, identity.serverUserId, identity.libraryItemId].join(':')
 }
 
 class LocalStorage {
@@ -195,8 +206,8 @@ class LocalStorage {
 
   /**
    * Get preference value by key
-   * 
-   * @param {string} key 
+   *
+   * @param {string} key
    * @returns {Promise<string>}
    */
   async getPreferenceByKey(key) {
@@ -223,24 +234,36 @@ class LocalStorage {
     }
   }
 
+  async _setBookmarkIdentities(identities) {
+    const unique = new Map()
+    for (const identity of identities) {
+      const key = identityKey(identity)
+      if (!key) continue
+      unique.set(key, {
+        key,
+        serverConnectionConfigId: identity.serverConnectionConfigId,
+        serverUserId: identity.serverUserId,
+        libraryItemId: identity.libraryItemId
+      })
+    }
+    await Preferences.set({ key: BOOKMARK_IDENTITIES_KEY, value: JSON.stringify(Array.from(unique.values())) })
+  }
+
   async setBookmarkCache(identity, cache) {
     const key = getBookmarkCacheKey(identity)
     if (!key) throw new Error('Cannot persist bookmark cache without server, user, and item identity')
 
     const normalizedCache = normalizeBookmarkCache(cache, identity)
     try {
+      if (isEmptyBookmarkCache(normalizedCache)) {
+        await this.removeBookmarkCache(normalizedCache)
+        return normalizedCache
+      }
+
       await Preferences.set({ key, value: JSON.stringify(normalizedCache) })
       const identities = await this.getBookmarkIdentities()
-      const identityKey = [normalizedCache.serverConnectionConfigId, normalizedCache.serverUserId, normalizedCache.libraryItemId].join(':')
-      const nextIdentities = identities.filter((candidate) => candidate.key !== identityKey)
-      nextIdentities.push({
-        key: identityKey,
-        serverConnectionConfigId: normalizedCache.serverConnectionConfigId,
-        serverUserId: normalizedCache.serverUserId,
-        libraryItemId: normalizedCache.libraryItemId,
-        serverConnectionConfig: identity?.serverConnectionConfig || null
-      })
-      await Preferences.set({ key: BOOKMARK_IDENTITIES_KEY, value: JSON.stringify(nextIdentities) })
+      identities.push(normalizedCache)
+      await this._setBookmarkIdentities(identities)
     } catch (error) {
       console.error('[LocalStorage] Failed to persist bookmark cache', error)
       throw error
@@ -252,7 +275,13 @@ class LocalStorage {
     try {
       const preference = await Preferences.get({ key: BOOKMARK_IDENTITIES_KEY }) || {}
       const identities = preference.value ? JSON.parse(preference.value) : []
-      return Array.isArray(identities) ? identities : []
+      if (!Array.isArray(identities)) return []
+      return identities.filter((identity) => identityKey(identity)).map((identity) => ({
+        key: identityKey(identity),
+        serverConnectionConfigId: identity.serverConnectionConfigId,
+        serverUserId: identity.serverUserId,
+        libraryItemId: identity.libraryItemId
+      }))
     } catch (error) {
       console.warn('[LocalStorage] Failed to get bookmark identities', error)
       return []
@@ -264,13 +293,15 @@ class LocalStorage {
     if (!key) return
     try {
       await Preferences.remove({ key })
+      const removeKey = identityKey(identity)
+      const identities = await this.getBookmarkIdentities()
+      await this._setBookmarkIdentities(identities.filter((candidate) => identityKey(candidate) !== removeKey))
     } catch (error) {
       console.error('[LocalStorage] Failed to remove bookmark cache', error)
       throw error
     }
   }
 }
-
 
 export default ({ app, store }, inject) => {
   inject('localStore', new LocalStorage(store))
