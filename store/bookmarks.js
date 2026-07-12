@@ -90,7 +90,12 @@ export const actions = {
     const activeUser = rootState.user.user
     if (!activeConfig?.id || !activeUser?.id || !rootState.networkConnected) return
 
-    const identities = Object.values(state.identitiesByKey).filter((identity) => isIdentityForActiveAccount(identity, this))
+    const persistedIdentities = await this.$localStore.getBookmarkIdentities()
+    const identitiesByKey = new Map(Object.values(state.identitiesByKey).map((identity) => [getIdentityKey(identity), identity]))
+    for (const identity of persistedIdentities) {
+      identitiesByKey.set(getIdentityKey(identity), { ...identity, serverConnectionConfig: activeConfig })
+    }
+    const identities = Array.from(identitiesByKey.values()).filter((identity) => isIdentityForActiveAccount(identity, this))
     for (const identity of identities) {
       await dispatch('syncForIdentity', { identity })
     }

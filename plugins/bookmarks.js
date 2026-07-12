@@ -129,7 +129,7 @@ export class BookmarkService {
     this.localStore = localStore
     this.nativeHttp = nativeHttp
     this.store = store
-    this.syncLocks = new Map()
+    this.operationLocks = new Map()
   }
 
   _identity(identity) {
@@ -157,7 +157,7 @@ export class BookmarkService {
     return cache
   }
 
-  async apply(identity, type, bookmarkOrTime) {
+  async _applyUnlocked(identity, type, bookmarkOrTime) {
     const normalizedIdentity = this._identity(identity)
     const now = Date.now()
     let cache = await this.getCache(normalizedIdentity)
@@ -216,6 +216,11 @@ export class BookmarkService {
     }
 
     return this.localStore.setBookmarkCache(normalizedIdentity, cache)
+  }
+
+  apply(identity, type, bookmarkOrTime) {
+    const normalizedIdentity = this._identity(identity)
+    return this._enqueue(normalizedIdentity, () => this._applyUnlocked(normalizedIdentity, type, bookmarkOrTime))
   }
 
   async fetchServerBookmarks(identity) {
@@ -314,13 +319,27 @@ export class BookmarkService {
     const key = getIdentityKey(normalizedIdentity)
     if (!key) return Promise.resolve({ cache: createEmptyBookmarkCache(normalizedIdentity), error: new Error('Incomplete bookmark identity') })
 
-    const previous = this.syncLocks.get(key) || Promise.resolve()
+    const previous = this.operationLocks.get(key) || Promise.resolve()
     const current = previous.catch(() => {}).then(() => this._syncUnlocked(normalizedIdentity, options))
-    this.syncLocks.set(key, current)
+    this.operationLocks.set(key, current)
     current.then(() => {
-      if (this.syncLocks.get(key) === current) this.syncLocks.delete(key)
+      if (this.operationLocks.get(key) === current) this.operationLocks.delete(key)
     }, () => {
-      if (this.syncLocks.get(key) === current) this.syncLocks.delete(key)
+      if (this.operationLocks.get(key) === current) this.operationLocks.delete(key)
+    })
+    return current
+  }
+
+  _enqueue(identity, operation) {
+    const key = getIdentityKey(identity)
+    if (!key) return operation()
+    const previous = this.operationLocks.get(key) || Promise.resolve()
+    const current = previous.catch(() => {}).then(operation)
+    this.operationLocks.set(key, current)
+    current.then(() => {
+      if (this.operationLocks.get(key) === current) this.operationLocks.delete(key)
+    }, () => {
+      if (this.operationLocks.get(key) === current) this.operationLocks.delete(key)
     })
     return current
   }

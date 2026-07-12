@@ -1,6 +1,7 @@
 import { Preferences } from '@capacitor/preferences'
 
 export const BOOKMARK_CACHE_VERSION = 1
+export const BOOKMARK_IDENTITIES_KEY = `bookmarkCacheIdentities:v${BOOKMARK_CACHE_VERSION}`
 
 export function getBookmarkCacheKey(identity) {
   const parts = [identity?.serverConnectionConfigId, identity?.serverUserId, identity?.libraryItemId]
@@ -229,11 +230,33 @@ class LocalStorage {
     const normalizedCache = normalizeBookmarkCache(cache, identity)
     try {
       await Preferences.set({ key, value: JSON.stringify(normalizedCache) })
+      const identities = await this.getBookmarkIdentities()
+      const identityKey = [normalizedCache.serverConnectionConfigId, normalizedCache.serverUserId, normalizedCache.libraryItemId].join(':')
+      const nextIdentities = identities.filter((candidate) => candidate.key !== identityKey)
+      nextIdentities.push({
+        key: identityKey,
+        serverConnectionConfigId: normalizedCache.serverConnectionConfigId,
+        serverUserId: normalizedCache.serverUserId,
+        libraryItemId: normalizedCache.libraryItemId,
+        serverConnectionConfig: identity?.serverConnectionConfig || null
+      })
+      await Preferences.set({ key: BOOKMARK_IDENTITIES_KEY, value: JSON.stringify(nextIdentities) })
     } catch (error) {
       console.error('[LocalStorage] Failed to persist bookmark cache', error)
       throw error
     }
     return normalizedCache
+  }
+
+  async getBookmarkIdentities() {
+    try {
+      const preference = await Preferences.get({ key: BOOKMARK_IDENTITIES_KEY }) || {}
+      const identities = preference.value ? JSON.parse(preference.value) : []
+      return Array.isArray(identities) ? identities : []
+    } catch (error) {
+      console.warn('[LocalStorage] Failed to get bookmark identities', error)
+      return []
+    }
   }
 
   async removeBookmarkCache(identity) {
