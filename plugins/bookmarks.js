@@ -91,9 +91,7 @@ export function mergeServerBookmarks(cache, serverBookmarks, identity) {
     }
   }
 
-  for (const key of Object.keys(normalizedCache.tombstones)) {
-    byKey.delete(key)
-  }
+  for (const key of Object.keys(normalizedCache.tombstones)) byKey.delete(key)
 
   return {
     ...normalizedCache,
@@ -105,9 +103,8 @@ export function mergeServerBookmarks(cache, serverBookmarks, identity) {
 }
 
 function createOperation(type, bookmarkKeyValue, bookmark, now) {
-  const id = 'bookmark-' + now + '-' + Math.random().toString(36).slice(2, 10)
   return {
-    id,
+    id: 'bookmark-' + now + '-' + Math.random().toString(36).slice(2, 10),
     type,
     bookmarkKey: String(bookmarkKeyValue),
     ...(bookmark ? { bookmark } : {}),
@@ -122,6 +119,12 @@ function replaceOperation(cache, operation) {
   const pendingOperations = cache.pendingOperations.filter((candidate) => candidate.bookmarkKey !== operation.bookmarkKey)
   pendingOperations.push(operation)
   return { ...cache, pendingOperations }
+}
+
+function bookmarksEquivalent(serverBookmark, pendingBookmark, libraryItemId) {
+  const server = normalizeBookmark(serverBookmark, libraryItemId)
+  const pending = normalizeBookmark(pendingBookmark, libraryItemId)
+  return !!server && !!pending && server.libraryItemId === pending.libraryItemId && server.time === pending.time && server.title === pending.title
 }
 
 export class BookmarkService {
@@ -143,8 +146,7 @@ export class BookmarkService {
   }
 
   async getCache(identity) {
-    const normalizedIdentity = this._identity(identity)
-    return this.localStore.getBookmarkCache(normalizedIdentity)
+    return this.localStore.getBookmarkCache(this._identity(identity))
   }
 
   async load(identity, serverBookmarks = null) {
@@ -162,9 +164,9 @@ export class BookmarkService {
     const now = Date.now()
     let cache = await this.getCache(normalizedIdentity)
 
-    if (type === 'create') {
+    if (type === 'create' || type === 'update') {
       const bookmark = normalizeBookmark(bookmarkOrTime, normalizedIdentity.libraryItemId, now)
-      if (!bookmark) throw new Error('Cannot create a bookmark without a valid time')
+      if (!bookmark) throw new Error('Cannot ' + type + ' a bookmark without a valid time')
       const key = bookmarkKey(bookmark.time)
       cache = {
         ...cache,
@@ -173,28 +175,14 @@ export class BookmarkService {
       }
       delete cache.tombstones[key]
       const existing = cache.pendingOperations.find((operation) => operation.bookmarkKey === key)
-      if (existing?.type === 'create' || existing?.type === 'update') {
+      if (type === 'create' && (existing?.type === 'create' || existing?.type === 'update')) {
         cache = replaceOperation(cache, { ...existing, type: 'create', bookmark, updatedAt: now, lastError: null })
-      } else {
-        cache = replaceOperation(cache, createOperation('create', key, bookmark, now))
-      }
-    } else if (type === 'update') {
-      const bookmark = normalizeBookmark(bookmarkOrTime, normalizedIdentity.libraryItemId, now)
-      if (!bookmark) throw new Error('Cannot update a bookmark without a valid time')
-      const key = bookmarkKey(bookmark.time)
-      cache = {
-        ...cache,
-        bookmarks: [...cache.bookmarks.filter((candidate) => bookmarkKey(candidate.time) !== key), bookmark],
-        tombstones: { ...cache.tombstones }
-      }
-      delete cache.tombstones[key]
-      const existing = cache.pendingOperations.find((operation) => operation.bookmarkKey === key)
-      if (existing?.type === 'create') {
+      } else if (type === 'update' && existing?.type === 'create') {
         cache = replaceOperation(cache, { ...existing, bookmark: { ...existing.bookmark, ...bookmark }, updatedAt: now, lastError: null })
       } else {
-        cache = replaceOperation(cache, existing?.type === 'update'
+        cache = replaceOperation(cache, existing?.type === type
           ? { ...existing, bookmark, updatedAt: now, lastError: null }
-          : createOperation('update', key, bookmark, now))
+          : createOperation(type, key, bookmark, now))
       }
     } else if (type === 'delete') {
       const key = bookmarkKey(bookmarkOrTime?.time ?? bookmarkOrTime)
@@ -234,21 +222,20 @@ export class BookmarkService {
     return error?.status === 404 || /(?:404|not[ -]?found)/i.test(error?.message || '')
   }
 
-  async _acknowledgeOperation(identity, cache, operation) {
+  _acknowledgeOperation(cache, operation) {
     const pendingOperations = cache.pendingOperations.filter((candidate) => candidate.id !== operation.id)
     const tombstones = { ...cache.tombstones }
     if (operation.type === 'delete') delete tombstones[operation.bookmarkKey]
     return { ...cache, pendingOperations, tombstones }
   }
 
-  async _recordFailure(identity, cache, operation, error) {
-    const updatedOperation = {
+  _recordFailure(cache, operation, error) {
+    return replaceOperation(cache, {
       ...operation,
       attempts: (Number(operation.attempts) || 0) + 1,
       updatedAt: Date.now(),
       lastError: error?.message || String(error)
-    }
-    return replaceOperation(cache, updatedOperation)
+    })
   }
 
   async _syncUnlocked(identity, { refresh = true, serverBookmarks = null } = {}) {
@@ -272,27 +259,27 @@ export class BookmarkService {
         } else {
           await this.nativeHttp.patch(url, currentOperation.bookmark, this._options(normalizedIdentity))
         }
-        cache = await this._acknowledgeOperation(normalizedIdentity, cache, currentOperation)
+        cache = this._acknowledgeOperation(cache, currentOperation)
         await this.localStore.setBookmarkCache(normalizedIdentity, cache)
       } catch (error) {
         if (currentOperation.type === 'delete' && this._isNotFound(error)) {
-          cache = await this._acknowledgeOperation(normalizedIdentity, cache, currentOperation)
+          cache = this._acknowledgeOperation(cache, currentOperation)
         } else if (currentOperation.type === 'create') {
           try {
             latestServerBookmarks = await this.fetchServerBookmarks(normalizedIdentity)
-            const acknowledged = latestServerBookmarks.some((bookmark) => bookmarkKey(bookmark.time) === currentOperation.bookmarkKey)
+            const acknowledged = latestServerBookmarks.some((bookmark) => bookmarksEquivalent(bookmark, currentOperation.bookmark, normalizedIdentity.libraryItemId))
             if (acknowledged) {
-              cache = await this._acknowledgeOperation(normalizedIdentity, cache, currentOperation)
+              cache = this._acknowledgeOperation(cache, currentOperation)
             } else {
-              cache = await this._recordFailure(normalizedIdentity, cache, currentOperation, error)
+              cache = this._recordFailure(cache, currentOperation, error)
               lastError = error
             }
           } catch (refreshError) {
-            cache = await this._recordFailure(normalizedIdentity, cache, currentOperation, error)
+            cache = this._recordFailure(cache, currentOperation, error)
             lastError = refreshError
           }
         } else {
-          cache = await this._recordFailure(normalizedIdentity, cache, currentOperation, error)
+          cache = this._recordFailure(cache, currentOperation, error)
           lastError = error
         }
         await this.localStore.setBookmarkCache(normalizedIdentity, cache)
@@ -318,16 +305,7 @@ export class BookmarkService {
     const normalizedIdentity = this._identity(identity)
     const key = getIdentityKey(normalizedIdentity)
     if (!key) return Promise.resolve({ cache: createEmptyBookmarkCache(normalizedIdentity), error: new Error('Incomplete bookmark identity') })
-
-    const previous = this.operationLocks.get(key) || Promise.resolve()
-    const current = previous.catch(() => {}).then(() => this._syncUnlocked(normalizedIdentity, options))
-    this.operationLocks.set(key, current)
-    current.then(() => {
-      if (this.operationLocks.get(key) === current) this.operationLocks.delete(key)
-    }, () => {
-      if (this.operationLocks.get(key) === current) this.operationLocks.delete(key)
-    })
-    return current
+    return this._enqueue(normalizedIdentity, () => this._syncUnlocked(normalizedIdentity, options))
   }
 
   _enqueue(identity, operation) {
