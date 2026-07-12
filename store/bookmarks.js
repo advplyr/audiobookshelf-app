@@ -1,12 +1,14 @@
 import Vue from 'vue'
 import { getIdentityKey, identityForItem, isIdentityForActiveAccount } from '@/plugins/bookmarks'
 
+export const BOOKMARK_CONFLICT_POLICY = 'local-pending-wins'
 export const namespaced = true
 
 export const state = () => ({
   activeIdentity: null,
   cachedByIdentity: {},
   identitiesByKey: {},
+  conflictPolicy: BOOKMARK_CONFLICT_POLICY,
   syncStatus: 'idle',
   syncError: null
 })
@@ -19,6 +21,7 @@ export const getters = {
   hasPendingOperations: (state) => {
     return Object.values(state.cachedByIdentity).some((cache) => cache.pendingOperations?.length)
   },
+  getConflictPolicy: (state) => state.conflictPolicy,
   getSyncStatus: (state) => state.syncStatus,
   getSyncError: (state) => state.syncError
 }
@@ -112,6 +115,9 @@ export const actions = {
       console.warn('[bookmarks] Failed to prefetch server bookmarks; pending operations will still be attempted', error)
     }
 
+    // Conflict policy: an explicit local pending operation represents the newest
+    // user intent on this device and overlays fetched server state until the
+    // operation is acknowledged. Once the queue is empty, server state wins.
     for (const identity of identities) {
       await dispatch('syncForIdentity', { identity, serverBookmarks })
     }
