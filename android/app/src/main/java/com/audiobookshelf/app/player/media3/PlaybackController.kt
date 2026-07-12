@@ -495,8 +495,8 @@ class PlaybackController(private val context: Context) {
 
   fun seekBy(seekDeltaMs: Long) {
     val controller = mediaController ?: return
-    val targetPositionMs = (controller.currentPosition + seekDeltaMs).coerceAtLeast(0L)
-    controller.seekTo(targetPositionMs)
+    val targetPositionMs = (computeAbsolutePosition(controller) + seekDeltaMs).coerceAtLeast(0L)
+    seekTo(targetPositionMs)
   }
 
   fun setPlaybackSpeed(speed: Float) {

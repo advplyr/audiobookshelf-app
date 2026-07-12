@@ -45,6 +45,10 @@ interface Media3ServiceHost {
   fun handleCastDeviceChanged(isCast: Boolean)
   fun closePlayback(calledOnError: Boolean = false, onPlaybackStopped: (() -> Unit)? = null)
 
+  /* Seeking */
+  fun jumpBackward()
+  fun jumpForward()
+
   /* Sleep timer */
   fun setSleepTimer(sessionId: String, timeMs: Long, isChapter: Boolean)
   fun cancelSleepTimer()

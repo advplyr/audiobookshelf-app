@@ -574,6 +574,16 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
     return (player.currentPosition + offset).coerceAtLeast(0L)
   }
 
+  private fun getCurrentBookChapter(): BookChapter? {
+    val session = currentPlaybackSession ?: return null
+    return session.getChapterForTime(currentAbsolutePositionMs() ?: session.currentTimeMs)
+  }
+
+  private fun getNextBookChapter(): BookChapter? {
+    val session = currentPlaybackSession ?: return null
+    return session.getNextChapterForTime(currentAbsolutePositionMs() ?: session.currentTimeMs)
+  }
+
   override fun updateCurrentPosition(session: PlaybackSession) {
     if (hasActivePlayer) {
       val trackIndex = resolveTrackIndexForPlayer(session, player)
@@ -597,15 +607,7 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
 
     val currentItem = player.currentMediaItem ?: return
 
-    val author = session.displayAuthor ?: ""
-    val trackLabel = session.trackLabelForIndex(trackIndex)
-
-    val artistLine = when {
-      chapterTitle != null && trackLabel != null -> "$chapterTitle ($trackLabel) • $author"
-      chapterTitle != null -> "$chapterTitle • $author"
-      trackLabel != null -> "$trackLabel • $author"
-      else -> author
-    }
+    val artistLine = chapterTitle ?: (session.displayAuthor ?: "")
 
     lastSyncedTrackIndex = trackIndex
     lastSyncedChapterTitle = chapterTitle
@@ -821,7 +823,7 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
     if (amountMs <= 0) return
     updateCurrentPosition(session)
     // Clamp to the current chapter start so the rewind never crosses into the previous chapter
-    val chapterStartMs = session.getChapterForTime(session.currentTimeMs)?.startMs ?: 0L
+    val chapterStartMs = getCurrentBookChapter()?.startMs ?: 0L
     val targetPosition = (session.currentTimeMs - amountMs).coerceAtLeast(chapterStartMs)
     session.currentTime = targetPosition / 1000.0
     seekToSessionPosition(session)
@@ -918,16 +920,11 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
       get() = this@Media3PlaybackService
 
     override fun currentTimeMs(): Long {
-      return if (hasActivePlayer) player.currentPosition else 0L
+      return currentAbsolutePositionMs() ?: 0L
     }
 
     override fun durationMs(): Long {
-      val playerDuration = if (hasActivePlayer) player.duration else C.TIME_UNSET
-      return if (playerDuration != C.TIME_UNSET && playerDuration >= 0) {
-        playerDuration
-      } else {
-        currentPlaybackSession?.totalDurationMs ?: 0L
-      }
+      return currentPlaybackSession?.totalDurationMs ?: 0L
     }
 
     override fun isPlaying(): Boolean {
@@ -951,22 +948,17 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
     }
 
     override fun seekBackward(amountMs: Long) {
-      if (!hasActivePlayer) return
-      val target = max(player.currentPosition - amountMs, 0L)
-      player.seekTo(target)
+      val session = currentPlaybackSession ?: return
+      val target = ((currentAbsolutePositionMs() ?: session.currentTimeMs) - amountMs).coerceAtLeast(0L)
+      session.currentTime = target / 1000.0
+      seekToSessionPosition(session)
     }
 
-    override fun endTimeOfChapterOrTrack(): Long? {
-      val session = currentPlaybackSession ?: return null
-      val currentTimeMs = currentTimeMs()
-      return session.getChapterForTime(currentTimeMs)?.endMs ?: session.getCurrentTrackEndTime()
-    }
+    override fun endTimeOfChapterOrTrack(): Long? =
+      getCurrentBookChapter()?.endMs ?: currentPlaybackSession?.getCurrentTrackEndTime()
 
-    override fun endTimeOfNextChapterOrTrack(): Long? {
-      val session = currentPlaybackSession ?: return null
-      val currentTimeMs = currentTimeMs()
-      return session.getNextChapterForTime(currentTimeMs)?.endMs ?: session.getNextTrackEndTime()
-    }
+    override fun endTimeOfNextChapterOrTrack(): Long? =
+      getNextBookChapter()?.endMs ?: currentPlaybackSession?.getNextTrackEndTime()
 
     override fun notifySleepTimerSet(secondsRemaining: Int, isAuto: Boolean) {
       SleepTimerNotificationCenter.notifySet(secondsRemaining, isAuto)
@@ -984,8 +976,6 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
    * ======================================== */
   private fun createSessionCallback(): Media3SessionCallback {
     val seekConfig = SeekConfig(
-      jumpBackwardMs = jumpBackwardMs,
-      jumpForwardMs = jumpForwardMs,
       allowSeekingOnMediaControls = deviceSettings.allowSeekingOnMediaControls
     )
     val sessionController = SessionController(
@@ -1176,21 +1166,20 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
     notifyWidgetState(isPlayingOverride = targetPlaying)
   }
 
+  private fun jumpBySession(deltaMs: Long) {
+    val session = currentPlaybackSession ?: return
+    val current = currentAbsolutePositionMs() ?: session.currentTimeMs
+    val target = (current + deltaMs).coerceIn(0L, session.totalDurationMs)
+    session.currentTime = target / 1000.0
+    seekToSessionPosition(session)
+  }
+
+  override fun jumpBackward() = jumpBySession(-jumpBackwardMs)
+
+  override fun jumpForward() = jumpBySession(jumpForwardMs)
+
   private fun seekFromWidget(forward: Boolean) {
-    if (!hasActivePlayer) return
-    val delta = if (forward) jumpForwardMs else jumpBackwardMs
-    val currentPosition = player.currentPosition
-    val target = if (forward) {
-      val duration = player.duration
-      val desiredPosition = currentPosition + delta
-      if (duration != C.TIME_UNSET && duration > 0) min(
-        desiredPosition,
-        duration
-      ) else desiredPosition
-    } else {
-      max(currentPosition - delta, 0L)
-    }
-    player.seekTo(target)
+    jumpBySession(if (forward) jumpForwardMs else jumpBackwardMs)
     notifyWidgetState()
   }
 

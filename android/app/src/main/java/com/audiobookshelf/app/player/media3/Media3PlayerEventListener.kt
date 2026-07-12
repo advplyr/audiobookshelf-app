@@ -158,6 +158,8 @@ class Media3PlayerEventListener(
         val newAbsolutePositionMs = newTrackStartOffsetMs + newPositionInTrackMs
 
         currentSession.currentTime = newAbsolutePositionMs / 1000.0
+        // Refresh the chapter metadata now so it isn't stale until the next position tick.
+        host.updateCurrentPosition(currentSession)
         playerEventPipeline.emitSeekEvent(currentSession, null)
       }
     }

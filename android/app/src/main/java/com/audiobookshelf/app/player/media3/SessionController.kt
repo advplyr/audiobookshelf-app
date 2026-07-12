@@ -32,12 +32,12 @@ class SessionController(
       }
 
       PlaybackConstants.Commands.SEEK_BACK_INCREMENT -> {
-        host.playerOrNull()?.seekBack()
+        host.jumpBackward()
         success
       }
 
       PlaybackConstants.Commands.SEEK_FORWARD_INCREMENT -> {
-        host.playerOrNull()?.seekForward()
+        host.jumpForward()
         success
       }
 

@@ -89,24 +89,6 @@ private fun PlaybackSession.castQueueItemWithServerUri(
     .build()
 }
 
-/**
- * Per-track label for a multi-track session, or null for single-track sessions. Falls back to
- * "Part N" when the title is missing, echoes the book title, or looks like a filename ("track_001").
- */
-fun PlaybackSession.trackLabelForIndex(index: Int): String? {
-  if (audioTracks.size <= 1) return null
-  val bookTitle = displayTitle ?: ""
-  val t = audioTracks.getOrNull(index)?.title
-  return if (!t.isNullOrEmpty() && !t.equals(bookTitle, ignoreCase = true) && !t.contains("_")) t
-  else "Part ${index + 1}"
-}
-
-fun PlaybackSession.artistLineForTrack(index: Int): String {
-  val author = displayAuthor ?: ""
-  val trackLabel = trackLabelForIndex(index)
-  return if (trackLabel != null) "$trackLabel • $author" else author
-}
-
 /** Cover artwork bytes for a local item, or null for server items / unreadable covers. */
 private fun PlaybackSession.localCoverArtworkData(ctx: Context): ByteArray? {
   if (!isLocal) return null
@@ -129,9 +111,14 @@ fun PlaybackSession.toMedia3MediaItems(
     val bookTitle = displayTitle ?: ""
     val author = displayAuthor ?: ""
 
+    // Resolve the resume track's chapter at the resume position, not the file start, so the
+    // notification opens on the correct chapter instead of snapping to it on the first tick.
+    val chapterPosMs =
+      if (index == getCurrentTrackIndex()) currentTimeMs else getTrackStartOffsetMs(index)
+    val chapterTitle = getChapterForTime(chapterPosMs)?.title
     val metadataBuilder = MediaMetadata.Builder()
       .setTitle(bookTitle)
-      .setArtist(artistLineForTrack(index))
+      .setArtist(chapterTitle ?: author)
       .setAlbumTitle(bookTitle)
       .setAlbumArtist(author)
       .setArtworkUri(playerMediaItem.artworkUri)

@@ -28,8 +28,6 @@ import kotlinx.coroutines.guava.future
 import java.util.concurrent.ConcurrentHashMap
 
 data class SeekConfig(
-  val jumpBackwardMs: Long,
-  val jumpForwardMs: Long,
   val allowSeekingOnMediaControls: Boolean
 )
 
@@ -79,41 +77,6 @@ class Media3SessionCallback(
     PlaybackConstants.isWearController(controllerInfo.packageName)
 
   /* ======== Session Management ======== */
-
-  /**
-   * Handles post-interaction adjustments for specific clients like Wear OS.
-   * For Wear devices, converts skip commands to seek operations with custom jump distances.
-   */
-  override fun onPlayerInteractionFinished(
-    session: MediaSession,
-    controllerInfo: MediaSession.ControllerInfo,
-    playerCommands: Player.Commands
-  ) {
-    try {
-      if (isWearController(controllerInfo)) {
-        val player = playerProvider()
-        val jumpBackwardDurationMs = seekConfig.jumpBackwardMs
-        val jumpForwardDurationMs = seekConfig.jumpForwardMs
-
-        if (playerCommands.contains(Player.COMMAND_SEEK_BACK) || playerCommands.contains(Player.COMMAND_SEEK_TO_PREVIOUS)) {
-          val currentPositionMs = player.currentPosition
-          val target = (currentPositionMs - jumpBackwardDurationMs).coerceAtLeast(0L)
-          debug { "Wear interaction SEEK_BACK -> seekTo=$target" }
-          player.seekTo(target)
-        }
-        if (playerCommands.contains(Player.COMMAND_SEEK_FORWARD) || playerCommands.contains(Player.COMMAND_SEEK_TO_NEXT)) {
-          val currentPositionMs = player.currentPosition
-          val durationMs = player.duration
-          val target =
-            (currentPositionMs + jumpForwardDurationMs).coerceAtMost(if (durationMs > 0) durationMs else Long.MAX_VALUE)
-          debug { "Wear interaction SEEK_FORWARD -> seekTo=$target" }
-          player.seekTo(target)
-        }
-      }
-    } catch (throwable: Throwable) {
-      Log.w(logTag, "onPlayerInteractionFinished handling error: ${throwable.message}")
-    }
-  }
 
   override fun onConnect(
     session: MediaSession,
