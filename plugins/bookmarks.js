@@ -1,5 +1,9 @@
 import { createEmptyBookmarkCache, normalizeBookmarkCache } from '@/plugins/localStore'
 
+const MAX_SYNC_ATTEMPTS = 8
+const RETRY_BASE_DELAY_MS = 30000
+const RETRY_MAX_DELAY_MS = 6 * 60 * 60 * 1000
+
 export function normalizeTime(time) {
   const number = Number(time)
   return Number.isFinite(number) ? Math.floor(number) : null
@@ -83,9 +87,8 @@ export function mergeServerBookmarks(cache, serverBookmarks, identity) {
 
   for (const operation of operations) {
     const key = String(operation.bookmarkKey)
-    if (operation.type === 'delete') {
-      byKey.delete(key)
-    } else if (operation.bookmark) {
+    if (operation.type === 'delete') byKey.delete(key)
+    else if (operation.bookmark) {
       const bookmark = normalizeBookmark(operation.bookmark, normalizedIdentity.libraryItemId, operation.updatedAt || operation.createdAt || 0)
       if (bookmark) byKey.set(key, bookmark)
     }
@@ -111,6 +114,8 @@ function createOperation(type, bookmarkKeyValue, bookmark, now) {
     createdAt: now,
     updatedAt: now,
     attempts: 0,
+    nextAttemptAt: 0,
+    permanentFailure: false,
     lastError: null
   }
 }
@@ -125,6 +130,23 @@ function bookmarksEquivalent(serverBookmark, pendingBookmark, libraryItemId) {
   const server = normalizeBookmark(serverBookmark, libraryItemId)
   const pending = normalizeBookmark(pendingBookmark, libraryItemId)
   return !!server && !!pending && server.libraryItemId === pending.libraryItemId && server.time === pending.time && server.title === pending.title
+}
+
+function errorStatus(error) {
+  return Number(error?.status || error?.response?.status) || null
+}
+
+function isPermanentFailure(error) {
+  const status = errorStatus(error)
+  return status >= 400 && status < 500 && ![408, 409, 425, 429].includes(status)
+}
+
+function retryDelay(attempts) {
+  return Math.min(RETRY_BASE_DELAY_MS * (2 ** Math.max(0, attempts - 1)), RETRY_MAX_DELAY_MS)
+}
+
+function canAttempt(operation, now = Date.now()) {
+  return !operation.permanentFailure && (Number(operation.attempts) || 0) < MAX_SYNC_ATTEMPTS && (Number(operation.nextAttemptAt) || 0) <= now
 }
 
 export class BookmarkService {
@@ -168,40 +190,28 @@ export class BookmarkService {
       const bookmark = normalizeBookmark(bookmarkOrTime, normalizedIdentity.libraryItemId, now)
       if (!bookmark) throw new Error('Cannot ' + type + ' a bookmark without a valid time')
       const key = bookmarkKey(bookmark.time)
-      cache = {
-        ...cache,
-        bookmarks: [...cache.bookmarks.filter((candidate) => bookmarkKey(candidate.time) !== key), bookmark],
-        tombstones: { ...cache.tombstones }
-      }
+      cache = { ...cache, bookmarks: [...cache.bookmarks.filter((candidate) => bookmarkKey(candidate.time) !== key), bookmark], tombstones: { ...cache.tombstones } }
       delete cache.tombstones[key]
       const existing = cache.pendingOperations.find((operation) => operation.bookmarkKey === key)
       if (type === 'create' && (existing?.type === 'create' || existing?.type === 'update')) {
-        cache = replaceOperation(cache, { ...existing, type: 'create', bookmark, updatedAt: now, lastError: null })
+        cache = replaceOperation(cache, { ...existing, type: 'create', bookmark, updatedAt: now, attempts: 0, nextAttemptAt: 0, permanentFailure: false, lastError: null })
       } else if (type === 'update' && existing?.type === 'create') {
-        cache = replaceOperation(cache, { ...existing, bookmark: { ...existing.bookmark, ...bookmark }, updatedAt: now, lastError: null })
+        cache = replaceOperation(cache, { ...existing, bookmark: { ...existing.bookmark, ...bookmark }, updatedAt: now, attempts: 0, nextAttemptAt: 0, permanentFailure: false, lastError: null })
       } else {
         cache = replaceOperation(cache, existing?.type === type
-          ? { ...existing, bookmark, updatedAt: now, lastError: null }
+          ? { ...existing, bookmark, updatedAt: now, attempts: 0, nextAttemptAt: 0, permanentFailure: false, lastError: null }
           : createOperation(type, key, bookmark, now))
       }
     } else if (type === 'delete') {
       const key = bookmarkKey(bookmarkOrTime?.time ?? bookmarkOrTime)
       if (key === null) throw new Error('Cannot delete a bookmark without a valid time')
       const existing = cache.pendingOperations.find((operation) => operation.bookmarkKey === key)
-      cache = {
-        ...cache,
-        bookmarks: cache.bookmarks.filter((bookmark) => bookmarkKey(bookmark.time) !== key),
-        tombstones: { ...cache.tombstones, [key]: { deletedAt: now } }
-      }
+      cache = { ...cache, bookmarks: cache.bookmarks.filter((bookmark) => bookmarkKey(bookmark.time) !== key), tombstones: { ...cache.tombstones, [key]: { deletedAt: now } } }
       if (existing?.type === 'create' && existing.attempts === 0) {
         cache = { ...cache, pendingOperations: cache.pendingOperations.filter((operation) => operation.bookmarkKey !== key) }
         delete cache.tombstones[key]
-      } else {
-        cache = replaceOperation(cache, createOperation('delete', key, null, now))
-      }
-    } else {
-      throw new Error('Unsupported bookmark operation: ' + type)
-    }
+      } else cache = replaceOperation(cache, createOperation('delete', key, null, now))
+    } else throw new Error('Unsupported bookmark operation: ' + type)
 
     return this.localStore.setBookmarkCache(normalizedIdentity, cache)
   }
@@ -230,10 +240,14 @@ export class BookmarkService {
   }
 
   _recordFailure(cache, operation, error) {
+    const attempts = (Number(operation.attempts) || 0) + 1
+    const permanentFailure = isPermanentFailure(error) || attempts >= MAX_SYNC_ATTEMPTS
     return replaceOperation(cache, {
       ...operation,
-      attempts: (Number(operation.attempts) || 0) + 1,
+      attempts,
       updatedAt: Date.now(),
+      nextAttemptAt: permanentFailure ? 0 : Date.now() + retryDelay(attempts),
+      permanentFailure,
       lastError: error?.message || String(error)
     })
   }
@@ -249,28 +263,22 @@ export class BookmarkService {
 
     for (const operation of operations) {
       const currentOperation = cache.pendingOperations.find((candidate) => candidate.id === operation.id)
-      if (!currentOperation) continue
+      if (!currentOperation || !canAttempt(currentOperation)) continue
       try {
         const url = '/api/me/item/' + normalizedIdentity.libraryItemId + '/bookmark'
-        if (currentOperation.type === 'delete') {
-          await this.nativeHttp.delete(url + '/' + currentOperation.bookmarkKey, this._options(normalizedIdentity))
-        } else if (currentOperation.type === 'create') {
-          await this.nativeHttp.post(url, currentOperation.bookmark, this._options(normalizedIdentity))
-        } else {
-          await this.nativeHttp.patch(url, currentOperation.bookmark, this._options(normalizedIdentity))
-        }
+        if (currentOperation.type === 'delete') await this.nativeHttp.delete(url + '/' + currentOperation.bookmarkKey, this._options(normalizedIdentity))
+        else if (currentOperation.type === 'create') await this.nativeHttp.post(url, currentOperation.bookmark, this._options(normalizedIdentity))
+        else await this.nativeHttp.patch(url, currentOperation.bookmark, this._options(normalizedIdentity))
         cache = this._acknowledgeOperation(cache, currentOperation)
         await this.localStore.setBookmarkCache(normalizedIdentity, cache)
       } catch (error) {
-        if (currentOperation.type === 'delete' && this._isNotFound(error)) {
-          cache = this._acknowledgeOperation(cache, currentOperation)
-        } else if (currentOperation.type === 'create') {
+        if (currentOperation.type === 'delete' && this._isNotFound(error)) cache = this._acknowledgeOperation(cache, currentOperation)
+        else if (currentOperation.type === 'create') {
           try {
             latestServerBookmarks = await this.fetchServerBookmarks(normalizedIdentity)
             const acknowledged = latestServerBookmarks.some((bookmark) => bookmarksEquivalent(bookmark, currentOperation.bookmark, normalizedIdentity.libraryItemId))
-            if (acknowledged) {
-              cache = this._acknowledgeOperation(cache, currentOperation)
-            } else {
+            if (acknowledged) cache = this._acknowledgeOperation(cache, currentOperation)
+            else {
               cache = this._recordFailure(cache, currentOperation, error)
               lastError = error
             }
@@ -293,7 +301,6 @@ export class BookmarkService {
         lastError = lastError || error
       }
     }
-
     if (latestServerBookmarks !== null) {
       cache = mergeServerBookmarks(cache, latestServerBookmarks, normalizedIdentity)
       await this.localStore.setBookmarkCache(normalizedIdentity, cache)
@@ -324,9 +331,5 @@ export class BookmarkService {
 }
 
 export default ({ app, store }, inject) => {
-  inject('bookmarks', new BookmarkService({
-    localStore: app.$localStore,
-    nativeHttp: app.$nativeHttp,
-    store
-  }))
+  inject('bookmarks', new BookmarkService({ localStore: app.$localStore, nativeHttp: app.$nativeHttp, store }))
 }
