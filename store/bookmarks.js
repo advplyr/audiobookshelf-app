@@ -93,11 +93,27 @@ export const actions = {
     const persistedIdentities = await this.$localStore.getBookmarkIdentities()
     const identitiesByKey = new Map(Object.values(state.identitiesByKey).map((identity) => [getIdentityKey(identity), identity]))
     for (const identity of persistedIdentities) {
-      identitiesByKey.set(getIdentityKey(identity), { ...identity, serverConnectionConfig: activeConfig })
+      const key = getIdentityKey(identity)
+      if (key) identitiesByKey.set(key, { ...identity, serverConnectionConfig: activeConfig })
     }
     const identities = Array.from(identitiesByKey.values()).filter((identity) => isIdentityForActiveAccount(identity, this))
+    if (!identities.length) return
+
+    let serverBookmarks = null
+    try {
+      const response = await this.$nativeHttp.get('/api/me', {
+        connectTimeout: 7000,
+        readTimeout: 7000,
+        serverConnectionConfig: activeConfig
+      })
+      const user = response?.user || response
+      serverBookmarks = user?.bookmarks || response?.bookmarks || []
+    } catch (error) {
+      console.warn('[bookmarks] Failed to prefetch server bookmarks; pending operations will still be attempted', error)
+    }
+
     for (const identity of identities) {
-      await dispatch('syncForIdentity', { identity })
+      await dispatch('syncForIdentity', { identity, serverBookmarks })
     }
   },
 
