@@ -18,19 +18,26 @@ class PlayerNotificationListener(var playerNotificationService:PlayerNotificatio
     notification: Notification,
     onGoing: Boolean) {
 
-    // Keep foreground service alive when a playlist queue is active (e.g. between episodes)
+    // Keep foreground service alive when a playlist queue is active AND the player
+    // intends to continue playing (playWhenReady is true).  When the player is
+    // paused — whether by Bluetooth disconnect (ACTION_AUDIO_BECOMING_NOISY),
+    // user pause, or any other reason — playWhenReady is false and we must NOT
+    // re-assert foreground, because doing so can interfere with the pause on
+    // some devices (Samsung One UI, Android 12+) or prevent the system from
+    // properly demoting the service after an audio-route change.
     val hasPlaylistQueue = playerNotificationService.playlistQueue.isNotEmpty()
-    val effectiveOnGoing = onGoing || hasPlaylistQueue
+    val playerWantsToPlay = playerNotificationService.currentPlayer.playWhenReady
+    val effectiveOnGoing = onGoing || (hasPlaylistQueue && playerWantsToPlay)
 
     if (effectiveOnGoing) {
       if (!isForegroundService) {
         // Start foreground service for the first time
-        Log.d(tag, "Notification Posted $notificationId - Start Foreground | onGoing=$onGoing hasPlaylistQueue=$hasPlaylistQueue")
+        Log.d(tag, "Notification Posted $notificationId - Start Foreground | onGoing=$onGoing hasPlaylistQueue=$hasPlaylistQueue playWhenReady=$playerWantsToPlay")
         PlayerNotificationService.isClosed = false
-      } else if (!onGoing && hasPlaylistQueue) {
-        // Player stopped but playlist queue active: re-assert foreground to prevent system from
-        // downgrading the service (Android 12+ may demote non-ongoing foreground services)
-        Log.d(tag, "Notification Posted $notificationId - Re-assert Foreground for playlist queue | onGoing=$onGoing hasPlaylistQueue=$hasPlaylistQueue")
+      } else if (!onGoing && hasPlaylistQueue && playerWantsToPlay) {
+        // Player not actively playing but intends to continue (e.g. between episodes):
+        // re-assert foreground to prevent system from downgrading the service
+        Log.d(tag, "Notification Posted $notificationId - Re-assert Foreground for playlist queue | onGoing=$onGoing hasPlaylistQueue=$hasPlaylistQueue playWhenReady=$playerWantsToPlay")
       } else {
         // Already in foreground and ongoing - just update the notification
         return
@@ -43,7 +50,7 @@ class PlayerNotificationListener(var playerNotificationService:PlayerNotificatio
       }
       isForegroundService = true
     } else {
-      Log.d(tag, "Notification posted $notificationId, not starting foreground - onGoing=$onGoing | hasPlaylistQueue=$hasPlaylistQueue | isForegroundService=$isForegroundService")
+      Log.d(tag, "Notification posted $notificationId, not starting foreground - onGoing=$onGoing | hasPlaylistQueue=$hasPlaylistQueue | playWhenReady=$playerWantsToPlay | isForegroundService=$isForegroundService")
     }
   }
 
@@ -54,11 +61,15 @@ class PlayerNotificationListener(var playerNotificationService:PlayerNotificatio
     val hasPlaylistQueue = playerNotificationService.playlistQueue.isNotEmpty()
 
     if (dismissedByUser) {
-      if (hasPlaylistQueue) {
-        Log.d(tag, "onNotificationCancelled dismissed by user but playlist queue active - keeping service alive")
+      // Only keep the service alive if the player actually intends to continue
+      // playing (e.g. between episodes).  If the user paused and then dismissed,
+      // or if Bluetooth disconnected (playWhenReady == false), allow the stop.
+      val playerWantsToPlay = playerNotificationService.currentPlayer.playWhenReady
+      if (hasPlaylistQueue && playerWantsToPlay) {
+        Log.d(tag, "onNotificationCancelled dismissed by user but playlist queue active and playWhenReady - keeping service alive")
         return
       }
-      Log.d(tag, "onNotificationCancelled dismissed by user")
+      Log.d(tag, "onNotificationCancelled dismissed by user | hasPlaylistQueue=$hasPlaylistQueue | playWhenReady=$playerWantsToPlay")
       playerNotificationService.stopSelf()
     } else {
       Log.d(tag, "onNotificationCancelled not dismissed by user | hasPlaylistQueue=$hasPlaylistQueue")

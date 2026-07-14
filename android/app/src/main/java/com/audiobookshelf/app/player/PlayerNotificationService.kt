@@ -2,8 +2,10 @@ package com.audiobookshelf.app.player
 
 import android.annotation.SuppressLint
 import android.app.*
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.ImageDecoder
@@ -108,6 +110,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   lateinit var currentPlayer: Player
   var castPlayer: CastPlayer? = null
 
+  // Defense-in-depth receiver for Bluetooth disconnect / headphone unplug.
+  // ExoPlayer's setHandleAudioBecomingNoisy(true) registers its own receiver,
+  // but on some devices (Samsung One UI, Android 12+) the foreground service
+  // re-assertion can interfere.  This explicit receiver ensures pause sticks.
+  private var audioNoisyReceiver: BroadcastReceiver? = null
+
   lateinit var sleepTimerManager: SleepTimerManager
   lateinit var mediaProgressSyncer: MediaProgressSyncer
 
@@ -195,6 +203,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       Log.e(tag, "Error unregistering network listening callback $error")
     }
 
+    // Unregister the defense-in-depth AUDIO_BECOMING_NOISY receiver
+    audioNoisyReceiver?.let {
+      try { unregisterReceiver(it) } catch (_: Exception) {}
+      audioNoisyReceiver = null
+    }
+
     Log.d(tag, "onDestroy")
     isStarted = false
     isClosed = true
@@ -214,12 +228,17 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     super.onTaskRemoved(rootIntent)
 
     val isPlaying = try { currentPlayer.isPlaying } catch (e: Exception) { false }
-    if (playlistQueue.isNotEmpty() || isPlaying) {
-      Log.d(tag, "onTaskRemoved: keeping service alive (playlistQueue=${playlistQueue.size}, isPlaying=$isPlaying)")
+    val playerWantsToPlay = try { currentPlayer.playWhenReady } catch (e: Exception) { false }
+    // Only keep the service alive if the player is actively playing or if it
+    // intends to continue (playWhenReady == true with a playlist queue, i.e.
+    // between episodes).  When paused by Bluetooth disconnect or user action,
+    // playWhenReady is false and the service should be allowed to stop.
+    if (isPlaying || (playlistQueue.isNotEmpty() && playerWantsToPlay)) {
+      Log.d(tag, "onTaskRemoved: keeping service alive (playlistQueue=${playlistQueue.size}, isPlaying=$isPlaying, playWhenReady=$playerWantsToPlay)")
       return
     }
 
-    Log.d(tag, "onTaskRemoved: stopping service")
+    Log.d(tag, "onTaskRemoved: stopping service (playlistQueue=${playlistQueue.size}, isPlaying=$isPlaying, playWhenReady=$playerWantsToPlay)")
     stopSelf()
   }
 
@@ -409,6 +428,31 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                     .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
                     .build()
     mPlayer.setAudioAttributes(audioAttributes, true)
+
+    // Defense-in-depth: register an explicit receiver for audio route changes
+    // (Bluetooth disconnect, headphone unplug).  ExoPlayer's built-in handler
+    // should pause the player, but on some devices the foreground service
+    // lifecycle can interfere.  This receiver ensures the pause is authoritative.
+    audioNoisyReceiver?.let {
+      try { unregisterReceiver(it) } catch (_: Exception) {}
+    }
+    audioNoisyReceiver = object : BroadcastReceiver() {
+      override fun onReceive(context: Context?, intent: Intent?) {
+        if (intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) {
+          Log.d(tag, "ACTION_AUDIO_BECOMING_NOISY received — ensuring player is paused")
+          try {
+            if (mPlayer.playWhenReady) {
+              mPlayer.playWhenReady = false
+              Log.d(tag, "Forced playWhenReady=false on AUDIO_BECOMING_NOISY")
+            }
+          } catch (e: Exception) {
+            Log.e(tag, "Error handling AUDIO_BECOMING_NOISY: $e")
+          }
+        }
+      }
+    }
+    val noisyFilter = IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY)
+    registerReceiver(audioNoisyReceiver, noisyFilter)
 
     // attach player to playerNotificationManager
     playerNotificationManager.setPlayer(mPlayer)
