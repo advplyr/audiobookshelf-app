@@ -85,7 +85,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     fun onProgressSyncFailing()
     fun onProgressSyncSuccess()
     fun onNetworkMeteredChanged(isUnmetered: Boolean)
-    fun onMediaItemHistoryUpdated(mediaItemHistory: MediaItemHistory)
+    fun onMediaItemHistoryEventAdded(mediaItemId: String, mediaItemHistoryMetadata: MediaItemHistory, event: MediaItemEvent)
     fun onPlaybackSpeedChanged(playbackSpeed: Float)
   }
   private val binder = LocalBinder()

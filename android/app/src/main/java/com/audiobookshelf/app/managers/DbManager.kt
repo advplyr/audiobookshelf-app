@@ -8,6 +8,7 @@ import com.audiobookshelf.app.plugins.AbsLog
 import com.audiobookshelf.app.plugins.AbsLogger
 import io.paperdb.Paper
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 
 class DbManager {
   val tag = "DbManager"
@@ -267,13 +268,6 @@ class DbManager {
     }
   }
 
-  fun saveMediaItemHistory(mediaItemHistory: MediaItemHistory) {
-    Paper.book("mediaItemHistory").write(mediaItemHistory.id, mediaItemHistory)
-  }
-  fun getMediaItemHistory(id: String): MediaItemHistory? {
-    return Paper.book("mediaItemHistory").read(id)
-  }
-
   fun savePlaybackSession(playbackSession: PlaybackSession) {
     Paper.book("playbackSession").write(playbackSession.id, playbackSession)
   }
@@ -305,6 +299,7 @@ class DbManager {
   fun removeAllLogs() {
     Paper.book("log").destroy()
   }
+
   fun cleanLogs() {
     val numberOfHoursToKeep = 48
     val keepLogCutoff = System.currentTimeMillis() - (3600000 * numberOfHoursToKeep)
@@ -318,6 +313,283 @@ class DbManager {
     }
     if (logsRemoved > 0) {
       AbsLogger.info("DbManager", "cleanLogs: Removed $logsRemoved logs older than $numberOfHoursToKeep hours")
+    }
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Playback history
+  //
+  // An append-only event log per book. New events go only to live chunks, so playback never waits
+  // on the migration of a book's old "mediaItemHistory" blob; reads merge the blob (pre-migration)
+  // or the legacy chunks (post-migration) with the live chunks.
+  // ---------------------------------------------------------------------------------------------
+
+  private fun historyBook(bookId: String) = Paper.book("history_$bookId")
+
+  private val legacyHistoryBookName = "mediaItemHistory"
+
+  // Kept out of history_<bookId> so the record of "the blob is safe to drop" does not share the
+  // fate of the data it was copied into.
+  private val historyMigratedBookName = "mediaItemHistoryMigrated"
+
+  private val historyMetadataKey = "metadata"
+  private val historyLegacyChunkPrefix = "legacy_chunk_"
+  private val historyLiveChunkPrefix = "live_chunk_"
+  private val historyChunkSize = 200
+  private val historyMigrationMaxAttempts = 3
+  private val historyBlobRetentionDays = 7L
+  private val historyBlobRetentionMs = historyBlobRetentionDays * 24 * 3600 * 1000
+  private val historyLocks = ConcurrentHashMap<String, Any>()
+  private val historyMigrationLocks = ConcurrentHashMap<String, Any>()
+
+  // PlaybackSession.mediaItemId is "<libraryItemId>" or "<libraryItemId>-<episodeId>", so a missing
+  // library item id yields "" or "null-<episodeId>" (Kotlin renders a null template arg as "null").
+  private fun isValidHistoryId(bookId: String): Boolean {
+    return bookId.isNotEmpty() && !bookId.startsWith("null-") && !bookId.startsWith("-")
+  }
+
+  private fun historyLock(bookId: String) = historyLocks.getOrPut(bookId) { Any() }
+
+  private fun historyMigrationLock(bookId: String) = historyMigrationLocks.getOrPut(bookId) { Any() }
+
+  private fun historyChunkKey(prefix: String, index: Int) =
+    prefix + index.toString().padStart(7, '0')
+
+  private fun historyChunkIndices(book: io.paperdb.Book, prefix: String): List<Int> {
+    return book.allKeys
+      .filter { it.startsWith(prefix) }
+      .mapNotNull { it.removePrefix(prefix).toIntOrNull() }
+      .sorted()
+  }
+
+  /**
+   * Copy a book's legacy single-blob history into legacy chunks. Live chunks are never touched, and
+   * the append lock is held only for the short metadata write, so a long migration does not block
+   * seek/save history writes.
+   */
+  fun ensureHistoryMigrated(bookId: String) {
+    if (!isValidHistoryId(bookId)) return
+
+    synchronized(historyMigrationLock(bookId)) {
+      val record = readHistoryMigrationRecord(bookId)
+      if (record.isMigrated) {
+        return
+      }
+      // Nothing clears MIGRATING on process death, so finding it here means the last attempt died
+      // part-way. Never gate on it: that would strand a book that once crashed mid-migration.
+      if (record.state == HistoryMigrationState.MIGRATING) {
+        Log.w(tag, "ensureHistoryMigrated: $bookId was left mid-migration by attempt ${record.attempts} - retrying")
+      }
+      if (record.attempts >= historyMigrationMaxAttempts) {
+        // Safe to give up: reads still merge the blob, so this book stays slow but complete.
+        Log.e(tag, "ensureHistoryMigrated: giving up on $bookId after ${record.attempts} failed attempts")
+        return
+      }
+
+      record.state = HistoryMigrationState.MIGRATING
+      record.attempts += 1
+      writeHistoryMigrationRecord(bookId, record)
+
+      // Paper throws PaperDbException on a corrupt file; treat an unreadable blob as nothing to
+      // import so it is not retried forever.
+      val legacy =
+        try {
+          Paper.book(legacyHistoryBookName).read<MediaItemHistory>(bookId)
+        } catch (e: Exception) {
+          Log.e(tag, "ensureHistoryMigrated: unreadable legacy history for $bookId - skipping", e)
+          markHistoryMigrated(bookId, record)
+          return
+        }
+      if (legacy == null) {
+        markHistoryMigrated(bookId, record)
+        return
+      }
+
+      val book = historyBook(bookId)
+      // Drop chunks a failed attempt left behind so a retry cannot duplicate events.
+      historyChunkIndices(book, historyLegacyChunkPrefix).forEach {
+        book.delete(historyChunkKey(historyLegacyChunkPrefix, it))
+      }
+      synchronized(historyLock(bookId)) {
+        if (book.read<MediaItemHistory>(historyMetadataKey) == null) {
+          book.write(historyMetadataKey, legacy.copyWithoutEvents())
+        }
+      }
+      legacy.events.chunked(historyChunkSize).forEachIndexed { index, chunk ->
+        book.write(historyChunkKey(historyLegacyChunkPrefix, index), ArrayList(chunk))
+      }
+
+      val importedCount =
+        historyChunkIndices(book, historyLegacyChunkPrefix).sumOf {
+          readHistoryChunk(book, historyLegacyChunkPrefix, it).size
+        }
+      if (importedCount == legacy.events.size) {
+        // The blob is left for cleanMigratedHistoryBlobs to sweep after the retention window; reads
+        // ignore it from here, so it costs only disk.
+        markHistoryMigrated(bookId, record)
+        Log.i(tag, "ensureHistoryMigrated: migrated $bookId ($importedCount events)")
+      } else {
+        // Leaves the record MIGRATING; the next call retries from a clean slate.
+        Log.w(
+          tag,
+          "ensureHistoryMigrated: count mismatch for $bookId (imported=$importedCount, expected=${legacy.events.size}) - will retry"
+        )
+      }
+    }
+  }
+
+  private fun readLegacyMediaItemHistory(id: String): MediaItemHistory? {
+    return try {
+      Paper.book(legacyHistoryBookName).read(id)
+    } catch (e: Exception) {
+      Log.e(tag, "readLegacyMediaItemHistory: failed to read legacy history for $id", e)
+      null
+    }
+  }
+
+  private fun readHistoryMigrationRecord(bookId: String): MediaItemHistoryMigrationRecord {
+    return Paper.book(historyMigratedBookName).read(bookId) ?: MediaItemHistoryMigrationRecord()
+  }
+
+  private fun writeHistoryMigrationRecord(bookId: String, record: MediaItemHistoryMigrationRecord) {
+    Paper.book(historyMigratedBookName).write(bookId, record)
+  }
+
+  private fun markHistoryMigrated(bookId: String, record: MediaItemHistoryMigrationRecord) {
+    record.state = HistoryMigrationState.MIGRATED
+    record.attempts = 0 // consecutive failures; a success must not leave the book near the cap
+    record.migratedAt = System.currentTimeMillis()
+    writeHistoryMigrationRecord(bookId, record)
+  }
+
+  private fun readHistoryChunk(
+    book: io.paperdb.Book,
+    prefix: String,
+    index: Int
+  ): List<MediaItemEvent> {
+    return book.read<ArrayList<MediaItemEvent>>(historyChunkKey(prefix, index)) ?: emptyList()
+  }
+
+  /**
+   * Append one live event to a book's history, rewriting only the current live chunk. Never reads or
+   * migrates the legacy blob.
+   *
+   * The target chunk is derived from the chunk keys rather than tracked separately, so one write per
+   * event leaves no cross-key invariant for a crash to break.
+   */
+  fun appendMediaItemEvent(mediaItemHistory: MediaItemHistory, event: MediaItemEvent) {
+    val bookId = mediaItemHistory.id
+    if (!isValidHistoryId(bookId)) return // No real library item id -> no meaningful history
+
+    synchronized(historyLock(bookId)) {
+      val book = historyBook(bookId)
+      if (book.read<MediaItemHistory>(historyMetadataKey) == null) {
+        book.write(historyMetadataKey, mediaItemHistory.copyWithoutEvents())
+      }
+
+      val lastIndex = historyChunkIndices(book, historyLiveChunkPrefix).lastOrNull() ?: 0
+      val current = ArrayList(readHistoryChunk(book, historyLiveChunkPrefix, lastIndex))
+      val isFull = current.size >= historyChunkSize
+      val targetIndex = if (isFull) lastIndex + 1 else lastIndex
+      val target = if (isFull) arrayListOf(event) else current.apply { add(event) }
+      book.write(historyChunkKey(historyLiveChunkPrefix, targetIndex), target)
+    }
+  }
+
+  private fun readLiveHistoryEvents(book: io.paperdb.Book): List<MediaItemEvent> {
+    return historyChunkIndices(book, historyLiveChunkPrefix)
+      .flatMap { readHistoryChunk(book, historyLiveChunkPrefix, it) }
+  }
+
+  private fun readMigratedLegacyHistoryEvents(book: io.paperdb.Book): List<MediaItemEvent> {
+    return historyChunkIndices(book, historyLegacyChunkPrefix)
+      .flatMap { readHistoryChunk(book, historyLegacyChunkPrefix, it) }
+  }
+
+  /**
+   * Reads only the stored metadata key, never the legacy blob, so this stays cheap on the event
+   * path no matter how much history a book has.
+   *
+   * Returns null until something has written that key - a first playback event, the migration, or a
+   * history page read. Sync events are the only caller and carry no identity of their own, so for a
+   * book none of those have touched there is genuinely nothing to attach one to.
+   */
+  fun getMediaItemHistoryMetadata(id: String): MediaItemHistory? {
+    if (!isValidHistoryId(id)) return null
+
+    synchronized(historyLock(id)) {
+      return historyBook(id).read(historyMetadataKey)
+    }
+  }
+
+  fun getMediaItemHistory(id: String): MediaItemHistory? {
+    if (!isValidHistoryId(id)) return null
+
+    synchronized(historyLock(id)) {
+      val book = historyBook(id)
+      // Only MIGRATED means the chunks are the verified copy. A stale MIGRATING leaves partial
+      // legacy chunks alongside an intact blob, so reading both would double-count.
+      val isMigrated = readHistoryMigrationRecord(id).isMigrated
+      val storedMetadata = book.read<MediaItemHistory>(historyMetadataKey)
+      val legacy = if (isMigrated) null else readLegacyMediaItemHistory(id)
+      val metadata = storedMetadata ?: legacy?.copyWithoutEvents()
+      if (storedMetadata == null && metadata != null) {
+        book.write(historyMetadataKey, metadata)
+      }
+
+      val legacyEvents =
+        if (isMigrated) {
+          readMigratedLegacyHistoryEvents(book)
+        } else {
+          legacy?.events ?: emptyList()
+        }
+      val liveEvents = readLiveHistoryEvents(book)
+
+      if (metadata == null && legacyEvents.isEmpty() && liveEvents.isEmpty()) {
+        return null
+      }
+
+      val history =
+        metadata
+          ?: MediaItemHistory(
+            id,
+            "Unset",
+            id,
+            null,
+            false,
+            null,
+            null,
+            null,
+            System.currentTimeMillis(),
+            mutableListOf()
+          )
+      history.events = (legacyEvents + liveEvents).sortedBy { it.timestamp }.toMutableList()
+      return history
+    }
+  }
+
+  /**
+   * Delete legacy history blobs whose migration has been settled for longer than the retention
+   * window. Migrated blobs are never read, so this only reclaims disk - the window exists purely to
+   * leave a manual recovery path if a migration turns out to be wrong.
+   *
+   * Does disk I/O per blob; call off the main thread.
+   */
+  fun cleanMigratedHistoryBlobs() {
+    val cutoff = System.currentTimeMillis() - historyBlobRetentionMs
+    var blobsRemoved = 0
+    Paper.book(legacyHistoryBookName).allKeys.forEach { bookId ->
+      val record = readHistoryMigrationRecord(bookId)
+      if (record.isMigrated && record.migratedAt < cutoff) {
+        Paper.book(legacyHistoryBookName).delete(bookId)
+        blobsRemoved++
+      }
+    }
+    if (blobsRemoved > 0) {
+      AbsLogger.info(
+        "DbManager",
+        "cleanMigratedHistoryBlobs: Removed $blobsRemoved legacy history blobs migrated over $historyBlobRetentionDays days ago"
+      )
     }
   }
 }
