@@ -12,7 +12,7 @@ import okhttp3.*
  * @property progressCallback The callback to report download progress.
  */
 class InternalDownloadManager(
-        private val outputStream: FileOutputStream,
+        private val outputStream: OutputStream,
         private val progressCallback: DownloadItemManager.InternalProgressCallback
 ) : AutoCloseable {
 
@@ -35,21 +35,47 @@ class InternalDownloadManager(
                     object : Callback {
                       override fun onFailure(call: Call, e: IOException) {
                         Log.e(tag, "Download URL $url FAILED", e)
+                        closeOutput()
                         progressCallback.onComplete(true)
                       }
 
                       override fun onResponse(call: Call, response: Response) {
-                        response.body?.let { responseBody ->
-                          val length: Long = response.header("Content-Length")?.toLongOrNull() ?: 0L
-                          writer.write(responseBody.byteStream(), length)
+                        response.use {
+                          if (!it.isSuccessful) {
+                            Log.e(tag, "Download URL $url failed with response code ${it.code}")
+                            closeOutput()
+                            progressCallback.onComplete(true)
+                            return
+                          }
+
+                          it.body?.let { responseBody ->
+                            try {
+                              val length: Long = responseBody.contentLength()
+                              writer.write(responseBody.byteStream(), length)
+                            } catch (e: IOException) {
+                              Log.e(tag, "Download URL $url failed while writing response", e)
+                              progressCallback.onComplete(true)
+                            } finally {
+                              closeOutput()
+                            }
+                          }
+                                  ?: run {
+                                    Log.e(tag, "Response doesn't contain a file")
+                                    closeOutput()
+                                    progressCallback.onComplete(true)
+                                  }
                         }
-                                ?: run {
-                                  Log.e(tag, "Response doesn't contain a file")
-                                  progressCallback.onComplete(true)
-                                }
                       }
                     }
             )
+  }
+
+  private fun closeOutput() {
+    try {
+      close()
+    } catch (e: Exception) {
+      Log.e(tag, "Failed to close download output stream", e)
+    }
   }
 
   /**
@@ -91,7 +117,8 @@ class BinaryFileWriter(
       while (input.read(dataBuffer).also { readBytes = it } != -1) {
         totalBytes += readBytes
         outputStream.write(dataBuffer, 0, readBytes)
-        progressCallback.onProgress(totalBytes, (totalBytes * 100L) / length)
+        val progress = if (length > 0L) (totalBytes * 100L) / length else 0L
+        progressCallback.onProgress(totalBytes, progress)
       }
       progressCallback.onComplete(false)
       return totalBytes

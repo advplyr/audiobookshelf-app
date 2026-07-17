@@ -63,6 +63,7 @@ class DownloadItemManager(
 
   companion object {
     var isDownloading: Boolean = false
+    private const val APP_MANAGED_DOWNLOAD_ID = -1L
   }
 
   /** Adds a download item to the queue and starts processing the queue. */
@@ -100,20 +101,31 @@ class DownloadItemManager(
   /** Processes the download item parts. */
   private fun processDownloadItemParts(nextDownloadItemParts: List<DownloadItemPart>) {
     nextDownloadItemParts.forEach {
-      if (it.isInternalStorage) {
-        startInternalDownload(it)
-      } else {
-        startExternalDownload(it)
-      }
+      startAppManagedDownload(it)
     }
   }
 
-  /** Starts an internal download. */
-  private fun startInternalDownload(downloadItemPart: DownloadItemPart) {
-    val file = File(downloadItemPart.finalDestinationPath)
+  /** Starts a download into app-owned storage before optional SAF move to a custom folder. */
+  private fun startAppManagedDownload(downloadItemPart: DownloadItemPart) {
+    val destinationPath =
+            if (downloadItemPart.isInternalStorage) {
+              downloadItemPart.finalDestinationPath
+            } else {
+              downloadItemPart.destinationUri.path
+            }
+
+    if (destinationPath.isNullOrEmpty()) {
+      Log.e(tag, "Start app managed download failed, destination path missing")
+      downloadItemPart.failed = true
+      downloadItemPart.completed = true
+      downloadItemPart.downloadId = APP_MANAGED_DOWNLOAD_ID
+      currentDownloadItemParts.add(downloadItemPart)
+      return
+    }
+
+    val file = File(destinationPath)
     file.parentFile?.mkdirs()
 
-    val fileOutputStream = FileOutputStream(downloadItemPart.finalDestinationPath)
     val internalProgressCallback =
             object : InternalProgressCallback {
               override fun onProgress(totalBytesWritten: Long, progress: Long) {
@@ -129,11 +141,18 @@ class DownloadItemManager(
 
     Log.d(
             tag,
-            "Start internal download to destination path ${downloadItemPart.finalDestinationPath} from ${downloadItemPart.serverUrl}"
+            "Start app managed download to destination path $destinationPath from ${downloadItemPart.serverUrl}"
     )
-    InternalDownloadManager(fileOutputStream, internalProgressCallback)
-            .download(downloadItemPart.serverUrl)
-    downloadItemPart.downloadId = 1
+    try {
+      val fileOutputStream = FileOutputStream(destinationPath)
+      InternalDownloadManager(fileOutputStream, internalProgressCallback)
+              .download(downloadItemPart.serverUrl)
+    } catch (e: Exception) {
+      Log.e(tag, "Failed to start app managed download to $destinationPath", e)
+      downloadItemPart.failed = true
+      downloadItemPart.completed = true
+    }
+    downloadItemPart.downloadId = APP_MANAGED_DOWNLOAD_ID
     currentDownloadItemParts.add(downloadItemPart)
   }
 
@@ -157,8 +176,8 @@ class DownloadItemManager(
       while (currentDownloadItemParts.isNotEmpty()) {
         val itemParts = currentDownloadItemParts.filter { !it.isMoving }
         for (downloadItemPart in itemParts) {
-          if (downloadItemPart.isInternalStorage) {
-            handleInternalDownloadPart(downloadItemPart)
+          if (downloadItemPart.downloadId == APP_MANAGED_DOWNLOAD_ID) {
+            handleAppManagedDownloadPart(downloadItemPart)
           } else {
             handleExternalDownloadPart(downloadItemPart)
           }
@@ -176,14 +195,24 @@ class DownloadItemManager(
     }
   }
 
-  /** Handles an internal download part. */
-  private fun handleInternalDownloadPart(downloadItemPart: DownloadItemPart) {
+  /** Handles a download part written by the app-owned downloader. */
+  private fun handleAppManagedDownloadPart(downloadItemPart: DownloadItemPart) {
     clientEventEmitter.onDownloadItemPartUpdate(downloadItemPart)
 
     if (downloadItemPart.completed) {
       val downloadItem = downloadItemQueue.find { it.id == downloadItemPart.downloadItemId }
-      downloadItem?.let { checkDownloadItemFinished(it) }
-      currentDownloadItemParts.remove(downloadItemPart)
+      if (downloadItem == null) {
+        Log.e(
+                tag,
+                "Download item part finished but download item not found ${downloadItemPart.filename}"
+        )
+        currentDownloadItemParts.remove(downloadItemPart)
+      } else if (!downloadItemPart.isInternalStorage && !downloadItemPart.failed) {
+        moveDownloadedFile(downloadItem, downloadItemPart)
+      } else {
+        checkDownloadItemFinished(downloadItem)
+        currentDownloadItemParts.remove(downloadItemPart)
+      }
     }
   }
 

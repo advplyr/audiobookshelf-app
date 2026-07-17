@@ -132,7 +132,15 @@ class AbsDownloader : Plugin() {
   private fun startLibraryItemDownload(libraryItem: LibraryItem, localFolder: LocalFolder, episode:PodcastEpisode?) {
     val isInternal = localFolder.id.startsWith("internal-")
 
-    val tempFolderPath = if (isInternal) "${mainActivity.filesDir}/downloads/${libraryItem.id}" else mainActivity.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+    val tempFolderPath =
+            if (isInternal) {
+              File(mainActivity.filesDir, "downloads/${libraryItem.id}").absolutePath
+            } else {
+              val externalDownloadsDir =
+                      mainActivity.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+                              ?: mainActivity.filesDir
+              File(externalDownloadsDir, "downloads/${libraryItem.id}").absolutePath
+            }
 
     Log.d(tag, "downloadCacheDirectory=$tempFolderPath")
 
