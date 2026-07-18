@@ -12,7 +12,10 @@ export const state = () => ({
     mobileFilterBy: 'all',
     playbackRate: 1,
     collapseSeries: false,
-    collapseBookSeries: false
+    collapseBookSeries: false,
+    podcastEpisodesOrderBy: 'publishedAt',
+    podcastEpisodesOrderDesc: null,
+    podcastEpisodesFilterBy: 'incomplete'
   }
 })
 

@@ -50,7 +50,7 @@
 
     <modals-podcast-episodes-feed-modal v-model="showPodcastEpisodeFeed" :library-item="libraryItem" :episodes="podcastFeedEpisodes" />
 
-    <modals-order-modal v-model="showSortModal" :order-by.sync="sortKey" :descending.sync="sortDesc" episodes />
+    <modals-order-modal v-model="showSortModal" :order-by.sync="sortKey" :descending.sync="sortDesc" episodes @change="saveSort" />
   </div>
 </template>
 
@@ -79,9 +79,9 @@ export default {
       episodesCopy: [],
       showFiltersModal: false,
       showSortModal: false,
-      sortKey: 'publishedAt',
-      sortDesc: true,
-      filterKey: 'incomplete',
+      sortKey: this.$store.state.user.settings.podcastEpisodesOrderBy || 'publishedAt',
+      sortDesc: this.$store.state.user.settings.podcastEpisodesOrderDesc,
+      filterKey: this.$store.state.user.settings.podcastEpisodesFilterBy || 'incomplete',
       fetchingRSSFeed: false,
       podcastFeedEpisodes: [],
       showPodcastEpisodeFeed: false,
@@ -279,6 +279,10 @@ export default {
     setFilter(filter) {
       this.filterKey = filter
       this.showFiltersModal = false
+      this.$store.dispatch('user/updateUserSettings', { podcastEpisodesFilterBy: filter })
+    },
+    saveSort() {
+      this.$store.dispatch('user/updateUserSettings', { podcastEpisodesOrderBy: this.sortKey, podcastEpisodesOrderDesc: this.sortDesc })
     },
     showFilters() {
       this.showFiltersModal = true
@@ -291,7 +295,6 @@ export default {
       return this.$store.getters['user/getUserMediaProgress'](this.libraryItemId, episode.id)
     },
     init() {
-      this.sortDesc = this.mediaMetadata.type === 'episodic'
       this.episodesCopy = this.episodes.map((ep) => {
         return { ...ep }
       })
@@ -315,6 +318,10 @@ export default {
     }
   },
   mounted() {
+    if (this.sortDesc === null || this.sortDesc === undefined) {
+      this.sortDesc = this.mediaMetadata.type === 'episodic'
+    }
+
     if (this.$route.query['episodefilter'] === 'downloaded') {
       this.filterKey = 'downloaded'
     }
