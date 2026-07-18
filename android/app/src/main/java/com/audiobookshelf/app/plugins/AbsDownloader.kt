@@ -1,7 +1,5 @@
 package com.audiobookshelf.app.plugins
 
-import android.app.DownloadManager
-import android.content.Context
 import android.os.Environment
 import android.util.Log
 import com.audiobookshelf.app.MainActivity
@@ -27,7 +25,6 @@ class AbsDownloader : Plugin() {
   private var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
 
   lateinit var mainActivity: MainActivity
-  lateinit var downloadManager: DownloadManager
   lateinit var apiHandler: ApiHandler
   lateinit var folderScanner: FolderScanner
   lateinit var downloadItemManager: DownloadItemManager
@@ -46,10 +43,9 @@ class AbsDownloader : Plugin() {
 
   override fun load() {
     mainActivity = (activity as MainActivity)
-    downloadManager = activity.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
     folderScanner = FolderScanner(mainActivity)
     apiHandler = ApiHandler(mainActivity)
-    downloadItemManager = DownloadItemManager(downloadManager, folderScanner, mainActivity, clientEventEmitter)
+    downloadItemManager = DownloadItemManager(folderScanner, mainActivity, clientEventEmitter)
   }
 
   @PluginMethod
