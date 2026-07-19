@@ -33,7 +33,7 @@ data class DownloadItem(
     if (limit == 0) return itemParts
 
     for (it in downloadItemParts) {
-      if (!it.completed && it.downloadId == null) {
+      if (!it.completed && !it.failed && it.downloadId == null) {
         itemParts.add(it)
         if (itemParts.size >= limit) break
       }

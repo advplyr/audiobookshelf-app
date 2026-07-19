@@ -10,6 +10,7 @@ import com.audiobookshelf.app.models.DownloadItem
 import com.audiobookshelf.app.models.DownloadItemPart
 import com.audiobookshelf.app.server.ApiHandler
 import com.audiobookshelf.app.managers.DownloadItemManager
+import com.audiobookshelf.app.services.DownloadServiceHost
 import com.fasterxml.jackson.core.json.JsonReadFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.getcapacitor.JSObject
@@ -39,18 +40,34 @@ class AbsDownloader : Plugin() {
     override fun onDownloadItemComplete(jsobj:JSObject) {
       notifyListeners("onItemDownloadComplete", jsobj)
     }
+    override fun onQueueChanged(hasWork: Boolean) = Unit
   })
 
   override fun load() {
     mainActivity = (activity as MainActivity)
     folderScanner = FolderScanner(mainActivity)
     apiHandler = ApiHandler(mainActivity)
-    downloadItemManager = DownloadItemManager(folderScanner, mainActivity, clientEventEmitter)
+    downloadItemManager = DownloadServiceHost.ensure(mainActivity)
+    DownloadServiceHost.attachBridge(mainActivity, clientEventEmitter)
   }
 
   override fun handleOnDestroy() {
-    if (::downloadItemManager.isInitialized) downloadItemManager.destroy()
+    DownloadServiceHost.detachBridge()
     super.handleOnDestroy()
+  }
+
+  /**
+   * Queue restoration happens before the WebView mounts. Replay its parent items when Vue registers
+   * the listener so subsequent part updates always have a matching store entry.
+   */
+  @PluginMethod(returnType = PluginMethod.RETURN_NONE)
+  override fun addListener(call: PluginCall) {
+    super.addListener(call)
+    if (call.getString("eventName") == "onDownloadItem" && ::downloadItemManager.isInitialized) {
+      downloadItemManager.downloadItemQueue.forEach { item ->
+        notifyListeners("onDownloadItem", JSObject(jacksonMapper.writeValueAsString(item)))
+      }
+    }
   }
 
   @PluginMethod
@@ -163,11 +180,6 @@ class AbsDownloader : Plugin() {
         val finalDestinationFile = File("$itemFolderPath/$destinationFilename")
         val destinationFile = File("$tempFolderPath/$destinationFilename.part")
 
-        if (finalDestinationFile.exists()) {
-          Log.d(tag, "ebook file already exists, removing it from ${finalDestinationFile.absolutePath}")
-          finalDestinationFile.delete()
-        }
-
         val downloadItemPart = DownloadItemPart.make(downloadItem.id, destinationFilename, fileSize, destinationFile,finalDestinationFile,itemSubfolder,serverPath,localFolder,ebookFile,null,null)
         downloadItem.downloadItemParts.add(downloadItemPart)
       }
@@ -187,11 +199,6 @@ class AbsDownloader : Plugin() {
         val finalDestinationFile = File("$itemFolderPath/$destinationFilename")
         val destinationFile = File("$tempFolderPath/$destinationFilename.part")
 
-        if (finalDestinationFile.exists()) {
-          Log.d(tag, "Audio file already exists, removing it from ${finalDestinationFile.absolutePath}")
-          finalDestinationFile.delete()
-        }
-
         val downloadItemPart = DownloadItemPart.make(downloadItem.id, destinationFilename, fileSize, destinationFile,finalDestinationFile,itemSubfolder,serverPath,localFolder,null,audioTrack,null)
         downloadItem.downloadItemParts.add(downloadItemPart)
       }
@@ -207,16 +214,11 @@ class AbsDownloader : Plugin() {
           val destinationFile = File("$tempFolderPath/$destinationFilename.part")
           val finalDestinationFile = File("$itemFolderPath/$destinationFilename")
 
-          if (finalDestinationFile.exists()) {
-            Log.d(tag, "Cover already exists, removing it from ${finalDestinationFile.absolutePath}")
-            finalDestinationFile.delete()
-          }
-
           val downloadItemPart = DownloadItemPart.make(downloadItem.id, destinationFilename, coverFileSize,  destinationFile,finalDestinationFile,itemSubfolder,serverPath,localFolder,null,null,null)
           downloadItem.downloadItemParts.add(downloadItemPart)
         }
 
-        downloadItemManager.addDownloadItem(downloadItem)
+        DownloadServiceHost.enqueue(mainActivity, downloadItem)
       }
     } else {
       // Podcast episode download
@@ -237,11 +239,6 @@ class AbsDownloader : Plugin() {
 
       var destinationFile = File("$tempFolderPath/$destinationFilename.part")
       var finalDestinationFile = File("$itemFolderPath/$destinationFilename")
-      if (finalDestinationFile.exists()) {
-        Log.d(tag, "Audio file already exists, removing it from ${finalDestinationFile.absolutePath}")
-        finalDestinationFile.delete()
-      }
-
       var downloadItemPart = DownloadItemPart.make(downloadItem.id, destinationFilename,fileSize, destinationFile,finalDestinationFile,podcastTitle,serverPath,localFolder,null,audioTrack,episode)
       downloadItem.downloadItemParts.add(downloadItemPart)
 
@@ -255,15 +252,11 @@ class AbsDownloader : Plugin() {
         destinationFile = File("$tempFolderPath/$destinationFilename.part")
         finalDestinationFile = File("$itemFolderPath/$destinationFilename")
 
-        if (finalDestinationFile.exists()) {
-          Log.d(tag, "Podcast cover already exists - not downloading cover again")
-        } else {
-          downloadItemPart = DownloadItemPart.make(downloadItem.id, destinationFilename,coverFileSize,destinationFile,finalDestinationFile,podcastTitle,serverPath,localFolder,null,null,null)
-          downloadItem.downloadItemParts.add(downloadItemPart)
-        }
+        downloadItemPart = DownloadItemPart.make(downloadItem.id, destinationFilename,coverFileSize,destinationFile,finalDestinationFile,podcastTitle,serverPath,localFolder,null,null,null)
+        downloadItem.downloadItemParts.add(downloadItemPart)
       }
 
-      downloadItemManager.addDownloadItem(downloadItem)
+        DownloadServiceHost.enqueue(mainActivity, downloadItem)
     }
   }
 }

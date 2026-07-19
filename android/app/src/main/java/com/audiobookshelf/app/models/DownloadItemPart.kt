@@ -16,7 +16,7 @@ data class DownloadItemPart(
   val filename: String,
   val fileSize: Long,
   /** App-owned staging location. This is intentionally a String so it survives process storage. */
-  val destinationPath: String,
+  @JsonIgnore val destinationPath: String,
   val finalDestinationPath:String,
   val serverPath: String,
   val localFolderName: String,
@@ -33,12 +33,16 @@ data class DownloadItemPart(
   @JsonIgnore val destinationUri: Uri,
   @JsonIgnore val finalDestinationUri: Uri,
   /** Final SAF document returned by the provider after a successful move. */
+  /** Persisted Android-only SAF URI used to reopen a completed document after process recovery. */
   @JsonIgnore var completedDestinationUri: String?,
   val finalDestinationSubfolder: String,
   var downloadId: Long?,
-  var lastUpdateTime: Long?,
+  @JsonIgnore var lastUpdateTime: Long?,
   var progress: Long,
-  var bytesDownloaded: Long
+  var bytesDownloaded: Long,
+  /** Android queue state; hidden from the shared Capacitor download-part payload. */
+  @JsonIgnore var retryCount: Int = 0,
+  @JsonIgnore var waitingForSpace: Boolean = false
 ) {
   companion object {
     fun make(downloadItemId:String, filename:String, fileSize: Long, destinationFile: File, finalDestinationFile: File, subfolder:String, serverPath:String, localFolder: LocalFolder, ebookFile: EBookFile?, audioTrack: AudioTrack?, episode: PodcastEpisode?) :DownloadItemPart {
@@ -87,6 +91,11 @@ data class DownloadItemPart(
   val isInternalStorage get() = localFolderId.startsWith("internal-")
 
   @get:JsonIgnore
-  val serverUrl get() = uri.toString()
+  val serverUrl: String
+    get() {
+      var url = "${DeviceManager.serverAddress}${serverPath}?token=${DeviceManager.token}"
+      if (serverPath.endsWith("/cover")) url += "&raw=1"
+      return url
+    }
 
 }

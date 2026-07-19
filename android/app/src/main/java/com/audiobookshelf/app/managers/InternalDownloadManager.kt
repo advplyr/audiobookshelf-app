@@ -15,16 +15,10 @@ import okhttp3.Response
 class InternalDownloadManager(
         private val destinationFile: File,
         private val expectedSize: Long,
-        private val progressCallback: DownloadItemManager.InternalProgressCallback
+        private val progressCallback: DownloadItemManager.InternalProgressCallback,
+        private val hasAvailableSpace: () -> Boolean
 ) {
   private val tag = "InternalDownloadManager"
-  private val client =
-          OkHttpClient.Builder()
-                  .connectTimeout(30, TimeUnit.SECONDS)
-                  .readTimeout(60, TimeUnit.SECONDS)
-                  .writeTimeout(60, TimeUnit.SECONDS)
-                  .build()
-
   /**
    * Returns the active call so the queue can cancel a stalled transfer. A partial staging file is
    * retained only when the server proves that it honoured a subsequent range request.
@@ -51,6 +45,11 @@ class InternalDownloadManager(
               override fun onResponse(call: Call, response: Response) {
                 response.use {
                   try {
+                    if (response.code == 416 && expectedSize > 0L && existingBytes == expectedSize) {
+                      progressCallback.onProgress(existingBytes, 100L)
+                      progressCallback.onComplete(false)
+                      return
+                    }
                     val append = existingBytes > 0L && response.code == 206 && hasExpectedRange(response, existingBytes)
                     if (existingBytes > 0L && !append && response.code != 200) {
                       Log.e(tag, "Invalid resume response ${response.code} for offset $existingBytes")
@@ -77,6 +76,7 @@ class InternalDownloadManager(
                         while (true) {
                           val read = input.read(buffer)
                           if (read < 0) break
+                          if (!hasAvailableSpace()) throw IOException("Download paused to preserve free storage")
                           output.write(buffer, 0, read)
                           totalBytes += read
                           val progress = if (totalLength > 0L) (totalBytes * 100L) / totalLength else 0L
@@ -104,10 +104,19 @@ class InternalDownloadManager(
 
   private fun hasExpectedRange(response: Response, offset: Long): Boolean {
     val range = response.header("Content-Range") ?: return false
-    return range.startsWith("bytes $offset-")
+    val match = CONTENT_RANGE.matchEntire(range) ?: return false
+    return match.groupValues[1].toLongOrNull() == offset &&
+            match.groupValues[2].toLongOrNull()?.let { it >= offset } == true
   }
 
   private companion object {
     const val CHUNK_SIZE = 8 * 1024
+    val CONTENT_RANGE = Regex("bytes (\\d+)-(\\d+)/(?:\\d+|\\*)")
+    val client =
+            OkHttpClient.Builder()
+                    .connectTimeout(30, TimeUnit.SECONDS)
+                    .readTimeout(60, TimeUnit.SECONDS)
+                    .writeTimeout(60, TimeUnit.SECONDS)
+                    .build()
   }
 }
