@@ -1,12 +1,14 @@
 package com.audiobookshelf.app.data
 
 import android.content.Context
+import android.net.Uri
 import android.support.v4.media.MediaDescriptionCompat
 import android.util.Log
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import java.io.File
 
 enum class LockOrientationSetting {
   NONE, PORTRAIT, LANDSCAPE
@@ -57,6 +59,19 @@ data class LocalFile(
   var mimeType:String?,
   var size:Long
 ) {
+  @JsonIgnore
+  fun exists(ctx: Context): Boolean {
+    if (contentUrl.startsWith("content:")) {
+      return try {
+        ctx.contentResolver.openFileDescriptor(Uri.parse(contentUrl), "r")?.use { true } ?: false
+      } catch (e: Exception) {
+        Log.w("LocalFile", "Cannot access SAF file $contentUrl", e)
+        false
+      }
+    }
+    return File(absolutePath).exists()
+  }
+
   @JsonIgnore
   fun isAudioFile():Boolean {
     if (mimeType == "application/octet-stream") return true
@@ -218,4 +233,3 @@ data class DeviceData(
     }
   }
 }
-

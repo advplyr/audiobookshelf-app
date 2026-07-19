@@ -25,7 +25,7 @@ data class DownloadItem(
   val isInternalStorage get() = localFolder.id.startsWith("internal-")
 
   @get:JsonIgnore
-  val isDownloadFinished get() = !downloadItemParts.any { !it.completed || it.isMoving }
+  val isDownloadFinished get() = !downloadItemParts.any { !it.completed || it.isMoving || it.failed }
 
   @JsonIgnore
   fun getNextDownloadItemParts(limit:Int): MutableList<DownloadItemPart> {

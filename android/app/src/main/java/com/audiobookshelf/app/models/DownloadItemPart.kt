@@ -1,6 +1,5 @@
 package com.audiobookshelf.app.models
 
-import android.app.DownloadManager
 import android.net.Uri
 import android.util.Log
 import com.audiobookshelf.app.data.AudioTrack
@@ -16,6 +15,8 @@ data class DownloadItemPart(
   val downloadItemId: String,
   val filename: String,
   val fileSize: Long,
+  /** App-owned staging location. This is intentionally a String so it survives process storage. */
+  val destinationPath: String,
   val finalDestinationPath:String,
   val serverPath: String,
   val localFolderName: String,
@@ -31,8 +32,11 @@ data class DownloadItemPart(
   @JsonIgnore val uri: Uri,
   @JsonIgnore val destinationUri: Uri,
   @JsonIgnore val finalDestinationUri: Uri,
+  /** Final SAF document returned by the provider after a successful move. */
+  @JsonIgnore var completedDestinationUri: String?,
   val finalDestinationSubfolder: String,
   var downloadId: Long?,
+  var lastUpdateTime: Long?,
   var progress: Long,
   var bytesDownloaded: Long
 ) {
@@ -53,6 +57,7 @@ data class DownloadItemPart(
         downloadItemId,
         filename = filename,
         fileSize = fileSize,
+        destinationPath = destinationFile.absolutePath,
         finalDestinationPath = finalDestinationFile.absolutePath,
         serverPath = serverPath,
         localFolderName = localFolder.name,
@@ -68,8 +73,10 @@ data class DownloadItemPart(
         uri = downloadUri,
         destinationUri = destinationUri,
         finalDestinationUri = finalDestinationUri,
+        completedDestinationUri = null,
         finalDestinationSubfolder = subfolder,
         downloadId = null,
+        lastUpdateTime = null,
         progress = 0,
         bytesDownloaded = 0
       )
@@ -82,13 +89,4 @@ data class DownloadItemPart(
   @get:JsonIgnore
   val serverUrl get() = uri.toString()
 
-  @JsonIgnore
-  fun getDownloadRequest(): DownloadManager.Request {
-    val dlRequest = DownloadManager.Request(uri)
-    dlRequest.setTitle(filename)
-    dlRequest.setDescription("Downloading to $localFolderName with filename $filename")
-    dlRequest.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
-    dlRequest.setDestinationUri(destinationUri)
-    return dlRequest
-  }
 }

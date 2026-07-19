@@ -122,6 +122,21 @@ class DbManager {
     return downloadItems
   }
 
+  /**
+   * The downloader now persists app-owned staging paths instead of DownloadManager state. Old
+   * queue entries cannot be resumed safely, but completed local media lives in other books and is
+   * deliberately left alone.
+   */
+  fun clearLegacyDownloadQueueOnce() {
+    val metadata = Paper.book("downloadQueueMetadata")
+    val architectureVersion = metadata.read<Int>("architectureVersion") ?: 0
+    if (architectureVersion >= 2) return
+
+    Paper.book("downloadItems").destroy()
+    metadata.write("architectureVersion", 2)
+    Log.i(tag, "Cleared legacy persisted download queue for architecture v2")
+  }
+
   fun saveLocalMediaProgress(mediaProgress: LocalMediaProgress) {
     Paper.book("localMediaProgress").write(mediaProgress.id, mediaProgress)
   }
@@ -148,7 +163,7 @@ class DbManager {
   }
 
   // Make sure all local file ids still exist
-  fun cleanLocalLibraryItems() {
+  fun cleanLocalLibraryItems(context: Context) {
     val localLibraryItems = getLocalLibraryItems()
 
     localLibraryItems.forEach { lli ->
@@ -157,15 +172,15 @@ class DbManager {
       // Check local files
       lli.localFiles =
               lli.localFiles.filter { localFile ->
-                val file = File(localFile.absolutePath)
-                if (!file.exists()) {
+                val exists = localFile.exists(context)
+                if (!exists) {
                   Log.d(
                           tag,
                           "cleanLocalLibraryItems: Local file ${localFile.absolutePath} was removed from library item ${lli.media.metadata.title}"
                   )
                   hasUpdates = true
                 }
-                file.exists()
+                exists
               } as
                       MutableList<LocalFile>
 
@@ -203,9 +218,10 @@ class DbManager {
 
       // Check cover still there
       lli.coverAbsolutePath?.let {
-        val coverFile = File(it)
-
-        if (!coverFile.exists()) {
+        val coverExists = lli.localFiles.any { localFile ->
+          localFile.absolutePath == it && localFile.exists(context)
+        }
+        if (!coverExists) {
           Log.d(
                   tag,
                   "cleanLocalLibraryItems: Cover $it was removed from library item ${lli.media.metadata.title}"

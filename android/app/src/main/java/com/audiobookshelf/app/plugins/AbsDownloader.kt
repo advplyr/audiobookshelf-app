@@ -1,7 +1,5 @@
 package com.audiobookshelf.app.plugins
 
-import android.app.DownloadManager
-import android.content.Context
 import android.os.Environment
 import android.util.Log
 import com.audiobookshelf.app.MainActivity
@@ -27,7 +25,6 @@ class AbsDownloader : Plugin() {
   private var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
 
   lateinit var mainActivity: MainActivity
-  lateinit var downloadManager: DownloadManager
   lateinit var apiHandler: ApiHandler
   lateinit var folderScanner: FolderScanner
   lateinit var downloadItemManager: DownloadItemManager
@@ -46,10 +43,14 @@ class AbsDownloader : Plugin() {
 
   override fun load() {
     mainActivity = (activity as MainActivity)
-    downloadManager = activity.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
     folderScanner = FolderScanner(mainActivity)
     apiHandler = ApiHandler(mainActivity)
-    downloadItemManager = DownloadItemManager(downloadManager, folderScanner, mainActivity, clientEventEmitter)
+    downloadItemManager = DownloadItemManager(folderScanner, mainActivity, clientEventEmitter)
+  }
+
+  override fun handleOnDestroy() {
+    if (::downloadItemManager.isInitialized) downloadItemManager.destroy()
+    super.handleOnDestroy()
   }
 
   @PluginMethod
@@ -132,7 +133,15 @@ class AbsDownloader : Plugin() {
   private fun startLibraryItemDownload(libraryItem: LibraryItem, localFolder: LocalFolder, episode:PodcastEpisode?) {
     val isInternal = localFolder.id.startsWith("internal-")
 
-    val tempFolderPath = if (isInternal) "${mainActivity.filesDir}/downloads/${libraryItem.id}" else mainActivity.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+    val finalInternalFolderPath = "${mainActivity.filesDir}/downloads/${libraryItem.id}"
+    // Keep internal staging on the same filesystem as its final file so finalization is a rename.
+    // External-folder downloads can use app external storage and are moved through SAF afterwards.
+    val tempFolderPath =
+            if (isInternal) {
+              "${mainActivity.filesDir}/download-staging/${libraryItem.id}"
+            } else {
+              "${mainActivity.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: mainActivity.filesDir}/download-staging/${libraryItem.id}"
+            }
 
     Log.d(tag, "downloadCacheDirectory=$tempFolderPath")
 
@@ -143,7 +152,7 @@ class AbsDownloader : Plugin() {
       val tracks = libraryItem.media.getAudioTracks()
       Log.d(tag, "Starting library item download with ${tracks.size} tracks")
       val itemSubfolder = "$bookAuthor/$bookTitle"
-      val itemFolderPath = if (isInternal) "$tempFolderPath" else "${localFolder.absolutePath}/$itemSubfolder"
+      val itemFolderPath = if (isInternal) finalInternalFolderPath else "${localFolder.absolutePath}/$itemSubfolder"
       val downloadItem = DownloadItem(libraryItem.id, libraryItem.id, null, libraryItem.userMediaProgress,DeviceManager.serverConnectionConfig?.id ?: "", DeviceManager.serverAddress, DeviceManager.serverUserId, libraryItem.mediaType, itemFolderPath, localFolder, bookTitle, itemSubfolder, libraryItem.media, mutableListOf())
 
       val book = libraryItem.media as Book
@@ -152,12 +161,7 @@ class AbsDownloader : Plugin() {
         val serverPath = "/api/items/${libraryItem.id}/file/${ebookFile.ino}/download"
         val destinationFilename = getFilenameFromRelPath(ebookFile.metadata?.relPath ?: "")
         val finalDestinationFile = File("$itemFolderPath/$destinationFilename")
-        val destinationFile = File("$tempFolderPath/$destinationFilename")
-
-        if (destinationFile.exists()) {
-          Log.d(tag, "TEMP ebook file already exists, removing it from ${destinationFile.absolutePath}")
-          destinationFile.delete()
-        }
+        val destinationFile = File("$tempFolderPath/$destinationFilename.part")
 
         if (finalDestinationFile.exists()) {
           Log.d(tag, "ebook file already exists, removing it from ${finalDestinationFile.absolutePath}")
@@ -181,12 +185,7 @@ class AbsDownloader : Plugin() {
         Log.d(tag, "Audio File Server Path $serverPath | AF RelPath ${audioTrack.relPath} | LocalFolder Path ${localFolder.absolutePath} | DestName $destinationFilename")
 
         val finalDestinationFile = File("$itemFolderPath/$destinationFilename")
-        val destinationFile = File("$tempFolderPath/$destinationFilename")
-
-        if (destinationFile.exists()) {
-          Log.d(tag, "TEMP Audio file already exists, removing it from ${destinationFile.absolutePath}")
-          destinationFile.delete()
-        }
+        val destinationFile = File("$tempFolderPath/$destinationFilename.part")
 
         if (finalDestinationFile.exists()) {
           Log.d(tag, "Audio file already exists, removing it from ${finalDestinationFile.absolutePath}")
@@ -205,13 +204,8 @@ class AbsDownloader : Plugin() {
 
           val serverPath = "/api/items/${libraryItem.id}/cover"
           val destinationFilename = "cover-${libraryItem.id}.jpg"
-          val destinationFile = File("$tempFolderPath/$destinationFilename")
+          val destinationFile = File("$tempFolderPath/$destinationFilename.part")
           val finalDestinationFile = File("$itemFolderPath/$destinationFilename")
-
-          if (destinationFile.exists()) {
-            Log.d(tag, "TEMP Audio file already exists, removing it from ${destinationFile.absolutePath}")
-            destinationFile.delete()
-          }
 
           if (finalDestinationFile.exists()) {
             Log.d(tag, "Cover already exists, removing it from ${finalDestinationFile.absolutePath}")
@@ -233,7 +227,7 @@ class AbsDownloader : Plugin() {
       val fileSize = audioTrack?.metadata?.size ?: 0
 
       Log.d(tag, "Starting podcast episode download")
-      val itemFolderPath = if (isInternal) "$tempFolderPath" else "${localFolder.absolutePath}/$podcastTitle"
+      val itemFolderPath = if (isInternal) finalInternalFolderPath else "${localFolder.absolutePath}/$podcastTitle"
       val downloadItemId = "${libraryItem.id}-${episode?.id}"
       val downloadItem = DownloadItem(downloadItemId, libraryItem.id, episode?.id, libraryItem.userMediaProgress, DeviceManager.serverConnectionConfig?.id ?: "", DeviceManager.serverAddress, DeviceManager.serverUserId, libraryItem.mediaType, itemFolderPath, localFolder, podcastTitle, podcastTitle, libraryItem.media, mutableListOf())
 
@@ -241,7 +235,7 @@ class AbsDownloader : Plugin() {
       var destinationFilename = getFilenameFromRelPath(audioTrack?.relPath ?: "")
       Log.d(tag, "Audio File Server Path $serverPath | AF RelPath ${audioTrack?.relPath} | LocalFolder Path ${localFolder.absolutePath} | DestName $destinationFilename")
 
-      var destinationFile = File("$tempFolderPath/$destinationFilename")
+      var destinationFile = File("$tempFolderPath/$destinationFilename.part")
       var finalDestinationFile = File("$itemFolderPath/$destinationFilename")
       if (finalDestinationFile.exists()) {
         Log.d(tag, "Audio file already exists, removing it from ${finalDestinationFile.absolutePath}")
@@ -258,7 +252,7 @@ class AbsDownloader : Plugin() {
         serverPath = "/api/items/${libraryItem.id}/cover"
         destinationFilename = "cover.jpg"
 
-        destinationFile = File("$tempFolderPath/$destinationFilename")
+        destinationFile = File("$tempFolderPath/$destinationFilename.part")
         finalDestinationFile = File("$itemFolderPath/$destinationFilename")
 
         if (finalDestinationFile.exists()) {
