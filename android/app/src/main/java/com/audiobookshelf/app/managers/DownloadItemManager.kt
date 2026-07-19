@@ -98,7 +98,15 @@ class DownloadItemManager(
 
   @Synchronized
   fun addDownloadItem(downloadItem: DownloadItem) {
-    if (downloadItemQueue.any { it.id == downloadItem.id }) return
+    val existingItem = downloadItemQueue.find { it.id == downloadItem.id }
+    if (existingItem != null) {
+      if (existingItem.terminalFailureAt != null) {
+        retryDownloadItem(existingItem)
+        checkUpdateDownloadQueue()
+        notifyQueueChanged()
+      }
+      return
+    }
     persist(downloadItem, force = true)
     downloadItemQueue.add(downloadItem)
     clientEventEmitter.onDownloadItem(downloadItem)
@@ -108,20 +116,22 @@ class DownloadItemManager(
 
   @Synchronized
   fun retryAll() {
-    downloadItemQueue.forEach { item ->
-      item.terminalFailureAt = null
-      IncompleteDownloadCleanup.cancel(context, item.id)
-      item.downloadItemParts.filter { it.failed }.forEach { part ->
-        part.failed = false
-        part.completed = false
-        part.isMoving = false
-        part.downloadId = null
-        part.retryCount = 0
-      }
-      persist(item, force = true)
-    }
+    downloadItemQueue.forEach(::retryDownloadItem)
     checkUpdateDownloadQueue()
     notifyQueueChanged()
+  }
+
+  private fun retryDownloadItem(item: DownloadItem) {
+    item.terminalFailureAt = null
+    IncompleteDownloadCleanup.cancel(context, item.id)
+    item.downloadItemParts.filter { it.failed }.forEach { part ->
+      part.failed = false
+      part.completed = false
+      part.isMoving = false
+      part.downloadId = null
+      part.retryCount = 0
+    }
+    persist(item, force = true)
   }
 
   @Synchronized
@@ -139,7 +149,12 @@ class DownloadItemManager(
   }
 
   @Synchronized
-  fun hasWork(): Boolean = downloadItemQueue.isNotEmpty()
+  fun hasWork(): Boolean =
+          downloadItemQueue.any { item ->
+            item.downloadItemParts.any { part ->
+              (!part.completed && !part.failed) || part.isMoving
+            }
+          }
 
   @Synchronized
   private fun checkUpdateDownloadQueue() {
@@ -156,7 +171,7 @@ class DownloadItemManager(
         }
       }
     }
-    startWatchingDownloads()
+    if (hasWork()) startWatchingDownloads() else notifyQueueChanged()
   }
 
   private fun startDownload(item: DownloadItem, part: DownloadItemPart) {
@@ -202,7 +217,7 @@ class DownloadItemManager(
         activeParts.forEach(::handlePartUpdate)
         synchronized(this@DownloadItemManager) {
           checkUpdateDownloadQueue()
-          if (downloadItemQueue.isEmpty()) {
+          if (!hasWork()) {
             watcherRunning = false
             notifyQueueChanged()
             return@launch
@@ -235,10 +250,11 @@ class DownloadItemManager(
     if (part.isInternalStorage) finalizeInternalFile(item, part) else moveDownloadedFile(item, part)
   }
 
+  @Synchronized
   private fun failOrRetry(item: DownloadItem, part: DownloadItemPart, reason: String) {
     removeActivePart(part)
     part.retryCount += 1
-    releaseReservation(part)
+    reservations.remove(part.destinationPath)
     if (part.retryCount > MAX_RETRIES) {
       Log.e(tag, "$reason after $MAX_RETRIES retries: ${part.filename}")
       part.failed = true
@@ -255,10 +271,6 @@ class DownloadItemManager(
     part.downloadId = null
     part.isMoving = false
     persist(item, force = true)
-    scope.launch {
-      delay(RETRY_BASE_DELAY_MS * (1L shl (part.retryCount - 1)))
-      synchronized(this@DownloadItemManager) { checkUpdateDownloadQueue() }
-    }
   }
 
   private fun finalizeInternalFile(item: DownloadItem, part: DownloadItemPart) {
@@ -323,6 +335,7 @@ class DownloadItemManager(
     }
   }
 
+  @Synchronized
   private fun failFinalization(item: DownloadItem, part: DownloadItemPart, message: String) {
     Log.e(tag, message)
     part.isMoving = false
@@ -330,12 +343,13 @@ class DownloadItemManager(
     failOrRetry(item, part, message)
   }
 
+  @Synchronized
   private fun completePart(item: DownloadItem, part: DownloadItemPart) {
     part.moved = true
     part.completed = true
     part.failed = false
     part.isMoving = false
-    releaseReservation(part)
+    reservations.remove(part.destinationPath)
     removeActivePart(part)
     persist(item, force = true)
     checkDownloadItemFinished(item)
@@ -393,8 +407,6 @@ class DownloadItemManager(
   private fun storageKey(file: File): String =
           if (file.absolutePath.startsWith(context.filesDir.absolutePath)) "internal" else "external"
 
-  private fun releaseReservation(part: DownloadItemPart) { reservations.remove(part.destinationPath) }
-
   @Synchronized
   private fun removeActivePart(part: DownloadItemPart) {
     activeCalls.remove(part.id)
@@ -408,7 +420,7 @@ class DownloadItemManager(
     DeviceManager.dbManager.saveDownloadItem(item)
   }
 
-  private fun notifyQueueChanged() { clientEventEmitter.onQueueChanged(downloadItemQueue.isNotEmpty()) }
+  private fun notifyQueueChanged() { clientEventEmitter.onQueueChanged(hasWork()) }
 
   fun destroy() {
     activeCalls.values.forEach(Call::cancel)
@@ -445,7 +457,6 @@ class DownloadItemManager(
     const val MAX_SIMULTANEOUS_DOWNLOADS = 3
     const val WATCH_INTERVAL_MS = 1_000L
     const val STALL_TIMEOUT_MS = 60_000L
-    const val RETRY_BASE_DELAY_MS = 5_000L
     const val MAX_RETRIES = 5
     const val PERSIST_INTERVAL_MS = 2_000L
     const val MIN_FREE_SPACE_BYTES = 100L * 1024L * 1024L
